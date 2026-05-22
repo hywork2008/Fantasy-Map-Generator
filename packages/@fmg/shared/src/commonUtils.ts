@@ -352,7 +352,7 @@ declare global {
   }
 
   // Global variables defined in main.js
-  var mapCoordinates: any;
+  var mapCoordinates: { latT?: number; latN?: number; latS?: number; lonT?: number; lonW?: number; lonE?: number; };
   var graphWidth: number;
   var graphHeight: number;
 }

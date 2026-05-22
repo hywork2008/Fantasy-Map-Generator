@@ -19,7 +19,6 @@ type CompareOptions = { major: boolean; minor: boolean; patch: boolean };
 type CompareResult = { isEqual: boolean; isNewer: boolean; isOlder: boolean };
 
 declare const alertMessage: HTMLElement;
-declare const $: (selector: string | HTMLElement) => { dialog: (options: unknown) => void };
 
 const VERSION = "1.122.3";
 if (parseMapVersion(VERSION) !== VERSION) alert("versioning.js: Invalid format or parsing function");
@@ -69,7 +68,7 @@ if (parseMapVersion(VERSION) !== VERSION) alert("versioning.js: Invalid format o
       <p>Join our <a href="${discord}" target="_blank">Discord server</a> and <a href="${reddit}" target="_blank">Reddit community</a> to ask questions, share maps, discuss the Generator and Worldbuilding, report bugs and propose new features.</p>
       <span><i>Thanks for all supporters on <a href="${patreon}" target="_blank">Patreon</a>!</i></span>`;
 
-    $("#alert").dialog({
+    ($ as any)("#alert").dialog({
       resizable: false,
       title: "Fantasy Map Generator update",
       width: "28em",
@@ -77,7 +76,7 @@ if (parseMapVersion(VERSION) !== VERSION) alert("versioning.js: Invalid format o
       buttons: {
         "Clear cache": () => cleanupData(),
         "Don't show again": function (this: unknown) {
-          $(this as any).dialog("close");
+          ($ as any)(this).dialog("close");
           localStorage.setItem("version", VERSION);
         }
       }
