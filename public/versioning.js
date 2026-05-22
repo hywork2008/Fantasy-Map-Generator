@@ -1,9 +1,24 @@
-"use strict";
+/**
+ * Version Control Guidelines
+ * --------------------------
+ * We use Semantic Versioning: major.minor.patch. Refer to https://semver.org
+ * Our .map file format is considered the public API.
+ *
+ * Update the version on each merge to master:
+ * 1. MAJOR version: Incompatible changes that break existing maps
+ * 2. MINOR version: Additions or changes that are backward-compatible but may require old .map files to be updated
+ * 3. PATCH version: Backward-compatible bug fixes and small features that don't affect the .map file format
+ *
+ * Example: 1.102.2 -> Major version 1, Minor version 102, Patch version 2
+ * Version bumping is automated via GitHub Actions on PR merge.
+ *
+ * For the changes that may be interesting to end users, update the `latestPublicChanges` array below (new changes on top).
+ */
 const VERSION = "1.122.3";
 if (parseMapVersion(VERSION) !== VERSION)
     alert("versioning.js: Invalid format or parsing function");
 {
-    document.title += " v" + VERSION;
+    document.title += ` v${VERSION}`;
     const loadingScreenVersion = document.getElementById("versionText");
     if (loadingScreenVersion)
         loadingScreenVersion.innerText = `v${VERSION}`;
@@ -76,16 +91,16 @@ function parseMapVersion(version) {
         minor = compactVersion.slice(0, 2);
         patch = compactVersion.slice(2);
     }
-    const parsedMajor = parseInt(major) || 0;
-    const parsedMinor = parseInt(minor) || 0;
-    const parsedPatch = parseInt(patch) || 0;
+    const parsedMajor = parseInt(major, 10) || 0;
+    const parsedMinor = parseInt(minor, 10) || 0;
+    const parsedPatch = parseInt(patch, 10) || 0;
     return `${parsedMajor}.${parsedMinor}.${parsedPatch}`;
 }
 function isValidVersion(versionString) {
     if (!versionString)
         return false;
     const [major, minor, patch] = versionString.split(".");
-    return !isNaN(+major) && !isNaN(+minor) && !isNaN(+patch);
+    return !Number.isNaN(+major) && !Number.isNaN(+minor) && !Number.isNaN(+patch);
 }
 function compareVersions(version1, version2, options = { major: true, minor: true, patch: true }) {
     if (!isValidVersion(version1) || !isValidVersion(version2))

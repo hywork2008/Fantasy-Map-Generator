@@ -1,4 +1,3 @@
-"use strict";
 const precreatedHeightmaps = {
     "africa-centric": { id: 0, name: "Africa Centric" },
     arabia: { id: 1, name: "Arabia" },

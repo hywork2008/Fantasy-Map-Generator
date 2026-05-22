@@ -1,5 +1,4 @@
-"use strict";
-const heightmapTemplates = (function () {
+const heightmapTemplates = (() => {
     const volcano = `Hill 1 90-100 44-56 40-60
     Multiply 0.8 50-100 0 0
     Range 1.5 30-55 45-55 40-60
