@@ -216,6 +216,7 @@ async function getMapURL(
     noScaleBar = false,
     noIce = false,
     noVignette = false,
+    preserveUnused = false,
     fullMap = false
   } = {}
 ) {
@@ -253,7 +254,7 @@ async function getMapURL(
   }
   if (noScaleBar) clone.select("#scaleBar")?.remove();
 
-  if (type === "svg") removeUnusedElements(clone);
+  if (type === "svg" && !preserveUnused) removeUnusedElements(clone);
   if (customization && type === "mesh") updateMeshCells(clone);
   inlineStyle(clone);
 

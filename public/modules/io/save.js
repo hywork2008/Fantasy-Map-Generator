@@ -6,7 +6,7 @@ async function saveMap(method) {
   closeDialogs("#alert");
 
   try {
-    const mapData = prepareMapData();
+    const mapData = await prepareMapData();
     const filename = getFileName() + ".map";
 
     if (method === "storage") await saveToStorage(mapData, true);
@@ -37,7 +37,7 @@ async function saveMap(method) {
   }
 }
 
-function prepareMapData() {
+async function prepareMapData() {
   const date = new Date();
   const dateString = date.getFullYear() + "-" + (date.getMonth() + 1) + "-" + date.getDate();
   const license = "File can be loaded in azgaar.github.io/Fantasy-Map-Generator";
@@ -77,25 +77,38 @@ function prepareMapData() {
   const rulersString = rulers.toString();
   const fonts = JSON.stringify(getUsedFonts(svg.node()));
 
-  // save svg
-  const cloneEl = document.getElementById("map").cloneNode(true);
+  // save svg: prefer standalone export (same as exportToSvg)
+  let serializedSVG;
+  try {
+    const url = await getMapURL("svg", {fullMap: true, preserveUnused: true});
+    const resp = await fetch(url);
+    serializedSVG = await resp.text();
+    try {
+      // revoke if possible; getMapURL already schedules revoke, but revoke here to be safe
+      window.URL.revokeObjectURL(url);
+    } catch (e) {}
+  } catch (err) {
+    ERROR && console.error(err);
+    // fallback: plain clone + serialize (previous behaviour)
+    const cloneEl = document.getElementById("map").cloneNode(true);
 
-  // reset transform values to default
-  cloneEl.setAttribute("width", graphWidth);
-  cloneEl.setAttribute("height", graphHeight);
-  cloneEl.querySelector("#viewbox").removeAttribute("transform");
+    // reset transform values to default
+    cloneEl.setAttribute("width", graphWidth);
+    cloneEl.setAttribute("height", graphHeight);
+    cloneEl.querySelector("#viewbox").removeAttribute("transform");
 
-  cloneEl.querySelector("#ruler").innerHTML = ""; // always remove rulers
-  
-  cloneEl
-    .querySelectorAll("#routes > #roads path, #routes > #trails path, #routes > #searoutes path")
-    .forEach(path => path.setAttribute("fill", "none"));
-  
-  cloneEl
-    .querySelectorAll("#borders > #stateBorders path, #borders > #provinceBorders path")
-    .forEach(path => path.setAttribute("fill", "none"));
+    cloneEl.querySelector("#ruler").innerHTML = ""; // always remove rulers
 
-  const serializedSVG = new XMLSerializer().serializeToString(cloneEl);
+    cloneEl
+      .querySelectorAll("#routes > #roads path, #routes > #trails path, #routes > #searoutes path")
+      .forEach(path => path.setAttribute("fill", "none"));
+
+    cloneEl
+      .querySelectorAll("#borders > #stateBorders path, #borders > #provinceBorders path")
+      .forEach(path => path.setAttribute("fill", "none"));
+
+    serializedSVG = new XMLSerializer().serializeToString(cloneEl);
+  }
 
   const {spacing, cellsX, cellsY, boundary, points, features, cellsDesired} = grid;
   const gridGeneral = JSON.stringify({spacing, cellsX, cellsY, boundary, points, features, cellsDesired});
@@ -210,7 +223,7 @@ async function initiateAutosave() {
 
     try {
       tip("Autosave: saving map...", false, "warning", 3000);
-      const mapData = prepareMapData();
+      const mapData = await prepareMapData();
       await saveToStorage(mapData);
       tip("Autosave: map is saved", false, "success", 2000);
 
