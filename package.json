@@ -15,7 +15,8 @@
   "main": "main.js",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build:public": "tsc -p tsconfig.public.json",
+    "build": "npm run build:public && tsc && vite build",
     "preview": "vite preview",
     "test": "vitest",
     "test:e2e": "playwright test",
