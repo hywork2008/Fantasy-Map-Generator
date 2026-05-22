@@ -1,15 +1,15 @@
-export function buildCheckLoadParametersDeps(deps: any) {
+export function buildCheckLoadParametersDeps<T>(deps: T): T {
   return deps;
 }
 
-export function buildGenerateMapOnLoadDeps(deps: any) {
+export function buildGenerateMapOnLoadDeps<T>(deps: T): T {
   return deps;
 }
 
-export function buildFocusOnDeps(deps: any) {
+export function buildFocusOnDeps<T>(deps: T): T {
   return deps;
 }
 
-export function buildFindBurgForMFCGDeps(deps: any) {
+export function buildFindBurgForMFCGDeps<T>(deps: T): T {
   return deps;
 }

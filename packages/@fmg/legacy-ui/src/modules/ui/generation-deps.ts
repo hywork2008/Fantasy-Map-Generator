@@ -1,3 +1,21 @@
+type GenerationModules = {
+  Features: unknown;
+  Rivers: unknown;
+  Biomes: unknown;
+  Ice: unknown;
+  Cultures: unknown;
+  Burgs: unknown;
+  States: unknown;
+  Routes: unknown;
+  Religions: unknown;
+  Provinces: unknown;
+  Lakes: unknown;
+  Military: unknown;
+  Markers: unknown;
+  Zones: unknown;
+  Names: unknown;
+};
+
 export function buildGenerationModules({
   Features,
   Rivers,
@@ -14,7 +32,7 @@ export function buildGenerationModules({
   Markers,
   Zones,
   Names
-}: any) {
+}: GenerationModules): GenerationModules {
   return {
     Features,
     Rivers,
@@ -34,46 +52,46 @@ export function buildGenerationModules({
   };
 }
 
-export function buildGenerateDeps(deps: any) {
+export function buildGenerateDeps<T>(deps: T): T {
   return deps;
 }
 
-export function buildSetSeedDeps(deps: any) {
+export function buildSetSeedDeps<T>(deps: T): T {
   return deps;
 }
 
-export function buildDefineMapSizeDeps(deps: any) {
+export function buildDefineMapSizeDeps<T>(deps: T): T {
   return deps;
 }
 
-export function buildCalculateMapCoordinatesDeps(deps: any) {
+export function buildCalculateMapCoordinatesDeps<T>(deps: T): T {
   return deps;
 }
 
-export function buildCalculateTemperaturesDeps(deps: any) {
+export function buildCalculateTemperaturesDeps<T>(deps: T): T {
   return deps;
 }
 
-export function buildGeneratePrecipitationDeps(deps: any) {
+export function buildGeneratePrecipitationDeps<T>(deps: T): T {
   return deps;
 }
 
-export function buildReGraphDeps(deps: any) {
+export function buildReGraphDeps<T>(deps: T): T {
   return deps;
 }
 
-export function buildRankCellsDeps(deps: any) {
+export function buildRankCellsDeps<T>(deps: T): T {
   return deps;
 }
 
-export function buildShowStatisticsDeps(deps: any) {
+export function buildShowStatisticsDeps<T>(deps: T): T {
   return deps;
 }
 
-export function buildRegenerateMapDeps(deps: any) {
+export function buildRegenerateMapDeps<T>(deps: T): T {
   return deps;
 }
 
-export function buildUndrawDeps(deps: any) {
+export function buildUndrawDeps<T>(deps: T): T {
   return deps;
 }

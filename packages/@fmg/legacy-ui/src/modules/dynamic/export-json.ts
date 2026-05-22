@@ -1,7 +1,106 @@
+type TipFn = (message: string, pinned?: boolean, level?: string, timeout?: number) => void;
+
+type CloseDialogsFn = (selector?: string) => void;
+
+type GetFileNameFn = (type: string) => string;
+
+type InputLike = HTMLInputElement | HTMLSelectElement;
+
+type PackCellsState = {
+  i: ArrayLike<number>;
+  v: ArrayLike<unknown>;
+  c: ArrayLike<unknown>;
+  p: ArrayLike<unknown>;
+  g: ArrayLike<number>;
+  h: ArrayLike<number>;
+  area: ArrayLike<number>;
+  f: ArrayLike<number>;
+  t: ArrayLike<number>;
+  haven: ArrayLike<number>;
+  harbor: ArrayLike<number>;
+  fl: ArrayLike<number>;
+  r: ArrayLike<number>;
+  conf: ArrayLike<number>;
+  biome: ArrayLike<number>;
+  s: ArrayLike<number>;
+  pop: ArrayLike<number>;
+  culture: ArrayLike<number>;
+  burg: ArrayLike<number>;
+  routes: ArrayLike<unknown>;
+  state: ArrayLike<number>;
+  religion: ArrayLike<number>;
+  province: ArrayLike<number>;
+};
+
+type PackVerticesState = {
+  p: ArrayLike<unknown>;
+  v: ArrayLike<unknown>;
+  c: ArrayLike<unknown>;
+};
+
+type PackState = {
+  cells: PackCellsState;
+  vertices: PackVerticesState;
+  features: unknown;
+  cultures: unknown;
+  burgs: unknown;
+  states: unknown;
+  provinces: unknown;
+  religions: unknown;
+  rivers: unknown;
+  markers: unknown;
+  routes: unknown;
+  zones: unknown;
+};
+
+type GridCellsState = {
+  i: ArrayLike<number>;
+  v: ArrayLike<unknown>;
+  c: ArrayLike<unknown>;
+  b: ArrayLike<unknown>;
+  f: ArrayLike<number>;
+  t: ArrayLike<number>;
+  h: ArrayLike<number>;
+  temp: ArrayLike<number>;
+  prec: ArrayLike<number>;
+};
+
+type GridVerticesState = {
+  p: ArrayLike<unknown>;
+  v: ArrayLike<unknown>;
+  c: ArrayLike<unknown>;
+};
+
+type GridState = {
+  cells: GridCellsState;
+  vertices: GridVerticesState;
+  cellsDesired: unknown;
+  spacing: unknown;
+  cellsY: unknown;
+  cellsX: unknown;
+  points: unknown;
+  boundary: unknown;
+  seed: unknown;
+};
+
+const tipFn = tip as unknown as TipFn;
+const closeDialogsFn = closeDialogs as unknown as CloseDialogsFn;
+const getFileNameFn = getFileName as unknown as GetFileNameFn;
+
+function readElementValue(el: unknown): string | undefined {
+  if (el instanceof HTMLInputElement || el instanceof HTMLSelectElement) return el.value;
+  return undefined;
+}
+
+function readChecked(el: unknown): boolean | undefined {
+  if (el instanceof HTMLInputElement) return el.checked;
+  return undefined;
+}
+
 export function exportToJson(type: string): void {
   if (customization)
-    return (tip as any)("Data cannot be exported when edit mode is active, please exit the mode and retry", false, "error");
-  (closeDialogs as any)("#alert");
+    return tipFn("Data cannot be exported when edit mode is active, please exit the mode and retry", false, "error");
+  closeDialogsFn("#alert");
 
   TIME && console.time("exportToJson");
   const typeMap: Record<string, () => string> = {
@@ -12,14 +111,14 @@ export function exportToJson(type: string): void {
   };
 
   const mapData = typeMap[type]();
-  const blob = new Blob([mapData], {type: "application/json"});
-  const URL = window.URL.createObjectURL(blob);
+  const blob = new Blob([mapData], { type: "application/json" });
+  const objectUrl = window.URL.createObjectURL(blob);
   const link = document.createElement("a");
-  link.download = (getFileName as any)(type) + ".json";
-  link.href = URL;
+  link.download = getFileNameFn(type) + ".json";
+  link.href = objectUrl;
   link.click();
-  (tip as any)(`${link.download} is saved. Open "Downloads" screen (CTRL + J) to check`, true, "success", 7000);
-  window.URL.revokeObjectURL(URL);
+  tipFn(`${link.download} is saved. Open "Downloads" screen (CTRL + J) to check`, true, "success", 7000);
+  window.URL.revokeObjectURL(objectUrl);
   TIME && console.timeEnd("exportToJson");
 }
 
@@ -44,19 +143,20 @@ function getFullDataJson(): string {
 function getMinimalDataJson(): string {
   const info = getMapInfo();
   const settings = getSettings();
+  const packState = pack as unknown as PackState;
   const packData = {
-    features: (pack as any).features,
-    cultures: (pack as any).cultures,
-    burgs: (pack as any).burgs,
-    states: (pack as any).states,
-    provinces: (pack as any).provinces,
-    religions: (pack as any).religions,
-    rivers: (pack as any).rivers,
-    markers: (pack as any).markers,
-    routes: (pack as any).routes,
-    zones: (pack as any).zones
+    features: packState.features,
+    cultures: packState.cultures,
+    burgs: packState.burgs,
+    states: packState.states,
+    provinces: packState.provinces,
+    religions: packState.religions,
+    rivers: packState.rivers,
+    markers: packState.markers,
+    routes: packState.routes,
+    zones: packState.zones
   };
-  return JSON.stringify({info, settings, mapCoordinates, pack: packData, biomesData, notes, nameBases: _nameBases});
+  return JSON.stringify({ info, settings, mapCoordinates, pack: packData, biomesData, notes, nameBases: _nameBases });
 }
 
 function getPackDataJson(): string {
@@ -71,71 +171,78 @@ function getGridDataJson(): string {
   return JSON.stringify({info, cells});
 }
 
-function getMapInfo(): Record<string, any> {
+function getMapInfo(): Record<string, unknown> {
+  const primaryMapName = readElementValue(mapName as unknown);
+  const fallbackMapName = readElementValue(mapNameInput as unknown);
   return {
-    version: (VERSION as any) || "unknown",
+    version: VERSION || "unknown",
     description: "Azgaar's Fantasy Map Generator output: azgaar.github.io/Fantasy-map-generator",
     exportedAt: new Date().toISOString(),
-    mapName: ((mapName as any) as HTMLInputElement)?.value || ((mapNameInput as any) as HTMLInputElement)?.value,
+    mapName: primaryMapName || fallbackMapName,
     width: graphWidth,
     height: graphHeight,
-    seed: (seed as any) || "unknown",
-    mapId: (mapId as any) || undefined
+    seed: seed || "unknown",
+    mapId: mapId || undefined
   };
 }
 
-function getSettings(): Record<string, any> {
+function getSettings(): Record<string, unknown> {
+  const primaryMapName = readElementValue(mapName as unknown);
+  const fallbackMapName = readElementValue(mapNameInput as unknown);
   return {
-    distanceUnit: ((distanceUnitInput as any) as HTMLSelectElement)?.value,
+    distanceUnit: readElementValue(distanceUnitInput as unknown),
     distanceScale: _distanceScale,
-    areaUnit: ((areaUnit as any) as HTMLSelectElement)?.value,
-    heightUnit: ((heightUnit as any) as HTMLSelectElement)?.value,
-    heightExponent: ((heightExponentInput as any) as HTMLInputElement)?.value,
-    temperatureScale: ((temperatureScale as any) as HTMLSelectElement)?.value,
+    areaUnit: readElementValue(areaUnit as unknown),
+    heightUnit: readElementValue(heightUnit as unknown),
+    heightExponent: readElementValue(heightExponentInput as unknown),
+    temperatureScale: readElementValue(temperatureScale as unknown),
     populationRate: _populationRate,
     urbanization: _urbanization,
-    mapSize: ((mapSizeOutput as any) as HTMLInputElement)?.value,
-    latitude: ((latitudeOutput as any) as HTMLInputElement)?.value,
-    longitude: ((longitudeOutput as any) as HTMLInputElement)?.value,
-    prec: ((precOutput as any) as HTMLInputElement)?.value,
+    mapSize: readElementValue(mapSizeOutput as unknown),
+    latitude: readElementValue(latitudeOutput as unknown),
+    longitude: readElementValue(longitudeOutput as unknown),
+    prec: readElementValue(precOutput as unknown),
     options: options,
-    mapName: ((mapName as any) as HTMLInputElement)?.value || ((mapNameInput as any) as HTMLInputElement)?.value,
-    hideLabels: ((hideLabels as any) as HTMLInputElement)?.checked,
-    stylePreset: ((stylePreset as any) as HTMLSelectElement)?.value,
-    rescaleLabels: ((rescaleLabels as any) as HTMLInputElement)?.checked,
+    mapName: primaryMapName || fallbackMapName,
+    hideLabels: readChecked(hideLabels as unknown),
+    stylePreset: readElementValue(stylePreset as unknown),
+    rescaleLabels: readChecked(rescaleLabels as unknown),
     urbanDensity: _urbanDensity
   };
 }
 
-function getPackCellsData(): Record<string, any> {
+function getPackCellsData(): Record<string, unknown> {
+  const packState = pack as unknown as PackState;
   const data = {
-    v: (pack as any).cells.v,
-    c: (pack as any).cells.c,
-    p: (pack as any).cells.p,
-    g: Array.from((pack as any).cells.g),
-    h: Array.from((pack as any).cells.h),
-    area: Array.from((pack as any).cells.area),
-    f: Array.from((pack as any).cells.f),
-    t: Array.from((pack as any).cells.t),
-    haven: Array.from((pack as any).cells.haven),
-    harbor: Array.from((pack as any).cells.harbor),
-    fl: Array.from((pack as any).cells.fl),
-    r: Array.from((pack as any).cells.r),
-    conf: Array.from((pack as any).cells.conf),
-    biome: Array.from((pack as any).cells.biome),
-    s: Array.from((pack as any).cells.s),
-    pop: Array.from((pack as any).cells.pop),
-    culture: Array.from((pack as any).cells.culture),
-    burg: Array.from((pack as any).cells.burg),
-    routes: (pack as any).cells.routes,
-    state: Array.from((pack as any).cells.state),
-    religion: Array.from((pack as any).cells.religion),
-    province: Array.from((pack as any).cells.province)
+    v: packState.cells.v,
+    c: packState.cells.c,
+    p: packState.cells.p,
+    g: Array.from(packState.cells.g),
+    h: Array.from(packState.cells.h),
+    area: Array.from(packState.cells.area),
+    f: Array.from(packState.cells.f),
+    t: Array.from(packState.cells.t),
+    haven: Array.from(packState.cells.haven),
+    harbor: Array.from(packState.cells.harbor),
+    fl: Array.from(packState.cells.fl),
+    r: Array.from(packState.cells.r),
+    conf: Array.from(packState.cells.conf),
+    biome: Array.from(packState.cells.biome),
+    s: Array.from(packState.cells.s),
+    pop: Array.from(packState.cells.pop),
+    culture: Array.from(packState.cells.culture),
+    burg: Array.from(packState.cells.burg),
+    routes: packState.cells.routes,
+    state: Array.from(packState.cells.state),
+    religion: Array.from(packState.cells.religion),
+    province: Array.from(packState.cells.province)
   };
 
+  const cellIds = Array.from(packState.cells.i, cellId => Number(cellId));
+
   return {
-    cells: Array.from((pack as any).cells.i).map((cellId: any) => ({
-      i: cellId as number,
+    cells: cellIds.map(cellId => ({
+      i: cellId,
       v: data.v[cellId],
       c: data.c[cellId],
       p: data.p[cellId],
@@ -159,40 +266,44 @@ function getPackCellsData(): Record<string, any> {
       religion: data.religion[cellId],
       province: data.province[cellId]
     })),
-    vertices: Array.from((pack as any).vertices.p).map((_: any, vertexId: number) => ({
+    vertices: Array.from(packState.vertices.p).map((_value, vertexId: number) => ({
       i: vertexId,
-      p: (pack as any).vertices.p[vertexId],
-      v: (pack as any).vertices.v[vertexId],
-      c: (pack as any).vertices.c[vertexId]
+      p: packState.vertices.p[vertexId],
+      v: packState.vertices.v[vertexId],
+      c: packState.vertices.c[vertexId]
     })),
-    features: (pack as any).features,
-    cultures: (pack as any).cultures,
-    burgs: (pack as any).burgs,
-    states: (pack as any).states,
-    provinces: (pack as any).provinces,
-    religions: (pack as any).religions,
-    rivers: (pack as any).rivers,
-    markers: (pack as any).markers,
-    routes: (pack as any).routes,
-    zones: (pack as any).zones
+    features: packState.features,
+    cultures: packState.cultures,
+    burgs: packState.burgs,
+    states: packState.states,
+    provinces: packState.provinces,
+    religions: packState.religions,
+    rivers: packState.rivers,
+    markers: packState.markers,
+    routes: packState.routes,
+    zones: packState.zones
   };
 }
 
-function getGridCellsData(): Record<string, any> {
+function getGridCellsData(): Record<string, unknown> {
+  const gridState = grid as unknown as GridState;
+  const packState = pack as unknown as PackState;
   const dataArrays = {
-    v: (grid as any).cells.v,
-    c: (grid as any).cells.c,
-    b: (grid as any).cells.b,
-    f: Array.from((grid as any).cells.f),
-    t: Array.from((grid as any).cells.t),
-    h: Array.from((grid as any).cells.h),
-    temp: Array.from((grid as any).cells.temp),
-    prec: Array.from((grid as any).cells.prec)
+    v: gridState.cells.v,
+    c: gridState.cells.c,
+    b: gridState.cells.b,
+    f: Array.from(gridState.cells.f),
+    t: Array.from(gridState.cells.t),
+    h: Array.from(gridState.cells.h),
+    temp: Array.from(gridState.cells.temp),
+    prec: Array.from(gridState.cells.prec)
   };
 
+  const cellIds = Array.from(gridState.cells.i, cellId => Number(cellId));
+
   const gridData = {
-    cells: Array.from((grid as any).cells.i).map((cellId: any) => ({
-      i: cellId as number,
+    cells: cellIds.map(cellId => ({
+      i: cellId,
       v: dataArrays.v[cellId],
       c: dataArrays.c[cellId],
       b: dataArrays.b[cellId],
@@ -202,20 +313,20 @@ function getGridCellsData(): Record<string, any> {
       temp: dataArrays.temp[cellId],
       prec: dataArrays.prec[cellId]
     })),
-    vertices: Array.from((grid as any).vertices.p).map((_: any, vertexId: number) => ({
+    vertices: Array.from(gridState.vertices.p).map((_value, vertexId: number) => ({
       i: vertexId,
-      p: (grid as any).vertices.p[vertexId],
-      v: (grid as any).vertices.v[vertexId],
-      c: (grid as any).vertices.c[vertexId]
+      p: gridState.vertices.p[vertexId],
+      v: gridState.vertices.v[vertexId],
+      c: gridState.vertices.c[vertexId]
     })),
-    cellsDesired: (grid as any).cellsDesired,
-    spacing: (grid as any).spacing,
-    cellsY: (grid as any).cellsY,
-    cellsX: (grid as any).cellsX,
-    points: (grid as any).points,
-    boundary: (grid as any).boundary,
-    seed: (grid as any).seed,
-    features: (pack as any).features
+    cellsDesired: gridState.cellsDesired,
+    spacing: gridState.spacing,
+    cellsY: gridState.cellsY,
+    cellsX: gridState.cellsX,
+    points: gridState.points,
+    boundary: gridState.boundary,
+    seed: gridState.seed,
+    features: packState.features
   };
   return gridData;
 }

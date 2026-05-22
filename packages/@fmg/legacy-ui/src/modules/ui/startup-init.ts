@@ -2,12 +2,26 @@ type StartupInitDeps = {
   document: Document;
   locationHostname: string;
   alertMessage: HTMLElement;
-  jqueryDialog: (options: any) => void;
+  jqueryDialog: (options: {
+    resizable: boolean;
+    title: string;
+    width: string;
+    position: { my: string; at: string; of: string };
+    buttons: { OK: () => void };
+  }) => void;
   hideLoading: () => void;
   checkLoadParameters: () => Promise<void>;
   restoreDefaultEvents: () => void;
   initiateAutosave: () => void;
   initTourPromptButton: () => void;
+};
+
+type JqueryDialogHost = {
+  dialog: (action: string) => void;
+};
+
+const jqueryRuntime = window as Window & {
+  $: (target: unknown) => JqueryDialogHost;
 };
 
 export function initStartupOnDomContentLoaded({
@@ -33,7 +47,7 @@ export function initStartupOnDomContentLoaded({
         position: { my: "center center-4em", at: "center", of: "svg" },
         buttons: {
           OK: function () {
-            (window as any).$(this).dialog("close");
+            jqueryRuntime.$(this).dialog("close");
           }
         }
       });

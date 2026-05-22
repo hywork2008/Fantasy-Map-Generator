@@ -1,11 +1,11 @@
-export function buildZoomToPointDeps(deps: any) {
+export function buildZoomToPointDeps<T>(deps: T): T {
   return deps;
 }
 
-export function buildResetZoomDeps(deps: any) {
+export function buildResetZoomDeps<T>(deps: T): T {
   return deps;
 }
 
-export function buildInvokeActiveZoomingDeps(deps: any) {
+export function buildInvokeActiveZoomingDeps<T>(deps: T): T {
   return deps;
 }

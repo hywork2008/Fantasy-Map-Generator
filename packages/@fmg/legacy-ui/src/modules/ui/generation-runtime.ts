@@ -1,15 +1,40 @@
+type EnsureElement = HTMLElement & {
+  value?: string;
+};
+
+type HistoryEntry = {
+  seed: string;
+  width: number;
+  height: number;
+  template: string;
+  created: number;
+};
+
+type GridLike = {
+  points: { length: number };
+};
+
+type PackLike = {
+  cells: { i: { length: number } };
+  states: { length: number };
+  provinces: { length: number };
+  burgs: { length: number };
+  religions: { length: number };
+  cultures: { length: number };
+};
+
 type ShowStatisticsDeps = {
-  ensureEl: (id: string) => any;
+  ensureEl: (id: string) => EnsureElement;
   heightmapTemplates: Record<string, unknown>;
   locked: (settingId: string) => boolean;
   seed: string;
   graphWidth: number;
   graphHeight: number;
-  grid: any;
-  pack: any;
+  grid: unknown;
+  pack: unknown;
   mapSizeValue: string | number;
   culturesSetValue: string;
-  mapHistory: any[];
+  mapHistory: HistoryEntry[] | unknown[];
   INFO: boolean;
   setMapId: (id: number) => void;
 };
@@ -29,6 +54,8 @@ export function showStatisticsFlow({
   INFO,
   setMapId
 }: ShowStatisticsDeps) {
+  const statsGrid = grid as GridLike;
+  const statsPack = pack as PackLike;
   const heightmap = ensureEl("templateInput").value;
   const isTemplate = heightmap in heightmapTemplates;
   const heightmapType = isTemplate ? "template" : "precreated";
@@ -38,27 +65,29 @@ export function showStatisticsFlow({
     Canvas size: ${graphWidth}x${graphHeight} px
     Heightmap: ${heightmap}
     Template: ${isRandomTemplate}${heightmapType}
-    Points: ${grid.points.length}
-    Cells: ${pack.cells.i.length}
+    Points: ${statsGrid.points.length}
+    Cells: ${statsPack.cells.i.length}
     Map size: ${mapSizeValue}%
-    States: ${pack.states.length - 1}
-    Provinces: ${pack.provinces.length - 1}
-    Burgs: ${pack.burgs.length - 1}
-    Religions: ${pack.religions.length - 1}
+    States: ${statsPack.states.length - 1}
+    Provinces: ${statsPack.provinces.length - 1}
+    Burgs: ${statsPack.burgs.length - 1}
+    Religions: ${statsPack.religions.length - 1}
     Culture set: ${culturesSetValue}
-    Cultures: ${pack.cultures.length - 1}`;
+    Cultures: ${statsPack.cultures.length - 1}`;
 
   const mapId = Date.now();
   setMapId(mapId);
-  mapHistory.push({ seed, width: graphWidth, height: graphHeight, template: heightmap, created: mapId });
+  mapHistory.push({ seed, width: graphWidth, height: graphHeight, template: heightmap, created: mapId } as HistoryEntry);
   INFO && console.info(stats);
 
   window.dispatchEvent(new CustomEvent("map:generated", { detail: { seed, mapId } }));
 }
 
 type UndrawDeps = {
-  viewbox: any;
-  ensureEl: (id: string) => any;
+  viewbox: {
+    selectAll: (selector: string) => { remove: () => void };
+  };
+  ensureEl: (id: string) => HTMLElement;
   resetNotes: () => void;
   unfog: () => void;
 };
@@ -77,14 +106,14 @@ export function undrawFlow({ viewbox, ensureEl, resetNotes, unfog }: UndrawDeps)
 
 type RegenerateDeps = {
   WARN: boolean;
-  ensureEl: (id: string) => any;
+  ensureEl: (id: string) => HTMLElement;
   showLoading: () => void;
   hideLoading: () => void;
   closeDialogs: (except?: string) => void;
   setCustomization: (value: number) => void;
   resetZoom: (duration?: number) => void;
   undraw: () => void;
-  generate: (options?: any) => Promise<void>;
+  generate: (options?: unknown) => Promise<void>;
   drawLayers: () => void;
   ThreeD: { options?: { isOn?: boolean }; redraw?: () => void };
   isWorldConfiguratorVisible: () => boolean;
@@ -93,7 +122,7 @@ type RegenerateDeps = {
   clearMainTip: () => void;
 };
 
-export async function regenerateMapFlow(options: any, deps: RegenerateDeps) {
+export async function regenerateMapFlow(options: unknown, deps: RegenerateDeps) {
   deps.WARN && console.warn("Generate new random map");
 
   const cellsDesired = +deps.ensureEl("pointsInput").dataset.cells;
@@ -115,10 +144,13 @@ export async function regenerateMapFlow(options: any, deps: RegenerateDeps) {
 }
 
 export function createRegenerateMap(
-  debounceFn: (fn: (options: any) => Promise<void>, delay: number) => (options: any) => void,
+  debounceFn: (
+    fn: (options: unknown) => Promise<void>,
+    delay: number
+  ) => (options: unknown) => void,
   deps: RegenerateDeps
 ) {
-  return debounceFn(async (options: any) => {
+  return debounceFn(async (options: unknown) => {
     await regenerateMapFlow(options, deps);
   }, 250);
 }

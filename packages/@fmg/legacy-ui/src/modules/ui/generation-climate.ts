@@ -1,6 +1,20 @@
+type EnsureInputElement = HTMLInputElement & {
+  value: string;
+};
+
+type GridFeature = {
+  land: boolean;
+  border: boolean;
+  type?: string;
+};
+
+type MapSizeGrid = {
+  features: GridFeature[];
+};
+
 type DefineMapSizeDeps = {
-  ensureEl: (id: string) => any;
-  grid: any;
+  ensureEl: (id: string) => EnsureInputElement;
+  grid: unknown;
   gauss: (...args: number[]) => number;
   P: (probability: number) => boolean;
   locked: (settingId: string) => boolean;
@@ -27,6 +41,7 @@ export function defineMapSizeFlow({
   longitudeOutput,
   longitudeInput
 }: DefineMapSizeDeps) {
+  const sizeGrid = grid as MapSizeGrid;
   const [size, latitude, longitude] = getSizeAndLatitude();
   const randomize = new URL(locationHref).searchParams.get("options") === "default";
   if (randomize || !locked("mapSize")) mapSizeOutput.value = mapSizeInput.value = String(size);
@@ -60,7 +75,7 @@ export function defineMapSizeFlow({
     if (template === "world") return [78, 27, 40];
     if (template === "world-from-pacific") return [75, 32, 30];
 
-    const part = grid.features.some((f: any) => f.land && f.border);
+    const part = sizeGrid.features.some(f => f.land && f.border);
     const max = part ? 80 : 100;
     const lat = () => gauss(P(0.5) ? 40 : 60, 20, 25, 75);
 
@@ -87,10 +102,20 @@ export function defineMapSizeFlow({
 type MapCoordinates = { latT: number; latN: number; latS: number; lonT: number; lonW: number; lonE: number };
 
 type CalculateCoordinatesDeps = {
-  ensureEl: (id: string) => any;
+  ensureEl: (id: string) => EnsureInputElement;
   rn: (value: number, digits?: number) => number;
   graphWidth: number;
   graphHeight: number;
+};
+
+type TemperatureGrid = {
+  cells: {
+    i: number[];
+    temp: Int8Array;
+    h: number[];
+  };
+  cellsX: number;
+  points: [number, number][];
 };
 
 export function calculateMapCoordinatesFlow({ ensureEl, rn, graphWidth, graphHeight }: CalculateCoordinatesDeps): MapCoordinates {
@@ -110,14 +135,14 @@ export function calculateMapCoordinatesFlow({ ensureEl, rn, graphWidth, graphHei
 
 type CalculateTemperaturesDeps = {
   TIME: boolean;
-  grid: any;
+  grid: unknown;
   options: { temperatureEquator: number; temperatureNorthPole: number; temperatureSouthPole: number };
   heightExponentInput: HTMLInputElement;
   mapCoordinates: MapCoordinates;
   graphHeight: number;
   rn: (value: number, digits?: number) => number;
   minmax: (value: number, min: number, max: number) => number;
-  DEBUG: any;
+  DEBUG: Record<string, boolean | undefined>;
 };
 
 export function calculateTemperaturesFlow({
@@ -132,7 +157,8 @@ export function calculateTemperaturesFlow({
   DEBUG
 }: CalculateTemperaturesDeps) {
   TIME && console.time("calculateTemperatures");
-  const cells = grid.cells;
+  const climateGrid = grid as TemperatureGrid;
+  const cells = climateGrid.cells;
   cells.temp = new Int8Array(cells.i.length);
 
   const { temperatureEquator, temperatureNorthPole, temperatureSouthPole } = options;
@@ -147,13 +173,13 @@ export function calculateTemperaturesFlow({
 
   const exponent = +heightExponentInput.value;
 
-  for (let rowCellId = 0; rowCellId < cells.i.length; rowCellId += grid.cellsX) {
-    const [, y] = grid.points[rowCellId];
+  for (let rowCellId = 0; rowCellId < cells.i.length; rowCellId += climateGrid.cellsX) {
+    const [, y] = climateGrid.points[rowCellId];
     const rowLatitude = mapCoordinates.latN - (y / graphHeight) * mapCoordinates.latT;
     const tempSeaLevel = calculateSeaLevelTemp(rowLatitude);
     DEBUG.temperature && console.info(`${rn(rowLatitude)}° sea temperature: ${rn(tempSeaLevel)}°C`);
 
-    for (let cellId = rowCellId; cellId < rowCellId + grid.cellsX; cellId++) {
+    for (let cellId = rowCellId; cellId < rowCellId + climateGrid.cellsX; cellId++) {
       const tempAltitudeDrop = getAltitudeTemperatureDrop(cells.h[cellId]);
       cells.temp[cellId] = minmax(tempSeaLevel - tempAltitudeDrop, -128, 127);
     }
@@ -179,8 +205,8 @@ export function calculateTemperaturesFlow({
 
 type GeneratePrecipitationDeps = {
   TIME: boolean;
-  prec: any;
-  grid: any;
+  prec: D3NodeLike;
+  grid: unknown;
   pointsInput: HTMLInputElement;
   precInput: HTMLInputElement;
   mapCoordinates: MapCoordinates;
@@ -189,8 +215,34 @@ type GeneratePrecipitationDeps = {
   options: { winds: number[] };
   rand: (min?: number, max?: number) => number;
   minmax: (value: number, min: number, max: number) => number;
-  d3: any;
+  d3: D3Like;
 };
+
+type D3Like = {
+  range: (start: number, stop: number, step?: number) => number[];
+  mean: (values: number[]) => number | undefined;
+};
+
+type D3NodeLike = {
+  selectAll: (selector: string) => { remove: () => void };
+  append: (name: string) => D3NodeLike;
+  attr: (name: string, value: string | number) => D3NodeLike;
+  text: (value: string) => D3NodeLike;
+};
+
+type PrecipitationGrid = {
+  cells: {
+    i: number[];
+    prec: Uint8Array;
+    temp: Int8Array;
+    h: number[];
+  };
+  cellsX: number;
+  cellsY: number;
+  points: [number, number][];
+};
+
+type WindSource = [number, number, number];
 
 export function generatePrecipitationFlow({
   TIME,
@@ -208,15 +260,16 @@ export function generatePrecipitationFlow({
 }: GeneratePrecipitationDeps) {
   TIME && console.time("generatePrecipitation");
   prec.selectAll("*").remove();
-  const { cells, cellsX, cellsY } = grid;
+  const precipGrid = grid as PrecipitationGrid;
+  const { cells, cellsX, cellsY } = precipGrid;
   cells.prec = new Uint8Array(cells.i.length);
 
   const cellsNumberModifier = (Number(pointsInput.dataset.cells) / 10000) ** 0.25;
   const precInputModifier = Number(precInput.value) / 100;
   const modifier = cellsNumberModifier * precInputModifier;
 
-  const westerly: any[] = [];
-  const easterly: any[] = [];
+  const westerly: WindSource[] = [];
+  const easterly: WindSource[] = [];
   let southerly = 0;
   let northerly = 0;
 
@@ -263,11 +316,11 @@ export function generatePrecipitationFlow({
     return { isWest, isEast, isNorth, isSouth };
   }
 
-  function passWind(source: any[], maxPrec: number, next: number, steps: number) {
+  function passWind(source: Array<number | WindSource>, maxPrec: number, next: number, steps: number) {
     const maxPrecInit = maxPrec;
 
     for (let first of source) {
-      if (first[0]) {
+      if (Array.isArray(first)) {
         maxPrec = Math.min(maxPrecInit * first[1], 255);
         first = first[0];
       }
@@ -313,7 +366,7 @@ export function generatePrecipitationFlow({
         if (west && west.length > 3) {
           const from = west[0][0];
           const to = west[west.length - 1][0];
-          const y = (grid.points[from][1] + grid.points[to][1]) / 2;
+          const y = (precipGrid.points[from][1] + precipGrid.points[to][1]) / 2;
           wind.append("text").attr("text-rendering", "optimizeSpeed").attr("x", 20).attr("y", y).text("⇉");
         }
       }
@@ -322,7 +375,7 @@ export function generatePrecipitationFlow({
         if (east && east.length > 3) {
           const from = east[0][0];
           const to = east[east.length - 1][0];
-          const y = (grid.points[from][1] + grid.points[to][1]) / 2;
+          const y = (precipGrid.points[from][1] + precipGrid.points[to][1]) / 2;
           wind.append("text").attr("text-rendering", "optimizeSpeed").attr("x", graphWidth - 52).attr("y", y).text("⇇");
         }
       }

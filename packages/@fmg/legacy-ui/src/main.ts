@@ -48,9 +48,73 @@ import {
   buildUndrawDeps,
 } from "./modules/ui/generation-deps";
 
+type RuntimeBridge = {
+  rn: (value: number, digits?: number) => number;
+  Markers: unknown;
+  applyGraphSize: () => void;
+  randomizeOptions: () => void;
+  shouldRegenerateGrid: (grid: unknown, expectedSeed: unknown) => boolean;
+  generateGrid: () => unknown;
+  HeightmapGenerator: { generate: (grid: unknown) => Promise<unknown> };
+  OceanLayers: () => void;
+  parseError: (error: unknown) => string;
+  clearMainTip: () => void;
+  cleanupData: () => void;
+  generateSeed: () => string;
+  aleaPRNG: (seed: string) => () => number;
+  gauss: (...args: number[]) => number;
+  P: (probability: number) => boolean;
+  mapSizeOutput: HTMLInputElement;
+  mapSizeInput: HTMLInputElement;
+  latitudeOutput: HTMLInputElement;
+  latitudeInput: HTMLInputElement;
+  longitudeOutput: HTMLInputElement;
+  longitudeInput: HTMLInputElement;
+  minmax: (value: number, min: number, max: number) => number;
+  pointsInput: HTMLInputElement;
+  precInput: HTMLInputElement;
+  rand: (min?: number, max?: number) => number;
+  calculateVoronoi: (points: [number, number][], boundary: unknown) => { cells: unknown; vertices: unknown };
+  createTypedArray: (options: { maxValue: number; length?: number; from?: ArrayLike<number> }) => unknown;
+  UINT16_MAX: number;
+  getPackPolygon: (cellIndex: number, packedGraph: unknown) => unknown;
+  normalize: (value: number, min?: number, max?: number) => number;
+  culturesSet: HTMLInputElement;
+  mapId: number;
+  debounce: <T extends (...args: unknown[]) => unknown>(fn: T, delay: number) => T;
+  ThreeD: { options?: { isOn?: boolean }; redraw?: () => void };
+  unfog: () => void;
+};
+
+type SafeJSON = JSON & {
+  safeParse: (value: string | null) => unknown;
+};
+
+type NavigatorWithUserAgentData = Navigator & {
+  userAgentData?: { mobile?: boolean };
+};
+
+type InstallationModule = {
+  default?: { init?: (event: Event) => void | Promise<void> };
+  init?: (event: Event) => void | Promise<void>;
+};
+
+type MapCoordinatesLike = {
+  latT: number;
+  latN: number;
+  latS: number;
+  lonT: number;
+  lonW: number;
+  lonE: number;
+};
+
+const runtime = window as unknown as Window & RuntimeBridge;
+const safeJSON = JSON as SafeJSON;
+const navigatorWithUserAgentData = navigator as NavigatorWithUserAgentData;
+
 // set debug options (resolved in globals.d.ts - this file defines actual values)
 const PRODUCTION_VAL = location.hostname && location.hostname !== "localhost" && location.hostname !== "127.0.0.1";
-const DEBUG_VAL = (JSON as any).safeParse(localStorage.getItem("debug")) || {};
+const DEBUG_VAL = safeJSON.safeParse(localStorage.getItem("debug")) || {};
 const INFO = true;
 const TIME = true;
 const WARN = true;
@@ -58,7 +122,7 @@ const ERROR = true;
 
 // detect device
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-const _MOBILE = window.innerWidth < 600 || ((navigator as any).userAgentData?.mobile ?? false);
+const _MOBILE = window.innerWidth < 600 || (navigatorWithUserAgentData.userAgentData?.mobile ?? false);
 
 if (PRODUCTION && "serviceWorker" in navigator) {
   window.addEventListener("load", () => {
@@ -69,11 +133,12 @@ if (PRODUCTION && "serviceWorker" in navigator) {
 
   window.addEventListener(
     "beforeinstallprompt",
-    async (event: any) => {
+    async (event: Event) => {
       event.preventDefault();
       try {
-        const Installation = await import("./modules/dynamic/installation.js");
-        (Installation as any).default?.init?.(event) || (Installation as any).init?.(event);
+        const Installation = (await import("./modules/dynamic/installation.js")) as InstallationModule;
+        if (Installation.default?.init) await Installation.default.init(event);
+        else if (Installation.init) await Installation.init(event);
       } catch (err) {
         console.error("Failed to load Installation module:", err);
       }
@@ -422,7 +487,7 @@ function invokeActiveZooming() {
       pack,
       ruler,
       shapeRendering,
-      rn: (window as any).rn,
+      rn: runtime.rn,
       rescaleLabels,
       hideLabels,
       hideEmblems,
@@ -454,7 +519,7 @@ async function generate(options) {
     Provinces,
     Lakes,
     Military,
-    Markers: (window as any).Markers,
+    Markers: runtime.Markers,
     Zones,
     Names
   });
@@ -473,14 +538,14 @@ async function generate(options) {
       pack = {};
     },
     invokeActiveZooming,
-    applyGraphSize: (window as any).applyGraphSize,
-    randomizeOptions: (window as any).randomizeOptions,
-    shouldRegenerateGrid: (window as any).shouldRegenerateGrid,
-    generateGrid: (window as any).generateGrid,
-    HeightmapGenerator: (window as any).HeightmapGenerator,
+    applyGraphSize: runtime.applyGraphSize,
+    randomizeOptions: runtime.randomizeOptions,
+    shouldRegenerateGrid: runtime.shouldRegenerateGrid,
+    generateGrid: runtime.generateGrid,
+    HeightmapGenerator: runtime.HeightmapGenerator,
     addLakesInDeepDepressions,
     openNearSeaLakes,
-    OceanLayers: (window as any).OceanLayers,
+    OceanLayers: runtime.OceanLayers,
     defineMapSize,
     calculateMapCoordinates,
     calculateTemperatures,
@@ -491,12 +556,12 @@ async function generate(options) {
     drawScaleBar,
     scaleBar,
     scale,
-    rn: (window as any).rn,
+    rn: runtime.rn,
     showStatistics,
-    parseError: (window as any).parseError,
-    clearMainTip: (window as any).clearMainTip,
+    parseError: runtime.parseError,
+    clearMainTip: runtime.clearMainTip,
     alertMessage,
-    cleanupData: (window as any).cleanupData,
+    cleanupData: runtime.cleanupData,
     regenerateMap,
     jqueryDialog: options => $("#alert").dialog(options),
     generationModules
@@ -511,9 +576,9 @@ function setSeed(precreatedSeed) {
     buildSetSeedDeps({
       mapHistory,
       locationHref: window.location.href,
-      generateSeed: (window as any).generateSeed,
+      generateSeed: runtime.generateSeed,
       ensureEl,
-      aleaPRNG: (window as any).aleaPRNG
+      aleaPRNG: runtime.aleaPRNG
     }),
     precreatedSeed
   );
@@ -534,16 +599,16 @@ function defineMapSize() {
     buildDefineMapSizeDeps({
       ensureEl,
       grid,
-      gauss: (window as any).gauss,
-      P: (window as any).P,
+      gauss: runtime.gauss,
+      P: runtime.P,
       locked,
       locationHref: window.location.href,
-      mapSizeOutput: (window as any).mapSizeOutput,
-      mapSizeInput: (window as any).mapSizeInput,
-      latitudeOutput: (window as any).latitudeOutput,
-      latitudeInput: (window as any).latitudeInput,
-      longitudeOutput: (window as any).longitudeOutput,
-      longitudeInput: (window as any).longitudeInput
+      mapSizeOutput: runtime.mapSizeOutput,
+      mapSizeInput: runtime.mapSizeInput,
+      latitudeOutput: runtime.latitudeOutput,
+      latitudeInput: runtime.latitudeInput,
+      longitudeOutput: runtime.longitudeOutput,
+      longitudeInput: runtime.longitudeInput
     })
   );
 }
@@ -551,7 +616,7 @@ function defineMapSize() {
 // calculate map position on globe
 function calculateMapCoordinates() {
   mapCoordinates = calculateMapCoordinatesFlow(
-    buildCalculateMapCoordinatesDeps({ ensureEl, rn: (window as any).rn, graphWidth, graphHeight })
+    buildCalculateMapCoordinatesDeps({ ensureEl, rn: runtime.rn, graphWidth, graphHeight })
   );
 }
 
@@ -564,10 +629,10 @@ function calculateTemperatures() {
       grid,
       options,
       heightExponentInput,
-      mapCoordinates: mapCoordinates as any,
+      mapCoordinates: mapCoordinates as MapCoordinatesLike,
       graphHeight,
-      rn: (window as any).rn,
-      minmax: (window as any).minmax,
+      rn: runtime.rn,
+      minmax: runtime.minmax,
       DEBUG
     })
   );
@@ -580,14 +645,14 @@ function generatePrecipitation() {
       TIME,
       prec,
       grid,
-      pointsInput: (window as any).pointsInput,
-      precInput: (window as any).precInput,
-      mapCoordinates: mapCoordinates as any,
+      pointsInput: runtime.pointsInput,
+      precInput: runtime.precInput,
+      mapCoordinates: mapCoordinates as MapCoordinatesLike,
       graphHeight,
       graphWidth,
       options,
-      rand: (window as any).rand,
-      minmax: (window as any).minmax,
+      rand: runtime.rand,
+      minmax: runtime.minmax,
       d3
     })
   );
@@ -600,11 +665,11 @@ function reGraph() {
       TIME,
       grid,
       pack,
-      rn: (window as any).rn,
-      calculateVoronoi: (window as any).calculateVoronoi,
-      createTypedArray: (window as any).createTypedArray,
-      UINT16_MAX: (window as any).UINT16_MAX,
-      getPackPolygon: (window as any).getPackPolygon,
+      rn: runtime.rn,
+      calculateVoronoi: runtime.calculateVoronoi,
+      createTypedArray: runtime.createTypedArray,
+      UINT16_MAX: runtime.UINT16_MAX,
+      getPackPolygon: (cellId: number) => runtime.getPackPolygon(cellId, pack),
       d3
     })
   );
@@ -612,7 +677,7 @@ function reGraph() {
 
 // assess cells suitability to calculate population and rand cells for culture center and burgs placement
 function rankCells() {
-  rankCellsFlow(buildRankCellsDeps({ TIME, pack, biomesData, normalize: (window as any).normalize, d3 }));
+  rankCellsFlow(buildRankCellsDeps({ TIME, pack, biomesData, normalize: runtime.normalize, d3 }));
 }
 
 // show map stats on generation complete
@@ -627,20 +692,20 @@ function showStatistics() {
       graphHeight,
       grid,
       pack,
-      mapSizeValue: (window as any).mapSizeOutput.value,
-      culturesSetValue: (window as any).culturesSet.value,
+      mapSizeValue: runtime.mapSizeOutput.value,
+      culturesSetValue: runtime.culturesSet.value,
       mapHistory,
       INFO,
       setMapId: id => {
         mapId = id;
-        (window as any).mapId = id;
+        runtime.mapId = id;
       }
     })
   );
 }
 
 const regenerateMap = createRegenerateMap(
-  (window as any).debounce,
+  runtime.debounce,
   buildRegenerateMapDeps({
     WARN,
     ensureEl,
@@ -654,11 +719,11 @@ const regenerateMap = createRegenerateMap(
     undraw,
     generate,
     drawLayers,
-    ThreeD: (window as any).ThreeD,
+    ThreeD: runtime.ThreeD,
     isWorldConfiguratorVisible: () => $("#worldConfigurator").is(":visible"),
     editWorld,
     fitMapToScreen,
-    clearMainTip: (window as any).clearMainTip
+    clearMainTip: runtime.clearMainTip
   })
 );
 
@@ -671,7 +736,7 @@ function undraw() {
       resetNotes: () => {
         _notes = [];
       },
-      unfog: (window as any).unfog
+      unfog: runtime.unfog
     })
   );
 }

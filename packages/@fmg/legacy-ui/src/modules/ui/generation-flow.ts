@@ -1,8 +1,16 @@
+type EnsureInputElement = HTMLInputElement & {
+  value: string;
+};
+
+type SeedHistoryEntry = {
+  created?: number;
+};
+
 type SetSeedDeps = {
-  mapHistory: any[];
+  mapHistory: SeedHistoryEntry[] | unknown[];
   locationHref: string;
   generateSeed: () => string;
-  ensureEl: (id: string) => any;
+  ensureEl: (id: string) => EnsureInputElement;
   aleaPRNG: (seed: string) => () => number;
 };
 
@@ -25,17 +33,38 @@ export function setSeedFlow({ mapHistory, locationHref, generateSeed, ensureEl, 
 
 type LakesDeps = {
   TIME: boolean;
-  ensureEl: (id: string) => any;
-  grid: any;
-  d3: any;
+  ensureEl: (id: string) => EnsureInputElement;
+  grid: unknown;
+  d3: {
+    min: (values: number[]) => number;
+  };
+};
+
+type LakeFeature = {
+  type: string;
+  land: boolean;
+  border: boolean;
+};
+
+type LakeGrid = {
+  cells: {
+    i: number[];
+    c: number[][];
+    h: number[];
+    b: number[];
+    t: number[];
+    f: number[];
+  };
+  features: LakeFeature[];
 };
 
 export function addLakesInDeepDepressionsFlow({ TIME, ensureEl, grid, d3 }: LakesDeps) {
   TIME && console.time("addLakesInDeepDepressions");
+  const lakeGrid = grid as LakeGrid;
   const elevationLimit = +ensureEl("lakeElevationLimitOutput").value;
   if (elevationLimit === 80) return;
 
-  const { cells, features } = grid;
+  const { cells, features } = lakeGrid;
   const { c, h, b } = cells;
 
   for (const i of cells.i) {
@@ -89,17 +118,18 @@ export function addLakesInDeepDepressionsFlow({ TIME, ensureEl, grid, d3 }: Lake
 }
 
 type NearSeaDeps = {
-  ensureEl: (id: string) => any;
-  grid: any;
+  ensureEl: (id: string) => EnsureInputElement;
+  grid: unknown;
   TIME: boolean;
 };
 
 export function openNearSeaLakesFlow({ ensureEl, grid, TIME }: NearSeaDeps) {
+  const lakeGrid = grid as LakeGrid;
   if (ensureEl("templateInput").value === "Atoll") return;
 
-  const cells = grid.cells;
-  const features = grid.features;
-  if (!features.find((f: any) => f.type === "lake")) return;
+  const cells = lakeGrid.cells;
+  const features = lakeGrid.features;
+  if (!features.find(f => f.type === "lake")) return;
   TIME && console.time("openLakes");
   const LIMIT = 22;
 
@@ -142,15 +172,15 @@ type GenerateDeps = {
   ERROR: boolean;
   getSeed: () => string;
   setSeed: (precreatedSeed?: string) => void;
-  getGrid: () => any;
-  setGrid: (grid: any) => void;
+  getGrid: () => unknown;
+  setGrid: (grid: unknown) => void;
   resetPack: () => void;
   invokeActiveZooming: () => void;
   applyGraphSize: () => void;
   randomizeOptions: () => void;
-  shouldRegenerateGrid: (grid: any, expectedSeed: any) => boolean;
-  generateGrid: () => any;
-  HeightmapGenerator: { generate: (grid: any) => Promise<any> };
+  shouldRegenerateGrid: (grid: unknown, expectedSeed: unknown) => boolean;
+  generateGrid: () => unknown;
+  HeightmapGenerator: { generate: (grid: unknown) => Promise<unknown> };
   addLakesInDeepDepressions: () => void;
   openNearSeaLakes: () => void;
   OceanLayers: () => void;
@@ -161,38 +191,67 @@ type GenerateDeps = {
   reGraph: () => void;
   createDefaultRuler: () => void;
   rankCells: () => void;
-  drawScaleBar: (scaleBar: any, scale: number) => void;
-  scaleBar: any;
+  drawScaleBar: (scaleBar: unknown, scale: number) => void;
+  scaleBar: unknown;
   scale: number;
   rn: (value: number, digits?: number) => number;
   showStatistics: () => void;
-  parseError: (error: any) => string;
+  parseError: (error: unknown) => string;
   clearMainTip: () => void;
   alertMessage: HTMLElement;
   cleanupData: () => void;
   regenerateMap: (source: string) => void;
-  jqueryDialog: (options: any) => void;
-  generationModules: {
-    Features: any;
-    Rivers: any;
-    Biomes: any;
-    Ice: any;
-    Cultures: any;
-    Burgs: any;
-    States: any;
-    Routes: any;
-    Religions: any;
-    Provinces: any;
-    Lakes: any;
-    Military: any;
-    Markers: any;
-    Zones: any;
-    Names: any;
-  };
+  jqueryDialog: (options: JqueryDialogOptions) => void;
+  generationModules: unknown;
 };
 
-export async function generateMapFlow(deps: GenerateDeps, options?: { seed?: string; graph?: any }) {
+type GridState = {
+  cells: {
+    h?: unknown;
+  } & Record<string, unknown>;
+} & Record<string, unknown>;
+
+type JqueryDialogHost = {
+  dialog: (action: string) => void;
+};
+
+type JqueryDialogOptions = {
+  resizable: boolean;
+  title: string;
+  width: string;
+  buttons: {
+    "Cleanup data": () => void;
+    Regenerate: () => void;
+    Ignore: () => void;
+  };
+  position: { my: string; at: string; of: string };
+};
+
+type GenerationModules = {
+  Features: { markupGrid: () => void; markupPack: () => void; defineGroups: () => void };
+  Rivers: { generate: () => void; specify: () => void };
+  Biomes: { define: () => void };
+  Ice: { generate: () => void };
+  Cultures: { generate: () => void; expand: () => void };
+  Burgs: { generate: () => void; specify: () => void };
+  States: { generate: () => void; collectStatistics: () => void; defineStateForms: () => void };
+  Routes: { generate: () => void };
+  Religions: { generate: () => void };
+  Provinces: { generate: () => void; getPoles: () => void };
+  Lakes: { defineNames: () => void };
+  Military: { generate: () => void };
+  Markers: { generate: () => void };
+  Zones: { generate: () => void };
+  Names: { getMapName: () => void };
+};
+
+const jqueryRuntime = window as Window & {
+  $: (target: unknown) => JqueryDialogHost;
+};
+
+export async function generateMapFlow(deps: GenerateDeps, options?: { seed?: string; graph?: unknown }) {
   try {
+    const modules = deps.generationModules as GenerationModules;
     const timeStart = performance.now();
     const { seed: precreatedSeed, graph: precreatedGraph } = options || {};
 
@@ -203,14 +262,17 @@ export async function generateMapFlow(deps: GenerateDeps, options?: { seed?: str
     deps.applyGraphSize();
     deps.randomizeOptions();
 
-    let grid = deps.getGrid();
-    if (deps.shouldRegenerateGrid(grid, precreatedSeed)) grid = precreatedGraph || deps.generateGrid();
-    else delete grid.cells.h;
-    grid.cells.h = await deps.HeightmapGenerator.generate(grid);
-    deps.setGrid(grid);
+    let gridState = deps.getGrid() as GridState;
+    if (deps.shouldRegenerateGrid(gridState, precreatedSeed)) {
+      gridState = (precreatedGraph || deps.generateGrid()) as GridState;
+    } else {
+      delete gridState.cells.h;
+    }
+    gridState.cells.h = await deps.HeightmapGenerator.generate(gridState);
+    deps.setGrid(gridState);
     deps.resetPack();
 
-    deps.generationModules.Features.markupGrid();
+    modules.Features.markupGrid();
     deps.addLakesInDeepDepressions();
     deps.openNearSeaLakes();
 
@@ -221,45 +283,45 @@ export async function generateMapFlow(deps: GenerateDeps, options?: { seed?: str
     deps.generatePrecipitation();
 
     deps.reGraph();
-    deps.generationModules.Features.markupPack();
+    modules.Features.markupPack();
     deps.createDefaultRuler();
 
-    deps.generationModules.Rivers.generate();
-    deps.generationModules.Biomes.define();
-    deps.generationModules.Features.defineGroups();
+    modules.Rivers.generate();
+    modules.Biomes.define();
+    modules.Features.defineGroups();
 
-    deps.generationModules.Ice.generate();
+    modules.Ice.generate();
 
     deps.rankCells();
-    deps.generationModules.Cultures.generate();
-    deps.generationModules.Cultures.expand();
+    modules.Cultures.generate();
+    modules.Cultures.expand();
 
-    deps.generationModules.Burgs.generate();
-    deps.generationModules.States.generate();
-    deps.generationModules.Routes.generate();
-    deps.generationModules.Religions.generate();
+    modules.Burgs.generate();
+    modules.States.generate();
+    modules.Routes.generate();
+    modules.Religions.generate();
 
-    deps.generationModules.Burgs.specify();
-    deps.generationModules.States.collectStatistics();
-    deps.generationModules.States.defineStateForms();
+    modules.Burgs.specify();
+    modules.States.collectStatistics();
+    modules.States.defineStateForms();
 
-    deps.generationModules.Provinces.generate();
-    deps.generationModules.Provinces.getPoles();
+    modules.Provinces.generate();
+    modules.Provinces.getPoles();
 
-    deps.generationModules.Rivers.specify();
-    deps.generationModules.Lakes.defineNames();
+    modules.Rivers.specify();
+    modules.Lakes.defineNames();
 
-    deps.generationModules.Military.generate();
-    deps.generationModules.Markers.generate();
-    deps.generationModules.Zones.generate();
+    modules.Military.generate();
+    modules.Markers.generate();
+    modules.Zones.generate();
 
     deps.drawScaleBar(deps.scaleBar, deps.scale);
-    deps.generationModules.Names.getMapName();
+    modules.Names.getMapName();
 
     deps.WARN && console.warn(`TOTAL: ${deps.rn((performance.now() - timeStart) / 1000, 2)}s`);
     deps.showStatistics();
     deps.INFO && console.groupEnd(`Generated Map ${deps.getSeed()}`);
-  } catch (error: any) {
+  } catch (error: unknown) {
     deps.ERROR && console.error(error);
     const parsedError = deps.parseError(error);
     deps.clearMainTip();
@@ -275,10 +337,10 @@ export async function generateMapFlow(deps: GenerateDeps, options?: { seed?: str
         "Cleanup data": () => deps.cleanupData(),
         Regenerate: function () {
           deps.regenerateMap("generation error");
-          (window as any).$(this).dialog("close");
+          jqueryRuntime.$(this).dialog("close");
         },
         Ignore: function () {
-          (window as any).$(this).dialog("close");
+          jqueryRuntime.$(this).dialog("close");
         }
       },
       position: { my: "center", at: "center", of: "svg" }

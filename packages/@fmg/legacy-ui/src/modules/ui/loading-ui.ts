@@ -1,5 +1,16 @@
+type D3SelectionLike = {
+  transition: () => D3TransitionLike;
+};
+
+type D3TransitionLike = {
+  duration: (ms: number) => D3TransitionLike;
+  style: (name: string, value: string | number) => D3TransitionLike;
+};
+
 type LoadingUiDeps = {
-  d3: any;
+  d3: {
+    select: (selector: string) => D3SelectionLike;
+  };
 };
 
 export function hideLoadingUI({ d3 }: LoadingUiDeps) {

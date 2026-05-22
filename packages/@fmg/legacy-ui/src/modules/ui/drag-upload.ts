@@ -1,10 +1,23 @@
 type DragUploadDeps = {
   document: Document;
-  ensureEl: (id: string) => any;
+  ensureEl: (id: string) => HTMLElement;
   alertMessage: HTMLElement;
   closeDialogs?: () => void;
   uploadMap: (file: File, onload: () => void) => void;
-  jqueryDialog: (options: any) => void;
+  jqueryDialog: (options: {
+    resizable: boolean;
+    title: string;
+    position: { my: string; at: string; of: string };
+    buttons: { Close: () => void };
+  }) => void;
+};
+
+type JqueryDialogHost = {
+  dialog: (action: string) => void;
+};
+
+const jqueryRuntime = window as Window & {
+  $: (target: unknown) => JqueryDialogHost;
 };
 
 export function initDragToUpload({ document, ensureEl, alertMessage, closeDialogs, uploadMap, jqueryDialog }: DragUploadDeps) {
@@ -37,7 +50,7 @@ export function initDragToUpload({ document, ensureEl, alertMessage, closeDialog
         position: { my: "center", at: "center", of: "svg" },
         buttons: {
           Close: function () {
-            (window as any).$(this).dialog("close");
+            jqueryRuntime.$(this).dialog("close");
           }
         }
       });
