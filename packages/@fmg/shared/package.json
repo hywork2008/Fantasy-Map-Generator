@@ -1,0 +1,25 @@
+{
+  "name": "@fmg/shared",
+  "version": "1.0.0",
+  "description": "Shared utilities and types for Fantasy Map Generator",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js",
+    "./math": "./dist/utils/math.d.ts",
+    "./dom": "./dist/utils/dom.d.ts",
+    "./array": "./dist/utils/array.d.ts",
+    "./types": "./dist/types/index.d.ts"
+  },
+  "scripts": {
+    "build": "tsc",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@fmg/types": "*"
+  },
+  "files": [
+    "dist",
+    "src"
+  ]
+}

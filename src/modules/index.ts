@@ -1,22 +1,29 @@
-import "./voronoi";
-import "./heightmap-generator";
-import "./features";
-import "./names-generator";
-import "./ocean-layers";
-import "./lakes";
-import "./river-generator";
-import "./burgs-generator";
-import "./biomes";
-import "./cultures-generator";
-import "./routes-generator";
-import "./states-generator";
-import "./zones-generator";
-import "./religions-generator";
-import "./provinces-generator";
-import "./emblem";
-import "./ice";
-import "./military-generator";
-import "./markers-generator";
-import "./fonts";
-import "./resample";
-import "./ui-tour";
+/**
+ * Module imports for local bundling
+ * Modules have been migrated to packages/@fmg/core/src/modules
+ * This file is kept for backward compatibility with build scripts
+ */
+
+import "#modules/voronoi";
+import "#modules/heightmap-generator";
+import "#modules/features";
+import "#modules/names-generator";
+import "#modules/ocean-layers";
+import "#modules/lakes";
+import "#modules/river-generator";
+import "#modules/burgs-generator";
+import "#modules/biomes";
+import "#modules/cultures-generator";
+import "#modules/routes-generator";
+import "#modules/states-generator";
+import "#modules/zones-generator";
+import "#modules/religions-generator";
+import "#modules/provinces-generator";
+import "#modules/emblem";
+import "#modules/ice";
+import "#modules/military-generator";
+import "#modules/markers-generator";
+import "#modules/fonts";
+import "#modules/resample";
+import "#modules/ui-tour";
+

@@ -21,7 +21,13 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: { 
+        ...devices['Desktop Chrome'],
+        // For Arch Linux with system binaries, use the custom chromium path
+        launchOptions: {
+          executablePath: '/usr/bin/chromium',
+        },
+      },
     },
   ],
   webServer: {

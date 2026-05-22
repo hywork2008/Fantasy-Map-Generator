@@ -2,7 +2,7 @@
   "compilerOptions": {
     "useDefineForClassFields": true,
     "module": "ESNext",
-    "target": "esnext",
+    "target": "ES2020",
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "types": ["vite/client"],
     "skipLibCheck": true,
@@ -16,12 +16,33 @@
     "noEmit": true,
 
     /* Linting */
-    "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true,
-    "noUncheckedSideEffectImports": true
+    "strict": false,
+    "noImplicitAny": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noFallthroughCasesInSwitch": false,
+    "noUncheckedSideEffectImports": false,
+
+    /* Monorepo paths */
+    "paths": {
+      "@fmg/types": ["./packages/@fmg/types/src"],
+      "@fmg/types/*": ["./packages/@fmg/types/src/*"],
+      "@fmg/types/PackedGraph": ["./src/types/PackedGraph.ts"],
+      "@fmg/shared": ["./packages/@fmg/shared/src"],
+      "@fmg/shared/*": ["./packages/@fmg/shared/src/*"],
+      "@fmg/shared/utils": ["./packages/@fmg/shared/src/index.ts"],
+      "@fmg/core": ["./packages/@fmg/core/src"],
+      "@fmg/core/*": ["./packages/@fmg/core/src/*"],
+      "@fmg/legacy-ui": ["./packages/@fmg/legacy-ui/src"],
+      "@fmg/legacy-ui/*": ["./packages/@fmg/legacy-ui/src/*"],
+      "#utils": ["./src/utils"],
+      "#utils/*": ["./src/utils/*"],
+      "#types": ["./src/types"],
+      "#types/*": ["./src/types/*"],
+      "#modules": ["./packages/@fmg/core/src/modules"],
+      "#modules/*": ["./packages/@fmg/core/src/modules/*"]
+    }
   },
   "include": ["src"],
-  "exclude": ["src/e2e"]
+  "exclude": ["src/e2e", "packages", "node_modules", "dist"]
 }

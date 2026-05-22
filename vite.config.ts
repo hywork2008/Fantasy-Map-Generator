@@ -6,4 +6,15 @@ export default {
         assetsDir: './',
     },
     publicDir: '../public',
+    resolve: {
+        alias: {
+            '#modules': new URL('./packages/@fmg/core/src/modules', import.meta.url).pathname,
+            '#utils': new URL('./src/utils', import.meta.url).pathname,
+            '#types': new URL('./src/types', import.meta.url).pathname,
+            '@fmg/core': new URL('./packages/@fmg/core/src', import.meta.url).pathname,
+            '@fmg/shared': new URL('./packages/@fmg/shared/src', import.meta.url).pathname,
+            '@fmg/types': new URL('./packages/@fmg/types/src', import.meta.url).pathname,
+            '@fmg/legacy-ui': new URL('./packages/@fmg/legacy-ui/src', import.meta.url).pathname,
+        }
+    }
 }

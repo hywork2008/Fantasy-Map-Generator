@@ -63,3 +63,25 @@ Build steps:
 1. TypeScript compilation (`tsc`)
 2. Vite build
 3. Output written to `dist/`
+
+## Testing
+
+Run end-to-end tests with Playwright:
+
+```bash
+npm run test:e2e
+```
+
+### Arch Linux Environment Setup
+
+On Arch Linux, Playwright npm module installation can fail. Instead, install binaries directly to the system:
+
+```bash
+sudo pacman -S playwright chromium
+```
+
+The Playwright test configuration will use the system binaries:
+- Playwright: `/usr/bin/playwright`
+- Chromium: `/usr/bin/chromium`
+
+Ensure `playwright.config.ts` is properly configured to reference these system-installed binaries when running tests.

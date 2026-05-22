@@ -1,0 +1,152 @@
+"use strict";
+type RiverCell = number;
+type CreateRiverFn = (() => void) & {cells: RiverCell[]};
+
+const riversCreatorRuntime = globalThis as any;
+
+const createRiver = (function createRiverImpl() {
+  if (riversCreatorRuntime.customization) return;
+  riversCreatorRuntime.closeDialogs();
+  if (!riversCreatorRuntime.layerIsOn("toggleRivers")) riversCreatorRuntime.toggleRivers();
+
+  const toggleCellsButton = document.getElementById("toggleCells") as HTMLElement;
+  toggleCellsButton.dataset.forced = String(+!riversCreatorRuntime.layerIsOn("toggleCells"));
+  if (!riversCreatorRuntime.layerIsOn("toggleCells")) riversCreatorRuntime.toggleCells();
+
+  riversCreatorRuntime.tip("Click to add river point, click again to remove", true);
+  riversCreatorRuntime.debug.append("g").attr("id", "controlCells");
+  riversCreatorRuntime.viewbox.style("cursor", "crosshair").on("click", onCellClick);
+
+  createRiver.cells = [];
+  const body = document.getElementById("riverCreatorBody") as HTMLElement;
+
+  riversCreatorRuntime.$("#riverCreator").dialog({
+    title: "Create River",
+    resizable: false,
+    position: {my: "left top", at: "left+10 top+10", of: "#map"},
+    close: closeRiverCreator
+  });
+
+  if (riversCreatorRuntime.modules.createRiver) return;
+  riversCreatorRuntime.modules.createRiver = true;
+
+  document.getElementById("riverCreatorComplete")?.addEventListener("click", addRiver);
+  document
+    .getElementById("riverCreatorCancel")
+    ?.addEventListener("click", () => riversCreatorRuntime.$("#riverCreator").dialog("close"));
+  body.addEventListener("click", ev => {
+    const el = ev.target as HTMLElement;
+    const cell = Number(el.parentElement?.dataset.cell || 0);
+    if (el.classList.contains("editFlux")) riversCreatorRuntime.pack.cells.fl[cell] = Number((el as HTMLInputElement).value);
+    else if (el.classList.contains("icon-trash-empty")) removeCell(cell);
+  });
+
+  function onCellClick(this: SVGElement) {
+    const cell = riversCreatorRuntime.findCell(...riversCreatorRuntime.d3.mouse(this));
+
+    if (createRiver.cells.includes(cell)) removeCell(cell);
+    else addCell(cell);
+  }
+
+  function addCell(cell: RiverCell) {
+    createRiver.cells.push(cell);
+    drawCells(createRiver.cells);
+
+    const flux = riversCreatorRuntime.pack.cells.fl[cell];
+    const line = `<div class="editorLine" data-cell="${cell}">
+      <span>Cell ${cell}</span>
+      <span data-tip="Set flux affects river width" style="margin-left: 0.4em">Flux</span>
+      <input type="number" min=0 value="${flux}" class="editFlux" style="width: 5em"/>
+      <span data-tip="Remove the cell" class="icon-trash-empty pointer"></span>
+    </div>`;
+    body.innerHTML += line;
+  }
+
+  function removeCell(cell: RiverCell) {
+    createRiver.cells = createRiver.cells.filter(c => c !== cell);
+    drawCells(createRiver.cells);
+    body.querySelector(`div[data-cell='${cell}']`)?.remove();
+  }
+
+  function drawCells(cells: RiverCell[]) {
+    riversCreatorRuntime.debug
+      .select("#controlCells")
+      .selectAll("polygon")
+      .data(cells)
+      .join("polygon")
+      .attr("points", (d: RiverCell) => riversCreatorRuntime.getPackPolygon(d))
+      .attr("class", "current");
+  }
+
+  function addRiver() {
+    const {rivers, cells} = riversCreatorRuntime.pack;
+    const riverCells = createRiver.cells;
+    if (riverCells.length < 2) return riversCreatorRuntime.tip("Add at least 2 cells", false, "error");
+
+    const riverId = riversCreatorRuntime.Rivers.getNextId(rivers);
+    const parent = cells.r[riversCreatorRuntime.last(riverCells)] || riverId;
+
+    riverCells.forEach(cell => {
+      if (!cells.r[cell]) cells.r[cell] = riverId;
+    });
+
+    const source = riverCells[0];
+    const mouth = parent === riverId ? riversCreatorRuntime.last(riverCells) : riverCells[riverCells.length - 2];
+    const sourceWidth = riversCreatorRuntime.Rivers.getSourceWidth(cells.fl[source]);
+    const defaultWidthFactor = riversCreatorRuntime.rn(1 / ((riversCreatorRuntime.pointsInput.dataset.cells / 10000) ** 0.25), 2);
+    const widthFactor = 1.2 * defaultWidthFactor;
+
+    const meanderedPoints = riversCreatorRuntime.Rivers.addMeandering(riverCells);
+
+    const discharge = cells.fl[mouth];
+    const length = riversCreatorRuntime.Rivers.getApproximateLength(meanderedPoints);
+    const width = riversCreatorRuntime.Rivers.getWidth(
+      riversCreatorRuntime.Rivers.getOffset({
+        flux: discharge,
+        pointIndex: meanderedPoints.length,
+        widthFactor,
+        startingWidth: sourceWidth
+      })
+    );
+    const name = riversCreatorRuntime.Rivers.getName(mouth);
+    const basin = riversCreatorRuntime.Rivers.getBasin(parent);
+
+    rivers.push({
+      i: riverId,
+      source,
+      mouth,
+      discharge,
+      length,
+      width,
+      widthFactor,
+      sourceWidth,
+      parent,
+      cells: riverCells,
+      basin,
+      name,
+      type: "River"
+    });
+    const id = "river" + riverId;
+
+    riversCreatorRuntime.viewbox
+      .select("#rivers")
+      .append("path")
+      .attr("id", id)
+      .attr("d", riversCreatorRuntime.Rivers.getRiverPath(meanderedPoints, widthFactor, sourceWidth));
+
+    riversCreatorRuntime.editRiver(id);
+  }
+
+  function closeRiverCreator() {
+    body.innerHTML = "";
+    riversCreatorRuntime.debug.select("#controlCells").remove();
+    riversCreatorRuntime.restoreDefaultEvents();
+    riversCreatorRuntime.clearMainTip();
+
+    const forced = Number(toggleCellsButton.dataset.forced || 0);
+    toggleCellsButton.dataset.forced = "0";
+    if (forced && riversCreatorRuntime.layerIsOn("toggleCells")) riversCreatorRuntime.toggleCells();
+  }
+} as unknown) as CreateRiverFn;
+
+riversCreatorRuntime.createRiver = createRiver;

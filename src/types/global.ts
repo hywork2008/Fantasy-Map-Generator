@@ -1,5 +1,5 @@
 import type { Selection } from "d3";
-import type { NameBase } from "../modules/names-generator";
+import type { NameBase } from "#modules/names-generator";
 import type { PackedGraph } from "./PackedGraph";
 
 declare global {

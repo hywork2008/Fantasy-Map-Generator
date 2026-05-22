@@ -1,0 +1,19 @@
+{
+  "name": "@fmg/core",
+  "version": "1.0.0",
+  "description": "Core generation modules for Fantasy Map Generator",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@fmg/shared": "*",
+    "@fmg/types": "*"
+  },
+  "files": [
+    "dist",
+    "src"
+  ]
+}
