@@ -3,7 +3,7 @@ import { findAllInQuadtree, gauss, minmax, nth, ra, rand, rn, si } from "@fmg/sh
 import type { State } from "./states-generator";
 
 declare global {
-  var Military: MilitaryModule;
+  var Military: any;
 }
 
 export interface MilitaryRegiment {

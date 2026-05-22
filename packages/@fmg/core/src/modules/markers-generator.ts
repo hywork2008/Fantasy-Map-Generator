@@ -78,7 +78,7 @@ class MarkersModule {
       return marker;
     }
 
-    const i = last(pack.markers)?.i + 1 || 0;
+    const i = (last(pack.markers as Array<{ i?: number }>)?.i || 0) + 1;
     pack.markers.push({ ...marker, i });
     this.occupied[marker.cell] = true;
     return { ...marker, i };
@@ -489,7 +489,7 @@ class MarkersModule {
 
   private addMarker(base: any, marker: any) {
     if (marker.cell === undefined) return;
-    const i = last(pack.markers)?.i + 1 || 0;
+    const i = (last(pack.markers as Array<{ i?: number }>)?.i || 0) + 1;
     const [x, y] = this.getMarkerCoordinates(marker.cell);
     marker = { ...base, x, y, ...marker, i };
     pack.markers.push(marker);

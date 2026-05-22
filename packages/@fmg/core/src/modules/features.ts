@@ -13,7 +13,7 @@ import {
 } from "@fmg/shared";
 
 declare global {
-  var Features: FeatureModule;
+  var Features: any;
 }
 
 type FeatureType = "ocean" | "lake" | "island";

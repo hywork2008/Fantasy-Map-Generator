@@ -664,7 +664,7 @@ class RoutesModule {
       default: 0.1
     };
 
-    const connectivity = Object.values(connections).reduce((acc, routeId) => {
+    const connectivity = Object.values(connections as Record<string, number>).reduce<number>((acc, routeId) => {
       const route = pack.routes.find(route => route.i === routeId);
       if (!route) return acc;
       const rate = connectivityRateMap[route.group] || connectivityRateMap.default;

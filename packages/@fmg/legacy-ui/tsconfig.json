@@ -1,12 +1,12 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "rootDir": "./src",
     "outDir": "./dist",
     "declaration": true,
     "declarationMap": false,
     "sourceMap": false,
     "removeComments": true,
+    "allowUmdGlobalAccess": true,
     "strict": false,
     "noImplicitAny": false
   },

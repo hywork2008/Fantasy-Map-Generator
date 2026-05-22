@@ -3,7 +3,7 @@ import { max } from "d3";
 import { ensureEl, gauss, generateSeed, getMixedColor, getPolesOfInaccessibility, P, rand, rw } from "@fmg/shared";
 
 declare global {
-  var Provinces: ProvinceModule;
+  var Provinces: any;
 }
 
 export interface Province {
@@ -186,14 +186,16 @@ class ProvinceModule {
       if (buddies > 2) continue;
 
       const competitors = adversaries.map(p => adversaries.reduce((s, v) => (v === p ? s + 1 : s), 0));
-      const maxBuddies = max(competitors) as number;
+      const maxBuddies = Number(max(competitors) ?? 0);
       if (buddies >= maxBuddies) continue;
 
       provinceIds[i] = adversaries[competitors.indexOf(maxBuddies)];
     }
 
     // add "wild" provinces if some cells don't have a province assigned
-    const noProvince = Array.from(cells.i).filter(i => cells.state[i] && !provinceIds[i]); // cells without province assigned
+    const noProvince: number[] = Array.from(cells.i as ArrayLike<number>).filter(
+      (i: number) => cells.state[i] && !provinceIds[i]
+    ); // cells without province assigned
     states.forEach(s => {
       if (!s.i || s.removed) return;
       if (s.lock && !regenerateLockedStates) return;
@@ -209,12 +211,12 @@ class ProvinceModule {
         return spliced[0] ? `New ${spliced[0]}` : null;
       };
 
-      let stateNoProvince = noProvince.filter(i => cells.state[i] === s.i && !provinceIds[i]);
+      let stateNoProvince: number[] = noProvince.filter((i: number) => cells.state[i] === s.i && !provinceIds[i]);
       while (stateNoProvince.length) {
         // add new province
         const provinceId = provinces.length;
-        const burgCell = stateNoProvince.find(i => cells.burg[i]);
-        const center = burgCell ? burgCell : stateNoProvince[0];
+        const burgCell = stateNoProvince.find((i: number) => cells.burg[i]);
+        const center = (burgCell ?? stateNoProvince[0]) as number;
         const burg = burgCell ? cells.burg[burgCell] : 0;
         provinceIds[center] = provinceId;
 
@@ -305,7 +307,7 @@ class ProvinceModule {
         }
 
         // re-check
-        stateNoProvince = noProvince.filter(i => cells.state[i] === s.i && !provinceIds[i]);
+        stateNoProvince = noProvince.filter((i: number) => cells.state[i] === s.i && !provinceIds[i]);
       }
     });
 

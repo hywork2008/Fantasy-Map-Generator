@@ -2,7 +2,7 @@ import { max, mean } from "d3";
 import { gauss, getAdjective, P, ra, rand, rw } from "@fmg/shared";
 
 declare global {
-  var Zones: ZonesModule;
+  var Zones: any;
 }
 
 export interface Zone {
@@ -539,8 +539,8 @@ class ZonesModule {
     const cells = pack.cells;
 
     const fl = cells.fl.filter(Boolean);
-    const meanFlux = mean(fl) ?? 0;
-    const maxFlux = max(fl) ?? 0;
+    const meanFlux = Number(mean(fl) ?? 0);
+    const maxFlux = Number(max(fl) ?? 0);
     const fluxThreshold = (maxFlux - meanFlux) / 2 + meanFlux;
 
     const bigRiverCells = cells.i.filter(

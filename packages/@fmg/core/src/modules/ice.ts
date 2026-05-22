@@ -4,7 +4,7 @@ import { clipPoly, getGridPolygon, getIsolines, lerp, minmax, normalize, P, ra, 
 import type { Point } from "./voronoi";
 
 declare global {
-  var Ice: IceModule;
+  var Ice: any;
 }
 
 class IceModule {

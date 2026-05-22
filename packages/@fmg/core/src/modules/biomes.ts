@@ -2,7 +2,7 @@ import { mean, range } from "d3";
 import { rn } from "@fmg/shared";
 
 declare global {
-  var Biomes: BiomesModule;
+  var Biomes: any;
 }
 
 class BiomesModule {

@@ -1,7 +1,7 @@
 import { capitalize, isVowel, last, P, ra, rand } from "@fmg/shared";
 
 declare global {
-  var Names: NamesGenerator;
+  var Names: any;
 }
 
 export interface NameBase {

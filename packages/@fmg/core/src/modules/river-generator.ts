@@ -335,14 +335,14 @@ class RiverModule {
       if (iteration < checkLakeMaxIteration) {
         for (const l of lakes) {
           if (l.closed) continue;
-          const minHeight = min(l.shoreline.map((s: number) => h[s])) as number;
+          const minHeight = Number(min(l.shoreline.map((s: number) => h[s])) ?? 0);
           if (minHeight >= 100 || l.height > minHeight) continue;
 
           if (iteration > elevateLakeMaxIteration) {
             l.shoreline.forEach((i: number) => {
               h[i] = cells.h[i];
             });
-            l.height = (min(l.shoreline.map((s: number) => h[s])) as number) - 1;
+            l.height = Number(min(l.shoreline.map((s: number) => h[s])) ?? 0) - 1;
             l.closed = true;
             continue;
           }
@@ -353,7 +353,7 @@ class RiverModule {
       }
 
       for (const i of land) {
-        const minHeight = min(cells.c[i].map((c: number) => height(c))) as number;
+        const minHeight = Number(min(cells.c[i].map((c: number) => height(c))) ?? 0);
         if (minHeight >= 100 || h[i] > minHeight) continue;
 
         depressions++;

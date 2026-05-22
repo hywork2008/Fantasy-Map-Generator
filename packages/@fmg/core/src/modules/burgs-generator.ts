@@ -2,7 +2,7 @@ import { quadtree } from "d3-quadtree";
 import { each, ensureEl, gauss, minmax, normalize, P, rn } from "@fmg/shared";
 
 declare global {
-  var Burgs: BurgModule;
+  var Burgs: any;
 }
 export interface Burg {
   cell: number;

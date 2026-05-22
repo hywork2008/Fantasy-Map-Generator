@@ -9,7 +9,7 @@ import { createTinctures } from "./tinctures";
 import { typeMapping } from "./typeMapping";
 
 declare global {
-  var COA: EmblemGeneratorModule;
+  var COA: any;
 }
 
 export interface EmblemCharge {

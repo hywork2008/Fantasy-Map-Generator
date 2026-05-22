@@ -103,7 +103,7 @@ class Resampler {
     const parentPackLandCellsQuadtree = quadtree(parentPackCellGroups.land);
 
     for (const newPackCell of pack.cells.i) {
-      const [x, y] = inverse(...pack.cells.p[newPackCell]);
+      const [x, y] = inverse(...(pack.cells.p[newPackCell] as [number, number]));
       if (isWater(newPackCell, pack)) continue;
 
       const parentPackCell = parentPackLandCellsQuadtree.find(x, y, Infinity)?.[2];

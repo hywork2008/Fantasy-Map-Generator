@@ -167,7 +167,46 @@ declare global {
   var States: any;
   var Zones: any;
   var packedGraph: any;
-  var terrs: any;
+
+  // Renderer utility hooks still provided by legacy UI runtime
+  var drawBurgIcon: (burg: any) => void;
+  var drawBurgLabel: (burg: any) => void;
+  var removeBurgIcon: (burgId: number) => void;
+  var removeBurgLabel: (burgId: number) => void;
+  var redrawIceberg: (cellId: number) => void;
+  var redrawGlacier: (cellId: number) => void;
+
+  // Legacy UI compatibility globals (temporary migration bridge)
+  var PRODUCTION: boolean;
+  var d3: any;
+  var THREE: any;
+  var Rulers: any;
+  var ensureEl: (...args: any[]) => any;
+  var editUnits: (...args: any[]) => any;
+  var clearLegend: (...args: any[]) => any;
+  var drawCoordinates: (...args: any[]) => any;
+  var drawScaleBar: (...args: any[]) => any;
+  var fitScaleBar: (...args: any[]) => any;
+  var updateMinimap: (...args: any[]) => any;
+  var applyStoredOptions: (...args: any[]) => any;
+  var mapWidthInput: HTMLInputElement;
+  var mapHeightInput: HTMLInputElement;
+  var restoreDefaultEvents: (...args: any[]) => any;
+  var initiateAutosave: (...args: any[]) => any;
+  var loadMapFromURL: (...args: any[]) => any;
+  var showUploadErrorMessage: (...args: any[]) => any;
+  var ldb: any;
+  var uploadMap: (...args: any[]) => any;
+  var applyStyleOnLoad: (...args: any[]) => any;
+  var applyLayersPreset: (...args: any[]) => any;
+  var drawLayers: (...args: any[]) => any;
+  var fitMapToScreen: (...args: any[]) => any;
+  var showDataTip: (...args: any[]) => any;
+  var shapeRendering: any;
+  var rescaleLabels: (...args: any[]) => any;
+  var hideLabels: (...args: any[]) => any;
+  var hideEmblems: (...args: any[]) => any;
+  var renderGroupCOAs: (...args: any[]) => any;
 }
 
 export {};

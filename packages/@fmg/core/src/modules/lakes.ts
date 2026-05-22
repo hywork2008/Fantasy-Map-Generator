@@ -3,7 +3,7 @@ import { ensureEl, rn } from "@fmg/shared";
 import type { PackedGraphFeature } from "./features";
 
 declare global {
-  var Lakes: LakesModule;
+  var Lakes: any;
 }
 
 export class LakesModule {

@@ -17,7 +17,7 @@ import {
 } from "@fmg/shared";
 
 declare global {
-  var States: StatesModule;
+  var States: any;
 }
 
 interface Campaign {

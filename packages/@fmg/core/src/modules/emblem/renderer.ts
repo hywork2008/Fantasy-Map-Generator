@@ -8,7 +8,7 @@ import { shieldSize } from "./size";
 import { templates } from "./templates";
 
 declare global {
-  var COArenderer: EmblemRenderModule;
+  var COArenderer: any;
 }
 
 interface Division {

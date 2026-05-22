@@ -15,7 +15,7 @@ import {
 } from "@fmg/shared";
 
 declare global {
-  var Religions: ReligionsModule;
+  var Religions: any;
 }
 
 interface ReligionBase {

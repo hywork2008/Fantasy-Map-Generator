@@ -2,7 +2,7 @@ import { max, quadtree, range } from "d3";
 import { abbreviate, biased, ensureEl, getColors, getRandomColor, minmax, P, rand, rn, rw } from "@fmg/shared";
 
 declare global {
-  var Cultures: CulturesModule;
+  var Cultures: any;
 }
 
 export interface Culture {
@@ -38,7 +38,7 @@ class CulturesModule {
     // generic sorting functions
     const cells = pack.cells,
       s = cells.s,
-      sMax = max(s) as number,
+      sMax = Number(max(Array.from(s as ArrayLike<number>)) ?? 1),
       t = cells.t,
       h = cells.h,
       temp = grid.cells.temp;
