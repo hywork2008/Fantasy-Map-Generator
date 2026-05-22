@@ -258,3 +258,7 @@ function toggleSaveReminder() {
     saveReminder();
   }
 }
+
+Object.assign(window, {
+  initiateAutosave
+});

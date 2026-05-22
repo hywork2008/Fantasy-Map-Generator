@@ -1,3 +1,4 @@
+// @ts-nocheck
 "use strict";
 // Functions to export map to image or data files
 
@@ -102,12 +103,32 @@ async function exportToJpeg() {
   }
 }
 
+function ensureJsZipLoaded() {
+  if (window.JSZip) return Promise.resolve();
+
+  return new Promise((resolve, reject) => {
+    const existingScript = document.querySelector('script[data-lib="jszip"]');
+    if (existingScript) {
+      existingScript.addEventListener("load", () => resolve(), {once: true});
+      existingScript.addEventListener("error", () => reject(new Error("Cannot load JSZip library")), {once: true});
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = new URL("libs/jszip.min.js", window.location.href).toString();
+    script.dataset.lib = "jszip";
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("Cannot load JSZip library"));
+    document.head.append(script);
+  });
+}
+
 async function exportToPngTiles() {
   const status = ensureEl("tileStatus");
   status.innerHTML = "Preparing files...";
 
   const urlSchema = await getMapURL("tiles", {debug: true, fullMap: true});
-  await import("../../libs/jszip.min.js");
+  await ensureJsZipLoaded();
   const zip = new window.JSZip();
 
   const canvas = document.createElement("canvas");
@@ -731,3 +752,15 @@ function saveGeoJsonZones() {
   const fileName = getFileName("Zones") + ".geojson";
   downloadFile(JSON.stringify(json), fileName, "application/json");
 }
+
+Object.assign(window, {
+  exportToSvg,
+  exportToPng,
+  exportToJpeg,
+  exportToPngTiles,
+  saveGeoJsonCells,
+  saveGeoJsonRoutes,
+  saveGeoJsonRivers,
+  saveGeoJsonMarkers,
+  saveGeoJsonZones
+});

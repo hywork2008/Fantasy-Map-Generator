@@ -85,3 +85,17 @@ The Playwright test configuration will use the system binaries:
 - Chromium: `/usr/bin/chromium`
 
 Ensure `playwright.config.ts` is properly configured to reference these system-installed binaries when running tests.
+
+### AI Browser-Diagnostics Guidance (Arch Linux)
+
+In this environment, browser automation MCP tools may try to launch Chrome from `/opt/google/chrome/chrome` and fail even when Playwright is installed.
+
+When an AI agent needs browser console / runtime diagnostics:
+- Do not use MCP Playwright browser tools that depend on `/opt/google/chrome/chrome`.
+- Use local Playwright execution from terminal (Node.js) with explicit Chromium path:
+
+```bash
+node -e "const { chromium } = require('playwright'); chromium.launch({ executablePath: '/usr/bin/chromium' })"
+```
+
+- Keep using `playwright.config.ts` for e2e test runs (`npm run test:e2e`), where `launchOptions.executablePath` is set to `/usr/bin/chromium`.

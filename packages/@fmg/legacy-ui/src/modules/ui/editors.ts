@@ -992,19 +992,19 @@ function refreshAllEditors() {
 // dynamically loaded editors
 async function editStates() {
   if (customization) return;
-  const Editor = await import("../dynamic/editors/states-editor.js?v=1.120.5");
+  const Editor = await import("../dynamic/editors/states-editor.js");
   Editor.open();
 }
 
 async function editCultures() {
   if (customization) return;
-  const Editor = await import("../dynamic/editors/cultures-editor.js?v=1.120.5");
+  const Editor = await import("../dynamic/editors/cultures-editor.js");
   Editor.open();
 }
 
 async function editReligions() {
   if (customization) return;
-  const Editor = await import("../dynamic/editors/religions-editor.js?v=1.120.5");
+  const Editor = await import("../dynamic/editors/religions-editor.js");
   Editor.open();
 }
 
@@ -1013,3 +1013,8 @@ function editCoastlineSettings() {
   if (customization) return;
   window.CoastlineEditor.open();
 }
+
+Object.assign(window, {
+  restoreDefaultEvents,
+  closeDialogs
+});

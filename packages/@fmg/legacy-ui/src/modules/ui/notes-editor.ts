@@ -61,11 +61,11 @@ function editNotes(id, name) {
     if (!window.tinymce) {
       const url = "https://azgaar.github.io/Fantasy-Map-Generator/libs/tinymce/tinymce.min.js";
       try {
-        await import(url);
+        await import(/* @vite-ignore */ url);
       } catch (error) {
         try {
           const hash = Math.random().toString(36).substring(2, 15);
-          await import(`${url}#${hash}`);
+          await import(/* @vite-ignore */ `${url}#${hash}`);
         } catch (error) {
           console.error(error);
         }

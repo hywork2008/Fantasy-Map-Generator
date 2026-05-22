@@ -1024,3 +1024,9 @@ function getLayer(id) {
   if (id === "toggleMarkers") return $("#markers");
   if (id === "toggleRulers") return $("#ruler");
 }
+
+Object.assign(window, {
+  applyLayersPreset,
+  drawLayers,
+  layerIsOn
+});

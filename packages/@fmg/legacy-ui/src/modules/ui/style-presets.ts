@@ -487,3 +487,7 @@ function setPresetRemoveButtonVisibiliy() {
   const isDefault = systemPresets.includes(stylePreset.value);
   removeStyleButton.style.display = isDefault ? "none" : "inline-block";
 }
+
+Object.assign(window, {
+  applyStyleOnLoad
+});

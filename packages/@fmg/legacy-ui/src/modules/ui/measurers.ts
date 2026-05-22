@@ -559,3 +559,12 @@ function createDefaultRuler() {
 
   TIME && console.timeEnd("createDefaultRuler");
 }
+
+Object.assign(window, {
+  Rulers,
+  Ruler,
+  Opisometer,
+  RouteOpisometer,
+  Planimeter,
+  createDefaultRuler
+});

@@ -3,6 +3,7 @@ export default {
     base: process.env.NETLIFY ? '/' : '/Fantasy-Map-Generator/',
     build: {
         outDir: '../dist',
+        emptyOutDir: true,
         assetsDir: './',
     },
     publicDir: '../public',
@@ -15,6 +16,7 @@ export default {
             '@fmg/shared': new URL('./packages/@fmg/shared/src', import.meta.url).pathname,
             '@fmg/types': new URL('./packages/@fmg/types/src', import.meta.url).pathname,
             '@fmg/legacy-ui': new URL('./packages/@fmg/legacy-ui/src', import.meta.url).pathname,
+            '@legacy-ui-runtime': new URL('./packages/@fmg/legacy-ui/src', import.meta.url).pathname,
         }
     }
 }

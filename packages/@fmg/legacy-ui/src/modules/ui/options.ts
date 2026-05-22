@@ -82,7 +82,7 @@ document
 
 // show popup with a list of Patreon supportes (updated manually)
 async function showSupporters() {
-  const {supporters} = await import("../dynamic/supporters.js?v=1.119.0");
+  const {supporters} = await import("../dynamic/supporters.js");
   const list = supporters.split("\n").sort();
   const columns = window.innerWidth < 800 ? 2 : 5;
 
@@ -709,7 +709,7 @@ function changeEra() {
 }
 
 async function openTemplateSelectionDialog() {
-  const HeightmapSelectionDialog = await import("../dynamic/heightmap-selection.js?v=1.120.5");
+  const HeightmapSelectionDialog = await import("../dynamic/heightmap-selection.js");
   HeightmapSelectionDialog.open();
 }
 
@@ -786,7 +786,7 @@ function showExportPane() {
 }
 
 async function exportToJson(type) {
-  const {exportToJson} = await import("../dynamic/export-json.js?v=1.100.00");
+  const {exportToJson} = await import("../dynamic/export-json.js");
   exportToJson(type);
 }
 
@@ -1196,3 +1196,13 @@ function toggle3dOptions() {
     ThreeD.setResolution(this.value);
   }
 }
+
+Object.assign(window, {
+  showOptions,
+  hideOptions,
+  toggleOptions,
+  applyGraphSize,
+  fitMapToScreen,
+  applyStoredOptions,
+  randomizeOptions
+});

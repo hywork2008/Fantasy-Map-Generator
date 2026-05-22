@@ -554,3 +554,21 @@ function showInfo() {
     position: {my: "center", at: "center", of: "svg"}
   });
 }
+
+// Expose legacy UI helpers globally for modules that still call them via window scope.
+Object.assign(window, {
+  tip,
+  showDataTip,
+  onMouseMove,
+  getFriendlyHeight,
+  showMainTip,
+  clearMainTip,
+  showElementLockTip,
+  lock,
+  unlock,
+  locked,
+  stored,
+  store,
+  applyOption,
+  showInfo
+});

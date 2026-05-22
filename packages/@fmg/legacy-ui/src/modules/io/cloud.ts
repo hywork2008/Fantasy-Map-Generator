@@ -20,6 +20,26 @@ window.Cloud = (function () {
   const setToken = (prov, key) => localStorage.setItem(lSKey(prov), key);
   const getToken = prov => localStorage.getItem(lSKey(prov));
 
+  function ensureDropboxSdkLoaded() {
+    if (window.Dropbox) return Promise.resolve();
+
+    return new Promise((resolve, reject) => {
+      const existingScript = document.querySelector('script[data-lib="dropbox-sdk"]');
+      if (existingScript) {
+        existingScript.addEventListener("load", () => resolve(), {once: true});
+        existingScript.addEventListener("error", () => reject(new Error("Cannot load Dropbox SDK")), {once: true});
+        return;
+      }
+
+      const script = document.createElement("script");
+      script.src = new URL("libs/dropbox-sdk.min.js", window.location.href).toString();
+      script.dataset.lib = "dropbox-sdk";
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error("Cannot load Dropbox SDK"));
+      document.head.append(script);
+    });
+  }
+
   /**********************************************************/
   /* Dropbox provider                                       */
   /**********************************************************/
@@ -52,7 +72,7 @@ window.Cloud = (function () {
     },
 
     async connect(token) {
-      await import("../../libs/dropbox-sdk.min.js");
+      await ensureDropboxSdkLoaded();
       const auth = new Dropbox.DropboxAuth({clientId: this.clientId});
       auth.setAccessToken(token);
       this.api = new Dropbox.Dropbox({auth});
