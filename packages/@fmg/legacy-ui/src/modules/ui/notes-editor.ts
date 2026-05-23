@@ -6,7 +6,7 @@ class NotesEditor {
   private notesSelect!: HTMLSelectElement;
   private notesPin!: HTMLElement;
 
-  public open(id: string, name: string) {
+  public open(id?: string, name?: string) {
     this.notesLegend = ensureEl("notesLegend") as HTMLElement;
     this.notesName = ensureEl("notesName") as HTMLInputElement;
     this.notesSelect = ensureEl("notesSelect") as HTMLSelectElement;
@@ -209,6 +209,6 @@ class NotesEditor {
 
 const notesEditor = new NotesEditor();
 
-function editNotes(id: string, name: string) {
+export function editNotes(id?: string, name?: string) {
   notesEditor.open(id, name);
 }

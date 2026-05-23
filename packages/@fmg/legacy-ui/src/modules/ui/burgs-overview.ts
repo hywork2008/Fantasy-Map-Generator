@@ -1,5 +1,5 @@
 "use strict";
-function overviewBurgs(settings = {stateId: null, cultureId: null}) {
+export function overviewBurgs(settings = {stateId: null, cultureId: null}) {
   if (customization) return;
   closeDialogs("#burgsOverview, .stable");
   if (!layerIsOn("toggleBurgIcons")) toggleBurgIcons();

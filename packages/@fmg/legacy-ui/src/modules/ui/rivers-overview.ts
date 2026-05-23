@@ -1,7 +1,7 @@
 "use strict";
 import { Rivers } from "@fmg/core/modules/river-generator";
 
-function overviewRivers() {
+export function overviewRivers() {
   if (customization) return;
   closeDialogs("#riversOverview, .stable");
   if (!layerIsOn("toggleRivers")) toggleRivers();

@@ -1154,7 +1154,7 @@ class ProvincesEditor {
 const provincesEditorController = new ProvincesEditor();
 const provincesEditorSelf = provincesEditorController;
 
-function editProvinces() {
+export function editProvinces() {
   provincesEditorController.open();
 }
 

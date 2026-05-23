@@ -534,6 +534,6 @@ class DiplomacyEditor {
 
 const diplomacyEditorController = new DiplomacyEditor();
 
-function editDiplomacy() {
+export function editDiplomacy() {
   diplomacyEditorController.open();
 }

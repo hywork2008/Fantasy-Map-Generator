@@ -516,6 +516,6 @@ class ZonesEditor {
 
 const zonesEditorController = new ZonesEditor();
 
-function editZones() {
+export function editZones() {
   zonesEditorController.open();
 }

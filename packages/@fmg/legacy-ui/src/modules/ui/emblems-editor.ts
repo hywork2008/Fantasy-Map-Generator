@@ -538,6 +538,6 @@ class EmblemsEditor {
 const emblemsEditorController = new EmblemsEditor();
 const emblemsEditorSelf = emblemsEditorController;
 
-function editEmblem(type: string, id: string, el: any) {
+export function editEmblem(type: string, id: string, el: any) {
   emblemsEditorController.open(type, id, el);
 }

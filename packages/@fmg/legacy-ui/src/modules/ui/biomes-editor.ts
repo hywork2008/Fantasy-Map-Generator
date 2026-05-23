@@ -498,6 +498,6 @@ class BiomesEditor {
 
 const biomesEditorController = new BiomesEditor();
 
-function editBiomes() {
+export function editBiomes() {
   biomesEditorController.open();
 }

@@ -1715,6 +1715,6 @@ class HeightmapEditor {
 
 const heightmapEditor = new HeightmapEditor();
 
-function editHeightmap(options?: EditHeightmapOptions) {
+export function editHeightmap(options?: EditHeightmapOptions) {
   heightmapEditor.open(options);
 }

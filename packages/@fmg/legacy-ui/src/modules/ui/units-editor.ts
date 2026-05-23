@@ -271,6 +271,6 @@ class UnitsEditor {
 
 const unitsEditor = new UnitsEditor();
 
-function editUnits() {
+export function editUnits() {
   unitsEditor.open();
 }

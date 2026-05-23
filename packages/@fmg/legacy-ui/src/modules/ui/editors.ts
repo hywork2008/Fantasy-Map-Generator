@@ -994,19 +994,19 @@ function refreshAllEditors() {
 }
 
 // dynamically loaded editors
-async function editStates() {
+export async function editStates() {
   if (customization) return;
   const Editor = await import("../dynamic/editors/states-editor.js");
   Editor.open();
 }
 
-async function editCultures() {
+export async function editCultures() {
   if (customization) return;
   const Editor = await import("../dynamic/editors/cultures-editor.js");
   Editor.open();
 }
 
-async function editReligions() {
+export async function editReligions() {
   if (customization) return;
   const Editor = await import("../dynamic/editors/religions-editor.js");
   Editor.open();
@@ -1028,7 +1028,7 @@ class CoastlineSettingsEditor {
 
 const coastlineSettingsEditor = new CoastlineSettingsEditor();
 
-function editCoastlineSettings() {
+export function editCoastlineSettings() {
   coastlineSettingsEditor.open();
 }
 

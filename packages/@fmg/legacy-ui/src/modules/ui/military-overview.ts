@@ -1,5 +1,5 @@
 "use strict";
-function overviewMilitary() {
+export function overviewMilitary() {
   if (customization) return;
   closeDialogs("#militaryOverview, .stable");
   if (!layerIsOn("toggleStates")) toggleStates();

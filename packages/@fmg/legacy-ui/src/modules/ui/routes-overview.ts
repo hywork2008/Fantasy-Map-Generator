@@ -1,7 +1,7 @@
 "use strict";
 import { Routes } from "@fmg/core/modules/routes-generator";
 
-function overviewRoutes() {
+export function overviewRoutes() {
   if (customization) return;
   closeDialogs("#routesOverview, .stable");
   if (!layerIsOn("toggleRoutes")) toggleRoutes();

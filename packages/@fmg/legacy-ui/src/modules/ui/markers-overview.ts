@@ -1,5 +1,5 @@
 "use strict";
-function overviewMarkers() {
+export function overviewMarkers() {
   if (customization) return;
   closeDialogs("#markersOverview, .stable");
   if (!layerIsOn("toggleMarkers")) toggleMarkers();
