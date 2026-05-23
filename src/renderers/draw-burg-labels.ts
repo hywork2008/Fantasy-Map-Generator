@@ -93,5 +93,3 @@ function createLabelGroups(): void {
     group.attr("id", name);
   }
 }
-
-

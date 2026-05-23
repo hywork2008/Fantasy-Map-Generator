@@ -1,3 +1,4 @@
+import { closeDialogs } from "@legacy-ui-runtime/modules/ui/editors";
 import Alea from "alea";
 import {
   buildCoastlinePath,
@@ -7,7 +8,6 @@ import {
   makeRoughnessProfile,
   PROFILE_SIZE
 } from "../renderers/coastline-fractal";
-import { closeDialogs } from "@legacy-ui-runtime/modules/ui/editors";
 import { ensureEl } from "../utils";
 
 interface SliderDef {

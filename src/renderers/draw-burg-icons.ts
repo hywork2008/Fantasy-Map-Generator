@@ -117,5 +117,3 @@ function createIconGroups(): void {
     anchorGroup.attr("id", name);
   }
 }
-
-
