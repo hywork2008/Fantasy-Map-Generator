@@ -114,7 +114,7 @@ function editReliefIcon() {
 
   function dragToAdd() {
     const pressed = reliefIconsDiv.querySelector("svg.pressed");
-    if (!pressed) return tip("Please select an icon", false, error);
+    if (!pressed) return tip("Please select an icon", false, "error");
 
     const type = pressed.dataset.type;
     const r = +reliefRadiusNumber.value;
@@ -183,7 +183,7 @@ function editReliefIcon() {
 
   function dragToRemove() {
     const pressed = reliefIconsDiv.querySelector("svg.pressed");
-    if (!pressed) return tip("Please select an icon", false, error);
+    if (!pressed) return tip("Please select an icon", false, "error");
 
     const r = +reliefRadiusNumber.value;
     const type = pressed.dataset.type;

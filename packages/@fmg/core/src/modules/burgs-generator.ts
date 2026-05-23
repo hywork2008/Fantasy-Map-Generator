@@ -35,6 +35,7 @@ export interface Burg {
   group?: string;
   link?: string;
   MFCG?: string;
+  coaSize?: number;
 }
 
 class BurgModule {

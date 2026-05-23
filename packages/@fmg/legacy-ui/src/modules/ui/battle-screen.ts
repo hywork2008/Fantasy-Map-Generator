@@ -1,5 +1,17 @@
 "use strict";
 class Battle {
+  context: any;
+  iteration: number = 0;
+  x: number = 0;
+  y: number = 0;
+  cell: number = 0;
+  attackers: any = null;
+  defenders: any = null;
+  place: string = "";
+  type: string = "";
+  name: string = "";
+  [key: string]: any;
+
   constructor(attacker, defender) {
     if (customization) return;
     closeDialogs(".stable");
@@ -190,10 +202,10 @@ class Battle {
   addSide() {
     const body = ensureEl("regimentSelectorBody");
     const context = Battle.prototype.context;
-    const regiments = pack.states
+      const regiments = pack.states
       .filter(s => s.military && !s.removed)
       .map(s => s.military)
-      .flat();
+        .flat() as any[];
     const distance = reg =>
       rn(Math.hypot(context.y - reg.y, context.x - reg.x) * distanceScale) + " " + distanceUnitInput.value;
     const isAdded = reg =>
@@ -556,7 +568,7 @@ class Battle {
       if (prev[0] === "chase") return ["chase", "withdrawal"];
 
       // withdrawal phase when power imbalanced
-      if (!prev[0] === "boarding") {
+      if (prev[0] !== "boarding") {
         if (powerRatio < 0.5 || (P(this.attackers.casualties) && powerRatio < 1)) return ["withdrawal", "chase"];
         if (powerRatio > 2 || (P(this.defenders.casualties) && powerRatio > 1)) return ["chase", "withdrawal"];
       }
@@ -881,7 +893,7 @@ class Battle {
     const getLosses = casualties => Math.min(rn(casualties * 100), 100);
 
     const status = battleStatus[+P(0.7)];
-    const result = `The ${this.getTypeName(this.type)} ended in ${status}`;
+    const result = `The ${this.getTypeName()} ended in ${status}`;
     const legend = `${this.name} took place in ${options.year} ${options.eraShort}. It was fought between ${getSide(
       this.attackers.regiments,
       1

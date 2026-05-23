@@ -3,6 +3,8 @@
 import { Routes } from "@fmg/core/modules/routes-generator";
 
 export class Rulers {
+  data: any[] = [];
+
   constructor() {
     this.data = [];
   }
@@ -56,6 +58,10 @@ export class Rulers {
 }
 
 class Measurer {
+  points: number[][] = [];
+  id: number = 0;
+  el: any = null;
+
   constructor(points) {
     this.points = points;
     this.id = rulers.data.length;
@@ -74,7 +80,7 @@ class Measurer {
   }
 
   drag() {
-    const tr = parseTransform(this.getAttribute("transform"));
+      const tr = parseTransform((this.el as any).getAttribute("transform"));
     const x = +tr[0] - d3.event.x,
       y = +tr[1] - d3.event.y;
 
@@ -115,6 +121,10 @@ class Measurer {
   undraw() {
     this.el?.remove();
   }
+
+  updateCurve() {}
+
+  updateLabel() {}
 }
 
 export class Ruler extends Measurer {
@@ -370,6 +380,8 @@ export class Opisometer extends Measurer {
 }
 
 export class RouteOpisometer extends Measurer {
+  cellStops: number[] | null = null;
+
   constructor(points) {
     super(points);
     if (pack.cells) {

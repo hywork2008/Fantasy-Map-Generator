@@ -11,6 +11,8 @@ export interface Culture {
   i: number;
   base: number;
   shield: string;
+  x?: number;
+  y?: number;
   lock?: boolean;
   code?: string;
   center?: number;
@@ -20,6 +22,7 @@ export interface Culture {
   type?: string;
   expansionism?: number;
   origins?: (number | null)[];
+  origin?: number | null;
   removed?: boolean;
   cells?: number;
   area?: number;

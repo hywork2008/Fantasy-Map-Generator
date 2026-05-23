@@ -445,7 +445,7 @@ function changePopulation() {
     const totalNew = ruralPop.valueAsNumber + urbanPop.valueAsNumber;
     if (isNaN(totalNew)) return;
     totalPop.innerHTML = l(totalNew);
-    totalPopPerc.innerHTML = rn((totalNew / total) * 100);
+    totalPopPerc.innerHTML = String(rn((totalNew / total) * 100));
   };
 
   ruralPop.oninput = () => update();
@@ -663,7 +663,7 @@ async function showHierarchy() {
   });
 }
 
-function recalculateCultures(force) {
+function recalculateCultures(force?) {
   if (force || culturesAutoChange.checked) {
     Cultures.expand();
     drawCultures();
@@ -777,7 +777,7 @@ function applyCultureManualAssignent() {
   exitCulturesManualAssignment();
 }
 
-function exitCulturesManualAssignment(close) {
+function exitCulturesManualAssignment(close?) {
   customization = 0;
   culturesManualHistory = [];
   cults.select("#temp").remove();
@@ -852,7 +852,7 @@ function downloadCulturesCsv() {
   const headers = `Id,Name,Color,Cells,Expansionism,Type,Area ${unit},Population,Namesbase,Emblems Shape,Origins`;
   const lines = Array.from($body.querySelectorAll(":scope > div"));
   const data = lines.map($line => {
-    const {id, name, color, cells, expansionism, type, area, population, emblems, base} = $line.dataset;
+    const {id, name, color, cells, expansionism, type, area, population, emblems, base} = ($line as HTMLElement).dataset;
     const namesbase = nameBases[+base].name;
     const {origins} = pack.cultures[+id];
     const originList = origins.filter(origin => origin).map(origin => pack.cultures[origin].name);

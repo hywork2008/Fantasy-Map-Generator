@@ -1,3 +1,12 @@
+// Override d3 BaseType to any so legacy d3 callbacks don't require explicit this typing
+// Augment d3 Selection to allow any-typed 'this' in callbacks for legacy code
+declare module "d3-selection" {
+	interface Selection<GElement, Datum, PElement, PDatum> {
+		each(func: (this: any, d: Datum, i: number, groups: GElement[] | ArrayLike<GElement>) => void): this;
+		filter(value: (this: any, d: Datum, i: number, groups: GElement[] | ArrayLike<GElement>) => boolean): Selection<GElement, Datum, PElement, PDatum>;
+	}
+}
+
 type AnyFn = (...args: any[]) => any;
 type LegacyCheckboxControl = {checked: boolean};
 type LegacyValueControl = {value: string};
@@ -35,6 +44,11 @@ interface Window {
 	fonts: Array<{family: string; src?: string; unicodeRange?: string; variant?: string}>;
 	declareFont: (font: {family: string; src?: string; unicodeRange?: string; variant?: string}) => void;
 	tinymce: any;
+	edits: any;
+	chrome: any;
+	ThreeD: any;
+	THREE: any;
+	loopSubdivision: any;
 }
 
 interface Element {
@@ -48,6 +62,9 @@ interface Element {
 	type: any;
 	dataset: DOMStringMap;
 	style: CSSStyleDeclaration;
+	points: any;
+	getTotalLength: () => number;
+	getPointAtLength: (distance: number) => DOMPoint;
 }
 
 interface EventTarget {
@@ -140,7 +157,7 @@ declare let scaleBar: any;
 declare let compass: any;
 declare let rulers: any;
 declare let styleTab: LegacyControlElement;
-declare let heightExponentInput: LegacyControlElement;
+declare var heightExponentInput: LegacyControlElement;
 
 declare let cells: any;
 declare let biomes: any;
@@ -165,7 +182,7 @@ declare let debug: any;
 declare let coordinates: any;
 declare let gridOverlay: any;
 
-declare let grid: any;
+declare var grid: any;
 declare let _distanceScale: number;
 declare let _populationRate: number;
 declare let _urbanization: number;
@@ -178,16 +195,16 @@ declare let heightmapColorSchemes: Record<string, string[]>;
 declare let addCustomColorScheme: (scheme: string) => void;
 declare let updateTextureSelectValue: (href: string) => void;
 declare let lock: AnyFn;
-declare let drawReliefIcons: AnyFn;
-declare let drawTemperature: AnyFn;
-declare let drawStateLabels: AnyFn;
+declare var drawReliefIcons: AnyFn;
+declare var drawTemperature: AnyFn;
+declare var drawStateLabels: AnyFn;
 declare let drawPrecipitation: AnyFn;
 declare let drawBiomes: AnyFn;
 declare let drawRivers: AnyFn;
 declare let convertTemperature: AnyFn;
 declare let parseTransform: AnyFn;
 declare let getGridPolygon: AnyFn;
-declare let getPackPolygon: AnyFn;
+declare var getPackPolygon: AnyFn;
 declare let getIsolines: AnyFn;
 declare let editStyle: AnyFn;
 declare let cleanupData: AnyFn;
@@ -243,16 +260,16 @@ declare let createRiver: AnyFn;
 declare let editRoute: AnyFn;
 declare let editRiver: AnyFn;
 declare let editRouteGroups: AnyFn;
-declare let closeDialogs: AnyFn;
-declare let tip: AnyFn;
-declare let getFileName: AnyFn;
-declare let confirmationDialog: AnyFn;
+declare var closeDialogs: AnyFn;
+declare var tip: any;
+declare var getFileName: AnyFn;
+declare var confirmationDialog: AnyFn;
 declare let applySorting: AnyFn;
 declare let highlightElement: AnyFn;
 declare let sortLines: AnyFn;
 declare let clicked: AnyFn;
 declare let getSegmentId: AnyFn;
-declare let editHeightmap: AnyFn;
+declare let editHeightmap: any;
 declare let editBiomes: AnyFn;
 declare let editStates: AnyFn;
 declare let editProvinces: AnyFn;
@@ -297,14 +314,14 @@ declare let calculateFriendlyGridSize: AnyFn;
 declare let generatePrecipitation: AnyFn;
 declare let toggleAssistant: AnyFn;
 declare let selectStyleElement: AnyFn;
-declare let ra: (array: string[]) => string;
+declare let ra: (array: ArrayLike<any>) => string;
 declare let rn: (value: number, digits?: number) => number;
 declare let round: (value: string) => string;
 declare let getVertexPath: AnyFn;
-declare let getFeaturePath: AnyFn;
-declare let getPin: AnyFn;
-declare let terrain: any;
-declare let armies: any;
+declare var getFeaturePath: AnyFn;
+declare var getPin: AnyFn;
+declare var terrain: any;
+declare var armies: any;
 declare var fonts: Array<{family: string; src?: string; unicodeRange?: string; variant?: string}>;
 declare let mapToLoad: any;
 declare let tooltip: any;
@@ -345,7 +362,7 @@ declare let options3dSubdivide: any;
 declare let tinymce: any;
 
 declare let Biomes: any;
-declare let Markers: any;
+declare var Markers: any;
 declare var Burgs: any;
 declare var Features: any;
 
@@ -363,7 +380,7 @@ declare let drawGrid: AnyFn;
 declare let restoreDefaultEvents: AnyFn;
 declare let focusOn: AnyFn;
 declare let fitMapToScreen: AnyFn;
-declare let layerIsOn: AnyFn;
+declare var layerIsOn: AnyFn;
 declare let clearMainTip: AnyFn;
 declare let parseError: AnyFn;
 declare let regenerateMap: AnyFn;
@@ -380,7 +397,7 @@ declare let last: AnyFn;
 declare let link: AnyFn;
 declare let getComposedPath: AnyFn;
 declare let drawStates: AnyFn;
-declare let drawBorders: AnyFn;
+declare var drawBorders: AnyFn;
 declare let mapURL: any;
 declare let loadMapFromURL: AnyFn;
 declare let uploadMap: AnyFn;
@@ -552,6 +569,147 @@ declare let infoBiome: HTMLElement;
 declare let getAdjective: AnyFn;
 
 declare function prompt(message: string, options?: any, callback?: (value: string) => void): void;
+
+  // Cultures / Religions editor globals
+  declare let applySortingByHeader: AnyFn;
+	declare var openPicker: any;
+  declare let abbreviate: AnyFn;
+  declare var drawPopulation: AnyFn;
+  declare var legend: any;
+  declare var clearLegend: AnyFn;
+  declare var drawLegend: AnyFn;
+  declare var ruralPop: HTMLInputElement;
+  declare var urbanPop: HTMLInputElement;
+  declare var totalPop: HTMLElement;
+  declare var totalPopPerc: HTMLElement;
+  declare let l: (n: number) => string;
+  declare let culturesAutoChange: HTMLInputElement;
+  declare let culturesFooter: HTMLElement;
+  declare let culturesBrush: any;
+  declare let culturesAdd: HTMLElement;
+  declare let religionsHeader: HTMLElement;
+
+  // Heightmap editor globals
+  declare let THREE: any;
+  declare let edits: any;
+  declare let cellTypeFilter: any;
+  declare let mapLayers: HTMLElement;
+  declare let heightmapEditMode: any;
+  declare let changeViewMode: AnyFn;
+	declare let applyTemplate: any;
+	declare let convertImage: any;
+	declare let allowErosionBox: any;
+	declare let exitCustomization: any;
+	declare let turnButtonOn: AnyFn;
+	declare let heightmapInfoX: any;
+	declare let heightmapInfoY: any;
+	declare let heightmapInfoCell: any;
+	declare let heightmapInfoHeight: any;
+  declare let heightmapBrushRadius: any;
+  declare let templateRedo: HTMLElement;
+  declare let templateUndo: HTMLElement;
+  declare let drawRoutes: AnyFn;
+
+	// Additional missing globals
+	declare let adjustLabels: any;
+	declare let allowErosion: any;
+	declare let battleAttackers: any;
+	declare let battleDefenders: any;
+	declare let biomesEditorRefresh: any;
+	declare let burgs: any[];
+	declare let colorsAssigned: any;
+	declare let colorsAssignedContainer: HTMLElement;
+	declare let colorsSelect: HTMLSelectElement;
+	declare let colorsSelectFriendly: any;
+	declare let colorsSelectValue: any;
+	declare let colorsUnassigned: any;
+	declare let colorsUnassignedContainer: HTMLElement;
+	declare let conditionSign: HTMLElement;
+	declare let convertColors: any;
+	declare let convertOverlay: any;
+	declare let convertOverlayNumber: HTMLInputElement;
+	declare let createTypedArray: AnyFn;
+	declare let culturesEditorRefresh: any;
+	declare let customPresetPrefix: string;
+	declare let diplomacyEditorRefresh: any;
+	declare let drawTexture: AnyFn;
+	declare let editCoastline: AnyFn;
+	declare let editIce: AnyFn;
+	declare let editLabel: AnyFn;
+	declare let editLake: AnyFn;
+	declare let editRegiment: AnyFn;
+	declare let editReliefIcon: AnyFn;
+	declare let enterStandardView: AnyFn;
+	declare let findGridAll: AnyFn;
+	declare let getCurrentPreset: AnyFn;
+	declare let getMixedColor: AnyFn;
+	declare let heightmapBrushPower: any;
+	declare let imageConverter: any;
+	declare let imageConverterPalette: any;
+	declare let imageToLoad: any;
+	declare let lim: AnyFn;
+	declare let list: any;
+	declare let loopSubdivision: any;
+	declare let onMouseMove: AnyFn;
+	declare let pickerH: LegacyControlElement;
+	declare let pickerHEX: LegacyControlElement;
+	declare let pickerHSL_H: LegacyControlElement;
+	declare let pickerHSL_L: LegacyControlElement;
+	declare let pickerHSL_S: LegacyControlElement;
+	declare let pickerL: LegacyControlElement;
+	declare let pickerRGB_B: LegacyControlElement;
+	declare let pickerRGB_G: LegacyControlElement;
+	declare let pickerRGB_R: LegacyControlElement;
+	declare let pickerS: LegacyControlElement;
+	declare let Pint: any;
+	declare let polylabel: AnyFn;
+	declare let provinceInfo: HTMLElement;
+	declare let provinceNameEditor: HTMLElement;
+	declare let provinceNameEditorCustomForm: any;
+	declare let provinceNameEditorSelectForm: any;
+	declare let provincesAdd: HTMLElement;
+	declare let provincesBrush: any;
+	declare let provincesEditorRefresh: any;
+	declare let provincesFooter: HTMLElement;
+	declare let provincesFooterArea: HTMLElement;
+	declare let provincesFooterPopulation: HTMLElement;
+	declare let provincesHeader: HTMLElement;
+	declare let provincesTreeType: any;
+	declare let rankCells: AnyFn;
+	declare let regenerateEmblems: AnyFn;
+	declare let regimentSelectorHeader: HTMLElement;
+	declare let religionsAdd: HTMLElement;
+	declare let religionsAutoChange: HTMLInputElement;
+	declare let religionsEditorRefresh: any;
+	declare let religionsFooter: HTMLElement;
+	declare let renderOcean: any;
+	declare let rescaleHigher: HTMLElement;
+	declare let rescaleLower: HTMLElement;
+	declare let rescaleModifier: any;
+	declare let RgbQuant: any;
+	declare let shiftCompass: AnyFn;
+	declare let stateNameEditor: HTMLElement;
+	declare let stateNameEditorCustomForm: any;
+	declare let stateNameEditorSelectForm: any;
+	declare let stateNameEditorFullRegenerate: any;
+	declare let stateNameEditorUpdateLabel: any;
+	declare let statesAdd: HTMLElement;
+	declare let statesAutoChange: HTMLInputElement;
+	declare let statesBrush: any;
+	declare let statesEditorRefresh: any;
+	declare let statesFooter: HTMLElement;
+	declare let statesHeader: HTMLElement;
+	declare let statesInfo: HTMLElement;
+	declare let statesTreeType: any;
+	declare let styleLegendBack: any;
+	declare let styleLegendColItems: any;
+	declare let styleLegendOpacity: any;
+	declare let templateBody: HTMLElement;
+	declare let templateToLoad: any;
+	declare let throttle: AnyFn;
+	declare let turnButtonOff: AnyFn;
+	declare let zonesEditorRefresh: any;
+	declare let color: AnyFn;
 }
 
 export {};

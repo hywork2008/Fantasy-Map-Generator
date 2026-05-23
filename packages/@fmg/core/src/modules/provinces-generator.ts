@@ -10,16 +10,21 @@ declare global {
 export interface Province {
   i: number;
   removed?: boolean;
-  state: number;
+  state?: number;
   lock?: boolean;
-  center: number;
-  burg: number;
-  name: string;
-  formName: string;
-  fullName: string;
-  color: string;
-  coa: any;
+  center?: number;
+  burg?: number;
+  burgs?: number[];
+  name?: string;
+  formName?: string;
+  fullName?: string;
+  color?: string;
+  coa?: any;
   pole?: [number, number];
+  coaSize?: number;
+  area?: number;
+  rural?: number;
+  urban?: number;
 }
 
 class ProvinceModule {

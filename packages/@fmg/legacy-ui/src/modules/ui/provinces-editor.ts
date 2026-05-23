@@ -105,9 +105,9 @@ function editProvinces() {
     const stateFilter = ensureEl("provincesFilterState");
     const selectedState = stateFilter.value || 1;
     stateFilter.options.length = 0; // remove all options
-    stateFilter.options.add(new Option(`all`, -1, false, selectedState == -1));
+    stateFilter.options.add(new Option(`all`, String(-1), false, selectedState == -1));
     const statesSorted = pack.states.filter(s => s.i && !s.removed).sort((a, b) => (a.name > b.name ? 1 : -1));
-    statesSorted.forEach(s => stateFilter.options.add(new Option(s.name, s.i, false, s.i == selectedState)));
+    statesSorted.forEach(s => stateFilter.options.add(new Option(s.name, String(s.i), false, s.i == selectedState)));
   }
 
   // add line for each province
@@ -275,24 +275,31 @@ function editProvinces() {
       message: "Are you sure you want to declare province independence? <br>It will turn province into a new state",
       confirm: "Declare",
       onConfirm: () => {
-        const [oldStateId, newStateId] = declareProvinceIndependence(p);
+          const released = declareProvinceIndependence(p);
+          if (!released) return;
+          const [oldStateId, newStateId] = released;
         updateStatesPostRelease([oldStateId], [newStateId]);
       }
     });
   }
 
-  function declareProvinceIndependence(provinceId) {
+    function declareProvinceIndependence(provinceId): [number, number] | null {
     const {states, provinces, cells, burgs} = pack;
     const province = provinces[provinceId];
     const {name, burg: burgId, burgs: provinceBurgs} = province;
 
-    if (provinceBurgs.some(b => burgs[b].capital))
-      return tip(
+      if (provinceBurgs.some(b => burgs[b].capital)) {
+        tip(
         "Cannot declare independence of a province having capital burg. Please change capital first",
         false,
         "error"
       );
-    if (!burgId) return tip("Cannot declare independence of a province without burg", false, "error");
+        return null;
+      }
+      if (!burgId) {
+        tip("Cannot declare independence of a province without burg", false, "error");
+        return null;
+      }
 
     const oldStateId = province.state;
     const newStateId = states.length;
@@ -420,7 +427,7 @@ function editProvinces() {
       const totalNew = ruralPop.valueAsNumber + urbanPop.valueAsNumber;
       if (isNaN(totalNew)) return;
       totalPop.innerHTML = l(totalNew);
-      totalPopPerc.innerHTML = rn((totalNew / total) * 100);
+      totalPopPerc.innerHTML = String(rn((totalNew / total) * 100));
     };
 
     ruralPop.oninput = () => update();
@@ -443,22 +450,22 @@ function editProvinces() {
     });
 
     function applyPopulationChange() {
-      const ruralChange = ruralPop.value / rural;
+      const ruralChange = +ruralPop.value / rural;
       if (isFinite(ruralChange) && ruralChange !== 1) {
         cells.forEach(i => (pack.cells.pop[i] *= ruralChange));
       }
       if (!isFinite(ruralChange) && +ruralPop.value > 0) {
-        const points = ruralPop.value / populationRate;
+          const points = +ruralPop.value / populationRate;
         const pop = rn(points / cells.length);
         cells.forEach(i => (pack.cells.pop[i] = pop));
       }
 
-      const urbanChange = urbanPop.value / urban;
+      const urbanChange = +urbanPop.value / urban;
       if (isFinite(urbanChange) && urbanChange !== 1) {
         p.burgs.forEach(b => (pack.burgs[b].population = rn(pack.burgs[b].population * urbanChange, 4)));
       }
       if (!isFinite(urbanChange) && +urbanPop.value > 0) {
-        const points = urbanPop.value / populationRate / urbanization;
+          const points = +urbanPop.value / populationRate / urbanization;
         const population = rn(points / burgs.length, 4);
         p.burgs.forEach(b => (pack.burgs[b].population = population));
       }
@@ -671,7 +678,7 @@ function editProvinces() {
       .append("g")
       .attr("data-id", d => d.data.i)
       .on("mouseenter", d => showInfo(event, d))
-      .on("mouseleave", d => hideInfo(event, d));
+      .on("mouseleave", d => hideInfo(d));
 
     function showInfo(ev, d) {
       d3.select(ev.target).select("rect").classed("selected", 1);
@@ -919,7 +926,7 @@ function editProvinces() {
       if (provinceNew === provinceOld) return;
       if (i === pack.provinces[provinceOld].center) {
         const center = centers.select("polygon[data-center='" + i + "']");
-        if (!center.size()) centers.append("polygon").attr("data-center", i).attr("points", getPackPolygon(i));
+          if (!center.size()) centers.append("polygon").attr("data-center", i).attr("points", getPackPolygon(i) as any);
         tip(
           "Province center cannot be assigned to a different region. Please remove the province first",
           false,
@@ -935,7 +942,7 @@ function editProvinces() {
       } else {
         temp
           .append("polygon")
-          .attr("points", getPackPolygon(i))
+            .attr("points", getPackPolygon(i) as any)
           .attr("data-cell", i)
           .attr("data-province", provinceNew)
           .attr("fill", fill)
@@ -968,7 +975,7 @@ function editProvinces() {
     refreshProvincesEditor();
   }
 
-  function exitProvincesManualAssignment(close) {
+  function exitProvincesManualAssignment(close = false) {
     customization = 0;
     provs.select("#temp").remove();
     provs.select("#centers").remove();
@@ -1124,7 +1131,7 @@ function editProvinces() {
           emblems.select("#provinceEmblems").selectAll("*").remove();
 
           // remove data
-          pack.provinces = [0];
+            pack.provinces = [0] as any;
           pack.cells.province = new Uint16Array(pack.cells.i.length);
           pack.states.forEach(s => (s.provinces = []));
 
@@ -1155,7 +1162,7 @@ function editProvinces() {
 
   function closeProvincesEditor() {
     provs.selectAll("text").call(d3.drag().on("drag", null)).attr("class", null);
-    if (customization === 11) exitProvincesManualAssignment("close");
+    if (customization === 11) exitProvincesManualAssignment(true);
     if (customization === 12) exitAddProvinceMode();
   }
 }

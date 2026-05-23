@@ -63,6 +63,10 @@ declare global {
     iconsDensity: number[];
     icons: string[][];
     cost: number[];
+    cells?: number[];
+    area?: number[];
+    rural?: number[];
+    urban?: number[];
   };
   var notes: any[];
   var style: {
@@ -104,11 +108,11 @@ declare global {
   var getHeight: (h: number) => string;
   var getLatitude: (y: number, precision?: number) => number;
   var getLongitude: (x: number, precision?: number) => number;
-  var getFileName: (name: string) => string;
+  var getFileName: (name?: string) => string;
   var customization: number;
   var speak: (text: string) => void;
   var uploadFile: (el: HTMLInputElement, callback: (data: string) => void) => void;
-  var downloadFile: (content: string | Blob, name: string) => void;
+  var downloadFile: (content: string | Blob, name: string, type?: string) => void;
   var zoomTo: (x: number, y: number, zoom: number, duration: number) => void;
 
   // Zones editor globals (pending full migration to imports)
@@ -117,7 +121,7 @@ declare global {
   var drawPopulation: () => void;
   var areaUnit: HTMLSelectElement;
   var openPicker: any;
-  var drawLegend: () => void;
+  var drawLegend: (...args: any[]) => void;
   var fog: any;
   var unfog: any;
   var legend: Selection<SVGGElement, unknown, null, undefined>;

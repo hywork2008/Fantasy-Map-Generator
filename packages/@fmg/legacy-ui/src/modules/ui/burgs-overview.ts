@@ -290,7 +290,7 @@ function overviewBurgs(settings = {stateId: null, cultureId: null}) {
           y: b.y
         };
       });
-    const data = states.concat(burgs);
+    const data = (states as any[]).concat(burgs as any[]);
     if (data.length < 2) return tip("No burgs to show", false, "error");
 
     const root = d3

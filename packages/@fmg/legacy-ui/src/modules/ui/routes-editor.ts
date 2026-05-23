@@ -1,13 +1,36 @@
 "use strict";
 import { Routes } from "@fmg/core/modules/routes-generator";
 
+// File-local declarations for legacy globals
+declare let customization: boolean;
+declare let ensureEl: (id: string) => HTMLElement;
+declare let routes: any;
+declare let pack: any;
+declare let updateRouteLength: (route: any) => any;
+declare let editRouteGroups: (route: any) => any;
+declare let refreshAllEditors: () => any;
+declare let layerIsOn: (toggle: string) => boolean;
+declare let drawRoutes: () => any;
+declare let toggleRoutes: () => any;
+declare let routeName: HTMLElement;
+declare let routeGroup: HTMLElement;
+declare let routesHeader: HTMLElement;
+declare let routesFooterNumber: HTMLElement;
+declare let routesFooterLength: HTMLElement;
+declare let regimentsFilter: HTMLElement;
+declare let regimentsHeader: HTMLElement;
+declare let regimentAdd: HTMLElement;
+declare let Military: any;
+declare let unselectElements: () => any;
+declare let viewbox: any;
+
 function editRoute(id) {
   if (customization) return;
   if (elSelected && id === elSelected.attr("id")) return;
   closeDialogs(".stable");
 
   if (!layerIsOn("toggleRoutes")) toggleRoutes();
-  ensureEl("toggleCells").dataset.forced = +!layerIsOn("toggleCells");
+  ensureEl("toggleCells").dataset.forced = String(+!layerIsOn("toggleCells"));
   if (!layerIsOn("toggleCells")) toggleCells();
 
   elSelected = d3.select("#" + id).on("click", addControlPoint);
@@ -61,7 +84,7 @@ function editRoute(id) {
 
     const routeGroup = ensureEl("routeGroup");
     routeGroup.options.length = 0;
-    routes.selectAll("g").each(function () {
+    routes.selectAll("g").each(function (this: SVGGElement) {
       routeGroup.options.add(new Option(this.id, this.id, false, this.id === route.group));
     });
 
@@ -403,7 +426,7 @@ function editRoute(id) {
     clearMainTip();
 
     const forced = +ensureEl("toggleCells").dataset.forced;
-    ensureEl("toggleCells").dataset.forced = 0;
+    ensureEl("toggleCells").dataset.forced = "0";
     if (forced && layerIsOn("toggleCells")) toggleCells();
   }
 }

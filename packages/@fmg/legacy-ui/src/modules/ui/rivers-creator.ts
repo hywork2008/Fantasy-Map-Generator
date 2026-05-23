@@ -101,7 +101,7 @@ const createRiver = (function createRiverImpl() {
     const meanderedPoints = Rivers.addMeandering(riverCells);
 
     const discharge = cells.fl[mouth];
-    const length = Rivers.getApproximateLength(meanderedPoints);
+    const length = Rivers.getApproximateLength(meanderedPoints as any);
     const width = Rivers.getWidth(
       Rivers.getOffset({
         flux: discharge,

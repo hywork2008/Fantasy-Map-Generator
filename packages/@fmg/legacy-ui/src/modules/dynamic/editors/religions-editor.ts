@@ -421,7 +421,7 @@ function changePopulation() {
     const totalNew = ruralPop.valueAsNumber + urbanPop.valueAsNumber;
     if (isNaN(totalNew)) return;
     totalPop.innerHTML = format(totalNew);
-    totalPopPerc.innerHTML = rn((totalNew / total) * 100);
+    totalPopPerc.innerHTML = String(rn((totalNew / total) * 100));
   };
 
   ruralPop.oninput = () => update();
@@ -444,24 +444,24 @@ function changePopulation() {
   });
 
   function applyPopulationChange() {
-    const ruralChange = ruralPop.value / rural;
+    const ruralChange = +ruralPop.value / rural;
     if (isFinite(ruralChange) && ruralChange !== 1) {
       const cells = pack.cells.i.filter(i => pack.cells.religion[i] === religionId);
       cells.forEach(i => (pack.cells.pop[i] *= ruralChange));
     }
     if (!isFinite(ruralChange) && +ruralPop.value > 0) {
-      const points = ruralPop.value / populationRate;
+      const points = +ruralPop.value / populationRate;
       const cells = pack.cells.i.filter(i => pack.cells.religion[i] === religionId);
       const pop = rn(points / cells.length);
       cells.forEach(i => (pack.cells.pop[i] = pop));
     }
 
-    const urbanChange = urbanPop.value / urban;
+    const urbanChange = +urbanPop.value / urban;
     if (isFinite(urbanChange) && urbanChange !== 1) {
       burgs.forEach(b => (b.population = rn(b.population * urbanChange, 4)));
     }
     if (!isFinite(urbanChange) && +urbanPop.value > 0) {
-      const points = urbanPop.value / populationRate / urbanization;
+      const points = +urbanPop.value / populationRate / urbanization;
       const population = rn(points / burgs.length, 4);
       burgs.forEach(b => (b.population = population));
     }
@@ -475,14 +475,14 @@ function religionChangeExtent() {
   const religion = +this.parentNode.dataset.id;
   this.parentNode.dataset.expansion = this.value;
   pack.religions[religion].expansion = this.value;
-  recalculateReligions();
+  recalculateReligions(true);
 }
 
 function religionChangeExpansionism() {
   const religion = +this.parentNode.dataset.id;
   this.parentNode.dataset.expansionism = this.value;
   pack.religions[religion].expansionism = +this.value;
-  recalculateReligions();
+  recalculateReligions(true);
 }
 
 function religionRemovePrompt() {
@@ -565,7 +565,7 @@ function religionCenterDrag() {
     if (pack.cells.h[cell] < 20) return; // ignore dragging on water
 
     pack.religions[religionId].center = cell;
-    recalculateReligions();
+    recalculateReligions(true);
   }
 
   const dragDebounced = debounce(handleDrag, 50);
@@ -579,7 +579,7 @@ function toggleLegend() {
     .filter(r => r.i && !r.removed && r.area)
     .sort((a, b) => b.area - a.area)
     .map(r => [r.i, r.color, r.name]);
-  drawLegend("Religions", data);
+  drawLegend("Religions", data as any);
 }
 
 function togglePercentageMode() {
@@ -747,7 +747,7 @@ function applyReligionsManualAssignent() {
   exitReligionsManualAssignment();
 }
 
-function exitReligionsManualAssignment(close) {
+function exitReligionsManualAssignment(close?) {
   customization = 0;
   relig.select("#temp").remove();
   removeCircle();
@@ -808,7 +808,8 @@ function downloadReligionsCsv() {
   const headers = `Id,Name,Color,Type,Form,Supreme Deity,Area ${unit},Believers,Origins,Potential,Expansionism`;
   const lines = Array.from($body.querySelectorAll(":scope > div"));
   const data = lines.map($line => {
-    const {id, name, color, type, form, deity, area, population, expansion, expansionism} = $line.dataset;
+    const lineEl = $line as HTMLElement;
+    const {id, name, color, type, form, deity, area, population, expansion, expansionism} = lineEl.dataset;
     const deityText = '"' + deity + '"';
     const {origins} = pack.religions[+id];
     const originList = (origins || []).filter(origin => origin).map(origin => pack.religions[origin].name);

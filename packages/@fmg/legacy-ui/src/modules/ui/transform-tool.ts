@@ -139,7 +139,7 @@ async function openTransformTool() {
 
     drawLayers();
 
-    INFO && console.groupEnd("transformMap");
+    INFO && console.groupEnd();
   }
 
   function getProjection() {
@@ -154,7 +154,7 @@ async function openTransformTool() {
     const mirrorH = ensureEl("transformMirrorH").checked;
     const mirrorV = ensureEl("transformMirrorV").checked;
 
-    function project(x, y) {
+    function project(x, y): [number, number] {
       x -= centerX;
       y -= centerY;
 
@@ -171,7 +171,7 @@ async function openTransformTool() {
       return [x + centerX + shiftX, y + centerY + shiftY];
     }
 
-    function inverse(x, y) {
+    function inverse(x, y): [number, number] {
       x -= centerX + shiftX;
       y -= centerY + shiftY;
 

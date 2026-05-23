@@ -9,6 +9,7 @@ import { Rivers } from "@fmg/core/modules/river-generator";
 import { Routes } from "@fmg/core/modules/routes-generator";
 import { States } from "@fmg/core/modules/states-generator";
 
+
 // File-local declarations for legacy globals
 declare let toolsContent: HTMLElement;
 declare let customization: boolean;
@@ -21,43 +22,26 @@ declare let editDiplomacy: () => any;
 declare let editCoastlineSettings: () => any;
 declare let editCultures: () => any;
 declare let editReligions: () => any;
-declare let openEmblemEditor: () => any;
 declare let NamesbaseEditor: {open: () => any};
 declare let editUnits: () => any;
 declare let editNotes: () => any;
 declare let editZones: () => any;
-declare let overviewCharts: () => any;
-declare let overviewBurgs: () => any;
 declare let overviewRoutes: () => any;
 declare let overviewRivers: () => any;
 declare let overviewMilitary: () => any;
 declare let overviewMarkers: () => any;
-declare let viewCellDetails: () => any;
-declare let openMinimap: () => any;
 declare let alertMessage: HTMLElement;
-declare let configMarkersGeneration: () => any;
-declare let toggleAddLabel: () => any;
-declare let toggleAddBurg: () => any;
-declare let toggleAddRiver: () => any;
 declare let createRoute: () => any;
-declare let toggleAddMarker: () => any;
 declare let openSubmapTool: () => any;
 declare let openTransformTool: () => any;
-declare let processFeatureRegeneration: (event: any, button: string) => any;
-declare let regenerateStateLabels: () => any;
 declare let drawStateLabels: () => any;
-declare let regenerateReliefIcons: () => any;
 declare let drawReliefIcons: () => any;
 declare let toggleRelief: () => any;
-declare let regenerateRoutes: () => any;
 declare let drawRoutes: () => any;
-declare let regenerateRivers: () => any;
 declare let drawRivers: () => any;
-declare let recalculatePopulation: () => any;
 declare let rankCells: () => any;
 declare let drawPopulation: () => any;
 declare let togglePopulation: () => any;
-declare let regenerateStates: () => any;
 declare let drawStates: () => any;
 declare let toggleStates: () => any;
 declare let drawBorders: () => any;
@@ -85,27 +69,17 @@ declare let aleaPRNG: (seed: number) => (() => number);
 declare let rn: (value: number, digits?: number) => number;
 declare let gauss: (mean: number, variance: number, skew?: number, max?: number, min?: number) => number;
 declare let P: (p: number) => boolean;
-declare let recreateStates: () => any[];
-declare let regenerateProvinces: () => any;
-declare let regenerateBurgs: () => any;
-declare let regenerateEmblems: () => any;
-declare let regenerateReligions: () => any;
 declare let Religions: any;
 declare let drawReligions: () => any;
-declare let regenerateCultures: () => any;
 declare let Cultures: any;
 declare let drawCultures: () => any;
-declare let regenerateMilitary: () => any;
 declare let drawMilitary: () => any;
 declare let toggleMilitary: () => any;
-declare let regenerateIce: () => any;
 declare let drawIce: () => any;
 declare let toggleIce: () => any;
-declare let regenerateMarkers: () => any;
 declare let Markers: any;
 declare let drawMarkers: () => any;
 declare let toggleMarkers: () => any;
-declare let regenerateZones: (event: any) => any;
 declare let addFeature: HTMLElement;
 declare let layerIsOn: (toggle: string) => boolean;
 declare let closeDialogs: (selector: string) => any;
@@ -127,6 +101,7 @@ declare let drawZones: () => any;
 declare let toggleZones: () => any;
 declare let zonesEditorRefresh: HTMLElement;
 declare let markersOverviewRefresh: HTMLElement;
+declare let riversOverviewRefresh: HTMLElement;
 declare let addMarker: HTMLElement;
 declare let markersAddFromOverview: HTMLElement;
 declare let elSelected: any;
@@ -135,12 +110,9 @@ declare let drawBurgIcons: () => any;
 declare let drawBurgLabels: () => any;
 declare let notes: any[];
 declare let manorsInput: any;
-declare let Rivers: any;
-declare let Lake: any;
-declare let addNumberOfZones: (number: number) => any;
 declare let prompt: (message: string, options?: any, callback?: (value: string) => void) => any;
 declare let isCtrlClick: (event: any) => boolean;
-
+declare let turnButtonOn: (toggle: string) => any;
 // module to control the Tools options (click to edit, to re-geenerate, tp add)
 
 toolsContent.addEventListener("click", function (event) {
@@ -424,7 +396,7 @@ function recreateStates() {
 
     // update emblem id reference
     document.getElementById(`stateCOA${state.i}`)?.setAttribute("id", `stateCOA${newId}`);
-    document.querySelector(`#stateEmblems > use[data-i="${state.i}"]`)?.setAttribute("data-i", newId);
+    document.querySelector(`#stateEmblems > use[data-i="${state.i}"]`)?.setAttribute("data-i", String(newId));
 
     state.provinces.forEach(provinceId => {
       if (!pack.provinces[provinceId]) return;
@@ -478,7 +450,7 @@ function recreateStates() {
     const coa = COA.generate(capital.coa, 0.3, null, cultureType);
     coa.shield = capital.coa.shield;
 
-    newStates.push({i, name, type, capital: capital.i, center: capital.cell, culture, expansionism, coa});
+    newStates.push({i, name, capital: capital.i, center: capital.cell, culture, expansionism, coa} as any);
   }
 
   return newStates;
@@ -568,7 +540,7 @@ function regenerateBurgs() {
 
     const culture = cells.culture[cell];
     const name = Names.getCulture(culture);
-    newBurgs.push({cell, x, y, state: stateId, i: id, culture, name, capital, feature: cells.f[cell]});
+    newBurgs.push({cell, x, y, state: stateId, i: id, culture, name, capital, feature: cells.f[cell]} as any);
     burgsTree.add([x, y]);
     cells.burg[cell] = id;
   }
@@ -651,7 +623,7 @@ function regenerateEmblems() {
     const kinship = dominion ? 0 : nameByBurg ? 0.8 : 0.4;
     const culture = pack.cells.culture[province.center];
     const type = Burgs.getType(province.center, parent.port);
-    province.coa = COA.generate(parent.coa, kinship, dominion, type);
+    province.coa = COA.generate(parent.coa, kinship, dominion ? 1 : 0, type);
     province.coa.shield = COA.getShield(culture, province.state);
   });
 
@@ -827,7 +799,8 @@ function toggleAddRiver() {
 
 function addRiverOnClick() {
   const {cells, rivers} = pack;
-  let i = findCell(...d3.mouse(this));
+  const point = d3.mouse(this);
+  let i = findCell(point[0], point[1]);
 
   if (cells.r[i]) return tip("There is already a river here", false, "error");
   if (cells.h[i] < 20) return tip("Cannot create river in water cell", false, "error");
@@ -919,7 +892,7 @@ function addRiverOnClick() {
   const meanderedPoints = Rivers.addMeandering(riverCells);
 
   const discharge = cells.fl[mouth]; // m3 in second
-  const length = Rivers.getApproximateLength(meanderedPoints);
+  const length = Rivers.getApproximateLength((meanderedPoints as any).map((p: any) => [p[0], p[1]]) as any);
   const width = Rivers.getWidth(
     Rivers.getOffset({
       flux: discharge,
@@ -938,7 +911,7 @@ function addRiverOnClick() {
   } else {
     const basin = Rivers.getBasin(parent);
     const name = Rivers.getName(mouth);
-    const type = Rivers.getType({i: riverId, length, parent});
+    const type = Rivers.getType({i: riverId, length, parent} as any);
 
     rivers.push({
       i: riverId,

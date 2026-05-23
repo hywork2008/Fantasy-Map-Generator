@@ -447,7 +447,7 @@ function overviewMilitary() {
             return el.value;
           });
 
-        const unit = {icon, name: names[i], rural, urban, crew, power, type, separate};
+          const unit: any = {icon, name: names[i], rural, urban, crew, power, type, separate};
         if (biomes) unit.biomes = biomes;
         if (states) unit.states = states;
         if (cultures) unit.cultures = cultures;
@@ -490,7 +490,7 @@ function overviewMilitary() {
       data += units.map(u => el.dataset[u.toLowerCase()]).join(",") + ",";
       data += el.dataset.total + ",";
       data += el.dataset.population + ",";
-      data += rn(el.dataset.rate, 2) + "%,";
+      data += rn(+el.dataset.rate, 2) + "%,";
       data += el.dataset.alert + "\n";
     });
 

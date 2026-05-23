@@ -62,9 +62,9 @@ function moveCircle(x, y, r = 20) {
     const html = /* html */ `<circle id="brushCircle" cx=${x} cy=${y} r=${r}></circle>`;
     ensureEl("debug").insertAdjacentHTML("afterBegin", html);
   } else {
-    circle.setAttribute("cx", x);
-    circle.setAttribute("cy", y);
-    circle.setAttribute("r", r);
+    circle.setAttribute("cx", String(x));
+    circle.setAttribute("cy", String(y));
+    circle.setAttribute("r", String(r));
   }
 }
 
@@ -112,13 +112,14 @@ function sortLines(headerElement) {
 }
 
 function applySorting(headers) {
-  const header = headers.querySelector("div[class*='icon-sort']");
+  const header = headers.querySelector("div[class*='icon-sort']") as HTMLElement | null;
   if (!header) return;
   const sortby = header.dataset.sortby;
   const name = header.classList.contains("alphabetically");
   const desc = header.className.includes("-down") ? -1 : 1;
-  const list = headers.nextElementSibling;
-  const lines = Array.from(list.children);
+  const list = headers.nextElementSibling as HTMLElement | null;
+  if (!list) return;
+  const lines = Array.from(list.children) as HTMLElement[];
 
   lines
     .sort((a, b) => {
@@ -205,8 +206,8 @@ function drawLegend(name, data) {
 // fit Legend box to canvas size
 function fitLegendBox() {
   if (!legend.selectAll("*").size()) return;
-  const px = isNaN(+legend.attr("data-x")) ? 99 : legend.attr("data-x") / 100;
-  const py = isNaN(+legend.attr("data-y")) ? 93 : legend.attr("data-y") / 100;
+  const px = isNaN(+legend.attr("data-x")) ? 99 : +legend.attr("data-x") / 100;
+  const py = isNaN(+legend.attr("data-y")) ? 93 : +legend.attr("data-y") / 100;
   const bbox = legend.node().getBBox();
   const x = rn(svgWidth * px - bbox.width),
     y = rn(svgHeight * py - bbox.height);
@@ -464,7 +465,7 @@ function openPicker(fill, callback) {
 
   updateSelectedRect(fill);
 
-  openPicker.updateFill = function () {
+  (openPicker as any).updateFill = function () {
     const selected = ensureEl("picker").querySelector("rect.selected");
     if (!selected) return;
     callback(selected.getAttribute("fill"));
@@ -503,7 +504,7 @@ function dragPicker() {
 function pickerFillClicked() {
   const fill = this.getAttribute("fill");
   updateSelectedRect(fill);
-  openPicker.updateFill();
+  (openPicker as any).updateFill();
 
   const hsl = d3.hsl(fill);
   if (isNaN(hsl.h)) return; // not a color
@@ -516,7 +517,7 @@ function clickPickerControl() {
   this.nextSibling.setAttribute("cx", d3.event.x - min);
   updateSpaces();
   updatePickerColors();
-  openPicker.updateFill();
+  (openPicker as any).updateFill();
 }
 
 function dragPickerControl() {
@@ -528,7 +529,7 @@ function dragPickerControl() {
     this.setAttribute("cx", x);
     updateSpaces();
     updatePickerColors();
-    openPicker.updateFill();
+    (openPicker as any).updateFill();
   });
 }
 
@@ -540,13 +541,13 @@ function changePickerSpace() {
   }
 
   const space = this.dataset.space;
-  const i = Array.from(this.parentNode.querySelectorAll("input")).map(input => input.value); // inputs
+  const i = Array.from(this.parentNode.querySelectorAll("input")).map(input => (input as HTMLInputElement).value); // inputs
   const fill =
     space === "hex"
       ? d3.rgb(this.value)
       : space === "rgb"
         ? d3.rgb(i[0], i[1], i[2])
-        : d3.hsl(i[0], i[1] / 100, i[2] / 100);
+        : d3.hsl(+i[0], +i[1] / 100, +i[2] / 100);
 
   const hsl = d3.hsl(fill);
   if (isNaN(hsl.l)) {
@@ -559,7 +560,7 @@ function changePickerSpace() {
 
   updateSpaces();
   updatePickerColors();
-  openPicker.updateFill();
+  (openPicker as any).updateFill();
 }
 
 // add fogging
@@ -584,7 +585,7 @@ function fog(id, path) {
 
 // remove fogging
 function unfog(id) {
-  let el = defs.select("#fog #" + id);
+  let el: any = defs.select("#fog #" + id);
   if (!id || !el.size()) el = defs.select("#fog").selectAll("path");
 
   el.remove();
@@ -592,7 +593,7 @@ function unfog(id) {
 }
 
 export function getFileName(dataType?) {
-  const formatTime = time => (time < 10 ? "0" + time : time);
+  const formatTime = time => String(time).padStart(2, "0");
   const name = mapName.value;
   const type = dataType ? dataType + " " : "";
   const date = new Date();
@@ -861,9 +862,10 @@ function selectIcon(initial, callback) {
       "🍷"
     ];
 
-    let row = "";
+    let row: HTMLTableRowElement | null = null;
     for (let i = 0; i < icons.length; i++) {
       if (i % 17 === 0) row = table.insertRow((i / 17) | 0);
+      if (!row) continue;
       const cell = row.insertCell(i % 17);
       cell.innerHTML = icons[i];
     }

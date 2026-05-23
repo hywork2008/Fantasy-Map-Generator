@@ -342,7 +342,7 @@ function stateHighlightOn(event) {
     .attrTween("stroke-dasharray", () => interpolate);
 }
 
-function stateHighlightOff() {
+function stateHighlightOff(_event?) {
   debug.selectAll(".highlight").each(function () {
     d3.select(this).transition().duration(1000).attr("opacity", 0).remove();
   });
@@ -444,7 +444,7 @@ function editStateName(state) {
       if (!form) return short;
       if (!short && form) return "The " + form;
       const tick = +stateNameEditorFullRegenerate.dataset.tick;
-      stateNameEditorFullRegenerate.dataset.tick = tick + 1;
+      stateNameEditorFullRegenerate.dataset.tick = String(tick + 1);
       return tick % 2 ? getAdjective(short) + " " + form : form + " of " + short;
     }
   }
@@ -505,7 +505,7 @@ function changePopulation(stateId) {
     const totalNew = ruralPop.valueAsNumber + urbanPop.valueAsNumber;
     if (isNaN(totalNew)) return;
     totalPop.innerHTML = format(totalNew);
-    totalPopPerc.innerHTML = rn((totalNew / total) * 100);
+    totalPopPerc.innerHTML = String(rn((totalNew / total) * 100));
   };
 
   ruralPop.oninput = () => update();
@@ -528,25 +528,25 @@ function changePopulation(stateId) {
   });
 
   function applyPopulationChange() {
-    const ruralChange = ruralPop.value / rural;
+    const ruralChange = +ruralPop.value / rural;
     if (isFinite(ruralChange) && ruralChange !== 1) {
       const cells = pack.cells.i.filter(i => pack.cells.state[i] === stateId);
       cells.forEach(i => (pack.cells.pop[i] *= ruralChange));
     }
     if (!isFinite(ruralChange) && +ruralPop.value > 0) {
-      const points = ruralPop.value / populationRate;
+      const points = +ruralPop.value / populationRate;
       const cells = pack.cells.i.filter(i => pack.cells.state[i] === stateId);
       const pop = points / cells.length;
       cells.forEach(i => (pack.cells.pop[i] = pop));
     }
 
-    const urbanChange = urbanPop.value / urban;
+    const urbanChange = +urbanPop.value / urban;
     if (isFinite(urbanChange) && urbanChange !== 1) {
       const burgs = pack.burgs.filter(b => !b.removed && b.state === stateId);
       burgs.forEach(b => (b.population = rn(b.population * urbanChange, 4)));
     }
     if (!isFinite(urbanChange) && +urbanPop.value > 0) {
-      const points = urbanPop.value / populationRate / urbanization;
+      const points = +urbanPop.value / populationRate / urbanization;
       const burgs = pack.burgs.filter(b => !b.removed && b.state === stateId);
       const population = rn(points / burgs.length, 4);
       burgs.forEach(b => (b.population = population));
@@ -574,8 +574,9 @@ function stateChangeType(state, line, value) {
   recalculateStates();
 }
 
-function stateChangeExpansionism(state, line, value) {
-  line.dataset.expansionism = pack.states[state].expansionism = value;
+  function stateChangeExpansionism(state, line, value) {
+    line.dataset.expansionism = value;
+    pack.states[state].expansionism = +value;
   recalculateStates();
 }
 
@@ -655,7 +656,7 @@ function stateRemove(stateId) {
     state.neighbors = state.neighbors.filter(n => n !== stateId);
   });
 
-  pack.states[stateId] = {i: stateId, removed: true};
+  pack.states[stateId] = {i: stateId, removed: true} as any;
 
   debug.selectAll(".highlight").remove();
 
@@ -673,7 +674,7 @@ function toggleLegend() {
     .filter(s => s.i && !s.removed && s.cells)
     .sort((a, b) => b.area - a.area)
     .map(s => [s.i, s.color, s.name]);
-  drawLegend("States", data);
+  drawLegend("States", data as any);
 }
 
 function togglePercentageMode() {
@@ -746,7 +747,7 @@ function showStatesChart() {
     .attr("transform", d => `translate(${d.x},${d.y})`)
     .attr("data-id", d => d.data.i)
     .on("mouseenter", d => showInfo(event, d))
-    .on("mouseleave", d => hideInfo(event, d));
+    .on("mouseleave", d => hideInfo(d));
 
   node
     .append("circle")
@@ -791,11 +792,11 @@ function showStatesChart() {
     stateHighlightOn(ev);
   }
 
-  function hideInfo(ev) {
+  function hideInfo(ev?) {
     stateHighlightOff(ev);
     if (!ensureEl("statesInfo")) return;
     statesInfo.innerHTML = "&#8205;";
-    d3.select(ev.target).select("circle").classed("selected", 0);
+    d3.select(ev?.target).select("circle").classed("selected", 0);
   }
 
   function updateChart() {
@@ -852,7 +853,7 @@ function openRegenerationMenu() {
   $("#statesEditor").dialog({position: {my: "right top", at: "right-10 top+10", of: "svg", collision: "fit"}});
 }
 
-function recalculateStates(must) {
+function recalculateStates(must = false) {
   if (!must && !statesAutoChange.checked) return;
 
   States.expandStates();
@@ -875,7 +876,7 @@ function randomizeStatesExpansion() {
     s.expansionism = expansionism;
     $body.querySelector("div.states[data-id='" + s.i + "'] > input.statePower").value = expansionism;
   });
-  recalculateStates(true, true);
+  recalculateStates(true);
 }
 
 function exitRegenerationMenu() {
@@ -1264,10 +1265,10 @@ function addState() {
     return relations;
   });
   diplomacy.push("x");
-  states[0].diplomacy.push([
+    states[0].diplomacy.push(([
     `Independance declaration`,
     `${name} declared its independance from ${states[oldState].name}`
-  ]);
+    ] as unknown) as any);
 
   cells.state[center] = newState;
   cells.province[center] = 0;
@@ -1492,8 +1493,9 @@ function downloadStatesCsv() {
   const unit = getAreaUnit("2");
   const headers = `Id,State,Full Name,Form,Color,Capital,Culture,Type,Expansionism,Cells,Burgs,Area ${unit},Total Population,Rural Population,Urban Population`;
   const lines = Array.from($body.querySelectorAll(":scope > div"));
-  const data = lines.map($line => {
-    const {id, name, form, color, capital, culture, type, expansionism, cells, burgs, area, population} = $line.dataset;
+    const data = lines.map($line => {
+      const lineEl = $line as HTMLElement;
+      const {id, name, form, color, capital, culture, type, expansionism, cells, burgs, area, population} = lineEl.dataset;
     const {fullName = "", rural, urban} = pack.states[+id];
     const ruralPopulation = Math.round(rural * populationRate);
     const urbanPopulation = Math.round(urban * populationRate * urbanization);

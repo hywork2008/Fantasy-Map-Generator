@@ -211,12 +211,13 @@ function editRegiment(selector) {
       bx: reg.bx,
       by: reg.by,
       state,
-      icon: reg.icon
+      icon: reg.icon,
+      name: ""
     };
-    newReg.name = Military.getName(newReg, military);
+    newReg.name = Military.getName(newReg as any, military);
     military.push(newReg);
     Military.generateNote(newReg, pack.states[state]);
-    drawRegiment(newReg, state);
+    drawRegiment(newReg as any, state);
 
     if (regimentsOverviewRefresh.offsetParent) regimentsOverviewRefresh.click();
   }
@@ -240,11 +241,11 @@ function editRegiment(selector) {
       military = pack.states[state].military;
     const i = military.length ? last(military).i + 1 : 0;
     const n = +(pack.cells.h[cell] < 20);
-    const reg = {a: 0, cell, i, n, u: {}, x, y, bx: x, by: y, state, icon: "🛡️"};
-    reg.name = Military.getName(reg, military);
+    const reg = {a: 0, cell, i, n, u: {}, x, y, bx: x, by: y, state, icon: "🛡️", name: ""};
+    reg.name = Military.getName(reg as any, military);
     military.push(reg);
     Military.generateNote(reg, pack.states[state]);
-    drawRegiment(reg, state);
+    drawRegiment(reg as any, state);
     if (regimentsOverviewRefresh.offsetParent) regimentsOverviewRefresh.click();
     toggleAdd();
   }

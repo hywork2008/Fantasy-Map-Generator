@@ -57,8 +57,8 @@ function editHeightmap(options) {
   }
 
   function enterHeightmapEditMode(mode) {
-    editHeightmap.layers = Array.from(mapLayers.querySelectorAll("li:not(.buttonoff)")).map(node => node.id); // store layers preset
-    editHeightmap.layers.forEach(l => ensureEl(l).click()); // turn off all layers
+    (editHeightmap as any).layers = Array.from(mapLayers.querySelectorAll("li:not(.buttonoff)")).map(node => node.id); // store layers preset
+    (editHeightmap as any).layers.forEach(l => ensureEl(l).click()); // turn off all layers
 
     customization = 1;
     closeDialogs();
@@ -96,7 +96,7 @@ function editHeightmap(options) {
 
     // show finalize button
     if (!sessionStorage.getItem("noExitButtonAnimation")) {
-      sessionStorage.setItem("noExitButtonAnimation", true);
+      sessionStorage.setItem("noExitButtonAnimation", "true");
       exitCustomization.style.opacity = 0;
       const width = 12 * uiSize.value * 11;
       exitCustomization.style.right = (svgWidth - width) / 2 + "px";
@@ -207,7 +207,7 @@ function editHeightmap(options) {
       .getElementById("mapLayers")
       .querySelectorAll("li")
       .forEach(e => {
-        const wasOn = editHeightmap.layers.includes(e.id);
+        const wasOn = (editHeightmap as any).layers.includes(e.id);
         if ((wasOn && !layerIsOn(e.id)) || (!wasOn && layerIsOn(e.id))) e.click();
       });
     if (!layerIsOn("toggleBorders")) borders.selectAll("path").remove();
@@ -278,7 +278,7 @@ function editHeightmap(options) {
     Markers.generate();
     Zones.generate();
     TIME && console.timeEnd("regenerateErasedData");
-    INFO && console.groupEnd("Edit Heightmap");
+    INFO && console.groupEnd();
   }
 
   function restoreKeptData() {
@@ -436,7 +436,7 @@ function editHeightmap(options) {
       if (!provCells.length) {
         const state = p.state;
         const stateProvs = pack.states[state].provinces;
-        if (stateProvs.includes(p.i)) pack.states[state].provinces.splice(stateProvs.indexOf(p), 1);
+        if (stateProvs.includes(p.i)) pack.states[state].provinces.splice(stateProvs.indexOf(p.i), 1);
 
         p.removed = true;
         continue;
@@ -482,7 +482,7 @@ function editHeightmap(options) {
     ice.selectAll("*").remove();
 
     TIME && console.timeEnd("restoreRiskedData");
-    INFO && console.groupEnd("Edit Heightmap");
+    INFO && console.groupEnd();
   }
 
   // trigger heightmap redraw and history update if at least 1 cell is changed
@@ -510,7 +510,7 @@ function editHeightmap(options) {
     updateHistory();
   }
 
-  function getColor(value, scheme = getColorScheme()) {
+  function getColor(value, scheme = getColorScheme(null)) {
     return scheme(1 - (value < 20 ? value - 5 : value) / 100);
   }
 
@@ -525,11 +525,11 @@ function editHeightmap(options) {
       .join("polygon")
       .attr("points", d => getGridPolygon(d))
       .attr("id", d => "cell" + d)
-      .attr("fill", d => getColor(grid.cells.h[d]));
+      .attr("fill", d => getColor(grid.cells.h[d as number]));
   }
 
   // draw or update heightmap for a selection of cells
-  function mockHeightmapSelection(selection) {
+  function mockHeightmapSelection(selection: number[]) {
     const ocean = renderOcean.checked;
 
     selection.forEach(function (i) {
@@ -552,7 +552,7 @@ function editHeightmap(options) {
     ensureEl("landmassAverage").innerText = rn(d3.mean(grid.cells.h));
   }
 
-  function updateHistory(noStat) {
+  function updateHistory(noStat = false) {
     const step = edits.n;
     edits = edits.slice(0, step);
     edits[step] = grid.cells.h.slice();
@@ -1023,7 +1023,7 @@ function editHeightmap(options) {
       addStep(type);
     }
 
-    function addStep(type, count, dist, arg4, arg5) {
+    function addStep(type, count?, dist?, arg4?, arg5?) {
       const $body = ensureEl("templateBody");
       $body.insertAdjacentHTML("beforeend", getStepHTML(type, count, dist, arg4, arg5));
 
@@ -1200,7 +1200,7 @@ function editHeightmap(options) {
 
       for (const step of steps) {
         const elements = step.trim().split(" ");
-        addStep(...elements);
+          addStep(elements[0], elements[1], elements[2], elements[3], elements[4]);
       }
     }
 
@@ -1239,7 +1239,7 @@ function editHeightmap(options) {
         else if (type === "Smooth") HeightmapGenerator.smooth(+count);
 
         grid.cells.h = HeightmapGenerator.getHeights();
-        updateHistory("noStat"); // update history on every step
+          updateHistory(true); // update history on every step
       }
 
       grid.cells.h = HeightmapGenerator.getHeights();
@@ -1376,7 +1376,9 @@ function editHeightmap(options) {
         resetZoom();
       };
 
-      reader.onloadend = () => (img.src = reader.result);
+      reader.onloadend = () => {
+        if (typeof reader.result === "string") img.src = reader.result;
+      };
       reader.readAsDataURL(file);
     }
 
@@ -1406,7 +1408,10 @@ function editHeightmap(options) {
         .join("polygon")
         .attr("points", d => getGridPolygon(d))
         .attr("id", d => "cell" + d)
-        .attr("fill", d => `rgb(${data[d * 4]}, ${data[d * 4 + 1]}, ${data[d * 4 + 2]})`)
+          .attr("fill", d => {
+            const cell = d as number;
+            return `rgb(${data[cell * 4]}, ${data[cell * 4 + 1]}, ${data[cell * 4 + 2]})`;
+          })
         .on("click", mapClicked);
 
       const colors = pallete.map(p => `rgb(${p[0]}, ${p[1]}, ${p[2]})`);
@@ -1437,7 +1442,7 @@ function editHeightmap(options) {
       if (selectedColor) selectedColor.classList.remove("selectedColor");
       const hoveredColor = imageConverterPalette.querySelector("div.hoveredColor");
       if (hoveredColor) hoveredColor.classList.remove("hoveredColor");
-      colorsSelectValue.innerHTML = colorsSelectFriendly.innerHTML = 0;
+      colorsSelectValue.innerHTML = colorsSelectFriendly.innerHTML = String(0);
 
       if (unselect) return;
       this.classList.add("selectedColor");
@@ -1445,16 +1450,16 @@ function editHeightmap(options) {
       if (this.dataset.height) {
         const height = +this.dataset.height;
         imageConverterPalette.querySelector(`div[data-color="${height}"]`).classList.add("hoveredColor");
-        colorsSelectValue.innerHTML = height;
+          colorsSelectValue.innerHTML = String(height);
         colorsSelectFriendly.innerHTML = getHeight(height);
       }
 
       const color = this.getAttribute("data-color");
-      viewbox.select("#heights").selectAll("polygon.selectedCell").classed("selectedCell", 0);
+      viewbox.select("#heights").selectAll("polygon.selectedCell").classed("selectedCell", false);
       viewbox
         .select("#heights")
         .selectAll("polygon[fill='" + color + "']")
-        .classed("selectedCell", 1);
+        .classed("selectedCell", true);
     }
 
     function assignHeight() {
@@ -1532,7 +1537,7 @@ function editHeightmap(options) {
           return;
         } // if color is already added, remove it
         el.style.backgroundColor = el.dataset.color = colorTo;
-        el.dataset.height = height;
+          el.dataset.height = String(height);
         colorsAssignedContainer.appendChild(el);
         assinged[height] = true;
       });
@@ -1597,7 +1602,7 @@ function editHeightmap(options) {
       d3.select("#imageConverter").selectAll("div.color-div").remove();
       colorsAssigned.style.display = "none";
       colorsUnassigned.style.display = "none";
-      colorsSelectValue.innerHTML = colorsSelectFriendly.innerHTML = 0;
+      colorsSelectValue.innerHTML = colorsSelectFriendly.innerHTML = String(0);
       viewbox.style("cursor", "default").on(".drag", null);
       tip('Heightmap edit mode is active. Click on "Exit Customization" to finalize the heightmap', true);
       $("#imageConverter").dialog("destroy");

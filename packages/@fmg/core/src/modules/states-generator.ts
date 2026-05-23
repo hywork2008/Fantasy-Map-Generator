@@ -43,7 +43,7 @@ export interface State {
   rural?: number;
   urban?: number;
   campaigns?: Campaign[];
-  diplomacy?: string[];
+  diplomacy?: any[];
   formName?: string;
   fullName?: string;
   form?: string;
@@ -51,6 +51,7 @@ export interface State {
   provinces?: number[];
   temp?: any;
   alert?: number;
+  coaSize?: number;
 }
 
 class StatesModule {

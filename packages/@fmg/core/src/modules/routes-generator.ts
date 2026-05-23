@@ -169,8 +169,11 @@ export interface Route {
   group: "roads" | "trails" | "searoutes";
   feature: number;
   points: number[][];
+  name?: string;
   cells?: number[];
   merged?: boolean;
+  lock?: boolean;
+  length?: number;
 }
 
 class RoutesModule {

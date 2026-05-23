@@ -66,10 +66,10 @@ function editRouteGroups() {
         .attr("stroke-width", 0.5)
         .attr("stroke-dasharray", "1 0.5")
         .attr("stroke-linecap", "butt");
-      ensureEl<HTMLSelectElement>("routeGroup").options.add(new Option(group, group));
+      ensureEl("routeGroup").options.add(new Option(group, group));
       addLines();
 
-      ensureEl<HTMLSelectElement>("routeCreatorGroupSelect").options.add(new Option(group, group));
+      ensureEl("routeCreatorGroupSelect").options.add(new Option(group, group));
     });
   }
 

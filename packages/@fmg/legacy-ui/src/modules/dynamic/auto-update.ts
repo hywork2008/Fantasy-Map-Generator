@@ -259,7 +259,7 @@ export function resolveVersionConflicts(mapVersion) {
       const mouth = findCell(e.x, e.y);
       const name = Rivers.getName(mouth);
       const type = length < 25 ? rw({Creek: 9, River: 3, Brook: 3, Stream: 1}) : "River";
-      pack.rivers.push({i, parent: 0, length, source, mouth, basin: i, name, type});
+      pack.rivers.push({i, parent: 0, length, source, mouth, basin: i, name, type} as any);
     });
   }
 
@@ -399,7 +399,7 @@ export function resolveVersionConflicts(mapVersion) {
       f.flux = f.flux || f.cells * 3;
       f.temp = grid.cells.temp[pack.cells.g[f.firstCell]];
       f.height = f.height || d3.min(pack.cells.c[f.firstCell].map(c => pack.cells.h[c]).filter(h => h >= 20));
-      const height = (f.height - 18) ** heightExponentInput.value;
+      const height = (f.height - 18) ** +heightExponentInput.value;
       const evaporation = ((700 * (f.temp + 0.006 * height)) / 50 + 75) / (80 - f.temp);
       f.evaporation = rn(evaporation * f.cells);
       if (!f.shoreline) {
@@ -474,7 +474,7 @@ export function resolveVersionConflicts(mapVersion) {
     const oceanPattern = document.getElementById("oceanPattern");
     if (oceanPattern) oceanPattern.removeAttribute("opacity");
     const oceanicPattern = document.getElementById("oceanicPattern");
-    if (!oceanicPattern.getAttribute("opacity")) oceanicPattern.setAttribute("opacity", 0.2);
+    if (!oceanicPattern.getAttribute("opacity")) oceanicPattern.setAttribute("opacity", "0.2");
   }
 
   if (isOlderThan("1.64.0")) {
@@ -490,10 +490,10 @@ export function resolveVersionConflicts(mapVersion) {
     // v1.65 changed rivers data
     d3.select("#rivers").attr("style", null); // remove style to unhide layer
     const {cells, rivers} = pack;
-    const defaultWidthFactor = rn(1 / (pointsInput.dataset.cells / 10000) ** 0.25, 2);
+    const defaultWidthFactor = rn(1 / (Number(pointsInput.dataset.cells) / 10000) ** 0.25, 2);
 
     for (const river of rivers) {
-      const node = document.getElementById("river" + river.i);
+      const node = document.getElementById("river" + river.i) as unknown as SVGPathElement | null;
       if (node && !river.cells) {
         const riverCells = [];
         const riverPoints = [];
@@ -558,7 +558,7 @@ export function resolveVersionConflicts(mapVersion) {
           if (dy) y += +dy;
         }
         const cell = findCell(x, y);
-        const size = rn(rescale ? el.dataset.size * 30 : el.getAttribute("width"), 1);
+          const size = rn(rescale ? Number(el.dataset.size) * 30 : Number(el.getAttribute("width")), 1);
 
         const href = el.href.baseVal;
         const type = href.replace("#marker_", "");
@@ -573,7 +573,7 @@ export function resolveVersionConflicts(mapVersion) {
         const fill = circle && circle.getAttribute("fill");
         const stroke = circle && circle.getAttribute("stroke");
 
-        const marker = {i, icon, type, x, y, size, cell};
+          const marker: any = {i, icon, type, x, y, size, cell};
         if (size && size !== 30) marker.size = size;
         if (!isNaN(px) && px !== 12) marker.px = px;
         if (!isNaN(dx) && dx !== 50) marker.dx = dx;
@@ -890,7 +890,7 @@ export function resolveVersionConflicts(mapVersion) {
         const secondCellId = points[1][2];
         const feature = pack.cells.f[secondCellId];
 
-        pack.routes.push({i: pack.routes.length, group, feature, points});
+        pack.routes.push({i: pack.routes.length, group: group as any, feature, points});
       }
     }
     routes.selectAll("path").remove();
@@ -1055,12 +1055,13 @@ export function resolveVersionConflicts(mapVersion) {
       const iceLayer = document.getElementById("ice");
       if (iceLayer) {
         // Migrate glaciers (type="iceShield")
-        iceLayer.querySelectorAll("polygon[type='iceShield']").forEach(polygon => {
+          iceLayer.querySelectorAll("polygon[type='iceShield']").forEach(polygon => {
+            const polygonEl = polygon as SVGPolygonElement;
           // Parse points string "x1,y1 x2,y2 x3,y3 ..." into array [[x1,y1], [x2,y2], ...]
-          const points = [...polygon.points].map(svgPoint => [svgPoint.x, svgPoint.y]);
+            const points = [...polygonEl.points].map(svgPoint => [svgPoint.x, svgPoint.y]);
 
           const transform = polygon.getAttribute("transform");
-          const iceElement = {
+            const iceElement: any = {
             i: iceId++,
             points,
             type: "glacier"
@@ -1072,7 +1073,8 @@ export function resolveVersionConflicts(mapVersion) {
         });
 
         // Migrate icebergs
-        iceLayer.querySelectorAll("polygon:not([type])").forEach(polygon => {
+          iceLayer.querySelectorAll("polygon:not([type])").forEach(polygon => {
+            const polygonEl = polygon as SVGPolygonElement;
           const cellId = +polygon.getAttribute("cell");
           const size = +polygon.getAttribute("size");
 
@@ -1080,10 +1082,10 @@ export function resolveVersionConflicts(mapVersion) {
           if (polygon.getAttribute("cell") === null || !size) return;
 
           // Parse points string "x1,y1 x2,y2 x3,y3 ..." into array [[x1,y1], [x2,y2], ...]
-          const points = [...polygon.points].map(svgPoint => [svgPoint.x, svgPoint.y]);
+            const points = [...polygonEl.points].map(svgPoint => [svgPoint.x, svgPoint.y]);
 
           const transform = polygon.getAttribute("transform");
-          const iceElement = {
+            const iceElement: any = {
             i: iceId++,
             points,
             type: "iceberg",

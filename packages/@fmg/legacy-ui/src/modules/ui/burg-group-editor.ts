@@ -245,10 +245,10 @@ function editBurgGroups() {
   }
 
   function validateForm() {
-    const form = ensureEl("burgGroupsForm");
+      const form = ensureEl("burgGroupsForm") as any;
 
     if (form.name.length) {
-      const names = Array.from(form.name).map(input => input.value);
+      const names = Array.from(form.name).map(input => (input as HTMLInputElement).value);
       form.name.forEach(nameInput => {
         const value = nameInput.value;
         const isFormatValid = GROUP_NAME_REGEXP.test(value);
@@ -270,7 +270,7 @@ function editBurgGroups() {
     }
 
     if (form.active.length) {
-      const active = Array.from(form.active).map(input => input.checked);
+      const active = Array.from(form.active).map(input => (input as HTMLInputElement).checked);
       form.active[0].setCustomValidity(active.includes(true) ? "" : "At least one group should be active");
     } else {
       const active = form.active.checked;
@@ -278,7 +278,7 @@ function editBurgGroups() {
     }
 
     if (form.isDefault.length) {
-      const checked = Array.from(form.isDefault).map(input => input.checked);
+      const checked = Array.from(form.isDefault).map(input => (input as HTMLInputElement).checked);
       form.isDefault[0].setCustomValidity(checked.includes(true) ? "" : "At least one group should be default");
     } else {
       const checked = form.isDefault.checked;
@@ -317,10 +317,12 @@ function editBurgGroups() {
     }
 
     options.burgs.groups = lines.map(line => {
-      const inputs = line.querySelectorAll("input, select");
+        const lineEl = line as HTMLElement;
+        const inputs = lineEl.querySelectorAll("input, select");
       const group = Array.from(inputs).reduce((obj, input) => {
-        const value = parseInput(input);
-        if (value !== null) obj[input.name] = value;
+          const formInput = input as HTMLInputElement;
+          const value = parseInput(formInput);
+          if (value !== null) obj[formInput.name] = value;
         return obj;
       }, {});
       return group;

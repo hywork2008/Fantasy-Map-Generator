@@ -11,7 +11,7 @@ declare global {
   ) => void;
 }
 
-type ScaleBarSelection = d3.Selection<SVGGElement, unknown, HTMLElement, unknown>;
+type ScaleBarSelection = Selection<SVGGElement, unknown, HTMLElement, unknown>;
 
 const scaleBarRenderer = (scaleBar: ScaleBarSelection, scaleLevel: number): void => {
   if (!scaleBar.size() || scaleBar.style("display") === "none") return;

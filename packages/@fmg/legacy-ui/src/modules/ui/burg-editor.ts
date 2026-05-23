@@ -72,7 +72,7 @@ function editBurg(id) {
     const cultureSelect = ensureEl("burgCulture");
     cultureSelect.options.length = 0;
     const cultures = pack.cultures.filter(c => !c.removed);
-    cultures.forEach(c => cultureSelect.options.add(new Option(c.name, c.i, false, c.i === b.culture)));
+    cultures.forEach(c => cultureSelect.options.add(new Option(c.name, String(c.i), false, c.i === b.culture)));
 
     const temperature = grid.cells.temp[pack.cells.g[b.cell]];
     ensureEl("burgTemperature").innerHTML = convertTemperature(temperature);
@@ -106,7 +106,7 @@ function editBurg(id) {
       const x = d3.event.x,
         y = d3.event.y;
       this.setAttribute("transform", `translate(${dx + x},${dy + y})`);
-      tip('Use dragging for fine-tuning only, to actually move burg use "Relocate" button', false, "warning");
+      tip('Use dragging for fine-tuning only, to actually move burg use "Relocate" button', false, "warn");
     });
   }
 

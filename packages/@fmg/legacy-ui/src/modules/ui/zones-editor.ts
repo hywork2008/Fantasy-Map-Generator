@@ -19,7 +19,7 @@ function editZones() {
   $("#zonesEditor").dialog({
     title: "Zones Editor",
     resizable: false,
-    close: () => exitZonesManualAssignment("close"),
+    close: () => exitZonesManualAssignment(true),
     position: {my: "right top", at: "right-10 top+10", of: "svg", collision: "fit"}
   });
 
@@ -121,9 +121,9 @@ function editZones() {
     const totalPop =
       (d3.sum(pack.cells.pop) + d3.sum(pack.burgs.filter(b => !b.removed).map(b => b.population)) * urbanization) *
       populationRate;
-    zonesFooterPopulation.dataset.population = totalPop;
+    zonesFooterPopulation.dataset.population = String(totalPop);
     zonesFooterNumber.innerHTML = `${filteredZones.length} of ${pack.zones.length}`;
-    zonesFooterCells.innerHTML = pack.cells.i.length;
+    zonesFooterCells.innerHTML = String(pack.cells.i.length);
     zonesFooterArea.innerHTML = si(totalArea) + " " + getAreaUnit();
     zonesFooterPopulation.innerHTML = si(totalPop);
 
@@ -290,7 +290,7 @@ function editZones() {
     exitZonesManualAssignment();
   }
 
-  function exitZonesManualAssignment(close) {
+  function exitZonesManualAssignment(close = false) {
     customization = 0;
     removeCircle();
     document.querySelectorAll("#zonesBottom > *").forEach(el => (el.style.display = "inline-block"));
@@ -431,7 +431,7 @@ function editZones() {
       const totalNew = ruralPop.valueAsNumber + urbanPop.valueAsNumber;
       if (isNaN(totalNew)) return;
       totalPop.innerHTML = l(totalNew);
-      totalPopPerc.innerHTML = rn((totalNew / total) * 100);
+      totalPopPerc.innerHTML = String(rn((totalNew / total) * 100));
     };
 
     ruralPop.oninput = () => update();
@@ -454,22 +454,22 @@ function editZones() {
     });
 
     function applyPopulationChange() {
-      const ruralChange = ruralPop.value / rural;
+      const ruralChange = +ruralPop.value / rural;
       if (isFinite(ruralChange) && ruralChange !== 1) {
         landCells.forEach(i => (pack.cells.pop[i] *= ruralChange));
       }
       if (!isFinite(ruralChange) && +ruralPop.value > 0) {
-        const points = ruralPop.value / populationRate;
+          const points = +ruralPop.value / populationRate;
         const pop = rn(points / landCells.length);
         landCells.forEach(i => (pack.cells.pop[i] = pop));
       }
 
-      const urbanChange = urbanPop.value / urban;
+      const urbanChange = +urbanPop.value / urban;
       if (isFinite(urbanChange) && urbanChange !== 1) {
         burgs.forEach(b => (b.population = rn(b.population * urbanChange, 4)));
       }
       if (!isFinite(urbanChange) && +urbanPop.value > 0) {
-        const points = urbanPop.value / populationRate / urbanization;
+          const points = +urbanPop.value / populationRate / urbanization;
         const population = rn(points / burgs.length, 4);
         burgs.forEach(b => (b.population = population));
       }

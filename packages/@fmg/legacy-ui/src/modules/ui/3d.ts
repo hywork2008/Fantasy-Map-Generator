@@ -11,12 +11,14 @@ window.ThreeD = (function () {
     skyColor: "#9ecef5",
     waterColor: "#466eab",
     sunColor: "#cccccc",
-    extendedWater: 0,
-    labels3d: 0,
-    wireframe: 0,
+    extendedWater: false,
+    labels3d: false,
+    wireframe: false,
     resolution: 2,
     resolutionScale: 2048,
-    subdivide: 0
+    subdivide: false,
+    isGlobe: false as boolean,
+    isOn: false as boolean
   };
 
   // set variables
@@ -660,7 +662,7 @@ window.ThreeD = (function () {
 
   async function update3dTexture() {
     if (texture) texture.dispose();
-    const url = await createMeshTextureUrl();
+      const url = (await createMeshTextureUrl()) as string;
     window.setTimeout(() => window.URL.revokeObjectURL(url), 4000);
     texture = new THREE.TextureLoader().load(url, render);
     material.map = texture;
@@ -745,7 +747,7 @@ window.ThreeD = (function () {
     });
   }
 
-  async function updateGlobeTexure(addMesh) {
+  async function updateGlobeTexure(addMesh = false) {
     const world = mapCoordinates.latT > 179; // define if map covers whole world
 
     // texture size

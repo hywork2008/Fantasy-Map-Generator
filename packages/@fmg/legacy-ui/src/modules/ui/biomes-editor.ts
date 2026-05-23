@@ -405,7 +405,7 @@ function editBiomes() {
     const temp = biomes.select("#temp");
     const selected = body.querySelector("div.selected");
 
-    const biomeNew = selected.dataset.id;
+    const biomeNew = +selected.dataset.id;
     const color = biomesData.color[biomeNew];
 
     selection.forEach(function (i) {
@@ -447,7 +447,7 @@ function editBiomes() {
     exitBiomesCustomizationMode();
   }
 
-  function exitBiomesCustomizationMode(close) {
+  function exitBiomesCustomizationMode(close = false) {
     customization = 0;
     biomes.select("#temp").remove();
     removeCircle();
@@ -475,6 +475,6 @@ function editBiomes() {
   }
 
   function closeBiomesEditor() {
-    exitBiomesCustomizationMode("close");
+      exitBiomesCustomizationMode(true);
   }
 }

@@ -444,7 +444,7 @@ async function parseLoadedData(data, mapVersion) {
           const e = d.split("|");
           if (!e.length) return;
           const b = e[5].split(",").length > 2 || !nameBases[i] ? e[5] : nameBases[i].b;
-          nameBases[i] = {name: e[0], min: e[1], max: e[2], d: e[3], m: e[4], b};
+            nameBases[i] = {i, name: e[0], min: e[1], max: e[2], d: e[3], m: e[4], b};
         });
       }
     }
@@ -537,7 +537,7 @@ async function parseLoadedData(data, mapVersion) {
         throw new Error(message);
       }
 
-      const invalidStates = [...new Set<number>(Array.from(cells.state as number[]))].filter(
+      const invalidStates = [...new Set<number>(Array.from(cells.state as unknown as number[]))].filter(
         s => !pack.states[s] || pack.states[s].removed
       );
       invalidStates.forEach(s => {
@@ -546,7 +546,7 @@ async function parseLoadedData(data, mapVersion) {
         ERROR && console.error("[Data integrity] Invalid state", s, "is assigned to cells", invalidCells);
       });
 
-      const invalidProvinces = [...new Set<number>(Array.from(cells.province as number[]))].filter(
+      const invalidProvinces = [...new Set<number>(Array.from(cells.province as unknown as number[]))].filter(
         p => p && (!pack.provinces[p] || pack.provinces[p].removed)
       );
       invalidProvinces.forEach(p => {
@@ -555,7 +555,7 @@ async function parseLoadedData(data, mapVersion) {
         ERROR && console.error("[Data integrity] Invalid province", p, "is assigned to cells", invalidCells);
       });
 
-      const invalidCultures = [...new Set<number>(Array.from(cells.culture as number[]))].filter(
+      const invalidCultures = [...new Set<number>(Array.from(cells.culture as unknown as number[]))].filter(
         c => !pack.cultures[c] || pack.cultures[c].removed
       );
       invalidCultures.forEach(c => {
@@ -564,7 +564,7 @@ async function parseLoadedData(data, mapVersion) {
         ERROR && console.error("[Data integrity] Invalid culture", c, "is assigned to cells", invalidCells);
       });
 
-      const invalidReligions = [...new Set<number>(Array.from(cells.religion as number[]))].filter(
+      const invalidReligions = [...new Set<number>(Array.from(cells.religion as unknown as number[]))].filter(
         r => !pack.religions[r] || pack.religions[r].removed
       );
       invalidReligions.forEach(r => {
@@ -573,14 +573,14 @@ async function parseLoadedData(data, mapVersion) {
         ERROR && console.error("[Data integrity] Invalid religion", r, "is assigned to cells", invalidCells);
       });
 
-      const invalidFeatures = [...new Set<number>(Array.from(cells.f as number[]))].filter(f => f && !pack.features[f]);
+      const invalidFeatures = [...new Set<number>(Array.from(cells.f as unknown as number[]))].filter(f => f && !pack.features[f]);
       invalidFeatures.forEach(f => {
         const invalidCells = cells.i.filter(i => cells.f[i] === f);
         // No fix as for now
         ERROR && console.error("[Data integrity] Invalid feature", f, "is assigned to cells", invalidCells);
       });
 
-      const invalidBurgs = [...new Set<number>(Array.from(cells.burg as number[]))].filter(
+      const invalidBurgs = [...new Set<number>(Array.from(cells.burg as unknown as number[]))].filter(
         burgId => burgId && (!pack.burgs[burgId] || pack.burgs[burgId].removed)
       );
       invalidBurgs.forEach(burgId => {

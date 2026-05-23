@@ -67,7 +67,7 @@ function editRiver(id) {
     const parent = r.parent || r.i;
     const sortedRivers = pack.rivers.slice().sort((a, b) => (a.name > b.name ? 1 : -1));
     sortedRivers.forEach(river => {
-      const opt = new Option(river.name, river.i, false, river.i === parent);
+      const opt = new Option(river.name, String(river.i), false, river.i === parent);
       parentSelect.options.add(opt);
     });
     ensureEl("riverBasin").value = pack.rivers.find(river => river.i === r.basin).name;
@@ -116,7 +116,7 @@ function editRiver(id) {
   }
 
   function drawCells(cells) {
-    const validCells = [...new Set(cells)].filter(i => pack.cells.i[i]);
+    const validCells = [...new Set(cells)].filter(i => pack.cells.i[i as number]);
     debug
       .select("#controlCells")
       .selectAll(`polygon`)
@@ -175,12 +175,12 @@ function editRiver(id) {
 
   function addControlPoint() {
     const [x, y] = d3.mouse(this);
-    const point = [rn(x, 1), rn(y, 1)];
+      const point: [number, number] = [rn(x, 1), rn(y, 1)];
 
     const river = getRiver();
     if (!river.points) river.points = debug.selectAll("#controlPoints > *").data();
 
-    const index = getSegmentId(river.points, point, 2);
+    const index = getSegmentId(river.points, point as any, 2);
     river.points.splice(index, 0, point);
     drawControlPoints(river.points);
     redrawRiver();

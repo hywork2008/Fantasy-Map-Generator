@@ -315,7 +315,7 @@ function editLabel() {
     } else el.innerHTML = `<tspan x="0">${lines}</tspan>`;
 
     if (elSelected.attr("id").slice(0, 10) === "stateLabel")
-      tip("Use States Editor to change an actual state name, not just a label", false, "warning");
+      tip("Use States Editor to change an actual state name, not just a label", false, "warn");
   }
 
   function generateRandomName() {
