@@ -1,8 +1,25 @@
 "use strict";
 
-const minimapRuntime = globalThis as any;
+type MinimapRuntime = {
+  closeDialogs: (selector?: string) => void;
+  ensureEl: (id: string) => HTMLElement;
+  $: (selector: string | object) => { dialog: (optionsOrAction: unknown) => unknown; parent: () => { addClass: (className: string) => void } };
+  minmax: (value: number, min: number, max: number) => number;
+  zoomTo: (x: number, y: number, zoom: number, duration: number) => void;
+  rn: (value: number, digits?: number) => number;
+  graphWidth: number;
+  graphHeight: number;
+  scale: number;
+  viewX: number;
+  viewY: number;
+  svgWidth: number;
+  svgHeight: number;
+  updateMinimap?: () => void;
+};
 
-const getEl = <T extends Element>(id: string) => minimapRuntime.ensureEl(id) as T;
+const minimapRuntime = globalThis as unknown as MinimapRuntime;
+
+const getEl = <T extends Element>(id: string) => minimapRuntime.ensureEl(id) as unknown as T;
 
 let minimapInitialized = false;
 

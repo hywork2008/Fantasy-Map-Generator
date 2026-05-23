@@ -92,7 +92,7 @@ class NotesEditor {
         media_poster: false,
         browser_spellcheck: true,
         contextmenu: false,
-        setup: (editor: any) => {
+        setup: (editor: { on: (event: string, callback: () => void) => void }) => {
           editor.on("Change", () => this.updateLegend());
         }
       });

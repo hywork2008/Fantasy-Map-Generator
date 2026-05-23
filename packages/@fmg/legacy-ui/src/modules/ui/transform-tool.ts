@@ -1,6 +1,40 @@
 "use strict";
 
-const transformRuntime = globalThis as any;
+type TransformRuntime = {
+  graphWidth: number;
+  graphHeight: number;
+  INFO: boolean;
+  modules: { openTransformTool?: boolean };
+  Resample: { process: (options: { projection: (x: number, y: number) => [number, number]; inverse: (x: number, y: number) => [number, number]; scale: number }) => void };
+  $: (target: string | object) => { dialog: (optionsOrAction: unknown) => unknown };
+  ensureEl: (id: string) => HTMLElement & {
+    value: string | number;
+    valueAsNumber: number;
+    checked: boolean;
+    dataset: { cells?: string };
+    style: CSSStyleDeclaration;
+    width?: number;
+    height?: number;
+    getContext?: (contextId: "2d") => CanvasRenderingContext2D | null;
+  };
+  rn: (value: number, digits?: number) => number;
+  getMapURL: (type: string, options: Record<string, boolean>) => Promise<string>;
+  getCellsDensityColor: (cells: number | string) => string;
+  cellsDensityMap?: Record<string, number>;
+  closeDialogs: () => void;
+  changeCellsDensity: (value: string) => void;
+  applyGraphSize: () => void;
+  fitMapToScreen: () => void;
+  resetZoom: (duration?: number) => void;
+  undraw: () => void;
+  drawLayers: () => void;
+};
+
+type GlobalWithTransformTool = typeof globalThis & {
+  openTransformTool?: typeof openTransformTool;
+};
+
+const transformRuntime = globalThis as unknown as TransformRuntime;
 
 async function openTransformTool() {
   const width = Math.min(400, window.innerWidth * 0.5);
@@ -71,13 +105,17 @@ async function openTransformTool() {
     handleInput();
 
     updateCellsNumber(transformRuntime.ensureEl("pointsInput").value);
-    transformRuntime.ensureEl("transformPointsInput").oninput = e => updateCellsNumber(e.target.value);
+    transformRuntime.ensureEl("transformPointsInput").oninput = e => {
+      const target = e.target as HTMLInputElement;
+      updateCellsNumber(target.value);
+    };
 
-    function updateCellsNumber(value) {
+    function updateCellsNumber(value: string | number) {
       transformRuntime.ensureEl("transformPointsInput").value = value;
       const cellsDensityMap = transformRuntime.cellsDensityMap || {};
-      const cells = cellsDensityMap[value] ?? transformRuntime.ensureEl("pointsInput").dataset.cells;
-      transformRuntime.ensureEl("transformPointsInput").dataset.cells = cells;
+      const key = String(value);
+      const cells = cellsDensityMap[key] ?? Number(transformRuntime.ensureEl("pointsInput").dataset.cells);
+      transformRuntime.ensureEl("transformPointsInput").dataset.cells = String(cells);
       const output = transformRuntime.ensureEl("transformPointsFormatted");
       output.value = cells / 1000 + "K";
       output.style.color = transformRuntime.getCellsDensityColor(cells);
@@ -196,4 +234,4 @@ async function openTransformTool() {
 }
 
 // Register function in global scope for legacy code compatibility
-(globalThis as any).openTransformTool = openTransformTool;
+(globalThis as GlobalWithTransformTool).openTransformTool = openTransformTool;

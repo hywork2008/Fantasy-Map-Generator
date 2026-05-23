@@ -168,7 +168,8 @@ const renderGroupCOAsRenderer = async (g: SVGGElement): Promise<void> => {
   for (const use of g.children) {
     const i = +(use as SVGUseElement).dataset.i!;
     const id = `${type}COA${i}`;
-    COArenderer.trigger(id, (data[i] as any).coa);
+    const item = data[i] as Burg | Province | State;
+    COArenderer.trigger(id, item.coa);
     use.setAttribute("href", `#${id}`);
   }
 };

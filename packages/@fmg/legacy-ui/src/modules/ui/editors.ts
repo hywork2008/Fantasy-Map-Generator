@@ -587,7 +587,7 @@ export function fog(id, path) {
 
 // remove fogging
 export function unfog(id?: string) {
-  let el: any = defs.select("#fog #" + id);
+  let el: {size(): number; remove(): void} = defs.select("#fog #" + id);
   if (!id || !el.size()) el = defs.select("#fog").selectAll("path");
 
   el.remove();

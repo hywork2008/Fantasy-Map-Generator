@@ -21,6 +21,7 @@ import {
   line,
   range
 } from "d3";
+import type { Cells, Vertices } from "@fmg/types";
 import { round } from "../utils";
 
 const CURVE_MAP: Record<string, CurveFactory> = {
@@ -158,7 +159,7 @@ const heightmapRenderer = (): void => {
   }
 
   // connect vertices to chain: specific case for heightmap
-  function connectVertices(cells: any, vertices: any, start: number, h: number, used: Uint8Array): number[] {
+  function connectVertices(cells: Cells, vertices: Vertices, start: number, h: number, used: Uint8Array): number[] {
     const MAX_ITERATIONS = vertices.c.length;
 
     const n = cells.i.length;

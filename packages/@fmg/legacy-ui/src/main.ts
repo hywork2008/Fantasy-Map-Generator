@@ -9,9 +9,11 @@ import { hideLoadingUI, showLoadingUI } from "./modules/ui/loading-ui";
 import { initStartupOnDomContentLoaded } from "./modules/ui/startup-init";
 import {
   checkLoadParametersFlow,
+  type FocusDeps,
   findBurgForMFCGFlow,
   focusOnFlow,
-  generateMapOnLoadFlow
+  generateMapOnLoadFlow,
+  type SelectMfcgDeps
 } from "./modules/ui/initial-load";
 import { applyLayersPreset } from "./modules/ui/layers";
 import {
@@ -117,6 +119,10 @@ type MapCoordinatesLike = {
   lonT: number;
   lonW: number;
   lonE: number;
+};
+
+type WindowWithInvokeActiveZooming = Window & {
+  invokeActiveZooming?: () => void;
 };
 
 const runtime = window as unknown as Window & RuntimeBridge;
@@ -455,7 +461,7 @@ async function generateMapOnLoad() {
 
 // focus on coordinates, cell or burg provided in searchParams
 function focusOn() {
-  focusOnFlow(buildFocusOnDeps({ pack: pack as any, graphWidth, graphHeight, zoomTo, findBurgForMFCG }));
+  focusOnFlow(buildFocusOnDeps({ pack: pack as FocusDeps["pack"], graphWidth, graphHeight, zoomTo, findBurgForMFCG }));
 }
 
 function toggleAssistant() {
@@ -469,7 +475,15 @@ function initTourPromptButton() {
 // find burg for MFCG and focus on it
 function findBurgForMFCG(params) {
   findBurgForMFCGFlow(
-    buildFindBurgForMFCGDeps({ pack: pack as any, d3, ERROR, burgLabels, zoomTo, invokeActiveZooming, tip }),
+    buildFindBurgForMFCGDeps({
+      pack: pack as SelectMfcgDeps["pack"],
+      d3,
+      ERROR,
+      burgLabels,
+      zoomTo,
+      invokeActiveZooming,
+      tip
+    }),
     params
   );
 }
@@ -754,5 +768,5 @@ function undraw() {
 
 // Register invokeActiveZooming to window for HTML onclick handlers
 if (typeof window !== "undefined") {
-  (window as any).invokeActiveZooming = invokeActiveZooming;
+  (window as WindowWithInvokeActiveZooming).invokeActiveZooming = invokeActiveZooming;
 }

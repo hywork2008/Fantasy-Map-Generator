@@ -3,13 +3,13 @@
  */
 
 import type { PackedGraph, TypedArray } from "./PackedGraph";
-import type { Grid, Point } from "./Grid";
+import type { Grid, Point, Cells, Vertices } from "./Grid";
 
 // Re-export global type declarations
 export * from "./globals";
 export * from "./fmg-global";
 export type { PackedGraph, TypedArray };
-export type { Grid, Point };
+export type { Grid, Point, Cells, Vertices };
 
 export type JsonPrimitive = string | number | boolean | null;
 export type JsonValue = JsonPrimitive | JsonObject | JsonValue[];
@@ -74,17 +74,28 @@ export interface NameBase {
 
 // Legacy heightmap template for terrain generation
 export interface HeightmapTemplate {
-  name?: string;
-  template?: string;
-  probability?: number;
-  [key: string]: any;
+  id?: number;
+  name: string;
+  template: string;
+  probability: number;
 }
 
 // Burgs styling configuration
 export interface BurgGroup {
-  [key: string]: any;
+  name: string;
+  order: number;
+  active?: boolean;
+  isDefault?: boolean;
+  min?: number;
+  max?: number;
+  percentile?: number;
+  biomes?: number[];
+  features?: Record<string, boolean>;
+  icon?: string;
+  preview?: string;
+  [key: string]: unknown;
 }
 
 export interface BurgsConfig {
-  groups: Record<string, any>[];
+  groups: BurgGroup[];
 }

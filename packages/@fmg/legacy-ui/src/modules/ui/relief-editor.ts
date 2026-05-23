@@ -203,7 +203,7 @@ class ReliefEditor {
     d3.event.on("drag", function (this: SVGElement) {
       const p = d3.mouse(this);
       moveCircle(p[0], p[1], r);
-      findAllInQuadtree(p[0], p[1], r, tree).forEach((f: any) => f[2].remove());
+      findAllInQuadtree(p[0], p[1], r, tree).forEach((f: [number, number, SVGElement]) => f[2].remove());
     });
   }
 
@@ -254,7 +254,7 @@ class ReliefEditor {
   }
 
   private removeIcon() {
-    let selection: any = null;
+    let selection: unknown = null;
     const pressed = reliefTools.querySelector("button.pressed") as HTMLElement;
     if (pressed.id === "reliefIndividual") {
       alertMessage.innerHTML = "Are you sure you want to remove the icon?";
@@ -262,7 +262,7 @@ class ReliefEditor {
     } else {
       const type = (reliefIconsDiv.querySelector("svg.pressed") as unknown as HTMLElement)?.dataset.type;
       selection = type ? terrain.selectAll("use[href='" + type + "']") : terrain.selectAll("use");
-      const size = selection.size();
+    const size = (selection as {size(): number}).size();
       alertMessage.innerHTML = type
         ? `Are you sure you want to remove all ${type} icons (${size})?`
         : `Are you sure you want to remove all icons (${size})?`;
@@ -273,7 +273,7 @@ class ReliefEditor {
       title: "Remove relief icons",
       buttons: {
         Remove: function () {
-          if (selection) selection.remove();
+          if (selection) (selection as {remove(): void}).remove();
           $(this).dialog("close");
           $("#reliefEditor").dialog("close");
         },

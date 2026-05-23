@@ -1,6 +1,31 @@
 "use strict";
 
-const iceEditorRuntime = globalThis as any;
+const iceEditorRuntime = globalThis as unknown as {
+  customization: boolean;
+  elSelected: {attr(name: string, value?: string): any; node(): SVGElement; style?: any; on?: any; selectAll?: any};
+  closeDialogs(selector: string): void;
+  layerIsOn(layer: string): boolean;
+  toggleIce(): void;
+  d3: any;
+  pack: any;
+  ice: any;
+  modules: any;
+  editStyle(type: string): void;
+  redrawIceberg(id: number): void;
+  viewbox: any;
+  tip(message: string, flag: boolean): void;
+  clearMainTip(): void;
+  clicked: any;
+  findGridCell(x: number, y: number, grid: any): number;
+  grid: any;
+  Ice: any;
+  alertMessage: HTMLElement;
+  $: any;
+  parseTransform(transform?: string | null): [number, number];
+  iceNew: HTMLElement;
+  unselect(): void;
+  editIce?: (element: EventTarget | null) => void;
+};
 
 class IceEditor {
   public open(element: EventTarget | null) {
@@ -66,7 +91,8 @@ class IceEditor {
   }
 
   function addIcebergOnClick(this: SVGElement) {
-    const [x, y] = iceEditorRuntime.d3.mouse(this);
+    const pos = iceEditorRuntime.d3.mouse(this) as [number, number];
+    const [x, y] = pos;
     const i = iceEditorRuntime.findGridCell(x, y, iceEditorRuntime.grid);
     const size = Number((document.getElementById("iceSize") as HTMLInputElement)?.value) || 1;
 

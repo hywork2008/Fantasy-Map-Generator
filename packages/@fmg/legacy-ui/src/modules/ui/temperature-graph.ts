@@ -2,7 +2,64 @@
 
 type Point2D = [number, number];
 
-const temperatureGraphRuntime = globalThis as any;
+type LinearScale = ((value: number) => number) & {
+  domain: (range: [number, number]) => LinearScale;
+  range: (range: [number, number]) => LinearScale;
+  invert: (value: number) => number;
+};
+
+type TimeScale = ((value: Date) => number) & {
+  domain: (range: [Date, Date]) => TimeScale;
+  range: (range: [number, number]) => TimeScale;
+};
+
+type Axis = {
+  ticks: (count?: number) => Axis;
+  tickSize: (size: number) => Axis;
+  tickFormat: (format: unknown) => Axis;
+};
+
+type D3Selection = {
+  append: (tag: string) => D3Selection;
+  attr: (name: string, value: unknown) => D3Selection;
+  style: (name: string, value: unknown) => D3Selection;
+  text: (value: string) => D3Selection;
+  call: (value: unknown) => D3Selection;
+  select: (selector: string) => D3Selection;
+  selectAll: (selector: string) => D3Selection;
+  remove: () => void;
+  on: (event: string, handler: (this: SVGPathElement) => void) => D3Selection;
+};
+
+type TemperatureGraphRuntime = {
+  pack: {
+    burgs: Array<{ y: number; name: string; cell: number }>;
+    cells: { g: ArrayLike<number> };
+  };
+  mapCoordinates: { latN: number; latT: number };
+  graphHeight: number;
+  grid: { cells: { temp: ArrayLike<number>; prec: ArrayLike<number> } };
+  d3: {
+    scaleTime: () => TimeScale;
+    scaleLinear: () => LinearScale;
+    line: () => { curve: (curveType: unknown) => (data: Point2D[]) => string };
+    curveBasis: unknown;
+    axisBottom: (scale: TimeScale) => Axis;
+    axisLeft: (scale: LinearScale) => Axis;
+    timeFormat: (format: string) => unknown;
+    select: (selector: string) => D3Selection;
+    mouse: (element: SVGPathElement) => [number, number];
+  };
+  round: (value: string, digits?: number) => string;
+  $: (selector: string) => { dialog: (options: unknown) => unknown };
+  alertMessage: HTMLElement;
+  rn: (value: number, digits?: number) => number;
+  convertTemperature: (temp: number) => string;
+  tip: (message: string) => void;
+  showBurgTemperatureGraph?: (id: number) => void;
+};
+
+const temperatureGraphRuntime = globalThis as unknown as TemperatureGraphRuntime;
 
 function showBurgTemperatureGraph(id: number) {
   const b = temperatureGraphRuntime.pack.burgs[id];

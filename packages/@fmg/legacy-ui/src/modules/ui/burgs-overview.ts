@@ -292,7 +292,7 @@ export function overviewBurgs(settings = {stateId: null, cultureId: null}) {
           y: b.y
         };
       });
-    const data = (states as any[]).concat(burgs as any[]);
+    const data = [...states, ...burgs];
     if (data.length < 2) return tip("No burgs to show", false, "error");
 
     const root = d3

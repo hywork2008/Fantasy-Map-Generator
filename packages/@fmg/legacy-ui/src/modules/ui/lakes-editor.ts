@@ -1,5 +1,8 @@
 import { getArea, getAreaUnit } from "./editors";
 "use strict";
+
+declare function getHeight(value: number, mode?: string): string;
+
 class LakesEditor {
   public open() {
     if (customization) return;
@@ -54,8 +57,8 @@ class LakesEditor {
     const heights = lakeCells.map(i => cells.h[i]);
 
     ensureEl("lakeElevation").value = getHeight(l.height);
-    ensureEl("lakeAverageDepth").value = (getHeight as any)(d3.mean(heights), "abs");
-    ensureEl("lakeMaxDepth").value = (getHeight as any)(d3.min(heights), "abs");
+    ensureEl("lakeAverageDepth").value = getHeight(d3.mean(heights), "abs");
+    ensureEl("lakeMaxDepth").value = getHeight(d3.min(heights), "abs");
 
     ensureEl("lakeFlux").value = l.flux;
     ensureEl("lakeEvaporation").value = l.evaporation;

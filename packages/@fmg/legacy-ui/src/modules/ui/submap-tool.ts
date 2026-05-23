@@ -1,6 +1,34 @@
 "use strict";
 
-const submapRuntime = globalThis as any;
+const submapRuntime = globalThis as unknown as {
+  $: any;
+  "#submapTool": any;
+  modules: {openSubmapTool?: boolean};
+  ensureEl(id: string): HTMLElement;
+  cellsDensityMap?: {[key: string]: number};
+  viewX: number;
+  scale: number;
+  viewY: number;
+  getCellsDensityColor(cells: number | string): string;
+  INFO?: boolean;
+  changeCellsDensity(value: string): void;
+  applyGraphSize(): void;
+  fitMapToScreen(): void;
+  resetZoom(value: number): void;
+  undraw(): void;
+  Resample: {process(opts: any): void};
+  drawLayers(): void;
+  rn(value: number, decimals: number): number;
+  getLatitude(y: number): number;
+  getLongitude(x: number): number;
+  mapCoordinates: {latT: number; lonT: number};
+  graphWidth: number;
+  distanceScale: number;
+  populationRate: number;
+  distanceScaleInput: {value: string};
+  populationRateInput: {value: string};
+  minmax(value: number, min: number, max: number): number;
+};
 
 function openSubmapTool() {
   resetInputs();
@@ -36,7 +64,7 @@ function openSubmapTool() {
 
     function updateCellsNumber(value: string) {
       const submapPointsInput = submapRuntime.ensureEl("submapPointsInput") as HTMLInputElement;
-      const cells = submapRuntime.cellsDensityMap?.[value] ?? (submapRuntime.ensureEl("pointsInput") as HTMLInputElement).dataset.cells;
+      const cells = (submapRuntime.cellsDensityMap?.[value] ?? (submapRuntime.ensureEl("pointsInput") as HTMLInputElement).dataset.cells) as number;
       submapPointsInput.value = value;
       submapPointsInput.dataset.cells = String(cells);
 

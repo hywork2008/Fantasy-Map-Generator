@@ -1,13 +1,46 @@
+import type { PackedGraph, Point, TypedArray } from "@fmg/types";
+
+type GridCellsForRegraph = {
+  i: number[];
+  h: ArrayLike<number>;
+  t: ArrayLike<number>;
+  b: ArrayLike<number>;
+  c: number[][];
+  f: ArrayLike<number>;
+};
+
+type GridFeatureLike = {
+  type?: string;
+};
+
+type GridForRegraph = {
+  cells: GridCellsForRegraph;
+  points: Point[];
+  features: GridFeatureLike[];
+  spacing: number;
+  boundary: Point[];
+};
+
+type D3Like = {
+  polygonArea: (polygon: [number, number][]) => number;
+  median: (values: number[]) => number | undefined;
+  max: (values: ArrayLike<number>) => number;
+  mean: (values: ArrayLike<number>) => number;
+};
+
 type ReGraphDeps = {
   TIME: boolean;
-  grid: any;
-  pack: any;
+  grid: GridForRegraph;
+  pack: PackedGraph;
   rn: (value: number, digits?: number) => number;
-  calculateVoronoi: (points: [number, number][], boundary: any) => { cells: any; vertices: any };
-  createTypedArray: (options: { maxValue: number; length?: number; from?: ArrayLike<number> }) => any;
+  calculateVoronoi: (
+    points: Point[],
+    boundary: Point[]
+  ) => { cells: PackedGraph["cells"]; vertices: PackedGraph["vertices"] };
+  createTypedArray: (options: { maxValue: number; length?: number; from?: ArrayLike<number> }) => TypedArray;
   UINT16_MAX: number;
   getPackPolygon: (cellId: number) => [number, number][];
-  d3: any;
+  d3: D3Like;
 };
 
 export function reGraphFlow({
@@ -73,10 +106,10 @@ export function reGraphFlow({
 
 type RankCellsDeps = {
   TIME: boolean;
-  pack: any;
-  biomesData: any;
+  pack: PackedGraph;
+  biomesData: { habitability: ArrayLike<number> };
   normalize: (value: number, min: number, max: number) => number;
-  d3: any;
+  d3: D3Like;
 };
 
 export function rankCellsFlow({ TIME, pack, biomesData, normalize, d3 }: RankCellsDeps) {

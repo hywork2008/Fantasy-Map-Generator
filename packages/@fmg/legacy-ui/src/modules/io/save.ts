@@ -7,7 +7,88 @@ import { VERSION } from "../../versioning";
 
 type SaveMethod = "storage" | "machine" | "dropbox";
 
-const saveRuntime = globalThis as any;
+type NameBaseEntry = { name: string; b: string; min: number; max: number; d: string; m: string };
+
+type SaveRuntime = {
+  customization: number;
+  ERROR: boolean;
+  VERSION?: string;
+  seed: string | number;
+  graphWidth: number;
+  graphHeight: number;
+  mapId: string | number;
+  distanceScale: number;
+  populationRate: number;
+  urbanization: number;
+  urbanDensity: number;
+  options: unknown;
+  mapCoordinates: unknown;
+  notes: unknown;
+  biomesData?: { color: unknown; habitability: unknown; name: unknown };
+  rulers?: { toString: () => string };
+  mapName: HTMLInputElement;
+  growthRate: HTMLInputElement;
+  distanceUnitInput: HTMLInputElement;
+  areaUnit: HTMLSelectElement;
+  heightUnit: HTMLSelectElement;
+  heightExponentInput: HTMLInputElement;
+  temperatureScale: { value: string };
+  mapSizeOutput: HTMLInputElement;
+  latitudeOutput: HTMLInputElement;
+  longitudeOutput: HTMLInputElement;
+  precOutput: HTMLInputElement;
+  hideLabels: HTMLInputElement;
+  stylePreset: HTMLSelectElement;
+  rescaleLabels: HTMLInputElement;
+  alertMessage: HTMLElement;
+  ldb: { set: (key: string, value: Blob) => Promise<void> | void };
+  ensureEl: (id: string) => HTMLElement;
+  ra: <T>(values: T[]) => T;
+  Cloud: { providers: { dropbox: { save: (filename: string, mapData: string) => Promise<void> } } };
+  Names: { getNameBases: () => NameBaseEntry[] };
+  nameBases?: NameBaseEntry[];
+  grid: {
+    spacing: number;
+    cellsX: number;
+    cellsY: number;
+    boundary: unknown;
+    points: unknown;
+    features: unknown;
+    cellsDesired: number;
+    cells: { h: unknown; prec: unknown; f: unknown; t: unknown; temp: unknown };
+  };
+  pack: {
+    features: unknown;
+    cultures: unknown;
+    states: unknown;
+    burgs: unknown;
+    religions: unknown;
+    provinces: unknown;
+    rivers: unknown;
+    markers: unknown;
+    routes: unknown;
+    zones: unknown;
+    ice: unknown;
+    cells: {
+      routes: unknown;
+      pop: ArrayLike<number>;
+      biome: unknown;
+      burg: unknown;
+      conf: unknown;
+      culture: unknown;
+      fl: unknown;
+      r: unknown;
+      s: unknown;
+      state: unknown;
+      religion: unknown;
+      province: unknown;
+    };
+  };
+  tip: (message: string, main?: boolean, type?: string, time?: number) => void;
+  closeDialogs: (selector?: string) => void;
+};
+
+const saveRuntime = globalThis as unknown as SaveRuntime;
 
 // functions to save the whole .map project
 export async function saveMap(method: SaveMethod): Promise<void> {

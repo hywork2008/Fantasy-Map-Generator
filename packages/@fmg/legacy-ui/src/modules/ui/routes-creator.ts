@@ -4,7 +4,54 @@ import { Routes } from "@fmg/core/modules/routes-generator";
 
 type RoutePoint = [number, number, number];
 
-const routesCreatorRuntime = globalThis as any;
+type D3Chain = {
+  attr: (name: string, value: unknown) => D3Chain;
+  remove: () => void;
+  append: (tag: string) => D3Chain;
+};
+
+type RoutesCreatorRuntime = {
+  customization: number;
+  modules: { createRoute?: boolean };
+  pack: {
+    cells: { f: ArrayLike<number>; routes: Record<number, Record<number, number>> };
+    routes: Array<{ points: RoutePoint[]; group: string; feature: number; i: number }>;
+  };
+  routes: {
+    selectAll: (selector: string) => { nodes: () => Array<{ id: string }> };
+    select: (selector: string) => D3Chain;
+  };
+  debug: {
+    append: (tag: string) => D3Chain;
+    select: (selector: string) => {
+      selectAll: (tag: string) => {
+        data: (data: RoutePoint[]) => {
+          join: (tagName: string) => D3Chain;
+        };
+      };
+      remove: () => void;
+    };
+  };
+  viewbox: { style: (name: string, value: string) => { on: (event: string, handler: (this: SVGElement) => void) => unknown } };
+  d3: { mouse: (el: SVGElement) => [number, number] };
+  $: (selector: string) => { dialog: (optionsOrAction: unknown) => unknown };
+  ensureEl: (id: string) => HTMLElement;
+  rn: (value: number, digits?: number) => number;
+  findCell: (x: number, y: number) => number;
+  getPackPolygon: (cellId: number) => string;
+  closeDialogs: () => void;
+  layerIsOn: (id: string) => boolean;
+  toggleRoutes: () => void;
+  toggleCells: () => void;
+  tip: (message: string, autoHide?: boolean, type?: string) => void;
+  editRouteGroups: () => void;
+  editRoute: (routeId: string) => void;
+  restoreDefaultEvents: () => void;
+  clearMainTip: () => void;
+  createRoute?: (defaultGroup?: string) => void;
+};
+
+const routesCreatorRuntime = globalThis as unknown as RoutesCreatorRuntime;
 
 class RouteCreator {
   private points: RoutePoint[] = [];

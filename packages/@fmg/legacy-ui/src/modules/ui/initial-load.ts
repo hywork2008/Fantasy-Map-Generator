@@ -133,7 +133,7 @@ export function focusOnFlow({ pack, graphWidth, graphHeight, zoomTo, findBurgFor
     }
 
     if (burgParam) {
-      const burg = Number.isNaN(+burgParam) ? pack.burgs.find((burg: any) => burg.name === burgParam) : pack.burgs[+burgParam];
+      const burg = Number.isNaN(+burgParam) ? pack.burgs.find((burg: Burg) => burg.name === burgParam) : pack.burgs[+burgParam];
       if (!burg) return;
 
       const { x, y } = burg;

@@ -1,4 +1,4 @@
-import { color, easeSinInOut, transition } from "d3";
+import { color, easeSinInOut, transition, type Transition } from "d3";
 import type { MilitaryRegiment } from "#modules/military-generator";
 import { Military } from "#modules/military-generator";
 import { rn } from "../utils";
@@ -142,27 +142,27 @@ const moveRegimentRenderer = (reg: MilitaryRegiment, x: number, y: number): void
   const x1 = (x: number) => rn(x - w / 2, 2);
   const y1 = (y: number) => rn(y - size, 2);
 
-  const move = transition().duration(duration).ease(easeSinInOut);
+    const move = transition().duration(duration).ease(easeSinInOut);
   el.select("rect")
-    .transition(move as any)
+    .transition(move)
     .attr("x", x1(x))
     .attr("y", y1(y));
   el.select("text")
-    .transition(move as any)
+    .transition(move)
     .attr("x", x)
     .attr("y", y);
   el.selectAll("rect:nth-of-type(2)")
-    .transition(move as any)
+    .transition(move)
     .attr("x", x1(x) - h)
     .attr("y", y1(y));
   el.select(".regimentIcon")
-    .transition(move as any)
+    .transition(move)
     .attr("x", x1(x) - size)
     .attr("y", y)
     .attr("height", "6")
     .attr("width", "6");
   el.select(".regimentImage")
-    .transition(move as any)
+      .transition(move)
     .attr("x", x1(x) - h)
     .attr("y", y1(y))
     .attr("height", "6")

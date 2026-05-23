@@ -3,7 +3,58 @@ import { Rivers } from "@fmg/core/modules/river-generator";
 
 type RiverCell = number;
 
-const riversCreatorRuntime = globalThis as any;
+type D3Chain = {
+  attr: (name: string, value: unknown) => D3Chain;
+  remove: () => void;
+  append: (tag: string) => D3Chain;
+};
+
+type RiversCreatorRuntime = {
+  customization: number;
+  modules: { createRiver?: boolean };
+  pack: {
+    rivers: Array<{ i: number; [key: string]: unknown }>;
+    cells: {
+      fl: ArrayLike<number> & { [index: number]: number };
+      f: ArrayLike<number>;
+      r: ArrayLike<number> & { [index: number]: number };
+      routes?: unknown;
+    };
+  };
+  viewbox: {
+    style: (name: string, value: string) => { on: (event: string, handler: (this: SVGElement) => void) => unknown };
+    select: (selector: string) => D3Chain;
+  };
+  debug: {
+    append: (tag: string) => D3Chain;
+    select: (selector: string) => {
+      selectAll: (tag: string) => {
+        data: (data: RiverCell[]) => {
+          join: (tagName: string) => D3Chain;
+        };
+      };
+      remove: () => void;
+    };
+  };
+  d3: { mouse: (el: SVGElement) => [number, number] };
+  pointsInput: { dataset: { cells: string } };
+  $: (selector: string) => { dialog: (optionsOrAction: unknown) => unknown };
+  rn: (value: number, digits?: number) => number;
+  last: <T>(values: T[]) => T;
+  findCell: (x: number, y: number) => number;
+  getPackPolygon: (cellId: number) => string;
+  closeDialogs: () => void;
+  layerIsOn: (id: string) => boolean;
+  toggleRivers: () => void;
+  toggleCells: () => void;
+  tip: (message: string, autoHide?: boolean, type?: string) => void;
+  editRiver: (riverId: string) => void;
+  restoreDefaultEvents: () => void;
+  clearMainTip: () => void;
+  createRiver?: () => void;
+};
+
+const riversCreatorRuntime = globalThis as unknown as RiversCreatorRuntime;
 
 class RiverCreator {
   private cells: RiverCell[] = [];
@@ -100,7 +151,7 @@ class RiverCreator {
       const mouth = parent === riverId ? riversCreatorRuntime.last(riverCells) : riverCells[riverCells.length - 2];
       const sourceWidth = Rivers.getSourceWidth(cells.fl[source]);
       const defaultWidthFactor = riversCreatorRuntime.rn(
-        1 / ((riversCreatorRuntime.pointsInput.dataset.cells / 10000) ** 0.25),
+        1 / ((Number(riversCreatorRuntime.pointsInput.dataset.cells) / 10000) ** 0.25),
         2
       );
       const widthFactor = 1.2 * defaultWidthFactor;
@@ -108,7 +159,7 @@ class RiverCreator {
       const meanderedPoints = Rivers.addMeandering(riverCells);
 
       const discharge = cells.fl[mouth];
-      const length = Rivers.getApproximateLength(meanderedPoints as any);
+      const length = Rivers.getApproximateLength(meanderedPoints.map(([x, y]) => [x, y] as [number, number]));
       const width = Rivers.getWidth(
         Rivers.getOffset({
           flux: discharge,

@@ -1,8 +1,54 @@
 "use strict";
 
+import type { BurgGroup } from "@fmg/types";
+import type { Burg } from "@fmg/core/modules/burgs-generator";
 import { fitContent } from "./editors";
 
 const GROUP_NAME_REGEXP = /^[\p{L}_][\p{L}\p{N}_-]*$/u;
+
+type EditableBurgGroup = Partial<BurgGroup> & {
+  name: string;
+  order?: number;
+  states?: string;
+  cultures?: string;
+  religions?: string;
+  biomes?: number[] | string;
+  preview?: string | null;
+  features?: Record<string, boolean>;
+};
+
+type LimitationDatum = {
+  i: number;
+  name: string;
+  fullName?: string;
+  color?: string;
+  removed?: boolean;
+};
+
+type ParsedInputValue = string | number | boolean | Record<string, boolean> | null;
+
+const parseFeatureMap = (value: string): Record<string, boolean> => {
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (!parsed || typeof parsed !== "object") return {};
+
+    return Object.entries(parsed as Record<string, unknown>).reduce((acc: Record<string, boolean>, [key, item]) => {
+      if (typeof item === "boolean") acc[key] = item;
+      return acc;
+    }, {});
+  } catch {
+    return {};
+  }
+};
+
+const getInputsByName = (form: HTMLFormElement, name: string): HTMLInputElement[] => {
+  const controls = form.elements.namedItem(name);
+  if (!controls) return [];
+  if (controls instanceof RadioNodeList) {
+    return Array.from(controls).filter((item): item is HTMLInputElement => item instanceof HTMLInputElement);
+  }
+  return controls instanceof HTMLInputElement ? [controls] : [];
+};
 
 class BurgGroupEditor {
   public open() {
@@ -56,12 +102,12 @@ class BurgGroupEditor {
   }
 
   private addLines() {
-    const lines = options.burgs.groups.map((g: any) => this.createLine(g));
+    const lines = options.burgs.groups.map(g => this.createLine(g as EditableBurgGroup));
     ensureEl("burgGroupsBody").innerHTML = lines.join("");
   }
 
-  private createLine(group: any): string {
-    const count = pack.burgs.filter((burg: any) => !burg.removed && burg.group === group.name).length;
+  private createLine(group: EditableBurgGroup): string {
+    const count = pack.burgs.filter((burg: Burg) => !burg.removed && burg.group === group.name).length;
     return /* html */ `<tr name="${group.name}">
       <td data-tip="Rendering order: higher values are rendered on top"><input type="number" name="order" min="1" max="999" step="1" required value="${group.order || ''}" /></td>
       <td data-tip="Type group name. Must start with a letter or underscore, followed by letters, digits, underscores, or dashes. Spaces are not allowed"><input type="text" name="name" value="${group.name}" required /></td>
@@ -105,13 +151,13 @@ class BurgGroupEditor {
     </tr>`;
   }
 
-  private selectLimitation(el: HTMLButtonElement, data: any[]) {
+  private selectLimitation(el: HTMLButtonElement, data: LimitationDatum[]) {
     const value = (el.previousElementSibling as HTMLInputElement).value;
     const initial = value ? value.split(",").map(v => +v) : [];
 
     const filtered = data.filter(datum => datum.i && !datum.removed);
     const lines = filtered.map(
-      ({i, name, fullName, color}: any) => /* html */ `
+      ({i, name, fullName, color}: LimitationDatum) => /* html */ `
         <tr data-tip="${name}">
           <td>
             <span style="color:${color}">⬤</span>
@@ -213,9 +259,10 @@ class BurgGroupEditor {
       title: "Limit group by features",
       buttons: {
         Apply: function () {
-          const form = ensureEl("featuresLimitationForm") as any;
+          const form = ensureEl("featuresLimitationForm") as HTMLFormElement;
+          const formData = new FormData(form);
           const values = features.reduce((acc: Record<string, boolean>, {name}) => {
-            const value = form[name].value;
+            const value = formData.get(name);
             if (value !== "undefined") acc[name] = value === "true";
             return acc;
           }, {});
@@ -249,14 +296,15 @@ class BurgGroupEditor {
   }
 
   private validateForm(): boolean {
-    const form = ensureEl("burgGroupsForm") as any;
+    const form = ensureEl("burgGroupsForm") as HTMLFormElement;
+    const nameInputs = getInputsByName(form, "name");
 
-    if (form.name.length) {
-      const names = Array.from(form.name).map((input: any) => (input as HTMLInputElement).value);
-      form.name.forEach((nameInput: HTMLInputElement) => {
+    if (nameInputs.length > 1) {
+      const names = nameInputs.map(input => input.value);
+      nameInputs.forEach((nameInput: HTMLInputElement) => {
         const value = nameInput.value;
         const isFormatValid = GROUP_NAME_REGEXP.test(value);
-        const isUnique = (names as string[]).filter(n => n === value).length === 1;
+        const isUnique = names.filter(n => n === value).length === 1;
         const message = !isFormatValid
           ? "Group name must start with a letter or underscore and then contain only letters, digits, underscores, or dashes"
           : !isUnique
@@ -265,28 +313,30 @@ class BurgGroupEditor {
         nameInput.setCustomValidity(message);
       });
     } else {
-      const value = form.name.value;
+      const value = nameInputs[0]?.value || "";
       const isFormatValid = GROUP_NAME_REGEXP.test(value);
       const message = isFormatValid
         ? ""
         : "Group name must start with a letter or underscore and then contain only letters, digits, underscores, or dashes";
-      form.name.setCustomValidity(message);
+      nameInputs[0]?.setCustomValidity(message);
     }
 
-    if (form.active.length) {
-      const active = Array.from(form.active).map(input => (input as HTMLInputElement).checked);
-      form.active[0].setCustomValidity(active.includes(true) ? "" : "At least one group should be active");
+    const activeInputs = getInputsByName(form, "active");
+    if (activeInputs.length > 1) {
+      const active = activeInputs.map(input => input.checked);
+      activeInputs[0].setCustomValidity(active.includes(true) ? "" : "At least one group should be active");
     } else {
-      const active = form.active.checked;
-      form.active.setCustomValidity(active ? "" : "At least one group should be active");
+      const active = activeInputs[0]?.checked;
+      activeInputs[0]?.setCustomValidity(active ? "" : "At least one group should be active");
     }
 
-    if (form.isDefault.length) {
-      const checked = Array.from(form.isDefault).map(input => (input as HTMLInputElement).checked);
-      form.isDefault[0].setCustomValidity(checked.includes(true) ? "" : "At least one group should be default");
+    const defaultInputs = getInputsByName(form, "isDefault");
+    if (defaultInputs.length > 1) {
+      const checked = defaultInputs.map(input => input.checked);
+      defaultInputs[0].setCustomValidity(checked.includes(true) ? "" : "At least one group should be default");
     } else {
-      const checked = form.isDefault.checked;
-      form.isDefault.setCustomValidity(checked ? "" : "At least one group should be default");
+      const checked = defaultInputs[0]?.checked;
+      defaultInputs[0]?.setCustomValidity(checked ? "" : "At least one group should be default");
     }
 
     const isValid = form.checkValidity();
@@ -304,19 +354,22 @@ class BurgGroupEditor {
     options.burgs.groups = lines.map(line => {
       const lineEl = line as HTMLElement;
       const inputs = lineEl.querySelectorAll("input, select");
-      const group = Array.from(inputs).reduce((obj: Record<string, any>, input) => {
+      const group = Array.from(inputs).reduce((obj: Record<string, unknown>, input) => {
         const formInput = input as HTMLInputElement;
         const value = this.parseInput(formInput);
         if (value !== null) obj[formInput.name] = value;
         return obj;
       }, {});
       return group;
-    });
+    }) as BurgGroup[];
     localStorage.setItem("burg-groups", JSON.stringify(options.burgs.groups));
 
-    const validBurgs = pack.burgs.filter((b: any) => b.i && !b.removed);
-    const populations = validBurgs.map((b: any) => b.population).sort((a: number, b: number) => a - b);
-    validBurgs.forEach((burg: any) => Burgs.defineGroup(burg, populations));
+    const validBurgs = pack.burgs.filter((b: Burg) => b.i && !b.removed);
+    const populations = validBurgs
+      .map((b: Burg) => b.population)
+      .filter((value): value is number => typeof value === "number")
+      .sort((a: number, b: number) => a - b);
+    validBurgs.forEach((burg: Burg) => Burgs.defineGroup(burg, populations));
 
     if (layerIsOn("toggleBurgIcons")) drawBurgIcons();
     if (layerIsOn("toggleLabels")) drawBurgLabels();
@@ -325,11 +378,10 @@ class BurgGroupEditor {
     $("#burgGroupsEditor").dialog("close");
   }
 
-  private parseInput(input: HTMLInputElement): any {
+  private parseInput(input: HTMLInputElement): ParsedInputValue {
     if (input.name === "name") return input.value;
     if (input.name === "features") {
-      const isValid = (JSON as any).isValid(input.value);
-      const parsed = isValid ? JSON.parse(input.value) : {};
+      const parsed = parseFeatureMap(input.value);
       if (Object.keys(parsed).length) return parsed;
       return null;
     }

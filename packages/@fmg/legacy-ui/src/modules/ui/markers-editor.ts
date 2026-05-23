@@ -1,8 +1,19 @@
 "use strict";
 import { listen } from "./editors";
+
+interface MarkerData {
+  i: number;
+  lock?: boolean;
+  hidden?: boolean;
+  pin?: string;
+  fill?: string;
+  stroke?: string;
+  [key: string]: any;
+}
+
 class MarkersEditor {
   private element: HTMLElement | null = null;
-  private marker: any = null;
+  private marker: MarkerData | null = null;
   private listeners: Array<() => void> = [];
 
   public open(markerI?: number) {
@@ -67,7 +78,7 @@ class MarkersEditor {
     ];
   }
 
-  private getElement(markerI: number | undefined, event: any): [HTMLElement | null, any] {
+  private getElement(markerI: number | undefined, event: any): [HTMLElement | null, MarkerData | null] {
     if (event) {
       const element = event.target?.closest("svg") as HTMLElement | null;
       const marker = element ? pack.markers.find(({i}) => Number(element.id.slice(6)) === i) : null;
