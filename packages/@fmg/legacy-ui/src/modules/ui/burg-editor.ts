@@ -1,7 +1,7 @@
 "use strict";
 import { editBurgGroups } from "./burg-group-editor";
 class BurgEditor {
-  public open(id?: any) {
+  public open(id?: unknown) {
     if (customization) return;
     closeDialogs(".stable");
     if (!layerIsOn("toggleBurgIcons")) toggleBurgIcons();
@@ -77,8 +77,8 @@ class BurgEditor {
 
     const cultureSelect = ensureEl("burgCulture") as HTMLSelectElement;
     cultureSelect.options.length = 0;
-    const cultures = pack.cultures.filter((c: any) => !c.removed);
-    cultures.forEach((c: any) => cultureSelect.options.add(new Option(c.name, String(c.i), false, c.i === b.culture)));
+    const cultures = pack.cultures.filter((c: unknown) => !(c as {removed?: boolean}).removed) as unknown as {name: string; i: number}[];
+    cultures.forEach((c) => cultureSelect.options.add(new Option(c.name, String(c.i), false, c.i === b.culture)));
 
     const temperature = grid.cells.temp[pack.cells.g[b.cell]];
     ensureEl("burgTemperature").innerHTML = convertTemperature(temperature);
@@ -270,7 +270,7 @@ class BurgEditor {
     editStyle("anchors", g);
   }
 
-  private updateBurgPreview(burg: any) {
+  private updateBurgPreview(burg: unknown) {
     const preview = Burgs.getPreview(burg).preview;
     if (!preview) {
       (ensureEl("burgPreviewSection") as HTMLElement).style.display = "none";

@@ -11,6 +11,15 @@ import { COArenderer } from "@fmg/core/modules/emblem/renderer";
 import { ensureLegacyElement, legacyRuntime } from "../runtime/legacy-runtime";
 /// <reference path="../../types/ui-legacy-globals.d.ts" />
 
+declare global {
+  interface Window {
+    fitLegendBox(): void;
+    unlock(key: string): void;
+    cellsDensityMap?: {[key: number]: number};
+    getCellsDensityColor?: (cells: number) => string;
+  }
+}
+
 $("#optionsContainer").draggable({handle: ".drag-trigger", snap: "svg", snapMode: "both"});
 $("#exitCustomization").draggable({handle: "div"});
 $("#mapLayers").disableSelection();
@@ -154,7 +163,7 @@ optionsContent.addEventListener("input", event => {
 optionsContent.addEventListener("change", event => {
   const {id, value} = event.target as HTMLInputElement;
   if (id === "zoomExtentMin" || id === "zoomExtentMax") changeZoomExtent(value);
-  else if (id === "optionsSeed") (generateMapWithSeed as any)("seed change");
+  else if (id === "optionsSeed") generateMapWithSeed("seed change");
   else if (id === "uiSize") changeUiSize(+value);
   else if (id === "shapeRendering") setRendering(value);
   else if (id === "yearInput") changeYear();
@@ -234,7 +243,7 @@ export function fitMapToScreen() {
     .scaleExtent([zoomMin, zoomMax]);
 
   fitScaleBar(scaleBar, svgWidth, svgHeight);
-  if ((window as any).fitLegendBox) fitLegendBox();
+  if (window.fitLegendBox) window.fitLegendBox();
 }
 
 function toggleTranslateExtent(el) {
@@ -289,7 +298,7 @@ function testSpeaker() {
   speechSynthesis.speak(speaker);
 }
 
-function generateMapWithSeed() {
+function generateMapWithSeed(reason?: string) {
   if (optionsSeed.value === seed) return tip("The current map already has this seed", false, "error");
   regeneratePrompt({seed: optionsSeed.value});
 }
@@ -319,7 +328,7 @@ function restoreSeed(id) {
   ensureEl("mapHeightInput").value = height;
   ensureEl("templateInput").value = template;
 
-  if (locked("template")) (window as any).unlock("template");
+  if (locked("template")) window.unlock("template");
 
   regeneratePrompt({seed});
 }
@@ -367,8 +376,8 @@ function getCellsDensityColor(cells) {
 }
 
 // Legacy tool modules (submap / transform) consume these helpers from global runtime.
-(globalThis as any).cellsDensityMap = cellsDensityMap;
-(globalThis as any).getCellsDensityColor = getCellsDensityColor;
+window.cellsDensityMap = cellsDensityMap;
+window.getCellsDensityColor = getCellsDensityColor;
 
 function changeCultureSet() {
   const max = culturesSet.selectedOptions[0].dataset.max;
@@ -517,8 +526,8 @@ function initGoogleTranslate() {
 }
 
 function resetLanguage() {
-  const languageSelect = document.querySelector("#google_translate_element select") as any;
-  if (!languageSelect.value) return;
+  const languageSelect = document.querySelector("#google_translate_element select") as unknown as {value: string; handleChange: (e: Event) => void} | null;
+  if (!languageSelect?.value) return;
 
   languageSelect.value = "en";
   languageSelect.handleChange(new Event("change"));
@@ -701,7 +710,7 @@ function generateEra() {
 }
 
 function regenerateEra() {
-  (window as any).unlock("era");
+  window.unlock("era");
   options.era = eraInput.value = Names.getBaseShort(P(0.7) ? 1 : rand(nameBases.length)) + " Era";
   options.eraShort = options.era
     .split(" ")

@@ -4,7 +4,7 @@ import { getArea, getAreaUnit } from "./editors";
 import { Routes } from "@fmg/core/modules/routes-generator";
 
 export class Rulers {
-  data: any[] = [];
+  data: (Ruler | Opisometer | RouteOpisometer | Planimeter)[] = [];
 
   constructor() {
     this.data = [];
@@ -58,10 +58,21 @@ export class Rulers {
   }
 }
 
+interface D3Element {
+  selectAll(selector: string): D3Element;
+  append(tag: string): D3Element;
+  select(selector: string): D3Element;
+  attr(name: string, value?: unknown): D3Element;
+  text(content?: string | number): D3Element;
+  on(event: string, handler?: Function): D3Element;
+  remove(): void;
+  node(): HTMLElement;
+}
+
 class Measurer {
   points: number[][] = [];
   id: number = 0;
-  el: any = null;
+  el: D3Element | null = null;
 
   constructor(points) {
     this.points = points;
@@ -81,7 +92,8 @@ class Measurer {
   }
 
   drag() {
-      const tr = parseTransform((this.el as any).getAttribute("transform"));
+      const transform = (this.el?.node() as HTMLElement)?.getAttribute("transform") || "0,0";
+      const tr = parseTransform(transform);
     const x = +tr[0] - d3.event.x,
       y = +tr[1] - d3.event.y;
 

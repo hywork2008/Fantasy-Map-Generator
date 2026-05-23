@@ -88,17 +88,17 @@ function applyStyle(styleJSON: StylePresetData) {
   for (const selector in styleJSON) {
     if (selector.startsWith("#burgLabels")) {
       const group = selector.split("#").pop() || "";
-      style.burgLabels[group] = styleJSON[selector] as any;
+      style.burgLabels[group] = styleJSON[selector] as unknown as Record<string, string>;
     }
 
     if (selector.startsWith("#burgIcons")) {
       const group = selector.split("#").pop() || "";
-      style.burgIcons[group] = styleJSON[selector] as any;
+      style.burgIcons[group] = styleJSON[selector] as unknown as Record<string, string>;
     }
 
     if (selector.startsWith("#anchors")) {
       const group = selector.split("#").pop() || "";
-      style.anchors[group] = styleJSON[selector] as any;
+      style.anchors[group] = styleJSON[selector] as unknown as Record<string, string>;
     }
 
     const el = document.querySelector(selector);
@@ -405,7 +405,7 @@ export function addStylePreset() {
     const isSystem = systemPresets.includes(styleName) || systemPresets.includes(styleSaverName.value);
     if (isSystem) return (styleSaverTip.innerHTML = "default");
 
-    const isExisting = Array.from(stylePreset.options as any).some((option: any) => option.value == styleName);
+    const isExisting = Array.from(stylePreset.options).some((option: HTMLOptionElement) => option.value == styleName);
     if (isExisting) return (styleSaverTip.innerHTML = "existing");
 
     styleSaverTip.innerHTML = "new";
