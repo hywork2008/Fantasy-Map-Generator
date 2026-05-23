@@ -1,6 +1,6 @@
-import type { Selection } from "d3";
 import type { Route } from "@fmg/core/modules/routes-generator";
-import type { PackedGraph, Grid } from "@fmg/types";
+import type { Grid, PackedGraph } from "@fmg/types";
+import type { Selection } from "d3";
 
 type LegacyNameBase = {
   name: string;
