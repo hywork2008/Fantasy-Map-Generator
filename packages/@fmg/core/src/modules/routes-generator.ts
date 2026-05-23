@@ -716,4 +716,4 @@ class RoutesModule {
   }
 }
 
-window.Routes = new RoutesModule();
+export const Routes = new RoutesModule();

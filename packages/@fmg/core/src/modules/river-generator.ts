@@ -1,11 +1,8 @@
 import Alea from "alea";
 import { curveBasis, curveCatmullRom, line, mean, min, sum } from "d3";
 import { each, rn, round, rw } from "@fmg/shared";
+import { Lakes } from "./lakes";
 import type { Point } from "./voronoi";
-
-declare global {
-  var Rivers: RiverModule;
-}
 
 export interface River {
   i: number; // river id
@@ -570,4 +567,4 @@ class RiverModule {
   }
 }
 
-window.Rivers = new RiverModule();
+export const Rivers = new RiverModule();

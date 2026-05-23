@@ -85,6 +85,7 @@ declare global {
   ) => void;
   var locked: (settingId: string) => boolean;
   var unlock: (settingId: string) => void;
+
   var $: (selector: any) => any;
   var scale: number;
   var changeFont: () => void;
@@ -109,5 +110,29 @@ declare global {
   var uploadFile: (el: HTMLInputElement, callback: (data: string) => void) => void;
   var downloadFile: (content: string | Blob, name: string) => void;
   var zoomTo: (x: number, y: number, zoom: number, duration: number) => void;
+
+  // Zones editor globals (pending full migration to imports)
+  var zones: any;
+  var drawZones: () => void;
+  var drawPopulation: () => void;
+  var areaUnit: HTMLSelectElement;
+  var openPicker: any;
+  var drawLegend: () => void;
+  var fog: any;
+  var unfog: any;
+  var legend: Selection<SVGGElement, unknown, null, undefined>;
+  var ruralPop: HTMLInputElement;
+  var urbanPop: HTMLInputElement;
+  var totalPop: HTMLElement;
+  var totalPopPerc: HTMLElement;
+  var confirmationDialog: any;
+  var zonesEditor: HTMLElement;
+  var zonesFooter: HTMLElement;
+  var zonesFooterCells: HTMLElement;
+  var zonesFooterArea: HTMLElement;
+  var zonesFooterPopulation: HTMLElement;
+  var zonesBodySection: HTMLElement;
+  var clearLegend: () => void;
+
   var modules: Record<string, boolean>;
 }

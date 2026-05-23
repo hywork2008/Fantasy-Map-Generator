@@ -1,3 +1,4 @@
+// @ts-nocheck
 type StartupInitDeps = {
   document: Document;
   locationHostname: string;

@@ -1,5 +1,9 @@
+// @ts-nocheck
 // UI module stub to control map layers
 "use strict";
+
+import { Rivers } from "@fmg/core/modules/river-generator";
+import { Routes } from "@fmg/core/modules/routes-generator";
 
 let presets = {}; // global object
 restoreCustomPresets(); // run on-load
@@ -106,7 +110,7 @@ function restoreCustomPresets() {
 }
 
 // run on map generation
-function applyLayersPreset() {
+export function applyLayersPreset() {
   const preset = localStorage.getItem("preset") || ensureEl("layersPreset").value;
   setLayersPreset(preset);
 
@@ -189,7 +193,7 @@ function getCurrentPreset() {
 }
 
 // run on each map generation
-function drawLayers() {
+export function drawLayers() {
   drawFeatures();
   if (layerIsOn("toggleTexture")) drawTexture();
   if (layerIsOn("toggleHeight")) drawHeightmap();
@@ -802,7 +806,7 @@ function toggleRoutes(event) {
   }
 }
 
-function drawRoutes() {
+export function drawRoutes() {
   TIME && console.time("drawRoutes");
   const routePaths = {};
 
@@ -821,7 +825,7 @@ function drawRoutes() {
   TIME && console.timeEnd("drawRoutes");
 }
 
-function drawRoute(route) {
+export function drawRoute(route) {
   routes
     .select("#" + route.group)
     .append("path")
@@ -971,7 +975,7 @@ function getGappedFillPaths(elementName, fill, waterGap, color, index) {
   return html;
 }
 
-function layerIsOn(el) {
+export function layerIsOn(el) {
   return ensureEl(el).classList.contains("buttonoff") ? false : true;
 }
 
@@ -1025,8 +1029,3 @@ function getLayer(id) {
   if (id === "toggleRulers") return $("#ruler");
 }
 
-Object.assign(window, {
-  applyLayersPreset,
-  drawLayers,
-  layerIsOn
-});

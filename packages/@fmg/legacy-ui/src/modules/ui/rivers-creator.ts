@@ -1,4 +1,7 @@
+// @ts-nocheck
 "use strict";
+import { Rivers } from "@fmg/core/modules/river-generator";
+
 type RiverCell = number;
 type CreateRiverFn = (() => void) & {cells: RiverCell[]};
 
@@ -83,7 +86,7 @@ const createRiver = (function createRiverImpl() {
     const riverCells = createRiver.cells;
     if (riverCells.length < 2) return riversCreatorRuntime.tip("Add at least 2 cells", false, "error");
 
-    const riverId = riversCreatorRuntime.Rivers.getNextId(rivers);
+    const riverId = Rivers.getNextId(rivers);
     const parent = cells.r[riversCreatorRuntime.last(riverCells)] || riverId;
 
     riverCells.forEach(cell => {
@@ -92,24 +95,24 @@ const createRiver = (function createRiverImpl() {
 
     const source = riverCells[0];
     const mouth = parent === riverId ? riversCreatorRuntime.last(riverCells) : riverCells[riverCells.length - 2];
-    const sourceWidth = riversCreatorRuntime.Rivers.getSourceWidth(cells.fl[source]);
+    const sourceWidth = Rivers.getSourceWidth(cells.fl[source]);
     const defaultWidthFactor = riversCreatorRuntime.rn(1 / ((riversCreatorRuntime.pointsInput.dataset.cells / 10000) ** 0.25), 2);
     const widthFactor = 1.2 * defaultWidthFactor;
 
-    const meanderedPoints = riversCreatorRuntime.Rivers.addMeandering(riverCells);
+    const meanderedPoints = Rivers.addMeandering(riverCells);
 
     const discharge = cells.fl[mouth];
-    const length = riversCreatorRuntime.Rivers.getApproximateLength(meanderedPoints);
-    const width = riversCreatorRuntime.Rivers.getWidth(
-      riversCreatorRuntime.Rivers.getOffset({
+    const length = Rivers.getApproximateLength(meanderedPoints);
+    const width = Rivers.getWidth(
+      Rivers.getOffset({
         flux: discharge,
         pointIndex: meanderedPoints.length,
         widthFactor,
         startingWidth: sourceWidth
       })
     );
-    const name = riversCreatorRuntime.Rivers.getName(mouth);
-    const basin = riversCreatorRuntime.Rivers.getBasin(parent);
+    const name = Rivers.getName(mouth);
+    const basin = Rivers.getBasin(parent);
 
     rivers.push({
       i: riverId,
@@ -132,7 +135,7 @@ const createRiver = (function createRiverImpl() {
       .select("#rivers")
       .append("path")
       .attr("id", id)
-      .attr("d", riversCreatorRuntime.Rivers.getRiverPath(meanderedPoints, widthFactor, sourceWidth));
+      .attr("d", Rivers.getRiverPath(meanderedPoints, widthFactor, sourceWidth));
 
     riversCreatorRuntime.editRiver(id);
   }

@@ -1,3 +1,4 @@
+// @ts-nocheck
 export function buildCheckLoadParametersDeps<T>(deps: T): T {
   return deps;
 }

@@ -30,13 +30,8 @@ import "#modules/fonts";
 import "#modules/resample";
 import "#modules/ui-tour";
 
-import "@legacy-ui-runtime/modules/ui/layers";
-import "@legacy-ui-runtime/modules/ui/measurers";
-import "@legacy-ui-runtime/modules/ui/style-presets";
-import "@legacy-ui-runtime/modules/ui/general";
-import "@legacy-ui-runtime/modules/ui/options";
+import "@legacy-ui-runtime/globals-compat";
 import "@legacy-ui-runtime/modules/ui/style";
-import "@legacy-ui-runtime/modules/ui/editors";
 import "@legacy-ui-runtime/modules/ui/tools";
 import "@legacy-ui-runtime/modules/ui/world-configurator";
 import "@legacy-ui-runtime/modules/ui/heightmap-editor";
@@ -75,8 +70,6 @@ import "@legacy-ui-runtime/modules/ui/submap-tool";
 import "@legacy-ui-runtime/modules/ui/transform-tool";
 import "@legacy-ui-runtime/modules/ui/hotkeys";
 
-import "@legacy-ui-runtime/modules/io/save";
 import "@legacy-ui-runtime/modules/io/load";
 import "@legacy-ui-runtime/modules/io/cloud";
-import "@legacy-ui-runtime/modules/io/export";
 

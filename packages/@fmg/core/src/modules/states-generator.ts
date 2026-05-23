@@ -15,10 +15,7 @@ import {
   rw,
   trimVowels
 } from "@fmg/shared";
-
-declare global {
-  var States: any;
-}
+import { COA } from "./emblem/generator";
 
 interface Campaign {
   name: string;
@@ -699,4 +696,4 @@ class StatesModule {
   }
 }
 
-window.States = new StatesModule();
+export const States = new StatesModule();

@@ -1,5 +1,6 @@
 import { max, quadtree, range } from "d3";
 import { abbreviate, biased, ensureEl, getColors, getRandomColor, minmax, P, rand, rn, rw } from "@fmg/shared";
+import { COA } from "./emblem/generator";
 
 declare global {
   var Cultures: any;

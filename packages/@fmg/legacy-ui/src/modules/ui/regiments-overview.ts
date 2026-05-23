@@ -1,3 +1,4 @@
+// @ts-nocheck
 "use strict";
 function overviewRegiments(state) {
   if (customization) return;

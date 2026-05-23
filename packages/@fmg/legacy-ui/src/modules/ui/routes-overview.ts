@@ -1,4 +1,6 @@
+// @ts-nocheck
 "use strict";
+import { Routes } from "@fmg/core/modules/routes-generator";
 
 function overviewRoutes() {
   if (customization) return;

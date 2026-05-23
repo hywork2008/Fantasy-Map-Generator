@@ -1,4 +1,7 @@
+// @ts-nocheck
 "use strict";
+
+import { Routes } from "@fmg/core/modules/routes-generator";
 
 type RoutePoint = [number, number, number];
 type CreateRouteFn = ((defaultGroup?: string) => void) & {points: RoutePoint[]};
@@ -99,7 +102,7 @@ const createRoute = (function createRouteImpl(defaultGroup?: string) {
     routesCreatorRuntime.routes
       .select("#" + group)
       .append("path")
-      .attr("d", routesCreatorRuntime.Routes.getPath({group, points}))
+      .attr("d", Routes.getPath({group, points}))
       .attr("id", "routeTemp");
   }
 
@@ -107,7 +110,7 @@ const createRoute = (function createRouteImpl(defaultGroup?: string) {
     const points = createRoute.points;
     if (points.length < 2) return routesCreatorRuntime.tip("Add at least 2 points", false, "error");
 
-    const routeId = routesCreatorRuntime.Routes.getNextId();
+    const routeId = Routes.getNextId();
     const group = (routesCreatorRuntime.ensureEl("routeCreatorGroupSelect") as HTMLSelectElement).value;
     const feature = routesCreatorRuntime.pack.cells.f[points[0][2]];
     const route = {points, group, feature, i: routeId};

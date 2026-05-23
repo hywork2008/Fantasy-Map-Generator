@@ -1,4 +1,10 @@
+// @ts-nocheck
 "use strict";
+
+import { Routes } from "@fmg/core/modules/routes-generator";
+import { lock, unlock } from "./general";
+import { Opisometer, Planimeter, RouteOpisometer, Ruler } from "./measurers";
+
 function editUnits() {
   closeDialogs("#unitsEditor, .stable");
   $("#unitsEditor").dialog();

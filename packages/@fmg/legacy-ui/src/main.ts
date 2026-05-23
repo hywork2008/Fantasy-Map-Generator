@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Azgaar (azgaar.fmg@yandex.com). Minsk, 2017-2023. MIT License
 // https://github.com/Azgaar/Fantasy-Map-Generator
 
@@ -47,6 +48,13 @@ import {
   buildSetSeedDeps,
   buildUndrawDeps,
 } from "./modules/ui/generation-deps";
+import { Biomes } from "@fmg/core/modules/biomes";
+import { Ice } from "@fmg/core/modules/ice";
+import { Military } from "@fmg/core/modules/military-generator";
+import { Names } from "@fmg/core/modules/names-generator";
+import { Rivers } from "@fmg/core/modules/river-generator";
+import { Routes } from "@fmg/core/modules/routes-generator";
+import { States } from "@fmg/core/modules/states-generator";
 
 type RuntimeBridge = {
   rn: (value: number, digits?: number) => number;

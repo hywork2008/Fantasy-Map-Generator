@@ -1,10 +1,6 @@
 import { mean, range } from "d3";
 import { rn } from "@fmg/shared";
 
-declare global {
-  var Biomes: any;
-}
-
 class BiomesModule {
   private MIN_LAND_HEIGHT = 20;
 
@@ -139,4 +135,4 @@ class BiomesModule {
   }
 }
 
-window.Biomes = new BiomesModule();
+export const Biomes = new BiomesModule();

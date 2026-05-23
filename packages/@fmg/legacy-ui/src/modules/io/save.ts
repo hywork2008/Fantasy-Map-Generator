@@ -1,7 +1,11 @@
+// @ts-nocheck
 "use strict";
 
+import { getFileName } from "../ui/editors";
+import { link, parseError } from "@fmg/shared";
+
 // functions to save the whole .map project
-async function saveMap(method) {
+export async function saveMap(method) {
   if (customization) return tip("Map cannot be saved in EDIT mode, please complete the edit and retry", false, "error");
   closeDialogs("#alert");
 
@@ -17,7 +21,7 @@ async function saveMap(method) {
     alertMessage.innerHTML = /* html */ `An error occurred while saving the map. If the issue persists, please copy the message below and report it on ${link(
       "https://github.com/Azgaar/Fantasy-Map-Generator/issues",
       "GitHub"
-    )}. <p id="errorBox">${parseError(error)}</p>`;
+    )}. <p id="errorBox">${parseError(error as Error)}</p>`;
 
     $("#alert").dialog({
       resizable: false,
@@ -75,7 +79,7 @@ function prepareMapData() {
   const biomes = [biomesData.color, biomesData.habitability, biomesData.name].join("|");
   const notesData = JSON.stringify(notes);
   const rulersString = rulers.toString();
-  const fonts = JSON.stringify(getUsedFonts(svg.node()));
+  const fonts = JSON.stringify(window.getUsedFonts(svg.node()));
 
   // save svg
   const cloneEl = document.getElementById("map").cloneNode(true);
@@ -122,7 +126,7 @@ function prepareMapData() {
     .join("/");
 
   // round population to save space
-  const pop = Array.from(pack.cells.pop).map(p => rn(p, 4));
+  const pop = Array.from(pack.cells.pop).map(p => window.rn(p, 4));
 
   // data format as below
   const mapData = [
@@ -171,14 +175,14 @@ function prepareMapData() {
 }
 
 // save map file to indexedDB
-async function saveToStorage(mapData, showTip = false) {
+export async function saveToStorage(mapData, showTip = false) {
   const blob = new Blob([mapData], {type: "text/plain"});
   await ldb.set("lastMap", blob);
   showTip && tip("Map is saved to the browser storage", false, "success");
 }
 
 // download map file
-function saveToMachine(mapData, filename) {
+export function saveToMachine(mapData, filename) {
   const blob = new Blob([mapData], {type: "text/plain"});
   const URL = window.URL.createObjectURL(blob);
 
@@ -191,12 +195,12 @@ function saveToMachine(mapData, filename) {
   setTimeout(() => window.URL.revokeObjectURL(URL), 5000);
 }
 
-async function saveToDropbox(mapData, filename) {
+export async function saveToDropbox(mapData, filename) {
   await Cloud.providers.dropbox.save(filename, mapData);
   tip("Map is saved to your Dropbox", true, "success", 8000);
 }
 
-async function initiateAutosave() {
+export async function initiateAutosave() {
   const MINUTE = 60000; // minute in milliseconds
   let lastSavedAt = Date.now();
 
@@ -259,6 +263,3 @@ function toggleSaveReminder() {
   }
 }
 
-Object.assign(window, {
-  initiateAutosave
-});

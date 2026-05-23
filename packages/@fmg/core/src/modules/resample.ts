@@ -10,6 +10,11 @@ import {
   rn,
   unique
 } from "@fmg/shared";
+import { createDefaultRuler } from "@legacy-ui-runtime/modules/ui/measurers";
+import { Ice } from "./ice";
+import { Rivers } from "./river-generator";
+import { Routes } from "./routes-generator";
+import { States } from "./states-generator";
 import type { River } from "./river-generator";
 import type { Point } from "./voronoi";
 

@@ -1,5 +1,12 @@
+// @ts-nocheck
 // UI module to control the options (preferences)
 "use strict";
+
+import { applyOption, clearMainTip, lock, locked, stored, tip } from "./general";
+import { exportToPngTiles } from "../io/export";
+import { closeDialogs } from "./editors";
+import { COA } from "@fmg/core/modules/emblem/generator";
+import { COArenderer } from "@fmg/core/modules/emblem/renderer";
 
 $("#optionsContainer").draggable({handle: ".drag-trigger", snap: "svg", snapMode: "both"});
 $("#exitCustomization").draggable({handle: "div"});
@@ -12,7 +19,7 @@ if (stored("disable_click_arrow_tooltip")) {
 }
 
 // Show options pane on trigger click
-function showOptions(event) {
+export function showOptions(event) {
   if (!stored("disable_click_arrow_tooltip")) {
     clearMainTip();
     localStorage.setItem("disable_click_arrow_tooltip", true);
@@ -27,14 +34,14 @@ function showOptions(event) {
 }
 
 // Hide options pane on trigger click
-function hideOptions(event) {
+export function hideOptions(event) {
   ensureEl("options").style.display = "none";
   optionsTrigger.style.display = "block";
   if (event) event.stopPropagation();
 }
 
 // To toggle options on hotkey press
-function toggleOptions(event) {
+export function toggleOptions(event) {
   if (ensureEl("options").style.display === "none") showOptions(event);
   else hideOptions(event);
 }
@@ -192,7 +199,7 @@ function restoreDefaultCanvasSize() {
 }
 
 // on map creation
-function applyGraphSize() {
+export function applyGraphSize() {
   graphWidth = +mapWidthInput.value;
   graphHeight = +mapHeightInput.value;
 
@@ -205,7 +212,7 @@ function applyGraphSize() {
 }
 
 // on generate, on load, on resize, on canvas size change
-function fitMapToScreen() {
+export function fitMapToScreen() {
   svgWidth = Math.min(+mapWidthInput.value, window.innerWidth);
   svgHeight = Math.min(+mapHeightInput.value, window.innerHeight);
   svg.attr("width", svgWidth).attr("height", svgHeight);
@@ -532,7 +539,7 @@ function restoreDefaultZoomExtent() {
 }
 
 // restore options stored in localStorage
-function applyStoredOptions() {
+export function applyStoredOptions() {
   if (!stored("mapWidth") || !stored("mapHeight")) {
     mapWidthInput.value = window.innerWidth;
     mapHeightInput.value = window.innerHeight;
@@ -595,7 +602,7 @@ function applyStoredOptions() {
 }
 
 // randomize options if randomization is allowed (not locked or queryParam options='default')
-function randomizeOptions() {
+export function randomizeOptions() {
   const randomize = new URL(window.location.href).searchParams.get("options") === "default"; // ignore stored options
 
   // 'Options' settings
@@ -1197,12 +1204,3 @@ function toggle3dOptions() {
   }
 }
 
-Object.assign(window, {
-  showOptions,
-  hideOptions,
-  toggleOptions,
-  applyGraphSize,
-  fitMapToScreen,
-  applyStoredOptions,
-  randomizeOptions
-});

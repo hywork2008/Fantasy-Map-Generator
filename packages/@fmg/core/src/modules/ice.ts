@@ -3,10 +3,6 @@ import { min } from "d3";
 import { clipPoly, getGridPolygon, getIsolines, lerp, minmax, normalize, P, ra, rand, rn } from "@fmg/shared";
 import type { Point } from "./voronoi";
 
-declare global {
-  var Ice: any;
-}
-
 class IceModule {
   // Find next available id for new ice element idealy filling gaps
   private getNextId() {
@@ -148,4 +144,4 @@ class IceModule {
   }
 }
 
-window.Ice = new IceModule();
+export const Ice = new IceModule();

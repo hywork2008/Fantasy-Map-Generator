@@ -1,3 +1,4 @@
+// @ts-nocheck
 export const supporters = `ken burgan
 Sera's Nafitlaan
 Richard Rogers

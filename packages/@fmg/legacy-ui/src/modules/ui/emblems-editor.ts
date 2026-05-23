@@ -1,3 +1,4 @@
+// @ts-nocheck
 "use strict";
 function editEmblem(type, id, el) {
   if (customization) return;

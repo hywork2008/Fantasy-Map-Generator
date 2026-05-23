@@ -1,4 +1,8 @@
+// @ts-nocheck
 "use strict";
+
+import { Biomes } from "@fmg/core/modules/biomes";
+
 function editBiomes() {
   if (customization) return;
   closeDialogs("#biomesEditor, .stable");

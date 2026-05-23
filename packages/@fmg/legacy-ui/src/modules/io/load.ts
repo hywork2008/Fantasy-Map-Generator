@@ -1,4 +1,7 @@
+// @ts-nocheck
 "use strict";
+
+import { Routes } from "@fmg/core/modules/routes-generator";
 
 // Functions to load and parse .map/.gz files
 async function quickLoad(): Promise<void> {

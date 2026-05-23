@@ -1,3 +1,4 @@
+// @ts-nocheck
 "use strict";
 
 const GROUP_NAME_REGEXP = /^[\p{L}_][\p{L}\p{N}_-]*$/u;

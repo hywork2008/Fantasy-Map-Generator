@@ -1,4 +1,5 @@
 import { capitalize, isVowel, last, P, ra, rand } from "@fmg/shared";
+import { locked, tip, unlock } from "@legacy-ui-runtime/modules/ui/general";
 
 declare global {
   var Names: any;
@@ -691,4 +692,4 @@ class NamesGenerator {
   }
 }
 
-window.Names = new NamesGenerator();
+export const Names = new NamesGenerator();

@@ -1,3 +1,5 @@
+import type { GenerationModules } from "./generation-deps";
+
 type EnsureInputElement = HTMLInputElement & {
   value: string;
 };
@@ -202,7 +204,7 @@ type GenerateDeps = {
   cleanupData: () => void;
   regenerateMap: (source: string) => void;
   jqueryDialog: (options: JqueryDialogOptions) => void;
-  generationModules: unknown;
+  generationModules: GenerationModules;
 };
 
 type GridState = {
@@ -227,31 +229,13 @@ type JqueryDialogOptions = {
   position: { my: string; at: string; of: string };
 };
 
-type GenerationModules = {
-  Features: { markupGrid: () => void; markupPack: () => void; defineGroups: () => void };
-  Rivers: { generate: () => void; specify: () => void };
-  Biomes: { define: () => void };
-  Ice: { generate: () => void };
-  Cultures: { generate: () => void; expand: () => void };
-  Burgs: { generate: () => void; specify: () => void };
-  States: { generate: () => void; collectStatistics: () => void; defineStateForms: () => void };
-  Routes: { generate: () => void };
-  Religions: { generate: () => void };
-  Provinces: { generate: () => void; getPoles: () => void };
-  Lakes: { defineNames: () => void };
-  Military: { generate: () => void };
-  Markers: { generate: () => void };
-  Zones: { generate: () => void };
-  Names: { getMapName: () => void };
-};
-
 const jqueryRuntime = window as Window & {
   $: (target: unknown) => JqueryDialogHost;
 };
 
 export async function generateMapFlow(deps: GenerateDeps, options?: { seed?: string; graph?: unknown }) {
   try {
-    const modules = deps.generationModules as GenerationModules;
+    const modules = deps.generationModules;
     const timeStart = performance.now();
     const { seed: precreatedSeed, graph: precreatedGraph } = options || {};
 

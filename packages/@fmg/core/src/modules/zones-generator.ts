@@ -1,5 +1,6 @@
 import { max, mean } from "d3";
 import { gauss, getAdjective, P, ra, rand, rw } from "@fmg/shared";
+import { Routes } from "./routes-generator";
 
 declare global {
   var Zones: any;

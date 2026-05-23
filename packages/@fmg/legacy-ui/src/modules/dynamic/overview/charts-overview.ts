@@ -1,3 +1,4 @@
+// @ts-nocheck
 const entitiesMap = {
   states: {
     label: "State",

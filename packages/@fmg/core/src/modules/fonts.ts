@@ -1,4 +1,5 @@
 import { ensureEl } from "@fmg/shared";
+import { tip } from "@legacy-ui-runtime/modules/ui/general";
 
 declare global {
   var declareFont: (font: FontDefinition) => void;

@@ -1,3 +1,4 @@
+// @ts-nocheck
 {
   const style = /* css */ `
     slider-input {

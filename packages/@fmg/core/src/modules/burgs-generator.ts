@@ -1,5 +1,12 @@
 import { quadtree } from "d3-quadtree";
-import { each, ensureEl, gauss, minmax, normalize, P, rn } from "@fmg/shared";
+import { each, ensureEl, gauss, minmax, normalize, P, rn, findClosestCell } from "@fmg/shared";
+import { layerIsOn, drawRoute } from "@legacy-ui-runtime/modules/ui/layers";
+import { tip } from "@legacy-ui-runtime/modules/ui/general";
+import { drawBurgIconRenderer as drawBurgIcon } from "#renderers/draw-burg-icons";
+import { drawBurgLabelRenderer as drawBurgLabel } from "#renderers/draw-burg-labels";
+import { COA } from "./emblem/generator";
+import { COArenderer } from "./emblem/renderer";
+import { Routes } from "./routes-generator";
 
 declare global {
   var Burgs: any;
@@ -595,7 +602,7 @@ class BurgModule {
     const { cells } = pack;
 
     const burgId = pack.burgs.length;
-    const cellId = window.findCell(x, y, undefined, pack);
+    const cellId = findClosestCell(x, y, undefined, pack);
     const culture = cells.culture[cellId as number];
     const name = Names.getCulture(culture);
     const state = cells.state[cellId as number];

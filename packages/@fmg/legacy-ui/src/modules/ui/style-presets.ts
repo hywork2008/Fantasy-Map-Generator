@@ -1,3 +1,4 @@
+// @ts-nocheck
 // UI module to control the style presets
 "use strict";
 
@@ -38,7 +39,7 @@ const customPresetPrefix = "fmgStyle_";
   stylePreset.innerHTML = options;
 }
 
-async function applyStyleOnLoad() {
+export async function applyStyleOnLoad() {
   const desiredPreset = localStorage.getItem("presetStyle") || "default";
   const styleData = await getStylePreset(desiredPreset);
   const [appliedPreset, style] = styleData;
@@ -488,6 +489,3 @@ function setPresetRemoveButtonVisibiliy() {
   removeStyleButton.style.display = isDefault ? "none" : "inline-block";
 }
 
-Object.assign(window, {
-  applyStyleOnLoad
-});

@@ -13,6 +13,7 @@ import {
   rw,
   trimVowels
 } from "@fmg/shared";
+import { Routes } from "./routes-generator";
 
 declare global {
   var Religions: any;

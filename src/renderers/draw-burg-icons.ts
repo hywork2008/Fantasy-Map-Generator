@@ -11,7 +11,7 @@ interface BurgGroup {
   order: number;
 }
 
-const burgIconsRenderer = (): void => {
+export const burgIconsRenderer = (): void => {
   TIME && console.time("drawBurgIcons");
   createIconGroups();
 
@@ -41,7 +41,7 @@ const burgIconsRenderer = (): void => {
   TIME && console.timeEnd("drawBurgIcons");
 };
 
-const drawBurgIconRenderer = (burg: Burg): void => {
+export const drawBurgIconRenderer = (burg: Burg): void => {
   const iconGroup = burgIcons.select<SVGGElement>(`#${burg.group}`);
   if (iconGroup.empty()) {
     drawBurgIcons();
@@ -71,7 +71,7 @@ const drawBurgIconRenderer = (burg: Burg): void => {
   }
 };
 
-const removeBurgIconRenderer = (burgId: number): void => {
+export const removeBurgIconRenderer = (burgId: number): void => {
   const existingIcon = document.getElementById(`burg${burgId}`);
   if (existingIcon) existingIcon.remove();
 
@@ -118,6 +118,4 @@ function createIconGroups(): void {
   }
 }
 
-window.drawBurgIcons = burgIconsRenderer;
-window.drawBurgIcon = drawBurgIconRenderer;
-window.removeBurgIcon = removeBurgIconRenderer;
+

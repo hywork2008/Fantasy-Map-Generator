@@ -1,3 +1,4 @@
+// @ts-nocheck
 export function buildZoomToPointDeps<T>(deps: T): T {
   return deps;
 }

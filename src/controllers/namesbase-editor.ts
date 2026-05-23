@@ -1,4 +1,6 @@
 import { max as d3max, min as d3min, mean, median } from "d3";
+import { closeDialogs } from "@legacy-ui-runtime/modules/ui/editors";
+import { tip } from "@legacy-ui-runtime/modules/ui/general";
 import { ensureEl, openURL, rn, unique } from "../utils";
 
 addListeners();

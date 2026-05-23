@@ -2,10 +2,6 @@ import { quadtree, sum } from "d3";
 import { findAllInQuadtree, gauss, minmax, nth, ra, rand, rn, si } from "@fmg/shared";
 import type { State } from "./states-generator";
 
-declare global {
-  var Military: any;
-}
-
 export interface MilitaryRegiment {
   i: number;
   t: number; // total troops
@@ -577,4 +573,4 @@ class MilitaryModule {
     return unit ? unit.icon : "⚔️";
   }
 }
-window.Military = new MilitaryModule();
+export const Military = new MilitaryModule();

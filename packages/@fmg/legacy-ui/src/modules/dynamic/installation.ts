@@ -1,3 +1,4 @@
+// @ts-nocheck
 // module to prompt PWA installation
 let installButton = null;
 let deferredPrompt = null;

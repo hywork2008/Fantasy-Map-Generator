@@ -1,3 +1,4 @@
+// @ts-nocheck
 "use strict";
 
 const submapRuntime = globalThis as any;

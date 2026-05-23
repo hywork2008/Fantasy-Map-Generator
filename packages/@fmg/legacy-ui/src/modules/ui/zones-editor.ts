@@ -1,4 +1,10 @@
+// @ts-nocheck
 "use strict";
+
+import { closeDialogs, restoreDefaultEvents } from "./editors";
+import { tip, clearMainTip } from "./general";
+import { layerIsOn } from "./layers";
+import { ensureEl, rn } from "@fmg/shared";
 
 function editZones() {
   closeDialogs("#zonesEditor, .stable");

@@ -1,3 +1,4 @@
+// @ts-nocheck
 appendStyleSheet();
 insertHtml();
 

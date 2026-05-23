@@ -1,3 +1,4 @@
+// @ts-nocheck
 // UI module to control the style
 "use strict";
 

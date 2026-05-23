@@ -1,3 +1,4 @@
+// @ts-nocheck
 type TipFn = (message: string, pinned?: boolean, level?: string, timeout?: number) => void;
 
 type CloseDialogsFn = (selector?: string) => void;

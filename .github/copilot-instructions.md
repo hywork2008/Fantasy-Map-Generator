@@ -88,14 +88,27 @@ Ensure `playwright.config.ts` is properly configured to reference these system-i
 
 ### AI Browser-Diagnostics Guidance (Arch Linux)
 
-In this environment, browser automation MCP tools may try to launch Chrome from `/opt/google/chrome/chrome` and fail even when Playwright is installed.
+Use Playwright MCP server for browser console / runtime diagnostics in this environment.
 
-When an AI agent needs browser console / runtime diagnostics:
-- Do not use MCP Playwright browser tools that depend on `/opt/google/chrome/chrome`.
-- Use local Playwright execution from terminal (Node.js) with explicit Chromium path:
+Recommended MCP server configuration uses the Chromium system binary:
 
-```bash
-node -e "const { chromium } = require('playwright'); chromium.launch({ executablePath: '/usr/bin/chromium' })"
+```json
+{
+	"servers": {
+		"playwright": {
+			"command": "npx",
+			"args": [
+				"@playwright/mcp@latest",
+				"--executable-path",
+				"/usr/bin/chromium"
+			],
+			"type": "stdio"
+		}
+	}
+}
 ```
 
+When an AI agent needs browser diagnostics:
+- Prefer Playwright MCP browser tools for navigation, console checks, and runtime verification.
 - Keep using `playwright.config.ts` for e2e test runs (`npm run test:e2e`), where `launchOptions.executablePath` is set to `/usr/bin/chromium`.
+- If MCP is unavailable, use local Node.js Playwright execution with explicit `/usr/bin/chromium` as a fallback.

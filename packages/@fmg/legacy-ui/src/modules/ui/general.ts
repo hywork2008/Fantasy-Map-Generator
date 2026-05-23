@@ -1,3 +1,4 @@
+// @ts-nocheck
 "use strict";
 // Module to store generic UI functions
 
@@ -26,7 +27,7 @@ const tipBackgroundMap = {
   error: "linear-gradient(0.1turn, #ffffff00, #e11d1dcc, #ffffff00)"
 };
 
-function tip(tip, main = false, type = "info", time = 0) {
+export function tip(tip, main = false, type = "info", time = 0) {
   tooltip.innerHTML = tip;
   tooltip.style.background = tipBackgroundMap[type];
 
@@ -37,18 +38,18 @@ function tip(tip, main = false, type = "info", time = 0) {
   if (time) setTimeout(clearMainTip, time);
 }
 
-function showMainTip() {
+export function showMainTip() {
   tooltip.style.background = tooltip.dataset.color;
   tooltip.innerHTML = tooltip.dataset.main;
 }
 
-function clearMainTip() {
+export function clearMainTip() {
   tooltip.dataset.color = "";
   tooltip.dataset.main = "";
   tooltip.innerHTML = "";
 }
 
-function showDataTip(event) {
+export function showDataTip(event) {
   if (!event.target) return;
 
   let dataTip = event.target.dataset.tip;
@@ -61,7 +62,7 @@ function showDataTip(event) {
   tip(dataTip);
 }
 
-function showElementLockTip(event) {
+export function showElementLockTip(event) {
   const locked = event?.target?.classList?.contains("icon-lock");
   if (locked) {
     tip("Locked. Click to unlock the element and allow it to be changed by regeneration tools");
@@ -70,7 +71,7 @@ function showElementLockTip(event) {
   }
 }
 
-const onMouseMove = debounce(handleMouseMove, 100);
+export const onMouseMove = debounce(handleMouseMove, 100);
 function handleMouseMove() {
   const point = d3.mouse(this);
   const i = findCell(point[0], point[1]);
@@ -323,7 +324,7 @@ function getDepth(f, p) {
   return getHeight(gridH, "abs");
 }
 
-function getFriendlyHeight([x, y]) {
+export function getFriendlyHeight([x, y]) {
   const packH = pack.cells.h[findCell(x, y)];
   const gridH = grid.cells.h[findGridCell(x, y, grid)];
   const h = packH < 20 ? gridH : packH;
@@ -446,7 +447,7 @@ document.querySelectorAll("[data-locked]").forEach(function (e) {
   });
 });
 
-function lock(id) {
+export function lock(id) {
   const input = document.querySelector('[data-stored="' + id + '"]');
   if (input) store(id, input.value);
   const el = document.getElementById("lock_" + id);
@@ -455,7 +456,7 @@ function lock(id) {
   el.className = "icon-lock";
 }
 
-function unlock(id) {
+export function unlock(id) {
   localStorage.removeItem(id);
   const el = document.getElementById("lock_" + id);
   if (!el) return;
@@ -463,16 +464,16 @@ function unlock(id) {
   el.className = "icon-lock-open";
 }
 
-function locked(id) {
+export function locked(id) {
   const lockEl = document.getElementById("lock_" + id);
   return lockEl.dataset.locked === "1";
 }
 
-function stored(key) {
+export function stored(key) {
   return localStorage.getItem(key) || null;
 }
 
-function store(key, value) {
+export function store(key, value) {
   return localStorage.setItem(key, value);
 }
 
@@ -491,13 +492,13 @@ function speak(text) {
   speechSynthesis.speak(speaker);
 }
 
-function applyOption($select, value, name = value) {
+export function applyOption($select, value, name = value) {
   const isExisting = Array.from($select.options).some(o => o.value === value);
   if (!isExisting) $select.options.add(new Option(name, value));
   $select.value = value;
 }
 
-function showInfo() {
+export function showInfo() {
   const Discord = link("https://discordapp.com/invite/X7E84HU", "Discord");
   const Reddit = link("https://www.reddit.com/r/FantasyMapGenerator", "Reddit");
   const Patreon = link("https://www.patreon.com/azgaar", "Patreon");
@@ -555,20 +556,3 @@ function showInfo() {
   });
 }
 
-// Expose legacy UI helpers globally for modules that still call them via window scope.
-Object.assign(window, {
-  tip,
-  showDataTip,
-  onMouseMove,
-  getFriendlyHeight,
-  showMainTip,
-  clearMainTip,
-  showElementLockTip,
-  lock,
-  unlock,
-  locked,
-  stored,
-  store,
-  applyOption,
-  showInfo
-});

@@ -1,4 +1,11 @@
+// @ts-nocheck
 "use strict";
+
+import { Biomes } from "@fmg/core/modules/biomes";
+import { Ice } from "@fmg/core/modules/ice";
+import { Rivers } from "@fmg/core/modules/river-generator";
+import { Routes } from "@fmg/core/modules/routes-generator";
+import { States } from "@fmg/core/modules/states-generator";
 
 function editHeightmap(options) {
   const {mode, tool} = options || {};

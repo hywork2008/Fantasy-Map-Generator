@@ -1,4 +1,7 @@
+// @ts-nocheck
 "use strict";
+import { Rivers } from "@fmg/core/modules/river-generator";
+
 function editRiver(id) {
   if (customization) return;
   if (elSelected && id === elSelected.attr("id")) return;

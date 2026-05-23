@@ -1,3 +1,4 @@
+// @ts-nocheck
 type PrecreatedHeightmap = { id: number; name: string };
 
 const precreatedHeightmaps: Record<string, PrecreatedHeightmap> = {

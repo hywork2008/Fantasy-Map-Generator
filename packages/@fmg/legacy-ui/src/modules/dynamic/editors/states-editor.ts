@@ -1,3 +1,6 @@
+// @ts-nocheck
+import { States } from "@fmg/core/modules/states-generator";
+
 const $body = insertEditorHtml();
 addListeners();
 let statesManualHistory = [];

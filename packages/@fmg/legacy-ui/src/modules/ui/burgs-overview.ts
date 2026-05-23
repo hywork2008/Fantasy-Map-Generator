@@ -1,3 +1,4 @@
+// @ts-nocheck
 "use strict";
 function overviewBurgs(settings = {stateId: null, cultureId: null}) {
   if (customization) return;

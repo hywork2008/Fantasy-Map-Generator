@@ -1,5 +1,6 @@
 import { driver } from "driver.js";
 import "driver.js/dist/driver.css";
+import { closeDialogs } from "@legacy-ui-runtime/modules/ui/editors";
 
 const byId = (id: string) => document.getElementById(id);
 

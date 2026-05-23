@@ -11,6 +11,7 @@ import {
   TYPED_ARRAY_MAX_VALUES,
   unique
 } from "@fmg/shared";
+import { Lakes } from "./lakes";
 
 declare global {
   var Features: any;

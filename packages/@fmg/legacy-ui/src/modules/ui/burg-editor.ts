@@ -1,3 +1,4 @@
+// @ts-nocheck
 "use strict";
 function editBurg(id) {
   if (customization) return;

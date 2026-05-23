@@ -11,7 +11,7 @@ interface BurgGroup {
   order: number;
 }
 
-const burgLabelsRenderer = (): void => {
+export const burgLabelsRenderer = (): void => {
   TIME && console.time("drawBurgLabels");
   createLabelGroups();
 
@@ -43,7 +43,7 @@ const burgLabelsRenderer = (): void => {
   TIME && console.timeEnd("drawBurgLabels");
 };
 
-const drawBurgLabelRenderer = (burg: Burg): void => {
+export const drawBurgLabelRenderer = (burg: Burg): void => {
   const labelGroup = burgLabels.select<SVGGElement>(`#${burg.group}`);
   if (labelGroup.empty()) {
     drawBurgLabels();
@@ -66,7 +66,7 @@ const drawBurgLabelRenderer = (burg: Burg): void => {
     .text(burg.name!);
 };
 
-const removeBurgLabelRenderer = (burgId: number): void => {
+export const removeBurgLabelRenderer = (burgId: number): void => {
   const existingLabel = document.getElementById(`burgLabel${burgId}`);
   if (existingLabel) existingLabel.remove();
 };
@@ -94,6 +94,4 @@ function createLabelGroups(): void {
   }
 }
 
-window.drawBurgLabels = burgLabelsRenderer;
-window.drawBurgLabel = drawBurgLabelRenderer;
-window.removeBurgLabel = removeBurgLabelRenderer;
+

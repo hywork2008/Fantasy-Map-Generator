@@ -2,7 +2,10 @@
 "use strict";
 // Functions to export map to image or data files
 
-async function exportToSvg() {
+import { Rivers } from "@fmg/core/modules/river-generator";
+import { getFriendlyHeight } from "../ui/general";
+
+export async function exportToSvg() {
   TIME && console.time("exportToSvg");
   try {
     const url = await getMapURL("svg", {fullMap: true});
@@ -21,7 +24,7 @@ async function exportToSvg() {
   }
 }
 
-async function exportToPng() {
+export async function exportToPng() {
   TIME && console.time("exportToPng");
   try {
     const url = await getMapURL("png");
@@ -62,7 +65,7 @@ async function exportToPng() {
   }
 }
 
-async function exportToJpeg() {
+export async function exportToJpeg() {
   TIME && console.time("exportToJpeg");
   try {
     const url = await getMapURL("png");
@@ -123,7 +126,7 @@ function ensureJsZipLoaded() {
   });
 }
 
-async function exportToPngTiles() {
+export async function exportToPngTiles() {
   const status = ensureEl("tileStatus");
   status.innerHTML = "Preparing files...";
 
@@ -546,7 +549,7 @@ function inlineStyle(clone) {
   emptyG.remove();
 }
 
-function saveGeoJsonCells() {
+export function saveGeoJsonCells() {
   const {cells, vertices} = pack;
   const json = {type: "FeatureCollection", features: []};
 
@@ -586,7 +589,7 @@ function saveGeoJsonCells() {
   downloadFile(JSON.stringify(json), fileName, "application/json");
 }
 
-function saveGeoJsonRoutes() {
+export function saveGeoJsonRoutes() {
   const features = pack.routes.map(({i, points, group, name = null}) => {
     const coordinates = points.map(([x, y]) => getCoordinates(x, y, 4));
     return {
@@ -601,7 +604,7 @@ function saveGeoJsonRoutes() {
   downloadFile(JSON.stringify(json), fileName, "application/json");
 }
 
-function saveGeoJsonRivers() {
+export function saveGeoJsonRivers() {
   const features = pack.rivers.map(
     ({i, cells, points, source, mouth, parent, basin, widthFactor, sourceWidth, discharge, name, type}) => {
       if (!cells || cells.length < 2) return;
@@ -620,7 +623,7 @@ function saveGeoJsonRivers() {
   downloadFile(JSON.stringify(json), fileName, "application/json");
 }
 
-function saveGeoJsonMarkers() {
+export function saveGeoJsonMarkers() {
   const features = pack.markers.map(marker => {
     const {i, type, icon, x, y, size, fill, stroke} = marker;
     const coordinates = getCoordinates(x, y, 4);
@@ -635,7 +638,7 @@ function saveGeoJsonMarkers() {
   downloadFile(JSON.stringify(json), fileName, "application/json");
 }
 
-function saveGeoJsonZones() {
+export function saveGeoJsonZones() {
   const {zones, cells, vertices} = pack;
   const json = {type: "FeatureCollection", features: []};
 
@@ -753,14 +756,3 @@ function saveGeoJsonZones() {
   downloadFile(JSON.stringify(json), fileName, "application/json");
 }
 
-Object.assign(window, {
-  exportToSvg,
-  exportToPng,
-  exportToJpeg,
-  exportToPngTiles,
-  saveGeoJsonCells,
-  saveGeoJsonRoutes,
-  saveGeoJsonRivers,
-  saveGeoJsonMarkers,
-  saveGeoJsonZones
-});

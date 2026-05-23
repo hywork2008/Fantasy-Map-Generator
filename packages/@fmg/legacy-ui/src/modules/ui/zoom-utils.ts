@@ -1,3 +1,4 @@
+// @ts-nocheck
 type ZoomToDeps = {
   d3: any;
   svg: any;

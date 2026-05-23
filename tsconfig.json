@@ -34,12 +34,16 @@
       "@fmg/core/*": ["./packages/@fmg/core/src/*"],
       "@fmg/legacy-ui": ["./packages/@fmg/legacy-ui/src"],
       "@fmg/legacy-ui/*": ["./packages/@fmg/legacy-ui/src/*"],
+      "@legacy-ui-runtime": ["./packages/@fmg/legacy-ui/src"],
+      "@legacy-ui-runtime/*": ["./packages/@fmg/legacy-ui/src/*"],
       "#utils": ["./src/utils"],
       "#utils/*": ["./src/utils/*"],
       "#types": ["./src/types"],
       "#types/*": ["./src/types/*"],
       "#modules": ["./packages/@fmg/core/src/modules"],
-      "#modules/*": ["./packages/@fmg/core/src/modules/*"]
+      "#modules/*": ["./packages/@fmg/core/src/modules/*"],
+      "#renderers": ["./src/renderers"],
+      "#renderers/*": ["./src/renderers/*"]
     }
   },
   "include": ["src"],

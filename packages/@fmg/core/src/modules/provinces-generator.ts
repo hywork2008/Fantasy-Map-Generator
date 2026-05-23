@@ -1,6 +1,7 @@
 import Alea from "alea";
 import { max } from "d3";
 import { ensureEl, gauss, generateSeed, getMixedColor, getPolesOfInaccessibility, P, rand, rw } from "@fmg/shared";
+import { COA } from "./emblem/generator";
 
 declare global {
   var Provinces: any;

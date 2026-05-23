@@ -1,4 +1,6 @@
+// @ts-nocheck
 "use strict";
+import { Rivers } from "@fmg/core/modules/river-generator";
 
 function overviewRivers() {
   if (customization) return;

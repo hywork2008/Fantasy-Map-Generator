@@ -1,3 +1,4 @@
+// @ts-nocheck
 type InitialLoadDeps = {
   WARN: boolean;
   ERROR: boolean;

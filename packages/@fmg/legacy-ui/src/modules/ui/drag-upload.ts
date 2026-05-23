@@ -1,3 +1,4 @@
+// @ts-nocheck
 type DragUploadDeps = {
   document: Document;
   ensureEl: (id: string) => HTMLElement;

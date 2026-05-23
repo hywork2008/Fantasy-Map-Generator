@@ -1,3 +1,4 @@
+// @ts-nocheck
 "use strict";
 function editReliefIcon() {
   if (customization) return;

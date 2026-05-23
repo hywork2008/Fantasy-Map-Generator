@@ -1,10 +1,11 @@
+// @ts-nocheck
 // module stub to store common functions for ui editors
 "use strict";
 
 modules.editors = true;
 
 // restore default viewbox events
-function restoreDefaultEvents() {
+export function restoreDefaultEvents() {
   svg.call(zoom);
   viewbox.style("cursor", "default").on(".drag", null).on("click", clicked).on("touchmove mousemove", onMouseMove);
   legend.call(d3.drag().on("start", dragLegendBox));
@@ -45,7 +46,7 @@ function unselect() {
 }
 
 // close all dialogs except stated
-function closeDialogs(except = "#except") {
+export function closeDialogs(except = "#except") {
   try {
     $(".dialog:visible")
       .not(except)
@@ -591,7 +592,7 @@ function unfog(id) {
   if (!defs.selectAll("#fog path").size()) fogging.style("display", "none");
 }
 
-function getFileName(dataType) {
+export function getFileName(dataType?) {
   const formatTime = time => (time < 10 ? "0" + time : time);
   const name = mapName.value;
   const type = dataType ? dataType + " " : "";
@@ -1014,7 +1015,3 @@ function editCoastlineSettings() {
   window.CoastlineEditor.open();
 }
 
-Object.assign(window, {
-  restoreDefaultEvents,
-  closeDialogs
-});

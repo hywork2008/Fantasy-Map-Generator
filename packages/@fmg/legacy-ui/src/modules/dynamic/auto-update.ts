@@ -1,4 +1,10 @@
+// @ts-nocheck
 "use strict";
+
+import { Opisometer, Planimeter, Ruler } from "../ui/measurers";
+import { Rivers } from "@fmg/core/modules/river-generator";
+import { Routes } from "@fmg/core/modules/routes-generator";
+import { States } from "@fmg/core/modules/states-generator";
 
 // update old map file to the current version
 export function resolveVersionConflicts(mapVersion) {

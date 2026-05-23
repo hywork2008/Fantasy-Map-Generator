@@ -18,6 +18,8 @@ import type { Burg } from "#modules/burgs-generator";
 import type { PackedGraphFeature } from "#modules/features";
 import type { Province } from "#modules/provinces-generator";
 import type { State } from "#modules/states-generator";
+import { closeDialogs } from "@legacy-ui-runtime/modules/ui/editors";
+import { tip } from "@legacy-ui-runtime/modules/ui/general";
 import { ensureEl, rn } from "../utils";
 
 export function open(cells: number[], routeLen: number, isRiver: boolean): void {

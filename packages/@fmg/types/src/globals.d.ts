@@ -90,33 +90,21 @@ declare global {
   };
 
   // UI functions and state
-  var layerIsOn: (layerId: string) => boolean;
   var drawRoute: (route: any) => void;
   var invokeActiveZooming: () => void;
   var FlatQueue: any;
 
-  var tip: (
-    message: string,
-    autoHide?: boolean,
-    type?: "info" | "warn" | "error" | "success",
-    timeout?: number
-  ) => void;
-  var locked: (settingId: string) => boolean;
-  var unlock: (settingId: string) => void;
   var $: (selector: any) => any;
   var scale: number;
 
   // Map generation and editing functions
   var changeFont: () => void;
-  var getFriendlyHeight: (coords: [number, number]) => string;
   var addLakesInDeepDepressions: () => void;
   var openNearSeaLakes: () => void;
   var calculateMapCoordinates: () => void;
   var calculateTemperatures: () => void;
   var reGraph: () => void;
-  var createDefaultRuler: () => void;
   var showStatistics: () => void;
-  var closeDialogs: (except?: string) => void;
   var editWorld: () => void;
   var showExportPane: () => void;
 
@@ -180,7 +168,6 @@ declare global {
   var PRODUCTION: boolean;
   var d3: any;
   var THREE: any;
-  var Rulers: any;
   var ensureEl: (...args: any[]) => any;
   var editUnits: (...args: any[]) => any;
   var clearLegend: (...args: any[]) => any;
@@ -188,20 +175,12 @@ declare global {
   var drawScaleBar: (...args: any[]) => any;
   var fitScaleBar: (...args: any[]) => any;
   var updateMinimap: (...args: any[]) => any;
-  var applyStoredOptions: (...args: any[]) => any;
   var mapWidthInput: HTMLInputElement;
   var mapHeightInput: HTMLInputElement;
-  var restoreDefaultEvents: (...args: any[]) => any;
-  var initiateAutosave: (...args: any[]) => any;
   var loadMapFromURL: (...args: any[]) => any;
   var showUploadErrorMessage: (...args: any[]) => any;
   var ldb: any;
   var uploadMap: (...args: any[]) => any;
-  var applyStyleOnLoad: (...args: any[]) => any;
-  var applyLayersPreset: (...args: any[]) => any;
-  var drawLayers: (...args: any[]) => any;
-  var fitMapToScreen: (...args: any[]) => any;
-  var showDataTip: (...args: any[]) => any;
   var shapeRendering: any;
   var rescaleLabels: (...args: any[]) => any;
   var hideLabels: (...args: any[]) => any;

@@ -1,5 +1,9 @@
+// @ts-nocheck
 "use strict";
 // Hotkeys, see github.com/Azgaar/Fantasy-Map-Generator/wiki/Hotkeys
+import { showInfo } from "./general";
+import { hideOptions, toggleOptions } from "./options";
+
 document.addEventListener("keydown", handleKeydown);
 document.addEventListener("keyup", handleKeyup);
 

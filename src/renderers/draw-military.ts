@@ -1,4 +1,5 @@
 import { color, easeSinInOut, transition } from "d3";
+import { Military } from "#modules/military-generator";
 import type { MilitaryRegiment } from "#modules/military-generator";
 import { rn } from "../utils";
 

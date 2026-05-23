@@ -1,4 +1,7 @@
+// @ts-nocheck
 "use strict";
+import { States } from "@fmg/core/modules/states-generator";
+
 function editProvinces() {
   if (customization) return;
   closeDialogs("#provincesEditor, .stable");

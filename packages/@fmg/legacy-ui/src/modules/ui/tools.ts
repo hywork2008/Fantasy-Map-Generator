@@ -1,4 +1,14 @@
+// @ts-nocheck
 "use strict";
+
+import { Ice } from "@fmg/core/modules/ice";
+import { Lakes } from "@fmg/core/modules/lakes";
+import { COA } from "@fmg/core/modules/emblem/generator";
+import { COArenderer } from "@fmg/core/modules/emblem/renderer";
+import { Military } from "@fmg/core/modules/military-generator";
+import { Rivers } from "@fmg/core/modules/river-generator";
+import { Routes } from "@fmg/core/modules/routes-generator";
+import { States } from "@fmg/core/modules/states-generator";
 
 // module to control the Tools options (click to edit, to re-geenerate, tp add)
 

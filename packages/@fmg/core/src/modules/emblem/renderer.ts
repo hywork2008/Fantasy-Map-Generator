@@ -6,6 +6,7 @@ import { patterns } from "./patterns";
 import { shieldPositions } from "./shieldPositions";
 import { shieldSize } from "./size";
 import { templates } from "./templates";
+import { layerIsOn } from "@legacy-ui-runtime/modules/ui/layers";
 
 declare global {
   var COArenderer: any;
@@ -321,4 +322,4 @@ class EmblemRenderModule {
     if (layerIsOn("toggleEmblems")) this.trigger(id, coa);
   }
 }
-window.COArenderer = new EmblemRenderModule();
+export const COArenderer = new EmblemRenderModule();

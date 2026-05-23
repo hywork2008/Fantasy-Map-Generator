@@ -1,4 +1,7 @@
+// @ts-nocheck
 "use strict";
+import { States } from "@fmg/core/modules/states-generator";
+
 function editDiplomacy() {
   if (customization) return;
   if (pack.states.filter(s => s.i && !s.removed).length < 2)

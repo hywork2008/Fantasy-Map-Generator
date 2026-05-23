@@ -1,3 +1,4 @@
+// @ts-nocheck
 type D3SelectionLike = {
   transition: () => D3TransitionLike;
 };

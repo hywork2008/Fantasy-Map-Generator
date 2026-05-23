@@ -1,4 +1,7 @@
-class Rulers {
+// @ts-nocheck
+import { Routes } from "@fmg/core/modules/routes-generator";
+
+export class Rulers {
   constructor() {
     this.data = [];
   }
@@ -113,7 +116,7 @@ class Measurer {
   }
 }
 
-class Ruler extends Measurer {
+export class Ruler extends Measurer {
   constructor(points) {
     super(points);
   }
@@ -275,7 +278,7 @@ class Ruler extends Measurer {
   }
 }
 
-class Opisometer extends Measurer {
+export class Opisometer extends Measurer {
   constructor(points) {
     super(points);
   }
@@ -365,7 +368,7 @@ class Opisometer extends Measurer {
   }
 }
 
-class RouteOpisometer extends Measurer {
+export class RouteOpisometer extends Measurer {
   constructor(points) {
     super(points);
     if (pack.cells) {
@@ -493,7 +496,7 @@ class RouteOpisometer extends Measurer {
   }
 }
 
-class Planimeter extends Measurer {
+export class Planimeter extends Measurer {
   constructor(points) {
     super(points);
   }
@@ -531,7 +534,7 @@ class Planimeter extends Measurer {
   }
 }
 
-function createDefaultRuler() {
+export function createDefaultRuler() {
   TIME && console.time("createDefaultRuler");
   const {features, vertices} = pack;
 
@@ -560,11 +563,3 @@ function createDefaultRuler() {
   TIME && console.timeEnd("createDefaultRuler");
 }
 
-Object.assign(window, {
-  Rulers,
-  Ruler,
-  Opisometer,
-  RouteOpisometer,
-  Planimeter,
-  createDefaultRuler
-});

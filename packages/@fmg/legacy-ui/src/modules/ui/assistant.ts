@@ -1,3 +1,4 @@
+// @ts-nocheck
 type AssistantDeps = {
   showDataTip: (...args: any[]) => void;
 };

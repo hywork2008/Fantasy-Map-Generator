@@ -1,6 +1,9 @@
 import { mean } from "d3";
 import type { PackedGraph } from "@fmg/types/PackedGraph";
 import { capitalize, convertTemperature, gauss, generateDate, getAdjective, last, P, ra, rand, rn, rw } from "@fmg/shared";
+import { getFriendlyHeight } from "@legacy-ui-runtime/modules/ui/general";
+import { Routes } from "./routes-generator";
+import { States } from "./states-generator";
 
 declare global {
   var Markers: MarkersModule;
