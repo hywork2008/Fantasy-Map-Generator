@@ -80,7 +80,7 @@ declare global {
     timeout?: number
   ) => void;
   var locked: (settingId: string) => boolean;
-    var unlock: (settingId: string) => void;
+  var unlock: (settingId: string) => void;
 
   var $: (selector: any) => any;
   var scale: number;
