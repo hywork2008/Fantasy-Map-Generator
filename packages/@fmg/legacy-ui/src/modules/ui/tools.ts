@@ -22,6 +22,8 @@ import { overviewRivers } from "./rivers-overview";
 import { overviewMilitary } from "./military-overview";
 import { overviewMarkers } from "./markers-overview";
 import { editEmblem } from "./emblems-editor";
+import "./submap-tool";
+import "./transform-tool";
 
 
 // File-local declarations for legacy globals

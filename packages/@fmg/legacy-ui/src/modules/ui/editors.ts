@@ -76,7 +76,7 @@ function removeCircle() {
 }
 
 // get browser-defined fit-content
-function fitContent() {
+export function fitContent() {
   return !window.chrome ? "-moz-max-content" : "fit-content";
 }
 

@@ -2,7 +2,7 @@ type EnsureElement = HTMLElement & {
   value?: string;
 };
 
-type HistoryEntry = {
+export type HistoryEntry = {
   seed: string;
   width: number;
   height: number;

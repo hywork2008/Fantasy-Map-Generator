@@ -227,7 +227,8 @@ export const findClosestCell = (
   radius = Infinity,
   pack: { cells: { p: [number, number][] } }
 ): number | undefined => {
-  if (!pack.cells?.p) throw new Error("Pack cells not found");
+  // During early startup mousemove handlers can run before pack is fully initialized.
+  if (!pack?.cells?.p?.length) return undefined;
   let qTree = quadtreeCache.get(pack.cells.p);
   if (!qTree) {
     qTree = quadtree(pack.cells.p.map(([px, py], i) => [px, py, i]));
@@ -362,8 +363,9 @@ export const findAllInQuadtree = (x: number, y: number, radius: number, quadtree
 
     // Visit this point. (Visiting coincident points isn't necessary!)
     else {
-      dx = x - +(quadtree as any)._x.call(null, t.node.data);
-      dy = y - +(quadtree as any)._y.call(null, t.node.data);
+      const data = t.node.data as any;
+      dx = x - (data.x ?? 0);
+      dy = y - (data.y ?? 0);
       d2 = dx * dx + dy * dy;
       radiusSearchVisit(t, d2);
     }

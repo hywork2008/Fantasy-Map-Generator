@@ -238,7 +238,8 @@ export const findClosestCell = (
   radius = Infinity,
   pack: { cells: { p: [number, number][] } }
 ): number | undefined => {
-  if (!pack.cells?.p) throw new Error("Pack cells not found");
+  // During early startup mousemove handlers can run before pack is fully initialized.
+  if (!pack?.cells?.p?.length) return undefined;
   let qTree = quadtreeCache.get(pack.cells.p);
   if (!qTree) {
     qTree = quadtree(pack.cells.p.map(([px, py], i) => [px, py, i]));

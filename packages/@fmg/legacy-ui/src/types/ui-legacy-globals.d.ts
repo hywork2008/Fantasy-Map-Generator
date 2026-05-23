@@ -105,7 +105,7 @@ declare let collapsible: HTMLElement;
 declare let layersPreset: LegacyControlElement;
 declare let removePresetButton: HTMLElement;
 declare let savePresetButton: HTMLElement;
-declare let mapHistory: any[];
+declare let mapHistory: Array<{ seed: string; width: number; height: number; template: string; created: number }>;
 declare let mapId: number;
 
 declare let customizationMenu: HTMLElement;

@@ -36,7 +36,7 @@ function openSubmapTool() {
 
     function updateCellsNumber(value: string) {
       const submapPointsInput = submapRuntime.ensureEl("submapPointsInput") as HTMLInputElement;
-      const cells = submapRuntime.cellsDensityMap[value];
+      const cells = submapRuntime.cellsDensityMap?.[value] ?? (submapRuntime.ensureEl("pointsInput") as HTMLInputElement).dataset.cells;
       submapPointsInput.value = value;
       submapPointsInput.dataset.cells = String(cells);
 
@@ -117,3 +117,6 @@ function openSubmapTool() {
     }
   }
 }
+
+// Register function in global scope for legacy code compatibility
+(globalThis as any).openSubmapTool = openSubmapTool;

@@ -1,9 +1,11 @@
 "use strict";
 
+const transformRuntime = globalThis as any;
+
 async function openTransformTool() {
   const width = Math.min(400, window.innerWidth * 0.5);
-  const previewScale = width / graphWidth;
-  const height = graphHeight * previewScale;
+  const previewScale = width / transformRuntime.graphWidth;
+  const height = transformRuntime.graphHeight * previewScale;
 
   let mouseIsDown = false;
   let mouseX = 0;
@@ -12,43 +14,43 @@ async function openTransformTool() {
   resetInputs();
   loadPreview();
 
-  $("#transformTool").dialog({
+  transformRuntime.$("#transformTool").dialog({
     title: "Transform map",
     resizable: false,
     position: {my: "center", at: "center", of: "svg"},
     buttons: {
       Transform: function () {
-        closeDialogs();
+        transformRuntime.closeDialogs();
         transformMap();
       },
       Cancel: function () {
-        $(this).dialog("close");
+        transformRuntime.$(this).dialog("close");
       }
     }
   });
 
-  if (modules.openTransformTool) return;
-  modules.openTransformTool = true;
+  if (transformRuntime.modules.openTransformTool) return;
+  transformRuntime.modules.openTransformTool = true;
 
-  ensureEl("transformToolBody").on("input", handleInput);
-  ensureEl("transformPreview")
+  transformRuntime.ensureEl("transformToolBody").on("input", handleInput);
+  transformRuntime.ensureEl("transformPreview")
     .on("mousedown", handleMousedown)
     .on("mouseup", _ => (mouseIsDown = false))
     .on("mousemove", handleMousemove)
     .on("wheel", handleWheel);
 
   async function loadPreview() {
-    ensureEl("transformPreview").style.width = width + "px";
-    ensureEl("transformPreview").style.height = height + "px";
+    transformRuntime.ensureEl("transformPreview").style.width = width + "px";
+    transformRuntime.ensureEl("transformPreview").style.height = height + "px";
 
     const options = {noWater: true, fullMap: true, noLabels: true, noScaleBar: true, noVignette: true, noIce: true};
-    const url = await getMapURL("png", options);
+    const url = await transformRuntime.getMapURL("png", options);
     const SCALE = 4;
 
     const img = new Image();
     img.src = url;
     img.onload = function () {
-      const $canvas = ensureEl("transformPreviewCanvas");
+      const $canvas = transformRuntime.ensureEl("transformPreviewCanvas");
       $canvas.style.width = width + "px";
       $canvas.style.height = height + "px";
       $canvas.width = width * SCALE;
@@ -58,41 +60,42 @@ async function openTransformTool() {
   }
 
   function resetInputs() {
-    ensureEl("transformAngleInput").value = 0;
-    ensureEl("transformAngleOutput").value = "0";
-    ensureEl("transformMirrorH").checked = false;
-    ensureEl("transformMirrorV").checked = false;
-    ensureEl("transformScaleInput").value = 0;
-    ensureEl("transformScaleResult").value = 1;
-    ensureEl("transformShiftX").value = 0;
-    ensureEl("transformShiftY").value = 0;
+    transformRuntime.ensureEl("transformAngleInput").value = 0;
+    transformRuntime.ensureEl("transformAngleOutput").value = "0";
+    transformRuntime.ensureEl("transformMirrorH").checked = false;
+    transformRuntime.ensureEl("transformMirrorV").checked = false;
+    transformRuntime.ensureEl("transformScaleInput").value = 0;
+    transformRuntime.ensureEl("transformScaleResult").value = 1;
+    transformRuntime.ensureEl("transformShiftX").value = 0;
+    transformRuntime.ensureEl("transformShiftY").value = 0;
     handleInput();
 
-    updateCellsNumber(ensureEl("pointsInput").value);
-    ensureEl("transformPointsInput").oninput = e => updateCellsNumber(e.target.value);
+    updateCellsNumber(transformRuntime.ensureEl("pointsInput").value);
+    transformRuntime.ensureEl("transformPointsInput").oninput = e => updateCellsNumber(e.target.value);
 
     function updateCellsNumber(value) {
-      ensureEl("transformPointsInput").value = value;
-      const cells = cellsDensityMap[value];
-      ensureEl("transformPointsInput").dataset.cells = cells;
-      const output = ensureEl("transformPointsFormatted");
+      transformRuntime.ensureEl("transformPointsInput").value = value;
+      const cellsDensityMap = transformRuntime.cellsDensityMap || {};
+      const cells = cellsDensityMap[value] ?? transformRuntime.ensureEl("pointsInput").dataset.cells;
+      transformRuntime.ensureEl("transformPointsInput").dataset.cells = cells;
+      const output = transformRuntime.ensureEl("transformPointsFormatted");
       output.value = cells / 1000 + "K";
-      output.style.color = getCellsDensityColor(cells);
+      output.style.color = transformRuntime.getCellsDensityColor(cells);
     }
   }
 
   function handleInput() {
-    const angle = (+ensureEl("transformAngleInput").value / 180) * Math.PI;
-    const shiftX = +ensureEl("transformShiftX").value;
-    const shiftY = +ensureEl("transformShiftY").value;
-    const mirrorH = ensureEl("transformMirrorH").checked;
-    const mirrorV = ensureEl("transformMirrorV").checked;
+    const angle = (+transformRuntime.ensureEl("transformAngleInput").value / 180) * Math.PI;
+    const shiftX = +transformRuntime.ensureEl("transformShiftX").value;
+    const shiftY = +transformRuntime.ensureEl("transformShiftY").value;
+    const mirrorH = transformRuntime.ensureEl("transformMirrorH").checked;
+    const mirrorV = transformRuntime.ensureEl("transformMirrorV").checked;
 
     const EXP = 1.0965;
-    const scale = rn(EXP ** +ensureEl("transformScaleInput").value, 2);
-    ensureEl("transformScaleResult").value = scale;
+    const scale = transformRuntime.rn(EXP ** +transformRuntime.ensureEl("transformScaleInput").value, 2);
+    transformRuntime.ensureEl("transformScaleResult").value = scale;
 
-    ensureEl("transformPreviewCanvas").style.transform = `
+    transformRuntime.ensureEl("transformPreviewCanvas").style.transform = `
       translate(${shiftX * previewScale}px, ${shiftY * previewScale}px)
       scale(${mirrorH ? -scale : scale}, ${mirrorV ? -scale : scale})
       rotate(${angle}rad)
@@ -101,8 +104,8 @@ async function openTransformTool() {
 
   function handleMousedown(e) {
     mouseIsDown = true;
-    const shiftX = +ensureEl("transformShiftX").value;
-    const shiftY = +ensureEl("transformShiftY").value;
+    const shiftX = +transformRuntime.ensureEl("transformShiftX").value;
+    const shiftY = +transformRuntime.ensureEl("transformShiftY").value;
     mouseX = shiftX - e.clientX / previewScale;
     mouseY = shiftY - e.clientY / previewScale;
   }
@@ -111,48 +114,48 @@ async function openTransformTool() {
     if (!mouseIsDown) return;
     e.preventDefault();
 
-    ensureEl("transformShiftX").value = Math.round(mouseX + e.clientX / previewScale);
-    ensureEl("transformShiftY").value = Math.round(mouseY + e.clientY / previewScale);
+    transformRuntime.ensureEl("transformShiftX").value = Math.round(mouseX + e.clientX / previewScale);
+    transformRuntime.ensureEl("transformShiftY").value = Math.round(mouseY + e.clientY / previewScale);
     handleInput();
   }
 
   function handleWheel(e) {
-    const $scaleInput = ensureEl("transformScaleInput");
+    const $scaleInput = transformRuntime.ensureEl("transformScaleInput");
     $scaleInput.value = $scaleInput.valueAsNumber - Math.sign(e.deltaY);
     handleInput();
   }
 
   function transformMap() {
-    INFO && console.group("transformMap");
+    transformRuntime.INFO && console.group("transformMap");
 
-    const transformPointsValue = ensureEl("transformPointsInput").value;
-    const globalPointsValue = ensureEl("pointsInput").value;
-    if (transformPointsValue !== globalPointsValue) changeCellsDensity(transformPointsValue);
+    const transformPointsValue = transformRuntime.ensureEl("transformPointsInput").value;
+    const globalPointsValue = transformRuntime.ensureEl("pointsInput").value;
+    if (transformPointsValue !== globalPointsValue) transformRuntime.changeCellsDensity(transformPointsValue);
 
     const [projection, inverse] = getProjection();
 
-    applyGraphSize();
-    fitMapToScreen();
-    resetZoom(0);
-    undraw();
-    Resample.process({projection, inverse, scale: 1});
+    transformRuntime.applyGraphSize();
+    transformRuntime.fitMapToScreen();
+    transformRuntime.resetZoom(0);
+    transformRuntime.undraw();
+    transformRuntime.Resample.process({projection, inverse, scale: 1});
 
-    drawLayers();
+    transformRuntime.drawLayers();
 
-    INFO && console.groupEnd();
+    transformRuntime.INFO && console.groupEnd();
   }
 
   function getProjection() {
-    const centerX = graphWidth / 2;
-    const centerY = graphHeight / 2;
-    const shiftX = +ensureEl("transformShiftX").value;
-    const shiftY = +ensureEl("transformShiftY").value;
-    const angle = (+ensureEl("transformAngleInput").value / 180) * Math.PI;
+    const centerX = transformRuntime.graphWidth / 2;
+    const centerY = transformRuntime.graphHeight / 2;
+    const shiftX = +transformRuntime.ensureEl("transformShiftX").value;
+    const shiftY = +transformRuntime.ensureEl("transformShiftY").value;
+    const angle = (+transformRuntime.ensureEl("transformAngleInput").value / 180) * Math.PI;
     const cos = Math.cos(angle);
     const sin = Math.sin(angle);
-    const scale = +ensureEl("transformScaleResult").value;
-    const mirrorH = ensureEl("transformMirrorH").checked;
-    const mirrorV = ensureEl("transformMirrorV").checked;
+    const scale = +transformRuntime.ensureEl("transformScaleResult").value;
+    const mirrorH = transformRuntime.ensureEl("transformMirrorH").checked;
+    const mirrorV = transformRuntime.ensureEl("transformMirrorV").checked;
 
     function project(x, y): [number, number] {
       x -= centerX;
@@ -191,3 +194,6 @@ async function openTransformTool() {
     return [project, inverse];
   }
 }
+
+// Register function in global scope for legacy code compatibility
+(globalThis as any).openTransformTool = openTransformTool;

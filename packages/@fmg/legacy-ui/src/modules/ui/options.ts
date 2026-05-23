@@ -365,6 +365,10 @@ function getCellsDensityColor(cells) {
   return cells > 50000 ? "#b12117" : cells !== 10000 ? "#dfdf12" : "#053305";
 }
 
+// Legacy tool modules (submap / transform) consume these helpers from global runtime.
+(globalThis as any).cellsDensityMap = cellsDensityMap;
+(globalThis as any).getCellsDensityColor = getCellsDensityColor;
+
 function changeCultureSet() {
   const max = culturesSet.selectedOptions[0].dataset.max;
   culturesInput.max = culturesOutput.max = max;
