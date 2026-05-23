@@ -35,8 +35,11 @@ export interface EmblemDivision {
 }
 
 export interface Emblem {
-  t1: string;
+  t1?: string;
   shield?: string;
+  size?: number;
+  x?: number;
+  y?: number;
   division?: EmblemDivision;
   ordinaries?: EmblemOrdinary[];
   charges?: EmblemCharge[];

@@ -2,9 +2,14 @@
  * @fmg/types - Central type definitions for Fantasy Map Generator
  */
 
+import type { PackedGraph, TypedArray } from "./PackedGraph";
+import type { Grid, Point } from "./Grid";
+
 // Re-export global type declarations
 export * from "./globals";
 export * from "./fmg-global";
+export type { PackedGraph, TypedArray };
+export type { Grid, Point };
 
 // UI State type definitions
 export interface UIState {
@@ -44,8 +49,8 @@ export interface LegacyNote {
 
 export interface MapData {
   seed: string | number;
-  grid: any;
-  pack: any;
+  grid: Grid;
+  pack: PackedGraph;
   mapId: string | number;
   mapCoordinates: MapCoordinates;
   customization: number;

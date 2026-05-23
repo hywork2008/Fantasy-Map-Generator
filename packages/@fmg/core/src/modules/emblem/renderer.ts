@@ -7,6 +7,7 @@ import { shieldPositions } from "./shieldPositions";
 import { shieldSize } from "./size";
 import { templates } from "./templates";
 import { layerIsOn } from "@legacy-ui-runtime/modules/ui/layers";
+import type { Emblem as GeneratedEmblem } from "./generator";
 
 declare global {
   var COArenderer: any;
@@ -22,30 +23,27 @@ interface Ordinary {
   ordinary: string;
   line?: string;
   t: string;
-  divided?: "field" | "division" | "counter";
+  divided?: string;
   above?: boolean;
 }
 
 interface Charge {
-  stroke: string;
+  stroke?: string;
   charge: string;
   t: string;
   size?: number;
-  sinister?: boolean;
-  reversed?: boolean;
+  sinister?: number | boolean;
+  reversed?: number | boolean;
   line?: string;
-  divided?: "field" | "division" | "counter";
-  p: number[]; // position on shield from 1 to 9
+  divided?: string;
+  p: string; // position code on shield
 }
 
-interface Emblem {
-  shield: string;
-  t1: string;
+type Emblem = GeneratedEmblem & {
   division?: Division;
   ordinaries?: Ordinary[];
   charges?: Charge[];
-  custom?: boolean; // if true, coa will not be rendered
-}
+};
 
 class EmblemRenderModule {
   get shieldPaths() {
@@ -153,8 +151,8 @@ class EmblemRenderModule {
       .join("");
   }
 
-  private async draw(id: string, coa: Emblem) {
-    const { shield = "heater", division, ordinaries = [], charges = [] } = coa;
+  private async draw(id: string, coa: GeneratedEmblem) {
+    const { shield = "heater", division, ordinaries = [], charges = [] } = coa as Emblem;
 
     const ordinariesRegular = ordinaries.filter(o => !o.above);
     const ordinariesAboveCharges = ordinaries.filter(o => o.above);
@@ -304,13 +302,13 @@ class EmblemRenderModule {
   }
 
   // render coa if does not exist
-  async trigger(id: string, coa: Emblem) {
+  async trigger(id: string, coa: GeneratedEmblem) {
     if (!coa) return console.warn(`Emblem ${id} is undefined`);
     if (coa.custom) return console.warn("Cannot render custom emblem", coa);
     if (!document.getElementById(id)) return this.draw(id, coa);
   }
 
-  async add(type: string, i: number, coa: Emblem, x: number, y: number) {
+  async add(type: string, i: number, coa: GeneratedEmblem, x: number, y: number) {
     const id = `${type}COA${i}`;
     const g: HTMLElement = document.getElementById(`${type}Emblems`) as HTMLElement;
 

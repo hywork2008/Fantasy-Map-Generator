@@ -67,7 +67,7 @@ export const distanceSquared = ([x1, y1]: [number, number], [x2, y2]: [number, n
 };
 declare global {
   interface Window {
-    rollups: typeof rollups;
+    rollups: typeof import("@fmg/shared").rollups;
     dist2: typeof distanceSquared;
   }
 }

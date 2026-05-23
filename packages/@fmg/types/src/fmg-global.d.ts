@@ -55,7 +55,7 @@ export interface FmgGlobalContext {
   C_12: string[];
 
   // ==================== DOM Utils ====================
-  ensureEl: <T extends HTMLElement>(id: string) => T;
+  ensureEl: <T = any>(id: string) => T;
   getComposedPath: (event: Event) => EventTarget[];
   getNextId: (prefix: string) => string;
 

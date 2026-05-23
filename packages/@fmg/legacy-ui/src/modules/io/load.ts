@@ -15,7 +15,7 @@ declare let zones: Selection<SVGGElement, unknown, null, undefined>;
 
 // Functions to load and parse .map/.gz files
 export async function quickLoad(): Promise<void> {
-  const blob = await legacyRuntime.ldb.get("lastMap");
+  const blob = await (legacyRuntime.ldb as any).get("lastMap");
   if (blob) loadMapPrompt(blob as Blob);
   else {
     legacyRuntime.tip("No map stored. Save map to browser storage first", true, "error", 2000);

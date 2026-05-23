@@ -1,5 +1,6 @@
 import { mean, quadtree } from "d3";
 import { clipPolyline } from "lineclip";
+import type { Grid } from "@fmg/types/Grid";
 import type { PackedGraph } from "@fmg/types/PackedGraph";
 import {
   findAllCellsInRadius,
@@ -29,9 +30,9 @@ interface ResamplerProcessOptions {
 }
 
 type ParentMapDefinition = {
-  grid: any;
+  grid: Grid;
   pack: PackedGraph;
-  notes: any[];
+  notes: unknown[];
 };
 
 class Resampler {
@@ -46,7 +47,7 @@ class Resampler {
     grid.cells.h.forEach((height: number, newGridCell: number) => {
       const heights = [height, ...grid.cells.c[newGridCell].map((c: number) => grid.cells.h[c])];
       const meanHeight = mean(heights) as number;
-      grid.cells.h[newGridCell] = isWater(newGridCell, grid) ? Math.min(meanHeight, 19) : Math.max(meanHeight, 20);
+      grid.cells.h[newGridCell] = grid.cells.h[newGridCell] < 20 ? Math.min(meanHeight, 19) : Math.max(meanHeight, 20);
     });
   }
 

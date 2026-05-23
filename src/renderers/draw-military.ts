@@ -18,7 +18,7 @@ const militaryRenderer = (): void => {
   pack.states
     .filter(s => s.i && !s.removed)
     .forEach(s => {
-      drawRegiments(s.military || [], s.i);
+      drawRegiments((s.military || []) as MilitaryRegiment[], s.i);
     });
 
   TIME && console.timeEnd("drawMilitary");

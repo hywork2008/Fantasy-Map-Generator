@@ -117,7 +117,7 @@ class IceModule {
     const [cx, cy] = grid.points[cellId];
 
     // Get a different random cell for the polygon template
-    const i = ra(grid.cells.i);
+    const i = ra(Array.from(grid.cells.i));
     const cn = grid.points[i];
     const poly = getGridPolygon(i, grid).map((p: Point) => [p[0] - cn[0], p[1] - cn[1]]);
     const points = poly.map((p: Point) => [rn(cx + p[0] * size, 2), rn(cy + p[1] * size, 2)]);

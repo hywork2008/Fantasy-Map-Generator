@@ -3,6 +3,10 @@
  */
 
 import type { Selection } from "d3";
+import type { PackedGraph } from "./PackedGraph";
+import type { Grid } from "./Grid";
+import type { Route } from "@fmg/core/modules/routes-generator";
+import type { Burg } from "@fmg/core/modules/burgs-generator";
 
 type MapCoordinates = {
   latT?: number;
@@ -20,6 +24,22 @@ type LegacyNote = {
   [key: string]: unknown;
 };
 
+type NameBase = {
+  name: string;
+  b: string;
+  min: number;
+  max: number;
+  d: string;
+  [key: string]: unknown;
+};
+
+type HeightmapTemplate = {
+  name?: string;
+  template?: string;
+  probability?: number;
+  [key: string]: any;
+};
+
 type BiomesGlobal = typeof import("@fmg/core/modules/biomes").Biomes;
 type BurgsGlobal = typeof import("@fmg/core/modules/burgs-generator").Burgs;
 type CulturesGlobal = typeof import("@fmg/core/modules/cultures-generator").Cultures;
@@ -35,8 +55,8 @@ type PackedGraphGlobal = import("@fmg/types/PackedGraph").PackedGraph;
 declare global {
   // Core map data
   var seed: string;
-  var pack: any; // PackedGraph type defined in src/types/PackedGraph.ts
-  var grid: any;
+  var pack: PackedGraph;
+  var grid: Grid;
   var graphHeight: number;
   var graphWidth: number;
 
@@ -45,16 +65,17 @@ declare global {
   var WARN: boolean;
   var ERROR: boolean;
   var DEBUG: { stateLabels?: boolean; [key: string]: boolean | undefined };
-  var options: any;
+  var options: { year: number; stateLabelsMode?: string; burgs?: BurgsConfig; [key: string]: any };
 
   // Settings
-  var heightmapTemplates: any;
+  var heightmapTemplates: Record<string, HeightmapTemplate>;
   var populationRate: number;
   var urbanDensity: number;
   var urbanization: number;
   var distanceScale: number;
-  var nameBases: any[];
+  var nameBases: NameBase[];
   var mapCoordinates: MapCoordinates;
+  var notes: LegacyNote[];
 
   // Input elements
   var pointsInput: HTMLInputElement;
@@ -107,21 +128,26 @@ declare global {
     cost: number[];
   };
 
-  // Notes and style
-  var notes: LegacyNote[];
+  type BurgGroup = Record<string, any>;
+
+  type BurgsConfig = {
+    groups: Record<string, any>[];
+  };
+
+  // Style object
   var style: {
-    burgLabels: { [key: string]: { [key: string]: string } };
-    burgIcons: { [key: string]: { [key: string]: string } };
-    anchors: { [key: string]: { [key: string]: string } };
-    [key: string]: any;
+    burgLabels?: Record<string, Record<string, string>>;
+    burgIcons?: Record<string, Record<string, string>>;
+    anchors?: Record<string, Record<string, string>>;
+    [key: string]: unknown;
   };
 
   // UI functions and state
-  var drawRoute: (route: any) => void;
+  var drawRoute: (route: Route) => void;
   var invokeActiveZooming: () => void;
-  var FlatQueue: any;
+  var FlatQueue: typeof import("flatqueue").FlatQueue<unknown>;
 
-  var $: (selector: any) => any;
+  var $: JQueryStatic;
   var scale: number;
 
   // Map generation and editing functions
@@ -158,17 +184,17 @@ declare global {
   var modules: Record<string, boolean>;
 
   // Generation modules - COA (Coat of Arms)
-  var COA: any;
-  var COArenderer: any;
+  var COA: typeof import("@fmg/core/modules/emblem/generator").COA;
+  var COArenderer: typeof import("@fmg/core/modules/emblem/renderer").COArenderer;
 
   // Generation modules - Lakes
-  var Lakes: any;
+  var Lakes: typeof import("@fmg/core/modules/lakes").Lakes;
 
   // Generation modules - Names
-  var Names: any;
+  var Names: typeof import("@fmg/core/modules/names-generator").Names;
 
   // Generation modules - Military
-  var Military: any;
+  var Military: typeof import("@fmg/core/modules/military-generator").Military;
 
   // Generation modules - other state objects
   var Biomes: BiomesGlobal;
@@ -184,8 +210,8 @@ declare global {
   var packedGraph: PackedGraphGlobal;
 
   // Renderer utility hooks still provided by legacy UI runtime
-  var drawBurgIcon: (burg: any) => void;
-  var drawBurgLabel: (burg: any) => void;
+  var drawBurgIcon: (burg: Burg) => void;
+  var drawBurgLabel: (burg: Burg) => void;
   var removeBurgIcon: (burgId: number) => void;
   var removeBurgLabel: (burgId: number) => void;
   var redrawIceberg: (cellId: number) => void;
@@ -195,27 +221,27 @@ declare global {
   var PRODUCTION: boolean;
   var d3: any;
   var THREE: any;
-  var ensureEl: (...args: any[]) => any;
-  var editUnits: (...args: any[]) => any;
+  var ensureEl: <T = any>(id: string) => T;
+  var editUnits: (...args: unknown[]) => unknown;
   var clearLegend: () => void;
-  var drawCoordinates: (...args: any[]) => any;
+  var drawCoordinates: (...args: unknown[]) => unknown;
   var drawScaleBar: (scaleBar: Selection<SVGGElement, unknown, HTMLElement, unknown>, scaleLevel: number) => void;
   var fitScaleBar: (
     scaleBar: Selection<SVGGElement, unknown, HTMLElement, unknown>,
     fullWidth: number,
     fullHeight: number
   ) => void;
-  var updateMinimap: (...args: any[]) => any;
+  var updateMinimap: (...args: unknown[]) => unknown;
   var mapWidthInput: HTMLInputElement;
   var mapHeightInput: HTMLInputElement;
-  var loadMapFromURL: (...args: any[]) => any;
-  var showUploadErrorMessage: (...args: any[]) => any;
-  var ldb: any;
-  var uploadMap: (...args: any[]) => any;
+  var loadMapFromURL: (...args: unknown[]) => unknown;
+  var showUploadErrorMessage: (...args: unknown[]) => unknown;
+  var ldb: unknown;
+  var uploadMap: (...args: unknown[]) => unknown;
   var shapeRendering: any;
-  var rescaleLabels: (...args: any[]) => any;
+  var rescaleLabels: (...args: unknown[]) => unknown;
   var hideLabels: HTMLInputElement;
-  var hideEmblems: (...args: any[]) => any;
+  var hideEmblems: (...args: unknown[]) => unknown;
   var renderGroupCOAs: (g: SVGGElement) => Promise<void>;
 }
   var unlock: (settingId: string) => void;

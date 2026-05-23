@@ -2,6 +2,7 @@ import Alea from "alea";
 import { curveBasis, curveCatmullRom, line, mean, min, sum } from "d3";
 import { each, rn, round, rw } from "@fmg/shared";
 import { Lakes } from "./lakes";
+import type { PackedGraphFeature } from "./features";
 import type { Point } from "./voronoi";
 
 export interface River {
@@ -68,7 +69,7 @@ class RiverModule {
 
         // create lake outlet if lake is not in deep depression and flux > evaporation
         const lakes = lakeOutCells[i]
-          ? features.filter((feature: any) => i === feature.outCell && feature.flux > feature.evaporation)
+          ? features.filter((feature: PackedGraphFeature) => i === feature.outCell && feature.flux > feature.evaporation)
           : [];
         for (const lake of lakes) {
           const lakeCell = cells.c[i].find((c: number) => h[c] < 20 && cells.f[c] === lake.i)!;
@@ -110,7 +111,7 @@ class RiverModule {
         // downhill cell (make sure it's not in the source lake)
         let min = null;
         if (lakeOutCells[i]) {
-          const filtered = cells.c[i].filter((c: number) => !lakes.map((lake: any) => lake.i).includes(cells.f[c]));
+          const filtered = cells.c[i].filter((c: number) => !lakes.map((lake: PackedGraphFeature) => lake.i).includes(cells.f[c]));
           min = filtered.sort((a: number, b: number) => h[a] - h[b])[0];
         } else if (cells.haven[i]) {
           min = cells.haven[i];

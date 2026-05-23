@@ -1,5 +1,6 @@
 import { max, quadtree, range } from "d3";
 import { abbreviate, biased, ensureEl, getColors, getRandomColor, minmax, P, rand, rn, rw } from "@fmg/shared";
+import type { PackedGraph } from "@fmg/types";
 import { COA } from "./emblem/generator";
 
 declare global {
@@ -31,7 +32,7 @@ export interface Culture {
 }
 
 class CulturesModule {
-  cells: any;
+  cells: PackedGraph["cells"];
 
   getRandomShield() {
     const type = rw(COA.shields.types);
@@ -1086,7 +1087,7 @@ class CulturesModule {
 
     const cultures = selectCultures(count);
     pack.cultures = cultures;
-    const centers = quadtree<number>();
+    const centers = quadtree<[number, number]>();
     const colors = getColors(count);
     const emblemShape = (ensureEl("emblemShape") as HTMLInputElement).value;
 
@@ -1142,7 +1143,7 @@ class CulturesModule {
 
       if (c.lock) {
         codes.push(c.code as string);
-        centers.add(c.center as number);
+        centers.add(this.cells.p[c.center as number]);
 
         for (const i of this.cells.i) {
           if (this.cells.culture[i] === c.i) cultureIds[i] = newId;

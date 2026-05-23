@@ -54,10 +54,11 @@ function overviewRegiments(state) {
     const regiments = [];
 
     for (const s of pack.states) {
-      if (!s.i || s.removed || !s.military.length) continue;
+      const stateMilitary = (s.military || []) as any[];
+      if (!s.i || s.removed || !stateMilitary.length) continue;
       if (state !== -1 && s.i !== state) continue;
 
-      for (const r of s.military) {
+      for (const r of stateMilitary) {
         const sortData = options.military.map(u => `data-${u.name}=${r.u[u.name] || 0}`).join(" ");
         const lineData = options.military
           .map(
@@ -177,7 +178,7 @@ function overviewRegiments(state) {
     const cell = findCell(point[0], point[1]);
     const x = pack.cells.p[cell][0],
       y = pack.cells.p[cell][1];
-    const military = pack.states[state].military;
+    const military = (pack.states[state].military || []) as any[];
     const i = military.length ? last(military).i + 1 : 0;
     const n = +(pack.cells.h[cell] < 20);
     const reg: {a: number; cell: number; i: number; n: number; u: Record<string, number>; x: number; y: number; bx: number; by: number; state: number; icon: string; name?: string} = {
@@ -208,9 +209,10 @@ function overviewRegiments(state) {
       ",X,Y,Latitude,Longitude,Base X,Base Y,Base Latitude,Base Longitude\n";
 
     for (const s of pack.states) {
-      if (!s.i || s.removed || !s.military.length) continue;
+      const stateMilitary = (s.military || []) as any[];
+      if (!s.i || s.removed || !stateMilitary.length) continue;
 
-      for (const r of s.military) {
+      for (const r of stateMilitary) {
         data += s.name + ",";
         data += r.i + ",";
         data += r.icon + ",";

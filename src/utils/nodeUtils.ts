@@ -3,7 +3,7 @@
  * @typeParam T - The type of the element to retrieve, extending HTMLElement
  * @returns The element with the specified ID, cast to the specified type
  */
-export const ensureEl = <T extends HTMLElement>(id: string): T => {
+export const ensureEl = <T = any>(id: string): T => {
   const el = document.getElementById(id);
   if (!el) {
     // TODO: throw an error instead of logging it, and handle it properly in the caller

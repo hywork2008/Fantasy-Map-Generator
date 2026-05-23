@@ -1,8 +1,8 @@
 import Alea from "alea";
-import { color, quadtree } from "d3";
+import { color, quadtree, type Quadtree } from "d3";
 import Delaunator from "delaunator";
 import { type Cells, type Point, type Vertices, Voronoi } from "#modules/voronoi";
-import type { PackedGraph } from "@fmg/types/PackedGraph";
+import type { PackedGraph, Grid } from "@fmg/types";
 import { createTypedArray } from "./arrayUtils";
 import { ensureEl } from "./nodeUtils";
 import { rn } from "./numberUtils";
@@ -105,7 +105,7 @@ const placePoints = (
  * @param {number} graphHeight - The height of the graph
  * @returns {boolean} - True if the grid should be regenerated, false otherwise
  */
-export const shouldRegenerateGrid = (grid: any, expectedSeed: number, graphWidth: number, graphHeight: number) => {
+export const shouldRegenerateGrid = (grid: Grid, expectedSeed: number, graphWidth: number, graphHeight: number) => {
   if (expectedSeed && expectedSeed !== grid.seed) return true;
 
   const cellsDesired = +(ensureEl("pointsInput").dataset?.cells || 0);
@@ -118,17 +118,6 @@ export const shouldRegenerateGrid = (grid: any, expectedSeed: number, graphWidth
   return grid.spacing !== newSpacing || grid.cellsX !== newCellsX || grid.cellsY !== newCellsY;
 };
 
-interface Grid {
-  spacing: number;
-  cellsDesired: number;
-  boundary: Point[];
-  points: Point[];
-  cellsX: number;
-  cellsY: number;
-  seed: string | number;
-  cells: Cells;
-  vertices: Vertices;
-}
 /**
  * Generates a Voronoi grid based on jittered grid points
  * @returns {Object} - The generated grid object containing spacing, cellsDesired, boundary, points, cellsX, cellsY, cells, vertices, and seed
@@ -183,7 +172,7 @@ export const calculateVoronoi = (points: Point[], boundary: Point[]): { cells: C
  * @param {Object} grid - The grid object containing spacing, cellsX, and cellsY
  * @returns {number} - The index of the cell in the grid
  */
-export const findGridCell = (x: number, y: number, grid: any): number => {
+export const findGridCell = (x: number, y: number, grid: Grid): number => {
   return (
     Math.floor(Math.min(y / grid.spacing, grid.cellsY - 1)) * grid.cellsX +
     Math.floor(Math.min(x / grid.spacing, grid.cellsX - 1))
@@ -198,7 +187,7 @@ export const findGridCell = (x: number, y: number, grid: any): number => {
  * @param {Object} grid - The grid object containing spacing, cellsX, and cellsY
  * @returns {Array} - An array of cell indexes within the specified radius
  */
-export const findGridAll = (x: number, y: number, radius: number, grid: any): number[] => {
+export const findGridAll = (x: number, y: number, radius: number, grid: Grid): number[] => {
   const c = grid.cells.c;
   let r = Math.floor(radius / grid.spacing);
   let found = [findGridCell(x, y, grid)];
@@ -258,10 +247,29 @@ export const findClosestCell = (
  * @param {Object} quadtree - The D3 quadtree to search
  * @returns {Array} - An array of found data points within the radius
  */
-export const findAllInQuadtree = (x: number, y: number, radius: number, quadtree: any) => {
+export const findAllInQuadtree = (x: number, y: number, radius: number, quadtreeData: Quadtree<any>): any[] => {
   let dx: number, dy: number, d2: number;
 
-  const radiusSearchInit = (t: any, radius: number) => {
+  interface SearchContext {
+    x: number;
+    y: number;
+    x0: number;
+    y0: number;
+    x3: number;
+    y3: number;
+    radius: number;
+    result: any[];
+    x1?: number;
+    y1?: number;
+    x2?: number;
+    y2?: number;
+    q?: Quad | null;
+    quads: Quad[];
+    node?: any;
+    i?: number;
+  }
+
+  const radiusSearchInit = (t: SearchContext, radius: number) => {
     t.result = [];
     t.x0 = t.x - radius;
     t.y0 = t.y - radius;
@@ -270,13 +278,15 @@ export const findAllInQuadtree = (x: number, y: number, radius: number, quadtree
     t.radius = radius * radius;
   };
 
-  const radiusSearchVisit = (t: any, d2: number) => {
-    t.node.data.scanned = true;
-    if (d2 < t.radius) {
-      while (t.node) {
-        t.result.push(t.node.data);
-        t.node.data.selected = true;
-        t.node = t.node.next;
+  const radiusSearchVisit = (t: SearchContext, d2: number) => {
+    if (t.node?.data) {
+      t.node.data.scanned = true;
+      if (d2 < t.radius) {
+        while (t.node) {
+          t.result.push(t.node.data);
+          t.node.data.selected = true;
+          t.node = t.node.next;
+        }
       }
     }
   };
@@ -296,21 +306,23 @@ export const findAllInQuadtree = (x: number, y: number, radius: number, quadtree
     }
   }
 
-  const t: any = {
+  const t: SearchContext = {
     x,
     y,
-    x0: quadtree._x0,
-    y0: quadtree._y0,
-    x3: quadtree._x1,
-    y3: quadtree._y1,
+    x0: (quadtreeData as any)._x0,
+    y0: (quadtreeData as any)._y0,
+    x3: (quadtreeData as any)._x1,
+    y3: (quadtreeData as any)._y1,
+    radius: radius * radius,
     quads: [],
-    node: quadtree._root
+    node: (quadtreeData as any)._root,
+    result: []
   };
   if (t.node) t.quads.push(new Quad(t.node, t.x0, t.y0, t.x3, t.y3));
   radiusSearchInit(t, radius);
 
   var _i = 0;
-  t.q = t.quads.pop();
+  t.q = t.quads.pop() || null;
   while (t.q) {
     _i++;
 
@@ -350,8 +362,8 @@ export const findAllInQuadtree = (x: number, y: number, radius: number, quadtree
 
     // Visit this point. (Visiting coincident points isn't necessary!)
     else {
-      dx = x - +quadtree._x.call(null, t.node.data);
-      dy = y - +quadtree._y.call(null, t.node.data);
+      dx = x - +(quadtree as any)._x.call(null, t.node.data);
+      dy = y - +(quadtree as any)._y.call(null, t.node.data);
       d2 = dx * dx + dy * dy;
       radiusSearchVisit(t, d2);
     }
@@ -368,12 +380,12 @@ export const findAllInQuadtree = (x: number, y: number, radius: number, quadtree
  * @param {Object} packedGraph - The packed graph containing cells with quadtree
  * @returns {number[]} - An array of cell indexes within the radius
  */
-export const findAllCellsInRadius = (x: number, y: number, radius: number, packedGraph: any): number[] => {
+export const findAllCellsInRadius = (x: number, y: number, radius: number, packedGraph: PackedGraph): number[] => {
   const q = quadtree<[number, number, number]>(
     packedGraph.cells.p.map(([px, py]: [number, number], i: number) => [px, py, i] as [number, number, number])
   );
   const found = findAllInQuadtree(x, y, radius, q);
-  return found.map((r: any) => r[2]);
+  return found.map((r) => r[2]);
 };
 
 /**
@@ -381,7 +393,7 @@ export const findAllCellsInRadius = (x: number, y: number, radius: number, packe
  * @param {number} i - The index of the packed cell
  * @returns {Array} - An array of polygon points for the specified cell
  */
-export const getPackPolygon = (cellIndex: number, packedGraph: any) => {
+export const getPackPolygon = (cellIndex: number, packedGraph: PackedGraph): [number, number][] => {
   return packedGraph.cells.v[cellIndex].map((v: number) => packedGraph.vertices.p[v]);
 };
 
@@ -390,7 +402,7 @@ export const getPackPolygon = (cellIndex: number, packedGraph: any) => {
  * @param {number} i - The index of the grid cell
  * @returns {Array} - An array of polygon points for the specified grid cell
  */
-export const getGridPolygon = (i: number, grid: any) => {
+export const getGridPolygon = (i: number, grid: Grid): [number, number][] => {
   return grid.cells.v[i].map((v: number) => grid.vertices.p[v]);
 };
 

@@ -47,8 +47,8 @@ const getBorderPath = (vertices: any, vertexChain: number[], discontinue: (verte
  * @param {number[]} from - An array mapping each cell ID to the cell ID it came from.
  * @returns {number[]} An array of cell IDs representing the path from start to exit.
  */
-const restorePath = (exit: number, start: number, from: number[]) => {
-  const pathCells = [];
+const restorePath = (exit: number, start: number, from: number[]): number[] => {
+  const pathCells: number[] = [];
 
   let current = exit;
   let prev = exit;
@@ -75,18 +75,25 @@ const restorePath = (exit: number, start: number, from: number[]) => {
  * @param {boolean} [options.waterGap=false] - Whether to generate water gap paths for each type.
  * @returns {object} An object containing isolines for each type based on the specified options.
  */
+interface Isoline {
+  polygons?: [number, number][][];
+  fill?: string;
+  halo?: string;
+  waterGap?: string;
+}
+
 export const getIsolines = (
   graph: any,
-  getType: (cellId: number) => any,
+  getType: (cellId: number) => string | number,
   options: {
     polygons?: boolean;
     fill?: boolean;
     halo?: boolean;
     waterGap?: boolean;
   } = { polygons: false, fill: false, halo: false, waterGap: false }
-): any => {
+): Record<string | number, Isoline> => {
   const { cells, vertices } = graph;
-  const isolines: any = {};
+  const isolines: Record<string | number, Isoline> = {};
 
   const checkedCells = new Uint8Array(cells.i.length);
   const addToChecked = (cellId: number) => {
@@ -126,7 +133,7 @@ export const getIsolines = (
 
   return isolines;
 
-  function addIsolineTo(type: any, vertices: any, vertexChain: number[], isolines: any, options: any) {
+  function addIsolineTo(type: string | number, vertices: any, vertexChain: number[], isolines: Record<string | number, Isoline>, options: { polygons?: boolean; fill?: boolean; halo?: boolean; waterGap?: boolean }) {
     if (!isolines[type]) isolines[type] = {};
 
     if (options.polygons) {
@@ -208,11 +215,12 @@ export const getVertexPath = (cellsArray: number[], packedGraph: any = {}) => {
  * @param {(cellId: number) => any} getType - A function that returns the type of a cell given its ID.
  * @returns {object} An object mapping each type to its pole of inaccessibility coordinates [x, y].
  */
-export const getPolesOfInaccessibility = (graph: any, getType: (cellId: number) => any) => {
+export const getPolesOfInaccessibility = (graph: any, getType: (cellId: number) => string | number): Record<string | number, [number, number]> => {
   const isolines = getIsolines(graph, getType, { polygons: true });
 
   const poles = Object.entries(isolines).map(([id, isoline]) => {
-    const multiPolygon = (isoline as any).polygons.sort((a: any, b: any) => b.length - a.length);
+    const multiPolygon = (isoline.polygons || []).sort((a, b) => b.length - a.length);
+    if (multiPolygon.length === 0) return [id, [0, 0]];
     const [x, y] = polylabel(multiPolygon, 20);
     return [id, [rn(x), rn(y)]];
   });
@@ -230,21 +238,23 @@ export const getPolesOfInaccessibility = (graph: any, getType: (cellId: number) 
  * @param {boolean} [options.closeRing=false] - Whether to close the path into a ring.
  * @returns {number[]} An array of vertex IDs forming the connected path.
  */
+interface ConnectVerticesOptions {
+  vertices: any;
+  startingVertex: number;
+  ofSameType: (cellId: number) => boolean;
+  addToChecked?: (cellId: number) => void;
+  closeRing?: boolean;
+}
+
 export const connectVertices = ({
   vertices,
   startingVertex,
   ofSameType,
   addToChecked,
   closeRing
-}: {
-  vertices: any;
-  startingVertex: number;
-  ofSameType: (cellId: number) => boolean;
-  addToChecked?: (cellId: number) => void;
-  closeRing?: boolean;
-}) => {
+}: ConnectVerticesOptions): number[] => {
   const MAX_ITERATIONS = vertices.c.length;
-  const chain = []; // vertices chain to form a path
+  const chain: number[] = []; // vertices chain to form a path
 
   let next = startingVertex;
   for (let i = 0; i === 0 || next !== startingVertex; i++) {
@@ -298,8 +308,8 @@ export const findPath = (
 ): number[] | null => {
   if (isExit(start)) return null;
 
-  const from = [];
-  const cost = [];
+  const from: number[] = [];
+  const cost: number[] = [];
   const queue = new window.FlatQueue();
   queue.push(start, 0);
 

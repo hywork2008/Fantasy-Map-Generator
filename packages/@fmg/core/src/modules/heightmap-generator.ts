@@ -1,6 +1,7 @@
 import Alea from "alea";
 import { range as d3Range, leastIndex, mean } from "d3";
 import { createTypedArray, ensureEl, findGridCell, getNumberInRange, lim, minmax, P, rand } from "@fmg/shared";
+import type { PackedGraph, Grid } from "@fmg/types";
 
 declare global {
   var HeightmapGenerator: HeightmapModule;
@@ -9,7 +10,7 @@ declare global {
 type Tool = "Hill" | "Pit" | "Range" | "Trough" | "Strait" | "Mask" | "Invert" | "Add" | "Multiply" | "Smooth";
 
 class HeightmapModule {
-  grid: any = null;
+  grid: Grid | null = null;
   heights: Uint8Array | null = null;
   blobPower: number = 0;
   linePower: number = 0;
@@ -69,7 +70,7 @@ class HeightmapModule {
     return rand(min * length, max * length);
   }
 
-  setGraph(graph: any) {
+  setGraph(graph: Grid) {
     const { cellsDesired, cells, points } = graph;
     this.heights = cells.h
       ? Uint8Array.from(cells.h)
@@ -540,7 +541,7 @@ class HeightmapModule {
     }
   }
 
-  async generate(graph: any): Promise<Uint8Array> {
+  async generate(graph: Grid): Promise<Uint8Array> {
     TIME && console.time("defineHeightmap");
     const id = (ensureEl("templateInput")! as HTMLInputElement).value;
     Math.random = Alea(seed);
@@ -553,8 +554,8 @@ class HeightmapModule {
     return heights as Uint8Array;
   }
 
-  fromTemplate(graph: any, id: string): Uint8Array | null {
-    const templateString = heightmapTemplates[id]?.template || "";
+  fromTemplate(graph: Grid, id: string): Uint8Array | null {
+    const templateString = (heightmapTemplates[id] as any)?.template || "";
     const steps = templateString.split("\n");
 
     if (!steps.length) throw new Error(`Heightmap template: no steps. Template: ${id}. Steps: ${steps}`);
@@ -578,7 +579,7 @@ class HeightmapModule {
     }
   }
 
-  fromPrecreated(graph: any, id: string): Promise<Uint8Array> {
+  fromPrecreated(graph: Grid, id: string): Promise<Uint8Array> {
     return new Promise(resolve => {
       // create canvas where 1px corresponds to a cell
       const canvas = document.createElement("canvas");

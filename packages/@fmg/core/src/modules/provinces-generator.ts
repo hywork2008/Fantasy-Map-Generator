@@ -1,6 +1,7 @@
 import Alea from "alea";
 import { max } from "d3";
 import { ensureEl, gauss, generateSeed, getMixedColor, getPolesOfInaccessibility, P, rand, rw } from "@fmg/shared";
+import type { Emblem } from "./emblem/generator";
 import { COA } from "./emblem/generator";
 
 declare global {
@@ -19,7 +20,7 @@ export interface Province {
   formName?: string;
   fullName?: string;
   color?: string;
-  coa?: any;
+  coa?: Emblem;
   pole?: [number, number];
   coaSize?: number;
   area?: number;

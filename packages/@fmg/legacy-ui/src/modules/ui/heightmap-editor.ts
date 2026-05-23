@@ -507,7 +507,7 @@ class HeightmapEditor {
   // trigger heightmap redraw and history update if at least 1 cell is changed
   function updateHeightmap() {
     const prev = last(edits);
-    const changed = grid.cells.h.reduce((s, h, i) => (h !== prev[i] ? s + 1 : s), 0);
+    const changed = Array.from(grid.cells.h as ArrayLike<number>).reduce((s, h, i) => (h !== prev[i] ? s + 1 : s), 0);
     tip("Cells changed: " + changed);
     if (!changed) return;
 
@@ -566,9 +566,10 @@ class HeightmapEditor {
   }
 
   function updateStatistics() {
-    const landCells = grid.cells.h.reduce((s, h) => (h >= 20 ? s + 1 : s));
+    const heights = Array.from(grid.cells.h as ArrayLike<number>);
+    const landCells = heights.reduce((s, h) => (h >= 20 ? s + 1 : s), 0);
     ensureEl("landmassCounter").innerText = `${landCells} (${rn((landCells / grid.cells.i.length) * 100)}%)`;
-    ensureEl("landmassAverage").innerText = rn(d3.mean(grid.cells.h));
+    ensureEl("landmassAverage").innerText = rn(d3.mean(heights));
   }
 
   function updateHistory(noStat = false) {

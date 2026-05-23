@@ -1,23 +1,41 @@
 import type { Selection } from "d3";
+import type { Route } from "@fmg/core/modules/routes-generator";
+import type { PackedGraph, Grid } from "@fmg/types";
+
+type LegacyNameBase = {
+  name: string;
+  b: string;
+  min: number;
+  max: number;
+  d: string;
+  [key: string]: unknown;
+};
+
+type LegacyHeightmapTemplate = {
+  name?: string;
+  template?: string;
+  probability?: number;
+  [key: string]: any;
+};
 
 declare global {
   var seed: string;
-  var pack: any;
-  var grid: any;
+  var pack: PackedGraph;
+  var grid: Grid;
   var graphHeight: number;
   var graphWidth: number;
   var TIME: boolean;
   var WARN: boolean;
   var ERROR: boolean;
   var DEBUG: { stateLabels?: boolean; [key: string]: boolean | undefined };
-  var options: any;
+  var options: { year: number; stateLabelsMode?: string; burgs?: BurgsConfig; [key: string]: any };
 
-  var heightmapTemplates: any;
+  var heightmapTemplates: Record<string, LegacyHeightmapTemplate>;
   var populationRate: number;
   var urbanDensity: number;
   var urbanization: number;
   var distanceScale: number;
-  var nameBases: any[];
+  var nameBases: LegacyNameBase[];
 
   var pointsInput: HTMLInputElement;
   var culturesInput: HTMLInputElement;
@@ -62,14 +80,14 @@ declare global {
     cost: number[];
   };
   var style: {
-    burgLabels: { [key: string]: { [key: string]: string } };
-    burgIcons: { [key: string]: { [key: string]: string } };
-    anchors: { [key: string]: { [key: string]: string } };
-    [key: string]: any;
+    burgLabels?: Record<string, Record<string, string>>;
+    burgIcons?: Record<string, Record<string, string>>;
+    anchors?: Record<string, Record<string, string>>;
+    [key: string]: unknown;
   };
 
   var layerIsOn: (layerId: string) => boolean;
-  var drawRoute: (route: any) => void;
+  var drawRoute: (route: Route) => void;
   var invokeActiveZooming: () => void;
   var FlatQueue: any;
 

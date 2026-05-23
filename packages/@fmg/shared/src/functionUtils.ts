@@ -24,23 +24,23 @@
  * //   'B' => Map { 'X' => 30, 'Y' => 40 }
  * // }
  */
-export const rollups = (
-  values: any[],
-  reduce: (values: any[]) => any,
-  ...keys: ((value: any, index: number, array: any[]) => any)[]
-) => {
+export const rollups = <T, R>(
+  values: T[],
+  reduce: (values: T[]) => R,
+  ...keys: ((value: T, index: number, array: T[]) => unknown)[]
+): Map<unknown, any> => {
   return nest(values, Array.from, reduce, keys);
 };
 
-const nest = (
-  values: any[],
-  map: (iterable: Iterable<any>) => any,
-  reduce: (values: any[]) => any,
-  keys: ((value: any, index: number, array: any[]) => any)[]
-) => {
-  return (function regroup(values, i) {
+const nest = <T, R>(
+  values: T[],
+  map: (iterable: Iterable<[unknown, any]>) => any,
+  reduce: (values: T[]) => R,
+  keys: ((value: T, index: number, array: T[]) => unknown)[]
+): any => {
+  return (function regroup(values: T[], i: number): any {
     if (i >= keys.length) return reduce(values);
-    const groups = new Map();
+    const groups = new Map<unknown, T[]>();
     const keyof = keys[i++];
     let index = -1;
     for (const value of values) {

@@ -59,7 +59,7 @@ const heightmapRenderer = (): void => {
   const paths: (string | undefined)[] = new Array(101);
   const { cells, vertices } = grid;
   const used = new Uint8Array(cells.i.length);
-  const heights = Array.from(cells.i as number[]).sort((a, b) => cells.h[a] - cells.h[b]);
+  const heights = Array.from(cells.i).sort((a, b) => cells.h[a] - cells.h[b]);
 
   // ocean cells
   const renderOceanCells = Boolean(+ocean.attr("data-render"));

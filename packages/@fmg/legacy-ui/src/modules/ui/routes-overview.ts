@@ -113,7 +113,7 @@ export function overviewRoutes() {
 
     body.querySelectorAll(":scope > div").forEach(function (el) {
       const d = el.dataset;
-      const length = rn(d.length * distanceScale) + " " + distanceUnitInput.value;
+      const length = rn(Number(d.length) * distanceScale) + " " + distanceUnitInput.value;
       data += [d.id, d.name, d.group, length].join(",") + "\n";
     });
 

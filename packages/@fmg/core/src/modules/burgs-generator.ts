@@ -4,6 +4,7 @@ import { layerIsOn, drawRoute } from "@legacy-ui-runtime/modules/ui/layers";
 import { tip } from "@legacy-ui-runtime/modules/ui/general";
 import { drawBurgIconRenderer as drawBurgIcon } from "#renderers/draw-burg-icons";
 import { drawBurgLabelRenderer as drawBurgLabel } from "#renderers/draw-burg-labels";
+import type { Emblem } from "./emblem/generator";
 import { COA } from "./emblem/generator";
 import { COArenderer } from "./emblem/renderer";
 import { Routes } from "./routes-generator";
@@ -26,7 +27,7 @@ export interface Burg {
   removed?: boolean;
   population?: number;
   type?: string;
-  coa?: any;
+  coa?: Emblem;
   citadel?: number;
   plaza?: number;
   walls?: number;

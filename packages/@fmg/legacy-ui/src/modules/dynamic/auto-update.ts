@@ -649,13 +649,13 @@ export function resolveVersionConflicts(mapVersion) {
   if (isOlderThan("1.91.0")) {
     // from 1.91.00 custom coa is moved to coa object
     pack.states.forEach(state => {
-      if (state.coa === "custom") state.coa = {custom: true};
+      if ((state.coa as any) === "custom") state.coa = {custom: true};
     });
     pack.provinces.forEach(province => {
-      if (province.coa === "custom") province.coa = {custom: true};
+      if ((province.coa as any) === "custom") province.coa = {custom: true};
     });
     pack.burgs.forEach(burg => {
-      if (burg.coa === "custom") burg.coa = {custom: true};
+      if ((burg.coa as any) === "custom") burg.coa = {custom: true};
     });
 
     // from 1.91.00 emblems don't have transform attribute

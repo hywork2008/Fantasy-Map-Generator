@@ -29,6 +29,8 @@ interface Marker {
   dx?: number;
   dy?: number;
   px?: number;
+  x?: number;
+  y?: number;
   cell: number;
   lock?: boolean;
 }
@@ -76,9 +78,10 @@ class MarkersModule {
     const base = this.config.find(c => c.type === marker.type);
     if (base) {
       const { icon, type, dx, dy, px } = base;
-      marker = this.addMarker({ icon, type, dx, dy, px }, marker);
-      base.add(`marker${marker.i}`, marker.cell);
-      return marker;
+      const created = this.addMarker({ icon, type, dx, dy, px }, marker);
+      if (!created) return marker;
+      base.add(`marker${created.i}`, created.cell);
+      return created;
     }
 
     const i = (last(pack.markers as Array<{ i?: number }>)?.i || 0) + 1;
@@ -479,25 +482,25 @@ class MarkersModule {
     TIME && console.timeEnd("addMarkers");
   }
 
-  private getQuantity(array: any[], min: number, each: number, multiplier: number) {
+  private getQuantity(array: number[], min: number, each: number, multiplier: number): number {
     if (!array.length || array.length < min / multiplier) return 0;
     const requestQty = Math.ceil((array.length / each) * multiplier);
     return array.length < requestQty ? array.length : requestQty;
   }
 
-  private extractAnyElement(array: any[]) {
+  private extractAnyElement(array: number[]): [number] {
     const index = Math.floor(Math.random() * array.length);
-    return array.splice(index, 1);
+    return array.splice(index, 1) as [number];
   }
 
-  private addMarker(base: any, marker: any) {
+  private addMarker(base: Omit<Marker, "i" | "cell" | "x" | "y">, marker: Partial<Marker>): Marker | void {
     if (marker.cell === undefined) return;
     const i = (last(pack.markers as Array<{ i?: number }>)?.i || 0) + 1;
     const [x, y] = this.getMarkerCoordinates(marker.cell);
-    marker = { ...base, x, y, ...marker, i };
-    pack.markers.push(marker);
-    this.occupied[marker.cell] = true;
-    return marker;
+    const newMarker = { ...base, x, y, ...marker, i } as Marker;
+    pack.markers.push(newMarker);
+    this.occupied[newMarker.cell] = true;
+    return newMarker;
   }
 
   private getMarkerCoordinates(cell: number) {

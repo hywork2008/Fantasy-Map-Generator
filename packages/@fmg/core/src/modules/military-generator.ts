@@ -231,7 +231,16 @@ class MilitaryModule {
       return "generic";
     };
 
-    function passUnitLimits(unit: any, biome: number, state: number, culture: number, religion: number) {
+    interface MilitaryUnit {
+      type: string;
+      name: string;
+      biomes?: number[];
+      states?: number[];
+      cultures?: number[];
+      religions?: number[];
+    }
+
+    function passUnitLimits(unit: MilitaryUnit, biome: number, state: number, culture: number, religion: number): boolean {
       if (unit.biomes && !unit.biomes.includes(biome)) return false;
       if (unit.states && !unit.states.includes(state)) return false;
       if (unit.cultures && !unit.cultures.includes(culture)) return false;

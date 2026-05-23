@@ -153,8 +153,8 @@ export function overviewRivers() {
     body.querySelectorAll(":scope > div").forEach(function (el) {
       const d = el.dataset;
       const discharge = d.discharge + " m³/s";
-      const length = rn(d.length * distanceScale) + " " + distanceUnitInput.value;
-      const width = rn(d.width * distanceScale, 3) + " " + distanceUnitInput.value;
+      const length = rn(Number(d.length) * distanceScale) + " " + distanceUnitInput.value;
+      const width = rn(Number(d.width) * distanceScale, 3) + " " + distanceUnitInput.value;
       data += [d.id, d.name, d.type, discharge, length, width, d.basin].join(",") + "\n";
     });
 

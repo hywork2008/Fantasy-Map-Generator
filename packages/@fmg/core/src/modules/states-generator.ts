@@ -15,6 +15,9 @@ import {
   rw,
   trimVowels
 } from "@fmg/shared";
+import type { PackedGraphFeature } from "./features";
+import type { River } from "./river-generator";
+import type { Emblem } from "./emblem/generator";
 import { COA } from "./emblem/generator";
 
 interface Campaign {
@@ -31,7 +34,7 @@ export interface State {
   type: string;
   center: number;
   culture: number;
-  coa: any;
+  coa: Emblem; // COA (coat of arms) object from emblem generator
   lock?: boolean;
   removed?: boolean;
   pole?: [number, number];
@@ -43,11 +46,11 @@ export interface State {
   rural?: number;
   urban?: number;
   campaigns?: Campaign[];
-  diplomacy?: any[];
+  diplomacy?: any[]; // diplomacy data
   formName?: string;
   fullName?: string;
   form?: string;
-  military?: any[];
+  military?: any[]; // military data
   provinces?: number[];
   temp?: any;
   alert?: number;
@@ -91,7 +94,7 @@ class StatesModule {
     return biomesData.cost[biome]; // general non-native biome penalty
   }
 
-  private getHeightCost(f: any, h: number, type: string) {
+  private getHeightCost(f: PackedGraphFeature | undefined, h: number, type: string) {
     if (type === "Lake" && f.type === "lake") return 10; // low lake crossing penalty for Lake cultures
     if (type === "Naval" && h < 20) return 300; // low sea crossing penalty for Navals
     if (type === "Nomadic" && h < 20) return 10000; // giant sea crossing penalty for Nomads
@@ -103,7 +106,7 @@ class StatesModule {
     return 0;
   }
 
-  private getRiverCost(r: any, i: number, type: string) {
+  private getRiverCost(r: River | number | undefined, i: number, type: string) {
     if (type === "River") return r ? 0 : 100; // penalty for river cultures
     if (!r) return 0; // no penalty for others if there is no river
     return minmax(pack.cells.fl[i] / 10, 20, 100); // river penalty from 20 to 100 based on flux

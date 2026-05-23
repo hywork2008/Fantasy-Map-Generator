@@ -536,17 +536,17 @@ export const drawHeights = ({
 declare global {
   var TIME: boolean;
   interface Window {
-    shouldRegenerateGrid: typeof shouldRegenerateGrid;
-    generateGrid: typeof generateGrid;
+    shouldRegenerateGrid: typeof import("@fmg/shared").shouldRegenerateGrid;
+    generateGrid: typeof import("@fmg/shared").generateGrid;
     findCell: typeof findClosestCell;
-    findGridCell: typeof findGridCell;
-    findGridAll: typeof findGridAll;
+    findGridCell: typeof import("@fmg/shared").findGridCell;
+    findGridAll: typeof import("@fmg/shared").findGridAll;
     calculateVoronoi: typeof calculateVoronoi;
-    findAll: typeof findAllCellsInRadius;
-    getPackPolygon: typeof getPackPolygon;
-    getGridPolygon: typeof getGridPolygon;
+    findAll: typeof import("@fmg/shared").findAllCellsInRadius;
+    getPackPolygon: typeof import("@fmg/shared").getPackPolygon;
+    getGridPolygon: typeof import("@fmg/shared").getGridPolygon;
     poissonDiscSampler: typeof poissonDiscSampler;
-    findAllInQuadtree: typeof findAllInQuadtree;
+    findAllInQuadtree: typeof import("@fmg/shared").findAllInQuadtree;
     drawHeights: typeof drawHeights;
   }
 }

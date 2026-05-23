@@ -332,10 +332,10 @@ declare global {
     ERROR: boolean;
     FlatQueue: any;
 
-    getIsolines: typeof getIsolines;
-    getPolesOfInaccessibility: typeof getPolesOfInaccessibility;
-    connectVertices: typeof connectVertices;
-    findPath: typeof findPath;
-    getVertexPath: typeof getVertexPath;
+    getIsolines: typeof import("@fmg/shared").getIsolines;
+    getPolesOfInaccessibility: typeof import("@fmg/shared").getPolesOfInaccessibility;
+    connectVertices: typeof import("@fmg/shared").connectVertices;
+    findPath: typeof import("@fmg/shared").findPath;
+    getVertexPath: typeof import("@fmg/shared").getVertexPath;
   }
 }
