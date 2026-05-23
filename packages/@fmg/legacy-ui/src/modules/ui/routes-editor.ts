@@ -24,119 +24,127 @@ declare let Military: any;
 declare let unselectElements: () => any;
 declare let viewbox: any;
 
-function editRoute(id) {
-  if (customization) return;
-  if (elSelected && id === elSelected.attr("id")) return;
-  closeDialogs(".stable");
+class RoutesEditor {
+  public open(id: string) {
+    if (customization) return;
+    if (elSelected && id === elSelected.attr("id")) return;
+    closeDialogs(".stable");
 
-  if (!layerIsOn("toggleRoutes")) toggleRoutes();
-  ensureEl("toggleCells").dataset.forced = String(+!layerIsOn("toggleCells"));
-  if (!layerIsOn("toggleCells")) toggleCells();
+    if (!layerIsOn("toggleRoutes")) toggleRoutes();
+    ensureEl("toggleCells").dataset.forced = String(+!layerIsOn("toggleCells"));
+    if (!layerIsOn("toggleCells")) toggleCells();
 
-  elSelected = d3.select("#" + id).on("click", addControlPoint);
-
-  tip(
-    "Drag control points to change the route. Click on point to remove it. Click on the route to add additional control point. For major changes please create a new route instead",
-    true
-  );
-  debug.append("g").attr("id", "controlCells");
-  debug.append("g").attr("id", "controlPoints");
-
-  {
-    const route = getRoute();
-    updateRouteData(route);
-    drawControlPoints(route.points);
-    drawCells(route.points);
-    updateLockIcon();
-  }
-
-  $("#routeEditor").dialog({
-    title: "Edit Route",
-    resizable: false,
-    position: {my: "left top", at: "left+10 top+10", of: "#map"},
-    close: closeRouteEditor
-  });
-
-  if (modules.editRoute) return;
-  modules.editRoute = true;
-
-  ensureEl("routeCreateSelectingCells").on("click", showCreationDialog);
-  ensureEl("routeSplit").on("click", togglePressed);
-  ensureEl("routeJoin").on("click", openJoinRoutesDialog);
-  ensureEl("routeElevationProfile").on("click", showRouteElevationProfile);
-  ensureEl("routeLegend").on("click", editRouteLegend);
-  ensureEl("routeLock").on("click", toggleLockButton);
-  ensureEl("routeRemove").on("click", removeRoute);
-  ensureEl("routeName").on("input", changeName);
-  ensureEl("routeGroup").on("input", changeGroup);
-  ensureEl("routeGroupEdit").on("click", editRouteGroups);
-  ensureEl("routeEditStyle").on("click", editRouteGroupStyle);
-  ensureEl("routeGenerateName").on("click", generateName);
-
-  function getRoute() {
-    const routeId = +elSelected.attr("id").slice(5);
-    return pack.routes.find(route => route.i === routeId);
-  }
-
-  function updateRouteData(route) {
-    route.name = route.name || Routes.generateName(route);
-    ensureEl("routeName").value = route.name;
-
-    const routeGroup = ensureEl("routeGroup");
-    routeGroup.options.length = 0;
-    routes.selectAll("g").each(function (this: SVGGElement) {
-      routeGroup.options.add(new Option(this.id, this.id, false, this.id === route.group));
+    elSelected = d3.select("#" + id).on("click", function (this: SVGPathElement) {
+      routesEditorSelf.addControlPoint(this);
     });
 
-    updateRouteLength(route);
+    tip(
+      "Drag control points to change the route. Click on point to remove it. Click on the route to add additional control point. For major changes please create a new route instead",
+      true
+    );
+    debug.append("g").attr("id", "controlCells");
+    debug.append("g").attr("id", "controlPoints");
 
-    const isWater = route.points.some(([x, y, cellId]) => pack.cells.h[cellId] < 20);
-    ensureEl("routeElevationProfile").style.display = isWater ? "none" : "inline-block";
+    {
+      const route = this.getRoute();
+      this.updateRouteData(route);
+      this.drawControlPoints(route.points);
+      this.drawCells(route.points);
+      this.updateLockIcon();
+    }
+
+    $("#routeEditor").dialog({
+      title: "Edit Route",
+      resizable: false,
+      position: {my: "left top", at: "left+10 top+10", of: "#map"},
+      close: () => this.closeRouteEditor()
+    });
+
+    if (modules.editRoute) return;
+    modules.editRoute = true;
+
+    ensureEl("routeCreateSelectingCells").on("click", () => this.showCreationDialog());
+    ensureEl("routeSplit").on("click", () => this.toggleSplitMode());
+    ensureEl("routeJoin").on("click", () => this.openJoinRoutesDialog());
+    ensureEl("routeElevationProfile").on("click", () => this.showRouteElevationProfile());
+    ensureEl("routeLegend").on("click", () => this.editRouteLegend());
+    ensureEl("routeLock").on("click", () => this.toggleLockButton());
+    ensureEl("routeRemove").on("click", () => this.removeRoute());
+    ensureEl("routeName").on("input", () => this.changeName());
+    ensureEl("routeGroup").on("input", () => this.changeGroup());
+    ensureEl("routeGroupEdit").on("click", editRouteGroups);
+    ensureEl("routeEditStyle").on("click", () => this.editRouteGroupStyle());
+    ensureEl("routeGenerateName").on("click", () => this.generateName());
   }
 
-  function updateRouteLength(route) {
+  private getRoute(): any {
+    const routeId = +elSelected.attr("id").slice(5);
+    return pack.routes.find((route: any) => route.i === routeId);
+  }
+
+  private updateRouteData(route: any) {
+    route.name = route.name || Routes.generateName(route);
+    (ensureEl("routeName") as HTMLInputElement).value = route.name;
+
+    const routeGroupEl = ensureEl("routeGroup") as HTMLSelectElement;
+    routeGroupEl.options.length = 0;
+    routes.selectAll("g").each(function (this: SVGGElement) {
+      routeGroupEl.options.add(new Option(this.id, this.id, false, this.id === route.group));
+    });
+
+    this.updateRouteLength(route);
+
+    const isWater = route.points.some(([x, y, cellId]: [number, number, number]) => pack.cells.h[cellId] < 20);
+    (ensureEl("routeElevationProfile") as HTMLElement).style.display = isWater ? "none" : "inline-block";
+  }
+
+  private updateRouteLength(route: any) {
     route.length = Routes.getLength(route.i);
-    ensureEl("routeLength").value = rn(route.length * distanceScale) + " " + distanceUnitInput.value;
+    (ensureEl("routeLength") as HTMLInputElement).value =
+      rn(route.length * distanceScale) + " " + distanceUnitInput.value;
   }
 
-  function drawControlPoints(points) {
+  private drawControlPoints(points: any[]) {
+    const self = this;
     debug
       .select("#controlPoints")
       .selectAll("circle")
       .data(points)
       .join("circle")
-      .attr("cx", d => d[0])
-      .attr("cy", d => d[1])
+      .attr("cx", (d: any) => d[0])
+      .attr("cy", (d: any) => d[1])
       .attr("r", 0.6)
-      .call(d3.drag().on("start", dragControlPoint))
-      .on("click", handleControlPointClick);
+      .call(d3.drag().on("start", () => self.dragControlPoint()))
+      .on("click", function (this: SVGCircleElement) {
+        routesEditorSelf.handleControlPointClick(this);
+      });
   }
 
-  function drawCells(points) {
+  private drawCells(points: any[]) {
     debug
       .select("#controlCells")
       .selectAll("polygon")
       .data(points)
       .join("polygon")
-      .attr("points", p => getPackPolygon(p[2]));
+      .attr("points", (p: any) => getPackPolygon(p[2]));
   }
 
-  function dragControlPoint() {
-    const route = getRoute();
+  private dragControlPoint() {
+    const route = this.getRoute();
     const initCell = d3.event.subject[2];
     const pointIndex = route.points.indexOf(d3.event.subject);
 
-    d3.event.on("drag", function () {
-      this.setAttribute("cx", d3.event.x);
-      this.setAttribute("cy", d3.event.y);
+    d3.event.on("drag", function (this: SVGCircleElement) {
+      this.setAttribute("cx", String(d3.event.x));
+      this.setAttribute("cy", String(d3.event.y));
 
       const x = rn(d3.event.x, 2);
       const y = rn(d3.event.y, 2);
       const cellId = findCell(x, y);
 
-      this.__data__ = route.points[pointIndex] = [x, y, cellId];
-      redrawRoute(route);
-      drawCells(route.points);
+      (this as any).__data__ = route.points[pointIndex] = [x, y, cellId];
+      routesEditorSelf.redrawRoute(route);
+      routesEditorSelf.drawCells(route.points);
     });
 
     d3.event.on("end", () => {
@@ -145,32 +153,32 @@ function editRoute(id) {
       if (movedToCell !== initCell) {
         const prev = route.points[pointIndex - 1];
         if (prev) {
-          removeConnection(initCell, prev[2]);
-          addConnection(movedToCell, prev[2], route.i);
+          this.removeConnection(initCell, prev[2]);
+          this.addConnection(movedToCell, prev[2], route.i);
         }
 
         const next = route.points[pointIndex + 1];
         if (next) {
-          removeConnection(initCell, next[2]);
-          addConnection(movedToCell, next[2], route.i);
+          this.removeConnection(initCell, next[2]);
+          this.addConnection(movedToCell, next[2], route.i);
         }
       }
     });
   }
 
-  function redrawRoute(route) {
+  public redrawRoute(route: any) {
     elSelected.attr("d", Routes.getPath(route));
-    updateRouteLength(route);
-    if (ensureEl("elevationProfile").offsetParent) showRouteElevationProfile();
+    this.updateRouteLength(route);
+    if ((ensureEl("elevationProfile") as HTMLElement).offsetParent) this.showRouteElevationProfile();
   }
 
-  function addControlPoint() {
-    const route = getRoute();
-    const [x, y] = d3.mouse(this);
+  public addControlPoint(element: SVGPathElement) {
+    const route = this.getRoute();
+    const [x, y] = d3.mouse(element);
     const cellId = findCell(x, y);
 
     const point = [rn(x, 2), rn(y, 2), cellId];
-    const isNewCell = !route.points.some(p => p[2] === cellId);
+    const isNewCell = !route.points.some((p: any) => p[2] === cellId);
 
     const index = getSegmentId(route.points, point, 2);
     route.points.splice(index, 0, point);
@@ -183,85 +191,89 @@ function editRoute(id) {
       if (!next) ERROR && console.error("Can't add control point to the end of the route");
       if (!prev || !next) return;
 
-      removeConnection(prev[2], next[2]);
-      addConnection(prev[2], cellId, route.i);
-      addConnection(cellId, next[2], route.i);
+      this.removeConnection(prev[2], next[2]);
+      this.addConnection(prev[2], cellId, route.i);
+      this.addConnection(cellId, next[2], route.i);
 
-      drawCells(route.points);
+      this.drawCells(route.points);
     }
 
-    drawControlPoints(route.points);
-    redrawRoute(route);
+    this.drawControlPoints(route.points);
+    this.redrawRoute(route);
   }
 
-  function handleControlPointClick() {
-    const controlPoint = d3.select(this);
-    const point = controlPoint.datum();
-    const route = getRoute();
+  public handleControlPointClick(element: SVGCircleElement) {
+    const controlPoint = d3.select(element);
+    const point = controlPoint.datum() as any;
+    const route = this.getRoute();
     if (route.points.length < 3) return;
 
     const index = route.points.indexOf(point);
-
     const isSplitMode = ensureEl("routeSplit").classList.contains("pressed");
-    return isSplitMode ? splitRoute() : removeControlPoint(controlPoint);
 
-    function splitRoute() {
-      const oldRoutePoints = route.points.slice(0, index + 1);
-      const newRoutePoints = route.points.slice(index);
-
-      route.points = oldRoutePoints;
-      drawControlPoints(route.points);
-      drawCells(route.points);
-      redrawRoute(route);
-
-      const newRoute = {
-        i: Routes.getNextId(),
-        group: route.group,
-        feature: route.feature,
-        name: route.name,
-        points: newRoutePoints
-      };
-      pack.routes.push(newRoute);
-
-      for (let i = 0; i < newRoute.points.length; i++) {
-        const cellId = newRoute.points[i][2];
-        const nextPoint = newRoute.points[i + 1];
-        if (nextPoint) addConnection(cellId, nextPoint[2], newRoute.i);
-      }
-
-      routes
-        .select("#" + newRoute.group)
-        .append("path")
-        .attr("d", Routes.getPath(newRoute))
-        .attr("id", "route" + newRoute.i);
-
-      ensureEl("routeSplit").classList.remove("pressed");
-    }
-
-    function removeControlPoint(controlPoint) {
-      const isOnlyPointInCell = route.points.filter(p => p[2] === point[2]).length === 1;
-      if (isOnlyPointInCell) {
-        const prev = route.points[index - 1];
-        const next = route.points[index + 1];
-        if (prev) removeConnection(prev[2], point[2]);
-        if (next) removeConnection(point[2], next[2]);
-        if (prev && next) addConnection(prev[2], next[2], route.i);
-      }
-
-      controlPoint.remove();
-      route.points = route.points.filter(p => p !== point);
-
-      drawCells(route.points);
-      redrawRoute(route);
+    if (isSplitMode) {
+      this.splitRoute(route, index, point);
+    } else {
+      this.removeControlPoint(controlPoint, route, point, index);
     }
   }
 
-  function openJoinRoutesDialog() {
-    const route = getRoute();
+  private splitRoute(route: any, index: number, _point: any) {
+    const oldRoutePoints = route.points.slice(0, index + 1);
+    const newRoutePoints = route.points.slice(index);
+
+    route.points = oldRoutePoints;
+    this.drawControlPoints(route.points);
+    this.drawCells(route.points);
+    this.redrawRoute(route);
+
+    const newRoute = {
+      i: Routes.getNextId(),
+      group: route.group,
+      feature: route.feature,
+      name: route.name,
+      points: newRoutePoints
+    };
+    pack.routes.push(newRoute);
+
+    for (let i = 0; i < newRoute.points.length; i++) {
+      const cellId = newRoute.points[i][2];
+      const nextPoint = newRoute.points[i + 1];
+      if (nextPoint) this.addConnection(cellId, nextPoint[2], newRoute.i);
+    }
+
+    routes
+      .select("#" + newRoute.group)
+      .append("path")
+      .attr("d", Routes.getPath(newRoute))
+      .attr("id", "route" + newRoute.i);
+
+    ensureEl("routeSplit").classList.remove("pressed");
+  }
+
+  private removeControlPoint(controlPoint: any, route: any, point: any, index: number) {
+    const isOnlyPointInCell = route.points.filter((p: any) => p[2] === point[2]).length === 1;
+    if (isOnlyPointInCell) {
+      const prev = route.points[index - 1];
+      const next = route.points[index + 1];
+      if (prev) this.removeConnection(prev[2], point[2]);
+      if (next) this.removeConnection(point[2], next[2]);
+      if (prev && next) this.addConnection(prev[2], next[2], route.i);
+    }
+
+    controlPoint.remove();
+    route.points = route.points.filter((p: any) => p !== point);
+
+    this.drawCells(route.points);
+    this.redrawRoute(route);
+  }
+
+  private openJoinRoutesDialog() {
+    const route = this.getRoute();
     const firstCell = route.points.at(0)[2];
     const lastCell = route.points.at(-1)[2];
 
-    const candidateRoutes = pack.routes.filter(r => {
+    const candidateRoutes = pack.routes.filter((r: any) => {
       if (r.i === route.i) return false;
       if (r.group !== route.group) return false;
       if (r.points.at(0)[2] === lastCell) return true;
@@ -272,7 +284,7 @@ function editRoute(id) {
     });
 
     if (candidateRoutes.length) {
-      const options = candidateRoutes.map(r => {
+      const options = candidateRoutes.map((r: any) => {
         r.name = r.name || Routes.generateName(r);
         r.length = r.length || Routes.getLength(r.i);
         const length = rn(r.length * distanceScale) + " " + distanceUnitInput.value;
@@ -291,9 +303,9 @@ function editRoute(id) {
             $("#alert").dialog("close");
           },
           Join: () => {
-            const selectedRouteId = +alertMessage.querySelector("select").value;
-            const selectedRoute = pack.routes.find(r => r.i === selectedRouteId);
-            joinRoutes(route, selectedRoute);
+            const selectedRouteId = +(alertMessage.querySelector("select") as HTMLSelectElement).value;
+            const selectedRoute = pack.routes.find((r: any) => r.i === selectedRouteId);
+            this.joinRoutes(route, selectedRoute);
             tip("Routes joined", false, "success", 5000);
             $("#alert").dialog("close");
           }
@@ -304,7 +316,7 @@ function editRoute(id) {
     }
   }
 
-  function joinRoutes(route, joinedRoute) {
+  private joinRoutes(route: any, joinedRoute: any) {
     if (route.points.at(-1)[2] === joinedRoute.points.at(0)[2]) {
       route.points = [...route.points, ...joinedRoute.points.slice(1)];
     } else if (route.points.at(0)[2] === joinedRoute.points.at(-1)[2]) {
@@ -318,84 +330,82 @@ function editRoute(id) {
     for (let i = 0; i < route.points.length; i++) {
       const point = route.points[i];
       const nextPoint = route.points[i + 1];
-      if (nextPoint) addConnection(point[2], nextPoint[2], route.i);
+      if (nextPoint) this.addConnection(point[2], nextPoint[2], route.i);
     }
 
     Routes.remove(joinedRoute);
-    drawControlPoints(route.points);
-    redrawRoute(route);
-    drawCells(route.points);
+    this.drawControlPoints(route.points);
+    this.redrawRoute(route);
+    this.drawCells(route.points);
   }
 
-  function showCreationDialog() {
-    const route = getRoute();
+  private showCreationDialog() {
+    const route = this.getRoute();
     createRoute(route.group);
   }
 
-  function togglePressed() {
-    this.classList.toggle("pressed");
+  private toggleSplitMode() {
+    (ensureEl("routeSplit") as HTMLElement).classList.toggle("pressed");
   }
 
-  function removeConnection(from, to) {
-    const routes = pack.cells.routes;
-    if (routes[from]) delete routes[from][to];
-    if (routes[to]) delete routes[to][from];
+  private removeConnection(from: number, to: number) {
+    const cellRoutes = pack.cells.routes;
+    if (cellRoutes[from]) delete cellRoutes[from][to];
+    if (cellRoutes[to]) delete cellRoutes[to][from];
   }
 
-  function addConnection(from, to, routeId) {
-    const routes = pack.cells.routes;
-
-    if (!routes[from]) routes[from] = {};
-    routes[from][to] = routeId;
-
-    if (!routes[to]) routes[to] = {};
-    routes[to][from] = routeId;
+  private addConnection(from: number, to: number, routeId: number) {
+    const cellRoutes = pack.cells.routes;
+    if (!cellRoutes[from]) cellRoutes[from] = {};
+    cellRoutes[from][to] = routeId;
+    if (!cellRoutes[to]) cellRoutes[to] = {};
+    cellRoutes[to][from] = routeId;
   }
 
-  function changeName() {
-    getRoute().name = this.value;
+  private changeName() {
+    this.getRoute().name = (ensureEl("routeName") as HTMLInputElement).value;
   }
 
-  function changeGroup() {
-    const group = this.value;
+  private changeGroup() {
+    const group = (ensureEl("routeGroup") as HTMLSelectElement).value;
     ensureEl(group).appendChild(elSelected.node());
-    getRoute().group = group;
+    this.getRoute().group = group;
   }
 
-  function generateName() {
-    const route = getRoute();
-    route.name = routeName.value = Routes.generateName(route);
+  private generateName() {
+    const route = this.getRoute();
+    route.name = (ensureEl("routeName") as HTMLInputElement).value = Routes.generateName(route);
   }
 
-  function showRouteElevationProfile() {
-    const route = getRoute();
+  private showRouteElevationProfile() {
+    const route = this.getRoute();
     const length = rn(route.length * distanceScale);
     ElevationProfile.open(
-      route.points.map(p => p[2]),
+      route.points.map((p: any) => p[2]),
       length,
       false
     );
   }
 
-  function editRouteLegend() {
+  private editRouteLegend() {
     const id = elSelected.attr("id");
-    const route = getRoute();
+    const route = this.getRoute();
     editNotes(id, route.name);
   }
 
-  function editRouteGroupStyle() {
-    const {group} = getRoute();
+  private editRouteGroupStyle() {
+    const {group} = this.getRoute();
     editStyle("routes", group);
   }
 
-  function toggleLockButton() {
-    const route = getRoute();
+  private toggleLockButton() {
+    const route = this.getRoute();
     route.lock = !route.lock;
-    updateLockIcon();
+    this.updateLockIcon();
   }
 
-  function updateLockIcon() {
-    const route = getRoute();
+  private updateLockIcon() {
+    const route = this.getRoute();
     if (route.lock) {
       ensureEl("routeLock").classList.remove("icon-lock-open");
       ensureEl("routeLock").classList.add("icon-lock");
@@ -405,19 +415,19 @@ function editRoute(id) {
     }
   }
 
-  function removeRoute() {
+  private removeRoute() {
     confirmationDialog({
       title: "Remove route",
       message: "Are you sure you want to remove the route? <br>This action cannot be reverted",
       confirm: "Remove",
       onConfirm: () => {
-        Routes.remove(getRoute());
+        Routes.remove(this.getRoute());
         $("#routeEditor").dialog("close");
       }
     });
   }
 
-  function closeRouteEditor() {
+  private closeRouteEditor() {
     debug.select("#controlPoints").remove();
     debug.select("#controlCells").remove();
 
@@ -425,8 +435,15 @@ function editRoute(id) {
     unselect();
     clearMainTip();
 
-    const forced = +ensureEl("toggleCells").dataset.forced;
-    ensureEl("toggleCells").dataset.forced = "0";
+    const forced = +(ensureEl("toggleCells").dataset.forced ?? "0");
+    (ensureEl("toggleCells") as HTMLElement).dataset.forced = "0";
     if (forced && layerIsOn("toggleCells")) toggleCells();
   }
+}
+
+const routesEditor = new RoutesEditor();
+const routesEditorSelf = routesEditor;
+
+function editRoute(id: string) {
+  routesEditor.open(id);
 }

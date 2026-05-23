@@ -1,36 +1,38 @@
 "use strict";
 
-function editCoastline() {
-  if (customization) return;
-  closeDialogs(".stable");
-  if (layerIsOn("toggleCells")) toggleCells();
+class CoastlineEditor {
+  public open() {
+    if (customization) return;
+    closeDialogs(".stable");
+    if (layerIsOn("toggleCells")) toggleCells();
 
-  $("#coastlineEditor").dialog({
-    title: "Edit Coastline",
-    resizable: false,
-    position: {my: "center top+20", at: "top", of: d3.event, collision: "fit"},
-    close: closeCoastlineEditor
-  });
+    $("#coastlineEditor").dialog({
+      title: "Edit Coastline",
+      resizable: false,
+      position: {my: "center top+20", at: "top", of: d3.event, collision: "fit"},
+      close: () => this.closeCoastlineEditor()
+    });
 
-  debug.append("g").attr("id", "vertices");
-  const node = d3.event.target;
-  elSelected = d3.select(node);
-  selectCoastlineGroup(node);
-  drawCoastlineVertices();
-  viewbox.on("touchmove mousemove", null);
+    debug.append("g").attr("id", "vertices");
+    const node = d3.event.target;
+    elSelected = d3.select(node);
+    this.selectCoastlineGroup(node);
+    this.drawCoastlineVertices();
+    viewbox.on("touchmove mousemove", null);
 
-  if (modules.editCoastline) return;
-  modules.editCoastline = true;
+    if (modules.editCoastline) return;
+    modules.editCoastline = true;
 
-  ensureEl("coastlineGroupsShow").on("click", showGroupSection);
-  ensureEl("coastlineGroup").on("change", changeCoastlineGroup);
-  ensureEl("coastlineGroupAdd").on("click", toggleNewGroupInput);
-  ensureEl("coastlineGroupName").on("change", createNewGroup);
-  ensureEl("coastlineGroupRemove").on("click", removeCoastlineGroup);
-  ensureEl("coastlineGroupsHide").on("click", hideGroupSection);
-  ensureEl("coastlineEditStyle").on("click", editGroupStyle);
+    ensureEl("coastlineGroupsShow").on("click", () => this.showGroupSection());
+    ensureEl("coastlineGroup").on("change", () => this.changeCoastlineGroup());
+    ensureEl("coastlineGroupAdd").on("click", () => this.toggleNewGroupInput());
+    ensureEl("coastlineGroupName").on("change", () => this.createNewGroup());
+    ensureEl("coastlineGroupRemove").on("click", () => this.removeCoastlineGroup());
+    ensureEl("coastlineGroupsHide").on("click", () => this.hideGroupSection());
+    ensureEl("coastlineEditStyle").on("click", () => this.editGroupStyle());
+  }
 
-  function drawCoastlineVertices() {
+  private drawCoastlineVertices() {
     const featureId = +elSelected.attr("data-f");
     const {vertices, area} = pack.features[featureId];
 
@@ -45,6 +47,7 @@ function editCoastline() {
       .attr("points", getPackPolygon)
       .attr("data-c", d => d);
 
+    const editor = this;
     debug
       .select("#vertices")
       .selectAll("circle")
@@ -55,7 +58,14 @@ function editCoastline() {
       .attr("cy", d => pack.vertices.p[d][1])
       .attr("r", 0.4)
       .attr("data-v", d => d)
-      .call(d3.drag().on("drag", handleVertexDrag).on("end", handleVertexDragEnd))
+      .call(
+        d3
+          .drag()
+          .on("drag", function () {
+            editor.handleVertexDrag(this as SVGElement);
+          })
+          .on("end", () => editor.handleVertexDragEnd())
+      )
       .on("mousemove", () =>
         tip("Drag to move the vertex. Please use for fine-tuning only. Edit heightmap to change actual cell heights!")
       );
@@ -63,15 +73,15 @@ function editCoastline() {
     coastlineArea.innerHTML = si(getArea(area)) + " " + getAreaUnit();
   }
 
-  function handleVertexDrag() {
+  private handleVertexDrag(vertexCircle: SVGElement) {
     const {vertices, features} = pack;
 
     const x = rn(d3.event.x, 2);
     const y = rn(d3.event.y, 2);
-    this.setAttribute("cx", x);
-    this.setAttribute("cy", y);
+    vertexCircle.setAttribute("cx", String(x));
+    vertexCircle.setAttribute("cy", String(y));
 
-    const vertexId = d3.select(this).datum();
+    const vertexId = d3.select(vertexCircle).datum();
     vertices.p[vertexId] = [x, y];
 
     const featureId = +elSelected.attr("data-f");
@@ -86,7 +96,7 @@ function editCoastline() {
     debug.select("#vertices").selectAll("polygon").attr("points", getPackPolygon);
   }
 
-  function handleVertexDragEnd() {
+  private handleVertexDragEnd() {
     if (layerIsOn("toggleStates")) drawStates();
     if (layerIsOn("toggleProvinces")) drawProvinces();
     if (layerIsOn("toggleBorders")) drawBorders();
@@ -95,12 +105,12 @@ function editCoastline() {
     if (layerIsOn("toggleCultures")) drawCultures();
   }
 
-  function showGroupSection() {
+  private showGroupSection() {
     document.querySelectorAll("#coastlineEditor > button").forEach(el => (el.style.display = "none"));
     ensureEl("coastlineGroupsSelection").style.display = "inline-block";
   }
 
-  function hideGroupSection() {
+  private hideGroupSection() {
     document.querySelectorAll("#coastlineEditor > button").forEach(el => (el.style.display = "inline-block"));
     ensureEl("coastlineGroupsSelection").style.display = "none";
     ensureEl("coastlineGroupName").style.display = "none";
@@ -108,8 +118,8 @@ function editCoastline() {
     ensureEl("coastlineGroup").style.display = "inline-block";
   }
 
-  function selectCoastlineGroup(node) {
-    const group = node.parentNode.id;
+  private selectCoastlineGroup(node: Node) {
+    const group = (node.parentNode as Element).id;
     const select = ensureEl("coastlineGroup");
     select.options.length = 0;
 
@@ -119,11 +129,12 @@ function editCoastline() {
     });
   }
 
-  function changeCoastlineGroup() {
-    ensureEl(this.value).appendChild(elSelected.node());
+  private changeCoastlineGroup() {
+    const group = (ensureEl("coastlineGroup") as HTMLSelectElement).value;
+    ensureEl(group).appendChild(elSelected.node());
   }
 
-  function toggleNewGroupInput() {
+  private toggleNewGroupInput() {
     if (coastlineGroupName.style.display === "none") {
       coastlineGroupName.style.display = "inline-block";
       coastlineGroupName.focus();
@@ -134,10 +145,11 @@ function editCoastline() {
     }
   }
 
-  function createNewGroup() {
-    if (!this.value) return tip("Please provide a valid group name");
+  private createNewGroup() {
+    const input = ensureEl("coastlineGroupName") as HTMLInputElement;
+    if (!input.value) return tip("Please provide a valid group name");
 
-    const group = this.value
+    const group = input.value
       .toLowerCase()
       .replace(/ /g, "_")
       .replace(/[^\w\s]/gi, "");
@@ -152,22 +164,22 @@ function editCoastline() {
       ensureEl("coastlineGroup").selectedOptions[0].remove();
       ensureEl("coastlineGroup").options.add(new Option(group, group, false, true));
       oldGroup.id = group;
-      toggleNewGroupInput();
-      ensureEl("coastlineGroupName").value = "";
+      this.toggleNewGroupInput();
+      input.value = "";
       return;
     }
 
-    const newGroup = elSelected.node().parentNode.cloneNode(false);
+    const newGroup = elSelected.node().parentNode.cloneNode(false) as Element;
     ensureEl("coastline").appendChild(newGroup);
     newGroup.id = group;
     ensureEl("coastlineGroup").options.add(new Option(group, group, false, true));
     ensureEl(group).appendChild(elSelected.node());
 
-    toggleNewGroupInput();
-    ensureEl("coastlineGroupName").value = "";
+    this.toggleNewGroupInput();
+    input.value = "";
   }
 
-  function removeCoastlineGroup() {
+  private removeCoastlineGroup() {
     const group = elSelected.node().parentNode.id;
     if (["sea_island", "lake_island"].includes(group))
       return tip("This is one of the default groups, it cannot be removed", false, "error");
@@ -198,13 +210,19 @@ function editCoastline() {
     });
   }
 
-  function editGroupStyle() {
+  private editGroupStyle() {
     const g = elSelected.node().parentNode.id;
     editStyle("coastline", g);
   }
 
-  function closeCoastlineEditor() {
+  private closeCoastlineEditor() {
     debug.select("#vertices").remove();
     unselect();
   }
+}
+
+const coastlineEditor = new CoastlineEditor();
+
+function editCoastline() {
+  coastlineEditor.open();
 }

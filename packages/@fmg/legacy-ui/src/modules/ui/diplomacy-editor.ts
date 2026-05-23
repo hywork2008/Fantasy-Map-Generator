@@ -1,111 +1,114 @@
 "use strict";
 import { States } from "@fmg/core/modules/states-generator";
 
-function editDiplomacy() {
-  if (customization) return;
-  if (pack.states.filter(s => s.i && !s.removed).length < 2)
-    return tip("There should be at least 2 states to edit the diplomacy", false, "error");
+const DIPLOMACY_RELATIONS: Record<string, {inText: string; color: string; tip: string}> = {
+  Ally: {
+    inText: "is an ally of",
+    color: "#00b300",
+    tip: "Allies formed a defensive pact and protect each other in case of third party aggression"
+  },
+  Friendly: {
+    inText: "is friendly to",
+    color: "#d4f8aa",
+    tip: "State is friendly to anouther state when they share some common interests"
+  },
+  Neutral: {
+    inText: "is neutral to",
+    color: "#edeee8",
+    tip: "Neutral means states relations are neither positive nor negative"
+  },
+  Suspicion: {
+    inText: "is suspicious of",
+    color: "#eeafaa",
+    tip: "Suspicion means state has a cautious distrust of another state"
+  },
+  Enemy: {inText: "is at war with", color: "#e64b40", tip: "Enemies are states at war with each other"},
+  Unknown: {
+    inText: "does not know about",
+    color: "#a9a9a9",
+    tip: "Relations are unknown if states do not have enough information about each other"
+  },
+  Rival: {
+    inText: "is a rival of",
+    color: "#ad5a1f",
+    tip: "Rivalry is a state of competing for dominance in the region"
+  },
+  Vassal: {inText: "is a vassal of", color: "#87CEFA", tip: "Vassal is a state having obligation to its suzerain"},
+  Suzerain: {
+    inText: "is suzerain to",
+    color: "#00008B",
+    tip: "Suzerain is a state having some control over its vassals"
+  }
+};
 
-  const body = document.getElementById("diplomacyBodySection");
+class DiplomacyEditor {
+  public open() {
+    if (customization) return;
+    if (pack.states.filter((s: any) => s.i && !s.removed).length < 2)
+      return tip("There should be at least 2 states to edit the diplomacy", false, "error");
 
-  closeDialogs("#diplomacyEditor, .stable");
-  if (!layerIsOn("toggleStates")) toggleStates();
-  if (!layerIsOn("toggleBorders")) toggleBorders();
-  if (layerIsOn("toggleProvinces")) toggleProvinces();
-  if (layerIsOn("toggleCultures")) toggleCultures();
-  if (layerIsOn("toggleBiomes")) toggleBiomes();
-  if (layerIsOn("toggleReligions")) toggleReligions();
+    closeDialogs("#diplomacyEditor, .stable");
+    if (!layerIsOn("toggleStates")) toggleStates();
+    if (!layerIsOn("toggleBorders")) toggleBorders();
+    if (layerIsOn("toggleProvinces")) toggleProvinces();
+    if (layerIsOn("toggleCultures")) toggleCultures();
+    if (layerIsOn("toggleBiomes")) toggleBiomes();
+    if (layerIsOn("toggleReligions")) toggleReligions();
 
-  const relations = {
-    Ally: {
-      inText: "is an ally of",
-      color: "#00b300",
-      tip: "Allies formed a defensive pact and protect each other in case of third party aggression"
-    },
-    Friendly: {
-      inText: "is friendly to",
-      color: "#d4f8aa",
-      tip: "State is friendly to anouther state when they share some common interests"
-    },
-    Neutral: {
-      inText: "is neutral to",
-      color: "#edeee8",
-      tip: "Neutral means states relations are neither positive nor negative"
-    },
-    Suspicion: {
-      inText: "is suspicious of",
-      color: "#eeafaa",
-      tip: "Suspicion means state has a cautious distrust of another state"
-    },
-    Enemy: {inText: "is at war with", color: "#e64b40", tip: "Enemies are states at war with each other"},
-    Unknown: {
-      inText: "does not know about",
-      color: "#a9a9a9",
-      tip: "Relations are unknown if states do not have enough information about each other"
-    },
-    Rival: {
-      inText: "is a rival of",
-      color: "#ad5a1f",
-      tip: "Rivalry is a state of competing for dominance in the region"
-    },
-    Vassal: {inText: "is a vassal of", color: "#87CEFA", tip: "Vassal is a state having obligation to its suzerain"},
-    Suzerain: {
-      inText: "is suzerain to",
-      color: "#00008B",
-      tip: "Suzerain is a state having some control over its vassals"
-    }
-  };
+    this.refreshDiplomacyEditor();
+    viewbox.style("cursor", "crosshair").on("click", () => this.selectStateOnMapClick());
 
-  refreshDiplomacyEditor();
-  viewbox.style("cursor", "crosshair").on("click", selectStateOnMapClick);
+    if (modules.editDiplomacy) return;
+    modules.editDiplomacy = true;
 
-  if (modules.editDiplomacy) return;
-  modules.editDiplomacy = true;
+    $("#diplomacyEditor").dialog({
+      title: "Diplomacy Editor",
+      resizable: false,
+      width: fitContent(),
+      close: () => this.closeDiplomacyEditor(),
+      position: {my: "right top", at: "right-10 top+10", of: "svg", collision: "fit"}
+    });
 
-  $("#diplomacyEditor").dialog({
-    title: "Diplomacy Editor",
-    resizable: false,
-    width: fitContent(),
-    close: closeDiplomacyEditor,
-    position: {my: "right top", at: "right-10 top+10", of: "svg", collision: "fit"}
-  });
+    document.getElementById("diplomacyEditorRefresh")!.addEventListener("click", () => this.refreshDiplomacyEditor());
+    document.getElementById("diplomacyEditStyle")!.addEventListener("click", () => editStyle("regions"));
+    document.getElementById("diplomacyRegenerate")!.addEventListener("click", () => this.regenerateRelations());
+    document.getElementById("diplomacyReset")!.addEventListener("click", () => this.resetRelations());
+    document.getElementById("diplomacyShowMatrix")!.addEventListener("click", () => this.showRelationsMatrix());
+    document.getElementById("diplomacyHistory")!.addEventListener("click", () => this.showRelationsHistory());
+    document.getElementById("diplomacyExport")!.addEventListener("click", () => this.downloadDiplomacyData());
 
-  document.getElementById("diplomacyEditorRefresh").addEventListener("click", refreshDiplomacyEditor);
-  document.getElementById("diplomacyEditStyle").addEventListener("click", () => editStyle("regions"));
-  document.getElementById("diplomacyRegenerate").addEventListener("click", regenerateRelations);
-  document.getElementById("diplomacyReset").addEventListener("click", resetRelations);
-  document.getElementById("diplomacyShowMatrix").addEventListener("click", showRelationsMatrix);
-  document.getElementById("diplomacyHistory").addEventListener("click", showRelationsHistory);
-  document.getElementById("diplomacyExport").addEventListener("click", downloadDiplomacyData);
+    const body = document.getElementById("diplomacyBodySection")!;
+    body.addEventListener("click", (ev) => {
+      const el = ev.target as HTMLElement;
+      if (el.parentElement!.classList.contains("Self")) return;
 
-  body.addEventListener("click", function (ev) {
-    const el = ev.target as HTMLElement;
-    if (el.parentElement.classList.contains("Self")) return;
+      if (el.classList.contains("changeRelations")) {
+        const line = el.parentElement as HTMLElement;
+        const subjectId = +line.dataset.id!;
+        const objectId = +(body.querySelector("div.Self") as HTMLElement).dataset.id!;
+        const currentRelation = line.dataset.relations!;
 
-    if (el.classList.contains("changeRelations")) {
-      const line = el.parentElement as HTMLElement;
-      const subjectId = +line.dataset.id;
-      const objectId = +(body.querySelector("div.Self") as HTMLElement).dataset.id;
-      const currentRelation = line.dataset.relations;
+        this.selectRelation(subjectId, objectId, currentRelation);
+        return;
+      }
 
-      selectRelation(subjectId, objectId, currentRelation);
-      return;
-    }
-
-    body.querySelector("div.Self").classList.remove("Self");
-    el.parentElement.classList.add("Self");
-    refreshDiplomacyEditor();
-  });
-
-  function refreshDiplomacyEditor() {
-    diplomacyEditorAddLines();
-    showStateRelations();
+      body.querySelector("div.Self")!.classList.remove("Self");
+      el.parentElement!.classList.add("Self");
+      this.refreshDiplomacyEditor();
+    });
   }
 
-  function diplomacyEditorAddLines() {
+  private refreshDiplomacyEditor() {
+    this.diplomacyEditorAddLines();
+    this.showStateRelations();
+  }
+
+  private diplomacyEditorAddLines() {
+    const body = document.getElementById("diplomacyBodySection")!;
+    const relations = DIPLOMACY_RELATIONS;
     const states = pack.states;
     const selectedLine = body.querySelector("div.Self") as HTMLElement | null;
-    const selectedId = selectedLine ? +selectedLine.dataset.id : states.find(s => s.i && !s.removed).i;
+    const selectedId = selectedLine ? +selectedLine.dataset.id! : states.find((s: any) => s.i && !s.removed).i;
     const selectedName = states[selectedId].name;
 
     COArenderer.trigger("stateCOA" + selectedId, states[selectedId].coa);
@@ -119,9 +122,9 @@ function editDiplomacy() {
       const relation = state.diplomacy[selectedId];
       const {color, inText} = relations[relation];
 
-      const tip = `${state.name} ${inText} ${selectedName}`;
-      const tipSelect = `${tip}. Click to see relations to ${state.name}`;
-      const tipChange = `Click to change relations. ${tip}`;
+      const tipText = `${state.name} ${inText} ${selectedName}`;
+      const tipSelect = `${tipText}. Click to see relations to ${state.name}`;
+      const tipChange = `Click to change relations. ${tipText}`;
 
       const name = state.fullName.length < 23 ? state.fullName : state.name;
       COArenderer.trigger("stateCOA" + state.i, state.coa);
@@ -137,16 +140,16 @@ function editDiplomacy() {
     }
     body.innerHTML = lines;
 
-    body.querySelectorAll("div.states").forEach(el => el.addEventListener("mouseenter", ev => stateHighlightOn(ev)));
-    body.querySelectorAll("div.states").forEach(el => el.addEventListener("mouseleave", ev => stateHighlightOff(ev)));
+    body.querySelectorAll("div.states").forEach((el: Element) => el.addEventListener("mouseenter", (ev) => this.stateHighlightOn(ev as MouseEvent)));
+    body.querySelectorAll("div.states").forEach((el: Element) => el.addEventListener("mouseleave", (ev) => this.stateHighlightOff(ev as MouseEvent)));
 
     applySorting(diplomacyHeader);
     $("#diplomacyEditor").dialog();
   }
 
-  function stateHighlightOn(event) {
+  private stateHighlightOn(event: MouseEvent) {
     if (!layerIsOn("toggleStates")) return;
-    const state = +event.target.dataset.id;
+    const state = +(event.target as HTMLElement).dataset.id!;
     if (customization || !state) return;
     const d = regions.select("#state" + state).attr("d");
 
@@ -167,23 +170,25 @@ function editDiplomacy() {
       .transition()
       .duration(dur)
       .attrTween("stroke-dasharray", function () {
-        return t => i(t);
+        return (t: number) => i(t);
       });
   }
 
-  function stateHighlightOff(event) {
-    debug.selectAll(".highlight").each(function () {
+  private stateHighlightOff(_event: MouseEvent) {
+    debug.selectAll(".highlight").each(function (this: Element) {
       d3.select(this).transition().duration(1000).attr("opacity", 0).remove();
     });
   }
 
-  function showStateRelations() {
+  private showStateRelations() {
+    const body = document.getElementById("diplomacyBodySection")!;
+    const relations = DIPLOMACY_RELATIONS;
     const selectedLine = body.querySelector("div.Self") as HTMLElement | null;
-    const sel = selectedLine ? +selectedLine.dataset.id : pack.states.find(s => s.i && !s.removed).i;
+    const sel = selectedLine ? +selectedLine.dataset.id! : pack.states.find((s: any) => s.i && !s.removed).i;
     if (!sel) return;
     if (!layerIsOn("toggleStates")) toggleStates();
 
-    statesBody.selectAll("path").each(function () {
+    statesBody.selectAll("path").each(function (this: SVGPathElement) {
       if (this.id.slice(0, 9) === "state-gap") return;
       const id = +this.id.slice(5);
 
@@ -196,20 +201,22 @@ function editDiplomacy() {
     });
   }
 
-  function selectStateOnMapClick() {
-    const point = d3.mouse(this);
+  private selectStateOnMapClick() {
+    const body = document.getElementById("diplomacyBodySection")!;
+    const point = d3.mouse(viewbox.node());
     const i = findCell(point[0], point[1]);
     const state = pack.cells.state[i];
     if (!state) return;
     const selectedLine = body.querySelector("div.Self") as HTMLElement;
-    if (+selectedLine.dataset.id === state) return;
+    if (+selectedLine.dataset.id! === state) return;
 
     selectedLine.classList.remove("Self");
-    body.querySelector("div[data-id='" + state + "']").classList.add("Self");
-    refreshDiplomacyEditor();
+    (body.querySelector("div[data-id='" + state + "']") as HTMLElement).classList.add("Self");
+    this.refreshDiplomacyEditor();
   }
 
-  function selectRelation(subjectId, objectId, currentRelation) {
+  private selectRelation(subjectId: number, objectId: number, currentRelation: string) {
+    const relations = DIPLOMACY_RELATIONS;
     const states = pack.states;
     const subject = states[subjectId];
 
@@ -229,9 +236,9 @@ function editDiplomacy() {
       .join("");
 
     const objectsSelector = states
-      .filter(s => s.i && !s.removed && s.i !== subjectId)
+      .filter((s: any) => s.i && !s.removed && s.i !== subjectId)
       .map(
-        s => /* html */ `
+        (s: any) => /* html */ `
           <div data-tip="${s.fullName}">
             <input id="selectState${s.i}" class="checkbox" type="checkbox" name="objectSelect" value="${s.i}"
             ${s.i === objectId && "checked"} />
@@ -272,15 +279,15 @@ function editDiplomacy() {
       width: fitContent(),
       title: `Change relations`,
       buttons: {
-        Apply: function () {
-          const formData = new FormData(ensureEl("relationsForm"));
-          const newRelation = formData.get("relationSelect");
+        Apply: () => {
+          const formData = new FormData(ensureEl("relationsForm") as HTMLFormElement);
+          const newRelation = formData.get("relationSelect") as string;
           const objectIds = [...formData.getAll("objectSelect")].map(Number);
 
-          for (const objectId of objectIds) {
-            changeRelation(subjectId, objectId, currentRelation, newRelation);
+          for (const oid of objectIds) {
+            this.changeRelation(subjectId, oid, currentRelation, newRelation);
           }
-          $(this).dialog("close");
+          $("#alert").dialog("close");
         },
         Cancel: function () {
           $(this).dialog("close");
@@ -288,29 +295,28 @@ function editDiplomacy() {
       }
     });
 
-    const selectAllNoneBtn = document.getElementById("selectAllNoneBtn");
+    const selectAllNoneBtn = document.getElementById("selectAllNoneBtn")!;
     const stateCheckboxes = () =>
       document.querySelectorAll("#stateSelectionContainer input[name='objectSelect']") as NodeListOf<HTMLInputElement>;
 
-    function updateButtonState() {
+    const updateButtonState = () => {
       const checkboxes = stateCheckboxes();
-      const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+      const allChecked = Array.from(checkboxes).every((cb: HTMLInputElement) => cb.checked);
       if (allChecked && checkboxes.length > 0) {
         selectAllNoneBtn.classList.add("pressed");
       } else {
         selectAllNoneBtn.classList.remove("pressed");
       }
-    }
+    };
 
-    function toggleSelectAll() {
+    const toggleSelectAll = () => {
       const checkboxes = stateCheckboxes();
-      const allChecked = Array.from(checkboxes).every(cb => cb.checked);
-      const newState = !allChecked;
-      checkboxes.forEach(cb => cb.checked = newState);
+      const allChecked = Array.from(checkboxes).every((cb: HTMLInputElement) => cb.checked);
+      checkboxes.forEach((cb: HTMLInputElement) => (cb.checked = !allChecked));
       updateButtonState();
-    }
+    };
 
-    selectAllNoneBtn.addEventListener("click", function (e) {
+    selectAllNoneBtn.addEventListener("click", (e: Event) => {
       e.preventDefault();
       toggleSelectAll();
     });
@@ -318,7 +324,7 @@ function editDiplomacy() {
     updateButtonState();
   }
 
-  function changeRelation(subjectId, objectId, oldRelation, newRelation) {
+  private changeRelation(subjectId: number, objectId: number, oldRelation: string, newRelation: string) {
     if (newRelation === oldRelation) return;
     const states = pack.states;
     const chronicle = states[0].diplomacy;
@@ -367,40 +373,41 @@ function editDiplomacy() {
     else if (newRelation === "Rival") chronicle.push(rival());
     else chronicle.push(change());
 
-    refreshDiplomacyEditor();
+    this.refreshDiplomacyEditor();
     if (diplomacyMatrix.offsetParent) {
-      document.getElementById("diplomacyMatrixBody").innerHTML = "";
-      showRelationsMatrix();
+      document.getElementById("diplomacyMatrixBody")!.innerHTML = "";
+      this.showRelationsMatrix();
     }
   }
 
-  function regenerateRelations() {
+  private regenerateRelations() {
     States.generateDiplomacy();
-    refreshDiplomacyEditor();
+    this.refreshDiplomacyEditor();
   }
 
-  function resetRelations() {
-    const selectedId = +(body.querySelector("div.Self") as HTMLElement | null)?.dataset?.id;
+  private resetRelations() {
+    const body = document.getElementById("diplomacyBodySection")!;
+    const selectedId = +(body.querySelector("div.Self") as HTMLElement | null)?.dataset?.id!;
     if (!selectedId) return;
     const states = pack.states;
 
-    states[selectedId].diplomacy.forEach((relations, index) => {
-      if (relations !== "x") {
+    states[selectedId].diplomacy.forEach((rel: string, index: number) => {
+      if (rel !== "x") {
         states[selectedId].diplomacy[index] = "Neutral";
         states[index].diplomacy[selectedId] = "Neutral";
       }
     });
 
-    refreshDiplomacyEditor();
+    this.refreshDiplomacyEditor();
   }
 
-  function showRelationsHistory() {
+  private showRelationsHistory() {
     const chronicle = pack.states[0].diplomacy;
 
     let message = /* html */ `<div autocorrect="off" spellcheck="false">`;
-    chronicle.forEach((entry, index) => {
+    chronicle.forEach((entry: string[], index: number) => {
       message += `<div>`;
-      entry.forEach((l, entryIndex) => {
+      entry.forEach((l: string, entryIndex: number) => {
         message += /* html */ `<div contenteditable="true" data-id="${index}-${entryIndex}"
           ${entryIndex ? "" : "style='font-weight:bold'"}>${l}</div>`;
       });
@@ -417,14 +424,14 @@ function editDiplomacy() {
       `</div><div class="info-line">Type to edit. Press Enter to add a new line, empty the element to remove it</div>`;
     alertMessage
       .querySelectorAll("div[contenteditable='true']")
-      .forEach(el => el.addEventListener("input", changeReliationsHistory));
+      .forEach((el: Element) => el.addEventListener("input", (e: Event) => this.changeRelationsHistory(e.target as HTMLElement)));
 
     $("#alert").dialog({
       title: "Relations history",
       position: {my: "center", at: "center", of: "svg"},
       buttons: {
-        Save: function () {
-          const data = this.querySelector("div").innerText.split("\n").join("\r\n");
+        Save: function (this: HTMLElement) {
+          const data = (this.querySelector("div") as HTMLElement).innerText.split("\n").join("\r\n");
           const name = getFileName("Relations history") + ".txt";
           downloadFile(data, name);
         },
@@ -439,36 +446,37 @@ function editDiplomacy() {
     });
   }
 
-  function changeReliationsHistory() {
-    const i = this.dataset.id.split("-");
-    const group = pack.states[0].diplomacy[i[0]];
-    if (this.innerHTML === "") {
-      group.splice(i[1], 1);
-      this.remove();
-    } else group[i[1]] = this.innerHTML;
+  private changeRelationsHistory(el: HTMLElement) {
+    const parts = (el.dataset.id as string).split("-");
+    const group = pack.states[0].diplomacy[+parts[0]];
+    if (el.innerHTML === "") {
+      group.splice(+parts[1], 1);
+      el.remove();
+    } else group[+parts[1]] = el.innerHTML;
   }
 
-  function showRelationsMatrix() {
-    const states = pack.states.filter(s => s.i && !s.removed);
-    const valid = states.map(state => state.i);
-    const diplomacyMatrixBody = document.getElementById("diplomacyMatrixBody");
+  private showRelationsMatrix() {
+    const relations = DIPLOMACY_RELATIONS;
+    const states = pack.states.filter((s: any) => s.i && !s.removed);
+    const valid = states.map((state: any) => state.i);
+    const diplomacyMatrixBody = document.getElementById("diplomacyMatrixBody")!;
 
     let table = `<table><thead><tr><th data-tip='&#8205;'></th>`;
-    table += states.map(state => `<th data-tip='Relations to ${state.fullName}'>${state.name}</th>`).join("") + `</tr>`;
+    table += states.map((state: any) => `<th data-tip='Relations to ${state.fullName}'>${state.name}</th>`).join("") + `</tr>`;
     table += `<tbody>`;
 
-    states.forEach(state => {
+    states.forEach((state: any) => {
       table +=
         `<tr data-id=${state.i}><th data-tip='Relations of ${state.fullName}'>${state.name}</th>` +
         state.diplomacy
-          .filter((v, i) => valid.includes(i))
-          .map((relation, index) => {
+          .filter((_v: any, i: number) => valid.includes(i))
+          .map((relation: string, index: number) => {
             const relationObj = relations[relation];
             if (!relationObj) return `<td class='${relation}'>${relation}</td>`;
 
             const objectState = pack.states[valid[index]];
-            const tip = `${state.fullName} ${relationObj.inText} ${objectState.fullName}`;
-            return `<td data-id=${objectState.i} data-tip='${tip}' class='${relation}'>${relation}</td>`;
+            const tipText = `${state.fullName} ${relationObj.inText} ${objectState.fullName}`;
+            return `<td data-id=${objectState.i} data-tip='${tipText}' class='${relation}'>${relation}</td>`;
           })
           .join("") +
         "</tr>";
@@ -477,18 +485,18 @@ function editDiplomacy() {
     table += `</tbody></table>`;
     diplomacyMatrixBody.innerHTML = table;
 
-    const tableEl = diplomacyMatrixBody.querySelector("table");
-    tableEl.addEventListener("click", function (event) {
+    const tableEl = diplomacyMatrixBody.querySelector("table")!;
+    tableEl.addEventListener("click", (event: MouseEvent) => {
       const el = event.target as HTMLElement;
       if (el.tagName !== "TD") return;
 
       const currentRelation = el.innerText;
       if (!relations[currentRelation]) return;
 
-      const subjectId = +el.closest("tr")?.dataset?.id;
-      const objectId = +el?.dataset?.id;
+      const subjectId = +(el.closest("tr") as HTMLElement)?.dataset?.id!;
+      const objectId = +(el as HTMLElement)?.dataset?.id!;
 
-      selectRelation(subjectId, objectId, currentRelation);
+      this.selectRelation(subjectId, objectId, currentRelation);
     });
 
     $("#diplomacyMatrix").dialog({
@@ -498,13 +506,13 @@ function editDiplomacy() {
     });
   }
 
-  function downloadDiplomacyData() {
-    const states = pack.states.filter(s => s.i && !s.removed);
-    const valid = states.map(s => s.i);
+  private downloadDiplomacyData() {
+    const states = pack.states.filter((s: any) => s.i && !s.removed);
+    const valid = states.map((s: any) => s.i);
 
-    let data = "," + states.map(s => s.name).join(",") + "\n";
-    states.forEach(s => {
-      const rels = s.diplomacy.filter((v, i) => valid.includes(i));
+    let data = "," + states.map((s: any) => s.name).join(",") + "\n";
+    states.forEach((s: any) => {
+      const rels = s.diplomacy.filter((_v: any, i: number) => valid.includes(i));
       data += s.name + "," + rels.join(",") + "\n";
     });
 
@@ -512,7 +520,8 @@ function editDiplomacy() {
     downloadFile(data, name);
   }
 
-  function closeDiplomacyEditor() {
+  private closeDiplomacyEditor() {
+    const body = document.getElementById("diplomacyBodySection")!;
     restoreDefaultEvents();
     clearMainTip();
     const selected = body.querySelector("div.Self");
@@ -521,4 +530,10 @@ function editDiplomacy() {
     else toggleStates();
     debug.selectAll(".highlight").remove();
   }
+}
+
+const diplomacyEditorController = new DiplomacyEditor();
+
+function editDiplomacy() {
+  diplomacyEditorController.open();
 }

@@ -4,7 +4,6 @@ import { getFileName } from "../ui/editors";
 import { link, parseError } from "@fmg/shared";
 
 type SaveMethod = "storage" | "machine" | "dropbox";
-type SaveReminderFn = (() => void) & {reminder?: ReturnType<typeof setInterval>; status?: number};
 
 const saveRuntime = globalThis as any;
 
@@ -243,38 +242,50 @@ export async function initiateAutosave(): Promise<void> {
   setInterval(autosave, MINUTE / 2);
 }
 
-const saveReminder: SaveReminderFn = function () {
-  if (localStorage.getItem("noReminder")) return;
-  const message = [
-    "Please don't forget to save the project to desktop from time to time",
-    "Please remember to save the map to your desktop",
-    "Saving will ensure your data won't be lost in case of issues",
-    "Safety is number one priority. Please save the map",
-    "Don't forget to save your map on a regular basis!",
-    "Just a gentle reminder for you to save the map",
-    "Please don't forget to save your progress (saving to desktop is the best option)",
-    "Don't want to get reminded about need to save? Press CTRL+Q"
-  ];
-  const interval = 15 * 60 * 1000; // remind every 15 minutes
+class SaveReminder {
+  private reminder?: ReturnType<typeof setInterval>;
+  private status = 0;
 
-  saveReminder.reminder = setInterval(() => {
-    if (saveRuntime.customization) return;
-    saveRuntime.tip(saveRuntime.ra(message), true, "warn", 2500);
-  }, interval);
-  saveReminder.status = 1;
-};
-saveReminder();
+  public start() {
+    if (localStorage.getItem("noReminder")) return;
+    const message = [
+      "Please don't forget to save the project to desktop from time to time",
+      "Please remember to save the map to your desktop",
+      "Saving will ensure your data won't be lost in case of issues",
+      "Safety is number one priority. Please save the map",
+      "Don't forget to save your map on a regular basis!",
+      "Just a gentle reminder for you to save the map",
+      "Please don't forget to save your progress (saving to desktop is the best option)",
+      "Don't want to get reminded about need to save? Press CTRL+Q"
+    ];
+    const interval = 15 * 60 * 1000; // remind every 15 minutes
 
-function toggleSaveReminder() {
-  if (saveReminder.status) {
-    saveRuntime.tip("Save reminder is turned off. Press CTRL+Q again to re-initiate", true, "warn", 2000);
-    if (saveReminder.reminder) clearInterval(saveReminder.reminder);
-    localStorage.setItem("noReminder", "true");
-    saveReminder.status = 0;
-  } else {
+    this.reminder = setInterval(() => {
+      if (saveRuntime.customization) return;
+      saveRuntime.tip(saveRuntime.ra(message), true, "warn", 2500);
+    }, interval);
+    this.status = 1;
+  }
+
+  public toggle() {
+    if (this.status) {
+      saveRuntime.tip("Save reminder is turned off. Press CTRL+Q again to re-initiate", true, "warn", 2000);
+      if (this.reminder) clearInterval(this.reminder);
+      localStorage.setItem("noReminder", "true");
+      this.status = 0;
+      return;
+    }
+
     saveRuntime.tip("Save reminder is turned on. Press CTRL+Q to turn off", true, "warn", 2000);
     localStorage.removeItem("noReminder");
-    saveReminder();
+    this.start();
   }
+}
+
+const saveReminder = new SaveReminder();
+saveReminder.start();
+
+function toggleSaveReminder() {
+  saveReminder.toggle();
 }
 

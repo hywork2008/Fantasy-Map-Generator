@@ -1,63 +1,70 @@
 "use strict";
 
-function editNotes(id, name) {
-  const notesLegend = ensureEl("notesLegend");
-  const notesName = ensureEl("notesName");
-  const notesSelect = ensureEl("notesSelect");
-  const notesPin = ensureEl("notesPin");
+class NotesEditor {
+  private notesLegend!: HTMLElement;
+  private notesName!: HTMLInputElement;
+  private notesSelect!: HTMLSelectElement;
+  private notesPin!: HTMLElement;
 
-  notesSelect.options.length = 0;
-  notes.forEach(({id}) => notesSelect.options.add(new Option(id, id)));
+  public open(id: string, name: string) {
+    this.notesLegend = ensureEl("notesLegend") as HTMLElement;
+    this.notesName = ensureEl("notesName") as HTMLInputElement;
+    this.notesSelect = ensureEl("notesSelect") as HTMLSelectElement;
+    this.notesPin = ensureEl("notesPin") as HTMLElement;
 
-  const notesArePinned = options.pinNotes;
-  if (notesArePinned) notesPin.classList.add("pressed");
-  else notesPin.classList.remove("pressed");
+    this.notesSelect.options.length = 0;
+    notes.forEach(({id}) => this.notesSelect.options.add(new Option(id, id)));
 
-  if (notes.length || id) {
-    if (!id) id = notes[0].id;
-    let note = notes.find(note => note.id === id);
-    if (!note) {
-      if (!name) name = id;
-      note = {id, name, legend: ""};
-      notes.push(note);
-      notesSelect.options.add(new Option(id, id));
+    const notesArePinned = options.pinNotes;
+    if (notesArePinned) this.notesPin.classList.add("pressed");
+    else this.notesPin.classList.remove("pressed");
+
+    if (notes.length || id) {
+      if (!id) id = notes[0].id;
+      let note = notes.find(note => note.id === id);
+      if (!note) {
+        if (!name) name = id;
+        note = {id, name, legend: ""};
+        notes.push(note);
+        this.notesSelect.options.add(new Option(id, id));
+      }
+
+      this.notesSelect.value = id;
+      this.notesName.value = note.name;
+      this.notesLegend.innerHTML = note.legend;
+      this.initEditor();
+      this.updateNotesBox(note);
+    } else {
+      this.notesName.value = "";
+      this.notesLegend.innerHTML = "No notes added. Click on an element (e.g. label or marker) and add a free text note";
     }
 
-    notesSelect.value = id;
-    notesName.value = note.name;
-    notesLegend.innerHTML = note.legend;
-    initEditor();
-    updateNotesBox(note);
-  } else {
-    notesName.value = "";
-    notesLegend.innerHTML = "No notes added. Click on an element (e.g. label or marker) and add a free text note";
+    $("#notesEditor").dialog({
+      title: "Notes Editor",
+      width: svgWidth * 0.8,
+      height: svgHeight * 0.75,
+      position: {my: "center", at: "center", of: "svg"},
+      close: () => this.removeEditor()
+    });
+
+    if (modules.editNotes) return;
+    modules.editNotes = true;
+
+    ensureEl("notesSelect").addEventListener("change", () => this.changeElement());
+    ensureEl("notesName").addEventListener("input", () => this.changeName());
+    ensureEl("notesLegend").addEventListener("blur", () => this.updateLegend());
+    ensureEl("notesPin").addEventListener("click", () => this.toggleNotesPin());
+    ensureEl("notesFocus").addEventListener("click", () => this.validateHighlightElement());
+    ensureEl("notesGenerateWithAi").addEventListener("click", () => this.openAiGenerator());
+    ensureEl("notesDownload").addEventListener("click", () => this.downloadLegends());
+    ensureEl("notesUpload").addEventListener("click", () => legendsToLoad.click());
+    ensureEl("legendsToLoad").addEventListener("change", (e: Event) => {
+      uploadFile(e.target as HTMLInputElement, (data: string) => this.uploadLegends(data));
+    });
+    ensureEl("notesRemove").addEventListener("click", () => this.triggerNotesRemove());
   }
 
-  $("#notesEditor").dialog({
-    title: "Notes Editor",
-    width: svgWidth * 0.8,
-    height: svgHeight * 0.75,
-    position: {my: "center", at: "center", of: "svg"},
-    close: removeEditor
-  });
-
-  if (modules.editNotes) return;
-  modules.editNotes = true;
-
-  ensureEl("notesSelect").addEventListener("change", changeElement);
-  ensureEl("notesName").addEventListener("input", changeName);
-  ensureEl("notesLegend").addEventListener("blur", updateLegend);
-  ensureEl("notesPin").addEventListener("click", toggleNotesPin);
-  ensureEl("notesFocus").addEventListener("click", validateHighlightElement);
-  ensureEl("notesGenerateWithAi").addEventListener("click", openAiGenerator);
-  ensureEl("notesDownload").addEventListener("click", downloadLegends);
-  ensureEl("notesUpload").addEventListener("click", () => legendsToLoad.click());
-  ensureEl("legendsToLoad").addEventListener("change", function () {
-    uploadFile(this, uploadLegends);
-  });
-  ensureEl("notesRemove").addEventListener("click", triggerNotesRemove);
-
-  async function initEditor() {
+  private async initEditor() {
     if (!window.tinymce) {
       const url = "https://azgaar.github.io/Fantasy-Map-Generator/libs/tinymce/tinymce.min.js";
       try {
@@ -85,47 +92,47 @@ function editNotes(id, name) {
         media_poster: false,
         browser_spellcheck: true,
         contextmenu: false,
-        setup: editor => {
-          editor.on("Change", updateLegend);
+        setup: (editor: any) => {
+          editor.on("Change", () => this.updateLegend());
         }
       });
     }
   }
 
-  function updateLegend() {
-    const note = notes.find(note => note.id === notesSelect.value);
+  private updateLegend() {
+    const note = notes.find(note => note.id === this.notesSelect.value);
     if (!note) return tip("Note element is not found", true, "error", 4000);
 
     const isTinyEditorActive = window.tinymce?.activeEditor;
-    note.legend = isTinyEditorActive ? tinymce.activeEditor.getContent() : notesLegend.innerHTML;
-    updateNotesBox(note);
+    note.legend = isTinyEditorActive ? tinymce.activeEditor.getContent() : this.notesLegend.innerHTML;
+    this.updateNotesBox(note);
   }
 
-  function updateNotesBox(note) {
+  private updateNotesBox(note: {name: string; legend: string}) {
     ensureEl("notesHeader").innerHTML = note.name;
     ensureEl("notesBody").innerHTML = note.legend;
   }
 
-  function changeElement() {
-    const note = notes.find(note => note.id === this.value);
+  private changeElement() {
+    const note = notes.find(note => note.id === this.notesSelect.value);
     if (!note) return tip("Note element is not found", true, "error", 4000);
 
-    notesName.value = note.name;
-    notesLegend.innerHTML = note.legend;
-    updateNotesBox(note);
+    this.notesName.value = note.name;
+    this.notesLegend.innerHTML = note.legend;
+    this.updateNotesBox(note);
 
     if (window.tinymce) tinymce.activeEditor.setContent(note.legend);
   }
 
-  function changeName() {
-    const note = notes.find(note => note.id === notesSelect.value);
+  private changeName() {
+    const note = notes.find(note => note.id === this.notesSelect.value);
     if (!note) return tip("Note element is not found", true, "error", 4000);
 
-    note.name = this.value;
+    note.name = this.notesName.value;
   }
 
-  function validateHighlightElement() {
-    const element = ensureEl(notesSelect.value);
+  private validateHighlightElement() {
+    const element = ensureEl(this.notesSelect.value);
     if (element) return highlightElement(element, 3);
 
     confirmationDialog({
@@ -133,22 +140,22 @@ function editNotes(id, name) {
       message: "Note element is not found. Would you like to remove the note?",
       confirm: "Remove",
       cancel: "Keep",
-      onConfirm: removeLegend
+      onConfirm: () => this.removeLegend()
     });
   }
 
-  function openAiGenerator() {
-    const note = notes.find(note => note.id === notesSelect.value);
+  private openAiGenerator() {
+    const note = notes.find(note => note.id === this.notesSelect.value);
 
     let prompt = `Respond with description. Use simple dry language. Invent facts, names and details. Split to paragraphs and format to HTML. Remove h tags, remove markdown.`;
     if (note?.name) prompt += ` Name: ${note.name}.`;
     if (note?.legend) prompt += ` Data: ${note.legend}`;
 
-    const onApply = result => {
-      notesLegend.innerHTML = result;
+    const onApply = (result: string) => {
+      this.notesLegend.innerHTML = result;
       if (note) {
         note.legend = result;
-        updateNotesBox(note);
+        this.updateNotesBox(note);
         if (window.tinymce) tinymce.activeEditor.setContent(note.legend);
       }
     };
@@ -156,46 +163,52 @@ function editNotes(id, name) {
     generateWithAi(prompt, onApply);
   }
 
-  function downloadLegends() {
+  private downloadLegends() {
     const notesData = JSON.stringify(notes);
     const name = getFileName("Notes") + ".txt";
     downloadFile(notesData, name);
   }
 
-  function uploadLegends(dataLoaded) {
+  private uploadLegends(dataLoaded: string) {
     if (!dataLoaded) return tip("Cannot load the file. Please check the data format", false, "error");
     notes = JSON.parse(dataLoaded);
-    notesSelect.options.length = 0;
+    this.notesSelect.options.length = 0;
     editNotes(notes[0].id, notes[0].name);
   }
 
-  function triggerNotesRemove() {
-    function removeLegend() {
-      notes = notes.filter(({id}) => id !== notesSelect.value);
+  private removeLegend() {
+    notes = notes.filter(({id}) => id !== this.notesSelect.value);
 
-      if (!notes.length) {
-        $("#notesEditor").dialog("close");
-        return;
-      }
-
-      removeEditor();
-      editNotes(notes[0].id, notes[0].name);
+    if (!notes.length) {
+      $("#notesEditor").dialog("close");
+      return;
     }
 
+    this.removeEditor();
+    editNotes(notes[0].id, notes[0].name);
+  }
+
+  private triggerNotesRemove() {
     confirmationDialog({
       title: "Remove note",
       message: "Are you sure you want to remove the selected note? There is no way to undo this action",
       confirm: "Remove",
-      onConfirm: removeLegend
+      onConfirm: () => this.removeLegend()
     });
   }
 
-  function toggleNotesPin() {
+  private toggleNotesPin() {
     options.pinNotes = !options.pinNotes;
-    this.classList.toggle("pressed");
+    this.notesPin.classList.toggle("pressed");
   }
 
-  function removeEditor() {
+  private removeEditor() {
     if (window.tinymce) tinymce.remove();
   }
+}
+
+const notesEditor = new NotesEditor();
+
+function editNotes(id: string, name: string) {
+  notesEditor.open(id, name);
 }

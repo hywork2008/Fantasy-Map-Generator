@@ -173,20 +173,28 @@ styleElements.on("change", function (ev) {
 });
 
 // select element to be edited
+class StyleEditorFacade {
+  public open(element, group) {
+    showOptions();
+    styleTab.click();
+    styleElementSelect.value = element;
+    if (group) styleGroupSelect.options.add(new Option(group, group, true, true));
+    selectStyleElement();
+
+    styleElementSelect.classList.add("glow");
+    if (group) styleGroupSelect.classList.add("glow");
+
+    setTimeout(() => {
+      styleElementSelect.classList.remove("glow");
+      if (group) styleGroupSelect.classList.remove("glow");
+    }, 1500);
+  }
+}
+
+const styleEditorFacade = new StyleEditorFacade();
+
 function editStyle(element, group) {
-  showOptions();
-  styleTab.click();
-  styleElementSelect.value = element;
-  if (group) styleGroupSelect.options.add(new Option(group, group, true, true));
-  selectStyleElement();
-
-  styleElementSelect.classList.add("glow");
-  if (group) styleGroupSelect.classList.add("glow");
-
-  setTimeout(() => {
-    styleElementSelect.classList.remove("glow");
-    if (group) styleGroupSelect.classList.remove("glow");
-  }, 1500);
+  styleEditorFacade.open(element, group);
 }
 
 // Color schemes

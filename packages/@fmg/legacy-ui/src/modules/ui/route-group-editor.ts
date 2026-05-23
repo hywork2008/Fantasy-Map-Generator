@@ -3,31 +3,34 @@ import { Routes } from "@fmg/core/modules/routes-generator";
 
 type RouteGroupNode = HTMLElement & {id: string; children: HTMLCollection};
 
-function editRouteGroups() {
-  if (customization) return;
-  if (!layerIsOn("toggleRoutes")) toggleRoutes();
+const DEFAULT_ROUTE_GROUPS = ["roads", "trails", "searoutes"];
 
-  addLines();
+class RouteGroupEditor {
+  public open() {
+    if (customization) return;
+    if (!layerIsOn("toggleRoutes")) toggleRoutes();
 
-  $("#routeGroupsEditor").dialog({
-    title: "Edit Route groups",
-    resizable: false,
-    position: {my: "left top", at: "left+10 top+140", of: "#map"}
-  });
+    this.addLines();
 
-  if (modules.editRouteGroups) return;
-  modules.editRouteGroups = true;
+    $("#routeGroupsEditor").dialog({
+      title: "Edit Route groups",
+      resizable: false,
+      position: {my: "left top", at: "left+10 top+140", of: "#map"}
+    });
 
-  // add listeners
-  ensureEl("routeGroupsEditorAdd").addEventListener("click", addGroup);
-  ensureEl("routeGroupsEditorBody").addEventListener("click", ev => {
-    const target = ev.target as HTMLElement;
-    const group = target.closest(".states")?.getAttribute("data-id") || "";
-    if (target.classList.contains("editStyle")) editStyle("routes", group);
-    else if (target.classList.contains("removeGroup")) removeGroup(group);
-  });
+    if (modules.editRouteGroups) return;
+    modules.editRouteGroups = true;
 
-  function addLines() {
+    ensureEl("routeGroupsEditorAdd").addEventListener("click", () => this.addGroup());
+    ensureEl("routeGroupsEditorBody").addEventListener("click", ev => {
+      const target = ev.target as HTMLElement;
+      const group = target.closest(".states")?.getAttribute("data-id") || "";
+      if (target.classList.contains("editStyle")) editStyle("routes", group);
+      else if (target.classList.contains("removeGroup")) this.removeGroup(group);
+    });
+  }
+
+  private addLines() {
     ensureEl("routeGroupsEditorBody").innerHTML = "";
 
     const lines = (routes.selectAll("g").nodes() as RouteGroupNode[]).map(el => {
@@ -44,9 +47,7 @@ function editRouteGroups() {
     ensureEl("routeGroupsEditorBody").innerHTML = lines.join("");
   }
 
-  const DEFAULT_GROUPS = ["roads", "trails", "searoutes"];
-
-  function addGroup() {
+  private addGroup() {
     prompt("Type group name", {default: "route-group-new"}, (v: string) => {
       let group = v
         .toLowerCase()
@@ -67,13 +68,13 @@ function editRouteGroups() {
         .attr("stroke-dasharray", "1 0.5")
         .attr("stroke-linecap", "butt");
       ensureEl("routeGroup").options.add(new Option(group, group));
-      addLines();
+      this.addLines();
 
       ensureEl("routeCreatorGroupSelect").options.add(new Option(group, group));
     });
   }
 
-  function removeGroup(group: string) {
+  private removeGroup(group: string) {
     confirmationDialog({
       title: "Remove route group",
       message:
@@ -82,9 +83,15 @@ function editRouteGroups() {
       onConfirm: () => {
         const packData = pack as {routes: Array<{group: string}>};
         packData.routes.filter(r => r.group === group).forEach(Routes.remove);
-        if (!DEFAULT_GROUPS.includes(group)) routes.select(`#${group}`).remove();
-        addLines();
+        if (!DEFAULT_ROUTE_GROUPS.includes(group)) routes.select(`#${group}`).remove();
+        this.addLines();
       }
     });
   }
+}
+
+const routeGroupEditor = new RouteGroupEditor();
+
+function editRouteGroups() {
+  routeGroupEditor.open();
 }

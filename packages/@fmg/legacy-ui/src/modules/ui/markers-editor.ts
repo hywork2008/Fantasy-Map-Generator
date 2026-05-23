@@ -1,88 +1,104 @@
 "use strict";
-function editMarker(markerI) {
-  if (customization) return;
-  closeDialogs(".stable");
+class MarkersEditor {
+  private element: HTMLElement | null = null;
+  private marker: any = null;
+  private listeners: Array<() => void> = [];
 
-  const [element, marker] = getElement(markerI, d3.event);
-  if (!marker || !element) return;
+  public open(markerI?: number) {
+    if (customization) return;
+    closeDialogs(".stable");
 
-  elSelected = d3.select(element).raise().call(d3.drag().on("start", dragMarker)).classed("draggable", true);
+    const [element, marker] = this.getElement(markerI, d3.event);
+    if (!marker || !element) return;
+    this.element = element;
+    this.marker = marker;
 
-  if (ensureEl("notesEditor").offsetParent) editNotes(element.id, element.id);
+    const editor = this;
+    elSelected = d3
+      .select(element)
+      .raise()
+      .call(
+        d3.drag().on("start", function () {
+          editor.dragMarker(this as SVGElement);
+        })
+      )
+      .classed("draggable", true);
 
-  const markerType = ensureEl("markerType");
-  const markerIconSelect = ensureEl("markerIconSelect");
-  const markerIconSize = ensureEl("markerIconSize");
-  const markerIconShiftX = ensureEl("markerIconShiftX");
-  const markerIconShiftY = ensureEl("markerIconShiftY");
-  const markerSize = ensureEl("markerSize");
-  const markerPin = ensureEl("markerPin");
-  const markerFill = ensureEl("markerFill");
-  const markerStroke = ensureEl("markerStroke");
+    if (ensureEl("notesEditor").offsetParent) editNotes(element.id, element.id);
 
-  const markerNotes = ensureEl("markerNotes");
-  const markerLock = ensureEl("markerLock");
-  const addMarker = ensureEl("addMarker");
-  const markerAdd = ensureEl("markerAdd");
-  const markerRemove = ensureEl("markerRemove");
+    this.updateInputs();
 
-  updateInputs();
+    $("#markerEditor").dialog({
+      title: "Edit Marker",
+      resizable: false,
+      position: {my: "left top", at: "left+10 top+10", of: "svg", collision: "fit"},
+      close: () => this.closeMarkerEditor()
+    });
 
-  $("#markerEditor").dialog({
-    title: "Edit Marker",
-    resizable: false,
-    position: {my: "left top", at: "left+10 top+10", of: "svg", collision: "fit"},
-    close: closeMarkerEditor
-  });
+    const markerType = ensureEl("markerType");
+    const markerIconSelect = ensureEl("markerIconSelect");
+    const markerIconSize = ensureEl("markerIconSize");
+    const markerIconShiftX = ensureEl("markerIconShiftX");
+    const markerIconShiftY = ensureEl("markerIconShiftY");
+    const markerSize = ensureEl("markerSize");
+    const markerPin = ensureEl("markerPin");
+    const markerFill = ensureEl("markerFill");
+    const markerStroke = ensureEl("markerStroke");
+    const markerNotes = ensureEl("markerNotes");
+    const markerLock = ensureEl("markerLock");
+    const markerAdd = ensureEl("markerAdd");
+    const markerRemove = ensureEl("markerRemove");
 
-  const listeners = [
-    listen(markerType, "change", changeMarkerType),
-    listen(markerIconSelect, "click", changeMarkerIcon),
-    listen(markerIconSize, "input", changeIconSize),
-    listen(markerIconShiftX, "input", changeIconShiftX),
-    listen(markerIconShiftY, "input", changeIconShiftY),
-    listen(markerSize, "input", changeMarkerSize),
-    listen(markerPin, "change", changeMarkerPin),
-    listen(markerFill, "input", changePinFill),
-    listen(markerStroke, "input", changePinStroke),
-    listen(markerNotes, "click", editMarkerLegend),
-    listen(markerLock, "click", toggleMarkerLock),
-    listen(markerAdd, "click", toggleAddMarker),
-    listen(markerRemove, "click", confirmMarkerDeletion)
-  ];
+    this.listeners = [
+      listen(markerType, "change", () => this.changeMarkerType()),
+      listen(markerIconSelect, "click", () => this.changeMarkerIcon()),
+      listen(markerIconSize, "input", () => this.changeIconSize()),
+      listen(markerIconShiftX, "input", () => this.changeIconShiftX()),
+      listen(markerIconShiftY, "input", () => this.changeIconShiftY()),
+      listen(markerSize, "input", () => this.changeMarkerSize()),
+      listen(markerPin, "change", () => this.changeMarkerPin()),
+      listen(markerFill, "input", () => this.changePinFill()),
+      listen(markerStroke, "input", () => this.changePinStroke()),
+      listen(markerNotes, "click", () => this.editMarkerLegend()),
+      listen(markerLock, "click", () => this.toggleMarkerLock()),
+      listen(markerAdd, "click", () => this.toggleAddMarker()),
+      listen(markerRemove, "click", () => this.confirmMarkerDeletion())
+    ];
+  }
 
-  function getElement(markerI, event) {
+  private getElement(markerI: number | undefined, event: any): [HTMLElement | null, any] {
     if (event) {
-      const element = event.target?.closest("svg");
-      const marker = pack.markers.find(({i}) => Number(element.id.slice(6)) === i);
+      const element = event.target?.closest("svg") as HTMLElement | null;
+      const marker = element ? pack.markers.find(({i}) => Number(element.id.slice(6)) === i) : null;
       return [element, marker];
     }
 
-    const element = ensureEl(`marker${markerI}`);
+    const element = ensureEl(`marker${markerI}`) as HTMLElement;
     const marker = pack.markers.find(({i}) => i === markerI);
     return [element, marker];
   }
 
-  function getSameTypeMarkers() {
-    const currentType = marker.type;
-    if (!currentType) return [marker];
+  private getSameTypeMarkers() {
+    const currentType = this.marker.type;
+    if (!currentType) return [this.marker];
     return pack.markers.filter(({type}) => type === currentType);
   }
 
-  function dragMarker() {
-    const dx = +this.getAttribute("x") - d3.event.x;
-    const dy = +this.getAttribute("y") - d3.event.y;
+  private dragMarker(markerEl: SVGElement) {
+    const marker = this.marker;
+    const dx = +markerEl.getAttribute("x") - d3.event.x;
+    const dy = +markerEl.getAttribute("y") - d3.event.y;
 
     d3.event.on("drag", function () {
       const {x, y} = d3.event;
-      this.setAttribute("x", dx + x);
-      this.setAttribute("y", dy + y);
+      markerEl.setAttribute("x", String(dx + x));
+      markerEl.setAttribute("y", String(dy + y));
     });
 
     d3.event.on("end", function () {
       const {x, y} = d3.event;
-      this.setAttribute("x", rn(dx + x, 2));
-      this.setAttribute("y", rn(dy + y, 2));
+      markerEl.setAttribute("x", String(rn(dx + x, 2)));
+      markerEl.setAttribute("y", String(rn(dy + y, 2)));
 
       const size = marker.size || 30;
       const zoomSize = Math.max(rn(size / 5 + 24 / scale, 2), 1);
@@ -93,7 +109,18 @@ function editMarker(markerI) {
     });
   }
 
-  function updateInputs() {
+  private updateInputs() {
+    const marker = this.marker;
+    const markerType = ensureEl("markerType") as HTMLInputElement;
+    const markerIconSize = ensureEl("markerIconSize") as HTMLInputElement;
+    const markerIconShiftX = ensureEl("markerIconShiftX") as HTMLInputElement;
+    const markerIconShiftY = ensureEl("markerIconShiftY") as HTMLInputElement;
+    const markerSize = ensureEl("markerSize") as HTMLInputElement;
+    const markerPin = ensureEl("markerPin") as HTMLInputElement;
+    const markerFill = ensureEl("markerFill") as HTMLInputElement;
+    const markerStroke = ensureEl("markerStroke") as HTMLInputElement;
+    const markerLock = ensureEl("markerLock") as HTMLElement;
+
     ensureEl("markerIcon").innerHTML =
       marker.icon.startsWith("http") || marker.icon.startsWith("data:image")
         ? `<img src="${marker.icon}" style="width: 1em; height: 1em;">`
@@ -111,51 +138,51 @@ function editMarker(markerI) {
     markerLock.className = marker.lock ? "icon-lock" : "icon-lock-open";
   }
 
-  function changeMarkerType() {
-    marker.type = this.value;
+  private changeMarkerType() {
+    this.marker.type = (ensureEl("markerType") as HTMLInputElement).value;
   }
 
-  function changeMarkerIcon() {
-    selectIcon(marker.icon, value => {
+  private changeMarkerIcon() {
+    selectIcon(this.marker.icon, value => {
       const isExternal = value.startsWith("http") || value.startsWith("data:image");
       ensureEl("markerIcon").innerHTML = isExternal ? `<img src="${value}" style="width: 1em; height: 1em;">` : value;
 
-      getSameTypeMarkers().forEach(marker => {
+      this.getSameTypeMarkers().forEach(marker => {
         marker.icon = value;
-        redrawIcon(marker);
+        this.redrawIcon(marker);
       });
     });
   }
 
-  function changeIconSize() {
-    const px = +this.value;
-    getSameTypeMarkers().forEach(marker => {
+  private changeIconSize() {
+    const px = +(ensureEl("markerIconSize") as HTMLInputElement).value;
+    this.getSameTypeMarkers().forEach(marker => {
       marker.px = px;
-      redrawIcon(marker);
+      this.redrawIcon(marker);
     });
   }
 
-  function changeIconShiftX() {
-    const dx = +this.value;
-    getSameTypeMarkers().forEach(marker => {
+  private changeIconShiftX() {
+    const dx = +(ensureEl("markerIconShiftX") as HTMLInputElement).value;
+    this.getSameTypeMarkers().forEach(marker => {
       marker.dx = dx;
-      redrawIcon(marker);
+      this.redrawIcon(marker);
     });
   }
 
-  function changeIconShiftY() {
-    const dy = +this.value;
-    getSameTypeMarkers().forEach(marker => {
+  private changeIconShiftY() {
+    const dy = +(ensureEl("markerIconShiftY") as HTMLInputElement).value;
+    this.getSameTypeMarkers().forEach(marker => {
       marker.dy = dy;
-      redrawIcon(marker);
+      this.redrawIcon(marker);
     });
   }
 
-  function changeMarkerSize() {
-    const size = +this.value;
+  private changeMarkerSize() {
+    const size = +(ensureEl("markerSize") as HTMLInputElement).value;
     const rescale = +markers.attr("rescale");
 
-    getSameTypeMarkers().forEach(marker => {
+    this.getSameTypeMarkers().forEach(marker => {
       marker.size = size;
       const {i, x, y, hidden} = marker;
       const el = !hidden && document.getElementById(`marker${i}`);
@@ -169,31 +196,31 @@ function editMarker(markerI) {
     });
   }
 
-  function changeMarkerPin() {
-    const pin = this.value;
-    getSameTypeMarkers().forEach(marker => {
+  private changeMarkerPin() {
+    const pin = (ensureEl("markerPin") as HTMLInputElement).value;
+    this.getSameTypeMarkers().forEach(marker => {
       marker.pin = pin;
-      redrawPin(marker);
+      this.redrawPin(marker);
     });
   }
 
-  function changePinFill() {
-    const fill = this.value;
-    getSameTypeMarkers().forEach(marker => {
+  private changePinFill() {
+    const fill = (ensureEl("markerFill") as HTMLInputElement).value;
+    this.getSameTypeMarkers().forEach(marker => {
       marker.fill = fill;
-      redrawPin(marker);
+      this.redrawPin(marker);
     });
   }
 
-  function changePinStroke() {
-    const stroke = this.value;
-    getSameTypeMarkers().forEach(marker => {
+  private changePinStroke() {
+    const stroke = (ensureEl("markerStroke") as HTMLInputElement).value;
+    this.getSameTypeMarkers().forEach(marker => {
       marker.stroke = stroke;
-      redrawPin(marker);
+      this.redrawPin(marker);
     });
   }
 
-  function redrawIcon({i, hidden, icon, dx = 50, dy = 50, px = 12}) {
+  private redrawIcon({i, hidden, icon, dx = 50, dy = 50, px = 12}) {
     const isExternal = icon.startsWith("http") || icon.startsWith("data:image");
 
     const iconText = !hidden && document.querySelector(`#marker${i} > text`);
@@ -214,50 +241,62 @@ function editMarker(markerI) {
     }
   }
 
-  function redrawPin({i, hidden, pin = "bubble", fill = "#fff", stroke = "#000"}) {
+  private redrawPin({i, hidden, pin = "bubble", fill = "#fff", stroke = "#000"}) {
     const pinGroup = !hidden && document.querySelector(`#marker${i} > g`);
     if (pinGroup) pinGroup.innerHTML = getPin(pin, fill, stroke);
   }
 
-  function editMarkerLegend() {
-    const id = element.id;
+  private editMarkerLegend() {
+    if (!this.element) return;
+    const id = this.element.id;
     editNotes(id, id);
   }
 
-  function toggleMarkerLock() {
-    marker.lock = !marker.lock;
+  private toggleMarkerLock() {
+    const markerLock = ensureEl("markerLock") as HTMLElement;
+    this.marker.lock = !this.marker.lock;
     markerLock.classList.toggle("icon-lock-open");
     markerLock.classList.toggle("icon-lock");
   }
 
-  function toggleAddMarker() {
+  private toggleAddMarker() {
+    const addMarker = ensureEl("addMarker");
+    const markerAdd = ensureEl("markerAdd");
     markerAdd.classList.toggle("pressed");
     addMarker.click();
   }
 
-  function confirmMarkerDeletion() {
+  private confirmMarkerDeletion() {
     confirmationDialog({
       title: "Remove marker",
       message: "Are you sure you want to remove this marker? The action cannot be reverted",
       confirm: "Remove",
-      onConfirm: deleteMarker
+      onConfirm: () => this.deleteMarker()
     });
   }
 
-  function deleteMarker() {
-    Markers.deleteMarker(marker.i);
-    element.remove();
+  private deleteMarker() {
+    if (!this.marker || !this.element) return;
+    Markers.deleteMarker(this.marker.i);
+    this.element.remove();
     $("#markerEditor").dialog("close");
     if (ensureEl("markersOverviewRefresh").offsetParent) markersOverviewRefresh.click();
   }
 
-  function closeMarkerEditor() {
-    listeners.forEach(removeListener => removeListener());
+  private closeMarkerEditor() {
+    this.listeners.forEach(removeListener => removeListener());
+    this.listeners = [];
 
     unselect();
-    addMarker.classList.remove("pressed");
-    markerAdd.classList.remove("pressed");
+    ensureEl("addMarker").classList.remove("pressed");
+    ensureEl("markerAdd").classList.remove("pressed");
     restoreDefaultEvents();
     clearMainTip();
   }
+}
+
+const markersEditor = new MarkersEditor();
+
+function editMarker(markerI?: number) {
+  markersEditor.open(markerI);
 }

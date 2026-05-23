@@ -1,61 +1,66 @@
 "use strict";
-function editBurg(id) {
-  if (customization) return;
-  closeDialogs(".stable");
-  if (!layerIsOn("toggleBurgIcons")) toggleBurgIcons();
-  if (!layerIsOn("toggleLabels")) toggleLabels();
+class BurgEditor {
+  public open(id?: any) {
+    if (customization) return;
+    closeDialogs(".stable");
+    if (!layerIsOn("toggleBurgIcons")) toggleBurgIcons();
+    if (!layerIsOn("toggleLabels")) toggleLabels();
 
-  const burg = id || d3.event.target.dataset.id;
-  elSelected = burgLabels.select("[data-id='" + burg + "']");
-  burgLabels.selectAll("text").call(d3.drag().on("start", dragBurgLabel)).classed("draggable", true);
-  updateGroupsList();
-  updateBurgValues();
+    const burg = id || d3.event.target.dataset.id;
+    elSelected = burgLabels.select("[data-id='" + burg + "']");
+    burgLabels.selectAll("text").call(
+      d3.drag().on("start", function(this: SVGTextElement) { burgEditorSelf.dragBurgLabel(this); })
+    ).classed("draggable", true);
+    this.updateGroupsList();
+    this.updateBurgValues();
 
-  $("#burgEditor").dialog({
-    title: "Edit Burg",
-    resizable: false,
-    close: closeBurgEditor,
-    position: {my: "left top", at: "left+10 top+10", of: "svg", collision: "fit"}
-  });
+    $("#burgEditor").dialog({
+      title: "Edit Burg",
+      resizable: false,
+      close: () => this.closeBurgEditor(),
+      position: {my: "left top", at: "left+10 top+10", of: "svg", collision: "fit"}
+    });
 
-  if (modules.editBurg) return;
-  modules.editBurg = true;
+    if (modules.editBurg) return;
+    modules.editBurg = true;
 
-  ensureEl("burgName").on("input", changeName);
-  ensureEl("burgNameReRandom").on("click", generateNameRandom);
-  ensureEl("burgGroup").on("change", changeGroup);
-  ensureEl("burgGroupConfigure").on("click", editBurgGroups);
-  ensureEl("burgType").on("change", changeType);
-  ensureEl("burgCulture").on("change", changeCulture);
-  ensureEl("burgNameReCulture").on("click", generateNameCulture);
-  ensureEl("burgPopulation").on("change", changePopulation);
-  burgBody.querySelectorAll(".burgFeature").forEach(el => el.on("click", toggleFeature));
-  ensureEl("burgLinkOpen").on("click", openBurgLink);
+    ensureEl("burgName").on("input", () => this.changeName());
+    ensureEl("burgNameReRandom").on("click", () => this.generateNameRandom());
+    ensureEl("burgGroup").on("change", () => this.changeGroup());
+    ensureEl("burgGroupConfigure").on("click", editBurgGroups);
+    ensureEl("burgType").on("change", () => this.changeType());
+    ensureEl("burgCulture").on("change", () => this.changeCulture());
+    ensureEl("burgNameReCulture").on("click", () => this.generateNameCulture());
+    ensureEl("burgPopulation").on("change", () => this.changePopulation());
+    d3.select("#burgBody").selectAll(".burgFeature").on("click", function(this: HTMLElement) { burgEditorSelf.toggleFeature(this); });
+    ensureEl("burgLinkOpen").on("click", () => this.openBurgLink());
 
-  ensureEl("burgStyleShow").on("click", showStyleSection);
-  ensureEl("burgStyleHide").on("click", hideStyleSection);
-  ensureEl("burgEditLabelStyle").on("click", editGroupLabelStyle);
-  ensureEl("burgEditIconStyle").on("click", editGroupIconStyle);
-  ensureEl("burgEditAnchorStyle").on("click", editGroupAnchorStyle);
+    ensureEl("burgStyleShow").on("click", () => this.showStyleSection());
+    ensureEl("burgStyleHide").on("click", () => this.hideStyleSection());
+    ensureEl("burgEditLabelStyle").on("click", () => this.editGroupLabelStyle());
+    ensureEl("burgEditIconStyle").on("click", () => this.editGroupIconStyle());
+    ensureEl("burgEditAnchorStyle").on("click", () => this.editGroupAnchorStyle());
 
-  ensureEl("burgEmblem").on("click", openEmblemEdit);
-  ensureEl("burgSetPreviewLink").on("click", setCustomPreview);
-  ensureEl("burgEditEmblem").on("click", openEmblemEdit);
-  ensureEl("burgLocate").on("click", zoomIntoBurg);
-  ensureEl("burgRelocate").on("click", toggleRelocateBurg);
-  ensureEl("burglLegend").on("click", editBurgLegend);
-  ensureEl("burgLock").on("click", toggleBurgLockButton);
-  ensureEl("burgRemove").on("click", removeSelectedBurg);
-  ensureEl("burgTemperatureGraph").on("click", showTemperatureGraph);
+    ensureEl("burgEmblem").on("click", () => this.openEmblemEdit());
+    ensureEl("burgSetPreviewLink").on("click", () => this.setCustomPreview());
+    ensureEl("burgEditEmblem").on("click", () => this.openEmblemEdit());
+    ensureEl("burgLocate").on("click", () => this.zoomIntoBurg());
+    ensureEl("burgRelocate").on("click", () => this.toggleRelocateBurg());
+    ensureEl("burglLegend").on("click", () => this.editBurgLegend());
+    ensureEl("burgLock").on("click", () => this.toggleBurgLockButton());
+    ensureEl("burgRemove").on("click", () => this.removeSelectedBurg());
+    ensureEl("burgTemperatureGraph").on("click", () => this.showTemperatureGraph());
+  }
 
-  function updateGroupsList() {
-    ensureEl("burgGroup").options.length = 0;
+  private updateGroupsList() {
+    const burgGroupEl = ensureEl("burgGroup") as HTMLSelectElement;
+    burgGroupEl.options.length = 0;
     for (const {name} of options.burgs.groups) {
-      ensureEl("burgGroup").options.add(new Option(name, name));
+      burgGroupEl.options.add(new Option(name, name));
     }
   }
 
-  function updateBurgValues() {
+  private updateBurgValues() {
     const id = +elSelected.attr("data-id");
     const b = pack.burgs[id];
     const province = pack.cells.province[b.cell];
@@ -63,20 +68,20 @@ function editBurg(id) {
     const stateName = pack.states[b.state].fullName || pack.states[b.state].name;
     ensureEl("burgProvinceAndState").innerHTML = provinceName + stateName;
 
-    ensureEl("burgName").value = b.name;
-    ensureEl("burgGroup").value = b.group;
-    ensureEl("burgType").value = b.type || "Generic";
-    ensureEl("burgPopulation").value = rn(b.population * populationRate * urbanization);
-    ensureEl("burgEditAnchorStyle").style.display = +b.port ? "inline-block" : "none";
+    (ensureEl("burgName") as HTMLInputElement).value = b.name;
+    (ensureEl("burgGroup") as HTMLSelectElement).value = b.group;
+    (ensureEl("burgType") as HTMLSelectElement).value = b.type || "Generic";
+    (ensureEl("burgPopulation") as HTMLInputElement).value = String(rn(b.population * populationRate * urbanization));
+    (ensureEl("burgEditAnchorStyle") as HTMLElement).style.display = +b.port ? "inline-block" : "none";
 
-    const cultureSelect = ensureEl("burgCulture");
+    const cultureSelect = ensureEl("burgCulture") as HTMLSelectElement;
     cultureSelect.options.length = 0;
-    const cultures = pack.cultures.filter(c => !c.removed);
-    cultures.forEach(c => cultureSelect.options.add(new Option(c.name, String(c.i), false, c.i === b.culture)));
+    const cultures = pack.cultures.filter((c: any) => !c.removed);
+    cultures.forEach((c: any) => cultureSelect.options.add(new Option(c.name, String(c.i), false, c.i === b.culture)));
 
     const temperature = grid.cells.temp[pack.cells.g[b.cell]];
     ensureEl("burgTemperature").innerHTML = convertTemperature(temperature);
-    ensureEl("burgTemperatureLikeIn").dataset.tip =
+    (ensureEl("burgTemperatureLikeIn") as HTMLElement).dataset.tip =
       "Average yearly temperature is like in " + getTemperatureLikeness(temperature);
     ensureEl("burgElevation").innerHTML = getHeight(pack.cells.h[b.cell]);
 
@@ -88,21 +93,21 @@ function editBurg(id) {
     ensureEl("burgTemple").classList.toggle("inactive", !b.temple);
     ensureEl("burgShanty").classList.toggle("inactive", !b.shanty);
 
-    updateBurgLockIcon();
+    this.updateBurgLockIcon();
 
     const coaID = "burgCOA" + id;
     COArenderer.trigger(coaID, b.coa);
     ensureEl("burgEmblem").setAttribute("href", "#" + coaID);
 
-    updateBurgPreview(b);
+    this.updateBurgPreview(b);
   }
 
-  function dragBurgLabel() {
-    const tr = parseTransform(this.getAttribute("transform"));
+  public dragBurgLabel(element: SVGTextElement) {
+    const tr = parseTransform(element.getAttribute("transform"));
     const dx = +tr[0] - d3.event.x,
       dy = +tr[1] - d3.event.y;
 
-    d3.event.on("drag", function () {
+    d3.event.on("drag", function(this: SVGTextElement) {
       const x = d3.event.x,
         y = d3.event.y;
       this.setAttribute("transform", `translate(${dx + x},${dy + y})`);
@@ -110,67 +115,67 @@ function editBurg(id) {
     });
   }
 
-  function changeName() {
+  private changeName() {
     const id = +elSelected.attr("data-id");
-    pack.burgs[id].name = burgName.value;
-    elSelected.text(burgName.value);
+    pack.burgs[id].name = (ensureEl("burgName") as HTMLInputElement).value;
+    elSelected.text((ensureEl("burgName") as HTMLInputElement).value);
   }
 
-  function generateNameRandom() {
+  private generateNameRandom() {
     const base = rand(nameBases.length - 1);
-    burgName.value = Names.getBase(base);
-    changeName();
+    (ensureEl("burgName") as HTMLInputElement).value = Names.getBase(base);
+    this.changeName();
   }
 
-  function changeGroup() {
+  private changeGroup() {
     const id = +elSelected.attr("data-id");
     const burg = pack.burgs[id];
-    Burgs.changeGroup(burg, this.value);
+    Burgs.changeGroup(burg, (ensureEl("burgGroup") as HTMLSelectElement).value);
   }
 
-  function changeType() {
+  private changeType() {
     const id = +elSelected.attr("data-id");
-    pack.burgs[id].type = this.value;
+    pack.burgs[id].type = (ensureEl("burgType") as HTMLSelectElement).value;
   }
 
-  function changeCulture() {
+  private changeCulture() {
     const id = +elSelected.attr("data-id");
-    pack.burgs[id].culture = +this.value;
+    pack.burgs[id].culture = +(ensureEl("burgCulture") as HTMLSelectElement).value;
   }
 
-  function generateNameCulture() {
+  private generateNameCulture() {
     const id = +elSelected.attr("data-id");
     const culture = pack.burgs[id].culture;
-    burgName.value = Names.getCulture(culture);
-    changeName();
+    (ensureEl("burgName") as HTMLInputElement).value = Names.getCulture(culture);
+    this.changeName();
   }
 
-  function changePopulation() {
+  private changePopulation() {
     const id = +elSelected.attr("data-id");
     const burg = pack.burgs[id];
 
-    pack.burgs[id].population = rn(burgPopulation.value / populationRate / urbanization, 4);
-    updateBurgPreview(burg);
+    pack.burgs[id].population = rn(+(ensureEl("burgPopulation") as HTMLInputElement).value / populationRate / urbanization, 4);
+    this.updateBurgPreview(burg);
   }
 
-  function toggleFeature() {
+  public toggleFeature(el: HTMLElement) {
     const burgId = +elSelected.attr("data-id");
     const burg = pack.burgs[burgId];
 
-    const feature = this.dataset.feature;
-    const value = Number(this.classList.contains("inactive"));
+    const feature = el.dataset.feature;
+    const value = Number(el.classList.contains("inactive"));
 
-    if (feature === "port") togglePort(burgId);
-    else if (feature === "capital") toggleCapital(burgId);
+    if (feature === "port") this.togglePort(burgId);
+    else if (feature === "capital") this.toggleCapital(burgId);
     else burg[feature] = value;
 
-    this.classList.toggle("inactive", !burg[feature]);
+    el.classList.toggle("inactive", !burg[feature]);
 
-    ensureEl("burgEditAnchorStyle").style.display = burg.port ? "inline-block" : "none";
-    updateBurgPreview(burg);
+    (ensureEl("burgEditAnchorStyle") as HTMLElement).style.display = burg.port ? "inline-block" : "none";
+    this.updateBurgPreview(burg);
   }
 
-  function togglePort(burgId) {
+  private togglePort(burgId: number) {
     const burg = pack.burgs[burgId];
     if (burg.port) {
       burg.port = 0;
@@ -194,7 +199,7 @@ function editBurg(id) {
     }
   }
 
-  function toggleCapital(burgId) {
+  private toggleCapital(burgId: number) {
     const {burgs, states} = pack;
 
     if (burgs[burgId].capital)
@@ -216,15 +221,15 @@ function editBurg(id) {
     Burgs.changeGroup(oldCapital);
   }
 
-  function toggleBurgLockButton() {
+  private toggleBurgLockButton() {
     const id = +elSelected.attr("data-id");
     const burg = pack.burgs[id];
     burg.lock = !burg.lock;
 
-    updateBurgLockIcon();
+    this.updateBurgLockIcon();
   }
 
-  function updateBurgLockIcon() {
+  private updateBurgLockIcon() {
     const id = +elSelected.attr("data-id");
     const b = pack.burgs[id];
     if (b.lock) {
@@ -236,42 +241,42 @@ function editBurg(id) {
     }
   }
 
-  function showStyleSection() {
-    document.querySelectorAll("#burgBottom > button").forEach(el => ((el as HTMLElement).style.display = "none"));
-    ensureEl("burgStyleSection").style.display = "inline-block";
+  private showStyleSection() {
+    document.querySelectorAll("#burgBottom > button").forEach((el: Element) => ((el as HTMLElement).style.display = "none"));
+    (ensureEl("burgStyleSection") as HTMLElement).style.display = "inline-block";
   }
 
-  function hideStyleSection() {
-    document.querySelectorAll("#burgBottom > button").forEach(el => ((el as HTMLElement).style.display = "inline-block"));
-    ensureEl("burgStyleSection").style.display = "none";
+  private hideStyleSection() {
+    document.querySelectorAll("#burgBottom > button").forEach((el: Element) => ((el as HTMLElement).style.display = "inline-block"));
+    (ensureEl("burgStyleSection") as HTMLElement).style.display = "none";
   }
 
-  function editGroupLabelStyle() {
+  private editGroupLabelStyle() {
     const g = elSelected.node().parentNode.id;
     closeDialogs(".stable");
     editStyle("labels", g);
   }
 
-  function editGroupIconStyle() {
+  private editGroupIconStyle() {
     const g = elSelected.node().parentNode.id;
     closeDialogs(".stable");
     editStyle("burgIcons", g);
   }
 
-  function editGroupAnchorStyle() {
+  private editGroupAnchorStyle() {
     const g = elSelected.node().parentNode.id;
     closeDialogs(".stable");
     editStyle("anchors", g);
   }
 
-  function updateBurgPreview(burg) {
+  private updateBurgPreview(burg: any) {
     const preview = Burgs.getPreview(burg).preview;
     if (!preview) {
-      ensureEl("burgPreviewSection").style.display = "none";
+      (ensureEl("burgPreviewSection") as HTMLElement).style.display = "none";
       return;
     }
 
-    ensureEl("burgPreviewSection").style.display = "block";
+    (ensureEl("burgPreviewSection") as HTMLElement).style.display = "block";
 
     const container = ensureEl("burgPreviewObject");
     container.innerHTML = "";
@@ -283,35 +288,35 @@ function editBurg(id) {
     container.insertBefore(object, null);
   }
 
-  function openBurgLink() {
+  private openBurgLink() {
     const id = +elSelected.attr("data-id");
     const burg = pack.burgs[id];
     const link = Burgs.getPreview(burg).link;
     if (link) openURL(link);
   }
 
-  function setCustomPreview() {
+  private setCustomPreview() {
     const id = +elSelected.attr("data-id");
     const burg = pack.burgs[id];
 
     prompt(
       "Provide custom URL to the burg map. It can be a link to a generator or just an image. Leave empty to use the default map preview",
       {default: Burgs.getPreview(burg).link, required: false},
-      link => {
+      (link: string) => {
         if (link) burg.link = link;
         else delete burg.link;
-        updateBurgPreview(burg);
+        this.updateBurgPreview(burg);
       }
     );
   }
 
-  function openEmblemEdit() {
+  private openEmblemEdit() {
     const id = +elSelected.attr("data-id");
     const burg = pack.burgs[id];
     editEmblem("burg", "burgCOA" + id, burg);
   }
 
-  function zoomIntoBurg() {
+  private zoomIntoBurg() {
     const id = +elSelected.attr("data-id");
     const burg = pack.burgs[id];
     const x = burg.x;
@@ -319,29 +324,29 @@ function editBurg(id) {
     zoomTo(x, y, 8, 2000);
   }
 
-  function toggleRelocateBurg() {
+  private toggleRelocateBurg() {
     const toggler = ensureEl("toggleCells");
     ensureEl("burgRelocate").classList.toggle("pressed");
     if (ensureEl("burgRelocate").classList.contains("pressed")) {
-      viewbox.style("cursor", "crosshair").on("click", relocateBurgOnClick);
+      viewbox.style("cursor", "crosshair").on("click", () => this.relocateBurgOnClick());
       tip("Click on map to relocate burg. Hold Shift for continuous move", true);
       if (!layerIsOn("toggleCells")) {
         toggleCells();
-        toggler.dataset.forced = true;
+        (toggler as HTMLElement).dataset.forced = "true";
       }
     } else {
       clearMainTip();
       viewbox.on("click", clicked).style("cursor", "default");
-      if (layerIsOn("toggleCells") && toggler.dataset.forced) {
+      if (layerIsOn("toggleCells") && (toggler as HTMLElement).dataset.forced) {
         toggleCells();
-        toggler.dataset.forced = false;
+        (toggler as HTMLElement).dataset.forced = "";
       }
     }
   }
 
-  function relocateBurgOnClick() {
+  private relocateBurgOnClick() {
     const cells = pack.cells;
-    const point = d3.mouse(this);
+    const point = d3.mouse(viewbox.node());
     const cellId = findCell(...point);
     const id = +elSelected.attr("data-id");
     const burg = pack.burgs[id];
@@ -377,21 +382,21 @@ function editBurg(id) {
     burg.y = y;
     if (burg.capital) pack.states[newState].center = burg.cell;
 
-    if (d3.event.shiftKey === false) toggleRelocateBurg();
+    if (d3.event.shiftKey === false) this.toggleRelocateBurg();
   }
 
-  function editBurgLegend() {
+  private editBurgLegend() {
     const id = elSelected.attr("data-id");
     const name = elSelected.text();
     editNotes("burg" + id, name);
   }
 
-  function showTemperatureGraph() {
+  private showTemperatureGraph() {
     const id = elSelected.attr("data-id");
     showBurgTemperatureGraph(id);
   }
 
-  function removeSelectedBurg() {
+  private removeSelectedBurg() {
     const burgId = +elSelected.attr("data-id");
     const burg = pack.burgs[burgId];
 
@@ -419,14 +424,21 @@ function editBurg(id) {
     }
   }
 
-  function closeBurgEditor() {
+  private closeBurgEditor() {
     ensureEl("burgRelocate").classList.remove("pressed");
     burgLabels.selectAll("text").call(d3.drag().on("drag", null)).classed("draggable", false);
     unselect();
   }
 }
 
-const meanTempCityMap = {
+const burgEditorController = new BurgEditor();
+const burgEditorSelf = burgEditorController;
+
+function editBurg(id?: any) {
+  burgEditorController.open(id);
+}
+
+const meanTempCityMap: Record<string, string> = {
   "-5": "Snag (Yukon)",
   "-4": "Yellowknife (Canada)",
   "-3": "Okhotsk (Russia)",
@@ -465,8 +477,9 @@ const meanTempCityMap = {
   30: "Khartoum (Sudan)"
 };
 
-function getTemperatureLikeness(temperature) {
+function getTemperatureLikeness(temperature: number): string | null {
   if (temperature < -5) return "Yakutsk (Russia)";
   if (temperature > 30) return "Mecca (Saudi Arabia)";
-  return meanTempCityMap[temperature] || null;
+  return meanTempCityMap[String(temperature)] || null;
 }
+

@@ -12,9 +12,19 @@ import { locked } from "./general";
 // Import drawFeatures from global scope
 declare const drawFeatures: () => void;
 
-let savedLayers: string[] = [];
+type HeightmapEditMode = "erase" | "keep" | "risk";
+type HeightmapTool = "templateEditor" | "imageConverter";
 
-function editHeightmap(options) {
+interface EditHeightmapOptions {
+  mode?: HeightmapEditMode;
+  tool?: HeightmapTool;
+}
+
+class HeightmapEditor {
+  private layers: string[] = [];
+
+  public open(options?: EditHeightmapOptions) {
+  const editor = this;
   const {mode, tool} = options || {};
   restartHistory();
   viewbox.selectAll("#heights").remove();
@@ -64,9 +74,9 @@ function editHeightmap(options) {
     });
   }
 
-  function enterHeightmapEditMode(mode) {
-    savedLayers = Array.from(mapLayers.querySelectorAll("li:not(.buttonoff)")).map(node => (node as HTMLElement).id); // store layers preset
-    savedLayers.forEach(l => ensureEl(l).click()); // turn off all layers
+  function enterHeightmapEditMode(mode: HeightmapEditMode) {
+    editor.layers = Array.from(mapLayers.querySelectorAll("li:not(.buttonoff)")).map(node => (node as HTMLElement).id); // store layers preset
+    editor.layers.forEach(l => ensureEl(l).click()); // turn off all layers
 
     customization = 1;
     closeDialogs();
@@ -215,7 +225,7 @@ function editHeightmap(options) {
       .getElementById("mapLayers")
       .querySelectorAll("li")
       .forEach(e => {
-        const wasOn = savedLayers.includes(e.id);
+        const wasOn = editor.layers.includes(e.id);
         if ((wasOn && !layerIsOn(e.id)) || (!wasOn && layerIsOn(e.id))) e.click();
       });
     if (!layerIsOn("toggleBorders")) borders.selectAll("path").remove();
@@ -1700,4 +1710,11 @@ function editHeightmap(options) {
       canvas.remove();
     };
   }
+  }
+}
+
+const heightmapEditor = new HeightmapEditor();
+
+function editHeightmap(options?: EditHeightmapOptions) {
+  heightmapEditor.open(options);
 }

@@ -2,153 +2,167 @@
 import { Rivers } from "@fmg/core/modules/river-generator";
 
 type RiverCell = number;
-type CreateRiverFn = (() => void) & {cells: RiverCell[]};
 
 const riversCreatorRuntime = globalThis as any;
 
-const createRiver = (function createRiverImpl() {
-  if (riversCreatorRuntime.customization) return;
-  riversCreatorRuntime.closeDialogs();
-  if (!riversCreatorRuntime.layerIsOn("toggleRivers")) riversCreatorRuntime.toggleRivers();
+class RiverCreator {
+  private cells: RiverCell[] = [];
 
-  const toggleCellsButton = document.getElementById("toggleCells") as HTMLElement;
-  toggleCellsButton.dataset.forced = String(+!riversCreatorRuntime.layerIsOn("toggleCells"));
-  if (!riversCreatorRuntime.layerIsOn("toggleCells")) riversCreatorRuntime.toggleCells();
+  public open() {
+    const creator = this;
 
-  riversCreatorRuntime.tip("Click to add river point, click again to remove", true);
-  riversCreatorRuntime.debug.append("g").attr("id", "controlCells");
-  riversCreatorRuntime.viewbox.style("cursor", "crosshair").on("click", onCellClick);
+    if (riversCreatorRuntime.customization) return;
+    riversCreatorRuntime.closeDialogs();
+    if (!riversCreatorRuntime.layerIsOn("toggleRivers")) riversCreatorRuntime.toggleRivers();
 
-  createRiver.cells = [];
-  const body = document.getElementById("riverCreatorBody") as HTMLElement;
+    const toggleCellsButton = document.getElementById("toggleCells") as HTMLElement;
+    toggleCellsButton.dataset.forced = String(+!riversCreatorRuntime.layerIsOn("toggleCells"));
+    if (!riversCreatorRuntime.layerIsOn("toggleCells")) riversCreatorRuntime.toggleCells();
 
-  riversCreatorRuntime.$("#riverCreator").dialog({
-    title: "Create River",
-    resizable: false,
-    position: {my: "left top", at: "left+10 top+10", of: "#map"},
-    close: closeRiverCreator
-  });
+    riversCreatorRuntime.tip("Click to add river point, click again to remove", true);
+    riversCreatorRuntime.debug.append("g").attr("id", "controlCells");
+    riversCreatorRuntime.viewbox.style("cursor", "crosshair").on("click", onCellClick);
 
-  if (riversCreatorRuntime.modules.createRiver) return;
-  riversCreatorRuntime.modules.createRiver = true;
+    creator.cells = [];
+    const body = document.getElementById("riverCreatorBody") as HTMLElement;
 
-  document.getElementById("riverCreatorComplete")?.addEventListener("click", addRiver);
-  document
-    .getElementById("riverCreatorCancel")
-    ?.addEventListener("click", () => riversCreatorRuntime.$("#riverCreator").dialog("close"));
-  body.addEventListener("click", ev => {
-    const el = ev.target as HTMLElement;
-    const cell = Number(el.parentElement?.dataset.cell || 0);
-    if (el.classList.contains("editFlux")) riversCreatorRuntime.pack.cells.fl[cell] = Number((el as HTMLInputElement).value);
-    else if (el.classList.contains("icon-trash-empty")) removeCell(cell);
-  });
+    riversCreatorRuntime.$("#riverCreator").dialog({
+      title: "Create River",
+      resizable: false,
+      position: {my: "left top", at: "left+10 top+10", of: "#map"},
+      close: closeRiverCreator
+    });
 
-  function onCellClick(this: SVGElement) {
-    const cell = riversCreatorRuntime.findCell(...riversCreatorRuntime.d3.mouse(this));
+    if (riversCreatorRuntime.modules.createRiver) return;
+    riversCreatorRuntime.modules.createRiver = true;
 
-    if (createRiver.cells.includes(cell)) removeCell(cell);
-    else addCell(cell);
-  }
+    document.getElementById("riverCreatorComplete")?.addEventListener("click", addRiver);
+    document
+      .getElementById("riverCreatorCancel")
+      ?.addEventListener("click", () => riversCreatorRuntime.$("#riverCreator").dialog("close"));
+    body.addEventListener("click", ev => {
+      const el = ev.target as HTMLElement;
+      const cell = Number(el.parentElement?.dataset.cell || 0);
+      if (el.classList.contains("editFlux")) riversCreatorRuntime.pack.cells.fl[cell] = Number((el as HTMLInputElement).value);
+      else if (el.classList.contains("icon-trash-empty")) removeCell(cell);
+    });
 
-  function addCell(cell: RiverCell) {
-    createRiver.cells.push(cell);
-    drawCells(createRiver.cells);
+    function onCellClick(this: SVGElement) {
+      const cell = riversCreatorRuntime.findCell(...riversCreatorRuntime.d3.mouse(this));
 
-    const flux = riversCreatorRuntime.pack.cells.fl[cell];
-    const line = `<div class="editorLine" data-cell="${cell}">
+      if (creator.cells.includes(cell)) removeCell(cell);
+      else addCell(cell);
+    }
+
+    function addCell(cell: RiverCell) {
+      creator.cells.push(cell);
+      drawCells(creator.cells);
+
+      const flux = riversCreatorRuntime.pack.cells.fl[cell];
+      const line = `<div class="editorLine" data-cell="${cell}">
       <span>Cell ${cell}</span>
       <span data-tip="Set flux affects river width" style="margin-left: 0.4em">Flux</span>
       <input type="number" min=0 value="${flux}" class="editFlux" style="width: 5em"/>
       <span data-tip="Remove the cell" class="icon-trash-empty pointer"></span>
     </div>`;
-    body.innerHTML += line;
-  }
+      body.innerHTML += line;
+    }
 
-  function removeCell(cell: RiverCell) {
-    createRiver.cells = createRiver.cells.filter(c => c !== cell);
-    drawCells(createRiver.cells);
-    body.querySelector(`div[data-cell='${cell}']`)?.remove();
-  }
+    function removeCell(cell: RiverCell) {
+      creator.cells = creator.cells.filter(c => c !== cell);
+      drawCells(creator.cells);
+      body.querySelector(`div[data-cell='${cell}']`)?.remove();
+    }
 
-  function drawCells(cells: RiverCell[]) {
-    riversCreatorRuntime.debug
-      .select("#controlCells")
-      .selectAll("polygon")
-      .data(cells)
-      .join("polygon")
-      .attr("points", (d: RiverCell) => riversCreatorRuntime.getPackPolygon(d))
-      .attr("class", "current");
-  }
+    function drawCells(cells: RiverCell[]) {
+      riversCreatorRuntime.debug
+        .select("#controlCells")
+        .selectAll("polygon")
+        .data(cells)
+        .join("polygon")
+        .attr("points", (d: RiverCell) => riversCreatorRuntime.getPackPolygon(d))
+        .attr("class", "current");
+    }
 
-  function addRiver() {
-    const {rivers, cells} = riversCreatorRuntime.pack;
-    const riverCells = createRiver.cells;
-    if (riverCells.length < 2) return riversCreatorRuntime.tip("Add at least 2 cells", false, "error");
+    function addRiver() {
+      const {rivers, cells} = riversCreatorRuntime.pack;
+      const riverCells = creator.cells;
+      if (riverCells.length < 2) return riversCreatorRuntime.tip("Add at least 2 cells", false, "error");
 
-    const riverId = Rivers.getNextId(rivers);
-    const parent = cells.r[riversCreatorRuntime.last(riverCells)] || riverId;
+      const riverId = Rivers.getNextId(rivers);
+      const parent = cells.r[riversCreatorRuntime.last(riverCells)] || riverId;
 
-    riverCells.forEach(cell => {
-      if (!cells.r[cell]) cells.r[cell] = riverId;
-    });
+      riverCells.forEach(cell => {
+        if (!cells.r[cell]) cells.r[cell] = riverId;
+      });
 
-    const source = riverCells[0];
-    const mouth = parent === riverId ? riversCreatorRuntime.last(riverCells) : riverCells[riverCells.length - 2];
-    const sourceWidth = Rivers.getSourceWidth(cells.fl[source]);
-    const defaultWidthFactor = riversCreatorRuntime.rn(1 / ((riversCreatorRuntime.pointsInput.dataset.cells / 10000) ** 0.25), 2);
-    const widthFactor = 1.2 * defaultWidthFactor;
+      const source = riverCells[0];
+      const mouth = parent === riverId ? riversCreatorRuntime.last(riverCells) : riverCells[riverCells.length - 2];
+      const sourceWidth = Rivers.getSourceWidth(cells.fl[source]);
+      const defaultWidthFactor = riversCreatorRuntime.rn(
+        1 / ((riversCreatorRuntime.pointsInput.dataset.cells / 10000) ** 0.25),
+        2
+      );
+      const widthFactor = 1.2 * defaultWidthFactor;
 
-    const meanderedPoints = Rivers.addMeandering(riverCells);
+      const meanderedPoints = Rivers.addMeandering(riverCells);
 
-    const discharge = cells.fl[mouth];
-    const length = Rivers.getApproximateLength(meanderedPoints as any);
-    const width = Rivers.getWidth(
-      Rivers.getOffset({
-        flux: discharge,
-        pointIndex: meanderedPoints.length,
+      const discharge = cells.fl[mouth];
+      const length = Rivers.getApproximateLength(meanderedPoints as any);
+      const width = Rivers.getWidth(
+        Rivers.getOffset({
+          flux: discharge,
+          pointIndex: meanderedPoints.length,
+          widthFactor,
+          startingWidth: sourceWidth
+        })
+      );
+      const name = Rivers.getName(mouth);
+      const basin = Rivers.getBasin(parent);
+
+      rivers.push({
+        i: riverId,
+        source,
+        mouth,
+        discharge,
+        length,
+        width,
         widthFactor,
-        startingWidth: sourceWidth
-      })
-    );
-    const name = Rivers.getName(mouth);
-    const basin = Rivers.getBasin(parent);
+        sourceWidth,
+        parent,
+        cells: riverCells,
+        basin,
+        name,
+        type: "River"
+      });
+      const id = "river" + riverId;
 
-    rivers.push({
-      i: riverId,
-      source,
-      mouth,
-      discharge,
-      length,
-      width,
-      widthFactor,
-      sourceWidth,
-      parent,
-      cells: riverCells,
-      basin,
-      name,
-      type: "River"
-    });
-    const id = "river" + riverId;
+      riversCreatorRuntime.viewbox
+        .select("#rivers")
+        .append("path")
+        .attr("id", id)
+        .attr("d", Rivers.getRiverPath(meanderedPoints, widthFactor, sourceWidth));
 
-    riversCreatorRuntime.viewbox
-      .select("#rivers")
-      .append("path")
-      .attr("id", id)
-      .attr("d", Rivers.getRiverPath(meanderedPoints, widthFactor, sourceWidth));
+      riversCreatorRuntime.editRiver(id);
+    }
 
-    riversCreatorRuntime.editRiver(id);
+    function closeRiverCreator() {
+      body.innerHTML = "";
+      riversCreatorRuntime.debug.select("#controlCells").remove();
+      riversCreatorRuntime.restoreDefaultEvents();
+      riversCreatorRuntime.clearMainTip();
+
+      const forced = Number(toggleCellsButton.dataset.forced || 0);
+      toggleCellsButton.dataset.forced = "0";
+      if (forced && riversCreatorRuntime.layerIsOn("toggleCells")) riversCreatorRuntime.toggleCells();
+    }
   }
+}
 
-  function closeRiverCreator() {
-    body.innerHTML = "";
-    riversCreatorRuntime.debug.select("#controlCells").remove();
-    riversCreatorRuntime.restoreDefaultEvents();
-    riversCreatorRuntime.clearMainTip();
+const riverCreator = new RiverCreator();
 
-    const forced = Number(toggleCellsButton.dataset.forced || 0);
-    toggleCellsButton.dataset.forced = "0";
-    if (forced && riversCreatorRuntime.layerIsOn("toggleCells")) riversCreatorRuntime.toggleCells();
-  }
-} as unknown) as CreateRiverFn;
+function createRiver() {
+  riverCreator.open();
+}
 
 riversCreatorRuntime.createRiver = createRiver;

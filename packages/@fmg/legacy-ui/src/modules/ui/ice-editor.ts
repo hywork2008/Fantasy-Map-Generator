@@ -2,7 +2,8 @@
 
 const iceEditorRuntime = globalThis as any;
 
-function editIce(element: EventTarget | null) {
+class IceEditor {
+  public open(element: EventTarget | null) {
   if (iceEditorRuntime.customization) return;
   if (iceEditorRuntime.elSelected && element === iceEditorRuntime.elSelected.node()) return;
 
@@ -122,6 +123,14 @@ function editIce(element: EventTarget | null) {
     iceEditorRuntime.iceNew.classList.remove("pressed");
     iceEditorRuntime.unselect();
   }
+}
+
+}
+
+const iceEditor = new IceEditor();
+
+function editIce(element: EventTarget | null) {
+  iceEditor.open(element);
 }
 
 iceEditorRuntime.editIce = editIce;

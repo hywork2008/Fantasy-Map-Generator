@@ -1,61 +1,63 @@
 "use strict";
-function editLabel() {
-  if (customization) return;
-  closeDialogs();
-  if (!layerIsOn("toggleLabels")) toggleLabels();
+class LabelsEditor {
+  public open() {
+    if (customization) return;
+    closeDialogs();
+    if (!layerIsOn("toggleLabels")) toggleLabels();
 
-  const tspan = d3.event.target;
-  const textPath = tspan.parentNode;
-  const text = textPath.parentNode;
-  elSelected = d3.select(text).call(d3.drag().on("start", dragLabel)).classed("draggable", true);
-  viewbox.on("touchmove mousemove", showEditorTips);
+    const tspan = d3.event.target;
+    const textPath = tspan.parentNode;
+    const text = textPath.parentNode;
+    elSelected = d3.select(text).call(d3.drag().on("start", () => this.dragLabel())).classed("draggable", true);
+    viewbox.on("touchmove mousemove", () => this.showEditorTips());
 
-  $("#labelEditor").dialog({
-    title: "Edit Label",
-    resizable: false,
-    width: fitContent(),
-    position: {my: "center top+10", at: "bottom", of: text, collision: "fit"},
-    close: closeLabelEditor
-  });
+    $("#labelEditor").dialog({
+      title: "Edit Label",
+      resizable: false,
+      width: fitContent(),
+      position: {my: "center top+10", at: "bottom", of: text, collision: "fit"},
+      close: () => this.closeLabelEditor()
+    });
 
-  drawControlPointsAndLine();
-  selectLabelGroup(text);
-  updateValues(textPath);
+    this.drawControlPointsAndLine();
+    this.selectLabelGroup(text);
+    this.updateValues(textPath);
 
-  if (modules.editLabel) return;
-  modules.editLabel = true;
+    if (modules.editLabel) return;
+    modules.editLabel = true;
 
-  ensureEl("labelGroupShow").on("click", showGroupSection);
-  ensureEl("labelGroupHide").on("click", hideGroupSection);
-  ensureEl("labelGroupSelect").on("click", changeGroup);
-  ensureEl("labelGroupInput").on("change", createNewGroup);
-  ensureEl("labelGroupNew").on("click", toggleNewGroupInput);
-  ensureEl("labelGroupRemove").on("click", removeLabelsGroup);
+    ensureEl("labelGroupShow").on("click", () => this.showGroupSection());
+    ensureEl("labelGroupHide").on("click", () => this.hideGroupSection());
+    ensureEl("labelGroupSelect").on("click", () => this.changeGroup());
+    ensureEl("labelGroupInput").on("change", () => this.createNewGroup());
+    ensureEl("labelGroupNew").on("click", () => this.toggleNewGroupInput());
+    ensureEl("labelGroupRemove").on("click", () => this.removeLabelsGroup());
 
-  ensureEl("labelTextShow").on("click", showTextSection);
-  ensureEl("labelTextHide").on("click", hideTextSection);
-  ensureEl("labelText").on("input", changeText);
-  ensureEl("labelTextRandom").on("click", generateRandomName);
+    ensureEl("labelTextShow").on("click", () => this.showTextSection());
+    ensureEl("labelTextHide").on("click", () => this.hideTextSection());
+    ensureEl("labelText").on("input", () => this.changeText());
+    ensureEl("labelTextRandom").on("click", () => this.generateRandomName());
 
-  ensureEl("labelEditStyle").on("click", editGroupStyle);
+    ensureEl("labelEditStyle").on("click", () => this.editGroupStyle());
 
-  ensureEl("labelSizeShow").on("click", showSizeSection);
-  ensureEl("labelSizeHide").on("click", hideSizeSection);
-  ensureEl("labelOffsetShow").on("click", showOffsetSection);
-  ensureEl("labelOffsetHide").on("click", hideOffsetSection);
-  ensureEl("labelStartOffset").on("input", changeStartOffset);
-  ensureEl("labelStartOffsetValue").on("input", changeStartOffsetFromValue);
-  ensureEl("labelRelativeSize").on("input", changeRelativeSize);
+    ensureEl("labelSizeShow").on("click", () => this.showSizeSection());
+    ensureEl("labelSizeHide").on("click", () => this.hideSizeSection());
+    ensureEl("labelOffsetShow").on("click", () => this.showOffsetSection());
+    ensureEl("labelOffsetHide").on("click", () => this.hideOffsetSection());
+    ensureEl("labelStartOffset").on("input", () => this.changeStartOffset());
+    ensureEl("labelStartOffsetValue").on("input", () => this.changeStartOffsetFromValue());
+    ensureEl("labelRelativeSize").on("input", () => this.changeRelativeSize());
 
-  ensureEl("labelLetterSpacingShow").on("click", showLetterSpacingSection);
-  ensureEl("labelLetterSpacingHide").on("click", hideLetterSpacingSection);
-  ensureEl("labelLetterSpacingSize").on("input", changeLetterSpacingSize);
+    ensureEl("labelLetterSpacingShow").on("click", () => this.showLetterSpacingSection());
+    ensureEl("labelLetterSpacingHide").on("click", () => this.hideLetterSpacingSection());
+    ensureEl("labelLetterSpacingSize").on("input", () => this.changeLetterSpacingSize());
 
-  ensureEl("labelAlign").on("click", editLabelAlign);
-  ensureEl("labelLegend").on("click", editLabelLegend);
-  ensureEl("labelRemoveSingle").on("click", removeLabel);
+    ensureEl("labelAlign").on("click", () => this.editLabelAlign());
+    ensureEl("labelLegend").on("click", () => this.editLabelLegend());
+    ensureEl("labelRemoveSingle").on("click", () => this.removeLabel());
+  }
 
-  function showEditorTips() {
+  private showEditorTips() {
     showMainTip();
     if (d3.event.target.parentNode.parentNode.id === elSelected.attr("id")) tip("Drag to shift the label");
     else if (d3.event.target.parentNode.id === "controlPoints") {
@@ -64,49 +66,49 @@ function editLabel() {
     }
   }
 
-  function selectLabelGroup(text) {
-    const group = text.parentNode.id;
+  private selectLabelGroup(text: Element) {
+    const group = (text.parentNode as Element).id;
 
     if (group === "states" || group === "burgLabels") {
-      ensureEl("labelGroupShow").style.display = "none";
+      (ensureEl("labelGroupShow") as HTMLElement).style.display = "none";
       return;
     }
 
-    hideGroupSection();
-    const select = ensureEl("labelGroupSelect");
+    this.hideGroupSection();
+    const select = ensureEl("labelGroupSelect") as HTMLSelectElement;
     select.options.length = 0;
 
-    labels.selectAll(":scope > g").each(function () {
+    labels.selectAll(":scope > g").each(function(this: SVGGElement) {
       if (this.id === "states") return;
       if (this.id === "burgLabels") return;
       select.options.add(new Option(this.id, this.id, false, this.id === group));
     });
   }
 
-  function updateValues(textPath) {
-    ensureEl("labelText").value = [...textPath.querySelectorAll("tspan")].map(tspan => tspan.textContent).join("|");
-    const startOffset = parseFloat(textPath.getAttribute("startOffset"));
-    ensureEl("labelStartOffset").value = startOffset;
-    ensureEl("labelStartOffsetValue").value = startOffset;
-    ensureEl("labelRelativeSize").value = parseFloat(textPath.getAttribute("font-size"));
-    let letterSpacingSize = textPath.getAttribute("letter-spacing") ? textPath.getAttribute("letter-spacing") : 0;
-    ensureEl("labelLetterSpacingSize").value = parseFloat(letterSpacingSize);
+  private updateValues(textPath: Element) {
+    (ensureEl("labelText") as HTMLInputElement).value = [...textPath.querySelectorAll("tspan")].map((t: Element) => t.textContent).join("|");
+    const startOffset = parseFloat(textPath.getAttribute("startOffset") || "0");
+    (ensureEl("labelStartOffset") as HTMLInputElement).value = String(startOffset);
+    (ensureEl("labelStartOffsetValue") as HTMLInputElement).value = String(startOffset);
+    (ensureEl("labelRelativeSize") as HTMLInputElement).value = String(parseFloat(textPath.getAttribute("font-size") || "0"));
+    const letterSpacing = textPath.getAttribute("letter-spacing") || "0";
+    (ensureEl("labelLetterSpacingSize") as HTMLInputElement).value = String(parseFloat(letterSpacing));
   }
 
-  function drawControlPointsAndLine() {
+  private drawControlPointsAndLine() {
     debug.select("#controlPoints").remove();
     debug.append("g").attr("id", "controlPoints").attr("transform", elSelected.attr("transform"));
-    const path = ensureEl("textPath_" + elSelected.attr("id"));
-    debug.select("#controlPoints").append("path").attr("d", path.getAttribute("d")).on("click", addInterimControlPoint);
+    const path = ensureEl("textPath_" + elSelected.attr("id")) as SVGPathElement;
+    debug.select("#controlPoints").append("path").attr("d", path.getAttribute("d")).on("click", () => this.addInterimControlPoint());
     const l = path.getTotalLength();
     if (!l) return;
     const increment = l / Math.max(Math.ceil(l / 200), 2);
     for (let i = 0; i <= l; i += increment) {
-      addControlPoint(path.getPointAtLength(i));
+      this.addControlPoint(path.getPointAtLength(i));
     }
   }
 
-  function addControlPoint(point) {
+  private addControlPoint(point: DOMPoint) {
     debug
       .select("#controlPoints")
       .append("circle")
@@ -114,52 +116,48 @@ function editLabel() {
       .attr("cy", point.y)
       .attr("r", 2.5)
       .attr("stroke-width", 0.8)
-      .call(d3.drag().on("drag", dragControlPoint))
-      .on("click", clickControlPoint);
+      .call(d3.drag().on("drag", function(this: SVGCircleElement) {
+        this.setAttribute("cx", String(d3.event.x));
+        this.setAttribute("cy", String(d3.event.y));
+        labelsEditorSelf.redrawLabelPath();
+      }))
+      .on("click", function(this: SVGCircleElement) {
+        this.remove();
+        labelsEditorSelf.redrawLabelPath();
+      });
   }
 
-  function dragControlPoint() {
-    this.setAttribute("cx", d3.event.x);
-    this.setAttribute("cy", d3.event.y);
-    redrawLabelPath();
-  }
-
-  function redrawLabelPath() {
-    const path = ensureEl("textPath_" + elSelected.attr("id"));
+  public redrawLabelPath() {
+    const path = ensureEl("textPath_" + elSelected.attr("id")) as SVGPathElement;
     lineGen.curve(d3.curveNatural);
-    const points = [];
+    const points: [string, string][] = [];
     debug
       .select("#controlPoints")
       .selectAll("circle")
-      .each(function () {
-        points.push([this.getAttribute("cx"), this.getAttribute("cy")]);
+      .each(function(this: SVGCircleElement) {
+        points.push([this.getAttribute("cx")!, this.getAttribute("cy")!]);
       });
     const d = round(lineGen(points));
     path.setAttribute("d", d);
     debug.select("#controlPoints > path").attr("d", d);
   }
 
-  function clickControlPoint() {
-    this.remove();
-    redrawLabelPath();
-  }
+  private addInterimControlPoint() {
+    const point = d3.mouse(viewbox.node());
 
-  function addInterimControlPoint() {
-    const point = d3.mouse(this);
-
-    const dists = [];
+    const dists: number[] = [];
     debug
       .select("#controlPoints")
       .selectAll("circle")
-      .each(function () {
-        const x = +this.getAttribute("cx");
-        const y = +this.getAttribute("cy");
+      .each(function(this: SVGCircleElement) {
+        const x = +this.getAttribute("cx")!;
+        const y = +this.getAttribute("cy")!;
         dists.push((point[0] - x) ** 2 + (point[1] - y) ** 2);
       });
 
     let index = dists.length;
     if (dists.length > 1) {
-      const sorted = dists.slice(0).sort((a, b) => a - b);
+      const sorted = dists.slice(0).sort((a: number, b: number) => a - b);
       const closest = dists.indexOf(sorted[0]);
       const next = dists.indexOf(sorted[1]);
       if (closest <= next) index = closest + 1;
@@ -174,18 +172,25 @@ function editLabel() {
       .attr("cy", point[1])
       .attr("r", 2.5)
       .attr("stroke-width", 0.8)
-      .call(d3.drag().on("drag", dragControlPoint))
-      .on("click", clickControlPoint);
+      .call(d3.drag().on("drag", function(this: SVGCircleElement) {
+        this.setAttribute("cx", String(d3.event.x));
+        this.setAttribute("cy", String(d3.event.y));
+        labelsEditorSelf.redrawLabelPath();
+      }))
+      .on("click", function(this: SVGCircleElement) {
+        this.remove();
+        labelsEditorSelf.redrawLabelPath();
+      });
 
-    redrawLabelPath();
+    this.redrawLabelPath();
   }
 
-  function dragLabel() {
+  private dragLabel() {
     const tr = parseTransform(elSelected.attr("transform"));
     const dx = +tr[0] - d3.event.x,
       dy = +tr[1] - d3.event.y;
 
-    d3.event.on("drag", function () {
+    d3.event.on("drag", () => {
       const x = d3.event.x,
         y = d3.event.y;
       const transform = `translate(${dx + x},${dy + y})`;
@@ -194,24 +199,27 @@ function editLabel() {
     });
   }
 
-  function showGroupSection() {
-    document.querySelectorAll("#labelEditor > button").forEach(el => (el.style.display = "none"));
-    ensureEl("labelGroupSection").style.display = "inline-block";
+  private showGroupSection() {
+    document.querySelectorAll("#labelEditor > button").forEach((el: Element) => ((el as HTMLElement).style.display = "none"));
+    (ensureEl("labelGroupSection") as HTMLElement).style.display = "inline-block";
   }
 
-  function hideGroupSection() {
-    document.querySelectorAll("#labelEditor > button").forEach(el => (el.style.display = "inline-block"));
-    ensureEl("labelGroupSection").style.display = "none";
-    ensureEl("labelGroupInput").style.display = "none";
-    ensureEl("labelGroupInput").value = "";
-    ensureEl("labelGroupSelect").style.display = "inline-block";
+  private hideGroupSection() {
+    document.querySelectorAll("#labelEditor > button").forEach((el: Element) => ((el as HTMLElement).style.display = "inline-block"));
+    (ensureEl("labelGroupSection") as HTMLElement).style.display = "none";
+    (ensureEl("labelGroupInput") as HTMLElement).style.display = "none";
+    (ensureEl("labelGroupInput") as HTMLInputElement).value = "";
+    (ensureEl("labelGroupSelect") as HTMLElement).style.display = "inline-block";
   }
 
-  function changeGroup() {
-    ensureEl(this.value).appendChild(elSelected.node());
+  private changeGroup() {
+    const value = (ensureEl("labelGroupSelect") as HTMLSelectElement).value;
+    ensureEl(value).appendChild(elSelected.node());
   }
 
-  function toggleNewGroupInput() {
+  private toggleNewGroupInput() {
+    const labelGroupInput = ensureEl("labelGroupInput") as HTMLInputElement;
+    const labelGroupSelect = ensureEl("labelGroupSelect") as HTMLSelectElement;
     if (labelGroupInput.style.display === "none") {
       labelGroupInput.style.display = "inline-block";
       labelGroupInput.focus();
@@ -222,12 +230,14 @@ function editLabel() {
     }
   }
 
-  function createNewGroup() {
-    if (!this.value) {
+  private createNewGroup() {
+    const labelGroupInput = ensureEl("labelGroupInput") as HTMLInputElement;
+    const labelGroupSelect = ensureEl("labelGroupSelect") as HTMLSelectElement;
+    if (!labelGroupInput.value) {
       tip("Please provide a valid group name");
       return;
     }
-    const group = this.value
+    const group = labelGroupInput.value
       .toLowerCase()
       .replace(/ /g, "_")
       .replace(/[^\w\s]/gi, "");
@@ -244,25 +254,25 @@ function editLabel() {
 
     const oldGroup = elSelected.node().parentNode;
     if (oldGroup !== "states" && oldGroup !== "addedLabels" && oldGroup.childElementCount === 1) {
-      ensureEl("labelGroupSelect").selectedOptions[0].remove();
-      ensureEl("labelGroupSelect").options.add(new Option(group, group, false, true));
+      labelGroupSelect.selectedOptions[0].remove();
+      labelGroupSelect.options.add(new Option(group, group, false, true));
       oldGroup.id = group;
-      toggleNewGroupInput();
-      ensureEl("labelGroupInput").value = "";
+      this.toggleNewGroupInput();
+      labelGroupInput.value = "";
       return;
     }
 
     const newGroup = elSelected.node().parentNode.cloneNode(false);
     ensureEl("labels").appendChild(newGroup);
-    newGroup.id = group;
-    ensureEl("labelGroupSelect").options.add(new Option(group, group, false, true));
+    (newGroup as Element).id = group;
+    labelGroupSelect.options.add(new Option(group, group, false, true));
     ensureEl(group).appendChild(elSelected.node());
 
-    toggleNewGroupInput();
-    ensureEl("labelGroupInput").value = "";
+    this.toggleNewGroupInput();
+    labelGroupInput.value = "";
   }
 
-  function removeLabelsGroup() {
+  private removeLabelsGroup() {
     const group = elSelected.node().parentNode.id;
     const basic = group === "states" || group === "addedLabels";
     const count = elSelected.node().parentNode.childElementCount;
@@ -274,14 +284,14 @@ function editLabel() {
       resizable: false,
       title: "Remove route group",
       buttons: {
-        Remove: function () {
-          $(this).dialog("close");
+        Remove: () => {
+          $("#alert").dialog("close");
           $("#labelEditor").dialog("close");
-          hideGroupSection();
+          this.hideGroupSection();
           labels
             .select("#" + group)
             .selectAll("text")
-            .each(function () {
+            .each(function(this: SVGTextElement) {
               ensureEl("textPath_" + this.id).remove();
               this.remove();
             });
@@ -294,31 +304,31 @@ function editLabel() {
     });
   }
 
-  function showTextSection() {
-    document.querySelectorAll("#labelEditor > button").forEach(el => (el.style.display = "none"));
-    ensureEl("labelTextSection").style.display = "inline-block";
+  private showTextSection() {
+    document.querySelectorAll("#labelEditor > button").forEach((el: Element) => ((el as HTMLElement).style.display = "none"));
+    (ensureEl("labelTextSection") as HTMLElement).style.display = "inline-block";
   }
 
-  function hideTextSection() {
-    document.querySelectorAll("#labelEditor > button").forEach(el => (el.style.display = "inline-block"));
-    ensureEl("labelTextSection").style.display = "none";
+  private hideTextSection() {
+    document.querySelectorAll("#labelEditor > button").forEach((el: Element) => ((el as HTMLElement).style.display = "inline-block"));
+    (ensureEl("labelTextSection") as HTMLElement).style.display = "none";
   }
 
-  function changeText() {
-    const input = ensureEl("labelText").value;
+  private changeText() {
+    const input = (ensureEl("labelText") as HTMLInputElement).value;
     const el = elSelected.select("textPath").node();
 
     const lines = input.split("|");
     if (lines.length > 1) {
       const top = (lines.length - 1) / -2;
-      el.innerHTML = lines.map((line, index) => `<tspan x="0" dy="${index ? 1 : top}em">${line}</tspan>`).join("");
+      el.innerHTML = lines.map((line: string, index: number) => `<tspan x="0" dy="${index ? 1 : top}em">${line}</tspan>`).join("");
     } else el.innerHTML = `<tspan x="0">${lines}</tspan>`;
 
     if (elSelected.attr("id").slice(0, 10) === "stateLabel")
       tip("Use States Editor to change an actual state name, not just a label", false, "warn");
   }
 
-  function generateRandomName() {
+  private generateRandomName() {
     let name = "";
     if (elSelected.attr("id").slice(0, 10) === "stateLabel") {
       const id = +elSelected.attr("id").slice(10);
@@ -330,94 +340,97 @@ function editLabel() {
       const culture = pack.cells.culture[cell];
       name = Names.getCulture(culture);
     }
-    ensureEl("labelText").value = name;
-    changeText();
+    (ensureEl("labelText") as HTMLInputElement).value = name;
+    this.changeText();
   }
 
-  function editGroupStyle() {
+  private editGroupStyle() {
     const g = elSelected.node().parentNode.id;
     editStyle("labels", g);
   }
 
-  function showSizeSection() {
-    document.querySelectorAll("#labelEditor > button").forEach(el => (el.style.display = "none"));
-    ensureEl("labelSizeSection").style.display = "inline-block";
+  private showSizeSection() {
+    document.querySelectorAll("#labelEditor > button").forEach((el: Element) => ((el as HTMLElement).style.display = "none"));
+    (ensureEl("labelSizeSection") as HTMLElement).style.display = "inline-block";
   }
 
-  function hideSizeSection() {
-    document.querySelectorAll("#labelEditor > button").forEach(el => (el.style.display = "inline-block"));
-    ensureEl("labelSizeSection").style.display = "none";
+  private hideSizeSection() {
+    document.querySelectorAll("#labelEditor > button").forEach((el: Element) => ((el as HTMLElement).style.display = "inline-block"));
+    (ensureEl("labelSizeSection") as HTMLElement).style.display = "none";
   }
 
-  function showOffsetSection() {
-    document.querySelectorAll("#labelEditor > button").forEach(el => (el.style.display = "none"));
-    ensureEl("labelOffsetSection").style.display = "inline-block";
+  private showOffsetSection() {
+    document.querySelectorAll("#labelEditor > button").forEach((el: Element) => ((el as HTMLElement).style.display = "none"));
+    (ensureEl("labelOffsetSection") as HTMLElement).style.display = "inline-block";
   }
 
-  function hideOffsetSection() {
-    document.querySelectorAll("#labelEditor > button").forEach(el => (el.style.display = "inline-block"));
-    ensureEl("labelOffsetSection").style.display = "none";
+  private hideOffsetSection() {
+    document.querySelectorAll("#labelEditor > button").forEach((el: Element) => ((el as HTMLElement).style.display = "inline-block"));
+    (ensureEl("labelOffsetSection") as HTMLElement).style.display = "none";
   }
 
-  function showLetterSpacingSection() {
-    document.querySelectorAll("#labelEditor > button").forEach(el => (el.style.display = "none"));
-    ensureEl("labelLetterSpacingSection").style.display = "inline-block";
+  private showLetterSpacingSection() {
+    document.querySelectorAll("#labelEditor > button").forEach((el: Element) => ((el as HTMLElement).style.display = "none"));
+    (ensureEl("labelLetterSpacingSection") as HTMLElement).style.display = "inline-block";
   }
 
-  function hideLetterSpacingSection() {
-    document.querySelectorAll("#labelEditor > button").forEach(el => (el.style.display = "inline-block"));
-    ensureEl("labelLetterSpacingSection").style.display = "none";
+  private hideLetterSpacingSection() {
+    document.querySelectorAll("#labelEditor > button").forEach((el: Element) => ((el as HTMLElement).style.display = "inline-block"));
+    (ensureEl("labelLetterSpacingSection") as HTMLElement).style.display = "none";
   }
 
-  function changeStartOffset() {
-    const value = this.value;
-    ensureEl("labelStartOffsetValue").value = value;
+  private changeStartOffset() {
+    const value = (ensureEl("labelStartOffset") as HTMLInputElement).value;
+    (ensureEl("labelStartOffsetValue") as HTMLInputElement).value = value;
     elSelected.select("textPath").attr("startOffset", value + "%");
     tip("Label offset: " + value + "%");
   }
 
-  function changeStartOffsetFromValue() {
-    const value = Math.min(80, Math.max(20, this.value));
-    ensureEl("labelStartOffset").value = value;
-    this.value = value;
+  private changeStartOffsetFromValue() {
+    const raw = +(ensureEl("labelStartOffsetValue") as HTMLInputElement).value;
+    const value = Math.min(80, Math.max(20, raw));
+    (ensureEl("labelStartOffset") as HTMLInputElement).value = String(value);
+    (ensureEl("labelStartOffsetValue") as HTMLInputElement).value = String(value);
     elSelected.select("textPath").attr("startOffset", value + "%");
     tip("Label offset: " + value + "%");
   }
 
-  function changeRelativeSize() {
-    elSelected.select("textPath").attr("font-size", this.value + "%");
-    tip("Label relative size: " + this.value + "%");
-    changeText();
+  private changeRelativeSize() {
+    const value = (ensureEl("labelRelativeSize") as HTMLInputElement).value;
+    elSelected.select("textPath").attr("font-size", value + "%");
+    tip("Label relative size: " + value + "%");
+    this.changeText();
   }
 
-  function changeLetterSpacingSize() {
-    elSelected.select("textPath").attr("letter-spacing", this.value + "px");
-    tip("Label letter-spacing size: " + this.value + "px");
-    changeText();
+  private changeLetterSpacingSize() {
+    const value = (ensureEl("labelLetterSpacingSize") as HTMLInputElement).value;
+    elSelected.select("textPath").attr("letter-spacing", value + "px");
+    tip("Label letter-spacing size: " + value + "px");
+    this.changeText();
   }
 
-  function editLabelAlign() {
+  private editLabelAlign() {
     const bbox = elSelected.node().getBBox();
     const c = [bbox.x + bbox.width / 2, bbox.y + bbox.height / 2];
     const path = defs.select("#textPath_" + elSelected.attr("id"));
     path.attr("d", `M${c[0] - bbox.width},${c[1]}h${bbox.width * 2}`);
-    drawControlPointsAndLine();
+    this.drawControlPointsAndLine();
   }
 
-  function editLabelLegend() {
+  private editLabelLegend() {
     const id = elSelected.attr("id");
     const name = elSelected.text();
     editNotes(id, name);
   }
 
-  function removeLabel() {
+  private removeLabel() {
     alertMessage.innerHTML = "Are you sure you want to remove the label?";
     $("#alert").dialog({
       resizable: false,
       title: "Remove label",
       buttons: {
-        Remove: function () {
-          $(this).dialog("close");
+        Remove: () => {
+          $("#alert").dialog("close");
           defs.select("#textPath_" + elSelected.attr("id")).remove();
           elSelected.remove();
           $("#labelEditor").dialog("close");
@@ -429,8 +442,15 @@ function editLabel() {
     });
   }
 
-  function closeLabelEditor() {
+  private closeLabelEditor() {
     debug.select("#controlPoints").remove();
     unselect();
   }
+}
+
+const labelsEditorController = new LabelsEditor();
+const labelsEditorSelf = labelsEditorController;
+
+function editLabel() {
+  labelsEditorController.open();
 }

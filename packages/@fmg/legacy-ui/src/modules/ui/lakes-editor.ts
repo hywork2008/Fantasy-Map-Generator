@@ -1,46 +1,48 @@
 "use strict";
-function editLake() {
-  if (customization) return;
-  closeDialogs(".stable");
-  if (layerIsOn("toggleCells")) toggleCells();
+class LakesEditor {
+  public open() {
+    if (customization) return;
+    closeDialogs(".stable");
+    if (layerIsOn("toggleCells")) toggleCells();
 
-  $("#lakeEditor").dialog({
-    title: "Edit Lake",
-    resizable: false,
-    position: {my: "center top+20", at: "top", of: d3.event, collision: "fit"},
-    close: closeLakesEditor
-  });
+    $("#lakeEditor").dialog({
+      title: "Edit Lake",
+      resizable: false,
+      position: {my: "center top+20", at: "top", of: d3.event, collision: "fit"},
+      close: () => this.closeLakesEditor()
+    });
 
-  const node = d3.event.target;
-  debug.append("g").attr("id", "vertices");
-  elSelected = d3.select(node);
-  updateLakeValues();
-  selectLakeGroup();
-  drawLakeVertices();
-  viewbox.on("touchmove mousemove", null);
+    const node = d3.event.target;
+    debug.append("g").attr("id", "vertices");
+    elSelected = d3.select(node);
+    this.updateLakeValues();
+    this.selectLakeGroup();
+    this.drawLakeVertices();
+    viewbox.on("touchmove mousemove", null);
 
-  if (modules.editLake) return;
-  modules.editLake = true;
+    if (modules.editLake) return;
+    modules.editLake = true;
 
-  ensureEl("lakeName").on("input", changeName);
-  ensureEl("lakeNameCulture").on("click", generateNameCulture);
-  ensureEl("lakeNameRandom").on("click", generateNameRandom);
-  ensureEl("lakeGroup").on("change", changeLakeGroup);
-  ensureEl("lakeGroupAdd").on("click", toggleNewGroupInput);
-  ensureEl("lakeGroupName").on("change", createNewGroup);
-  ensureEl("lakeGroupRemove").on("click", removeLakeGroup);
-  ensureEl("lakeEditStyle").on("click", editGroupStyle);
-  ensureEl("lakeLegend").on("click", editLakeLegend);
+    ensureEl("lakeName").on("input", () => this.changeName());
+    ensureEl("lakeNameCulture").on("click", () => this.generateNameCulture());
+    ensureEl("lakeNameRandom").on("click", () => this.generateNameRandom());
+    ensureEl("lakeGroup").on("change", () => this.changeLakeGroup());
+    ensureEl("lakeGroupAdd").on("click", () => this.toggleNewGroupInput());
+    ensureEl("lakeGroupName").on("change", () => this.createNewGroup());
+    ensureEl("lakeGroupRemove").on("click", () => this.removeLakeGroup());
+    ensureEl("lakeEditStyle").on("click", () => this.editGroupStyle());
+    ensureEl("lakeLegend").on("click", () => this.editLakeLegend());
+  }
 
-  function getLake() {
+  private getLake() {
     const lakeId = +elSelected.attr("data-f");
     return pack.features.find(feature => feature.i === lakeId);
   }
 
-  function updateLakeValues() {
+  private updateLakeValues() {
     const {cells, vertices, rivers} = pack;
 
-    const l = getLake();
+    const l = this.getLake();
     ensureEl("lakeName").value = l.name;
     ensureEl("lakeArea").value = si(getArea(l.area)) + " " + getAreaUnit();
 
@@ -64,8 +66,8 @@ function editLake() {
     ensureEl("lakeOutlet").value = outlet;
   }
 
-  function drawLakeVertices() {
-    const vertices = getLake().vertices;
+  private drawLakeVertices() {
+    const vertices = this.getLake().vertices;
 
     const neibCells = unique(vertices.map(v => pack.vertices.c[v]).flat());
     debug
@@ -77,6 +79,7 @@ function editLake() {
       .attr("points", getPackPolygon)
       .attr("data-c", d => d);
 
+    const editor = this;
     debug
       .select("#vertices")
       .selectAll("circle")
@@ -87,22 +90,29 @@ function editLake() {
       .attr("cy", d => pack.vertices.p[d][1])
       .attr("r", 0.4)
       .attr("data-v", d => d)
-      .call(d3.drag().on("drag", handleVertexDrag).on("end", handleVertexDragEnd))
+      .call(
+        d3
+          .drag()
+          .on("drag", function () {
+            editor.handleVertexDrag(this as SVGElement);
+          })
+          .on("end", () => editor.handleVertexDragEnd())
+      )
       .on("mousemove", () =>
         tip("Drag to move the vertex. Please use for fine-tuning only! Edit heightmap to change actual cell heights")
       );
   }
 
-  function handleVertexDrag() {
+  private handleVertexDrag(vertexCircle: SVGElement) {
     const x = rn(d3.event.x, 2);
     const y = rn(d3.event.y, 2);
-    this.setAttribute("cx", x);
-    this.setAttribute("cy", y);
+    vertexCircle.setAttribute("cx", String(x));
+    vertexCircle.setAttribute("cy", String(y));
 
-    const vertexId = d3.select(this).datum();
+    const vertexId = d3.select(vertexCircle).datum();
     pack.vertices.p[vertexId] = [x, y];
 
-    const feature = getLake();
+    const feature = this.getLake();
 
     defs.select("#featurePaths > path#feature_" + feature.i).attr("d", getFeaturePath(feature));
 
@@ -113,7 +123,7 @@ function editLake() {
     debug.select("#vertices").selectAll("polygon").attr("points", getPackPolygon);
   }
 
-  function handleVertexDragEnd() {
+  private handleVertexDragEnd() {
     if (layerIsOn("toggleStates")) drawStates();
     if (layerIsOn("toggleProvinces")) drawProvinces();
     if (layerIsOn("toggleBorders")) drawBorders();
@@ -122,22 +132,22 @@ function editLake() {
     if (layerIsOn("toggleCultures")) drawCultures();
   }
 
-  function changeName() {
-    getLake().name = this.value;
+  private changeName() {
+    this.getLake().name = (ensureEl("lakeName") as HTMLInputElement).value;
   }
 
-  function generateNameCulture() {
-    const lake = getLake();
+  private generateNameCulture() {
+    const lake = this.getLake();
     lake.name = lakeName.value = Lakes.getName(lake);
   }
 
-  function generateNameRandom() {
-    const lake = getLake();
+  private generateNameRandom() {
+    const lake = this.getLake();
     lake.name = lakeName.value = Names.getBase(rand(nameBases.length - 1));
   }
 
-  function selectLakeGroup() {
-    const lake = getLake();
+  private selectLakeGroup() {
+    const lake = this.getLake();
 
     const select = ensureEl("lakeGroup");
     select.options.length = 0;
@@ -147,12 +157,13 @@ function editLake() {
     });
   }
 
-  function changeLakeGroup() {
-    ensureEl(this.value).appendChild(elSelected.node());
-    getLake().group = this.value;
+  private changeLakeGroup() {
+    const group = (ensureEl("lakeGroup") as HTMLSelectElement).value;
+    ensureEl(group).appendChild(elSelected.node());
+    this.getLake().group = group;
   }
 
-  function toggleNewGroupInput() {
+  private toggleNewGroupInput() {
     if (lakeGroupName.style.display === "none") {
       lakeGroupName.style.display = "inline-block";
       lakeGroupName.focus();
@@ -163,12 +174,13 @@ function editLake() {
     }
   }
 
-  function createNewGroup() {
-    if (!this.value) {
+  private createNewGroup() {
+    const input = ensureEl("lakeGroupName") as HTMLInputElement;
+    if (!input.value) {
       tip("Please provide a valid group name");
       return;
     }
-    const group = this.value
+    const group = input.value
       .toLowerCase()
       .replace(/ /g, "_")
       .replace(/[^\w\s]/gi, "");
@@ -189,22 +201,22 @@ function editLake() {
       ensureEl("lakeGroup").selectedOptions[0].remove();
       ensureEl("lakeGroup").options.add(new Option(group, group, false, true));
       oldGroup.id = group;
-      toggleNewGroupInput();
-      ensureEl("lakeGroupName").value = "";
+      this.toggleNewGroupInput();
+      input.value = "";
       return;
     }
 
-    const newGroup = elSelected.node().parentNode.cloneNode(false);
+    const newGroup = elSelected.node().parentNode.cloneNode(false) as Element;
     ensureEl("lakes").appendChild(newGroup);
     newGroup.id = group;
     ensureEl("lakeGroup").options.add(new Option(group, group, false, true));
     ensureEl(group).appendChild(elSelected.node());
 
-    toggleNewGroupInput();
-    ensureEl("lakeGroupName").value = "";
+    this.toggleNewGroupInput();
+    input.value = "";
   }
 
-  function removeLakeGroup() {
+  private removeLakeGroup() {
     const group = elSelected.node().parentNode.id;
     if (["freshwater", "salt", "sinkhole", "frozen", "lava", "dry"].includes(group)) {
       tip("This is one of the default groups, it cannot be removed", false, "error");
@@ -236,18 +248,24 @@ function editLake() {
     });
   }
 
-  function editGroupStyle() {
+  private editGroupStyle() {
     const g = elSelected.node().parentNode.id;
     editStyle("lakes", g);
   }
 
-  function editLakeLegend() {
+  private editLakeLegend() {
     const id = elSelected.attr("id");
-    editNotes(id, getLake().name + " " + lakeGroup.value + " lake");
+    editNotes(id, this.getLake().name + " " + lakeGroup.value + " lake");
   }
 
-  function closeLakesEditor() {
+  private closeLakesEditor() {
     debug.select("#vertices").remove();
     unselect();
   }
+}
+
+const lakesEditor = new LakesEditor();
+
+function editLake() {
+  lakesEditor.open();
 }

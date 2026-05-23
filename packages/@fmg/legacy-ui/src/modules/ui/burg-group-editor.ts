@@ -2,62 +2,64 @@
 
 const GROUP_NAME_REGEXP = /^[\p{L}_][\p{L}\p{N}_-]*$/u;
 
-function editBurgGroups() {
-  if (customization) return;
-  addLines();
+class BurgGroupEditor {
+  public open() {
+    if (customization) return;
+    this.addLines();
 
-  $("#burgGroupsEditor").dialog({
-    title: "Configure Burg groups",
-    resizable: false,
-    position: {my: "center", at: "center", of: "svg"},
-    buttons: {
-      Apply: () => {
-        ensureEl("burgGroupsForm").requestSubmit();
-      },
-      Add: () => {
-        ensureEl("burgGroupsBody").insertAdjacentHTML("beforeend", createLine({name: "", active: true, preview: null}));
-      },
-      Restore: () => {
-        options.burgs.groups = Burgs.getDefaultGroups();
-        addLines();
-      },
-      Cancel: function () {
-        $(this).dialog("close");
+    $("#burgGroupsEditor").dialog({
+      title: "Configure Burg groups",
+      resizable: false,
+      position: {my: "center", at: "center", of: "svg"},
+      buttons: {
+        Apply: () => {
+          ensureEl("burgGroupsForm").requestSubmit();
+        },
+        Add: () => {
+          ensureEl("burgGroupsBody").insertAdjacentHTML("beforeend", this.createLine({name: "", active: true, preview: null}));
+        },
+        Restore: () => {
+          options.burgs.groups = Burgs.getDefaultGroups();
+          this.addLines();
+        },
+        Cancel: function () {
+          $(this).dialog("close");
+        }
       }
-    }
-  });
+    });
 
-  if (modules.editBurgGroups) return;
-  modules.editBurgGroups = true;
+    if (modules.editBurgGroups) return;
+    modules.editBurgGroups = true;
 
-  ensureEl("burgGroupsForm").on("change", validateForm).on("submit", submitForm);
-  ensureEl("burgGroupsBody").on("click", ev => {
-    const el = ev.target;
-    const line = el.closest("tr");
-    if (!line) return;
+    ensureEl("burgGroupsForm").on("change", () => this.validateForm()).on("submit", (ev: Event) => this.submitForm(ev));
+    ensureEl("burgGroupsBody").on("click", (ev: MouseEvent) => {
+      const el = ev.target as HTMLButtonElement;
+      const line = el.closest("tr") as HTMLElement;
+      if (!line) return;
 
-    if (el.name === "biomes") {
-      const biomes = Array(biomesData.i.length)
-        .fill(null)
-        .map((_, i) => ({i, name: biomesData.name[i], color: biomesData.color[i]}));
-      return selectLimitation(el, biomes);
-    }
-    if (el.name === "states") return selectLimitation(el, pack.states);
-    if (el.name === "cultures") return selectLimitation(el, pack.cultures);
-    if (el.name === "religions") return selectLimitation(el, pack.religions);
-    if (el.name === "features") return selectFeaturesLimitation(el);
-    if (el.name === "up") return line.parentNode.insertBefore(line, line.previousElementSibling);
-    if (el.name === "down") return line.parentNode.insertBefore(line.nextElementSibling, line);
-    if (el.name === "remove") return removeLine(line);
-  });
+      if (el.name === "biomes") {
+        const biomes = Array(biomesData.i.length)
+          .fill(null)
+          .map((_: null, i: number) => ({i, name: biomesData.name[i], color: biomesData.color[i]}));
+        return this.selectLimitation(el, biomes);
+      }
+      if (el.name === "states") return this.selectLimitation(el, pack.states);
+      if (el.name === "cultures") return this.selectLimitation(el, pack.cultures);
+      if (el.name === "religions") return this.selectLimitation(el, pack.religions);
+      if (el.name === "features") return this.selectFeaturesLimitation(el);
+      if (el.name === "up") return line.parentNode!.insertBefore(line, line.previousElementSibling);
+      if (el.name === "down") return line.parentNode!.insertBefore(line.nextElementSibling!, line);
+      if (el.name === "remove") return this.removeLine(line);
+    });
+  }
 
-  function addLines() {
-    const lines = options.burgs.groups.map(createLine);
+  private addLines() {
+    const lines = options.burgs.groups.map((g: any) => this.createLine(g));
     ensureEl("burgGroupsBody").innerHTML = lines.join("");
   }
 
-  function createLine(group) {
-    const count = pack.burgs.filter(burg => !burg.removed && burg.group === group.name).length;
+  private createLine(group: any): string {
+    const count = pack.burgs.filter((burg: any) => !burg.removed && burg.group === group.name).length;
     return /* html */ `<tr name="${group.name}">
       <td data-tip="Rendering order: higher values are rendered on top"><input type="number" name="order" min="1" max="999" step="1" required value="${group.order || ''}" /></td>
       <td data-tip="Type group name. Must start with a letter or underscore, followed by letters, digits, underscores, or dashes. Spaces are not allowed"><input type="text" name="name" value="${group.name}" required /></td>
@@ -101,13 +103,13 @@ function editBurgGroups() {
     </tr>`;
   }
 
-  function selectLimitation(el, data) {
-    const value = el.previousElementSibling.value;
+  private selectLimitation(el: HTMLButtonElement, data: any[]) {
+    const value = (el.previousElementSibling as HTMLInputElement).value;
     const initial = value ? value.split(",").map(v => +v) : [];
 
     const filtered = data.filter(datum => datum.i && !datum.removed);
     const lines = filtered.map(
-      ({i, name, fullName, color}) => /* html */ `
+      ({i, name, fullName, color}: any) => /* html */ `
         <tr data-tip="${name}">
           <td>
             <span style="color:${color}">⬤</span>
@@ -133,19 +135,19 @@ function editBurgGroups() {
       title: "Limit group",
       buttons: {
         Invert: function () {
-          alertMessage.querySelectorAll("input").forEach(el => (el.checked = !el.checked));
+          alertMessage.querySelectorAll("input").forEach((el: Element) => ((el as HTMLInputElement).checked = !(el as HTMLInputElement).checked));
         },
         Apply: function () {
-          const inputs = Array.from(alertMessage.querySelectorAll("input"));
-          const selected = inputs.reduce((acc, input) => {
-            if (input.checked) acc.push(input.dataset.i);
+          const inputs = Array.from(alertMessage.querySelectorAll("input")) as HTMLInputElement[];
+          const selected = inputs.reduce((acc: string[], input) => {
+            if (input.checked) acc.push(input.dataset.i!);
             return acc;
           }, []);
 
           if (!selected.length) return tip("Select at least one element", false, "error");
 
           const allAreSelected = selected.length === inputs.length;
-          el.previousElementSibling.value = allAreSelected ? "" : selected.join(",");
+          (el.previousElementSibling as HTMLInputElement).value = allAreSelected ? "" : selected.join(",");
           el.innerHTML = allAreSelected ? "all" : "some";
           $(this).dialog("close");
         },
@@ -156,8 +158,8 @@ function editBurgGroups() {
     });
   }
 
-  function selectFeaturesLimitation(el) {
-    const value = el.previousElementSibling.value;
+  private selectFeaturesLimitation(el: HTMLButtonElement) {
+    const value = (el.previousElementSibling as HTMLInputElement).value;
     const initial = value ? JSON.parse(value) : {};
 
     const features = [
@@ -209,14 +211,14 @@ function editBurgGroups() {
       title: "Limit group by features",
       buttons: {
         Apply: function () {
-          const form = ensureEl("featuresLimitationForm");
-          const values = features.reduce((acc, {name}) => {
+          const form = ensureEl("featuresLimitationForm") as any;
+          const values = features.reduce((acc: Record<string, boolean>, {name}) => {
             const value = form[name].value;
             if (value !== "undefined") acc[name] = value === "true";
             return acc;
           }, {});
 
-          el.previousElementSibling.value = JSON.stringify(values);
+          (el.previousElementSibling as HTMLInputElement).value = JSON.stringify(values);
           el.innerHTML = Object.keys(values).length ? "some" : "any";
 
           $(this).dialog("close");
@@ -228,7 +230,7 @@ function editBurgGroups() {
     });
   }
 
-  function removeLine(line) {
+  private removeLine(line: HTMLElement) {
     const lines = ensureEl("burgGroupsBody").children;
     if (lines.length < 2) return tip("At least one group should be defined", false, "error");
 
@@ -239,20 +241,20 @@ function editBurgGroups() {
       confirm: "Remove",
       onConfirm: () => {
         line.remove();
-        validateForm();
+        this.validateForm();
       }
     });
   }
 
-  function validateForm() {
-      const form = ensureEl("burgGroupsForm") as any;
+  private validateForm(): boolean {
+    const form = ensureEl("burgGroupsForm") as any;
 
     if (form.name.length) {
-      const names = Array.from(form.name).map(input => (input as HTMLInputElement).value);
-      form.name.forEach(nameInput => {
+      const names = Array.from(form.name).map((input: any) => (input as HTMLInputElement).value);
+      form.name.forEach((nameInput: HTMLInputElement) => {
         const value = nameInput.value;
         const isFormatValid = GROUP_NAME_REGEXP.test(value);
-        const isUnique = names.filter(n => n === value).length === 1;
+        const isUnique = (names as string[]).filter(n => n === value).length === 1;
         const message = !isFormatValid
           ? "Group name must start with a letter or underscore and then contain only letters, digits, underscores, or dashes"
           : !isUnique
@@ -290,53 +292,59 @@ function editBurgGroups() {
     return isValid;
   }
 
-  function submitForm(event) {
+  private submitForm(event: Event) {
     event.preventDefault();
-    if (!validateForm()) return;
+    if (!this.validateForm()) return;
 
     const lines = Array.from(ensureEl("burgGroupsBody").children);
     if (!lines.length) return tip("At least one group should be defined", false, "error");
 
-    function parseInput(input) {
-      if (input.name === "name") return input.value;
-      if (input.name === "features") {
-        const isValid = JSON.isValid(input.value);
-        const parsed = isValid ? JSON.parse(input.value) : {};
-        if (Object.keys(parsed).length) return parsed;
-        return null;
-      }
-      if (input.type === "hidden") return input.value || null;
-      if (input.type === "radio") return input.checked;
-      if (input.type === "checkbox") return input.checked;
-      if (input.type === "number") {
-        const value = input.valueAsNumber;
-        if (value === 0 || isNaN(value)) return null;
-        return value;
-      }
-      return input.value || null;
-    }
-
     options.burgs.groups = lines.map(line => {
-        const lineEl = line as HTMLElement;
-        const inputs = lineEl.querySelectorAll("input, select");
-      const group = Array.from(inputs).reduce((obj, input) => {
-          const formInput = input as HTMLInputElement;
-          const value = parseInput(formInput);
-          if (value !== null) obj[formInput.name] = value;
+      const lineEl = line as HTMLElement;
+      const inputs = lineEl.querySelectorAll("input, select");
+      const group = Array.from(inputs).reduce((obj: Record<string, any>, input) => {
+        const formInput = input as HTMLInputElement;
+        const value = this.parseInput(formInput);
+        if (value !== null) obj[formInput.name] = value;
         return obj;
       }, {});
       return group;
     });
     localStorage.setItem("burg-groups", JSON.stringify(options.burgs.groups));
 
-    const validBurgs = pack.burgs.filter(b => b.i && !b.removed);
-    const populations = validBurgs.map(b => b.population).sort((a, b) => a - b);
-    validBurgs.forEach(burg => Burgs.defineGroup(burg, populations));
+    const validBurgs = pack.burgs.filter((b: any) => b.i && !b.removed);
+    const populations = validBurgs.map((b: any) => b.population).sort((a: number, b: number) => a - b);
+    validBurgs.forEach((burg: any) => Burgs.defineGroup(burg, populations));
 
     if (layerIsOn("toggleBurgIcons")) drawBurgIcons();
     if (layerIsOn("toggleLabels")) drawBurgLabels();
-    if (ensureEl("burgsOverviewRefresh").offsetParent) burgsOverviewRefresh.click();
+    if ((ensureEl("burgsOverviewRefresh") as HTMLElement).offsetParent) burgsOverviewRefresh.click();
 
     $("#burgGroupsEditor").dialog("close");
   }
+
+  private parseInput(input: HTMLInputElement): any {
+    if (input.name === "name") return input.value;
+    if (input.name === "features") {
+      const isValid = (JSON as any).isValid(input.value);
+      const parsed = isValid ? JSON.parse(input.value) : {};
+      if (Object.keys(parsed).length) return parsed;
+      return null;
+    }
+    if (input.type === "hidden") return input.value || null;
+    if (input.type === "radio") return input.checked;
+    if (input.type === "checkbox") return input.checked;
+    if (input.type === "number") {
+      const value = input.valueAsNumber;
+      if (value === 0 || isNaN(value)) return null;
+      return value;
+    }
+    return input.value || null;
+  }
+}
+
+const burgGroupEditor = new BurgGroupEditor();
+
+function editBurgGroups() {
+  burgGroupEditor.open();
 }
