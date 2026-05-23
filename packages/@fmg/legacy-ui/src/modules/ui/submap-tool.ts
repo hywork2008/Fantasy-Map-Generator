@@ -1,33 +1,16 @@
 "use strict";
 
-const submapRuntime = globalThis as unknown as {
-  $: any;
-  "#submapTool": any;
-  modules: {openSubmapTool?: boolean};
-  ensureEl(id: string): HTMLElement;
-  cellsDensityMap?: {[key: string]: number};
-  viewX: number;
-  scale: number;
-  viewY: number;
-  getCellsDensityColor(cells: number | string): string;
-  INFO?: boolean;
-  changeCellsDensity(value: string): void;
-  applyGraphSize(): void;
-  fitMapToScreen(): void;
-  resetZoom(value: number): void;
-  undraw(): void;
-  Resample: {process(opts: any): void};
-  drawLayers(): void;
-  rn(value: number, decimals: number): number;
-  getLatitude(y: number): number;
-  getLongitude(x: number): number;
-  mapCoordinates: {latT: number; lonT: number};
-  graphWidth: number;
-  distanceScale: number;
-  populationRate: number;
-  distanceScaleInput: {value: string};
-  populationRateInput: {value: string};
-  minmax(value: number, min: number, max: number): number;
+import type { FmgGlobalContext } from "@fmg/types";
+
+type SubmapFmgContext = FmgGlobalContext & {
+  openSubmapTool?: typeof openSubmapTool;
+  getLatitude?: (y: number, decimals?: number) => number;
+  getLongitude?: (x: number, decimals?: number) => number;
+};
+
+const submapRuntime = window as Window & {
+  [key: string]: any;
+  fmg?: SubmapFmgContext;
 };
 
 function openSubmapTool() {
@@ -104,47 +87,54 @@ function openSubmapTool() {
     const mapSizeOutput = submapRuntime.ensureEl("mapSizeOutput") as HTMLInputElement;
     const mapSizeInput = submapRuntime.ensureEl("mapSizeInput") as HTMLInputElement;
     const mapSize = +mapSizeOutput.value;
-    mapSizeOutput.value = mapSizeInput.value = String(submapRuntime.rn(mapSize / submapRuntime.scale, 2));
+    const rnValue = submapRuntime.fmg?.rn || submapRuntime.rn;
+    mapSizeOutput.value = mapSizeInput.value = String(rnValue(mapSize / submapRuntime.scale, 2));
 
     const latT = submapRuntime.mapCoordinates.latT / submapRuntime.scale;
-    const latN = submapRuntime.getLatitude(y0);
+    const getLatitude = submapRuntime.fmg?.getLatitude || submapRuntime.getLatitude;
+    const getLongitude = submapRuntime.fmg?.getLongitude || submapRuntime.getLongitude;
+    const latN = getLatitude(y0);
     const latShift = (90 - latN) / (180 - latT);
     const latitudeOutput = submapRuntime.ensureEl("latitudeOutput") as HTMLInputElement;
     const latitudeInput = submapRuntime.ensureEl("latitudeInput") as HTMLInputElement;
-    latitudeOutput.value = latitudeInput.value = String(submapRuntime.rn(latShift * 100, 2));
+    latitudeOutput.value = latitudeInput.value = String(rnValue(latShift * 100, 2));
 
     const lotT = submapRuntime.mapCoordinates.lonT / submapRuntime.scale;
-    const lonE = submapRuntime.getLongitude(x0 + submapRuntime.graphWidth / submapRuntime.scale);
+    const lonE = getLongitude(x0 + submapRuntime.graphWidth / submapRuntime.scale);
     const lonShift = (180 - lonE) / (360 - lotT);
     const longitudeOutput = submapRuntime.ensureEl("longitudeOutput") as HTMLInputElement;
     const longitudeInput = submapRuntime.ensureEl("longitudeInput") as HTMLInputElement;
-    longitudeOutput.value = longitudeInput.value = String(submapRuntime.rn(lonShift * 100, 2));
+    longitudeOutput.value = longitudeInput.value = String(rnValue(lonShift * 100, 2));
 
-    submapRuntime.distanceScale = submapRuntime.rn(submapRuntime.distanceScale / submapRuntime.scale, 2);
-    submapRuntime.populationRate = submapRuntime.rn(submapRuntime.populationRate / submapRuntime.scale, 2);
+    submapRuntime.distanceScale = rnValue(submapRuntime.distanceScale / submapRuntime.scale, 2);
+    submapRuntime.populationRate = rnValue(submapRuntime.populationRate / submapRuntime.scale, 2);
     submapRuntime.distanceScaleInput.value = String(submapRuntime.distanceScale);
     submapRuntime.populationRateInput.value = String(submapRuntime.populationRate);
   }
 
   function rescaleBurgStyles(scale: number) {
+    const rnValue = submapRuntime.fmg?.rn || submapRuntime.rn;
+    const minmaxValue = submapRuntime.fmg?.minmax || submapRuntime.minmax;
     const burgIcons = Array.from(submapRuntime.ensureEl("burgIcons").querySelectorAll("g")) as SVGGElement[];
     for (const group of burgIcons) {
       const size = Number(group.getAttribute("size"));
-      const newSize = submapRuntime.rn(submapRuntime.minmax(size * scale, 0.2, 10), 2);
+      const newSize = rnValue(minmaxValue(size * scale, 0.2, 10), 2);
       group.setAttribute("font-size", String(newSize));
 
       const strokeWidth = Number(group.getAttribute("stroke-width"));
-      const newStroke = submapRuntime.rn(strokeWidth * scale, 2);
+      const newStroke = rnValue(strokeWidth * scale, 2);
       group.setAttribute("stroke-width", String(newStroke));
     }
 
     const burgLabels = Array.from(submapRuntime.ensureEl("burgLabels").querySelectorAll("g")) as SVGGElement[];
     for (const group of burgLabels) {
       const size = +group.dataset.size;
-      group.dataset.size = String(Math.max(submapRuntime.rn((size + size / scale) / 2, 2), 1) * scale);
+      group.dataset.size = String(Math.max(rnValue((size + size / scale) / 2, 2), 1) * scale);
     }
   }
 }
 
-// Register function in global scope for legacy code compatibility
-(globalThis as any).openSubmapTool = openSubmapTool;
+// Register in window.fmg first, keep window global for legacy compatibility.
+const submapFmg = submapRuntime.fmg as SubmapFmgContext | undefined;
+if (submapFmg) submapFmg.openSubmapTool = openSubmapTool;
+(submapRuntime as Window & {openSubmapTool?: typeof openSubmapTool}).openSubmapTool = openSubmapTool;

@@ -1,5 +1,7 @@
 "use strict";
 
+import type { FmgGlobalContext } from "@fmg/types";
+
 type Point2D = [number, number];
 
 type LinearScale = ((value: number) => number) & {
@@ -59,7 +61,11 @@ type TemperatureGraphRuntime = {
   showBurgTemperatureGraph?: (id: number) => void;
 };
 
-const temperatureGraphRuntime = globalThis as unknown as TemperatureGraphRuntime;
+type TemperatureGraphFmgContext = FmgGlobalContext & { showBurgTemperatureGraph?: (id: number) => void };
+
+const temperatureGraphWindow = window as Window & { [key: string]: any; fmg?: TemperatureGraphFmgContext };
+const asRuntime = <T>(runtimeWindow: Window & { [key: string]: any }) => runtimeWindow as T;
+const temperatureGraphRuntime = asRuntime<TemperatureGraphRuntime>(temperatureGraphWindow);
 
 function showBurgTemperatureGraph(id: number) {
   const b = temperatureGraphRuntime.pack.burgs[id];
@@ -232,3 +238,5 @@ function showBurgTemperatureGraph(id: number) {
 }
 
 temperatureGraphRuntime.showBurgTemperatureGraph = showBurgTemperatureGraph;
+const temperatureFmg = temperatureGraphWindow.fmg as TemperatureGraphFmgContext | undefined;
+if (temperatureFmg) temperatureFmg.showBurgTemperatureGraph = showBurgTemperatureGraph;

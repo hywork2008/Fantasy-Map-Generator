@@ -1,5 +1,21 @@
 import { applySorting, fitContent } from "./editors";
 "use strict";
+
+type MilitaryOptionUnit = {
+  icon: string;
+  name: string;
+  rural: number;
+  urban: number;
+  crew: number;
+  power: number;
+  type: string;
+  separate: number;
+  biomes?: number[];
+  states?: number[];
+  cultures?: number[];
+  religions?: number[];
+};
+
 export function overviewMilitary() {
   if (customization) return;
   closeDialogs("#militaryOverview, .stable");
@@ -448,7 +464,7 @@ export function overviewMilitary() {
             return el.value;
           });
 
-          const unit: any = {icon, name: names[i], rural, urban, crew, power, type, separate};
+          const unit: MilitaryOptionUnit = {icon, name: names[i], rural, urban, crew, power, type, separate};
         if (biomes) unit.biomes = biomes;
         if (states) unit.states = states;
         if (cultures) unit.cultures = cultures;

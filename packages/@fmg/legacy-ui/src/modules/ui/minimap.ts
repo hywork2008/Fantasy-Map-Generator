@@ -1,5 +1,7 @@
 "use strict";
 
+import type { FmgGlobalContext } from "@fmg/types";
+
 type MinimapRuntime = {
   closeDialogs: (selector?: string) => void;
   ensureEl: (id: string) => HTMLElement;
@@ -17,7 +19,11 @@ type MinimapRuntime = {
   updateMinimap?: () => void;
 };
 
-const minimapRuntime = globalThis as unknown as MinimapRuntime;
+type MinimapFmgContext = FmgGlobalContext & { updateMinimap?: () => void };
+
+const minimapWindow = window as Window & { [key: string]: any; fmg?: MinimapFmgContext };
+const asRuntime = <T>(runtimeWindow: Window & { [key: string]: any }) => runtimeWindow as T;
+const minimapRuntime = asRuntime<MinimapRuntime>(minimapWindow);
 
 const getEl = <T extends Element>(id: string) => minimapRuntime.ensureEl(id) as unknown as T;
 
@@ -108,6 +114,8 @@ function ensureMinimapMarkup() {
 
   getEl<SVGSVGElement>("minimapSurface").addEventListener("click", minimapClickToPan);
   minimapRuntime.updateMinimap = updateMinimap;
+  const minimapFmg = minimapWindow.fmg as MinimapFmgContext | undefined;
+  if (minimapFmg) minimapFmg.updateMinimap = updateMinimap;
 }
 
 function minimapClickToPan(event: MouseEvent) {

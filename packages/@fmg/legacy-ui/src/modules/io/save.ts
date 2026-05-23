@@ -88,7 +88,9 @@ type SaveRuntime = {
   closeDialogs: (selector?: string) => void;
 };
 
-const saveRuntime = globalThis as unknown as SaveRuntime;
+const saveWindow = window as Window & { [key: string]: any };
+const asRuntime = <T>(runtimeWindow: Window & { [key: string]: any }) => runtimeWindow as T;
+const saveRuntime = asRuntime<SaveRuntime>(saveWindow);
 
 // functions to save the whole .map project
 export async function saveMap(method: SaveMethod): Promise<void> {

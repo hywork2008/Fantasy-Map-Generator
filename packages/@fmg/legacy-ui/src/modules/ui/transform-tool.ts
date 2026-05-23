@@ -1,5 +1,7 @@
 "use strict";
 
+import type { FmgGlobalContext } from "@fmg/types";
+
 type TransformRuntime = {
   graphWidth: number;
   graphHeight: number;
@@ -30,11 +32,11 @@ type TransformRuntime = {
   drawLayers: () => void;
 };
 
-type GlobalWithTransformTool = typeof globalThis & {
-  openTransformTool?: typeof openTransformTool;
-};
+type TransformFmgContext = FmgGlobalContext & { openTransformTool?: typeof openTransformTool };
 
-const transformRuntime = globalThis as unknown as TransformRuntime;
+const transformWindow = window as Window & { [key: string]: any; fmg?: TransformFmgContext };
+const asRuntime = <T>(runtimeWindow: Window & { [key: string]: any }) => runtimeWindow as T;
+const transformRuntime = asRuntime<TransformRuntime>(transformWindow);
 
 async function openTransformTool() {
   const width = Math.min(400, window.innerWidth * 0.5);
@@ -233,5 +235,7 @@ async function openTransformTool() {
   }
 }
 
-// Register function in global scope for legacy code compatibility
-(globalThis as GlobalWithTransformTool).openTransformTool = openTransformTool;
+// Register in window.fmg first, keep window global for legacy compatibility.
+const transformFmg = transformWindow.fmg as TransformFmgContext | undefined;
+if (transformFmg) transformFmg.openTransformTool = openTransformTool;
+(transformWindow as Window & {openTransformTool?: typeof openTransformTool}).openTransformTool = openTransformTool;

@@ -1,29 +1,14 @@
 "use strict";
 
-const iceEditorRuntime = globalThis as unknown as {
-  customization: boolean;
-  elSelected: {attr(name: string, value?: string): any; node(): SVGElement; style?: any; on?: any; selectAll?: any};
-  closeDialogs(selector: string): void;
-  layerIsOn(layer: string): boolean;
-  toggleIce(): void;
-  d3: any;
-  pack: any;
-  ice: any;
-  modules: any;
-  editStyle(type: string): void;
-  redrawIceberg(id: number): void;
-  viewbox: any;
-  tip(message: string, flag: boolean): void;
-  clearMainTip(): void;
-  clicked: any;
-  findGridCell(x: number, y: number, grid: any): number;
-  grid: any;
-  Ice: any;
-  alertMessage: HTMLElement;
-  $: any;
-  parseTransform(transform?: string | null): [number, number];
-  iceNew: HTMLElement;
-  unselect(): void;
+import type { FmgGlobalContext } from "@fmg/types";
+
+type IceEditorFmgContext = FmgGlobalContext & {
+  editIce?: (element: EventTarget | null) => void;
+};
+
+const iceEditorRuntime = window as Window & {
+  [key: string]: any;
+  fmg?: IceEditorFmgContext;
   editIce?: (element: EventTarget | null) => void;
 };
 
@@ -93,7 +78,9 @@ class IceEditor {
   function addIcebergOnClick(this: SVGElement) {
     const pos = iceEditorRuntime.d3.mouse(this) as [number, number];
     const [x, y] = pos;
-    const i = iceEditorRuntime.findGridCell(x, y, iceEditorRuntime.grid);
+    const i = iceEditorRuntime.fmg?.findGridCell
+      ? iceEditorRuntime.fmg.findGridCell(x, y)
+      : iceEditorRuntime.findGridCell(x, y, iceEditorRuntime.grid);
     const size = Number((document.getElementById("iceSize") as HTMLInputElement)?.value) || 1;
 
     iceEditorRuntime.Ice.addIceberg(i, size);
@@ -122,7 +109,9 @@ class IceEditor {
 
   function dragElement(this: SVGElement) {
     const selectedId = Number(iceEditorRuntime.elSelected.attr("data-id"));
-    const initialTransform = iceEditorRuntime.parseTransform(this.getAttribute("transform"));
+    const initialTransform = iceEditorRuntime.fmg?.parseTransform
+      ? iceEditorRuntime.fmg.parseTransform(this.getAttribute("transform") || "")
+      : iceEditorRuntime.parseTransform(this.getAttribute("transform"));
     const dx = initialTransform[0] - iceEditorRuntime.d3.event.x;
     const dy = initialTransform[1] - iceEditorRuntime.d3.event.y;
 
@@ -160,3 +149,5 @@ function editIce(element: EventTarget | null) {
 }
 
 iceEditorRuntime.editIce = editIce;
+const iceEditorFmg = iceEditorRuntime.fmg as IceEditorFmgContext | undefined;
+if (iceEditorFmg) iceEditorFmg.editIce = editIce;

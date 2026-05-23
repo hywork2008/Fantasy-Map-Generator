@@ -1,6 +1,7 @@
 "use strict";
 
 import { Routes } from "@fmg/core/modules/routes-generator";
+import type { FmgGlobalContext } from "@fmg/types";
 
 type RoutePoint = [number, number, number];
 
@@ -51,7 +52,11 @@ type RoutesCreatorRuntime = {
   createRoute?: (defaultGroup?: string) => void;
 };
 
-const routesCreatorRuntime = globalThis as unknown as RoutesCreatorRuntime;
+type RoutesCreatorFmgContext = FmgGlobalContext & { createRoute?: (defaultGroup?: string) => void };
+
+const routesCreatorWindow = window as Window & { [key: string]: any; fmg?: RoutesCreatorFmgContext };
+const asRuntime = <T>(runtimeWindow: Window & { [key: string]: any }) => runtimeWindow as T;
+const routesCreatorRuntime = asRuntime<RoutesCreatorRuntime>(routesCreatorWindow);
 
 class RouteCreator {
   private points: RoutePoint[] = [];
@@ -212,3 +217,5 @@ function createRoute(defaultGroup?: string) {
 }
 
 routesCreatorRuntime.createRoute = createRoute;
+const routesFmg = routesCreatorWindow.fmg as RoutesCreatorFmgContext | undefined;
+if (routesFmg) routesFmg.createRoute = createRoute;

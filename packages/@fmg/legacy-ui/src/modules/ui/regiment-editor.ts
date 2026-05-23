@@ -1,7 +1,19 @@
 "use strict";
 
-declare function drawRegiment(regiment: any, state: number): void;
-declare function moveRegiment(regiment: any, x: number, y: number): void;
+import type { MilitaryRegiment } from "@fmg/core/modules/military-generator";
+
+type UiRegiment = MilitaryRegiment & {
+  icon: string;
+  name: string;
+  angle?: number;
+  px?: number;
+  py?: number;
+  casualties?: Record<string, number>;
+  survivors?: Record<string, number>;
+};
+
+declare function drawRegiment(regiment: UiRegiment, state: number): void;
+declare function moveRegiment(regiment: UiRegiment, x: number, y: number): void;
 
 class RegimentEditor {
   public open(selector?: string) {
@@ -42,12 +54,14 @@ class RegimentEditor {
     ensureEl("regimentRemove").addEventListener("click", () => this.removeRegiment());
   }
 
-  private getRegiment() {
-    const military = (pack.states[elSelected.dataset.state]?.military || []) as any[];
-    return military.find((r: any) => r.i == elSelected.dataset.id);
+  private getRegiment(): UiRegiment | undefined {
+    const stateId = +(elSelected?.dataset.state || -1);
+    const regimentId = +(elSelected?.dataset.id || -1);
+    const military = (pack.states[stateId]?.military || []) as UiRegiment[];
+    return military.find(r => r.i === regimentId);
   }
 
-  private updateRegimentData(regiment: any) {
+  private updateRegimentData(regiment: UiRegiment) {
     ensureEl("regimentType").className = regiment.n ? "icon-anchor" : "icon-users";
     (ensureEl("regimentName") as HTMLInputElement).value = regiment.name;
     ensureEl("regimentEmblem").innerHTML = regiment.icon.startsWith("http") || regiment.icon.startsWith("data:image")
@@ -56,7 +70,7 @@ class RegimentEditor {
 
     const composition = ensureEl("regimentComposition");
     composition.innerHTML = options.military
-      .map((u: any) => {
+      .map((u: {name: string; type: string}) => {
         return `<div data-tip="${capitalize(u.name)} number. Input to change">
         <div class="label">${capitalize(u.name)}:</div>
         <input data-u="${u.name}" type="number" min=0 step=1 value="${regiment.u[u.name] || 0}">
@@ -69,6 +83,7 @@ class RegimentEditor {
 
   private drawBase() {
     const reg = this.getRegiment();
+    if (!reg) return;
     const clr = pack.states[elSelected.dataset.state].color;
     const base = viewbox
       .insert("g", "g#armies")
@@ -98,6 +113,7 @@ class RegimentEditor {
 
   private drawRotationControl() {
     const reg = this.getRegiment();
+    if (!reg) return;
     const {x, width, y, height} = elSelected.getBBox();
 
     debug
@@ -120,6 +136,7 @@ class RegimentEditor {
 
   private rotateRegiment() {
     const reg = this.getRegiment();
+    if (!reg) return;
 
     d3.event.on("drag", function(this: SVGCircleElement) {
       const {x, y} = d3.event;
@@ -132,6 +149,7 @@ class RegimentEditor {
 
   private changeType() {
     const reg = this.getRegiment();
+    if (!reg) return;
     reg.n = +!reg.n;
     ensureEl("regimentType").className = reg.n ? "icon-anchor" : "icon-users";
 
@@ -148,18 +166,22 @@ class RegimentEditor {
   }
 
   private changeName(value: string) {
-    elSelected.dataset.name = this.getRegiment().name = value;
+    const regiment = this.getRegiment();
+    if (!regiment) return;
+    elSelected.dataset.name = regiment.name = value;
   }
 
   private restoreName() {
     const reg = this.getRegiment(),
-      regs = (pack.states[elSelected.dataset.state].military || []) as any[];
+      regs = (pack.states[elSelected.dataset.state].military || []) as UiRegiment[];
+    if (!reg) return;
     const name = Military.getName(reg, regs);
     elSelected.dataset.name = reg.name = (ensureEl("regimentName") as HTMLInputElement).value = name;
   }
 
   private changeEmblem() {
     const regiment = this.getRegiment();
+    if (!regiment) return;
 
     selectIcon(regiment.icon, (value: string) => {
       regiment.icon = value;
@@ -173,6 +195,7 @@ class RegimentEditor {
   private changeUnit(input: HTMLInputElement) {
     const u = input.dataset.u!;
     const reg = this.getRegiment();
+    if (!reg) return;
     reg.u[u] = +input.value || 0;
     reg.a = d3.sum(Object.values(reg.u));
     elSelected.querySelector("text").innerHTML = Military.getTotal(reg);
@@ -181,10 +204,11 @@ class RegimentEditor {
   }
 
   private splitRegiment() {
-    const reg = this.getRegiment(),
-      u1 = reg.u;
+    const reg = this.getRegiment();
+    if (!reg) return;
+    const u1 = reg.u;
     const state = +elSelected.dataset.state,
-      military = (pack.states[state].military || []) as any[];
+      military = (pack.states[state].military || []) as UiRegiment[];
     const i = last(military).i + 1,
       u2 = Object.assign({}, u1);
 
@@ -197,17 +221,19 @@ class RegimentEditor {
 
     Object.keys(u1).forEach((u: string) => (u1[u] = Math.ceil(u1[u] / 2)));
     reg.a = d3.sum(Object.values(u1));
-    regimentComposition.querySelectorAll("input").forEach((el: Element) => ((el as HTMLInputElement).value = reg.u[(el as HTMLInputElement).dataset.u] || 0));
+    regimentComposition
+      .querySelectorAll("input")
+      .forEach((el: Element) => ((el as HTMLInputElement).value = String(reg.u[(el as HTMLInputElement).dataset.u!] || 0)));
     elSelected.querySelector("text").innerHTML = Military.getTotal(reg);
 
     const shift = +armies.attr("box-size") * 2;
     const nextY = (x: number, y: number) => {
       do {
         y += shift;
-      } while (military.find((r: any) => r.x === x && r.y === y));
+      } while (military.find(r => r.x === x && r.y === y));
       return y;
     };
-    const newReg = {
+    const newReg: UiRegiment = {
       a,
       t: a,
       s: reg.s,
@@ -224,10 +250,10 @@ class RegimentEditor {
       icon: reg.icon,
       name: ""
     };
-    newReg.name = Military.getName(newReg as any, military);
+    newReg.name = Military.getName(newReg, military);
     military.push(newReg);
     Military.generateNote(newReg, pack.states[state]);
-    drawRegiment(newReg as any, state);
+    drawRegiment(newReg, state);
 
     if (regimentsOverviewRefresh.offsetParent) regimentsOverviewRefresh.click();
   }
@@ -248,10 +274,26 @@ class RegimentEditor {
     const cell = findCell(point[0], point[1]);
     const [x, y] = pack.cells.p[cell];
     const state = +elSelected.dataset.state,
-      military = (pack.states[state].military || []) as any[];
+      military = (pack.states[state].military || []) as UiRegiment[];
     const i = military.length ? last(military).i + 1 : 0;
     const n = +(pack.cells.h[cell] < 20);
-    const reg: any = {a: 0, cell, i, n, u: {}, x, y, bx: x, by: y, state, icon: "🛡️", name: ""};
+    const reg: UiRegiment = {
+      a: 0,
+      t: 0,
+      s: n,
+      type: n ? "naval" : "melee",
+      cell,
+      i,
+      n,
+      u: {},
+      x,
+      y,
+      bx: x,
+      by: y,
+      state,
+      icon: "🛡️",
+      name: ""
+    };
     reg.name = Military.getName(reg, military);
     military.push(reg);
     Military.generateNote(reg, pack.states[state]);
@@ -294,9 +336,10 @@ class RegimentEditor {
     }
 
     const attacker = this.getRegiment();
-    const defender = ((pack.states[regSelected.dataset.state].military || []) as any[]).find(
-      (r: any) => r.i == regSelected.dataset.id
+    const defender = ((pack.states[regSelected.dataset.state].military || []) as UiRegiment[]).find(
+      r => r.i === +regSelected.dataset.id
     );
+    if (!attacker || !defender) return;
     if (!attacker.a || !defender.a) {
       tip("Regiment has no troops to battle", false, "error");
       return;
@@ -362,7 +405,8 @@ class RegimentEditor {
     }
 
     const reg = this.getRegiment();
-    const sel = ((pack.states[newState].military || []) as any[]).find((r: any) => r.i == regSelected.dataset.id);
+    const sel = ((pack.states[newState].military || []) as UiRegiment[]).find(r => r.i === +regSelected.dataset.id);
+    if (!reg || !sel) return;
 
     for (const unit of options.military) {
       const u = unit.name;
@@ -371,9 +415,9 @@ class RegimentEditor {
     sel.a = d3.sum(Object.values(sel.u));
     regSelected.querySelector("text").innerHTML = Military.getTotal(sel);
 
-    const military = (pack.states[oldState].military || []) as any[];
+    const military = (pack.states[oldState].military || []) as UiRegiment[];
     military.splice(military.indexOf(reg), 1);
-    const index = notes.findIndex((n: any) => n.id === elSelected.id);
+    const index = notes.findIndex(n => n.id === elSelected.id);
     if (index != -1) notes.splice(index, 1);
     elSelected.remove();
 
@@ -383,7 +427,7 @@ class RegimentEditor {
   }
 
   private regenerateLegend() {
-    const index = notes.findIndex((n: any) => n.id === elSelected.id);
+    const index = notes.findIndex(n => n.id === elSelected.id);
     if (index != -1) notes.splice(index, 1);
 
     const s = pack.states[elSelected.dataset.state];
@@ -402,12 +446,12 @@ class RegimentEditor {
       buttons: {
         Remove: () => {
           $("#alert").dialog("close");
-          const military = (pack.states[elSelected.dataset.state].military || []) as any[];
+          const military = (pack.states[elSelected.dataset.state].military || []) as UiRegiment[];
           const regIndex = military.indexOf(this.getRegiment());
           if (regIndex === -1) return;
           military.splice(regIndex, 1);
 
-          const index = notes.findIndex((n: any) => n.id === elSelected.id);
+          const index = notes.findIndex(n => n.id === elSelected.id);
           if (index != -1) notes.splice(index, 1);
           elSelected.remove();
 
@@ -426,9 +470,11 @@ class RegimentEditor {
     d3.select(element).raise();
     d3.select(element.parentNode as Element).raise();
 
-    const reg = ((pack.states[(element as any).dataset.state].military || []) as any[]).find(
-      (r: any) => r.i == (element as any).dataset.id
-    );
+    const elementData = element.dataset;
+    const stateId = +(elementData.state || -1);
+    const regimentId = +(elementData.id || -1);
+    const reg = ((pack.states[stateId].military || []) as UiRegiment[]).find(r => r.i === regimentId);
+    if (!reg) return;
     const size = +armies.attr("box-size");
     const w = reg.n ? size * 4 : size * 6;
     const h = size * 2;

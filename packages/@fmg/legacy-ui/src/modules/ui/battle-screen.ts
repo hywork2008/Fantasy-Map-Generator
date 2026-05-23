@@ -48,6 +48,9 @@ type BattleSide = {
   die?: number;
 };
 
+declare function moveRegiment(regiment: BattleRegiment, x: number, y: number): void;
+declare function drawMarker(marker: {i: number; x: number; y: number; cell: number; icon: string; type: string; dy: number}): string;
+
 const createBattleSide = (): BattleSide => ({regiments: [], distances: [], morale: 100, casualties: 0, power: 0});
 
 class Battle {

@@ -105,7 +105,8 @@ const placePoints = (
   cellsY: number;
 } => {
   TIME && console.time("placePoints");
-  const cellsDesired = +(ensureEl("pointsInput").dataset.cells || 0);
+  const pointsInput = ensureEl<HTMLInputElement>("pointsInput");
+  const cellsDesired = +(pointsInput.dataset.cells || 0);
   const spacing = rn(Math.sqrt((graphWidth * graphHeight) / cellsDesired), 2); // spacing between points before jittering
 
   const boundary = getBoundaryPoints(graphWidth, graphHeight, spacing);
@@ -135,7 +136,8 @@ const placePoints = (
 export const shouldRegenerateGrid = (grid: Grid, expectedSeed: number, graphWidth: number, graphHeight: number) => {
   if (expectedSeed && expectedSeed !== grid.seed) return true;
 
-  const cellsDesired = +(ensureEl("pointsInput").dataset?.cells || 0);
+  const pointsInput = ensureEl<HTMLInputElement>("pointsInput");
+  const cellsDesired = +(pointsInput.dataset.cells || 0);
   if (cellsDesired !== grid.cellsDesired) return true;
 
   const newSpacing = rn(Math.sqrt((graphWidth * graphHeight) / cellsDesired), 2);

@@ -3,6 +3,7 @@ import type { MilitaryRegiment } from "@fmg/core/modules/military-generator";
 "use strict";
 
 type UiRegiment = MilitaryRegiment & { icon: string; name: string };
+declare function drawRegiment(regiment: UiRegiment, state: number): void;
 function overviewRegiments(state) {
   if (customization) return;
   closeDialogs(".stable");

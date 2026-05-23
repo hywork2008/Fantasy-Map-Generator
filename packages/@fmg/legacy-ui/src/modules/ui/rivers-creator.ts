@@ -1,5 +1,6 @@
 "use strict";
 import { Rivers } from "@fmg/core/modules/river-generator";
+import type { FmgGlobalContext } from "@fmg/types";
 
 type RiverCell = number;
 
@@ -54,7 +55,11 @@ type RiversCreatorRuntime = {
   createRiver?: () => void;
 };
 
-const riversCreatorRuntime = globalThis as unknown as RiversCreatorRuntime;
+type RiversCreatorFmgContext = FmgGlobalContext & { createRiver?: () => void };
+
+const riversCreatorWindow = window as Window & { [key: string]: any; fmg?: RiversCreatorFmgContext };
+const asRuntime = <T>(runtimeWindow: Window & { [key: string]: any }) => runtimeWindow as T;
+const riversCreatorRuntime = asRuntime<RiversCreatorRuntime>(riversCreatorWindow);
 
 class RiverCreator {
   private cells: RiverCell[] = [];
@@ -217,3 +222,5 @@ function createRiver() {
 }
 
 riversCreatorRuntime.createRiver = createRiver;
+const riversFmg = riversCreatorWindow.fmg as RiversCreatorFmgContext | undefined;
+if (riversFmg) riversFmg.createRiver = createRiver;
