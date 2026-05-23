@@ -118,6 +118,13 @@ Node.prototype.off = function (name, fn) {
   return this;
 };
 
+const getNormalizedMapCoordinates = (): Parameters<typeof getCoordinates>[2] => ({
+  lonW: Number.isFinite(mapCoordinates.lonW) ? mapCoordinates.lonW : 0,
+  lonT: Number.isFinite(mapCoordinates.lonT) ? mapCoordinates.lonT : 360,
+  latN: Number.isFinite(mapCoordinates.latN) ? mapCoordinates.latN : 90,
+  latT: Number.isFinite(mapCoordinates.latT) ? mapCoordinates.latT : 180
+});
+
 declare global {
   interface JSON {
     isValid: (str: string) => boolean;
@@ -157,10 +164,10 @@ window.wiki = wiki;
 window.link = link;
 window.isCtrlClick = isCtrlClick;
 window.generateDate = generateDate;
-window.getLongitude = (x: number, decimals?: number) => getLongitude(x, mapCoordinates, graphWidth, decimals);
-window.getLatitude = (y: number, decimals?: number) => getLatitude(y, mapCoordinates, graphHeight, decimals);
+window.getLongitude = (x: number, decimals?: number) => getLongitude(x, getNormalizedMapCoordinates(), graphWidth, decimals);
+window.getLatitude = (y: number, decimals?: number) => getLatitude(y, getNormalizedMapCoordinates(), graphHeight, decimals);
 window.getCoordinates = (x: number, y: number, decimals?: number) =>
-  getCoordinates(x, y, mapCoordinates, graphWidth, graphHeight, decimals);
+  getCoordinates(x, y, getNormalizedMapCoordinates(), graphWidth, graphHeight, decimals);
 
 // Initialize prompt when DOM is ready
 if (document.readyState === "loading") {

@@ -6,9 +6,14 @@ if (String.prototype.replaceAll === undefined) {
     str: string | RegExp,
     newStr: string | ReplaceAllCallback
   ): string {
-    if (Object.prototype.toString.call(str).toLowerCase() === "[object regexp]")
-      return this.replace(str as RegExp, newStr as string | ReplaceAllCallback);
-    return this.replace(new RegExp(str, "g"), newStr as string | ReplaceAllCallback);
+    if (Object.prototype.toString.call(str).toLowerCase() === "[object regexp]") {
+      return typeof newStr === "function"
+        ? this.replace(str as RegExp, newStr)
+        : this.replace(str as RegExp, newStr);
+    }
+    return typeof newStr === "function"
+      ? this.replace(new RegExp(str, "g"), newStr)
+      : this.replace(new RegExp(str, "g"), newStr);
   };
 }
 

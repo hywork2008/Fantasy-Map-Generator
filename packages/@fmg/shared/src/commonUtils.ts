@@ -371,9 +371,9 @@ declare global {
     link: typeof link;
     isCtrlClick: typeof isCtrlClick;
     generateDate: typeof generateDate;
-    getLongitude: typeof getLongitude;
-    getLatitude: typeof getLatitude;
-    getCoordinates: typeof getCoordinates;
+    getLongitude: (x: number, precision?: number) => number;
+    getLatitude: (y: number, precision?: number) => number;
+    getCoordinates: (x: number, y: number, precision?: number) => [number, number];
   }
 
   // Global variables defined in main.js

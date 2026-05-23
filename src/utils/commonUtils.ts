@@ -72,16 +72,30 @@ export const getSegmentId = (points: [number, number][], point: [number, number]
   return minSegment;
 };
 
+type Procedure<TArgs extends unknown[] = unknown[], TThis = unknown> = (this: TThis, ...args: TArgs) => void;
+
+type LongitudeCoordinates = {
+  lonW: number;
+  lonT: number;
+};
+
+type LatitudeCoordinates = {
+  latN: number;
+  latT: number;
+};
+
+type GeoCoordinates = LongitudeCoordinates & LatitudeCoordinates;
+
 /**
  * Creates a debounced function that delays next func call until after ms milliseconds
  * @param func - The function to debounce
  * @param ms - The number of milliseconds to delay
  * @returns The debounced function
  */
-export const debounce = <T extends (...args: any[]) => any>(func: T, ms: number) => {
+export const debounce = <TArgs extends unknown[], TThis = unknown>(func: Procedure<TArgs, TThis>, ms: number) => {
   let isCooldown = false;
 
-  return function (this: any, ...args: Parameters<T>) {
+  return function (this: TThis, ...args: TArgs): void {
     if (isCooldown) return;
     func.apply(this, args);
     isCooldown = true;
@@ -97,12 +111,12 @@ export const debounce = <T extends (...args: any[]) => any>(func: T, ms: number)
  * @param ms - The number of milliseconds to throttle invocations to
  * @returns The throttled function
  */
-export const throttle = <T extends (...args: any[]) => any>(func: T, ms: number) => {
+export const throttle = <TArgs extends unknown[], TThis = unknown>(func: Procedure<TArgs, TThis>, ms: number) => {
   let isThrottled = false;
-  let savedArgs: any[] | null = null;
-  let savedThis: any = null;
+  let savedArgs: TArgs | null = null;
+  let savedThis: TThis | null = null;
 
-  function wrapper(this: any, ...args: Parameters<T>) {
+  function wrapper(this: TThis, ...args: TArgs): void {
     if (isThrottled) {
       savedArgs = args;
       savedThis = this;
@@ -114,9 +128,10 @@ export const throttle = <T extends (...args: any[]) => any>(func: T, ms: number)
 
     setTimeout(() => {
       isThrottled = false;
-      if (savedArgs) {
-        wrapper.apply(savedThis, savedArgs as Parameters<T>);
-        savedArgs = savedThis = null;
+      if (savedArgs && savedThis !== null) {
+        wrapper.apply(savedThis, savedArgs);
+        savedArgs = null;
+        savedThis = null;
       }
     }, ms);
   }
@@ -215,7 +230,12 @@ export const generateDate = (from: number = 100, to: number = 1000): string => {
  * @param decimals - Number of decimal places (default is 2)
  * @returns Longitude value
  */
-export const getLongitude = (x: number, mapCoordinates: any, graphWidth: number, decimals: number = 2): number => {
+export const getLongitude = (
+  x: number,
+  mapCoordinates: LongitudeCoordinates,
+  graphWidth: number,
+  decimals: number = 2
+): number => {
   return rn(mapCoordinates.lonW + (x / graphWidth) * mapCoordinates.lonT, decimals);
 };
 
@@ -227,7 +247,12 @@ export const getLongitude = (x: number, mapCoordinates: any, graphWidth: number,
  * @param decimals - Number of decimal places (default is 2)
  * @returns Latitude value
  */
-export const getLatitude = (y: number, mapCoordinates: any, graphHeight: number, decimals: number = 2): number => {
+export const getLatitude = (
+  y: number,
+  mapCoordinates: LatitudeCoordinates,
+  graphHeight: number,
+  decimals: number = 2
+): number => {
   return rn(mapCoordinates.latN - (y / graphHeight) * mapCoordinates.latT, decimals);
 };
 
@@ -244,7 +269,7 @@ export const getLatitude = (y: number, mapCoordinates: any, graphHeight: number,
 export const getCoordinates = (
   x: number,
   y: number,
-  mapCoordinates: any,
+  mapCoordinates: GeoCoordinates,
   graphWidth: number,
   graphHeight: number,
   decimals: number = 2
@@ -346,9 +371,9 @@ declare global {
     link: typeof link;
     isCtrlClick: typeof isCtrlClick;
     generateDate: typeof generateDate;
-    getLongitude: typeof getLongitude;
-    getLatitude: typeof getLatitude;
-    getCoordinates: typeof getCoordinates;
+    getLongitude: (x: number, precision?: number) => number;
+    getLatitude: (y: number, precision?: number) => number;
+    getCoordinates: (x: number, y: number, precision?: number) => [number, number];
   }
 
   // Global variables defined in main.js
