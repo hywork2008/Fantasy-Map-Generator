@@ -4,6 +4,7 @@
 import { connectVertices, ensureEl, getBase64, getCoordinates as computeCoordinates, rn, unique } from "@fmg/shared";
 import { Rivers } from "@fmg/core/modules/river-generator";
 import { getCellPopulation, getFriendlyHeight } from "../ui/general";
+import { getFileName, downloadFile } from "../ui/editors";
 
 type FontAsset = {
   family: string;

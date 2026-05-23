@@ -70,7 +70,7 @@ import {
   loadURL,
   openExportToPngTiles
 } from "./modules/ui/options";
-import { closeDialogs, restoreDefaultEvents } from "./modules/ui/editors";
+import { closeDialogs, restoreDefaultEvents, getFileName, downloadFile } from "./modules/ui/editors";
 import {
   applyStyleOnLoad,
   requestStylePresetChange,
@@ -194,6 +194,8 @@ Object.assign(window, {
 
   restoreDefaultEvents,
   closeDialogs,
+  getFileName,
+  downloadFile,
 
   applyStyleOnLoad,
   requestStylePresetChange,
