@@ -1,7 +1,7 @@
 "use strict";
 
 import { Biomes } from "@fmg/core/modules/biomes";
-import { applySorting, getArea, getAreaUnit, fitContent } from "./editors";
+import { applySorting, getArea, getAreaUnit, fitContent, removeCircle } from "./editors";
 
 declare let biomesData: any;
 declare const areaUnit: HTMLSelectElement;

@@ -781,7 +781,7 @@ function toggleAddBurg() {
   ensureEl("addNewBurg").click();
 }
 
-function toggleAddRiver() {
+export function toggleAddRiver() {
   const pressed = ensureEl("addRiver").classList.contains("pressed");
   if (pressed) {
     unpressClickToAddButton();
@@ -995,7 +995,7 @@ function addMarkerOnClick() {
   }
 }
 
-function configMarkersGeneration() {
+export function configMarkersGeneration() {
   drawConfigTable();
 
   function drawConfigTable() {

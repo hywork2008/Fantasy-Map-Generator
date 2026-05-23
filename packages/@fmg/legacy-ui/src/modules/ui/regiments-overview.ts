@@ -1,4 +1,4 @@
-import { applySorting } from "./editors";
+import { applySorting, fitContent } from "./editors";
 "use strict";
 function overviewRegiments(state) {
   if (customization) return;

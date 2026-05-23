@@ -1,6 +1,6 @@
 "use strict";
 
-import { closeDialogs, getArea, getAreaUnit, restoreDefaultEvents, fog, unfog } from "./editors";
+import { closeDialogs, getArea, getAreaUnit, restoreDefaultEvents, fog, unfog, fitContent, removeCircle } from "./editors";
 import { tip, clearMainTip } from "./general";
 import { layerIsOn } from "./layers";
 import { ensureEl, rn } from "@fmg/shared";

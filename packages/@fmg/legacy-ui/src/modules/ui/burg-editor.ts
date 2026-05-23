@@ -1,4 +1,5 @@
 "use strict";
+import { editBurgGroups } from "./burg-group-editor";
 class BurgEditor {
   public open(id?: any) {
     if (customization) return;

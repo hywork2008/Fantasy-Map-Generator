@@ -1,4 +1,4 @@
-import { applySorting, applySortingByHeader, getArea, getAreaUnit } from "../../ui/editors";
+import { applySorting, applySortingByHeader, getArea, getAreaUnit, fitContent, removeCircle } from "../../ui/editors";
 const $body = insertEditorHtml();
 addListeners();
 let culturesManualHistory = [];

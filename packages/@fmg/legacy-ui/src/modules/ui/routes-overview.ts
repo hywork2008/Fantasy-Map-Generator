@@ -1,4 +1,4 @@
-import { applySorting } from "./editors";
+import { applySorting, fitContent } from "./editors";
 "use strict";
 import { Routes } from "@fmg/core/modules/routes-generator";
 

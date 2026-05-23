@@ -1,5 +1,7 @@
 "use strict";
 import { Rivers } from "@fmg/core/modules/river-generator";
+import { applySorting, fitContent } from "./editors";
+import { toggleAddRiver } from "./tools";
 
 export function overviewRivers() {
   if (customization) return;

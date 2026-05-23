@@ -2,6 +2,7 @@
 // Hotkeys, see github.com/Azgaar/Fantasy-Map-Generator/wiki/Hotkeys
 import { showInfo } from "./general";
 import { hideOptions, toggleOptions } from "./options";
+import { toggleAddRiver } from "./tools";
 
 document.addEventListener("keydown", handleKeydown);
 document.addEventListener("keyup", handleKeyup);

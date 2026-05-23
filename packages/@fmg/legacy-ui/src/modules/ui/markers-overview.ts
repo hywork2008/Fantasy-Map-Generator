@@ -1,4 +1,5 @@
-import { applySorting } from "./editors";
+import { applySorting, fitContent, listen } from "./editors";
+import { configMarkersGeneration } from "./tools";
 "use strict";
 export function overviewMarkers() {
   if (customization) return;
@@ -21,6 +22,8 @@ export function overviewMarkers() {
 
   addLines();
 
+  const listeners: Array<() => void> = [];
+
   $("#markersOverview").dialog({
     title: "Markers Overview",
     resizable: false,
@@ -29,7 +32,7 @@ export function overviewMarkers() {
     position: {my: "right top", at: "right-10 top+10", of: "svg", collision: "fit"}
   });
 
-  const listeners = [
+  listeners.push(
     listen(body, "click", handleLineClick),
     listen(markersInverPin, "click", invertPin),
     listen(markersInverLock, "click", invertLock),
@@ -40,7 +43,7 @@ export function overviewMarkers() {
     listen(markersExport, "click", exportMarkers),
     listen(markerTypeSelector, "click", toggleMarkerTypeMenu),
     listen(markersSearch, "input", addLines)
-  ];
+  );
 
   const types = [{type: "empty", icon: "❓"}, ...Markers.getConfig()];
   types.forEach(({icon, type}) => {

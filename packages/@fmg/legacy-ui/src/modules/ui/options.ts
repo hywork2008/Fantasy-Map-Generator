@@ -2,6 +2,7 @@
 "use strict";
 
 import { applyOption, clearMainTip, lock, locked, stored, tip } from "./general";
+import { fitContent } from "./editors";
 import { exportToPngTiles } from "../io/export";
 import { loadMapFromURL, uploadMap } from "../io/load";
 import { closeDialogs } from "./editors";

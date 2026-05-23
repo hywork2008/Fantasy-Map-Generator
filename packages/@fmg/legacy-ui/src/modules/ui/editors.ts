@@ -70,7 +70,7 @@ function moveCircle(x, y, r = 20) {
   }
 }
 
-function removeCircle() {
+export function removeCircle() {
   const circle = document.getElementById("brushCircle");
   if (circle) circle.remove();
 }
@@ -975,7 +975,7 @@ function confirmationDialog(options) {
 }
 
 // add and register event listeners to clean up on editor closure
-function listen(element, event, handler) {
+export function listen(element, event, handler) {
   element.on(event, handler);
   return () => element.off(event, handler);
 }

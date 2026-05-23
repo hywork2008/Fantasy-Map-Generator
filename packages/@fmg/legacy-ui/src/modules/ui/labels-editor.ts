@@ -1,4 +1,7 @@
 "use strict";
+
+import { fitContent } from "./editors";
+
 class LabelsEditor {
   public open() {
     if (customization) return;

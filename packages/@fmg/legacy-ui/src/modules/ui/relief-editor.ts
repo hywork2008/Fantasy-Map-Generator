@@ -1,4 +1,5 @@
 "use strict";
+import { removeCircle } from "./editors";
 class ReliefEditor {
   public open() {
     if (customization) return;

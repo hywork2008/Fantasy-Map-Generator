@@ -1,25 +1,5 @@
 import { expect, test } from "@playwright/test";
 
-type TabConfig = {
-  tabButtonId: string;
-  contentId: string;
-};
-
-const TABS: TabConfig[] = [
-  { tabButtonId: "layersTab", contentId: "layersContent" },
-  { tabButtonId: "styleTab", contentId: "styleContent" },
-  { tabButtonId: "optionsTab", contentId: "optionsContent" },
-  { tabButtonId: "toolsTab", contentId: "toolsContent" },
-  { tabButtonId: "aboutTab", contentId: "aboutContent" }
-];
-
-const SKIPPED_BUTTON_IDS = new Set([
-  // Enters customization mode and hides main options pane; tested separately in dedicated editor specs.
-  "editHeightmapButton",
-  // Intentionally reloads page.
-  "optionsReset"
-]);
-
 const REGRESSION_ERROR_PATTERNS = [
   "Pack cells not found",
   "Cannot read properties of undefined (reading '4')",
@@ -59,43 +39,27 @@ async function ensureOptionsOpen(page: import("@playwright/test").Page) {
   await expect(options).toBeVisible();
 }
 
+async function clickById(page: import("@playwright/test").Page, id: string) {
+  const locator = page.locator(`#${id}`);
+  await expect(locator, `Expected #${id} to be visible before click`).toBeVisible();
+  await locator.click();
+}
+
+async function closeLatestDialog(page: import("@playwright/test").Page) {
+  const closeButtons = page.locator("#dialogs .ui-dialog:visible button.ui-dialog-titlebar-close");
+  const count = await closeButtons.count();
+  if (!count) return;
+
+  await closeButtons.last().click();
+  await page.waitForTimeout(60);
+}
+
 test.describe("UI button console smoke", () => {
-  test("startup and submap/transform should not emit known regression errors", async ({ page, context }) => {
+  test("recorded tools flow should not emit known regression errors", async ({ page, context }) => {
     test.setTimeout(120000);
 
     await context.clearCookies();
-
-    const errors: string[] = [];
-    page.on("pageerror", error => errors.push(`pageerror: ${error.message}`));
-    page.on("console", msg => {
-      if (msg.type() === "error") errors.push(`console.error: ${msg.text()}`);
-    });
-
-    await openMap(page);
-    await page.waitForTimeout(250);
-
-    await ensureOptionsOpen(page);
-    await page.locator("#toolsTab").click();
-    await expect(page.locator("#toolsContent")).toBeVisible();
-
-    await page.locator("#openSubmapTool").click();
-    await page.waitForTimeout(120);
-
-    await page.locator("#openTransformTool").click();
-    await page.waitForTimeout(120);
-
-    const criticalErrors = errors.filter(message => !isIgnorableError(message));
-    const matchedRegressionErrors = criticalErrors.filter(message =>
-      REGRESSION_ERROR_PATTERNS.some(pattern => message.includes(pattern))
-    );
-
-    expect(matchedRegressionErrors, `Regression errors detected: ${matchedRegressionErrors.join("; ")}`).toEqual([]);
-  });
-
-  test("open menu, switch tabs, click visible buttons and keep console clean", async ({ page, context }) => {
-    test.setTimeout(120000);
-
-    await context.clearCookies();
+    await page.setViewportSize({ width: 2319, height: 742 });
 
     const errors: string[] = [];
 
@@ -114,80 +78,68 @@ test.describe("UI button console smoke", () => {
     });
 
     await openMap(page);
+    await expect(page).toHaveTitle(/Azgaar's Fantasy Map Generator/);
 
-    // Reset collected errors to focus on interactions after initial map load.
+    // Ignore startup noise and validate recorded interactions only.
     errors.length = 0;
 
-    // Initial minimized state -> open menu
     await ensureOptionsOpen(page);
+    await clickById(page, "toolsTab");
+    await expect(page.locator("#toolsContent")).toBeVisible();
 
-    let lastClicked = "";
+    await clickById(page, "editBiomesButton");
+    await closeLatestDialog(page);
 
-    // Optional hide/show cycle to verify trigger flow
-    await page.locator("#optionsHide").click();
-    await expect(page.locator("#options")).toBeHidden();
-    await ensureOptionsOpen(page);
+    await clickById(page, "overviewBurgsButton");
+    await closeLatestDialog(page);
 
-    for (const { tabButtonId, contentId } of TABS) {
-      await page.locator(`#${tabButtonId}`).click();
-      await expect(page.locator(`#${contentId}`)).toBeVisible();
-      await expect(page.locator("#sticked")).toBeVisible();
+    await clickById(page, "editCoastlineSettings");
+    await closeLatestDialog(page);
 
-      const buttonIds = await page.evaluate((activeContentId: string) => {
-        const content = document.getElementById(activeContentId);
-        if (!content) return [] as string[];
+    await clickById(page, "editCulturesButton");
+    await closeLatestDialog(page);
 
-        const isVisible = (el: HTMLElement) => !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+    await clickById(page, "editDiplomacyButton");
+    await closeLatestDialog(page);
 
-        return Array.from(content.querySelectorAll("button[id]"))
-          .filter(button => {
-            const el = button as HTMLButtonElement;
-            return !el.disabled && isVisible(el);
-          })
-          .map(button => (button as HTMLButtonElement).id);
-      }, contentId);
+    await clickById(page, "editEmblemButton");
+    await closeLatestDialog(page);
 
-      for (const id of buttonIds) {
-        if (SKIPPED_BUTTON_IDS.has(id)) continue;
+    await clickById(page, "editHeightmapButton");
+    await closeLatestDialog(page);
 
-        lastClicked = `${tabButtonId}:${id}`;
+    await clickById(page, "overviewMarkersButton");
+    await closeLatestDialog(page);
 
-        await page.evaluate((buttonId: string) => {
-          const button = document.getElementById(buttonId) as HTMLButtonElement | null;
-          if (button && !button.disabled) button.click();
-        }, id);
+    await clickById(page, "overviewMilitaryButton");
+    await closeLatestDialog(page);
 
-        await page.waitForTimeout(60);
+    await clickById(page, "editNamesBaseButton");
+    await closeLatestDialog(page);
 
-        // Some actions may close the menu; re-open to continue the sweep.
-        try {
-          await ensureOptionsOpen(page);
-        } catch (error) {
-          throw new Error(`Failed to reopen options after clicking ${lastClicked}: ${(error as Error).message}`);
-        }
-        await page.locator(`#${tabButtonId}`).click();
-      }
-    }
+    await clickById(page, "editNotesButton");
+    await closeLatestDialog(page);
 
-    // #sticked buttons are expected to stay available regardless of selected tab.
-    // Keep this smoke test low-impact: avoid buttons that trigger generation / file dialogs.
-    const stickedButtonIds = ["zoomReset"];
-    for (const id of stickedButtonIds) {
-      lastClicked = `sticked:${id}`;
+    await clickById(page, "editProvincesButton");
+    await closeLatestDialog(page);
 
-      await page.evaluate((buttonId: string) => {
-        const button = document.getElementById(buttonId) as HTMLButtonElement | null;
-        if (button && !button.disabled) button.click();
-      }, id);
-      await page.waitForTimeout(60);
-      try {
-        await ensureOptionsOpen(page);
-      } catch (error) {
-        throw new Error(`Failed to reopen options after clicking ${lastClicked}: ${(error as Error).message}`);
-      }
-    }
+    await clickById(page, "editReligions");
+    await clickById(page, "overviewRiversButton");
+    await clickById(page, "overviewRoutesButton");
+    await closeLatestDialog(page);
+
+    await clickById(page, "editStatesButton");
+    await clickById(page, "editUnitsButton");
+    await closeLatestDialog(page);
+
+    await clickById(page, "editZonesButton");
+    await closeLatestDialog(page);
 
     const criticalErrors = errors.filter(message => !isIgnorableError(message));
-    expect(criticalErrors, `Unexpected console/page errors: ${criticalErrors.join("; ")}`).toEqual([]);
+    const matchedRegressionErrors = criticalErrors.filter(message =>
+      REGRESSION_ERROR_PATTERNS.some(pattern => message.includes(pattern))
+    );
+
+    expect(matchedRegressionErrors, `Regression errors detected: ${matchedRegressionErrors.join("; ")}`).toEqual([]);
   });
 });

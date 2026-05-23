@@ -1,5 +1,6 @@
 "use strict";
 import { Routes } from "@fmg/core/modules/routes-generator";
+import { fitContent } from "./editors";
 
 // File-local declarations for legacy globals
 declare let customization: boolean;

@@ -1,4 +1,5 @@
 "use strict";
+import { listen } from "./editors";
 class MarkersEditor {
   private element: HTMLElement | null = null;
   private marker: any = null;

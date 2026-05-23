@@ -1,5 +1,7 @@
 "use strict";
 
+import { fitContent } from "./editors";
+
 const GROUP_NAME_REGEXP = /^[\p{L}_][\p{L}\p{N}_-]*$/u;
 
 class BurgGroupEditor {
@@ -345,6 +347,6 @@ class BurgGroupEditor {
 
 const burgGroupEditor = new BurgGroupEditor();
 
-function editBurgGroups() {
+export function editBurgGroups() {
   burgGroupEditor.open();
 }

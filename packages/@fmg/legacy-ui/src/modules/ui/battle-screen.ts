@@ -1,4 +1,4 @@
-import { applySorting } from "./editors";
+import { applySorting, fitContent } from "./editors";
 "use strict";
 class Battle {
   context: any;

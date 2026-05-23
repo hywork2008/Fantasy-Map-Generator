@@ -9,6 +9,7 @@ import "@fmg/core/modules/heightmap-generator";
 import "@fmg/core/modules/ocean-layers";
 import { locked } from "./general";
 import { changeViewMode } from "./options";
+import { removeCircle } from "./editors";
 
 // Import drawFeatures from global scope
 declare const drawFeatures: () => void;
@@ -209,8 +210,9 @@ class HeightmapEditor {
     closeDialogs();
     resetZoom();
 
-    if (ensureEl("preview")) ensureEl("preview").remove();
-    if (ensureEl("canvas3d")) enterStandardView();
+    const previewCanvas = document.getElementById("preview");
+    if (previewCanvas) previewCanvas.remove();
+    if (document.getElementById("canvas3d")) enterStandardView();
 
     const mode = heightmapEditMode.innerHTML;
     if (mode === "erase") regenerateErasedData();
@@ -582,8 +584,8 @@ class HeightmapEditor {
     redo.disabled = templateRedo.disabled = true;
     if (!noStat) {
       updateStatistics();
-      if (ensureEl("preview")) drawHeightmapPreview(); // update heightmap preview if opened
-      if (ensureEl("canvas3d")) ThreeD.redraw(); // update 3d heightmap preview if opened
+      if (document.getElementById("preview")) drawHeightmapPreview(); // update heightmap preview if opened
+      if (document.getElementById("canvas3d")) ThreeD.redraw(); // update 3d heightmap preview if opened
     }
   }
 
@@ -597,8 +599,8 @@ class HeightmapEditor {
     mockHeightmap();
     updateStatistics();
 
-    if (ensureEl("preview")) drawHeightmapPreview(); // update heightmap preview if opened
-    if (ensureEl("canvas3d")) ThreeD.redraw(); // update 3d heightmap preview if opened
+    if (document.getElementById("preview")) drawHeightmapPreview(); // update heightmap preview if opened
+    if (document.getElementById("canvas3d")) ThreeD.redraw(); // update 3d heightmap preview if opened
   }
 
   // restart edits from 1st step
@@ -1265,8 +1267,8 @@ class HeightmapEditor {
       grid.cells.h = HeightmapGenerator.getHeights();
       updateStatistics();
       mockHeightmap();
-      if (ensureEl("preview")) drawHeightmapPreview(); // update heightmap preview if opened
-      if (ensureEl("canvas3d")) ThreeD.redraw(); // update 3d heightmap preview if opened
+      if (document.getElementById("preview")) drawHeightmapPreview(); // update heightmap preview if opened
+      if (document.getElementById("canvas3d")) ThreeD.redraw(); // update 3d heightmap preview if opened
     }
 
     function downloadTemplate() {
@@ -1658,17 +1660,18 @@ class HeightmapEditor {
   }
 
   function toggleHeightmapPreview() {
-    if (ensureEl("preview")) {
-      ensureEl("preview").remove();
+    const existingPreview = document.getElementById("preview");
+    if (existingPreview) {
+      existingPreview.remove();
       return;
     }
-    const preview = document.createElement("canvas");
-    preview.id = "preview";
-    preview.width = grid.cellsX;
-    preview.height = grid.cellsY;
-    document.body.insertBefore(preview, optionsContainer);
-    preview.on("mouseover", () => tip("Heightmap preview. Click to download a screen-sized image"));
-    preview.on("click", downloadPreview);
+    const previewCanvas = document.createElement("canvas");
+    previewCanvas.id = "preview";
+    previewCanvas.width = grid.cellsX;
+    previewCanvas.height = grid.cellsY;
+    document.body.insertBefore(previewCanvas, optionsContainer);
+    previewCanvas.on("mouseover", () => tip("Heightmap preview. Click to download a screen-sized image"));
+    previewCanvas.on("click", downloadPreview);
     drawHeightmapPreview();
   }
 

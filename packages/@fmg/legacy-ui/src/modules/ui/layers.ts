@@ -527,7 +527,7 @@ export function toggleStates(event) {
   }
 }
 
-function drawStates() {
+export function drawStates() {
   TIME && console.time("drawStates");
   const {cells, states} = pack;
 

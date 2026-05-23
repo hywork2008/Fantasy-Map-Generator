@@ -1,6 +1,7 @@
 import { States } from "@fmg/core/modules/states-generator";
-import { applySorting, applySortingByHeader, getArea, getAreaUnit } from "../../ui/editors";
+import { applySorting, applySortingByHeader, getArea, getAreaUnit, fitContent, removeCircle } from "../../ui/editors";
 import { fog, unfog } from "../../ui/editors";
+import { drawStates } from "../../ui/layers";
 
 const $body = insertEditorHtml();
 addListeners();
