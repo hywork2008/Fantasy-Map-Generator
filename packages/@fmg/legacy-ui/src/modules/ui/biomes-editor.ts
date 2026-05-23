@@ -2,8 +2,18 @@
 
 import { Biomes } from "@fmg/core/modules/biomes";
 import { applySorting, getArea, getAreaUnit, fitContent, removeCircle } from "./editors";
+import type { BaseType } from "d3-selection";
+import type { Transition } from "d3-transition";
 
-declare let biomesData: any;
+type BiomesEditorData = ReturnType<typeof Biomes.getDefault> & {
+  cells: number[];
+  area: number[];
+  rural: number[];
+  urban: number[];
+};
+type BiomeTransition = Transition<BaseType, never, null, undefined>;
+
+declare let biomesData: BiomesEditorData;
 declare const areaUnit: HTMLSelectElement;
 
 class BiomesEditor {
@@ -84,7 +94,7 @@ class BiomesEditor {
 
   private biomesEditorAddLines() {
     const body = document.getElementById("biomesBody")!;
-    const animate = d3.transition().duration(2000).ease(d3.easeSinIn);
+    const animate: BiomeTransition = d3.transition().duration(2000).ease(d3.easeSinIn);
     const unit = " " + getAreaUnit();
     const b = biomesData;
     let lines = "",
@@ -168,7 +178,7 @@ class BiomesEditor {
     $("#biomesEditor").dialog({width: fitContent()});
   }
 
-  private biomeHighlightOn(event: MouseEvent, animate: any) {
+  private biomeHighlightOn(event: MouseEvent, animate: BiomeTransition) {
     if (customization === 6) return;
     const biome = +(event.target as HTMLElement).dataset.id!;
     biomes
@@ -179,7 +189,7 @@ class BiomesEditor {
       .attr("stroke", "#cd4c11");
   }
 
-  private biomeHighlightOff(event: MouseEvent, animate: any) {
+  private biomeHighlightOff(event: MouseEvent, animate: BiomeTransition) {
     if (customization === 6) return;
     const biome = +(event.target as HTMLElement).dataset.id!;
     const color = biomesData.color[biome];
@@ -195,7 +205,7 @@ class BiomesEditor {
     const biome = +(el.parentNode as HTMLElement).dataset.id!;
 
     const callback = (newFill: string) => {
-      (el as any).fill = newFill;
+      el.setAttribute("fill", newFill);
       biomesData.color[biome] = newFill;
       biomes
         .select("#biome" + biome)
@@ -453,8 +463,8 @@ class BiomesEditor {
   private applyBiomesChange() {
     const changed = biomes.select("#temp").selectAll("polygon");
     changed.each(function (this: SVGPolygonElement) {
-      const i = +(this as any).dataset.cell;
-      const b = +(this as any).dataset.biome;
+      const i = +(this.dataset.cell || 0);
+      const b = +(this.dataset.biome || 0);
       pack.cells.biome[i] = b;
     });
 
@@ -485,7 +495,7 @@ class BiomesEditor {
   }
 
   private restoreInitialBiomes() {
-    biomesData = Biomes.getDefault();
+    biomesData = Biomes.getDefault() as BiomesEditorData;
     Biomes.define();
     drawBiomes();
     recalculatePopulation();

@@ -1,5 +1,8 @@
 import { applySorting, fitContent } from "./editors";
+import type { MilitaryRegiment } from "@fmg/core/modules/military-generator";
 "use strict";
+
+type UiRegiment = MilitaryRegiment & { icon: string; name: string };
 function overviewRegiments(state) {
   if (customization) return;
   closeDialogs(".stable");
@@ -54,7 +57,7 @@ function overviewRegiments(state) {
     const regiments = [];
 
     for (const s of pack.states) {
-      const stateMilitary = (s.military || []) as any[];
+      const stateMilitary = (s.military || []) as UiRegiment[];
       if (!s.i || s.removed || !stateMilitary.length) continue;
       if (state !== -1 && s.i !== state) continue;
 
@@ -178,26 +181,30 @@ function overviewRegiments(state) {
     const cell = findCell(point[0], point[1]);
     const x = pack.cells.p[cell][0],
       y = pack.cells.p[cell][1];
-    const military = (pack.states[state].military || []) as any[];
+    const military = (pack.states[state].military || []) as UiRegiment[];
     const i = military.length ? last(military).i + 1 : 0;
     const n = +(pack.cells.h[cell] < 20);
-    const reg: {a: number; cell: number; i: number; n: number; u: Record<string, number>; x: number; y: number; bx: number; by: number; state: number; icon: string; name?: string} = {
+    const reg: UiRegiment = {
       a: 0,
       cell,
       i,
+      t: 0,
+      s: n,
       n,
+      type: n ? "naval" : "melee",
       u: {},
       x,
       y,
       bx: x,
       by: y,
       state,
-      icon: "🛡️"
+      icon: "🛡️",
+      name: ""
     };
-    reg.name = Military.getName(reg as any, military);
-    military.push(reg as any);
-    Military.generateNote(reg as any, pack.states[state]);
-    drawRegiment(reg as any, state);
+    reg.name = Military.getName(reg, military);
+    military.push(reg);
+    Military.generateNote(reg, pack.states[state]);
+    drawRegiment(reg, state);
     toggleAdd();
   }
 
@@ -209,7 +216,7 @@ function overviewRegiments(state) {
       ",X,Y,Latitude,Longitude,Base X,Base Y,Base Latitude,Base Longitude\n";
 
     for (const s of pack.states) {
-      const stateMilitary = (s.military || []) as any[];
+      const stateMilitary = (s.military || []) as UiRegiment[];
       if (!s.i || s.removed || !stateMilitary.length) continue;
 
       for (const r of stateMilitary) {

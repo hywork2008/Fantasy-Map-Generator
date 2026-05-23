@@ -1,30 +1,79 @@
 import { applySorting, fitContent } from "./editors";
+import type { MilitaryRegiment } from "@fmg/core/modules/military-generator";
 "use strict";
+
+type BattleSideKey = "attackers" | "defenders";
+type BattleType = "field" | "naval" | "siege" | "ambush" | "landing" | "air";
+type BattlePhase =
+  | "skirmish"
+  | "melee"
+  | "pursue"
+  | "retreat"
+  | "shelling"
+  | "boarding"
+  | "chase"
+  | "withdrawal"
+  | "blockade"
+  | "sheltering"
+  | "sortie"
+  | "bombardment"
+  | "storming"
+  | "defense"
+  | "looting"
+  | "surrendering"
+  | "surprise"
+  | "shock"
+  | "landing"
+  | "flee"
+  | "waiting"
+  | "maneuvering"
+  | "dogfight";
+
+type BattleRegiment = MilitaryRegiment & {
+  icon: string;
+  name: string;
+  casualties?: Record<string, number>;
+  survivors?: Record<string, number>;
+  px?: number;
+  py?: number;
+};
+
+type BattleSide = {
+  regiments: BattleRegiment[];
+  distances: number[];
+  morale: number;
+  casualties: number;
+  power: number;
+  phase?: BattlePhase;
+  die?: number;
+};
+
+const createBattleSide = (): BattleSide => ({regiments: [], distances: [], morale: 100, casualties: 0, power: 0});
+
 class Battle {
-  context: any;
+  static context: Battle | null = null;
   iteration: number = 0;
   x: number = 0;
   y: number = 0;
   cell: number = 0;
-  attackers: any = null;
-  defenders: any = null;
+  attackers: BattleSide = createBattleSide();
+  defenders: BattleSide = createBattleSide();
   place: string = "";
-  type: string = "";
+  type: BattleType = "field";
   name: string = "";
-  [key: string]: any;
 
-  constructor(attacker, defender) {
+  constructor(attacker: BattleRegiment, defender: BattleRegiment) {
     if (customization) return;
     closeDialogs(".stable");
     customization = 13; // enter customization to avoid unwanted dialog closing
 
-    Battle.prototype.context = this; // store context
+    Battle.context = this; // store context
     this.iteration = 0;
     this.x = defender.x;
     this.y = defender.y;
     this.cell = findCell(this.x, this.y);
-    this.attackers = {regiments: [], distances: [], morale: 100, casualties: 0, power: 0};
-    this.defenders = {regiments: [], distances: [], morale: 100, casualties: 0, power: 0};
+    this.attackers = createBattleSide();
+    this.defenders = createBattleSide();
 
     this.addHeaders();
     this.addRegiment("attackers", attacker);
@@ -42,7 +91,7 @@ class Battle {
       resizable: false,
       width: fitContent(),
       position: {my: "center", at: "center", of: "#map"},
-      close: () => Battle.prototype.context.cancelResults()
+      close: () => Battle.context?.cancelResults()
     });
 
     if (modules.Battle) return;
@@ -50,38 +99,37 @@ class Battle {
 
     // add listeners
     ensureEl("battleType").on("click", ev => this.toggleChange(ev));
-    ensureEl("battleType").nextElementSibling.on("click", ev => Battle.prototype.context.changeType(ev));
-    ensureEl("battleNameShow").on("click", () => Battle.prototype.context.showNameSection());
-    ensureEl("battleNamePlace").on("change", ev => (Battle.prototype.context.place = ev.target.value));
-    ensureEl("battleNameFull").on("change", ev => Battle.prototype.context.changeName(ev));
-    ensureEl("battleNameCulture").on("click", () => Battle.prototype.context.generateName("culture"));
-    ensureEl("battleNameRandom").on("click", () => Battle.prototype.context.generateName("random"));
+    ensureEl("battleType").nextElementSibling.on("click", ev => Battle.context?.changeType(ev));
+    ensureEl("battleNameShow").on("click", () => Battle.context?.showNameSection());
+    ensureEl("battleNamePlace").on("change", ev => {
+      const context = Battle.context;
+      if (context) context.place = (ev.target as HTMLInputElement).value;
+    });
+    ensureEl("battleNameFull").on("change", ev => Battle.context?.changeName(ev));
+    ensureEl("battleNameCulture").on("click", () => Battle.context?.generateName("culture"));
+    ensureEl("battleNameRandom").on("click", () => Battle.context?.generateName("random"));
     ensureEl("battleNameHide").on("click", this.hideNameSection);
     ensureEl("battleAddRegiment").on("click", this.addSide);
-    ensureEl("battleRoll").on("click", () => Battle.prototype.context.randomize());
-    ensureEl("battleRun").on("click", () => Battle.prototype.context.run());
-    ensureEl("battleApply").on("click", () => Battle.prototype.context.applyResults());
-    ensureEl("battleCancel").on("click", () => Battle.prototype.context.cancelResults());
+    ensureEl("battleRoll").on("click", () => Battle.context?.randomize());
+    ensureEl("battleRun").on("click", () => Battle.context?.run());
+    ensureEl("battleApply").on("click", () => Battle.context?.applyResults());
+    ensureEl("battleCancel").on("click", () => Battle.context?.cancelResults());
     ensureEl("battleWiki").on("click", () => wiki("Battle-Simulator"));
 
     ensureEl("battlePhase_attackers").on("click", ev => this.toggleChange(ev));
-    ensureEl("battlePhase_attackers").nextElementSibling.on("click", ev =>
-      Battle.prototype.context.changePhase(ev, "attackers")
-    );
+    ensureEl("battlePhase_attackers").nextElementSibling.on("click", ev => Battle.context?.changePhase(ev, "attackers"));
     ensureEl("battlePhase_defenders").on("click", ev => this.toggleChange(ev));
-    ensureEl("battlePhase_defenders").nextElementSibling.on("click", ev =>
-      Battle.prototype.context.changePhase(ev, "defenders")
-    );
-    ensureEl("battleDie_attackers").on("click", () => Battle.prototype.context.rollDie("attackers"));
-    ensureEl("battleDie_defenders").on("click", () => Battle.prototype.context.rollDie("defenders"));
+    ensureEl("battlePhase_defenders").nextElementSibling.on("click", ev => Battle.context?.changePhase(ev, "defenders"));
+    ensureEl("battleDie_attackers").on("click", () => Battle.context?.rollDie("attackers"));
+    ensureEl("battleDie_defenders").on("click", () => Battle.context?.rollDie("defenders"));
   }
 
   defineType() {
     const attacker = this.attackers.regiments[0];
     const defender = this.defenders.regiments[0];
     const getType = () => {
-      const typesA = Object.keys(attacker.u).map(name => options.military.find(u => u.name === name).type);
-      const typesD = Object.keys(defender.u).map(name => options.military.find(u => u.name === name).type);
+      const typesA = Object.keys(attacker.u).map(name => options.military.find(u => u.name === name)?.type);
+      const typesD = Object.keys(defender.u).map(name => options.military.find(u => u.name === name)?.type);
 
       if (attacker.n && defender.n) return "naval"; // attacker and defender are navals
       if (typesA.every(t => t === "aviation") && typesD.every(t => t === "aviation")) return "air"; // if attackers and defender have only aviation units
@@ -153,7 +201,7 @@ class Battle {
     battleAttackers.innerHTML = battleDefenders.innerHTML = headers;
   }
 
-  addRegiment(side, regiment) {
+  addRegiment(side: BattleSideKey, regiment: BattleRegiment) {
     regiment.casualties = Object.keys(regiment.u).reduce((a, b) => ((a[b] = 0), a), {});
     regiment.survivors = Object.assign({}, regiment.u);
 
@@ -202,14 +250,14 @@ class Battle {
 
   addSide() {
     const body = ensureEl("regimentSelectorBody");
-    const context = Battle.prototype.context;
-      const regiments = pack.states
+    const context = Battle.context;
+    if (!context) return;
+    const regiments = pack.states
       .filter(s => s.military && !s.removed)
-      .map(s => s.military)
-        .flat() as any[];
-    const distance = reg =>
+      .flatMap(s => (s.military || []) as BattleRegiment[]);
+    const distance = (reg: BattleRegiment) =>
       rn(Math.hypot(context.y - reg.y, context.x - reg.x) * distanceScale) + " " + distanceUnitInput.value;
-    const isAdded = reg =>
+    const isAdded = (reg: BattleRegiment) =>
       context.defenders.regiments.some(r => r === reg) || context.attackers.regiments.some(r => r === reg);
 
     body.innerHTML = regiments
@@ -249,15 +297,16 @@ class Battle {
     applySorting(regimentSelectorHeader);
     body.on("click", selectLine);
 
-    function selectLine(ev) {
-      if (ev.target.className === "inactive") {
+    function selectLine(ev: Event) {
+      const target = ev.target as HTMLElement;
+      if (target.className === "inactive") {
         tip("Regiment is already in the battle", false, "error");
         return;
       }
-      ev.target.classList.toggle("selected");
+      target.classList.toggle("selected");
     }
 
-    function addSideClicked(side) {
+    function addSideClicked(side: BattleSideKey) {
       const selected = body.querySelectorAll(".selected");
       if (!selected.length) {
         tip("Please select a regiment first", false, "error");
@@ -266,8 +315,13 @@ class Battle {
 
       $("#regimentSelectorScreen").dialog("close");
       selected.forEach(line => {
-        const state = pack.states[line.dataset.s];
-        const regiment = state.military.find(r => r.i == +line.dataset.i);
+        const lineEl = line as HTMLElement;
+        const stateId = +(lineEl.dataset.s || -1);
+        const regimentId = +(lineEl.dataset.i || -1);
+        const state = pack.states[stateId];
+        const regiment = (state?.military || []).find((r: BattleRegiment) => r.i === regimentId) as BattleRegiment | undefined;
+        if (!regiment) return;
+
         Battle.prototype.addRegiment.call(context, side, regiment);
         Battle.prototype.calculateStrength.call(context, side);
         Battle.prototype.getInitialMorale.call(context);
@@ -316,17 +370,18 @@ class Battle {
     $("#battleScreen").dialog({title: this.name});
   }
 
-  getJoinedForces(regiments) {
+  getJoinedForces(regiments: BattleRegiment[]) {
     return regiments.reduce((a, b) => {
-      for (let k in b.survivors) {
-        if (!b.survivors.hasOwnProperty(k)) continue;
-        a[k] = (a[k] || 0) + b.survivors[k];
+      const survivors = b.survivors || {};
+      for (let k in survivors) {
+        if (!Object.prototype.hasOwnProperty.call(survivors, k)) continue;
+        a[k] = (a[k] || 0) + survivors[k];
       }
       return a;
-    }, {});
+    }, {} as Record<string, number>);
   }
 
-  calculateStrength(side) {
+  calculateStrength(side: BattleSideKey) {
     const scheme = {
       // field battle phases
       skirmish: {
@@ -494,7 +549,7 @@ class Battle {
     const phase = this[side].phase;
     const adjuster = Math.max(populationRate / 10, 10); // population adjuster, by default 100
     this[side].power =
-      d3.sum(options.military.map(u => (forces[u.name] || 0) * u.power * scheme[phase][u.type])) / adjuster;
+      d3.sum(options.military.map(u => (forces[u.name] || 0) * u.power * scheme[phase || "melee"][u.type])) / adjuster;
     const UIvalue = this[side].power ? Math.max(this[side].power | 0, 1) : 0;
     ensureEl("battlePower_" + side).innerHTML = UIvalue;
   }
@@ -509,7 +564,7 @@ class Battle {
     this.updateMorale("defenders");
   }
 
-  updateMorale(side) {
+  updateMorale(side: BattleSideKey) {
     const morale = ensureEl("battleMorale_" + side);
     morale.dataset.tip = morale.dataset.tip.replace(morale.value, "");
     morale.value = this[side].morale | 0;
@@ -524,7 +579,7 @@ class Battle {
     this.calculateStrength("defenders");
   }
 
-  rollDie(side) {
+  rollDie(side: BattleSideKey) {
     const el = ensureEl("battleDie_" + side);
     const prev = +el.innerHTML;
     do {
@@ -666,9 +721,9 @@ class Battle {
         case "air":
           return getAirBattlePhase();
         default:
-          getFieldBattlePhase();
+          return getFieldBattlePhase();
       }
-    })(this.type);
+    })(this.type) as [BattlePhase, BattlePhase];
 
     this.attackers.phase = phase[0];
     this.defenders.phase = phase[1];
@@ -748,7 +803,7 @@ class Battle {
     this.calculateStrength("defenders");
   }
 
-  calculateCasualties(side, casualties) {
+  calculateCasualties(side: BattleSideKey, casualties: number) {
     for (const r of this[side].regiments) {
       for (const unit in r.u) {
         const rand = 0.8 + Math.random() * 0.4;
@@ -759,7 +814,7 @@ class Battle {
     }
   }
 
-  updateTable(side) {
+  updateTable(side: BattleSideKey) {
     for (const r of this[side].regiments) {
       const tbody = ensureEl("battle" + r.state + "-" + r.i);
       const battleCasualties = tbody.querySelector(".battleCasualties");
@@ -809,12 +864,12 @@ class Battle {
     $("#battleScreen").dialog({title: this.name});
   }
 
-  changePhase(ev, side) {
+  changePhase(ev: Event, side: BattleSideKey) {
     if (ev.target.tagName !== "BUTTON") return;
-    const phase = (this[side].phase = ev.target.dataset.phase);
+    const phase = (this[side].phase = (ev.target as HTMLElement).dataset.phase as BattlePhase);
     const button = ensureEl("battlePhase_" + side);
     button.className = "icon-button-" + phase;
-    button.dataset.tip = ev.target.dataset.tip;
+    button.dataset.tip = (ev.target as HTMLElement).dataset.tip;
     this.calculateStrength(side);
   }
 
@@ -839,14 +894,14 @@ class Battle {
     this.attackers.regiments.forEach(r => applyResultForSide(r, "attackers"));
     this.defenders.regiments.forEach(r => applyResultForSide(r, "defenders"));
 
-    function applyResultForSide(r, side) {
+    function applyResultForSide(r: BattleRegiment, side: BattleSideKey) {
       const id = "regiment" + r.state + "-" + r.i;
 
       // add result to regiment note
       const note = notes.find(n => n.id === id);
       if (note) {
         const status = side === "attackers" ? battleStatus[0] : battleStatus[1];
-        const losses = r.a ? Math.abs(d3.sum(Object.values(r.casualties))) / r.a : 1;
+        const losses = r.a ? Math.abs(d3.sum(Object.values(r.casualties || {}))) / r.a : 1;
         const regStatus =
           losses === 1
             ? "is destroyed"
@@ -863,15 +918,15 @@ class Battle {
             : losses > 0
             ? "suffered unsignificant losses"
             : "left the battle without loss";
-        const casualties = Object.keys(r.casualties)
-          .map(t => (r.casualties[t] ? `${Math.abs(r.casualties[t])} ${t}` : null))
+        const casualties = Object.keys(r.casualties || {})
+          .map(t => (r.casualties?.[t] ? `${Math.abs(r.casualties[t])} ${t}` : null))
           .filter(c => c);
         const casualtiesText = casualties.length ? " Casualties: " + list(casualties) + "." : "";
         const legend = `\r\n\r\n${battleName} (${options.year} ${options.eraShort}): ${status}. The regiment ${regStatus}.${casualtiesText}`;
         note.legend += legend;
       }
 
-      r.u = Object.assign({}, r.survivors);
+      r.u = Object.assign({}, r.survivors || {});
       r.a = d3.sum(Object.values(r.u)); // reg total
       armies.select(`g#${id} > text`).text(Military.getTotal(r)); // update reg box
 
@@ -887,11 +942,11 @@ class Battle {
       ensureEl("markers").insertAdjacentHTML("beforeend", markerHTML);
     }
 
-    const getSide = (regs, n) =>
+    const getSide = (regs: BattleRegiment[], n: 0 | 1) =>
       regs.length > 1
         ? `${n ? "regiments" : "forces"} of ${list([...new Set(regs.map(r => pack.states[r.state].name))])}`
         : getAdjective(pack.states[regs[0].state].name) + " " + regs[0].name;
-    const getLosses = casualties => Math.min(rn(casualties * 100), 100);
+    const getLosses = (casualties: number) => Math.min(rn(casualties * 100), 100);
 
     const status = battleStatus[+P(0.7)];
     const result = `The ${this.getTypeName()} ended in ${status}`;
@@ -930,6 +985,6 @@ class Battle {
       delete r.casualties;
       delete r.survivors;
     });
-    delete Battle.prototype.context;
+    Battle.context = null;
   }
 }
