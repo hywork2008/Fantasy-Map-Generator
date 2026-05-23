@@ -83,7 +83,7 @@ function loadMapPrompt(blob: Blob): void {
   }
 }
 
-async function loadMapFromURL(maplink: string, random?: number): Promise<void> {
+export async function loadMapFromURL(maplink: string, random?: number): Promise<void> {
   const controller = new AbortController();
   const TIMEOUT = 120000; // 120 seconds
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT);
@@ -104,7 +104,7 @@ async function loadMapFromURL(maplink: string, random?: number): Promise<void> {
   }
 }
 
-function showUploadErrorMessage(error: any, maplink: string, random?: number): void {
+export function showUploadErrorMessage(error: any, maplink: string, random?: number): void {
   ERROR && console.error(error);
   const link_func = ((window as any).link as any) || ((u: string, t: string) => `<a href="${u}" target="_blank">${t}</a>`);
   alertMessage.innerHTML = /* html */ `Cannot load map from the ${link_func(maplink, "link provided")}. ${
@@ -123,7 +123,7 @@ function showUploadErrorMessage(error: any, maplink: string, random?: number): v
   });
 }
 
-function uploadMap(file: Blob | File, callback?: () => void): void {
+export function uploadMap(file: Blob | File, callback?: () => void): void {
   (uploadMap as any).timeStart = performance.now();
 
   const fileReader = new FileReader();

@@ -2,6 +2,9 @@
 
 import { Biomes } from "@fmg/core/modules/biomes";
 
+declare let biomesData: any;
+declare const areaUnit: HTMLSelectElement;
+
 class BiomesEditor {
   public open() {
     if (customization) return;

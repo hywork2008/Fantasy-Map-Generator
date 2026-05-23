@@ -4,6 +4,8 @@ import { Routes } from "@fmg/core/modules/routes-generator";
 import { lock, unlock } from "./general";
 import { Opisometer, Planimeter, RouteOpisometer, Ruler } from "./measurers";
 
+declare const areaUnit: HTMLSelectElement;
+
 class UnitsEditor {
   public open() {
     closeDialogs("#unitsEditor, .stable");

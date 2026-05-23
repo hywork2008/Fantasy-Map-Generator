@@ -5,6 +5,15 @@ import { tip, clearMainTip } from "./general";
 import { layerIsOn } from "./layers";
 import { ensureEl, rn } from "@fmg/shared";
 
+declare const zones: any;
+declare function drawZones(): void;
+declare const zonesEditor: HTMLElement;
+declare const zonesFooter: HTMLElement;
+declare const zonesFooterCells: HTMLElement;
+declare const zonesFooterArea: HTMLElement;
+declare const zonesFooterPopulation: HTMLElement;
+declare const areaUnit: HTMLSelectElement;
+
 class ZonesEditor {
   public open() {
     closeDialogs("#zonesEditor, .stable");

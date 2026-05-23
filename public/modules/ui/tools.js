@@ -246,7 +246,7 @@ function recreateStates() {
     }
   }
 
-  unfog();
+  if (typeof unfog === "function") unfog();
 
   // burg local ids sorted by a bit randomized population. Also ignore burgs of a locked state
   const sortedBurgs = validBurgs
@@ -344,7 +344,7 @@ function recreateStates() {
 }
 
 function regenerateProvinces() {
-  unfog();
+  if (typeof unfog === "function") unfog();
 
   Provinces.generate(true, true);
   Provinces.getPoles();

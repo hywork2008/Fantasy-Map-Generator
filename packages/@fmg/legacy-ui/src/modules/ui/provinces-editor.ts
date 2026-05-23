@@ -2,6 +2,8 @@
 import { States } from "@fmg/core/modules/states-generator";
 import { fog, unfog } from "./editors";
 
+declare const areaUnit: HTMLSelectElement;
+
 class ProvincesEditor {
   private get body() { return ensureEl("provincesBodySection"); }
 

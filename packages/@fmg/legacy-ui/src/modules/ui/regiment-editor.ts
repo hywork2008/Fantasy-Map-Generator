@@ -1,4 +1,8 @@
 "use strict";
+
+declare function drawRegiment(regiment: any, state: number): void;
+declare function moveRegiment(regiment: any, x: number, y: number): void;
+
 class RegimentEditor {
   public open(selector?: string) {
     if (customization) return;

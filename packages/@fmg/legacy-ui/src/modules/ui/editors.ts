@@ -1013,6 +1013,12 @@ async function editReligions() {
 }
 
 // TS-migrated editors. TODO: import from module when editors.js is migrated to TS
+declare global {
+  interface Window {
+    CoastlineEditor: {open: () => void};
+  }
+}
+
 class CoastlineSettingsEditor {
   public open() {
     if (customization) return;

@@ -89,7 +89,7 @@ type UndrawDeps = {
   };
   ensureEl: (id: string) => HTMLElement;
   resetNotes: () => void;
-  unfog: () => void;
+  unfog?: () => void;
 };
 
 export function undrawFlow({ viewbox, ensureEl, resetNotes, unfog }: UndrawDeps) {
@@ -101,7 +101,7 @@ export function undrawFlow({ viewbox, ensureEl, resetNotes, unfog }: UndrawDeps)
     .forEach((el: Element) => el.remove());
   ensureEl("coas").innerHTML = "";
   resetNotes();
-  unfog();
+  if (typeof unfog === "function") unfog();
 }
 
 type RegenerateDeps = {

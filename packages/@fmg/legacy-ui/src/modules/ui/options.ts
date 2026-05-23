@@ -3,6 +3,7 @@
 
 import { applyOption, clearMainTip, lock, locked, stored, tip } from "./general";
 import { exportToPngTiles } from "../io/export";
+import { loadMapFromURL, uploadMap } from "../io/load";
 import { closeDialogs } from "./editors";
 import { COA } from "@fmg/core/modules/emblem/generator";
 import { COArenderer } from "@fmg/core/modules/emblem/renderer";

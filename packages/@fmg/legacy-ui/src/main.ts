@@ -26,6 +26,7 @@ import {
   openNearSeaLakesFlow,
   setSeedFlow
 } from "./modules/ui/generation-flow";
+import { loadMapFromURL, showUploadErrorMessage, uploadMap } from "./modules/io/load";
 import { rankCellsFlow, reGraphFlow } from "./modules/ui/generation-graph";
 import { createRegenerateMap, showStatisticsFlow, undrawFlow } from "./modules/ui/generation-runtime";
 import {

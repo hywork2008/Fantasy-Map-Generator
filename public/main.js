@@ -1305,5 +1305,5 @@ function undraw() {
     .forEach(el => el.remove());
   ensureEl("coas").innerHTML = ""; // remove auto-generated emblems
   notes = [];
-  unfog();
+  if (typeof unfog === "function") unfog();
 }
