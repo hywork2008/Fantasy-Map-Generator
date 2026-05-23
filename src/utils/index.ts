@@ -164,8 +164,10 @@ window.wiki = wiki;
 window.link = link;
 window.isCtrlClick = isCtrlClick;
 window.generateDate = generateDate;
-window.getLongitude = (x: number, decimals?: number) => getLongitude(x, getNormalizedMapCoordinates(), graphWidth, decimals);
-window.getLatitude = (y: number, decimals?: number) => getLatitude(y, getNormalizedMapCoordinates(), graphHeight, decimals);
+window.getLongitude = (x: number, decimals?: number) =>
+  getLongitude(x, getNormalizedMapCoordinates(), graphWidth, decimals);
+window.getLatitude = (y: number, decimals?: number) =>
+  getLatitude(y, getNormalizedMapCoordinates(), graphHeight, decimals);
 window.getCoordinates = (x: number, y: number, decimals?: number) =>
   getCoordinates(x, y, getNormalizedMapCoordinates(), graphWidth, graphHeight, decimals);
 
