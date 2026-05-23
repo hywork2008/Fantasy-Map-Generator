@@ -12,6 +12,8 @@ import { locked } from "./general";
 // Import drawFeatures from global scope
 declare const drawFeatures: () => void;
 
+let savedLayers: string[] = [];
+
 function editHeightmap(options) {
   const {mode, tool} = options || {};
   restartHistory();
@@ -63,8 +65,8 @@ function editHeightmap(options) {
   }
 
   function enterHeightmapEditMode(mode) {
-    (editHeightmap as any).layers = Array.from(mapLayers.querySelectorAll("li:not(.buttonoff)")).map(node => node.id); // store layers preset
-    (editHeightmap as any).layers.forEach(l => ensureEl(l).click()); // turn off all layers
+    savedLayers = Array.from(mapLayers.querySelectorAll("li:not(.buttonoff)")).map(node => (node as HTMLElement).id); // store layers preset
+    savedLayers.forEach(l => ensureEl(l).click()); // turn off all layers
 
     customization = 1;
     closeDialogs();
@@ -213,7 +215,7 @@ function editHeightmap(options) {
       .getElementById("mapLayers")
       .querySelectorAll("li")
       .forEach(e => {
-        const wasOn = (editHeightmap as any).layers.includes(e.id);
+        const wasOn = savedLayers.includes(e.id);
         if ((wasOn && !layerIsOn(e.id)) || (!wasOn && layerIsOn(e.id))) e.click();
       });
     if (!layerIsOn("toggleBorders")) borders.selectAll("path").remove();

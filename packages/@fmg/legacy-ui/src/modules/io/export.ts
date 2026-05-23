@@ -18,6 +18,25 @@ type JSZipLike = {
   generateAsync: (options: {type: "blob"}) => Promise<Blob>;
 };
 
+type ExportGeoCoordinates = {
+  lonW: number;
+  lonT: number;
+  latN: number;
+  latT: number;
+};
+
+type MapExportType = "svg" | "png" | "mesh" | "tiles";
+
+type MapURLExportOptions = {
+  debug?: boolean;
+  noLabels?: boolean;
+  noWater?: boolean;
+  noScaleBar?: boolean;
+  noIce?: boolean;
+  noVignette?: boolean;
+  fullMap?: boolean;
+};
+
 declare let pngResolutionInput: HTMLInputElement;
 declare let renderOcean: HTMLInputElement;
 
@@ -32,8 +51,25 @@ declare global {
 const getDownloadName = (name = "") => getFileName(name);
 const downloadLegacyFile = (content: string | Blob, name: string, mimeType?: string) =>
   (downloadFile as (content: string | Blob, name: string, mimeType?: string) => void)(content, name, mimeType);
+
+const toFiniteNumber = (value: unknown, fallback = 0): number => {
+  const parsed = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const getGeoCoordinates = (value: Partial<ExportGeoCoordinates>): ExportGeoCoordinates => ({
+  lonW: toFiniteNumber(value.lonW),
+  lonT: toFiniteNumber(value.lonT),
+  latN: toFiniteNumber(value.latN),
+  latT: toFiniteNumber(value.latT)
+});
+
+const getErrorMessage = (error: unknown): string => {
+  return error instanceof Error ? error.message : "Unknown error";
+};
+
 const getMapCoordinates = (x: number, y: number, decimals?: number) =>
-  computeCoordinates(x, y, mapCoordinates, graphWidth, graphHeight, decimals);
+  computeCoordinates(x, y, getGeoCoordinates(mapCoordinates as Partial<ExportGeoCoordinates>), graphWidth, graphHeight, decimals);
 
 export async function exportToSvg() {
   TIME && console.time("exportToSvg");
@@ -46,9 +82,9 @@ export async function exportToSvg() {
 
     const message = `${link.download} is saved. Open 'Downloads' screen (CTRL + J) to check`;
     tip(message, true, "success", 5000);
-  } catch (error) {
+  } catch (error: unknown) {
     ERROR && console.error(error);
-    tip(`SVG export failed: ${error?.message || "Unknown error"}`, true, "error", 5000);
+    tip(`SVG export failed: ${getErrorMessage(error)}`, true, "error", 5000);
   } finally {
     TIME && console.timeEnd("exportToSvg");
   }
@@ -88,9 +124,9 @@ export async function exportToPng() {
 
     const message = `${link.download} is saved. Open 'Downloads' screen (CTRL + J) to check. You can set image scale in options`;
     tip(message, true, "success", 5000);
-  } catch (error) {
+  } catch (error: unknown) {
     ERROR && console.error(error);
-    tip(`PNG export failed: ${error?.message || "Unknown error"}`, true, "error", 5000);
+    tip(`PNG export failed: ${getErrorMessage(error)}`, true, "error", 5000);
   } finally {
     TIME && console.timeEnd("exportToPng");
   }
@@ -130,9 +166,9 @@ export async function exportToJpeg() {
     link.click();
     tip(`${link.download} is saved. Open "Downloads" screen (CTRL + J) to check`, true, "success", 7000);
     window.setTimeout(() => window.URL.revokeObjectURL(link.href), 5000);
-  } catch (error) {
+  } catch (error: unknown) {
     ERROR && console.error(error);
-    tip(`JPEG export failed: ${error?.message || "Unknown error"}`, true, "error", 5000);
+    tip(`JPEG export failed: ${getErrorMessage(error)}`, true, "error", 5000);
   } finally {
     TIME && console.timeEnd("exportToJpeg");
   }
@@ -201,7 +237,7 @@ export async function exportToPngTiles() {
   await loadImage(img);
 
   const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-  function getRowLabel(row) {
+  function getRowLabel(row: number): string {
     const first = row >= alphabet.length ? alphabet[Math.floor(row / alphabet.length) - 1] : "";
     const last = alphabet[row % alphabet.length];
     return first + last;
@@ -233,10 +269,10 @@ export async function exportToPngTiles() {
       status.innerHTML = 'Done. Check .zip file in "Downloads" (CTRL + J)';
       setTimeout(() => URL.revokeObjectURL(link.href), 5000);
     })
-    .catch(error => {
+    .catch((error: unknown) => {
       ERROR && console.error(error);
       status.innerHTML = "Tiles export failed";
-      tip(`PNG tiles export failed: ${error?.message || "Unknown error"}`, true, "error", 5000);
+      tip(`PNG tiles export failed: ${getErrorMessage(error)}`, true, "error", 5000);
     });
 
   // promisified img.onload
@@ -264,7 +300,7 @@ export async function exportToPngTiles() {
 
 // parse map svg to object url
 async function getMapURL(
-  type,
+  type: MapExportType,
   {
     debug = false,
     noLabels = false,
@@ -273,7 +309,7 @@ async function getMapURL(
     noIce = false,
     noVignette = false,
     fullMap = false
-  } = {}
+  }: MapURLExportOptions = {}
 ) {
   const cloneEl = ensureEl("map").cloneNode(true) as SVGSVGElement; // clone svg
   cloneEl.id = "fantasyMap";
@@ -282,7 +318,9 @@ async function getMapURL(
   if (!debug) clone.select("#debug")?.remove();
 
   const cloneDefs = cloneEl.getElementsByTagName("defs")[0] as SVGDefsElement;
-  const svgDefs = ensureEl("defElements") as unknown as SVGSVGElement;
+  const svgDefsNode = ensureEl("defElements");
+  if (!(svgDefsNode instanceof SVGSVGElement)) throw new Error("defElements is not an SVG element");
+  const svgDefs = svgDefsNode;
 
   const isFirefox = navigator.userAgent.toLowerCase().indexOf("firefox") > -1;
   if (isFirefox && type === "mesh") clone.select("#oceanPattern")?.remove();
@@ -589,22 +627,22 @@ export function saveGeoJsonCells() {
   const {cells, vertices} = pack;
   const json = {type: "FeatureCollection", features: []};
 
-  const getPopulation = i => {
+  const getPopulation = (i: number) => {
     const [r, u] = getCellPopulation(i);
     return rn(r + u);
   };
 
-  const getHeight = i => parseInt(getFriendlyHeight(cells.p[i] as [number, number]));
+  const getHeight = (i: number) => parseInt(getFriendlyHeight(cells.p[i] as [number, number]));
 
-  function getCellCoordinates(cellVertices) {
-    const coordinates = cellVertices.map(vertex => {
+  function getCellCoordinates(cellVertices: number[]) {
+    const coordinates = cellVertices.map((vertex: number) => {
       const [x, y] = vertices.p[vertex];
       return getMapCoordinates(x, y, 4);
     });
     return [[...coordinates, coordinates[0]]];
   }
 
-  cells.i.forEach(i => {
+  cells.i.forEach((i: number) => {
     const coordinates = getCellCoordinates(cells.v[i]);
     const height = getHeight(i);
     const biome = cells.biome[i];
@@ -663,7 +701,7 @@ export function saveGeoJsonMarkers() {
   const features = pack.markers.map(marker => {
     const {i, type, icon, x, y, size, fill, stroke} = marker;
     const coordinates = getMapCoordinates(x, y, 4);
-    const note = notes.find(note => note.id === "marker" + i);
+    const note = notes.find((note: {id?: string}) => note.id === "marker" + i);
     const properties = {id: i, type, icon, x, y, ...note, size, fill, stroke};
     return {type: "Feature", geometry: {type: "Point", coordinates}, properties};
   });
@@ -680,13 +718,13 @@ export function saveGeoJsonZones() {
 
   // Helper function to convert zone cells to polygon coordinates
   // Handles multiple disconnected components and holes properly
-  function getZonePolygonCoordinates(zoneCells) {
+  function getZonePolygonCoordinates(zoneCells: number[]): [number, number][][] {
     const cellsInZone = new Set(zoneCells);
-    const ofSameType = cellId => cellsInZone.has(cellId);
-    const ofDifferentType = cellId => !cellsInZone.has(cellId);
+    const ofSameType = (cellId: number) => cellsInZone.has(cellId);
+    const ofDifferentType = (cellId: number) => !cellsInZone.has(cellId);
 
-    const checkedCells = new Set();
-    const rings = []; // Array of LinearRings (each ring is an array of coordinates)
+    const checkedCells = new Set<number>();
+    const rings: [number, number][][] = []; // Array of LinearRings (each ring is an array of coordinates)
 
     // Find all boundary components by tracing each connected region
     for (const cellId of zoneCells) {
@@ -705,7 +743,7 @@ export function saveGeoJsonZones() {
 
       // Find a starting vertex that's on the boundary
       const cellVertices = cells.v[cellId];
-      let startingVertex = null;
+      let startingVertex: number | null = null;
 
       for (const vertexId of cellVertices) {
         const vertexCells = vertices.c[vertexId];
@@ -722,14 +760,14 @@ export function saveGeoJsonZones() {
         vertices,
         startingVertex,
         ofSameType,
-        addToChecked: cellId => checkedCells.add(cellId),
+        addToChecked: (cellId: number) => checkedCells.add(cellId),
         closeRing: false // We'll close it manually after converting to coordinates
       });
 
       if (vertexChain.length < 3) continue;
 
       // Convert vertex chain to coordinates
-      const coordinates = [];
+      const coordinates: [number, number][] = [];
       for (const vertexId of vertexChain) {
         const [x, y] = vertices.p[vertexId];
         coordinates.push(getMapCoordinates(x, y, 4));
@@ -750,7 +788,7 @@ export function saveGeoJsonZones() {
   }
 
   // Filter and process zones
-  zones.forEach(zone => {
+  zones.forEach((zone: {hidden: boolean; cells: number[]; i: number; name: string; type: string; color: string}) => {
     // Exclude hidden zones and zones with no cells
     if (zone.hidden || !zone.cells || zone.cells.length === 0) return;
 
@@ -778,7 +816,7 @@ export function saveGeoJsonZones() {
     } else {
       // Multiple disconnected components: use MultiPolygon
       // Each component is wrapped in its own array
-      const multiPolygonCoordinates = rings.map(ring => [ring]);
+      const multiPolygonCoordinates = rings.map((ring: [number, number][]) => [ring]);
       const feature = {
         type: "Feature",
         geometry: {type: "MultiPolygon", coordinates: multiPolygonCoordinates},

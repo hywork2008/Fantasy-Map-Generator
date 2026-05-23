@@ -3,6 +3,8 @@
 
 modules.editors = true;
 
+let pickerUpdateFill: (() => void) | null = null;
+
 // restore default viewbox events
 export function restoreDefaultEvents() {
   svg.call(zoom);
@@ -465,7 +467,7 @@ function openPicker(fill, callback) {
 
   updateSelectedRect(fill);
 
-  (openPicker as any).updateFill = function () {
+  pickerUpdateFill = function () {
     const selected = ensureEl("picker").querySelector("rect.selected");
     if (!selected) return;
     callback(selected.getAttribute("fill"));
@@ -504,7 +506,7 @@ function dragPicker() {
 function pickerFillClicked() {
   const fill = this.getAttribute("fill");
   updateSelectedRect(fill);
-  (openPicker as any).updateFill();
+  pickerUpdateFill?.();
 
   const hsl = d3.hsl(fill);
   if (isNaN(hsl.h)) return; // not a color
@@ -517,7 +519,7 @@ function clickPickerControl() {
   this.nextSibling.setAttribute("cx", d3.event.x - min);
   updateSpaces();
   updatePickerColors();
-  (openPicker as any).updateFill();
+  pickerUpdateFill?.();
 }
 
 function dragPickerControl() {
@@ -529,7 +531,7 @@ function dragPickerControl() {
     this.setAttribute("cx", x);
     updateSpaces();
     updatePickerColors();
-    (openPicker as any).updateFill();
+    pickerUpdateFill?.();
   });
 }
 
@@ -560,7 +562,7 @@ function changePickerSpace() {
 
   updateSpaces();
   updatePickerColors();
-  (openPicker as any).updateFill();
+  pickerUpdateFill?.();
 }
 
 // add fogging

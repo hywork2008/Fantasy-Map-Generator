@@ -4,6 +4,22 @@
 
 import type { Selection } from "d3";
 
+type MapCoordinates = {
+  latT?: number;
+  latN?: number;
+  latS?: number;
+  lonT?: number;
+  lonW?: number;
+  lonE?: number;
+};
+
+type LegacyNote = {
+  id: string;
+  name: string;
+  legend: string;
+  [key: string]: unknown;
+};
+
 declare global {
   // Core map data
   var seed: string;
@@ -21,13 +37,12 @@ declare global {
 
   // Settings
   var heightmapTemplates: any;
-  var Routes: any;
   var populationRate: number;
   var urbanDensity: number;
   var urbanization: number;
   var distanceScale: number;
   var nameBases: any[];
-  var mapCoordinates: any;
+  var mapCoordinates: MapCoordinates;
 
   // Input elements
   var pointsInput: HTMLInputElement;
@@ -81,7 +96,7 @@ declare global {
   };
 
   // Notes and style
-  var notes: any[];
+  var notes: LegacyNote[];
   var style: {
     burgLabels: { [key: string]: { [key: string]: string } };
     burgIcons: { [key: string]: { [key: string]: string } };

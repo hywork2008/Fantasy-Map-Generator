@@ -17,8 +17,12 @@
 
 type CompareOptions = { major: boolean; minor: boolean; patch: boolean };
 type CompareResult = { isEqual: boolean; isNewer: boolean; isOlder: boolean };
+type DialogInvoker = {
+  dialog: (actionOrOptions: "close" | Record<string, unknown>) => void;
+};
 
 declare const alertMessage: HTMLElement;
+declare const $: (target: string | Element) => DialogInvoker;
 
 const VERSION = "1.122.3";
 if (parseMapVersion(VERSION) !== VERSION) alert("versioning.js: Invalid format or parsing function");
@@ -68,15 +72,15 @@ if (parseMapVersion(VERSION) !== VERSION) alert("versioning.js: Invalid format o
       <p>Join our <a href="${discord}" target="_blank">Discord server</a> and <a href="${reddit}" target="_blank">Reddit community</a> to ask questions, share maps, discuss the Generator and Worldbuilding, report bugs and propose new features.</p>
       <span><i>Thanks for all supporters on <a href="${patreon}" target="_blank">Patreon</a>!</i></span>`;
 
-    ($ as any)("#alert").dialog({
+    $("#alert").dialog({
       resizable: false,
       title: "Fantasy Map Generator update",
       width: "28em",
       position: { my: "center center-4em", at: "center", of: "svg" },
       buttons: {
         "Clear cache": () => cleanupData(),
-        "Don't show again": function (this: unknown) {
-          ($ as any)(this).dialog("close");
+        "Don't show again": function (this: Element) {
+          $(this).dialog("close");
           localStorage.setItem("version", VERSION);
         }
       }

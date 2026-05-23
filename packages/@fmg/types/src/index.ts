@@ -25,11 +25,27 @@ export interface StyleState {
   anchors?: Record<string, any>;
 }
 
+export interface MapCoordinates {
+  latT?: number;
+  latN?: number;
+  latS?: number;
+  lonT?: number;
+  lonW?: number;
+  lonE?: number;
+}
+
+export interface LegacyNote {
+  id: string;
+  name: string;
+  legend: string;
+  [key: string]: unknown;
+}
+
 export interface MapData {
   seed: string | number;
   grid: any;
   pack: any;
   mapId: string | number;
-  mapCoordinates: Record<string, number>;
+  mapCoordinates: MapCoordinates;
   customization: number;
 }
