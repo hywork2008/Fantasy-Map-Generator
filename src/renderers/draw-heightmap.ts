@@ -1,3 +1,4 @@
+import type { Cells, Vertices } from "@fmg/types";
 import type { CurveFactory } from "d3";
 import {
   color,
@@ -21,7 +22,6 @@ import {
   line,
   range
 } from "d3";
-import type { Cells, Vertices } from "@fmg/types";
 import { round } from "../utils";
 
 const CURVE_MAP: Record<string, CurveFactory> = {
