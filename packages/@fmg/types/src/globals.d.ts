@@ -20,6 +20,18 @@ type LegacyNote = {
   [key: string]: unknown;
 };
 
+type BiomesGlobal = typeof import("@fmg/core/modules/biomes").Biomes;
+type BurgsGlobal = typeof import("@fmg/core/modules/burgs-generator").Burgs;
+type CulturesGlobal = typeof import("@fmg/core/modules/cultures-generator").Cultures;
+type FeaturesGlobal = typeof import("@fmg/core/modules/features").Features;
+type IceGlobal = typeof import("@fmg/core/modules/ice").Ice;
+type ProvincesGlobal = typeof import("@fmg/core/modules/provinces-generator").Provinces;
+type ReligionsGlobal = typeof import("@fmg/core/modules/religions-generator").Religions;
+type RoutesGlobal = typeof import("@fmg/core/modules/routes-generator").Routes;
+type StatesGlobal = typeof import("@fmg/core/modules/states-generator").States;
+type ZonesGlobal = typeof import("@fmg/core/modules/zones-generator").Zones;
+type PackedGraphGlobal = import("@fmg/types/PackedGraph").PackedGraph;
+
 declare global {
   // Core map data
   var seed: string;
@@ -159,17 +171,17 @@ declare global {
   var Military: any;
 
   // Generation modules - other state objects
-  var Biomes: any;
-  var Burgs: any;
-  var Cultures: any;
-  var Features: any;
-  var Ice: any;
-  var Provinces: any;
-  var Religions: any;
-  var Routes: any;
-  var States: any;
-  var Zones: any;
-  var packedGraph: any;
+  var Biomes: BiomesGlobal;
+  var Burgs: BurgsGlobal;
+  var Cultures: CulturesGlobal;
+  var Features: FeaturesGlobal;
+  var Ice: IceGlobal;
+  var Provinces: ProvincesGlobal;
+  var Religions: ReligionsGlobal;
+  var Routes: RoutesGlobal;
+  var States: StatesGlobal;
+  var Zones: ZonesGlobal;
+  var packedGraph: PackedGraphGlobal;
 
   // Renderer utility hooks still provided by legacy UI runtime
   var drawBurgIcon: (burg: any) => void;
