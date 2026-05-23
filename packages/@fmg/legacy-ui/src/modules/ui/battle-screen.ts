@@ -1,4 +1,3 @@
-// @ts-nocheck
 "use strict";
 class Battle {
   constructor(attacker, defender) {

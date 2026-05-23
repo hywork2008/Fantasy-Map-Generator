@@ -278,4 +278,45 @@ test.describe('map layers', () => {
     const html = await population.evaluate((el) => el.outerHTML)
     expect(html).toMatchSnapshot('population.html')
   })
+
+  test('toggle functions should change core layer DOM state', async () => {
+    const getCounts = async () => {
+      return await sharedPage.evaluate(() => ({
+        biomes: document.querySelectorAll('#biomes path').length,
+        states: document.querySelectorAll('#statesBody path').length,
+        rivers: document.querySelectorAll('#rivers path').length,
+        borders: document.querySelectorAll('#borders path').length
+      }))
+    }
+
+    const before = await getCounts()
+
+    await sharedPage.evaluate(() => {
+      ;(window as any).toggleBiomes()
+      ;(window as any).toggleStates()
+      ;(window as any).toggleRivers()
+      ;(window as any).toggleBorders()
+    })
+    await sharedPage.waitForTimeout(250)
+
+    const afterToggle = await getCounts()
+    expect(afterToggle.biomes).not.toBe(before.biomes)
+    expect(afterToggle.states).not.toBe(before.states)
+    expect(afterToggle.rivers).not.toBe(before.rivers)
+    expect(afterToggle.borders).not.toBe(before.borders)
+
+    await sharedPage.evaluate(() => {
+      ;(window as any).toggleBiomes()
+      ;(window as any).toggleStates()
+      ;(window as any).toggleRivers()
+      ;(window as any).toggleBorders()
+    })
+    await sharedPage.waitForTimeout(250)
+
+    const afterRestore = await getCounts()
+    expect(afterRestore.biomes).toBe(before.biomes)
+    expect(afterRestore.states).toBe(before.states)
+    expect(afterRestore.rivers).toBe(before.rivers)
+    expect(afterRestore.borders).toBe(before.borders)
+  })
 })

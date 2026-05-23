@@ -1,16 +1,45 @@
-// @ts-nocheck
 "use strict";
 // Functions to export map to image or data files
 
+import { connectVertices, ensureEl, getBase64, getCoordinates as computeCoordinates, rn, unique } from "@fmg/shared";
 import { Rivers } from "@fmg/core/modules/river-generator";
-import { getFriendlyHeight } from "../ui/general";
+import { getCellPopulation, getFriendlyHeight } from "../ui/general";
+
+type FontAsset = {
+  family: string;
+  src?: string;
+  unicodeRange?: string;
+  variant?: string;
+};
+
+type JSZipLike = {
+  file: (name: string, data: Blob) => void;
+  generateAsync: (options: {type: "blob"}) => Promise<Blob>;
+};
+
+declare let pngResolutionInput: HTMLInputElement;
+declare let renderOcean: HTMLInputElement;
+
+declare global {
+  interface Window {
+    JSZip?: new () => JSZipLike;
+    getUsedFonts?: (svg: SVGSVGElement) => FontAsset[];
+    loadFontsAsDataURI?: (fonts: FontAsset[]) => Promise<FontAsset[]>;
+  }
+}
+
+const getDownloadName = (name = "") => getFileName(name);
+const downloadLegacyFile = (content: string | Blob, name: string, mimeType?: string) =>
+  (downloadFile as (content: string | Blob, name: string, mimeType?: string) => void)(content, name, mimeType);
+const getMapCoordinates = (x: number, y: number, decimals?: number) =>
+  computeCoordinates(x, y, mapCoordinates, graphWidth, graphHeight, decimals);
 
 export async function exportToSvg() {
   TIME && console.time("exportToSvg");
   try {
     const url = await getMapURL("svg", {fullMap: true});
     const link = document.createElement("a");
-    link.download = getFileName() + ".svg";
+    link.download = getDownloadName() + ".svg";
     link.href = url;
     link.click();
 
@@ -31,10 +60,11 @@ export async function exportToPng() {
     const link = document.createElement("a");
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");
-    canvas.width = svgWidth * pngResolutionInput.value;
-    canvas.height = svgHeight * pngResolutionInput.value;
+    const resolution = pngResolutionInput.valueAsNumber || Number(pngResolutionInput.value) || 1;
+    canvas.width = svgWidth * resolution;
+    canvas.height = svgHeight * resolution;
 
-    const blob = await new Promise((resolve, reject) => {
+    const blob = await new Promise<Blob>((resolve, reject) => {
       const img = new Image();
       img.onload = function () {
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
@@ -47,7 +77,7 @@ export async function exportToPng() {
       img.src = url;
     });
 
-    link.download = getFileName() + ".png";
+    link.download = getDownloadName() + ".png";
     link.href = window.URL.createObjectURL(blob);
     link.click();
     window.setTimeout(function () {
@@ -71,11 +101,12 @@ export async function exportToJpeg() {
     const url = await getMapURL("png");
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");
-    canvas.width = svgWidth * pngResolutionInput.value;
-    canvas.height = svgHeight * pngResolutionInput.value;
+    const resolution = pngResolutionInput.valueAsNumber || Number(pngResolutionInput.value) || 1;
+    canvas.width = svgWidth * resolution;
+    canvas.height = svgHeight * resolution;
 
-    const quality = Math.min(rn(1 - pngResolutionInput.value / 20, 2), 0.92);
-    const blob = await new Promise((resolve, reject) => {
+    const quality = Math.min(rn(1 - resolution / 20, 2), 0.92);
+    const blob = await new Promise<Blob>((resolve, reject) => {
       const img = new Image();
       img.onload = function () {
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
@@ -93,7 +124,7 @@ export async function exportToJpeg() {
     });
 
     const link = document.createElement("a");
-    link.download = getFileName() + ".jpeg";
+    link.download = getDownloadName() + ".jpeg";
     link.href = window.URL.createObjectURL(blob);
     link.click();
     tip(`${link.download} is saved. Open "Downloads" screen (CTRL + J) to check`, true, "success", 7000);
@@ -109,7 +140,7 @@ export async function exportToJpeg() {
 function ensureJsZipLoaded() {
   if (window.JSZip) return Promise.resolve();
 
-  return new Promise((resolve, reject) => {
+  return new Promise<void>((resolve, reject) => {
     const existingScript = document.querySelector('script[data-lib="jszip"]');
     if (existingScript) {
       existingScript.addEventListener("load", () => resolve(), {once: true});
@@ -132,7 +163,7 @@ export async function exportToPngTiles() {
 
   const urlSchema = await getMapURL("tiles", {debug: true, fullMap: true});
   await ensureJsZipLoaded();
-  const zip = new window.JSZip();
+  const zip = new window.JSZip!();
 
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
@@ -194,7 +225,7 @@ export async function exportToPngTiles() {
       status.innerHTML = "Downloading the archive...";
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
-      link.download = getFileName() + ".zip";
+      link.download = getDownloadName() + ".zip";
       link.click();
       link.remove();
 
@@ -208,16 +239,16 @@ export async function exportToPngTiles() {
     });
 
   // promisified img.onload
-  function loadImage(img) {
-    return new Promise((resolve, reject) => {
+  function loadImage(img: HTMLImageElement) {
+    return new Promise<void>((resolve, reject) => {
       img.onload = () => resolve();
       img.onerror = err => reject(err);
     });
   }
 
   // promisified canvas.toBlob
-  function canvasToBlob(canvas, mimeType, qualityArgument = 1) {
-    return new Promise((resolve, reject) => {
+  function canvasToBlob(canvas: HTMLCanvasElement, mimeType: string, qualityArgument = 1) {
+    return new Promise<Blob>((resolve, reject) => {
       canvas.toBlob(
         blob => {
           if (blob) resolve(blob);
@@ -243,14 +274,14 @@ async function getMapURL(
     fullMap = false
   } = {}
 ) {
-  const cloneEl = ensureEl("map").cloneNode(true); // clone svg
+  const cloneEl = ensureEl("map").cloneNode(true) as SVGSVGElement; // clone svg
   cloneEl.id = "fantasyMap";
   document.body.appendChild(cloneEl);
   const clone = d3.select(cloneEl);
   if (!debug) clone.select("#debug")?.remove();
 
-  const cloneDefs = cloneEl.getElementsByTagName("defs")[0];
-  const svgDefs = ensureEl("defElements");
+  const cloneDefs = cloneEl.getElementsByTagName("defs")[0] as SVGDefsElement;
+  const svgDefs = ensureEl("defElements") as unknown as SVGSVGElement;
 
   const isFirefox = navigator.userAgent.toLowerCase().indexOf("firefox") > -1;
   if (isFirefox && type === "mesh") clone.select("#oceanPattern")?.remove();
@@ -326,9 +357,9 @@ async function getMapURL(
     const image = cloneEl.getElementById("oceanicPattern");
     const href = image?.getAttribute("href");
     if (href) {
-      await new Promise(resolve => {
+      await new Promise<void>(resolve => {
         getBase64(href, base64 => {
-          image.setAttribute("href", base64);
+          image.setAttribute("href", String(base64));
           resolve();
         });
       });
@@ -340,9 +371,9 @@ async function getMapURL(
     const image = cloneEl.querySelector("#texture > image");
     const href = image?.getAttribute("href");
     if (href) {
-      await new Promise(resolve => {
+      await new Promise<void>(resolve => {
         getBase64(href, base64 => {
-          image.setAttribute("href", base64);
+          image.setAttribute("href", String(base64));
           resolve();
         });
       });
@@ -351,16 +382,18 @@ async function getMapURL(
 
   // add relief icons
   if (cloneEl.getElementById("terrain")) {
-    const uniqueElements = new Set();
-    const terrainNodes = cloneEl.getElementById("terrain").childNodes;
+    const uniqueElements = new Set<string>();
+    const terrainNodes = cloneEl.getElementById("terrain")?.childNodes || [];
     for (let i = 0; i < terrainNodes.length; i++) {
-      const href = terrainNodes[i].getAttribute("href") || terrainNodes[i].getAttribute("xlink:href");
-      uniqueElements.add(href);
+      const node = terrainNodes[i];
+      if (!(node instanceof Element)) continue;
+      const href = node.getAttribute("href") || node.getAttribute("xlink:href");
+      if (href) uniqueElements.add(href);
     }
 
     const defsRelief = svgDefs.getElementById("defs-relief");
-    for (const terrain of [...uniqueElements]) {
-      const element = defsRelief.querySelector(terrain);
+    for (const terrain of uniqueElements) {
+      const element = defsRelief?.querySelector(terrain);
       if (element) cloneDefs.appendChild(element.cloneNode(true));
     }
   }
@@ -373,7 +406,7 @@ async function getMapURL(
 
   // add burs icons
   if (cloneEl.getElementById("burgIcons")) {
-    const groups = cloneEl.getElementById("burgIcons").querySelectorAll("g");
+    const groups = cloneEl.getElementById("burgIcons")?.querySelectorAll<SVGGElement>("g") || [];
     for (const group of Array.from(groups)) {
       const icon = svgDefs.querySelector(group.dataset.icon);
       if (icon) cloneDefs.appendChild(icon.cloneNode(true));
@@ -395,14 +428,15 @@ async function getMapURL(
 
   {
     // replace external marker icons
-    const externalMarkerImages = cloneEl.querySelectorAll('#markers image[href]:not([href=""])');
+    const externalMarkerImages = cloneEl.querySelectorAll<SVGImageElement>('#markers image[href]:not([href=""])');
     const imageHrefs = Array.from(externalMarkerImages).map(img => img.getAttribute("href"));
 
     for (const url of imageHrefs) {
-      await new Promise(resolve => {
+      if (!url) continue;
+      await new Promise<void>(resolve => {
         getBase64(url, base64 => {
           externalMarkerImages.forEach(img => {
-            if (img.getAttribute("href") === url) img.setAttribute("href", base64);
+            if (img.getAttribute("href") === url) img.setAttribute("href", String(base64));
           });
           resolve();
         });
@@ -412,14 +446,15 @@ async function getMapURL(
 
   {
     // replace external regiment icons
-    const externalRegimentImages = cloneEl.querySelectorAll('#armies image[href]:not([href=""])');
+    const externalRegimentImages = cloneEl.querySelectorAll<SVGImageElement>('#armies image[href]:not([href=""])');
     const imageHrefs = Array.from(externalRegimentImages).map(img => img.getAttribute("href"));
 
     for (const url of imageHrefs) {
-      await new Promise(resolve => {
+      if (!url) continue;
+      await new Promise<void>(resolve => {
         getBase64(url, base64 => {
           externalRegimentImages.forEach(img => {
-            if (img.getAttribute("href") === url) img.setAttribute("href", base64);
+            if (img.getAttribute("href") === url) img.setAttribute("href", String(base64));
           });
           resolve();
         });
@@ -458,10 +493,10 @@ async function getMapURL(
   }
 
   // load fonts
-  const usedFonts = getUsedFonts(cloneEl);
+  const usedFonts = window.getUsedFonts?.(cloneEl as SVGSVGElement) || [];
   const fontsToLoad = usedFonts.filter(font => font.src);
-  if (fontsToLoad.length) {
-    const dataURLfonts = await loadFontsAsDataURI(fontsToLoad);
+  if (fontsToLoad.length && window.loadFontsAsDataURI) {
+    const dataURLfonts = await window.loadFontsAsDataURI(fontsToLoad);
 
     const fontFaces = dataURLfonts
       .map(({family, src, unicodeRange = "", variant = "normal"}) => {
@@ -558,12 +593,12 @@ export function saveGeoJsonCells() {
     return rn(r + u);
   };
 
-  const getHeight = i => parseInt(getFriendlyHeight([...cells.p[i]]));
+  const getHeight = i => parseInt(getFriendlyHeight(cells.p[i] as [number, number]));
 
   function getCellCoordinates(cellVertices) {
     const coordinates = cellVertices.map(vertex => {
       const [x, y] = vertices.p[vertex];
-      return getCoordinates(x, y, 4);
+      return getMapCoordinates(x, y, 4);
     });
     return [[...coordinates, coordinates[0]]];
   }
@@ -586,12 +621,12 @@ export function saveGeoJsonCells() {
   });
 
   const fileName = getFileName("Cells") + ".geojson";
-  downloadFile(JSON.stringify(json), fileName, "application/json");
+  downloadLegacyFile(JSON.stringify(json), fileName, "application/json");
 }
 
 export function saveGeoJsonRoutes() {
   const features = pack.routes.map(({i, points, group, name = null}) => {
-    const coordinates = points.map(([x, y]) => getCoordinates(x, y, 4));
+    const coordinates = points.map(([x, y]) => getMapCoordinates(x, y, 4));
     return {
       type: "Feature",
       geometry: {type: "LineString", coordinates},
@@ -601,7 +636,7 @@ export function saveGeoJsonRoutes() {
   const json = {type: "FeatureCollection", features};
 
   const fileName = getFileName("Routes") + ".geojson";
-  downloadFile(JSON.stringify(json), fileName, "application/json");
+  downloadLegacyFile(JSON.stringify(json), fileName, "application/json");
 }
 
 export function saveGeoJsonRivers() {
@@ -609,7 +644,7 @@ export function saveGeoJsonRivers() {
     ({i, cells, points, source, mouth, parent, basin, widthFactor, sourceWidth, discharge, name, type}) => {
       if (!cells || cells.length < 2) return;
       const meanderedPoints = Rivers.addMeandering(cells, points);
-      const coordinates = meanderedPoints.map(([x, y]) => getCoordinates(x, y, 4));
+      const coordinates = meanderedPoints.map(([x, y]) => getMapCoordinates(x, y, 4));
       return {
         type: "Feature",
         geometry: {type: "LineString", coordinates},
@@ -620,13 +655,13 @@ export function saveGeoJsonRivers() {
   const json = {type: "FeatureCollection", features};
 
   const fileName = getFileName("Rivers") + ".geojson";
-  downloadFile(JSON.stringify(json), fileName, "application/json");
+  downloadLegacyFile(JSON.stringify(json), fileName, "application/json");
 }
 
 export function saveGeoJsonMarkers() {
   const features = pack.markers.map(marker => {
     const {i, type, icon, x, y, size, fill, stroke} = marker;
-    const coordinates = getCoordinates(x, y, 4);
+    const coordinates = getMapCoordinates(x, y, 4);
     const note = notes.find(note => note.id === "marker" + i);
     const properties = {id: i, type, icon, x, y, ...note, size, fill, stroke};
     return {type: "Feature", geometry: {type: "Point", coordinates}, properties};
@@ -635,7 +670,7 @@ export function saveGeoJsonMarkers() {
   const json = {type: "FeatureCollection", features};
 
   const fileName = getFileName("Markers") + ".geojson";
-  downloadFile(JSON.stringify(json), fileName, "application/json");
+  downloadLegacyFile(JSON.stringify(json), fileName, "application/json");
 }
 
 export function saveGeoJsonZones() {
@@ -696,7 +731,7 @@ export function saveGeoJsonZones() {
       const coordinates = [];
       for (const vertexId of vertexChain) {
         const [x, y] = vertices.p[vertexId];
-        coordinates.push(getCoordinates(x, y, 4));
+        coordinates.push(getMapCoordinates(x, y, 4));
       }
 
       // Close the ring (first coordinate = last coordinate)
@@ -753,6 +788,6 @@ export function saveGeoJsonZones() {
   });
 
   const fileName = getFileName("Zones") + ".geojson";
-  downloadFile(JSON.stringify(json), fileName, "application/json");
+  downloadLegacyFile(JSON.stringify(json), fileName, "application/json");
 }
 

@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Version Control Guidelines
  * --------------------------
@@ -85,7 +84,7 @@ if (parseMapVersion(VERSION) !== VERSION) alert("versioning.js: Invalid format o
   }
 }
 
-async function cleanupData() {
+export async function cleanupData() {
   await clearCache();
   localStorage.clear();
   localStorage.setItem("version", VERSION);

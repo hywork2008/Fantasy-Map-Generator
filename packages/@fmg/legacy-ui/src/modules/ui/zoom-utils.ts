@@ -1,28 +1,64 @@
-// @ts-nocheck
-type ZoomToDeps = {
-  d3: any;
-  svg: any;
-  zoom: any;
+type TransitionCallTarget = { transform: unknown };
+
+type SelectionLike = {
+  attr(name: string): string;
+  attr(name: string, value: string | number | null): SelectionLike;
+  style(name: string): string;
+  style(name: string, value: string): SelectionLike;
+  select(selector: string): SelectionLike;
+  selectAll(selector: string): SelectionLike;
+  each(callback: (this: SVGGElement) => void): void;
+  size(): number;
+};
+
+type D3Like = {
+  zoomIdentity: {
+    translate: (x: number, y: number) => { scale: (value: number) => unknown };
+  };
+};
+
+type SvgTransitionLike = {
+  duration: (value: number) => { call: (fn: unknown, transform: unknown) => void };
+};
+
+type SvgLike = {
+  transition: () => SvgTransitionLike;
+};
+
+type Marker = {
+  i: number;
+  x: number;
+  y: number;
+  size?: number;
+  hidden?: boolean;
+};
+
+export type ZoomToDeps = {
+  d3: D3Like;
+  svg: SvgLike;
+  zoom: TransitionCallTarget;
   svgWidth: number;
   svgHeight: number;
 };
 
-type InvokeZoomDeps = {
-  coastline: any;
+export type ResetZoomDeps = Pick<ZoomToDeps, "d3" | "svg" | "zoom">;
+
+export type InvokeZoomDeps = {
+  coastline: SelectionLike;
   scale: number;
-  labels: any;
-  emblems: any;
-  statesHalo: any;
+  labels: SelectionLike;
+  emblems: SelectionLike;
+  statesHalo: SelectionLike;
   customization: number;
-  markers: any;
-  pack: any;
-  ruler: any;
-  shapeRendering: any;
+  markers: SelectionLike;
+  pack: { markers?: Marker[] };
+  ruler: SelectionLike;
+  shapeRendering: { value: string };
   rn: (value: number, digits?: number) => number;
-  rescaleLabels: any;
-  hideLabels: any;
-  hideEmblems: any;
-  renderGroupCOAs: (group: any) => void;
+  rescaleLabels: { checked: boolean };
+  hideLabels: { checked: boolean };
+  hideEmblems: { checked: boolean };
+  renderGroupCOAs: (group: Element) => void;
 };
 
 export function zoomToPoint({ d3, svg, zoom, svgWidth, svgHeight }: ZoomToDeps, x: number, y: number, z = 8, d = 2000) {
@@ -63,7 +99,7 @@ export function invokeActiveZoomingView({
       if (this.id === "burgLabels") return;
       const desired = +this.dataset.size;
       const relative = Math.max(rn((desired + desired / scale) / 2, 2), 1);
-      if (rescaleLabels.checked) this.setAttribute("font-size", relative);
+      if (rescaleLabels.checked) this.setAttribute("font-size", String(relative));
 
       const hidden = hideLabels.checked && (relative * scale < 6 || relative * scale > 60);
       if (hidden) this.classList.add("hidden");
@@ -73,7 +109,8 @@ export function invokeActiveZoomingView({
 
   if (emblems.style("display") !== "none") {
     emblems.selectAll("g").each(function () {
-      const size = this.getAttribute("font-size") * scale;
+      const fontSize = Number(this.getAttribute("font-size") || 0);
+      const size = fontSize * scale;
       const hidden = hideEmblems.checked && (size < 25 || size > 300);
       if (hidden) this.classList.add("hidden");
       else this.classList.remove("hidden");
@@ -90,16 +127,16 @@ export function invokeActiveZoomingView({
   }
 
   +markers.attr("rescale") &&
-    pack.markers?.forEach((marker: any) => {
+    pack.markers?.forEach((marker: Marker) => {
       const { i, x, y, size = 30, hidden } = marker;
       const el = !hidden && document.getElementById(`marker${i}`);
       if (!el) return;
 
       const zoomedSize = Math.max(rn(size / 5 + 24 / scale, 2), 1);
-      el.setAttribute("width", zoomedSize);
-      el.setAttribute("height", zoomedSize);
-      el.setAttribute("x", rn(x - zoomedSize / 2, 1));
-      el.setAttribute("y", rn(y - zoomedSize, 1));
+      el.setAttribute("width", String(zoomedSize));
+      el.setAttribute("height", String(zoomedSize));
+      el.setAttribute("x", String(rn(x - zoomedSize / 2, 1)));
+      el.setAttribute("y", String(rn(y - zoomedSize, 1)));
     });
 
   if (ruler.style("display") !== "none") {

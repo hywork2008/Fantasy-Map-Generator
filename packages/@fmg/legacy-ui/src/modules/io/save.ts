@@ -1,13 +1,17 @@
-// @ts-nocheck
 "use strict";
 
 import { getFileName } from "../ui/editors";
 import { link, parseError } from "@fmg/shared";
 
+type SaveMethod = "storage" | "machine" | "dropbox";
+type SaveReminderFn = (() => void) & {reminder?: ReturnType<typeof setInterval>; status?: number};
+
+const saveRuntime = globalThis as any;
+
 // functions to save the whole .map project
-export async function saveMap(method) {
-  if (customization) return tip("Map cannot be saved in EDIT mode, please complete the edit and retry", false, "error");
-  closeDialogs("#alert");
+export async function saveMap(method: SaveMethod): Promise<void> {
+  if (saveRuntime.customization) return saveRuntime.tip("Map cannot be saved in EDIT mode, please complete the edit and retry", false, "error");
+  saveRuntime.closeDialogs("#alert");
 
   try {
     const mapData = prepareMapData();
@@ -17,8 +21,8 @@ export async function saveMap(method) {
     if (method === "machine") saveToMachine(mapData, filename);
     if (method === "dropbox") await saveToDropbox(mapData, filename);
   } catch (error) {
-    ERROR && console.error(error);
-    alertMessage.innerHTML = /* html */ `An error occurred while saving the map. If the issue persists, please copy the message below and report it on ${link(
+    saveRuntime.ERROR && console.error(error);
+    saveRuntime.alertMessage.innerHTML = /* html */ `An error occurred while saving the map. If the issue persists, please copy the message below and report it on ${link(
       "https://github.com/Azgaar/Fantasy-Map-Generator/issues",
       "GitHub"
     )}. <p id="errorBox">${parseError(error as Error)}</p>`;
@@ -41,55 +45,65 @@ export async function saveMap(method) {
   }
 }
 
-function prepareMapData() {
+function prepareMapData(): string {
   const date = new Date();
   const dateString = date.getFullYear() + "-" + (date.getMonth() + 1) + "-" + date.getDate();
   const license = "File can be loaded in azgaar.github.io/Fantasy-Map-Generator";
-  const params = [VERSION, license, dateString, seed, graphWidth, graphHeight, mapId].join("|");
+  const params = [
+    saveRuntime.VERSION,
+    license,
+    dateString,
+    saveRuntime.seed,
+    saveRuntime.graphWidth,
+    saveRuntime.graphHeight,
+    saveRuntime.mapId
+  ].join("|");
   const settings = [
-    distanceUnitInput.value,
-    distanceScale,
-    areaUnit.value,
-    heightUnit.value,
-    heightExponentInput.value,
-    temperatureScale.value,
+    saveRuntime.distanceUnitInput.value,
+    saveRuntime.distanceScale,
+    saveRuntime.areaUnit.value,
+    saveRuntime.heightUnit.value,
+    saveRuntime.heightExponentInput.value,
+    saveRuntime.temperatureScale.value,
     "", // previously used for barSize.value
     "", // previously used for barLabel.value
     "", // previously used for barBackColor.value
     "", // previously used for barBackColor.value
     "", // previously used for barPosX.value
     "", // previously used for barPosY.value
-    populationRate,
-    urbanization,
-    mapSizeOutput.value,
-    latitudeOutput.value,
+    saveRuntime.populationRate,
+    saveRuntime.urbanization,
+    saveRuntime.mapSizeOutput.value,
+    saveRuntime.latitudeOutput.value,
     "", // previously used for temperatureEquatorOutput.value
     "", // previously used for tempNorthOutput.value
-    precOutput.value,
-    JSON.stringify(options),
-    mapName.value,
-    +hideLabels.checked,
-    stylePreset.value,
-    +rescaleLabels.checked,
-    urbanDensity,
-    longitudeOutput.value,
-    growthRate.value
+    saveRuntime.precOutput.value,
+    JSON.stringify(saveRuntime.options),
+    saveRuntime.mapName.value,
+    +saveRuntime.hideLabels.checked,
+    saveRuntime.stylePreset.value,
+    +saveRuntime.rescaleLabels.checked,
+    saveRuntime.urbanDensity,
+    saveRuntime.longitudeOutput.value,
+    saveRuntime.growthRate.value
   ].join("|");
-  const coords = JSON.stringify(mapCoordinates);
-  const biomes = [biomesData.color, biomesData.habitability, biomesData.name].join("|");
-  const notesData = JSON.stringify(notes);
-  const rulersString = rulers.toString();
-  const fonts = JSON.stringify(window.getUsedFonts(svg.node()));
+  const coords = JSON.stringify(saveRuntime.mapCoordinates);
+  const biomes = [saveRuntime.biomesData.color, saveRuntime.biomesData.habitability, saveRuntime.biomesData.name].join("|");
+  const notesData = JSON.stringify(saveRuntime.notes);
+  const rulersString = saveRuntime.rulers.toString();
+  const fonts = JSON.stringify(window.getUsedFonts(saveRuntime.svg.node()));
 
   // save svg
-  const cloneEl = document.getElementById("map").cloneNode(true);
+  const cloneEl = document.getElementById("map")?.cloneNode(true) as SVGSVGElement | null;
+  if (!cloneEl) throw new Error("Map SVG element is not found");
 
   // reset transform values to default
-  cloneEl.setAttribute("width", graphWidth);
-  cloneEl.setAttribute("height", graphHeight);
-  cloneEl.querySelector("#viewbox").removeAttribute("transform");
+  cloneEl.setAttribute("width", String(saveRuntime.graphWidth));
+  cloneEl.setAttribute("height", String(saveRuntime.graphHeight));
+  cloneEl.querySelector("#viewbox")?.removeAttribute("transform");
 
-  cloneEl.querySelector("#ruler").innerHTML = ""; // always remove rulers
+  const rulerNode = cloneEl.querySelector("#ruler") as HTMLElement | null;
+  if (rulerNode) rulerNode.innerHTML = ""; // always remove rulers
   
   cloneEl
     .querySelectorAll("#routes > #roads path, #routes > #trails path, #routes > #searoutes path")
@@ -101,24 +115,24 @@ function prepareMapData() {
 
   const serializedSVG = new XMLSerializer().serializeToString(cloneEl);
 
-  const {spacing, cellsX, cellsY, boundary, points, features, cellsDesired} = grid;
+  const {spacing, cellsX, cellsY, boundary, points, features, cellsDesired} = saveRuntime.grid;
   const gridGeneral = JSON.stringify({spacing, cellsX, cellsY, boundary, points, features, cellsDesired});
-  const packFeatures = JSON.stringify(pack.features);
-  const cultures = JSON.stringify(pack.cultures);
-  const states = JSON.stringify(pack.states);
-  const burgs = JSON.stringify(pack.burgs);
-  const religions = JSON.stringify(pack.religions);
-  const provinces = JSON.stringify(pack.provinces);
-  const rivers = JSON.stringify(pack.rivers);
-  const markers = JSON.stringify(pack.markers);
-  const cellRoutes = JSON.stringify(pack.cells.routes);
-  const routes = JSON.stringify(pack.routes);
-  const zones = JSON.stringify(pack.zones);
-  const ice = JSON.stringify(pack.ice);
+  const packFeatures = JSON.stringify(saveRuntime.pack.features);
+  const cultures = JSON.stringify(saveRuntime.pack.cultures);
+  const states = JSON.stringify(saveRuntime.pack.states);
+  const burgs = JSON.stringify(saveRuntime.pack.burgs);
+  const religions = JSON.stringify(saveRuntime.pack.religions);
+  const provinces = JSON.stringify(saveRuntime.pack.provinces);
+  const rivers = JSON.stringify(saveRuntime.pack.rivers);
+  const markers = JSON.stringify(saveRuntime.pack.markers);
+  const cellRoutes = JSON.stringify(saveRuntime.pack.cells.routes);
+  const routes = JSON.stringify(saveRuntime.pack.routes);
+  const zones = JSON.stringify(saveRuntime.pack.zones);
+  const ice = JSON.stringify(saveRuntime.pack.ice);
 
   // store name array only if not the same as default
-  const defaultNB = Names.getNameBases();
-  const namesData = nameBases
+  const defaultNB = saveRuntime.Names.getNameBases();
+  const namesData = saveRuntime.nameBases
     .map((b, i) => {
       const names = defaultNB[i] && defaultNB[i].b === b.b ? "" : b.b;
       return `${b.name}|${b.min}|${b.max}|${b.d}|${b.m}|${names}`;
@@ -126,7 +140,7 @@ function prepareMapData() {
     .join("/");
 
   // round population to save space
-  const pop = Array.from(pack.cells.pop).map(p => window.rn(p, 4));
+  const pop = Array.from(saveRuntime.pack.cells.pop).map((p: number) => window.rn(p, 4));
 
   // data format as below
   const mapData = [
@@ -137,27 +151,27 @@ function prepareMapData() {
     notesData,
     serializedSVG,
     gridGeneral,
-    grid.cells.h,
-    grid.cells.prec,
-    grid.cells.f,
-    grid.cells.t,
-    grid.cells.temp,
+    saveRuntime.grid.cells.h,
+    saveRuntime.grid.cells.prec,
+    saveRuntime.grid.cells.f,
+    saveRuntime.grid.cells.t,
+    saveRuntime.grid.cells.temp,
     packFeatures,
     cultures,
     states,
     burgs,
-    pack.cells.biome,
-    pack.cells.burg,
-    pack.cells.conf,
-    pack.cells.culture,
-    pack.cells.fl,
+    saveRuntime.pack.cells.biome,
+    saveRuntime.pack.cells.burg,
+    saveRuntime.pack.cells.conf,
+    saveRuntime.pack.cells.culture,
+    saveRuntime.pack.cells.fl,
     pop,
-    pack.cells.r,
+    saveRuntime.pack.cells.r,
     [], // deprecated pack.cells.road
-    pack.cells.s,
-    pack.cells.state,
-    pack.cells.religion,
-    pack.cells.province,
+    saveRuntime.pack.cells.s,
+    saveRuntime.pack.cells.state,
+    saveRuntime.pack.cells.religion,
+    saveRuntime.pack.cells.province,
     [], // deprecated pack.cells.crossroad
     religions,
     provinces,
@@ -175,14 +189,14 @@ function prepareMapData() {
 }
 
 // save map file to indexedDB
-export async function saveToStorage(mapData, showTip = false) {
+export async function saveToStorage(mapData: string, showTip = false): Promise<void> {
   const blob = new Blob([mapData], {type: "text/plain"});
-  await ldb.set("lastMap", blob);
-  showTip && tip("Map is saved to the browser storage", false, "success");
+  await saveRuntime.ldb.set("lastMap", blob);
+  showTip && saveRuntime.tip("Map is saved to the browser storage", false, "success");
 }
 
 // download map file
-export function saveToMachine(mapData, filename) {
+export function saveToMachine(mapData: string, filename: string): void {
   const blob = new Blob([mapData], {type: "text/plain"});
   const URL = window.URL.createObjectURL(blob);
 
@@ -191,44 +205,45 @@ export function saveToMachine(mapData, filename) {
   link.href = URL;
   link.click();
 
-  tip('Map is saved to the "Downloads" folder (CTRL + J to open)', true, "success", 8000);
+  saveRuntime.tip('Map is saved to the "Downloads" folder (CTRL + J to open)', true, "success", 8000);
   setTimeout(() => window.URL.revokeObjectURL(URL), 5000);
 }
 
-export async function saveToDropbox(mapData, filename) {
-  await Cloud.providers.dropbox.save(filename, mapData);
-  tip("Map is saved to your Dropbox", true, "success", 8000);
+export async function saveToDropbox(mapData: string, filename: string): Promise<void> {
+  await saveRuntime.Cloud.providers.dropbox.save(filename, mapData);
+  saveRuntime.tip("Map is saved to your Dropbox", true, "success", 8000);
 }
 
-export async function initiateAutosave() {
+export async function initiateAutosave(): Promise<void> {
   const MINUTE = 60000; // minute in milliseconds
   let lastSavedAt = Date.now();
 
   async function autosave() {
-    const timeoutMinutes = ensureEl("autosaveIntervalOutput").valueAsNumber;
+    const timeoutMinutes = (saveRuntime.ensureEl("autosaveIntervalOutput") as HTMLInputElement).valueAsNumber;
     if (!timeoutMinutes) return;
 
     const diffInMinutes = (Date.now() - lastSavedAt) / MINUTE;
     if (diffInMinutes < timeoutMinutes) return;
-    if (customization) return tip("Autosave: map cannot be saved in edit mode", false, "warning", 2000);
+    if (saveRuntime.customization) return saveRuntime.tip("Autosave: map cannot be saved in edit mode", false, "warn", 2000);
 
     try {
-      tip("Autosave: saving map...", false, "warning", 3000);
+      saveRuntime.tip("Autosave: saving map...", false, "warn", 3000);
       const mapData = prepareMapData();
       await saveToStorage(mapData);
-      tip("Autosave: map is saved", false, "success", 2000);
+      saveRuntime.tip("Autosave: map is saved", false, "success", 2000);
 
       lastSavedAt = Date.now();
     } catch (error) {
-      ERROR && console.error(error);
-      tip(`Autosave failed: ${error?.message || "Unknown error"}`, true, "error", 4000);
+      saveRuntime.ERROR && console.error(error);
+      const message = error instanceof Error ? error.message : "Unknown error";
+      saveRuntime.tip(`Autosave failed: ${message}`, true, "error", 4000);
     }
   }
 
   setInterval(autosave, MINUTE / 2);
 }
 
-const saveReminder = function () {
+const saveReminder: SaveReminderFn = function () {
   if (localStorage.getItem("noReminder")) return;
   const message = [
     "Please don't forget to save the project to desktop from time to time",
@@ -243,8 +258,8 @@ const saveReminder = function () {
   const interval = 15 * 60 * 1000; // remind every 15 minutes
 
   saveReminder.reminder = setInterval(() => {
-    if (customization) return;
-    tip(ra(message), true, "warn", 2500);
+    if (saveRuntime.customization) return;
+    saveRuntime.tip(saveRuntime.ra(message), true, "warn", 2500);
   }, interval);
   saveReminder.status = 1;
 };
@@ -252,12 +267,12 @@ saveReminder();
 
 function toggleSaveReminder() {
   if (saveReminder.status) {
-    tip("Save reminder is turned off. Press CTRL+Q again to re-initiate", true, "warn", 2000);
-    clearInterval(saveReminder.reminder);
-    localStorage.setItem("noReminder", true);
+    saveRuntime.tip("Save reminder is turned off. Press CTRL+Q again to re-initiate", true, "warn", 2000);
+    if (saveReminder.reminder) clearInterval(saveReminder.reminder);
+    localStorage.setItem("noReminder", "true");
     saveReminder.status = 0;
   } else {
-    tip("Save reminder is turned on. Press CTRL+Q to turn off", true, "warn", 2000);
+    saveRuntime.tip("Save reminder is turned on. Press CTRL+Q to turn off", true, "warn", 2000);
     localStorage.removeItem("noReminder");
     saveReminder();
   }

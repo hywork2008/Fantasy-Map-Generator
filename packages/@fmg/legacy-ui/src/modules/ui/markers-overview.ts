@@ -1,4 +1,3 @@
-// @ts-nocheck
 "use strict";
 function overviewMarkers() {
   if (customization) return;
@@ -104,8 +103,8 @@ function overviewMarkers() {
       .join("");
 
     body.innerHTML = lines;
-    markersFooterNumber.innerText = markers.length;
-    markersFooterTotal.innerText = pack.markers.length;
+    markersFooterNumber.innerText = String(markers.length);
+    markersFooterTotal.innerText = String(pack.markers.length);
 
     applySorting(markersHeader);
   }

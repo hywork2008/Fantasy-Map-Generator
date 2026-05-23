@@ -46,6 +46,6 @@
       "#renderers/*": ["./src/renderers/*"]
     }
   },
-  "include": ["src"],
-  "exclude": ["src/e2e", "packages", "node_modules", "dist"]
+  "include": ["src", "packages/@fmg/legacy-ui/src/types/ui-legacy-globals.d.ts"],
+  "exclude": ["src/e2e", "node_modules", "dist"]
 }

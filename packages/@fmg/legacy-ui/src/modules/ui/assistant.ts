@@ -1,6 +1,5 @@
-// @ts-nocheck
 type AssistantDeps = {
-  showDataTip: (...args: any[]) => void;
+  showDataTip: (this: HTMLElement, event: Event) => void;
 };
 
 type TourDeps = {
@@ -12,7 +11,8 @@ type TourDeps = {
 let isAssistantLoaded = false;
 
 export function toggleAssistantWidget({ showDataTip }: AssistantDeps) {
-  const showAssistant = document.getElementById("azgaarAssistant")?.value === "show";
+  const assistantToggle = document.getElementById("azgaarAssistant") as HTMLInputElement | HTMLSelectElement | null;
+  const showAssistant = assistantToggle?.value === "show";
   if (showAssistant) {
     if (isAssistantLoaded) {
       const assistantContainer = document.getElementById("chat-widget-container");
@@ -22,9 +22,11 @@ export function toggleAssistantWidget({ showDataTip }: AssistantDeps) {
         isAssistantLoaded = true;
         setTimeout(() => {
           const bubble = document.getElementById("chat-widget-minimized");
-          if (bubble) {
+          if (bubble instanceof HTMLElement) {
             bubble.dataset.tip = "Click to open the Assistant";
-            bubble.on("mouseover", showDataTip);
+            bubble.addEventListener("mouseover", function (event) {
+              showDataTip.call(this, event);
+            });
           }
         }, 5000);
       });

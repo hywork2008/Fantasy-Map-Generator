@@ -1,4 +1,3 @@
-// @ts-nocheck
 "use strict";
 
 /*
@@ -24,7 +23,7 @@ window.Cloud = (function () {
   function ensureDropboxSdkLoaded() {
     if (window.Dropbox) return Promise.resolve();
 
-    return new Promise((resolve, reject) => {
+    return new Promise<void>((resolve, reject) => {
       const existingScript = document.querySelector('script[data-lib="dropbox-sdk"]');
       if (existingScript) {
         existingScript.addEventListener("load", () => resolve(), {once: true});
@@ -110,7 +109,7 @@ window.Cloud = (function () {
       const top = window.innerHeight / 2 - height / 2.5;
       this.authWindow = window.open("./dropbox.html", "auth", `width=640, height=${height}, top=${top}, left=${left}}`);
 
-      return new Promise((resolve, reject) => {
+      return new Promise<void>((resolve, reject) => {
         const watchDog = setTimeout(() => {
           this.authWindow.close();
           reject(new Error("Timeout. No auth for Dropbox"));

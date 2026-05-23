@@ -1,11 +1,12 @@
-// @ts-nocheck
 "use strict";
 // Module to store generic UI functions
 
+declare let zonesEditor: HTMLElement;
+
 window.addEventListener("resize", function (e) {
   if (stored("mapWidth") && stored("mapHeight")) return;
-  mapWidthInput.value = window.innerWidth;
-  mapHeightInput.value = window.innerHeight;
+  mapWidthInput.value = String(window.innerWidth);
+  mapHeightInput.value = String(window.innerHeight);
   fitMapToScreen();
 });
 
@@ -127,7 +128,7 @@ function showMapTooltip(point, e, i, g) {
           ? [pack.provinces, "province"]
           : [pack.states, "state"];
     const i = +e.target.dataset.i;
-    if (event.shiftKey) highlightEmblemElement(type, g[i]);
+    if ((e as MouseEvent).shiftKey) highlightEmblemElement(type, g[i]);
 
     d3.select(e.target).raise();
     d3.select(parent).raise();
@@ -241,8 +242,10 @@ function showMapTooltip(point, e, i, g) {
 }
 
 function highlightEditorLine(editor, id, timeout = 10000) {
-  Array.from(editor.getElementsByClassName("hovered")).forEach(el => el.classList.remove("hovered"));
-  const hovered = Array.from(editor.querySelectorAll("div")).find(el => el.dataset.id == id);
+  Array.from(editor.getElementsByClassName("hovered") as HTMLCollectionOf<HTMLElement>).forEach(el =>
+    el.classList.remove("hovered")
+  );
+  const hovered = Array.from(editor.querySelectorAll("div") as NodeListOf<HTMLElement>).find(el => el.dataset.id == id);
   if (hovered) hovered.classList.add("hovered");
   if (timeout)
     setTimeout(() => {
@@ -252,8 +255,10 @@ function highlightEditorLine(editor, id, timeout = 10000) {
 
 function updateCellInfo(point, i, g) {
   const cells = pack.cells;
-  const x = (infoX.innerHTML = rn(point[0]));
-  const y = (infoY.innerHTML = rn(point[1]));
+  const x = rn(point[0]);
+  const y = rn(point[1]);
+  infoX.innerHTML = String(x);
+  infoY.innerHTML = String(y);
   const f = cells.f[i];
   infoLat.innerHTML = toDMS(getLatitude(y, 4), "lat");
   infoLon.innerHTML = toDMS(getLongitude(x, 4), "lon");
@@ -331,7 +336,7 @@ export function getFriendlyHeight([x, y]) {
   return getHeight(h);
 }
 
-function getHeight(h, abs) {
+function getHeight(h, abs: boolean | string = false) {
   const unit = heightUnit.value;
   let unitRatio = 3.281;
   if (unit === "m")
@@ -360,7 +365,7 @@ function getRiverInfo(id) {
   return r ? `${r.name} ${r.type} (${id})` : "n/a";
 }
 
-function getCellPopulation(i) {
+export function getCellPopulation(i) {
   const rural = pack.cells.pop[i] * populationRate;
   const urban = pack.cells.burg[i] ? pack.burgs[pack.cells.burg[i]].population * populationRate * urbanization : 0;
   return [rural, urban];
@@ -405,7 +410,7 @@ function highlightEmblemElement(type, el) {
   const borderCells = cells.i.filter(id => obj[id] === i && cells.c[id].some(n => obj[n] !== i));
   const data = Array.from(borderCells)
     .filter((c, i) => !(i % 2))
-    .map(i => cells.p[i])
+    .map(i => cells.p[i as number])
     .map(i => [i[0], i[1], Math.hypot(i[0] - x, i[1] - y)]);
 
   debug
@@ -448,11 +453,11 @@ document.querySelectorAll("[data-locked]").forEach(function (e) {
 });
 
 export function lock(id) {
-  const input = document.querySelector('[data-stored="' + id + '"]');
+  const input = document.querySelector('[data-stored="' + id + '"]') as HTMLInputElement | null;
   if (input) store(id, input.value);
   const el = document.getElementById("lock_" + id);
   if (!el) return;
-  el.dataset.locked = 1;
+  el.dataset.locked = "1";
   el.className = "icon-lock";
 }
 
@@ -460,7 +465,7 @@ export function unlock(id) {
   localStorage.removeItem(id);
   const el = document.getElementById("lock_" + id);
   if (!el) return;
-  el.dataset.locked = 0;
+  el.dataset.locked = "0";
   el.className = "icon-lock-open";
 }
 
@@ -478,22 +483,22 @@ export function store(key, value) {
 }
 
 Array.from(document.getElementsByClassName("speaker")).forEach(el => {
-  const input = el.previousElementSibling;
-  el.addEventListener("click", () => speak(input.value));
+  const input = el.previousElementSibling as HTMLInputElement | null;
+  el.addEventListener("click", () => speak(input?.value || ""));
 });
 
 function speak(text) {
   const speaker = new SpeechSynthesisUtterance(text);
   const voices = speechSynthesis.getVoices();
   if (voices.length) {
-    const voiceId = +document.getElementById("speakerVoice").value;
+    const voiceId = +(document.getElementById("speakerVoice") as HTMLSelectElement).value;
     speaker.voice = voices[voiceId];
   }
   speechSynthesis.speak(speaker);
 }
 
 export function applyOption($select, value, name = value) {
-  const isExisting = Array.from($select.options).some(o => o.value === value);
+  const isExisting = Array.from($select.options as HTMLOptionsCollection).some(o => o.value === value);
   if (!isExisting) $select.options.add(new Option(name, value));
   $select.value = value;
 }

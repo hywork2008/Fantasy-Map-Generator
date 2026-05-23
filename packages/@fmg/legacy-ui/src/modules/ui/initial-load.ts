@@ -1,14 +1,15 @@
-// @ts-nocheck
-type InitialLoadDeps = {
+type GenerateOptions = Record<string, string | number | boolean>;
+
+export type InitialLoadDeps = {
   WARN: boolean;
   ERROR: boolean;
-  ensureEl: (id: string) => any;
-  ldb: { get: (key: string) => Promise<any> };
+  ensureEl: (id: string) => HTMLElement;
+  ldb: { get: (key: string) => Promise<Blob | null> };
   uploadMap: (blob: Blob) => void;
   loadMapFromURL: (url: string, mode: number) => void;
   showUploadErrorMessage: (message: string, details?: string) => void;
   applyStyleOnLoad: () => Promise<void>;
-  generate: (options?: any) => Promise<void>;
+  generate: (options?: GenerateOptions) => Promise<void>;
   applyLayersPreset: () => void;
   drawLayers: () => void;
   fitMapToScreen: () => void;
@@ -58,10 +59,12 @@ export async function checkLoadParametersFlow(deps: InitialLoadDeps) {
   await generateMapOnLoadFlow(deps);
 }
 
-export async function generateMapOnLoadFlow(deps: Pick<
+export type GenerateMapOnLoadDeps = Pick<
   InitialLoadDeps,
   "applyStyleOnLoad" | "generate" | "applyLayersPreset" | "drawLayers" | "fitMapToScreen" | "focusOn" | "toggleAssistant"
->) {
+>;
+
+export async function generateMapOnLoadFlow(deps: GenerateMapOnLoadDeps) {
   await deps.applyStyleOnLoad();
   await deps.generate();
   deps.applyLayersPreset();
@@ -71,8 +74,29 @@ export async function generateMapOnLoadFlow(deps: Pick<
   deps.toggleAssistant();
 }
 
-type FocusDeps = {
-  pack: any;
+type PackCells = { p: Array<[number, number]>; r: number[]; t: number[] };
+
+type Burg = {
+  i: number;
+  x: number;
+  y: number;
+  cell: number;
+  name: string;
+  population: number;
+  port: number;
+  shanty?: number;
+  removed?: boolean;
+  MFCG?: number;
+  [key: string]: string | number | boolean | undefined;
+};
+
+type PackForLoad = {
+  cells: PackCells;
+  burgs: Burg[];
+};
+
+export type FocusDeps = {
+  pack: PackForLoad;
   graphWidth: number;
   graphHeight: number;
   zoomTo: (x: number, y: number, z?: number, d?: number) => void;
@@ -123,11 +147,28 @@ export function focusOnFlow({ pack, graphWidth, graphHeight, zoomTo, findBurgFor
   }
 }
 
-type SelectMfcgDeps = {
-  pack: any;
-  d3: any;
+type D3ScanLike = {
+  scan: <T>(array: T[], comparator: (a: T, b: T) => number) => number;
+  select: (node: Element) => { classed: (name: string, value: boolean) => unknown };
+};
+
+type BurgLabelsSelection = {
+  select: (selector: string) => {
+    size: () => number;
+    on: (eventName: string, handler: ((this: Element) => void) | null) => void;
+    text: (value: string) => {
+      classed: (name: string, value: boolean) => {
+        on: (eventName: string, handler: ((this: Element) => void) | null) => void;
+      };
+    };
+  };
+};
+
+export type SelectMfcgDeps = {
+  pack: PackForLoad;
+  d3: D3ScanLike;
   ERROR: boolean;
-  burgLabels: any;
+  burgLabels: BurgLabelsSelection;
   zoomTo: (x: number, y: number, z?: number, d?: number) => void;
   invokeActiveZooming: () => void;
   tip: (message: string, autoHide?: boolean, type?: "info" | "warn" | "error" | "success", timeout?: number) => void;
@@ -154,16 +195,16 @@ export function findBurgForMFCGFlow(
   if (!selection.length) selection = defineSelection(!coast, 0, !river);
   if (!selection.length) selection = [burgs[1]];
 
-  function defineSelection(coastVal: number, portVal: number, riverVal: number) {
-    if (portVal && riverVal) return burgs.filter((b: any) => b.port && cells.r[b.cell]);
-    if (!portVal && coastVal && riverVal) return burgs.filter((b: any) => !b.port && cells.t[b.cell] === 1 && cells.r[b.cell]);
-    if (!coastVal && !riverVal) return burgs.filter((b: any) => cells.t[b.cell] !== 1 && !cells.r[b.cell]);
-    if (!coastVal && riverVal) return burgs.filter((b: any) => cells.t[b.cell] !== 1 && cells.r[b.cell]);
-    if (coastVal && riverVal) return burgs.filter((b: any) => cells.t[b.cell] === 1 && cells.r[b.cell]);
+  function defineSelection(coastVal: number | boolean, portVal: number | boolean, riverVal: number | boolean): Burg[] {
+    if (portVal && riverVal) return burgs.filter((b: Burg) => b.port && cells.r[b.cell]);
+    if (!portVal && coastVal && riverVal) return burgs.filter((b: Burg) => !b.port && cells.t[b.cell] === 1 && cells.r[b.cell]);
+    if (!coastVal && !riverVal) return burgs.filter((b: Burg) => cells.t[b.cell] !== 1 && !cells.r[b.cell]);
+    if (!coastVal && riverVal) return burgs.filter((b: Burg) => cells.t[b.cell] !== 1 && cells.r[b.cell]);
+    if (coastVal && riverVal) return burgs.filter((b: Burg) => cells.t[b.cell] === 1 && cells.r[b.cell]);
     return [];
   }
 
-  const selected = d3.scan(selection, (a: any, b: any) => Math.abs(a.population - size) - Math.abs(b.population - size));
+  const selected = d3.scan(selection, (a: Burg, b: Burg) => Math.abs(a.population - size) - Math.abs(b.population - size));
   const burgId = selection[selected].i;
   if (!burgId) {
     ERROR && console.error("Cannot select a burg for MFCG");

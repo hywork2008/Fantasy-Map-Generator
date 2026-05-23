@@ -1,4 +1,3 @@
-// @ts-nocheck
 type TipFn = (message: string, pinned?: boolean, level?: string, timeout?: number) => void;
 
 type CloseDialogsFn = (selector?: string) => void;
@@ -84,9 +83,9 @@ type GridState = {
   seed: unknown;
 };
 
-const tipFn = tip as unknown as TipFn;
-const closeDialogsFn = closeDialogs as unknown as CloseDialogsFn;
-const getFileNameFn = getFileName as unknown as GetFileNameFn;
+const tipFn = (window as any).tip as TipFn;
+const closeDialogsFn = (window as any).closeDialogs as CloseDialogsFn;
+const getFileNameFn = (window as any).getFileName as GetFileNameFn;
 
 function readElementValue(el: unknown): string | undefined {
   if (el instanceof HTMLInputElement || el instanceof HTMLSelectElement) return el.value;

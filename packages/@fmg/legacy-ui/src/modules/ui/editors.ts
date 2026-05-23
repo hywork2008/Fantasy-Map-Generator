@@ -1,4 +1,3 @@
-// @ts-nocheck
 // module stub to store common functions for ui editors
 "use strict";
 

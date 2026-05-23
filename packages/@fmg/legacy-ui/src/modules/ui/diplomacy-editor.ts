@@ -1,4 +1,3 @@
-// @ts-nocheck
 "use strict";
 import { States } from "@fmg/core/modules/states-generator";
 
@@ -80,13 +79,13 @@ function editDiplomacy() {
   document.getElementById("diplomacyExport").addEventListener("click", downloadDiplomacyData);
 
   body.addEventListener("click", function (ev) {
-    const el = ev.target;
+    const el = ev.target as HTMLElement;
     if (el.parentElement.classList.contains("Self")) return;
 
     if (el.classList.contains("changeRelations")) {
-      const line = el.parentElement;
+      const line = el.parentElement as HTMLElement;
       const subjectId = +line.dataset.id;
-      const objectId = +body.querySelector("div.Self").dataset.id;
+      const objectId = +(body.querySelector("div.Self") as HTMLElement).dataset.id;
       const currentRelation = line.dataset.relations;
 
       selectRelation(subjectId, objectId, currentRelation);
@@ -105,7 +104,7 @@ function editDiplomacy() {
 
   function diplomacyEditorAddLines() {
     const states = pack.states;
-    const selectedLine = body.querySelector("div.Self");
+    const selectedLine = body.querySelector("div.Self") as HTMLElement | null;
     const selectedId = selectedLine ? +selectedLine.dataset.id : states.find(s => s.i && !s.removed).i;
     const selectedName = states[selectedId].name;
 
@@ -179,7 +178,7 @@ function editDiplomacy() {
   }
 
   function showStateRelations() {
-    const selectedLine = body.querySelector("div.Self");
+    const selectedLine = body.querySelector("div.Self") as HTMLElement | null;
     const sel = selectedLine ? +selectedLine.dataset.id : pack.states.find(s => s.i && !s.removed).i;
     if (!sel) return;
     if (!layerIsOn("toggleStates")) toggleStates();
@@ -202,7 +201,7 @@ function editDiplomacy() {
     const i = findCell(point[0], point[1]);
     const state = pack.cells.state[i];
     if (!state) return;
-    const selectedLine = body.querySelector("div.Self");
+    const selectedLine = body.querySelector("div.Self") as HTMLElement;
     if (+selectedLine.dataset.id === state) return;
 
     selectedLine.classList.remove("Self");
@@ -290,7 +289,8 @@ function editDiplomacy() {
     });
 
     const selectAllNoneBtn = document.getElementById("selectAllNoneBtn");
-    const stateCheckboxes = () => document.querySelectorAll("#stateSelectionContainer input[name='objectSelect']");
+    const stateCheckboxes = () =>
+      document.querySelectorAll("#stateSelectionContainer input[name='objectSelect']") as NodeListOf<HTMLInputElement>;
 
     function updateButtonState() {
       const checkboxes = stateCheckboxes();
@@ -380,7 +380,7 @@ function editDiplomacy() {
   }
 
   function resetRelations() {
-    const selectedId = +body.querySelector("div.Self")?.dataset?.id;
+    const selectedId = +(body.querySelector("div.Self") as HTMLElement | null)?.dataset?.id;
     if (!selectedId) return;
     const states = pack.states;
 
@@ -479,7 +479,7 @@ function editDiplomacy() {
 
     const tableEl = diplomacyMatrixBody.querySelector("table");
     tableEl.addEventListener("click", function (event) {
-      const el = event.target;
+      const el = event.target as HTMLElement;
       if (el.tagName !== "TD") return;
 
       const currentRelation = el.innerText;

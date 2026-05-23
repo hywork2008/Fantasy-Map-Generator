@@ -1,8 +1,45 @@
-// @ts-nocheck
 // Temporary compatibility layer for legacy global consumers.
 // Remove this file when all callers are migrated to explicit ESM imports.
 
-import { applyLayersPreset, drawLayers, drawRoute, drawRoutes, layerIsOn } from "./modules/ui/layers";
+import {
+  applyLayersPreset,
+  drawLayers,
+  drawRoute,
+  drawRoutes,
+  layerIsOn,
+  toggleHeight,
+  toggleTemperature,
+  toggleBiomes,
+  togglePrecipitation,
+  togglePopulation,
+  toggleCells,
+  toggleIce,
+  toggleCultures,
+  toggleReligions,
+  toggleStates,
+  toggleBorders,
+  toggleProvinces,
+  toggleGrid,
+  toggleCoordinates,
+  toggleCompass,
+  toggleRelief,
+  toggleLakes,
+  toggleTexture,
+  toggleRivers,
+  toggleRoutes,
+  toggleMilitary,
+  toggleMarkers,
+  toggleLabels,
+  toggleBurgIcons,
+  toggleRulers,
+  toggleScaleBar,
+  toggleZones,
+  toggleEmblems,
+  toggleVignette,
+  handleLayersPresetChange,
+  savePreset,
+  removePreset
+} from "./modules/ui/layers";
 import {
   applyOption,
   clearMainTip,
@@ -25,12 +62,24 @@ import {
   hideOptions,
   randomizeOptions,
   showOptions,
-  toggleOptions
+  toggleOptions,
+  showSupporters,
+  regeneratePrompt,
+  copyLinkToClickboard,
+  connectToDropbox,
+  loadURL,
+  openExportToPngTiles
 } from "./modules/ui/options";
 import { closeDialogs, restoreDefaultEvents } from "./modules/ui/editors";
-import { applyStyleOnLoad } from "./modules/ui/style-presets";
+import {
+  applyStyleOnLoad,
+  requestStylePresetChange,
+  addStylePreset,
+  requestRemoveStylePreset
+} from "./modules/ui/style-presets";
 import { Rulers, createDefaultRuler } from "./modules/ui/measurers";
 import { initiateAutosave, saveMap, saveToStorage, saveToMachine, saveToDropbox } from "./modules/io/save";
+import { quickLoad, loadFromDropbox, createSharableDropboxLink } from "./modules/io/load";
 import {
   exportToJpeg,
   exportToPng,
@@ -42,6 +91,10 @@ import {
   saveGeoJsonRoutes,
   saveGeoJsonZones
 } from "./modules/io/export";
+import { exportToJson } from "./modules/dynamic/export-json";
+import { editWorld } from "./modules/ui/world-configurator";
+import { textureProvideURL } from "./modules/ui/style";
+import { cleanupData } from "./versioning";
 import { burgIconsRenderer, drawBurgIconRenderer, removeBurgIconRenderer } from "#renderers/draw-burg-icons";
 import { burgLabelsRenderer, drawBurgLabelRenderer, removeBurgLabelRenderer } from "#renderers/draw-burg-labels";
 import { Ice } from "@fmg/core/modules/ice";
@@ -75,6 +128,38 @@ Object.assign(window, {
   drawRoute,
   drawRoutes,
   layerIsOn,
+  toggleHeight,
+  toggleTemperature,
+  toggleBiomes,
+  togglePrecipitation,
+  togglePopulation,
+  toggleCells,
+  toggleIce,
+  toggleCultures,
+  toggleReligions,
+  toggleStates,
+  toggleBorders,
+  toggleProvinces,
+  toggleGrid,
+  toggleCoordinates,
+  toggleCompass,
+  toggleRelief,
+  toggleLakes,
+  toggleTexture,
+  toggleRivers,
+  toggleRoutes,
+  toggleMilitary,
+  toggleMarkers,
+  toggleLabels,
+  toggleBurgIcons,
+  toggleRulers,
+  toggleScaleBar,
+  toggleZones,
+  toggleEmblems,
+  toggleVignette,
+  handleLayersPresetChange,
+  savePreset,
+  removePreset,
 
   drawBurgIcons: burgIconsRenderer,
   drawBurgIcon: drawBurgIconRenderer,
@@ -96,6 +181,12 @@ Object.assign(window, {
   showOptions,
   hideOptions,
   toggleOptions,
+  showSupporters,
+  regeneratePrompt,
+  copyLinkToClickboard,
+  connectToDropbox,
+  loadURL,
+  openExportToPngTiles,
   applyGraphSize,
   fitMapToScreen,
   applyStoredOptions,
@@ -105,6 +196,13 @@ Object.assign(window, {
   closeDialogs,
 
   applyStyleOnLoad,
+  requestStylePresetChange,
+  addStylePreset,
+  requestRemoveStylePreset,
+  editWorld,
+  textureProvideURL,
+  cleanupData,
+  exportToJson,
 
   Rulers,
   createDefaultRuler,
@@ -114,6 +212,10 @@ Object.assign(window, {
   saveToStorage,
   saveToMachine,
   saveToDropbox,
+
+  quickLoad,
+  loadFromDropbox,
+  createSharableDropboxLink,
 
   exportToSvg,
   exportToPng,

@@ -1,4 +1,3 @@
-// @ts-nocheck
 "use strict";
 
 import { Opisometer, Planimeter, Ruler } from "../ui/measurers";

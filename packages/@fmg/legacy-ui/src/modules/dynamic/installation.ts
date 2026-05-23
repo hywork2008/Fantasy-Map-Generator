@@ -1,9 +1,10 @@
-// @ts-nocheck
 // module to prompt PWA installation
-let installButton = null;
-let deferredPrompt = null;
+type DeferredPromptLike = {prompt: () => Promise<void> | void};
 
-export function init(event) {
+let installButton: HTMLButtonElement | null = null;
+let deferredPrompt: DeferredPromptLike | null = null;
+
+export function init(event: DeferredPromptLike) {
   const dontAskforInstallation = localStorage.getItem("installationDontAsk");
   if (dontAskforInstallation) return;
 
@@ -29,7 +30,7 @@ function createButton() {
   button.innerHTML = "Install";
   button.onclick = openDialog;
   button.onmouseenter = () => tip("Install the Application");
-  document.getElementById("optionsContainer").appendChild(button);
+  document.getElementById("optionsContainer")?.appendChild(button);
   return button;
 }
 
@@ -44,7 +45,7 @@ function openDialog() {
     buttons: {
       Install: function () {
         $(this).dialog("close");
-        deferredPrompt.prompt();
+        deferredPrompt?.prompt();
       },
       Cancel: function () {
         $(this).dialog("close");
@@ -58,17 +59,17 @@ function openDialog() {
     },
     close: function () {
       const box = this.parentElement.querySelector(".checkbox");
-      if (box?.checked) {
-        localStorage.setItem("installationDontAsk", true);
+      if (box instanceof HTMLInputElement && box.checked) {
+        localStorage.setItem("installationDontAsk", "true");
         cleanup();
       }
       $(this).dialog("destroy");
     }
   });
+}
 
-  function cleanup() {
-    installButton.remove();
-    installButton = null;
-    deferredPrompt = null;
-  }
+function cleanup() {
+  installButton?.remove();
+  installButton = null;
+  deferredPrompt = null;
 }

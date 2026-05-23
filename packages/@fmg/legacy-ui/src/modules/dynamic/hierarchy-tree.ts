@@ -1,4 +1,3 @@
-// @ts-nocheck
 appendStyleSheet();
 insertHtml();
 
@@ -455,7 +454,7 @@ function selectElement(d) {
 
           const primary = selectedRadio ? Number(selectedRadio.value) : 0;
           const secondary = Array.from(selectedCheckboxes)
-            .map(input => Number(input.dataset.id))
+            .map(input => Number((input as HTMLInputElement).dataset.id))
             .filter(origin => origin !== primary);
 
           dataElement.origins = [primary, ...secondary];

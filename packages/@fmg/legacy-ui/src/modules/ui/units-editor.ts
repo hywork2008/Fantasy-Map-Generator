@@ -1,4 +1,3 @@
-// @ts-nocheck
 "use strict";
 
 import { Routes } from "@fmg/core/modules/routes-generator";
@@ -107,15 +106,18 @@ function editUnits() {
     localStorage.removeItem("areaUnit");
     calculateFriendlyGridSize();
 
-    heightExponentInput.value = 1.8;
+    heightExponentInput.value = "1.8";
     localStorage.removeItem("heightExponent");
     calculateTemperatures();
 
     renderScaleBar();
 
-    populationRate = populationRateInput.value = 1000;
-    urbanization = urbanizationInput.value = 1;
-    urbanDensity = urbanDensityInput.value = 10;
+    populationRate = 1000;
+    populationRateInput.value = String(populationRate);
+    urbanization = 1;
+    urbanizationInput.value = String(urbanization);
+    urbanDensity = 10;
+    urbanDensityInput.value = String(urbanDensity);
     localStorage.removeItem("populationRate");
     localStorage.removeItem("urbanization");
     localStorage.removeItem("urbanDensity");
@@ -129,7 +131,7 @@ function editUnits() {
     const pt = ensureEl("map").createSVGPoint();
     pt.x = width / 2;
     pt.y = height / 4;
-    const p = pt.matrixTransform(viewbox.node().getScreenCTM().inverse());
+    const p = pt.matrixTransform((viewbox.node() as SVGGraphicsElement).getScreenCTM()!.inverse());
 
     const dx = width / 4 / scale;
     const dy = (rulers.data.length * 40) % (height / 2);

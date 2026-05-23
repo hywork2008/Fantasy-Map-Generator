@@ -1,4 +1,3 @@
-// @ts-nocheck
 "use strict";
 function editRegiment(selector) {
   if (customization) return;

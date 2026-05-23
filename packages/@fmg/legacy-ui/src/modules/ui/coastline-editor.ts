@@ -1,4 +1,3 @@
-// @ts-nocheck
 "use strict";
 
 function editCoastline() {
@@ -115,7 +114,8 @@ function editCoastline() {
     select.options.length = 0;
 
     coastline.selectAll("g").each(function () {
-      select.options.add(new Option(this.id, this.id, false, this.id === group));
+      const groupNode = this as SVGGElement;
+      select.options.add(new Option(groupNode.id, groupNode.id, false, groupNode.id === group));
     });
   }
 

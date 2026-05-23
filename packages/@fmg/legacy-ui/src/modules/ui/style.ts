@@ -1,10 +1,159 @@
-// @ts-nocheck
 // UI module to control the style
 "use strict";
 
+declare let styleElements: any;
+declare let styleElementSelect: any;
+declare let styleGroupSelect: any;
+declare let styleIsOff: any;
+declare let styleOpacity: any;
+declare let styleOpacityInput: any;
+declare let styleFilter: any;
+declare let styleFilterInput: any;
+declare let styleFill: any;
+declare let styleFillInput: any;
+declare let styleFillOutput: any;
+declare let styleStroke: any;
+declare let styleStrokeInput: any;
+declare let styleStrokeOutput: any;
+declare let styleStrokeWidth: any;
+declare let styleStrokeWidthInput: any;
+declare let styleStrokeDash: any;
+declare let styleStrokeDasharrayInput: any;
+declare let styleStrokeLinecapInput: any;
+declare let styleClipping: any;
+declare let styleClippingInput: any;
+declare let styleTexture: any;
+declare let styleTextureShiftX: any;
+declare let styleTextureShiftY: any;
+declare let styleHeightmap: any;
+declare let styleHeightmapRenderOceanOption: any;
+declare let styleHeightmapRenderOcean: any;
+declare let styleHeightmapScheme: any;
+declare let styleHeightmapTerracing: any;
+declare let styleHeightmapSkip: any;
+declare let styleHeightmapSimplification: any;
+declare let styleHeightmapCurve: any;
+declare let styleMarkers: any;
+declare let styleRescaleMarkers: any;
+declare let styleGrid: any;
+declare let styleGridType: any;
+declare let styleGridScale: any;
+declare let styleGridShiftX: any;
+declare let styleGridShiftY: any;
+declare let styleCompass: any;
+declare let styleCompassShiftX: any;
+declare let styleCompassShiftY: any;
+declare let styleCompassSizeInput: any;
+declare let styleRelief: any;
+declare let styleReliefSize: any;
+declare let styleReliefDensity: any;
+declare let styleReliefSet: any;
+declare let stylePopulation: any;
+declare let stylePopulationRuralStrokeInput: any;
+declare let stylePopulationRuralStrokeOutput: any;
+declare let stylePopulationUrbanStrokeInput: any;
+declare let stylePopulationUrbanStrokeOutput: any;
+declare let styleStates: any;
+declare let styleStatesBodyOpacity: any;
+declare let styleStatesBodyFilter: any;
+declare let styleStatesHaloWidth: any;
+declare let styleStatesHaloOpacity: any;
+declare let styleStatesHaloBlur: any;
+declare let styleSize: any;
+declare let styleFont: any;
+declare let styleSelectFont: any;
+declare let styleFontSize: any;
+declare let styleLetterSpacing: any;
+declare let styleLetterSpacingInput: any;
+declare let styleScaleBar: any;
+declare let styleScaleBarSize: any;
+declare let styleScaleBarLabel: any;
+declare let styleScaleBarPositionX: any;
+declare let styleScaleBarPositionY: any;
+declare let styleScaleBarFontSize: any;
+declare let styleScaleBarBackgroundFill: any;
+declare let styleScaleBarBackgroundFillOutput: any;
+declare let styleScaleBarBackgroundStroke: any;
+declare let styleScaleBarBackgroundStrokeOutput: any;
+declare let styleScaleBarBackgroundStrokeWidth: any;
+declare let styleScaleBarBackgroundOpacity: any;
+declare let styleScaleBarBackgroundFilter: any;
+declare let styleScaleBarBackgroundPaddingTop: any;
+declare let styleScaleBarBackgroundPaddingRight: any;
+declare let styleScaleBarBackgroundPaddingBottom: any;
+declare let styleScaleBarBackgroundPaddingLeft: any;
+declare let styleLegend: any;
+declare let styleLegendColItems: any;
+declare let styleLegendBack: any;
+declare let styleLegendBackOutput: any;
+declare let styleLegendOpacity: any;
+declare let styleTemperature: any;
+declare let styleTemperatureFillInput: any;
+declare let styleTemperatureFillOutput: any;
+declare let styleTemperatureFillOpacityInput: any;
+declare let styleTemperatureFontSizeInput: any;
+declare let styleOcean: any;
+declare let styleOceanFill: any;
+declare let styleOceanFillOutput: any;
+declare let styleOceanPattern: any;
+declare let styleOceanPatternOpacity: any;
+declare let styleArmies: any;
+declare let styleArmiesFillOpacity: any;
+declare let styleArmiesSize: any;
+declare let styleBurgIcons: any;
+declare let styleBurgIconsFillOpacity: any;
+declare let styleBurgIconsIcon: any;
+declare let styleBurgIconsIconSize: any;
+declare let styleBurgIconsStrokeLinejoin: any;
+declare let styleEmblems: any;
+declare let styleVisibility: any;
+declare let styleShadow: any;
+declare let styleShadowInput: any;
+declare let styleVignette: any;
+declare let styleVignetteX: any;
+declare let styleVignetteY: any;
+declare let styleVignetteWidth: any;
+declare let styleVignetteHeight: any;
+declare let styleVignetteRx: any;
+declare let styleVignetteRy: any;
+declare let styleVignetteBlur: any;
+declare let styleVignettePreset: any;
+declare let styleGridSizeFriendly: any;
+declare let styleLabelsHideGroup: any;
+declare let styleTextureInput: any;
+declare let styleFontPlus: any;
+declare let styleFontMinus: any;
+declare let styleFontAdd: any;
+declare let styleFontShift: any;
+declare let styleFontShiftX: any;
+declare let styleFontShiftY: any;
+declare let styleCoastline: any;
+declare let styleCoastlineAuto: any;
+declare let styleGroup: any;
+declare let outlineLayers: any;
+declare let emblemsStateSizeInput: any;
+declare let emblemsProvinceSizeInput: any;
+declare let emblemsBurgSizeInput: any;
+declare let openCreateHeightmapSchemeButton: any;
+declare let addFontNameInput: any;
+declare let addFontURLInput: any;
+declare let addFontMethod: any;
+declare let textureURL: any;
+declare let showOptions: (...args: any[]) => any;
+declare let OceanLayers: (...args: any[]) => any;
+declare let drawHeightmap: (...args: any[]) => any;
+declare let drawRegiments: (...args: any[]) => any;
+declare let drawEmblems: (...args: any[]) => any;
+declare let toHEX: (...args: any[]) => string;
+declare let legend: any;
+declare let redrawLegend: (...args: any[]) => any;
+declare let addWebFont: (...args: any[]) => any;
+declare let addGoogleFont: (...args: any[]) => any;
+declare let addLocalFont: (...args: any[]) => any;
+
 // add available filters to lists
 {
-  const filters = Array.from(ensureEl("filters").querySelectorAll("filter"));
+  const filters = Array.from(ensureEl("filters").querySelectorAll("filter")) as Element[];
   const emptyOption = '<option value="" selected>None</option>';
   const options = filters.map(filter => {
     const id = filter.getAttribute("id");
@@ -78,7 +227,7 @@ function getColor(value, scheme = getColorScheme("bright")) {
 // Toggle style sections on element select
 styleElementSelect.on("change", selectStyleElement);
 
-function selectStyleElement() {
+export function selectStyleElement() {
   const styleElement = styleElementSelect.value;
   let el = d3.select("#" + styleElement);
 
@@ -496,7 +645,7 @@ function changeTexture(href) {
 }
 
 function updateTextureSelectValue(href) {
-  const isAdded = Array.from(styleTextureInput.options).some(option => option.value === href);
+  const isAdded = (Array.from(styleTextureInput.options) as HTMLOptionElement[]).some(option => option.value === href);
   if (isAdded) {
     styleTextureInput.value = href;
   } else {
@@ -640,9 +789,9 @@ openCreateHeightmapSchemeButton.on("click", function () {
       )
       .join(addStopButton());
 
-    Array.from(container.querySelectorAll("input.stop")).forEach(
+    (Array.from(container.querySelectorAll("input.stop")) as HTMLInputElement[]).forEach(
       (input, index) =>
-        (input.oninput = function () {
+        (input.oninput = function (this: HTMLInputElement) {
           stops[index] = this.value;
           openCreateHeightmapSchemeButton.dataset.stops = stops.join(",");
           renderPreview();
@@ -650,10 +799,10 @@ openCreateHeightmapSchemeButton.on("click", function () {
         })
     );
 
-    Array.from(container.querySelectorAll("button.remove")).forEach(
+    (Array.from(container.querySelectorAll("button.remove")) as HTMLButtonElement[]).forEach(
       button =>
-        (button.onclick = function () {
-          const index = +this.dataset.index;
+        (button.onclick = function (this: HTMLButtonElement) {
+          const index = +(this.dataset.index || 0);
           stops.splice(index, 1);
           openCreateHeightmapSchemeButton.dataset.stops = stops.join(",");
           renderPreview();
@@ -662,7 +811,7 @@ openCreateHeightmapSchemeButton.on("click", function () {
         })
     );
 
-    Array.from(container.querySelectorAll("button.add")).forEach(
+    (Array.from(container.querySelectorAll("button.add")) as HTMLButtonElement[]).forEach(
       (button, index) =>
         (button.onclick = function () {
           const middleColor = d3.interpolateRgb(stops[index], stops[index + 1])(0.5);
@@ -966,7 +1115,7 @@ emblemsBurgSizeInput.on("change", e => {
 });
 
 // request a URL to image to be used as a texture
-function textureProvideURL() {
+export function textureProvideURL() {
   alertMessage.innerHTML = /* html */ `Provide a texture image URL:
     <input id="textureURL" type="url" style="width: 100%" placeholder="http://www.example.com/image.jpg" oninput="fetchTextureURL(this.value)" />
     <canvas id="texturePreview" width="256px" height="144px"></canvas>`;
@@ -1113,9 +1262,9 @@ styleScaleBar.on("input", function (event) {
   }
 });
 
-function updateElements() {
+export function updateElements() {
   if (layerIsOn("toggleHeight")) drawHeightmap();
-  if (legend.selectAll("*").size() && window.redrawLegend) redrawLegend();
+  if (legend.selectAll("*").size() && typeof redrawLegend === "function") redrawLegend();
   oceanLayers.selectAll("path").remove();
   OceanLayers();
   invokeActiveZooming();

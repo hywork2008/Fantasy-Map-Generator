@@ -1,4 +1,3 @@
-// @ts-nocheck
 "use strict";
 import { States } from "@fmg/core/modules/states-generator";
 

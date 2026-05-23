@@ -1,4 +1,3 @@
-// @ts-nocheck
 "use strict";
 function editBurg(id) {
   if (customization) return;
@@ -238,12 +237,12 @@ function editBurg(id) {
   }
 
   function showStyleSection() {
-    document.querySelectorAll("#burgBottom > button").forEach(el => (el.style.display = "none"));
+    document.querySelectorAll("#burgBottom > button").forEach(el => ((el as HTMLElement).style.display = "none"));
     ensureEl("burgStyleSection").style.display = "inline-block";
   }
 
   function hideStyleSection() {
-    document.querySelectorAll("#burgBottom > button").forEach(el => (el.style.display = "inline-block"));
+    document.querySelectorAll("#burgBottom > button").forEach(el => ((el as HTMLElement).style.display = "inline-block"));
     ensureEl("burgStyleSection").style.display = "none";
   }
 
@@ -364,7 +363,7 @@ function editBurg(id) {
 
     const anchor = anchors.select("use[data-id='" + id + "']");
     if (anchor.size()) {
-      const size = anchor.attr("width");
+      const size = Number(anchor.attr("width")) || 0;
       const xa = rn(x - size * 0.47, 2);
       const ya = rn(y - size * 0.47, 2);
       anchor.attr("transform", null).attr("x", xa).attr("y", ya);

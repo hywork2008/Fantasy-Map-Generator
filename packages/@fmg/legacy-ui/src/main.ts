@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Azgaar (azgaar.fmg@yandex.com). Minsk, 2017-2023. MIT License
 // https://github.com/Azgaar/Fantasy-Map-Generator
 
@@ -14,6 +13,7 @@ import {
   focusOnFlow,
   generateMapOnLoadFlow
 } from "./modules/ui/initial-load";
+import { applyLayersPreset } from "./modules/ui/layers";
 import {
   buildCheckLoadParametersDeps,
   buildFindBurgForMFCGDeps,
@@ -58,7 +58,7 @@ import { States } from "@fmg/core/modules/states-generator";
 
 type RuntimeBridge = {
   rn: (value: number, digits?: number) => number;
-  Markers: unknown;
+  Markers: { generate: () => void };
   applyGraphSize: () => void;
   randomizeOptions: () => void;
   shouldRegenerateGrid: (grid: unknown, expectedSeed: unknown) => boolean;
@@ -102,9 +102,11 @@ type NavigatorWithUserAgentData = Navigator & {
   userAgentData?: { mobile?: boolean };
 };
 
+type InstallationEvent = Event & { prompt?: () => Promise<void> | void };
+
 type InstallationModule = {
-  default?: { init?: (event: Event) => void | Promise<void> };
-  init?: (event: Event) => void | Promise<void>;
+  default?: { init?: (event: InstallationEvent) => void | Promise<void> };
+  init?: (event: InstallationEvent) => void | Promise<void>;
 };
 
 type MapCoordinatesLike = {
@@ -144,7 +146,7 @@ if (PRODUCTION && "serviceWorker" in navigator) {
     async (event: Event) => {
       event.preventDefault();
       try {
-        const Installation = (await import("./modules/dynamic/installation.js")) as InstallationModule;
+        const Installation = (await import("./modules/dynamic/installation.js")) as unknown as InstallationModule;
         if (Installation.default?.init) await Installation.default.init(event);
         else if (Installation.init) await Installation.init(event);
       } catch (err) {
@@ -334,9 +336,9 @@ function zoomRaf() {
     }
 
     if (customization === 1) {
-      const canvas = ensureEl("canvas") as HTMLCanvasElement | null;
+      const canvas = ensureEl("canvas") as unknown as HTMLCanvasElement | null;
       if (canvas && canvas.style.opacity !== "0") {
-        const img = ensureEl("imageToConvert") as HTMLImageElement | null;
+        const img = ensureEl("imageToConvert") as unknown as HTMLImageElement | null;
         if (img) {
           const ctx = canvas.getContext("2d");
           if (ctx) {
@@ -363,16 +365,16 @@ function zoomRaf() {
 const zoom = d3.zoom().scaleExtent([1, 20]).on("zoom", zoomRaf);
 
 var mapCoordinates = {}; // map coordinates on globe
-const _populationRate = +(ensureEl("populationRateInput") as HTMLInputElement)?.value;
-const _distanceScale = +(ensureEl("distanceScaleInput") as HTMLInputElement)?.value;
-const _urbanization = +(ensureEl("urbanizationInput") as HTMLInputElement)?.value;
-const _urbanDensity = +(ensureEl("urbanDensityInput") as HTMLInputElement)?.value;
+const _populationRate = +ensureEl("populationRateInput")?.value;
+const _distanceScale = +ensureEl("distanceScaleInput")?.value;
+const _urbanization = +ensureEl("urbanizationInput")?.value;
+const _urbanDensity = +ensureEl("urbanDensityInput")?.value;
 
 applyStoredOptions();
 
 // voronoi graph extension, cannot be changed after generation
-var graphWidth = +(mapWidthInput as HTMLInputElement)?.value;
-var graphHeight = +(mapHeightInput as HTMLInputElement)?.value;
+var graphWidth = +mapWidthInput?.value;
+var graphHeight = +mapHeightInput?.value;
 
 // svg canvas resolution, can be changed
 const svgWidth = graphWidth;
@@ -452,7 +454,7 @@ async function generateMapOnLoad() {
 
 // focus on coordinates, cell or burg provided in searchParams
 function focusOn() {
-  focusOnFlow(buildFocusOnDeps({ pack, graphWidth, graphHeight, zoomTo, findBurgForMFCG }));
+  focusOnFlow(buildFocusOnDeps({ pack: pack as any, graphWidth, graphHeight, zoomTo, findBurgForMFCG }));
 }
 
 function toggleAssistant() {
@@ -466,7 +468,7 @@ function initTourPromptButton() {
 // find burg for MFCG and focus on it
 function findBurgForMFCG(params) {
   findBurgForMFCGFlow(
-    buildFindBurgForMFCGDeps({ pack, d3, ERROR, burgLabels, zoomTo, invokeActiveZooming, tip }),
+    buildFindBurgForMFCGDeps({ pack: pack as any, d3, ERROR, burgLabels, zoomTo, invokeActiveZooming, tip }),
     params
   );
 }
@@ -482,7 +484,7 @@ function resetZoom(d = 1000) {
 }
 
 // active zooming feature
-function invokeActiveZooming() {
+export function invokeActiveZooming() {
   invokeActiveZoomingView(
     buildInvokeActiveZoomingDeps({
       coastline,
@@ -636,7 +638,7 @@ function calculateTemperatures() {
       TIME,
       grid,
       options,
-      heightExponentInput,
+      heightExponentInput: heightExponentInput as unknown as HTMLInputElement,
       mapCoordinates: mapCoordinates as MapCoordinatesLike,
       graphHeight,
       rn: runtime.rn,
@@ -747,4 +749,9 @@ function undraw() {
       unfog: runtime.unfog
     })
   );
+}
+
+// Register invokeActiveZooming to window for HTML onclick handlers
+if (typeof window !== "undefined") {
+  (window as any).invokeActiveZooming = invokeActiveZooming;
 }

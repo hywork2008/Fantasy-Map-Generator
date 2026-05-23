@@ -1,6 +1,8 @@
-// @ts-nocheck
 // UI module to control the style presets
 "use strict";
+
+import { selectStyleElement, updateElements } from "./style";
+/// <reference path="../../types/ui-legacy-globals.d.ts" />
 
 type StyleAttributeValue = string | number | null;
 type StyleAttributes = Record<string, StyleAttributeValue>;
@@ -86,17 +88,17 @@ function applyStyle(styleJSON: StylePresetData) {
   for (const selector in styleJSON) {
     if (selector.startsWith("#burgLabels")) {
       const group = selector.split("#").pop() || "";
-      style.burgLabels[group] = styleJSON[selector];
+      style.burgLabels[group] = styleJSON[selector] as any;
     }
 
     if (selector.startsWith("#burgIcons")) {
       const group = selector.split("#").pop() || "";
-      style.burgIcons[group] = styleJSON[selector];
+      style.burgIcons[group] = styleJSON[selector] as any;
     }
 
     if (selector.startsWith("#anchors")) {
       const group = selector.split("#").pop() || "";
-      style.anchors[group] = styleJSON[selector];
+      style.anchors[group] = styleJSON[selector] as any;
     }
 
     const el = document.querySelector(selector);
@@ -129,7 +131,7 @@ function applyStyle(styleJSON: StylePresetData) {
   }
 }
 
-function requestStylePresetChange(preset: string) {
+export function requestStylePresetChange(preset: string) {
   const isConfirmed = sessionStorage.getItem("styleChangeConfirmed");
   if (isConfirmed) return changeStyle(preset);
 
@@ -173,7 +175,7 @@ function applyStyleWithUiRefresh(style: StylePresetData) {
   fitScaleBar(scaleBar, svgWidth, svgHeight);
 }
 
-function addStylePreset() {
+export function addStylePreset() {
   stylePresetsRuntime.$("#styleSaver").dialog({
     title: "Style Saver",
     width: "26em",
@@ -403,7 +405,7 @@ function addStylePreset() {
     const isSystem = systemPresets.includes(styleName) || systemPresets.includes(styleSaverName.value);
     if (isSystem) return (styleSaverTip.innerHTML = "default");
 
-    const isExisting = Array.from(stylePreset.options).some(option => option.value == styleName);
+    const isExisting = Array.from(stylePreset.options as any).some((option: any) => option.value == styleName);
     if (isExisting) return (styleSaverTip.innerHTML = "existing");
 
     styleSaverTip.innerHTML = "new";
@@ -437,7 +439,7 @@ function addStylePreset() {
     if (!JSON.isValid(styleJSON)) return tip("JSON string is not valid, please check the format", false, "error");
     if (!styleName) return tip("Please provide a preset name", false, "error");
 
-    downloadFile(styleJSON, styleName + ".json", "application/json");
+    downloadFile(styleJSON, styleName + ".json");
   }
 
   function loadStyleFile(this: HTMLInputElement) {
@@ -457,7 +459,7 @@ function addStylePreset() {
   }
 }
 
-function requestRemoveStylePreset() {
+export function requestRemoveStylePreset() {
   const isDefault = systemPresets.includes(stylePreset.value);
   if (isDefault) return tip("Cannot remove system preset", false, "error");
 

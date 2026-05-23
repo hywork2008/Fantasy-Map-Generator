@@ -1,4 +1,3 @@
-// @ts-nocheck
 type DragUploadDeps = {
   document: Document;
   ensureEl: (id: string) => HTMLElement;
@@ -25,7 +24,7 @@ export function initDragToUpload({ document, ensureEl, alertMessage, closeDialog
   document.addEventListener("dragover", e => {
     e.stopPropagation();
     e.preventDefault();
-    ensureEl("mapOverlay").style.display = null;
+    ensureEl("mapOverlay").style.display = "";
   });
 
   document.addEventListener("dragleave", _e => {
@@ -58,7 +57,7 @@ export function initDragToUpload({ document, ensureEl, alertMessage, closeDialog
       return;
     }
 
-    overlay.style.display = null;
+    overlay.style.display = "";
     overlay.innerHTML = "Uploading<span>.</span><span>.</span><span>.</span>";
     closeDialogs && closeDialogs();
     uploadMap(file, () => {

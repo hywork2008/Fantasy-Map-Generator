@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { Biomes } from "@fmg/core/modules/biomes";
 import { Lakes } from "@fmg/core/modules/lakes";
 import { Rivers } from "@fmg/core/modules/river-generator";
@@ -6,7 +5,7 @@ import { Rivers } from "@fmg/core/modules/river-generator";
 import { lock, tip } from "./general";
 import { layerIsOn } from "./layers";
 
-function editWorld() {
+export function editWorld() {
   if (customization) return;
 
   $("#worldConfigurator").dialog({

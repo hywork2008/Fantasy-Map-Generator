@@ -1,33 +1,42 @@
-// @ts-nocheck
 "use strict";
 
+import type {Selection} from "d3";
 import { Routes } from "@fmg/core/modules/routes-generator";
+import { getCurrentPreset } from "../ui/layers";
+import { ensureLegacyElement, legacyRuntime } from "../runtime/legacy-runtime";
+/// <reference path="../../types/ui-legacy-globals.d.ts" />
+
+declare let areaUnit: HTMLSelectElement;
+declare let hideLabels: HTMLInputElement;
+declare let rescaleLabels: HTMLInputElement;
+declare let legend: Selection<SVGGElement, unknown, null, undefined>;
+declare let zones: Selection<SVGGElement, unknown, null, undefined>;
 
 // Functions to load and parse .map/.gz files
-async function quickLoad(): Promise<void> {
-  const blob = await ldb.get("lastMap");
+export async function quickLoad(): Promise<void> {
+  const blob = await legacyRuntime.ldb.get("lastMap");
   if (blob) loadMapPrompt(blob as Blob);
   else {
-    tip("No map stored. Save map to browser storage first", true, "error", 2000);
-    ERROR && console.error("No map stored");
+    legacyRuntime.tip("No map stored. Save map to browser storage first", true, "error", 2000);
+    legacyRuntime.ERROR && console.error("No map stored");
   }
 }
 
-async function loadFromDropbox(): Promise<void> {
-  const mapPath = (ensureEl("loadFromDropboxSelect") as HTMLSelectElement | null)?.value || "";
+export async function loadFromDropbox(): Promise<void> {
+  const mapPath = ensureLegacyElement<HTMLSelectElement>("loadFromDropboxSelect")?.value || "";
 
   console.info("Loading map from Dropbox:", mapPath);
-  const blob = await Cloud.providers.dropbox.load(mapPath);
+  const blob = await legacyRuntime.Cloud.providers.dropbox.load(mapPath);
   uploadMap(blob);
 }
 
-async function createSharableDropboxLink(): Promise<void> {
+export async function createSharableDropboxLink(): Promise<void> {
   const mapFile = (document.querySelector("#loadFromDropbox select") as HTMLSelectElement | null)?.value || "";
-  const sharableLink = ensureEl("sharableLink") as HTMLAnchorElement | null;
-  const sharableLinkContainer = ensureEl("sharableLinkContainer") as HTMLElement | null;
+  const sharableLink = ensureLegacyElement<HTMLAnchorElement>("sharableLink");
+  const sharableLinkContainer = ensureLegacyElement<HTMLElement>("sharableLinkContainer");
 
   try {
-    const previewLink = await Cloud.providers.dropbox.getLink(mapFile);
+    const previewLink = await legacyRuntime.Cloud.providers.dropbox.getLink(mapFile);
     const directLink = previewLink.replace("www.dropbox.com", "dl.dropboxusercontent.com"); // DL allows CORS
     const finalLink = `${location.origin}${location.pathname}?maplink=${directLink}`;
 
@@ -35,13 +44,13 @@ async function createSharableDropboxLink(): Promise<void> {
     sharableLink.setAttribute("href", finalLink);
     sharableLinkContainer.style.display = "block";
   } catch (error) {
-    ERROR && console.error(error);
-    return tip("Dropbox API error. Can not create link.", true, "error", 2000);
+    legacyRuntime.ERROR && console.error(error);
+    return legacyRuntime.tip("Dropbox API error. Can not create link.", true, "error", 2000);
   }
 }
 
 function loadMapPrompt(blob: Blob): void {
-  const workingTime = (Date.now() - (last(mapHistory as any[]) as any)?.created) / 60000; // minutes
+  const workingTime = (Date.now() - (mapHistory?.at(-1) as any)?.created) / 60000; // minutes
   if (workingTime < 5) {
     loadLastSavedMap();
     return;
@@ -97,7 +106,7 @@ async function loadMapFromURL(maplink: string, random?: number): Promise<void> {
 
 function showUploadErrorMessage(error: any, maplink: string, random?: number): void {
   ERROR && console.error(error);
-  const link_func = (link as any) || ((u: string, t: string) => `<a href="${u}" target="_blank">${t}</a>`);
+  const link_func = ((window as any).link as any) || ((u: string, t: string) => `<a href="${u}" target="_blank">${t}</a>`);
   alertMessage.innerHTML = /* html */ `Cannot load map from the ${link_func(maplink, "link provided")}. ${
     random ? `A new random map is generated. ` : ""
   } Please ensure the
@@ -156,13 +165,18 @@ async function uncompress(compressedData: ArrayBuffer): Promise<Uint8Array> {
     return new Uint8Array(uncompressedData);
   } catch (error) {
     ERROR && console.error(error);
-    return null;
+    return null as any;
   }
 }
 
-async function parseLoadedResult(result: string): Promise<void> {
+async function parseLoadedResult(
+  result: string | ArrayBuffer | Uint8Array
+): Promise<{mapData: string[] | null; mapVersion: string | null}> {
   try {
-    const resultAsString = new TextDecoder().decode(result);
+    const resultAsString =
+      typeof result === "string"
+        ? result
+        : new TextDecoder().decode(result instanceof Uint8Array ? result : new Uint8Array(result));
 
     // data can be in FMG internal format or base64 encoded
     const isDelimited = resultAsString.substring(0, 10).includes("|");
@@ -182,7 +196,13 @@ async function parseLoadedResult(result: string): Promise<void> {
 
     return {mapData, mapVersion};
   } catch (error) {
-    const uncompressedData = await uncompress(result); // file can be gzip compressed
+    if (typeof result === "string") {
+      ERROR && console.error(error);
+      return {mapData: null, mapVersion: null};
+    }
+
+    const binary = (result instanceof Uint8Array ? result.buffer : result) as ArrayBuffer;
+    const uncompressedData = await uncompress(binary); // file can be gzip compressed
     if (uncompressedData) return parseLoadedResult(uncompressedData);
 
     ERROR && console.error(error);
@@ -227,9 +247,9 @@ function showUploadMessage(type: string, mapData: any[], mapVersion: string): vo
 async function parseLoadedData(data, mapVersion) {
   try {
     // exit customization
-    if (window.closeDialogs) closeDialogs();
+    if ((window as any).closeDialogs) (window as any).closeDialogs();
     customization = 0;
-    if (customizationMenu.offsetParent) styleTab.click();
+    if (customizationMenu.offsetParent) (styleTab as HTMLElement).click();
 
     {
       const params = data[0].split("|");
@@ -262,10 +282,10 @@ async function parseLoadedData(data, mapVersion) {
       if (settings[16]) options.temperatureEquator = +settings[16];
       if (settings[17]) options.temperatureNorthPole = options.temperatureSouthPole = +settings[17];
       if (settings[20]) mapName.value = settings[20];
-      if (settings[21]) hideLabels.checked = +settings[21];
+      if (settings[21]) hideLabels.checked = settings[21] === "1";
       if (settings[22]) stylePreset.value = settings[22];
-      if (settings[23]) rescaleLabels.checked = +settings[23];
-      if (settings[24]) urbanDensity = urbanDensityInput.value = +settings[24];
+      if (settings[23]) rescaleLabels.checked = settings[23] === "1";
+      if (settings[24]) urbanDensity = +(urbanDensityInput.value = String(+settings[24]));
       if (settings[25]) longitudeInput.value = longitudeOutput.value = minmax(settings[25] || 50, 0, 100);
       if (settings[26]) growthRate.value = settings[26];
     }
@@ -489,19 +509,20 @@ async function parseLoadedData(data, mapVersion) {
     }
 
     // add custom heightmap color scheme if any
-    if (heightmapColorSchemes) {
+    const heightmapSchemes = (window as any).heightmapColorSchemes;
+    if (heightmapSchemes) {
       const oceanHeights = document.getElementById("oceanHeights");
       const oceanScheme = oceanHeights?.getAttribute("scheme");
-      if (oceanScheme && !(oceanScheme in heightmapColorSchemes)) addCustomColorScheme(oceanScheme);
+      if (oceanScheme && !(oceanScheme in heightmapSchemes)) (window as any).addCustomColorScheme?.(oceanScheme);
       const landHeights = document.getElementById("landHeights");
       const landScheme = landHeights?.getAttribute("scheme");
-      if (landScheme && !(landScheme in heightmapColorSchemes)) addCustomColorScheme(landScheme);
+      if (landScheme && !(landScheme in heightmapSchemes)) (window as any).addCustomColorScheme?.(landScheme);
     }
 
     {
       // add custom texture if any
       const textureHref = texture.attr("data-href");
-      if (textureHref) updateTextureSelectValue(textureHref);
+      if (textureHref) (window as any).updateTextureSelectValue?.(textureHref);
     }
 
     // data integrity checks
@@ -516,14 +537,16 @@ async function parseLoadedData(data, mapVersion) {
         throw new Error(message);
       }
 
-      const invalidStates = [...new Set(cells.state)].filter(s => !pack.states[s] || pack.states[s].removed);
+      const invalidStates = [...new Set<number>(Array.from(cells.state as number[]))].filter(
+        s => !pack.states[s] || pack.states[s].removed
+      );
       invalidStates.forEach(s => {
         const invalidCells = cells.i.filter(i => cells.state[i] === s);
         invalidCells.forEach(i => (cells.state[i] = 0));
         ERROR && console.error("[Data integrity] Invalid state", s, "is assigned to cells", invalidCells);
       });
 
-      const invalidProvinces = [...new Set(cells.province)].filter(
+      const invalidProvinces = [...new Set<number>(Array.from(cells.province as number[]))].filter(
         p => p && (!pack.provinces[p] || pack.provinces[p].removed)
       );
       invalidProvinces.forEach(p => {
@@ -532,14 +555,16 @@ async function parseLoadedData(data, mapVersion) {
         ERROR && console.error("[Data integrity] Invalid province", p, "is assigned to cells", invalidCells);
       });
 
-      const invalidCultures = [...new Set(cells.culture)].filter(c => !pack.cultures[c] || pack.cultures[c].removed);
+      const invalidCultures = [...new Set<number>(Array.from(cells.culture as number[]))].filter(
+        c => !pack.cultures[c] || pack.cultures[c].removed
+      );
       invalidCultures.forEach(c => {
         const invalidCells = cells.i.filter(i => cells.culture[i] === c);
         invalidCells.forEach(i => (cells.province[i] = 0));
         ERROR && console.error("[Data integrity] Invalid culture", c, "is assigned to cells", invalidCells);
       });
 
-      const invalidReligions = [...new Set(cells.religion)].filter(
+      const invalidReligions = [...new Set<number>(Array.from(cells.religion as number[]))].filter(
         r => !pack.religions[r] || pack.religions[r].removed
       );
       invalidReligions.forEach(r => {
@@ -548,14 +573,14 @@ async function parseLoadedData(data, mapVersion) {
         ERROR && console.error("[Data integrity] Invalid religion", r, "is assigned to cells", invalidCells);
       });
 
-      const invalidFeatures = [...new Set(cells.f)].filter(f => f && !pack.features[f]);
+      const invalidFeatures = [...new Set<number>(Array.from(cells.f as number[]))].filter(f => f && !pack.features[f]);
       invalidFeatures.forEach(f => {
         const invalidCells = cells.i.filter(i => cells.f[i] === f);
         // No fix as for now
         ERROR && console.error("[Data integrity] Invalid feature", f, "is assigned to cells", invalidCells);
       });
 
-      const invalidBurgs = [...new Set(cells.burg)].filter(
+      const invalidBurgs = [...new Set<number>(Array.from(cells.burg as number[]))].filter(
         burgId => burgId && (!pack.burgs[burgId] || pack.burgs[burgId].removed)
       );
       invalidBurgs.forEach(burgId => {
@@ -742,15 +767,15 @@ async function parseLoadedData(data, mapVersion) {
     }
 
     {
-      if (window.restoreDefaultEvents) restoreDefaultEvents();
+      if ((window as any).restoreDefaultEvents) restoreDefaultEvents();
       focusOn(); // based on searchParams focus on point, cell or burg
       invokeActiveZooming();
       fitMapToScreen();
     }
 
-    WARN && console.warn(`TOTAL: ${rn((performance.now() - uploadMap.timeStart) / 1000, 2)}s`);
+    WARN && console.warn(`TOTAL: ${rn((performance.now() - (uploadMap as any).timeStart) / 1000, 2)}s`);
     showStatistics();
-    INFO && console.groupEnd("Loaded Map " + seed);
+    INFO && console.groupEnd();
     tip("Map is successfully loaded", true, "success", 7000);
   } catch (error) {
     ERROR && console.error(error);

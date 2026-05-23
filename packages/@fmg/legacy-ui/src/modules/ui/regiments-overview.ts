@@ -1,4 +1,3 @@
-// @ts-nocheck
 "use strict";
 function overviewRegiments(state) {
   if (customization) return;
@@ -109,11 +108,11 @@ function overviewRegiments(state) {
   }
 
   function updateFilter(state) {
-    const filter = document.getElementById("regimentsFilter");
+    const filter = document.getElementById("regimentsFilter") as HTMLSelectElement;
     filter.options.length = 0;
-    filter.options.add(new Option(`all`, -1, false, state === -1));
+    filter.options.add(new Option(`all`, "-1", false, state === -1));
     const statesSorted = pack.states.filter(s => s.i && !s.removed).sort((a, b) => (a.name > b.name ? 1 : -1));
-    statesSorted.forEach(s => filter.options.add(new Option(s.name, s.i, false, s.i == state)));
+    statesSorted.forEach(s => filter.options.add(new Option(s.name, String(s.i), false, s.i == state)));
   }
 
   function regimentHighlightOn(event) {
@@ -133,7 +132,7 @@ function overviewRegiments(state) {
     if (body.dataset.type === "absolute") {
       body.dataset.type = "percentage";
       const lines = body.querySelectorAll(":scope > div:not(.totalLine)");
-      const array = Array.from(lines),
+      const array = Array.from(lines) as HTMLElement[],
         cache = [];
 
       const total = function (type) {
@@ -142,7 +141,7 @@ function overviewRegiments(state) {
         return cache[type];
       };
 
-      lines.forEach(function (el) {
+      lines.forEach(function (el: HTMLElement) {
         el.querySelectorAll("div").forEach(function (div) {
           const type = div.dataset.type;
           if (type === "rate") return;
@@ -180,11 +179,23 @@ function overviewRegiments(state) {
     const military = pack.states[state].military;
     const i = military.length ? last(military).i + 1 : 0;
     const n = +(pack.cells.h[cell] < 20);
-    const reg = {a: 0, cell, i, n, u: {}, x, y, bx: x, by: y, state, icon: "🛡️"};
-    reg.name = Military.getName(reg, military);
-    military.push(reg);
-    Military.generateNote(reg, pack.states[state]);
-    drawRegiment(reg, state);
+    const reg: {a: number; cell: number; i: number; n: number; u: Record<string, number>; x: number; y: number; bx: number; by: number; state: number; icon: string; name?: string} = {
+      a: 0,
+      cell,
+      i,
+      n,
+      u: {},
+      x,
+      y,
+      bx: x,
+      by: y,
+      state,
+      icon: "🛡️"
+    };
+    reg.name = Military.getName(reg as any, military);
+    military.push(reg as any);
+    Military.generateNote(reg as any, pack.states[state]);
+    drawRegiment(reg as any, state);
     toggleAdd();
   }
 

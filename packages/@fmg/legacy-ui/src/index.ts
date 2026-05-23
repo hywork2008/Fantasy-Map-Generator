@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * @fmg/legacy-ui - Legacy UI layer for Fantasy Map Generator
  */

@@ -1,4 +1,3 @@
-// @ts-nocheck
 "use strict";
 function overviewMilitary() {
   if (customization) return;

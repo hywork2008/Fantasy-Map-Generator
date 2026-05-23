@@ -1,16 +1,17 @@
-// @ts-nocheck
-export function buildCheckLoadParametersDeps<T>(deps: T): T {
+import type { FocusDeps, GenerateMapOnLoadDeps, InitialLoadDeps, SelectMfcgDeps } from "./initial-load";
+
+export function buildCheckLoadParametersDeps(deps: InitialLoadDeps): InitialLoadDeps {
   return deps;
 }
 
-export function buildGenerateMapOnLoadDeps<T>(deps: T): T {
+export function buildGenerateMapOnLoadDeps(deps: GenerateMapOnLoadDeps): GenerateMapOnLoadDeps {
   return deps;
 }
 
-export function buildFocusOnDeps<T>(deps: T): T {
+export function buildFocusOnDeps(deps: FocusDeps): FocusDeps {
   return deps;
 }
 
-export function buildFindBurgForMFCGDeps<T>(deps: T): T {
+export function buildFindBurgForMFCGDeps(deps: SelectMfcgDeps): SelectMfcgDeps {
   return deps;
 }

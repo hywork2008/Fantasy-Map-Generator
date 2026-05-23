@@ -1,4 +1,3 @@
-// @ts-nocheck
 "use strict";
 
 type Point2D = [number, number];

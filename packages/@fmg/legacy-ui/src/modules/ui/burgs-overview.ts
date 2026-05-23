@@ -1,4 +1,3 @@
-// @ts-nocheck
 "use strict";
 function overviewBurgs(settings = {stateId: null, cultureId: null}) {
   if (customization) return;
@@ -48,18 +47,18 @@ function overviewBurgs(settings = {stateId: null, cultureId: null}) {
     const stateFilter = ensureEl("burgsFilterState");
     const selectedState = settings.stateId !== null ? settings.stateId : stateFilter.value || -1;
     stateFilter.options.length = 0;
-    stateFilter.options.add(new Option("all", -1, false, selectedState === -1));
-    stateFilter.options.add(new Option(pack.states[0].name, 0, false, selectedState === 0));
+    stateFilter.options.add(new Option("all", "-1", false, selectedState === -1));
+    stateFilter.options.add(new Option(pack.states[0].name, "0", false, selectedState === 0));
     const statesSorted = pack.states.filter(s => s.i && !s.removed).sort((a, b) => (a.name > b.name ? 1 : -1));
-    statesSorted.forEach(s => stateFilter.options.add(new Option(s.name, s.i, false, s.i == selectedState)));
+    statesSorted.forEach(s => stateFilter.options.add(new Option(s.name, String(s.i), false, s.i == selectedState)));
 
     const cultureFilter = ensureEl("burgsFilterCulture");
     const selectedCulture = settings.cultureId !== null ? settings.cultureId : cultureFilter.value || -1;
     cultureFilter.options.length = 0;
-    cultureFilter.options.add(new Option(`all`, -1, false, selectedCulture === -1));
-    cultureFilter.options.add(new Option(pack.cultures[0].name, 0, false, selectedCulture === 0));
+    cultureFilter.options.add(new Option(`all`, "-1", false, selectedCulture === -1));
+    cultureFilter.options.add(new Option(pack.cultures[0].name, "0", false, selectedCulture === 0));
     const culturesSorted = pack.cultures.filter(c => c.i && !c.removed).sort((a, b) => (a.name > b.name ? 1 : -1));
-    culturesSorted.forEach(c => cultureFilter.options.add(new Option(c.name, c.i, false, c.i == selectedCulture)));
+    culturesSorted.forEach(c => cultureFilter.options.add(new Option(c.name, String(c.i), false, c.i == selectedCulture)));
   }
 
   function burgsOverviewAddLines() {
@@ -165,7 +164,7 @@ function overviewBurgs(settings = {stateId: null, cultureId: null}) {
     if (label.size()) label.classed("drag", true);
   }
 
-  function burgHighlightOff() {
+  function burgHighlightOff(_event?) {
     burgLabels.selectAll("text.drag").classed("drag", false);
   }
 
@@ -350,7 +349,7 @@ function overviewBurgs(settings = {stateId: null, cultureId: null}) {
       tip("Click to zoom into view");
     }
 
-    function hideInfo(ev) {
+    function hideInfo(ev, _d?) {
       burgHighlightOff(ev);
       if (!ensureEl("burgsInfo")) return;
       burgsInfo.innerHTML = "&#8205;";

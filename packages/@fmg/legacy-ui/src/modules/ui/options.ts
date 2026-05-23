@@ -1,4 +1,3 @@
-// @ts-nocheck
 // UI module to control the options (preferences)
 "use strict";
 
@@ -7,6 +6,8 @@ import { exportToPngTiles } from "../io/export";
 import { closeDialogs } from "./editors";
 import { COA } from "@fmg/core/modules/emblem/generator";
 import { COArenderer } from "@fmg/core/modules/emblem/renderer";
+import { ensureLegacyElement, legacyRuntime } from "../runtime/legacy-runtime";
+/// <reference path="../../types/ui-legacy-globals.d.ts" />
 
 $("#optionsContainer").draggable({handle: ".drag-trigger", snap: "svg", snapMode: "both"});
 $("#exitCustomization").draggable({handle: "div"});
@@ -15,45 +16,45 @@ $("#mapLayers").disableSelection();
 // remove glow if tip is aknowledged
 if (stored("disable_click_arrow_tooltip")) {
   clearMainTip();
-  optionsTrigger.classList.remove("glow");
+  legacyRuntime.optionsTrigger.classList.remove("glow");
 }
 
 // Show options pane on trigger click
-export function showOptions(event) {
+export function showOptions(event?: Event) {
   if (!stored("disable_click_arrow_tooltip")) {
     clearMainTip();
-    localStorage.setItem("disable_click_arrow_tooltip", true);
-    optionsTrigger.classList.remove("glow");
+    localStorage.setItem("disable_click_arrow_tooltip", "true");
+    legacyRuntime.optionsTrigger.classList.remove("glow");
   }
 
-  regenerate.style.display = "none";
-  ensureEl("options").style.display = "block";
-  optionsTrigger.style.display = "none";
+  legacyRuntime.regenerate.style.display = "none";
+  ensureLegacyElement("options").style.display = "block";
+  legacyRuntime.optionsTrigger.style.display = "none";
 
   if (event) event.stopPropagation();
 }
 
 // Hide options pane on trigger click
-export function hideOptions(event) {
-  ensureEl("options").style.display = "none";
-  optionsTrigger.style.display = "block";
+export function hideOptions(event?: Event) {
+  ensureLegacyElement("options").style.display = "none";
+  legacyRuntime.optionsTrigger.style.display = "block";
   if (event) event.stopPropagation();
 }
 
 // To toggle options on hotkey press
-export function toggleOptions(event) {
-  if (ensureEl("options").style.display === "none") showOptions(event);
+export function toggleOptions(event?: Event) {
+  if (ensureLegacyElement("options").style.display === "none") showOptions(event);
   else hideOptions(event);
 }
 
 // Toggle "New Map!" pane on hover
-optionsTrigger.addEventListener("mouseenter", function () {
-  if (optionsTrigger.classList.contains("glow")) return;
-  if (ensureEl("options").style.display === "none") regenerate.style.display = "block";
+legacyRuntime.optionsTrigger.addEventListener("mouseenter", function () {
+  if (legacyRuntime.optionsTrigger.classList.contains("glow")) return;
+  if (ensureLegacyElement("options").style.display === "none") legacyRuntime.regenerate.style.display = "block";
 });
 
-collapsible.addEventListener("mouseleave", function () {
-  regenerate.style.display = "none";
+legacyRuntime.collapsible.addEventListener("mouseleave", function () {
+  legacyRuntime.regenerate.style.display = "none";
 });
 
 // Activate options tab on click
@@ -61,8 +62,9 @@ document
   .getElementById("options")
   .querySelector("div.tab")
   .addEventListener("click", function (event) {
-    if (event.target.tagName !== "BUTTON") return;
-    const id = event.target.id;
+    const target = event.target as HTMLElement | null;
+    if (!target || target.tagName !== "BUTTON") return;
+    const id = target.id;
     const active = ensureEl("options").querySelector(".tab > button.active");
     if (active && id === active.id) return; // already active tab is clicked
 
@@ -70,7 +72,7 @@ document
     ensureEl(id).classList.add("active");
     document
       .getElementById("options")
-      .querySelectorAll(".tabcontent")
+      .querySelectorAll<HTMLElement>(".tabcontent")
       .forEach(e => (e.style.display = "none"));
 
     if (id === "layersTab") {
@@ -88,7 +90,7 @@ document
   });
 
 // show popup with a list of Patreon supportes (updated manually)
-async function showSupporters() {
+export async function showSupporters() {
   const {supporters} = await import("../dynamic/supporters.js");
   const list = supporters.split("\n").sort();
   const columns = window.innerWidth < 800 ? 2 : 5;
@@ -114,18 +116,19 @@ function storeValueIfRequired(ev) {
 }
 
 function updateOutputToFollowInput(ev) {
-  const id = ev.target.id;
-  const value = ev.target.value;
+  const target = ev.target as HTMLInputElement;
+  const id = target.id;
+  const value = target.value;
 
   // specific cases
-  if (id === "manorsInput") return (manorsOutput.value = value == 1000 ? "auto" : value);
+  if (id === "manorsInput") return (manorsOutput.value = value === "1000" ? "auto" : value);
 
   // generic case
   if (id.slice(-5) === "Input") {
-    const output = document.getElementById(id.slice(0, -5) + "Output");
+    const output = document.getElementById(id.slice(0, -5) + "Output") as HTMLInputElement | null;
     if (output) output.value = value;
   } else if (id.slice(-6) === "Output") {
-    const input = document.getElementById(id.slice(0, -6) + "Input");
+    const input = document.getElementById(id.slice(0, -6) + "Input") as HTMLInputElement | null;
     if (input) input.value = value;
   }
 }
@@ -134,7 +137,7 @@ function updateOutputToFollowInput(ev) {
 const optionsContent = ensureEl("optionsContent");
 
 optionsContent.addEventListener("input", event => {
-  const {id, value} = event.target;
+  const {id, value} = event.target as HTMLInputElement;
   if (id === "mapWidthInput" || id === "mapHeightInput") mapSizeInputChange();
   else if (id === "pointsInput") changeCellsDensity(+value);
   else if (id === "culturesSet") changeCultureSet();
@@ -147,9 +150,9 @@ optionsContent.addEventListener("input", event => {
 });
 
 optionsContent.addEventListener("change", event => {
-  const {id, value} = event.target;
+  const {id, value} = event.target as HTMLInputElement;
   if (id === "zoomExtentMin" || id === "zoomExtentMax") changeZoomExtent(value);
-  else if (id === "optionsSeed") generateMapWithSeed("seed change");
+  else if (id === "optionsSeed") (generateMapWithSeed as any)("seed change");
   else if (id === "uiSize") changeUiSize(+value);
   else if (id === "shapeRendering") setRendering(value);
   else if (id === "yearInput") changeYear();
@@ -159,7 +162,7 @@ optionsContent.addEventListener("change", event => {
 });
 
 optionsContent.addEventListener("click", event => {
-  const {id} = event.target;
+  const {id} = event.target as HTMLElement;
   if (id === "restoreDefaultCanvasSize") restoreDefaultCanvasSize();
   else if (id === "optionsMapHistory") showSeedHistoryDialog();
   else if (id === "optionsCopySeed") copyMapURL();
@@ -229,7 +232,7 @@ export function fitMapToScreen() {
     .scaleExtent([zoomMin, zoomMax]);
 
   fitScaleBar(scaleBar, svgWidth, svgHeight);
-  if (window.fitLegendBox) fitLegendBox();
+  if ((window as any).fitLegendBox) fitLegendBox();
 }
 
 function toggleTranslateExtent(el) {
@@ -267,7 +270,7 @@ const voiceInterval = setInterval(function () {
 
   const select = ensureEl("speakerVoice");
   voices.forEach((voice, i) => {
-    select.options.add(new Option(voice.name, i, false));
+    select.options.add(new Option(voice.name, String(i), false));
   });
   if (stored("speakerVoice")) select.value = stored("speakerVoice");
   else select.value = voices.findIndex(voice => voice.lang === "en-US");
@@ -476,7 +479,7 @@ function changeDialogsTheme(themeColor, transparency) {
 
   const sx = document.documentElement.style;
   theme.forEach(({name, value, h, s, l, alpha}) => {
-    if (value !== undefined) sx.setProperty(name, value);
+    if (value !== undefined) sx.setProperty(name, String(value));
     else sx.setProperty(name, getRGBA(h, s, l, alpha));
   });
 }
@@ -508,7 +511,7 @@ function initGoogleTranslate() {
 }
 
 function resetLanguage() {
-  const languageSelect = document.querySelector("#google_translate_element select");
+  const languageSelect = document.querySelector("#google_translate_element select") as any;
   if (!languageSelect.value) return;
 
   languageSelect.value = "en";
@@ -558,8 +561,8 @@ export function applyStoredOptions() {
     const key = localStorage.key(i);
     if (key === "speakerVoice") continue;
 
-    const input = document.getElementById(key + "Input") || document.getElementById(key);
-    const output = document.getElementById(key + "Output");
+    const input = (document.getElementById(key + "Input") || document.getElementById(key)) as HTMLInputElement | null;
+    const output = document.getElementById(key + "Output") as HTMLInputElement | null;
 
     const value = stored(key);
     if (input) input.value = value;
@@ -722,15 +725,15 @@ async function openTemplateSelectionDialog() {
 
 // Sticked menu Options listeners
 ensureEl("sticked").addEventListener("click", function (event) {
-  const id = event.target.id;
-  if (id === "newMapButton") regeneratePrompt();
+  const id = (event.target as HTMLElement | null)?.id;
+  if (id === "newMapButton") regeneratePrompt({});
   else if (id === "saveButton") showSavePane();
   else if (id === "exportButton") showExportPane();
   else if (id === "loadButton") showLoadPane();
   else if (id === "zoomReset") resetZoom(1000);
 });
 
-function regeneratePrompt(options) {
+export function regeneratePrompt(options) {
   if (customization)
     return tip("New map cannot be generated when edit mode is active, please exit the mode and retry", false, "error");
   const workingTime = (Date.now() - last(mapHistory).created) / 60000; // minutes
@@ -770,7 +773,7 @@ function showSavePane() {
   });
 }
 
-function copyLinkToClickboard() {
+export function copyLinkToClickboard() {
   const shrableLink = ensureEl("sharableLink");
   const link = shrableLink.getAttribute("href");
   navigator.clipboard.writeText(link).then(() => tip("Link is copied to the clipboard", true, "success", 8000));
@@ -845,12 +848,12 @@ async function showLoadPane() {
   ensureEl("loadFromDropboxSelect").style.display = "none";
 }
 
-async function connectToDropbox() {
+export async function connectToDropbox() {
   await Cloud.providers.dropbox.initialize();
   if (Cloud.providers.dropbox.api) showLoadPane();
 }
 
-function loadURL() {
+export function loadURL() {
   const pattern = /(ftp|http|https):\/\/(\w+:{0,1}\w*@)?(\S+)(:[0-9]+)?(\/|\/([\w#!:.?+=&%@!\-\/]))?/;
   const inner = `Provide URL to map file:
     <input id="mapURL" type="url" style="width: 24em" placeholder="https://e-cloud.com/test.map">
@@ -878,14 +881,14 @@ function loadURL() {
 }
 
 // load map
-ensureEl("mapToLoad").addEventListener("change", function () {
+ensureEl("mapToLoad").addEventListener("change", function (this: HTMLInputElement) {
   const fileToLoad = this.files[0];
   this.value = "";
   closeDialogs();
   uploadMap(fileToLoad);
 });
 
-function openExportToPngTiles() {
+export function openExportToPngTiles() {
   ensureEl("tileStatus").innerHTML = "";
   closeDialogs();
   updateTilesOptions();
@@ -1008,7 +1011,7 @@ async function enter3dView(type) {
   canvas.onmouseenter = () => {
     const help = "Drag to pan • Scroll to zoom • Right-click drag to rotate • <b>O</b> to toggle options";
     +canvas.dataset.hovered > 2 ? tip("") : tip(help);
-    canvas.dataset.hovered = (+canvas.dataset.hovered | 0) + 1;
+    canvas.dataset.hovered = String((+canvas.dataset.hovered | 0) + 1);
   };
 
   if (type === "heightmap3DView") {
@@ -1108,7 +1111,7 @@ function toggle3dOptions() {
     const currentLightness = ThreeD.options.lightness;
 
     let matchingPreset = "custom";
-    for (const [name, preset] of Object.entries(ThreeD.timeOfDayPresets)) {
+    for (const [name, preset] of Object.entries(ThreeD.timeOfDayPresets as Record<string, any>)) {
       if (
         preset.sun.x === currentSunX &&
         preset.sun.y === currentSunY &&

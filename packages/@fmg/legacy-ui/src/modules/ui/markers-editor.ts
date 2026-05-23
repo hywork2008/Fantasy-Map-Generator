@@ -1,4 +1,3 @@
-// @ts-nocheck
 "use strict";
 function editMarker(markerI) {
   if (customization) return;
@@ -163,10 +162,10 @@ function editMarker(markerI) {
       if (!el) return;
 
       const zoomedSize = rescale ? Math.max(rn(size / 5 + 24 / scale, 2), 1) : size;
-      el.setAttribute("width", zoomedSize);
-      el.setAttribute("height", zoomedSize);
-      el.setAttribute("x", rn(x - zoomedSize / 2, 1));
-      el.setAttribute("y", rn(y - zoomedSize, 1));
+      el.setAttribute("width", String(zoomedSize));
+      el.setAttribute("height", String(zoomedSize));
+      el.setAttribute("x", String(rn(x - zoomedSize / 2, 1)));
+      el.setAttribute("y", String(rn(y - zoomedSize, 1)));
     });
   }
 

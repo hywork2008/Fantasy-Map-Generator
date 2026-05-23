@@ -1,4 +1,3 @@
-// @ts-nocheck
 const entitiesMap = {
   states: {
     label: "State",
@@ -53,7 +52,6 @@ const quantizationMap = {
     aggregate: values => rn(d3.sum(values)),
     formatTicks: value => si(value),
     stringify: value => value.toLocaleString(),
-    stackable: true,
     landOnly: true
   },
   rural_population: {
@@ -343,7 +341,7 @@ function addListeners() {
   ensureEl("chartsOverview__viewColumns").on("change", changeViewColumns);
 }
 
-function addChart(event) {
+function addChart(event?) {
   if (event) event.preventDefault();
 
   const entity = ensureEl("chartsOverview__entitiesSelect").value;
@@ -461,7 +459,7 @@ function createStackedBarChart(sortedData, {colors, tooltip, offset, formatX}) {
   const series = d3
     .stack()
     .keys(groups)
-    .value(([, I], z) => X[new Map(I).get(z)])
+    .value(([, I], z) => X[new Map(I).get(z) as number])
     .order(d3.stackOrderNone)
     .offset(offset)(rolled)
     .map(s => {

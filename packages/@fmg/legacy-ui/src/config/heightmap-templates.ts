@@ -1,4 +1,3 @@
-// @ts-nocheck
 type HeightmapTemplate = { id: number; name: string; template: string; probability: number };
 
 const heightmapTemplates = ((): Record<string, HeightmapTemplate> => {

@@ -1,4 +1,3 @@
-// @ts-nocheck
 const initialSeed = generateSeed();
 let graph = getGraph(grid);
 

@@ -1,4 +1,3 @@
-// @ts-nocheck
 "use strict";
 // Hotkeys, see github.com/Azgaar/Fantasy-Map-Generator/wiki/Hotkeys
 import { showInfo } from "./general";
@@ -7,7 +6,7 @@ import { hideOptions, toggleOptions } from "./options";
 document.addEventListener("keydown", handleKeydown);
 document.addEventListener("keyup", handleKeyup);
 
-function handleKeydown(event) {
+function handleKeydown(event: KeyboardEvent) {
   if (!allowHotkeys()) return;
 
   const {code, ctrlKey, altKey, shiftKey} = event;
@@ -16,7 +15,7 @@ function handleKeydown(event) {
   if (["F1", "F2", "F6", "F9", "Tab"].includes(code)) event.preventDefault();
 }
 
-function handleKeyup(event) {
+function handleKeyup(event: KeyboardEvent) {
   if (!modules.editors) return;
   if (!allowHotkeys()) return;
 
@@ -114,7 +113,9 @@ function handleKeyup(event) {
 }
 
 function allowHotkeys() {
-  const {tagName, contentEditable} = document.activeElement;
+  const activeElement = document.activeElement as HTMLElement | null;
+  if (!activeElement) return true;
+  const {tagName, contentEditable} = activeElement;
   if (["INPUT", "SELECT", "TEXTAREA"].includes(tagName)) return false;
   if (tagName === "DIV" && contentEditable === "true") return false;
   if (document.getSelection().toString()) return false;
@@ -176,22 +177,22 @@ function toggleMode() {
 }
 
 function removeElementOnKey() {
-  const fastDelete = Array.from(document.querySelectorAll("[role='dialog'] .fastDelete")).find(
+  const fastDelete = Array.from(document.querySelectorAll<HTMLElement>("[role='dialog'] .fastDelete")).find(
     dialog => dialog.style.display !== "none"
   );
   if (fastDelete) fastDelete.click();
 
-  const visibleDialogs = Array.from(document.querySelectorAll("[role='dialog']")).filter(
+  const visibleDialogs = Array.from(document.querySelectorAll<HTMLElement>("[role='dialog']")).filter(
     dialog => dialog.style.display !== "none"
   );
   if (!visibleDialogs.length) return;
 
   visibleDialogs.forEach(dialog =>
-    dialog.querySelectorAll("button").forEach(button => button.textContent === "Remove" && button.click())
+    dialog.querySelectorAll<HTMLButtonElement>("button").forEach(button => button.textContent === "Remove" && button.click())
   );
 }
 
 function closeAllDialogs() {
-  closeDialogs();
+  closeDialogs(".stable");
   hideOptions();
 }

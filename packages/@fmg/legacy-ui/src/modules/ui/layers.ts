@@ -1,9 +1,26 @@
-// @ts-nocheck
 // UI module stub to control map layers
 "use strict";
 
 import { Rivers } from "@fmg/core/modules/river-generator";
 import { Routes } from "@fmg/core/modules/routes-generator";
+import * as d3 from "d3";
+/// <reference path="../../types/ui-legacy-globals.d.ts" />
+
+declare const drawFeatures: (...args: any[]) => any;
+declare const drawHeightmap: (...args: any[]) => any;
+declare const drawReliefIcons: (...args: any[]) => any;
+declare const drawBorders: (...args: any[]) => any;
+declare const drawTemperature: (...args: any[]) => any;
+declare const drawIce: (...args: any[]) => any;
+declare const drawEmblems: (...args: any[]) => any;
+declare const drawMilitary: (...args: any[]) => any;
+declare const drawMarkers: (...args: any[]) => any;
+declare const drawStateLabels: (...args: any[]) => any;
+declare const getPackPolygon: (...args: any[]) => any;
+declare const terrain: any;
+declare const armies: any;
+declare const zones: any;
+declare const tip: (...args: any[]) => any;
 
 let presets = {}; // global object
 restoreCustomPresets(); // run on-load
@@ -132,11 +149,11 @@ function setLayersPreset(preset) {
 }
 
 // toggle layers on manual preset change
-function handleLayersPresetChange(preset) {
+export function handleLayersPresetChange(preset) {
   setLayersPreset(preset);
 
   const layers = presets[preset]; // layers to be turned on
-  document.querySelectorAll("#mapLayers > li").forEach(el => {
+  document.querySelectorAll<HTMLElement>("#mapLayers > li").forEach(el => {
     const isOn = layerIsOn(el.id);
     const shouldBeOn = layers.includes(el.id);
     if (shouldBeOn && !isOn) el.click();
@@ -146,9 +163,9 @@ function handleLayersPresetChange(preset) {
   if (ensureEl("canvas3d")) setTimeout(() => ThreeD.update(), 400);
 }
 
-function savePreset() {
-  prompt("Please provide a preset name", {default: ""}, preset => {
-    presets[preset] = Array.from(ensureEl("mapLayers").querySelectorAll("li:not(.buttonoff)"))
+export function savePreset() {
+  (window as any).prompt("Please provide a preset name", {default: ""}, (preset: string) => {
+    presets[preset] = Array.from((ensureEl("mapLayers") as HTMLElement).querySelectorAll<HTMLElement>("li:not(.buttonoff)"))
       .map(node => node.id)
       .sort();
     layersPreset.add(new Option(preset, preset, false, true));
@@ -159,10 +176,12 @@ function savePreset() {
   });
 }
 
-function removePreset() {
+export function removePreset() {
   const preset = layersPreset.value;
   delete presets[preset];
-  const index = Array.from(layersPreset.options).findIndex(o => o.value === preset);
+  const index = Array.from(layersPreset.options as HTMLOptionsCollection).findIndex(
+    (o: HTMLOptionElement) => o.value === preset
+  );
   layersPreset.options.remove(index);
   layersPreset.value = "custom";
   removePresetButton.style.display = "none";
@@ -172,7 +191,7 @@ function removePreset() {
   localStorage.removeItem("preset");
 }
 
-function getCurrentPreset() {
+export function getCurrentPreset() {
   const layers = Array.from(document.querySelectorAll("#mapLayers > li:not(.buttonoff)"))
     .map(node => node.id)
     .sort();
@@ -225,7 +244,7 @@ export function drawLayers() {
   // vignette
 }
 
-function toggleHeight(event) {
+export function toggleHeight(event) {
   if (customization === 1) return tip("You cannot turn off the layer when heightmap is in edit mode", false, "error");
 
   const children = terrs.selectAll("#oceanHeights > *, #landHeights > *");
@@ -240,7 +259,7 @@ function toggleHeight(event) {
   }
 }
 
-function toggleTemperature(event) {
+export function toggleTemperature(event) {
   if (!temperature.selectAll("*").size()) {
     turnButtonOn("toggleTemperature");
     drawTemperature();
@@ -252,7 +271,7 @@ function toggleTemperature(event) {
   }
 }
 
-function toggleBiomes(event) {
+export function toggleBiomes(event) {
   if (!biomes.selectAll("path").size()) {
     turnButtonOn("toggleBiomes");
     drawBiomes();
@@ -269,7 +288,10 @@ function drawBiomes() {
 
   const cells = pack.cells;
   const bodyPaths = new Array(biomesData.i.length - 1);
-  const isolines = getIsolines(pack, cellId => cells.biome[cellId], {fill: true, waterGap: true});
+  const isolines = getIsolines(pack, cellId => cells.biome[cellId], {fill: true, waterGap: true}) as Record<
+    string,
+    {fill: unknown; waterGap: unknown}
+  >;
   Object.entries(isolines).forEach(([index, {fill, waterGap}]) => {
     const color = biomesData.color[index];
     bodyPaths.push(getGappedFillPaths("biome", fill, waterGap, color, index));
@@ -280,7 +302,7 @@ function drawBiomes() {
   TIME && console.timeEnd("drawBiomes");
 }
 
-function togglePrecipitation(event) {
+export function togglePrecipitation(event) {
   if (!prec.selectAll("circle").size()) {
     turnButtonOn("togglePrecipitation");
     drawPrecipitation();
@@ -304,7 +326,7 @@ function drawPrecipitation() {
   const show = d3.transition().duration(800).ease(d3.easeSinIn);
   prec.selectAll("text").attr("opacity", 0).transition(show).attr("opacity", 1);
 
-  const cellsNumberModifier = (pointsInput.dataset.cells / 10000) ** 0.25;
+  const cellsNumberModifier = ((+pointsInput.dataset.cells || 10000) / 10000) ** 0.25;
   const data = cells.i.filter(i => cells.h[i] >= 20 && cells.prec[i]);
   const getRadius = prec => rn(Math.sqrt(prec / 4) / cellsNumberModifier, 2);
 
@@ -323,7 +345,7 @@ function drawPrecipitation() {
   TIME && console.timeEnd("drawPrecipitation");
 }
 
-function togglePopulation(event) {
+export function togglePopulation(event) {
   if (!population.selectAll("line").size()) {
     turnButtonOn("togglePopulation");
     drawPopulation();
@@ -362,10 +384,10 @@ function drawPopulation() {
   const {cells, burgs} = pack;
   const show = d3.transition().duration(2000).ease(d3.easeSinIn);
 
-  const rural = Array.from(
-    cells.i.filter(i => cells.pop[i] > 0),
-    i => [...cells.p[i], cells.p[i][1] - cells.pop[i] / 5]
-  );
+  const rural = Array.from(cells.i.filter((i: number) => cells.pop[i] > 0), (i: number) => [
+    ...cells.p[i],
+    cells.p[i][1] - cells.pop[i] / 5
+  ]);
 
   population
     .select("#rural")
@@ -396,7 +418,7 @@ function drawPopulation() {
     .attr("y2", d => d[2]);
 }
 
-function toggleCells(event) {
+export function toggleCells(event) {
   if (!cells.selectAll("path").size()) {
     turnButtonOn("toggleCells");
     drawCells();
@@ -415,7 +437,7 @@ function drawCells() {
   ensureEl("cells").innerHTML = `<path d="${paths.join("")}" />`;
 }
 
-function toggleIce(event) {
+export function toggleIce(event) {
   if (!layerIsOn("toggleIce")) {
     turnButtonOn("toggleIce");
     $("#ice").fadeIn();
@@ -428,7 +450,7 @@ function toggleIce(event) {
   }
 }
 
-function toggleCultures(event) {
+export function toggleCultures(event) {
   const cultures = pack.cultures.filter(c => c.i && !c.removed);
   const empty = !cults.selectAll("path").size();
   if (empty && cultures.length) {
@@ -447,7 +469,10 @@ function drawCultures() {
   const {cells, cultures} = pack;
 
   const bodyPaths = new Array(cultures.length - 1);
-  const isolines = getIsolines(pack, cellId => cells.culture[cellId], {fill: true, waterGap: true});
+  const isolines = getIsolines(pack, cellId => cells.culture[cellId], {fill: true, waterGap: true}) as Record<
+    string,
+    {fill: unknown; waterGap: unknown}
+  >;
   Object.entries(isolines).forEach(([index, {fill, waterGap}]) => {
     const color = cultures[index].color;
     bodyPaths.push(getGappedFillPaths("culture", fill, waterGap, color, index));
@@ -458,7 +483,7 @@ function drawCultures() {
   TIME && console.timeEnd("drawCultures");
 }
 
-function toggleReligions(event) {
+export function toggleReligions(event) {
   const religions = pack.religions.filter(r => r.i && !r.removed);
   if (!relig.selectAll("path").size() && religions.length) {
     turnButtonOn("toggleReligions");
@@ -476,7 +501,10 @@ function drawReligions() {
   const {cells, religions} = pack;
 
   const bodyPaths = new Array(religions.length - 1);
-  const isolines = getIsolines(pack, cellId => cells.religion[cellId], {fill: true, waterGap: true});
+  const isolines = getIsolines(pack, cellId => cells.religion[cellId], {fill: true, waterGap: true}) as Record<
+    string,
+    {fill: unknown; waterGap: unknown}
+  >;
   Object.entries(isolines).forEach(([index, {fill, waterGap}]) => {
     const color = religions[index].color;
     bodyPaths.push(getGappedFillPaths("religion", fill, waterGap, color, index));
@@ -487,7 +515,7 @@ function drawReligions() {
   TIME && console.timeEnd("drawReligions");
 }
 
-function toggleStates(event) {
+export function toggleStates(event) {
   if (!layerIsOn("toggleStates")) {
     turnButtonOn("toggleStates");
     drawStates();
@@ -509,7 +537,10 @@ function drawStates() {
   const haloPaths = new Array(maxLength);
 
   const renderHalo = shapeRendering.value === "geometricPrecision";
-  const isolines = getIsolines(pack, cellId => cells.state[cellId], {fill: true, waterGap: true, halo: renderHalo});
+  const isolines = getIsolines(pack, cellId => cells.state[cellId], {fill: true, waterGap: true, halo: renderHalo}) as Record<
+    string,
+    {fill: unknown; waterGap: unknown; halo: unknown}
+  >;
   Object.entries(isolines).forEach(([index, {fill, waterGap, halo}]) => {
     const color = states[index].color;
     bodyPaths.push(getGappedFillPaths("state", fill, waterGap, color, index));
@@ -530,7 +561,7 @@ function drawStates() {
   TIME && console.timeEnd("drawStates");
 }
 
-function toggleBorders(event) {
+export function toggleBorders(event) {
   if (!layerIsOn("toggleBorders")) {
     turnButtonOn("toggleBorders");
     drawBorders();
@@ -542,7 +573,7 @@ function toggleBorders(event) {
   }
 }
 
-function toggleProvinces(event) {
+export function toggleProvinces(event) {
   if (!layerIsOn("toggleProvinces")) {
     turnButtonOn("toggleProvinces");
     drawProvinces();
@@ -559,7 +590,10 @@ function drawProvinces() {
   const {cells, provinces} = pack;
 
   const bodyPaths = new Array(provinces.length - 1);
-  const isolines = getIsolines(pack, cellId => cells.province[cellId], {fill: true, waterGap: true});
+  const isolines = getIsolines(pack, cellId => cells.province[cellId], {fill: true, waterGap: true}) as Record<
+    string,
+    {fill: unknown; waterGap: unknown}
+  >;
   Object.entries(isolines).forEach(([index, {fill, waterGap}]) => {
     const color = provinces[index].color;
     bodyPaths.push(getGappedFillPaths("province", fill, waterGap, color, index));
@@ -581,7 +615,7 @@ function drawProvinces() {
   TIME && console.timeEnd("drawProvinces");
 }
 
-function toggleGrid(event) {
+export function toggleGrid(event) {
   if (!gridOverlay.selectAll("*").size()) {
     turnButtonOn("toggleGrid");
     drawGrid();
@@ -623,7 +657,7 @@ function drawGrid() {
     .attr("stroke", "none");
 }
 
-function toggleCoordinates(event) {
+export function toggleCoordinates(event) {
   if (!coordinates.selectAll("*").size()) {
     turnButtonOn("toggleCoordinates");
     drawCoordinates();
@@ -659,18 +693,19 @@ function drawCoordinates() {
   const labels = coordinates.append("g").attr("id", "coordinateLabels");
 
   const point = new DOMPoint(scale + desired + 2, scale + desired / 2);
-  const p = point.matrixTransform(ensureEl("viewbox").getScreenCTM().inverse());
+  const screenMatrix = ensureEl("viewbox").getScreenCTM();
+  const p = point.matrixTransform((screenMatrix ?? new DOMMatrix()).inverse());
 
   const data = graticule.lines().map(d => {
     const isLatitude = d.coordinates[0][1] === d.coordinates[1][1];
-    const coordinate = d.coordinates[0];
-    const position = projection(coordinate); // map coordinates
+    const coordinate = d.coordinates[0] as [number, number];
+    const position = projection(coordinate) || [0, 0]; // map coordinates
     const [x, y] = isLatitude ? [rn(p.x, 2), rn(position[1], 2)] : [rn(position[0], 2), rn(p.y, 2)]; // labels position
     const value = isLatitude ? coordinate[1] : coordinate[0]; // label
 
     let text = "";
     if (!value) {
-      text = value;
+      text = "0";
     } else if (Number.isInteger(value)) {
       if (isLatitude) {
         text = coordinate[1] < 0 ? -coordinate[1] + "°S" : coordinate[1] + "°N";
@@ -695,7 +730,7 @@ function drawCoordinates() {
     .text(d => d.text);
 }
 
-function toggleCompass(event) {
+export function toggleCompass(event) {
   if (!layerIsOn("toggleCompass")) {
     turnButtonOn("toggleCompass");
     $("#compass").fadeIn();
@@ -707,7 +742,7 @@ function toggleCompass(event) {
   }
 }
 
-function toggleRelief(event) {
+export function toggleRelief(event) {
   if (!layerIsOn("toggleRelief")) {
     turnButtonOn("toggleRelief");
     if (!terrain.selectAll("*").size()) drawReliefIcons();
@@ -720,7 +755,7 @@ function toggleRelief(event) {
   }
 }
 
-function toggleLakes(event) {
+export function toggleLakes(event) {
   if (!layerIsOn("toggleLakes")) {
     turnButtonOn("toggleLakes");
     $("#lakes").fadeIn();
@@ -732,7 +767,7 @@ function toggleLakes(event) {
   }
 }
 
-function toggleTexture(event) {
+export function toggleTexture(event) {
   if (!layerIsOn("toggleTexture")) {
     turnButtonOn("toggleTexture");
     drawTexture();
@@ -759,7 +794,7 @@ function drawTexture() {
     .attr("href", href);
 }
 
-function toggleRivers(event) {
+export function toggleRivers(event) {
   if (!layerIsOn("toggleRivers")) {
     turnButtonOn("toggleRivers");
     drawRivers();
@@ -794,7 +829,7 @@ function drawRivers() {
   TIME && console.timeEnd("drawRivers");
 }
 
-function toggleRoutes(event) {
+export function toggleRoutes(event) {
   if (!layerIsOn("toggleRoutes")) {
     turnButtonOn("toggleRoutes");
     drawRoutes();
@@ -833,7 +868,7 @@ export function drawRoute(route) {
     .attr("id", "route" + route.i);
 }
 
-function toggleMilitary(event) {
+export function toggleMilitary(event) {
   if (!layerIsOn("toggleMilitary")) {
     turnButtonOn("toggleMilitary");
     drawMilitary();
@@ -845,7 +880,7 @@ function toggleMilitary(event) {
   }
 }
 
-function toggleMarkers(event) {
+export function toggleMarkers(event) {
   if (!layerIsOn("toggleMarkers")) {
     turnButtonOn("toggleMarkers");
     drawMarkers();
@@ -857,7 +892,7 @@ function toggleMarkers(event) {
   }
 }
 
-function toggleLabels(event) {
+export function toggleLabels(event) {
   if (!layerIsOn("toggleLabels")) {
     turnButtonOn("toggleLabels");
     $("#labels").fadeIn();
@@ -877,7 +912,7 @@ function drawLabels() {
   invokeActiveZooming();
 }
 
-function toggleBurgIcons(event) {
+export function toggleBurgIcons(event) {
   if (!layerIsOn("toggleBurgIcons")) {
     turnButtonOn("toggleBurgIcons");
     drawBurgIcons();
@@ -889,7 +924,7 @@ function toggleBurgIcons(event) {
   }
 }
 
-function toggleRulers(event) {
+export function toggleRulers(event) {
   if (!layerIsOn("toggleRulers")) {
     turnButtonOn("toggleRulers");
     if (event && isCtrlClick(event)) editStyle("ruler");
@@ -903,7 +938,7 @@ function toggleRulers(event) {
   }
 }
 
-function toggleScaleBar(event) {
+export function toggleScaleBar(event) {
   if (!layerIsOn("toggleScaleBar")) {
     turnButtonOn("toggleScaleBar");
     $("#scaleBar").fadeIn();
@@ -915,7 +950,7 @@ function toggleScaleBar(event) {
   }
 }
 
-function toggleZones(event) {
+export function toggleZones(event) {
   if (!layerIsOn("toggleZones")) {
     turnButtonOn("toggleZones");
     drawZones();
@@ -941,7 +976,7 @@ function drawZone({i, cells, type, color}) {
   return `<path id="zone${i}" data-id="${i}" data-type="${type}" d="${path}" fill="${color}" />`;
 }
 
-function toggleEmblems(event) {
+export function toggleEmblems(event) {
   if (!layerIsOn("toggleEmblems")) {
     turnButtonOn("toggleEmblems");
     if (!emblems.selectAll("use").size()) drawEmblems();
@@ -955,7 +990,7 @@ function toggleEmblems(event) {
   }
 }
 
-function toggleVignette(event) {
+export function toggleVignette(event) {
   if (!layerIsOn("toggleVignette")) {
     turnButtonOn("toggleVignette");
     $("#vignette").fadeIn();

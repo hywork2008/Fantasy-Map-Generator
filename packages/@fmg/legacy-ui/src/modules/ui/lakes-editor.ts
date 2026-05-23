@@ -1,4 +1,3 @@
-// @ts-nocheck
 "use strict";
 function editLake() {
   if (customization) return;
@@ -48,12 +47,12 @@ function editLake() {
     const length = d3.polygonLength(l.vertices.map(v => vertices.p[v]));
     ensureEl("lakeShoreLength").value = si(length * distanceScale) + " " + distanceUnitInput.value;
 
-    const lakeCells = Array.from(cells.i.filter(i => cells.f[i] === l.i));
+    const lakeCells = Array.from(cells.i.filter(i => cells.f[i] === l.i)) as number[];
     const heights = lakeCells.map(i => cells.h[i]);
 
     ensureEl("lakeElevation").value = getHeight(l.height);
-    ensureEl("lakeAverageDepth").value = getHeight(d3.mean(heights), "abs");
-    ensureEl("lakeMaxDepth").value = getHeight(d3.min(heights), "abs");
+    ensureEl("lakeAverageDepth").value = (getHeight as any)(d3.mean(heights), "abs");
+    ensureEl("lakeMaxDepth").value = (getHeight as any)(d3.min(heights), "abs");
 
     ensureEl("lakeFlux").value = l.flux;
     ensureEl("lakeEvaporation").value = l.evaporation;
@@ -143,7 +142,8 @@ function editLake() {
     const select = ensureEl("lakeGroup");
     select.options.length = 0;
     lakes.selectAll("g").each(function () {
-      select.options.add(new Option(this.id, this.id, false, this.id === lake.group));
+      const group = this as HTMLElement;
+      select.options.add(new Option(group.id, group.id, false, group.id === lake.group));
     });
   }
 
@@ -183,7 +183,7 @@ function editLake() {
       return;
     }
 
-    const oldGroup = elSelected.node().parentNode;
+    const oldGroup = elSelected.node().parentNode as HTMLElement;
     const basic = ["freshwater", "salt", "sinkhole", "frozen", "lava", "dry"].includes(oldGroup.id);
     if (!basic && oldGroup.childElementCount === 1) {
       ensureEl("lakeGroup").selectedOptions[0].remove();

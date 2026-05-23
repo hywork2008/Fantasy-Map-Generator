@@ -1,6 +1,5 @@
 // replaceAll
 if (String.prototype.replaceAll === undefined) {
-  // @ts-ignore - Polyfill definition
   String.prototype.replaceAll = function (
     str: string | RegExp,
     newStr: string | ((substring: string, ...args: any[]) => string)
@@ -13,10 +12,8 @@ if (String.prototype.replaceAll === undefined) {
 
 // flat
 if (Array.prototype.flat === undefined) {
-  // @ts-ignore - Polyfill definition
   Array.prototype.flat = function <T>(this: T[], depth?: number): any[] {
-    // @ts-ignore - Polyfill implementation
-    return (this as Array<unknown>).reduce(
+    return (this as Array<unknown>).reduce<any[]>(
       (acc: any[], val: unknown) => (Array.isArray(val) ? acc.concat((val as any).flat(depth)) : acc.concat(val)),
       []
     );
@@ -25,7 +22,6 @@ if (Array.prototype.flat === undefined) {
 
 // at
 if (Array.prototype.at === undefined) {
-  // @ts-ignore - Polyfill definition
   Array.prototype.at = function <T>(this: T[], index: number): T | undefined {
     if (index < 0) index += this.length;
     if (index < 0 || index >= this.length) return undefined;
@@ -52,7 +48,6 @@ if ((ReadableStream.prototype as any)[Symbol.asyncIterator] === undefined) {
 }
 
 declare global {
-  // @ts-ignore - Polyfill declarations
   interface String {
     replaceAll(
       searchValue: string | RegExp,
@@ -60,13 +55,11 @@ declare global {
     ): string;
   }
 
-  // @ts-ignore - Polyfill declarations
   interface Array<T> {
     flat(depth?: number): T[];
     at(index: number): T | undefined;
   }
 
-  // @ts-ignore - Polyfill declarations
   interface ReadableStream<R> {
     [Symbol.asyncIterator](): AsyncIterableIterator<R>;
   }
