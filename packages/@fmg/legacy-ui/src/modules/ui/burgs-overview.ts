@@ -1,3 +1,4 @@
+import { applySorting } from "./editors";
 "use strict";
 export function overviewBurgs(settings = {stateId: null, cultureId: null}) {
   if (customization) return;

@@ -1,5 +1,6 @@
 "use strict";
 import { States } from "@fmg/core/modules/states-generator";
+import { applySorting, getArea, getAreaUnit } from "./editors";
 import { fog, unfog } from "./editors";
 
 declare const areaUnit: HTMLSelectElement;

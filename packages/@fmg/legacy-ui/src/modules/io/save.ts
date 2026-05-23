@@ -1,7 +1,9 @@
 "use strict";
 
 import { getFileName } from "../ui/editors";
+import { Biomes } from "@fmg/core/modules/biomes";
 import { link, parseError } from "@fmg/shared";
+import { VERSION } from "../../versioning";
 
 type SaveMethod = "storage" | "machine" | "dropbox";
 
@@ -48,8 +50,9 @@ function prepareMapData(): string {
   const date = new Date();
   const dateString = date.getFullYear() + "-" + (date.getMonth() + 1) + "-" + date.getDate();
   const license = "File can be loaded in azgaar.github.io/Fantasy-Map-Generator";
+  const mapVersion = saveRuntime.VERSION || VERSION;
   const params = [
-    saveRuntime.VERSION,
+    mapVersion,
     license,
     dateString,
     saveRuntime.seed,
@@ -87,14 +90,17 @@ function prepareMapData(): string {
     saveRuntime.growthRate.value
   ].join("|");
   const coords = JSON.stringify(saveRuntime.mapCoordinates);
-  const biomes = [saveRuntime.biomesData.color, saveRuntime.biomesData.habitability, saveRuntime.biomesData.name].join("|");
+  const biomesData = saveRuntime.biomesData || Biomes.getDefault();
+  saveRuntime.biomesData = biomesData;
+  const biomes = [biomesData.color, biomesData.habitability, biomesData.name].join("|");
   const notesData = JSON.stringify(saveRuntime.notes);
-  const rulersString = saveRuntime.rulers.toString();
-  const fonts = JSON.stringify(window.getUsedFonts(saveRuntime.svg.node()));
+  const rulersString = saveRuntime.rulers ? saveRuntime.rulers.toString() : "";
 
   // save svg
   const cloneEl = document.getElementById("map")?.cloneNode(true) as SVGSVGElement | null;
   if (!cloneEl) throw new Error("Map SVG element is not found");
+
+  const fonts = JSON.stringify(window.getUsedFonts(cloneEl));
 
   // reset transform values to default
   cloneEl.setAttribute("width", String(saveRuntime.graphWidth));
@@ -131,7 +137,9 @@ function prepareMapData(): string {
 
   // store name array only if not the same as default
   const defaultNB = saveRuntime.Names.getNameBases();
-  const namesData = saveRuntime.nameBases
+  const nameBases = saveRuntime.nameBases || defaultNB;
+  saveRuntime.nameBases = nameBases;
+  const namesData = nameBases
     .map((b, i) => {
       const names = defaultNB[i] && defaultNB[i].b === b.b ? "" : b.b;
       return `${b.name}|${b.min}|${b.max}|${b.d}|${b.m}|${names}`;

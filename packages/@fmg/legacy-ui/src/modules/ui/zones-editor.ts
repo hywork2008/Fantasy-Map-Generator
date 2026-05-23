@@ -1,6 +1,6 @@
 "use strict";
 
-import { closeDialogs, restoreDefaultEvents, fog, unfog } from "./editors";
+import { closeDialogs, getArea, getAreaUnit, restoreDefaultEvents, fog, unfog } from "./editors";
 import { tip, clearMainTip } from "./general";
 import { layerIsOn } from "./layers";
 import { ensureEl, rn } from "@fmg/shared";
@@ -138,7 +138,7 @@ class ZonesEditor {
     body.innerHTML = lines.join("");
 
     const totalArea = getArea(graphWidth * graphHeight);
-    zonesFooterArea.dataset.area = totalArea;
+    zonesFooterArea.dataset.area = String(totalArea);
     const totalPop =
       (d3.sum(pack.cells.pop) + d3.sum(pack.burgs.filter((b: any) => !b.removed).map((b: any) => b.population)) * urbanization) *
       populationRate;

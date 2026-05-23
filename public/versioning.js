@@ -14,7 +14,7 @@
  *
  * For the changes that may be interesting to end users, update the `latestPublicChanges` array below (new changes on top).
  */
-const VERSION = "1.122.3";
+export const VERSION = "1.122.3";
 if (parseMapVersion(VERSION) !== VERSION)
     alert("versioning.js: Invalid format or parsing function");
 {
@@ -84,7 +84,7 @@ async function clearCache() {
     const cacheNames = await caches.keys();
     return Promise.all(cacheNames.map(cacheName => caches.delete(cacheName)));
 }
-function parseMapVersion(version) {
+export function parseMapVersion(version) {
     let [major, minor, patch] = version.split(".");
     if (patch === undefined) {
         const compactVersion = minor;
@@ -96,13 +96,13 @@ function parseMapVersion(version) {
     const parsedPatch = parseInt(patch, 10) || 0;
     return `${parsedMajor}.${parsedMinor}.${parsedPatch}`;
 }
-function isValidVersion(versionString) {
+export function isValidVersion(versionString) {
     if (!versionString)
         return false;
     const [major, minor, patch] = versionString.split(".");
     return !Number.isNaN(+major) && !Number.isNaN(+minor) && !Number.isNaN(+patch);
 }
-function compareVersions(version1, version2, options = { major: true, minor: true, patch: true }) {
+export function compareVersions(version1, version2, options = { major: true, minor: true, patch: true }) {
     if (!isValidVersion(version1) || !isValidVersion(version2))
         return { isEqual: false, isNewer: false, isOlder: false };
     const validVersion1 = version1;

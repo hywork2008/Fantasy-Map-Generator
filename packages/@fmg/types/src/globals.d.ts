@@ -197,10 +197,14 @@ declare global {
   var THREE: any;
   var ensureEl: (...args: any[]) => any;
   var editUnits: (...args: any[]) => any;
-  var clearLegend: (...args: any[]) => any;
+  var clearLegend: () => void;
   var drawCoordinates: (...args: any[]) => any;
-  var drawScaleBar: (...args: any[]) => any;
-  var fitScaleBar: (...args: any[]) => any;
+  var drawScaleBar: (scaleBar: Selection<SVGGElement, unknown, HTMLElement, unknown>, scaleLevel: number) => void;
+  var fitScaleBar: (
+    scaleBar: Selection<SVGGElement, unknown, HTMLElement, unknown>,
+    fullWidth: number,
+    fullHeight: number
+  ) => void;
   var updateMinimap: (...args: any[]) => any;
   var mapWidthInput: HTMLInputElement;
   var mapHeightInput: HTMLInputElement;
@@ -210,9 +214,10 @@ declare global {
   var uploadMap: (...args: any[]) => any;
   var shapeRendering: any;
   var rescaleLabels: (...args: any[]) => any;
-  var hideLabels: (...args: any[]) => any;
+  var hideLabels: HTMLInputElement;
   var hideEmblems: (...args: any[]) => any;
-  var renderGroupCOAs: (...args: any[]) => any;
+  var renderGroupCOAs: (g: SVGGElement) => Promise<void>;
 }
+  var unlock: (settingId: string) => void;
 
 export {};

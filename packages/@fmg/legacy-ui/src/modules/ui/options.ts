@@ -195,8 +195,8 @@ function mapSizeInputChange() {
 }
 
 function restoreDefaultCanvasSize() {
-  mapWidthInput.value = window.innerWidth;
-  mapHeightInput.value = window.innerHeight;
+  mapWidthInput.value = String(window.innerWidth);
+  mapHeightInput.value = String(window.innerHeight);
   localStorage.removeItem("mapHeight");
   localStorage.removeItem("mapWidth");
   fitMapToScreen();
@@ -318,7 +318,7 @@ function restoreSeed(id) {
   ensureEl("mapHeightInput").value = height;
   ensureEl("templateInput").value = template;
 
-  if (locked("template")) unlock("template");
+  if (locked("template")) (window as any).unlock("template");
 
   regeneratePrompt({seed});
 }
@@ -545,8 +545,8 @@ function restoreDefaultZoomExtent() {
 // restore options stored in localStorage
 export function applyStoredOptions() {
   if (!stored("mapWidth") || !stored("mapHeight")) {
-    mapWidthInput.value = window.innerWidth;
-    mapHeightInput.value = window.innerHeight;
+    mapWidthInput.value = String(window.innerWidth);
+    mapHeightInput.value = String(window.innerHeight);
   }
 
   const heightmapId = stored("template");
@@ -588,14 +588,14 @@ export function applyStoredOptions() {
 
   uiSize.max = uiSize.max = getUImaxSize();
   if (stored("uiSize")) changeUiSize(+stored("uiSize"));
-  else changeUiSize(minmax(rn(mapWidthInput.value / 1280, 1), 1, 2.5));
+  else changeUiSize(minmax(rn(+mapWidthInput.value / 1280, 1), 1, 2.5));
 
   // search params overwrite stored and default options
   const params = new URL(window.location.href).searchParams;
   const width = +params.get("width");
   const height = +params.get("height");
-  if (width) mapWidthInput.value = width;
-  if (height) mapHeightInput.value = height;
+  if (width) mapWidthInput.value = String(width);
+  if (height) mapHeightInput.value = String(height);
 
   const transparency = stored("transparency") || 5;
   const themeColor = stored("themeColor");
@@ -696,7 +696,7 @@ function generateEra() {
 }
 
 function regenerateEra() {
-  unlock("era");
+  (window as any).unlock("era");
   options.era = eraInput.value = Names.getBaseShort(P(0.7) ? 1 : rand(nameBases.length)) + " Era";
   options.eraShort = options.era
     .split(" ")
@@ -976,6 +976,8 @@ function changeViewMode(event) {
     enter3dView(button.id);
   }
 }
+
+export { changeViewMode };
 
 function enterStandardView() {
   viewMode.querySelectorAll(".pressed").forEach(button => button.classList.remove("pressed"));

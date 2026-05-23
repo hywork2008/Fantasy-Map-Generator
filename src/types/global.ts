@@ -1,10 +1,8 @@
 import type { Selection } from "d3";
-import type { NameBase } from "#modules/names-generator";
-import type { PackedGraph } from "./PackedGraph";
 
 declare global {
   var seed: string;
-  var pack: PackedGraph;
+  var pack: any;
   var grid: any;
   var graphHeight: number;
   var graphWidth: number;
@@ -15,12 +13,11 @@ declare global {
   var options: any;
 
   var heightmapTemplates: any;
-  var Routes: any;
   var populationRate: number;
   var urbanDensity: number;
   var urbanization: number;
   var distanceScale: number;
-  var nameBases: NameBase[];
+  var nameBases: any[];
 
   var pointsInput: HTMLInputElement;
   var culturesInput: HTMLInputElement;
@@ -63,12 +60,7 @@ declare global {
     iconsDensity: number[];
     icons: string[][];
     cost: number[];
-    cells?: number[];
-    area?: number[];
-    rural?: number[];
-    urban?: number[];
   };
-  var notes: any[];
   var style: {
     burgLabels: { [key: string]: { [key: string]: string } };
     burgIcons: { [key: string]: { [key: string]: string } };
@@ -88,7 +80,7 @@ declare global {
     timeout?: number
   ) => void;
   var locked: (settingId: string) => boolean;
-  var unlock: (settingId: string) => void;
+    var unlock: (settingId: string) => void;
 
   var $: (selector: any) => any;
   var scale: number;

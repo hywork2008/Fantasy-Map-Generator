@@ -1,3 +1,4 @@
+import { getArea, getAreaUnit } from "./editors";
 "use strict";
 
 import { Routes } from "@fmg/core/modules/routes-generator";

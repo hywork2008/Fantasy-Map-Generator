@@ -8,6 +8,7 @@ import { States } from "@fmg/core/modules/states-generator";
 import "@fmg/core/modules/heightmap-generator";
 import "@fmg/core/modules/ocean-layers";
 import { locked } from "./general";
+import { changeViewMode } from "./options";
 
 // Import drawFeatures from global scope
 declare const drawFeatures: () => void;

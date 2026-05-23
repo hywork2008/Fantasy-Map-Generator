@@ -4,6 +4,7 @@ import type {Selection} from "d3";
 import { Routes } from "@fmg/core/modules/routes-generator";
 import { getCurrentPreset } from "../ui/layers";
 import { ensureLegacyElement, legacyRuntime } from "../runtime/legacy-runtime";
+import { VERSION, compareVersions, isValidVersion, parseMapVersion } from "../../versioning";
 /// <reference path="../../types/ui-legacy-globals.d.ts" />
 
 declare let areaUnit: HTMLSelectElement;
@@ -192,7 +193,7 @@ async function parseLoadedResult(
     }
 
     const mapData = content.split("\r\n"); // split by CRLF
-    const mapVersion = (parseMapVersion as any)((mapData[0] as any).split("|")[0] || mapData[0] || "");
+    const mapVersion = parseMapVersion((mapData[0] as any).split("|")[0] || mapData[0] || "");
 
     return {mapData, mapVersion};
   } catch (error) {

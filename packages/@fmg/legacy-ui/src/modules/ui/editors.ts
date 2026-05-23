@@ -87,7 +87,7 @@ document.querySelectorAll(".sortable").forEach(function (event) {
   });
 });
 
-function applySortingByHeader(headerContainer) {
+export function applySortingByHeader(headerContainer) {
   document
     .getElementById(headerContainer)
     .querySelectorAll(".sortable")
@@ -113,7 +113,7 @@ function sortLines(headerElement) {
   applySorting(headers);
 }
 
-function applySorting(headers) {
+export function applySorting(headers) {
   const header = headers.querySelector("div[class*='icon-sort']") as HTMLElement | null;
   if (!header) return;
   const sortby = header.dataset.sortby;
@@ -941,11 +941,11 @@ function selectIcon(initial, callback) {
   });
 }
 
-function getAreaUnit(squareMark = "²") {
+export function getAreaUnit(squareMark = "²") {
   return ensureEl("areaUnit").value === "square" ? ensureEl("distanceUnitInput").value + squareMark : ensureEl("areaUnit").value;
 }
 
-function getArea(rawArea) {
+export function getArea(rawArea) {
   return rawArea * distanceScale ** 2;
 }
 

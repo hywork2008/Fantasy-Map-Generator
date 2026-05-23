@@ -5,6 +5,7 @@ import { Rivers } from "@fmg/core/modules/river-generator";
 import { Routes } from "@fmg/core/modules/routes-generator";
 import { States } from "@fmg/core/modules/states-generator";
 import { fog, unfog } from "../ui/editors";
+import { compareVersions } from "../../versioning";
 
 // update old map file to the current version
 export function resolveVersionConflicts(mapVersion) {

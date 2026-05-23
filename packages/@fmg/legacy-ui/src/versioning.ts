@@ -24,7 +24,7 @@ type DialogInvoker = {
 declare const alertMessage: HTMLElement;
 declare const $: (target: string | Element) => DialogInvoker;
 
-const VERSION = "1.122.3";
+export const VERSION = "1.122.3";
 if (parseMapVersion(VERSION) !== VERSION) alert("versioning.js: Invalid format or parsing function");
 
 {
@@ -101,7 +101,7 @@ async function clearCache() {
   return Promise.all(cacheNames.map(cacheName => caches.delete(cacheName)));
 }
 
-function parseMapVersion(version: string) {
+export function parseMapVersion(version: string) {
   let [major, minor, patch] = version.split(".");
 
   if (patch === undefined) {
@@ -117,13 +117,13 @@ function parseMapVersion(version: string) {
   return `${parsedMajor}.${parsedMinor}.${parsedPatch}`;
 }
 
-function isValidVersion(versionString: string | null) {
+export function isValidVersion(versionString: string | null) {
   if (!versionString) return false;
   const [major, minor, patch] = versionString.split(".");
   return !Number.isNaN(+major) && !Number.isNaN(+minor) && !Number.isNaN(+patch);
 }
 
-function compareVersions(
+export function compareVersions(
   version1: string | null,
   version2: string | null,
   options: CompareOptions = { major: true, minor: true, patch: true }

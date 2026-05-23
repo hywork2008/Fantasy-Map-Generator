@@ -41,7 +41,7 @@ export function overviewRivers() {
       filteredRivers = filteredRivers.filter(r => {
         const name = (r.name || "").toLowerCase();
         const type = (r.type || "").toLowerCase();
-        const basin = riversById.get(r.basin);
+        const basin = riversById.get(r.basin) as { name?: string } | undefined;
         const basinName = basin ? (basin.name || "").toLowerCase() : "";
         return name.includes(searchText) || type.includes(searchText) || basinName.includes(searchText);
       });
@@ -51,7 +51,7 @@ export function overviewRivers() {
       const discharge = r.discharge + " m³/s";
       const length = rn(r.length * distanceScale) + " " + unit;
       const width = rn(r.width * distanceScale, 3) + " " + unit;
-      const basin = riversById.get(r.basin)?.name;
+      const basin = (riversById.get(r.basin) as { name?: string } | undefined)?.name;
 
       lines += /* html */ `<div
         class="states"

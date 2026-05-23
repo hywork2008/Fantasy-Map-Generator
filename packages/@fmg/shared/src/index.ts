@@ -1,3 +1,4 @@
+import type { FmgGlobalContext } from "@fmg/types";
 import { createTypedArray, getTypedArray, last, TYPED_ARRAY_MAX_VALUES, unique } from "./arrayUtils";
 import { abbreviate, getAdjective, isVowel, list, nth, trimVowels } from "./languageUtils";
 import { lerp, lim, minmax, normalize, rn } from "./numberUtils";
@@ -44,85 +45,109 @@ import { biased, each, gauss, generateSeed, getNumberInRange, P, Pint, ra, rand,
 import { capitalize, isValidJSON, parseTransform, round, safeParseJSON, sanitizeId, splitInTwo } from "./stringUtils";
 import { convertTemperature, getIntegerFromSI, si } from "./unitUtils";
 
-window.rn = rn;
-window.lim = lim;
-window.minmax = minmax;
-window.normalize = normalize;
-window.lerp = lerp as typeof window.lerp;
+// Initialize window.fmg namespace
+const fmgGlobal: FmgGlobalContext = {
+  // Number utils
+  rn,
+  lim,
+  minmax,
+  normalize,
+  lerp,
 
-window.vowel = isVowel;
-window.trimVowels = trimVowels;
-window.getAdjective = getAdjective;
-window.nth = nth;
-window.abbreviate = abbreviate;
-window.list = list;
+  // Language utils
+  vowel: isVowel,
+  trimVowels,
+  getAdjective,
+  nth,
+  abbreviate,
+  list,
 
-window.last = last;
-window.unique = unique;
-window.getTypedArray = getTypedArray;
-window.createTypedArray = createTypedArray;
-window.INT8_MAX = TYPED_ARRAY_MAX_VALUES.INT8_MAX;
-window.UINT8_MAX = TYPED_ARRAY_MAX_VALUES.UINT8_MAX;
-window.UINT16_MAX = TYPED_ARRAY_MAX_VALUES.UINT16_MAX;
-window.UINT32_MAX = TYPED_ARRAY_MAX_VALUES.UINT32_MAX;
+  // Array utils
+  last,
+  unique,
+  getTypedArray,
+  createTypedArray,
+  INT8_MAX: TYPED_ARRAY_MAX_VALUES.INT8_MAX,
+  UINT8_MAX: TYPED_ARRAY_MAX_VALUES.UINT8_MAX,
+  UINT16_MAX: TYPED_ARRAY_MAX_VALUES.UINT16_MAX,
+  UINT32_MAX: TYPED_ARRAY_MAX_VALUES.UINT32_MAX,
 
-window.rand = rand;
-window.P = P;
-window.each = each;
-window.gauss = gauss;
-window.Pint = Pint;
-window.ra = ra;
-window.rw = rw;
-window.biased = biased;
-window.getNumberInRange = getNumberInRange;
-window.generateSeed = generateSeed;
+  // Probability utils
+  rand,
+  P,
+  each,
+  gauss,
+  Pint,
+  ra,
+  rw,
+  biased,
+  getNumberInRange,
+  generateSeed,
 
-window.convertTemperature = (temp: number, scale: any = (window as any).temperatureScale.value || "°C") =>
-  convertTemperature(temp, scale);
-window.si = si;
-window.getInteger = getIntegerFromSI;
-window.toHEX = toHEX;
-window.getColors = getColors;
-window.getRandomColor = getRandomColor;
-window.getMixedColor = getMixedColor;
-window.C_12 = C_12;
+  // Unit utils
+  convertTemperature: (temp: number, scale: any = (window as any).temperatureScale?.value || "°C") =>
+    convertTemperature(temp, scale),
+  si,
+  getInteger: getIntegerFromSI,
 
-window.ensureEl = ensureEl;
-window.getComposedPath = getComposedPath;
-window.getNextId = getNextId;
+  // Color utils
+  toHEX,
+  getColors,
+  getRandomColor,
+  getMixedColor,
+  C_12,
 
-window.rollups = rollups;
-window.dist2 = distanceSquared;
+  // DOM utils
+  ensureEl,
+  getComposedPath,
+  getNextId,
 
-window.getIsolines = getIsolines;
-window.getPolesOfInaccessibility = getPolesOfInaccessibility;
-window.connectVertices = connectVertices;
-window.findPath = (start, end, getCost) => findPath(start, end, getCost, (window as any).pack);
-window.getVertexPath = cellsArray => getVertexPath(cellsArray, (window as any).pack);
+  // Function utils
+  rollups,
+  dist2: distanceSquared,
 
-window.round = round;
-window.capitalize = capitalize;
-window.splitInTwo = splitInTwo;
-window.parseTransform = parseTransform;
-window.sanitizeId = sanitizeId;
+  // Path utils
+  getIsolines,
+  getPolesOfInaccessibility,
+  connectVertices,
+  findPath: (start, isExit, getCost) => findPath(start, isExit, getCost, (window as any).pack),
+  getVertexPath: (cellsArray) => getVertexPath(cellsArray, (window as any).pack),
 
-JSON.isValid = isValidJSON;
-JSON.safeParse = safeParseJSON;
+  // String utils
+  round,
+  capitalize,
+  splitInTwo,
+  parseTransform,
+  sanitizeId,
 
-Node.prototype.on = function (name, fn, options) {
-  this.addEventListener(name, fn, options);
-  return this;
+  // Graph utils
+  shouldRegenerateGrid: (grid: any, expectedSeed: number) =>
+    shouldRegenerateGrid(grid, expectedSeed, (window as any).graphWidth, (window as any).graphHeight),
+  generateGrid: () => generateGrid((window as any).seed, (window as any).graphWidth, (window as any).graphHeight),
+  findGridAll: (x: number, y: number, radius: number) => findGridAll(x, y, radius, (window as any).grid),
+  findGridCell: (x: number, y: number) => findGridCell(x, y, (window as any).grid),
+  findCell: (x: number, y: number, radius?: number) => findClosestCell(x, y, radius, (window as any).pack),
+  findAll: (x: number, y: number, radius: number) => findAllCellsInRadius(x, y, radius, (window as any).pack),
+  getPackPolygon: (cellIndex: number) => getPackPolygon(cellIndex, (window as any).pack),
+  getGridPolygon: (cellIndex: number) => getGridPolygon(cellIndex, (window as any).grid),
+  calculateVoronoi,
+  poissonDiscSampler
 };
-Node.prototype.off = function (name, fn) {
-  this.removeEventListener(name, fn);
-  return this;
-};
 
-const getNormalizedMapCoordinates = (): Parameters<typeof getCoordinates>[2] => ({
-  lonW: Number.isFinite(mapCoordinates.lonW) ? mapCoordinates.lonW : 0,
-  lonT: Number.isFinite(mapCoordinates.lonT) ? mapCoordinates.lonT : 360,
-  latN: Number.isFinite(mapCoordinates.latN) ? mapCoordinates.latN : 90,
-  latT: Number.isFinite(mapCoordinates.latT) ? mapCoordinates.latT : 180
+// Register to window.fmg namespace and merge into any existing object
+const fmg = window.fmg || (window.fmg = {} as FmgGlobalContext);
+Object.assign(fmg, fmgGlobal);
+
+const getNormalizedMapCoordinates = (): {
+  lonW: number;
+  lonT: number;
+  latN: number;
+  latT: number;
+} => ({
+  lonW: Number.isFinite(mapCoordinates.lonW) ? mapCoordinates.lonW! : 0,
+  lonT: Number.isFinite(mapCoordinates.lonT) ? mapCoordinates.lonT! : 360,
+  latN: Number.isFinite(mapCoordinates.latN) ? mapCoordinates.latN! : 90,
+  latT: Number.isFinite(mapCoordinates.latT) ? mapCoordinates.latT! : 180
 });
 
 declare global {
@@ -137,37 +162,57 @@ declare global {
   }
 }
 
-window.shouldRegenerateGrid = (grid: any, expectedSeed: number) =>
-  shouldRegenerateGrid(grid, expectedSeed, (window as any).graphWidth, (window as any).graphHeight);
-window.generateGrid = () => generateGrid((window as any).seed, (window as any).graphWidth, (window as any).graphHeight);
-window.findGridAll = (x: number, y: number, radius: number) => findGridAll(x, y, radius, (window as any).grid);
-window.findGridCell = (x: number, y: number) => findGridCell(x, y, (window as any).grid);
-window.findCell = (x: number, y: number, radius?: number) => findClosestCell(x, y, radius, (window as any).pack);
-window.findAll = (x: number, y: number, radius: number) => findAllCellsInRadius(x, y, radius, (window as any).pack);
-window.getPackPolygon = (cellIndex: number) => getPackPolygon(cellIndex, (window as any).pack);
-window.getGridPolygon = (cellIndex: number) => getGridPolygon(cellIndex, (window as any).grid);
-window.calculateVoronoi = calculateVoronoi;
-window.poissonDiscSampler = poissonDiscSampler;
-window.findAllInQuadtree = findAllInQuadtree;
-window.drawHeights = drawHeights;
-window.isLand = (i: number) => isLand(i, (window as any).pack);
-window.isWater = (i: number) => isWater(i, (window as any).pack);
+// Additional grid-related functions registered on window.fmg only
+Object.assign(fmg as any, {
+  shouldRegenerateGrid: (grid: any, expectedSeed: number) =>
+    shouldRegenerateGrid(grid, expectedSeed, (window as any).graphWidth, (window as any).graphHeight),
+  generateGrid: () => generateGrid((window as any).seed, (window as any).graphWidth, (window as any).graphHeight),
+  findGridAll: (x: number, y: number, radius: number) => findGridAll(x, y, radius, (window as any).grid),
+  findGridCell: (x: number, y: number) => findGridCell(x, y, (window as any).grid),
+  findCell: (x: number, y: number, radius?: number) => findClosestCell(x, y, radius, (window as any).pack),
+  findAll: (x: number, y: number, radius: number) => findAllCellsInRadius(x, y, radius, (window as any).pack),
+  getPackPolygon: (cellIndex: number) => getPackPolygon(cellIndex, (window as any).pack),
+  getGridPolygon: (cellIndex: number) => getGridPolygon(cellIndex, (window as any).grid),
+  calculateVoronoi,
+  poissonDiscSampler,
+  findAllInQuadtree,
+  drawHeights,
+  isLand: (i: number) => isLand(i, (window as any).pack),
+  isWater: (i: number) => isWater(i, (window as any).pack),
+  clipPoly: (points: [number, number][], secure?: number) => clipPoly(points, graphWidth, graphHeight, secure),
+  getSegmentId,
+  debounce,
+  throttle,
+  parseError,
+  getBase64,
+  openURL,
+  wiki,
+  link,
+  isCtrlClick,
+  generateDate,
+  getLongitude: (x: number, decimals?: number) => getLongitude(x, getNormalizedMapCoordinates(), graphWidth, decimals),
+  getLatitude: (y: number, decimals?: number) => getLatitude(y, getNormalizedMapCoordinates(), graphHeight, decimals),
+  getCoordinates: (x: number, y: number, decimals?: number) =>
+    getCoordinates(x, y, getNormalizedMapCoordinates(), graphWidth, graphHeight, decimals),
+  drawCellsValue: (data: any[]) => drawCellsValue(data, (window as any).pack),
+  drawPolygons: (data: any[]) => drawPolygons(data, (window as any).terrs, (window as any).grid),
+  drawRouteConnections: () => drawRouteConnections((window as any).packedGraph),
+  drawPoint,
+  drawPath
+});
 
-window.clipPoly = (points: [number, number][], secure?: number) => clipPoly(points, graphWidth, graphHeight, secure);
-window.getSegmentId = getSegmentId;
-window.debounce = debounce;
-window.throttle = throttle;
-window.parseError = parseError;
-window.getBase64 = getBase64;
-window.openURL = openURL;
-window.wiki = wiki;
-window.link = link;
-window.isCtrlClick = isCtrlClick;
-window.generateDate = generateDate;
-window.getLongitude = (x: number, decimals?: number) => getLongitude(x, getNormalizedMapCoordinates(), graphWidth, decimals);
-window.getLatitude = (y: number, decimals?: number) => getLatitude(y, getNormalizedMapCoordinates(), graphHeight, decimals);
-window.getCoordinates = (x: number, y: number, decimals?: number) =>
-  getCoordinates(x, y, getNormalizedMapCoordinates(), graphWidth, graphHeight, decimals);
+// Polyfill for JSON and Node extensions
+JSON.isValid = isValidJSON;
+JSON.safeParse = safeParseJSON;
+
+Node.prototype.on = function (name, fn, options) {
+  this.addEventListener(name, fn, options);
+  return this;
+};
+Node.prototype.off = function (name, fn) {
+  this.removeEventListener(name, fn);
+  return this;
+};
 
 // Initialize prompt when DOM is ready
 if (document.readyState === "loading") {
@@ -175,12 +220,6 @@ if (document.readyState === "loading") {
 } else {
   initializePrompt();
 }
-
-window.drawCellsValue = (data: any[]) => drawCellsValue(data, (window as any).pack);
-window.drawPolygons = (data: any[]) => drawPolygons(data, (window as any).terrs, (window as any).grid);
-window.drawRouteConnections = () => drawRouteConnections((window as any).packedGraph);
-window.drawPoint = drawPoint;
-window.drawPath = drawPath;
 
 export {
   abbreviate,

@@ -1,3 +1,4 @@
+import { applySorting } from "./editors";
 "use strict";
 class Battle {
   context: any;

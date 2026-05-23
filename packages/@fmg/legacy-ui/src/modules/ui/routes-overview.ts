@@ -1,3 +1,4 @@
+import { applySorting } from "./editors";
 "use strict";
 import { Routes } from "@fmg/core/modules/routes-generator";
 

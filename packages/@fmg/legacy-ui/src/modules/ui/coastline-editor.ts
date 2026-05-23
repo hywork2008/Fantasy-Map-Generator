@@ -1,3 +1,4 @@
+import { getArea, getAreaUnit } from "./editors";
 "use strict";
 
 class CoastlineEditor {

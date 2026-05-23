@@ -26,8 +26,8 @@ export const burgLabelsRenderer = (): void => {
     const dy = labelGroup.attr("data-dy") || 0;
 
     labelGroup
-      .selectAll("text")
-      .data(burgsInGroup)
+      .selectAll<SVGTextElement, Burg>("text")
+      .data(burgsInGroup as Burg[])
       .enter()
       .append("text")
       .attr("text-rendering", "optimizeSpeed")

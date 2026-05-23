@@ -4,6 +4,7 @@
 
 // Re-export global type declarations
 export * from "./globals";
+export * from "./fmg-global";
 
 // UI State type definitions
 export interface UIState {

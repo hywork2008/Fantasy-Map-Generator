@@ -1,3 +1,4 @@
+import { getArea, getAreaUnit } from "../../ui/editors";
 const entitiesMap = {
   states: {
     label: "State",

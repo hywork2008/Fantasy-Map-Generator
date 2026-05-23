@@ -1,3 +1,4 @@
+import { applySorting } from "./editors";
 "use strict";
 export function overviewMilitary() {
   if (customization) return;

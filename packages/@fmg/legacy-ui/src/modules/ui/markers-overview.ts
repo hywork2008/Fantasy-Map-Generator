@@ -1,3 +1,4 @@
+import { applySorting } from "./editors";
 "use strict";
 export function overviewMarkers() {
   if (customization) return;

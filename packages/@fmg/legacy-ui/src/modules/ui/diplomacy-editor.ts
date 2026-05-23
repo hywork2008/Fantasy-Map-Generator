@@ -1,3 +1,4 @@
+import { applySorting } from "./editors";
 "use strict";
 import { States } from "@fmg/core/modules/states-generator";
 
