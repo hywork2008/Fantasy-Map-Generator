@@ -1,5 +1,28 @@
 import polylabel from "polylabel";
+import type { PackedGraph } from "@fmg/types";
 import { rn } from "./numberUtils";
+
+type CellIndexList = Iterable<number> & ArrayLike<number>;
+type GraphCells = {
+  i: CellIndexList;
+  c: number[][];
+  v: number[][];
+  f?: ArrayLike<number>;
+  h?: ArrayLike<number>;
+  b?: ArrayLike<number | boolean>;
+};
+type GraphVertices = {
+  p: [number, number][];
+  c: number[][];
+  v: number[][];
+};
+type GraphFeature = { type?: string; shoreline?: number[] };
+type GraphForPaths = {
+  cells: GraphCells;
+  vertices: GraphVertices;
+  features?: Array<GraphFeature | number>;
+};
+type VerticesForPaths = GraphForPaths["vertices"];
 
 /**
  * Generates SVG path data for filling a shape defined by a chain of vertices.
@@ -7,7 +30,7 @@ import { rn } from "./numberUtils";
  * @param {number[]} vertexChain - An array of vertex IDs defining the shape.
  * @returns {string} SVG path data for the filled shape.
  */
-const getFillPath = (vertices: any, vertexChain: number[]) => {
+const getFillPath = (vertices: VerticesForPaths, vertexChain: number[]) => {
   const points = vertexChain.map(vertexId => vertices.p[vertexId]);
   const firstPoint = points.shift();
   return `M${firstPoint} L${points.join(" ")} Z`;
@@ -20,7 +43,7 @@ const getFillPath = (vertices: any, vertexChain: number[]) => {
  * @param {(vertexId: number) => boolean} discontinue - A function that determines if the path should discontinue at a vertex.
  * @returns {string} SVG path data for the border.
  */
-const getBorderPath = (vertices: any, vertexChain: number[], discontinue: (vertexId: number) => boolean) => {
+const getBorderPath = (vertices: VerticesForPaths, vertexChain: number[], discontinue: (vertexId: number) => boolean) => {
   let discontinued = true;
   let lastOperation = "";
   const path = vertexChain.map(vertexId => {
@@ -83,7 +106,7 @@ interface Isoline {
 }
 
 export const getIsolines = (
-  graph: any,
+  graph: GraphForPaths,
   getType: (cellId: number) => string | number,
   options: {
     polygons?: boolean;
@@ -113,8 +136,9 @@ export const getIsolines = (
     if (onborderCell === undefined) continue;
 
     // check if inner lake. Note there is no shoreline for grid features
-    const feature = graph.features[cells.f[onborderCell]];
-    if (feature.type === "lake" && feature.shoreline?.every(ofSameType)) continue;
+    const featureIndex = cells.f?.[onborderCell] ?? -1;
+    const feature = graph.features?.[featureIndex];
+    if (typeof feature === "object" && feature && feature.type === "lake" && feature.shoreline?.every(ofSameType)) continue;
 
     const startingVertex = cells.v[cellId].find((v: number) => vertices.c[v].some(ofDifferentType));
     if (startingVertex === undefined) throw new Error(`Starting vertex for cell ${cellId} is not found`);
@@ -133,7 +157,13 @@ export const getIsolines = (
 
   return isolines;
 
-  function addIsolineTo(type: string | number, vertices: any, vertexChain: number[], isolines: Record<string | number, Isoline>, options: { polygons?: boolean; fill?: boolean; halo?: boolean; waterGap?: boolean }) {
+  function addIsolineTo(
+    type: string | number,
+    vertices: VerticesForPaths,
+    vertexChain: number[],
+    isolines: Record<string | number, Isoline>,
+    options: { polygons?: boolean; fill?: boolean; halo?: boolean; waterGap?: boolean }
+  ) {
     if (!isolines[type]) isolines[type] = {};
 
     if (options.polygons) {
@@ -148,13 +178,14 @@ export const getIsolines = (
 
     if (options.waterGap) {
       if (!isolines[type].waterGap) isolines[type].waterGap = "";
-      const isLandVertex = (vertexId: number) => vertices.c[vertexId].every((i: number) => cells.h[i] >= 20);
+      const isLandVertex = (vertexId: number) =>
+        vertices.c[vertexId].every((i: number) => (cells.h ? Number(cells.h[i]) >= 20 : false));
       isolines[type].waterGap += getBorderPath(vertices, vertexChain, isLandVertex);
     }
 
     if (options.halo) {
       if (!isolines[type].halo) isolines[type].halo = "";
-      const isBorderVertex = (vertexId: number) => vertices.c[vertexId].some((i: number) => cells.b[i]);
+      const isBorderVertex = (vertexId: number) => vertices.c[vertexId].some((i: number) => Boolean(cells.b?.[i]));
       isolines[type].halo += getBorderPath(vertices, vertexChain, isBorderVertex);
     }
   }
@@ -166,8 +197,9 @@ export const getIsolines = (
  * @param {object} packedGraph - The packed graph object containing cells and vertices.
  * @returns {string} SVG path data for the border of the shape.
  */
-export const getVertexPath = (cellsArray: number[], packedGraph: any = {}) => {
-  const { cells, vertices } = packedGraph;
+export const getVertexPath = (cellsArray: number[], packedGraph?: GraphForPaths) => {
+  const targetGraph = packedGraph ?? (window as Window & { pack: GraphForPaths }).pack;
+  const { cells, vertices } = targetGraph;
 
   const cellsObj = Object.fromEntries(cellsArray.map(cellId => [cellId, true]));
   const ofSameType = (cellId: number) => cellsObj[cellId];
@@ -186,8 +218,9 @@ export const getVertexPath = (cellsArray: number[], packedGraph: any = {}) => {
     const onborderCell = cells.c[cellId].find(ofDifferentType);
     if (onborderCell === undefined) continue;
 
-    const feature = packedGraph.features[cells.f[onborderCell]];
-    if (feature.type === "lake" && feature.shoreline) {
+    const featureIndex = cells.f?.[onborderCell] ?? -1;
+    const feature = targetGraph.features?.[featureIndex];
+    if (typeof feature === "object" && feature && feature.type === "lake" && feature.shoreline) {
       if (feature.shoreline.every(ofSameType)) continue; // inner lake
     }
 
@@ -215,7 +248,10 @@ export const getVertexPath = (cellsArray: number[], packedGraph: any = {}) => {
  * @param {(cellId: number) => any} getType - A function that returns the type of a cell given its ID.
  * @returns {object} An object mapping each type to its pole of inaccessibility coordinates [x, y].
  */
-export const getPolesOfInaccessibility = (graph: any, getType: (cellId: number) => string | number): Record<string | number, [number, number]> => {
+export const getPolesOfInaccessibility = (
+  graph: GraphForPaths,
+  getType: (cellId: number) => string | number
+): Record<string | number, [number, number]> => {
   const isolines = getIsolines(graph, getType, { polygons: true });
 
   const poles = Object.entries(isolines).map(([id, isoline]) => {
@@ -239,7 +275,7 @@ export const getPolesOfInaccessibility = (graph: any, getType: (cellId: number) 
  * @returns {number[]} An array of vertex IDs forming the connected path.
  */
 interface ConnectVerticesOptions {
-  vertices: any;
+  vertices: VerticesForPaths;
   startingVertex: number;
   ofSameType: (cellId: number) => boolean;
   addToChecked?: (cellId: number) => void;
@@ -304,8 +340,9 @@ export const findPath = (
   start: number,
   isExit: (id: number) => boolean,
   getCost: (current: number, next: number) => number,
-  packedGraph: any = {}
+  packedGraph?: Pick<PackedGraph, "cells">
 ): number[] | null => {
+  const targetGraph = packedGraph ?? (window as Window & { pack: Pick<PackedGraph, "cells"> }).pack;
   if (isExit(start)) return null;
 
   const from: number[] = [];
@@ -317,7 +354,7 @@ export const findPath = (
     const currentCost = queue.peekValue();
     const current = queue.pop();
 
-    for (const next of packedGraph.cells.c[current]) {
+    for (const next of targetGraph.cells.c[current]) {
       if (isExit(next)) {
         from[next] = current;
         return restorePath(next, start, from);
@@ -340,7 +377,12 @@ export const findPath = (
 declare global {
   interface Window {
     ERROR: boolean;
-    FlatQueue: any;
+    FlatQueue: new <T>() => {
+      length: number;
+      push: (item: T, priority: number) => void;
+      pop: () => T;
+      peekValue: () => number;
+    };
 
     getIsolines: typeof getIsolines;
     getPolesOfInaccessibility: typeof getPolesOfInaccessibility;

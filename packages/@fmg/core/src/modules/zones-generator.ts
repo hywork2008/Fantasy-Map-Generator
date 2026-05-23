@@ -3,7 +3,7 @@ import { gauss, getAdjective, P, ra, rand, rw } from "@fmg/shared";
 import { Routes } from "./routes-generator";
 
 declare global {
-  var Zones: any;
+  var Zones: ZonesModule;
 }
 
 export interface Zone {

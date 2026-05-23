@@ -2,6 +2,8 @@
  * DOM utility functions for Fantasy Map Generator
  */
 
+type WritableValueElement = HTMLElement & { value: string };
+
 /**
  * Ensure element exists, get by ID
  */
@@ -12,12 +14,17 @@ export function ensureEl(id: string): HTMLElement | null {
 /**
  * Set input value safely (converts number to string)
  */
-export function setInputValue(el: HTMLElement | HTMLInputElement | null | undefined, value: any): void {
+export function setInputValue(
+  el: HTMLElement | HTMLInputElement | null | undefined,
+  value: string | number | boolean | null | undefined
+): void {
   if (!el) return;
   if (el instanceof HTMLInputElement) {
     el.value = String(value);
+  } else if ("value" in el) {
+    (el as WritableValueElement).value = String(value);
   } else {
-    (el as any).value = String(value);
+    el.setAttribute("value", String(value));
   }
 }
 

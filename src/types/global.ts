@@ -1,22 +1,6 @@
 import type { Route } from "@fmg/core/modules/routes-generator";
-import type { Grid, PackedGraph } from "@fmg/types";
+import type { Grid, PackedGraph, NameBase as LegacyNameBase, HeightmapTemplate as LegacyHeightmapTemplate, BurgsConfig } from "@fmg/types";
 import type { Selection } from "d3";
-
-type LegacyNameBase = {
-  name: string;
-  b: string;
-  min: number;
-  max: number;
-  d: string;
-  [key: string]: unknown;
-};
-
-type LegacyHeightmapTemplate = {
-  name?: string;
-  template?: string;
-  probability?: number;
-  [key: string]: any;
-};
 
 declare global {
   var seed: string;

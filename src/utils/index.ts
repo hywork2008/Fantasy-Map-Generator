@@ -128,7 +128,7 @@ const getNormalizedMapCoordinates = (): Parameters<typeof getCoordinates>[2] => 
 declare global {
   interface JSON {
     isValid: (str: string) => boolean;
-    safeParse: (str: string) => any;
+    safeParse: (str: string) => unknown;
   }
 
   interface Node {

@@ -1,4 +1,5 @@
 import { curveCatmullRom, line } from "d3";
+import type { CurveFactory } from "d3";
 import Delaunator from "delaunator";
 import { distanceSquared, findClosestCell, findPath, getAdjective, isLand, ra, rn, round, rw } from "@fmg/shared";
 import type { Burg } from "./burgs-generator";
@@ -702,7 +703,7 @@ class RoutesModule {
 
   getPath({ group, points }: { group: string; points: number[][] }): string {
     const lineGen = line();
-    const ROUTE_CURVES: Record<string, any> = {
+    const ROUTE_CURVES: Record<string, CurveFactory> = {
       roads: curveCatmullRom.alpha(0.1),
       trails: curveCatmullRom.alpha(0.1),
       searoutes: curveCatmullRom.alpha(0.5),

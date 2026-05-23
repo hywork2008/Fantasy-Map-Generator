@@ -4,6 +4,8 @@
  */
 
 import type { PackedGraph } from "./PackedGraph";
+import type { Quadtree } from "d3";
+import type { GridFeature } from "@fmg/core/modules/features";
 
 /**
  * A point in 2D space - represented as a tuple [x, y]
@@ -37,8 +39,8 @@ export interface Cells {
   harbor?: Int8Array | Uint8Array | Int16Array | Uint16Array; // harbor flag
   burg?: Int8Array | Uint8Array | Int16Array | Uint16Array | Uint32Array; // burg ID
   f?: Int8Array | Uint8Array | Int16Array | Uint16Array | Uint32Array; // feature id
-  q?: any; // quadtree for spatial queries
-  routes?: Record<string, unknown>; // trade route data
+  q?: Quadtree<[number, number, number]>; // quadtree for spatial queries
+  routes?: Record<number, Record<number, number>>; // trade route data
   prec?: number[] | Uint8Array | Uint16Array | Uint32Array; // predecessor chain used by route tracing tools
 }
 
@@ -70,7 +72,7 @@ export interface Grid {
   // Voronoi structure (raw Voronoi diagram)
   cells: Cells;
   vertices: Vertices;
-  features?: any[];
+  features?: Array<PackedGraph["features"][number] | GridFeature | number>;
 
   // Grid points
   points: Point[]; // Jittered grid points used to generate Voronoi

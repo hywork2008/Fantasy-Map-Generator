@@ -2,11 +2,39 @@ import type { Quadtree } from "d3";
 import type { Burg } from "@fmg/core/modules/burgs-generator";
 import type { Culture } from "@fmg/core/modules/cultures-generator";
 import type { PackedGraphFeature } from "@fmg/core/modules/features";
+import type { Religion } from "@fmg/core/modules/religions-generator";
 import type { Province } from "@fmg/core/modules/provinces-generator";
 import type { River } from "@fmg/core/modules/river-generator";
 import type { Route } from "@fmg/core/modules/routes-generator";
 import type { State } from "@fmg/core/modules/states-generator";
 import type { Zone } from "@fmg/core/modules/zones-generator";
+
+type ReligionData = Religion & {
+  origin?: number;
+};
+
+type MarkerData = {
+  i: number;
+  type: string;
+  icon: string;
+  x?: number;
+  y?: number;
+  cell: number;
+  lock?: boolean;
+  pinned?: boolean;
+  size?: number;
+  fill?: string;
+  stroke?: string;
+};
+
+type IceData = {
+  i: number;
+  points: [number, number][] | string;
+  type: "glacier" | "iceberg";
+  cellId?: number;
+  size?: number;
+  offset?: [number, number];
+};
 
 export type TypedArray = Uint8Array | Uint16Array | Uint32Array | Int8Array | Int16Array | Float32Array | Float64Array;
 
@@ -53,9 +81,9 @@ export interface PackedGraph {
   states: State[];
   cultures: Culture[];
   routes: Route[];
-  religions: any[];
+  religions: ReligionData[];
   zones: Zone[];
-  markers: any[];
-  ice: any[];
+  markers: MarkerData[];
+  ice: IceData[];
   provinces: Province[];
 }

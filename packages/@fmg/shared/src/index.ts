@@ -1,4 +1,6 @@
 import type { FmgGlobalContext } from "@fmg/types";
+import type { Grid, PackedGraph } from "@fmg/types";
+import type { Selection } from "d3";
 import { createTypedArray, getTypedArray, last, TYPED_ARRAY_MAX_VALUES, unique } from "./arrayUtils";
 import { abbreviate, getAdjective, isVowel, list, nth, trimVowels } from "./languageUtils";
 import { lerp, lim, minmax, normalize, rn } from "./numberUtils";
@@ -45,6 +47,19 @@ import { biased, each, gauss, generateSeed, getNumberInRange, P, Pint, ra, rand,
 import { capitalize, isValidJSON, parseTransform, round, safeParseJSON, sanitizeId, splitInTwo } from "./stringUtils";
 import { convertTemperature, getIntegerFromSI, si } from "./unitUtils";
 
+type LegacyWindowBridge = Window & {
+  temperatureScale?: { value?: string };
+  pack: PackedGraph;
+  packedGraph: PackedGraph;
+  grid: Grid;
+  graphWidth: number;
+  graphHeight: number;
+  seed: string;
+  terrs: Selection<SVGGElement, unknown, null, undefined>;
+};
+
+const legacyWindow = window as LegacyWindowBridge;
+
 // Initialize window.fmg namespace
 const fmgGlobal: FmgGlobalContext = {
   // Number utils
@@ -85,8 +100,11 @@ const fmgGlobal: FmgGlobalContext = {
   generateSeed,
 
   // Unit utils
-  convertTemperature: (temp: number, scale: any = (window as any).temperatureScale?.value || "°C") =>
-    convertTemperature(temp, scale),
+  convertTemperature: (
+    temp: number,
+    scale: Parameters<typeof convertTemperature>[1] =
+      ((legacyWindow.temperatureScale?.value as Parameters<typeof convertTemperature>[1] | undefined) ?? "°C")
+  ) => convertTemperature(temp, scale),
   si,
   getInteger: getIntegerFromSI,
 
@@ -110,8 +128,8 @@ const fmgGlobal: FmgGlobalContext = {
   getIsolines,
   getPolesOfInaccessibility,
   connectVertices,
-  findPath: (start, isExit, getCost) => findPath(start, isExit, getCost, (window as any).pack),
-  getVertexPath: (cellsArray) => getVertexPath(cellsArray, (window as any).pack),
+  findPath: (start, isExit, getCost) => findPath(start, isExit, getCost, legacyWindow.pack),
+  getVertexPath: (cellsArray) => getVertexPath(cellsArray, legacyWindow.pack),
 
   // String utils
   round,
@@ -121,15 +139,15 @@ const fmgGlobal: FmgGlobalContext = {
   sanitizeId,
 
   // Graph utils
-  shouldRegenerateGrid: (grid: any, expectedSeed: number) =>
-    shouldRegenerateGrid(grid, expectedSeed, (window as any).graphWidth, (window as any).graphHeight),
-  generateGrid: () => generateGrid((window as any).seed, (window as any).graphWidth, (window as any).graphHeight),
-  findGridAll: (x: number, y: number, radius: number) => findGridAll(x, y, radius, (window as any).grid),
-  findGridCell: (x: number, y: number) => findGridCell(x, y, (window as any).grid),
-  findCell: (x: number, y: number, radius?: number) => findClosestCell(x, y, radius, (window as any).pack),
-  findAll: (x: number, y: number, radius: number) => findAllCellsInRadius(x, y, radius, (window as any).pack),
-  getPackPolygon: (cellIndex: number) => getPackPolygon(cellIndex, (window as any).pack),
-  getGridPolygon: (cellIndex: number) => getGridPolygon(cellIndex, (window as any).grid),
+  shouldRegenerateGrid: (grid: Grid, expectedSeed: number) =>
+    shouldRegenerateGrid(grid, expectedSeed, legacyWindow.graphWidth, legacyWindow.graphHeight),
+  generateGrid: () => generateGrid(legacyWindow.seed, legacyWindow.graphWidth, legacyWindow.graphHeight),
+  findGridAll: (x: number, y: number, radius: number) => findGridAll(x, y, radius, legacyWindow.grid),
+  findGridCell: (x: number, y: number) => findGridCell(x, y, legacyWindow.grid),
+  findCell: (x: number, y: number, radius?: number) => findClosestCell(x, y, radius, legacyWindow.pack),
+  findAll: (x: number, y: number, radius: number) => findAllCellsInRadius(x, y, radius, legacyWindow.pack),
+  getPackPolygon: (cellIndex: number) => getPackPolygon(cellIndex, legacyWindow.pack),
+  getGridPolygon: (cellIndex: number) => getGridPolygon(cellIndex, legacyWindow.grid),
   calculateVoronoi,
   poissonDiscSampler
 };
@@ -153,7 +171,7 @@ const getNormalizedMapCoordinates = (): {
 declare global {
   interface JSON {
     isValid: (str: string) => boolean;
-    safeParse: (str: string) => any;
+    safeParse: (str: string) => unknown;
   }
 
   interface Node {
@@ -163,22 +181,22 @@ declare global {
 }
 
 // Additional grid-related functions registered on window.fmg only
-Object.assign(fmg as any, {
-  shouldRegenerateGrid: (grid: any, expectedSeed: number) =>
-    shouldRegenerateGrid(grid, expectedSeed, (window as any).graphWidth, (window as any).graphHeight),
-  generateGrid: () => generateGrid((window as any).seed, (window as any).graphWidth, (window as any).graphHeight),
-  findGridAll: (x: number, y: number, radius: number) => findGridAll(x, y, radius, (window as any).grid),
-  findGridCell: (x: number, y: number) => findGridCell(x, y, (window as any).grid),
-  findCell: (x: number, y: number, radius?: number) => findClosestCell(x, y, radius, (window as any).pack),
-  findAll: (x: number, y: number, radius: number) => findAllCellsInRadius(x, y, radius, (window as any).pack),
-  getPackPolygon: (cellIndex: number) => getPackPolygon(cellIndex, (window as any).pack),
-  getGridPolygon: (cellIndex: number) => getGridPolygon(cellIndex, (window as any).grid),
+Object.assign(fmg as FmgGlobalContext & Record<string, unknown>, {
+  shouldRegenerateGrid: (grid: Grid, expectedSeed: number) =>
+    shouldRegenerateGrid(grid, expectedSeed, legacyWindow.graphWidth, legacyWindow.graphHeight),
+  generateGrid: () => generateGrid(legacyWindow.seed, legacyWindow.graphWidth, legacyWindow.graphHeight),
+  findGridAll: (x: number, y: number, radius: number) => findGridAll(x, y, radius, legacyWindow.grid),
+  findGridCell: (x: number, y: number) => findGridCell(x, y, legacyWindow.grid),
+  findCell: (x: number, y: number, radius?: number) => findClosestCell(x, y, radius, legacyWindow.pack),
+  findAll: (x: number, y: number, radius: number) => findAllCellsInRadius(x, y, radius, legacyWindow.pack),
+  getPackPolygon: (cellIndex: number) => getPackPolygon(cellIndex, legacyWindow.pack),
+  getGridPolygon: (cellIndex: number) => getGridPolygon(cellIndex, legacyWindow.grid),
   calculateVoronoi,
   poissonDiscSampler,
   findAllInQuadtree,
   drawHeights,
-  isLand: (i: number) => isLand(i, (window as any).pack),
-  isWater: (i: number) => isWater(i, (window as any).pack),
+  isLand: (i: number) => isLand(i, legacyWindow.pack),
+  isWater: (i: number) => isWater(i, legacyWindow.pack),
   clipPoly: (points: [number, number][], secure?: number) => clipPoly(points, graphWidth, graphHeight, secure),
   getSegmentId,
   debounce,
@@ -194,9 +212,9 @@ Object.assign(fmg as any, {
   getLatitude: (y: number, decimals?: number) => getLatitude(y, getNormalizedMapCoordinates(), graphHeight, decimals),
   getCoordinates: (x: number, y: number, decimals?: number) =>
     getCoordinates(x, y, getNormalizedMapCoordinates(), graphWidth, graphHeight, decimals),
-  drawCellsValue: (data: any[]) => drawCellsValue(data, (window as any).pack),
-  drawPolygons: (data: any[]) => drawPolygons(data, (window as any).terrs, (window as any).grid),
-  drawRouteConnections: () => drawRouteConnections((window as any).packedGraph),
+  drawCellsValue: (data: Array<string | number>) => drawCellsValue(data, legacyWindow.pack),
+  drawPolygons: (data: number[]) => drawPolygons(data, legacyWindow.terrs, legacyWindow.grid),
+  drawRouteConnections: () => drawRouteConnections(legacyWindow.packedGraph),
   drawPoint,
   drawPath
 });

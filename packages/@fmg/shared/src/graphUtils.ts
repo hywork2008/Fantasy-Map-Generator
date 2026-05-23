@@ -7,6 +7,33 @@ import { createTypedArray } from "./arrayUtils";
 import { ensureEl } from "./nodeUtils";
 import { rn } from "./numberUtils";
 
+type QuadtreeLeaf<T> = {
+  data: T;
+  next?: QuadtreeLeaf<T>;
+};
+
+type QuadtreeNode<T> =
+  | QuadtreeLeaf<T>
+  | ([QuadtreeNode<T> | undefined, QuadtreeNode<T> | undefined, QuadtreeNode<T> | undefined, QuadtreeNode<T> | undefined] & {
+      length: 4;
+      explored?: boolean;
+    });
+
+type QuadtreePrivate<T> = Quadtree<T> & {
+  _x0: number;
+  _y0: number;
+  _x1: number;
+  _y1: number;
+  _root?: QuadtreeNode<T>;
+  _x: (d: T) => number;
+  _y: (d: T) => number;
+};
+
+const isInternalNode = <T>(node: QuadtreeNode<T>): node is Extract<QuadtreeNode<T>, { length: number }> =>
+  "length" in node;
+
+const isLeafNode = <T>(node: QuadtreeNode<T>): node is QuadtreeLeaf<T> => "data" in node;
+
 /**
  * Get boundary points on a regular square grid
  * @param {number} width - The width of the area
@@ -248,8 +275,14 @@ export const findClosestCell = (
  * @param {Object} quadtree - The D3 quadtree to search
  * @returns {Array} - An array of found data points within the radius
  */
-export const findAllInQuadtree = (x: number, y: number, radius: number, quadtreeData: Quadtree<any>): any[] => {
+export const findAllInQuadtree = <T>(
+  x: number,
+  y: number,
+  radius: number,
+  quadtreeData: Quadtree<T>
+): T[] => {
   let dx: number, dy: number, d2: number;
+  const tree = quadtreeData as QuadtreePrivate<T>;
 
   interface SearchContext {
     x: number;
@@ -259,14 +292,14 @@ export const findAllInQuadtree = (x: number, y: number, radius: number, quadtree
     x3: number;
     y3: number;
     radius: number;
-    result: any[];
+    result: T[];
     x1?: number;
     y1?: number;
     x2?: number;
     y2?: number;
-    q?: Quad | null;
-    quads: Quad[];
-    node?: any;
+    q?: Quad<T> | null;
+    quads: Quad<T>[];
+    node?: QuadtreeNode<T>;
     i?: number;
   }
 
@@ -279,26 +312,23 @@ export const findAllInQuadtree = (x: number, y: number, radius: number, quadtree
     t.radius = radius * radius;
   };
 
-  const radiusSearchVisit = (t: SearchContext, d2: number) => {
-    if (t.node?.data) {
-      t.node.data.scanned = true;
-      if (d2 < t.radius) {
-        while (t.node) {
-          t.result.push(t.node.data);
-          t.node.data.selected = true;
-          t.node = t.node.next;
-        }
+  const radiusSearchVisit = (t: SearchContext, leaf: QuadtreeLeaf<T>, d2: number) => {
+    if (d2 < t.radius) {
+      let current: QuadtreeLeaf<T> | undefined = leaf;
+      while (current) {
+        t.result.push(current.data);
+        current = current.next;
       }
     }
   };
 
-  class Quad {
-    node: any;
+  class Quad<TValue> {
+    node: QuadtreeNode<TValue> | undefined;
     x0: number;
     y0: number;
     x1: number;
     y1: number;
-    constructor(node: any, x0: number, y0: number, x1: number, y1: number) {
+    constructor(node: QuadtreeNode<TValue> | undefined, x0: number, y0: number, x1: number, y1: number) {
       this.node = node;
       this.x0 = x0;
       this.y0 = y0;
@@ -310,16 +340,16 @@ export const findAllInQuadtree = (x: number, y: number, radius: number, quadtree
   const t: SearchContext = {
     x,
     y,
-    x0: (quadtreeData as any)._x0,
-    y0: (quadtreeData as any)._y0,
-    x3: (quadtreeData as any)._x1,
-    y3: (quadtreeData as any)._y1,
+    x0: tree._x0,
+    y0: tree._y0,
+    x3: tree._x1,
+    y3: tree._y1,
     radius: radius * radius,
     quads: [],
-    node: (quadtreeData as any)._root,
+    node: tree._root,
     result: []
   };
-  if (t.node) t.quads.push(new Quad(t.node, t.x0, t.y0, t.x3, t.y3));
+  if (t.node) t.quads.push(new Quad<T>(t.node, t.x0, t.y0, t.x3, t.y3));
   radiusSearchInit(t, radius);
 
   var _i = 0;
@@ -340,16 +370,16 @@ export const findAllInQuadtree = (x: number, y: number, radius: number, quadtree
     }
 
     // Bisect the current quadrant.
-    if (t.node.length) {
+    if (isInternalNode(t.node) && t.node.length) {
       t.node.explored = true;
       const xm: number = (t.x1 + t.x2) / 2,
         ym: number = (t.y1 + t.y2) / 2;
 
       t.quads.push(
-        new Quad(t.node[3], xm, ym, t.x2, t.y2),
-        new Quad(t.node[2], t.x1, ym, xm, t.y2),
-        new Quad(t.node[1], xm, t.y1, t.x2, ym),
-        new Quad(t.node[0], t.x1, t.y1, xm, ym)
+        new Quad<T>(t.node[3], xm, ym, t.x2, t.y2),
+        new Quad<T>(t.node[2], t.x1, ym, xm, t.y2),
+        new Quad<T>(t.node[1], xm, t.y1, t.x2, ym),
+        new Quad<T>(t.node[0], t.x1, t.y1, xm, ym)
       );
 
       // Visit the closest quadrant first.
@@ -363,11 +393,15 @@ export const findAllInQuadtree = (x: number, y: number, radius: number, quadtree
 
     // Visit this point. (Visiting coincident points isn't necessary!)
     else {
-      const data = t.node.data as any;
-      dx = x - (data.x ?? 0);
-      dy = y - (data.y ?? 0);
+      if (!isLeafNode(t.node)) {
+        t.q = t.quads.pop();
+        continue;
+      }
+      const data = t.node.data;
+      dx = x - +tree._x(data);
+      dy = y - +tree._y(data);
       d2 = dx * dx + dy * dy;
-      radiusSearchVisit(t, d2);
+      radiusSearchVisit(t, t.node, d2);
     }
     t.q = t.quads.pop();
   }

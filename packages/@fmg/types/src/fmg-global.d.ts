@@ -3,6 +3,18 @@
  * All shared utilities and functions are organized under window.fmg namespace
  */
 
+import type { Cells, Grid, Point, Vertices } from "./Grid";
+import type { PackedGraph } from "./PackedGraph";
+
+type Isoline = {
+  polygons?: [number, number][][];
+  fill?: string;
+  halo?: string;
+  waterGap?: string;
+};
+
+type RollupResult<R> = Array<[unknown, R | RollupResult<R>]>;
+
 export interface FmgGlobalContext {
   // ==================== Number Utils ====================
   rn: (min: number, max: number) => number;
@@ -17,7 +29,7 @@ export interface FmgGlobalContext {
   getAdjective: (name: string) => string;
   nth: (n: number) => string;
   abbreviate: (str: string) => string;
-  list: (arr: any[], joiner?: string, finisher?: string) => string;
+  list: (arr: string[], joiner?: string, finisher?: string) => string;
 
   // ==================== Array Utils ====================
   last: <T>(arr: T[]) => T;
@@ -55,53 +67,65 @@ export interface FmgGlobalContext {
   C_12: string[];
 
   // ==================== DOM Utils ====================
-  ensureEl: <T = any>(id: string) => T;
-  getComposedPath: (event: Event) => EventTarget[];
+  ensureEl: <T extends HTMLElement | null = HTMLElement | null>(id: string) => T;
+  getComposedPath: (event: Node | Window | ShadowRoot | Document) => Array<Node | Window>;
   getNextId: (prefix: string) => string;
 
   // ==================== Function Utils ====================
-  rollups: (values: any[], reduce: (values: any[]) => any, ...keys: ((value: any, index: number, array: any[]) => any)[]) => any;
+  rollups: <T, R>(
+    values: T[],
+    reduce: (values: T[]) => R,
+    ...keys: ((value: T, index: number, array: T[]) => unknown)[]
+  ) => RollupResult<R>;
   dist2: ([x1, y1]: [number, number], [x2, y2]: [number, number]) => number;
 
   // ==================== Path Utils ====================
   getIsolines: (
-    graph: any,
-    getType: (cellId: number) => any,
+    graph: Pick<PackedGraph, "cells" | "vertices" | "features">,
+    getType: (cellId: number) => string | number,
     options?: {
       polygons?: boolean;
       fill?: boolean;
       halo?: boolean;
       waterGap?: boolean;
     }
-  ) => any;
-  getPolesOfInaccessibility: (graph: any, getType: (cellId: number) => any) => any;
+  ) => Record<string | number, Isoline>;
+  getPolesOfInaccessibility: (
+    graph: Pick<PackedGraph, "cells" | "vertices" | "features">,
+    getType: (cellId: number) => string | number
+  ) => Record<string | number, [number, number]>;
   connectVertices: (options: {
-    vertices: any;
+    vertices: Vertices;
     startingVertex: number;
     ofSameType: (cellId: number) => boolean;
     addToChecked?: (cellId: number) => void;
     closeRing?: boolean;
   }) => number[];
-  findPath: (start: number, isExit: (id: number) => boolean, getCost: (current: number, next: number) => number, packedGraph?: any) => number[] | null;
-  getVertexPath: (cellsArray: number[], packedGraph?: any) => string;
+  findPath: (
+    start: number,
+    isExit: (id: number) => boolean,
+    getCost: (current: number, next: number) => number,
+    packedGraph?: Pick<PackedGraph, "cells">
+  ) => number[] | null;
+  getVertexPath: (cellsArray: number[], packedGraph?: Pick<PackedGraph, "cells" | "vertices" | "features">) => string;
 
   // ==================== String Utils ====================
   round: (inputString?: string, decimals?: number) => string;
   capitalize: (str: string) => string;
   splitInTwo: (str: string) => string[];
-  parseTransform: (str: string) => any;
+  parseTransform: (str: string) => [number, number, number, number, number, number];
   sanitizeId: (str: string) => string;
 
   // ==================== Graph Utils ====================
-  shouldRegenerateGrid: (grid: any, expectedSeed: number) => boolean;
-  generateGrid: () => any;
-  findGridAll: (x: number, y: number, radius: number) => any[];
-  findGridCell: (x: number, y: number) => any;
-  findCell: (x: number, y: number, radius?: number) => any;
-  findAll: (x: number, y: number, radius: number) => any[];
+  shouldRegenerateGrid: (grid: Grid, expectedSeed: number) => boolean;
+  generateGrid: () => Grid;
+  findGridAll: (x: number, y: number, radius: number) => number[];
+  findGridCell: (x: number, y: number) => number;
+  findCell: (x: number, y: number, radius?: number) => number | undefined;
+  findAll: (x: number, y: number, radius: number) => number[];
   getPackPolygon: (cellIndex: number) => number[][];
   getGridPolygon: (cellIndex: number) => number[][];
-  calculateVoronoi: (points: any[], boundary: any[]) => { cells: any; vertices: any };
+  calculateVoronoi: (points: Point[], boundary: Point[]) => { cells: Cells; vertices: Vertices };
   poissonDiscSampler: (x0: number, y0: number, x1: number, y1: number, r: number, k?: number) => Generator<[number, number], void, unknown>;
 }
 

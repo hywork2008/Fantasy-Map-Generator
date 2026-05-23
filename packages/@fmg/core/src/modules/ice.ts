@@ -3,6 +3,31 @@ import { min } from "d3";
 import { clipPoly, getGridPolygon, getIsolines, lerp, minmax, normalize, P, ra, rand, rn } from "@fmg/shared";
 import type { Point } from "./voronoi";
 
+export type Iceberg = {
+  i: number;
+  points: Point[];
+  type: "iceberg";
+  cellId: number;
+  size: number;
+  offset?: [number, number];
+};
+
+export type Glacier = {
+  i: number;
+  points: Point[];
+  type: "glacier";
+  offset?: [number, number];
+};
+
+export interface IceElement {
+  i: number;
+  points: Point[];
+  type: "glacier" | "iceberg";
+  cellId?: number;
+  size?: number;
+  offset?: [number, number];
+}
+
 class IceModule {
   // Find next available id for new ice element idealy filling gaps
   private getNextId() {
@@ -54,7 +79,8 @@ class IceModule {
       const t = temp[cellId];
       if (h[cellId] >= 20) continue; // no icebergs on land
       if (t > ICEBERG_MAX_TEMP) continue; // too warm: no icebergs
-      if (features[cells.f[cellId]].type === "lake") continue; // no icebergs on lakes
+      const feature = features[cells.f[cellId]];
+      if (typeof feature === "object" && feature && "type" in feature && feature.type === "lake") continue; // no icebergs on lakes
       if (P(0.8)) continue; // skip most of eligible cells
 
       const randomFactor = 0.8 + rand() * 0.4; // random size factor
@@ -63,10 +89,9 @@ class IceModule {
       const size = minmax(rn(baseSize * randomFactor, 2), 0.1, 1);
 
       const [cx, cy] = grid.points[cellId];
-      const points = getGridPolygon(cellId, grid).map(([x, y]: Point) => [
-        rn(lerp(cx, x, size), 2),
-        rn(lerp(cy, y, size), 2)
-      ]);
+      const points = getGridPolygon(cellId, grid).map(
+        ([x, y]: Point) => [rn(lerp(cx, x, size), 2), rn(lerp(cy, y, size), 2)] as Point
+      );
 
       pack.ice.push({
         i: this.getNextId(),
@@ -80,10 +105,9 @@ class IceModule {
 
   addIceberg(cellId: number, size: number) {
     const [cx, cy] = grid.points[cellId];
-    const points = getGridPolygon(cellId, grid).map(([x, y]: Point) => [
-      rn(lerp(cx, x, size), 2),
-      rn(lerp(cy, y, size), 2)
-    ]);
+    const points = getGridPolygon(cellId, grid).map(
+      ([x, y]: Point) => [rn(lerp(cx, x, size), 2), rn(lerp(cy, y, size), 2)] as Point
+    );
     const id = this.getNextId();
     pack.ice.push({
       i: id,
@@ -120,7 +144,7 @@ class IceModule {
     const i = ra(Array.from(grid.cells.i));
     const cn = grid.points[i];
     const poly = getGridPolygon(i, grid).map((p: Point) => [p[0] - cn[0], p[1] - cn[1]]);
-    const points = poly.map((p: Point) => [rn(cx + p[0] * size, 2), rn(cy + p[1] * size, 2)]);
+    const points = poly.map((p: Point) => [rn(cx + p[0] * size, 2), rn(cy + p[1] * size, 2)] as Point);
 
     iceberg.points = points;
   }
@@ -133,11 +157,12 @@ class IceModule {
     const [cx, cy] = grid.points[cellId];
     const oldSize = iceberg.size;
 
+    if (typeof iceberg.points === "string") return;
     const flat = iceberg.points.flat();
     const pairs = [];
     while (flat.length) pairs.push(flat.splice(0, 2));
     const poly = pairs.map(p => [(p[0] - cx) / oldSize, (p[1] - cy) / oldSize]);
-    const points = poly.map(p => [rn(cx + p[0] * newSize, 2), rn(cy + p[1] * newSize, 2)]);
+    const points = poly.map(p => [rn(cx + p[0] * newSize, 2), rn(cy + p[1] * newSize, 2)] as Point);
 
     iceberg.points = points;
     iceberg.size = newSize;

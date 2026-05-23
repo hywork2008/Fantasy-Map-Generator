@@ -57,14 +57,21 @@ export const splitInTwo = (inputString: string): string[] => {
  * parseTransform("matrix(1, 0, 0, 1, 100, 200)") // returns [1, 0, 0, 1, 100, 200]
  * parseTransform("translate(50, 75)") // returns [50, 75, 0, 0, 0, 1]
  */
-export const parseTransform = (string: string) => {
+export const parseTransform = (string: string): [number, number, number, number, number, number] => {
   if (!string) return [0, 0, 0, 0, 0, 1];
 
   const a = string
     .replace(/[a-z()]/g, "")
     .replace(/[ ]/g, ",")
     .split(",");
-  return [a[0] || 0, a[1] || 0, a[2] || 0, a[3] || 0, a[4] || 0, a[5] || 1];
+  return [
+    Number(a[0] || 0),
+    Number(a[1] || 0),
+    Number(a[2] || 0),
+    Number(a[3] || 0),
+    Number(a[4] || 0),
+    Number(a[5] || 1)
+  ];
 };
 
 /**

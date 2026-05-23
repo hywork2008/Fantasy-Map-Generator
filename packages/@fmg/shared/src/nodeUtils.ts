@@ -3,7 +3,7 @@
  * @typeParam T - The type of the element to retrieve, extending HTMLElement
  * @returns The element with the specified ID, cast to the specified type
  */
-export const ensureEl = <T = any>(id: string): T => {
+export const ensureEl = <T = HTMLElement | null>(id: string): T => {
   const el = document.getElementById(id);
   if (!el) {
     // TODO: throw an error instead of logging it, and handle it properly in the caller
@@ -18,11 +18,11 @@ export const ensureEl = <T = any>(id: string): T => {
  * @param {Node | Window} node - The starting node or window
  * @returns {Array<Node>} - The composed path as an array
  */
-export const getComposedPath = (node: any): Array<Node | Window> => {
+export const getComposedPath = (node: Node | Window | ShadowRoot | Document): Array<Node | Window> => {
   let parent: Node | Window | undefined;
-  if (node.parentNode) parent = node.parentNode;
-  else if (node.host) parent = node.host;
-  else if (node.defaultView) parent = node.defaultView;
+  if ("parentNode" in node && node.parentNode) parent = node.parentNode;
+  else if ("host" in node && node.host) parent = node.host;
+  else if ("defaultView" in node && node.defaultView) parent = node.defaultView;
   if (parent !== undefined) return [node].concat(getComposedPath(parent));
   return [node];
 };

@@ -330,7 +330,12 @@ export const findPath = (
 declare global {
   interface Window {
     ERROR: boolean;
-    FlatQueue: any;
+    FlatQueue: new <T>() => {
+      length: number;
+      push: (item: T, priority: number) => void;
+      pop: () => T;
+      peekValue: () => number;
+    };
 
     getIsolines: typeof import("@fmg/shared").getIsolines;
     getPolesOfInaccessibility: typeof import("@fmg/shared").getPolesOfInaccessibility;

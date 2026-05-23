@@ -28,17 +28,19 @@ export const rollups = <T, R>(
   values: T[],
   reduce: (values: T[]) => R,
   ...keys: ((value: T, index: number, array: T[]) => unknown)[]
-): Map<unknown, any> => {
+): RollupResult<R> => {
   return nest(values, Array.from, reduce, keys);
 };
 
+type RollupResult<R> = Array<[unknown, R | RollupResult<R>]>;
+
 const nest = <T, R>(
   values: T[],
-  map: (iterable: Iterable<[unknown, any]>) => any,
+  map: <V>(iterable: Iterable<[unknown, V]>) => Array<[unknown, V]>,
   reduce: (values: T[]) => R,
   keys: ((value: T, index: number, array: T[]) => unknown)[]
-): any => {
-  return (function regroup(values: T[], i: number): any {
+): RollupResult<R> => {
+  return (function regroup(values: T[], i: number): R | RollupResult<R> {
     if (i >= keys.length) return reduce(values);
     const groups = new Map<unknown, T[]>();
     const keyof = keys[i++];
@@ -49,11 +51,12 @@ const nest = <T, R>(
       if (group) group.push(value);
       else groups.set(key, [value]);
     }
-    for (const [key, values] of groups) {
-      groups.set(key, regroup(values, i));
+    const reduced = new Map<unknown, R | RollupResult<R>>();
+    for (const [key, groupedValues] of groups) {
+      reduced.set(key, regroup(groupedValues, i));
     }
-    return map(groups);
-  })(values, 0);
+    return map(reduced);
+  })(values, 0) as RollupResult<R>;
 };
 
 /**

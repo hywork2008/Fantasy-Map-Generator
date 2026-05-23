@@ -75,7 +75,7 @@ class OceanModule {
     this.vertices = grid.vertices;
     const limits = outline === "random" ? this.randomizeOutline() : outline.split(",").map((s: string) => +s);
 
-    const chains: [number, any[]][] = [];
+    const chains: [number, [number, number][]][] = [];
     const opacity = rn(0.4 / limits.length, 2);
     this.used = new Uint8Array(this.pointsN); // to detect already passed cells
 
@@ -96,13 +96,13 @@ class OceanModule {
         relaxed.map(v => this.vertices.p[v]),
         graphWidth,
         graphHeight
-      );
+      ) as [number, number][];
       chains.push([t, points]);
     }
 
     for (const t of limits) {
-      const layer = chains.filter((c: [number, any[]]) => c[0] === t);
-      const path = layer.map((c: [number, any[]]) => round(this.lineGen(c[1]) || "")).join("");
+      const layer = chains.filter((c: [number, [number, number][]]) => c[0] === t);
+      const path = layer.map((c: [number, [number, number][]]) => round(this.lineGen(c[1]) || "")).join("");
       if (path) this.oceanLayers.append("path").attr("d", path).attr("fill", "#ecf2f9").attr("fill-opacity", opacity);
     }
 

@@ -7,37 +7,11 @@ import type { PackedGraph } from "./PackedGraph";
 import type { Grid } from "./Grid";
 import type { Route } from "@fmg/core/modules/routes-generator";
 import type { Burg } from "@fmg/core/modules/burgs-generator";
+import type { MapCoordinates, LegacyNote, NameBase, HeightmapTemplate, BurgGroup, BurgsConfig } from "./index";
 
-type MapCoordinates = {
-  latT?: number;
-  latN?: number;
-  latS?: number;
-  lonT?: number;
-  lonW?: number;
-  lonE?: number;
-};
-
-type LegacyNote = {
-  id: string;
-  name: string;
-  legend: string;
-  [key: string]: unknown;
-};
-
-type NameBase = {
-  name: string;
-  b: string;
-  min: number;
-  max: number;
-  d: string;
-  [key: string]: unknown;
-};
-
-type HeightmapTemplate = {
-  name?: string;
-  template?: string;
-  probability?: number;
-  [key: string]: any;
+type LegacyLdb = {
+  get: (key: string) => Promise<Blob | null>;
+  set: (key: string, value: Blob | string) => Promise<unknown> | void;
 };
 
 type BiomesGlobal = typeof import("@fmg/core/modules/biomes").Biomes;
@@ -128,12 +102,6 @@ declare global {
     cost: number[];
   };
 
-  type BurgGroup = Record<string, any>;
-
-  type BurgsConfig = {
-    groups: Record<string, any>[];
-  };
-
   // Style object
   var style: {
     burgLabels?: Record<string, Record<string, string>>;
@@ -145,7 +113,7 @@ declare global {
   // UI functions and state
   var drawRoute: (route: Route) => void;
   var invokeActiveZooming: () => void;
-  var FlatQueue: typeof import("flatqueue").FlatQueue<unknown>;
+  var FlatQueue: any;
 
   var $: JQueryStatic;
   var scale: number;
@@ -222,26 +190,26 @@ declare global {
   var d3: any;
   var THREE: any;
   var ensureEl: <T = any>(id: string) => T;
-  var editUnits: (...args: unknown[]) => unknown;
+  var editUnits: () => void;
   var clearLegend: () => void;
-  var drawCoordinates: (...args: unknown[]) => unknown;
+  var drawCoordinates: () => void;
   var drawScaleBar: (scaleBar: Selection<SVGGElement, unknown, HTMLElement, unknown>, scaleLevel: number) => void;
   var fitScaleBar: (
     scaleBar: Selection<SVGGElement, unknown, HTMLElement, unknown>,
     fullWidth: number,
     fullHeight: number
   ) => void;
-  var updateMinimap: (...args: unknown[]) => unknown;
+  var updateMinimap: () => void;
   var mapWidthInput: HTMLInputElement;
   var mapHeightInput: HTMLInputElement;
-  var loadMapFromURL: (...args: unknown[]) => unknown;
-  var showUploadErrorMessage: (...args: unknown[]) => unknown;
-  var ldb: unknown;
-  var uploadMap: (...args: unknown[]) => unknown;
-  var shapeRendering: any;
-  var rescaleLabels: (...args: unknown[]) => unknown;
+  var loadMapFromURL: (maplink: string, random?: number) => Promise<void>;
+  var showUploadErrorMessage: (error: unknown, maplink: string, random?: number) => void;
+  var ldb: LegacyLdb;
+  var uploadMap: (file: Blob | File, callback?: () => void) => void;
+  var shapeRendering: { value: string };
+  var rescaleLabels: HTMLInputElement;
   var hideLabels: HTMLInputElement;
-  var hideEmblems: (...args: unknown[]) => unknown;
+  var hideEmblems: HTMLInputElement;
   var renderGroupCOAs: (g: SVGGElement) => Promise<void>;
 }
   var unlock: (settingId: string) => void;

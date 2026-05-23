@@ -1,7 +1,7 @@
 import Alea from "alea";
 import { range as d3Range, leastIndex, mean } from "d3";
 import { createTypedArray, ensureEl, findGridCell, getNumberInRange, lim, minmax, P, rand } from "@fmg/shared";
-import type { PackedGraph, Grid } from "@fmg/types";
+import type { PackedGraph, Grid, HeightmapTemplate } from "@fmg/types";
 
 declare global {
   var HeightmapGenerator: HeightmapModule;
@@ -555,7 +555,7 @@ class HeightmapModule {
   }
 
   fromTemplate(graph: Grid, id: string): Uint8Array | null {
-    const templateString = (heightmapTemplates[id] as any)?.template || "";
+    const templateString = (heightmapTemplates[id] as HeightmapTemplate)?.template || "";
     const steps = templateString.split("\n");
 
     if (!steps.length) throw new Error(`Heightmap template: no steps. Template: ${id}. Steps: ${steps}`);

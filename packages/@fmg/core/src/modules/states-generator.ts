@@ -24,6 +24,8 @@ interface Campaign {
   name: string;
   start: number;
   end?: number;
+  attacker?: number;
+  defender?: number;
 }
 
 export interface State {

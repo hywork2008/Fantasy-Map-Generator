@@ -1,5 +1,6 @@
 import { quadtree } from "d3-quadtree";
 import { each, ensureEl, gauss, minmax, normalize, P, rn, findClosestCell } from "@fmg/shared";
+import type { BurgGroup } from "@fmg/types";
 import { layerIsOn, drawRoute } from "@legacy-ui-runtime/modules/ui/layers";
 import { tip } from "@legacy-ui-runtime/modules/ui/general";
 import { drawBurgIconRenderer as drawBurgIcon } from "#renderers/draw-burg-icons";
@@ -367,11 +368,11 @@ class BurgModule {
   defineGroup(burg: Burg, populations: number[]) {
     if (burg.lock && burg.group) {
       // locked burgs: don't change group if it still exists
-      const group = options.burgs.groups.find((g: any) => g.name === burg.group);
+      const group = options.burgs.groups.find((g: BurgGroup) => g.name === burg.group);
       if (group) return;
     }
 
-    const defaultGroup = options.burgs.groups.find((g: any) => g.isDefault);
+    const defaultGroup = options.burgs.groups.find((g: BurgGroup) => g.isDefault);
     if (!defaultGroup) {
       ERROR && console.error("No default group defined");
       return;
@@ -594,7 +595,7 @@ class BurgModule {
     };
     if (burg.link) return { link: burg.link, preview: burg.link };
 
-    const group = options.burgs.groups.find((g: any) => g.name === burg.group);
+    const group = options.burgs.groups.find((g: BurgGroup) => g.name === burg.group);
     if (!group?.preview || !previewGeneratorsMap[group.preview]) return { link: null, preview: null };
 
     return previewGeneratorsMap[group.preview](burg);
