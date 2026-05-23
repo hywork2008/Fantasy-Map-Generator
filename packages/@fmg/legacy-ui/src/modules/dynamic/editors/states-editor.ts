@@ -1,4 +1,5 @@
 import { States } from "@fmg/core/modules/states-generator";
+import { fog, unfog } from "../../ui/editors";
 
 const $body = insertEditorHtml();
 addListeners();

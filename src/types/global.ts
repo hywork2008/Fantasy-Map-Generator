@@ -122,8 +122,6 @@ declare global {
   var areaUnit: HTMLSelectElement;
   var openPicker: any;
   var drawLegend: (...args: any[]) => void;
-  var fog: any;
-  var unfog: any;
   var legend: Selection<SVGGElement, unknown, null, undefined>;
   var ruralPop: HTMLInputElement;
   var urbanPop: HTMLInputElement;

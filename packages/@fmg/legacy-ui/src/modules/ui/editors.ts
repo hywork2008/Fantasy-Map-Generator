@@ -564,7 +564,7 @@ function changePickerSpace() {
 }
 
 // add fogging
-function fog(id, path) {
+export function fog(id, path) {
   if (defs.select("#fog #" + id).size()) return;
   const fadeIn = d3.transition().duration(2000).ease(d3.easeSinInOut);
   if (defs.select("#fog path").size()) {
@@ -584,7 +584,7 @@ function fog(id, path) {
 }
 
 // remove fogging
-function unfog(id) {
+export function unfog(id?: string) {
   let el: any = defs.select("#fog #" + id);
   if (!id || !el.size()) el = defs.select("#fog").selectAll("path");
 
@@ -606,7 +606,7 @@ export function getFileName(dataType?) {
   return name + " " + type + dateString;
 }
 
-function downloadFile(data, name, type = "text/plain") {
+export function downloadFile(data, name, type = "text/plain") {
   const dataBlob = new Blob([data], {type});
   const url = window.URL.createObjectURL(dataBlob);
   const link = document.createElement("a");

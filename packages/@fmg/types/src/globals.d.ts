@@ -115,7 +115,7 @@ declare global {
   var getHeight: (h: number) => string;
   var getLatitude: (y: number, precision?: number) => number;
   var getLongitude: (x: number, precision?: number) => number;
-  var getFileName: (name: string) => string;
+  var getFileName: (name?: string) => string;
 
   // Settings
   var customization: number;
@@ -124,7 +124,7 @@ declare global {
   // Additional functions
   var speak: (text: string) => void;
   var uploadFile: (el: HTMLInputElement, callback: (data: string) => void) => void;
-  var downloadFile: (content: string | Blob, name: string) => void;
+  var downloadFile: (content: string | Blob, name: string, type?: string) => void;
   var zoomTo: (x: number, y: number, zoom: number, duration: number) => void;
 
   // Module states

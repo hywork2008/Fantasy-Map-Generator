@@ -73,7 +73,7 @@ if (parseMapVersion(VERSION) !== VERSION)
         });
     }
 }
-async function cleanupData() {
+export async function cleanupData() {
     await clearCache();
     localStorage.clear();
     localStorage.setItem("version", VERSION);

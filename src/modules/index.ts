@@ -30,6 +30,9 @@ import "#modules/fonts";
 import "#modules/resample";
 import "#modules/ui-tour";
 
+// Renderers for global type definitions
+import "../renderers/draw-features";
+
 import "@legacy-ui-runtime/globals-compat";
 import "@legacy-ui-runtime/modules/ui/style";
 import "@legacy-ui-runtime/modules/ui/tools";

@@ -49,6 +49,12 @@ interface Window {
 	ThreeD: any;
 	THREE: any;
 	loopSubdivision: any;
+	drawFeatures: () => void;
+	getFileName: (name?: string) => string;
+	downloadFile: (content: string | Blob, name: string, type?: string) => void;
+	fog: (id: string, path: string) => void;
+	unfog: (id?: string) => void;
+	locked: (settingId: string) => boolean;
 }
 
 interface Element {
@@ -262,7 +268,8 @@ declare let editRiver: AnyFn;
 declare let editRouteGroups: AnyFn;
 declare var closeDialogs: AnyFn;
 declare var tip: any;
-declare var getFileName: AnyFn;
+declare var getFileName: (name?: string) => string;
+declare var downloadFile: (content: string | Blob, name: string, type?: string) => void;
 declare var confirmationDialog: AnyFn;
 declare let applySorting: AnyFn;
 declare let highlightElement: AnyFn;
