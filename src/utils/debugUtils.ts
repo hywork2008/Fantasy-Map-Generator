@@ -1,6 +1,6 @@
-import { curveBundle, line, max, min } from "d3";
-import type { Selection } from "d3";
 import type { Grid, PackedGraph } from "@fmg/types";
+import type { Selection } from "d3";
+import { curveBundle, line, max, min } from "d3";
 import { C_12 } from "./colorUtils";
 import { getGridPolygon } from "./graphUtils";
 import { normalize } from "./numberUtils";
@@ -43,7 +43,11 @@ export const drawPolygons = (
     .data(data)
     .enter()
     .append("polygon")
-    .attr("points", (_d: number, i: number) => getGridPolygon(i, grid).map(([x, y]) => `${x},${y}`).join(" "))
+    .attr("points", (_d: number, i: number) =>
+      getGridPolygon(i, grid)
+        .map(([x, y]) => `${x},${y}`)
+        .join(" ")
+    )
     .attr("fill", (d: number) => scheme(d))
     .attr("stroke", (d: number) => scheme(d));
 };

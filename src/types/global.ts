@@ -1,5 +1,11 @@
 import type { Route } from "@fmg/core/modules/routes-generator";
-import type { Grid, PackedGraph, NameBase as LegacyNameBase, HeightmapTemplate as LegacyHeightmapTemplate, BurgsConfig } from "@fmg/types";
+import type {
+  BurgsConfig,
+  Grid,
+  HeightmapTemplate as LegacyHeightmapTemplate,
+  NameBase as LegacyNameBase,
+  PackedGraph
+} from "@fmg/types";
 import type { Selection } from "d3";
 
 declare global {
