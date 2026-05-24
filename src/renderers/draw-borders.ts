@@ -157,5 +157,3 @@ export const bordersRenderer = () => {
 
   TIME && console.timeEnd("drawBorders");
 };
-
-

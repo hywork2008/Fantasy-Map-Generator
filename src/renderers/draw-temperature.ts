@@ -121,5 +121,3 @@ export const temperatureRenderer = (): void => {
 
   TIME && console.timeEnd("drawTemperature");
 };
-
-

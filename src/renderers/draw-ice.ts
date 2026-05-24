@@ -72,5 +72,3 @@ function getGlacierHtml(glacier: IceElement): string {
 function getIcebergHtml(iceberg: IceElement): string {
   return `<polygon points="${iceberg.points}" data-id="${iceberg.i}" ${iceberg.offset ? `transform="translate(${iceberg.offset[0]},${iceberg.offset[1]})"` : ""}/>`;
 }
-
-

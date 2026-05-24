@@ -108,4 +108,3 @@ export const scaleBarResize = (scaleBar: ScaleBarSelection, fullWidth: number, f
   const y = rn((fullHeight * posY) / 100 - bbox.height + 20);
   scaleBar.attr("transform", `translate(${x},${y})`);
 };
-

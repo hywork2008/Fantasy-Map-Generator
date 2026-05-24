@@ -158,5 +158,3 @@ export const moveRegimentRenderer = (reg: MilitaryRegiment, x: number, y: number
     .attr("height", "6")
     .attr("width", "6");
 };
-
-

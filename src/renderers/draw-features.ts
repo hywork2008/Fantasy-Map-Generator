@@ -85,5 +85,3 @@ export function featurePathRenderer(feature: PackedGraphFeature): string {
   const shape = fractalizeCoastline(clippedPoints, feature.i, feature.type);
   return `${round(buildCoastlinePath(shape))}Z`;
 }
-
-

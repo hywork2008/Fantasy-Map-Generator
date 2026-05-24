@@ -79,5 +79,3 @@ export const markersRenderer = (): void => {
 
   TIME && console.timeEnd("drawMarkers");
 };
-
-

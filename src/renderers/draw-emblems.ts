@@ -173,5 +173,3 @@ export const renderGroupCOAsRenderer = async (g: SVGGElement): Promise<void> => 
     use.setAttribute("href", `#${id}`);
   }
 };
-
-

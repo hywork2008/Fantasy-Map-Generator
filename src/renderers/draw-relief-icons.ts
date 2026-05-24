@@ -142,5 +142,3 @@ export const reliefIconsRenderer = (): void => {
     return `#relief-${getOldIcon(type)}-1`; // simple
   }
 };
-
-
