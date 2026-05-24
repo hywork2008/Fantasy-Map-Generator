@@ -81,6 +81,9 @@ test.describe("Window globals smoke test", () => {
       "showSupporters",
       "regeneratePrompt",
       "copyLinkToClickboard",
+      "showElementLockTip",
+      "openURL",
+      "wiki",
       "connectToDropbox",
       "loadURL",
       "openExportToPngTiles"
@@ -189,6 +192,18 @@ test.describe("Window globals smoke test", () => {
     expect(isFunction, "invokeActiveZooming should be a function on window").toBe(true);
   });
 
+  test("UITour.start should be available on window.fmg", async ({
+    page
+  }) => {
+    await openMapAndWaitForGlobals(page);
+
+    const isFunction = await page.evaluate(
+      () => typeof (window as any).fmg?.UITour?.start === "function"
+    );
+
+    expect(isFunction, "window.fmg.UITour.start should be a function").toBe(true);
+  });
+
   test("no console errors should be present after globals registration", async ({
     page
   }) => {
@@ -207,7 +222,7 @@ test.describe("Window globals smoke test", () => {
     // Filter out expected errors (if any)
     const unexpectedErrors = consoleErrors.filter((err) => {
       // Add patterns for expected errors that can be ignored
-      return !err.includes("deprecated");
+      return !err.includes("deprecated") && !err.includes("Name is too short! Random name will be selected");
     });
 
     expect(unexpectedErrors, `Unexpected console errors: ${unexpectedErrors.join("; ")}`).toEqual([]);

@@ -376,7 +376,7 @@
           data-tip="Click to show the Menu"
           data-shortcut="Tab"
           class="options glow"
-          onclick="showOptions(event)"
+          onclick="window.fmg.showOptions(event)"
         >
           ►
         </button>
@@ -384,7 +384,7 @@
           id="regenerate"
           data-tip="Click to generate a new map"
           data-shortcut="F2"
-          onclick="regeneratePrompt()"
+          onclick="window.fmg.regeneratePrompt()"
           class="options"
           style="display: none"
         >
@@ -401,7 +401,7 @@
             data-tip="Click to hide the Menu"
             data-shortcut="Tab or Esc"
             class="options"
-            onclick="hideOptions(event)"
+            onclick="window.fmg.hideOptions(event)"
           >
             ◄
           </button>
@@ -934,7 +934,7 @@
                   <button
                     data-tip="Click and provide a URL to image to be set as a texture"
                     class="icon-plus sideButton"
-                    onclick="textureProvideURL()"
+                    onclick="window.fmg.textureProvideURL()"
                   ></button>
                 </td>
               </tr>
@@ -1409,7 +1409,7 @@
 
               <tr data-tip="Allow system to hide emblem groups if their size in too small or too big on that scale">
                 <td colspan="2">
-                  <input id="hideEmblems" class="checkbox" type="checkbox" onchange="invokeActiveZooming()" checked />
+                  <input id="hideEmblems" class="checkbox" type="checkbox" onchange="window.fmg.invokeActiveZooming()" checked />
                   <label for="hideEmblems" class="checkbox-label">Toggle visibility automatically</label>
                 </td>
               </tr>
@@ -1454,14 +1454,14 @@
 
               <tr data-tip="Allow system to hide labels if their size in too small or too big on that scale">
                 <td colspan="2">
-                  <input id="hideLabels" class="checkbox" type="checkbox" onchange="invokeActiveZooming()" checked />
+                  <input id="hideLabels" class="checkbox" type="checkbox" onchange="window.fmg.invokeActiveZooming()" checked />
                   <label for="hideLabels" class="checkbox-label">Toggle visibility automatically</label>
                 </td>
               </tr>
 
               <tr data-tip="Allow system to rescale labels on zoom">
                 <td colspan="2">
-                  <input id="rescaleLabels" class="checkbox" type="checkbox" onchange="invokeActiveZooming()" checked />
+                  <input id="rescaleLabels" class="checkbox" type="checkbox" onchange="window.fmg.invokeActiveZooming()" checked />
                   <label for="rescaleLabels" class="checkbox-label">Rescale on zoom</label>
                 </td>
               </tr>
@@ -1637,7 +1637,7 @@
                 />
               </td>
               <td>
-                <i data-tip="Regenerate map name" onclick="Names.getMapName(true)" class="icon-arrows-cw"></i>
+                <i data-tip="Regenerate map name" onclick="window.fmg.Names.getMapName(true)" class="icon-arrows-cw"></i>
               </td>
             </tr>
 
@@ -2053,14 +2053,14 @@
             <button
               id="configureWorld"
               data-tip="Click to open world configurator to setup map position on Globe and World climate"
-              onclick="editWorld()"
+              onclick="window.fmg.editWorld()"
             >
               Configure World
             </button>
             <button
               id="optionsReset"
               data-tip="Click to restore default options and reload the page"
-              onclick="cleanupData()"
+              onclick="window.fmg.cleanupData()"
             >
               Reset to defaults
             </button>
@@ -2338,7 +2338,7 @@
           <p style="text-align: center; margin-top: 1em">
             <button
               id="startTourButton"
-              onclick="UITour.start()"
+              onclick="window.fmg.UITour.start()"
               data-tip="Take an interactive tour of the map generator"
             >
               &#9654; Take an Interactive Tour
@@ -2406,7 +2406,7 @@
 
           <p>
             Special thanks to
-            <a data-tip="Click to see list of supporters" onclick="showSupporters()">all supporters</a> on Patreon!
+            <a data-tip="Click to see list of supporters" onclick="window.fmg.showSupporters()">all supporters</a> on Patreon!
           </p>
 
           <div style="display: flex; justify-content: center; padding: 0.8em 0.4em 0.4em; font-family: cursive">
@@ -3039,7 +3039,7 @@
             class="icon-chart-area"
           ></button>
           <button id="routeLegend" data-tip="Edit free text notes (legend) for the route" class="icon-edit"></button>
-          <button id="routeLock" class="icon-lock-open" onmouseover="showElementLockTip(event)"></button>
+          <button id="routeLock" class="icon-lock-open" onmouseover="window.fmg.showElementLockTip(event)"></button>
           <button
             id="routeRemove"
             data-tip="Remove route"
@@ -3595,7 +3595,7 @@
             class="icon-map-pin"
           ></button>
           <button id="burglLegend" data-tip="Edit free text notes (legend) for this burg" class="icon-edit"></button>
-          <button id="burgLock" class="icon-lock-open" onmouseover="showElementLockTip(event)"></button>
+          <button id="burgLock" class="icon-lock-open" onmouseover="window.fmg.showElementLockTip(event)"></button>
           <button
             id="burgRemove"
             data-tip="Remove non-capital burg"
@@ -3675,7 +3675,7 @@
 
         <div id="markerBottom">
           <button id="markerNotes" data-tip="Edit place legend (notes)" class="icon-edit"></button>
-          <button id="markerLock" class="icon-lock-open" onmouseover="showElementLockTip(event)"></button>
+          <button id="markerLock" class="icon-lock-open" onmouseover="window.fmg.showElementLockTip(event)"></button>
           <button id="markerAdd" data-tip="Add additional marker of that type" class="icon-plus"></button>
           <button
             id="markerRemove"
@@ -4330,7 +4330,7 @@
             id="templateTutorial"
             data-tip="Open Template Editor Tutorial"
             class="icon-info"
-            onclick="wiki('Heightmap-template-editor')"
+            onclick="window.fmg.wiki('Heightmap-template-editor')"
           ></button>
           <label
             data-tip="Lock seed (click on lock icon) if you want template to generate the same heightmap each time"
@@ -5826,7 +5826,7 @@
             id="styleSaverCA"
             data-tip="Find or share custom style preset on Cartography Assets portal"
             class="icon-drafting-compass"
-            onclick="openURL('https://cartographyassets.com/asset-category/specific-assets/azgaars-generator/styles/')"
+            onclick="window.fmg.openURL('https://cartographyassets.com/asset-category/specific-assets/azgaars-generator/styles/')"
           ></button>
         </div>
       </div>
@@ -6120,7 +6120,7 @@
           <button id="options3dUpdate" data-tip="Update the scene" class="icon-cw"></button>
           <button
             data-tip="Configure world and map size and climate settings"
-            onclick="editWorld()"
+            onclick="window.fmg.editWorld()"
             class="icon-globe"
           ></button>
           <button id="options3dSave" data-tip="Save screenshot of the 3d scene" class="icon-button-screenshot"></button>
@@ -6243,7 +6243,7 @@
       <div id="loadMapData" style="display: none" class="dialog">
         <div>
           <strong>Load map from</strong>
-          <button onclick="mapToLoad.click()" data-tip="Load map file (.map or .gz) from your local disk">
+          <button onclick="window.fmg.openLocalMapFilePicker()" data-tip="Load map file (.map or .gz) from your local disk">
             machine
           </button>
           <button
@@ -6283,7 +6283,7 @@
           <div style="margin-top: 0.3em">
             <div id="sharableLinkContainer" style="display: none">
               <a id="sharableLink" target="_blank"></a>
-              <i data-tip="Copy link to the clipboard" onclick="copyLinkToClickboard()" class="icon-clone pointer"></i>
+              <i data-tip="Copy link to the clipboard" onclick="window.fmg.copyLinkToClickboard()" class="icon-clone pointer"></i>
             </div>
           </div>
         </div>
@@ -8544,7 +8544,7 @@
     <script defer src="libs/alea.min.js?v1.105.0"></script>
     <script defer src="libs/polylabel.min.js?v1.105.0"></script>
     <script defer src="libs/simplify.js?v1.105.6"></script>
-    <script defer src="main.js?v=1.120.5"></script>
+    <script type="module" src="main-entry.ts"></script>
 
     <!-- namesbase-editor migrated to src/controllers/namesbase-editor.ts -->
     <!-- elevation-profile migrated to src/controllers/elevation-profile.ts -->

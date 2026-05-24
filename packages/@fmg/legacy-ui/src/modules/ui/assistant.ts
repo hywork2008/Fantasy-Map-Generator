@@ -27,7 +27,7 @@ function loadAssistantScript() {
 
     const script = document.createElement("script");
     script.id = "openwidget-loader";
-    script.src = "/libs/openwidget.min.js";
+    script.src = "libs/openwidget.min.js";
     script.async = true;
     script.addEventListener(
       "load",

@@ -50,6 +50,11 @@ export async function createSharableDropboxLink(): Promise<void> {
   }
 }
 
+export function openLocalMapFilePicker(): void {
+  const picker = document.getElementById("mapToLoad") as HTMLInputElement | null;
+  picker?.click();
+}
+
 export function loadMapPrompt(blob: Blob): void {
   const workingTime = (Date.now() - (mapHistory?.at(-1) as any)?.created) / 60000; // minutes
   if (workingTime < 5) {

@@ -165,6 +165,7 @@ import {
 import { Rulers, createDefaultRuler } from "./modules/ui/measurers";
 import { initiateAutosave, saveMap, saveToStorage, saveToMachine, saveToDropbox } from "./modules/io/save";
 import {
+  openLocalMapFilePicker,
   quickLoad,
   loadFromDropbox,
   createSharableDropboxLink,
@@ -460,6 +461,7 @@ const legacyCompat = {
   saveToDropbox,
 
   quickLoad,
+  openLocalMapFilePicker,
   loadFromDropbox,
   createSharableDropboxLink,
   loadMapPrompt,

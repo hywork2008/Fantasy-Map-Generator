@@ -2,6 +2,7 @@ import { createTypedArray, getTypedArray, last, TYPED_ARRAY_MAX_VALUES, unique }
 import { abbreviate, getAdjective, isVowel, list, nth, trimVowels } from "./languageUtils";
 import { lerp, lim, minmax, normalize, rn } from "./numberUtils";
 import "./polyfills";
+import type { FmgGlobalContext } from "@fmg/types";
 import { C_12, getColors, getMixedColor, getRandomColor, toHEX } from "./colorUtils";
 import {
   clipPoly,
@@ -162,6 +163,13 @@ window.getBase64 = getBase64;
 window.openURL = openURL;
 window.wiki = wiki;
 window.link = link;
+if (!window.fmg) window.fmg = {} as FmgGlobalContext;
+const fmgGlobals = window.fmg as FmgGlobalContext & {
+  openURL?: typeof openURL;
+  wiki?: typeof wiki;
+};
+fmgGlobals.openURL = openURL;
+fmgGlobals.wiki = wiki;
 window.isCtrlClick = isCtrlClick;
 window.generateDate = generateDate;
 window.getLongitude = (x: number, decimals?: number) =>

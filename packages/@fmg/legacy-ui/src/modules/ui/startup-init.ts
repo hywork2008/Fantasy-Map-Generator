@@ -35,7 +35,7 @@ export function initStartupOnDomContentLoaded({
   initiateAutosave,
   initTourPromptButton
 }: StartupInitDeps) {
-  document.addEventListener("DOMContentLoaded", async () => {
+  const onDomReady = async () => {
     if (!locationHostname) {
       const wiki = "https://github.com/Azgaar/Fantasy-Map-Generator/wiki/Run-FMG-locally";
       alertMessage.innerHTML = `Fantasy Map Generator cannot run serverless. Follow the <a href="${wiki}" target="_blank">instructions</a> on how you can easily run a local web-server`;
@@ -59,5 +59,14 @@ export function initStartupOnDomContentLoaded({
     restoreDefaultEvents();
     initiateAutosave();
     initTourPromptButton();
-  });
+  };
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => {
+      void onDomReady();
+    });
+    return;
+  }
+
+  void onDomReady();
 }

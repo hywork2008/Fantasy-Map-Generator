@@ -19,7 +19,7 @@ export function init(event: DeferredPromptLike) {
 
 function createButton() {
   const button = document.createElement("button");
-  button.style = `
+  button.style.cssText = `
       position: fixed;
       top: 1em;
       right: 1em;

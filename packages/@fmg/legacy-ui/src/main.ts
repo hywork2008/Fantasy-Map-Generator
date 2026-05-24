@@ -51,6 +51,8 @@ import {
   buildSetSeedDeps,
   buildUndrawDeps,
 } from "./modules/ui/generation-deps";
+import { locked } from "./modules/ui/general";
+import { createDefaultRuler } from "./modules/ui/measurers";
 import { Biomes } from "@fmg/core/modules/biomes";
 import { Ice } from "@fmg/core/modules/ice";
 import { Military } from "@fmg/core/modules/military-generator";
@@ -58,6 +60,7 @@ import { Names } from "@fmg/core/modules/names-generator";
 import { Rivers } from "@fmg/core/modules/river-generator";
 import { Routes } from "@fmg/core/modules/routes-generator";
 import { States } from "@fmg/core/modules/states-generator";
+import type { FmgGlobalContext, Grid, PackedGraph } from "@fmg/types";
 
 type RuntimeBridge = {
   rn: (value: number, digits?: number) => number;
@@ -136,6 +139,8 @@ const INFO = true;
 const TIME = true;
 const WARN = true;
 const ERROR = true;
+const PRODUCTION = PRODUCTION_VAL;
+const DEBUG = (typeof DEBUG_VAL === "object" && DEBUG_VAL !== null ? DEBUG_VAL : {}) as Record<string, boolean>;
 
 // detect device
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -273,7 +278,7 @@ var seed;
 let mapId;
 const mapHistory = [];
 let _elSelected;
-const _modules = {};
+const _modules = ((window as Window & { modules?: Record<string, unknown> }).modules ||= {});
 let _notes = [];
 const _rulers = new Rulers();
 let customization = 0;
@@ -377,6 +382,8 @@ const _distanceScale = +ensureEl("distanceScaleInput")?.value;
 const _urbanization = +ensureEl("urbanizationInput")?.value;
 const _urbanDensity = +ensureEl("urbanDensityInput")?.value;
 
+publishLegacyMainGlobals();
+
 applyStoredOptions();
 
 // voronoi graph extension, cannot be changed after generation
@@ -386,6 +393,9 @@ var graphHeight = +mapHeightInput?.value;
 // svg canvas resolution, can be changed
 const svgWidth = graphWidth;
 const svgHeight = graphHeight;
+
+(window as unknown as Record<string, unknown>).svgWidth = svgWidth;
+(window as unknown as Record<string, unknown>).svgHeight = svgHeight;
 
 landmass.append("rect").attr("x", 0).attr("y", 0).attr("width", graphWidth).attr("height", graphHeight);
 oceanPattern
@@ -421,6 +431,135 @@ function hideLoading() {
 
 function showLoading() {
   showLoadingUI({ d3 });
+}
+
+function publishLegacyMainGlobals() {
+  const legacyGlobals = window as unknown as Record<string, unknown>;
+
+  const defineMutableGlobal = <T>(name: string, getValue: () => T, setValue: (value: T) => void) => {
+    Object.defineProperty(window, name, {
+      configurable: true,
+      enumerable: true,
+      get: getValue,
+      set: value => setValue(value as T)
+    });
+  };
+
+  // Runtime flags used across legacy modules.
+  legacyGlobals.PRODUCTION = PRODUCTION;
+  legacyGlobals.DEBUG = DEBUG;
+  legacyGlobals.INFO = INFO;
+  legacyGlobals.TIME = TIME;
+  legacyGlobals.WARN = WARN;
+  legacyGlobals.ERROR = ERROR;
+  legacyGlobals.MOBILE = _MOBILE;
+
+  // Frequently referenced d3 selections.
+  legacyGlobals.svg = svg;
+  legacyGlobals.defs = _defs;
+  legacyGlobals.viewbox = viewbox;
+  legacyGlobals.scaleBar = scaleBar;
+  legacyGlobals.legend = legend;
+  legacyGlobals.ocean = ocean;
+  legacyGlobals.oceanLayers = oceanLayers;
+  legacyGlobals.oceanPattern = oceanPattern;
+  legacyGlobals.landmass = landmass;
+  legacyGlobals.texture = _texture;
+  legacyGlobals.terrs = terrs;
+  legacyGlobals.lakes = lakes;
+  legacyGlobals.biomes = _biomes;
+  legacyGlobals.cells = _cells;
+  legacyGlobals.gridOverlay = _gridOverlay;
+  legacyGlobals.coordinates = _coordinates;
+  legacyGlobals.rivers = _rivers;
+  legacyGlobals.terrain = _terrain;
+  legacyGlobals.relig = _relig;
+  legacyGlobals.cults = _cults;
+  legacyGlobals.regions = regions;
+  legacyGlobals.statesBody = _statesBody;
+  legacyGlobals.statesHalo = statesHalo;
+  legacyGlobals.provs = _provs;
+  legacyGlobals.zones = _zones;
+  legacyGlobals.borders = borders;
+  legacyGlobals.stateBorders = _stateBorders;
+  legacyGlobals.provinceBorders = _provinceBorders;
+  legacyGlobals.routes = routes;
+  legacyGlobals.roads = _roads;
+  legacyGlobals.trails = _trails;
+  legacyGlobals.searoutes = _searoutes;
+  legacyGlobals.temperature = _temperature;
+  legacyGlobals.coastline = coastline;
+  legacyGlobals.ice = _ice;
+  legacyGlobals.prec = prec;
+  legacyGlobals.population = population;
+  legacyGlobals.emblems = emblems;
+  legacyGlobals.icons = icons;
+  legacyGlobals.labels = labels;
+  legacyGlobals.burgLabels = burgLabels;
+  legacyGlobals.burgIcons = _burgIcons;
+  legacyGlobals.anchors = _anchors;
+  legacyGlobals.armies = _armies;
+  legacyGlobals.compass = compass;
+  legacyGlobals.markers = markers;
+  legacyGlobals.fogging = fogging;
+  legacyGlobals.ruler = ruler;
+  legacyGlobals.debug = _debug;
+
+  // Legacy mutable state that existing modules still access as globals.
+  defineMutableGlobal("grid", () => grid, value => {
+    grid = value as typeof grid;
+  });
+  defineMutableGlobal("pack", () => pack, value => {
+    pack = value as typeof pack;
+  });
+  defineMutableGlobal("seed", () => seed, value => {
+    seed = value;
+  });
+  defineMutableGlobal("mapId", () => mapId, value => {
+    mapId = value;
+  });
+  defineMutableGlobal("elSelected", () => _elSelected, value => {
+    _elSelected = value;
+  });
+  defineMutableGlobal("notes", () => _notes, value => {
+    _notes = value;
+  });
+  defineMutableGlobal("customization", () => customization, value => {
+    customization = value;
+  });
+  defineMutableGlobal("scale", () => scale, value => {
+    scale = value;
+  });
+  defineMutableGlobal("viewX", () => viewX, value => {
+    viewX = value;
+  });
+  defineMutableGlobal("viewY", () => viewY, value => {
+    viewY = value;
+  });
+  defineMutableGlobal("graphWidth", () => graphWidth, value => {
+    graphWidth = value;
+  });
+  defineMutableGlobal("graphHeight", () => graphHeight, value => {
+    graphHeight = value;
+  });
+  defineMutableGlobal("mapCoordinates", () => mapCoordinates, value => {
+    mapCoordinates = value;
+  });
+
+  legacyGlobals.mapHistory = mapHistory;
+  legacyGlobals.modules = _modules;
+  legacyGlobals.rulers = _rulers;
+  legacyGlobals.options = options;
+  legacyGlobals.style = _style;
+  legacyGlobals.biomesData = biomesData;
+  legacyGlobals.nameBases = _nameBases;
+  legacyGlobals.color = _color;
+  legacyGlobals.lineGen = _lineGen;
+  legacyGlobals.populationRate = _populationRate;
+  legacyGlobals.distanceScale = _distanceScale;
+  legacyGlobals.urbanization = _urbanization;
+  legacyGlobals.urbanDensity = _urbanDensity;
+  legacyGlobals.zoom = zoom;
 }
 
 // decide which map should be loaded or generated on page load
@@ -685,24 +824,32 @@ function generatePrecipitation() {
 
 // recalculate Voronoi Graph to pack cells
 function reGraph() {
-  reGraphFlow(
-    buildReGraphDeps({
-      TIME,
-      grid,
-      pack,
-      rn: runtime.rn,
-      calculateVoronoi: runtime.calculateVoronoi,
-      createTypedArray: runtime.createTypedArray,
-      UINT16_MAX: runtime.UINT16_MAX,
-      getPackPolygon: (cellId: number) => runtime.getPackPolygon(cellId, pack),
-      d3
-    })
-  );
+  const deps = buildReGraphDeps({
+    TIME,
+    grid,
+    pack,
+    rn: runtime.rn,
+    calculateVoronoi: runtime.calculateVoronoi,
+    createTypedArray: runtime.createTypedArray,
+    UINT16_MAX: runtime.UINT16_MAX,
+    getPackPolygon: (cellId: number) => runtime.getPackPolygon(cellId, pack as unknown as PackedGraph),
+    d3
+  });
+
+  reGraphFlow(deps as unknown as Parameters<typeof reGraphFlow>[0]);
 }
 
 // assess cells suitability to calculate population and rand cells for culture center and burgs placement
 function rankCells() {
-  rankCellsFlow(buildRankCellsDeps({ TIME, pack, biomesData, normalize: runtime.normalize, d3 }));
+  rankCellsFlow(
+    buildRankCellsDeps({
+      TIME,
+      pack: pack as unknown as PackedGraph,
+      biomesData,
+      normalize: runtime.normalize,
+      d3
+    })
+  );
 }
 
 // show map stats on generation complete
@@ -768,5 +915,10 @@ function undraw() {
 
 // Register invokeActiveZooming to window for HTML onclick handlers
 if (typeof window !== "undefined") {
-  (window as WindowWithInvokeActiveZooming).invokeActiveZooming = invokeActiveZooming;
+  const win = window as WindowWithInvokeActiveZooming;
+  win.invokeActiveZooming = invokeActiveZooming;
+  const fmg = (window.fmg || (window.fmg = {} as FmgGlobalContext)) as FmgGlobalContext & {
+    invokeActiveZooming?: () => void;
+  };
+  fmg.invokeActiveZooming = invokeActiveZooming;
 }

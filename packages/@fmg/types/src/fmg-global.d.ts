@@ -267,6 +267,7 @@ export interface FmgGlobalContext {
 
   saveMap?: (method: SaveMethod) => Promise<void>;
   quickLoad?: () => Promise<void>;
+  openLocalMapFilePicker?: () => void;
   loadFromDropbox?: () => Promise<void>;
   createSharableDropboxLink?: () => Promise<void>;
   loadMapPrompt?: (blob: Blob) => void;
