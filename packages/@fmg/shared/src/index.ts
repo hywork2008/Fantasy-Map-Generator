@@ -59,6 +59,15 @@ type LegacyWindowBridge = Window & {
 };
 
 const legacyWindow = window as LegacyWindowBridge;
+const TEMPERATURE_SCALES = ["°C", "°F", "K", "°R", "°De", "°N", "°Ré", "°Rø"] as const;
+type TemperatureScale = (typeof TEMPERATURE_SCALES)[number];
+
+const normalizeTemperatureScale = (scale?: string): TemperatureScale => {
+  if (scale && (TEMPERATURE_SCALES as readonly string[]).includes(scale)) return scale as TemperatureScale;
+  const fallback = legacyWindow.temperatureScale?.value;
+  if (fallback && (TEMPERATURE_SCALES as readonly string[]).includes(fallback)) return fallback as TemperatureScale;
+  return "°C";
+};
 
 // Initialize window.fmg namespace
 const fmgGlobal: FmgGlobalContext = {
@@ -100,11 +109,7 @@ const fmgGlobal: FmgGlobalContext = {
   generateSeed,
 
   // Unit utils
-  convertTemperature: (
-    temp: number,
-    scale: Parameters<typeof convertTemperature>[1] =
-      ((legacyWindow.temperatureScale?.value as Parameters<typeof convertTemperature>[1] | undefined) ?? "°C")
-  ) => convertTemperature(temp, scale),
+  convertTemperature: (temp: number, scale?: string) => convertTemperature(temp, normalizeTemperatureScale(scale)),
   si,
   getInteger: getIntegerFromSI,
 

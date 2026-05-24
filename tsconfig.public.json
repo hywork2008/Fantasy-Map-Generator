@@ -15,7 +15,6 @@
     "removeComments": false
   },
   "include": [
-    "packages/@fmg/legacy-ui/src/versioning.ts",
     "packages/@fmg/legacy-ui/src/components/fill-box.ts",
     "packages/@fmg/legacy-ui/src/components/slider-input.ts",
     "packages/@fmg/legacy-ui/src/config/heightmap-templates.ts",

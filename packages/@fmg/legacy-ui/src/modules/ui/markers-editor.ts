@@ -1,5 +1,10 @@
 "use strict";
 import { closeDialogs, listen, unselect } from "./editors";
+import { requireFmgApi } from "../runtime/fmg-api";
+
+const Markers = requireFmgApi("Markers") as {
+  deleteMarker: (markerId: number) => void;
+};
 
 interface MarkerData {
   i: number;

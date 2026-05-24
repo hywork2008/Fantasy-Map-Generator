@@ -1,11 +1,30 @@
 "use strict";
 
-import { Opisometer, Planimeter, Ruler } from "../ui/measurers";
+import { Opisometer, Planimeter, Ruler, createDefaultRuler } from "../ui/measurers";
 import { Rivers } from "@fmg/core/modules/river-generator";
 import { Routes } from "@fmg/core/modules/routes-generator";
 import { States } from "@fmg/core/modules/states-generator";
 import { fog, unfog } from "../ui/editors";
+import { requireFmgApi } from "../runtime/fmg-api";
+import { drawRoutes, drawTexture, drawZones } from "../ui/layers";
+import { burgIconsRenderer } from "#renderers/draw-burg-icons";
+import { burgLabelsRenderer } from "#renderers/draw-burg-labels";
+import { featuresRenderer } from "#renderers/draw-features";
+import { heightmapRenderer } from "#renderers/draw-heightmap";
+import { iceRenderer } from "#renderers/draw-ice";
+import { markersRenderer } from "#renderers/draw-markers";
+import { militaryRenderer } from "#renderers/draw-military";
 import { compareVersions } from "../../versioning";
+
+const Religions = requireFmgApi("Religions");
+const Features = requireFmgApi("Features");
+const Cultures = requireFmgApi("Cultures");
+const Zones = requireFmgApi("Zones");
+const Burgs = requireFmgApi("Burgs");
+const Markers = requireFmgApi("Markers");
+const Provinces = requireFmgApi("Provinces");
+
+declare let zones: any;
 
 // update old map file to the current version
 export function resolveVersionConflicts(mapVersion) {
@@ -316,7 +335,7 @@ export function resolveVersionConflicts(mapVersion) {
       .attr("stroke", "#e8f0f6")
       .attr("stroke-width", 1)
       .attr("filter", "url(#dropShadow05)");
-    drawIce();
+    iceRenderer();
 
     // v1.4 added icon and power attributes for units
     for (const unit of options.military) {
@@ -590,7 +609,7 @@ export function resolveVersionConflicts(mapVersion) {
       markersGroup.style.display = null;
       defs?.remove();
       markerElements.forEach(el => el.remove());
-      if (layerIsOn("markers")) drawMarkers();
+      if (layerIsOn("markers")) markersRenderer();
     }
   }
 
@@ -794,7 +813,7 @@ export function resolveVersionConflicts(mapVersion) {
       .attr("curve", curve)
       .attr("mask", "url(#land)");
 
-    if (layerIsOn("toggleHeight")) drawHeightmap();
+    if (layerIsOn("toggleHeight")) heightmapRenderer();
 
     // v1.96.00 moved scaleBar options from units editor to style
     d3.select("#scaleBar").remove();
@@ -967,8 +986,8 @@ export function resolveVersionConflicts(mapVersion) {
 
   if (isOlderThan("1.107.0")) {
     // v1.107.0 allowed custom images for markers and regiments
-    if (layerIsOn("toggleMarkers")) drawMarkers();
-    if (layerIsOn("toggleMilitary")) drawMilitary();
+    if (layerIsOn("toggleMarkers")) markersRenderer();
+    if (layerIsOn("toggleMilitary")) militaryRenderer();
   }
 
   if (isOlderThan("1.108.0")) {
@@ -977,7 +996,7 @@ export function resolveVersionConflicts(mapVersion) {
       // fix lakes with missing group
       if (f?.type === "lake" && !f.group) f.group = "freshwater";
     });
-    drawFeatures();
+    featuresRenderer();
 
     // some old maps has incorrect "heights" groups
     viewbox.selectAll("#heights").remove();
@@ -1039,8 +1058,8 @@ export function resolveVersionConflicts(mapVersion) {
       }
     });
 
-    layerIsOn("toggleBurgIcons") && drawBurgIcons();
-    layerIsOn("toggleLabels") && drawBurgLabels();
+    layerIsOn("toggleBurgIcons") && burgIconsRenderer();
+    layerIsOn("toggleLabels") && burgLabelsRenderer();
 
     delete options.showBurgPreview;
     delete options.showMFCGMap;
@@ -1114,7 +1133,7 @@ export function resolveVersionConflicts(mapVersion) {
       }
 
       // Re-render ice from migrated data
-      if (layerIsOn("toggleIce")) drawIce();
+      if (layerIsOn("toggleIce")) iceRenderer();
     }
   }
 

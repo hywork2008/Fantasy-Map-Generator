@@ -11,7 +11,7 @@ interface IceElement {
   offset?: [number, number];
 }
 
-const iceRenderer = (): void => {
+export const iceRenderer = (): void => {
   TIME && console.time("drawIce");
 
   // Clear existing ice SVG

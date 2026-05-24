@@ -1,12 +1,8 @@
 import { max, quadtree, range } from "d3";
 import { abbreviate, biased, ensureEl, getColors, getRandomColor, minmax, P, rand, rn, rw } from "@fmg/shared";
-import type { PackedGraph } from "@fmg/types";
+import type { FmgGlobalContext, PackedGraph } from "@fmg/types";
 import { COA } from "./emblem/generator";
 import { Names } from "./names-generator";
-
-declare global {
-  var Cultures: CulturesGenerator;
-}
 
 export interface Culture {
   name: string;
@@ -1332,4 +1328,7 @@ class CulturesGenerator {
   }
 }
 
-window.Cultures = new CulturesGenerator();
+const culturesGenerator = new CulturesGenerator();
+const fmg = window.fmg || (window.fmg = {} as FmgGlobalContext);
+fmg.Cultures = culturesGenerator;
+fmg.generateCultures = () => culturesGenerator.generate();

@@ -3,6 +3,8 @@
 
 import { selectStyleElement, updateElements } from "./style";
 import { layerIsOn, toggleBurgIcons, toggleLabels } from "./layers";
+import { burgIconsRenderer } from "#renderers/draw-burg-icons";
+import { burgLabelsRenderer } from "#renderers/draw-burg-labels";
 /// <reference path="../../types/ui-legacy-globals.d.ts" />
 
 type StyleAttributeValue = string | number | null;
@@ -155,9 +157,9 @@ export async function changeStyle(desiredPreset: string) {
   const [presetName, style] = styleData;
   localStorage.setItem("presetStyle", presetName);
   applyStyleWithUiRefresh(style);
-  if (layerIsOn("toggleBurgIcons")) drawBurgIcons();
+  if (layerIsOn("toggleBurgIcons")) burgIconsRenderer();
   if (layerIsOn("toggleLabels")) {
-    drawBurgLabels();
+    burgLabelsRenderer();
     drawStateLabels();
   }
 }

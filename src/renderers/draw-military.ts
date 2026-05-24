@@ -11,7 +11,7 @@ declare global {
   var armies: import("d3").Selection<SVGGElement, unknown, null, undefined>;
 }
 
-const militaryRenderer = (): void => {
+export const militaryRenderer = (): void => {
   TIME && console.time("drawMilitary");
 
   armies.selectAll("g").remove();

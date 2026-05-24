@@ -1,4 +1,7 @@
 import { applySorting, applySortingByHeader, getArea, getAreaUnit, fitContent, removeCircle } from "../../ui/editors";
+import { requireFmgApi } from "../../runtime/fmg-api";
+
+const Religions = requireFmgApi("Religions");
 const $body = insertEditorHtml();
 addListeners();
 

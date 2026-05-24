@@ -6,6 +6,14 @@ import { getHeight } from "./general";
 import { layerIsOn, toggleBurgIcons, toggleCells, toggleLabels } from "./layers";
 import { editStyle } from "./style";
 import type { Burg } from "@fmg/core/modules/burgs-generator";
+import { requireFmgApi } from "../runtime/fmg-api";
+
+const Burgs = requireFmgApi("Burgs") as {
+  changeGroup: (burg: unknown, group?: string | null) => void;
+  getPreview: (burg: unknown) => { link: string | null; preview: string | null };
+  remove: (burgId: number) => void;
+};
+
 class BurgEditor {
   public open(id?: unknown) {
     if (customization) return;

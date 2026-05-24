@@ -4,6 +4,9 @@ import { Rivers } from "@fmg/core/modules/river-generator";
 
 import { lock, tip } from "./general";
 import { layerIsOn, toggleBiomes, toggleCoordinates, togglePrecipitation, toggleRivers, toggleTemperature } from "./layers";
+import { requireFmgApi } from "../runtime/fmg-api";
+
+const Features = requireFmgApi("Features");
 
 export function editWorld() {
   if (customization) return;

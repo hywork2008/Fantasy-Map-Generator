@@ -73,7 +73,7 @@ function markerRenderer(marker: Marker, rescale = 1): string {
     </svg>`;
 }
 
-const markersRenderer = (): void => {
+export const markersRenderer = (): void => {
   TIME && console.time("drawMarkers");
 
   const rescale = +markers.attr("rescale");

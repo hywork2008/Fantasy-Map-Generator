@@ -10,10 +10,13 @@ type SubmapFmgContext = FmgGlobalContext & {
   getLongitude?: (x: number, decimals?: number) => number;
   cellsDensityMap?: Record<string, number>;
   getCellsDensityColor?: (cells: number) => string;
+  Resample?: { process: (options: { projection: (x: number, y: number) => [number, number]; inverse: (x: number, y: number) => [number, number]; scale: number }) => void };
+  resampleMap?: (options: { projection: (x: number, y: number) => [number, number]; inverse: (x: number, y: number) => [number, number]; scale: number }) => void;
 };
 
 const submapRuntime = window as Window & {
   [key: string]: any;
+  Resample?: { process: (options: { projection: (x: number, y: number) => [number, number]; inverse: (x: number, y: number) => [number, number]; scale: number }) => void };
   fmg?: SubmapFmgContext;
 };
 
@@ -73,14 +76,22 @@ function openSubmapTool() {
     const globalPointsValue = (submapRuntime.ensureEl("pointsInput") as HTMLInputElement).value;
     if (submapPointsValue !== globalPointsValue) submapRuntime.changeCellsDensity(submapPointsValue);
 
-    const projection = (x: number, y: number) => [(x - x0) * submapRuntime.scale, (y - y0) * submapRuntime.scale];
-    const inverse = (x: number, y: number) => [x / submapRuntime.scale + x0, y / submapRuntime.scale + y0];
+    const projection = (x: number, y: number): [number, number] => [
+      (x - x0) * submapRuntime.scale,
+      (y - y0) * submapRuntime.scale
+    ];
+    const inverse = (x: number, y: number): [number, number] => [
+      x / submapRuntime.scale + x0,
+      y / submapRuntime.scale + y0
+    ];
 
     submapRuntime.applyGraphSize();
     submapRuntime.fitMapToScreen();
     submapRuntime.resetZoom(0);
     submapRuntime.undraw();
-    submapRuntime.Resample.process({projection, inverse, scale: submapRuntime.scale});
+    const resampleProcess = submapRuntime.fmg?.Resample?.process || submapRuntime.fmg?.resampleMap || submapRuntime.Resample?.process;
+    if (!resampleProcess) throw new Error("Resample API is not available");
+    resampleProcess({projection, inverse, scale: submapRuntime.scale});
 
     if ((submapRuntime.ensureEl("submapRescaleBurgStyles") as HTMLInputElement).checked)
       rescaleBurgStyles(submapRuntime.scale);

@@ -17,6 +17,85 @@ type RollupResult<R> = Array<[unknown, R | RollupResult<R>]>;
 type LegacyLayerToggleEvent = Event;
 type SaveMethod = "storage" | "machine" | "dropbox";
 type JsonExportType = "Full" | "Minimal" | "PackCells" | "GridCells";
+type ResampleOptions = {
+  projection: (x: number, y: number) => [number, number];
+  inverse: (x: number, y: number) => [number, number];
+  scale: number;
+};
+type HeightmapGeneratorApi = {
+  setGraph: (graph: unknown) => void;
+  addHill: (count: string, height: string, rangeX: string, rangeY: string) => void;
+  addPit: (count: string, height: string, rangeX: string, rangeY: string) => void;
+  addRange: (
+    count: string,
+    height: string,
+    rangeX: string,
+    rangeY: string,
+    startCellId?: number,
+    endCellId?: number
+  ) => void;
+  addTrough: (
+    count: string,
+    height: string,
+    rangeX: string,
+    rangeY: string,
+    startCellId?: number,
+    endCellId?: number
+  ) => void;
+  addStrait: (width: string, direction?: string) => void;
+  modify: (range: string, add: number, mult: number, power?: number) => void;
+  smooth: (fr?: number, add?: number) => void;
+  mask: (power?: number) => void;
+  invert: (count: number, axes: string) => void;
+  generate: (graph: unknown) => Promise<unknown>;
+  fromTemplate: (graph: unknown, id: string) => Uint8Array | null;
+  fromPrecreated: (graph: unknown, id: string) => Promise<Uint8Array>;
+  getHeights: () => Uint8Array | null;
+};
+type ReligionsApi = {
+  generate: () => void;
+  add: (center: number) => void;
+  recalculate: () => void;
+  getDeityName: (culture: number) => string | undefined;
+};
+type FeaturesApi = {
+  markupGrid: () => void;
+  markupPack: () => void;
+  defineGroups: () => void;
+};
+type CulturesApi = {
+  generate: () => void;
+  expand: () => void;
+  add: (center: number) => void;
+  getRandomShield: () => string;
+};
+type ZonesApi = {
+  generate: (globalModifier?: number) => void;
+};
+type BurgsApi = {
+  generate: () => unknown;
+  specify: () => void;
+  shift: () => void;
+  add: (point: [number, number]) => number;
+  remove: (burgId: number) => void;
+  changeGroup: (burg: unknown, group?: string | null) => void;
+  defineGroup: (burg: unknown, populations: number[]) => void;
+  getType: (cellId: number, port?: number) => string;
+  getDefaultGroups: () => unknown[];
+  getPreview: (burg: unknown) => { link: string | null; preview: string | null };
+};
+type MarkersApi = {
+  generate: () => void;
+  regenerate: () => void;
+  getConfig: () => unknown[];
+  setConfig: (newConfig: unknown[]) => void;
+  add: (marker: unknown) => unknown;
+  deleteMarker: (markerId: number) => void;
+};
+type ProvincesApi = {
+  generate: (regenerate?: boolean, regenerateLockedStates?: boolean) => void;
+  getPoles: () => void;
+};
 
 export interface FmgGlobalContext {
   // ==================== Number Utils ====================
@@ -371,6 +450,25 @@ export interface FmgGlobalContext {
   startUITour?: () => void;
   invokeActiveZooming?: () => void;
   regenerateMap?: (options?: unknown) => void;
+  HeightmapGenerator?: HeightmapGeneratorApi;
+  generateHeightmap?: (graph: unknown) => Promise<unknown>;
+  Religions?: ReligionsApi;
+  generateReligions?: () => void;
+  Features?: FeaturesApi;
+  markFeaturesGrid?: () => void;
+  markFeaturesPack?: () => void;
+  Cultures?: CulturesApi;
+  generateCultures?: () => void;
+  Zones?: ZonesApi;
+  generateZones?: (globalModifier?: number) => void;
+  Burgs?: BurgsApi;
+  generateBurgs?: () => unknown;
+  Markers?: MarkersApi;
+  generateMarkers?: () => void;
+  Provinces?: ProvincesApi;
+  generateProvinces?: (regenerate?: boolean, regenerateLockedStates?: boolean) => void;
+  Resample?: { process: (options: ResampleOptions) => void };
+  resampleMap?: (options: ResampleOptions) => void;
 }
 
 declare global {

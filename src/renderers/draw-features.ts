@@ -17,7 +17,7 @@ interface FeaturesHtml {
   lakes: { [key: string]: string[] };
 }
 
-const featuresRenderer = (): void => {
+export const featuresRenderer = (): void => {
   TIME && console.time("drawFeatures");
 
   const html: FeaturesHtml = {

@@ -64,6 +64,7 @@ import { Ice } from "@fmg/core/modules/ice";
 import { Lakes } from "@fmg/core/modules/lakes";
 import { Military } from "@fmg/core/modules/military-generator";
 import { Names } from "@fmg/core/modules/names-generator";
+import { drawOceanLayers } from "@fmg/core/modules/ocean-layers";
 import { Rivers } from "@fmg/core/modules/river-generator";
 import { Routes } from "@fmg/core/modules/routes-generator";
 import { States } from "@fmg/core/modules/states-generator";
@@ -71,13 +72,11 @@ import type { FmgGlobalContext, Grid, PackedGraph } from "@fmg/types";
 
 type RuntimeBridge = {
   rn: (value: number, digits?: number) => number;
-  Markers: { generate: () => void };
   applyGraphSize: () => void;
   randomizeOptions: () => void;
   shouldRegenerateGrid: (grid: unknown, expectedSeed: unknown) => boolean;
   generateGrid: () => unknown;
-  HeightmapGenerator: { generate: (grid: unknown) => Promise<unknown> };
-  OceanLayers: () => void;
+  HeightmapGenerator?: { generate: (grid: unknown) => Promise<unknown> };
   parseError: (error: unknown) => string;
   clearMainTip: () => void;
   cleanupData: () => void;
@@ -287,6 +286,12 @@ const _rulers = new Rulers();
 let customization = 0;
 
 // global options; in v2.0 to be used for all UI settings
+const getDefaultBurgGroups = () => {
+  const fmg = window.fmg as FmgGlobalContext | undefined;
+  if (fmg?.Burgs?.getDefaultGroups) return fmg.Burgs.getDefaultGroups();
+  return [];
+};
+
 const options = {
   pinNotes: false,
   winds: [225, 45, 225, 315, 135, 315],
@@ -296,7 +301,7 @@ const options = {
   stateLabelsMode: "auto",
   showBurgPreview: true,
   burgs: {
-    groups: JSON.safeParse(localStorage.getItem("burg-groups")) || Burgs.getDefaultGroups()
+    groups: JSON.safeParse(localStorage.getItem("burg-groups")) || getDefaultBurgGroups()
   }
 };
 
@@ -694,21 +699,38 @@ initDragToUpload({
 });
 
 async function generate(options) {
+  const fmg = window.fmg as FmgGlobalContext | undefined;
+  const Burgs = fmg?.Burgs;
+  const Markers = fmg?.Markers;
+  const Provinces = fmg?.Provinces;
+  if (!Burgs) throw new Error("window.fmg.Burgs is not available");
+  if (!Markers) throw new Error("window.fmg.Markers is not available");
+  if (!Provinces) throw new Error("window.fmg.Provinces is not available");
+
   const generationModules = buildGenerationModules({
-    Features,
+    Features:
+      (window.fmg as FmgGlobalContext | undefined)?.Features ||
+      (window as unknown as {Features?: {markupGrid: () => void; markupPack: () => void; defineGroups: () => void}})
+        .Features,
     Rivers,
     Biomes,
     Ice,
-    Cultures,
+    Cultures:
+      (window.fmg as FmgGlobalContext | undefined)?.Cultures ||
+      (window as unknown as {Cultures?: {generate: () => void; expand: () => void}}).Cultures,
     Burgs,
     States,
     Routes,
-    Religions,
+    Religions:
+      (window.fmg as FmgGlobalContext | undefined)?.Religions ||
+      (window as unknown as {Religions?: {generate: () => void}}).Religions,
     Provinces,
     Lakes,
     Military,
-    Markers: runtime.Markers,
-    Zones,
+    Markers,
+    Zones:
+      (window.fmg as FmgGlobalContext | undefined)?.Zones ||
+      (window as unknown as {Zones?: {generate: (globalModifier?: number) => void}}).Zones,
     Names
   });
 
@@ -730,10 +752,10 @@ async function generate(options) {
     randomizeOptions,
     shouldRegenerateGrid: runtime.shouldRegenerateGrid,
     generateGrid: runtime.generateGrid,
-    HeightmapGenerator: runtime.HeightmapGenerator,
+    HeightmapGenerator: (window.fmg as FmgGlobalContext | undefined)?.HeightmapGenerator || runtime.HeightmapGenerator,
     addLakesInDeepDepressions,
     openNearSeaLakes,
-    OceanLayers: runtime.OceanLayers,
+    OceanLayers: drawOceanLayers,
     defineMapSize,
     calculateMapCoordinates,
     calculateTemperatures,
@@ -747,7 +769,7 @@ async function generate(options) {
     rn: runtime.rn,
     showStatistics,
     parseError: runtime.parseError,
-    clearMainTip: runtime.clearMainTip,
+    clearMainTip,
     alertMessage,
     cleanupData: runtime.cleanupData,
     regenerateMap,
@@ -923,7 +945,7 @@ function regenerateMap(options: unknown) {
         isWorldConfiguratorVisible: () => $("#worldConfigurator").is(":visible"),
         editWorld,
         fitMapToScreen,
-        clearMainTip: runtime.clearMainTip
+        clearMainTip
       })
     );
   }

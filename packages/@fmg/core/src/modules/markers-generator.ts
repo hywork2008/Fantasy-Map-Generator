@@ -1,14 +1,11 @@
 import { mean } from "d3";
+import type { FmgGlobalContext } from "@fmg/types";
 import type { PackedGraph } from "@fmg/types/PackedGraph";
 import { capitalize, convertTemperature, gauss, generateDate, getAdjective, last, P, ra, rand, rn, rw } from "@fmg/shared";
 import { getFriendlyHeight } from "@legacy-ui-runtime/modules/ui/general";
 import { Names } from "./names-generator";
 import { Routes } from "./routes-generator";
 import { States } from "./states-generator";
-
-declare global {
-  var Markers: MarkersGenerator;
-}
 
 type MarkerConfig = {
   type: string;
@@ -1654,4 +1651,7 @@ class MarkersGenerator {
   }
 }
 
-window.Markers = new MarkersGenerator();
+const markersGenerator = new MarkersGenerator();
+const fmg = window.fmg || (window.fmg = {} as FmgGlobalContext);
+fmg.Markers = markersGenerator;
+fmg.generateMarkers = () => markersGenerator.generate();

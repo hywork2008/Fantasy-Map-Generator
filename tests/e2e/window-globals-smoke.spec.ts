@@ -9,12 +9,39 @@ async function openMapAndWaitForGlobals(page: import("@playwright/test").Page) {
   });
 }
 
+function filterCriticalStartupErrors(errors: string[]): string[] {
+  return errors.filter(
+    message =>
+      !message.includes("fonts.googleapis.com") &&
+      !message.includes("google-analytics") &&
+      !message.includes("googletagmanager") &&
+      !message.includes("Failed to load resource") &&
+      !message.includes("deprecated") &&
+      !message.includes("Name is too short! Random name will be selected")
+  );
+}
+
 /**
  * Smoke test for window globals registration
  * Ensures all functions required by HTML onclick handlers are present
  * Priority: HIGHEST - detects import/export registration failures early
  */
 test.describe("Window globals smoke test", () => {
+  test("startup should not emit uncaught initialization errors", async ({ page }) => {
+    const startupErrors: string[] = [];
+
+    page.on("pageerror", error => startupErrors.push(`pageerror: ${error.message}`));
+    page.on("console", msg => {
+      if (msg.type() === "error") startupErrors.push(`console.error: ${msg.text()}`);
+    });
+
+    await openMapAndWaitForGlobals(page);
+    await page.waitForTimeout(1000);
+
+    const critical = filterCriticalStartupErrors(startupErrors);
+    expect(critical, `Unexpected startup errors: ${critical.join("; ")}`).toEqual([]);
+  });
+
   test("all toggle functions should be available on window.fmg", async ({ page }) => {
     await openMapAndWaitForGlobals(page);
 

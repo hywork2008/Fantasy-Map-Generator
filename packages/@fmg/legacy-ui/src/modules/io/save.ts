@@ -2,6 +2,7 @@
 
 import { getFileName } from "../ui/editors";
 import { Biomes } from "@fmg/core/modules/biomes";
+import { getUsedFonts } from "@fmg/core/modules/fonts";
 import { link, parseError } from "@fmg/shared";
 import { VERSION } from "../../versioning";
 
@@ -183,7 +184,7 @@ function prepareMapData(): string {
   const cloneEl = document.getElementById("map")?.cloneNode(true) as SVGSVGElement | null;
   if (!cloneEl) throw new Error("Map SVG element is not found");
 
-  const fonts = JSON.stringify(window.getUsedFonts(cloneEl));
+  const fonts = JSON.stringify(getUsedFonts(cloneEl));
 
   // reset transform values to default
   cloneEl.setAttribute("width", String(saveRuntime.graphWidth));

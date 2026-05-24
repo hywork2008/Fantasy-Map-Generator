@@ -3,8 +3,17 @@ import { States } from "@fmg/core/modules/states-generator";
 import { applySorting, closeDialogs, fitContent, fog, getArea, getAreaUnit, removeCircle, unfog } from "./editors";
 import { drawStates, layerIsOn, toggleBorders, toggleCultures, togglePopulation, toggleProvinces, toggleStates } from "./layers";
 import { editStyle } from "./style";
+import { requireFmgApi } from "../runtime/fmg-api";
 
 declare const areaUnit: HTMLSelectElement;
+
+const Burgs = requireFmgApi("Burgs") as {
+  changeGroup: (burg: unknown, group?: string | null) => void;
+  getType: (cellId: number, port?: number) => string;
+};
+const Provinces = requireFmgApi("Provinces") as {
+  getPoles: () => void;
+};
 
 class ProvincesEditor {
   private get body() { return ensureEl("provincesBodySection"); }

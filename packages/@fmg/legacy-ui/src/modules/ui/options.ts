@@ -10,9 +10,12 @@ import { COA } from "@fmg/core/modules/emblem/generator";
 import { COArenderer } from "@fmg/core/modules/emblem/renderer";
 import { Names } from "@fmg/core/modules/names-generator";
 import { ensureLegacyElement, legacyRuntime } from "../runtime/legacy-runtime";
+import { requireFmgApi } from "../runtime/fmg-api";
 import type { FmgGlobalContext } from "@fmg/types";
 import { drawStates, toggleLabels } from "./layers";
 /// <reference path="../../types/ui-legacy-globals.d.ts" />
+
+const Cultures = requireFmgApi("Cultures");
 
 declare global {
   interface Window {
@@ -759,8 +762,7 @@ export function regeneratePrompt(options) {
   if (customization)
     return tip("New map cannot be generated when edit mode is active, please exit the mode and retry", false, "error");
 
-  const regenerateMap = window.fmg?.regenerateMap;
-  if (!regenerateMap) throw new ReferenceError("window.fmg.regenerateMap is not defined");
+  const regenerateMap = requireFmgApi("regenerateMap") as (options: unknown) => void;
 
   const workingTime = (Date.now() - last(mapHistory).created) / 60000; // minutes
   if (workingTime < 1) return regenerateMap(options);

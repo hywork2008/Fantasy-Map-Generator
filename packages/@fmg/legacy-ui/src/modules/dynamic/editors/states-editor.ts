@@ -2,6 +2,17 @@ import { States } from "@fmg/core/modules/states-generator";
 import { applySorting, applySortingByHeader, getArea, getAreaUnit, fitContent, removeCircle } from "../../ui/editors";
 import { fog, unfog } from "../../ui/editors";
 import { drawStates } from "../../ui/layers";
+import { requireFmgApi } from "../../runtime/fmg-api";
+
+const Burgs = requireFmgApi("Burgs") as {
+  changeGroup: (burg: unknown, group?: string | null) => void;
+  getType: (cellId: number, port?: number) => string;
+  add: (point: [number, number]) => number;
+};
+const Provinces = requireFmgApi("Provinces") as {
+  generate: (regenerate?: boolean, regenerateLockedStates?: boolean) => void;
+  getPoles: () => void;
+};
 
 const $body = insertEditorHtml();
 addListeners();

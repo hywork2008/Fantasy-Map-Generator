@@ -1,13 +1,10 @@
 import Alea from "alea";
 import { max } from "d3";
 import { ensureEl, gauss, generateSeed, getMixedColor, getPolesOfInaccessibility, P, rand, rw } from "@fmg/shared";
+import type { FmgGlobalContext } from "@fmg/types";
 import type { Emblem } from "./emblem/generator";
 import { COA } from "./emblem/generator";
 import { Names } from "./names-generator";
-
-declare global {
-  var Provinces: ProvincesGenerator;
-}
 
 export interface Province {
   i: number;
@@ -128,7 +125,7 @@ class ProvincesGenerator {
         const fullName = `${name} ${formName}`;
         const color = getMixedColor(s.color!);
         const kinship = nameByBurg ? 0.8 : 0.4;
-        const type = Burgs.getType(center, burg.port);
+        const type = this.getBurgType(center, burg.port);
         const coa = COA.generate(stateBurgs[i].coa, kinship, null, type);
         coa.shield = COA.getShield(c, s.i);
 
@@ -279,7 +276,7 @@ class ProvincesGenerator {
 
         const dominion = colony ? P(0.95) : singleIsle || isleGroup ? P(0.7) : P(0.3);
         const kinship = dominion ? 0 : 0.4;
-        const type = Burgs.getType(center, burgs[burg]?.port);
+        const type = this.getBurgType(center, burgs[burg]?.port);
         const coa = COA.generate(s.coa, kinship, dominion ? 1 : 0, type);
         coa.shield = COA.getShield(c, s.i);
 
@@ -325,6 +322,28 @@ class ProvincesGenerator {
     TIME && console.timeEnd("generateProvinces");
   }
 
+  private getBurgType(cellId: number, port?: number) {
+    const { cells, features } = pack;
+
+    if (port) return "Naval";
+
+    const haven = cells.haven[cellId];
+    if (haven !== undefined && features[cells.f[haven]]?.type === "lake") return "Lake";
+
+    if (cells.h[cellId] > 60) return "Highland";
+
+    if (cells.r[cellId] && cells.fl[cellId] >= 100) return "River";
+
+    const biome = cells.biome[cellId];
+    const population = cells.pop[cellId];
+    if (!cells.burg[cellId] || population <= 5) {
+      if (population < 5 && [1, 2, 3, 4].includes(biome)) return "Nomadic";
+      if (biome > 4 && biome < 10) return "Hunting";
+    }
+
+    return "Generic";
+  }
+
   // calculate pole of inaccessibility for each province
   getPoles() {
     const getType = (cellId: number) => pack.cells.province[cellId];
@@ -337,4 +356,8 @@ class ProvincesGenerator {
   }
 }
 
-window.Provinces = new ProvincesGenerator();
+const provincesGenerator = new ProvincesGenerator();
+const fmg = window.fmg || (window.fmg = {} as FmgGlobalContext);
+fmg.Provinces = provincesGenerator;
+fmg.generateProvinces = (regenerate, regenerateLockedStates) =>
+  provincesGenerator.generate(regenerate, regenerateLockedStates);

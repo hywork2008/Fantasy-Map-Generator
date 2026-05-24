@@ -1,10 +1,12 @@
 "use strict";
 
 import type {Selection} from "d3";
+import { declareFont, fonts } from "@fmg/core/modules/fonts";
 import { Routes } from "@fmg/core/modules/routes-generator";
 import type {FmgGlobalContext} from "@fmg/types";
 import { getCurrentPreset } from "../ui/layers";
 import { ensureLegacyElement, legacyRuntime } from "../runtime/legacy-runtime";
+import { requireFmgApi } from "../runtime/fmg-api";
 import { VERSION, compareVersions, isValidVersion, parseMapVersion } from "../../versioning";
 /// <reference path="../../types/ui-legacy-globals.d.ts" />
 
@@ -18,6 +20,11 @@ type LoadFmgContext = FmgGlobalContext & {
   generateMapOnLoad?: () => Promise<void>;
   reGraph?: () => void;
   invokeActiveZooming?: () => void;
+};
+
+const Features = requireFmgApi("Features");
+const Burgs = requireFmgApi("Burgs") as {
+  changeGroup: (burg: unknown, group?: string | null) => void;
 };
 
 // Functions to load and parse .map/.gz files

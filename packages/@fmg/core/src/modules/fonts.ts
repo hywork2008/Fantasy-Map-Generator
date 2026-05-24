@@ -1,15 +1,6 @@
 import { ensureEl } from "@fmg/shared";
+import type { FmgGlobalContext } from "@fmg/types";
 import { tip } from "@legacy-ui-runtime/modules/ui/general";
-
-declare global {
-  var declareFont: (font: FontDefinition) => void;
-  var getUsedFonts: (svg: SVGSVGElement) => FontDefinition[];
-  var loadFontsAsDataURI: (fonts: FontDefinition[]) => Promise<FontDefinition[]>;
-  var addGoogleFont: (family: string) => Promise<void>;
-  var addLocalFont: (family: string) => void;
-  var addWebFont: (family: string, src: string) => void;
-  var fonts: FontDefinition[];
-}
 
 type FontDefinition = {
   family: string;
@@ -18,7 +9,7 @@ type FontDefinition = {
   variant?: string;
 };
 
-window.fonts = [
+export const fonts: FontDefinition[] = [
   { family: "Arial" },
   { family: "Brush Script MT" },
   { family: "Century Gothic" },
@@ -269,7 +260,7 @@ window.fonts = [
   }
 ];
 
-window.declareFont = (font: FontDefinition) => {
+export const declareFont = (font: FontDefinition) => {
   const { family, src, ...rest } = font;
   addFontOption(family);
 
@@ -330,7 +321,7 @@ function readBlobAsDataURL(blob: Blob) {
   });
 }
 
-window.loadFontsAsDataURI = async (fonts: FontDefinition[]) => {
+export const loadFontsAsDataURI = async (fonts: FontDefinition[]) => {
   const promises = fonts.map(async font => {
     const url = font.src?.match(/url\(['"]?(.+?)['"]?\)/)?.[1];
     if (!url) return font;
@@ -344,7 +335,7 @@ window.loadFontsAsDataURI = async (fonts: FontDefinition[]) => {
   return await Promise.all(promises);
 };
 
-window.getUsedFonts = (svg: SVGSVGElement) => {
+export const getUsedFonts = (svg: SVGSVGElement) => {
   const usedFontFamilies = new Set();
 
   const labelGroups = svg.querySelectorAll("#labels g");
@@ -364,7 +355,7 @@ window.getUsedFonts = (svg: SVGSVGElement) => {
   return usedFonts;
 };
 
-window.addGoogleFont = async (family: string) => {
+export const addGoogleFont = async (family: string) => {
   const fontRanges = await fetchGoogleFont(family);
   if (!fontRanges) return tip("Cannot fetch Google font for this value", true, "error", 4000);
   tip(`Google font ${family} is loading...`, true, "warn", 4000);
@@ -396,7 +387,7 @@ window.addGoogleFont = async (family: string) => {
     });
 };
 
-window.addLocalFont = (family: string) => {
+export const addLocalFont = (family: string) => {
   fonts.push({ family });
 
   const fontFace = new FontFace(family, `local(${family})`, {
@@ -410,7 +401,7 @@ window.addLocalFont = (family: string) => {
   changeFont();
 };
 
-window.addWebFont = (family: string, url: string) => {
+export const addWebFont = (family: string, url: string) => {
   const src = `url('${url}')`;
   fonts.push({ family, src });
 
@@ -422,3 +413,14 @@ window.addWebFont = (family: string, url: string) => {
   if (select) select.value = family;
   changeFont();
 };
+
+const fmg = (window.fmg || (window.fmg = {} as FmgGlobalContext)) as FmgGlobalContext & Record<string, unknown>;
+Object.assign(fmg, {
+  fonts,
+  declareFont,
+  getUsedFonts,
+  loadFontsAsDataURI,
+  addGoogleFont,
+  addLocalFont,
+  addWebFont
+});

@@ -2,16 +2,10 @@
 // Functions to export map to image or data files
 
 import { connectVertices, ensureEl, getBase64, getCoordinates as computeCoordinates, rn, unique } from "@fmg/shared";
+import { getUsedFonts, loadFontsAsDataURI } from "@fmg/core/modules/fonts";
 import { Rivers } from "@fmg/core/modules/river-generator";
 import { getCellPopulation, getFriendlyHeight } from "../ui/general";
 import { getFileName, downloadFile } from "../ui/editors";
-
-type FontAsset = {
-  family: string;
-  src?: string;
-  unicodeRange?: string;
-  variant?: string;
-};
 
 type JSZipLike = {
   file: (name: string, data: Blob) => void;
@@ -43,8 +37,6 @@ declare let renderOcean: HTMLInputElement;
 declare global {
   interface Window {
     JSZip?: new () => JSZipLike;
-    getUsedFonts?: (svg: SVGSVGElement) => FontAsset[];
-    loadFontsAsDataURI?: (fonts: FontAsset[]) => Promise<FontAsset[]>;
   }
 }
 
@@ -532,10 +524,10 @@ async function getMapURL(
   }
 
   // load fonts
-  const usedFonts = window.getUsedFonts?.(cloneEl as SVGSVGElement) || [];
+  const usedFonts = getUsedFonts(cloneEl as SVGSVGElement);
   const fontsToLoad = usedFonts.filter(font => font.src);
-  if (fontsToLoad.length && window.loadFontsAsDataURI) {
-    const dataURLfonts = await window.loadFontsAsDataURI(fontsToLoad);
+  if (fontsToLoad.length) {
+    const dataURLfonts = await loadFontsAsDataURI(fontsToLoad);
 
     const fontFaces = dataURLfonts
       .map(({family, src, unicodeRange = "", variant = "normal"}) => {

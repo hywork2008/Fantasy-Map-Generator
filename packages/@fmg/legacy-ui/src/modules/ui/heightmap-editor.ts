@@ -1,10 +1,12 @@
 "use strict";
 
 import { Biomes } from "@fmg/core/modules/biomes";
+import { drawOceanLayers } from "@fmg/core/modules/ocean-layers";
 import { Ice } from "@fmg/core/modules/ice";
 import { Rivers } from "@fmg/core/modules/river-generator";
 import { Routes } from "@fmg/core/modules/routes-generator";
 import { States } from "@fmg/core/modules/states-generator";
+import { featuresRenderer } from "#renderers/draw-features";
 import "@fmg/core/modules/heightmap-generator";
 import "@fmg/core/modules/ocean-layers";
 import { locked } from "./general";
@@ -12,9 +14,6 @@ import { changeViewMode } from "./options";
 import { closeDialogs, removeCircle } from "./editors";
 import type { FmgGlobalContext } from "@fmg/types";
 import { getCurrentPreset, layerIsOn, toggleBorders, toggleHeight, toggleRivers, toggleStates } from "./layers";
-
-// Import drawFeatures from global scope
-declare const drawFeatures: () => void;
 
 type HeightmapEditMode = "erase" | "keep" | "risk";
 type HeightmapTool = "templateEditor" | "imageConverter";
@@ -29,6 +28,22 @@ class HeightmapEditor {
 
   public open(options?: EditHeightmapOptions) {
   const fmg = (window.fmg || (window.fmg = {} as FmgGlobalContext)) as FmgGlobalContext & {edits?: any};
+  const HeightmapGenerator = fmg.HeightmapGenerator;
+  const Religions = fmg.Religions;
+  const Features = fmg.Features;
+  const Cultures = fmg.Cultures;
+  const Zones = fmg.Zones;
+  const Burgs = fmg.Burgs;
+  const Markers = fmg.Markers;
+  const Provinces = fmg.Provinces;
+  if (!HeightmapGenerator) throw new Error("window.fmg.HeightmapGenerator is not available");
+  if (!Religions) throw new Error("window.fmg.Religions is not available");
+  if (!Features) throw new Error("window.fmg.Features is not available");
+  if (!Cultures) throw new Error("window.fmg.Cultures is not available");
+  if (!Zones) throw new Error("window.fmg.Zones is not available");
+  if (!Burgs) throw new Error("window.fmg.Burgs is not available");
+  if (!Markers) throw new Error("window.fmg.Markers is not available");
+  if (!Provinces) throw new Error("window.fmg.Provinces is not available");
   let edits = (fmg.edits || []) as any;
   if (typeof edits.n !== "number") edits.n = 0;
   fmg.edits = edits;
@@ -227,7 +242,7 @@ class HeightmapEditor {
     else if (mode === "risk") restoreRiskedData();
 
     // restore initial layers
-    drawFeatures();
+    featuresRenderer();
     viewbox.selectAll("#heights").remove();
 
     turnButtonOff("toggleHeight");
@@ -262,10 +277,10 @@ class HeightmapEditor {
       addLakesInDeepDepressions();
       openNearSeaLakes();
     }
-    OceanLayers();
+    drawOceanLayers();
     calculateTemperatures();
     generatePrecipitation();
-    window.fmg?.reGraph?.();
+    fmg.reGraph?.();
     Features.markupPack();
 
     Rivers.generate(erosionAllowed);
@@ -381,10 +396,10 @@ class HeightmapEditor {
 
     Features.markupGrid();
     if (erosionAllowed) addLakesInDeepDepressions();
-    OceanLayers();
+    drawOceanLayers();
     calculateTemperatures();
     generatePrecipitation();
-    window.fmg?.reGraph?.();
+    fmg.reGraph?.();
     Features.markupPack();
 
     if (erosionAllowed) {

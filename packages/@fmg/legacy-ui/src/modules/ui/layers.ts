@@ -4,20 +4,21 @@
 import { Rivers } from "@fmg/core/modules/river-generator";
 import { Routes } from "@fmg/core/modules/routes-generator";
 import * as d3 from "d3";
+import { burgIconsRenderer } from "#renderers/draw-burg-icons";
+import { burgLabelsRenderer } from "#renderers/draw-burg-labels";
+import { featuresRenderer } from "#renderers/draw-features";
+import { heightmapRenderer } from "#renderers/draw-heightmap";
+import { iceRenderer } from "#renderers/draw-ice";
+import { markersRenderer } from "#renderers/draw-markers";
+import { militaryRenderer } from "#renderers/draw-military";
 import { calculateFriendlyGridSize, editStyle } from "./style";
 /// <reference path="../../types/ui-legacy-globals.d.ts" />
 
-declare const drawFeatures: (...args: any[]) => any;
-declare const drawHeightmap: (...args: any[]) => any;
 declare const drawReliefIcons: (...args: any[]) => any;
 declare const drawBorders: (...args: any[]) => any;
 declare const drawTemperature: (...args: any[]) => any;
-declare const drawIce: (...args: any[]) => any;
 declare const drawEmblems: (...args: any[]) => any;
-declare const drawMilitary: (...args: any[]) => any;
-declare const drawMarkers: (...args: any[]) => any;
 declare const drawStateLabels: (...args: any[]) => any;
-declare const drawBurgLabels: (...args: any[]) => any;
 declare const getPackPolygon: (...args: any[]) => any;
 declare const terrain: any;
 declare const armies: any;
@@ -215,9 +216,9 @@ export function getCurrentPreset() {
 
 // run on each map generation
 export function drawLayers() {
-  drawFeatures();
+  featuresRenderer();
   if (layerIsOn("toggleTexture")) drawTexture();
-  if (layerIsOn("toggleHeight")) drawHeightmap();
+  if (layerIsOn("toggleHeight")) heightmapRenderer();
   if (layerIsOn("toggleBiomes")) drawBiomes();
   if (layerIsOn("toggleCells")) drawCells();
   if (layerIsOn("toggleGrid")) drawGrid();
@@ -234,13 +235,13 @@ export function drawLayers() {
   if (layerIsOn("toggleRoutes")) drawRoutes();
   if (layerIsOn("toggleTemperature")) drawTemperature();
   if (layerIsOn("togglePopulation")) drawPopulation();
-  if (layerIsOn("toggleIce")) drawIce();
+  if (layerIsOn("toggleIce")) iceRenderer();
   if (layerIsOn("togglePrecipitation")) drawPrecipitation();
   if (layerIsOn("toggleEmblems")) drawEmblems();
   if (layerIsOn("toggleLabels")) drawLabels();
-  if (layerIsOn("toggleBurgIcons")) drawBurgIcons();
-  if (layerIsOn("toggleMilitary")) drawMilitary();
-  if (layerIsOn("toggleMarkers")) drawMarkers();
+  if (layerIsOn("toggleBurgIcons")) burgIconsRenderer();
+  if (layerIsOn("toggleMilitary")) militaryRenderer();
+  if (layerIsOn("toggleMarkers")) markersRenderer();
   if (layerIsOn("toggleRulers")) rulers.draw();
   // scale bar
   // vignette
@@ -252,7 +253,7 @@ export function toggleHeight(event?) {
   const children = terrs.selectAll("#oceanHeights > *, #landHeights > *");
   if (!children.size()) {
     turnButtonOn("toggleHeight");
-    drawHeightmap();
+    heightmapRenderer();
     if (event && isCtrlClick(event)) editStyle("terrs");
   } else {
     if (event && isCtrlClick(event)) return editStyle("terrs");
@@ -443,7 +444,7 @@ export function toggleIce(event?) {
   if (!layerIsOn("toggleIce")) {
     turnButtonOn("toggleIce");
     $("#ice").fadeIn();
-    if (!ice.selectAll("*").size()) drawIce();
+    if (!ice.selectAll("*").size()) iceRenderer();
     if (event && isCtrlClick(event)) editStyle("ice");
   } else {
     if (event && isCtrlClick(event)) return editStyle("ice");
@@ -781,7 +782,7 @@ export function toggleTexture(event?) {
   }
 }
 
-function drawTexture() {
+export function drawTexture() {
   const x = Number(texture.attr("data-x") || 0);
   const y = Number(texture.attr("data-y") || 0);
   const href = texture.attr("data-href");
@@ -873,7 +874,7 @@ export function drawRoute(route) {
 export function toggleMilitary(event?) {
   if (!layerIsOn("toggleMilitary")) {
     turnButtonOn("toggleMilitary");
-    drawMilitary();
+    militaryRenderer();
     if (event && isCtrlClick(event)) editStyle("armies");
   } else {
     if (event && isCtrlClick(event)) return editStyle("armies");
@@ -885,7 +886,7 @@ export function toggleMilitary(event?) {
 export function toggleMarkers(event?) {
   if (!layerIsOn("toggleMarkers")) {
     turnButtonOn("toggleMarkers");
-    drawMarkers();
+    markersRenderer();
     if (event && isCtrlClick(event)) editStyle("markers");
   } else {
     if (event && isCtrlClick(event)) return editStyle("markers");
@@ -910,14 +911,14 @@ export function toggleLabels(event?) {
 
 function drawLabels() {
   drawStateLabels();
-  drawBurgLabels();
+  burgLabelsRenderer();
   (window as any).fmg?.invokeActiveZooming?.();
 }
 
 export function toggleBurgIcons(event?) {
   if (!layerIsOn("toggleBurgIcons")) {
     turnButtonOn("toggleBurgIcons");
-    drawBurgIcons();
+    burgIconsRenderer();
     if (event && isCtrlClick(event)) editStyle("burgIcons");
   } else {
     if (event && isCtrlClick(event)) return editStyle("burgIcons");
@@ -964,7 +965,7 @@ export function toggleZones(event?) {
   }
 }
 
-function drawZones() {
+export function drawZones() {
   const filterBy = ensureEl("zonesFilterType").value;
   const isFiltered = filterBy && filterBy !== "all";
   const visibleZones = pack.zones.filter(

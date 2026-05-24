@@ -13,12 +13,9 @@ import {
   rw,
   trimVowels
 } from "@fmg/shared";
+import type { FmgGlobalContext } from "@fmg/types";
 import { Names } from "./names-generator";
 import { Routes } from "./routes-generator";
-
-declare global {
-  var Religions: ReligionsGenerator;
-}
 
 interface ReligionBase {
   type: "Folk" | "Organized" | "Cult" | "Heresy";
@@ -1130,4 +1127,7 @@ class ReligionsGenerator {
   }
 }
 
-window.Religions = new ReligionsGenerator();
+const religionsGenerator = new ReligionsGenerator();
+const fmg = window.fmg || (window.fmg = {} as FmgGlobalContext);
+fmg.Religions = religionsGenerator;
+fmg.generateReligions = () => religionsGenerator.generate();

@@ -1,4 +1,7 @@
 import { layerIsOn, toggleGrid, toggleHeight, toggleRelief } from "./layers";
+import { addGoogleFont, addLocalFont, addWebFont, fonts } from "@fmg/core/modules/fonts";
+import { drawOceanLayers } from "@fmg/core/modules/ocean-layers";
+import { heightmapRenderer } from "#renderers/draw-heightmap";
 // UI module to control the style
 "use strict";
 
@@ -141,16 +144,11 @@ declare let addFontURLInput: any;
 declare let addFontMethod: any;
 declare let textureURL: any;
 declare let showOptions: (...args: any[]) => any;
-declare let OceanLayers: (...args: any[]) => any;
-declare let drawHeightmap: (...args: any[]) => any;
 declare let drawRegiments: (...args: any[]) => any;
 declare let drawEmblems: (...args: any[]) => any;
 declare let toHEX: (...args: any[]) => string;
 declare let legend: any;
 declare let redrawLegend: (...args: any[]) => any;
-declare let addWebFont: (...args: any[]) => any;
-declare let addGoogleFont: (...args: any[]) => any;
-declare let addLocalFont: (...args: any[]) => any;
 
 // add available filters to lists
 {
@@ -738,12 +736,12 @@ styleOceanPatternOpacity.on("input", e => {
 outlineLayers.on("change", function () {
   oceanLayers.selectAll("path").remove();
   oceanLayers.attr("layers", this.value);
-  OceanLayers();
+  drawOceanLayers();
 });
 
 styleHeightmapScheme.on("change", function () {
   getEl().attr("scheme", this.value);
-  drawHeightmap();
+  heightmapRenderer();
 });
 
 openCreateHeightmapSchemeButton.on("click", function () {
@@ -844,7 +842,7 @@ openCreateHeightmapSchemeButton.on("click", function () {
 
     addCustomColorScheme(stops);
     getEl().attr("scheme", stops);
-    drawHeightmap();
+    heightmapRenderer();
 
     handleClose();
   }
@@ -868,27 +866,27 @@ openCreateHeightmapSchemeButton.on("click", function () {
 styleHeightmapRenderOcean.on("change", e => {
   const checked = +e.target.checked;
   getEl().attr("data-render", checked);
-  drawHeightmap();
+  heightmapRenderer();
 });
 
 styleHeightmapTerracing.on("input", e => {
   getEl().attr("terracing", e.target.value);
-  drawHeightmap();
+  heightmapRenderer();
 });
 
 styleHeightmapSkip.on("input", e => {
   getEl().attr("skip", e.target.value);
-  drawHeightmap();
+  heightmapRenderer();
 });
 
 styleHeightmapSimplification.on("input", e => {
   getEl().attr("relax", e.target.value);
-  drawHeightmap();
+  heightmapRenderer();
 });
 
 styleHeightmapCurve.on("change", e => {
   getEl().attr("curve", e.target.value);
-  drawHeightmap();
+  heightmapRenderer();
 });
 
 styleReliefSet.on("change", e => {
@@ -1272,10 +1270,10 @@ styleScaleBar.on("input", function (event) {
 });
 
 export function updateElements() {
-  if (layerIsOn("toggleHeight")) drawHeightmap();
+  if (layerIsOn("toggleHeight")) heightmapRenderer();
   if (legend.selectAll("*").size() && typeof redrawLegend === "function") redrawLegend();
   oceanLayers.selectAll("path").remove();
-  OceanLayers();
+  drawOceanLayers();
   (window as any).fmg?.invokeActiveZooming?.();
 }
 

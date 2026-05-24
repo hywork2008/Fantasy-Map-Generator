@@ -1,7 +1,14 @@
 import { applySorting, closeDialogs, fitContent, listen } from "./editors";
 import { configMarkersGeneration } from "./tools";
 import { layerIsOn, toggleMarkers } from "./layers";
+import { markersRenderer } from "#renderers/draw-markers";
+import { requireFmgApi } from "../runtime/fmg-api";
 "use strict";
+
+const Markers = requireFmgApi("Markers") as {
+  getConfig: () => Array<{type: string; icon: string}>;
+};
+
 export function overviewMarkers() {
   if (customization) return;
   closeDialogs("#markersOverview, .stable");
@@ -126,7 +133,7 @@ export function overviewMarkers() {
     });
 
     markerGroup.setAttribute("pinned", anyPinned ? 1 : null);
-    drawMarkers();
+    markersRenderer();
     addLines();
   }
 
@@ -161,7 +168,7 @@ export function overviewMarkers() {
       markerGroup.setAttribute("pinned", 1);
     }
     el.classList.toggle("inactive");
-    drawMarkers();
+    markersRenderer();
   }
 
   function toggleLockStatus(el, i) {

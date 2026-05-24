@@ -2,7 +2,15 @@ import { applySorting, closeDialogs, fitContent, restoreDefaultEvents } from "./
 import { editBurgGroups } from "./burg-group-editor";
 import { clearMainTip, tip } from "./general";
 import { layerIsOn, toggleBurgIcons, toggleLabels } from "./layers";
+import { requireFmgApi } from "../runtime/fmg-api";
 "use strict";
+
+const Burgs = requireFmgApi("Burgs") as {
+  remove: (burgId: number) => void;
+  add: (point: [number, number]) => number;
+  getPreview: (burg: unknown) => { link: string | null; preview: string | null };
+};
+
 export function overviewBurgs(settings = {stateId: null, cultureId: null}) {
   if (customization) return;
   closeDialogs("#burgsOverview, .stable");

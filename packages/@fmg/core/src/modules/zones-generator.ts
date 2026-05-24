@@ -1,11 +1,8 @@
 import { max, mean } from "d3";
 import { gauss, getAdjective, P, ra, rand, rw } from "@fmg/shared";
+import type { FmgGlobalContext } from "@fmg/types";
 import { Names } from "./names-generator";
 import { Routes } from "./routes-generator";
-
-declare global {
-  var Zones: ZonesGenerator;
-}
 
 export interface Zone {
   i: number;
@@ -628,4 +625,7 @@ class ZonesGenerator {
   }
 }
 
-window.Zones = new ZonesGenerator();
+const zonesGenerator = new ZonesGenerator();
+const fmg = window.fmg || (window.fmg = {} as FmgGlobalContext);
+fmg.Zones = zonesGenerator;
+fmg.generateZones = globalModifier => zonesGenerator.generate(globalModifier);

@@ -36,11 +36,8 @@ type LegacyLdb = {
 
 declare global {
 interface Window {
-	Burgs: any;
-	Features: any;
 	Cloud: any;
 	Dropbox: any;
-	Markers: any;
 	fonts: Array<{family: string; src?: string; unicodeRange?: string; variant?: string}>;
 	declareFont: (font: {family: string; src?: string; unicodeRange?: string; variant?: string}) => void;
 	tinymce: any;
@@ -369,9 +366,6 @@ declare let options3dSubdivide: any;
 declare let tinymce: any;
 
 declare let Biomes: any;
-declare var Markers: any;
-declare var Burgs: any;
-declare var Features: any;
 
 declare let editUnits: AnyFn;
 declare let openURL: AnyFn;

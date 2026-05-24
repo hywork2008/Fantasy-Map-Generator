@@ -2,6 +2,7 @@ import { mean, quadtree } from "d3";
 import { clipPolyline } from "lineclip";
 import type { Grid } from "@fmg/types/Grid";
 import type { PackedGraph } from "@fmg/types/PackedGraph";
+import type { FmgGlobalContext } from "@fmg/types";
 import {
   findAllCellsInRadius,
   findClosestCell,
@@ -13,15 +14,12 @@ import {
 } from "@fmg/shared";
 import { createDefaultRuler } from "@legacy-ui-runtime/modules/ui/measurers";
 import { Ice } from "./ice";
+import { drawOceanLayers } from "./ocean-layers";
 import { Rivers } from "./river-generator";
 import { Routes } from "./routes-generator";
 import { States } from "./states-generator";
 import type { River } from "./river-generator";
 import type { Point } from "./voronoi";
-
-declare global {
-  var Resample: Resampler;
-}
 
 interface ResamplerProcessOptions {
   projection: (x: number, y: number) => [number, number];
@@ -33,6 +31,12 @@ type ParentMapDefinition = {
   grid: Grid;
   pack: PackedGraph;
   notes: unknown[];
+};
+
+const requireFmgApi = <K extends keyof FmgGlobalContext>(key: K): NonNullable<FmgGlobalContext[K]> => {
+  const api = (window.fmg as FmgGlobalContext | undefined)?.[key];
+  if (!api) throw new Error(`window.fmg.${String(key)} is not available`);
+  return api as NonNullable<FmgGlobalContext[K]>;
 };
 
 class Resampler {
@@ -384,10 +388,12 @@ class Resampler {
   }
 
   private restoreMarkers(parentMap: ParentMapDefinition, projection: (x: number, y: number) => [number, number]) {
+    const markersApi = requireFmgApi("Markers") as { deleteMarker: (id: number) => void };
+
     pack.markers = parentMap.pack.markers;
     pack.markers.forEach(marker => {
       const [x, y] = projection(marker.x, marker.y);
-      if (!this.isInMap(x, y)) Markers.deleteMarker(marker.i);
+      if (!this.isInMap(x, y)) markersApi.deleteMarker(marker.i);
 
       const cell = findClosestCell(x, y, Infinity, pack);
       marker.x = rn(x, 2);
@@ -415,6 +421,8 @@ class Resampler {
   }
 
   process(options: ResamplerProcessOptions): void {
+    const featuresApi = requireFmgApi("Features") as { markupGrid: () => void; markupPack: () => void };
+
     const { projection, inverse, scale } = options;
     const parentMap = {
       grid: structuredClone(grid),
@@ -429,16 +437,16 @@ class Resampler {
 
     this.resamplePrimaryGridData(parentMap, inverse, scale);
 
-    Features.markupGrid();
+    featuresApi.markupGrid();
     addLakesInDeepDepressions();
     openNearSeaLakes();
 
-    OceanLayers();
+    drawOceanLayers();
     calculateMapCoordinates();
     calculateTemperatures();
 
     reGraph();
-    Features.markupPack();
+    featuresApi.markupPack();
     Ice.generate();
     createDefaultRuler();
 
@@ -458,4 +466,7 @@ class Resampler {
   }
 }
 
-window.Resample = new Resampler();
+const resample = new Resampler();
+const fmg = window.fmg || (window.fmg = {} as FmgGlobalContext);
+fmg.Resample = {process: options => resample.process(options)};
+fmg.resampleMap = options => resample.process(options);

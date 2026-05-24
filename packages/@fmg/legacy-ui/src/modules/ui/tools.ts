@@ -22,9 +22,15 @@ import { overviewRivers } from "./rivers-overview";
 import { overviewMilitary } from "./military-overview";
 import { overviewMarkers } from "./markers-overview";
 import { editEmblem } from "./emblems-editor";
+import { burgIconsRenderer } from "#renderers/draw-burg-icons";
+import { burgLabelsRenderer } from "#renderers/draw-burg-labels";
+import { iceRenderer } from "#renderers/draw-ice";
+import { markersRenderer } from "#renderers/draw-markers";
+import { militaryRenderer } from "#renderers/draw-military";
 import "./submap-tool";
 import "./transform-tool";
 import { drawRoutes, drawStates, layerIsOn, toggleBorders, toggleCultures, toggleEmblems, toggleIce, toggleLabels, toggleMarkers, toggleMilitary, togglePopulation, toggleProvinces, toggleRelief, toggleReligions, toggleRivers, toggleRoutes, toggleStates, toggleZones } from "./layers";
+import { requireFmgApi } from "../runtime/fmg-api";
 
 
 // File-local declarations for legacy globals
@@ -47,11 +53,8 @@ declare let drawEmblems: () => any;
 declare let burgsOverviewRefresh: HTMLElement;
 declare let statesEditorRefresh: HTMLElement;
 declare let militaryOverviewRefresh: HTMLElement;
-declare let Provinces: any;
 declare let pack: any;
 declare let Names: any;
-declare let Burgs: any;
-declare let Features: any;
 declare let refreshAllEditors: () => any;
 declare let graphWidth: number;
 declare let graphHeight: number;
@@ -63,14 +66,8 @@ declare let aleaPRNG: (seed: number) => (() => number);
 declare let rn: (value: number, digits?: number) => number;
 declare let gauss: (mean: number, variance: number, skew?: number, max?: number, min?: number) => number;
 declare let P: (p: number) => boolean;
-declare let Religions: any;
 declare let drawReligions: () => any;
-declare let Cultures: any;
 declare let drawCultures: () => any;
-declare let drawMilitary: () => any;
-declare let drawIce: () => any;
-declare let Markers: any;
-declare let drawMarkers: () => any;
 declare let addFeature: HTMLElement;
 declare let clearMainTip: () => any;
 declare let restoreDefaultEvents: () => any;
@@ -85,17 +82,54 @@ declare let addNewBurg: HTMLElement;
 declare let addRiver: HTMLElement;
 declare let addNewRiver: HTMLElement;
 declare let pointsInput: any;
-declare let Zones: any;
 declare let drawZones: () => any;
 declare let zonesEditorRefresh: HTMLElement;
+
+type ToolsBurgsApi = {
+  shift: () => void;
+  add: (point: [number, number]) => number;
+  specify: () => void;
+  changeGroup: (burg: unknown, group?: string | null) => void;
+  getType: (cellId: number, port?: number) => string;
+};
+
+type ToolsMarkersApi = {
+  regenerate: () => void;
+  getConfig: () => Array<{
+    type: string;
+    icon: string;
+    add?: (markerId: string, cell: number) => void;
+    [key: string]: unknown;
+  }>;
+  setConfig: (
+    newConfig: Array<{
+      type: string;
+      icon: string;
+      add?: (markerId: string, cell: number) => void;
+      [key: string]: unknown;
+    }>
+  ) => void;
+  add: (marker: {[key: string]: unknown}) => {i: number; [key: string]: unknown};
+};
+
+type ToolsProvincesApi = {
+  generate: (regenerate?: boolean, regenerateLockedStates?: boolean) => void;
+  getPoles: () => void;
+};
+
+const Religions = requireFmgApi("Religions");
+const Features = requireFmgApi("Features");
+const Cultures = requireFmgApi("Cultures");
+const Zones = requireFmgApi("Zones");
+const Burgs = requireFmgApi("Burgs") as ToolsBurgsApi;
+const Markers = requireFmgApi("Markers") as ToolsMarkersApi;
+const Provinces = requireFmgApi("Provinces") as ToolsProvincesApi;
 declare let markersOverviewRefresh: HTMLElement;
 declare let riversOverviewRefresh: HTMLElement;
 declare let addMarker: HTMLElement;
 declare let markersAddFromOverview: HTMLElement;
 declare let elSelected: any;
 declare let drawMarker: (marker: any, rescale: number) => string;
-declare let drawBurgIcons: () => any;
-declare let drawBurgLabels: () => any;
 declare let notes: any[];
 declare let manorsInput: any;
 declare let prompt: (message: string, options?: any, callback?: (value: string) => void) => any;
@@ -554,8 +588,8 @@ function regenerateBurgs() {
   Burgs.specify();
   regenerateRoutes();
 
-  drawBurgIcons();
-  drawBurgLabels();
+  burgIconsRenderer();
+  burgLabelsRenderer();
 
   // remove emblems
   document.querySelectorAll("[id^=burgCOA]").forEach(el => el.remove());
@@ -653,7 +687,7 @@ function regenerateCultures() {
 
 function regenerateMilitary() {
   Military.generate();
-  if (layerIsOn("toggleMilitary")) drawMilitary();
+  if (layerIsOn("toggleMilitary")) militaryRenderer();
   else toggleMilitary();
 
   if (ensureEl("militaryOverviewRefresh").offsetParent) militaryOverviewRefresh.click();
@@ -662,13 +696,13 @@ function regenerateMilitary() {
 function regenerateIce() {
   if (!layerIsOn("toggleIce")) toggleIce();
   Ice.generate();
-  drawIce();
+  iceRenderer();
 }
 
 function regenerateMarkers() {
   Markers.regenerate();
   turnButtonOn("toggleMarkers");
-  drawMarkers();
+  markersRenderer();
   if (ensureEl("markersOverviewRefresh").offsetParent) markersOverviewRefresh.click();
 }
 

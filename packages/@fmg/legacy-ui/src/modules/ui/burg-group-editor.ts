@@ -2,8 +2,16 @@
 
 import type { BurgGroup } from "@fmg/types";
 import type { Burg } from "@fmg/core/modules/burgs-generator";
+import { burgIconsRenderer } from "#renderers/draw-burg-icons";
+import { burgLabelsRenderer } from "#renderers/draw-burg-labels";
 import { fitContent } from "./editors";
 import { layerIsOn, toggleBurgIcons, toggleLabels } from "./layers";
+import { requireFmgApi } from "../runtime/fmg-api";
+
+const Burgs = requireFmgApi("Burgs") as {
+  getDefaultGroups: () => BurgGroup[];
+  defineGroup: (burg: unknown, populations: number[]) => void;
+};
 
 const GROUP_NAME_REGEXP = /^[\p{L}_][\p{L}\p{N}_-]*$/u;
 
@@ -372,8 +380,8 @@ class BurgGroupEditor {
       .sort((a: number, b: number) => a - b);
     validBurgs.forEach((burg: Burg) => Burgs.defineGroup(burg, populations));
 
-    if (layerIsOn("toggleBurgIcons")) drawBurgIcons();
-    if (layerIsOn("toggleLabels")) drawBurgLabels();
+    if (layerIsOn("toggleBurgIcons")) burgIconsRenderer();
+    if (layerIsOn("toggleLabels")) burgLabelsRenderer();
     if ((ensureEl("burgsOverviewRefresh") as HTMLElement).offsetParent) burgsOverviewRefresh.click();
 
     $("#burgGroupsEditor").dialog("close");

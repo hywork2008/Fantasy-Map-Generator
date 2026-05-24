@@ -9,7 +9,7 @@ type TransformRuntime = {
   graphHeight: number;
   INFO: boolean;
   modules: { openTransformTool?: boolean };
-  Resample: { process: (options: { projection: (x: number, y: number) => [number, number]; inverse: (x: number, y: number) => [number, number]; scale: number }) => void };
+  Resample?: { process: (options: { projection: (x: number, y: number) => [number, number]; inverse: (x: number, y: number) => [number, number]; scale: number }) => void };
   $: (target: string | object) => { dialog: (optionsOrAction: unknown) => unknown };
   ensureEl: (id: string) => HTMLElement & {
     value: string | number;
@@ -39,6 +39,8 @@ type TransformFmgContext = FmgGlobalContext & {
   openTransformTool?: typeof openTransformTool;
   cellsDensityMap?: Record<string, number>;
   getCellsDensityColor?: (cells: number | string) => string;
+  Resample?: { process: (options: { projection: (x: number, y: number) => [number, number]; inverse: (x: number, y: number) => [number, number]; scale: number }) => void };
+  resampleMap?: (options: { projection: (x: number, y: number) => [number, number]; inverse: (x: number, y: number) => [number, number]; scale: number }) => void;
 };
 
 const transformWindow = window as Window & { [key: string]: any; fmg?: TransformFmgContext };
@@ -186,7 +188,10 @@ async function openTransformTool() {
     transformRuntime.fitMapToScreen();
     transformRuntime.resetZoom(0);
     transformRuntime.undraw();
-    transformRuntime.Resample.process({projection, inverse, scale: 1});
+    const resampleProcess =
+      transformRuntime.fmg?.Resample?.process || transformRuntime.fmg?.resampleMap || transformRuntime.Resample?.process;
+    if (!resampleProcess) throw new Error("Resample API is not available");
+    resampleProcess({projection, inverse, scale: 1});
 
     transformRuntime.drawLayers();
 

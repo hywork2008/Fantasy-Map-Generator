@@ -1,4 +1,5 @@
 import type { Cells, Vertices } from "@fmg/types";
+import { getColor, getColorScheme } from "@legacy-ui-runtime/modules/ui/style";
 import type { CurveFactory } from "d3";
 import {
   color,
@@ -22,7 +23,6 @@ import {
   line,
   range
 } from "d3";
-import { getColor, getColorScheme } from "@legacy-ui-runtime/modules/ui/style";
 import { round } from "../utils";
 
 const CURVE_MAP: Record<string, CurveFactory> = {
@@ -49,7 +49,7 @@ declare global {
   var drawHeightmap: () => void;
 }
 
-const heightmapRenderer = (): void => {
+export const heightmapRenderer = (): void => {
   TIME && console.time("drawHeightmap");
 
   const ocean = terrs.select<SVGGElement>("#oceanHeights");
