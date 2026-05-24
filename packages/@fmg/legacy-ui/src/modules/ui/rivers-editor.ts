@@ -285,6 +285,6 @@ const riverEditor = new RiverEditor();
 // alias for d3 callbacks that need a stable reference before singleton is declared
 const riverEditorSelf = riverEditor;
 
-function editRiver(id: string) {
+export function editRiver(id: string) {
   riverEditor.open(id);
 }

@@ -417,7 +417,7 @@
           <select
             data-tip="Select a map layers preset"
             id="layersPreset"
-            onchange="handleLayersPresetChange(this.value)"
+            onchange="window.fmg.handleLayersPresetChange(this.value)"
             style="width: 45%"
           >
             <option value="political" selected>Political map</option>
@@ -438,14 +438,14 @@
             data-tip="Click to save displayed layers as a new preset"
             class="icon-plus sideButton"
             style="display: none"
-            onclick="savePreset()"
+            onclick="window.fmg.savePreset()"
           ></button>
           <button
             id="removePresetButton"
             data-tip="Click to remove current custom preset"
             class="icon-minus sideButton"
             style="display: none"
-            onclick="removePreset()"
+            onclick="window.fmg.removePreset()"
           ></button>
 
           <p>Displayed layers and layers order:</p>
@@ -457,7 +457,7 @@
               id="toggleTexture"
               data-tip="Texture overlay: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
               data-shortcut="X"
-              onclick="toggleTexture(event)"
+              onclick="window.fmg.toggleTexture(event)"
             >
               Te<u>x</u>ture
             </li>
@@ -465,7 +465,7 @@
               id="toggleHeight"
               data-tip="Heightmap: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
               data-shortcut="H"
-              onclick="toggleHeight(event)"
+              onclick="window.fmg.toggleHeight(event)"
             >
               <u>H</u>eightmap
             </li>
@@ -473,7 +473,7 @@
               id="toggleLakes"
               data-tip="Lakes: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
               data-shortcut="Q"
-              onclick="toggleLakes(event)"
+              onclick="window.fmg.toggleLakes(event)"
             >
               Lakes
             </li>
@@ -481,7 +481,7 @@
               id="toggleBiomes"
               data-tip="Biomes: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
               data-shortcut="B"
-              onclick="toggleBiomes(event)"
+              onclick="window.fmg.toggleBiomes(event)"
             >
               <u>B</u>iomes
             </li>
@@ -489,7 +489,7 @@
               id="toggleCells"
               data-tip="Cells structure: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
               data-shortcut="E"
-              onclick="toggleCells(event)"
+              onclick="window.fmg.toggleCells(event)"
             >
               C<u>e</u>lls
             </li>
@@ -497,7 +497,7 @@
               id="toggleGrid"
               data-tip="Grid: click to toggle, drag to raise or lower. Ctrl + click to edit layer style and select type"
               data-shortcut="G"
-              onclick="toggleGrid(event)"
+              onclick="window.fmg.toggleGrid(event)"
             >
               <u>G</u>rid
             </li>
@@ -505,7 +505,7 @@
               id="toggleCoordinates"
               data-tip="Coordinate grid: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
               data-shortcut="O"
-              onclick="toggleCoordinates(event)"
+              onclick="window.fmg.toggleCoordinates(event)"
             >
               C<u>o</u>ordinates
             </li>
@@ -513,7 +513,7 @@
               id="toggleCompass"
               data-tip="Wind (Compass) Rose: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
               data-shortcut="W"
-              onclick="toggleCompass(event)"
+              onclick="window.fmg.toggleCompass(event)"
             >
               <u>W</u>ind Rose
             </li>
@@ -521,7 +521,7 @@
               id="toggleRivers"
               data-tip="Rivers: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
               data-shortcut="V"
-              onclick="toggleRivers(event)"
+              onclick="window.fmg.toggleRivers(event)"
             >
               Ri<u>v</u>ers
             </li>
@@ -529,7 +529,7 @@
               id="toggleRelief"
               data-tip="Relief and biome icons: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
               data-shortcut="F"
-              onclick="toggleRelief(event)"
+              onclick="window.fmg.toggleRelief(event)"
             >
               Relie<u>f</u>
             </li>
@@ -537,7 +537,7 @@
               id="toggleReligions"
               data-tip="Religions: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
               data-shortcut="R"
-              onclick="toggleReligions(event)"
+              onclick="window.fmg.toggleReligions(event)"
             >
               <u>R</u>eligions
             </li>
@@ -545,7 +545,7 @@
               id="toggleCultures"
               data-tip="Cultures: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
               data-shortcut="C"
-              onclick="toggleCultures(event)"
+              onclick="window.fmg.toggleCultures(event)"
             >
               <u>C</u>ultures
             </li>
@@ -553,7 +553,7 @@
               id="toggleStates"
               data-tip="States: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
               data-shortcut="S"
-              onclick="toggleStates(event)"
+              onclick="window.fmg.toggleStates(event)"
             >
               <u>S</u>tates
             </li>
@@ -561,7 +561,7 @@
               id="toggleProvinces"
               data-tip="Provinces: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
               data-shortcut="P"
-              onclick="toggleProvinces(event)"
+              onclick="window.fmg.toggleProvinces(event)"
             >
               <u>P</u>rovinces
             </li>
@@ -569,7 +569,7 @@
               id="toggleZones"
               data-tip="Zones: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
               data-shortcut="Z"
-              onclick="toggleZones(event)"
+              onclick="window.fmg.toggleZones(event)"
             >
               <u>Z</u>ones
             </li>
@@ -577,7 +577,7 @@
               id="toggleBorders"
               data-tip="State borders: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
               data-shortcut="D"
-              onclick="toggleBorders(event)"
+              onclick="window.fmg.toggleBorders(event)"
             >
               Bor<u>d</u>ers
             </li>
@@ -585,7 +585,7 @@
               id="toggleRoutes"
               data-tip="Trade routes: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
               data-shortcut="U"
-              onclick="toggleRoutes(event)"
+              onclick="window.fmg.toggleRoutes(event)"
             >
               Ro<u>u</u>tes
             </li>
@@ -593,7 +593,7 @@
               id="toggleTemperature"
               data-tip="Temperature map: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
               data-shortcut="T"
-              onclick="toggleTemperature(event)"
+              onclick="window.fmg.toggleTemperature(event)"
             >
               <u>T</u>emperature
             </li>
@@ -601,7 +601,7 @@
               id="togglePopulation"
               data-tip="Population map: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
               data-shortcut="N"
-              onclick="togglePopulation(event)"
+              onclick="window.fmg.togglePopulation(event)"
             >
               Populatio<u>n</u>
             </li>
@@ -609,7 +609,7 @@
               id="toggleIce"
               data-tip="Icebergs and glaciers: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
               data-shortcut="J"
-              onclick="toggleIce(event)"
+              onclick="window.fmg.toggleIce(event)"
             >
               Ice
             </li>
@@ -617,7 +617,7 @@
               id="togglePrecipitation"
               data-tip="Precipitation map: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
               data-shortcut="A"
-              onclick="togglePrecipitation(event)"
+              onclick="window.fmg.togglePrecipitation(event)"
             >
               Precipit<u>a</u>tion
             </li>
@@ -625,7 +625,7 @@
               id="toggleEmblems"
               data-tip="Emblems: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
               data-shortcut="Y"
-              onclick="toggleEmblems(event)"
+              onclick="window.fmg.toggleEmblems(event)"
             >
               Emblems
             </li>
@@ -633,7 +633,7 @@
               id="toggleBurgIcons"
               data-tip="Burg icons: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
               data-shortcut="I"
-              onclick="toggleBurgIcons(event)"
+              onclick="window.fmg.toggleBurgIcons(event)"
             >
               <u>I</u>cons
             </li>
@@ -641,7 +641,7 @@
               id="toggleLabels"
               data-tip="Labels: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
               data-shortcut="L"
-              onclick="toggleLabels(event)"
+              onclick="window.fmg.toggleLabels(event)"
             >
               <u>L</u>abels
             </li>
@@ -649,7 +649,7 @@
               id="toggleMilitary"
               data-tip="Military forces: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
               data-shortcut="M"
-              onclick="toggleMilitary(event)"
+              onclick="window.fmg.toggleMilitary(event)"
             >
               <u>M</u>ilitary
             </li>
@@ -657,7 +657,7 @@
               id="toggleMarkers"
               data-tip="Markers: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
               data-shortcut="K"
-              onclick="toggleMarkers(event)"
+              onclick="window.fmg.toggleMarkers(event)"
             >
               Mar<u>k</u>ers
             </li>
@@ -665,7 +665,7 @@
               id="toggleRulers"
               data-tip="Rulers: click to toggle, drag to move, click on label to delete. Ctrl + click to edit layer style"
               data-shortcut="= (equal sign)"
-              onclick="toggleRulers(event)"
+              onclick="window.fmg.toggleRulers(event)"
             >
               Rulers
             </li>
@@ -673,7 +673,7 @@
               id="toggleScaleBar"
               data-tip="Scale Bar: click to toggle. Ctrl + click to edit style"
               data-shortcut="/ (slash sign)"
-              onclick="toggleScaleBar(event)"
+              onclick="window.fmg.toggleScaleBar(event)"
               class="solid"
             >
               Scale Bar
@@ -682,7 +682,7 @@
               id="toggleVignette"
               data-tip="Vignette (border fading): click to toggle. Ctrl + click to edit style"
               data-shortcut="[ (left square bracket)"
-              onclick="toggleVignette(event)"
+              onclick="window.fmg.toggleVignette(event)"
               class="solid"
             >
               Vignette
@@ -716,7 +716,7 @@
           <select
             data-tip="Select a style preset"
             id="stylePreset"
-            onchange="requestStylePresetChange(this.value)"
+            onchange="window.fmg.requestStylePresetChange(this.value)"
             style="width: 45%; text-transform: capitalize"
           ></select>
           <button
@@ -724,14 +724,14 @@
             data-tip="Click to save current style as a new preset"
             class="icon-plus sideButton"
             style="display: inline-block"
-            onclick="addStylePreset()"
+            onclick="window.fmg.addStylePreset()"
           ></button>
           <button
             id="removeStyleButton"
             data-tip="Click to remove current custom style preset"
             class="icon-minus sideButton"
             style="display: none"
-            onclick="requestRemoveStylePreset()"
+            onclick="window.fmg.requestRemoveStylePreset()"
           ></button>
 
           <p data-tip="Select an element to edit its style" style="display: inline-block">Select element:</p>
@@ -6134,22 +6134,22 @@
         <div style="margin-bottom: 0.3em; font-weight: bold">Download image</div>
         <div>
           <button
-            onclick="exportToSvg()"
+            onclick="window.fmg.exportToSvg()"
             data-tip="Download the map as vector image (open directly in browser or Inkscape)"
           >
             .svg
           </button>
-          <button onclick="exportToPng()" data-tip="Download visible part of the map as .png (lossless compressed)">
+          <button onclick="window.fmg.exportToPng()" data-tip="Download visible part of the map as .png (lossless compressed)">
             .png
           </button>
           <button
-            onclick="exportToJpeg()"
+            onclick="window.fmg.exportToJpeg()"
             data-tip="Download visible part of the map as .jpeg (lossy compressed) image"
           >
             .jpeg
           </button>
           <button
-            onclick="openExportToPngTiles()"
+            onclick="window.fmg.openExportToPngTiles()"
             data-tip="Split map into smaller png tiles and download as zip archive"
           >
             tiles
@@ -6190,11 +6190,11 @@
 
         <div style="margin: 1em 0 0.3em; font-weight: bold">Export to GeoJSON</div>
         <div>
-          <button onclick="saveGeoJsonCells()" data-tip="Download cells data in GeoJSON format">cells</button>
-          <button onclick="saveGeoJsonRoutes()" data-tip="Download routes data in GeoJSON format">routes</button>
-          <button onclick="saveGeoJsonRivers()" data-tip="Download rivers data in GeoJSON format">rivers</button>
-          <button onclick="saveGeoJsonMarkers()" data-tip="Download markers data in GeoJSON format">markers</button>
-          <button onclick="saveGeoJsonZones()" data-tip="Download zones data in GeoJSON format">zones</button>
+          <button onclick="window.fmg.saveGeoJsonCells()" data-tip="Download cells data in GeoJSON format">cells</button>
+          <button onclick="window.fmg.saveGeoJsonRoutes()" data-tip="Download routes data in GeoJSON format">routes</button>
+          <button onclick="window.fmg.saveGeoJsonRivers()" data-tip="Download rivers data in GeoJSON format">rivers</button>
+          <button onclick="window.fmg.saveGeoJsonMarkers()" data-tip="Download markers data in GeoJSON format">markers</button>
+          <button onclick="window.fmg.saveGeoJsonZones()" data-tip="Download zones data in GeoJSON format">zones</button>
         </div>
         <p>
           GeoJSON format is used in GIS tools such as QGIS. Check out
@@ -6204,12 +6204,12 @@
 
         <div style="margin: 1em 0 0.3em; font-weight: bold">Export To JSON</div>
         <div>
-          <button onclick="exportToJson('Full')" data-tip="Download full data in JSON">full</button>
-          <button onclick="exportToJson('Minimal')" data-tip="Download minimal data in JSON">minimal</button>
-          <button onclick="exportToJson('PackCells')" data-tip="Download map metadata and pack cells data in JSON">
+          <button onclick="window.fmg.exportToJson('Full')" data-tip="Download full data in JSON">full</button>
+          <button onclick="window.fmg.exportToJson('Minimal')" data-tip="Download minimal data in JSON">minimal</button>
+          <button onclick="window.fmg.exportToJson('PackCells')" data-tip="Download map metadata and pack cells data in JSON">
             pack cells
           </button>
-          <button onclick="exportToJson('GridCells')" data-tip="Download map metadata and grid cells data in JSON">
+          <button onclick="window.fmg.exportToJson('GridCells')" data-tip="Download map metadata and grid cells data in JSON">
             grid cells
           </button>
         </div>
@@ -6220,17 +6220,17 @@
         <div style="margin-top: 0.3em">
           <strong>Save map to</strong>
           <button
-            onclick="saveMap('machine')"
+            onclick="window.fmg.saveMap('machine')"
             data-tip="Download map file to your local disk"
             data-shortcut="Ctrl + S"
             style="font-weight: 600"
           >
             machine
           </button>
-          <button onclick="saveMap('dropbox')" data-tip="Save map file to your Dropbox" data-shortcut="Ctrl + C">
+          <button onclick="window.fmg.saveMap('dropbox')" data-tip="Save map file to your Dropbox" data-shortcut="Ctrl + C">
             dropbox
           </button>
-          <button onclick="saveMap('storage')" data-tip="Save the project to browser storage only" data-shortcut="F6">
+          <button onclick="window.fmg.saveMap('storage')" data-tip="Save the project to browser storage only" data-shortcut="F6">
             browser
           </button>
         </div>
@@ -6247,12 +6247,12 @@
             machine
           </button>
           <button
-            onclick="loadURL()"
+            onclick="window.fmg.loadURL()"
             data-tip="Load map file (.map or .gz) file from URL. Note that the server should allow CORS"
           >
             URL
           </button>
-          <button onclick="quickLoad()" data-tip="Load map from browser storage (if saved before)">storage</button>
+          <button onclick="window.fmg.quickLoad()" data-tip="Load map from browser storage (if saved before)">storage</button>
         </div>
 
         <p>Click on <i>storage</i> to open the last saved map.</p>
@@ -6262,7 +6262,7 @@
             Or load from your Dropbox account
             <button
               id="dropboxConnectButton"
-              onclick="connectToDropbox()"
+              onclick="window.fmg.connectToDropbox()"
               data-tip="Connect your Dropbox account to be able to load maps from it"
             >
               Connect
@@ -6271,9 +6271,9 @@
 
           <select id="loadFromDropboxSelect" style="width: 22em"></select>
           <div id="loadFromDropboxButtons" style="margin-bottom: 0.6em">
-            <button onclick="loadFromDropbox()" data-tip="Load map file (.map or .gz) from your Dropbox">Load</button>
+            <button onclick="window.fmg.loadFromDropbox()" data-tip="Load map file (.map or .gz) from your Dropbox">Load</button>
             <button
-              onclick="createSharableDropboxLink()"
+              onclick="window.fmg.createSharableDropboxLink()"
               data-tip="Select file and create a link to share with your friends"
             >
               Share

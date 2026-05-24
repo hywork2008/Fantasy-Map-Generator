@@ -454,6 +454,6 @@ class LabelsEditor {
 const labelsEditorController = new LabelsEditor();
 const labelsEditorSelf = labelsEditorController;
 
-function editLabel() {
+export function editLabel() {
   labelsEditorController.open();
 }

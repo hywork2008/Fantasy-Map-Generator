@@ -294,6 +294,6 @@ class ReliefEditor {
 
 const reliefEditor = new ReliefEditor();
 
-function editReliefIcon() {
+export function editReliefIcon() {
   reliefEditor.open();
 }

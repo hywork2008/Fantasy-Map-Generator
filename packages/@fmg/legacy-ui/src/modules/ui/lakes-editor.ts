@@ -270,6 +270,6 @@ class LakesEditor {
 
 const lakesEditor = new LakesEditor();
 
-function editLake() {
+export function editLake() {
   lakesEditor.open();
 }

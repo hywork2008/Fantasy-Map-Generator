@@ -451,16 +451,19 @@ function editBiomes() {
   }
 
   function exitBiomesCustomizationMode(close) {
+    const wasCustomizing = customization === 6 || biomes.select("#temp").size();
     customization = 0;
     biomes.select("#temp").remove();
     removeCircle();
 
-    document.querySelectorAll("#biomesBottom > button").forEach(el => (el.style.display = "inline-block"));
-    document.querySelectorAll("#biomesBottom > div").forEach(el => (el.style.display = "none"));
+    if (wasCustomizing) {
+      document.querySelectorAll("#biomesBottom > button").forEach(el => (el.style.display = "inline-block"));
+      document.querySelectorAll("#biomesBottom > div").forEach(el => (el.style.display = "none"));
 
-    body.querySelectorAll("div > input, select, span, svg").forEach(e => (e.style.pointerEvents = "all"));
-    biomesEditor.querySelectorAll(".hide").forEach(el => el.classList.remove("hidden"));
-    biomesFooter.style.display = "block";
+      body.querySelectorAll("div > input, select, span, svg").forEach(e => (e.style.pointerEvents = "all"));
+      biomesEditor.querySelectorAll(".hide").forEach(el => el.classList.remove("hidden"));
+      biomesFooter.style.display = "block";
+    }
     if (!close) $("#biomesEditor").dialog({position: {my: "right top", at: "right-10 top+10", of: "svg"}});
 
     restoreDefaultEvents();
@@ -478,6 +481,11 @@ function editBiomes() {
   }
 
   function closeBiomesEditor() {
-    exitBiomesCustomizationMode("close");
+    try {
+      exitBiomesCustomizationMode("close");
+    } finally {
+      // Ensure map wheel zoom and drag are always reattached after dialog close
+      restoreDefaultEvents();
+    }
   }
 }

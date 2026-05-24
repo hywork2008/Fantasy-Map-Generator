@@ -309,6 +309,6 @@ class MarkersEditor {
 
 const markersEditor = new MarkersEditor();
 
-function editMarker(markerI?: number) {
+export function editMarker(markerI?: number) {
   markersEditor.open(markerI);
 }

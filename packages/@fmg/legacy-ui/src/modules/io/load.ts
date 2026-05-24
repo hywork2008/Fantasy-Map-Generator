@@ -50,7 +50,7 @@ export async function createSharableDropboxLink(): Promise<void> {
   }
 }
 
-function loadMapPrompt(blob: Blob): void {
+export function loadMapPrompt(blob: Blob): void {
   const workingTime = (Date.now() - (mapHistory?.at(-1) as any)?.created) / 60000; // minutes
   if (workingTime < 5) {
     loadLastSavedMap();
@@ -211,7 +211,7 @@ async function parseLoadedResult(
   }
 }
 
-function showUploadMessage(type: string, mapData: any[], mapVersion: string): void {
+export function showUploadMessage(type: string, mapData: any[], mapVersion: string): void {
   let message, title;
 
   if (type === "invalid") {

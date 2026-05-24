@@ -5,6 +5,11 @@ modules.editors = true;
 
 let pickerUpdateFill: (() => void) | null = null;
 
+function invokeGlobalAction(name: string, ...args: unknown[]) {
+  const fmgFn = (window.fmg as unknown as Record<string, unknown> | undefined)?.[name];
+  if (typeof fmgFn === "function") return (fmgFn as (...args: unknown[]) => unknown)(...args);
+}
+
 // restore default viewbox events
 export function restoreDefaultEvents() {
   svg.call(zoom);
@@ -14,7 +19,7 @@ export function restoreDefaultEvents() {
 }
 
 // handle viewbox click
-function clicked() {
+export function clicked() {
   const el = d3.event.target;
   const parent = el?.parentElement;
   const grand = parent?.parentElement;
@@ -22,22 +27,22 @@ function clicked() {
   const ancestor = great?.parentElement;
   if (!ancestor) return;
 
-  if (grand.id === "emblems") editEmblem();
-  else if (parent.id === "rivers") editRiver(el.id);
-  else if (grand.id === "routes") editRoute(el.id);
-  else if (ancestor.id === "labels" && el.tagName === "tspan") editLabel();
-  else if (grand.id === "burgLabels") editBurg();
-  else if (grand.id === "burgIcons") editBurg();
-  else if (parent.id === "ice") editIce(el);
-  else if (parent.id === "terrain") editReliefIcon();
-  else if (grand.id === "markers" || great.id === "markers") editMarker();
-  else if (grand.id === "coastline") editCoastline();
-  else if (grand.id === "lakes") editLake();
-  else if (great.id === "armies") editRegiment();
+  if (grand.id === "emblems") invokeGlobalAction("editEmblem");
+  else if (parent.id === "rivers") invokeGlobalAction("editRiver", el.id);
+  else if (grand.id === "routes") invokeGlobalAction("editRoute", el.id);
+  else if (ancestor.id === "labels" && el.tagName === "tspan") invokeGlobalAction("editLabel");
+  else if (grand.id === "burgLabels") invokeGlobalAction("editBurg");
+  else if (grand.id === "burgIcons") invokeGlobalAction("editBurg");
+  else if (parent.id === "ice") invokeGlobalAction("editIce", el);
+  else if (parent.id === "terrain") invokeGlobalAction("editReliefIcon");
+  else if (grand.id === "markers" || great.id === "markers") invokeGlobalAction("editMarker");
+  else if (grand.id === "coastline") invokeGlobalAction("editCoastline");
+  else if (grand.id === "lakes") invokeGlobalAction("editLake");
+  else if (great.id === "armies") invokeGlobalAction("editRegiment");
 }
 
 // clear elSelected variable
-function unselect() {
+export function unselect() {
   restoreDefaultEvents();
   if (!elSelected) return;
   elSelected.call(d3.drag().on("drag", null)).attr("class", null);
@@ -58,7 +63,7 @@ export function closeDialogs(except = "#except") {
 }
 
 // move brush radius circle
-function moveCircle(x, y, r = 20) {
+export function moveCircle(x, y, r = 20) {
   let circle = document.getElementById("brushCircle");
   if (!circle) {
     const html = /* html */ `<circle id="brushCircle" cx=${x} cy=${y} r=${r}></circle>`;
@@ -133,7 +138,7 @@ export function applySorting(headers) {
 }
 
 // draw legend box
-function drawLegend(name, data) {
+export function drawLegend(name, data) {
   legend.selectAll("*").remove(); // fully redraw every time
   legend.attr("data", data.join("|")); // store data
 
@@ -206,7 +211,7 @@ function drawLegend(name, data) {
 }
 
 // fit Legend box to canvas size
-function fitLegendBox() {
+export function fitLegendBox() {
   if (!legend.selectAll("*").size()) return;
   const px = isNaN(+legend.attr("data-x")) ? 99 : +legend.attr("data-x") / 100;
   const py = isNaN(+legend.attr("data-y")) ? 93 : +legend.attr("data-y") / 100;
@@ -217,7 +222,7 @@ function fitLegendBox() {
 }
 
 // draw legend with the same data, but using different settings
-function redrawLegend() {
+export function redrawLegend() {
   if (legend.select("rect").size()) {
     const name = legend.select("#legendLabel").text();
     const data = legend
@@ -228,7 +233,7 @@ function redrawLegend() {
   }
 }
 
-function dragLegendBox() {
+export function dragLegendBox() {
   const tr = parseTransform(this.getAttribute("transform"));
   const x = +tr[0] - d3.event.x,
     y = +tr[1] - d3.event.y;
@@ -242,13 +247,13 @@ function dragLegendBox() {
   });
 }
 
-function clearLegend() {
+export function clearLegend() {
   legend.selectAll("*").remove();
   legend.attr("data", null);
 }
 
 // draw color (fill) picker
-function createPicker() {
+export function createPicker() {
   const pos = () => tip("Drag to change the picker position");
   const cl = () => tip("Click to close the picker");
   const closePicker = () => container.style("display", "none");
@@ -451,7 +456,7 @@ function updatePickerColors() {
   });
 }
 
-function openPicker(fill, callback) {
+export function openPicker(fill, callback) {
   const picker = d3.select("#picker");
   if (!picker.size()) createPicker();
   d3.select("#pickerContainer").style("display", "block");
@@ -488,7 +493,7 @@ function getPickerControl(control, max) {
   return (current / delta) * max;
 }
 
-function dragPicker() {
+export function dragPicker() {
   const tr = parseTransform(this.getAttribute("transform"));
   const x = +tr[0] - d3.event.x,
     y = +tr[1] - d3.event.y;
@@ -514,7 +519,7 @@ function pickerFillClicked() {
   updateSpaces();
 }
 
-function clickPickerControl() {
+export function clickPickerControl() {
   const min = this.getScreenCTM().e;
   this.nextSibling.setAttribute("cx", d3.event.x - min);
   updateSpaces();
@@ -522,7 +527,7 @@ function clickPickerControl() {
   pickerUpdateFill?.();
 }
 
-function dragPickerControl() {
+export function dragPickerControl() {
   const min = +this.previousSibling.getAttribute("x1");
   const max = +this.previousSibling.getAttribute("x2");
 
@@ -535,7 +540,7 @@ function dragPickerControl() {
   });
 }
 
-function changePickerSpace() {
+export function changePickerSpace() {
   const valid = this.checkValidity();
   if (!valid) {
     tip("You must provide a correct value", false, "error");
@@ -625,7 +630,7 @@ function uploadFile(el, callback) {
   fileReader.onload = loaded => callback(loaded.target.result);
 }
 
-function getBBox(element) {
+export function getBBox(element) {
   const x = +element.getAttribute("x");
   const y = +element.getAttribute("y");
   const width = +element.getAttribute("width");
@@ -633,7 +638,7 @@ function getBBox(element) {
   return {x, y, width, height};
 }
 
-function highlightElement(element, zoom) {
+export function highlightElement(element, zoom) {
   if (debug.select(".highlighted").size()) return; // allow only 1 highlight element simultaneously
   const box = element.tagName === "svg" ? getBBox(element) : element.getBBox();
   const transform = element.getAttribute("transform") || null;
@@ -665,7 +670,7 @@ function highlightElement(element, zoom) {
   }
 }
 
-function selectIcon(initial, callback) {
+export function selectIcon(initial, callback) {
   if (!callback) return;
   $("#iconSelector").dialog();
 
@@ -949,7 +954,7 @@ export function getArea(rawArea) {
   return rawArea * distanceScale ** 2;
 }
 
-function confirmationDialog(options) {
+export function confirmationDialog(options) {
   const {
     title = "Confirm action",
     message = "Are you sure you want to continue? <br>The action cannot be reverted",
@@ -981,7 +986,7 @@ export function listen(element, event, handler) {
 }
 
 // Calls the refresh functionality on all editors currently open.
-function refreshAllEditors() {
+export function refreshAllEditors() {
   TIME && console.time("refreshAllEditors");
   if (document.getElementById("culturesEditorRefresh")?.offsetParent) culturesEditorRefresh.click();
   if (ensureEl("biomesEditorRefresh").offsetParent) biomesEditorRefresh.click();

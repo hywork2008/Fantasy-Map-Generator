@@ -94,8 +94,8 @@ export function reGraphFlow({
   pack.vertices = vertices;
   pack.cells = packCells;
   pack.cells.p = newCells.p;
-  pack.cells.g = createTypedArray({ maxValue: grid.points.length, from: newCells.g });
-  pack.cells.h = createTypedArray({ maxValue: 100, from: newCells.h });
+  pack.cells.g = createTypedArray({ maxValue: grid.points.length, from: newCells.g }) as any;
+  pack.cells.h = createTypedArray({ maxValue: 100, from: newCells.h }) as any;
   pack.cells.area = createTypedArray({ maxValue: UINT16_MAX, length: packCells.i.length }).map((_: unknown, cellId: number) => {
     const area = Math.abs(d3.polygonArea(getPackPolygon(cellId)));
     return Math.min(area, UINT16_MAX);
@@ -118,7 +118,7 @@ export function rankCellsFlow({ TIME, pack, biomesData, normalize, d3 }: RankCel
   cells.s = new Int16Array(cells.i.length);
   cells.pop = new Float32Array(cells.i.length);
 
-  const meanFlux = d3.median(cells.fl.filter((f: number) => f)) || 0;
+  const meanFlux = d3.median(Array.from(cells.fl.filter((f: number) => f))) || 0;
   const maxFlux = d3.max(cells.fl) + d3.max(cells.conf);
   const meanArea = d3.mean(cells.area);
 

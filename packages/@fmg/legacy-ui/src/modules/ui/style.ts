@@ -193,7 +193,7 @@ class StyleEditorFacade {
 
 const styleEditorFacade = new StyleEditorFacade();
 
-function editStyle(element, group) {
+export function editStyle(element, group) {
   styleEditorFacade.open(element, group);
 }
 
@@ -213,13 +213,13 @@ ensureEl("styleHeightmapScheme").innerHTML = Object.keys(heightmapColorSchemes)
   .map(scheme => `<option value="${scheme}">${scheme}</option>`)
   .join("");
 
-function addCustomColorScheme(scheme) {
+export function addCustomColorScheme(scheme) {
   const stops = scheme.split(",");
   heightmapColorSchemes[scheme] = d3.scaleSequential(d3.interpolateRgbBasis(stops));
   ensureEl("styleHeightmapScheme").options.add(new Option(scheme, scheme, false, true));
 }
 
-function getColorScheme(scheme = "bright") {
+export function getColorScheme(scheme = "bright") {
   if (!(scheme in heightmapColorSchemes)) {
     const colors = scheme.split(",");
     heightmapColorSchemes[scheme] = d3.scaleSequential(d3.interpolateRgbBasis(colors));
@@ -228,7 +228,7 @@ function getColorScheme(scheme = "bright") {
   return heightmapColorSchemes[scheme];
 }
 
-function getColor(value, scheme = getColorScheme("bright")) {
+export function getColor(value, scheme = getColorScheme("bright")) {
   return scheme(1 - (value < 20 ? value - 5 : value) / 100);
 }
 

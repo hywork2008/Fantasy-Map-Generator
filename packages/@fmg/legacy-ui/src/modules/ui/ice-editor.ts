@@ -144,7 +144,7 @@ class IceEditor {
 
 const iceEditor = new IceEditor();
 
-function editIce(element: EventTarget | null) {
+export function editIce(element: EventTarget | null) {
   iceEditor.open(element);
 }
 

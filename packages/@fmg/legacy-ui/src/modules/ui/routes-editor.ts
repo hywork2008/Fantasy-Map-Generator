@@ -445,6 +445,6 @@ class RoutesEditor {
 const routesEditor = new RoutesEditor();
 const routesEditorSelf = routesEditor;
 
-function editRoute(id: string) {
+export function editRoute(id: string) {
   routesEditor.open(id);
 }

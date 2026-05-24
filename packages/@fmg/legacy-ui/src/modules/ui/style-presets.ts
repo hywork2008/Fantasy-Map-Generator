@@ -84,7 +84,7 @@ async function fetchSystemPreset(preset: string): Promise<StylePresetData> {
   }
 }
 
-function applyStyle(styleJSON: StylePresetData) {
+export function applyStyle(styleJSON: StylePresetData) {
   for (const selector in styleJSON) {
     if (selector.startsWith("#burgLabels")) {
       const group = selector.split("#").pop() || "";
@@ -149,7 +149,7 @@ export function requestStylePresetChange(preset: string) {
   });
 }
 
-async function changeStyle(desiredPreset: string) {
+export async function changeStyle(desiredPreset: string) {
   const styleData = await getStylePreset(desiredPreset);
   const [presetName, style] = styleData;
   localStorage.setItem("presetStyle", presetName);
@@ -161,7 +161,7 @@ async function changeStyle(desiredPreset: string) {
   }
 }
 
-function applyStyleWithUiRefresh(style: StylePresetData) {
+export function applyStyleWithUiRefresh(style: StylePresetData) {
   applyStyle(style);
   updateElements();
   selectStyleElement();

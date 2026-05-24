@@ -549,6 +549,6 @@ class RegimentEditor {
 const regimentEditorController = new RegimentEditor();
 const regimentEditorSelf = regimentEditorController;
 
-function editRegiment(selector?: string) {
+export function editRegiment(selector?: string) {
   regimentEditorController.open(selector);
 }

@@ -435,7 +435,7 @@ class BurgEditor {
 const burgEditorController = new BurgEditor();
 const burgEditorSelf = burgEditorController;
 
-function editBurg(id?: any) {
+export function editBurg(id?: any) {
   burgEditorController.open(id);
 }
 

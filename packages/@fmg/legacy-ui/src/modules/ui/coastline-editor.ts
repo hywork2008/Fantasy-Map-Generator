@@ -224,6 +224,6 @@ class CoastlineEditor {
 
 const coastlineEditor = new CoastlineEditor();
 
-function editCoastline() {
+export function editCoastline() {
   coastlineEditor.open();
 }

@@ -67,7 +67,7 @@ const temperatureGraphWindow = window as Window & { [key: string]: any; fmg?: Te
 const asRuntime = <T>(runtimeWindow: Window & { [key: string]: any }) => runtimeWindow as T;
 const temperatureGraphRuntime = asRuntime<TemperatureGraphRuntime>(temperatureGraphWindow);
 
-function showBurgTemperatureGraph(id: number) {
+export function showBurgTemperatureGraph(id: number) {
   const b = temperatureGraphRuntime.pack.burgs[id];
   const lat = temperatureGraphRuntime.mapCoordinates.latN - (b.y / temperatureGraphRuntime.graphHeight) * temperatureGraphRuntime.mapCoordinates.latT;
   const burgTemp = temperatureGraphRuntime.grid.cells.temp[temperatureGraphRuntime.pack.cells.g[b.cell]];

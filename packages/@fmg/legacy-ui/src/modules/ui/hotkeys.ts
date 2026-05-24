@@ -7,7 +7,7 @@ import { toggleAddRiver } from "./tools";
 document.addEventListener("keydown", handleKeydown);
 document.addEventListener("keyup", handleKeyup);
 
-function handleKeydown(event: KeyboardEvent) {
+export function handleKeydown(event: KeyboardEvent) {
   if (!allowHotkeys()) return;
 
   const {code, ctrlKey, altKey, shiftKey} = event;
@@ -16,7 +16,7 @@ function handleKeydown(event: KeyboardEvent) {
   if (["F1", "F2", "F6", "F9", "Tab"].includes(code)) event.preventDefault();
 }
 
-function handleKeyup(event: KeyboardEvent) {
+export function handleKeyup(event: KeyboardEvent) {
   if (!modules.editors) return;
   if (!allowHotkeys()) return;
 
@@ -113,7 +113,7 @@ function handleKeyup(event: KeyboardEvent) {
   else if (ctrl) toggleMode();
 }
 
-function allowHotkeys() {
+export function allowHotkeys() {
   const activeElement = document.activeElement as HTMLElement | null;
   if (!activeElement) return true;
   const {tagName, contentEditable} = activeElement;
@@ -149,7 +149,7 @@ function handleSizeChange(key) {
   zoom.scaleBy(svg, scaleBy);
 }
 
-function handleBracketSizeChange(code) {
+export function handleBracketSizeChange(code) {
   const isHeightmapBrushPressed = Boolean(ensureEl("brushesButtons").querySelector("button.pressed"));
   const hasActiveBrush =
     isHeightmapBrushPressed ||
@@ -193,7 +193,7 @@ function removeElementOnKey() {
   );
 }
 
-function closeAllDialogs() {
+export function closeAllDialogs() {
   closeDialogs(".stable");
   hideOptions();
 }

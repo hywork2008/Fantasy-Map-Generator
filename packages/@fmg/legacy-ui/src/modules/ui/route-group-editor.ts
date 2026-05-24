@@ -92,6 +92,6 @@ class RouteGroupEditor {
 
 const routeGroupEditor = new RouteGroupEditor();
 
-function editRouteGroups() {
+export function editRouteGroups() {
   routeGroupEditor.open();
 }

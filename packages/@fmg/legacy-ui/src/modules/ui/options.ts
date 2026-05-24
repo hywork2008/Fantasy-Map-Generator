@@ -187,7 +187,7 @@ optionsContent.addEventListener("click", event => {
   else if (id === "resetLanguage") resetLanguage();
 });
 
-function mapSizeInputChange() {
+export function mapSizeInputChange() {
   const $mapWidthInput = ensureEl("mapWidthInput");
   const $mapHeightInput = ensureEl("mapHeightInput");
 
@@ -333,7 +333,7 @@ function restoreSeed(id) {
   regeneratePrompt({seed});
 }
 
-function copyMapURL() {
+export function copyMapURL() {
   const locked = document.querySelectorAll("i.icon-lock").length; // check if some options are locked
   const search = `?seed=${optionsSeed.value}&width=${graphWidth}&height=${graphHeight}${
     locked ? "" : "&options=default"
@@ -433,7 +433,7 @@ function changeStatesNumber(value) {
   labels.select("#countries").attr("data-size", Math.max(rn(18 - value / 6), 4));
 }
 
-function changeUiSize(value) {
+export function changeUiSize(value) {
   if (isNaN(value) || value < 0.5) return;
 
   const max = getUImaxSize();
@@ -444,11 +444,11 @@ function changeUiSize(value) {
   ensureEl("options").style.width = value * 300 + "px";
 }
 
-function getUImaxSize() {
+export function getUImaxSize() {
   return rn(Math.min(window.innerHeight / 465, window.innerWidth / 302), 1);
 }
 
-function changeTooltipSize(value) {
+export function changeTooltipSize(value) {
   tooltip.style.fontSize = `calc(${value}px + 0.5vw)`;
 }
 
@@ -458,14 +458,14 @@ function restoreDefaultThemeColor() {
   changeDialogsTheme(THEME_COLOR, transparencyInput.value);
 }
 
-function changeThemeHue(hue) {
+export function changeThemeHue(hue) {
   const {s, l} = d3.hsl(themeColorInput.value);
   const newColor = d3.hsl(+hue, s, l).hex();
   changeDialogsTheme(newColor, transparencyInput.value);
 }
 
 // change color and transparency for modal windows
-function changeDialogsTheme(themeColor, transparency) {
+export function changeDialogsTheme(themeColor, transparency) {
   transparencyInput.value = transparency;
   const alpha = (100 - +transparency) / 100;
   const alphaReduced = Math.min(alpha + 0.3, 1);
@@ -537,7 +537,7 @@ function resetLanguage() {
   languageSelect.handleChange(new Event("change"));
 }
 
-function changeZoomExtent(value) {
+export function changeZoomExtent(value) {
   if (+zoomExtentMin.value > +zoomExtentMax.value) {
     [zoomExtentMin.value, zoomExtentMax.value] = [zoomExtentMax.value, zoomExtentMin.value];
   }
@@ -656,7 +656,7 @@ export function randomizeOptions() {
 }
 
 // select heightmap template pseudo-randomly
-function randomizeHeightmapTemplate() {
+export function randomizeHeightmapTemplate() {
   const templates = {};
   for (const key in heightmapTemplates) {
     templates[key] = heightmapTemplates[key].probability || 0;
@@ -667,7 +667,7 @@ function randomizeHeightmapTemplate() {
 }
 
 // select culture set pseudo-randomly
-function randomizeCultureSet() {
+export function randomizeCultureSet() {
   const sets = {
     world: 10,
     european: 10,
@@ -698,7 +698,7 @@ function setRendering(value) {
 }
 
 // generate current year and era name
-function generateEra() {
+export function generateEra() {
   if (!stored("year")) yearInput.value = rand(100, 2000); // current year
   if (!stored("era")) eraInput.value = Names.getBaseShort(P(0.7) ? 1 : rand(nameBases.length)) + " Era";
   options.year = +yearInput.value;

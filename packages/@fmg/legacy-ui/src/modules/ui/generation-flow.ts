@@ -113,6 +113,7 @@ export function addLakesInDeepDepressionsFlow({ TIME, ensureEl, grid, d3 }: Lake
       c[i].forEach((n: number) => !lakeCells.includes(n) && (cells.t[n] = 1));
     });
 
+    // @ts-ignore Lake feature structure
     features.push({ i: f, land: false, border: false, type: "lake" });
   }
 
@@ -300,11 +301,11 @@ export async function generateMapFlow(deps: GenerateDeps, options?: { seed?: str
     modules.Zones.generate();
 
     deps.drawScaleBar(deps.scaleBar, deps.scale);
-    modules.Names.getMapName();
+    modules.Names.getMapName(false);
 
     deps.WARN && console.warn(`TOTAL: ${deps.rn((performance.now() - timeStart) / 1000, 2)}s`);
     deps.showStatistics();
-    deps.INFO && console.groupEnd(`Generated Map ${deps.getSeed()}`);
+    deps.INFO && console.groupEnd();
   } catch (error: unknown) {
     deps.ERROR && console.error(error);
     const parsedError = deps.parseError(error);

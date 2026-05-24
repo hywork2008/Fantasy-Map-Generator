@@ -720,7 +720,7 @@ function toggleAddLabel() {
   if (!layerIsOn("toggleLabels")) toggleLabels();
 }
 
-function addLabelOnClick() {
+export function addLabelOnClick() {
   const point = d3.mouse(this);
 
   // get culture in clicked point to generate a name
@@ -798,7 +798,7 @@ export function toggleAddRiver() {
   if (!layerIsOn("toggleRivers")) toggleRivers();
 }
 
-function addRiverOnClick() {
+export function addRiverOnClick() {
   const {cells, rivers} = pack;
   const point = d3.mouse(this);
   let i = findCell(point[0], point[1]);
@@ -961,7 +961,7 @@ function toggleAddMarker() {
   if (!layerIsOn("toggleMarkers")) toggleMarkers();
 }
 
-function addMarkerOnClick() {
+export function addMarkerOnClick() {
   const {markers} = pack;
   const point = d3.mouse(this);
   const x = rn(point[0], 2);

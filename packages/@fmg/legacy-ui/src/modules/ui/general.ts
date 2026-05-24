@@ -313,13 +313,13 @@ function toDMS(coord, c) {
   return degrees + "°" + minutes + "′" + seconds + "″" + cardinal;
 }
 
-function getElevation(f, h) {
+export function getElevation(f, h) {
   if (f.land) return getHeight(h) + " (" + h + ")";
   if (f.border) return "0 " + heightUnit.value;
   if (f.type === "lake") return getHeight(f.height) + " (" + f.height + ")";
 }
 
-function getDepth(f, p) {
+export function getDepth(f, p) {
   if (f.land) return "0 " + heightUnit.value;
 
   const gridH = grid.cells.h[findGridCell(p[0], p[1], grid)];
@@ -338,7 +338,7 @@ export function getFriendlyHeight([x, y]) {
   return getHeight(h);
 }
 
-function getHeight(h, abs: boolean | string = false) {
+export function getHeight(h, abs: boolean | string = false) {
   const unit = heightUnit.value;
   let unitRatio = 3.281;
   if (unit === "m")
@@ -353,16 +353,16 @@ function getHeight(h, abs: boolean | string = false) {
   return rn(height * unitRatio) + " " + unit;
 }
 
-function getPrecipitation(prec) {
+export function getPrecipitation(prec) {
   return prec * 100 + " mm";
 }
 
-function getFriendlyPrecipitation(i) {
+export function getFriendlyPrecipitation(i) {
   const prec = grid.cells.prec[pack.cells.g[i]];
   return getPrecipitation(prec);
 }
 
-function getRiverInfo(id) {
+export function getRiverInfo(id) {
   const r = pack.rivers.find(r => r.i == id);
   return r ? `${r.name} ${r.type} (${id})` : "n/a";
 }
@@ -373,17 +373,17 @@ export function getCellPopulation(i) {
   return [rural, urban];
 }
 
-function getFriendlyPopulation(i) {
+export function getFriendlyPopulation(i) {
   const [rural, urban] = getCellPopulation(i);
   return `${si(rural + urban)} (${si(rural)} rural, urban ${si(urban)})`;
 }
 
-function getPopulationTip(i) {
+export function getPopulationTip(i) {
   const [rural, urban] = getCellPopulation(i);
   return `Cell population: ${si(rural + urban)}; Rural: ${si(rural)}; Urban: ${si(urban)}`;
 }
 
-function highlightEmblemElement(type, el) {
+export function highlightEmblemElement(type, el) {
   const i = el.i,
     cells = pack.cells;
   const animation = d3.transition().duration(1000).ease(d3.easeSinIn);

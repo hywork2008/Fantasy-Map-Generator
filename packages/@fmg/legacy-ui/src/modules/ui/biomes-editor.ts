@@ -1,7 +1,7 @@
 "use strict";
 
 import { Biomes } from "@fmg/core/modules/biomes";
-import { applySorting, getArea, getAreaUnit, fitContent, removeCircle } from "./editors";
+import { applySorting, getArea, getAreaUnit, fitContent, removeCircle, restoreDefaultEvents } from "./editors";
 import type { BaseType } from "d3-selection";
 import type { Transition } from "d3-transition";
 
@@ -370,16 +370,17 @@ class BiomesEditor {
   }
 
   private enterBiomesCustomizationMode() {
+    const body = document.getElementById("biomesBody")!;
     if (!layerIsOn("toggleBiomes")) toggleBiomes();
     customization = 6;
     biomes.append("g").attr("id", "temp");
 
     document.querySelectorAll("#biomesBottom > button").forEach((el: Element) => ((el as HTMLElement).style.display = "none"));
     document.querySelectorAll("#biomesBottom > div").forEach((el: Element) => ((el as HTMLElement).style.display = "block"));
-    document.querySelector("#biomesBody div.biomes")!.classList.add("selected");
+    body.querySelector("div.biomes")!.classList.add("selected");
 
     biomesEditor.querySelectorAll(".hide").forEach((el: Element) => el.classList.add("hidden"));
-    document.querySelectorAll("#biomesBody div > input, select, span, svg").forEach((e: Element) => ((e as HTMLElement).style.pointerEvents = "none"));
+    body.querySelectorAll("div > input, select, span, svg").forEach((e: Element) => ((e as HTMLElement).style.pointerEvents = "none"));
     biomesFooter.style.display = "none";
     $("#biomesEditor").dialog({position: {my: "right top", at: "right-10 top+10", of: "svg"}});
 
@@ -476,16 +477,20 @@ class BiomesEditor {
   }
 
   private exitBiomesCustomizationMode(close = false) {
+    const body = document.getElementById("biomesBody")!;
+    const wasCustomizing = customization === 6 || biomes.select("#temp").size() > 0;
     customization = 0;
     biomes.select("#temp").remove();
     removeCircle();
 
-    document.querySelectorAll("#biomesBottom > button").forEach((el: Element) => ((el as HTMLElement).style.display = "inline-block"));
-    document.querySelectorAll("#biomesBottom > div").forEach((el: Element) => ((el as HTMLElement).style.display = "none"));
+    if (wasCustomizing) {
+      document.querySelectorAll("#biomesBottom > button").forEach((el: Element) => ((el as HTMLElement).style.display = "inline-block"));
+      document.querySelectorAll("#biomesBottom > div").forEach((el: Element) => ((el as HTMLElement).style.display = "none"));
 
-    document.querySelectorAll("#biomesBody div > input, select, span, svg").forEach((e: Element) => ((e as HTMLElement).style.pointerEvents = "all"));
-    biomesEditor.querySelectorAll(".hide").forEach((el: Element) => el.classList.remove("hidden"));
-    biomesFooter.style.display = "block";
+      body.querySelectorAll("div > input, select, span, svg").forEach((e: Element) => ((e as HTMLElement).style.pointerEvents = "all"));
+      biomesEditor.querySelectorAll(".hide").forEach((el: Element) => el.classList.remove("hidden"));
+      biomesFooter.style.display = "block";
+    }
     if (!close) $("#biomesEditor").dialog({position: {my: "right top", at: "right-10 top+10", of: "svg"}});
 
     restoreDefaultEvents();
@@ -503,7 +508,12 @@ class BiomesEditor {
   }
 
   private closeBiomesEditor() {
-    this.exitBiomesCustomizationMode(true);
+    try {
+      this.exitBiomesCustomizationMode(true);
+    } finally {
+      // Ensure map wheel zoom and drag are always reattached after dialog close
+      restoreDefaultEvents();
+    }
   }
 }
 
