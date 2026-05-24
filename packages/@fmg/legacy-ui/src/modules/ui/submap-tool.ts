@@ -1,11 +1,15 @@
 "use strict";
 
 import type { FmgGlobalContext } from "@fmg/types";
+import { drawLayers } from "./layers";
+import { closeDialogs } from "./editors";
 
 type SubmapFmgContext = FmgGlobalContext & {
   openSubmapTool?: typeof openSubmapTool;
   getLatitude?: (y: number, decimals?: number) => number;
   getLongitude?: (x: number, decimals?: number) => number;
+  cellsDensityMap?: Record<string, number>;
+  getCellsDensityColor?: (cells: number) => string;
 };
 
 const submapRuntime = window as Window & {
@@ -47,13 +51,15 @@ function openSubmapTool() {
 
     function updateCellsNumber(value: string) {
       const submapPointsInput = submapRuntime.ensureEl("submapPointsInput") as HTMLInputElement;
-      const cells = (submapRuntime.cellsDensityMap?.[value] ?? (submapRuntime.ensureEl("pointsInput") as HTMLInputElement).dataset.cells) as number;
+      const cellsDensityMap = submapRuntime.fmg?.cellsDensityMap || submapRuntime.cellsDensityMap;
+      const cells = (cellsDensityMap?.[value] ?? (submapRuntime.ensureEl("pointsInput") as HTMLInputElement).dataset.cells) as number;
       submapPointsInput.value = value;
       submapPointsInput.dataset.cells = String(cells);
 
       const output = submapRuntime.ensureEl("submapPointsFormatted") as HTMLInputElement;
       output.value = cells / 1000 + "K";
-      output.style.color = submapRuntime.getCellsDensityColor(cells);
+      const getCellsDensityColor = submapRuntime.fmg?.getCellsDensityColor || submapRuntime.getCellsDensityColor;
+      output.style.color = getCellsDensityColor(cells);
     }
   }
 

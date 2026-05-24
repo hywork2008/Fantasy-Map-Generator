@@ -4,6 +4,7 @@
 import { Rivers } from "@fmg/core/modules/river-generator";
 import { Routes } from "@fmg/core/modules/routes-generator";
 import * as d3 from "d3";
+import { calculateFriendlyGridSize, editStyle } from "./style";
 /// <reference path="../../types/ui-legacy-globals.d.ts" />
 
 declare const drawFeatures: (...args: any[]) => any;
@@ -16,6 +17,7 @@ declare const drawEmblems: (...args: any[]) => any;
 declare const drawMilitary: (...args: any[]) => any;
 declare const drawMarkers: (...args: any[]) => any;
 declare const drawStateLabels: (...args: any[]) => any;
+declare const drawBurgLabels: (...args: any[]) => any;
 declare const getPackPolygon: (...args: any[]) => any;
 declare const terrain: any;
 declare const armies: any;
@@ -244,7 +246,7 @@ export function drawLayers() {
   // vignette
 }
 
-export function toggleHeight(event) {
+export function toggleHeight(event?) {
   if (customization === 1) return tip("You cannot turn off the layer when heightmap is in edit mode", false, "error");
 
   const children = terrs.selectAll("#oceanHeights > *, #landHeights > *");
@@ -259,7 +261,7 @@ export function toggleHeight(event) {
   }
 }
 
-export function toggleTemperature(event) {
+export function toggleTemperature(event?) {
   if (!temperature.selectAll("*").size()) {
     turnButtonOn("toggleTemperature");
     drawTemperature();
@@ -271,7 +273,7 @@ export function toggleTemperature(event) {
   }
 }
 
-export function toggleBiomes(event) {
+export function toggleBiomes(event?) {
   if (!biomes.selectAll("path").size()) {
     turnButtonOn("toggleBiomes");
     drawBiomes();
@@ -302,7 +304,7 @@ function drawBiomes() {
   TIME && console.timeEnd("drawBiomes");
 }
 
-export function togglePrecipitation(event) {
+export function togglePrecipitation(event?) {
   if (!prec.selectAll("circle").size()) {
     turnButtonOn("togglePrecipitation");
     drawPrecipitation();
@@ -345,7 +347,7 @@ function drawPrecipitation() {
   TIME && console.timeEnd("drawPrecipitation");
 }
 
-export function togglePopulation(event) {
+export function togglePopulation(event?) {
   if (!population.selectAll("line").size()) {
     turnButtonOn("togglePopulation");
     drawPopulation();
@@ -418,7 +420,7 @@ function drawPopulation() {
     .attr("y2", d => d[2]);
 }
 
-export function toggleCells(event) {
+export function toggleCells(event?) {
   if (!cells.selectAll("path").size()) {
     turnButtonOn("toggleCells");
     drawCells();
@@ -437,7 +439,7 @@ function drawCells() {
   ensureEl("cells").innerHTML = `<path d="${paths.join("")}" />`;
 }
 
-export function toggleIce(event) {
+export function toggleIce(event?) {
   if (!layerIsOn("toggleIce")) {
     turnButtonOn("toggleIce");
     $("#ice").fadeIn();
@@ -450,7 +452,7 @@ export function toggleIce(event) {
   }
 }
 
-export function toggleCultures(event) {
+export function toggleCultures(event?) {
   const cultures = pack.cultures.filter(c => c.i && !c.removed);
   const empty = !cults.selectAll("path").size();
   if (empty && cultures.length) {
@@ -483,7 +485,7 @@ function drawCultures() {
   TIME && console.timeEnd("drawCultures");
 }
 
-export function toggleReligions(event) {
+export function toggleReligions(event?) {
   const religions = pack.religions.filter(r => r.i && !r.removed);
   if (!relig.selectAll("path").size() && religions.length) {
     turnButtonOn("toggleReligions");
@@ -515,7 +517,7 @@ function drawReligions() {
   TIME && console.timeEnd("drawReligions");
 }
 
-export function toggleStates(event) {
+export function toggleStates(event?) {
   if (!layerIsOn("toggleStates")) {
     turnButtonOn("toggleStates");
     drawStates();
@@ -561,7 +563,7 @@ export function drawStates() {
   TIME && console.timeEnd("drawStates");
 }
 
-export function toggleBorders(event) {
+export function toggleBorders(event?) {
   if (!layerIsOn("toggleBorders")) {
     turnButtonOn("toggleBorders");
     drawBorders();
@@ -573,7 +575,7 @@ export function toggleBorders(event) {
   }
 }
 
-export function toggleProvinces(event) {
+export function toggleProvinces(event?) {
   if (!layerIsOn("toggleProvinces")) {
     turnButtonOn("toggleProvinces");
     drawProvinces();
@@ -615,7 +617,7 @@ function drawProvinces() {
   TIME && console.timeEnd("drawProvinces");
 }
 
-export function toggleGrid(event) {
+export function toggleGrid(event?) {
   if (!gridOverlay.selectAll("*").size()) {
     turnButtonOn("toggleGrid");
     drawGrid();
@@ -657,7 +659,7 @@ function drawGrid() {
     .attr("stroke", "none");
 }
 
-export function toggleCoordinates(event) {
+export function toggleCoordinates(event?) {
   if (!coordinates.selectAll("*").size()) {
     turnButtonOn("toggleCoordinates");
     drawCoordinates();
@@ -730,7 +732,7 @@ function drawCoordinates() {
     .text(d => d.text);
 }
 
-export function toggleCompass(event) {
+export function toggleCompass(event?) {
   if (!layerIsOn("toggleCompass")) {
     turnButtonOn("toggleCompass");
     $("#compass").fadeIn();
@@ -742,7 +744,7 @@ export function toggleCompass(event) {
   }
 }
 
-export function toggleRelief(event) {
+export function toggleRelief(event?) {
   if (!layerIsOn("toggleRelief")) {
     turnButtonOn("toggleRelief");
     if (!terrain.selectAll("*").size()) drawReliefIcons();
@@ -755,7 +757,7 @@ export function toggleRelief(event) {
   }
 }
 
-export function toggleLakes(event) {
+export function toggleLakes(event?) {
   if (!layerIsOn("toggleLakes")) {
     turnButtonOn("toggleLakes");
     $("#lakes").fadeIn();
@@ -767,7 +769,7 @@ export function toggleLakes(event) {
   }
 }
 
-export function toggleTexture(event) {
+export function toggleTexture(event?) {
   if (!layerIsOn("toggleTexture")) {
     turnButtonOn("toggleTexture");
     drawTexture();
@@ -794,7 +796,7 @@ function drawTexture() {
     .attr("href", href);
 }
 
-export function toggleRivers(event) {
+export function toggleRivers(event?) {
   if (!layerIsOn("toggleRivers")) {
     turnButtonOn("toggleRivers");
     drawRivers();
@@ -829,7 +831,7 @@ function drawRivers() {
   TIME && console.timeEnd("drawRivers");
 }
 
-export function toggleRoutes(event) {
+export function toggleRoutes(event?) {
   if (!layerIsOn("toggleRoutes")) {
     turnButtonOn("toggleRoutes");
     drawRoutes();
@@ -868,7 +870,7 @@ export function drawRoute(route) {
     .attr("id", "route" + route.i);
 }
 
-export function toggleMilitary(event) {
+export function toggleMilitary(event?) {
   if (!layerIsOn("toggleMilitary")) {
     turnButtonOn("toggleMilitary");
     drawMilitary();
@@ -880,7 +882,7 @@ export function toggleMilitary(event) {
   }
 }
 
-export function toggleMarkers(event) {
+export function toggleMarkers(event?) {
   if (!layerIsOn("toggleMarkers")) {
     turnButtonOn("toggleMarkers");
     drawMarkers();
@@ -892,7 +894,7 @@ export function toggleMarkers(event) {
   }
 }
 
-export function toggleLabels(event) {
+export function toggleLabels(event?) {
   if (!layerIsOn("toggleLabels")) {
     turnButtonOn("toggleLabels");
     $("#labels").fadeIn();
@@ -909,10 +911,10 @@ export function toggleLabels(event) {
 function drawLabels() {
   drawStateLabels();
   drawBurgLabels();
-  invokeActiveZooming();
+  (window as any).fmg?.invokeActiveZooming?.();
 }
 
-export function toggleBurgIcons(event) {
+export function toggleBurgIcons(event?) {
   if (!layerIsOn("toggleBurgIcons")) {
     turnButtonOn("toggleBurgIcons");
     drawBurgIcons();
@@ -924,7 +926,7 @@ export function toggleBurgIcons(event) {
   }
 }
 
-export function toggleRulers(event) {
+export function toggleRulers(event?) {
   if (!layerIsOn("toggleRulers")) {
     turnButtonOn("toggleRulers");
     if (event && isCtrlClick(event)) editStyle("ruler");
@@ -938,7 +940,7 @@ export function toggleRulers(event) {
   }
 }
 
-export function toggleScaleBar(event) {
+export function toggleScaleBar(event?) {
   if (!layerIsOn("toggleScaleBar")) {
     turnButtonOn("toggleScaleBar");
     $("#scaleBar").fadeIn();
@@ -950,7 +952,7 @@ export function toggleScaleBar(event) {
   }
 }
 
-export function toggleZones(event) {
+export function toggleZones(event?) {
   if (!layerIsOn("toggleZones")) {
     turnButtonOn("toggleZones");
     drawZones();
@@ -976,12 +978,12 @@ function drawZone({i, cells, type, color}) {
   return `<path id="zone${i}" data-id="${i}" data-type="${type}" d="${path}" fill="${color}" />`;
 }
 
-export function toggleEmblems(event) {
+export function toggleEmblems(event?) {
   if (!layerIsOn("toggleEmblems")) {
     turnButtonOn("toggleEmblems");
     if (!emblems.selectAll("use").size()) drawEmblems();
     $("#emblems").fadeIn();
-    invokeActiveZooming();
+    (window as any).fmg?.invokeActiveZooming?.();
     if (event && isCtrlClick(event)) editStyle("emblems");
   } else {
     if (event && isCtrlClick(event)) return editStyle("emblems");
@@ -990,7 +992,7 @@ export function toggleEmblems(event) {
   }
 }
 
-export function toggleVignette(event) {
+export function toggleVignette(event?) {
   if (!layerIsOn("toggleVignette")) {
     turnButtonOn("toggleVignette");
     $("#vignette").fadeIn();

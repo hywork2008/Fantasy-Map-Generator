@@ -1,3 +1,4 @@
+import { layerIsOn, toggleBurgIcons, toggleLabels } from "./layers";
 export const ThreeD = (function () {
   const options = {
     scale: 50,

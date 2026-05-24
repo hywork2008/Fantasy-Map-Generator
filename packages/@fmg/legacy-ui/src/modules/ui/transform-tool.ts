@@ -1,6 +1,8 @@
 "use strict";
 
 import type { FmgGlobalContext } from "@fmg/types";
+import { drawLayers } from "./layers";
+import { closeDialogs } from "./editors";
 
 type TransformRuntime = {
   graphWidth: number;
@@ -30,9 +32,14 @@ type TransformRuntime = {
   resetZoom: (duration?: number) => void;
   undraw: () => void;
   drawLayers: () => void;
+  fmg?: TransformFmgContext;
 };
 
-type TransformFmgContext = FmgGlobalContext & { openTransformTool?: typeof openTransformTool };
+type TransformFmgContext = FmgGlobalContext & {
+  openTransformTool?: typeof openTransformTool;
+  cellsDensityMap?: Record<string, number>;
+  getCellsDensityColor?: (cells: number | string) => string;
+};
 
 const transformWindow = window as Window & { [key: string]: any; fmg?: TransformFmgContext };
 const asRuntime = <T>(runtimeWindow: Window & { [key: string]: any }) => runtimeWindow as T;
@@ -114,13 +121,14 @@ async function openTransformTool() {
 
     function updateCellsNumber(value: string | number) {
       transformRuntime.ensureEl("transformPointsInput").value = value;
-      const cellsDensityMap = transformRuntime.cellsDensityMap || {};
+      const cellsDensityMap = transformRuntime.fmg?.cellsDensityMap || transformRuntime.cellsDensityMap || {};
       const key = String(value);
       const cells = cellsDensityMap[key] ?? Number(transformRuntime.ensureEl("pointsInput").dataset.cells);
       transformRuntime.ensureEl("transformPointsInput").dataset.cells = String(cells);
       const output = transformRuntime.ensureEl("transformPointsFormatted");
       output.value = cells / 1000 + "K";
-      output.style.color = transformRuntime.getCellsDensityColor(cells);
+      const getCellsDensityColor = transformRuntime.fmg?.getCellsDensityColor || transformRuntime.getCellsDensityColor;
+      output.style.color = getCellsDensityColor(cells);
     }
   }
 

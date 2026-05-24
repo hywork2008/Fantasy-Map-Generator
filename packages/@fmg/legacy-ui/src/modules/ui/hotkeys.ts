@@ -3,6 +3,8 @@
 import { showInfo } from "./general";
 import { hideOptions, toggleOptions } from "./options";
 import { toggleAddRiver } from "./tools";
+import { toggleBiomes, toggleBorders, toggleBurgIcons, toggleCells, toggleCompass, toggleCoordinates, toggleCultures, toggleEmblems, toggleGrid, toggleHeight, toggleIce, toggleLabels, toggleLakes, toggleMarkers, toggleMilitary, togglePopulation, togglePrecipitation, toggleProvinces, toggleRelief, toggleReligions, toggleRivers, toggleRoutes, toggleRulers, toggleScaleBar, toggleStates, toggleTemperature, toggleTexture, toggleVignette, toggleZones } from "./layers";
+import { closeDialogs } from "./editors";
 
 document.addEventListener("keydown", handleKeydown);
 document.addEventListener("keyup", handleKeyup);

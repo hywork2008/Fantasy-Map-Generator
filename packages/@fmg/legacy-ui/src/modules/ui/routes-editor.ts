@@ -1,6 +1,10 @@
 "use strict";
 import { Routes } from "@fmg/core/modules/routes-generator";
-import { fitContent } from "./editors";
+import { closeDialogs, fitContent, unselect } from "./editors";
+import { clearMainTip, tip } from "./general";
+import { drawRoutes, layerIsOn, toggleCells, toggleRoutes } from "./layers";
+import { editRouteGroups } from "./route-group-editor";
+import { editStyle } from "./style";
 
 // File-local declarations for legacy globals
 declare let customization: boolean;
@@ -8,11 +12,7 @@ declare let ensureEl: (id: string) => HTMLElement;
 declare let routes: any;
 declare let pack: any;
 declare let updateRouteLength: (route: any) => any;
-declare let editRouteGroups: (route: any) => any;
 declare let refreshAllEditors: () => any;
-declare let layerIsOn: (toggle: string) => boolean;
-declare let drawRoutes: () => any;
-declare let toggleRoutes: () => any;
 declare let routeName: HTMLElement;
 declare let routeGroup: HTMLElement;
 declare let routesHeader: HTMLElement;

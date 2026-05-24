@@ -1,3 +1,4 @@
+import { applyLayersPreset, drawLayers } from "./layers";
 type GenerateOptions = Record<string, string | number | boolean>;
 
 export type InitialLoadDeps = {
@@ -234,6 +235,6 @@ export function findBurgForMFCGFlow(
   }
 
   zoomTo(b.x, b.y, 8, 1600);
-  invokeActiveZooming();
+  (window as any).fmg?.invokeActiveZooming?.();
   tip(`Here stands the glorious city of ${b.name}`, true, "success", 15000);
 }

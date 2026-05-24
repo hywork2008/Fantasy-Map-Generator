@@ -2,9 +2,10 @@ import { max, quadtree, range } from "d3";
 import { abbreviate, biased, ensureEl, getColors, getRandomColor, minmax, P, rand, rn, rw } from "@fmg/shared";
 import type { PackedGraph } from "@fmg/types";
 import { COA } from "./emblem/generator";
+import { Names } from "./names-generator";
 
 declare global {
-  var Cultures: any;
+  var Cultures: CulturesGenerator;
 }
 
 export interface Culture {
@@ -31,7 +32,7 @@ export interface Culture {
   urban?: number;
 }
 
-class CulturesModule {
+class CulturesGenerator {
   cells: PackedGraph["cells"];
 
   getRandomShield() {
@@ -1185,7 +1186,7 @@ class CulturesModule {
     // make sure all bases exist in nameBases
     if (!nameBases.length) {
       ERROR && console.error("Name base is empty, default nameBases will be applied");
-      nameBases = Names.getNameBases();
+      nameBases = Names.getNameBases() as unknown as typeof nameBases;
     }
 
     cultures.forEach((c: Culture) => {
@@ -1331,4 +1332,4 @@ class CulturesModule {
   }
 }
 
-window.Cultures = new CulturesModule();
+window.Cultures = new CulturesGenerator();

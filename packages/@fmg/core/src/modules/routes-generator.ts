@@ -177,7 +177,7 @@ export interface Route {
   length?: number;
 }
 
-class RoutesModule {
+class RoutesGenerator {
   buildLinks(routes: Route[]): Record<number, Record<number, number>> {
     const links: Record<number, Record<number, number>> = {};
 
@@ -720,4 +720,4 @@ class RoutesModule {
   }
 }
 
-export const Routes = new RoutesModule();
+export const Routes = new RoutesGenerator();

@@ -3,6 +3,7 @@
 import type { BurgGroup } from "@fmg/types";
 import type { Burg } from "@fmg/core/modules/burgs-generator";
 import { fitContent } from "./editors";
+import { layerIsOn, toggleBurgIcons, toggleLabels } from "./layers";
 
 const GROUP_NAME_REGEXP = /^[\p{L}_][\p{L}\p{N}_-]*$/u;
 

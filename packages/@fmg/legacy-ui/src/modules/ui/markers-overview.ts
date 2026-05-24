@@ -1,5 +1,6 @@
-import { applySorting, fitContent, listen } from "./editors";
+import { applySorting, closeDialogs, fitContent, listen } from "./editors";
 import { configMarkersGeneration } from "./tools";
+import { layerIsOn, toggleMarkers } from "./layers";
 "use strict";
 export function overviewMarkers() {
   if (customization) return;

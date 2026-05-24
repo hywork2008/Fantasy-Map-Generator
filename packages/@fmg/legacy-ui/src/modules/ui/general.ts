@@ -1,4 +1,5 @@
 import { getArea, getAreaUnit } from "./editors";
+import { layerIsOn, toggleBiomes, toggleCultures, toggleHeight, togglePopulation, togglePrecipitation, toggleProvinces, toggleReligions, toggleStates, toggleTemperature } from "./layers";
 "use strict";
 // Module to store generic UI functions
 
@@ -8,7 +9,8 @@ window.addEventListener("resize", function (e) {
   if (stored("mapWidth") && stored("mapHeight")) return;
   mapWidthInput.value = String(window.innerWidth);
   mapHeightInput.value = String(window.innerHeight);
-  fitMapToScreen();
+  // Lazy access to avoid circular dep: general.ts ↔ options.ts
+  (window.fmg as any)?.fitMapToScreen?.();
 });
 
 if (location.hostname !== "localhost" && location.hostname !== "127.0.0.1") {
@@ -41,11 +43,13 @@ export function tip(tip, main = false, type = "info", time = 0) {
 }
 
 export function showMainTip() {
+  if (!tooltip) return;
   tooltip.style.background = tooltip.dataset.color;
   tooltip.innerHTML = tooltip.dataset.main;
 }
 
 export function clearMainTip() {
+  if (!tooltip) return;
   tooltip.dataset.color = "";
   tooltip.dataset.main = "";
   tooltip.innerHTML = "";

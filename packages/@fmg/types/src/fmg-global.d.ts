@@ -130,6 +130,12 @@ export interface FmgGlobalContext {
   getGridPolygon: (cellIndex: number) => number[][];
   calculateVoronoi: (points: Point[], boundary: Point[]) => { cells: Cells; vertices: Vertices };
   poissonDiscSampler: (x0: number, y0: number, x1: number, y1: number, r: number, k?: number) => Generator<[number, number], void, unknown>;
+  FlatQueue?: new <T>() => {
+    length: number;
+    push: (item: T, priority: number) => void;
+    pop: () => T;
+    peekValue: () => number;
+  };
 
   // ==================== Legacy UI Globals (migration period) ====================
   handleLayersPresetChange?: (preset: string) => void;
@@ -346,25 +352,25 @@ export interface FmgGlobalContext {
   saveGeoJsonMarkers?: () => void;
   saveGeoJsonZones?: () => void;
   exportToJson?: (type: JsonExportType) => void;
+  getMapName?: (force?: boolean) => string;
+  create3d?: (canvas: HTMLCanvasElement, type?: string) => Promise<boolean>;
+  redraw3d?: () => void;
+  update3d?: () => void;
+  stop3d?: () => void;
+  get3dOptions?: () => {
+    isOn?: boolean;
+    isGlobe?: boolean;
+    [key: string]: unknown;
+  };
+  initializeDropbox?: () => Promise<void>;
+  listDropboxFiles?: () => Promise<{ name: string; updated: string; size: number; path: string }[]>;
+  loadDropboxFile?: (path: string) => Promise<Blob>;
+  saveDropboxFile?: (fileName: string, contents: Blob | string | ArrayBuffer) => Promise<boolean>;
+  getDropboxLink?: (path: string) => Promise<string>;
+  isDropboxConnected?: () => boolean;
+  startUITour?: () => void;
+  invokeActiveZooming?: () => void;
   regenerateMap?: (options?: unknown) => void;
-
-  // Phase 5: ESM-exported IIFE globals
-  ThreeD?: {
-    options?: { isOn?: boolean; isGlobe?: boolean };
-    create?: (canvas: HTMLCanvasElement, type?: string) => Promise<boolean>;
-    redraw?: () => void;
-    update?: () => void;
-    stop?: () => void;
-  };
-  Cloud?: {
-    providers: {
-      dropbox: {
-        api: unknown;
-        initialize: () => Promise<void>;
-        list: () => Promise<{ name: string; updated: string; size: number; path: string }[]>;
-      };
-    };
-  };
 }
 
 declare global {

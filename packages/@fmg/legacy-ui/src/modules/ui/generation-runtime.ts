@@ -1,3 +1,5 @@
+import { drawLayers } from "./layers";
+import { closeDialogs } from "./editors";
 type EnsureElement = HTMLElement & {
   value?: string;
 };

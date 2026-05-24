@@ -1,8 +1,9 @@
 import { mean, min } from "d3";
 import { ensureEl, rn } from "@fmg/shared";
 import type { PackedGraphFeature } from "./features";
+import { Names } from "./names-generator";
 
-export class LakesModule {
+export class LakesGenerator {
   private LAKE_ELEVATION_DELTA = 0.1;
 
   getHeight(feature: PackedGraphFeature) {
@@ -122,4 +123,4 @@ export class LakesModule {
   }
 }
 
-export const Lakes = new LakesModule();
+export const Lakes = new LakesGenerator();

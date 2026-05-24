@@ -14,7 +14,7 @@ import {
 import { Lakes } from "./lakes";
 
 declare global {
-  var Features: any;
+  var Features: FeaturesGenerator;
 }
 
 type FeatureType = "ocean" | "lake" | "island";
@@ -52,7 +52,7 @@ export interface GridFeature {
   type: FeatureType;
 }
 
-class FeatureModule {
+class FeaturesGenerator {
   private DEEPER_LAND = 3;
   private LANDLOCKED = 2;
   private LAND_COAST = 1;
@@ -381,4 +381,4 @@ class FeatureModule {
   }
 }
 
-window.Features = new FeatureModule();
+window.Features = new FeaturesGenerator();

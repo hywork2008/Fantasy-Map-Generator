@@ -1,7 +1,8 @@
-import { getArea, getAreaUnit } from "./editors";
+import { closeDialogs, getArea, getAreaUnit, unselect } from "./editors";
+import { getHeight, tip } from "./general";
+import { drawStates, layerIsOn, toggleBiomes, toggleBorders, toggleCells, toggleCultures, toggleProvinces, toggleReligions, toggleStates } from "./layers";
+import { editStyle } from "./style";
 "use strict";
-
-declare function getHeight(value: number, mode?: string): string;
 
 class LakesEditor {
   public open() {

@@ -2,6 +2,7 @@ import Alea from "alea";
 import { curveBasis, curveCatmullRom, line, mean, min, sum } from "d3";
 import { each, rn, round, rw } from "@fmg/shared";
 import { Lakes } from "./lakes";
+import { Names } from "./names-generator";
 import type { PackedGraphFeature } from "./features";
 import type { Point } from "./voronoi";
 
@@ -22,7 +23,7 @@ export interface River {
   points?: Point[]; // river points (for meandering)
 }
 
-class RiverModule {
+class RiverGenerator {
   private FLUX_FACTOR = 500;
   private MAX_FLUX_WIDTH = 1;
   private LENGTH_FACTOR = 200;
@@ -568,4 +569,4 @@ class RiverModule {
   }
 }
 
-export const Rivers = new RiverModule();
+export const Rivers = new RiverGenerator();

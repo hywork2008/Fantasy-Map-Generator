@@ -2,6 +2,8 @@
 
 import { Routes } from "@fmg/core/modules/routes-generator";
 import type { FmgGlobalContext } from "@fmg/types";
+import { drawRoute, layerIsOn, toggleCells, toggleRoutes } from "./layers";
+import { closeDialogs } from "./editors";
 
 type RoutePoint = [number, number, number];
 

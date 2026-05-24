@@ -1,6 +1,9 @@
 "use strict";
 
-import { fitContent } from "./editors";
+import { closeDialogs, fitContent, unselect } from "./editors";
+import { showMainTip, tip } from "./general";
+import { layerIsOn, toggleLabels } from "./layers";
+import { editStyle } from "./style";
 
 class LabelsEditor {
   public open() {

@@ -149,7 +149,8 @@ const fmgGlobal: FmgGlobalContext = {
   getPackPolygon: (cellIndex: number) => getPackPolygon(cellIndex, legacyWindow.pack),
   getGridPolygon: (cellIndex: number) => getGridPolygon(cellIndex, legacyWindow.grid),
   calculateVoronoi,
-  poissonDiscSampler
+  poissonDiscSampler,
+  FlatQueue: (window as Window & { FlatQueue?: FmgGlobalContext["FlatQueue"] }).FlatQueue
 };
 
 // Register to window.fmg namespace and merge into any existing object

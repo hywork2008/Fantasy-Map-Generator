@@ -8,10 +8,11 @@ import { drawBurgLabelRenderer as drawBurgLabel } from "#renderers/draw-burg-lab
 import type { Emblem } from "./emblem/generator";
 import { COA } from "./emblem/generator";
 import { COArenderer } from "./emblem/renderer";
+import { Names } from "./names-generator";
 import { Routes } from "./routes-generator";
 
 declare global {
-  var Burgs: any;
+  var Burgs: BurgsGenerator;
 }
 export interface Burg {
   cell: number;
@@ -40,7 +41,7 @@ export interface Burg {
   coaSize?: number;
 }
 
-class BurgModule {
+class BurgsGenerator {
   shift() {
     const { cells, features, burgs } = pack;
     const temp = grid.cells.temp;
@@ -646,7 +647,7 @@ class BurgModule {
     return burgId;
   }
 
-  changeGroup(burg: Burg, group: string | null) {
+  changeGroup(burg: Burg, group: string | null = null) {
     if (group) {
       burg.group = group;
     } else {
@@ -679,4 +680,4 @@ class BurgModule {
     removeBurgLabel(burg.i!);
   }
 }
-window.Burgs = new BurgModule();
+window.Burgs = new BurgsGenerator();

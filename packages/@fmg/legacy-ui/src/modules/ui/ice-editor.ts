@@ -1,6 +1,10 @@
 "use strict";
 
 import type { FmgGlobalContext } from "@fmg/types";
+import { layerIsOn, toggleIce } from "./layers";
+import { clicked, closeDialogs, unselect } from "./editors";
+import { clearMainTip, tip } from "./general";
+import { editStyle } from "./style";
 
 type IceEditorFmgContext = FmgGlobalContext & {
   editIce?: (element: EventTarget | null) => void;
@@ -17,8 +21,8 @@ class IceEditor {
   if (iceEditorRuntime.customization) return;
   if (iceEditorRuntime.elSelected && element === iceEditorRuntime.elSelected.node()) return;
 
-  iceEditorRuntime.closeDialogs(".stable");
-  if (!iceEditorRuntime.layerIsOn("toggleIce")) iceEditorRuntime.toggleIce();
+  closeDialogs(".stable");
+  if (!layerIsOn("toggleIce")) toggleIce();
 
   iceEditorRuntime.elSelected = iceEditorRuntime.d3.select(iceEditorRuntime.d3.event.target);
   const id = Number(iceEditorRuntime.elSelected.attr("data-id"));
@@ -44,7 +48,7 @@ class IceEditor {
 
   if (iceEditorRuntime.modules.editIce) return;
   iceEditorRuntime.modules.editIce = true;
-  document.getElementById("iceEditStyle")?.addEventListener("click", () => iceEditorRuntime.editStyle("ice"));
+  document.getElementById("iceEditStyle")?.addEventListener("click", () => editStyle("ice"));
   document.getElementById("iceRandomize")?.addEventListener("click", randomizeShape);
   document.getElementById("iceSize")?.addEventListener("input", changeSize);
   document.getElementById("iceNew")?.addEventListener("click", toggleAdd);
@@ -68,10 +72,10 @@ class IceEditor {
     iceNewEl.classList.toggle("pressed");
     if (iceNewEl.classList.contains("pressed")) {
       iceEditorRuntime.viewbox.style("cursor", "crosshair").on("click", addIcebergOnClick);
-      iceEditorRuntime.tip("Click on map to create an iceberg. Hold Shift to add multiple", true);
+      tip("Click on map to create an iceberg. Hold Shift to add multiple", true);
     } else {
-      iceEditorRuntime.clearMainTip();
-      iceEditorRuntime.viewbox.on("click", iceEditorRuntime.clicked).style("cursor", "default");
+      clearMainTip();
+      iceEditorRuntime.viewbox.on("click", clicked).style("cursor", "default");
     }
   }
 
@@ -134,9 +138,9 @@ class IceEditor {
       .selectAll("*")
       .classed("draggable", false)
       .call(iceEditorRuntime.d3.drag().on("drag", null));
-    iceEditorRuntime.clearMainTip();
+    clearMainTip();
     iceEditorRuntime.iceNew.classList.remove("pressed");
-    iceEditorRuntime.unselect();
+    unselect();
   }
 }
 

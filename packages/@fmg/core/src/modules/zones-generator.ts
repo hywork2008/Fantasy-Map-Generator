@@ -1,9 +1,10 @@
 import { max, mean } from "d3";
 import { gauss, getAdjective, P, ra, rand, rw } from "@fmg/shared";
+import { Names } from "./names-generator";
 import { Routes } from "./routes-generator";
 
 declare global {
-  var Zones: ZonesModule;
+  var Zones: ZonesGenerator;
 }
 
 export interface Zone {
@@ -22,7 +23,7 @@ interface ZoneConfig {
   generate: ZoneGenerator;
 }
 
-class ZonesModule {
+class ZonesGenerator {
   private config: Record<string, ZoneConfig>;
 
   constructor() {
@@ -627,4 +628,4 @@ class ZonesModule {
   }
 }
 
-window.Zones = new ZonesModule();
+window.Zones = new ZonesGenerator();

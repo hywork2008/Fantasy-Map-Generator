@@ -3,6 +3,9 @@
 import { Routes } from "@fmg/core/modules/routes-generator";
 import { lock, unlock } from "./general";
 import { Opisometer, Planimeter, RouteOpisometer, Ruler } from "./measurers";
+import { layerIsOn, toggleRulers, toggleTemperature } from "./layers";
+import { closeDialogs } from "./editors";
+import { calculateFriendlyGridSize } from "./style";
 
 declare const areaUnit: HTMLSelectElement;
 

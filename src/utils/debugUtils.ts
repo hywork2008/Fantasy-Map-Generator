@@ -34,7 +34,9 @@ export const drawPolygons = (
 ): void => {
   const maximum: number = max(data) as number;
   const minimum: number = min(data) as number;
-  const scheme = window.getColorScheme(terrs.select("#landHeights").attr("scheme"));
+  const scheme = (window.fmg?.getColorScheme as (scheme?: string) => (t: number) => string)(
+    terrs.select("#landHeights").attr("scheme")
+  );
 
   data = data.map(d => 1 - normalize(d, minimum, maximum));
   window.debug.selectAll("polygon").remove();

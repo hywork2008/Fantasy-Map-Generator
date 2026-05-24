@@ -3,7 +3,7 @@ import { Lakes } from "@fmg/core/modules/lakes";
 import { Rivers } from "@fmg/core/modules/river-generator";
 
 import { lock, tip } from "./general";
-import { layerIsOn } from "./layers";
+import { layerIsOn, toggleBiomes, toggleCoordinates, togglePrecipitation, toggleRivers, toggleTemperature } from "./layers";
 
 export function editWorld() {
   if (customization) return;

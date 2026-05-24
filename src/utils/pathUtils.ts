@@ -235,13 +235,15 @@ export const connectVertices = ({
   startingVertex,
   ofSameType,
   addToChecked,
-  closeRing
+  closeRing,
+  logErrors = true
 }: {
   vertices: any;
   startingVertex: number;
   ofSameType: (cellId: number) => boolean;
   addToChecked?: (cellId: number) => void;
   closeRing?: boolean;
+  logErrors?: boolean;
 }) => {
   const MAX_ITERATIONS = vertices.c.length;
   const chain = []; // vertices chain to form a path
@@ -263,17 +265,17 @@ export const connectVertices = ({
     else if (v3 !== previous && c1 !== c3) next = v3;
 
     if (next >= vertices.c.length) {
-      window.ERROR && console.error("ConnectVertices: next vertex is out of bounds");
+      logErrors && window.ERROR && console.error("ConnectVertices: next vertex is out of bounds");
       break;
     }
 
     if (next === current) {
-      window.ERROR && console.error("ConnectVertices: next vertex is not found");
+      logErrors && window.ERROR && console.error("ConnectVertices: next vertex is not found");
       break;
     }
 
     if (i === MAX_ITERATIONS) {
-      window.ERROR && console.error("ConnectVertices: max iterations reached", MAX_ITERATIONS);
+      logErrors && window.ERROR && console.error("ConnectVertices: max iterations reached", MAX_ITERATIONS);
       break;
     }
   }
@@ -300,7 +302,9 @@ export const findPath = (
 
   const from = [];
   const cost = [];
-  const queue = new window.FlatQueue();
+  const FlatQueueCtor = window.fmg?.FlatQueue || window.FlatQueue;
+  if (!FlatQueueCtor) return null;
+  const queue = new FlatQueueCtor();
   queue.push(start, 0);
 
   while (queue.length) {

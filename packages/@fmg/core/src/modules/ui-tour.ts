@@ -1,6 +1,7 @@
 import { driver } from "driver.js";
 import "driver.js/dist/driver.css";
 import { closeDialogs } from "@legacy-ui-runtime/modules/ui/editors";
+import type { FmgGlobalContext } from "@fmg/types";
 
 const byId = (id: string) => document.getElementById(id);
 
@@ -405,4 +406,7 @@ function start() {
   tour.drive();
 }
 
-window.UITour = { start };
+const fmg = (window.fmg || (window.fmg = {} as FmgGlobalContext)) as FmgGlobalContext & {
+  startUITour?: () => void;
+};
+fmg.startUITour = start;

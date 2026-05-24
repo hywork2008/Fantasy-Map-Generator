@@ -28,7 +28,7 @@ export interface IceElement {
   offset?: [number, number];
 }
 
-class IceModule {
+class IceGenerator {
   // Find next available id for new ice element idealy filling gaps
   private getNextId() {
     if (pack.ice.length === 0) return 0;
@@ -169,4 +169,4 @@ class IceModule {
   }
 }
 
-export const Ice = new IceModule();
+export const Ice = new IceGenerator();

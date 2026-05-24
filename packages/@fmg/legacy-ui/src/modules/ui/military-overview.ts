@@ -1,4 +1,5 @@
-import { applySorting, fitContent } from "./editors";
+import { applySorting, closeDialogs, fitContent } from "./editors";
+import { layerIsOn, toggleBorders, toggleMilitary, toggleStates } from "./layers";
 "use strict";
 
 type MilitaryOptionUnit = {

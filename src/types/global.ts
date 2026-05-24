@@ -78,7 +78,6 @@ declare global {
 
   var layerIsOn: (layerId: string) => boolean;
   var drawRoute: (route: Route) => void;
-  var invokeActiveZooming: () => void;
   var FlatQueue: any;
 
   var tip: (
@@ -104,7 +103,7 @@ declare global {
   var closeDialogs: (except?: string) => void;
   var editWorld: () => void;
   var showExportPane: () => void;
-  var UITour: { start: () => void };
+  var startUITour: () => void;
   var getHeight: (h: number) => string;
   var getLatitude: (y: number, precision?: number) => number;
   var getLongitude: (x: number, precision?: number) => number;

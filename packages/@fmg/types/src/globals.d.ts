@@ -112,7 +112,6 @@ declare global {
 
   // UI functions and state
   var drawRoute: (route: Route) => void;
-  var invokeActiveZooming: () => void;
   var FlatQueue: any;
 
   var $: JQueryStatic;
@@ -130,7 +129,7 @@ declare global {
   var showExportPane: () => void;
 
   // UI state
-  var UITour: { start: () => void };
+  var startUITour: () => void;
 
   // Utility functions
   var getHeight: (h: number) => string;

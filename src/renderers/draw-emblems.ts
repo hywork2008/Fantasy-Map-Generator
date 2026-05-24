@@ -149,7 +149,7 @@ const emblemsRenderer = (): void => {
       .join("");
     emblems.select("#stateEmblems").attr("font-size", sizeStates).html(stateString);
 
-    invokeActiveZooming();
+    window.fmg?.invokeActiveZooming?.();
   });
 
   TIME && console.timeEnd("drawEmblems");

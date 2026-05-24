@@ -1,6 +1,8 @@
 "use strict";
 import { Rivers } from "@fmg/core/modules/river-generator";
 import type { FmgGlobalContext } from "@fmg/types";
+import { layerIsOn, toggleCells, toggleRivers } from "./layers";
+import { closeDialogs } from "./editors";
 
 type RiverCell = number;
 

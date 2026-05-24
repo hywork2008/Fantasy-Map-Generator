@@ -1,6 +1,7 @@
 "use strict";
 
 import type { FmgGlobalContext } from "@fmg/types";
+import { closeDialogs } from "./editors";
 
 type MinimapRuntime = {
   closeDialogs: (selector?: string) => void;

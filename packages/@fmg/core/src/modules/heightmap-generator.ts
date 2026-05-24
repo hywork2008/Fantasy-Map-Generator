@@ -4,12 +4,12 @@ import { createTypedArray, ensureEl, findGridCell, getNumberInRange, lim, minmax
 import type { PackedGraph, Grid, HeightmapTemplate } from "@fmg/types";
 
 declare global {
-  var HeightmapGenerator: HeightmapModule;
+  var HeightmapGenerator: HeightmapGenerator;
 }
 
 type Tool = "Hill" | "Pit" | "Range" | "Trough" | "Strait" | "Mask" | "Invert" | "Add" | "Multiply" | "Smooth";
 
-class HeightmapModule {
+class HeightmapGenerator {
   grid: Grid | null = null;
   heights: Uint8Array | null = null;
   blobPower: number = 0;
@@ -612,4 +612,4 @@ class HeightmapModule {
   }
 }
 
-window.HeightmapGenerator = new HeightmapModule();
+window.HeightmapGenerator = new HeightmapGenerator();

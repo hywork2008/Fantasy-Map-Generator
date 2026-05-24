@@ -254,16 +254,7 @@ import {
 import { cleanupData } from "./versioning";
 import { burgIconsRenderer, drawBurgIconRenderer, removeBurgIconRenderer } from "#renderers/draw-burg-icons";
 import { burgLabelsRenderer, drawBurgLabelRenderer, removeBurgLabelRenderer } from "#renderers/draw-burg-labels";
-import { Ice } from "@fmg/core/modules/ice";
-import { Lakes } from "@fmg/core/modules/lakes";
-import { Biomes } from "@fmg/core/modules/biomes";
 import { Names } from "@fmg/core/modules/names-generator";
-import { COA } from "@fmg/core/modules/emblem/generator";
-import { COArenderer } from "@fmg/core/modules/emblem/renderer";
-import { Military } from "@fmg/core/modules/military-generator";
-import { Rivers } from "@fmg/core/modules/river-generator";
-import { Routes } from "@fmg/core/modules/routes-generator";
-import { States } from "@fmg/core/modules/states-generator";
 import type { FmgGlobalContext } from "@fmg/types";
 
 const legacyCompat = {
@@ -336,16 +327,7 @@ const legacyCompat = {
   drawBurgLabels: burgLabelsRenderer,
   drawBurgLabel: drawBurgLabelRenderer,
   removeBurgLabel: removeBurgLabelRenderer,
-  Ice,
-  Lakes,
-  Biomes,
-  Names,
-  COA,
-  COArenderer,
-  Military,
-  Rivers,
-  Routes,
-  States,
+  getMapName: Names.getMapName,
 
   showOptions,
   hideOptions,
@@ -538,13 +520,24 @@ const legacyCompat = {
   saveGeoJsonMarkers,
   saveGeoJsonZones,
 
-  // Phase 5: IIFE globals converted to ESM exports
-  ThreeD,
-  Cloud
+  create3d: ThreeD.create,
+  redraw3d: ThreeD.redraw,
+  update3d: ThreeD.update,
+  stop3d: ThreeD.stop,
+  get3dOptions: () => ThreeD.options,
+
+  initializeDropbox: () => Cloud.providers.dropbox.initialize(),
+  listDropboxFiles: () => Cloud.providers.dropbox.list(),
+  loadDropboxFile: (path: string) => Cloud.providers.dropbox.load(path),
+  saveDropboxFile: (fileName: string, contents: Blob | string | ArrayBuffer) =>
+    Cloud.providers.dropbox.save(fileName, contents),
+  getDropboxLink: (path: string) => Cloud.providers.dropbox.getLink(path),
+  isDropboxConnected: () => Boolean(Cloud.providers.dropbox.api),
+
+  // Phase 5: IIFE globals converted to function-level API exports
 };
 
-// Migration period: dual publish to keep legacy window handlers working while
-// new callers move to window.fmg. Window root publish can be removed later.
-Object.assign(window, legacyCompat);
+// Publish compatibility API on window.fmg only.
+// Root window global publish is intentionally disabled to avoid API drift.
 const fmg = window.fmg || (window.fmg = {} as FmgGlobalContext);
 Object.assign(fmg as FmgGlobalContext & Record<string, unknown>, legacyCompat);

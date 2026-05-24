@@ -46,7 +46,7 @@ export interface Emblem {
   custom?: boolean;
 }
 
-class EmblemGeneratorModule {
+class EmblemGenerator {
   generate(parent: Emblem | null, kinship: number | null, dominion: number | null, type?: string): Emblem {
     if (!parent || parent.custom) {
       parent = null;
@@ -446,5 +446,5 @@ class EmblemGeneratorModule {
   }
 }
 
-export default EmblemGeneratorModule;
-export const COA = new EmblemGeneratorModule();
+export default EmblemGenerator;
+export const COA = new EmblemGenerator();

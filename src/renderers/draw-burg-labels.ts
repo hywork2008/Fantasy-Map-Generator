@@ -71,6 +71,10 @@ export const removeBurgLabelRenderer = (burgId: number): void => {
   if (existingLabel) existingLabel.remove();
 };
 
+window.drawBurgLabels = burgLabelsRenderer;
+window.drawBurgLabel = drawBurgLabelRenderer;
+window.removeBurgLabel = removeBurgLabelRenderer;
+
 function createLabelGroups(): void {
   // save existing styles and remove all groups
   document.querySelectorAll("g#burgLabels > g").forEach(group => {

@@ -9,7 +9,9 @@ import "@fmg/core/modules/heightmap-generator";
 import "@fmg/core/modules/ocean-layers";
 import { locked } from "./general";
 import { changeViewMode } from "./options";
-import { removeCircle } from "./editors";
+import { closeDialogs, removeCircle } from "./editors";
+import type { FmgGlobalContext } from "@fmg/types";
+import { getCurrentPreset, layerIsOn, toggleBorders, toggleHeight, toggleRivers, toggleStates } from "./layers";
 
 // Import drawFeatures from global scope
 declare const drawFeatures: () => void;
@@ -26,6 +28,11 @@ class HeightmapEditor {
   private layers: string[] = [];
 
   public open(options?: EditHeightmapOptions) {
+  const fmg = (window.fmg || (window.fmg = {} as FmgGlobalContext)) as FmgGlobalContext & {edits?: any};
+  let edits = (fmg.edits || []) as any;
+  if (typeof edits.n !== "number") edits.n = 0;
+  fmg.edits = edits;
+
   const editor = this;
   const {mode, tool} = options || {};
   restartHistory();
@@ -195,7 +202,7 @@ class HeightmapEditor {
       return tip("Insufficient land area. There should be at least 200 land cells!", null, "error");
     if (ensureEl("imageConverter").offsetParent) return tip("Please exit the Image Conversion mode first", null, "error");
 
-    delete window.edits; // remove global variable
+    delete fmg.edits; // remove temp state from global context
     redo.disabled = templateRedo.disabled = true;
     undo.disabled = templateUndo.disabled = true;
 
@@ -605,8 +612,9 @@ class HeightmapEditor {
 
   // restart edits from 1st step
   function restartHistory() {
-    window.edits = []; // declare temp global variable
-    window.edits.n = 0;
+    edits = [];
+    edits.n = 0;
+    fmg.edits = edits;
     redo.disabled = templateRedo.disabled = true;
     undo.disabled = templateUndo.disabled = true;
     updateHistory();

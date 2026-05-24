@@ -1,8 +1,8 @@
 "use strict";
 import { States } from "@fmg/core/modules/states-generator";
-import { applySorting, getArea, getAreaUnit, fitContent, removeCircle } from "./editors";
-import { fog, unfog } from "./editors";
-import { drawStates } from "./layers";
+import { applySorting, closeDialogs, fitContent, fog, getArea, getAreaUnit, removeCircle, unfog } from "./editors";
+import { drawStates, layerIsOn, toggleBorders, toggleCultures, togglePopulation, toggleProvinces, toggleStates } from "./layers";
+import { editStyle } from "./style";
 
 declare const areaUnit: HTMLSelectElement;
 

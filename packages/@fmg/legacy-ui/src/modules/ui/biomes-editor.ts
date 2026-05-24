@@ -1,9 +1,11 @@
 "use strict";
 
 import { Biomes } from "@fmg/core/modules/biomes";
-import { applySorting, getArea, getAreaUnit, fitContent, removeCircle, restoreDefaultEvents } from "./editors";
+import { applySorting, closeDialogs, fitContent, getArea, getAreaUnit, removeCircle, restoreDefaultEvents } from "./editors";
 import type { BaseType } from "d3-selection";
 import type { Transition } from "d3-transition";
+import { layerIsOn, toggleBiomes, toggleCultures, toggleProvinces, toggleRelief, toggleReligions, toggleStates } from "./layers";
+import { editStyle } from "./style";
 
 type BiomesEditorData = ReturnType<typeof Biomes.getDefault> & {
   cells: number[];

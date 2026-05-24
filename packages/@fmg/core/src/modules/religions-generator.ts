@@ -13,10 +13,11 @@ import {
   rw,
   trimVowels
 } from "@fmg/shared";
+import { Names } from "./names-generator";
 import { Routes } from "./routes-generator";
 
 declare global {
-  var Religions: any;
+  var Religions: ReligionsGenerator;
 }
 
 interface ReligionBase {
@@ -615,7 +616,7 @@ const expansionismMap: Record<string, () => number> = {
   Heresy: () => gauss(1, 0.5, 0, 5, 1)
 };
 
-class ReligionsModule {
+class ReligionsGenerator {
   generate() {
     TIME && console.time("generateReligions");
     const lockedReligions = pack.religions?.filter(r => r.i && r.lock && !r.removed) || [];
@@ -1129,4 +1130,4 @@ class ReligionsModule {
   }
 }
 
-window.Religions = new ReligionsModule();
+window.Religions = new ReligionsGenerator();

@@ -1,7 +1,7 @@
 import { mean, range } from "d3";
 import { rn } from "@fmg/shared";
 
-class BiomesModule {
+class BiomesGenerator {
   private MIN_LAND_HEIGHT = 20;
 
   getDefault() {
@@ -135,4 +135,4 @@ class BiomesModule {
   }
 }
 
-export const Biomes = new BiomesModule();
+export const Biomes = new BiomesGenerator();

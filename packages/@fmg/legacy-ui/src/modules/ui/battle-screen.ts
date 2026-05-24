@@ -1,4 +1,4 @@
-import { applySorting, fitContent } from "./editors";
+import { applySorting, closeDialogs, fitContent } from "./editors";
 import type { MilitaryRegiment } from "@fmg/core/modules/military-generator";
 "use strict";
 
@@ -325,9 +325,9 @@ class Battle {
         const regiment = (state?.military || []).find((r: BattleRegiment) => r.i === regimentId) as BattleRegiment | undefined;
         if (!regiment) return;
 
-        Battle.prototype.addRegiment.call(context, side, regiment);
-        Battle.prototype.calculateStrength.call(context, side);
-        Battle.prototype.getInitialMorale.call(context);
+        context.addRegiment(side, regiment);
+        context.calculateStrength(side);
+        context.getInitialMorale();
 
         // move regiment
         const defenders = context.defenders.regiments,

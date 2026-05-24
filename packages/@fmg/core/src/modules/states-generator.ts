@@ -19,6 +19,7 @@ import type { PackedGraphFeature } from "./features";
 import type { River } from "./river-generator";
 import type { Emblem } from "./emblem/generator";
 import { COA } from "./emblem/generator";
+import { Names } from "./names-generator";
 
 interface Campaign {
   name: string;
@@ -59,7 +60,7 @@ export interface State {
   coaSize?: number;
 }
 
-class StatesModule {
+class StatesGenerator {
   private createStates() {
     const states: State[] = [{ i: 0, name: "Neutrals" } as State];
     const each5th = each(5);
@@ -702,4 +703,4 @@ class StatesModule {
   }
 }
 
-export const States = new StatesModule();
+export const States = new StatesGenerator();

@@ -3,9 +3,10 @@ import { max } from "d3";
 import { ensureEl, gauss, generateSeed, getMixedColor, getPolesOfInaccessibility, P, rand, rw } from "@fmg/shared";
 import type { Emblem } from "./emblem/generator";
 import { COA } from "./emblem/generator";
+import { Names } from "./names-generator";
 
 declare global {
-  var Provinces: any;
+  var Provinces: ProvincesGenerator;
 }
 
 export interface Province {
@@ -28,7 +29,7 @@ export interface Province {
   urban?: number;
 }
 
-class ProvinceModule {
+class ProvincesGenerator {
   forms: Record<string, Record<string, number>> = {
     Monarchy: {
       County: 22,
@@ -336,4 +337,4 @@ class ProvinceModule {
   }
 }
 
-window.Provinces = new ProvinceModule();
+window.Provinces = new ProvincesGenerator();

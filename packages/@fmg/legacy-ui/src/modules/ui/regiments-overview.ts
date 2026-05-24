@@ -1,5 +1,6 @@
-import { applySorting, fitContent } from "./editors";
+import { applySorting, closeDialogs, fitContent } from "./editors";
 import type { MilitaryRegiment } from "@fmg/core/modules/military-generator";
+import { layerIsOn, toggleMilitary } from "./layers";
 "use strict";
 
 type UiRegiment = MilitaryRegiment & { icon: string; name: string };

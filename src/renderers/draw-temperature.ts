@@ -45,7 +45,8 @@ const temperatureRenderer = (): void => {
       vertices,
       startingVertex,
       ofSameType,
-      addToChecked
+      addToChecked,
+      logErrors: false
     });
     const relaxed = chain.filter((v: number, i: number) => i % 4 === 0 || vertices.c[v].some((c: number) => c >= n));
     if (relaxed.length < 6) continue;

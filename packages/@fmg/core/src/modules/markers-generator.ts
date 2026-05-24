@@ -2,11 +2,12 @@ import { mean } from "d3";
 import type { PackedGraph } from "@fmg/types/PackedGraph";
 import { capitalize, convertTemperature, gauss, generateDate, getAdjective, last, P, ra, rand, rn, rw } from "@fmg/shared";
 import { getFriendlyHeight } from "@legacy-ui-runtime/modules/ui/general";
+import { Names } from "./names-generator";
 import { Routes } from "./routes-generator";
 import { States } from "./states-generator";
 
 declare global {
-  var Markers: MarkersModule;
+  var Markers: MarkersGenerator;
 }
 
 type MarkerConfig = {
@@ -35,7 +36,7 @@ export interface Marker {
   lock?: boolean;
 }
 
-class MarkersModule {
+class MarkersGenerator {
   private config: MarkerConfig[];
   private occupied: boolean[];
 
@@ -1653,4 +1654,4 @@ class MarkersModule {
   }
 }
 
-window.Markers = new MarkersModule();
+window.Markers = new MarkersGenerator();

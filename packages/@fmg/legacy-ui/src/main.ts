@@ -15,7 +15,7 @@ import {
   generateMapOnLoadFlow,
   type SelectMfcgDeps
 } from "./modules/ui/initial-load";
-import { applyLayersPreset } from "./modules/ui/layers";
+import { applyLayersPreset, drawLayers, layerIsOn } from "./modules/ui/layers";
 import {
   buildCheckLoadParametersDeps,
   buildFindBurgForMFCGDeps,
@@ -51,10 +51,17 @@ import {
   buildSetSeedDeps,
   buildUndrawDeps,
 } from "./modules/ui/generation-deps";
-import { locked } from "./modules/ui/general";
-import { createDefaultRuler } from "./modules/ui/measurers";
+import { clearMainTip, locked, showDataTip, showMainTip, tip } from "./modules/ui/general";
+import { createDefaultRuler, Rulers } from "./modules/ui/measurers";
+import { applyStyleOnLoad } from "./modules/ui/style-presets";
+import { applyGraphSize, applyStoredOptions, fitMapToScreen, randomizeOptions } from "./modules/ui/options";
+import { closeDialogs, restoreDefaultEvents } from "./modules/ui/editors";
+import { editUnits } from "./modules/ui/units-editor";
+import { initiateAutosave } from "./modules/io/save";
+import { editWorld } from "./modules/ui/world-configurator";
 import { Biomes } from "@fmg/core/modules/biomes";
 import { Ice } from "@fmg/core/modules/ice";
+import { Lakes } from "@fmg/core/modules/lakes";
 import { Military } from "@fmg/core/modules/military-generator";
 import { Names } from "@fmg/core/modules/names-generator";
 import { Rivers } from "@fmg/core/modules/river-generator";
@@ -122,10 +129,6 @@ type MapCoordinatesLike = {
   lonT: number;
   lonW: number;
   lonE: number;
-};
-
-type WindowWithInvokeActiveZooming = Window & {
-  invokeActiveZooming?: () => void;
 };
 
 const runtime = window as unknown as Window & RuntimeBridge;
@@ -369,7 +372,7 @@ function zoomRaf() {
     }
 
     if (didPositionChange || didScaleChange) {
-      window.updateMinimap && updateMinimap();
+      (window.fmg as (FmgGlobalContext & { updateMinimap?: () => void }) | undefined)?.updateMinimap?.();
     }
   });
 }
@@ -572,6 +575,8 @@ function publishLegacyMainGlobals() {
   fmg.reGraph = reGraph;
   fmg.focusOn = focusOn;
   fmg.showStatistics = showStatistics;
+  (fmg as any).tip = tip;
+  (fmg as any).showMainTip = showMainTip;
   fmg.clearMainTip = clearMainTip;
 }
 
@@ -621,7 +626,13 @@ function toggleAssistant() {
 }
 
 function initTourPromptButton() {
-  initTourPromptButtonUI({ document, localStorage, UITour });
+  initTourPromptButtonUI({
+    document,
+    localStorage,
+    startTour: () => {
+      (window.fmg as (FmgGlobalContext & { startUITour?: () => void }) | undefined)?.startUITour?.();
+    }
+  });
 }
 
 // find burg for MFCG and focus on it
@@ -715,8 +726,8 @@ async function generate(options) {
       pack = {};
     },
     invokeActiveZooming,
-    applyGraphSize: runtime.applyGraphSize,
-    randomizeOptions: runtime.randomizeOptions,
+    applyGraphSize,
+    randomizeOptions,
     shouldRegenerateGrid: runtime.shouldRegenerateGrid,
     generateGrid: runtime.generateGrid,
     HeightmapGenerator: runtime.HeightmapGenerator,
@@ -889,28 +900,36 @@ function showStatistics() {
   );
 }
 
-const regenerateMap = createRegenerateMap(
-  runtime.debounce,
-  buildRegenerateMapDeps({
-    WARN,
-    ensureEl,
-    showLoading,
-    hideLoading,
-    closeDialogs,
-    setCustomization: value => {
-      customization = value;
-    },
-    resetZoom,
-    undraw,
-    generate,
-    drawLayers,
-    ThreeD: runtime.ThreeD,
-    isWorldConfiguratorVisible: () => $("#worldConfigurator").is(":visible"),
-    editWorld,
-    fitMapToScreen,
-    clearMainTip: runtime.clearMainTip
-  })
-);
+let regenerateMapImpl: ((options: unknown) => unknown) | undefined;
+
+function regenerateMap(options: unknown) {
+  if (!regenerateMapImpl) {
+    regenerateMapImpl = createRegenerateMap(
+      runtime.debounce,
+      buildRegenerateMapDeps({
+        WARN,
+        ensureEl,
+        showLoading,
+        hideLoading,
+        closeDialogs,
+        setCustomization: value => {
+          customization = value;
+        },
+        resetZoom,
+        undraw,
+        generate,
+        drawLayers,
+        ThreeD: runtime.ThreeD,
+        isWorldConfiguratorVisible: () => $("#worldConfigurator").is(":visible"),
+        editWorld,
+        fitMapToScreen,
+        clearMainTip: runtime.clearMainTip
+      })
+    );
+  }
+
+  return regenerateMapImpl(options);
+}
 
 // clear the map
 function undraw() {
@@ -926,10 +945,8 @@ function undraw() {
   );
 }
 
-// Register invokeActiveZooming to window for HTML onclick handlers
+// Register invokeActiveZooming on window.fmg for HTML onclick handlers
 if (typeof window !== "undefined") {
-  const win = window as WindowWithInvokeActiveZooming;
-  win.invokeActiveZooming = invokeActiveZooming;
   const fmg = (window.fmg || (window.fmg = {} as FmgGlobalContext)) as FmgGlobalContext & {
     invokeActiveZooming?: () => void;
     regenerateMap?: (options: unknown) => void;

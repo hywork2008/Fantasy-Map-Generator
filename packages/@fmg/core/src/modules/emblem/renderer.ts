@@ -10,7 +10,7 @@ import { layerIsOn } from "@legacy-ui-runtime/modules/ui/layers";
 import type { Emblem as GeneratedEmblem } from "./generator";
 
 declare global {
-  var COArenderer: any;
+  var COArenderer: EmblemRenderer;
 }
 
 interface Division {
@@ -45,7 +45,7 @@ type Emblem = GeneratedEmblem & {
   charges?: Charge[];
 };
 
-class EmblemRenderModule {
+class EmblemRenderer {
   get shieldPaths() {
     return shieldPaths;
   }
@@ -320,4 +320,4 @@ class EmblemRenderModule {
     if (layerIsOn("toggleEmblems")) this.trigger(id, coa);
   }
 }
-export const COArenderer = new EmblemRenderModule();
+export const COArenderer = new EmblemRenderer();

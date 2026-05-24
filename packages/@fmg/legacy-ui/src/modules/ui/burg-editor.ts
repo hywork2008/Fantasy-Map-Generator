@@ -1,5 +1,11 @@
 "use strict";
+import { COArenderer } from "@fmg/core/modules/emblem/renderer";
 import { editBurgGroups } from "./burg-group-editor";
+import { closeDialogs, unselect } from "./editors";
+import { getHeight } from "./general";
+import { layerIsOn, toggleBurgIcons, toggleCells, toggleLabels } from "./layers";
+import { editStyle } from "./style";
+import type { Burg } from "@fmg/core/modules/burgs-generator";
 class BurgEditor {
   public open(id?: unknown) {
     if (customization) return;
@@ -270,7 +276,7 @@ class BurgEditor {
     editStyle("anchors", g);
   }
 
-  private updateBurgPreview(burg: unknown) {
+  private updateBurgPreview(burg: Burg) {
     const preview = Burgs.getPreview(burg).preview;
     if (!preview) {
       (ensureEl("burgPreviewSection") as HTMLElement).style.display = "none";

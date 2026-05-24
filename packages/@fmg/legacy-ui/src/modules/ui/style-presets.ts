@@ -2,6 +2,7 @@
 "use strict";
 
 import { selectStyleElement, updateElements } from "./style";
+import { layerIsOn, toggleBurgIcons, toggleLabels } from "./layers";
 /// <reference path="../../types/ui-legacy-globals.d.ts" />
 
 type StyleAttributeValue = string | number | null;
@@ -168,7 +169,7 @@ export function applyStyleWithUiRefresh(style: StylePresetData) {
   updateMapFilter();
   stylePreset.dataset.old = stylePreset.value;
 
-  invokeActiveZooming();
+  (window as any).fmg?.invokeActiveZooming?.();
   setPresetRemoveButtonVisibiliy();
 
   drawScaleBar(scaleBar, scale);

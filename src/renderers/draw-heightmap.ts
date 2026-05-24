@@ -22,6 +22,7 @@ import {
   line,
   range
 } from "d3";
+import { getColor, getColorScheme } from "@legacy-ui-runtime/modules/ui/style";
 import { round } from "../utils";
 
 const CURVE_MAP: Record<string, CurveFactory> = {

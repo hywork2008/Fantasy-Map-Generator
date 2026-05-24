@@ -1,5 +1,3 @@
-declare function tip(text: string): void;
-
 {
   const style = /* css */ `
     fill-box:not([disabled]) {
@@ -42,7 +40,7 @@ declare function tip(text: string): void;
     }
 
     static showTip(this: FillBox) {
-      tip(this.tip);
+      (window as any).fmg?.tip?.(this.tip);
     }
 
     connectedCallback() {

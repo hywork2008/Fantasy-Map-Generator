@@ -3,8 +3,8 @@ import { test, expect } from "@playwright/test";
 async function openMapAndWaitForGlobals(page: import("@playwright/test").Page) {
   await page.goto("/Fantasy-Map-Generator/", {waitUntil: "domcontentloaded"});
   // modules/index.ts and compat globals are loaded asynchronously after initial HTML parse
-  await page.waitForFunction(() => typeof (window as any).saveMap === "function", {timeout: 15000});
-  await page.waitForFunction(() => typeof (window as any).invokeActiveZooming === "function", {
+  await page.waitForFunction(() => typeof (window as any).fmg?.saveMap === "function", {timeout: 15000});
+  await page.waitForFunction(() => typeof (window as any).fmg?.invokeActiveZooming === "function", {
     timeout: 15000
   });
 }
@@ -15,7 +15,7 @@ async function openMapAndWaitForGlobals(page: import("@playwright/test").Page) {
  * Priority: HIGHEST - detects import/export registration failures early
  */
 test.describe("Window globals smoke test", () => {
-  test("all toggle functions should be available on window", async ({ page }) => {
+  test("all toggle functions should be available on window.fmg", async ({ page }) => {
     await openMapAndWaitForGlobals(page);
 
     const toggleFunctions = [
@@ -51,13 +51,13 @@ test.describe("Window globals smoke test", () => {
     ];
 
     const missing = await page.evaluate((required) => {
-      return required.filter((fn) => typeof (window as any)[fn] !== "function");
+      return required.filter((fn) => typeof (window as any).fmg?.[fn] !== "function");
     }, toggleFunctions);
 
     expect(missing, `Missing toggle functions: ${missing.join(", ")}`).toEqual([]);
   });
 
-  test("all preset functions should be available on window", async ({
+  test("all preset functions should be available on window.fmg", async ({
     page
   }) => {
     await openMapAndWaitForGlobals(page);
@@ -69,13 +69,13 @@ test.describe("Window globals smoke test", () => {
     ];
 
     const missing = await page.evaluate((required) => {
-      return required.filter((fn) => typeof (window as any)[fn] !== "function");
+      return required.filter((fn) => typeof (window as any).fmg?.[fn] !== "function");
     }, presetFunctions);
 
     expect(missing, `Missing preset functions: ${missing.join(", ")}`).toEqual([]);
   });
 
-  test("all options functions should be available on window", async ({
+  test("all options functions should be available on window.fmg", async ({
     page
   }) => {
     await openMapAndWaitForGlobals(page);
@@ -83,6 +83,7 @@ test.describe("Window globals smoke test", () => {
     const optionsFunctions = [
       "showSupporters",
       "regeneratePrompt",
+      "getMapName",
       "copyLinkToClickboard",
       "showElementLockTip",
       "openURL",
@@ -93,13 +94,13 @@ test.describe("Window globals smoke test", () => {
     ];
 
     const missing = await page.evaluate((required) => {
-      return required.filter((fn) => typeof (window as any)[fn] !== "function");
+      return required.filter((fn) => typeof (window as any).fmg?.[fn] !== "function");
     }, optionsFunctions);
 
     expect(missing, `Missing options functions: ${missing.join(", ")}`).toEqual([]);
   });
 
-  test("all load functions should be available on window", async ({
+  test("all load functions should be available on window.fmg", async ({
     page
   }) => {
     await openMapAndWaitForGlobals(page);
@@ -111,13 +112,13 @@ test.describe("Window globals smoke test", () => {
     ];
 
     const missing = await page.evaluate((required) => {
-      return required.filter((fn) => typeof (window as any)[fn] !== "function");
+      return required.filter((fn) => typeof (window as any).fmg?.[fn] !== "function");
     }, loadFunctions);
 
     expect(missing, `Missing load functions: ${missing.join(", ")}`).toEqual([]);
   });
 
-  test("all style/UI functions should be available on window", async ({
+  test("all style/UI functions should be available on window.fmg", async ({
     page
   }) => {
     await openMapAndWaitForGlobals(page);
@@ -133,13 +134,13 @@ test.describe("Window globals smoke test", () => {
     ];
 
     const missing = await page.evaluate((required) => {
-      return required.filter((fn) => typeof (window as any)[fn] !== "function");
+      return required.filter((fn) => typeof (window as any).fmg?.[fn] !== "function");
     }, styleFunctions);
 
     expect(missing, `Missing style/UI functions: ${missing.join(", ")}`).toEqual([]);
   });
 
-  test("all save functions should be available on window", async ({
+  test("all save functions should be available on window.fmg", async ({
     page
   }) => {
     await openMapAndWaitForGlobals(page);
@@ -153,13 +154,13 @@ test.describe("Window globals smoke test", () => {
     ];
 
     const missing = await page.evaluate((required) => {
-      return required.filter((fn) => typeof (window as any)[fn] !== "function");
+      return required.filter((fn) => typeof (window as any).fmg?.[fn] !== "function");
     }, saveFunctions);
 
     expect(missing, `Missing save functions: ${missing.join(", ")}`).toEqual([]);
   });
 
-  test("all export functions should be available on window", async ({
+  test("all export functions should be available on window.fmg", async ({
     page
   }) => {
     await openMapAndWaitForGlobals(page);
@@ -177,34 +178,38 @@ test.describe("Window globals smoke test", () => {
     ];
 
     const missing = await page.evaluate((required) => {
-      return required.filter((fn) => typeof (window as any)[fn] !== "function");
+      return required.filter((fn) => typeof (window as any).fmg?.[fn] !== "function");
     }, exportFunctions);
 
     expect(missing, `Missing export functions: ${missing.join(", ")}`).toEqual([]);
   });
 
-  test("invokeActiveZooming should be available on window", async ({
+  test("invokeActiveZooming should be available on window.fmg only", async ({
     page
   }) => {
     await openMapAndWaitForGlobals(page);
 
-    const isFunction = await page.evaluate(
-      () => typeof (window as any).invokeActiveZooming === "function"
-    );
+    const exposure = await page.evaluate(() => ({
+      root: typeof (window as any).invokeActiveZooming,
+      fmg: typeof (window as any).fmg?.invokeActiveZooming
+    }));
 
-    expect(isFunction, "invokeActiveZooming should be a function on window").toBe(true);
+    expect(exposure.root, "window.invokeActiveZooming should not be defined").toBe("undefined");
+    expect(exposure.fmg, "window.fmg.invokeActiveZooming should be a function").toBe("function");
   });
 
-  test("UITour.start should be available on window.fmg", async ({
+  test("UITour should be exposed as function-level API on window.fmg", async ({
     page
   }) => {
     await openMapAndWaitForGlobals(page);
 
-    const isFunction = await page.evaluate(
-      () => typeof (window as any).fmg?.UITour?.start === "function"
-    );
+    const exposure = await page.evaluate(() => ({
+      startType: typeof (window as any).fmg?.startUITour,
+      uiTourType: typeof (window as any).fmg?.UITour
+    }));
 
-    expect(isFunction, "window.fmg.UITour.start should be a function").toBe(true);
+    expect(exposure.startType, "window.fmg.startUITour should be a function").toBe("function");
+    expect(exposure.uiTourType, "window.fmg.UITour should not be defined").toBe("undefined");
   });
 
   test("regenerateMap should be exposed via window.fmg and New Map should work", async ({
@@ -236,36 +241,58 @@ test.describe("Window globals smoke test", () => {
     expect(unexpectedErrors, `Unexpected console errors: ${unexpectedErrors.join("; ")}`).toEqual([]);
   });
 
-  test("ThreeD should be available on window and window.fmg", async ({
+  test("Names should not be exposed as class-like API on window.fmg", async ({
     page
   }) => {
     await openMapAndWaitForGlobals(page);
 
-    const result = await page.evaluate(() => ({
-      windowHas: typeof (window as any).ThreeD === "object" && (window as any).ThreeD !== null,
-      fmgHas: typeof (window as any).fmg?.ThreeD === "object" && (window as any).fmg?.ThreeD !== null,
-      hasCreate: typeof (window as any).ThreeD?.create === "function"
+    const exposure = await page.evaluate(() => ({
+      namesType: typeof (window as any).fmg?.Names,
+      getMapNameType: typeof (window as any).fmg?.getMapName
     }));
 
-    expect(result.windowHas, "ThreeD should be an object on window").toBe(true);
-    expect(result.fmgHas, "ThreeD should be an object on window.fmg").toBe(true);
-    expect(result.hasCreate, "ThreeD.create should be a function").toBe(true);
+    expect(exposure.namesType, "window.fmg.Names should not be defined").toBe("undefined");
+    expect(exposure.getMapNameType, "window.fmg.getMapName should be a function").toBe("function");
   });
 
-  test("Cloud should be available on window and window.fmg", async ({
+  test("3d functions should be available on window.fmg only", async ({
     page
   }) => {
     await openMapAndWaitForGlobals(page);
 
     const result = await page.evaluate(() => ({
-      windowHas: typeof (window as any).Cloud === "object" && (window as any).Cloud !== null,
-      fmgHas: typeof (window as any).fmg?.Cloud === "object" && (window as any).fmg?.Cloud !== null,
-      hasProviders: typeof (window as any).Cloud?.providers === "object"
+      windowHas: typeof (window as any).ThreeD,
+      fmgThreeDHas: typeof (window as any).fmg?.ThreeD,
+      hasCreate: typeof (window as any).fmg?.create3d === "function",
+      hasUpdate: typeof (window as any).fmg?.update3d === "function",
+      hasStop: typeof (window as any).fmg?.stop3d === "function"
     }));
 
-    expect(result.windowHas, "Cloud should be an object on window").toBe(true);
-    expect(result.fmgHas, "Cloud should be an object on window.fmg").toBe(true);
-    expect(result.hasProviders, "Cloud.providers should be an object").toBe(true);
+    expect(result.windowHas, "ThreeD should not be defined on window root").toBe("undefined");
+    expect(result.fmgThreeDHas, "window.fmg.ThreeD should not be defined").toBe("undefined");
+    expect(result.hasCreate, "window.fmg.create3d should be a function").toBe(true);
+    expect(result.hasUpdate, "window.fmg.update3d should be a function").toBe(true);
+    expect(result.hasStop, "window.fmg.stop3d should be a function").toBe(true);
+  });
+
+  test("cloud functions should be available on window.fmg only", async ({
+    page
+  }) => {
+    await openMapAndWaitForGlobals(page);
+
+    const result = await page.evaluate(() => ({
+      windowHas: typeof (window as any).Cloud,
+      fmgCloudHas: typeof (window as any).fmg?.Cloud,
+      hasInit: typeof (window as any).fmg?.initializeDropbox === "function",
+      hasList: typeof (window as any).fmg?.listDropboxFiles === "function",
+      hasLink: typeof (window as any).fmg?.getDropboxLink === "function"
+    }));
+
+    expect(result.windowHas, "Cloud should not be defined on window root").toBe("undefined");
+    expect(result.fmgCloudHas, "window.fmg.Cloud should not be defined").toBe("undefined");
+    expect(result.hasInit, "window.fmg.initializeDropbox should be a function").toBe(true);
+    expect(result.hasList, "window.fmg.listDropboxFiles should be a function").toBe(true);
+    expect(result.hasLink, "window.fmg.getDropboxLink should be a function").toBe(true);
   });
 
   test("no console errors should be present after globals registration", async ({

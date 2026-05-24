@@ -1,5 +1,7 @@
 "use strict";
-import { removeCircle } from "./editors";
+import { closeDialogs, removeCircle, unselect } from "./editors";
+import { layerIsOn, toggleRelief } from "./layers";
+import { editStyle } from "./style";
 class ReliefEditor {
   public open() {
     if (customization) return;

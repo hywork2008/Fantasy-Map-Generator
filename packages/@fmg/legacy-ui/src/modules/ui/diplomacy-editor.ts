@@ -1,7 +1,8 @@
-import { applySorting, fitContent } from "./editors";
+import { applySorting, closeDialogs, fitContent } from "./editors";
 "use strict";
 import { States } from "@fmg/core/modules/states-generator";
-import { drawStates } from "./layers";
+import { drawStates, layerIsOn, toggleBiomes, toggleBorders, toggleCultures, toggleProvinces, toggleReligions, toggleStates } from "./layers";
+import { editStyle } from "./style";
 
 const DIPLOMACY_RELATIONS: Record<string, {inText: string; color: string; tip: string}> = {
   Ally: {

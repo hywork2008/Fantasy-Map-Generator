@@ -4,9 +4,9 @@ import { clipPoly, P, rn, round } from "@fmg/shared";
 import type { PackedGraph, Grid } from "@fmg/types";
 
 declare global {
-  var OceanLayers: typeof OceanModule.prototype.draw;
+  var OceanLayers: typeof OceanLayersGenerator.prototype.draw;
 }
-class OceanModule {
+class OceanLayersGenerator {
   private cells: Grid["cells"];
   private vertices: Grid["vertices"];
   private pointsN: number = 0;
@@ -110,4 +110,4 @@ class OceanModule {
   }
 }
 
-window.OceanLayers = () => new OceanModule(oceanLayers).draw();
+window.OceanLayers = () => new OceanLayersGenerator(oceanLayers).draw();

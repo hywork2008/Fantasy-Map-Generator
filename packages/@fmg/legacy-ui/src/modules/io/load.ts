@@ -17,6 +17,7 @@ declare let zones: Selection<SVGGElement, unknown, null, undefined>;
 type LoadFmgContext = FmgGlobalContext & {
   generateMapOnLoad?: () => Promise<void>;
   reGraph?: () => void;
+  invokeActiveZooming?: () => void;
 };
 
 // Functions to load and parse .map/.gz files
@@ -785,7 +786,7 @@ async function parseLoadedData(data, mapVersion) {
       const fmg = window.fmg as LoadFmgContext | undefined;
       if (!fmg?.focusOn) throw new ReferenceError("window.fmg.focusOn is not defined");
       fmg.focusOn(); // based on searchParams focus on point, cell or burg
-      invokeActiveZooming();
+      fmg.invokeActiveZooming?.();
       fitMapToScreen();
     }
 

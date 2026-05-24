@@ -79,6 +79,10 @@ export const removeBurgIconRenderer = (burgId: number): void => {
   if (existingAnchor) existingAnchor.remove();
 };
 
+window.drawBurgIcons = burgIconsRenderer;
+window.drawBurgIcon = drawBurgIconRenderer;
+window.removeBurgIcon = removeBurgIconRenderer;
+
 function createIconGroups(): void {
   // save existing styles and remove all groups
   document.querySelectorAll("g#burgIcons > g").forEach(group => {

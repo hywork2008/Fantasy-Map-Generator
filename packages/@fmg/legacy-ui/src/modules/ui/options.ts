@@ -8,7 +8,10 @@ import { loadMapFromURL, uploadMap } from "../io/load";
 import { closeDialogs } from "./editors";
 import { COA } from "@fmg/core/modules/emblem/generator";
 import { COArenderer } from "@fmg/core/modules/emblem/renderer";
+import { Names } from "@fmg/core/modules/names-generator";
 import { ensureLegacyElement, legacyRuntime } from "../runtime/legacy-runtime";
+import type { FmgGlobalContext } from "@fmg/types";
+import { drawStates, toggleLabels } from "./layers";
 /// <reference path="../../types/ui-legacy-globals.d.ts" />
 
 declare global {
@@ -375,9 +378,13 @@ function getCellsDensityColor(cells) {
   return cells > 50000 ? "#b12117" : cells !== 10000 ? "#dfdf12" : "#053305";
 }
 
-// Legacy tool modules (submap / transform) consume these helpers from global runtime.
-window.cellsDensityMap = cellsDensityMap;
-window.getCellsDensityColor = getCellsDensityColor;
+// Legacy tool modules (submap / transform) consume these helpers via fmg runtime.
+const fmg = (window.fmg || (window.fmg = {} as FmgGlobalContext)) as FmgGlobalContext & {
+  cellsDensityMap?: typeof cellsDensityMap;
+  getCellsDensityColor?: typeof getCellsDensityColor;
+};
+fmg.cellsDensityMap = cellsDensityMap;
+fmg.getCellsDensityColor = getCellsDensityColor;
 
 function changeCultureSet() {
   const max = culturesSet.selectedOptions[0].dataset.max;

@@ -35,7 +35,7 @@
             this.querySelector("svg")?.setAttribute("height", this.size);
         }
         static showTip() {
-            tip(this.tip);
+            window.fmg?.tip?.(this.tip);
         }
         connectedCallback() {
             this.addEventListener("mousemove", this.constructor.showTip);

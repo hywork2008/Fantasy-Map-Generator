@@ -5,7 +5,7 @@ type AssistantDeps = {
 type TourDeps = {
   document: Document;
   localStorage: Storage;
-  UITour: { start: () => void };
+  startTour: () => void;
 };
 
 let isAssistantLoaded = false;
@@ -73,7 +73,7 @@ export function toggleAssistantWidget({ showDataTip }: AssistantDeps) {
   }
 }
 
-export function initTourPromptButtonUI({ document, localStorage, UITour }: TourDeps) {
+export function initTourPromptButtonUI({ document, localStorage, startTour }: TourDeps) {
   const MAX_SHOWS = 3;
   const STORAGE_KEY = "fmg-tour-prompt-count";
   const btn = document.getElementById("tourPromptButton");
@@ -85,6 +85,6 @@ export function initTourPromptButtonUI({ document, localStorage, UITour }: TourD
   localStorage.setItem(STORAGE_KEY, String(count + 1));
   btn.style.display = "flex";
   btn.addEventListener("click", () => {
-    UITour.start();
+    startTour();
   });
 }

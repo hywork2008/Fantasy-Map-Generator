@@ -1,3 +1,4 @@
+import { layerIsOn, toggleGrid, toggleHeight, toggleRelief } from "./layers";
 // UI module to control the style
 "use strict";
 
@@ -193,7 +194,7 @@ class StyleEditorFacade {
 
 const styleEditorFacade = new StyleEditorFacade();
 
-export function editStyle(element, group) {
+export function editStyle(element, group?) {
   styleEditorFacade.open(element, group);
 }
 
@@ -694,7 +695,7 @@ styleGridScale.on("input", function () {
   calculateFriendlyGridSize();
 });
 
-function calculateFriendlyGridSize() {
+export function calculateFriendlyGridSize() {
   const size = styleGridScale.value * 25;
   const friendly = `${rn(size * distanceScale, 2)} ${distanceUnitInput.value}`;
   styleGridSizeFriendly.value = friendly;
@@ -712,13 +713,13 @@ styleGridShiftY.on("input", function () {
 
 styleRescaleMarkers.on("change", function () {
   markers.attr("rescale", +this.checked);
-  invokeActiveZooming();
+  (window as any).fmg?.invokeActiveZooming?.();
 });
 
 styleCoastlineAuto.on("change", function () {
   coastline.select("#sea_island").attr("auto-filter", +this.checked);
   styleFilter.style.display = this.checked ? "none" : "block";
-  invokeActiveZooming();
+  (window as any).fmg?.invokeActiveZooming?.();
 });
 
 styleOceanFill.on("input", function () {
@@ -1275,7 +1276,7 @@ export function updateElements() {
   if (legend.selectAll("*").size() && typeof redrawLegend === "function") redrawLegend();
   oceanLayers.selectAll("path").remove();
   OceanLayers();
-  invokeActiveZooming();
+  (window as any).fmg?.invokeActiveZooming?.();
 }
 
 // GLOBAL FILTERS

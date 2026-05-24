@@ -2,8 +2,9 @@
 
 import { closeDialogs, getArea, getAreaUnit, restoreDefaultEvents, fog, unfog, fitContent, removeCircle } from "./editors";
 import { tip, clearMainTip } from "./general";
-import { layerIsOn } from "./layers";
+import { layerIsOn, togglePopulation, toggleZones } from "./layers";
 import { ensureEl, rn } from "@fmg/shared";
+import { editStyle } from "./style";
 
 declare const zones: any;
 declare function drawZones(): void;

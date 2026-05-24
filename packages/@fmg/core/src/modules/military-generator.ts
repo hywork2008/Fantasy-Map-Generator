@@ -35,7 +35,7 @@ interface Platoon {
   children?: Platoon[]; // merged platoons
 }
 
-class MilitaryModule {
+class MilitaryGenerator {
   generate() {
     TIME && console.time("generateMilitary");
     const { cells, states } = pack;
@@ -582,4 +582,4 @@ class MilitaryModule {
     return unit ? unit.icon : "⚔️";
   }
 }
-export const Military = new MilitaryModule();
+export const Military = new MilitaryGenerator();

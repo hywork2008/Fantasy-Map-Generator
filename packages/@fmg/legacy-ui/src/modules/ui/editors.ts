@@ -1,6 +1,8 @@
 // module stub to store common functions for ui editors
 "use strict";
 
+import { onMouseMove } from "./general";
+
 modules.editors = true;
 
 let pickerUpdateFill: (() => void) | null = null;
