@@ -4,6 +4,12 @@ import type { FmgGlobalContext } from "@fmg/types";
 import { drawLayers } from "./layers";
 import { closeDialogs } from "./editors";
 
+// Lazy-load functions from window.fmg
+const getApplyGraphSize = () => (window.fmg as any)?.applyGraphSize || (window as any).applyGraphSize;
+const getFitMapToScreen = () => (window.fmg as any)?.fitMapToScreen || (window as any).fitMapToScreen;
+const getResetZoomFn = () => (window.fmg as any)?.resetZoom || (window as any).resetZoom;
+const getUndraw = () => (window.fmg as any)?.undraw || (window as any).undraw;
+
 type SubmapFmgContext = FmgGlobalContext & {
   openSubmapTool?: typeof openSubmapTool;
   getLatitude?: (y: number, decimals?: number) => number;
@@ -85,17 +91,21 @@ function openSubmapTool() {
       y / submapRuntime.scale + y0
     ];
 
-    submapRuntime.applyGraphSize();
-    submapRuntime.fitMapToScreen();
-    submapRuntime.resetZoom(0);
-    submapRuntime.undraw();
+    const applySize = getApplyGraphSize();
+    if (applySize) applySize();
+    const fitScreen = getFitMapToScreen();
+    if (fitScreen) fitScreen();
+    const resetZoomFn = getResetZoomFn();
+    if (resetZoomFn) resetZoomFn(0);
+    const undrawFn = getUndraw();
+    if (undrawFn) undrawFn();
     const resampleProcess = submapRuntime.fmg?.Resample?.process || submapRuntime.fmg?.resampleMap || submapRuntime.Resample?.process;
     if (!resampleProcess) throw new Error("Resample API is not available");
     resampleProcess({projection, inverse, scale: submapRuntime.scale});
 
     if ((submapRuntime.ensureEl("submapRescaleBurgStyles") as HTMLInputElement).checked)
       rescaleBurgStyles(submapRuntime.scale);
-    submapRuntime.drawLayers();
+    drawLayers();
 
     submapRuntime.INFO && console.groupEnd();
   }

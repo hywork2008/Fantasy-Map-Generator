@@ -87,7 +87,6 @@ type SaveRuntime = {
       province: unknown;
     };
   };
-  tip: (message: string, main?: boolean, type?: string, time?: number) => void;
   closeDialogs: (selector?: string) => void;
 };
 
@@ -97,7 +96,7 @@ const saveRuntime = asRuntime<SaveRuntime>(saveWindow);
 
 // functions to save the whole .map project
 export async function saveMap(method: SaveMethod): Promise<void> {
-  if (saveRuntime.customization) return saveRuntime.tip("Map cannot be saved in EDIT mode, please complete the edit and retry", false, "error");
+  if (saveRuntime.customization) return tip("Map cannot be saved in EDIT mode, please complete the edit and retry", false, "error");
   saveRuntime.closeDialogs("#alert");
 
   try {
@@ -285,7 +284,7 @@ function prepareMapData(): string {
 export async function saveToStorage(mapData: string, showTip = false): Promise<void> {
   const blob = new Blob([mapData], {type: "text/plain"});
   await saveRuntime.ldb.set("lastMap", blob);
-  showTip && saveRuntime.tip("Map is saved to the browser storage", false, "success");
+  showTip && tip("Map is saved to the browser storage", false, "success");
 }
 
 // download map file
@@ -298,13 +297,13 @@ export function saveToMachine(mapData: string, filename: string): void {
   link.href = URL;
   link.click();
 
-  saveRuntime.tip('Map is saved to the "Downloads" folder (CTRL + J to open)', true, "success", 8000);
+  tip('Map is saved to the "Downloads" folder (CTRL + J to open)', true, "success", 8000);
   setTimeout(() => window.URL.revokeObjectURL(URL), 5000);
 }
 
 export async function saveToDropbox(mapData: string, filename: string): Promise<void> {
   await saveRuntime.Cloud.providers.dropbox.save(filename, mapData);
-  saveRuntime.tip("Map is saved to your Dropbox", true, "success", 8000);
+  tip("Map is saved to your Dropbox", true, "success", 8000);
 }
 
 export async function initiateAutosave(): Promise<void> {
@@ -317,19 +316,19 @@ export async function initiateAutosave(): Promise<void> {
 
     const diffInMinutes = (Date.now() - lastSavedAt) / MINUTE;
     if (diffInMinutes < timeoutMinutes) return;
-    if (saveRuntime.customization) return saveRuntime.tip("Autosave: map cannot be saved in edit mode", false, "warn", 2000);
+    if (saveRuntime.customization) return tip("Autosave: map cannot be saved in edit mode", false, "warn", 2000);
 
     try {
-      saveRuntime.tip("Autosave: saving map...", false, "warn", 3000);
+      tip("Autosave: saving map...", false, "warn", 3000);
       const mapData = prepareMapData();
       await saveToStorage(mapData);
-      saveRuntime.tip("Autosave: map is saved", false, "success", 2000);
+      tip("Autosave: map is saved", false, "success", 2000);
 
       lastSavedAt = Date.now();
     } catch (error) {
       saveRuntime.ERROR && console.error(error);
       const message = error instanceof Error ? error.message : "Unknown error";
-      saveRuntime.tip(`Autosave failed: ${message}`, true, "error", 4000);
+      tip(`Autosave failed: ${message}`, true, "error", 4000);
     }
   }
 
@@ -356,21 +355,21 @@ class SaveReminder {
 
     this.reminder = setInterval(() => {
       if (saveRuntime.customization) return;
-      saveRuntime.tip(saveRuntime.ra(message), true, "warn", 2500);
+      tip(saveRuntime.ra(message), true, "warn", 2500);
     }, interval);
     this.status = 1;
   }
 
   public toggle() {
     if (this.status) {
-      saveRuntime.tip("Save reminder is turned off. Press CTRL+Q again to re-initiate", true, "warn", 2000);
+      tip("Save reminder is turned off. Press CTRL+Q again to re-initiate", true, "warn", 2000);
       if (this.reminder) clearInterval(this.reminder);
       localStorage.setItem("noReminder", "true");
       this.status = 0;
       return;
     }
 
-    saveRuntime.tip("Save reminder is turned on. Press CTRL+Q to turn off", true, "warn", 2000);
+    tip("Save reminder is turned on. Press CTRL+Q to turn off", true, "warn", 2000);
     localStorage.removeItem("noReminder");
     this.start();
   }

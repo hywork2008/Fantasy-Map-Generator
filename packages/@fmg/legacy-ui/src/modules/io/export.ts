@@ -293,7 +293,7 @@ export async function exportToPngTiles() {
 }
 
 // parse map svg to object url
-async function getMapURL(
+export async function getMapURL(
   type: MapExportType,
   {
     debug = false,

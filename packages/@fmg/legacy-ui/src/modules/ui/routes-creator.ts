@@ -3,8 +3,8 @@
 import { Routes } from "@fmg/core/modules/routes-generator";
 import type { FmgGlobalContext } from "@fmg/types";
 import { drawRoute, layerIsOn, toggleCells, toggleRoutes } from "./layers";
-import { closeDialogs } from "./editors";
-import { tip } from "./general";
+import { closeDialogs, restoreDefaultEvents } from "./editors";
+import { clearMainTip, tip } from "./general";
 
 
 type RoutePoint = [number, number, number];
@@ -52,7 +52,6 @@ type RoutesCreatorRuntime = {
   editRouteGroups: () => void;
   editRoute: (routeId: string) => void;
   restoreDefaultEvents: () => void;
-  clearMainTip: () => void;
   createRoute?: (defaultGroup?: string) => void;
 };
 
@@ -69,14 +68,14 @@ class RouteCreator {
     const creator = this;
 
     if (routesCreatorRuntime.customization) return;
-    routesCreatorRuntime.closeDialogs();
-    if (!routesCreatorRuntime.layerIsOn("toggleRoutes")) routesCreatorRuntime.toggleRoutes();
+    closeDialogs();
+    if (!layerIsOn("toggleRoutes")) toggleRoutes();
 
     const toggleCellsButton = routesCreatorRuntime.ensureEl("toggleCells") as HTMLElement;
-    toggleCellsButton.dataset.forced = String(+!routesCreatorRuntime.layerIsOn("toggleCells"));
-    if (!routesCreatorRuntime.layerIsOn("toggleCells")) routesCreatorRuntime.toggleCells();
+    toggleCellsButton.dataset.forced = String(+!layerIsOn("toggleCells"));
+    if (!layerIsOn("toggleCells")) toggleCells();
 
-    routesCreatorRuntime.tip("Click to add route point, click again to remove", true);
+    tip("Click to add route point, click again to remove", true);
     routesCreatorRuntime.debug.append("g").attr("id", "controlCells");
     routesCreatorRuntime.debug.append("g").attr("id", "controlPoints");
     routesCreatorRuntime.viewbox.style("cursor", "crosshair").on("click", onClick);
@@ -204,12 +203,12 @@ class RouteCreator {
       routesCreatorRuntime.debug.select("#controlPoints").remove();
       routesCreatorRuntime.routes.select("#routeTemp").remove();
 
-      routesCreatorRuntime.restoreDefaultEvents();
-      routesCreatorRuntime.clearMainTip();
+      restoreDefaultEvents();
+      clearMainTip();
 
       const forced = +toggleCellsButton.dataset.forced!;
       toggleCellsButton.dataset.forced = "0";
-      if (forced && routesCreatorRuntime.layerIsOn("toggleCells")) routesCreatorRuntime.toggleCells();
+      if (forced && layerIsOn("toggleCells")) toggleCells();
     }
   }
 }

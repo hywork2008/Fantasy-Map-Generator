@@ -4,6 +4,13 @@ import type { FmgGlobalContext } from "@fmg/types";
 import { drawLayers } from "./layers";
 import { closeDialogs } from "./editors";
 
+// Lazy-load function from window.fmg
+const getGetMapURL = () => (window.fmg as any)?.getMapURL || (window as any).getMapURL;
+const getApplyGraphSize = () => (window.fmg as any)?.applyGraphSize || (window as any).applyGraphSize;
+const getFitMapToScreen = () => (window.fmg as any)?.fitMapToScreen || (window as any).fitMapToScreen;
+const getResetZoom = () => (window.fmg as any)?.resetZoom || (window as any).resetZoom;
+const getUndraw = () => (window.fmg as any)?.undraw || (window as any).undraw;
+
 type TransformRuntime = {
   graphWidth: number;
   graphHeight: number;
@@ -65,7 +72,7 @@ async function openTransformTool() {
     position: {my: "center", at: "center", of: "svg"},
     buttons: {
       Transform: function () {
-        transformRuntime.closeDialogs();
+        closeDialogs();
         transformMap();
       },
       Cancel: function () {
@@ -89,7 +96,12 @@ async function openTransformTool() {
     transformRuntime.ensureEl("transformPreview").style.height = height + "px";
 
     const options = {noWater: true, fullMap: true, noLabels: true, noScaleBar: true, noVignette: true, noIce: true};
-    const url = await transformRuntime.getMapURL("png", options);
+    const getMapURLFn = getGetMapURL();
+    if (!getMapURLFn) {
+      console.error("getMapURL is not available");
+      return;
+    }
+    const url = await getMapURLFn("png", options);
     const SCALE = 4;
 
     const img = new Image();
@@ -184,16 +196,20 @@ async function openTransformTool() {
 
     const [projection, inverse] = getProjection();
 
-    transformRuntime.applyGraphSize();
-    transformRuntime.fitMapToScreen();
-    transformRuntime.resetZoom(0);
-    transformRuntime.undraw();
+    const applySize = getApplyGraphSize();
+    if (applySize) applySize();
+    const fitScreen = getFitMapToScreen();
+    if (fitScreen) fitScreen();
+    const resetZoomFn = getResetZoom();
+    if (resetZoomFn) resetZoomFn(0);
+    const undrawFn = getUndraw();
+    if (undrawFn) undrawFn();
     const resampleProcess =
       transformRuntime.fmg?.Resample?.process || transformRuntime.fmg?.resampleMap || transformRuntime.Resample?.process;
     if (!resampleProcess) throw new Error("Resample API is not available");
     resampleProcess({projection, inverse, scale: 1});
 
-    transformRuntime.drawLayers();
+    drawLayers();
 
     transformRuntime.INFO && console.groupEnd();
   }

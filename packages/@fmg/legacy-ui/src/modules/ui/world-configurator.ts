@@ -3,11 +3,16 @@ import { Lakes } from "@fmg/core/modules/lakes";
 import { Rivers } from "@fmg/core/modules/river-generator";
 
 import { lock, tip } from "./general";
-import { layerIsOn, toggleBiomes, toggleCoordinates, togglePrecipitation, toggleRivers, toggleTemperature } from "./layers";
 import { requireFmgApi } from "../runtime/fmg-api";
+import { drawRivers, layerIsOn, toggleBiomes, toggleCoordinates, togglePrecipitation, toggleRivers, toggleTemperature } from "./layers";
 import { temperatureRenderer as drawTemperature } from "#renderers/draw-temperature";
+import { ThreeD } from "./3d";
 
 const Features = requireFmgApi("Features");
+const getCalculateTemperatures = () => (window.fmg as any)?.calculateTemperatures || (window as any).calculateTemperatures;
+const getGeneratePrecipitation = () => (window.fmg as any)?.generatePrecipitation || (window as any).generatePrecipitation;
+const getCalculateMapCoordinates = () =>
+  (window.fmg as any)?.calculateMapCoordinates || (window as any).calculateMapCoordinates;
 
 export function editWorld() {
   if (customization) return;
@@ -26,7 +31,7 @@ export function editWorld() {
       pane.insertAdjacentHTML("afterbegin", checkbox);
 
       const button = this.parentElement.querySelector(".ui-dialog-buttonset > button");
-      button.on("mousemove", () => tip("Apply current settings to the map"));
+      button.addEventListener("mousemove", () => tip("Apply current settings to the map"));
     },
     close: function () {
       $(this).dialog("destroy");
@@ -49,12 +54,39 @@ export function editWorld() {
   globe.select("#globeGraticule").attr("d", round(path(graticule())));
   updateWindDirections();
 
-  ensureEl("worldControls").on("input", handleControlsChange);
-  ensureEl("restoreWinds").on("click", restoreDefaultWinds);
-  ensureEl("wcWholeWorld").on("click", () => applyWorldPreset(100, 50));
-  ensureEl("wcNorthern").on("click", () => applyWorldPreset(33, 25));
-  ensureEl("wcTropical").on("click", () => applyWorldPreset(33, 50));
-  ensureEl("wcSouthern").on("click", () => applyWorldPreset(33, 75));
+  ensureEl("worldControls").addEventListener("input", handleControlsChange);
+  ensureEl("worldControls").addEventListener("change", handleControlsChange);
+  ensureEl("restoreWinds").addEventListener("click", restoreDefaultWinds);
+  ensureEl("wcWholeWorld").addEventListener("click", () => applyWorldPreset(100, 50));
+  ensureEl("wcNorthern").addEventListener("click", () => applyWorldPreset(33, 25));
+  ensureEl("wcTropical").addEventListener("click", () => applyWorldPreset(33, 50));
+  ensureEl("wcSouthern").addEventListener("click", () => applyWorldPreset(33, 75));
+
+  // Keep controls in sync for scripted updates that don't dispatch input/change events.
+  window.setInterval(() => {
+    if (!$("#worldConfigurator").is(":visible")) return;
+
+    const controlIds = [
+      "temperatureEquatorOutput",
+      "temperatureNorthPoleOutput",
+      "temperatureSouthPoleOutput",
+      "mapSizeOutput",
+      "latitudeOutput",
+      "longitudeOutput",
+      "precOutput"
+    ] as const;
+
+    for (const id of controlIds) {
+      const target = ensureEl(id) as HTMLInputElement;
+      const stored = target.dataset.stored;
+      if (!stored) continue;
+
+      const pairedInput = ensureEl(stored + "Input") as HTMLInputElement;
+      if (pairedInput.value === target.value) continue;
+
+      handleControlsChange({target});
+    }
+  }, 150);
 
   function updateInputValues() {
     ensureEl("temperatureEquatorInput").value = options.temperatureEquator;
@@ -93,8 +125,10 @@ export function editWorld() {
   function updateWorld() {
     updateGlobeTemperature();
     updateGlobePosition();
-    calculateTemperatures();
-    generatePrecipitation();
+    const calculateTemps = getCalculateTemperatures();
+    if (calculateTemps) calculateTemps();
+    const generatePrec = getGeneratePrecipitation();
+    if (generatePrec) generatePrec();
     const heights = new Uint8Array(pack.cells.h);
     Rivers.generate();
     Rivers.specify();
@@ -108,14 +142,15 @@ export function editWorld() {
     if (layerIsOn("toggleBiomes")) drawBiomes();
     if (layerIsOn("toggleCoordinates")) drawCoordinates();
     if (layerIsOn("toggleRivers")) drawRivers();
-    if (ensureEl("canvas3d")) setTimeout(() => ThreeD.update(), 500);
+    if (document.getElementById("canvas3d")) setTimeout(() => ThreeD.update(), 500);
   }
 
   function updateGlobePosition() {
     const size = +ensureEl("mapSizeOutput").value;
     const eqD = ((graphHeight / 2) * 100) / size;
 
-    calculateMapCoordinates();
+    const calculateCoords = getCalculateMapCoordinates();
+    if (calculateCoords) calculateCoords();
     const mc = mapCoordinates;
     const unit = distanceUnitInput.value;
     const meridian = toKilometer(eqD * 2 * distanceScale);

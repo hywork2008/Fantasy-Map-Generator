@@ -177,6 +177,7 @@ import {
   showUploadErrorMessage,
   uploadMap
 } from "./modules/io/load";
+import { getMapURL } from "./modules/io/export";
 import { addLabelOnClick, addRiverOnClick, addMarkerOnClick, toggleAddRiver, configMarkersGeneration } from "./modules/ui/tools";
 import { overviewBurgs } from "./modules/ui/burgs-overview";
 import { overviewMarkers } from "./modules/ui/markers-overview";
@@ -564,6 +565,9 @@ const legacyCompat = {
     Cloud.providers.dropbox.save(fileName, contents),
   getDropboxLink: (path: string) => Cloud.providers.dropbox.getLink(path),
   isDropboxConnected: () => Boolean(Cloud.providers.dropbox.api),
+
+  // Map URL generation
+  getMapURL,
 
   // Phase 5: IIFE globals converted to function-level API exports
 };

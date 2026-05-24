@@ -1,5 +1,6 @@
 import { layerIsOn, toggleBurgIcons, toggleLabels } from "./layers";
 import { tip } from "./general";
+import { getMapURL } from "../io/export";
 
 export const ThreeD = (function () {
   const options = {
@@ -101,6 +102,7 @@ export const ThreeD = (function () {
 
   const setScale = function (scale) {
     options.scale = scale;
+    if (!geometry) return;
     let vertices = geometry.getAttribute("position");
     for (let i = 0; i < vertices.count; i++) {
       vertices.setZ(i, getMeshHeight(i));
@@ -115,23 +117,27 @@ export const ThreeD = (function () {
 
   const setSunColor = function (color) {
     options.sunColor = color;
+    if (!spotLight) return;
     spotLight.color = new THREE.Color(color);
     render();
   };
 
   const setResolutionScale = function (scale) {
     options.resolutionScale = scale;
+    if (!scene) return;
     redraw();
   };
 
   const setLightness = function (intensity) {
     options.lightness = intensity;
+    if (!ambientLight) return;
     ambientLight.intensity = intensity;
     render();
   };
 
   const setSun = function (x, y, z) {
     options.sun = {x, y, z};
+    if (!spotLight) return;
     spotLight.position.set(x, y, z);
     render();
   };
@@ -139,6 +145,7 @@ export const ThreeD = (function () {
   const setRotation = function (speed) {
     if (options.isGlobe) options.rotateGlobe = speed;
     else options.rotateMesh = speed;
+    if (!controls) return;
     controls.autoRotateSpeed = speed;
 
     const startAnimation = !controls.autoRotate && Boolean(speed);
@@ -151,6 +158,7 @@ export const ThreeD = (function () {
   };
 
   const toggleSky = function () {
+    if (!scene) return;
     if (options.extendedWater) {
       scene.background = null;
       scene.fog = null;
@@ -163,6 +171,7 @@ export const ThreeD = (function () {
 
   const toggleLabels = function () {
     options.labels3d = !options.labels3d;
+    if (!scene) return;
 
     if (options.labels3d) {
       createLabels().then(() => update());
@@ -174,16 +183,19 @@ export const ThreeD = (function () {
 
   const toggle3dSubdivision = function () {
     options.subdivide = !options.subdivide;
+    if (!scene) return;
     redraw();
   };
 
   const toggleWireframe = function () {
     options.wireframe = !options.wireframe;
+    if (!scene) return;
     redraw();
   };
 
   const setColors = function (sky, water) {
     options.skyColor = sky;
+    if (!scene || !waterMaterial) return;
     scene.background = scene.fog.color = new THREE.Color(sky);
     options.waterColor = water;
     waterMaterial.color = new THREE.Color(water);
@@ -234,6 +246,7 @@ export const ThreeD = (function () {
 
   const setResolution = function (resolution) {
     options.resolution = resolution;
+    if (!scene) return;
     update();
   };
 
@@ -312,7 +325,7 @@ export const ThreeD = (function () {
 
   function textureToSprite(texture, width, height) {
     const map = new THREE.TextureLoader().load(texture);
-    map.anisotropy = Renderer.capabilities.getMaxAnisotropy();
+    if (Renderer) map.anisotropy = Renderer.capabilities.getMaxAnisotropy();
     const material = new THREE.SpriteMaterial({map});
 
     const sprite = new THREE.Sprite(material);
@@ -518,7 +531,6 @@ export const ThreeD = (function () {
       const url = await getMapURL("mesh", {
         noLabels: options.labels3d,
         noWater: options.extendedWater,
-        noViewbox: true,
         fullMap: true
       });
       const canvas = document.createElement("canvas");
@@ -568,7 +580,7 @@ export const ThreeD = (function () {
           () => resolve(null)
         );
       });
-      if (texture) {
+      if (texture && Renderer) {
         texture.anisotropy = Renderer.capabilities.getMaxAnisotropy();
       }
     }

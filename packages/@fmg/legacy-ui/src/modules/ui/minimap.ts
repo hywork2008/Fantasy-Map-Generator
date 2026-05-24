@@ -31,7 +31,7 @@ const getEl = <T extends Element>(id: string) => minimapRuntime.ensureEl(id) as 
 let minimapInitialized = false;
 
 export function openMinimapDialog() {
-  minimapRuntime.closeDialogs("#minimap, .stable");
+  closeDialogs("#minimap, .stable");
   ensureMinimapStyles();
   ensureMinimapMarkup();
 

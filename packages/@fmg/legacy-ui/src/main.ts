@@ -981,7 +981,9 @@ if (typeof window !== "undefined") {
   const fmg = (window.fmg || (window.fmg = {} as FmgGlobalContext)) as FmgGlobalContext & {
     invokeActiveZooming?: () => void;
     regenerateMap?: (options: unknown) => void;
+    rankCells?: () => void;
   };
   fmg.invokeActiveZooming = invokeActiveZooming;
   fmg.regenerateMap = regenerateMap;
+  fmg.rankCells = rankCells;
 }

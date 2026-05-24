@@ -382,7 +382,7 @@ export function togglePopulation(event?) {
   }
 }
 
-function drawPopulation() {
+export function drawPopulation() {
   population.selectAll("line").remove();
 
   const {cells, burgs} = pack;
@@ -468,7 +468,7 @@ export function toggleCultures(event?) {
   }
 }
 
-function drawCultures() {
+export function drawCultures() {
   TIME && console.time("drawCultures");
   const {cells, cultures} = pack;
 
@@ -500,7 +500,7 @@ export function toggleReligions(event?) {
   }
 }
 
-function drawReligions() {
+export function drawReligions() {
   TIME && console.time("drawReligions");
   const {cells, religions} = pack;
 
@@ -589,7 +589,7 @@ export function toggleProvinces(event?) {
   }
 }
 
-function drawProvinces() {
+export function drawProvinces() {
   TIME && console.time("drawProvinces");
   const {cells, provinces} = pack;
 
@@ -810,7 +810,7 @@ export function toggleRivers(event?) {
   }
 }
 
-function drawRivers() {
+export function drawRivers() {
   TIME && console.time("drawRivers");
   rivers.selectAll("*").remove();
 
@@ -1023,7 +1023,7 @@ function turnButtonOff(el) {
   getCurrentPreset();
 }
 
-function turnButtonOn(el) {
+export function turnButtonOn(el) {
   ensureEl(el).classList.remove("buttonoff");
   getCurrentPreset();
 }

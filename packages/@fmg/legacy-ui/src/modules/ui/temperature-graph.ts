@@ -59,7 +59,6 @@ type TemperatureGraphRuntime = {
   alertMessage: HTMLElement;
   rn: (value: number, digits?: number) => number;
   convertTemperature: (temp: number) => string;
-  tip: (message: string) => void;
   showBurgTemperatureGraph?: (id: number) => void;
 };
 
@@ -234,7 +233,7 @@ export function showBurgTemperatureGraph(id: number) {
       const type = this.getAttribute("data-type");
       const temp = temperatureGraphRuntime.convertTemperature(yscale.invert(y - yOffset));
       const month = months[temperatureGraphRuntime.rn(((x - xOffset) / chartWidth) * 12)] || months[0];
-      temperatureGraphRuntime.tip(`Average ${type} temperature in ${month}: ${temp}`);
+      tip(`Average ${type} temperature in ${month}: ${temp}`);
     }
   }
 }

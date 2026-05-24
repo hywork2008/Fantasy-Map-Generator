@@ -10,7 +10,14 @@ import { COA } from "@fmg/core/modules/emblem/generator";
 import { COArenderer } from "@fmg/core/modules/emblem/renderer";
 import { scaleBarRenderer as drawScaleBar, scaleBarResize as fitScaleBar } from "#renderers/draw-scalebar";
 import { Names } from "@fmg/core/modules/names-generator";
+import { selectStyleElement } from "./style";
 import { ensureLegacyElement, legacyRuntime } from "../runtime/legacy-runtime";
+import { ThreeD } from "./3d";
+
+// Lazy-load Cloud and resetZoom from window.fmg
+const getThreeD = () => ThreeD;
+const getCloud = () => (window.fmg as any)?.Cloud || (window as any).Cloud;
+const getResetZoom = () => (window.fmg as any)?.resetZoom || (window as any).resetZoom;
 import { requireFmgApi } from "../runtime/fmg-api";
 import type { FmgGlobalContext } from "@fmg/types";
 import { drawStates, toggleLabels } from "./layers";
@@ -756,7 +763,10 @@ ensureEl("sticked").addEventListener("click", function (event) {
   else if (id === "saveButton") showSavePane();
   else if (id === "exportButton") showExportPane();
   else if (id === "loadButton") showLoadPane();
-  else if (id === "zoomReset") resetZoom(1000);
+  else if (id === "zoomReset") {
+    const resetZoomFn = getResetZoom();
+    if (resetZoomFn) resetZoomFn(1000);
+  }
 });
 
 export function regeneratePrompt(options) {
@@ -843,14 +853,15 @@ async function showLoadPane() {
   });
 
   // already connected to Dropbox: list saved maps
-  if (Cloud.providers.dropbox.api) {
+  const cloud = getCloud();
+  if (cloud?.providers.dropbox.api) {
     ensureEl("dropboxConnectButton").style.display = "none";
     ensureEl("loadFromDropboxSelect").style.display = "block";
     const loadFromDropboxButtons = ensureEl("loadFromDropboxButtons");
     const fileSelect = ensureEl("loadFromDropboxSelect");
     fileSelect.innerHTML = /* html */ `<option value="" disabled selected>Loading...</option>`;
 
-    const files = await Cloud.providers.dropbox.list();
+    const files = await cloud.providers.dropbox.list();
 
     if (!files) {
       loadFromDropboxButtons.style.display = "none";
@@ -878,8 +889,10 @@ async function showLoadPane() {
 }
 
 export async function connectToDropbox() {
-  await Cloud.providers.dropbox.initialize();
-  if (Cloud.providers.dropbox.api) showLoadPane();
+  const cloud = getCloud();
+  if (!cloud) return;
+  await cloud.providers.dropbox.initialize();
+  if (cloud.providers.dropbox.api) showLoadPane();
 }
 
 export function loadURL() {
@@ -1012,9 +1025,10 @@ function enterStandardView() {
   heightmap3DView.classList.remove("pressed");
   viewStandard.classList.add("pressed");
 
-  if (!ensureEl("canvas3d")) return;
+  const canvas3d = document.getElementById("canvas3d") as HTMLCanvasElement | null;
+  if (!canvas3d) return;
   ThreeD.stop();
-  ensureEl("canvas3d").remove();
+  canvas3d.remove();
   if (options3dUpdate.offsetParent) $("#options3d").dialog("close");
   if (preview3d.offsetParent) $("#preview3d").dialog("close");
 }
@@ -1083,20 +1097,24 @@ function toggle3dOptions() {
   if (modules.options3d) return;
   modules.options3d = true;
 
-  ensureEl("options3dUpdate").addEventListener("click", ThreeD.update);
-  ensureEl("options3dSave").addEventListener("click", ThreeD.saveScreenshot);
-  ensureEl("options3dOBJSave").addEventListener("click", ThreeD.saveOBJ);
+  ensureEl("options3dUpdate").addEventListener("click", () => ThreeD.update());
+  ensureEl("options3dSave").addEventListener("click", () => ThreeD.saveScreenshot());
+  ensureEl("options3dOBJSave").addEventListener("click", () => ThreeD.saveOBJ());
 
   ensureEl("options3dScaleRange").addEventListener("input", changeHeightScale);
+  ensureEl("options3dScaleRange").addEventListener("change", changeHeightScale);
   ensureEl("options3dScaleNumber").addEventListener("change", changeHeightScale);
   ensureEl("options3dLightnessRange").addEventListener("input", changeLightness);
+  ensureEl("options3dLightnessRange").addEventListener("change", changeLightness);
   ensureEl("options3dLightnessNumber").addEventListener("change", changeLightness);
   ensureEl("options3dSunX").addEventListener("change", changeSunPosition);
   ensureEl("options3dSunY").addEventListener("change", changeSunPosition);
   ensureEl("options3dMeshSkinResolution").addEventListener("change", changeResolutionScale);
   ensureEl("options3dMeshRotationRange").addEventListener("input", changeRotation);
+  ensureEl("options3dMeshRotationRange").addEventListener("change", changeRotation);
   ensureEl("options3dMeshRotationNumber").addEventListener("change", changeRotation);
   ensureEl("options3dGlobeRotationRange").addEventListener("input", changeRotation);
+  ensureEl("options3dGlobeRotationRange").addEventListener("change", changeRotation);
   ensureEl("options3dGlobeRotationNumber").addEventListener("change", changeRotation);
   ensureEl("options3dMeshLabels3d").addEventListener("change", toggleLabels3d);
   ensureEl("options3dMeshSkyMode").addEventListener("change", toggleSkyMode);
@@ -1108,41 +1126,79 @@ function toggle3dOptions() {
   ensureEl("options3dSubdivide").addEventListener("change", toggle3dSubdivision);
   ensureEl("options3dTimeOfDay").addEventListener("change", changeTimeOfDay);
 
+  // Some automation tools mutate range values without firing input/change events.
+  // Keep control values and 3D runtime state synchronized while the dialog is open.
+  window.setInterval(() => {
+    if (!options3dUpdate.offsetParent) return;
+    const canvas3d = document.getElementById("canvas3d") as HTMLCanvasElement | null;
+    if (!canvas3d) return;
+
+    const scale = +(ensureEl("options3dScaleRange") as HTMLInputElement).value;
+    if (ThreeD.options.scale !== scale) {
+      options3dScaleNumber.value = String(scale);
+      ThreeD.setScale(scale);
+    }
+
+    const lightness = +(ensureEl("options3dLightnessRange") as HTMLInputElement).value / 100;
+    if (Math.abs(ThreeD.options.lightness - lightness) > 0.001) {
+      options3dLightnessNumber.value = String(lightness * 100);
+      ThreeD.setLightness(lightness);
+    }
+
+    const isGlobe = canvas3d.dataset.type === "viewGlobe";
+    const rotationControl = (ensureEl(
+      isGlobe ? "options3dGlobeRotationRange" : "options3dMeshRotationRange"
+    ) as HTMLInputElement).value;
+    const rotation = +rotationControl;
+    const current = isGlobe ? ThreeD.options.rotateGlobe : ThreeD.options.rotateMesh;
+    if (current !== rotation) {
+      if (isGlobe) options3dGlobeRotationNumber.value = String(rotation);
+      else options3dMeshRotationNumber.value = String(rotation);
+      ThreeD.setRotation(rotation);
+    }
+  }, 120);
+
   function updateValues() {
-    const globe = ensureEl("canvas3d").dataset.type === "viewGlobe";
+    const threeD = ThreeD;
+    if (!threeD) return;
+    const canvas3d = document.getElementById("canvas3d") as HTMLCanvasElement | null;
+    if (!canvas3d) return;
+    const globe = canvas3d.dataset.type === "viewGlobe";
     options3dMesh.style.display = globe ? "none" : "block";
     options3dGlobe.style.display = globe ? "block" : "none";
     options3dOBJSave.style.display = globe ? "none" : "inline-block";
-    options3dScaleRange.value = options3dScaleNumber.value = ThreeD.options.scale;
-    options3dLightnessRange.value = options3dLightnessNumber.value = ThreeD.options.lightness * 100;
-    options3dSunX.value = ThreeD.options.sun.x;
-    options3dSunY.value = ThreeD.options.sun.y;
-    options3dMeshRotationRange.value = options3dMeshRotationNumber.value = ThreeD.options.rotateMesh;
-    options3dMeshSkinResolution.value = ThreeD.options.resolutionScale;
-    options3dGlobeRotationRange.value = options3dGlobeRotationNumber.value = ThreeD.options.rotateGlobe;
-    options3dMeshLabels3d.value = ThreeD.options.labels3d;
-    options3dMeshSkyMode.value = ThreeD.options.extendedWater;
-    options3dColorSection.style.display = ThreeD.options.extendedWater ? "block" : "none";
-    options3dMeshSky.value = ThreeD.options.skyColor;
-    options3dMeshWater.value = ThreeD.options.waterColor;
-    options3dGlobeResolution.value = ThreeD.options.resolution;
-    options3dSunColor.value = ThreeD.options.sunColor;
-    options3dSubdivide.value = ThreeD.options.subdivide;
+    options3dScaleRange.value = options3dScaleNumber.value = threeD.options.scale;
+    options3dLightnessRange.value = options3dLightnessNumber.value = threeD.options.lightness * 100;
+    options3dSunX.value = threeD.options.sun.x;
+    options3dSunY.value = threeD.options.sun.y;
+    options3dMeshRotationRange.value = options3dMeshRotationNumber.value = threeD.options.rotateMesh;
+    options3dMeshSkinResolution.value = threeD.options.resolutionScale;
+    options3dGlobeRotationRange.value = options3dGlobeRotationNumber.value = threeD.options.rotateGlobe;
+    options3dMeshLabels3d.value = threeD.options.labels3d;
+    options3dMeshSkyMode.value = threeD.options.extendedWater;
+    options3dColorSection.style.display = threeD.options.extendedWater ? "block" : "none";
+    options3dMeshSky.value = threeD.options.skyColor;
+    options3dMeshWater.value = threeD.options.waterColor;
+    options3dGlobeResolution.value = threeD.options.resolution;
+    options3dSunColor.value = threeD.options.sunColor;
+    options3dSubdivide.value = threeD.options.subdivide;
     updateTimeOfDayPreset();
   }
 
   function updateTimeOfDayPreset() {
+    const threeD = ThreeD;
+    if (!threeD) return;
     const presetSelect = ensureEl("options3dTimeOfDay");
     if (!presetSelect) return;
 
-    const currentSunX = ThreeD.options.sun.x;
-    const currentSunY = ThreeD.options.sun.y;
-    const currentSunZ = ThreeD.options.sun.z;
-    const currentSunColor = ThreeD.options.sunColor;
-    const currentLightness = ThreeD.options.lightness;
+    const currentSunX = threeD.options.sun.x;
+    const currentSunY = threeD.options.sun.y;
+    const currentSunZ = threeD.options.sun.z;
+    const currentSunColor = threeD.options.sunColor;
+    const currentLightness = threeD.options.lightness;
 
     let matchingPreset = "custom";
-    for (const [name, preset] of Object.entries(ThreeD.timeOfDayPresets as Record<string, any>)) {
+    for (const [name, preset] of Object.entries(threeD.timeOfDayPresets as Record<string, any>)) {
       if (
         preset.sun.x === currentSunX &&
         preset.sun.y === currentSunY &&
@@ -1197,7 +1253,8 @@ function toggle3dOptions() {
   function changeSunPosition() {
     const x = +options3dSunX.value;
     const y = +options3dSunY.value;
-    ThreeD.setSun(x, y);
+    const z = ThreeD.options.sun.z;
+    ThreeD.setSun(x, y, z);
     // Mark as custom when user manually changes sun position
     const presetSelect = ensureEl("options3dTimeOfDay");
     if (presetSelect && presetSelect.value !== "custom") {
@@ -1224,9 +1281,11 @@ function toggle3dOptions() {
   }
 
   function toggleSkyMode() {
-    const hide = ThreeD.options.extendedWater;
+    const threeD = ThreeD;
+    if (!threeD) return;
+    const hide = threeD.options.extendedWater;
     options3dColorSection.style.display = hide ? "none" : "block";
-    ThreeD.toggleSky();
+    threeD.toggleSky();
   }
 
   function changeColors() {

@@ -12,6 +12,7 @@ import "@fmg/core/modules/ocean-layers";
 import { clearMainTip, locked, showMainTip, tip } from "./general";
 import { changeViewMode } from "./options";
 import { closeDialogs, moveCircle, removeCircle, restoreDefaultEvents } from "./editors";
+import { ThreeD } from "./3d";
 import type { FmgGlobalContext } from "@fmg/types";
 import { getCurrentPreset, layerIsOn, toggleBorders, toggleHeight, toggleRivers, toggleStates } from "./layers";
 

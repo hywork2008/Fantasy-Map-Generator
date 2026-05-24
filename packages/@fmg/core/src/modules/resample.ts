@@ -39,6 +39,13 @@ const requireFmgApi = <K extends keyof FmgGlobalContext>(key: K): NonNullable<Fm
   return api as NonNullable<FmgGlobalContext[K]>;
 };
 
+const getAddLakesInDeepDepressions = () => (window.fmg as any)?.addLakesInDeepDepressions || (window as any).addLakesInDeepDepressions;
+const getOpenNearSeaLakes = () => (window.fmg as any)?.openNearSeaLakes || (window as any).openNearSeaLakes;
+const getCalculateMapCoordinates = () => (window.fmg as any)?.calculateMapCoordinates || (window as any).calculateMapCoordinates;
+const getCalculateTemperatures = () => (window.fmg as any)?.calculateTemperatures || (window as any).calculateTemperatures;
+const getReGraph = () => (window.fmg as any)?.reGraph || (window as any).reGraph;
+const getShowStatistics = () => (window.fmg as any)?.showStatistics || (window as any).showStatistics;
+
 class Resampler {
   private saveRiversData(parentRivers: PackedGraph["rivers"]) {
     return parentRivers.map(river => {
@@ -361,7 +368,8 @@ class Resampler {
       return province;
     });
 
-    Provinces.getPoles();
+    const provincesApi = requireFmgApi("Provinces") as { getPoles: () => void };
+    provincesApi.getPoles();
 
     pack.provinces.forEach(province => {
       if (!province.i || province.removed) return;
@@ -438,14 +446,19 @@ class Resampler {
     this.resamplePrimaryGridData(parentMap, inverse, scale);
 
     featuresApi.markupGrid();
-    addLakesInDeepDepressions();
-    openNearSeaLakes();
+    const addLakes = getAddLakesInDeepDepressions();
+    if (addLakes) addLakes();
+    const openNearSea = getOpenNearSeaLakes();
+    if (openNearSea) openNearSea();
 
     drawOceanLayers();
-    calculateMapCoordinates();
-    calculateTemperatures();
+    const calculateCoords = getCalculateMapCoordinates();
+    if (calculateCoords) calculateCoords();
+    const calculateTemps = getCalculateTemperatures();
+    if (calculateTemps) calculateTemps();
 
-    reGraph();
+    const regraph = getReGraph();
+    if (regraph) regraph();
     featuresApi.markupPack();
     Ice.generate();
     createDefaultRuler();
@@ -462,7 +475,8 @@ class Resampler {
     this.restoreMarkers(parentMap, projection);
     this.restoreZones(parentMap, projection, scale);
 
-    showStatistics();
+    const showStats = getShowStatistics();
+    if (showStats) showStats();
   }
 }
 

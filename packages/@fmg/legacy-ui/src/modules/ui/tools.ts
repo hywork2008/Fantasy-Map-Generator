@@ -33,9 +33,16 @@ import { reliefIconsRenderer as drawReliefIcons } from "#renderers/draw-relief-i
 import { stateLabelsRenderer as drawStateLabels } from "#renderers/draw-state-labels";
 import "./submap-tool";
 import "./transform-tool";
-import { drawRoutes, drawStates, layerIsOn, toggleBorders, toggleCultures, toggleEmblems, toggleIce, toggleLabels, toggleMarkers, toggleMilitary, togglePopulation, toggleProvinces, toggleRelief, toggleReligions, toggleRivers, toggleRoutes, toggleStates, toggleZones } from "./layers";
+import { drawCultures, drawPopulation, drawProvinces, drawReligions, drawRivers, drawRoutes, drawStates, layerIsOn, toggleBorders, toggleCultures, toggleEmblems, toggleIce, toggleLabels, toggleMarkers, toggleMilitary, togglePopulation, toggleProvinces, toggleRelief, toggleReligions, toggleRivers, toggleRoutes, toggleStates, toggleZones, turnButtonOn } from "./layers";
+import { refreshAllEditors } from "./editors";
 import { clearMainTip, tip } from "./general";
 import { requireFmgApi } from "../runtime/fmg-api";
+import { Names } from "@fmg/core/modules/names-generator";
+
+// Lazy-load functions that are only available after full generation
+const getRankCells = () => (window.fmg as any)?.rankCells || (window as any).rankCells;
+const getDrawMarker = () => (window.fmg as any)?.drawMarker || (window as any).drawMarker;
+const getDrawPopulation = () => (window.fmg as any)?.drawPopulation || (window as any).drawPopulation;
 
 
 // File-local declarations for legacy globals
@@ -46,16 +53,10 @@ declare let alertMessage: HTMLElement;
 declare let createRoute: () => any;
 declare let openSubmapTool: () => any;
 declare let openTransformTool: () => any;
-declare let drawRivers: () => any;
-declare let rankCells: () => any;
-declare let drawPopulation: () => any;
-declare let drawProvinces: () => any;
 declare let burgsOverviewRefresh: HTMLElement;
 declare let statesEditorRefresh: HTMLElement;
 declare let militaryOverviewRefresh: HTMLElement;
 declare let pack: any;
-declare let Names: any;
-declare let refreshAllEditors: () => any;
 declare let graphWidth: number;
 declare let graphHeight: number;
 declare let d3: any;
@@ -66,8 +67,6 @@ declare let aleaPRNG: (seed: number) => (() => number);
 declare let rn: (value: number, digits?: number) => number;
 declare let gauss: (mean: number, variance: number, skew?: number, max?: number, min?: number) => number;
 declare let P: (p: number) => boolean;
-declare let drawReligions: () => any;
-declare let drawCultures: () => any;
 declare let addFeature: HTMLElement;
 declare let addLabel: HTMLElement;
 declare let viewbox: any;
@@ -132,7 +131,6 @@ declare let notes: any[];
 declare let manorsInput: any;
 declare let prompt: (message: string, options?: any, callback?: (value: string) => void) => any;
 declare let isCtrlClick: (event: any) => boolean;
-declare let turnButtonOn: (toggle: string) => any;
 // module to control the Tools options (click to edit, to re-geenerate, tp add)
 
 toolsContent.addEventListener("click", function (event) {
@@ -273,8 +271,7 @@ function regenerateRivers() {
 }
 
 function recalculatePopulation() {
-  rankCells();
-
+    getRankCells()?.();
   pack.burgs.forEach(b => {
     if (!b.i || b.removed || b.lock) return;
     const i = b.cell;
@@ -320,6 +317,12 @@ function regenerateStates() {
 }
 
 function recreateStates() {
+  const NamesApi = Names || (window as any).Names;
+  if (!NamesApi) {
+    tip("Names API is not available", false, "error");
+    return null;
+  }
+  
   const localSeed = generateSeed();
   Math.random = aleaPRNG(localSeed);
 
@@ -456,7 +459,7 @@ function recreateStates() {
     // create new state
     const culture = capital.culture;
     const basename =
-      capital.name.length < 9 && capital.cell % 5 === 0 ? capital.name : Names.getCulture(culture, 3, 6, "", 0);
+      capital.name.length < 9 && capital.cell % 5 === 0 ? capital.name : Names.getCulture(culture, 3, 6, "");
     const name = Names.getState(basename, culture);
     const nomadic = [1, 2, 3, 4].includes(pack.cells.biome[capital.cell]);
     const type = nomadic
@@ -495,7 +498,7 @@ function regenerateProvinces() {
 function regenerateBurgs() {
   const {cells, features, burgs, states, provinces} = pack;
 
-  rankCells();
+  getRankCells()?.();
 
   // remove notes for unlocked burgs
   notes = notes.filter(note => {
@@ -1005,7 +1008,8 @@ export function addMarkerOnClick() {
 
   const markersElement = ensureEl("markers");
   const rescale = +markersElement.getAttribute("rescale");
-  markersElement.insertAdjacentHTML("beforeend", drawMarker(marker, rescale));
+  const drawMarkerFn = getDrawMarker();
+  if (drawMarkerFn) markersElement.insertAdjacentHTML("beforeend", drawMarkerFn(marker, rescale));
 
   if (d3.event.shiftKey === false) {
     ensureEl("markerAdd").classList.remove("pressed");
