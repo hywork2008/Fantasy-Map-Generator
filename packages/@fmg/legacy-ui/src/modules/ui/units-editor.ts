@@ -2,7 +2,7 @@
 
 import { Routes } from "@fmg/core/modules/routes-generator";
 import { clearMainTip, lock, unlock, tip } from "./general";
-import { Opisometer, Planimeter, RouteOpisometer, Ruler } from "./measurers";
+import { Opisometer, Planimeter, RouteOpisometer, Ruler, Rulers } from "./measurers";
 import { layerIsOn, toggleRulers, toggleTemperature } from "./layers";
 import { closeDialogs, restoreDefaultEvents } from "./editors";
 import { calculateFriendlyGridSize } from "./style";
@@ -78,7 +78,8 @@ class UnitsEditor {
   }
 
   private changeHeightExponent() {
-    calculateTemperatures();
+    const calcTemperatures = (window as unknown as {calculateTemperatures?: () => void}).calculateTemperatures;
+    calcTemperatures?.();
     if (layerIsOn("toggleTemperature")) drawTemperature();
   }
 
@@ -117,7 +118,8 @@ class UnitsEditor {
 
     heightExponentInput.value = "1.8";
     localStorage.removeItem("heightExponent");
-    calculateTemperatures();
+    const calcTemperatures = (window as unknown as {calculateTemperatures?: () => void}).calculateTemperatures;
+    calcTemperatures?.();
 
     this.renderScaleBar();
 

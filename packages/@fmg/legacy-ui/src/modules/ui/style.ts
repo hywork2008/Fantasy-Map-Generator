@@ -5,6 +5,7 @@ import { emblemsRenderer as drawEmblems } from "#renderers/draw-emblems";
 import { heightmapRenderer } from "#renderers/draw-heightmap";
 import { reliefIconsRenderer as drawReliefIcons } from "#renderers/draw-relief-icons";
 import { lock, tip } from "./general";
+import { showOptions } from "./options";
 import { scaleBarRenderer as drawScaleBar, scaleBarResize as fitScaleBar } from "#renderers/draw-scalebar";
 
 // UI module to control the style
@@ -148,7 +149,6 @@ declare let addFontNameInput: any;
 declare let addFontURLInput: any;
 declare let addFontMethod: any;
 declare let textureURL: any;
-declare let showOptions: (...args: any[]) => any;
 declare let drawRegiments: (...args: any[]) => any;
 declare let toHEX: (...args: any[]) => string;
 declare let legend: any;

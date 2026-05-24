@@ -3,6 +3,7 @@ import { Routes } from "@fmg/core/modules/routes-generator";
 import { closeDialogs, fitContent, unselect, confirmationDialog } from "./editors";
 import { clearMainTip, tip } from "./general";
 import { drawRoutes, layerIsOn, toggleCells, toggleRoutes } from "./layers";
+import { editNotes } from "./notes-editor";
 import { editRouteGroups } from "./route-group-editor";
 import { editStyle } from "./style";
 

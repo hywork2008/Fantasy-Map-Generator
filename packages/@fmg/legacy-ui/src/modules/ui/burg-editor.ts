@@ -1,9 +1,11 @@
 "use strict";
 import { COArenderer } from "@fmg/core/modules/emblem/renderer";
 import { editBurgGroups } from "./burg-group-editor";
-import { closeDialogs, unselect, confirmationDialog } from "./editors";
+import { closeDialogs, unselect, confirmationDialog, clicked } from "./editors";
 import { clearMainTip, getHeight, tip } from "./general";
 import { layerIsOn, toggleBurgIcons, toggleCells, toggleLabels } from "./layers";
+import { editEmblem } from "./emblems-editor";
+import { editNotes } from "./notes-editor";
 import { editStyle } from "./style";
 import type { Burg } from "@fmg/core/modules/burgs-generator";
 import { requireFmgApi } from "../runtime/fmg-api";
@@ -336,7 +338,10 @@ class BurgEditor {
     const burg = pack.burgs[id];
     const x = burg.x;
     const y = burg.y;
-    zoomTo(x, y, 8, 2000);
+    const zoomToGlobal = (window as unknown as {zoomTo?: (x: number, y: number, zoom?: number, duration?: number) => void})
+      .zoomTo;
+    if (!zoomToGlobal) return tip("Zoom API is not available", false, "error");
+    zoomToGlobal(x, y, 8, 2000);
   }
 
   private toggleRelocateBurg() {

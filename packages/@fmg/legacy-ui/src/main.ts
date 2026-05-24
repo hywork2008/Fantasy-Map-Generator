@@ -1,6 +1,16 @@
 // Azgaar (azgaar.fmg@yandex.com). Minsk, 2017-2023. MIT License
 // https://github.com/Azgaar/Fantasy-Map-Generator
 
+// Ensure core generators register their window.fmg APIs before legacy UI modules
+// that call requireFmgApi during module initialization.
+import "@fmg/core/modules/features";
+import "@fmg/core/modules/burgs-generator";
+import "@fmg/core/modules/markers-generator";
+import "@fmg/core/modules/zones-generator";
+import "@fmg/core/modules/cultures-generator";
+import "@fmg/core/modules/religions-generator";
+import "@fmg/core/modules/provinces-generator";
+
 import { invokeActiveZoomingView, resetZoomToInitial, zoomToPoint } from "./modules/ui/zoom-utils";
 import { buildInvokeActiveZoomingDeps, buildResetZoomDeps, buildZoomToPointDeps } from "./modules/ui/zoom-deps";
 import { initTourPromptButtonUI, toggleAssistantWidget } from "./modules/ui/assistant";
@@ -577,6 +587,8 @@ function publishLegacyMainGlobals() {
   legacyGlobals.urbanization = _urbanization;
   legacyGlobals.urbanDensity = _urbanDensity;
   legacyGlobals.zoom = zoom;
+  legacyGlobals.zoomTo = zoomTo;
+  legacyGlobals.calculateTemperatures = calculateTemperatures;
 
   fmg.generateMapOnLoad = generateMapOnLoad;
   fmg.reGraph = reGraph;

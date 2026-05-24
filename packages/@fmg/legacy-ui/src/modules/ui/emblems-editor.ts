@@ -2,7 +2,8 @@
 
 import { COA } from "@fmg/core/modules/emblem/generator";
 import { COArenderer } from "@fmg/core/modules/emblem/renderer";
-import { clearMainTip, tip } from "./general";
+import { clearMainTip, highlightEmblemElement, tip } from "./general";
+import { getFileName } from "./editors";
 
 type UploadedCustomCoa = {
   custom: true;

@@ -17,7 +17,13 @@ if (location.hostname !== "localhost" && location.hostname !== "127.0.0.1") {
   window.onbeforeunload = () => "Are you sure you want to navigate away?";
 }
 
-const tooltip = document.getElementById("tooltip");
+function getTooltip() {
+  const runtime = window as unknown as {__fmgTooltip?: HTMLElement | null};
+  if (runtime.__fmgTooltip === undefined) {
+    runtime.__fmgTooltip = document.getElementById("tooltip");
+  }
+  return runtime.__fmgTooltip ?? null;
+}
 const onDataTipMove = debounce(showDataTip, 50);
 
 document.getElementById("dialogs").addEventListener("mousemove", onDataTipMove);
@@ -32,27 +38,34 @@ const tipBackgroundMap = {
 };
 
 export function tip(tip, main = false, type = "info", time = 0) {
-  tooltip.innerHTML = tip;
-  tooltip.style.background = tipBackgroundMap[type];
+  const tooltipEl = getTooltip();
+  if (!tooltipEl) return;
+
+  tooltipEl.innerHTML = tip;
+  tooltipEl.style.background = tipBackgroundMap[type];
 
   if (main) {
-    tooltip.dataset.main = tip;
-    tooltip.dataset.color = tooltip.style.background;
+    tooltipEl.dataset.main = tip;
+    tooltipEl.dataset.color = tooltipEl.style.background;
   }
   if (time) setTimeout(clearMainTip, time);
 }
 
 export function showMainTip() {
-  if (!tooltip) return;
-  tooltip.style.background = tooltip.dataset.color;
-  tooltip.innerHTML = tooltip.dataset.main;
+  const tooltipEl = getTooltip();
+  if (!tooltipEl) return;
+
+  tooltipEl.style.background = tooltipEl.dataset.color;
+  tooltipEl.innerHTML = tooltipEl.dataset.main;
 }
 
 export function clearMainTip() {
-  if (!tooltip) return;
-  tooltip.dataset.color = "";
-  tooltip.dataset.main = "";
-  tooltip.innerHTML = "";
+  const tooltipEl = getTooltip();
+  if (!tooltipEl) return;
+
+  tooltipEl.dataset.color = "";
+  tooltipEl.dataset.main = "";
+  tooltipEl.innerHTML = "";
 }
 
 export function showDataTip(event) {
@@ -85,7 +98,7 @@ function handleMouseMove() {
 
   showNotes(d3.event);
   const gridCell = findGridCell(point[0], point[1], grid);
-  if (tooltip.dataset.main) showMainTip();
+  if (getTooltip()?.dataset.main) showMainTip();
   else showMapTooltip(point, d3.event, i, gridCell);
   if (cellInfo?.offsetParent) updateCellInfo(point, i, gridCell);
 }

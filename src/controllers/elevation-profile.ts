@@ -1,5 +1,6 @@
 import { closeDialogs } from "@legacy-ui-runtime/modules/ui/editors";
-import { tip } from "@legacy-ui-runtime/modules/ui/general";
+import { getHeight, tip } from "@legacy-ui-runtime/modules/ui/general";
+import { getColor, getColorScheme } from "@legacy-ui-runtime/modules/ui/style";
 import {
   axisBottom,
   axisLeft,

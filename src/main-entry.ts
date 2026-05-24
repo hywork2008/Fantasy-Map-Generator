@@ -23,4 +23,8 @@ if (typeof globals.aleaPRNG !== "function" && typeof aleaPRNG === "function") {
   globals.aleaPRNG = aleaPRNG;
 }
 
+// Load core providers first so window.fmg APIs are available
+// before legacy runtime modules that call requireFmgApi at import time.
+await import("./modules/core-api-bootstrap");
+
 await import("@legacy-ui-runtime/main");

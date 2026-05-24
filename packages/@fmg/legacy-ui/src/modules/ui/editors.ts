@@ -668,7 +668,10 @@ export function highlightElement(element, zoom) {
     if (tr[0]) x += tr[0];
     let y = box.y + box.height / 2;
     if (tr[1]) y += tr[1];
-    zoomTo(x, y, scale > 2 ? scale : zoom, 1600);
+    const zoomToGlobal = (window as unknown as {
+      zoomTo?: (x: number, y: number, zoom: number, duration: number) => void;
+    }).zoomTo;
+    if (zoomToGlobal) zoomToGlobal(x, y, scale > 2 ? scale : zoom, 1600);
   }
 }
 

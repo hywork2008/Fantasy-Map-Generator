@@ -3,8 +3,8 @@ import { each, ensureEl, gauss, minmax, normalize, P, rn, findClosestCell } from
 import type { BurgGroup, FmgGlobalContext } from "@fmg/types";
 import { layerIsOn, drawRoute } from "@legacy-ui-runtime/modules/ui/layers";
 import { tip } from "@legacy-ui-runtime/modules/ui/general";
-import { drawBurgIconRenderer as drawBurgIcon } from "#renderers/draw-burg-icons";
-import { drawBurgLabelRenderer as drawBurgLabel } from "#renderers/draw-burg-labels";
+import { drawBurgIconRenderer as drawBurgIcon, removeBurgIconRenderer as removeBurgIcon } from "#renderers/draw-burg-icons";
+import { drawBurgLabelRenderer as drawBurgLabel, removeBurgLabelRenderer as removeBurgLabel } from "#renderers/draw-burg-labels";
 import type { Emblem } from "./emblem/generator";
 import { COA } from "./emblem/generator";
 import { COArenderer } from "./emblem/renderer";

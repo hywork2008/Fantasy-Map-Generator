@@ -1,5 +1,6 @@
 import { confirmationDialog, highlightElement } from "./editors";
 import { tip } from "./general";
+import { generateWithAi } from "./ai-generator";
 "use strict";
 
 class NotesEditor {

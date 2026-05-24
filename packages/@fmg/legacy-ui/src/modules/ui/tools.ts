@@ -33,7 +33,7 @@ import { reliefIconsRenderer as drawReliefIcons } from "#renderers/draw-relief-i
 import { stateLabelsRenderer as drawStateLabels } from "#renderers/draw-state-labels";
 import "./submap-tool";
 import "./transform-tool";
-import { drawCultures, drawPopulation, drawProvinces, drawReligions, drawRivers, drawRoutes, drawStates, layerIsOn, toggleBorders, toggleCultures, toggleEmblems, toggleIce, toggleLabels, toggleMarkers, toggleMilitary, togglePopulation, toggleProvinces, toggleRelief, toggleReligions, toggleRivers, toggleRoutes, toggleStates, toggleZones, turnButtonOn } from "./layers";
+import { drawCultures, drawPopulation, drawProvinces, drawReligions, drawRivers, drawRoutes, drawStates, drawZones, layerIsOn, toggleBorders, toggleCultures, toggleEmblems, toggleIce, toggleLabels, toggleMarkers, toggleMilitary, togglePopulation, toggleProvinces, toggleRelief, toggleReligions, toggleRivers, toggleRoutes, toggleStates, toggleZones, turnButtonOn } from "./layers";
 import { refreshAllEditors } from "./editors";
 import { clearMainTip, tip } from "./general";
 import { requireFmgApi } from "../runtime/fmg-api";
@@ -79,7 +79,6 @@ declare let addNewBurg: HTMLElement;
 declare let addRiver: HTMLElement;
 declare let addNewRiver: HTMLElement;
 declare let pointsInput: any;
-declare let drawZones: () => any;
 declare let zonesEditorRefresh: HTMLElement;
 
 type ToolsBurgsApi = {

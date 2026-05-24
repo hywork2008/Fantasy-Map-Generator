@@ -148,7 +148,7 @@ async function handleStream(response, getContent) {
   }
 }
 
-function generateWithAi(defaultPrompt, onApply) {
+export function generateWithAi(defaultPrompt, onApply) {
   updateValues();
 
   $("#aiGenerator").dialog({

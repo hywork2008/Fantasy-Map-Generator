@@ -2,12 +2,11 @@
 
 import { clearLegend, closeDialogs, drawLegend, getArea, getAreaUnit, restoreDefaultEvents, fog, unfog, fitContent, moveCircle, removeCircle, confirmationDialog } from "./editors";
 import { tip, clearMainTip, showMainTip } from "./general";
-import { layerIsOn, togglePopulation, toggleZones } from "./layers";
+import { drawZones, layerIsOn, togglePopulation, toggleZones } from "./layers";
 import { ensureEl, rn } from "@fmg/shared";
 import { editStyle } from "./style";
 
 declare const zones: any;
-declare function drawZones(): void;
 declare const zonesEditor: HTMLElement;
 declare const zonesFooter: HTMLElement;
 declare const zonesFooterCells: HTMLElement;

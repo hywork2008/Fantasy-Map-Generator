@@ -3,6 +3,7 @@ import { Rivers } from "@fmg/core/modules/river-generator";
 import { layerIsOn, toggleCells, toggleRivers } from "./layers";
 import { closeDialogs, unselect } from "./editors";
 import { clearMainTip, tip } from "./general";
+import { editNotes } from "./notes-editor";
 import { editStyle } from "./style";
 
 class RiverEditor {

@@ -3,6 +3,7 @@
 import { closeDialogs, fitContent, unselect } from "./editors";
 import { showMainTip, tip } from "./general";
 import { layerIsOn, toggleLabels } from "./layers";
+import { editNotes } from "./notes-editor";
 import { editStyle } from "./style";
 
 class LabelsEditor {
