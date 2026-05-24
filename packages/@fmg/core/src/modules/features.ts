@@ -11,7 +11,6 @@ import {
   TYPED_ARRAY_MAX_VALUES,
   unique
 } from "@fmg/shared";
-import type { FmgGlobalContext } from "@fmg/types";
 import { Lakes } from "./lakes";
 
 type FeatureType = "ocean" | "lake" | "island";
@@ -49,7 +48,7 @@ export interface GridFeature {
   type: FeatureType;
 }
 
-class FeaturesGenerator {
+export class FeaturesGenerator {
   private DEEPER_LAND = 3;
   private LANDLOCKED = 2;
   private LAND_COAST = 1;
@@ -377,9 +376,3 @@ class FeaturesGenerator {
     }
   }
 }
-
-const featuresGenerator = new FeaturesGenerator();
-const fmg = window.fmg || (window.fmg = {} as FmgGlobalContext);
-fmg.Features = featuresGenerator;
-fmg.markFeaturesGrid = () => featuresGenerator.markupGrid();
-fmg.markFeaturesPack = () => featuresGenerator.markupPack();

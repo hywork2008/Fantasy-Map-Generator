@@ -13,7 +13,6 @@ import {
   rw,
   trimVowels
 } from "@fmg/shared";
-import type { FmgGlobalContext } from "@fmg/types";
 import { Names } from "./names-generator";
 import { Routes } from "./routes-generator";
 
@@ -613,7 +612,7 @@ const expansionismMap: Record<string, () => number> = {
   Heresy: () => gauss(1, 0.5, 0, 5, 1)
 };
 
-class ReligionsGenerator {
+export class ReligionsGenerator {
   generate() {
     TIME && console.time("generateReligions");
     const lockedReligions = pack.religions?.filter(r => r.i && r.lock && !r.removed) || [];
@@ -1126,8 +1125,3 @@ class ReligionsGenerator {
     return ra(base.being);
   }
 }
-
-const religionsGenerator = new ReligionsGenerator();
-const fmg = window.fmg || (window.fmg = {} as FmgGlobalContext);
-fmg.Religions = religionsGenerator;
-fmg.generateReligions = () => religionsGenerator.generate();

@@ -1,7 +1,6 @@
 import { driver } from "driver.js";
 import "driver.js/dist/driver.css";
 import { closeDialogs } from "@legacy-ui-runtime/modules/ui/editors";
-import type { FmgGlobalContext } from "@fmg/types";
 
 const byId = (id: string) => document.getElementById(id);
 
@@ -38,7 +37,7 @@ function hideHeightmapCustomizationPanel() {
   if (toolsContent) toolsContent.style.display = "block";
 }
 
-function start() {
+export function startUITour() {
   closeOptionsPanel();
 
   const tour = driver({
@@ -406,7 +405,3 @@ function start() {
   tour.drive();
 }
 
-const fmg = (window.fmg || (window.fmg = {} as FmgGlobalContext)) as FmgGlobalContext & {
-  startUITour?: () => void;
-};
-fmg.startUITour = start;

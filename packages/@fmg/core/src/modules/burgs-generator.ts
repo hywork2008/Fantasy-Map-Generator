@@ -1,6 +1,6 @@
 import { quadtree } from "d3-quadtree";
 import { each, ensureEl, gauss, minmax, normalize, P, rn, findClosestCell } from "@fmg/shared";
-import type { BurgGroup, FmgGlobalContext } from "@fmg/types";
+import type { BurgGroup } from "@fmg/types";
 import { layerIsOn, drawRoute } from "@legacy-ui-runtime/modules/ui/layers";
 import { tip } from "@legacy-ui-runtime/modules/ui/general";
 import { drawBurgIconRenderer as drawBurgIcon, removeBurgIconRenderer as removeBurgIcon } from "#renderers/draw-burg-icons";
@@ -37,7 +37,7 @@ export interface Burg {
   coaSize?: number;
 }
 
-class BurgsGenerator {
+export class BurgsGenerator {
   shift() {
     const { cells, features, burgs } = pack;
     const temp = grid.cells.temp;
@@ -676,8 +676,3 @@ class BurgsGenerator {
     removeBurgLabel(burg.i!);
   }
 }
-
-const burgsGenerator = new BurgsGenerator();
-const fmg = window.fmg || (window.fmg = {} as FmgGlobalContext);
-fmg.Burgs = burgsGenerator;
-fmg.generateBurgs = () => burgsGenerator.generate();

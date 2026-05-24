@@ -1,7 +1,7 @@
 import type { Selection } from "d3";
 import { curveBasisClosed, line } from "d3";
 import { clipPoly, P, rn, round } from "@fmg/shared";
-import type { FmgGlobalContext, PackedGraph, Grid } from "@fmg/types";
+import type { PackedGraph, Grid } from "@fmg/types";
 class OceanLayersGenerator {
   private cells: Grid["cells"];
   private vertices: Grid["vertices"];
@@ -107,6 +107,3 @@ class OceanLayersGenerator {
 }
 
 export const drawOceanLayers = () => new OceanLayersGenerator(oceanLayers).draw();
-
-const fmg = (window.fmg || (window.fmg = {} as FmgGlobalContext)) as FmgGlobalContext;
-fmg.OceanLayers = drawOceanLayers;

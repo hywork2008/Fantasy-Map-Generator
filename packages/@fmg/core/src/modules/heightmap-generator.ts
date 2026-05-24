@@ -1,11 +1,11 @@
 import Alea from "alea";
 import { range as d3Range, leastIndex, mean } from "d3";
 import { createTypedArray, ensureEl, findGridCell, getNumberInRange, lim, minmax, P, rand } from "@fmg/shared";
-import type { FmgGlobalContext, PackedGraph, Grid, HeightmapTemplate } from "@fmg/types";
+import type { PackedGraph, Grid, HeightmapTemplate } from "@fmg/types";
 
 type Tool = "Hill" | "Pit" | "Range" | "Trough" | "Strait" | "Mask" | "Invert" | "Add" | "Multiply" | "Smooth";
 
-class HeightmapGenerator {
+export class HeightmapGenerator {
   grid: Grid | null = null;
   heights: Uint8Array | null = null;
   blobPower: number = 0;
@@ -607,8 +607,3 @@ class HeightmapGenerator {
     return this.heights;
   }
 }
-
-const heightmapGenerator = new HeightmapGenerator();
-const fmg = window.fmg || (window.fmg = {} as FmgGlobalContext);
-fmg.HeightmapGenerator = heightmapGenerator;
-fmg.generateHeightmap = graph => heightmapGenerator.generate(graph as Grid);

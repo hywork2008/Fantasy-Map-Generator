@@ -4,7 +4,7 @@
  * This file is kept for backward compatibility with build scripts
  */
 
-import type { FmgGlobalContext } from "@fmg/types";
+import { initializeFmg } from "#modules/initialize-fmg";
 
 // Legacy UI modules still rely on a global modules registry.
 globalThis.modules ||= {};
@@ -78,4 +78,4 @@ import "@legacy-ui-runtime/modules/ui/hotkeys";
 import "@legacy-ui-runtime/modules/io/load";
 import "@legacy-ui-runtime/modules/io/cloud";
 
-if (!window.fmg) window.fmg = {} as FmgGlobalContext;
+initializeFmg();

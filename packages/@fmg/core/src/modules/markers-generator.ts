@@ -1,5 +1,4 @@
 import { mean } from "d3";
-import type { FmgGlobalContext } from "@fmg/types";
 import type { PackedGraph } from "@fmg/types/PackedGraph";
 import { capitalize, convertTemperature, gauss, generateDate, getAdjective, last, P, ra, rand, rn, rw } from "@fmg/shared";
 import { getFriendlyHeight } from "@legacy-ui-runtime/modules/ui/general";
@@ -33,7 +32,7 @@ export interface Marker {
   lock?: boolean;
 }
 
-class MarkersGenerator {
+export class MarkersGenerator {
   private config: MarkerConfig[];
   private occupied: boolean[];
 
@@ -1650,8 +1649,3 @@ class MarkersGenerator {
     notes.push({ id, name, legend });
   }
 }
-
-const markersGenerator = new MarkersGenerator();
-const fmg = window.fmg || (window.fmg = {} as FmgGlobalContext);
-fmg.Markers = markersGenerator;
-fmg.generateMarkers = () => markersGenerator.generate();

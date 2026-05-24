@@ -46,7 +46,7 @@ const getCalculateTemperatures = () => (window.fmg as any)?.calculateTemperature
 const getReGraph = () => (window.fmg as any)?.reGraph || (window as any).reGraph;
 const getShowStatistics = () => (window.fmg as any)?.showStatistics || (window as any).showStatistics;
 
-class Resampler {
+export class Resampler {
   private saveRiversData(parentRivers: PackedGraph["rivers"]) {
     return parentRivers.map(river => {
       const meanderedPoints = Rivers.addMeandering(river.cells, river.points);
@@ -479,8 +479,3 @@ class Resampler {
     if (showStats) showStats();
   }
 }
-
-const resample = new Resampler();
-const fmg = window.fmg || (window.fmg = {} as FmgGlobalContext);
-fmg.Resample = {process: options => resample.process(options)};
-fmg.resampleMap = options => resample.process(options);

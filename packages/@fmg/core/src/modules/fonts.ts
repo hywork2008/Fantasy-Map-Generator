@@ -1,5 +1,4 @@
 import { ensureEl } from "@fmg/shared";
-import type { FmgGlobalContext } from "@fmg/types";
 import { tip } from "@legacy-ui-runtime/modules/ui/general";
 
 type FontDefinition = {
@@ -414,11 +413,12 @@ export const addWebFont = (family: string, url: string) => {
   changeFont();
 };
 
-const fmg = (window.fmg || (window.fmg = {} as FmgGlobalContext)) as FmgGlobalContext;
-fmg.fonts = fonts;
-fmg.declareFont = declareFont;
-fmg.getUsedFonts = getUsedFonts;
-fmg.loadFontsAsDataURI = loadFontsAsDataURI;
-fmg.addGoogleFont = addGoogleFont;
-fmg.addLocalFont = addLocalFont;
-fmg.addWebFont = addWebFont;
+export const fontsApi = {
+  fonts,
+  declareFont,
+  getUsedFonts,
+  loadFontsAsDataURI,
+  addGoogleFont,
+  addLocalFont,
+  addWebFont
+};

@@ -1,7 +1,6 @@
 import Alea from "alea";
 import { max } from "d3";
 import { ensureEl, gauss, generateSeed, getMixedColor, getPolesOfInaccessibility, P, rand, rw } from "@fmg/shared";
-import type { FmgGlobalContext } from "@fmg/types";
 import type { Emblem } from "./emblem/generator";
 import { COA } from "./emblem/generator";
 import { Names } from "./names-generator";
@@ -26,7 +25,7 @@ export interface Province {
   urban?: number;
 }
 
-class ProvincesGenerator {
+export class ProvincesGenerator {
   forms: Record<string, Record<string, number>> = {
     Monarchy: {
       County: 22,
@@ -355,9 +354,3 @@ class ProvincesGenerator {
     });
   }
 }
-
-const provincesGenerator = new ProvincesGenerator();
-const fmg = window.fmg || (window.fmg = {} as FmgGlobalContext);
-fmg.Provinces = provincesGenerator;
-fmg.generateProvinces = (regenerate, regenerateLockedStates) =>
-  provincesGenerator.generate(regenerate, regenerateLockedStates);
