@@ -7,12 +7,9 @@ import { requireFmgApi } from "../runtime/fmg-api";
 import { drawRivers, layerIsOn, toggleBiomes, toggleCoordinates, togglePrecipitation, toggleRivers, toggleTemperature } from "./layers";
 import { temperatureRenderer as drawTemperature } from "#renderers/draw-temperature";
 import { ThreeD } from "./3d";
+import { calculateMapCoordinatesFlow, calculateTemperaturesFlow, generatePrecipitationFlow } from "./generation-climate";
 
 const Features = requireFmgApi("Features");
-const getCalculateTemperatures = () => (window.fmg as any)?.calculateTemperatures || (window as any).calculateTemperatures;
-const getGeneratePrecipitation = () => (window.fmg as any)?.generatePrecipitation || (window as any).generatePrecipitation;
-const getCalculateMapCoordinates = () =>
-  (window.fmg as any)?.calculateMapCoordinates || (window as any).calculateMapCoordinates;
 
 export function editWorld() {
   if (customization) return;
@@ -125,10 +122,46 @@ export function editWorld() {
   function updateWorld() {
     updateGlobeTemperature();
     updateGlobePosition();
-    const calculateTemps = getCalculateTemperatures();
-    if (calculateTemps) calculateTemps();
-    const generatePrec = getGeneratePrecipitation();
-    if (generatePrec) generatePrec();
+    const climateOptions = {
+      temperatureEquator: Number(options.temperatureEquator),
+      temperatureNorthPole: Number(options.temperatureNorthPole),
+      temperatureSouthPole: Number(options.temperatureSouthPole)
+    };
+    const precipitationOptions = {winds: (options.winds as number[]) || [225, 45, 225, 315, 135, 315]};
+    const coords = mapCoordinates as {
+      latT: number;
+      latN: number;
+      latS: number;
+      lonT: number;
+      lonW: number;
+      lonE: number;
+    };
+
+    calculateTemperaturesFlow({
+      TIME,
+      grid,
+      options: climateOptions,
+      heightExponentInput: heightExponentInput as HTMLInputElement,
+      mapCoordinates: coords,
+      graphHeight,
+      rn,
+      minmax,
+      DEBUG
+    });
+    generatePrecipitationFlow({
+      TIME,
+      prec,
+      grid,
+      pointsInput: pointsInput as HTMLInputElement,
+      precInput: precInput as unknown as HTMLInputElement,
+      mapCoordinates: coords,
+      graphHeight,
+      graphWidth,
+      options: precipitationOptions,
+      rand,
+      minmax,
+      d3
+    });
     const heights = new Uint8Array(pack.cells.h);
     Rivers.generate();
     Rivers.specify();
@@ -149,8 +182,7 @@ export function editWorld() {
     const size = +ensureEl("mapSizeOutput").value;
     const eqD = ((graphHeight / 2) * 100) / size;
 
-    const calculateCoords = getCalculateMapCoordinates();
-    if (calculateCoords) calculateCoords();
+    mapCoordinates = calculateMapCoordinatesFlow({ensureEl, rn, graphWidth, graphHeight});
     const mc = mapCoordinates;
     const unit = distanceUnitInput.value;
     const meridian = toKilometer(eqD * 2 * distanceScale);
