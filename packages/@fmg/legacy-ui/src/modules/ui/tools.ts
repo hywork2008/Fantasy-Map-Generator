@@ -30,6 +30,7 @@ import { militaryRenderer } from "#renderers/draw-military";
 import "./submap-tool";
 import "./transform-tool";
 import { drawRoutes, drawStates, layerIsOn, toggleBorders, toggleCultures, toggleEmblems, toggleIce, toggleLabels, toggleMarkers, toggleMilitary, togglePopulation, toggleProvinces, toggleRelief, toggleReligions, toggleRivers, toggleRoutes, toggleStates, toggleZones } from "./layers";
+import { clearMainTip } from "./general";
 import { requireFmgApi } from "../runtime/fmg-api";
 
 
@@ -69,7 +70,6 @@ declare let P: (p: number) => boolean;
 declare let drawReligions: () => any;
 declare let drawCultures: () => any;
 declare let addFeature: HTMLElement;
-declare let clearMainTip: () => any;
 declare let restoreDefaultEvents: () => any;
 declare let addLabel: HTMLElement;
 declare let viewbox: any;

@@ -2,7 +2,7 @@
 import { COArenderer } from "@fmg/core/modules/emblem/renderer";
 import { editBurgGroups } from "./burg-group-editor";
 import { closeDialogs, unselect } from "./editors";
-import { getHeight } from "./general";
+import { clearMainTip, getHeight } from "./general";
 import { layerIsOn, toggleBurgIcons, toggleCells, toggleLabels } from "./layers";
 import { editStyle } from "./style";
 import type { Burg } from "@fmg/core/modules/burgs-generator";

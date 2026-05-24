@@ -447,8 +447,9 @@ function publishLegacyMainGlobals() {
     generateMapOnLoad?: () => Promise<void>;
     reGraph?: () => void;
     focusOn?: () => void;
-     showStatistics: () => void;
-     clearMainTip: () => void;
+    showStatistics: () => void;
+    clearMainTip: () => void;
+    fitMapToScreen?: () => void;
   };
 
   const defineMutableGlobal = <T>(name: string, getValue: () => T, setValue: (value: T) => void) => {
@@ -580,6 +581,7 @@ function publishLegacyMainGlobals() {
   fmg.reGraph = reGraph;
   fmg.focusOn = focusOn;
   fmg.showStatistics = showStatistics;
+  fmg.fitMapToScreen = fitMapToScreen;
   (fmg as any).tip = tip;
   (fmg as any).showMainTip = showMainTip;
   fmg.clearMainTip = clearMainTip;

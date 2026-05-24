@@ -6,6 +6,7 @@ import { getUsedFonts, loadFontsAsDataURI } from "@fmg/core/modules/fonts";
 import { Rivers } from "@fmg/core/modules/river-generator";
 import { getCellPopulation, getFriendlyHeight } from "../ui/general";
 import { getFileName, downloadFile } from "../ui/editors";
+import { layerIsOn } from "../ui/layers";
 
 type JSZipLike = {
   file: (name: string, data: Blob) => void;

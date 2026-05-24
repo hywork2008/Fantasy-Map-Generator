@@ -1,4 +1,5 @@
 import { applySorting, closeDialogs, fitContent } from "./editors";
+import { clearMainTip } from "./general";
 "use strict";
 import { States } from "@fmg/core/modules/states-generator";
 import { drawStates, layerIsOn, toggleBiomes, toggleBorders, toggleCultures, toggleProvinces, toggleReligions, toggleStates } from "./layers";

@@ -1,6 +1,7 @@
 "use strict";
 
 import { Biomes } from "@fmg/core/modules/biomes";
+import { clearMainTip } from "./general";
 import { applySorting, closeDialogs, fitContent, getArea, getAreaUnit, removeCircle, restoreDefaultEvents } from "./editors";
 import type { BaseType } from "d3-selection";
 import type { Transition } from "d3-transition";

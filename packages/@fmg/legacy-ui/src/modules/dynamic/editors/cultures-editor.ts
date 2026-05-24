@@ -1,4 +1,6 @@
-import { applySorting, applySortingByHeader, getArea, getAreaUnit, fitContent, removeCircle } from "../../ui/editors";
+import { applySorting, applySortingByHeader, closeDialogs, getArea, getAreaUnit, fitContent, removeCircle } from "../../ui/editors";
+import { clearMainTip } from "../../ui/general";
+import { layerIsOn, toggleBiomes, toggleCultures, toggleProvinces, toggleReligions, toggleStates } from "../../ui/layers";
 import { requireFmgApi } from "../../runtime/fmg-api";
 
 const Cultures = requireFmgApi("Cultures");

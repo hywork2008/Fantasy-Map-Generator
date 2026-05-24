@@ -9,7 +9,7 @@ import { States } from "@fmg/core/modules/states-generator";
 import { featuresRenderer } from "#renderers/draw-features";
 import "@fmg/core/modules/heightmap-generator";
 import "@fmg/core/modules/ocean-layers";
-import { locked } from "./general";
+import { clearMainTip, locked } from "./general";
 import { changeViewMode } from "./options";
 import { closeDialogs, removeCircle } from "./editors";
 import type { FmgGlobalContext } from "@fmg/types";

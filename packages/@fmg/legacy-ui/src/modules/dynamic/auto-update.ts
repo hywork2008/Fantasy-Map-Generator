@@ -6,7 +6,7 @@ import { Routes } from "@fmg/core/modules/routes-generator";
 import { States } from "@fmg/core/modules/states-generator";
 import { fog, unfog } from "../ui/editors";
 import { requireFmgApi } from "../runtime/fmg-api";
-import { drawRoutes, drawTexture, drawZones } from "../ui/layers";
+import { drawRoutes, drawTexture, drawZones, layerIsOn } from "../ui/layers";
 import { burgIconsRenderer } from "#renderers/draw-burg-icons";
 import { burgLabelsRenderer } from "#renderers/draw-burg-labels";
 import { featuresRenderer } from "#renderers/draw-features";

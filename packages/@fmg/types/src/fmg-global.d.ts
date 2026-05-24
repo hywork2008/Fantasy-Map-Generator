@@ -96,6 +96,12 @@ type ProvincesApi = {
   generate: (regenerate?: boolean, regenerateLockedStates?: boolean) => void;
   getPoles: () => void;
 };
+type FontDefinition = {
+  family: string;
+  src?: string;
+  unicodeRange?: string;
+  variant?: string;
+};
 
 export interface FmgGlobalContext {
   // ==================== Number Utils ====================
@@ -222,6 +228,15 @@ export interface FmgGlobalContext {
   removePreset?: () => void;
   getCurrentPreset?: () => void;
   drawStates?: () => void;
+  fitMapToScreen?: () => void;
+  OceanLayers?: () => void;
+  fonts?: FontDefinition[];
+  declareFont?: (font: FontDefinition) => void;
+  getUsedFonts?: (svg: SVGSVGElement) => FontDefinition[];
+  loadFontsAsDataURI?: (fonts: FontDefinition[]) => Promise<FontDefinition[]>;
+  addGoogleFont?: (family: string) => Promise<void>;
+  addLocalFont?: (family: string) => void;
+  addWebFont?: (family: string, src: string) => void;
 
   toggleHeight?: (event?: LegacyLayerToggleEvent) => void;
   toggleTemperature?: (event?: LegacyLayerToggleEvent) => void;

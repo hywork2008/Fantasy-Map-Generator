@@ -414,13 +414,11 @@ export const addWebFont = (family: string, url: string) => {
   changeFont();
 };
 
-const fmg = (window.fmg || (window.fmg = {} as FmgGlobalContext)) as FmgGlobalContext & Record<string, unknown>;
-Object.assign(fmg, {
-  fonts,
-  declareFont,
-  getUsedFonts,
-  loadFontsAsDataURI,
-  addGoogleFont,
-  addLocalFont,
-  addWebFont
-});
+const fmg = (window.fmg || (window.fmg = {} as FmgGlobalContext)) as FmgGlobalContext;
+fmg.fonts = fonts;
+fmg.declareFont = declareFont;
+fmg.getUsedFonts = getUsedFonts;
+fmg.loadFontsAsDataURI = loadFontsAsDataURI;
+fmg.addGoogleFont = addGoogleFont;
+fmg.addLocalFont = addLocalFont;
+fmg.addWebFont = addWebFont;

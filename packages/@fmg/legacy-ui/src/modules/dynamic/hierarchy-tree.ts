@@ -1,3 +1,5 @@
+import { closeDialogs } from "../ui/editors";
+
 appendStyleSheet();
 insertHtml();
 

@@ -1,4 +1,5 @@
 import { applySorting, closeDialogs, fitContent, listen } from "./editors";
+import { clearMainTip } from "./general";
 import { configMarkersGeneration } from "./tools";
 import { layerIsOn, toggleMarkers } from "./layers";
 import { markersRenderer } from "#renderers/draw-markers";

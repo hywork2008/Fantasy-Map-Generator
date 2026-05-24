@@ -1,5 +1,7 @@
 "use strict";
 
+import { clearMainTip } from "./general";
+
 type UploadedCustomCoa = {
   custom: true;
   size?: number;

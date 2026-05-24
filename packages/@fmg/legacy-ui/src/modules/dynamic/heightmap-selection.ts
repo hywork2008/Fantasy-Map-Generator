@@ -1,4 +1,5 @@
 import { requireFmgApi } from "../runtime/fmg-api";
+import { closeDialogs } from "../ui/editors";
 
 const initialSeed = generateSeed();
 let graph = getGraph(grid);

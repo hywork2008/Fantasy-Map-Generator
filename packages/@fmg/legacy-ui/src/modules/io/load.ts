@@ -3,8 +3,10 @@
 import type {Selection} from "d3";
 import { declareFont, fonts } from "@fmg/core/modules/fonts";
 import { Routes } from "@fmg/core/modules/routes-generator";
+import { parseError } from "@fmg/shared";
 import type {FmgGlobalContext} from "@fmg/types";
-import { getCurrentPreset } from "../ui/layers";
+import { closeDialogs } from "../ui/editors";
+import { getCurrentPreset, layerIsOn } from "../ui/layers";
 import { ensureLegacyElement, legacyRuntime } from "../runtime/legacy-runtime";
 import { requireFmgApi } from "../runtime/fmg-api";
 import { VERSION, compareVersions, isValidVersion, parseMapVersion } from "../../versioning";
@@ -267,7 +269,7 @@ export function showUploadMessage(type: string, mapData: any[], mapVersion: stri
 async function parseLoadedData(data, mapVersion) {
   try {
     // exit customization
-    if ((window as any).closeDialogs) (window as any).closeDialogs();
+    closeDialogs();
     customization = 0;
     if (customizationMenu.offsetParent) (styleTab as HTMLElement).click();
 
@@ -794,7 +796,8 @@ async function parseLoadedData(data, mapVersion) {
       if (!fmg?.focusOn) throw new ReferenceError("window.fmg.focusOn is not defined");
       fmg.focusOn(); // based on searchParams focus on point, cell or burg
       fmg.invokeActiveZooming?.();
-      fitMapToScreen();
+      if (!fmg?.fitMapToScreen) throw new ReferenceError("window.fmg.fitMapToScreen is not defined");
+      fmg.fitMapToScreen();
     }
 
     WARN && console.warn(`TOTAL: ${rn((performance.now() - (uploadMap as any).timeStart) / 1000, 2)}s`);
@@ -824,6 +827,7 @@ async function parseLoadedData(data, mapVersion) {
         },
         "New map": function () {
           $(this).dialog("close");
+          const regenerateMap = requireFmgApi("regenerateMap") as (source: string) => void;
           regenerateMap("loading error");
         },
         Cancel: function () {

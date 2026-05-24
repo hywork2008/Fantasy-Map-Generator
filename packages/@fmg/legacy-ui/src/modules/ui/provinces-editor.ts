@@ -1,5 +1,6 @@
 "use strict";
 import { States } from "@fmg/core/modules/states-generator";
+import { clearMainTip } from "./general";
 import { applySorting, closeDialogs, fitContent, fog, getArea, getAreaUnit, removeCircle, unfog } from "./editors";
 import { drawStates, layerIsOn, toggleBorders, toggleCultures, togglePopulation, toggleProvinces, toggleStates } from "./layers";
 import { editStyle } from "./style";

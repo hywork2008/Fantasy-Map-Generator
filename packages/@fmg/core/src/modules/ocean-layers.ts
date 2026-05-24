@@ -108,5 +108,5 @@ class OceanLayersGenerator {
 
 export const drawOceanLayers = () => new OceanLayersGenerator(oceanLayers).draw();
 
-const fmg = (window.fmg || (window.fmg = {} as FmgGlobalContext)) as FmgGlobalContext & Record<string, unknown>;
+const fmg = (window.fmg || (window.fmg = {} as FmgGlobalContext)) as FmgGlobalContext;
 fmg.OceanLayers = drawOceanLayers;
