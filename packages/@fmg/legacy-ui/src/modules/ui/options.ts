@@ -751,6 +751,10 @@ ensureEl("sticked").addEventListener("click", function (event) {
 export function regeneratePrompt(options) {
   if (customization)
     return tip("New map cannot be generated when edit mode is active, please exit the mode and retry", false, "error");
+
+  const regenerateMap = window.fmg?.regenerateMap;
+  if (!regenerateMap) throw new ReferenceError("window.fmg.regenerateMap is not defined");
+
   const workingTime = (Date.now() - last(mapHistory).created) / 60000; // minutes
   if (workingTime < 1) return regenerateMap(options);
 

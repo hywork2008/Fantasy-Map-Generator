@@ -4,6 +4,9 @@ async function openMapAndWaitForGlobals(page: import("@playwright/test").Page) {
   await page.goto("/Fantasy-Map-Generator/", {waitUntil: "domcontentloaded"});
   // modules/index.ts and compat globals are loaded asynchronously after initial HTML parse
   await page.waitForFunction(() => typeof (window as any).saveMap === "function", {timeout: 15000});
+  await page.waitForFunction(() => typeof (window as any).invokeActiveZooming === "function", {
+    timeout: 15000
+  });
 }
 
 /**
@@ -202,6 +205,67 @@ test.describe("Window globals smoke test", () => {
     );
 
     expect(isFunction, "window.fmg.UITour.start should be a function").toBe(true);
+  });
+
+  test("regenerateMap should be exposed via window.fmg and New Map should work", async ({
+    page
+  }) => {
+    const consoleErrors: string[] = [];
+    page.on("console", (msg) => {
+      if (msg.type() === "error") consoleErrors.push(msg.text());
+    });
+
+    await openMapAndWaitForGlobals(page);
+
+    const exposure = await page.evaluate(() => ({
+      root: typeof (window as any).regenerateMap,
+      fmg: typeof (window as any).fmg?.regenerateMap
+    }));
+
+    expect(exposure.root, "window.regenerateMap should not be defined").toBe("undefined");
+    expect(exposure.fmg, "window.fmg.regenerateMap should be a function").toBe("function");
+
+    await page.locator("#optionsTrigger").click();
+    await page.getByRole("button", { name: "New Map" }).click();
+    await page.waitForTimeout(1000);
+
+    const unexpectedErrors = consoleErrors.filter((err) => {
+      return !err.includes("Name is too short! Random name will be selected") && !err.includes("deprecated");
+    });
+
+    expect(unexpectedErrors, `Unexpected console errors: ${unexpectedErrors.join("; ")}`).toEqual([]);
+  });
+
+  test("ThreeD should be available on window and window.fmg", async ({
+    page
+  }) => {
+    await openMapAndWaitForGlobals(page);
+
+    const result = await page.evaluate(() => ({
+      windowHas: typeof (window as any).ThreeD === "object" && (window as any).ThreeD !== null,
+      fmgHas: typeof (window as any).fmg?.ThreeD === "object" && (window as any).fmg?.ThreeD !== null,
+      hasCreate: typeof (window as any).ThreeD?.create === "function"
+    }));
+
+    expect(result.windowHas, "ThreeD should be an object on window").toBe(true);
+    expect(result.fmgHas, "ThreeD should be an object on window.fmg").toBe(true);
+    expect(result.hasCreate, "ThreeD.create should be a function").toBe(true);
+  });
+
+  test("Cloud should be available on window and window.fmg", async ({
+    page
+  }) => {
+    await openMapAndWaitForGlobals(page);
+
+    const result = await page.evaluate(() => ({
+      windowHas: typeof (window as any).Cloud === "object" && (window as any).Cloud !== null,
+      fmgHas: typeof (window as any).fmg?.Cloud === "object" && (window as any).fmg?.Cloud !== null,
+      hasProviders: typeof (window as any).Cloud?.providers === "object"
+    }));
+
+    expect(result.windowHas, "Cloud should be an object on window").toBe(true);
+    expect(result.fmgHas, "Cloud should be an object on window.fmg").toBe(true);
+    expect(result.hasProviders, "Cloud.providers should be an object").toBe(true);
   });
 
   test("no console errors should be present after globals registration", async ({

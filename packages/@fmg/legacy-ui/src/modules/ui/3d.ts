@@ -1,6 +1,4 @@
-"use strict";
-
-window.ThreeD = (function () {
+export const ThreeD = (function () {
   const options = {
     scale: 50,
     lightness: 0.6,

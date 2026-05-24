@@ -2,6 +2,7 @@
 
 import type {Selection} from "d3";
 import { Routes } from "@fmg/core/modules/routes-generator";
+import type {FmgGlobalContext} from "@fmg/types";
 import { getCurrentPreset } from "../ui/layers";
 import { ensureLegacyElement, legacyRuntime } from "../runtime/legacy-runtime";
 import { VERSION, compareVersions, isValidVersion, parseMapVersion } from "../../versioning";
@@ -12,6 +13,11 @@ declare let hideLabels: HTMLInputElement;
 declare let rescaleLabels: HTMLInputElement;
 declare let legend: Selection<SVGGElement, unknown, null, undefined>;
 declare let zones: Selection<SVGGElement, unknown, null, undefined>;
+
+type LoadFmgContext = FmgGlobalContext & {
+  generateMapOnLoad?: () => Promise<void>;
+  reGraph?: () => void;
+};
 
 // Functions to load and parse .map/.gz files
 export async function quickLoad(): Promise<void> {
@@ -104,7 +110,7 @@ export async function loadMapFromURL(maplink: string, random?: number): Promise<
   } catch (error: any) {
     const message = (error?.name === "AbortError" ? "Cannot load map from URL: request timed out" : (error as Error)?.message) || "Unknown error";
     showUploadErrorMessage(message, maplink, random);
-    if (random) generateMapOnLoad();
+    if (random) (window.fmg as LoadFmgContext | undefined)?.generateMapOnLoad?.();
   } finally {
     clearTimeout(timeoutId);
   }
@@ -416,7 +422,9 @@ async function parseLoadedData(data, mapVersion) {
     }
 
     {
-      reGraph();
+      const fmg = window.fmg as LoadFmgContext | undefined;
+      if (!fmg?.reGraph) throw new ReferenceError("window.fmg.reGraph is not defined");
+      fmg.reGraph();
       Features.markupPack();
       pack.features = JSON.parse(data[12]);
       pack.cultures = JSON.parse(data[13]);
@@ -774,18 +782,24 @@ async function parseLoadedData(data, mapVersion) {
 
     {
       if ((window as any).restoreDefaultEvents) restoreDefaultEvents();
-      focusOn(); // based on searchParams focus on point, cell or burg
+      const fmg = window.fmg as LoadFmgContext | undefined;
+      if (!fmg?.focusOn) throw new ReferenceError("window.fmg.focusOn is not defined");
+      fmg.focusOn(); // based on searchParams focus on point, cell or burg
       invokeActiveZooming();
       fitMapToScreen();
     }
 
     WARN && console.warn(`TOTAL: ${rn((performance.now() - (uploadMap as any).timeStart) / 1000, 2)}s`);
-    showStatistics();
+    const fmg = window.fmg as LoadFmgContext | undefined;
+    if (!fmg?.showStatistics) throw new ReferenceError("window.fmg.showStatistics is not defined");
+    fmg.showStatistics();
     INFO && console.groupEnd();
     tip("Map is successfully loaded", true, "success", 7000);
   } catch (error) {
     ERROR && console.error(error);
-    clearMainTip();
+    const fmg = window.fmg as LoadFmgContext | undefined;
+    if (!fmg?.clearMainTip) throw new ReferenceError("window.fmg.clearMainTip is not defined");
+    fmg.clearMainTip();
 
     alertMessage.innerHTML = /* html */ `An error occurred while loading the map. Select a different file to load, <br>generate a new random map or cancel the loading.<br>Map version: ${mapVersion}. Generator version: ${VERSION}.
       <p id="errorBox">${parseError(error)}</p>`;

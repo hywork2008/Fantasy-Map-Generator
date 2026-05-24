@@ -1,5 +1,3 @@
-"use strict";
-
 /*
 Cloud provider implementations (Dropbox only as now)
 
@@ -14,7 +12,7 @@ async getLink(filePath): get shareable link for file
 restore(): restore access tokens from storage if possible
 */
 
-window.Cloud = (function () {
+export const Cloud = (function () {
   // helpers to use in providers for token handling
   const lSKey = x => `auth-${x}`;
   const setToken = (prov, key) => localStorage.setItem(lSKey(prov), key);

@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { Readable } from "stream";
+import path from "path";
 
 async function openMap(page: import("@playwright/test").Page) {
   await page.goto("/Fantasy-Map-Generator/", { waitUntil: "domcontentloaded" });
@@ -65,6 +66,54 @@ test.describe("Map save", () => {
     const settings = (lines[1] || "").split("|");
     const mapName = settings[20] || "";
     expect(mapName.length, "mapName should be present in settings section").toBeGreaterThan(0);
+
+    const criticalErrors = filterCriticalErrors(errors);
+    expect(criticalErrors, `Unexpected console/page errors: ${criticalErrors.join("; ")}`).toEqual([]);
+  });
+
+  test("saved .map should load back without reGraph errors", async ({ context, page }) => {
+    await context.clearCookies();
+
+    const errors: string[] = [];
+    page.on("pageerror", error => errors.push(`pageerror: ${error.message}`));
+    page.on("console", msg => {
+      if (msg.type() === "error") errors.push(`console.error: ${msg.text()}`);
+    });
+
+    await openMap(page);
+
+    const [download] = await Promise.all([
+      page.waitForEvent("download"),
+      page.evaluate(async () => {
+        await (window as any).saveMap("machine");
+      })
+    ]);
+
+    const savedPath = path.join(test.info().outputDir, download.suggestedFilename());
+    await download.saveAs(savedPath);
+
+    const fileInput = page.locator("#mapToLoad");
+    await fileInput.setInputFiles(savedPath);
+
+    await page.waitForFunction(() => (window as any).mapId !== undefined, {
+      timeout: 120000
+    });
+    await page.waitForTimeout(500);
+
+    const mapData = await page.evaluate(() => {
+      const pack = (window as any).pack;
+      return {
+        hasStates: pack.states && pack.states.length > 1,
+        hasBurgs: pack.burgs && pack.burgs.length > 1,
+        hasCells: pack.cells && pack.cells.i && pack.cells.i.length > 0,
+        mapId: (window as any).mapId
+      };
+    });
+
+    expect(mapData.hasStates).toBe(true);
+    expect(mapData.hasBurgs).toBe(true);
+    expect(mapData.hasCells).toBe(true);
+    expect(mapData.mapId).toBeDefined();
 
     const criticalErrors = filterCriticalErrors(errors);
     expect(criticalErrors, `Unexpected console/page errors: ${criticalErrors.join("; ")}`).toEqual([]);

@@ -297,6 +297,11 @@ export interface FmgGlobalContext {
   rankCellsFlow?: (deps: any) => void;
   showStatisticsFlow?: (deps: any) => void;
   undrawFlow?: (deps: any) => void;
+  generateMapOnLoad?: () => Promise<void>;
+  reGraph?: () => void;
+  focusOn?: () => void;
+  showStatistics?: () => void;
+  clearMainTip?: () => void;
   regenerateMapFlow?: (options: unknown, deps: any) => Promise<void>;
   createRegenerateMap?: (debounceFn: any, deps: any) => (options: unknown) => void;
   buildGenerationModules?: (deps: any) => any;
@@ -341,6 +346,25 @@ export interface FmgGlobalContext {
   saveGeoJsonMarkers?: () => void;
   saveGeoJsonZones?: () => void;
   exportToJson?: (type: JsonExportType) => void;
+  regenerateMap?: (options?: unknown) => void;
+
+  // Phase 5: ESM-exported IIFE globals
+  ThreeD?: {
+    options?: { isOn?: boolean; isGlobe?: boolean };
+    create?: (canvas: HTMLCanvasElement, type?: string) => Promise<boolean>;
+    redraw?: () => void;
+    update?: () => void;
+    stop?: () => void;
+  };
+  Cloud?: {
+    providers: {
+      dropbox: {
+        api: unknown;
+        initialize: () => Promise<void>;
+        list: () => Promise<{ name: string; updated: string; size: number; path: string }[]>;
+      };
+    };
+  };
 }
 
 declare global {

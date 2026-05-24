@@ -1,6 +1,8 @@
 // Temporary compatibility layer for legacy global consumers.
 // Remove this file when all callers are migrated to explicit ESM imports.
 
+import { ThreeD } from "./modules/ui/3d";
+import { Cloud } from "./modules/io/cloud";
 import {
   applyLayersPreset,
   getCurrentPreset,
@@ -534,7 +536,11 @@ const legacyCompat = {
   saveGeoJsonRoutes,
   saveGeoJsonRivers,
   saveGeoJsonMarkers,
-  saveGeoJsonZones
+  saveGeoJsonZones,
+
+  // Phase 5: IIFE globals converted to ESM exports
+  ThreeD,
+  Cloud
 };
 
 // Migration period: dual publish to keep legacy window handlers working while

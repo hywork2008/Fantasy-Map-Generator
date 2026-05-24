@@ -435,6 +435,13 @@ function showLoading() {
 
 function publishLegacyMainGlobals() {
   const legacyGlobals = window as unknown as Record<string, unknown>;
+  const fmg = (window.fmg || (window.fmg = {} as FmgGlobalContext)) as FmgGlobalContext & {
+    generateMapOnLoad?: () => Promise<void>;
+    reGraph?: () => void;
+    focusOn?: () => void;
+     showStatistics: () => void;
+     clearMainTip: () => void;
+  };
 
   const defineMutableGlobal = <T>(name: string, getValue: () => T, setValue: (value: T) => void) => {
     Object.defineProperty(window, name, {
@@ -560,6 +567,12 @@ function publishLegacyMainGlobals() {
   legacyGlobals.urbanization = _urbanization;
   legacyGlobals.urbanDensity = _urbanDensity;
   legacyGlobals.zoom = zoom;
+
+  fmg.generateMapOnLoad = generateMapOnLoad;
+  fmg.reGraph = reGraph;
+  fmg.focusOn = focusOn;
+  fmg.showStatistics = showStatistics;
+  fmg.clearMainTip = clearMainTip;
 }
 
 // decide which map should be loaded or generated on page load
@@ -919,6 +932,8 @@ if (typeof window !== "undefined") {
   win.invokeActiveZooming = invokeActiveZooming;
   const fmg = (window.fmg || (window.fmg = {} as FmgGlobalContext)) as FmgGlobalContext & {
     invokeActiveZooming?: () => void;
+    regenerateMap?: (options: unknown) => void;
   };
   fmg.invokeActiveZooming = invokeActiveZooming;
+  fmg.regenerateMap = regenerateMap;
 }

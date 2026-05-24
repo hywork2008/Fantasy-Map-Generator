@@ -258,7 +258,7 @@ class HeightmapEditor {
     OceanLayers();
     calculateTemperatures();
     generatePrecipitation();
-    reGraph();
+    window.fmg?.reGraph?.();
     Features.markupPack();
 
     Rivers.generate(erosionAllowed);
@@ -377,7 +377,7 @@ class HeightmapEditor {
     OceanLayers();
     calculateTemperatures();
     generatePrecipitation();
-    reGraph();
+    window.fmg?.reGraph?.();
     Features.markupPack();
 
     if (erosionAllowed) {
