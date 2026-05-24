@@ -9,7 +9,9 @@
  *   - package.json           — "version" field
  *   - package-lock.json      — top-level "version" and packages[""].version fields
  *   - src/index.html         — ?v= cache-busting hashes for changed public/*.js files
- *   - public/**\/*.js        — ?v= cache-busting hashes in dynamic import() calls
+ *
+ * Note: public/modules/ JS files have been retired (migrated to TS).
+ *       Dynamic import hash updates for those files are no longer needed.
  *
  * Usage:
  *   node scripts/bump-version.js             # interactive prompt
@@ -186,13 +188,9 @@ function updateIndexHtmlHashes(changedFiles, newVersion, dry) {
 }
 
 /**
- * For each changed public JS file, scans ALL other public JS files for
- * dynamic import() calls that reference it via a relative ?v= path, and
- * updates the hash to newVersion.
- *
- * Example: public/modules/dynamic/installation.js changed →
- *   main.js: import("./modules/dynamic/installation.js?v=1.89.19")
- *         → import("./modules/dynamic/installation.js?v=1.113.4")
+ * Scans all remaining public JS files for dynamic import() calls that
+ * reference a changed file via a relative ?v= path, and updates the hash.
+ * (public/modules/ JS has been retired; this mainly covers public/generated/.)
  */
 function updatePublicJsDynamicImportHashes(changedFiles, newVersion, dry) {
   if (changedFiles.length === 0) {
