@@ -3,6 +3,8 @@ import { Rivers } from "@fmg/core/modules/river-generator";
 import type { FmgGlobalContext } from "@fmg/types";
 import { layerIsOn, toggleCells, toggleRivers } from "./layers";
 import { closeDialogs } from "./editors";
+import { tip } from "./general";
+
 
 type RiverCell = number;
 

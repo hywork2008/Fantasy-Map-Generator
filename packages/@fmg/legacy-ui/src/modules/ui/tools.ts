@@ -30,14 +30,13 @@ import { militaryRenderer } from "#renderers/draw-military";
 import "./submap-tool";
 import "./transform-tool";
 import { drawRoutes, drawStates, layerIsOn, toggleBorders, toggleCultures, toggleEmblems, toggleIce, toggleLabels, toggleMarkers, toggleMilitary, togglePopulation, toggleProvinces, toggleRelief, toggleReligions, toggleRivers, toggleRoutes, toggleStates, toggleZones } from "./layers";
-import { clearMainTip } from "./general";
+import { clearMainTip, tip } from "./general";
 import { requireFmgApi } from "../runtime/fmg-api";
 
 
 // File-local declarations for legacy globals
 declare let toolsContent: HTMLElement;
 declare let customization: boolean;
-declare let tip: (message: string, isInfo?: boolean, level?: string) => any;
 declare let NamesbaseEditor: {open: () => any};
 declare let alertMessage: HTMLElement;
 declare let createRoute: () => any;

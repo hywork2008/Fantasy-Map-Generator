@@ -1,7 +1,7 @@
 // module stub to store common functions for ui editors
 "use strict";
 
-import { onMouseMove } from "./general";
+import { onMouseMove, tip } from "./general";
 
 modules.editors = true;
 
@@ -65,7 +65,7 @@ export function closeDialogs(except = "#except") {
 }
 
 // move brush radius circle
-export function moveCircle(x, y, r = 20) {
+export function moveCircle(x, y, r = 20, _color?: string) {
   let circle = document.getElementById("brushCircle");
   if (!circle) {
     const html = /* html */ `<circle id="brushCircle" cx=${x} cy=${y} r=${r}></circle>`;

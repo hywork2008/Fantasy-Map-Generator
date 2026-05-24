@@ -1,6 +1,6 @@
 "use strict";
-import { closeDialogs, removeCircle, unselect } from "./editors";
-import { clearMainTip } from "./general";
+import { closeDialogs, moveCircle, removeCircle, unselect } from "./editors";
+import { clearMainTip, showMainTip, tip } from "./general";
 import { layerIsOn, toggleRelief } from "./layers";
 import { editStyle } from "./style";
 class ReliefEditor {

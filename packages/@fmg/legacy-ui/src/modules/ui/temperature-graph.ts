@@ -1,6 +1,8 @@
 "use strict";
 
 import type { FmgGlobalContext } from "@fmg/types";
+import { tip } from "./general";
+
 
 type Point2D = [number, number];
 

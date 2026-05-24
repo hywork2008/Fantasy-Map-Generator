@@ -3,7 +3,7 @@
 import type { MilitaryRegiment } from "@fmg/core/modules/military-generator";
 import { layerIsOn, toggleMilitary } from "./layers";
 import { closeDialogs } from "./editors";
-import { clearMainTip } from "./general";
+import { clearMainTip, tip } from "./general";
 
 type UiRegiment = MilitaryRegiment & {
   icon: string;

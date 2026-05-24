@@ -1,6 +1,6 @@
 "use strict";
 
-import { clearMainTip } from "./general";
+import { clearMainTip, tip } from "./general";
 
 type UploadedCustomCoa = {
   custom: true;

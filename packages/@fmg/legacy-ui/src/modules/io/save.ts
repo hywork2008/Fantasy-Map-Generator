@@ -5,6 +5,8 @@ import { Biomes } from "@fmg/core/modules/biomes";
 import { getUsedFonts } from "@fmg/core/modules/fonts";
 import { link, parseError } from "@fmg/shared";
 import { VERSION } from "../../versioning";
+import { tip } from "../ui/general";
+
 
 type SaveMethod = "storage" | "machine" | "dropbox";
 

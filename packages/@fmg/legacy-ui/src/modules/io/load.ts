@@ -5,11 +5,13 @@ import { declareFont, fonts } from "@fmg/core/modules/fonts";
 import { Routes } from "@fmg/core/modules/routes-generator";
 import { parseError } from "@fmg/shared";
 import type {FmgGlobalContext} from "@fmg/types";
-import { closeDialogs } from "../ui/editors";
+import { clearLegend, closeDialogs } from "../ui/editors";
 import { getCurrentPreset, layerIsOn } from "../ui/layers";
 import { ensureLegacyElement, legacyRuntime } from "../runtime/legacy-runtime";
 import { requireFmgApi } from "../runtime/fmg-api";
 import { VERSION, compareVersions, isValidVersion, parseMapVersion } from "../../versioning";
+import { tip } from "../ui/general";
+
 /// <reference path="../../types/ui-legacy-globals.d.ts" />
 
 declare let areaUnit: HTMLSelectElement;

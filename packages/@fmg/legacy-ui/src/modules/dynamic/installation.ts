@@ -1,3 +1,4 @@
+import { tip } from "../ui/general";
 // module to prompt PWA installation
 type DeferredPromptLike = {prompt: () => Promise<void> | void};
 

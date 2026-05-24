@@ -1,5 +1,7 @@
 import { applySorting, closeDialogs, fitContent } from "./editors";
 import { layerIsOn, toggleBorders, toggleMilitary, toggleStates } from "./layers";
+import { tip } from "./general";
+
 "use strict";
 
 type MilitaryOptionUnit = {

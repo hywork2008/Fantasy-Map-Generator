@@ -12,6 +12,8 @@ import { iceRenderer } from "#renderers/draw-ice";
 import { markersRenderer } from "#renderers/draw-markers";
 import { militaryRenderer } from "#renderers/draw-military";
 import { calculateFriendlyGridSize, editStyle } from "./style";
+import { tip } from "./general";
+
 /// <reference path="../../types/ui-legacy-globals.d.ts" />
 
 declare const drawReliefIcons: (...args: any[]) => any;
@@ -23,7 +25,6 @@ declare const getPackPolygon: (...args: any[]) => any;
 declare const terrain: any;
 declare const armies: any;
 declare const zones: any;
-declare const tip: (...args: any[]) => any;
 
 let presets = {}; // global object
 restoreCustomPresets(); // run on-load

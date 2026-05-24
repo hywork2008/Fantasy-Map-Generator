@@ -1,8 +1,8 @@
 "use strict";
 
 import { Biomes } from "@fmg/core/modules/biomes";
-import { clearMainTip } from "./general";
-import { applySorting, closeDialogs, fitContent, getArea, getAreaUnit, removeCircle, restoreDefaultEvents } from "./editors";
+import { clearMainTip, showMainTip, tip } from "./general";
+import { applySorting, clearLegend, closeDialogs, drawLegend, fitContent, getArea, getAreaUnit, moveCircle, removeCircle, restoreDefaultEvents } from "./editors";
 import type { BaseType } from "d3-selection";
 import type { Transition } from "d3-transition";
 import { layerIsOn, toggleBiomes, toggleCultures, toggleProvinces, toggleRelief, toggleReligions, toggleStates } from "./layers";

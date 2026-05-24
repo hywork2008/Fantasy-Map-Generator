@@ -1,5 +1,7 @@
 import { getArea, getAreaUnit } from "../../ui/editors";
 import { closeDialogs } from "../../ui/editors";
+import { tip } from "../../ui/general";
+
 const entitiesMap = {
   states: {
     label: "State",

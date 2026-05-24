@@ -5,6 +5,8 @@ import { selectStyleElement, updateElements } from "./style";
 import { layerIsOn, toggleBurgIcons, toggleLabels } from "./layers";
 import { burgIconsRenderer } from "#renderers/draw-burg-icons";
 import { burgLabelsRenderer } from "#renderers/draw-burg-labels";
+import { tip } from "./general";
+
 /// <reference path="../../types/ui-legacy-globals.d.ts" />
 
 type StyleAttributeValue = string | number | null;

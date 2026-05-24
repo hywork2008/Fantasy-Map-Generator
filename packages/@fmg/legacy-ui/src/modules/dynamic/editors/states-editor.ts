@@ -1,7 +1,7 @@
 import { States } from "@fmg/core/modules/states-generator";
-import { applySorting, applySortingByHeader, closeDialogs, getArea, getAreaUnit, fitContent, removeCircle } from "../../ui/editors";
+import { applySorting, applySortingByHeader, clearLegend, closeDialogs, drawLegend, getArea, getAreaUnit, fitContent, moveCircle, removeCircle } from "../../ui/editors";
 import { fog, unfog } from "../../ui/editors";
-import { clearMainTip } from "../../ui/general";
+import { clearMainTip, showMainTip, tip } from "../../ui/general";
 import { drawStates, layerIsOn, toggleBiomes, toggleBorders, toggleCultures, toggleProvinces, toggleReligions, toggleStates } from "../../ui/layers";
 import { requireFmgApi } from "../../runtime/fmg-api";
 

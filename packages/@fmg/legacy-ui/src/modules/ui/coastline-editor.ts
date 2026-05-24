@@ -1,6 +1,8 @@
 import { closeDialogs, getArea, getAreaUnit, unselect } from "./editors";
 import { drawStates, layerIsOn, toggleBiomes, toggleBorders, toggleCells, toggleCultures, toggleProvinces, toggleReligions, toggleStates } from "./layers";
 import { editStyle } from "./style";
+import { tip } from "./general";
+
 "use strict";
 
 class CoastlineEditor {

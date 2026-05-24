@@ -1,4 +1,6 @@
 import { closeDialogs } from "../ui/editors";
+import { tip } from "../ui/general";
+
 
 appendStyleSheet();
 insertHtml();

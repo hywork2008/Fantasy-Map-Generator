@@ -1,7 +1,7 @@
 "use strict";
 
 import { Routes } from "@fmg/core/modules/routes-generator";
-import { clearMainTip, lock, unlock } from "./general";
+import { clearMainTip, lock, unlock, tip } from "./general";
 import { Opisometer, Planimeter, RouteOpisometer, Ruler } from "./measurers";
 import { layerIsOn, toggleRulers, toggleTemperature } from "./layers";
 import { closeDialogs } from "./editors";

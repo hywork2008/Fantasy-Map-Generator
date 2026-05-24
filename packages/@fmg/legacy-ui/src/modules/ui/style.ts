@@ -2,6 +2,8 @@ import { layerIsOn, toggleGrid, toggleHeight, toggleRelief } from "./layers";
 import { addGoogleFont, addLocalFont, addWebFont, fonts } from "@fmg/core/modules/fonts";
 import { drawOceanLayers } from "@fmg/core/modules/ocean-layers";
 import { heightmapRenderer } from "#renderers/draw-heightmap";
+import { tip } from "./general";
+
 // UI module to control the style
 "use strict";
 

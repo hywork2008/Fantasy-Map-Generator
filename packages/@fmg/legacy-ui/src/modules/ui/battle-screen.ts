@@ -1,5 +1,7 @@
 import { applySorting, closeDialogs, fitContent } from "./editors";
 import type { MilitaryRegiment } from "@fmg/core/modules/military-generator";
+import { tip } from "./general";
+
 "use strict";
 
 type BattleSideKey = "attackers" | "defenders";

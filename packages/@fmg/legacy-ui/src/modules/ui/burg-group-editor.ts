@@ -7,6 +7,8 @@ import { burgLabelsRenderer } from "#renderers/draw-burg-labels";
 import { fitContent } from "./editors";
 import { layerIsOn, toggleBurgIcons, toggleLabels } from "./layers";
 import { requireFmgApi } from "../runtime/fmg-api";
+import { tip } from "./general";
+
 
 const Burgs = requireFmgApi("Burgs") as {
   getDefaultGroups: () => BurgGroup[];

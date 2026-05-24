@@ -1,5 +1,5 @@
 import { applySorting, closeDialogs, fitContent } from "./editors";
-import { clearMainTip } from "./general";
+import { clearMainTip, tip } from "./general";
 import type { MilitaryRegiment } from "@fmg/core/modules/military-generator";
 import { layerIsOn, toggleMilitary } from "./layers";
 "use strict";

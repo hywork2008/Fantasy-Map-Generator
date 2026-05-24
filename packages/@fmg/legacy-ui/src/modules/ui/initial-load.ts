@@ -1,4 +1,6 @@
 import { applyLayersPreset, drawLayers } from "./layers";
+import { tip } from "./general";
+
 type GenerateOptions = Record<string, string | number | boolean>;
 
 export type InitialLoadDeps = {

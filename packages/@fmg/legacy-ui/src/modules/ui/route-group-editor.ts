@@ -2,6 +2,8 @@
 import { Routes } from "@fmg/core/modules/routes-generator";
 import { layerIsOn, toggleRoutes } from "./layers";
 import { editStyle } from "./style";
+import { tip } from "./general";
+
 
 type RouteGroupNode = HTMLElement & {id: string; children: HTMLCollection};
 

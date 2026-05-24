@@ -1,3 +1,4 @@
+import { tip } from "./general";
 "use strict";
 
 const PROVIDERS = {
