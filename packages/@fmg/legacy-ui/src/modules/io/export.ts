@@ -7,6 +7,7 @@ import { Rivers } from "@fmg/core/modules/river-generator";
 import { getCellPopulation, getFriendlyHeight, tip } from "../ui/general";
 import { getFileName, downloadFile } from "../ui/editors";
 import { layerIsOn } from "../ui/layers";
+import { scaleBarRenderer as drawScaleBar, scaleBarResize as fitScaleBar } from "#renderers/draw-scalebar";
 
 type JSZipLike = {
   file: (name: string, data: Blob) => void;

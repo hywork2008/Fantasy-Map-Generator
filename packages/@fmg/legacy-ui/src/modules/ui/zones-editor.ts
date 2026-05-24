@@ -1,6 +1,6 @@
 "use strict";
 
-import { clearLegend, closeDialogs, drawLegend, getArea, getAreaUnit, restoreDefaultEvents, fog, unfog, fitContent, moveCircle, removeCircle } from "./editors";
+import { clearLegend, closeDialogs, drawLegend, getArea, getAreaUnit, restoreDefaultEvents, fog, unfog, fitContent, moveCircle, removeCircle, confirmationDialog } from "./editors";
 import { tip, clearMainTip, showMainTip } from "./general";
 import { layerIsOn, togglePopulation, toggleZones } from "./layers";
 import { ensureEl, rn } from "@fmg/shared";

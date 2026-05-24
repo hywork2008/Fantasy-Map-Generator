@@ -6,21 +6,21 @@ import { Routes } from "@fmg/core/modules/routes-generator";
 import * as d3 from "d3";
 import { burgIconsRenderer } from "#renderers/draw-burg-icons";
 import { burgLabelsRenderer } from "#renderers/draw-burg-labels";
+import { bordersRenderer } from "#renderers/draw-borders";
+import { emblemsRenderer } from "#renderers/draw-emblems";
 import { featuresRenderer } from "#renderers/draw-features";
 import { heightmapRenderer } from "#renderers/draw-heightmap";
 import { iceRenderer } from "#renderers/draw-ice";
 import { markersRenderer } from "#renderers/draw-markers";
 import { militaryRenderer } from "#renderers/draw-military";
+import { reliefIconsRenderer } from "#renderers/draw-relief-icons";
+import { stateLabelsRenderer } from "#renderers/draw-state-labels";
+import { temperatureRenderer } from "#renderers/draw-temperature";
 import { calculateFriendlyGridSize, editStyle } from "./style";
 import { tip } from "./general";
 
 /// <reference path="../../types/ui-legacy-globals.d.ts" />
 
-declare const drawReliefIcons: (...args: any[]) => any;
-declare const drawBorders: (...args: any[]) => any;
-declare const drawTemperature: (...args: any[]) => any;
-declare const drawEmblems: (...args: any[]) => any;
-declare const drawStateLabels: (...args: any[]) => any;
 declare const getPackPolygon: (...args: any[]) => any;
 declare const terrain: any;
 declare const armies: any;
@@ -226,19 +226,19 @@ export function drawLayers() {
   if (layerIsOn("toggleCoordinates")) drawCoordinates();
   if (layerIsOn("toggleCompass")) compass.style("display", "block");
   if (layerIsOn("toggleRivers")) drawRivers();
-  if (layerIsOn("toggleRelief")) drawReliefIcons();
+  if (layerIsOn("toggleRelief")) reliefIconsRenderer();
   if (layerIsOn("toggleReligions")) drawReligions();
   if (layerIsOn("toggleCultures")) drawCultures();
   if (layerIsOn("toggleStates")) drawStates();
   if (layerIsOn("toggleProvinces")) drawProvinces();
   if (layerIsOn("toggleZones")) drawZones();
-  if (layerIsOn("toggleBorders")) drawBorders();
+  if (layerIsOn("toggleBorders")) bordersRenderer();
   if (layerIsOn("toggleRoutes")) drawRoutes();
-  if (layerIsOn("toggleTemperature")) drawTemperature();
+  if (layerIsOn("toggleTemperature")) temperatureRenderer();
   if (layerIsOn("togglePopulation")) drawPopulation();
   if (layerIsOn("toggleIce")) iceRenderer();
   if (layerIsOn("togglePrecipitation")) drawPrecipitation();
-  if (layerIsOn("toggleEmblems")) drawEmblems();
+  if (layerIsOn("toggleEmblems")) emblemsRenderer();
   if (layerIsOn("toggleLabels")) drawLabels();
   if (layerIsOn("toggleBurgIcons")) burgIconsRenderer();
   if (layerIsOn("toggleMilitary")) militaryRenderer();
@@ -266,7 +266,7 @@ export function toggleHeight(event?) {
 export function toggleTemperature(event?) {
   if (!temperature.selectAll("*").size()) {
     turnButtonOn("toggleTemperature");
-    drawTemperature();
+    temperatureRenderer();
     if (event && isCtrlClick(event)) editStyle("temperature");
   } else {
     if (event && isCtrlClick(event)) return editStyle("temperature");
@@ -568,7 +568,7 @@ export function drawStates() {
 export function toggleBorders(event?) {
   if (!layerIsOn("toggleBorders")) {
     turnButtonOn("toggleBorders");
-    drawBorders();
+    bordersRenderer();
     if (event && isCtrlClick(event)) editStyle("borders");
   } else {
     if (event && isCtrlClick(event)) return editStyle("borders");
@@ -749,7 +749,7 @@ export function toggleCompass(event?) {
 export function toggleRelief(event?) {
   if (!layerIsOn("toggleRelief")) {
     turnButtonOn("toggleRelief");
-    if (!terrain.selectAll("*").size()) drawReliefIcons();
+    if (!terrain.selectAll("*").size()) reliefIconsRenderer();
     $("#terrain").fadeIn();
     if (event && isCtrlClick(event)) editStyle("terrain");
   } else {
@@ -911,7 +911,7 @@ export function toggleLabels(event?) {
 }
 
 function drawLabels() {
-  drawStateLabels();
+  stateLabelsRenderer();
   burgLabelsRenderer();
   (window as any).fmg?.invokeActiveZooming?.();
 }
@@ -983,7 +983,7 @@ function drawZone({i, cells, type, color}) {
 export function toggleEmblems(event?) {
   if (!layerIsOn("toggleEmblems")) {
     turnButtonOn("toggleEmblems");
-    if (!emblems.selectAll("use").size()) drawEmblems();
+    if (!emblems.selectAll("use").size()) emblemsRenderer();
     $("#emblems").fadeIn();
     (window as any).fmg?.invokeActiveZooming?.();
     if (event && isCtrlClick(event)) editStyle("emblems");

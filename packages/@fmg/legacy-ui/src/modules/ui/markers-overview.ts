@@ -1,4 +1,4 @@
-import { applySorting, closeDialogs, fitContent, listen } from "./editors";
+import { applySorting, closeDialogs, fitContent, highlightElement, listen, confirmationDialog, restoreDefaultEvents } from "./editors";
 import { clearMainTip } from "./general";
 import { configMarkersGeneration } from "./tools";
 import { layerIsOn, toggleMarkers } from "./layers";

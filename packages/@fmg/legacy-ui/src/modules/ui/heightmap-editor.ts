@@ -11,7 +11,7 @@ import "@fmg/core/modules/heightmap-generator";
 import "@fmg/core/modules/ocean-layers";
 import { clearMainTip, locked, showMainTip, tip } from "./general";
 import { changeViewMode } from "./options";
-import { closeDialogs, moveCircle, removeCircle } from "./editors";
+import { closeDialogs, moveCircle, removeCircle, restoreDefaultEvents } from "./editors";
 import type { FmgGlobalContext } from "@fmg/types";
 import { getCurrentPreset, layerIsOn, toggleBorders, toggleHeight, toggleRivers, toggleStates } from "./layers";
 
@@ -566,7 +566,7 @@ class HeightmapEditor {
       .selectAll("polygon")
       .data(data)
       .join("polygon")
-      .attr("points", d => getGridPolygon(d))
+      .attr("points", d => getGridPolygon(d) as unknown as string)
       .attr("id", d => "cell" + d)
       .attr("fill", d => getColor(grid.cells.h[d as number]));
   }
@@ -583,7 +583,7 @@ class HeightmapEditor {
         cell = viewbox
           .select("#heights")
           .append("polygon")
-          .attr("points", getGridPolygon(i))
+          .attr("points", getGridPolygon(i) as unknown as string)
           .attr("id", "cell" + i);
       cell.attr("fill", getColor(grid.cells.h[i]));
     });
@@ -1451,7 +1451,7 @@ class HeightmapEditor {
         .selectAll("polygon")
         .data(grid.cells.i)
         .join("polygon")
-        .attr("points", d => getGridPolygon(d))
+        .attr("points", d => getGridPolygon(d) as unknown as string)
         .attr("id", d => "cell" + d)
           .attr("fill", d => {
             const cell = d as number;

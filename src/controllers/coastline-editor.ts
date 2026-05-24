@@ -8,6 +8,7 @@ import {
   makeRoughnessProfile,
   PROFILE_SIZE
 } from "../renderers/coastline-fractal";
+import { featuresRenderer as drawFeatures } from "../renderers/draw-features";
 import { ensureEl } from "../utils";
 
 interface SliderDef {

@@ -1,11 +1,5 @@
 import { expect, test } from "@playwright/test";
 
-const REGRESSION_ERROR_PATTERNS = [
-  "Pack cells not found",
-  "Cannot read properties of undefined (reading '4')",
-  "cellsDensityMap is not defined"
-];
-
 function isIgnorableError(message: string): boolean {
   return (
     message.includes("fonts.googleapis.com") ||
@@ -55,7 +49,7 @@ async function closeLatestDialog(page: import("@playwright/test").Page) {
 }
 
 test.describe("UI button console smoke", () => {
-  test("recorded tools flow should not emit known regression errors", async ({ page, context }) => {
+  test("recorded tools flow should not emit runtime errors", async ({ page, context }) => {
     test.setTimeout(120000);
 
     await context.clearCookies();
@@ -136,10 +130,6 @@ test.describe("UI button console smoke", () => {
     await closeLatestDialog(page);
 
     const criticalErrors = errors.filter(message => !isIgnorableError(message));
-    const matchedRegressionErrors = criticalErrors.filter(message =>
-      REGRESSION_ERROR_PATTERNS.some(pattern => message.includes(pattern))
-    );
-
-    expect(matchedRegressionErrors, `Regression errors detected: ${matchedRegressionErrors.join("; ")}`).toEqual([]);
+    expect(criticalErrors, `Runtime errors detected: ${criticalErrors.join("; ")}`).toEqual([]);
   });
 });

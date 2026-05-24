@@ -1,4 +1,5 @@
-import { applySorting, closeDialogs, fitContent } from "./editors";
+import { COArenderer } from "@fmg/core/modules/emblem/renderer";
+import { applySorting, closeDialogs, fitContent, restoreDefaultEvents } from "./editors";
 import { clearMainTip, tip } from "./general";
 "use strict";
 import { States } from "@fmg/core/modules/states-generator";

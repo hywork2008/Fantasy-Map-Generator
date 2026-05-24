@@ -1,4 +1,4 @@
-import { applySorting, closeDialogs, fitContent } from "./editors";
+import { applySorting, closeDialogs, fitContent, highlightElement, confirmationDialog } from "./editors";
 "use strict";
 import { Routes } from "@fmg/core/modules/routes-generator";
 import { layerIsOn, toggleRoutes } from "./layers";

@@ -1,3 +1,4 @@
+import { confirmationDialog, highlightElement } from "./editors";
 import { tip } from "./general";
 "use strict";
 

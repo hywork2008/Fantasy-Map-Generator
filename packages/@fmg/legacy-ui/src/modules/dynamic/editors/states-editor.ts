@@ -1,9 +1,14 @@
+import { COA } from "@fmg/core/modules/emblem/generator";
+import { COArenderer } from "@fmg/core/modules/emblem/renderer";
+import { Names } from "@fmg/core/modules/names-generator";
 import { States } from "@fmg/core/modules/states-generator";
-import { applySorting, applySortingByHeader, clearLegend, closeDialogs, drawLegend, getArea, getAreaUnit, fitContent, moveCircle, removeCircle } from "../../ui/editors";
-import { fog, unfog } from "../../ui/editors";
+import { applySorting, applySortingByHeader, clearLegend, closeDialogs, drawLegend, getArea, getAreaUnit, fitContent, moveCircle, removeCircle, confirmationDialog } from "../../ui/editors";
+import { fog, restoreDefaultEvents, unfog } from "../../ui/editors";
 import { clearMainTip, showMainTip, tip } from "../../ui/general";
 import { drawStates, layerIsOn, toggleBiomes, toggleBorders, toggleCultures, toggleProvinces, toggleReligions, toggleStates } from "../../ui/layers";
 import { requireFmgApi } from "../../runtime/fmg-api";
+import { bordersRenderer as drawBorders } from "#renderers/draw-borders";
+import { stateLabelsRenderer as drawStateLabels } from "#renderers/draw-state-labels";
 
 const Burgs = requireFmgApi("Burgs") as {
   changeGroup: (burg: unknown, group?: string | null) => void;

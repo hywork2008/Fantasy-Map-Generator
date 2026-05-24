@@ -1,11 +1,5 @@
 import type { Burg } from "#modules/burgs-generator";
 
-declare global {
-  var drawBurgLabels: () => void;
-  var drawBurgLabel: (burg: Burg) => void;
-  var removeBurgLabel: (burgId: number) => void;
-}
-
 interface BurgGroup {
   name: string;
   order: number;
@@ -46,7 +40,7 @@ export const burgLabelsRenderer = (): void => {
 export const drawBurgLabelRenderer = (burg: Burg): void => {
   const labelGroup = burgLabels.select<SVGGElement>(`#${burg.group}`);
   if (labelGroup.empty()) {
-    drawBurgLabels();
+    burgLabelsRenderer();
     return; // redraw all labels if group is missing
   }
 
@@ -70,10 +64,6 @@ export const removeBurgLabelRenderer = (burgId: number): void => {
   const existingLabel = document.getElementById(`burgLabel${burgId}`);
   if (existingLabel) existingLabel.remove();
 };
-
-window.drawBurgLabels = burgLabelsRenderer;
-window.drawBurgLabel = drawBurgLabelRenderer;
-window.removeBurgLabel = removeBurgLabelRenderer;
 
 function createLabelGroups(): void {
   // save existing styles and remove all groups

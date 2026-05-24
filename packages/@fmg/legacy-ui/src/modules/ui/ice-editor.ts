@@ -5,6 +5,7 @@ import { layerIsOn, toggleIce } from "./layers";
 import { clicked, closeDialogs, unselect } from "./editors";
 import { clearMainTip, tip } from "./general";
 import { editStyle } from "./style";
+import { redrawIcebergRenderer as redrawIceberg } from "#renderers/draw-ice";
 
 type IceEditorFmgContext = FmgGlobalContext & {
   editIce?: (element: EventTarget | null) => void;
@@ -57,14 +58,14 @@ class IceEditor {
   function randomizeShape() {
     const selectedId = Number(iceEditorRuntime.elSelected.attr("data-id"));
     iceEditorRuntime.Ice.randomizeIcebergShape(selectedId);
-    iceEditorRuntime.redrawIceberg(selectedId);
+    redrawIceberg(selectedId);
   }
 
   function changeSize(this: HTMLInputElement) {
     const newSize = Number(this.value);
     const selectedId = Number(iceEditorRuntime.elSelected.attr("data-id"));
     iceEditorRuntime.Ice.changeIcebergSize(selectedId, newSize);
-    iceEditorRuntime.redrawIceberg(selectedId);
+    redrawIceberg(selectedId);
   }
 
   function toggleAdd() {

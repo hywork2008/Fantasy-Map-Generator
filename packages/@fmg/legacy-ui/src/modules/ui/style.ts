@@ -1,8 +1,11 @@
 import { layerIsOn, toggleGrid, toggleHeight, toggleRelief } from "./layers";
 import { addGoogleFont, addLocalFont, addWebFont, fonts } from "@fmg/core/modules/fonts";
 import { drawOceanLayers } from "@fmg/core/modules/ocean-layers";
+import { emblemsRenderer as drawEmblems } from "#renderers/draw-emblems";
 import { heightmapRenderer } from "#renderers/draw-heightmap";
-import { tip } from "./general";
+import { reliefIconsRenderer as drawReliefIcons } from "#renderers/draw-relief-icons";
+import { lock, tip } from "./general";
+import { scaleBarRenderer as drawScaleBar, scaleBarResize as fitScaleBar } from "#renderers/draw-scalebar";
 
 // UI module to control the style
 "use strict";
@@ -147,7 +150,6 @@ declare let addFontMethod: any;
 declare let textureURL: any;
 declare let showOptions: (...args: any[]) => any;
 declare let drawRegiments: (...args: any[]) => any;
-declare let drawEmblems: (...args: any[]) => any;
 declare let toHEX: (...args: any[]) => string;
 declare let legend: any;
 declare let redrawLegend: (...args: any[]) => any;

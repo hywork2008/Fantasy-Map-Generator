@@ -8,6 +8,7 @@ import { loadMapFromURL, uploadMap } from "../io/load";
 import { closeDialogs } from "./editors";
 import { COA } from "@fmg/core/modules/emblem/generator";
 import { COArenderer } from "@fmg/core/modules/emblem/renderer";
+import { scaleBarRenderer as drawScaleBar, scaleBarResize as fitScaleBar } from "#renderers/draw-scalebar";
 import { Names } from "@fmg/core/modules/names-generator";
 import { ensureLegacyElement, legacyRuntime } from "../runtime/legacy-runtime";
 import { requireFmgApi } from "../runtime/fmg-api";
@@ -642,10 +643,10 @@ export function randomizeOptions() {
     manorsInput.value = 1000;
     manorsOutput.value = "auto";
   }
-  if (randomize || !locked("religionsNumber")) religionsNumber.value = gauss(6, 3, 2, 10);
+  if (randomize || !locked("religionsNumber")) religionsNumber.value = String(gauss(6, 3, 2, 10));
   if (randomize || !locked("sizeVariety")) sizeVariety.value = gauss(4, 2, 0, 10, 1);
   if (randomize || !locked("growthRate")) growthRate.value = rn(1 + Math.random(), 1);
-  if (randomize || !locked("cultures")) culturesInput.value = culturesOutput.value = gauss(12, 3, 5, 30);
+  if (randomize || !locked("cultures")) culturesInput.value = culturesOutput.value = String(gauss(12, 3, 5, 30));
   if (randomize || !locked("culturesSet")) randomizeCultureSet();
 
   // 'Configure World' settings

@@ -4,7 +4,7 @@ import type { BurgGroup } from "@fmg/types";
 import type { Burg } from "@fmg/core/modules/burgs-generator";
 import { burgIconsRenderer } from "#renderers/draw-burg-icons";
 import { burgLabelsRenderer } from "#renderers/draw-burg-labels";
-import { fitContent } from "./editors";
+import { fitContent, confirmationDialog } from "./editors";
 import { layerIsOn, toggleBurgIcons, toggleLabels } from "./layers";
 import { requireFmgApi } from "../runtime/fmg-api";
 import { tip } from "./general";

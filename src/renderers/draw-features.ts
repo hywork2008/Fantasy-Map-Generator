@@ -4,9 +4,7 @@ import { clipPoly, round } from "../utils";
 import { buildCoastlinePath, fractalizeCoastline } from "./coastline-fractal";
 
 declare global {
-  var drawFeatures: () => void;
   var simplify: (points: [number, number][], tolerance: number, highestQuality?: boolean) => [number, number][];
-  var getFeaturePath: (feature: PackedGraphFeature) => string;
 }
 
 interface FeaturesHtml {
@@ -19,6 +17,12 @@ interface FeaturesHtml {
 
 export const featuresRenderer = (): void => {
   TIME && console.time("drawFeatures");
+
+  if (!Array.isArray(pack?.features)) {
+    ERROR && console.error("drawFeatures: pack.features is not initialized");
+    TIME && console.timeEnd("drawFeatures");
+    return;
+  }
 
   const html: FeaturesHtml = {
     paths: [],
@@ -69,7 +73,7 @@ export const featuresRenderer = (): void => {
   TIME && console.timeEnd("drawFeatures");
 };
 
-function featurePathRenderer(feature: PackedGraphFeature): string {
+export function featurePathRenderer(feature: PackedGraphFeature): string {
   const points = feature.vertices.map(vertex => pack.vertices.p[vertex]);
   if (points.some(point => point === undefined)) {
     ERROR && console.error("Undefined point in getFeaturePath");
@@ -82,5 +86,4 @@ function featurePathRenderer(feature: PackedGraphFeature): string {
   return `${round(buildCoastlinePath(shape))}Z`;
 }
 
-window.drawFeatures = featuresRenderer;
-window.getFeaturePath = featurePathRenderer;
+

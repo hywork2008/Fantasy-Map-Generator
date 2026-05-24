@@ -25,7 +25,7 @@ interface EmblemNode {
   shift: number;
 }
 
-const emblemsRenderer = (): void => {
+export const emblemsRenderer = (): void => {
   TIME && console.time("drawEmblems");
   const { states, provinces, burgs } = pack;
 
@@ -162,7 +162,7 @@ const getDataAndType = (id: string): [Burg[] | Province[] | State[], string] => 
   throw new Error(`Unknown emblem type: ${id}`);
 };
 
-const renderGroupCOAsRenderer = async (g: SVGGElement): Promise<void> => {
+export const renderGroupCOAsRenderer = async (g: SVGGElement): Promise<void> => {
   const [data, type] = getDataAndType(g.id);
 
   for (const use of g.children) {
@@ -174,5 +174,4 @@ const renderGroupCOAsRenderer = async (g: SVGGElement): Promise<void> => {
   }
 };
 
-window.drawEmblems = emblemsRenderer;
-window.renderGroupCOAs = renderGroupCOAsRenderer;
+

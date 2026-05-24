@@ -116,7 +116,7 @@ class IceGenerator {
       cellId,
       size
     });
-    redrawIceberg(id);
+    window.fmg?.redrawIceberg?.(id);
   }
 
   removeIce(id: number) {
@@ -125,9 +125,9 @@ class IceGenerator {
       const type = pack.ice.find(element => element.i === id).type;
       pack.ice.splice(index, 1);
       if (type === "glacier") {
-        redrawGlacier(id);
+        window.fmg?.redrawGlacier?.(id);
       } else {
-        redrawIceberg(id);
+        window.fmg?.redrawIceberg?.(id);
       }
     }
   }

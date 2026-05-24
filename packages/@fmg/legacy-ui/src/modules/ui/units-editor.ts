@@ -4,8 +4,10 @@ import { Routes } from "@fmg/core/modules/routes-generator";
 import { clearMainTip, lock, unlock, tip } from "./general";
 import { Opisometer, Planimeter, RouteOpisometer, Ruler } from "./measurers";
 import { layerIsOn, toggleRulers, toggleTemperature } from "./layers";
-import { closeDialogs } from "./editors";
+import { closeDialogs, restoreDefaultEvents } from "./editors";
 import { calculateFriendlyGridSize } from "./style";
+import { scaleBarRenderer as drawScaleBar, scaleBarResize as fitScaleBar } from "#renderers/draw-scalebar";
+import { temperatureRenderer as drawTemperature } from "#renderers/draw-temperature";
 
 declare const areaUnit: HTMLSelectElement;
 

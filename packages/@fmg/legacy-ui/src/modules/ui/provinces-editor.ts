@@ -1,7 +1,12 @@
 "use strict";
+import { COA } from "@fmg/core/modules/emblem/generator";
+import { COArenderer } from "@fmg/core/modules/emblem/renderer";
+import { Names } from "@fmg/core/modules/names-generator";
 import { States } from "@fmg/core/modules/states-generator";
+import { bordersRenderer as drawBorders } from "#renderers/draw-borders";
+import { stateLabelsRenderer as drawStateLabels } from "#renderers/draw-state-labels";
 import { clearMainTip, showMainTip, tip } from "./general";
-import { applySorting, closeDialogs, fitContent, fog, getArea, getAreaUnit, moveCircle, removeCircle, unfog } from "./editors";
+import { applySorting, closeDialogs, fitContent, fog, getArea, getAreaUnit, moveCircle, removeCircle, restoreDefaultEvents, unfog, confirmationDialog } from "./editors";
 import { drawStates, layerIsOn, toggleBorders, toggleCultures, togglePopulation, toggleProvinces, toggleStates } from "./layers";
 import { editStyle } from "./style";
 import { requireFmgApi } from "../runtime/fmg-api";
@@ -1045,7 +1050,7 @@ class ProvincesEditor {
     const kinship = burg ? 0.8 : 0.4;
     const parent = burg ? pack.burgs[burg].coa : pack.states[state].coa;
     const type = Burgs.getType(center, (parent as any).port);
-    const coa = COA.generate(parent, kinship, P(0.1), type);
+    const coa = COA.generate(parent, kinship, P(0.1) ? 0.1 : null, type);
     coa.shield = COA.getShield(c, state);
     COArenderer.add("province", province, coa, point[0], point[1]);
 

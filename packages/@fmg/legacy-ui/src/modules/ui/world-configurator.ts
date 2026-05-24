@@ -5,6 +5,7 @@ import { Rivers } from "@fmg/core/modules/river-generator";
 import { lock, tip } from "./general";
 import { layerIsOn, toggleBiomes, toggleCoordinates, togglePrecipitation, toggleRivers, toggleTemperature } from "./layers";
 import { requireFmgApi } from "../runtime/fmg-api";
+import { temperatureRenderer as drawTemperature } from "#renderers/draw-temperature";
 
 const Features = requireFmgApi("Features");
 

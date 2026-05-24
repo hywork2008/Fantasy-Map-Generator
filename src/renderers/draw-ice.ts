@@ -1,9 +1,3 @@
-declare global {
-  var drawIce: () => void;
-  var redrawIceberg: (id: number) => void;
-  var redrawGlacier: (id: number) => void;
-}
-
 interface IceElement {
   i: number;
   points: string | [number, number][];
@@ -33,7 +27,7 @@ export const iceRenderer = (): void => {
   TIME && console.timeEnd("drawIce");
 };
 
-const redrawIcebergRenderer = (id: number): void => {
+export const redrawIcebergRenderer = (id: number): void => {
   TIME && console.time("redrawIceberg");
   const iceberg = pack.ice.find((element: IceElement) => element.i === id);
   let el = ice.selectAll<SVGPolygonElement, unknown>(`polygon[data-id="${id}"]:not([type="glacier"])`);
@@ -52,7 +46,7 @@ const redrawIcebergRenderer = (id: number): void => {
   TIME && console.timeEnd("redrawIceberg");
 };
 
-const redrawGlacierRenderer = (id: number): void => {
+export const redrawGlacierRenderer = (id: number): void => {
   TIME && console.time("redrawGlacier");
   const glacier = pack.ice.find((element: IceElement) => element.i === id);
   let el = ice.selectAll<SVGPolygonElement, unknown>(`polygon[data-id="${id}"][type="glacier"]`);
@@ -79,6 +73,4 @@ function getIcebergHtml(iceberg: IceElement): string {
   return `<polygon points="${iceberg.points}" data-id="${iceberg.i}" ${iceberg.offset ? `transform="translate(${iceberg.offset[0]},${iceberg.offset[1]})"` : ""}/>`;
 }
 
-window.drawIce = iceRenderer;
-window.redrawIceberg = redrawIcebergRenderer;
-window.redrawGlacier = redrawGlacierRenderer;
+

@@ -1,11 +1,5 @@
 import type { Burg } from "#modules/burgs-generator";
 
-declare global {
-  var drawBurgIcons: () => void;
-  var drawBurgIcon: (burg: Burg) => void;
-  var removeBurgIcon: (burgId: number) => void;
-}
-
 interface BurgGroup {
   name: string;
   order: number;
@@ -44,7 +38,7 @@ export const burgIconsRenderer = (): void => {
 export const drawBurgIconRenderer = (burg: Burg): void => {
   const iconGroup = burgIcons.select<SVGGElement>(`#${burg.group}`);
   if (iconGroup.empty()) {
-    drawBurgIcons();
+    burgIconsRenderer();
     return; // redraw all icons if group is missing
   }
 
@@ -78,10 +72,6 @@ export const removeBurgIconRenderer = (burgId: number): void => {
   const existingAnchor = document.getElementById(`anchor${burgId}`);
   if (existingAnchor) existingAnchor.remove();
 };
-
-window.drawBurgIcons = burgIconsRenderer;
-window.drawBurgIcon = drawBurgIconRenderer;
-window.removeBurgIcon = removeBurgIconRenderer;
 
 function createIconGroups(): void {
   // save existing styles and remove all groups

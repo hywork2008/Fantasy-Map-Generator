@@ -8,13 +8,7 @@ interface ReliefIcon {
   s: number;
 }
 
-declare global {
-  var drawReliefIcons: () => void;
-  var terrain: import("d3").Selection<SVGGElement, unknown, null, undefined>;
-  var getPackPolygon: (i: number) => [number, number][];
-}
-
-const reliefIconsRenderer = (): void => {
+export const reliefIconsRenderer = (): void => {
   TIME && console.time("drawRelief");
   terrain.selectAll("*").remove();
   const poissonDiscSampler = window.fmg?.poissonDiscSampler;
@@ -149,4 +143,4 @@ const reliefIconsRenderer = (): void => {
   }
 };
 
-window.drawReliefIcons = reliefIconsRenderer;
+

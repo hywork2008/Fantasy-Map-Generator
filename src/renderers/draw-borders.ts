@@ -1,8 +1,4 @@
-declare global {
-  var drawBorders: () => void;
-}
-
-const bordersRenderer = () => {
+export const bordersRenderer = () => {
   TIME && console.time("drawBorders");
   const { cells, vertices } = pack;
 
@@ -162,4 +158,4 @@ const bordersRenderer = () => {
   TIME && console.timeEnd("drawBorders");
 };
 
-window.drawBorders = bordersRenderer;
+

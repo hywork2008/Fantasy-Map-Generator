@@ -1,7 +1,7 @@
 "use strict";
 import { COArenderer } from "@fmg/core/modules/emblem/renderer";
 import { editBurgGroups } from "./burg-group-editor";
-import { closeDialogs, unselect } from "./editors";
+import { closeDialogs, unselect, confirmationDialog } from "./editors";
 import { clearMainTip, getHeight, tip } from "./general";
 import { layerIsOn, toggleBurgIcons, toggleCells, toggleLabels } from "./layers";
 import { editStyle } from "./style";
@@ -362,7 +362,7 @@ class BurgEditor {
   private relocateBurgOnClick() {
     const cells = pack.cells;
     const point = d3.mouse(viewbox.node());
-    const cellId = findCell(...point);
+    const cellId = findCell(point[0], point[1]);
     const id = +elSelected.attr("data-id");
     const burg = pack.burgs[id];
 

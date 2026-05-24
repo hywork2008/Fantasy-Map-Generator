@@ -238,6 +238,34 @@ export interface FmgGlobalContext {
   addLocalFont?: (family: string) => void;
   addWebFont?: (family: string, src: string) => void;
 
+  // ==================== Renderer Functions ====================
+  drawBorders?: () => void;
+  drawEmblems?: () => void;
+  renderGroupCOAs?: (g: SVGGElement) => Promise<void>;
+  drawIce?: () => void;
+  redrawIceberg?: (id: number) => void;
+  redrawGlacier?: (id: number) => void;
+  drawMarkers?: () => void;
+  drawMarker?: (marker: { i: number; icon: string; x?: number; y?: number; dx?: number; dy?: number; px?: number; size?: number; pin?: string; fill?: string; stroke?: string; pinned?: boolean }, rescale?: number) => string;
+  getPin?: (shape?: string, fill?: string, stroke?: string) => string;
+  drawMilitary?: () => void;
+  drawRegiments?: (regiments: unknown[], stateId: number) => void;
+  drawRegiment?: (reg: unknown, stateId: number) => void;
+  moveRegiment?: (reg: unknown, x: number, y: number) => void;
+  drawReliefIcons?: () => void;
+  drawScaleBar?: (scaleBar: unknown, scaleLevel: number) => void;
+  fitScaleBar?: (scaleBar: unknown, fullWidth: number, fullHeight: number) => void;
+  drawStateLabels?: (list?: number[]) => void;
+  drawTemperature?: () => void;
+  drawFeatures?: () => void;
+  getFeaturePath?: (feature: unknown) => string;
+  drawBurgIcons?: () => void;
+  drawBurgIcon?: (burg: unknown) => void;
+  removeBurgIcon?: (burgId: number) => void;
+  drawBurgLabels?: () => void;
+  drawBurgLabel?: (burg: unknown) => void;
+  removeBurgLabel?: (burgId: number) => void;
+
   toggleHeight?: (event?: LegacyLayerToggleEvent) => void;
   toggleTemperature?: (event?: LegacyLayerToggleEvent) => void;
   toggleBiomes?: (event?: LegacyLayerToggleEvent) => void;

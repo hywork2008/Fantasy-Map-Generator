@@ -254,6 +254,16 @@ import {
 import { cleanupData } from "./versioning";
 import { burgIconsRenderer, drawBurgIconRenderer, removeBurgIconRenderer } from "#renderers/draw-burg-icons";
 import { burgLabelsRenderer, drawBurgLabelRenderer, removeBurgLabelRenderer } from "#renderers/draw-burg-labels";
+import { bordersRenderer } from "#renderers/draw-borders";
+import { emblemsRenderer, renderGroupCOAsRenderer } from "#renderers/draw-emblems";
+import { iceRenderer, redrawIcebergRenderer, redrawGlacierRenderer } from "#renderers/draw-ice";
+import { markersRenderer, markerRenderer, getPinForShape } from "#renderers/draw-markers";
+import { militaryRenderer, drawRegimentsRenderer, drawRegimentRenderer, moveRegimentRenderer } from "#renderers/draw-military";
+import { reliefIconsRenderer } from "#renderers/draw-relief-icons";
+import { scaleBarRenderer, scaleBarResize } from "#renderers/draw-scalebar";
+import { stateLabelsRenderer } from "#renderers/draw-state-labels";
+import { temperatureRenderer } from "#renderers/draw-temperature";
+import { featuresRenderer, featurePathRenderer } from "#renderers/draw-features";
 import { Names } from "@fmg/core/modules/names-generator";
 import type { FmgGlobalContext } from "@fmg/types";
 
@@ -328,6 +338,27 @@ const legacyCompat = {
   drawBurgLabel: drawBurgLabelRenderer,
   removeBurgLabel: removeBurgLabelRenderer,
   getMapName: Names.getMapName,
+
+  drawBorders: bordersRenderer,
+  drawEmblems: emblemsRenderer,
+  renderGroupCOAs: renderGroupCOAsRenderer,
+  drawIce: iceRenderer,
+  redrawIceberg: redrawIcebergRenderer,
+  redrawGlacier: redrawGlacierRenderer,
+  drawMarkers: markersRenderer,
+  drawMarker: markerRenderer,
+  getPin: getPinForShape,
+  drawMilitary: militaryRenderer,
+  drawRegiments: drawRegimentsRenderer,
+  drawRegiment: drawRegimentRenderer,
+  moveRegiment: moveRegimentRenderer,
+  drawReliefIcons: reliefIconsRenderer,
+  drawScaleBar: scaleBarRenderer,
+  fitScaleBar: scaleBarResize,
+  drawStateLabels: stateLabelsRenderer,
+  drawTemperature: temperatureRenderer,
+  drawFeatures: featuresRenderer,
+  getFeaturePath: featurePathRenderer,
 
   showOptions,
   hideOptions,

@@ -1,3 +1,4 @@
+import { confirmationDialog } from "./editors";
 // UI module to control the style presets
 "use strict";
 
@@ -5,7 +6,9 @@ import { selectStyleElement, updateElements } from "./style";
 import { layerIsOn, toggleBurgIcons, toggleLabels } from "./layers";
 import { burgIconsRenderer } from "#renderers/draw-burg-icons";
 import { burgLabelsRenderer } from "#renderers/draw-burg-labels";
+import { stateLabelsRenderer as drawStateLabels } from "#renderers/draw-state-labels";
 import { tip } from "./general";
+import { scaleBarRenderer as drawScaleBar, scaleBarResize as fitScaleBar } from "#renderers/draw-scalebar";
 
 /// <reference path="../../types/ui-legacy-globals.d.ts" />
 

@@ -6,6 +6,7 @@ import { applySorting, clearLegend, closeDialogs, drawLegend, fitContent, getAre
 import type { BaseType } from "d3-selection";
 import type { Transition } from "d3-transition";
 import { layerIsOn, toggleBiomes, toggleCultures, toggleProvinces, toggleRelief, toggleReligions, toggleStates } from "./layers";
+import { reliefIconsRenderer as drawReliefIcons } from "#renderers/draw-relief-icons";
 import { editStyle } from "./style";
 
 type BiomesEditorData = ReturnType<typeof Biomes.getDefault> & {

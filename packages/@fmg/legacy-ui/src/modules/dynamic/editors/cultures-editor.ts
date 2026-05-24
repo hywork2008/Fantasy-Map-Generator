@@ -1,7 +1,11 @@
-import { applySorting, applySortingByHeader, clearLegend, closeDialogs, drawLegend, getArea, getAreaUnit, fitContent, moveCircle, removeCircle } from "../../ui/editors";
+import { COA } from "@fmg/core/modules/emblem/generator";
+import { COArenderer } from "@fmg/core/modules/emblem/renderer";
+import { Names } from "@fmg/core/modules/names-generator";
+import { applySorting, applySortingByHeader, clearLegend, closeDialogs, drawLegend, getArea, getAreaUnit, fitContent, moveCircle, removeCircle, confirmationDialog } from "../../ui/editors";
 import { clearMainTip, showMainTip, tip } from "../../ui/general";
 import { layerIsOn, toggleBiomes, toggleCultures, toggleProvinces, toggleReligions, toggleStates } from "../../ui/layers";
 import { requireFmgApi } from "../../runtime/fmg-api";
+import { restoreDefaultEvents } from "../../ui/editors";
 
 const Cultures = requireFmgApi("Cultures");
 const $body = insertEditorHtml();
@@ -282,9 +286,8 @@ function getBaseOptions(base) {
 function getShapeOptions(selectShape, selected) {
   if (!selectShape) return "";
 
-  const shapes = Object.keys(COA.shields.types)
-    .map(type => Object.keys(COA.shields[type]))
-    .flat();
+  const shapes: string[] = Object.keys(COA.shields.types)
+    .flatMap((type: string) => Object.keys(COA.shields[type]) as string[]);
   const options = shapes.map(
     shape => `<option ${shape === selected ? "selected" : ""} value="${shape}">${capitalize(shape)}</option>`
   );
@@ -894,9 +897,8 @@ async function uploadCulturesData() {
   }));
 
   const {cultures, cells} = pack;
-  const shapes = Object.keys(COA.shields.types)
-    .map(type => Object.keys(COA.shields[type]))
-    .flat();
+  const shapes: string[] = Object.keys(COA.shields.types)
+    .flatMap((type: string) => Object.keys(COA.shields[type]) as string[]);
 
   const populated = cells.pop.map((c, i) => (c ? i : null)).filter(c => c);
   cultures.forEach(item => {

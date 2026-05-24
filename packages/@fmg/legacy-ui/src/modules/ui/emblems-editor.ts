@@ -1,5 +1,7 @@
 "use strict";
 
+import { COA } from "@fmg/core/modules/emblem/generator";
+import { COArenderer } from "@fmg/core/modules/emblem/renderer";
 import { clearMainTip, tip } from "./general";
 
 type UploadedCustomCoa = {

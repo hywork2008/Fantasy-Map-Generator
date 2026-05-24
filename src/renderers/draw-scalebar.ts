@@ -2,18 +2,9 @@ import type { Selection } from "d3";
 import { range } from "d3";
 import { rn } from "../utils";
 
-declare global {
-  var drawScaleBar: (scaleBar: Selection<SVGGElement, unknown, HTMLElement, unknown>, scaleLevel: number) => void;
-  var fitScaleBar: (
-    scaleBar: Selection<SVGGElement, unknown, HTMLElement, unknown>,
-    fullWidth: number,
-    fullHeight: number
-  ) => void;
-}
-
 type ScaleBarSelection = Selection<SVGGElement, unknown, HTMLElement, unknown>;
 
-const scaleBarRenderer = (scaleBar: ScaleBarSelection, scaleLevel: number): void => {
+export const scaleBarRenderer = (scaleBar: ScaleBarSelection, scaleLevel: number): void => {
   if (!scaleBar.size() || scaleBar.style("display") === "none") return;
 
   const unit = distanceUnitInput.value;
@@ -106,7 +97,7 @@ function getLength(scaleBar: ScaleBarSelection, scaleLevel: number): number {
   return length;
 }
 
-const scaleBarResize = (scaleBar: ScaleBarSelection, fullWidth: number, fullHeight: number): void => {
+export const scaleBarResize = (scaleBar: ScaleBarSelection, fullWidth: number, fullHeight: number): void => {
   if (!scaleBar.select("rect").size() || scaleBar.style("display") === "none") return;
 
   const posX = +scaleBar.attr("data-x") || 99;
@@ -118,5 +109,3 @@ const scaleBarResize = (scaleBar: ScaleBarSelection, fullWidth: number, fullHeig
   scaleBar.attr("transform", `translate(${x},${y})`);
 };
 
-window.drawScaleBar = scaleBarRenderer;
-window.fitScaleBar = scaleBarResize;

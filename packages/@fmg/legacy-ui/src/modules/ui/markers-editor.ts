@@ -1,5 +1,5 @@
 "use strict";
-import { closeDialogs, listen, unselect } from "./editors";
+import { closeDialogs, listen, unselect, confirmationDialog } from "./editors";
 import { clearMainTip } from "./general";
 import { requireFmgApi } from "../runtime/fmg-api";
 

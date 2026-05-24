@@ -14,6 +14,7 @@ import { heightmapRenderer } from "#renderers/draw-heightmap";
 import { iceRenderer } from "#renderers/draw-ice";
 import { markersRenderer } from "#renderers/draw-markers";
 import { militaryRenderer } from "#renderers/draw-military";
+import { scaleBarRenderer as drawScaleBar, scaleBarResize as fitScaleBar } from "#renderers/draw-scalebar";
 import { compareVersions } from "../../versioning";
 
 const Religions = requireFmgApi("Religions");

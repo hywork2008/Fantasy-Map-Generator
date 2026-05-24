@@ -1,7 +1,10 @@
 import { closeDialogs } from "@legacy-ui-runtime/modules/ui/editors";
 import { tip } from "@legacy-ui-runtime/modules/ui/general";
+import { Names as NamesModule } from "@fmg/core/modules/names-generator";
 import { max as d3max, min as d3min, mean, median } from "d3";
 import { ensureEl, openURL, rn, unique } from "../utils";
+
+const NamesApi = ((((window as any).fmg && (window as any).fmg.Names) || (window as any).Names || NamesModule) as any);
 
 addListeners();
 
@@ -76,7 +79,7 @@ function updateExamples(): void {
   const base = +ensureEl<HTMLSelectElement>("namesbaseSelect").value;
   let examples = "";
   for (let i = 0; i < 7; i++) {
-    const example = Names.getBase(base);
+    const example = NamesApi.getBase(base);
     if (example === undefined) {
       examples = "Cannot generate examples. Please verify the data";
       break;
@@ -97,7 +100,7 @@ function updateNamesData(): void {
   const securedNamesData = input.value.replace(/[/|]/g, "");
   nameBases[base].b = securedNamesData;
   input.value = securedNamesData;
-  Names.updateChain(base);
+  NamesApi.updateChain(base);
 }
 
 function updateBaseName(rawName: string): void {
@@ -140,7 +143,7 @@ function analyzeNamesbase(): void {
     return;
   }
 
-  const chain = Names.calculateChain(namesSourceString);
+  const chain = NamesApi.calculateChain(namesSourceString);
   const chainValues = Object.values(chain) as string[][];
   const variety = rn(mean(chainValues.map(kv => kv.length)) ?? 0);
 
@@ -241,8 +244,8 @@ function namesbaseRestoreDefault(): void {
     buttons: {
       Restore: function () {
         $(this).dialog("close");
-        Names.clearChains();
-        nameBases = Names.getNameBases();
+        NamesApi.clearChains();
+        nameBases = NamesApi.getNameBases() as typeof nameBases;
         createBasesList();
         updateInputs();
       },
@@ -269,7 +272,7 @@ function namesbaseUpload(dataLoaded: string, override = true): void {
     return;
   }
 
-  Names.clearChains();
+  NamesApi.clearChains();
   if (override) nameBases = [];
 
   const errors: ParseError[] = [];

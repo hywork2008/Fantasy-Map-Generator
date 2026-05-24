@@ -2,10 +2,6 @@ import { curveNatural, line, max, select } from "d3";
 import type { TypedArray } from "../types/PackedGraph";
 import { drawPath, drawPoint, findClosestCell, minmax, rn, round, splitInTwo } from "../utils";
 
-declare global {
-  var drawStateLabels: (list?: number[]) => void;
-}
-
 interface Ray {
   angle: number;
   length: number;
@@ -22,7 +18,7 @@ interface AngleData {
 type PathPoints = [number, number][];
 
 // list - an optional array of stateIds to regenerate
-const stateLabelsRenderer = (list?: number[]): void => {
+export const stateLabelsRenderer = (list?: number[]): void => {
   TIME && console.time("drawStateLabels");
 
   // temporary make the labels visible
@@ -371,5 +367,3 @@ const stateLabelsRenderer = (list?: number[]): void => {
 
   TIME && console.timeEnd("drawStateLabels");
 };
-
-window.drawStateLabels = stateLabelsRenderer;

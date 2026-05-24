@@ -59,6 +59,7 @@ import { closeDialogs, restoreDefaultEvents } from "./modules/ui/editors";
 import { editUnits } from "./modules/ui/units-editor";
 import { initiateAutosave } from "./modules/io/save";
 import { editWorld } from "./modules/ui/world-configurator";
+import { scaleBarRenderer as drawScaleBar, scaleBarResize as fitScaleBar } from "#renderers/draw-scalebar";
 import { Biomes } from "@fmg/core/modules/biomes";
 import { Ice } from "@fmg/core/modules/ice";
 import { Lakes } from "@fmg/core/modules/lakes";
@@ -670,6 +671,12 @@ function resetZoom(d = 1000) {
 
 // active zooming feature
 export function invokeActiveZooming() {
+  const renderGroupCOAs = (group: Element) => {
+    const renderer = (window.fmg as FmgGlobalContext | undefined)?.renderGroupCOAs;
+    if (!renderer) return;
+    void renderer(group as SVGGElement);
+  };
+
   invokeActiveZoomingView(
     buildInvokeActiveZoomingDeps({
       coastline,

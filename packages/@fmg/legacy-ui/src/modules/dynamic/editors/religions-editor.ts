@@ -1,4 +1,5 @@
-import { applySorting, applySortingByHeader, clearLegend, closeDialogs, drawLegend, getArea, getAreaUnit, fitContent, moveCircle, removeCircle } from "../../ui/editors";
+import { applySorting, applySortingByHeader, clearLegend, closeDialogs, drawLegend, getArea, getAreaUnit, fitContent, moveCircle, removeCircle, confirmationDialog } from "../../ui/editors";
+import { restoreDefaultEvents } from "../../ui/editors";
 import { clearMainTip, showMainTip, tip } from "../../ui/general";
 import { layerIsOn, toggleBiomes, toggleCultures, toggleProvinces, toggleReligions, toggleStates } from "../../ui/layers";
 import { requireFmgApi } from "../../runtime/fmg-api";

@@ -15,12 +15,6 @@ interface Marker {
   pinned?: boolean;
 }
 
-declare global {
-  var drawMarkers: () => void;
-  var drawMarker: (marker: Marker, rescale?: number) => string;
-  var getPin: (shape?: string, fill?: string, stroke?: string) => string;
-}
-
 type PinShapeFunction = (fill: string, stroke: string) => string;
 type PinShapes = { [key: string]: PinShapeFunction };
 
@@ -51,12 +45,12 @@ const pinShapes: PinShapes = {
   no: () => ""
 };
 
-const getPinForShape = (shape = "bubble", fill = "#fff", stroke = "#000"): string => {
+export const getPinForShape = (shape = "bubble", fill = "#fff", stroke = "#000"): string => {
   const shapeFunction = pinShapes[shape] || pinShapes.bubble;
   return shapeFunction(fill, stroke);
 };
 
-function markerRenderer(marker: Marker, rescale = 1): string {
+export function markerRenderer(marker: Marker, rescale = 1): string {
   const { i, icon, x = 0, y = 0, dx = 50, dy = 50, px = 12, size = 30, pin, fill, stroke } = marker;
   const id = `marker${i}`;
   const zoomSize = rescale ? Math.max(rn(size / 5 + 24 / scale, 2), 1) : size;
@@ -67,7 +61,7 @@ function markerRenderer(marker: Marker, rescale = 1): string {
 
   return /* html */ `
     <svg id="${id}" viewbox="0 0 30 30" width="${zoomSize}" height="${zoomSize}" x="${viewX}" y="${viewY}">
-      <g>${getPin(pin, fill, stroke)}</g>
+      <g>${getPinForShape(pin, fill, stroke)}</g>
       <text x="${dx}%" y="${dy}%" font-size="${px}px" >${isExternal ? "" : icon}</text>
       <image x="${dx / 2}%" y="${dy / 2}%" width="${px}px" height="${px}px" href="${isExternal ? icon : ""}" />
     </svg>`;
@@ -86,6 +80,4 @@ export const markersRenderer = (): void => {
   TIME && console.timeEnd("drawMarkers");
 };
 
-window.drawMarkers = markersRenderer;
-window.drawMarker = markerRenderer;
-window.getPin = getPinForShape;
+

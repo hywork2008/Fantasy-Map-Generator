@@ -1,4 +1,4 @@
-import { applySorting, closeDialogs, fitContent, restoreDefaultEvents } from "./editors";
+import { applySorting, closeDialogs, fitContent, restoreDefaultEvents, confirmationDialog } from "./editors";
 import { editBurgGroups } from "./burg-group-editor";
 import { clearMainTip, tip } from "./general";
 import { layerIsOn, toggleBurgIcons, toggleLabels } from "./layers";
@@ -150,7 +150,7 @@ export function overviewBurgs(settings = {stateId: null, cultureId: null}) {
     body.insertAdjacentHTML("beforeend", lines);
 
     burgsFooterBurgs.innerHTML = `${filtered.length} of ${validBurgs.length}`;
-    burgsFooterPopulation.innerHTML = filtered.length ? si(totalPopulation / filtered.length) : 0;
+    burgsFooterPopulation.innerHTML = filtered.length ? si(totalPopulation / filtered.length) : "0";
 
     body.querySelectorAll("div.states").forEach(el => el.addEventListener("mouseenter", ev => burgHighlightOn(ev)));
     body.querySelectorAll("div.states").forEach(el => el.addEventListener("mouseleave", ev => burgHighlightOff(ev)));
@@ -250,7 +250,7 @@ export function overviewBurgs(settings = {stateId: null, cultureId: null}) {
 
   function addBurgOnClick() {
     const point = d3.mouse(this);
-    const cell = findCell(...point);
+    const cell = findCell(point[0], point[1]);
 
     if (pack.cells.h[cell] < 20)
       return tip("You cannot place state into the water. Please click on a land cell", false, "error");

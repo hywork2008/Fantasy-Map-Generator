@@ -1,11 +1,7 @@
 import { color, curveBasisClosed, interpolateSpectral, leastIndex, line, max, min, range, scaleSequential } from "d3";
 import { connectVertices, convertTemperature, ensureEl, round } from "../utils";
 
-declare global {
-  var drawTemperature: () => void;
-}
-
-const temperatureRenderer = (): void => {
+export const temperatureRenderer = (): void => {
   TIME && console.time("drawTemperature");
 
   temperature.selectAll("*").remove();
@@ -126,4 +122,4 @@ const temperatureRenderer = (): void => {
   TIME && console.timeEnd("drawTemperature");
 };
 
-window.drawTemperature = temperatureRenderer;
+
