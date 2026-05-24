@@ -18,12 +18,26 @@ if (location.hostname !== "localhost" && location.hostname !== "127.0.0.1") {
 }
 
 function getTooltip() {
-  const runtime = window as unknown as {__fmgTooltip?: HTMLElement | null};
+  const runtime = window as unknown as {__fmgTooltip?: HTMLElement | null; __fmgTooltipHTML?: string};
   if (runtime.__fmgTooltip === undefined) {
     runtime.__fmgTooltip = document.getElementById("tooltip");
+    runtime.__fmgTooltipHTML = runtime.__fmgTooltip?.innerHTML || "";
   }
   return runtime.__fmgTooltip ?? null;
 }
+
+function setTooltipHTML(nextHTML: string) {
+  const tooltipEl = getTooltip();
+  if (!tooltipEl) return;
+
+  const runtime = window as unknown as {__fmgTooltipHTML?: string};
+  const prevHTML = runtime.__fmgTooltipHTML ?? tooltipEl.innerHTML;
+  if (prevHTML === nextHTML) return;
+
+  tooltipEl.innerHTML = nextHTML;
+  runtime.__fmgTooltipHTML = nextHTML;
+}
+
 const onDataTipMove = debounce(showDataTip, 50);
 
 document.getElementById("dialogs").addEventListener("mousemove", onDataTipMove);
@@ -41,14 +55,14 @@ export function tip(tip, main = false, type = "info", time = 0) {
   const tooltipEl = getTooltip();
   if (!tooltipEl) return;
 
-  tooltipEl.innerHTML = tip;
+  setTooltipHTML(tip);
   tooltipEl.style.background = tipBackgroundMap[type];
 
   if (main) {
     tooltipEl.dataset.main = tip;
     tooltipEl.dataset.color = tooltipEl.style.background;
   }
-  if (time) setTimeout(clearMainTip, time);
+  // if (time) setTimeout(clearMainTip, time);
 }
 
 export function showMainTip() {
@@ -56,7 +70,7 @@ export function showMainTip() {
   if (!tooltipEl) return;
 
   tooltipEl.style.background = tooltipEl.dataset.color;
-  tooltipEl.innerHTML = tooltipEl.dataset.main;
+  setTooltipHTML(tooltipEl.dataset.main || "");
 }
 
 export function clearMainTip() {
@@ -65,7 +79,7 @@ export function clearMainTip() {
 
   tooltipEl.dataset.color = "";
   tooltipEl.dataset.main = "";
-  tooltipEl.innerHTML = "";
+  setTooltipHTML("");
 }
 
 export function showDataTip(event) {
@@ -128,7 +142,7 @@ function showNotes(e) {
 }
 
 function showMapTooltip(point, e, i, g) {
-  tip("");
+  // tip("");
   const path = e.composedPath ? e.composedPath() : getComposedPath(e.target);
   if (!path[path.length - 8]) return;
   const group = path[path.length - 7].id;
