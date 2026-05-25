@@ -1,6 +1,6 @@
 import { quadtree, sum } from "d3";
 import { findAllInQuadtree, gauss, minmax, nth, ra, rand, rn, si } from "@fmg/shared";
-import type { State } from "./states-generator";
+import type { State } from "@fmg/states";
 
 export interface MilitaryRegiment {
   i: number;

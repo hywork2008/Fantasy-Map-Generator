@@ -1,7 +1,7 @@
 // UI module stub to control map layers
 "use strict";
 
-import { Rivers } from "@fmg/core/modules/river-generator";
+import { Rivers } from "@fmg/rivers";
 import { Routes } from "@fmg/core/modules/routes-generator";
 import * as d3 from "d3";
 import { burgIconsRenderer } from "#renderers/draw-burg-icons";

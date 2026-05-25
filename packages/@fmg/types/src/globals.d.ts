@@ -6,7 +6,7 @@ import type { Selection } from "d3";
 import type { PackedGraph } from "./PackedGraph";
 import type { Grid } from "./Grid";
 import type { Route } from "@fmg/core/modules/routes-generator";
-import type { Burg } from "@fmg/core/modules/burgs-generator";
+import type { Burg } from "@fmg/burgs";
 import type { MapCoordinates, LegacyNote, NameBase, HeightmapTemplate, BurgGroup, BurgsConfig } from "./index";
 
 type LegacyLdb = {
@@ -15,14 +15,14 @@ type LegacyLdb = {
 };
 
 type BiomesGlobal = typeof import("@fmg/core/modules/biomes").Biomes;
-type BurgsGlobal = typeof import("@fmg/core/modules/burgs-generator").Burgs;
+type BurgsGlobal = typeof import("@fmg/burgs").Burgs;
 type CulturesGlobal = typeof import("@fmg/core/modules/cultures-generator").Cultures;
 type FeaturesGlobal = typeof import("@fmg/core/modules/features").Features;
 type IceGlobal = typeof import("@fmg/core/modules/ice").Ice;
-type ProvincesGlobal = typeof import("@fmg/core/modules/provinces-generator").Provinces;
+type ProvincesGlobal = typeof import("@fmg/states").Provinces;
 type ReligionsGlobal = typeof import("@fmg/core/modules/religions-generator").Religions;
 type RoutesGlobal = typeof import("@fmg/core/modules/routes-generator").Routes;
-type StatesGlobal = typeof import("@fmg/core/modules/states-generator").States;
+type StatesGlobal = typeof import("@fmg/states").States;
 type ZonesGlobal = typeof import("@fmg/core/modules/zones-generator").Zones;
 type PackedGraphGlobal = import("@fmg/types/PackedGraph").PackedGraph;
 

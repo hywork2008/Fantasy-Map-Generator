@@ -1,9 +1,9 @@
-import { applySorting, closeDialogs, fitContent, highlightElement, listen, confirmationDialog, restoreDefaultEvents } from "./editors";
-import { clearMainTip } from "./general";
-import { configMarkersGeneration } from "./tools";
-import { layerIsOn, toggleMarkers } from "./layers";
+import { applySorting, closeDialogs, fitContent, highlightElement, listen, confirmationDialog, restoreDefaultEvents } from "@legacy-ui-runtime/modules/ui/editors";
+import { clearMainTip } from "@legacy-ui-runtime/modules/ui/general";
+import { configMarkersGeneration } from "@legacy-ui-runtime/modules/ui/tools";
+import { layerIsOn, toggleMarkers } from "@legacy-ui-runtime/modules/ui/layers";
 import { markersRenderer } from "#renderers/draw-markers";
-import { requireFmgApi } from "../runtime/fmg-api";
+import { requireFmgApi } from "@legacy-ui-runtime/modules/runtime/fmg-api";
 "use strict";
 
 const Markers = requireFmgApi("Markers") as {

@@ -5,11 +5,11 @@ import { layerIsOn, drawRoute } from "@legacy-ui-runtime/modules/ui/layers";
 import { tip } from "@legacy-ui-runtime/modules/ui/general";
 import { drawBurgIconRenderer as drawBurgIcon, removeBurgIconRenderer as removeBurgIcon } from "#renderers/draw-burg-icons";
 import { drawBurgLabelRenderer as drawBurgLabel, removeBurgLabelRenderer as removeBurgLabel } from "#renderers/draw-burg-labels";
-import type { Emblem } from "./emblem/generator";
-import { COA } from "./emblem/generator";
-import { COArenderer } from "./emblem/renderer";
-import { Names } from "./names-generator";
-import { Routes } from "./routes-generator";
+import type { Emblem } from "@fmg/core/modules/emblem/generator";
+import { COA } from "@fmg/core/modules/emblem/generator";
+import { COArenderer } from "@fmg/core/modules/emblem/renderer";
+import { Names } from "@fmg/core/modules/names-generator";
+import { Routes } from "@fmg/core/modules/routes-generator";
 export interface Burg {
   cell: number;
   x: number;

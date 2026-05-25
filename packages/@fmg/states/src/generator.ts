@@ -15,11 +15,11 @@ import {
   rw,
   trimVowels
 } from "@fmg/shared";
-import type { PackedGraphFeature } from "./features";
-import type { River } from "./river-generator";
-import type { Emblem } from "./emblem/generator";
-import { COA } from "./emblem/generator";
-import { Names } from "./names-generator";
+import type { PackedGraphFeature } from "@fmg/core/modules/features";
+import type { River } from "@fmg/rivers";
+import type { Emblem } from "@fmg/core/modules/emblem/generator";
+import { COA } from "@fmg/core/modules/emblem/generator";
+import { Names } from "@fmg/core/modules/names-generator";
 
 interface Campaign {
   name: string;

@@ -1,13 +1,13 @@
 "use strict";
 
 import type { BurgGroup } from "@fmg/types";
-import type { Burg } from "@fmg/core/modules/burgs-generator";
+import type { Burg } from "@fmg/burgs";
 import { burgIconsRenderer } from "#renderers/draw-burg-icons";
 import { burgLabelsRenderer } from "#renderers/draw-burg-labels";
-import { fitContent, confirmationDialog } from "./editors";
-import { layerIsOn, toggleBurgIcons, toggleLabels } from "./layers";
-import { requireFmgApi } from "../runtime/fmg-api";
-import { tip } from "./general";
+import { fitContent, confirmationDialog } from "@legacy-ui-runtime/modules/ui/editors";
+import { layerIsOn, toggleBurgIcons, toggleLabels } from "@legacy-ui-runtime/modules/ui/layers";
+import { requireFmgApi } from "@legacy-ui-runtime/modules/runtime/fmg-api";
+import { tip } from "@legacy-ui-runtime/modules/ui/general";
 
 
 const Burgs = requireFmgApi("Burgs") as {

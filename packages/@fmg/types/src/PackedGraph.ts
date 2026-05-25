@@ -1,12 +1,12 @@
 import type { Quadtree } from "d3";
-import type { Burg } from "@fmg/core/modules/burgs-generator";
+import type { Burg } from "@fmg/burgs";
 import type { Culture } from "@fmg/core/modules/cultures-generator";
 import type { PackedGraphFeature } from "@fmg/core/modules/features";
 import type { Religion } from "@fmg/core/modules/religions-generator";
-import type { Province } from "@fmg/core/modules/provinces-generator";
-import type { River } from "@fmg/core/modules/river-generator";
+import type { Province } from "@fmg/states";
+import type { River } from "@fmg/rivers";
 import type { Route } from "@fmg/core/modules/routes-generator";
-import type { State } from "@fmg/core/modules/states-generator";
+import type { State } from "@fmg/states";
 import type { Zone } from "@fmg/core/modules/zones-generator";
 
 type ReligionData = Religion & {

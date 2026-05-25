@@ -1,9 +1,9 @@
 import Alea from "alea";
 import { max } from "d3";
 import { ensureEl, gauss, generateSeed, getMixedColor, getPolesOfInaccessibility, P, rand, rw } from "@fmg/shared";
-import type { Emblem } from "./emblem/generator";
-import { COA } from "./emblem/generator";
-import { Names } from "./names-generator";
+import type { Emblem } from "@fmg/core/modules/emblem/generator";
+import { COA } from "@fmg/core/modules/emblem/generator";
+import { Names } from "@fmg/core/modules/names-generator";
 
 export interface Province {
   i: number;

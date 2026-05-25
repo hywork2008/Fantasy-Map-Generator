@@ -1,9 +1,9 @@
 "use strict";
 
 import { Opisometer, Planimeter, Ruler, createDefaultRuler } from "../ui/measurers";
-import { Rivers } from "@fmg/core/modules/river-generator";
+import { Rivers } from "@fmg/rivers";
 import { Routes } from "@fmg/core/modules/routes-generator";
-import { States } from "@fmg/core/modules/states-generator";
+import { States } from "@fmg/states";
 import { fog, unfog } from "../ui/editors";
 import { requireFmgApi } from "../runtime/fmg-api";
 import { drawRoutes, drawTexture, drawZones, layerIsOn } from "../ui/layers";

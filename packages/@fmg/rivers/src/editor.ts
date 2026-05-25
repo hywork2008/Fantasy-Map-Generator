@@ -1,10 +1,10 @@
 "use strict";
-import { Rivers } from "@fmg/core/modules/river-generator";
-import { layerIsOn, toggleCells, toggleRivers } from "./layers";
-import { closeDialogs, unselect } from "./editors";
-import { clearMainTip, tip } from "./general";
-import { editNotes } from "./notes-editor";
-import { editStyle } from "./style";
+import { Rivers } from "@fmg/rivers";
+import { layerIsOn, toggleCells, toggleRivers } from "@legacy-ui-runtime/modules/ui/layers";
+import { closeDialogs, unselect } from "@legacy-ui-runtime/modules/ui/editors";
+import { clearMainTip, tip } from "@legacy-ui-runtime/modules/ui/general";
+import { editNotes } from "@legacy-ui-runtime/modules/ui/notes-editor";
+import { editStyle } from "@legacy-ui-runtime/modules/ui/style";
 
 class RiverEditor {
   public open(id: string) {

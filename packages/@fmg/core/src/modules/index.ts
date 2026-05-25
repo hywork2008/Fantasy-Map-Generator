@@ -4,8 +4,8 @@ import "./features";
 import "./names-generator";
 import "./ocean-layers";
 import "./lakes";
-import "./river-generator";
-import "./burgs-generator";
+
+
 import "./biomes";
 import "./cultures-generator";
 import "./routes-generator";

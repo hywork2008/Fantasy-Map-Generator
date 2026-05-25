@@ -1,10 +1,10 @@
 import type { FmgGlobalContext, Grid } from "@fmg/types";
-import { BurgsGenerator } from "./burgs-generator";
+import { BurgsGenerator } from "@fmg/burgs";
 import { CulturesGenerator } from "./cultures-generator";
 import { FeaturesGenerator } from "./features";
 import { HeightmapGenerator } from "./heightmap-generator";
-import { MarkersGenerator } from "./markers-generator";
-import { ProvincesGenerator } from "./provinces-generator";
+import { MarkersGenerator } from "@fmg/markers";
+import { ProvincesGenerator } from "@fmg/states";
 import { ReligionsGenerator } from "./religions-generator";
 import { ZonesGenerator } from "./zones-generator";
 import { Resampler } from "./resample";

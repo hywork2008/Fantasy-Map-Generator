@@ -1,4 +1,4 @@
-import type { Burg } from "#modules/burgs-generator";
+import type { Burg } from "@fmg/burgs";
 
 interface BurgGroup {
   name: string;

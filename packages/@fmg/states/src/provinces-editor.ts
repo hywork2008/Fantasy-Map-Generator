@@ -2,14 +2,14 @@
 import { COA } from "@fmg/core/modules/emblem/generator";
 import { COArenderer } from "@fmg/core/modules/emblem/renderer";
 import { Names } from "@fmg/core/modules/names-generator";
-import { States } from "@fmg/core/modules/states-generator";
+import { States } from "@fmg/states";
 import { bordersRenderer as drawBorders } from "#renderers/draw-borders";
 import { stateLabelsRenderer as drawStateLabels } from "#renderers/draw-state-labels";
-import { clearMainTip, showMainTip, tip } from "./general";
-import { applySorting, closeDialogs, fitContent, fog, getArea, getAreaUnit, moveCircle, removeCircle, restoreDefaultEvents, unfog, confirmationDialog } from "./editors";
-import { drawStates, layerIsOn, toggleBorders, toggleCultures, togglePopulation, toggleProvinces, toggleStates } from "./layers";
-import { editStyle } from "./style";
-import { requireFmgApi } from "../runtime/fmg-api";
+import { clearMainTip, showMainTip, tip } from "@legacy-ui-runtime/modules/ui/general";
+import { applySorting, closeDialogs, fitContent, fog, getArea, getAreaUnit, moveCircle, removeCircle, restoreDefaultEvents, unfog, confirmationDialog } from "@legacy-ui-runtime/modules/ui/editors";
+import { drawStates, layerIsOn, toggleBorders, toggleCultures, togglePopulation, toggleProvinces, toggleStates } from "@legacy-ui-runtime/modules/ui/layers";
+import { editStyle } from "@legacy-ui-runtime/modules/ui/style";
+import { requireFmgApi } from "@legacy-ui-runtime/modules/runtime/fmg-api";
 
 declare const areaUnit: HTMLSelectElement;
 

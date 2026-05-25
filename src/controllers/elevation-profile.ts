@@ -17,10 +17,10 @@ import {
   scaleLinear,
   select
 } from "d3";
-import type { Burg } from "#modules/burgs-generator";
+import type { Burg } from "@fmg/burgs";
 import type { PackedGraphFeature } from "#modules/features";
-import type { Province } from "#modules/provinces-generator";
-import type { State } from "#modules/states-generator";
+import type { Province } from "@fmg/states";
+import type { State } from "@fmg/states";
 import { ensureEl, rn } from "../utils";
 
 export function open(cells: number[], routeLen: number, isRiver: boolean): void {

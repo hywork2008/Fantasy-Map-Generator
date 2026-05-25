@@ -1,7 +1,7 @@
 "use strict";
-import { closeDialogs, listen, unselect, confirmationDialog } from "./editors";
-import { clearMainTip } from "./general";
-import { requireFmgApi } from "../runtime/fmg-api";
+import { closeDialogs, listen, unselect, confirmationDialog } from "@legacy-ui-runtime/modules/ui/editors";
+import { clearMainTip } from "@legacy-ui-runtime/modules/ui/general";
+import { requireFmgApi } from "@legacy-ui-runtime/modules/runtime/fmg-api";
 
 const Markers = requireFmgApi("Markers") as {
   deleteMarker: (markerId: number) => void;

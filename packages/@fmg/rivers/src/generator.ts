@@ -1,10 +1,10 @@
 import Alea from "alea";
 import { curveBasis, curveCatmullRom, line, mean, min, sum } from "d3";
 import { each, rn, round, rw } from "@fmg/shared";
-import { Lakes } from "./lakes";
-import { Names } from "./names-generator";
-import type { PackedGraphFeature } from "./features";
-import type { Point } from "./voronoi";
+import { Lakes } from "@fmg/core/modules/lakes";
+import { Names } from "@fmg/core/modules/names-generator";
+import type { PackedGraphFeature } from "@fmg/core/modules/features";
+import type { Point } from "@fmg/core/modules/voronoi";
 
 export interface River {
   i: number; // river id

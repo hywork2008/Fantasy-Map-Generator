@@ -18,6 +18,10 @@ export default {
             '@fmg/types': new URL('./packages/@fmg/types/src', import.meta.url).pathname,
             '@fmg/legacy-ui': new URL('./packages/@fmg/legacy-ui/src', import.meta.url).pathname,
             '@legacy-ui-runtime': new URL('./packages/@fmg/legacy-ui/src', import.meta.url).pathname,
+            '@fmg/burgs': new URL('./packages/@fmg/burgs/src', import.meta.url).pathname,
+            '@fmg/rivers': new URL('./packages/@fmg/rivers/src', import.meta.url).pathname,
+            '@fmg/states': new URL('./packages/@fmg/states/src', import.meta.url).pathname,
+            '@fmg/markers': new URL('./packages/@fmg/markers/src', import.meta.url).pathname,
         }
     }
 }

@@ -1006,7 +1006,7 @@ export function refreshAllEditors() {
 // dynamically loaded editors
 export async function editStates() {
   if (customization) return;
-  const Editor = await import("../dynamic/editors/states-editor.js");
+  const Editor = await import("@fmg/states");
   Editor.open();
 }
 

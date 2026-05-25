@@ -1,15 +1,15 @@
 import { Biomes } from "@fmg/core/modules/biomes";
-import type { Burg as Burgs } from "@fmg/core/modules/burgs-generator";
+import type { Burg as Burgs } from "@fmg/burgs";
 import type { Culture as Cultures } from "@fmg/core/modules/cultures-generator";
 import { Ice } from "@fmg/core/modules/ice";
 import { Lakes } from "@fmg/core/modules/lakes";
 import { Military } from "@fmg/core/modules/military-generator";
 import { Names } from "@fmg/core/modules/names-generator";
-import type { Province as Provinces } from "@fmg/core/modules/provinces-generator";
+import type { Province as Provinces } from "@fmg/states";
 import type { Religion as Religions } from "@fmg/core/modules/religions-generator";
-import { Rivers } from "@fmg/core/modules/river-generator";
+import { Rivers } from "@fmg/rivers";
 import { Routes } from "@fmg/core/modules/routes-generator";
-import { States } from "@fmg/core/modules/states-generator";
+import { States } from "@fmg/states";
 import type { Zone as Zones } from "@fmg/core/modules/zones-generator";
 
 // @ts-ignore Features module not fully typed

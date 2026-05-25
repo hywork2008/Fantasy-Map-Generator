@@ -138,21 +138,21 @@ import {
 import { editNotes } from "./modules/ui/notes-editor";
 import { showBurgTemperatureGraph } from "./modules/ui/temperature-graph";
 import { editBiomes } from "./modules/ui/biomes-editor";
-import { editBurgGroups } from "./modules/ui/burg-group-editor";
-import { editRiver } from "./modules/ui/rivers-editor";
+import { editBurgGroups } from "@fmg/burgs";
+import { editRiver } from "@fmg/rivers";
 import { editRoute } from "./modules/ui/routes-editor";
 import { editRouteGroups } from "./modules/ui/route-group-editor";
 import { editLabel } from "./modules/ui/labels-editor";
 import { editLake } from "./modules/ui/lakes-editor";
 import { editCoastline } from "./modules/ui/coastline-editor";
-import { editMarker } from "./modules/ui/markers-editor";
+import { editMarker } from "@fmg/markers";
 import { editReliefIcon } from "./modules/ui/relief-editor";
 import { editRegiment } from "./modules/ui/regiment-editor";
 import { editIce } from "./modules/ui/ice-editor";
-import { editProvinces } from "./modules/ui/provinces-editor";
+import { editProvinces } from "@fmg/states";
 import { editZones } from "./modules/ui/zones-editor";
 import { editUnits } from "./modules/ui/units-editor";
-import { editDiplomacy } from "./modules/ui/diplomacy-editor";
+import { editDiplomacy } from "@fmg/states";
 import { editEmblem } from "./modules/ui/emblems-editor";
 import { editHeightmap } from "./modules/ui/heightmap-editor";
 import {
@@ -179,9 +179,9 @@ import {
 } from "./modules/io/load";
 import { getMapURL } from "./modules/io/export";
 import { addLabelOnClick, addRiverOnClick, addMarkerOnClick, toggleAddRiver, configMarkersGeneration } from "./modules/ui/tools";
-import { overviewBurgs } from "./modules/ui/burgs-overview";
-import { overviewMarkers } from "./modules/ui/markers-overview";
-import { overviewRivers } from "./modules/ui/rivers-overview";
+import { overviewBurgs } from "@fmg/burgs";
+import { overviewMarkers } from "@fmg/markers";
+import { overviewRivers } from "@fmg/rivers";
 import { overviewRoutes } from "./modules/ui/routes-overview";
 import { overviewMilitary } from "./modules/ui/military-overview";
 import {
@@ -242,7 +242,7 @@ import {
 } from "./modules/io/export";
 import { exportToJson } from "./modules/dynamic/export-json";
 import { editWorld } from "./modules/ui/world-configurator";
-import { editBurg } from "./modules/ui/burg-editor";
+import { editBurg } from "@fmg/burgs";
 import {
   textureProvideURL,
   editStyle,

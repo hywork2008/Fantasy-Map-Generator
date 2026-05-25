@@ -4,12 +4,12 @@
 // Ensure core generators register their window.fmg APIs before legacy UI modules
 // that call requireFmgApi during module initialization.
 import "@fmg/core/modules/features";
-import "@fmg/core/modules/burgs-generator";
-import "@fmg/core/modules/markers-generator";
+import "@fmg/burgs";
+import "@fmg/markers";
 import "@fmg/core/modules/zones-generator";
 import "@fmg/core/modules/cultures-generator";
 import "@fmg/core/modules/religions-generator";
-import "@fmg/core/modules/provinces-generator";
+import "@fmg/states";
 
 import { invokeActiveZoomingView, resetZoomToInitial, zoomToPoint } from "./modules/ui/zoom-utils";
 import { buildInvokeActiveZoomingDeps, buildResetZoomDeps, buildZoomToPointDeps } from "./modules/ui/zoom-deps";
@@ -76,9 +76,9 @@ import { Lakes } from "@fmg/core/modules/lakes";
 import { Military } from "@fmg/core/modules/military-generator";
 import { Names } from "@fmg/core/modules/names-generator";
 import { drawOceanLayers } from "@fmg/core/modules/ocean-layers";
-import { Rivers } from "@fmg/core/modules/river-generator";
+import { Rivers } from "@fmg/rivers";
 import { Routes } from "@fmg/core/modules/routes-generator";
-import { States } from "@fmg/core/modules/states-generator";
+import { States } from "@fmg/states";
 import type { FmgGlobalContext, Grid, PackedGraph } from "@fmg/types";
 
 type RuntimeBridge = {

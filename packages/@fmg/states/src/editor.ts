@@ -1,12 +1,12 @@
 import { COA } from "@fmg/core/modules/emblem/generator";
 import { COArenderer } from "@fmg/core/modules/emblem/renderer";
 import { Names } from "@fmg/core/modules/names-generator";
-import { States } from "@fmg/core/modules/states-generator";
-import { applySorting, applySortingByHeader, clearLegend, closeDialogs, drawLegend, getArea, getAreaUnit, fitContent, moveCircle, removeCircle, confirmationDialog } from "../../ui/editors";
-import { fog, restoreDefaultEvents, unfog } from "../../ui/editors";
-import { clearMainTip, showMainTip, tip } from "../../ui/general";
-import { drawStates, layerIsOn, toggleBiomes, toggleBorders, toggleCultures, toggleProvinces, toggleReligions, toggleStates } from "../../ui/layers";
-import { requireFmgApi } from "../../runtime/fmg-api";
+import { States } from "@fmg/states";
+import { applySorting, applySortingByHeader, clearLegend, closeDialogs, drawLegend, getArea, getAreaUnit, fitContent, moveCircle, removeCircle, confirmationDialog } from "@legacy-ui-runtime/modules/ui/editors";
+import { fog, restoreDefaultEvents, unfog } from "@legacy-ui-runtime/modules/ui/editors";
+import { clearMainTip, showMainTip, tip } from "@legacy-ui-runtime/modules/ui/general";
+import { drawStates, layerIsOn, toggleBiomes, toggleBorders, toggleCultures, toggleProvinces, toggleReligions, toggleStates } from "@legacy-ui-runtime/modules/ui/layers";
+import { requireFmgApi } from "@legacy-ui-runtime/modules/runtime/fmg-api";
 import { bordersRenderer as drawBorders } from "#renderers/draw-borders";
 import { stateLabelsRenderer as drawStateLabels } from "#renderers/draw-state-labels";
 

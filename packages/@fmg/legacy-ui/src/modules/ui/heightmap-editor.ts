@@ -3,9 +3,9 @@
 import { Biomes } from "@fmg/core/modules/biomes";
 import { drawOceanLayers } from "@fmg/core/modules/ocean-layers";
 import { Ice } from "@fmg/core/modules/ice";
-import { Rivers } from "@fmg/core/modules/river-generator";
+import { Rivers } from "@fmg/rivers";
 import { Routes } from "@fmg/core/modules/routes-generator";
-import { States } from "@fmg/core/modules/states-generator";
+import { States } from "@fmg/states";
 import { featuresRenderer } from "#renderers/draw-features";
 import "@fmg/core/modules/heightmap-generator";
 import "@fmg/core/modules/ocean-layers";

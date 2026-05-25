@@ -1,14 +1,14 @@
 "use strict";
 import { COArenderer } from "@fmg/core/modules/emblem/renderer";
-import { editBurgGroups } from "./burg-group-editor";
-import { closeDialogs, unselect, confirmationDialog, clicked } from "./editors";
-import { clearMainTip, getHeight, tip } from "./general";
-import { layerIsOn, toggleBurgIcons, toggleCells, toggleLabels } from "./layers";
-import { editEmblem } from "./emblems-editor";
-import { editNotes } from "./notes-editor";
-import { editStyle } from "./style";
-import type { Burg } from "@fmg/core/modules/burgs-generator";
-import { requireFmgApi } from "../runtime/fmg-api";
+import { editBurgGroups } from "./group-editor";
+import { closeDialogs, unselect, confirmationDialog, clicked } from "@legacy-ui-runtime/modules/ui/editors";
+import { clearMainTip, getHeight, tip } from "@legacy-ui-runtime/modules/ui/general";
+import { layerIsOn, toggleBurgIcons, toggleCells, toggleLabels } from "@legacy-ui-runtime/modules/ui/layers";
+import { editEmblem } from "@legacy-ui-runtime/modules/ui/emblems-editor";
+import { editNotes } from "@legacy-ui-runtime/modules/ui/notes-editor";
+import { editStyle } from "@legacy-ui-runtime/modules/ui/style";
+import type { Burg } from "@fmg/burgs";
+import { requireFmgApi } from "@legacy-ui-runtime/modules/runtime/fmg-api";
 
 const Burgs = requireFmgApi("Burgs") as {
   changeGroup: (burg: unknown, group?: string | null) => void;

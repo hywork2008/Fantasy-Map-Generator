@@ -2,9 +2,9 @@ import { mean } from "d3";
 import type { PackedGraph } from "@fmg/types/PackedGraph";
 import { capitalize, convertTemperature, gauss, generateDate, getAdjective, last, P, ra, rand, rn, rw } from "@fmg/shared";
 import { getFriendlyHeight } from "@legacy-ui-runtime/modules/ui/general";
-import { Names } from "./names-generator";
-import { Routes } from "./routes-generator";
-import { States } from "./states-generator";
+import { Names } from "@fmg/core/modules/names-generator";
+import { Routes } from "@fmg/core/modules/routes-generator";
+import { States } from "@fmg/states";
 
 type MarkerConfig = {
   type: string;

@@ -3,7 +3,7 @@
 
 import { connectVertices, ensureEl, getBase64, getCoordinates as computeCoordinates, rn, unique } from "@fmg/shared";
 import { getUsedFonts, loadFontsAsDataURI } from "@fmg/core/modules/fonts";
-import { Rivers } from "@fmg/core/modules/river-generator";
+import { Rivers } from "@fmg/rivers";
 import { getCellPopulation, getFriendlyHeight, tip } from "../ui/general";
 import { getFileName, downloadFile } from "../ui/editors";
 import { layerIsOn } from "../ui/layers";

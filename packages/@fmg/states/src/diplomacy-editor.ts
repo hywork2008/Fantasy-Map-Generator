@@ -1,10 +1,10 @@
 import { COArenderer } from "@fmg/core/modules/emblem/renderer";
-import { applySorting, closeDialogs, fitContent, restoreDefaultEvents } from "./editors";
-import { clearMainTip, tip } from "./general";
+import { applySorting, closeDialogs, fitContent, restoreDefaultEvents } from "@legacy-ui-runtime/modules/ui/editors";
+import { clearMainTip, tip } from "@legacy-ui-runtime/modules/ui/general";
 "use strict";
-import { States } from "@fmg/core/modules/states-generator";
-import { drawStates, layerIsOn, toggleBiomes, toggleBorders, toggleCultures, toggleProvinces, toggleReligions, toggleStates } from "./layers";
-import { editStyle } from "./style";
+import { States } from "@fmg/states";
+import { drawStates, layerIsOn, toggleBiomes, toggleBorders, toggleCultures, toggleProvinces, toggleReligions, toggleStates } from "@legacy-ui-runtime/modules/ui/layers";
+import { editStyle } from "@legacy-ui-runtime/modules/ui/style";
 
 const DIPLOMACY_RELATIONS: Record<string, {inText: string; color: string; tip: string}> = {
   Ally: {

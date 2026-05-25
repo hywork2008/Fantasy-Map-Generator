@@ -2,7 +2,7 @@ import { curveCatmullRom, line } from "d3";
 import type { CurveFactory } from "d3";
 import Delaunator from "delaunator";
 import { distanceSquared, findClosestCell, findPath, getAdjective, isLand, ra, rn, round, rw } from "@fmg/shared";
-import type { Burg } from "./burgs-generator";
+import type { Burg } from "@fmg/burgs";
 import type { Point } from "./voronoi";
 
 const ROUTES_SHARP_ANGLE = 135;

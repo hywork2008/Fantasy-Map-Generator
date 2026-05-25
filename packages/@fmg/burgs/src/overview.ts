@@ -1,8 +1,8 @@
-import { applySorting, closeDialogs, fitContent, restoreDefaultEvents, confirmationDialog } from "./editors";
-import { editBurgGroups } from "./burg-group-editor";
-import { clearMainTip, tip } from "./general";
-import { layerIsOn, toggleBurgIcons, toggleLabels } from "./layers";
-import { requireFmgApi } from "../runtime/fmg-api";
+import { applySorting, closeDialogs, fitContent, restoreDefaultEvents, confirmationDialog } from "@legacy-ui-runtime/modules/ui/editors";
+import { editBurgGroups } from "./group-editor";
+import { clearMainTip, tip } from "@legacy-ui-runtime/modules/ui/general";
+import { layerIsOn, toggleBurgIcons, toggleLabels } from "@legacy-ui-runtime/modules/ui/layers";
+import { requireFmgApi } from "@legacy-ui-runtime/modules/runtime/fmg-api";
 "use strict";
 
 const Burgs = requireFmgApi("Burgs") as {

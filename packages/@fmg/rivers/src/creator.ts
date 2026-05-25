@@ -1,9 +1,9 @@
 "use strict";
-import { Rivers } from "@fmg/core/modules/river-generator";
+import { Rivers } from "@fmg/rivers";
 import type { FmgGlobalContext } from "@fmg/types";
-import { layerIsOn, toggleCells, toggleRivers } from "./layers";
-import { closeDialogs } from "./editors";
-import { tip } from "./general";
+import { layerIsOn, toggleCells, toggleRivers } from "@legacy-ui-runtime/modules/ui/layers";
+import { closeDialogs } from "@legacy-ui-runtime/modules/ui/editors";
+import { tip } from "@legacy-ui-runtime/modules/ui/general";
 
 
 type RiverCell = number;

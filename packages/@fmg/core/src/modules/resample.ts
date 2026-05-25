@@ -15,10 +15,10 @@ import {
 import { createDefaultRuler } from "@legacy-ui-runtime/modules/ui/measurers";
 import { Ice } from "./ice";
 import { drawOceanLayers } from "./ocean-layers";
-import { Rivers } from "./river-generator";
+import { Rivers } from "@fmg/rivers";
 import { Routes } from "./routes-generator";
-import { States } from "./states-generator";
-import type { River } from "./river-generator";
+import { States } from "@fmg/states";
+import type { River } from "@fmg/rivers";
 import type { Point } from "./voronoi";
 
 interface ResamplerProcessOptions {
