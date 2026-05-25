@@ -353,6 +353,10 @@ function zoomRaf() {
   rafId = requestAnimationFrame(() => {
     rafId = null;
 
+    const mapSvg = d3.select("#map");
+    const currentViewbox = mapSvg.select("#viewbox");
+    const currentScaleBar = mapSvg.select("#scaleBar");
+
     // Safely clears these flags for future renders
     const didScaleChange = pendingScaleChange;
     const didPositionChange = pendingPositionChange;
@@ -360,7 +364,7 @@ function zoomRaf() {
     pendingPositionChange = false;
 
     // Uses global values, so each frame always draws using the latest positioning values
-    viewbox.attr("transform", `translate(${viewX} ${viewY}) scale(${scale})`);
+    currentViewbox.attr("transform", `translate(${viewX} ${viewY}) scale(${scale})`);
 
     if (didPositionChange) {
       if (layerIsOn("toggleCoordinates")) drawCoordinates();
@@ -383,8 +387,8 @@ function zoomRaf() {
 
     if (didScaleChange) {
       invokeActiveZooming();
-      drawScaleBar(scaleBar, scale);
-      fitScaleBar(scaleBar, svgWidth, svgHeight);
+      drawScaleBar(currentScaleBar, scale);
+      fitScaleBar(currentScaleBar, svgWidth, svgHeight);
     }
 
     if (didPositionChange || didScaleChange) {
@@ -673,16 +677,26 @@ function findBurgForMFCG(params) {
 
 // Zoom to a specific point
 function zoomTo(x, y, z = 8, d = 2000) {
-  zoomToPoint(buildZoomToPointDeps({ d3, svg, zoom, svgWidth, svgHeight }), x, y, z, d);
+  const currentSvg = d3.select("#map");
+  zoomToPoint(buildZoomToPointDeps({ d3, svg: currentSvg, zoom, svgWidth, svgHeight }), x, y, z, d);
 }
 
 // Reset zoom to initial
 function resetZoom(d = 1000) {
-  resetZoomToInitial(buildResetZoomDeps({ d3, svg, zoom }), d);
+  const currentSvg = d3.select("#map");
+  resetZoomToInitial(buildResetZoomDeps({ d3, svg: currentSvg, zoom }), d);
 }
 
 // active zooming feature
 export function invokeActiveZooming() {
+  const mapSvg = d3.select("#map");
+  const currentCoastline = mapSvg.select("#coastline");
+  const currentLabels = mapSvg.select("#labels");
+  const currentEmblems = mapSvg.select("#emblems");
+  const currentStatesHalo = mapSvg.select("#statesHalo");
+  const currentMarkers = mapSvg.select("#markers");
+  const currentRuler = mapSvg.select("#ruler");
+
   const renderGroupCOAs = (group: Element) => {
     const renderer = (window.fmg as FmgGlobalContext | undefined)?.renderGroupCOAs;
     if (!renderer) return;
@@ -691,15 +705,15 @@ export function invokeActiveZooming() {
 
   invokeActiveZoomingView(
     buildInvokeActiveZoomingDeps({
-      coastline,
+      coastline: currentCoastline,
       scale,
-      labels,
-      emblems,
-      statesHalo,
+      labels: currentLabels,
+      emblems: currentEmblems,
+      statesHalo: currentStatesHalo,
       customization,
-      markers,
+      markers: currentMarkers,
       pack,
-      ruler,
+      ruler: currentRuler,
       shapeRendering,
       rn: runtime.rn,
       rescaleLabels,

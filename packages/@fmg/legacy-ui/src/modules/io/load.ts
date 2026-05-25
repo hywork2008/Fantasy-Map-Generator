@@ -1,16 +1,18 @@
 "use strict";
 
 import type {Selection} from "d3";
+import { Biomes } from "@fmg/core/modules/biomes";
 import { declareFont, fonts } from "@fmg/core/modules/fonts";
 import { Routes } from "@fmg/core/modules/routes-generator";
-import { parseError } from "@fmg/shared";
+import { calculateVoronoi, last, link, minmax, parseError, rn } from "@fmg/shared";
 import type {FmgGlobalContext} from "@fmg/types";
-import { clearLegend, closeDialogs } from "../ui/editors";
-import { getCurrentPreset, layerIsOn } from "../ui/layers";
+import { clearLegend, closeDialogs, restoreDefaultEvents } from "../ui/editors";
+import { drawGrid, getCurrentPreset, layerIsOn } from "../ui/layers";
+import { editUnits } from "../ui/units-editor";
 import { ensureLegacyElement, legacyRuntime } from "../runtime/legacy-runtime";
 import { requireFmgApi } from "../runtime/fmg-api";
-import { VERSION, compareVersions, isValidVersion, parseMapVersion } from "../../versioning";
-import { tip } from "../ui/general";
+import { VERSION, cleanupData, compareVersions, isValidVersion, parseMapVersion } from "../../versioning";
+import { applyOption, tip } from "../ui/general";
 
 /// <reference path="../../types/ui-legacy-globals.d.ts" />
 
@@ -24,6 +26,7 @@ type LoadFmgContext = FmgGlobalContext & {
   generateMapOnLoad?: () => Promise<void>;
   reGraph?: () => void;
   invokeActiveZooming?: () => void;
+  OceanLayers?: () => void;
 };
 
 const Features = requireFmgApi("Features");
@@ -788,18 +791,22 @@ async function parseLoadedData(data, mapVersion) {
 
     {
       // draw data layers (not kept in svg)
+      (window.fmg as LoadFmgContext | undefined)?.OceanLayers?.();
       if (rulers && layerIsOn("toggleRulers")) rulers.draw();
       if (layerIsOn("toggleGrid")) drawGrid();
     }
 
     {
-      if ((window as any).restoreDefaultEvents) restoreDefaultEvents();
       const fmg = window.fmg as LoadFmgContext | undefined;
       if (!fmg?.focusOn) throw new ReferenceError("window.fmg.focusOn is not defined");
       fmg.focusOn(); // based on searchParams focus on point, cell or burg
       fmg.invokeActiveZooming?.();
       if (!fmg?.fitMapToScreen) throw new ReferenceError("window.fmg.fitMapToScreen is not defined");
       fmg.fitMapToScreen();
+
+      // Re-bind zoom handlers after SVG replacement and viewport fitting.
+      // This keeps mouse-wheel zoom and drag panning active on loaded maps.
+      restoreDefaultEvents();
     }
 
     WARN && console.warn(`TOTAL: ${rn((performance.now() - (uploadMap as any).timeStart) / 1000, 2)}s`);

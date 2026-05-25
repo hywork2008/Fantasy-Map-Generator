@@ -311,6 +311,9 @@ export async function getMapURL(
   const clone = d3.select(cloneEl);
   if (!debug) clone.select("#debug")?.remove();
 
+  // WebGL ocean renderer injects a foreignObject/canvas helper node that taints SVG->canvas in Globe texture flow.
+  clone.select("#oceanLayersWebglHost")?.remove();
+
   const cloneDefs = cloneEl.getElementsByTagName("defs")[0] as SVGDefsElement;
   const svgDefsNode = ensureEl("defElements");
   if (!(svgDefsNode instanceof SVGSVGElement)) throw new Error("defElements is not an SVG element");

@@ -14,10 +14,14 @@ function invokeGlobalAction(name: string, ...args: unknown[]) {
 
 // restore default viewbox events
 export function restoreDefaultEvents() {
-  svg.call(zoom);
-  viewbox.style("cursor", "default").on(".drag", null).on("click", clicked).on("touchmove mousemove", onMouseMove);
-  legend.call(d3.drag().on("start", dragLegendBox));
-  svg.call(zoom);
+  const currentSvg = d3.select("#map");
+  const currentViewbox = currentSvg.select("#viewbox");
+  const currentLegend = currentSvg.select("#legend");
+
+  currentSvg.call(zoom);
+  currentViewbox.style("cursor", "default").on(".drag", null).on("click", clicked).on("touchmove mousemove", onMouseMove);
+  currentLegend.call(d3.drag().on("start", dragLegendBox));
+  currentSvg.call(zoom);
 }
 
 // handle viewbox click

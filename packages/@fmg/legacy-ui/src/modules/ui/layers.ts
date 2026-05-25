@@ -632,7 +632,7 @@ export function toggleGrid(event?) {
   }
 }
 
-function drawGrid() {
+export function drawGrid() {
   gridOverlay.selectAll("*").remove();
   const pattern = "#pattern_" + (gridOverlay.attr("type") || "pointyHex");
   const stroke = gridOverlay.attr("stroke") || "#808080";

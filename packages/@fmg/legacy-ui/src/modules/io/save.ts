@@ -1,7 +1,9 @@
 "use strict";
 
 import { getFileName } from "../ui/editors";
+import { closeDialogs } from "../ui/editors";
 import { Biomes } from "@fmg/core/modules/biomes";
+import { Names } from "@fmg/core/modules/names-generator";
 import { getUsedFonts } from "@fmg/core/modules/fonts";
 import { link, parseError } from "@fmg/shared";
 import { VERSION } from "../../versioning";
@@ -11,6 +13,7 @@ import { tip } from "../ui/general";
 type SaveMethod = "storage" | "machine" | "dropbox";
 
 type NameBaseEntry = { name: string; b: string; min: number; max: number; d: string; m: string };
+type NamesApi = { getNameBases: () => NameBaseEntry[] };
 
 type SaveRuntime = {
   customization: number;
@@ -48,7 +51,7 @@ type SaveRuntime = {
   ensureEl: (id: string) => HTMLElement;
   ra: <T>(values: T[]) => T;
   Cloud: { providers: { dropbox: { save: (filename: string, mapData: string) => Promise<void> } } };
-  Names: { getNameBases: () => NameBaseEntry[] };
+  Names?: NamesApi;
   nameBases?: NameBaseEntry[];
   grid: {
     spacing: number;
@@ -87,17 +90,32 @@ type SaveRuntime = {
       province: unknown;
     };
   };
-  closeDialogs: (selector?: string) => void;
 };
 
 const saveWindow = window as Window & { [key: string]: any };
 const asRuntime = <T>(runtimeWindow: Window & { [key: string]: any }) => runtimeWindow as T;
 const saveRuntime = asRuntime<SaveRuntime>(saveWindow);
 
+const resolveNamesApi = (): NamesApi => {
+  const fmgNames = (window as unknown as {fmg?: {Names?: NamesApi}}).fmg?.Names;
+  const globalNames = (saveRuntime as unknown as {Names?: NamesApi}).Names;
+  const fallbackNames = Names as unknown as NamesApi;
+
+  if (fmgNames?.getNameBases) return fmgNames;
+  if (globalNames?.getNameBases) return globalNames;
+  if (fallbackNames?.getNameBases) return fallbackNames;
+
+  throw new Error("Names API is not available");
+};
+
 // functions to save the whole .map project
 export async function saveMap(method: SaveMethod): Promise<void> {
   if (saveRuntime.customization) return tip("Map cannot be saved in EDIT mode, please complete the edit and retry", false, "error");
-  saveRuntime.closeDialogs("#alert");
+  // Keep backward compatibility with legacy globals while avoiding runtime crash
+  if (typeof closeDialogs === "function") closeDialogs("#alert");
+  else if (typeof (saveRuntime as unknown as {closeDialogs?: (selector?: string) => void}).closeDialogs === "function") {
+    (saveRuntime as unknown as {closeDialogs: (selector?: string) => void}).closeDialogs("#alert");
+  }
 
   try {
     const mapData = prepareMapData();
@@ -221,7 +239,7 @@ function prepareMapData(): string {
   const ice = JSON.stringify(saveRuntime.pack.ice);
 
   // store name array only if not the same as default
-  const defaultNB = saveRuntime.Names.getNameBases();
+  const defaultNB = resolveNamesApi().getNameBases();
   const nameBases = saveRuntime.nameBases || defaultNB;
   saveRuntime.nameBases = nameBases;
   const namesData = nameBases

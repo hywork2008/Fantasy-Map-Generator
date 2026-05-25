@@ -1,7 +1,7 @@
 {
-  "name": "@fmg/core",
+  "name": "@fmg/ocean",
   "version": "1.0.0",
-  "description": "Core generation modules for Fantasy Map Generator",
+  "description": "Ocean rendering domain for Fantasy Map Generator",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
@@ -9,7 +9,6 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@fmg/ocean": "*",
     "@fmg/shared": "*",
     "@fmg/types": "*"
   },

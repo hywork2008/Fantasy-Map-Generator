@@ -22,6 +22,7 @@ export default {
             '@fmg/rivers': new URL('./packages/@fmg/rivers/src', import.meta.url).pathname,
             '@fmg/states': new URL('./packages/@fmg/states/src', import.meta.url).pathname,
             '@fmg/markers': new URL('./packages/@fmg/markers/src', import.meta.url).pathname,
+            '@fmg/ocean': new URL('./packages/@fmg/ocean/src', import.meta.url).pathname,
         }
     }
 }

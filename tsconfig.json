@@ -37,6 +37,8 @@
       "@fmg/states/*": ["./packages/@fmg/states/src/*"],
       "@fmg/markers": ["./packages/@fmg/markers/src"],
       "@fmg/markers/*": ["./packages/@fmg/markers/src/*"],
+      "@fmg/ocean": ["./packages/@fmg/ocean/src"],
+      "@fmg/ocean/*": ["./packages/@fmg/ocean/src/*"],
       "@fmg/shared/utils": ["./packages/@fmg/shared/src/index.ts"],
       "@fmg/core": ["./packages/@fmg/core/src"],
       "@fmg/core/*": ["./packages/@fmg/core/src/*"],

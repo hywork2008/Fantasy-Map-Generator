@@ -97,21 +97,21 @@ export function handleKeyup(event: KeyboardEvent) {
   else if (code === "Slash") toggleScaleBar();
   else if (code === "BracketLeft" && !handleBracketSizeChange(code)) toggleVignette();
   else if (code === "BracketRight") handleBracketSizeChange(code);
-  else if (code === "ArrowLeft") zoom.translateBy(svg, 10, 0);
-  else if (code === "ArrowRight") zoom.translateBy(svg, -10, 0);
-  else if (code === "ArrowUp") zoom.translateBy(svg, 0, 10);
-  else if (code === "ArrowDown") zoom.translateBy(svg, 0, -10);
+  else if (code === "ArrowLeft") zoom.translateBy(getCurrentMapSvg(), 10, 0);
+  else if (code === "ArrowRight") zoom.translateBy(getCurrentMapSvg(), -10, 0);
+  else if (code === "ArrowUp") zoom.translateBy(getCurrentMapSvg(), 0, 10);
+  else if (code === "ArrowDown") zoom.translateBy(getCurrentMapSvg(), 0, -10);
   else if (key === "+" || key === "-" || key === "=") handleSizeChange(key);
   else if (key === "0") resetZoom(1000);
-  else if (key === "1") zoom.scaleTo(svg, 1);
-  else if (key === "2") zoom.scaleTo(svg, 2);
-  else if (key === "3") zoom.scaleTo(svg, 3);
-  else if (key === "4") zoom.scaleTo(svg, 4);
-  else if (key === "5") zoom.scaleTo(svg, 5);
-  else if (key === "6") zoom.scaleTo(svg, 6);
-  else if (key === "7") zoom.scaleTo(svg, 7);
-  else if (key === "8") zoom.scaleTo(svg, 8);
-  else if (key === "9") zoom.scaleTo(svg, 9);
+  else if (key === "1") zoom.scaleTo(getCurrentMapSvg(), 1);
+  else if (key === "2") zoom.scaleTo(getCurrentMapSvg(), 2);
+  else if (key === "3") zoom.scaleTo(getCurrentMapSvg(), 3);
+  else if (key === "4") zoom.scaleTo(getCurrentMapSvg(), 4);
+  else if (key === "5") zoom.scaleTo(getCurrentMapSvg(), 5);
+  else if (key === "6") zoom.scaleTo(getCurrentMapSvg(), 6);
+  else if (key === "7") zoom.scaleTo(getCurrentMapSvg(), 7);
+  else if (key === "8") zoom.scaleTo(getCurrentMapSvg(), 8);
+  else if (key === "9") zoom.scaleTo(getCurrentMapSvg(), 9);
   else if (ctrl) toggleMode();
 }
 
@@ -148,7 +148,11 @@ function handleSizeChange(key) {
   }
 
   const scaleBy = key === "+" ? 1.2 : 0.8;
-  zoom.scaleBy(svg, scaleBy);
+  zoom.scaleBy(getCurrentMapSvg(), scaleBy);
+}
+
+function getCurrentMapSvg() {
+  return d3.select("#map");
 }
 
 export function handleBracketSizeChange(code) {

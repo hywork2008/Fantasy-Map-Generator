@@ -2,6 +2,7 @@ import { closeDialogs, getArea, getAreaUnit, unselect } from "./editors";
 import { getHeight, tip } from "./general";
 import { drawStates, layerIsOn, toggleBiomes, toggleBorders, toggleCells, toggleCultures, toggleProvinces, toggleReligions, toggleStates } from "./layers";
 import { bordersRenderer as drawBorders } from "#renderers/draw-borders";
+import { featurePathRenderer } from "#renderers/draw-features";
 import { editStyle } from "./style";
 "use strict";
 
@@ -120,7 +121,7 @@ class LakesEditor {
 
     const feature = this.getLake();
 
-    defs.select("#featurePaths > path#feature_" + feature.i).attr("d", getFeaturePath(feature));
+    defs.select("#featurePaths > path#feature_" + feature.i).attr("d", featurePathRenderer(feature));
 
     const points = feature.vertices.map(vertex => pack.vertices.p[vertex]);
     feature.area = Math.abs(d3.polygonArea(points));
