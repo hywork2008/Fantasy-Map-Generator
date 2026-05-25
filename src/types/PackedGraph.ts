@@ -1,11 +1,10 @@
-import type { Quadtree } from "d3";
 import type { Burg } from "@fmg/burgs";
+import type { River } from "@fmg/rivers";
+import type { Province, State } from "@fmg/states";
+import type { Quadtree } from "d3";
 import type { Culture } from "#modules/cultures-generator";
 import type { PackedGraphFeature } from "#modules/features";
-import type { Province } from "@fmg/states";
-import type { River } from "@fmg/rivers";
 import type { Route } from "#modules/routes-generator";
-import type { State } from "@fmg/states";
 import type { Zone } from "#modules/zones-generator";
 
 export type TypedArray = Uint8Array | Uint16Array | Uint32Array | Int8Array | Int16Array | Float32Array | Float64Array;

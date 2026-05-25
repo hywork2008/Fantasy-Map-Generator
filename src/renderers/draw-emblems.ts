@@ -1,6 +1,6 @@
-import { forceCollide, forceSimulation, timeout } from "d3";
 import type { Burg } from "@fmg/burgs";
 import type { State } from "@fmg/states";
+import { forceCollide, forceSimulation, timeout } from "d3";
 import { minmax, rn } from "../utils";
 
 declare global {

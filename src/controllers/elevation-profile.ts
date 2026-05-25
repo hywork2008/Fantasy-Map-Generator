@@ -1,3 +1,5 @@
+import type { Burg } from "@fmg/burgs";
+import type { Province, State } from "@fmg/states";
 import { closeDialogs } from "@legacy-ui-runtime/modules/ui/editors";
 import { getHeight, tip } from "@legacy-ui-runtime/modules/ui/general";
 import { getColor, getColorScheme } from "@legacy-ui-runtime/modules/ui/style";
@@ -17,10 +19,7 @@ import {
   scaleLinear,
   select
 } from "d3";
-import type { Burg } from "@fmg/burgs";
 import type { PackedGraphFeature } from "#modules/features";
-import type { Province } from "@fmg/states";
-import type { State } from "@fmg/states";
 import { ensureEl, rn } from "../utils";
 
 export function open(cells: number[], routeLen: number, isRiver: boolean): void {
