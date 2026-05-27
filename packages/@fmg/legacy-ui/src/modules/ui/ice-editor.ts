@@ -6,6 +6,7 @@ import { clicked, closeDialogs, unselect } from "./editors";
 import { clearMainTip, tip } from "./general";
 import { editStyle } from "./style";
 import { redrawIcebergRenderer as redrawIceberg } from "#renderers/draw-ice";
+import { Ice } from "@fmg/core/modules/ice";
 
 type IceEditorFmgContext = FmgGlobalContext & {
   editIce?: (element: EventTarget | null) => void;
@@ -57,14 +58,14 @@ class IceEditor {
 
   function randomizeShape() {
     const selectedId = Number(iceEditorRuntime.elSelected.attr("data-id"));
-    iceEditorRuntime.Ice.randomizeIcebergShape(selectedId);
+    Ice.randomizeIcebergShape(selectedId);
     redrawIceberg(selectedId);
   }
 
   function changeSize(this: HTMLInputElement) {
     const newSize = Number(this.value);
     const selectedId = Number(iceEditorRuntime.elSelected.attr("data-id"));
-    iceEditorRuntime.Ice.changeIcebergSize(selectedId, newSize);
+    Ice.changeIcebergSize(selectedId, newSize);
     redrawIceberg(selectedId);
   }
 
@@ -88,7 +89,7 @@ class IceEditor {
       : iceEditorRuntime.findGridCell(x, y, iceEditorRuntime.grid);
     const size = Number((document.getElementById("iceSize") as HTMLInputElement)?.value) || 1;
 
-    iceEditorRuntime.Ice.addIceberg(i, size);
+    Ice.addIceberg(i, size);
 
     if (iceEditorRuntime.d3.event.shiftKey === false) toggleAdd();
   }
@@ -102,7 +103,7 @@ class IceEditor {
       buttons: {
         Remove: function () {
           iceEditorRuntime.$(this).dialog("close");
-          iceEditorRuntime.Ice.removeIce(Number(iceEditorRuntime.elSelected.attr("data-id")));
+          Ice.removeIce(Number(iceEditorRuntime.elSelected.attr("data-id")));
           iceEditorRuntime.$("#iceEditor").dialog("close");
         },
         Cancel: function () {
