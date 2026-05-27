@@ -3,6 +3,7 @@
 
 import { connectVertices, ensureEl, getBase64, getCoordinates as computeCoordinates, rn, unique } from "@fmg/shared";
 import { getUsedFonts, loadFontsAsDataURI } from "@fmg/core/modules/fonts";
+import { renderOceanLayersSvgForExport } from "@fmg/core/modules/ocean-layers";
 import { Rivers } from "@fmg/rivers";
 import { getCellPopulation, getFriendlyHeight, tip } from "../ui/general";
 import { getFileName, downloadFile } from "../ui/editors";
@@ -311,8 +312,11 @@ export async function getMapURL(
   const clone = d3.select(cloneEl);
   if (!debug) clone.select("#debug")?.remove();
 
-  // WebGL ocean renderer injects a foreignObject/canvas helper node that taints SVG->canvas in Globe texture flow.
-  clone.select("#oceanLayersWebglHost")?.remove();
+  // Keep app rendering WebGL-first, but regenerate ocean as SVG for exported file.
+  const cloneOceanLayers = clone.select("#oceanLayers");
+  if (!cloneOceanLayers.empty()) {
+    renderOceanLayersSvgForExport(cloneOceanLayers, {removeWebglHost: true});
+  }
 
   const cloneDefs = cloneEl.getElementsByTagName("defs")[0] as SVGDefsElement;
   const svgDefsNode = ensureEl("defElements");

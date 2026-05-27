@@ -1,5 +1,6 @@
 import type { Selection } from "d3";
 import { curveBasisClosed, line } from "d3";
+import Delaunator from "delaunator";
 import { clipPoly, P, rn, round } from "@fmg/shared";
 import { OceanRenderer, type OceanMeshData } from "@fmg/ocean";
 import type { Grid } from "@fmg/types";
@@ -131,6 +132,10 @@ class OceanLayersSvgFallbackRenderer {
   }
 }
 
+type OceanLayersSvgRenderOptions = {
+  removeWebglHost?: boolean;
+};
+
 class OceanLayersWebGlRenderer {
   private renderer: OceanRenderer | null = null;
   private rendererCanvas: HTMLCanvasElement | null = null;
@@ -220,12 +225,58 @@ const webglRenderer = new OceanLayersWebGlRenderer();
 
 const almostEqual = (a: number, b: number) => Math.abs(a - b) < 1e-6;
 
+const triangleAreaAbs = (a: [number, number], b: [number, number], c: [number, number]) => {
+  return Math.abs(cross(a[0], a[1], b[0], b[1], c[0], c[1])) * 0.5;
+};
+
 const sanitizePolygonPoints = (points: [number, number][]) => {
   if (points.length < 3) return points;
-  const first = points[0];
-  const last = points[points.length - 1];
-  if (almostEqual(first[0], last[0]) && almostEqual(first[1], last[1])) return points.slice(0, -1);
-  return points;
+
+  const prepared: [number, number][] = [];
+  for (const point of points) {
+    const prev = prepared[prepared.length - 1];
+    if (!prev || !almostEqual(prev[0], point[0]) || !almostEqual(prev[1], point[1])) {
+      prepared.push(point);
+    }
+  }
+
+  if (prepared.length > 2) {
+    const first = prepared[0];
+    const last = prepared[prepared.length - 1];
+    if (almostEqual(first[0], last[0]) && almostEqual(first[1], last[1])) prepared.pop();
+  }
+
+  if (prepared.length < 3) return prepared;
+
+  const reduced: [number, number][] = [];
+  for (let i = 0; i < prepared.length; i++) {
+    const prev = prepared[(i - 1 + prepared.length) % prepared.length];
+    const curr = prepared[i];
+    const next = prepared[(i + 1) % prepared.length];
+    if (triangleAreaAbs(prev, curr, next) > 1e-6) reduced.push(curr);
+  }
+
+  return reduced.length >= 3 ? reduced : prepared;
+};
+
+const smoothClosedPolygon = (points: [number, number][], iterations = 1) => {
+  let current = points;
+  for (let i = 0; i < iterations; i++) {
+    if (current.length < 3) break;
+
+    const next: [number, number][] = [];
+    for (let j = 0; j < current.length; j++) {
+      const p0 = current[j];
+      const p1 = current[(j + 1) % current.length];
+
+      next.push([p0[0] * 0.75 + p1[0] * 0.25, p0[1] * 0.75 + p1[1] * 0.25]);
+      next.push([p0[0] * 0.25 + p1[0] * 0.75, p0[1] * 0.25 + p1[1] * 0.75]);
+    }
+
+    current = next;
+  }
+
+  return current;
 };
 
 const signedArea = (points: [number, number][]) => {
@@ -256,8 +307,46 @@ const pointInTriangle = (
   return !(hasNeg && hasPos);
 };
 
+const pointInPolygon = (point: [number, number], polygon: [number, number][]) => {
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const xi = polygon[i][0];
+    const yi = polygon[i][1];
+    const xj = polygon[j][0];
+    const yj = polygon[j][1];
+
+    const intersects = yi > point[1] !== yj > point[1] && point[0] < ((xj - xi) * (point[1] - yi)) / (yj - yi + 1e-12) + xi;
+    if (intersects) inside = !inside;
+  }
+  return inside;
+};
+
+const triangulateWithDelaunay = (points: [number, number][]) => {
+  if (points.length < 3) return [] as [number, number, number][];
+
+  const delaunay = Delaunator.from(points);
+  const triangles: [number, number, number][] = [];
+
+  for (let i = 0; i < delaunay.triangles.length; i += 3) {
+    const a = delaunay.triangles[i];
+    const b = delaunay.triangles[i + 1];
+    const c = delaunay.triangles[i + 2];
+
+    const p0 = points[a];
+    const p1 = points[b];
+    const p2 = points[c];
+    if (triangleAreaAbs(p0, p1, p2) <= 1e-6) continue;
+
+    const centroid: [number, number] = [(p0[0] + p1[0] + p2[0]) / 3, (p0[1] + p1[1] + p2[1]) / 3];
+    if (pointInPolygon(centroid, points)) triangles.push([a, b, c]);
+  }
+
+  return triangles;
+};
+
 const triangulatePolygon = (rawPoints: [number, number][]) => {
-  const points = sanitizePolygonPoints(rawPoints);
+  const normalized = sanitizePolygonPoints(rawPoints);
+  const points = normalized.length >= 6 ? smoothClosedPolygon(normalized, 1) : normalized;
   const n = points.length;
   if (n < 3) return null;
 
@@ -305,12 +394,19 @@ const triangulatePolygon = (rawPoints: [number, number][]) => {
   }
 
   if (indices.length === 3) triangles.push([indices[0], indices[1], indices[2]]);
-  return {points, triangles};
+  if (triangles.length) return {points, triangles};
+
+  const fallbackTriangles = triangulateWithDelaunay(points);
+  if (!fallbackTriangles.length) return null;
+  return {points, triangles: fallbackTriangles};
 };
 
 const buildTriangleMesh = (polygons: OceanLayerPolygon[]): OceanMeshData | null => {
-  const prepared = polygons.map(polygon => ({layer: polygon.layer, triangulated: triangulatePolygon(polygon.points)}));
-  if (prepared.some(entry => !entry.triangulated)) return null;
+  const prepared = polygons
+    .map(polygon => ({layer: polygon.layer, triangulated: triangulatePolygon(polygon.points)}))
+    .filter(entry => !!entry.triangulated) as {layer: number; triangulated: {points: [number, number][]; triangles: [number, number, number][]}}[];
+
+  if (!prepared.length) return null;
 
   let vertexCount = 0;
   for (const entry of prepared) {
@@ -379,7 +475,31 @@ export const drawOceanLayers = () => {
 
   if (!renderedWithWebGl) {
     svgFallbackRenderer.render(oceanLayers, geometry);
+  } else {
+    oceanLayers.selectAll("path").remove();
   }
 
   TIME && console.timeEnd("drawOceanLayers");
+};
+
+export const renderOceanLayersSvgForExport = (
+  oceanLayersSelection: Selection<SVGGElement, unknown, null, undefined>,
+  options: OceanLayersSvgRenderOptions = {}
+) => {
+  const outline = oceanLayersSelection.attr("layers");
+  if (outline === "none") {
+    oceanLayersSelection.selectAll("path").remove();
+    if (options.removeWebglHost) oceanLayersSelection.select("#oceanLayersWebglHost").remove();
+    return;
+  }
+
+  const geometry = geometryBuilder.build(outline || "");
+  if (!geometry.polygons.length) {
+    oceanLayersSelection.selectAll("path").remove();
+    if (options.removeWebglHost) oceanLayersSelection.select("#oceanLayersWebglHost").remove();
+    return;
+  }
+
+  svgFallbackRenderer.render(oceanLayersSelection, geometry);
+  if (options.removeWebglHost) oceanLayersSelection.select("#oceanLayersWebglHost").remove();
 };

@@ -42,6 +42,12 @@
   - `drawTexture` / `drawLabels` も `layer-renderers.ts` へ分離
   - `drawRoutes` / `drawRoute` / `drawZones` も `layer-renderers.ts` へ分離し、`layers.ts` 側は委譲のみへ簡素化
   - `layers.ts` から複数の `draw*` 実装本体を除去し、トグル・UI制御と呼び出しハブの役割へ段階的に整理
+- `ocean` ドメイン / WebGL 移行の安定化:
+  - `packages/@fmg/ocean` を導入し、海洋レイヤー描画の WebGL 実装 (`OceanRenderer`) を分離
+  - `packages/@fmg/core/src/modules/ocean-layers.ts` を WebGL-first に再編し、`#oceanLayersWebglHost` の再生成・再利用を安定化
+  - WebGL 用のポリゴン三角形化を強化（ear clipping + Delaunay fallback）し、`New Map` ごとの SVG フォールバック頻発を抑制
+  - `renderOceanLayersSvgForExport` を追加し、実行時表示は WebGL、`Export` / `Save` 出力は SVG パス再生成へ分離
+  - `packages/@fmg/legacy-ui/src/modules/io/export.ts` / `save.ts` で出力時に `#oceanLayersWebglHost` を除去し、`#oceanLayers > path` を再構築するフローへ更新
 
 ### Problems 修正（2026-05-27）
 - `Cannot find name 'getIsolines'. Did you mean 'isolines'?` を解消

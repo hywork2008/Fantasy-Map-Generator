@@ -1,10 +1,12 @@
 "use strict";
 
+import { select } from "d3";
 import { getFileName } from "../ui/editors";
 import { closeDialogs } from "../ui/editors";
 import { Biomes } from "@fmg/core/modules/biomes";
 import { Names } from "@fmg/core/modules/names-generator";
 import { getUsedFonts } from "@fmg/core/modules/fonts";
+import { renderOceanLayersSvgForExport } from "@fmg/core/modules/ocean-layers";
 import { link, parseError } from "@fmg/shared";
 import { VERSION } from "../../versioning";
 import { tip } from "../ui/general";
@@ -220,6 +222,11 @@ function prepareMapData(): string {
   cloneEl
     .querySelectorAll("#borders > #stateBorders path, #borders > #provinceBorders path")
     .forEach(path => path.setAttribute("fill", "none"));
+
+  const cloneOceanLayers = select(cloneEl).select<SVGGElement>("#oceanLayers");
+  if (!cloneOceanLayers.empty()) {
+    renderOceanLayersSvgForExport(cloneOceanLayers, {removeWebglHost: true});
+  }
 
   const serializedSVG = new XMLSerializer().serializeToString(cloneEl);
 
