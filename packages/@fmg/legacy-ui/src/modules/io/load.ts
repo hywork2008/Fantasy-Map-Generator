@@ -534,7 +534,7 @@ async function parseLoadedData(data, mapVersion) {
     {
       // dynamically import and run auto-update script
       const {resolveVersionConflicts} = await import("../dynamic/auto-update.js");
-      resolveVersionConflicts(mapVersion);
+      resolveVersionConflicts(mapVersion, {pack, grid});
     }
 
     // add custom heightmap color scheme if any

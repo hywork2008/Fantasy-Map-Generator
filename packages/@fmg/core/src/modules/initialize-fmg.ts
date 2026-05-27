@@ -46,6 +46,8 @@ const getInstances = (): CoreInstances => {
   return instances;
 };
 
+export const getCoreFmgInstances = (): CoreInstances => getInstances();
+
 export function initializeFmg(): FmgGlobalContext {
   const fmg = (window.fmg || (window.fmg = {} as FmgGlobalContext)) as FmgGlobalContext;
   const api = getInstances();

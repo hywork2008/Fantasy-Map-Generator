@@ -22,6 +22,61 @@
   - 変更後例: `packages/@fmg/burgs/generator.ts`, `packages/@fmg/burgs/renderer.ts`, `packages/@fmg/burgs/editor.ts`
 - **依存関係の明確化**: ガイドラインにある「core は renderer に依存しない」を厳守するため、各機能フォルダ内で `Renderer` が `Generator` の出力結果を受け取る単方向の依存フローを構築します。
 
+### 実施済み（2026-05-27）
+- `rivers` ドメイン:
+  - `packages/@fmg/rivers/src/renderer.ts` を新設し、河川描画処理を `@fmg/legacy-ui/src/modules/ui/layers.ts` から移設
+  - `layers.ts` 側の `drawRivers` は `drawRiversRenderer` への委譲に変更（互換APIを維持）
+- `states` ドメイン:
+  - `packages/@fmg/states/src/renderer.ts` を新設し、国家描画処理を `@fmg/legacy-ui/src/modules/ui/layers.ts` から移設
+  - `layers.ts` 側の `drawStates` は `drawStatesRenderer` への委譲に変更（互換APIを維持）
+- `burgs` ドメイン:
+  - `packages/@fmg/burgs/src/renderer.ts` を新設し、都市アイコン・ラベル描画呼び出しをドメイン側へ集約
+  - `layers.ts` 側の `toggleBurgIcons` / `drawLabels` は `drawBurgIconsRenderer` / `drawBurgLabelsRenderer` への委譲に変更
+- `provinces` / `cultures` / `religions`:
+  - `packages/@fmg/states/src/provinces-renderer.ts` を新設し、州描画を委譲
+  - `packages/@fmg/core/src/modules/cultures-renderer.ts` を新設し、文化圏描画を委譲
+  - `packages/@fmg/core/src/modules/religions-renderer.ts` を新設し、宗教圏描画を委譲
+- `layers.ts` の責務縮小:
+  - `biomes` / `cultures` / `religions` の描画実装を `@fmg/core` から `packages/@fmg/legacy-ui/src/modules/ui/layer-renderers.ts` に集約（`core` から renderer を分離）
+  - `packages/@fmg/legacy-ui/src/modules/ui/layer-renderers.ts` を新設し、`drawPrecipitation` / `drawPopulation` / `drawGrid` / `drawCoordinates` を分離
+  - `drawTexture` / `drawLabels` も `layer-renderers.ts` へ分離
+  - `drawRoutes` / `drawRoute` / `drawZones` も `layer-renderers.ts` へ分離し、`layers.ts` 側は委譲のみへ簡素化
+  - `layers.ts` から複数の `draw*` 実装本体を除去し、トグル・UI制御と呼び出しハブの役割へ段階的に整理
+
+### Problems 修正（2026-05-27）
+- `Cannot find name 'getIsolines'. Did you mean 'isolines'?` を解消
+  - `packages/@fmg/core/src/modules/biomes-renderer.ts`
+  - `packages/@fmg/core/src/modules/cultures-renderer.ts`
+  - `packages/@fmg/core/src/modules/religions-renderer.ts`
+  で `getIsolines` を `@fmg/shared/pathUtils` から明示 `import` するよう修正
+
+### `auto-update.ts` のリファクタリング進捗（2026-05-27）
+- `マイグレーション処理の分離`（パイプライン化）は未着手のまま維持
+- `グローバル依存 (window) の撲滅` の先行対応として以下を実施
+  - `packages/@fmg/legacy-ui/src/modules/dynamic/auto-update.ts` に `d3` を明示 `import`
+  - `window.findCell` 依存を廃止し、`findClosestCell` import + `findPackCell` ヘルパー経由の参照へ置換
+  - `declare let zones: any;` を撤去し、`getZonesLayer()` ヘルパー経由で `#zones` を参照する形に変更
+  - `packages/@fmg/legacy-ui/src/modules/runtime/auto-update-fmg-api.ts` を新設し、`auto-update.ts` から `requireFmgApi(...)` 直参照を分離
+  - `packages/@fmg/legacy-ui/src/modules/runtime/legacy-runtime.ts` に `getLegacyPack` / `getLegacyGrid` を追加し、`auto-update.ts` の `resolveVersionConflicts` は Context getter 経由で `pack/grid` を取得する形に変更
+  - `resolveVersionConflicts(mapVersion, context?)` の形へ拡張し、`AutoUpdateContext` 注入で `pack/grid` を外部から渡せるように変更（既存呼び出しはデフォルト Context で後方互換を維持）
+  - `findPackCell` も注入された `pack` を使う実装へ変更し、`window.pack` 前提を段階的に排除
+  - `packages/@fmg/legacy-ui/src/modules/io/load.ts` から `resolveVersionConflicts(mapVersion, {pack, grid})` を明示呼び出しするよう変更し、呼び出し元も Context 注入ベースへ移行
+  - `packages/@fmg/legacy-ui/src/modules/runtime/auto-update-fmg-api.ts` は `requireFmgApi` 依存を撤去し、`@fmg/core/modules/initialize-fmg` の singleton 取得 (`getCoreFmgInstances`) を使う静的 import ベースへ移行（`window.fmg` は後方互換 fallback として維持）
+  - `packages/@fmg/legacy-ui/src/modules/dynamic/auto-update-migrations/` を新設し、`1.0.0` マイグレーションを `v1-0-0.ts` へ抽出。`auto-update.ts` からは `runAutoUpdateMigrationPipeline(...)` 経由で実行する形に変更
+  - `1.1.0` マイグレーションも `v1-1-0.ts` へ抽出し、`auto-update.ts` 本体から該当ブロックを除去。パイプラインで `1.0.0` → `1.1.0` を順次実行する形に整理
+  - `1.11.0` 以降の全マイグレーションを `v1-11-0-plus.ts` へ移設し、`auto-update.ts` 本体は `runAutoUpdatePostV110Migrations(...)` 呼び出しのみへ縮小
+
+この変更により、既存UI呼び出し点を壊さずに、描画責務をドメインパッケージへ段階的に寄せる分割を進めました。
+
+### `ドメイン駆動のモジュール分割` 完了判定タスク（再設定）
+- [x] `burgs` / `states` / `rivers` の renderer を各ドメイン配下へ配置し、既存UI側は委譲のみとする
+- [x] `layers.ts` の描画本体を `layer-renderers.ts` へ移し、`layers.ts` をトグル・ハブ責務へ縮小する
+- [x] `core` 配下に新設した暫定 renderer (`biomes/cultures/religions`) を撤去し、`core` と renderer 責務を分離する
+
+### Phase 2 の残課題（ドメイン分割完了後）
+- `auto-update.ts` の `requireFmgApi(...)` 依存を段階的に import 化し、`window.fmg` 依存を縮小する
+- `auto-update.ts` を中心に、`window.pack` / `window.grid` 前提の参照を Context / Store 経由へ段階的に移行する
+
 ## 3. メンテナンス性を高める為のリファクタリング
 
 `packages/@fmg/legacy-ui/src/modules/dynamic/auto-update.ts` などの一部のファイルは、非常に長く（1000行超）、DOMの直接操作とデータのバージョンマイグレーションが密結合しており、「意味不明なコード（マジックナンバーや暗黙の前提）」の温床となっています。
@@ -37,6 +92,7 @@
 
 ### 改善提案
 - **TypedArray の積極採用**: セルや頂点のループ計算（`pathUtils.ts` やジェネレータ）において、標準の `Array` ではなく `Uint16Array` や `Float32Array` 等の TypedArray を積極的に採用し、メモリアロケーションと GC の負荷を軽減します。
+  - リサーチ `docs/typedarray.md`
 - **レンダリングの最適化 (SVG から Canvas/WebGL への一部移行検討)**: ズームやパンのたびに数万の SVG パスを再計算するのは重いため、背景のテクスチャや静的な地形 (heightmap), 海洋レイヤーなどは Canvas (あるいは WebGL) での描画への移行を検討します。
 - **Web Worker の活用**: `routes-generator` (経路探索) や `heightmap-generator` などの重い計算処理は、メインスレッドをブロックしないよう Web Worker へのオフロードを視野に入れます。
 

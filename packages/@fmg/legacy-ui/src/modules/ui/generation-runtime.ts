@@ -137,7 +137,7 @@ export async function regenerateMapFlow(options: unknown, deps: RegenerateDeps) 
   deps.undraw();
   await deps.generate(options);
   deps.drawLayers();
-  if (deps.ThreeD.options?.isOn) deps.ThreeD.redraw?.();
+  if (deps.ThreeD?.options?.isOn) deps.ThreeD?.redraw?.();
   if (deps.isWorldConfiguratorVisible()) deps.editWorld();
 
   deps.fitMapToScreen();

@@ -1,6 +1,67 @@
 import * as d3 from "d3";
 import { Routes } from "@fmg/core/modules/routes-generator";
-import { getVertexPath } from "@fmg/shared/pathUtils";
+import { getIsolines, getVertexPath } from "@fmg/shared/pathUtils";
+import { drawBurgLabelsRenderer } from "@fmg/burgs/renderer";
+import { stateLabelsRenderer } from "#renderers/draw-state-labels";
+
+export function drawBiomesRenderer() {
+  TIME && console.time("drawBiomes");
+
+  const cells = pack.cells;
+  const bodyPaths = new Array(biomesData.i.length - 1);
+  const isolines = getIsolines(pack, cellId => cells.biome[cellId], {fill: true, waterGap: true}) as Record<
+    string,
+    {fill: unknown; waterGap: unknown}
+  >;
+
+  Object.entries(isolines).forEach(([index, {fill, waterGap}]) => {
+    const color = biomesData.color[index];
+    bodyPaths.push(getGappedFillPaths("biome", fill, waterGap, color, index));
+  });
+
+  ensureEl("biomes").innerHTML = bodyPaths.join("");
+  TIME && console.timeEnd("drawBiomes");
+}
+
+export function drawCulturesRenderer() {
+  TIME && console.time("drawCultures");
+  const {cells, cultures} = pack;
+
+  const bodyPaths = new Array(cultures.length - 1);
+  const isolines = getIsolines(pack, cellId => cells.culture[cellId], {fill: true, waterGap: true}) as Record<
+    string,
+    {fill: unknown; waterGap: unknown}
+  >;
+
+  Object.entries(isolines).forEach(([index, {fill, waterGap}]) => {
+    const color = cultures[index].color;
+    bodyPaths.push(getGappedFillPaths("culture", fill, waterGap, color, index));
+  });
+
+  ensureEl("cults").innerHTML = bodyPaths.join("");
+
+  TIME && console.timeEnd("drawCultures");
+}
+
+export function drawReligionsRenderer() {
+  TIME && console.time("drawReligions");
+  const {cells, religions} = pack;
+
+  const bodyPaths = new Array(religions.length - 1);
+  const isolines = getIsolines(pack, cellId => cells.religion[cellId], {fill: true, waterGap: true}) as Record<
+    string,
+    {fill: unknown; waterGap: unknown}
+  >;
+
+  Object.entries(isolines).forEach(([index, {fill, waterGap}]) => {
+    const color = religions[index].color;
+    bodyPaths.push(getGappedFillPaths("religion", fill, waterGap, color, index));
+  });
+
+  ensureEl("relig").innerHTML = bodyPaths.join("");
+
+  TIME && console.timeEnd("drawReligions");
+}
 
 export function drawPrecipitationRenderer() {
   TIME && console.time("drawPrecipitation");
@@ -193,7 +254,36 @@ export function drawZonesRenderer() {
   ensureEl("zones").innerHTML = visibleZones.map(drawZone).join("");
 }
 
+export function drawLabelsRenderer() {
+  stateLabelsRenderer();
+  drawBurgLabelsRenderer();
+  (window as any).fmg?.invokeActiveZooming?.();
+}
+
+export function drawTextureRenderer() {
+  const x = Number(texture.attr("data-x") || 0);
+  const y = Number(texture.attr("data-y") || 0);
+  const href = texture.attr("data-href");
+
+  texture
+    .append("image")
+    .attr("preserveAspectRatio", "xMidYMid slice")
+    .attr("x", x)
+    .attr("y", y)
+    .attr("width", graphWidth - x)
+    .attr("height", graphHeight - y)
+    .attr("href", href);
+}
+
 function drawZone({i, cells, type, color}) {
   const path = getVertexPath(cells);
   return `<path id="zone${i}" data-id="${i}" data-type="${type}" d="${path}" fill="${color}" />`;
+}
+
+function getGappedFillPaths(elementName, fill, waterGap, color, index) {
+  let html = "";
+  if (fill) html += /* html */ `<path d="${fill}" fill="${color}" id="${elementName}${index}" />`;
+  if (waterGap)
+    html += /* html */ `<path d="${waterGap}" fill="none" stroke="${color}" stroke-width="3" id="${elementName}-gap${index}" />`;
+  return html;
 }

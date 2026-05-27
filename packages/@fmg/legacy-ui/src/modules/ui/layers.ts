@@ -4,10 +4,7 @@
 import { drawRiversRenderer } from "@fmg/rivers/renderer";
 import { drawStatesRenderer } from "@fmg/states/renderer";
 import { drawProvincesRenderer } from "@fmg/states/provinces-renderer";
-import { drawBurgIconsRenderer, drawBurgLabelsRenderer } from "@fmg/burgs/renderer";
-import { drawBiomesRenderer } from "@fmg/core/modules/biomes-renderer";
-import { drawCulturesRenderer } from "@fmg/core/modules/cultures-renderer";
-import { drawReligionsRenderer } from "@fmg/core/modules/religions-renderer";
+import { drawBurgIconsRenderer } from "@fmg/burgs/renderer";
 import * as d3 from "d3";
 import { bordersRenderer } from "#renderers/draw-borders";
 import { emblemsRenderer } from "#renderers/draw-emblems";
@@ -17,14 +14,18 @@ import { iceRenderer } from "#renderers/draw-ice";
 import { markersRenderer } from "#renderers/draw-markers";
 import { militaryRenderer } from "#renderers/draw-military";
 import { reliefIconsRenderer } from "#renderers/draw-relief-icons";
-import { stateLabelsRenderer } from "#renderers/draw-state-labels";
 import { temperatureRenderer } from "#renderers/draw-temperature";
 import { calculateFriendlyGridSize, editStyle } from "./style";
 import {
   drawCoordinatesRenderer,
+  drawBiomesRenderer,
+  drawCulturesRenderer,
+  drawLabelsRenderer,
+  drawReligionsRenderer,
   drawGridRenderer,
   drawPopulationRenderer,
   drawPrecipitationRenderer,
+  drawTextureRenderer,
   drawRouteRenderer,
   drawRoutesRenderer,
   drawZonesRenderer
@@ -34,9 +35,6 @@ import { tip } from "./general";
 /// <reference path="../../types/ui-legacy-globals.d.ts" />
 
 declare const getPackPolygon: (...args: any[]) => any;
-declare const terrain: any;
-declare const armies: any;
-declare const zones: any;
 
 let presets = {}; // global object
 restoreCustomPresets(); // run on-load
@@ -518,7 +516,7 @@ export function toggleCompass(event?) {
 export function toggleRelief(event?) {
   if (!layerIsOn("toggleRelief")) {
     turnButtonOn("toggleRelief");
-    if (!terrain.selectAll("*").size()) reliefIconsRenderer();
+    if (!d3.select("#terrain").selectAll("*").size()) reliefIconsRenderer();
     $("#terrain").fadeIn();
     if (event && isCtrlClick(event)) editStyle("terrain");
   } else {
@@ -553,18 +551,7 @@ export function toggleTexture(event?) {
 }
 
 export function drawTexture() {
-  const x = Number(texture.attr("data-x") || 0);
-  const y = Number(texture.attr("data-y") || 0);
-  const href = texture.attr("data-href");
-
-  texture
-    .append("image")
-    .attr("preserveAspectRatio", "xMidYMid slice")
-    .attr("x", x)
-    .attr("y", y)
-    .attr("width", graphWidth - x)
-    .attr("height", graphHeight - y)
-    .attr("href", href);
+  drawTextureRenderer();
 }
 
 export function toggleRivers(event?) {
@@ -610,7 +597,7 @@ export function toggleMilitary(event?) {
     if (event && isCtrlClick(event)) editStyle("armies");
   } else {
     if (event && isCtrlClick(event)) return editStyle("armies");
-    armies.selectAll("g").remove();
+    d3.select("#armies").selectAll("g").remove();
     turnButtonOff("toggleMilitary");
   }
 }
@@ -642,9 +629,7 @@ export function toggleLabels(event?) {
 }
 
 function drawLabels() {
-  stateLabelsRenderer();
-  drawBurgLabelsRenderer();
-  (window as any).fmg?.invokeActiveZooming?.();
+  drawLabelsRenderer();
 }
 
 export function toggleBurgIcons(event?) {
@@ -693,7 +678,7 @@ export function toggleZones(event?) {
   } else {
     if (event && isCtrlClick(event)) return editStyle("zones");
     turnButtonOff("toggleZones");
-    zones.selectAll("*").remove();
+    d3.select("#zones").selectAll("*").remove();
   }
 }
 
