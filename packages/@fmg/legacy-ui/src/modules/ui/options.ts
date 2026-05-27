@@ -1068,7 +1068,18 @@ async function enter3dView(type) {
       resizeStop: resize3d,
       close: enterStandardView
     });
-  } else document.body.insertBefore(canvas, optionsContainer);
+  } else {
+    // Insert canvas before options container but keep UI on top so buttons remain clickable.
+    // Canvas receives WebGL rendering; ensure options container has higher z-index.
+    document.body.insertBefore(canvas, optionsContainer);
+    try {
+      const oc = ensureEl("optionsContainer");
+      if (oc) oc.style.zIndex = "10000";
+      canvas.style.zIndex = "0";
+    } catch (err) {
+      // keep silent in case ensureEl isn't available in some runtime contexts
+    }
+  }
 
   toggle3dOptions();
 }

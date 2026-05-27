@@ -59,7 +59,9 @@ export const ThreeD = (function () {
     deleteLabels();
     scene.remove(mesh);
     Renderer.setSize(Renderer.domElement.width, Renderer.domElement.height);
-    if (options.isGlobe) updateGlobeTexure();
+    // For globe view we must recreate/add the sphere mesh after removing it.
+    // Ensure updateGlobeTexure is requested to also add the mesh when needed.
+    if (options.isGlobe) updateGlobeTexure(true);
     else createMesh(graphWidth, graphHeight, grid.cellsX, grid.cellsY);
     render();
   };

@@ -961,6 +961,34 @@ let regenerateMapImpl: ((options: unknown) => unknown) | undefined;
 
 function regenerateMap(options: unknown) {
   if (!regenerateMapImpl) {
+    // Compatibility wrapper: prefer runtime.ThreeD when available (legacy global),
+    // otherwise fall back to window.fmg compatibility API exposed by globals-compat.
+    const threeDCompat: { options?: any; redraw?: () => void; update?: () => void; stop?: () => void } = {
+      get options() {
+        // runtime.ThreeD (if present) contains live `options` object
+        if ((runtime as any).ThreeD && (runtime as any).ThreeD.options) return (runtime as any).ThreeD.options;
+        // fallback: window.fmg.get3dOptions() provided by globals-compat
+        const f = (window as any).fmg;
+        if (f && typeof f.get3dOptions === "function") return f.get3dOptions();
+        return {};
+      },
+      redraw() {
+        if ((runtime as any).ThreeD && typeof (runtime as any).ThreeD.redraw === "function") return (runtime as any).ThreeD.redraw();
+        const f = (window as any).fmg;
+        if (f && typeof f.redraw3d === "function") return f.redraw3d();
+      },
+      update() {
+        if ((runtime as any).ThreeD && typeof (runtime as any).ThreeD.update === "function") return (runtime as any).ThreeD.update();
+        const f = (window as any).fmg;
+        if (f && typeof f.update3d === "function") return f.update3d();
+      },
+      stop() {
+        if ((runtime as any).ThreeD && typeof (runtime as any).ThreeD.stop === "function") return (runtime as any).ThreeD.stop();
+        const f = (window as any).fmg;
+        if (f && typeof f.stop3d === "function") return f.stop3d();
+      }
+    };
+
     regenerateMapImpl = createRegenerateMap(
       runtime.debounce,
       buildRegenerateMapDeps({
@@ -976,7 +1004,7 @@ function regenerateMap(options: unknown) {
         undraw,
         generate,
         drawLayers,
-        ThreeD: runtime.ThreeD,
+        ThreeD: threeDCompat,
         isWorldConfiguratorVisible: () => $("#worldConfigurator").is(":visible"),
         editWorld,
         fitMapToScreen,
