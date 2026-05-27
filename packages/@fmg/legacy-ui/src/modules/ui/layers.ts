@@ -1,11 +1,14 @@
 // UI module stub to control map layers
 "use strict";
 
-import { Rivers } from "@fmg/rivers";
-import { Routes } from "@fmg/core/modules/routes-generator";
+import { drawRiversRenderer } from "@fmg/rivers/renderer";
+import { drawStatesRenderer } from "@fmg/states/renderer";
+import { drawProvincesRenderer } from "@fmg/states/provinces-renderer";
+import { drawBurgIconsRenderer, drawBurgLabelsRenderer } from "@fmg/burgs/renderer";
+import { drawBiomesRenderer } from "@fmg/core/modules/biomes-renderer";
+import { drawCulturesRenderer } from "@fmg/core/modules/cultures-renderer";
+import { drawReligionsRenderer } from "@fmg/core/modules/religions-renderer";
 import * as d3 from "d3";
-import { burgIconsRenderer } from "#renderers/draw-burg-icons";
-import { burgLabelsRenderer } from "#renderers/draw-burg-labels";
 import { bordersRenderer } from "#renderers/draw-borders";
 import { emblemsRenderer } from "#renderers/draw-emblems";
 import { featuresRenderer } from "#renderers/draw-features";
@@ -17,6 +20,15 @@ import { reliefIconsRenderer } from "#renderers/draw-relief-icons";
 import { stateLabelsRenderer } from "#renderers/draw-state-labels";
 import { temperatureRenderer } from "#renderers/draw-temperature";
 import { calculateFriendlyGridSize, editStyle } from "./style";
+import {
+  drawCoordinatesRenderer,
+  drawGridRenderer,
+  drawPopulationRenderer,
+  drawPrecipitationRenderer,
+  drawRouteRenderer,
+  drawRoutesRenderer,
+  drawZonesRenderer
+} from "./layer-renderers";
 import { tip } from "./general";
 
 /// <reference path="../../types/ui-legacy-globals.d.ts" />
@@ -240,7 +252,7 @@ export function drawLayers() {
   if (layerIsOn("togglePrecipitation")) drawPrecipitation();
   if (layerIsOn("toggleEmblems")) emblemsRenderer();
   if (layerIsOn("toggleLabels")) drawLabels();
-  if (layerIsOn("toggleBurgIcons")) burgIconsRenderer();
+  if (layerIsOn("toggleBurgIcons")) drawBurgIconsRenderer();
   if (layerIsOn("toggleMilitary")) militaryRenderer();
   if (layerIsOn("toggleMarkers")) markersRenderer();
   if (layerIsOn("toggleRulers")) rulers.draw();
@@ -288,22 +300,7 @@ export function toggleBiomes(event?) {
 }
 
 function drawBiomes() {
-  TIME && console.time("drawBiomes");
-
-  const cells = pack.cells;
-  const bodyPaths = new Array(biomesData.i.length - 1);
-  const isolines = getIsolines(pack, cellId => cells.biome[cellId], {fill: true, waterGap: true}) as Record<
-    string,
-    {fill: unknown; waterGap: unknown}
-  >;
-  Object.entries(isolines).forEach(([index, {fill, waterGap}]) => {
-    const color = biomesData.color[index];
-    bodyPaths.push(getGappedFillPaths("biome", fill, waterGap, color, index));
-  });
-
-  ensureEl("biomes").innerHTML = bodyPaths.join("");
-
-  TIME && console.timeEnd("drawBiomes");
+  drawBiomesRenderer();
 }
 
 export function togglePrecipitation(event?) {
@@ -322,31 +319,7 @@ export function togglePrecipitation(event?) {
 }
 
 function drawPrecipitation() {
-  TIME && console.time("drawPrecipitation");
-
-  prec.selectAll("circle").remove();
-  const {cells, points} = grid;
-
-  const show = d3.transition().duration(800).ease(d3.easeSinIn);
-  prec.selectAll("text").attr("opacity", 0).transition(show).attr("opacity", 1);
-
-  const cellsNumberModifier = ((+pointsInput.dataset.cells || 10000) / 10000) ** 0.25;
-  const data = cells.i.filter(i => cells.h[i] >= 20 && cells.prec[i]);
-  const getRadius = prec => rn(Math.sqrt(prec / 4) / cellsNumberModifier, 2);
-
-  prec
-    .style("display", "block")
-    .selectAll("circle")
-    .data(data)
-    .enter()
-    .append("circle")
-    .attr("cx", d => points[d][0])
-    .attr("cy", d => points[d][1])
-    .attr("r", 0)
-    .transition(show)
-    .attr("r", d => getRadius(cells.prec[d]));
-
-  TIME && console.timeEnd("drawPrecipitation");
+  drawPrecipitationRenderer();
 }
 
 export function togglePopulation(event?) {
@@ -383,43 +356,7 @@ export function togglePopulation(event?) {
 }
 
 export function drawPopulation() {
-  population.selectAll("line").remove();
-
-  const {cells, burgs} = pack;
-  const show = d3.transition().duration(2000).ease(d3.easeSinIn);
-
-  const rural = Array.from(cells.i.filter((i: number) => cells.pop[i] > 0), (i: number) => [
-    ...cells.p[i],
-    cells.p[i][1] - cells.pop[i] / 5
-  ]);
-
-  population
-    .select("#rural")
-    .selectAll("line")
-    .data(rural)
-    .enter()
-    .append("line")
-    .attr("x1", d => d[0])
-    .attr("y1", d => d[1])
-    .attr("x2", d => d[0])
-    .attr("y2", d => d[1])
-    .transition(show)
-    .attr("y2", d => d[2]);
-
-  const urban = burgs.filter(b => b.i && !b.removed).map(b => [b.x, b.y, b.y - (b.population / 5) * urbanization]);
-  population
-    .select("#urban")
-    .selectAll("line")
-    .data(urban)
-    .enter()
-    .append("line")
-    .attr("x1", d => d[0])
-    .attr("y1", d => d[1])
-    .attr("x2", d => d[0])
-    .attr("y2", d => d[1])
-    .transition(show)
-    .delay(500)
-    .attr("y2", d => d[2]);
+  drawPopulationRenderer();
 }
 
 export function toggleCells(event?) {
@@ -469,22 +406,7 @@ export function toggleCultures(event?) {
 }
 
 export function drawCultures() {
-  TIME && console.time("drawCultures");
-  const {cells, cultures} = pack;
-
-  const bodyPaths = new Array(cultures.length - 1);
-  const isolines = getIsolines(pack, cellId => cells.culture[cellId], {fill: true, waterGap: true}) as Record<
-    string,
-    {fill: unknown; waterGap: unknown}
-  >;
-  Object.entries(isolines).forEach(([index, {fill, waterGap}]) => {
-    const color = cultures[index].color;
-    bodyPaths.push(getGappedFillPaths("culture", fill, waterGap, color, index));
-  });
-
-  ensureEl("cults").innerHTML = bodyPaths.join("");
-
-  TIME && console.timeEnd("drawCultures");
+  drawCulturesRenderer();
 }
 
 export function toggleReligions(event?) {
@@ -501,22 +423,7 @@ export function toggleReligions(event?) {
 }
 
 export function drawReligions() {
-  TIME && console.time("drawReligions");
-  const {cells, religions} = pack;
-
-  const bodyPaths = new Array(religions.length - 1);
-  const isolines = getIsolines(pack, cellId => cells.religion[cellId], {fill: true, waterGap: true}) as Record<
-    string,
-    {fill: unknown; waterGap: unknown}
-  >;
-  Object.entries(isolines).forEach(([index, {fill, waterGap}]) => {
-    const color = religions[index].color;
-    bodyPaths.push(getGappedFillPaths("religion", fill, waterGap, color, index));
-  });
-
-  ensureEl("relig").innerHTML = bodyPaths.join("");
-
-  TIME && console.timeEnd("drawReligions");
+  drawReligionsRenderer();
 }
 
 export function toggleStates(event?) {
@@ -532,37 +439,7 @@ export function toggleStates(event?) {
 }
 
 export function drawStates() {
-  TIME && console.time("drawStates");
-  const {cells, states} = pack;
-
-  const maxLength = states.length - 1;
-  const bodyPaths = new Array(maxLength);
-  const clipPaths = new Array(maxLength);
-  const haloPaths = new Array(maxLength);
-
-  const renderHalo = shapeRendering.value === "geometricPrecision";
-  const isolines = getIsolines(pack, cellId => cells.state[cellId], {fill: true, waterGap: true, halo: renderHalo}) as Record<
-    string,
-    {fill: unknown; waterGap: unknown; halo: unknown}
-  >;
-  Object.entries(isolines).forEach(([index, {fill, waterGap, halo}]) => {
-    const color = states[index].color;
-    bodyPaths.push(getGappedFillPaths("state", fill, waterGap, color, index));
-
-    if (renderHalo) {
-      const haloColor = d3.color(color)?.darker().hex() || "#666666";
-      clipPaths.push(/* html */ `<clipPath id="state-clip${index}"><use href="#state${index}"/></clipPath>`);
-      haloPaths.push(
-        /* html */ `<path id="state-border${index}" d="${halo}" clip-path="url(#state-clip${index})" stroke="${haloColor}"/>`
-      );
-    }
-  });
-
-  ensureEl("statesBody").innerHTML = bodyPaths.join("");
-  ensureEl("statePaths").innerHTML = renderHalo ? clipPaths.join("") : "";
-  ensureEl("statesHalo").innerHTML = renderHalo ? haloPaths.join("") : "";
-
-  TIME && console.timeEnd("drawStates");
+  drawStatesRenderer();
 }
 
 export function toggleBorders(event?) {
@@ -590,33 +467,7 @@ export function toggleProvinces(event?) {
 }
 
 export function drawProvinces() {
-  TIME && console.time("drawProvinces");
-  const {cells, provinces} = pack;
-
-  const bodyPaths = new Array(provinces.length - 1);
-  const isolines = getIsolines(pack, cellId => cells.province[cellId], {fill: true, waterGap: true}) as Record<
-    string,
-    {fill: unknown; waterGap: unknown}
-  >;
-  Object.entries(isolines).forEach(([index, {fill, waterGap}]) => {
-    const color = provinces[index].color;
-    bodyPaths.push(getGappedFillPaths("province", fill, waterGap, color, index));
-  });
-
-  const labels = provinces
-    .filter(p => p.i && !p.removed)
-    .map(p => {
-      const [x, y] = p.pole || cells.p[p.center];
-      return /* html */ `<text x="${x}" y="${y}" id="provinceLabel${p.i}">${p.name}</text>`;
-    });
-
-  ensureEl("provs").innerHTML = /* html */ `
-    <g id='provincesBody'>${bodyPaths.join("")}</g>
-    <g id='provinceLabels'>${labels.join("")}</g>
-  `;
-  ensureEl("provinceLabels").style.display = ensureEl("provs").dataset.labels === "1" ? "block" : "none";
-
-  TIME && console.timeEnd("drawProvinces");
+  drawProvincesRenderer();
 }
 
 export function toggleGrid(event?) {
@@ -633,32 +484,7 @@ export function toggleGrid(event?) {
 }
 
 export function drawGrid() {
-  gridOverlay.selectAll("*").remove();
-  const pattern = "#pattern_" + (gridOverlay.attr("type") || "pointyHex");
-  const stroke = gridOverlay.attr("stroke") || "#808080";
-  const width = gridOverlay.attr("stroke-width") || 0.5;
-  const dasharray = gridOverlay.attr("stroke-dasharray") || null;
-  const linecap = gridOverlay.attr("stroke-linecap") || null;
-  const scale = gridOverlay.attr("scale") || 1;
-  const dx = gridOverlay.attr("dx") || 0;
-  const dy = gridOverlay.attr("dy") || 0;
-  const tr = `scale(${scale}) translate(${dx} ${dy})`;
-
-  const maxWidth = Math.max(+mapWidthInput.value, graphWidth);
-  const maxHeight = Math.max(+mapHeightInput.value, graphHeight);
-
-  d3.select(pattern)
-    .attr("stroke", stroke)
-    .attr("stroke-width", width)
-    .attr("stroke-dasharray", dasharray)
-    .attr("stroke-linecap", linecap)
-    .attr("patternTransform", tr);
-  gridOverlay
-    .append("rect")
-    .attr("width", maxWidth)
-    .attr("height", maxHeight)
-    .attr("fill", "url(" + pattern + ")")
-    .attr("stroke", "none");
+  drawGridRenderer();
 }
 
 export function toggleCoordinates(event?) {
@@ -674,64 +500,7 @@ export function toggleCoordinates(event?) {
 }
 
 function drawCoordinates() {
-  coordinates.selectAll("*").remove(); // remove every time
-
-  const steps = [0.5, 1, 2, 5, 10, 15, 30]; // possible steps
-  const goal = mapCoordinates.lonT / scale / 10;
-  const step = steps.reduce((p, c) => (Math.abs(c - goal) < Math.abs(p - goal) ? c : p));
-
-  const desired = +coordinates.attr("data-size"); // desired label size
-  coordinates.attr("font-size", Math.max(rn(desired / scale ** 0.8, 2), 0.1)); // actual label size
-
-  const graticule = d3
-    .geoGraticule()
-    .extent([
-      [mapCoordinates.lonW, mapCoordinates.latN],
-      [mapCoordinates.lonE + 0.1, mapCoordinates.latS + 0.1]
-    ])
-    .stepMajor([400, 400])
-    .stepMinor([step, step]);
-  const projection = d3.geoEquirectangular().fitSize([graphWidth, graphHeight], graticule());
-
-  const grid = coordinates.append("g").attr("id", "coordinateGrid");
-  const labels = coordinates.append("g").attr("id", "coordinateLabels");
-
-  const point = new DOMPoint(scale + desired + 2, scale + desired / 2);
-  const screenMatrix = ensureEl("viewbox").getScreenCTM();
-  const p = point.matrixTransform((screenMatrix ?? new DOMMatrix()).inverse());
-
-  const data = graticule.lines().map(d => {
-    const isLatitude = d.coordinates[0][1] === d.coordinates[1][1];
-    const coordinate = d.coordinates[0] as [number, number];
-    const position = projection(coordinate) || [0, 0]; // map coordinates
-    const [x, y] = isLatitude ? [rn(p.x, 2), rn(position[1], 2)] : [rn(position[0], 2), rn(p.y, 2)]; // labels position
-    const value = isLatitude ? coordinate[1] : coordinate[0]; // label
-
-    let text = "";
-    if (!value) {
-      text = "0";
-    } else if (Number.isInteger(value)) {
-      if (isLatitude) {
-        text = coordinate[1] < 0 ? -coordinate[1] + "°S" : coordinate[1] + "°N";
-      } else {
-        text = coordinate[0] < 0 ? -coordinate[0] + "°W" : coordinate[0] + "°E";
-      }
-    }
-
-    return {x, y, text};
-  });
-
-  const path = round(d3.geoPath(projection)(graticule()));
-  grid.append("path").attr("d", path).attr("vector-effect", "non-scaling-stroke");
-  labels
-    .selectAll("text")
-    .data(data)
-    .enter()
-    .append("text")
-    .attr("text-rendering", "optimizeSpeed")
-    .attr("x", d => d.x)
-    .attr("y", d => d.y)
-    .text(d => d.text);
+  drawCoordinatesRenderer();
 }
 
 export function toggleCompass(event?) {
@@ -811,26 +580,7 @@ export function toggleRivers(event?) {
 }
 
 export function drawRivers() {
-  TIME && console.time("drawRivers");
-  rivers.selectAll("*").remove();
-
-  const riverPaths = pack.rivers.map(({cells, points, i, widthFactor, sourceWidth}) => {
-    if (!cells || cells.length < 2) return;
-
-    if (points && points.length !== cells.length) {
-      console.error(
-        `River ${i} has ${cells.length} cells, but only ${points.length} points defined. Resetting points data`
-      );
-      points = undefined;
-    }
-
-    const meanderedPoints = Rivers.addMeandering(cells, points);
-    const path = Rivers.getRiverPath(meanderedPoints, widthFactor, sourceWidth);
-    return `<path id="river${i}" d="${path}"/>`;
-  });
-  rivers.html(riverPaths.join(""));
-
-  TIME && console.timeEnd("drawRivers");
+  drawRiversRenderer();
 }
 
 export function toggleRoutes(event?) {
@@ -846,30 +596,11 @@ export function toggleRoutes(event?) {
 }
 
 export function drawRoutes() {
-  TIME && console.time("drawRoutes");
-  const routePaths = {};
-
-  for (const route of pack.routes) {
-    const {i, group, points} = route;
-    if (!points || points.length < 2) continue;
-    if (!routePaths[group]) routePaths[group] = [];
-    routePaths[group].push(`<path id="route${i}" d="${Routes.getPath(route)}"/>`);
-  }
-
-  routes.attr("fill", "none").selectAll("path").remove();
-  for (const group in routePaths) {
-    routes.select("#" + group).html(routePaths[group].join(""));
-  }
-
-  TIME && console.timeEnd("drawRoutes");
+  drawRoutesRenderer();
 }
 
 export function drawRoute(route) {
-  routes
-    .select("#" + route.group)
-    .append("path")
-    .attr("d", Routes.getPath(route))
-    .attr("id", "route" + route.i);
+  drawRouteRenderer(route);
 }
 
 export function toggleMilitary(event?) {
@@ -912,14 +643,14 @@ export function toggleLabels(event?) {
 
 function drawLabels() {
   stateLabelsRenderer();
-  burgLabelsRenderer();
+  drawBurgLabelsRenderer();
   (window as any).fmg?.invokeActiveZooming?.();
 }
 
 export function toggleBurgIcons(event?) {
   if (!layerIsOn("toggleBurgIcons")) {
     turnButtonOn("toggleBurgIcons");
-    burgIconsRenderer();
+    drawBurgIconsRenderer();
     if (event && isCtrlClick(event)) editStyle("burgIcons");
   } else {
     if (event && isCtrlClick(event)) return editStyle("burgIcons");
@@ -967,17 +698,7 @@ export function toggleZones(event?) {
 }
 
 export function drawZones() {
-  const filterBy = ensureEl("zonesFilterType").value;
-  const isFiltered = filterBy && filterBy !== "all";
-  const visibleZones = pack.zones.filter(
-    ({hidden, cells, type}) => !hidden && cells.length && (!isFiltered || type === filterBy)
-  );
-  zones.html(visibleZones.map(drawZone).join(""));
-}
-
-function drawZone({i, cells, type, color}) {
-  const path = getVertexPath(cells);
-  return `<path id="zone${i}" data-id="${i}" data-type="${type}" d="${path}" fill="${color}" />`;
+  drawZonesRenderer();
 }
 
 export function toggleEmblems(event?) {
@@ -1004,14 +725,6 @@ export function toggleVignette(event?) {
     $("#vignette").fadeOut();
     turnButtonOff("toggleVignette");
   }
-}
-
-function getGappedFillPaths(elementName, fill, waterGap, color, index) {
-  let html = "";
-  if (fill) html += /* html */ `<path d="${fill}" fill="${color}" id="${elementName}${index}" />`;
-  if (waterGap)
-    html += /* html */ `<path d="${waterGap}" fill="none" stroke="${color}" stroke-width="3" id="${elementName}-gap${index}" />`;
-  return html;
 }
 
 export function layerIsOn(el) {
