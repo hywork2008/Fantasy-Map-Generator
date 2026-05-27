@@ -709,7 +709,8 @@ export const ThreeD = (function () {
 
     controls = await OrbitControls(camera, Renderer.domElement); // OrbitControls for globe view
     if (!controls) return false;
-    controls.zoomSpeed = 0.25;
+    // Increase wheel zoom sensitivity for Globe view (~4x)
+    controls.zoomSpeed = 1;
     controls.minDistance = 1.5;
     controls.maxDistance = 10;
     controls.autoRotate = Boolean(options.rotateGlobe);
