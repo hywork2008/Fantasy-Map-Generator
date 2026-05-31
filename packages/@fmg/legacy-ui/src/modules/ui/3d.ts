@@ -797,9 +797,12 @@ export const ThreeD = (function () {
     img2.onload = function () {
       ctx.drawImage(img2, dx, dy, mapWidth, mapHeight);
       if (texture) texture.dispose();
-      texture = new THREE.CanvasTexture(ctx.canvas, render);
+      texture = new THREE.CanvasTexture(ctx.canvas);
+      texture.needsUpdate = true;
       material.map = texture;
+      material.needsUpdate = true;
       if (addMesh) addGlobe3dMesh();
+      else render();
     };
     img2.src = await getMapURL("mesh", { noScaleBar: true, fullMap: true, noVignette: true });
   }

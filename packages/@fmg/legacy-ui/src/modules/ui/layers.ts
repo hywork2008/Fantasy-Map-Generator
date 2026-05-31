@@ -37,7 +37,42 @@ import { tip } from "./general";
 declare const getPackPolygon: (...args: any[]) => any;
 
 let presets = {}; // global object
+let threeDLayerUpdateTimer: number | null = null;
+let threeDLayerTrailingUpdateTimer: number | null = null;
 restoreCustomPresets(); // run on-load
+
+function requestThreeDLayerRefresh() {
+  if (!document.getElementById("canvas3d")) return;
+
+  function updateThreeDIfAvailable() {
+    try {
+      const f = (window as any).fmg;
+      if (f && typeof f.update3d === "function") return f.update3d();
+      const w = (window as any).ThreeD;
+      if (w && typeof w.update === "function") return w.update();
+      // dynamic import as a last resort (avoids static circular import)
+      import("./3d")
+        .then(m => m?.ThreeD?.update && m.ThreeD.update())
+        .catch(() => {});
+    } catch (err) {
+      // ignore
+    }
+  }
+
+  if (threeDLayerUpdateTimer !== null) window.clearTimeout(threeDLayerUpdateTimer);
+  threeDLayerUpdateTimer = window.setTimeout(() => {
+    threeDLayerUpdateTimer = null;
+    if (document.getElementById("canvas3d")) updateThreeDIfAvailable();
+  }, 220);
+
+  // Some layers are toggled with fade / transition animations, so run one more
+  // update after animations likely settled to keep 3D views in sync.
+  if (threeDLayerTrailingUpdateTimer !== null) window.clearTimeout(threeDLayerTrailingUpdateTimer);
+  threeDLayerTrailingUpdateTimer = window.setTimeout(() => {
+    threeDLayerTrailingUpdateTimer = null;
+    if (document.getElementById("canvas3d")) updateThreeDIfAvailable();
+  }, 1100);
+}
 
 function getDefaultPresets() {
   return {
@@ -174,7 +209,7 @@ export function handleLayersPresetChange(preset) {
     if (isOn && !shouldBeOn) el.click();
   });
 
-  if (ensureEl("canvas3d")) setTimeout(() => ThreeD.update(), 400);
+  requestThreeDLayerRefresh();
 }
 
 export function savePreset() {
@@ -719,11 +754,34 @@ export function layerIsOn(el) {
 function turnButtonOff(el) {
   ensureEl(el).classList.add("buttonoff");
   getCurrentPreset();
+  requestThreeDLayerRefresh();
+  // If 3D canvas is not present (standard view), ensure SVG layers are redrawn immediately
+  if (!document.getElementById("canvas3d")) {
+    // schedule to next tick so DOM updates (classes/display) are applied
+    window.setTimeout(() => {
+      try {
+        drawLayers();
+      } catch (err) {
+        // silent: drawLayers may not be available in some runtimes
+      }
+    }, 0);
+  }
 }
 
 export function turnButtonOn(el) {
   ensureEl(el).classList.remove("buttonoff");
   getCurrentPreset();
+  requestThreeDLayerRefresh();
+  // If 3D canvas is not present (standard view), ensure SVG layers are redrawn immediately
+  if (!document.getElementById("canvas3d")) {
+    window.setTimeout(() => {
+      try {
+        drawLayers();
+      } catch (err) {
+        // ignore
+      }
+    }, 0);
+  }
 }
 
 // move layers on mapLayers dragging (jquery sortable)
@@ -735,6 +793,15 @@ function moveLayer(event, ui) {
   const next = getLayer(ui.item.next().attr("id"));
   if (prev) el.insertAfter(prev);
   else if (next) el.insertBefore(next);
+
+  requestThreeDLayerRefresh();
+  if (!document.getElementById("canvas3d")) {
+    window.setTimeout(() => {
+      try {
+        drawLayers();
+      } catch (err) {}
+    }, 0);
+  }
 }
 
 // define connection between option layer buttons and actual svg groups to move the element
