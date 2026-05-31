@@ -954,7 +954,7 @@ styleCompassSizeInput.on("input", shiftCompass);
 styleCompassShiftX.on("input", shiftCompass);
 styleCompassShiftY.on("input", shiftCompass);
 
-function shiftCompass() {
+export function shiftCompass() {
   const tr = `translate(${styleCompassShiftX.value} ${styleCompassShiftY.value}) scale(${styleCompassSizeInput.value})`;
   compass.select("use").attr("transform", tr);
 }

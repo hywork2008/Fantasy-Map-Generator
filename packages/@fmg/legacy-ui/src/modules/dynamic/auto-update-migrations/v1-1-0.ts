@@ -1,7 +1,15 @@
 import type { AutoUpdateMigrationContext } from "./types";
+import * as d3 from "d3";
 
-export function migrateToV1_1_0({ pack, api, helpers }: AutoUpdateMigrationContext): void {
+export function migrateToV1_1_0({ pack, api, helpers, dom }: AutoUpdateMigrationContext): void {
   const { Religions, Features } = api;
+
+  const viewbox = dom?.viewbox ?? d3.select("#viewbox");
+  let relig = dom?.relig ?? d3.select("#relig");
+  const labels = dom?.labels ?? d3.select("#labels");
+  const lakes = dom?.lakes ?? d3.select("#lakes");
+  const coastline = dom?.coastline ?? d3.select("#coastline");
+  const defs = dom?.defs ?? d3.select("#defs");
 
   // v1.0 code had a bug with religion layer id
   if (!relig.size()) relig = viewbox.insert("g", "#terrain").attr("id", "relig");
@@ -25,7 +33,7 @@ export function migrateToV1_1_0({ pack, api, helpers }: AutoUpdateMigrationConte
       });
   }
 
-  if (!document.getElementById("freshwater")) {
+  if (!lakes.select("#freshwater").size()) {
     lakes.append("g").attr("id", "freshwater");
     lakes
       .select("#freshwater")
@@ -36,7 +44,7 @@ export function migrateToV1_1_0({ pack, api, helpers }: AutoUpdateMigrationConte
       .attr("filter", null);
   }
 
-  if (!document.getElementById("salt")) {
+  if (!lakes.select("#salt").size()) {
     lakes.append("g").attr("id", "salt");
     lakes
       .select("#salt")
@@ -48,7 +56,7 @@ export function migrateToV1_1_0({ pack, api, helpers }: AutoUpdateMigrationConte
   }
 
   // v1.1 added new lake and coast groups
-  if (!document.getElementById("sinkhole")) {
+  if (!lakes.select("#sinkhole").size()) {
     lakes.append("g").attr("id", "sinkhole");
     lakes.append("g").attr("id", "frozen");
     lakes.append("g").attr("id", "lava");

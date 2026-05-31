@@ -751,7 +751,7 @@ export function layerIsOn(el) {
   return ensureEl(el).classList.contains("buttonoff") ? false : true;
 }
 
-function turnButtonOff(el) {
+export function turnButtonOff(el) {
   ensureEl(el).classList.add("buttonoff");
   getCurrentPreset();
   requestThreeDLayerRefresh();

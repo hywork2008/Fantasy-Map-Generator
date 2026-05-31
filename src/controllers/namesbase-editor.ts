@@ -4,7 +4,7 @@ import { tip } from "@legacy-ui-runtime/modules/ui/general";
 import { max as d3max, min as d3min, mean, median } from "d3";
 import { ensureEl, openURL, rn, unique } from "../utils";
 
-const NamesApi = (((window as any).fmg && (window as any).fmg.Names) || (window as any).Names || NamesModule) as any;
+const NamesApi = ((window as any).fmg?.Names || (window as any).Names || NamesModule) as any;
 
 addListeners();
 

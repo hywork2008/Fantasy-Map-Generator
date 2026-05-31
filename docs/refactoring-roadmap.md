@@ -1,6 +1,6 @@
 # リファクタリング・ロードマップ
 
-更新日: 2026-05-25
+更新日: 2026-06-01
 
 本ドキュメントは、`public` フォルダから `packages` フォルダへ TypeScript 移植が行われた現在のコードベースを分析し、メンテナンス性の向上やパフォーマンス改善に向けた中長期的なロードマップ・改善提案をまとめたものです。
 
@@ -58,6 +58,7 @@
 
 ### `auto-update.ts` のリファクタリング進捗（2026-05-27）
 - `マイグレーション処理の分離`（パイプライン化）は未着手のまま維持
+ - `マイグレーション処理の分離`（パイプライン化）は実施済み
 - `グローバル依存 (window) の撲滅` の先行対応として以下を実施
   - `packages/@fmg/legacy-ui/src/modules/dynamic/auto-update.ts` に `d3` を明示 `import`
   - `window.findCell` 依存を廃止し、`findClosestCell` import + `findPackCell` ヘルパー経由の参照へ置換
@@ -70,9 +71,18 @@
   - `packages/@fmg/legacy-ui/src/modules/runtime/auto-update-fmg-api.ts` は `requireFmgApi` 依存を撤去し、`@fmg/core/modules/initialize-fmg` の singleton 取得 (`getCoreFmgInstances`) を使う静的 import ベースへ移行（`window.fmg` は後方互換 fallback として維持）
   - `packages/@fmg/legacy-ui/src/modules/dynamic/auto-update-migrations/` を新設し、`1.0.0` マイグレーションを `v1-0-0.ts` へ抽出。`auto-update.ts` からは `runAutoUpdateMigrationPipeline(...)` 経由で実行する形に変更
   - `1.1.0` マイグレーションも `v1-1-0.ts` へ抽出し、`auto-update.ts` 本体から該当ブロックを除去。パイプラインで `1.0.0` → `1.1.0` を順次実行する形に整理
-  - `1.11.0` 以降の全マイグレーションを `v1-11-0-plus.ts` へ移設し、`auto-update.ts` 本体は `runAutoUpdatePostV110Migrations(...)` 呼び出しのみへ縮小
+  - `1.11.0` 以降の全マイグレーションを `v1-11-0-plus.ts` へ移設し、`auto-update.ts` 本体は `runAutoUpdatePostV110Migrations(...)` 呼び出しのみへ縮小（廃止済み）
 
 この変更により、既存UI呼び出し点を壊さずに、描画責務をドメインパッケージへ段階的に寄せる分割を進めました。
+
+  ### 進捗更新（2026-06-01）
+
+  - `auto-update.ts` のランタイムコンテキスト注入を強化しました。`fullContext` に `dom`, `api`, `helpers`, `biomesData` に加え、移行互換のための `options`, `nameBases`, `rand`, `P` を注入しています。
+  - マイグレーション型 `AutoUpdateMigrationContext` を拡張し、マイグレーション関数は明示的な `context` 引数を受け取る形へ移行しました。
+  - レガシーな ambient 宣言（`globals.d.ts`）を段階的に削除し、最終的にファイル自体を削除しました。これにより型安全性が向上しています。
+  - 個別マイグレーションの変換を完了しました。すべてのマイグレーションが `AutoUpdateMigrationContext` を受け取り、`dom` / `api` / `helpers`（必要に応じて `options` 等の互換注入）を利用する形式へ統一されました。
+  - 変更ごとに `npx -y tsc --noEmit -p tsconfig.json` と `npm run lint` で検証しており、現時点では型チェックと linter にエラーは報告されていません。
+  - 次のステップ: 互換レイヤ（旧 API / shim）の段階的削除と、`auto-update.ts` 本体のさらなる責務縮小を進めます。
 
 ### `ドメイン駆動のモジュール分割` 完了判定タスク（再設定）
 - [x] `burgs` / `states` / `rivers` の renderer を各ドメイン配下へ配置し、既存UI側は委譲のみとする
@@ -80,15 +90,15 @@
 - [x] `core` 配下に新設した暫定 renderer (`biomes/cultures/religions`) を撤去し、`core` と renderer 責務を分離する
 
 ### Phase 2 の残課題（ドメイン分割完了後）
-- `auto-update.ts` の `requireFmgApi(...)` 依存を段階的に import 化し、`window.fmg` 依存を縮小する
-- `auto-update.ts` を中心に、`window.pack` / `window.grid` 前提の参照を Context / Store 経由へ段階的に移行する
+- [x] `packages/@fmg/legacy-ui/src/modules/runtime/auto-update-fmg-api.ts` の `requireFmgApi(...)` 依存を撤去し、`@fmg/core/modules/initialize-fmg` の singleton 取得 (`getCoreFmgInstances`) を使う静的 import ベースへ移行（`window.fmg` は後方互換 fallback として維持） — 実施済 (2026-06-01)。参照: [packages/@fmg/legacy-ui/src/modules/runtime/auto-update-fmg-api.ts](packages/@fmg/legacy-ui/src/modules/runtime/auto-update-fmg-api.ts#L1-L40)
+- [x] `packages/@fmg/legacy-ui/src/modules/dynamic/auto-update.ts` を中心に、`window.pack` / `window.grid` 前提の参照を `AutoUpdateContext` / `getLegacyPack/getLegacyGrid` 経由へ段階的に移行 — 実施済 (2026-06-01)。参照: [packages/@fmg/legacy-ui/src/modules/dynamic/auto-update.ts](packages/@fmg/legacy-ui/src/modules/dynamic/auto-update.ts#L1-L80)
 
 ## 3. メンテナンス性を高める為のリファクタリング
 
-`packages/@fmg/legacy-ui/src/modules/dynamic/auto-update.ts` などの一部のファイルは、非常に長く（1000行超）、DOMの直接操作とデータのバージョンマイグレーションが密結合しており、「意味不明なコード（マジックナンバーや暗黙の前提）」の温床となっています。
+かつて `packages/@fmg/legacy-ui/src/modules/dynamic/auto-update.ts` などの一部のファイルは、非常に長く（1000行超）で、DOMの直接操作とデータのバージョンマイグレーションが密結合しており問題となっていましたが、現在は分割・解体済みで、DOM操作とマイグレーションロジックは分離されています。
 
 ### 改善提案
-- **マイグレーション処理の分離**: `auto-update.ts` 内の `resolveVersionConflicts` などの巨大関数を、バージョン毎のマイグレータファイル（例: `migrations/v1.0.ts`, `migrations/v1.1.ts`）に分割し、パイプライン処理化します。
+- **マイグレーション処理の分離**: `auto-update.ts` 内の `resolveVersionConflicts` などの巨大関数を、バージョン毎のマイグレータファイル（例: `migrations/v1.0.ts`, `migrations/v1.1.ts`）に分割し、パイプライン処理化しました（実施済み）。
 - **グローバル依存 (window) の撲滅**: `window.pack`, `window.grid` や `declare let zones: any;` といった暗黙的なグローバル参照を廃止し、`FmgGlobalContext` （またはそれに準ずる Context/State 管理クラス）の引数渡し、あるいは専用の Store からの `import` に変更します。
 - **UI コンポーネントの分離**: `d3.select` による命令的な DOM 操作を関数に切り出し、「データの変更」と「Viewの更新」の責務を分離します。
 

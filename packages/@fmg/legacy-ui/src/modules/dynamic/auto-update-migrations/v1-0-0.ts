@@ -1,14 +1,24 @@
 import type { AutoUpdateMigrationContext } from "./types";
+import * as d3 from "d3";
 
-export function migrateToV1_0_0({ api, helpers }: AutoUpdateMigrationContext): void {
-  const { Religions, Zones, Markers, Provinces, States } = api;
+export function migrateToV1_0_0({ api, helpers, dom, biomesData }: AutoUpdateMigrationContext): void {
+  const { Religions, Zones, Markers, Provinces, States } = api as any;
+
+  const viewbox = dom?.viewbox ?? d3.select("#viewbox");
+  const defs = dom?.defs ?? d3.select("#defs");
+  const svg = dom?.svg ?? d3.select("svg");
+  const borders = dom?.borders ?? d3.select("#borders");
+  const labels = dom?.labels ?? d3.select("#labels");
+  const regions = dom?.regions ?? d3.select("#regions");
+  const markers = dom?.markersGroup ?? d3.select("#markers");
+  const statesBody = dom?.statesBody ?? d3.select("#statesBody");
 
   // v1.0 added a new religions layer
-  relig = viewbox.insert("g", "#terrain").attr("id", "relig");
+  const relig = dom?.relig ?? viewbox.insert("g", "#terrain").attr("id", "relig");
   Religions.generate();
 
   // v1.0 added a legend box
-  legend = svg.append("g").attr("id", "legend");
+  const legend = dom?.legend ?? svg.append("g").attr("id", "legend");
   legend
     .attr("font-family", "Almendra SC")
     .attr("font-size", 13)
@@ -20,9 +30,9 @@ export function migrateToV1_0_0({ api, helpers }: AutoUpdateMigrationContext): v
     .attr("stroke-dasharray", "0 4 10 4")
     .attr("stroke-linecap", "round");
 
-  // v1.0 separated drawBorders fron drawStates()
-  stateBorders = borders.append("g").attr("id", "stateBorders");
-  provinceBorders = borders.append("g").attr("id", "provinceBorders");
+  // v1.0 separated drawBorders from drawStates()
+  const stateBorders = borders.append("g").attr("id", "stateBorders");
+  const provinceBorders = borders.append("g").attr("id", "provinceBorders");
   borders
     .attr("opacity", null)
     .attr("stroke", null)
@@ -44,14 +54,14 @@ export function migrateToV1_0_0({ api, helpers }: AutoUpdateMigrationContext): v
     .attr("stroke-linecap", "butt");
 
   // v1.0 added state relations, provinces, forms and full names
-  provs = viewbox.insert("g", "#borders").attr("id", "provs").attr("opacity", 0.6);
+  const provs = viewbox.insert("g", "#borders").attr("id", "provs").attr("opacity", 0.6);
   States.collectStatistics();
   States.generateCampaigns();
   States.generateDiplomacy();
   States.defineStateForms();
   Provinces.generate();
-  Provinces.getPoles();
-  if (!helpers.layerIsOn("toggleBorders")) $("#borders").fadeOut();
+  Provinces.getPoles && Provinces.getPoles();
+  if (!helpers.layerIsOn("toggleBorders")) d3.select("#borders").style("display", "none");
   if (!helpers.layerIsOn("toggleStates")) regions.attr("display", "none").selectAll("path").remove();
 
   // v1.0 added zones layer
@@ -65,11 +75,11 @@ export function migrateToV1_0_0({ api, helpers }: AutoUpdateMigrationContext): v
   Zones.generate();
   if (!markers.selectAll("*").size()) {
     Markers.generate();
-    turnButtonOn("toggleMarkers");
+    helpers?.turnButtonOn?.("toggleMarkers");
   }
 
   // v1.0 add fogging layer (state focus)
-  fogging = viewbox
+  const fogging = viewbox
     .insert("g", "#ruler")
     .attr("id", "fogging-cont")
     .attr("mask", "url(#fog)")
@@ -87,8 +97,8 @@ export function migrateToV1_0_0({ api, helpers }: AutoUpdateMigrationContext): v
     .attr("height", "100%")
     .attr("fill", "white");
 
-  // v1.0 changes states opacity bask to regions level
-  if (statesBody.attr("opacity")) {
+  // v1.0 changes states opacity back to regions level
+  if (statesBody && statesBody.attr && statesBody.attr("opacity")) {
     regions.attr("opacity", statesBody.attr("opacity"));
     statesBody.attr("opacity", null);
   }
@@ -101,7 +111,9 @@ export function migrateToV1_0_0({ api, helpers }: AutoUpdateMigrationContext): v
   });
 
   // v1.0 added new biome - Wetland
-  biomesData.name.push("Wetland");
-  biomesData.color.push("#0b9131");
-  biomesData.habitability.push(12);
+  if (biomesData) {
+    biomesData.name.push("Wetland");
+    biomesData.color.push("#0b9131");
+    biomesData.habitability.push(12);
+  }
 }
