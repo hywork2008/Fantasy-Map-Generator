@@ -5,15 +5,14 @@ export const getFmg = (): FmgGlobalContext | undefined => (window.fmg as FmgGlob
 
 export const getFmgOptionalService = <K extends keyof FmgGlobalContext>(key: K): NonNullable<FmgGlobalContext[K]> | undefined => {
   const fmg = getFmg();
-  if (fmg && key in fmg && (fmg as unknown as Record<string, unknown>)[key])
-    {
-      const val = (fmg as unknown as Record<string, unknown>)[key] as NonNullable<FmgGlobalContext[K]>;
+  if (fmg && fmg[key] !== undefined && fmg[key] !== null) {
+      const val = fmg[key] as NonNullable<FmgGlobalContext[K]>;
       // If the runtime provided a function (likely a shim stub or constructor),
       // prefer the concrete core instance when available to guarantee the
       // expected instance shape (methods like `generate`). This avoids callers
       // receiving a queued-stub function that doesn't implement the API object.
       const core = getCoreFmgInstances() as unknown as Record<string, unknown> | undefined;
-      if (typeof val === "function" && core && key in core && typeof core[key as string] === "object") {
+      if (typeof val === "function" && core && (key as string) in core && typeof core[key as string] === "object") {
         return core[key as string] as NonNullable<FmgGlobalContext[K]>;
       }
 
@@ -57,7 +56,8 @@ export const normalizeFmgService = <K extends keyof FmgGlobalContext>(
 
     // If value is an object and exposes all expected methods, accept it.
     if (val && typeof val === "object") {
-      const ok = expected.every(m => (val as any)[m] !== undefined);
+      const obj = val as Record<string, unknown>;
+      const ok = expected.every(m => obj[m] !== undefined);
       if (ok) return val;
     }
 
@@ -65,7 +65,10 @@ export const normalizeFmgService = <K extends keyof FmgGlobalContext>(
     if (core && key in core) {
       const coreVal = core[key as string] as NonNullable<FmgGlobalContext[K]>;
       if (expected.length === 0) return coreVal;
-      if (coreVal && typeof coreVal === "object" && expected.every(m => (coreVal as any)[m] !== undefined)) return coreVal;
+      if (coreVal && typeof coreVal === "object") {
+        const coreObj = coreVal as Record<string, unknown>;
+        if (expected.every(m => coreObj[m] !== undefined)) return coreVal;
+      }
     }
 
     // Allow functions when explicitly requested.

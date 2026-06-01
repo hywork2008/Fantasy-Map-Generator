@@ -18,6 +18,7 @@ import {
 import type { PackedGraphFeature } from "@fmg/core/modules/features";
 import type { River } from "@fmg/rivers";
 import type { Emblem } from "@fmg/core/modules/emblem/generator";
+import type { MilitaryRegiment } from "@fmg/core/modules/military-generator";
 import { COA } from "@fmg/core/modules/emblem/generator";
 import { Names } from "@fmg/core/modules/names-generator";
 
@@ -28,6 +29,23 @@ interface Campaign {
   attacker?: number;
   defender?: number;
 }
+// diplomacy: regular states use `DiplomacyRelation[]` (relations to other states)
+// state index 0 stores the chronicle: an array of string arrays (historical entries)
+export type DiplomacyRelation = "Ally" | "Friendly" | "Neutral" | "Suspicion" | "Enemy" | "Unknown" | "Rival" | "Vassal" | "Suzerain" | "x";
+
+interface StateTempPlatoon {
+  cell: number;
+  a: number;
+  t: number;
+  x: number;
+  y: number;
+  u: string;
+  n: number;
+  s: number;
+  type: string;
+}
+
+export type StateTemp = { platoons?: StateTempPlatoon[] } & Record<string, number | undefined>;
 
 export interface State {
   i: number;
@@ -49,13 +67,15 @@ export interface State {
   rural?: number;
   urban?: number;
   campaigns?: Campaign[];
-  diplomacy?: any[]; // diplomacy data
+  // For normal states: array of relation strings. State 0 stores historical entries (string[]).
+  diplomacy?: DiplomacyRelation[];
   formName?: string;
   fullName?: string;
   form?: string;
-  military?: any[]; // military data
+  military?: MilitaryRegiment[]; // military data
   provinces?: number[];
-  temp?: any;
+  // Temporary generation-only data used by generators (e.g. military). Keys are unit names or 'platoons'.
+  temp?: StateTemp;
   alert?: number;
   coaSize?: number;
 }
@@ -351,9 +371,10 @@ class StatesGenerator {
   generateDiplomacy() {
     TIME && console.time("generateDiplomacy");
     const { cells, states } = pack;
-    states[0].diplomacy = [];
     // FIRST STATE IS ALWAYS NEUTRAL and contains the history of diplomacy
-    const chronicle = states[0].diplomacy;
+    // treat runtime states[0].diplomacy as historical entries (string[][]) via cast
+    states[0].diplomacy = [];
+    const chronicle = getChronicle();
     const valid = states.filter(s => s.i && !s.removed); // will filter out neutral as i is 0 => false
 
     const neibs = { Ally: 1, Friendly: 2, Neutral: 1, Suspicion: 10, Rival: 9 }; // relations to neighbors
@@ -414,8 +435,8 @@ class StatesGenerator {
           states[f].area! / states[t].area! > 2
         )
           status = "Vassal";
-        states[f].diplomacy![t] = status === "Vassal" ? "Suzerain" : status;
-        states[t].diplomacy![f] = status;
+        states[f].diplomacy![t] = (status === "Vassal" ? "Suzerain" : status) as DiplomacyRelation;
+        states[t].diplomacy![f] = status as DiplomacyRelation;
       }
     }
 
@@ -528,7 +549,7 @@ class StatesGenerator {
         });
       });
       // TODO: record war in chronicle to keep state interface clean
-      chronicle.push(war as any); // add a record to diplomatical history
+      chronicle.push(war); // add a record to diplomatical history
     }
     TIME && console.timeEnd("generateDiplomacy");
   }
@@ -602,7 +623,7 @@ class StatesGenerator {
       else if (isAnarchy) s.form = "Anarchy";
       else s.form = s.type === "Naval" ? rw(naval) : rw(generic);
 
-      const selectForm = (s: any, tier: number) => {
+      const selectForm = (s: State, tier: number) => {
         const base = pack.cultures[s.culture].base;
 
         if (s.form === "Monarchy") {
@@ -704,3 +725,7 @@ class StatesGenerator {
 }
 
 export const States = new StatesGenerator();
+
+export function getChronicle(): string[][] {
+  return pack.states[0].diplomacy as unknown as string[][];
+}

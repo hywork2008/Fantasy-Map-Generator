@@ -5,6 +5,24 @@
 
 import type { Cells, Grid, Point, Vertices } from "./Grid";
 import type { PackedGraph } from "./PackedGraph";
+import type { Burg } from "@fmg/burgs";
+import type { Marker } from "@fmg/markers";
+import type { MilitaryRegiment } from "@fmg/core/modules/military-generator";
+import type { Route } from "@fmg/core/modules/routes-generator";
+import type { MapData, BurgGroup } from "./index";
+
+// Legacy-ui flow dependency types (used to type `deps` parameters)
+import type { SetSeedDeps, LakesDeps, NearSeaDeps, GenerateDeps, GridState as GenerationGridState, JqueryDialogOptions } from "@fmg/legacy-ui/src/modules/ui/generation-flow";
+import type { ReGraphDeps, RankCellsDeps } from "@fmg/legacy-ui/src/modules/ui/generation-graph";
+import type { DefineMapSizeDeps, CalculateCoordinatesDeps, CalculateTemperaturesDeps, GeneratePrecipitationDeps, MapCoordinates } from "@fmg/legacy-ui/src/modules/ui/generation-climate";
+import type { ShowStatisticsDeps, UndrawDeps, RegenerateDeps } from "@fmg/legacy-ui/src/modules/ui/generation-runtime";
+import type { InitialLoadDeps, GenerateMapOnLoadDeps, FocusDeps, SelectMfcgDeps } from "@fmg/legacy-ui/src/modules/ui/initial-load";
+import type { GenerationModules as UiGenerationModules } from "@fmg/legacy-ui/src/modules/ui/generation-deps";
+import type { ZoomToDeps, ResetZoomDeps, InvokeZoomDeps } from "@fmg/legacy-ui/src/modules/ui/zoom-utils";
+import type { StartupInitDeps } from "@fmg/legacy-ui/src/modules/ui/startup-init";
+import type { LoadingUiDeps } from "@fmg/legacy-ui/src/modules/ui/loading-ui";
+import type { AssistantDeps, TourDeps } from "@fmg/legacy-ui/src/modules/ui/assistant";
+import type { DragUploadDeps } from "@fmg/legacy-ui/src/modules/ui/drag-upload";
 
 type Isoline = {
   polygons?: [number, number][][];
@@ -23,7 +41,7 @@ type ResampleOptions = {
   scale: number;
 };
 type HeightmapGeneratorApi = {
-  setGraph: (graph: unknown) => void;
+  setGraph: (graph: PackedGraph | Grid) => void;
   addHill: (count: string, height: string, rangeX: string, rangeY: string) => void;
   addPit: (count: string, height: string, rangeX: string, rangeY: string) => void;
   addRange: (
@@ -47,9 +65,9 @@ type HeightmapGeneratorApi = {
   smooth: (fr?: number, add?: number) => void;
   mask: (power?: number) => void;
   invert: (count: number, axes: string) => void;
-  generate: (graph: unknown) => Promise<unknown>;
-  fromTemplate: (graph: unknown, id: string) => Uint8Array | null;
-  fromPrecreated: (graph: unknown, id: string) => Promise<Uint8Array>;
+  generate: (graph: PackedGraph | Grid) => Promise<Uint8Array | null>;
+  fromTemplate: (graph: PackedGraph | Grid, id: string) => Uint8Array | null;
+  fromPrecreated: (graph: PackedGraph | Grid, id: string) => Promise<Uint8Array>;
   getHeights: () => Uint8Array | null;
 };
 type ReligionsApi = {
@@ -73,23 +91,23 @@ type ZonesApi = {
   generate: (globalModifier?: number) => void;
 };
 type BurgsApi = {
-  generate: () => unknown;
+  generate: () => Burg[];
   specify: () => void;
   shift: () => void;
   add: (point: [number, number]) => number;
   remove: (burgId: number) => void;
-  changeGroup: (burg: unknown, group?: string | null) => void;
-  defineGroup: (burg: unknown, populations: number[]) => void;
+  changeGroup: (burg: Burg, group?: string | null) => void;
+  defineGroup: (burg: Burg, populations: number[]) => void;
   getType: (cellId: number, port?: number) => string;
-  getDefaultGroups: () => unknown[];
-  getPreview: (burg: unknown) => { link: string | null; preview: string | null };
+  getDefaultGroups: () => BurgGroup[];
+  getPreview: (burg: Burg) => { link: string | null; preview: string | null };
 };
 type MarkersApi = {
   generate: () => void;
   regenerate: () => void;
   getConfig: () => unknown[];
   setConfig: (newConfig: unknown[]) => void;
-  add: (marker: unknown) => unknown;
+  add: (marker: Partial<Marker> | Record<string, unknown>) => Marker | undefined;
   deleteMarker: (markerId: number) => void;
 };
 type ProvincesApi = {
@@ -249,9 +267,9 @@ export interface FmgGlobalContext {
   drawMarker?: (marker: { i: number; icon: string; x?: number; y?: number; dx?: number; dy?: number; px?: number; size?: number; pin?: string; fill?: string; stroke?: string; pinned?: boolean }, rescale?: number) => string;
   getPin?: (shape?: string, fill?: string, stroke?: string) => string;
   drawMilitary?: () => void;
-  drawRegiments?: (regiments: unknown[], stateId: number) => void;
-  drawRegiment?: (reg: unknown, stateId: number) => void;
-  moveRegiment?: (reg: unknown, x: number, y: number) => void;
+  drawRegiments?: (regiments: MilitaryRegiment[], stateId: number) => void;
+  drawRegiment?: (reg: MilitaryRegiment, stateId: number) => void;
+  moveRegiment?: (reg: MilitaryRegiment, x: number, y: number) => void;
   drawReliefIcons?: () => void;
   drawScaleBar?: (scaleBar: unknown, scaleLevel: number) => void;
   fitScaleBar?: (scaleBar: unknown, fullWidth: number, fullHeight: number) => void;
@@ -400,7 +418,7 @@ export interface FmgGlobalContext {
   loadFromDropbox?: () => Promise<void>;
   createSharableDropboxLink?: () => Promise<void>;
   loadMapPrompt?: (blob: Blob) => void;
-  showUploadMessage?: (type: string, mapData: any[], mapVersion: string) => void;
+  showUploadMessage?: (type: string, mapData: MapData[], mapVersion: string) => void;
   loadMapFromURL?: (maplink: string, random?: number) => Promise<void>;
   showUploadErrorMessage?: (error: any, maplink: string, random?: number) => void;
   uploadMap?: (file: Blob | File, callback?: () => void) => void;
@@ -418,35 +436,35 @@ export interface FmgGlobalContext {
   overviewMilitary?: () => void;
   getCellPopulation?: (i: number) => [number, number];
   showInfo?: () => void;
-  setSeedFlow?: (deps: any, precreatedSeed?: string) => void;
-  addLakesInDeepDepressionsFlow?: (deps: any) => void;
-  openNearSeaLakesFlow?: (deps: any) => void;
-  generateMapFlow?: (deps: any, options?: { seed?: string; graph?: unknown }) => Promise<void>;
-  reGraphFlow?: (deps: any) => void;
-  rankCellsFlow?: (deps: any) => void;
-  showStatisticsFlow?: (deps: any) => void;
-  undrawFlow?: (deps: any) => void;
+  setSeedFlow?: (deps: SetSeedDeps, precreatedSeed?: string) => void;
+  addLakesInDeepDepressionsFlow?: (deps: LakesDeps) => void;
+  openNearSeaLakesFlow?: (deps: NearSeaDeps) => void;
+  generateMapFlow?: (deps: GenerateDeps, options?: { seed?: string; graph?: PackedGraph }) => Promise<void>;
+  reGraphFlow?: (deps: ReGraphDeps) => void;
+  rankCellsFlow?: (deps: RankCellsDeps) => void;
+  showStatisticsFlow?: (deps: ShowStatisticsDeps) => void;
+  undrawFlow?: (deps: UndrawDeps) => void;
   generateMapOnLoad?: () => Promise<void>;
   reGraph?: () => void;
   focusOn?: () => void;
   showStatistics?: () => void;
   clearMainTip?: () => void;
-  regenerateMapFlow?: (options: unknown, deps: any) => Promise<void>;
-  createRegenerateMap?: (debounceFn: any, deps: any) => (options: unknown) => void;
-  buildGenerationModules?: (deps: any) => any;
+  regenerateMapFlow?: (options: unknown, deps: RegenerateDeps) => Promise<void>;
+  createRegenerateMap?: (debounceFn: (fn: (options: unknown) => Promise<void>, delay: number) => (options: unknown) => void, deps: RegenerateDeps) => (options: unknown) => void;
+  buildGenerationModules?: (deps: UiGenerationModules) => UiGenerationModules;
   buildGenerateDeps?: <T>(deps: T) => T;
-  zoomToPoint?: (deps: any, x: number, y: number, z?: number, d?: number) => void;
-  resetZoomToInitial?: (deps: any, d?: number) => void;
-  invokeActiveZoomingView?: (deps: any) => void;
-  defineMapSizeFlow?: (deps: any) => void;
-  calculateMapCoordinatesFlow?: (deps: any) => any;
-  calculateTemperaturesFlow?: (deps: any) => void;
-  generatePrecipitationFlow?: (deps: any) => void;
-  checkLoadParametersFlow?: (deps: any) => Promise<void>;
-  generateMapOnLoadFlow?: (deps: any) => Promise<void>;
-  focusOnFlow?: (deps: any) => void;
-  findBurgForMFCGFlow?: (deps: any) => number | undefined;
-  initStartupOnDomContentLoaded?: (deps: any) => void;
+  zoomToPoint?: (deps: ZoomToDeps, x: number, y: number, z?: number, d?: number) => void;
+  resetZoomToInitial?: (deps: ResetZoomDeps, d?: number) => void;
+  invokeActiveZoomingView?: (deps: InvokeZoomDeps) => void;
+  defineMapSizeFlow?: (deps: DefineMapSizeDeps) => void;
+  calculateMapCoordinatesFlow?: (deps: CalculateCoordinatesDeps) => MapCoordinates;
+  calculateTemperaturesFlow?: (deps: CalculateTemperaturesDeps) => void;
+  generatePrecipitationFlow?: (deps: GeneratePrecipitationDeps) => void;
+  checkLoadParametersFlow?: (deps: InitialLoadDeps) => Promise<void>;
+  generateMapOnLoadFlow?: (deps: GenerateMapOnLoadDeps) => Promise<void>;
+  focusOnFlow?: (deps: FocusDeps) => void;
+  findBurgForMFCGFlow?: (deps: SelectMfcgDeps) => void;
+  initStartupOnDomContentLoaded?: (deps: StartupInitDeps) => void;
   buildCheckLoadParametersDeps?: <T>(deps: T) => T;
   buildGenerateMapOnLoadDeps?: <T>(deps: T) => T;
   buildFocusOnDeps?: <T>(deps: T) => T;
@@ -454,12 +472,12 @@ export interface FmgGlobalContext {
   buildZoomToPointDeps?: <T>(deps: T) => T;
   buildResetZoomDeps?: <T>(deps: T) => T;
   buildInvokeActiveZoomingDeps?: <T>(deps: T) => T;
-  hideLoadingUI?: (deps: any) => void;
-  showLoadingUI?: (deps: any) => void;
+  hideLoadingUI?: (deps: LoadingUiDeps) => void;
+  showLoadingUI?: (deps: LoadingUiDeps) => void;
   openMinimapDialog?: () => void;
-  toggleAssistantWidget?: (deps: any) => void;
-  initTourPromptButtonUI?: (deps: any) => void;
-  initDragToUpload?: (deps: any) => void;
+  toggleAssistantWidget?: (deps: AssistantDeps) => void;
+  initTourPromptButtonUI?: (deps: TourDeps) => void;
+  initDragToUpload?: (deps: DragUploadDeps) => void;
   selectStyleElement?: () => void;
   updateElements?: () => void;
 
@@ -495,7 +513,7 @@ export interface FmgGlobalContext {
   invokeActiveZooming?: () => void;
   regenerateMap?: (options?: unknown) => void;
   HeightmapGenerator?: HeightmapGeneratorApi;
-  generateHeightmap?: (graph: unknown) => Promise<unknown>;
+  generateHeightmap?: (graph: PackedGraph) => Promise<Uint8Array | null>;
   Religions?: ReligionsApi;
   generateReligions?: () => void;
   Features?: FeaturesApi;
@@ -506,7 +524,7 @@ export interface FmgGlobalContext {
   Zones?: ZonesApi;
   generateZones?: (globalModifier?: number) => void;
   Burgs?: BurgsApi;
-  generateBurgs?: () => unknown;
+  generateBurgs?: () => Burg[];
   Markers?: MarkersApi;
   generateMarkers?: () => void;
   Provinces?: ProvincesApi;

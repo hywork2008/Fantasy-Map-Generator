@@ -1,7 +1,9 @@
 import { COA } from "@fmg/core/modules/emblem/generator";
 import { COArenderer } from "@fmg/core/modules/emblem/renderer";
 import { Names } from "@fmg/core/modules/names-generator";
-import { States } from "@fmg/states";
+import { States, getChronicle } from "@fmg/states";
+import type { Burg } from "@fmg/burgs";
+import type { State } from "@fmg/states";
 import { applySorting, applySortingByHeader, clearLegend, closeDialogs, drawLegend, getArea, getAreaUnit, fitContent, moveCircle, removeCircle, confirmationDialog } from "@legacy-ui-runtime/modules/ui/editors";
 import { fog, restoreDefaultEvents, unfog } from "@legacy-ui-runtime/modules/ui/editors";
 import { clearMainTip, showMainTip, tip } from "@legacy-ui-runtime/modules/ui/general";
@@ -11,7 +13,7 @@ import { bordersRenderer as drawBorders } from "#renderers/draw-borders";
 import { stateLabelsRenderer as drawStateLabels } from "#renderers/draw-state-labels";
 
 const getBurgs = () => requireFmgApi("Burgs") as {
-  changeGroup: (burg: unknown, group?: string | null) => void;
+  changeGroup: (burg: Burg, group?: string | null) => void;
   getType: (cellId: number, port?: number) => string;
   add: (point: [number, number]) => number;
 };
@@ -676,7 +678,7 @@ function stateRemove(stateId) {
     state.neighbors = state.neighbors.filter(n => n !== stateId);
   });
 
-  pack.states[stateId] = {i: stateId, removed: true} as any;
+  pack.states[stateId] = {i: stateId, removed: true} as State;
 
   debug.selectAll(".highlight").remove();
 
@@ -694,7 +696,7 @@ function toggleLegend() {
     .filter(s => s.i && !s.removed && s.cells)
     .sort((a, b) => b.area - a.area)
     .map(s => [s.i, s.color, s.name]);
-  drawLegend("States", data as any);
+  drawLegend("States", data as [number, string, string][]);
 }
 
 function togglePercentageMode() {
@@ -1285,10 +1287,10 @@ function addState() {
     return relations;
   });
   diplomacy.push("x");
-    states[0].diplomacy.push(([
-    `Independance declaration`,
-    `${name} declared its independance from ${states[oldState].name}`
-    ] as unknown) as any);
+    getChronicle().push([
+      `Independence declaration`,
+      `${name} declared its independence from ${states[oldState].name}`
+    ]);
 
   cells.state[center] = newState;
   cells.province[center] = 0;

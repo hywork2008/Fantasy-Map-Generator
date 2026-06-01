@@ -28,34 +28,38 @@ interface ResamplerProcessOptions {
   scale: number;
 }
 
+type NoteItem = { id: string; name: string; legend: string };
+
 type ParentMapDefinition = {
   grid: Grid;
   pack: PackedGraph;
-  notes: unknown[];
+  notes: NoteItem[];
 };
 
-const requireFmgApi = (key: string): any => {
+const requireFmgApi = (key: string): unknown => {
   // Prefer the concrete core instance when available (avoids relying on
   // runtime shims). Fall back to any runtime `window.fmg` or global var only
   // as a last-resort compatibility measure.
   const core = getCoreFmgInstances() as unknown as Record<string, unknown> | undefined;
-  if (core && key in core) return core[key as string];
+  if (core && core[key] !== undefined) return core[key];
 
   if (typeof window !== "undefined") {
-    const fmg = (window as unknown as { fmg?: FmgGlobalContext }).fmg;
-    if (fmg && (fmg as any)[key] !== undefined) return (fmg as any)[key];
-    if ((window as any)[key] !== undefined) return (window as any)[key];
+    const fmg = (window as Window & { fmg?: FmgGlobalContext }).fmg;
+      if (fmg && (fmg as unknown as Record<string, unknown>)[key] !== undefined)
+        return (fmg as unknown as Record<string, unknown>)[key];
+      if ((window as unknown as Record<string, unknown>)[key] !== undefined)
+        return (window as unknown as Record<string, unknown>)[key];
   }
 
   return undefined;
 };
 
-const getAddLakesInDeepDepressions = () => requireFmgApi("addLakesInDeepDepressions");
-const getOpenNearSeaLakes = () => requireFmgApi("openNearSeaLakes");
-const getCalculateMapCoordinates = () => requireFmgApi("calculateMapCoordinates");
-const getCalculateTemperatures = () => requireFmgApi("calculateTemperatures");
-const getReGraph = () => requireFmgApi("reGraph");
-const getShowStatistics = () => requireFmgApi("showStatistics");
+const getAddLakesInDeepDepressions = () => requireFmgApi("addLakesInDeepDepressions") as (() => void) | undefined;
+const getOpenNearSeaLakes = () => requireFmgApi("openNearSeaLakes") as (() => void) | undefined;
+const getCalculateMapCoordinates = () => requireFmgApi("calculateMapCoordinates") as (() => void) | undefined;
+const getCalculateTemperatures = () => requireFmgApi("calculateTemperatures") as (() => void) | undefined;
+const getReGraph = () => requireFmgApi("reGraph") as (() => void) | undefined;
+const getShowStatistics = () => requireFmgApi("showStatistics") as (() => void) | undefined;
 
 export class Resampler {
   private saveRiversData(parentRivers: PackedGraph["rivers"]) {
@@ -340,7 +344,7 @@ export class Resampler {
 
         const bbox: [number, number, number, number] = [0, 0, graphWidth, graphHeight];
         // @types/lineclip is incorrect - lineclip returns Point[][] (array of line segments), not Point[]
-        const clippedSegments = clipPolyline(points, bbox) as unknown as Point[][];
+        const clippedSegments = clipPolyline(points, bbox) as Point[][];
         if (!clippedSegments[0]?.length) return null;
         const clipped = clippedSegments[0].map(
           ([x, y]) => [rn(x, 2), rn(y, 2), findClosestCell(x, y, Infinity, pack) as number] as [number, number, number]

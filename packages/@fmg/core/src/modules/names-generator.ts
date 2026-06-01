@@ -2,7 +2,7 @@ import { capitalize, isVowel, last, P, ra, rand } from "@fmg/shared";
 import { locked, tip, unlock } from "@legacy-ui-runtime/modules/ui/general";
 
 declare global {
-  var Names: any;
+  var Names: NamesGenerator;
 }
 
 export interface NameBase {
@@ -13,6 +13,7 @@ export interface NameBase {
   d: string; // letters allowed to duplicate
   m: number; // multi-word name rate [deprecated]
   b: string; // base string with names separated by comma
+  [key: string]: unknown;
 }
 
 // Markov chain lookup table: key is a letter (or empty string for word start), value is array of possible next syllables
@@ -23,7 +24,7 @@ class NamesGenerator {
   chains: (MarkovChain | null)[] = []; // Markov chains for namebases
 
   calculateChain(namesList: string): MarkovChain {
-    const chain: MarkovChain = [] as unknown as MarkovChain;
+    const chain: MarkovChain = [] as MarkovChain;
     const availableNames = namesList.split(",");
 
     for (const n of availableNames) {
@@ -54,7 +55,7 @@ class NamesGenerator {
             if (that === "c" && next === "h") continue; // 'ch'
           }
 
-          if (isVowel(that) === (next as unknown as boolean)) break; // two same vowels in a row (original quirky behavior)
+          if (isVowel(that) === Boolean(next)) break; // two same vowels in a row (original quirky behavior)
           if (v && isVowel(name[c + 2])) break; // syllable has vowel and additional vowel is expected soon
         }
 

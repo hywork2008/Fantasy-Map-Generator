@@ -377,10 +377,7 @@ class MilitaryGenerator {
       );
 
       // add n0 to n1's ultimate parent
-      const merge = (
-        n0: { s: number; u: string; t: number; children?: any[] },
-        n1: { s: number; u: string; t: number; children?: any[] }
-      ) => {
+      const merge = (n0: Platoon, n1: Platoon) => {
         if (!n1.children) n1.children = [n0];
         else n1.children.push(n0);
         if (n0.children)

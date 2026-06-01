@@ -1,5 +1,5 @@
 import { closeDialogs } from "./editors";
-type DragUploadDeps = {
+export type DragUploadDeps = {
   document: Document;
   ensureEl: (id: string) => HTMLElement;
   alertMessage: HTMLElement;

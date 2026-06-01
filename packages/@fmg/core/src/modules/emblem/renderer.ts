@@ -187,8 +187,8 @@ class EmblemRenderer {
       const tertiary = this.clr(tertiaryTincture || tincture);
       const stroke = charge.stroke || "#000";
 
-      const chargePositions = [...new Set(charge.p)].filter(
-        position => positions[position as unknown as keyof typeof positions]
+      const chargePositions = [...new Set(charge.p)].filter(position =>
+        positions[position as keyof typeof positions]
       ); // filter out invalid positions
 
       let svg = `<g fill="${primary}" style="--secondary: ${secondary}; --tertiary: ${tertiary}" stroke="${stroke}">`;

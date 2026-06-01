@@ -1,14 +1,14 @@
 import type { GenerationModules } from "./generation-deps";
 
-type EnsureInputElement = HTMLInputElement & {
+export type EnsureInputElement = HTMLInputElement & {
   value: string;
 };
 
-type SeedHistoryEntry = {
+export type SeedHistoryEntry = {
   created?: number;
 };
 
-type SetSeedDeps = {
+export type SetSeedDeps = {
   mapHistory: SeedHistoryEntry[] | unknown[];
   locationHref: string;
   generateSeed: () => string;
@@ -33,7 +33,7 @@ export function setSeedFlow({ mapHistory, locationHref, generateSeed, ensureEl, 
   return seed;
 }
 
-type LakesDeps = {
+export type LakesDeps = {
   TIME: boolean;
   ensureEl: (id: string) => EnsureInputElement;
   grid: unknown;
@@ -42,13 +42,13 @@ type LakesDeps = {
   };
 };
 
-type LakeFeature = {
+export type LakeFeature = {
   type: string;
   land: boolean;
   border: boolean;
 };
 
-type LakeGrid = {
+export type LakeGrid = {
   cells: {
     i: number[];
     c: number[][];
@@ -120,7 +120,7 @@ export function addLakesInDeepDepressionsFlow({ TIME, ensureEl, grid, d3 }: Lake
   TIME && console.timeEnd("addLakesInDeepDepressions");
 }
 
-type NearSeaDeps = {
+export type NearSeaDeps = {
   ensureEl: (id: string) => EnsureInputElement;
   grid: unknown;
   TIME: boolean;
@@ -169,7 +169,7 @@ export function openNearSeaLakesFlow({ ensureEl, grid, TIME }: NearSeaDeps) {
   TIME && console.timeEnd("openLakes");
 }
 
-type GenerateDeps = {
+export type GenerateDeps = {
   INFO: boolean;
   WARN: boolean;
   ERROR: boolean;
@@ -208,17 +208,17 @@ type GenerateDeps = {
   generationModules: GenerationModules;
 };
 
-type GridState = {
+export type GridState = {
   cells: {
     h?: unknown;
   } & Record<string, unknown>;
 } & Record<string, unknown>;
 
-type JqueryDialogHost = {
+export type JqueryDialogHost = {
   dialog: (action: string) => void;
 };
 
-type JqueryDialogOptions = {
+export type JqueryDialogOptions = {
   resizable: boolean;
   title: string;
   width: string;

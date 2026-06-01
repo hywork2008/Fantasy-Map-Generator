@@ -319,7 +319,26 @@ export class FeaturesGenerator {
     pack.cells.f = featureIds;
     pack.cells.haven = haven;
     pack.cells.harbor = harbor;
-    pack.features = [0 as unknown as PackedGraphFeature, ...features];
+    pack.features = [
+      {
+        i: 0,
+        type: "ocean",
+        land: false,
+        border: false,
+        cells: 0,
+        firstCell: 0,
+        vertices: [],
+        area: 0,
+        shoreline: [],
+        height: 0,
+        group: "",
+        temp: 0,
+        flux: 0,
+        evaporation: 0,
+        name: ""
+      } as PackedGraphFeature,
+      ...features
+    ];
     TIME && console.timeEnd("markupPack");
   }
 

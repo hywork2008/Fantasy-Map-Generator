@@ -1182,7 +1182,7 @@ export class CulturesGenerator {
     // make sure all bases exist in nameBases
     if (!nameBases.length) {
       ERROR && console.error("Name base is empty, default nameBases will be applied");
-      nameBases = Names.getNameBases() as unknown as typeof nameBases;
+      nameBases = Names.getNameBases();
     }
 
     cultures.forEach((c: Culture) => {

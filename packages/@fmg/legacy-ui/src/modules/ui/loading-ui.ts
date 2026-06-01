@@ -1,4 +1,4 @@
-type D3SelectionLike = {
+export type D3SelectionLike = {
   transition: () => D3TransitionLike;
 };
 
@@ -7,7 +7,7 @@ type D3TransitionLike = {
   style: (name: string, value: string | number) => D3TransitionLike;
 };
 
-type LoadingUiDeps = {
+export type LoadingUiDeps = {
   d3: {
     select: (selector: string) => D3SelectionLike;
   };

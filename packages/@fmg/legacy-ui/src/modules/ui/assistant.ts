@@ -1,8 +1,8 @@
-type AssistantDeps = {
+export type AssistantDeps = {
   showDataTip: (this: HTMLElement, event: Event) => void;
 };
 
-type TourDeps = {
+export type TourDeps = {
   document: Document;
   localStorage: Storage;
   startTour: () => void;

@@ -21,14 +21,14 @@ type GridForRegraph = {
   boundary: Point[];
 };
 
-type D3Like = {
+export type D3Like = {
   polygonArea: (polygon: [number, number][]) => number;
   median: (values: number[]) => number | undefined;
   max: (values: ArrayLike<number>) => number;
   mean: (values: ArrayLike<number>) => number;
 };
 
-type ReGraphDeps = {
+export type ReGraphDeps = {
   TIME: boolean;
   grid: GridForRegraph;
   pack: PackedGraph;
@@ -104,7 +104,7 @@ export function reGraphFlow({
   TIME && console.timeEnd("reGraph");
 }
 
-type RankCellsDeps = {
+export type RankCellsDeps = {
   TIME: boolean;
   pack: PackedGraph;
   biomesData: { habitability: ArrayLike<number> };

@@ -20,6 +20,7 @@ type MarkerConfig = {
 };
 
 export interface Marker {
+  [key: string]: unknown;
   i: number;
   type: string;
   icon: string;

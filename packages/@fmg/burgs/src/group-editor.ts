@@ -12,7 +12,7 @@ import { tip } from "@legacy-ui-runtime/modules/ui/general";
 
 const getBurgs = () => requireFmgApi("Burgs") as {
   getDefaultGroups: () => BurgGroup[];
-  defineGroup: (burg: unknown, populations: number[]) => void;
+  defineGroup: (burg: Burg, populations: number[]) => void;
 };
 
 const GROUP_NAME_REGEXP = /^[\p{L}_][\p{L}\p{N}_-]*$/u;
@@ -40,10 +40,10 @@ type ParsedInputValue = string | number | boolean | Record<string, boolean> | nu
 
 const parseFeatureMap = (value: string): Record<string, boolean> => {
   try {
-    const parsed = JSON.parse(value) as unknown;
+    const parsed = JSON.parse(value);
     if (!parsed || typeof parsed !== "object") return {};
 
-    return Object.entries(parsed as Record<string, unknown>).reduce((acc: Record<string, boolean>, [key, item]) => {
+    return Object.entries(parsed as Record<string, any>).reduce((acc: Record<string, boolean>, [key, item]) => {
       if (typeof item === "boolean") acc[key] = item;
       return acc;
     }, {});
@@ -365,7 +365,7 @@ class BurgGroupEditor {
     options.burgs.groups = lines.map(line => {
       const lineEl = line as HTMLElement;
       const inputs = lineEl.querySelectorAll("input, select");
-      const group = Array.from(inputs).reduce((obj: Record<string, unknown>, input) => {
+      const group = Array.from(inputs).reduce((obj: Record<string, any>, input) => {
         const formInput = input as HTMLInputElement;
         const value = this.parseInput(formInput);
         if (value !== null) obj[formInput.name] = value;

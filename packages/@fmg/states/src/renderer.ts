@@ -12,7 +12,7 @@ export function drawStatesRenderer() {
   const renderHalo = shapeRendering.value === "geometricPrecision";
   const isolines = getIsolines(pack, cellId => cells.state[cellId], {fill: true, waterGap: true, halo: renderHalo}) as Record<
     string,
-    {fill: unknown; waterGap: unknown; halo: unknown}
+    {fill?: string; waterGap?: string; halo?: string}
   >;
 
   Object.entries(isolines).forEach(([index, {fill, waterGap, halo}]) => {
@@ -35,7 +35,7 @@ export function drawStatesRenderer() {
   TIME && console.timeEnd("drawStates");
 }
 
-function getGappedFillPaths(elementName, fill, waterGap, color, index) {
+function getGappedFillPaths(elementName: string, fill?: string, waterGap?: string, color?: string, index?: string | number) {
   let html = "";
   if (fill) html += /* html */ `<path d="${fill}" fill="${color}" id="${elementName}${index}" />`;
   if (waterGap)

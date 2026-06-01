@@ -1,6 +1,6 @@
 import { drawLayers } from "./layers";
 import { closeDialogs } from "./editors";
-type EnsureElement = HTMLElement & {
+export type EnsureElement = HTMLElement & {
   value?: string;
 };
 
@@ -12,11 +12,11 @@ export type HistoryEntry = {
   created: number;
 };
 
-type GridLike = {
+export type GridLike = {
   points: { length: number };
 };
 
-type PackLike = {
+export type PackLike = {
   cells: { i: { length: number } };
   states: { length: number };
   provinces: { length: number };
@@ -25,7 +25,7 @@ type PackLike = {
   cultures: { length: number };
 };
 
-type ShowStatisticsDeps = {
+export type ShowStatisticsDeps = {
   ensureEl: (id: string) => EnsureElement;
   heightmapTemplates: Record<string, unknown>;
   locked: (settingId: string) => boolean;
@@ -85,7 +85,7 @@ export function showStatisticsFlow({
   window.dispatchEvent(new CustomEvent("map:generated", { detail: { seed, mapId } }));
 }
 
-type UndrawDeps = {
+export type UndrawDeps = {
   viewbox: {
     selectAll: (selector: string) => { remove: () => void };
   };
@@ -106,7 +106,7 @@ export function undrawFlow({ viewbox, ensureEl, resetNotes, unfog }: UndrawDeps)
   if (typeof unfog === "function") unfog();
 }
 
-type RegenerateDeps = {
+export type RegenerateDeps = {
   WARN: boolean;
   ensureEl: (id: string) => HTMLElement;
   showLoading: () => void;

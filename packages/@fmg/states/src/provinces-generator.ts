@@ -72,7 +72,7 @@ export class ProvincesGenerator {
     Math.random = Alea(localSeed);
 
     const { cells, states, burgs } = pack;
-    const provinces: Province[] = [0 as unknown as Province]; // 0 index is reserved for "no province"
+    const provinces: Province[] = [{ i: 0 } as Province]; // 0 index is reserved for "no province"
     const provinceIds = new Uint16Array(cells.i.length);
 
     const isProvinceLocked = (province: Province) =>

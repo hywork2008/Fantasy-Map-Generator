@@ -107,7 +107,7 @@ export class BurgsGenerator {
     TIME && console.time("generateBurgs");
     const { cells } = pack;
 
-    let burgs: Burg[] = [0 as any]; // burgs array
+    let burgs: Burg[] = [{ cell: 0, x: 0, y: 0 } as Burg]; // burgs array placeholder for index 0
     cells.burg = new Uint16Array(cells.i.length);
 
     const populatedCells = cells.i.filter(i => cells.s[i] > 0 && cells.culture[i]);
@@ -140,7 +140,7 @@ export class BurgsGenerator {
           WARN && console.warn("Cannot place capitals with current spacing. Trying again with reduced spacing");
           burgsQuadtree = quadtree();
           i = -1;
-          burgs = [0 as any];
+          burgs = [{ cell: 0, x: 0, y: 0 } as Burg];
           spacing /= 1.2;
         }
       }

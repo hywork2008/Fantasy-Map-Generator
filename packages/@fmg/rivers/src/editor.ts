@@ -1,5 +1,6 @@
 "use strict";
 import { Rivers } from "@fmg/rivers";
+import type { River } from "@fmg/rivers";
 import { layerIsOn, toggleCells, toggleRivers } from "@legacy-ui-runtime/modules/ui/layers";
 import { closeDialogs, unselect } from "@legacy-ui-runtime/modules/ui/editors";
 import { clearMainTip, tip } from "@legacy-ui-runtime/modules/ui/general";
@@ -59,9 +60,9 @@ class RiverEditor {
     ensureEl("riverWidthFactor").on("input", () => this.changeWidthFactor());
   }
 
-  public getRiver() {
+  public getRiver(): River {
     const riverId = +elSelected.attr("id").slice(5);
-    return pack.rivers.find((r: any) => r.i === riverId);
+    return pack.rivers.find((r: River) => r.i === riverId) as River;
   }
 
   public updateRiverData() {
@@ -73,12 +74,12 @@ class RiverEditor {
     const parentSelect = ensureEl("riverMainstem") as HTMLSelectElement;
     parentSelect.options.length = 0;
     const parent = r.parent || r.i;
-    const sortedRivers = pack.rivers.slice().sort((a: any, b: any) => (a.name > b.name ? 1 : -1));
-    sortedRivers.forEach((river: any) => {
+    const sortedRivers = pack.rivers.slice().sort((a: River, b: River) => (a.name > b.name ? 1 : -1));
+    sortedRivers.forEach((river: River) => {
       const opt = new Option(river.name, String(river.i), false, river.i === parent);
       parentSelect.options.add(opt);
     });
-    (ensureEl("riverBasin") as HTMLInputElement).value = pack.rivers.find((river: any) => river.i === r.basin).name;
+    (ensureEl("riverBasin") as HTMLInputElement).value = pack.rivers.find((river: River) => river.i === r.basin)!.name;
 
     (ensureEl("riverDischarge") as HTMLInputElement).value = r.discharge + " m³/s";
     (ensureEl("riverSourceWidth") as HTMLInputElement).value = String(r.sourceWidth);
@@ -88,14 +89,19 @@ class RiverEditor {
     this.updateRiverWidth(r);
   }
 
-  private updateRiverLength(river: any) {
+  private updateRiverLength(river: River) {
     river.length = rn((elSelected.node() as SVGPathElement).getTotalLength() / 2, 2);
     const lengthUI = `${rn(river.length * distanceScale)} ${distanceUnitInput.value}`;
     (ensureEl("riverLength") as HTMLInputElement).value = lengthUI;
   }
 
-  private updateRiverWidth(river: any) {
-    const {cells, discharge, widthFactor, sourceWidth} = river;
+  private updateRiverWidth(river: River) {
+    const {cells, discharge, widthFactor, sourceWidth} = river as {
+      cells: number[];
+      discharge: number;
+      widthFactor: number;
+      sourceWidth: number;
+    };
     const meanderedPoints = Rivers.addMeandering(cells);
     river.width = Rivers.getWidth(
       Rivers.getOffset({
@@ -110,15 +116,15 @@ class RiverEditor {
     (ensureEl("riverWidth") as HTMLInputElement).value = width;
   }
 
-  public drawControlPoints(points: any[]) {
+  public drawControlPoints(points: number[][]) {
     const self = this;
     debug
       .select("#controlPoints")
       .selectAll("circle")
       .data(points)
       .join("circle")
-      .attr("cx", (d: any) => d[0])
-      .attr("cy", (d: any) => d[1])
+      .attr("cx", (d: number[]) => d[0])
+      .attr("cy", (d: number[]) => d[1])
       .attr("r", 0.6)
       .call(d3.drag().on("start", () => self.dragControlPoint()))
       .on("click", function (this: SVGCircleElement) {
@@ -128,14 +134,14 @@ class RiverEditor {
       });
   }
 
-  public drawCells(cells: any[]) {
-    const validCells = [...new Set(cells)].filter((i: any) => pack.cells.i[i]);
+  public drawCells(cells: number[]) {
+    const validCells = [...new Set(cells)].filter((i: number) => pack.cells.i[i]);
     debug
       .select("#controlCells")
       .selectAll("polygon")
       .data(validCells)
       .join("polygon")
-      .attr("points", (d: any) => getPackPolygon(d));
+      .attr("points", (d: number) => getPackPolygon(d));
   }
 
   private dragControlPoint() {
@@ -152,7 +158,7 @@ class RiverEditor {
       movedToCell = initCell !== currentCell ? currentCell : null;
       this.setAttribute("cx", String(x));
       this.setAttribute("cy", String(y));
-      (this as any).__data__ = [rn(x, 1), rn(y, 1)];
+      (this as unknown as { __data__?: [number, number] }).__data__ = [rn(x, 1), rn(y, 1)];
       riverEditorSelf.redrawRiver();
       riverEditorSelf.drawCells(river.cells);
     });
@@ -190,7 +196,7 @@ class RiverEditor {
     const river = this.getRiver();
     if (!river.points) river.points = debug.selectAll("#controlPoints > *").data();
 
-    const index = getSegmentId(river.points, point as any, 2);
+    const index = getSegmentId(river.points, point, 2);
     river.points.splice(index, 0, point);
     this.drawControlPoints(river.points);
     this.redrawRiver();
@@ -217,8 +223,8 @@ class RiverEditor {
   private changeParent() {
     const r = this.getRiver();
     r.parent = +(ensureEl("riverMainstem") as HTMLSelectElement).value;
-    r.basin = pack.rivers.find((river: any) => river.i === r.parent).basin;
-    (ensureEl("riverBasin") as HTMLInputElement).value = pack.rivers.find((river: any) => river.i === r.basin).name;
+    r.basin = pack.rivers.find((river: River) => river.i === r.parent)!.basin;
+    (ensureEl("riverBasin") as HTMLInputElement).value = pack.rivers.find((river: River) => river.i === r.basin)!.name;
   }
 
   private changeSourceWidth() {

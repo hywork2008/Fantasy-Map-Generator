@@ -1,5 +1,6 @@
 "use strict";
 import { Rivers } from "@fmg/rivers";
+import type { River } from "./generator";
 import type { FmgGlobalContext } from "@fmg/types";
 import { layerIsOn, toggleCells, toggleRivers } from "@legacy-ui-runtime/modules/ui/layers";
 import { closeDialogs } from "@legacy-ui-runtime/modules/ui/editors";
@@ -17,8 +18,8 @@ type D3Chain = {
 type RiversCreatorRuntime = {
   customization: number;
   modules: { createRiver?: boolean };
-  pack: {
-    rivers: Array<{ i: number; [key: string]: unknown }>;
+    pack: {
+    rivers: River[];
     cells: {
       fl: ArrayLike<number> & { [index: number]: number };
       f: ArrayLike<number>;
@@ -27,7 +28,7 @@ type RiversCreatorRuntime = {
     };
   };
   viewbox: {
-    style: (name: string, value: string) => { on: (event: string, handler: (this: SVGElement) => void) => unknown };
+    style: (name: string, value: string) => { on: (event: string, handler: (this: SVGElement) => void) => void };
     select: (selector: string) => D3Chain;
   };
   debug: {
@@ -43,7 +44,7 @@ type RiversCreatorRuntime = {
   };
   d3: { mouse: (el: SVGElement) => [number, number] };
   pointsInput: { dataset: { cells: string } };
-  $: (selector: string) => { dialog: (optionsOrAction: unknown) => unknown };
+  $: (selector: string) => { dialog: (optionsOrAction: unknown) => void };
   rn: (value: number, digits?: number) => number;
   last: <T>(values: T[]) => T;
   findCell: (x: number, y: number) => number;
@@ -61,8 +62,8 @@ type RiversCreatorRuntime = {
 
 type RiversCreatorFmgContext = FmgGlobalContext & { createRiver?: () => void };
 
-const riversCreatorWindow = window as Window & { [key: string]: any; fmg?: RiversCreatorFmgContext };
-const asRuntime = <T>(runtimeWindow: Window & { [key: string]: any }) => runtimeWindow as T;
+const riversCreatorWindow = window as unknown as Window & { [key: string]: unknown; fmg?: RiversCreatorFmgContext };
+const asRuntime = <T>(runtimeWindow: Window & { [key: string]: unknown }) => runtimeWindow as T;
 const riversCreatorRuntime = asRuntime<RiversCreatorRuntime>(riversCreatorWindow);
 
 class RiverCreator {

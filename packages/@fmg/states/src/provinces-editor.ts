@@ -1,8 +1,11 @@
 "use strict";
 import { COA } from "@fmg/core/modules/emblem/generator";
+import type { Emblem } from "@fmg/core/modules/emblem/generator";
 import { COArenderer } from "@fmg/core/modules/emblem/renderer";
 import { Names } from "@fmg/core/modules/names-generator";
-import { States } from "@fmg/states";
+import { States, getChronicle } from "@fmg/states";
+import type { Province, State } from "@fmg/states";
+import type { Burg } from "@fmg/burgs";
 import { bordersRenderer as drawBorders } from "#renderers/draw-borders";
 import { stateLabelsRenderer as drawStateLabels } from "#renderers/draw-state-labels";
 import { clearMainTip, showMainTip, tip } from "@legacy-ui-runtime/modules/ui/general";
@@ -10,11 +13,12 @@ import { applySorting, closeDialogs, fitContent, fog, getArea, getAreaUnit, move
 import { drawStates, layerIsOn, toggleBorders, toggleCultures, togglePopulation, toggleProvinces, toggleStates } from "@legacy-ui-runtime/modules/ui/layers";
 import { editStyle } from "@legacy-ui-runtime/modules/ui/style";
 import { requireFmgApi } from "@legacy-ui-runtime/modules/runtime/fmg-api";
+import type { HierarchyRectangularNode } from "d3-hierarchy";
 
 declare const areaUnit: HTMLSelectElement;
 
 const getBurgs = () => requireFmgApi("Burgs") as {
-  changeGroup: (burg: unknown, group?: string | null) => void;
+  changeGroup: (burg: Burg, group?: string | null) => void;
   getType: (cellId: number, port?: number) => string;
 };
 const getProvinces = () => requireFmgApi("Provinces") as {
@@ -96,11 +100,11 @@ class ProvincesEditor {
   private collectStatistics() {
     const {cells, provinces, burgs} = pack;
 
-    provinces.forEach((p: any) => {
+    provinces.forEach((p: Province) => {
       if (!p.i || p.removed) return;
       p.area = p.rural = p.urban = 0;
       p.burgs = [];
-      if ((p.burg && !burgs[p.burg]) || burgs[p.burg].removed) p.burg = 0;
+      if ((p.burg && !burgs[p.burg]) || (burgs[p.burg] && (burgs[p.burg] as Burg).removed)) p.burg = 0;
     });
 
     for (const i of cells.i) {
@@ -114,9 +118,9 @@ class ProvincesEditor {
       provinces[p].burgs.push(cells.burg[i]);
     }
 
-    provinces.forEach((p: any) => {
+    provinces.forEach((p: Province) => {
       if (!p.i || p.removed) return;
-      if (!p.burg && p.burgs.length) p.burg = p.burgs[0];
+      if (!p.burg && p.burgs && p.burgs.length) p.burg = p.burgs[0];
     });
   }
 
@@ -125,16 +129,16 @@ class ProvincesEditor {
     const selectedState = stateFilter.value || "1";
     stateFilter.options.length = 0;
     stateFilter.options.add(new Option(`all`, String(-1), false, selectedState === "-1"));
-    const statesSorted = pack.states.filter((s: any) => s.i && !s.removed).sort((a: any, b: any) => (a.name > b.name ? 1 : -1));
-    statesSorted.forEach((s: any) => stateFilter.options.add(new Option(s.name, String(s.i), false, String(s.i) === selectedState)));
+    const statesSorted = pack.states.filter((s: State) => s.i && !s.removed).sort((a: State, b: State) => (a.name > b.name ? 1 : -1));
+    statesSorted.forEach((s: State) => stateFilter.options.add(new Option(s.name, String(s.i), false, String(s.i) === selectedState)));
   }
 
   private provincesEditorAddLines() {
     const body = this.body;
     const unit = " " + getAreaUnit();
     const selectedState = +(ensureEl("provincesFilterState") as HTMLSelectElement).value;
-    let filtered = pack.provinces.filter((p: any) => p.i && !p.removed);
-    if (selectedState != -1) filtered = filtered.filter((p: any) => p.state === selectedState);
+    let filtered = pack.provinces.filter((p: Province) => p.i && !p.removed) as Province[];
+    if (selectedState != -1) filtered = filtered.filter((p: Province) => p.state === selectedState) as Province[];
     body.innerHTML = "";
 
     let lines = "";
@@ -261,7 +265,7 @@ class ProvincesEditor {
     const p = +(el.parentNode as HTMLElement).dataset.id!;
 
     const callback = (newFill: string) => {
-      (el as any).fill = newFill;
+      (el as HTMLElement & { fill?: string }).fill = newFill;
       pack.provinces[p].color = newFill;
       const g = provs.select("#provincesBody");
       g.select("#province" + p).attr("fill", newFill);
@@ -334,7 +338,7 @@ class ProvincesEditor {
         cells.state[i] = newStateId;
       });
 
-    const diplomacy = states.map((s: any) => {
+    const diplomacy = states.map((s: State) => {
       if (!s.i || s.removed) return "x";
       let relations = states[oldStateId].diplomacy[s.i];
       if (s.i === oldStateId) relations = "Enemy";
@@ -349,10 +353,10 @@ class ProvincesEditor {
       return relations;
     });
     diplomacy.push("x");
-    states[0].diplomacy.push([
-      `Independance declaration`,
-      `${name} declared its independance from ${states[oldStateId].name}`
-    ]);
+      getChronicle().push([
+        `Independence declaration`,
+        `${name} declared its independence from ${states[oldStateId].name}`
+      ]);
 
     states.push({
       i: newStateId,
@@ -581,7 +585,7 @@ class ProvincesEditor {
       }
     }
 
-    function applyNameChange(p: any) {
+    function applyNameChange(p: Province) {
       p.name = (ensureEl("provinceNameEditorShort") as HTMLInputElement).value;
       p.formName = (ensureEl("provinceNameEditorSelectForm") as HTMLSelectElement).value;
       p.fullName = (ensureEl("provinceNameEditorFull") as HTMLInputElement).value;
@@ -616,11 +620,11 @@ class ProvincesEditor {
   }
 
   private showChart() {
-    const getColor = (s: any) => (!s.i || s.removed || s.color[0] !== "#" ? "#666" : d3.color(s.color).darker());
-    const states = pack.states.map((s: any) => ({id: s.i, state: s.i ? 0 : null, color: getColor(s)}));
+    const getColor = (s: State) => (!s.i || s.removed || s.color[0] !== "#" ? "#666" : d3.color(s.color).darker());
+    const states = pack.states.map((s: State) => ({id: s.i, state: s.i ? 0 : null, color: getColor(s)}));
     const provinces = pack.provinces
-      .filter((p: any) => p.i && !p.removed)
-      .map((p: any) => ({
+      .filter((p: Province) => p.i && !p.removed)
+      .map((p: Province) => ({
         id: p.i + states.length - 1,
         i: p.i,
         state: p.state,
@@ -632,10 +636,21 @@ class ProvincesEditor {
         rural: p.rural
       }));
     const data = states.concat(provinces);
+    type ChartDatum = {
+      id: number;
+      i?: number;
+      state?: number | null;
+      color?: string;
+      name?: string;
+      fullName?: string;
+      area?: number;
+      urban?: number;
+      rural?: number;
+    };
     const root = d3
       .stratify()
-      .parentId((d: any) => d.state)(data)
-      .sum((d: any) => d.area);
+      .parentId((d: ChartDatum) => (d.state == null ? null : String(d.state)))(data)
+      .sum((d: ChartDatum) => (d.area as number) || 0);
 
     const width = 300 + 300 * uiSize.value,
       height = 90 + 90 * uiSize.value;
@@ -668,18 +683,18 @@ class ProvincesEditor {
       .data(root.leaves())
       .enter()
       .append("g")
-      .attr("data-id", (d: any) => d.data.i)
-      .on("mouseenter", (d: any) => showInfo(d3.event, d))
-      .on("mouseleave", (d: any) => hideInfo(d));
+      .attr("data-id", (d: HierarchyRectangularNode<ChartDatum>) => String(d.data.i))
+      .on("mouseenter", (d: HierarchyRectangularNode<ChartDatum>) => showInfo(d3.event as Event, d))
+      .on("mouseleave", (d: HierarchyRectangularNode<ChartDatum>) => hideInfo(d));
 
-    const showInfo = (ev: any, d: any) => {
-      d3.select(ev.target).select("rect").classed("selected", 1);
-      const name = d.data.fullName;
-      const state = pack.states[d.data.state].fullName;
+    const showInfo = (ev: Event, d: HierarchyRectangularNode<ChartDatum>) => {
+      d3.select((ev as Event).target as Element).select("rect").classed("selected", 1);
+      const name = d.data.fullName as string;
+      const state = pack.states[d.data.state as number].fullName;
 
       const area = getArea(d.data.area) + " " + getAreaUnit();
-      const rural = rn(d.data.rural * populationRate);
-      const urban = rn(d.data.urban * populationRate * urbanization);
+      const rural = rn((d.data.rural as number) * populationRate);
+      const urban = rn((d.data.urban as number) * populationRate * urbanization);
 
       const treeVal = (provincesTreeType as HTMLSelectElement).value;
       const value =
@@ -695,38 +710,52 @@ class ProvincesEditor {
       this.provinceHighlightOn(ev);
     };
 
-    const hideInfo = (ev: any) => {
-      this.provinceHighlightOff(ev);
+    const hideInfo = (ev: Event | HierarchyRectangularNode<ChartDatum>) => {
+      let targetEl: Element | null = null;
+      if ((ev as Event).target) {
+        targetEl = (ev as Event).target as Element;
+        this.provinceHighlightOff(ev as Event);
+      } else {
+        const nodeArg = ev as HierarchyRectangularNode<ChartDatum>;
+        if (nodeArg && nodeArg.data && nodeArg.data.i != null) {
+          targetEl = graph.select(`[data-id='${nodeArg.data.i}']`).node() as Element | null;
+          if (targetEl) {
+            const synthetic = new Event("synthetic") as Event & { target?: Element };
+            Object.defineProperty(synthetic, "target", { value: targetEl, configurable: true });
+            this.provinceHighlightOff(synthetic as Event);
+          }
+        }
+      }
       if (!ensureEl("provinceInfo")) return;
       provinceInfo.innerHTML = "&#8205;";
-      d3.select(ev.target).select("rect").classed("selected", 0);
+      if (targetEl) d3.select(targetEl).select("rect").classed("selected", 0);
     };
 
     node
       .append("rect")
-      .attr("stroke", (d: any) => d.parent.data.color)
+      .attr("stroke", (d: HierarchyRectangularNode<ChartDatum>) => d.parent?.data.color ?? "#666")
       .attr("stroke-width", 1)
-      .attr("fill", (d: any) => d.data.color)
-      .attr("x", (d: any) => d.x0)
-      .attr("y", (d: any) => d.y0)
-      .attr("width", (d: any) => d.x1 - d.x0)
-      .attr("height", (d: any) => d.y1 - d.y0);
+      .attr("fill", (d: HierarchyRectangularNode<ChartDatum>) => d.data.color ?? "#ccc")
+      .attr("x", (d: HierarchyRectangularNode<ChartDatum>) => Number(d.x0))
+      .attr("y", (d: HierarchyRectangularNode<ChartDatum>) => Number(d.y0))
+      .attr("width", (d: HierarchyRectangularNode<ChartDatum>) => Number(d.x1) - Number(d.x0))
+      .attr("height", (d: HierarchyRectangularNode<ChartDatum>) => Number(d.y1) - Number(d.y0));
 
     node
       .append("text")
       .attr("text-rendering", "optimizeSpeed")
       .attr("dx", ".2em")
       .attr("dy", "1em")
-      .attr("x", (d: any) => d.x0)
-      .attr("y", (d: any) => d.y0);
+      .attr("x", (d: HierarchyRectangularNode<ChartDatum>) => Number(d.x0))
+      .attr("y", (d: HierarchyRectangularNode<ChartDatum>) => Number(d.y0));
 
     function hideNonfittingLabels() {
-      node.select("text").each(function(this: SVGTextElement, d: any) {
-        this.innerHTML = d.data.name;
+      node.select("text").each(function(this: SVGTextElement, d: HierarchyRectangularNode<ChartDatum>) {
+        this.innerHTML = String(d.data.name ?? "");
         let b = this.getBBox();
-        if (b.y + b.height > d.y1 + 1) this.innerHTML = "";
+        if (b.y + b.height > Number(d.y1) + 1) this.innerHTML = "";
 
-        for (let i = 0; i < 15 && b.width > 0 && b.x + b.width > d.x1; i++) {
+        for (let i = 0; i < 15 && b.width > 0 && b.x + b.width > Number(d.x1); i++) {
           if (this.innerHTML.length < 3) {
             this.innerHTML = "";
             break;
@@ -741,12 +770,12 @@ class ProvincesEditor {
       const val = this.value;
       const value =
         val === "area"
-          ? (d: any) => d.area
+          ? (d: ChartDatum) => d.area
           : val === "rural"
-          ? (d: any) => d.rural
+          ? (d: ChartDatum) => d.rural
           : val === "urban"
-          ? (d: any) => d.urban
-          : (d: any) => d.rural + d.urban;
+          ? (d: ChartDatum) => d.urban
+          : (d: ChartDatum) => ((d.rural as number) + (d.urban as number));
 
       root.sum(value);
       node.data(treeLayout(root).leaves());
@@ -755,17 +784,17 @@ class ProvincesEditor {
         .select("rect")
         .transition()
         .duration(1500)
-        .attr("x", (d: any) => d.x0)
-        .attr("y", (d: any) => d.y0)
-        .attr("width", (d: any) => d.x1 - d.x0)
-        .attr("height", (d: any) => d.y1 - d.y0);
+        .attr("x", (d: HierarchyRectangularNode<ChartDatum>) => Number(d.x0))
+        .attr("y", (d: HierarchyRectangularNode<ChartDatum>) => Number(d.y0))
+        .attr("width", (d: HierarchyRectangularNode<ChartDatum>) => Number(d.x1) - Number(d.x0))
+        .attr("height", (d: HierarchyRectangularNode<ChartDatum>) => Number(d.y1) - Number(d.y0));
 
       node
         .select("text")
         .transition()
         .duration(1500)
-        .attr("x", (d: any) => d.x0)
-        .attr("y", (d: any) => d.y0);
+        .attr("x", (d: HierarchyRectangularNode<ChartDatum>) => Number(d.x0))
+        .attr("y", (d: HierarchyRectangularNode<ChartDatum>) => Number(d.y0));
 
       setTimeout(hideNonfittingLabels, 2000);
     }
@@ -901,7 +930,7 @@ class ProvincesEditor {
   }
 
   private dragBrush() {
-    const r = +(provincesBrush as unknown as HTMLInputElement).value;
+    const r = +(provincesBrush as HTMLInputElement).value;
 
     d3.event.on("drag", () => {
       if (!d3.event.dx && !d3.event.dy) return;
@@ -928,9 +957,13 @@ class ProvincesEditor {
       const exists = temp.select("polygon[data-cell='" + i + "']");
       const provinceOld = exists.size() ? +exists.attr("data-province") : pack.cells.province[i];
       if (provinceNew === provinceOld) return;
-      if (i === pack.provinces[provinceOld].center) {
+          if (i === pack.provinces[provinceOld].center) {
         const center = centers.select("polygon[data-center='" + i + "']");
-        if (!center.size()) centers.append("polygon").attr("data-center", i).attr("points", getPackPolygon(i) as any);
+        if (!center.size()) {
+          const ptsRaw = getPackPolygon(i);
+          const points = Array.isArray(ptsRaw) ? (ptsRaw as Array<number[] | string>).map(p => (Array.isArray(p) ? p.join(",") : String(p))).join(" ") : String(ptsRaw);
+          centers.append("polygon").attr("data-center", i).attr("points", points);
+        }
         tip(
           "Province center cannot be assigned to a different region. Please remove the province first",
           false,
@@ -943,9 +976,12 @@ class ProvincesEditor {
         if (pack.cells.province[i] === provinceNew) exists.remove();
         else exists.attr("data-province", provinceNew).attr("fill", fill);
       } else {
-        temp
+          temp
           .append("polygon")
-          .attr("points", getPackPolygon(i) as any)
+          .attr("points", (() => {
+            const ptsRaw = getPackPolygon(i);
+            return Array.isArray(ptsRaw) ? (ptsRaw as Array<number[] | string>).map(p => (Array.isArray(p) ? p.join(",") : String(p))).join(" ") : String(ptsRaw);
+          })())
           .attr("data-cell", i)
           .attr("data-province", provinceNew)
           .attr("fill", fill)
@@ -957,7 +993,7 @@ class ProvincesEditor {
   private moveBrush() {
     showMainTip();
     const point = d3.mouse(viewbox.node());
-    const radius = +(provincesBrush as unknown as HTMLInputElement).value;
+    const radius = +(provincesBrush as HTMLInputElement).value;
     moveCircle(point[0], point[1], radius);
   }
 
@@ -965,9 +1001,9 @@ class ProvincesEditor {
     provs
       .select("#temp")
       .selectAll("polygon")
-      .each(function(this: SVGPolygonElement) {
-        const i = +(this as any).dataset.cell;
-        pack.cells.province[i] = +(this as any).dataset.province;
+        .each(function(this: SVGPolygonElement) {
+        const i = +this.getAttribute("data-cell")!;
+        pack.cells.province[i] = +this.getAttribute("data-province")!;
       });
 
     Provinces.getPoles();
@@ -1048,8 +1084,9 @@ class ProvincesEditor {
     const color = stateColor[0] === "#" ? d3.color(d3.interpolate(stateColor, rndColor)(0.2)).hex() : rndColor;
 
     const kinship = burg ? 0.8 : 0.4;
-    const parent = burg ? pack.burgs[burg].coa : pack.states[state].coa;
-    const type = getBurgs().getType(center, (parent as any).port);
+    const parent: Emblem = burg ? pack.burgs[burg].coa : pack.states[state].coa;
+    const port = burg ? pack.burgs[burg].port : undefined;
+    const type = getBurgs().getType(center, port);
     const coa = COA.generate(parent, kinship, P(0.1) ? 0.1 : null, type);
     coa.shield = COA.getShield(c, state);
     COArenderer.add("province", province, coa, point[0], point[1]);
@@ -1059,7 +1096,7 @@ class ProvincesEditor {
     cells.province[center] = province;
     cells.c[center].forEach((c: number) => {
       if (cells.h[c] < 20 || cells.state[c] !== state) return;
-      if (provinces.find((p: any) => !p.removed && p.center === c)) return;
+      if (provinces.find((p: Province) => !p.removed && p.center === c)) return;
       cells.province[c] = province;
     });
 
@@ -1082,7 +1119,7 @@ class ProvincesEditor {
   private recolorProvinces() {
     const state = +(ensureEl("provincesFilterState") as HTMLSelectElement).value;
 
-    pack.provinces.forEach((p: any) => {
+    pack.provinces.forEach((p: Province) => {
       if (!p || p.removed) return;
       if (state !== -1 && p.state !== state) return;
       const stateColor = pack.states[p.state].color;
@@ -1132,9 +1169,9 @@ class ProvincesEditor {
           document.querySelectorAll("[id^='provinceCOA']").forEach((el: Element) => el.remove());
           emblems.select("#provinceEmblems").selectAll("*").remove();
 
-          pack.provinces = [0] as any;
+          pack.provinces = [{ i: 0 } as Province];
           pack.cells.province = new Uint16Array(pack.cells.i.length);
-          pack.states.forEach((s: any) => (s.provinces = []));
+          pack.states.forEach((s: State) => (s.provinces = []));
 
           unfog();
           if (layerIsOn("toggleBorders")) drawBorders();

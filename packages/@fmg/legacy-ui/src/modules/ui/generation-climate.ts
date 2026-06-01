@@ -1,4 +1,4 @@
-type EnsureInputElement = HTMLInputElement & {
+export type EnsureInputElement = HTMLInputElement & {
   value: string;
 };
 
@@ -12,7 +12,7 @@ type MapSizeGrid = {
   features: GridFeature[];
 };
 
-type DefineMapSizeDeps = {
+export type DefineMapSizeDeps = {
   ensureEl: (id: string) => EnsureInputElement;
   grid: unknown;
   gauss: (...args: number[]) => number;
@@ -99,9 +99,9 @@ export function defineMapSizeFlow({
   }
 }
 
-type MapCoordinates = { latT: number; latN: number; latS: number; lonT: number; lonW: number; lonE: number };
+export type MapCoordinates = { latT: number; latN: number; latS: number; lonT: number; lonW: number; lonE: number };
 
-type CalculateCoordinatesDeps = {
+export type CalculateCoordinatesDeps = {
   ensureEl: (id: string) => EnsureInputElement;
   rn: (value: number, digits?: number) => number;
   graphWidth: number;
@@ -133,7 +133,7 @@ export function calculateMapCoordinatesFlow({ ensureEl, rn, graphWidth, graphHei
   return { latT, latN, latS, lonT, lonW, lonE };
 }
 
-type CalculateTemperaturesDeps = {
+export type CalculateTemperaturesDeps = {
   TIME: boolean;
   grid: unknown;
   options: { temperatureEquator: number; temperatureNorthPole: number; temperatureSouthPole: number };
@@ -203,7 +203,7 @@ export function calculateTemperaturesFlow({
   TIME && console.timeEnd("calculateTemperatures");
 }
 
-type GeneratePrecipitationDeps = {
+export type GeneratePrecipitationDeps = {
   TIME: boolean;
   prec: D3NodeLike;
   grid: unknown;
@@ -218,12 +218,12 @@ type GeneratePrecipitationDeps = {
   d3: D3Like;
 };
 
-type D3Like = {
+export type D3Like = {
   range: (start: number, stop: number, step?: number) => number[];
   mean: (values: number[]) => number | undefined;
 };
 
-type D3NodeLike = {
+export type D3NodeLike = {
   selectAll: (selector: string) => { remove: () => void };
   append: (name: string) => D3NodeLike;
   attr: (name: string, value: string | number) => D3NodeLike;

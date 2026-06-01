@@ -1,4 +1,4 @@
-type StartupInitDeps = {
+export type StartupInitDeps = {
   document: Document;
   locationHostname: string;
   alertMessage: HTMLElement;

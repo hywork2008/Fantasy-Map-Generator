@@ -2,6 +2,7 @@ import Alea from "alea";
 import { min } from "d3";
 import { clipPoly, getGridPolygon, getIsolines, lerp, minmax, normalize, P, ra, rand, rn } from "@fmg/shared";
 import { getCoreFmgInstances } from "./initialize-fmg";
+import type { FmgGlobalContext } from "@fmg/types";
 import type { Point } from "./voronoi";
 
 export type Iceberg = {
@@ -120,14 +121,14 @@ class IceGenerator {
     // Prefer calling any core-registered redraw handler; fall back to legacy
     // `window.fmg` UI hooks when present for backward compatibility.
     try {
-      const core = getCoreFmgInstances() as unknown as Record<string, unknown> | undefined;
+      const core = getCoreFmgInstances() as Record<string, unknown> | undefined;
       if (core && typeof core["redrawIceberg"] === "function") {
-        (core["redrawIceberg"] as Function)(id);
+        (core["redrawIceberg"] as (...args: unknown[]) => void)(id);
         return;
       }
     } catch {}
 
-    (window as any).fmg?.redrawIceberg?.(id);
+    (window as Window & { fmg?: FmgGlobalContext }).fmg?.redrawIceberg?.(id);
   }
 
   removeIce(id: number) {
@@ -137,22 +138,22 @@ class IceGenerator {
       pack.ice.splice(index, 1);
       if (type === "glacier") {
         try {
-          const core = getCoreFmgInstances() as unknown as Record<string, unknown> | undefined;
+          const core = getCoreFmgInstances() as Record<string, unknown> | undefined;
           if (core && typeof core["redrawGlacier"] === "function") {
-            (core["redrawGlacier"] as Function)(id);
+            (core["redrawGlacier"] as (...args: unknown[]) => void)(id);
             return;
           }
         } catch {}
-        (window as any).fmg?.redrawGlacier?.(id);
+        (window as Window & { fmg?: FmgGlobalContext }).fmg?.redrawGlacier?.(id);
       } else {
         try {
-          const core = getCoreFmgInstances() as unknown as Record<string, unknown> | undefined;
+          const core = getCoreFmgInstances() as Record<string, unknown> | undefined;
           if (core && typeof core["redrawIceberg"] === "function") {
-            (core["redrawIceberg"] as Function)(id);
+            (core["redrawIceberg"] as (...args: unknown[]) => void)(id);
             return;
           }
         } catch {}
-        (window as any).fmg?.redrawIceberg?.(id);
+        (window as Window & { fmg?: FmgGlobalContext }).fmg?.redrawIceberg?.(id);
       }
     }
   }

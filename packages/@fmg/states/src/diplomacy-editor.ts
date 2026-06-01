@@ -2,7 +2,8 @@ import { COArenderer } from "@fmg/core/modules/emblem/renderer";
 import { applySorting, closeDialogs, fitContent, restoreDefaultEvents } from "@legacy-ui-runtime/modules/ui/editors";
 import { clearMainTip, tip } from "@legacy-ui-runtime/modules/ui/general";
 "use strict";
-import { States } from "@fmg/states";
+import { States, getChronicle } from "@fmg/states";
+import type { State, DiplomacyRelation } from "@fmg/states";
 import { drawStates, layerIsOn, toggleBiomes, toggleBorders, toggleCultures, toggleProvinces, toggleReligions, toggleStates } from "@legacy-ui-runtime/modules/ui/layers";
 import { editStyle } from "@legacy-ui-runtime/modules/ui/style";
 
@@ -46,10 +47,16 @@ const DIPLOMACY_RELATIONS: Record<string, {inText: string; color: string; tip: s
   }
 };
 
+function parseRelation(value: FormDataEntryValue | null): DiplomacyRelation {
+  const s = value == null ? "x" : String(value);
+  if (s === "x" || Object.prototype.hasOwnProperty.call(DIPLOMACY_RELATIONS, s)) return s as DiplomacyRelation;
+  return "x";
+}
+
 class DiplomacyEditor {
   public open() {
     if (customization) return;
-    if (pack.states.filter((s: any) => s.i && !s.removed).length < 2)
+    if (pack.states.filter((s: State) => s.i && !s.removed).length < 2)
       return tip("There should be at least 2 states to edit the diplomacy", false, "error");
 
     closeDialogs("#diplomacyEditor, .stable");
@@ -113,7 +120,7 @@ class DiplomacyEditor {
     const relations = DIPLOMACY_RELATIONS;
     const states = pack.states;
     const selectedLine = body.querySelector("div.Self") as HTMLElement | null;
-    const selectedId = selectedLine ? +selectedLine.dataset.id! : states.find((s: any) => s.i && !s.removed).i;
+    const selectedId = selectedLine ? +selectedLine.dataset.id! : states.find((s: State) => s.i && !s.removed)!.i;
     const selectedName = states[selectedId].name;
 
     COArenderer.trigger("stateCOA" + selectedId, states[selectedId].coa);
@@ -189,7 +196,7 @@ class DiplomacyEditor {
     const body = document.getElementById("diplomacyBodySection")!;
     const relations = DIPLOMACY_RELATIONS;
     const selectedLine = body.querySelector("div.Self") as HTMLElement | null;
-    const sel = selectedLine ? +selectedLine.dataset.id! : pack.states.find((s: any) => s.i && !s.removed).i;
+    const sel = selectedLine ? +selectedLine.dataset.id! : pack.states.find((s: State) => s.i && !s.removed)!.i;
     if (!sel) return;
     if (!layerIsOn("toggleStates")) toggleStates();
 
@@ -241,9 +248,9 @@ class DiplomacyEditor {
       .join("");
 
     const objectsSelector = states
-      .filter((s: any) => s.i && !s.removed && s.i !== subjectId)
+      .filter((s: State) => s.i && !s.removed && s.i !== subjectId)
       .map(
-        (s: any) => /* html */ `
+        (s: State) => /* html */ `
           <div data-tip="${s.fullName}">
             <input id="selectState${s.i}" class="checkbox" type="checkbox" name="objectSelect" value="${s.i}"
             ${s.i === objectId && "checked"} />
@@ -286,11 +293,11 @@ class DiplomacyEditor {
       buttons: {
         Apply: () => {
           const formData = new FormData(ensureEl("relationsForm") as HTMLFormElement);
-          const newRelation = formData.get("relationSelect") as string;
+          const newRelation = parseRelation(formData.get("relationSelect"));
           const objectIds = [...formData.getAll("objectSelect")].map(Number);
 
           for (const oid of objectIds) {
-            this.changeRelation(subjectId, oid, currentRelation, newRelation);
+            this.changeRelation(subjectId, oid, currentRelation as DiplomacyRelation, newRelation);
           }
           $("#alert").dialog("close");
         },
@@ -329,10 +336,10 @@ class DiplomacyEditor {
     updateButtonState();
   }
 
-  private changeRelation(subjectId: number, objectId: number, oldRelation: string, newRelation: string) {
+  private changeRelation(subjectId: number, objectId: number, oldRelation: DiplomacyRelation, newRelation: DiplomacyRelation) {
     if (newRelation === oldRelation) return;
     const states = pack.states;
-    const chronicle = states[0].diplomacy;
+    const chronicle = getChronicle();
 
     const subjectName = states[subjectId].name;
     const objectName = states[objectId].name;
@@ -407,7 +414,7 @@ class DiplomacyEditor {
   }
 
   private showRelationsHistory() {
-    const chronicle = pack.states[0].diplomacy;
+    const chronicle = getChronicle();
 
     let message = /* html */ `<div autocorrect="off" spellcheck="false">`;
     chronicle.forEach((entry: string[], index: number) => {
@@ -420,7 +427,7 @@ class DiplomacyEditor {
     });
 
     if (!chronicle.length) {
-      pack.states[0].diplomacy = [[]];
+      getChronicle().push([]);
       message += /* html */ `<div><div contenteditable="true" data-id="0-0">No historical records</div>&#8205;</div>`;
     }
 
@@ -453,7 +460,8 @@ class DiplomacyEditor {
 
   private changeRelationsHistory(el: HTMLElement) {
     const parts = (el.dataset.id as string).split("-");
-    const group = pack.states[0].diplomacy[+parts[0]];
+    const chronicle2 = getChronicle();
+    const group = chronicle2[+parts[0]];
     if (el.innerHTML === "") {
       group.splice(+parts[1], 1);
       el.remove();
@@ -462,19 +470,19 @@ class DiplomacyEditor {
 
   private showRelationsMatrix() {
     const relations = DIPLOMACY_RELATIONS;
-    const states = pack.states.filter((s: any) => s.i && !s.removed);
-    const valid = states.map((state: any) => state.i);
+    const states: State[] = pack.states.filter((s: State) => s.i && !s.removed);
+    const valid = states.map((state: State) => state.i);
     const diplomacyMatrixBody = document.getElementById("diplomacyMatrixBody")!;
 
     let table = `<table><thead><tr><th data-tip='&#8205;'></th>`;
-    table += states.map((state: any) => `<th data-tip='Relations to ${state.fullName}'>${state.name}</th>`).join("") + `</tr>`;
+    table += states.map((state: State) => `<th data-tip='Relations to ${state.fullName}'>${state.name}</th>`).join("") + `</tr>`;
     table += `<tbody>`;
 
-    states.forEach((state: any) => {
+    states.forEach((state: State) => {
       table +=
         `<tr data-id=${state.i}><th data-tip='Relations of ${state.fullName}'>${state.name}</th>` +
         state.diplomacy
-          .filter((_v: any, i: number) => valid.includes(i))
+          .filter((_v: string, i: number) => valid.includes(i))
           .map((relation: string, index: number) => {
             const relationObj = relations[relation];
             if (!relationObj) return `<td class='${relation}'>${relation}</td>`;
@@ -512,12 +520,12 @@ class DiplomacyEditor {
   }
 
   private downloadDiplomacyData() {
-    const states = pack.states.filter((s: any) => s.i && !s.removed);
-    const valid = states.map((s: any) => s.i);
+    const states: State[] = pack.states.filter((s: State) => s.i && !s.removed);
+    const valid = states.map((s: State) => s.i);
 
-    let data = "," + states.map((s: any) => s.name).join(",") + "\n";
-    states.forEach((s: any) => {
-      const rels = s.diplomacy.filter((_v: any, i: number) => valid.includes(i));
+    let data = "," + states.map((s: State) => s.name).join(",") + "\n";
+    states.forEach((s: State) => {
+      const rels = s.diplomacy.filter((_v: string, i: number) => valid.includes(i));
       data += s.name + "," + rels.join(",") + "\n";
     });
 

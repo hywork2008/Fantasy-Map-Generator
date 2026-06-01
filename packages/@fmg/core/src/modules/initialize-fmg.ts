@@ -64,7 +64,7 @@ export function initializeFmg(): FmgGlobalContext {
     markFeaturesPack: api.Features.markupPack.bind(api.Features),
 
     HeightmapGenerator: api.HeightmapGenerator,
-    generateHeightmap: api.HeightmapGenerator.generate.bind(api.HeightmapGenerator) as (graph: Grid) => Promise<unknown>,
+    generateHeightmap: api.HeightmapGenerator.generate.bind(api.HeightmapGenerator) as (graph: Grid) => Promise<Uint8Array>,
 
     Markers: api.Markers,
     generateMarkers: api.Markers.generate.bind(api.Markers),
@@ -96,7 +96,7 @@ export function initializeFmg(): FmgGlobalContext {
   // If a legacy shim is present, ask it to flush queued calls now that
   // core implementations have been assigned onto `window.fmg`.
   try {
-    const flush = (fmg as any).__flush;
+    const flush = (fmg as { __flush?: () => void }).__flush;
     if (typeof flush === "function") {
       try {
         flush();

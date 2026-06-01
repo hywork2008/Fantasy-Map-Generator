@@ -1,5 +1,6 @@
 import { applySorting, closeDialogs, fitContent, restoreDefaultEvents, confirmationDialog } from "@legacy-ui-runtime/modules/ui/editors";
 import { editBurgGroups } from "./group-editor";
+import type { Burg } from "@fmg/burgs";
 import { clearMainTip, tip } from "@legacy-ui-runtime/modules/ui/general";
 import { layerIsOn, toggleBurgIcons, toggleLabels } from "@legacy-ui-runtime/modules/ui/layers";
 import { requireFmgApi } from "@legacy-ui-runtime/modules/runtime/fmg-api";
@@ -8,7 +9,7 @@ import { requireFmgApi } from "@legacy-ui-runtime/modules/runtime/fmg-api";
 const getBurgs = () => requireFmgApi("Burgs") as {
   remove: (burgId: number) => void;
   add: (point: [number, number]) => number;
-  getPreview: (burg: unknown) => { link: string | null; preview: string | null };
+  getPreview: (burg: Burg) => { link: string | null; preview: string | null };
 };
 
 export function overviewBurgs(settings = {stateId: null, cultureId: null}) {

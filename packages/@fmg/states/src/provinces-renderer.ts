@@ -5,7 +5,7 @@ export function drawProvincesRenderer() {
   const bodyPaths = new Array(provinces.length - 1);
   const isolines = getIsolines(pack, cellId => cells.province[cellId], {fill: true, waterGap: true}) as Record<
     string,
-    {fill: unknown; waterGap: unknown}
+    {fill?: string; waterGap?: string}
   >;
 
   Object.entries(isolines).forEach(([index, {fill, waterGap}]) => {
@@ -29,7 +29,7 @@ export function drawProvincesRenderer() {
   TIME && console.timeEnd("drawProvinces");
 }
 
-function getGappedFillPaths(elementName, fill, waterGap, color, index) {
+function getGappedFillPaths(elementName: string, fill?: string, waterGap?: string, color?: string, index?: string | number) {
   let html = "";
   if (fill) html += /* html */ `<path d="${fill}" fill="${color}" id="${elementName}${index}" />`;
   if (waterGap)

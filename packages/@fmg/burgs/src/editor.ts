@@ -11,13 +11,13 @@ import type { Burg } from "@fmg/burgs";
 import { requireFmgApi } from "@legacy-ui-runtime/modules/runtime/fmg-api";
 
 const getBurgs = () => requireFmgApi("Burgs") as {
-  changeGroup: (burg: unknown, group?: string | null) => void;
-  getPreview: (burg: unknown) => { link: string | null; preview: string | null };
+  changeGroup: (burg: Burg, group?: string | null) => void;
+  getPreview: (burg: Burg) => { link: string | null; preview: string | null };
   remove: (burgId: number) => void;
 };
 
 class BurgEditor {
-  public open(id?: unknown) {
+  public open(id?: number | string) {
     if (customization) return;
     closeDialogs(".stable");
     if (!layerIsOn("toggleBurgIcons")) toggleBurgIcons();
@@ -93,7 +93,7 @@ class BurgEditor {
 
     const cultureSelect = ensureEl("burgCulture") as HTMLSelectElement;
     cultureSelect.options.length = 0;
-    const cultures = pack.cultures.filter((c: unknown) => !(c as {removed?: boolean}).removed) as unknown as {name: string; i: number}[];
+    const cultures = pack.cultures.filter((c: { removed?: boolean }) => !c.removed) as { name: string; i: number }[];
     cultures.forEach((c) => cultureSelect.options.add(new Option(c.name, String(c.i), false, c.i === b.culture)));
 
     const temperature = grid.cells.temp[pack.cells.g[b.cell]];
@@ -338,8 +338,7 @@ class BurgEditor {
     const burg = pack.burgs[id];
     const x = burg.x;
     const y = burg.y;
-    const zoomToGlobal = (window as unknown as {zoomTo?: (x: number, y: number, zoom?: number, duration?: number) => void})
-      .zoomTo;
+    const zoomToGlobal = (window as Window & { zoomTo?: (x: number, y: number, zoom?: number, duration?: number) => void }).zoomTo;
     if (!zoomToGlobal) return tip("Zoom API is not available", false, "error");
     zoomToGlobal(x, y, 8, 2000);
   }
@@ -454,7 +453,7 @@ class BurgEditor {
 const burgEditorController = new BurgEditor();
 const burgEditorSelf = burgEditorController;
 
-export function editBurg(id?: any) {
+export function editBurg(id?: number | string) {
   burgEditorController.open(id);
 }
 
