@@ -59,7 +59,7 @@ class RoutesEditor {
     $("#routeEditor").dialog({
       title: "Edit Route",
       resizable: false,
-      position: {my: "left top", at: "left+10 top+10", of: "#map"},
+      position: { my: "left top", at: "left+10 top+10", of: "#map" },
       close: () => this.closeRouteEditor()
     });
 
@@ -170,6 +170,9 @@ class RoutesEditor {
   }
 
   public redrawRoute(route: any) {
+    if (elSelected && !elSelected.node()?.parentNode) {
+      elSelected = d3.select("#" + elSelected.attr("id"));
+    }
     elSelected.attr("d", Routes.getPath(route));
     this.updateRouteLength(route);
     if ((ensureEl("elevationProfile") as HTMLElement).offsetParent) this.showRouteElevationProfile();
@@ -300,7 +303,7 @@ class RoutesEditor {
       $("#alert").dialog({
         title: "Join routes",
         width: fitContent(),
-        position: {my: "left top", at: "left+10 top+150", of: "#map"},
+        position: { my: "left top", at: "left+10 top+150", of: "#map" },
         buttons: {
           Cancel: () => {
             $("#alert").dialog("close");
@@ -397,7 +400,7 @@ class RoutesEditor {
   }
 
   private editRouteGroupStyle() {
-    const {group} = this.getRoute();
+    const { group } = this.getRoute();
     editStyle("routes", group);
   }
 

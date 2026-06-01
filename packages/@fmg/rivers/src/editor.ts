@@ -32,7 +32,7 @@ class RiverEditor {
     this.updateRiverData();
 
     const river = this.getRiver();
-    const {cells, points} = river;
+    const { cells, points } = river;
     const riverPoints = Rivers.getRiverPoints(cells, points);
     this.drawControlPoints(riverPoints);
     this.drawCells(cells);
@@ -40,7 +40,7 @@ class RiverEditor {
     $("#riverEditor").dialog({
       title: "Edit River",
       resizable: false,
-      position: {my: "left top", at: "left+10 top+10", of: "#map"},
+      position: { my: "left top", at: "left+10 top+10", of: "#map" },
       close: () => this.closeRiverEditor()
     });
 
@@ -97,7 +97,7 @@ class RiverEditor {
   }
 
   private updateRiverWidth(river: River) {
-    const {cells, discharge, widthFactor, sourceWidth} = river as {
+    const { cells, discharge, widthFactor, sourceWidth } = river as {
       cells: number[];
       discharge: number;
       widthFactor: number;
@@ -146,15 +146,15 @@ class RiverEditor {
   }
 
   private dragControlPoint() {
-    const {r, fl} = pack.cells;
+    const { r, fl } = pack.cells;
     const river = this.getRiver();
 
-    const {x: x0, y: y0} = d3.event;
+    const { x: x0, y: y0 } = d3.event;
     const initCell = findCell(x0, y0);
     let movedToCell: number | null = null;
 
     d3.event.on("drag", function (this: SVGCircleElement) {
-      const {x, y} = d3.event;
+      const { x, y } = d3.event;
       const currentCell = findCell(x, y);
       movedToCell = initCell !== currentCell ? currentCell : null;
       this.setAttribute("cx", String(x));
@@ -184,6 +184,9 @@ class RiverEditor {
     lineGen.curve(d3.curveCatmullRom.alpha(0.1));
     const meanderedPoints = Rivers.addMeandering(river.cells, river.points);
     const path = Rivers.getRiverPath(meanderedPoints, river.widthFactor, river.sourceWidth);
+    if (elSelected && !elSelected.node()?.parentNode) {
+      elSelected = d3.select("#" + elSelected.attr("id"));
+    }
     elSelected.attr("d", path);
 
     this.updateRiverLength(river);
