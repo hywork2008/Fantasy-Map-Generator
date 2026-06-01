@@ -116,8 +116,7 @@ function ensureMinimapMarkup() {
 
   getEl<SVGSVGElement>("minimapSurface").addEventListener("click", minimapClickToPan);
   minimapRuntime.updateMinimap = updateMinimap;
-  const minimapFmg = (getFmg() || minimapWindow.fmg) as MinimapFmgContext | undefined;
-  if (minimapFmg) minimapFmg.updateMinimap = updateMinimap;
+  // Registration onto the global FMG context is handled centrally by initializeFmg().
 }
 
 function minimapClickToPan(event: MouseEvent) {

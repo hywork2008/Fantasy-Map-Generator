@@ -162,7 +162,5 @@ function openSubmapTool() {
   }
 }
 
-// Register in window.fmg first, keep window global for legacy compatibility.
-const submapFmg = submapRuntime.fmg as SubmapFmgContext | undefined;
-if (submapFmg) submapFmg.openSubmapTool = openSubmapTool;
-(submapRuntime as Window & {openSubmapTool?: typeof openSubmapTool}).openSubmapTool = openSubmapTool;
+// Registration is performed centrally by `initializeFmg()`; legacy global
+// registrations have been removed from individual modules.

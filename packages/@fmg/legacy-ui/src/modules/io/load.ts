@@ -438,7 +438,7 @@ async function parseLoadedData(data, mapVersion) {
     }
 
     {
-      const fmg = (getFmg() || (window.fmg as LoadFmgContext | undefined)) as LoadFmgContext | undefined;
+      const fmg = getFmg() as LoadFmgContext | undefined;
       if (!fmg?.reGraph) throw new ReferenceError("fmg.reGraph is not defined");
       fmg.reGraph();
       getFeatures().markupPack();
@@ -798,7 +798,7 @@ async function parseLoadedData(data, mapVersion) {
     }
 
     {
-      const fmg = (getFmg() || (window.fmg as LoadFmgContext | undefined)) as LoadFmgContext | undefined;
+      const fmg = getFmg() as LoadFmgContext | undefined;
       if (!fmg?.focusOn) throw new ReferenceError("fmg.focusOn is not defined");
       fmg.focusOn(); // based on searchParams focus on point, cell or burg
       fmg.invokeActiveZooming?.();
@@ -811,14 +811,14 @@ async function parseLoadedData(data, mapVersion) {
     }
 
     WARN && console.warn(`TOTAL: ${rn((performance.now() - (uploadMap as any).timeStart) / 1000, 2)}s`);
-    const fmg = (getFmg() || (window.fmg as LoadFmgContext | undefined)) as LoadFmgContext | undefined;
+    const fmg = getFmg() as LoadFmgContext | undefined;
     if (!fmg?.showStatistics) throw new ReferenceError("fmg.showStatistics is not defined");
     fmg.showStatistics();
     INFO && console.groupEnd();
     tip("Map is successfully loaded", true, "success", 7000);
   } catch (error) {
     ERROR && console.error(error);
-    const fmg = (getFmg() || (window.fmg as LoadFmgContext | undefined)) as LoadFmgContext | undefined;
+    const fmg = getFmg() as LoadFmgContext | undefined;
     if (!fmg?.clearMainTip) throw new ReferenceError("fmg.clearMainTip is not defined");
     fmg.clearMainTip();
 

@@ -391,12 +391,14 @@ function getCellsDensityColor(cells) {
 }
 
 // Legacy tool modules (submap / transform) consume these helpers via fmg runtime.
-const fmg = (getFmg() || (window.fmg = {} as FmgGlobalContext)) as FmgGlobalContext & {
+const fmg = getFmg() as (FmgGlobalContext & {
   cellsDensityMap?: typeof cellsDensityMap;
   getCellsDensityColor?: typeof getCellsDensityColor;
-};
-fmg.cellsDensityMap = cellsDensityMap;
-fmg.getCellsDensityColor = getCellsDensityColor;
+}) | undefined;
+if (fmg) {
+  fmg.cellsDensityMap = cellsDensityMap;
+  fmg.getCellsDensityColor = getCellsDensityColor;
+}
 
 function changeCultureSet() {
   const max = culturesSet.selectedOptions[0].dataset.max;

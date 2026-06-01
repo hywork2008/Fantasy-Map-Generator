@@ -268,7 +268,7 @@ import { featuresRenderer, featurePathRenderer } from "#renderers/draw-features"
 import { Names } from "@fmg/core/modules/names-generator";
 import type { FmgGlobalContext } from "@fmg/types";
 
-const legacyCompat = {
+export const legacyCompat = {
   tip,
   showDataTip,
   onMouseMove,
@@ -572,21 +572,5 @@ const legacyCompat = {
   // Phase 5: IIFE globals converted to function-level API exports
 };
 
-// Publish compatibility API on window.fmg only.
-// Root window global publish is intentionally disabled to avoid API drift.
-const fmg = window.fmg || (window.fmg = {} as FmgGlobalContext);
-Object.assign(fmg as FmgGlobalContext & Record<string, unknown>, legacyCompat);
-// If a legacy shim is present, flush queued calls now that compat APIs are assigned.
-try {
-  const flush = (fmg as any).__flush;
-  if (typeof flush === 'function') {
-    try {
-      flush();
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error('Error flushing legacy fmg shim after globals-compat:', err);
-    }
-  }
-} catch (err) {
-  // ignore
-}
+// Note: This module now only exports the legacy compatibility fragment.
+// Registration onto `window.fmg` is performed centrally by `initializeFmg()`.

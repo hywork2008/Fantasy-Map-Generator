@@ -333,7 +333,7 @@ export function toggleBiomes(event?) {
   }
 }
 
-function drawBiomes() {
+export function drawBiomes() {
   drawBiomesRenderer();
 }
 

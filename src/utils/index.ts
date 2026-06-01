@@ -163,13 +163,12 @@ window.getBase64 = getBase64;
 window.openURL = openURL;
 window.wiki = wiki;
 window.link = link;
-if (!window.fmg) window.fmg = {} as FmgGlobalContext;
-const fmgGlobals = window.fmg as FmgGlobalContext & {
-  openURL?: typeof openURL;
-  wiki?: typeof wiki;
-};
-fmgGlobals.openURL = openURL;
-fmgGlobals.wiki = wiki;
+// If a global `fmg` object exists, augment it with a couple of helpers.
+const fmgGlobals = (window as any).fmg as FmgGlobalContext | undefined;
+if (fmgGlobals) {
+  (fmgGlobals as any).openURL = openURL;
+  (fmgGlobals as any).wiki = wiki;
+}
 window.isCtrlClick = isCtrlClick;
 window.generateDate = generateDate;
 window.getLongitude = (x: number, decimals?: number) =>

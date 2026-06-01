@@ -487,14 +487,14 @@ function showLoading() {
 
 function publishLegacyMainGlobals() {
   const legacyGlobals = window as unknown as Record<string, unknown>;
-  const fmg = (getFmg() || (window.fmg = {} as FmgGlobalContext)) as FmgGlobalContext & {
+  const fmg = getFmg() as (FmgGlobalContext & {
     generateMapOnLoad?: () => Promise<void>;
     reGraph?: () => void;
     focusOn?: () => void;
     showStatistics: () => void;
     clearMainTip: () => void;
     fitMapToScreen?: () => void;
-  };
+  }) | undefined;
 
   const defineMutableGlobal = <T>(name: string, getValue: () => T, setValue: (value: T) => void) => {
     Object.defineProperty(window, name, {
@@ -1073,12 +1073,14 @@ function undraw() {
 
 // Register invokeActiveZooming on window.fmg for HTML onclick handlers
 if (typeof window !== "undefined") {
-  const fmg = (getFmg() || (window.fmg = {} as FmgGlobalContext)) as FmgGlobalContext & {
+  const fmg = getFmg() as (FmgGlobalContext & {
     invokeActiveZooming?: () => void;
     regenerateMap?: (options: unknown) => void;
     rankCells?: () => void;
-  };
-  fmg.invokeActiveZooming = invokeActiveZooming;
-  fmg.regenerateMap = regenerateMap;
-  fmg.rankCells = rankCells;
+  }) | undefined;
+  if (fmg) {
+    fmg.invokeActiveZooming = invokeActiveZooming;
+    fmg.regenerateMap = regenerateMap;
+    fmg.rankCells = rankCells;
+  }
 }

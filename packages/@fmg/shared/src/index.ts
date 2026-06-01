@@ -158,9 +158,8 @@ const fmgGlobal: FmgGlobalContext = {
   FlatQueue: (window as Window & { FlatQueue?: FmgGlobalContext["FlatQueue"] }).FlatQueue
 };
 
-// Register to window.fmg namespace and merge into any existing object
-const fmg = window.fmg || (window.fmg = {} as FmgGlobalContext);
-Object.assign(fmg, fmgGlobal);
+// Export shared FMG fragment for centralized initialization
+export const sharedFmg: Partial<FmgGlobalContext> = fmgGlobal;
 
 const getNormalizedMapCoordinates = (): {
   lonW: number;
@@ -186,8 +185,8 @@ declare global {
   }
 }
 
-// Additional grid-related functions registered on window.fmg only
-Object.assign(fmg as FmgGlobalContext & Record<string, unknown>, {
+// Additional grid-related functions exported as a fragment for centralized registration
+export const sharedGridFmg: Record<string, unknown> = {
   shouldRegenerateGrid: (grid: Grid, expectedSeed: number) =>
     shouldRegenerateGrid(grid, expectedSeed, legacyWindow.graphWidth, legacyWindow.graphHeight),
   generateGrid: () => generateGrid(legacyWindow.seed, legacyWindow.graphWidth, legacyWindow.graphHeight),
@@ -223,7 +222,7 @@ Object.assign(fmg as FmgGlobalContext & Record<string, unknown>, {
   drawRouteConnections: () => drawRouteConnections(legacyWindow.packedGraph),
   drawPoint,
   drawPath
-});
+};
 
 // Polyfill for JSON and Node extensions
 JSON.isValid = isValidJSON;

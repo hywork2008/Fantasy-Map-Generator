@@ -265,7 +265,5 @@ async function openTransformTool() {
   }
 }
 
-// Register in window.fmg first, keep window global for legacy compatibility.
-const transformFmg = (getFmg() || transformWindow.fmg) as TransformFmgContext | undefined;
-if (transformFmg) transformFmg.openTransformTool = openTransformTool;
-(transformWindow as Window & {openTransformTool?: typeof openTransformTool}).openTransformTool = openTransformTool;
+// Registration is performed centrally by `initializeFmg()`; legacy global
+// registrations have been removed from individual modules.

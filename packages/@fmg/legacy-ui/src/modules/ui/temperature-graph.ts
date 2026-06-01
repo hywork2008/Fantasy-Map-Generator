@@ -240,5 +240,3 @@ export function showBurgTemperatureGraph(id: number) {
 }
 
 temperatureGraphRuntime.showBurgTemperatureGraph = showBurgTemperatureGraph;
-const temperatureFmg = (getFmg() || temperatureGraphWindow.fmg) as TemperatureGraphFmgContext | undefined;
-if (temperatureFmg) temperatureFmg.showBurgTemperatureGraph = showBurgTemperatureGraph;

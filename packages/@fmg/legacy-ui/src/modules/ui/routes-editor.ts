@@ -2,7 +2,8 @@
 import { Routes } from "@fmg/core/modules/routes-generator";
 import { closeDialogs, fitContent, unselect, confirmationDialog } from "./editors";
 import { clearMainTip, tip } from "./general";
-import { drawRoutes, layerIsOn, toggleCells, toggleRoutes } from "./layers";
+import { drawRoutes, drawStates, drawProvinces, drawBiomes, drawReligions, drawCultures, layerIsOn, toggleCells, toggleRoutes } from "./layers";
+import { bordersRenderer as drawBorders } from "#renderers/draw-borders";
 import { editNotes } from "./notes-editor";
 import { editRouteGroups } from "./route-group-editor";
 import { editStyle } from "./style";

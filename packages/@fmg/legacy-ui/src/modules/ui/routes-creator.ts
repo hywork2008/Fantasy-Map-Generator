@@ -221,5 +221,3 @@ function createRoute(defaultGroup?: string) {
 }
 
 routesCreatorRuntime.createRoute = createRoute;
-const routesFmg = (getFmg() || routesCreatorWindow.fmg) as RoutesCreatorFmgContext | undefined;
-if (routesFmg) routesFmg.createRoute = createRoute;

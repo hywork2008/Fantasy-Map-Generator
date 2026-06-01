@@ -29,7 +29,8 @@ class HeightmapEditor {
   private layers: string[] = [];
 
   public open(options?: EditHeightmapOptions) {
-  const fmg = (getFmg() || (window.fmg = {} as FmgGlobalContext)) as FmgGlobalContext & {edits?: any};
+  const fmg = getFmg() as (FmgGlobalContext & {edits?: any}) | undefined;
+  if (!fmg) throw new Error("FMG is not initialized");
   const HeightmapGenerator = normalizeFmgService("HeightmapGenerator", "generate");
   const Religions = normalizeFmgService("Religions");
   const Features = normalizeFmgService("Features");

@@ -227,5 +227,3 @@ function createRiver() {
 }
 
 riversCreatorRuntime.createRiver = createRiver;
-const riversFmg = riversCreatorWindow.fmg as RiversCreatorFmgContext | undefined;
-if (riversFmg) riversFmg.createRiver = createRiver;

@@ -155,5 +155,3 @@ export function editIce(element: EventTarget | null) {
 }
 
 iceEditorRuntime.editIce = editIce;
-const iceEditorFmg = iceEditorRuntime.fmg as IceEditorFmgContext | undefined;
-if (iceEditorFmg) iceEditorFmg.editIce = editIce;
