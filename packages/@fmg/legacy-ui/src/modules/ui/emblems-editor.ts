@@ -372,15 +372,14 @@ class EmblemsEditor {
       const dataURL = canvas.toDataURL("image/" + format, 0.92);
       link.href = dataURL;
       link.click();
-      window.setTimeout(() => window.URL.revokeObjectURL(dataURL), 6000);
     };
   }
 
   private async getURL(svgEl: HTMLElement, size: number) {
     const serialized = this.getSVG(svgEl, size);
     const blob = new Blob([serialized], {type: "image/svg+xml;charset=utf-8"});
-    const url = window.URL.createObjectURL(blob);
-    window.setTimeout(() => window.URL.revokeObjectURL(url), 6000);
+    const url = URL.createObjectURL(blob);
+    setTimeout(() => URL.revokeObjectURL(url), 6000);
     return url;
   }
 

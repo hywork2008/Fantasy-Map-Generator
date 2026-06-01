@@ -110,11 +110,12 @@ export async function exportToPng() {
     });
 
     link.download = getDownloadName() + ".png";
-    link.href = window.URL.createObjectURL(blob);
+    const objectUrl = URL.createObjectURL(blob);
+    link.href = objectUrl;
     link.click();
-    window.setTimeout(function () {
+    setTimeout(function () {
       canvas.remove();
-      window.URL.revokeObjectURL(link.href);
+      URL.revokeObjectURL(objectUrl);
     }, 1000);
 
     const message = `${link.download} is saved. Open 'Downloads' screen (CTRL + J) to check. You can set image scale in options`;
@@ -157,10 +158,11 @@ export async function exportToJpeg() {
 
     const link = document.createElement("a");
     link.download = getDownloadName() + ".jpeg";
-    link.href = window.URL.createObjectURL(blob);
+    const objectUrl = URL.createObjectURL(blob);
+    link.href = objectUrl;
     link.click();
     tip(`${link.download} is saved. Open "Downloads" screen (CTRL + J) to check`, true, "success", 7000);
-    window.setTimeout(() => window.URL.revokeObjectURL(link.href), 5000);
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 5000);
   } catch (error: unknown) {
     ERROR && console.error(error);
     tip(`JPEG export failed: ${getErrorMessage(error)}`, true, "error", 5000);
@@ -170,7 +172,7 @@ export async function exportToJpeg() {
 }
 
 function ensureJsZipLoaded() {
-  if (window.JSZip) return Promise.resolve();
+  if (typeof (globalThis as any).JSZip !== "undefined") return Promise.resolve();
 
   return new Promise<void>((resolve, reject) => {
     const existingScript = document.querySelector('script[data-lib="jszip"]');
@@ -195,7 +197,7 @@ export async function exportToPngTiles() {
 
   const urlSchema = await getMapURL("tiles", {debug: true, fullMap: true});
   await ensureJsZipLoaded();
-  const zip = new window.JSZip!();
+  const zip = new (globalThis as any).JSZip!();
 
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
@@ -256,13 +258,14 @@ export async function exportToPngTiles() {
     .then(blob => {
       status.innerHTML = "Downloading the archive...";
       const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
+      const objectUrl = URL.createObjectURL(blob);
+      link.href = objectUrl;
       link.download = getDownloadName() + ".zip";
       link.click();
       link.remove();
 
       status.innerHTML = 'Done. Check .zip file in "Downloads" (CTRL + J)';
-      setTimeout(() => URL.revokeObjectURL(link.href), 5000);
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 5000);
     })
     .catch((error: unknown) => {
       ERROR && console.error(error);
@@ -555,9 +558,9 @@ export async function getMapURL(
   const serialized =
     `<?xml version="1.0" encoding="UTF-8" standalone="no"?>` + new XMLSerializer().serializeToString(cloneEl);
   const blob = new Blob([serialized], {type: "image/svg+xml;charset=utf-8"});
-  const url = window.URL.createObjectURL(blob);
-  window.setTimeout(() => window.URL.revokeObjectURL(url), 5000);
-  return url;
+  const objectUrl = URL.createObjectURL(blob);
+  setTimeout(() => URL.revokeObjectURL(objectUrl), 5000);
+  return objectUrl;
 }
 
 // remove hidden g elements and g elements without children to make downloaded svg smaller in size

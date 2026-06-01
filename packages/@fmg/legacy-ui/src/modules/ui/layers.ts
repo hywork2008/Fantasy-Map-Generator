@@ -31,6 +31,7 @@ import {
   drawZonesRenderer
 } from "./layer-renderers";
 import { tip } from "./general";
+import { getFmg } from "../runtime/get-fmg";
 
 /// <reference path="../../types/ui-legacy-globals.d.ts" />
 
@@ -46,7 +47,7 @@ function requestThreeDLayerRefresh() {
 
   function updateThreeDIfAvailable() {
     try {
-      const f = (window as any).fmg;
+      const f = getFmg();
       if (f && typeof f.update3d === "function") return f.update3d();
       const w = (window as any).ThreeD;
       if (w && typeof w.update === "function") return w.update();
@@ -726,7 +727,7 @@ export function toggleEmblems(event?) {
     turnButtonOn("toggleEmblems");
     if (!emblems.selectAll("use").size()) emblemsRenderer();
     $("#emblems").fadeIn();
-    (window as any).fmg?.invokeActiveZooming?.();
+    getFmg()?.invokeActiveZooming?.();
     if (event && isCtrlClick(event)) editStyle("emblems");
   } else {
     if (event && isCtrlClick(event)) return editStyle("emblems");

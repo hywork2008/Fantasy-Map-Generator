@@ -3,6 +3,7 @@ import { Routes } from "@fmg/core/modules/routes-generator";
 import { getIsolines, getVertexPath } from "@fmg/shared/pathUtils";
 import { drawBurgLabelsRenderer } from "@fmg/burgs/renderer";
 import { stateLabelsRenderer } from "#renderers/draw-state-labels";
+import { getFmg } from "../runtime/get-fmg";
 
 export function drawBiomesRenderer() {
   TIME && console.time("drawBiomes");
@@ -257,7 +258,7 @@ export function drawZonesRenderer() {
 export function drawLabelsRenderer() {
   stateLabelsRenderer();
   drawBurgLabelsRenderer();
-  (window as any).fmg?.invokeActiveZooming?.();
+  getFmg()?.invokeActiveZooming?.();
 }
 
 export function drawTextureRenderer() {

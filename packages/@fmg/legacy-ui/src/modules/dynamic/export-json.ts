@@ -83,6 +83,9 @@ type GridState = {
   seed: unknown;
 };
 
+// Legacy UI global elements (declared elsewhere in the runtime)
+declare const areaUnit: HTMLSelectElement;
+
 const tipFn = (window as any).tip as TipFn;
 const closeDialogsFn = (window as any).closeDialogs as CloseDialogsFn;
 const getFileNameFn = (window as any).getFileName as GetFileNameFn;
@@ -112,13 +115,13 @@ export function exportToJson(type: string): void {
 
   const mapData = typeMap[type]();
   const blob = new Blob([mapData], { type: "application/json" });
-  const objectUrl = window.URL.createObjectURL(blob);
+  const objectUrl = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.download = getFileNameFn(type) + ".json";
   link.href = objectUrl;
   link.click();
   tipFn(`${link.download} is saved. Open "Downloads" screen (CTRL + J) to check`, true, "success", 7000);
-  window.URL.revokeObjectURL(objectUrl);
+  URL.revokeObjectURL(objectUrl);
   TIME && console.timeEnd("exportToJson");
 }
 

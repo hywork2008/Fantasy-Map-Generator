@@ -3,12 +3,13 @@
 import type { FmgGlobalContext } from "@fmg/types";
 import { drawLayers } from "./layers";
 import { closeDialogs } from "./editors";
+import { getFmgOptionalService } from "../runtime/get-fmg";
 
-// Lazy-load functions from window.fmg
-const getApplyGraphSize = () => (window.fmg as any)?.applyGraphSize || (window as any).applyGraphSize;
-const getFitMapToScreen = () => (window.fmg as any)?.fitMapToScreen || (window as any).fitMapToScreen;
-const getResetZoomFn = () => (window.fmg as any)?.resetZoom || (window as any).resetZoom;
-const getUndraw = () => (window.fmg as any)?.undraw || (window as any).undraw;
+// Lazy-load functions from window.fmg (prefer core instances via getFmgOptionalService)
+const getApplyGraphSize = () => (getFmgOptionalService as any)("applyGraphSize") || (window as any).applyGraphSize;
+const getFitMapToScreen = () => (getFmgOptionalService as any)("fitMapToScreen") || (window as any).getFitMapToScreen;
+const getResetZoomFn = () => (getFmgOptionalService as any)("resetZoom") || (window as any).resetZoom;
+const getUndraw = () => (getFmgOptionalService as any)("undraw") || (window as any).undraw;
 
 type SubmapFmgContext = FmgGlobalContext & {
   openSubmapTool?: typeof openSubmapTool;

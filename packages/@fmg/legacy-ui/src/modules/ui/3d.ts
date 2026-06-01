@@ -255,13 +255,13 @@ export const ThreeD = (function () {
 
   // download screenshot
   const saveScreenshot = async function () {
-    const URL = Renderer.domElement.toDataURL("image/jpeg");
+    const dataUrl = Renderer.domElement.toDataURL("image/jpeg");
     const link = document.createElement("a");
     link.download = getFileName() + ".jpeg";
-    link.href = URL;
+    link.href = dataUrl;
     link.click();
     tip(`Screenshot is saved. Open "Downloads" screen (CTRL + J) to check`, true, "success", 7000);
-    window.setTimeout(() => window.URL.revokeObjectURL(URL), 5000);
+    // data URLs do not require revocation
   };
 
   const saveOBJ = async function () {
@@ -546,10 +546,10 @@ export const ThreeD = (function () {
       img.onload = function () {
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         canvas.toBlob(blob => {
-          const blobObj = window.URL.createObjectURL(blob);
-          window.setTimeout(() => {
+          const blobObj = URL.createObjectURL(blob);
+          setTimeout(() => {
             canvas.remove();
-            window.URL.revokeObjectURL(blobObj);
+            URL.revokeObjectURL(blobObj);
           }, 100);
           resolve(blobObj);
         });
@@ -679,7 +679,7 @@ export const ThreeD = (function () {
   async function update3dTexture() {
     if (texture) texture.dispose();
     const url = (await createMeshTextureUrl()) as string;
-    window.setTimeout(() => window.URL.revokeObjectURL(url), 4000);
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
     texture = new THREE.TextureLoader().load(url, render);
     material.map = texture;
   }

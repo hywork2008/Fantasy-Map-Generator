@@ -14,6 +14,7 @@ import { changeViewMode } from "./options";
 import { closeDialogs, moveCircle, removeCircle, restoreDefaultEvents } from "./editors";
 import { ThreeD } from "./3d";
 import type { FmgGlobalContext } from "@fmg/types";
+import { getFmg, normalizeFmgService } from "../runtime/get-fmg";
 import { getCurrentPreset, layerIsOn, toggleBorders, toggleHeight, toggleRivers, toggleStates } from "./layers";
 
 type HeightmapEditMode = "erase" | "keep" | "risk";
@@ -28,23 +29,23 @@ class HeightmapEditor {
   private layers: string[] = [];
 
   public open(options?: EditHeightmapOptions) {
-  const fmg = (window.fmg || (window.fmg = {} as FmgGlobalContext)) as FmgGlobalContext & {edits?: any};
-  const HeightmapGenerator = fmg.HeightmapGenerator;
-  const Religions = fmg.Religions;
-  const Features = fmg.Features;
-  const Cultures = fmg.Cultures;
-  const Zones = fmg.Zones;
-  const Burgs = fmg.Burgs;
-  const Markers = fmg.Markers;
-  const Provinces = fmg.Provinces;
-  if (!HeightmapGenerator) throw new Error("window.fmg.HeightmapGenerator is not available");
-  if (!Religions) throw new Error("window.fmg.Religions is not available");
-  if (!Features) throw new Error("window.fmg.Features is not available");
-  if (!Cultures) throw new Error("window.fmg.Cultures is not available");
-  if (!Zones) throw new Error("window.fmg.Zones is not available");
-  if (!Burgs) throw new Error("window.fmg.Burgs is not available");
-  if (!Markers) throw new Error("window.fmg.Markers is not available");
-  if (!Provinces) throw new Error("window.fmg.Provinces is not available");
+  const fmg = (getFmg() || (window.fmg = {} as FmgGlobalContext)) as FmgGlobalContext & {edits?: any};
+  const HeightmapGenerator = normalizeFmgService("HeightmapGenerator", "generate");
+  const Religions = normalizeFmgService("Religions");
+  const Features = normalizeFmgService("Features");
+  const Cultures = normalizeFmgService("Cultures");
+  const Zones = normalizeFmgService("Zones");
+  const Burgs = normalizeFmgService("Burgs", "generate");
+  const Markers = normalizeFmgService("Markers");
+  const Provinces = normalizeFmgService("Provinces");
+  if (!HeightmapGenerator) throw new Error("HeightmapGenerator is not available");
+  if (!Religions) throw new Error("Religions is not available");
+  if (!Features) throw new Error("Features is not available");
+  if (!Cultures) throw new Error("Cultures is not available");
+  if (!Zones) throw new Error("Zones is not available");
+  if (!Burgs) throw new Error("Burgs is not available");
+  if (!Markers) throw new Error("Markers is not available");
+  if (!Provinces) throw new Error("Provinces is not available");
   let edits = (fmg.edits || []) as any;
   if (typeof edits.n !== "number") edits.n = 0;
   fmg.edits = edits;

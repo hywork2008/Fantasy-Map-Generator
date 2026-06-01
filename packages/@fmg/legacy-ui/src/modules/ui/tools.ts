@@ -37,12 +37,13 @@ import { drawCultures, drawPopulation, drawProvinces, drawReligions, drawRivers,
 import { refreshAllEditors } from "./editors";
 import { clearMainTip, tip } from "./general";
 import { requireFmgApi } from "../runtime/fmg-api";
+import { normalizeFmgService, getFmgOptionalService } from "../runtime/get-fmg";
 import { Names } from "@fmg/core/modules/names-generator";
 
 // Lazy-load functions that are only available after full generation
-const getRankCells = () => (window.fmg as any)?.rankCells || (window as any).rankCells;
-const getDrawMarker = () => (window.fmg as any)?.drawMarker || (window as any).drawMarker;
-const getDrawPopulation = () => (window.fmg as any)?.drawPopulation || (window as any).drawPopulation;
+const getRankCells = () => (getFmgOptionalService as any)("rankCells") || (window as any).rankCells;
+const getDrawMarker = () => (getFmgOptionalService as any)("drawMarker") || (window as any).drawMarker;
+const getDrawPopulation = () => (getFmgOptionalService as any)("drawPopulation") || (window as any).drawPopulation;
 
 
 // File-local declarations for legacy globals
@@ -113,13 +114,13 @@ type ToolsProvincesApi = {
   getPoles: () => void;
 };
 
-const Religions = requireFmgApi("Religions");
-const Features = requireFmgApi("Features");
-const Cultures = requireFmgApi("Cultures");
-const Zones = requireFmgApi("Zones");
-const Burgs = requireFmgApi("Burgs") as ToolsBurgsApi;
-const Markers = requireFmgApi("Markers") as ToolsMarkersApi;
-const Provinces = requireFmgApi("Provinces") as ToolsProvincesApi;
+const getReligions = () => normalizeFmgService("Religions", "generate") as any;
+const getFeatures = () => normalizeFmgService("Features", ["markupGrid", "markupPack"]) as any;
+const getCultures = () => normalizeFmgService("Cultures", "generate") as any;
+const getZones = () => normalizeFmgService("Zones", "generate") as any;
+const getBurgs = () => normalizeFmgService("Burgs", "generate") as ToolsBurgsApi;
+const getMarkers = () => normalizeFmgService("Markers", "generate") as ToolsMarkersApi;
+const getProvinces = () => normalizeFmgService("Provinces", "generate") as ToolsProvincesApi;
 declare let markersOverviewRefresh: HTMLElement;
 declare let riversOverviewRefresh: HTMLElement;
 declare let addMarker: HTMLElement;
@@ -264,7 +265,7 @@ function regenerateRoutes() {
 function regenerateRivers() {
   Rivers.generate();
   Rivers.specify();
-  Features.defineGroups();
+  getFeatures().defineGroups();
   Lakes.defineNames();
   if (layerIsOn("toggleRivers")) drawRivers();
 }
@@ -299,8 +300,8 @@ function regenerateStates() {
   States.generateDiplomacy();
   States.defineStateForms();
 
-  Provinces.generate(true);
-  Provinces.getPoles();
+  getProvinces().generate(true);
+  getProvinces().getPoles();
 
   layerIsOn("toggleStates") ? drawStates() : toggleStates();
   layerIsOn("toggleBorders") ? drawBorders() : toggleBorders();
@@ -357,7 +358,7 @@ function recreateStates() {
     if (burg.capital) {
       if (lockedStatesCapitals.includes(burg.i)) continue;
       burg.capital = 0;
-      Burgs.changeGroup(burg);
+      getBurgs().changeGroup(burg);
     }
   }
 
@@ -445,7 +446,7 @@ function recreateStates() {
         burg.capital = 1;
         capital = burg;
         capitalsTree.add([x, y]);
-        Burgs.changeGroup(capital);
+        getBurgs().changeGroup(capital);
         break;
       }
 
@@ -481,8 +482,14 @@ function recreateStates() {
 function regenerateProvinces() {
   if (typeof unfog === "function") unfog();
 
-  Provinces.generate(true, true);
-  Provinces.getPoles();
+  const service = getProvinces();
+  if (!service) {
+    tip("Provinces service is not available", false, "error");
+    return;
+  }
+
+  service.generate(true, true);
+  service.getPoles();
 
   if (layerIsOn("toggleBorders")) drawBorders();
   layerIsOn("toggleProvinces") ? drawProvinces() : toggleProvinces();
@@ -568,24 +575,24 @@ function regenerateBurgs() {
   }
 
   pack.burgs = newBurgs; // assign new burgs array
-  Burgs.shift();
+  getBurgs().shift();
 
   // add a capital at former place for states without added capitals
   states
     .filter(s => s.i && !s.removed && !s.capital)
     .forEach(s => {
       const [x, y] = cells.p[s.center];
-      const burgId = Burgs.add([x, y]);
+      const burgId = getBurgs().add([x, y]);
       s.capital = burgId;
       s.center = pack.burgs[burgId].cell;
 
       const burg = pack.burgs[burgId];
       burg.state = s.i;
       burg.capital = 1;
-      Burgs.changeGroup(burg);
+      getBurgs().changeGroup(burg);
     });
 
-  Burgs.specify();
+  getBurgs().specify();
   regenerateRoutes();
 
   burgIconsRenderer();
@@ -644,7 +651,7 @@ function regenerateEmblems() {
     const nameByBurg = province.burg && province.name.slice(0, 3) === parent.name.slice(0, 3);
     const kinship = dominion ? 0 : nameByBurg ? 0.8 : 0.4;
     const culture = pack.cells.culture[province.center];
-    const type = Burgs.getType(province.center, parent.port);
+    const type = getBurgs().getType(province.center, parent.port);
     province.coa = COA.generate(parent.coa, kinship, dominion ? 1 : 0, type);
     province.coa.shield = COA.getShield(culture, province.state);
   });
@@ -653,15 +660,27 @@ function regenerateEmblems() {
 }
 
 function regenerateReligions() {
-  Religions.generate();
+  const service = getReligions();
+  if (!service) {
+    tip("Religions service is not available", false, "error");
+    return;
+  }
+
+  service.generate();
 
   layerIsOn("toggleReligions") ? drawReligions() : toggleReligions();
   refreshAllEditors();
 }
 
 function regenerateCultures() {
-  Cultures.generate();
-  Cultures.expand();
+  const service = getCultures();
+  if (!service) {
+    tip("Cultures service is not available", false, "error");
+    return;
+  }
+
+  service.generate();
+  if (typeof service.expand === "function") service.expand();
 
   // update culture for states
   pack.states = pack.states.map(state => {
@@ -700,7 +719,7 @@ function regenerateIce() {
 }
 
 function regenerateMarkers() {
-  Markers.regenerate();
+  getMarkers().regenerate();
   turnButtonOn("toggleMarkers");
   markersRenderer();
   if (ensureEl("markersOverviewRefresh").offsetParent) markersOverviewRefresh.click();
@@ -714,7 +733,13 @@ function regenerateZones(event) {
   else addNumberOfZones(gauss(1, 0.5, 0.6, 5, 2));
 
   function addNumberOfZones(number) {
-    Zones.generate(number);
+    const service = getZones();
+    if (!service) {
+      tip("Zones service is not available", false, "error");
+      return;
+    }
+
+    service.generate(number);
     if (ensureEl("zonesEditorRefresh").offsetParent) zonesEditorRefresh.click();
     if (layerIsOn("toggleZones")) drawZones();
   }
@@ -996,10 +1021,10 @@ export function addMarkerOnClick() {
   const selectedMarker = isMarkerSelected ? markers.find(marker => marker.i === +elSelected.attr("id").slice(6)) : null;
 
   const selectedType = ensureEl("addedMarkerType").value;
-  const selectedConfig = Markers.getConfig().find(({type}) => type === selectedType);
+  const selectedConfig = getMarkers().getConfig().find(({type}) => type === selectedType);
 
   const baseMarker = selectedMarker || selectedConfig || {icon: "❓"};
-  const marker = Markers.add({...baseMarker, x, y, cell});
+  const marker = getMarkers().add({...baseMarker, x, y, cell});
 
   if (selectedConfig && selectedConfig.add) {
     selectedConfig.add("marker" + marker.i, cell);
@@ -1021,7 +1046,7 @@ export function configMarkersGeneration() {
   drawConfigTable();
 
   function drawConfigTable() {
-    const config = Markers.getConfig();
+    const config = getMarkers().getConfig();
 
     const headers = /* html */ `<thead style='font-weight:bold'><tr>
       <td data-tip="Marker type name">Type</td>
@@ -1079,13 +1104,13 @@ export function configMarkersGeneration() {
       return {type, icon, multiplier};
     });
 
-    const config = Markers.getConfig();
+    const config = getMarkers().getConfig();
     const newConfig = config.map((markerType, index) => {
       const {type, icon, multiplier} = rowsData[index];
       return {...markerType, type, icon, multiplier};
     });
 
-    Markers.setConfig(newConfig);
+    getMarkers().setConfig(newConfig);
   };
 
   $("#alert").dialog({

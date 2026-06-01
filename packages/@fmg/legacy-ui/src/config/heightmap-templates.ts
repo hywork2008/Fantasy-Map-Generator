@@ -1,6 +1,7 @@
 type HeightmapTemplate = { id: number; name: string; template: string; probability: number };
 
-const heightmapTemplates = ((): Record<string, HeightmapTemplate> => {
+// Expose as `var` so public generated bundle exposes this as a global property
+var heightmapTemplates = ((): Record<string, HeightmapTemplate> => {
   const volcano = `Hill 1 90-100 44-56 40-60
     Multiply 0.8 50-100 0 0
     Range 1.5 30-55 45-55 40-60

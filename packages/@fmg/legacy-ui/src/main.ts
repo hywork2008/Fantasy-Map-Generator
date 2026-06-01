@@ -1,6 +1,19 @@
 // Azgaar (azgaar.fmg@yandex.com). Minsk, 2017-2023. MIT License
 // https://github.com/Azgaar/Fantasy-Map-Generator
 
+// Temporary shim to make `window.fmg` available (queued stubs) during incremental migration.
+import "./modules/runtime/legacy-fmg-shim";
+
+// Ensure core API is initialized as early as possible so UI event handlers
+// don't just queue calls on the shim and become non-responsive.
+import { initializeFmg } from "@fmg/core/modules/initialize-fmg";
+initializeFmg();
+// Ensure core generators register their window.fmg APIs before legacy UI modules
+// Also publish legacy compatibility APIs onto `window.fmg` early so that
+// inline `onclick="window.fmg.*"` handlers and other UI bindings work
+// immediately instead of only queuing calls on the shim.
+import "@legacy-ui-runtime/globals-compat";
+
 // Ensure core generators register their window.fmg APIs before legacy UI modules
 // that call requireFmgApi during module initialization.
 import "@fmg/core/modules/features";
@@ -80,6 +93,9 @@ import { Rivers } from "@fmg/rivers";
 import { Routes } from "@fmg/core/modules/routes-generator";
 import { States } from "@fmg/states";
 import type { FmgGlobalContext, Grid, PackedGraph } from "@fmg/types";
+import { getFmgOptionalService, getFmg } from "./modules/runtime/get-fmg";
+import { getCoreFmgInstances } from "#modules/initialize-fmg";
+import { rn } from "@fmg/shared";
 
 type RuntimeBridge = {
   rn: (value: number, digits?: number) => number;
@@ -144,6 +160,9 @@ type MapCoordinatesLike = {
 const runtime = window as unknown as Window & RuntimeBridge;
 const safeJSON = JSON as SafeJSON;
 const navigatorWithUserAgentData = navigator as NavigatorWithUserAgentData;
+
+// Expose common legacy helpers on globalThis for legacy modules that rely on them
+(globalThis as any).rn = rn;
 
 // set debug options (resolved in globals.d.ts - this file defines actual values)
 const PRODUCTION_VAL = location.hostname && location.hostname !== "localhost" && location.hostname !== "127.0.0.1";
@@ -298,8 +317,18 @@ let customization = 0;
 
 // global options; in v2.0 to be used for all UI settings
 const getDefaultBurgGroups = () => {
-  const fmg = window.fmg as FmgGlobalContext | undefined;
+  const fmg = getFmg();
   if (fmg?.Burgs?.getDefaultGroups) return fmg.Burgs.getDefaultGroups();
+
+  // If window.fmg isn't populated yet due to import/initialization order,
+  // prefer core instances directly to obtain default groups synchronously.
+  try {
+    const core = getCoreFmgInstances();
+    if (core && core.Burgs && typeof core.Burgs.getDefaultGroups === "function") return core.Burgs.getDefaultGroups();
+  } catch (e) {
+    // ignore and fallthrough to empty
+  }
+
   return [];
 };
 
@@ -392,7 +421,7 @@ function zoomRaf() {
     }
 
     if (didPositionChange || didScaleChange) {
-      (window.fmg as (FmgGlobalContext & { updateMinimap?: () => void }) | undefined)?.updateMinimap?.();
+      (getFmg() as FmgGlobalContext & { updateMinimap?: () => void } | undefined)?.updateMinimap?.();
     }
   });
 }
@@ -458,7 +487,7 @@ function showLoading() {
 
 function publishLegacyMainGlobals() {
   const legacyGlobals = window as unknown as Record<string, unknown>;
-  const fmg = (window.fmg || (window.fmg = {} as FmgGlobalContext)) as FmgGlobalContext & {
+  const fmg = (getFmg() || (window.fmg = {} as FmgGlobalContext)) as FmgGlobalContext & {
     generateMapOnLoad?: () => Promise<void>;
     reGraph?: () => void;
     focusOn?: () => void;
@@ -654,7 +683,7 @@ function initTourPromptButton() {
     document,
     localStorage,
     startTour: () => {
-      (window.fmg as (FmgGlobalContext & { startUITour?: () => void }) | undefined)?.startUITour?.();
+      getFmg()?.startUITour?.();
     }
   });
 }
@@ -698,7 +727,7 @@ export function invokeActiveZooming() {
   const currentRuler = mapSvg.select("#ruler");
 
   const renderGroupCOAs = (group: Element) => {
-    const renderer = (window.fmg as FmgGlobalContext | undefined)?.renderGroupCOAs;
+    const renderer = getFmg()?.renderGroupCOAs;
     if (!renderer) return;
     void renderer(group as SVGGElement);
   };
@@ -734,38 +763,50 @@ initDragToUpload({
 });
 
 async function generate(options) {
-  const fmg = window.fmg as FmgGlobalContext | undefined;
-  const Burgs = fmg?.Burgs;
-  const Markers = fmg?.Markers;
-  const Provinces = fmg?.Provinces;
-  if (!Burgs) throw new Error("window.fmg.Burgs is not available");
-  if (!Markers) throw new Error("window.fmg.Markers is not available");
-  if (!Provinces) throw new Error("window.fmg.Provinces is not available");
+  let Burgs: any = getFmgOptionalService("Burgs");
+  const Markers = getFmgOptionalService("Markers");
+  const Provinces = getFmgOptionalService("Provinces");
+  if (!Burgs) throw new Error("Burgs is not available");
+  if (!Markers) throw new Error("Markers is not available");
+  if (!Provinces) throw new Error("Provinces is not available");
+
+  // Normalize Burgs shape: handle several legacy shapes (constructor, stub).
+  // Prefer real core instances when available to guarantee `.generate()`.
+  if (typeof Burgs === "function" || typeof Burgs?.generate === "undefined") {
+    try {
+      const core = getCoreFmgInstances();
+      if (core && core.Burgs) {
+        Burgs = core.Burgs;
+        WARN && console.warn("Burgs: resolved to core instance via getCoreFmgInstances()");
+      }
+    } catch (err) {
+      // last-resort: if it's a callable factory, try calling it
+      if (typeof Burgs === "function") {
+        try {
+          const maybe = Burgs();
+          if (maybe && typeof maybe.generate === "function") Burgs = maybe;
+        } catch (e) {
+          WARN && console.warn("Burgs: unable to resolve instance", e);
+        }
+      }
+    }
+  }
 
   const generationModules = buildGenerationModules({
-    Features:
-      (window.fmg as FmgGlobalContext | undefined)?.Features ||
-      (window as unknown as {Features?: {markupGrid: () => void; markupPack: () => void; defineGroups: () => void}})
-        .Features,
+    Features: getFmgOptionalService("Features") || (window as unknown as {Features?: {markupGrid: () => void; markupPack: () => void; defineGroups: () => void}}).Features,
     Rivers,
     Biomes,
     Ice,
-    Cultures:
-      (window.fmg as FmgGlobalContext | undefined)?.Cultures ||
-      (window as unknown as {Cultures?: {generate: () => void; expand: () => void}}).Cultures,
+    Cultures: getFmgOptionalService("Cultures") || (window as unknown as {Cultures?: {generate: () => void; expand: () => void}}).Cultures,
     Burgs,
     States,
     Routes,
-    Religions:
-      (window.fmg as FmgGlobalContext | undefined)?.Religions ||
-      (window as unknown as {Religions?: {generate: () => void}}).Religions,
+    Religions: getFmgOptionalService("Religions") || (window as unknown as {Religions?: {generate: () => void}}).Religions,
     Provinces,
     Lakes,
     Military,
     Markers,
-    Zones:
-      (window.fmg as FmgGlobalContext | undefined)?.Zones ||
-      (window as unknown as {Zones?: {generate: (globalModifier?: number) => void}}).Zones,
+    Zones: getFmgOptionalService("Zones") || (window as unknown as {Zones?: {generate: (globalModifier?: number) => void}}).Zones,
     Names
   });
 
@@ -787,7 +828,7 @@ async function generate(options) {
     randomizeOptions,
     shouldRegenerateGrid: runtime.shouldRegenerateGrid,
     generateGrid: runtime.generateGrid,
-    HeightmapGenerator: (window.fmg as FmgGlobalContext | undefined)?.HeightmapGenerator || runtime.HeightmapGenerator,
+    HeightmapGenerator: getFmgOptionalService("HeightmapGenerator") || runtime.HeightmapGenerator,
     addLakesInDeepDepressions,
     openNearSeaLakes,
     OceanLayers: drawOceanLayers,
@@ -968,23 +1009,23 @@ function regenerateMap(options: unknown) {
         // runtime.ThreeD (if present) contains live `options` object
         if ((runtime as any).ThreeD && (runtime as any).ThreeD.options) return (runtime as any).ThreeD.options;
         // fallback: window.fmg.get3dOptions() provided by globals-compat
-        const f = (window as any).fmg;
+        const f = getFmg();
         if (f && typeof f.get3dOptions === "function") return f.get3dOptions();
         return {};
       },
       redraw() {
         if ((runtime as any).ThreeD && typeof (runtime as any).ThreeD.redraw === "function") return (runtime as any).ThreeD.redraw();
-        const f = (window as any).fmg;
+        const f = getFmg();
         if (f && typeof f.redraw3d === "function") return f.redraw3d();
       },
       update() {
         if ((runtime as any).ThreeD && typeof (runtime as any).ThreeD.update === "function") return (runtime as any).ThreeD.update();
-        const f = (window as any).fmg;
+        const f = getFmg();
         if (f && typeof f.update3d === "function") return f.update3d();
       },
       stop() {
         if ((runtime as any).ThreeD && typeof (runtime as any).ThreeD.stop === "function") return (runtime as any).ThreeD.stop();
-        const f = (window as any).fmg;
+        const f = getFmg();
         if (f && typeof f.stop3d === "function") return f.stop3d();
       }
     };
@@ -1032,7 +1073,7 @@ function undraw() {
 
 // Register invokeActiveZooming on window.fmg for HTML onclick handlers
 if (typeof window !== "undefined") {
-  const fmg = (window.fmg || (window.fmg = {} as FmgGlobalContext)) as FmgGlobalContext & {
+  const fmg = (getFmg() || (window.fmg = {} as FmgGlobalContext)) as FmgGlobalContext & {
     invokeActiveZooming?: () => void;
     regenerateMap?: (options: unknown) => void;
     rankCells?: () => void;

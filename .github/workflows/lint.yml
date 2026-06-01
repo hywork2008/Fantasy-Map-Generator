@@ -19,5 +19,7 @@ jobs:
         uses: biomejs/setup-biome@v2
         with:
           version: latest
+      - name: Audit global exposure
+        run: node scripts/audit-global-exposure.mjs
       - name: Run Biome
         run: biome ci .

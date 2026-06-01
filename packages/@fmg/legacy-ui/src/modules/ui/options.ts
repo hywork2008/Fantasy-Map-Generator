@@ -13,17 +13,18 @@ import { Names } from "@fmg/core/modules/names-generator";
 import { selectStyleElement } from "./style";
 import { ensureLegacyElement, legacyRuntime } from "../runtime/legacy-runtime";
 import { ThreeD } from "./3d";
+import { getFmgOptionalService, getFmg } from "../runtime/get-fmg";
 
-// Lazy-load Cloud and resetZoom from window.fmg
+// Lazy-load Cloud and resetZoom from window.fmg (prefer normalized/core instances)
 const getThreeD = () => ThreeD;
-const getCloud = () => (window.fmg as any)?.Cloud || (window as any).Cloud;
-const getResetZoom = () => (window.fmg as any)?.resetZoom || (window as any).resetZoom;
+const getCloud = () => (getFmgOptionalService as any)("Cloud") || (window as any).Cloud;
+const getResetZoom = () => (getFmgOptionalService as any)("resetZoom") || (window as any).resetZoom;
 import { requireFmgApi } from "../runtime/fmg-api";
 import type { FmgGlobalContext } from "@fmg/types";
 import { drawStates, toggleLabels } from "./layers";
 /// <reference path="../../types/ui-legacy-globals.d.ts" />
 
-const Cultures = requireFmgApi("Cultures");
+const getCultures = () => requireFmgApi("Cultures");
 
 declare global {
   interface Window {
@@ -390,7 +391,7 @@ function getCellsDensityColor(cells) {
 }
 
 // Legacy tool modules (submap / transform) consume these helpers via fmg runtime.
-const fmg = (window.fmg || (window.fmg = {} as FmgGlobalContext)) as FmgGlobalContext & {
+const fmg = (getFmg() || (window.fmg = {} as FmgGlobalContext)) as FmgGlobalContext & {
   cellsDensityMap?: typeof cellsDensityMap;
   getCellsDensityColor?: typeof getCellsDensityColor;
 };
@@ -410,7 +411,7 @@ function changeEmblemShape(emblemShape) {
 
   const specificShape = ["culture", "state", "random"].includes(emblemShape) ? null : emblemShape;
   if (emblemShape === "random")
-    pack.cultures.filter(c => !c.removed).forEach(c => (c.shield = Cultures.getRandomShield()));
+  pack.cultures.filter(c => !c.removed).forEach(c => (c.shield = getCultures().getRandomShield()));
 
   const rerenderCOA = (id, coa) => {
     const coaEl = ensureEl(id);
@@ -773,10 +774,10 @@ export function regeneratePrompt(options) {
   if (customization)
     return tip("New map cannot be generated when edit mode is active, please exit the mode and retry", false, "error");
 
-  const regenerateMap = requireFmgApi("regenerateMap") as (options: unknown) => void;
+  const getRegenerateMap = () => requireFmgApi("regenerateMap") as (options: unknown) => void;
 
   const workingTime = (Date.now() - last(mapHistory).created) / 60000; // minutes
-  if (workingTime < 1) return regenerateMap(options);
+  if (workingTime < 1) return getRegenerateMap()(options);
 
   alertMessage.innerHTML = /* html */ `Are you sure you want to generate a new map?<br />
     All unsaved changes made to the current map will be lost`;
@@ -789,7 +790,7 @@ export function regeneratePrompt(options) {
       },
       Generate: function () {
         closeDialogs();
-        regenerateMap(options);
+        getRegenerateMap()(options);
       }
     }
   });
@@ -854,7 +855,7 @@ async function showLoadPane() {
 
   // already connected to Dropbox: list saved maps
   const cloud = getCloud();
-  if (cloud?.providers.dropbox.api) {
+  if (cloud?.providers?.dropbox?.api) {
     ensureEl("dropboxConnectButton").style.display = "none";
     ensureEl("loadFromDropboxSelect").style.display = "block";
     const loadFromDropboxButtons = ensureEl("loadFromDropboxButtons");
@@ -891,8 +892,10 @@ async function showLoadPane() {
 export async function connectToDropbox() {
   const cloud = getCloud();
   if (!cloud) return;
-  await cloud.providers.dropbox.initialize();
-  if (cloud.providers.dropbox.api) showLoadPane();
+  if (cloud?.providers?.dropbox?.initialize) {
+    await cloud.providers.dropbox.initialize();
+    if (cloud?.providers?.dropbox?.api) showLoadPane();
+  }
 }
 
 export function loadURL() {

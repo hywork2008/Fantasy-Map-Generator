@@ -13,11 +13,11 @@ import { requireFmgApi } from "@legacy-ui-runtime/modules/runtime/fmg-api";
 
 declare const areaUnit: HTMLSelectElement;
 
-const Burgs = requireFmgApi("Burgs") as {
+const getBurgs = () => requireFmgApi("Burgs") as {
   changeGroup: (burg: unknown, group?: string | null) => void;
   getType: (cellId: number, port?: number) => string;
 };
-const Provinces = requireFmgApi("Provinces") as {
+const getProvinces = () => requireFmgApi("Provinces") as {
   getPoles: () => void;
 };
 
@@ -316,7 +316,7 @@ class ProvincesEditor {
 
     const capital = burgs[burgId];
     capital.capital = 1;
-    Burgs.changeGroup(capital);
+    getBurgs().changeGroup(capital);
 
     province.burgs.forEach((b: number) => (burgs[b].state = newStateId));
 
@@ -1049,7 +1049,7 @@ class ProvincesEditor {
 
     const kinship = burg ? 0.8 : 0.4;
     const parent = burg ? pack.burgs[burg].coa : pack.states[state].coa;
-    const type = Burgs.getType(center, (parent as any).port);
+    const type = getBurgs().getType(center, (parent as any).port);
     const coa = COA.generate(parent, kinship, P(0.1) ? 0.1 : null, type);
     coa.shield = COA.getShield(c, state);
     COArenderer.add("province", province, coa, point[0], point[1]);

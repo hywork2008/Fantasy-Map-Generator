@@ -20,6 +20,7 @@ import { Routes } from "./routes-generator";
 import { States } from "@fmg/states";
 import type { River } from "@fmg/rivers";
 import type { Point } from "./voronoi";
+import { getCoreFmgInstances } from "./initialize-fmg";
 
 interface ResamplerProcessOptions {
   projection: (x: number, y: number) => [number, number];
@@ -33,18 +34,28 @@ type ParentMapDefinition = {
   notes: unknown[];
 };
 
-const requireFmgApi = <K extends keyof FmgGlobalContext>(key: K): NonNullable<FmgGlobalContext[K]> => {
-  const api = (window.fmg as FmgGlobalContext | undefined)?.[key];
-  if (!api) throw new Error(`window.fmg.${String(key)} is not available`);
-  return api as NonNullable<FmgGlobalContext[K]>;
+const requireFmgApi = (key: string): any => {
+  // Prefer the concrete core instance when available (avoids relying on
+  // runtime shims). Fall back to any runtime `window.fmg` or global var only
+  // as a last-resort compatibility measure.
+  const core = getCoreFmgInstances() as unknown as Record<string, unknown> | undefined;
+  if (core && key in core) return core[key as string];
+
+  if (typeof window !== "undefined") {
+    const fmg = (window as unknown as { fmg?: FmgGlobalContext }).fmg;
+    if (fmg && (fmg as any)[key] !== undefined) return (fmg as any)[key];
+    if ((window as any)[key] !== undefined) return (window as any)[key];
+  }
+
+  return undefined;
 };
 
-const getAddLakesInDeepDepressions = () => (window.fmg as any)?.addLakesInDeepDepressions || (window as any).addLakesInDeepDepressions;
-const getOpenNearSeaLakes = () => (window.fmg as any)?.openNearSeaLakes || (window as any).openNearSeaLakes;
-const getCalculateMapCoordinates = () => (window.fmg as any)?.calculateMapCoordinates || (window as any).calculateMapCoordinates;
-const getCalculateTemperatures = () => (window.fmg as any)?.calculateTemperatures || (window as any).calculateTemperatures;
-const getReGraph = () => (window.fmg as any)?.reGraph || (window as any).reGraph;
-const getShowStatistics = () => (window.fmg as any)?.showStatistics || (window as any).showStatistics;
+const getAddLakesInDeepDepressions = () => requireFmgApi("addLakesInDeepDepressions");
+const getOpenNearSeaLakes = () => requireFmgApi("openNearSeaLakes");
+const getCalculateMapCoordinates = () => requireFmgApi("calculateMapCoordinates");
+const getCalculateTemperatures = () => requireFmgApi("calculateTemperatures");
+const getReGraph = () => requireFmgApi("reGraph");
+const getShowStatistics = () => requireFmgApi("showStatistics");
 
 export class Resampler {
   private saveRiversData(parentRivers: PackedGraph["rivers"]) {
@@ -368,8 +379,8 @@ export class Resampler {
       return province;
     });
 
-    const provincesApi = requireFmgApi("Provinces") as { getPoles: () => void };
-    provincesApi.getPoles();
+    const getProvincesApi = () => requireFmgApi("Provinces") as { getPoles: () => void };
+    getProvincesApi().getPoles();
 
     pack.provinces.forEach(province => {
       if (!province.i || province.removed) return;
@@ -396,12 +407,12 @@ export class Resampler {
   }
 
   private restoreMarkers(parentMap: ParentMapDefinition, projection: (x: number, y: number) => [number, number]) {
-    const markersApi = requireFmgApi("Markers") as { deleteMarker: (id: number) => void };
+    const getMarkersApi = () => requireFmgApi("Markers") as { deleteMarker: (id: number) => void };
 
     pack.markers = parentMap.pack.markers;
     pack.markers.forEach(marker => {
       const [x, y] = projection(marker.x, marker.y);
-      if (!this.isInMap(x, y)) markersApi.deleteMarker(marker.i);
+      if (!this.isInMap(x, y)) getMarkersApi().deleteMarker(marker.i);
 
       const cell = findClosestCell(x, y, Infinity, pack);
       marker.x = rn(x, 2);
@@ -429,7 +440,7 @@ export class Resampler {
   }
 
   process(options: ResamplerProcessOptions): void {
-    const featuresApi = requireFmgApi("Features") as { markupGrid: () => void; markupPack: () => void };
+    const getFeaturesApi = () => requireFmgApi("Features") as { markupGrid: () => void; markupPack: () => void };
 
     const { projection, inverse, scale } = options;
     const parentMap = {
@@ -445,7 +456,7 @@ export class Resampler {
 
     this.resamplePrimaryGridData(parentMap, inverse, scale);
 
-    featuresApi.markupGrid();
+    getFeaturesApi().markupGrid();
     const addLakes = getAddLakesInDeepDepressions();
     if (addLakes) addLakes();
     const openNearSea = getOpenNearSeaLakes();
@@ -459,7 +470,7 @@ export class Resampler {
 
     const regraph = getReGraph();
     if (regraph) regraph();
-    featuresApi.markupPack();
+    getFeaturesApi().markupPack();
     Ice.generate();
     createDefaultRuler();
 

@@ -3,7 +3,7 @@ import { closeDialogs, listen, unselect, confirmationDialog } from "@legacy-ui-r
 import { clearMainTip } from "@legacy-ui-runtime/modules/ui/general";
 import { requireFmgApi } from "@legacy-ui-runtime/modules/runtime/fmg-api";
 
-const Markers = requireFmgApi("Markers") as {
+const getMarkers = () => requireFmgApi("Markers") as {
   deleteMarker: (markerId: number) => void;
 };
 
@@ -295,7 +295,7 @@ class MarkersEditor {
 
   private deleteMarker() {
     if (!this.marker || !this.element) return;
-    Markers.deleteMarker(this.marker.i);
+    getMarkers().deleteMarker(this.marker.i);
     this.element.remove();
     $("#markerEditor").dialog("close");
     if (ensureEl("markersOverviewRefresh").offsetParent) markersOverviewRefresh.click();

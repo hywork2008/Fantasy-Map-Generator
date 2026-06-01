@@ -9,7 +9,7 @@ import { temperatureRenderer as drawTemperature } from "#renderers/draw-temperat
 import { ThreeD } from "./3d";
 import { calculateMapCoordinatesFlow, calculateTemperaturesFlow, generatePrecipitationFlow } from "./generation-climate";
 
-const Features = requireFmgApi("Features");
+const getFeatures = () => requireFmgApi("Features");
 
 export function editWorld() {
   if (customization) return;
@@ -167,7 +167,7 @@ export function editWorld() {
     Rivers.specify();
     pack.cells.h = new Float32Array(heights);
     Biomes.define();
-    Features.defineGroups();
+    getFeatures().defineGroups();
     Lakes.defineNames();
 
     if (layerIsOn("toggleTemperature")) drawTemperature();

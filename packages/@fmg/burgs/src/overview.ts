@@ -5,7 +5,7 @@ import { layerIsOn, toggleBurgIcons, toggleLabels } from "@legacy-ui-runtime/mod
 import { requireFmgApi } from "@legacy-ui-runtime/modules/runtime/fmg-api";
 "use strict";
 
-const Burgs = requireFmgApi("Burgs") as {
+const getBurgs = () => requireFmgApi("Burgs") as {
   remove: (burgId: number) => void;
   add: (point: [number, number]) => number;
   getPreview: (burg: unknown) => { link: string | null; preview: string | null };
@@ -220,7 +220,7 @@ export function overviewBurgs(settings = {stateId: null, cultureId: null}) {
       message: "Are you sure you want to remove the burg? <br>This action cannot be reverted",
       confirm: "Remove",
       onConfirm: () => {
-        Burgs.remove(burgId);
+        getBurgs().remove(burgId);
         burgsOverviewAddLines();
       }
     });
@@ -257,7 +257,7 @@ export function overviewBurgs(settings = {stateId: null, cultureId: null}) {
     if (pack.cells.burg[cell])
       return tip("There is already a burg in this cell. Please select a free cell", false, "error");
 
-    Burgs.add(point);
+    getBurgs().add(point);
 
     if (d3.event.shiftKey === false) {
       exitAddBurgMode();
@@ -483,7 +483,7 @@ export function overviewBurgs(settings = {stateId: null, cultureId: null}) {
       data += b.temple ? "temple," : ",";
       data += b.shanty ? "shanty town," : ",";
       data += b.coa ? JSON.stringify(b.coa).replace(/"/g, "").replace(/,/g, ";") + "," : ",";
-      data += Burgs.getPreview(b).link;
+      data += getBurgs().getPreview(b).link;
 
       data += "\n";
     });
@@ -567,7 +567,7 @@ export function overviewBurgs(settings = {stateId: null, cultureId: null}) {
         <br><i>To remove a capital you have to remove its state first</i>`,
       confirm: "Remove",
       onConfirm: () => {
-        pack.burgs.filter(b => b.i && !(b.capital || b.lock)).forEach(b => Burgs.remove(b.i));
+        pack.burgs.filter(b => b.i && !(b.capital || b.lock)).forEach(b => getBurgs().remove(b.i));
         burgsOverviewAddLines();
       }
     });

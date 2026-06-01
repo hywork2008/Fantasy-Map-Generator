@@ -3,13 +3,14 @@
 import type { FmgGlobalContext } from "@fmg/types";
 import { drawLayers } from "./layers";
 import { closeDialogs } from "./editors";
+import { getFmgOptionalService, getFmg } from "../runtime/get-fmg";
 
-// Lazy-load function from window.fmg
-const getGetMapURL = () => (window.fmg as any)?.getMapURL || (window as any).getMapURL;
-const getApplyGraphSize = () => (window.fmg as any)?.applyGraphSize || (window as any).applyGraphSize;
-const getFitMapToScreen = () => (window.fmg as any)?.fitMapToScreen || (window as any).fitMapToScreen;
-const getResetZoom = () => (window.fmg as any)?.resetZoom || (window as any).resetZoom;
-const getUndraw = () => (window.fmg as any)?.undraw || (window as any).undraw;
+// Lazy-load function from window.fmg (prefer core instances via getFmgOptionalService)
+const getGetMapURL = () => (getFmgOptionalService as any)("getMapURL") || (window as any).getMapURL;
+const getApplyGraphSize = () => (getFmgOptionalService as any)("applyGraphSize") || (window as any).applyGraphSize;
+const getFitMapToScreen = () => (getFmgOptionalService as any)("fitMapToScreen") || (window as any).fitMapToScreen;
+const getResetZoom = () => (getFmgOptionalService as any)("resetZoom") || (window as any).resetZoom;
+const getUndraw = () => (getFmgOptionalService as any)("undraw") || (window as any).undraw;
 
 type TransformRuntime = {
   graphWidth: number;
@@ -265,6 +266,6 @@ async function openTransformTool() {
 }
 
 // Register in window.fmg first, keep window global for legacy compatibility.
-const transformFmg = transformWindow.fmg as TransformFmgContext | undefined;
+const transformFmg = (getFmg() || transformWindow.fmg) as TransformFmgContext | undefined;
 if (transformFmg) transformFmg.openTransformTool = openTransformTool;
 (transformWindow as Window & {openTransformTool?: typeof openTransformTool}).openTransformTool = openTransformTool;

@@ -1,14 +1,15 @@
 {
+  "extends": "./tsconfig.json",
   "compilerOptions": {
     "target": "ES2020",
-    "lib": ["ES2023", "DOM"],
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "moduleResolution": "bundler",
     "strict": false,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "skipLibCheck": true,
-    "rootDir": "packages/@fmg/legacy-ui/src",
+    "rootDir": ".",
     "outDir": "public",
     "declaration": false,
     "sourceMap": false,
@@ -18,6 +19,8 @@
     "packages/@fmg/legacy-ui/src/components/fill-box.ts",
     "packages/@fmg/legacy-ui/src/components/slider-input.ts",
     "packages/@fmg/legacy-ui/src/config/heightmap-templates.ts",
-    "packages/@fmg/legacy-ui/src/config/precreated-heightmaps.ts"
+    "packages/@fmg/legacy-ui/src/config/precreated-heightmaps.ts",
+    "src/types/global.ts",
+    "packages/@fmg/legacy-ui/src/types/ui-legacy-globals.d.ts"
   ]
 }

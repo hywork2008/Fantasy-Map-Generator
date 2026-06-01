@@ -6,7 +6,7 @@ import { markersRenderer } from "#renderers/draw-markers";
 import { requireFmgApi } from "@legacy-ui-runtime/modules/runtime/fmg-api";
 "use strict";
 
-const Markers = requireFmgApi("Markers") as {
+const getMarkers = () => requireFmgApi("Markers") as {
   getConfig: () => Array<{type: string; icon: string}>;
 };
 
@@ -54,7 +54,7 @@ export function overviewMarkers() {
     listen(markersSearch, "input", addLines)
   );
 
-  const types = [{type: "empty", icon: "❓"}, ...Markers.getConfig()];
+  const types = [{type: "empty", icon: "❓"}, ...getMarkers().getConfig()];
   types.forEach(({icon, type}) => {
     const option = document.createElement("button");
     option.textContent = `${icon} ${type}`;

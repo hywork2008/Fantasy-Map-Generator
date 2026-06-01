@@ -4,7 +4,7 @@ import { lock } from "../ui/general";
 
 const initialSeed = generateSeed();
 let graph = getGraph(grid);
-const heightmapGenerator = requireFmgApi("HeightmapGenerator");
+const getHeightmapGenerator = () => requireFmgApi("HeightmapGenerator");
 
 appendStyleSheet();
 insertHtml();
@@ -203,7 +203,7 @@ function insertHtml() {
     .map(key => {
       const name = heightmapTemplates[key].name;
       Math.random = aleaPRNG(initialSeed);
-      const heights = heightmapGenerator.fromTemplate(graph, key);
+      const heights = getHeightmapGenerator().fromTemplate(graph, key);
 
       return /* html */ `<article data-id="${key}" data-seed="${initialSeed}">
         <img src="${getHeightmapPreview(heights)}" alt="${name}" />
@@ -271,14 +271,14 @@ function getGraph(currentGraph) {
 }
 
 function drawTemplatePreview(id) {
-  const heights = heightmapGenerator.fromTemplate(graph, id);
+  const heights = getHeightmapGenerator().fromTemplate(graph, id);
   const dataUrl = getHeightmapPreview(heights);
   const article = ensureEl("heightmapSelection").querySelector(`[data-id="${id}"]`);
   article.querySelector("img").src = dataUrl;
 }
 
 async function drawPrecreatedHeightmap(id) {
-  const heights = await heightmapGenerator.fromPrecreated(graph, id);
+  const heights = await getHeightmapGenerator().fromPrecreated(graph, id);
   const dataUrl = getHeightmapPreview(heights);
   const article = ensureEl("heightmapSelection").querySelector(`[data-id="${id}"]`);
   article.querySelector("img").src = dataUrl;

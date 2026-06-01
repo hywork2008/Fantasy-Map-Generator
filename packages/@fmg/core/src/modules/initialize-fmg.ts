@@ -93,5 +93,22 @@ export function initializeFmg(): FmgGlobalContext {
     addWebFont: fontsApi.addWebFont
   });
 
+  // If a legacy shim is present, ask it to flush queued calls now that
+  // core implementations have been assigned onto `window.fmg`.
+  try {
+    const flush = (fmg as any).__flush;
+    if (typeof flush === "function") {
+      try {
+        flush();
+      } catch (err) {
+        // Non-fatal: just log and continue
+        // eslint-disable-next-line no-console
+        console.error("Error flushing legacy fmg shim:", err);
+      }
+    }
+  } catch (err) {
+    // ignore
+  }
+
   return fmg;
 }

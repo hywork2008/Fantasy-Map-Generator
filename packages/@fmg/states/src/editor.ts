@@ -10,12 +10,12 @@ import { requireFmgApi } from "@legacy-ui-runtime/modules/runtime/fmg-api";
 import { bordersRenderer as drawBorders } from "#renderers/draw-borders";
 import { stateLabelsRenderer as drawStateLabels } from "#renderers/draw-state-labels";
 
-const Burgs = requireFmgApi("Burgs") as {
+const getBurgs = () => requireFmgApi("Burgs") as {
   changeGroup: (burg: unknown, group?: string | null) => void;
   getType: (cellId: number, port?: number) => string;
   add: (point: [number, number]) => number;
 };
-const Provinces = requireFmgApi("Provinces") as {
+const getProvinces = () => requireFmgApi("Provinces") as {
   generate: (regenerate?: boolean, regenerateLockedStates?: boolean) => void;
   getPoles: () => void;
 };
@@ -633,7 +633,7 @@ function stateRemove(stateId) {
       burg.state = 0;
       if (burg.capital) {
         burg.capital = 0;
-        Burgs.changeGroup(burg);
+        getBurgs().changeGroup(burg);
       }
     }
   });
@@ -877,8 +877,8 @@ function recalculateStates(must = false) {
   if (!must && !statesAutoChange.checked) return;
 
   States.expandStates();
-  Provinces.generate();
-  Provinces.getPoles();
+  getProvinces().generate();
+  getProvinces().getPoles();
   States.getPoles();
 
   if (layerIsOn("toggleStates")) drawStates();
@@ -1143,7 +1143,7 @@ function adjustProvinces(affectedProvinces) {
     const color = getMixedColor(states[stateId].color);
 
     const kinship = nameByBurg ? 0.8 : 0.4;
-    const type = Burgs.getType(center, burg?.port);
+    const type = getBurgs().getType(center, burg?.port);
     const coa = COA.generate(burg?.coa || states[stateId].coa, kinship, burg ? null : 0.9, type);
     coa.shield = COA.getShield(culture, stateId);
 
@@ -1241,7 +1241,7 @@ function addState() {
   if (burgId && burgs[burgId].capital)
     return tip("Existing capital cannot be selected as a new state capital! Select other cell", false, "error");
 
-  if (!burgId) burgId = Burgs.add(point);
+  if (!burgId) burgId = getBurgs().add(point);
 
   const oldState = cells.state[center];
   const newState = states.length;
@@ -1249,7 +1249,7 @@ function addState() {
   // turn burg into a capital
   burgs[burgId].capital = 1;
   burgs[burgId].state = newState;
-  Burgs.changeGroup(burgs[burgId]);
+  getBurgs().changeGroup(burgs[burgId]);
 
   if (d3.event.shiftKey === false) exitAddStateMode();
 
@@ -1480,7 +1480,7 @@ function openStateMergeDialog() {
       if (statesToMerge.includes(burg.state)) {
         if (burg.capital) {
           burg.capital = 0;
-          Burgs.changeGroup(burg);
+          getBurgs().changeGroup(burg);
         }
         burg.state = rulingStateId;
       }

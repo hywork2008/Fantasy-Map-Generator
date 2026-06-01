@@ -1,6 +1,7 @@
 import Alea from "alea";
 import { min } from "d3";
 import { clipPoly, getGridPolygon, getIsolines, lerp, minmax, normalize, P, ra, rand, rn } from "@fmg/shared";
+import { getCoreFmgInstances } from "./initialize-fmg";
 import type { Point } from "./voronoi";
 
 export type Iceberg = {
@@ -116,7 +117,17 @@ class IceGenerator {
       cellId,
       size
     });
-    window.fmg?.redrawIceberg?.(id);
+    // Prefer calling any core-registered redraw handler; fall back to legacy
+    // `window.fmg` UI hooks when present for backward compatibility.
+    try {
+      const core = getCoreFmgInstances() as unknown as Record<string, unknown> | undefined;
+      if (core && typeof core["redrawIceberg"] === "function") {
+        (core["redrawIceberg"] as Function)(id);
+        return;
+      }
+    } catch {}
+
+    (window as any).fmg?.redrawIceberg?.(id);
   }
 
   removeIce(id: number) {
@@ -125,9 +136,23 @@ class IceGenerator {
       const type = pack.ice.find(element => element.i === id).type;
       pack.ice.splice(index, 1);
       if (type === "glacier") {
-        window.fmg?.redrawGlacier?.(id);
+        try {
+          const core = getCoreFmgInstances() as unknown as Record<string, unknown> | undefined;
+          if (core && typeof core["redrawGlacier"] === "function") {
+            (core["redrawGlacier"] as Function)(id);
+            return;
+          }
+        } catch {}
+        (window as any).fmg?.redrawGlacier?.(id);
       } else {
-        window.fmg?.redrawIceberg?.(id);
+        try {
+          const core = getCoreFmgInstances() as unknown as Record<string, unknown> | undefined;
+          if (core && typeof core["redrawIceberg"] === "function") {
+            (core["redrawIceberg"] as Function)(id);
+            return;
+          }
+        } catch {}
+        (window as any).fmg?.redrawIceberg?.(id);
       }
     }
   }

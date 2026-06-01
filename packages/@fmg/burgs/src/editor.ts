@@ -10,7 +10,7 @@ import { editStyle } from "@legacy-ui-runtime/modules/ui/style";
 import type { Burg } from "@fmg/burgs";
 import { requireFmgApi } from "@legacy-ui-runtime/modules/runtime/fmg-api";
 
-const Burgs = requireFmgApi("Burgs") as {
+const getBurgs = () => requireFmgApi("Burgs") as {
   changeGroup: (burg: unknown, group?: string | null) => void;
   getPreview: (burg: unknown) => { link: string | null; preview: string | null };
   remove: (burgId: number) => void;
@@ -147,7 +147,7 @@ class BurgEditor {
   private changeGroup() {
     const id = +elSelected.attr("data-id");
     const burg = pack.burgs[id];
-    Burgs.changeGroup(burg, (ensureEl("burgGroup") as HTMLSelectElement).value);
+    getBurgs().changeGroup(burg, (ensureEl("burgGroup") as HTMLSelectElement).value);
   }
 
   private changeType() {
@@ -231,11 +231,11 @@ class BurgEditor {
 
     const capital = burgs[burgId];
     capital.capital = 1;
-    Burgs.changeGroup(capital);
+    getBurgs().changeGroup(capital);
 
     const oldCapital = burgs[oldCapitalId];
     oldCapital.capital = 0;
-    Burgs.changeGroup(oldCapital);
+    getBurgs().changeGroup(oldCapital);
   }
 
   private toggleBurgLockButton() {
@@ -287,7 +287,7 @@ class BurgEditor {
   }
 
   private updateBurgPreview(burg: Burg) {
-    const preview = Burgs.getPreview(burg).preview;
+    const preview = getBurgs().getPreview(burg).preview;
     if (!preview) {
       (ensureEl("burgPreviewSection") as HTMLElement).style.display = "none";
       return;
@@ -308,7 +308,7 @@ class BurgEditor {
   private openBurgLink() {
     const id = +elSelected.attr("data-id");
     const burg = pack.burgs[id];
-    const link = Burgs.getPreview(burg).link;
+    const link = getBurgs().getPreview(burg).link;
     if (link) openURL(link);
   }
 
@@ -318,7 +318,7 @@ class BurgEditor {
 
     prompt(
       "Provide custom URL to the burg map. It can be a link to a generator or just an image. Leave empty to use the default map preview",
-      {default: Burgs.getPreview(burg).link, required: false},
+      {default: getBurgs().getPreview(burg).link, required: false},
       (link: string) => {
         if (link) burg.link = link;
         else delete burg.link;
@@ -437,7 +437,7 @@ class BurgEditor {
         message: "Are you sure you want to remove the burg? <br>This action cannot be reverted",
         confirm: "Remove",
         onConfirm: () => {
-          Burgs.remove(burgId);
+          getBurgs().remove(burgId);
           $("#burgEditor").dialog("close");
         }
       });

@@ -1,5 +1,6 @@
 import { getArea, getAreaUnit } from "./editors";
 import { layerIsOn, toggleBiomes, toggleCultures, toggleHeight, togglePopulation, togglePrecipitation, toggleProvinces, toggleReligions, toggleStates, toggleTemperature } from "./layers";
+import { getFmgOptionalService } from "../runtime/get-fmg";
 "use strict";
 // Module to store generic UI functions
 
@@ -10,7 +11,8 @@ window.addEventListener("resize", function (e) {
   mapWidthInput.value = String(window.innerWidth);
   mapHeightInput.value = String(window.innerHeight);
   // Lazy access to avoid circular dep: general.ts ↔ options.ts
-  (window.fmg as any)?.fitMapToScreen?.();
+  const fit = getFmgOptionalService("fitMapToScreen") as unknown as ((...args: unknown[]) => void) | undefined;
+  fit?.();
 });
 
 if (location.hostname !== "localhost" && location.hostname !== "127.0.0.1") {

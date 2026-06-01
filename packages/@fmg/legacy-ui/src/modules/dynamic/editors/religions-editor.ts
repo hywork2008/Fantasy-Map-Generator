@@ -4,7 +4,7 @@ import { clearMainTip, showMainTip, tip } from "../../ui/general";
 import { layerIsOn, toggleBiomes, toggleCultures, toggleProvinces, toggleReligions, toggleStates } from "../../ui/layers";
 import { requireFmgApi } from "../../runtime/fmg-api";
 
-const Religions = requireFmgApi("Religions");
+const getReligions = () => requireFmgApi("Religions");
 const $body = insertEditorHtml();
 addListeners();
 
@@ -395,7 +395,7 @@ function religionChangeDeity() {
 function regenerateDeity() {
   const religionId = +this.parentNode.dataset.id;
   const cultureId = pack.religions[religionId].culture;
-  const deity = Religions.getDeityName(cultureId);
+  const deity = getReligions().getDeityName(cultureId);
   this.parentNode.dataset.deity = deity;
   pack.religions[religionId].deity = deity;
   this.nextElementSibling.value = deity;
@@ -803,7 +803,7 @@ function addReligion() {
   if (occupied) return tip("This cell is already a religion center. Please select a different cell", false, "error");
 
   if (d3.event.shiftKey === false) exitAddReligionMode();
-  Religions.add(center);
+  getReligions().add(center);
 
   drawReligions();
   refreshReligionsEditor();
@@ -850,7 +850,7 @@ function updateLockStatus() {
 function recalculateReligions(must) {
   if (!must && !religionsAutoChange.checked) return;
 
-  Religions.recalculate();
+  getReligions().recalculate();
 
   drawReligions();
   refreshReligionsEditor();

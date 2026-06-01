@@ -1,12 +1,13 @@
 import type { FmgGlobalContext } from "@fmg/types";
+import { getFmgOptionalService } from "./get-fmg";
 
 export const requireFmgApi = <K extends keyof FmgGlobalContext>(key: K): NonNullable<FmgGlobalContext[K]> => {
-  const resolve = () => (window.fmg as FmgGlobalContext | undefined)?.[key] as NonNullable<FmgGlobalContext[K]> | undefined;
+  const resolve = () => getFmgOptionalService(key) as NonNullable<FmgGlobalContext[K]> | undefined;
 
   const resolved = resolve();
   if (resolved) return resolved;
 
-  const missingMessage = `window.fmg.${String(key)} is not available`;
+  const missingMessage = `fmg.${String(key)} is not available`;
 
   const lazyCallable = function(this: unknown, ...args: unknown[]) {
     const api = resolve();

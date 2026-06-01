@@ -1,3 +1,5 @@
+// Use runtime global lookup for legacy public bundle (avoid module import)
+
 {
   const style = /* css */ `
     fill-box:not([disabled]) {
@@ -40,7 +42,8 @@
     }
 
     static showTip(this: FillBox) {
-      (window as any).fmg?.tip?.(this.tip);
+      const g = (globalThis as any).getFmg?.() ?? (globalThis as any).fmg;
+      g?.tip?.(this.tip);
     }
 
     connectedCallback() {

@@ -10,7 +10,7 @@ import { requireFmgApi } from "@legacy-ui-runtime/modules/runtime/fmg-api";
 import { tip } from "@legacy-ui-runtime/modules/ui/general";
 
 
-const Burgs = requireFmgApi("Burgs") as {
+const getBurgs = () => requireFmgApi("Burgs") as {
   getDefaultGroups: () => BurgGroup[];
   defineGroup: (burg: unknown, populations: number[]) => void;
 };
@@ -78,7 +78,7 @@ class BurgGroupEditor {
           ensureEl("burgGroupsBody").insertAdjacentHTML("beforeend", this.createLine({name: "", active: true, preview: null}));
         },
         Restore: () => {
-          options.burgs.groups = Burgs.getDefaultGroups();
+          options.burgs.groups = getBurgs().getDefaultGroups();
           this.addLines();
         },
         Cancel: function () {
@@ -380,7 +380,7 @@ class BurgGroupEditor {
       .map((b: Burg) => b.population)
       .filter((value): value is number => typeof value === "number")
       .sort((a: number, b: number) => a - b);
-    validBurgs.forEach((burg: Burg) => Burgs.defineGroup(burg, populations));
+    validBurgs.forEach((burg: Burg) => getBurgs().defineGroup(burg, populations));
 
     if (layerIsOn("toggleBurgIcons")) burgIconsRenderer();
     if (layerIsOn("toggleLabels")) burgLabelsRenderer();

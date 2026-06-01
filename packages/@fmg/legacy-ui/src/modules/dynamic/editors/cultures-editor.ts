@@ -7,7 +7,7 @@ import { layerIsOn, toggleBiomes, toggleCultures, toggleProvinces, toggleReligio
 import { requireFmgApi } from "../../runtime/fmg-api";
 import { restoreDefaultEvents } from "../../ui/editors";
 
-const Cultures = requireFmgApi("Cultures");
+const getCultures = () => requireFmgApi("Cultures");
 const $body = insertEditorHtml();
 addListeners();
 let culturesManualHistory = [];
@@ -674,7 +674,7 @@ async function showHierarchy() {
 
 function recalculateCultures(force?) {
   if (force || culturesAutoChange.checked) {
-    Cultures.expand();
+    getCultures().expand();
     drawCultures();
     pack.burgs.forEach(b => (b.culture = pack.cells.culture[b.cell]));
     refreshCulturesEditor();
@@ -850,7 +850,7 @@ function addCulture() {
   if (occupied) return tip("This cell is already a culture center. Please select a different cell", false, "error");
 
   if (d3.event.shiftKey === false) exitAddCultureMode();
-  Cultures.add(center);
+  getCultures().add(center);
 
   drawCultureCenters();
   culturesEditorAddLines();

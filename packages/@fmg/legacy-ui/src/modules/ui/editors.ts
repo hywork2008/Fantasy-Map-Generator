@@ -2,13 +2,15 @@
 "use strict";
 
 import { onMouseMove, tip } from "./general";
+import { getFmg } from "../runtime/get-fmg";
 
 modules.editors = true;
 
 let pickerUpdateFill: (() => void) | null = null;
 
 function invokeGlobalAction(name: string, ...args: unknown[]) {
-  const fmgFn = (window.fmg as unknown as Record<string, unknown> | undefined)?.[name];
+  const fmg = getFmg() as unknown as Record<string, unknown> | undefined;
+  const fmgFn = (fmg && (fmg as Record<string, unknown>)[name]) || (window as any)[name];
   if (typeof fmgFn === "function") return (fmgFn as (...args: unknown[]) => unknown)(...args);
 }
 
@@ -621,12 +623,12 @@ export function getFileName(dataType?) {
 
 export function downloadFile(data, name, type = "text/plain") {
   const dataBlob = new Blob([data], {type});
-  const url = window.URL.createObjectURL(dataBlob);
+  const objectUrl = URL.createObjectURL(dataBlob);
   const link = document.createElement("a");
   link.download = name;
-  link.href = url;
+  link.href = objectUrl;
   link.click();
-  window.setTimeout(() => window.URL.revokeObjectURL(url), 2000);
+  setTimeout(() => URL.revokeObjectURL(objectUrl), 2000);
 }
 
 function uploadFile(el, callback) {

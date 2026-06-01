@@ -2,6 +2,7 @@
 
 // ----- packages/@fmg/legacy-ui/src/components/fill-box.ts
 
+// Use runtime global lookup for legacy public bundle (avoid module import)
 {
     const style = /* css */ `
     fill-box:not([disabled]) {
@@ -39,7 +40,8 @@
             this.querySelector("svg")?.setAttribute("height", this.size);
         }
         static showTip() {
-            window.fmg?.tip?.(this.tip);
+            const g = globalThis.getFmg?.() ?? globalThis.fmg;
+            g?.tip?.(this.tip);
         }
         connectedCallback() {
             this.addEventListener("mousemove", this.constructor.showTip);
@@ -136,7 +138,8 @@
 
 // ----- packages/@fmg/legacy-ui/src/config/heightmap-templates.ts
 
-const heightmapTemplates = (() => {
+// Expose as `var` so public generated bundle exposes this as a global property
+var heightmapTemplates = (() => {
     const volcano = `Hill 1 90-100 44-56 40-60
     Multiply 0.8 50-100 0 0
     Range 1.5 30-55 45-55 40-60
@@ -290,7 +293,8 @@ void heightmapTemplates;
 
 // ----- packages/@fmg/legacy-ui/src/config/precreated-heightmaps.ts
 
-const precreatedHeightmaps = {
+// Expose as `var` so public generated bundle exposes this as a global property
+var precreatedHeightmaps = {
     "africa-centric": { id: 0, name: "Africa Centric" },
     arabia: { id: 1, name: "Arabia" },
     atlantics: { id: 2, name: "Atlantics" },

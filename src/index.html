@@ -165,6 +165,121 @@
         this.rel = 'stylesheet';
       "
     />
+    <!-- legacy PRNG library required by older modules -->
+    <script src="/libs/alea.min.js"></script>
+    <!-- Early legacy `fmg` shim to ensure `window.fmg` exists before modules load (dev) -->
+    <script>
+      (function () {
+        if (typeof window === "undefined") return;
+        if (window.fmg && window.fmg.__isShim) return;
+        var queued = [];
+        var warnTimers = {};
+        var WARN_THROTTLE_MS = 500;
+        var MAX_QUEUE_LENGTH = 2000;
+        // Methods that should not be queued — no-op instead when called before init
+        var NOOP_METHODS = { updateMinimap: true };
+        function makeStub(prop) {
+          if (NOOP_METHODS && NOOP_METHODS[prop]) {
+            function noop() {
+              // intentionally no-op when called before initialization
+            }
+            noop.__isStub = true;
+            return noop;
+          }
+
+          function stub() {
+            var args = Array.prototype.slice.call(arguments);
+            try {
+              if (queued.length >= MAX_QUEUE_LENGTH) {
+                if (!warnTimers.__dropped) {
+                  console.warn('fmg queue full; dropping calls');
+                  warnTimers.__dropped = Date.now();
+                }
+                return;
+              }
+              queued.push({ prop: prop, args: args, thisArg: this });
+              var now = Date.now();
+              if (!warnTimers[prop] || now - warnTimers[prop] > WARN_THROTTLE_MS) {
+                warnTimers[prop] = now;
+                console.warn('fmg.' + prop + ' called before initialization; queued.');
+              }
+            } catch (e) {}
+          }
+          stub.__isStub = true;
+          return stub;
+        }
+        function flush() {
+          if (!queued.length) return;
+          var remaining = [];
+          for (var i = 0; i < queued.length; i++) {
+            var call = queued[i];
+            try {
+              var target = window.fmg && window.fmg[call.prop];
+              if (typeof target === 'function' && !target.__isStub) {
+                target.apply(window.fmg, call.args);
+              } else {
+                remaining.push(call);
+              }
+            } catch (e) {
+              console.error('Error replaying fmg.' + call.prop, e);
+            }
+          }
+          queued = remaining;
+          if (window.fmg) window.fmg.__queuedCalls = queued;
+        }
+        var handler = {
+          get: function (target, prop) {
+            if (prop === '__isShim') return true;
+            if (prop === '__queuedCalls') return queued;
+            if (prop === '__flush') return flush;
+            if (prop in target) return target[prop];
+            var stub = makeStub(prop);
+            target[prop] = stub;
+            return stub;
+          },
+          set: function (target, prop, value) {
+            target[prop] = value;
+            try {
+              var remaining = [];
+              for (var i = 0; i < queued.length; i++) {
+                var call = queued[i];
+                if (call.prop === prop) {
+                  try {
+                    if (typeof value === 'function') {
+                      value.apply(window.fmg, call.args);
+                    }
+                  } catch (e) {
+                    console.error('Error replaying fmg.' + prop, e);
+                  }
+                } else {
+                  remaining.push(call);
+                }
+              }
+              queued = remaining;
+              target.__queuedCalls = queued;
+            } catch (e) {}
+            return true;
+          },
+          has: function () {
+            return true;
+          },
+          ownKeys: function (target) {
+            return Reflect.ownKeys(target);
+          },
+          getOwnPropertyDescriptor: function (target, prop) {
+            return Object.getOwnPropertyDescriptor(target, prop) || { configurable: true, enumerable: true, writable: true, value: target[prop] };
+          }
+        };
+        var shim = new Proxy({}, handler);
+        Object.defineProperty(window, 'fmg', {
+          configurable: true,
+          enumerable: true,
+          writable: true,
+          value: shim
+        });
+        window.__fmg_legacy_shim = { __flush: flush, __queuedCalls: queued };
+      })();
+    </script>
   </head>
   <body>
     <svg
@@ -8538,7 +8653,6 @@
     <script type="module" src="renderers/index.ts"></script>
     <script type="module" src="controllers/index.ts"></script>
 
-    <script defer src="libs/alea.min.js?v1.105.0"></script>
     <script defer src="libs/polylabel.min.js?v1.105.0"></script>
     <script defer src="libs/simplify.js?v1.105.6"></script>
     <script type="module" src="main-entry.ts"></script>

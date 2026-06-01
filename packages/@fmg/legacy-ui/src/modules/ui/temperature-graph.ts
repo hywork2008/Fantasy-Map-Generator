@@ -2,6 +2,7 @@
 
 import type { FmgGlobalContext } from "@fmg/types";
 import { tip } from "./general";
+import { getFmg } from "../runtime/get-fmg";
 
 
 type Point2D = [number, number];
@@ -239,5 +240,5 @@ export function showBurgTemperatureGraph(id: number) {
 }
 
 temperatureGraphRuntime.showBurgTemperatureGraph = showBurgTemperatureGraph;
-const temperatureFmg = temperatureGraphWindow.fmg as TemperatureGraphFmgContext | undefined;
+const temperatureFmg = (getFmg() || temperatureGraphWindow.fmg) as TemperatureGraphFmgContext | undefined;
 if (temperatureFmg) temperatureFmg.showBurgTemperatureGraph = showBurgTemperatureGraph;

@@ -100,6 +100,7 @@
 ### 改善提案
 - **マイグレーション処理の分離**: `auto-update.ts` 内の `resolveVersionConflicts` などの巨大関数を、バージョン毎のマイグレータファイル（例: `migrations/v1.0.ts`, `migrations/v1.1.ts`）に分割し、パイプライン処理化しました（実施済み）。
 - **グローバル依存 (window) の撲滅**: `window.pack`, `window.grid` や `declare let zones: any;` といった暗黙的なグローバル参照を廃止し、`FmgGlobalContext` （またはそれに準ずる Context/State 管理クラス）の引数渡し、あるいは専用の Store からの `import` に変更します。
+ブラウザが元から持っているUIプロパティ（window.innerWidth等） は安全のためにその表記を死守する。
 - **UI コンポーネントの分離**: `d3.select` による命令的な DOM 操作を関数に切り出し、「データの変更」と「Viewの更新」の責務を分離します。
 
 ## 4. パフォーマンスチューニング

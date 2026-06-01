@@ -11,6 +11,7 @@ import { drawGrid, getCurrentPreset, layerIsOn } from "../ui/layers";
 import { editUnits } from "../ui/units-editor";
 import { ensureLegacyElement, legacyRuntime } from "../runtime/legacy-runtime";
 import { requireFmgApi } from "../runtime/fmg-api";
+import { getFmg } from "../runtime/get-fmg";
 import { VERSION, cleanupData, compareVersions, isValidVersion, parseMapVersion } from "../../versioning";
 import { applyOption, tip } from "../ui/general";
 
@@ -29,8 +30,8 @@ type LoadFmgContext = FmgGlobalContext & {
   OceanLayers?: () => void;
 };
 
-const Features = requireFmgApi("Features");
-const Burgs = requireFmgApi("Burgs") as {
+const getFeatures = () => requireFmgApi("Features");
+const getBurgs = () => requireFmgApi("Burgs") as {
   changeGroup: (burg: unknown, group?: string | null) => void;
 };
 
@@ -125,7 +126,7 @@ export async function loadMapFromURL(maplink: string, random?: number): Promise<
   } catch (error: any) {
     const message = (error?.name === "AbortError" ? "Cannot load map from URL: request timed out" : (error as Error)?.message) || "Unknown error";
     showUploadErrorMessage(message, maplink, random);
-    if (random) (window.fmg as LoadFmgContext | undefined)?.generateMapOnLoad?.();
+    if (random) (getFmg() as LoadFmgContext | undefined)?.generateMapOnLoad?.();
   } finally {
     clearTimeout(timeoutId);
   }
@@ -437,10 +438,10 @@ async function parseLoadedData(data, mapVersion) {
     }
 
     {
-      const fmg = window.fmg as LoadFmgContext | undefined;
-      if (!fmg?.reGraph) throw new ReferenceError("window.fmg.reGraph is not defined");
+      const fmg = (getFmg() || (window.fmg as LoadFmgContext | undefined)) as LoadFmgContext | undefined;
+      if (!fmg?.reGraph) throw new ReferenceError("fmg.reGraph is not defined");
       fmg.reGraph();
-      Features.markupPack();
+      getFeatures().markupPack();
       pack.features = JSON.parse(data[12]);
       pack.cultures = JSON.parse(data[13]);
       pack.states = JSON.parse(data[14]);
@@ -691,7 +692,7 @@ async function parseLoadedData(data, mapVersion) {
 
           capitalBurgs.forEach(burg => {
             burg.capital = 0;
-            Burgs.changeGroup(burg);
+              getBurgs().changeGroup(burg);
           });
 
           return;
@@ -706,7 +707,7 @@ async function parseLoadedData(data, mapVersion) {
           capitalBurgs.forEach((burg, i) => {
             if (!i) return;
             burg.capital = 0;
-            Burgs.changeGroup(burg);
+            getBurgs().changeGroup(burg);
           });
 
           return;
@@ -716,7 +717,7 @@ async function parseLoadedData(data, mapVersion) {
           ERROR && console.error(`[Data integrity] State ${state.i} has no capital. Making the first burg capital`);
           const capital = stateBurgs[0];
           capital.capital = 1;
-          Burgs.changeGroup(capital);
+            getBurgs().changeGroup(capital);
         }
       });
 
@@ -791,17 +792,17 @@ async function parseLoadedData(data, mapVersion) {
 
     {
       // draw data layers (not kept in svg)
-      (window.fmg as LoadFmgContext | undefined)?.OceanLayers?.();
+      (getFmg() as LoadFmgContext | undefined)?.OceanLayers?.();
       if (rulers && layerIsOn("toggleRulers")) rulers.draw();
       if (layerIsOn("toggleGrid")) drawGrid();
     }
 
     {
-      const fmg = window.fmg as LoadFmgContext | undefined;
-      if (!fmg?.focusOn) throw new ReferenceError("window.fmg.focusOn is not defined");
+      const fmg = (getFmg() || (window.fmg as LoadFmgContext | undefined)) as LoadFmgContext | undefined;
+      if (!fmg?.focusOn) throw new ReferenceError("fmg.focusOn is not defined");
       fmg.focusOn(); // based on searchParams focus on point, cell or burg
       fmg.invokeActiveZooming?.();
-      if (!fmg?.fitMapToScreen) throw new ReferenceError("window.fmg.fitMapToScreen is not defined");
+      if (!fmg?.fitMapToScreen) throw new ReferenceError("fmg.fitMapToScreen is not defined");
       fmg.fitMapToScreen();
 
       // Re-bind zoom handlers after SVG replacement and viewport fitting.
@@ -810,15 +811,15 @@ async function parseLoadedData(data, mapVersion) {
     }
 
     WARN && console.warn(`TOTAL: ${rn((performance.now() - (uploadMap as any).timeStart) / 1000, 2)}s`);
-    const fmg = window.fmg as LoadFmgContext | undefined;
-    if (!fmg?.showStatistics) throw new ReferenceError("window.fmg.showStatistics is not defined");
+    const fmg = (getFmg() || (window.fmg as LoadFmgContext | undefined)) as LoadFmgContext | undefined;
+    if (!fmg?.showStatistics) throw new ReferenceError("fmg.showStatistics is not defined");
     fmg.showStatistics();
     INFO && console.groupEnd();
     tip("Map is successfully loaded", true, "success", 7000);
   } catch (error) {
     ERROR && console.error(error);
-    const fmg = window.fmg as LoadFmgContext | undefined;
-    if (!fmg?.clearMainTip) throw new ReferenceError("window.fmg.clearMainTip is not defined");
+    const fmg = (getFmg() || (window.fmg as LoadFmgContext | undefined)) as LoadFmgContext | undefined;
+    if (!fmg?.clearMainTip) throw new ReferenceError("fmg.clearMainTip is not defined");
     fmg.clearMainTip();
 
     alertMessage.innerHTML = /* html */ `An error occurred while loading the map. Select a different file to load, <br>generate a new random map or cancel the loading.<br>Map version: ${mapVersion}. Generator version: ${VERSION}.
@@ -836,8 +837,8 @@ async function parseLoadedData(data, mapVersion) {
         },
         "New map": function () {
           $(this).dialog("close");
-          const regenerateMap = requireFmgApi("regenerateMap") as (source: string) => void;
-          regenerateMap("loading error");
+          const getRegenerateMap = () => requireFmgApi("regenerateMap") as (source: string) => void;
+          getRegenerateMap()("loading error");
         },
         Cancel: function () {
           $(this).dialog("close");

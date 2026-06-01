@@ -7,7 +7,7 @@ import { Biomes } from "@fmg/core/modules/biomes";
 import { Names } from "@fmg/core/modules/names-generator";
 import { getUsedFonts } from "@fmg/core/modules/fonts";
 import { renderOceanLayersSvgForExport } from "@fmg/core/modules/ocean-layers";
-import { link, parseError } from "@fmg/shared";
+import { link, parseError, rn } from "@fmg/shared";
 import { VERSION } from "../../versioning";
 import { tip } from "../ui/general";
 
@@ -257,7 +257,7 @@ function prepareMapData(): string {
     .join("/");
 
   // round population to save space
-  const pop = Array.from(saveRuntime.pack.cells.pop).map((p: number) => window.rn(p, 4));
+  const pop = Array.from(saveRuntime.pack.cells.pop).map((p: number) => rn(p, 4));
 
   // data format as below
   const mapData = [
@@ -315,15 +315,15 @@ export async function saveToStorage(mapData: string, showTip = false): Promise<v
 // download map file
 export function saveToMachine(mapData: string, filename: string): void {
   const blob = new Blob([mapData], {type: "text/plain"});
-  const URL = window.URL.createObjectURL(blob);
+  const objectUrl = URL.createObjectURL(blob);
 
-  const link = document.createElement("a");
-  link.download = filename;
-  link.href = URL;
-  link.click();
+  const a = document.createElement("a");
+  a.download = filename;
+  a.href = objectUrl;
+  a.click();
 
   tip('Map is saved to the "Downloads" folder (CTRL + J to open)', true, "success", 8000);
-  setTimeout(() => window.URL.revokeObjectURL(URL), 5000);
+  setTimeout(() => URL.revokeObjectURL(objectUrl), 5000);
 }
 
 export async function saveToDropbox(mapData: string, filename: string): Promise<void> {

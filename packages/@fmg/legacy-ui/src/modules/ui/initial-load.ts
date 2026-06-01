@@ -237,6 +237,6 @@ export function findBurgForMFCGFlow(
   }
 
   zoomTo(b.x, b.y, 8, 1600);
-  (window as any).fmg?.invokeActiveZooming?.();
+  invokeActiveZooming();
   tip(`Here stands the glorious city of ${b.name}`, true, "success", 15000);
 }

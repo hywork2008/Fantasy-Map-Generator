@@ -340,6 +340,7 @@ export interface FmgGlobalContext {
   getElevation?: (feature: unknown, height: number) => string | undefined;
   getDepth?: (feature: unknown, point: [number, number]) => string;
   getPrecipitation?: (precipitation: number) => string;
+  tip?: (message: string, autoHide?: boolean, level?: string, timeout?: number) => void;
   getFriendlyPrecipitation?: (cellIndex: number) => string;
   getRiverInfo?: (riverId: number | string) => string;
   getFriendlyPopulation?: (cellIndex: number) => string;

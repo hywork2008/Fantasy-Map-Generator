@@ -1,6 +1,7 @@
 type PrecreatedHeightmap = { id: number; name: string };
 
-const precreatedHeightmaps: Record<string, PrecreatedHeightmap> = {
+// Expose as `var` so public generated bundle exposes this as a global property
+var precreatedHeightmaps: Record<string, PrecreatedHeightmap> = {
   "africa-centric": { id: 0, name: "Africa Centric" },
   arabia: { id: 1, name: "Arabia" },
   atlantics: { id: 2, name: "Atlantics" },

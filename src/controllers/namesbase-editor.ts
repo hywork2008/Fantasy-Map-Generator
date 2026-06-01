@@ -4,7 +4,24 @@ import { tip } from "@legacy-ui-runtime/modules/ui/general";
 import { max as d3max, min as d3min, mean, median } from "d3";
 import { ensureEl, openURL, rn, unique } from "../utils";
 
-const NamesApi = ((window as any).fmg?.Names || (window as any).Names || NamesModule) as any;
+/**
+ * Resolve Names API at call time. Prefer `window.fmg?.Names`, then `window.Names`,
+ * and finally the core `NamesModule`. Using a function avoids returning a
+ * queued stub or constructor function instead of the expected object with
+ * `getBase`, `updateChain`, etc.
+ */
+function getNamesApi(): any {
+  const fromFmg = (window as any).fmg?.Names;
+  if (fromFmg && typeof fromFmg.getBase === "function") return fromFmg;
+
+  const winNames = (window as any).Names;
+  if (winNames && typeof winNames.getBase === "function") return winNames;
+
+  if (NamesModule && typeof (NamesModule as any).getBase === "function") return NamesModule;
+
+  // Last resort: return whichever value is present so callers can handle absence.
+  return fromFmg || winNames || NamesModule;
+}
 
 addListeners();
 
@@ -79,7 +96,7 @@ function updateExamples(): void {
   const base = +ensureEl<HTMLSelectElement>("namesbaseSelect").value;
   let examples = "";
   for (let i = 0; i < 7; i++) {
-    const example = NamesApi.getBase(base);
+    const example = getNamesApi().getBase(base);
     if (example === undefined) {
       examples = "Cannot generate examples. Please verify the data";
       break;
@@ -100,7 +117,7 @@ function updateNamesData(): void {
   const securedNamesData = input.value.replace(/[/|]/g, "");
   nameBases[base].b = securedNamesData;
   input.value = securedNamesData;
-  NamesApi.updateChain(base);
+  getNamesApi().updateChain(base);
 }
 
 function updateBaseName(rawName: string): void {
@@ -143,7 +160,7 @@ function analyzeNamesbase(): void {
     return;
   }
 
-  const chain = NamesApi.calculateChain(namesSourceString);
+  const chain = getNamesApi().calculateChain(namesSourceString);
   const chainValues = Object.values(chain) as string[][];
   const variety = rn(mean(chainValues.map(kv => kv.length)) ?? 0);
 
@@ -244,8 +261,8 @@ function namesbaseRestoreDefault(): void {
     buttons: {
       Restore: function () {
         $(this).dialog("close");
-        NamesApi.clearChains();
-        nameBases = NamesApi.getNameBases() as typeof nameBases;
+        getNamesApi().clearChains();
+        nameBases = getNamesApi().getNameBases() as typeof nameBases;
         createBasesList();
         updateInputs();
       },
@@ -272,7 +289,7 @@ function namesbaseUpload(dataLoaded: string, override = true): void {
     return;
   }
 
-  NamesApi.clearChains();
+  getNamesApi().clearChains();
   if (override) nameBases = [];
 
   const errors: ParseError[] = [];

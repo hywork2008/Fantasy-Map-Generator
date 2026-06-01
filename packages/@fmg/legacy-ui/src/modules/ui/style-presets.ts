@@ -9,6 +9,7 @@ import { burgLabelsRenderer } from "#renderers/draw-burg-labels";
 import { stateLabelsRenderer as drawStateLabels } from "#renderers/draw-state-labels";
 import { tip } from "./general";
 import { scaleBarRenderer as drawScaleBar, scaleBarResize as fitScaleBar } from "#renderers/draw-scalebar";
+import { getFmg } from "../runtime/get-fmg";
 
 /// <reference path="../../types/ui-legacy-globals.d.ts" />
 
@@ -176,7 +177,7 @@ export function applyStyleWithUiRefresh(style: StylePresetData) {
   updateMapFilter();
   stylePreset.dataset.old = stylePreset.value;
 
-  (window as any).fmg?.invokeActiveZooming?.();
+  getFmg()?.invokeActiveZooming?.();
   setPresetRemoveButtonVisibiliy();
 
   drawScaleBar(scaleBar, scale);

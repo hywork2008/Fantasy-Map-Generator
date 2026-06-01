@@ -20,7 +20,7 @@ export const Cloud = (function () {
   const getToken = prov => localStorage.getItem(lSKey(prov));
 
   function ensureDropboxSdkLoaded() {
-    if (window.Dropbox) return Promise.resolve();
+    if (typeof (globalThis as any).Dropbox !== "undefined") return Promise.resolve();
 
     return new Promise<void>((resolve, reject) => {
       const existingScript = document.querySelector('script[data-lib="dropbox-sdk"]');

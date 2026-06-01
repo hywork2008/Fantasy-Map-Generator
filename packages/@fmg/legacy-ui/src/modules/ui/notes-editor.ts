@@ -68,7 +68,7 @@ class NotesEditor {
   }
 
   private async initEditor() {
-    if (!window.tinymce) {
+    if (typeof (globalThis as any).tinymce === "undefined") {
       const url = "https://azgaar.github.io/Fantasy-Map-Generator/libs/tinymce/tinymce.min.js";
       try {
         await import(/* @vite-ignore */ url);
@@ -82,9 +82,9 @@ class NotesEditor {
       }
     }
 
-    if (window.tinymce) {
-      window.tinymce._setBaseUrl("https://azgaar.github.io/Fantasy-Map-Generator/libs/tinymce");
-      tinymce.init({
+    if ((globalThis as any).tinymce) {
+      (globalThis as any).tinymce._setBaseUrl("https://azgaar.github.io/Fantasy-Map-Generator/libs/tinymce");
+      (globalThis as any).tinymce.init({
         license_key: "gpl",
         selector: "#notesLegend",
         height: "90%",
@@ -106,8 +106,8 @@ class NotesEditor {
     const note = notes.find(note => note.id === this.notesSelect.value);
     if (!note) return tip("Note element is not found", true, "error", 4000);
 
-    const isTinyEditorActive = window.tinymce?.activeEditor;
-    note.legend = isTinyEditorActive ? tinymce.activeEditor.getContent() : this.notesLegend.innerHTML;
+    const isTinyEditorActive = (globalThis as any).tinymce?.activeEditor;
+    note.legend = isTinyEditorActive ? (globalThis as any).tinymce.activeEditor.getContent() : this.notesLegend.innerHTML;
     this.updateNotesBox(note);
   }
 
@@ -124,7 +124,7 @@ class NotesEditor {
     this.notesLegend.innerHTML = note.legend;
     this.updateNotesBox(note);
 
-    if (window.tinymce) tinymce.activeEditor.setContent(note.legend);
+    if ((globalThis as any).tinymce) (globalThis as any).tinymce.activeEditor.setContent(note.legend);
   }
 
   private changeName() {
@@ -159,7 +159,7 @@ class NotesEditor {
       if (note) {
         note.legend = result;
         this.updateNotesBox(note);
-        if (window.tinymce) tinymce.activeEditor.setContent(note.legend);
+        if ((globalThis as any).tinymce) (globalThis as any).tinymce.activeEditor.setContent(note.legend);
       }
     };
 
@@ -206,7 +206,7 @@ class NotesEditor {
   }
 
   private removeEditor() {
-    if (window.tinymce) tinymce.remove();
+    if ((globalThis as any).tinymce) (globalThis as any).tinymce.remove();
   }
 }
 

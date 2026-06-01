@@ -7,6 +7,7 @@ import { reliefIconsRenderer as drawReliefIcons } from "#renderers/draw-relief-i
 import { lock, tip } from "./general";
 import { showOptions } from "./options";
 import { scaleBarRenderer as drawScaleBar, scaleBarResize as fitScaleBar } from "#renderers/draw-scalebar";
+import { getFmg } from "../runtime/get-fmg";
 
 // UI module to control the style
 "use strict";
@@ -715,13 +716,13 @@ styleGridShiftY.on("input", function () {
 
 styleRescaleMarkers.on("change", function () {
   markers.attr("rescale", +this.checked);
-  (window as any).fmg?.invokeActiveZooming?.();
+  getFmg()?.invokeActiveZooming?.();
 });
 
 styleCoastlineAuto.on("change", function () {
   coastline.select("#sea_island").attr("auto-filter", +this.checked);
   styleFilter.style.display = this.checked ? "none" : "block";
-  (window as any).fmg?.invokeActiveZooming?.();
+  getFmg()?.invokeActiveZooming?.();
 });
 
 styleOceanFill.on("input", function () {
@@ -1278,7 +1279,7 @@ export function updateElements() {
   if (legend.selectAll("*").size() && typeof redrawLegend === "function") redrawLegend();
   oceanLayers.selectAll("path").remove();
   drawOceanLayers();
-  (window as any).fmg?.invokeActiveZooming?.();
+  getFmg()?.invokeActiveZooming?.();
 }
 
 // GLOBAL FILTERS

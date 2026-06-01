@@ -2,6 +2,7 @@
 
 import { Routes } from "@fmg/core/modules/routes-generator";
 import type { FmgGlobalContext } from "@fmg/types";
+import { getFmg } from "../runtime/get-fmg";
 import { drawRoute, layerIsOn, toggleCells, toggleRoutes } from "./layers";
 import { closeDialogs, restoreDefaultEvents } from "./editors";
 import { clearMainTip, tip } from "./general";
@@ -220,5 +221,5 @@ function createRoute(defaultGroup?: string) {
 }
 
 routesCreatorRuntime.createRoute = createRoute;
-const routesFmg = routesCreatorWindow.fmg as RoutesCreatorFmgContext | undefined;
+const routesFmg = (getFmg() || routesCreatorWindow.fmg) as RoutesCreatorFmgContext | undefined;
 if (routesFmg) routesFmg.createRoute = createRoute;

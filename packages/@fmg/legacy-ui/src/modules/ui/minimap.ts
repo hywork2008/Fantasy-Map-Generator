@@ -2,6 +2,7 @@
 
 import type { FmgGlobalContext } from "@fmg/types";
 import { closeDialogs } from "./editors";
+import { getFmg } from "../runtime/get-fmg";
 
 type MinimapRuntime = {
   closeDialogs: (selector?: string) => void;
@@ -115,7 +116,7 @@ function ensureMinimapMarkup() {
 
   getEl<SVGSVGElement>("minimapSurface").addEventListener("click", minimapClickToPan);
   minimapRuntime.updateMinimap = updateMinimap;
-  const minimapFmg = minimapWindow.fmg as MinimapFmgContext | undefined;
+  const minimapFmg = (getFmg() || minimapWindow.fmg) as MinimapFmgContext | undefined;
   if (minimapFmg) minimapFmg.updateMinimap = updateMinimap;
 }
 
