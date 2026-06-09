@@ -40,6 +40,12 @@ declare global {
   var distanceUnitInput: HTMLInputElement;
   var heightUnit: HTMLSelectElement;
 
+  var compass: Selection<SVGGElement, unknown, null, undefined>;
+  var terrain: Selection<SVGGElement, unknown, null, undefined>;
+  var icons: Selection<SVGGElement, unknown, null, undefined>;
+  var borders: Selection<SVGGElement, unknown, null, undefined>;
+  var ruler: Selection<SVGGElement, unknown, null, undefined>;
+
   var rivers: Selection<SVGElement, unknown, null, undefined>;
   var oceanLayers: Selection<SVGGElement, unknown, null, undefined>;
   var emblems: Selection<SVGElement, unknown, null, undefined>;
@@ -83,6 +89,15 @@ declare global {
   var mapHeightInput: HTMLInputElement;
 
   var layerIsOn: (layerId: string) => boolean;
+  var turnButtonOn: (layerId: string) => void;
+  var turnButtonOff: (layerId: string) => void;
+  var getCurrentPreset: () => void;
+  var applyLayersPreset: () => void;
+  var drawLayers: () => void;
+  var handleLayersPresetChange: (preset: string) => void;
+  var savePreset: () => void;
+  var removePreset: () => void;
+
   var drawRoute: (route: Route) => void;
   var drawBiomes: () => void;
   var drawPrecipitation: () => void;
@@ -98,7 +113,59 @@ declare global {
   var drawRivers: () => void;
   var drawRoutes: () => void;
   var drawZones: () => void;
+  var drawHeightmap: () => void;
+  var drawBorders: () => void;
+  var drawBurgIcons: () => void;
+  var drawBurgLabels: () => void;
+  var drawStateLabels: (list?: number[]) => void;
+  var drawTemperature: () => void;
+  var drawMilitary: () => void;
+  var drawMarkers: () => void;
+  var drawEmblems: () => void;
+  var drawFeatures: () => void;
+  var drawIce: () => void;
+  var drawReliefIcons: () => void;
   var invokeActiveZooming: () => void;
+
+  var toggleHeight: (event?: MouseEvent) => void;
+  var toggleTemperature: (event?: MouseEvent) => void;
+  var toggleBiomes: (event?: MouseEvent) => void;
+  var togglePrecipitation: (event?: MouseEvent) => void;
+  var togglePopulation: (event?: MouseEvent) => void;
+  var toggleCells: (event?: MouseEvent) => void;
+  var toggleIce: (event?: MouseEvent) => void;
+  var toggleCultures: (event?: MouseEvent) => void;
+  var toggleReligions: (event?: MouseEvent) => void;
+  var toggleStates: (event?: MouseEvent) => void;
+  var toggleBorders: (event?: MouseEvent) => void;
+  var toggleProvinces: (event?: MouseEvent) => void;
+  var toggleGrid: (event?: MouseEvent) => void;
+  var toggleCoordinates: (event?: MouseEvent) => void;
+  var toggleCompass: (event?: MouseEvent) => void;
+  var toggleRelief: (event?: MouseEvent) => void;
+  var toggleLakes: (event?: MouseEvent) => void;
+  var toggleTexture: (event?: MouseEvent) => void;
+  var toggleRivers: (event?: MouseEvent) => void;
+  var toggleRoutes: (event?: MouseEvent) => void;
+  var toggleMilitary: (event?: MouseEvent) => void;
+  var toggleMarkers: (event?: MouseEvent) => void;
+  var toggleLabels: (event?: MouseEvent) => void;
+  var toggleBurgIcons: (event?: MouseEvent) => void;
+  var toggleRulers: (event?: MouseEvent) => void;
+  var toggleScaleBar: (event?: MouseEvent) => void;
+  var toggleZones: (event?: MouseEvent) => void;
+  var toggleEmblems: (event?: MouseEvent) => void;
+  var toggleVignette: (event?: MouseEvent) => void;
+
+  var rulers: {
+    draw: () => void;
+    data: unknown[];
+    create: (...args: unknown[]) => unknown;
+    remove: (id: unknown) => void;
+  };
+  var ThreeD: { update: () => void };
+  var editStyle: (layerId: string, group?: string) => void;
+  var calculateFriendlyGridSize: () => void;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   var FlatQueue: new () => { push: (item: any, priority: number) => void; pop: () => any; length: number };
 
