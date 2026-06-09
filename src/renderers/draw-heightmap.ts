@@ -59,7 +59,7 @@ const heightmapRenderer = (): void => {
   const paths: (string | undefined)[] = new Array(101);
   const { cells, vertices } = grid;
   const used = new Uint8Array(cells.i.length);
-  const heights = Array.from(cells.i as number[]).sort((a, b) => cells.h[a] - cells.h[b]);
+  const heights = Array.from(cells.i).sort((a, b) => (cells.h[a] as number) - (cells.h[b] as number));
 
   // ocean cells
   const renderOceanCells = Boolean(+ocean.attr("data-render"));
@@ -78,8 +78,8 @@ const heightmapRenderer = (): void => {
       if (used[i]) continue; // already marked
       const onborder = cells.c[i].some((n: number) => cells.h[n] < h);
       if (!onborder) continue;
-      const vertex = cells.v[i].find((v: number) => vertices.c[v].some((i: number) => cells.h[i] < h));
-      const chain = connectVertices(cells, vertices, vertex, h, used);
+      const vertex = cells.v[i].find((v: number) => vertices.c[v].some((i: number) => (cells.h[i] as number) < h));
+      const chain = connectVertices(cells, vertices, vertex!, h, used);
       if (chain.length < 3) continue;
       const points = simplifyLine(chain, relax).map((v: number) => vertices.p[v]);
       if (!paths[h]) paths[h] = "";
@@ -104,8 +104,8 @@ const heightmapRenderer = (): void => {
       const onborder = cells.c[i].some((n: number) => cells.h[n] < h);
       if (!onborder) continue;
 
-      const startVertex = cells.v[i].find((v: number) => vertices.c[v].some((i: number) => cells.h[i] < h));
-      const chain = connectVertices(cells, vertices, startVertex, h, used);
+      const startVertex = cells.v[i].find((v: number) => vertices.c[v].some((i: number) => (cells.h[i] as number) < h));
+      const chain = connectVertices(cells, vertices, startVertex!, h, used);
       if (chain.length < 3) continue;
 
       const points = simplifyLine(chain, relax).map((v: number) => vertices.p[v]);

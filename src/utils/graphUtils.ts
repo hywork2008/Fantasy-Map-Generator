@@ -1,11 +1,21 @@
 import Alea from "alea";
 import { color, quadtree } from "d3";
 import Delaunator from "delaunator";
+import type { GridFeature } from "../modules/features";
 import { type Cells, type Point, type Vertices, Voronoi } from "../modules/voronoi";
-import type { PackedGraph } from "../types/PackedGraph";
+import type { PackedGraph, TypedArray } from "../types/PackedGraph";
 import { createTypedArray } from "./arrayUtils";
 import { ensureEl } from "./nodeUtils";
 import { rn } from "./numberUtils";
+
+/** Grid-level cells: base voronoi topology plus all properties added by the generation pipeline */
+export type GridCells = Cells & {
+  h: TypedArray;
+  t: TypedArray;
+  f: TypedArray;
+  temp: Int8Array;
+  prec: TypedArray | number[];
+};
 
 /**
  * Get boundary points on a regular square grid
@@ -118,7 +128,7 @@ export const shouldRegenerateGrid = (grid: any, expectedSeed: number, graphWidth
   return grid.spacing !== newSpacing || grid.cellsX !== newCellsX || grid.cellsY !== newCellsY;
 };
 
-interface Grid {
+export interface Grid {
   spacing: number;
   cellsDesired: number;
   boundary: Point[];
@@ -126,8 +136,9 @@ interface Grid {
   cellsX: number;
   cellsY: number;
   seed: string | number;
-  cells: Cells;
+  cells: GridCells;
   vertices: Vertices;
+  features: GridFeature[];
 }
 /**
  * Generates a Voronoi grid based on jittered grid points
@@ -144,9 +155,10 @@ export const generateGrid = (seed: string, graphWidth: number, graphHeight: numb
     points,
     cellsX,
     cellsY,
-    cells,
+    cells: cells as GridCells, // generation pipeline adds h, t, f, temp, prec later
     vertices,
-    seed
+    seed,
+    features: [] // populated by features generator
   };
 };
 
@@ -482,8 +494,8 @@ export const isLand = (i: number, packedGraph: PackedGraph) => {
  * @param {number} i - The index of the packed cell
  * @returns {boolean} - True if the cell is water, false otherwise
  */
-export const isWater = (i: number, packedGraph: PackedGraph) => {
-  return packedGraph.cells.h[i] < 20;
+export const isWater = (i: number, graph: PackedGraph | Grid) => {
+  return (graph.cells.h as TypedArray)[i] < 20;
 };
 
 // draw raster heightmap preview (not used in main generation)

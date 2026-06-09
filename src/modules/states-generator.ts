@@ -329,8 +329,9 @@ class StatesModule {
     return neighbors
       .map((i: number) => {
         const name = i && P(0.8) ? pack.states[i].name : Names.getCultureShort(state.culture);
-        const start = gauss(options.year - 100, 150, 1, options.year - 6);
-        const end = start + gauss(4, 5, 1, options.year - start - 1);
+        const currentYear = options.year!;
+        const start = gauss(currentYear - 100, 150, 1, currentYear - 6);
+        const end = start + gauss(4, 5, 1, currentYear - start - 1);
         return { name: `${getAdjective(name)} ${rw(wars)}`, start, end };
       })
       .sort((a, b) => a.start - b.start);
@@ -441,7 +442,7 @@ class StatesModule {
 
       // start an ongoing war
       const name = `${an}-${trimVowels(dn)}ian War`;
-      const start = options.year - gauss(2, 3, 0, 10);
+      const start = options.year! - gauss(2, 3, 0, 10);
       const war = [name, `${an} declared a war on its rival ${dn}`];
       const campaign = { name, start, attacker, defender };
       states[attacker].campaigns!.push(campaign);

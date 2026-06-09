@@ -6,6 +6,17 @@ declare global {
   var Military: MilitaryModule;
 }
 
+export interface MilitaryUnit {
+  icon: string;
+  name: string;
+  rural: number;
+  urban: number;
+  crew: number;
+  power: number;
+  type: string;
+  separate: number;
+}
+
 export interface MilitaryRegiment {
   i: number;
   t: number; // total troops
@@ -46,6 +57,7 @@ class MilitaryModule {
     const { p } = cells;
     const valid = states.filter(s => s.i && !s.removed); // valid states
     if (!options.military) options.military = this.getDefaultOptions();
+    const military = options.military;
 
     const expn = sum(valid.map(s => s.expansionism)); // total expansion
     const area = sum(valid.map(s => s.area)); // total area
@@ -215,7 +227,7 @@ class MilitaryModule {
       s.temp.platoons = [];
 
       // apply overall state modifiers for unit types based on state features
-      for (const unit of options.military) {
+      for (const unit of military) {
         if (!stateModifier[unit.type as keyof typeof stateModifier]) continue;
 
         let modifier =
@@ -263,7 +275,7 @@ class MilitaryModule {
         modifier = stateObj.type === "Naval" ? modifier / 1.2 : modifier / 1.8; // different landmass
       const type = getType(i);
 
-      for (const unit of options.military) {
+      for (const unit of military) {
         const perc = +unit.rural;
         if (Number.isNaN(perc) || perc <= 0 || !stateObj.temp[unit.name]) continue;
         if (!passUnitLimits(unit, biome, state, culture, religion)) continue;
@@ -320,7 +332,7 @@ class MilitaryModule {
       if (cells.f[b.cell] !== cells.f[stateObj.center]) m = stateObj.type === "Naval" ? m / 1.2 : m / 1.8; // different landmass
       const type = getType(b.cell);
 
-      for (const unit of options.military) {
+      for (const unit of military) {
         const perc = +unit.urban;
         if (Number.isNaN(perc) || perc <= 0 || !stateObj.temp[unit.name]) continue;
         if (!passUnitLimits(unit, biome, state, culture!, religion)) continue;
@@ -542,14 +554,15 @@ class MilitaryModule {
           .map(t => `— ${t}: ${r.u[t as keyof typeof r.u]}`)
           .join("\r\n")
       : null;
+    const currentYear = options.year!;
     const troops = composition
-      ? `\r\n\r\nRegiment composition in ${options.year} ${options.eraShort}:\r\n${composition}.`
+      ? `\r\n\r\nRegiment composition in ${currentYear} ${options.eraShort}:\r\n${composition}.`
       : "";
 
     const campaign = s.campaigns ? ra(s.campaigns) : null;
     const year = campaign
-      ? rand(campaign.start, campaign.end || options.year)
-      : gauss(options.year - 100, 150, 1, options.year - 6);
+      ? rand(campaign.start, campaign.end || currentYear)
+      : gauss(currentYear - 100, 150, 1, currentYear - 6);
     const conflict = campaign ? ` during the ${campaign.name}` : "";
     const legend = `Regiment was formed in ${year} ${options.era}${conflict}. ${station}${troops}`;
     const id = `regiment${s.i}-${r.i}`;
@@ -573,7 +586,7 @@ class MilitaryModule {
     )
       return "👑"; // "Royal" regiment based in capital
     const mainUnit = Object.entries(r.u).sort((a, b) => b[1] - a[1])[0][0]; // unit with more troops in regiment
-    const unit = options.military.find((u: { name: string; icon: string }) => u.name === mainUnit);
+    const unit = options.military?.find((u: { name: string; icon: string }) => u.name === mainUnit);
     return unit ? unit.icon : "⚔️";
   }
 }

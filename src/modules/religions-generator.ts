@@ -27,7 +27,7 @@ interface ReligionBase {
 
 interface NamedReligion extends ReligionBase {
   name: string;
-  deity: string | null;
+  deity: string | null | undefined;
   expansion: string;
   expansionism: number;
   color: string;

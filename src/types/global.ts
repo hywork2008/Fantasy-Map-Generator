@@ -1,21 +1,38 @@
 import type { Selection } from "d3";
 import type { NameBase } from "../modules/names-generator";
+import type { Route } from "../modules/routes-generator";
+import type { Grid } from "../utils/graphUtils";
 import type { PackedGraph } from "./PackedGraph";
+import type { BiomesData, MapStyle, WorldNote, WorldOptions } from "./WorldState";
+
+interface HeightmapTemplate {
+  name: string;
+  template: string;
+  [key: string]: unknown;
+}
 
 declare global {
   var seed: string;
   var pack: PackedGraph;
-  var grid: any;
+  var grid: Grid;
   var graphHeight: number;
   var graphWidth: number;
   var TIME: boolean;
   var WARN: boolean;
   var ERROR: boolean;
   var DEBUG: { stateLabels?: boolean; [key: string]: boolean | undefined };
-  var options: any;
+  var options: WorldOptions;
 
-  var heightmapTemplates: any;
-  var Routes: any;
+  var heightmapTemplates: Record<string, HeightmapTemplate>;
+  var Routes: {
+    isConnected: (cellId: number) => boolean;
+    isCrossroad: (cellId: number) => boolean;
+    hasRoad: (cellId: number) => boolean;
+    getConnectivityRate: (cellId: number) => number;
+    getRoute: (from: number, to: number) => Route | null;
+    connect: (cellId: number) => Route | undefined;
+    buildLinks: (routes: Route[]) => Record<number, Record<number, number>>;
+  };
   var populationRate: number;
   var urbanDensity: number;
   var urbanization: number;
@@ -54,28 +71,15 @@ declare global {
   var svgHeight: number;
   var viewbox: Selection<SVGElement, unknown, null, undefined>;
   var routes: Selection<SVGElement, unknown, null, undefined>;
-  var biomesData: {
-    i: number[];
-    name: string[];
-    color: string[];
-    biomesMatrix: Uint8Array[];
-    habitability: number[];
-    iconsDensity: number[];
-    icons: string[][];
-    cost: number[];
-  };
-  var notes: any[];
-  var style: {
-    burgLabels: { [key: string]: { [key: string]: string } };
-    burgIcons: { [key: string]: { [key: string]: string } };
-    anchors: { [key: string]: { [key: string]: string } };
-    [key: string]: any;
-  };
+  var biomesData: BiomesData;
+  var notes: WorldNote[];
+  var style: MapStyle;
 
   var layerIsOn: (layerId: string) => boolean;
-  var drawRoute: (route: any) => void;
+  var drawRoute: (route: Route) => void;
   var invokeActiveZooming: () => void;
-  var FlatQueue: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  var FlatQueue: new () => { push: (item: any, priority: number) => void; pop: () => any; length: number };
 
   var tip: (
     message: string,
@@ -85,6 +89,7 @@ declare global {
   ) => void;
   var locked: (settingId: string) => boolean;
   var unlock: (settingId: string) => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   var $: (selector: any) => any;
   var scale: number;
   var changeFont: () => void;

@@ -4,6 +4,26 @@ import { each, ensureEl, gauss, minmax, normalize, P, rn } from "../utils";
 declare global {
   var Burgs: BurgModule;
 }
+export interface BurgGroup {
+  name: string;
+  active: boolean;
+  order: number;
+  isDefault?: boolean;
+  features?: {
+    capital?: boolean;
+    citadel?: boolean;
+    walls?: boolean;
+    plaza?: boolean;
+    port?: boolean;
+    temple?: boolean;
+  };
+  preview?: string;
+  percentile?: number;
+  min?: number;
+  max?: number;
+  biomes?: number[];
+}
+
 export interface Burg {
   cell: number;
   x: number;

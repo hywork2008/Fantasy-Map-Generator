@@ -1,19 +1,5 @@
+import type { Marker } from "../modules/markers-generator";
 import { rn } from "../utils";
-
-interface Marker {
-  i: number;
-  icon: string;
-  x: number;
-  y: number;
-  dx?: number;
-  dy?: number;
-  px?: number;
-  size?: number;
-  pin?: string;
-  fill?: string;
-  stroke?: string;
-  pinned?: boolean;
-}
 
 declare global {
   var drawMarkers: () => void;
@@ -60,8 +46,8 @@ function markerRenderer(marker: Marker, rescale = 1): string {
   const { i, icon, x, y, dx = 50, dy = 50, px = 12, size = 30, pin, fill, stroke } = marker;
   const id = `marker${i}`;
   const zoomSize = rescale ? Math.max(rn(size / 5 + 24 / scale, 2), 1) : size;
-  const viewX = rn(x - zoomSize / 2, 1);
-  const viewY = rn(y - zoomSize, 1);
+  const viewX = rn(x! - zoomSize / 2, 1);
+  const viewY = rn(y! - zoomSize, 1);
 
   const isExternal = icon.startsWith("http") || icon.startsWith("data:image");
 

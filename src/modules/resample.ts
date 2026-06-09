@@ -337,7 +337,7 @@ class Resampler {
       const [xp, yp] = projection(...parentMap.pack.cells.p[religion.center]);
       const [x, y] = [rn(xp, 2), rn(yp, 2)];
       const [centerX, centerY] = this.isInMap(x, y) ? [x, y] : religionPoles[religion.i];
-      const center = findClosestCell(centerX, centerY, Infinity, pack);
+      const center = findClosestCell(centerX, centerY, Infinity, pack)!;
       return { ...religion, center };
     });
   }
@@ -380,10 +380,10 @@ class Resampler {
   private restoreMarkers(parentMap: ParentMapDefinition, projection: (x: number, y: number) => [number, number]) {
     pack.markers = parentMap.pack.markers;
     pack.markers.forEach(marker => {
-      const [x, y] = projection(marker.x, marker.y);
+      const [x, y] = projection(marker.x!, marker.y!);
       if (!this.isInMap(x, y)) Markers.deleteMarker(marker.i);
 
-      const cell = findClosestCell(x, y, Infinity, pack);
+      const cell = findClosestCell(x, y, Infinity, pack)!;
       marker.x = rn(x, 2);
       marker.y = rn(y, 2);
       marker.cell = cell;

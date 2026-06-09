@@ -19,7 +19,7 @@ type MarkerConfig = {
   add: (id: string, cell: number) => void;
 };
 
-interface Marker {
+export interface Marker {
   i: number;
   type: string;
   icon: string;
@@ -28,6 +28,13 @@ interface Marker {
   px?: number;
   cell: number;
   lock?: boolean;
+  x?: number;
+  y?: number;
+  size?: number;
+  pin?: string;
+  fill?: string;
+  stroke?: string;
+  pinned?: boolean;
 }
 
 class MarkersModule {
