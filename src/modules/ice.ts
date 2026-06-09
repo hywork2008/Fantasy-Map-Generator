@@ -1,5 +1,6 @@
 import Alea from "alea";
 import { min } from "d3";
+import type { WorldState } from "../types/WorldState";
 import { clipPoly, getGridPolygon, getIsolines, lerp, minmax, normalize, P, ra, rand, rn } from "../utils";
 import type { Point } from "./voronoi";
 
@@ -36,7 +37,8 @@ class IceModule {
   }
 
   // Generate glaciers and icebergs based on temperature and height
-  public generate() {
+  public generate(state: WorldState) {
+    const { pack, grid, seed } = state;
     this.clear();
     const { cells, features } = grid;
     const { temp, h } = cells;

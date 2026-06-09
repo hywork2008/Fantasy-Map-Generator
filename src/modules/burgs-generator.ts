@@ -1,4 +1,5 @@
 import { quadtree } from "d3-quadtree";
+import type { WorldState } from "../types/WorldState";
 import { each, ensureEl, gauss, minmax, normalize, P, rn } from "../utils";
 
 declare global {
@@ -116,7 +117,8 @@ class BurgModule {
     }
   }
 
-  generate() {
+  generate(state: WorldState) {
+    const { pack } = state;
     TIME && console.time("generateBurgs");
     const { cells } = pack;
 
@@ -425,7 +427,8 @@ class BurgModule {
     }
   }
 
-  specify() {
+  specify(state: WorldState) {
+    const { pack } = state;
     TIME && console.time("specifyBurgs");
 
     pack.burgs.forEach(burg => {

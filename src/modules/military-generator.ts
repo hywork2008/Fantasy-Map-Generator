@@ -1,4 +1,5 @@
 import { quadtree, sum } from "d3";
+import type { WorldState } from "../types/WorldState";
 import { findAllInQuadtree, gauss, minmax, nth, ra, rand, rn, si } from "../utils";
 import type { State } from "./states-generator";
 
@@ -51,7 +52,8 @@ interface Platoon {
 }
 
 class MilitaryModule {
-  generate() {
+  generate(state: WorldState) {
+    const { pack, options } = state;
     TIME && console.time("generateMilitary");
     const { cells, states } = pack;
     const { p } = cells;

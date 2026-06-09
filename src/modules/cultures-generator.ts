@@ -1,4 +1,5 @@
 import { max, quadtree, range } from "d3";
+import type { WorldState } from "../types/WorldState";
 import { abbreviate, biased, ensureEl, getColors, getRandomColor, minmax, P, rand, rn, rw } from "../utils";
 
 declare global {
@@ -1007,7 +1008,9 @@ class CulturesModule {
     ];
   }
 
-  generate() {
+  generate(state: WorldState) {
+    const { pack } = state;
+    let { nameBases } = state;
     TIME && console.time("generateCultures");
     this.cells = pack.cells;
     const cultureIds = new Uint16Array(this.cells.i.length); // cell cultures
@@ -1181,6 +1184,7 @@ class CulturesModule {
     if (!nameBases.length) {
       ERROR && console.error("Name base is empty, default nameBases will be applied");
       nameBases = Names.getNameBases();
+      state.nameBases = nameBases; // sync back to state
     }
 
     cultures.forEach((c: Culture) => {
@@ -1231,7 +1235,8 @@ class CulturesModule {
     });
   }
 
-  expand() {
+  expand(state: WorldState) {
+    const { pack } = state;
     TIME && console.time("expandCultures");
     const { cells, cultures } = pack;
 

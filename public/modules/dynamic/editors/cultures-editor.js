@@ -672,7 +672,7 @@ async function showHierarchy() {
 
 function recalculateCultures(force) {
   if (force || culturesAutoChange.checked) {
-    Cultures.expand();
+    Cultures.expand(getWorldState());
     drawCultures();
     pack.burgs.forEach(b => (b.culture = pack.cells.culture[b.cell]));
     refreshCulturesEditor();

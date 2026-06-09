@@ -84,13 +84,14 @@ function editWorld() {
     updateGlobePosition();
     calculateTemperatures();
     generatePrecipitation();
+    const state = getWorldState();
     const heights = new Uint8Array(pack.cells.h);
-    Rivers.generate();
-    Rivers.specify();
+    Rivers.generate(state);
+    Rivers.specify(state);
     pack.cells.h = new Float32Array(heights);
-    Biomes.define();
+    Biomes.define(state);
     Features.defineGroups();
-    Lakes.defineNames();
+    Lakes.defineNames(state);
 
     if (layerIsOn("toggleTemperature")) drawTemperature();
     if (layerIsOn("togglePrecipitation")) drawPrecipitation();

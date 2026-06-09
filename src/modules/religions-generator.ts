@@ -1,4 +1,5 @@
 import { quadtree } from "d3";
+import type { WorldState } from "../types/WorldState";
 import {
   abbreviate,
   each,
@@ -615,7 +616,8 @@ const expansionismMap: Record<string, () => number> = {
 };
 
 class ReligionsModule {
-  generate() {
+  generate(state: WorldState) {
+    const { pack } = state;
     TIME && console.time("generateReligions");
     const lockedReligions = pack.religions?.filter(r => r.i && r.lock && !r.removed) || [];
 

@@ -1,6 +1,7 @@
 import { mean, quadtree } from "d3";
 import { clipPolyline } from "lineclip";
 import type { PackedGraph } from "../types/PackedGraph";
+import type { WorldState } from "../types/WorldState";
 import {
   findAllCellsInRadius,
   findClosestCell,
@@ -255,7 +256,8 @@ class Resampler {
       return { ...state, removed: true, lock: false };
     });
 
-    States.getPoles();
+    const worldState: WorldState = { pack, grid, seed, options, nameBases, biomesData, notes, style };
+    States.getPoles(worldState);
     const regimentCellsMap: Record<number, number> = {};
     const VERTICAL_GAP = 8;
 
@@ -351,7 +353,7 @@ class Resampler {
       return province;
     });
 
-    Provinces.getPoles();
+    Provinces.getPoles({ pack, grid, seed, options, nameBases, biomesData, notes, style });
 
     pack.provinces.forEach(province => {
       if (!province.i || province.removed) return;
@@ -409,6 +411,7 @@ class Resampler {
   }
 
   process(options: ResamplerProcessOptions): void {
+    const worldOptions = window.options; // capture global WorldOptions before local 'options' shadows it
     const { projection, inverse, scale } = options;
     const parentMap = {
       grid: structuredClone(grid),
@@ -433,7 +436,7 @@ class Resampler {
 
     reGraph();
     Features.markupPack();
-    Ice.generate();
+    Ice.generate({ pack, grid, seed, options: worldOptions, nameBases, biomesData, notes, style });
     createDefaultRuler();
 
     this.restoreCellData(parentMap, inverse, scale);

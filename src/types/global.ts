@@ -24,16 +24,6 @@ declare global {
   var options: WorldOptions;
 
   var heightmapTemplates: Record<string, HeightmapTemplate>;
-  var Routes: {
-    isConnected: (cellId: number) => boolean;
-    isCrossroad: (cellId: number) => boolean;
-    hasRoad: (cellId: number) => boolean;
-    getConnectivityRate: (cellId: number) => number;
-    getRoute: (from: number, to: number) => Route | null;
-    connect: (cellId: number) => Route | undefined;
-    buildLinks: (routes: Route[]) => Record<number, Record<number, number>>;
-    getPath: (route: { group: string; points: number[][] }) => string;
-  };
   var populationRate: number;
   var urbanDensity: number;
   var urbanization: number;

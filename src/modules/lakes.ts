@@ -1,4 +1,5 @@
 import { mean, min } from "d3";
+import type { WorldState } from "../types/WorldState";
 import { ensureEl, rn } from "../utils";
 import type { PackedGraphFeature } from "./features";
 
@@ -15,7 +16,8 @@ export class LakesModule {
     return rn(minShoreHeight - this.LAKE_ELEVATION_DELTA, 2);
   }
 
-  defineNames() {
+  defineNames(state: WorldState) {
+    const { pack } = state;
     pack.features.forEach((feature: PackedGraphFeature) => {
       if (feature.type !== "lake") return;
       feature.name = this.getName(feature);

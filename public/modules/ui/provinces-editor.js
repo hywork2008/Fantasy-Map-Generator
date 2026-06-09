@@ -382,10 +382,11 @@ function editProvinces() {
     layerIsOn("toggleStates") ? drawStates() : toggleStates();
     layerIsOn("toggleBorders") ? drawBorders() : toggleBorders();
 
-    States.getPoles();
+    const state = getWorldState();
+    States.getPoles(state);
     States.findNeighbors();
-    States.collectStatistics();
-    States.defineStateForms(newStates);
+    States.collectStatistics(state);
+    States.defineStateForms(state, newStates);
     drawStateLabels(allStates);
 
     // redraw emblems
@@ -969,7 +970,7 @@ function editProvinces() {
         pack.cells.province[i] = +this.dataset.province;
       });
 
-    Provinces.getPoles();
+    Provinces.getPoles(getWorldState());
     if (layerIsOn("toggleBorders")) drawBorders();
     if (layerIsOn("toggleProvinces")) drawProvinces();
 
@@ -1349,7 +1350,7 @@ function editProvinces() {
 
     // recalculate province statistics and poles
     collectStatistics();
-    Provinces.getPoles();
+    Provinces.getPoles(getWorldState());
 
     // redraw layers that may have changed
     if (layerIsOn("toggleProvinces")) drawProvinces();

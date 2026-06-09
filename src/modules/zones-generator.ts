@@ -1,4 +1,5 @@
 import { max, mean } from "d3";
+import type { WorldState } from "../types/WorldState";
 import { gauss, getAdjective, P, ra, rand, rw } from "../utils";
 
 declare global {
@@ -40,7 +41,8 @@ class ZonesModule {
     };
   }
 
-  generate(globalModifier = 1) {
+  generate(state: WorldState, globalModifier = 1) {
+    const { pack } = state;
     TIME && console.time("generateZones");
 
     const usedCells = new Uint8Array(pack.cells.i.length);

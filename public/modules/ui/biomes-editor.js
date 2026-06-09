@@ -471,7 +471,7 @@ function editBiomes() {
 
   function restoreInitialBiomes() {
     biomesData = Biomes.getDefault();
-    Biomes.define();
+    Biomes.define(getWorldState());
     drawBiomes();
     recalculatePopulation();
     refreshBiomesEditor();

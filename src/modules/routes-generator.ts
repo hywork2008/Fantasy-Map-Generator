@@ -1,5 +1,6 @@
 import { curveCatmullRom, line } from "d3";
 import Delaunator from "delaunator";
+import type { WorldState } from "../types/WorldState";
 import { distanceSquared, findClosestCell, findPath, getAdjective, isLand, ra, rn, round, rw } from "../utils";
 import type { Burg } from "./burgs-generator";
 import type { Point } from "./voronoi";
@@ -171,6 +172,10 @@ export interface Route {
   points: number[][];
   cells?: number[];
   merged?: boolean;
+}
+
+declare global {
+  var Routes: RoutesModule;
 }
 
 class RoutesModule {
@@ -541,7 +546,8 @@ class RoutesModule {
     return routes;
   }
 
-  generate(lockedRoutes: Route[] = []) {
+  generate(state: WorldState, lockedRoutes: Route[] = []) {
+    const { pack } = state;
     const connections = new Map();
     lockedRoutes.forEach((route: Route) => {
       this.addConnections(

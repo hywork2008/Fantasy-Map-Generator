@@ -1,4 +1,5 @@
 import { mean, range } from "d3";
+import type { WorldState } from "../types/WorldState";
 import { rn } from "../utils";
 
 declare global {
@@ -91,7 +92,8 @@ class BiomesModule {
     };
   }
 
-  define() {
+  define(state: WorldState) {
+    const { pack, grid } = state;
     TIME && console.time("defineBiomes");
 
     const { fl: flux, r: riverIds, h: heights, c: neighbors, g: gridReference } = pack.cells;

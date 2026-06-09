@@ -1,5 +1,6 @@
 import Alea from "alea";
 import { max } from "d3";
+import type { WorldState } from "../types/WorldState";
 import { ensureEl, gauss, generateSeed, getMixedColor, getPolesOfInaccessibility, P, rand, rw } from "../utils";
 
 declare global {
@@ -62,7 +63,8 @@ class ProvinceModule {
     }
   };
 
-  generate(regenerate = false, regenerateLockedStates = false) {
+  generate(state: WorldState, regenerate = false, regenerateLockedStates = false) {
+    const { pack, seed } = state;
     TIME && console.time("generateProvinces");
     const localSeed = regenerate ? generateSeed() : seed;
     Math.random = Alea(localSeed);
@@ -317,7 +319,8 @@ class ProvinceModule {
   }
 
   // calculate pole of inaccessibility for each province
-  getPoles() {
+  getPoles(state: WorldState) {
+    const { pack } = state;
     const getType = (cellId: number) => pack.cells.province[cellId];
     const poles = getPolesOfInaccessibility(pack, getType);
 

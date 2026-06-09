@@ -152,7 +152,7 @@ function addListeners() {
 }
 
 function refreshStatesEditor() {
-  States.collectStatistics();
+  States.collectStatistics(getWorldState());
   statesEditorAddLines();
 }
 
@@ -855,10 +855,11 @@ function openRegenerationMenu() {
 function recalculateStates(must) {
   if (!must && !statesAutoChange.checked) return;
 
+  const state = getWorldState();
   States.expandStates();
-  Provinces.generate();
-  Provinces.getPoles();
-  States.getPoles();
+  Provinces.generate(state);
+  Provinces.getPoles(state);
+  States.getPoles(state);
 
   if (layerIsOn("toggleStates")) drawStates();
   if (layerIsOn("toggleBorders")) drawBorders();
@@ -1004,7 +1005,7 @@ function applyStatesManualAssignent() {
 
   if (affectedStates.length) {
     refreshStatesEditor();
-    States.getPoles();
+    States.getPoles(getWorldState());
     layerIsOn("toggleStates") ? drawStates() : toggleStates();
     if (adjustLabels.checked) drawStateLabels([...new Set(affectedStates)]);
     adjustProvinces([...new Set(affectedProvinces)]);
@@ -1288,10 +1289,11 @@ function addState() {
     coa
   });
 
-  States.getPoles();
+  const state = getWorldState();
+  States.getPoles(state);
   States.findNeighbors();
-  States.collectStatistics();
-  States.defineStateForms([newState]);
+  States.collectStatistics(state);
+  States.defineStateForms(state, [newState]);
   adjustProvinces([cells.province[center]]);
 
   drawStateLabels([newState]);
@@ -1478,7 +1480,7 @@ function openStateMergeDialog() {
     unfog();
     debug.selectAll(".highlight").remove();
 
-    States.getPoles();
+    States.getPoles(getWorldState());
     layerIsOn("toggleStates") ? drawStates() : toggleStates();
     layerIsOn("toggleBorders") ? drawBorders() : toggleBorders();
     layerIsOn("toggleProvinces") && drawProvinces();

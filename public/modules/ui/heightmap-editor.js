@@ -234,7 +234,8 @@ function editHeightmap(options) {
     reGraph();
     Features.markupPack();
 
-    Rivers.generate(erosionAllowed);
+    const state = getWorldState();
+    Rivers.generate(state, erosionAllowed);
 
     if (!erosionAllowed) {
       for (const i of pack.cells.i) {
@@ -244,33 +245,33 @@ function editHeightmap(options) {
       }
     }
 
-    Biomes.define();
+    Biomes.define(state);
     Features.defineGroups();
 
     rankCells();
-    Cultures.generate();
-    Cultures.expand();
+    Cultures.generate(state);
+    Cultures.expand(state);
 
-    Burgs.generate();
-    States.generate();
-    Routes.generate();
-    Religions.generate();
+    Burgs.generate(state);
+    States.generate(state);
+    Routes.generate(state);
+    Religions.generate(state);
 
-    Burgs.specify();
-    States.collectStatistics();
-    States.defineStateForms();
+    Burgs.specify(state);
+    States.collectStatistics(state);
+    States.defineStateForms(state);
 
-    Provinces.generate();
-    Provinces.getPoles();
+    Provinces.generate(state);
+    Provinces.getPoles(state);
 
-    Rivers.specify();
-    Lakes.defineNames();
+    Rivers.specify(state);
+    Lakes.defineNames(state);
 
-    Ice.generate();
+    Ice.generate(state);
 
-    Military.generate();
-    Markers.generate();
-    Zones.generate();
+    Military.generate(state);
+    Markers.generate(state);
+    Zones.generate(state);
     TIME && console.timeEnd("regenerateErasedData");
     INFO && console.groupEnd("Edit Heightmap");
   }
@@ -354,7 +355,8 @@ function editHeightmap(options) {
     Features.markupPack();
 
     if (erosionAllowed) {
-      Rivers.generate(true);
+      const state = getWorldState();
+      Rivers.generate(state, true);
       Features.defineGroups();
     }
 
@@ -448,9 +450,10 @@ function editHeightmap(options) {
       c.center = findCell(c.x, c.y);
     }
 
+    const state = getWorldState();
     if (erosionAllowed) {
-      Rivers.specify();
-      Lakes.defineNames();
+      Rivers.specify(state);
+      Lakes.defineNames(state);
     }
 
     const gridToPackMap = new Map();
@@ -472,7 +475,7 @@ function editHeightmap(options) {
     }
 
     // recalculate ice
-    Ice.generate();
+    Ice.generate(state);
     ice.selectAll("*").remove();
 
     TIME && console.timeEnd("restoreRiskedData");

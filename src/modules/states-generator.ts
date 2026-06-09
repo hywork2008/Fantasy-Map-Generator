@@ -1,4 +1,5 @@
 import { mean, median, sum } from "d3";
+import type { WorldState } from "../types/WorldState";
 import {
   each,
   ensureEl,
@@ -118,12 +119,13 @@ class StatesModule {
     return 0;
   }
 
-  generate() {
+  generate(state: WorldState) {
+    const { pack } = state;
     TIME && console.time("generateStates");
     pack.states = this.createStates();
     this.expandStates();
     this.normalize();
-    this.getPoles();
+    this.getPoles(state);
     this.findNeighbors();
     this.assignColors();
     this.generateCampaigns();
@@ -222,7 +224,8 @@ class StatesModule {
   }
 
   // calculate pole of inaccessibility for each state
-  getPoles() {
+  getPoles(state: WorldState) {
+    const { pack } = state;
     const getType = (cellId: number) => pack.cells.state[cellId];
     const poles = getPolesOfInaccessibility(pack, getType);
 
@@ -287,7 +290,8 @@ class StatesModule {
   }
 
   // calculate states data like area, population etc.
-  collectStatistics() {
+  collectStatistics(state: WorldState) {
+    const { pack } = state;
     TIME && console.time("collectStatistics");
     const { cells, states } = pack;
 
@@ -533,7 +537,8 @@ class StatesModule {
   }
 
   // select a forms for listed or all valid states
-  defineStateForms(list: number[] | null = null) {
+  defineStateForms(state: WorldState, list: number[] | null = null) {
+    const { pack } = state;
     TIME && console.time("defineStateForms");
     const states = pack.states.filter(s => s.i && !s.removed && !s.lock);
     if (states.length < 1) return;

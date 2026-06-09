@@ -1,5 +1,6 @@
 import Alea from "alea";
 import { curveBasis, curveCatmullRom, line, mean, min, sum } from "d3";
+import type { WorldState } from "../types/WorldState";
 import { each, rn, round, rw } from "../utils";
 import type { Point } from "./voronoi";
 
@@ -45,7 +46,8 @@ class RiverModule {
 
   smallLength: number | null = null;
 
-  generate(allowErosion = true) {
+  generate(state: WorldState, allowErosion = true) {
+    const { pack, grid, seed } = state;
     TIME && console.time("generateRivers");
     Math.random = Alea(seed);
     const { cells, features } = pack;
@@ -498,7 +500,8 @@ class RiverModule {
     return round(right + left, 1);
   }
 
-  specify() {
+  specify(state: WorldState) {
+    const { pack } = state;
     const rivers = pack.rivers;
     if (!rivers.length) return;
 

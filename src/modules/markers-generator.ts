@@ -1,5 +1,6 @@
 import { mean } from "d3";
 import type { PackedGraph } from "../types/PackedGraph";
+import type { WorldState } from "../types/WorldState";
 import { capitalize, convertTemperature, gauss, generateDate, getAdjective, last, P, ra, rand, rn, rw } from "../utils";
 
 declare global {
@@ -54,7 +55,8 @@ class MarkersModule {
     this.config = newConfig;
   }
 
-  generate() {
+  generate(state: WorldState) {
+    const { pack } = state;
     this.resetConfig();
     pack.markers = [];
     this.generateTypes();
