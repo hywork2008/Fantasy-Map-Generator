@@ -1,6 +1,6 @@
 const $body = insertEditorHtml();
 addListeners();
-let culturesManualHistory = [];
+let culturesManualHistory = new BrushHistory();
 
 const cultureTypes = ["Generic", "River", "Lake", "Naval", "Nomadic", "Hunting", "Highland"];
 
@@ -700,7 +700,7 @@ function enterCultureManualAssignent() {
     .on("touchmove mousemove", moveCultureBrush);
 
   $body.querySelector("div").classList.add("selected");
-  culturesManualHistory = [];
+  culturesManualHistory.reset();
 }
 
 function selectCultureOnLineClick(i) {
@@ -787,7 +787,7 @@ function applyCultureManualAssignent() {
 
 function exitCulturesManualAssignment(close) {
   customization = 0;
-  culturesManualHistory = [];
+  culturesManualHistory.reset();
   cults.select("#temp").remove();
   removeCircle();
   document.querySelectorAll("#culturesBottom > *").forEach(el => (el.style.display = "inline-block"));
@@ -810,12 +810,11 @@ function saveCulturesManualSnapshot() {
   if (!temp) return;
 
   culturesManualHistory.push(temp.innerHTML);
-  if (culturesManualHistory.length > 100) culturesManualHistory.shift();
 }
 
 function undoCulturesManualAssignment() {
   const temp = cults.select("#temp").node();
-  if (!temp || !culturesManualHistory.length) return;
+  if (!temp || !culturesManualHistory.canUndo) return;
 
   temp.innerHTML = culturesManualHistory.pop();
 }

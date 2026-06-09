@@ -1,6 +1,6 @@
 const $body = insertEditorHtml();
 addListeners();
-let statesManualHistory = [];
+let statesManualHistory = new BrushHistory();
 
 export function open() {
   closeDialogs("#statesEditor, .stable");
@@ -913,7 +913,7 @@ function enterStatesManualAssignent() {
     .on("touchmove mousemove", moveStateBrush);
 
   $body.querySelector("div").classList.add("selected");
-  statesManualHistory = [];
+  statesManualHistory.reset();
 }
 
 function selectStateOnLineClick() {
@@ -1162,7 +1162,7 @@ function adjustProvinces(affectedProvinces) {
 
 function exitStatesManualAssignment(close) {
   customization = 0;
-  statesManualHistory = [];
+  statesManualHistory.reset();
   statesBody.select("#temp").remove();
   removeCircle();
   document.querySelectorAll("#statesBottom > button").forEach(el => (el.style.display = "inline-block"));
@@ -1188,12 +1188,11 @@ function saveStatesManualSnapshot() {
   if (!temp) return;
 
   statesManualHistory.push(temp.innerHTML);
-  if (statesManualHistory.length > 100) statesManualHistory.shift();
 }
 
 function undoStatesManualAssignment() {
   const temp = statesBody.select("#temp").node();
-  if (!temp || !statesManualHistory.length) return;
+  if (!temp || !statesManualHistory.canUndo) return;
 
   temp.innerHTML = statesManualHistory.pop();
 }

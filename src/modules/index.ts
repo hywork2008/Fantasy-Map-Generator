@@ -1,3 +1,5 @@
+import "../editors/BrushHistory";
+import "../editors/HeightmapEditorHistory";
 import "./voronoi";
 import "./heightmap-generator";
 import "./features";
