@@ -18,8 +18,10 @@ declare global {
   var graphHeight: number;
   var graphWidth: number;
   var TIME: boolean;
+  var INFO: boolean;
   var WARN: boolean;
   var ERROR: boolean;
+  var VERSION: string;
   var DEBUG: { stateLabels?: boolean; [key: string]: boolean | undefined };
   var options: WorldOptions;
 
@@ -45,6 +47,10 @@ declare global {
   var icons: Selection<SVGGElement, unknown, null, undefined>;
   var borders: Selection<SVGGElement, unknown, null, undefined>;
   var ruler: Selection<SVGGElement, unknown, null, undefined>;
+  var statesBody: Selection<SVGGElement, unknown, null, undefined>;
+  var statesHalo: Selection<SVGGElement, unknown, null, undefined>;
+  var scaleBar: Selection<SVGGElement, unknown, null, undefined>;
+  var legend: Selection<SVGGElement, unknown, null, undefined>;
 
   var rivers: Selection<SVGElement, unknown, null, undefined>;
   var oceanLayers: Selection<SVGGElement, unknown, null, undefined>;
@@ -166,6 +172,21 @@ declare global {
   var ThreeD: { update: () => void };
   var editStyle: (layerId: string, group?: string) => void;
   var calculateFriendlyGridSize: () => void;
+  var selectStyleElement: () => void;
+  var updateElements: () => void;
+  var textureProvideURL: () => void;
+  var fetchTextureURL: (url: string) => void;
+  var heightmapColorSchemes: Record<string, (t: number) => string>;
+  var addCustomColorScheme: (scheme: string) => void;
+  var applyStyleOnLoad: () => Promise<void>;
+  var applyStyle: (styleJSON: Record<string, Record<string, string | number | null>>) => void;
+  var applyStyleWithUiRefresh: (styleJSON: Record<string, Record<string, string | number | null>>) => void;
+  var changeStyle: (preset: string) => Promise<void>;
+  var addStylePreset: () => void;
+  var requestStylePresetChange: (preset: string) => void;
+  var requestRemoveStylePreset: () => void;
+  var removeStylePreset: () => void;
+  var updateMapFilter: () => void;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   var FlatQueue: new () => { push: (item: any, priority: number) => void; pop: () => any; length: number };
 
@@ -176,7 +197,19 @@ declare global {
     timeout?: number
   ) => void;
   var locked: (settingId: string) => boolean;
+  var lock: (settingId: string) => void;
   var unlock: (settingId: string) => void;
+  var showOptions: (event?: Event) => void;
+  var redrawLegend: () => void;
+  var confirmationDialog: (options: {
+    title?: string;
+    message?: string;
+    cancel?: string;
+    confirm?: string;
+    onConfirm?: () => void;
+    onCancel?: () => void;
+  }) => void;
+  var applyOption: (select: HTMLSelectElement, value: string, name?: string) => void;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   var $: (selector: any) => any;
   var scale: number;
@@ -200,7 +233,7 @@ declare global {
   var customization: number;
   var speak: (text: string) => void;
   var uploadFile: (el: HTMLInputElement, callback: (data: string) => void) => void;
-  var downloadFile: (content: string | Blob, name: string) => void;
+  var downloadFile: (content: string | Blob, name: string, type?: string) => void;
   var zoomTo: (x: number, y: number, zoom: number, duration: number) => void;
   var modules: Record<string, boolean>;
 }
