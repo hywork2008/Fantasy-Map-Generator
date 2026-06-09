@@ -1,0 +1,14 @@
+import { ensureEl, getGridPolygon, getPackPolygon } from "../utils";
+
+declare global {
+  var drawCells: () => void;
+}
+
+const cellsRenderer = (): void => {
+  const cellsData = customization === 1 ? Array.from(grid.cells.i) : Array.from(pack.cells.i);
+  const polygon = customization === 1 ? (i: number) => getGridPolygon(i, grid) : (i: number) => getPackPolygon(i, pack);
+  const paths = cellsData.map(i => `M${polygon(i)}`);
+  ensureEl("cells").innerHTML = `<path d="${paths.join("")}" />`;
+};
+
+window.drawCells = cellsRenderer;

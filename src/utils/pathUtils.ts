@@ -327,6 +327,20 @@ export const findPath = (
   return null;
 };
 
+export const getGappedFillPaths = (
+  elementName: string,
+  fill: string | null | undefined,
+  waterGap: string | null | undefined,
+  color: string,
+  index: number
+): string => {
+  let html = "";
+  if (fill) html += `<path d="${fill}" fill="${color}" id="${elementName}${index}" />`;
+  if (waterGap)
+    html += `<path d="${waterGap}" fill="none" stroke="${color}" stroke-width="3" id="${elementName}-gap${index}" />`;
+  return html;
+};
+
 declare global {
   interface Window {
     ERROR: boolean;

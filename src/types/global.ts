@@ -32,6 +32,7 @@ declare global {
     getRoute: (from: number, to: number) => Route | null;
     connect: (cellId: number) => Route | undefined;
     buildLinks: (routes: Route[]) => Record<number, Record<number, number>>;
+    getPath: (route: { group: string; points: number[][] }) => string;
   };
   var populationRate: number;
   var urbanDensity: number;
@@ -65,6 +66,18 @@ declare global {
   var coastline: Selection<SVGGElement, unknown, null, undefined>;
   var lakes: Selection<SVGGElement, unknown, null, undefined>;
   var provs: Selection<SVGGElement, unknown, null, undefined>;
+  var biomes: Selection<SVGGElement, unknown, null, undefined>;
+  var cults: Selection<SVGGElement, unknown, null, undefined>;
+  var relig: Selection<SVGGElement, unknown, null, undefined>;
+  var regions: Selection<SVGGElement, unknown, null, undefined>;
+  var prec: Selection<SVGGElement, unknown, null, undefined>;
+  var population: Selection<SVGGElement, unknown, null, undefined>;
+  var cells: Selection<SVGGElement, unknown, null, undefined>;
+  var gridOverlay: Selection<SVGGElement, unknown, null, undefined>;
+  var coordinates: Selection<SVGGElement, unknown, null, undefined>;
+  var texture: Selection<SVGGElement, unknown, null, undefined>;
+  var zones: Selection<SVGGElement, unknown, null, undefined>;
+  var armies: Selection<SVGGElement, unknown, null, undefined>;
   var getColorScheme: (scheme: string | null) => (t: number) => string;
   var getColor: (height: number, scheme: (t: number) => string) => string;
   var svgWidth: number;
@@ -75,8 +88,26 @@ declare global {
   var notes: WorldNote[];
   var style: MapStyle;
 
+  var shapeRendering: HTMLSelectElement;
+  var mapWidthInput: HTMLInputElement;
+  var mapHeightInput: HTMLInputElement;
+
   var layerIsOn: (layerId: string) => boolean;
   var drawRoute: (route: Route) => void;
+  var drawBiomes: () => void;
+  var drawPrecipitation: () => void;
+  var drawPopulation: () => void;
+  var drawCells: () => void;
+  var drawCultures: () => void;
+  var drawReligions: () => void;
+  var drawStates: () => void;
+  var drawProvinces: () => void;
+  var drawGrid: () => void;
+  var drawCoordinates: () => void;
+  var drawTexture: () => void;
+  var drawRivers: () => void;
+  var drawRoutes: () => void;
+  var drawZones: () => void;
   var invokeActiveZooming: () => void;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   var FlatQueue: new () => { push: (item: any, priority: number) => void; pop: () => any; length: number };
