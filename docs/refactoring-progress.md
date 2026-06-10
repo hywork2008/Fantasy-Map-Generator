@@ -1,6 +1,6 @@
 # JS → TS リファクタリング 進捗と今後の計画
 
-> 最終更新: 2026-06-11（フェーズ11完了・ビルド修正済）
+> 最終更新: 2026-06-11（フェーズ12完了）
 
 ---
 
@@ -22,19 +22,19 @@ State      (src/types/)       → 型定義、グローバル変数の単一の�
 
 ---
 
-## 現状スナップショット（フェーズ11完了後）
+## 現状スナップショット（フェーズ12完了後）
 
 | カテゴリ | 移行済み TS | 残り JS |
 |---|---|---|
 | 型定義 (`src/types/`) | 3ファイル | — |
 | Generator (`src/modules/`) | 22ファイル | — |
 | Renderer (`src/renderers/`) | 29ファイル | — |
-| Controller/Editor (`src/controllers/`) | 26ファイル | — |
+| Controller/Editor (`src/controllers/`) | 39ファイル | — |
 | I/O (`src/io/`) | 6ファイル（auto-update含む） | — |
-| UIモジュール (`public/modules/ui/`) | 移行済みは上記に含む | **24ファイル**（`<script>`タグ残存） |
-| Dynamic（動的ロード） | states/cultures/religions/hierarchy/charts/export-json/auto-update | supporters, heightmap-selection, installation, minimap（4ファイル） |
+| UIモジュール (`public/modules/ui/`) | 移行済みは上記に含む | **12ファイル**（`<script>`タグ残存） |
+| Dynamic（動的ロード） | states/cultures/religions/hierarchy/charts/export-json/auto-update/minimap | supporters, heightmap-selection, installation（3ファイル） |
 | メインエントリ | — | `public/main.js`（1315行） |
-| **移行済み合計** | **約 52,000行** | **約 11,000行** |
+| **移行済み合計** | **約 54,350行** | **約 8,650行** |
 
 ### 残存 JS ファイル一覧（`src/index.html` の `<script>` タグ残存）
 
@@ -45,27 +45,13 @@ State      (src/types/)       → 型定義、グローバル変数の単一の�
 | `burgs-overview.js` | 589 | 大規模エディタ |
 | `diplomacy-editor.js` | 527 | 大規模エディタ |
 | `military-overview.js` | 504 | 大規模エディタ |
+| `emblems-editor.js` | 542 | 中規模エディタ |
 | `regiment-editor.js` | 494 | 中規模エディタ |
 | `burg-editor.js` | 480 | 中規模エディタ |
 | `labels-editor.js` | 438 | 中規模エディタ |
 | `burg-group-editor.js` | 344 | 中規模エディタ |
 | `relief-editor.js` | 288 | 中規模エディタ |
 | `units-editor.js` | 273 | 中規模エディタ |
-| `markers-overview.js` | 256 | 概要パネル |
-| `regiments-overview.js` | 228 | 概要パネル |
-| `routes-overview.js` | 218 | 概要パネル |
-| `rivers-overview.js` | 218 | 概要パネル |
-| `ai-generator.js` | 231 | ユーティリティ |
-| `transform-tool.js` | 204 | ユーティリティ |
-| `world-configurator.js` | 200 | ユーティリティ |
-| `temperature-graph.js` | 216 | ユーティリティ |
-| `rivers-creator.js` | 144 | ユーティリティ |
-| `ice-editor.js` | 120 | ユーティリティ |
-| `submap-tool.js` | 98 | ユーティリティ |
-| `route-group-editor.js` | 84 | ユーティリティ |
-| `emblems-editor.js` | 542 | 中規模エディタ |
-
-> **注意:** `coastline-editor.js`（215行）は `src/controllers/coastline-editor.ts` として移行済みだが、`index.html` の `<script>` タグが残っている（二重ロードになるため早急に削除が必要）。
 
 ### 動的ロード（`<script>` タグ外）で残存する JS
 
@@ -73,7 +59,6 @@ State      (src/types/)       → 型定義、グローバル変数の単一の�
 |---|---|---|
 | `modules/dynamic/supporters.js` | 621 | `options.ts` |
 | `modules/dynamic/heightmap-selection.js` | 319 | `options.ts` |
-| `modules/ui/minimap.js` | 133 | `tools.ts` |
 | `modules/dynamic/installation.js` | 73 | 不明（要調査） |
 
 ---
@@ -141,35 +126,25 @@ State      (src/types/)       → 型定義、グローバル変数の単一の�
 - 既存 `src/io/load.ts` の dynamic import を static import に置換
 - ビルドエラー修正: `COA`/`COArenderer`/`drawScaleBar`/`fitScaleBar`/`parseTransform` の `declare global` 競合を解消
 
+### フェーズ12: 概要パネル・小規模ユーティリティの移行
+- `routes-overview.js`（218行）→ `src/controllers/routes-overview.ts`
+- `rivers-overview.js`（218行）→ `src/controllers/rivers-overview.ts`
+- `markers-overview.js`（256行）→ `src/controllers/markers-overview.ts`
+- `regiments-overview.js`（228行）→ `src/controllers/regiments-overview.ts`
+- `temperature-graph.js`（216行）→ `src/controllers/temperature-graph.ts`
+- `world-configurator.js`（200行）→ `src/controllers/world-configurator.ts`
+- `submap-tool.js`（98行）→ `src/controllers/submap-tool.ts`
+- `route-group-editor.js`（84行）→ `src/controllers/route-group-editor.ts`
+- `ice-editor.js`（120行）→ `src/controllers/ice-editor.ts`
+- `transform-tool.js`（204行）→ `src/controllers/transform-tool.ts`
+- `rivers-creator.js`（144行）→ `src/controllers/rivers-creator.ts`
+- `ai-generator.js`（231行）→ `src/controllers/ai-generator.ts`
+- `minimap.js`（133行）→ `src/controllers/minimap.ts`（tools.ts から static import に変更）
+- `src/index.html` の `coastline-editor.js` 二重ロードタグを削除
+
 ---
 
 ## 今後のフェーズ
-
-### フェーズ12: 概要パネル・小規模ユーティリティの移行
-
-**即時対応:** `src/index.html` の `coastline-editor.js` タグを削除（移行済みのため二重ロードになっている）
-
-**移行対象:**
-
-| ファイル | 行数 | 備考 |
-|---|---|---|
-| `routes-overview.js` | 218 | |
-| `rivers-overview.js` | 218 | |
-| `markers-overview.js` | 256 | |
-| `regiments-overview.js` | 228 | |
-| `temperature-graph.js` | 216 | |
-| `world-configurator.js` | 200 | |
-| `submap-tool.js` | 98 | |
-| `route-group-editor.js` | 84 | |
-| `ice-editor.js` | 120 | |
-| `transform-tool.js` | 204 | |
-| `rivers-creator.js` | 144 | |
-| `ai-generator.js` | 231 | |
-| `minimap.js` | 133 | `tools.ts` から動的ロード中 |
-
-**計:** 約 2,350行
-
----
 
 ### フェーズ13: 中規模エディタの移行
 

@@ -1,6 +1,7 @@
 import { pointer, quadtree } from "d3";
 import { ensureEl, gauss, generateSeed, getNextId, isCtrlClick, P, rn } from "../utils";
 import { open as openChartsOverview } from "./charts-overview";
+import { openMinimapDialog } from "./minimap";
 
 // ─── Tools panel event dispatcher ────────────────────────────────────────────
 
@@ -1024,10 +1025,8 @@ function overviewCharts(): void {
   openChartsOverview();
 }
 
-async function openMinimap(): Promise<void> {
-  const url = `${import.meta.env.BASE_URL}modules/ui/minimap.js`;
-  const Minimap = (await import(/* @vite-ignore */ url)) as { openMinimapDialog: () => void };
-  Minimap.openMinimapDialog();
+function openMinimap(): void {
+  openMinimapDialog();
 }
 
 // ─── Global registration ───────────────────────────────────────────────────────

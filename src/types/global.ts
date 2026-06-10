@@ -517,7 +517,7 @@ declare global {
   var configMarkersGeneration: () => void;
   var viewCellDetails: () => void;
   var overviewCharts: () => void;
-  var openMinimap: () => Promise<void>;
+  var openMinimap: () => void;
   var toggleAddLabel: () => void;
   var toggleAddBurg: () => void;
   var toggleAddRiver: () => void;
@@ -738,4 +738,32 @@ declare global {
 
   var P: (probability: number) => boolean;
   var updateLockStatus: (provinceId: number, classList: DOMTokenList) => void;
+
+  // ─── Phase 12: overview panels & small utilities ─────────────────────────────
+
+  // from main.js (zoom/pan state)
+  var viewX: number;
+  var viewY: number;
+
+  // overview panel openers
+  var overviewRegiments: (state?: number) => void;
+  var showBurgTemperatureGraph: (id: number) => void;
+
+  // from minimap.ts
+  var updateMinimap: () => void;
+
+  // from options.ts (cells density helpers)
+  var cellsDensityMap: Record<number, number>;
+  var getCellsDensityColor: (cells: number) => string;
+
+  // HTML elements (browser global per element id)
+  var regimentAdd: HTMLButtonElement;
+  var addMarker: HTMLButtonElement;
+  var markerAdd: HTMLButtonElement;
+  var markersFooterTotal: HTMLElement;
+  var markerTypeSelectMenu: HTMLElement;
+  var iceNew: HTMLButtonElement;
+  var regimentsFilter: HTMLSelectElement;
+  var routeCreatorGroupSelect: HTMLSelectElement;
+  var routeGroup: HTMLSelectElement;
 }
