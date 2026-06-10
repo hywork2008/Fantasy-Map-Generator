@@ -2,6 +2,7 @@ import * as d3 from "d3";
 import type { NameBase } from "../modules/names-generator";
 import type { River } from "../modules/river-generator";
 import { calculateVoronoi, ensureEl, last, link, minmax, parseError, rn } from "../utils";
+import { resolveVersionConflicts } from "./auto-update";
 
 // ─── Quick load from browser storage ─────────────────────────────────────────
 
@@ -526,12 +527,7 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
       .on("mousemove", () => tip("Drag to change the position. Click to hide the legend"))
       .on("click", () => clearLegend());
 
-    {
-      const url = `${import.meta.env.BASE_URL}modules/dynamic/auto-update.js`;
-      type AutoUpdateModule = { resolveVersionConflicts: (v: string) => void };
-      const { resolveVersionConflicts } = (await import(/* @vite-ignore */ url)) as AutoUpdateModule;
-      resolveVersionConflicts(mapVersion);
-    }
+    resolveVersionConflicts(mapVersion);
 
     if (heightmapColorSchemes) {
       const oceanHeights = document.getElementById("oceanHeights");

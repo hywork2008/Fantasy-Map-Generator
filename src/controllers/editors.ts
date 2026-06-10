@@ -1,5 +1,8 @@
 import * as d3 from "d3";
 import { ensureEl, parseTransform, rn } from "../utils";
+import { open as openCulturesEditor } from "./cultures-editor";
+import { open as openReligionsEditor } from "./religions-editor";
+import { open as openStatesEditor } from "./states-editor";
 
 // ─── Default viewbox events ────────────────────────────────────────────────
 
@@ -1032,25 +1035,19 @@ function refreshAllEditors(): void {
 
 // ─── Dynamic editor launchers ─────────────────────────────────────────────
 
-async function editStates(): Promise<void> {
+function editStates(): void {
   if (customization) return;
-  const url = `${import.meta.env.BASE_URL}modules/dynamic/editors/states-editor.js`;
-  const Editor = (await import(/* @vite-ignore */ url)) as { open: () => void };
-  Editor.open();
+  openStatesEditor();
 }
 
-async function editCultures(): Promise<void> {
+function editCultures(): void {
   if (customization) return;
-  const url = `${import.meta.env.BASE_URL}modules/dynamic/editors/cultures-editor.js`;
-  const Editor = (await import(/* @vite-ignore */ url)) as { open: () => void };
-  Editor.open();
+  openCulturesEditor();
 }
 
-async function editReligions(): Promise<void> {
+function editReligions(): void {
   if (customization) return;
-  const url = `${import.meta.env.BASE_URL}modules/dynamic/editors/religions-editor.js`;
-  const Editor = (await import(/* @vite-ignore */ url)) as { open: () => void };
-  Editor.open();
+  openReligionsEditor();
 }
 
 function editCoastlineSettings(): void {

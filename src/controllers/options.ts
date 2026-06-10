@@ -1,5 +1,6 @@
 import { hsl } from "d3";
 import { ensureEl, gauss, P, rand, rn, rw } from "../utils";
+import { exportToJson as exportToJsonModule } from "./export-json";
 
 // ─── Init jQuery draggable / disable-selection ────────────────────────────────
 
@@ -404,7 +405,7 @@ function changeEmblemShape(emblemShape: string): void {
 
   pack.states.forEach((state: any) => {
     if (!state.i || state.removed || !state.coa || state.coa.custom) return;
-    const newShield = specificShape || COA.getShield(state.culture, undefined);
+    const newShield = specificShape || COA.getShield(state.culture);
     if (newShield === state.coa.shield) return;
     state.coa.shield = newShield;
     rerenderCOA(`stateCOA${state.i}`, state.coa);
@@ -840,10 +841,8 @@ function showExportPane(): void {
   });
 }
 
-async function exportToJson(type: string): Promise<void> {
-  const url = `${import.meta.env.BASE_URL}modules/dynamic/export-json.js`;
-  const mod = (await import(/* @vite-ignore */ url)) as { exportToJson: (type: string) => void };
-  mod.exportToJson(type);
+function exportToJson(type: string): void {
+  exportToJsonModule(type);
 }
 
 async function showLoadPane(): Promise<void> {

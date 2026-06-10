@@ -1,5 +1,6 @@
 import { pointer, quadtree } from "d3";
 import { ensureEl, gauss, generateSeed, getNextId, isCtrlClick, P, rn } from "../utils";
+import { open as openChartsOverview } from "./charts-overview";
 
 // ─── Tools panel event dispatcher ────────────────────────────────────────────
 
@@ -142,7 +143,7 @@ function regenerateRivers(): void {
   Rivers.generate(state);
   Rivers.specify(state);
   Features.defineGroups();
-  Lakes.defineNames(state);
+  (Lakes as any).defineNames(state);
   if (layerIsOn("toggleRivers")) drawRivers();
 }
 
@@ -333,7 +334,7 @@ function recreateStates(): any[] | null {
         : pack.cultures[culture].type;
     const expansionism = rn(Math.random() * +ensureEl<HTMLInputElement>("sizeVariety").value + 1, 1);
     const cultureType = pack.cultures[culture].type;
-    const coa = COA.generate(capital.coa, 0.3, null, cultureType);
+    const coa = COA.generate(capital.coa, 0.3, null, cultureType ?? "Generic");
     coa.shield = capital.coa.shield;
     newStates.push({ i, name, type, capital: capital.i, center: capital.cell, culture, expansionism, coa });
   }
@@ -489,8 +490,8 @@ function regenerateEmblems(): void {
   pack.states.forEach((state: any) => {
     if (!state.i || state.removed) return;
     const cultureType = pack.cultures[state.culture].type;
-    state.coa = COA.generate(null, null, null, cultureType);
-    state.coa.shield = COA.getShield(state.culture, undefined);
+    state.coa = COA.generate(null, 0, null, cultureType ?? "Generic");
+    state.coa.shield = COA.getShield(state.culture);
   });
 
   pack.burgs.forEach((burg: any) => {
@@ -854,7 +855,7 @@ function addRiverOnClick(this: SVGElement, event: MouseEvent): void {
   riversG.append("path").attr("id", id).attr("d", path);
 
   if (!event.shiftKey) {
-    Lakes.cleanupLakeData();
+    (Lakes as any).cleanupLakeData();
     unpressClickToAddButton();
     ensureEl("addNewRiver").classList.remove("pressed");
     const riversOverviewRefreshEl = document.getElementById("riversOverviewRefresh") as HTMLButtonElement | null;
@@ -1019,10 +1020,8 @@ function viewCellDetails(): void {
   });
 }
 
-async function overviewCharts(): Promise<void> {
-  const url = `${import.meta.env.BASE_URL}modules/dynamic/overview/charts-overview.js`;
-  const Overview = (await import(/* @vite-ignore */ url)) as { open: () => void };
-  Overview.open();
+function overviewCharts(): void {
+  openChartsOverview();
 }
 
 async function openMinimap(): Promise<void> {

@@ -425,7 +425,7 @@ declare global {
 
   // Map coordinate helpers (from main.js / general.js)
   var getArea: (area: number) => number;
-  var getAreaUnit: () => string;
+  var getAreaUnit: (squareMark?: string) => string;
 
   // Cell info panel DOM elements
   var infoX: HTMLElement;
@@ -516,7 +516,7 @@ declare global {
   var openEmblemEditor: () => Promise<void>;
   var configMarkersGeneration: () => void;
   var viewCellDetails: () => void;
-  var overviewCharts: () => Promise<void>;
+  var overviewCharts: () => void;
   var openMinimap: () => Promise<void>;
   var toggleAddLabel: () => void;
   var toggleAddBurg: () => void;
@@ -638,7 +638,8 @@ declare global {
   var showSavePane: () => void;
   var showLoadPane: () => Promise<void>;
   var copyLinkToClickboard: () => void;
-  var exportToJson: (type: string) => Promise<void>;
+  var exportToJson: (type: string) => void;
+  var mapCoordinates: { latT?: number; latN?: number; latS?: number; lonT?: number; lonW?: number; lonE?: number };
   var connectToDropbox: () => Promise<void>;
   var loadURL: () => void;
   var openExportToPngTiles: () => void;
@@ -725,7 +726,7 @@ declare global {
   // utility globals (already on window via utils/index.ts, declared here for external JS compat)
   var si: (value: number, decimals?: number) => string;
   var rn: (value: number, decimals?: number) => number;
-  var rand: (n: number) => number;
+  var rand: (min?: number, max?: number) => number;
   var unique: <T>(arr: T[]) => T[];
   var findAll: (x: number, y: number, radius: number) => number[];
   var isLand: (i: number) => boolean;
