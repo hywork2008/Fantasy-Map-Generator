@@ -167,12 +167,16 @@ const suffixes: Record<string, Record<string, number>> = {
 
 export interface Route {
   i: number;
-  group: "roads" | "trails" | "searoutes";
+  group: string;
   feature: number;
-  points: number[][];
+  points: [number, number, number][];
   cells?: number[];
   merged?: boolean;
   name?: string;
+  /** Runtime: computed by editor */
+  length?: number;
+  /** Runtime: set by user in editor */
+  lock?: boolean;
 }
 
 declare global {
@@ -455,8 +459,10 @@ class RoutesModule {
     });
   }
 
-  private getPoints(group: string, cells: number[], points: Point[]) {
-    const data = cells.map(cellId => [...points[cellId], cellId]);
+  private getPoints(group: string, cells: number[], points: Point[]): [number, number, number][] {
+    const data: [number, number, number][] = cells.map(
+      cellId => [...points[cellId], cellId] as [number, number, number]
+    );
 
     // resolve sharp angles
     if (group !== "searoutes") {
@@ -677,7 +683,7 @@ class RoutesModule {
     const connectivity = Object.values(connections).reduce((acc, routeId) => {
       const route = pack.routes.find(route => route.i === routeId);
       if (!route) return acc;
-      const rate = connectivityRateMap[route.group] || connectivityRateMap.default;
+      const rate = (connectivityRateMap as any)[route.group] || connectivityRateMap.default;
       return acc + rate;
     }, 0.8);
 

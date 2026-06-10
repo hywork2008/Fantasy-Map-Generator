@@ -1,0 +1,225 @@
+import type { WorldNote } from "../types/WorldState";
+import { ensureEl } from "../utils";
+
+function editNotes(id?: string, name?: string): void {
+  const notesLegend = ensureEl("notesLegend");
+  const notesName = ensureEl<HTMLInputElement>("notesName");
+  const notesSelect = ensureEl<HTMLSelectElement>("notesSelect");
+  const notesPin = ensureEl("notesPin");
+
+  // update list of objects
+  notesSelect.options.length = 0;
+  notes.forEach(({ id: noteId }) => {
+    notesSelect.options.add(new Option(noteId, noteId));
+  });
+
+  // update pin notes icon
+  const notesArePinned = options.pinNotes;
+  if (notesArePinned) notesPin.classList.add("pressed");
+  else notesPin.classList.remove("pressed");
+
+  // select an object
+  if (notes.length || id) {
+    if (!id) id = notes[0].id;
+    let note = notes.find(note => note.id === id) ?? null;
+    if (!note) {
+      if (!name) name = id;
+      note = { id: id!, name: name!, legend: "" };
+      notes.push(note);
+      notesSelect.options.add(new Option(id, id));
+    }
+
+    notesSelect.value = id!;
+    notesName.value = note.name;
+    notesLegend.innerHTML = note.legend;
+    initEditor();
+    updateNotesBox(note);
+  } else {
+    notesName.value = "";
+    notesLegend.innerHTML = "No notes added. Click on an element (e.g. label or marker) and add a free text note";
+  }
+
+  $("#notesEditor").dialog({
+    title: "Notes Editor",
+    width: svgWidth * 0.8,
+    height: svgHeight * 0.75,
+    position: { my: "center", at: "center", of: "svg" },
+    close: removeEditor
+  });
+
+  if (modules.editNotes) return;
+  modules.editNotes = true;
+
+  // add listeners
+  ensureEl("notesSelect").addEventListener("change", changeElement);
+  ensureEl("notesName").addEventListener("input", changeName);
+  ensureEl("notesLegend").addEventListener("blur", updateLegend);
+  ensureEl("notesPin").addEventListener("click", toggleNotesPin);
+  ensureEl("notesFocus").addEventListener("click", validateHighlightElement);
+  ensureEl("notesGenerateWithAi").addEventListener("click", openAiGenerator);
+  ensureEl("notesDownload").addEventListener("click", downloadLegends);
+  ensureEl("notesUpload").addEventListener("click", () => (ensureEl("legendsToLoad") as HTMLInputElement).click());
+  (ensureEl("legendsToLoad") as HTMLInputElement).addEventListener("change", function (this: HTMLInputElement) {
+    uploadFile(this, uploadLegends);
+  });
+  ensureEl("notesRemove").addEventListener("click", triggerNotesRemove);
+
+  async function initEditor(): Promise<void> {
+    if (!(window as any).tinymce) {
+      const url = "https://azgaar.github.io/Fantasy-Map-Generator/libs/tinymce/tinymce.min.js";
+      try {
+        await import(url);
+      } catch {
+        try {
+          const hash = Math.random().toString(36).substring(2, 15);
+          await import(`${url}#${hash}`);
+        } catch (error) {
+          console.error(error);
+        }
+      }
+    }
+
+    if ((window as any).tinymce) {
+      (window as any).tinymce._setBaseUrl("https://azgaar.github.io/Fantasy-Map-Generator/libs/tinymce");
+      (window as any).tinymce.init({
+        license_key: "gpl",
+        selector: "#notesLegend",
+        height: "90%",
+        menubar: false,
+        plugins: `autolink lists link charmap code fullscreen image link media table wordcount`,
+        toolbar: `code | undo redo | removeformat | bold italic strikethrough | forecolor backcolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | link image media table | fontselect fontsizeselect | blockquote hr charmap | print fullscreen`,
+        media_alt_source: false,
+        media_poster: false,
+        browser_spellcheck: true,
+        contextmenu: false,
+        setup: (editor: any) => {
+          editor.on("Change", updateLegend);
+        }
+      });
+    }
+  }
+
+  function updateLegend(): void {
+    const note = notes.find(note => note.id === notesSelect.value);
+    if (!note) {
+      tip("Note element is not found", true, "error", 4000);
+      return;
+    }
+
+    const isTinyEditorActive = (window as any).tinymce?.activeEditor;
+    note.legend = isTinyEditorActive ? (window as any).tinymce.activeEditor.getContent() : notesLegend.innerHTML;
+    updateNotesBox(note);
+  }
+
+  function updateNotesBox(note: WorldNote): void {
+    ensureEl("notesHeader").innerHTML = note.name;
+    ensureEl("notesBody").innerHTML = note.legend;
+  }
+
+  function changeElement(this: HTMLSelectElement): void {
+    const note = notes.find(note => note.id === this.value);
+    if (!note) {
+      tip("Note element is not found", true, "error", 4000);
+      return;
+    }
+
+    notesName.value = note.name;
+    notesLegend.innerHTML = note.legend;
+    updateNotesBox(note);
+
+    if ((window as any).tinymce) (window as any).tinymce.activeEditor.setContent(note.legend);
+  }
+
+  function changeName(this: HTMLInputElement): void {
+    const note = notes.find(note => note.id === notesSelect.value);
+    if (!note) {
+      tip("Note element is not found", true, "error", 4000);
+      return;
+    }
+
+    note.name = this.value;
+  }
+
+  function removeLegend(): void {
+    notes = notes.filter(({ id: noteId }) => noteId !== notesSelect.value);
+
+    if (!notes.length) {
+      $("#notesEditor").dialog("close");
+      return;
+    }
+
+    removeEditor();
+    editNotes(notes[0].id, notes[0].name);
+  }
+
+  function validateHighlightElement(): void {
+    const element = ensureEl(notesSelect.value);
+    if (element) {
+      highlightElement(element, 3);
+      return;
+    }
+
+    confirmationDialog({
+      title: "Element not found",
+      message: "Note element is not found. Would you like to remove the note?",
+      confirm: "Remove",
+      cancel: "Keep",
+      onConfirm: removeLegend
+    });
+  }
+
+  function openAiGenerator(): void {
+    const note = notes.find(note => note.id === notesSelect.value);
+
+    let prompt = `Respond with description. Use simple dry language. Invent facts, names and details. Split to paragraphs and format to HTML. Remove h tags, remove markdown.`;
+    if (note?.name) prompt += ` Name: ${note.name}.`;
+    if (note?.legend) prompt += ` Data: ${note.legend}`;
+
+    const onApply = (result: string) => {
+      notesLegend.innerHTML = result;
+      if (note) {
+        note.legend = result;
+        updateNotesBox(note);
+        if ((window as any).tinymce) (window as any).tinymce.activeEditor.setContent(note.legend);
+      }
+    };
+
+    generateWithAi(prompt, onApply);
+  }
+
+  function downloadLegends(): void {
+    const notesData = JSON.stringify(notes);
+    const fname = `${getFileName("Notes")}.txt`;
+    downloadFile(notesData, fname);
+  }
+
+  function uploadLegends(dataLoaded: string): void {
+    if (!dataLoaded) {
+      tip("Cannot load the file. Please check the data format", false, "error");
+      return;
+    }
+    notes = JSON.parse(dataLoaded) as WorldNote[];
+    notesSelect.options.length = 0;
+    editNotes(notes[0].id, notes[0].name);
+  }
+
+  function triggerNotesRemove(): void {
+    confirmationDialog({
+      title: "Remove note",
+      message: "Are you sure you want to remove the selected note? There is no way to undo this action",
+      confirm: "Remove",
+      onConfirm: removeLegend
+    });
+  }
+
+  function toggleNotesPin(this: HTMLElement): void {
+    options.pinNotes = !options.pinNotes;
+    this.classList.toggle("pressed");
+  }
+
+  function removeEditor(): void {
+    if ((window as any).tinymce) (window as any).tinymce.remove();
+  }
+}
+
+window.editNotes = editNotes as () => void;

@@ -26,6 +26,11 @@ export interface BiomesData {
   iconsDensity: number[];
   icons: string[][];
   cost: number[];
+  /** Runtime statistics populated by the Biomes Editor */
+  cells?: number[];
+  area?: number[];
+  rural?: number[];
+  urban?: number[];
 }
 
 export interface WorldOptions {

@@ -398,7 +398,7 @@ declare global {
   var editZones: () => void;
   var editReligions: () => void;
   var openEmblemEditor: () => void;
-  var editNotes: () => void;
+  var editNotes: (id?: string, name?: string) => void;
   var overviewCharts: () => void;
   var overviewBurgs: () => void;
   var overviewRoutes: () => void;
@@ -472,4 +472,58 @@ declare global {
   var RouteOpisometer: new (points: [number, number][]) => any;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   var Planimeter: new (points: [number, number][]) => any;
+
+  // ─── Phase 9: editor dependencies from not-yet-migrated JS ───────────────────
+
+  // from editors.js
+  var fitContent: () => number;
+  var applySorting: (header: HTMLElement) => void;
+  var openPicker: (fill: string, callback: (newFill: string) => void) => void;
+  var selectIcon: (current: string, callback: (value: string) => void) => void;
+  var drawLegend: (name: string, data: Array<[string | number, string, string]>) => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  var elSelected: import("d3").Selection<any, unknown, null, undefined> | null;
+  var unselect: () => void;
+  var listen: (el: EventTarget, event: string, handler: EventListener) => () => void;
+  var moveCircle: (x: number, y: number, r?: number) => void;
+  var removeCircle: () => void;
+  var fog: (id: string, path: string) => void;
+  var unfog: (id: string) => void;
+  var highlightElement: (element: HTMLElement, timeout: number) => void;
+
+  // from tools.js
+  var recalculatePopulation: () => void;
+
+  // from route-group-editor.js
+  var editRouteGroups: () => void;
+
+  // from rivers-creator.js (not yet migrated)
+  var createRiver: () => void;
+
+  // from editors.js
+  var editRoute: (id: string) => void;
+  var editRiver: (id: string) => void;
+  var editMarker: (markerI: number) => void;
+  var editLake: () => void;
+
+  // from elevation-profile.ts
+  var ElevationProfile: { open: (cells: number[], routeLen: number, isRiver: boolean) => void };
+
+  // from ai-generator.js
+  var generateWithAi: (prompt: string, onApply: (result: string) => void) => void;
+
+  // from main.js
+  var getWorldState: () => import("./WorldState").WorldState;
+  var showMainTip: () => void;
+
+  // utility globals (already on window via utils/index.ts, declared here for external JS compat)
+  var si: (value: number, decimals?: number) => string;
+  var rn: (value: number, decimals?: number) => number;
+  var rand: (n: number) => number;
+  var unique: <T>(arr: T[]) => T[];
+  var findAll: (x: number, y: number, radius: number) => number[];
+  var isLand: (i: number) => boolean;
+  var getPackPolygon: (i: number) => [number, number][];
+  var getRandomColor: () => string;
+  var getSegmentId: (points: [number, number][], point: [number, number], dimension?: number) => number;
 }

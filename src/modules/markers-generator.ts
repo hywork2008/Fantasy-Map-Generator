@@ -36,6 +36,7 @@ export interface Marker {
   fill?: string;
   stroke?: string;
   pinned?: boolean;
+  hidden?: boolean;
 }
 
 class MarkersModule {
