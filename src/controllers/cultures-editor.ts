@@ -1,5 +1,5 @@
 import * as d3 from "d3";
-import { abbreviate, debounce, ensureEl, rn, si } from "../utils";
+import { abbreviate, applySortingByHeader, debounce, ensureEl, rn, si } from "../utils";
 import { open as openHierarchyTree } from "./hierarchy-tree";
 
 const cultureTypes = ["Generic", "River", "Lake", "Naval", "Nomadic", "Hunting", "Highland"];

@@ -672,6 +672,62 @@ window.getHeight = getHeight;
 window.toDMS = toDMS;
 window.getRiverInfo = getRiverInfo;
 
+// ─── Table sorting ────────────────────────────────────────────────────────────
+
+export function applySortingByHeader(headerContainer: string): void {
+  document
+    .getElementById(headerContainer)!
+    .querySelectorAll<HTMLElement>(".sortable")
+    .forEach(el => {
+      el.addEventListener("click", () => sortLines(el));
+    });
+}
+
+export function sortLines(headerElement: HTMLElement): void {
+  const type = headerElement.classList.contains("alphabetically") ? "name" : "number";
+  let order = headerElement.className.includes("-down") ? "-up" : "-down";
+  if (!headerElement.className.includes("icon-sort") && type === "name") order = "-up";
+
+  const headers = headerElement.parentNode as Element;
+  headers.querySelectorAll<HTMLElement>("div.sortable").forEach(e => {
+    e.classList.forEach(c => {
+      if (c.includes("icon-sort")) e.classList.remove(c);
+    });
+  });
+  headerElement.classList.add(`icon-sort-${type}${order}`);
+  applySorting(headers as HTMLElement);
+}
+
+export function applySorting(headers: HTMLElement): void {
+  const header = headers.querySelector<HTMLElement>("div[class*='icon-sort']");
+  if (!header) return;
+  const sortby = header.dataset.sortby!;
+  const name = header.classList.contains("alphabetically");
+  const desc = header.className.includes("-down") ? -1 : 1;
+  const list = headers.nextElementSibling as Element;
+  const lines = Array.from(list.children) as HTMLElement[];
+
+  lines
+    .sort((a, b) => {
+      const an = name ? a.dataset[sortby] : +a.dataset[sortby]!;
+      const bn = name ? b.dataset[sortby] : +b.dataset[sortby]!;
+      return (
+        ((an as string | number) > (bn as string | number)
+          ? 1
+          : (an as string | number) < (bn as string | number)
+            ? -1
+            : 0) * desc
+      );
+    })
+    .forEach(line => {
+      list.appendChild(line);
+    });
+}
+
+window.applySortingByHeader = applySortingByHeader;
+window.applySorting = applySorting;
+window.sortLines = sortLines;
+
 // ─── Legacy globals (from non-migrated JS files) ──────────────────────────────
 
 declare const d3: Record<string, unknown>;

@@ -49,6 +49,7 @@ import {
 } from "./pathUtils";
 import { biased, each, gauss, generateSeed, getNumberInRange, P, Pint, ra, rand, rw } from "./probabilityUtils";
 import { capitalize, isValidJSON, parseTransform, round, safeParseJSON, sanitizeId, splitInTwo } from "./stringUtils";
+import { applySorting, applySortingByHeader, sortLines } from "./uiHelpers";
 import { convertTemperature, getIntegerFromSI, si } from "./unitUtils";
 
 window.rn = rn;
@@ -184,6 +185,8 @@ window.drawPath = drawPath;
 
 export {
   abbreviate,
+  applySorting,
+  applySortingByHeader,
   biased,
   C_12,
   calculateVoronoi,
@@ -262,6 +265,7 @@ export {
   sanitizeId,
   shouldRegenerateGrid,
   si,
+  sortLines,
   splitInTwo,
   TYPED_ARRAY_MAX_VALUES,
   throttle,

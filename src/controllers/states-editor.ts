@@ -1,5 +1,5 @@
 import * as d3 from "d3";
-import { ensureEl, rn, si } from "../utils";
+import { applySortingByHeader, ensureEl, rn, si } from "../utils";
 
 const $body = insertEditorHtml();
 addListeners();
