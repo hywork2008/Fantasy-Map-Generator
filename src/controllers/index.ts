@@ -39,3 +39,8 @@ import "./labels-editor";
 import "./burg-editor";
 import "./regiment-editor";
 import "./emblems-editor";
+import "./military-overview";
+import "./diplomacy-editor";
+import "./burgs-overview";
+import "./battle-screen";
+import "./3d";

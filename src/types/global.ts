@@ -345,6 +345,7 @@ declare global {
       noScaleBar?: boolean;
       noIce?: boolean;
       noVignette?: boolean;
+      noViewbox?: boolean;
       fullMap?: boolean;
     }
   ) => Promise<string>;
@@ -410,11 +411,10 @@ declare global {
   var editZones: () => void;
   var editReligions: () => void;
   var editNotes: (id?: string, name?: string) => void;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  var overviewBurgs: (options?: any) => void;
   var overviewRoutes: () => void;
   var overviewRivers: () => void;
   var overviewMilitary: () => void;
+  var overviewBurgs: (settings?: { stateId?: number | null; cultureId?: number | null }) => void;
   var overviewMarkers: () => void;
   var createRoute: () => void;
 
@@ -504,7 +504,7 @@ declare global {
   // editor openers from editors.ts (dynamic modules)
   var editEmblem: ((type?: any, id?: any, el?: any) => void) | undefined;
   var editLabel: (() => void) | undefined;
-  var editBurg: (() => void) | undefined;
+  var editBurg: ((burgId?: number) => void) | undefined;
   var editIce: ((el: SVGElement) => void) | undefined;
   var editReliefIcon: (() => void) | undefined;
   var editRegiment: (() => void) | undefined;
@@ -780,10 +780,6 @@ declare global {
 
   // ─── Phase 13: medium editors ────────────────────────────────────────────────
 
-  // from battle-screen.js (not yet migrated)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  var Battle: new (attacker: any, defender: any) => any;
-
   // from uiHelpers.ts (exposed for emblems-editor)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   var highlightEmblemElement: (type: string, el: any) => void;
@@ -827,4 +823,29 @@ declare global {
   // editor openers for phase 13
   var editBurgGroups: () => void;
   var getTemperatureLikeness: (temperature: number) => string | null;
+
+  // ─── Phase 14: large editors ──────────────────────────────────────────────
+
+  // battle-screen.ts
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  var Battle: new (...args: any[]) => any;
+  var battleAttackers: HTMLElement;
+  var battleDefenders: HTMLElement;
+  var regimentSelectorHeader: HTMLElement;
+
+  // burgs-overview.ts
+  var burgsFooterBurgs: HTMLElement;
+  var burgsFooterPopulation: HTMLElement;
+  var burgsHeader: HTMLElement;
+  var convertTemperature: (temp: number, scale?: string) => string;
+
+  // diplomacy-editor.ts
+  var diplomacyMatrix: HTMLElement;
+
+  // 3d.ts
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  var throttle: (fn: () => void, ms: number) => () => void;
+
+  // battle-screen.ts
+  var wiki: (topic: string) => void;
 }

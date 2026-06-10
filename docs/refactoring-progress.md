@@ -1,6 +1,6 @@
 # JS → TS リファクタリング 進捗と今後の計画
 
-> 最終更新: 2026-06-11（フェーズ13完了）
+> 最終更新: 2026-06-11（フェーズ14完了）
 
 ---
 
@@ -148,44 +148,32 @@ State      (src/types/)       → 型定義、グローバル変数の単一の�
 
 ---
 
+## フェーズ14完了: 大規模・複雑なエディタの移行
+
+### 移行ファイル
+
+| ファイル | 移行先 | 行数 |
+|---|---|---|
+| `public/modules/ui/military-overview.js` | `src/controllers/military-overview.ts` | ~300行 |
+| `public/modules/ui/diplomacy-editor.js` | `src/controllers/diplomacy-editor.ts` | ~530行 |
+| `public/modules/ui/burgs-overview.js` | `src/controllers/burgs-overview.ts` | ~590行 |
+| `public/modules/ui/battle-screen.js` | `src/controllers/battle-screen.ts` | ~760行 |
+| `public/modules/ui/3d.js` | `src/controllers/3d.ts` | ~550行 + 30KB base64 |
+
+**計:** 約 2,730行
+
+### 主な実装上の注意点
+
+- `3d.js`は Three.js を動的 `<script>` ロード → `declare const THREE: any; declare const loopSubdivision: any`
+- `battle-screen.js` はコンストラクタに早期 return があるため、クラスプロパティに `!` definite assignment assertion を付与
+- `burgs-overview.ts` の `Burg` 型の optional フィールドには `!` non-null assertion を使用
+- `declare global { var X }` と同一ファイル内のローカル関数名の衝突を避けるため、グローバル変数宣言は `src/types/global.ts` に集約
+- `src/index.html` から5つの `<script>` タグを削除し migration コメントに置換
+- `src/controllers/index.ts` に5つの import を追加
+
+---
+
 ## 今後のフェーズ
-
-### フェーズ14（旧フェーズ13）: 大規模エディタの移行
-
-| ファイル | 行数 | 難易度 |
-|---|---|---|
-| `burg-editor.js` | 480 | 中（burg 属性の編集・COA 連携） |
-| `burg-group-editor.js` | 344 | 中 |
-| `labels-editor.js` | 438 | 中 |
-| `regiment-editor.js` | 494 | 中 |
-| `emblems-editor.js` | 542 | 中（COArenderer 連携） |
-| `relief-editor.js` | 288 | 中 |
-| `units-editor.js` | 273 | 低 |
-| `heightmap-selection.js` | 319 | `options.ts` から動的ロード中 |
-
-**計:** 約 3,178行
-
----
-
-### フェーズ14: 大規模・複雑なエディタの移行
-
-| ファイル | 行数 | 難易度 |
-|---|---|---|
-| `battle-screen.js` | 922 | 高（軍事システム全体） |
-| `3d.js` | 878 | 高（Three.js 連携・独立レンダリング） |
-| `burgs-overview.js` | 589 | 中〜高 |
-| `diplomacy-editor.js` | 527 | 高（国家間関係マトリクス） |
-| `military-overview.js` | 504 | 中 |
-| `supporters.js` | 621 | `options.ts` から動的ロード中（スポンサーリスト UI） |
-| `installation.js` | 73 | 要調査 |
-
-**計:** 約 4,114行
-
-**注意点:**
-- `3d.js` は Three.js に依存。`@types/three` の導入が必要
-- `battle-screen.js` は `military` データ全体に依存し、Phase 3 のパイプラインとの接続確認が必要
-
----
 
 ### フェーズ15: メインエントリの移行（最終目標）
 **対象:** `public/main.js`（1315行）
@@ -242,6 +230,6 @@ jQuery 型定義 (`@types/jquery`) の導入で解決できる項目が多い。
 | 11: Dynamic モジュール | 高（動的ロード排除） | 高 | ✅ 完了 |
 | 12: 概要パネル・小規模ユーティリティ | 中 | 低〜中 | ✅ 完了 |
 | 13: 中規模エディタ残 | 中 | 中 | ✅ 完了 |
-| 14: 大規模・複雑エディタ | 高 | 高 | 未着手 |
+| 14: 大規模・複雑エディタ | 高 | 高 | ✅ 完了 |
 | 15: main.js（最終目標） | 高（完全移行） | 高 | 未着手（前提: 12〜14完了） |
 | ESLint ルール | 高（品質保証） | 低 | 随時 |
