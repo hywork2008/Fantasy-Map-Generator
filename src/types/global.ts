@@ -381,7 +381,18 @@ declare global {
   var MOBILE: boolean;
   var hideOptions: () => void;
   var toggleOptions: (event?: Event) => void;
-  var regeneratePrompt: () => void;
+  var regeneratePrompt: (opts?: { seed?: string }) => void;
+  var generateSeed: () => string;
+  var shouldRegenerateGrid: (grid: any, expectedSeed: number) => boolean;
+  var generateGrid: () => any;
+  var drawHeights: (opts: {
+    heights: number[];
+    width: number;
+    height: number;
+    scheme: (v: number) => string;
+    renderOcean: boolean;
+  }) => string;
+  var findAllInQuadtree: (x: number, y: number, radius: number, quadtree: any) => any[];
   var toggle3dOptions: () => void;
   var zonesRemove: HTMLButtonElement | null;
   var undo: HTMLButtonElement | null;
@@ -653,7 +664,7 @@ declare global {
   var restoreSeed: (id: number) => void;
   var copyMapURL: () => void;
   var initGoogleTranslate: () => void;
-  var openTemplateSelectionDialog: () => Promise<void>;
+  var openTemplateSelectionDialog: () => void;
 
   // ─── Phase 10: heightmap-editor.ts globals ──────────────────────────────────
 
@@ -766,4 +777,54 @@ declare global {
   var regimentsFilter: HTMLSelectElement;
   var routeCreatorGroupSelect: HTMLSelectElement;
   var routeGroup: HTMLSelectElement;
+
+  // ─── Phase 13: medium editors ────────────────────────────────────────────────
+
+  // from battle-screen.js (not yet migrated)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  var Battle: new (attacker: any, defender: any) => any;
+
+  // from uiHelpers.ts (exposed for emblems-editor)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  var highlightEmblemElement: (type: string, el: any) => void;
+
+  // HTML elements for units-editor
+  var unitsBottom: HTMLElement;
+
+  // HTML elements for relief-editor
+  var reliefTools: HTMLElement;
+  var reliefBulkAdd: HTMLButtonElement;
+  var reliefBulkRemove: HTMLButtonElement;
+  var reliefIndividual: HTMLButtonElement;
+  var reliefIconsDiv: HTMLElement;
+  var reliefSize: HTMLInputElement;
+  var reliefSizeNumber: HTMLInputElement;
+  var reliefEditorSet: HTMLSelectElement;
+  var reliefRadiusNumber: HTMLInputElement;
+  var reliefSpacingNumber: HTMLInputElement;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  var reliefIconsSeletionAny: any;
+
+  // HTML elements for burg-group-editor
+  var burgGroupsBody: HTMLElement;
+  var burgGroupsForm: HTMLFormElement;
+
+  // HTML elements for burg-editor
+  var burgBody: HTMLElement;
+  var burgName: HTMLInputElement;
+  var burgGroup: HTMLSelectElement;
+  var burgPopulation: HTMLInputElement;
+
+  // HTML elements for regiment-editor
+  var regimentComposition: HTMLElement;
+  var militaryOverviewRefresh: HTMLButtonElement;
+  var regimentsOverviewRefresh: HTMLButtonElement;
+  var burgsOverviewRefresh: HTMLButtonElement;
+
+  // HTML elements for emblems-editor
+  var emblemsDownloadSize: HTMLInputElement;
+
+  // editor openers for phase 13
+  var editBurgGroups: () => void;
+  var getTemperatureLikeness: (temperature: number) => string | null;
 }

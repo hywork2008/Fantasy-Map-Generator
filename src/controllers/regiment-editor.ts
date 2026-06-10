@@ -1,0 +1,527 @@
+import { pointer, sum } from "d3";
+import { capitalize, ensureEl, last, rn } from "../utils";
+
+function editRegiment(selector?: string): void {
+  if (customization) return;
+  closeDialogs(".stable");
+  if (!layerIsOn("toggleMilitary")) toggleMilitary();
+
+  armies.selectAll(":scope > g").classed("draggable", true);
+  armies.selectAll(":scope > g > g").call((d3 as any).drag().on("drag", dragRegiment));
+  elSelected = selector ? (document.querySelector(selector) as any) : (d3 as any).event?.target?.parentElement;
+  if (!pack.states[(elSelected as any).dataset.state]) return;
+  if (!getRegiment()) return;
+  updateRegimentData(getRegiment()!);
+  drawBase();
+  drawRotationControl();
+
+  $("#regimentEditor").dialog({
+    title: "Edit Regiment",
+    resizable: false,
+    close: closeEditor,
+    position: { my: "left top", at: "left+10 top+10", of: "#map" }
+  });
+
+  if (modules.editRegiment) return;
+  modules.editRegiment = true;
+
+  // add listeners
+  ensureEl("regimentNameRestore").addEventListener("click", restoreName);
+  ensureEl("regimentType").addEventListener("click", changeType);
+  ensureEl("regimentName").addEventListener("change", changeName);
+  ensureEl("regimentEmblemChange").addEventListener("click", changeEmblem);
+  ensureEl("regimentAttack").addEventListener("click", toggleAttack);
+  ensureEl("regimentRegenerateLegend").addEventListener("click", regenerateLegend);
+  ensureEl("regimentLegend").addEventListener("click", editLegend);
+  ensureEl("regimentSplit").addEventListener("click", splitRegiment);
+  ensureEl("regimentAdd").addEventListener("click", toggleAdd);
+  ensureEl("regimentAttach").addEventListener("click", toggleAttach);
+  ensureEl("regimentRemove").addEventListener("click", removeRegiment);
+
+  function getRegiment(): any {
+    return pack.states[(elSelected as any).dataset.state]?.military?.find(
+      (r: any) => r.i === +(elSelected as any).dataset.id
+    );
+  }
+
+  function updateRegimentData(regiment: any): void {
+    (ensureEl("regimentType") as HTMLElement).className = regiment.n ? "icon-anchor" : "icon-users";
+    (ensureEl("regimentName") as HTMLInputElement).value = regiment.name;
+    (ensureEl("regimentEmblem") as HTMLElement).innerHTML =
+      regiment.icon.startsWith("http") || regiment.icon.startsWith("data:image")
+        ? `<img src="${regiment.icon}" style="width: 1em; height: 1em;">`
+        : regiment.icon;
+
+    const composition = ensureEl("regimentComposition") as HTMLElement;
+    composition.innerHTML = (options.military ?? [])
+      .map((u: any) => {
+        return `<div data-tip="${capitalize(u.name)} number. Input to change">
+        <div class="label">${capitalize(u.name)}:</div>
+        <input data-u="${u.name}" type="number" min=0 step=1 value="${regiment.u[u.name] || 0}">
+        <i>${u.type}</i></div>`;
+      })
+      .join("");
+
+    composition.querySelectorAll("input").forEach(el => {
+      el.addEventListener("change", changeUnit);
+    });
+  }
+
+  function drawBase(): void {
+    const reg = getRegiment();
+    const clr = pack.states[(elSelected as any).dataset.state].color ?? "";
+    const base = viewbox
+      .insert("g", "g#armies")
+      .attr("id", "regimentBase")
+      .attr("stroke-width", 0.3)
+      .attr("stroke", "#000")
+      .attr("cursor", "move");
+    base
+      .on("mouseenter", () => tip("Regiment base. Drag to re-base the regiment", true))
+      .on("mouseleave", () => tip("", true));
+
+    base
+      .append("line")
+      .attr("x1", reg.bx)
+      .attr("y1", reg.by)
+      .attr("x2", reg.x)
+      .attr("y2", reg.y)
+      .attr("class", "regimentDragLine");
+    base
+      .append("circle")
+      .attr("cx", reg.bx)
+      .attr("cy", reg.by)
+      .attr("r", 2)
+      .attr("fill", clr)
+      .call((d3 as any).drag().on("drag", dragBase));
+  }
+
+  function drawRotationControl(): void {
+    const reg = getRegiment();
+    const bbox = (elSelected as unknown as SVGGElement).getBBox();
+
+    debug
+      .append("circle")
+      .attr("id", "rotationControl")
+      .attr("cx", bbox.x + bbox.width)
+      .attr("cy", bbox.y + bbox.height / 2)
+      .attr("r", 1)
+      .attr("opacity", 1)
+      .attr("fill", "yellow")
+      .attr("stroke-width", 0.3)
+      .attr("stroke", "black")
+      .attr("cursor", "alias")
+      .attr("transform", `rotate(${reg.angle || 0})`)
+      .attr("transform-origin", `${reg.x}px ${reg.y}px`)
+      .on("mouseenter", () => tip("Drag to rotate the regiment", true))
+      .on("mouseleave", () => tip("", true))
+      .call((d3 as any).drag().on("start", rotateRegiment));
+  }
+
+  function rotateRegiment(this: SVGCircleElement, startEvent: any): void {
+    const reg = getRegiment();
+
+    startEvent.on("drag", (event: any) => {
+      const { x, y } = event;
+      const angle = rn(Math.atan2(y - reg.y, x - reg.x) * (180 / Math.PI), 2);
+      (elSelected as unknown as SVGGElement).setAttribute("transform", `rotate(${angle})`);
+      this.setAttribute("transform", `rotate(${angle})`);
+      reg.angle = rn(angle, 2);
+    });
+  }
+
+  function changeType(): void {
+    const reg = getRegiment();
+    reg.n = +!reg.n;
+    (ensureEl("regimentType") as HTMLElement).className = reg.n ? "icon-anchor" : "icon-users";
+
+    const size = +armies.attr("box-size");
+    const baseRect = (elSelected as unknown as SVGGElement).querySelectorAll("rect")[0];
+    const iconRect = (elSelected as unknown as SVGGElement).querySelectorAll("rect")[1];
+    const icon = (elSelected as unknown as SVGGElement).querySelector(".regimentIcon") as SVGElement;
+    const x = reg.n ? reg.x - size * 2 : reg.x - size * 3;
+    baseRect.setAttribute("x", String(x));
+    baseRect.setAttribute("width", String(reg.n ? size * 4 : size * 6));
+    iconRect.setAttribute("x", String(x - size * 2));
+    icon.setAttribute("x", String(x - size));
+    ((elSelected as unknown as SVGGElement).querySelector("text") as SVGTextElement).innerHTML = String(
+      Military.getTotal(reg)
+    );
+  }
+
+  function changeName(this: HTMLInputElement): void {
+    (elSelected as any).dataset.name = getRegiment().name = this.value;
+  }
+
+  function restoreName(): void {
+    const reg = getRegiment();
+    const regs = pack.states[(elSelected as any).dataset.state].military ?? [];
+    const name = Military.getName(reg, regs);
+    (elSelected as any).dataset.name = reg.name = (ensureEl("regimentName") as HTMLInputElement).value = name;
+  }
+
+  function changeEmblem(): void {
+    const regiment = getRegiment();
+
+    selectIcon(regiment.icon, (value: string) => {
+      regiment.icon = value;
+      const isExternal = value.startsWith("http") || value.startsWith("data:image");
+      (ensureEl("regimentEmblem") as HTMLElement).innerHTML = isExternal
+        ? `<img src="${value}" style="width: 1em; height: 1em;">`
+        : value;
+      ((elSelected as unknown as SVGGElement).querySelector(".regimentIcon") as SVGElement).innerHTML = isExternal
+        ? ""
+        : value;
+      ((elSelected as unknown as SVGGElement).querySelector(".regimentImage") as SVGImageElement).setAttribute(
+        "href",
+        isExternal ? value : ""
+      );
+    });
+  }
+
+  function changeUnit(this: HTMLInputElement): void {
+    const u = this.dataset.u!;
+    const reg = getRegiment();
+    reg.u[u] = +this.value || 0;
+    reg.a = sum(Object.values(reg.u) as number[]);
+    ((elSelected as unknown as SVGGElement).querySelector("text") as SVGTextElement).innerHTML = String(
+      Military.getTotal(reg)
+    );
+    if (militaryOverviewRefresh?.offsetParent) militaryOverviewRefresh.click();
+    if (regimentsOverviewRefresh?.offsetParent) regimentsOverviewRefresh.click();
+  }
+
+  function splitRegiment(): void {
+    const reg = getRegiment();
+    const u1 = reg.u;
+    const state = +(elSelected as any).dataset.state;
+    const military = pack.states[state].military ?? [];
+    const i = last(military).i + 1;
+    const u2 = Object.assign({}, u1);
+
+    Object.keys(u2).forEach(u => {
+      u2[u] = Math.floor(u2[u] / 2);
+    });
+    const a = sum(Object.values(u2) as number[]);
+    if (!a) {
+      tip("Not enough forces to split", false, "error");
+      return;
+    }
+
+    // update old regiment
+    Object.keys(u1).forEach(u => {
+      u1[u] = Math.ceil(u1[u] / 2);
+    });
+    reg.a = sum(Object.values(u1) as number[]);
+    (ensureEl("regimentComposition") as HTMLElement).querySelectorAll("input").forEach(el => {
+      (el as HTMLInputElement).value = String(reg.u[(el as HTMLInputElement).dataset.u!] || 0);
+    });
+    ((elSelected as unknown as SVGGElement).querySelector("text") as SVGTextElement).innerHTML = String(
+      Military.getTotal(reg)
+    );
+
+    // create new regiment
+    const shift = +armies.attr("box-size") * 2;
+    const findY = (x: number, startY: number) => {
+      let yVal = startY;
+      do {
+        yVal += shift;
+      } while (military.find((r: any) => r.x === x && r.y === yVal));
+      return yVal;
+    };
+    const newReg: any = {
+      a,
+      cell: reg.cell,
+      i,
+      n: reg.n,
+      u: u2,
+      x: reg.x,
+      y: findY(reg.x, reg.y),
+      bx: reg.bx,
+      by: reg.by,
+      state,
+      icon: reg.icon
+    };
+    newReg.name = Military.getName(newReg, military);
+    military.push(newReg);
+    Military.generateNote(newReg, pack.states[state]);
+    drawRegiment(newReg, state);
+
+    if (regimentsOverviewRefresh?.offsetParent) regimentsOverviewRefresh.click();
+  }
+
+  function toggleAdd(): void {
+    (ensureEl("regimentAdd") as HTMLElement).classList.toggle("pressed");
+    if ((ensureEl("regimentAdd") as HTMLElement).classList.contains("pressed")) {
+      viewbox.style("cursor", "crosshair").on("click", addRegimentOnClick);
+      tip("Click on map to create new regiment or fleet", true);
+    } else {
+      clearMainTip();
+      viewbox.on("click", clicked).style("cursor", "default");
+    }
+  }
+
+  function addRegimentOnClick(this: SVGElement, event: MouseEvent): void {
+    const pt = pointer(event, this) as [number, number];
+    const cell = findCell(pt[0], pt[1]);
+    const [x, y] = pack.cells.p[cell];
+    const state = +(elSelected as any).dataset.state;
+    const military = pack.states[state].military ?? [];
+    const i = military.length ? last(military).i + 1 : 0;
+    const n = +(pack.cells.h[cell] < 20);
+    const reg: any = { a: 0, cell, i, n, u: {}, x, y, bx: x, by: y, state, icon: "🛡️" };
+    reg.name = Military.getName(reg, military);
+    military.push(reg);
+    Military.generateNote(reg, pack.states[state]);
+    drawRegiment(reg, state);
+    if (regimentsOverviewRefresh?.offsetParent) regimentsOverviewRefresh.click();
+    toggleAdd();
+  }
+
+  function toggleAttack(): void {
+    (ensureEl("regimentAttack") as HTMLElement).classList.toggle("pressed");
+    if ((ensureEl("regimentAttack") as HTMLElement).classList.contains("pressed")) {
+      viewbox.style("cursor", "crosshair").on("click", attackRegimentOnClick);
+      tip("Click on another regiment to initiate battle", true);
+      armies.selectAll(":scope > g").classed("draggable", false);
+    } else {
+      clearMainTip();
+      armies.selectAll(":scope > g").classed("draggable", true);
+      viewbox.on("click", clicked).style("cursor", "default");
+    }
+  }
+
+  function attackRegimentOnClick(this: SVGElement, event: MouseEvent): void {
+    const target = event.target as SVGElement;
+    const regSelected = target.parentElement!;
+    const army = regSelected.parentElement!;
+    const oldState = +(elSelected as any).dataset.state;
+    const newState = +regSelected.dataset.state!;
+
+    if (army.parentElement!.id !== "armies") {
+      tip("Please click on a regiment to attack", false, "error");
+      return;
+    }
+    if ((regSelected as any) === elSelected) {
+      tip("Regiment cannot attack itself", false, "error");
+      return;
+    }
+    if (oldState === newState) {
+      tip("Cannot attack fraternal regiment", false, "error");
+      return;
+    }
+
+    const attacker = getRegiment();
+    const defender = pack.states[+regSelected.dataset.state!].military?.find(
+      (r: any) => r.i === +regSelected.dataset.id!
+    );
+    if (!attacker.a || !defender.a) {
+      tip("Regiment has no troops to battle", false, "error");
+      return;
+    }
+
+    attacker.px = attacker.x;
+    attacker.py = attacker.y;
+    defender.px = defender.x;
+    defender.py = defender.y;
+
+    moveRegiment(attacker, defender.x, defender.y - 8);
+
+    const attack = (d3 as any)
+      .transition()
+      .delay(300)
+      .duration(700)
+      .ease((d3 as any).easeSinInOut)
+      .on("end", () => new Battle(attacker, defender));
+    svg
+      .append("text")
+      .attr("text-rendering", "optimizeSpeed")
+      .attr("x", window.innerWidth / 2)
+      .attr("y", window.innerHeight / 2)
+      .text("⚔️")
+      .attr("font-size", 0)
+      .attr("opacity", 1)
+      .style("dominant-baseline", "central")
+      .style("text-anchor", "middle")
+      .transition(attack)
+      .attr("font-size", 1000)
+      .attr("opacity", 0.2)
+      .remove();
+
+    clearMainTip();
+    $("#regimentEditor").dialog("close");
+  }
+
+  function toggleAttach(): void {
+    (ensureEl("regimentAttach") as HTMLElement).classList.toggle("pressed");
+    if ((ensureEl("regimentAttach") as HTMLElement).classList.contains("pressed")) {
+      viewbox.style("cursor", "crosshair").on("click", attachRegimentOnClick);
+      tip("Click on another regiment to unite both regiments. The current regiment will be removed", true);
+      armies.selectAll(":scope > g").classed("draggable", false);
+    } else {
+      clearMainTip();
+      armies.selectAll(":scope > g").classed("draggable", true);
+      viewbox.on("click", clicked).style("cursor", "default");
+    }
+  }
+
+  function attachRegimentOnClick(this: SVGElement, event: MouseEvent): void {
+    const target = event.target as SVGElement;
+    const regSelected = target.parentElement!;
+    const army = regSelected.parentElement!;
+    const oldState = +(elSelected as any).dataset.state;
+    const newState = +regSelected.dataset.state!;
+
+    if (army.parentElement!.id !== "armies") {
+      tip("Please click on a regiment", false, "error");
+      return;
+    }
+    if ((regSelected as any) === elSelected) {
+      tip("Cannot attach regiment to itself. Please click on another regiment", false, "error");
+      return;
+    }
+
+    const reg = getRegiment();
+    const sel = pack.states[newState].military?.find((r: any) => r.i === +regSelected.dataset.id!);
+
+    for (const unit of options.military ?? []) {
+      const u = (unit as any).name;
+      if (reg.u[u]) {
+        if (sel.u[u]) sel.u[u] += reg.u[u];
+        else sel.u[u] = reg.u[u];
+      }
+    }
+    sel.a = sum(Object.values(sel.u) as number[]);
+    (regSelected.querySelector("text") as SVGTextElement).innerHTML = String(Military.getTotal(sel));
+
+    // remove attached regiment
+    const military = pack.states[oldState].military ?? [];
+    military.splice(military.indexOf(reg), 1);
+    const index = notes.findIndex((n: any) => n.id === (elSelected as unknown as SVGGElement).id);
+    if (index !== -1) notes.splice(index, 1);
+    (elSelected as unknown as SVGGElement).remove();
+
+    if (regimentsOverviewRefresh?.offsetParent) regimentsOverviewRefresh.click();
+    $("#regimentEditor").dialog("close");
+    editRegiment(`#${regSelected.id}`);
+  }
+
+  function regenerateLegend(): void {
+    const index = notes.findIndex((n: any) => n.id === (elSelected as unknown as SVGGElement).id);
+    if (index !== -1) notes.splice(index, 1);
+
+    const s = pack.states[(elSelected as any).dataset.state];
+    Military.generateNote(getRegiment(), s);
+  }
+
+  function editLegend(): void {
+    editNotes((elSelected as unknown as SVGGElement).id, getRegiment().name);
+  }
+
+  function removeRegiment(): void {
+    alertMessage.innerHTML = "Are you sure you want to remove the regiment?";
+    $("#alert").dialog({
+      resizable: false,
+      title: "Remove regiment",
+      buttons: {
+        Remove: function () {
+          $(this).dialog("close");
+          const military = pack.states[(elSelected as any).dataset.state].military ?? [];
+          const regIndex = military.indexOf(getRegiment());
+          if (regIndex === -1) return;
+          military.splice(regIndex, 1);
+
+          const index = notes.findIndex((n: any) => n.id === (elSelected as unknown as SVGGElement).id);
+          if (index !== -1) notes.splice(index, 1);
+          (elSelected as unknown as SVGGElement).remove();
+
+          if (militaryOverviewRefresh?.offsetParent) militaryOverviewRefresh.click();
+          if (regimentsOverviewRefresh?.offsetParent) regimentsOverviewRefresh.click();
+          $("#regimentEditor").dialog("close");
+        },
+        Cancel: function () {
+          $(this).dialog("close");
+        }
+      }
+    });
+  }
+
+  function dragRegiment(this: SVGGElement, startEvent: any): void {
+    (d3 as any).select(this).raise();
+    (d3 as any).select(this.parentNode).raise();
+
+    const reg = pack.states[+this.dataset.state!].military?.find((r: any) => r.i === +this.dataset.id!);
+    const size = +armies.attr("box-size");
+    const w = reg.n ? size * 4 : size * 6;
+    const h = size * 2;
+
+    const baseRect = this.querySelector("rect")!;
+    const text = this.querySelector("text")!;
+    const iconRect = this.querySelectorAll("rect")[1];
+    const icon = this.querySelector(".regimentIcon") as SVGElement;
+    const image = this.querySelector(".regimentImage") as SVGImageElement;
+
+    const self = (elSelected as any) === this;
+    const baseLine = viewbox.select("g#regimentBase > line");
+    const rotationControl = debug.select("#rotationControl");
+
+    startEvent.on("drag", (event: any) => {
+      const { x, y } = event;
+      reg.x = x;
+      reg.y = y;
+      const x1 = rn(x - w / 2, 2);
+      const y1 = rn(y - size, 2);
+
+      this.setAttribute("transform-origin", `${x}px ${y}px`);
+      baseRect.setAttribute("x", String(x1));
+      baseRect.setAttribute("y", String(y1));
+      text.setAttribute("x", String(x));
+      text.setAttribute("y", String(y));
+      iconRect.setAttribute("x", String(x1 - h));
+      iconRect.setAttribute("y", String(y1));
+      icon.setAttribute("x", String(x1 - size));
+      icon.setAttribute("y", String(y));
+      image.setAttribute("x", String(x1 - h));
+      image.setAttribute("y", String(y1));
+      if (self) {
+        baseLine.attr("x2", x).attr("y2", y);
+        rotationControl
+          .attr("cx", x1 + w)
+          .attr("cy", y)
+          .attr("transform-origin", `${x}px ${y}px`);
+      }
+    });
+  }
+
+  function dragBase(this: SVGCircleElement, startEvent: any): void {
+    const baseLine = viewbox.select("g#regimentBase > line");
+    const reg = getRegiment();
+
+    startEvent.on("drag", (event: any) => {
+      this.setAttribute("cx", String(event.x));
+      this.setAttribute("cy", String(event.y));
+      baseLine.attr("x1", event.x).attr("y1", event.y);
+    });
+
+    startEvent.on("end", (event: any) => {
+      reg.bx = event.x;
+      reg.by = event.y;
+    });
+  }
+
+  function closeEditor(): void {
+    debug.selectAll("*").remove();
+    viewbox.selectAll("g#regimentBase").remove();
+    armies.selectAll(":scope > g").classed("draggable", false);
+    armies.selectAll("g>g").call((d3 as any).drag().on("drag", null));
+    (ensureEl("regimentAdd") as HTMLElement).classList.remove("pressed");
+    (ensureEl("regimentAttack") as HTMLElement).classList.remove("pressed");
+    (ensureEl("regimentAttach") as HTMLElement).classList.remove("pressed");
+    restoreDefaultEvents?.();
+    elSelected = null;
+  }
+}
+
+window.editRegiment = editRegiment;
+
+declare const d3: any;

@@ -1,6 +1,7 @@
 import { hsl } from "d3";
 import { ensureEl, gauss, P, rand, rn, rw } from "../utils";
 import { exportToJson as exportToJsonModule } from "./export-json";
+import { open as openHeightmapSelection } from "./heightmap-selection";
 
 // ─── Init jQuery draggable / disable-selection ────────────────────────────────
 
@@ -755,10 +756,8 @@ function changeEra(): void {
   options.era = val;
 }
 
-async function openTemplateSelectionDialog(): Promise<void> {
-  const url = `${import.meta.env.BASE_URL}modules/dynamic/heightmap-selection.js`;
-  const HeightmapSelectionDialog = (await import(/* @vite-ignore */ url)) as { open: () => void };
-  HeightmapSelectionDialog.open();
+function openTemplateSelectionDialog(): void {
+  openHeightmapSelection();
 }
 
 // ─── Sticked menu ─────────────────────────────────────────────────────────────

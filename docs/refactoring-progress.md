@@ -1,6 +1,6 @@
 # JS → TS リファクタリング 進捗と今後の計画
 
-> 最終更新: 2026-06-11（フェーズ12完了）
+> 最終更新: 2026-06-11（フェーズ13完了）
 
 ---
 
@@ -22,19 +22,19 @@ State      (src/types/)       → 型定義、グローバル変数の単一の�
 
 ---
 
-## 現状スナップショット（フェーズ12完了後）
+## 現状スナップショット（フェーズ13完了後）
 
 | カテゴリ | 移行済み TS | 残り JS |
 |---|---|---|
 | 型定義 (`src/types/`) | 3ファイル | — |
 | Generator (`src/modules/`) | 22ファイル | — |
 | Renderer (`src/renderers/`) | 29ファイル | — |
-| Controller/Editor (`src/controllers/`) | 39ファイル | — |
+| Controller/Editor (`src/controllers/`) | 47ファイル | — |
 | I/O (`src/io/`) | 6ファイル（auto-update含む） | — |
-| UIモジュール (`public/modules/ui/`) | 移行済みは上記に含む | **12ファイル**（`<script>`タグ残存） |
-| Dynamic（動的ロード） | states/cultures/religions/hierarchy/charts/export-json/auto-update/minimap | supporters, heightmap-selection, installation（3ファイル） |
+| UIモジュール (`public/modules/ui/`) | 移行済みは上記に含む | **5ファイル**（`<script>`タグ残存） |
+| Dynamic（動的ロード） | states/cultures/religions/hierarchy/charts/export-json/auto-update/minimap/heightmap-selection | supporters, installation（2ファイル） |
 | メインエントリ | — | `public/main.js`（1315行） |
-| **移行済み合計** | **約 54,350行** | **約 8,650行** |
+| **移行済み合計** | **約 57,528行** | **約 5,472行** |
 
 ### 残存 JS ファイル一覧（`src/index.html` の `<script>` タグ残存）
 
@@ -45,20 +45,12 @@ State      (src/types/)       → 型定義、グローバル変数の単一の�
 | `burgs-overview.js` | 589 | 大規模エディタ |
 | `diplomacy-editor.js` | 527 | 大規模エディタ |
 | `military-overview.js` | 504 | 大規模エディタ |
-| `emblems-editor.js` | 542 | 中規模エディタ |
-| `regiment-editor.js` | 494 | 中規模エディタ |
-| `burg-editor.js` | 480 | 中規模エディタ |
-| `labels-editor.js` | 438 | 中規模エディタ |
-| `burg-group-editor.js` | 344 | 中規模エディタ |
-| `relief-editor.js` | 288 | 中規模エディタ |
-| `units-editor.js` | 273 | 中規模エディタ |
 
 ### 動的ロード（`<script>` タグ外）で残存する JS
 
 | ファイル | 行数 | 呼び出し元 |
 |---|---|---|
 | `modules/dynamic/supporters.js` | 621 | `options.ts` |
-| `modules/dynamic/heightmap-selection.js` | 319 | `options.ts` |
 | `modules/dynamic/installation.js` | 73 | 不明（要調査） |
 
 ---
@@ -142,11 +134,23 @@ State      (src/types/)       → 型定義、グローバル変数の単一の�
 - `minimap.js`（133行）→ `src/controllers/minimap.ts`（tools.ts から static import に変更）
 - `src/index.html` の `coastline-editor.js` 二重ロードタグを削除
 
+### フェーズ13: 中規模エディタの移行
+- `units-editor.js`（273行）→ `src/controllers/units-editor.ts`
+- `relief-editor.js`（288行）→ `src/controllers/relief-editor.ts`
+- `burg-group-editor.js`（344行）→ `src/controllers/burg-group-editor.ts`
+- `labels-editor.js`（438行）→ `src/controllers/labels-editor.ts`
+- `burg-editor.js`（480行）→ `src/controllers/burg-editor.ts`
+- `regiment-editor.js`（494行）→ `src/controllers/regiment-editor.ts`
+- `emblems-editor.js`（542行）→ `src/controllers/emblems-editor.ts`
+- `heightmap-selection.js`（319行）→ `src/controllers/heightmap-selection.ts`（options.ts から static import に変更）
+- `src/index.html` から上記7ファイルの `<script>` タグ削除
+- `src/types/global.ts` に `generateSeed`, `shouldRegenerateGrid`, `generateGrid`, `drawHeights`, `findAllInQuadtree` 等の global 宣言を追加
+
 ---
 
 ## 今後のフェーズ
 
-### フェーズ13: 中規模エディタの移行
+### フェーズ14（旧フェーズ13）: 大規模エディタの移行
 
 | ファイル | 行数 | 難易度 |
 |---|---|---|
@@ -236,8 +240,8 @@ jQuery 型定義 (`@types/jquery`) の導入で解決できる項目が多い。
 | 9: 中規模エディタ | 中 | 中 | ✅ 完了 |
 | 10: 大規模エディタ | 高（コア機能） | 高 | ✅ 完了 |
 | 11: Dynamic モジュール | 高（動的ロード排除） | 高 | ✅ 完了 |
-| 12: 概要パネル・小規模ユーティリティ | 中 | 低〜中 | 未着手 |
-| 13: 中規模エディタ残 | 中 | 中 | 未着手 |
+| 12: 概要パネル・小規模ユーティリティ | 中 | 低〜中 | ✅ 完了 |
+| 13: 中規模エディタ残 | 中 | 中 | ✅ 完了 |
 | 14: 大規模・複雑エディタ | 高 | 高 | 未着手 |
 | 15: main.js（最終目標） | 高（完全移行） | 高 | 未着手（前提: 12〜14完了） |
 | ESLint ルール | 高（品質保証） | 低 | 随時 |

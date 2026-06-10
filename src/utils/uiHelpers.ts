@@ -727,6 +727,7 @@ export function applySorting(headers: HTMLElement): void {
 window.applySortingByHeader = applySortingByHeader;
 window.applySorting = applySorting;
 window.sortLines = sortLines;
+window.highlightEmblemElement = highlightEmblemElement;
 
 // ─── Legacy globals (from non-migrated JS files) ──────────────────────────────
 
