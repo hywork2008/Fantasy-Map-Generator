@@ -1,0 +1,850 @@
+import * as d3 from "d3";
+import type { NameBase } from "../modules/names-generator";
+import type { River } from "../modules/river-generator";
+import { calculateVoronoi, ensureEl, last, link, minmax, parseError, rn } from "../utils";
+
+// ─── Quick load from browser storage ─────────────────────────────────────────
+
+export async function quickLoad(): Promise<void> {
+  const blob = await ldb.get("lastMap");
+  if (blob) loadMapPrompt(blob);
+  else {
+    tip("No map stored. Save map to browser storage first", true, "error", 2000);
+    ERROR && console.error("No map stored");
+  }
+}
+
+// ─── Dropbox load ─────────────────────────────────────────────────────────────
+
+export async function loadFromDropbox(): Promise<void> {
+  const mapPath = ensureEl<HTMLSelectElement>("loadFromDropboxSelect").value;
+  console.info("Loading map from Dropbox:", mapPath);
+  const blob = await Cloud.providers.dropbox.load(mapPath);
+  uploadMap(blob);
+}
+
+export async function createSharableDropboxLink(): Promise<void> {
+  const mapFile = document.querySelector("#loadFromDropbox select") as HTMLSelectElement | null;
+  const sharableLink = ensureEl("sharableLink") as HTMLAnchorElement;
+  const sharableLinkContainer = ensureEl("sharableLinkContainer");
+
+  try {
+    const previewLink = await Cloud.providers.dropbox.getLink(mapFile?.value ?? "");
+    const directLink = previewLink.replace("www.dropbox.com", "dl.dropboxusercontent.com");
+    const finalLink = `${location.origin}${location.pathname}?maplink=${directLink}`;
+
+    sharableLink.innerText = `${finalLink.slice(0, 45)}...`;
+    sharableLink.setAttribute("href", finalLink);
+    sharableLinkContainer.style.display = "block";
+  } catch (error) {
+    ERROR && console.error(error);
+    tip("Dropbox API error. Can not create link.", true, "error", 2000);
+  }
+}
+
+// ─── Load prompt (check for unsaved changes) ─────────────────────────────────
+
+export function loadMapPrompt(blob: Blob): void {
+  const workingTime = (Date.now() - last(mapHistory).created) / 60000;
+  if (workingTime < 5) {
+    loadLastSavedMap();
+    return;
+  }
+
+  alertMessage.innerHTML = /* html */ `Are you sure you want to load saved map?<br />
+    All unsaved changes made to the current map will be lost`;
+  $("#alert").dialog({
+    resizable: false,
+    title: "Load saved map",
+    buttons: {
+      Cancel: function () {
+        $(this).dialog("close");
+      },
+      Load: function () {
+        loadLastSavedMap();
+        $(this).dialog("close");
+      }
+    }
+  });
+
+  function loadLastSavedMap() {
+    WARN && console.warn("Load last saved map");
+    try {
+      uploadMap(blob);
+    } catch (error) {
+      ERROR && console.error(error);
+      tip("Cannot load last saved map", true, "error", 2000);
+    }
+  }
+}
+
+// ─── Load from URL ────────────────────────────────────────────────────────────
+
+export async function loadMapFromURL(maplink: string, random: number): Promise<void> {
+  const controller = new AbortController();
+  const TIMEOUT = 120000;
+  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT);
+
+  try {
+    const url = decodeURIComponent(maplink);
+    const response = await fetch(url, { method: "GET", mode: "cors", signal: controller.signal });
+    if (!response.ok) throw new Error("Cannot load map from URL");
+    const blob = await response.blob();
+    uploadMap(blob);
+  } catch (error) {
+    const message =
+      (error as Error)?.name === "AbortError"
+        ? "Cannot load map from URL: request timed out"
+        : (error as Error).message;
+    showUploadErrorMessage(message, maplink, random);
+    if (random) generateMapOnLoad();
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+export function showUploadErrorMessage(error: string, maplink: string, random: number): void {
+  ERROR && console.error(error);
+  alertMessage.innerHTML = /* html */ `Cannot load map from the ${link(maplink, "link provided")}. ${
+    random ? `A new random map is generated. ` : ""
+  } Please ensure the linked file is reachable and CORS is allowed on server side`;
+  $("#alert").dialog({
+    title: "Loading error",
+    width: "32em",
+    buttons: {
+      "Clear cache": () => cleanupData(),
+      OK: function () {
+        $(this).dialog("close");
+      }
+    }
+  });
+}
+
+// ─── Upload & parse ───────────────────────────────────────────────────────────
+
+export function uploadMap(file: Blob, callback?: () => void): void {
+  (uploadMap as { timeStart?: number }).timeStart = performance.now();
+
+  const fileReader = new FileReader();
+  fileReader.onloadend = async (fileLoadedEvent: ProgressEvent<FileReader>) => {
+    if (callback) callback();
+    ensureEl("coas").innerHTML = "";
+
+    const result = fileLoadedEvent.target!.result as ArrayBuffer;
+    const { mapData, mapVersion } = await parseLoadedResult(result);
+
+    const isInvalid = !mapData || !isValidVersion(mapVersion ?? "") || mapData.length < 10 || !mapData[5];
+    if (isInvalid) return showUploadMessage("invalid", mapData, mapVersion ?? "");
+
+    const isUpdated = compareVersions(mapVersion!, VERSION).isEqual;
+    if (isUpdated) return showUploadMessage("updated", mapData, mapVersion!);
+
+    const isAncient = compareVersions(mapVersion!, "0.70.0").isOlder;
+    if (isAncient) return showUploadMessage("ancient", mapData, mapVersion!);
+
+    const isNewer = compareVersions(mapVersion!, VERSION).isNewer;
+    if (isNewer) return showUploadMessage("newer", mapData, mapVersion!);
+
+    const isOutdated = compareVersions(mapVersion!, VERSION).isOlder;
+    if (isOutdated) return showUploadMessage("outdated", mapData, mapVersion!);
+  };
+
+  fileReader.readAsArrayBuffer(file);
+}
+
+async function uncompress(compressedData: ArrayBuffer): Promise<Uint8Array | null> {
+  try {
+    const uncompressedStream = new Blob([compressedData]).stream().pipeThrough(new DecompressionStream("gzip"));
+    let uncompressedData: number[] = [];
+    for await (const chunk of uncompressedStream) {
+      uncompressedData = uncompressedData.concat(Array.from(chunk));
+    }
+    return new Uint8Array(uncompressedData);
+  } catch (error) {
+    ERROR && console.error(error);
+    return null;
+  }
+}
+
+export async function parseLoadedResult(
+  result: ArrayBuffer | Uint8Array
+): Promise<{ mapData: string[] | null; mapVersion: string | null }> {
+  try {
+    const resultAsString = new TextDecoder().decode(result);
+
+    const isDelimited = resultAsString.substring(0, 10).includes("|");
+    let content = isDelimited ? resultAsString : decodeURIComponent(atob(resultAsString));
+
+    const svgMatch = content.match(/<svg[^>]*id="map"[\s\S]*?<\/svg>/);
+    const svgContent = svgMatch![0];
+    if (svgContent.includes("\r\n")) {
+      const correctedSvgContent = svgContent.replace(/\r\n/g, "\n");
+      content = content.replace(svgContent, correctedSvgContent);
+    }
+
+    const mapData = content.split("\r\n");
+    const mapVersion = parseMapVersion(mapData[0].split("|")[0] || mapData[0] || "");
+    return { mapData, mapVersion };
+  } catch (error) {
+    const uncompressedData = await uncompress(result as ArrayBuffer);
+    if (uncompressedData) return parseLoadedResult(uncompressedData);
+    ERROR && console.error(error);
+    return { mapData: null, mapVersion: null };
+  }
+}
+
+function showUploadMessage(type: string, mapData: string[] | null, mapVersion: string): void {
+  let message: string;
+  let title: string;
+
+  if (type === "invalid") {
+    message = "The file does not look like a valid save file.<br>Please check the data format";
+    title = "Invalid file";
+  } else if (type === "updated") {
+    parseLoadedData(mapData!, mapVersion);
+    return;
+  } else if (type === "ancient") {
+    const archive = link("https://github.com/Azgaar/Fantasy-Map-Generator/wiki/Changelog", "archived version");
+    message = `The map version you are trying to load (${mapVersion}) is too old and cannot be updated to the current version.<br>Please keep using an ${archive}`;
+    title = "Ancient file";
+  } else if (type === "newer") {
+    message = `The map version you are trying to load (${mapVersion}) is newer than the current version.<br>Please load the file in the appropriate version`;
+    title = "Newer file";
+  } else if (type === "outdated") {
+    INFO && console.info(`Loading map. Auto-updating from ${mapVersion} to ${VERSION}`);
+    parseLoadedData(mapData!, mapVersion);
+    return;
+  } else {
+    message = "Unknown error";
+    title = "Error";
+  }
+
+  alertMessage.innerHTML = message;
+  $("#alert").dialog({
+    title,
+    buttons: {
+      "Clear cache": () => cleanupData(),
+      OK: function () {
+        $(this).dialog("close");
+      }
+    }
+  });
+}
+
+// ─── Main data parser ─────────────────────────────────────────────────────────
+
+export async function parseLoadedData(data: string[], mapVersion: string): Promise<void> {
+  try {
+    closeDialogs?.();
+    customization = 0;
+    if (customizationMenu.offsetParent) styleTab.click();
+
+    {
+      const params = data[0].split("|");
+      if (params[3]) {
+        seed = params[3];
+        optionsSeed.value = seed;
+        INFO && console.group(`Loaded Map ${seed}`);
+      } else INFO && console.group("Loaded Map");
+      if (params[4]) graphWidth = +params[4];
+      if (params[5]) graphHeight = +params[5];
+      mapId = params[6] ? +params[6] : Date.now();
+    }
+
+    {
+      const settings = data[1].split("|");
+      if (settings[0]) applyOption(distanceUnitInput, settings[0]);
+      if (settings[1]) {
+        distanceScaleInput.value = settings[1];
+        distanceScale = +settings[1];
+      }
+      if (settings[2]) areaUnit.value = settings[2];
+      if (settings[3]) applyOption(heightUnit, settings[3]);
+      if (settings[4]) heightExponentInput.value = settings[4];
+      if (settings[5]) temperatureScale.value = settings[5];
+      if (settings[12]) {
+        populationRateInput.value = settings[12];
+        populationRate = +settings[12];
+      }
+      if (settings[13]) {
+        urbanizationInput.value = settings[13];
+        urbanization = +settings[13];
+      }
+      if (settings[14]) mapSizeInput.value = mapSizeOutput.value = String(minmax(+settings[14], 1, 100));
+      if (settings[15]) latitudeInput.value = latitudeOutput.value = String(minmax(+settings[15], 0, 100));
+      if (settings[18]) precInput.value = precOutput.value = settings[18];
+      if (settings[19]) options = JSON.parse(settings[19]);
+      if (settings[16]) options.temperatureEquator = +settings[16];
+      if (settings[17]) options.temperatureNorthPole = options.temperatureSouthPole = +settings[17];
+      if (settings[20]) mapName.value = settings[20];
+      if (settings[21]) hideLabels.checked = !!+settings[21];
+      if (settings[22]) stylePreset.value = settings[22];
+      if (settings[23]) rescaleLabels.checked = !!+settings[23];
+      if (settings[24]) {
+        urbanDensityInput.value = settings[24];
+        urbanDensity = +settings[24];
+      }
+      if (settings[25]) longitudeInput.value = longitudeOutput.value = String(minmax(+(settings[25] || "50"), 0, 100));
+      if (settings[26]) growthRate.value = settings[26];
+    }
+    stateLabelsModeInput.value = options.stateLabelsMode;
+    yearInput.value = String(options.year);
+    eraInput.value = String(options.era);
+    shapeRendering.value = viewbox.attr("shape-rendering") || "geometricPrecision";
+    if (data[2]) mapCoordinates = JSON.parse(data[2]);
+    if (data[4]) notes = JSON.parse(data[4]);
+    if (data[33]) rulers.fromString(data[33]);
+    if (data[34]) {
+      const usedFonts = JSON.parse(data[34]);
+      usedFonts.forEach((usedFont: { family: string; unicodeRange?: string; variant?: string }) => {
+        const { family: usedFamily, unicodeRange: usedRange, variant: usedVariant } = usedFont;
+        const defaultFont = fonts.find(
+          ({ family, unicodeRange, variant }) =>
+            family === usedFamily && unicodeRange === usedRange && variant === usedVariant
+        );
+        if (!defaultFont) fonts.push(usedFont);
+        declareFont(usedFont);
+      });
+    }
+
+    {
+      const biomesRaw = data[3].split("|");
+      biomesData = Biomes.getDefault();
+      biomesData.color = biomesRaw[0].split(",");
+      biomesData.habitability = biomesRaw[1].split(",").map(h => +h);
+      biomesData.name = biomesRaw[2].split(",");
+      for (let i = biomesData.i.length; i < biomesData.name.length; i++) {
+        biomesData.i.push(biomesData.i.length);
+        biomesData.iconsDensity.push(0);
+        biomesData.icons.push([]);
+        biomesData.cost.push(50);
+      }
+    }
+    svg.remove();
+    document.body.insertAdjacentHTML("afterbegin", data[5]);
+    svg = d3.select("#map") as unknown as typeof svg;
+    defs = svg.select("#deftemp") as typeof defs;
+    viewbox = svg.select("#viewbox") as typeof viewbox;
+    scaleBar = svg.select("#scaleBar") as typeof scaleBar;
+    legend = svg.select("#legend") as typeof legend;
+    ocean = viewbox.select("#ocean") as typeof ocean;
+    oceanLayers = ocean.select("#oceanLayers") as typeof oceanLayers;
+    oceanPattern = ocean.select("#oceanPattern") as typeof oceanPattern;
+    lakes = viewbox.select("#lakes") as typeof lakes;
+    landmass = viewbox.select("#landmass") as typeof landmass;
+    texture = viewbox.select("#texture") as typeof texture;
+    terrs = viewbox.select("#terrs") as typeof terrs;
+    biomes = viewbox.select("#biomes") as typeof biomes;
+    ice = viewbox.select("#ice") as typeof ice;
+    cells = viewbox.select("#cells") as typeof cells;
+    gridOverlay = viewbox.select("#gridOverlay") as typeof gridOverlay;
+    coordinates = viewbox.select("#coordinates") as typeof coordinates;
+    compass = viewbox.select("#compass") as typeof compass;
+    rivers = viewbox.select("#rivers") as typeof rivers;
+    terrain = viewbox.select("#terrain") as typeof terrain;
+    relig = viewbox.select("#relig") as typeof relig;
+    cults = viewbox.select("#cults") as typeof cults;
+    regions = viewbox.select("#regions") as typeof regions;
+    statesBody = regions.select("#statesBody") as typeof statesBody;
+    statesHalo = regions.select("#statesHalo") as typeof statesHalo;
+    provs = viewbox.select("#provs") as typeof provs;
+    zones = viewbox.select("#zones") as typeof zones;
+    borders = viewbox.select("#borders") as typeof borders;
+    stateBorders = borders.select("#stateBorders") as typeof stateBorders;
+    provinceBorders = borders.select("#provinceBorders") as typeof provinceBorders;
+    routes = viewbox.select("#routes") as typeof routes;
+    roads = routes.select("#roads") as typeof roads;
+    trails = routes.select("#trails") as typeof trails;
+    searoutes = routes.select("#searoutes") as typeof searoutes;
+    temperature = viewbox.select("#temperature") as typeof temperature;
+    coastline = viewbox.select("#coastline") as typeof coastline;
+    prec = viewbox.select("#prec") as typeof prec;
+    population = viewbox.select("#population") as typeof population;
+    emblems = viewbox.select("#emblems") as typeof emblems;
+    labels = viewbox.select("#labels") as typeof labels;
+    icons = viewbox.select("#icons") as typeof icons;
+    burgIcons = icons.select("#burgIcons") as typeof burgIcons;
+    anchors = icons.select("#anchors") as typeof anchors;
+    armies = viewbox.select("#armies") as typeof armies;
+    markers = viewbox.select("#markers") as typeof markers;
+    ruler = viewbox.select("#ruler") as typeof ruler;
+    fogging = viewbox.select("#fogging") as typeof fogging;
+    debug = viewbox.select("#debug") as typeof debug;
+    burgLabels = labels.select("#burgLabels") as typeof burgLabels;
+
+    if (!texture.size()) {
+      texture = viewbox
+        .insert("g", "#landmass")
+        .attr("id", "texture")
+        .attr("data-href", "./images/textures/plaster.jpg") as unknown as typeof texture;
+    }
+    if (!emblems.size()) {
+      emblems = viewbox
+        .insert("g", "#labels")
+        .attr("id", "emblems")
+        .style("display", "none") as unknown as typeof emblems;
+    }
+
+    {
+      grid = JSON.parse(data[6]);
+      const { cells: gCells, vertices } = calculateVoronoi(grid.points, grid.boundary);
+      grid.cells = gCells as unknown as typeof grid.cells;
+      grid.vertices = vertices;
+      grid.cells.h = Uint8Array.from(data[7].split(","), Number);
+      grid.cells.prec = Uint8Array.from(data[8].split(","), Number);
+      grid.cells.f = Uint16Array.from(data[9].split(","), Number);
+      grid.cells.t = Int8Array.from(data[10].split(","), Number);
+      grid.cells.temp = Int8Array.from(data[11].split(","), Number);
+    }
+    reGraph();
+    Features.markupPack();
+    pack.features = JSON.parse(data[12]);
+    pack.cultures = JSON.parse(data[13]);
+    pack.states = JSON.parse(data[14]);
+    pack.burgs = JSON.parse(data[15]);
+    pack.religions = data[29] ? JSON.parse(data[29]) : [{ i: 0, name: "No religion" }];
+    pack.provinces = data[30] ? JSON.parse(data[30]) : [0];
+    pack.rivers = data[32] ? JSON.parse(data[32]) : [];
+    pack.markers = data[35] ? JSON.parse(data[35]) : [];
+    pack.routes = data[37] ? JSON.parse(data[37]) : [];
+    pack.zones = data[38] ? JSON.parse(data[38]) : [];
+    pack.cells.biome = Uint8Array.from(data[16].split(","), Number);
+    pack.cells.burg = Uint16Array.from(data[17].split(","), Number);
+    pack.cells.conf = Uint8Array.from(data[18].split(","), Number);
+    pack.cells.culture = Uint16Array.from(data[19].split(","), Number);
+    pack.cells.fl = Uint16Array.from(data[20].split(","), Number);
+    pack.cells.pop = Float32Array.from(data[21].split(","), Number);
+    pack.cells.r = Uint16Array.from(data[22].split(","), Number);
+    // data[23] had deprecated cells.road
+    pack.cells.s = Uint16Array.from(data[24].split(","), Number);
+    pack.cells.state = Uint16Array.from(data[25].split(","), Number);
+    pack.cells.religion = data[26]
+      ? Uint16Array.from(data[26].split(","), Number)
+      : new Uint16Array(pack.cells.i.length);
+    pack.cells.province = data[27]
+      ? Uint16Array.from(data[27].split(","), Number)
+      : new Uint16Array(pack.cells.i.length);
+    // data[28] had deprecated cells.crossroad
+    pack.cells.routes = data[36] ? JSON.parse(data[36]) : {};
+    pack.ice = data[39] ? JSON.parse(data[39]) : [];
+
+    if (data[31]) {
+      const namesDL = data[31].split("/");
+      namesDL.forEach((d, i) => {
+        const e = d.split("|");
+        if (!e.length) return;
+        const b = e[5].split(",").length > 2 || !nameBases[i] ? e[5] : nameBases[i].b;
+        nameBases[i] = { name: e[0], min: +e[1], max: +e[2], d: e[3], m: +e[4], b } as NameBase;
+      });
+    }
+
+    {
+      const isVisible = (selection: d3.Selection<Element, unknown, null, undefined>) =>
+        selection.node() && selection.style("display") !== "none";
+      const isVisibleNode = (node: HTMLElement | null) => node && node.style.display !== "none";
+      const hasChildren = (selection: d3.Selection<Element, unknown, null, undefined>) =>
+        selection.node()?.hasChildNodes();
+      const hasChild = (selection: d3.Selection<Element, unknown, null, undefined>, selector: string) =>
+        selection.node()?.querySelector(selector);
+      const turnOn = (el: string) => ensureEl(el).classList.remove("buttonoff");
+
+      ensureEl("mapLayers")
+        .querySelectorAll("li")
+        .forEach(el => {
+          el.classList.add("buttonoff");
+        });
+
+      if (hasChild(texture as unknown as d3.Selection<Element, unknown, null, undefined>, "image"))
+        turnOn("toggleTexture");
+      if (hasChildren(terrs.select("#landHeights") as unknown as d3.Selection<Element, unknown, null, undefined>))
+        turnOn("toggleHeight");
+      if (isVisible(lakes as unknown as d3.Selection<Element, unknown, null, undefined>)) turnOn("toggleLakes");
+      if (hasChildren(biomes as unknown as d3.Selection<Element, unknown, null, undefined>)) turnOn("toggleBiomes");
+      if (hasChildren(cells as unknown as d3.Selection<Element, unknown, null, undefined>)) turnOn("toggleCells");
+      if (hasChildren(gridOverlay as unknown as d3.Selection<Element, unknown, null, undefined>)) turnOn("toggleGrid");
+      if (hasChildren(coordinates as unknown as d3.Selection<Element, unknown, null, undefined>))
+        turnOn("toggleCoordinates");
+      if (
+        isVisible(compass as unknown as d3.Selection<Element, unknown, null, undefined>) &&
+        hasChild(compass as unknown as d3.Selection<Element, unknown, null, undefined>, "use")
+      )
+        turnOn("toggleCompass");
+      if (hasChildren(rivers as unknown as d3.Selection<Element, unknown, null, undefined>)) turnOn("toggleRivers");
+      if (
+        isVisible(terrain as unknown as d3.Selection<Element, unknown, null, undefined>) &&
+        hasChildren(terrain as unknown as d3.Selection<Element, unknown, null, undefined>)
+      )
+        turnOn("toggleRelief");
+      if (hasChildren(relig as unknown as d3.Selection<Element, unknown, null, undefined>)) turnOn("toggleReligions");
+      if (hasChildren(cults as unknown as d3.Selection<Element, unknown, null, undefined>)) turnOn("toggleCultures");
+      if (hasChildren(statesBody as unknown as d3.Selection<Element, unknown, null, undefined>)) turnOn("toggleStates");
+      if (hasChildren(provs as unknown as d3.Selection<Element, unknown, null, undefined>)) turnOn("toggleProvinces");
+      if (
+        hasChildren(zones as unknown as d3.Selection<Element, unknown, null, undefined>) &&
+        isVisible(zones as unknown as d3.Selection<Element, unknown, null, undefined>)
+      )
+        turnOn("toggleZones");
+      if (
+        isVisible(borders as unknown as d3.Selection<Element, unknown, null, undefined>) &&
+        hasChild(borders as unknown as d3.Selection<Element, unknown, null, undefined>, "path")
+      )
+        turnOn("toggleBorders");
+      if (
+        isVisible(routes as unknown as d3.Selection<Element, unknown, null, undefined>) &&
+        hasChild(routes as unknown as d3.Selection<Element, unknown, null, undefined>, "path")
+      )
+        turnOn("toggleRoutes");
+      if (hasChildren(temperature as unknown as d3.Selection<Element, unknown, null, undefined>))
+        turnOn("toggleTemperature");
+      if (hasChild(population as unknown as d3.Selection<Element, unknown, null, undefined>, "line"))
+        turnOn("togglePopulation");
+      if (isVisible(ice as unknown as d3.Selection<Element, unknown, null, undefined>)) turnOn("toggleIce");
+      if (hasChild(prec as unknown as d3.Selection<Element, unknown, null, undefined>, "circle"))
+        turnOn("togglePrecipitation");
+      if (
+        isVisible(emblems as unknown as d3.Selection<Element, unknown, null, undefined>) &&
+        hasChild(emblems as unknown as d3.Selection<Element, unknown, null, undefined>, "use")
+      )
+        turnOn("toggleEmblems");
+      if (isVisible(labels as unknown as d3.Selection<Element, unknown, null, undefined>)) turnOn("toggleLabels");
+      if (isVisible(icons as unknown as d3.Selection<Element, unknown, null, undefined>)) turnOn("toggleBurgIcons");
+      if (
+        hasChildren(armies as unknown as d3.Selection<Element, unknown, null, undefined>) &&
+        isVisible(armies as unknown as d3.Selection<Element, unknown, null, undefined>)
+      )
+        turnOn("toggleMilitary");
+      if (hasChild(markers as unknown as d3.Selection<Element, unknown, null, undefined>, "svg"))
+        turnOn("toggleMarkers");
+      if (isVisible(ruler as unknown as d3.Selection<Element, unknown, null, undefined>)) turnOn("toggleRulers");
+      if (isVisible(scaleBar as unknown as d3.Selection<Element, unknown, null, undefined>)) turnOn("toggleScaleBar");
+      if (isVisibleNode(ensureEl("vignette") as HTMLElement)) turnOn("toggleVignette");
+
+      getCurrentPreset();
+    }
+    scaleBar.on("mousemove", () => tip("Click to open Units Editor")).on("click", () => editUnits());
+    legend
+      .on("mousemove", () => tip("Drag to change the position. Click to hide the legend"))
+      .on("click", () => clearLegend());
+
+    {
+      const url = `${import.meta.env.BASE_URL}modules/dynamic/auto-update.js`;
+      type AutoUpdateModule = { resolveVersionConflicts: (v: string) => void };
+      const { resolveVersionConflicts } = (await import(/* @vite-ignore */ url)) as AutoUpdateModule;
+      resolveVersionConflicts(mapVersion);
+    }
+
+    if (heightmapColorSchemes) {
+      const oceanHeights = document.getElementById("oceanHeights");
+      const oceanScheme = oceanHeights?.getAttribute("scheme");
+      if (oceanScheme && !(oceanScheme in heightmapColorSchemes)) addCustomColorScheme(oceanScheme);
+      const landHeights = document.getElementById("landHeights");
+      const landScheme = landHeights?.getAttribute("scheme");
+      if (landScheme && !(landScheme in heightmapColorSchemes)) addCustomColorScheme(landScheme);
+    }
+
+    {
+      const textureHref = texture.attr("data-href");
+      if (textureHref) updateTextureSelectValue(textureHref);
+    }
+
+    // data integrity checks
+    {
+      const { cells: pCells, vertices: pVertices } = pack;
+
+      const cellsMismatch = pCells.i.length !== pCells.state.length;
+      const featureVerticesMismatch = pack.features.some(f =>
+        f?.vertices?.some((vertex: number) => !pVertices.p[vertex])
+      );
+
+      if (cellsMismatch || featureVerticesMismatch) {
+        throw new Error("[Data integrity] Striping issue detected. To fix try to edit the heightmap in ERASE mode");
+      }
+
+      const invalidStates = [...new Set(pCells.state)].filter(
+        (s): s is number => !pack.states[s as number] || !!pack.states[s as number].removed
+      );
+      invalidStates.forEach(s => {
+        const invalidCells = pCells.i.filter(i => pCells.state[i] === s);
+        invalidCells.forEach(i => {
+          pCells.state[i] = 0;
+        });
+        ERROR && console.error("[Data integrity] Invalid state", s, "is assigned to cells", invalidCells);
+      });
+
+      const invalidProvinces = [...new Set(pCells.province)].filter(
+        (p): p is number => !!p && (!pack.provinces[p as number] || !!pack.provinces[p as number].removed)
+      );
+      invalidProvinces.forEach(p => {
+        const invalidCells = pCells.i.filter(i => pCells.province[i] === p);
+        invalidCells.forEach(i => {
+          pCells.province[i] = 0;
+        });
+        ERROR && console.error("[Data integrity] Invalid province", p, "is assigned to cells", invalidCells);
+      });
+
+      const invalidCultures = [...new Set(pCells.culture)].filter(
+        (c): c is number => !pack.cultures[c as number] || !!pack.cultures[c as number].removed
+      );
+      invalidCultures.forEach(c => {
+        const invalidCells = pCells.i.filter(i => pCells.culture[i] === c);
+        invalidCells.forEach(i => {
+          pCells.province[i] = 0;
+        });
+        ERROR && console.error("[Data integrity] Invalid culture", c, "is assigned to cells", invalidCells);
+      });
+
+      const invalidReligions = [...new Set(pCells.religion)].filter(
+        (r): r is number => !pack.religions[r as number] || !!pack.religions[r as number].removed
+      );
+      invalidReligions.forEach(r => {
+        const invalidCells = pCells.i.filter(i => pCells.religion[i] === r);
+        invalidCells.forEach(i => {
+          pCells.religion[i] = 0;
+        });
+        ERROR && console.error("[Data integrity] Invalid religion", r, "is assigned to cells", invalidCells);
+      });
+
+      const invalidFeatures = [...new Set(pCells.f)].filter((f): f is number => !!f && !pack.features[f as number]);
+      invalidFeatures.forEach(f => {
+        const invalidCells = pCells.i.filter(i => pCells.f[i] === f);
+        ERROR && console.error("[Data integrity] Invalid feature", f, "is assigned to cells", invalidCells);
+      });
+
+      const invalidBurgs = [...new Set(pCells.burg)].filter(
+        (burgId): burgId is number =>
+          !!burgId && (!pack.burgs[burgId as number] || !!pack.burgs[burgId as number].removed)
+      );
+      invalidBurgs.forEach(burgId => {
+        const invalidCells = pCells.i.filter(i => pCells.burg[i] === burgId);
+        invalidCells.forEach(i => {
+          pCells.burg[i] = 0;
+        });
+        ERROR && console.error("[Data integrity] Invalid burg", burgId, "is assigned to cells", invalidCells);
+      });
+
+      const invalidRivers = [...new Set(pCells.r)].filter(
+        (r): r is number => !!r && !pack.rivers.find((river: River) => river.i === r)
+      );
+      invalidRivers.forEach(r => {
+        const invalidCells = pCells.i.filter(i => pCells.r[i] === r);
+        invalidCells.forEach(i => {
+          pCells.r[i] = 0;
+        });
+        rivers.select(`river${r}`).remove();
+        ERROR && console.error("[Data integrity] Invalid river", r, "is assigned to cells", invalidCells);
+      });
+
+      pack.burgs.forEach(burg => {
+        if (typeof burg.capital === "boolean") burg.capital = Number(burg.capital);
+
+        if (!burg.i && burg.lock) {
+          ERROR && console.error(`[Data integrity] Burg 0 is marked as locked, removing the status`);
+          delete burg.lock;
+          return;
+        }
+
+        if (burg.removed && burg.lock) {
+          ERROR && console.error(`[Data integrity] Removed burg ${burg.i} is marked as locked. Unlocking the burg`);
+          delete burg.lock;
+          return;
+        }
+
+        if (!burg.i || burg.removed) return;
+
+        if (burg.cell === undefined || burg.x === undefined || burg.y === undefined) {
+          ERROR &&
+            console.error(`[Data integrity] Burg ${burg.i} is missing cell info or coordinates. Removing the burg`);
+          burg.removed = true;
+        }
+
+        if ((burg.port ?? 0) < 0) {
+          ERROR && console.error("[Data integrity] Burg", burg.i, "has invalid port value", burg.port);
+          burg.port = 0;
+        }
+
+        if (burg.cell !== undefined && burg.cell >= pCells.i.length) {
+          ERROR && console.error("[Data integrity] Burg", burg.i, "is linked to invalid cell", burg.cell);
+          burg.cell = findCell(burg.x!, burg.y!);
+          pCells.i
+            .filter((i: number) => pCells.burg[i] === burg.i)
+            .forEach((i: number) => {
+              pCells.burg[i] = 0;
+            });
+          pCells.burg[burg.cell] = burg.i;
+        }
+
+        if (burg.state && !pack.states[burg.state]) {
+          ERROR && console.error("[Data integrity] Burg", burg.i, "is linked to invalid state", burg.state);
+          burg.state = 0;
+        }
+
+        if (burg.state && pack.states[burg.state].removed) {
+          ERROR && console.error("[Data integrity] Burg", burg.i, "is linked to removed state", burg.state);
+          burg.state = 0;
+        }
+
+        if (burg.state === undefined) {
+          ERROR && console.error("[Data integrity] Burg", burg.i, "has no state data");
+          burg.state = 0;
+        }
+      });
+
+      pack.states.forEach((state: { i: number; removed?: boolean }) => {
+        if (state.removed) return;
+
+        const stateBurgs = pack.burgs.filter(b => b.state === state.i && !b.removed);
+        const capitalBurgs = stateBurgs.filter(b => b.capital);
+
+        if (!state.i && capitalBurgs.length) {
+          ERROR &&
+            console.error(
+              `[Data integrity] Neutral burgs (${capitalBurgs.map(b => b.i).join(", ")}) marked as capitals`
+            );
+          capitalBurgs.forEach(burg => {
+            burg.capital = 0;
+            Burgs.changeGroup(burg);
+          });
+          return;
+        }
+
+        if (capitalBurgs.length > 1) {
+          ERROR &&
+            console.error(
+              `[Data integrity] State ${state.i} has multiple capitals (${capitalBurgs
+                .map(b => b.i)
+                .join(", ")}) assigned. Keeping the first as capital and moving others`
+            );
+          capitalBurgs.forEach((burg, i) => {
+            if (!i) return;
+            burg.capital = 0;
+            Burgs.changeGroup(burg);
+          });
+          return;
+        }
+
+        if (state.i && stateBurgs.length && !capitalBurgs.length) {
+          ERROR && console.error(`[Data integrity] State ${state.i} has no capital. Making the first burg capital`);
+          const capital = stateBurgs[0];
+          capital.capital = 1;
+          Burgs.changeGroup(capital);
+        }
+      });
+
+      pack.provinces.forEach((p: { i: number; removed?: boolean; state: number }) => {
+        if (!p.i || p.removed) return;
+        if (pack.states[p.state] && !pack.states[p.state].removed) return;
+        ERROR &&
+          console.error(
+            `[Data integrity] Province ${p.i} is linked to removed state ${p.state}. Removing the province`
+          );
+        p.removed = true;
+      });
+
+      pack.routes.forEach((route: { i: number; points: unknown[] }) => {
+        if (!route.points || route.points.length < 2) {
+          ERROR && console.error(`[Data integrity] Route ${route.i} has less than 2 points. Removing the route`);
+          Routes.remove(route as Parameters<typeof Routes.remove>[0]);
+        }
+      });
+
+      for (const from in pack.cells.routes) {
+        const value = pack.cells.routes[from];
+        if (!value) continue;
+
+        if (Object.keys(value).length === 0) {
+          delete pack.cells.routes[from];
+          continue;
+        }
+
+        for (const to in value) {
+          const routeId = value[to];
+          const route = pack.routes.find((r: { i: number }) => r.i === routeId);
+          if (!route) {
+            ERROR &&
+              console.error(`[Data integrity] Route ${routeId} from ${from} to ${to} is missing. Removing the route`);
+            delete pack.cells.routes[from][to];
+          }
+        }
+      }
+
+      {
+        const markerIds: boolean[] = [];
+        const lastMarker = last(pack.markers) as { i: number } | undefined;
+        let nextId = lastMarker ? lastMarker.i + 1 : 0;
+
+        pack.markers.forEach((marker: { i: number }) => {
+          if (markerIds[marker.i]) {
+            ERROR && console.error("[Data integrity] Marker", marker.i, "has non-unique id. Changing to", nextId);
+
+            const domElements = document.querySelectorAll(`#marker${marker.i}`);
+            if (domElements[1]) domElements[1].id = `marker${nextId}`;
+
+            const noteElements = notes.filter(note => note.id === `marker${marker.i}`);
+            if (noteElements[1]) noteElements[1].id = `marker${nextId}`;
+
+            marker.i = nextId;
+            nextId += 1;
+          } else {
+            markerIds[marker.i] = true;
+          }
+        });
+
+        pack.markers.sort((a: { i: number }, b: { i: number }) => a.i - b.i);
+      }
+    }
+    emblems.selectAll("use").attr("href", null);
+    if (rulers && layerIsOn("toggleRulers")) rulers.draw();
+    if (layerIsOn("toggleGrid")) drawGrid();
+    restoreDefaultEvents?.();
+    focusOn();
+    invokeActiveZooming();
+    fitMapToScreen();
+
+    WARN &&
+      console.warn(
+        `TOTAL: ${rn((performance.now() - ((uploadMap as { timeStart?: number }).timeStart ?? 0)) / 1000, 2)}s`
+      );
+    showStatistics();
+    INFO && console.groupEnd();
+    tip("Map is successfully loaded", true, "success", 7000);
+  } catch (error) {
+    ERROR && console.error(error);
+    clearMainTip();
+
+    alertMessage.innerHTML = /* html */ `An error occurred while loading the map. Select a different file to load, <br>generate a new random map or cancel the loading.<br>Map version: ${mapVersion}. Generator version: ${VERSION}.
+      <p id="errorBox">${parseError(error as Error)}</p>`;
+
+    $("#alert").dialog({
+      resizable: false,
+      title: "Loading error",
+      maxWidth: "40em",
+      buttons: {
+        "Clear cache": () => cleanupData(),
+        "Select file": function () {
+          $(this).dialog("close");
+          mapToLoad.click();
+        },
+        "New map": function () {
+          $(this).dialog("close");
+          regenerateMap("loading error");
+        },
+        Cancel: function () {
+          $(this).dialog("close");
+        }
+      },
+      position: { my: "center", at: "center", of: "svg" }
+    });
+  }
+}
+
+// ─── Global exports ───────────────────────────────────────────────────────────
+
+window.quickLoad = quickLoad;
+window.loadFromDropbox = loadFromDropbox;
+window.createSharableDropboxLink = createSharableDropboxLink;
+window.loadMapPrompt = loadMapPrompt;
+window.loadMapFromURL = loadMapFromURL;
+window.uploadMap = uploadMap;
+window.showUploadErrorMessage = showUploadErrorMessage;
+window.parseLoadedResult = parseLoadedResult;
+window.parseLoadedData = parseLoadedData;

@@ -550,7 +550,6 @@ declare global {
   interface Window {
     shouldRegenerateGrid: typeof shouldRegenerateGrid;
     generateGrid: typeof generateGrid;
-    findCell: typeof findClosestCell;
     findGridCell: typeof findGridCell;
     findGridAll: typeof findGridAll;
     calculateVoronoi: typeof calculateVoronoi;

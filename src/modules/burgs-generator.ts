@@ -618,7 +618,7 @@ class BurgModule {
     const { cells } = pack;
 
     const burgId = pack.burgs.length;
-    const cellId = window.findCell(x, y, undefined, pack);
+    const cellId = window.findCell(x, y);
     const culture = cells.culture[cellId as number];
     const name = Names.getCulture(culture);
     const state = cells.state[cellId as number];
@@ -659,7 +659,7 @@ class BurgModule {
     return burgId;
   }
 
-  changeGroup(burg: Burg, group: string | null) {
+  changeGroup(burg: Burg, group?: string | null) {
     if (group) {
       burg.group = group;
     } else {

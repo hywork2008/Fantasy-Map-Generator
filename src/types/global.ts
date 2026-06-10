@@ -53,7 +53,17 @@ declare global {
   var legend: Selection<SVGGElement, unknown, null, undefined>;
 
   var rivers: Selection<SVGElement, unknown, null, undefined>;
+  var ocean: Selection<SVGGElement, unknown, null, undefined>;
   var oceanLayers: Selection<SVGGElement, unknown, null, undefined>;
+  var oceanPattern: Selection<SVGGElement, unknown, null, undefined>;
+  var landmass: Selection<SVGGElement, unknown, null, undefined>;
+  var fogging: Selection<SVGGElement, unknown, null, undefined>;
+  var debug: Selection<SVGGElement, unknown, null, undefined>;
+  var roads: Selection<SVGGElement, unknown, null, undefined>;
+  var trails: Selection<SVGGElement, unknown, null, undefined>;
+  var searoutes: Selection<SVGGElement, unknown, null, undefined>;
+  var stateBorders: Selection<SVGGElement, unknown, null, undefined>;
+  var provinceBorders: Selection<SVGGElement, unknown, null, undefined>;
   var emblems: Selection<SVGElement, unknown, null, undefined>;
   var svg: Selection<SVGSVGElement, unknown, null, undefined>;
   var ice: Selection<SVGGElement, unknown, null, undefined>;
@@ -168,6 +178,8 @@ declare global {
     data: unknown[];
     create: (...args: unknown[]) => unknown;
     remove: (id: unknown) => void;
+    fromString: (str: string) => void;
+    toString: () => string;
   };
   var ThreeD: { update: () => void };
   var editStyle: (layerId: string, group?: string) => void;
@@ -209,7 +221,7 @@ declare global {
     onConfirm?: () => void;
     onCancel?: () => void;
   }) => void;
-  var applyOption: (select: HTMLSelectElement, value: string, name?: string) => void;
+  var applyOption: (select: HTMLSelectElement | HTMLInputElement, value: string, name?: string) => void;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   var $: (selector: any) => any;
   var scale: number;
@@ -223,17 +235,135 @@ declare global {
   var createDefaultRuler: () => void;
   var showStatistics: () => void;
   var closeDialogs: (except?: string) => void;
+  var restoreDefaultEvents: (() => void) | undefined;
   var editWorld: () => void;
   var showExportPane: () => void;
   var UITour: { start: () => void };
   var getHeight: (h: number) => string;
   var getLatitude: (y: number, precision?: number) => number;
   var getLongitude: (x: number, precision?: number) => number;
-  var getFileName: (name: string) => string;
+  var getFileName: (name?: string) => string;
   var customization: number;
   var speak: (text: string) => void;
   var uploadFile: (el: HTMLInputElement, callback: (data: string) => void) => void;
   var downloadFile: (content: string | Blob, name: string, type?: string) => void;
   var zoomTo: (x: number, y: number, zoom: number, duration: number) => void;
   var modules: Record<string, boolean>;
+
+  // Additional HTML inputs (settings UI)
+  var distanceScaleInput: HTMLInputElement;
+  var populationRateInput: HTMLInputElement;
+  var urbanizationInput: HTMLInputElement;
+  var urbanDensityInput: HTMLInputElement;
+  var mapSizeInput: HTMLInputElement;
+  var latitudeInput: HTMLInputElement;
+  var precInput: HTMLInputElement;
+  var longitudeInput: HTMLInputElement;
+
+  // Additional UI functions
+  var editUnits: () => void;
+  var clearLegend: () => void;
+
+  // Utility globals (window-wrapped versions)
+  var last: <T>(arr: T[]) => T;
+  var findCell: (x: number, y: number, radius?: number) => number;
+  var parseError: (error: unknown) => string;
+
+  // ─── I/O module globals ───────────────────────────────────────────────────
+
+  // HTML inputs for world settings (used by save/load)
+  var areaUnit: HTMLSelectElement;
+  var temperatureScale: HTMLSelectElement;
+  var mapSizeOutput: HTMLOutputElement;
+  var latitudeOutput: HTMLOutputElement;
+  var longitudeOutput: HTMLOutputElement;
+  var precOutput: HTMLOutputElement;
+  var hideLabels: HTMLInputElement;
+  var stylePreset: HTMLSelectElement;
+  var rescaleLabels: HTMLInputElement;
+  var growthRate: HTMLInputElement;
+  var stateLabelsModeInput: HTMLSelectElement;
+  var yearInput: HTMLInputElement;
+  var eraInput: HTMLInputElement;
+  var optionsSeed: HTMLInputElement;
+  var mapToLoad: HTMLInputElement;
+  var customizationMenu: HTMLElement;
+  var styleTab: HTMLElement;
+  var autosaveIntervalOutput: HTMLInputElement;
+  var pngResolutionInput: HTMLInputElement;
+  var renderOcean: HTMLInputElement;
+
+  // Map state
+  var mapId: number;
+  var mapHistory: Array<{ created: number }>;
+
+  // IndexedDB wrapper
+  var ldb: {
+    get: (key: string) => Promise<Blob | null>;
+    set: (key: string, value: Blob) => Promise<void>;
+  };
+
+  // Cloud module is declared in src/io/cloud.ts
+
+  // Versioning helpers (from versioning.js)
+  var compareVersions: (a: string, b: string) => { isEqual: boolean; isNewer: boolean; isOlder: boolean };
+  var parseMapVersion: (version: string) => string;
+  var isValidVersion: (version: string) => boolean;
+
+  // App lifecycle functions
+  var focusOn: () => void;
+  var regenerateMap: (reason?: string) => void;
+  var cleanupData: () => void;
+  var clearMainTip: () => void;
+  var fitMapToScreen: () => void;
+  var updateTextureSelectValue: (href: string) => void;
+  var generateMapOnLoad: () => void;
+  var getCellPopulation: (i: number) => [number, number];
+  var getCoordinates: (x: number, y: number, decimals?: number) => [number, number];
+
+  // ─── I/O: save module ───────────────────────────────────────────────────────
+  var prepareMapData: () => string;
+  var saveToStorage: (mapData: string, showTip?: boolean) => Promise<void>;
+  var saveToMachine: (mapData: string, filename: string) => void;
+  var saveMap: (method: string) => Promise<void>;
+  var initiateAutosave: () => Promise<void>;
+  var toggleSaveReminder: () => void;
+
+  // ─── I/O: export module ─────────────────────────────────────────────────────
+  var exportToSvg: () => Promise<void>;
+  var exportToPng: () => Promise<void>;
+  var exportToJpeg: () => Promise<void>;
+  var exportToPngTiles: () => Promise<void>;
+  var getMapURL: (
+    type: string,
+    options?: {
+      debug?: boolean;
+      noLabels?: boolean;
+      noWater?: boolean;
+      noScaleBar?: boolean;
+      noIce?: boolean;
+      noVignette?: boolean;
+      fullMap?: boolean;
+    }
+  ) => Promise<string>;
+  var removeUnusedElements: (clone: Selection<SVGGElement, unknown, null, undefined>) => void;
+  var inlineStyle: (clone: Selection<SVGGElement, unknown, null, undefined>) => void;
+  var saveGeoJsonCells: () => void;
+  var saveGeoJsonRoutes: () => void;
+  var saveGeoJsonRivers: () => void;
+  var saveGeoJsonMarkers: () => void;
+  var saveGeoJsonZones: () => void;
+
+  // ─── I/O: load module ───────────────────────────────────────────────────────
+  var quickLoad: () => Promise<void>;
+  var loadFromDropbox: () => Promise<void>;
+  var createSharableDropboxLink: () => Promise<void>;
+  var loadMapPrompt: (blob: Blob) => void;
+  var loadMapFromURL: (maplink: string, random: number) => Promise<void>;
+  var uploadMap: (file: Blob, callback?: () => void) => void;
+  var showUploadErrorMessage: (error: string, maplink: string, random: number) => void;
+  var parseLoadedResult: (
+    result: ArrayBuffer | Uint8Array
+  ) => Promise<{ mapData: string[] | null; mapVersion: string | null }>;
+  var parseLoadedData: (data: string[], mapVersion: string) => Promise<void>;
 }
