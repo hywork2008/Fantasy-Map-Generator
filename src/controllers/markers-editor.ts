@@ -2,11 +2,11 @@ import { drag, type Selection, select } from "d3";
 import type { Marker } from "../modules/markers-generator";
 import { ensureEl, rn } from "../utils";
 
-function editMarker(markerI: number): void {
+function editMarker(markerI?: number): void {
   if (customization) return;
   closeDialogs(".stable");
 
-  const result = getElement(markerI);
+  const result = getElement(markerI!);
   if (!result) return;
   const { element, marker } = result;
 

@@ -182,7 +182,8 @@ declare global {
     toString: () => string;
     undraw: () => void;
   };
-  var ThreeD: { update: () => void };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  var ThreeD: any;
   var editStyle: (layerId: string, group?: string) => void;
   var calculateFriendlyGridSize: () => void;
   var selectStyleElement: () => void;
@@ -387,8 +388,8 @@ declare global {
   var redo: HTMLButtonElement | null;
   var resetZoom: (duration?: number) => void;
 
-  // Editor openers (editors.js — not yet migrated)
-  var editHeightmap: () => void;
+  // Editor openers
+  var editHeightmap: (options?: { mode?: string; tool?: string }) => void;
   var editBiomes: () => void;
   var editStates: () => void;
   var editProvinces: () => void;
@@ -397,20 +398,14 @@ declare global {
   var editCultures: () => void;
   var editZones: () => void;
   var editReligions: () => void;
-  var openEmblemEditor: () => void;
   var editNotes: (id?: string, name?: string) => void;
-  var overviewCharts: () => void;
-  var overviewBurgs: () => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  var overviewBurgs: (options?: any) => void;
   var overviewRoutes: () => void;
   var overviewRivers: () => void;
   var overviewMilitary: () => void;
   var overviewMarkers: () => void;
-  var viewCellDetails: () => void;
-  var toggleAddBurg: () => void;
-  var toggleAddLabel: () => void;
-  var toggleAddRiver: () => void;
   var createRoute: () => void;
-  var toggleAddMarker: () => void;
 
   // Tooltip element
   var tooltip: HTMLElement;
@@ -473,14 +468,18 @@ declare global {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   var Planimeter: new (points: [number, number][]) => any;
 
-  // ─── Phase 9: editor dependencies from not-yet-migrated JS ───────────────────
+  // ─── Phase 10: editors.js → editors.ts ────────────────────────────────────
 
-  // from editors.js
-  var fitContent: () => number;
+  // from editors.ts
+  var fitContent: () => string;
   var applySorting: (header: HTMLElement) => void;
+  var applySortingByHeader: (headerContainer: string) => void;
+  var sortLines: (headerElement: HTMLElement) => void;
   var openPicker: (fill: string, callback: (newFill: string) => void) => void;
   var selectIcon: (current: string, callback: (value: string) => void) => void;
   var drawLegend: (name: string, data: Array<[string | number, string, string]>) => void;
+  var fitLegendBox: () => void;
+  var refreshAllEditors: () => void;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   var elSelected: import("d3").Selection<any, unknown, null, undefined> | null;
   var unselect: () => void;
@@ -488,11 +487,45 @@ declare global {
   var moveCircle: (x: number, y: number, r?: number) => void;
   var removeCircle: () => void;
   var fog: (id: string, path: string) => void;
-  var unfog: (id: string) => void;
-  var highlightElement: (element: HTMLElement, timeout: number) => void;
+  var unfog: (id?: string) => void;
+  var highlightElement: (element: Element, zoom?: number) => void;
 
-  // from tools.js
+  // editor openers from editors.ts (dynamic modules)
+  var editEmblem: ((type?: any, id?: any, el?: any) => void) | undefined;
+  var editLabel: (() => void) | undefined;
+  var editBurg: (() => void) | undefined;
+  var editIce: ((el: SVGElement) => void) | undefined;
+  var editReliefIcon: (() => void) | undefined;
+  var editRegiment: (() => void) | undefined;
+  var editCoastline: (() => void) | undefined;
+
+  // from tools.ts
   var recalculatePopulation: () => void;
+  var regenerateRoutes: () => void;
+  var regenerateRivers: () => void;
+  var regenerateStates: () => void;
+  var regenerateProvinces: () => void;
+  var regenerateBurgs: () => void;
+  var regenerateEmblems: () => void;
+  var regenerateReligions: () => void;
+  var regenerateCultures: () => void;
+  var regenerateMilitary: () => void;
+  var regenerateIce: () => void;
+  var regenerateMarkers: () => void;
+  var regenerateZones: (event: MouseEvent) => void;
+  var openEmblemEditor: () => Promise<void>;
+  var configMarkersGeneration: () => void;
+  var viewCellDetails: () => void;
+  var overviewCharts: () => Promise<void>;
+  var openMinimap: () => Promise<void>;
+  var toggleAddLabel: () => void;
+  var toggleAddBurg: () => void;
+  var toggleAddRiver: () => void;
+  var toggleAddMarker: () => void;
+  var unpressClickToAddButton: () => void;
+  var openSubmapTool: (() => void) | undefined;
+  var openTransformTool: (() => void) | undefined;
+  var NamesbaseEditor: { open: () => void };
 
   // from route-group-editor.js
   var editRouteGroups: () => void;
@@ -503,7 +536,7 @@ declare global {
   // from editors.js
   var editRoute: (id: string) => void;
   var editRiver: (id: string) => void;
-  var editMarker: (markerI: number) => void;
+  var editMarker: (markerI?: number) => void;
   var editLake: () => void;
 
   // from elevation-profile.ts
@@ -516,6 +549,179 @@ declare global {
   var getWorldState: () => import("./WorldState").WorldState;
   var showMainTip: () => void;
 
+  // ─── Phase 10: options.ts globals ────────────────────────────────────────────
+
+  // DOM elements referenced by id as globals
+  var optionsTrigger: HTMLElement;
+  var regenerate: HTMLElement;
+  var collapsible: HTMLElement;
+  var layersContent: HTMLElement;
+  var styleContent: HTMLElement;
+  var optionsContent: HTMLElement;
+  var toolsContent: HTMLElement;
+  var aboutContent: HTMLElement;
+  var optionsContainer: HTMLElement;
+  var viewMode: HTMLElement;
+  var viewStandard: HTMLElement;
+  var heightmap3DView: HTMLElement;
+  var preview3d: HTMLElement;
+
+  // Input elements for options panel
+  var manorsInput: HTMLInputElement;
+  var manorsOutput: HTMLInputElement;
+  var pointsOutputFormatted: HTMLInputElement;
+  var themeColorInput: HTMLInputElement;
+  var transparencyInput: HTMLInputElement;
+  var themeHueInput: HTMLInputElement;
+  var zoomExtentMin: HTMLInputElement;
+  var zoomExtentMax: HTMLInputElement;
+  var uiSize: HTMLInputElement;
+  var statesNumber: HTMLInputElement;
+  var sizeVariety: HTMLInputElement;
+  var provincesRatio: HTMLInputElement;
+  var culturesOutput: HTMLInputElement;
+
+  // 3D options elements
+  var options3dUpdate: HTMLElement;
+  var options3dMesh: HTMLElement;
+  var options3dGlobe: HTMLElement;
+  var options3dOBJSave: HTMLElement;
+  var options3dColorSection: HTMLElement;
+  var options3dScaleRange: HTMLInputElement;
+  var options3dScaleNumber: HTMLInputElement;
+  var options3dLightnessRange: HTMLInputElement;
+  var options3dLightnessNumber: HTMLInputElement;
+  var options3dSunX: HTMLInputElement;
+  var options3dSunY: HTMLInputElement;
+  var options3dMeshSkinResolution: HTMLInputElement;
+  var options3dMeshRotationRange: HTMLInputElement;
+  var options3dMeshRotationNumber: HTMLInputElement;
+  var options3dGlobeRotationRange: HTMLInputElement;
+  var options3dGlobeRotationNumber: HTMLInputElement;
+  var options3dMeshLabels3d: HTMLInputElement;
+  var options3dMeshSkyMode: HTMLInputElement;
+  var options3dMeshSky: HTMLInputElement;
+  var options3dMeshWater: HTMLInputElement;
+  var options3dGlobeResolution: HTMLInputElement;
+  var options3dMeshWireframeMode: HTMLInputElement;
+  var options3dSunColor: HTMLInputElement;
+  var options3dSubdivide: HTMLInputElement;
+  var options3dTimeOfDay: HTMLSelectElement;
+
+  // Template data
+  var precreatedHeightmaps: Record<string, HeightmapTemplate>;
+
+  // Utility functions
+  var minmax: (value: number, min: number, max: number) => number;
+  var toggleAssistant: (() => void) | undefined;
+
+  // Functions exported from options.ts
+  var applyGraphSize: () => void;
+  var applyStoredOptions: () => void;
+  var randomizeOptions: () => void;
+  var randomizeHeightmapTemplate: () => void;
+  var randomizeCultureSet: () => void;
+  var generateEra: () => void;
+  var regenerateEra: () => void;
+  var changeYear: () => void;
+  var changeEra: () => void;
+  var changeCellsDensity: (value: number) => void;
+  var changeCultureSet: () => void;
+  var changeEmblemShape: (shape: string) => void;
+  var changeStatesNumber: (value: string) => void;
+  var changeUiSize: (value: number) => void;
+  var changeTooltipSize: (value: string) => void;
+  var changeThemeHue: (hue: string) => void;
+  var changeDialogsTheme: (themeColor: string, transparency: string) => void;
+  var restoreDefaultThemeColor: () => void;
+  var setRendering: (value: string) => void;
+  var showSavePane: () => void;
+  var showLoadPane: () => Promise<void>;
+  var copyLinkToClickboard: () => void;
+  var exportToJson: (type: string) => Promise<void>;
+  var connectToDropbox: () => Promise<void>;
+  var loadURL: () => void;
+  var openExportToPngTiles: () => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  var updateTilesOptions: (...args: any[]) => void;
+  var enterStandardView: () => void;
+  var enter3dView: (type: string) => Promise<void>;
+  var resize3d: () => void;
+  var showSupporters: () => Promise<void>;
+  var showSeedHistoryDialog: () => void;
+  var restoreSeed: (id: number) => void;
+  var copyMapURL: () => void;
+  var initGoogleTranslate: () => void;
+  var openTemplateSelectionDialog: () => Promise<void>;
+
+  // ─── Phase 10: heightmap-editor.ts globals ──────────────────────────────────
+
+  // Edit-mode DOM elements
+  var heightmapEditMode: HTMLElement;
+  var applyTemplate: HTMLButtonElement;
+  var convertImage: HTMLButtonElement;
+  var allowErosionBox: HTMLElement;
+  var allowErosion: HTMLInputElement;
+  var exitCustomization: HTMLElement;
+  var mapLayers: HTMLElement;
+  var cellTypeFilter: HTMLElement;
+  var heightmapBrushRadius: HTMLElement;
+  var heightmapBrushPower: HTMLElement;
+  var heightmapLinePower: HTMLElement;
+  var templateRedo: HTMLButtonElement;
+  var templateUndo: HTMLButtonElement;
+  var templateBody: HTMLElement;
+  var templateToLoad: HTMLInputElement;
+  var templateSelect: HTMLSelectElement;
+  var templateTools: HTMLElement;
+  var templateSeed: HTMLInputElement;
+  var imageToLoad: HTMLInputElement;
+  var convertColors: HTMLInputElement;
+  var colorsSelect: HTMLElement;
+  var colorsUnassigned: HTMLElement;
+  var colorsAssigned: HTMLElement;
+  var colorsSelectValue: HTMLElement;
+  var colorsSelectFriendly: HTMLElement;
+  var imageConverterPalette: HTMLElement;
+  var colorsUnassignedContainer: HTMLElement;
+  var colorsAssignedContainer: HTMLElement;
+  var convertOverlay: HTMLInputElement;
+  var convertOverlayNumber: HTMLInputElement;
+  var imageConverter: HTMLElement;
+  var rescaleLower: HTMLInputElement;
+  var rescaleHigher: HTMLInputElement;
+  var conditionSign: HTMLSelectElement;
+  var rescaleModifier: HTMLInputElement;
+
+  // Heightmap info panel elements
+  var heightmapInfoX: HTMLElement;
+  var heightmapInfoY: HTMLElement;
+  var heightmapInfoCell: HTMLElement;
+  var heightmapInfoHeight: HTMLElement;
+
+  // Grid / generation helpers
+  var findGridCell: (x: number, y: number, grid: Grid) => number;
+  var findGridAll: (x: number, y: number, r: number) => number[];
+  var getGridPolygon: (i: number) => string;
+  var generatePrecipitation: () => void;
+  var OceanLayers: () => void;
+  var rankCells: () => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  var createTypedArray: (options: { maxValue: number; length: number }) => any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  var aleaPRNG: (seed: string) => () => number;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  var RgbQuant: new (options: any) => any;
+
+  // UI helpers
+  var link: (url: string, text: string) => string;
+  var undraw: () => void;
+  var changeViewMode: () => void;
+  var clicked: (this: SVGElement, event: MouseEvent) => void;
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  var layersPreset: any;
+
   // utility globals (already on window via utils/index.ts, declared here for external JS compat)
   var si: (value: number, decimals?: number) => string;
   var rn: (value: number, decimals?: number) => number;
@@ -526,4 +732,9 @@ declare global {
   var getPackPolygon: (i: number) => [number, number][];
   var getRandomColor: () => string;
   var getSegmentId: (points: [number, number][], point: [number, number], dimension?: number) => number;
+
+  // ─── Phase 10: provinces-editor.ts globals ──────────────────────────────────
+
+  var P: (probability: number) => boolean;
+  var updateLockStatus: (provinceId: number, classList: DOMTokenList) => void;
 }

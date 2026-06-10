@@ -1,5 +1,6 @@
 import "./layers";
 import "./style";
+import "./editors";
 import "./coastline-editor";
 import "./elevation-profile";
 import "./namesbase-editor";
@@ -14,3 +15,7 @@ import "./lakes-editor";
 import "./rivers-editor";
 import "./routes-editor";
 import "./notes-editor";
+import "./tools";
+import "./options";
+import "./heightmap-editor";
+import "./provinces-editor";
