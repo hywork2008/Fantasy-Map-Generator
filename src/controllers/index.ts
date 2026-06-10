@@ -4,3 +4,6 @@ import "./coastline-editor";
 import "./elevation-profile";
 import "./namesbase-editor";
 import "../io";
+import "../utils/uiHelpers";
+import "./hotkeys";
+import "./measurers";

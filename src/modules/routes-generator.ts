@@ -172,6 +172,7 @@ export interface Route {
   points: number[][];
   cells?: number[];
   merged?: boolean;
+  name?: string;
 }
 
 declare global {

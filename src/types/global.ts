@@ -175,11 +175,12 @@ declare global {
 
   var rulers: {
     draw: () => void;
-    data: unknown[];
-    create: (...args: unknown[]) => unknown;
-    remove: (id: unknown) => void;
+    data: { id: number; draw: () => unknown; undraw: () => void }[];
+    create: <T>(Type: new (points: [number, number][]) => T, points: [number, number][]) => T;
+    remove: (id: number) => void;
     fromString: (str: string) => void;
     toString: () => string;
+    undraw: () => void;
   };
   var ThreeD: { update: () => void };
   var editStyle: (layerId: string, group?: string) => void;
@@ -239,7 +240,7 @@ declare global {
   var editWorld: () => void;
   var showExportPane: () => void;
   var UITour: { start: () => void };
-  var getHeight: (h: number) => string;
+  var getHeight: (h: number, abs?: string) => string;
   var getLatitude: (y: number, precision?: number) => number;
   var getLongitude: (x: number, precision?: number) => number;
   var getFileName: (name?: string) => string;
@@ -366,4 +367,109 @@ declare global {
     result: ArrayBuffer | Uint8Array
   ) => Promise<{ mapData: string[] | null; mapVersion: string | null }>;
   var parseLoadedData: (data: string[], mapVersion: string) => Promise<void>;
+
+  // ─── Phase 8: hotkeys / uiHelpers / measurers ────────────────────────────
+
+  // Zoom behavior (d3, from main.js)
+  var zoom: {
+    translateBy: (selection: unknown, dx: number, dy: number) => unknown;
+    scaleTo: (selection: unknown, scale: number) => unknown;
+    scaleBy: (selection: unknown, factor: number) => unknown;
+  };
+
+  var MOBILE: boolean;
+  var hideOptions: () => void;
+  var toggleOptions: (event?: Event) => void;
+  var regeneratePrompt: () => void;
+  var toggle3dOptions: () => void;
+  var zonesRemove: HTMLButtonElement | null;
+  var undo: HTMLButtonElement | null;
+  var redo: HTMLButtonElement | null;
+  var resetZoom: (duration?: number) => void;
+
+  // Editor openers (editors.js — not yet migrated)
+  var editHeightmap: () => void;
+  var editBiomes: () => void;
+  var editStates: () => void;
+  var editProvinces: () => void;
+  var editDiplomacy: () => void;
+  var editCoastlineSettings: () => void;
+  var editCultures: () => void;
+  var editZones: () => void;
+  var editReligions: () => void;
+  var openEmblemEditor: () => void;
+  var editNotes: () => void;
+  var overviewCharts: () => void;
+  var overviewBurgs: () => void;
+  var overviewRoutes: () => void;
+  var overviewRivers: () => void;
+  var overviewMilitary: () => void;
+  var overviewMarkers: () => void;
+  var viewCellDetails: () => void;
+  var toggleAddBurg: () => void;
+  var toggleAddLabel: () => void;
+  var toggleAddRiver: () => void;
+  var createRoute: () => void;
+  var toggleAddMarker: () => void;
+
+  // Tooltip element
+  var tooltip: HTMLElement;
+
+  // UI helper functions (from uiHelpers.ts)
+  var showInfo: () => void;
+  var showElementLockTip: (event: MouseEvent) => void;
+  var highlightEditorLine: (editor: HTMLElement, id: number, timeout?: number) => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  var onMouseMove: (...args: any[]) => void;
+  var stored: (key: string) => string | null;
+  var store: (key: string, value: string) => void;
+  var toDMS: (coord: number, c: "lat" | "lon") => string;
+  var getRiverInfo: (id: number) => string;
+  var getFriendlyPrecipitation: (i: number) => string;
+  var getPopulationTip: (i: number) => string;
+
+  // Map coordinate helpers (from main.js / general.js)
+  var getArea: (area: number) => number;
+  var getAreaUnit: () => string;
+
+  // Cell info panel DOM elements
+  var infoX: HTMLElement;
+  var infoY: HTMLElement;
+  var infoLat: HTMLElement;
+  var infoLon: HTMLElement;
+  var infoGeozone: HTMLElement;
+  var infoCell: HTMLElement;
+  var infoArea: HTMLElement;
+  var infoElevation: HTMLElement;
+  var infoDepth: HTMLElement;
+  var infoTemp: HTMLElement;
+  var infoPrec: HTMLElement;
+  var infoRiver: HTMLElement;
+  var infoState: HTMLElement;
+  var infoProvince: HTMLElement;
+  var infoCulture: HTMLElement;
+  var infoReligion: HTMLElement;
+  var infoPopulation: HTMLElement;
+  var infoBurg: HTMLElement;
+  var infoFeature: HTMLElement;
+  var infoBiome: HTMLElement;
+
+  // d3 line generator (from main.js)
+  var lineGen: { (points: [number, number][]): string; curve: (curve: unknown) => typeof lineGen };
+
+  // polylabel library (loaded via <script> in index.html)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  var polylabel: (polygon: any, precision?: number) => [number, number];
+
+  // Measurer constructors (from measurers.ts)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  var Rulers: new () => any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  var Ruler: new (points: [number, number][]) => any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  var Opisometer: new (points: [number, number][]) => any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  var RouteOpisometer: new (points: [number, number][]) => any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  var Planimeter: new (points: [number, number][]) => any;
 }
