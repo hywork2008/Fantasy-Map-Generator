@@ -19,7 +19,9 @@ function editLabel(tspan?: Element): void {
           _ldy = +tr[1] - event.y;
         })
         .on("drag", (event: any) => {
-          elSelected!.attr("transform", `translate(${_ldx + event.x},${_ldy + event.y})`);
+          const transform = `translate(${_ldx + event.x},${_ldy + event.y})`;
+          elSelected!.attr("transform", transform);
+          debug.select("#controlPoints").attr("transform", transform);
         }) as any
     )
     .classed("draggable", true);
