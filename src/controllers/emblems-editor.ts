@@ -503,7 +503,7 @@ function editEmblem(type?: string, id?: string, el?: any): void {
   }
 
   async function renderAllEmblems(states: any[], provinces: any[], burgs: any[]): Promise<void> {
-    tip("Preparing for download...", true, "warn" as any);
+    tip("Preparing for download...", true, "warn");
 
     const statePromises = states.map((state: any) => COArenderer.trigger(`stateCOA${state.i}`, state.coa));
     const provincePromises = provinces.map((province: any) =>

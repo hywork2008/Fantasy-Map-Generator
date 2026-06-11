@@ -108,7 +108,7 @@ function editHeightmap(options?: { mode?: string; tool?: string }): void {
         .style("opacity", 1)
         .transition()
         .duration(2000)
-        .ease((d3 as any).easeSinInOut)
+        .ease(d3.easeSinInOut)
         .style("right", "10px")
         .style("bottom", "10px")
         .style("transform", "scale(1)");

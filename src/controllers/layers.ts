@@ -1,4 +1,3 @@
-import type { Transition } from "d3";
 import * as d3 from "d3";
 import { ensureEl, isCtrlClick } from "../utils";
 
@@ -323,11 +322,7 @@ function togglePrecipitation(event?: MouseEvent): void {
       return;
     }
     turnButtonOff("togglePrecipitation");
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const hide = (d3 as any)
-      .transition()
-      .duration(1000)
-      .ease((d3 as any).easeSinIn) as Transition<any, unknown, null, undefined>;
+    const hide = d3.transition().duration(1000).ease(d3.easeSinIn);
     prec.selectAll("text").attr("opacity", 1).transition(hide).attr("opacity", 0);
     prec.selectAll("circle").transition(hide).attr("r", 0).remove();
     prec.transition().delay(1000).style("display", "none");
@@ -350,11 +345,7 @@ function togglePopulation(event?: MouseEvent): void {
     if (!isD3data) {
       population.selectAll("line").remove();
     } else {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const hide = (d3 as any)
-        .transition()
-        .duration(1000)
-        .ease((d3 as any).easeSinIn) as Transition<any, unknown, null, undefined>;
+      const hide = d3.transition().duration(1000).ease(d3.easeSinIn);
       population
         .select("#rural")
         .selectAll("line")

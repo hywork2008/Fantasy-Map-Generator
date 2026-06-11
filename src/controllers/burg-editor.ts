@@ -22,11 +22,7 @@ function editBurg(id?: number): void {
         })
         .on("drag", function (this: SVGTextElement, event: any) {
           this.setAttribute("transform", `translate(${_bdx + event.x},${_bdy + event.y})`);
-          tip(
-            'Use dragging for fine-tuning only, to actually move burg use "Relocate" button',
-            false,
-            "warning" as any
-          );
+          tip('Use dragging for fine-tuning only, to actually move burg use "Relocate" button', false, "warn");
         })
     )
     .classed("draggable", true);
@@ -184,9 +180,9 @@ function editBurg(id?: number): void {
 
     if (feature === "port") togglePort(burgId);
     else if (feature === "capital") toggleCapital(burgId);
-    else (burg as any)[feature] = value;
+    else (burg as unknown as Record<string, number | undefined>)[feature] = value;
 
-    this.classList.toggle("inactive", !(burg as any)[feature]);
+    this.classList.toggle("inactive", !(burg as unknown as Record<string, number | undefined>)[feature]);
 
     (ensureEl("burgEditAnchorStyle") as HTMLElement).style.display = burg.port ? "inline-block" : "none";
     updateBurgPreview(burg);
@@ -201,7 +197,7 @@ function editBurg(id?: number): void {
       if (anchor) anchor.remove();
     } else {
       const haven = pack.cells.haven[burg.cell];
-      if (!haven) tip("Port haven is not found, system won't be able to make a searoute", false, "warn" as any);
+      if (!haven) tip("Port haven is not found, system won't be able to make a searoute", false, "warn");
       const portFeature = haven ? pack.cells.f[haven] : -1;
       burg.port = portFeature;
 
@@ -312,7 +308,7 @@ function editBurg(id?: number): void {
     object.style.width = "100%";
     object.style.maxWidth = "60vw";
     object.style.maxHeight = "60vh";
-    (object as any).data = preview;
+    object.data = preview;
     container.insertBefore(object, null);
   }
 
@@ -419,7 +415,7 @@ function editBurg(id?: number): void {
     burg.y = y;
     if (burg.capital) pack.states[newState].center = burg.cell;
 
-    if ((event as any).shiftKey === false) toggleRelocateBurg();
+    if (event.shiftKey === false) toggleRelocateBurg();
   }
 
   function editBurgLegend(): void {

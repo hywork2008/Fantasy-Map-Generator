@@ -219,10 +219,7 @@ function editProvinces(): void {
 
     if (!layerIsOn("toggleProvinces")) return;
     if (customization) return;
-    const animate = (d3 as any)
-      .transition()
-      .duration(2000)
-      .ease((d3 as any).easeSinIn);
+    const animate = d3.transition().duration(2000).ease(d3.easeSinIn);
     provs
       .select(`#province${province}`)
       .raise()

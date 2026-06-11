@@ -149,14 +149,14 @@ function editLabel(tspan?: Element): void {
   function redrawLabelPath(): void {
     const path = ensureEl(`textPath_${elSelected!.attr("id")}`) as unknown as SVGPathElement;
     lineGen.curve(curveNatural);
-    const points: [string, string][] = [];
+    const points: [number, number][] = [];
     debug
       .select("#controlPoints")
       .selectAll("circle")
       .each(function (this: any) {
-        points.push([this.getAttribute("cx")!, this.getAttribute("cy")!]);
+        points.push([+this.getAttribute("cx")!, +this.getAttribute("cy")!]);
       });
-    const d = round(lineGen(points as any));
+    const d = round(lineGen(points));
     path.setAttribute("d", d);
     debug.select("#controlPoints > path").attr("d", d);
   }
@@ -337,7 +337,7 @@ function editLabel(tspan?: Element): void {
     } else el.innerHTML = `<tspan x="0">${lines}</tspan>`;
 
     if (elSelected!.attr("id").slice(0, 10) === "stateLabel")
-      tip("Use States Editor to change an actual state name, not just a label", false, "warning" as any);
+      tip("Use States Editor to change an actual state name, not just a label", false, "warn");
   }
 
   function generateRandomName(): void {

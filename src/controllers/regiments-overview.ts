@@ -112,10 +112,8 @@ function overviewRegiments(state = -1): void {
     const filter = document.getElementById("regimentsFilter") as HTMLSelectElement;
     filter.options.length = 0;
     filter.options.add(new Option("all", "-1", false, stateId === -1));
-    const statesSorted = pack.states
-      .filter((s: any) => s.i && !s.removed)
-      .sort((a: any, b: any) => (a.name > b.name ? 1 : -1));
-    for (const s of statesSorted as any[]) filter.options.add(new Option(s.name, String(s.i), false, s.i === stateId));
+    const statesSorted = pack.states.filter(s => s.i && !s.removed).sort((a, b) => (a.name > b.name ? 1 : -1));
+    for (const s of statesSorted) filter.options.add(new Option(s.name, String(s.i), false, s.i === stateId));
   }
 
   function regimentHighlightOn(event: MouseEvent): void {

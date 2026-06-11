@@ -1,8 +1,10 @@
+import * as THREE from "three";
+import { MapControls } from "three/examples/jsm/controls/MapControls.js";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { OBJExporter } from "three/examples/jsm/exporters/OBJExporter.js";
+import { LoopSubdivision } from "three-subdivide";
 import { cloudImage } from "../assets/cloud-image";
 import { rn } from "../utils";
-
-declare const THREE: any;
-declare const loopSubdivision: any;
 
 const threeDOptions: Record<string, any> = {
   scale: 50,
@@ -241,16 +243,13 @@ const saveScreenshot = async (): Promise<void> => {
   window.setTimeout(() => window.URL.revokeObjectURL(URL), 5000);
 };
 
-const saveOBJ = async (): Promise<void> => {
-  const objexporter = await OBJExporter();
-  const obj = await objexporter.parse(mesh);
-
+const saveOBJ = (): void => {
+  const objexporter = new OBJExporter();
+  const obj = objexporter.parse(mesh);
   downloadFile(obj, `${getFileName()}.obj`, "text/plain;charset=UTF-8");
 };
 
 async function newMesh(canvas: HTMLCanvasElement): Promise<boolean> {
-  const loaded = await loadTHREE();
-  if (!loaded) return tip("Cannot load 3d library", false, "error", 4000) as unknown as false;
   scene = new THREE.Scene();
 
   ambientLight = new THREE.AmbientLight(0xcccccc, threeDOptions.lightness);
@@ -271,8 +270,7 @@ async function newMesh(canvas: HTMLCanvasElement): Promise<boolean> {
 
   camera = new THREE.PerspectiveCamera(70, canvas.width / canvas.height, 0.1, 2000);
   camera.position.set(0, 400, 500);
-  controls = await MapControls(camera, canvas);
-  if (!controls) return false;
+  controls = new MapControls(camera, canvas);
 
   if (controls.target) controls.target.set(0, 0, 0);
 
@@ -566,7 +564,6 @@ async function createMesh(width: number, height: number, segmentsX: number, segm
   geometry.computeVertexNormals();
   if (mesh) scene.remove(mesh);
   if (threeDOptions.subdivide) {
-    await loadLoopSubdivision();
     const subdivideParams = {
       split: true,
       uvSmooth: false,
@@ -574,7 +571,7 @@ async function createMesh(width: number, height: number, segmentsX: number, segm
       flatOnly: false,
       maxTriangles: Infinity
     };
-    const smoothGeometry = loopSubdivision.modify(geometry, 1, subdivideParams);
+    const smoothGeometry = LoopSubdivision.modify(geometry, 1, subdivideParams);
     mesh = new THREE.Mesh(smoothGeometry, material);
   } else {
     mesh = new THREE.Mesh(geometry, material);
@@ -639,12 +636,6 @@ async function update3dTexture(): Promise<void> {
 }
 
 async function newGlobe(canvas: HTMLCanvasElement): Promise<boolean> {
-  const loaded = await loadTHREE();
-  if (!loaded) {
-    tip("Cannot load 3d library", false, "error", 4000);
-    return false;
-  }
-
   scene = new THREE.Scene();
   scene.background = new THREE.TextureLoader().load(
     "https://i0.wp.com/azgaar.files.wordpress.com/2019/10/stars-1.png",
@@ -660,8 +651,7 @@ async function newGlobe(canvas: HTMLCanvasElement): Promise<boolean> {
 
   camera = new THREE.PerspectiveCamera(45, canvas.width / canvas.height, 0.1, 1000).translateZ(5);
 
-  controls = await OrbitControls(camera, Renderer.domElement);
-  if (!controls) return false;
+  controls = new OrbitControls(camera, Renderer.domElement);
   controls.zoomSpeed = 0.25;
   controls.minDistance = 1.5;
   controls.maxDistance = 10;
@@ -680,36 +670,6 @@ async function newGlobe(canvas: HTMLCanvasElement): Promise<boolean> {
   controls.addEventListener("change", render);
 
   return true;
-}
-
-function OrbitControls(cam: any, domElement: HTMLElement): any {
-  if (THREE.OrbitControls) return new THREE.OrbitControls(cam, domElement);
-
-  return new Promise(resolve => {
-    const script = document.createElement("script");
-    script.src = "libs/orbitControls.min.js";
-    document.head.append(script);
-    script.onload = () => resolve(new THREE.OrbitControls(cam, domElement));
-    script.onerror = () => resolve(false);
-  });
-}
-
-function MapControls(cam: any, domElement: HTMLElement): any {
-  if (THREE.MapControls) return new THREE.MapControls(cam, domElement);
-
-  return new Promise(resolve => {
-    const script = document.createElement("script");
-    script.src = "libs/mapControls.min.js";
-    document.head.append(script);
-    script.onload = () => {
-      if (THREE.MapControls) {
-        resolve(new THREE.MapControls(cam, domElement));
-      } else {
-        resolve(false);
-      }
-    };
-    script.onerror = () => resolve(false);
-  });
 }
 
 async function updateGlobeTexure(addMesh?: boolean): Promise<void> {
@@ -741,15 +701,16 @@ async function updateGlobeTexure(addMesh?: boolean): Promise<void> {
     if (!Renderer || !material) return;
     ctx.drawImage(img2, dx, dy, mapWidth, mapHeight);
     if (texture) texture.dispose();
-    texture = new THREE.CanvasTexture(ctx.canvas, render);
+    texture = new THREE.CanvasTexture(ctx.canvas);
     material.map = texture;
     if (addMesh) addGlobe3dMesh();
+    else render();
   };
   img2.src = await getMapURL("mesh", { noScaleBar: true, fullMap: true, noVignette: true });
 }
 
 function addGlobe3dMesh(): void {
-  geometry = new THREE.SphereBufferGeometry(1, 64, 64);
+  geometry = new THREE.SphereGeometry(1, 64, 64);
   mesh = new THREE.Mesh(geometry, material);
   scene.add(mesh);
   if (controls.autoRotate) animate();
@@ -776,42 +737,6 @@ function doWorkOnRender(): void {
 function animate(): void {
   animationFrame = requestAnimationFrame(animate);
   if (controls?.update) controls.update();
-}
-
-function loadTHREE(): Promise<boolean> {
-  if ((window as any).THREE) return Promise.resolve(true);
-
-  return new Promise(resolve => {
-    const script = document.createElement("script");
-    script.src = "libs/three.min.js";
-    document.head.append(script);
-    script.onload = () => resolve(true);
-    script.onerror = () => resolve(false);
-  });
-}
-
-function loadLoopSubdivision(): Promise<boolean> {
-  if ((window as any).loopSubdivision) return Promise.resolve(true);
-
-  return new Promise(resolve => {
-    const script = document.createElement("script");
-    script.src = "libs/loopsubdivison.min.js";
-    document.head.append(script);
-    script.onload = () => resolve(true);
-    script.onerror = () => resolve(false);
-  });
-}
-
-function OBJExporter(): any {
-  if (THREE.OBJExporter) return new THREE.OBJExporter();
-
-  return new Promise(resolve => {
-    const script = document.createElement("script");
-    script.src = "libs/objexporter.min.js?v=1.89.35";
-    document.head.append(script);
-    script.onload = () => resolve(new THREE.OBJExporter());
-    script.onerror = () => resolve(false);
-  });
 }
 
 window.ThreeD = {

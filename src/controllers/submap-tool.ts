@@ -45,7 +45,7 @@ function openSubmapTool(): void {
 
     const submapPointsValue = (ensureEl("submapPointsInput") as HTMLInputElement).value;
     const globalPointsValue = (ensureEl("pointsInput") as HTMLInputElement).value;
-    if (submapPointsValue !== globalPointsValue) changeCellsDensity(submapPointsValue as any);
+    if (submapPointsValue !== globalPointsValue) changeCellsDensity(+submapPointsValue);
 
     const projection = (x: number, y: number): [number, number] => [(x - x0) * scale, (y - y0) * scale];
     const inverse = (x: number, y: number): [number, number] => [x / scale + x0, y / scale + y0];
@@ -82,8 +82,10 @@ function openSubmapTool(): void {
     (ensureEl("longitudeOutput") as HTMLOutputElement).value = (ensureEl("longitudeInput") as HTMLInputElement).value =
       newLon;
 
-    distanceScale = distanceScaleInput.value = String(rn(distanceScale / scale, 2)) as any;
-    populationRate = populationRateInput.value = String(rn(populationRate / scale, 2)) as any;
+    distanceScale = rn(distanceScale / scale, 2);
+    distanceScaleInput.value = String(distanceScale);
+    populationRate = rn(populationRate / scale, 2);
+    populationRateInput.value = String(populationRate);
   }
 
   function rescaleBurgStyles(scaleFactor: number): void {

@@ -268,7 +268,7 @@ function generateWithAi(defaultPrompt: string, onApply: (result: string) => void
 
       await PROVIDERS[provider].generate({ key, model, prompt, temperature, onContent });
     } catch (error) {
-      const message = (error as any)?.message || String(error) || "Failed to generate text";
+      const message = error instanceof Error ? error.message : String(error) || "Failed to generate text";
       return tip(message, true, "error", 4000);
     } finally {
       button.disabled = false;

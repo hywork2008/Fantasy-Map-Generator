@@ -1,4 +1,5 @@
 import { drag, pointer, select } from "d3";
+import type { IceIceberg } from "../modules/ice";
 import { parseTransform } from "../utils";
 
 function editIce(element: SVGElement): void {
@@ -19,7 +20,7 @@ function editIce(element: SVGElement): void {
 
   iceRandomize.style.display = isGlacier ? "none" : "inline-block";
   iceSizeEl.style.display = isGlacier ? "none" : "inline-block";
-  if (!isGlacier) iceSizeEl.value = String((iceElement as any)?.size || "");
+  if (!isGlacier) iceSizeEl.value = String((iceElement as IceIceberg)?.size ?? "");
 
   (ice.selectAll("*") as any)
     .classed("draggable", true)
@@ -110,7 +111,7 @@ function editIce(element: SVGElement): void {
     const y = event.y;
     this.setAttribute("transform", `translate(${_idx + x},${_idy + y})`);
     const iceData = pack.ice.find(el => el.i === _iceId);
-    if (iceData) (iceData as any).offset = [_idx + x, _idy + y];
+    if (iceData) iceData.offset = [_idx + x, _idy + y];
   }
 
   function closeEditor(): void {
