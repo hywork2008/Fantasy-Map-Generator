@@ -1,4 +1,5 @@
 import Alea from "alea";
+import { drag, polygonArea, select } from "d3";
 import {
   buildCoastlinePath,
   type CoastlineSettings,
@@ -7,7 +8,7 @@ import {
   makeRoughnessProfile,
   PROFILE_SIZE
 } from "../renderers/coastline-fractal";
-import { ensureEl } from "../utils";
+import { ensureEl, rn, si, unique } from "../utils";
 
 interface SliderDef {
   id: string;
@@ -141,6 +142,232 @@ const COAST_PRESETS: Record<string, Omit<CoastlineSettings, "enabled">> = {
 };
 
 const PREVIEW_SEED = "preview_coastline";
+
+export function editCoastline(event?: MouseEvent): void {
+  if (customization) return;
+  closeDialogs(".stable");
+  if (layerIsOn("toggleCells")) toggleCells();
+
+  $("#coastlineEditor").dialog({
+    title: "Edit Coastline",
+    resizable: false,
+    position: { my: "center top+20", at: "top", of: event, collision: "fit" },
+    close: closeCoastlineEditor
+  });
+
+  const node = (event?.target ?? document.querySelector(".coastline path")) as SVGElement;
+  debug.append("g").attr("id", "vertices");
+  elSelected = select(node);
+  selectCoastlineGroup(node);
+  drawCoastlineVertices();
+  viewbox.on("touchmove mousemove", null);
+
+  if (modules.editCoastline) return;
+  modules.editCoastline = true;
+
+  ensureEl("coastlineGroupsShow").on("click", showGroupSection);
+  ensureEl("coastlineGroup").on("change", changeCoastlineGroup);
+  ensureEl("coastlineGroupAdd").on("click", toggleNewGroupInput);
+  ensureEl("coastlineGroupName").on("change", createNewGroup);
+  ensureEl("coastlineGroupRemove").on("click", removeCoastlineGroup);
+  ensureEl("coastlineGroupsHide").on("click", hideGroupSection);
+  ensureEl("coastlineEditStyle").on("click", editGroupStyle);
+
+  function drawCoastlineVertices(): void {
+    const featureId = +elSelected!.attr("data-f");
+    const { vertices, area } = pack.features[featureId];
+
+    const cellsNumber = pack.cells.i.length;
+    const neibCells = unique((vertices as number[]).flatMap((v: number) => pack.vertices.c[v]) as number[]).filter(
+      (cellId: number) => cellId < cellsNumber
+    );
+
+    debug
+      .select("#vertices")
+      .selectAll("polygon")
+      .data(neibCells)
+      .enter()
+      .append("polygon")
+      .attr("points", (d: number) => getPackPolygon(d) as unknown as string)
+      .attr("data-c", (d: number) => d);
+
+    debug
+      .select("#vertices")
+      .selectAll("circle")
+      .data(vertices as number[])
+      .enter()
+      .append("circle")
+      .attr("cx", (d: number) => pack.vertices.p[d][0])
+      .attr("cy", (d: number) => pack.vertices.p[d][1])
+      .attr("r", 0.4)
+      .attr("data-v", (d: number) => d)
+      .call(drag<SVGCircleElement, number>().on("drag", handleVertexDrag).on("end", handleVertexDragEnd))
+      .on("mousemove", () =>
+        tip("Drag to move the vertex. Please use for fine-tuning only. Edit heightmap to change actual cell heights!")
+      );
+
+    ensureEl("coastlineArea").textContent = `${si(getArea(area))} ${getAreaUnit()}`;
+  }
+
+  function handleVertexDrag(this: SVGCircleElement, dragEvent: any): void {
+    const { vertices, features } = pack;
+    const x = rn(dragEvent.x, 2);
+    const y = rn(dragEvent.y, 2);
+    this.setAttribute("cx", String(x));
+    this.setAttribute("cy", String(y));
+
+    const vertexId = select(this).datum() as number;
+    vertices.p[vertexId] = [x, y];
+
+    const featureId = +elSelected!.attr("data-f");
+    const feature = features[featureId];
+    defs.select(`#featurePaths > path#feature_${featureId}`).attr("d", getFeaturePath(feature));
+
+    const points = (feature.vertices as number[]).map((v: number) => vertices.p[v]);
+    feature.area = Math.abs(polygonArea(points as [number, number][]));
+    ensureEl("coastlineArea").textContent = `${si(getArea(feature.area!))} ${getAreaUnit()}`;
+
+    debug
+      .select("#vertices")
+      .selectAll("polygon")
+      .attr("points", (d: any) => getPackPolygon(d) as unknown as string);
+  }
+
+  function handleVertexDragEnd(): void {
+    if (layerIsOn("toggleStates")) drawStates();
+    if (layerIsOn("toggleProvinces")) drawProvinces();
+    if (layerIsOn("toggleBorders")) drawBorders();
+    if (layerIsOn("toggleBiomes")) drawBiomes();
+    if (layerIsOn("toggleReligions")) drawReligions();
+    if (layerIsOn("toggleCultures")) drawCultures();
+  }
+
+  function showGroupSection(): void {
+    document.querySelectorAll("#coastlineEditor > button").forEach(el => {
+      (el as HTMLElement).style.display = "none";
+    });
+    ensureEl("coastlineGroupsSelection").style.display = "inline-block";
+  }
+
+  function hideGroupSection(): void {
+    document.querySelectorAll("#coastlineEditor > button").forEach(el => {
+      (el as HTMLElement).style.display = "inline-block";
+    });
+    (ensureEl("coastlineGroupsSelection") as HTMLElement).style.display = "none";
+    (ensureEl("coastlineGroupName") as HTMLElement).style.display = "none";
+    (ensureEl("coastlineGroupName") as HTMLInputElement).value = "";
+    (ensureEl("coastlineGroup") as HTMLElement).style.display = "inline-block";
+  }
+
+  function selectCoastlineGroup(el: Element): void {
+    const group = (el.parentNode as SVGGElement).id;
+    const sel = ensureEl<HTMLSelectElement>("coastlineGroup");
+    sel.options.length = 0;
+    coastline.selectAll("g").each(function () {
+      const g = this as SVGGElement;
+      sel.options.add(new Option(g.id, g.id, false, g.id === group));
+    });
+  }
+
+  function changeCoastlineGroup(this: HTMLSelectElement): void {
+    ensureEl(this.value).appendChild(elSelected!.node()!);
+  }
+
+  function toggleNewGroupInput(): void {
+    const nameInput = ensureEl("coastlineGroupName") as HTMLElement;
+    const groupSel = ensureEl("coastlineGroup") as HTMLElement;
+    if (nameInput.style.display === "none") {
+      nameInput.style.display = "inline-block";
+      (nameInput as HTMLInputElement).focus?.();
+      groupSel.style.display = "none";
+    } else {
+      nameInput.style.display = "none";
+      groupSel.style.display = "inline-block";
+    }
+  }
+
+  function createNewGroup(this: HTMLInputElement): void {
+    if (!this.value) {
+      tip("Please provide a valid group name");
+      return;
+    }
+
+    const group = this.value
+      .toLowerCase()
+      .replace(/ /g, "_")
+      .replace(/[^\w\s]/gi, "");
+
+    if (ensureEl(group)) {
+      tip("Element with this id already exists. Please provide a unique name", false, "error");
+      return;
+    }
+    if (Number.isFinite(+group.charAt(0))) {
+      tip("Group name should start with a letter", false, "error");
+      return;
+    }
+
+    const oldGroup = elSelected!.node()!.parentNode as SVGGElement;
+    const basic = ["sea_island", "lake_island"].includes(oldGroup.id);
+    if (!basic && oldGroup.childElementCount === 1) {
+      ensureEl<HTMLSelectElement>("coastlineGroup").selectedOptions[0].remove();
+      ensureEl<HTMLSelectElement>("coastlineGroup").options.add(new Option(group, group, false, true));
+      oldGroup.id = group;
+      toggleNewGroupInput();
+      (ensureEl("coastlineGroupName") as HTMLInputElement).value = "";
+      return;
+    }
+
+    const newGroup = (elSelected!.node()!.parentNode as Element).cloneNode(false) as SVGGElement;
+    ensureEl("coastline").appendChild(newGroup);
+    newGroup.id = group;
+    ensureEl<HTMLSelectElement>("coastlineGroup").options.add(new Option(group, group, false, true));
+    ensureEl(group).appendChild(elSelected!.node()!);
+    toggleNewGroupInput();
+    (ensureEl("coastlineGroupName") as HTMLInputElement).value = "";
+  }
+
+  function removeCoastlineGroup(): void {
+    const group = (elSelected!.node()!.parentNode as SVGGElement).id;
+    if (["sea_island", "lake_island"].includes(group)) {
+      tip("This is one of the default groups, it cannot be removed", false, "error");
+      return;
+    }
+
+    const count = (elSelected!.node()!.parentNode as Element).childElementCount;
+    alertMessage.innerHTML = `Are you sure you want to remove the group? All coastline elements of the group (${count}) will be moved under <i>sea_island</i> group`;
+    $("#alert").dialog({
+      resizable: false,
+      title: "Remove coastline group",
+      width: "26em",
+      buttons: {
+        Remove: function (this: HTMLElement) {
+          $(this).dialog("close");
+          const sea = ensureEl("sea_island");
+          const groupEl = ensureEl(group);
+          while (groupEl.childNodes.length) {
+            sea.appendChild(groupEl.childNodes[0]);
+          }
+          groupEl.remove();
+          ensureEl<HTMLSelectElement>("coastlineGroup").selectedOptions[0].remove();
+          ensureEl<HTMLSelectElement>("coastlineGroup").value = "sea_island";
+        },
+        Cancel: function (this: HTMLElement) {
+          $(this).dialog("close");
+        }
+      }
+    });
+  }
+
+  function editGroupStyle(): void {
+    const g = (elSelected!.node()!.parentNode as SVGGElement).id;
+    editStyle("coastline", g);
+  }
+
+  function closeCoastlineEditor(): void {
+    debug.select("#vertices").remove();
+    unselect();
+  }
+}
 
 export function open(): void {
   if (!document.getElementById("coastlineSettingsDialog")) {
@@ -479,7 +706,9 @@ function drawShapePreview(canvas: HTMLCanvasElement): void {
 declare global {
   interface Window {
     CoastlineEditor: { open: () => void };
+    editCoastline: (event?: MouseEvent) => void;
   }
 }
 
 window.CoastlineEditor = { open };
+window.editCoastline = editCoastline;

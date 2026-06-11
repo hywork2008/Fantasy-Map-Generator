@@ -57,7 +57,7 @@ function clicked(this: Element, event: MouseEvent): void {
   else if (parent?.id === "ice") editIce?.(el as SVGElement);
   else if (parent?.id === "terrain") editReliefIcon?.(el as SVGElement);
   else if (grand?.id === "markers" || great?.id === "markers") editMarker?.();
-  else if (grand?.id === "coastline") editCoastlineSettings?.();
+  else if (grand?.id === "coastline") editCoastline?.(event);
   else if (grand?.id === "lakes") editLake?.(event);
   else if (great?.id === "armies") editRegiment?.(el?.parentElement ?? undefined);
 }

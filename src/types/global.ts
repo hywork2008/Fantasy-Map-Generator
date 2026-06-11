@@ -522,7 +522,7 @@ declare global {
   var editIce: ((el: SVGElement) => void) | undefined;
   var editReliefIcon: ((el?: Element) => void) | undefined;
   var editRegiment: ((selectorOrEl?: string | Element) => void) | undefined;
-  var editCoastline: (() => void) | undefined;
+  var editCoastline: ((event?: MouseEvent) => void) | undefined;
 
   // from tools.ts
   var recalculatePopulation: () => void;
