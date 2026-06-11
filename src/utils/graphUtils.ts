@@ -115,7 +115,13 @@ const placePoints = (
  * @param {number} graphHeight - The height of the graph
  * @returns {boolean} - True if the grid should be regenerated, false otherwise
  */
-export const shouldRegenerateGrid = (grid: any, expectedSeed: number, graphWidth: number, graphHeight: number) => {
+export const shouldRegenerateGrid = (
+  grid: Grid | null | undefined,
+  expectedSeed: number,
+  graphWidth: number,
+  graphHeight: number
+) => {
+  if (!grid) return true;
   if (expectedSeed && expectedSeed !== grid.seed) return true;
 
   const cellsDesired = +(ensureEl("pointsInput").dataset?.cells || 0);

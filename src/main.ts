@@ -19,6 +19,7 @@ import {
   rand,
   rn
 } from "./utils";
+import type { Grid } from "./utils/graphUtils";
 
 const UINT16_MAX = _TMP.UINT16_MAX;
 
@@ -876,7 +877,7 @@ void (function addDragToUpload() {
 
 // ─── Map generation ───────────────────────────────────────────────────────────
 
-async function generate(opts?: { seed?: string; graph?: any }) {
+async function generate(opts?: { seed?: string; graph?: Grid | null }) {
   try {
     const timeStart = performance.now();
     const { seed: precreatedSeed, graph: precreatedGraph } = opts || {};

@@ -1138,21 +1138,21 @@ function toggle3dOptions(): void {
     (options3dLightnessRange as HTMLInputElement).value = (options3dLightnessNumber as HTMLInputElement).value = String(
       ThreeD.options.lightness * 100
     );
-    (options3dSunX as HTMLInputElement).value = ThreeD.options.sun.x;
-    (options3dSunY as HTMLInputElement).value = ThreeD.options.sun.y;
+    (options3dSunX as HTMLInputElement).value = String(ThreeD.options.sun.x);
+    (options3dSunY as HTMLInputElement).value = String(ThreeD.options.sun.y);
     (options3dMeshRotationRange as HTMLInputElement).value = (options3dMeshRotationNumber as HTMLInputElement).value =
-      ThreeD.options.rotateMesh;
-    (options3dMeshSkinResolution as HTMLInputElement).value = ThreeD.options.resolutionScale;
+      String(ThreeD.options.rotateMesh);
+    (options3dMeshSkinResolution as HTMLInputElement).value = String(ThreeD.options.resolutionScale);
     (options3dGlobeRotationRange as HTMLInputElement).value = (options3dGlobeRotationNumber as HTMLInputElement).value =
-      ThreeD.options.rotateGlobe;
-    (options3dMeshLabels3d as HTMLInputElement).value = ThreeD.options.labels3d;
-    (options3dMeshSkyMode as HTMLInputElement).value = ThreeD.options.extendedWater;
+      String(ThreeD.options.rotateGlobe);
+    (options3dMeshLabels3d as HTMLInputElement).value = String(ThreeD.options.labels3d);
+    (options3dMeshSkyMode as HTMLInputElement).value = String(ThreeD.options.extendedWater);
     options3dColorSection.style.display = ThreeD.options.extendedWater ? "block" : "none";
     (options3dMeshSky as HTMLInputElement).value = ThreeD.options.skyColor;
     (options3dMeshWater as HTMLInputElement).value = ThreeD.options.waterColor;
-    (options3dGlobeResolution as HTMLInputElement).value = ThreeD.options.resolution;
+    (options3dGlobeResolution as HTMLInputElement).value = String(ThreeD.options.resolution);
     (options3dSunColor as HTMLInputElement).value = ThreeD.options.sunColor;
-    (options3dSubdivide as HTMLInputElement).value = ThreeD.options.subdivide;
+    (options3dSubdivide as HTMLInputElement).value = String(ThreeD.options.subdivide);
     updateTimeOfDayPreset();
   }
 
@@ -1213,7 +1213,7 @@ function toggle3dOptions(): void {
   function changeSunPosition(this: HTMLInputElement): void {
     const x = +(options3dSunX as HTMLInputElement).value;
     const y = +(options3dSunY as HTMLInputElement).value;
-    ThreeD.setSun(x, y);
+    ThreeD.setSun(x, y, ThreeD.options.sun.z);
     const presetSelect = ensureEl<HTMLSelectElement>("options3dTimeOfDay");
     if (presetSelect?.value !== "custom") presetSelect.value = "custom";
   }
@@ -1245,7 +1245,7 @@ function toggle3dOptions(): void {
   }
 
   function changeResolution(this: HTMLInputElement): void {
-    ThreeD.setResolution(this.value);
+    ThreeD.setResolution(+this.value);
   }
 }
 

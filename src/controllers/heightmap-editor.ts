@@ -118,7 +118,7 @@ function editHeightmap(options?: { mode?: string; tool?: string }): void {
 
     turnButtonOn("toggleHeight");
     (layersPreset as HTMLSelectElement).value = "heightmap";
-    (layersPreset as HTMLInputElement).disabled = true;
+    layersPreset.disabled = true;
     mockHeightmap();
 
     viewbox.on("touchmove", moveCursor).on("mousemove", moveCursor);
@@ -183,7 +183,7 @@ function editHeightmap(options?: { mode?: string; tool?: string }): void {
     customizationMenu.style.display = "none";
     if (ensureEl("options").querySelector<HTMLElement>(".tab > button.active")?.id === "toolsTab")
       toolsContent.style.display = "block";
-    (layersPreset as HTMLInputElement).disabled = false;
+    layersPreset.disabled = false;
     exitCustomization.style.display = "none";
 
     restoreDefaultEvents?.();

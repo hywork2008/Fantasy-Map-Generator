@@ -979,6 +979,8 @@ class Battle {
 
 window.Battle = Battle;
 
+export type { Battle };
+
 declare global {
   interface Window {
     Battle: new (...args: any[]) => any;

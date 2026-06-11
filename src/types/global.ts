@@ -1,6 +1,15 @@
-import type { Selection } from "d3";
+import type { Quadtree, Selection } from "d3";
 import type { ViewState } from "../context/viewState";
 import type { WorldContext } from "../context/worldContext";
+import type { ThreeDAPI } from "../controllers/3d";
+import type { Battle as BattleClass } from "../controllers/battle-screen";
+import type {
+  Opisometer as OpismeterClass,
+  Planimeter as PlanimeterClass,
+  RouteOpisometer as RouteOpisometerClass,
+  Ruler as RulerClass,
+  Rulers as RulersClass
+} from "../controllers/measurers";
 import type { NameBase } from "../modules/names-generator";
 import type { Route } from "../modules/routes-generator";
 import type { Grid } from "../utils/graphUtils";
@@ -187,8 +196,7 @@ declare global {
     toString: () => string;
     undraw: () => void;
   };
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  var ThreeD: any;
+  var ThreeD: ThreeDAPI;
   var editStyle: (layerId: string, group?: string) => void;
   var calculateFriendlyGridSize: () => void;
   var selectStyleElement: () => void;
@@ -207,7 +215,7 @@ declare global {
   var removeStylePreset: () => void;
   var updateMapFilter: () => void;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  var FlatQueue: new () => { push: (item: any, priority: number) => void; pop: () => any; length: number };
+  var FlatQueue: new <T = any>() => { push: (item: T, priority: number) => void; pop: () => T; length: number };
 
   var tip: (
     message: string,
@@ -319,7 +327,7 @@ declare global {
   var isValidVersion: (version: string) => boolean;
 
   // App lifecycle functions (from main.ts)
-  var generate: (options?: { seed?: string; graph?: any }) => Promise<void>;
+  var generate: (options?: { seed?: string; graph?: Grid | null }) => Promise<void>;
   var getWorldState: () => import("./WorldState").WorldState;
   var generateMapOnLoad: () => Promise<void>;
   var checkLoadParameters: () => Promise<void>;
@@ -398,8 +406,8 @@ declare global {
   var toggleOptions: (event?: Event) => void;
   var regeneratePrompt: (opts?: { seed?: string }) => void;
   var generateSeed: () => string;
-  var shouldRegenerateGrid: (grid: any, expectedSeed: number) => boolean;
-  var generateGrid: () => any;
+  var shouldRegenerateGrid: (grid: Grid | null | undefined, expectedSeed: number) => boolean;
+  var generateGrid: () => Grid;
   var drawHeights: (opts: {
     heights: number[];
     width: number;
@@ -407,7 +415,7 @@ declare global {
     scheme: (v: number) => string;
     renderOcean: boolean;
   }) => string;
-  var findAllInQuadtree: (x: number, y: number, radius: number, quadtree: any) => any[];
+  var findAllInQuadtree: (x: number, y: number, radius: number, quadtree: Quadtree<unknown>) => unknown[];
   var toggle3dOptions: () => void;
   var zonesRemove: HTMLButtonElement | null;
   var undo: HTMLButtonElement | null;
@@ -478,20 +486,14 @@ declare global {
   var lineGen: { (points: [number, number][]): string; curve: (curve: unknown) => typeof lineGen };
 
   // polylabel library (loaded via <script> in index.html)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  var polylabel: (polygon: any, precision?: number) => [number, number];
+  var polylabel: (polygon: [number, number][][], precision?: number) => [number, number];
 
   // Measurer constructors (from measurers.ts)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  var Rulers: new () => any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  var Ruler: new (points: [number, number][]) => any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  var Opisometer: new (points: [number, number][]) => any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  var RouteOpisometer: new (points: [number, number][]) => any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  var Planimeter: new (points: [number, number][]) => any;
+  var Rulers: typeof RulersClass;
+  var Ruler: typeof RulerClass;
+  var Opisometer: typeof OpismeterClass;
+  var RouteOpisometer: typeof RouteOpisometerClass;
+  var Planimeter: typeof PlanimeterClass;
 
   // ─── Phase 10: editors.js → editors.ts ────────────────────────────────────
 
@@ -516,7 +518,7 @@ declare global {
   var highlightElement: (element: Element, zoom?: number) => void;
 
   // editor openers from editors.ts (dynamic modules)
-  var editEmblem: ((type?: any, id?: any, el?: any) => void) | undefined;
+  var editEmblem: ((type?: string, id?: string, el?: unknown) => void) | undefined;
   var editLabel: ((tspan?: Element) => void) | undefined;
   var editBurg: ((burgId?: number) => void) | undefined;
   var editIce: ((el: SVGElement) => void) | undefined;
@@ -730,12 +732,13 @@ declare global {
   var generatePrecipitation: () => void;
   var OceanLayers: () => void;
   var rankCells: () => void;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  var createTypedArray: (options: { maxValue: number; length: number }) => any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  var createTypedArray: (options: {
+    maxValue: number;
+    length: number;
+    from?: ArrayLike<number>;
+  }) => Uint8Array | Uint16Array | Uint32Array;
   var aleaPRNG: (seed: string) => () => number;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  var RgbQuant: new (options: any) => any;
+  var RgbQuant: new (options: unknown) => unknown;
 
   // UI helpers
   var link: (url: string, text: string) => string;
@@ -743,8 +746,7 @@ declare global {
   var changeViewMode: (event: MouseEvent) => void;
   var clicked: (this: SVGElement, event: MouseEvent) => void;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  var layersPreset: any;
+  var layersPreset: HTMLSelectElement;
 
   // utility globals (already on window via utils/index.ts, declared here for external JS compat)
   var si: (value: number, decimals?: number) => string;
@@ -793,8 +795,7 @@ declare global {
   // ─── Phase 13: medium editors ────────────────────────────────────────────────
 
   // from uiHelpers.ts (exposed for emblems-editor)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  var highlightEmblemElement: (type: string, el: any) => void;
+  var highlightEmblemElement: (type: string, el: unknown) => void;
 
   // HTML elements for units-editor
   var unitsBottom: HTMLElement;
@@ -810,8 +811,7 @@ declare global {
   var reliefEditorSet: HTMLSelectElement;
   var reliefRadiusNumber: HTMLInputElement;
   var reliefSpacingNumber: HTMLInputElement;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  var reliefIconsSeletionAny: any;
+  var reliefIconsSeletionAny: HTMLElement;
 
   // HTML elements for burg-group-editor
   var burgGroupsBody: HTMLElement;
@@ -839,8 +839,7 @@ declare global {
   // ─── Phase 14: large editors ──────────────────────────────────────────────
 
   // battle-screen.ts
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  var Battle: new (...args: any[]) => any;
+  var Battle: typeof BattleClass;
   var battleAttackers: HTMLElement;
   var battleDefenders: HTMLElement;
   var regimentSelectorHeader: HTMLElement;

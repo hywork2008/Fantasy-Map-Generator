@@ -6,7 +6,35 @@ import { LoopSubdivision } from "three-subdivide";
 import { cloudImage } from "../assets/cloud-image";
 import { rn } from "../utils";
 
-const threeDOptions: Record<string, any> = {
+interface ThreeDOptions {
+  scale: number;
+  lightness: number;
+  shadow: number;
+  sun: { x: number; y: number; z: number };
+  rotateMesh: number;
+  rotateGlobe: number;
+  skyColor: string;
+  waterColor: string;
+  sunColor: string;
+  extendedWater: number;
+  labels3d: number;
+  wireframe: number;
+  resolution: number;
+  resolutionScale: number;
+  subdivide: number;
+  isOn?: boolean;
+  isGlobe?: boolean;
+}
+
+interface TimeOfDayPreset {
+  sun: { x: number; y: number; z: number };
+  sunColor: string;
+  lightness: number;
+  skyColor: string;
+  waterColor: string;
+}
+
+const threeDOptions: ThreeDOptions = {
   scale: 50,
   lightness: 0.6,
   shadow: 0.5,
@@ -24,25 +52,26 @@ const threeDOptions: Record<string, any> = {
   subdivide: 0
 };
 
-let Renderer: any;
-let scene: any;
-let camera: any;
-let controls: any;
+let Renderer: THREE.WebGLRenderer | undefined;
+let scene: THREE.Scene | undefined;
+let camera: THREE.PerspectiveCamera | undefined;
+let controls: MapControls | OrbitControls | undefined;
 let animationFrame: number;
-let material: any;
-let texture: any;
-let geometry: any;
-let mesh: any;
-let ambientLight: any;
-let spotLight: any;
-let waterPlane: any;
-let waterMaterial: any;
-let waterMesh: any;
-let raycaster: any;
+let material: THREE.MeshLambertMaterial | THREE.MeshBasicMaterial | undefined;
+let texture: THREE.Texture | undefined;
+let geometry: THREE.BufferGeometry | undefined;
+let mesh: THREE.Mesh | undefined;
+let ambientLight: THREE.AmbientLight | undefined;
+let spotLight: THREE.SpotLight | undefined;
+let waterPlane: THREE.PlaneGeometry | undefined;
+let waterMaterial: THREE.MeshBasicMaterial | undefined;
+let waterMesh: THREE.Mesh | undefined;
+let raycaster: THREE.Raycaster | undefined;
 
-let labels: any[] = [];
-let icons: any[] = [];
-let lines: any[] = [];
+type LabelSprite = THREE.Sprite & { size: number };
+let labels: LabelSprite[] = [];
+let icons: THREE.Mesh[] = [];
+let lines: THREE.Line[] = [];
 let gridToPackCellMap: Map<number, number> | null = null;
 
 const context2d = document.createElement("canvas").getContext("2d") as CanvasRenderingContext2D;
@@ -55,8 +84,8 @@ const create = async (canvas: HTMLCanvasElement, type = "viewMesh"): Promise<boo
 
 const redraw = (): void => {
   deleteLabels();
-  scene.remove(mesh);
-  Renderer.setSize(Renderer.domElement.width, Renderer.domElement.height);
+  scene!.remove(mesh!);
+  Renderer!.setSize(Renderer!.domElement.width, Renderer!.domElement.height);
   if (threeDOptions.isGlobe) updateGlobeTexure();
   else createMesh(graphWidth, graphHeight, grid.cellsX, grid.cellsY);
   render();
@@ -77,12 +106,12 @@ const stop = (): void => {
   if (waterMaterial) waterMaterial.dispose();
   deleteLabels();
 
-  Renderer.renderLists.dispose();
-  Renderer.dispose();
-  scene.remove(mesh);
-  scene.remove(spotLight);
-  scene.remove(ambientLight);
-  scene.remove(waterMesh);
+  Renderer!.renderLists.dispose();
+  Renderer!.dispose();
+  scene!.remove(mesh!);
+  scene!.remove(spotLight!);
+  scene!.remove(ambientLight!);
+  scene!.remove(waterMesh!);
 
   Renderer = undefined;
   scene = undefined;
@@ -98,21 +127,19 @@ const stop = (): void => {
 
 const setScale = (scale: number): void => {
   threeDOptions.scale = scale;
-  const vertices = geometry.getAttribute("position");
+  const vertices = geometry!.getAttribute("position");
   for (let i = 0; i < vertices.count; i++) {
     vertices.setZ(i, getMeshHeight(i));
   }
-  geometry.setAttribute("position", vertices);
-  geometry.verticesNeedUpdate = true;
-  geometry.computeVertexNormals();
-  geometry.verticesNeedUpdate = false;
+  geometry!.setAttribute("position", vertices);
+  geometry!.computeVertexNormals();
 
   redraw();
 };
 
 const setSunColor = (color: string): void => {
   threeDOptions.sunColor = color;
-  spotLight.color = new THREE.Color(color);
+  spotLight!.color = new THREE.Color(color);
   render();
 };
 
@@ -123,25 +150,25 @@ const setResolutionScale = (scale: number): void => {
 
 const setLightness = (intensity: number): void => {
   threeDOptions.lightness = intensity;
-  ambientLight.intensity = intensity;
+  ambientLight!.intensity = intensity;
   render();
 };
 
 const setSun = (x: number, y: number, z: number): void => {
   threeDOptions.sun = { x, y, z };
-  spotLight.position.set(x, y, z);
+  spotLight!.position.set(x, y, z);
   render();
 };
 
 const setRotation = (speed: number): void => {
   if (threeDOptions.isGlobe) threeDOptions.rotateGlobe = speed;
   else threeDOptions.rotateMesh = speed;
-  controls.autoRotateSpeed = speed;
+  controls!.autoRotateSpeed = speed;
 
-  const startAnimation = !controls.autoRotate && Boolean(speed);
-  const endAnimation = controls.autoRotate && !speed;
+  const startAnimation = !controls!.autoRotate && Boolean(speed);
+  const endAnimation = controls!.autoRotate && !speed;
 
-  controls.autoRotate = Boolean(speed);
+  controls!.autoRotate = Boolean(speed);
 
   if (startAnimation) animate();
   if (endAnimation) cancelAnimationFrame(animationFrame);
@@ -149,17 +176,17 @@ const setRotation = (speed: number): void => {
 
 const toggleSky = (): void => {
   if (threeDOptions.extendedWater) {
-    scene.background = null;
-    scene.fog = null;
-    scene.remove(waterMesh);
+    scene!.background = null;
+    scene!.fog = null;
+    scene!.remove(waterMesh!);
   } else extendWater(graphWidth, graphHeight);
 
-  threeDOptions.extendedWater = !threeDOptions.extendedWater;
+  threeDOptions.extendedWater = threeDOptions.extendedWater ? 0 : 1;
   redraw();
 };
 
 const toggleLabels = (): void => {
-  threeDOptions.labels3d = !threeDOptions.labels3d;
+  threeDOptions.labels3d = threeDOptions.labels3d ? 0 : 1;
 
   if (threeDOptions.labels3d) {
     createLabels().then(() => update());
@@ -170,24 +197,24 @@ const toggleLabels = (): void => {
 };
 
 const toggle3dSubdivision = (): void => {
-  threeDOptions.subdivide = !threeDOptions.subdivide;
+  threeDOptions.subdivide = threeDOptions.subdivide ? 0 : 1;
   redraw();
 };
 
 const toggleWireframe = (): void => {
-  threeDOptions.wireframe = !threeDOptions.wireframe;
+  threeDOptions.wireframe = threeDOptions.wireframe ? 0 : 1;
   redraw();
 };
 
 const setColors = (sky: string, water: string): void => {
   threeDOptions.skyColor = sky;
-  scene.background = scene.fog.color = new THREE.Color(sky);
+  scene!.background = (scene!.fog as THREE.Fog).color = new THREE.Color(sky);
   threeDOptions.waterColor = water;
-  waterMaterial.color = new THREE.Color(water);
+  waterMaterial!.color = new THREE.Color(water);
   render();
 };
 
-const timeOfDayPresets: Record<string, any> = {
+const timeOfDayPresets: Record<string, TimeOfDayPreset> = {
   dawn: {
     sun: { x: -500, y: 400, z: 800 },
     sunColor: "#ff9a56",
@@ -234,7 +261,7 @@ const setResolution = (resolution: number): void => {
 };
 
 const saveScreenshot = async (): Promise<void> => {
-  const URL = Renderer.domElement.toDataURL("image/jpeg");
+  const URL = Renderer!.domElement.toDataURL("image/jpeg");
   const link = document.createElement("a");
   link.download = `${getFileName()}.jpeg`;
   link.href = URL;
@@ -245,7 +272,7 @@ const saveScreenshot = async (): Promise<void> => {
 
 const saveOBJ = (): void => {
   const objexporter = new OBJExporter();
-  const obj = objexporter.parse(mesh);
+  const obj = objexporter.parse(mesh!);
   downloadFile(obj, `${getFileName()}.obj`, "text/plain;charset=UTF-8");
 };
 
@@ -296,9 +323,9 @@ async function newMesh(canvas: HTMLCanvasElement): Promise<boolean> {
   return true;
 }
 
-function textureToSprite(textureUrl: string, width: number, height: number): any {
+function textureToSprite(textureUrl: string, width: number, height: number): THREE.Sprite {
   const map = new THREE.TextureLoader().load(textureUrl);
-  map.anisotropy = Renderer.capabilities.getMaxAnisotropy();
+  map.anisotropy = Renderer!.capabilities.getMaxAnisotropy();
   const mat = new THREE.SpriteMaterial({ map });
 
   const sprite = new THREE.Sprite(mat);
@@ -319,7 +346,7 @@ async function createTextLabel({
   size: number;
   color: string;
   quality: number;
-}): Promise<any> {
+}): Promise<THREE.Sprite> {
   context2d.font = `${size * quality}px ${font}`;
   context2d.canvas.width = context2d.measureText(text).width;
   context2d.canvas.height = size * quality * 1.25;
@@ -340,9 +367,9 @@ function get3dCoords(baseX: number, baseY: number): [number, number, number] {
   const x = baseX - graphWidth / 2;
   const z = baseY - graphHeight / 2;
 
-  raycaster.ray.origin.x = x;
-  raycaster.ray.origin.z = z;
-  const y = raycaster.intersectObject(mesh)[0].point.y;
+  raycaster!.ray.origin.x = x;
+  raycaster!.ray.origin.z = z;
+  const y = raycaster!.intersectObject(mesh!)[0].point.y;
   return [x, y, z];
 }
 
@@ -384,7 +411,7 @@ async function createLabels(): Promise<void> {
   function getIconMaterial(groupName: string, iconColor: string): any {
     if (!iconMaterials[groupName]) {
       const mat = new THREE.MeshPhongMaterial({ color: iconColor });
-      mat.wireframe = threeDOptions.wireframe;
+      mat.wireframe = Boolean(threeDOptions.wireframe);
       iconMaterials[groupName] = mat;
     }
     return iconMaterials[groupName];
@@ -415,11 +442,11 @@ async function createLabels(): Promise<void> {
     const [x, y, z] = get3dCoords(burg.x, burg.y);
 
     if (layerIsOn("toggleLabels")) {
-      const burgSprite = await createTextLabel({ text: burg.name, ...burgOptions });
+      const burgSprite = (await createTextLabel({ text: burg.name, ...burgOptions })) as LabelSprite;
       burgSprite.position.set(x, y + burgOptions.elevation, z);
       burgSprite.size = burgOptions.size;
       labels.push(burgSprite);
-      scene.add(burgSprite);
+      scene!.add(burgSprite);
     }
 
     if (layerIsOn("toggleBurgIcons")) {
@@ -428,7 +455,7 @@ async function createLabels(): Promise<void> {
       const iconMesh = new THREE.Mesh(geo, mat);
       iconMesh.position.set(x, y, z);
       icons.push(iconMesh);
-      scene.add(iconMesh);
+      scene!.add(iconMesh);
 
       const lineMat = getLineMaterial(burg.group ?? "", burgOptions.iconColor);
       const lineStart = y + burgOptions.iconSize / 2;
@@ -437,7 +464,7 @@ async function createLabels(): Promise<void> {
       const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
       const line = new THREE.Line(lineGeo, lineMat);
       lines.push(line);
-      scene.add(line);
+      scene!.add(line);
     }
   }
 
@@ -448,12 +475,12 @@ async function createLabels(): Promise<void> {
 
       const [x, y, z] = get3dCoords(state.pole![0], state.pole![1]);
       const text = states.select(`#stateLabel${state.i}`)?.text() || state.name;
-      const stateSprite = await createTextLabel({ text, ...stateOptions });
+      const stateSprite = (await createTextLabel({ text, ...stateOptions })) as LabelSprite;
 
       stateSprite.position.set(x, y + stateOptions.elevation, z);
       stateSprite.size = stateOptions.size;
       labels.push(stateSprite);
-      scene.add(stateSprite);
+      scene!.add(stateSprite);
     }
   }
 
@@ -464,23 +491,23 @@ function deleteLabels(): void {
   raycaster = undefined;
 
   for (const m of labels) {
-    scene.remove(m);
-    m.material.map.dispose();
+    scene!.remove(m);
+    (m.material as THREE.SpriteMaterial).map?.dispose();
     m.material.dispose();
     m.geometry.dispose();
   }
   labels = [];
 
   for (const m of icons) {
-    scene.remove(m);
-    m.material.dispose();
+    scene!.remove(m);
+    (m.material as THREE.Material).dispose();
     m.geometry.dispose();
   }
   icons = [];
 
   for (const line of lines) {
-    scene.remove(line);
-    line.material.dispose();
+    scene!.remove(line);
+    (line.material as THREE.Material).dispose();
     line.geometry.dispose();
   }
   lines = [];
@@ -488,8 +515,8 @@ function deleteLabels(): void {
 
 async function createMeshTextureUrl(): Promise<string> {
   const url = await getMapURL("mesh", {
-    noLabels: threeDOptions.labels3d,
-    noWater: threeDOptions.extendedWater,
+    noLabels: Boolean(threeDOptions.labels3d),
+    noWater: Boolean(threeDOptions.extendedWater),
     noViewbox: true,
     fullMap: true
   });
@@ -548,7 +575,7 @@ async function createMesh(width: number, height: number, segmentsX: number, segm
   if (threeDOptions.wireframe) {
     material.wireframe = true;
   } else {
-    material.map = texture;
+    material.map = texture ?? null;
     material.transparent = true;
   }
 
@@ -562,7 +589,7 @@ async function createMesh(width: number, height: number, segmentsX: number, segm
 
   geometry.setAttribute("position", vertices);
   geometry.computeVertexNormals();
-  if (mesh) scene.remove(mesh);
+  if (mesh) scene!.remove(mesh);
   if (threeDOptions.subdivide) {
     const subdivideParams = {
       split: true,
@@ -579,7 +606,7 @@ async function createMesh(width: number, height: number, segmentsX: number, segm
   mesh.rotation.x = -Math.PI / 2;
   mesh.castShadow = true;
   mesh.receiveShadow = true;
-  scene.add(mesh);
+  scene!.add(mesh);
   render();
 
   if (threeDOptions.labels3d) {
@@ -615,16 +642,16 @@ function getMeshHeight(i: number): number {
 }
 
 function extendWater(width: number, height: number): void {
-  scene.background = new THREE.Color(threeDOptions.skyColor);
+  scene!.background = new THREE.Color(threeDOptions.skyColor);
 
   waterPlane = new THREE.PlaneGeometry(width * 10, height * 10, 1);
   waterMaterial = new THREE.MeshBasicMaterial({ color: threeDOptions.waterColor });
-  scene.fog = new THREE.Fog(scene.background, 500, 3000);
+  scene!.fog = new THREE.Fog(scene!.background as THREE.Color, 500, 3000);
 
   waterMesh = new THREE.Mesh(waterPlane, waterMaterial);
   waterMesh.rotation.x = -Math.PI / 2;
   waterMesh.position.y -= 3;
-  scene.add(waterMesh);
+  scene!.add(waterMesh);
 }
 
 async function update3dTexture(): Promise<void> {
@@ -632,7 +659,7 @@ async function update3dTexture(): Promise<void> {
   const url = await createMeshTextureUrl();
   window.setTimeout(() => window.URL.revokeObjectURL(url), 4000);
   texture = new THREE.TextureLoader().load(url, render);
-  material.map = texture;
+  material!.map = texture ?? null;
 }
 
 async function newGlobe(canvas: HTMLCanvasElement): Promise<boolean> {
@@ -712,22 +739,22 @@ async function updateGlobeTexure(addMesh?: boolean): Promise<void> {
 function addGlobe3dMesh(): void {
   geometry = new THREE.SphereGeometry(1, 64, 64);
   mesh = new THREE.Mesh(geometry, material);
-  scene.add(mesh);
-  if (controls.autoRotate) animate();
+  scene!.add(mesh!);
+  if (controls!.autoRotate) animate();
   else render();
 }
 
 const renderThrottled = throttle(doWorkOnRender, 200);
 function render(): void {
   if (!Renderer) return;
-  Renderer.render(scene, camera);
+  Renderer.render(scene!, camera!);
   renderThrottled();
 }
 
 function doWorkOnRender(): void {
   for (let i = 0; i < labels.length; i++) {
     const label = labels[i];
-    const dist = label.position.distanceTo(camera.position);
+    const dist = label.position.distanceTo(camera!.position);
     const isVisible = dist < 100 * label.size && dist > label.size * 6;
     label.visible = isVisible;
     if (lines[i]) lines[i].visible = isVisible;
@@ -762,3 +789,29 @@ window.ThreeD = {
   saveScreenshot,
   saveOBJ
 };
+
+export type { ThreeDAPI, ThreeDOptions };
+
+interface ThreeDAPI {
+  create: (canvas: HTMLCanvasElement, type?: string) => Promise<boolean>;
+  redraw: () => void;
+  update: () => void;
+  stop: () => void;
+  options: ThreeDOptions;
+  setSunColor: (color: string) => void;
+  setScale: (scale: number) => void;
+  setResolutionScale: (scale: number) => void;
+  setLightness: (intensity: number) => void;
+  setSun: (x: number, y: number, z: number) => void;
+  setRotation: (speed: number) => void;
+  toggleLabels: () => void;
+  toggle3dSubdivision: () => void;
+  toggleWireframe: () => void;
+  toggleSky: () => void;
+  setResolution: (resolution: number) => void;
+  setColors: (sky: string, water: string) => void;
+  setTimeOfDay: (presetName: string) => void;
+  timeOfDayPresets: Record<string, TimeOfDayPreset>;
+  saveScreenshot: () => Promise<void>;
+  saveOBJ: () => void;
+}

@@ -413,7 +413,7 @@ class RouteOpisometer extends Measurer {
     }
   }
 
-  trackCell(cell: number, right: number): void {
+  trackCell(cell: number, right: boolean | number): void {
     this.checkCellStops();
     const cellStops = this.cellStops!;
     const foundIndex = cellStops.indexOf(cell);
@@ -515,7 +515,7 @@ class RouteOpisometer extends Measurer {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  dragControl(context: RouteOpisometer, right: number, startEvent: any): void {
+  dragControl(context: RouteOpisometer, right: boolean | number, startEvent: any): void {
     startEvent.on("drag", (dragEvent: any) => {
       const mousePoint: [number, number] = [dragEvent.x | 0, dragEvent.y | 0];
 
@@ -603,6 +603,8 @@ window.Opisometer = Opisometer;
 window.RouteOpisometer = RouteOpisometer;
 window.Planimeter = Planimeter;
 window.createDefaultRuler = createDefaultRuler;
+
+export type { Opisometer, Planimeter, RouteOpisometer, Ruler, Rulers };
 
 // ─── Legacy globals (from non-migrated JS files) ──────────────────────────────
 

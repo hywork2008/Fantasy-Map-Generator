@@ -30,6 +30,7 @@ import {
   findClosestCell,
   findGridAll,
   findGridCell,
+  type Grid,
   generateGrid,
   getGridPolygon,
   getPackPolygon,
@@ -138,7 +139,7 @@ declare global {
   }
 }
 
-window.shouldRegenerateGrid = (grid: any, expectedSeed: number) =>
+window.shouldRegenerateGrid = (grid: Grid | null | undefined, expectedSeed: number) =>
   shouldRegenerateGrid(grid, expectedSeed, (window as any).graphWidth, (window as any).graphHeight);
 window.generateGrid = () => generateGrid((window as any).seed, (window as any).graphWidth, (window as any).graphHeight);
 window.findGridAll = (x: number, y: number, radius: number) => findGridAll(x, y, radius, (window as any).grid);
