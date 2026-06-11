@@ -6,7 +6,7 @@ window.addEventListener("resize", () => {
   if (stored("mapWidth") && stored("mapHeight")) return;
   mapWidthInput.value = String(window.innerWidth);
   mapHeightInput.value = String(window.innerHeight);
-  fitMapToScreen();
+  window.fitMapToScreen?.();
 });
 
 if (location.hostname !== "localhost" && location.hostname !== "127.0.0.1") {

@@ -28,7 +28,7 @@ insertHtml();
 const MARGINS = { top: 10, right: 10, bottom: -5, left: 10 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const handleZoom = () => viewboxEl.attr("transform", (d3 as any).event.transform);
+const handleZoom = (event: any) => viewboxEl.attr("transform", event.transform);
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const zoom = (d3 as any).zoom().scaleExtent([0.2, 1.5]).on("zoom", handleZoom);
 
@@ -462,19 +462,17 @@ function handleNodeExit(this: SVGGElement, d: d3.HierarchyPointNode<HierarchyEle
   tip("");
 }
 
-function dragToReorigin(this: SVGGElement, from: d3.HierarchyPointNode<HierarchyElement>): void {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function dragToReorigin(this: SVGGElement, startEvent: any, from: d3.HierarchyPointNode<HierarchyElement>): void {
   if (from.id === "0") return;
 
   dragLine.attr("d", `M${from.x},${from.y}L${from.x},${from.y}`);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (d3 as any).event.on("drag", () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    dragLine.attr("d", `M${from.x},${from.y}L${(d3 as any).event.x},${(d3 as any).event.y}`);
+  startEvent.on("drag", (event: any) => {
+    dragLine.attr("d", `M${from.x},${from.y}L${event.x},${event.y}`);
   });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (d3 as any).event.on("end", function (this: SVGGElement) {
+  startEvent.on("end", function (this: SVGGElement) {
     dragLine.attr("d", "");
     const selected = nodesEl.select<SVGGElement>("g.selected");
     if (!selected.size()) return;

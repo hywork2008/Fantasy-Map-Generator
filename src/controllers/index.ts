@@ -44,3 +44,4 @@ import "./diplomacy-editor";
 import "./burgs-overview";
 import "./battle-screen";
 import "./3d";
+import "../main";

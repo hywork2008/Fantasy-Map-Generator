@@ -173,19 +173,29 @@ State      (src/types/)       → 型定義、グローバル変数の単一の�
 
 ---
 
-## 今後のフェーズ
+## フェーズ15完了: メインエントリの移行（最終目標）
 
-### フェーズ15: メインエントリの移行（最終目標）
-**対象:** `public/main.js`（1315行）
+### 移行ファイル
 
-フェーズ14完了後に着手。  
-`generateWorld(state)` はフェーズ3で整備済みのため、呼び出し側の整理が主作業。
+| ファイル | 移行先 | 行数 |
+|---|---|---|
+| `public/main.js` | `src/main.ts` | ~1315行 |
 
-```
-src/main.ts  ← 全モジュールのインポートとアプリ初期化
-```
+**計:** 約 1,315行
 
-これが完了した時点で `public/` は静的アセット（CSS、画像、外部ライブラリ）のみとなる。
+### 主な実装上の注意点
+
+- `d3` は UMD グローバル（v5）を使用するため `declare const d3: any` でアクセス
+- Biomes/Names/Burgs 等のレガシーモジュールも `declare const X: any` で宣言
+- SVG レイヤーは `d3.select` で取得後、`window.*` に露出して他ファイルからアクセス可能に
+- `rivers`・`routes`・`emblems` は `Selection<SVGElement>` 型のため `as unknown as` でキャスト
+- `src/controllers/index.ts` の末尾に `import "../main"` を追加（他コントローラー後に実行されるよう）
+- `src/index.html` の `<script defer src="main.js">` を削除し migration コメントに置換
+- `mapHistory` の型を `Array<{ seed; width; height; template; created }>` に修正
+- `hideEmblems: HTMLInputElement` を `src/types/global.ts` に追加
+- `generate`, `getWorldState`, `generateMapOnLoad`, `checkLoadParameters`, `defineMapSize`, `showLoading`, `hideLoading`, `color`, `isWetLand` を global.ts に宣言追加
+
+これにより `public/` は静的アセット（CSS、画像、設定 JS、外部ライブラリ）のみとなり、アプリ本体コードの完全 TypeScript 化を達成。
 
 ---
 
@@ -231,5 +241,5 @@ jQuery 型定義 (`@types/jquery`) の導入で解決できる項目が多い。
 | 12: 概要パネル・小規模ユーティリティ | 中 | 低〜中 | ✅ 完了 |
 | 13: 中規模エディタ残 | 中 | 中 | ✅ 完了 |
 | 14: 大規模・複雑エディタ | 高 | 高 | ✅ 完了 |
-| 15: main.js（最終目標） | 高（完全移行） | 高 | 未着手（前提: 12〜14完了） |
+| 15: main.js（最終目標） | 高（完全移行） | 高 | ✅ 完了 |
 | ESLint ルール | 高（品質保証） | 低 | 随時 |

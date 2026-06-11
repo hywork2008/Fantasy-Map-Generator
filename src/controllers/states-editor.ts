@@ -753,8 +753,8 @@ function showStatesChart(): void {
     .append("g")
     .attr("transform", (d: any) => `translate(${d.x},${d.y})`)
     .attr("data-id", (d: any) => d.data.i)
-    .on("mouseenter", (d: any) => showInfo((d3 as any).event, d))
-    .on("mouseleave", () => hideInfo((d3 as any).event));
+    .on("mouseenter", (event: any, d: any) => showInfo(event, d))
+    .on("mouseleave", (event: any) => hideInfo(event));
 
   node
     .append("circle")
@@ -953,8 +953,8 @@ function selectStateOnLineClick(this: HTMLElement): void {
   this.classList.add("selected");
 }
 
-function selectStateOnMapClick(this: SVGElement): void {
-  const point = (d3 as any).mouse(this);
+function selectStateOnMapClick(this: SVGElement, event: MouseEvent): void {
+  const point = d3.pointer(event, this);
   const i = findCell(point[0], point[1]);
   if (pack.cells.h[i] < 20) return;
 
@@ -965,13 +965,13 @@ function selectStateOnMapClick(this: SVGElement): void {
   $body.querySelector<HTMLElement>(`div[data-id='${state}']`)!.classList.add("selected");
 }
 
-function dragStateBrush(this: SVGElement): void {
+function dragStateBrush(this: SVGElement, startEvent: any): void {
   const r = +(ensureEl("statesBrush") as HTMLInputElement).value;
   saveStatesManualSnapshot();
 
-  (d3 as any).event.on("drag", () => {
-    if (!(d3 as any).event.dx && !(d3 as any).event.dy) return;
-    const p = (d3 as any).mouse(this);
+  startEvent.on("drag", (event: any) => {
+    if (!event.dx && !event.dy) return;
+    const p = d3.pointer(event, this);
     moveCircle(p[0], p[1], r);
 
     const found = r > 5 ? findAll(p[0], p[1], r) : [findCell(p[0], p[1])];
@@ -1007,9 +1007,9 @@ function changeStateForSelection(selection: number[]): void {
   });
 }
 
-function moveStateBrush(this: SVGElement): void {
+function moveStateBrush(this: SVGElement, event: MouseEvent): void {
   showMainTip();
-  const point = (d3 as any).mouse(this);
+  const point = d3.pointer(event, this);
   const radius = +(ensureEl("statesBrush") as HTMLInputElement).value;
   moveCircle(point[0], point[1], radius);
 }
@@ -1235,9 +1235,9 @@ function enterAddStateMode(this: HTMLButtonElement): void {
   });
 }
 
-function addState(this: SVGElement): void {
+function addState(this: SVGElement, event: MouseEvent): void {
   const { cells, states, burgs } = pack;
-  const point = (d3 as any).mouse(this);
+  const point = d3.pointer(event, this);
   const center = findCell(point[0], point[1]);
   if (cells.h[center] < 20) {
     tip("You cannot place state into the water. Please click on a land cell", false, "error");
@@ -1259,7 +1259,7 @@ function addState(this: SVGElement): void {
   (burgs as any[])[burgId].state = newState;
   Burgs.changeGroup((burgs as any[])[burgId]);
 
-  if ((d3 as any).event.shiftKey === false) exitAddStateMode();
+  if (event.shiftKey === false) exitAddStateMode();
 
   const culture = cells.culture[center];
   const basename = center % 5 === 0 ? (burgs as any[])[burgId].name : Names.getCulture(culture);

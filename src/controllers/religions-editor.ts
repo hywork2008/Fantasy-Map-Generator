@@ -571,25 +571,25 @@ function drawReligionCenters(): void {
     .attr("fill", (d: any) => d.color)
     .attr("cx", (d: any) => pack.cells.p[d.center][0])
     .attr("cy", (d: any) => pack.cells.p[d.center][1])
-    .on("mouseenter", (d: any) => {
+    .on("mouseenter", (event: any, d: any) => {
       tip(`${d.name}. Drag to move the religion center`, true);
-      religionHighlightOn((d3 as any).event);
+      religionHighlightOn(event);
     })
-    .on("mouseleave", () => {
+    .on("mouseleave", (event: any) => {
       tip("", true);
-      religionHighlightOff((d3 as any).event);
+      religionHighlightOff(event);
     })
     .call((d3 as any).drag().on("start", religionCenterDrag));
 }
 
-function religionCenterDrag(this: SVGCircleElement): void {
+function religionCenterDrag(this: SVGCircleElement, startEvent: any): void {
   const religionId = +this.dataset.id!;
   const tr = parseTransform(this.getAttribute("transform") ?? "");
-  const x0 = +tr[0] - (d3 as any).event.x;
-  const y0 = +tr[1] - (d3 as any).event.y;
+  const x0 = +tr[0] - startEvent.x;
+  const y0 = +tr[1] - startEvent.y;
 
-  function handleDrag(this: SVGCircleElement): void {
-    const { x, y } = (d3 as any).event;
+  function handleDrag(this: SVGCircleElement, event: any): void {
+    const { x, y } = event;
     this.setAttribute("transform", `translate(${x0 + x},${y0 + y})`);
     const cell = findCell(x, y);
     if (pack.cells.h[cell] < 20) return;
@@ -599,7 +599,7 @@ function religionCenterDrag(this: SVGCircleElement): void {
   }
 
   const dragDebounced = debounce(handleDrag, 50);
-  (d3 as any).event.on("drag", dragDebounced);
+  startEvent.on("drag", dragDebounced);
 }
 
 function toggleLegend(): void {
@@ -715,8 +715,8 @@ function selectReligionOnLineClick(this: Element): void {
   this.classList.add("selected");
 }
 
-function selectReligionOnMapClick(this: SVGElement): void {
-  const point = (d3 as any).mouse(this);
+function selectReligionOnMapClick(this: SVGElement, event: MouseEvent): void {
+  const point = d3.pointer(event, this);
   const i = findCell(point[0], point[1]);
   if (pack.cells.h[i] < 20) return;
 
@@ -727,12 +727,12 @@ function selectReligionOnMapClick(this: SVGElement): void {
   $body.querySelector<HTMLElement>(`div[data-id='${religion}']`)!.classList.add("selected");
 }
 
-function dragReligionBrush(this: SVGElement): void {
+function dragReligionBrush(this: SVGElement, startEvent: any): void {
   const radius = +(ensureEl("religionsBrush") as HTMLInputElement).value;
 
-  (d3 as any).event.on("drag", () => {
-    if (!(d3 as any).event.dx && !(d3 as any).event.dy) return;
-    const [x, y] = (d3 as any).mouse(this);
+  startEvent.on("drag", (event: any) => {
+    if (!event.dx && !event.dy) return;
+    const [x, y] = d3.pointer(event, this);
     moveCircle(x, y, radius);
 
     const found = radius > 5 ? findAll(x, y, radius) : [findCell(x, y, radius)];
@@ -765,9 +765,9 @@ function changeReligionForSelection(selection: number[]): void {
   });
 }
 
-function moveReligionBrush(this: SVGElement): void {
+function moveReligionBrush(this: SVGElement, event: MouseEvent): void {
   showMainTip();
-  const [x, y] = (d3 as any).mouse(this);
+  const [x, y] = d3.pointer(event, this);
   const radius = +(ensureEl("religionsBrush") as HTMLInputElement).value;
   moveCircle(x, y, radius);
 }
@@ -842,8 +842,8 @@ function exitAddReligionMode(): void {
   if (religionsAdd?.classList.contains("pressed")) religionsAdd.classList.remove("pressed");
 }
 
-function addReligion(this: SVGElement): void {
-  const [x, y] = (d3 as any).mouse(this);
+function addReligion(this: SVGElement, event: MouseEvent): void {
+  const [x, y] = d3.pointer(event, this);
   const center = findCell(x, y);
   if (pack.cells.h[center] < 20) {
     tip("You cannot place religion center into the water. Please click on a land cell", false, "error");
@@ -856,7 +856,7 @@ function addReligion(this: SVGElement): void {
     return;
   }
 
-  if ((d3 as any).event.shiftKey === false) exitAddReligionMode();
+  if (event.shiftKey === false) exitAddReligionMode();
   Religions.add(center);
 
   drawReligions();

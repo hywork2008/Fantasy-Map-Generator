@@ -283,6 +283,7 @@ declare global {
   var hideLabels: HTMLInputElement;
   var stylePreset: HTMLSelectElement;
   var rescaleLabels: HTMLInputElement;
+  var hideEmblems: HTMLInputElement;
   var growthRate: HTMLInputElement;
   var stateLabelsModeInput: HTMLSelectElement;
   var yearInput: HTMLInputElement;
@@ -297,7 +298,7 @@ declare global {
 
   // Map state
   var mapId: number;
-  var mapHistory: Array<{ created: number }>;
+  var mapHistory: Array<{ seed: string; width: number; height: number; template: string; created: number }>;
 
   // IndexedDB wrapper
   var ldb: {
@@ -312,14 +313,22 @@ declare global {
   var parseMapVersion: (version: string) => string;
   var isValidVersion: (version: string) => boolean;
 
-  // App lifecycle functions
+  // App lifecycle functions (from main.ts)
+  var generate: (options?: { seed?: string; graph?: any }) => Promise<void>;
+  var getWorldState: () => import("./WorldState").WorldState;
+  var generateMapOnLoad: () => Promise<void>;
+  var checkLoadParameters: () => Promise<void>;
+  var defineMapSize: () => void;
   var focusOn: () => void;
   var regenerateMap: (reason?: string) => void;
+  var showLoading: () => void;
+  var hideLoading: () => void;
+  var color: (t: number) => string;
+  var isWetLand: (moisture: number, temperature: number, height: number) => boolean;
   var cleanupData: () => void;
   var clearMainTip: () => void;
   var fitMapToScreen: () => void;
   var updateTextureSelectValue: (href: string) => void;
-  var generateMapOnLoad: () => void;
   var getCellPopulation: (i: number) => [number, number];
   var getCoordinates: (x: number, y: number, decimals?: number) => [number, number];
 
@@ -556,8 +565,6 @@ declare global {
   // from ai-generator.js
   var generateWithAi: (prompt: string, onApply: (result: string) => void) => void;
 
-  // from main.js
-  var getWorldState: () => import("./WorldState").WorldState;
   var showMainTip: () => void;
 
   // ─── Phase 10: options.ts globals ────────────────────────────────────────────

@@ -1007,7 +1007,8 @@ function editCoastlineSettings(): void {
 
 // ─── Global registration ───────────────────────────────────────────────────
 
-modules.editors = true;
+if (!window.modules) window.modules = {};
+window.modules.editors = true;
 
 window.restoreDefaultEvents = restoreDefaultEvents;
 window.unselect = unselect;
