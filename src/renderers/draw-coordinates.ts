@@ -1,4 +1,6 @@
 import { geoEquirectangular, geoGraticule, geoPath } from "d3";
+import { viewState } from "../context/viewState";
+import { worldContext } from "../context/worldContext";
 import { ensureEl, rn, round } from "../utils";
 
 declare global {
@@ -6,6 +8,10 @@ declare global {
 }
 
 const coordinatesRenderer = (): void => {
+  const { mapCoordinates, graphWidth, graphHeight } = worldContext;
+  const { scale } = worldContext;
+  const { coordinates } = viewState;
+
   coordinates.selectAll("*").remove();
 
   const steps = [0.5, 1, 2, 5, 10, 15, 30];

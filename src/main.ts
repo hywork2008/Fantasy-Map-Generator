@@ -2,6 +2,8 @@
 // https://github.com/Azgaar/Fantasy-Map-Generator
 
 import type { Selection } from "d3";
+import { viewState } from "./context/viewState";
+import { worldContext } from "./context/worldContext";
 import {
   TYPED_ARRAY_MAX_VALUES as _TMP,
   calculateVoronoi,
@@ -251,6 +253,62 @@ window.ruler = ruler;
 window.debug = debug;
 window.burgLabels = burgLabels;
 
+// ─── Populate viewState singleton ────────────────────────────────────────────
+
+Object.assign(viewState, {
+  svg,
+  defs,
+  viewbox: viewbox as unknown as Selection<SVGElement, unknown, null, undefined>,
+  scaleBar,
+  legend,
+  ocean,
+  oceanLayers,
+  oceanPattern,
+  landmass,
+  texture,
+  terrs,
+  lakes,
+  biomes,
+  cells,
+  gridOverlay,
+  coordinates,
+  compass,
+  rivers: rivers as Selection<SVGElement, unknown, null, undefined>,
+  terrain,
+  relig,
+  cults,
+  regions,
+  statesBody,
+  statesHalo,
+  provs,
+  zones,
+  borders,
+  stateBorders,
+  provinceBorders,
+  routes: routes as Selection<SVGElement, unknown, null, undefined>,
+  roads,
+  trails,
+  searoutes,
+  temperature,
+  coastline,
+  ice,
+  prec,
+  population,
+  emblems: emblems as Selection<SVGElement, unknown, null, undefined>,
+  icons,
+  labels,
+  burgLabels,
+  burgIcons,
+  anchors,
+  armies,
+  markers,
+  fogging,
+  ruler,
+  debug,
+  viewX: 0,
+  viewY: 0
+});
+
 // ─── Main data variables ──────────────────────────────────────────────────────
 
 let grid = {} as typeof window.grid;
@@ -301,6 +359,22 @@ window.nameBases = nameBases;
 window.color = color;
 window.lineGen = lineGen;
 
+// ─── Populate worldContext singleton (initial values) ─────────────────────────
+
+Object.assign(worldContext, {
+  pack,
+  grid,
+  seed,
+  mapId,
+  mapHistory,
+  notes,
+  options,
+  style,
+  biomesData,
+  nameBases,
+  lineGen
+});
+
 // ─── d3 zoom behavior ─────────────────────────────────────────────────────────
 
 let scale = 1;
@@ -324,6 +398,9 @@ function zoomRaf() {
   window.scale = scale;
   window.viewX = viewX;
   window.viewY = viewY;
+  worldContext.scale = scale;
+  viewState.viewX = viewX;
+  viewState.viewY = viewY;
 
   pendingScaleChange = pendingScaleChange || isScaleChanged;
   pendingPositionChange = pendingPositionChange || isPositionChanged;
@@ -374,6 +451,10 @@ window.scale = scale;
 window.viewX = viewX;
 window.viewY = viewY;
 window.zoom = zoom;
+viewState.zoom = zoom;
+worldContext.scale = scale;
+viewState.viewX = viewX;
+viewState.viewY = viewY;
 
 // ─── Map dimensions and settings ──────────────────────────────────────────────
 
@@ -399,6 +480,17 @@ window.graphWidth = graphWidth;
 window.graphHeight = graphHeight;
 window.svgWidth = svgWidth;
 window.svgHeight = svgHeight;
+
+Object.assign(worldContext, {
+  mapCoordinates,
+  populationRate,
+  distanceScale,
+  urbanization,
+  graphWidth,
+  graphHeight,
+  svgWidth,
+  svgHeight
+});
 
 landmass.append("rect").attr("x", 0).attr("y", 0).attr("width", graphWidth).attr("height", graphHeight);
 oceanPattern
@@ -791,9 +883,11 @@ async function generate(opts?: { seed?: string; graph?: any }) {
     else delete (grid as any).cells.h;
     grid.cells.h = await HeightmapGenerator.generate(grid);
     window.grid = grid;
+    worldContext.grid = grid;
 
     pack = {} as typeof window.pack;
     window.pack = pack;
+    worldContext.pack = pack;
 
     Features.markupGrid();
     addLakesInDeepDepressions();
@@ -888,6 +982,7 @@ function setSeed(precreatedSeed?: string) {
   }
 
   window.seed = seed;
+  worldContext.seed = seed;
   ensureEl<HTMLInputElement>("optionsSeed").value = seed;
   Math.random = (window as any).aleaPRNG(seed);
 }
@@ -1402,6 +1497,7 @@ function showStatistics() {
 
   mapId = Date.now();
   window.mapId = mapId;
+  worldContext.mapId = mapId;
   mapHistory.push({ seed, width: graphWidth, height: graphHeight, template: heightmap, created: mapId });
   INFO && console.info(stats);
 
@@ -1418,6 +1514,7 @@ const regenerateMap = debounce(async (opts?: any) => {
   closeDialogs("#worldConfigurator, #options3d");
   customization = 0;
   window.customization = customization;
+  worldContext.customization = customization;
   resetZoom(1000);
   undraw();
   await generate(opts);
@@ -1442,6 +1539,7 @@ function undraw() {
   ensureEl("coas").innerHTML = "";
   notes = [];
   window.notes = notes;
+  worldContext.notes = notes;
   unfog();
 }
 
@@ -1470,3 +1568,11 @@ window.showStatistics = showStatistics;
 window.regenerateMap = regenerateMap;
 window.undraw = undraw;
 window.isWetLand = isWetLand;
+
+// ─── Controlled debug namespace ───────────────────────────────────────────────
+// In DEV builds, expose organized debug access instead of scattered window.pack etc.
+// Usage: window.__fmg.worldContext.pack, window.__fmg.viewState.svg
+if (import.meta.env.DEV) {
+  (window as any).__fmg = { worldContext, viewState };
+  console.info("[FMG] debug: You can access the internal state with window.__fmg");
+}

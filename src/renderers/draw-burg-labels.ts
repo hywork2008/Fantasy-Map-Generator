@@ -1,4 +1,7 @@
+import { viewState } from "../context/viewState";
+import { worldContext } from "../context/worldContext";
 import type { Burg } from "../modules/burgs-generator";
+import { TIME } from "../utils/debug";
 
 declare global {
   var drawBurgLabels: () => void;
@@ -13,7 +16,9 @@ interface BurgGroup {
 
 const burgLabelsRenderer = (): void => {
   TIME && console.time("drawBurgLabels");
-  createLabelGroups();
+  const { pack, options, style } = worldContext;
+  const { burgLabels } = viewState;
+  createLabelGroups(options, style, burgLabels);
 
   for (const { name } of options.burgs.groups as BurgGroup[]) {
     const burgsInGroup = pack.burgs.filter(b => b.group === name && !b.removed);
@@ -44,10 +49,11 @@ const burgLabelsRenderer = (): void => {
 };
 
 const drawBurgLabelRenderer = (burg: Burg): void => {
+  const { burgLabels } = viewState;
   const labelGroup = burgLabels.select<SVGGElement>(`#${burg.group}`);
   if (labelGroup.empty()) {
     drawBurgLabels();
-    return; // redraw all labels if group is missing
+    return;
   }
 
   const dx = labelGroup.attr("data-dx") || 0;
@@ -71,8 +77,11 @@ const removeBurgLabelRenderer = (burgId: number): void => {
   if (existingLabel) existingLabel.remove();
 };
 
-function createLabelGroups(): void {
-  // save existing styles and remove all groups
+function createLabelGroups(
+  options: typeof worldContext.options,
+  style: typeof worldContext.style,
+  burgLabels: typeof viewState.burgLabels
+): void {
   document.querySelectorAll("g#burgLabels > g").forEach(group => {
     style.burgLabels[group.id] = Array.from(group.attributes).reduce((acc: { [key: string]: string }, attribute) => {
       acc[attribute.name] = attribute.value;
@@ -81,7 +90,6 @@ function createLabelGroups(): void {
     group.remove();
   });
 
-  // create groups for each burg group and apply stored or default style
   const defaultStyle = style.burgLabels.town || Object.values(style.burgLabels)[0] || {};
   const sortedGroups = [...(options.burgs.groups as BurgGroup[])].sort((a, b) => a.order - b.order);
   for (const { name } of sortedGroups) {

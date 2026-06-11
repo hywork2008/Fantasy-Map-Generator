@@ -1,4 +1,5 @@
 import type { CurveFactory } from "d3";
+// Context imports — replaces bare globals (grid, graphWidth, graphHeight, terrs, ocean, TIME, ERROR)
 import {
   color,
   curveBasis,
@@ -21,7 +22,10 @@ import {
   line,
   range
 } from "d3";
+import { viewState } from "../context/viewState";
+import { worldContext } from "../context/worldContext";
 import { round } from "../utils";
+import { ERROR, TIME } from "../utils/debug";
 
 const CURVE_MAP: Record<string, CurveFactory> = {
   curveBasis,
@@ -49,6 +53,8 @@ declare global {
 
 const heightmapRenderer = (): void => {
   TIME && console.time("drawHeightmap");
+  const { grid, graphWidth, graphHeight } = worldContext;
+  const { terrs } = viewState;
 
   const ocean = terrs.select<SVGGElement>("#oceanHeights");
   const land = terrs.select<SVGGElement>("#landHeights");

@@ -1,4 +1,6 @@
+import { worldContext } from "../context/worldContext";
 import { ensureEl, getGappedFillPaths, getIsolines } from "../utils";
+import { TIME } from "../utils/debug";
 
 declare global {
   var drawProvinces: () => void;
@@ -6,6 +8,7 @@ declare global {
 
 const provincesRenderer = (): void => {
   TIME && console.time("drawProvinces");
+  const { pack } = worldContext;
   const { cells, provinces } = pack;
 
   const bodyPaths = new Array(provinces.length - 1);

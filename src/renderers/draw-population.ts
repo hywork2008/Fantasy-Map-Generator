@@ -1,13 +1,18 @@
 import { easeSinIn, transition } from "d3";
+import { viewState } from "../context/viewState";
+import { worldContext } from "../context/worldContext";
 
 declare global {
   var drawPopulation: () => void;
 }
 
 const populationRenderer = (): void => {
+  const { pack, urbanization } = worldContext;
+  const { population } = viewState;
+  const { cells, burgs } = pack;
+
   population.selectAll("line").remove();
 
-  const { cells, burgs } = pack;
   const show = transition().duration(2000).ease(easeSinIn);
 
   const rural = Array.from(

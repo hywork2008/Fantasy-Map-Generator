@@ -1,4 +1,5 @@
 import Alea from "alea";
+import { worldContext } from "../context/worldContext";
 
 export interface CoastlineSettings {
   enabled: boolean; // master toggle — false bypasses all fractalization
@@ -114,7 +115,7 @@ export function fractalizeCoastline(
 ): FractalizedShape {
   if (points.length < 3) return { points, origIndices: points.map((_, i) => i) };
   if (!defaultCoastSettings.enabled) return { points, origIndices: points.map((_, i) => i) };
-  const rand = Alea(`${seed}_c${featureIndex}`);
+  const rand = Alea(`${worldContext.seed}_c${featureIndex}`);
   const settings =
     featureType === "lake" && defaultCoastSettings.lakeSmoothThreshMult !== 1
       ? {
@@ -183,6 +184,7 @@ export function fractalize(
 }
 
 function isOnBorder([x, y]: [number, number]) {
+  const { graphWidth, graphHeight } = worldContext;
   return x === 0 || x === graphWidth || y === 0 || y === graphHeight;
 }
 

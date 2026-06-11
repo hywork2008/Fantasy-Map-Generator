@@ -1,4 +1,6 @@
 import type { Selection } from "d3";
+import type { ViewState } from "../context/viewState";
+import type { WorldContext } from "../context/worldContext";
 import type { NameBase } from "../modules/names-generator";
 import type { Route } from "../modules/routes-generator";
 import type { Grid } from "../utils/graphUtils";
@@ -12,6 +14,9 @@ interface HeightmapTemplate {
 }
 
 declare global {
+  /** DEV-only: organized access to world data and SVG state for console debugging. */
+  var __fmg: { worldContext: WorldContext; viewState: ViewState } | undefined;
+
   var seed: string;
   var pack: PackedGraph;
   var grid: Grid;

@@ -1,6 +1,9 @@
 import { curveNatural, line, max, select } from "d3";
+import { viewState } from "../context/viewState";
+import { worldContext } from "../context/worldContext";
 import type { TypedArray } from "../types/PackedGraph";
 import { drawPath, drawPoint, findClosestCell, minmax, rn, round, splitInTwo } from "../utils";
+import { DEBUG, TIME } from "../utils/debug";
 
 declare global {
   var drawStateLabels: (list?: number[]) => void;
@@ -24,6 +27,8 @@ type PathPoints = [number, number][];
 // list - an optional array of stateIds to regenerate
 const stateLabelsRenderer = (list?: number[]): void => {
   TIME && console.time("drawStateLabels");
+  const { pack, options, graphWidth, graphHeight } = worldContext;
+  const { labels } = viewState;
 
   // temporary make the labels visible
   const layerDisplay = labels.style("display");

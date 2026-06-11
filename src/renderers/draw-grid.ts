@@ -1,10 +1,15 @@
 import { select } from "d3";
+import { viewState } from "../context/viewState";
+import { worldContext } from "../context/worldContext";
 
 declare global {
   var drawGrid: () => void;
 }
 
 const gridRenderer = (): void => {
+  const { graphWidth, graphHeight } = worldContext;
+  const { gridOverlay } = viewState;
+
   gridOverlay.selectAll("*").remove();
   const pattern = `#pattern_${gridOverlay.attr("type") || "pointyHex"}`;
   const stroke = gridOverlay.attr("stroke") || "#808080";

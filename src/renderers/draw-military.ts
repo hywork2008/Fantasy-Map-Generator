@@ -1,6 +1,9 @@
 import { color, easeSinInOut, transition } from "d3";
+import { viewState } from "../context/viewState";
+import { worldContext } from "../context/worldContext";
 import type { MilitaryRegiment } from "../modules/military-generator";
 import { rn } from "../utils";
+import { TIME } from "../utils/debug";
 
 declare global {
   var drawMilitary: () => void;
@@ -12,6 +15,8 @@ declare global {
 
 const militaryRenderer = (): void => {
   TIME && console.time("drawMilitary");
+  const { pack } = worldContext;
+  const { armies } = viewState;
 
   armies.selectAll("g").remove();
   pack.states
@@ -24,6 +29,8 @@ const militaryRenderer = (): void => {
 };
 
 const drawRegimentsRenderer = (regiments: MilitaryRegiment[], s: number): void => {
+  const { pack } = worldContext;
+  const { armies } = viewState;
   const size = +armies.attr("box-size");
   const w = (d: MilitaryRegiment) => (d.n ? size * 4 : size * 6);
   const h = size * 2;
@@ -78,6 +85,8 @@ const drawRegimentsRenderer = (regiments: MilitaryRegiment[], s: number): void =
 };
 
 const drawRegimentRenderer = (reg: MilitaryRegiment, stateId: number): void => {
+  const { pack } = worldContext;
+  const { armies } = viewState;
   const size = +armies.attr("box-size");
   const w = reg.n ? size * 4 : size * 6;
   const h = size * 2;
@@ -129,6 +138,7 @@ const drawRegimentRenderer = (reg: MilitaryRegiment, stateId: number): void => {
 
 // move one regiment to another
 const moveRegimentRenderer = (reg: MilitaryRegiment, x: number, y: number): void => {
+  const { armies } = viewState;
   const el = armies.select(`g#army${reg.state}`).select(`g#regiment${reg.state}-${reg.i}`);
   if (!el.size()) return;
 

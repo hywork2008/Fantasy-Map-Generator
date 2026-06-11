@@ -1,4 +1,6 @@
+import { worldContext } from "../context/worldContext";
 import { ensureEl, getGappedFillPaths, getIsolines } from "../utils";
+import { TIME } from "../utils/debug";
 
 declare global {
   var drawCultures: () => void;
@@ -6,6 +8,7 @@ declare global {
 
 const culturesRenderer = (): void => {
   TIME && console.time("drawCultures");
+  const { pack } = worldContext;
   const { cells, cultures } = pack;
 
   const bodyPaths = new Array(cultures.length - 1);

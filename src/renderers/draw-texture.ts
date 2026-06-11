@@ -1,8 +1,14 @@
+import { viewState } from "../context/viewState";
+import { worldContext } from "../context/worldContext";
+
 declare global {
   var drawTexture: () => void;
 }
 
 const textureRenderer = (): void => {
+  const { graphWidth, graphHeight } = worldContext;
+  const { texture } = viewState;
+
   const x = Number(texture.attr("data-x") || 0);
   const y = Number(texture.attr("data-y") || 0);
   const href = texture.attr("data-href");

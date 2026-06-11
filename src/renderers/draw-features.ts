@@ -1,6 +1,9 @@
 import { select } from "d3";
+import { viewState } from "../context/viewState";
+import { worldContext } from "../context/worldContext";
 import type { PackedGraphFeature } from "../modules/features";
 import { clipPoly, round } from "../utils";
+import { ERROR, TIME } from "../utils/debug";
 import { buildCoastlinePath, fractalizeCoastline } from "./coastline-fractal";
 
 declare global {
@@ -19,6 +22,8 @@ interface FeaturesHtml {
 
 const featuresRenderer = (): void => {
   TIME && console.time("drawFeatures");
+  const { pack, graphWidth, graphHeight } = worldContext;
+  const { defs, coastline, lakes } = viewState;
 
   const html: FeaturesHtml = {
     paths: [],
@@ -32,7 +37,7 @@ const featuresRenderer = (): void => {
     if (!feature || feature.type === "ocean") continue;
 
     html.paths.push(
-      `<path d="${featurePathRenderer(feature)}" id="feature_${feature.i}" data-f="${feature.i}"></path>`
+      `<path d="${featurePathRenderer(pack, graphWidth, graphHeight, feature)}" id="feature_${feature.i}" data-f="${feature.i}"></path>`
     );
 
     if (feature.type === "lake") {
@@ -69,7 +74,12 @@ const featuresRenderer = (): void => {
   TIME && console.timeEnd("drawFeatures");
 };
 
-function featurePathRenderer(feature: PackedGraphFeature): string {
+function featurePathRenderer(
+  pack: typeof worldContext.pack,
+  graphWidth: number,
+  graphHeight: number,
+  feature: PackedGraphFeature
+): string {
   const points = feature.vertices.map(vertex => pack.vertices.p[vertex]);
   if (points.some(point => point === undefined)) {
     ERROR && console.error("Undefined point in getFeaturePath");
@@ -83,4 +93,5 @@ function featurePathRenderer(feature: PackedGraphFeature): string {
 }
 
 window.drawFeatures = featuresRenderer;
-window.getFeaturePath = featurePathRenderer;
+window.getFeaturePath = (feature: PackedGraphFeature) =>
+  featurePathRenderer(worldContext.pack, worldContext.graphWidth, worldContext.graphHeight, feature);

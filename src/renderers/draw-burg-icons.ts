@@ -1,4 +1,7 @@
+import { viewState } from "../context/viewState";
+import { worldContext } from "../context/worldContext";
 import type { Burg } from "../modules/burgs-generator";
+import { TIME } from "../utils/debug";
 
 declare global {
   var drawBurgIcons: () => void;
@@ -13,7 +16,9 @@ interface BurgGroup {
 
 const burgIconsRenderer = (): void => {
   TIME && console.time("drawBurgIcons");
-  createIconGroups();
+  const { pack, options, style } = worldContext;
+  const { burgIcons, anchors } = viewState;
+  createIconGroups(options, style, burgIcons, anchors);
 
   for (const { name } of options.burgs.groups as BurgGroup[]) {
     const burgsInGroup = pack.burgs.filter(b => b.group === name && !b.removed);
@@ -42,10 +47,11 @@ const burgIconsRenderer = (): void => {
 };
 
 const drawBurgIconRenderer = (burg: Burg): void => {
+  const { burgIcons, anchors } = viewState;
   const iconGroup = burgIcons.select<SVGGElement>(`#${burg.group}`);
   if (iconGroup.empty()) {
     drawBurgIcons();
-    return; // redraw all icons if group is missing
+    return;
   }
 
   removeBurgIconRenderer(burg.i!);
@@ -79,8 +85,12 @@ const removeBurgIconRenderer = (burgId: number): void => {
   if (existingAnchor) existingAnchor.remove();
 };
 
-function createIconGroups(): void {
-  // save existing styles and remove all groups
+function createIconGroups(
+  options: typeof worldContext.options,
+  style: typeof worldContext.style,
+  burgIcons: typeof viewState.burgIcons,
+  anchors: typeof viewState.anchors
+): void {
   document.querySelectorAll("g#burgIcons > g").forEach(group => {
     style.burgIcons[group.id] = Array.from(group.attributes).reduce((acc: { [key: string]: string }, attribute) => {
       acc[attribute.name] = attribute.value;
@@ -97,7 +107,6 @@ function createIconGroups(): void {
     group.remove();
   });
 
-  // create groups for each burg group and apply stored or default style
   const defaultIconStyle = style.burgIcons.town || Object.values(style.burgIcons)[0] || {};
   const defaultAnchorStyle = style.anchors.town || Object.values(style.anchors)[0] || {};
   const sortedGroups = [...(options.burgs.groups as BurgGroup[])].sort((a, b) => a.order - b.order);

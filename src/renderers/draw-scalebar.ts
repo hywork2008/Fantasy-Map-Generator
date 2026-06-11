@@ -1,5 +1,6 @@
 import type { Selection } from "d3";
 import { range } from "d3";
+import { worldContext } from "../context/worldContext";
 import { rn } from "../utils";
 
 declare global {
@@ -15,6 +16,7 @@ type ScaleBarSelection = d3.Selection<SVGGElement, unknown, HTMLElement, unknown
 
 const scaleBarRenderer = (scaleBar: ScaleBarSelection, scaleLevel: number): void => {
   if (!scaleBar.size() || scaleBar.style("display") === "none") return;
+  const { distanceScale } = worldContext;
 
   const unit = distanceUnitInput.value;
   const size = +scaleBar.attr("data-bar-size");
@@ -92,6 +94,7 @@ const scaleBarRenderer = (scaleBar: ScaleBarSelection, scaleLevel: number): void
 
 function getLength(scaleBar: ScaleBarSelection, scaleLevel: number): number {
   const init = 100;
+  const { distanceScale } = worldContext;
 
   const size = +scaleBar.attr("data-bar-size");
   let val = (init * size * distanceScale) / scaleLevel; // bar length in distance unit

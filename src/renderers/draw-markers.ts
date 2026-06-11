@@ -1,5 +1,8 @@
+import { viewState } from "../context/viewState";
+import { worldContext } from "../context/worldContext";
 import type { Marker } from "../modules/markers-generator";
 import { rn } from "../utils";
+import { TIME } from "../utils/debug";
 
 declare global {
   var drawMarkers: () => void;
@@ -43,6 +46,7 @@ const getPinForShape = (shape = "bubble", fill = "#fff", stroke = "#000"): strin
 };
 
 function markerRenderer(marker: Marker, rescale = 1): string {
+  const { scale } = worldContext;
   const { i, icon, x, y, dx = 50, dy = 50, px = 12, size = 30, pin, fill, stroke } = marker;
   const id = `marker${i}`;
   const zoomSize = rescale ? Math.max(rn(size / 5 + 24 / scale, 2), 1) : size;
@@ -61,6 +65,8 @@ function markerRenderer(marker: Marker, rescale = 1): string {
 
 const markersRenderer = (): void => {
   TIME && console.time("drawMarkers");
+  const { pack } = worldContext;
+  const { markers } = viewState;
 
   const rescale = +markers.attr("rescale");
   const pinned = +markers.attr("pinned");

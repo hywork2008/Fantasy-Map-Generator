@@ -1,4 +1,6 @@
+import { worldContext } from "../context/worldContext";
 import { ensureEl, getGappedFillPaths, getIsolines } from "../utils";
+import { TIME } from "../utils/debug";
 
 declare global {
   var drawBiomes: () => void;
@@ -7,6 +9,7 @@ declare global {
 const biomesRenderer = (): void => {
   TIME && console.time("drawBiomes");
 
+  const { pack, biomesData } = worldContext;
   const cells = pack.cells;
   const bodyPaths = new Array(biomesData.i.length - 1);
   const isolines: Record<string, { fill?: string; waterGap?: string }> = getIsolines(

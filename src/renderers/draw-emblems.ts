@@ -1,7 +1,10 @@
 import { forceCollide, forceSimulation, timeout } from "d3";
+import { viewState } from "../context/viewState";
+import { worldContext } from "../context/worldContext";
 import type { Burg } from "../modules/burgs-generator";
 import type { State } from "../modules/states-generator";
 import { minmax, rn } from "../utils";
+import { TIME } from "../utils/debug";
 
 declare global {
   var drawEmblems: () => void;
@@ -27,6 +30,8 @@ interface EmblemNode {
 
 const emblemsRenderer = (): void => {
   TIME && console.time("drawEmblems");
+  const { pack, graphHeight, graphWidth } = worldContext;
+  const { emblems } = viewState;
   const { states, provinces, burgs } = pack;
 
   const validStates = states.filter(s => s.i && !s.removed && s.coa && s.coa.size !== 0);
@@ -156,6 +161,7 @@ const emblemsRenderer = (): void => {
 };
 
 const getDataAndType = (id: string): [Burg[] | Province[] | State[], string] => {
+  const { pack } = worldContext;
   if (id === "burgEmblems") return [pack.burgs, "burg"];
   if (id === "provinceEmblems") return [pack.provinces as Province[], "province"];
   if (id === "stateEmblems") return [pack.states, "state"];
@@ -163,12 +169,13 @@ const getDataAndType = (id: string): [Burg[] | Province[] | State[], string] => 
 };
 
 const renderGroupCOAsRenderer = async (g: SVGGElement): Promise<void> => {
+  const { COArenderer } = worldContext;
   const [data, type] = getDataAndType(g.id);
 
   for (const use of g.children) {
     const i = +(use as SVGUseElement).dataset.i!;
     const id = `${type}COA${i}`;
-    COArenderer.trigger(id, (data[i] as any).coa);
+    COArenderer!.trigger(id, (data[i] as any).coa);
     use.setAttribute("href", `#${id}`);
   }
 };

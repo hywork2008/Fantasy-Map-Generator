@@ -1,5 +1,7 @@
 import { color } from "d3";
+import { worldContext } from "../context/worldContext";
 import { ensureEl, getGappedFillPaths, getIsolines } from "../utils";
+import { TIME } from "../utils/debug";
 
 declare global {
   var drawStates: () => void;
@@ -7,6 +9,7 @@ declare global {
 
 const statesRenderer = (): void => {
   TIME && console.time("drawStates");
+  const { pack } = worldContext;
   const { cells, states } = pack;
 
   const maxLength = states.length - 1;

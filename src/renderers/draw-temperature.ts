@@ -1,5 +1,8 @@
 import { color, curveBasisClosed, interpolateSpectral, leastIndex, line, max, min, range, scaleSequential } from "d3";
+import { viewState } from "../context/viewState";
+import { worldContext } from "../context/worldContext";
 import { connectVertices, convertTemperature, ensureEl, round } from "../utils";
+import { TIME } from "../utils/debug";
 
 declare global {
   var drawTemperature: () => void;
@@ -7,6 +10,8 @@ declare global {
 
 const temperatureRenderer = (): void => {
   TIME && console.time("drawTemperature");
+  const { grid, graphWidth, graphHeight } = worldContext;
+  const { temperature } = viewState;
 
   temperature.selectAll("*").remove();
   const lineGen = line<[number, number]>().curve(curveBasisClosed);
@@ -92,6 +97,7 @@ const temperatureRenderer = (): void => {
   }
 
   function addLabel(points: [number, number][], t: number): void {
+    const { svgWidth } = worldContext;
     const xCenter = svgWidth / 2;
 
     // add label on isoline top center
@@ -117,6 +123,7 @@ const temperatureRenderer = (): void => {
   }
 
   function pushLabel(x: number, y: number, t: number): void {
+    const { svgWidth, svgHeight } = worldContext;
     if (x < 20 || x > svgWidth - 20) return;
     if (y < 20 || y > svgHeight - 20) return;
     labels.push([x, y, t]);

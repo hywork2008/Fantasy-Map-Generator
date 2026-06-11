@@ -1,3 +1,7 @@
+import { viewState } from "../context/viewState";
+import { worldContext } from "../context/worldContext";
+import { TIME } from "../utils/debug";
+
 declare global {
   var drawIce: () => void;
   var redrawIceberg: (id: number) => void;
@@ -13,13 +17,13 @@ interface IceElement {
 
 const iceRenderer = (): void => {
   TIME && console.time("drawIce");
+  const { pack } = worldContext;
+  const { ice } = viewState;
 
-  // Clear existing ice SVG
   ice.selectAll("*").remove();
 
   let html = "";
 
-  // Draw all ice elements
   pack.ice.forEach((iceElement: IceElement) => {
     if (iceElement.type === "glacier") {
       html += getGlacierHtml(iceElement);
@@ -35,13 +39,14 @@ const iceRenderer = (): void => {
 
 const redrawIcebergRenderer = (id: number): void => {
   TIME && console.time("redrawIceberg");
+  const { pack } = worldContext;
+  const { ice } = viewState;
   const iceberg = pack.ice.find((element: IceElement) => element.i === id);
   let el = ice.selectAll<SVGPolygonElement, unknown>(`polygon[data-id="${id}"]:not([type="glacier"])`);
   if (!iceberg && !el.empty()) {
     el.remove();
   } else if (iceberg) {
     if (el.empty()) {
-      // Create new element if it doesn't exist
       const polygon = getIcebergHtml(iceberg);
       (ice.node() as SVGGElement).insertAdjacentHTML("beforeend", polygon);
       el = ice.selectAll<SVGPolygonElement, unknown>(`polygon[data-id="${id}"]:not([type="glacier"])`);
@@ -54,13 +59,14 @@ const redrawIcebergRenderer = (id: number): void => {
 
 const redrawGlacierRenderer = (id: number): void => {
   TIME && console.time("redrawGlacier");
+  const { pack } = worldContext;
+  const { ice } = viewState;
   const glacier = pack.ice.find((element: IceElement) => element.i === id);
   let el = ice.selectAll<SVGPolygonElement, unknown>(`polygon[data-id="${id}"][type="glacier"]`);
   if (!glacier && !el.empty()) {
     el.remove();
   } else if (glacier) {
     if (el.empty()) {
-      // Create new element if it doesn't exist
       const polygon = getGlacierHtml(glacier);
       (ice.node() as SVGGElement).insertAdjacentHTML("beforeend", polygon);
       el = ice.selectAll<SVGPolygonElement, unknown>(`polygon[data-id="${id}"][type="glacier"]`);

@@ -1,5 +1,8 @@
 import { extent, polygonContains } from "d3";
-import { minmax, rand, rn } from "../utils";
+import { viewState } from "../context/viewState";
+import { worldContext } from "../context/worldContext";
+import { getPackPolygon, minmax, rand, rn } from "../utils";
+import { TIME } from "../utils/debug";
 
 interface ReliefIcon {
   i: string;
@@ -10,18 +13,19 @@ interface ReliefIcon {
 
 declare global {
   var drawReliefIcons: () => void;
-  var terrain: import("d3").Selection<SVGGElement, unknown, null, undefined>;
-  var getPackPolygon: (i: number) => [number, number][];
 }
 
 const reliefIconsRenderer = (): void => {
   TIME && console.time("drawRelief");
+  const { pack, biomesData } = worldContext;
+  const { terrain } = viewState;
+
   terrain.selectAll("*").remove();
 
   const cells = pack.cells;
   const density = Number(terrain.attr("density")) || 0.4;
   const size = 2 * (Number(terrain.attr("size")) || 1);
-  const mod = 0.2 * size; // size modifier
+  const mod = 0.2 * size;
   const relief: ReliefIcon[] = [];
 
   for (const i of cells.i) {
@@ -31,7 +35,7 @@ const reliefIconsRenderer = (): void => {
     const biome = cells.biome[i];
     if (height < 50 && biomesData.iconsDensity[biome] === 0) continue; // no icons for this biome
 
-    const polygon = getPackPolygon(i);
+    const polygon = getPackPolygon(i, pack) as [number, number][];
     const [minX, maxX] = extent(polygon, p => p[0]) as [number, number];
     const [minY, maxY] = extent(polygon, p => p[1]) as [number, number];
 
@@ -73,6 +77,7 @@ const reliefIconsRenderer = (): void => {
     }
 
     function getReliefIcon(cellIndex: number, h: number): [string, number] {
+      const { pack, grid } = worldContext;
       const temp = grid.cells.temp[pack.cells.g[cellIndex]];
       const type = h > 70 && temp < 0 ? "mountSnow" : h > 70 ? "mount" : "hill";
       const iconSize = h > 70 ? (h - 45) * mod : minmax((h - 40) * mod, 3, 6);
@@ -92,6 +97,7 @@ const reliefIconsRenderer = (): void => {
   TIME && console.timeEnd("drawRelief");
 
   function getBiomeIcon(cellIndex: number, b: string[]): string {
+    const { pack, grid } = worldContext;
     let type = b[Math.floor(Math.random() * b.length)];
     const temp = grid.cells.temp[pack.cells.g[cellIndex]];
     if (type === "conifer" && temp < 0) type = "coniferSnow";
