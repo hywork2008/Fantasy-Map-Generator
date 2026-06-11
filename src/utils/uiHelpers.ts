@@ -1,4 +1,4 @@
-import { pointer } from "d3";
+import * as d3 from "d3";
 import { debounce, ensureEl, getComposedPath, link, rn, si } from "./index";
 
 // ─── Resize handler ───────────────────────────────────────────────────────────
@@ -82,7 +82,7 @@ function showElementLockTip(event: MouseEvent): void {
 const onMouseMove = debounce(handleMouseMove as (...args: any[]) => void, 100);
 
 function handleMouseMove(this: Element, event: MouseEvent): void {
-  const point = pointer(event, this) as [number, number];
+  const point = d3.pointer(event, this) as [number, number];
   const i = findCell(point[0], point[1]);
   if (i === undefined) return;
 
@@ -124,6 +124,7 @@ function showNotes(e: MouseEvent): void {
 
 function showMapTooltip(point: [number, number], e: MouseEvent, i: number, g: number): void {
   tip("");
+  if (!pack?.cells) return;
   const path = (e as any).composedPath ? (e as any).composedPath() : getComposedPath((e as any).target);
   if (!path[path.length - 8]) return;
   const group = (path[path.length - 7] as HTMLElement).id;
@@ -147,8 +148,8 @@ function showMapTooltip(point: [number, number], e: MouseEvent, i: number, g: nu
     const idx = +(e.target as SVGElement).dataset.i!;
     if ((e as any).shiftKey) highlightEmblemElement(type, g2[idx]);
 
-    (d3 as any).select(e.target).raise();
-    (d3 as any).select(parent).raise();
+    d3.select(e.target as Element).raise();
+    d3.select(parent).raise();
 
     const name = g2[idx].fullName || g2[idx].name;
     tip(`${name} ${type} emblem. Click to edit. Hold Shift to show associated area or place`);
@@ -452,10 +453,7 @@ function highlightEmblemElement(type: string, el: any): void {
   const id = el.i;
   const cells = pack.cells;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const animation = (d3 as any)
-    .transition()
-    .duration(1000)
-    .ease((d3 as any).easeSinIn);
+  const animation = d3.transition().duration(1000).ease(d3.easeSinIn);
 
   if (type === "burg") {
     const { x, y } = el;
@@ -729,7 +727,6 @@ window.highlightEmblemElement = highlightEmblemElement;
 
 // ─── Legacy globals (from non-migrated JS files) ──────────────────────────────
 
-declare const d3: Record<string, unknown>;
 declare const MOBILE: boolean;
 declare const findGridCell: (x: number, y: number) => number;
 declare const convertTemperature: (temp: number) => string;

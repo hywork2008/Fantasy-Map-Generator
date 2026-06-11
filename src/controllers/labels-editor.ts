@@ -470,5 +470,3 @@ function editLabel(tspan?: Element): void {
 }
 
 window.editLabel = editLabel;
-
-declare const d3: any;

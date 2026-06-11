@@ -1,4 +1,5 @@
 import type { Transition } from "d3";
+import * as d3 from "d3";
 import { ensureEl, isCtrlClick } from "../utils";
 
 // Layer presets: map preset name → list of toggle button IDs that should be ON
@@ -830,4 +831,3 @@ window.toggleEmblems = toggleEmblems;
 window.toggleVignette = toggleVignette;
 
 // d3 is the UMD global exposed by the legacy <script> tag in index.html
-declare const d3: Record<string, unknown>;

@@ -519,5 +519,3 @@ function getTemperatureLikeness(temperature: number): string | null {
 
 window.editBurg = editBurg;
 window.getTemperatureLikeness = getTemperatureLikeness;
-
-declare const d3: any;

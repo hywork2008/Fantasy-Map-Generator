@@ -1,4 +1,4 @@
-import { pointer } from "d3";
+import { drag, pointer } from "d3";
 import { ensureEl } from "../utils";
 
 function editUnits(): void {
@@ -155,12 +155,12 @@ function editUnits(): void {
       });
       this.classList.add("pressed");
       viewbox.style("cursor", "crosshair").call(
-        (d3 as any).drag().on("start", function (this: SVGElement, startEvent: any) {
+        (drag() as any).on("start", function (this: SVGElement, startEvent: any) {
           const point = pointer(startEvent, this) as [number, number];
           const opisometer = rulers.create(Opisometer, [point]).draw();
 
           startEvent.on("drag", (event: any) => {
-            opisometer.addPoint(pointer(event, this) as [number, number]);
+            opisometer.addPoint(event, pointer(event, this) as [number, number]);
           });
 
           startEvent.on("end", (event: any) => {
@@ -189,7 +189,7 @@ function editUnits(): void {
       this.classList.add("pressed");
 
       viewbox.style("cursor", "crosshair").call(
-        (d3 as any).drag().on("start", function (this: SVGElement, startEvent: any) {
+        (drag() as any).on("start", function (this: SVGElement, startEvent: any) {
           const cells = pack.cells;
           const burgs = pack.burgs;
           const point = pointer(startEvent, this) as [number, number];
@@ -241,12 +241,12 @@ function editUnits(): void {
       });
       this.classList.add("pressed");
       viewbox.style("cursor", "crosshair").call(
-        (d3 as any).drag().on("start", function (this: SVGElement, startEvent: any) {
+        (drag() as any).on("start", function (this: SVGElement, startEvent: any) {
           const point = pointer(startEvent, this) as [number, number];
           const planimeter = rulers.create(Planimeter, [point]).draw();
 
           startEvent.on("drag", (event: any) => {
-            planimeter.addPoint(pointer(event, this) as [number, number]);
+            planimeter.addPoint(event, pointer(event, this) as [number, number]);
           });
 
           startEvent.on("end", (event: any) => {
@@ -283,5 +283,3 @@ function editUnits(): void {
 }
 
 window.editUnits = editUnits;
-
-declare const d3: any;

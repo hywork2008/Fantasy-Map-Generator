@@ -1,3 +1,4 @@
+import * as d3 from "d3";
 import { getSegmentId, last, rn, round, si } from "../utils";
 
 // ─── Rulers container ─────────────────────────────────────────────────────────
@@ -85,19 +86,20 @@ abstract class Measurer {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  drag(this: Element): void {
+  drag(this: Element, startEvent: any): void {
     const tr = parseTransform(this.getAttribute("transform") ?? "");
-    const x = +tr[0] - (d3 as any).event.x;
-    const y = +tr[1] - (d3 as any).event.y;
+    const x = +tr[0] - startEvent.x;
+    const y = +tr[1] - startEvent.y;
 
-    (d3 as any).event.on("drag", function (this: Element) {
-      const transform = `translate(${x + (d3 as any).event.x},${y + (d3 as any).event.y})`;
+    startEvent.on("drag", function (this: Element, dragEvent: any) {
+      const transform = `translate(${x + dragEvent.x},${y + dragEvent.y})`;
       this.setAttribute("transform", transform);
     });
   }
 
-  addPoint(point: [number, number]): void {
-    const MIN_DIST = (d3 as any).event.sourceEvent.shiftKey ? 9 : 100;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  addPoint(dragEvent: any, point: [number, number]): void {
+    const MIN_DIST = dragEvent.sourceEvent.shiftKey ? 9 : 100;
     const prev = last(this.points);
     point = [point[0] | 0, point[1] | 0];
     const dist2 = (prev[0] - point[0]) ** 2 + (prev[1] - point[1]) ** 2;
@@ -162,14 +164,15 @@ class Ruler extends Measurer {
     this.el = ruler
       .append("g")
       .attr("class", "ruler")
-      .call((d3 as any).drag().on("start", this.drag))
+      .call((d3.drag() as any).on("start", this.drag))
       .attr("font-size", 10 * size);
     const el = this.el;
     el.append("polyline")
       .attr("points", points)
       .attr("class", "white")
       .attr("stroke-width", size)
-      .call((d3 as any).drag().on("start", () => this.addControl(this)));
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .call((d3.drag() as any).on("start", (startEvent: any) => this.addControl(startEvent, this)));
     el.append("polyline")
       .attr("points", points)
       .attr("class", "gray")
@@ -210,12 +213,10 @@ class Ruler extends Measurer {
         this.removePoint(this, i);
       })
       .call(
-        (d3 as any)
-          .drag()
-          .clickDistance(3)
-          .on("start", () => {
-            this.dragControl(this, i);
-          })
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (d3.drag() as any).clickDistance(3).on("start", (startEvent: any) => {
+          this.dragControl(this, i, startEvent);
+        })
       );
   }
 
@@ -244,18 +245,19 @@ class Ruler extends Measurer {
     return length;
   }
 
-  dragControl(context: Ruler, pointId: number): void {
-    let addPoint = context.isEdge(pointId) && (d3 as any).event.sourceEvent.ctrlKey;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  dragControl(context: Ruler, pointId: number, startEvent: any): void {
+    let addPoint = context.isEdge(pointId) && startEvent.sourceEvent.ctrlKey;
     let circle = context.el.select(`circle:nth-child(${pointId + 1})`);
     const line = context.el.selectAll("polyline");
 
-    let x0 = rn((d3 as any).event.x, 1);
-    let y0 = rn((d3 as any).event.y, 1);
+    let x0 = rn(startEvent.x, 1);
+    let y0 = rn(startEvent.y, 1);
     let axis: "x" | "y" | null = null;
 
-    (d3 as any).event.on("drag", () => {
+    startEvent.on("drag", (dragEvent: any) => {
       if (addPoint) {
-        if ((d3 as any).event.dx < 0.1 && (d3 as any).event.dy < 0.1) return;
+        if (dragEvent.dx < 0.1 && dragEvent.dy < 0.1) return;
         context.pushPoint(pointId);
         context.drawPoints(context.el);
         if (pointId) pointId++;
@@ -263,11 +265,11 @@ class Ruler extends Measurer {
         addPoint = false;
       }
 
-      const shiftPressed = (d3 as any).event.sourceEvent.shiftKey;
-      if (shiftPressed && !axis) axis = Math.abs((d3 as any).event.dx) > Math.abs((d3 as any).event.dy) ? "x" : "y";
+      const shiftPressed = dragEvent.sourceEvent.shiftKey;
+      if (shiftPressed && !axis) axis = Math.abs(dragEvent.dx) > Math.abs(dragEvent.dy) ? "x" : "y";
 
-      const x = axis === "y" ? x0 : rn((d3 as any).event.x, 1);
-      const y = axis === "x" ? y0 : rn((d3 as any).event.y, 1);
+      const x = axis === "y" ? x0 : rn(dragEvent.x, 1);
+      const y = axis === "x" ? y0 : rn(dragEvent.y, 1);
 
       if (!shiftPressed) {
         axis = null;
@@ -282,14 +284,15 @@ class Ruler extends Measurer {
     });
   }
 
-  addControl(context: Ruler): void {
-    const x = rn((d3 as any).event.x, 1);
-    const y = rn((d3 as any).event.y, 1);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  addControl(startEvent: any, context: Ruler): void {
+    const x = rn(startEvent.x, 1);
+    const y = rn(startEvent.y, 1);
     const pointId = getSegmentId(context.points, [x, y]);
 
     context.points.splice(pointId, 0, [x, y]);
     context.drawPoints(context.el);
-    context.dragControl(context, pointId);
+    context.dragControl(context, pointId, startEvent);
   }
 
   removePoint(context: Ruler, pointId: number): void {
@@ -310,7 +313,7 @@ class Opisometer extends Measurer {
     this.el = ruler
       .append("g")
       .attr("class", "opisometer")
-      .call((d3 as any).drag().on("start", this.drag))
+      .call((d3.drag() as any).on("start", this.drag))
       .attr("font-size", 10 * size);
     const el = this.el;
     el.append("path").attr("class", "white").attr("stroke-width", size);
@@ -323,17 +326,19 @@ class Opisometer extends Measurer {
     rulerPoints
       .append("circle")
       .attr("r", "1em")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .call(
-        (d3 as any).drag().on("start", () => {
-          this.dragControl(this, 0);
+        (d3.drag() as any).on("start", (startEvent: any) => {
+          this.dragControl(this, 0, startEvent);
         })
       );
     rulerPoints
       .append("circle")
       .attr("r", "1em")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .call(
-        (d3 as any).drag().on("start", () => {
-          this.dragControl(this, 1);
+        (d3.drag() as any).on("start", (startEvent: any) => {
+          this.dragControl(this, 1, startEvent);
         })
       );
     el.append("text")
@@ -347,7 +352,7 @@ class Opisometer extends Measurer {
   }
 
   updateCurve(): void {
-    lineGen.curve((d3 as any).curveCatmullRom.alpha(0.5));
+    lineGen.curve(d3.curveCatmullRom.alpha(0.5));
     const path = round(lineGen(this.points));
     this.el.selectAll("path").attr("d", path);
 
@@ -364,12 +369,13 @@ class Opisometer extends Measurer {
     this.el.select("text").attr("x", x).attr("y", y).text(text);
   }
 
-  dragControl(context: Opisometer, right: number): void {
-    const MIN_DIST = (d3 as any).event.sourceEvent.shiftKey ? 9 : 100;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  dragControl(context: Opisometer, right: number, startEvent: any): void {
+    const MIN_DIST = startEvent.sourceEvent.shiftKey ? 9 : 100;
     let prev = right ? last(context.points) : context.points[0];
 
-    (d3 as any).event.on("drag", () => {
-      const point: [number, number] = [(d3 as any).event.x | 0, (d3 as any).event.y | 0];
+    startEvent.on("drag", (dragEvent: any) => {
+      const point: [number, number] = [dragEvent.x | 0, dragEvent.y | 0];
 
       const dist2 = (prev[0] - point[0]) ** 2 + (prev[1] - point[1]) ** 2;
       if (dist2 < MIN_DIST) return;
@@ -381,8 +387,8 @@ class Opisometer extends Measurer {
       context.updateLabel();
     });
 
-    (d3 as any).event.on("end", () => {
-      if (!(d3 as any).event.sourceEvent.shiftKey) context.optimize();
+    startEvent.on("end", (endEvent: any) => {
+      if (!endEvent.sourceEvent.shiftKey) context.optimize();
     });
   }
 }
@@ -465,17 +471,19 @@ class RouteOpisometer extends Measurer {
     rulerPoints
       .append("circle")
       .attr("r", "1em")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .call(
-        (d3 as any).drag().on("start", () => {
-          this.dragControl(this, 0);
+        (d3.drag() as any).on("start", (startEvent: any) => {
+          this.dragControl(this, 0, startEvent);
         })
       );
     rulerPoints
       .append("circle")
       .attr("r", "1em")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .call(
-        (d3 as any).drag().on("start", () => {
-          this.dragControl(this, 1);
+        (d3.drag() as any).on("start", (startEvent: any) => {
+          this.dragControl(this, 1, startEvent);
         })
       );
     el.append("text")
@@ -489,7 +497,7 @@ class RouteOpisometer extends Measurer {
   }
 
   updateCurve(): void {
-    lineGen.curve((d3 as any).curveCatmullRom.alpha(0.5));
+    lineGen.curve(d3.curveCatmullRom.alpha(0.5));
     const path = round(lineGen(this.points));
     this.el.selectAll("path").attr("d", path);
 
@@ -506,12 +514,13 @@ class RouteOpisometer extends Measurer {
     this.el.select("text").attr("x", x).attr("y", y).text(text);
   }
 
-  dragControl(context: RouteOpisometer, right: number): void {
-    (d3 as any).event.on("drag", () => {
-      const mousePoint: [number, number] = [(d3 as any).event.x | 0, (d3 as any).event.y | 0];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  dragControl(context: RouteOpisometer, right: number, startEvent: any): void {
+    startEvent.on("drag", (dragEvent: any) => {
+      const mousePoint: [number, number] = [dragEvent.x | 0, dragEvent.y | 0];
 
       const c = findCell(mousePoint[0], mousePoint[1]);
-      if (!Routes.isConnected(c) && !(d3 as any).event.sourceEvent.shiftKey) return;
+      if (!Routes.isConnected(c) && !dragEvent.sourceEvent.shiftKey) return;
 
       context.trackCell(c, right);
     });
@@ -528,7 +537,7 @@ class Planimeter extends Measurer {
     this.el = ruler
       .append("g")
       .attr("class", "planimeter")
-      .call((d3 as any).drag().on("start", this.drag))
+      .call((d3.drag() as any).on("start", this.drag))
       .attr("font-size", 10 * size);
     const el = this.el;
     el.append("path").attr("class", "planimeter").attr("stroke-width", size);
@@ -540,7 +549,7 @@ class Planimeter extends Measurer {
   }
 
   updateCurve(): void {
-    lineGen.curve((d3 as any).curveCatmullRomClosed.alpha(0.5));
+    lineGen.curve(d3.curveCatmullRomClosed.alpha(0.5));
     const path = round(lineGen(this.points));
     this.el.selectAll("path").attr("d", path);
   }
@@ -548,7 +557,7 @@ class Planimeter extends Measurer {
   updateLabel(): void {
     if (this.points.length < 3) return;
 
-    const polygonArea = rn(Math.abs((d3 as any).polygonArea(this.points)));
+    const polygonArea = rn(Math.abs(d3.polygonArea(this.points)));
     const area = `${si(getArea(polygonArea))} ${getAreaUnit()}`;
     const c = polylabel([this.points], 1.0) as [number, number];
     this.el.select("text").attr("x", c[0]).attr("y", c[1]).text(area);
@@ -597,7 +606,6 @@ window.createDefaultRuler = createDefaultRuler;
 
 // ─── Legacy globals (from non-migrated JS files) ──────────────────────────────
 
-declare const d3: Record<string, unknown>;
 declare const lineGen: { (points: [number, number][]): string; curve: (curve: unknown) => typeof lineGen };
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 declare const polylabel: (polygon: any, precision?: number) => [number, number];

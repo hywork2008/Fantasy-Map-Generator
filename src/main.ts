@@ -2,6 +2,7 @@
 // https://github.com/Azgaar/Fantasy-Map-Generator
 
 import type { Selection } from "d3";
+import * as d3 from "d3";
 import { viewState } from "./context/viewState";
 import { worldContext } from "./context/worldContext";
 import {
@@ -21,8 +22,6 @@ import {
 
 const UINT16_MAX = _TMP.UINT16_MAX;
 
-// d3 is the UMD global exposed by the legacy <script> tag in index.html
-declare const d3: any;
 // Legacy module globals from public/modules/
 declare const Biomes: any;
 declare const Names: any;
@@ -80,7 +79,7 @@ if (PRODUCTION && "serviceWorker" in navigator) {
 
 // ─── SVG layers (appended in default render order) ───────────────────────────
 
-const svg = d3.select("#map") as Selection<SVGSVGElement, unknown, null, undefined>;
+const svg = d3.select("#map") as unknown as Selection<SVGSVGElement, unknown, null, undefined>;
 const defs = svg.select("#deftemp") as Selection<SVGDefsElement, unknown, null, undefined>;
 const viewbox = svg.select("#viewbox") as Selection<SVGGElement, unknown, null, undefined>;
 const scaleBar = svg.select("#scaleBar") as Selection<SVGGElement, unknown, null, undefined>;
@@ -357,7 +356,7 @@ window.style = style;
 window.biomesData = biomesData;
 window.nameBases = nameBases;
 window.color = color;
-window.lineGen = lineGen;
+window.lineGen = lineGen as any;
 
 // ─── Populate worldContext singleton (initial values) ─────────────────────────
 
@@ -450,8 +449,8 @@ const zoom = d3.zoom().scaleExtent([1, 20]).on("zoom", zoomRaf);
 window.scale = scale;
 window.viewX = viewX;
 window.viewY = viewY;
-window.zoom = zoom;
-viewState.zoom = zoom;
+window.zoom = zoom as any;
+viewState.zoom = zoom as any;
 worldContext.scale = scale;
 viewState.viewX = viewX;
 viewState.viewY = viewY;
@@ -711,10 +710,14 @@ function findBurgForMFCG(params: URLSearchParams) {
     return [];
   }
 
-  const selected = d3.scan(
+  const selected = d3.leastIndex(
     selection,
     (a: any, b: any) => Math.abs(a.population - size) - Math.abs(b.population - size)
   );
+  if (selected === undefined) {
+    ERROR && console.error("Cannot select a burg for MFCG");
+    return;
+  }
   const burgId = selection[selected].i;
   if (!burgId) {
     ERROR && console.error("Cannot select a burg for MFCG");
@@ -752,11 +755,17 @@ function findBurgForMFCG(params: URLSearchParams) {
 
 function zoomTo(x: number, y: number, z = 8, d = 2000) {
   const transform = d3.zoomIdentity.translate(x * -z + svgWidth / 2, y * -z + svgHeight / 2).scale(z);
-  svg.transition().duration(d).call(zoom.transform, transform);
+  svg
+    .transition()
+    .duration(d)
+    .call((zoom as any).transform, transform);
 }
 
 function resetZoom(d = 1000) {
-  svg.transition().duration(d).call(zoom.transform, d3.zoomIdentity);
+  svg
+    .transition()
+    .duration(d)
+    .call((zoom as any).transform, d3.zoomIdentity);
 }
 
 function invokeActiveZooming() {
@@ -1000,7 +1009,7 @@ function addLakesInDeepDepressions() {
   for (const i of gridCells.i) {
     if (b[i] || h[i] < 20) continue;
 
-    const minHeight = d3.min(c[i].map((idx: number) => h[idx]));
+    const minHeight = d3.min(c[i].map((idx: number) => h[idx])) ?? Infinity;
     if (h[i] > minHeight) continue;
 
     let deep = true;
@@ -1254,14 +1263,14 @@ function generatePrecipitation() {
   const vertT = southerly + northerly;
   if (northerly) {
     const bandN = ((Math.abs(mapCoordinates.latN!) - 1) / 5) | 0;
-    const latModN = mapCoordinates.latT! > 60 ? d3.mean(latitudeModifier) : latitudeModifier[bandN];
+    const latModN = (mapCoordinates.latT! > 60 ? d3.mean(latitudeModifier) : latitudeModifier[bandN]) ?? 0;
     const maxPrecN = (northerly / vertT) * 60 * modifier * latModN;
     passWind(d3.range(0, cellsX, 1), maxPrecN, cellsX, cellsY);
   }
 
   if (southerly) {
     const bandS = ((Math.abs(mapCoordinates.latS!) - 1) / 5) | 0;
-    const latModS = mapCoordinates.latT! > 60 ? d3.mean(latitudeModifier) : latitudeModifier[bandS];
+    const latModS = (mapCoordinates.latT! > 60 ? d3.mean(latitudeModifier) : latitudeModifier[bandS]) ?? 0;
     const maxPrecS = (southerly / vertT) * 60 * modifier * latModS;
     passWind(d3.range(gridCells.i.length - cellsX, gridCells.i.length, 1), maxPrecS, -cellsX, cellsY);
   }
@@ -1433,9 +1442,9 @@ function rankCells() {
   packCells.s = new Int16Array(packCells.i.length);
   packCells.pop = new Float32Array(packCells.i.length);
 
-  const meanFlux = d3.median(packCells.fl.filter((f: number) => f)) || 0;
-  const maxFlux = d3.max(packCells.fl) + d3.max(packCells.conf);
-  const meanArea = d3.mean(packCells.area);
+  const meanFlux = d3.median(packCells.fl.filter((f: number) => f)) ?? 0;
+  const maxFlux = (d3.max(packCells.fl) ?? 0) + (d3.max(packCells.conf) ?? 0);
+  const meanArea = d3.mean(packCells.area) ?? 1;
 
   const scoreMap: Record<string, number> = {
     estuary: 15,

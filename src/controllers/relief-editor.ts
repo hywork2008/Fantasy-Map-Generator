@@ -331,5 +331,3 @@ function editReliefIcon(clickedEl?: Element): void {
 }
 
 window.editReliefIcon = editReliefIcon;
-
-declare const d3: any;

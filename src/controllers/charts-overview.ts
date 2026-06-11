@@ -646,7 +646,9 @@ function changeViewColumns(): void {
 }
 
 function updateDialogPosition(): void {
-  ($("#chartsOverview") as any).dialog({ position: { my: "center", at: "center", of: "svg" } });
+  const $el = ($ as any)("#chartsOverview");
+  if (!$el.hasClass("ui-dialog-content")) return;
+  $el.dialog({ position: { my: "center", at: "center", of: "svg" } });
 }
 
 function handleClose(): void {

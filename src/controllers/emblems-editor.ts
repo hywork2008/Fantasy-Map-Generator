@@ -524,5 +524,3 @@ function editEmblem(type?: string, id?: string, el?: any): void {
 }
 
 window.editEmblem = editEmblem;
-
-declare const d3: any;

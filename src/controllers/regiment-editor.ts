@@ -550,5 +550,3 @@ function editRegiment(selectorOrEl?: string | Element): void {
 }
 
 window.editRegiment = editRegiment;
-
-declare const d3: any;
