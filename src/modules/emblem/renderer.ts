@@ -1,3 +1,4 @@
+import { worldContext } from "../../context/worldContext";
 import { shieldBox } from "./box";
 import { colors } from "./colors";
 import { lines } from "./lines";
@@ -321,4 +322,7 @@ class EmblemRenderModule {
     if (layerIsOn("toggleEmblems")) this.trigger(id, coa);
   }
 }
-window.COArenderer = new EmblemRenderModule();
+const coaRendererInstance = new EmblemRenderModule();
+window.COArenderer = coaRendererInstance;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+worldContext.COArenderer = coaRendererInstance as any;
