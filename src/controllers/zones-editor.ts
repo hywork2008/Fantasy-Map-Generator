@@ -211,7 +211,7 @@ function editZones(): void {
     viewbox
       .style("cursor", "crosshair")
       .on("click", selectZoneOnMapClick)
-      .call(drag<SVGElement, unknown>().on("start", dragZoneBrush))
+      .call(drag<SVGElement, unknown>().on("drag", dragZoneBrush))
       .on("touchmove mousemove", moveZoneBrush);
 
     body.querySelector("div")?.classList.add("selected");
@@ -245,48 +245,44 @@ function editZones(): void {
     el.classList.add("selected");
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  function dragZoneBrush(this: SVGElement, startEvent: any): void {
+  function dragZoneBrush(this: SVGElement, event: any): void {
+    if (!event.dx && !event.dy) return;
     const radius = +ensureEl<HTMLInputElement>("zonesBrush").value;
     const eraseMode = ensureEl("zonesRemove").classList.contains("pressed");
     const landOnly = ensureEl<HTMLInputElement>("zonesBrushLandOnly").checked;
+    const [x, y] = pointer(event, this);
+    moveCircle(x, y, radius);
 
-    startEvent.on("drag", (event: any) => {
-      if (!event.dx && !event.dy) return;
-      const [x, y] = pointer(event, this);
-      moveCircle(x, y, radius);
+    let selection = radius > 5 ? findAll(x, y, radius) : [findCell(x, y)];
+    if (landOnly) selection = selection.filter(i => pack.cells.h[i] >= 20);
+    if (!selection.length) return;
 
-      let selection = radius > 5 ? findAll(x, y, radius) : [findCell(x, y)];
-      if (landOnly) selection = selection.filter(i => pack.cells.h[i] >= 20);
-      if (!selection.length) return;
+    const zoneId = +((body.querySelector("div.selected") as HTMLElement | null)?.dataset.id ?? "0");
+    const zone = pack.zones.find((z: Zone) => z.i === zoneId);
+    if (!zone) return;
 
-      const zoneId = +((body.querySelector("div.selected") as HTMLElement | null)?.dataset.id ?? "0");
-      const zone = pack.zones.find((z: Zone) => z.i === zoneId);
-      if (!zone) return;
-
-      if (eraseMode) {
-        const data = zones
-          .selectAll("polygon")
-          .data()
-          .filter((d: any) => !(d.zoneId === zoneId && selection.includes(d.cell)));
-        zones
-          .selectAll("polygon")
-          .data(data, (d: any) => `${d.zoneId}-${d.cell}`)
-          .exit()
-          .remove();
-      } else {
-        const data = selection.map(cell => ({ cell, zoneId, fill: zone.color }));
-        zones
-          .selectAll("polygon")
-          .data(data, (d: any) => `${d.zoneId}-${d.cell}`)
-          .enter()
-          .append("polygon")
-          .attr("points", (d: any) => getPackPolygon(d.cell) as unknown as string)
-          .attr("fill", (d: any) => d.fill)
-          .attr("data-zone", (d: any) => d.zoneId)
-          .attr("data-cell", (d: any) => d.cell);
-      }
-    });
+    if (eraseMode) {
+      const data = zones
+        .selectAll("polygon")
+        .data()
+        .filter((d: any) => !(d.zoneId === zoneId && selection.includes(d.cell)));
+      zones
+        .selectAll("polygon")
+        .data(data, (d: any) => `${d.zoneId}-${d.cell}`)
+        .exit()
+        .remove();
+    } else {
+      const data = selection.map(cell => ({ cell, zoneId, fill: zone.color }));
+      zones
+        .selectAll("polygon")
+        .data(data, (d: any) => `${d.zoneId}-${d.cell}`)
+        .enter()
+        .append("polygon")
+        .attr("points", (d: any) => getPackPolygon(d.cell) as unknown as string)
+        .attr("fill", (d: any) => d.fill)
+        .attr("data-zone", (d: any) => d.zoneId)
+        .attr("data-cell", (d: any) => d.cell);
+    }
   }
 
   function moveZoneBrush(event: MouseEvent): void {

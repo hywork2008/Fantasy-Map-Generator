@@ -12,7 +12,7 @@ function editMarker(markerI?: number): void {
 
   elSelected = select(element)
     .raise()
-    .call(drag().on("start", dragMarker as any) as any)
+    .call(drag<SVGElement, unknown>().on("start", dragMarkerStart).on("drag", dragMarkerDrag).on("end", dragMarkerEnd))
     .classed("draggable", true);
 
   if (ensureEl("notesEditor").offsetParent) editNotes(element.id, element.id);
@@ -71,29 +71,29 @@ function editMarker(markerI?: number): void {
     return pack.markers.filter(({ type }) => type === currentType);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  function dragMarker(this: SVGElement, startEvent: any): void {
-    const dx = +this.getAttribute("x")! - startEvent.x;
-    const dy = +this.getAttribute("y")! - startEvent.y;
+  let _mdx = 0,
+    _mdy = 0;
 
-    startEvent.on("drag", function (this: SVGElement, event: any) {
-      const { x, y } = event;
-      this.setAttribute("x", String(dx + x));
-      this.setAttribute("y", String(dy + y));
-    });
+  function dragMarkerStart(this: SVGElement, event: any): void {
+    _mdx = +this.getAttribute("x")! - event.x;
+    _mdy = +this.getAttribute("y")! - event.y;
+  }
 
-    startEvent.on("end", function (this: SVGElement, event: any) {
-      const { x, y } = event;
-      this.setAttribute("x", String(rn(dx + x, 2)));
-      this.setAttribute("y", String(rn(dy + y, 2)));
+  function dragMarkerDrag(this: SVGElement, event: any): void {
+    const { x, y } = event;
+    this.setAttribute("x", String(_mdx + x));
+    this.setAttribute("y", String(_mdy + y));
+  }
 
-      const size = marker.size || 30;
-      const zoomSize = Math.max(rn(size / 5 + 24 / scale, 2), 1);
-
-      marker.x = rn(x + dx + zoomSize / 2, 1);
-      marker.y = rn(y + dy + zoomSize, 1);
-      marker.cell = findCell(marker.x, marker.y);
-    });
+  function dragMarkerEnd(this: SVGElement, event: any): void {
+    const { x, y } = event;
+    this.setAttribute("x", String(rn(_mdx + x, 2)));
+    this.setAttribute("y", String(rn(_mdy + y, 2)));
+    const size = marker.size || 30;
+    const zoomSize = Math.max(rn(size / 5 + 24 / scale, 2), 1);
+    marker.x = rn(x + _mdx + zoomSize / 2, 1);
+    marker.y = rn(y + _mdy + zoomSize, 1);
+    marker.cell = findCell(marker.x, marker.y);
   }
 
   function updateInputs(): void {

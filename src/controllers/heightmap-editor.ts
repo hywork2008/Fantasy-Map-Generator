@@ -640,7 +640,15 @@ function editHeightmap(options?: { mode?: string; tool?: string }): void {
         viewbox.style("cursor", "crosshair").on("click", applyFillBrush as any);
       } else {
         ensureEl("brushesSliders").style.display = "block";
-        viewbox.style("cursor", "crosshair").call((d3 as any).drag().on("start", dragBrush));
+        viewbox
+          .style("cursor", "crosshair")
+          .call(
+            d3
+              .drag<SVGElement, unknown>()
+              .on("start", dragBrushStart)
+              .on("drag", dragBrushDrag)
+              .on("end", updateHeightmap)
+          );
       }
     }
 
@@ -804,23 +812,24 @@ function editHeightmap(options?: { mode?: string; tool?: string }): void {
       return changed;
     }
 
-    function dragBrush(this: SVGElement, startEvent: any): void {
-      const r = (heightmapBrushRadius as HTMLInputElement).valueAsNumber;
-      const [x, y] = pointer(startEvent, this);
-      const start = findGridCell(x, y, grid);
+    let _hbStart = 0;
 
-      startEvent.on("drag", (event: any) => {
-        const p = pointer(event, this);
-        moveCircle(p[0], p[1], r);
-        if (~~event.sourceEvent.timeStamp % 5 !== 0) return;
-        const inRadius = findGridAll(p[0], p[1], r);
-        let sel = inRadius;
-        if ((cellTypeFilter as HTMLSelectElement).value === "land") sel = inRadius.filter(i => grid.cells.h[i] >= 20);
-        else if ((cellTypeFilter as HTMLSelectElement).value === "water")
-          sel = inRadius.filter(i => grid.cells.h[i] < 20);
-        if (sel?.length) changeHeightForSelection(sel, start);
-      });
-      startEvent.on("end", updateHeightmap);
+    function dragBrushStart(this: SVGElement, event: any): void {
+      const [x, y] = pointer(event, this);
+      _hbStart = findGridCell(x, y, grid);
+    }
+
+    function dragBrushDrag(this: SVGElement, event: any): void {
+      const r = (heightmapBrushRadius as HTMLInputElement).valueAsNumber;
+      const p = pointer(event, this);
+      moveCircle(p[0], p[1], r);
+      if (~~event.sourceEvent.timeStamp % 5 !== 0) return;
+      const inRadius = findGridAll(p[0], p[1], r);
+      let sel = inRadius;
+      if ((cellTypeFilter as HTMLSelectElement).value === "land") sel = inRadius.filter(i => grid.cells.h[i] >= 20);
+      else if ((cellTypeFilter as HTMLSelectElement).value === "water")
+        sel = inRadius.filter(i => grid.cells.h[i] < 20);
+      if (sel?.length) changeHeightForSelection(sel, _hbStart);
     }
 
     function changeHeightForSelection(selection: number[], start: number): void {

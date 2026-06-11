@@ -517,11 +517,11 @@ declare global {
 
   // editor openers from editors.ts (dynamic modules)
   var editEmblem: ((type?: any, id?: any, el?: any) => void) | undefined;
-  var editLabel: (() => void) | undefined;
+  var editLabel: ((tspan?: Element) => void) | undefined;
   var editBurg: ((burgId?: number) => void) | undefined;
   var editIce: ((el: SVGElement) => void) | undefined;
-  var editReliefIcon: (() => void) | undefined;
-  var editRegiment: (() => void) | undefined;
+  var editReliefIcon: ((el?: Element) => void) | undefined;
+  var editRegiment: ((selectorOrEl?: string | Element) => void) | undefined;
   var editCoastline: (() => void) | undefined;
 
   // from tools.ts
@@ -562,7 +562,7 @@ declare global {
   var editRoute: (id: string) => void;
   var editRiver: (id: string) => void;
   var editMarker: (markerI?: number) => void;
-  var editLake: () => void;
+  var editLake: (event?: MouseEvent) => void;
 
   // from elevation-profile.ts
   var ElevationProfile: { open: (cells: number[], routeLen: number, isRiver: boolean) => void };
@@ -740,7 +740,7 @@ declare global {
   // UI helpers
   var link: (url: string, text: string) => string;
   var undraw: () => void;
-  var changeViewMode: () => void;
+  var changeViewMode: (event: MouseEvent) => void;
   var clicked: (this: SVGElement, event: MouseEvent) => void;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

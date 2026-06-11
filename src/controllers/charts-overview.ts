@@ -1,4 +1,5 @@
 import * as d3 from "d3";
+import { worldContext } from "../context/worldContext";
 import { ensureEl, rn, si } from "../utils";
 
 interface ChartOptions {
@@ -36,35 +37,35 @@ const entitiesMap: Record<
 > = {
   states: {
     label: "State",
-    getCellsData: () => pack.cells.state,
+    getCellsData: () => worldContext.pack.cells.state,
     getName: nameGetter("states"),
     getColors: colorsGetter("states"),
     landOnly: true
   },
   cultures: {
     label: "Culture",
-    getCellsData: () => pack.cells.culture,
+    getCellsData: () => worldContext.pack.cells.culture,
     getName: nameGetter("cultures"),
     getColors: colorsGetter("cultures"),
     landOnly: true
   },
   religions: {
     label: "Religion",
-    getCellsData: () => pack.cells.religion,
+    getCellsData: () => worldContext.pack.cells.religion,
     getName: nameGetter("religions"),
     getColors: colorsGetter("religions"),
     landOnly: true
   },
   provinces: {
     label: "Province",
-    getCellsData: () => pack.cells.province,
+    getCellsData: () => worldContext.pack.cells.province,
     getName: nameGetter("provinces"),
     getColors: colorsGetter("provinces"),
     landOnly: true
   },
   biomes: {
     label: "Biome",
-    getCellsData: () => pack.cells.biome,
+    getCellsData: () => worldContext.pack.cells.biome,
     getName: biomeNameGetter,
     getColors: biomeColorsGetter,
     landOnly: false
@@ -112,7 +113,7 @@ const quantizationMap: Record<
   },
   area: {
     label: "Land area",
-    quantize: cellId => getArea(pack.cells.area[cellId]),
+    quantize: cellId => getArea(worldContext.pack.cells.area[cellId]),
     aggregate: values => rn(d3.sum(values)),
     formatTicks: value => `${si(value)} ${getAreaUnit()}`,
     stringify: value => `${value.toLocaleString()} ${getAreaUnit()}`,
@@ -130,7 +131,7 @@ const quantizationMap: Record<
   },
   burgs_number: {
     label: "Number of burgs",
-    quantize: cellId => (pack.cells.burg[cellId] ? 1 : 0),
+    quantize: cellId => (worldContext.pack.cells.burg[cellId] ? 1 : 0),
     aggregate: values => d3.sum(values),
     formatTicks: value => value,
     stringify: value => value.toLocaleString(),
@@ -139,7 +140,7 @@ const quantizationMap: Record<
   },
   average_elevation: {
     label: "Average elevation",
-    quantize: cellId => pack.cells.h[cellId],
+    quantize: cellId => worldContext.pack.cells.h[cellId],
     aggregate: values => d3.mean(values) ?? 0,
     formatTicks: value => getHeight(value),
     stringify: value => getHeight(value),
@@ -148,7 +149,7 @@ const quantizationMap: Record<
   },
   max_elevation: {
     label: "Maximum mean elevation",
-    quantize: cellId => pack.cells.h[cellId],
+    quantize: cellId => worldContext.pack.cells.h[cellId],
     aggregate: values => d3.max(values) ?? 0,
     formatTicks: value => getHeight(value),
     stringify: value => getHeight(value),
@@ -157,7 +158,7 @@ const quantizationMap: Record<
   },
   min_elevation: {
     label: "Minimum mean elevation",
-    quantize: cellId => pack.cells.h[cellId],
+    quantize: cellId => worldContext.pack.cells.h[cellId],
     aggregate: values => d3.min(values) ?? 0,
     formatTicks: value => getHeight(value),
     stringify: value => getHeight(value),
@@ -166,7 +167,7 @@ const quantizationMap: Record<
   },
   average_temperature: {
     label: "Annual mean temperature",
-    quantize: cellId => grid.cells.temp[pack.cells.g[cellId]],
+    quantize: cellId => worldContext.grid.cells.temp[worldContext.pack.cells.g[cellId]],
     aggregate: values => d3.mean(values) ?? 0,
     formatTicks: value => convertTemperature(value),
     stringify: value => convertTemperature(value),
@@ -175,7 +176,7 @@ const quantizationMap: Record<
   },
   max_temperature: {
     label: "Mean annual maximum temperature",
-    quantize: cellId => grid.cells.temp[pack.cells.g[cellId]],
+    quantize: cellId => worldContext.grid.cells.temp[worldContext.pack.cells.g[cellId]],
     aggregate: values => d3.max(values) ?? 0,
     formatTicks: value => convertTemperature(value),
     stringify: value => convertTemperature(value),
@@ -184,7 +185,7 @@ const quantizationMap: Record<
   },
   min_temperature: {
     label: "Mean annual minimum temperature",
-    quantize: cellId => grid.cells.temp[pack.cells.g[cellId]],
+    quantize: cellId => worldContext.grid.cells.temp[worldContext.pack.cells.g[cellId]],
     aggregate: values => d3.min(values) ?? 0,
     formatTicks: value => convertTemperature(value),
     stringify: value => convertTemperature(value),
@@ -193,7 +194,7 @@ const quantizationMap: Record<
   },
   average_precipitation: {
     label: "Annual mean precipitation",
-    quantize: cellId => grid.cells.prec[pack.cells.g[cellId]],
+    quantize: cellId => worldContext.grid.cells.prec[worldContext.pack.cells.g[cellId]],
     aggregate: values => rn(d3.mean(values) ?? 0),
     formatTicks: value => getPrecipitation(rn(value)),
     stringify: value => getPrecipitation(rn(value)),
@@ -202,7 +203,7 @@ const quantizationMap: Record<
   },
   max_precipitation: {
     label: "Mean annual maximum precipitation",
-    quantize: cellId => grid.cells.prec[pack.cells.g[cellId]],
+    quantize: cellId => worldContext.grid.cells.prec[worldContext.pack.cells.g[cellId]],
     aggregate: values => rn(d3.max(values) ?? 0),
     formatTicks: value => getPrecipitation(rn(value)),
     stringify: value => getPrecipitation(rn(value)),
@@ -211,7 +212,7 @@ const quantizationMap: Record<
   },
   min_precipitation: {
     label: "Mean annual minimum precipitation",
-    quantize: cellId => grid.cells.prec[pack.cells.g[cellId]],
+    quantize: cellId => worldContext.grid.cells.prec[worldContext.pack.cells.g[cellId]],
     aggregate: values => rn(d3.min(values) ?? 0),
     formatTicks: value => getPrecipitation(rn(value)),
     stringify: value => getPrecipitation(rn(value)),
@@ -220,7 +221,7 @@ const quantizationMap: Record<
   },
   coastal_cells: {
     label: "Number of coastal cells",
-    quantize: cellId => (pack.cells.t[cellId] === 1 ? 1 : 0),
+    quantize: cellId => (worldContext.pack.cells.t[cellId] === 1 ? 1 : 0),
     aggregate: values => d3.sum(values),
     formatTicks: value => value,
     stringify: value => value.toLocaleString(),
@@ -229,7 +230,7 @@ const quantizationMap: Record<
   },
   river_cells: {
     label: "Number of river cells",
-    quantize: cellId => (pack.cells.r[cellId] ? 1 : 0),
+    quantize: cellId => (worldContext.pack.cells.r[cellId] ? 1 : 0),
     aggregate: values => d3.sum(values),
     formatTicks: value => value,
     stringify: value => value.toLocaleString(),
@@ -247,7 +248,7 @@ const plotTypeMap: Record<
 };
 
 let charts: ChartOptions[] = [];
-let prevMapId = mapId;
+let prevMapId = -1;
 
 appendStyleSheet();
 insertHtml();
@@ -257,9 +258,9 @@ changeViewColumns();
 export function open(): void {
   closeDialogs("#chartsOverview, .stable");
 
-  if (prevMapId !== mapId) {
+  if (prevMapId !== worldContext.mapId) {
     charts = [];
-    prevMapId = mapId;
+    prevMapId = worldContext.mapId;
   }
 
   if (!charts.length) addChart();
@@ -400,7 +401,7 @@ function renderChart({ id, entity, plotBy, groupBy, sorting, type }: ChartOption
   const dataCollection: Record<number, Record<number, number[]>> = {};
   const groups = new Set<number>();
 
-  for (const cellId of pack.cells.i) {
+  for (const cellId of worldContext.pack.cells.i) {
     if ((entityLandOnly || plotByLandOnly) && isWater(cellId)) continue;
     const entityId = entityCells[cellId];
     const groupId = groupCells[cellId];
@@ -664,13 +665,13 @@ function calculateLegendRows(groups: string[], availableWidth: number): number {
 }
 
 function nameGetter(entity: string) {
-  return (i: string | number): string => (pack as any)[entity][i]?.name || EMPTY_NAME;
+  return (i: string | number): string => (worldContext.pack as any)[entity][i]?.name || EMPTY_NAME;
 }
 
 function colorsGetter(entity: string) {
   return (): Record<string, string> =>
     Object.fromEntries(
-      (pack as any)[entity].map(({ name, color }: { name: string; color: string }) => [
+      (worldContext.pack as any)[entity].map(({ name, color }: { name: string; color: string }) => [
         name || EMPTY_NAME,
         color || NEUTRAL_COLOR
       ])
@@ -678,22 +679,24 @@ function colorsGetter(entity: string) {
 }
 
 function biomeNameGetter(i: string | number): string {
-  return biomesData.name[+i] || EMPTY_NAME;
+  return worldContext.biomesData.name[+i] || EMPTY_NAME;
 }
 
 function biomeColorsGetter(): Record<string, string> {
-  return Object.fromEntries(biomesData.i.map(i => [biomesData.name[i], biomesData.color[i]]));
+  return Object.fromEntries(
+    worldContext.biomesData.i.map(i => [worldContext.biomesData.name[i], worldContext.biomesData.color[i]])
+  );
 }
 
 function getUrbanPopulation(cellId: number): number {
-  const burgId = pack.cells.burg[cellId];
+  const burgId = worldContext.pack.cells.burg[cellId];
   if (!burgId) return 0;
-  const populationPoints = (pack.burgs[burgId] as any)?.population ?? 0;
-  return populationPoints * populationRate * urbanization;
+  const populationPoints = (worldContext.pack.burgs[burgId] as any)?.population ?? 0;
+  return populationPoints * worldContext.populationRate * worldContext.urbanization;
 }
 
 function getRuralPopulation(cellId: number): number {
-  return pack.cells.pop[cellId] * populationRate;
+  return worldContext.pack.cells.pop[cellId] * worldContext.populationRate;
 }
 
 function sortData(data: ChartDataPoint[], sorting: string): ChartDataPoint[] {

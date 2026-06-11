@@ -385,8 +385,8 @@ let rafId: number | null = null;
 let pendingScaleChange = false;
 let pendingPositionChange = false;
 
-function zoomRaf() {
-  const { k, x, y } = d3.event.transform;
+function zoomRaf(event: { transform: { k: number; x: number; y: number } }) {
+  const { k, x, y } = event.transform;
 
   const isScaleChanged = Boolean(scale - k);
   const isPositionChanged = Boolean(viewX - x || viewY - y);

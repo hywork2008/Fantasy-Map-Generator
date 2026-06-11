@@ -12,7 +12,7 @@ function editProvinces(): void {
 
   provs
     .selectAll("text")
-    .call((d3 as any).drag().on("drag", dragLabel))
+    .call(d3.drag<SVGTextElement, unknown>().on("start", dragLabelStart).on("drag", dragLabel) as any)
     .classed("draggable", true);
   const body = ensureEl("provincesBodySection");
   refreshProvincesEditor();
@@ -795,7 +795,7 @@ function editProvinces(): void {
     provs.attr("data-labels", +hidden);
     provs
       .selectAll("text")
-      .call((d3 as any).drag().on("drag", dragLabel))
+      .call(d3.drag<SVGTextElement, unknown>().on("start", dragLabelStart).on("drag", dragLabel) as any)
       .classed("draggable", true);
   }
 
@@ -867,7 +867,7 @@ function editProvinces(): void {
     viewbox
       .style("cursor", "crosshair")
       .on("click", selectProvinceOnMapClick as any)
-      .call((d3 as any).drag().on("start", dragBrush))
+      .call(d3.drag<SVGElement, unknown>().on("drag", dragBrush))
       .on("touchmove", moveBrush as any)
       .on("mousemove", moveBrush as any);
 
@@ -912,17 +912,14 @@ function editProvinces(): void {
     debug.append("path").attr("class", "selected").attr("d", path);
   }
 
-  function dragBrush(this: SVGElement, startEvent: any): void {
+  function dragBrush(this: SVGElement, event: any): void {
+    if (!event.dx && !event.dy) return;
     const r = +(ensureEl("provincesBrush") as HTMLInputElement).value;
+    moveCircle(event.x, event.y, r);
 
-    startEvent.on("drag", (event: any) => {
-      if (!event.dx && !event.dy) return;
-      moveCircle(event.x, event.y, r);
-
-      const found = r > 5 ? findAll(event.x, event.y, r) : [findCell(event.x, event.y)];
-      const selection = found.filter(isLand);
-      if (selection) changeForSelection(selection);
-    });
+    const found = r > 5 ? findAll(event.x, event.y, r) : [findCell(event.x, event.y)];
+    const selection = found.filter(isLand);
+    if (selection) changeForSelection(selection);
   }
 
   function changeForSelection(selection: number[]): void {
@@ -1185,21 +1182,23 @@ function editProvinces(): void {
     });
   }
 
-  function dragLabel(this: SVGTextElement, startEvent: any): void {
-    const tr = parseTransform(this.getAttribute("transform") ?? "");
-    const x = +tr[0] - startEvent.x;
-    const y = +tr[1] - startEvent.y;
+  let _dlX = 0,
+    _dlY = 0;
 
-    startEvent.on("drag", function (this: SVGTextElement, event: any) {
-      const transform = `translate(${x + event.x},${y + event.y})`;
-      this.setAttribute("transform", transform);
-    });
+  function dragLabelStart(this: SVGTextElement, event: any): void {
+    const tr = parseTransform(this.getAttribute("transform") ?? "");
+    _dlX = +tr[0] - event.x;
+    _dlY = +tr[1] - event.y;
+  }
+
+  function dragLabel(this: SVGTextElement, event: any): void {
+    this.setAttribute("transform", `translate(${_dlX + event.x},${_dlY + event.y})`);
   }
 
   function closeProvincesEditor(): void {
     provs
       .selectAll("text")
-      .call((d3 as any).drag().on("drag", null))
+      .call(d3.drag<SVGTextElement, unknown>().on("drag", null) as any)
       .attr("class", null);
     if (customization === 11) exitProvincesManualAssignment("close");
     if (customization === 12) exitAddProvinceMode.call(document.getElementById("provincesAdd") as HTMLButtonElement);

@@ -2,12 +2,10 @@ import { drag, mean, min, polygonArea, polygonLength, type Selection, select } f
 import type { PackedGraphFeature } from "../modules/features";
 import { ensureEl, rand, rn, si, unique } from "../utils";
 
-function editLake(): void {
+function editLake(event?: MouseEvent): void {
   if (customization) return;
   closeDialogs(".stable");
   if (layerIsOn("toggleCells")) toggleCells();
-
-  const event = ((window as any).d3?.event ?? window.event) as MouseEvent | undefined;
 
   $("#lakeEditor").dialog({
     title: "Edit Lake",

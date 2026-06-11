@@ -579,28 +579,33 @@ function drawReligionCenters(): void {
       tip("", true);
       religionHighlightOff(event);
     })
-    .call((d3 as any).drag().on("start", religionCenterDrag));
+    .call(
+      d3.drag<SVGCircleElement, unknown>().on("start", religionCenterDragStart).on("drag", religionCenterDragDebounced)
+    );
 }
 
-function religionCenterDrag(this: SVGCircleElement, startEvent: any): void {
-  const religionId = +this.dataset.id!;
+let _rcdId = 0,
+  _rcdX0 = 0,
+  _rcdY0 = 0;
+
+function religionCenterDragStart(this: SVGCircleElement, event: any): void {
+  _rcdId = +this.dataset.id!;
   const tr = parseTransform(this.getAttribute("transform") ?? "");
-  const x0 = +tr[0] - startEvent.x;
-  const y0 = +tr[1] - startEvent.y;
-
-  function handleDrag(this: SVGCircleElement, event: any): void {
-    const { x, y } = event;
-    this.setAttribute("transform", `translate(${x0 + x},${y0 + y})`);
-    const cell = findCell(x, y);
-    if (pack.cells.h[cell] < 20) return;
-
-    pack.religions[religionId].center = cell;
-    recalculateReligions();
-  }
-
-  const dragDebounced = debounce(handleDrag, 50);
-  startEvent.on("drag", dragDebounced);
+  _rcdX0 = +tr[0] - event.x;
+  _rcdY0 = +tr[1] - event.y;
 }
+
+function religionCenterDragInner(this: SVGCircleElement, event: any): void {
+  const { x, y } = event;
+  this.setAttribute("transform", `translate(${_rcdX0 + x},${_rcdY0 + y})`);
+  const cell = findCell(x, y);
+  if (pack.cells.h[cell] < 20) return;
+
+  pack.religions[_rcdId].center = cell;
+  recalculateReligions();
+}
+
+const religionCenterDragDebounced = debounce(religionCenterDragInner, 50);
 
 function toggleLegend(): void {
   if (legend.selectAll("*").size()) {
@@ -702,7 +707,7 @@ function enterReligionsManualAssignent(): void {
   viewbox
     .style("cursor", "crosshair")
     .on("click", selectReligionOnMapClick)
-    .call((d3 as any).drag().on("start", dragReligionBrush))
+    .call(d3.drag<SVGElement, unknown>().on("drag", dragReligionBrush))
     .on("touchmove mousemove", moveReligionBrush);
 
   $body.querySelector<HTMLElement>("div")!.classList.add("selected");
@@ -727,18 +732,15 @@ function selectReligionOnMapClick(this: SVGElement, event: MouseEvent): void {
   $body.querySelector<HTMLElement>(`div[data-id='${religion}']`)!.classList.add("selected");
 }
 
-function dragReligionBrush(this: SVGElement, startEvent: any): void {
+function dragReligionBrush(this: SVGElement, event: any): void {
+  if (!event.dx && !event.dy) return;
   const radius = +(ensureEl("religionsBrush") as HTMLInputElement).value;
+  const [x, y] = d3.pointer(event, this);
+  moveCircle(x, y, radius);
 
-  startEvent.on("drag", (event: any) => {
-    if (!event.dx && !event.dy) return;
-    const [x, y] = d3.pointer(event, this);
-    moveCircle(x, y, radius);
-
-    const found = radius > 5 ? findAll(x, y, radius) : [findCell(x, y, radius)];
-    const selection = found.filter(isLand);
-    if (selection) changeReligionForSelection(selection);
-  });
+  const found = radius > 5 ? findAll(x, y, radius) : [findCell(x, y, radius)];
+  const selection = found.filter(isLand);
+  if (selection) changeReligionForSelection(selection);
 }
 
 function changeReligionForSelection(selection: number[]): void {

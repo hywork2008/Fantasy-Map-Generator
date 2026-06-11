@@ -1,14 +1,21 @@
-import { pointer, sum } from "d3";
+import { drag, easeSinInOut, pointer, select, sum, transition } from "d3";
 import { capitalize, ensureEl, last, rn } from "../utils";
 
-function editRegiment(selector?: string): void {
+function editRegiment(selectorOrEl?: string | Element): void {
   if (customization) return;
   closeDialogs(".stable");
   if (!layerIsOn("toggleMilitary")) toggleMilitary();
 
   armies.selectAll(":scope > g").classed("draggable", true);
-  armies.selectAll(":scope > g > g").call((d3 as any).drag().on("drag", dragRegiment));
-  elSelected = selector ? (document.querySelector(selector) as any) : (d3 as any).event?.target?.parentElement;
+  armies
+    .selectAll<SVGGElement, unknown>(":scope > g > g")
+    .call(drag<SVGGElement, unknown>().on("start", dragRegimentStart).on("drag", dragRegimentDrag));
+  elSelected =
+    typeof selectorOrEl === "string"
+      ? (document.querySelector(selectorOrEl) as any)
+      : selectorOrEl
+        ? (selectorOrEl as any)
+        : null;
   if (!pack.states[(elSelected as any).dataset.state]) return;
   if (!getRegiment()) return;
   updateRegimentData(getRegiment()!);
@@ -93,7 +100,9 @@ function editRegiment(selector?: string): void {
       .attr("cy", reg.by)
       .attr("r", 2)
       .attr("fill", clr)
-      .call((d3 as any).drag().on("drag", dragBase));
+      .call(
+        drag<SVGCircleElement, unknown>().on("start", dragBaseStart).on("drag", dragBaseDrag).on("end", dragBaseEnd)
+      );
   }
 
   function drawRotationControl(): void {
@@ -115,19 +124,16 @@ function editRegiment(selector?: string): void {
       .attr("transform-origin", `${reg.x}px ${reg.y}px`)
       .on("mouseenter", () => tip("Drag to rotate the regiment", true))
       .on("mouseleave", () => tip("", true))
-      .call((d3 as any).drag().on("start", rotateRegiment));
+      .call(drag<SVGCircleElement, unknown>().on("drag", rotateRegimentDrag));
   }
 
-  function rotateRegiment(this: SVGCircleElement, startEvent: any): void {
+  function rotateRegimentDrag(this: SVGCircleElement, event: any): void {
     const reg = getRegiment();
-
-    startEvent.on("drag", (event: any) => {
-      const { x, y } = event;
-      const angle = rn(Math.atan2(y - reg.y, x - reg.x) * (180 / Math.PI), 2);
-      (elSelected as unknown as SVGGElement).setAttribute("transform", `rotate(${angle})`);
-      this.setAttribute("transform", `rotate(${angle})`);
-      reg.angle = rn(angle, 2);
-    });
+    const { x, y } = event;
+    const angle = rn(Math.atan2(y - reg.y, x - reg.x) * (180 / Math.PI), 2);
+    (elSelected as unknown as SVGGElement).setAttribute("transform", `rotate(${angle})`);
+    this.setAttribute("transform", `rotate(${angle})`);
+    reg.angle = rn(angle, 2);
   }
 
   function changeType(): void {
@@ -327,11 +333,10 @@ function editRegiment(selector?: string): void {
 
     moveRegiment(attacker, defender.x, defender.y - 8);
 
-    const attack = (d3 as any)
-      .transition()
+    const attack = transition()
       .delay(300)
       .duration(700)
-      .ease((d3 as any).easeSinInOut)
+      .ease(easeSinInOut)
       .on("end", () => new Battle(attacker, defender));
     svg
       .append("text")
@@ -446,74 +451,96 @@ function editRegiment(selector?: string): void {
     });
   }
 
-  function dragRegiment(this: SVGGElement, startEvent: any): void {
-    (d3 as any).select(this).raise();
-    (d3 as any).select(this.parentNode).raise();
+  let _regDragState: {
+    reg: any;
+    w: number;
+    h: number;
+    size: number;
+    self: boolean;
+    baseRect: Element;
+    text: Element;
+    iconRect: Element;
+    icon: SVGElement;
+    image: SVGImageElement;
+    baseLine: any;
+    rotationControl: any;
+  } | null = null;
 
+  function dragRegimentStart(this: SVGGElement): void {
+    select(this).raise();
+    select(this.parentNode as Element).raise();
     const reg = pack.states[+this.dataset.state!].military?.find((r: any) => r.i === +this.dataset.id!);
     const size = +armies.attr("box-size");
     const w = reg.n ? size * 4 : size * 6;
     const h = size * 2;
-
-    const baseRect = this.querySelector("rect")!;
-    const text = this.querySelector("text")!;
-    const iconRect = this.querySelectorAll("rect")[1];
-    const icon = this.querySelector(".regimentIcon") as SVGElement;
-    const image = this.querySelector(".regimentImage") as SVGImageElement;
-
-    const self = (elSelected as any) === this;
-    const baseLine = viewbox.select("g#regimentBase > line");
-    const rotationControl = debug.select("#rotationControl");
-
-    startEvent.on("drag", (event: any) => {
-      const { x, y } = event;
-      reg.x = x;
-      reg.y = y;
-      const x1 = rn(x - w / 2, 2);
-      const y1 = rn(y - size, 2);
-
-      this.setAttribute("transform-origin", `${x}px ${y}px`);
-      baseRect.setAttribute("x", String(x1));
-      baseRect.setAttribute("y", String(y1));
-      text.setAttribute("x", String(x));
-      text.setAttribute("y", String(y));
-      iconRect.setAttribute("x", String(x1 - h));
-      iconRect.setAttribute("y", String(y1));
-      icon.setAttribute("x", String(x1 - size));
-      icon.setAttribute("y", String(y));
-      image.setAttribute("x", String(x1 - h));
-      image.setAttribute("y", String(y1));
-      if (self) {
-        baseLine.attr("x2", x).attr("y2", y);
-        rotationControl
-          .attr("cx", x1 + w)
-          .attr("cy", y)
-          .attr("transform-origin", `${x}px ${y}px`);
-      }
-    });
+    _regDragState = {
+      reg,
+      w,
+      h,
+      size,
+      self: (elSelected as any) === this,
+      baseRect: this.querySelector("rect")!,
+      text: this.querySelector("text")!,
+      iconRect: this.querySelectorAll("rect")[1],
+      icon: this.querySelector(".regimentIcon") as SVGElement,
+      image: this.querySelector(".regimentImage") as SVGImageElement,
+      baseLine: viewbox.select("g#regimentBase > line"),
+      rotationControl: debug.select("#rotationControl")
+    };
   }
 
-  function dragBase(this: SVGCircleElement, startEvent: any): void {
-    const baseLine = viewbox.select("g#regimentBase > line");
-    const reg = getRegiment();
+  function dragRegimentDrag(this: SVGGElement, event: any): void {
+    if (!_regDragState) return;
+    const { reg, w, h, size, self, baseRect, text, iconRect, icon, image, baseLine, rotationControl } = _regDragState;
+    const { x, y } = event;
+    reg.x = x;
+    reg.y = y;
+    const x1 = rn(x - w / 2, 2);
+    const y1 = rn(y - size, 2);
+    this.setAttribute("transform-origin", `${x}px ${y}px`);
+    baseRect.setAttribute("x", String(x1));
+    baseRect.setAttribute("y", String(y1));
+    text.setAttribute("x", String(x));
+    text.setAttribute("y", String(y));
+    iconRect.setAttribute("x", String(x1 - h));
+    iconRect.setAttribute("y", String(y1));
+    icon.setAttribute("x", String(x1 - size));
+    icon.setAttribute("y", String(y));
+    image.setAttribute("x", String(x1 - h));
+    image.setAttribute("y", String(y1));
+    if (self) {
+      baseLine.attr("x2", x).attr("y2", y);
+      rotationControl
+        .attr("cx", x1 + w)
+        .attr("cy", y)
+        .attr("transform-origin", `${x}px ${y}px`);
+    }
+  }
 
-    startEvent.on("drag", (event: any) => {
-      this.setAttribute("cx", String(event.x));
-      this.setAttribute("cy", String(event.y));
-      baseLine.attr("x1", event.x).attr("y1", event.y);
-    });
+  let _baseDragReg: any = null;
 
-    startEvent.on("end", (event: any) => {
-      reg.bx = event.x;
-      reg.by = event.y;
-    });
+  function dragBaseStart(): void {
+    _baseDragReg = getRegiment();
+  }
+
+  function dragBaseDrag(this: SVGCircleElement, event: any): void {
+    this.setAttribute("cx", String(event.x));
+    this.setAttribute("cy", String(event.y));
+    viewbox.select("g#regimentBase > line").attr("x1", event.x).attr("y1", event.y);
+  }
+
+  function dragBaseEnd(this: SVGCircleElement, event: any): void {
+    if (_baseDragReg) {
+      _baseDragReg.bx = event.x;
+      _baseDragReg.by = event.y;
+    }
   }
 
   function closeEditor(): void {
     debug.selectAll("*").remove();
     viewbox.selectAll("g#regimentBase").remove();
     armies.selectAll(":scope > g").classed("draggable", false);
-    armies.selectAll("g>g").call((d3 as any).drag().on("drag", null));
+    armies.selectAll("g>g").call(drag().on("drag", null) as any);
     (ensureEl("regimentAdd") as HTMLElement).classList.remove("pressed");
     (ensureEl("regimentAttack") as HTMLElement).classList.remove("pressed");
     (ensureEl("regimentAttach") as HTMLElement).classList.remove("pressed");

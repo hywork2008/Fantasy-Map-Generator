@@ -399,7 +399,7 @@ function editBiomes(): void {
     viewbox
       .style("cursor", "crosshair")
       .on("click", selectBiomeOnMapClick)
-      .call(drag<SVGElement, unknown>().on("start", dragBiomeBrush))
+      .call(drag<SVGElement, unknown>().on("drag", dragBiomeBrush))
       .on("touchmove mousemove", moveBiomeBrush);
   }
 
@@ -426,19 +426,14 @@ function editBiomes(): void {
     body.querySelector(`div[data-id='${biome}']`)!.classList.add("selected");
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  function dragBiomeBrush(this: SVGElement, startEvent: any): void {
+  function dragBiomeBrush(this: SVGElement, event: any): void {
+    if (!event.dx && !event.dy) return;
     const r = +(document.getElementById("biomesBrush") as HTMLInputElement).value;
-
-    startEvent.on("drag", (event: any) => {
-      if (!event.dx && !event.dy) return;
-      const [px, py] = pointer(event, this);
-      moveCircle(px, py, r);
-
-      const found = r > 5 ? findAll(px, py, r) : [findCell(px, py)];
-      const selection = found.filter(isLand);
-      if (selection) changeBiomeForSelection(selection);
-    });
+    const [px, py] = pointer(event, this);
+    moveCircle(px, py, r);
+    const found = r > 5 ? findAll(px, py, r) : [findCell(px, py)];
+    const selection = found.filter(isLand);
+    if (selection) changeBiomeForSelection(selection);
   }
 
   function changeBiomeForSelection(selection: number[]): void {

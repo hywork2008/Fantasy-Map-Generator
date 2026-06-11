@@ -1296,3 +1296,4 @@ window.restoreSeed = restoreSeed;
 window.copyMapURL = copyMapURL;
 window.initGoogleTranslate = initGoogleTranslate;
 window.openTemplateSelectionDialog = openTemplateSelectionDialog;
+window.changeViewMode = changeViewMode;

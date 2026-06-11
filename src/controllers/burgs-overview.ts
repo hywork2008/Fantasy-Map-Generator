@@ -1,3 +1,4 @@
+import { pointer } from "d3";
 import { ensureEl, rn, si } from "../utils";
 
 function overviewBurgs(settings: { stateId?: number | null; cultureId?: number | null } = {}): void {
@@ -253,8 +254,8 @@ function overviewBurgs(settings: { stateId?: number | null; cultureId?: number |
     viewbox.style("cursor", "crosshair").on("click", addBurgOnClick);
   }
 
-  function addBurgOnClick(this: SVGElement): void {
-    const point = (window as any).d3.mouse(this) as [number, number];
+  function addBurgOnClick(this: SVGElement, event: MouseEvent): void {
+    const point = pointer(event, this) as [number, number];
     const cell = findCell(point[0], point[1]);
 
     if (pack.cells.h[cell] < 20) {
@@ -268,7 +269,7 @@ function overviewBurgs(settings: { stateId?: number | null; cultureId?: number |
 
     Burgs.add(point);
 
-    if ((window as any).d3.event.shiftKey === false) {
+    if (event.shiftKey === false) {
       exitAddBurgMode();
       burgsOverviewAddLines();
     }
@@ -361,7 +362,7 @@ function overviewBurgs(settings: { stateId?: number | null; cultureId?: number |
       .attr("fill", (d: any) => d.parent.data.color)
       .attr("cx", (d: any) => d.x)
       .attr("cy", (d: any) => d.y)
-      .on("mouseenter", (d: any) => showInfo((window as any).d3.event, d))
+      .on("mouseenter", (event: MouseEvent, d: any) => showInfo(event, d))
       .on("mouseleave", (ev: MouseEvent) => hideInfo(ev))
       .on("click", (d: any) => zoomTo(d.data.x, d.data.y, 8, 2000));
 

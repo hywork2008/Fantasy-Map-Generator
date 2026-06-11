@@ -1,17 +1,27 @@
-import { pointer } from "d3";
+import { curveNatural, drag, pointer, select } from "d3";
 import { ensureEl, parseTransform, round } from "../utils";
 
-function editLabel(): void {
+function editLabel(tspan?: Element): void {
   if (customization) return;
   closeDialogs();
   if (!layerIsOn("toggleLabels")) toggleLabels();
 
-  const tspan = (d3 as any).event ? (d3 as any).event.target : null;
-  const textPath = tspan?.parentNode;
-  const text = textPath?.parentNode;
-  elSelected = (d3 as any)
-    .select(text)
-    .call((d3 as any).drag().on("start", dragLabel))
+  const textPath = tspan?.parentNode as SVGTextPathElement | undefined;
+  const text = textPath?.parentNode as SVGTextElement | undefined;
+  let _ldx = 0,
+    _ldy = 0;
+  elSelected = select(text as Element)
+    .call(
+      drag<SVGTextElement, unknown>()
+        .on("start", (event: any) => {
+          const tr = parseTransform(elSelected!.attr("transform"));
+          _ldx = +tr[0] - event.x;
+          _ldy = +tr[1] - event.y;
+        })
+        .on("drag", (event: any) => {
+          elSelected!.attr("transform", `translate(${_ldx + event.x},${_ldy + event.y})`);
+        }) as any
+    )
     .classed("draggable", true);
   viewbox.on("touchmove mousemove", showEditorTips);
 
@@ -24,8 +34,8 @@ function editLabel(): void {
   });
 
   drawControlPointsAndLine();
-  selectLabelGroup(text);
-  updateValues(textPath);
+  selectLabelGroup(text!);
+  updateValues(textPath!);
 
   if (modules.editLabel) return;
   modules.editLabel = true;
@@ -118,6 +128,12 @@ function editLabel(): void {
     }
   }
 
+  function dragControlPoint(this: SVGCircleElement, event: any): void {
+    this.setAttribute("cx", String(event.x));
+    this.setAttribute("cy", String(event.y));
+    redrawLabelPath();
+  }
+
   function addControlPoint(pt: SVGPoint): void {
     debug
       .select("#controlPoints")
@@ -126,21 +142,13 @@ function editLabel(): void {
       .attr("cy", pt.y)
       .attr("r", 2.5)
       .attr("stroke-width", 0.8)
-      .call((d3 as any).drag().on("drag", dragControlPoint))
+      .call(drag<SVGCircleElement, unknown>().on("drag", dragControlPoint))
       .on("click", clickControlPoint);
-  }
-
-  function dragControlPoint(this: SVGCircleElement, startEvent: any): void {
-    startEvent.on("drag", (event: any) => {
-      this.setAttribute("cx", String(event.x));
-      this.setAttribute("cy", String(event.y));
-      redrawLabelPath();
-    });
   }
 
   function redrawLabelPath(): void {
     const path = ensureEl(`textPath_${elSelected!.attr("id")}`) as unknown as SVGPathElement;
-    lineGen.curve((d3 as any).curveNatural);
+    lineGen.curve(curveNatural);
     const points: [string, string][] = [];
     debug
       .select("#controlPoints")
@@ -188,22 +196,10 @@ function editLabel(): void {
       .attr("cy", pt[1])
       .attr("r", 2.5)
       .attr("stroke-width", 0.8)
-      .call((d3 as any).drag().on("drag", dragControlPoint))
+      .call(drag<SVGCircleElement, unknown>().on("drag", dragControlPoint))
       .on("click", clickControlPoint);
 
     redrawLabelPath();
-  }
-
-  function dragLabel(this: SVGTextElement, startEvent: any): void {
-    const tr = parseTransform(elSelected!.attr("transform"));
-    const dx = +tr[0] - startEvent.x;
-    const dy = +tr[1] - startEvent.y;
-
-    startEvent.on("drag", (event: any) => {
-      const transform = `translate(${dx + event.x},${dy + event.y})`;
-      elSelected!.attr("transform", transform);
-      debug.select("#controlPoints").attr("transform", transform);
-    });
   }
 
   function showGroupSection(): void {

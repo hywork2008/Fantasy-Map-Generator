@@ -21,7 +21,9 @@ function editIce(element: SVGElement): void {
   iceSizeEl.style.display = isGlacier ? "none" : "inline-block";
   if (!isGlacier) iceSizeEl.value = String((iceElement as any)?.size || "");
 
-  (ice.selectAll("*") as any).classed("draggable", true).call(drag<SVGElement, unknown>().on("start", dragElement));
+  (ice.selectAll("*") as any)
+    .classed("draggable", true)
+    .call(drag<SVGElement, unknown>().on("start", dragElementStart).on("drag", dragElementDrag));
 
   $("#iceEditor").dialog({
     title: `Edit ${type}`,
@@ -92,24 +94,23 @@ function editIce(element: SVGElement): void {
     });
   }
 
-  function dragElement(this: SVGElement, startEvent: any): void {
-    const selectedId = +elSelected!.attr("data-id");
+  let _idx = 0,
+    _idy = 0,
+    _iceId = 0;
+
+  function dragElementStart(this: SVGElement, event: any): void {
+    _iceId = +elSelected!.attr("data-id");
     const initialTransform = parseTransform(this.getAttribute("transform") ?? "");
-    const dx = +initialTransform[0] - startEvent.x;
-    const dy = +initialTransform[1] - startEvent.y;
+    _idx = +initialTransform[0] - event.x;
+    _idy = +initialTransform[1] - event.y;
+  }
 
-    startEvent.on("drag", function (this: SVGElement, event: any) {
-      const x = event.x;
-      const y = event.y;
-      const transform = `translate(${dx + x},${dy + y})`;
-      this.setAttribute("transform", transform);
-
-      const offset: [number, number] = [dx + x, dy + y];
-      const iceData = pack.ice.find(el => el.i === selectedId);
-      if (iceData) {
-        (iceData as any).offset = offset;
-      }
-    });
+  function dragElementDrag(this: SVGElement, event: any): void {
+    const x = event.x;
+    const y = event.y;
+    this.setAttribute("transform", `translate(${_idx + x},${_idy + y})`);
+    const iceData = pack.ice.find(el => el.i === _iceId);
+    if (iceData) (iceData as any).offset = [_idx + x, _idy + y];
   }
 
   function closeEditor(): void {

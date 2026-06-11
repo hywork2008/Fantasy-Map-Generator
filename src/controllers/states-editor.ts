@@ -939,7 +939,7 @@ function enterStatesManualAssignent(): void {
   viewbox
     .style("cursor", "crosshair")
     .on("click", selectStateOnMapClick)
-    .call((d3 as any).drag().on("start", dragStateBrush))
+    .call(d3.drag<SVGElement, unknown>().on("start", dragStateBrushStart).on("drag", dragStateBrush))
     .on("touchmove mousemove", moveStateBrush);
 
   $body.querySelector<HTMLElement>("div")!.classList.add("selected");
@@ -965,19 +965,19 @@ function selectStateOnMapClick(this: SVGElement, event: MouseEvent): void {
   $body.querySelector<HTMLElement>(`div[data-id='${state}']`)!.classList.add("selected");
 }
 
-function dragStateBrush(this: SVGElement, startEvent: any): void {
-  const r = +(ensureEl("statesBrush") as HTMLInputElement).value;
+function dragStateBrushStart(): void {
   saveStatesManualSnapshot();
+}
 
-  startEvent.on("drag", (event: any) => {
-    if (!event.dx && !event.dy) return;
-    const p = d3.pointer(event, this);
-    moveCircle(p[0], p[1], r);
+function dragStateBrush(this: SVGElement, event: any): void {
+  if (!event.dx && !event.dy) return;
+  const r = +(ensureEl("statesBrush") as HTMLInputElement).value;
+  const p = d3.pointer(event, this);
+  moveCircle(p[0], p[1], r);
 
-    const found = r > 5 ? findAll(p[0], p[1], r) : [findCell(p[0], p[1])];
-    const selection = found.filter(isLand);
-    if (selection) changeStateForSelection(selection);
-  });
+  const found = r > 5 ? findAll(p[0], p[1], r) : [findCell(p[0], p[1])];
+  const selection = found.filter(isLand);
+  if (selection) changeStateForSelection(selection);
 }
 
 function changeStateForSelection(selection: number[]): void {

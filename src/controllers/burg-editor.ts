@@ -1,4 +1,4 @@
-import { pointer } from "d3";
+import { drag, pointer } from "d3";
 import { ensureEl, openURL, parseTransform, rn } from "../utils";
 
 function editBurg(id?: number): void {
@@ -7,11 +7,28 @@ function editBurg(id?: number): void {
   if (!layerIsOn("toggleBurgIcons")) toggleBurgIcons();
   if (!layerIsOn("toggleLabels")) toggleLabels();
 
-  const burg = id || (d3 as any).event?.target?.dataset?.id;
+  const burg = id;
   elSelected = burgLabels.select(`[data-id='${burg}']`);
+  let _bdx = 0,
+    _bdy = 0;
   burgLabels
-    .selectAll("text")
-    .call((d3 as any).drag().on("start", dragBurgLabel))
+    .selectAll<SVGTextElement, unknown>("text")
+    .call(
+      drag<SVGTextElement, unknown>()
+        .on("start", function (this: SVGTextElement, event: any) {
+          const tr = parseTransform(this.getAttribute("transform") || "");
+          _bdx = +tr[0] - event.x;
+          _bdy = +tr[1] - event.y;
+        })
+        .on("drag", function (this: SVGTextElement, event: any) {
+          this.setAttribute("transform", `translate(${_bdx + event.x},${_bdy + event.y})`);
+          tip(
+            'Use dragging for fine-tuning only, to actually move burg use "Relocate" button',
+            false,
+            "warning" as any
+          );
+        })
+    )
     .classed("draggable", true);
   updateGroupsList();
   updateBurgValues();
@@ -111,17 +128,6 @@ function editBurg(id?: number): void {
     (ensureEl("burgEmblem") as unknown as SVGUseElement).setAttribute("href", `#${coaID}`);
 
     updateBurgPreview(b);
-  }
-
-  function dragBurgLabel(this: SVGTextElement, startEvent: any): void {
-    const tr = parseTransform(this.getAttribute("transform") || "");
-    const dx = +tr[0] - startEvent.x;
-    const dy = +tr[1] - startEvent.y;
-
-    startEvent.on("drag", (event: any) => {
-      this.setAttribute("transform", `translate(${dx + event.x},${dy + event.y})`);
-      tip('Use dragging for fine-tuning only, to actually move burg use "Relocate" button', false, "warning" as any);
-    });
   }
 
   function changeName(this: HTMLInputElement): void {
@@ -459,7 +465,7 @@ function editBurg(id?: number): void {
     (ensureEl("burgRelocate") as HTMLElement).classList.remove("pressed");
     burgLabels
       .selectAll("text")
-      .call((d3 as any).drag().on("drag", null))
+      .call(drag().on("drag", null) as any)
       .classed("draggable", false);
     unselect();
   }

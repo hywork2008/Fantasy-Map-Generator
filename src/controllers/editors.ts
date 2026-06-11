@@ -6,10 +6,37 @@ import { open as openStatesEditor } from "./states-editor";
 
 // ─── Default viewbox events ────────────────────────────────────────────────
 
+function makePanDrag(filter?: (ev: any) => boolean): d3.DragBehavior<SVGGElement, unknown, unknown> {
+  let ox = 0,
+    oy = 0,
+    bw = 0,
+    bh = 0;
+  let drag = d3
+    .drag<SVGGElement, unknown>()
+    .on("start", function (this: SVGGElement, event: any) {
+      const tr = parseTransform(this.getAttribute("transform") ?? "");
+      ox = +tr[0] - event.x;
+      oy = +tr[1] - event.y;
+      const bbox = this.getBBox();
+      bw = bbox.width;
+      bh = bbox.height;
+    })
+    .on("drag", function (this: SVGGElement, event: any) {
+      const px = rn(((ox + event.x + bw) / svgWidth) * 100, 2);
+      const py = rn(((oy + event.y + bh) / svgHeight) * 100, 2);
+      d3.select(this)
+        .attr("transform", `translate(${ox + event.x},${oy + event.y})`)
+        .attr("data-x", px)
+        .attr("data-y", py);
+    });
+  if (filter) drag = drag.filter(filter);
+  return drag;
+}
+
 function restoreDefaultEvents(): void {
   svg.call(zoom as any);
   viewbox.style("cursor", "default").on(".drag", null).on("click", clicked).on("touchmove mousemove", onMouseMove);
-  legend.call((d3 as any).drag().on("start", dragLegendBox));
+  legend.call(makePanDrag());
   svg.call(zoom as any);
 }
 
@@ -21,24 +48,24 @@ function clicked(this: Element, event: MouseEvent): void {
   const ancestor = great?.parentElement;
   if (!ancestor) return;
 
-  if (grand?.id === "emblems") editEmblem?.();
+  if (grand?.id === "emblems") editEmblem?.(undefined, undefined, el);
   else if (parent?.id === "rivers") editRiver?.(el!.id);
   else if (grand?.id === "routes") editRoute?.(el!.id);
-  else if (ancestor.id === "labels" && el?.tagName === "tspan") editLabel?.();
-  else if (grand?.id === "burgLabels") editBurg?.();
-  else if (grand?.id === "burgIcons") editBurg?.();
+  else if (ancestor.id === "labels" && el?.tagName === "tspan") editLabel?.(el);
+  else if (grand?.id === "burgLabels") editBurg?.(+(el as SVGElement).dataset.id!);
+  else if (grand?.id === "burgIcons") editBurg?.(+(el as SVGElement).dataset.id!);
   else if (parent?.id === "ice") editIce?.(el as SVGElement);
-  else if (parent?.id === "terrain") editReliefIcon?.();
+  else if (parent?.id === "terrain") editReliefIcon?.(el as SVGElement);
   else if (grand?.id === "markers" || great?.id === "markers") editMarker?.();
   else if (grand?.id === "coastline") editCoastline?.();
-  else if (grand?.id === "lakes") editLake?.();
-  else if (great?.id === "armies") editRegiment?.();
+  else if (grand?.id === "lakes") editLake?.(event);
+  else if (great?.id === "armies") editRegiment?.(el?.parentElement ?? undefined);
 }
 
 function unselect(): void {
   restoreDefaultEvents();
   if (!elSelected) return;
-  (elSelected as any).call((d3 as any).drag().on("drag", null)).attr("class", null);
+  (elSelected as any).call(d3.drag().on("drag", null)).attr("class", null);
   debug.selectAll("*").remove();
   viewbox.style("cursor", "default");
   elSelected = null;
@@ -172,22 +199,6 @@ function redrawLegend(): void {
   }
 }
 
-function dragLegendBox(this: SVGGElement, startEvent: any): void {
-  const tr = parseTransform(this.getAttribute("transform") ?? "");
-  const x = +tr[0] - startEvent.x;
-  const y = +tr[1] - startEvent.y;
-  const bbox = (legend.node() as SVGGElement).getBBox();
-
-  startEvent.on("drag", (event: any) => {
-    const px = rn(((x + event.x + bbox.width) / svgWidth) * 100, 2);
-    const py = rn(((y + event.y + bbox.height) / svgHeight) * 100, 2);
-    legend
-      .attr("transform", `translate(${x + event.x},${y + event.y})`)
-      .attr("data-x", px)
-      .attr("data-y", py);
-  });
-}
-
 function clearLegend(): void {
   legend.selectAll("*").remove();
   legend.attr("data", null);
@@ -220,12 +231,7 @@ function createPicker(): void {
   const picker = container
     .append("g")
     .attr("id", "picker")
-    .call(
-      (d3 as any)
-        .drag()
-        .filter((ev: any) => ev.target.tagName !== "INPUT")
-        .on("start", dragPicker)
-    );
+    .call(makePanDrag((ev: any) => ev.target.tagName !== "INPUT"));
 
   const controls = picker.append("g").attr("id", "pickerControls");
   const h = controls.append("g");
@@ -247,7 +253,21 @@ function createPicker(): void {
   l.on("mousemove", () => tip("Set palette lightness"));
 
   controls.selectAll("line").on("click", clickPickerControl as any);
-  controls.selectAll("circle").call((d3 as any).drag().on("start", dragPickerControl));
+  controls.selectAll<SVGCircleElement, unknown>("circle").call(
+    d3
+      .drag<SVGCircleElement, unknown>()
+      .on("start", function (this: SVGCircleElement) {
+        (this as any)._dragMin = +(this.previousSibling as Element).getAttribute("x1")!;
+        (this as any)._dragMax = +(this.previousSibling as Element).getAttribute("x2")!;
+      })
+      .on("drag", function (this: SVGCircleElement, event: any) {
+        const x = Math.max(Math.min(event.x, (this as any)._dragMax), (this as any)._dragMin);
+        this.setAttribute("cx", String(x));
+        updateSpaces();
+        updatePickerColors();
+        openPicker.updateFill?.();
+      })
+  );
 
   const spaces = picker
     .append("foreignObject")
@@ -450,23 +470,6 @@ function getPickerControl(control: Element, max: number): number {
   return (current / delta) * max;
 }
 
-function dragPicker(this: SVGGElement, startEvent: any): void {
-  const tr = parseTransform(this.getAttribute("transform") ?? "");
-  const x = +tr[0] - startEvent.x;
-  const y = +tr[1] - startEvent.y;
-  const picker = d3.select("#picker");
-  const bbox = (picker.node() as SVGGElement).getBBox();
-
-  startEvent.on("drag", (event: any) => {
-    const px = rn(((x + event.x + bbox.width) / svgWidth) * 100, 2);
-    const py = rn(((y + event.y + bbox.height) / svgHeight) * 100, 2);
-    picker
-      .attr("transform", `translate(${x + event.x},${y + event.y})`)
-      .attr("data-x", px)
-      .attr("data-y", py);
-  });
-}
-
 function pickerFillClicked(this: Element): void {
   const fill = this.getAttribute("fill")!;
   updateSelectedRect(fill);
@@ -484,19 +487,6 @@ function clickPickerControl(this: SVGLineElement, event: MouseEvent): void {
   updateSpaces();
   updatePickerColors();
   openPicker.updateFill?.();
-}
-
-function dragPickerControl(this: Element, startEvent: any): void {
-  const min = +(this.previousSibling as Element).getAttribute("x1")!;
-  const max = +(this.previousSibling as Element).getAttribute("x2")!;
-
-  startEvent.on("drag", function (this: Element, event: any) {
-    const x = Math.max(Math.min(event.x, max), min);
-    this.setAttribute("cx", String(x));
-    updateSpaces();
-    updatePickerColors();
-    openPicker.updateFill?.();
-  });
 }
 
 function changePickerSpace(this: HTMLInputElement): void {
@@ -536,7 +526,7 @@ function changePickerSpace(this: HTMLInputElement): void {
 
 function fog(id: string, path: string): void {
   if (defs.select(`#fog #${id}`).size()) return;
-  const fadeIn = (d3 as any).transition().duration(2000).ease(d3.easeSinInOut);
+  const fadeIn = d3.transition().duration(2000).ease(d3.easeSinInOut);
   if (defs.select("#fog path").size()) {
     defs
       .select("#fog")
@@ -554,7 +544,7 @@ function fog(id: string, path: string): void {
 }
 
 function unfog(id?: string): void {
-  let el = defs.select(`#fog #${id}`);
+  let el = id ? defs.select(`#fog #${id}`) : (defs.select(null) as ReturnType<typeof defs.select>);
   if (!id || !el.size()) el = defs.select("#fog").selectAll("path") as typeof el;
   el.remove();
   if (!defs.selectAll("#fog path").size()) fogging.style("display", "none");
@@ -608,8 +598,8 @@ function highlightElement(element: Element, zoom?: number): void {
   const box =
     element.tagName === "svg" ? getBBox(element as SVGRectElement) : (element as SVGGraphicsElement).getBBox();
   const transform = element.getAttribute("transform") ?? null;
-  const enter = (d3 as any).transition().duration(1000).ease(d3.easeBounceOut);
-  const exit = (d3 as any).transition().duration(500).ease(d3.easeLinear);
+  const enter = d3.transition().duration(1000).ease(d3.easeBounceOut);
+  const exit = d3.transition().duration(500).ease(d3.easeLinear);
 
   const highlight = debug
     .append("rect")

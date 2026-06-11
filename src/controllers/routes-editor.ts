@@ -89,7 +89,12 @@ function editRoute(id: string): void {
       .attr("cx", d => d[0])
       .attr("cy", d => d[1])
       .attr("r", 0.6)
-      .call(drag<SVGCircleElement, [number, number, number]>().on("start", dragControlPoint) as any)
+      .call(
+        drag<SVGCircleElement, [number, number, number]>()
+          .on("start", dragControlPointStart)
+          .on("drag", dragControlPointDrag)
+          .on("end", dragControlPointEnd) as any
+      )
       .on("click", handleControlPointClick as any);
   }
 
@@ -102,42 +107,47 @@ function editRoute(id: string): void {
       .attr("points", (p: [number, number, number]) => getPackPolygon(p[2]) as unknown as string);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  function dragControlPoint(this: SVGCircleElement, startEvent: any): void {
-    const route = getRoute();
-    const initCell = startEvent.subject[2] as number;
-    const pointIndex = route.points.indexOf(startEvent.subject);
+  let _rcRoute: Route | null = null;
+  let _rcInitCell = 0;
+  let _rcPointIndex = 0;
 
-    startEvent.on("drag", function (this: SVGCircleElement, event: any) {
-      this.setAttribute("cx", String(event.x));
-      this.setAttribute("cy", String(event.y));
+  function dragControlPointStart(this: SVGCircleElement, event: any): void {
+    _rcRoute = getRoute();
+    _rcInitCell = event.subject[2] as number;
+    _rcPointIndex = _rcRoute.points.indexOf(event.subject);
+  }
 
-      const x = rn(event.x, 2);
-      const y = rn(event.y, 2);
-      const cellId = findCell(x, y);
+  function dragControlPointDrag(this: SVGCircleElement, event: any): void {
+    if (!_rcRoute) return;
+    this.setAttribute("cx", String(event.x));
+    this.setAttribute("cy", String(event.y));
 
-      (this as any).__data__ = route.points[pointIndex] = [x, y, cellId];
-      redrawRoute(route);
-      drawRouteCells(route.points);
-    });
+    const x = rn(event.x, 2);
+    const y = rn(event.y, 2);
+    const cellId = findCell(x, y);
 
-    startEvent.on("end", (event: any) => {
-      const movedToCell = findCell(event.x, event.y);
+    (this as any).__data__ = _rcRoute.points[_rcPointIndex] = [x, y, cellId];
+    redrawRoute(_rcRoute);
+    drawRouteCells(_rcRoute.points);
+  }
 
-      if (movedToCell !== initCell) {
-        const prev = route.points[pointIndex - 1];
-        if (prev) {
-          removeConnection(initCell, prev[2]);
-          addConnection(movedToCell, prev[2], route.i);
-        }
+  function dragControlPointEnd(event: any): void {
+    if (!_rcRoute) return;
+    const movedToCell = findCell(event.x, event.y);
 
-        const next = route.points[pointIndex + 1];
-        if (next) {
-          removeConnection(initCell, next[2]);
-          addConnection(movedToCell, next[2], route.i);
-        }
+    if (movedToCell !== _rcInitCell) {
+      const prev = _rcRoute.points[_rcPointIndex - 1];
+      if (prev) {
+        removeConnection(_rcInitCell, prev[2]);
+        addConnection(movedToCell, prev[2], _rcRoute.i);
       }
-    });
+
+      const next = _rcRoute.points[_rcPointIndex + 1];
+      if (next) {
+        removeConnection(_rcInitCell, next[2]);
+        addConnection(movedToCell, next[2], _rcRoute.i);
+      }
+    }
   }
 
   function redrawRoute(route: Route): void {

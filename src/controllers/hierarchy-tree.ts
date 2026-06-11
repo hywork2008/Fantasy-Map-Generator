@@ -30,7 +30,7 @@ const MARGINS = { top: 10, right: 10, bottom: -5, left: 10 };
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const handleZoom = (event: any) => viewboxEl.attr("transform", event.transform);
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const zoom = (d3 as any).zoom().scaleExtent([0.2, 1.5]).on("zoom", handleZoom);
+const zoom = d3.zoom<SVGSVGElement, unknown>().scaleExtent([0.2, 1.5]).on("zoom", handleZoom);
 
 let oldRoot: d3.HierarchyPointNode<HierarchyElement> | null = null;
 
@@ -78,7 +78,10 @@ export function open(props: HierarchyProps): void {
   const width = minmax(treeWidth, 300, innerWidth * 0.75);
   const height = minmax(treeHeight, 200, innerHeight * 0.75);
 
-  zoom.extent([Array(2).fill(0), [width, height]]);
+  zoom.extent([
+    [0, 0],
+    [width, height]
+  ]);
   svgEl.attr("viewBox", `0, 0, ${width}, ${height}`);
 
   ($("#hierarchyTree") as any).dialog({
@@ -242,8 +245,13 @@ function renderTree(root: d3.HierarchyPointNode<HierarchyElement>, treeLayout: d
     .on("mouseenter", handleNoteEnter as any)
     .on("mouseleave", handleNodeExit as any)
     .on("click", selectElement as any)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .call((d3 as any).drag().on("start", dragToReorigin));
+    .call(
+      d3
+        .drag<SVGGElement, d3.HierarchyPointNode<HierarchyElement>>()
+        .on("start", dragToReoriginStart)
+        .on("drag", dragToReoriginDrag)
+        .on("end", dragToReoriginEnd) as any
+    );
 
   node
     .selectAll("path")
@@ -462,34 +470,40 @@ function handleNodeExit(this: SVGGElement, d: d3.HierarchyPointNode<HierarchyEle
   tip("");
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function dragToReorigin(this: SVGGElement, startEvent: any, from: d3.HierarchyPointNode<HierarchyElement>): void {
+let _reoriginFrom: d3.HierarchyPointNode<HierarchyElement> | null = null;
+
+function dragToReoriginStart(this: SVGGElement, _event: any, from: d3.HierarchyPointNode<HierarchyElement>): void {
   if (from.id === "0") return;
-
+  _reoriginFrom = from;
   dragLine.attr("d", `M${from.x},${from.y}L${from.x},${from.y}`);
+}
 
-  startEvent.on("drag", (event: any) => {
-    dragLine.attr("d", `M${from.x},${from.y}L${event.x},${event.y}`);
-  });
+function dragToReoriginDrag(event: any): void {
+  if (!_reoriginFrom) return;
+  dragLine.attr("d", `M${_reoriginFrom.x},${_reoriginFrom.y}L${event.x},${event.y}`);
+}
 
-  startEvent.on("end", function (this: SVGGElement) {
-    dragLine.attr("d", "");
-    const selected = nodesEl.select<SVGGElement>("g.selected");
-    if (!selected.size()) return;
+function dragToReoriginEnd(this: SVGGElement): void {
+  dragLine.attr("d", "");
+  if (!_reoriginFrom) return;
+  const from = _reoriginFrom;
+  _reoriginFrom = null;
 
-    const elementId = from.data.i;
-    const newOrigin = (selected.datum() as d3.HierarchyPointNode<HierarchyElement>).data.i;
-    if (elementId === newOrigin) return;
-    if (from.data.origins.includes(newOrigin)) return;
-    if (from.descendants().some(node => node.data.i === newOrigin)) return;
+  const selected = nodesEl.select<SVGGElement>("g.selected");
+  if (!selected.size()) return;
 
-    const element = dataElements.find(({ i }) => i === elementId);
-    if (!element) return;
+  const elementId = from.data.i;
+  const newOrigin = (selected.datum() as d3.HierarchyPointNode<HierarchyElement>).data.i;
+  if (elementId === newOrigin) return;
+  if (from.data.origins.includes(newOrigin)) return;
+  if (from.descendants().some(node => node.data.i === newOrigin)) return;
 
-    if (element.origins[0] === 0) element.origins = [];
-    element.origins.push(newOrigin);
+  const element = dataElements.find(({ i }) => i === elementId);
+  if (!element) return;
 
-    selectElement.call(this, from);
-    updateTree();
-  });
+  if (element.origins[0] === 0) element.origins = [];
+  element.origins.push(newOrigin);
+
+  selectElement.call(this, from);
+  updateTree();
 }

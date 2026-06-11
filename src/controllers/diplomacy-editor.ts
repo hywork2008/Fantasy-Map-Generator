@@ -1,4 +1,4 @@
-import { interpolateString } from "d3";
+import { interpolateString, pointer } from "d3";
 import { getAdjective } from "../utils";
 
 type RelationKey =
@@ -210,8 +210,8 @@ function editDiplomacy(): void {
     });
   }
 
-  function selectStateOnMapClick(this: SVGElement): void {
-    const point = (window as any).d3.mouse(this);
+  function selectStateOnMapClick(this: SVGElement, event: MouseEvent): void {
+    const point = pointer(event, this);
     const i = findCell(point[0], point[1]);
     const state = pack.cells.state![i];
     if (!state) return;

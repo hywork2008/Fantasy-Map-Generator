@@ -539,7 +539,7 @@ async function createMesh(width: number, height: number, segmentsX: number, segm
         () => resolve()
       );
     });
-    if (texture) {
+    if (texture && Renderer) {
       texture.anisotropy = Renderer.capabilities.getMaxAnisotropy();
     }
   }
@@ -738,6 +738,7 @@ async function updateGlobeTexure(addMesh?: boolean): Promise<void> {
 
   const img2 = new Image();
   img2.onload = () => {
+    if (!Renderer || !material) return;
     ctx.drawImage(img2, dx, dy, mapWidth, mapHeight);
     if (texture) texture.dispose();
     texture = new THREE.CanvasTexture(ctx.canvas, render);
@@ -757,6 +758,7 @@ function addGlobe3dMesh(): void {
 
 const renderThrottled = throttle(doWorkOnRender, 200);
 function render(): void {
+  if (!Renderer) return;
   Renderer.render(scene, camera);
   renderThrottled();
 }

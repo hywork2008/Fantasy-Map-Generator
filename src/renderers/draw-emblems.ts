@@ -170,12 +170,13 @@ const getDataAndType = (id: string): [Burg[] | Province[] | State[], string] => 
 
 const renderGroupCOAsRenderer = async (g: SVGGElement): Promise<void> => {
   const { COArenderer } = worldContext;
+  if (!COArenderer) return;
   const [data, type] = getDataAndType(g.id);
 
   for (const use of g.children) {
     const i = +(use as SVGUseElement).dataset.i!;
     const id = `${type}COA${i}`;
-    COArenderer!.trigger(id, (data[i] as any).coa);
+    COArenderer.trigger(id, (data[i] as any).coa);
     use.setAttribute("href", `#${id}`);
   }
 };

@@ -1,3 +1,4 @@
+import { pointer } from "d3";
 import { debounce, ensureEl, getComposedPath, link, rn, si } from "./index";
 
 // ─── Resize handler ───────────────────────────────────────────────────────────
@@ -80,18 +81,15 @@ function showElementLockTip(event: MouseEvent): void {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const onMouseMove = debounce(handleMouseMove as (...args: any[]) => void, 100);
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function handleMouseMove(this: Element): void {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const point = (d3 as any).mouse(this) as [number, number];
+function handleMouseMove(this: Element, event: MouseEvent): void {
+  const point = pointer(event, this) as [number, number];
   const i = findCell(point[0], point[1]);
   if (i === undefined) return;
 
-  showNotes((d3 as any).event as MouseEvent);
+  showNotes(event);
   const gridCell = findGridCell(point[0], point[1]);
   if (tooltip.dataset.main) showMainTip();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  else showMapTooltip(point, (d3 as any).event as MouseEvent, i, gridCell);
+  else showMapTooltip(point, event, i, gridCell);
   if ((ensureEl("cellInfo") as HTMLElement)?.offsetParent) updateCellInfo(point, i, gridCell);
 }
 

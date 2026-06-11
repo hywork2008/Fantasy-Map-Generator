@@ -112,7 +112,12 @@ function editRiver(id: string): void {
       .attr("cx", d => d[0])
       .attr("cy", d => d[1])
       .attr("r", 0.6)
-      .call(drag<SVGCircleElement, [number, number]>().on("start", dragControlPoint) as any)
+      .call(
+        drag<SVGCircleElement, [number, number]>()
+          .on("start", dragControlPointStart)
+          .on("drag", dragControlPointDrag)
+          .on("end", dragControlPointEnd) as any
+      )
       .on("click", removeControlPoint as any);
   }
 
@@ -126,39 +131,39 @@ function editRiver(id: string): void {
       .attr("points", (d: number) => getPackPolygon(d) as unknown as string);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  function dragControlPoint(this: SVGCircleElement, startEvent: any): void {
-    const { r, fl } = pack.cells;
-    const river = getRiver();
+  let _rInitCell = 0,
+    _rMovedToCell: number | null = null,
+    _rRiver: any = null,
+    _rFlCells: any = null;
 
-    const { x: x0, y: y0 } = startEvent;
-    const initCell = findCell(x0, y0);
+  function dragControlPointStart(this: SVGCircleElement, event: any): void {
+    _rRiver = getRiver();
+    _rFlCells = pack.cells.fl;
+    _rInitCell = findCell(event.x, event.y);
+    _rMovedToCell = null;
+  }
 
-    let movedToCell: number | null = null;
+  function dragControlPointDrag(this: SVGCircleElement, event: any): void {
+    const { x, y } = event;
+    const currentCell = findCell(x, y);
+    _rMovedToCell = _rInitCell !== currentCell ? currentCell : null;
+    this.setAttribute("cx", String(x));
+    this.setAttribute("cy", String(y));
+    (this as any).__data__ = [rn(x, 1), rn(y, 1)];
+    redrawRiver();
+    drawRiverCells(_rRiver.cells);
+  }
 
-    startEvent.on("drag", function (this: SVGCircleElement, event: any) {
-      const { x, y } = event;
-      const currentCell = findCell(x, y);
-
-      movedToCell = initCell !== currentCell ? currentCell : null;
-
-      this.setAttribute("cx", String(x));
-      this.setAttribute("cy", String(y));
-      (this as any).__data__ = [rn(x, 1), rn(y, 1)];
+  function dragControlPointEnd(): void {
+    const { r } = pack.cells;
+    if (_rMovedToCell !== null && !r[_rMovedToCell]) {
+      r[_rInitCell] = 0;
+      r[_rMovedToCell] = _rRiver.i;
+      const sourceFlux = _rFlCells[_rInitCell];
+      _rFlCells[_rInitCell] = _rFlCells[_rMovedToCell];
+      _rFlCells[_rMovedToCell] = sourceFlux;
       redrawRiver();
-      drawRiverCells(river.cells);
-    });
-
-    startEvent.on("end", () => {
-      if (movedToCell !== null && !r[movedToCell]) {
-        r[initCell] = 0;
-        r[movedToCell] = river.i;
-        const sourceFlux = fl[initCell];
-        fl[initCell] = fl[movedToCell];
-        fl[movedToCell] = sourceFlux;
-        redrawRiver();
-      }
-    });
+    }
   }
 
   function redrawRiver(): void {

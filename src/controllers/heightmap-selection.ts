@@ -1,18 +1,23 @@
+import { worldContext } from "../context/worldContext";
 import { ensureEl } from "../utils";
 
 const initialSeed = generateSeed();
-let graph = getGraph(grid);
-
-appendStyleSheet();
-insertHtml();
-addListeners();
+let graph: any = null;
+let initialized = false;
 
 export function open(): void {
+  if (!initialized) {
+    appendStyleSheet();
+    insertHtml();
+    addListeners();
+    initialized = true;
+  }
+
   closeDialogs(".stable");
 
   const $templateInput = ensureEl("templateInput") as HTMLInputElement;
   setSelected($templateInput.value);
-  graph = getGraph(graph);
+  graph = getGraph(graph ?? worldContext.grid);
 
   $("#heightmapSelection").dialog({
     title: "Select Heightmap",
@@ -122,7 +127,7 @@ function appendStyleSheet(): void {
 
     .heightmap-selection article > img {
       width: 100%;
-      aspect-ratio: ${graphWidth}/${graphHeight};
+      aspect-ratio: ${worldContext.graphWidth}/${worldContext.graphHeight};
       border-radius: 8px;
       object-fit: fill;
     }

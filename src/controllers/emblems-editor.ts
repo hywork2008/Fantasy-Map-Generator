@@ -1,12 +1,34 @@
+import { drag } from "d3";
 import { openURL, rn } from "../utils";
 
 function editEmblem(type?: string, id?: string, el?: any): void {
   if (customization) return;
-  if (!id && (d3 as any).event) defineEmblemData((d3 as any).event);
+  if (!id && el) defineEmblemData(el);
 
+  let _ex = 0,
+    _ey = 0;
   emblems
-    .selectAll("use")
-    .call((d3 as any).drag().on("drag", dragEmblem))
+    .selectAll<SVGUseElement, unknown>("use")
+    .call(
+      drag<SVGUseElement, unknown>()
+        .on("start", function (this: SVGUseElement, event: any) {
+          _ex = Number(this.getAttribute("x")) - event.x;
+          _ey = Number(this.getAttribute("y")) - event.y;
+        })
+        .on("drag", function (this: SVGUseElement, event: any) {
+          this.setAttribute("x", String(_ex + event.x));
+          this.setAttribute("y", String(_ey + event.y));
+        })
+        .on("end", function (this: SVGUseElement, event: any) {
+          const categorySize = Number(this.parentNode ? (this.parentNode as SVGGElement).getAttribute("font-size") : 1);
+          const size = el?.coa?.size || 1;
+          const shift = (categorySize * size) / 2;
+          if (el?.coa) {
+            el.coa.x = rn(_ex + event.x + shift, 2);
+            el.coa.y = rn(_ey + event.y + shift, 2);
+          }
+        })
+    )
     .classed("draggable", true);
 
   const emblemStates = document.getElementById("emblemStates") as HTMLSelectElement;
@@ -48,15 +70,15 @@ function editEmblem(type?: string, id?: string, el?: any): void {
   document.getElementById("emblemsGallery")!.onclick = downloadGallery;
   document.getElementById("emblemsFocus")!.onclick = showArea;
 
-  function defineEmblemData(e: any): void {
-    const parent = e.target.parentNode;
+  function defineEmblemData(clickedEl: Element): void {
+    const parent = clickedEl.parentNode as Element;
     const [g, t] =
       parent.id === "burgEmblems"
         ? [pack.burgs, "burg"]
         : parent.id === "provinceEmblems"
           ? [pack.provinces, "province"]
           : [pack.states, "state"];
-    const i = +e.target.dataset.i;
+    const i = +(clickedEl as SVGElement).dataset.i!;
     type = t;
     id = `${type}COA${i}`;
     el = g[i];
@@ -493,29 +515,10 @@ function editEmblem(type?: string, id?: string, el?: any): void {
     return Promise.allSettled(promises).then(() => clearMainTip());
   }
 
-  function dragEmblem(this: SVGUseElement, startEvent: any): void {
-    const x = Number(this.getAttribute("x")) - startEvent.x;
-    const y = Number(this.getAttribute("y")) - startEvent.y;
-
-    startEvent.on("drag", (event: any) => {
-      this.setAttribute("x", String(x + event.x));
-      this.setAttribute("y", String(y + event.y));
-    });
-
-    startEvent.on("end", (event: any) => {
-      const categotySize = Number(this.parentNode ? (this.parentNode as SVGGElement).getAttribute("font-size") : 1);
-      const size = el.coa.size || 1;
-      const shift = (categotySize * size) / 2;
-
-      el.coa.x = rn(x + event.x + shift, 2);
-      el.coa.y = rn(y + event.y + shift, 2);
-    });
-  }
-
   function closeEmblemEditor(): void {
     emblems
       .selectAll("use")
-      .call((d3 as any).drag().on("drag", null))
+      .call(drag().on("drag", null) as any)
       .attr("class", null);
   }
 }

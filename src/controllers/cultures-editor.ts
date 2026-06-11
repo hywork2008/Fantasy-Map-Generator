@@ -636,28 +636,36 @@ function drawCultureCenters(): void {
       $body.querySelector(`div[data-id='${d.i}']`)?.classList.remove("selected");
       cultureHighlightOff(event);
     })
-    .call((d3 as any).drag().on("start", cultureCenterDrag));
+    .call(
+      d3
+        .drag<SVGCircleElement, unknown>()
+        .on("start", cultureCenterDragStart)
+        .on("drag", cultureCenterDragDebounced) as any
+    );
 }
 
-function cultureCenterDrag(this: SVGCircleElement, startEvent: any): void {
-  const cultureId = +this.id.slice(13);
+let _ccdId = 0,
+  _ccdX0 = 0,
+  _ccdY0 = 0;
+
+function cultureCenterDragStart(this: SVGCircleElement, event: any): void {
+  _ccdId = +this.id.slice(13);
   const tr = parseTransform(this.getAttribute("transform") ?? "");
-  const x0 = +tr[0] - startEvent.x;
-  const y0 = +tr[1] - startEvent.y;
-
-  function handleDrag(this: SVGCircleElement, event: any): void {
-    const { x, y } = event;
-    this.setAttribute("transform", `translate(${x0 + x},${y0 + y})`);
-    const cell = findCell(x, y);
-    if (pack.cells.h[cell] < 20) return;
-
-    pack.cultures[cultureId].center = cell;
-    recalculateCultures();
-  }
-
-  const dragDebounced = debounce(handleDrag, 50);
-  startEvent.on("drag", dragDebounced);
+  _ccdX0 = +tr[0] - event.x;
+  _ccdY0 = +tr[1] - event.y;
 }
+
+function cultureCenterDragInner(this: SVGCircleElement, event: any): void {
+  const { x, y } = event;
+  this.setAttribute("transform", `translate(${_ccdX0 + x},${_ccdY0 + y})`);
+  const cell = findCell(x, y);
+  if (pack.cells.h[cell] < 20) return;
+
+  pack.cultures[_ccdId].center = cell;
+  recalculateCultures();
+}
+
+const cultureCenterDragDebounced = debounce(cultureCenterDragInner, 50);
 
 function toggleLegend(): void {
   if (legend.selectAll("*").size()) {
@@ -759,7 +767,7 @@ function enterCultureManualAssignent(): void {
   viewbox
     .style("cursor", "crosshair")
     .on("click", selectCultureOnMapClick)
-    .call((d3 as any).drag().on("start", dragCultureBrush))
+    .call(d3.drag<SVGElement, unknown>().on("start", dragCultureBrushStart).on("drag", dragCultureBrush))
     .on("touchmove mousemove", moveCultureBrush);
 
   $body.querySelector<HTMLElement>("div")!.classList.add("selected");
@@ -785,19 +793,19 @@ function selectCultureOnMapClick(this: SVGElement, event: MouseEvent): void {
   $body.querySelector<HTMLElement>(`div[data-id='${culture}']`)!.classList.add("selected");
 }
 
-function dragCultureBrush(this: SVGElement, startEvent: any): void {
-  const radius = +(ensureEl("culturesBrush") as HTMLInputElement).value;
+function dragCultureBrushStart(): void {
   saveCulturesManualSnapshot();
+}
 
-  startEvent.on("drag", (event: any) => {
-    if (!event.dx && !event.dy) return;
-    const p = d3.pointer(event, this);
-    moveCircle(p[0], p[1], radius);
+function dragCultureBrush(this: SVGElement, event: any): void {
+  if (!event.dx && !event.dy) return;
+  const radius = +(ensureEl("culturesBrush") as HTMLInputElement).value;
+  const p = d3.pointer(event, this);
+  moveCircle(p[0], p[1], radius);
 
-    const found = radius > 5 ? findAll(p[0], p[1], radius) : [findCell(p[0], p[1], radius)];
-    const selection = found.filter(isLand);
-    if (selection) changeCultureForSelection(selection);
-  });
+  const found = radius > 5 ? findAll(p[0], p[1], radius) : [findCell(p[0], p[1], radius)];
+  const selection = found.filter(isLand);
+  if (selection) changeCultureForSelection(selection);
 }
 
 function changeCultureForSelection(selection: number[]): void {

@@ -1,18 +1,28 @@
-import { pointer, range } from "d3";
+import { drag, pointer, quadtree, range, select } from "d3";
 import { rn } from "../utils";
 
-function editReliefIcon(): void {
+function editReliefIcon(clickedEl?: Element): void {
   if (customization) return;
   closeDialogs(".stable");
   if (!layerIsOn("toggleRelief")) toggleRelief();
 
+  let _rdx = 0,
+    _rdy = 0;
   terrain
-    .selectAll("use")
-    .call((d3 as any).drag().on("drag", dragReliefIcon))
+    .selectAll<SVGUseElement, unknown>("use")
+    .call(
+      drag<SVGUseElement, unknown>()
+        .on("start", function (this: SVGUseElement, event: any) {
+          _rdx = +this.getAttribute("x")! - event.x;
+          _rdy = +this.getAttribute("y")! - event.y;
+        })
+        .on("drag", function (this: SVGUseElement, event: any) {
+          this.setAttribute("x", String(_rdx + event.x));
+          this.setAttribute("y", String(_rdy + event.y));
+        })
+    )
     .classed("draggable", true);
-  elSelected = (d3 as any).select(
-    (d3 as any).event ? (d3 as any).event.target : document.querySelector("#terrain use")
-  );
+  elSelected = select(clickedEl ?? (document.querySelector("#terrain use") as Element));
 
   restoreEditMode();
   updateReliefIconSelected();
@@ -46,16 +56,6 @@ function editReliefIcon(): void {
   document.getElementById("reliefMoveFront")!.addEventListener("click", () => elSelected!.raise());
   document.getElementById("reliefMoveBack")!.addEventListener("click", () => elSelected!.lower());
   document.getElementById("reliefRemove")!.addEventListener("click", removeIcon);
-
-  function dragReliefIcon(this: SVGUseElement, startEvent: any): void {
-    const dx = +this.getAttribute("x")! - startEvent.x;
-    const dy = +this.getAttribute("y")! - startEvent.y;
-
-    startEvent.on("drag", (event: any) => {
-      this.setAttribute("x", String(dx + event.x));
-      this.setAttribute("y", String(dy + event.y));
-    });
-  }
 
   function restoreEditMode(): void {
     if (!reliefTools.querySelector("button.pressed")) enterIndividualMode();
@@ -119,76 +119,73 @@ function editReliefIcon(): void {
 
     viewbox
       .style("cursor", "crosshair")
-      .call((d3 as any).drag().on("start", dragToAdd))
+      .call(
+        drag<SVGElement, unknown>()
+          .on("start", function (this: SVGElement, _startEvent: any) {
+            const pressed = reliefIconsDiv.querySelector("svg.pressed") as SVGElement | null;
+            if (!pressed) {
+              tip("Please select an icon", false, "error" as any);
+              return;
+            }
+            const type = pressed.dataset.type!;
+            const r = +reliefRadiusNumber.value;
+            const spacing = +reliefSpacingNumber.value;
+            const size = +reliefSizeNumber.value;
+            const tree = quadtree<number[]>();
+            const positions: number[] = [];
+            terrain.selectAll("use").each(function (this: any) {
+              const x = +this.getAttribute("x")! + +this.getAttribute("width")! / 2;
+              const y = +this.getAttribute("y")! + +this.getAttribute("height")! / 2;
+              tree.add([x, y, x]);
+              const box = this.getBBox();
+              positions.push(box.y + box.height);
+            });
+
+            d3DragAddState = { type, r, spacing, size, tree, positions, el: this };
+          })
+          .on("drag", function (this: SVGElement, event: any) {
+            if (!d3DragAddState) return;
+            const { type, r, spacing, size, tree, positions } = d3DragAddState;
+            const p = pointer(event, this) as [number, number];
+            moveCircle(p[0], p[1], r);
+            range(Math.ceil(r / 10)).forEach(() => {
+              const a = Math.PI * 2 * Math.random();
+              const rad = r * Math.random();
+              const cx = p[0] + rad * Math.cos(a);
+              const cy = p[1] + rad * Math.sin(a);
+              if ((tree as any).find(cx, cy, spacing)) return;
+              if (pack.cells.h[findCell(cx, cy)] < 20) return;
+              const h = rn((size / 2) * (Math.random() * 0.4 + 0.8), 2);
+              const x = rn(cx - h, 2);
+              const y = rn(cy - h, 2);
+              const z = y + h * 2;
+              const s = rn(h * 2, 2);
+              let nth = 1;
+              while (positions[nth] && z > positions[nth]) nth++;
+              (tree as any).add([cx, cy]);
+              positions.push(z);
+              terrain
+                .insert("use", `:nth-child(${nth})`)
+                .attr("href", type)
+                .attr("x", x)
+                .attr("y", y)
+                .attr("width", s)
+                .attr("height", s);
+            });
+          })
+      )
       .on("touchmove mousemove", moveBrush);
     tip("Drag to place relief icons within radius", true);
   }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let d3DragAddState: any = null;
 
   function moveBrush(this: SVGElement, event: any): void {
     showMainTip();
     const pt = pointer(event, this) as [number, number];
     const radius = +reliefRadiusNumber.value;
     moveCircle(pt[0], pt[1], radius);
-  }
-
-  function dragToAdd(this: SVGElement, startEvent: any): void {
-    const pressed = reliefIconsDiv.querySelector("svg.pressed") as SVGElement | null;
-    if (!pressed) {
-      tip("Please select an icon", false, "error" as any);
-      return;
-    }
-
-    const type = pressed.dataset.type!;
-    const r = +reliefRadiusNumber.value;
-    const spacing = +reliefSpacingNumber.value;
-    const size = +reliefSizeNumber.value;
-
-    // build a quadtree
-    const tree = (d3 as any).quadtree();
-    const positions: number[] = [];
-    terrain.selectAll("use").each(function (this: any) {
-      const x = +this.getAttribute("x")! + +this.getAttribute("width")! / 2;
-      const y = +this.getAttribute("y")! + +this.getAttribute("height")! / 2;
-      tree.add([x, y, x]);
-      const box = this.getBBox();
-      positions.push(box.y + box.height);
-    });
-
-    startEvent.on("drag", (event: any) => {
-      const p = pointer(event, this) as [number, number];
-      moveCircle(p[0], p[1], r);
-
-      range(Math.ceil(r / 10)).forEach(() => {
-        const a = Math.PI * 2 * Math.random();
-        const rad = r * Math.random();
-        const cx = p[0] + rad * Math.cos(a);
-        const cy = p[1] + rad * Math.sin(a);
-
-        if (tree.find(cx, cy, spacing)) return;
-        if (pack.cells.h[findCell(cx, cy)] < 20) return;
-
-        const h = rn((size / 2) * (Math.random() * 0.4 + 0.8), 2);
-        const x = rn(cx - h, 2);
-        const y = rn(cy - h, 2);
-        const z = y + h * 2;
-        const s = rn(h * 2, 2);
-
-        let nth = 1;
-        while (positions[nth] && z > positions[nth]) {
-          nth++;
-        }
-
-        tree.add([cx, cy]);
-        positions.push(z);
-        terrain
-          .insert("use", `:nth-child(${nth})`)
-          .attr("href", type)
-          .attr("x", x)
-          .attr("y", y)
-          .attr("width", s)
-          .attr("height", s);
-      });
-    });
   }
 
   function enterBulkRemoveMode(): void {
@@ -204,36 +201,41 @@ function editReliefIcon(): void {
 
     viewbox
       .style("cursor", "crosshair")
-      .call((d3 as any).drag().on("start", dragToRemove))
+      .call(
+        drag<SVGElement, unknown>()
+          .on("start", function (this: SVGElement) {
+            const pressed = reliefIconsDiv.querySelector("svg.pressed") as SVGElement | null;
+            if (!pressed) {
+              tip("Please select an icon", false, "error" as any);
+              return;
+            }
+            const r = +reliefRadiusNumber.value;
+            const type = pressed.dataset.type;
+            const icons = type ? terrain.selectAll(`use[href='${type}']`) : terrain.selectAll("use");
+            const tree = quadtree<any[]>();
+            icons.each(function (this: any) {
+              const x = +this.getAttribute("x")! + +this.getAttribute("width")! / 2;
+              const y = +this.getAttribute("y")! + +this.getAttribute("height")! / 2;
+              tree.add([x, y, this]);
+            });
+            d3DragRemoveState = { r, tree };
+          })
+          .on("drag", function (this: SVGElement, event: any) {
+            if (!d3DragRemoveState) return;
+            const { r, tree } = d3DragRemoveState;
+            const p = pointer(event, this) as [number, number];
+            moveCircle(p[0], p[1], r);
+            findAllInQuadtree(p[0], p[1], r, tree).forEach((f: any) => {
+              f[2].remove();
+            });
+          })
+      )
       .on("touchmove mousemove", moveBrush);
     tip("Drag to remove relief icons in radius", true);
   }
 
-  function dragToRemove(this: SVGElement, startEvent: any): void {
-    const pressed = reliefIconsDiv.querySelector("svg.pressed") as SVGElement | null;
-    if (!pressed) {
-      tip("Please select an icon", false, "error" as any);
-      return;
-    }
-
-    const r = +reliefRadiusNumber.value;
-    const type = pressed.dataset.type;
-    const icons = type ? terrain.selectAll(`use[href='${type}']`) : terrain.selectAll("use");
-    const tree = (d3 as any).quadtree();
-    icons.each(function (this: any) {
-      const x = +this.getAttribute("x")! + +this.getAttribute("width")! / 2;
-      const y = +this.getAttribute("y")! + +this.getAttribute("height")! / 2;
-      tree.add([x, y, this]);
-    });
-
-    startEvent.on("drag", (event: any) => {
-      const p = pointer(event, this) as [number, number];
-      moveCircle(p[0], p[1], r);
-      findAllInQuadtree(p[0], p[1], r, tree).forEach((f: any) => {
-        f[2].remove();
-      });
-    });
-  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let d3DragRemoveState: any = null;
 
   function changeIconSize(this: HTMLInputElement): void {
     reliefSizeNumber.value = this.value;
@@ -320,7 +322,7 @@ function editReliefIcon(): void {
   function closeReliefEditor(): void {
     terrain
       .selectAll("use")
-      .call((d3 as any).drag().on("drag", null))
+      .call(drag().on("drag", null) as any)
       .classed("draggable", false);
     removeCircle();
     unselect();
