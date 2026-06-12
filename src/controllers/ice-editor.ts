@@ -22,6 +22,13 @@ function editIce(element: SVGElement): void {
   iceSizeEl.style.display = isGlacier ? "none" : "inline-block";
   if (!isGlacier) iceSizeEl.value = String((iceElement as IceIceberg)?.size ?? "");
 
+  // Declare before the early-return guard so drag handlers never see TDZ variables.
+  // (function declarations are hoisted but `let` is not, so placing these after the
+  // `if (modules.editIce) return` would leave them uninitialised on every call after the first.)
+  let _idx = 0,
+    _idy = 0,
+    _iceId = 0;
+
   ice
     .selectAll<SVGElement, unknown>("*")
     .classed("draggable", true)
@@ -95,10 +102,6 @@ function editIce(element: SVGElement): void {
       }
     });
   }
-
-  let _idx = 0,
-    _idy = 0,
-    _iceId = 0;
 
   function dragElementStart(this: SVGElement, event: D3DragEvent<SVGElement, unknown, unknown>): void {
     _iceId = +elSelected!.attr("data-id");
