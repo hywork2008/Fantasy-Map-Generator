@@ -1,7 +1,7 @@
 import type { Quadtree, Selection } from "d3";
 import type { ViewState } from "../context/viewState";
 import type { WorldContext } from "../context/worldContext";
-import type { ThreeDAPI } from "../controllers/3d";
+
 import type { Battle as BattleClass } from "../controllers/battle-screen";
 import type {
   Opisometer as OpismeterClass,
@@ -196,7 +196,6 @@ declare global {
     toString: () => string;
     undraw: () => void;
   };
-  var ThreeD: ThreeDAPI;
   var editStyle: (layerId: string, group?: string) => void;
   var calculateFriendlyGridSize: () => void;
   var selectStyleElement: () => void;
@@ -258,7 +257,6 @@ declare global {
   var restoreDefaultEvents: (() => void) | undefined;
   var editWorld: () => void;
   var showExportPane: () => void;
-  var UITour: { start: () => void };
   var getHeight: (h: number, abs?: string) => string;
   var getLatitude: (y: number, precision?: number) => number;
   var getLongitude: (x: number, precision?: number) => number;
@@ -545,8 +543,6 @@ declare global {
   var editIce: ((el: SVGElement) => void) | undefined;
   var editReliefIcon: ((el?: Element) => void) | undefined;
   var editRegiment: ((selectorOrEl?: string | Element) => void) | undefined;
-  var editCoastline: ((event?: MouseEvent) => void) | undefined;
-
   // from tools.ts
   var recalculatePopulation: () => void;
   var regenerateRoutes: () => void;
@@ -573,8 +569,6 @@ declare global {
   var unpressClickToAddButton: () => void;
   var openSubmapTool: (() => void) | undefined;
   var openTransformTool: (() => void) | undefined;
-  var NamesbaseEditor: { open: () => void };
-
   // from route-group-editor.js
   var editRouteGroups: () => void;
 
@@ -586,9 +580,6 @@ declare global {
   var editRiver: (id: string) => void;
   var editMarker: (markerI?: number) => void;
   var editLake: (event?: MouseEvent) => void;
-
-  // from elevation-profile.ts
-  var ElevationProfile: { open: (cells: number[], routeLen: number, isRiver: boolean) => void };
 
   // from ai-generator.js
   var generateWithAi: (prompt: string, onApply: (result: string) => void) => void;

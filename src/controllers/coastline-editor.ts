@@ -143,327 +143,333 @@ const COAST_PRESETS: Record<string, Omit<CoastlineSettings, "enabled">> = {
 
 const PREVIEW_SEED = "preview_coastline";
 
-export function editCoastline(event?: MouseEvent): void {
-  if (customization) return;
-  closeDialogs(".stable");
-  if (layerIsOn("toggleCells")) toggleCells();
+declare global {
+  var CoastlineEditor: CoastlineEditorModule;
+  var editCoastline: (event?: MouseEvent) => void;
+}
 
-  $("#coastlineEditor").dialog({
-    title: "Edit Coastline",
-    resizable: false,
-    position: { my: "center top+20", at: "top", of: event, collision: "fit" },
-    close: closeCoastlineEditor
-  });
+class CoastlineEditorModule {
+  editCoastline(event?: MouseEvent): void {
+    if (customization) return;
+    closeDialogs(".stable");
+    if (layerIsOn("toggleCells")) toggleCells();
 
-  const node = (event?.target ?? document.querySelector(".coastline path")) as SVGElement;
-  debug.append("g").attr("id", "vertices");
-  elSelected = select(node);
-  selectCoastlineGroup(node);
-  drawCoastlineVertices();
-  viewbox.on("touchmove mousemove", null);
+    $("#coastlineEditor").dialog({
+      title: "Edit Coastline",
+      resizable: false,
+      position: { my: "center top+20", at: "top", of: event, collision: "fit" },
+      close: closeCoastlineEditor
+    });
 
-  if (modules.editCoastline) return;
-  modules.editCoastline = true;
+    const node = (event?.target ?? document.querySelector(".coastline path")) as SVGElement;
+    debug.append("g").attr("id", "vertices");
+    elSelected = select(node);
+    selectCoastlineGroup(node);
+    drawCoastlineVertices();
+    viewbox.on("touchmove mousemove", null);
 
-  ensureEl("coastlineGroupsShow").on("click", showGroupSection);
-  ensureEl("coastlineGroup").on("change", changeCoastlineGroup);
-  ensureEl("coastlineGroupAdd").on("click", toggleNewGroupInput);
-  ensureEl("coastlineGroupName").on("change", createNewGroup);
-  ensureEl("coastlineGroupRemove").on("click", removeCoastlineGroup);
-  ensureEl("coastlineGroupsHide").on("click", hideGroupSection);
-  ensureEl("coastlineEditStyle").on("click", editGroupStyle);
+    if (modules.editCoastline) return;
+    modules.editCoastline = true;
 
-  function drawCoastlineVertices(): void {
-    const featureId = +elSelected!.attr("data-f");
-    const { vertices, area } = pack.features[featureId];
+    ensureEl("coastlineGroupsShow").on("click", showGroupSection);
+    ensureEl("coastlineGroup").on("change", changeCoastlineGroup);
+    ensureEl("coastlineGroupAdd").on("click", toggleNewGroupInput);
+    ensureEl("coastlineGroupName").on("change", createNewGroup);
+    ensureEl("coastlineGroupRemove").on("click", removeCoastlineGroup);
+    ensureEl("coastlineGroupsHide").on("click", hideGroupSection);
+    ensureEl("coastlineEditStyle").on("click", editGroupStyle);
 
-    const cellsNumber = pack.cells.i.length;
-    const neibCells = unique((vertices as number[]).flatMap((v: number) => pack.vertices.c[v]) as number[]).filter(
-      (cellId: number) => cellId < cellsNumber
-    );
+    function drawCoastlineVertices(): void {
+      const featureId = +elSelected!.attr("data-f");
+      const { vertices, area } = pack.features[featureId];
 
-    debug
-      .select("#vertices")
-      .selectAll("polygon")
-      .data(neibCells)
-      .enter()
-      .append("polygon")
-      .attr("points", (d: number) => getPackPolygon(d) as unknown as string)
-      .attr("data-c", (d: number) => d);
-
-    debug
-      .select("#vertices")
-      .selectAll("circle")
-      .data(vertices as number[])
-      .enter()
-      .append("circle")
-      .attr("cx", (d: number) => pack.vertices.p[d][0])
-      .attr("cy", (d: number) => pack.vertices.p[d][1])
-      .attr("r", 0.4)
-      .attr("data-v", (d: number) => d)
-      .call(drag<SVGCircleElement, number>().on("drag", handleVertexDrag).on("end", handleVertexDragEnd))
-      .on("mousemove", () =>
-        tip("Drag to move the vertex. Please use for fine-tuning only. Edit heightmap to change actual cell heights!")
+      const cellsNumber = pack.cells.i.length;
+      const neibCells = unique((vertices as number[]).flatMap((v: number) => pack.vertices.c[v]) as number[]).filter(
+        (cellId: number) => cellId < cellsNumber
       );
 
-    ensureEl("coastlineArea").textContent = `${si(getArea(area))} ${getAreaUnit()}`;
-  }
+      debug
+        .select("#vertices")
+        .selectAll("polygon")
+        .data(neibCells)
+        .enter()
+        .append("polygon")
+        .attr("points", (d: number) => getPackPolygon(d) as unknown as string)
+        .attr("data-c", (d: number) => d);
 
-  function handleVertexDrag(
-    this: SVGCircleElement,
-    dragEvent: import("d3").D3DragEvent<SVGCircleElement, unknown, unknown>
-  ): void {
-    const { vertices, features } = pack;
-    const x = rn(dragEvent.x, 2);
-    const y = rn(dragEvent.y, 2);
-    this.setAttribute("cx", String(x));
-    this.setAttribute("cy", String(y));
+      debug
+        .select("#vertices")
+        .selectAll("circle")
+        .data(vertices as number[])
+        .enter()
+        .append("circle")
+        .attr("cx", (d: number) => pack.vertices.p[d][0])
+        .attr("cy", (d: number) => pack.vertices.p[d][1])
+        .attr("r", 0.4)
+        .attr("data-v", (d: number) => d)
+        .call(drag<SVGCircleElement, number>().on("drag", handleVertexDrag).on("end", handleVertexDragEnd))
+        .on("mousemove", () =>
+          tip("Drag to move the vertex. Please use for fine-tuning only. Edit heightmap to change actual cell heights!")
+        );
 
-    const vertexId = select(this).datum() as number;
-    vertices.p[vertexId] = [x, y];
-
-    const featureId = +elSelected!.attr("data-f");
-    const feature = features[featureId];
-    defs.select(`#featurePaths > path#feature_${featureId}`).attr("d", getFeaturePath(feature));
-
-    const points = (feature.vertices as number[]).map((v: number) => vertices.p[v]);
-    feature.area = Math.abs(polygonArea(points as [number, number][]));
-    ensureEl("coastlineArea").textContent = `${si(getArea(feature.area!))} ${getAreaUnit()}`;
-
-    debug
-      .select("#vertices")
-      .selectAll("polygon")
-      .attr("points", (d: unknown) => getPackPolygon(d as number) as unknown as string);
-  }
-
-  function handleVertexDragEnd(): void {
-    if (layerIsOn("toggleStates")) drawStates();
-    if (layerIsOn("toggleProvinces")) drawProvinces();
-    if (layerIsOn("toggleBorders")) drawBorders();
-    if (layerIsOn("toggleBiomes")) drawBiomes();
-    if (layerIsOn("toggleReligions")) drawReligions();
-    if (layerIsOn("toggleCultures")) drawCultures();
-  }
-
-  function showGroupSection(): void {
-    document.querySelectorAll("#coastlineEditor > button").forEach(el => {
-      (el as HTMLElement).style.display = "none";
-    });
-    ensureEl("coastlineGroupsSelection").style.display = "inline-block";
-  }
-
-  function hideGroupSection(): void {
-    document.querySelectorAll("#coastlineEditor > button").forEach(el => {
-      (el as HTMLElement).style.display = "inline-block";
-    });
-    (ensureEl("coastlineGroupsSelection") as HTMLElement).style.display = "none";
-    (ensureEl("coastlineGroupName") as HTMLElement).style.display = "none";
-    (ensureEl("coastlineGroupName") as HTMLInputElement).value = "";
-    (ensureEl("coastlineGroup") as HTMLElement).style.display = "inline-block";
-  }
-
-  function selectCoastlineGroup(el: Element): void {
-    const group = (el.parentNode as SVGGElement).id;
-    const sel = ensureEl<HTMLSelectElement>("coastlineGroup");
-    sel.options.length = 0;
-    coastline.selectAll("g").each(function () {
-      const g = this as SVGGElement;
-      sel.options.add(new Option(g.id, g.id, false, g.id === group));
-    });
-  }
-
-  function changeCoastlineGroup(this: HTMLSelectElement): void {
-    ensureEl(this.value).appendChild(elSelected!.node()!);
-  }
-
-  function toggleNewGroupInput(): void {
-    const nameInput = ensureEl("coastlineGroupName") as HTMLElement;
-    const groupSel = ensureEl("coastlineGroup") as HTMLElement;
-    if (nameInput.style.display === "none") {
-      nameInput.style.display = "inline-block";
-      (nameInput as HTMLInputElement).focus?.();
-      groupSel.style.display = "none";
-    } else {
-      nameInput.style.display = "none";
-      groupSel.style.display = "inline-block";
-    }
-  }
-
-  function createNewGroup(this: HTMLInputElement): void {
-    if (!this.value) {
-      tip("Please provide a valid group name");
-      return;
+      ensureEl("coastlineArea").textContent = `${si(getArea(area))} ${getAreaUnit()}`;
     }
 
-    const group = this.value
-      .toLowerCase()
-      .replace(/ /g, "_")
-      .replace(/[^\w\s]/gi, "");
+    function handleVertexDrag(
+      this: SVGCircleElement,
+      dragEvent: import("d3").D3DragEvent<SVGCircleElement, unknown, unknown>
+    ): void {
+      const { vertices, features } = pack;
+      const x = rn(dragEvent.x, 2);
+      const y = rn(dragEvent.y, 2);
+      this.setAttribute("cx", String(x));
+      this.setAttribute("cy", String(y));
 
-    if (ensureEl(group)) {
-      tip("Element with this id already exists. Please provide a unique name", false, "error");
-      return;
-    }
-    if (Number.isFinite(+group.charAt(0))) {
-      tip("Group name should start with a letter", false, "error");
-      return;
+      const vertexId = select(this).datum() as number;
+      vertices.p[vertexId] = [x, y];
+
+      const featureId = +elSelected!.attr("data-f");
+      const feature = features[featureId];
+      defs.select(`#featurePaths > path#feature_${featureId}`).attr("d", getFeaturePath(feature));
+
+      const points = (feature.vertices as number[]).map((v: number) => vertices.p[v]);
+      feature.area = Math.abs(polygonArea(points as [number, number][]));
+      ensureEl("coastlineArea").textContent = `${si(getArea(feature.area!))} ${getAreaUnit()}`;
+
+      debug
+        .select("#vertices")
+        .selectAll("polygon")
+        .attr("points", (d: unknown) => getPackPolygon(d as number) as unknown as string);
     }
 
-    const oldGroup = elSelected!.node()!.parentNode as SVGGElement;
-    const basic = ["sea_island", "lake_island"].includes(oldGroup.id);
-    if (!basic && oldGroup.childElementCount === 1) {
-      ensureEl<HTMLSelectElement>("coastlineGroup").selectedOptions[0].remove();
+    function handleVertexDragEnd(): void {
+      if (layerIsOn("toggleStates")) drawStates();
+      if (layerIsOn("toggleProvinces")) drawProvinces();
+      if (layerIsOn("toggleBorders")) drawBorders();
+      if (layerIsOn("toggleBiomes")) drawBiomes();
+      if (layerIsOn("toggleReligions")) drawReligions();
+      if (layerIsOn("toggleCultures")) drawCultures();
+    }
+
+    function showGroupSection(): void {
+      document.querySelectorAll("#coastlineEditor > button").forEach(el => {
+        (el as HTMLElement).style.display = "none";
+      });
+      ensureEl("coastlineGroupsSelection").style.display = "inline-block";
+    }
+
+    function hideGroupSection(): void {
+      document.querySelectorAll("#coastlineEditor > button").forEach(el => {
+        (el as HTMLElement).style.display = "inline-block";
+      });
+      (ensureEl("coastlineGroupsSelection") as HTMLElement).style.display = "none";
+      (ensureEl("coastlineGroupName") as HTMLElement).style.display = "none";
+      (ensureEl("coastlineGroupName") as HTMLInputElement).value = "";
+      (ensureEl("coastlineGroup") as HTMLElement).style.display = "inline-block";
+    }
+
+    function selectCoastlineGroup(el: Element): void {
+      const group = (el.parentNode as SVGGElement).id;
+      const sel = ensureEl<HTMLSelectElement>("coastlineGroup");
+      sel.options.length = 0;
+      coastline.selectAll("g").each(function () {
+        const g = this as SVGGElement;
+        sel.options.add(new Option(g.id, g.id, false, g.id === group));
+      });
+    }
+
+    function changeCoastlineGroup(this: HTMLSelectElement): void {
+      ensureEl(this.value).appendChild(elSelected!.node()!);
+    }
+
+    function toggleNewGroupInput(): void {
+      const nameInput = ensureEl("coastlineGroupName") as HTMLElement;
+      const groupSel = ensureEl("coastlineGroup") as HTMLElement;
+      if (nameInput.style.display === "none") {
+        nameInput.style.display = "inline-block";
+        (nameInput as HTMLInputElement).focus?.();
+        groupSel.style.display = "none";
+      } else {
+        nameInput.style.display = "none";
+        groupSel.style.display = "inline-block";
+      }
+    }
+
+    function createNewGroup(this: HTMLInputElement): void {
+      if (!this.value) {
+        tip("Please provide a valid group name");
+        return;
+      }
+
+      const group = this.value
+        .toLowerCase()
+        .replace(/ /g, "_")
+        .replace(/[^\w\s]/gi, "");
+
+      if (ensureEl(group)) {
+        tip("Element with this id already exists. Please provide a unique name", false, "error");
+        return;
+      }
+      if (Number.isFinite(+group.charAt(0))) {
+        tip("Group name should start with a letter", false, "error");
+        return;
+      }
+
+      const oldGroup = elSelected!.node()!.parentNode as SVGGElement;
+      const basic = ["sea_island", "lake_island"].includes(oldGroup.id);
+      if (!basic && oldGroup.childElementCount === 1) {
+        ensureEl<HTMLSelectElement>("coastlineGroup").selectedOptions[0].remove();
+        ensureEl<HTMLSelectElement>("coastlineGroup").options.add(new Option(group, group, false, true));
+        oldGroup.id = group;
+        toggleNewGroupInput();
+        (ensureEl("coastlineGroupName") as HTMLInputElement).value = "";
+        return;
+      }
+
+      const newGroup = (elSelected!.node()!.parentNode as Element).cloneNode(false) as SVGGElement;
+      ensureEl("coastline").appendChild(newGroup);
+      newGroup.id = group;
       ensureEl<HTMLSelectElement>("coastlineGroup").options.add(new Option(group, group, false, true));
-      oldGroup.id = group;
+      ensureEl(group).appendChild(elSelected!.node()!);
       toggleNewGroupInput();
       (ensureEl("coastlineGroupName") as HTMLInputElement).value = "";
-      return;
     }
 
-    const newGroup = (elSelected!.node()!.parentNode as Element).cloneNode(false) as SVGGElement;
-    ensureEl("coastline").appendChild(newGroup);
-    newGroup.id = group;
-    ensureEl<HTMLSelectElement>("coastlineGroup").options.add(new Option(group, group, false, true));
-    ensureEl(group).appendChild(elSelected!.node()!);
-    toggleNewGroupInput();
-    (ensureEl("coastlineGroupName") as HTMLInputElement).value = "";
-  }
+    function removeCoastlineGroup(): void {
+      const group = (elSelected!.node()!.parentNode as SVGGElement).id;
+      if (["sea_island", "lake_island"].includes(group)) {
+        tip("This is one of the default groups, it cannot be removed", false, "error");
+        return;
+      }
 
-  function removeCoastlineGroup(): void {
-    const group = (elSelected!.node()!.parentNode as SVGGElement).id;
-    if (["sea_island", "lake_island"].includes(group)) {
-      tip("This is one of the default groups, it cannot be removed", false, "error");
-      return;
-    }
-
-    const count = (elSelected!.node()!.parentNode as Element).childElementCount;
-    alertMessage.innerHTML = `Are you sure you want to remove the group? All coastline elements of the group (${count}) will be moved under <i>sea_island</i> group`;
-    $("#alert").dialog({
-      resizable: false,
-      title: "Remove coastline group",
-      width: "26em",
-      buttons: {
-        Remove: function (this: HTMLElement) {
-          $(this).dialog("close");
-          const sea = ensureEl("sea_island");
-          const groupEl = ensureEl(group);
-          while (groupEl.childNodes.length) {
-            sea.appendChild(groupEl.childNodes[0]);
+      const count = (elSelected!.node()!.parentNode as Element).childElementCount;
+      alertMessage.innerHTML = `Are you sure you want to remove the group? All coastline elements of the group (${count}) will be moved under <i>sea_island</i> group`;
+      $("#alert").dialog({
+        resizable: false,
+        title: "Remove coastline group",
+        width: "26em",
+        buttons: {
+          Remove: function (this: HTMLElement) {
+            $(this).dialog("close");
+            const sea = ensureEl("sea_island");
+            const groupEl = ensureEl(group);
+            while (groupEl.childNodes.length) {
+              sea.appendChild(groupEl.childNodes[0]);
+            }
+            groupEl.remove();
+            ensureEl<HTMLSelectElement>("coastlineGroup").selectedOptions[0].remove();
+            ensureEl<HTMLSelectElement>("coastlineGroup").value = "sea_island";
+          },
+          Cancel: function (this: HTMLElement) {
+            $(this).dialog("close");
           }
-          groupEl.remove();
-          ensureEl<HTMLSelectElement>("coastlineGroup").selectedOptions[0].remove();
-          ensureEl<HTMLSelectElement>("coastlineGroup").value = "sea_island";
-        },
-        Cancel: function (this: HTMLElement) {
-          $(this).dialog("close");
         }
-      }
-    });
+      });
+    }
+
+    function editGroupStyle(): void {
+      const g = (elSelected!.node()!.parentNode as SVGGElement).id;
+      editStyle("coastline", g);
+    }
+
+    function closeCoastlineEditor(): void {
+      debug.select("#vertices").remove();
+      unselect();
+    }
   }
 
-  function editGroupStyle(): void {
-    const g = (elSelected!.node()!.parentNode as SVGGElement).id;
-    editStyle("coastline", g);
-  }
+  open(): void {
+    if (!document.getElementById("coastlineSettingsDialog")) {
+      document.body.insertAdjacentHTML("beforeend", this.buildDialogHTML());
+    }
 
-  function closeCoastlineEditor(): void {
-    debug.select("#vertices").remove();
-    unselect();
-  }
-}
+    for (const { id, key } of SLIDER_DEFS) {
+      const slider = ensureEl<HTMLInputElement>(id);
+      const output = ensureEl(`${id}Out`);
+      const resetBtn = ensureEl(`${id}Reset`);
 
-export function open(): void {
-  if (!document.getElementById("coastlineSettingsDialog")) {
-    document.body.insertAdjacentHTML("beforeend", buildDialogHTML());
-  }
+      const defaultVal = defaultCoastSettings[key] as number;
 
-  for (const { id, key } of SLIDER_DEFS) {
-    const slider = ensureEl<HTMLInputElement>(id);
-    const output = ensureEl(`${id}Out`);
-    const resetBtn = ensureEl(`${id}Reset`);
+      slider.on("input", () => {
+        const value = slider.valueAsNumber;
+        defaultCoastSettings[key] = value;
+        output.textContent = String(value);
+        this.updatePreviews();
+        drawFeatures();
+      });
 
-    const defaultVal = defaultCoastSettings[key] as number;
+      resetBtn.on("click", () => {
+        (defaultCoastSettings[key] as number) = defaultVal;
+        slider.value = String(defaultVal);
+        output.textContent = String(defaultVal);
+        this.updatePreviews();
+        drawFeatures();
+      });
+    }
 
-    slider.on("input", () => {
-      const value = slider.valueAsNumber;
-      defaultCoastSettings[key] = value;
-      output.textContent = String(value);
-      updatePreviews();
-      drawFeatures();
-    });
+    const enabledCb = ensureEl<HTMLInputElement>("coastEnabled");
+    const slidersDiv = ensureEl("coastSliders");
+    const track = ensureEl("coastEnabledTrack");
+    const thumb = ensureEl("coastEnabledThumb");
 
-    resetBtn.on("click", () => {
-      (defaultCoastSettings[key] as number) = defaultVal;
-      slider.value = String(defaultVal);
-      output.textContent = String(defaultVal);
-      updatePreviews();
-      drawFeatures();
-    });
-  }
+    enabledCb.checked = defaultCoastSettings.enabled;
+    const syncToggle = () => {
+      track.style.background = defaultCoastSettings.enabled ? "#33bb88" : "#bbb";
+      thumb.style.left = defaultCoastSettings.enabled ? "18px" : "2px";
+      slidersDiv.style.opacity = defaultCoastSettings.enabled ? "" : "0.4";
+      slidersDiv.style.pointerEvents = defaultCoastSettings.enabled ? "" : "none";
+      Object.keys(COAST_PRESETS).forEach(name => {
+        const btn = ensureEl<HTMLButtonElement>(`coastPreset_${name}`);
+        btn.disabled = !defaultCoastSettings.enabled;
+      });
+    };
 
-  const enabledCb = ensureEl<HTMLInputElement>("coastEnabled");
-  const slidersDiv = ensureEl("coastSliders");
-  const track = ensureEl("coastEnabledTrack");
-  const thumb = ensureEl("coastEnabledThumb");
-
-  enabledCb.checked = defaultCoastSettings.enabled;
-  const syncToggle = () => {
-    track.style.background = defaultCoastSettings.enabled ? "#33bb88" : "#bbb";
-    thumb.style.left = defaultCoastSettings.enabled ? "18px" : "2px";
-    slidersDiv.style.opacity = defaultCoastSettings.enabled ? "" : "0.4";
-    slidersDiv.style.pointerEvents = defaultCoastSettings.enabled ? "" : "none";
-    Object.keys(COAST_PRESETS).forEach(name => {
-      const btn = ensureEl<HTMLButtonElement>(`coastPreset_${name}`);
-      btn.disabled = !defaultCoastSettings.enabled;
-    });
-  };
-
-  syncToggle();
-  enabledCb.on("change", () => {
-    defaultCoastSettings.enabled = enabledCb.checked;
     syncToggle();
-    updatePreviews();
-    drawFeatures();
-  });
-
-  // Preset buttons
-  for (const name of Object.keys(COAST_PRESETS)) {
-    const btn = ensureEl<HTMLButtonElement>(`coastPreset_${name}`);
-    btn.on("click", () => {
-      const preset = COAST_PRESETS[name];
-      for (const { id, key } of SLIDER_DEFS) {
-        if (!(key in preset)) continue;
-        const val = preset[key as keyof typeof preset];
-        defaultCoastSettings[key] = val;
-        const slider = ensureEl<HTMLInputElement>(id);
-        const output = ensureEl(`${id}Out`);
-        slider.value = String(val);
-        output.textContent = String(val);
-      }
-      updatePreviews();
+    enabledCb.on("change", () => {
+      defaultCoastSettings.enabled = enabledCb.checked;
+      syncToggle();
+      this.updatePreviews();
       drawFeatures();
+    });
+
+    // Preset buttons
+    for (const name of Object.keys(COAST_PRESETS)) {
+      const btn = ensureEl<HTMLButtonElement>(`coastPreset_${name}`);
+      btn.on("click", () => {
+        const preset = COAST_PRESETS[name];
+        for (const { id, key } of SLIDER_DEFS) {
+          if (!(key in preset)) continue;
+          const val = preset[key as keyof typeof preset];
+          defaultCoastSettings[key] = val;
+          const slider = ensureEl<HTMLInputElement>(id);
+          const output = ensureEl(`${id}Out`);
+          slider.value = String(val);
+          output.textContent = String(val);
+        }
+        this.updatePreviews();
+        drawFeatures();
+      });
+    }
+
+    this.updatePreviews();
+    closeDialogs("#culturesEditor, .stable");
+
+    $("#coastlineSettingsDialog").dialog({
+      title: "Coastline Settings Editor",
+      resizable: false,
+      width: "auto",
+      position: { my: "right top", at: "right-10 top+10", of: "svg" }
     });
   }
 
-  updatePreviews();
-  closeDialogs("#culturesEditor, .stable");
+  private buildDialogHTML(): string {
+    const presetButtons = Object.keys(COAST_PRESETS)
+      .map(name => `<button id="coastPreset_${name}" style="font-size:.78em;padding:2px 8px">${name}</button>`)
+      .join("");
 
-  $("#coastlineSettingsDialog").dialog({
-    title: "Coastline Settings Editor",
-    resizable: false,
-    width: "auto",
-    position: { my: "right top", at: "right-10 top+10", of: "svg" }
-  });
-}
-
-function buildDialogHTML(): string {
-  const presetButtons = Object.keys(COAST_PRESETS)
-    .map(name => `<button id="coastPreset_${name}" style="font-size:.78em;padding:2px 8px">${name}</button>`)
-    .join("");
-
-  const rows = SLIDER_DEFS.map(({ id, label, tip, min, max, step, key }) => {
-    const value = defaultCoastSettings[key];
-    return /* html */ `
+    const rows = SLIDER_DEFS.map(({ id, label, tip, min, max, step, key }) => {
+      const value = defaultCoastSettings[key];
+      return /* html */ `
       <tr data-tip="${tip}">
         <td style="padding:2px 0;white-space:nowrap">${label}</td>
         <td style="padding:2px 4px">
@@ -478,9 +484,9 @@ function buildDialogHTML(): string {
             style="font-size:.75em;padding:1px 5px;cursor:pointer">↺</button>
         </td>
       </tr>`;
-  }).join("");
+    }).join("");
 
-  return /* html */ `
+    return /* html */ `
     <div id="coastlineSettingsDialog" style="display:none">
       <div style="display:flex;justify-content:space-between;gap:10px;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid #ddd">
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none" data-tip="Enable or disable coastline fractalization. When disabled, coastlines are simple arcs between feature vertices. Enabling adds naturalistic roughness but can increase rendering time, especially at high detail levels.">
@@ -511,207 +517,202 @@ function buildDialogHTML(): string {
         </div>
       </div>
     </div>`;
-}
-
-function updatePreviews(): void {
-  drawRoughnessGraph(ensureEl<HTMLCanvasElement>("coastRoughnessGraph"));
-  drawShapePreview(ensureEl<HTMLCanvasElement>("coastShapePreview"));
-}
-
-function drawRoughnessGraph(canvas: HTMLCanvasElement): void {
-  const W = canvas.width;
-  const H = canvas.height;
-  const ctx = canvas.getContext("2d")!;
-  ctx.clearRect(0, 0, W, H);
-
-  const rand = Alea(PREVIEW_SEED);
-  const profile = makeRoughnessProfile(
-    rand,
-    defaultCoastSettings.roughnessContrast,
-    defaultCoastSettings.profileHarmonics
-  );
-
-  const thresh = Math.min(Math.max(defaultCoastSettings.smoothThreshold, 0), 1);
-  const threshY = H * (1 - thresh);
-  const baseY = H;
-
-  // Pre-compute curve points
-  const xs: number[] = [];
-  const ys: number[] = [];
-  for (let i = 0; i <= PROFILE_SIZE; i++) {
-    xs.push((i / PROFILE_SIZE) * W);
-    ys.push(H * (1 - profile[i % PROFILE_SIZE]));
   }
 
-  // Helper: fill area under curve clipped to a horizontal band
-  const fillBand = (clipTop: number, clipBot: number, color: string): void => {
-    const h = clipBot - clipTop;
-    if (h <= 0) return;
+  private updatePreviews(): void {
+    this.drawRoughnessGraph(ensureEl<HTMLCanvasElement>("coastRoughnessGraph"));
+    this.drawShapePreview(ensureEl<HTMLCanvasElement>("coastShapePreview"));
+  }
+
+  private drawRoughnessGraph(canvas: HTMLCanvasElement): void {
+    const W = canvas.width;
+    const H = canvas.height;
+    const ctx = canvas.getContext("2d")!;
+    ctx.clearRect(0, 0, W, H);
+
+    const rand = Alea(PREVIEW_SEED);
+    const profile = makeRoughnessProfile(
+      rand,
+      defaultCoastSettings.roughnessContrast,
+      defaultCoastSettings.profileHarmonics
+    );
+
+    const thresh = Math.min(Math.max(defaultCoastSettings.smoothThreshold, 0), 1);
+    const threshY = H * (1 - thresh);
+    const baseY = H;
+
+    // Pre-compute curve points
+    const xs: number[] = [];
+    const ys: number[] = [];
+    for (let i = 0; i <= PROFILE_SIZE; i++) {
+      xs.push((i / PROFILE_SIZE) * W);
+      ys.push(H * (1 - profile[i % PROFILE_SIZE]));
+    }
+
+    // Helper: fill area under curve clipped to a horizontal band
+    const fillBand = (clipTop: number, clipBot: number, color: string): void => {
+      const h = clipBot - clipTop;
+      if (h <= 0) return;
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, clipTop, W, h);
+      ctx.clip();
+      ctx.beginPath();
+      ctx.moveTo(xs[0], ys[0]);
+      for (let i = 1; i < xs.length; i++) ctx.lineTo(xs[i], ys[i]);
+      ctx.lineTo(xs[xs.length - 1], baseY);
+      ctx.lineTo(xs[0], baseY);
+      ctx.closePath();
+      ctx.fillStyle = color;
+      ctx.fill();
+      ctx.restore();
+    };
+
+    // Helper: stroke curve clipped to a horizontal band
+    const strokeBand = (clipTop: number, clipBot: number, color: string): void => {
+      const h = clipBot - clipTop;
+      if (h <= 0) return;
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, clipTop, W, h);
+      ctx.clip();
+      ctx.beginPath();
+      ctx.moveTo(xs[0], ys[0]);
+      for (let i = 1; i < xs.length; i++) ctx.lineTo(xs[i], ys[i]);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.restore();
+    };
+
+    // Rough zone (above threshold): warm orange
+    fillBand(0, threshY, "rgba(210,90,30,0.20)");
+    strokeBand(0, threshY, "#c85520");
+
+    // Smooth zone (below threshold): cool teal
+    fillBand(threshY, baseY, "rgba(30,165,135,0.20)");
+    strokeBand(threshY, baseY, "#18a888");
+
+    // Threshold dashed line
     ctx.save();
     ctx.beginPath();
-    ctx.rect(0, clipTop, W, h);
-    ctx.clip();
-    ctx.beginPath();
-    ctx.moveTo(xs[0], ys[0]);
-    for (let i = 1; i < xs.length; i++) ctx.lineTo(xs[i], ys[i]);
-    ctx.lineTo(xs[xs.length - 1], baseY);
-    ctx.lineTo(xs[0], baseY);
-    ctx.closePath();
-    ctx.fillStyle = color;
-    ctx.fill();
-    ctx.restore();
-  };
-
-  // Helper: stroke curve clipped to a horizontal band
-  const strokeBand = (clipTop: number, clipBot: number, color: string): void => {
-    const h = clipBot - clipTop;
-    if (h <= 0) return;
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(0, clipTop, W, h);
-    ctx.clip();
-    ctx.beginPath();
-    ctx.moveTo(xs[0], ys[0]);
-    for (let i = 1; i < xs.length; i++) ctx.lineTo(xs[i], ys[i]);
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 3]);
+    ctx.moveTo(0, threshY);
+    ctx.lineTo(W, threshY);
+    ctx.strokeStyle = "rgba(30,140,100,0.75)";
+    ctx.lineWidth = 1;
     ctx.stroke();
+    ctx.setLineDash([]);
     ctx.restore();
-  };
 
-  // Rough zone (above threshold): warm orange
-  fillBand(0, threshY, "rgba(210,90,30,0.20)");
-  strokeBand(0, threshY, "#c85520");
-
-  // Smooth zone (below threshold): cool teal
-  fillBand(threshY, baseY, "rgba(30,165,135,0.20)");
-  strokeBand(threshY, baseY, "#18a888");
-
-  // Threshold dashed line
-  ctx.save();
-  ctx.beginPath();
-  ctx.setLineDash([4, 3]);
-  ctx.moveTo(0, threshY);
-  ctx.lineTo(W, threshY);
-  ctx.strokeStyle = "rgba(30,140,100,0.75)";
-  ctx.lineWidth = 1;
-  ctx.stroke();
-  ctx.setLineDash([]);
-  ctx.restore();
-
-  // Zone labels
-  ctx.font = "bold 8px sans-serif";
-  ctx.textAlign = "left";
-  if (threshY > 12) {
-    ctx.fillStyle = "#c85520";
-    ctx.fillText("ROUGH", 12, 11);
-  }
-  if (baseY - threshY > 10) {
-    ctx.fillStyle = "#18a888";
-    ctx.fillText("CALM", 12, baseY - 4);
-  }
-
-  if (!defaultCoastSettings.enabled) {
-    ctx.fillStyle = "rgba(0,0,0,0.38)";
-    ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = "#fff";
-  }
-}
-
-function drawShapePreview(canvas: HTMLCanvasElement): void {
-  const W = canvas.width;
-  const H = canvas.height;
-  const ctx = canvas.getContext("2d")!;
-  ctx.clearRect(0, 0, W, H);
-
-  const cx = W / 2;
-  const cy = H / 2;
-  const r = Math.min(W, H) * 0.34;
-
-  // Generate at canvas scale so all setting changes are immediately visible.
-  const basePts: [number, number][] = [
-    [cx, cy - r], // top
-    [cx + r, cy], // right
-    [cx, cy + r], // bottom
-    [cx - r, cy] // left
-  ];
-
-  const shape = defaultCoastSettings.enabled
-    ? fractalize(basePts, Alea(PREVIEW_SEED), defaultCoastSettings)
-    : { points: basePts, origIndices: [0, 1, 2, 3] };
-  const path = new Path2D(`${buildCoastlinePath(shape)}Z`);
-
-  // Ocean background — radial gradient, lighter at centre
-  const bgGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(W, H) * 0.85);
-  bgGrad.addColorStop(0, "#cce5f5");
-  bgGrad.addColorStop(1, "#6aa4cb");
-  ctx.fillStyle = bgGrad;
-  ctx.fillRect(0, 0, W, H);
-
-  // Land fill with drop shadow
-  const landGrad = ctx.createRadialGradient(cx - r * 0.1, cy - r * 0.1, r * 0.05, cx, cy, r * 1.1);
-  landGrad.addColorStop(0, "#d8c87a");
-  landGrad.addColorStop(0.5, "#9cbc60");
-  landGrad.addColorStop(1, "#5c8e40");
-
-  ctx.save();
-  ctx.shadowColor = "rgba(0,20,60,0.35)";
-  ctx.shadowBlur = 8;
-  ctx.shadowOffsetX = 3;
-  ctx.shadowOffsetY = 3;
-  ctx.fillStyle = landGrad;
-  ctx.fill(path);
-  ctx.restore();
-
-  // Coastline stroke
-  ctx.strokeStyle = "#5c4526";
-  ctx.lineWidth = 1.5;
-  ctx.stroke(path);
-
-  // Original polygon skeleton — shows the raw 4-vertex input before fractalization
-  const origPts = shape.origIndices.map(i => shape.points[i]);
-  ctx.beginPath();
-  for (let j = 0; j < origPts.length; j++) {
-    const [x, y] = origPts[j];
-    j === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-  }
-  ctx.closePath();
-  ctx.strokeStyle = "rgba(255,255,255,0.45)";
-  ctx.lineWidth = 0.8;
-  ctx.setLineDash([3, 3]);
-  ctx.stroke();
-  ctx.setLineDash([]);
-
-  // Original vertex dots
-  for (const [x, y] of origPts) {
-    ctx.beginPath();
-    ctx.arc(x, y, 2.5, 0, Math.PI * 2);
-    ctx.fillStyle = "rgba(255,255,255,0.85)";
-    ctx.fill();
-    ctx.strokeStyle = "rgba(60,40,10,0.55)";
-    ctx.lineWidth = 0.8;
-    ctx.stroke();
-  }
-
-  if (!defaultCoastSettings.enabled) {
-    ctx.fillStyle = "rgba(0,0,0,0.38)";
-    ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = "#fff";
-    ctx.font = "bold 11px sans-serif";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText("OFF", cx, cy);
-    ctx.textBaseline = "alphabetic";
+    // Zone labels
+    ctx.font = "bold 8px sans-serif";
     ctx.textAlign = "left";
+    if (threshY > 12) {
+      ctx.fillStyle = "#c85520";
+      ctx.fillText("ROUGH", 12, 11);
+    }
+    if (baseY - threshY > 10) {
+      ctx.fillStyle = "#18a888";
+      ctx.fillText("CALM", 12, baseY - 4);
+    }
+
+    if (!defaultCoastSettings.enabled) {
+      ctx.fillStyle = "rgba(0,0,0,0.38)";
+      ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = "#fff";
+    }
+  }
+
+  private drawShapePreview(canvas: HTMLCanvasElement): void {
+    const W = canvas.width;
+    const H = canvas.height;
+    const ctx = canvas.getContext("2d")!;
+    ctx.clearRect(0, 0, W, H);
+
+    const cx = W / 2;
+    const cy = H / 2;
+    const r = Math.min(W, H) * 0.34;
+
+    // Generate at canvas scale so all setting changes are immediately visible.
+    const basePts: [number, number][] = [
+      [cx, cy - r], // top
+      [cx + r, cy], // right
+      [cx, cy + r], // bottom
+      [cx - r, cy] // left
+    ];
+
+    const shape = defaultCoastSettings.enabled
+      ? fractalize(basePts, Alea(PREVIEW_SEED), defaultCoastSettings)
+      : { points: basePts, origIndices: [0, 1, 2, 3] };
+    const path = new Path2D(`${buildCoastlinePath(shape)}Z`);
+
+    // Ocean background — radial gradient, lighter at centre
+    const bgGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(W, H) * 0.85);
+    bgGrad.addColorStop(0, "#cce5f5");
+    bgGrad.addColorStop(1, "#6aa4cb");
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, W, H);
+
+    // Land fill with drop shadow
+    const landGrad = ctx.createRadialGradient(cx - r * 0.1, cy - r * 0.1, r * 0.05, cx, cy, r * 1.1);
+    landGrad.addColorStop(0, "#d8c87a");
+    landGrad.addColorStop(0.5, "#9cbc60");
+    landGrad.addColorStop(1, "#5c8e40");
+
+    ctx.save();
+    ctx.shadowColor = "rgba(0,20,60,0.35)";
+    ctx.shadowBlur = 8;
+    ctx.shadowOffsetX = 3;
+    ctx.shadowOffsetY = 3;
+    ctx.fillStyle = landGrad;
+    ctx.fill(path);
+    ctx.restore();
+
+    // Coastline stroke
+    ctx.strokeStyle = "#5c4526";
+    ctx.lineWidth = 1.5;
+    ctx.stroke(path);
+
+    // Original polygon skeleton — shows the raw 4-vertex input before fractalization
+    const origPts = shape.origIndices.map(i => shape.points[i]);
+    ctx.beginPath();
+    for (let j = 0; j < origPts.length; j++) {
+      const [x, y] = origPts[j];
+      j === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.strokeStyle = "rgba(255,255,255,0.45)";
+    ctx.lineWidth = 0.8;
+    ctx.setLineDash([3, 3]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Original vertex dots
+    for (const [x, y] of origPts) {
+      ctx.beginPath();
+      ctx.arc(x, y, 2.5, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(255,255,255,0.85)";
+      ctx.fill();
+      ctx.strokeStyle = "rgba(60,40,10,0.55)";
+      ctx.lineWidth = 0.8;
+      ctx.stroke();
+    }
+
+    if (!defaultCoastSettings.enabled) {
+      ctx.fillStyle = "rgba(0,0,0,0.38)";
+      ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = "#fff";
+      ctx.font = "bold 11px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("OFF", cx, cy);
+      ctx.textBaseline = "alphabetic";
+      ctx.textAlign = "left";
+    }
   }
 }
 
-declare global {
-  interface Window {
-    CoastlineEditor: { open: () => void };
-    editCoastline: (event?: MouseEvent) => void;
-  }
-}
-
-window.CoastlineEditor = { open };
-window.editCoastline = editCoastline;
+const coastlineEditor = new CoastlineEditorModule();
+window.CoastlineEditor = coastlineEditor;
+window.editCoastline = (event?: MouseEvent) => coastlineEditor.editCoastline(event);

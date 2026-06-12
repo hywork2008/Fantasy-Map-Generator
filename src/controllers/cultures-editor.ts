@@ -1111,6 +1111,5 @@ function updateLockStatus(this: Element): void {
 }
 
 declare global {
-  var NamesbaseEditor: { open: () => void };
   var ra: (arr: unknown[]) => any;
 }
