@@ -3,11 +3,7 @@ import { worldContext } from "../context/worldContext";
 import { ensureEl, getGappedFillPaths, getIsolines } from "../utils";
 import { TIME } from "../utils/debug";
 
-declare global {
-  var drawStates: () => void;
-}
-
-const statesRenderer = (): void => {
+export const drawStates = (): void => {
   TIME && console.time("drawStates");
   const { pack } = worldContext;
   const { cells, states } = pack;
@@ -43,5 +39,3 @@ const statesRenderer = (): void => {
 
   TIME && console.timeEnd("drawStates");
 };
-
-window.drawStates = statesRenderer;

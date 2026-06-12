@@ -1,14 +1,10 @@
 import { viewState } from "../context/viewState";
 import { worldContext } from "../context/worldContext";
+import { Routes } from "../modules";
 import type { Route } from "../modules/routes-generator";
 import { TIME } from "../utils/debug";
 
-declare global {
-  var drawRoutes: () => void;
-  var drawRoute: (route: Route) => void;
-}
-
-const routesRenderer = (): void => {
+export const drawRoutes = (): void => {
   TIME && console.time("drawRoutes");
   const { pack } = worldContext;
   const { routes } = viewState;
@@ -29,10 +25,7 @@ const routesRenderer = (): void => {
   TIME && console.timeEnd("drawRoutes");
 };
 
-const routeRenderer = (route: Route): void => {
+export const drawRoute = (route: Route): void => {
   const { routes } = viewState;
   routes.select(`#${route.group}`).append("path").attr("d", Routes.getPath(route)).attr("id", `route${route.i}`);
 };
-
-window.drawRoutes = routesRenderer;
-window.drawRoute = routeRenderer;

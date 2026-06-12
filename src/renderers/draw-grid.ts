@@ -2,11 +2,7 @@ import { select } from "d3";
 import { viewState } from "../context/viewState";
 import { worldContext } from "../context/worldContext";
 
-declare global {
-  var drawGrid: () => void;
-}
-
-const gridRenderer = (): void => {
+export const drawGrid = (): void => {
   const { graphWidth, graphHeight } = worldContext;
   const { gridOverlay } = viewState;
 
@@ -38,5 +34,3 @@ const gridRenderer = (): void => {
     .attr("fill", `url(${pattern})`)
     .attr("stroke", "none");
 };
-
-window.drawGrid = gridRenderer;

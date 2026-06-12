@@ -1,12 +1,15 @@
+import { Burgs } from "../modules";
 import type { Burg, BurgGroup } from "../modules/burgs-generator";
 import { ensureEl } from "../utils";
+import { confirmationDialog, fitContent } from "./editors";
+import { layerIsOn } from "./layers";
 
 type LimitEntity = { i?: number; name?: string; fullName?: string; color?: string; removed?: boolean };
 type ParsedValue = string | number | boolean | Record<string, boolean> | null;
 
 const GROUP_NAME_REGEXP = /^[\p{L}_][\p{L}\p{N}_-]*$/u;
 
-function editBurgGroups(): void {
+export function editBurgGroups(): void {
   if (customization) return;
   addLines();
 
@@ -363,5 +366,3 @@ function editBurgGroups(): void {
     $("#burgGroupsEditor").dialog("close");
   }
 }
-
-window.editBurgGroups = editBurgGroups;

@@ -1,10 +1,29 @@
 import { type D3DragEvent, drag, pointer, type Selection, sum } from "d3";
 import type { Zone } from "../modules/zones-generator";
-import { ensureEl, rn, si } from "../utils";
+import { ensureEl, findAllCellsInRadius, getPackPolygon, rn, si, unique } from "../utils";
+import {
+  clearLegend,
+  closeDialogs,
+  confirmationDialog,
+  downloadFile,
+  drawLegend,
+  fitContent,
+  fog,
+  getArea,
+  getAreaUnit,
+  getFileName,
+  moveCircle,
+  openPicker,
+  removeCircle,
+  restoreDefaultEvents,
+  unfog
+} from "./editors";
+import { layerIsOn, toggleZones } from "./layers";
+import { editStyle } from "./style";
 
 type ZoneCellDatum = { cell: number; zoneId: number; fill: string };
 
-function editZones(): void {
+export function editZones(): void {
   closeDialogs("#zonesEditor, .stable");
   if (!layerIsOn("toggleZones")) toggleZones();
   const body = ensureEl("zonesBodySection");
@@ -231,7 +250,7 @@ function editZones(): void {
       .data(data, d => `${d.zoneId}-${d.cell}`)
       .enter()
       .append("polygon")
-      .attr("points", d => getPackPolygon(d.cell) as unknown as string)
+      .attr("points", d => getPackPolygon(d.cell, pack!) as unknown as string)
       .attr("fill", d => d.fill)
       .attr("data-zone", d => d.zoneId)
       .attr("data-cell", d => d.cell);
@@ -255,7 +274,7 @@ function editZones(): void {
     const [x, y] = pointer(event, this);
     moveCircle(x, y, radius);
 
-    let selection = radius > 5 ? findAll(x, y, radius) : [findCell(x, y)];
+    let selection = radius > 5 ? findAllCellsInRadius(x, y, radius, pack!) : [findCell(x, y)];
     if (landOnly) selection = selection.filter(i => pack.cells.h[i] >= 20);
     if (!selection.length) return;
 
@@ -280,7 +299,7 @@ function editZones(): void {
         .data(data, d => `${d.zoneId}-${d.cell}`)
         .enter()
         .append("polygon")
-        .attr("points", d => getPackPolygon(d.cell) as unknown as string)
+        .attr("points", d => getPackPolygon(d.cell, pack!) as unknown as string)
         .attr("fill", d => d.fill)
         .attr("data-zone", d => d.zoneId)
         .attr("data-cell", d => d.cell);
@@ -565,5 +584,3 @@ function editZones(): void {
     });
   }
 }
-
-window.editZones = editZones;

@@ -2,11 +2,7 @@ import { viewState } from "../context/viewState";
 import { worldContext } from "../context/worldContext";
 import { TIME } from "../utils/debug";
 
-declare global {
-  var drawBorders: () => void;
-}
-
-const bordersRenderer = () => {
+export const drawBorders = () => {
   TIME && console.time("drawBorders");
   const { pack } = worldContext;
   const { cells, vertices } = pack;
@@ -167,5 +163,3 @@ const bordersRenderer = () => {
 
   TIME && console.timeEnd("drawBorders");
 };
-
-window.drawBorders = bordersRenderer;

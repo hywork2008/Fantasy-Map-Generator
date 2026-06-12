@@ -2,11 +2,7 @@ import { worldContext } from "../context/worldContext";
 import { ensureEl, getGappedFillPaths, getIsolines } from "../utils";
 import { TIME } from "../utils/debug";
 
-declare global {
-  var drawBiomes: () => void;
-}
-
-const biomesRenderer = (): void => {
+export const drawBiomes = (): void => {
   TIME && console.time("drawBiomes");
 
   const { pack, biomesData } = worldContext;
@@ -26,5 +22,3 @@ const biomesRenderer = (): void => {
 
   TIME && console.timeEnd("drawBiomes");
 };
-
-window.drawBiomes = biomesRenderer;

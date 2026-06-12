@@ -2,11 +2,9 @@ import Alea from "alea";
 import { curveBasis, curveCatmullRom, line, mean, min, sum } from "d3";
 import type { WorldState } from "../types/WorldState";
 import { each, rn, round, rw } from "../utils";
+import { Lakes } from "./lakes";
+import { Names } from "./names-generator";
 import type { Point } from "./voronoi";
-
-declare global {
-  var Rivers: RiverModule;
-}
 
 export interface River {
   i: number; // river id
@@ -573,4 +571,4 @@ class RiverModule {
   }
 }
 
-window.Rivers = new RiverModule();
+export const Rivers = new RiverModule();

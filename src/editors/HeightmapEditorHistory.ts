@@ -6,7 +6,7 @@ import { UndoStack } from "../utils/UndoStack";
  * Each push() copies the caller-supplied TypedArray so the caller
  * does not need to call .slice() manually.
  */
-class HeightmapEditorHistoryClass {
+export class HeightmapEditorHistory {
   private readonly stack = new UndoStack<TypedArray>();
 
   push(h: TypedArray): void {
@@ -37,11 +37,3 @@ class HeightmapEditorHistoryClass {
     return this.stack.canRedo;
   }
 }
-
-declare global {
-  var HeightmapEditorHistory: typeof HeightmapEditorHistoryClass;
-  // heightmapHistory is a temp global created while the heightmap editor is open
-  var heightmapHistory: HeightmapEditorHistoryClass | undefined;
-}
-
-window.HeightmapEditorHistory = HeightmapEditorHistoryClass;

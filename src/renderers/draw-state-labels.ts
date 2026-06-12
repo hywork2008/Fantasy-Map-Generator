@@ -5,10 +5,6 @@ import type { TypedArray } from "../types/PackedGraph";
 import { drawPath, drawPoint, findClosestCell, minmax, rn, round, splitInTwo } from "../utils";
 import { DEBUG, TIME } from "../utils/debug";
 
-declare global {
-  var drawStateLabels: (list?: number[]) => void;
-}
-
 interface Ray {
   angle: number;
   length: number;
@@ -25,7 +21,7 @@ interface AngleData {
 type PathPoints = [number, number][];
 
 // list - an optional array of stateIds to regenerate
-const stateLabelsRenderer = (list?: number[]): void => {
+export const drawStateLabels = (list?: number[]): void => {
   TIME && console.time("drawStateLabels");
   const { pack, options, graphWidth, graphHeight } = worldContext;
   const { labels } = viewState;
@@ -376,5 +372,3 @@ const stateLabelsRenderer = (list?: number[]): void => {
 
   TIME && console.timeEnd("drawStateLabels");
 };
-
-window.drawStateLabels = stateLabelsRenderer;

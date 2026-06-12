@@ -1,6 +1,12 @@
+import { heightmapTemplates, precreatedHeightmaps } from "../config";
 import { worldContext } from "../context/worldContext";
-import { ensureEl } from "../utils";
+import { HeightmapGenerator } from "../modules";
+import { drawHeights, ensureEl, generateGrid, generateSeed, shouldRegenerateGrid } from "../utils";
 import type { Grid } from "../utils/graphUtils";
+import { closeDialogs, confirmationDialog } from "./editors";
+import { editHeightmap } from "./heightmap-editor";
+import { regeneratePrompt } from "./options";
+import { getColorScheme, heightmapColorSchemes } from "./style";
 
 const initialSeed = generateSeed();
 let graph: Grid | null = null;
@@ -265,7 +271,10 @@ function getName(id: string): string {
 }
 
 function getGraph(currentGraph: Grid | null): Grid {
-  const newGraph = shouldRegenerateGrid(currentGraph, +seed) ? generateGrid() : structuredClone(currentGraph!);
+  const { graphWidth, graphHeight, seed: mapSeed } = worldContext;
+  const newGraph = shouldRegenerateGrid(currentGraph, +seed, graphWidth, graphHeight)
+    ? generateGrid(mapSeed, graphWidth, graphHeight)
+    : structuredClone(currentGraph!);
   delete (newGraph.cells as { h?: unknown }).h;
   return newGraph;
 }

@@ -376,7 +376,6 @@
           data-tip="Click to show the Menu"
           data-shortcut="Tab"
           class="options glow"
-          onclick="showOptions(event)"
         >
           ►
         </button>
@@ -384,7 +383,6 @@
           id="regenerate"
           data-tip="Click to generate a new map"
           data-shortcut="F2"
-          onclick="regeneratePrompt()"
           class="options"
           style="display: none"
         >
@@ -401,7 +399,6 @@
             data-tip="Click to hide the Menu"
             data-shortcut="Tab or Esc"
             class="options"
-            onclick="hideOptions(event)"
           >
             ◄
           </button>
@@ -417,7 +414,6 @@
           <select
             data-tip="Select a map layers preset"
             id="layersPreset"
-            onchange="handleLayersPresetChange(this.value)"
             style="width: 45%"
           >
             <option value="political" selected>Political map</option>
@@ -438,14 +434,12 @@
             data-tip="Click to save displayed layers as a new preset"
             class="icon-plus sideButton"
             style="display: none"
-            onclick="savePreset()"
           ></button>
           <button
             id="removePresetButton"
             data-tip="Click to remove current custom preset"
             class="icon-minus sideButton"
             style="display: none"
-            onclick="removePreset()"
           ></button>
 
           <p>Displayed layers and layers order:</p>
@@ -457,7 +451,6 @@
               id="toggleTexture"
               data-tip="Texture overlay: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
               data-shortcut="X"
-              onclick="toggleTexture(event)"
             >
               Te<u>x</u>ture
             </li>
@@ -465,7 +458,6 @@
               id="toggleHeight"
               data-tip="Heightmap: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
               data-shortcut="H"
-              onclick="toggleHeight(event)"
             >
               <u>H</u>eightmap
             </li>
@@ -473,7 +465,6 @@
               id="toggleLakes"
               data-tip="Lakes: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
               data-shortcut="Q"
-              onclick="toggleLakes(event)"
             >
               Lakes
             </li>
@@ -481,7 +472,6 @@
               id="toggleBiomes"
               data-tip="Biomes: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
               data-shortcut="B"
-              onclick="toggleBiomes(event)"
             >
               <u>B</u>iomes
             </li>
@@ -489,7 +479,6 @@
               id="toggleCells"
               data-tip="Cells structure: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
               data-shortcut="E"
-              onclick="toggleCells(event)"
             >
               C<u>e</u>lls
             </li>
@@ -497,7 +486,6 @@
               id="toggleGrid"
               data-tip="Grid: click to toggle, drag to raise or lower. Ctrl + click to edit layer style and select type"
               data-shortcut="G"
-              onclick="toggleGrid(event)"
             >
               <u>G</u>rid
             </li>
@@ -505,7 +493,6 @@
               id="toggleCoordinates"
               data-tip="Coordinate grid: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
               data-shortcut="O"
-              onclick="toggleCoordinates(event)"
             >
               C<u>o</u>ordinates
             </li>
@@ -513,7 +500,6 @@
               id="toggleCompass"
               data-tip="Wind (Compass) Rose: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
               data-shortcut="W"
-              onclick="toggleCompass(event)"
             >
               <u>W</u>ind Rose
             </li>
@@ -521,7 +507,6 @@
               id="toggleRivers"
               data-tip="Rivers: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
               data-shortcut="V"
-              onclick="toggleRivers(event)"
             >
               Ri<u>v</u>ers
             </li>
@@ -529,7 +514,6 @@
               id="toggleRelief"
               data-tip="Relief and biome icons: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
               data-shortcut="F"
-              onclick="toggleRelief(event)"
             >
               Relie<u>f</u>
             </li>
@@ -537,7 +521,6 @@
               id="toggleReligions"
               data-tip="Religions: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
               data-shortcut="R"
-              onclick="toggleReligions(event)"
             >
               <u>R</u>eligions
             </li>
@@ -545,7 +528,6 @@
               id="toggleCultures"
               data-tip="Cultures: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
               data-shortcut="C"
-              onclick="toggleCultures(event)"
             >
               <u>C</u>ultures
             </li>
@@ -553,7 +535,6 @@
               id="toggleStates"
               data-tip="States: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
               data-shortcut="S"
-              onclick="toggleStates(event)"
             >
               <u>S</u>tates
             </li>
@@ -561,7 +542,6 @@
               id="toggleProvinces"
               data-tip="Provinces: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
               data-shortcut="P"
-              onclick="toggleProvinces(event)"
             >
               <u>P</u>rovinces
             </li>
@@ -569,7 +549,6 @@
               id="toggleZones"
               data-tip="Zones: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
               data-shortcut="Z"
-              onclick="toggleZones(event)"
             >
               <u>Z</u>ones
             </li>
@@ -577,7 +556,6 @@
               id="toggleBorders"
               data-tip="State borders: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
               data-shortcut="D"
-              onclick="toggleBorders(event)"
             >
               Bor<u>d</u>ers
             </li>
@@ -585,7 +563,6 @@
               id="toggleRoutes"
               data-tip="Trade routes: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
               data-shortcut="U"
-              onclick="toggleRoutes(event)"
             >
               Ro<u>u</u>tes
             </li>
@@ -593,7 +570,6 @@
               id="toggleTemperature"
               data-tip="Temperature map: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
               data-shortcut="T"
-              onclick="toggleTemperature(event)"
             >
               <u>T</u>emperature
             </li>
@@ -601,7 +577,6 @@
               id="togglePopulation"
               data-tip="Population map: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
               data-shortcut="N"
-              onclick="togglePopulation(event)"
             >
               Populatio<u>n</u>
             </li>
@@ -609,7 +584,6 @@
               id="toggleIce"
               data-tip="Icebergs and glaciers: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
               data-shortcut="J"
-              onclick="toggleIce(event)"
             >
               Ice
             </li>
@@ -617,7 +591,6 @@
               id="togglePrecipitation"
               data-tip="Precipitation map: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
               data-shortcut="A"
-              onclick="togglePrecipitation(event)"
             >
               Precipit<u>a</u>tion
             </li>
@@ -625,7 +598,6 @@
               id="toggleEmblems"
               data-tip="Emblems: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
               data-shortcut="Y"
-              onclick="toggleEmblems(event)"
             >
               Emblems
             </li>
@@ -633,7 +605,6 @@
               id="toggleBurgIcons"
               data-tip="Burg icons: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
               data-shortcut="I"
-              onclick="toggleBurgIcons(event)"
             >
               <u>I</u>cons
             </li>
@@ -641,7 +612,6 @@
               id="toggleLabels"
               data-tip="Labels: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
               data-shortcut="L"
-              onclick="toggleLabels(event)"
             >
               <u>L</u>abels
             </li>
@@ -649,7 +619,6 @@
               id="toggleMilitary"
               data-tip="Military forces: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
               data-shortcut="M"
-              onclick="toggleMilitary(event)"
             >
               <u>M</u>ilitary
             </li>
@@ -657,7 +626,6 @@
               id="toggleMarkers"
               data-tip="Markers: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
               data-shortcut="K"
-              onclick="toggleMarkers(event)"
             >
               Mar<u>k</u>ers
             </li>
@@ -665,7 +633,6 @@
               id="toggleRulers"
               data-tip="Rulers: click to toggle, drag to move, click on label to delete. Ctrl + click to edit layer style"
               data-shortcut="= (equal sign)"
-              onclick="toggleRulers(event)"
             >
               Rulers
             </li>
@@ -673,7 +640,6 @@
               id="toggleScaleBar"
               data-tip="Scale Bar: click to toggle. Ctrl + click to edit style"
               data-shortcut="/ (slash sign)"
-              onclick="toggleScaleBar(event)"
               class="solid"
             >
               Scale Bar
@@ -682,7 +648,6 @@
               id="toggleVignette"
               data-tip="Vignette (border fading): click to toggle. Ctrl + click to edit style"
               data-shortcut="[ (left square bracket)"
-              onclick="toggleVignette(event)"
               class="solid"
             >
               Vignette
@@ -716,7 +681,6 @@
           <select
             data-tip="Select a style preset"
             id="stylePreset"
-            onchange="requestStylePresetChange(this.value)"
             style="width: 45%; text-transform: capitalize"
           ></select>
           <button
@@ -724,14 +688,12 @@
             data-tip="Click to save current style as a new preset"
             class="icon-plus sideButton"
             style="display: inline-block"
-            onclick="addStylePreset()"
           ></button>
           <button
             id="removeStyleButton"
             data-tip="Click to remove current custom style preset"
             class="icon-minus sideButton"
             style="display: none"
-            onclick="requestRemoveStylePreset()"
           ></button>
 
           <p data-tip="Select an element to edit its style" style="display: inline-block">Select element:</p>
@@ -932,9 +894,9 @@
                     <option value="./images/textures/spain-small.jpg">Spain small</option>
                   </select>
                   <button
+                    id="textureProvideURLBtn"
                     data-tip="Click and provide a URL to image to be set as a texture"
                     class="icon-plus sideButton"
-                    onclick="textureProvideURL()"
                   ></button>
                 </td>
               </tr>
@@ -1409,7 +1371,7 @@
 
               <tr data-tip="Allow system to hide emblem groups if their size in too small or too big on that scale">
                 <td colspan="2">
-                  <input id="hideEmblems" class="checkbox" type="checkbox" onchange="invokeActiveZooming()" checked />
+                  <input id="hideEmblems" class="checkbox" type="checkbox" checked />
                   <label for="hideEmblems" class="checkbox-label">Toggle visibility automatically</label>
                 </td>
               </tr>
@@ -1454,14 +1416,14 @@
 
               <tr data-tip="Allow system to hide labels if their size in too small or too big on that scale">
                 <td colspan="2">
-                  <input id="hideLabels" class="checkbox" type="checkbox" onchange="invokeActiveZooming()" checked />
+                  <input id="hideLabels" class="checkbox" type="checkbox" checked />
                   <label for="hideLabels" class="checkbox-label">Toggle visibility automatically</label>
                 </td>
               </tr>
 
               <tr data-tip="Allow system to rescale labels on zoom">
                 <td colspan="2">
-                  <input id="rescaleLabels" class="checkbox" type="checkbox" onchange="invokeActiveZooming()" checked />
+                  <input id="rescaleLabels" class="checkbox" type="checkbox" checked />
                   <label for="rescaleLabels" class="checkbox-label">Rescale on zoom</label>
                 </td>
               </tr>
@@ -1637,7 +1599,7 @@
                 />
               </td>
               <td>
-                <i data-tip="Regenerate map name" onclick="Names.getMapName(true)" class="icon-arrows-cw"></i>
+                <i id="regenerateMapName" data-tip="Regenerate map name" class="icon-arrows-cw"></i>
               </td>
             </tr>
 
@@ -2053,14 +2015,12 @@
             <button
               id="configureWorld"
               data-tip="Click to open world configurator to setup map position on Globe and World climate"
-              onclick="editWorld()"
             >
               Configure World
             </button>
             <button
               id="optionsReset"
               data-tip="Click to restore default options and reload the page"
-              onclick="cleanupData()"
             >
               Reset to defaults
             </button>
@@ -2338,7 +2298,6 @@
           <p style="text-align: center; margin-top: 1em">
             <button
               id="startTourButton"
-              onclick="UITour.start()"
               data-tip="Take an interactive tour of the map generator"
             >
               &#9654; Take an Interactive Tour
@@ -2406,7 +2365,7 @@
 
           <p>
             Special thanks to
-            <a data-tip="Click to see list of supporters" onclick="showSupporters()">all supporters</a> on Patreon!
+            <a id="showSupportersLink" data-tip="Click to see list of supporters">all supporters</a> on Patreon!
           </p>
 
           <div style="display: flex; justify-content: center; padding: 0.8em 0.4em 0.4em; font-family: cursive">
@@ -4322,15 +4281,11 @@
             id="templateCA"
             data-tip="Find or share custom template on Cartography Assets portal"
             class="icon-drafting-compass"
-            onclick="
-              openURL('https://cartographyassets.com/asset-category/specific-assets/azgaars-generator/templates')
-            "
           ></button>
           <button
             id="templateTutorial"
             data-tip="Open Template Editor Tutorial"
             class="icon-info"
-            onclick="wiki('Heightmap-template-editor')"
           ></button>
           <label
             data-tip="Lock seed (click on lock icon) if you want template to generate the same heightmap each time"
@@ -5831,7 +5786,6 @@
             id="styleSaverCA"
             data-tip="Find or share custom style preset on Cartography Assets portal"
             class="icon-drafting-compass"
-            onclick="openURL('https://cartographyassets.com/asset-category/specific-assets/azgaars-generator/styles/')"
           ></button>
         </div>
       </div>
@@ -6124,8 +6078,8 @@
         <div id="options3dBottom" style="margin-top: 0.2em">
           <button id="options3dUpdate" data-tip="Update the scene" class="icon-cw"></button>
           <button
+            id="editWorldBtn3d"
             data-tip="Configure world and map size and climate settings"
-            onclick="editWorld()"
             class="icon-globe"
           ></button>
           <button id="options3dSave" data-tip="Save screenshot of the 3d scene" class="icon-button-screenshot"></button>
@@ -6139,22 +6093,22 @@
         <div style="margin-bottom: 0.3em; font-weight: bold">Download image</div>
         <div>
           <button
-            onclick="exportToSvg()"
+            id="exportSvgBtn"
             data-tip="Download the map as vector image (open directly in browser or Inkscape)"
           >
             .svg
           </button>
-          <button onclick="exportToPng()" data-tip="Download visible part of the map as .png (lossless compressed)">
+          <button id="exportPngBtn" data-tip="Download visible part of the map as .png (lossless compressed)">
             .png
           </button>
           <button
-            onclick="exportToJpeg()"
+            id="exportJpegBtn"
             data-tip="Download visible part of the map as .jpeg (lossy compressed) image"
           >
             .jpeg
           </button>
           <button
-            onclick="openExportToPngTiles()"
+            id="exportPngTilesBtn"
             data-tip="Split map into smaller png tiles and download as zip archive"
           >
             tiles
@@ -6164,10 +6118,6 @@
               id="showLabels"
               class="checkbox"
               type="checkbox"
-              onchange="
-                hideLabels.checked = !this.checked;
-                invokeActiveZooming();
-              "
               checked=""
             />
             <label for="showLabels" class="checkbox-label">Show all labels</label>
@@ -6195,11 +6145,11 @@
 
         <div style="margin: 1em 0 0.3em; font-weight: bold">Export to GeoJSON</div>
         <div>
-          <button onclick="saveGeoJsonCells()" data-tip="Download cells data in GeoJSON format">cells</button>
-          <button onclick="saveGeoJsonRoutes()" data-tip="Download routes data in GeoJSON format">routes</button>
-          <button onclick="saveGeoJsonRivers()" data-tip="Download rivers data in GeoJSON format">rivers</button>
-          <button onclick="saveGeoJsonMarkers()" data-tip="Download markers data in GeoJSON format">markers</button>
-          <button onclick="saveGeoJsonZones()" data-tip="Download zones data in GeoJSON format">zones</button>
+          <button id="saveGeoJsonCellsBtn" data-tip="Download cells data in GeoJSON format">cells</button>
+          <button id="saveGeoJsonRoutesBtn" data-tip="Download routes data in GeoJSON format">routes</button>
+          <button id="saveGeoJsonRiversBtn" data-tip="Download rivers data in GeoJSON format">rivers</button>
+          <button id="saveGeoJsonMarkersBtn" data-tip="Download markers data in GeoJSON format">markers</button>
+          <button id="saveGeoJsonZonesBtn" data-tip="Download zones data in GeoJSON format">zones</button>
         </div>
         <p>
           GeoJSON format is used in GIS tools such as QGIS. Check out
@@ -6209,12 +6159,12 @@
 
         <div style="margin: 1em 0 0.3em; font-weight: bold">Export To JSON</div>
         <div>
-          <button onclick="exportToJson('Full')" data-tip="Download full data in JSON">full</button>
-          <button onclick="exportToJson('Minimal')" data-tip="Download minimal data in JSON">minimal</button>
-          <button onclick="exportToJson('PackCells')" data-tip="Download map metadata and pack cells data in JSON">
+          <button id="exportJsonFullBtn" data-tip="Download full data in JSON">full</button>
+          <button id="exportJsonMinimalBtn" data-tip="Download minimal data in JSON">minimal</button>
+          <button id="exportJsonPackCellsBtn" data-tip="Download map metadata and pack cells data in JSON">
             pack cells
           </button>
-          <button onclick="exportToJson('GridCells')" data-tip="Download map metadata and grid cells data in JSON">
+          <button id="exportJsonGridCellsBtn" data-tip="Download map metadata and grid cells data in JSON">
             grid cells
           </button>
         </div>
@@ -6225,17 +6175,17 @@
         <div style="margin-top: 0.3em">
           <strong>Save map to</strong>
           <button
-            onclick="saveMap('machine')"
+            id="saveMapMachineBtn"
             data-tip="Download map file to your local disk"
             data-shortcut="Ctrl + S"
             style="font-weight: 600"
           >
             machine
           </button>
-          <button onclick="saveMap('dropbox')" data-tip="Save map file to your Dropbox" data-shortcut="Ctrl + C">
+          <button id="saveMapDropboxBtn" data-tip="Save map file to your Dropbox" data-shortcut="Ctrl + C">
             dropbox
           </button>
-          <button onclick="saveMap('storage')" data-tip="Save the project to browser storage only" data-shortcut="F6">
+          <button id="saveMapStorageBtn" data-tip="Save the project to browser storage only" data-shortcut="F6">
             browser
           </button>
         </div>
@@ -6248,16 +6198,16 @@
       <div id="loadMapData" style="display: none" class="dialog">
         <div>
           <strong>Load map from</strong>
-          <button onclick="mapToLoad.click()" data-tip="Load map file (.map or .gz) from your local disk">
+          <button id="loadFromMachine" data-tip="Load map file (.map or .gz) from your local disk">
             machine
           </button>
           <button
-            onclick="loadURL()"
+            id="loadUrlBtn"
             data-tip="Load map file (.map or .gz) file from URL. Note that the server should allow CORS"
           >
             URL
           </button>
-          <button onclick="quickLoad()" data-tip="Load map from browser storage (if saved before)">storage</button>
+          <button id="quickLoadBtn" data-tip="Load map from browser storage (if saved before)">storage</button>
         </div>
 
         <p>Click on <i>storage</i> to open the last saved map.</p>
@@ -6267,7 +6217,6 @@
             Or load from your Dropbox account
             <button
               id="dropboxConnectButton"
-              onclick="connectToDropbox()"
               data-tip="Connect your Dropbox account to be able to load maps from it"
             >
               Connect
@@ -6276,9 +6225,9 @@
 
           <select id="loadFromDropboxSelect" style="width: 22em"></select>
           <div id="loadFromDropboxButtons" style="margin-bottom: 0.6em">
-            <button onclick="loadFromDropbox()" data-tip="Load map file (.map or .gz) from your Dropbox">Load</button>
+            <button id="loadDropboxBtn" data-tip="Load map file (.map or .gz) from your Dropbox">Load</button>
             <button
-              onclick="createSharableDropboxLink()"
+              id="createDropboxShareBtn"
               data-tip="Select file and create a link to share with your friends"
             >
               Share
@@ -6288,7 +6237,7 @@
           <div style="margin-top: 0.3em">
             <div id="sharableLinkContainer" style="display: none">
               <a id="sharableLink" target="_blank"></a>
-              <i data-tip="Copy link to the clipboard" onclick="copyLinkToClickboard()" class="icon-clone pointer"></i>
+              <i id="copyShareLinkBtn" data-tip="Copy link to the clipboard" class="icon-clone pointer"></i>
             </div>
           </div>
         </div>

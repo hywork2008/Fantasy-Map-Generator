@@ -1,4 +1,8 @@
-import { ensureEl, rn } from "../utils";
+import { Resample } from "../modules";
+import { ensureEl, minmax, rn } from "../utils";
+import { closeDialogs } from "./editors";
+import { drawLayers } from "./layers";
+import { applyGraphSize, cellsDensityMap, changeCellsDensity, fitMapToScreen, getCellsDensityColor } from "./options";
 
 function openSubmapTool(): void {
   resetInputs();
@@ -109,4 +113,4 @@ function openSubmapTool(): void {
   }
 }
 
-window.openSubmapTool = openSubmapTool;
+export { openSubmapTool };

@@ -8,10 +8,6 @@ import { shields } from "./shields";
 import { createTinctures } from "./tinctures";
 import { typeMapping } from "./typeMapping";
 
-declare global {
-  var COA: EmblemGeneratorModule;
-}
-
 export interface EmblemCharge {
   charge: string;
   t: string;
@@ -449,4 +445,4 @@ class EmblemGeneratorModule {
 
 export default EmblemGeneratorModule;
 
-window.COA = new EmblemGeneratorModule();
+export const COA = new EmblemGeneratorModule();

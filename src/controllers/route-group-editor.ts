@@ -1,6 +1,10 @@
+import { Routes } from "../modules";
 import { ensureEl } from "../utils";
+import { confirmationDialog } from "./editors";
+import { layerIsOn, toggleRoutes } from "./layers";
+import { editStyle } from "./style";
 
-function editRouteGroups(): void {
+export function editRouteGroups(): void {
   if (customization) return;
   if (!layerIsOn("toggleRoutes")) toggleRoutes();
 
@@ -86,5 +90,3 @@ function editRouteGroups(): void {
     });
   }
 }
-
-window.editRouteGroups = editRouteGroups;

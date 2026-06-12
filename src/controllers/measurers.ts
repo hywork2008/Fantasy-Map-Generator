@@ -1,6 +1,8 @@
 import * as d3 from "d3";
 import { getSegmentId, last, rn, round, si } from "../utils";
 
+const lineGen = d3.line<[number, number]>();
+
 // ─── Rulers container ─────────────────────────────────────────────────────────
 
 class Rulers {
@@ -348,7 +350,7 @@ class Opisometer extends Measurer {
 
   updateCurve(): void {
     lineGen.curve(d3.curveCatmullRom.alpha(0.5));
-    const path = round(lineGen(this.points));
+    const path = round(lineGen(this.points) ?? "");
     this.el.selectAll("path").attr("d", path);
 
     const left = this.points[0];
@@ -492,7 +494,7 @@ class RouteOpisometer extends Measurer {
 
   updateCurve(): void {
     lineGen.curve(d3.curveCatmullRom.alpha(0.5));
-    const path = round(lineGen(this.points));
+    const path = round(lineGen(this.points) ?? "");
     this.el.selectAll("path").attr("d", path);
 
     const left = this.points[0];
@@ -543,7 +545,7 @@ class Planimeter extends Measurer {
 
   updateCurve(): void {
     lineGen.curve(d3.curveCatmullRomClosed.alpha(0.5));
-    const path = round(lineGen(this.points));
+    const path = round(lineGen(this.points) ?? "");
     this.el.selectAll("path").attr("d", path);
   }
 
@@ -588,21 +590,11 @@ function createDefaultRuler(): void {
   TIME && console.timeEnd("createDefaultRuler");
 }
 
-// ─── Global exports ───────────────────────────────────────────────────────────
+export let rulers = new Rulers();
 
-window.Rulers = Rulers;
-window.Ruler = Ruler;
-window.Opisometer = Opisometer;
-window.RouteOpisometer = RouteOpisometer;
-window.Planimeter = Planimeter;
-window.createDefaultRuler = createDefaultRuler;
-
-export type { Opisometer, Planimeter, RouteOpisometer, Ruler };
-export { Rulers };
+export { createDefaultRuler, Opisometer, Planimeter, RouteOpisometer, Ruler, Rulers };
 
 // ─── Legacy globals (from non-migrated JS files) ──────────────────────────────
-
-declare const lineGen: { (points: [number, number][]): string; curve: (curve: unknown) => typeof lineGen };
 declare const polylabel: (polygon: number[][][], precision?: number) => [number, number];
 declare const parseTransform: (transform: string) => number[];
 declare const getArea: (area: number) => number;

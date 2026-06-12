@@ -2,11 +2,7 @@ import { worldContext } from "../context/worldContext";
 import { ensureEl, getGappedFillPaths, getIsolines } from "../utils";
 import { TIME } from "../utils/debug";
 
-declare global {
-  var drawReligions: () => void;
-}
-
-const religionsRenderer = (): void => {
+export const drawReligions = (): void => {
   TIME && console.time("drawReligions");
   const { pack } = worldContext;
   const { cells, religions } = pack;
@@ -26,5 +22,3 @@ const religionsRenderer = (): void => {
 
   TIME && console.timeEnd("drawReligions");
 };
-
-window.drawReligions = religionsRenderer;

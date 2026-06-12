@@ -1,5 +1,6 @@
 import type { BaseType, Selection } from "d3";
 import { curveBundle, line, max, min } from "d3";
+import { getColorScheme } from "../controllers/style";
 import { C_12 } from "./colorUtils";
 import type { Grid } from "./graphUtils";
 import { getGridPolygon } from "./graphUtils";
@@ -35,7 +36,7 @@ export const drawPolygons = (
 ): void => {
   const maximum: number = max(data) as number;
   const minimum: number = min(data) as number;
-  const scheme = window.getColorScheme(terrs.select("#landHeights").attr("scheme"));
+  const scheme = getColorScheme(terrs.select("#landHeights").attr("scheme"));
 
   data = data.map(d => 1 - normalize(d, minimum, maximum));
   window.debug.selectAll("polygon").remove();
@@ -112,12 +113,5 @@ export const drawPath = (points: [number, number][], { color = "red", width = 0.
 declare global {
   interface Window {
     debug: Selection<SVGGElement, unknown, null, undefined>;
-    getColorScheme: (name: string) => (t: number) => string;
-
-    drawCellsValue: typeof drawCellsValue;
-    drawPolygons: typeof drawPolygons;
-    drawRouteConnections: typeof drawRouteConnections;
-    drawPoint: typeof drawPoint;
-    drawPath: typeof drawPath;
   }
 }

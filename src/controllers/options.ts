@@ -1,12 +1,20 @@
 import { hsl } from "d3";
+import { heightmapTemplates, precreatedHeightmaps } from "../config";
+import { exportToPngTiles as exportToPngTilesFromExport } from "../io/export";
+import { loadMapFromURL, uploadMap } from "../io/load";
+import { COA, COArenderer, Cultures, Names } from "../modules";
 import type { Burg } from "../modules/burgs-generator";
 import type { Culture } from "../modules/cultures-generator";
 import type { Emblem as RendererEmblem } from "../modules/emblem/renderer";
 import type { Province } from "../modules/provinces-generator";
 import type { State } from "../modules/states-generator";
-import { ensureEl, gauss, P, rand, rn, rw } from "../utils";
+import { fitScaleBar } from "../renderers";
+import { ensureEl, gauss, last, minmax, P, rand, rn, rw } from "../utils";
+import { ThreeD } from "./3d";
+import { closeDialogs, fitContent, fitLegendBox } from "./editors";
 import { exportToJson as exportToJsonModule } from "./export-json";
 import { open as openHeightmapSelection } from "./heightmap-selection";
+import { selectStyleElement } from "./style";
 
 // ─── Init jQuery draggable / disable-selection ────────────────────────────────
 
@@ -21,7 +29,7 @@ if (stored("disable_click_arrow_tooltip")) {
 
 // ─── Options pane show/hide ───────────────────────────────────────────────────
 
-function showOptions(event?: Event): void {
+export function showOptions(event?: Event): void {
   if (!stored("disable_click_arrow_tooltip")) {
     clearMainTip();
     localStorage.setItem("disable_click_arrow_tooltip", "true");
@@ -35,13 +43,13 @@ function showOptions(event?: Event): void {
   if (event) event.stopPropagation();
 }
 
-function hideOptions(event?: Event): void {
+export function hideOptions(event?: Event): void {
   ensureEl("options").style.display = "none";
   optionsTrigger.style.display = "block";
   if (event) event.stopPropagation();
 }
 
-function toggleOptions(event?: Event): void {
+export function toggleOptions(event?: Event): void {
   if (ensureEl("options").style.display === "none") showOptions(event);
   else hideOptions(event);
 }
@@ -98,7 +106,7 @@ document
 
 // ─── Patreon supporters ────────────────────────────────────────────────────────
 
-async function showSupporters(): Promise<void> {
+export async function showSupporters(): Promise<void> {
   const url = `${import.meta.env.BASE_URL}modules/dynamic/supporters.js`;
   const mod = (await import(/* @vite-ignore */ url)) as { supporters: string };
   const list = mod.supporters.split("\n").sort();
@@ -217,7 +225,7 @@ function restoreDefaultCanvasSize(): void {
   fitMapToScreen();
 }
 
-function applyGraphSize(): void {
+export function applyGraphSize(): void {
   graphWidth = +mapWidthInput.value;
   graphHeight = +mapHeightInput.value;
 
@@ -229,7 +237,7 @@ function applyGraphSize(): void {
   defs.select("mask#water > rect").attr("width", graphWidth).attr("height", graphHeight);
 }
 
-function fitMapToScreen(): void {
+export function fitMapToScreen(): void {
   svgWidth = Math.min(+mapWidthInput.value, window.innerWidth);
   svgHeight = Math.min(+mapHeightInput.value, window.innerHeight);
   svg.attr("width", svgWidth).attr("height", svgHeight);
@@ -313,7 +321,7 @@ function generateMapWithSeed(): void {
   regeneratePrompt({ seed: optionsSeed.value });
 }
 
-function showSeedHistoryDialog(): void {
+export function showSeedHistoryDialog(): void {
   const lines = mapHistory.map((h, i) => {
     const created = new Date(h.created).toLocaleTimeString();
     const button = `<i data-tip="Click to generate a map with this seed" onclick="restoreSeed(${i})" class="icon-history optionsSeedRestore"></i>`;
@@ -328,7 +336,7 @@ function showSeedHistoryDialog(): void {
   });
 }
 
-function restoreSeed(id: number): void {
+export function restoreSeed(id: number): void {
   const { seed: s, width, height, template } = mapHistory[id];
   ensureEl<HTMLInputElement>("optionsSeed").value = s;
   ensureEl<HTMLInputElement>("mapWidthInput").value = String(width);
@@ -340,7 +348,7 @@ function restoreSeed(id: number): void {
   regeneratePrompt({ seed: s });
 }
 
-function copyMapURL(): void {
+export function copyMapURL(): void {
   const lockedCount = document.querySelectorAll("i.icon-lock").length;
   const search = `?seed=${optionsSeed.value}&width=${graphWidth}&height=${graphHeight}${lockedCount ? "" : "&options=default"}`;
   navigator.clipboard
@@ -351,7 +359,7 @@ function copyMapURL(): void {
 
 // ─── Cells density ─────────────────────────────────────────────────────────────
 
-const cellsDensityMap: Record<number, number> = {
+export const cellsDensityMap: Record<number, number> = {
   1: 1000,
   2: 2000,
   3: 5000,
@@ -367,7 +375,7 @@ const cellsDensityMap: Record<number, number> = {
   13: 100000
 };
 
-function changeCellsDensity(value: number): void {
+export function changeCellsDensity(value: number): void {
   pointsInput.value = String(value);
   const cells = cellsDensityMap[value] || +(pointsInput.dataset.cells ?? 10000);
   pointsInput.dataset.cells = String(cells);
@@ -375,13 +383,13 @@ function changeCellsDensity(value: number): void {
   pointsOutputFormatted.style.color = getCellsDensityColor(cells);
 }
 
-function getCellsDensityColor(cells: number): string {
+export function getCellsDensityColor(cells: number): string {
   return cells > 50000 ? "#b12117" : cells !== 10000 ? "#dfdf12" : "#053305";
 }
 
 // ─── Options changes ───────────────────────────────────────────────────────────
 
-function changeCultureSet(): void {
+export function changeCultureSet(): void {
   const max = (culturesSet.selectedOptions[0] as HTMLElement).dataset.max!;
   (culturesInput as HTMLInputElement).max = (culturesOutput as HTMLInputElement).max = max;
   if (+(culturesOutput as HTMLInputElement).value > +max) {
@@ -389,9 +397,9 @@ function changeCultureSet(): void {
   }
 }
 
-function changeEmblemShape(emblemShape: string): void {
+export function changeEmblemShape(emblemShape: string): void {
   const image = document.getElementById("emblemShapeImage") as SVGPathElement | null;
-  const shapePath = window.COArenderer && (COArenderer.shieldPaths as Record<string, string>)[emblemShape];
+  const shapePath = COArenderer && (COArenderer.shieldPaths as Record<string, string>)[emblemShape];
   if (image) shapePath ? image.setAttribute("d", shapePath) : image.removeAttribute("d");
 
   const specificShape = ["culture", "state", "random"].includes(emblemShape) ? null : emblemShape;
@@ -435,13 +443,13 @@ function changeEmblemShape(emblemShape: string): void {
   });
 }
 
-function changeStatesNumber(value: string): void {
+export function changeStatesNumber(value: string): void {
   ensureEl("statesNumber").style.color = +value ? "" : "#b12117";
   burgLabels.select("#capital").attr("data-size", Math.max(rn(6 - +value / 20), 3));
   labels.select("#countries").attr("data-size", Math.max(rn(18 - +value / 6), 4));
 }
 
-function changeUiSize(value: number): void {
+export function changeUiSize(value: number): void {
   if (Number.isNaN(value) || value < 0.5) return;
 
   const max = getUImaxSize();
@@ -456,7 +464,7 @@ function getUImaxSize(): number {
   return rn(Math.min(window.innerHeight / 465, window.innerWidth / 302), 1);
 }
 
-function changeTooltipSize(value: string): void {
+export function changeTooltipSize(value: string): void {
   tooltip.style.fontSize = `calc(${value}px + 0.5vw)`;
 }
 
@@ -464,18 +472,18 @@ function changeTooltipSize(value: string): void {
 
 const THEME_COLOR = "#997787";
 
-function restoreDefaultThemeColor(): void {
+export function restoreDefaultThemeColor(): void {
   localStorage.removeItem("themeColor");
   changeDialogsTheme(THEME_COLOR, transparencyInput.value);
 }
 
-function changeThemeHue(hue: string): void {
+export function changeThemeHue(hue: string): void {
   const { s, l } = hsl(themeColorInput.value);
   const newColor = hsl(+hue, s, l).formatHex();
   changeDialogsTheme(newColor, transparencyInput.value);
 }
 
-function changeDialogsTheme(themeColor: string, transparency: string): void {
+export function changeDialogsTheme(themeColor: string, transparency: string): void {
   transparencyInput.value = transparency;
   const alpha = (100 - +transparency) / 100;
   const alphaReduced = Math.min(alpha + 0.3, 1);
@@ -536,7 +544,7 @@ function loadGoogleTranslate(): void {
   document.head.appendChild(script);
 }
 
-function initGoogleTranslate(): void {
+export function initGoogleTranslate(): void {
   const g = (window as any).google;
   new g.translate.TranslateElement(
     { pageLanguage: "en", layout: g.translate.TranslateElement.InlineLayout.VERTICAL },
@@ -578,7 +586,7 @@ function restoreDefaultZoomExtent(): void {
 
 // ─── Apply stored options ─────────────────────────────────────────────────────
 
-function applyStoredOptions(): void {
+export function applyStoredOptions(): void {
   if (!stored("mapWidth") || !stored("mapHeight")) {
     mapWidthInput.value = String(window.innerWidth);
     mapHeightInput.value = String(window.innerHeight);
@@ -641,7 +649,7 @@ function applyStoredOptions(): void {
 
 // ─── Randomize options ─────────────────────────────────────────────────────────
 
-function randomizeOptions(): void {
+export function randomizeOptions(): void {
   const randomize = new URL(window.location.href).searchParams.get("options") === "default";
 
   if (randomize || !locked("points")) changeCellsDensity(4);
@@ -681,7 +689,7 @@ function randomizeOptions(): void {
   generateEra();
 }
 
-function randomizeHeightmapTemplate(): void {
+export function randomizeHeightmapTemplate(): void {
   const templates: Record<string, number> = {};
   for (const key in heightmapTemplates) {
     templates[key] = (heightmapTemplates[key].probability as number) || 0;
@@ -691,7 +699,7 @@ function randomizeHeightmapTemplate(): void {
   applyOption(ensureEl("templateInput"), template, name);
 }
 
-function randomizeCultureSet(): void {
+export function randomizeCultureSet(): void {
   const sets: Record<string, number> = {
     world: 10,
     european: 10,
@@ -708,7 +716,7 @@ function randomizeCultureSet(): void {
 
 // ─── Rendering ────────────────────────────────────────────────────────────────
 
-function setRendering(value: string): void {
+export function setRendering(value: string): void {
   viewbox.attr("shape-rendering", value);
 
   if (value === "optimizeSpeed") {
@@ -723,7 +731,7 @@ function setRendering(value: string): void {
 
 // ─── Era ──────────────────────────────────────────────────────────────────────
 
-function generateEra(): void {
+export function generateEra(): void {
   if (!stored("year")) (yearInput as HTMLInputElement).value = String(rand(100, 2000));
   if (!stored("era"))
     (eraInput as HTMLInputElement).value = `${Names.getBaseShort(P(0.7) ? 1 : rand(nameBases.length))} Era`;
@@ -735,7 +743,7 @@ function generateEra(): void {
     .join("");
 }
 
-function regenerateEra(): void {
+export function regenerateEra(): void {
   unlock("era");
   options.era = (eraInput as HTMLInputElement).value = `${Names.getBaseShort(P(0.7) ? 1 : rand(nameBases.length))} Era`;
   options.eraShort = options.era
@@ -744,7 +752,7 @@ function regenerateEra(): void {
     .join("");
 }
 
-function changeYear(): void {
+export function changeYear(): void {
   const val = (yearInput as HTMLInputElement).value;
   if (!val) return;
   if (Number.isNaN(+val)) {
@@ -754,14 +762,14 @@ function changeYear(): void {
   options.year = +val;
 }
 
-function changeEra(): void {
+export function changeEra(): void {
   const val = (eraInput as HTMLInputElement).value;
   if (!val) return;
   lock("era");
   options.era = val;
 }
 
-function openTemplateSelectionDialog(): void {
+export function openTemplateSelectionDialog(): void {
   openHeightmapSelection();
 }
 
@@ -776,7 +784,7 @@ ensureEl("sticked").addEventListener("click", (event: MouseEvent) => {
   else if (id === "zoomReset") resetZoom(1000);
 });
 
-function regeneratePrompt(opts?: { seed?: string }): void {
+export function regeneratePrompt(opts?: { seed?: string }): void {
   if (customization) {
     tip("New map cannot be generated when edit mode is active, please exit the mode and retry", false, "error");
     return;
@@ -806,7 +814,7 @@ function regeneratePrompt(opts?: { seed?: string }): void {
 
 // ─── Save / export / load panes ───────────────────────────────────────────────
 
-function showSavePane(): void {
+export function showSavePane(): void {
   const sharableLinkContainer = ensureEl("sharableLinkContainer");
   sharableLinkContainer.style.display = "none";
 
@@ -823,13 +831,13 @@ function showSavePane(): void {
   });
 }
 
-function copyLinkToClickboard(): void {
+export function copyLinkToClickboard(): void {
   const shrableLink = ensureEl("sharableLink");
   const link = shrableLink.getAttribute("href")!;
   navigator.clipboard.writeText(link).then(() => tip("Link is copied to the clipboard", true, "success", 8000));
 }
 
-function showExportPane(): void {
+export function showExportPane(): void {
   ensureEl<HTMLInputElement>("showLabels").checked = !(hideLabels as HTMLInputElement).checked;
 
   $("#exportMapData").dialog({
@@ -845,11 +853,11 @@ function showExportPane(): void {
   });
 }
 
-function exportToJson(type: string): void {
+export function exportToJson(type: string): void {
   exportToJsonModule(type);
 }
 
-async function showLoadPane(): Promise<void> {
+export async function showLoadPane(): Promise<void> {
   $("#loadMapData").dialog({
     title: "Load map",
     resizable: false,
@@ -896,12 +904,12 @@ async function showLoadPane(): Promise<void> {
   ensureEl("loadFromDropboxSelect").style.display = "none";
 }
 
-async function connectToDropbox(): Promise<void> {
+export async function connectToDropbox(): Promise<void> {
   await Cloud.providers.dropbox.initialize();
   if (Cloud.providers.dropbox.api) showLoadPane();
 }
 
-function loadURL(): void {
+export function loadURL(): void {
   const pattern = /(ftp|http|https):\/\/(\w+:{0,1}\w*@)?(\S+)(:[0-9]+)?(\/|\/([\w#!:.?+=&%@!\-/]))?/;
   const inner = `Provide URL to map file:
     <input id="mapURL" type="url" style="width: 24em" placeholder="https://e-cloud.com/test.map">
@@ -928,6 +936,7 @@ function loadURL(): void {
   });
 }
 
+ensureEl("loadFromMachine").addEventListener("click", () => ensureEl<HTMLInputElement>("mapToLoad").click());
 ensureEl<HTMLInputElement>("mapToLoad").addEventListener("change", function (this: HTMLInputElement) {
   const fileToLoad = this.files![0];
   this.value = "";
@@ -937,7 +946,7 @@ ensureEl<HTMLInputElement>("mapToLoad").addEventListener("change", function (thi
 
 // ─── PNG tiles export ─────────────────────────────────────────────────────────
 
-function openExportToPngTiles(): void {
+export function openExportToPngTiles(): void {
   ensureEl("tileStatus").innerHTML = "";
   closeDialogs();
   updateTilesOptions();
@@ -952,7 +961,7 @@ function openExportToPngTiles(): void {
     title: "Download tiles",
     width: "23em",
     buttons: {
-      Download: () => exportToPngTiles(),
+      Download: () => exportToPngTilesFromExport(),
       Cancel: function (this: Element) {
         $(this).dialog("close");
       }
@@ -967,7 +976,7 @@ function openExportToPngTiles(): void {
 }
 
 // biome-ignore lint/suspicious/noConfusingVoidType: this parameter needs void union for optional event handler context
-function updateTilesOptions(this: HTMLInputElement | void): void {
+export function updateTilesOptions(this: HTMLInputElement | void): void {
   if (this && (this as HTMLInputElement).tagName === "INPUT") {
     const el = this as HTMLInputElement;
     const { nextElementSibling: next, previousElementSibling: prev } = el;
@@ -1016,7 +1025,7 @@ function updateTilesOptions(this: HTMLInputElement | void): void {
 
 viewMode.addEventListener("click", changeViewMode);
 
-function changeViewMode(event: MouseEvent): void {
+export function changeViewMode(event: MouseEvent): void {
   const button = event.target as HTMLElement;
   if (button.tagName !== "BUTTON") return;
   const pressed = button.classList.contains("pressed");
@@ -1029,7 +1038,7 @@ function changeViewMode(event: MouseEvent): void {
   }
 }
 
-function enterStandardView(): void {
+export function enterStandardView(): void {
   viewMode.querySelectorAll(".pressed").forEach(button => {
     button.classList.remove("pressed");
   });
@@ -1043,7 +1052,7 @@ function enterStandardView(): void {
   if (preview3d.offsetParent) ($("#preview3d") as any).dialog("close");
 }
 
-async function enter3dView(type: string): Promise<void> {
+export async function enter3dView(type: string): Promise<void> {
   const canvas = document.createElement("canvas");
   canvas.id = "canvas3d";
   canvas.dataset.type = type;
@@ -1083,14 +1092,14 @@ async function enter3dView(type: string): Promise<void> {
   toggle3dOptions();
 }
 
-function resize3d(): void {
+export function resize3d(): void {
   const canvas = ensureEl<HTMLCanvasElement>("canvas3d");
   canvas.width = parseFloat(preview3d.style.width);
   canvas.height = parseFloat(preview3d.style.height) - 2;
   ThreeD.redraw();
 }
 
-function toggle3dOptions(): void {
+export function toggle3dOptions(): void {
   if (options3dUpdate.offsetParent) {
     ($("#options3d") as any).dialog("close");
     return;
@@ -1254,53 +1263,20 @@ function toggle3dOptions(): void {
   }
 }
 
-// ─── Global registration ───────────────────────────────────────────────────────
+// ─── HTML event listeners ─────────────────────────────────────────────────────
 
-window.showOptions = showOptions;
-window.hideOptions = hideOptions;
-window.toggleOptions = toggleOptions;
-window.applyGraphSize = applyGraphSize;
-window.fitMapToScreen = fitMapToScreen;
-window.applyStoredOptions = applyStoredOptions;
-window.randomizeOptions = randomizeOptions;
-window.randomizeHeightmapTemplate = randomizeHeightmapTemplate;
-window.randomizeCultureSet = randomizeCultureSet;
-window.generateEra = generateEra;
-window.regenerateEra = regenerateEra;
-window.changeYear = changeYear;
-window.changeEra = changeEra;
-window.changeCellsDensity = changeCellsDensity;
-window.cellsDensityMap = cellsDensityMap;
-window.getCellsDensityColor = getCellsDensityColor;
-window.changeCultureSet = changeCultureSet;
-window.changeEmblemShape = changeEmblemShape;
-window.changeStatesNumber = changeStatesNumber;
-window.changeUiSize = changeUiSize;
-window.changeTooltipSize = changeTooltipSize;
-window.changeThemeHue = changeThemeHue;
-window.changeDialogsTheme = changeDialogsTheme;
-window.restoreDefaultThemeColor = restoreDefaultThemeColor;
-window.setRendering = setRendering;
-window.regeneratePrompt = regeneratePrompt;
-window.showSavePane = showSavePane;
-window.showExportPane = showExportPane;
-window.showLoadPane = showLoadPane;
-window.copyLinkToClickboard = copyLinkToClickboard;
-window.exportToJson = exportToJson;
-window.connectToDropbox = connectToDropbox;
-window.loadURL = loadURL;
-window.openExportToPngTiles = openExportToPngTiles;
-window.updateTilesOptions = updateTilesOptions;
-window.enterStandardView = enterStandardView;
-window.enter3dView = enter3dView;
-window.toggle3dOptions = toggle3dOptions;
-window.resize3d = resize3d;
-window.showSupporters = showSupporters;
-window.showSeedHistoryDialog = showSeedHistoryDialog;
-window.restoreSeed = restoreSeed;
-window.copyMapURL = copyMapURL;
-window.initGoogleTranslate = initGoogleTranslate;
-window.openTemplateSelectionDialog = openTemplateSelectionDialog;
-window.changeViewMode = changeViewMode;
-
-export { applyStoredOptions };
+ensureEl("optionsTrigger").addEventListener("click", e => showOptions(e as MouseEvent));
+ensureEl("regenerate").addEventListener("click", () => regeneratePrompt());
+ensureEl("optionsHide").addEventListener("click", e => hideOptions(e as MouseEvent));
+ensureEl("showSupportersLink").addEventListener("click", e => {
+  e.preventDefault();
+  showSupporters();
+});
+ensureEl("loadUrlBtn").addEventListener("click", loadURL);
+ensureEl("copyShareLinkBtn").addEventListener("click", copyLinkToClickboard);
+ensureEl("dropboxConnectButton").addEventListener("click", connectToDropbox);
+ensureEl("exportPngTilesBtn").addEventListener("click", openExportToPngTiles);
+ensureEl("exportJsonFullBtn").addEventListener("click", () => exportToJson("Full"));
+ensureEl("exportJsonMinimalBtn").addEventListener("click", () => exportToJson("Minimal"));
+ensureEl("exportJsonPackCellsBtn").addEventListener("click", () => exportToJson("PackCells"));
+ensureEl("exportJsonGridCellsBtn").addEventListener("click", () => exportToJson("GridCells"));

@@ -1,4 +1,6 @@
 import * as d3 from "d3";
+import { BrushHistory } from "../editors/BrushHistory";
+import { Burgs, COA, COArenderer, Names, Provinces, States } from "../modules";
 import type { Burg } from "../modules/burgs-generator";
 import type { Culture } from "../modules/cultures-generator";
 import type { Emblem as RendererEmblem } from "../modules/emblem/renderer";
@@ -6,7 +8,48 @@ import type { MilitaryRegiment } from "../modules/military-generator";
 import type { Province } from "../modules/provinces-generator";
 import type { State } from "../modules/states-generator";
 import type { WorldNote } from "../types/WorldState";
-import { applySortingByHeader, ensureEl, rn, si } from "../utils";
+import {
+  applySortingByHeader,
+  ensureEl,
+  findAllCellsInRadius,
+  getPackPolygon,
+  getRandomColor,
+  isLand,
+  P,
+  rand,
+  rn,
+  si
+} from "../utils";
+import { overviewBurgs } from "./burgs-overview";
+import {
+  clearLegend,
+  closeDialogs,
+  confirmationDialog,
+  downloadFile,
+  drawLegend,
+  fitContent,
+  fog,
+  getArea,
+  getAreaUnit,
+  getFileName,
+  highlightElement,
+  moveCircle,
+  openPicker,
+  removeCircle,
+  restoreDefaultEvents,
+  unfog
+} from "./editors";
+import { editEmblem } from "./emblems-editor";
+import {
+  layerIsOn,
+  toggleBiomes,
+  toggleBorders,
+  toggleCultures,
+  toggleProvinces,
+  toggleReligions,
+  toggleStates
+} from "./layers";
+import { editStyle } from "./style";
 
 const $body = insertEditorHtml();
 addListeners();
@@ -131,7 +174,7 @@ function addListeners(): void {
     const stateId = +(($element.parentNode as HTMLElement)?.dataset?.id ?? "0");
     if ($element.tagName === "FILL-BOX") stateChangeFill($element);
     else if (classList.contains("name")) editStateName(stateId);
-    else if (classList.contains("coaIcon")) editEmblem?.("state", `stateCOA${stateId}`, pack.states[stateId]);
+    else if (classList.contains("coaIcon")) editEmblem("state", `stateCOA${stateId}`, pack.states[stateId]);
     else if (classList.contains("icon-star-empty")) stateCapitalZoomIn(stateId);
     else if (classList.contains("icon-dot-circled")) overviewBurgs({ stateId });
     else if (classList.contains("statePopulation")) changePopulation(stateId);
@@ -988,8 +1031,8 @@ function dragStateBrush(this: SVGElement, event: d3.D3DragEvent<SVGElement, unkn
   const p = d3.pointer(event, this);
   moveCircle(p[0], p[1], r);
 
-  const found = r > 5 ? findAll(p[0], p[1], r) : [findCell(p[0], p[1])];
-  const selection = found.filter(isLand);
+  const found = r > 5 ? findAllCellsInRadius(p[0], p[1], r, pack!) : [findCell(p[0], p[1])];
+  const selection = found.filter(i => isLand(i, pack!));
   if (selection) changeStateForSelection(selection);
 }
 
@@ -1014,7 +1057,7 @@ function changeStateForSelection(selection: number[]): void {
         .append("polygon")
         .attr("data-cell", i)
         .attr("data-state", stateNew)
-        .attr("points", getPackPolygon(i).join(" "))
+        .attr("points", getPackPolygon(i, pack!).join(" "))
         .attr("fill", color)
         .attr("stroke", color);
   });

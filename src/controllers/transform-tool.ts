@@ -1,4 +1,9 @@
+import { getMapURL } from "../io/export";
+import { Resample } from "../modules";
 import { ensureEl, rn } from "../utils";
+import { closeDialogs } from "./editors";
+import { drawLayers } from "./layers";
+import { applyGraphSize, cellsDensityMap, changeCellsDensity, fitMapToScreen, getCellsDensityColor } from "./options";
 
 async function openTransformTool(): Promise<void> {
   const width = Math.min(400, window.innerWidth * 0.5);
@@ -189,4 +194,4 @@ async function openTransformTool(): Promise<void> {
   }
 }
 
-window.openTransformTool = openTransformTool;
+export { openTransformTool };

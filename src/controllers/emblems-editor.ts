@@ -1,12 +1,15 @@
 import type * as d3 from "d3";
 import { drag } from "d3";
+import { COA, COArenderer } from "../modules";
 import type { Burg } from "../modules/burgs-generator";
 import type { Province } from "../modules/provinces-generator";
 import type { State } from "../modules/states-generator";
 import { openURL, rn } from "../utils";
+import { highlightEmblemElement } from "../utils/uiHelpers";
+import { downloadFile, getFileName } from "./editors";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function editEmblem(type?: string, id?: string, el?: any): void {
+export function editEmblem(type?: string, id?: string, el?: any): void {
   if (customization) return;
   if (!id && el) defineEmblemData(el);
 
@@ -209,7 +212,7 @@ function editEmblem(type?: string, id?: string, el?: any): void {
   }
 
   function showArea(): void {
-    window.highlightEmblemElement(type!, el);
+    highlightEmblemElement(type!, el);
   }
 
   function changeSize(event: Event): void {
@@ -525,5 +528,3 @@ function editEmblem(type?: string, id?: string, el?: any): void {
       .attr("class", null);
   }
 }
-
-window.editEmblem = editEmblem;

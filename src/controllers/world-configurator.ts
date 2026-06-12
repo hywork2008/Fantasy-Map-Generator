@@ -1,7 +1,10 @@
 import { geoGraticule, geoOrthographic, geoPath, interpolateSpectral, range, scaleSequential, select } from "d3";
+import { Biomes, Features, Lakes, Rivers } from "../modules";
 import { ensureEl, parseTransform, rn, round } from "../utils";
+import { ThreeD } from "./3d";
+import { layerIsOn } from "./layers";
 
-function editWorld(): void {
+export function editWorld(): void {
   if (customization) return;
 
   $("#worldConfigurator").dialog({
@@ -210,4 +213,7 @@ function editWorld(): void {
   }
 }
 
-window.editWorld = editWorld;
+// ─── HTML event listeners ─────────────────────────────────────────────────────
+
+ensureEl("configureWorld").addEventListener("click", editWorld);
+ensureEl("editWorldBtn3d").addEventListener("click", editWorld);

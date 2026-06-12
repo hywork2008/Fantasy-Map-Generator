@@ -1,9 +1,16 @@
 import { curveCatmullRom, type D3DragEvent, drag, pointer, select } from "d3";
+import { Names, Rivers } from "../modules";
 import type { River } from "../modules/river-generator";
 import type { TypedArray } from "../types/PackedGraph";
-import { ensureEl, getSegmentId, rand, rn } from "../utils";
+import { ensureEl, getPackPolygon, getSegmentId, rand, rn } from "../utils";
+import { closeDialogs, unselect } from "./editors";
+import { ElevationProfile } from "./elevation-profile";
+import { layerIsOn, toggleCells, toggleRivers } from "./layers";
+import { editNotes } from "./notes-editor";
+import { createRiver } from "./rivers-creator";
+import { editStyle } from "./style";
 
-function editRiver(id: string): void {
+export function editRiver(id: string): void {
   if (customization) return;
   if (elSelected && id === elSelected.attr("id")) return;
   closeDialogs(".stable");
@@ -129,7 +136,7 @@ function editRiver(id: string): void {
       .selectAll("polygon")
       .data(validCells)
       .join("polygon")
-      .attr("points", (d: number) => getPackPolygon(d) as unknown as string);
+      .attr("points", (d: number) => getPackPolygon(d, pack!) as unknown as string);
   }
 
   let _rInitCell = 0,
@@ -297,5 +304,3 @@ function editRiver(id: string): void {
     if (forced && layerIsOn("toggleCells")) toggleCells();
   }
 }
-
-window.editRiver = editRiver;

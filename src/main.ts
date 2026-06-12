@@ -3,11 +3,41 @@
 
 import type { Selection } from "d3";
 import * as d3 from "d3";
+import { heightmapTemplates } from "./config";
 import { viewState } from "./context/viewState";
 import { worldContext } from "./context/worldContext";
-import { Rulers } from "./controllers/measurers";
-import { applyStoredOptions } from "./controllers/options";
+import { ThreeD } from "./controllers/3d";
+import { clearLegend, closeDialogs, restoreDefaultEvents, unfog } from "./controllers/editors";
+import { applyLayersPreset, drawLayers, layerIsOn } from "./controllers/layers";
+import { createDefaultRuler } from "./controllers/measurers";
+import { updateMinimap } from "./controllers/minimap";
+import { applyGraphSize, applyStoredOptions, fitMapToScreen, randomizeOptions } from "./controllers/options";
+import { applyStyleOnLoad } from "./controllers/style";
+import { editUnits } from "./controllers/units-editor";
+import { editWorld } from "./controllers/world-configurator";
+import { loadMapFromURL, showUploadErrorMessage, uploadMap } from "./io/load";
+import { initiateAutosave } from "./io/save";
+import {
+  Biomes,
+  Burgs,
+  Cultures,
+  Features,
+  HeightmapGenerator,
+  Ice,
+  Lakes,
+  Markers,
+  Military,
+  Names,
+  Provinces,
+  Religions,
+  Rivers,
+  Routes,
+  States,
+  UITour,
+  Zones
+} from "./modules";
 import type { BurgGroup } from "./modules/burgs-generator";
+import { drawCoordinates, drawScaleBar, fitScaleBar } from "./renderers";
 import {
   TYPED_ARRAY_MAX_VALUES as _TMP,
   calculateVoronoi,
@@ -15,14 +45,19 @@ import {
   debounce,
   ensureEl,
   gauss,
+  generateGrid,
+  generateSeed,
   getPackPolygon,
   minmax,
   normalize,
   P,
+  parseError,
   rand,
-  rn
+  rn,
+  shouldRegenerateGrid
 } from "./utils";
 import type { Grid } from "./utils/graphUtils";
+import { cleanupData } from "./versioning";
 
 const UINT16_MAX = _TMP.UINT16_MAX;
 
@@ -35,16 +70,6 @@ const INFO = true;
 const TIME = true;
 const WARN = true;
 const ERROR = true;
-const MOBILE: boolean =
-  window.innerWidth < 600 ||
-  (navigator as Navigator & { userAgentData?: { mobile?: boolean } }).userAgentData?.mobile === true;
-
-window.DEBUG = DEBUG;
-window.INFO = INFO;
-window.TIME = TIME;
-window.WARN = WARN;
-window.ERROR = ERROR;
-window.MOBILE = MOBILE;
 
 if (PRODUCTION && "serviceWorker" in navigator) {
   window.addEventListener("load", () => {
@@ -189,58 +214,6 @@ legend
   .on("mousemove", () => tip("Drag to change the position. Click to hide the legend"))
   .on("click", () => clearLegend());
 
-// ─── Expose SVG layers globally ───────────────────────────────────────────────
-
-window.svg = svg;
-window.defs = defs;
-window.viewbox = viewbox as unknown as Selection<SVGElement, unknown, null, undefined>;
-window.scaleBar = scaleBar;
-window.legend = legend;
-window.ocean = ocean;
-window.oceanLayers = oceanLayers;
-window.oceanPattern = oceanPattern;
-window.landmass = landmass;
-window.texture = texture;
-window.terrs = terrs;
-window.lakes = lakes;
-window.biomes = biomes;
-window.cells = cells;
-window.gridOverlay = gridOverlay;
-window.coordinates = coordinates;
-window.compass = compass;
-window.rivers = rivers as Selection<SVGElement, unknown, null, undefined>;
-window.terrain = terrain;
-window.relig = relig;
-window.cults = cults;
-window.regions = regions;
-window.statesBody = statesBody;
-window.statesHalo = statesHalo;
-window.provs = provs;
-window.zones = zones;
-window.borders = borders;
-window.stateBorders = stateBorders;
-window.provinceBorders = provinceBorders;
-window.routes = routes as Selection<SVGElement, unknown, null, undefined>;
-window.roads = roads;
-window.trails = trails;
-window.searoutes = searoutes;
-window.temperature = temperature;
-window.coastline = coastline;
-window.ice = ice;
-window.prec = prec;
-window.population = population;
-window.emblems = emblems as Selection<SVGElement, unknown, null, undefined>;
-window.icons = icons;
-window.labels = labels;
-window.burgIcons = burgIcons;
-window.anchors = anchors;
-window.armies = armies;
-window.markers = markers;
-window.fogging = fogging;
-window.ruler = ruler;
-window.debug = debug;
-window.burgLabels = burgLabels;
-
 // ─── Populate viewState singleton ────────────────────────────────────────────
 
 Object.assign(viewState, {
@@ -350,56 +323,6 @@ export function reinitializeMapLayers(): void {
   debug = viewbox.select("#debug") as Selection<SVGGElement, unknown, null, undefined>;
   burgLabels = labels.select("#burgLabels") as Selection<SVGGElement, unknown, null, undefined>;
 
-  window.svg = svg;
-  window.defs = defs;
-  window.viewbox = viewbox as unknown as Selection<SVGElement, unknown, null, undefined>;
-  window.scaleBar = scaleBar;
-  window.legend = legend;
-  window.ocean = ocean;
-  window.oceanLayers = oceanLayers;
-  window.oceanPattern = oceanPattern;
-  window.landmass = landmass;
-  window.texture = texture;
-  window.terrs = terrs;
-  window.lakes = lakes;
-  window.biomes = biomes;
-  window.cells = cells;
-  window.gridOverlay = gridOverlay;
-  window.coordinates = coordinates;
-  window.compass = compass;
-  window.rivers = rivers as Selection<SVGElement, unknown, null, undefined>;
-  window.terrain = terrain;
-  window.relig = relig;
-  window.cults = cults;
-  window.regions = regions;
-  window.statesBody = statesBody;
-  window.statesHalo = statesHalo;
-  window.provs = provs;
-  window.zones = zones;
-  window.borders = borders;
-  window.stateBorders = stateBorders;
-  window.provinceBorders = provinceBorders;
-  window.routes = routes as Selection<SVGElement, unknown, null, undefined>;
-  window.roads = roads;
-  window.trails = trails;
-  window.searoutes = searoutes;
-  window.temperature = temperature;
-  window.coastline = coastline;
-  window.ice = ice;
-  window.prec = prec;
-  window.population = population;
-  window.emblems = emblems as Selection<SVGElement, unknown, null, undefined>;
-  window.icons = icons;
-  window.labels = labels;
-  window.burgIcons = burgIcons;
-  window.anchors = anchors;
-  window.armies = armies;
-  window.markers = markers;
-  window.fogging = fogging;
-  window.ruler = ruler;
-  window.debug = debug;
-  window.burgLabels = burgLabels;
-
   Object.assign(viewState, {
     svg,
     defs,
@@ -456,13 +379,9 @@ export function reinitializeMapLayers(): void {
 // ─── Fit loaded map to screen (called after reinitializeMapLayers + fitMapToScreen) ─
 
 export function fitMapView(): void {
-  const gw = window.graphWidth;
-  const gh = window.graphHeight;
-  const sw = window.svgWidth;
-  const sh = window.svgHeight;
-  const z = rn(Math.max(sw / gw, sh / gh), 3);
-  const tx = rn((-gw / 2) * z + sw / 2, 2);
-  const ty = rn((-gh / 2) * z + sh / 2, 2);
+  const z = rn(Math.max(svgWidth / graphWidth, svgHeight / graphHeight), 3);
+  const tx = rn((-graphWidth / 2) * z + svgWidth / 2, 2);
+  const ty = rn((-graphHeight / 2) * z + svgHeight / 2, 2);
   const transform = d3.zoomIdentity.translate(tx, ty).scale(z);
 
   // Update module-level state before svg.call so zoomRaf's no-change guard
@@ -470,9 +389,6 @@ export function fitMapView(): void {
   scale = z;
   viewX = tx;
   viewY = ty;
-  window.scale = scale;
-  window.viewX = viewX;
-  window.viewY = viewY;
   worldContext.scale = scale;
   viewState.viewX = viewX;
   viewState.viewY = viewY;
@@ -491,10 +407,8 @@ let pack = {} as typeof window.pack;
 let seed = "" as string;
 let mapId = 0;
 const mapHistory: typeof window.mapHistory = [];
-const elSelected: typeof window.elSelected = null;
 const modules: typeof window.modules = window.modules ?? {};
 let notes: typeof window.notes = [];
-const rulers = new Rulers();
 let customization = 0;
 
 const options: typeof window.options = {
@@ -515,25 +429,13 @@ const style: typeof window.style = { burgLabels: {}, burgIcons: {}, anchors: {} 
 
 const biomesData: typeof window.biomesData = Biomes.getDefault();
 const nameBases: typeof window.nameBases = Names.getNameBases();
-const color = d3.scaleSequential(d3.interpolateSpectral);
 const lineGen = d3.line().curve(d3.curveBasis);
 
 window.grid = grid;
 window.pack = pack;
 window.seed = seed;
-window.mapId = mapId;
-window.mapHistory = mapHistory;
-window.elSelected = elSelected;
 window.modules = modules;
-window.notes = notes;
-window.rulers = rulers;
-window.customization = customization;
-window.options = options;
 window.style = style;
-window.biomesData = biomesData;
-window.nameBases = nameBases;
-window.color = color;
-window.lineGen = lineGen;
 
 // ─── Populate worldContext singleton (initial values) ─────────────────────────
 
@@ -571,9 +473,6 @@ function zoomRaf(event: { transform: { k: number; x: number; y: number } }) {
   scale = k;
   viewX = x;
   viewY = y;
-  window.scale = scale;
-  window.viewX = viewX;
-  window.viewY = viewY;
   worldContext.scale = scale;
   viewState.viewX = viewX;
   viewState.viewY = viewY;
@@ -616,17 +515,13 @@ function zoomRaf(event: { transform: { k: number; x: number; y: number } }) {
     }
 
     if (didPositionChange || didScaleChange) {
-      window.updateMinimap && updateMinimap();
+      updateMinimap();
     }
   });
 }
 
 const zoom = d3.zoom<SVGSVGElement, unknown>().scaleExtent([1, 20]).on("zoom", zoomRaf);
 
-window.scale = scale;
-window.viewX = viewX;
-window.viewY = viewY;
-window.zoom = zoom as unknown as ZoomBehaviorExtended;
 viewState.zoom = zoom;
 worldContext.scale = scale;
 viewState.viewX = viewX;
@@ -710,6 +605,17 @@ document.addEventListener("DOMContentLoaded", async () => {
   restoreDefaultEvents?.();
   initiateAutosave();
   initTourPromptButton();
+
+  document.getElementById("regenerateMapName")?.addEventListener("click", () => Names.getMapName(true));
+  document.getElementById("startTourButton")?.addEventListener("click", () => UITour.start());
+  document.getElementById("hideEmblems")?.addEventListener("change", invokeActiveZooming);
+  document.getElementById("hideLabels")?.addEventListener("change", invokeActiveZooming);
+  document.getElementById("rescaleLabels")?.addEventListener("change", invokeActiveZooming);
+  document.getElementById("showLabels")?.addEventListener("change", function (this: HTMLInputElement) {
+    const hideLabels = document.getElementById("hideLabels") as HTMLInputElement | null;
+    if (hideLabels) hideLabels.checked = !this.checked;
+    invokeActiveZooming();
+  });
 });
 
 function hideLoading() {
@@ -937,7 +843,7 @@ function resetZoom(d = 1000) {
   svg.transition().duration(d).call(zoom.transform, d3.zoomIdentity);
 }
 
-function invokeActiveZooming() {
+export function invokeActiveZooming() {
   const isOptimized = shapeRendering.value === "optimizeSpeed";
 
   if (coastline.select("#sea_island").size() && +coastline.select("#sea_island").attr("auto-filter")) {
@@ -1057,15 +963,16 @@ async function generate(opts?: { seed?: string; graph?: Grid | null }) {
     applyGraphSize();
     randomizeOptions();
 
-    if (shouldRegenerateGrid(grid, +(precreatedSeed ?? 0))) grid = precreatedGraph || generateGrid();
+    if (shouldRegenerateGrid(grid, +(precreatedSeed ?? 0), graphWidth, graphHeight))
+      grid = precreatedGraph || generateGrid(seed, graphWidth, graphHeight);
     else delete (grid.cells as { h?: unknown }).h;
     grid.cells.h = await HeightmapGenerator.generate(grid);
-    window.grid = grid;
     worldContext.grid = grid;
+    window.grid = grid;
 
-    pack = {} as typeof window.pack;
-    window.pack = pack;
+    pack = {} as typeof pack;
     worldContext.pack = pack;
+    window.pack = pack;
 
     Features.markupGrid();
     addLakesInDeepDepressions();
@@ -1144,7 +1051,16 @@ async function generate(opts?: { seed?: string; graph?: Grid | null }) {
 }
 
 function getWorldState() {
-  return { pack, grid, seed, options, nameBases, biomesData, notes, style };
+  return {
+    pack,
+    grid,
+    seed,
+    options,
+    nameBases: worldContext.nameBases,
+    biomesData: worldContext.biomesData,
+    notes: worldContext.notes,
+    style
+  };
 }
 
 function setSeed(precreatedSeed?: string) {
@@ -1159,8 +1075,8 @@ function setSeed(precreatedSeed?: string) {
     seed = precreatedSeed;
   }
 
-  window.seed = seed;
   worldContext.seed = seed;
+  window.seed = seed;
   ensureEl<HTMLInputElement>("optionsSeed").value = seed;
   Math.random = aleaPRNG(seed);
 }
@@ -1341,7 +1257,7 @@ function calculateMapCoordinates() {
   const lonE = rn(180 - (360 - lonT) * lonShift, 1);
   const lonW = rn(lonE - lonT, 1);
   mapCoordinates = { latT, latN, latS, lonT, lonW, lonE };
-  window.mapCoordinates = mapCoordinates;
+  worldContext.mapCoordinates = mapCoordinates;
 }
 
 // ─── Temperature model ────────────────────────────────────────────────────────
@@ -1599,13 +1515,7 @@ function reGraph() {
   TIME && console.timeEnd("reGraph");
 }
 
-function isWetLand(moisture: number, temperature: number, height: number) {
-  if (moisture > 40 && temperature > -2 && height < 25) return true;
-  if (moisture > 24 && temperature > -2 && height > 24 && height < 60) return true;
-  return false;
-}
-
-function rankCells() {
+export function rankCells() {
   TIME && console.time("rankCells");
   const { cells: packCells, features } = pack;
   packCells.s = new Int16Array(packCells.i.length);
@@ -1674,7 +1584,6 @@ function showStatistics() {
     Cultures: ${pack.cultures.length - 1}`;
 
   mapId = Date.now();
-  window.mapId = mapId;
   worldContext.mapId = mapId;
   mapHistory.push({ seed, width: graphWidth, height: graphHeight, template: heightmap, created: mapId });
   INFO && console.info(stats);
@@ -1691,7 +1600,6 @@ const regenerateMap = debounce(async (opts?: { seed?: string } | string) => {
 
   closeDialogs("#worldConfigurator, #options3d");
   customization = 0;
-  window.customization = customization;
   worldContext.customization = customization;
   resetZoom(1000);
   undraw();
@@ -1716,36 +1624,9 @@ function undraw() {
     });
   ensureEl("coas").innerHTML = "";
   notes = [];
-  window.notes = notes;
   worldContext.notes = notes;
   unfog();
 }
-
-// ─── Global exports ───────────────────────────────────────────────────────────
-
-window.generate = generate;
-window.getWorldState = getWorldState;
-window.generateMapOnLoad = generateMapOnLoad;
-window.checkLoadParameters = checkLoadParameters;
-window.focusOn = focusOn;
-window.toggleAssistant = toggleAssistant;
-window.zoomTo = zoomTo;
-window.resetZoom = resetZoom;
-window.invokeActiveZooming = invokeActiveZooming;
-window.showLoading = showLoading;
-window.hideLoading = hideLoading;
-window.addLakesInDeepDepressions = addLakesInDeepDepressions;
-window.openNearSeaLakes = openNearSeaLakes;
-window.defineMapSize = defineMapSize;
-window.calculateMapCoordinates = calculateMapCoordinates;
-window.calculateTemperatures = calculateTemperatures;
-window.generatePrecipitation = generatePrecipitation;
-window.reGraph = reGraph;
-window.rankCells = rankCells;
-window.showStatistics = showStatistics;
-window.regenerateMap = regenerateMap;
-window.undraw = undraw;
-window.isWetLand = isWetLand;
 
 // ─── Controlled debug namespace ───────────────────────────────────────────────
 // In DEV builds, expose organized debug access instead of scattered window.pack etc.

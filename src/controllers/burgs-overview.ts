@@ -1,8 +1,21 @@
 import * as d3 from "d3";
 import { pointer } from "d3";
+import { Burgs, Names } from "../modules";
 import { ensureEl, rn, si } from "../utils";
+import { editBurg, getTemperatureLikeness } from "./burg-editor";
+import { editBurgGroups } from "./burg-group-editor";
+import {
+  closeDialogs,
+  confirmationDialog,
+  downloadFile,
+  fitContent,
+  getFileName,
+  restoreDefaultEvents,
+  uploadFile
+} from "./editors";
+import { layerIsOn, toggleBurgIcons, toggleLabels } from "./layers";
 
-function overviewBurgs(settings: { stateId?: number | null; cultureId?: number | null } = {}): void {
+export function overviewBurgs(settings: { stateId?: number | null; cultureId?: number | null } = {}): void {
   if (customization) return;
   closeDialogs("#burgsOverview, .stable");
   if (!layerIsOn("toggleBurgIcons")) toggleBurgIcons();
@@ -209,7 +222,7 @@ function overviewBurgs(settings: { stateId?: number | null; cultureId?: number |
 
   function openBurgEditor(this: HTMLElement): void {
     const burg = +(this.parentNode as HTMLElement).dataset.id!;
-    editBurg!(burg);
+    editBurg(burg);
   }
 
   function triggerBurgRemove(this: HTMLElement): void {
@@ -643,8 +656,6 @@ function overviewBurgs(settings: { stateId?: number | null; cultureId?: number |
     ensureEl("burgsLockAll").className = allLocked ? "icon-lock-open" : "icon-lock";
   }
 }
-
-window.overviewBurgs = overviewBurgs;
 
 declare global {
   interface Window {

@@ -1,10 +1,16 @@
 import { drag, easeSinInOut, pointer, select, sum, transition } from "d3";
+import { Military } from "../modules";
 import type { MilitaryRegiment } from "../modules/military-generator";
+import { drawRegiment, moveRegiment } from "../renderers";
 import type { WorldNote } from "../types/WorldState";
 import { capitalize, ensureEl, last, rn } from "../utils";
 import type { BattleRegiment } from "./battle-screen";
+import { Battle } from "./battle-screen";
+import { closeDialogs, restoreDefaultEvents, selectIcon } from "./editors";
+import { layerIsOn, toggleMilitary } from "./layers";
+import { editNotes } from "./notes-editor";
 
-function editRegiment(selectorOrEl?: string | Element): void {
+export function editRegiment(selectorOrEl?: string | Element): void {
   if (customization) return;
   closeDialogs(".stable");
   if (!layerIsOn("toggleMilitary")) toggleMilitary();
@@ -551,5 +557,3 @@ function editRegiment(selectorOrEl?: string | Element): void {
     elSelected = null;
   }
 }
-
-window.editRegiment = editRegiment;

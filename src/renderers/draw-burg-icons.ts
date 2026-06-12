@@ -3,18 +3,12 @@ import { worldContext } from "../context/worldContext";
 import type { Burg } from "../modules/burgs-generator";
 import { TIME } from "../utils/debug";
 
-declare global {
-  var drawBurgIcons: () => void;
-  var drawBurgIcon: (burg: Burg) => void;
-  var removeBurgIcon: (burgId: number) => void;
-}
-
 interface BurgGroup {
   name: string;
   order: number;
 }
 
-const burgIconsRenderer = (): void => {
+export const drawBurgIcons = (): void => {
   TIME && console.time("drawBurgIcons");
   const { pack, options, style } = worldContext;
   const { burgIcons, anchors } = viewState;
@@ -46,7 +40,7 @@ const burgIconsRenderer = (): void => {
   TIME && console.timeEnd("drawBurgIcons");
 };
 
-const drawBurgIconRenderer = (burg: Burg): void => {
+export const drawBurgIcon = (burg: Burg): void => {
   const { burgIcons, anchors } = viewState;
   const iconGroup = burgIcons.select<SVGGElement>(`#${burg.group}`);
   if (iconGroup.empty()) {
@@ -54,7 +48,7 @@ const drawBurgIconRenderer = (burg: Burg): void => {
     return;
   }
 
-  removeBurgIconRenderer(burg.i!);
+  removeBurgIcon(burg.i!);
   const icon = iconGroup.attr("data-icon") || "#icon-circle";
   burgIcons
     .select(`#${burg.group}`)
@@ -77,7 +71,7 @@ const drawBurgIconRenderer = (burg: Burg): void => {
   }
 };
 
-const removeBurgIconRenderer = (burgId: number): void => {
+export const removeBurgIcon = (burgId: number): void => {
   const existingIcon = document.getElementById(`burg${burgId}`);
   if (existingIcon) existingIcon.remove();
 
@@ -126,7 +120,3 @@ function createIconGroups(
     anchorGroup.attr("id", name);
   }
 }
-
-window.drawBurgIcons = burgIconsRenderer;
-window.drawBurgIcon = drawBurgIconRenderer;
-window.removeBurgIcon = removeBurgIconRenderer;

@@ -1,5 +1,8 @@
 import * as d3 from "d3";
+import { BrushHistory } from "../editors/BrushHistory";
+import { COA, COArenderer, Cultures, Names } from "../modules";
 import type { Burg } from "../modules/burgs-generator";
+import { layerIsOn, toggleBiomes, toggleCultures, toggleProvinces, toggleReligions, toggleStates } from "./layers";
 
 type HighlightEvent = { id?: string | number | null; target?: EventTarget | null };
 
@@ -7,8 +10,36 @@ import type { Culture } from "../modules/cultures-generator";
 import type { NameBase } from "../modules/names-generator";
 import type { Province } from "../modules/provinces-generator";
 import type { State } from "../modules/states-generator";
-import { abbreviate, applySortingByHeader, debounce, ensureEl, rn, si } from "../utils";
+import {
+  abbreviate,
+  applySortingByHeader,
+  debounce,
+  ensureEl,
+  findAllCellsInRadius,
+  getPackPolygon,
+  isLand,
+  rn,
+  si
+} from "../utils";
+import {
+  clearLegend,
+  closeDialogs,
+  confirmationDialog,
+  downloadFile,
+  drawLegend,
+  fitContent,
+  getArea,
+  getAreaUnit,
+  getFileName,
+  highlightElement,
+  moveCircle,
+  openPicker,
+  removeCircle,
+  restoreDefaultEvents
+} from "./editors";
 import { type HierarchyElement, open as openHierarchyTree } from "./hierarchy-tree";
+import { NamesbaseEditor } from "./namesbase-editor";
+import { editStyle } from "./style";
 
 const cultureTypes = ["Generic", "River", "Lake", "Naval", "Nomadic", "Hunting", "Highland"];
 
@@ -100,7 +131,7 @@ function addListeners(): void {
   ensureEl("culturesManuallyUndo").on("click", undoCulturesManualAssignment);
   ensureEl("culturesManuallyApply").on("click", applyCultureManualAssignent);
   ensureEl("culturesManuallyCancel").on("click", () => exitCulturesManualAssignment());
-  ensureEl("culturesEditNamesBase").on("click", () => window.NamesbaseEditor.open());
+  ensureEl("culturesEditNamesBase").on("click", () => NamesbaseEditor.open());
   ensureEl("culturesAdd").on("click", enterAddCulturesMode);
   ensureEl("culturesExport").on("click", downloadCulturesCsv);
   ensureEl("culturesImport").on("click", () => ensureEl("culturesCSVToLoad").click());
@@ -829,8 +860,8 @@ function dragCultureBrush(this: SVGElement, event: d3.D3DragEvent<SVGElement, un
   const p = d3.pointer(event, this);
   moveCircle(p[0], p[1], radius);
 
-  const found = radius > 5 ? findAll(p[0], p[1], radius) : [findCell(p[0], p[1], radius)];
-  const selection = found.filter(isLand);
+  const found = radius > 5 ? findAllCellsInRadius(p[0], p[1], radius, pack!) : [findCell(p[0], p[1], radius)];
+  const selection = found.filter(i => isLand(i, pack!));
   if (selection) changeCultureForSelection(selection);
 }
 
@@ -852,7 +883,7 @@ function changeCultureForSelection(selection: number[]): void {
         .append("polygon")
         .attr("data-cell", i)
         .attr("data-culture", cultureNew)
-        .attr("points", getPackPolygon(i).join(" "))
+        .attr("points", getPackPolygon(i, pack!).join(" "))
         .attr("fill", color)
         .attr("stroke", color);
   });

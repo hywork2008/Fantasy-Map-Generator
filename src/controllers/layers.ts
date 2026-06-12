@@ -1,5 +1,35 @@
 import * as d3 from "d3";
+import { invokeActiveZooming } from "../main";
+import {
+  drawBiomes,
+  drawBorders,
+  drawBurgIcons,
+  drawCells,
+  drawCoordinates,
+  drawCultures,
+  drawEmblems,
+  drawFeatures,
+  drawGrid,
+  drawHeightmap,
+  drawIce,
+  drawMarkers,
+  drawMilitary,
+  drawPopulation,
+  drawPrecipitation,
+  drawProvinces,
+  drawReliefIcons,
+  drawReligions,
+  drawRivers,
+  drawRoutes,
+  drawStates,
+  drawTemperature,
+  drawTexture,
+  drawZones
+} from "../renderers";
 import { ensureEl, isCtrlClick } from "../utils";
+import { ThreeD } from "./3d";
+import { rulers } from "./measurers";
+import { calculateFriendlyGridSize, editStyle } from "./style";
 
 // Layer presets: map preset name → list of toggle button IDs that should be ON
 let presets: Record<string, string[]> = {};
@@ -118,7 +148,7 @@ function restoreCustomPresets(): void {
   presets = storedPresets;
 }
 
-function applyLayersPreset(): void {
+export function applyLayersPreset(): void {
   const preset = localStorage.getItem("preset") || ensureEl<HTMLSelectElement>("layersPreset").value;
   setLayersPreset(preset);
 
@@ -139,7 +169,7 @@ function setLayersPreset(preset: string): void {
   ensureEl("savePresetButton").style.display = "none";
 }
 
-function handleLayersPresetChange(preset: string): void {
+export function handleLayersPresetChange(preset: string): void {
   setLayersPreset(preset);
 
   const layers = presets[preset] ?? [];
@@ -153,7 +183,7 @@ function handleLayersPresetChange(preset: string): void {
   if (document.getElementById("canvas3d")) setTimeout(() => ThreeD.update(), 400);
 }
 
-function savePreset(): void {
+export function savePreset(): void {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (window as any).prompt("Please provide a preset name", { default: "" }, (preset: string) => {
     presets[preset] = Array.from(ensureEl("mapLayers").querySelectorAll<HTMLElement>("li:not(.buttonoff)"))
@@ -167,7 +197,7 @@ function savePreset(): void {
   });
 }
 
-function removePreset(): void {
+export function removePreset(): void {
   const layersPreset = ensureEl<HTMLSelectElement>("layersPreset");
   const preset = layersPreset.value;
   delete presets[preset];
@@ -181,7 +211,7 @@ function removePreset(): void {
   localStorage.removeItem("preset");
 }
 
-function getCurrentPreset(): void {
+export function getCurrentPreset(): void {
   const layers = Array.from(document.querySelectorAll<HTMLElement>("#mapLayers > li:not(.buttonoff)"))
     .map(node => node.id)
     .sort();
@@ -203,7 +233,7 @@ function getCurrentPreset(): void {
 
 // ─── Layer orchestration ──────────────────────────────────────────────────────
 
-function drawLayers(): void {
+export function drawLayers(): void {
   drawFeatures();
   if (layerIsOn("toggleTexture")) drawTexture();
   if (layerIsOn("toggleHeight")) drawHeightmap();
@@ -244,23 +274,23 @@ function drawLabels(): void {
 
 // ─── Button helpers ───────────────────────────────────────────────────────────
 
-function layerIsOn(el: string): boolean {
+export function layerIsOn(el: string): boolean {
   return !ensureEl(el).classList.contains("buttonoff");
 }
 
-function turnButtonOff(el: string): void {
+export function turnButtonOff(el: string): void {
   ensureEl(el).classList.add("buttonoff");
   getCurrentPreset();
 }
 
-function turnButtonOn(el: string): void {
+export function turnButtonOn(el: string): void {
   ensureEl(el).classList.remove("buttonoff");
   getCurrentPreset();
 }
 
 // ─── Toggle functions ─────────────────────────────────────────────────────────
 
-function toggleHeight(event?: MouseEvent): void {
+export function toggleHeight(event?: MouseEvent): void {
   if (customization === 1) {
     tip("You cannot turn off the layer when heightmap is in edit mode", false, "error");
     return;
@@ -281,7 +311,7 @@ function toggleHeight(event?: MouseEvent): void {
   }
 }
 
-function toggleTemperature(event?: MouseEvent): void {
+export function toggleTemperature(event?: MouseEvent): void {
   if (!temperature.selectAll("*").size()) {
     turnButtonOn("toggleTemperature");
     drawTemperature();
@@ -296,7 +326,7 @@ function toggleTemperature(event?: MouseEvent): void {
   }
 }
 
-function toggleBiomes(event?: MouseEvent): void {
+export function toggleBiomes(event?: MouseEvent): void {
   if (!biomes.selectAll("path").size()) {
     turnButtonOn("toggleBiomes");
     drawBiomes();
@@ -311,7 +341,7 @@ function toggleBiomes(event?: MouseEvent): void {
   }
 }
 
-function togglePrecipitation(event?: MouseEvent): void {
+export function togglePrecipitation(event?: MouseEvent): void {
   if (!prec.selectAll("circle").size()) {
     turnButtonOn("togglePrecipitation");
     drawPrecipitation();
@@ -329,7 +359,7 @@ function togglePrecipitation(event?: MouseEvent): void {
   }
 }
 
-function togglePopulation(event?: MouseEvent): void {
+export function togglePopulation(event?: MouseEvent): void {
   if (!population.selectAll("line").size()) {
     turnButtonOn("togglePopulation");
     drawPopulation();
@@ -363,7 +393,7 @@ function togglePopulation(event?: MouseEvent): void {
   }
 }
 
-function toggleCells(event?: MouseEvent): void {
+export function toggleCells(event?: MouseEvent): void {
   if (!cells.selectAll("path").size()) {
     turnButtonOn("toggleCells");
     drawCells();
@@ -378,7 +408,7 @@ function toggleCells(event?: MouseEvent): void {
   }
 }
 
-function toggleIce(event?: MouseEvent): void {
+export function toggleIce(event?: MouseEvent): void {
   if (!layerIsOn("toggleIce")) {
     turnButtonOn("toggleIce");
     $("#ice").fadeIn();
@@ -394,7 +424,7 @@ function toggleIce(event?: MouseEvent): void {
   }
 }
 
-function toggleCultures(event?: MouseEvent): void {
+export function toggleCultures(event?: MouseEvent): void {
   const activeCultures = pack.cultures.filter(c => c.i && !c.removed);
   const empty = !cults.selectAll("path").size();
   if (empty && activeCultures.length) {
@@ -411,7 +441,7 @@ function toggleCultures(event?: MouseEvent): void {
   }
 }
 
-function toggleReligions(event?: MouseEvent): void {
+export function toggleReligions(event?: MouseEvent): void {
   const activeReligions = pack.religions.filter(r => r.i && !r.removed);
   if (!relig.selectAll("path").size() && activeReligions.length) {
     turnButtonOn("toggleReligions");
@@ -427,7 +457,7 @@ function toggleReligions(event?: MouseEvent): void {
   }
 }
 
-function toggleStates(event?: MouseEvent): void {
+export function toggleStates(event?: MouseEvent): void {
   if (!layerIsOn("toggleStates")) {
     turnButtonOn("toggleStates");
     drawStates();
@@ -442,7 +472,7 @@ function toggleStates(event?: MouseEvent): void {
   }
 }
 
-function toggleBorders(event?: MouseEvent): void {
+export function toggleBorders(event?: MouseEvent): void {
   if (!layerIsOn("toggleBorders")) {
     turnButtonOn("toggleBorders");
     drawBorders();
@@ -457,7 +487,7 @@ function toggleBorders(event?: MouseEvent): void {
   }
 }
 
-function toggleProvinces(event?: MouseEvent): void {
+export function toggleProvinces(event?: MouseEvent): void {
   if (!layerIsOn("toggleProvinces")) {
     turnButtonOn("toggleProvinces");
     drawProvinces();
@@ -472,7 +502,7 @@ function toggleProvinces(event?: MouseEvent): void {
   }
 }
 
-function toggleGrid(event?: MouseEvent): void {
+export function toggleGrid(event?: MouseEvent): void {
   if (!gridOverlay.selectAll("*").size()) {
     turnButtonOn("toggleGrid");
     drawGrid();
@@ -488,7 +518,7 @@ function toggleGrid(event?: MouseEvent): void {
   }
 }
 
-function toggleCoordinates(event?: MouseEvent): void {
+export function toggleCoordinates(event?: MouseEvent): void {
   if (!coordinates.selectAll("*").size()) {
     turnButtonOn("toggleCoordinates");
     drawCoordinates();
@@ -503,7 +533,7 @@ function toggleCoordinates(event?: MouseEvent): void {
   }
 }
 
-function toggleCompass(event?: MouseEvent): void {
+export function toggleCompass(event?: MouseEvent): void {
   if (!layerIsOn("toggleCompass")) {
     turnButtonOn("toggleCompass");
     if (!compass.select("use").size()) compass.append("use").attr("xlink:href", "#defs-compass-rose");
@@ -519,7 +549,7 @@ function toggleCompass(event?: MouseEvent): void {
   }
 }
 
-function toggleRelief(event?: MouseEvent): void {
+export function toggleRelief(event?: MouseEvent): void {
   if (!layerIsOn("toggleRelief")) {
     turnButtonOn("toggleRelief");
     if (!terrain.selectAll("*").size()) drawReliefIcons();
@@ -535,7 +565,7 @@ function toggleRelief(event?: MouseEvent): void {
   }
 }
 
-function toggleLakes(event?: MouseEvent): void {
+export function toggleLakes(event?: MouseEvent): void {
   if (!layerIsOn("toggleLakes")) {
     turnButtonOn("toggleLakes");
     $("#lakes").fadeIn();
@@ -550,7 +580,7 @@ function toggleLakes(event?: MouseEvent): void {
   }
 }
 
-function toggleTexture(event?: MouseEvent): void {
+export function toggleTexture(event?: MouseEvent): void {
   if (!layerIsOn("toggleTexture")) {
     turnButtonOn("toggleTexture");
     drawTexture();
@@ -565,7 +595,7 @@ function toggleTexture(event?: MouseEvent): void {
   }
 }
 
-function toggleRivers(event?: MouseEvent): void {
+export function toggleRivers(event?: MouseEvent): void {
   if (!layerIsOn("toggleRivers")) {
     turnButtonOn("toggleRivers");
     drawRivers();
@@ -580,7 +610,7 @@ function toggleRivers(event?: MouseEvent): void {
   }
 }
 
-function toggleRoutes(event?: MouseEvent): void {
+export function toggleRoutes(event?: MouseEvent): void {
   if (!layerIsOn("toggleRoutes")) {
     turnButtonOn("toggleRoutes");
     drawRoutes();
@@ -595,7 +625,7 @@ function toggleRoutes(event?: MouseEvent): void {
   }
 }
 
-function toggleMilitary(event?: MouseEvent): void {
+export function toggleMilitary(event?: MouseEvent): void {
   if (!layerIsOn("toggleMilitary")) {
     turnButtonOn("toggleMilitary");
     drawMilitary();
@@ -610,7 +640,7 @@ function toggleMilitary(event?: MouseEvent): void {
   }
 }
 
-function toggleMarkers(event?: MouseEvent): void {
+export function toggleMarkers(event?: MouseEvent): void {
   if (!layerIsOn("toggleMarkers")) {
     turnButtonOn("toggleMarkers");
     drawMarkers();
@@ -625,7 +655,7 @@ function toggleMarkers(event?: MouseEvent): void {
   }
 }
 
-function toggleLabels(event?: MouseEvent): void {
+export function toggleLabels(event?: MouseEvent): void {
   if (!layerIsOn("toggleLabels")) {
     turnButtonOn("toggleLabels");
     $("#labels").fadeIn();
@@ -641,7 +671,7 @@ function toggleLabels(event?: MouseEvent): void {
   }
 }
 
-function toggleBurgIcons(event?: MouseEvent): void {
+export function toggleBurgIcons(event?: MouseEvent): void {
   if (!layerIsOn("toggleBurgIcons")) {
     turnButtonOn("toggleBurgIcons");
     drawBurgIcons();
@@ -656,7 +686,7 @@ function toggleBurgIcons(event?: MouseEvent): void {
   }
 }
 
-function toggleRulers(event?: MouseEvent): void {
+export function toggleRulers(event?: MouseEvent): void {
   if (!layerIsOn("toggleRulers")) {
     turnButtonOn("toggleRulers");
     if (event && isCtrlClick(event)) editStyle("ruler");
@@ -673,7 +703,7 @@ function toggleRulers(event?: MouseEvent): void {
   }
 }
 
-function toggleScaleBar(event?: MouseEvent): void {
+export function toggleScaleBar(event?: MouseEvent): void {
   if (!layerIsOn("toggleScaleBar")) {
     turnButtonOn("toggleScaleBar");
     $("#scaleBar").fadeIn();
@@ -688,7 +718,7 @@ function toggleScaleBar(event?: MouseEvent): void {
   }
 }
 
-function toggleZones(event?: MouseEvent): void {
+export function toggleZones(event?: MouseEvent): void {
   if (!layerIsOn("toggleZones")) {
     turnButtonOn("toggleZones");
     drawZones();
@@ -703,7 +733,7 @@ function toggleZones(event?: MouseEvent): void {
   }
 }
 
-function toggleEmblems(event?: MouseEvent): void {
+export function toggleEmblems(event?: MouseEvent): void {
   if (!layerIsOn("toggleEmblems")) {
     turnButtonOn("toggleEmblems");
     if (!emblems.selectAll("use").size()) drawEmblems();
@@ -720,7 +750,7 @@ function toggleEmblems(event?: MouseEvent): void {
   }
 }
 
-function toggleVignette(event?: MouseEvent): void {
+export function toggleVignette(event?: MouseEvent): void {
   if (!layerIsOn("toggleVignette")) {
     turnButtonOn("toggleVignette");
     $("#vignette").fadeIn();
@@ -779,46 +809,78 @@ function getLayer(id: string): ReturnType<typeof $> | null {
   return null;
 }
 
-// ─── Global exports ───────────────────────────────────────────────────────────
+// ─── HTML event listeners ─────────────────────────────────────────────────────
 
-window.layerIsOn = layerIsOn;
-window.turnButtonOn = turnButtonOn;
-window.turnButtonOff = turnButtonOff;
-window.getCurrentPreset = getCurrentPreset;
-window.applyLayersPreset = applyLayersPreset;
-window.drawLayers = drawLayers;
-window.handleLayersPresetChange = handleLayersPresetChange;
-window.savePreset = savePreset;
-window.removePreset = removePreset;
+ensureEl<HTMLSelectElement>("layersPreset").addEventListener("change", e =>
+  handleLayersPresetChange((e.target as HTMLSelectElement).value)
+);
+ensureEl("savePresetButton").addEventListener("click", savePreset);
+ensureEl("removePresetButton").addEventListener("click", removePreset);
 
-window.toggleHeight = toggleHeight;
-window.toggleTemperature = toggleTemperature;
-window.toggleBiomes = toggleBiomes;
-window.togglePrecipitation = togglePrecipitation;
-window.togglePopulation = togglePopulation;
-window.toggleCells = toggleCells;
-window.toggleIce = toggleIce;
-window.toggleCultures = toggleCultures;
-window.toggleReligions = toggleReligions;
-window.toggleStates = toggleStates;
-window.toggleBorders = toggleBorders;
-window.toggleProvinces = toggleProvinces;
-window.toggleGrid = toggleGrid;
-window.toggleCoordinates = toggleCoordinates;
-window.toggleCompass = toggleCompass;
-window.toggleRelief = toggleRelief;
-window.toggleLakes = toggleLakes;
-window.toggleTexture = toggleTexture;
-window.toggleRivers = toggleRivers;
-window.toggleRoutes = toggleRoutes;
-window.toggleMilitary = toggleMilitary;
-window.toggleMarkers = toggleMarkers;
-window.toggleLabels = toggleLabels;
-window.toggleBurgIcons = toggleBurgIcons;
-window.toggleRulers = toggleRulers;
-window.toggleScaleBar = toggleScaleBar;
-window.toggleZones = toggleZones;
-window.toggleEmblems = toggleEmblems;
-window.toggleVignette = toggleVignette;
+const toggleLayerIds = [
+  "toggleTexture",
+  "toggleHeight",
+  "toggleLakes",
+  "toggleBiomes",
+  "toggleCells",
+  "toggleGrid",
+  "toggleCoordinates",
+  "toggleCompass",
+  "toggleRivers",
+  "toggleRelief",
+  "toggleReligions",
+  "toggleCultures",
+  "toggleStates",
+  "toggleProvinces",
+  "toggleZones",
+  "toggleBorders",
+  "toggleRoutes",
+  "toggleTemperature",
+  "togglePopulation",
+  "toggleIce",
+  "togglePrecipitation",
+  "toggleEmblems",
+  "toggleBurgIcons",
+  "toggleLabels",
+  "toggleMilitary",
+  "toggleMarkers",
+  "toggleRulers",
+  "toggleScaleBar",
+  "toggleVignette"
+] as const;
 
-// d3 is the UMD global exposed by the legacy <script> tag in index.html
+const toggleFns: Record<(typeof toggleLayerIds)[number], (e?: MouseEvent) => void> = {
+  toggleTexture,
+  toggleHeight,
+  toggleLakes,
+  toggleBiomes,
+  toggleCells,
+  toggleGrid,
+  toggleCoordinates,
+  toggleCompass,
+  toggleRivers,
+  toggleRelief,
+  toggleReligions,
+  toggleCultures,
+  toggleStates,
+  toggleProvinces,
+  toggleZones,
+  toggleBorders,
+  toggleRoutes,
+  toggleTemperature,
+  togglePopulation,
+  toggleIce,
+  togglePrecipitation,
+  toggleEmblems,
+  toggleBurgIcons,
+  toggleLabels,
+  toggleMilitary,
+  toggleMarkers,
+  toggleRulers,
+  toggleScaleBar,
+  toggleVignette
+};
+
+for (const id of toggleLayerIds) {
+  document.getElementById(id)?.addEventListener("click", e => toggleFns[id](e as MouseEvent));
+}

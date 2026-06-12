@@ -4,11 +4,7 @@ import { worldContext } from "../context/worldContext";
 import { rn } from "../utils";
 import { TIME } from "../utils/debug";
 
-declare global {
-  var drawPrecipitation: () => void;
-}
-
-const precipitationRenderer = (): void => {
+export const drawPrecipitation = (): void => {
   TIME && console.time("drawPrecipitation");
   const { grid } = worldContext;
   const { prec } = viewState;
@@ -37,5 +33,3 @@ const precipitationRenderer = (): void => {
 
   TIME && console.timeEnd("drawPrecipitation");
 };
-
-window.drawPrecipitation = precipitationRenderer;

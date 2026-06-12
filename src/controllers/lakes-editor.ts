@@ -1,8 +1,14 @@
 import { type D3DragEvent, drag, mean, min, polygonArea, polygonLength, type Selection, select } from "d3";
+import { Lakes, Names } from "../modules";
 import type { PackedGraphFeature } from "../modules/features";
-import { ensureEl, rand, rn, si, unique } from "../utils";
+import { getFeaturePath } from "../renderers";
+import { ensureEl, getPackPolygon, rand, rn, si, unique } from "../utils";
+import { closeDialogs, getArea, getAreaUnit, unselect } from "./editors";
+import { layerIsOn, toggleCells } from "./layers";
+import { editNotes } from "./notes-editor";
+import { editStyle } from "./style";
 
-function editLake(event?: MouseEvent): void {
+export function editLake(event?: MouseEvent): void {
   if (customization) return;
   closeDialogs(".stable");
   if (layerIsOn("toggleCells")) toggleCells();
@@ -80,7 +86,7 @@ function editLake(event?: MouseEvent): void {
       .data(neibCells)
       .enter()
       .append("polygon")
-      .attr("points", (d: number) => getPackPolygon(d) as unknown as string)
+      .attr("points", (d: number) => getPackPolygon(d, pack!) as unknown as string)
       .attr("data-c", (d: number) => d);
 
     debug
@@ -118,7 +124,7 @@ function editLake(event?: MouseEvent): void {
     debug
       .select("#vertices")
       .selectAll("polygon")
-      .attr("points", (d: unknown) => getPackPolygon(d as number) as unknown as string);
+      .attr("points", (d: unknown) => getPackPolygon(d as number, pack!) as unknown as string);
   }
 
   function handleVertexDragEnd(): void {
@@ -264,5 +270,3 @@ function editLake(event?: MouseEvent): void {
     unselect();
   }
 }
-
-window.editLake = editLake;

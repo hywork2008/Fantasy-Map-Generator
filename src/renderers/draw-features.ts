@@ -7,9 +7,7 @@ import { ERROR, TIME } from "../utils/debug";
 import { buildCoastlinePath, fractalizeCoastline } from "./coastline-fractal";
 
 declare global {
-  var drawFeatures: () => void;
   var simplify: (points: [number, number][], tolerance: number, highestQuality?: boolean) => [number, number][];
-  var getFeaturePath: (feature: PackedGraphFeature) => string;
 }
 
 interface FeaturesHtml {
@@ -20,7 +18,7 @@ interface FeaturesHtml {
   lakes: { [key: string]: string[] };
 }
 
-const featuresRenderer = (): void => {
+export const drawFeatures = (): void => {
   TIME && console.time("drawFeatures");
   const { pack, graphWidth, graphHeight } = worldContext;
   const { defs, coastline, lakes } = viewState;
@@ -92,6 +90,5 @@ function featurePathRenderer(
   return `${round(buildCoastlinePath(shape))}Z`;
 }
 
-window.drawFeatures = featuresRenderer;
-window.getFeaturePath = (feature: PackedGraphFeature) =>
+export const getFeaturePath = (feature: PackedGraphFeature): string =>
   featurePathRenderer(worldContext.pack, worldContext.graphWidth, worldContext.graphHeight, feature);

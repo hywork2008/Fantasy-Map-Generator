@@ -1,13 +1,47 @@
 import * as d3 from "d3";
 import { color, interpolate, interpolateString, pointer } from "d3";
+import { Burgs, COA, COArenderer, Names, Provinces, States } from "../modules";
 import type { Burg } from "../modules/burgs-generator";
 import type { Culture } from "../modules/cultures-generator";
 import type { Emblem as RendererEmblem } from "../modules/emblem/renderer";
 import type { Province } from "../modules/provinces-generator";
 import type { State } from "../modules/states-generator";
-import { ensureEl, parseTransform, rn } from "../utils";
+import {
+  ensureEl,
+  findAllCellsInRadius,
+  getPackPolygon,
+  getRandomColor,
+  isLand,
+  P,
+  parseTransform,
+  rand,
+  rn,
+  si,
+  unique
+} from "../utils";
+import { overviewBurgs } from "./burgs-overview";
+import {
+  closeDialogs,
+  confirmationDialog,
+  downloadFile,
+  editStates,
+  fitContent,
+  fog,
+  getArea,
+  getAreaUnit,
+  getFileName,
+  highlightElement,
+  moveCircle,
+  openPicker,
+  removeCircle,
+  restoreDefaultEvents,
+  unfog
+} from "./editors";
+import { editEmblem } from "./emblems-editor";
+import { layerIsOn, toggleBorders, toggleCultures, toggleProvinces, toggleStates, turnButtonOff } from "./layers";
+import { editStyle } from "./style";
 
-function editProvinces(): void {
+export function editProvinces(): void {
   if (customization) return;
   closeDialogs("#provincesEditor, .stable");
   if (!layerIsOn("toggleProvinces")) toggleProvinces();
@@ -59,7 +93,7 @@ function editProvinces(): void {
 
     if (el.tagName === "FILL-BOX") changeFill(el);
     else if (cl.contains("name")) editProvinceName(p);
-    else if (cl.contains("coaIcon")) editEmblem?.("province", `provinceCOA${p}`, pack.provinces[p]);
+    else if (cl.contains("coaIcon")) editEmblem("province", `provinceCOA${p}`, pack.provinces[p]);
     else if (cl.contains("icon-star-empty")) capitalZoomIn(p);
     else if (cl.contains("icon-flag-empty")) triggerIndependencePrompts(p);
     else if (cl.contains("icon-dot-circled")) overviewBurgs({ stateId });
@@ -946,8 +980,8 @@ function editProvinces(): void {
     const r = +(ensureEl("provincesBrush") as HTMLInputElement).value;
     moveCircle(event.x, event.y, r);
 
-    const found = r > 5 ? findAll(event.x, event.y, r) : [findCell(event.x, event.y)];
-    const selection = found.filter(isLand);
+    const found = r > 5 ? findAllCellsInRadius(event.x, event.y, r, pack!) : [findCell(event.x, event.y)];
+    const selection = found.filter(i => isLand(i, pack!));
     if (selection) changeForSelection(selection);
   }
 
@@ -969,7 +1003,7 @@ function editProvinces(): void {
       if (i === (pack.provinces as Province[])[provinceOld]?.center) {
         const center = centers.select(`polygon[data-center='${i}']`);
         if (!center.size())
-          centers.append("polygon").attr("data-center", i).attr("points", getPackPolygon(i).join(" "));
+          centers.append("polygon").attr("data-center", i).attr("points", getPackPolygon(i, pack!).join(" "));
         tip(
           "Province center cannot be assigned to a different region. Please remove the province first",
           false,
@@ -984,7 +1018,7 @@ function editProvinces(): void {
       } else {
         temp
           .append("polygon")
-          .attr("points", getPackPolygon(i).join(" "))
+          .attr("points", getPackPolygon(i, pack!).join(" "))
           .attr("data-cell", i)
           .attr("data-province", provinceNew)
           .attr("fill", fill)
@@ -1416,7 +1450,3 @@ function updateLockStatus(provinceId: number, classList: DOMTokenList): void {
   classList.toggle("icon-lock-open");
   classList.toggle("icon-lock");
 }
-
-// ─── Global registration ───────────────────────────────────────────────────────
-
-window.editProvinces = editProvinces;

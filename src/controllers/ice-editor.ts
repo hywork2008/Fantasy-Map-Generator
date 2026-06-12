@@ -1,8 +1,13 @@
 import { type D3DragEvent, drag, pointer, select } from "d3";
+import { Ice } from "../modules";
 import type { IceIceberg } from "../modules/ice";
-import { parseTransform } from "../utils";
+import { redrawIceberg } from "../renderers";
+import { findGridCell, parseTransform } from "../utils";
+import { closeDialogs, unselect } from "./editors";
+import { layerIsOn, toggleIce } from "./layers";
+import { editStyle } from "./style";
 
-function editIce(element: SVGElement): void {
+export function editIce(element: SVGElement): void {
   if (customization) return;
   if (elSelected && element === elSelected.node()) return;
 
@@ -128,5 +133,3 @@ function editIce(element: SVGElement): void {
     unselect();
   }
 }
-
-window.editIce = editIce;

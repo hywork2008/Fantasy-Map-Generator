@@ -1,6 +1,11 @@
 import { interpolateString, sum } from "d3";
+import { worldContext } from "../context/worldContext";
+import { Military } from "../modules";
 import type { MilitaryUnit } from "../modules/military-generator";
-import { capitalize, rn, sanitizeId, si } from "../utils";
+import { capitalize, rn, sanitizeId, si, wiki } from "../utils";
+import { closeDialogs, downloadFile, fitContent, getFileName, selectIcon } from "./editors";
+import { layerIsOn, toggleBorders, toggleMilitary, toggleStates } from "./layers";
+import { overviewRegiments } from "./regiments-overview";
 
 type LimitEntity = { i?: number; name?: string; fullName?: string; color?: string; removed?: boolean };
 type MilitaryUnitConfig = MilitaryUnit & {
@@ -10,7 +15,7 @@ type MilitaryUnitConfig = MilitaryUnit & {
   religions?: number[];
 };
 
-function overviewMilitary(): void {
+export function overviewMilitary(): void {
   if (customization) return;
   closeDialogs("#militaryOverview, .stable");
   if (!layerIsOn("toggleStates")) toggleStates();
@@ -306,7 +311,7 @@ function overviewMilitary(): void {
       }
 
       if (type === "biomes") {
-        const { i, name, color: bColor } = biomesData;
+        const { i, name, color: bColor } = worldContext.biomesData;
         const biomesArray = Array(i.length).fill(null);
         const biomes = biomesArray.map((_: null, idx: number) => ({ i: idx, name: name[idx], color: bColor[idx] }));
         return selectLimitation(el, biomes);
@@ -533,8 +538,6 @@ function overviewMilitary(): void {
     downloadFile(data, name);
   }
 }
-
-window.overviewMilitary = overviewMilitary;
 
 declare global {
   interface Window {

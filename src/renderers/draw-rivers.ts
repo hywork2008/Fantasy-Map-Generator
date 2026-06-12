@@ -1,12 +1,9 @@
 import { viewState } from "../context/viewState";
 import { worldContext } from "../context/worldContext";
+import { Rivers } from "../modules";
 import { TIME } from "../utils/debug";
 
-declare global {
-  var drawRivers: () => void;
-}
-
-const riversRenderer = (): void => {
+export const drawRivers = (): void => {
   TIME && console.time("drawRivers");
   const { pack } = worldContext;
   const { rivers } = viewState;
@@ -35,5 +32,3 @@ const riversRenderer = (): void => {
 
   TIME && console.timeEnd("drawRivers");
 };
-
-window.drawRivers = riversRenderer;

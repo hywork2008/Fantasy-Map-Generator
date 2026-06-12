@@ -1,5 +1,6 @@
 import Alea from "alea";
 import { drag, polygonArea, select } from "d3";
+import { getFeaturePath } from "../renderers";
 import {
   buildCoastlinePath,
   type CoastlineSettings,
@@ -8,7 +9,10 @@ import {
   makeRoughnessProfile,
   PROFILE_SIZE
 } from "../renderers/coastline-fractal";
-import { ensureEl, rn, si, unique } from "../utils";
+import { ensureEl, getPackPolygon, rn, si, unique } from "../utils";
+import { closeDialogs, getArea, getAreaUnit, unselect } from "./editors";
+import { layerIsOn, toggleCells } from "./layers";
+import { editStyle } from "./style";
 
 interface SliderDef {
   id: string;
@@ -143,11 +147,6 @@ const COAST_PRESETS: Record<string, Omit<CoastlineSettings, "enabled">> = {
 
 const PREVIEW_SEED = "preview_coastline";
 
-declare global {
-  var CoastlineEditor: CoastlineEditorModule;
-  var editCoastline: (event?: MouseEvent) => void;
-}
-
 class CoastlineEditorModule {
   editCoastline(event?: MouseEvent): void {
     if (customization) return;
@@ -194,7 +193,7 @@ class CoastlineEditorModule {
         .data(neibCells)
         .enter()
         .append("polygon")
-        .attr("points", (d: number) => getPackPolygon(d) as unknown as string)
+        .attr("points", (d: number) => getPackPolygon(d, pack!) as unknown as string)
         .attr("data-c", (d: number) => d);
 
       debug
@@ -239,7 +238,7 @@ class CoastlineEditorModule {
       debug
         .select("#vertices")
         .selectAll("polygon")
-        .attr("points", (d: unknown) => getPackPolygon(d as number) as unknown as string);
+        .attr("points", (d: unknown) => getPackPolygon(d as number, pack!) as unknown as string);
     }
 
     function handleVertexDragEnd(): void {
@@ -713,6 +712,5 @@ class CoastlineEditorModule {
   }
 }
 
-const coastlineEditor = new CoastlineEditorModule();
-window.CoastlineEditor = coastlineEditor;
-window.editCoastline = (event?: MouseEvent) => coastlineEditor.editCoastline(event);
+export const coastlineEditor = new CoastlineEditorModule();
+export const editCoastline = (event?: MouseEvent): void => coastlineEditor.editCoastline(event);

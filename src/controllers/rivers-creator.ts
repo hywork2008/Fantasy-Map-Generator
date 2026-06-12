@@ -1,7 +1,11 @@
 import { pointer } from "d3";
-import { last, rn } from "../utils";
+import { Rivers } from "../modules";
+import { getPackPolygon, last, rn } from "../utils";
+import { closeDialogs, restoreDefaultEvents } from "./editors";
+import { layerIsOn, toggleCells, toggleRivers } from "./layers";
+import { editRiver } from "./rivers-editor";
 
-function createRiver(): void {
+export function createRiver(): void {
   if (customization) return;
   closeDialogs();
   if (!layerIsOn("toggleRivers")) toggleRivers();
@@ -70,7 +74,7 @@ function createRiver(): void {
       .selectAll("polygon")
       .data(cells)
       .join("polygon")
-      .attr("points", d => getPackPolygon(d).join(" "))
+      .attr("points", d => getPackPolygon(d, pack!).join(" "))
       .attr("class", "current");
   }
 
@@ -149,5 +153,3 @@ function createRiver(): void {
     if (forced && layerIsOn("toggleCells")) toggleCells();
   }
 }
-
-window.createRiver = createRiver;

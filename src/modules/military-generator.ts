@@ -3,10 +3,6 @@ import type { WorldState } from "../types/WorldState";
 import { findAllInQuadtree, gauss, minmax, nth, ra, rand, rn, si } from "../utils";
 import type { State } from "./states-generator";
 
-declare global {
-  var Military: MilitaryModule;
-}
-
 export interface MilitaryUnit {
   icon: string;
   name: string;
@@ -594,4 +590,4 @@ class MilitaryModule {
     return unit ? unit.icon : "⚔️";
   }
 }
-window.Military = new MilitaryModule();
+export const Military = new MilitaryModule();

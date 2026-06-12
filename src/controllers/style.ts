@@ -8,7 +8,13 @@ import {
   interpolateSpectral,
   scaleSequential
 } from "d3";
-import { drawHeights, ensureEl, parseTransform, rn, toHEX } from "../utils";
+import { invokeActiveZooming } from "../main";
+import { addGoogleFont, addLocalFont, addWebFont, fonts } from "../modules";
+import { drawRegiments, drawScaleBar, fitScaleBar } from "../renderers";
+import { drawHeights, ensureEl, openURL, parseTransform, rn, toHEX } from "../utils";
+import { confirmationDialog, downloadFile, redrawLegend, uploadFile } from "./editors";
+import { layerIsOn, toggleRelief } from "./layers";
+import { showOptions } from "./options";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -18,7 +24,7 @@ type AnySelection = Selection<SVGGElement, unknown, null, undefined>;
 
 // ─── Color schemes ────────────────────────────────────────────────────────────
 
-const heightmapColorSchemes: Record<string, ColorSchemeFunc> = {
+export const heightmapColorSchemes: Record<string, ColorSchemeFunc> = {
   bright: scaleSequential(interpolateSpectral),
   light: scaleSequential(interpolateRdYlGn),
   natural: scaleSequential(interpolateRgbBasis(["white", "#EEEECC", "tan", "green", "teal"])),
@@ -28,13 +34,13 @@ const heightmapColorSchemes: Record<string, ColorSchemeFunc> = {
   monochrome: scaleSequential(interpolateGreys)
 };
 
-function addCustomColorScheme(scheme: string): void {
+export function addCustomColorScheme(scheme: string): void {
   const stops = scheme.split(",");
   heightmapColorSchemes[scheme] = scaleSequential(interpolateRgbBasis(stops));
   ensureEl<HTMLSelectElement>("styleHeightmapScheme").options.add(new Option(scheme, scheme, false, true));
 }
 
-function getColorScheme(scheme: string | null = "bright"): ColorSchemeFunc {
+export function getColorScheme(scheme: string | null = "bright"): ColorSchemeFunc {
   const key = scheme ?? "bright";
   if (!(key in heightmapColorSchemes)) {
     heightmapColorSchemes[key] = scaleSequential(interpolateRgbBasis(key.split(",")));
@@ -42,13 +48,13 @@ function getColorScheme(scheme: string | null = "bright"): ColorSchemeFunc {
   return heightmapColorSchemes[key];
 }
 
-function getColor(value: number, scheme: ColorSchemeFunc = heightmapColorSchemes.bright): string {
+export function getColor(value: number, scheme: ColorSchemeFunc = heightmapColorSchemes.bright): string {
   return scheme(1 - (value < 20 ? value - 5 : value) / 100);
 }
 
 // ─── Style element selection ──────────────────────────────────────────────────
 
-function editStyle(element: string, group?: string): void {
+export function editStyle(element: string, group?: string): void {
   showOptions();
   ensureEl<HTMLButtonElement>("styleTab").click();
   ensureEl<HTMLSelectElement>("styleElementSelect").value = element;
@@ -64,7 +70,7 @@ function editStyle(element: string, group?: string): void {
   }, 1500);
 }
 
-function selectStyleElement(): void {
+export function selectStyleElement(): void {
   const styleElement = ensureEl<HTMLSelectElement>("styleElementSelect").value;
   let el: AnySelection = svg.select<SVGGElement>(`#${styleElement}`);
 
@@ -468,7 +474,7 @@ function changeTexture(href: string): void {
   texture.select("image").attr("href", href);
 }
 
-function updateTextureSelectValue(href: string): void {
+export function updateTextureSelectValue(href: string): void {
   const select = ensureEl<HTMLSelectElement>("styleTextureInput");
   const isAdded = Array.from(select.options).some(option => option.value === href);
   if (isAdded) {
@@ -481,7 +487,7 @@ function updateTextureSelectValue(href: string): void {
 
 // ─── Grid size calculator ─────────────────────────────────────────────────────
 
-function calculateFriendlyGridSize(): void {
+export function calculateFriendlyGridSize(): void {
   const size = +ensureEl<HTMLInputElement>("styleGridScale").value * 25;
   const friendly = `${rn(size * distanceScale, 2)} ${distanceUnitInput.value}`;
   ensureEl<HTMLInputElement>("styleGridSizeFriendly").value = friendly;
@@ -499,7 +505,7 @@ function shiftCompass(): void {
 
 // ─── Font helpers ─────────────────────────────────────────────────────────────
 
-function changeFont(): void {
+export function changeFont(): void {
   const family = ensureEl<HTMLSelectElement>("styleSelectFont").value;
   getEl().attr("font-family", family);
   if (ensureEl<HTMLSelectElement>("styleElementSelect").value === "legend") redrawLegend();
@@ -523,7 +529,7 @@ function changeFontSize(el: AnySelection, size: number): void {
 
 // ─── updateElements ───────────────────────────────────────────────────────────
 
-function updateElements(): void {
+export function updateElements(): void {
   if (layerIsOn("toggleHeight")) drawHeightmap();
   if (legend.selectAll("*").size()) redrawLegend();
   oceanLayers.selectAll("path").remove();
@@ -552,7 +558,7 @@ function applyMapFilter(event: Event): void {
 
 // ─── Texture URL dialog ───────────────────────────────────────────────────────
 
-function textureProvideURL(): void {
+export function textureProvideURL(): void {
   alertMessage.innerHTML = /* html */ `Provide a texture image URL:
     <input id="textureURL" type="url" style="width: 100%" placeholder="http://www.example.com/image.jpg" oninput="fetchTextureURL(this.value)" />
     <canvas id="texturePreview" width="256px" height="144px"></canvas>`;
@@ -576,7 +582,7 @@ function textureProvideURL(): void {
   });
 }
 
-function fetchTextureURL(url: string): void {
+export function fetchTextureURL(url: string): void {
   INFO && console.info("Provided URL is", url); // INFO is a global debug flag
   const img = new Image();
   img.onload = () => {
@@ -1249,7 +1255,7 @@ ensureEl("mapFilters").on("click", applyMapFilter);
 
 // ─── Style preset functions (from style-presets.js) ───────────────────────────
 
-async function applyStyleOnLoad(): Promise<void> {
+export async function applyStyleOnLoad(): Promise<void> {
   const desiredPreset = localStorage.getItem("presetStyle") ?? "default";
   const [appliedPreset, styleData] = await getStylePreset(desiredPreset);
   applyStyle(styleData);
@@ -1291,7 +1297,7 @@ async function fetchSystemPreset(preset: string): Promise<StyleJSON> {
   }
 }
 
-function applyStyle(styleJSON: StyleJSON): void {
+export function applyStyle(styleJSON: StyleJSON): void {
   for (const selector in styleJSON) {
     if (selector.startsWith("#burgLabels")) {
       const group = selector.split("#").pop()!;
@@ -1335,7 +1341,7 @@ function applyStyle(styleJSON: StyleJSON): void {
   }
 }
 
-function requestStylePresetChange(preset: string): void {
+export function requestStylePresetChange(preset: string): void {
   const isConfirmed = sessionStorage.getItem("styleChangeConfirmed");
   if (isConfirmed) return void changeStyle(preset);
 
@@ -1354,7 +1360,7 @@ function requestStylePresetChange(preset: string): void {
   });
 }
 
-async function changeStyle(desiredPreset: string): Promise<void> {
+export async function changeStyle(desiredPreset: string): Promise<void> {
   const [presetName, styleData] = await getStylePreset(desiredPreset);
   localStorage.setItem("presetStyle", presetName);
   applyStyleWithUiRefresh(styleData);
@@ -1365,7 +1371,7 @@ async function changeStyle(desiredPreset: string): Promise<void> {
   }
 }
 
-function applyStyleWithUiRefresh(styleJSON: StyleJSON): void {
+export function applyStyleWithUiRefresh(styleJSON: StyleJSON): void {
   applyStyle(styleJSON);
   updateElements();
   selectStyleElement();
@@ -1382,7 +1388,7 @@ function applyStyleWithUiRefresh(styleJSON: StyleJSON): void {
   );
 }
 
-function addStylePreset(): void {
+export function addStylePreset(): void {
   $("#styleSaver").dialog({ title: "Style Saver", width: "26em", position: { my: "center", at: "center", of: "svg" } });
 
   const styleName = ensureEl<HTMLSelectElement>("stylePreset").value.replace(customPresetPrefix, "");
@@ -1397,6 +1403,9 @@ function addStylePreset(): void {
   ensureEl("styleSaverSave").addEventListener("click", saveStyle);
   ensureEl("styleSaverDownload").addEventListener("click", styleDownload);
   ensureEl("styleSaverLoad").addEventListener("click", () => ensureEl<HTMLInputElement>("styleToLoad").click());
+  ensureEl("styleSaverCA").addEventListener("click", () =>
+    openURL("https://cartographyassets.com/asset-category/specific-assets/azgaars-generator/styles/")
+  );
   ensureEl("styleToLoad").addEventListener("change", loadStyleFile);
 
   function collectStyleData(): StyleJSON {
@@ -1691,7 +1700,7 @@ function addStylePreset(): void {
   }
 }
 
-function requestRemoveStylePreset(): void {
+export function requestRemoveStylePreset(): void {
   const isDefault = systemPresets.includes(ensureEl<HTMLSelectElement>("stylePreset").value);
   if (isDefault) {
     tip("Cannot remove system preset", false, "error");
@@ -1706,7 +1715,7 @@ function requestRemoveStylePreset(): void {
   });
 }
 
-function removeStylePreset(): void {
+export function removeStylePreset(): void {
   const presetEl = ensureEl<HTMLSelectElement>("stylePreset");
   localStorage.removeItem("presetStyle");
   localStorage.removeItem(presetEl.value);
@@ -1714,7 +1723,7 @@ function removeStylePreset(): void {
   changeStyle("default");
 }
 
-function updateMapFilter(): void {
+export function updateMapFilter(): void {
   const filter = svg.attr("data-filter");
   ensureEl("mapFilters")
     .querySelectorAll<HTMLButtonElement>(".pressed")
@@ -1730,28 +1739,11 @@ function setPresetRemoveButtonVisibiliy(): void {
   ensureEl<HTMLElement>("removeStyleButton").style.display = isDefault ? "none" : "inline-block";
 }
 
-// ─── Global exports ───────────────────────────────────────────────────────────
+// ─── HTML event listeners ─────────────────────────────────────────────────────
 
-window.heightmapColorSchemes = heightmapColorSchemes;
-window.addCustomColorScheme = addCustomColorScheme;
-window.getColorScheme = getColorScheme;
-window.getColor = getColor;
-
-window.editStyle = editStyle;
-window.selectStyleElement = selectStyleElement;
-window.calculateFriendlyGridSize = calculateFriendlyGridSize;
-window.changeFont = changeFont;
-window.updateElements = updateElements;
-window.fetchTextureURL = fetchTextureURL;
-window.textureProvideURL = textureProvideURL;
-window.updateTextureSelectValue = updateTextureSelectValue;
-
-window.applyStyleOnLoad = applyStyleOnLoad;
-window.applyStyle = applyStyle;
-window.applyStyleWithUiRefresh = applyStyleWithUiRefresh;
-window.changeStyle = changeStyle;
-window.addStylePreset = addStylePreset;
-window.requestStylePresetChange = requestStylePresetChange;
-window.requestRemoveStylePreset = requestRemoveStylePreset;
-window.removeStylePreset = removeStylePreset;
-window.updateMapFilter = updateMapFilter;
+ensureEl<HTMLSelectElement>("stylePreset").addEventListener("change", e =>
+  requestStylePresetChange((e.target as HTMLSelectElement).value)
+);
+ensureEl("addStyleButton").addEventListener("click", addStylePreset);
+ensureEl("removeStyleButton").addEventListener("click", requestRemoveStylePreset);
+ensureEl("textureProvideURLBtn").addEventListener("click", textureProvideURL);

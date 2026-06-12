@@ -179,10 +179,6 @@ export interface Route {
   lock?: boolean;
 }
 
-declare global {
-  var Routes: RoutesModule;
-}
-
 class RoutesModule {
   buildLinks(routes: Route[]): Record<number, Record<number, number>> {
     const links: Record<number, Record<number, number>> = {};
@@ -732,4 +728,4 @@ class RoutesModule {
   }
 }
 
-window.Routes = new RoutesModule();
+export const Routes = new RoutesModule();

@@ -1,9 +1,8 @@
 import { driver } from "driver.js";
 import "driver.js/dist/driver.css";
-
-declare global {
-  var UITour: UITourModule;
-}
+import { closeDialogs } from "../controllers/editors";
+import { showExportPane } from "../controllers/options";
+import { editWorld } from "../controllers/world-configurator";
 
 const byId = (id: string) => document.getElementById(id);
 
@@ -410,4 +409,4 @@ class UITourModule {
   }
 }
 
-window.UITour = new UITourModule();
+export const UITour = new UITourModule();

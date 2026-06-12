@@ -1,11 +1,18 @@
 import type * as d3 from "d3";
 import { drag, pointer, select } from "d3";
+import { Routes } from "../modules";
 import type { Route } from "../modules/routes-generator";
-import { ensureEl, getSegmentId, rn } from "../utils";
+import { ensureEl, getPackPolygon, getSegmentId, rn } from "../utils";
+import { closeDialogs, confirmationDialog, fitContent, restoreDefaultEvents, unselect } from "./editors";
+import { ElevationProfile } from "./elevation-profile";
+import { layerIsOn, toggleCells, toggleRoutes } from "./layers";
+import { editNotes } from "./notes-editor";
+import { editRouteGroups } from "./route-group-editor";
+import { editStyle } from "./style";
 
 // ─── routes-editor ──────────────────────────────────────────────────────────
 
-function editRoute(id: string): void {
+export function editRoute(id: string): void {
   if (customization) return;
   if (elSelected && id === elSelected.attr("id")) return;
   closeDialogs(".stable");
@@ -105,7 +112,7 @@ function editRoute(id: string): void {
       .selectAll("polygon")
       .data(pts)
       .join("polygon")
-      .attr("points", (p: [number, number, number]) => getPackPolygon(p[2]) as unknown as string);
+      .attr("points", (p: [number, number, number]) => getPackPolygon(p[2], pack!) as unknown as string);
   }
 
   let _rcRoute: Route | null = null;
@@ -440,7 +447,7 @@ function editRoute(id: string): void {
 
 let _createRoutePoints: [number, number, number][] = [];
 
-function createRoute(defaultGroup?: string): void {
+export function createRoute(defaultGroup?: string): void {
   if (customization) return;
   closeDialogs();
   if (!layerIsOn("toggleRoutes")) toggleRoutes();
@@ -515,7 +522,7 @@ function createRoute(defaultGroup?: string): void {
       .selectAll("polygon")
       .data(pts)
       .join("polygon")
-      .attr("points", (p: [number, number, number]) => getPackPolygon(p[2]) as unknown as string)
+      .attr("points", (p: [number, number, number]) => getPackPolygon(p[2], pack!) as unknown as string)
       .attr("class", "current");
 
     debug
@@ -585,6 +592,3 @@ function createRoute(defaultGroup?: string): void {
     if (forced && layerIsOn("toggleCells")) toggleCells();
   }
 }
-
-window.editRoute = editRoute;
-window.createRoute = createRoute;

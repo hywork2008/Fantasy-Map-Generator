@@ -1,4 +1,7 @@
 import * as d3 from "d3";
+import { getArea, getAreaUnit } from "../controllers/editors";
+import { layerIsOn } from "../controllers/layers";
+import { fitMapToScreen } from "../controllers/options";
 import type { PackedGraphFeature } from "../modules/features";
 import { debounce, ensureEl, getComposedPath, link, rn, si } from "./index";
 
@@ -8,7 +11,7 @@ window.addEventListener("resize", () => {
   if (stored("mapWidth") && stored("mapHeight")) return;
   mapWidthInput.value = String(window.innerWidth);
   mapHeightInput.value = String(window.innerHeight);
-  window.fitMapToScreen?.();
+  fitMapToScreen();
 });
 
 if (location.hostname !== "localhost" && location.hostname !== "127.0.0.1") {
@@ -449,7 +452,7 @@ interface EmblemEl {
   name?: string;
 }
 
-function highlightEmblemElement(type: string, el: EmblemEl): void {
+export function highlightEmblemElement(type: string, el: EmblemEl): void {
   const id = el.i;
   const cells = pack.cells;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -661,11 +664,7 @@ window.applyOption = applyOption;
 window.showInfo = showInfo;
 window.getCellPopulation = getCellPopulation;
 window.getFriendlyHeight = getFriendlyHeight;
-window.getFriendlyPrecipitation = getFriendlyPrecipitation;
-window.getPopulationTip = getPopulationTip;
 window.getHeight = getHeight;
-window.toDMS = toDMS;
-window.getRiverInfo = getRiverInfo;
 
 // ─── Table sorting ────────────────────────────────────────────────────────────
 
@@ -722,15 +721,12 @@ export function applySorting(headers: HTMLElement): void {
 window.applySortingByHeader = applySortingByHeader;
 window.applySorting = applySorting;
 window.sortLines = sortLines;
-window.highlightEmblemElement = highlightEmblemElement;
 
 // ─── Legacy globals (from non-migrated JS files) ──────────────────────────────
 
 declare const MOBILE: boolean;
 declare const findGridCell: (x: number, y: number) => number;
 declare const convertTemperature: (temp: number) => string;
-declare const getArea: (area: number) => number;
-declare const getAreaUnit: () => string;
 
 // Info DOM elements
 declare const infoX: HTMLElement;

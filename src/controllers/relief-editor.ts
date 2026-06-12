@@ -1,6 +1,9 @@
 import type { D3DragEvent, Quadtree } from "d3";
 import { drag, pointer, quadtree, range, select } from "d3";
 import { findAllInQuadtree, rn } from "../utils";
+import { closeDialogs, moveCircle, removeCircle, restoreDefaultEvents, unselect } from "./editors";
+import { layerIsOn, toggleRelief } from "./layers";
+import { editStyle } from "./style";
 
 interface DragAddState {
   type: string;
@@ -17,7 +20,7 @@ interface DragRemoveState {
   tree: Quadtree<[number, number, SVGUseElement]>;
 }
 
-function editReliefIcon(clickedEl?: Element): void {
+export function editReliefIcon(clickedEl?: Element): void {
   if (customization) return;
   closeDialogs(".stable");
   if (!layerIsOn("toggleRelief")) toggleRelief();
@@ -347,5 +350,3 @@ function editReliefIcon(clickedEl?: Element): void {
     clearMainTip();
   }
 }
-
-window.editReliefIcon = editReliefIcon;

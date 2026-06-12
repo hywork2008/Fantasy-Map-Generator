@@ -599,6 +599,5 @@ declare global {
     isLand: (i: number) => boolean;
     isWater: (i: number) => boolean;
     findAllInQuadtree: typeof findAllInQuadtree;
-    drawHeights: typeof drawHeights;
   }
 }

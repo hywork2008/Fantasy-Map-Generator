@@ -1,6 +1,7 @@
 import * as d3 from "d3";
 import { worldContext } from "../context/worldContext";
 import { ensureEl, rn, si } from "../utils";
+import { closeDialogs, downloadFile, getArea, getAreaUnit, getFileName } from "./editors";
 
 interface ChartOptions {
   id: number;

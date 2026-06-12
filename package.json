@@ -50,7 +50,8 @@
     "lineclip": "^2.0.0",
     "polylabel": "^2.0.1",
     "three": "^0.184.0",
-    "three-subdivide": "^1.1.5"
+    "three-subdivide": "^1.1.5",
+    "tinymce": "^8.6.0"
   },
   "engines": {
     "node": ">=24.0.0"

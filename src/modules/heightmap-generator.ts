@@ -1,11 +1,9 @@
 import Alea from "alea";
 import { range as d3Range, leastIndex, mean } from "d3";
+import { heightmapTemplates } from "../config";
 import { createTypedArray, ensureEl, findGridCell, getNumberInRange, lim, minmax, P, rand } from "../utils";
+import { ERROR } from "../utils/debug";
 import type { Grid } from "../utils/graphUtils";
-
-declare global {
-  var HeightmapGenerator: HeightmapModule;
-}
 
 type Tool = "Hill" | "Pit" | "Range" | "Trough" | "Strait" | "Mask" | "Invert" | "Add" | "Multiply" | "Smooth";
 
@@ -61,7 +59,7 @@ class HeightmapModule {
 
   private getPointInRange(range: string, length: number): number | undefined {
     if (typeof range !== "string") {
-      window.ERROR && console.error("Range should be a string");
+      ERROR && console.error("Range should be a string");
       return;
     }
 
@@ -613,4 +611,4 @@ class HeightmapModule {
   }
 }
 
-window.HeightmapGenerator = new HeightmapModule();
+export const HeightmapGenerator = new HeightmapModule();

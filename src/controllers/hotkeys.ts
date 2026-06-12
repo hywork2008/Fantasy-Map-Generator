@@ -1,4 +1,62 @@
+import { quickLoad } from "../io/load";
+import { saveMap, toggleSaveReminder } from "../io/save";
 import { ensureEl, minmax } from "../utils";
+import { editBiomes } from "./biomes-editor";
+import { overviewBurgs } from "./burgs-overview";
+import { editDiplomacy } from "./diplomacy-editor";
+import { closeDialogs, editCoastlineSettings, editCultures, editReligions, editStates } from "./editors";
+import { editHeightmap } from "./heightmap-editor";
+import {
+  toggleBiomes,
+  toggleBorders,
+  toggleBurgIcons,
+  toggleCells,
+  toggleCompass,
+  toggleCoordinates,
+  toggleCultures,
+  toggleEmblems,
+  toggleGrid,
+  toggleHeight,
+  toggleIce,
+  toggleLabels,
+  toggleLakes,
+  toggleMarkers,
+  toggleMilitary,
+  togglePopulation,
+  togglePrecipitation,
+  toggleProvinces,
+  toggleRelief,
+  toggleReligions,
+  toggleRivers,
+  toggleRoutes,
+  toggleRulers,
+  toggleScaleBar,
+  toggleStates,
+  toggleTemperature,
+  toggleTexture,
+  toggleVignette,
+  toggleZones
+} from "./layers";
+import { overviewMarkers } from "./markers-overview";
+import { overviewMilitary } from "./military-overview";
+import { NamesbaseEditor } from "./namesbase-editor";
+import { editNotes } from "./notes-editor";
+import { hideOptions, regeneratePrompt, toggle3dOptions, toggleOptions } from "./options";
+import { editProvinces } from "./provinces-editor";
+import { overviewRivers } from "./rivers-overview";
+import { createRoute } from "./routes-editor";
+import { overviewRoutes } from "./routes-overview";
+import {
+  openEmblemEditor,
+  overviewCharts,
+  toggleAddBurg,
+  toggleAddLabel,
+  toggleAddMarker,
+  toggleAddRiver,
+  viewCellDetails
+} from "./tools";
+import { editUnits } from "./units-editor";
+import { editZones } from "./zones-editor";
 
 document.addEventListener("keydown", handleKeydown);
 document.addEventListener("keyup", handleKeyup);
@@ -43,7 +101,7 @@ function handleKeyup(event: KeyboardEvent): void {
   else if ((shift || altShift) && code === "KeyD") editDiplomacy();
   else if ((shift || altShift) && code === "KeyL") editCoastlineSettings();
   else if ((shift || altShift) && code === "KeyC") editCultures();
-  else if ((shift || altShift) && code === "KeyN") window.NamesbaseEditor.open();
+  else if ((shift || altShift) && code === "KeyN") NamesbaseEditor.open();
   else if ((shift || altShift) && code === "KeyZ") editZones();
   else if ((shift || altShift) && code === "KeyR") editReligions();
   else if ((shift || altShift) && code === "KeyY") openEmblemEditor();
@@ -209,37 +267,9 @@ declare const zoom: {
   scaleTo: (selection: unknown, scale: number) => unknown;
   scaleBy: (selection: unknown, factor: number) => unknown;
 };
-declare const hideOptions: () => void;
-declare const toggleOptions: (event: Event) => void;
-declare const regeneratePrompt: () => void;
-declare const toggle3dOptions: () => void;
 declare const zonesRemove: HTMLButtonElement | null;
 declare const undo: HTMLButtonElement | null;
 declare const redo: HTMLButtonElement | null;
 declare const resetZoom: (duration?: number) => void;
 
-// Editor openers (from editors.js - not yet migrated)
-declare const editHeightmap: () => void;
-declare const editBiomes: () => void;
-declare const editStates: () => void;
-declare const editProvinces: () => void;
-declare const editDiplomacy: () => void;
-declare const editCoastlineSettings: () => void;
-declare const editCultures: () => void;
-declare const editZones: () => void;
-declare const editReligions: () => void;
-declare const openEmblemEditor: () => void;
-declare const editNotes: () => void;
-declare const overviewCharts: () => void;
-declare const overviewBurgs: () => void;
-declare const overviewRoutes: () => void;
-declare const overviewRivers: () => void;
-declare const overviewMilitary: () => void;
-declare const overviewMarkers: () => void;
-declare const viewCellDetails: () => void;
-declare const toggleAddBurg: () => void;
-declare const toggleAddLabel: () => void;
-declare const toggleAddRiver: () => void;
-declare const createRoute: () => void;
-declare const toggleAddMarker: () => void;
 declare const showInfo: () => void;

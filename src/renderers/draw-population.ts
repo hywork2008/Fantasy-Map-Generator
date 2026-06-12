@@ -2,11 +2,7 @@ import { easeSinIn, transition } from "d3";
 import { viewState } from "../context/viewState";
 import { worldContext } from "../context/worldContext";
 
-declare global {
-  var drawPopulation: () => void;
-}
-
-const populationRenderer = (): void => {
+export const drawPopulation = (): void => {
   const { pack, urbanization } = worldContext;
   const { population } = viewState;
   const { cells, burgs } = pack;
@@ -51,5 +47,3 @@ const populationRenderer = (): void => {
     .delay(500)
     .attr("y2", d => d[2]);
 };
-
-window.drawPopulation = populationRenderer;

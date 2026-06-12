@@ -1,7 +1,12 @@
 import { curveNatural, type D3DragEvent, drag, pointer, select } from "d3";
+import { Names } from "../modules";
 import { ensureEl, parseTransform, round } from "../utils";
+import { closeDialogs, fitContent, unselect } from "./editors";
+import { layerIsOn, toggleLabels } from "./layers";
+import { editNotes } from "./notes-editor";
+import { editStyle } from "./style";
 
-function editLabel(tspan?: Element): void {
+export function editLabel(tspan?: Element): void {
   if (customization) return;
   closeDialogs();
   if (!layerIsOn("toggleLabels")) toggleLabels();
@@ -470,5 +475,3 @@ function editLabel(tspan?: Element): void {
     unselect();
   }
 }
-
-window.editLabel = editLabel;

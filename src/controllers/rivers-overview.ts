@@ -1,7 +1,13 @@
 import { mean } from "d3";
+import { Rivers } from "../modules";
 import { ensureEl, rn } from "../utils";
+import { closeDialogs, downloadFile, fitContent, getFileName, highlightElement } from "./editors";
+import { layerIsOn, toggleRivers } from "./layers";
+import { createRiver } from "./rivers-creator";
+import { editRiver } from "./rivers-editor";
+import { toggleAddRiver } from "./tools";
 
-function overviewRivers(): void {
+export function overviewRivers(): void {
   if (customization) return;
   closeDialogs("#riversOverview, .stable");
   if (!layerIsOn("toggleRivers")) toggleRivers();
@@ -208,5 +214,3 @@ function overviewRivers(): void {
     riversOverviewAddLines();
   }
 }
-
-window.overviewRivers = overviewRivers;

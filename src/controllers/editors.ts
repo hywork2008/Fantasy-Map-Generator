@@ -1,7 +1,18 @@
 import * as d3 from "d3";
 import { ensureEl, parseTransform, rn } from "../utils";
+import { editBurg } from "./burg-editor";
+import { coastlineEditor, editCoastline } from "./coastline-editor";
 import { open as openCulturesEditor } from "./cultures-editor";
+import { editEmblem } from "./emblems-editor";
+import { editIce } from "./ice-editor";
+import { editLabel } from "./labels-editor";
+import { editLake } from "./lakes-editor";
+import { editMarker } from "./markers-editor";
+import { editRegiment } from "./regiment-editor";
+import { editReliefIcon } from "./relief-editor";
 import { open as openReligionsEditor } from "./religions-editor";
+import { editRiver } from "./rivers-editor";
+import { editRoute } from "./routes-editor";
 import { open as openStatesEditor } from "./states-editor";
 
 // ─── Default viewbox events ────────────────────────────────────────────────
@@ -33,7 +44,7 @@ function makePanDrag(filter?: (ev: Event) => boolean): d3.DragBehavior<SVGGEleme
   return drag;
 }
 
-function restoreDefaultEvents(): void {
+export function restoreDefaultEvents(): void {
   svg.call(zoom as any);
   viewbox.style("cursor", "default").on(".drag", null).on("click", clicked).on("touchmove mousemove", onMouseMove);
   legend.call(makePanDrag());
@@ -48,21 +59,21 @@ function clicked(this: Element, event: MouseEvent): void {
   const ancestor = great?.parentElement;
   if (!ancestor) return;
 
-  if (grand?.id === "emblems") editEmblem?.(undefined, undefined, el);
-  else if (parent?.id === "rivers") editRiver?.(el!.id);
-  else if (grand?.id === "routes") editRoute?.(el!.id);
-  else if (ancestor.id === "labels" && el?.tagName === "tspan") editLabel?.(el);
-  else if (grand?.id === "burgLabels") editBurg?.(+(el as SVGElement).dataset.id!);
-  else if (grand?.id === "burgIcons") editBurg?.(+(el as SVGElement).dataset.id!);
-  else if (parent?.id === "ice") editIce?.(el as SVGElement);
-  else if (parent?.id === "terrain") editReliefIcon?.(el as SVGElement);
-  else if (grand?.id === "markers" || great?.id === "markers") editMarker?.();
-  else if (grand?.id === "coastline") editCoastline?.(event);
-  else if (grand?.id === "lakes") editLake?.(event);
-  else if (great?.id === "armies") editRegiment?.(el?.parentElement ?? undefined);
+  if (grand?.id === "emblems") editEmblem(undefined, undefined, el);
+  else if (parent?.id === "rivers") editRiver(el!.id);
+  else if (grand?.id === "routes") editRoute(el!.id);
+  else if (ancestor.id === "labels" && el?.tagName === "tspan") editLabel(el);
+  else if (grand?.id === "burgLabels") editBurg(+(el as SVGElement).dataset.id!);
+  else if (grand?.id === "burgIcons") editBurg(+(el as SVGElement).dataset.id!);
+  else if (parent?.id === "ice") editIce(el as SVGElement);
+  else if (parent?.id === "terrain") editReliefIcon(el as SVGElement);
+  else if (grand?.id === "markers" || great?.id === "markers") editMarker();
+  else if (grand?.id === "coastline") editCoastline(event);
+  else if (grand?.id === "lakes") editLake(event);
+  else if (great?.id === "armies") editRegiment(el?.parentElement ?? undefined);
 }
 
-function unselect(): void {
+export function unselect(): void {
   restoreDefaultEvents();
   if (!elSelected) return;
   elSelected!.call(d3.drag<any, unknown>().on("drag", null)).attr("class", null);
@@ -71,7 +82,7 @@ function unselect(): void {
   elSelected = null;
 }
 
-function closeDialogs(except = "#except"): void {
+export function closeDialogs(except = "#except"): void {
   try {
     $(".dialog:visible")
       .not(except)
@@ -83,7 +94,7 @@ function closeDialogs(except = "#except"): void {
 
 // ─── Brush circle ──────────────────────────────────────────────────────────
 
-function moveCircle(x: number, y: number, r = 20): void {
+export function moveCircle(x: number, y: number, r = 20): void {
   const circle = document.getElementById("brushCircle");
   if (!circle) {
     ensureEl("debug").insertAdjacentHTML(
@@ -97,19 +108,19 @@ function moveCircle(x: number, y: number, r = 20): void {
   }
 }
 
-function removeCircle(): void {
+export function removeCircle(): void {
   document.getElementById("brushCircle")?.remove();
 }
 
 // ─── Misc editor utilities ────────────────────────────────────────────────
 
-function fitContent(): string {
+export function fitContent(): string {
   return !("chrome" in window) ? "-moz-max-content" : "fit-content";
 }
 
 // ─── Legend ────────────────────────────────────────────────────────────────
 
-function drawLegend(name: string, data: Array<[string | number, string, string]>): void {
+export function drawLegend(name: string, data: Array<[string | number, string, string]>): void {
   legend.selectAll("*").remove();
   legend.attr("data", data.join("|"));
 
@@ -178,7 +189,7 @@ function drawLegend(name: string, data: Array<[string | number, string, string]>
   fitLegendBox();
 }
 
-function fitLegendBox(): void {
+export function fitLegendBox(): void {
   if (!legend.selectAll("*").size()) return;
   const px = Number.isNaN(+legend.attr("data-x")) ? 99 : +legend.attr("data-x") / 100;
   const py = Number.isNaN(+legend.attr("data-y")) ? 93 : +legend.attr("data-y") / 100;
@@ -188,7 +199,7 @@ function fitLegendBox(): void {
   legend.attr("transform", `translate(${x},${y})`);
 }
 
-function redrawLegend(): void {
+export function redrawLegend(): void {
   if (legend.select("rect").size()) {
     const name = legend.select("#legendLabel").text();
     const data = legend
@@ -199,7 +210,7 @@ function redrawLegend(): void {
   }
 }
 
-function clearLegend(): void {
+export function clearLegend(): void {
   legend.selectAll("*").remove();
   legend.attr("data", null);
 }
@@ -431,7 +442,7 @@ interface OpenPickerFn {
   updateFill?: () => void;
 }
 
-const openPicker: OpenPickerFn = (fill: string, callback: (fill: string) => void): void => {
+export const openPicker: OpenPickerFn = (fill: string, callback: (fill: string) => void): void => {
   const picker = d3.select("#picker");
   if (!picker.size()) createPicker();
   d3.select("#pickerContainer").style("display", "block");
@@ -526,7 +537,7 @@ function changePickerSpace(this: HTMLInputElement): void {
 
 // ─── Fogging ───────────────────────────────────────────────────────────────
 
-function fog(id: string, path: string): void {
+export function fog(id: string, path: string): void {
   if (defs.select(`#fog #${id}`).size()) return;
   const fadeIn = d3.transition().duration(2000).ease(d3.easeSinInOut);
   if (defs.select("#fog path").size()) {
@@ -545,7 +556,7 @@ function fog(id: string, path: string): void {
   }
 }
 
-function unfog(id?: string): void {
+export function unfog(id?: string): void {
   let el = id ? defs.select(`#fog #${id}`) : (defs.select(null) as ReturnType<typeof defs.select>);
   if (!id || !el.size()) el = defs.select("#fog").selectAll("path") as typeof el;
   el.remove();
@@ -554,7 +565,7 @@ function unfog(id?: string): void {
 
 // ─── File utilities ────────────────────────────────────────────────────────
 
-function getFileName(dataType?: string): string {
+export function getFileName(dataType?: string): string {
   const pad = (n: number) => (n < 10 ? `0${n}` : String(n));
   const name = mapName.value;
   const type = dataType ? `${dataType} ` : "";
@@ -569,7 +580,7 @@ function getFileName(dataType?: string): string {
   return `${name} ${type}${dateString}`;
 }
 
-function downloadFile(data: string | Blob, name: string, type = "text/plain"): void {
+export function downloadFile(data: string | Blob, name: string, type = "text/plain"): void {
   const dataBlob = data instanceof Blob ? data : new Blob([data], { type });
   const url = window.URL.createObjectURL(dataBlob);
   const link = document.createElement("a");
@@ -579,7 +590,7 @@ function downloadFile(data: string | Blob, name: string, type = "text/plain"): v
   window.setTimeout(() => window.URL.revokeObjectURL(url), 2000);
 }
 
-function uploadFile(el: HTMLInputElement, callback: (data: string) => void): void {
+export function uploadFile(el: HTMLInputElement, callback: (data: string) => void): void {
   const fileReader = new FileReader();
   fileReader.readAsText(el.files![0], "UTF-8");
   el.value = "";
@@ -595,7 +606,7 @@ function getBBox(element: SVGRectElement): { x: number; y: number; width: number
   };
 }
 
-function highlightElement(element: Element, zoom?: number): void {
+export function highlightElement(element: Element, zoom?: number): void {
   if (debug.select(".highlighted").size()) return;
   const box =
     element.tagName === "svg" ? getBBox(element as SVGRectElement) : (element as SVGGraphicsElement).getBBox();
@@ -631,7 +642,7 @@ function highlightElement(element: Element, zoom?: number): void {
 
 // ─── Icon selector ─────────────────────────────────────────────────────────
 
-function selectIcon(initial: string, callback: (value: string) => void): void {
+export function selectIcon(initial: string, callback: (value: string) => void): void {
   if (!callback) return;
   $("#iconSelector").dialog();
 
@@ -907,20 +918,20 @@ function selectIcon(initial: string, callback: (value: string) => void): void {
 
 // ─── Area / units ──────────────────────────────────────────────────────────
 
-function getAreaUnit(squareMark = "²"): string {
+export function getAreaUnit(squareMark = "²"): string {
   const areaUnitEl = ensureEl<HTMLSelectElement>("areaUnit");
   return areaUnitEl.value === "square"
     ? ensureEl<HTMLInputElement>("distanceUnitInput").value + squareMark
     : areaUnitEl.value;
 }
 
-function getArea(rawArea: number): number {
+export function getArea(rawArea: number): number {
   return rawArea * distanceScale ** 2;
 }
 
 // ─── Confirmation dialog ───────────────────────────────────────────────────
 
-function confirmationDialog(opts: {
+export function confirmationDialog(opts: {
   title?: string;
   message?: string;
   cancel?: string;
@@ -954,14 +965,14 @@ function confirmationDialog(opts: {
 
 // ─── Event listener helper ─────────────────────────────────────────────────
 
-function listen(element: EventTarget, event: string, handler: EventListener): () => void {
+export function listen(element: EventTarget, event: string, handler: EventListener): () => void {
   element.addEventListener(event, handler);
   return () => element.removeEventListener(event, handler);
 }
 
 // ─── Refresh all open editors ─────────────────────────────────────────────
 
-function refreshAllEditors(): void {
+export function refreshAllEditors(): void {
   TIME && console.time("refreshAllEditors");
   if (document.getElementById("culturesEditorRefresh")?.offsetParent)
     (document.getElementById("culturesEditorRefresh") as HTMLButtonElement).click();
@@ -978,55 +989,27 @@ function refreshAllEditors(): void {
 
 // ─── Dynamic editor launchers ─────────────────────────────────────────────
 
-function editStates(): void {
+export function editStates(): void {
   if (customization) return;
   openStatesEditor();
 }
 
-function editCultures(): void {
+export function editCultures(): void {
   if (customization) return;
   openCulturesEditor();
 }
 
-function editReligions(): void {
+export function editReligions(): void {
   if (customization) return;
   openReligionsEditor();
 }
 
-function editCoastlineSettings(): void {
+export function editCoastlineSettings(): void {
   if (customization) return;
-  window.CoastlineEditor.open();
+  coastlineEditor.open();
 }
 
 // ─── Global registration ───────────────────────────────────────────────────
 
 if (!window.modules) window.modules = {};
 window.modules.editors = true;
-
-window.restoreDefaultEvents = restoreDefaultEvents;
-window.unselect = unselect;
-window.closeDialogs = closeDialogs;
-window.moveCircle = moveCircle;
-window.removeCircle = removeCircle;
-window.fitContent = fitContent;
-window.drawLegend = drawLegend;
-window.fitLegendBox = fitLegendBox;
-window.redrawLegend = redrawLegend;
-window.clearLegend = clearLegend;
-window.openPicker = openPicker;
-window.fog = fog;
-window.unfog = unfog;
-window.getFileName = getFileName;
-window.downloadFile = downloadFile;
-window.uploadFile = uploadFile;
-window.highlightElement = highlightElement;
-window.selectIcon = selectIcon;
-window.getAreaUnit = getAreaUnit;
-window.getArea = getArea;
-window.confirmationDialog = confirmationDialog;
-window.listen = listen;
-window.refreshAllEditors = refreshAllEditors;
-window.editStates = editStates;
-window.editCultures = editCultures;
-window.editReligions = editReligions;
-window.editCoastlineSettings = editCoastlineSettings;

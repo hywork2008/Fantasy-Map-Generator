@@ -1,9 +1,17 @@
 import { drag, pointer } from "d3";
+import { Burgs, COArenderer, Names } from "../modules";
 import type { Burg } from "../modules/burgs-generator";
 import type { Culture } from "../modules/cultures-generator";
-import { ensureEl, openURL, parseTransform, rn, showPrompt } from "../utils";
+import { ensureEl, openURL, parseTransform, rand, rn, showPrompt } from "../utils";
+import { editBurgGroups } from "./burg-group-editor";
+import { closeDialogs, confirmationDialog, unselect } from "./editors";
+import { editEmblem } from "./emblems-editor";
+import { layerIsOn, toggleBurgIcons, toggleCells, toggleLabels } from "./layers";
+import { editNotes } from "./notes-editor";
+import { editStyle } from "./style";
+import { showBurgTemperatureGraph } from "./temperature-graph";
 
-function editBurg(id?: number): void {
+export function editBurg(id?: number): void {
   if (customization) return;
   closeDialogs(".stable");
   if (!layerIsOn("toggleBurgIcons")) toggleBurgIcons();
@@ -343,7 +351,7 @@ function editBurg(id?: number): void {
   function openEmblemEdit(): void {
     const burgId = +elSelected!.attr("data-id");
     const burg = pack.burgs[burgId];
-    editEmblem!("burg", `burgCOA${burgId}`, burg);
+    editEmblem("burg", `burgCOA${burgId}`, burg);
   }
 
   function zoomIntoBurg(): void {
@@ -517,11 +525,8 @@ const meanTempCityMap: Record<string, string> = {
   "30": "Khartoum (Sudan)"
 };
 
-function getTemperatureLikeness(temperature: number): string | null {
+export function getTemperatureLikeness(temperature: number): string | null {
   if (temperature < -5) return "Yakutsk (Russia)";
   if (temperature > 30) return "Mecca (Saudi Arabia)";
   return meanTempCityMap[String(temperature)] || null;
 }
-
-window.editBurg = editBurg;
-window.getTemperatureLikeness = getTemperatureLikeness;

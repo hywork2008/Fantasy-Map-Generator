@@ -1,5 +1,6 @@
 import Alea from "alea";
 import { min } from "d3";
+import { redrawGlacier, redrawIceberg } from "../renderers";
 import type { WorldState } from "../types/WorldState";
 import { clipPoly, getGridPolygon, getIsolines, lerp, minmax, normalize, P, ra, rand, rn } from "../utils";
 import type { Point } from "./voronoi";
@@ -14,10 +15,6 @@ export type IceIceberg = {
   offset?: [number, number];
 };
 export type IceElement = IceGlacier | IceIceberg;
-
-declare global {
-  var Ice: IceModule;
-}
 
 class IceModule {
   // Find next available id for new ice element idealy filling gaps
@@ -170,4 +167,4 @@ class IceModule {
   }
 }
 
-window.Ice = new IceModule();
+export const Ice = new IceModule();

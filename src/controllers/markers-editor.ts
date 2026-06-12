@@ -1,8 +1,12 @@
 import { type D3DragEvent, drag, type Selection, select } from "d3";
+import { Markers } from "../modules";
 import type { Marker } from "../modules/markers-generator";
+import { getPin } from "../renderers";
 import { ensureEl, rn } from "../utils";
+import { closeDialogs, confirmationDialog, listen, restoreDefaultEvents, selectIcon, unselect } from "./editors";
+import { editNotes } from "./notes-editor";
 
-function editMarker(markerI?: number): void {
+export function editMarker(markerI?: number): void {
   if (customization) return;
   closeDialogs(".stable");
 
@@ -267,5 +271,3 @@ function editMarker(markerI?: number): void {
     clearMainTip();
   }
 }
-
-window.editMarker = editMarker;

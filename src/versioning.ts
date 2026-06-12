@@ -15,6 +15,8 @@
  * For the changes that may be interesting to end users, update the `latestPublicChanges` array below (new changes on top).
  */
 
+import { ensureEl } from "./utils";
+
 export const VERSION = "1.122.12";
 
 export function parseMapVersion(version: string): string {
@@ -142,8 +144,6 @@ function showUpdateWindow() {
   });
 }
 
-window.VERSION = VERSION;
-window.parseMapVersion = parseMapVersion;
-window.isValidVersion = isValidVersion;
-window.compareVersions = compareVersions;
-window.cleanupData = cleanupData;
+// ─── HTML event listeners ─────────────────────────────────────────────────────
+
+ensureEl("optionsReset").addEventListener("click", cleanupData);

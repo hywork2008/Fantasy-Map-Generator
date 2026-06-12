@@ -1,8 +1,17 @@
 import type * as d3 from "d3";
-import { fitMapView, reinitializeMapLayers } from "../main";
+import { worldContext } from "../context/worldContext";
+import { clearLegend, closeDialogs, restoreDefaultEvents } from "../controllers/editors";
+import { getCurrentPreset, layerIsOn } from "../controllers/layers";
+import { rulers } from "../controllers/measurers";
+import { fitMapToScreen } from "../controllers/options";
+import { addCustomColorScheme, heightmapColorSchemes, updateTextureSelectValue } from "../controllers/style";
+import { editUnits } from "../controllers/units-editor";
+import { fitMapView, invokeActiveZooming, reinitializeMapLayers } from "../main";
+import { Biomes, Burgs, declareFont, Features, fonts, Routes } from "../modules";
 import type { NameBase } from "../modules/names-generator";
 import type { River } from "../modules/river-generator";
 import { calculateVoronoi, ensureEl, last, link, minmax, parseError, rn } from "../utils";
+import { cleanupData } from "../versioning";
 import { resolveVersionConflicts } from "./auto-update";
 
 // ─── Quick load from browser storage ─────────────────────────────────────────
@@ -293,8 +302,13 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
     yearInput.value = String(options.year);
     eraInput.value = String(options.era);
     shapeRendering.value = viewbox.attr("shape-rendering") || "geometricPrecision";
-    if (data[2]) mapCoordinates = JSON.parse(data[2]);
-    if (data[4]) notes = JSON.parse(data[4]);
+    if (data[2]) {
+      mapCoordinates = JSON.parse(data[2]);
+      worldContext.mapCoordinates = mapCoordinates;
+    }
+    if (data[4]) {
+      worldContext.notes = JSON.parse(data[4]);
+    }
     if (data[33]) rulers.fromString(data[33]);
     if (data[34]) {
       const usedFonts = JSON.parse(data[34]);
@@ -311,16 +325,18 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
 
     {
       const biomesRaw = data[3].split("|");
-      biomesData = Biomes.getDefault();
-      biomesData.color = biomesRaw[0].split(",");
-      biomesData.habitability = biomesRaw[1].split(",").map(h => +h);
-      biomesData.name = biomesRaw[2].split(",");
-      for (let i = biomesData.i.length; i < biomesData.name.length; i++) {
-        biomesData.i.push(biomesData.i.length);
-        biomesData.iconsDensity.push(0);
-        biomesData.icons.push([]);
-        biomesData.cost.push(50);
+      const bd = Biomes.getDefault();
+      bd.color = biomesRaw[0].split(",");
+      bd.habitability = biomesRaw[1].split(",").map(h => +h);
+      bd.name = biomesRaw[2].split(",");
+      for (let i = bd.i.length; i < bd.name.length; i++) {
+        bd.i.push(bd.i.length);
+        bd.iconsDensity.push(0);
+        bd.icons.push([]);
+        bd.cost.push(50);
       }
+      biomesData = bd;
+      worldContext.biomesData = bd;
     }
     svg.remove();
     document.body.insertAdjacentHTML("afterbegin", data[5]);
@@ -387,8 +403,8 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
       namesDL.forEach((d, i) => {
         const e = d.split("|");
         if (!e.length) return;
-        const b = e[5].split(",").length > 2 || !nameBases[i] ? e[5] : nameBases[i].b;
-        nameBases[i] = { name: e[0], min: +e[1], max: +e[2], d: e[3], m: +e[4], b } as NameBase;
+        const b = e[5].split(",").length > 2 || !worldContext.nameBases[i] ? e[5] : worldContext.nameBases[i].b;
+        worldContext.nameBases[i] = { name: e[0], min: +e[1], max: +e[2], d: e[3], m: +e[4], b } as NameBase;
       });
     }
 
@@ -850,14 +866,8 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
   }
 }
 
-// ─── Global exports ───────────────────────────────────────────────────────────
+// ─── HTML event listeners ─────────────────────────────────────────────────────
 
-window.quickLoad = quickLoad;
-window.loadFromDropbox = loadFromDropbox;
-window.createSharableDropboxLink = createSharableDropboxLink;
-window.loadMapPrompt = loadMapPrompt;
-window.loadMapFromURL = loadMapFromURL;
-window.uploadMap = uploadMap;
-window.showUploadErrorMessage = showUploadErrorMessage;
-window.parseLoadedResult = parseLoadedResult;
-window.parseLoadedData = parseLoadedData;
+ensureEl("quickLoadBtn").addEventListener("click", quickLoad);
+ensureEl("loadDropboxBtn").addEventListener("click", loadFromDropbox);
+ensureEl("createDropboxShareBtn").addEventListener("click", createSharableDropboxLink);

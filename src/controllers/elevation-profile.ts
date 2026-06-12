@@ -19,10 +19,8 @@ import type { PackedGraphFeature } from "../modules/features";
 import type { Province } from "../modules/provinces-generator";
 import type { State } from "../modules/states-generator";
 import { ensureEl, rn } from "../utils";
-
-declare global {
-  var ElevationProfile: ElevationProfileModule;
-}
+import { closeDialogs, downloadFile, getFileName } from "./editors";
+import { getColor, getColorScheme } from "./style";
 
 class ElevationProfileModule {
   open(cells: number[], routeLen: number, isRiver: boolean): void {
@@ -570,4 +568,4 @@ class ElevationProfileModule {
   }
 }
 
-window.ElevationProfile = new ElevationProfileModule();
+export const ElevationProfile = new ElevationProfileModule();

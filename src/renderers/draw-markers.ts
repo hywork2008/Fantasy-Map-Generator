@@ -4,12 +4,6 @@ import type { Marker } from "../modules/markers-generator";
 import { rn } from "../utils";
 import { TIME } from "../utils/debug";
 
-declare global {
-  var drawMarkers: () => void;
-  var drawMarker: (marker: Marker, rescale?: number) => string;
-  var getPin: (shape?: string, fill?: string, stroke?: string) => string;
-}
-
 type PinShapeFunction = (fill: string, stroke: string) => string;
 type PinShapes = { [key: string]: PinShapeFunction };
 
@@ -40,12 +34,12 @@ const pinShapes: PinShapes = {
   no: () => ""
 };
 
-const getPinForShape = (shape = "bubble", fill = "#fff", stroke = "#000"): string => {
+export const getPin = (shape = "bubble", fill = "#fff", stroke = "#000"): string => {
   const shapeFunction = pinShapes[shape] || pinShapes.bubble;
   return shapeFunction(fill, stroke);
 };
 
-function markerRenderer(marker: Marker, rescale = 1): string {
+export function drawMarker(marker: Marker, rescale = 1): string {
   const { scale } = worldContext;
   const { i, icon, x, y, dx = 50, dy = 50, px = 12, size = 30, pin, fill, stroke } = marker;
   const id = `marker${i}`;
@@ -63,7 +57,7 @@ function markerRenderer(marker: Marker, rescale = 1): string {
     </svg>`;
 }
 
-const markersRenderer = (): void => {
+export const drawMarkers = (): void => {
   TIME && console.time("drawMarkers");
   const { pack } = worldContext;
   const { markers } = viewState;
@@ -72,12 +66,8 @@ const markersRenderer = (): void => {
   const pinned = +markers.attr("pinned");
 
   const markersData: Marker[] = pinned ? pack.markers.filter((m: Marker) => m.pinned) : pack.markers;
-  const html = markersData.map(marker => markerRenderer(marker, rescale));
+  const html = markersData.map(marker => drawMarker(marker, rescale));
   markers.html(html.join(""));
 
   TIME && console.timeEnd("drawMarkers");
 };
-
-window.drawMarkers = markersRenderer;
-window.drawMarker = markerRenderer;
-window.getPin = getPinForShape;

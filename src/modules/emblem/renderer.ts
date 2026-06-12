@@ -1,4 +1,5 @@
 import { worldContext } from "../../context/worldContext";
+import { layerIsOn } from "../../controllers/layers";
 import { shieldBox } from "./box";
 import { colors } from "./colors";
 import { lines } from "./lines";
@@ -7,10 +8,6 @@ import { patterns } from "./patterns";
 import { shieldPositions } from "./shieldPositions";
 import { shieldSize } from "./size";
 import { templates } from "./templates";
-
-declare global {
-  var COArenderer: EmblemRenderModule;
-}
 
 interface Division {
   division: string;
@@ -322,7 +319,6 @@ class EmblemRenderModule {
     if (layerIsOn("toggleEmblems")) this.trigger(id, coa);
   }
 }
-const coaRendererInstance = new EmblemRenderModule();
-window.COArenderer = coaRendererInstance;
+export const COArenderer = new EmblemRenderModule();
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-worldContext.COArenderer = coaRendererInstance as any;
+worldContext.COArenderer = COArenderer as any;

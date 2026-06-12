@@ -1,6 +1,9 @@
 import { mean, sum } from "d3";
+import { Military, Names } from "../modules";
 import type { MilitaryRegiment } from "../modules/military-generator";
-import { capitalize, ensureEl, getAdjective, last, list, minmax, Pint, rand, rn } from "../utils";
+import { drawMarker, moveRegiment } from "../renderers";
+import { capitalize, ensureEl, getAdjective, last, list, minmax, P, Pint, rand, rn, wiki } from "../utils";
+import { closeDialogs, fitContent } from "./editors";
 
 interface BattleRegiment extends MilitaryRegiment {
   casualties: Record<string, number>;
@@ -21,7 +24,7 @@ interface BattleForces {
   die?: number;
 }
 
-class Battle {
+export class Battle {
   iteration!: number;
   x!: number;
   y!: number;
@@ -997,13 +1000,4 @@ class Battle {
   }
 }
 
-window.Battle = Battle;
-
-export type { Battle, BattleRegiment };
-
-declare global {
-  interface Window {
-    Battle: new (attacker: BattleRegiment, defender: BattleRegiment) => Battle;
-  }
-  var wiki: (topic: string) => void;
-}
+export type { BattleRegiment };

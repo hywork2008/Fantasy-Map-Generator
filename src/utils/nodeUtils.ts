@@ -39,11 +39,3 @@ export const getNextId = (core: string, i: number = 1): string => {
   while (document.getElementById(core + i)) i++;
   return core + i;
 };
-
-declare global {
-  interface Window {
-    getComposedPath: typeof getComposedPath;
-    getNextId: typeof getNextId;
-    ensureEl: typeof ensureEl;
-  }
-}

@@ -4,7 +4,10 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { OBJExporter } from "three/examples/jsm/exporters/OBJExporter.js";
 import { LoopSubdivision } from "three-subdivide";
 import { cloudImage } from "../assets/cloud-image";
-import { rn } from "../utils";
+import { getMapURL } from "../io/export";
+import { rn, throttle } from "../utils";
+import { downloadFile, getFileName } from "./editors";
+import { layerIsOn } from "./layers";
 
 interface ThreeDOptions {
   scale: number;
@@ -32,10 +35,6 @@ interface TimeOfDayPreset {
   lightness: number;
   skyColor: string;
   waterColor: string;
-}
-
-declare global {
-  var ThreeD: ThreeDModule;
 }
 
 type LabelSprite = THREE.Sprite & { size: number };
@@ -812,4 +811,4 @@ interface ThreeDAPI {
   saveOBJ: () => void;
 }
 
-window.ThreeD = new ThreeDModule();
+export const ThreeD = new ThreeDModule();

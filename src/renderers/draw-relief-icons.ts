@@ -1,7 +1,7 @@
 import { extent, polygonContains } from "d3";
 import { viewState } from "../context/viewState";
 import { worldContext } from "../context/worldContext";
-import { getPackPolygon, minmax, rand, rn } from "../utils";
+import { getPackPolygon, minmax, poissonDiscSampler, rand, rn } from "../utils";
 import { TIME } from "../utils/debug";
 
 interface ReliefIcon {
@@ -11,11 +11,7 @@ interface ReliefIcon {
   s: number;
 }
 
-declare global {
-  var drawReliefIcons: () => void;
-}
-
-const reliefIconsRenderer = (): void => {
+export const drawReliefIcons = (): void => {
   TIME && console.time("drawRelief");
   const { pack, biomesData } = worldContext;
   const { terrain } = viewState;
@@ -47,7 +43,7 @@ const reliefIconsRenderer = (): void => {
       const radius = 2 / iconsDensity / density;
       if (Math.random() > iconsDensity * 10) return;
 
-      for (const [cx, cy] of window.poissonDiscSampler(minX, minY, maxX, maxY, radius)) {
+      for (const [cx, cy] of poissonDiscSampler(minX, minY, maxX, maxY, radius)) {
         if (!polygonContains(polygon, [cx, cy])) continue;
         let h = (4 + Math.random()) * size;
         const icon = getBiomeIcon(i, biomesData.icons[biome]);
@@ -65,7 +61,7 @@ const reliefIconsRenderer = (): void => {
       const radius = 2 / density;
       const [icon, h] = getReliefIcon(i, height);
 
-      for (const [cx, cy] of window.poissonDiscSampler(minX, minY, maxX, maxY, radius)) {
+      for (const [cx, cy] of poissonDiscSampler(minX, minY, maxX, maxY, radius)) {
         if (!polygonContains(polygon, [cx, cy])) continue;
         relief.push({
           i: icon,
@@ -152,5 +148,3 @@ const reliefIconsRenderer = (): void => {
     return `#relief-${getOldIcon(type)}-1`; // simple
   }
 };
-
-window.drawReliefIcons = reliefIconsRenderer;

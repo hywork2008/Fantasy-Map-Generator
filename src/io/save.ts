@@ -1,3 +1,5 @@
+import { closeDialogs, getFileName } from "../controllers/editors";
+import { getUsedFonts, Names } from "../modules";
 import { ensureEl, link, parseError, ra, rn } from "../utils";
 
 // ─── Map serialization ────────────────────────────────────────────────────────
@@ -269,11 +271,8 @@ export function toggleSaveReminder(): void {
   }
 }
 
-// ─── Global exports ───────────────────────────────────────────────────────────
+// ─── HTML event listeners ─────────────────────────────────────────────────────
 
-window.prepareMapData = prepareMapData;
-window.saveToStorage = saveToStorage;
-window.saveToMachine = saveToMachine;
-window.saveMap = saveMap;
-window.initiateAutosave = initiateAutosave;
-window.toggleSaveReminder = toggleSaveReminder;
+ensureEl("saveMapMachineBtn").addEventListener("click", () => saveMap("machine"));
+ensureEl("saveMapDropboxBtn").addEventListener("click", () => saveMap("dropbox"));
+ensureEl("saveMapStorageBtn").addEventListener("click", () => saveMap("storage"));

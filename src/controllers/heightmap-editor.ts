@@ -1,18 +1,65 @@
 import * as d3 from "d3";
 import { hsl, interpolateRound, lab, max, mean, pointer, range, select } from "d3";
+import { heightmapTemplates } from "../config";
+import { HeightmapEditorHistory } from "../editors/HeightmapEditorHistory";
+import { rankCells } from "../main";
+import {
+  Biomes,
+  Burgs,
+  Cultures,
+  Features,
+  HeightmapGenerator,
+  Ice,
+  Lakes,
+  Markers,
+  Military,
+  Provinces,
+  Religions,
+  Rivers,
+  Routes,
+  States,
+  Zones
+} from "../modules";
 import type { Burg } from "../modules/burgs-generator";
 import type { Culture } from "../modules/cultures-generator";
 import type { Province } from "../modules/provinces-generator";
 import type { Zone } from "../modules/zones-generator";
-import { ensureEl, generateSeed, minmax, rn } from "../utils";
+import {
+  createTypedArray,
+  ensureEl,
+  findGridAll,
+  findGridCell,
+  generateSeed,
+  getGridPolygon,
+  link,
+  minmax,
+  openURL,
+  rn,
+  unique,
+  wiki
+} from "../utils";
+import { ThreeD } from "./3d";
+import {
+  closeDialogs,
+  downloadFile,
+  getFileName,
+  moveCircle,
+  removeCircle,
+  restoreDefaultEvents,
+  uploadFile
+} from "./editors";
+import { getCurrentPreset, layerIsOn, turnButtonOff, turnButtonOn } from "./layers";
+import { changeViewMode, enterStandardView } from "./options";
+import { getColorScheme } from "./style";
 
 // ─── Module-level state ───────────────────────────────────────────────────────
 
 let editHeightmapLayers: string[] = [];
+let heightmapHistory: HeightmapEditorHistory | undefined;
 
 // ─── Main entry point ─────────────────────────────────────────────────────────
 
-function editHeightmap(options?: { mode?: string; tool?: string }): void {
+export function editHeightmap(options?: { mode?: string; tool?: string }): void {
   const { mode, tool } = options || {};
   restartHistory();
   viewbox.selectAll("#heights").remove();
@@ -502,7 +549,7 @@ function editHeightmap(options?: { mode?: string; tool?: string }): void {
       .selectAll<SVGPolygonElement, number>("polygon")
       .data(data)
       .join("polygon")
-      .attr("points", d => getGridPolygon(d).join(" "))
+      .attr("points", d => getGridPolygon(d, grid!).join(" "))
       .attr("id", d => `cell${d}`)
       .attr("fill", d => getColor(grid.cells.h[d]));
   }
@@ -519,7 +566,7 @@ function editHeightmap(options?: { mode?: string; tool?: string }): void {
       if (!cell.size())
         cell = heights
           .append<SVGPolygonElement>("polygon")
-          .attr("points", getGridPolygon(i).join(" "))
+          .attr("points", getGridPolygon(i, grid!).join(" "))
           .attr("id", `cell${i}`);
       cell.attr("fill", getColor(grid.cells.h[i]));
     });
@@ -829,7 +876,7 @@ function editHeightmap(options?: { mode?: string; tool?: string }): void {
       const p = pointer(event, this);
       moveCircle(p[0], p[1], r);
       if (~~event.sourceEvent.timeStamp % 5 !== 0) return;
-      const inRadius = findGridAll(p[0], p[1], r);
+      const inRadius = findGridAll(p[0], p[1], r, grid!);
       let sel = inRadius;
       if ((cellTypeFilter as HTMLSelectElement).value === "land") sel = inRadius.filter(i => grid.cells.h[i] >= 20);
       else if ((cellTypeFilter as HTMLSelectElement).value === "water")
@@ -1020,6 +1067,10 @@ function editHeightmap(options?: { mode?: string; tool?: string }): void {
     ensureEl("templateRun").addEventListener("click", executeTemplate);
     ensureEl("templateSave").addEventListener("click", downloadTemplate);
     ensureEl("templateLoad").addEventListener("click", () => (templateToLoad as HTMLInputElement).click());
+    ensureEl("templateCA").addEventListener("click", () =>
+      openURL("https://cartographyassets.com/asset-category/specific-assets/azgaars-generator/templates")
+    );
+    ensureEl("templateTutorial").addEventListener("click", () => wiki("Heightmap-template-editor"));
     ensureEl("templateToLoad").addEventListener("change", function (this: HTMLInputElement) {
       uploadFile(this, uploadTemplate);
     });
@@ -1332,7 +1383,7 @@ function editHeightmap(options?: { mode?: string; tool?: string }): void {
         .selectAll<SVGPolygonElement, number>("polygon")
         .data(Array.from(grid.cells.i))
         .join("polygon")
-        .attr("points", d => getGridPolygon(d).join(" "))
+        .attr("points", d => getGridPolygon(d, grid!).join(" "))
         .attr("id", d => `cell${d}`)
         .attr("fill", d => `rgb(${data[d * 4]}, ${data[d * 4 + 1]}, ${data[d * 4 + 2]})`)
         .on("click", mapClicked);
@@ -1612,7 +1663,3 @@ function editHeightmap(options?: { mode?: string; tool?: string }): void {
     };
   }
 }
-
-// ─── Global registration ───────────────────────────────────────────────────────
-
-window.editHeightmap = editHeightmap;

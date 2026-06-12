@@ -1,3 +1,6 @@
+import { worldContext } from "../context/worldContext";
+import { closeDialogs, getFileName } from "./editors";
+
 export function exportToJson(type: string): void {
   if (customization) {
     tip("Data cannot be exported when edit mode is active, please exit the mode and retry", false, "error");
@@ -31,6 +34,7 @@ function getFullDataJson(): string {
   const packData = getPackCellsData();
   const gridData = getGridCellsData();
 
+  const { mapCoordinates, biomesData, notes, nameBases } = worldContext;
   return JSON.stringify({
     info,
     settings,
@@ -58,6 +62,7 @@ function getMinimalDataJson(): string {
     routes: pack.routes,
     zones: pack.zones
   };
+  const { mapCoordinates, biomesData, notes, nameBases } = worldContext;
   return JSON.stringify({ info, settings, mapCoordinates, pack: packData, biomesData, notes, nameBases });
 }
 
@@ -220,5 +225,3 @@ function getGridCellsData() {
     features: pack.features
   };
 }
-
-window.exportToJson = exportToJson;

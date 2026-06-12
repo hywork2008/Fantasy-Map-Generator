@@ -1,10 +1,12 @@
 import { quadtree } from "d3-quadtree";
+import { layerIsOn } from "../controllers/layers";
+import { drawBurgIcon, drawBurgLabel, removeBurgIcon, removeBurgLabel } from "../renderers";
 import type { WorldState } from "../types/WorldState";
-import { each, ensureEl, gauss, minmax, normalize, P, rn } from "../utils";
-
-declare global {
-  var Burgs: BurgModule;
-}
+import { each, ensureEl, findClosestCell, gauss, minmax, normalize, P, rn } from "../utils";
+import { COA } from "./emblem/generator";
+import { COArenderer } from "./emblem/renderer";
+import { Names } from "./names-generator";
+import { Routes } from "./routes-generator";
 export interface BurgGroup {
   name: string;
   active: boolean;
@@ -622,7 +624,7 @@ class BurgModule {
     const { cells } = pack;
 
     const burgId = pack.burgs.length;
-    const cellId = window.findCell(x, y);
+    const cellId = findClosestCell(x, y, undefined, pack) ?? 0;
     const culture = cells.culture[cellId as number];
     const name = Names.getCulture(culture);
     const state = cells.state[cellId as number];
@@ -696,4 +698,4 @@ class BurgModule {
     removeBurgLabel(burg.i!);
   }
 }
-window.Burgs = new BurgModule();
+export const Burgs = new BurgModule();

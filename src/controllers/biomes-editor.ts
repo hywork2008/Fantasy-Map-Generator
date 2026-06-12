@@ -1,7 +1,34 @@
 import { drag, easeSinIn, pointer, type Selection, sum, transition } from "d3";
-import { getRandomColor, openURL, rn, si } from "../utils";
+import { Biomes } from "../modules";
+import { drawBiomes } from "../renderers";
+import { findAllCellsInRadius, getPackPolygon, getRandomColor, isLand, openURL, rn, si } from "../utils";
+import {
+  clearLegend,
+  closeDialogs,
+  downloadFile,
+  drawLegend,
+  fitContent,
+  getArea,
+  getAreaUnit,
+  getFileName,
+  moveCircle,
+  openPicker,
+  removeCircle,
+  restoreDefaultEvents
+} from "./editors";
+import {
+  layerIsOn,
+  toggleBiomes,
+  toggleCultures,
+  toggleProvinces,
+  toggleRelief,
+  toggleReligions,
+  toggleStates
+} from "./layers";
+import { editStyle } from "./style";
+import { recalculatePopulation } from "./tools";
 
-function editBiomes(): void {
+export function editBiomes(): void {
   if (customization) return;
   closeDialogs("#biomesEditor, .stable");
   if (!layerIsOn("toggleBiomes")) toggleBiomes();
@@ -431,8 +458,8 @@ function editBiomes(): void {
     const r = +(document.getElementById("biomesBrush") as HTMLInputElement).value;
     const [px, py] = pointer(event, this);
     moveCircle(px, py, r);
-    const found = r > 5 ? findAll(px, py, r) : [findCell(px, py)];
-    const selection = found.filter(isLand);
+    const found = r > 5 ? findAllCellsInRadius(px, py, r, pack!) : [findCell(px, py)];
+    const selection = found.filter(i => isLand(i, pack!));
     if (selection) changeBiomeForSelection(selection);
   }
 
@@ -454,7 +481,7 @@ function editBiomes(): void {
           .append("polygon")
           .attr("data-cell", i)
           .attr("data-biome", biomeNew)
-          .attr("points", getPackPolygon(i) as unknown as string)
+          .attr("points", getPackPolygon(i, pack!) as unknown as string)
           .attr("fill", color)
           .attr("stroke", color);
     });
@@ -525,5 +552,3 @@ function editBiomes(): void {
     exitBiomesCustomizationMode("close");
   }
 }
-
-window.editBiomes = editBiomes;

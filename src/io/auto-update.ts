@@ -1,4 +1,22 @@
 import * as d3 from "d3";
+import { unfog } from "../controllers/editors";
+import { layerIsOn, toggleEmblems, turnButtonOff, turnButtonOn } from "../controllers/layers";
+import { createDefaultRuler, Opisometer, Planimeter, Ruler, Rulers } from "../controllers/measurers";
+import { regenerateEmblems } from "../controllers/tools";
+import {
+  Burgs,
+  Cultures,
+  Features,
+  Lakes,
+  Markers,
+  Military,
+  Names,
+  Provinces,
+  Religions,
+  Rivers,
+  States,
+  Zones
+} from "../modules";
 import type { Burg } from "../modules/burgs-generator";
 import type { Culture } from "../modules/cultures-generator";
 import type { IceGlacier, IceIceberg } from "../modules/ice";
@@ -8,7 +26,8 @@ import type { Province } from "../modules/provinces-generator";
 import type { Religion } from "../modules/religions-generator";
 import type { River } from "../modules/river-generator";
 import type { State } from "../modules/states-generator";
-import { ensureEl } from "../utils";
+import { drawScaleBar, fitScaleBar } from "../renderers";
+import { ensureEl, P, rand, rn, unique } from "../utils";
 
 // update old map file to the current version
 export function resolveVersionConflicts(mapVersion: string): void {

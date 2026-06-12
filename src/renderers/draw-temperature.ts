@@ -4,11 +4,7 @@ import { worldContext } from "../context/worldContext";
 import { connectVertices, convertTemperature, ensureEl, round } from "../utils";
 import { TIME } from "../utils/debug";
 
-declare global {
-  var drawTemperature: () => void;
-}
-
-const temperatureRenderer = (): void => {
+export const drawTemperature = (): void => {
   TIME && console.time("drawTemperature");
   const { grid, graphWidth, graphHeight } = worldContext;
   const { temperature } = viewState;
@@ -131,5 +127,3 @@ const temperatureRenderer = (): void => {
 
   TIME && console.timeEnd("drawTemperature");
 };
-
-window.drawTemperature = temperatureRenderer;

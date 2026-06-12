@@ -1,8 +1,12 @@
 import { pointer, sum } from "d3";
+import { Military } from "../modules";
 import type { MilitaryRegiment, MilitaryUnit } from "../modules/military-generator";
-import { capitalize, ensureEl, rn } from "../utils";
+import { drawRegiment } from "../renderers";
+import { capitalize, ensureEl, last, rn, si } from "../utils";
+import { closeDialogs, downloadFile, fitContent, getFileName } from "./editors";
+import { layerIsOn, toggleMilitary } from "./layers";
 
-function overviewRegiments(state = -1): void {
+export function overviewRegiments(state = -1): void {
   if (customization) return;
   closeDialogs(".stable");
   if (!layerIsOn("toggleMilitary")) toggleMilitary();
@@ -241,5 +245,3 @@ function overviewRegiments(state = -1): void {
     downloadFile(data, name);
   }
 }
-
-window.overviewRegiments = overviewRegiments;

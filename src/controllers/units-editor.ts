@@ -1,7 +1,13 @@
 import { type D3DragEvent, drag, pointer } from "d3";
+import { Routes } from "../modules";
+import { drawScaleBar, fitScaleBar } from "../renderers";
 import { ensureEl } from "../utils";
+import { closeDialogs, restoreDefaultEvents } from "./editors";
+import { layerIsOn, toggleRulers } from "./layers";
+import { Opisometer, Planimeter, RouteOpisometer, Ruler, rulers } from "./measurers";
+import { calculateFriendlyGridSize } from "./style";
 
-function editUnits(): void {
+export function editUnits(): void {
   closeDialogs("#unitsEditor, .stable");
   $("#unitsEditor").dialog();
 
@@ -286,7 +292,7 @@ function editUnits(): void {
         Remove: function () {
           $(this).dialog("close");
           rulers.undraw();
-          rulers = new Rulers();
+          rulers.data = [];
         },
         Cancel: function () {
           $(this).dialog("close");
@@ -295,5 +301,3 @@ function editUnits(): void {
     });
   }
 }
-
-window.editUnits = editUnits;

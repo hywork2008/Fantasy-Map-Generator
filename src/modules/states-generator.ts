@@ -16,11 +16,9 @@ import {
   rw,
   trimVowels
 } from "../utils";
+import { COA } from "./emblem/generator";
 import type { MilitaryRegiment } from "./military-generator";
-
-declare global {
-  var States: StatesModule;
-}
+import { Names } from "./names-generator";
 
 export interface Campaign {
   name: string;
@@ -711,4 +709,4 @@ class StatesModule {
   }
 }
 
-window.States = new StatesModule();
+export const States = new StatesModule();

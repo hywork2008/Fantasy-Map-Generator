@@ -1,6 +1,11 @@
 import type { Selection } from "d3";
 import * as d3 from "d3";
-import { connectVertices, ensureEl, getBase64, getGridPolygon, rn, unique } from "../utils";
+import { downloadFile, getFileName } from "../controllers/editors";
+import { layerIsOn } from "../controllers/layers";
+import { getColor, getColorScheme } from "../controllers/style";
+import { getUsedFonts, loadFontsAsDataURI, Rivers } from "../modules";
+import { drawScaleBar, fitScaleBar } from "../renderers";
+import { connectVertices, ensureEl, getBase64, getCoordinates, getGridPolygon, rn, unique } from "../utils";
 
 type AnySelection = Selection<SVGGElement, unknown, null, undefined>;
 
@@ -225,6 +230,7 @@ interface GetMapURLOptions {
   noScaleBar?: boolean;
   noIce?: boolean;
   noVignette?: boolean;
+  noViewbox?: boolean;
   fullMap?: boolean;
 }
 
@@ -553,7 +559,7 @@ export function saveGeoJsonCells(): void {
   function getCellCoordinates(cellVertices: number[]): [[number, number][]] {
     const coordinates = cellVertices.map(vertex => {
       const [x, y] = vertices.p[vertex];
-      return getCoordinates(x, y, 4);
+      return getCoordinates(x, y, mapCoordinates, graphWidth, graphHeight, 4);
     });
     return [[...coordinates, coordinates[0]]];
   }
@@ -583,7 +589,7 @@ export function saveGeoJsonCells(): void {
 
 export function saveGeoJsonRoutes(): void {
   const features = pack.routes.map((r: { i: number; points: number[][]; group: string; name?: string }) => {
-    const coordinates = r.points.map(([x, y]) => getCoordinates(x, y, 4));
+    const coordinates = r.points.map(([x, y]) => getCoordinates(x, y, mapCoordinates, graphWidth, graphHeight, 4));
     return {
       type: "Feature",
       geometry: { type: "LineString", coordinates },
@@ -612,7 +618,9 @@ export function saveGeoJsonRivers(): void {
     }) => {
       if (!r.cells || r.cells.length < 2) return [];
       const meanderedPoints = Rivers.addMeandering(r.cells, r.points ?? null);
-      const coordinates = meanderedPoints.map(([x, y]) => getCoordinates(x, y, 4));
+      const coordinates = meanderedPoints.map(([x, y]) =>
+        getCoordinates(x, y, mapCoordinates, graphWidth, graphHeight, 4)
+      );
       return [
         {
           type: "Feature",
@@ -653,7 +661,7 @@ export function saveGeoJsonMarkers(): void {
       stroke?: string;
     }) => {
       const { i, type, icon, x = 0, y = 0, size, fill, stroke } = marker;
-      const coordinates = getCoordinates(x, y, 4);
+      const coordinates = getCoordinates(x, y, mapCoordinates, graphWidth, graphHeight, 4);
       const note = notes.find(n => n.id === `marker${i}`);
       const properties = { id: i, type, icon, x, y, ...note, size, fill, stroke };
       return { type: "Feature", geometry: { type: "Point", coordinates }, properties };
@@ -716,7 +724,7 @@ export function saveGeoJsonZones(): void {
       const coordinates: [number, number][] = [];
       for (const vertexId of vertexChain) {
         const [x, y] = vertices.p[vertexId] as [number, number];
-        coordinates.push(getCoordinates(x, y, 4));
+        coordinates.push(getCoordinates(x, y, mapCoordinates, graphWidth, graphHeight, 4));
       }
       if (coordinates.length > 0) coordinates.push(coordinates[0]);
       if (coordinates.length >= 4) rings.push(coordinates);
@@ -755,17 +763,13 @@ interface GeoJSON {
   features: unknown[];
 }
 
-// ─── Global exports ───────────────────────────────────────────────────────────
+// ─── HTML event listeners ─────────────────────────────────────────────────────
 
-window.exportToSvg = exportToSvg;
-window.exportToPng = exportToPng;
-window.exportToJpeg = exportToJpeg;
-window.exportToPngTiles = exportToPngTiles;
-window.getMapURL = getMapURL;
-window.removeUnusedElements = removeUnusedElements;
-window.inlineStyle = inlineStyle;
-window.saveGeoJsonCells = saveGeoJsonCells;
-window.saveGeoJsonRoutes = saveGeoJsonRoutes;
-window.saveGeoJsonRivers = saveGeoJsonRivers;
-window.saveGeoJsonMarkers = saveGeoJsonMarkers;
-window.saveGeoJsonZones = saveGeoJsonZones;
+ensureEl("exportSvgBtn").addEventListener("click", exportToSvg);
+ensureEl("exportPngBtn").addEventListener("click", exportToPng);
+ensureEl("exportJpegBtn").addEventListener("click", exportToJpeg);
+ensureEl("saveGeoJsonCellsBtn").addEventListener("click", saveGeoJsonCells);
+ensureEl("saveGeoJsonRoutesBtn").addEventListener("click", saveGeoJsonRoutes);
+ensureEl("saveGeoJsonRiversBtn").addEventListener("click", saveGeoJsonRivers);
+ensureEl("saveGeoJsonMarkersBtn").addEventListener("click", saveGeoJsonMarkers);
+ensureEl("saveGeoJsonZonesBtn").addEventListener("click", saveGeoJsonZones);

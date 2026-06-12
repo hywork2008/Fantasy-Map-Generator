@@ -1,6 +1,21 @@
+import { Markers } from "../modules";
+import { drawMarkers } from "../renderers";
 import { ensureEl } from "../utils";
+import {
+  closeDialogs,
+  confirmationDialog,
+  downloadFile,
+  fitContent,
+  getFileName,
+  highlightElement,
+  listen,
+  restoreDefaultEvents
+} from "./editors";
+import { layerIsOn, toggleMarkers } from "./layers";
+import { editMarker } from "./markers-editor";
+import { configMarkersGeneration } from "./tools";
 
-function overviewMarkers(): void {
+export function overviewMarkers(): void {
   if (customization) return;
   closeDialogs("#markersOverview, .stable");
   if (!layerIsOn("toggleMarkers")) toggleMarkers();
@@ -277,5 +292,3 @@ function overviewMarkers(): void {
     clearMainTip();
   }
 }
-
-window.overviewMarkers = overviewMarkers;

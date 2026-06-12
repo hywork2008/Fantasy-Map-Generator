@@ -1,4 +1,5 @@
 import polylabel from "polylabel";
+import { ERROR } from "./debug";
 import { rn } from "./numberUtils";
 
 interface VertexData {
@@ -295,17 +296,17 @@ export const connectVertices = ({
     else if (v3 !== previous && c1 !== c3) next = v3;
 
     if (next >= vertices.c.length) {
-      window.ERROR && console.error("ConnectVertices: next vertex is out of bounds");
+      ERROR && console.error("ConnectVertices: next vertex is out of bounds");
       break;
     }
 
     if (next === current) {
-      window.ERROR && console.error("ConnectVertices: next vertex is not found");
+      ERROR && console.error("ConnectVertices: next vertex is not found");
       break;
     }
 
     if (i === MAX_ITERATIONS) {
-      window.ERROR && console.error("ConnectVertices: max iterations reached", MAX_ITERATIONS);
+      ERROR && console.error("ConnectVertices: max iterations reached", MAX_ITERATIONS);
       break;
     }
   }

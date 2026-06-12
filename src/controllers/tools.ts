@@ -1,4 +1,23 @@
 import { pointer, quadtree } from "d3";
+import { rankCells } from "../main";
+import {
+  Burgs,
+  COA,
+  COArenderer,
+  Cultures,
+  Features,
+  Ice,
+  Lakes,
+  Markers,
+  Military,
+  Names,
+  Provinces,
+  Religions,
+  Rivers,
+  Routes,
+  States,
+  Zones
+} from "../modules";
 import type { Burg } from "../modules/burgs-generator";
 import type { MarkerConfig } from "../modules/markers-generator";
 import type { Province } from "../modules/provinces-generator";
@@ -6,10 +25,57 @@ import type { Religion } from "../modules/religions-generator";
 import type { River } from "../modules/river-generator";
 import type { Route } from "../modules/routes-generator";
 import type { State } from "../modules/states-generator";
+import { drawMarker } from "../renderers";
 import type { WorldNote } from "../types/WorldState";
 import { ensureEl, gauss, generateSeed, getNextId, isCtrlClick, P, rn } from "../utils";
+import { editBiomes } from "./biomes-editor";
+import { overviewBurgs } from "./burgs-overview";
 import { open as openChartsOverview } from "./charts-overview";
+import { editDiplomacy } from "./diplomacy-editor";
+import {
+  closeDialogs,
+  editCoastlineSettings,
+  editCultures,
+  editReligions,
+  editStates,
+  refreshAllEditors,
+  restoreDefaultEvents,
+  selectIcon,
+  unfog
+} from "./editors";
+import { editEmblem } from "./emblems-editor";
+import { editHeightmap } from "./heightmap-editor";
+import {
+  layerIsOn,
+  toggleBorders,
+  toggleCultures,
+  toggleEmblems,
+  toggleIce,
+  toggleLabels,
+  toggleMarkers,
+  toggleMilitary,
+  togglePopulation,
+  toggleProvinces,
+  toggleRelief,
+  toggleReligions,
+  toggleRivers,
+  toggleRoutes,
+  toggleStates,
+  turnButtonOn
+} from "./layers";
+import { overviewMarkers } from "./markers-overview";
+import { overviewMilitary } from "./military-overview";
 import { openMinimapDialog } from "./minimap";
+import { NamesbaseEditor } from "./namesbase-editor";
+import { editNotes } from "./notes-editor";
+import { editProvinces } from "./provinces-editor";
+import { overviewRivers } from "./rivers-overview";
+import { createRoute } from "./routes-editor";
+import { overviewRoutes } from "./routes-overview";
+import { openSubmapTool } from "./submap-tool";
+import { openTransformTool } from "./transform-tool";
+import { editUnits } from "./units-editor";
+import { editZones } from "./zones-editor";
 
 // ─── Tools panel event dispatcher ────────────────────────────────────────────
 
@@ -80,8 +146,8 @@ ensureEl("toolsContent").addEventListener("click", (event: MouseEvent) => {
   else if (button === "addRiver") toggleAddRiver();
   else if (button === "addRoute") createRoute();
   else if (button === "addMarker") toggleAddMarker();
-  else if (button === "openSubmapTool") openSubmapTool?.();
-  else if (button === "openTransformTool") openTransformTool?.();
+  else if (button === "openSubmapTool") openSubmapTool();
+  else if (button === "openTransformTool") openTransformTool();
 });
 
 // ─── Regeneration dispatcher ──────────────────────────────────────────────────
@@ -112,7 +178,7 @@ function processFeatureRegeneration(event: MouseEvent, button: string): void {
 
 // ─── Emblem editor opener ────────────────────────────────────────────────────
 
-async function openEmblemEditor(): Promise<void> {
+export async function openEmblemEditor(): Promise<void> {
   let type: string, id: string, el: State | Burg;
 
   const firstState = pack.states.find((s: State) => s.i && !s.removed && s.coa);
@@ -132,12 +198,12 @@ async function openEmblemEditor(): Promise<void> {
   }
 
   await COArenderer.trigger(id, el.coa);
-  editEmblem?.(type, id, el);
+  editEmblem(type, id, el);
 }
 
 // ─── Regenerate functions ─────────────────────────────────────────────────────
 
-function regenerateRoutes(): void {
+export function regenerateRoutes(): void {
   const locked = pack.routes
     .filter((route: Route) => route.lock)
     .map((route: Route, index: number) => ({ ...route, i: index }));
@@ -147,7 +213,7 @@ function regenerateRoutes(): void {
   if (layerIsOn("toggleRoutes")) drawRoutes();
 }
 
-function regenerateRivers(): void {
+export function regenerateRivers(): void {
   const state = getWorldState();
   Rivers.generate(state);
   Rivers.specify(state);
@@ -156,8 +222,8 @@ function regenerateRivers(): void {
   if (layerIsOn("toggleRivers")) drawRivers();
 }
 
-function recalculatePopulation(): void {
-  window.rankCells();
+export function recalculatePopulation(): void {
+  rankCells();
 
   pack.burgs.forEach((b: Burg) => {
     if (!b.i || b.removed || b.lock) return;
@@ -171,7 +237,7 @@ function recalculatePopulation(): void {
   layerIsOn("togglePopulation") ? drawPopulation() : togglePopulation();
 }
 
-function regenerateStates(): void {
+export function regenerateStates(): void {
   const newStates = recreateStates();
   if (!newStates) return;
 
@@ -363,7 +429,7 @@ function recreateStates(): State[] | null {
   return newStates;
 }
 
-function regenerateProvinces(): void {
+export function regenerateProvinces(): void {
   unfog("");
   const state = getWorldState();
   Provinces.generate(state, true, true);
@@ -380,10 +446,10 @@ function regenerateProvinces(): void {
   refreshAllEditors();
 }
 
-function regenerateBurgs(): void {
+export function regenerateBurgs(): void {
   const { cells, burgs: packBurgs, states, provinces } = pack;
 
-  window.rankCells();
+  rankCells();
 
   notes = notes.filter((note: WorldNote) => {
     if (note.id.startsWith("burg")) {
@@ -506,7 +572,7 @@ function regenerateBurgs(): void {
     (document.getElementById("statesEditorRefresh") as HTMLButtonElement).click();
 }
 
-function regenerateEmblems(): void {
+export function regenerateEmblems(): void {
   document.querySelectorAll("[id^=stateCOA]").forEach(el => {
     el.remove();
   });
@@ -561,13 +627,13 @@ function regenerateEmblems(): void {
   layerIsOn("toggleEmblems") ? drawEmblems() : toggleEmblems();
 }
 
-function regenerateReligions(): void {
+export function regenerateReligions(): void {
   Religions.generate(getWorldState());
   layerIsOn("toggleReligions") ? drawReligions() : toggleReligions();
   refreshAllEditors();
 }
 
-function regenerateCultures(): void {
+export function regenerateCultures(): void {
   const state = getWorldState();
   Cultures.generate(state);
   Cultures.expand(state);
@@ -591,20 +657,20 @@ function regenerateCultures(): void {
   refreshAllEditors();
 }
 
-function regenerateMilitary(): void {
+export function regenerateMilitary(): void {
   Military.generate(getWorldState());
   if (layerIsOn("toggleMilitary")) drawMilitary();
   else toggleMilitary();
   if (ensureEl("militaryOverviewRefresh").offsetParent) ensureEl<HTMLButtonElement>("militaryOverviewRefresh").click();
 }
 
-function regenerateIce(): void {
+export function regenerateIce(): void {
   if (!layerIsOn("toggleIce")) toggleIce();
   Ice.generate(getWorldState());
   drawIce();
 }
 
-function regenerateMarkers(): void {
+export function regenerateMarkers(): void {
   Markers.regenerate();
   turnButtonOn("toggleMarkers");
   drawMarkers();
@@ -612,7 +678,7 @@ function regenerateMarkers(): void {
   if (markersOverviewRefreshEl?.offsetParent) markersOverviewRefreshEl.click();
 }
 
-function regenerateZones(event: MouseEvent): void {
+export function regenerateZones(event: MouseEvent): void {
   if (isCtrlClick(event)) {
     (window as any).prompt(
       "Please provide zones number multiplier",
@@ -632,7 +698,7 @@ function regenerateZones(event: MouseEvent): void {
 
 // ─── Add/toggle feature tools ─────────────────────────────────────────────────
 
-function unpressClickToAddButton(): void {
+export function unpressClickToAddButton(): void {
   document
     .getElementById("addFeature")!
     .querySelectorAll<HTMLButtonElement>("button.pressed")
@@ -643,7 +709,7 @@ function unpressClickToAddButton(): void {
   clearMainTip();
 }
 
-function toggleAddLabel(): void {
+export function toggleAddLabel(): void {
   const addLabelBtn = ensureEl("addLabel");
   if (addLabelBtn.classList.contains("pressed")) {
     unpressClickToAddButton();
@@ -716,14 +782,14 @@ function addLabelOnClick(this: SVGElement, event: MouseEvent): void {
   if (!event.shiftKey) unpressClickToAddButton();
 }
 
-function toggleAddBurg(): void {
+export function toggleAddBurg(): void {
   unpressClickToAddButton();
   ensureEl("addBurgTool").classList.add("pressed");
   overviewBurgs();
   ensureEl("addNewBurg").click();
 }
 
-function toggleAddRiver(): void {
+export function toggleAddRiver(): void {
   const addRiverBtn = ensureEl("addRiver");
   const addNewRiverEl = ensureEl("addNewRiver");
 
@@ -894,7 +960,7 @@ function addRiverOnClick(this: SVGElement, event: MouseEvent): void {
   }
 }
 
-function toggleAddMarker(): void {
+export function toggleAddMarker(): void {
   const addMarkerBtn = ensureEl("addMarker");
   if (addMarkerBtn.classList.contains("pressed")) {
     unpressClickToAddButton();
@@ -942,7 +1008,7 @@ function addMarkerOnClick(this: SVGElement, event: MouseEvent): void {
 
   const markersElement = ensureEl("markers");
   const rescale = +markersElement.getAttribute("rescale")!;
-  markersElement.insertAdjacentHTML("beforeend", window.drawMarker(marker, rescale));
+  markersElement.insertAdjacentHTML("beforeend", drawMarker(marker, rescale));
 
   if (!event.shiftKey) {
     document.getElementById("markerAdd")?.classList.remove("pressed");
@@ -953,7 +1019,7 @@ function addMarkerOnClick(this: SVGElement, event: MouseEvent): void {
 
 // ─── Markers config ───────────────────────────────────────────────────────────
 
-function configMarkersGeneration(): void {
+export function configMarkersGeneration(): void {
   drawConfigTable();
 
   function drawConfigTable() {
@@ -1045,7 +1111,7 @@ function configMarkersGeneration(): void {
 
 // ─── Cell details & overview dialogs ─────────────────────────────────────────
 
-function viewCellDetails(): void {
+export function viewCellDetails(): void {
   $("#cellInfo").dialog({
     resizable: false,
     width: "22em",
@@ -1054,36 +1120,10 @@ function viewCellDetails(): void {
   });
 }
 
-function overviewCharts(): void {
+export function overviewCharts(): void {
   openChartsOverview();
 }
 
-function openMinimap(): void {
+export function openMinimap(): void {
   openMinimapDialog();
 }
-
-// ─── Global registration ───────────────────────────────────────────────────────
-
-window.recalculatePopulation = recalculatePopulation;
-window.regenerateRoutes = regenerateRoutes;
-window.regenerateRivers = regenerateRivers;
-window.regenerateStates = regenerateStates;
-window.regenerateProvinces = regenerateProvinces;
-window.regenerateBurgs = regenerateBurgs;
-window.regenerateEmblems = regenerateEmblems;
-window.regenerateReligions = regenerateReligions;
-window.regenerateCultures = regenerateCultures;
-window.regenerateMilitary = regenerateMilitary;
-window.regenerateIce = regenerateIce;
-window.regenerateMarkers = regenerateMarkers;
-window.regenerateZones = regenerateZones;
-window.openEmblemEditor = openEmblemEditor;
-window.configMarkersGeneration = configMarkersGeneration;
-window.viewCellDetails = viewCellDetails;
-window.overviewCharts = overviewCharts;
-window.openMinimap = openMinimap;
-window.toggleAddLabel = toggleAddLabel;
-window.toggleAddBurg = toggleAddBurg;
-window.toggleAddRiver = toggleAddRiver;
-window.toggleAddMarker = toggleAddMarker;
-window.unpressClickToAddButton = unpressClickToAddButton;

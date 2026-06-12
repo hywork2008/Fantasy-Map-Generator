@@ -12,7 +12,7 @@ import {
 } from "d3";
 import { rn, round } from "../utils";
 
-function showBurgTemperatureGraph(id: number): void {
+export function showBurgTemperatureGraph(id: number): void {
   const b = pack.burgs[id];
   const lat = mapCoordinates.latN! - (b.y / graphHeight) * mapCoordinates.latT!;
   const burgTemp = grid.cells.temp[pack.cells.g[b.cell]];
@@ -255,5 +255,3 @@ function showBurgTemperatureGraph(id: number): void {
     }
   }
 }
-
-window.showBurgTemperatureGraph = showBurgTemperatureGraph;

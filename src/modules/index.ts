@@ -1,29 +1,57 @@
-import "../editors/BrushHistory";
-import "../editors/HeightmapEditorHistory";
-import "./voronoi";
-import "./heightmap-generator";
-import "./features";
-import "./names-generator";
-import "./ocean-layers";
-import "./lakes";
-import "./river-generator";
-import "./burgs-generator";
-import "./biomes";
-import "./cultures-generator";
-import "./routes-generator";
-import "./states-generator";
-import "./zones-generator";
-import "./religions-generator";
-import "./provinces-generator";
-import "./emblem";
-import "./ice";
-import "./military-generator";
-import "./markers-generator";
-import "./fonts";
-import "./resample";
-import "./ui-tour";
-
 import type { WorldState } from "../types/WorldState";
+import { Biomes } from "./biomes";
+import { Burgs } from "./burgs-generator";
+import { Cultures } from "./cultures-generator";
+import { COA } from "./emblem/generator";
+import { COArenderer } from "./emblem/renderer";
+import { Features } from "./features";
+import { addGoogleFont, addLocalFont, addWebFont, declareFont, fonts, getUsedFonts, loadFontsAsDataURI } from "./fonts";
+import { HeightmapGenerator } from "./heightmap-generator";
+import { Ice } from "./ice";
+import { Lakes } from "./lakes";
+import { Markers } from "./markers-generator";
+import { Military } from "./military-generator";
+import { Names } from "./names-generator";
+import { OceanLayers } from "./ocean-layers";
+import { Provinces } from "./provinces-generator";
+import { Religions } from "./religions-generator";
+import { Resample } from "./resample";
+import { Rivers } from "./river-generator";
+import { Routes } from "./routes-generator";
+import { States } from "./states-generator";
+import { UITour } from "./ui-tour";
+import { Zones } from "./zones-generator";
+
+export {
+  addGoogleFont,
+  addLocalFont,
+  addWebFont,
+  Biomes,
+  Burgs,
+  COA,
+  COArenderer,
+  Cultures,
+  declareFont,
+  Features,
+  fonts,
+  getUsedFonts,
+  HeightmapGenerator,
+  Ice,
+  Lakes,
+  loadFontsAsDataURI,
+  Markers,
+  Military,
+  Names,
+  OceanLayers,
+  Provinces,
+  Religions,
+  Resample,
+  Rivers,
+  Routes,
+  States,
+  UITour,
+  Zones
+};
 
 /**
  * Run the full world-generation pipeline in dependency order.

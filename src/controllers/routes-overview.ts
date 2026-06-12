@@ -1,6 +1,10 @@
+import { Routes } from "../modules";
 import { ensureEl, rn } from "../utils";
+import { closeDialogs, confirmationDialog, downloadFile, fitContent, getFileName, highlightElement } from "./editors";
+import { layerIsOn, toggleRoutes } from "./layers";
+import { createRoute, editRoute } from "./routes-editor";
 
-function overviewRoutes(): void {
+export function overviewRoutes(): void {
   if (customization) return;
   closeDialogs("#routesOverview, .stable");
   if (!layerIsOn("toggleRoutes")) toggleRoutes();
@@ -20,7 +24,7 @@ function overviewRoutes(): void {
   });
 
   ensureEl("routesOverviewRefresh").on("click", routesOverviewAddLines);
-  ensureEl("routesCreateNew").on("click", createRoute);
+  ensureEl("routesCreateNew").on("click", () => createRoute());
   ensureEl("routesExport").on("click", downloadRoutesData);
   ensureEl("routesLockAll").on("click", toggleLockAll);
   ensureEl("routesRemoveAll").on("click", triggerAllRoutesRemove);
@@ -209,5 +213,3 @@ function overviewRoutes(): void {
     });
   }
 }
-
-window.overviewRoutes = overviewRoutes;

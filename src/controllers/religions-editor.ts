@@ -1,10 +1,39 @@
 import * as d3 from "d3";
+import { Religions } from "../modules";
 import type { Religion } from "../modules/religions-generator";
+import { layerIsOn, toggleBiomes, toggleCultures, toggleProvinces, toggleReligions, toggleStates } from "./layers";
 
 type HighlightEvent = { id?: string | number | null; target?: EventTarget | null };
 
-import { abbreviate, applySortingByHeader, debounce, ensureEl, rn, si } from "../utils";
+import {
+  abbreviate,
+  applySortingByHeader,
+  debounce,
+  ensureEl,
+  findAllCellsInRadius,
+  getPackPolygon,
+  isLand,
+  rn,
+  si
+} from "../utils";
+import {
+  clearLegend,
+  closeDialogs,
+  confirmationDialog,
+  downloadFile,
+  drawLegend,
+  fitContent,
+  getArea,
+  getAreaUnit,
+  getFileName,
+  highlightElement,
+  moveCircle,
+  openPicker,
+  removeCircle,
+  restoreDefaultEvents
+} from "./editors";
 import { type HierarchyElement, open as openHierarchyTree } from "./hierarchy-tree";
+import { editStyle } from "./style";
 
 const $body = insertEditorHtml();
 addListeners();
@@ -751,8 +780,8 @@ function dragReligionBrush(this: SVGElement, event: d3.D3DragEvent<SVGElement, u
   const [x, y] = d3.pointer(event, this);
   moveCircle(x, y, radius);
 
-  const found = radius > 5 ? findAll(x, y, radius) : [findCell(x, y, radius)];
-  const selection = found.filter(isLand);
+  const found = radius > 5 ? findAllCellsInRadius(x, y, radius, pack!) : [findCell(x, y, radius)];
+  const selection = found.filter(i => isLand(i, pack!));
   if (selection) changeReligionForSelection(selection);
 }
 
@@ -775,7 +804,7 @@ function changeReligionForSelection(selection: number[]): void {
         .append("polygon")
         .attr("data-cell", i)
         .attr("data-religion", religionNew)
-        .attr("points", getPackPolygon(i).join(" "))
+        .attr("points", getPackPolygon(i, pack!).join(" "))
         .attr("fill", color);
   });
 }

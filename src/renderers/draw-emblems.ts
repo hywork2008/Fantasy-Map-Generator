@@ -1,15 +1,11 @@
 import { forceCollide, forceSimulation, timeout } from "d3";
 import { viewState } from "../context/viewState";
 import { worldContext } from "../context/worldContext";
+import { invokeActiveZooming } from "../main";
 import type { Burg } from "../modules/burgs-generator";
 import type { State } from "../modules/states-generator";
 import { minmax, rn } from "../utils";
 import { TIME } from "../utils/debug";
-
-declare global {
-  var drawEmblems: () => void;
-  var renderGroupCOAs: (g: SVGGElement) => Promise<void>;
-}
 
 interface Province {
   i: number;
@@ -28,7 +24,7 @@ interface EmblemNode {
   shift: number;
 }
 
-const emblemsRenderer = (): void => {
+export const drawEmblems = (): void => {
   TIME && console.time("drawEmblems");
   const { pack, graphHeight, graphWidth } = worldContext;
   const { emblems } = viewState;
@@ -168,7 +164,7 @@ const getDataAndType = (id: string): [Burg[] | Province[] | State[], string] => 
   throw new Error(`Unknown emblem type: ${id}`);
 };
 
-const renderGroupCOAsRenderer = async (g: SVGGElement): Promise<void> => {
+export const renderGroupCOAs = async (g: SVGGElement): Promise<void> => {
   const { COArenderer } = worldContext;
   if (!COArenderer) return;
   const [data, type] = getDataAndType(g.id);
@@ -180,6 +176,3 @@ const renderGroupCOAsRenderer = async (g: SVGGElement): Promise<void> => {
     use.setAttribute("href", `#${id}`);
   }
 };
-
-window.drawEmblems = emblemsRenderer;
-window.renderGroupCOAs = renderGroupCOAsRenderer;
