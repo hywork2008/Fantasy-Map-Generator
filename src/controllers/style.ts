@@ -1744,6 +1744,7 @@ window.changeFont = changeFont;
 window.updateElements = updateElements;
 window.fetchTextureURL = fetchTextureURL;
 window.textureProvideURL = textureProvideURL;
+window.updateTextureSelectValue = updateTextureSelectValue;
 
 window.applyStyleOnLoad = applyStyleOnLoad;
 window.applyStyle = applyStyle;

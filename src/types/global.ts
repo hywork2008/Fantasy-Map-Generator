@@ -324,10 +324,14 @@ declare global {
 
   // Cloud module is declared in src/io/cloud.ts
 
-  // Versioning helpers (from versioning.js)
-  var compareVersions: (a: string, b: string) => { isEqual: boolean; isNewer: boolean; isOlder: boolean };
+  // Versioning helpers (from versioning.ts)
+  var compareVersions: (
+    version1: string,
+    version2: string,
+    options?: { major?: boolean; minor?: boolean; patch?: boolean }
+  ) => { isEqual: boolean; isNewer: boolean; isOlder: boolean };
   var parseMapVersion: (version: string) => string;
-  var isValidVersion: (version: string) => boolean;
+  var isValidVersion: (versionString: string | null | undefined) => boolean;
 
   // App lifecycle functions (from main.ts)
   var generate: (options?: { seed?: string; graph?: Grid | null }) => Promise<void>;
@@ -646,7 +650,7 @@ declare global {
   var options3dTimeOfDay: HTMLSelectElement;
 
   // Template data
-  var precreatedHeightmaps: Record<string, HeightmapTemplate>;
+  var precreatedHeightmaps: Record<string, import("../config/precreated-heightmaps").PrecreatedHeightmap>;
 
   // Utility functions
   var minmax: (value: number, min: number, max: number) => number;

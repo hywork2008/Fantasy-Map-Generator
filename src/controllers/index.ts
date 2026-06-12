@@ -1,3 +1,6 @@
+import "../versioning";
+import "../components";
+import "../config";
 import "./layers";
 import "./style";
 import "./editors";
