@@ -294,7 +294,6 @@ declare global {
   // UI helper functions (from uiHelpers.ts)
   var showInfo: () => void;
   var showElementLockTip: (event: MouseEvent) => void;
-  var highlightEditorLine: (editor: HTMLElement, id: number, timeout?: number) => void;
   var onMouseMove: (event: MouseEvent) => void;
   var stored: (key: string) => string | null;
   var store: (key: string, value: string) => void;
