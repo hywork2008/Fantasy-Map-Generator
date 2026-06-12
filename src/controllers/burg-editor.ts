@@ -1,5 +1,7 @@
 import { drag, pointer } from "d3";
-import { ensureEl, openURL, parseTransform, rn } from "../utils";
+import type { Burg } from "../modules/burgs-generator";
+import type { Culture } from "../modules/cultures-generator";
+import { ensureEl, openURL, parseTransform, rn, showPrompt } from "../utils";
 
 function editBurg(id?: number): void {
   if (customization) return;
@@ -15,12 +17,15 @@ function editBurg(id?: number): void {
     .selectAll<SVGTextElement, unknown>("text")
     .call(
       drag<SVGTextElement, unknown>()
-        .on("start", function (this: SVGTextElement, event: any) {
-          const tr = parseTransform(this.getAttribute("transform") || "");
-          _bdx = +tr[0] - event.x;
-          _bdy = +tr[1] - event.y;
-        })
-        .on("drag", function (this: SVGTextElement, event: any) {
+        .on(
+          "start",
+          function (this: SVGTextElement, event: import("d3").D3DragEvent<SVGTextElement, unknown, unknown>) {
+            const tr = parseTransform(this.getAttribute("transform") || "");
+            _bdx = +tr[0] - event.x;
+            _bdy = +tr[1] - event.y;
+          }
+        )
+        .on("drag", function (this: SVGTextElement, event: import("d3").D3DragEvent<SVGTextElement, unknown, unknown>) {
           this.setAttribute("transform", `translate(${_bdx + event.x},${_bdy + event.y})`);
           tip('Use dragging for fine-tuning only, to actually move burg use "Relocate" button', false, "warn");
         })
@@ -96,9 +101,9 @@ function editBurg(id?: number): void {
     // update list and select culture
     const cultureSelect = ensureEl("burgCulture") as HTMLSelectElement;
     cultureSelect.options.length = 0;
-    const cultures = pack.cultures.filter((c: any) => !c.removed);
-    cultures.forEach((c: any) => {
-      cultureSelect.options.add(new Option(c.name, c.i, false, c.i === b.culture));
+    const cultures = pack.cultures.filter((c: Culture) => !c.removed);
+    cultures.forEach((c: Culture) => {
+      cultureSelect.options.add(new Option(c.name, String(c.i), false, c.i === b.culture));
     });
 
     const temperature = grid.cells.temp[pack.cells.g[b.cell]];
@@ -292,7 +297,7 @@ function editBurg(id?: number): void {
     editStyle("anchors", g);
   }
 
-  function updateBurgPreview(burg: any): void {
+  function updateBurgPreview(burg: Burg): void {
     const preview = Burgs.getPreview(burg).preview;
     if (!preview) {
       (ensureEl("burgPreviewSection") as HTMLElement).style.display = "none";
@@ -323,11 +328,12 @@ function editBurg(id?: number): void {
     const burgId = +elSelected!.attr("data-id");
     const burg = pack.burgs[burgId];
 
-    (window as any).prompt(
+    showPrompt(
       "Provide custom URL to the burg map. It can be a link to a generator or just an image. Leave empty to use the default map preview",
-      { default: Burgs.getPreview(burg).link, required: false },
-      (link: string) => {
-        if (link) burg.link = link;
+      { default: Burgs.getPreview(burg).link ?? "", required: false },
+      link => {
+        const url = String(link);
+        if (url) burg.link = url;
         else delete burg.link;
         updateBurgPreview(burg);
       }
@@ -461,7 +467,11 @@ function editBurg(id?: number): void {
     (ensureEl("burgRelocate") as HTMLElement).classList.remove("pressed");
     burgLabels
       .selectAll("text")
-      .call(drag().on("drag", null) as any)
+      .call(
+        drag().on("drag", null) as unknown as (
+          selection: import("d3").Selection<import("d3").BaseType, unknown, SVGGElement, unknown>
+        ) => void
+      )
       .classed("draggable", false);
     unselect();
   }

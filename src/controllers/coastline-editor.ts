@@ -209,7 +209,10 @@ export function editCoastline(event?: MouseEvent): void {
     ensureEl("coastlineArea").textContent = `${si(getArea(area))} ${getAreaUnit()}`;
   }
 
-  function handleVertexDrag(this: SVGCircleElement, dragEvent: any): void {
+  function handleVertexDrag(
+    this: SVGCircleElement,
+    dragEvent: import("d3").D3DragEvent<SVGCircleElement, unknown, unknown>
+  ): void {
     const { vertices, features } = pack;
     const x = rn(dragEvent.x, 2);
     const y = rn(dragEvent.y, 2);
@@ -230,7 +233,7 @@ export function editCoastline(event?: MouseEvent): void {
     debug
       .select("#vertices")
       .selectAll("polygon")
-      .attr("points", (d: any) => getPackPolygon(d) as unknown as string);
+      .attr("points", (d: unknown) => getPackPolygon(d as number) as unknown as string);
   }
 
   function handleVertexDragEnd(): void {

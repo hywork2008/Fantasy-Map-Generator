@@ -1,31 +1,38 @@
+import type { BaseType, Selection } from "d3";
 import { curveBundle, line, max, min } from "d3";
 import { C_12 } from "./colorUtils";
+import type { Grid } from "./graphUtils";
 import { getGridPolygon } from "./graphUtils";
 import { normalize } from "./numberUtils";
 import { round } from "./stringUtils";
 
 /**
  * Drawing cell values and polygons for debugging purposes
- * @param {any[]} data - Array of data values corresponding to each cell
- * @param {any} packedGraph - The packed graph object containing cell positions
+ * @param {unknown[]} data - Array of data values corresponding to each cell
+ * @param {{ cells: { p: number[][] } }} packedGraph - The packed graph object containing cell positions
  */
-export const drawCellsValue = (data: any[], packedGraph: any): void => {
+export const drawCellsValue = (data: unknown[], packedGraph: { cells: { p: number[][] } }): void => {
   window.debug.selectAll("text").remove();
   window.debug
     .selectAll("text")
     .data(data)
     .enter()
     .append("text")
-    .attr("x", (_d: any, i: number) => packedGraph.cells.p[i][0])
-    .attr("y", (_d: any, i: number) => packedGraph.cells.p[i][1])
-    .text((d: any) => d);
+    .attr("x", (_d: unknown, i: number) => packedGraph.cells.p[i][0])
+    .attr("y", (_d: unknown, i: number) => packedGraph.cells.p[i][1])
+    .text((d: unknown) => String(d));
 };
 /**
  * Drawing polygons colored according to data values for debugging purposes
  * @param {number[]} data - Array of numerical values corresponding to each cell
- * @param {any} terrs - The SVG group element where the polygons will be drawn
+ * @param {Selection<BaseType, unknown, HTMLElement, unknown>} terrs - The SVG group element where the polygons will be drawn
+ * @param {Grid} grid - The grid object
  */
-export const drawPolygons = (data: number[], terrs: any, grid: any): void => {
+export const drawPolygons = (
+  data: number[],
+  terrs: Selection<BaseType, unknown, HTMLElement, unknown>,
+  grid: Grid
+): void => {
   const maximum: number = max(data) as number;
   const minimum: number = min(data) as number;
   const scheme = window.getColorScheme(terrs.select("#landHeights").attr("scheme"));
@@ -37,16 +44,18 @@ export const drawPolygons = (data: number[], terrs: any, grid: any): void => {
     .data(data)
     .enter()
     .append("polygon")
-    .attr("points", (_d: number, i: number) => getGridPolygon(i, grid))
+    .attr("points", (_d: number, i: number) => getGridPolygon(i, grid).join(" "))
     .attr("fill", (d: number) => scheme(d))
     .attr("stroke", (d: number) => scheme(d));
 };
 
 /**
  * Drawing route connections for debugging purposes
- * @param {any} pack - The packed graph object containing cell positions and routes
+ * @param {{ cells: { p: number[][], routes: Record<number, Record<number, number>> } }} packedGraph - The packed graph object containing cell positions and routes
  */
-export const drawRouteConnections = (packedGraph: any): void => {
+export const drawRouteConnections = (packedGraph: {
+  cells: { p: number[][]; routes: Record<number, Record<number, number>> };
+}): void => {
   window.debug.select("#connections").remove();
   const routes = window.debug.append("g").attr("id", "connections").attr("stroke-width", 0.8);
 
@@ -102,7 +111,7 @@ export const drawPath = (points: [number, number][], { color = "red", width = 0.
 
 declare global {
   interface Window {
-    debug: any;
+    debug: Selection<SVGGElement, unknown, null, undefined>;
     getColorScheme: (name: string) => (t: number) => string;
 
     drawCellsValue: typeof drawCellsValue;

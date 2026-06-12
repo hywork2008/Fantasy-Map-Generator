@@ -1,4 +1,4 @@
-import { drag, mean, min, polygonArea, polygonLength, type Selection, select } from "d3";
+import { type D3DragEvent, drag, mean, min, polygonArea, polygonLength, type Selection, select } from "d3";
 import type { PackedGraphFeature } from "../modules/features";
 import { ensureEl, rand, rn, si, unique } from "../utils";
 
@@ -99,7 +99,7 @@ function editLake(event?: MouseEvent): void {
       );
   }
 
-  function handleVertexDrag(this: SVGCircleElement, event: any): void {
+  function handleVertexDrag(this: SVGCircleElement, event: D3DragEvent<SVGCircleElement, unknown, unknown>): void {
     const x = rn(event.x, 2);
     const y = rn(event.y, 2);
     this.setAttribute("cx", String(x));
@@ -118,7 +118,7 @@ function editLake(event?: MouseEvent): void {
     debug
       .select("#vertices")
       .selectAll("polygon")
-      .attr("points", (d: any) => getPackPolygon(d) as unknown as string);
+      .attr("points", (d: unknown) => getPackPolygon(d as number) as unknown as string);
   }
 
   function handleVertexDragEnd(): void {

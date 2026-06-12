@@ -1,6 +1,7 @@
 import Alea from "alea";
 import { range as d3Range, leastIndex, mean } from "d3";
 import { createTypedArray, ensureEl, findGridCell, getNumberInRange, lim, minmax, P, rand } from "../utils";
+import type { Grid } from "../utils/graphUtils";
 
 declare global {
   var HeightmapGenerator: HeightmapModule;
@@ -9,7 +10,7 @@ declare global {
 type Tool = "Hill" | "Pit" | "Range" | "Trough" | "Strait" | "Mask" | "Invert" | "Add" | "Multiply" | "Smooth";
 
 class HeightmapModule {
-  grid: any = null;
+  grid: Grid | null = null;
   heights: Uint8Array | null = null;
   blobPower: number = 0;
   linePower: number = 0;
@@ -69,7 +70,7 @@ class HeightmapModule {
     return rand(min * length, max * length);
   }
 
-  setGraph(graph: any) {
+  setGraph(graph: Grid) {
     const { cellsDesired, cells, points } = graph;
     this.heights = cells.h
       ? Uint8Array.from(cells.h)
@@ -102,7 +103,7 @@ class HeightmapModule {
       while (queue.length) {
         const q = queue.shift() as number;
 
-        for (const c of this.grid.cells.c[q]) {
+        for (const c of this.grid!.cells.c[q]) {
           if (change[c]) continue;
           change[c] = change[q] ** this.blobPower * (Math.random() * 0.2 + 0.9);
           if (change[c] > 1) queue.push(c);
@@ -140,7 +141,7 @@ class HeightmapModule {
         h = h ** this.blobPower * (Math.random() * 0.2 + 0.9);
         if (h < 1) return;
 
-        this.grid.cells.c[q].forEach((c: number) => {
+        this.grid!.cells.c[q].forEach((c: number) => {
           if (used[c] || this.heights === null) return;
           this.heights[c] = lim(this.heights[c] - h * (Math.random() * 0.2 + 0.9));
           used[c] = 1;
@@ -171,12 +172,12 @@ class HeightmapModule {
       // get main ridge
       const getRange = (cur: number, end: number) => {
         const range = [cur];
-        const p = this.grid.points;
+        const p = this.grid!.points;
         used[cur] = 1;
 
         while (cur !== end) {
           let min = Infinity;
-          this.grid.cells.c[cur].forEach((e: number) => {
+          this.grid!.cells.c[cur].forEach((e: number) => {
             if (used[e]) return;
             let diff = (p[end][0] - p[e][0]) ** 2 + (p[end][1] - p[e][1]) ** 2;
             if (Math.random() > 0.85) diff = diff / 2;
@@ -233,7 +234,7 @@ class HeightmapModule {
         h = h ** this.linePower - 1;
         if (h < 2) break;
         frontier.forEach((f: number) => {
-          this.grid.cells.c[f].forEach((i: number) => {
+          this.grid!.cells.c[f].forEach((i: number) => {
             if (!used[i]) {
               queue.push(i);
               used[i] = 1;
@@ -247,11 +248,11 @@ class HeightmapModule {
         if (d % 6 !== 0) return;
         for (const _l of d3Range(i)) {
           const index = leastIndex(
-            this.grid.cells.c[cur],
+            this.grid!.cells.c[cur],
             (a: number, b: number) => this.heights![a] - this.heights![b]
           );
           if (index === undefined) continue;
-          const min = this.grid.cells.c[cur][index]; // downhill cell
+          const min = this.grid!.cells.c[cur][index]; // downhill cell
           this.heights![min] = (this.heights![cur] * 2 + this.heights![min]) / 3;
           cur = min;
         }
@@ -278,12 +279,12 @@ class HeightmapModule {
       // get main ridge
       const getRange = (cur: number, end: number) => {
         const range = [cur];
-        const p = this.grid.points;
+        const p = this.grid!.points;
         used[cur] = 1;
 
         while (cur !== end) {
           let min = Infinity;
-          this.grid.cells.c[cur].forEach((e: number) => {
+          this.grid!.cells.c[cur].forEach((e: number) => {
             if (used[e]) return;
             let diff = (p[end][0] - p[e][0]) ** 2 + (p[end][1] - p[e][1]) ** 2;
             if (Math.random() > 0.8) diff = diff / 2;
@@ -344,7 +345,7 @@ class HeightmapModule {
         h = h ** this.linePower - 1;
         if (h < 2) break;
         frontier.forEach((f: number) => {
-          this.grid.cells.c[f].forEach((i: number) => {
+          this.grid!.cells.c[f].forEach((i: number) => {
             if (!used[i]) {
               queue.push(i);
               used[i] = 1;
@@ -358,11 +359,11 @@ class HeightmapModule {
         if (d % 6 !== 0) return;
         for (const _l of d3Range(i)) {
           const index = leastIndex(
-            this.grid.cells.c[cur],
+            this.grid!.cells.c[cur],
             (a: number, b: number) => this.heights![a] - this.heights![b]
           );
           if (index === undefined) continue;
-          const min = this.grid.cells.c[cur][index]; // downhill cell
+          const min = this.grid!.cells.c[cur][index]; // downhill cell
           //debug.append("circle").attr("cx", p[min][0]).attr("cy", p[min][1]).attr("r", 1);
           this.heights![min] = (this.heights![cur] * 2 + this.heights![min]) / 3;
           cur = min;
@@ -378,7 +379,7 @@ class HeightmapModule {
 
   addStrait(width: string, direction = "vertical"): void {
     if (!this.heights || !this.grid) return;
-    const desiredWidth = Math.min(getNumberInRange(width), this.grid.cellsX / 3);
+    const desiredWidth = Math.min(getNumberInRange(width), this.grid!.cellsX / 3);
     if (desiredWidth < 1 && P(desiredWidth)) return;
     const used = new Uint8Array(this.heights.length);
     const vert = direction === "vertical";
@@ -396,11 +397,11 @@ class HeightmapModule {
 
     const getRange = (cur: number, end: number) => {
       const range = [];
-      const p = this.grid.points;
+      const p = this.grid!.points;
 
       while (cur !== end) {
         let min = Infinity;
-        this.grid.cells.c[cur].forEach((e: number) => {
+        this.grid!.cells.c[cur].forEach((e: number) => {
           let diff = (p[end][0] - p[e][0]) ** 2 + (p[end][1] - p[e][1]) ** 2;
           if (Math.random() > 0.8) diff = diff / 2;
           if (diff < min) {
@@ -422,7 +423,7 @@ class HeightmapModule {
       const remainingWidth = desiredWidth - i;
       const exp = 0.9 - step * remainingWidth;
       range.forEach((r: number) => {
-        this.grid.cells.c[r].forEach((e: number) => {
+        this.grid!.cells.c[r].forEach((e: number) => {
           if (used[e]) return;
           used[e] = 1;
           query.push(e);
@@ -454,7 +455,7 @@ class HeightmapModule {
     if (!this.heights || !this.grid) return;
     this.heights = this.heights.map((h, i) => {
       const a = [h];
-      this.grid.cells.c[i].forEach((c: number) => {
+      this.grid!.cells.c[i].forEach((c: number) => {
         a.push(this.heights![c]);
       });
       if (fr === 1) return (mean(a) as number) + add;
@@ -467,7 +468,7 @@ class HeightmapModule {
     const fr = power ? Math.abs(power) : 1;
 
     this.heights = this.heights.map((h, i) => {
-      const [x, y] = this.grid.points[i];
+      const [x, y] = this.grid!.points[i];
       const nx = (2 * x) / graphWidth - 1; // [-1, 1], 0 is center
       const ny = (2 * y) / graphHeight - 1; // [-1, 1], 0 is center
       let distance = (1 - nx ** 2) * (1 - ny ** 2); // 1 is center, 0 is edge
@@ -541,7 +542,7 @@ class HeightmapModule {
     }
   }
 
-  async generate(graph: any): Promise<Uint8Array> {
+  async generate(graph: Grid): Promise<Uint8Array> {
     TIME && console.time("defineHeightmap");
     const id = (ensureEl("templateInput")! as HTMLInputElement).value;
     Math.random = Alea(seed);
@@ -554,7 +555,7 @@ class HeightmapModule {
     return heights as Uint8Array;
   }
 
-  fromTemplate(graph: any, id: string): Uint8Array | null {
+  fromTemplate(graph: Grid, id: string): Uint8Array | null {
     const templateString = heightmapTemplates[id]?.template || "";
     const steps = templateString.split("\n");
 
@@ -579,7 +580,7 @@ class HeightmapModule {
     }
   }
 
-  fromPrecreated(graph: any, id: string): Promise<Uint8Array> {
+  fromPrecreated(graph: Grid, id: string): Promise<Uint8Array> {
     return new Promise(resolve => {
       // create canvas where 1px corresponds to a cell
       const canvas = document.createElement("canvas");

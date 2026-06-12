@@ -1,5 +1,14 @@
 import { interpolateString, sum } from "d3";
+import type { MilitaryUnit } from "../modules/military-generator";
 import { capitalize, rn, sanitizeId, si } from "../utils";
+
+type LimitEntity = { i?: number; name?: string; fullName?: string; color?: string; removed?: boolean };
+type MilitaryUnitConfig = MilitaryUnit & {
+  biomes?: number[];
+  states?: number[];
+  cultures?: number[];
+  religions?: number[];
+};
 
 function overviewMilitary(): void {
   if (customization) return;
@@ -143,8 +152,9 @@ function overviewMilitary(): void {
 
     const getForces = (u: { name: string }) => s.military!.reduce((acc, r) => acc + (r.u[u.name] || 0), 0);
     options.military!.forEach(u => {
-      (line.dataset as any)[u.name] = (line.querySelector(`div[data-type='${u.name}']`) as HTMLElement).innerHTML =
-        String(getForces(u));
+      line.dataset[u.name] = (line.querySelector(`div[data-type='${u.name}']`) as HTMLElement).innerHTML = String(
+        getForces(u)
+      );
     });
 
     const population = rn(((s.rural ?? 0) + (s.urban ?? 0) * urbanization) * populationRate);
@@ -218,7 +228,7 @@ function overviewMilitary(): void {
 
       const getTotal = (type: string) => {
         if (cache[type] !== undefined) return cache[type];
-        cache[type] = sum(array.map(el => +(el.dataset as any)[type] || 0));
+        cache[type] = sum(array.map(el => Number(el.dataset[type]) || 0));
         return cache[type];
       };
 
@@ -227,7 +237,7 @@ function overviewMilitary(): void {
           const type = div.dataset.type!;
           if (type === "rate") return;
           const total = getTotal(type);
-          div.textContent = total ? `${rn((+(el.dataset as any)[type] / total) * 100)}%` : "0%";
+          div.textContent = total ? `${rn((Number(el.dataset[type]) / total) * 100)}%` : "0%";
         });
       });
     } else {
@@ -259,7 +269,8 @@ function overviewMilitary(): void {
             urban: 0.5,
             crew: 1,
             power: 1,
-            type: "melee"
+            type: "melee",
+            separate: 0
           }),
         Restore: restoreDefaultUnits,
         Cancel: function () {
@@ -319,23 +330,23 @@ function overviewMilitary(): void {
       return attr?.length ? "some" : "all";
     }
 
-    function getLimitTip(attr: number[] | undefined, data: any[]): string {
+    function getLimitTip(attr: number[] | undefined, data: LimitEntity[]): string {
       if (!attr?.length) return "";
       return attr.map(idx => data?.[idx]?.name || "").join(", ");
     }
 
-    function addUnitLine(unit: any): void {
+    function addUnitLine(unit: MilitaryUnitConfig): void {
       const { type, icon, name, rural, urban, power, crew, separate } = unit;
       const row = document.createElement("tr");
       const typeOptions = types
         .map(t => `<option ${type === t ? "selected" : ""} value="${t}">${t}</option>`)
         .join(" ");
 
-      const getLimitButton = (attr: string) =>
+      const getLimitButton = (attr: "biomes" | "states" | "cultures" | "religions") =>
         `<button
           data-tip="Select allowed ${attr}"
           data-type="${attr}"
-          title="${getLimitTip(unit[attr], (pack as any)[attr])}"
+          title="${getLimitTip(unit[attr], (pack as unknown as Record<string, LimitEntity[]>)[attr])}"
           data-value="${getLimitValue(unit[attr])}">
           ${getLimitText(unit[attr])}
         </button>`;
@@ -380,7 +391,7 @@ function overviewMilitary(): void {
       });
     }
 
-    function selectLimitation(el: HTMLButtonElement, data: any[]): void {
+    function selectLimitation(el: HTMLButtonElement, data: LimitEntity[]): void {
       const type = el.dataset.type!;
       const value = el.dataset.value!;
       const initial = value ? value.split(",").map(v => +v) : [];
@@ -392,7 +403,7 @@ function overviewMilitary(): void {
             <td><span style="color:${c}">⬤</span></td>
             <td>
               <input data-i="${i}" id="el${i}" type="checkbox" class="checkbox"
-                ${!initial.length || initial.includes(i) ? "checked" : ""} >
+                ${!initial.length || (i !== undefined && initial.includes(i)) ? "checked" : ""} >
               <label for="el${i}" class="checkbox-label">${fullName || name}</label>
             </td>
           </tr>`
@@ -450,7 +461,7 @@ function overviewMilitary(): void {
         const elements = Array.from(r.querySelectorAll<HTMLElement>("input, button, select"));
         const [icon, _name, biomes, states, cultures, religions, rural, urban, crew, power, type, separate] =
           elements.map(el => {
-            const { type: dType, value: dValue } = (el as any).dataset || {};
+            const { type: dType, value: dValue } = el.dataset;
             if (dType === "icon") {
               const val = el.innerHTML.trim();
               const isImage = val.startsWith("<img");
@@ -462,11 +473,20 @@ function overviewMilitary(): void {
             return (el as HTMLInputElement).value;
           });
 
-        const unit: any = { icon, name: names[i], rural, urban, crew, power, type, separate };
-        if (biomes) unit.biomes = biomes;
-        if (states) unit.states = states;
-        if (cultures) unit.cultures = cultures;
-        if (religions) unit.religions = religions;
+        const unit: MilitaryUnitConfig = {
+          icon: icon as string,
+          name: names[i],
+          rural: rural as number,
+          urban: urban as number,
+          crew: crew as number,
+          power: power as number,
+          type: type as string,
+          separate: separate as number
+        };
+        if (biomes) unit.biomes = biomes as number[];
+        if (states) unit.states = states as number[];
+        if (cultures) unit.cultures = cultures as number[];
+        if (religions) unit.religions = religions as number[];
         return unit;
       });
       localStorage.setItem("military", JSON.stringify(options.military));
@@ -502,7 +522,7 @@ function overviewMilitary(): void {
     body.querySelectorAll<HTMLElement>(":scope > div").forEach(el => {
       data += `${el.dataset.id},`;
       data += `${el.dataset.state},`;
-      data += `${units.map(u => (el.dataset as any)[u.toLowerCase()]).join(",")},`;
+      data += `${units.map(u => el.dataset[u.toLowerCase()]).join(",")},`;
       data += `${el.dataset.total},`;
       data += `${el.dataset.population},`;
       data += `${rn(+el.dataset.rate!, 2)}%,`;

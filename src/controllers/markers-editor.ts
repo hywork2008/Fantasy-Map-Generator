@@ -1,4 +1,4 @@
-import { drag, type Selection, select } from "d3";
+import { type D3DragEvent, drag, type Selection, select } from "d3";
 import type { Marker } from "../modules/markers-generator";
 import { ensureEl, rn } from "../utils";
 
@@ -74,18 +74,18 @@ function editMarker(markerI?: number): void {
   let _mdx = 0,
     _mdy = 0;
 
-  function dragMarkerStart(this: SVGElement, event: any): void {
+  function dragMarkerStart(this: SVGElement, event: D3DragEvent<SVGElement, unknown, unknown>): void {
     _mdx = +this.getAttribute("x")! - event.x;
     _mdy = +this.getAttribute("y")! - event.y;
   }
 
-  function dragMarkerDrag(this: SVGElement, event: any): void {
+  function dragMarkerDrag(this: SVGElement, event: D3DragEvent<SVGElement, unknown, unknown>): void {
     const { x, y } = event;
     this.setAttribute("x", String(_mdx + x));
     this.setAttribute("y", String(_mdy + y));
   }
 
-  function dragMarkerEnd(this: SVGElement, event: any): void {
+  function dragMarkerEnd(this: SVGElement, event: D3DragEvent<SVGElement, unknown, unknown>): void {
     const { x, y } = event;
     this.setAttribute("x", String(rn(_mdx + x, 2)));
     this.setAttribute("y", String(rn(_mdy + y, 2)));

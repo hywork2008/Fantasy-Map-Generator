@@ -1,4 +1,4 @@
-import { curveNatural, drag, pointer, select } from "d3";
+import { curveNatural, type D3DragEvent, drag, pointer, select } from "d3";
 import { ensureEl, parseTransform, round } from "../utils";
 
 function editLabel(tspan?: Element): void {
@@ -10,19 +10,19 @@ function editLabel(tspan?: Element): void {
   const text = textPath?.parentNode as SVGTextElement | undefined;
   let _ldx = 0,
     _ldy = 0;
-  elSelected = select(text as Element)
+  elSelected = select(text as SVGTextElement)
     .call(
       drag<SVGTextElement, unknown>()
-        .on("start", (event: any) => {
+        .on("start", (event: D3DragEvent<SVGTextElement, unknown, unknown>) => {
           const tr = parseTransform(elSelected!.attr("transform"));
           _ldx = +tr[0] - event.x;
           _ldy = +tr[1] - event.y;
         })
-        .on("drag", (event: any) => {
+        .on("drag", (event: D3DragEvent<SVGTextElement, unknown, unknown>) => {
           const transform = `translate(${_ldx + event.x},${_ldy + event.y})`;
           elSelected!.attr("transform", transform);
           debug.select("#controlPoints").attr("transform", transform);
-        }) as any
+        })
     )
     .classed("draggable", true);
   viewbox.on("touchmove mousemove", showEditorTips);
@@ -73,7 +73,7 @@ function editLabel(tspan?: Element): void {
   ensureEl("labelLegend").on("click", editLabelLegend);
   ensureEl("labelRemoveSingle").on("click", removeLabel);
 
-  function showEditorTips(this: SVGElement, event: any): void {
+  function showEditorTips(this: SVGElement, event: MouseEvent): void {
     showMainTip();
     if ((event.target as SVGElement).parentNode?.parentNode === elSelected?.node()) tip("Drag to shift the label");
     else if (((event.target as SVGElement).parentNode as Element)?.id === "controlPoints") {
@@ -94,7 +94,7 @@ function editLabel(tspan?: Element): void {
     const select = ensureEl("labelGroupSelect") as HTMLSelectElement;
     select.options.length = 0;
 
-    labels.selectAll(":scope > g").each(function (this: any) {
+    labels.selectAll<SVGGElement, unknown>(":scope > g").each(function (this: SVGGElement) {
       if (this.id === "states") return;
       if (this.id === "burgLabels") return;
       select.options.add(new Option(this.id, this.id, false, this.id === group));
@@ -130,7 +130,7 @@ function editLabel(tspan?: Element): void {
     }
   }
 
-  function dragControlPoint(this: SVGCircleElement, event: any): void {
+  function dragControlPoint(this: SVGCircleElement, event: D3DragEvent<SVGCircleElement, unknown, unknown>): void {
     this.setAttribute("cx", String(event.x));
     this.setAttribute("cy", String(event.y));
     redrawLabelPath();
@@ -154,11 +154,11 @@ function editLabel(tspan?: Element): void {
     const points: [number, number][] = [];
     debug
       .select("#controlPoints")
-      .selectAll("circle")
-      .each(function (this: any) {
+      .selectAll<SVGCircleElement, unknown>("circle")
+      .each(function (this: SVGCircleElement) {
         points.push([+this.getAttribute("cx")!, +this.getAttribute("cy")!]);
       });
-    const d = round(lineGen(points));
+    const d = round(lineGen(points) ?? "");
     path.setAttribute("d", d);
     debug.select("#controlPoints > path").attr("d", d);
   }
@@ -174,8 +174,8 @@ function editLabel(tspan?: Element): void {
     const dists: number[] = [];
     debug
       .select("#controlPoints")
-      .selectAll("circle")
-      .each(function (this: any) {
+      .selectAll<SVGCircleElement, unknown>("circle")
+      .each(function (this: SVGCircleElement) {
         const x = +this.getAttribute("cx")!;
         const y = +this.getAttribute("cy")!;
         dists.push((pt[0] - x) ** 2 + (pt[1] - y) ** 2);
@@ -300,8 +300,8 @@ function editLabel(tspan?: Element): void {
           hideGroupSection();
           labels
             .select(`#${group}`)
-            .selectAll("text")
-            .each(function (this: any) {
+            .selectAll<SVGTextElement, unknown>("text")
+            .each(function (this: SVGTextElement) {
               ensureEl(`textPath_${this.id}`).remove();
               this.remove();
             });

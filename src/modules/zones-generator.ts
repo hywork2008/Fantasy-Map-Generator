@@ -66,6 +66,7 @@ class ZonesModule {
       .filter(c => !c.end);
     if (!ongoingConflicts.length) return;
     const { defender, attacker } = ra(ongoingConflicts);
+    if (defender === undefined || attacker === undefined) return;
 
     const borderCells = cells.i.filter(cellId => {
       if (usedCells[cellId]) return false;

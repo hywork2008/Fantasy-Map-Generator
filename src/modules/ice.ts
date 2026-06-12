@@ -80,7 +80,7 @@ class IceModule {
       const size = minmax(rn(baseSize * randomFactor, 2), 0.1, 1);
 
       const [cx, cy] = grid.points[cellId];
-      const points = getGridPolygon(cellId, grid).map(([x, y]: Point) => [
+      const points = getGridPolygon(cellId, grid).map(([x, y]: Point): [number, number] => [
         rn(lerp(cx, x, size), 2),
         rn(lerp(cy, y, size), 2)
       ]);
@@ -97,7 +97,7 @@ class IceModule {
 
   addIceberg(cellId: number, size: number) {
     const [cx, cy] = grid.points[cellId];
-    const points = getGridPolygon(cellId, grid).map(([x, y]: Point) => [
+    const points = getGridPolygon(cellId, grid).map(([x, y]: Point): [number, number] => [
       rn(lerp(cx, x, size), 2),
       rn(lerp(cy, y, size), 2)
     ]);
@@ -136,8 +136,11 @@ class IceModule {
     // Get a different random cell for the polygon template
     const i = ra(Array.from(grid.cells.i));
     const cn = grid.points[i];
-    const poly = getGridPolygon(i, grid).map((p: Point) => [p[0] - cn[0], p[1] - cn[1]]);
-    const points: [number, number][] = poly.map((p: Point) => [rn(cx + p[0] * size, 2), rn(cy + p[1] * size, 2)]);
+    const poly = getGridPolygon(i, grid).map((p: Point): [number, number] => [p[0] - cn[0], p[1] - cn[1]]);
+    const points: [number, number][] = poly.map((p: [number, number]): [number, number] => [
+      rn(cx + p[0] * size, 2),
+      rn(cy + p[1] * size, 2)
+    ]);
 
     iceberg.points = points;
   }
@@ -156,8 +159,11 @@ class IceModule {
     }, []);
     const pairs: number[][] = [];
     while (flat.length) pairs.push(flat.splice(0, 2));
-    const poly = pairs.map(p => [(p[0] - cx) / oldSize, (p[1] - cy) / oldSize]);
-    const points: [number, number][] = poly.map(p => [rn(cx + p[0] * newSize, 2), rn(cy + p[1] * newSize, 2)]);
+    const poly = pairs.map((p): [number, number] => [(p[0] - cx) / oldSize, (p[1] - cy) / oldSize]);
+    const points: [number, number][] = poly.map((p): [number, number] => [
+      rn(cx + p[0] * newSize, 2),
+      rn(cy + p[1] * newSize, 2)
+    ]);
 
     iceberg.points = points;
     iceberg.size = newSize;

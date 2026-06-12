@@ -1,4 +1,13 @@
 import * as d3 from "d3";
+import type { Burg } from "../modules/burgs-generator";
+import type { Culture } from "../modules/cultures-generator";
+import type { IceGlacier, IceIceberg } from "../modules/ice";
+import type { Marker } from "../modules/markers-generator";
+import type { MilitaryRegiment } from "../modules/military-generator";
+import type { Province } from "../modules/provinces-generator";
+import type { Religion } from "../modules/religions-generator";
+import type { River } from "../modules/river-generator";
+import type { State } from "../modules/states-generator";
 import { ensureEl } from "../utils";
 
 // update old map file to the current version
@@ -98,11 +107,11 @@ export function resolveVersionConflicts(mapVersion: string): void {
     }
 
     // v1.0 changed labels to multi-lined
-    labels.selectAll("textPath").each(function (this: SVGTextPathElement) {
+    labels.selectAll<SVGTextPathElement, unknown>("textPath").each(function () {
       const text = this.textContent ?? "";
       const shift = this.getComputedTextLength() / -1.5;
       this.innerHTML = `<tspan x="${shift}">${text}</tspan>`;
-    } as any);
+    });
 
     // v1.0 added new biome - Wetland
     biomesData.name.push("Wetland");
@@ -124,12 +133,12 @@ export function resolveVersionConflicts(mapVersion: string): void {
     labels.attr("display", null);
 
     // v1.0 added religions hierarchy tree
-    if (pack.religions[1] && !(pack.religions[1] as any).code) {
+    if (pack.religions[1] && !(pack.religions[1] as Religion).code) {
       pack.religions
-        .filter((r: any) => r.i)
-        .forEach((r: any) => {
-          r.origin = 0;
-          r.code = r.name.slice(0, 2);
+        .filter(r => r.i)
+        .forEach(r => {
+          (r as Religion & { origin: number }).origin = 0;
+          (r as Religion).code = r.name.slice(0, 2);
         });
     }
 
@@ -216,12 +225,12 @@ export function resolveVersionConflicts(mapVersion: string): void {
     gridOverlay.attr("type", "pointyHex").attr("size", 10);
 
     // v1.11 added cultures hierarchy tree
-    if (pack.cultures[1] && !(pack.cultures[1] as any).code) {
+    if (pack.cultures[1] && !(pack.cultures[1] as Culture).code) {
       pack.cultures
-        .filter((c: any) => c.i)
-        .forEach((c: any) => {
-          c.origin = 0;
-          c.code = c.name.slice(0, 2);
+        .filter(c => c.i)
+        .forEach(c => {
+          (c as Culture & { origin: number }).origin = 0;
+          (c as Culture).code = c.name.slice(0, 2);
         });
     }
 
@@ -236,16 +245,16 @@ export function resolveVersionConflicts(mapVersion: string): void {
 
   if (isOlderThan("1.21.0")) {
     // v1.11 replaced "display" attribute by "display" style
-    viewbox.selectAll("g").each(function (this: SVGGElement) {
+    viewbox.selectAll<SVGGElement, unknown>("g").each(function () {
       if (this.hasAttribute("display")) {
         this.removeAttribute("display");
         this.style.display = "none";
       }
-    } as any);
+    });
 
     // v1.21 added rivers data to pack
     pack.rivers = [];
-    rivers.selectAll("path").each(function (this: SVGPathElement) {
+    rivers.selectAll<SVGPathElement, unknown>("path").each(function () {
       const i = +this.id.slice(5);
       const length = this.getTotalLength() / 2;
       if (!length) return;
@@ -256,8 +265,8 @@ export function resolveVersionConflicts(mapVersion: string): void {
       const mouth = findCell(e.x, e.y);
       const name = Rivers.getName(mouth);
       const type = length < 25 ? rw({ Creek: 9, River: 3, Brook: 3, Stream: 1 }) : "River";
-      pack.rivers.push({ i, parent: 0, length, source, mouth, basin: i, name, type } as any);
-    } as any);
+      pack.rivers.push({ i, parent: 0, length, source, mouth, basin: i, name, type } as unknown as River);
+    });
   }
 
   if (isOlderThan("1.22.0")) {
@@ -267,7 +276,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
 
   if (isOlderThan("1.3.0")) {
     // v1.3 added global options object
-    const winds = (options as any).slice();
+    const winds = (options as unknown as number[]).slice();
     const year = rand(100, 2000);
     const era = `${Names.getBaseShort(P(0.7) ? 1 : rand(nameBases.length))} Era`;
     const eraShort = `${era[0]}E`;
@@ -332,9 +341,9 @@ export function resolveVersionConflicts(mapVersion: string): void {
 
     // v1.4 added state reference for regiments
     pack.states
-      .filter((s: any) => s.military)
-      .forEach((s: any) => {
-        s.military.forEach((r: any) => {
+      .filter(s => s.military)
+      .forEach(s => {
+        (s.military as MilitaryRegiment[]).forEach(r => {
           r.state = s.i;
         });
       });
@@ -348,13 +357,13 @@ export function resolveVersionConflicts(mapVersion: string): void {
     localStorage.removeItem("styleMonochrome");
 
     // v1.5 cultures has shield attribute
-    pack.cultures.forEach((culture: any) => {
+    (pack.cultures as Culture[]).forEach(culture => {
       if (culture.removed) return;
       culture.shield = Cultures.getRandomShield();
     });
 
     // v1.5 added burg type value
-    pack.burgs.forEach((burg: any) => {
+    (pack.burgs as Burg[]).forEach(burg => {
       if (!burg.i || burg.removed) return;
       burg.type = Burgs.getType(burg.cell, burg.port);
     });
@@ -372,18 +381,18 @@ export function resolveVersionConflicts(mapVersion: string): void {
     toggleEmblems();
 
     // v1.5 changed relief icons data
-    terrain.selectAll("use").each(function (this: SVGUseElement) {
+    terrain.selectAll<SVGUseElement, unknown>("use").each(function () {
       const type = this.getAttribute("data-type") || this.getAttribute("xlink:href");
       this.removeAttribute("xlink:href");
       this.removeAttribute("data-type");
       this.removeAttribute("data-size");
       this.setAttribute("href", type ?? "");
-    } as any);
+    });
   }
 
   if (isOlderThan("1.6.0")) {
     // v1.6 changed rivers data
-    for (const river of pack.rivers as any[]) {
+    for (const river of pack.rivers) {
       const el = document.getElementById(`river${river.i}`);
       if (el) {
         river.widthFactor = +el.getAttribute("data-width")!;
@@ -398,15 +407,16 @@ export function resolveVersionConflicts(mapVersion: string): void {
     }
 
     // v1.6 changed lakes data
-    for (const f of pack.features as any[]) {
+    for (const f of pack.features) {
       if (f.type !== "lake") continue;
       if (f.evaporation) continue;
 
       f.flux = f.flux || f.cells * 3;
       f.temp = grid.cells.temp[pack.cells.g[f.firstCell]];
       f.height =
-        f.height ||
-        d3.min(pack.cells.c[f.firstCell].map((c: number) => pack.cells.h[c]).filter((h: number) => h >= 20));
+        (f.height ||
+          d3.min(pack.cells.c[f.firstCell].map((c: number) => pack.cells.h[c]).filter((h: number) => h >= 20))) ??
+        f.height;
       const height = (f.height - 18) ** +heightExponentInput.value;
       const evaporation = ((700 * (f.temp + 0.006 * height)) / 50 + 75) / (80 - f.temp);
       f.evaporation = rn(evaporation * f.cells);
@@ -425,7 +435,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
     ruler.style("display", null);
     rulers = new Rulers();
 
-    ruler.selectAll(".ruler > .white").each(function (this: SVGLineElement) {
+    ruler.selectAll<SVGLineElement, unknown>(".ruler > .white").each(function () {
       const x1 = +this.getAttribute("x1")!;
       const y1 = +this.getAttribute("y1")!;
       const x2 = +this.getAttribute("x2")!;
@@ -435,16 +445,16 @@ export function resolveVersionConflicts(mapVersion: string): void {
         [x1, y1],
         [x2, y2]
       ]);
-    } as any);
+    });
 
-    ruler.selectAll("g.opisometer").each(function (this: SVGGElement) {
+    ruler.selectAll<SVGGElement, unknown>("g.opisometer").each(function () {
       const pointsString = this.dataset.points;
       if (!pointsString) return;
       const points = JSON.parse(pointsString);
       rulers.create(Opisometer, points);
-    } as any);
+    });
 
-    ruler.selectAll("path.planimeter").each(function (this: SVGPathElement) {
+    ruler.selectAll<SVGPathElement, unknown>("path.planimeter").each(function () {
       const length = this.getTotalLength();
       if (length < 30) return;
 
@@ -456,7 +466,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
         points.push([point.x | 0, point.y | 0]);
       }
       rulers.create(Planimeter, points);
-    } as any);
+    });
 
     ruler.selectAll("*").remove();
 
@@ -499,7 +509,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
       2
     );
 
-    for (const river of packRivers as any[]) {
+    for (const river of packRivers) {
       const node = document.getElementById(`river${river.i}`);
       if (node && !river.cells) {
         const riverCells: number[] = [];
@@ -572,17 +582,17 @@ export function resolveVersionConflicts(mapVersion: string): void {
         const circle = symbol?.querySelector("circle");
 
         const icon = text?.innerHTML;
-        const px = text && Number(text.getAttribute("font-size")?.replace("px", ""));
-        const dx = text && Number(text.getAttribute("x")?.replace("%", ""));
-        const dy = text && Number(text.getAttribute("y")?.replace("%", ""));
+        const px = text ? Number(text.getAttribute("font-size")?.replace("px", "")) : undefined;
+        const dx = text ? Number(text.getAttribute("x")?.replace("%", "")) : undefined;
+        const dy = text ? Number(text.getAttribute("y")?.replace("%", "")) : undefined;
         const fill = circle?.getAttribute("fill");
         const stroke = circle?.getAttribute("stroke");
 
-        const marker: any = { i, icon, type, x, y, size, cell };
+        const marker: Marker = { i, icon: icon ?? "", type, x, y, size, cell };
         if (size && size !== 30) marker.size = size;
-        if (!Number.isNaN(px as number) && px !== 12) marker.px = px;
-        if (!Number.isNaN(dx as number) && dx !== 50) marker.dx = dx;
-        if (!Number.isNaN(dy as number) && dy !== 50) marker.dy = dy;
+        if (px !== undefined && !Number.isNaN(px) && px !== 12) marker.px = px;
+        if (dx !== undefined && !Number.isNaN(dx) && dx !== 50) marker.dx = dx;
+        if (dy !== undefined && !Number.isNaN(dy) && dy !== 50) marker.dy = dy;
         if (fill && fill !== "#ffffff") marker.fill = fill;
         if (stroke && stroke !== "#000000") marker.stroke = stroke;
         if (circle?.getAttribute("opacity") === "0") marker.pin = "no";
@@ -626,34 +636,34 @@ export function resolveVersionConflicts(mapVersion: string): void {
   }
 
   if (isOlderThan("1.86.0")) {
-    for (const culture of pack.cultures as any[]) {
-      culture.origins = [culture.origin];
+    for (const culture of pack.cultures as (Culture & { origin?: number })[]) {
+      culture.origins = [culture.origin ?? null];
       delete culture.origin;
     }
-    for (const religion of pack.religions as any[]) {
-      religion.origins = [religion.origin];
+    for (const religion of pack.religions as (Religion & { origin?: number })[]) {
+      if (religion.origin !== undefined) religion.origins = [religion.origin];
       delete religion.origin;
     }
   }
 
   if (isOlderThan("1.88.0")) {
-    pack.states.forEach((s: any) => {
+    pack.states.forEach(s => {
       if (s.coa?.shield === "state") delete s.coa.shield;
     });
   }
 
   if (isOlderThan("1.91.0")) {
-    pack.states.forEach((state: any) => {
+    pack.states.forEach(state => {
       if (state.coa === "custom") state.coa = { custom: true };
     });
-    pack.provinces.forEach((province: any) => {
+    (pack.provinces as Province[]).forEach(province => {
       if (province.coa === "custom") province.coa = { custom: true };
     });
-    pack.burgs.forEach((burg: any) => {
+    (pack.burgs as Burg[]).forEach(burg => {
       if (burg.coa === "custom") burg.coa = { custom: true };
     });
 
-    emblems.selectAll("use").each(function (this: SVGUseElement) {
+    emblems.selectAll<SVGUseElement, unknown>("use").each(function () {
       const transform = this.getAttribute("transform");
       if (!transform) return;
       const [dx, dy] = parseTransform(transform);
@@ -662,21 +672,22 @@ export function resolveVersionConflicts(mapVersion: string): void {
       this.setAttribute("x", String(x));
       this.setAttribute("y", String(y));
       this.removeAttribute("transform");
-    } as any);
+    });
 
-    pack.states.forEach((state: any) => {
-      if (state.coaSize && state.coa) {
-        state.coa.size = state.coaSize;
-        delete state.coaSize;
+    pack.states.forEach(state => {
+      const s = state as State & { coaSize?: number };
+      if (s.coaSize && s.coa) {
+        s.coa.size = s.coaSize;
+        delete s.coaSize;
       }
     });
-    pack.provinces.forEach((province: any) => {
+    (pack.provinces as (Province & { coaSize?: number })[]).forEach(province => {
       if (province.coaSize && province.coa) {
         province.coa.size = province.coaSize;
         delete province.coaSize;
       }
     });
-    pack.burgs.forEach((burg: any) => {
+    (pack.burgs as (Burg & { coaSize?: number })[]).forEach(burg => {
       if (burg.coaSize && burg.coa) {
         burg.coa.size = burg.coaSize;
         delete burg.coaSize;
@@ -685,9 +696,9 @@ export function resolveVersionConflicts(mapVersion: string): void {
   }
 
   if (isOlderThan("1.92.0")) {
-    labels.selectAll("tspan").each(function (this: SVGTSpanElement) {
+    labels.selectAll<SVGTSpanElement, unknown>("tspan").each(function () {
       this.setAttribute("x", "0");
-    } as any);
+    });
   }
 
   if (isOlderThan("1.94.0")) {
@@ -797,19 +808,19 @@ export function resolveVersionConflicts(mapVersion: string): void {
       .attr("data-right", 15)
       .attr("data-bottom", 15)
       .attr("data-left", 10);
-    drawScaleBar(scaleBar as any, scale);
-    fitScaleBar(scaleBar as any, svgWidth, svgHeight);
+    drawScaleBar(scaleBar, scale);
+    fitScaleBar(scaleBar, svgWidth, svgHeight);
     if (!layerIsOn("toggleScaleBar")) scaleBar.style("display", "none");
 
-    armies.selectAll(":scope > g").each(function (this: SVGGElement) {
+    armies.selectAll<SVGGElement, unknown>(":scope > g").each(function () {
       const fill = this.getAttribute("fill");
       if (!fill) return;
-      const darkerColor = (d3.color(fill) as any).darker().hex();
+      const darkerColor = (d3.color(fill) as d3.RGBColor).darker().formatHex();
       this.setAttribute("color", darkerColor);
       this.querySelectorAll("g > rect:nth-child(2)").forEach((rect: Element) => {
         rect.setAttribute("fill", "currentColor");
       });
-    } as any);
+    });
   }
 
   if (isOlderThan("1.98.0")) {
@@ -824,8 +835,9 @@ export function resolveVersionConflicts(mapVersion: string): void {
 
   if (isOlderThan("1.99.0")) {
     routes.attr("display", null).attr("style", null);
-    delete (pack.cells as any).road;
-    delete (pack.cells as any).crossroad;
+    const legacyCells = pack.cells as unknown as Record<string, unknown>;
+    delete legacyCells.road;
+    delete legacyCells.crossroad;
 
     pack.routes = [];
     const POINT_DISTANCE = grid.spacing * 0.75;
@@ -859,7 +871,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
 
         const secondCellId = points[1][2];
         const feature = pack.cells.f[secondCellId];
-        pack.routes.push({ i: pack.routes.length, group, feature, points } as any);
+        pack.routes.push({ i: pack.routes.length, group, feature, points });
       }
     }
     routes.selectAll("path").remove();
@@ -867,7 +879,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
 
     pack.cells.routes = {};
     const links: Record<number, Record<number, number>> = pack.cells.routes;
-    for (const route of pack.routes as any[]) {
+    for (const route of pack.routes) {
       for (let i = 0; i < route.points.length - 1; i++) {
         const cellId = route.points[i][2];
         const nextCellId = route.points[i + 1][2];
@@ -883,14 +895,14 @@ export function resolveVersionConflicts(mapVersion: string): void {
 
   if (isOlderThan("1.100.0")) {
     pack.zones = [];
-    zones.selectAll("g").each(function (this: SVGGElement) {
+    zones.selectAll<SVGGElement, unknown>("g").each(function () {
       const i = pack.zones.length;
       const name = this.dataset.description ?? "";
       const type = this.dataset.type ?? "";
       const color = this.getAttribute("fill") ?? "";
       const cells = this.dataset.cells?.split(",").map(Number) ?? [];
       pack.zones.push({ i, name, type, cells, color });
-    } as any);
+    });
     zones.style("display", null).selectAll("*").remove();
     if (layerIsOn("toggleZones")) drawZones();
   }
@@ -931,7 +943,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
   }
 
   if (isOlderThan("1.108.0")) {
-    pack.features.forEach((f: any) => {
+    pack.features.forEach(f => {
       if (f?.type === "lake" && !f.group) f.group = "freshwater";
     });
     drawFeatures();
@@ -941,50 +953,50 @@ export function resolveVersionConflicts(mapVersion: string): void {
   if (isOlderThan("1.109.0")) {
     options.burgs = { groups: [] };
 
-    burgIcons.selectAll("circle, use").each(function (this: SVGElement) {
+    burgIcons.selectAll<SVGElement, unknown>("circle, use").each(function () {
       const group = (this.parentNode as SVGGElement).id;
       const id = this.id.replace(/^burg/, "");
-      const burg = pack.burgs[+id];
-      if (group && burg) (burg as any).group = group;
-    } as any);
+      const burg = pack.burgs[+id] as Burg & { group?: string };
+      if (group && burg) burg.group = group;
+    });
 
-    burgIcons.selectAll("g").each(function (this: SVGGElement, _el: unknown, index: number) {
+    burgIcons.selectAll<SVGGElement, unknown>("g").each(function (_el, index) {
       const name = this.id;
       const isDefault = name === "towns";
-      options.burgs!.groups.push({ name, active: true, order: index + 1, isDefault, preview: "watabou-city" } as any);
+      options.burgs!.groups.push({ name, active: true, order: index + 1, isDefault, preview: "watabou-city" });
       if (!this.dataset.icon) this.dataset.icon = "#icon-circle";
 
       const size = Number(this.getAttribute("size") || 2) * 2;
       this.removeAttribute("size");
       this.setAttribute("font-size", String(size));
       this.setAttribute("stroke-width", "1");
-    } as any);
+    });
 
-    if (options.burgs!.groups.filter((g: any) => g.isDefault).length === 0) {
-      (options.burgs!.groups[0] as any).isDefault = true;
+    if (options.burgs!.groups.filter(g => g.isDefault).length === 0) {
+      options.burgs!.groups[0].isDefault = true;
     }
 
-    anchors.selectAll("g").each(function (this: SVGGElement) {
+    anchors.selectAll<SVGGElement, unknown>("g").each(function () {
       const size = Number(this.getAttribute("size") || 1);
       this.removeAttribute("size");
       this.setAttribute("font-size", String(size));
-    } as any);
+    });
 
-    burgLabels.selectAll("g").each(function (this: SVGGElement) {
+    burgLabels.selectAll<SVGGElement, unknown>("g").each(function () {
       if (!this.dataset.dy) this.dataset.dy = "-0.4";
-    } as any);
+    });
 
     const anchorSymbol = ensureEl("icon-anchor");
     if (anchorSymbol) {
       anchorSymbol.outerHTML = `<symbol id="icon-anchor" viewBox="0 0 30 30" width="1em" height="1em" overflow="visible"><path d="m 1.003,-9.873 c 0,-0.547 -0.453,-1 -1,-1 -0.547,0 -1,0.453 -1,1 0,0.547 0.453,1 1,1 0.547,0 1,-0.453 1,-1 z m 13,14.5 v 5.5 c 0,0.203 -0.125,0.391 -0.313,0.469 -0.063,0.016 -0.125,0.031 -0.187,0.031 -0.125,0 -0.25,-0.047 -0.359,-0.141 L 11.691,9.033 c -2.453,2.953 -6.859,4.844 -11.688,4.844 -4.829,0 -9.234,-1.891 -11.688,-4.844 l -1.453,1.453 c -0.094,0.094 -0.234,0.141 -0.359,0.141 -0.063,0 -0.125,-0.016 -0.187,-0.031 -0.187,-0.078 -0.313,-0.266 -0.313,-0.469 v -5.5 c 0,-0.281 0.219,-0.5 0.5,-0.5 h 5.5 c 0.203,0 0.391,0.125 0.469,0.313 0.078,0.188 0.031,0.391 -0.109,0.547 L -9.2,6.55 c 1.406,1.891 4.109,3.266 7.203,3.687 V 0.128 h -3 c -0.547,0 -1,-0.453 -1,-1 v -2 c 0,-0.547 0.453,-1 1,-1 h 3 v -2.547 c -1.188,-0.688 -2,-1.969 -2,-3.453 0,-2.203 1.797,-4 4,-4 2.203,0 4,1.797 4,4 0,1.484 -0.812,2.766 -2,3.453 v 2.547 h 3 c 0.547,0 1,0.453 1,1 v 2 c 0,0.547 -0.453,1 -1,1 h -3 V 10.237 C 5.097,9.815 7.8,8.44 9.206,6.55 L 7.643,4.987 C 7.502,4.831 7.456,4.628 7.534,4.44 7.612,4.252 7.8,4.127 8.003,4.127 h 5.5 c 0.281,0 0.5,0.219 0.5,0.5 z"/></symbol>`;
     }
 
-    const validBurgs = pack.burgs.filter((b: any) => b.i && !b.removed);
-    const populations = validBurgs.map((b: any) => b.population).sort((a: number, b: number) => a - b);
-    validBurgs.forEach((burg: any) => {
+    const validBurgs = (pack.burgs as (Burg & { group?: string; MFCG?: unknown })[]).filter(b => b.i && !b.removed);
+    const populations = validBurgs.map(b => b.population ?? 0).sort((a, b) => a - b);
+    validBurgs.forEach(burg => {
       if (!burg.group) Burgs.defineGroup(burg, populations);
       if (burg.MFCG) {
-        burg.link = Burgs.getPreview(burg)?.link;
+        burg.link = Burgs.getPreview(burg)?.link ?? undefined;
         delete burg.MFCG;
       }
     });
@@ -992,9 +1004,10 @@ export function resolveVersionConflicts(mapVersion: string): void {
     layerIsOn("toggleBurgIcons") && drawBurgIcons();
     layerIsOn("toggleLabels") && drawBurgLabels();
 
-    delete (options as any).showBurgPreview;
-    delete (options as any).showMFCGMap;
-    delete (options as any).villageMaxPopulation;
+    const legacyOptions = options as unknown as Record<string, unknown>;
+    delete legacyOptions.showBurgPreview;
+    delete legacyOptions.showMFCGMap;
+    delete legacyOptions.villageMaxPopulation;
   }
 
   if (isOlderThan("1.111.0")) {
@@ -1008,8 +1021,8 @@ export function resolveVersionConflicts(mapVersion: string): void {
           const svgPolygon = polygon as SVGPolygonElement;
           const points = [...svgPolygon.points].map(svgPoint => [svgPoint.x, svgPoint.y] as [number, number]);
           const transform = polygon.getAttribute("transform");
-          const iceElement: any = { i: iceId++, points, type: "glacier" };
-          if (transform) iceElement.offset = parseTransform(transform);
+          const iceElement: IceGlacier = { i: iceId++, points, type: "glacier" };
+          if (transform) iceElement.offset = parseTransform(transform) as [number, number];
           pack.ice.push(iceElement);
         });
 
@@ -1020,8 +1033,8 @@ export function resolveVersionConflicts(mapVersion: string): void {
           if (polygon.getAttribute("cell") === null || !size) return;
           const points = [...svgPolygon.points].map(svgPoint => [svgPoint.x, svgPoint.y] as [number, number]);
           const transform = polygon.getAttribute("transform");
-          const iceElement: any = { i: iceId++, points, type: "iceberg", cellId, size };
-          if (transform) iceElement.offset = parseTransform(transform);
+          const iceElement: IceIceberg = { i: iceId++, points, type: "iceberg", cellId, size };
+          if (transform) iceElement.offset = parseTransform(transform) as [number, number];
           pack.ice.push(iceElement);
         });
 

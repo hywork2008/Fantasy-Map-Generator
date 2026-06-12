@@ -1,4 +1,5 @@
 import { max, quadtree, range } from "d3";
+import type { PackedGraph } from "../types/PackedGraph";
 import type { WorldState } from "../types/WorldState";
 import { abbreviate, biased, ensureEl, getColors, getRandomColor, minmax, P, rand, rn, rw } from "../utils";
 
@@ -28,7 +29,7 @@ export interface Culture {
 }
 
 class CulturesModule {
-  cells: any;
+  cells: PackedGraph["cells"] | null = null;
 
   getRandomShield() {
     const type = rw(COA.shields.types);
@@ -1013,19 +1014,19 @@ class CulturesModule {
     let { nameBases } = state;
     TIME && console.time("generateCultures");
     this.cells = pack.cells;
-    const cultureIds = new Uint16Array(this.cells.i.length); // cell cultures
+    const cultureIds = new Uint16Array(this.cells!.i.length); // cell cultures
 
     const culturesInputNumber = +(ensureEl("culturesInput") as HTMLInputElement).value;
     const culturesInSetNumber = +((ensureEl("culturesSet") as HTMLSelectElement).selectedOptions[0].dataset.max ?? "0");
     let count = Math.min(culturesInputNumber, culturesInSetNumber);
-    const populated = this.cells.i.filter((i: number) => this.cells.s[i]); // populated cells
+    const populated = this.cells!.i.filter((i: number) => this.cells!.s[i]); // populated cells
 
     if (populated.length < count * 25) {
       count = Math.floor(populated.length / 50);
       if (!count) {
         WARN && console.warn(`There are no populated cells. Cannot generate cultures`);
         pack.cultures = [{ name: "Wildlands", i: 0, base: 1, shield: "round" }];
-        this.cells.culture = cultureIds;
+        this.cells!.culture = cultureIds;
 
         alertMessage.innerHTML = /* html */ `The climate is harsh and people cannot live in this world.<br />
           No cultures, states and burgs will be created.<br />
@@ -1085,7 +1086,7 @@ class CulturesModule {
 
     const cultures = selectCultures(count);
     pack.cultures = cultures;
-    const centers = quadtree<number>();
+    const centers = quadtree<[number, number]>();
     const colors = getColors(count);
     const emblemShape = (ensureEl("emblemShape") as HTMLInputElement).value;
 
@@ -1102,7 +1103,7 @@ class CulturesModule {
       for (let i = 0; i < MAX_ATTEMPTS; i++) {
         cellId = sorted[biased(0, max, 5)];
         spacing *= 0.9;
-        if (!cultureIds[cellId] && !centers.find(this.cells.p[cellId][0], this.cells.p[cellId][1], spacing)) break;
+        if (!cultureIds[cellId] && !centers.find(this.cells!.p[cellId][0], this.cells!.p[cellId][1], spacing)) break;
       }
 
       return cellId;
@@ -1110,18 +1111,18 @@ class CulturesModule {
 
     // set culture type based on culture center position
     const defineCultureType = (i: number) => {
-      if (this.cells.h[i] < 70 && [1, 2, 4].includes(this.cells.biome[i])) return "Nomadic"; // high penalty in forest biomes and near coastline
-      if (this.cells.h[i] > 50) return "Highland"; // no penalty for hills and mountains, high for other elevations
-      const f = pack.features[this.cells.f[this.cells.haven[i]]]; // opposite feature
+      if (this.cells!.h[i] < 70 && [1, 2, 4].includes(this.cells!.biome[i])) return "Nomadic"; // high penalty in forest biomes and near coastline
+      if (this.cells!.h[i] > 50) return "Highland"; // no penalty for hills and mountains, high for other elevations
+      const f = pack.features[this.cells!.f[this.cells!.haven[i]]]; // opposite feature
       if (f.type === "lake" && f.cells > 5) return "Lake"; // low water cross penalty and high for growth not along coastline
       if (
-        (this.cells.harbor[i] && f.type !== "lake" && P(0.1)) ||
-        (this.cells.harbor[i] === 1 && P(0.6)) ||
-        (pack.features[this.cells.f[i]].group === "isle" && P(0.4))
+        (this.cells!.harbor[i] && f.type !== "lake" && P(0.1)) ||
+        (this.cells!.harbor[i] === 1 && P(0.6)) ||
+        (pack.features[this.cells!.f[i]].group === "isle" && P(0.4))
       )
         return "Naval"; // low water cross penalty and high for non-along-coastline growth
-      if (this.cells.r[i] && this.cells.fl[i] > 100) return "River"; // no River cross penalty, penalty for non-River growth
-      if (this.cells.t[i] > 2 && [3, 7, 8, 9, 10, 12].includes(this.cells.biome[i])) return "Hunting"; // high penalty in non-native biomes
+      if (this.cells!.r[i] && this.cells!.fl[i] > 100) return "River"; // no River cross penalty, penalty for non-River growth
+      if (this.cells!.t[i] > 2 && [3, 7, 8, 9, 10, 12].includes(this.cells!.biome[i])) return "Hunting"; // high penalty in non-native biomes
       return "Generic";
     };
 
@@ -1141,20 +1142,20 @@ class CulturesModule {
 
       if (c.lock) {
         codes.push(c.code as string);
-        centers.add(c.center as number);
+        if (c.center !== undefined) centers.add(this.cells!.p[c.center]);
 
-        for (const i of this.cells.i) {
-          if (this.cells.culture[i] === c.i) cultureIds[i] = newId;
+        for (const i of this.cells!.i) {
+          if (this.cells!.culture[i] === c.i) cultureIds[i] = newId;
         }
 
         c.i = newId;
         return;
       }
 
-      const sortingFn = c.sort ? c.sort : (i: number) => this.cells.s[i];
+      const sortingFn = c.sort ? c.sort : (i: number) => this.cells!.s[i];
       const center = placeCenter(sortingFn);
 
-      centers.add(this.cells.p[center]);
+      centers.add(this.cells!.p[center]);
       c.center = center;
       c.i = newId;
       delete c.odd;
@@ -1169,7 +1170,7 @@ class CulturesModule {
       if (emblemShape === "random") c.shield = this.getRandomShield();
     });
 
-    this.cells.culture = cultureIds;
+    this.cells!.culture = cultureIds;
 
     // the first culture with id 0 is for wildlands
     cultures.unshift({

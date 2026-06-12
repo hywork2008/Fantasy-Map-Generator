@@ -62,7 +62,7 @@ class RiverModule {
 
     const drainWater = () => {
       const MIN_FLUX_TO_FORM_RIVER = 30;
-      const cellsNumberModifier = ((pointsInput.dataset.cells as any) / 10000) ** 0.25;
+      const cellsNumberModifier = (Number(pointsInput.dataset.cells) / 10000) ** 0.25;
 
       const prec = grid.cells.prec;
       const land = cells.i.filter((i: number) => h[i] >= 20).sort((a: number, b: number) => h[b] - h[a]);
@@ -73,7 +73,7 @@ class RiverModule {
 
         // create lake outlet if lake is not in deep depression and flux > evaporation
         const lakes = lakeOutCells[i]
-          ? features.filter((feature: any) => i === feature.outCell && feature.flux > feature.evaporation)
+          ? features.filter(feature => i === feature.outCell && feature.flux > feature.evaporation)
           : [];
         for (const lake of lakes) {
           const lakeCell = cells.c[i].find((c: number) => h[c] < 20 && cells.f[c] === lake.i)!;
@@ -115,7 +115,7 @@ class RiverModule {
         // downhill cell (make sure it's not in the source lake)
         let min = null;
         if (lakeOutCells[i]) {
-          const filtered = cells.c[i].filter((c: number) => !lakes.map((lake: any) => lake.i).includes(cells.f[c]));
+          const filtered = cells.c[i].filter((c: number) => !lakes.map(lake => lake.i).includes(cells.f[c]));
           min = filtered.sort((a: number, b: number) => h[a] - h[b])[0];
         } else if (cells.haven[i]) {
           min = cells.haven[i];
@@ -194,7 +194,7 @@ class RiverModule {
       cells.conf = new Uint16Array(cells.i.length);
       pack.rivers = [];
 
-      const defaultWidthFactor = rn(1 / ((pointsInput.dataset.cells as any) / 10000) ** 0.25, 2);
+      const defaultWidthFactor = rn(1 / (Number(pointsInput.dataset.cells) / 10000) ** 0.25, 2);
       const mainStemWidthFactor = defaultWidthFactor * 1.2;
 
       for (const key in riversData) {
@@ -517,7 +517,7 @@ class RiverModule {
     return Names.getCulture(pack.cells.culture[cell]);
   }
 
-  getType({ i, length, parent }: River) {
+  getType({ i, length, parent }: Pick<River, "i" | "length" | "parent">) {
     if (this.smallLength === null) {
       const threshold = Math.ceil(pack.rivers.length * 0.15);
       this.smallLength = pack.rivers.map(r => r.length || 0).sort((a: number, b: number) => a - b)[threshold];

@@ -18,11 +18,13 @@ export const ensureEl = <T extends HTMLElement>(id: string): T => {
  * @param {Node | Window} node - The starting node or window
  * @returns {Array<Node>} - The composed path as an array
  */
-export const getComposedPath = (node: any): Array<Node | Window> => {
+type NodeLike = { parentNode?: Node | null; host?: Element; defaultView?: Window | null };
+export const getComposedPath = (node: Node | Window): Array<Node | Window> => {
+  const n = node as NodeLike;
   let parent: Node | Window | undefined;
-  if (node.parentNode) parent = node.parentNode;
-  else if (node.host) parent = node.host;
-  else if (node.defaultView) parent = node.defaultView;
+  if (n.parentNode) parent = n.parentNode;
+  else if (n.host) parent = n.host;
+  else if (n.defaultView) parent = n.defaultView;
   if (parent !== undefined) return [node].concat(getComposedPath(parent));
   return [node];
 };

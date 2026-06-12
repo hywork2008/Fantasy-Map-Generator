@@ -13,7 +13,7 @@ function createRiver(): void {
   debug.append("g").attr("id", "controlCells");
   viewbox.style("cursor", "crosshair").on("click", onCellClick);
 
-  (createRiver as any).cells = [];
+  const riverCells: number[] = [];
   const body = document.getElementById("riverCreatorBody") as HTMLElement;
 
   $("#riverCreator").dialog({
@@ -40,15 +40,13 @@ function createRiver(): void {
     const [px, py] = pointer(event, this);
     const cell = findCell(px, py);
 
-    const cells: number[] = (createRiver as any).cells;
-    if (cells.includes(cell)) removeCell(cell);
+    if (riverCells.includes(cell)) removeCell(cell);
     else addCell(cell);
   }
 
   function addCell(cell: number): void {
-    const cells: number[] = (createRiver as any).cells;
-    cells.push(cell);
-    drawCells(cells);
+    riverCells.push(cell);
+    drawCells(riverCells);
 
     const flux = pack.cells.fl[cell];
     const lineHtml = `<div class="editorLine" data-cell="${cell}">
@@ -61,8 +59,8 @@ function createRiver(): void {
   }
 
   function removeCell(cell: number): void {
-    (createRiver as any).cells = ((createRiver as any).cells as number[]).filter((c: number) => c !== cell);
-    drawCells((createRiver as any).cells);
+    riverCells.splice(0, riverCells.length, ...riverCells.filter(c => c !== cell));
+    drawCells(riverCells);
     body.querySelector(`div[data-cell='${cell}']`)?.remove();
   }
 
@@ -78,7 +76,6 @@ function createRiver(): void {
 
   function addRiver(): void {
     const { rivers, cells } = pack;
-    const riverCells: number[] = (createRiver as any).cells;
     if (riverCells.length < 2) {
       tip("Add at least 2 cells", false, "error");
       return;
@@ -103,7 +100,7 @@ function createRiver(): void {
     const meanderedPoints = Rivers.addMeandering(riverCells);
 
     const discharge = cells.fl[mouth];
-    const length = Rivers.getApproximateLength(meanderedPoints as any);
+    const length = Rivers.getApproximateLength(meanderedPoints.map(([x, y]): [number, number] => [x, y]));
     const width = Rivers.getWidth(
       Rivers.getOffset({
         flux: discharge,
@@ -136,7 +133,7 @@ function createRiver(): void {
       .select("#rivers")
       .append("path")
       .attr("id", id)
-      .attr("d", Rivers.getRiverPath(meanderedPoints as any, widthFactor, sourceWidth));
+      .attr("d", Rivers.getRiverPath(meanderedPoints, widthFactor, sourceWidth));
 
     editRiver(id);
   }

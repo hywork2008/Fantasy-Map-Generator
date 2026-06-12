@@ -10,7 +10,6 @@ class Rulers {
     this.data = [];
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   create<T>(Type: new (points: [number, number][]) => T, points: [number, number][]): T {
     const measurer = new Type(points);
     this.data.push(measurer as unknown as Measurer);
@@ -62,11 +61,13 @@ class Rulers {
 
 // ─── Abstract measurer base ───────────────────────────────────────────────────
 
+type MeasurerSel = d3.Selection<SVGGElement, unknown, d3.BaseType, unknown>;
+type DragEv = d3.D3DragEvent<SVGGElement, unknown, unknown>;
+
 abstract class Measurer {
   points: [number, number][];
   id: number;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  el: any;
+  el!: MeasurerSel;
 
   constructor(points: [number, number][]) {
     this.points = points;
@@ -85,20 +86,18 @@ abstract class Measurer {
     return rn(30 / distanceScale, 2);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  drag(this: Element, startEvent: any): void {
+  drag(this: SVGGElement, startEvent: DragEv): void {
     const tr = parseTransform(this.getAttribute("transform") ?? "");
     const x = +tr[0] - startEvent.x;
     const y = +tr[1] - startEvent.y;
 
-    startEvent.on("drag", function (this: Element, dragEvent: any) {
+    startEvent.on("drag", function (this: SVGGElement, dragEvent: DragEv) {
       const transform = `translate(${x + dragEvent.x},${y + dragEvent.y})`;
       this.setAttribute("transform", transform);
     });
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  addPoint(dragEvent: any, point: [number, number]): void {
+  addPoint(dragEvent: DragEv, point: [number, number]): void {
     const MIN_DIST = dragEvent.sourceEvent.shiftKey ? 9 : 100;
     const prev = last(this.points);
     point = [point[0] | 0, point[1] | 0];
@@ -164,7 +163,7 @@ class Ruler extends Measurer {
     this.el = ruler
       .append("g")
       .attr("class", "ruler")
-      .call((d3.drag() as any).on("start", this.drag))
+      .call(d3.drag<SVGGElement, unknown>().on("start", this.drag))
       .attr("font-size", 10 * size);
     const el = this.el;
     el.append("polyline")
@@ -172,7 +171,7 @@ class Ruler extends Measurer {
       .attr("class", "white")
       .attr("stroke-width", size)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .call((d3.drag() as any).on("start", (startEvent: any) => this.addControl(startEvent, this)));
+      .call((d3.drag() as any).on("start", (startEvent: DragEv) => this.addControl(startEvent, this)));
     el.append("polyline")
       .attr("points", points)
       .attr("class", "gray")
@@ -191,9 +190,8 @@ class Ruler extends Measurer {
     return this;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  drawPoints(el: any): void {
-    const g = el.select(".rulerPoints");
+  drawPoints(el: MeasurerSel): void {
+    const g = el.select<SVGGElement>(".rulerPoints");
     g.selectAll("circle").remove();
 
     for (let i = 0; i < this.points.length; i++) {
@@ -202,8 +200,7 @@ class Ruler extends Measurer {
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  drawPoint(el: any, x: number, y: number, i: number): void {
+  drawPoint(el: MeasurerSel, x: number, y: number, i: number): void {
     el.append("circle")
       .attr("r", "1em")
       .attr("cx", x)
@@ -214,7 +211,7 @@ class Ruler extends Measurer {
       })
       .call(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (d3.drag() as any).clickDistance(3).on("start", (startEvent: any) => {
+        (d3.drag() as any).clickDistance(3).on("start", (startEvent: DragEv) => {
           this.dragControl(this, i, startEvent);
         })
       );
@@ -245,8 +242,7 @@ class Ruler extends Measurer {
     return length;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  dragControl(context: Ruler, pointId: number, startEvent: any): void {
+  dragControl(context: Ruler, pointId: number, startEvent: DragEv): void {
     let addPoint = context.isEdge(pointId) && startEvent.sourceEvent.ctrlKey;
     let circle = context.el.select(`circle:nth-child(${pointId + 1})`);
     const line = context.el.selectAll("polyline");
@@ -255,7 +251,7 @@ class Ruler extends Measurer {
     let y0 = rn(startEvent.y, 1);
     let axis: "x" | "y" | null = null;
 
-    startEvent.on("drag", (dragEvent: any) => {
+    startEvent.on("drag", (dragEvent: DragEv) => {
       if (addPoint) {
         if (dragEvent.dx < 0.1 && dragEvent.dy < 0.1) return;
         context.pushPoint(pointId);
@@ -284,8 +280,7 @@ class Ruler extends Measurer {
     });
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  addControl(startEvent: any, context: Ruler): void {
+  addControl(startEvent: DragEv, context: Ruler): void {
     const x = rn(startEvent.x, 1);
     const y = rn(startEvent.y, 1);
     const pointId = getSegmentId(context.points, [x, y]);
@@ -313,7 +308,7 @@ class Opisometer extends Measurer {
     this.el = ruler
       .append("g")
       .attr("class", "opisometer")
-      .call((d3.drag() as any).on("start", this.drag))
+      .call(d3.drag<SVGGElement, unknown>().on("start", this.drag))
       .attr("font-size", 10 * size);
     const el = this.el;
     el.append("path").attr("class", "white").attr("stroke-width", size);
@@ -328,7 +323,7 @@ class Opisometer extends Measurer {
       .attr("r", "1em")
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .call(
-        (d3.drag() as any).on("start", (startEvent: any) => {
+        (d3.drag() as any).on("start", (startEvent: DragEv) => {
           this.dragControl(this, 0, startEvent);
         })
       );
@@ -337,7 +332,7 @@ class Opisometer extends Measurer {
       .attr("r", "1em")
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .call(
-        (d3.drag() as any).on("start", (startEvent: any) => {
+        (d3.drag() as any).on("start", (startEvent: DragEv) => {
           this.dragControl(this, 1, startEvent);
         })
       );
@@ -363,18 +358,17 @@ class Opisometer extends Measurer {
   }
 
   updateLabel(): void {
-    const length = this.el.select("path").node().getTotalLength();
+    const length = this.el.select<SVGPathElement>("path").node()!.getTotalLength();
     const text = `${rn(length * distanceScale)} ${distanceUnitInput.value}`;
     const [x, y] = last(this.points);
     this.el.select("text").attr("x", x).attr("y", y).text(text);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  dragControl(context: Opisometer, right: number, startEvent: any): void {
+  dragControl(context: Opisometer, right: number, startEvent: DragEv): void {
     const MIN_DIST = startEvent.sourceEvent.shiftKey ? 9 : 100;
     let prev = right ? last(context.points) : context.points[0];
 
-    startEvent.on("drag", (dragEvent: any) => {
+    startEvent.on("drag", (dragEvent: DragEv) => {
       const point: [number, number] = [dragEvent.x | 0, dragEvent.y | 0];
 
       const dist2 = (prev[0] - point[0]) ** 2 + (prev[1] - point[1]) ** 2;
@@ -387,7 +381,7 @@ class Opisometer extends Measurer {
       context.updateLabel();
     });
 
-    startEvent.on("end", (endEvent: any) => {
+    startEvent.on("end", (endEvent: DragEv) => {
       if (!endEvent.sourceEvent.shiftKey) context.optimize();
     });
   }
@@ -473,7 +467,7 @@ class RouteOpisometer extends Measurer {
       .attr("r", "1em")
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .call(
-        (d3.drag() as any).on("start", (startEvent: any) => {
+        (d3.drag() as any).on("start", (startEvent: DragEv) => {
           this.dragControl(this, 0, startEvent);
         })
       );
@@ -482,7 +476,7 @@ class RouteOpisometer extends Measurer {
       .attr("r", "1em")
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .call(
-        (d3.drag() as any).on("start", (startEvent: any) => {
+        (d3.drag() as any).on("start", (startEvent: DragEv) => {
           this.dragControl(this, 1, startEvent);
         })
       );
@@ -508,15 +502,14 @@ class RouteOpisometer extends Measurer {
   }
 
   updateLabel(): void {
-    const length = this.el.select("path").node().getTotalLength();
+    const length = this.el.select<SVGPathElement>("path").node()!.getTotalLength();
     const text = `${rn(length * distanceScale)} ${distanceUnitInput.value}`;
     const [x, y] = last(this.points);
     this.el.select("text").attr("x", x).attr("y", y).text(text);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  dragControl(context: RouteOpisometer, right: boolean | number, startEvent: any): void {
-    startEvent.on("drag", (dragEvent: any) => {
+  dragControl(context: RouteOpisometer, right: boolean | number, startEvent: DragEv): void {
+    startEvent.on("drag", (dragEvent: DragEv) => {
       const mousePoint: [number, number] = [dragEvent.x | 0, dragEvent.y | 0];
 
       const c = findCell(mousePoint[0], mousePoint[1]);
@@ -537,7 +530,7 @@ class Planimeter extends Measurer {
     this.el = ruler
       .append("g")
       .attr("class", "planimeter")
-      .call((d3.drag() as any).on("start", this.drag))
+      .call(d3.drag<SVGGElement, unknown>().on("start", this.drag))
       .attr("font-size", 10 * size);
     const el = this.el;
     el.append("path").attr("class", "planimeter").attr("stroke-width", size);
@@ -609,8 +602,7 @@ export type { Opisometer, Planimeter, RouteOpisometer, Ruler, Rulers };
 // ─── Legacy globals (from non-migrated JS files) ──────────────────────────────
 
 declare const lineGen: { (points: [number, number][]): string; curve: (curve: unknown) => typeof lineGen };
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-declare const polylabel: (polygon: any, precision?: number) => [number, number];
+declare const polylabel: (polygon: number[][][], precision?: number) => [number, number];
 declare const parseTransform: (transform: string) => number[];
 declare const getArea: (area: number) => number;
 declare const getAreaUnit: () => string;

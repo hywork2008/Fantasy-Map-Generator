@@ -15,11 +15,13 @@ declare global {
   var Cloud: {
     providers: {
       dropbox: {
+        api: unknown;
         save: (fileName: string, contents: string) => Promise<boolean>;
         load: (path: string) => Promise<Blob>;
-        list: () => Promise<Array<{ name: string; updated: string; size: number; path: string }>>;
+        list: () => Promise<Array<{ name: string; updated: string; size: number; path: string }> | null>;
         auth: () => Promise<void>;
         getLink: (path: string) => Promise<string>;
+        initialize: () => Promise<void>;
       };
     };
   };

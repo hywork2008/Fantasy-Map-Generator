@@ -1,3 +1,4 @@
+import type * as d3 from "d3";
 import { drag, pointer, select } from "d3";
 import type { Route } from "../modules/routes-generator";
 import { ensureEl, getSegmentId, rn } from "../utils";
@@ -65,7 +66,7 @@ function editRoute(id: string): void {
 
     const routeGroup = ensureEl<HTMLSelectElement>("routeGroup");
     routeGroup.options.length = 0;
-    (routes as any).selectAll("g").each(function (this: SVGGElement) {
+    routes.selectAll<SVGGElement, unknown>("g").each(function (this: SVGGElement) {
       routeGroup.options.add(new Option(this.id, this.id, false, this.id === route.group));
     });
 
@@ -83,9 +84,9 @@ function editRoute(id: string): void {
   function drawControlPoints(pts: [number, number, number][]): void {
     debug
       .select("#controlPoints")
-      .selectAll("circle")
+      .selectAll<SVGCircleElement, [number, number, number]>("circle")
       .data(pts)
-      .join("circle")
+      .join<SVGCircleElement>("circle")
       .attr("cx", d => d[0])
       .attr("cy", d => d[1])
       .attr("r", 0.6)
@@ -93,9 +94,9 @@ function editRoute(id: string): void {
         drag<SVGCircleElement, [number, number, number]>()
           .on("start", dragControlPointStart)
           .on("drag", dragControlPointDrag)
-          .on("end", dragControlPointEnd) as any
+          .on("end", dragControlPointEnd)
       )
-      .on("click", handleControlPointClick as any);
+      .on("click", handleControlPointClick);
   }
 
   function drawRouteCells(pts: [number, number, number][]): void {
@@ -111,13 +112,19 @@ function editRoute(id: string): void {
   let _rcInitCell = 0;
   let _rcPointIndex = 0;
 
-  function dragControlPointStart(this: SVGCircleElement, event: any): void {
+  function dragControlPointStart(
+    this: SVGCircleElement,
+    event: d3.D3DragEvent<SVGCircleElement, [number, number, number], [number, number, number]>
+  ): void {
     _rcRoute = getRoute();
     _rcInitCell = event.subject[2] as number;
     _rcPointIndex = _rcRoute.points.indexOf(event.subject);
   }
 
-  function dragControlPointDrag(this: SVGCircleElement, event: any): void {
+  function dragControlPointDrag(
+    this: SVGCircleElement,
+    event: d3.D3DragEvent<SVGCircleElement, [number, number, number], [number, number, number]>
+  ): void {
     if (!_rcRoute) return;
     this.setAttribute("cx", String(event.x));
     this.setAttribute("cy", String(event.y));
@@ -126,12 +133,15 @@ function editRoute(id: string): void {
     const y = rn(event.y, 2);
     const cellId = findCell(x, y);
 
-    (this as any).__data__ = _rcRoute.points[_rcPointIndex] = [x, y, cellId];
+    _rcRoute.points[_rcPointIndex] = [x, y, cellId];
+    select(this).datum(_rcRoute.points[_rcPointIndex]);
     redrawRoute(_rcRoute);
     drawRouteCells(_rcRoute.points);
   }
 
-  function dragControlPointEnd(event: any): void {
+  function dragControlPointEnd(
+    event: d3.D3DragEvent<SVGCircleElement, [number, number, number], [number, number, number]>
+  ): void {
     if (!_rcRoute) return;
     const movedToCell = findCell(event.x, event.y);
 
@@ -224,7 +234,7 @@ function editRoute(id: string): void {
         if (nextPoint) addConnection(cellId, nextPoint[2], newRoute.i);
       }
 
-      (routes as any)
+      routes
         .select(`#${newRoute.group}`)
         .append("path")
         .attr("d", Routes.getPath(newRoute))
@@ -233,8 +243,7 @@ function editRoute(id: string): void {
       ensureEl("routeSplit").classList.remove("pressed");
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    function removeControlPoint(cp: any): void {
+    function removeControlPoint(cp: d3.Selection<SVGCircleElement, unknown, null, undefined>): void {
       const isOnlyPointInCell = route.points.filter(p => p[2] === pt[2]).length === 1;
       if (isOnlyPointInCell) {
         const prev = route.points[index - 1];
@@ -429,6 +438,8 @@ function editRoute(id: string): void {
 
 // ─── routes-creator ──────────────────────────────────────────────────────────
 
+let _createRoutePoints: [number, number, number][] = [];
+
 function createRoute(defaultGroup?: string): void {
   if (customization) return;
   closeDialogs();
@@ -442,11 +453,11 @@ function createRoute(defaultGroup?: string): void {
   debug.append("g").attr("id", "controlPoints");
   viewbox.style("cursor", "crosshair").on("click", onClick);
 
-  (createRoute as any).points = [] as [number, number, number][];
+  _createRoutePoints = [];
   const body = ensureEl("routeCreatorBody");
 
   ensureEl<HTMLSelectElement>("routeCreatorGroupSelect").innerHTML = Array.from(
-    (routes as any).selectAll("g")._groups[0] as SVGGElement[]
+    routes.selectAll<SVGGElement, unknown>("g").nodes()
   )
     .map(el => {
       const selected = defaultGroup || "roads";
@@ -465,7 +476,7 @@ function createRoute(defaultGroup?: string): void {
   modules.createRoute = true;
 
   // add listeners
-  ensureEl("routeCreatorGroupSelect").on("change", () => drawRoutePreview((createRoute as any).points));
+  ensureEl("routeCreatorGroupSelect").on("change", () => drawRoutePreview(_createRoutePoints));
   ensureEl("routeCreatorGroupEdit").on("click", editRouteGroups);
   ensureEl("routeCreatorComplete").on("click", completeCreation);
   ensureEl("routeCreatorCancel").on("click", () => $("#routeCreator").dialog("close"));
@@ -478,9 +489,9 @@ function createRoute(defaultGroup?: string): void {
     const [x, y] = pointer(event);
     const cellId = findCell(x, y);
     const point: [number, number, number] = [rn(x, 2), rn(y, 2), cellId];
-    (createRoute as any).points.push(point);
+    _createRoutePoints.push(point);
 
-    drawRoutePreview((createRoute as any).points);
+    drawRoutePreview(_createRoutePoints);
 
     body.innerHTML += `<div class="editorLine" style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 1em;" data-point="${point.join(
       "-"
@@ -493,10 +504,8 @@ function createRoute(defaultGroup?: string): void {
   }
 
   function removePoint(pointString: string): void {
-    (createRoute as any).points = ((createRoute as any).points as [number, number, number][]).filter(
-      (p: [number, number, number]) => p.join("-") !== pointString
-    );
-    drawRoutePreview((createRoute as any).points);
+    _createRoutePoints = _createRoutePoints.filter(p => p.join("-") !== pointString);
+    drawRoutePreview(_createRoutePoints);
     body.querySelector(`[data-point='${pointString}']`)?.remove();
   }
 
@@ -520,16 +529,16 @@ function createRoute(defaultGroup?: string): void {
 
     const group = ensureEl<HTMLSelectElement>("routeCreatorGroupSelect").value;
 
-    (routes as any).select("#routeTemp").remove();
-    (routes as any)
+    routes.select("#routeTemp").remove();
+    routes
       .select(`#${group}`)
       .append("path")
-      .attr("d", Routes.getPath({ group, points: pts, i: -1, feature: 0 } as any))
+      .attr("d", Routes.getPath({ group, points: pts, i: -1, feature: 0 } as Route))
       .attr("id", "routeTemp");
   }
 
   function completeCreation(): void {
-    const pts = (createRoute as any).points as [number, number, number][];
+    const pts = _createRoutePoints;
     if (pts.length < 2) {
       tip("Add at least 2 points", false, "error");
       return;
@@ -558,7 +567,7 @@ function createRoute(defaultGroup?: string): void {
       }
     }
 
-    (routes as any).select("#routeTemp").attr("id", `route${routeId}`);
+    routes.select("#routeTemp").attr("id", `route${routeId}`);
     editRoute(`route${routeId}`);
   }
 
@@ -566,7 +575,7 @@ function createRoute(defaultGroup?: string): void {
     body.innerHTML = "";
     debug.select("#controlCells").remove();
     debug.select("#controlPoints").remove();
-    (routes as any).select("#routeTemp").remove();
+    routes.select("#routeTemp").remove();
 
     restoreDefaultEvents?.();
     clearMainTip();

@@ -387,11 +387,19 @@ async function createLabels(): Promise<void> {
     quality: 80
   };
 
-  const iconMaterials: Record<string, any> = {};
-  const iconGeometries: Record<string, any> = {};
-  const lineMaterials: Record<string, any> = {};
+  const iconMaterials: Record<string, THREE.Material> = {};
+  const iconGeometries: Record<string, THREE.BufferGeometry> = {};
+  const lineMaterials: Record<string, THREE.Material> = {};
 
-  function getBurgLabelOptions(burg: any): any | null {
+  function getBurgLabelOptions(burg: { group?: string; name?: string }): {
+    font: string;
+    size: number;
+    color: string;
+    elevation: number;
+    quality: number;
+    iconSize: number;
+    iconColor: string;
+  } | null {
     if (!burg.group) return null;
 
     const labelGroup = burgLabels.select(`#${burg.group}`);
@@ -408,7 +416,7 @@ async function createLabels(): Promise<void> {
     return { font, size, color, elevation, quality: 40, iconSize, iconColor };
   }
 
-  function getIconMaterial(groupName: string, iconColor: string): any {
+  function getIconMaterial(groupName: string, iconColor: string): THREE.Material {
     if (!iconMaterials[groupName]) {
       const mat = new THREE.MeshPhongMaterial({ color: iconColor });
       mat.wireframe = Boolean(threeDOptions.wireframe);
@@ -417,7 +425,7 @@ async function createLabels(): Promise<void> {
     return iconMaterials[groupName];
   }
 
-  function getIconGeometry(groupName: string, iconSize: number): any {
+  function getIconGeometry(groupName: string, iconSize: number): THREE.BufferGeometry {
     const key = `${groupName}_${iconSize.toFixed(2)}`;
     if (!iconGeometries[key]) {
       iconGeometries[key] = new THREE.CylinderGeometry(iconSize * 2, iconSize * 2, iconSize, 16, 1);
@@ -425,7 +433,7 @@ async function createLabels(): Promise<void> {
     return iconGeometries[key];
   }
 
-  function getLineMaterial(groupName: string, iconColor: string): any {
+  function getLineMaterial(groupName: string, iconColor: string): THREE.Material {
     if (!lineMaterials[groupName]) {
       lineMaterials[groupName] = new THREE.LineBasicMaterial({ color: iconColor });
     }
@@ -442,7 +450,7 @@ async function createLabels(): Promise<void> {
     const [x, y, z] = get3dCoords(burg.x, burg.y);
 
     if (layerIsOn("toggleLabels")) {
-      const burgSprite = (await createTextLabel({ text: burg.name, ...burgOptions })) as LabelSprite;
+      const burgSprite = (await createTextLabel({ text: burg.name ?? "", ...burgOptions })) as LabelSprite;
       burgSprite.position.set(x, y + burgOptions.elevation, z);
       burgSprite.size = burgOptions.size;
       labels.push(burgSprite);

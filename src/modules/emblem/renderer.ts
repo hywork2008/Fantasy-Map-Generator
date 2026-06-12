@@ -38,7 +38,7 @@ interface Charge {
   p: number[]; // position on shield from 1 to 9
 }
 
-interface Emblem {
+export interface Emblem {
   shield: string;
   t1: string;
   division?: Division;

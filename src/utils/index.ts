@@ -17,6 +17,7 @@ import {
   link,
   openURL,
   parseError,
+  showPrompt,
   throttle,
   wiki
 } from "./commonUtils";
@@ -86,8 +87,8 @@ window.biased = biased;
 window.getNumberInRange = getNumberInRange;
 window.generateSeed = generateSeed;
 
-window.convertTemperature = (temp: number, scale: any = (window as any).temperatureScale.value || "°C") =>
-  convertTemperature(temp, scale);
+window.convertTemperature = (temp: number, scale: string = window.temperatureScale?.value || "°C") =>
+  convertTemperature(temp, scale as "°C" | "°F");
 window.si = si;
 window.getInteger = getIntegerFromSI;
 window.toHEX = toHEX;
@@ -106,8 +107,8 @@ window.dist2 = distanceSquared;
 window.getIsolines = getIsolines;
 window.getPolesOfInaccessibility = getPolesOfInaccessibility;
 window.connectVertices = connectVertices;
-window.findPath = (start, end, getCost) => findPath(start, end, getCost, (window as any).pack);
-window.getVertexPath = cellsArray => getVertexPath(cellsArray, (window as any).pack);
+window.findPath = (start, end, getCost) => findPath(start, end, getCost, window.pack!);
+window.getVertexPath = cellsArray => getVertexPath(cellsArray, window.pack!);
 
 window.round = round;
 window.capitalize = capitalize;
@@ -130,34 +131,44 @@ Node.prototype.off = function (name, fn) {
 declare global {
   interface JSON {
     isValid: (str: string) => boolean;
-    safeParse: (str: string) => any;
+    safeParse: (str: string) => unknown;
   }
 
   interface Node {
     on: (name: string, fn: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions) => Node;
     off: (name: string, fn: EventListenerOrEventListenerObject) => Node;
+
+    temperatureScale?: { value?: string };
+    pack?: import("../types/PackedGraph").PackedGraph;
+    packedGraph?: import("../types/PackedGraph").PackedGraph;
+    grid?: Grid;
+    terrs?: import("d3").Selection<any, any, any, any>;
   }
+
+  var graphWidth: number;
+  var graphHeight: number;
+  var seed: string;
 }
 
 window.shouldRegenerateGrid = (grid: Grid | null | undefined, expectedSeed: number) =>
-  shouldRegenerateGrid(grid, expectedSeed, (window as any).graphWidth, (window as any).graphHeight);
-window.generateGrid = () => generateGrid((window as any).seed, (window as any).graphWidth, (window as any).graphHeight);
-window.findGridAll = (x: number, y: number, radius: number) => findGridAll(x, y, radius, (window as any).grid);
-window.findGridCell = (x: number, y: number) => findGridCell(x, y, (window as any).grid);
+  shouldRegenerateGrid(grid, expectedSeed, window.graphWidth, window.graphHeight);
+window.generateGrid = () => generateGrid(window.seed, window.graphWidth, window.graphHeight);
+window.findGridAll = (x: number, y: number, radius: number) => findGridAll(x, y, radius, window.grid!);
+window.findGridCell = (x: number, y: number) => findGridCell(x, y, window.grid!);
 window.findCell = (x: number, y: number, radius?: number) => {
-  const pack = (window as any).pack;
+  const pack = window.pack;
   if (!pack?.cells?.p) return 0;
   return findClosestCell(x, y, radius, pack) ?? 0;
 };
-window.findAll = (x: number, y: number, radius: number) => findAllCellsInRadius(x, y, radius, (window as any).pack);
-window.getPackPolygon = (cellIndex: number) => getPackPolygon(cellIndex, (window as any).pack);
-window.getGridPolygon = (cellIndex: number) => getGridPolygon(cellIndex, (window as any).grid);
+window.findAll = (x: number, y: number, radius: number) => findAllCellsInRadius(x, y, radius, window.pack!);
+window.getPackPolygon = (cellIndex: number) => getPackPolygon(cellIndex, window.pack!);
+window.getGridPolygon = (cellIndex: number) => getGridPolygon(cellIndex, window.grid!);
 window.calculateVoronoi = calculateVoronoi;
 window.poissonDiscSampler = poissonDiscSampler;
 window.findAllInQuadtree = findAllInQuadtree;
 window.drawHeights = drawHeights;
-window.isLand = (i: number) => isLand(i, (window as any).pack);
-window.isWater = (i: number) => isWater(i, (window as any).pack);
+window.isLand = (i: number) => isLand(i, window.pack!);
+window.isWater = (i: number) => isWater(i, window.pack!);
 
 window.clipPoly = (points: [number, number][], secure?: number) => clipPoly(points, graphWidth, graphHeight, secure);
 window.getSegmentId = getSegmentId;
@@ -182,9 +193,15 @@ if (document.readyState === "loading") {
   initializePrompt();
 }
 
-window.drawCellsValue = (data: any[]) => drawCellsValue(data, (window as any).pack);
-window.drawPolygons = (data: any[]) => drawPolygons(data, (window as any).terrs, (window as any).grid);
-window.drawRouteConnections = () => drawRouteConnections((window as any).packedGraph);
+window.drawCellsValue = (data: unknown[]) => drawCellsValue(data, window.pack!);
+window.drawPolygons = (data: number[]) =>
+  drawPolygons(
+    data,
+    window.terrs as unknown as import("d3").Selection<import("d3").BaseType, unknown, HTMLElement, unknown>,
+    window.grid!
+  );
+window.drawRouteConnections = () =>
+  drawRouteConnections((window as unknown as { packedGraph: import("../types/PackedGraph").PackedGraph }).packedGraph);
 window.drawPoint = drawPoint;
 window.drawPath = drawPath;
 
@@ -269,6 +286,7 @@ export {
   safeParseJSON,
   sanitizeId,
   shouldRegenerateGrid,
+  showPrompt,
   si,
   sortLines,
   splitInTwo,

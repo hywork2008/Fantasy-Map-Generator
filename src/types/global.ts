@@ -215,7 +215,12 @@ declare global {
   var removeStylePreset: () => void;
   var updateMapFilter: () => void;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  var FlatQueue: new <T = any>() => { push: (item: T, priority: number) => void; pop: () => T; length: number };
+  var FlatQueue: new <T = any>() => {
+    push: (item: T, priority: number) => void;
+    pop: () => T;
+    peekValue: () => number;
+    length: number;
+  };
 
   var tip: (
     message: string,
@@ -333,7 +338,7 @@ declare global {
   var checkLoadParameters: () => Promise<void>;
   var defineMapSize: () => void;
   var focusOn: () => void;
-  var regenerateMap: (reason?: string) => void;
+  var regenerateMap: (opts?: { seed?: string } | string) => void;
   var showLoading: () => void;
   var hideLoading: () => void;
   var color: (t: number) => string;
@@ -395,11 +400,14 @@ declare global {
   // ─── Phase 8: hotkeys / uiHelpers / measurers ────────────────────────────
 
   // Zoom behavior (d3, from main.js)
-  var zoom: {
-    translateBy: (selection: unknown, dx: number, dy: number) => unknown;
-    scaleTo: (selection: unknown, scale: number) => unknown;
-    scaleBy: (selection: unknown, factor: number) => unknown;
-  };
+  var zoom: ZoomBehaviorExtended;
+  interface ZoomBehaviorExtended {
+    translateBy: (selection: unknown, dx: number, dy: number) => ZoomBehaviorExtended;
+    scaleTo: (selection: unknown, scale: number) => ZoomBehaviorExtended;
+    scaleBy: (selection: unknown, factor: number) => ZoomBehaviorExtended;
+    translateExtent: (extent: [[number, number], [number, number]]) => ZoomBehaviorExtended;
+    scaleExtent: (extent: [number, number]) => ZoomBehaviorExtended;
+  }
 
   var MOBILE: boolean;
   var hideOptions: () => void;
@@ -443,12 +451,25 @@ declare global {
   // Tooltip element
   var tooltip: HTMLElement;
 
+  // Dialog editor elements (jQuery UI dialogs, mounted on window)
+  var notesEditor: HTMLElement | undefined;
+  var markerEditor: HTMLElement | undefined;
+  var riversOverview: HTMLElement | undefined;
+  var burgsOverview: HTMLElement | undefined;
+  var zonesEditor: HTMLElement | undefined;
+  var biomesEditor: HTMLElement | undefined;
+  var religionsEditor: HTMLElement | undefined;
+  var statesEditor: HTMLElement | undefined;
+  var diplomacyEditor: HTMLElement | undefined;
+  var militaryOverview: HTMLElement | undefined;
+  var provincesEditor: HTMLElement | undefined;
+  var culturesEditor: HTMLElement | undefined;
+
   // UI helper functions (from uiHelpers.ts)
   var showInfo: () => void;
   var showElementLockTip: (event: MouseEvent) => void;
   var highlightEditorLine: (editor: HTMLElement, id: number, timeout?: number) => void;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  var onMouseMove: (...args: any[]) => void;
+  var onMouseMove: (event: MouseEvent) => void;
   var stored: (key: string) => string | null;
   var store: (key: string, value: string) => void;
   var toDMS: (coord: number, c: "lat" | "lon") => string;
@@ -483,7 +504,7 @@ declare global {
   var infoBiome: HTMLElement;
 
   // d3 line generator (from main.js)
-  var lineGen: { (points: [number, number][]): string; curve: (curve: unknown) => typeof lineGen };
+  var lineGen: import("d3").Line<[number, number]>;
 
   // polylabel library (loaded via <script> in index.html)
   var polylabel: (polygon: [number, number][][], precision?: number) => [number, number];
@@ -668,8 +689,7 @@ declare global {
   var connectToDropbox: () => Promise<void>;
   var loadURL: () => void;
   var openExportToPngTiles: () => void;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  var updateTilesOptions: (...args: any[]) => void;
+  var updateTilesOptions: (this: HTMLInputElement | undefined) => void;
   var enterStandardView: () => void;
   var enter3dView: (type: string) => Promise<void>;
   var resize3d: () => void;
@@ -728,7 +748,7 @@ declare global {
   // Grid / generation helpers
   var findGridCell: (x: number, y: number, grid: Grid) => number;
   var findGridAll: (x: number, y: number, r: number) => number[];
-  var getGridPolygon: (i: number) => string;
+  var getGridPolygon: (i: number) => [number, number][];
   var generatePrecipitation: () => void;
   var OceanLayers: () => void;
   var rankCells: () => void;
@@ -795,7 +815,18 @@ declare global {
   // ─── Phase 13: medium editors ────────────────────────────────────────────────
 
   // from uiHelpers.ts (exposed for emblems-editor)
-  var highlightEmblemElement: (type: string, el: unknown) => void;
+  var highlightEmblemElement: (
+    type: string,
+    el: {
+      i: number;
+      x?: number;
+      y?: number;
+      pole?: [number, number];
+      center?: number;
+      fullName?: string;
+      name?: string;
+    }
+  ) => void;
 
   // HTML elements for units-editor
   var unitsBottom: HTMLElement;

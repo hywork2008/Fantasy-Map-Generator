@@ -1,5 +1,8 @@
 import { drag, easeSinInOut, pointer, select, sum, transition } from "d3";
+import type { MilitaryRegiment } from "../modules/military-generator";
+import type { WorldNote } from "../types/WorldState";
 import { capitalize, ensureEl, last, rn } from "../utils";
+import type { BattleRegiment } from "./battle-screen";
 
 function editRegiment(selectorOrEl?: string | Element): void {
   if (customization) return;
@@ -10,13 +13,10 @@ function editRegiment(selectorOrEl?: string | Element): void {
   armies
     .selectAll<SVGGElement, unknown>(":scope > g > g")
     .call(drag<SVGGElement, unknown>().on("start", dragRegimentStart).on("drag", dragRegimentDrag));
-  elSelected =
-    typeof selectorOrEl === "string"
-      ? (document.querySelector(selectorOrEl) as any)
-      : selectorOrEl
-        ? (selectorOrEl as any)
-        : null;
-  if (!pack.states[(elSelected as any).dataset.state]) return;
+  const rawEl = typeof selectorOrEl === "string" ? document.querySelector(selectorOrEl) : (selectorOrEl ?? null);
+  elSelected = rawEl as unknown as typeof elSelected;
+  const getRegEl = () => elSelected as unknown as SVGGElement;
+  if (!pack.states[+getRegEl().dataset.state!]) return;
   if (!getRegiment()) return;
   updateRegimentData(getRegiment()!);
   drawBase();
@@ -45,23 +45,24 @@ function editRegiment(selectorOrEl?: string | Element): void {
   ensureEl("regimentAttach").addEventListener("click", toggleAttach);
   ensureEl("regimentRemove").addEventListener("click", removeRegiment);
 
-  function getRegiment(): any {
-    return pack.states[(elSelected as any).dataset.state]?.military?.find(
-      (r: any) => r.i === +(elSelected as any).dataset.id
-    );
+  function getRegiment(): MilitaryRegiment {
+    return (pack.states[+getRegEl().dataset.state!]?.military as MilitaryRegiment[] | undefined)?.find(
+      r => r.i === +getRegEl().dataset.id!
+    ) as MilitaryRegiment;
   }
 
-  function updateRegimentData(regiment: any): void {
+  function updateRegimentData(regiment: MilitaryRegiment): void {
     (ensureEl("regimentType") as HTMLElement).className = regiment.n ? "icon-anchor" : "icon-users";
     (ensureEl("regimentName") as HTMLInputElement).value = regiment.name;
+    const icon = regiment.icon ?? "";
     (ensureEl("regimentEmblem") as HTMLElement).innerHTML =
-      regiment.icon.startsWith("http") || regiment.icon.startsWith("data:image")
-        ? `<img src="${regiment.icon}" style="width: 1em; height: 1em;">`
-        : regiment.icon;
+      icon.startsWith("http") || icon.startsWith("data:image")
+        ? `<img src="${icon}" style="width: 1em; height: 1em;">`
+        : icon;
 
     const composition = ensureEl("regimentComposition") as HTMLElement;
     composition.innerHTML = (options.military ?? [])
-      .map((u: any) => {
+      .map((u: { name: string; type: string }) => {
         return `<div data-tip="${capitalize(u.name)} number. Input to change">
         <div class="label">${capitalize(u.name)}:</div>
         <input data-u="${u.name}" type="number" min=0 step=1 value="${regiment.u[u.name] || 0}">
@@ -76,7 +77,7 @@ function editRegiment(selectorOrEl?: string | Element): void {
 
   function drawBase(): void {
     const reg = getRegiment();
-    const clr = pack.states[(elSelected as any).dataset.state].color ?? "";
+    const clr = pack.states[+getRegEl().dataset.state!].color ?? "";
     const base = viewbox
       .insert("g", "g#armies")
       .attr("id", "regimentBase")
@@ -127,7 +128,7 @@ function editRegiment(selectorOrEl?: string | Element): void {
       .call(drag<SVGCircleElement, unknown>().on("drag", rotateRegimentDrag));
   }
 
-  function rotateRegimentDrag(this: SVGCircleElement, event: any): void {
+  function rotateRegimentDrag(this: SVGCircleElement, event: d3.D3DragEvent<SVGCircleElement, unknown, unknown>): void {
     const reg = getRegiment();
     const { x, y } = event;
     const angle = rn(Math.atan2(y - reg.y, x - reg.x) * (180 / Math.PI), 2);
@@ -156,20 +157,20 @@ function editRegiment(selectorOrEl?: string | Element): void {
   }
 
   function changeName(this: HTMLInputElement): void {
-    (elSelected as any).dataset.name = getRegiment().name = this.value;
+    getRegEl().dataset.name = getRegiment().name = this.value;
   }
 
   function restoreName(): void {
     const reg = getRegiment();
-    const regs = pack.states[(elSelected as any).dataset.state].military ?? [];
+    const regs = pack.states[+getRegEl().dataset.state!].military ?? [];
     const name = Military.getName(reg, regs);
-    (elSelected as any).dataset.name = reg.name = (ensureEl("regimentName") as HTMLInputElement).value = name;
+    getRegEl().dataset.name = reg.name = (ensureEl("regimentName") as HTMLInputElement).value = name;
   }
 
   function changeEmblem(): void {
     const regiment = getRegiment();
 
-    selectIcon(regiment.icon, (value: string) => {
+    selectIcon(regiment.icon ?? "", (value: string) => {
       regiment.icon = value;
       const isExternal = value.startsWith("http") || value.startsWith("data:image");
       (ensureEl("regimentEmblem") as HTMLElement).innerHTML = isExternal
@@ -200,7 +201,7 @@ function editRegiment(selectorOrEl?: string | Element): void {
   function splitRegiment(): void {
     const reg = getRegiment();
     const u1 = reg.u;
-    const state = +(elSelected as any).dataset.state;
+    const state = +getRegEl().dataset.state!;
     const military = pack.states[state].military ?? [];
     const i = last(military).i + 1;
     const u2 = Object.assign({}, u1);
@@ -232,10 +233,10 @@ function editRegiment(selectorOrEl?: string | Element): void {
       let yVal = startY;
       do {
         yVal += shift;
-      } while (military.find((r: any) => r.x === x && r.y === yVal));
+      } while (military.find(r => (r as MilitaryRegiment).x === x && (r as MilitaryRegiment).y === yVal));
       return yVal;
     };
-    const newReg: any = {
+    const newReg = {
       a,
       cell: reg.cell,
       i,
@@ -247,7 +248,7 @@ function editRegiment(selectorOrEl?: string | Element): void {
       by: reg.by,
       state,
       icon: reg.icon
-    };
+    } as unknown as MilitaryRegiment;
     newReg.name = Military.getName(newReg, military);
     military.push(newReg);
     Military.generateNote(newReg, pack.states[state]);
@@ -271,11 +272,11 @@ function editRegiment(selectorOrEl?: string | Element): void {
     const pt = pointer(event, this) as [number, number];
     const cell = findCell(pt[0], pt[1]);
     const [x, y] = pack.cells.p[cell];
-    const state = +(elSelected as any).dataset.state;
+    const state = +getRegEl().dataset.state!;
     const military = pack.states[state].military ?? [];
     const i = military.length ? last(military).i + 1 : 0;
     const n = +(pack.cells.h[cell] < 20);
-    const reg: any = { a: 0, cell, i, n, u: {}, x, y, bx: x, by: y, state, icon: "🛡️" };
+    const reg = { a: 0, cell, i, n, u: {}, x, y, bx: x, by: y, state, icon: "🛡️" } as unknown as MilitaryRegiment;
     reg.name = Military.getName(reg, military);
     military.push(reg);
     Military.generateNote(reg, pack.states[state]);
@@ -301,14 +302,14 @@ function editRegiment(selectorOrEl?: string | Element): void {
     const target = event.target as SVGElement;
     const regSelected = target.parentElement!;
     const army = regSelected.parentElement!;
-    const oldState = +(elSelected as any).dataset.state;
+    const oldState = +getRegEl().dataset.state!;
     const newState = +regSelected.dataset.state!;
 
     if (army.parentElement!.id !== "armies") {
       tip("Please click on a regiment to attack", false, "error");
       return;
     }
-    if ((regSelected as any) === elSelected) {
+    if ((regSelected as Node) === (getRegEl() as Node)) {
       tip("Regiment cannot attack itself", false, "error");
       return;
     }
@@ -317,11 +318,11 @@ function editRegiment(selectorOrEl?: string | Element): void {
       return;
     }
 
-    const attacker = getRegiment();
+    const attacker = getRegiment() as BattleRegiment;
     const defender = pack.states[+regSelected.dataset.state!].military?.find(
-      (r: any) => r.i === +regSelected.dataset.id!
-    );
-    if (!attacker.a || !defender.a) {
+      (r: MilitaryRegiment) => r.i === +regSelected.dataset.id!
+    ) as BattleRegiment | undefined;
+    if (!attacker.a || !defender?.a) {
       tip("Regiment has no troops to battle", false, "error");
       return;
     }
@@ -374,23 +375,23 @@ function editRegiment(selectorOrEl?: string | Element): void {
     const target = event.target as SVGElement;
     const regSelected = target.parentElement!;
     const army = regSelected.parentElement!;
-    const oldState = +(elSelected as any).dataset.state;
+    const oldState = +getRegEl().dataset.state!;
     const newState = +regSelected.dataset.state!;
 
     if (army.parentElement!.id !== "armies") {
       tip("Please click on a regiment", false, "error");
       return;
     }
-    if ((regSelected as any) === elSelected) {
+    if ((regSelected as Node) === (getRegEl() as Node)) {
       tip("Cannot attach regiment to itself. Please click on another regiment", false, "error");
       return;
     }
 
     const reg = getRegiment();
-    const sel = pack.states[newState].military?.find((r: any) => r.i === +regSelected.dataset.id!);
+    const sel = (pack.states[newState].military as MilitaryRegiment[]).find(r => r.i === +regSelected.dataset.id!)!;
 
     for (const unit of options.military ?? []) {
-      const u = (unit as any).name;
+      const u = unit.name;
       if (reg.u[u]) {
         if (sel.u[u]) sel.u[u] += reg.u[u];
         else sel.u[u] = reg.u[u];
@@ -402,7 +403,7 @@ function editRegiment(selectorOrEl?: string | Element): void {
     // remove attached regiment
     const military = pack.states[oldState].military ?? [];
     military.splice(military.indexOf(reg), 1);
-    const index = notes.findIndex((n: any) => n.id === (elSelected as unknown as SVGGElement).id);
+    const index = notes.findIndex((n: WorldNote) => n.id === (elSelected as unknown as SVGGElement).id);
     if (index !== -1) notes.splice(index, 1);
     (elSelected as unknown as SVGGElement).remove();
 
@@ -412,10 +413,10 @@ function editRegiment(selectorOrEl?: string | Element): void {
   }
 
   function regenerateLegend(): void {
-    const index = notes.findIndex((n: any) => n.id === (elSelected as unknown as SVGGElement).id);
+    const index = notes.findIndex((n: WorldNote) => n.id === (elSelected as unknown as SVGGElement).id);
     if (index !== -1) notes.splice(index, 1);
 
-    const s = pack.states[(elSelected as any).dataset.state];
+    const s = pack.states[+getRegEl().dataset.state!];
     Military.generateNote(getRegiment(), s);
   }
 
@@ -431,12 +432,12 @@ function editRegiment(selectorOrEl?: string | Element): void {
       buttons: {
         Remove: function () {
           $(this).dialog("close");
-          const military = pack.states[(elSelected as any).dataset.state].military ?? [];
+          const military = pack.states[+getRegEl().dataset.state!].military ?? [];
           const regIndex = military.indexOf(getRegiment());
           if (regIndex === -1) return;
           military.splice(regIndex, 1);
 
-          const index = notes.findIndex((n: any) => n.id === (elSelected as unknown as SVGGElement).id);
+          const index = notes.findIndex((n: WorldNote) => n.id === (elSelected as unknown as SVGGElement).id);
           if (index !== -1) notes.splice(index, 1);
           (elSelected as unknown as SVGGElement).remove();
 
@@ -452,7 +453,7 @@ function editRegiment(selectorOrEl?: string | Element): void {
   }
 
   let _regDragState: {
-    reg: any;
+    reg: MilitaryRegiment;
     w: number;
     h: number;
     size: number;
@@ -462,14 +463,16 @@ function editRegiment(selectorOrEl?: string | Element): void {
     iconRect: Element;
     icon: SVGElement;
     image: SVGImageElement;
-    baseLine: any;
-    rotationControl: any;
+    baseLine: d3.Selection<SVGLineElement, unknown, null, undefined>;
+    rotationControl: d3.Selection<SVGCircleElement, unknown, null, undefined>;
   } | null = null;
 
   function dragRegimentStart(this: SVGGElement): void {
     select(this).raise();
     select(this.parentNode as Element).raise();
-    const reg = pack.states[+this.dataset.state!].military?.find((r: any) => r.i === +this.dataset.id!);
+    const reg = (pack.states[+this.dataset.state!].military as MilitaryRegiment[]).find(
+      r => r.i === +this.dataset.id!
+    )!;
     const size = +armies.attr("box-size");
     const w = reg.n ? size * 4 : size * 6;
     const h = size * 2;
@@ -478,7 +481,7 @@ function editRegiment(selectorOrEl?: string | Element): void {
       w,
       h,
       size,
-      self: (elSelected as any) === this,
+      self: (getRegEl() as Node) === (this as Node),
       baseRect: this.querySelector("rect")!,
       text: this.querySelector("text")!,
       iconRect: this.querySelectorAll("rect")[1],
@@ -489,7 +492,7 @@ function editRegiment(selectorOrEl?: string | Element): void {
     };
   }
 
-  function dragRegimentDrag(this: SVGGElement, event: any): void {
+  function dragRegimentDrag(this: SVGGElement, event: d3.D3DragEvent<SVGGElement, unknown, unknown>): void {
     if (!_regDragState) return;
     const { reg, w, h, size, self, baseRect, text, iconRect, icon, image, baseLine, rotationControl } = _regDragState;
     const { x, y } = event;
@@ -517,19 +520,19 @@ function editRegiment(selectorOrEl?: string | Element): void {
     }
   }
 
-  let _baseDragReg: any = null;
+  let _baseDragReg: MilitaryRegiment | null = null;
 
   function dragBaseStart(): void {
     _baseDragReg = getRegiment();
   }
 
-  function dragBaseDrag(this: SVGCircleElement, event: any): void {
+  function dragBaseDrag(this: SVGCircleElement, event: d3.D3DragEvent<SVGCircleElement, unknown, unknown>): void {
     this.setAttribute("cx", String(event.x));
     this.setAttribute("cy", String(event.y));
     viewbox.select("g#regimentBase > line").attr("x1", event.x).attr("y1", event.y);
   }
 
-  function dragBaseEnd(this: SVGCircleElement, event: any): void {
+  function dragBaseEnd(this: SVGCircleElement, event: d3.D3DragEvent<SVGCircleElement, unknown, unknown>): void {
     if (_baseDragReg) {
       _baseDragReg.bx = event.x;
       _baseDragReg.by = event.y;
@@ -540,7 +543,7 @@ function editRegiment(selectorOrEl?: string | Element): void {
     debug.selectAll("*").remove();
     viewbox.selectAll("g#regimentBase").remove();
     armies.selectAll(":scope > g").classed("draggable", false);
-    armies.selectAll("g>g").call(drag().on("drag", null) as any);
+    armies.selectAll<SVGGElement, unknown>("g>g").call(drag<SVGGElement, unknown>().on("drag", null));
     (ensureEl("regimentAdd") as HTMLElement).classList.remove("pressed");
     (ensureEl("regimentAttack") as HTMLElement).classList.remove("pressed");
     (ensureEl("regimentAttach") as HTMLElement).classList.remove("pressed");

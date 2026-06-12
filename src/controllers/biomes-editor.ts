@@ -173,7 +173,7 @@ function editBiomes(): void {
     (biomes as Selection<SVGGElement, unknown, null, undefined>)
       .select(`#biome${biome}`)
       .raise()
-      .transition(animate as any)
+      .transition(animate as import("d3").Transition<import("d3").BaseType, unknown, null, undefined>)
       .attr("stroke-width", 2)
       .attr("stroke", "#cd4c11");
   }
@@ -194,7 +194,7 @@ function editBiomes(): void {
     const biome = +(el.parentNode as HTMLElement).dataset.id!;
 
     const callback = (newFill: string) => {
-      (el as any).fill = newFill;
+      (el as Element & { fill?: string }).fill = newFill;
       biomesData.color[biome] = newFill;
       (biomes as Selection<SVGGElement, unknown, null, undefined>)
         .select(`#biome${biome}`)
@@ -426,7 +426,7 @@ function editBiomes(): void {
     body.querySelector(`div[data-id='${biome}']`)!.classList.add("selected");
   }
 
-  function dragBiomeBrush(this: SVGElement, event: any): void {
+  function dragBiomeBrush(this: SVGElement, event: import("d3").D3DragEvent<SVGElement, unknown, unknown>): void {
     if (!event.dx && !event.dy) return;
     const r = +(document.getElementById("biomesBrush") as HTMLInputElement).value;
     const [px, py] = pointer(event, this);

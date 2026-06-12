@@ -23,6 +23,9 @@ export interface BurgGroup {
   min?: number;
   max?: number;
   biomes?: number[];
+  states?: number[];
+  cultures?: number[];
+  religions?: number[];
 }
 
 export interface Burg {
@@ -49,6 +52,7 @@ export interface Burg {
   group?: string;
   link?: string;
   MFCG?: string;
+  province?: number;
 }
 
 class BurgModule {
@@ -122,7 +126,7 @@ class BurgModule {
     TIME && console.time("generateBurgs");
     const { cells } = pack;
 
-    let burgs: Burg[] = [0 as any]; // burgs array
+    let burgs: Burg[] = [0 as unknown as Burg]; // burgs[0] is a sentinel 0, array is 1-indexed
     cells.burg = new Uint16Array(cells.i.length);
 
     const populatedCells = cells.i.filter(i => cells.s[i] > 0 && cells.culture[i]);
@@ -155,7 +159,7 @@ class BurgModule {
           WARN && console.warn("Cannot place capitals with current spacing. Trying again with reduced spacing");
           burgsQuadtree = quadtree();
           i = -1;
-          burgs = [0 as any];
+          burgs = [0 as unknown as Burg];
           spacing /= 1.2;
         }
       }
@@ -380,11 +384,11 @@ class BurgModule {
   defineGroup(burg: Burg, populations: number[]) {
     if (burg.lock && burg.group) {
       // locked burgs: don't change group if it still exists
-      const group = options.burgs.groups.find((g: any) => g.name === burg.group);
+      const group = options.burgs.groups.find(g => g.name === burg.group);
       if (group) return;
     }
 
-    const defaultGroup = options.burgs.groups.find((g: any) => g.isDefault);
+    const defaultGroup = options.burgs.groups.find(g => g.isDefault);
     if (!defaultGroup) {
       ERROR && console.error("No default group defined");
       return;
@@ -608,7 +612,7 @@ class BurgModule {
     };
     if (burg.link) return { link: burg.link, preview: burg.link };
 
-    const group = options.burgs.groups.find((g: any) => g.name === burg.group);
+    const group = options.burgs.groups.find(g => g.name === burg.group);
     if (!group?.preview || !previewGeneratorsMap[group.preview]) return { link: null, preview: null };
 
     return previewGeneratorsMap[group.preview](burg);

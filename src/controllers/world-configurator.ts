@@ -167,9 +167,9 @@ function editWorld(): void {
     let idx = 0;
     globe
       .select("#globeWindArrows")
-      .selectAll("path")
-      .each(function (this: any) {
-        const tr = parseTransform((this as Element).getAttribute("transform") ?? "");
+      .selectAll<SVGPathElement, unknown>("path")
+      .each(function (this: SVGPathElement) {
+        const tr = parseTransform(this.getAttribute("transform") ?? "");
         this.setAttribute("transform", `rotate(${options.winds[idx]} ${tr[1]} ${tr[2]})`);
         idx++;
       });

@@ -1,4 +1,4 @@
-import { drag, pointer, select } from "d3";
+import { type D3DragEvent, drag, pointer, select } from "d3";
 import type { IceIceberg } from "../modules/ice";
 import { parseTransform } from "../utils";
 
@@ -22,7 +22,8 @@ function editIce(element: SVGElement): void {
   iceSizeEl.style.display = isGlacier ? "none" : "inline-block";
   if (!isGlacier) iceSizeEl.value = String((iceElement as IceIceberg)?.size ?? "");
 
-  (ice.selectAll("*") as any)
+  ice
+    .selectAll<SVGElement, unknown>("*")
     .classed("draggable", true)
     .call(drag<SVGElement, unknown>().on("start", dragElementStart).on("drag", dragElementDrag));
 
@@ -99,14 +100,14 @@ function editIce(element: SVGElement): void {
     _idy = 0,
     _iceId = 0;
 
-  function dragElementStart(this: SVGElement, event: any): void {
+  function dragElementStart(this: SVGElement, event: D3DragEvent<SVGElement, unknown, unknown>): void {
     _iceId = +elSelected!.attr("data-id");
     const initialTransform = parseTransform(this.getAttribute("transform") ?? "");
     _idx = +initialTransform[0] - event.x;
     _idy = +initialTransform[1] - event.y;
   }
 
-  function dragElementDrag(this: SVGElement, event: any): void {
+  function dragElementDrag(this: SVGElement, event: D3DragEvent<SVGElement, unknown, unknown>): void {
     const x = event.x;
     const y = event.y;
     this.setAttribute("transform", `translate(${_idx + x},${_idy + y})`);
@@ -115,7 +116,10 @@ function editIce(element: SVGElement): void {
   }
 
   function closeEditor(): void {
-    (ice.selectAll("*") as any).classed("draggable", false).call(drag<SVGElement, unknown>().on("drag", null));
+    ice
+      .selectAll<SVGElement, unknown>("*")
+      .classed("draggable", false)
+      .call(drag<SVGElement, unknown>().on("drag", null));
     clearMainTip();
     iceNew.classList.remove("pressed");
     unselect();

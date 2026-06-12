@@ -1,5 +1,6 @@
-import { curveCatmullRom, drag, pointer, select } from "d3";
+import { curveCatmullRom, type D3DragEvent, drag, pointer, select } from "d3";
 import type { River } from "../modules/river-generator";
+import type { TypedArray } from "../types/PackedGraph";
 import { ensureEl, getSegmentId, rand, rn } from "../utils";
 
 function editRiver(id: string): void {
@@ -105,8 +106,8 @@ function editRiver(id: string): void {
 
   function drawControlPoints(pts: [number, number][]): void {
     debug
-      .select("#controlPoints")
-      .selectAll("circle")
+      .select<SVGGElement>("#controlPoints")
+      .selectAll<SVGCircleElement, [number, number]>("circle")
       .data(pts)
       .join("circle")
       .attr("cx", d => d[0])
@@ -116,9 +117,9 @@ function editRiver(id: string): void {
         drag<SVGCircleElement, [number, number]>()
           .on("start", dragControlPointStart)
           .on("drag", dragControlPointDrag)
-          .on("end", dragControlPointEnd) as any
+          .on("end", dragControlPointEnd)
       )
-      .on("click", removeControlPoint as any);
+      .on("click", removeControlPoint);
   }
 
   function drawRiverCells(cellList: number[]): void {
@@ -133,35 +134,41 @@ function editRiver(id: string): void {
 
   let _rInitCell = 0,
     _rMovedToCell: number | null = null,
-    _rRiver: any = null,
-    _rFlCells: any = null;
+    _rRiver: River | null = null,
+    _rFlCells: TypedArray | null = null;
 
-  function dragControlPointStart(this: SVGCircleElement, event: any): void {
+  function dragControlPointStart(
+    this: SVGCircleElement,
+    event: D3DragEvent<SVGCircleElement, [number, number], unknown>
+  ): void {
     _rRiver = getRiver();
     _rFlCells = pack.cells.fl;
     _rInitCell = findCell(event.x, event.y);
     _rMovedToCell = null;
   }
 
-  function dragControlPointDrag(this: SVGCircleElement, event: any): void {
+  function dragControlPointDrag(
+    this: SVGCircleElement,
+    event: D3DragEvent<SVGCircleElement, [number, number], unknown>
+  ): void {
     const { x, y } = event;
     const currentCell = findCell(x, y);
     _rMovedToCell = _rInitCell !== currentCell ? currentCell : null;
     this.setAttribute("cx", String(x));
     this.setAttribute("cy", String(y));
-    (this as any).__data__ = [rn(x, 1), rn(y, 1)];
+    select(this).datum([rn(x, 1), rn(y, 1)] as [number, number]);
     redrawRiver();
-    drawRiverCells(_rRiver.cells);
+    drawRiverCells(_rRiver!.cells);
   }
 
-  function dragControlPointEnd(): void {
+  function dragControlPointEnd(this: SVGCircleElement): void {
     const { r } = pack.cells;
     if (_rMovedToCell !== null && !r[_rMovedToCell]) {
       r[_rInitCell] = 0;
-      r[_rMovedToCell] = _rRiver.i;
-      const sourceFlux = _rFlCells[_rInitCell];
-      _rFlCells[_rInitCell] = _rFlCells[_rMovedToCell];
-      _rFlCells[_rMovedToCell] = sourceFlux;
+      r[_rMovedToCell] = _rRiver!.i;
+      const sourceFlux = _rFlCells![_rInitCell];
+      _rFlCells![_rInitCell] = _rFlCells![_rMovedToCell];
+      _rFlCells![_rMovedToCell] = sourceFlux;
       redrawRiver();
     }
   }
@@ -242,9 +249,9 @@ function editRiver(id: string): void {
 
   function showRiverElevationProfile(): void {
     const pts = debug
-      .selectAll("#controlPoints > *")
+      .selectAll<Element, [number, number]>("#controlPoints > *")
       .data()
-      .map(([x, y]: any) => findCell(x, y));
+      .map(([x, y]) => findCell(x, y));
     const river = getRiver();
     const riverLen = rn(river.length * distanceScale);
     ElevationProfile.open(pts, riverLen, true);

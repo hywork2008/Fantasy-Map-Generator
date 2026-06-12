@@ -1,5 +1,8 @@
-import type { BurgGroup } from "../modules/burgs-generator";
+import type { Burg, BurgGroup } from "../modules/burgs-generator";
 import { ensureEl } from "../utils";
+
+type LimitEntity = { i?: number; name?: string; fullName?: string; color?: string; removed?: boolean };
+type ParsedValue = string | number | boolean | Record<string, boolean> | null;
 
 const GROUP_NAME_REGEXP = /^[\p{L}_][\p{L}\p{N}_-]*$/u;
 
@@ -16,10 +19,7 @@ function editBurgGroups(): void {
         (ensureEl("burgGroupsForm") as HTMLFormElement).requestSubmit();
       },
       Add: () => {
-        ensureEl("burgGroupsBody").insertAdjacentHTML(
-          "beforeend",
-          createLine({ name: "", active: true, preview: null, order: 1 })
-        );
+        ensureEl("burgGroupsBody").insertAdjacentHTML("beforeend", createLine({ name: "", active: true, order: 1 }));
       },
       Restore: () => {
         options.burgs.groups = Burgs.getDefaultGroups();
@@ -62,8 +62,8 @@ function editBurgGroups(): void {
     ensureEl("burgGroupsBody").innerHTML = lines.join("");
   }
 
-  function createLine(group: any): string {
-    const count = pack.burgs.filter((burg: any) => !burg.removed && burg.group === group.name).length;
+  function createLine(group: BurgGroup): string {
+    const count = pack.burgs.filter((burg: Burg) => !burg.removed && burg.group === group.name).length;
     // prettier-ignore
     return /* html */ `<tr name="${group.name}">
       <td data-tip="Rendering order: higher values are rendered on top"><input type="number" name="order" min="1" max="999" step="1" required value="${group.order || ""}" /></td>
@@ -108,21 +108,21 @@ function editBurgGroups(): void {
     </tr>`;
   }
 
-  function selectLimitation(el: HTMLButtonElement, data: any[]): void {
+  function selectLimitation(el: HTMLButtonElement, data: LimitEntity[]): void {
     const hiddenInput = el.previousElementSibling as HTMLInputElement;
     const value = hiddenInput.value;
     const initial = value ? value.split(",").map(v => +v) : [];
 
     const filtered = data.filter(datum => datum.i && !datum.removed);
     const lines = filtered.map(
-      ({ i, name, fullName, color }: any) => /* html */ `
+      ({ i, name, fullName, color }) => /* html */ `
         <tr data-tip="${name}">
           <td>
             <span style="color:${color}">⬤</span>
           </td>
           <td>
             <input data-i="${i}" id="el${i}" type="checkbox" class="checkbox" ${
-              !initial.length || initial.includes(i) ? "checked" : ""
+              !initial.length || (i !== undefined && initial.includes(i)) ? "checked" : ""
             } >
             <label for="el${i}" class="checkbox-label">${fullName || name}</label>
           </td>
@@ -223,7 +223,7 @@ function editBurgGroups(): void {
         Apply: function () {
           const form = ensureEl("featuresLimitationForm") as HTMLFormElement;
           const values = features.reduce((acc: Record<string, boolean>, { name }) => {
-            const value = (form as any)[name].value;
+            const value = (form.elements.namedItem(name) as HTMLInputElement | null)?.value;
             if (value !== "undefined") acc[name] = value === "true";
             return acc;
           }, {});
@@ -316,7 +316,7 @@ function editBurgGroups(): void {
       return;
     }
 
-    function parseInput(input: HTMLInputElement | HTMLSelectElement): any {
+    function parseInput(input: HTMLInputElement | HTMLSelectElement): ParsedValue {
       if (input.name === "name") return input.value;
       if (input.name === "features") {
         const isValid = JSON.isValid(input.value);
@@ -337,19 +337,22 @@ function editBurgGroups(): void {
 
     options.burgs.groups = lines.map((line: HTMLTableRowElement) => {
       const inputs = line.querySelectorAll<HTMLInputElement | HTMLSelectElement>("input, select");
-      const group = Array.from(inputs).reduce((obj: Record<string, any>, input) => {
+      const group = Array.from(inputs).reduce((obj: Record<string, ParsedValue>, input) => {
         const value = parseInput(input);
         if (value !== null) obj[input.name] = value;
         return obj;
       }, {});
-      return group as BurgGroup;
+      return group as unknown as BurgGroup;
     });
     localStorage.setItem("burg-groups", JSON.stringify(options.burgs.groups));
 
     // put burgs to new groups
-    const validBurgs = pack.burgs.filter((b: any) => b.i && !b.removed);
-    const populations = validBurgs.map((b: any) => b.population).sort((a: number, b: number) => a - b);
-    validBurgs.forEach((burg: any) => {
+    const validBurgs = pack.burgs.filter((b: Burg) => b.i && !b.removed);
+    const populations = validBurgs
+      .map((b: Burg) => b.population)
+      .filter((p): p is number => p !== undefined)
+      .sort((a, b) => a - b);
+    validBurgs.forEach((burg: Burg) => {
       Burgs.defineGroup(burg, populations);
     });
 

@@ -3,6 +3,7 @@ import {
   axisLeft,
   curveBasis,
   line as d3Line,
+  type NumberValue,
   pointer,
   scaleLinear,
   scaleTime,
@@ -212,10 +213,10 @@ function showBurgTemperatureGraph(id: number): void {
 
     const xAxis = axisBottom(xscale)
       .ticks(undefined)
-      .tickFormat(timeFormat("%B") as any);
+      .tickFormat((d: Date | NumberValue) => timeFormat("%B")(d as Date));
     const yAxis = axisLeft(yscale)
       .ticks(5)
-      .tickFormat((v: any) => convertTemperature(v));
+      .tickFormat((v: NumberValue) => convertTemperature(+v));
 
     const axisEl = chart.append("g");
     axisEl

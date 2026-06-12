@@ -1,8 +1,9 @@
 import { worldContext } from "../context/worldContext";
 import { ensureEl } from "../utils";
+import type { Grid } from "../utils/graphUtils";
 
 const initialSeed = generateSeed();
-let graph: any = null;
+let graph: Grid | null = null;
 let initialized = false;
 
 export function open(): void {
@@ -202,7 +203,7 @@ function insertHtml(): void {
     .map((key: string) => {
       const name = heightmapTemplates[key].name;
       Math.random = aleaPRNG(initialSeed);
-      const heights = HeightmapGenerator.fromTemplate(graph, key);
+      const heights = HeightmapGenerator.fromTemplate(graph!, key);
 
       return /* html */ `<article data-id="${key}" data-seed="${initialSeed}">
         <img src="${getHeightmapPreview(heights)}" alt="${name}" />
@@ -263,21 +264,21 @@ function getName(id: string): string {
   return isTemplate ? heightmapTemplates[id].name : precreatedHeightmaps[id].name;
 }
 
-function getGraph(currentGraph: any): any {
-  const newGraph = shouldRegenerateGrid(currentGraph, +seed) ? generateGrid() : structuredClone(currentGraph);
-  delete newGraph.cells.h;
+function getGraph(currentGraph: Grid | null): Grid {
+  const newGraph = shouldRegenerateGrid(currentGraph, +seed) ? generateGrid() : structuredClone(currentGraph!);
+  delete (newGraph.cells as { h?: unknown }).h;
   return newGraph;
 }
 
 function drawTemplatePreview(id: string): void {
-  const heights = HeightmapGenerator.fromTemplate(graph, id);
+  const heights = HeightmapGenerator.fromTemplate(graph!, id);
   const dataUrl = getHeightmapPreview(heights);
   const article = ensureEl("heightmapSelection").querySelector(`[data-id="${id}"]`) as HTMLElement;
   (article.querySelector("img") as HTMLImageElement).src = dataUrl;
 }
 
 async function drawPrecreatedHeightmap(id: string): Promise<void> {
-  const heights = await HeightmapGenerator.fromPrecreated(graph, id);
+  const heights = await HeightmapGenerator.fromPrecreated(graph!, id);
   const dataUrl = getHeightmapPreview(heights);
   const article = ensureEl("heightmapSelection").querySelector(`[data-id="${id}"]`) as HTMLElement;
   (article.querySelector("img") as HTMLImageElement).src = dataUrl;
@@ -316,9 +317,15 @@ function confirmHeightmapEdit(this: HTMLElement): void {
   });
 }
 
-function getHeightmapPreview(heights: any): string {
+function getHeightmapPreview(heights: Uint8Array | null): string {
   const scheme = getColorScheme((ensureEl("heightmapSelectionColorScheme") as HTMLSelectElement).value);
   const renderOcean = (ensureEl("heightmapSelectionRenderOcean") as HTMLInputElement).checked;
-  const dataUrl = drawHeights({ heights, width: graph.cellsX, height: graph.cellsY, scheme, renderOcean });
+  const dataUrl = drawHeights({
+    heights: heights as unknown as number[],
+    width: graph!.cellsX,
+    height: graph!.cellsY,
+    scheme,
+    renderOcean
+  });
   return dataUrl;
 }

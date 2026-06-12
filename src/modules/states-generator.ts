@@ -16,15 +16,18 @@ import {
   rw,
   trimVowels
 } from "../utils";
+import type { MilitaryRegiment } from "./military-generator";
 
 declare global {
   var States: StatesModule;
 }
 
-interface Campaign {
+export interface Campaign {
   name: string;
   start: number;
   end?: number;
+  attacker?: number;
+  defender?: number;
 }
 
 export interface State {
@@ -35,7 +38,7 @@ export interface State {
   type: string;
   center: number;
   culture: number;
-  coa: any;
+  coa: any; // eslint-disable-line @typescript-eslint/no-explicit-any -- two incompatible Emblem types (generator vs renderer)
   lock?: boolean;
   removed?: boolean;
   pole?: [number, number];
@@ -51,9 +54,9 @@ export interface State {
   formName?: string;
   fullName?: string;
   form?: string;
-  military?: any[];
+  military?: MilitaryRegiment[];
   provinces?: number[];
-  temp?: any;
+  temp?: any; // eslint-disable-line @typescript-eslint/no-explicit-any -- temporary computation scratch space, deleted after use
   alert?: number;
 }
 
@@ -94,7 +97,7 @@ class StatesModule {
     return biomesData.cost[biome]; // general non-native biome penalty
   }
 
-  private getHeightCost(f: any, h: number, type: string) {
+  private getHeightCost(f: { type: string }, h: number, type: string) {
     if (type === "Lake" && f.type === "lake") return 10; // low lake crossing penalty for Lake cultures
     if (type === "Naval" && h < 20) return 300; // low sea crossing penalty for Navals
     if (type === "Nomadic" && h < 20) return 10000; // giant sea crossing penalty for Nomads
@@ -106,7 +109,7 @@ class StatesModule {
     return 0;
   }
 
-  private getRiverCost(r: any, i: number, type: string) {
+  private getRiverCost(r: number, i: number, type: string) {
     if (type === "River") return r ? 0 : 100; // penalty for river cultures
     if (!r) return 0; // no penalty for others if there is no river
     return minmax(pack.cells.fl[i] / 10, 20, 100); // river penalty from 20 to 100 based on flux
@@ -531,7 +534,7 @@ class StatesModule {
         });
       });
       // TODO: record war in chronicle to keep state interface clean
-      chronicle.push(war as any); // add a record to diplomatical history
+      (chronicle as (string | string[])[]).push(war); // mixed chronicle entry: see TODO above
     }
     TIME && console.timeEnd("generateDiplomacy");
   }
@@ -606,7 +609,7 @@ class StatesModule {
       else if (isAnarchy) s.form = "Anarchy";
       else s.form = s.type === "Naval" ? rw(naval) : rw(generic);
 
-      const selectForm = (s: any, tier: number) => {
+      const selectForm = (s: State, tier: number) => {
         const base = pack.cultures[s.culture].base;
 
         if (s.form === "Monarchy") {
@@ -615,6 +618,7 @@ class StatesModule {
           if (s.diplomacy) {
             if (
               form === "Duchy" &&
+              s.neighbors &&
               s.neighbors.length > 1 &&
               rand(6) < s.neighbors.length &&
               s.diplomacy.includes("Vassal")
@@ -642,7 +646,7 @@ class StatesModule {
           // Default name is from weighted array, special case for small states with only 1 burg
           if (tier < 2 && s.burgs === 1) {
             if (trimVowels(s.name) === trimVowels(pack.burgs[s.capital].name!)) {
-              s.name = pack.burgs[s.capital].name;
+              s.name = pack.burgs[s.capital].name!;
               return "Free City";
             }
             if (P(0.3)) return "City-state";

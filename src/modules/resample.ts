@@ -1,7 +1,7 @@
 import { mean, quadtree } from "d3";
 import { clipPolyline } from "lineclip";
 import type { PackedGraph } from "../types/PackedGraph";
-import type { WorldState } from "../types/WorldState";
+import type { WorldNote, WorldState } from "../types/WorldState";
 import {
   findAllCellsInRadius,
   findClosestCell,
@@ -11,6 +11,7 @@ import {
   rn,
   unique
 } from "../utils";
+import type { Grid } from "../utils/graphUtils";
 import type { River } from "./river-generator";
 import type { Point } from "./voronoi";
 
@@ -25,9 +26,9 @@ interface ResamplerProcessOptions {
 }
 
 type ParentMapDefinition = {
-  grid: any;
+  grid: Grid;
   pack: PackedGraph;
-  notes: any[];
+  notes: WorldNote[];
 };
 
 class Resampler {

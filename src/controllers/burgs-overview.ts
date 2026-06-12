@@ -1,3 +1,4 @@
+import * as d3 from "d3";
 import { pointer } from "d3";
 import { ensureEl, rn, si } from "../utils";
 
@@ -286,53 +287,67 @@ function overviewBurgs(settings: { stateId?: number | null; cultureId?: number |
   }
 
   function showBurgsChart(): void {
-    const states = pack.states.map(s => {
-      const c = s.color ? s.color : "#ccc";
-      const name = s.fullName ? s.fullName : s.name;
-      return { id: s.i, state: s.i ? 0 : null, color: c, name };
-    });
+    interface ChartDatum {
+      id: number;
+      color?: string;
+      name?: string;
+      i?: number | null;
+      state?: number | null;
+      culture?: number | null;
+      province?: number | null;
+      parent?: number | null;
+      population?: number;
+      x?: number;
+      y?: number;
+      capital?: number | boolean;
+    }
 
-    const burgs = pack.burgs
+    const states: ChartDatum[] = pack.states.map(s => ({
+      id: s.i,
+      state: s.i ? 0 : null,
+      color: s.color ?? "#ccc",
+      name: s.fullName ?? s.name
+    }));
+
+    const burgs: ChartDatum[] = pack.burgs
       .filter(b => b.i && !b.removed)
       .map(b => {
-        const id = b.i! + states.length - 1;
-        const population = b.population;
-        const capital = b.capital;
         const province = pack.cells.province![b.cell];
         const parent = province ? province + states.length - 1 : b.state;
         return {
-          id,
+          id: b.i! + states.length - 1,
           i: b.i,
           state: b.state,
           culture: b.culture,
           province,
           parent,
           name: b.name,
-          population,
-          capital,
+          population: b.population,
+          capital: b.capital,
           x: b.x,
-          y: b.y
+          y: b.y,
+          color: "#ccc"
         };
       });
-    const data = states.concat(burgs as any[]);
+    const data: ChartDatum[] = [...states, ...burgs];
     if (data.length < 2) {
       tip("No burgs to show", false, "error");
       return;
     }
 
-    const d3 = (window as any).d3;
     const root = d3
-      .stratify()
-      .parentId((d: any) => d.state)(data)
-      .sum((d: any) => d.population)
-      .sort((a: any, b: any) => b.value - a.value);
+      .stratify<ChartDatum>()
+      .id(d => String(d.id))
+      .parentId(d => (d.state != null ? String(d.state) : null))(data)
+      .sum(d => d.population ?? 0)
+      .sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
 
     const width = 150 + 200 * +uiSize.value;
     const height = 150 + 200 * +uiSize.value;
     const margin = { top: 0, right: -50, bottom: -10, left: -50 };
     const w = width - margin.left - margin.right;
     const h = height - margin.top - margin.bottom;
-    const treeLayout = d3.pack().size([w, h]).padding(3);
+    const treeLayout = d3.pack<ChartDatum>().size([w, h]).padding(3);
 
     alertMessage.innerHTML = /* html */ `<select id="burgsTreeType" style="display:block; margin-left:13px; font-size:11px">
       <option value="states" selected>Group by state</option>
@@ -353,24 +368,28 @@ function overviewBurgs(settings: { stateId?: number | null; cultureId?: number |
 
     treeLayout(root);
 
+    type PackNode = d3.HierarchyCircularNode<ChartDatum>;
     const node = graph
-      .selectAll("circle")
-      .data(root.leaves())
+      .selectAll<SVGCircleElement, PackNode>("circle")
+      .data(root.leaves() as PackNode[])
       .join("circle")
-      .attr("data-id", (d: any) => d.data.i)
-      .attr("r", (d: any) => d.r)
-      .attr("fill", (d: any) => d.parent.data.color)
-      .attr("cx", (d: any) => d.x)
-      .attr("cy", (d: any) => d.y)
-      .on("mouseenter", (event: MouseEvent, d: any) => showInfo(event, d))
+      .attr("data-id", d => d.data.i ?? "")
+      .attr("r", d => d.r)
+      .attr("fill", d => d.parent?.data.color ?? "#ccc")
+      .attr("cx", d => d.x)
+      .attr("cy", d => d.y)
+      .on("mouseenter", (event: MouseEvent, d) => showInfo(event, d))
       .on("mouseleave", (ev: MouseEvent) => hideInfo(ev))
-      .on("click", (d: any) => zoomTo(d.data.x, d.data.y, 8, 2000));
+      .on("click", (_event, d) => zoomTo(d.data.x ?? 0, d.data.y ?? 0, 8, 2000));
 
-    function showInfo(ev: MouseEvent, d: any): void {
-      d3.select(ev.target).transition().duration(1500).attr("stroke", "#c13119");
+    function showInfo(ev: MouseEvent, d: PackNode): void {
+      d3.select(ev.target as Element)
+        .transition()
+        .duration(1500)
+        .attr("stroke", "#c13119");
       const name = d.data.name;
-      const parent = d.parent.data.name;
-      const population = si(d.value * populationRate * urbanization);
+      const parent = d.parent?.data.name;
+      const population = si((d.value ?? 0) * populationRate * urbanization);
 
       (document.getElementById("burgsInfo") as HTMLElement).innerHTML =
         /* html */ `${name}. ${parent}. Population: ${population}`;
@@ -383,7 +402,9 @@ function overviewBurgs(settings: { stateId?: number | null; cultureId?: number |
       const burgsInfoEl = document.getElementById("burgsInfo");
       if (!burgsInfoEl) return;
       burgsInfoEl.innerHTML = "&#8205;";
-      d3.select(ev.target).transition().attr("stroke", null);
+      d3.select(ev.target as Element)
+        .transition()
+        .attr("stroke", null);
       tip("");
     }
 
@@ -412,24 +433,25 @@ function overviewBurgs(settings: { stateId?: number | null; cultureId?: number |
           .map(p => {
             return { id: p.i + statesData.length - 1, parent: p.state, color: p.color, name: p.fullName };
           });
-        return statesData.concat(provinces as any[]);
+        return [...statesData, ...provinces] as ChartDatum[];
       };
 
-      const getProvincesData = () =>
-        pack.provinces!.map(p => {
-          const c = p.color ? p.color : "#ccc";
-          const name = p.fullName ? p.fullName : p.name;
-          return { id: p.i ? p.i : 0, province: p.i ? 0 : null, color: c, name };
-        });
+      const getProvincesData = (): ChartDatum[] =>
+        pack.provinces!.map(p => ({
+          id: p.i ? p.i : 0,
+          province: p.i ? 0 : null,
+          color: p.color ?? "#ccc",
+          name: p.fullName ?? p.name
+        }));
 
-      const value = (d: any) => {
+      const value = (d: ChartDatum): number | null | undefined => {
         if (this.value === "states") return d.state;
         if (this.value === "cultures") return d.culture;
         if (this.value === "parent") return d.parent;
         if (this.value === "provinces") return d.province;
       };
 
-      const mapping: Record<string, () => any[]> = {
+      const mapping: Record<string, () => ChartDatum[]> = {
         states: getStatesData,
         cultures: getCulturesData,
         parent: getParentData,
@@ -438,26 +460,27 @@ function overviewBurgs(settings: { stateId?: number | null; cultureId?: number |
 
       const base = mapping[this.value]();
       burgs.forEach(b => {
-        (b as any).id = b.i! + base.length - 1;
+        b.id = b.i! + base.length - 1;
       });
 
-      const chartData = base.concat(burgs as any[]);
+      const chartData: ChartDatum[] = [...base, ...burgs];
 
       const newRoot = d3
-        .stratify()
-        .parentId((d: any) => value(d))(chartData)
-        .sum((d: any) => d.population)
-        .sort((a: any, b: any) => b.value - a.value);
+        .stratify<ChartDatum>()
+        .id(d => String(d.id))
+        .parentId(d => (value(d) != null ? String(value(d)) : null))(chartData)
+        .sum(d => d.population ?? 0)
+        .sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
 
       node
-        .data(treeLayout(newRoot).leaves())
+        .data(treeLayout(newRoot).leaves() as PackNode[])
         .transition()
         .duration(2000)
-        .attr("data-id", (d: any) => d.data.i)
-        .attr("fill", (d: any) => d.parent.data.color)
-        .attr("cx", (d: any) => d.x)
-        .attr("cy", (d: any) => d.y)
-        .attr("r", (d: any) => d.r);
+        .attr("data-id", d => d.data.i ?? "")
+        .attr("fill", d => d.parent?.data.color ?? "#ccc")
+        .attr("cx", d => d.x)
+        .attr("cy", d => d.y)
+        .attr("r", d => d.r);
     }
 
     $("#alert").dialog({

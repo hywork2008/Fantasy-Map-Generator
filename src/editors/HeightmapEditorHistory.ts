@@ -25,6 +25,10 @@ class HeightmapEditorHistoryClass {
     this.stack.reset();
   }
 
+  get current(): TypedArray | undefined {
+    return this.stack.current;
+  }
+
   get canUndo(): boolean {
     return this.stack.canUndo;
   }

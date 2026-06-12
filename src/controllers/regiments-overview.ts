@@ -1,4 +1,5 @@
 import { pointer, sum } from "d3";
+import type { MilitaryRegiment, MilitaryUnit } from "../modules/military-generator";
 import { capitalize, ensureEl, rn } from "../utils";
 
 function overviewRegiments(state = -1): void {
@@ -52,17 +53,17 @@ function overviewRegiments(state = -1): void {
     const stateFilter = +regimentsFilter.value;
     body.innerHTML = "";
     let lines = "";
-    const regiments: any[] = [];
+    const regiments: MilitaryRegiment[] = [];
 
     for (const s of pack.states) {
       if (!s.i || s.removed || !s.military?.length) continue;
       if (stateFilter !== -1 && s.i !== stateFilter) continue;
 
       for (const r of s.military) {
-        const sortData = options.military!.map((u: any) => `data-${u.name}=${r.u[u.name] || 0}`).join(" ");
+        const sortData = options.military!.map((u: MilitaryUnit) => `data-${u.name}=${r.u[u.name] || 0}`).join(" ");
         const lineData = options
           .military!.map(
-            (u: any) =>
+            (u: MilitaryUnit) =>
               `<div data-type="${u.name}" data-tip="${capitalize(u.name)} units number">${r.u[u.name] || 0}</div>`
           )
           .join(" ");
@@ -71,9 +72,9 @@ function overviewRegiments(state = -1): void {
           <fill-box data-tip="${s.fullName}" fill="${s.color}" disabled></fill-box>
           <input data-tip="${s.fullName}" style="width:6em" value="${s.name}" readonly />
           ${
-            r.icon.startsWith("http") || r.icon.startsWith("data:image")
+            r.icon && (r.icon.startsWith("http") || r.icon.startsWith("data:image"))
               ? `<img src="${r.icon}" data-tip="Regiment's emblem" style="width:1.2em; height:1.2em; vertical-align: middle;">`
-              : `<span data-tip="Regiment's emblem" style="width:1em">${r.icon}</span>`
+              : `<span data-tip="Regiment's emblem" style="width:1em">${r.icon ?? ""}</span>`
           }
           <input data-tip="Regiment's name" style="width:13em" value="${r.name}" readonly />
           ${lineData}
@@ -89,10 +90,11 @@ function overviewRegiments(state = -1): void {
       <div style="width: 21em; margin-left: 1em">Regiments: ${regiments.length}</div>
       ${options
         .military!.map(
-          (u: any) => `<div style="width:5em">${si(sum(regiments.map((r: any) => r.u[u.name] || 0)))}</div>`
+          (u: MilitaryUnit) =>
+            `<div style="width:5em">${si(sum(regiments.map((r: MilitaryRegiment) => r.u[u.name] || 0)))}</div>`
         )
         .join(" ")}
-      <div style="width:5em">${si(sum(regiments.map((r: any) => r.a)))}</div>
+      <div style="width:5em">${si(sum(regiments.map((r: MilitaryRegiment) => r.a)))}</div>
     </div>`;
 
     body.insertAdjacentHTML("beforeend", lines);
@@ -186,7 +188,19 @@ function overviewRegiments(state = -1): void {
     const military = pack.states[stateFilter].military!;
     const i = military.length ? last(military).i + 1 : 0;
     const n = +(pack.cells.h[cell] < 20);
-    const reg: any = { a: 0, cell, i, n, u: {}, x, y, bx: x, by: y, state: stateFilter, icon: "🛡️" };
+    const reg = {
+      a: 0,
+      cell,
+      i,
+      n,
+      u: {} as Record<string, number>,
+      x,
+      y,
+      bx: x,
+      by: y,
+      state: stateFilter,
+      icon: "🛡️"
+    } as MilitaryRegiment;
     reg.name = Military.getName(reg, military);
     military.push(reg);
     Military.generateNote(reg, pack.states[stateFilter]);
@@ -195,7 +209,7 @@ function overviewRegiments(state = -1): void {
   }
 
   function downloadRegimentsData(): void {
-    const units = options.military!.map((u: any) => u.name);
+    const units = options.military!.map((u: MilitaryUnit) => u.name);
     let data =
       "State,Id,Icon,Name," +
       units.map((u: string) => capitalize(u)).join(",") +

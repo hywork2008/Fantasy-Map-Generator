@@ -1,4 +1,4 @@
-import { drag, pointer } from "d3";
+import { type D3DragEvent, drag, pointer } from "d3";
 import { ensureEl } from "../utils";
 
 function editUnits(): void {
@@ -14,8 +14,8 @@ function editUnits(): void {
   });
 
   const renderScaleBar = () => {
-    drawScaleBar(scaleBar as any, scale);
-    fitScaleBar(scaleBar as any, svgWidth, svgHeight);
+    drawScaleBar(scaleBar, scale);
+    fitScaleBar(scaleBar, svgWidth, svgHeight);
   };
 
   // add listeners
@@ -155,22 +155,27 @@ function editUnits(): void {
       });
       this.classList.add("pressed");
       viewbox.style("cursor", "crosshair").call(
-        (drag() as any).on("start", function (this: SVGElement, startEvent: any) {
-          const point = pointer(startEvent, this) as [number, number];
-          const opisometer = rulers.create(Opisometer, [point]).draw();
+        drag<SVGElement, unknown>().on(
+          "start",
+          function (this: SVGElement, startEvent: D3DragEvent<SVGElement, unknown, unknown>) {
+            const point = pointer(startEvent, this) as [number, number];
+            const opisometer = rulers.create(Opisometer, [point]).draw();
 
-          startEvent.on("drag", (event: any) => {
-            opisometer.addPoint(event, pointer(event, this) as [number, number]);
-          });
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            startEvent.on("drag", (event: D3DragEvent<SVGGElement, unknown, unknown>) => {
+              opisometer.addPoint(event, pointer(event, this) as [number, number]);
+            });
 
-          startEvent.on("end", (event: any) => {
-            restoreDefaultEvents?.();
-            clearMainTip();
-            (document.getElementById("addOpisometer") as HTMLElement).classList.remove("pressed");
-            if (opisometer.points.length < 2) rulers.remove(opisometer.id);
-            if (!event.sourceEvent.shiftKey) opisometer.optimize();
-          });
-        })
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            startEvent.on("end", (event: D3DragEvent<SVGGElement, unknown, unknown>) => {
+              restoreDefaultEvents?.();
+              clearMainTip();
+              (document.getElementById("addOpisometer") as HTMLElement).classList.remove("pressed");
+              if (opisometer.points.length < 2) rulers.remove(opisometer.id);
+              if (!event.sourceEvent.shiftKey) opisometer.optimize();
+            });
+          }
+        )
       );
     }
   }
@@ -189,41 +194,45 @@ function editUnits(): void {
       this.classList.add("pressed");
 
       viewbox.style("cursor", "crosshair").call(
-        (drag() as any).on("start", function (this: SVGElement, startEvent: any) {
-          const cells = pack.cells;
-          const burgs = pack.burgs;
-          const point = pointer(startEvent, this) as [number, number];
-          const c = findCell(point[0], point[1]);
+        drag<SVGElement, unknown>().on(
+          "start",
+          function (this: SVGElement, startEvent: D3DragEvent<SVGElement, unknown, unknown>) {
+            const cells = pack.cells;
+            const burgs = pack.burgs;
+            const point = pointer(startEvent, this) as [number, number];
+            const c = findCell(point[0], point[1]);
 
-          if (Routes.isConnected(c) || startEvent.sourceEvent.shiftKey) {
-            const b = cells.burg[c];
-            const x = b ? burgs[b].x : cells.p[c][0];
-            const y = b ? burgs[b].y : cells.p[c][1];
-            const routeOpisometer = rulers.create(RouteOpisometer, [[x, y]]).draw();
+            if (Routes.isConnected(c) || startEvent.sourceEvent.shiftKey) {
+              const b = cells.burg[c];
+              const x = b ? burgs[b].x : cells.p[c][0];
+              const y = b ? burgs[b].y : cells.p[c][1];
+              const routeOpisometer = rulers.create(RouteOpisometer, [[x, y]]).draw();
 
-            startEvent.on("drag", (event: any) => {
-              const pt = pointer(event, this) as [number, number];
-              const ci = findCell(pt[0], pt[1]);
-              if (Routes.isConnected(ci) || event.sourceEvent.shiftKey) {
-                routeOpisometer.trackCell(ci, true);
-              }
-            });
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              startEvent.on("drag", (event: D3DragEvent<SVGGElement, unknown, unknown>) => {
+                const pt = pointer(event, this) as [number, number];
+                const ci = findCell(pt[0], pt[1]);
+                if (Routes.isConnected(ci) || event.sourceEvent.shiftKey) {
+                  routeOpisometer.trackCell(ci, true);
+                }
+              });
 
-            startEvent.on("end", () => {
+              startEvent.on("end", () => {
+                restoreDefaultEvents?.();
+                clearMainTip();
+                (document.getElementById("addRouteOpisometer") as HTMLElement).classList.remove("pressed");
+                if (routeOpisometer.points.length < 2) {
+                  rulers.remove(routeOpisometer.id);
+                }
+              });
+            } else {
               restoreDefaultEvents?.();
               clearMainTip();
               (document.getElementById("addRouteOpisometer") as HTMLElement).classList.remove("pressed");
-              if (routeOpisometer.points.length < 2) {
-                rulers.remove(routeOpisometer.id);
-              }
-            });
-          } else {
-            restoreDefaultEvents?.();
-            clearMainTip();
-            (document.getElementById("addRouteOpisometer") as HTMLElement).classList.remove("pressed");
-            tip("Must start in a cell with a route in it", false, "error");
+              tip("Must start in a cell with a route in it", false, "error");
+            }
           }
-        })
+        )
       );
     }
   }
@@ -241,22 +250,27 @@ function editUnits(): void {
       });
       this.classList.add("pressed");
       viewbox.style("cursor", "crosshair").call(
-        (drag() as any).on("start", function (this: SVGElement, startEvent: any) {
-          const point = pointer(startEvent, this) as [number, number];
-          const planimeter = rulers.create(Planimeter, [point]).draw();
+        drag<SVGElement, unknown>().on(
+          "start",
+          function (this: SVGElement, startEvent: D3DragEvent<SVGElement, unknown, unknown>) {
+            const point = pointer(startEvent, this) as [number, number];
+            const planimeter = rulers.create(Planimeter, [point]).draw();
 
-          startEvent.on("drag", (event: any) => {
-            planimeter.addPoint(event, pointer(event, this) as [number, number]);
-          });
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            startEvent.on("drag", (event: D3DragEvent<SVGGElement, unknown, unknown>) => {
+              planimeter.addPoint(event, pointer(event, this) as [number, number]);
+            });
 
-          startEvent.on("end", (event: any) => {
-            restoreDefaultEvents?.();
-            clearMainTip();
-            (document.getElementById("addPlanimeter") as HTMLElement).classList.remove("pressed");
-            if (planimeter.points.length < 3) rulers.remove(planimeter.id);
-            else if (!event.sourceEvent.shiftKey) planimeter.optimize();
-          });
-        })
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            startEvent.on("end", (event: D3DragEvent<SVGGElement, unknown, unknown>) => {
+              restoreDefaultEvents?.();
+              clearMainTip();
+              (document.getElementById("addPlanimeter") as HTMLElement).classList.remove("pressed");
+              if (planimeter.points.length < 3) rulers.remove(planimeter.id);
+              else if (!event.sourceEvent.shiftKey) planimeter.optimize();
+            });
+          }
+        )
       );
     }
   }

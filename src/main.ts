@@ -5,6 +5,7 @@ import type { Selection } from "d3";
 import * as d3 from "d3";
 import { viewState } from "./context/viewState";
 import { worldContext } from "./context/worldContext";
+import type { BurgGroup } from "./modules/burgs-generator";
 import {
   TYPED_ARRAY_MAX_VALUES as _TMP,
   calculateVoronoi,
@@ -23,33 +24,18 @@ import type { Grid } from "./utils/graphUtils";
 
 const UINT16_MAX = _TMP.UINT16_MAX;
 
-// Legacy module globals from public/modules/
-declare const Biomes: any;
-declare const Names: any;
-declare const Burgs: any;
-declare const Rivers: any;
-declare const Features: any;
-declare const Cultures: any;
-declare const States: any;
-declare const Routes: any;
-declare const Religions: any;
-declare const Provinces: any;
-declare const Military: any;
-declare const Markers: any;
-declare const Zones: any;
-declare const Lakes: any;
-declare const Ice: any;
-declare const HeightmapGenerator: any;
-
 // ─── Debug / feature flags ────────────────────────────────────────────────────
 
 const PRODUCTION = location.hostname && location.hostname !== "localhost" && location.hostname !== "127.0.0.1";
-const DEBUG: Record<string, boolean | undefined> = JSON.safeParse(localStorage.getItem("debug") ?? "") || {};
+const DEBUG: Record<string, boolean | undefined> =
+  (JSON.safeParse(localStorage.getItem("debug") ?? "") as Record<string, boolean | undefined>) || {};
 const INFO = true;
 const TIME = true;
 const WARN = true;
 const ERROR = true;
-const MOBILE: boolean = window.innerWidth < 600 || (navigator as any).userAgentData?.mobile;
+const MOBILE: boolean =
+  window.innerWidth < 600 ||
+  (navigator as Navigator & { userAgentData?: { mobile?: boolean } }).userAgentData?.mobile === true;
 
 window.DEBUG = DEBUG;
 window.INFO = INFO;
@@ -331,7 +317,8 @@ const options: typeof window.options = {
   stateLabelsMode: "auto",
   showBurgPreview: true,
   burgs: {
-    groups: JSON.safeParse(localStorage.getItem("burg-groups") ?? "") || Burgs.getDefaultGroups()
+    groups:
+      (JSON.safeParse(localStorage.getItem("burg-groups") ?? "") as BurgGroup[] | null) || Burgs.getDefaultGroups()
   }
 };
 
@@ -357,7 +344,7 @@ window.style = style;
 window.biomesData = biomesData;
 window.nameBases = nameBases;
 window.color = color;
-window.lineGen = lineGen as any;
+window.lineGen = lineGen;
 
 // ─── Populate worldContext singleton (initial values) ─────────────────────────
 
@@ -435,8 +422,8 @@ function zoomRaf(event: { transform: { k: number; x: number; y: number } }) {
 
     if (didScaleChange) {
       invokeActiveZooming();
-      drawScaleBar(scaleBar as any, scale);
-      fitScaleBar(scaleBar as any, svgWidth, svgHeight);
+      drawScaleBar(scaleBar, scale);
+      fitScaleBar(scaleBar, svgWidth, svgHeight);
     }
 
     if (didPositionChange || didScaleChange) {
@@ -445,13 +432,13 @@ function zoomRaf(event: { transform: { k: number; x: number; y: number } }) {
   });
 }
 
-const zoom = d3.zoom().scaleExtent([1, 20]).on("zoom", zoomRaf);
+const zoom = d3.zoom<SVGSVGElement, unknown>().scaleExtent([1, 20]).on("zoom", zoomRaf);
 
 window.scale = scale;
 window.viewX = viewX;
 window.viewY = viewY;
-window.zoom = zoom as any;
-viewState.zoom = zoom as any;
+window.zoom = zoom as unknown as ZoomBehaviorExtended;
+viewState.zoom = zoom;
 worldContext.scale = scale;
 viewState.viewX = viewX;
 viewState.viewY = viewY;
@@ -628,9 +615,7 @@ function focusOn() {
     }
 
     if (burgParam) {
-      const burg = Number.isNaN(+burgParam)
-        ? pack.burgs.find((b: any) => b.name === burgParam)
-        : pack.burgs[+burgParam];
+      const burg = Number.isNaN(+burgParam) ? pack.burgs.find(b => b.name === burgParam) : pack.burgs[+burgParam];
       if (!burg) return;
 
       const { x, y } = burg;
@@ -658,7 +643,7 @@ function toggleAssistant() {
           const bubble = document.getElementById("chat-widget-minimized");
           if (bubble) {
             bubble.dataset.tip = "Click to open the Assistant";
-            (bubble as any).on("mouseover", (window as any).showDataTip);
+            bubble.on("mouseover", (window as any).showDataTip);
           }
         }, 5000);
       });
@@ -703,17 +688,17 @@ function findBurgForMFCG(params: URLSearchParams) {
   if (!selection.length) selection = [burgs[1]];
 
   function defineSelection(c: number | boolean, p: number | boolean, r: number | boolean) {
-    if (p && r) return burgs.filter((b: any) => b.port && packedCells.r[b.cell]);
-    if (!p && c && r) return burgs.filter((b: any) => !b.port && packedCells.t[b.cell] === 1 && packedCells.r[b.cell]);
-    if (!c && !r) return burgs.filter((b: any) => packedCells.t[b.cell] !== 1 && !packedCells.r[b.cell]);
-    if (!c && r) return burgs.filter((b: any) => packedCells.t[b.cell] !== 1 && packedCells.r[b.cell]);
-    if (c && r) return burgs.filter((b: any) => packedCells.t[b.cell] === 1 && packedCells.r[b.cell]);
+    if (p && r) return burgs.filter(b => b.port && packedCells.r[b.cell]);
+    if (!p && c && r) return burgs.filter(b => !b.port && packedCells.t[b.cell] === 1 && packedCells.r[b.cell]);
+    if (!c && !r) return burgs.filter(b => packedCells.t[b.cell] !== 1 && !packedCells.r[b.cell]);
+    if (!c && r) return burgs.filter(b => packedCells.t[b.cell] !== 1 && packedCells.r[b.cell]);
+    if (c && r) return burgs.filter(b => packedCells.t[b.cell] === 1 && packedCells.r[b.cell]);
     return [];
   }
 
   const selected = d3.leastIndex(
     selection,
-    (a: any, b: any) => Math.abs(a.population - size) - Math.abs(b.population - size)
+    (a, b) => Math.abs((a.population ?? 0) - size) - Math.abs((b.population ?? 0) - size)
   );
   if (selected === undefined) {
     ERROR && console.error("Cannot select a burg for MFCG");
@@ -756,17 +741,11 @@ function findBurgForMFCG(params: URLSearchParams) {
 
 function zoomTo(x: number, y: number, z = 8, d = 2000) {
   const transform = d3.zoomIdentity.translate(x * -z + svgWidth / 2, y * -z + svgHeight / 2).scale(z);
-  svg
-    .transition()
-    .duration(d)
-    .call((zoom as any).transform, transform);
+  svg.transition().duration(d).call(zoom.transform, transform);
 }
 
 function resetZoom(d = 1000) {
-  svg
-    .transition()
-    .duration(d)
-    .call((zoom as any).transform, d3.zoomIdentity);
+  svg.transition().duration(d).call(zoom.transform, d3.zoomIdentity);
 }
 
 function invokeActiveZooming() {
@@ -808,8 +787,8 @@ function invokeActiveZooming() {
   }
 
   +markers.attr("rescale") &&
-    pack.markers?.forEach((marker: any) => {
-      const { i, x, y, size = 30, hidden } = marker;
+    pack.markers?.forEach(marker => {
+      const { i, x = 0, y = 0, size = 30, hidden } = marker;
       const el = !hidden && document.getElementById(`marker${i}`);
       if (!el) return;
 
@@ -889,8 +868,8 @@ async function generate(opts?: { seed?: string; graph?: Grid | null }) {
     applyGraphSize();
     randomizeOptions();
 
-    if (shouldRegenerateGrid(grid, precreatedSeed as any)) grid = precreatedGraph || generateGrid();
-    else delete (grid as any).cells.h;
+    if (shouldRegenerateGrid(grid, +(precreatedSeed ?? 0))) grid = precreatedGraph || generateGrid();
+    else delete (grid.cells as { h?: unknown }).h;
     grid.cells.h = await HeightmapGenerator.generate(grid);
     window.grid = grid;
     worldContext.grid = grid;
@@ -943,12 +922,12 @@ async function generate(opts?: { seed?: string; graph?: Grid | null }) {
     Markers.generate(state);
     Zones.generate(state);
 
-    drawScaleBar(scaleBar as any, scale);
-    Names.getMapName();
+    drawScaleBar(scaleBar, scale);
+    Names.getMapName(false);
 
     WARN && console.warn(`TOTAL: ${rn((performance.now() - timeStart) / 1000, 2)}s`);
     showStatistics();
-    INFO && (console as any).groupEnd(`Generated Map ${seed}`);
+    INFO && console.groupEnd();
   } catch (error) {
     ERROR && console.error(error);
     const parsedError = parseError(error);
@@ -994,7 +973,7 @@ function setSeed(precreatedSeed?: string) {
   window.seed = seed;
   worldContext.seed = seed;
   ensureEl<HTMLInputElement>("optionsSeed").value = seed;
-  Math.random = (window as any).aleaPRNG(seed);
+  Math.random = aleaPRNG(seed);
 }
 
 // ─── Lake helpers ──────────────────────────────────────────────────────────
@@ -1063,7 +1042,7 @@ function openNearSeaLakes() {
   if (ensureEl<HTMLInputElement>("templateInput").value === "Atoll") return;
 
   const { cells: gridCells, features } = grid;
-  if (!features.find((f: any) => f.type === "lake")) return;
+  if (!features.find(f => f.type === "lake")) return;
   TIME && console.time("openLakes");
   const LIMIT = 22;
 
@@ -1136,7 +1115,7 @@ function defineMapSize() {
     if (template === "world") return [78, 27, 40];
     if (template === "world-from-pacific") return [75, 32, 30];
 
-    const part = grid.features.some((f: any) => f.land && f.border);
+    const part = grid.features.some(f => f.land && f.border);
     const max = part ? 80 : 100;
     const lat = () => gauss(P(0.5) ? 40 : 60, 20, 25, 75);
 
@@ -1233,7 +1212,7 @@ function generatePrecipitation() {
   const { cells: gridCells, cellsX, cellsY } = grid;
   gridCells.prec = new Uint8Array(gridCells.i.length);
 
-  const cellsNumberModifier = ((pointsInput.dataset.cells as any) / 10000) ** 0.25;
+  const cellsNumberModifier = (+(pointsInput.dataset.cells ?? 0) / 10000) ** 0.25;
   const precInputModifier = +precInput.value / 100;
   const modifier = cellsNumberModifier * precInputModifier;
 
@@ -1419,9 +1398,9 @@ function reGraph() {
   pack.vertices = vertices as any;
   pack.cells = packCells as any;
   pack.cells.p = newCells.p as any;
-  pack.cells.g = createTypedArray({ maxValue: grid.points.length, from: newCells.g } as any) as any;
-  pack.cells.h = createTypedArray({ maxValue: 100, from: newCells.h } as any) as any;
-  pack.cells.area = (createTypedArray({ maxValue: UINT16_MAX, length: packCells.i.length }) as any).map(
+  pack.cells.g = createTypedArray({ maxValue: grid.points.length, from: newCells.g }) as unknown as typeof pack.cells.g;
+  pack.cells.h = createTypedArray({ maxValue: 100, from: newCells.h }) as unknown as typeof pack.cells.h;
+  pack.cells.area = createTypedArray({ maxValue: UINT16_MAX, length: packCells.i.length }).map(
     (_: unknown, cellId: number) => {
       const area = Math.abs(d3.polygonArea(getPackPolygon(cellId, pack)));
       return Math.min(area, UINT16_MAX);
@@ -1514,7 +1493,7 @@ function showStatistics() {
   window.dispatchEvent(new CustomEvent("map:generated", { detail: { seed, mapId } }));
 }
 
-const regenerateMap = debounce(async (opts?: any) => {
+const regenerateMap = debounce(async (opts?: { seed?: string } | string) => {
   WARN && console.warn("Generate new random map");
 
   const cellsDesired = +ensureEl("pointsInput").dataset.cells!;
@@ -1527,7 +1506,7 @@ const regenerateMap = debounce(async (opts?: any) => {
   worldContext.customization = customization;
   resetZoom(1000);
   undraw();
-  await generate(opts);
+  await generate(typeof opts === "string" ? { seed: opts } : opts);
   drawLayers();
   if (ThreeD.options.isOn) ThreeD.redraw();
   if ($("#worldConfigurator").is(":visible")) editWorld();
@@ -1558,7 +1537,7 @@ function undraw() {
 window.generate = generate;
 window.getWorldState = getWorldState;
 window.generateMapOnLoad = generateMapOnLoad;
-window.checkLoadParameters = checkLoadParameters as any;
+window.checkLoadParameters = checkLoadParameters;
 window.focusOn = focusOn;
 window.toggleAssistant = toggleAssistant;
 window.zoomTo = zoomTo;
@@ -1583,6 +1562,6 @@ window.isWetLand = isWetLand;
 // In DEV builds, expose organized debug access instead of scattered window.pack etc.
 // Usage: window.__fmg.worldContext.pack, window.__fmg.viewState.svg
 if (import.meta.env.DEV) {
-  (window as any).__fmg = { worldContext, viewState };
+  window.__fmg = { worldContext, viewState };
   console.info("[FMG] debug: You can access the internal state with window.__fmg");
 }

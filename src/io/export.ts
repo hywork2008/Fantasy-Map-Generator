@@ -502,7 +502,7 @@ function updateMeshCells(clone: AnySelection): void {
     .selectAll("polygon")
     .data(data)
     .join("polygon")
-    .attr("points", (d: number) => getGridPolygon(d, grid))
+    .attr("points", (d: number) => getGridPolygon(d, grid).join(" "))
     .attr("id", (d: number) => `cell${d}`)
     .attr("stroke", (d: number) => getColor(grid.cells.h[d], scheme));
 }

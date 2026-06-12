@@ -1,4 +1,9 @@
 import { hsl } from "d3";
+import type { Burg } from "../modules/burgs-generator";
+import type { Culture } from "../modules/cultures-generator";
+import type { Emblem as RendererEmblem } from "../modules/emblem/renderer";
+import type { Province } from "../modules/provinces-generator";
+import type { State } from "../modules/states-generator";
 import { ensureEl, gauss, P, rand, rn, rw } from "../utils";
 import { exportToJson as exportToJsonModule } from "./export-json";
 import { open as openHeightmapSelection } from "./heightmap-selection";
@@ -166,7 +171,7 @@ optionsContentEl.addEventListener("change", (event: Event) => {
   else if (id === "shapeRendering") setRendering(value);
   else if (id === "yearInput") changeYear();
   else if (id === "eraInput") changeEra();
-  else if (id === "stateLabelsModeInput") (options as any).stateLabelsMode = value;
+  else if (id === "stateLabelsModeInput") options.stateLabelsMode = value as "auto" | "short" | "full";
   else if (id === "azgaarAssistant") toggleAssistant?.();
 });
 
@@ -233,14 +238,14 @@ function fitMapToScreen(): void {
   zoomExtentMin.value = String(zoomMin);
   const zoomMax = +zoomExtentMax.value;
 
-  (zoom as any)
+  zoom
     .translateExtent([
       [0, 0],
       [graphWidth, graphHeight]
     ])
     .scaleExtent([zoomMin, zoomMax]);
 
-  fitScaleBar(scaleBar as any, svgWidth, svgHeight);
+  fitScaleBar(scaleBar, svgWidth, svgHeight);
   if (typeof fitLegendBox !== "undefined") fitLegendBox();
 }
 
@@ -248,12 +253,12 @@ function toggleTranslateExtent(el: HTMLElement): void {
   el.dataset.on = String(+!+(el.dataset.on ?? "0"));
   const on = el.dataset.on;
   if (+on) {
-    (zoom as any).translateExtent([
+    zoom.translateExtent([
       [-graphWidth / 2, -graphHeight / 2],
       [graphWidth * 1.5, graphHeight * 1.5]
     ]);
   } else {
-    (zoom as any).translateExtent([
+    zoom.translateExtent([
       [0, 0],
       [graphWidth, graphHeight]
     ]);
@@ -309,7 +314,7 @@ function generateMapWithSeed(): void {
 }
 
 function showSeedHistoryDialog(): void {
-  const lines = mapHistory.map((h: any, i: number) => {
+  const lines = mapHistory.map((h, i) => {
     const created = new Date(h.created).toLocaleTimeString();
     const button = `<i data-tip="Click to generate a map with this seed" onclick="restoreSeed(${i})" class="icon-history optionsSeedRestore"></i>`;
     return `<li>Seed: ${h.seed} ${button}. Size: ${h.width}x${h.height}. Template: ${h.template}. Created: ${created}</li>`;
@@ -324,10 +329,10 @@ function showSeedHistoryDialog(): void {
 }
 
 function restoreSeed(id: number): void {
-  const { seed: s, width, height, template } = mapHistory[id] as any;
+  const { seed: s, width, height, template } = mapHistory[id];
   ensureEl<HTMLInputElement>("optionsSeed").value = s;
-  ensureEl<HTMLInputElement>("mapWidthInput").value = width;
-  ensureEl<HTMLInputElement>("mapHeightInput").value = height;
+  ensureEl<HTMLInputElement>("mapWidthInput").value = String(width);
+  ensureEl<HTMLInputElement>("mapHeightInput").value = String(height);
   ensureEl<HTMLInputElement>("templateInput").value = template;
 
   if (locked("template")) unlock("template");
@@ -386,25 +391,25 @@ function changeCultureSet(): void {
 
 function changeEmblemShape(emblemShape: string): void {
   const image = document.getElementById("emblemShapeImage") as SVGPathElement | null;
-  const shapePath = window.COArenderer && (COArenderer.shieldPaths as any)[emblemShape];
+  const shapePath = window.COArenderer && (COArenderer.shieldPaths as Record<string, string>)[emblemShape];
   if (image) shapePath ? image.setAttribute("d", shapePath) : image.removeAttribute("d");
 
   const specificShape = ["culture", "state", "random"].includes(emblemShape) ? null : emblemShape;
   if (emblemShape === "random")
-    pack.cultures
-      .filter((c: any) => !c.removed)
-      .forEach((c: any) => {
+    (pack.cultures as Culture[])
+      .filter(c => !c.removed)
+      .forEach(c => {
         c.shield = Cultures.getRandomShield();
       });
 
-  const rerenderCOA = (id: string, coa: any) => {
+  const rerenderCOA = (id: string, coa: RendererEmblem) => {
     const coaEl = document.getElementById(id);
     if (!coaEl) return;
     coaEl.remove();
     COArenderer.trigger(id, coa);
   };
 
-  pack.states.forEach((state: any) => {
+  (pack.states as State[]).forEach(state => {
     if (!state.i || state.removed || !state.coa || state.coa.custom) return;
     const newShield = specificShape || COA.getShield(state.culture);
     if (newShield === state.coa.shield) return;
@@ -412,7 +417,7 @@ function changeEmblemShape(emblemShape: string): void {
     rerenderCOA(`stateCOA${state.i}`, state.coa);
   });
 
-  pack.provinces.forEach((province: any) => {
+  (pack.provinces as Province[]).forEach(province => {
     if (!province.i || province.removed || !province.coa || province.coa.custom) return;
     const culture = pack.cells.culture[province.center];
     const newShield = specificShape || COA.getShield(culture, province.state);
@@ -421,9 +426,9 @@ function changeEmblemShape(emblemShape: string): void {
     rerenderCOA(`provinceCOA${province.i}`, province.coa);
   });
 
-  pack.burgs.forEach((burg: any) => {
+  pack.burgs.forEach((burg: Burg) => {
     if (!burg.i || burg.removed || !burg.coa || burg.coa.custom) return;
-    const newShield = specificShape || COA.getShield(burg.culture, burg.state);
+    const newShield = specificShape || COA.getShield(burg.culture ?? 0, burg.state);
     if (newShield === burg.coa.shield) return;
     burg.coa.shield = newShield;
     rerenderCOA(`burgCOA${burg.i}`, burg.coa);
@@ -560,15 +565,15 @@ function changeZoomExtent(value: string): void {
   const max = Math.min(+zoomExtentMax.value, 200);
   zoomExtentMin.value = String(min);
   zoomExtentMax.value = String(max);
-  (zoom as any).scaleExtent([min, max]);
+  zoom.scaleExtent([min, max]);
   const scale = minmax(+value, 0.01, 200);
-  (zoom as any).scaleTo(svg, scale);
+  zoom.scaleTo(svg, scale);
 }
 
 function restoreDefaultZoomExtent(): void {
   zoomExtentMin.value = "1";
   zoomExtentMax.value = "20";
-  (zoom as any).scaleExtent([1, 20]).scaleTo(svg, 1);
+  zoom.scaleExtent([1, 20]).scaleTo(svg, 1);
 }
 
 // ─── Apply stored options ─────────────────────────────────────────────────────
@@ -581,8 +586,7 @@ function applyStoredOptions(): void {
 
   const heightmapId = stored("template");
   if (heightmapId) {
-    const name =
-      (heightmapTemplates as any)[heightmapId]?.name || (precreatedHeightmaps as any)[heightmapId]?.name || heightmapId;
+    const name = heightmapTemplates[heightmapId]?.name || precreatedHeightmaps[heightmapId]?.name || heightmapId;
     applyOption(ensureEl("templateInput"), heightmapId, name);
   }
 
@@ -607,7 +611,8 @@ function applyStoredOptions(): void {
     if (key.slice(0, 5) === "style") applyOption(stylePreset, key, key.slice(5));
   }
 
-  if (stored("winds")) options.winds = stored("winds")!.split(",").map(Number) as any;
+  if (stored("winds"))
+    options.winds = stored("winds")!.split(",").map(Number) as [number, number, number, number, number, number];
   if (stored("temperatureEquator")) options.temperatureEquator = +stored("temperatureEquator")!;
   if (stored("temperatureNorthPole")) options.temperatureNorthPole = +stored("temperatureNorthPole")!;
   if (stored("temperatureSouthPole")) options.temperatureSouthPole = +stored("temperatureSouthPole")!;
@@ -631,7 +636,7 @@ function applyStoredOptions(): void {
   changeDialogsTheme(themeColor, transparency);
 
   setRendering(shapeRendering.value);
-  (options as any).stateLabelsMode = stateLabelsModeInput.value;
+  options.stateLabelsMode = stateLabelsModeInput.value as "auto" | "short" | "full";
 }
 
 // ─── Randomize options ─────────────────────────────────────────────────────────
@@ -679,10 +684,10 @@ function randomizeOptions(): void {
 function randomizeHeightmapTemplate(): void {
   const templates: Record<string, number> = {};
   for (const key in heightmapTemplates) {
-    (templates as any)[key] = (heightmapTemplates as any)[key].probability || 0;
+    templates[key] = (heightmapTemplates[key].probability as number) || 0;
   }
   const template = rw(templates);
-  const name = (heightmapTemplates as any)[template].name;
+  const name = heightmapTemplates[template].name;
   applyOption(ensureEl("templateInput"), template, name);
 }
 
@@ -778,7 +783,7 @@ function regeneratePrompt(opts?: { seed?: string }): void {
   }
   const workingTime = (Date.now() - last(mapHistory).created) / 60000;
   if (workingTime < 1) {
-    (regenerateMap as any)(opts);
+    regenerateMap(opts);
     return;
   }
 
@@ -792,7 +797,7 @@ function regeneratePrompt(opts?: { seed?: string }): void {
       },
       Generate: function (this: Element) {
         closeDialogs();
-        (regenerateMap as any)(opts);
+        regenerateMap(opts);
         $(this).dialog("close");
       }
     }
@@ -857,7 +862,7 @@ async function showLoadPane(): Promise<void> {
     }
   });
 
-  const dropbox = (Cloud as any).providers.dropbox;
+  const dropbox = Cloud.providers.dropbox;
   if (dropbox.api) {
     ensureEl("dropboxConnectButton").style.display = "none";
     ensureEl("loadFromDropboxSelect").style.display = "block";
@@ -875,7 +880,7 @@ async function showLoadPane(): Promise<void> {
 
     loadFromDropboxButtons.style.display = "block";
     fileSelect.innerHTML = "";
-    files.forEach(({ name, updated, size, path }: any) => {
+    files.forEach(({ name, updated, size, path }) => {
       const sizeMB = `${rn(size / 1024 / 1024, 2)} MB`;
       const updatedOn = new Date(updated).toLocaleDateString();
       const nameFormatted = `${updatedOn}: ${name} [${sizeMB}]`;
@@ -892,8 +897,8 @@ async function showLoadPane(): Promise<void> {
 }
 
 async function connectToDropbox(): Promise<void> {
-  await (Cloud as any).providers.dropbox.initialize();
-  if ((Cloud as any).providers.dropbox.api) showLoadPane();
+  await Cloud.providers.dropbox.initialize();
+  if (Cloud.providers.dropbox.api) showLoadPane();
 }
 
 function loadURL(): void {
@@ -947,7 +952,7 @@ function openExportToPngTiles(): void {
     title: "Download tiles",
     width: "23em",
     buttons: {
-      Download: () => (window as any).exportToPngTiles(),
+      Download: () => exportToPngTiles(),
       Cancel: function (this: Element) {
         $(this).dialog("close");
       }
@@ -1163,7 +1168,7 @@ function toggle3dOptions(): void {
     const { sun, sunColor, lightness } = ThreeD.options;
 
     let matchingPreset = "custom";
-    for (const [name, preset] of Object.entries(ThreeD.timeOfDayPresets) as [string, any][]) {
+    for (const [name, preset] of Object.entries(ThreeD.timeOfDayPresets)) {
       if (
         preset.sun.x === sun.x &&
         preset.sun.y === sun.y &&
@@ -1285,7 +1290,7 @@ window.exportToJson = exportToJson;
 window.connectToDropbox = connectToDropbox;
 window.loadURL = loadURL;
 window.openExportToPngTiles = openExportToPngTiles;
-window.updateTilesOptions = updateTilesOptions as any;
+window.updateTilesOptions = updateTilesOptions;
 window.enterStandardView = enterStandardView;
 window.enter3dView = enter3dView;
 window.toggle3dOptions = toggle3dOptions;

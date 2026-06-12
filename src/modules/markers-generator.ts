@@ -7,7 +7,7 @@ declare global {
   var Markers: MarkersModule;
 }
 
-type MarkerConfig = {
+export type MarkerConfig = {
   type: string;
   icon: string;
   dx?: number;
@@ -83,7 +83,7 @@ class MarkersModule {
     const base = this.config.find(c => c.type === marker.type);
     if (base) {
       const { icon, type, dx, dy, px } = base;
-      marker = this.addMarker({ icon, type, dx, dy, px }, marker);
+      marker = this.addMarker({ icon, type, dx, dy, px }, marker)!;
       base.add(`marker${marker.i}`, marker.cell);
       return marker;
     }
@@ -486,22 +486,22 @@ class MarkersModule {
     TIME && console.timeEnd("addMarkers");
   }
 
-  private getQuantity(array: any[], min: number, each: number, multiplier: number) {
+  private getQuantity(array: number[], min: number, each: number, multiplier: number) {
     if (!array.length || array.length < min / multiplier) return 0;
     const requestQty = Math.ceil((array.length / each) * multiplier);
     return array.length < requestQty ? array.length : requestQty;
   }
 
-  private extractAnyElement(array: any[]) {
+  private extractAnyElement(array: number[]) {
     const index = Math.floor(Math.random() * array.length);
     return array.splice(index, 1);
   }
 
-  private addMarker(base: any, marker: any) {
-    if (marker.cell === undefined) return;
+  private addMarker(base: Partial<Marker>, partialMarker: Partial<Marker>): Marker | undefined {
+    if (partialMarker.cell === undefined) return;
     const i = last(pack.markers)?.i + 1 || 0;
-    const [x, y] = this.getMarkerCoordinates(marker.cell);
-    marker = { ...base, x, y, ...marker, i };
+    const [x, y] = this.getMarkerCoordinates(partialMarker.cell);
+    const marker = { ...base, x, y, ...partialMarker, i } as Marker;
     pack.markers.push(marker);
     this.occupied[marker.cell] = true;
     return marker;

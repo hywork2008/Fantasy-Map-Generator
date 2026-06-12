@@ -241,7 +241,7 @@ const quantizationMap: Record<
 
 const plotTypeMap: Record<
   string,
-  { offset: (series: any[], order: Iterable<number>) => void; formatX?: (value: number) => string }
+  { offset: (series: d3.Series<unknown, string>[], order: number[]) => void; formatX?: (value: number) => string }
 > = {
   stackedBar: { offset: d3.stackOffsetDiverging },
   normalizedStackedBar: { offset: d3.stackOffsetExpand, formatX: value => `${rn(value * 100)}%` }
@@ -448,7 +448,7 @@ function createStackedBarChart(
   }: {
     colors: Record<string, string>;
     tooltip: (name: string, group: string, value: number, percentage: number) => string[];
-    offset: (series: d3.Series<unknown, string>, order: number[]) => void;
+    offset: (series: d3.Series<unknown, string>[], order: number[]) => void;
     formatX: (value: number) => string | number;
   }
 ): SVGElement {
@@ -471,27 +471,27 @@ function createStackedBarChart(
   const height = yDomain.size * 25 + margin.top + margin.bottom;
   const yRange: [number, number] = [height - margin.bottom, margin.top];
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const rolled = (rollups as any)(...[I, ([i]: number[]) => i, (i: number) => Y[i], (i: number) => Z[i]]);
+  const rolled = d3.rollups(
+    I,
+    ([i]: number[]) => i,
+    (i: number) => Y[i],
+    (i: number) => Z[i]
+  ) as unknown as [string, Map<string, number[]>][];
 
   const series = d3
     .stack<[string, Map<string, number[]>]>()
     .keys(groupsArr)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .value(([, I]: any, z: string) => X[new Map(I).get(z) as number])
+    .value(([, I], z) => X[new Map(I as unknown as [string, number][]).get(z)!])
     .order(d3.stackOrderNone)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .offset(offset as any)(rolled)
+    .offset(offset)(rolled)
     .map(s => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const defined = (s as any[]).filter((d: any) => !Number.isNaN(d[1]));
+      const defined = s.filter(d => !Number.isNaN(d[1]));
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const data = defined.map((d: any) => Object.assign(d, { i: new Map(d.data[1]).get(s.key) }));
       return { key: s.key, data };
     });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const xDomain = d3.extent((series as any[]).map((d: any) => d.data).flat(2)) as [number, number];
+  const xDomain = d3.extent(series.flatMap(d => d.data as number[])) as [number, number];
 
   const xScale = d3.scaleLinear(xDomain, xRange);
   const yScale = d3.scaleBand(entities, yRange).paddingInner(Y_PADDING);
@@ -527,34 +527,29 @@ function createStackedBarChart(
     .selectAll("g")
     .data(series)
     .join("g")
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .attr("fill", (d: any) => colors[d.key])
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .attr("fill", d => colors[d.key])
     .selectAll("rect")
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .data((d: any) => d.data.filter(([x1, x2]: number[]) => x1 !== x2))
+    .data(d => d.data.filter(([x1, x2]: number[]) => x1 !== x2))
     .join("rect")
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .attr("x", ([x1, x2]: any) => Math.min(xScale(x1), xScale(x2)))
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .attr("y", ({ i }: any) => yScale(Y[i]) ?? 0)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .attr("width", ([x1, x2]: any) => Math.abs(xScale(x1) - xScale(x2)))
+    .attr("x", ([x1, x2]) => Math.min(xScale(x1), xScale(x2)))
+    .attr("y", ({ i }) => yScale(Y[i]) ?? 0)
+    .attr("width", ([x1, x2]) => Math.abs(xScale(x1) - xScale(x2)))
     .attr("height", yScale.bandwidth());
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const totalZ = Object.fromEntries(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (rollups as any)(...[I, ([i]: number[]) => i, (i: number) => Y[i], (i: number) => X[i]]).map(([y, yz]: any) => [
-      y,
-      d3.sum(yz, (yz: any) => yz[0])
-    ])
+    d3
+      .rollups(
+        I,
+        ([i]: number[]) => i,
+        (i: number) => Y[i],
+        (i: number) => X[i]
+      )
+      .map(([y, yz]) => [y, d3.sum(yz, ([, val]) => val)])
   );
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const getTooltip = ({ i }: any) => tooltip(Y[i], Z[i], X[i], X[i] / totalZ[Y[i]]);
+  const getTooltip = ({ i }: { i: number }) => tooltip(Y[i], Z[i], X[i], X[i] / totalZ[Y[i]]);
 
-  bar.append("title").text((d: unknown) => getTooltip(d).join("\r\n"));
-  bar.on("mouseover", (d: unknown) => tip(getTooltip(d).join(". ")));
+  bar.append("title").text(d => getTooltip(d).join("\r\n"));
+  bar.on("mouseover", d => tip(getTooltip(d).join(". ")));
 
   svgNode
     .append("g")
@@ -666,17 +661,20 @@ function calculateLegendRows(groups: string[], availableWidth: number): number {
   return Math.ceil(groups.length / maxInRow);
 }
 
+type PackNamedEntity = Array<{ name?: string; color?: string }>;
+
+function packAsNamedEntityMap() {
+  return worldContext.pack as unknown as Record<string, PackNamedEntity>;
+}
+
 function nameGetter(entity: string) {
-  return (i: string | number): string => (worldContext.pack as any)[entity][i]?.name || EMPTY_NAME;
+  return (i: string | number): string => packAsNamedEntityMap()[entity]?.[+i]?.name || EMPTY_NAME;
 }
 
 function colorsGetter(entity: string) {
   return (): Record<string, string> =>
     Object.fromEntries(
-      (worldContext.pack as any)[entity].map(({ name, color }: { name: string; color: string }) => [
-        name || EMPTY_NAME,
-        color || NEUTRAL_COLOR
-      ])
+      packAsNamedEntityMap()[entity].map(({ name, color }) => [name || EMPTY_NAME, color || NEUTRAL_COLOR])
     );
 }
 
@@ -693,7 +691,7 @@ function biomeColorsGetter(): Record<string, string> {
 function getUrbanPopulation(cellId: number): number {
   const burgId = worldContext.pack.cells.burg[cellId];
   if (!burgId) return 0;
-  const populationPoints = (worldContext.pack.burgs[burgId] as any)?.population ?? 0;
+  const populationPoints = worldContext.pack.burgs[burgId]?.population ?? 0;
   return populationPoints * worldContext.populationRate * worldContext.urbanization;
 }
 
@@ -730,8 +728,6 @@ function sortData(data: ChartDataPoint[], sorting: string): ChartDataPoint[] {
 declare global {
   var convertTemperature: (temp: number, scale?: string) => string;
   var getPrecipitation: (prec: number) => string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  var rollups: (...args: any[]) => any;
   var isWater: (i: number) => boolean;
   var capitalize: (str: string) => string;
 }

@@ -16,6 +16,10 @@ export interface MilitaryUnit {
   power: number;
   type: string;
   separate: number;
+  biomes?: number[];
+  states?: number[];
+  cultures?: number[];
+  religions?: number[];
 }
 
 export interface MilitaryRegiment {
@@ -249,7 +253,7 @@ class MilitaryModule {
       return "generic";
     };
 
-    function passUnitLimits(unit: any, biome: number, state: number, culture: number, religion: number) {
+    function passUnitLimits(unit: MilitaryUnit, biome: number, state: number, culture: number, religion: number) {
       if (unit.biomes && !unit.biomes.includes(biome)) return false;
       if (unit.states && !unit.states.includes(state)) return false;
       if (unit.cultures && !unit.cultures.includes(culture)) return false;
@@ -385,11 +389,9 @@ class MilitaryModule {
         d => d.y
       );
 
+      type MergeNode = { s: number; u: string; t: number; children?: MergeNode[] };
       // add n0 to n1's ultimate parent
-      const merge = (
-        n0: { s: number; u: string; t: number; children?: any[] },
-        n1: { s: number; u: string; t: number; children?: any[] }
-      ) => {
+      const merge = (n0: MergeNode, n1: MergeNode) => {
         if (!n1.children) n1.children = [n0];
         else n1.children.push(n0);
         if (n0.children)

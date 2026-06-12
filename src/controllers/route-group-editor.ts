@@ -26,16 +26,19 @@ function editRouteGroups(): void {
   function addLines(): void {
     ensureEl("routeGroupsEditorBody").innerHTML = "";
 
-    const lines = Array.from((routes.selectAll("g") as any)._groups[0] as SVGGElement[]).map(el => {
-      const count = el.children.length;
-      return /* html */ `<div data-id="${el.id}" class="states" style="display: flex; justify-content: space-between;">
+    const lines = routes
+      .selectAll<SVGGElement, unknown>("g")
+      .nodes()
+      .map(el => {
+        const count = el.children.length;
+        return /* html */ `<div data-id="${el.id}" class="states" style="display: flex; justify-content: space-between;">
           <span>${el.id} (${count})</span>
           <div style="width: auto; display: flex; gap: 0.4em;">
             <span data-tip="Edit style" class="editStyle icon-brush pointer" style="font-size: smaller;"></span>
             <span data-tip="Remove group" class="removeGroup icon-trash pointer"></span>
           </div>
         </div>`;
-    });
+      });
 
     ensureEl("routeGroupsEditorBody").innerHTML = lines.join("");
   }

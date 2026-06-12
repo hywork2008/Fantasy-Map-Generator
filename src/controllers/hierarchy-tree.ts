@@ -27,9 +27,8 @@ insertHtml();
 
 const MARGINS = { top: 10, right: 10, bottom: -5, left: 10 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const handleZoom = (event: any) => viewboxEl.attr("transform", event.transform);
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const handleZoom = (event: d3.D3ZoomEvent<SVGSVGElement, unknown>) =>
+  viewboxEl.attr("transform", event.transform.toString());
 const zoom = d3.zoom<SVGSVGElement, unknown>().scaleExtent([0.2, 1.5]).on("zoom", handleZoom);
 
 let oldRoot: d3.HierarchyPointNode<HierarchyElement> | null = null;
@@ -43,10 +42,8 @@ const dragLine = viewboxEl.select<SVGPathElement>("path#hierarchyTree_dragLine")
 
 let dataElements: HierarchyElement[] = [];
 let validElements: HierarchyElement[] = [];
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let onNodeEnter: (d: any) => void = () => {};
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let onNodeLeave: (d: any) => void = () => {};
+let onNodeEnter: (d: d3.HierarchyPointNode<HierarchyElement>) => void = () => {};
+let onNodeLeave: (d: d3.HierarchyPointNode<HierarchyElement>) => void = () => {};
 let getDescription: (element: HierarchyElement) => string = () => "";
 let getShape: (element: HierarchyElement) => string | undefined = () => undefined;
 
@@ -221,36 +218,33 @@ const getSortIndex = (node: d3.HierarchyPointNode<HierarchyElement>): number => 
 function renderTree(root: d3.HierarchyPointNode<HierarchyElement>, treeLayout: d3.TreeLayout<HierarchyElement>): void {
   treeLayout(root.sort((a, b) => getSortIndex(a) - getSortIndex(b)));
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   primaryLinks
-    .selectAll("path")
-    .data(root.links(), getLinkKey as any)
+    .selectAll<SVGPathElement, d3.HierarchyPointLink<HierarchyElement>>("path")
+    .data(root.links(), getLinkKey)
     .join("path")
-    .attr("d", getLinkPath as any);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .attr("d", getLinkPath);
   secondaryLinks
-    .selectAll("path")
-    .data(getSecondaryLinks(root), getLinkKey as any)
+    .selectAll<SVGPathElement, d3.HierarchyPointLink<HierarchyElement>>("path")
+    .data(getSecondaryLinks(root), getLinkKey)
     .join("path")
-    .attr("d", getLinkPath as any);
+    .attr("d", getLinkPath);
 
   const node = nodesEl
-    .selectAll("g")
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .data(root.descendants(), getNodeKey as any)
+    .selectAll<SVGGElement, d3.HierarchyPointNode<HierarchyElement>>("g")
+    .data(root.descendants(), getNodeKey)
     .join("g")
     .attr("data-id", d => d.data.i)
     .attr("stroke", "#333")
     .attr("transform", d => `translate(${d.x}, ${d.y})`)
-    .on("mouseenter", handleNoteEnter as any)
-    .on("mouseleave", handleNodeExit as any)
-    .on("click", selectElement as any)
+    .on("mouseenter", handleNoteEnter)
+    .on("mouseleave", handleNodeExit)
+    .on("click", selectElement)
     .call(
       d3
         .drag<SVGGElement, d3.HierarchyPointNode<HierarchyElement>>()
         .on("start", dragToReoriginStart)
         .on("drag", dragToReoriginDrag)
-        .on("end", dragToReoriginEnd) as any
+        .on("end", dragToReoriginEnd)
     );
 
   node
@@ -296,29 +290,30 @@ function updateTree(): void {
   const linksUpdateDuration = 50;
   const moveDuration = 1000;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const linkEnter = (enter: any) =>
+  type LinkDatum = d3.HierarchyPointLink<HierarchyElement>;
+  type LinkSel = d3.Selection<SVGPathElement, LinkDatum, SVGGElement, unknown>;
+
+  const linkEnter = (enter: d3.Selection<d3.EnterElement, LinkDatum, SVGGElement, unknown>): LinkSel =>
     enter
       .append("path")
       .attr("d", getLinkPath)
       .attr("opacity", 0)
-      .call((e: any) => e.transition().duration(linksUpdateDuration).attr("opacity", 1));
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const linkUpdate = (update: any) =>
-    update.call((u: any) => u.transition().duration(linksUpdateDuration).attr("d", getLinkPath));
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const linkExit = (exit: any) =>
-    exit.call((e: any) => e.transition().duration(linksUpdateDuration).attr("opacity", 0).remove());
+      .call((e: LinkSel) => e.transition().duration(linksUpdateDuration).attr("opacity", 1));
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const linkUpdate = (update: LinkSel): LinkSel =>
+    update.call((u: LinkSel) => u.transition().duration(linksUpdateDuration).attr("d", getLinkPath));
+
+  const linkExit = (exit: LinkSel): void => {
+    exit.call((e: LinkSel) => e.transition().duration(linksUpdateDuration).attr("opacity", 0).remove());
+  };
+
   primaryLinks
-    .selectAll("path")
-    .data(root.links(), getLinkKey as any)
+    .selectAll<SVGPathElement, d3.HierarchyPointLink<HierarchyElement>>("path")
+    .data(root.links(), getLinkKey)
     .join(linkEnter, linkUpdate, linkExit);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   secondaryLinks
-    .selectAll("path")
-    .data(getSecondaryLinks(root), getLinkKey as any)
+    .selectAll<SVGPathElement, d3.HierarchyPointLink<HierarchyElement>>("path")
+    .data(getSecondaryLinks(root), getLinkKey)
     .join(linkEnter, linkUpdate, linkExit);
 
   const treeWidth = root.leaves().length * 50;
@@ -328,34 +323,31 @@ function updateTree(): void {
   const treeLayout = d3.tree<HierarchyElement>().size([w, h]);
   treeLayout(root.sort((a, b) => getSortIndex(a) - getSortIndex(b)));
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (primaryLinks.selectAll("path").data(root.links(), getLinkKey as any) as any)
+  primaryLinks
+    .selectAll<SVGPathElement, d3.HierarchyPointLink<HierarchyElement>>("path")
+    .data(root.links(), getLinkKey)
     .transition()
     .duration(moveDuration)
     .delay(linksUpdateDuration)
     .attr("d", getLinkPath);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (secondaryLinks.selectAll("path").data(getSecondaryLinks(root), getLinkKey as any) as any)
+  secondaryLinks
+    .selectAll<SVGPathElement, d3.HierarchyPointLink<HierarchyElement>>("path")
+    .data(getSecondaryLinks(root), getLinkKey)
     .transition()
     .duration(moveDuration)
     .delay(linksUpdateDuration)
     .attr("d", getLinkPath);
 
   nodesEl
-    .selectAll("g")
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .data(root.descendants(), getNodeKey as any)
+    .selectAll<SVGGElement, d3.HierarchyPointNode<HierarchyElement>>("g")
+    .data(root.descendants(), getNodeKey)
     .transition()
     .delay(linksUpdateDuration)
     .duration(moveDuration)
-    .attr(
-      "transform",
-      d =>
-        `translate(${(d as d3.HierarchyPointNode<HierarchyElement>).x},${(d as d3.HierarchyPointNode<HierarchyElement>).y})`
-    );
+    .attr("transform", d => `translate(${d.x},${d.y})`);
 }
 
-function selectElement(this: SVGGElement, d: d3.HierarchyPointNode<HierarchyElement>): void {
+function selectElement(this: SVGGElement, _event: MouseEvent, d: d3.HierarchyPointNode<HierarchyElement>): void {
   const dataElement = d.data;
   if (d.id === "0") return;
 
@@ -368,7 +360,7 @@ function selectElement(this: SVGGElement, d: d3.HierarchyPointNode<HierarchyElem
   (ensureEl("hierarchyTree_selectedName") as HTMLElement).innerText = dataElement.name;
   (ensureEl("hierarchyTree_selectedCode") as HTMLInputElement).value = dataElement.code ?? "";
 
-  (ensureEl("hierarchyTree_selectedCode") as HTMLInputElement).onchange = function (this: GlobalEventHandlers): any {
+  (ensureEl("hierarchyTree_selectedCode") as HTMLInputElement).onchange = function (this: GlobalEventHandlers): void {
     const input = this as unknown as HTMLInputElement;
     if (input.value.length > 3) return void tip("Abbreviation must be 3 characters or less", false, "error", 3000);
     if (!input.value.length) return void tip("Abbreviation cannot be empty", false, "error", 3000);
@@ -455,7 +447,7 @@ function selectElement(this: SVGGElement, d: d3.HierarchyPointNode<HierarchyElem
   };
 }
 
-function handleNoteEnter(this: SVGGElement, d: d3.HierarchyPointNode<HierarchyElement>): void {
+function handleNoteEnter(this: SVGGElement, _event: MouseEvent, d: d3.HierarchyPointNode<HierarchyElement>): void {
   if (d.depth === 0) return;
   this.classList.add("selected");
   onNodeEnter(d);
@@ -463,7 +455,7 @@ function handleNoteEnter(this: SVGGElement, d: d3.HierarchyPointNode<HierarchyEl
   tip("Drag to other node to add parent, click to edit");
 }
 
-function handleNodeExit(this: SVGGElement, d: d3.HierarchyPointNode<HierarchyElement>): void {
+function handleNodeExit(this: SVGGElement, _event: MouseEvent, d: d3.HierarchyPointNode<HierarchyElement>): void {
   this.classList.remove("selected");
   onNodeLeave(d);
   ensureEl("hierarchyTree_infoLine").innerHTML = "&#8205;";
@@ -472,13 +464,20 @@ function handleNodeExit(this: SVGGElement, d: d3.HierarchyPointNode<HierarchyEle
 
 let _reoriginFrom: d3.HierarchyPointNode<HierarchyElement> | null = null;
 
-function dragToReoriginStart(this: SVGGElement, _event: any, from: d3.HierarchyPointNode<HierarchyElement>): void {
+function dragToReoriginStart(
+  this: SVGGElement,
+  _event: d3.D3DragEvent<SVGGElement, d3.HierarchyPointNode<HierarchyElement>, d3.HierarchyPointNode<HierarchyElement>>,
+  from: d3.HierarchyPointNode<HierarchyElement>
+): void {
   if (from.id === "0") return;
   _reoriginFrom = from;
   dragLine.attr("d", `M${from.x},${from.y}L${from.x},${from.y}`);
 }
 
-function dragToReoriginDrag(event: any): void {
+function dragToReoriginDrag(
+  this: SVGGElement,
+  event: d3.D3DragEvent<SVGGElement, d3.HierarchyPointNode<HierarchyElement>, d3.HierarchyPointNode<HierarchyElement>>
+): void {
   if (!_reoriginFrom) return;
   dragLine.attr("d", `M${_reoriginFrom.x},${_reoriginFrom.y}L${event.x},${event.y}`);
 }
@@ -504,6 +503,6 @@ function dragToReoriginEnd(this: SVGGElement): void {
   if (element.origins[0] === 0) element.origins = [];
   element.origins.push(newOrigin);
 
-  selectElement.call(this, from);
+  selectElement.call(this, new MouseEvent("click"), from);
   updateTree();
 }

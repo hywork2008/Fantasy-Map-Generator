@@ -1,6 +1,11 @@
+import type * as d3 from "d3";
 import { drag } from "d3";
+import type { Burg } from "../modules/burgs-generator";
+import type { Province } from "../modules/provinces-generator";
+import type { State } from "../modules/states-generator";
 import { openURL, rn } from "../utils";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function editEmblem(type?: string, id?: string, el?: any): void {
   if (customization) return;
   if (!id && el) defineEmblemData(el);
@@ -11,15 +16,15 @@ function editEmblem(type?: string, id?: string, el?: any): void {
     .selectAll<SVGUseElement, unknown>("use")
     .call(
       drag<SVGUseElement, unknown>()
-        .on("start", function (this: SVGUseElement, event: any) {
+        .on("start", function (this: SVGUseElement, event: d3.D3DragEvent<SVGUseElement, unknown, unknown>) {
           _ex = Number(this.getAttribute("x")) - event.x;
           _ey = Number(this.getAttribute("y")) - event.y;
         })
-        .on("drag", function (this: SVGUseElement, event: any) {
+        .on("drag", function (this: SVGUseElement, event: d3.D3DragEvent<SVGUseElement, unknown, unknown>) {
           this.setAttribute("x", String(_ex + event.x));
           this.setAttribute("y", String(_ey + event.y));
         })
-        .on("end", function (this: SVGUseElement, event: any) {
+        .on("end", function (this: SVGUseElement, event: d3.D3DragEvent<SVGUseElement, unknown, unknown>) {
           const categorySize = Number(this.parentNode ? (this.parentNode as SVGGElement).getAttribute("font-size") : 1);
           const size = el?.coa?.size || 1;
           const shift = (categorySize * size) / 2;
@@ -84,6 +89,7 @@ function editEmblem(type?: string, id?: string, el?: any): void {
     el = g[i];
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function updateElementSelectors(typeVal: string, idVal: string, elVal: any): void {
     let state = 0;
     let province = 0;
@@ -105,30 +111,28 @@ function editEmblem(type?: string, id?: string, el?: any): void {
       state = elVal.state;
     }
 
-    const validBurgs = pack.burgs.filter((b: any) => b.i && !b.removed && b.coa);
+    const validBurgs = pack.burgs.filter(b => b.i && !b.removed && b.coa);
 
     // update option list and select actual values
     emblemStates.options.length = 0;
-    const neutralBurgs = validBurgs.filter((b: any) => !b.state);
+    const neutralBurgs = validBurgs.filter(b => !b.state);
     if (neutralBurgs.length) emblemStates.options.add(new Option(pack.states[0].name, "0", false, !state));
-    const stateList = pack.states.filter((s: any) => s.i && !s.removed);
-    stateList.forEach((s: any) => {
-      emblemStates.options.add(new Option(s.name, String(s.i), false, s.i === state));
+    const stateList = (pack.states as State[]).filter(s => s.i && !s.removed);
+    stateList.forEach(s => {
+      emblemStates.options.add(new Option(s.name ?? "", String(s.i), false, s.i === state));
     });
 
     emblemProvinces.options.length = 0;
     emblemProvinces.options.add(new Option("", "0", false, !province));
-    const provinceList = pack.provinces.filter((p: any) => !p.removed && p.state === state);
-    provinceList.forEach((p: any) => {
+    const provinceList = (pack.provinces as Province[]).filter(p => !p.removed && p.state === state);
+    provinceList.forEach(p => {
       emblemProvinces.options.add(new Option(p.name, String(p.i), false, p.i === province));
     });
 
     emblemBurgs.options.length = 0;
     emblemBurgs.options.add(new Option("", "0", false, !burg));
-    const burgList = validBurgs.filter((b: any) =>
-      province ? pack.cells.province[b.cell] === province : b.state === state
-    );
-    burgList.forEach((b: any) => {
+    const burgList = validBurgs.filter(b => (province ? pack.cells.province[b.cell] === province : b.state === state));
+    burgList.forEach(b => {
       emblemBurgs.options.add(new Option(b.capital ? `👑 ${b.name}` : b.name, String(b.i), false, b.i === burg));
     });
     emblemBurgs.options[0].disabled = true;
@@ -137,6 +141,7 @@ function editEmblem(type?: string, id?: string, el?: any): void {
     updateEmblemData(typeVal, idVal, elVal);
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function updateEmblemData(typeVal: string, idVal: string, elVal: any): void {
     if (!elVal.coa) return;
     document.getElementById("emblemImage")!.setAttribute("href", `#${idVal}`);
@@ -162,7 +167,7 @@ function editEmblem(type?: string, id?: string, el?: any): void {
       el = pack.states[stateId];
       id = `stateCOA${stateId}`;
     } else {
-      const neutralBurgs = pack.burgs.filter((b: any) => b.i && !b.removed && !b.state);
+      const neutralBurgs = pack.burgs.filter(b => b.i && !b.removed && !b.state);
       if (!neutralBurgs.length) return;
       type = "burg";
       el = neutralBurgs[0];
@@ -234,14 +239,14 @@ function editEmblem(type?: string, id?: string, el?: any): void {
   }
 
   function regenerate(): void {
-    let parent: any = null;
-    if (type === "province") parent = pack.states[el.state];
+    let parent: Province | State | null = null;
+    if (type === "province") parent = pack.states[el.state] as State;
     else if (type === "burg") {
       const province = pack.cells.province[el.cell];
-      parent = province ? pack.provinces[province] : pack.states[el.state];
+      parent = province ? (pack.provinces[province] as Province) : (pack.states[el.state] as State);
     }
 
-    const shield = el.coa.shield || COA.getShield(el.culture || parent?.culture || 0, el.state);
+    const shield = el.coa.shield || COA.getShield(el.culture || (parent as any)?.culture || 0, el.state);
     el.coa = COA.generate(parent ? parent.coa : null, 0.3, 0.1, undefined);
     el.coa.shield = shield;
     emblemShapeSelector.disabled = false;
@@ -316,7 +321,7 @@ function editEmblem(type?: string, id?: string, el?: any): void {
 
       if (oldEmblem) oldEmblem.remove();
 
-      const customCoa: any = { custom: true };
+      const customCoa: { custom: boolean; size?: number; x?: number; y?: number } = { custom: true };
       if (el.coa.size) customCoa.size = el.coa.size;
       if (el.coa.x) customCoa.x = el.coa.x;
       if (el.coa.y) customCoa.y = el.coa.y;
@@ -390,9 +395,9 @@ function editEmblem(type?: string, id?: string, el?: any): void {
 
   async function downloadGallery(): Promise<void> {
     const name = getFileName("Emblems Gallery");
-    const validStates = pack.states.filter((s: any) => s.i && !s.removed && s.coa);
-    const validProvinces = pack.provinces.filter((p: any) => p.i && !p.removed && p.coa);
-    const validBurgs = pack.burgs.filter((b: any) => b.i && !b.removed && b.coa);
+    const validStates = (pack.states as State[]).filter(s => s.i && !s.removed && s.coa);
+    const validProvinces = (pack.provinces as Province[]).filter(p => p.i && !p.removed && p.coa);
+    const validBurgs = pack.burgs.filter(b => b.i && !b.removed && b.coa);
     await renderAllEmblems(validStates, validProvinces, validBurgs);
     runDownload();
 
@@ -402,7 +407,7 @@ function editEmblem(type?: string, id?: string, el?: any): void {
       const stateSection =
         `<div><h2>States</h2>` +
         validStates
-          .map((state: any) => {
+          .map(state => {
             const stateEl = document.getElementById(`stateCOA${state.i}`) as unknown as SVGElement;
             return `<figure id="state_${state.i}"><a href="#provinces_${state.i}"><figcaption>${
               state.fullName
@@ -412,10 +417,10 @@ function editEmblem(type?: string, id?: string, el?: any): void {
         `</div>`;
 
       const provinceSections = validStates
-        .map((state: any) => {
-          const stateProvinces = validProvinces.filter((p: any) => p.state === state.i);
+        .map(state => {
+          const stateProvinces = validProvinces.filter(p => p.state === state.i);
           const figures = stateProvinces
-            .map((province: any) => {
+            .map(province => {
               const provEl = document.getElementById(`provinceCOA${province.i}`) as unknown as SVGElement;
               return `<figure id="province_${province.i}"><a href="#burgs_${province.i}"><figcaption>${
                 province.fullName
@@ -429,14 +434,14 @@ function editEmblem(type?: string, id?: string, el?: any): void {
         .join("");
 
       const burgSections = validStates
-        .map((state: any) => {
-          const stateBurgs = validBurgs.filter((b: any) => b.state === state.i);
+        .map(state => {
+          const stateBurgs = validBurgs.filter(b => b.state === state.i);
           let stateBurgSections = validProvinces
-            .filter((p: any) => p.state === state.i)
-            .map((province: any) => {
-              const provinceBurgs = stateBurgs.filter((b: any) => pack.cells.province[b.cell] === province.i);
+            .filter(p => p.state === state.i)
+            .map(province => {
+              const provinceBurgs = stateBurgs.filter(b => pack.cells.province[b.cell] === province.i);
               const provinceBurgFigures = provinceBurgs
-                .map((burg: any) => {
+                .map(burg => {
                   const burgEl = document.getElementById(`burgCOA${burg.i}`) as unknown as SVGElement;
                   return `<figure id="burg_${burg.i}"><figcaption>${burg.name}</figcaption>${getSVG(burgEl, 200)}</figure>`;
                 })
@@ -447,9 +452,9 @@ function editEmblem(type?: string, id?: string, el?: any): void {
             })
             .join("");
 
-          const stateBurgOutOfProvinces = stateBurgs.filter((b: any) => !pack.cells.province[b.cell]);
+          const stateBurgOutOfProvinces = stateBurgs.filter(b => !pack.cells.province[b.cell]);
           const stateBurgOutOfProvincesFigures = stateBurgOutOfProvinces
-            .map((burg: any) => {
+            .map(burg => {
               const burgEl = document.getElementById(`burgCOA${burg.i}`) as unknown as SVGElement;
               return `<figure id="burg_${burg.i}"><figcaption>${burg.name}</figcaption>${getSVG(burgEl, 200)}</figure>`;
             })
@@ -460,11 +465,11 @@ function editEmblem(type?: string, id?: string, el?: any): void {
         })
         .join("");
 
-      const neutralBurgs = validBurgs.filter((b: any) => !b.state);
+      const neutralBurgs = validBurgs.filter(b => !b.state);
       const neutralsSection = neutralBurgs.length
         ? "<div><h2>Independent burgs</h2>" +
           neutralBurgs
-            .map((burg: any) => {
+            .map(burg => {
               const burgEl = document.getElementById(`burgCOA${burg.i}`) as unknown as SVGElement;
               return `<figure id="burg_${burg.i}"><figcaption>${burg.name}</figcaption>${getSVG(burgEl, 200)}</figure>`;
             })
@@ -502,14 +507,12 @@ function editEmblem(type?: string, id?: string, el?: any): void {
     }
   }
 
-  async function renderAllEmblems(states: any[], provinces: any[], burgs: any[]): Promise<void> {
+  async function renderAllEmblems(states: State[], provinces: Province[], burgs: Burg[]): Promise<void> {
     tip("Preparing for download...", true, "warn");
 
-    const statePromises = states.map((state: any) => COArenderer.trigger(`stateCOA${state.i}`, state.coa));
-    const provincePromises = provinces.map((province: any) =>
-      COArenderer.trigger(`provinceCOA${province.i}`, province.coa)
-    );
-    const burgPromises = burgs.map((burg: any) => COArenderer.trigger(`burgCOA${burg.i}`, burg.coa));
+    const statePromises = states.map(state => COArenderer.trigger(`stateCOA${state.i}`, state.coa));
+    const provincePromises = provinces.map(province => COArenderer.trigger(`provinceCOA${province.i}`, province.coa));
+    const burgPromises = burgs.map(burg => COArenderer.trigger(`burgCOA${burg.i}`, burg.coa));
     const promises = [...statePromises, ...provincePromises, ...burgPromises];
 
     return Promise.allSettled(promises).then(() => clearMainTip());

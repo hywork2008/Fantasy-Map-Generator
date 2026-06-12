@@ -1,4 +1,5 @@
 import * as d3 from "d3";
+import type { PackedGraphFeature } from "../modules/features";
 import { debounce, ensureEl, getComposedPath, link, rn, si } from "./index";
 
 // ─── Resize handler ───────────────────────────────────────────────────────────
@@ -78,8 +79,7 @@ function showElementLockTip(event: MouseEvent): void {
 
 // ─── Mouse move handler ───────────────────────────────────────────────────────
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const onMouseMove = debounce(handleMouseMove as (...args: any[]) => void, 100);
+const onMouseMove = debounce(handleMouseMove as (event: MouseEvent) => void, 100);
 
 function handleMouseMove(this: Element, event: MouseEvent): void {
   const point = d3.pointer(event, this) as [number, number];
@@ -96,7 +96,7 @@ function handleMouseMove(this: Element, event: MouseEvent): void {
 let currentNoteId: string | null = null;
 
 function showNotes(e: MouseEvent): void {
-  if ((window as any).notesEditor?.offsetParent) return;
+  if (window.notesEditor?.offsetParent) return;
   const target = e.target as HTMLElement;
   let id = target.id || (target.parentNode as HTMLElement)?.id || (target.parentNode?.parentNode as HTMLElement)?.id;
   if ((target.parentNode?.parentNode as HTMLElement)?.id === "burgLabels") id = `burg${target.dataset.id}`;
@@ -110,11 +110,7 @@ function showNotes(e: MouseEvent): void {
     document.getElementById("notes")!.style.display = "block";
     document.getElementById("notesHeader")!.innerHTML = note.name;
     document.getElementById("notesBody")!.innerHTML = note.legend;
-  } else if (
-    !options.pinNotes &&
-    !(window as any).markerEditor?.offsetParent &&
-    !(e as KeyboardEvent & MouseEvent).shiftKey
-  ) {
+  } else if (!options.pinNotes && !window.markerEditor?.offsetParent && !(e as KeyboardEvent & MouseEvent).shiftKey) {
     document.getElementById("notes")!.style.display = "none";
     document.getElementById("notesHeader")!.innerHTML = "";
     document.getElementById("notesBody")!.innerHTML = "";
@@ -125,7 +121,7 @@ function showNotes(e: MouseEvent): void {
 function showMapTooltip(point: [number, number], e: MouseEvent, i: number, g: number): void {
   tip("");
   if (!pack?.cells) return;
-  const path = (e as any).composedPath ? (e as any).composedPath() : getComposedPath((e as any).target);
+  const path = e.composedPath ? e.composedPath() : getComposedPath((e.target as Node | null) ?? window);
   if (!path[path.length - 8]) return;
   const group = (path[path.length - 7] as HTMLElement).id;
   const subgroup = (path[path.length - 8] as HTMLElement).id;
@@ -139,14 +135,14 @@ function showMapTooltip(point: [number, number], e: MouseEvent, i: number, g: nu
   if (group === "emblems" && (e.target as SVGElement).tagName === "use") {
     const parent = (e.target as SVGElement).parentElement!;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const [g2, type]: [any[], string] =
+    const [g2, type]: [EmblemEl[], string] =
       parent.id === "burgEmblems"
-        ? [pack.burgs, "burg"]
+        ? [pack.burgs as EmblemEl[], "burg"]
         : parent.id === "provinceEmblems"
-          ? [pack.provinces, "province"]
-          : [pack.states, "state"];
+          ? [pack.provinces as EmblemEl[], "province"]
+          : [pack.states as EmblemEl[], "state"];
     const idx = +(e.target as SVGElement).dataset.i!;
-    if ((e as any).shiftKey) highlightEmblemElement(type, g2[idx]);
+    if (e.shiftKey) highlightEmblemElement(type, g2[idx]);
 
     d3.select(e.target as Element).raise();
     d3.select(parent).raise();
@@ -161,7 +157,7 @@ function showMapTooltip(point: [number, number], e: MouseEvent, i: number, g: nu
     const r = pack.rivers.find(r => r.i === river);
     const name = r ? `${r.name} ${r.type}` : "";
     tip(`${name}. Click to edit`);
-    if ((window as any).riversOverview?.offsetParent) highlightEditorLine((window as any).riversOverview, river, 5000);
+    if (window.riversOverview?.offsetParent) highlightEditorLine(window.riversOverview, river, 5000);
     return;
   }
 
@@ -189,7 +185,7 @@ function showMapTooltip(point: [number, number], e: MouseEvent, i: number, g: nu
       const burg = pack.burgs[burgId];
       const population = si((burg.population ?? 0) * populationRate * urbanization);
       tip(`${burg.name} ${burg.group}. Population: ${population}. Click to edit`);
-      if ((window as any).burgsOverview?.offsetParent) highlightEditorLine((window as any).burgsOverview, burgId, 5000);
+      if (window.burgsOverview?.offsetParent) highlightEditorLine(window.burgsOverview, burgId, 5000);
       return;
     }
   }
@@ -258,7 +254,7 @@ function showMapTooltip(point: [number, number], e: MouseEvent, i: number, g: nu
     const zoneId = +zoneEl.dataset.id!;
     const zone = pack.zones.find(zone => zone.i === zoneId);
     if (zone) tip(zone.name);
-    if ((window as any).zonesEditor?.offsetParent) highlightEditorLine((window as any).zonesEditor, zoneId, 5000);
+    if (window.zonesEditor?.offsetParent) highlightEditorLine(window.zonesEditor, zoneId, 5000);
     return;
   }
 
@@ -273,34 +269,31 @@ function showMapTooltip(point: [number, number], e: MouseEvent, i: number, g: nu
   else if (layerIsOn("toggleBiomes") && pack.cells.biome[i]) {
     const biome = pack.cells.biome[i];
     tip(`Biome: ${biomesData.name[biome]}`);
-    if ((window as any).biomesEditor?.offsetParent) highlightEditorLine((window as any).biomesEditor, biome);
+    if (window.biomesEditor?.offsetParent) highlightEditorLine(window.biomesEditor!, biome);
   } else if (layerIsOn("toggleReligions") && pack.cells.religion[i]) {
     const religion = pack.cells.religion[i];
     const r = pack.religions[religion];
     const type = r.type === "Cult" || r.type === "Heresy" ? r.type : `${r.type} religion`;
     tip(`${type}: ${r.name}`);
     if (document.getElementById("religionsEditor")?.offsetParent)
-      highlightEditorLine((window as any).religionsEditor, religion);
+      highlightEditorLine(window.religionsEditor!, religion);
   } else if (pack.cells.state[i] && (layerIsOn("toggleProvinces") || layerIsOn("toggleStates"))) {
     const state = pack.cells.state[i];
     const stateName = pack.states[state].fullName;
     const province = pack.cells.province[i];
     const prov = province ? `${pack.provinces[province].fullName}, ` : "";
     tip(prov + stateName);
-    if (document.getElementById("statesEditor")?.offsetParent) highlightEditorLine((window as any).statesEditor, state);
-    if (document.getElementById("diplomacyEditor")?.offsetParent)
-      highlightEditorLine((window as any).diplomacyEditor, state);
-    if (document.getElementById("militaryOverview")?.offsetParent)
-      highlightEditorLine((window as any).militaryOverview, state);
+    if (document.getElementById("statesEditor")?.offsetParent) highlightEditorLine(window.statesEditor!, state);
+    if (document.getElementById("diplomacyEditor")?.offsetParent) highlightEditorLine(window.diplomacyEditor!, state);
+    if (document.getElementById("militaryOverview")?.offsetParent) highlightEditorLine(window.militaryOverview!, state);
     if (document.getElementById("provincesEditor")?.offsetParent)
-      highlightEditorLine((window as any).provincesEditor, province);
+      highlightEditorLine(window.provincesEditor!, province);
     if (document.getElementById("mergeStatesForm")?.offsetParent)
       highlightEditorLine(ensureEl("mergeStatesForm") as HTMLElement, state);
   } else if (layerIsOn("toggleCultures") && pack.cells.culture[i]) {
     const culture = pack.cells.culture[i];
     tip(`Culture: ${pack.cultures[culture].name}`);
-    if (document.getElementById("culturesEditor")?.offsetParent)
-      highlightEditorLine((window as any).culturesEditor, culture);
+    if (document.getElementById("culturesEditor")?.offsetParent) highlightEditorLine(window.culturesEditor!, culture);
   } else if (layerIsOn("toggleHeight")) tip(`Height: ${getFriendlyHeight(point)}`);
 }
 
@@ -374,16 +367,14 @@ function toDMS(coord: number, c: "lat" | "lon"): string {
   return `${degrees}°${minutes}′${seconds}″${cardinal}`;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function getElevation(f: any, h: number): string {
+function getElevation(f: PackedGraphFeature, h: number): string {
   if (f.land) return `${getHeight(h)} (${h})`;
   if (f.border) return `0 ${heightUnit.value}`;
   if (f.type === "lake") return `${getHeight(f.height)} (${f.height})`;
   return "";
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function getDepth(f: any, p: [number, number]): string {
+function getDepth(f: PackedGraphFeature, p: [number, number]): string {
   if (f.land) return `0 ${heightUnit.value}`;
 
   const gridH = grid.cells.h[findGridCell(p[0], p[1])];
@@ -448,15 +439,24 @@ function getPopulationTip(i: number): string {
   return `Cell population: ${si(rural + urban)}; Rural: ${si(rural)}; Urban: ${si(urban)}`;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function highlightEmblemElement(type: string, el: any): void {
+interface EmblemEl {
+  i: number;
+  x?: number;
+  y?: number;
+  pole?: [number, number];
+  center?: number;
+  fullName?: string;
+  name?: string;
+}
+
+function highlightEmblemElement(type: string, el: EmblemEl): void {
   const id = el.i;
   const cells = pack.cells;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const animation = d3.transition().duration(1000).ease(d3.easeSinIn);
 
   if (type === "burg") {
-    const { x, y } = el;
+    const { x = 0, y = 0 } = el;
     debug
       .append("circle")
       .attr("cx", x)
@@ -474,7 +474,7 @@ function highlightEmblemElement(type: string, el: any): void {
     return;
   }
 
-  const [x, y] = el.pole || pack.cells.p[el.center];
+  const [x, y] = el.pole || pack.cells.p[el.center!];
   const obj = type === "state" ? cells.state : cells.province;
   const borderCells = cells.i.filter(
     (cellId: number) => obj[cellId] === id && cells.c[cellId].some((n: number) => obj[n] !== id)
@@ -484,8 +484,7 @@ function highlightEmblemElement(type: string, el: any): void {
     .map((cellId: number) => cells.p[cellId])
     .map((pt: [number, number]) => [pt[0], pt[1], Math.hypot(pt[0] - x, pt[1] - y)]);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (debug as any)
+  debug
     .selectAll("line")
     .data(data)
     .enter()
@@ -502,7 +501,7 @@ function highlightEmblemElement(type: string, el: any): void {
     .transition(animation)
     .attr("stroke-dashoffset", 0)
     .attr("opacity", 1)
-    .transition(animation)
+    .transition()
     .delay(1000)
     .attr("stroke-dashoffset", (d: number[]) => d[2])
     .attr("opacity", 0)

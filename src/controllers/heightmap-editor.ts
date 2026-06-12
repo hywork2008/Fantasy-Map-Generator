@@ -1,5 +1,9 @@
 import * as d3 from "d3";
 import { hsl, interpolateRound, lab, max, mean, pointer, range, select } from "d3";
+import type { Burg } from "../modules/burgs-generator";
+import type { Culture } from "../modules/cultures-generator";
+import type { Province } from "../modules/provinces-generator";
+import type { Zone } from "../modules/zones-generator";
 import { ensureEl, generateSeed, minmax, rn } from "../utils";
 
 // ─── Module-level state ───────────────────────────────────────────────────────
@@ -101,8 +105,7 @@ function editHeightmap(options?: { mode?: string; tool?: string }): void {
       exitCustomization.style.bottom = `${svgHeight / 2}px`;
       exitCustomization.style.transform = "scale(2)";
       exitCustomization.style.display = "block";
-      (d3 as any)
-        .select("#exitCustomization")
+      d3.select("#exitCustomization")
         .transition()
         .duration(1000)
         .style("opacity", 1)
@@ -175,7 +178,7 @@ function editHeightmap(options?: { mode?: string; tool?: string }): void {
       return;
     }
 
-    delete (window as any).heightmapHistory;
+    heightmapHistory = undefined;
     redo!.disabled = templateRedo.disabled = true;
     undo!.disabled = templateUndo.disabled = true;
 
@@ -253,7 +256,7 @@ function editHeightmap(options?: { mode?: string; tool?: string }): void {
 
     Biomes.define(state);
     Features.defineGroups();
-    (window as any).rankCells();
+    rankCells();
     Cultures.generate(state);
     Cultures.expand(state);
     Burgs.generate(state);
@@ -291,7 +294,7 @@ function editHeightmap(options?: { mode?: string; tool?: string }): void {
     const l = grid.cells.i.length;
     const biome = new Uint8Array(l);
     const pop = new Uint16Array(l);
-    const routesMap: Record<number, any> = {};
+    const routesMap: Record<number, Record<number, number>> = {};
     const s = new Uint16Array(l);
     const burg = new Uint16Array(l);
     const stateArr = new Uint16Array(l);
@@ -325,17 +328,17 @@ function editHeightmap(options?: { mode?: string; tool?: string }): void {
       if (grid.cells.h[i] < 20) grid.cells.h[i] = 20;
     }
 
-    for (const c of pack.cultures as any[]) {
+    for (const c of pack.cultures as (Culture & { x?: number; y?: number })[]) {
       if (!c.i || c.removed) continue;
-      const p = pack.cells.p[c.center] as [number, number];
+      const p = pack.cells.p[c.center!] as [number, number];
       c.x = p[0];
       c.y = p[1];
     }
 
     const zoneGridCellsMap = new Map<number, number[]>();
-    for (const zone of pack.zones as any[]) {
+    for (const zone of pack.zones as Zone[]) {
       if (!zone.cells?.length) continue;
-      const zoneGridCells = (zone.cells as number[]).map((i: number) => pack.cells.g[i]);
+      const zoneGridCells = zone.cells.map(i => pack.cells.g[i]);
       zoneGridCellsMap.set(zone.i, unique(zoneGridCells));
     }
 
@@ -401,19 +404,19 @@ function editHeightmap(options?: { mode?: string; tool?: string }): void {
       const dist = (pack.cells.c[i] as unknown as number[]).map((c: number) =>
         pack.cells.h[c] < 20 ? Infinity : (pack.cells.p[c][0] - x) ** 2 + (pack.cells.p[c][1] - y) ** 2
       );
-      return (pack.cells.c[i] as unknown as number[])[(d3 as any).scan(dist)];
+      return (pack.cells.c[i] as unknown as number[])[d3.leastIndex(dist) ?? 0];
     };
 
-    for (const b of pack.burgs as any[]) {
+    for (const b of pack.burgs as Burg[]) {
       if (!b.i || b.removed) continue;
-      b.cell = findBurgCell(b.x, b.y);
+      b.cell = findBurgCell(b.x!, b.y!);
       b.feature = pack.cells.f[b.cell];
-      pack.cells.burg[b.cell] = b.i;
+      pack.cells.burg[b.cell] = b.i!;
       if (!b.capital && pack.cells.h[b.cell] < 20) Burgs.remove(b.i);
-      if (b.capital) pack.states[b.state].center = b.cell;
+      if (b.capital) pack.states[b.state!].center = b.cell;
     }
 
-    for (const p of pack.provinces as any[]) {
+    for (const p of pack.provinces as Province[]) {
       if (!p.i || p.removed) continue;
       const provCells = Array.from(pack.cells.i).filter(i => pack.cells.province[i] === p.i);
       if (!provCells.length) {
@@ -423,16 +426,16 @@ function editHeightmap(options?: { mode?: string; tool?: string }): void {
         p.removed = true;
         continue;
       }
-      if (p.burg && !(pack.burgs[p.burg] as any).removed) p.center = (pack.burgs[p.burg] as any).cell;
+      if (p.burg && !pack.burgs[p.burg].removed) p.center = pack.burgs[p.burg].cell;
       else {
         p.center = provCells[0];
         p.burg = pack.cells.burg[p.center];
       }
     }
 
-    for (const c of pack.cultures as any[]) {
+    for (const c of pack.cultures as (Culture & { x?: number; y?: number })[]) {
       if (!c.i || c.removed) continue;
-      c.center = findCell(c.x, c.y);
+      c.center = findCell(c.x!, c.y!);
     }
 
     const worldState = getWorldState();
@@ -448,7 +451,7 @@ function editHeightmap(options?: { mode?: string; tool?: string }): void {
       gridToPackMap.get(g)!.push(i);
     }
 
-    for (const zone of pack.zones as any[]) {
+    for (const zone of pack.zones as Zone[]) {
       const gridCells = zoneGridCellsMap.get(zone.i);
       if (gridCells?.length) {
         const packCells = gridCells.flatMap(g => gridToPackMap.get(g) || []);
@@ -466,7 +469,7 @@ function editHeightmap(options?: { mode?: string; tool?: string }): void {
   }
 
   function updateHeightmap(): void {
-    const prev: Uint8Array | undefined = (heightmapHistory as any)?.stack?.current;
+    const prev = heightmapHistory?.current as Uint8Array | undefined;
     const changed = prev ? (grid.cells.h as Uint8Array).reduce((s, h, i) => (h !== prev[i] ? s + 1 : s), 0) : 0;
     tip(`Cells changed: ${changed}`);
     if (!changed) return;
@@ -494,25 +497,30 @@ function editHeightmap(options?: { mode?: string; tool?: string }): void {
   function mockHeightmap(): void {
     const all = Array.from(grid.cells.i) as number[];
     const data = (renderOcean as HTMLInputElement).checked ? all : all.filter(i => grid.cells.h[i] >= 20);
-    (viewbox.select("#heights") as any)
-      .selectAll("polygon")
+    viewbox
+      .select<SVGGElement>("#heights")
+      .selectAll<SVGPolygonElement, number>("polygon")
       .data(data)
       .join("polygon")
-      .attr("points", (d: number) => getGridPolygon(d))
-      .attr("id", (d: number) => `cell${d}`)
-      .attr("fill", (d: number) => getColor(grid.cells.h[d]));
+      .attr("points", d => getGridPolygon(d).join(" "))
+      .attr("id", d => `cell${d}`)
+      .attr("fill", d => getColor(grid.cells.h[d]));
   }
 
   function mockHeightmapSelection(selection: number[]): void {
     const ocean = (renderOcean as HTMLInputElement).checked;
-    const heights = viewbox.select("#heights") as any;
+    const heights = viewbox.select<SVGGElement>("#heights");
     selection.forEach(i => {
-      let cell = heights.select(`#cell${i}`);
+      let cell = heights.select<SVGPolygonElement>(`#cell${i}`);
       if (!ocean && grid.cells.h[i] < 20) {
         cell.remove();
         return;
       }
-      if (!cell.size()) cell = heights.append("polygon").attr("points", getGridPolygon(i)).attr("id", `cell${i}`);
+      if (!cell.size())
+        cell = heights
+          .append<SVGPolygonElement>("polygon")
+          .attr("points", getGridPolygon(i).join(" "))
+          .attr("id", `cell${i}`);
       cell.attr("fill", getColor(grid.cells.h[i]));
     });
   }
@@ -520,12 +528,12 @@ function editHeightmap(options?: { mode?: string; tool?: string }): void {
   function updateStatistics(): void {
     const landCells = (grid.cells.h as Uint8Array).reduce((s, h) => (h >= 20 ? s + 1 : s), 0);
     ensureEl("landmassCounter").innerText = `${landCells} (${rn((landCells / grid.cells.i.length) * 100)}%)`;
-    ensureEl("landmassAverage").innerText = String(rn(mean(grid.cells.h as any) ?? 0));
+    ensureEl("landmassAverage").innerText = String(rn(mean(Array.from(grid.cells.h)) ?? 0));
   }
 
   function updateHistory(noStat?: string): void {
-    (window as any).heightmapHistory.push(grid.cells.h);
-    undo!.disabled = templateUndo.disabled = !(window as any).heightmapHistory.canUndo;
+    heightmapHistory!.push(grid.cells.h);
+    undo!.disabled = templateUndo.disabled = !heightmapHistory!.canUndo;
     redo!.disabled = templateRedo.disabled = true;
     if (!noStat) {
       updateStatistics();
@@ -535,11 +543,11 @@ function editHeightmap(options?: { mode?: string; tool?: string }): void {
   }
 
   function undoHistory(): void {
-    const h = (window as any).heightmapHistory.undo();
+    const h = heightmapHistory!.undo();
     if (!h) return;
     grid.cells.h = h;
-    undo!.disabled = templateUndo.disabled = !(window as any).heightmapHistory.canUndo;
-    redo!.disabled = templateRedo.disabled = !(window as any).heightmapHistory.canRedo;
+    undo!.disabled = templateUndo.disabled = !heightmapHistory!.canUndo;
+    redo!.disabled = templateRedo.disabled = !heightmapHistory!.canRedo;
     mockHeightmap();
     updateStatistics();
     if (document.getElementById("preview")) drawHeightmapPreview();
@@ -547,11 +555,11 @@ function editHeightmap(options?: { mode?: string; tool?: string }): void {
   }
 
   function redoHistory(): void {
-    const h = (window as any).heightmapHistory.redo();
+    const h = heightmapHistory!.redo();
     if (!h) return;
     grid.cells.h = h;
-    undo!.disabled = templateUndo.disabled = !(window as any).heightmapHistory.canUndo;
-    redo!.disabled = templateRedo.disabled = !(window as any).heightmapHistory.canRedo;
+    undo!.disabled = templateUndo.disabled = !heightmapHistory!.canUndo;
+    redo!.disabled = templateRedo.disabled = !heightmapHistory!.canRedo;
     mockHeightmap();
     updateStatistics();
     if (document.getElementById("preview")) drawHeightmapPreview();
@@ -559,7 +567,7 @@ function editHeightmap(options?: { mode?: string; tool?: string }): void {
   }
 
   function restartHistory(): void {
-    (window as any).heightmapHistory = new (window as any).HeightmapEditorHistory();
+    heightmapHistory = new HeightmapEditorHistory();
     redo!.disabled = templateRedo.disabled = true;
     undo!.disabled = templateUndo.disabled = true;
     updateHistory();
@@ -611,10 +619,7 @@ function editHeightmap(options?: { mode?: string; tool?: string }): void {
     function exitBrushMode(): void {
       const pressed = document.querySelector<HTMLElement>("#brushesButtons > button.pressed");
       if (pressed) pressed.classList.remove("pressed");
-      viewbox
-        .style("cursor", "default")
-        .on(".drag", null)
-        .on("click", clicked as any);
+      viewbox.style("cursor", "default").on(".drag", null).on("click", clicked);
       debug.selectAll(".lineCircle").remove();
       removeCircle();
       ensureEl("brushesSliders").style.display = "none";
@@ -634,10 +639,10 @@ function editHeightmap(options?: { mode?: string; tool?: string }): void {
 
       if (button.id === "brushLine") {
         ensureEl("lineSlider").style.display = "block";
-        viewbox.style("cursor", "crosshair").on("click", placeLinearFeature as any);
+        viewbox.style("cursor", "crosshair").on("click", placeLinearFeature);
       } else if (button.id === "brushFill") {
         ensureEl("brushesSliders").style.display = "block";
-        viewbox.style("cursor", "crosshair").on("click", applyFillBrush as any);
+        viewbox.style("cursor", "crosshair").on("click", applyFillBrush);
       } else {
         ensureEl("brushesSliders").style.display = "block";
         viewbox
@@ -688,11 +693,11 @@ function editHeightmap(options?: { mode?: string; tool?: string }): void {
       const heights = grid.cells.h as Uint8Array;
       const operation =
         power > 0
-          ? (HeightmapGenerator as any).addRange.bind(HeightmapGenerator)
-          : (HeightmapGenerator as any).addTrough.bind(HeightmapGenerator);
-      (HeightmapGenerator as any).setGraph(grid);
-      operation("1", String(Math.abs(power)), null, null, fromCell, toCell);
-      const changedHeights = (HeightmapGenerator as any).getHeights() as Uint8Array;
+          ? HeightmapGenerator.addRange.bind(HeightmapGenerator)
+          : HeightmapGenerator.addTrough.bind(HeightmapGenerator);
+      HeightmapGenerator.setGraph(grid);
+      operation("1", String(Math.abs(power)), "", "", fromCell, toCell);
+      const changedHeights = HeightmapGenerator.getHeights() as Uint8Array;
 
       const selection: number[] = [];
       for (let i = 0; i < heights.length; i++) {
@@ -743,7 +748,7 @@ function editHeightmap(options?: { mode?: string; tool?: string }): void {
       isWaterFill: boolean,
       targetHeight: number
     ): { selection: number[]; reachedBorder: boolean } {
-      const { h: heights, c: neighbors, i: cells } = grid.cells as any;
+      const { h: heights, c: neighbors, i: cells } = grid.cells;
       const visited = new Uint8Array(cells.length);
       const stack = [start];
       const selection: number[] = [];
@@ -769,7 +774,7 @@ function editHeightmap(options?: { mode?: string; tool?: string }): void {
 
     function applyConeToSelection(selection: number[], isWaterFill: boolean, targetHeight: number): number[] {
       const power = (heightmapBrushPower as HTMLInputElement).valueAsNumber * 10;
-      const { h: heights, c: neighbors, i: cells } = grid.cells as any;
+      const { h: heights, c: neighbors, i: cells } = grid.cells;
       const inSelection = new Uint8Array(cells.length);
       const edgeDistance = new Uint16Array(cells.length);
       const changed: number[] = [];
@@ -814,12 +819,12 @@ function editHeightmap(options?: { mode?: string; tool?: string }): void {
 
     let _hbStart = 0;
 
-    function dragBrushStart(this: SVGElement, event: any): void {
+    function dragBrushStart(this: SVGElement, event: d3.D3DragEvent<SVGElement, unknown, unknown>): void {
       const [x, y] = pointer(event, this);
       _hbStart = findGridCell(x, y, grid);
     }
 
-    function dragBrushDrag(this: SVGElement, event: any): void {
+    function dragBrushDrag(this: SVGElement, event: d3.D3DragEvent<SVGElement, unknown, unknown>): void {
       const r = (heightmapBrushRadius as HTMLInputElement).valueAsNumber;
       const p = pointer(event, this);
       moveCircle(p[0], p[1], r);
@@ -917,21 +922,21 @@ function editHeightmap(options?: { mode?: string; tool?: string }): void {
         return;
       }
 
-      (HeightmapGenerator as any).setGraph(grid);
-      if (operator === "multiply") (HeightmapGenerator as any).modify(range_, 0, operand, 0);
-      else if (operator === "divide") (HeightmapGenerator as any).modify(range_, 0, 1 / operand, 0);
-      else if (operator === "add") (HeightmapGenerator as any).modify(range_, operand, 1, 0);
-      else if (operator === "subtract") (HeightmapGenerator as any).modify(range_, -1 * operand, 1, 0);
-      else if (operator === "exponent") (HeightmapGenerator as any).modify(range_, 0, 1, operand);
+      HeightmapGenerator.setGraph(grid);
+      if (operator === "multiply") HeightmapGenerator.modify(range_, 0, operand, 0);
+      else if (operator === "divide") HeightmapGenerator.modify(range_, 0, 1 / operand, 0);
+      else if (operator === "add") HeightmapGenerator.modify(range_, operand, 1, 0);
+      else if (operator === "subtract") HeightmapGenerator.modify(range_, -1 * operand, 1, 0);
+      else if (operator === "exponent") HeightmapGenerator.modify(range_, 0, 1, operand);
 
-      grid.cells.h = (HeightmapGenerator as any).getHeights();
+      grid.cells.h = HeightmapGenerator.getHeights()!;
       updateHeightmap();
     }
 
     function smoothAllHeights(): void {
-      (HeightmapGenerator as any).setGraph(grid);
-      (HeightmapGenerator as any).smooth(4, 1.5);
-      grid.cells.h = (HeightmapGenerator as any).getHeights();
+      HeightmapGenerator.setGraph(grid);
+      HeightmapGenerator.smooth(4, 1.5);
+      grid.cells.h = HeightmapGenerator.getHeights()!;
       updateHeightmap();
     }
 
@@ -989,7 +994,7 @@ function editHeightmap(options?: { mode?: string; tool?: string }): void {
       if (el.classList.contains("icon-check")) {
         el.classList.replace("icon-check", "icon-check-empty");
         el.parentElement!.style.opacity = "0.5";
-        ($body as any).dataset.changed = 1;
+        $body.dataset.changed = "1";
         return;
       }
       if (el.classList.contains("icon-check-empty")) {
@@ -1119,7 +1124,7 @@ function editHeightmap(options?: { mode?: string; tool?: string }): void {
       const body = ensureEl("templateBody");
       body.setAttribute("data-changed", "0");
       body.innerHTML = "";
-      const templateString = (heightmapTemplates as any)[template]?.template as string | undefined;
+      const templateString = heightmapTemplates[template]?.template as string | undefined;
       if (!templateString) return;
       const steps = templateString.split("\n");
       if (!steps.length) {
@@ -1138,38 +1143,38 @@ function editHeightmap(options?: { mode?: string; tool?: string }): void {
 
       const currentSeed = (ensureEl("templateSeed") as HTMLInputElement).value;
       const seed = (locked("templateSeed") && currentSeed) || generateSeed();
-      (Math as any).random = (window as any).aleaPRNG(seed);
+      Math.random = aleaPRNG(seed);
       (ensureEl("templateSeed") as HTMLInputElement).value = seed;
 
-      grid.cells.h = (window as any).createTypedArray({ maxValue: 100, length: grid.points.length });
-      (HeightmapGenerator as any).setGraph(grid);
+      grid.cells.h = createTypedArray({ maxValue: 100, length: grid.points.length });
+      HeightmapGenerator.setGraph(grid);
       restartHistory();
 
       for (const step of Array.from(steps)) {
         if (step.style.opacity === "0.5") continue;
         const count = step.querySelector<HTMLInputElement>(".templateCount")?.value || "";
         const height = step.querySelector<HTMLInputElement>(".templateHeight")?.value || "";
-        const dist = step.querySelector<HTMLInputElement>(".templateDist")?.value || null;
-        const x = step.querySelector<HTMLInputElement>(".templateX")?.value || null;
-        const y = step.querySelector<HTMLInputElement>(".templateY")?.value || null;
+        const dist = step.querySelector<HTMLInputElement>(".templateDist")?.value || "";
+        const x = step.querySelector<HTMLInputElement>(".templateX")?.value || "";
+        const y = step.querySelector<HTMLInputElement>(".templateY")?.value || "";
         const type = step.dataset.type;
 
-        if (type === "Hill") (HeightmapGenerator as any).addHill(count, height, x, y);
-        else if (type === "Pit") (HeightmapGenerator as any).addPit(count, height, x, y);
-        else if (type === "Range") (HeightmapGenerator as any).addRange(count, height, x, y);
-        else if (type === "Trough") (HeightmapGenerator as any).addTrough(count, height, x, y);
-        else if (type === "Strait") (HeightmapGenerator as any).addStrait(count, dist);
-        else if (type === "Mask") (HeightmapGenerator as any).mask(+count!);
-        else if (type === "Invert") (HeightmapGenerator as any).invert(+count!, dist);
-        else if (type === "Add") (HeightmapGenerator as any).modify(dist, +count!, 1);
-        else if (type === "Multiply") (HeightmapGenerator as any).modify(dist, 0, +count!);
-        else if (type === "Smooth") (HeightmapGenerator as any).smooth(+count!);
+        if (type === "Hill") HeightmapGenerator.addHill(count, height, x, y);
+        else if (type === "Pit") HeightmapGenerator.addPit(count, height, x, y);
+        else if (type === "Range") HeightmapGenerator.addRange(count, height, x, y);
+        else if (type === "Trough") HeightmapGenerator.addTrough(count, height, x, y);
+        else if (type === "Strait") HeightmapGenerator.addStrait(count, dist);
+        else if (type === "Mask") HeightmapGenerator.mask(+count!);
+        else if (type === "Invert") HeightmapGenerator.invert(+count!, dist);
+        else if (type === "Add") HeightmapGenerator.modify(dist, +count!, 1);
+        else if (type === "Multiply") HeightmapGenerator.modify(dist, 0, +count!);
+        else if (type === "Smooth") HeightmapGenerator.smooth(+count!);
 
-        grid.cells.h = (HeightmapGenerator as any).getHeights();
+        grid.cells.h = HeightmapGenerator.getHeights()!;
         updateHistory("noStat");
       }
 
-      grid.cells.h = (HeightmapGenerator as any).getHeights();
+      grid.cells.h = HeightmapGenerator.getHeights()!;
       updateStatistics();
       mockHeightmap();
       if (document.getElementById("preview")) drawHeightmapPreview();
@@ -1258,8 +1263,8 @@ function editHeightmap(options?: { mode?: string; tool?: string }): void {
       .attr("data-color", (i: number) => i)
       .style("background-color", (i: number) => color(1 - (i < 20 ? i - 5 : i) / 100))
       .style("width", (i: number) => (i < 40 || i > 68 ? ".2em" : ".1em"))
-      .on("touchmove mousemove", showPalleteHeight as any)
-      .on("click", assignHeight as any);
+      .on("touchmove mousemove", showPalleteHeight)
+      .on("click", assignHeight);
 
     ensureEl("convertImageLoad").addEventListener("click", () => (imageToLoad as HTMLInputElement).click());
     ensureEl("imageToLoad").addEventListener("change", loadImage);
@@ -1322,16 +1327,18 @@ function editHeightmap(options?: { mode?: string; tool?: string }): void {
       (colorsAssigned as HTMLElement).style.display = "none";
       sampleCanvas.remove();
 
-      (viewbox.select("#heights") as any)
-        .selectAll("polygon")
+      viewbox
+        .select<SVGGElement>("#heights")
+        .selectAll<SVGPolygonElement, number>("polygon")
         .data(Array.from(grid.cells.i))
         .join("polygon")
-        .attr("points", (d: number) => getGridPolygon(d))
-        .attr("id", (d: number) => `cell${d}`)
-        .attr("fill", (d: number) => `rgb(${data[d * 4]}, ${data[d * 4 + 1]}, ${data[d * 4 + 2]})`)
-        .on("click", mapClicked as any);
+        .attr("points", d => getGridPolygon(d).join(" "))
+        .attr("id", d => `cell${d}`)
+        .attr("fill", d => `rgb(${data[d * 4]}, ${data[d * 4 + 1]}, ${data[d * 4 + 2]})`)
+        .on("click", mapClicked);
 
-      const colors = (pallete as any[]).map((p: any) => `rgb(${p[0]}, ${p[1]}, ${p[2]})`);
+      const palleteParsed = pallete as [number, number, number][];
+      const colors = palleteParsed.map(p => `rgb(${p[0]}, ${p[1]}, ${p[2]})`);
       select("#colorsUnassignedContainer")
         .selectAll("div")
         .data(colors)
@@ -1340,7 +1347,7 @@ function editHeightmap(options?: { mode?: string; tool?: string }): void {
         .attr("data-color", (i: string) => i)
         .style("background-color", (i: string) => i)
         .attr("class", "color-div")
-        .on("click", colorClicked as any);
+        .on("click", colorClicked);
 
       (ensureEl("colorsUnassignedNumber") as HTMLElement).innerHTML = String(colors.length);
     }

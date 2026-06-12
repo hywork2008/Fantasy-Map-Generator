@@ -1,6 +1,8 @@
-import { drag, pointer, type Selection, sum } from "d3";
+import { type D3DragEvent, drag, pointer, type Selection, sum } from "d3";
 import type { Zone } from "../modules/zones-generator";
 import { ensureEl, rn, si } from "../utils";
+
+type ZoneCellDatum = { cell: number; zoneId: number; fill: string };
 
 function editZones(): void {
   closeDialogs("#zonesEditor, .stable");
@@ -175,7 +177,7 @@ function editZones(): void {
     update: movezone
   });
 
-  function movezone(_ev: Event, ui: { item: any }): void {
+  function movezone(_ev: Event, ui: { item: { 0: HTMLElement; index(): number } }): void {
     const zone = pack.zones.find((z: Zone) => z.i === +ui.item[0].dataset.id!);
     if (!zone) return;
     const oldIndex = pack.zones.indexOf(zone);
@@ -225,14 +227,14 @@ function editZones(): void {
       cells.map((cell: number) => ({ cell, zoneId: i, fill: color }))
     );
     zones
-      .selectAll("polygon")
-      .data(data, (d: any) => `${d.zoneId}-${d.cell}`)
+      .selectAll<SVGPolygonElement, ZoneCellDatum>("polygon")
+      .data(data, d => `${d.zoneId}-${d.cell}`)
       .enter()
       .append("polygon")
-      .attr("points", (d: any) => getPackPolygon(d.cell) as unknown as string)
-      .attr("fill", (d: any) => d.fill)
-      .attr("data-zone", (d: any) => d.zoneId)
-      .attr("data-cell", (d: any) => d.cell);
+      .attr("points", d => getPackPolygon(d.cell) as unknown as string)
+      .attr("fill", d => d.fill)
+      .attr("data-zone", d => d.zoneId)
+      .attr("data-cell", d => d.cell);
   }
 
   function selectZoneOnMapClick(event: MouseEvent): void {
@@ -245,7 +247,7 @@ function editZones(): void {
     el.classList.add("selected");
   }
 
-  function dragZoneBrush(this: SVGElement, event: any): void {
+  function dragZoneBrush(this: SVGElement, event: D3DragEvent<SVGElement, unknown, unknown>): void {
     if (!event.dx && !event.dy) return;
     const radius = +ensureEl<HTMLInputElement>("zonesBrush").value;
     const eraseMode = ensureEl("zonesRemove").classList.contains("pressed");
@@ -263,25 +265,25 @@ function editZones(): void {
 
     if (eraseMode) {
       const data = zones
-        .selectAll("polygon")
+        .selectAll<SVGPolygonElement, ZoneCellDatum>("polygon")
         .data()
-        .filter((d: any) => !(d.zoneId === zoneId && selection.includes(d.cell)));
+        .filter(d => !(d.zoneId === zoneId && selection.includes(d.cell)));
       zones
-        .selectAll("polygon")
-        .data(data, (d: any) => `${d.zoneId}-${d.cell}`)
+        .selectAll<SVGPolygonElement, ZoneCellDatum>("polygon")
+        .data(data, d => `${d.zoneId}-${d.cell}`)
         .exit()
         .remove();
     } else {
       const data = selection.map(cell => ({ cell, zoneId, fill: zone.color }));
       zones
-        .selectAll("polygon")
-        .data(data, (d: any) => `${d.zoneId}-${d.cell}`)
+        .selectAll<SVGPolygonElement, ZoneCellDatum>("polygon")
+        .data(data, d => `${d.zoneId}-${d.cell}`)
         .enter()
         .append("polygon")
-        .attr("points", (d: any) => getPackPolygon(d.cell) as unknown as string)
-        .attr("fill", (d: any) => d.fill)
-        .attr("data-zone", (d: any) => d.zoneId)
-        .attr("data-cell", (d: any) => d.cell);
+        .attr("points", d => getPackPolygon(d.cell) as unknown as string)
+        .attr("fill", d => d.fill)
+        .attr("data-zone", d => d.zoneId)
+        .attr("data-cell", d => d.cell);
     }
   }
 
@@ -293,8 +295,8 @@ function editZones(): void {
   }
 
   function applyZonesManualAssignent(): void {
-    const data = zones.selectAll("polygon").data();
-    const zoneCells: Record<number, number[]> = (data as any[]).reduce((acc: Record<number, number[]>, d: any) => {
+    const data = zones.selectAll<SVGPolygonElement, ZoneCellDatum>("polygon").data();
+    const zoneCells: Record<number, number[]> = data.reduce((acc: Record<number, number[]>, d) => {
       if (!acc[d.zoneId]) acc[d.zoneId] = [];
       acc[d.zoneId].push(d.cell);
       return acc;

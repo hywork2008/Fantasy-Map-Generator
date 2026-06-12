@@ -76,8 +76,9 @@ async function generateWithOpenAI({
     body: JSON.stringify({ model, messages, temperature, stream: true })
   });
 
-  const getContent = (json: any) => {
-    const content = json.choices?.[0]?.delta?.content;
+  const getContent = (json: unknown) => {
+    const data = json as { choices?: { delta?: { content?: string } }[] };
+    const content = data.choices?.[0]?.delta?.content;
     if (content) onContent(content);
   };
 
@@ -112,8 +113,9 @@ async function generateWithAnthropic({
     body: JSON.stringify({ model, system: SYSTEM_MESSAGE, messages, temperature, max_tokens: 4096, stream: true })
   });
 
-  const getContent = (json: any) => {
-    const content = json.delta?.text;
+  const getContent = (json: unknown) => {
+    const data = json as { delta?: { text?: string } };
+    const content = data.delta?.text;
     if (content) onContent(content);
   };
 
@@ -147,14 +149,15 @@ async function generateWithOllama({
     })
   });
 
-  const getContent = (json: any) => {
-    if (json.response) onContent(json.response);
+  const getContent = (json: unknown) => {
+    const data = json as { response?: string };
+    if (data.response) onContent(data.response);
   };
 
   await handleStream(response, getContent);
 }
 
-async function handleStream(response: Response, getContent: (json: any) => void): Promise<void> {
+async function handleStream(response: Response, getContent: (json: unknown) => void): Promise<void> {
   if (!response.ok) {
     let errorMessage = `Failed to generate (${response.status} ${response.statusText})`;
     try {

@@ -4,15 +4,18 @@ import { worldContext } from "../context/worldContext";
 import { rn } from "../utils";
 
 declare global {
-  var drawScaleBar: (scaleBar: Selection<SVGGElement, unknown, HTMLElement, unknown>, scaleLevel: number) => void;
+  var drawScaleBar: (
+    scaleBar: Selection<SVGGElement, unknown, HTMLElement | null, unknown>,
+    scaleLevel: number
+  ) => void;
   var fitScaleBar: (
-    scaleBar: Selection<SVGGElement, unknown, HTMLElement, unknown>,
+    scaleBar: Selection<SVGGElement, unknown, HTMLElement | null, unknown>,
     fullWidth: number,
     fullHeight: number
   ) => void;
 }
 
-type ScaleBarSelection = d3.Selection<SVGGElement, unknown, HTMLElement, unknown>;
+type ScaleBarSelection = d3.Selection<SVGGElement, unknown, HTMLElement | null, unknown>;
 
 const scaleBarRenderer = (scaleBar: ScaleBarSelection, scaleLevel: number): void => {
   if (!scaleBar.size() || scaleBar.style("display") === "none") return;

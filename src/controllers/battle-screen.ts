@@ -1,10 +1,18 @@
 import { mean, sum } from "d3";
+import type { MilitaryRegiment } from "../modules/military-generator";
 import { capitalize, ensureEl, getAdjective, last, list, minmax, Pint, rand, rn } from "../utils";
+
+interface BattleRegiment extends MilitaryRegiment {
+  casualties: Record<string, number>;
+  survivors: Record<string, number>;
+  px?: number;
+  py?: number;
+}
 
 type BattleSide = "attackers" | "defenders";
 
 interface BattleForces {
-  regiments: any[];
+  regiments: BattleRegiment[];
   distances: number[];
   morale: number;
   casualties: number;
@@ -24,12 +32,12 @@ class Battle {
   type!: string;
   name!: string;
 
-  constructor(attacker: any, defender: any) {
+  constructor(attacker: BattleRegiment, defender: BattleRegiment) {
     if (customization) return;
     closeDialogs(".stable");
     customization = 13;
 
-    (Battle.prototype as any).context = this;
+    (Battle.prototype as unknown as { context: Battle }).context = this;
     this.iteration = 0;
     this.x = defender.x;
     this.y = defender.y;
@@ -53,7 +61,7 @@ class Battle {
       resizable: false,
       width: fitContent(),
       position: { my: "center", at: "center", of: "#map" },
-      close: () => (Battle.prototype as any).context.cancelResults()
+      close: () => (Battle.prototype as unknown as { context: Battle }).context.cancelResults()
     });
 
     if (modules.Battle) return;
@@ -61,41 +69,53 @@ class Battle {
 
     ensureEl("battleType").addEventListener("click", ev => this.toggleChange(ev));
     (ensureEl("battleType").nextElementSibling as HTMLElement).addEventListener("click", ev =>
-      (Battle.prototype as any).context.changeType(ev)
+      (Battle.prototype as unknown as { context: Battle }).context.changeType(ev)
     );
-    ensureEl("battleNameShow").addEventListener("click", () => (Battle.prototype as any).context.showNameSection());
+    ensureEl("battleNameShow").addEventListener("click", () =>
+      (Battle.prototype as unknown as { context: Battle }).context.showNameSection()
+    );
     ensureEl("battleNamePlace").addEventListener(
       "change",
-      ev => ((Battle.prototype as any).context.place = (ev.target as HTMLInputElement).value)
+      ev => ((Battle.prototype as unknown as { context: Battle }).context.place = (ev.target as HTMLInputElement).value)
     );
-    ensureEl("battleNameFull").addEventListener("change", ev => (Battle.prototype as any).context.changeName(ev));
+    ensureEl("battleNameFull").addEventListener("change", ev =>
+      (Battle.prototype as unknown as { context: Battle }).context.changeName(ev)
+    );
     ensureEl("battleNameCulture").addEventListener("click", () =>
-      (Battle.prototype as any).context.generateName("culture")
+      (Battle.prototype as unknown as { context: Battle }).context.generateName("culture")
     );
     ensureEl("battleNameRandom").addEventListener("click", () =>
-      (Battle.prototype as any).context.generateName("random")
+      (Battle.prototype as unknown as { context: Battle }).context.generateName("random")
     );
     ensureEl("battleNameHide").addEventListener("click", this.hideNameSection);
     ensureEl("battleAddRegiment").addEventListener("click", this.addSide);
-    ensureEl("battleRoll").addEventListener("click", () => (Battle.prototype as any).context.randomize());
-    ensureEl("battleRun").addEventListener("click", () => (Battle.prototype as any).context.run());
-    ensureEl("battleApply").addEventListener("click", () => (Battle.prototype as any).context.applyResults());
-    ensureEl("battleCancel").addEventListener("click", () => (Battle.prototype as any).context.cancelResults());
+    ensureEl("battleRoll").addEventListener("click", () =>
+      (Battle.prototype as unknown as { context: Battle }).context.randomize()
+    );
+    ensureEl("battleRun").addEventListener("click", () =>
+      (Battle.prototype as unknown as { context: Battle }).context.run()
+    );
+    ensureEl("battleApply").addEventListener("click", () =>
+      (Battle.prototype as unknown as { context: Battle }).context.applyResults()
+    );
+    ensureEl("battleCancel").addEventListener("click", () =>
+      (Battle.prototype as unknown as { context: Battle }).context.cancelResults()
+    );
     ensureEl("battleWiki").addEventListener("click", () => wiki("Battle-Simulator"));
 
     ensureEl("battlePhase_attackers").addEventListener("click", ev => this.toggleChange(ev));
     (ensureEl("battlePhase_attackers").nextElementSibling as HTMLElement).addEventListener("click", ev =>
-      (Battle.prototype as any).context.changePhase(ev, "attackers")
+      (Battle.prototype as unknown as { context: Battle }).context.changePhase(ev, "attackers")
     );
     ensureEl("battlePhase_defenders").addEventListener("click", ev => this.toggleChange(ev));
     (ensureEl("battlePhase_defenders").nextElementSibling as HTMLElement).addEventListener("click", ev =>
-      (Battle.prototype as any).context.changePhase(ev, "defenders")
+      (Battle.prototype as unknown as { context: Battle }).context.changePhase(ev, "defenders")
     );
     ensureEl("battleDie_attackers").addEventListener("click", () =>
-      (Battle.prototype as any).context.rollDie("attackers")
+      (Battle.prototype as unknown as { context: Battle }).context.rollDie("attackers")
     );
     ensureEl("battleDie_defenders").addEventListener("click", () =>
-      (Battle.prototype as any).context.rollDie("defenders")
+      (Battle.prototype as unknown as { context: Battle }).context.rollDie("defenders")
     );
   }
 
@@ -182,8 +202,8 @@ class Battle {
     battleAttackers.innerHTML = battleDefenders.innerHTML = headers;
   }
 
-  addRegiment(side: BattleSide, regiment: any): void {
-    regiment.casualties = Object.keys(regiment.u).reduce((a: any, b: string) => {
+  addRegiment(side: BattleSide, regiment: BattleRegiment): void {
+    regiment.casualties = Object.keys(regiment.u).reduce((a: Record<string, number>, b: string) => {
       a[b] = 0;
       return a;
     }, {});
@@ -193,7 +213,7 @@ class Battle {
     const distance = (Math.hypot(this.y - regiment.by, this.x - regiment.bx) * distanceScale) | 0;
     const color = (state.color ?? "#999")[0] === "#" ? (state.color ?? "#999") : "#999";
 
-    const isExternal = regiment.icon.startsWith("http") || regiment.icon.startsWith("data:image");
+    const isExternal = regiment.icon?.startsWith("http") || regiment.icon?.startsWith("data:image");
     const iconHtml = isExternal
       ? `<image href="${regiment.icon}" x="0.1em" y="0.1em" width="1.2em" height="1.2em"></image>`
       : `<text x="50%" y="1em" style="text-anchor: middle">${regiment.icon}</text>`;
@@ -223,16 +243,16 @@ class Battle {
 
   addSide(): void {
     const body = ensureEl("regimentSelectorBody");
-    const context = (Battle.prototype as any).context;
-    const regiments = pack.states.filter((s: any) => s.military && !s.removed).flatMap((s: any) => s.military);
-    const distance = (reg: any) =>
+    const context = (Battle.prototype as unknown as { context: Battle }).context;
+    const regiments = pack.states.filter(s => s.military && !s.removed).flatMap(s => s.military as BattleRegiment[]);
+    const distance = (reg: BattleRegiment) =>
       `${rn(Math.hypot(context.y - reg.y, context.x - reg.x) * distanceScale)} ${distanceUnitInput.value}`;
-    const isAdded = (reg: any) =>
-      context.defenders.regiments.some((r: any) => r === reg) ||
-      context.attackers.regiments.some((r: any) => r === reg);
+    const isAdded = (reg: BattleRegiment) =>
+      context.defenders.regiments.some((r: BattleRegiment) => r === reg) ||
+      context.attackers.regiments.some((r: BattleRegiment) => r === reg);
 
-    body.innerHTML = (regiments as any[])
-      .map((r: any) => {
+    body.innerHTML = (regiments as BattleRegiment[])
+      .map((r: BattleRegiment) => {
         const s = pack.states[r.state];
         const added = isAdded(r);
         const dist = added ? `0 ${distanceUnitInput.value}` : distance(r);
@@ -284,7 +304,7 @@ class Battle {
       selected.forEach(line => {
         const lineEl = line as HTMLElement;
         const state = pack.states[+lineEl.dataset.s!];
-        const regiment = state.military!.find((r: any) => r.i === +lineEl.dataset.i!);
+        const regiment = state.military!.find((r: MilitaryRegiment) => r.i === +lineEl.dataset.i!) as BattleRegiment;
         Battle.prototype.addRegiment.call(context, side, regiment);
         Battle.prototype.calculateStrength.call(context, side);
         Battle.prototype.getInitialMorale.call(context);
@@ -336,8 +356,8 @@ class Battle {
     $("#battleScreen").dialog({ title: this.name });
   }
 
-  getJoinedForces(regiments: any[]): Record<string, number> {
-    return regiments.reduce((a: Record<string, number>, b: any) => {
+  getJoinedForces(regiments: BattleRegiment[]): Record<string, number> {
+    return regiments.reduce((a: Record<string, number>, b: BattleRegiment) => {
       for (const k in b.survivors) {
         if (!Object.hasOwn(b.survivors, k)) continue;
         a[k] = (a[k] || 0) + b.survivors[k];
@@ -884,7 +904,7 @@ class Battle {
       applyResultForSide(r, "defenders");
     });
 
-    function applyResultForSide(r: any, side: BattleSide): void {
+    function applyResultForSide(r: BattleRegiment, side: BattleSide): void {
       const id = `regiment${r.state}-${r.i}`;
 
       const note = notes.find(n => n.id === id);
@@ -919,7 +939,7 @@ class Battle {
       r.a = sum(Object.values(r.u) as number[]);
       armies.select(`g#${id} > text`).text(Military.getTotal(r));
 
-      moveRegiment(r, r.px, r.py);
+      moveRegiment(r, r.px as number, r.py as number);
     }
 
     const markerI = last(pack.markers)?.i + 1 || 0;
@@ -930,7 +950,7 @@ class Battle {
       (document.getElementById("markers") as HTMLElement).insertAdjacentHTML("beforeend", markerHTML);
     }
 
-    const getSide = (regs: any[], n: number) =>
+    const getSide = (regs: BattleRegiment[], n: number) =>
       regs.length > 1
         ? `${n ? "regiments" : "forces"} of ${list([...new Set(regs.map(r => pack.states[r.state].name))])}`
         : `${getAdjective(pack.states[regs[0].state].name)} ${regs[0].name}`;
@@ -953,10 +973,10 @@ class Battle {
 
   cancelResults(): void {
     this.attackers.regiments.forEach(r => {
-      moveRegiment(r, r.px, r.py);
+      moveRegiment(r, r.px as number, r.py as number);
     });
     this.defenders.regiments.forEach(r => {
-      moveRegiment(r, r.px, r.py);
+      moveRegiment(r, r.px as number, r.py as number);
     });
 
     $("#battleScreen").dialog("close");
@@ -970,20 +990,20 @@ class Battle {
     this.attackers.regiments.concat(this.defenders.regiments).forEach(r => {
       delete r.px;
       delete r.py;
-      delete r.casualties;
-      delete r.survivors;
+      delete (r as unknown as { casualties?: unknown }).casualties;
+      delete (r as unknown as { survivors?: unknown }).survivors;
     });
-    delete (Battle.prototype as any).context;
+    delete (Battle.prototype as unknown as { context?: Battle }).context;
   }
 }
 
 window.Battle = Battle;
 
-export type { Battle };
+export type { Battle, BattleRegiment };
 
 declare global {
   interface Window {
-    Battle: new (...args: any[]) => any;
+    Battle: new (attacker: BattleRegiment, defender: BattleRegiment) => Battle;
   }
   var wiki: (topic: string) => void;
 }

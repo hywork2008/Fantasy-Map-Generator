@@ -24,8 +24,10 @@ import {
 } from "d3";
 import { viewState } from "../context/viewState";
 import { worldContext } from "../context/worldContext";
+import type { Vertices } from "../modules/voronoi";
 import { round } from "../utils";
 import { ERROR, TIME } from "../utils/debug";
+import type { GridCells } from "../utils/graphUtils";
 
 const CURVE_MAP: Record<string, CurveFactory> = {
   curveBasis,
@@ -164,7 +166,7 @@ const heightmapRenderer = (): void => {
   }
 
   // connect vertices to chain: specific case for heightmap
-  function connectVertices(cells: any, vertices: any, start: number, h: number, used: Uint8Array): number[] {
+  function connectVertices(cells: GridCells, vertices: Vertices, start: number, h: number, used: Uint8Array): number[] {
     const MAX_ITERATIONS = vertices.c.length;
 
     const n = cells.i.length;

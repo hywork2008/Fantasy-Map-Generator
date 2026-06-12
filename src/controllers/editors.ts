@@ -6,14 +6,14 @@ import { open as openStatesEditor } from "./states-editor";
 
 // ─── Default viewbox events ────────────────────────────────────────────────
 
-function makePanDrag(filter?: (ev: any) => boolean): d3.DragBehavior<SVGGElement, unknown, unknown> {
+function makePanDrag(filter?: (ev: Event) => boolean): d3.DragBehavior<SVGGElement, unknown, unknown> {
   let ox = 0,
     oy = 0,
     bw = 0,
     bh = 0;
   let drag = d3
     .drag<SVGGElement, unknown>()
-    .on("start", function (this: SVGGElement, event: any) {
+    .on("start", function (this: SVGGElement, event: d3.D3DragEvent<SVGGElement, unknown, unknown>) {
       const tr = parseTransform(this.getAttribute("transform") ?? "");
       ox = +tr[0] - event.x;
       oy = +tr[1] - event.y;
@@ -21,7 +21,7 @@ function makePanDrag(filter?: (ev: any) => boolean): d3.DragBehavior<SVGGElement
       bw = bbox.width;
       bh = bbox.height;
     })
-    .on("drag", function (this: SVGGElement, event: any) {
+    .on("drag", function (this: SVGGElement, event: d3.D3DragEvent<SVGGElement, unknown, unknown>) {
       const px = rn(((ox + event.x + bw) / svgWidth) * 100, 2);
       const py = rn(((oy + event.y + bh) / svgHeight) * 100, 2);
       d3.select(this)
@@ -65,7 +65,7 @@ function clicked(this: Element, event: MouseEvent): void {
 function unselect(): void {
   restoreDefaultEvents();
   if (!elSelected) return;
-  (elSelected as any).call(d3.drag().on("drag", null)).attr("class", null);
+  elSelected!.call(d3.drag<any, unknown>().on("drag", null)).attr("class", null);
   debug.selectAll("*").remove();
   viewbox.style("cursor", "default");
   elSelected = null;
@@ -104,7 +104,7 @@ function removeCircle(): void {
 // ─── Misc editor utilities ────────────────────────────────────────────────
 
 function fitContent(): string {
-  return !(window as any).chrome ? "-moz-max-content" : "fit-content";
+  return !("chrome" in window) ? "-moz-max-content" : "fit-content";
 }
 
 // ─── Legend ────────────────────────────────────────────────────────────────
@@ -231,7 +231,7 @@ function createPicker(): void {
   const picker = container
     .append("g")
     .attr("id", "picker")
-    .call(makePanDrag((ev: any) => ev.target.tagName !== "INPUT"));
+    .call(makePanDrag((ev: Event) => (ev.target as Element).tagName !== "INPUT"));
 
   const controls = picker.append("g").attr("id", "pickerControls");
   const h = controls.append("g");
@@ -252,16 +252,18 @@ function createPicker(): void {
   l.append("circle").attr("cx", 282).attr("cy", 10).attr("r", 5).attr("id", "pickerL");
   l.on("mousemove", () => tip("Set palette lightness"));
 
-  controls.selectAll("line").on("click", clickPickerControl as any);
+  controls.selectAll<SVGLineElement, unknown>("line").on("click", clickPickerControl);
+  let circDragMin = 0,
+    circDragMax = 0;
   controls.selectAll<SVGCircleElement, unknown>("circle").call(
     d3
       .drag<SVGCircleElement, unknown>()
       .on("start", function (this: SVGCircleElement) {
-        (this as any)._dragMin = +(this.previousSibling as Element).getAttribute("x1")!;
-        (this as any)._dragMax = +(this.previousSibling as Element).getAttribute("x2")!;
+        circDragMin = +(this.previousSibling as Element).getAttribute("x1")!;
+        circDragMax = +(this.previousSibling as Element).getAttribute("x2")!;
       })
-      .on("drag", function (this: SVGCircleElement, event: any) {
-        const x = Math.max(Math.min(event.x, (this as any)._dragMax), (this as any)._dragMin);
+      .on("drag", function (this: SVGCircleElement, event: d3.D3DragEvent<SVGCircleElement, unknown, unknown>) {
+        const x = Math.max(Math.min(event.x, circDragMax), circDragMin);
         this.setAttribute("cx", String(x));
         updateSpaces();
         updatePickerColors();
@@ -292,7 +294,7 @@ function createPicker(): void {
     </label>
     <label>HEX: <input type="text" id="pickerHEX" data-space="hex" style="width:42px" autocorrect="off" spellcheck="false" value="#7d8ee8" /></label>`
   );
-  spaces.selectAll("input").on("change", changePickerSpace as any);
+  spaces.selectAll<HTMLInputElement, unknown>("input").on("change", changePickerSpace);
 
   const colors = picker.append("g").attr("id", "pickerColors").attr("stroke", "#333333");
   const hatches = picker.append("g").attr("id", "pickerHatches").attr("stroke", "#333333");
@@ -324,14 +326,14 @@ function createPicker(): void {
   });
 
   colors
-    .selectAll("rect")
-    .on("click", pickerFillClicked as any)
+    .selectAll<SVGRectElement, unknown>("rect")
+    .on("click", pickerFillClicked)
     .on("mouseover", () => tip("Click to fill with the color"));
   hatches
-    .selectAll("rect")
-    .on("click", pickerFillClicked as any)
-    .on("mouseover", function (this: any) {
-      tip(`Click to fill with the hatching ${(this as Element).id}`);
+    .selectAll<SVGRectElement, unknown>("rect")
+    .on("click", pickerFillClicked)
+    .on("mouseover", function (this: SVGRectElement) {
+      tip(`Click to fill with the hatching ${this.id}`);
     });
 
   const bbox = (picker.node() as SVGGElement).getBBox();
@@ -599,7 +601,6 @@ function highlightElement(element: Element, zoom?: number): void {
     element.tagName === "svg" ? getBBox(element as SVGRectElement) : (element as SVGGraphicsElement).getBBox();
   const transform = element.getAttribute("transform") ?? null;
   const enter = d3.transition().duration(1000).ease(d3.easeBounceOut);
-  const exit = d3.transition().duration(500).ease(d3.easeLinear);
 
   const highlight = debug
     .append("rect")
@@ -608,10 +609,12 @@ function highlightElement(element: Element, zoom?: number): void {
     .attr("width", box.width)
     .attr("height", box.height);
   highlight.classed("highlighted", true).attr("transform", transform);
-  (highlight as any)
+  highlight
     .transition(enter)
     .style("outline-offset", "0px")
-    .transition(exit)
+    .transition()
+    .duration(500)
+    .ease(d3.easeLinear)
     .style("outline-color", "transparent")
     .delay(1000)
     .remove();
@@ -839,9 +842,9 @@ function selectIcon(initial: string, callback: (value: string) => void): void {
     (options.military as Array<{ icon: string }>)?.forEach(unit => {
       if (isExternal(unit.icon)) externalResources.add(unit.icon);
     });
-    pack.states.forEach((state: { military?: Array<{ icon: string }> }) => {
+    pack.states.forEach(state => {
       state?.military?.forEach(regiment => {
-        if (isExternal(regiment.icon)) externalResources.add(regiment.icon);
+        if (regiment.icon && isExternal(regiment.icon)) externalResources.add(regiment.icon);
       });
     });
     externalResources.forEach(addExternalImage);
@@ -1016,7 +1019,7 @@ window.unfog = unfog;
 window.getFileName = getFileName;
 window.downloadFile = downloadFile;
 window.uploadFile = uploadFile;
-window.highlightElement = highlightElement as any;
+window.highlightElement = highlightElement;
 window.selectIcon = selectIcon;
 window.getAreaUnit = getAreaUnit;
 window.getArea = getArea;
