@@ -1,4 +1,5 @@
-import * as d3 from "d3";
+import type * as d3 from "d3";
+import { fitMapView, reinitializeMapLayers } from "../main";
 import type { NameBase } from "../modules/names-generator";
 import type { River } from "../modules/river-generator";
 import { calculateVoronoi, ensureEl, last, link, minmax, parseError, rn } from "../utils";
@@ -323,55 +324,7 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
     }
     svg.remove();
     document.body.insertAdjacentHTML("afterbegin", data[5]);
-    svg = d3.select("#map") as unknown as typeof svg;
-    defs = svg.select("#deftemp") as typeof defs;
-    viewbox = svg.select("#viewbox") as typeof viewbox;
-    scaleBar = svg.select("#scaleBar") as typeof scaleBar;
-    legend = svg.select("#legend") as typeof legend;
-    ocean = viewbox.select("#ocean") as typeof ocean;
-    oceanLayers = ocean.select("#oceanLayers") as typeof oceanLayers;
-    oceanPattern = ocean.select("#oceanPattern") as typeof oceanPattern;
-    lakes = viewbox.select("#lakes") as typeof lakes;
-    landmass = viewbox.select("#landmass") as typeof landmass;
-    texture = viewbox.select("#texture") as typeof texture;
-    terrs = viewbox.select("#terrs") as typeof terrs;
-    biomes = viewbox.select("#biomes") as typeof biomes;
-    ice = viewbox.select("#ice") as typeof ice;
-    cells = viewbox.select("#cells") as typeof cells;
-    gridOverlay = viewbox.select("#gridOverlay") as typeof gridOverlay;
-    coordinates = viewbox.select("#coordinates") as typeof coordinates;
-    compass = viewbox.select("#compass") as typeof compass;
-    rivers = viewbox.select("#rivers") as typeof rivers;
-    terrain = viewbox.select("#terrain") as typeof terrain;
-    relig = viewbox.select("#relig") as typeof relig;
-    cults = viewbox.select("#cults") as typeof cults;
-    regions = viewbox.select("#regions") as typeof regions;
-    statesBody = regions.select("#statesBody") as typeof statesBody;
-    statesHalo = regions.select("#statesHalo") as typeof statesHalo;
-    provs = viewbox.select("#provs") as typeof provs;
-    zones = viewbox.select("#zones") as typeof zones;
-    borders = viewbox.select("#borders") as typeof borders;
-    stateBorders = borders.select("#stateBorders") as typeof stateBorders;
-    provinceBorders = borders.select("#provinceBorders") as typeof provinceBorders;
-    routes = viewbox.select("#routes") as typeof routes;
-    roads = routes.select("#roads") as typeof roads;
-    trails = routes.select("#trails") as typeof trails;
-    searoutes = routes.select("#searoutes") as typeof searoutes;
-    temperature = viewbox.select("#temperature") as typeof temperature;
-    coastline = viewbox.select("#coastline") as typeof coastline;
-    prec = viewbox.select("#prec") as typeof prec;
-    population = viewbox.select("#population") as typeof population;
-    emblems = viewbox.select("#emblems") as typeof emblems;
-    labels = viewbox.select("#labels") as typeof labels;
-    icons = viewbox.select("#icons") as typeof icons;
-    burgIcons = icons.select("#burgIcons") as typeof burgIcons;
-    anchors = icons.select("#anchors") as typeof anchors;
-    armies = viewbox.select("#armies") as typeof armies;
-    markers = viewbox.select("#markers") as typeof markers;
-    ruler = viewbox.select("#ruler") as typeof ruler;
-    fogging = viewbox.select("#fogging") as typeof fogging;
-    debug = viewbox.select("#debug") as typeof debug;
-    burgLabels = labels.select("#burgLabels") as typeof burgLabels;
+    reinitializeMapLayers();
 
     if (!texture.size()) {
       texture = viewbox
@@ -553,7 +506,67 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
       );
 
       if (cellsMismatch || featureVerticesMismatch) {
-        throw new Error("[Data integrity] Striping issue detected. To fix try to edit the heightmap in ERASE mode");
+        WARN && console.warn("[Data integrity] Striping issue detected, attempting auto-repair");
+
+        if (cellsMismatch) {
+          const n = pCells.i.length;
+          const typedArrayKeys = [
+            "h",
+            "t",
+            "r",
+            "f",
+            "fl",
+            "s",
+            "pop",
+            "conf",
+            "haven",
+            "culture",
+            "biome",
+            "harbor",
+            "burg",
+            "religion",
+            "state",
+            "area",
+            "province"
+          ] as const;
+          typedArrayKeys.forEach(key => {
+            type ResizableArray = {
+              length: number;
+              slice(s: number, e: number): ResizableArray;
+              constructor: new (n: number) => ResizableArray;
+              set(src: ResizableArray): void;
+            };
+            const arr = pCells[key] as unknown as ResizableArray;
+            if (arr.length === n) return;
+            if (arr.length > n) {
+              (pCells as Record<string, unknown>)[key] = arr.slice(0, n);
+            } else {
+              const extended = new arr.constructor(n);
+              extended.set(arr);
+              (pCells as Record<string, unknown>)[key] = extended;
+            }
+          });
+
+          pack.burgs.forEach(burg => {
+            if (!burg.i || burg.removed || burg.cell === undefined || burg.x === undefined || burg.y === undefined)
+              return;
+            if (burg.cell >= n) {
+              pCells.i
+                .filter((i: number) => pCells.burg[i] === burg.i)
+                .forEach((i: number) => {
+                  pCells.burg[i] = 0;
+                });
+              burg.cell = findCell(burg.x, burg.y);
+              pCells.burg[burg.cell] = burg.i;
+            }
+          });
+        }
+
+        if (featureVerticesMismatch) {
+          pack.features.forEach(f => {
+            if (f?.vertices) f.vertices = f.vertices.filter((v: number) => !!pVertices.p[v]);
+          });
+        }
       }
 
       const invalidStates = [...new Set(pCells.state)].filter(
@@ -603,7 +616,10 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
       const invalidFeatures = [...new Set(pCells.f)].filter((f): f is number => !!f && !pack.features[f as number]);
       invalidFeatures.forEach(f => {
         const invalidCells = pCells.i.filter(i => pCells.f[i] === f);
-        ERROR && console.error("[Data integrity] Invalid feature", f, "is assigned to cells", invalidCells);
+        invalidCells.forEach(i => {
+          pCells.f[i] = 0;
+        });
+        WARN && console.warn("[Data integrity] Invalid feature", f, "is assigned to cells", invalidCells);
       });
 
       const invalidBurgs = [...new Set(pCells.burg)].filter(
@@ -795,6 +811,7 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
     focusOn();
     invokeActiveZooming();
     fitMapToScreen();
+    fitMapView();
 
     WARN &&
       console.warn(

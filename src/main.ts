@@ -5,6 +5,8 @@ import type { Selection } from "d3";
 import * as d3 from "d3";
 import { viewState } from "./context/viewState";
 import { worldContext } from "./context/worldContext";
+import { Rulers } from "./controllers/measurers";
+import { applyStoredOptions } from "./controllers/options";
 import type { BurgGroup } from "./modules/burgs-generator";
 import {
   TYPED_ARRAY_MAX_VALUES as _TMP,
@@ -66,85 +68,85 @@ if (PRODUCTION && "serviceWorker" in navigator) {
 
 // ─── SVG layers (appended in default render order) ───────────────────────────
 
-const svg = d3.select("#map") as unknown as Selection<SVGSVGElement, unknown, null, undefined>;
-const defs = svg.select("#deftemp") as Selection<SVGDefsElement, unknown, null, undefined>;
-const viewbox = svg.select("#viewbox") as Selection<SVGGElement, unknown, null, undefined>;
-const scaleBar = svg.select("#scaleBar") as Selection<SVGGElement, unknown, null, undefined>;
-const legend = svg.append("g").attr("id", "legend") as Selection<SVGGElement, unknown, null, undefined>;
-const ocean = viewbox.append("g").attr("id", "ocean") as Selection<SVGGElement, unknown, null, undefined>;
-const oceanLayers = ocean.append("g").attr("id", "oceanLayers") as Selection<SVGGElement, unknown, null, undefined>;
-const oceanPattern = ocean.append("g").attr("id", "oceanPattern") as Selection<SVGGElement, unknown, null, undefined>;
-const landmass = viewbox.append("g").attr("id", "landmass") as Selection<SVGGElement, unknown, null, undefined>;
-const texture = viewbox.append("g").attr("id", "texture") as Selection<SVGGElement, unknown, null, undefined>;
-const terrs = viewbox.append("g").attr("id", "terrs") as Selection<SVGGElement, unknown, null, undefined>;
-const lakes = viewbox.append("g").attr("id", "lakes") as Selection<SVGGElement, unknown, null, undefined>;
-const biomes = viewbox.append("g").attr("id", "biomes") as Selection<SVGGElement, unknown, null, undefined>;
-const cells = viewbox.append("g").attr("id", "cells") as Selection<SVGGElement, unknown, null, undefined>;
-const gridOverlay = viewbox.append("g").attr("id", "gridOverlay") as Selection<SVGGElement, unknown, null, undefined>;
-const coordinates = viewbox.append("g").attr("id", "coordinates") as Selection<SVGGElement, unknown, null, undefined>;
-const compass = viewbox.append("g").attr("id", "compass").style("display", "none") as Selection<
+let svg = d3.select("#map") as unknown as Selection<SVGSVGElement, unknown, null, undefined>;
+let defs = svg.select("#deftemp") as Selection<SVGDefsElement, unknown, null, undefined>;
+let viewbox = svg.select("#viewbox") as Selection<SVGGElement, unknown, null, undefined>;
+let scaleBar = svg.select("#scaleBar") as Selection<SVGGElement, unknown, null, undefined>;
+let legend = svg.append("g").attr("id", "legend") as Selection<SVGGElement, unknown, null, undefined>;
+let ocean = viewbox.append("g").attr("id", "ocean") as Selection<SVGGElement, unknown, null, undefined>;
+let oceanLayers = ocean.append("g").attr("id", "oceanLayers") as Selection<SVGGElement, unknown, null, undefined>;
+let oceanPattern = ocean.append("g").attr("id", "oceanPattern") as Selection<SVGGElement, unknown, null, undefined>;
+let landmass = viewbox.append("g").attr("id", "landmass") as Selection<SVGGElement, unknown, null, undefined>;
+let texture = viewbox.append("g").attr("id", "texture") as Selection<SVGGElement, unknown, null, undefined>;
+let terrs = viewbox.append("g").attr("id", "terrs") as Selection<SVGGElement, unknown, null, undefined>;
+let lakes = viewbox.append("g").attr("id", "lakes") as Selection<SVGGElement, unknown, null, undefined>;
+let biomes = viewbox.append("g").attr("id", "biomes") as Selection<SVGGElement, unknown, null, undefined>;
+let cells = viewbox.append("g").attr("id", "cells") as Selection<SVGGElement, unknown, null, undefined>;
+let gridOverlay = viewbox.append("g").attr("id", "gridOverlay") as Selection<SVGGElement, unknown, null, undefined>;
+let coordinates = viewbox.append("g").attr("id", "coordinates") as Selection<SVGGElement, unknown, null, undefined>;
+let compass = viewbox.append("g").attr("id", "compass").style("display", "none") as Selection<
   SVGGElement,
   unknown,
   null,
   undefined
 >;
-const rivers = viewbox.append("g").attr("id", "rivers") as unknown as Selection<SVGElement, unknown, null, undefined>;
-const terrain = viewbox.append("g").attr("id", "terrain") as Selection<SVGGElement, unknown, null, undefined>;
-const relig = viewbox.append("g").attr("id", "relig") as Selection<SVGGElement, unknown, null, undefined>;
-const cults = viewbox.append("g").attr("id", "cults") as Selection<SVGGElement, unknown, null, undefined>;
-const regions = viewbox.append("g").attr("id", "regions") as Selection<SVGGElement, unknown, null, undefined>;
-const statesBody = regions.append("g").attr("id", "statesBody") as Selection<SVGGElement, unknown, null, undefined>;
-const statesHalo = regions.append("g").attr("id", "statesHalo") as Selection<SVGGElement, unknown, null, undefined>;
-const provs = viewbox.append("g").attr("id", "provs") as Selection<SVGGElement, unknown, null, undefined>;
-const zones = viewbox.append("g").attr("id", "zones") as Selection<SVGGElement, unknown, null, undefined>;
-const borders = viewbox.append("g").attr("id", "borders") as Selection<SVGGElement, unknown, null, undefined>;
-const stateBorders = borders.append("g").attr("id", "stateBorders") as Selection<SVGGElement, unknown, null, undefined>;
-const provinceBorders = borders.append("g").attr("id", "provinceBorders") as Selection<
+let rivers = viewbox.append("g").attr("id", "rivers") as unknown as Selection<SVGElement, unknown, null, undefined>;
+let terrain = viewbox.append("g").attr("id", "terrain") as Selection<SVGGElement, unknown, null, undefined>;
+let relig = viewbox.append("g").attr("id", "relig") as Selection<SVGGElement, unknown, null, undefined>;
+let cults = viewbox.append("g").attr("id", "cults") as Selection<SVGGElement, unknown, null, undefined>;
+let regions = viewbox.append("g").attr("id", "regions") as Selection<SVGGElement, unknown, null, undefined>;
+let statesBody = regions.append("g").attr("id", "statesBody") as Selection<SVGGElement, unknown, null, undefined>;
+let statesHalo = regions.append("g").attr("id", "statesHalo") as Selection<SVGGElement, unknown, null, undefined>;
+let provs = viewbox.append("g").attr("id", "provs") as Selection<SVGGElement, unknown, null, undefined>;
+let zones = viewbox.append("g").attr("id", "zones") as Selection<SVGGElement, unknown, null, undefined>;
+let borders = viewbox.append("g").attr("id", "borders") as Selection<SVGGElement, unknown, null, undefined>;
+let stateBorders = borders.append("g").attr("id", "stateBorders") as Selection<SVGGElement, unknown, null, undefined>;
+let provinceBorders = borders.append("g").attr("id", "provinceBorders") as Selection<
   SVGGElement,
   unknown,
   null,
   undefined
 >;
-const routes = viewbox.append("g").attr("id", "routes") as unknown as Selection<SVGElement, unknown, null, undefined>;
-const roads = routes.append("g").attr("id", "roads") as Selection<SVGGElement, unknown, null, undefined>;
-const trails = routes.append("g").attr("id", "trails") as Selection<SVGGElement, unknown, null, undefined>;
-const searoutes = routes.append("g").attr("id", "searoutes") as Selection<SVGGElement, unknown, null, undefined>;
-const temperature = viewbox.append("g").attr("id", "temperature") as Selection<SVGGElement, unknown, null, undefined>;
-const coastline = viewbox.append("g").attr("id", "coastline") as Selection<SVGGElement, unknown, null, undefined>;
-const ice = viewbox.append("g").attr("id", "ice") as Selection<SVGGElement, unknown, null, undefined>;
-const prec = viewbox.append("g").attr("id", "prec").style("display", "none") as Selection<
+let routes = viewbox.append("g").attr("id", "routes") as unknown as Selection<SVGElement, unknown, null, undefined>;
+let roads = routes.append("g").attr("id", "roads") as Selection<SVGGElement, unknown, null, undefined>;
+let trails = routes.append("g").attr("id", "trails") as Selection<SVGGElement, unknown, null, undefined>;
+let searoutes = routes.append("g").attr("id", "searoutes") as Selection<SVGGElement, unknown, null, undefined>;
+let temperature = viewbox.append("g").attr("id", "temperature") as Selection<SVGGElement, unknown, null, undefined>;
+let coastline = viewbox.append("g").attr("id", "coastline") as Selection<SVGGElement, unknown, null, undefined>;
+let ice = viewbox.append("g").attr("id", "ice") as Selection<SVGGElement, unknown, null, undefined>;
+let prec = viewbox.append("g").attr("id", "prec").style("display", "none") as Selection<
   SVGGElement,
   unknown,
   null,
   undefined
 >;
-const population = viewbox.append("g").attr("id", "population") as Selection<SVGGElement, unknown, null, undefined>;
-const emblems = viewbox.append("g").attr("id", "emblems").style("display", "none") as unknown as Selection<
+let population = viewbox.append("g").attr("id", "population") as Selection<SVGGElement, unknown, null, undefined>;
+let emblems = viewbox.append("g").attr("id", "emblems").style("display", "none") as unknown as Selection<
   SVGElement,
   unknown,
   null,
   undefined
 >;
-const icons = viewbox.append("g").attr("id", "icons") as Selection<SVGGElement, unknown, null, undefined>;
-const labels = viewbox.append("g").attr("id", "labels") as Selection<SVGGElement, unknown, null, undefined>;
-const burgIcons = icons.append("g").attr("id", "burgIcons") as Selection<SVGGElement, unknown, null, undefined>;
-const anchors = icons.append("g").attr("id", "anchors") as Selection<SVGGElement, unknown, null, undefined>;
-const armies = viewbox.append("g").attr("id", "armies") as Selection<SVGGElement, unknown, null, undefined>;
-const markers = viewbox.append("g").attr("id", "markers") as Selection<SVGGElement, unknown, null, undefined>;
-const fogging = viewbox
+let icons = viewbox.append("g").attr("id", "icons") as Selection<SVGGElement, unknown, null, undefined>;
+let labels = viewbox.append("g").attr("id", "labels") as Selection<SVGGElement, unknown, null, undefined>;
+let burgIcons = icons.append("g").attr("id", "burgIcons") as Selection<SVGGElement, unknown, null, undefined>;
+let anchors = icons.append("g").attr("id", "anchors") as Selection<SVGGElement, unknown, null, undefined>;
+let armies = viewbox.append("g").attr("id", "armies") as Selection<SVGGElement, unknown, null, undefined>;
+let markers = viewbox.append("g").attr("id", "markers") as Selection<SVGGElement, unknown, null, undefined>;
+let fogging = viewbox
   .append("g")
   .attr("id", "fogging-cont")
   .attr("mask", "url(#fog)")
   .append("g")
   .attr("id", "fogging")
   .style("display", "none") as Selection<SVGGElement, unknown, null, undefined>;
-const ruler = viewbox.append("g").attr("id", "ruler").style("display", "none") as Selection<
+let ruler = viewbox.append("g").attr("id", "ruler").style("display", "none") as Selection<
   SVGGElement,
   unknown,
   null,
   undefined
 >;
-const debug = viewbox.append("g").attr("id", "debug") as Selection<SVGGElement, unknown, null, undefined>;
+let debug = viewbox.append("g").attr("id", "debug") as Selection<SVGGElement, unknown, null, undefined>;
 
 lakes.append("g").attr("id", "freshwater");
 lakes.append("g").attr("id", "salt");
@@ -161,7 +163,7 @@ terrs.append("g").attr("id", "landHeights");
 
 labels.append("g").attr("id", "states");
 labels.append("g").attr("id", "addedLabels");
-const burgLabels = labels.append("g").attr("id", "burgLabels") as Selection<SVGGElement, unknown, null, undefined>;
+let burgLabels = labels.append("g").attr("id", "burgLabels") as Selection<SVGGElement, unknown, null, undefined>;
 
 population.append("g").attr("id", "rural");
 population.append("g").attr("id", "urban");
@@ -295,6 +297,193 @@ Object.assign(viewState, {
   viewY: 0
 });
 
+// ─── SVG layer reinitialization (called after a new map SVG is loaded) ────────
+
+export function reinitializeMapLayers(): void {
+  svg = d3.select<SVGSVGElement, unknown>("#map") as unknown as Selection<SVGSVGElement, unknown, null, undefined>;
+  defs = svg.select("#deftemp") as Selection<SVGDefsElement, unknown, null, undefined>;
+  viewbox = svg.select("#viewbox") as Selection<SVGGElement, unknown, null, undefined>;
+  scaleBar = svg.select("#scaleBar") as Selection<SVGGElement, unknown, null, undefined>;
+  legend = svg.select("#legend") as Selection<SVGGElement, unknown, null, undefined>;
+  ocean = viewbox.select("#ocean") as Selection<SVGGElement, unknown, null, undefined>;
+  oceanLayers = ocean.select("#oceanLayers") as Selection<SVGGElement, unknown, null, undefined>;
+  oceanPattern = ocean.select("#oceanPattern") as Selection<SVGGElement, unknown, null, undefined>;
+  lakes = viewbox.select("#lakes") as Selection<SVGGElement, unknown, null, undefined>;
+  landmass = viewbox.select("#landmass") as Selection<SVGGElement, unknown, null, undefined>;
+  texture = viewbox.select("#texture") as Selection<SVGGElement, unknown, null, undefined>;
+  terrs = viewbox.select("#terrs") as Selection<SVGGElement, unknown, null, undefined>;
+  biomes = viewbox.select("#biomes") as Selection<SVGGElement, unknown, null, undefined>;
+  ice = viewbox.select("#ice") as Selection<SVGGElement, unknown, null, undefined>;
+  cells = viewbox.select("#cells") as Selection<SVGGElement, unknown, null, undefined>;
+  gridOverlay = viewbox.select("#gridOverlay") as Selection<SVGGElement, unknown, null, undefined>;
+  coordinates = viewbox.select("#coordinates") as Selection<SVGGElement, unknown, null, undefined>;
+  compass = viewbox.select("#compass") as Selection<SVGGElement, unknown, null, undefined>;
+  rivers = viewbox.select("#rivers") as unknown as Selection<SVGElement, unknown, null, undefined>;
+  terrain = viewbox.select("#terrain") as Selection<SVGGElement, unknown, null, undefined>;
+  relig = viewbox.select("#relig") as Selection<SVGGElement, unknown, null, undefined>;
+  cults = viewbox.select("#cults") as Selection<SVGGElement, unknown, null, undefined>;
+  regions = viewbox.select("#regions") as Selection<SVGGElement, unknown, null, undefined>;
+  statesBody = regions.select("#statesBody") as Selection<SVGGElement, unknown, null, undefined>;
+  statesHalo = regions.select("#statesHalo") as Selection<SVGGElement, unknown, null, undefined>;
+  provs = viewbox.select("#provs") as Selection<SVGGElement, unknown, null, undefined>;
+  zones = viewbox.select("#zones") as Selection<SVGGElement, unknown, null, undefined>;
+  borders = viewbox.select("#borders") as Selection<SVGGElement, unknown, null, undefined>;
+  stateBorders = borders.select("#stateBorders") as Selection<SVGGElement, unknown, null, undefined>;
+  provinceBorders = borders.select("#provinceBorders") as Selection<SVGGElement, unknown, null, undefined>;
+  routes = viewbox.select("#routes") as unknown as Selection<SVGElement, unknown, null, undefined>;
+  roads = routes.select("#roads") as Selection<SVGGElement, unknown, null, undefined>;
+  trails = routes.select("#trails") as Selection<SVGGElement, unknown, null, undefined>;
+  searoutes = routes.select("#searoutes") as Selection<SVGGElement, unknown, null, undefined>;
+  temperature = viewbox.select("#temperature") as Selection<SVGGElement, unknown, null, undefined>;
+  coastline = viewbox.select("#coastline") as Selection<SVGGElement, unknown, null, undefined>;
+  prec = viewbox.select("#prec") as Selection<SVGGElement, unknown, null, undefined>;
+  population = viewbox.select("#population") as Selection<SVGGElement, unknown, null, undefined>;
+  emblems = viewbox.select("#emblems") as unknown as Selection<SVGElement, unknown, null, undefined>;
+  labels = viewbox.select("#labels") as Selection<SVGGElement, unknown, null, undefined>;
+  icons = viewbox.select("#icons") as Selection<SVGGElement, unknown, null, undefined>;
+  burgIcons = icons.select("#burgIcons") as Selection<SVGGElement, unknown, null, undefined>;
+  anchors = icons.select("#anchors") as Selection<SVGGElement, unknown, null, undefined>;
+  armies = viewbox.select("#armies") as Selection<SVGGElement, unknown, null, undefined>;
+  markers = viewbox.select("#markers") as Selection<SVGGElement, unknown, null, undefined>;
+  ruler = viewbox.select("#ruler") as Selection<SVGGElement, unknown, null, undefined>;
+  fogging = viewbox.select("#fogging") as Selection<SVGGElement, unknown, null, undefined>;
+  debug = viewbox.select("#debug") as Selection<SVGGElement, unknown, null, undefined>;
+  burgLabels = labels.select("#burgLabels") as Selection<SVGGElement, unknown, null, undefined>;
+
+  window.svg = svg;
+  window.defs = defs;
+  window.viewbox = viewbox as unknown as Selection<SVGElement, unknown, null, undefined>;
+  window.scaleBar = scaleBar;
+  window.legend = legend;
+  window.ocean = ocean;
+  window.oceanLayers = oceanLayers;
+  window.oceanPattern = oceanPattern;
+  window.landmass = landmass;
+  window.texture = texture;
+  window.terrs = terrs;
+  window.lakes = lakes;
+  window.biomes = biomes;
+  window.cells = cells;
+  window.gridOverlay = gridOverlay;
+  window.coordinates = coordinates;
+  window.compass = compass;
+  window.rivers = rivers as Selection<SVGElement, unknown, null, undefined>;
+  window.terrain = terrain;
+  window.relig = relig;
+  window.cults = cults;
+  window.regions = regions;
+  window.statesBody = statesBody;
+  window.statesHalo = statesHalo;
+  window.provs = provs;
+  window.zones = zones;
+  window.borders = borders;
+  window.stateBorders = stateBorders;
+  window.provinceBorders = provinceBorders;
+  window.routes = routes as Selection<SVGElement, unknown, null, undefined>;
+  window.roads = roads;
+  window.trails = trails;
+  window.searoutes = searoutes;
+  window.temperature = temperature;
+  window.coastline = coastline;
+  window.ice = ice;
+  window.prec = prec;
+  window.population = population;
+  window.emblems = emblems as Selection<SVGElement, unknown, null, undefined>;
+  window.icons = icons;
+  window.labels = labels;
+  window.burgIcons = burgIcons;
+  window.anchors = anchors;
+  window.armies = armies;
+  window.markers = markers;
+  window.fogging = fogging;
+  window.ruler = ruler;
+  window.debug = debug;
+  window.burgLabels = burgLabels;
+
+  Object.assign(viewState, {
+    svg,
+    defs,
+    viewbox: viewbox as unknown as Selection<SVGElement, unknown, null, undefined>,
+    scaleBar,
+    legend,
+    ocean,
+    oceanLayers,
+    oceanPattern,
+    landmass,
+    texture,
+    terrs,
+    lakes,
+    biomes,
+    cells,
+    gridOverlay,
+    coordinates,
+    compass,
+    rivers: rivers as Selection<SVGElement, unknown, null, undefined>,
+    terrain,
+    relig,
+    cults,
+    regions,
+    statesBody,
+    statesHalo,
+    provs,
+    zones,
+    borders,
+    stateBorders,
+    provinceBorders,
+    routes: routes as Selection<SVGElement, unknown, null, undefined>,
+    roads,
+    trails,
+    searoutes,
+    temperature,
+    coastline,
+    ice,
+    prec,
+    population,
+    emblems: emblems as Selection<SVGElement, unknown, null, undefined>,
+    icons,
+    labels,
+    burgLabels,
+    burgIcons,
+    anchors,
+    armies,
+    markers,
+    fogging,
+    ruler,
+    debug
+  });
+}
+
+// ─── Fit loaded map to screen (called after reinitializeMapLayers + fitMapToScreen) ─
+
+export function fitMapView(): void {
+  const gw = window.graphWidth;
+  const gh = window.graphHeight;
+  const sw = window.svgWidth;
+  const sh = window.svgHeight;
+  const z = rn(Math.max(sw / gw, sh / gh), 3);
+  const tx = rn((-gw / 2) * z + sw / 2, 2);
+  const ty = rn((-gh / 2) * z + sh / 2, 2);
+  const transform = d3.zoomIdentity.translate(tx, ty).scale(z);
+
+  // Update module-level state before svg.call so zoomRaf's no-change guard
+  // doesn't skip the RAF when loading the same map a second time.
+  scale = z;
+  viewX = tx;
+  viewY = ty;
+  window.scale = scale;
+  window.viewX = viewX;
+  window.viewY = viewY;
+  worldContext.scale = scale;
+  viewState.viewX = viewX;
+  viewState.viewY = viewY;
+
+  // Set viewbox transform synchronously to avoid a one-frame flash at identity.
+  viewbox.attr("transform", `translate(${tx} ${ty}) scale(${z})`);
+
+  // Sync D3 zoom internal state so subsequent wheel/drag events compute correctly.
+  svg.call(zoom.transform, transform);
+}
+
 // ─── Main data variables ──────────────────────────────────────────────────────
 
 let grid = {} as typeof window.grid;
@@ -305,7 +494,7 @@ const mapHistory: typeof window.mapHistory = [];
 const elSelected: typeof window.elSelected = null;
 const modules: typeof window.modules = window.modules ?? {};
 let notes: typeof window.notes = [];
-const rulers = new (window.Rulers as new () => typeof window.rulers)();
+const rulers = new Rulers();
 let customization = 0;
 
 const options: typeof window.options = {

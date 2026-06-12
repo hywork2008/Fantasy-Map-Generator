@@ -597,7 +597,8 @@ window.RouteOpisometer = RouteOpisometer;
 window.Planimeter = Planimeter;
 window.createDefaultRuler = createDefaultRuler;
 
-export type { Opisometer, Planimeter, RouteOpisometer, Ruler, Rulers };
+export type { Opisometer, Planimeter, RouteOpisometer, Ruler };
+export { Rulers };
 
 // ─── Legacy globals (from non-migrated JS files) ──────────────────────────────
 
