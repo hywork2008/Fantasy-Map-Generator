@@ -1,7 +1,7 @@
 import * as d3 from "d3";
 import { pointer } from "d3";
 import { Burgs, Names } from "../modules";
-import { ensureEl, rn, si } from "../utils";
+import { applySorting, ensureEl, getHeight, rn, si } from "../utils";
 import { editBurg, getTemperatureLikeness } from "./burg-editor";
 import { editBurgGroups } from "./burg-group-editor";
 import {

@@ -2,7 +2,20 @@ import { mean, sum } from "d3";
 import { Military, Names } from "../modules";
 import type { MilitaryRegiment } from "../modules/military-generator";
 import { drawMarker, moveRegiment } from "../renderers";
-import { capitalize, ensureEl, getAdjective, last, list, minmax, P, Pint, rand, rn, wiki } from "../utils";
+import {
+  applySorting,
+  capitalize,
+  ensureEl,
+  getAdjective,
+  last,
+  list,
+  minmax,
+  P,
+  Pint,
+  rand,
+  rn,
+  wiki
+} from "../utils";
 import { closeDialogs, fitContent } from "./editors";
 
 interface BattleRegiment extends MilitaryRegiment {

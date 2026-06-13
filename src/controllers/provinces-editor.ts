@@ -7,6 +7,7 @@ import type { Emblem as RendererEmblem } from "../modules/emblem/renderer";
 import type { Province } from "../modules/provinces-generator";
 import type { State } from "../modules/states-generator";
 import {
+  applySorting,
   ensureEl,
   findAllCellsInRadius,
   getPackPolygon,

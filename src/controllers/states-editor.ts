@@ -9,6 +9,7 @@ import type { Province } from "../modules/provinces-generator";
 import type { State } from "../modules/states-generator";
 import type { WorldNote } from "../types/WorldState";
 import {
+  applySorting,
   applySortingByHeader,
   ensureEl,
   findAllCellsInRadius,

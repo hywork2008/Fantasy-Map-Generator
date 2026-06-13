@@ -26,10 +26,6 @@ export interface WorldContext {
   biomesData: BiomesData;
   nameBases: NameBase[];
   style: MapStyle & { burgLabels: object; burgIcons: object; anchors: object };
-  graphWidth: number;
-  graphHeight: number;
-  svgWidth: number;
-  svgHeight: number;
   mapCoordinates: MapCoordinates;
   /** Urbanization rate read from the UI input at map load */
   urbanization: number;
@@ -37,6 +33,8 @@ export interface WorldContext {
   populationRate: number;
   /** Distance scale factor read from the UI input at map load */
   distanceScale: number;
+  /** Urban cell density factor read from the UI input at map load */
+  urbanDensity: number;
   /** Shared d3 line generator (curveBasis) used by controllers and editors */
   lineGen: (points: [number, number][]) => string;
   /** COA (coat-of-arms) renderer module, set when emblem module loads */
@@ -66,14 +64,11 @@ export const worldContext: WorldContext = {
   biomesData: {} as BiomesData,
   nameBases: [],
   style: { burgLabels: {}, burgIcons: {}, anchors: {} } as WorldContext["style"],
-  graphWidth: 0,
-  graphHeight: 0,
-  svgWidth: 0,
-  svgHeight: 0,
   mapCoordinates: {},
   urbanization: 1,
   populationRate: 1,
   distanceScale: 1,
+  urbanDensity: 1,
   lineGen: () => "",
   COArenderer: null,
   scale: 1,

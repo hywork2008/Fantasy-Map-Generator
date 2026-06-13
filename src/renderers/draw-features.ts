@@ -20,8 +20,8 @@ interface FeaturesHtml {
 
 export const drawFeatures = (): void => {
   TIME && console.time("drawFeatures");
-  const { pack, graphWidth, graphHeight } = worldContext;
-  const { defs, coastline, lakes } = viewState;
+  const { pack } = worldContext;
+  const { defs, coastline, graphWidth, graphHeight, lakes } = viewState;
 
   const html: FeaturesHtml = {
     paths: [],
@@ -91,4 +91,4 @@ function featurePathRenderer(
 }
 
 export const getFeaturePath = (feature: PackedGraphFeature): string =>
-  featurePathRenderer(worldContext.pack, worldContext.graphWidth, worldContext.graphHeight, feature);
+  featurePathRenderer(worldContext.pack, viewState.graphWidth, viewState.graphHeight, feature);

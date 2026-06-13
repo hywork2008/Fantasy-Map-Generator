@@ -1,7 +1,7 @@
 import { interpolateString, pointer } from "d3";
 import { COArenderer, States } from "../modules";
 import { drawStates } from "../renderers";
-import { getAdjective } from "../utils";
+import { applySorting, getAdjective } from "../utils";
 import { closeDialogs, downloadFile, fitContent, getFileName, restoreDefaultEvents } from "./editors";
 import {
   layerIsOn,

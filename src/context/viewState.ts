@@ -55,6 +55,12 @@ export interface ViewState {
   // Current zoom state
   viewX: number;
   viewY: number;
+  // SVG canvas dimensions (coordinate space of the map)
+  graphWidth: number;
+  graphHeight: number;
+  // Viewport pixel dimensions (may differ from graph dims when zoomed/windowed)
+  svgWidth: number;
+  svgHeight: number;
 }
 
 /**

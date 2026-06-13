@@ -6,8 +6,8 @@ import { TIME } from "../utils/debug";
 
 export const drawTemperature = (): void => {
   TIME && console.time("drawTemperature");
-  const { grid, graphWidth, graphHeight } = worldContext;
-  const { temperature } = viewState;
+  const { grid } = worldContext;
+  const { graphWidth, graphHeight, temperature } = viewState;
 
   temperature.selectAll("*").remove();
   const lineGen = line<[number, number]>().curve(curveBasisClosed);
@@ -93,7 +93,7 @@ export const drawTemperature = (): void => {
   }
 
   function addLabel(points: [number, number][], t: number): void {
-    const { svgWidth } = worldContext;
+    const { svgWidth } = viewState;
     const xCenter = svgWidth / 2;
 
     // add label on isoline top center
@@ -119,7 +119,7 @@ export const drawTemperature = (): void => {
   }
 
   function pushLabel(x: number, y: number, t: number): void {
-    const { svgWidth, svgHeight } = worldContext;
+    const { svgWidth, svgHeight } = viewState;
     if (x < 20 || x > svgWidth - 20) return;
     if (y < 20 || y > svgHeight - 20) return;
     labels.push([x, y, t]);

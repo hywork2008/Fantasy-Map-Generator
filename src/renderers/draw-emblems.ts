@@ -26,8 +26,8 @@ interface EmblemNode {
 
 export const drawEmblems = (): void => {
   TIME && console.time("drawEmblems");
-  const { pack, graphHeight, graphWidth } = worldContext;
-  const { emblems } = viewState;
+  const { pack } = worldContext;
+  const { emblems, graphHeight, graphWidth } = viewState;
   const { states, provinces, burgs } = pack;
 
   const validStates = states.filter(s => s.i && !s.removed && s.coa && s.coa.size !== 0);

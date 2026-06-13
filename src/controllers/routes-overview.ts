@@ -1,5 +1,5 @@
 import { Routes } from "../modules";
-import { ensureEl, rn } from "../utils";
+import { applySorting, ensureEl, rn } from "../utils";
 import { closeDialogs, confirmationDialog, downloadFile, fitContent, getFileName, highlightElement } from "./editors";
 import { layerIsOn, toggleRoutes } from "./layers";
 import { createRoute, editRoute } from "./routes-editor";

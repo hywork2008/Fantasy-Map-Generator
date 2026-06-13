@@ -12,6 +12,7 @@ import type { Province } from "../modules/provinces-generator";
 import type { State } from "../modules/states-generator";
 import {
   abbreviate,
+  applySorting,
   applySortingByHeader,
   debounce,
   ensureEl,

@@ -1,4 +1,5 @@
 import Alea from "alea";
+import { viewState } from "../context/viewState";
 import { worldContext } from "../context/worldContext";
 
 export interface CoastlineSettings {
@@ -184,7 +185,7 @@ export function fractalize(
 }
 
 function isOnBorder([x, y]: [number, number]) {
-  const { graphWidth, graphHeight } = worldContext;
+  const { graphWidth, graphHeight } = viewState;
   return x === 0 || x === graphWidth || y === 0 || y === graphHeight;
 }
 

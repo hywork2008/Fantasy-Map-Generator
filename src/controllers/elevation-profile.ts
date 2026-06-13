@@ -18,7 +18,7 @@ import type { Burg } from "../modules/burgs-generator";
 import type { PackedGraphFeature } from "../modules/features";
 import type { Province } from "../modules/provinces-generator";
 import type { State } from "../modules/states-generator";
-import { ensureEl, rn } from "../utils";
+import { ensureEl, getHeight, rn } from "../utils";
 import { closeDialogs, downloadFile, getFileName } from "./editors";
 import { getColor, getColorScheme } from "./style";
 

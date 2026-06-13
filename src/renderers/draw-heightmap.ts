@@ -52,8 +52,8 @@ const CURVE_MAP: Record<string, CurveFactory> = {
 
 export const drawHeightmap = (): void => {
   TIME && console.time("drawHeightmap");
-  const { grid, graphWidth, graphHeight } = worldContext;
-  const { terrs } = viewState;
+  const { grid } = worldContext;
+  const { graphWidth, graphHeight, terrs } = viewState;
 
   const ocean = terrs.select<SVGGElement>("#oceanHeights");
   const land = terrs.select<SVGGElement>("#landHeights");

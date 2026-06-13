@@ -159,14 +159,12 @@ declare global {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   var $: (selector: any) => any;
   var scale: number;
-  var getFriendlyHeight: (coords: [number, number]) => string;
   var addLakesInDeepDepressions: () => void;
   var openNearSeaLakes: () => void;
   var calculateMapCoordinates: () => void;
   var calculateTemperatures: () => void;
   var reGraph: () => void;
   var showStatistics: () => void;
-  var getHeight: (h: number, abs?: string) => string;
   var getLatitude: (y: number, precision?: number) => number;
   var getLongitude: (x: number, precision?: number) => number;
   var customization: number;
@@ -245,8 +243,6 @@ declare global {
   var hideLoading: () => void;
   var color: (t: number) => string;
   var clearMainTip: () => void;
-  var getCellPopulation: (i: number) => [number, number];
-
   // ─── I/O: save module ───────────────────────────────────────────────────────
   // (functions are now ES module exports — no global declarations needed)
 
@@ -292,7 +288,6 @@ declare global {
   var culturesEditor: HTMLElement | undefined;
 
   // UI helper functions (from uiHelpers.ts)
-  var showInfo: () => void;
   var showElementLockTip: (event: MouseEvent) => void;
   var onMouseMove: (event: MouseEvent) => void;
   var stored: (key: string) => string | null;
@@ -329,9 +324,6 @@ declare global {
 
   // ─── Phase 10: editors.js → editors.ts ────────────────────────────────────
 
-  var applySorting: (header: HTMLElement) => void;
-  var applySortingByHeader: (headerContainer: string) => void;
-  var sortLines: (headerElement: HTMLElement) => void;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   var elSelected: import("d3").Selection<any, unknown, null, undefined> | null;
 

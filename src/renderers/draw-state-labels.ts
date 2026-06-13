@@ -23,8 +23,8 @@ type PathPoints = [number, number][];
 // list - an optional array of stateIds to regenerate
 export const drawStateLabels = (list?: number[]): void => {
   TIME && console.time("drawStateLabels");
-  const { pack, options, graphWidth, graphHeight } = worldContext;
-  const { labels } = viewState;
+  const { pack, options } = worldContext;
+  const { graphWidth, graphHeight, labels } = viewState;
 
   // temporary make the labels visible
   const layerDisplay = labels.style("display");

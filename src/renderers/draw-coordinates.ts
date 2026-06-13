@@ -4,9 +4,8 @@ import { worldContext } from "../context/worldContext";
 import { ensureEl, rn, round } from "../utils";
 
 export const drawCoordinates = (): void => {
-  const { mapCoordinates, graphWidth, graphHeight } = worldContext;
-  const { scale } = worldContext;
-  const { coordinates } = viewState;
+  const { mapCoordinates, scale } = worldContext;
+  const { coordinates, graphWidth, graphHeight } = viewState;
 
   coordinates.selectAll("*").remove();
 

@@ -2,7 +2,7 @@ import { type D3DragEvent, drag, mean, min, polygonArea, polygonLength, type Sel
 import { Lakes, Names } from "../modules";
 import type { PackedGraphFeature } from "../modules/features";
 import { getFeaturePath } from "../renderers";
-import { ensureEl, getPackPolygon, rand, rn, si, unique } from "../utils";
+import { ensureEl, getHeight, getPackPolygon, rand, rn, si, unique } from "../utils";
 import { closeDialogs, getArea, getAreaUnit, unselect } from "./editors";
 import { layerIsOn, toggleCells } from "./layers";
 import { editNotes } from "./notes-editor";

@@ -1,7 +1,7 @@
 import { drag, easeSinIn, pointer, type Selection, sum, transition } from "d3";
 import { Biomes } from "../modules";
 import { drawBiomes } from "../renderers";
-import { findAllCellsInRadius, getPackPolygon, getRandomColor, isLand, openURL, rn, si } from "../utils";
+import { applySorting, findAllCellsInRadius, getPackPolygon, getRandomColor, isLand, openURL, rn, si } from "../utils";
 import {
   clearLegend,
   closeDialogs,

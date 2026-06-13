@@ -1,3 +1,4 @@
+import { worldContext } from "../context/worldContext";
 import { createTypedArray, getTypedArray, last, TYPED_ARRAY_MAX_VALUES, unique } from "./arrayUtils";
 import { abbreviate, getAdjective, isVowel, list, nth, trimVowels } from "./languageUtils";
 import { lerp, lim, minmax, normalize, rn } from "./numberUtils";
@@ -51,7 +52,14 @@ import {
 } from "./pathUtils";
 import { biased, each, gauss, generateSeed, getNumberInRange, P, Pint, ra, rand, rw } from "./probabilityUtils";
 import { capitalize, isValidJSON, parseTransform, round, safeParseJSON, sanitizeId, splitInTwo } from "./stringUtils";
-import { applySorting, applySortingByHeader, sortLines } from "./uiHelpers";
+import {
+  applySorting,
+  applySortingByHeader,
+  getCellPopulation,
+  getFriendlyHeight,
+  getHeight,
+  sortLines
+} from "./uiHelpers";
 import { convertTemperature, getIntegerFromSI, si } from "./unitUtils";
 
 JSON.isValid = isValidJSON;
@@ -89,7 +97,7 @@ declare global {
 }
 
 window.findCell = (x: number, y: number, radius?: number) => {
-  const pack = window.pack;
+  const pack = worldContext.pack;
   if (!pack?.cells?.p) return 0;
   return findClosestCell(x, y, radius, pack) ?? 0;
 };
@@ -135,11 +143,14 @@ export {
   generateSeed,
   getAdjective,
   getBase64,
+  getCellPopulation,
   getColors,
   getComposedPath,
   getCoordinates,
+  getFriendlyHeight,
   getGappedFillPaths,
   getGridPolygon,
+  getHeight,
   getIntegerFromSI,
   getIsolines,
   getLatitude,

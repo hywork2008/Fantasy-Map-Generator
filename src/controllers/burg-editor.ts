@@ -2,7 +2,7 @@ import { drag, pointer } from "d3";
 import { Burgs, COArenderer, Names } from "../modules";
 import type { Burg } from "../modules/burgs-generator";
 import type { Culture } from "../modules/cultures-generator";
-import { ensureEl, openURL, parseTransform, rand, rn, showPrompt } from "../utils";
+import { ensureEl, getHeight, openURL, parseTransform, rand, rn, showPrompt } from "../utils";
 import { editBurgGroups } from "./burg-group-editor";
 import { closeDialogs, confirmationDialog, unselect } from "./editors";
 import { editEmblem } from "./emblems-editor";

@@ -407,9 +407,11 @@ let pack = {} as typeof window.pack;
 let seed = "" as string;
 let mapId = 0;
 const mapHistory: typeof window.mapHistory = [];
-const modules: typeof window.modules = window.modules ?? {};
 let notes: typeof window.notes = [];
 let customization = 0;
+
+// Dialog-open guard registry — not world data, lives as a plain window property
+modules = {};
 
 const options: typeof window.options = {
   pinNotes: false,
@@ -430,12 +432,6 @@ const style: typeof window.style = { burgLabels: {}, burgIcons: {}, anchors: {} 
 const biomesData: typeof window.biomesData = Biomes.getDefault();
 const nameBases: typeof window.nameBases = Names.getNameBases();
 const lineGen = d3.line().curve(d3.curveBasis);
-
-window.grid = grid;
-window.pack = pack;
-window.seed = seed;
-window.modules = modules;
-window.style = style;
 
 // ─── Populate worldContext singleton (initial values) ─────────────────────────
 
@@ -542,26 +538,56 @@ const graphHeight = +mapHeightInput.value;
 const svgWidth = graphWidth;
 const svgHeight = graphHeight;
 
-window.mapCoordinates = mapCoordinates;
-window.populationRate = populationRate;
-window.distanceScale = distanceScale;
-window.urbanization = urbanization;
-window.urbanDensity = urbanDensity;
-window.graphWidth = graphWidth;
-window.graphHeight = graphHeight;
-window.svgWidth = svgWidth;
-window.svgHeight = svgHeight;
-
 Object.assign(worldContext, {
   mapCoordinates,
   populationRate,
   distanceScale,
   urbanization,
-  graphWidth,
-  graphHeight,
-  svgWidth,
-  svgHeight
+  urbanDensity
 });
+
+Object.assign(viewState, { graphWidth, graphHeight, svgWidth, svgHeight });
+
+// ─── Bridge window globals to worldContext / viewState ────────────────────
+// Legacy code (generators, load.ts, controllers) reads/writes these as bare globals
+// (e.g. `pack.cells`, `distanceScale = 3`). The defineProperty ensures every such
+// access transparently goes through the appropriate singleton.
+{
+  const wc = worldContext as unknown as Record<string, unknown>;
+  for (const key of [
+    "pack",
+    "grid",
+    "seed",
+    "style",
+    "mapCoordinates",
+    "populationRate",
+    "distanceScale",
+    "urbanization",
+    "urbanDensity"
+  ]) {
+    Object.defineProperty(window, key, {
+      get: () => wc[key],
+      set: (v: unknown) => {
+        wc[key] = v;
+      },
+      configurable: true,
+      enumerable: true
+    });
+  }
+}
+{
+  const vs = viewState as unknown as Record<string, unknown>;
+  for (const key of ["graphWidth", "graphHeight", "svgWidth", "svgHeight"]) {
+    Object.defineProperty(window, key, {
+      get: () => vs[key],
+      set: (v: unknown) => {
+        vs[key] = v;
+      },
+      configurable: true,
+      enumerable: true
+    });
+  }
+}
 
 landmass.append("rect").attr("x", 0).attr("y", 0).attr("width", graphWidth).attr("height", graphHeight);
 oceanPattern
@@ -968,11 +994,9 @@ async function generate(opts?: { seed?: string; graph?: Grid | null }) {
     else delete (grid.cells as { h?: unknown }).h;
     grid.cells.h = await HeightmapGenerator.generate(grid);
     worldContext.grid = grid;
-    window.grid = grid;
 
     pack = {} as typeof pack;
     worldContext.pack = pack;
-    window.pack = pack;
 
     Features.markupGrid();
     addLakesInDeepDepressions();
@@ -1076,7 +1100,6 @@ function setSeed(precreatedSeed?: string) {
   }
 
   worldContext.seed = seed;
-  window.seed = seed;
   ensureEl<HTMLInputElement>("optionsSeed").value = seed;
   Math.random = aleaPRNG(seed);
 }

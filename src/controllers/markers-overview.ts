@@ -1,6 +1,6 @@
 import { Markers } from "../modules";
 import { drawMarkers } from "../renderers";
-import { ensureEl } from "../utils";
+import { applySorting, ensureEl } from "../utils";
 import {
   closeDialogs,
   confirmationDialog,

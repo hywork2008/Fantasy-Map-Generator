@@ -5,7 +5,17 @@ import { layerIsOn } from "../controllers/layers";
 import { getColor, getColorScheme } from "../controllers/style";
 import { getUsedFonts, loadFontsAsDataURI, Rivers } from "../modules";
 import { drawScaleBar, fitScaleBar } from "../renderers";
-import { connectVertices, ensureEl, getBase64, getCoordinates, getGridPolygon, rn, unique } from "../utils";
+import {
+  connectVertices,
+  ensureEl,
+  getBase64,
+  getCellPopulation,
+  getCoordinates,
+  getFriendlyHeight,
+  getGridPolygon,
+  rn,
+  unique
+} from "../utils";
 
 type AnySelection = Selection<SVGGElement, unknown, null, undefined>;
 

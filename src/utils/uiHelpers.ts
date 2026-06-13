@@ -389,14 +389,14 @@ function getDepth(f: PackedGraphFeature, p: [number, number]): string {
   return getHeight(gridH, "abs");
 }
 
-function getFriendlyHeight([x, y]: [number, number]): string {
+export function getFriendlyHeight([x, y]: [number, number]): string {
   const packH = pack.cells.h[findCell(x, y)];
   const gridH = grid.cells.h[findGridCell(x, y)];
   const h = packH < 20 ? gridH : packH;
   return getHeight(h);
 }
 
-function getHeight(h: number, abs?: string): string {
+export function getHeight(h: number, abs?: string): string {
   const unit = heightUnit.value;
   let unitRatio = 3.281;
   if (unit === "m") unitRatio = 1;
@@ -424,7 +424,7 @@ function getRiverInfo(id: number): string {
   return r ? `${r.name} ${r.type} (${id})` : "n/a";
 }
 
-function getCellPopulation(i: number): [number, number] {
+export function getCellPopulation(i: number): [number, number] {
   const rural = pack.cells.pop[i] * populationRate;
   const urban = pack.cells.burg[i]
     ? (pack.burgs[pack.cells.burg[i]].population ?? 0) * populationRate * urbanization
@@ -588,7 +588,7 @@ function applyOption($select: HTMLSelectElement | HTMLInputElement, value: strin
 
 // ─── Info dialog ──────────────────────────────────────────────────────────────
 
-function showInfo(): void {
+export function showInfo(): void {
   const Discord = link("https://discordapp.com/invite/X7E84HU", "Discord");
   const Reddit = link("https://www.reddit.com/r/FantasyMapGenerator", "Reddit");
   const Patreon = link("https://www.patreon.com/azgaar", "Patreon");
@@ -660,10 +660,6 @@ window.stored = stored;
 window.store = store;
 window.speak = speak;
 window.applyOption = applyOption;
-window.showInfo = showInfo;
-window.getCellPopulation = getCellPopulation;
-window.getFriendlyHeight = getFriendlyHeight;
-window.getHeight = getHeight;
 
 // ─── Table sorting ────────────────────────────────────────────────────────────
 
@@ -716,10 +712,6 @@ export function applySorting(headers: HTMLElement): void {
       list.appendChild(line);
     });
 }
-
-window.applySortingByHeader = applySortingByHeader;
-window.applySorting = applySorting;
-window.sortLines = sortLines;
 
 // ─── Legacy globals (from non-migrated JS files) ──────────────────────────────
 

@@ -1,7 +1,20 @@
 import { mean } from "d3";
 import type { PackedGraph } from "../types/PackedGraph";
 import type { WorldState } from "../types/WorldState";
-import { capitalize, convertTemperature, gauss, generateDate, getAdjective, last, P, ra, rand, rn, rw } from "../utils";
+import {
+  capitalize,
+  convertTemperature,
+  gauss,
+  generateDate,
+  getAdjective,
+  getFriendlyHeight,
+  last,
+  P,
+  ra,
+  rand,
+  rn,
+  rw
+} from "../utils";
 import { Names } from "./names-generator";
 import { Routes } from "./routes-generator";
 import { States } from "./states-generator";

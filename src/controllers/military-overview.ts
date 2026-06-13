@@ -2,7 +2,7 @@ import { interpolateString, sum } from "d3";
 import { worldContext } from "../context/worldContext";
 import { Military } from "../modules";
 import type { MilitaryUnit } from "../modules/military-generator";
-import { capitalize, rn, sanitizeId, si, wiki } from "../utils";
+import { applySorting, capitalize, rn, sanitizeId, si, sortLines, wiki } from "../utils";
 import { closeDialogs, downloadFile, fitContent, getFileName, selectIcon } from "./editors";
 import { layerIsOn, toggleBorders, toggleMilitary, toggleStates } from "./layers";
 import { overviewRegiments } from "./regiments-overview";

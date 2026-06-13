@@ -1,4 +1,5 @@
 import { heightmapTemplates, precreatedHeightmaps } from "../config";
+import { viewState } from "../context/viewState";
 import { worldContext } from "../context/worldContext";
 import { HeightmapGenerator } from "../modules";
 import { drawHeights, ensureEl, generateGrid, generateSeed, shouldRegenerateGrid } from "../utils";
@@ -134,7 +135,7 @@ function appendStyleSheet(): void {
 
     .heightmap-selection article > img {
       width: 100%;
-      aspect-ratio: ${worldContext.graphWidth}/${worldContext.graphHeight};
+      aspect-ratio: ${viewState.graphWidth}/${viewState.graphHeight};
       border-radius: 8px;
       object-fit: fill;
     }
@@ -271,7 +272,8 @@ function getName(id: string): string {
 }
 
 function getGraph(currentGraph: Grid | null): Grid {
-  const { graphWidth, graphHeight, seed: mapSeed } = worldContext;
+  const { seed: mapSeed } = worldContext;
+  const { graphWidth, graphHeight } = viewState;
   const newGraph = shouldRegenerateGrid(currentGraph, +seed, graphWidth, graphHeight)
     ? generateGrid(mapSeed, graphWidth, graphHeight)
     : structuredClone(currentGraph!);

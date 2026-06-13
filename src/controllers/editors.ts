@@ -1009,7 +1009,4 @@ export function editCoastlineSettings(): void {
   coastlineEditor.open();
 }
 
-// ─── Global registration ───────────────────────────────────────────────────
-
-if (!window.modules) window.modules = {};
-window.modules.editors = true;
+modules.editors = true;

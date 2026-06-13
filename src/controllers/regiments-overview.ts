@@ -2,7 +2,7 @@ import { pointer, sum } from "d3";
 import { Military } from "../modules";
 import type { MilitaryRegiment, MilitaryUnit } from "../modules/military-generator";
 import { drawRegiment } from "../renderers";
-import { capitalize, ensureEl, last, rn, si } from "../utils";
+import { applySorting, capitalize, ensureEl, last, rn, si, sortLines } from "../utils";
 import { closeDialogs, downloadFile, fitContent, getFileName } from "./editors";
 import { layerIsOn, toggleMilitary } from "./layers";
 

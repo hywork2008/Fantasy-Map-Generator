@@ -7,6 +7,7 @@ type HighlightEvent = { id?: string | number | null; target?: EventTarget | null
 
 import {
   abbreviate,
+  applySorting,
   applySortingByHeader,
   debounce,
   ensureEl,

@@ -1,6 +1,6 @@
 import { mean } from "d3";
 import { Rivers } from "../modules";
-import { ensureEl, rn } from "../utils";
+import { applySorting, ensureEl, rn } from "../utils";
 import { closeDialogs, downloadFile, fitContent, getFileName, highlightElement } from "./editors";
 import { layerIsOn, toggleRivers } from "./layers";
 import { createRiver } from "./rivers-creator";
