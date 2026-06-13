@@ -24,6 +24,8 @@ interface BattleForces {
 }
 
 class Battle {
+  static context: Battle | undefined;
+
   iteration!: number;
   x!: number;
   y!: number;
@@ -39,7 +41,7 @@ class Battle {
     closeDialogs(".stable");
     customization = 13;
 
-    (Battle.prototype as unknown as { context: Battle }).context = this;
+    Battle.context = this;
     this.iteration = 0;
     this.x = defender.x;
     this.y = defender.y;
@@ -63,7 +65,7 @@ class Battle {
       resizable: false,
       width: fitContent(),
       position: { my: "center", at: "center", of: "#map" },
-      close: () => (Battle.prototype as unknown as { context: Battle }).context.cancelResults()
+      close: () => Battle.context!.cancelResults()
     });
 
     if (modules.Battle) return;
@@ -71,54 +73,34 @@ class Battle {
 
     ensureEl("battleType").addEventListener("click", ev => this.toggleChange(ev));
     (ensureEl("battleType").nextElementSibling as HTMLElement).addEventListener("click", ev =>
-      (Battle.prototype as unknown as { context: Battle }).context.changeType(ev)
+      Battle.context!.changeType(ev)
     );
-    ensureEl("battleNameShow").addEventListener("click", () =>
-      (Battle.prototype as unknown as { context: Battle }).context.showNameSection()
-    );
+    ensureEl("battleNameShow").addEventListener("click", () => Battle.context!.showNameSection());
     ensureEl("battleNamePlace").addEventListener(
       "change",
-      ev => ((Battle.prototype as unknown as { context: Battle }).context.place = (ev.target as HTMLInputElement).value)
+      ev => (Battle.context!.place = (ev.target as HTMLInputElement).value)
     );
-    ensureEl("battleNameFull").addEventListener("change", ev =>
-      (Battle.prototype as unknown as { context: Battle }).context.changeName(ev)
-    );
-    ensureEl("battleNameCulture").addEventListener("click", () =>
-      (Battle.prototype as unknown as { context: Battle }).context.generateName("culture")
-    );
-    ensureEl("battleNameRandom").addEventListener("click", () =>
-      (Battle.prototype as unknown as { context: Battle }).context.generateName("random")
-    );
+    ensureEl("battleNameFull").addEventListener("change", ev => Battle.context!.changeName(ev));
+    ensureEl("battleNameCulture").addEventListener("click", () => Battle.context!.generateName("culture"));
+    ensureEl("battleNameRandom").addEventListener("click", () => Battle.context!.generateName("random"));
     ensureEl("battleNameHide").addEventListener("click", this.hideNameSection);
     ensureEl("battleAddRegiment").addEventListener("click", this.addSide);
-    ensureEl("battleRoll").addEventListener("click", () =>
-      (Battle.prototype as unknown as { context: Battle }).context.randomize()
-    );
-    ensureEl("battleRun").addEventListener("click", () =>
-      (Battle.prototype as unknown as { context: Battle }).context.run()
-    );
-    ensureEl("battleApply").addEventListener("click", () =>
-      (Battle.prototype as unknown as { context: Battle }).context.applyResults()
-    );
-    ensureEl("battleCancel").addEventListener("click", () =>
-      (Battle.prototype as unknown as { context: Battle }).context.cancelResults()
-    );
+    ensureEl("battleRoll").addEventListener("click", () => Battle.context!.randomize());
+    ensureEl("battleRun").addEventListener("click", () => Battle.context!.run());
+    ensureEl("battleApply").addEventListener("click", () => Battle.context!.applyResults());
+    ensureEl("battleCancel").addEventListener("click", () => Battle.context!.cancelResults());
     ensureEl("battleWiki").addEventListener("click", () => wiki("Battle-Simulator"));
 
     ensureEl("battlePhase_attackers").addEventListener("click", ev => this.toggleChange(ev));
     (ensureEl("battlePhase_attackers").nextElementSibling as HTMLElement).addEventListener("click", ev =>
-      (Battle.prototype as unknown as { context: Battle }).context.changePhase(ev, "attackers")
+      Battle.context!.changePhase(ev, "attackers")
     );
     ensureEl("battlePhase_defenders").addEventListener("click", ev => this.toggleChange(ev));
     (ensureEl("battlePhase_defenders").nextElementSibling as HTMLElement).addEventListener("click", ev =>
-      (Battle.prototype as unknown as { context: Battle }).context.changePhase(ev, "defenders")
+      Battle.context!.changePhase(ev, "defenders")
     );
-    ensureEl("battleDie_attackers").addEventListener("click", () =>
-      (Battle.prototype as unknown as { context: Battle }).context.rollDie("attackers")
-    );
-    ensureEl("battleDie_defenders").addEventListener("click", () =>
-      (Battle.prototype as unknown as { context: Battle }).context.rollDie("defenders")
-    );
+    ensureEl("battleDie_attackers").addEventListener("click", () => Battle.context!.rollDie("attackers"));
+    ensureEl("battleDie_defenders").addEventListener("click", () => Battle.context!.rollDie("defenders"));
   }
 
   defineType(): void {
@@ -245,7 +227,7 @@ class Battle {
 
   addSide(): void {
     const body = ensureEl("regimentSelectorBody");
-    const context = (Battle.prototype as unknown as { context: Battle }).context;
+    const context = Battle.context!;
     const regiments = pack.states.filter(s => s.military && !s.removed).flatMap(s => s.military as BattleRegiment[]);
     const distance = (reg: BattleRegiment) =>
       `${rn(Math.hypot(context.y - reg.y, context.x - reg.x) * distanceScale)} ${distanceUnitInput.value}`;
@@ -992,10 +974,10 @@ class Battle {
     this.attackers.regiments.concat(this.defenders.regiments).forEach(r => {
       delete r.px;
       delete r.py;
-      delete (r as unknown as { casualties?: unknown }).casualties;
-      delete (r as unknown as { survivors?: unknown }).survivors;
+      delete (r as Partial<BattleRegiment>).casualties;
+      delete (r as Partial<BattleRegiment>).survivors;
     });
-    delete (Battle.prototype as unknown as { context?: Battle }).context;
+    Battle.context = undefined;
   }
 }
 

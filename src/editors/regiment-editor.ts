@@ -5,6 +5,7 @@ import { Military } from "../modules/military-generator";
 import { drawRegiment, moveRegiment } from "../renderers/index";
 import type { WorldNote } from "../types/WorldState";
 import { capitalize, ensureEl, findCell, last, rn } from "../utils";
+import { editNotes } from "./notes-editor";
 
 export function editRegiment(selectorOrEl?: string | Element): void {
   if (customization) return;

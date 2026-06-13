@@ -2,7 +2,7 @@ import { type D3DragEvent, drag, pointer } from "d3";
 import { Routes } from "../modules/routes-generator";
 import { drawTemperature } from "../renderers";
 import { drawScaleBar, fitScaleBar } from "../renderers/index";
-import { ensureEl, findCell } from "../utils";
+import { ensureEl, findCell, showPrompt } from "../utils";
 
 export function editUnits(): void {
   closeDialogs("#unitsEditor, .stable");
@@ -41,8 +41,8 @@ export function editUnits(): void {
 
   function changeDistanceUnit(this: HTMLSelectElement): void {
     if (this.value === "custom_name") {
-      // eslint-disable-next-line no-restricted-globals
-      (window as any).prompt("Provide a custom name for a distance unit", { default: "" }, (custom: string) => {
+      showPrompt("Provide a custom name for a distance unit", { default: "" }, value => {
+        const custom = String(value);
         this.options.add(new Option(custom, custom, false, true));
         lock("distanceUnit");
         renderScaleBar();
@@ -64,7 +64,8 @@ export function editUnits(): void {
   function changeHeightUnit(this: HTMLSelectElement): void {
     if (this.value !== "custom_name") return;
 
-    (window as any).prompt("Provide a custom name for a height unit", { default: "" }, (custom: string) => {
+    showPrompt("Provide a custom name for a height unit", { default: "" }, value => {
+      const custom = String(value);
       this.options.add(new Option(custom, custom, false, true));
       lock("heightUnit");
     });

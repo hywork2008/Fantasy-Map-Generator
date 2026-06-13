@@ -669,7 +669,7 @@ class RoutesModule {
     const connections = pack.cells.routes[cellId];
     if (!connections) return 0;
 
-    const connectivityRateMap = {
+    const connectivityRateMap: Record<string, number> = {
       roads: 0.2,
       trails: 0.1,
       searoutes: 0.2,
@@ -679,7 +679,7 @@ class RoutesModule {
     const connectivity = Object.values(connections).reduce((acc, routeId) => {
       const route = pack.routes.find(route => route.i === routeId);
       if (!route) return acc;
-      const rate = (connectivityRateMap as any)[route.group] || connectivityRateMap.default;
+      const rate = connectivityRateMap[route.group] ?? connectivityRateMap.default;
       return acc + rate;
     }, 0.8);
 

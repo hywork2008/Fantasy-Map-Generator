@@ -27,7 +27,7 @@ import {
   drawTexture,
   drawZones
 } from "../renderers";
-import { ensureEl, isCtrlClick } from "../utils";
+import { ensureEl, isCtrlClick, showPrompt } from "../utils";
 
 // Layer presets: map preset name → list of toggle button IDs that should be ON
 let presets: Record<string, string[]> = {};
@@ -184,8 +184,8 @@ function handleLayersPresetChange(preset: string): void {
 }
 
 function savePreset(): void {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (window as any).prompt("Please provide a preset name", { default: "" }, (preset: string) => {
+  showPrompt("Please provide a preset name", { default: "" }, value => {
+    const preset = String(value);
     presets[preset] = Array.from(ensureEl("mapLayers").querySelectorAll<HTMLElement>("li:not(.buttonoff)"))
       .map(node => node.id)
       .sort();
@@ -771,7 +771,7 @@ function initSortable(): void {
   $("#mapLayers").sortable({ items: "li:not(.solid)", containment: "parent", cancel: ".solid", update: moveLayer });
 }
 
-function moveLayer(_event: unknown, ui: { item: ReturnType<typeof $> }): void {
+function moveLayer(_event: unknown, ui: { item: JQuery<HTMLElement> }): void {
   const el = getLayer(ui.item.attr("id") as string);
   if (!el) return;
   const prev = getLayer(ui.item.prev().attr("id") as string);
@@ -780,7 +780,7 @@ function moveLayer(_event: unknown, ui: { item: ReturnType<typeof $> }): void {
   else if (next) el.insertBefore(next);
 }
 
-function getLayer(id: string): ReturnType<typeof $> | null {
+function getLayer(id: string): JQuery<HTMLElement> | null {
   if (id === "toggleLakes") return $("#lakes");
   if (id === "toggleHeight") return $("#terrs");
   if (id === "toggleBiomes") return $("#biomes");

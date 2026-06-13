@@ -3,6 +3,7 @@ import type { Marker } from "../modules/markers-generator";
 import { Markers } from "../modules/markers-generator";
 import { getPin } from "../renderers/index";
 import { ensureEl, findCell, rn } from "../utils";
+import { editNotes } from "./notes-editor";
 
 export function editMarker(markerI?: number): void {
   if (customization) return;

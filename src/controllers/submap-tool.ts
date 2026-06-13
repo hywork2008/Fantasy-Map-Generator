@@ -102,9 +102,8 @@ function openSubmapTool(): void {
     const burgLabelsNode = burgLabels.node()!;
     const burgLabelGroups = [...burgLabelsNode.querySelectorAll("g")];
     for (const group of burgLabelGroups) {
-      const el = group as unknown as HTMLElement;
-      const size = +(el.dataset.size ?? 1);
-      el.dataset.size = String(Math.max(rn((size + size / scaleFactor) / 2, 2), 1) * scaleFactor);
+      const size = +(group.dataset.size ?? 1);
+      group.dataset.size = String(Math.max(rn((size + size / scaleFactor) / 2, 2), 1) * scaleFactor);
     }
   }
 }

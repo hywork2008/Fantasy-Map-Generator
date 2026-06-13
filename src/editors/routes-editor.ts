@@ -1,8 +1,11 @@
 import type * as d3 from "d3";
 import { drag, pointer, select } from "d3";
+import { worldContext } from "../context/worldContext";
 import type { Route } from "../modules/routes-generator";
 import { Routes } from "../modules/routes-generator";
 import { ensureEl, findCell, getSegmentId, rn } from "../utils";
+import { getPackPolygon } from "../utils/graphUtils";
+import { editNotes } from "./notes-editor";
 
 // ─── routes-editor ──────────────────────────────────────────────────────────
 
@@ -15,7 +18,7 @@ export function editRoute(id: string): void {
   ensureEl("toggleCells").dataset.forced = String(+!layerIsOn("toggleCells"));
   if (!layerIsOn("toggleCells")) toggleCells();
 
-  elSelected = select(`#${id}`).on("click", addControlPoint as any) as any;
+  elSelected = select<SVGPathElement, unknown>(`#${id}`).on("click", addControlPoint) as unknown as typeof elSelected;
 
   tip(
     "Drag control points to change the route. Click on point to remove it. Click on the route to add additional control point. For major changes please create a new route instead",
@@ -106,7 +109,7 @@ export function editRoute(id: string): void {
       .selectAll("polygon")
       .data(pts)
       .join("polygon")
-      .attr("points", (p: [number, number, number]) => getPackPolygon(p[2]) as unknown as string);
+      .attr("points", (p: [number, number, number]) => getPackPolygon(p[2], worldContext.pack).join(" "));
   }
 
   let _rcRoute: Route | null = null;
@@ -516,7 +519,7 @@ export function createRoute(defaultGroup?: string): void {
       .selectAll("polygon")
       .data(pts)
       .join("polygon")
-      .attr("points", (p: [number, number, number]) => getPackPolygon(p[2]) as unknown as string)
+      .attr("points", (p: [number, number, number]) => getPackPolygon(p[2], worldContext.pack).join(" "))
       .attr("class", "current");
 
     debug

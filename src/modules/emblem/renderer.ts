@@ -319,4 +319,4 @@ class EmblemRenderModule {
   }
 }
 export const COArenderer = new EmblemRenderModule();
-worldContext.COArenderer = COArenderer as any;
+worldContext.COArenderer = COArenderer;

@@ -630,13 +630,13 @@ function showInfo(): void {
 
     <p>Chinese localization: <a href="https://www.8desk.top" target="_blank">8desk.top</a></p>`;
 
-  ($ as any)("#alert").dialog({
+  $("#alert").dialog({
     resizable: false,
     title: document.title,
     width: "28em",
     buttons: {
       OK: function (this: HTMLElement) {
-        ($ as any)(this).dialog("close");
+        $(this).dialog("close");
       }
     },
     position: { my: "center", at: "center", of: "svg" }

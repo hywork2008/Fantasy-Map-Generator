@@ -52,7 +52,7 @@ export interface Burg {
   temple?: number;
   group?: string;
   link?: string;
-  MFCG?: string;
+  MFCG?: number | string;
   province?: number;
 }
 
@@ -459,7 +459,7 @@ class BurgModule {
   private createWatabouCityLinks(burg: Burg) {
     const cells = pack.cells;
     const { i, name, population: burgPopulation, cell } = burg;
-    const burgSeed = burg.MFCG || seed + String(burg.i).padStart(4, "0");
+    const burgSeed = String(burg.MFCG ?? seed + String(burg.i).padStart(4, "0"));
 
     const sizeRaw = 2.13 * ((burgPopulation! * populationRate) / urbanDensity) ** 0.385;
     const size = minmax(Math.ceil(sizeRaw), 6, 100);

@@ -1,5 +1,6 @@
 import * as d3 from "d3";
 import { color, interpolate, interpolateString, pointer } from "d3";
+import { worldContext } from "../context/worldContext";
 import type { Burg } from "../modules/burgs-generator";
 import { Burgs } from "../modules/burgs-generator";
 import type { Culture } from "../modules/cultures-generator";
@@ -12,6 +13,7 @@ import type { State } from "../modules/states-generator";
 import { States } from "../modules/states-generator";
 import { drawBorders, drawPopulation, drawProvinces, drawStateLabels, drawStates } from "../renderers";
 import { ensureEl, findCell, parseTransform, rn } from "../utils";
+import { getPackPolygon } from "../utils/graphUtils";
 
 export function editProvinces(): void {
   if (customization) return;
@@ -31,7 +33,7 @@ export function editProvinces(): void {
   if (modules.editProvinces) return;
   modules.editProvinces = true;
 
-  ($("#provincesEditor") as any).dialog({
+  $("#provincesEditor").dialog({
     title: "Provinces Editor",
     resizable: false,
     width: fitContent(),
@@ -213,7 +215,7 @@ export function editProvinces(): void {
       togglePercentageMode();
     }
     applySorting(ensureEl("provincesHeader") as HTMLElement);
-    ($("#provincesEditor") as any).dialog({ width: fitContent() });
+    $("#provincesEditor").dialog({ width: fitContent() });
   }
 
   function getCapitalOptions(burgs: number[], capital: number): string {
@@ -348,9 +350,7 @@ export function editProvinces(): void {
       return relations;
     });
     diplomacy.push("x");
-    statesArr[0].diplomacy!.push(
-      `${name} declared its independance from ${statesArr[oldStateId].name}` as unknown as string
-    );
+    statesArr[0].diplomacy!.push(`${name} declared its independance from ${statesArr[oldStateId].name}`);
 
     statesArr.push({
       i: newStateId,
@@ -431,7 +431,7 @@ export function editProvinces(): void {
       totalPopPercEl().innerHTML = String(rn((totalNew / total) * 100));
     };
 
-    ($("#alert") as any).dialog({
+    $("#alert").dialog({
       resizable: false,
       title: "Change province population",
       width: "24em",
@@ -494,7 +494,7 @@ export function editProvinces(): void {
 
   function removeProvince(p: number): void {
     alertMessage.innerHTML = "Are you sure you want to remove the province? <br />This action cannot be reverted";
-    ($("#alert") as any).dialog({
+    $("#alert").dialog({
       resizable: false,
       title: "Remove province",
       buttons: {
@@ -539,7 +539,7 @@ export function editProvinces(): void {
     const cultureId = pack.cells.culture[p.center];
     ensureEl("provinceCultureDisplay").innerText = (pack.cultures as Culture[])[cultureId].name;
 
-    ($("#provinceNameEditor") as any).dialog({
+    $("#provinceNameEditor").dialog({
       resizable: false,
       title: "Change province name",
       buttons: {
@@ -811,7 +811,7 @@ export function editProvinces(): void {
       setTimeout(hideNonfittingLabels, 2000);
     }
 
-    ($("#alert") as any).dialog({
+    $("#alert").dialog({
       title: "Provinces chart",
       width: fitContent(),
       position: { my: "left bottom", at: "left+10 bottom-10", of: "svg" },
@@ -894,7 +894,7 @@ export function editProvinces(): void {
     body.querySelectorAll<HTMLElement>("div > input, select, span, svg").forEach(e => {
       e.style.pointerEvents = "none";
     });
-    ($("#provincesEditor") as any).dialog({
+    $("#provincesEditor").dialog({
       position: { my: "right top", at: "right-10 top+10", of: "svg", collision: "fit" }
     });
 
@@ -975,7 +975,10 @@ export function editProvinces(): void {
       if (i === (pack.provinces as Province[])[provinceOld]?.center) {
         const center = centers.select(`polygon[data-center='${i}']`);
         if (!center.size())
-          centers.append("polygon").attr("data-center", i).attr("points", getPackPolygon(i).join(" "));
+          centers
+            .append("polygon")
+            .attr("data-center", i)
+            .attr("points", getPackPolygon(i, worldContext.pack).join(" "));
         tip(
           "Province center cannot be assigned to a different region. Please remove the province first",
           false,
@@ -990,7 +993,7 @@ export function editProvinces(): void {
       } else {
         temp
           .append("polygon")
-          .attr("points", getPackPolygon(i).join(" "))
+          .attr("points", getPackPolygon(i, worldContext.pack).join(" "))
           .attr("data-cell", i)
           .attr("data-province", provinceNew)
           .attr("fill", fill)
@@ -1050,7 +1053,7 @@ export function editProvinces(): void {
       e.style.pointerEvents = "all";
     });
     if (!close)
-      ($("#provincesEditor") as any).dialog({
+      $("#provincesEditor").dialog({
         position: { my: "right top", at: "right-10 top+10", of: "svg", collision: "fit" }
       });
 
@@ -1120,7 +1123,7 @@ export function editProvinces(): void {
     provincesArr.push({ i: province, state, center, burg, name, formName, fullName, color: newColor, coa } as Province);
 
     cells.province[center] = province;
-    (cells.c[center] as unknown as number[]).forEach((cc: number) => {
+    cells.c[center].forEach((cc: number) => {
       if (cells.h[cc] < 20 || cells.state[cc] !== state) return;
       if (provincesArr.find(p => !p.removed && p.center === cc)) return;
       cells.province[cc] = province;
@@ -1186,7 +1189,7 @@ export function editProvinces(): void {
 
   function removeAllProvinces(): void {
     alertMessage.innerHTML = "Are you sure you want to remove all provinces? <br />This action cannot be reverted";
-    ($("#alert") as any).dialog({
+    $("#alert").dialog({
       resizable: false,
       title: "Remove all provinces",
       buttons: {
@@ -1244,7 +1247,7 @@ export function editProvinces(): void {
     const selectedState = +(ensureEl("provincesFilterState") as HTMLSelectElement).value;
     if (selectedState === -1) {
       alertMessage.innerHTML = "Please select a specific state from the filter to merge provinces within that state.";
-      ($("#alert") as any).dialog({
+      $("#alert").dialog({
         title: "Merge Provinces",
         buttons: {
           OK: function (this: Element) {
@@ -1257,7 +1260,7 @@ export function editProvinces(): void {
     const provincesToMerge = (pack.provinces as Province[]).filter(p => p.i && !p.removed && p.state === selectedState);
     if (provincesToMerge.length < 2) {
       alertMessage.innerHTML = "Not enough provinces in the selected state to merge.";
-      ($("#alert") as any).dialog({
+      $("#alert").dialog({
         title: "Merge Provinces",
         buttons: {
           OK: function (this: Element) {
@@ -1329,7 +1332,7 @@ export function editProvinces(): void {
         .attrTween("stroke-dasharray", () => interp);
     }
 
-    ($("#alert") as any).dialog({
+    $("#alert").dialog({
       width: 600,
       title: "Merge provinces",
       close: () => provinceHighlightOff(null),

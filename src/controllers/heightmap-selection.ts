@@ -26,13 +26,13 @@ export function open(): void {
     position: { my: "center", at: "center", of: "svg" },
     buttons: {
       Cancel: function () {
-        ($(this) as any).dialog("close");
+        $(this).dialog("close");
       },
       Select: function () {
         const id = getSelected();
         applyOption($templateInput, id, getName(id));
         lock("template");
-        ($(this) as any).dialog("close");
+        $(this).dialog("close");
       },
       "New Map": function () {
         const id = getSelected();
@@ -40,7 +40,7 @@ export function open(): void {
         lock("template");
         const seed = getSeed();
         regeneratePrompt({ seed });
-        ($(this) as any).dialog("close");
+        $(this).dialog("close");
       }
     }
   });
@@ -323,7 +323,7 @@ function getHeightmapPreview(heights: Uint8Array | null): string {
   const scheme = getColorScheme((ensureEl("heightmapSelectionColorScheme") as HTMLSelectElement).value);
   const renderOcean = (ensureEl("heightmapSelectionRenderOcean") as HTMLInputElement).checked;
   const dataUrl = drawHeights({
-    heights: heights as unknown as number[],
+    heights: heights ?? new Uint8Array(),
     width: graph!.cellsX,
     height: graph!.cellsY,
     scheme,

@@ -212,7 +212,7 @@ function overviewMilitary(): void {
 
   function stateHighlightOff(event: MouseEvent): void {
     debug.selectAll(".highlight").each(function () {
-      (this as any).__transition?.end?.() ?? null;
+      (this as Element & { __transition?: { end?: () => void } }).__transition?.end?.();
     });
     debug.selectAll<SVGElement, unknown>(".highlight").transition().duration(1000).attr("opacity", 0).remove();
 

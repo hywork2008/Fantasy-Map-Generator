@@ -8,7 +8,7 @@ import { worldContext } from "./context/worldContext";
 import { Rulers } from "./controllers/measurers";
 import { applyStoredOptions } from "./controllers/options";
 import { Biomes } from "./modules/biomes";
-import type { BurgGroup } from "./modules/burgs-generator";
+import type { Burg, BurgGroup } from "./modules/burgs-generator";
 import { Burgs } from "./modules/burgs-generator";
 import { Cultures } from "./modules/cultures-generator";
 import { Features } from "./modules/features";
@@ -854,7 +854,7 @@ function toggleAssistant() {
           const bubble = document.getElementById("chat-widget-minimized");
           if (bubble) {
             bubble.dataset.tip = "Click to open the Assistant";
-            bubble.on("mouseover", (window as any).showDataTip);
+            bubble.on("mouseover", showDataTip as EventListener);
           }
         }, 5000);
       });
@@ -921,7 +921,7 @@ function findBurgForMFCG(params: URLSearchParams) {
     return;
   }
 
-  const b = burgs[burgId] as any;
+  const b = burgs[burgId] as Burg & Record<string, unknown>;
   const referrer = new URL(document.referrer);
   for (const p of referrer.searchParams) {
     if (p[0] === "name") b.name = p[1];
@@ -935,7 +935,7 @@ function findBurgForMFCG(params: URLSearchParams) {
   const label = burgLabels.select(`[data-id='${burgId}']`);
   if (label.size()) {
     label
-      .text(b.name)
+      .text(b.name ?? "")
       .classed("drag", true)
       .on("mouseover", function () {
         d3.select(this as Element).classed("drag", false);
@@ -986,8 +986,8 @@ function invokeActiveZooming() {
       const hidden = hideEmblems.checked && (size < 25 || size > 300);
       if (hidden) this.classList.add("hidden");
       else this.classList.remove("hidden");
-      if (!hidden && (window as any).COArenderer && this.children.length && !this.children[0].getAttribute("href"))
-        (window as any).renderGroupCOAs(this);
+      if (!hidden && COArenderer && this.children.length && !this.children[0].getAttribute("href"))
+        renderGroupCOAs(this);
     });
   }
 
@@ -1607,9 +1607,9 @@ function reGraph() {
   }
 
   const { cells: packCells, vertices } = calculateVoronoi(newCells.p, grid.boundary);
-  pack.vertices = vertices as any;
-  pack.cells = packCells as any;
-  pack.cells.p = newCells.p as any;
+  pack.vertices = vertices as unknown as typeof pack.vertices;
+  pack.cells = packCells as unknown as typeof pack.cells;
+  pack.cells.p = newCells.p;
   pack.cells.g = createTypedArray({ maxValue: grid.points.length, from: newCells.g }) as unknown as typeof pack.cells.g;
   pack.cells.h = createTypedArray({ maxValue: 100, from: newCells.h }) as unknown as typeof pack.cells.h;
   pack.cells.area = createTypedArray({ maxValue: UINT16_MAX, length: packCells.i.length }).map(

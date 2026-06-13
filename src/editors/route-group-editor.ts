@@ -1,5 +1,5 @@
 import { Routes } from "../modules/routes-generator";
-import { ensureEl } from "../utils";
+import { ensureEl, showPrompt } from "../utils";
 
 export function editRouteGroups(): void {
   if (customization) return;
@@ -47,8 +47,8 @@ export function editRouteGroups(): void {
   const DEFAULT_GROUPS = ["roads", "trails", "searoutes"];
 
   function addGroup(): void {
-    (window as any).prompt("Type group name", { default: "route-group-new" }, (v: string) => {
-      let group = v
+    showPrompt("Type group name", { default: "route-group-new" }, value => {
+      let group = String(value)
         .toLowerCase()
         .replace(/ /g, "_")
         .replace(/[^\w\s]/gi, "");

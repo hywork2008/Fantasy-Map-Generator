@@ -1,4 +1,5 @@
 import * as d3 from "d3";
+import { worldContext } from "../context/worldContext";
 import type { Burg } from "../modules/burgs-generator";
 import { Burgs } from "../modules/burgs-generator";
 import type { Culture } from "../modules/cultures-generator";
@@ -13,6 +14,7 @@ import { States } from "../modules/states-generator";
 import { drawBorders, drawPopulation, drawProvinces, drawStateLabels, drawStates } from "../renderers";
 import type { WorldNote } from "../types/WorldState";
 import { applySortingByHeader, ensureEl, findCell, rn, si } from "../utils";
+import { getPackPolygon } from "../utils/graphUtils";
 import { BrushHistoryClass as BrushHistory } from "./BrushHistory";
 
 const $body = insertEditorHtml();
@@ -29,7 +31,7 @@ export function open(): void {
 
   refreshStatesEditor();
 
-  ($("#statesEditor") as any).dialog({
+  $("#statesEditor").dialog({
     title: "States Editor",
     resizable: false,
     close: closeStatesEditor,
@@ -278,7 +280,7 @@ function statesEditorAddLines(): void {
   $body.innerHTML = lines;
 
   ensureEl("statesFooterStates").innerHTML = String((pack.states as State[]).filter(s => s.i && !s.removed).length);
-  ensureEl("statesFooterCells").innerHTML = String((pack.cells.h as unknown as number[]).filter(h => h >= 20).length);
+  ensureEl("statesFooterCells").innerHTML = String(Array.from(pack.cells.h).filter(h => h >= 20).length);
   ensureEl("statesFooterBurgs").innerHTML = String(totalBurgs);
   ensureEl("statesFooterArea").innerHTML = si(totalArea) + unit;
   ensureEl("statesFooterArea").dataset.area = String(totalArea);
@@ -296,7 +298,7 @@ function statesEditorAddLines(): void {
     togglePercentageMode();
   }
   applySorting(ensureEl("statesHeader"));
-  ($("#statesEditor") as any).dialog({ width: fitContent() });
+  $("#statesEditor").dialog({ width: fitContent() });
 }
 
 function getCultureOptions(culture: number): string {
@@ -389,16 +391,16 @@ function editStateName(state: number): void {
   applyOption(stateNameEditorSelectForm, s.formName ?? "");
   ensureEl<HTMLInputElement>("stateNameEditorFull").value = s.fullName || "";
 
-  ($("#stateNameEditor") as any).dialog({
+  $("#stateNameEditor").dialog({
     resizable: false,
     title: "Change state name",
     buttons: {
       Apply: function () {
         applyNameChange(s);
-        ($(this) as any).dialog("close");
+        $(this).dialog("close");
       },
       Cancel: function () {
-        ($(this) as any).dialog("close");
+        $(this).dialog("close");
       }
     },
     position: { my: "center", at: "center", of: "svg" }
@@ -520,17 +522,17 @@ function changePopulation(stateId: number): void {
   getRuralPop().oninput = () => update();
   getUrbanPop().oninput = () => update();
 
-  ($("#alert") as any).dialog({
+  $("#alert").dialog({
     resizable: false,
     title: "Change state population",
     width: "24em",
     buttons: {
       Apply: function () {
         applyPopulationChange();
-        ($(this) as any).dialog("close");
+        $(this).dialog("close");
       },
       Cancel: function () {
-        ($(this) as any).dialog("close");
+        $(this).dialog("close");
       }
     },
     position: { my: "center", at: "center", of: "svg" }
@@ -539,14 +541,14 @@ function changePopulation(stateId: number): void {
   function applyPopulationChange(): void {
     const ruralChange = +getRuralPop().value / rural;
     if (Number.isFinite(ruralChange) && ruralChange !== 1) {
-      const cells = (pack.cells.i as unknown as number[]).filter((i: number) => pack.cells.state[i] === stateId);
+      const cells = pack.cells.i.filter((i: number) => pack.cells.state[i] === stateId);
       cells.forEach((i: number) => {
         pack.cells.pop[i] *= ruralChange;
       });
     }
     if (!Number.isFinite(ruralChange) && +getRuralPop().value > 0) {
       const points = +getRuralPop().value / populationRate;
-      const cells = (pack.cells.i as unknown as number[]).filter((i: number) => pack.cells.state[i] === stateId);
+      const cells = pack.cells.i.filter((i: number) => pack.cells.state[i] === stateId);
       const pop = points / cells.length;
       cells.forEach((i: number) => {
         pack.cells.pop[i] = pop;
@@ -636,7 +638,7 @@ function stateRemove(stateId: number): void {
     }
   });
 
-  (pack.cells.state as unknown as number[]).forEach((s: number, i: number) => {
+  Array.from(pack.cells.state).forEach((s: number, i: number) => {
     if (s === stateId) pack.cells.state[i] = 0;
   });
 
@@ -646,7 +648,7 @@ function stateRemove(stateId: number): void {
 
   ((pack.states[stateId] as State).provinces ?? []).forEach((p: number) => {
     (pack.provinces as Province[])[p] = { i: p, removed: true } as Province;
-    (pack.cells.province as unknown as number[]).forEach((pr: number, i: number) => {
+    Array.from(pack.cells.province).forEach((pr: number, i: number) => {
       if (pr === p) pack.cells.province[i] = 0;
     });
 
@@ -858,7 +860,7 @@ function showStatesChart(): void {
       .style("font-size", (d: HPNode) => `${rn((d.r ** 0.97 * 4) / lp(d.data.name), 2)}px`);
   }
 
-  ($("#alert") as any).dialog({
+  $("#alert").dialog({
     title: "States bubble chart",
     width: fitContent(),
     position: { my: "left bottom", at: "left+10 bottom-10", of: "svg" },
@@ -882,7 +884,7 @@ function openRegenerationMenu(): void {
     .forEach(el => {
       el.classList.remove("hidden");
     });
-  ($("#statesEditor") as any).dialog({
+  $("#statesEditor").dialog({
     position: { my: "right top", at: "right-10 top+10", of: "svg", collision: "fit" }
   });
 }
@@ -927,7 +929,7 @@ function exitRegenerationMenu(): void {
     .forEach(el => {
       el.classList.add("hidden");
     });
-  ($("#statesEditor") as any).dialog({
+  $("#statesEditor").dialog({
     position: { my: "right top", at: "right-10 top+10", of: "svg", collision: "fit" }
   });
 }
@@ -951,7 +953,7 @@ function enterStatesManualAssignent(): void {
   $body.querySelectorAll<HTMLElement>("div > input, select, span, svg").forEach(e => {
     e.style.pointerEvents = "none";
   });
-  ($("#statesEditor") as any).dialog({
+  $("#statesEditor").dialog({
     position: { my: "right top", at: "right-10 top+10", of: "svg", collision: "fit" }
   });
 
@@ -1021,7 +1023,7 @@ function changeStateForSelection(selection: number[]): void {
         .append("polygon")
         .attr("data-cell", i)
         .attr("data-state", stateNew)
-        .attr("points", getPackPolygon(i).join(" "))
+        .attr("points", getPackPolygon(i, worldContext.pack).join(" "))
         .attr("fill", color)
         .attr("stroke", color);
   });
@@ -1221,7 +1223,7 @@ function exitStatesManualAssignment(close: boolean): void {
     e.style.pointerEvents = "all";
   });
   if (!close)
-    ($("#statesEditor") as any).dialog({
+    $("#statesEditor").dialog({
       position: { my: "right top", at: "right-10 top+10", of: "svg", collision: "fit" }
     });
 
@@ -1313,9 +1315,7 @@ function addState(this: SVGElement, event: MouseEvent): void {
     return relations;
   });
   diplomacy.push("x");
-  statesArr[0].diplomacy!.push(
-    `${name} declared its independance from ${statesArr[oldState].name}` as unknown as string
-  );
+  statesArr[0].diplomacy!.push(`${name} declared its independance from ${statesArr[oldState].name}`);
 
   cells.state[center] = newState;
   cells.province[center] = 0;
@@ -1428,7 +1428,7 @@ function openStateMergeDialog(): void {
       .attrTween("stroke-dasharray", () => interpolate);
   }
 
-  ($("#alert") as any).dialog({
+  $("#alert").dialog({
     width: 600,
     title: `Merge states`,
     close: stateHighlightOff,
@@ -1455,12 +1455,12 @@ function openStateMergeDialog(): void {
           confirm: "Merge",
           onConfirm: () => {
             mergeStates(statesToMerge, rulingStateId);
-            ($(this) as any).dialog("close");
+            $(this).dialog("close");
           }
         });
       },
       Cancel: function () {
-        ($(this) as any).dialog("close");
+        $(this).dialog("close");
       }
     }
   });
@@ -1518,7 +1518,7 @@ function openStateMergeDialog(): void {
       if (province.i && !province.removed && statesToMerge.includes(province.state)) province.state = rulingStateId;
     });
 
-    (pack.cells.state as unknown as number[]).forEach((s: number, i: number) => {
+    Array.from(pack.cells.state).forEach((s: number, i: number) => {
       if (statesToMerge.includes(s)) pack.cells.state[i] = rulingStateId;
     });
 

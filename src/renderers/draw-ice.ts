@@ -4,7 +4,7 @@ import { TIME } from "../utils/debug";
 
 interface IceElement {
   i: number;
-  points: string | [number, number][];
+  points: [number, number][];
   type: "glacier" | "iceberg";
   offset?: [number, number];
 }
@@ -45,7 +45,7 @@ export const redrawIceberg = (id: number): void => {
       (ice.node() as SVGGElement).insertAdjacentHTML("beforeend", polygon);
       el = ice.selectAll<SVGPolygonElement, unknown>(`polygon[data-id="${id}"]:not([type="glacier"])`);
     }
-    el.attr("points", iceberg.points as unknown as string);
+    el.attr("points", iceberg.points.join(" "));
     el.attr("transform", iceberg.offset ? `translate(${iceberg.offset[0]},${iceberg.offset[1]})` : null);
   }
   TIME && console.timeEnd("redrawIceberg");
@@ -65,7 +65,7 @@ export const redrawGlacier = (id: number): void => {
       (ice.node() as SVGGElement).insertAdjacentHTML("beforeend", polygon);
       el = ice.selectAll<SVGPolygonElement, unknown>(`polygon[data-id="${id}"][type="glacier"]`);
     }
-    el.attr("points", glacier.points as unknown as string);
+    el.attr("points", glacier.points.join(" "));
     el.attr("transform", glacier.offset ? `translate(${glacier.offset[0]},${glacier.offset[1]})` : null);
   }
   TIME && console.timeEnd("redrawGlacier");

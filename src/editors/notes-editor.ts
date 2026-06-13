@@ -1,3 +1,17 @@
+import tinymce from "tinymce";
+import "tinymce/themes/silver";
+import "tinymce/plugins/autolink";
+import "tinymce/plugins/lists";
+import "tinymce/plugins/media";
+import "tinymce/plugins/charmap";
+import "tinymce/plugins/link";
+import "tinymce/plugins/code";
+import "tinymce/plugins/table";
+import "tinymce/plugins/fullscreen";
+import "tinymce/plugins/image";
+import "tinymce/plugins/wordcount";
+import "tinymce/icons/default/icons";
+import "tinymce/models/dom/model";
 import type { WorldNote } from "../types/WorldState";
 import { ensureEl } from "../utils";
 
@@ -65,7 +79,7 @@ export function editNotes(id?: string, name?: string): void {
   ensureEl("notesRemove").addEventListener("click", triggerNotesRemove);
 
   async function initEditor(): Promise<void> {
-    if (!(window as any).tinymce) {
+    if (!tinymce) {
       const url = "https://azgaar.github.io/Fantasy-Map-Generator/libs/tinymce/tinymce.min.js";
       try {
         await import(/* @vite-ignore */ url);
@@ -79,9 +93,9 @@ export function editNotes(id?: string, name?: string): void {
       }
     }
 
-    if ((window as any).tinymce) {
-      (window as any).tinymce._setBaseUrl("https://azgaar.github.io/Fantasy-Map-Generator/libs/tinymce");
-      (window as any).tinymce.init({
+    if (tinymce) {
+      tinymce._setBaseUrl("https://azgaar.github.io/Fantasy-Map-Generator/libs/tinymce");
+      tinymce.init({
         license_key: "gpl",
         selector: "#notesLegend",
         height: "90%",
@@ -106,8 +120,8 @@ export function editNotes(id?: string, name?: string): void {
       return;
     }
 
-    const isTinyEditorActive = (window as any).tinymce?.activeEditor;
-    note.legend = isTinyEditorActive ? (window as any).tinymce.activeEditor.getContent() : notesLegend.innerHTML;
+    const isTinyEditorActive = tinymce?.activeEditor;
+    note.legend = isTinyEditorActive ? (tinymce?.activeEditor?.getContent() ?? "") : notesLegend.innerHTML;
     updateNotesBox(note);
   }
 
@@ -127,7 +141,7 @@ export function editNotes(id?: string, name?: string): void {
     notesLegend.innerHTML = note.legend;
     updateNotesBox(note);
 
-    if ((window as any).tinymce) (window as any).tinymce.activeEditor.setContent(note.legend);
+    if (tinymce) tinymce.activeEditor?.setContent(note.legend);
   }
 
   function changeName(this: HTMLInputElement): void {
@@ -180,7 +194,7 @@ export function editNotes(id?: string, name?: string): void {
       if (note) {
         note.legend = result;
         updateNotesBox(note);
-        if ((window as any).tinymce) (window as any).tinymce.activeEditor.setContent(note.legend);
+        if (tinymce) tinymce.activeEditor?.setContent(note.legend);
       }
     };
 
@@ -218,6 +232,6 @@ export function editNotes(id?: string, name?: string): void {
   }
 
   function removeEditor(): void {
-    if ((window as any).tinymce) (window as any).tinymce.remove();
+    if (tinymce) tinymce.remove();
   }
 }

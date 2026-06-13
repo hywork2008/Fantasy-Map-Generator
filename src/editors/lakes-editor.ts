@@ -1,9 +1,12 @@
 import { type D3DragEvent, drag, mean, min, polygonArea, polygonLength, type Selection, select } from "d3";
+import { worldContext } from "../context/worldContext";
 import type { PackedGraphFeature } from "../modules/features";
 import { Lakes } from "../modules/lakes";
 import { drawBiomes, drawBorders, drawCultures, drawProvinces, drawReligions, drawStates } from "../renderers";
 import { getFeaturePath } from "../renderers/index";
 import { ensureEl, rand, rn, si, unique } from "../utils";
+import { getPackPolygon } from "../utils/graphUtils";
+import { editNotes } from "./notes-editor";
 
 export function editLake(event?: MouseEvent): void {
   if (customization) return;
@@ -76,14 +79,14 @@ export function editLake(event?: MouseEvent): void {
     const feature = getLake();
     const verts = feature.vertices!;
 
-    const neibCells = unique(verts.flatMap((v: number) => pack.vertices.c[v]) as unknown as number[]);
+    const neibCells = unique(verts.flatMap((v: number) => pack.vertices.c[v]));
     debug
       .select("#vertices")
       .selectAll("polygon")
       .data(neibCells)
       .enter()
       .append("polygon")
-      .attr("points", (d: number) => getPackPolygon(d) as unknown as string)
+      .attr("points", (d: number) => getPackPolygon(d, worldContext.pack).join(" "))
       .attr("data-c", (d: number) => d);
 
     debug
@@ -121,7 +124,7 @@ export function editLake(event?: MouseEvent): void {
     debug
       .select("#vertices")
       .selectAll("polygon")
-      .attr("points", (d: unknown) => getPackPolygon(d as number) as unknown as string);
+      .attr("points", (d: unknown) => getPackPolygon(d as number, worldContext.pack).join(" "));
   }
 
   function handleVertexDragEnd(): void {

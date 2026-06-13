@@ -217,8 +217,6 @@ declare global {
     onCancel?: () => void;
   }) => void;
   var applyOption: (select: HTMLSelectElement | HTMLInputElement, value: string, name?: string) => void;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  var $: (selector: any) => any;
   var scale: number;
   var changeFont: () => void;
   var getFriendlyHeight: (coords: [number, number]) => string;
@@ -406,7 +404,7 @@ declare global {
   var regeneratePrompt: (opts?: { seed?: string }) => void;
   var generateSeed: () => string;
   var drawHeights: (opts: {
-    heights: number[];
+    heights: ArrayLike<number>;
     width: number;
     height: number;
     scheme: (v: number) => string;
@@ -576,6 +574,11 @@ declare global {
   var generateWithAi: (prompt: string, onApply: (result: string) => void) => void;
 
   var showMainTip: () => void;
+  var showDataTip: (event: MouseEvent) => void;
+
+  // Emblem renderer globals (set by modules/emblem/renderer.ts)
+  var COArenderer: { trigger: (id: string, coa: unknown) => void; shieldPaths: Record<string, string> } | undefined;
+  var renderGroupCOAs: (g: SVGGElement) => Promise<void>;
 
   // ─── Phase 10: options.ts globals ────────────────────────────────────────────
 
@@ -739,7 +742,13 @@ declare global {
     from?: ArrayLike<number>;
   }) => Uint8Array | Uint16Array | Uint32Array;
   var aleaPRNG: (seed: string) => () => number;
-  var RgbQuant: new (options: unknown) => unknown;
+  var RgbQuant: new (
+    options: unknown
+  ) => {
+    sample(canvas: HTMLCanvasElement): void;
+    reduce(canvas: HTMLCanvasElement): Uint8Array;
+    palette(flat?: boolean): unknown;
+  };
 
   // UI helpers
   var link: (url: string, text: string) => string;
@@ -756,7 +765,6 @@ declare global {
   var unique: <T>(arr: T[]) => T[];
   var findAll: (x: number, y: number, radius: number) => number[];
   var isLand: (i: number) => boolean;
-  var getPackPolygon: (i: number) => [number, number][];
   var getRandomColor: () => string;
   var getSegmentId: (points: [number, number][], point: [number, number], dimension?: number) => number;
 
@@ -871,4 +879,15 @@ declare global {
 
   // battle-screen.ts
   var wiki: (topic: string) => void;
+}
+
+// jQuery UI DialogOptions doesn't allow string for size fields like minHeight/maxHeight/minWidth/maxWidth,
+// but jQuery UI itself accepts "auto" and similar string values. Extend to match runtime behavior.
+declare namespace JQueryUI {
+  interface DialogOptions {
+    minHeight?: number | string;
+    maxHeight?: number | string;
+    minWidth?: number | string;
+    maxWidth?: number | string;
+  }
 }

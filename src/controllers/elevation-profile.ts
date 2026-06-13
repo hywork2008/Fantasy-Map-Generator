@@ -308,7 +308,7 @@ class ElevationProfileModule {
         .append("g")
         .attr("id", "epxaxis")
         .attr("transform", `translate(${xOffset},${chartHeight + yOffset + 20})`)
-        .call(xAxis as any)
+        .call(xAxis as unknown as (g: Selection<SVGGElement, unknown, HTMLElement, unknown>) => void)
         .selectAll("text")
         .style("text-anchor", "center");
 
@@ -316,10 +316,10 @@ class ElevationProfileModule {
         .append("g")
         .attr("id", "epyaxis")
         .attr("transform", `translate(${xOffset - 10},${yOffset})`)
-        .call(yAxis as any);
+        .call(yAxis as unknown as (g: Selection<SVGGElement, unknown, HTMLElement, unknown>) => void);
 
       // Grid lines
-      const gridStyle = (g: Selection<SVGGElement, unknown, null, undefined>): void => {
+      const gridStyle = (g: Selection<SVGGElement, unknown, HTMLElement, unknown>): void => {
         g.attr("stroke", "lightgrey").attr("stroke-opacity", "0.2").attr("stroke-width", "0.5");
         g.selectAll("path").attr("stroke-width", "0");
       };
@@ -330,7 +330,7 @@ class ElevationProfileModule {
         .attr("class", "epgrid")
         .attr("stroke-dasharray", "4 1")
         .attr("transform", `translate(${xOffset},${chartHeight + yOffset})`)
-        .call(gridStyle as any);
+        .call(gridStyle);
 
       chart
         .append("g")
@@ -338,7 +338,7 @@ class ElevationProfileModule {
         .attr("class", "epgrid")
         .attr("stroke-dasharray", "4 1")
         .attr("transform", `translate(${xOffset},${yOffset})`)
-        .call(gridStyle as any);
+        .call(gridStyle);
 
       // Burg labels anchored above their curve point with all-pairs overlap avoidance
       const labelsG = chart.append("g").attr("id", "epburglabels");

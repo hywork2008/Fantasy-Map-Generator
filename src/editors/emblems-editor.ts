@@ -249,7 +249,8 @@ export function editEmblem(type?: string, id?: string, el?: any): void {
       parent = province ? (pack.provinces[province] as Province) : (pack.states[el.state] as State);
     }
 
-    const shield = el.coa.shield || COA.getShield(el.culture || (parent as any)?.culture || 0, el.state);
+    const parentCulture = parent && "culture" in parent ? (parent as { culture: number }).culture : 0;
+    const shield = el.coa.shield || COA.getShield(el.culture || parentCulture, el.state);
     el.coa = COA.generate(parent ? parent.coa : null, 0.3, 0.1, undefined);
     el.coa.shield = shield;
     emblemShapeSelector.disabled = false;
@@ -523,8 +524,8 @@ export function editEmblem(type?: string, id?: string, el?: any): void {
 
   function closeEmblemEditor(): void {
     emblems
-      .selectAll("use")
-      .call(drag().on("drag", null) as any)
+      .selectAll<SVGUseElement, unknown>("use")
+      .call(drag<SVGUseElement, unknown>().on("drag", null))
       .attr("class", null);
   }
 }

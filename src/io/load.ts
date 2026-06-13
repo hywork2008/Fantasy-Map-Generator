@@ -399,12 +399,11 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
     }
 
     {
-      const isVisible = (selection: d3.Selection<Element, unknown, null, undefined>) =>
+      const isVisible = (selection: d3.Selection<any, any, any, any>) =>
         selection.node() && selection.style("display") !== "none";
       const isVisibleNode = (node: HTMLElement | null) => node && node.style.display !== "none";
-      const hasChildren = (selection: d3.Selection<Element, unknown, null, undefined>) =>
-        selection.node()?.hasChildNodes();
-      const hasChild = (selection: d3.Selection<Element, unknown, null, undefined>, selector: string) =>
+      const hasChildren = (selection: d3.Selection<any, any, any, any>) => selection.node()?.hasChildNodes();
+      const hasChild = (selection: d3.Selection<any, any, any, any>, selector: string) =>
         selection.node()?.querySelector(selector);
       const turnOn = (el: string) => ensureEl(el).classList.remove("buttonoff");
 
@@ -414,69 +413,34 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
           el.classList.add("buttonoff");
         });
 
-      if (hasChild(texture as unknown as d3.Selection<Element, unknown, null, undefined>, "image"))
-        turnOn("toggleTexture");
-      if (hasChildren(terrs.select("#landHeights") as unknown as d3.Selection<Element, unknown, null, undefined>))
-        turnOn("toggleHeight");
-      if (isVisible(lakes as unknown as d3.Selection<Element, unknown, null, undefined>)) turnOn("toggleLakes");
-      if (hasChildren(biomes as unknown as d3.Selection<Element, unknown, null, undefined>)) turnOn("toggleBiomes");
-      if (hasChildren(cells as unknown as d3.Selection<Element, unknown, null, undefined>)) turnOn("toggleCells");
-      if (hasChildren(gridOverlay as unknown as d3.Selection<Element, unknown, null, undefined>)) turnOn("toggleGrid");
-      if (hasChildren(coordinates as unknown as d3.Selection<Element, unknown, null, undefined>))
-        turnOn("toggleCoordinates");
-      if (
-        isVisible(compass as unknown as d3.Selection<Element, unknown, null, undefined>) &&
-        hasChild(compass as unknown as d3.Selection<Element, unknown, null, undefined>, "use")
-      )
-        turnOn("toggleCompass");
-      if (hasChildren(rivers as unknown as d3.Selection<Element, unknown, null, undefined>)) turnOn("toggleRivers");
-      if (
-        isVisible(terrain as unknown as d3.Selection<Element, unknown, null, undefined>) &&
-        hasChildren(terrain as unknown as d3.Selection<Element, unknown, null, undefined>)
-      )
-        turnOn("toggleRelief");
-      if (hasChildren(relig as unknown as d3.Selection<Element, unknown, null, undefined>)) turnOn("toggleReligions");
-      if (hasChildren(cults as unknown as d3.Selection<Element, unknown, null, undefined>)) turnOn("toggleCultures");
-      if (hasChildren(statesBody as unknown as d3.Selection<Element, unknown, null, undefined>)) turnOn("toggleStates");
-      if (hasChildren(provs as unknown as d3.Selection<Element, unknown, null, undefined>)) turnOn("toggleProvinces");
-      if (
-        hasChildren(zones as unknown as d3.Selection<Element, unknown, null, undefined>) &&
-        isVisible(zones as unknown as d3.Selection<Element, unknown, null, undefined>)
-      )
-        turnOn("toggleZones");
-      if (
-        isVisible(borders as unknown as d3.Selection<Element, unknown, null, undefined>) &&
-        hasChild(borders as unknown as d3.Selection<Element, unknown, null, undefined>, "path")
-      )
-        turnOn("toggleBorders");
-      if (
-        isVisible(routes as unknown as d3.Selection<Element, unknown, null, undefined>) &&
-        hasChild(routes as unknown as d3.Selection<Element, unknown, null, undefined>, "path")
-      )
-        turnOn("toggleRoutes");
-      if (hasChildren(temperature as unknown as d3.Selection<Element, unknown, null, undefined>))
-        turnOn("toggleTemperature");
-      if (hasChild(population as unknown as d3.Selection<Element, unknown, null, undefined>, "line"))
-        turnOn("togglePopulation");
-      if (isVisible(ice as unknown as d3.Selection<Element, unknown, null, undefined>)) turnOn("toggleIce");
-      if (hasChild(prec as unknown as d3.Selection<Element, unknown, null, undefined>, "circle"))
-        turnOn("togglePrecipitation");
-      if (
-        isVisible(emblems as unknown as d3.Selection<Element, unknown, null, undefined>) &&
-        hasChild(emblems as unknown as d3.Selection<Element, unknown, null, undefined>, "use")
-      )
-        turnOn("toggleEmblems");
-      if (isVisible(labels as unknown as d3.Selection<Element, unknown, null, undefined>)) turnOn("toggleLabels");
-      if (isVisible(icons as unknown as d3.Selection<Element, unknown, null, undefined>)) turnOn("toggleBurgIcons");
-      if (
-        hasChildren(armies as unknown as d3.Selection<Element, unknown, null, undefined>) &&
-        isVisible(armies as unknown as d3.Selection<Element, unknown, null, undefined>)
-      )
-        turnOn("toggleMilitary");
-      if (hasChild(markers as unknown as d3.Selection<Element, unknown, null, undefined>, "svg"))
-        turnOn("toggleMarkers");
-      if (isVisible(ruler as unknown as d3.Selection<Element, unknown, null, undefined>)) turnOn("toggleRulers");
-      if (isVisible(scaleBar as unknown as d3.Selection<Element, unknown, null, undefined>)) turnOn("toggleScaleBar");
+      if (hasChild(texture, "image")) turnOn("toggleTexture");
+      if (hasChildren(terrs.select("#landHeights"))) turnOn("toggleHeight");
+      if (isVisible(lakes)) turnOn("toggleLakes");
+      if (hasChildren(biomes)) turnOn("toggleBiomes");
+      if (hasChildren(cells)) turnOn("toggleCells");
+      if (hasChildren(gridOverlay)) turnOn("toggleGrid");
+      if (hasChildren(coordinates)) turnOn("toggleCoordinates");
+      if (isVisible(compass) && hasChild(compass, "use")) turnOn("toggleCompass");
+      if (hasChildren(rivers)) turnOn("toggleRivers");
+      if (isVisible(terrain) && hasChildren(terrain)) turnOn("toggleRelief");
+      if (hasChildren(relig)) turnOn("toggleReligions");
+      if (hasChildren(cults)) turnOn("toggleCultures");
+      if (hasChildren(statesBody)) turnOn("toggleStates");
+      if (hasChildren(provs)) turnOn("toggleProvinces");
+      if (hasChildren(zones) && isVisible(zones)) turnOn("toggleZones");
+      if (isVisible(borders) && hasChild(borders, "path")) turnOn("toggleBorders");
+      if (isVisible(routes) && hasChild(routes, "path")) turnOn("toggleRoutes");
+      if (hasChildren(temperature)) turnOn("toggleTemperature");
+      if (hasChild(population, "line")) turnOn("togglePopulation");
+      if (isVisible(ice)) turnOn("toggleIce");
+      if (hasChild(prec, "circle")) turnOn("togglePrecipitation");
+      if (isVisible(emblems) && hasChild(emblems, "use")) turnOn("toggleEmblems");
+      if (isVisible(labels)) turnOn("toggleLabels");
+      if (isVisible(icons)) turnOn("toggleBurgIcons");
+      if (hasChildren(armies) && isVisible(armies)) turnOn("toggleMilitary");
+      if (hasChild(markers, "svg")) turnOn("toggleMarkers");
+      if (isVisible(ruler)) turnOn("toggleRulers");
+      if (isVisible(scaleBar)) turnOn("toggleScaleBar");
       if (isVisibleNode(ensureEl("vignette") as HTMLElement)) turnOn("toggleVignette");
 
       getCurrentPreset();
@@ -836,7 +800,7 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
     $("#alert").dialog({
       resizable: false,
       title: "Loading error",
-      maxWidth: "40em",
+      maxWidth: "40em" as unknown as number,
       buttons: {
         "Clear cache": () => cleanupData(),
         "Select file": function () {

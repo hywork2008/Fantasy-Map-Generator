@@ -205,8 +205,8 @@ function generateWithAi(defaultPrompt: string, onApply: (result: string) => void
     position: { my: "center", at: "center", of: "svg" },
     resizable: false,
     buttons: {
-      Generate: (e: Event) => {
-        generate(e.target as HTMLButtonElement);
+      Generate: (e?: Event) => {
+        generate((e as Event).target as HTMLButtonElement);
       },
       Apply: function () {
         const result = (ensureEl("aiGeneratorResult") as HTMLTextAreaElement).value;

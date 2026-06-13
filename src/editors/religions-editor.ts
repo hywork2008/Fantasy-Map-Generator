@@ -3,10 +3,12 @@ import type { Religion } from "../modules/religions-generator";
 
 type HighlightEvent = { id?: string | number | null; target?: EventTarget | null };
 
+import { worldContext } from "../context/worldContext";
 import { type HierarchyElement, open as openHierarchyTree } from "../controllers/hierarchy-tree";
 import { Religions } from "../modules/religions-generator";
 import { drawPopulation, drawReligions } from "../renderers";
 import { abbreviate, applySortingByHeader, debounce, ensureEl, findCell, rn, si } from "../utils";
+import { getPackPolygon } from "../utils/graphUtils";
 
 const $body = insertEditorHtml();
 addListeners();
@@ -22,7 +24,7 @@ export function open(): void {
   refreshReligionsEditor();
   drawReligionCenters();
 
-  ($("#religionsEditor") as any).dialog({
+  $("#religionsEditor").dialog({
     title: "Religions Editor",
     resizable: false,
     close: closeReligionsEditor,
@@ -286,7 +288,7 @@ function religionsEditorAddLines(): void {
   }
 
   applySorting(religionsHeader);
-  ($("#religionsEditor") as any).dialog({ width: fitContent() });
+  $("#religionsEditor").dialog({ width: fitContent() });
 }
 
 function getTypeOptions(type: string): string {
@@ -454,17 +456,17 @@ function changePopulation(this: Element): void {
   getRuralPop().oninput = () => update();
   getUrbanPop().oninput = () => update();
 
-  ($("#alert") as any).dialog({
+  $("#alert").dialog({
     resizable: false,
     title: "Change believers number",
     width: "24em",
     buttons: {
       Apply: function () {
         applyPopulationChange();
-        ($(this) as any).dialog("close");
+        $(this).dialog("close");
       },
       Cancel: function () {
-        ($(this) as any).dialog("close");
+        $(this).dialog("close");
       }
     },
     position: { my: "center", at: "center", of: "svg" }
@@ -473,14 +475,14 @@ function changePopulation(this: Element): void {
   function applyPopulationChange(): void {
     const ruralChange = +getRuralPop().value / rural;
     if (Number.isFinite(ruralChange) && ruralChange !== 1) {
-      const cells = (pack.cells.i as unknown as number[]).filter((i: number) => pack.cells.religion[i] === religionId);
+      const cells = pack.cells.i.filter((i: number) => pack.cells.religion[i] === religionId);
       cells.forEach((i: number) => {
         pack.cells.pop[i] *= ruralChange;
       });
     }
     if (!Number.isFinite(ruralChange) && +getRuralPop().value > 0) {
       const points = +getRuralPop().value / populationRate;
-      const cells = (pack.cells.i as unknown as number[]).filter((i: number) => pack.cells.religion[i] === religionId);
+      const cells = pack.cells.i.filter((i: number) => pack.cells.religion[i] === religionId);
       const pop = rn(points / cells.length);
       cells.forEach((i: number) => {
         pack.cells.pop[i] = pop;
@@ -537,7 +539,7 @@ function removeReligion(religionId: number): void {
   relig.select(`#religion-gap${religionId}`).remove();
   debug.select(`#religionsCenter${religionId}`).remove();
 
-  (pack.cells.religion as unknown as number[]).forEach((r: number, i: number) => {
+  Array.from(pack.cells.religion).forEach((r: number, i: number) => {
     if (r === religionId) pack.cells.religion[i] = 0;
   });
   pack.religions[religionId].removed = true;
@@ -716,7 +718,7 @@ function enterReligionsManualAssignent(): void {
   $body.querySelectorAll<HTMLElement>("div > input, select, span, svg").forEach(e => {
     e.style.pointerEvents = "none";
   });
-  ($("#religionsEditor") as any).dialog({ position: { my: "right top", at: "right-10 top+10", of: "svg" } });
+  $("#religionsEditor").dialog({ position: { my: "right top", at: "right-10 top+10", of: "svg" } });
 
   tip("Click on religion to select, drag the circle to change religion", true);
   viewbox
@@ -777,7 +779,7 @@ function changeReligionForSelection(selection: number[]): void {
         .append("polygon")
         .attr("data-cell", i)
         .attr("data-religion", religionNew)
-        .attr("points", getPackPolygon(i).join(" "))
+        .attr("points", getPackPolygon(i, worldContext.pack).join(" "))
         .attr("fill", color);
   });
 }
@@ -823,8 +825,7 @@ function exitReligionsManualAssignment(close?: boolean | string): void {
   $body.querySelectorAll<HTMLElement>("div > input, select, span, svg").forEach(e => {
     e.style.pointerEvents = "all";
   });
-  if (!close)
-    ($("#religionsEditor") as any).dialog({ position: { my: "right top", at: "right-10 top+10", of: "svg" } });
+  if (!close) $("#religionsEditor").dialog({ position: { my: "right top", at: "right-10 top+10", of: "svg" } });
 
   debug.select("#religionCenters").style("display", null);
   restoreDefaultEvents?.();

@@ -1,6 +1,8 @@
 import { pointer } from "d3";
+import { worldContext } from "../context/worldContext";
 import { Rivers } from "../modules/river-generator";
 import { findCell, last, rn } from "../utils";
+import { getPackPolygon } from "../utils/graphUtils";
 
 function createRiver(): void {
   if (customization) return;
@@ -71,7 +73,7 @@ function createRiver(): void {
       .selectAll("polygon")
       .data(cells)
       .join("polygon")
-      .attr("points", d => getPackPolygon(d).join(" "))
+      .attr("points", d => getPackPolygon(d, worldContext.pack).join(" "))
       .attr("class", "current");
   }
 

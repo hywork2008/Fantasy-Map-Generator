@@ -1,3 +1,4 @@
+import type { ZoomBehavior } from "d3";
 import * as d3 from "d3";
 import { editBurg } from "../editors/burg-editor";
 import { coastlineEditor, editCoastline } from "../editors/coastline-editor";
@@ -45,10 +46,10 @@ function makePanDrag(filter?: (ev: Event) => boolean): d3.DragBehavior<SVGGEleme
 }
 
 function restoreDefaultEvents(): void {
-  svg.call(zoom as any);
+  svg.call(zoom as unknown as ZoomBehavior<SVGSVGElement, unknown>);
   viewbox.style("cursor", "default").on(".drag", null).on("click", clicked).on("touchmove mousemove", onMouseMove);
   legend.call(makePanDrag());
-  svg.call(zoom as any);
+  svg.call(zoom as unknown as ZoomBehavior<SVGSVGElement, unknown>);
 }
 
 function clicked(this: Element, event: MouseEvent): void {
@@ -414,7 +415,7 @@ function updateSpaces(): void {
   (document.getElementById("pickerHSL_S") as HTMLInputElement).value = String(rn(s * 100));
   (document.getElementById("pickerHSL_L") as HTMLInputElement).value = String(rn(l * 100));
 
-  const clr = d3.rgb(d3.hsl(h, s, l) as unknown as string);
+  const clr = d3.rgb(d3.hsl(h, s, l));
   (document.getElementById("pickerRGB_R") as HTMLInputElement).value = String(clr.r);
   (document.getElementById("pickerRGB_G") as HTMLInputElement).value = String(clr.g);
   (document.getElementById("pickerRGB_B") as HTMLInputElement).value = String(clr.b);
@@ -517,7 +518,7 @@ function changePickerSpace(this: HTMLInputElement): void {
         ? d3.rgb(+inputs[0], +inputs[1], +inputs[2])
         : d3.hsl(+inputs[0], +inputs[1] / 100, +inputs[2] / 100);
 
-  const clr = d3.hsl(fill as unknown as string);
+  const clr = d3.hsl(fill);
   if (Number.isNaN(clr.l)) {
     tip("You must provide a correct value", false, "error");
     return;

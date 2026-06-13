@@ -555,7 +555,7 @@ export const drawHeights = ({
   scheme,
   renderOcean
 }: {
-  heights: number[];
+  heights: ArrayLike<number>;
   width: number;
   height: number;
   scheme: (value: number) => string;

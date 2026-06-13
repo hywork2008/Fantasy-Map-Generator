@@ -20,7 +20,7 @@ import { States } from "../modules/states-generator";
 import type { Zone } from "../modules/zones-generator";
 import { Zones } from "../modules/zones-generator";
 import { drawFeatures } from "../renderers";
-import { ensureEl, findCell, generateSeed, minmax, rn } from "../utils";
+import { ensureEl, findCell, generateSeed, minmax, rn, showPrompt } from "../utils";
 import { HeightmapEditorHistoryClass as HeightmapEditorHistory } from "./HeightmapEditorHistory";
 
 // ─── Module-level state ───────────────────────────────────────────────────────
@@ -419,10 +419,10 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     const findBurgCell = (x: number, y: number): number => {
       const i = findCell(x, y);
       if (pack.cells.h[i] >= 20) return i;
-      const dist = (pack.cells.c[i] as unknown as number[]).map((c: number) =>
+      const dist = pack.cells.c[i].map((c: number) =>
         pack.cells.h[c] < 20 ? Infinity : (pack.cells.p[c][0] - x) ** 2 + (pack.cells.p[c][1] - y) ** 2
       );
-      return (pack.cells.c[i] as unknown as number[])[d3.leastIndex(dist) ?? 0];
+      return pack.cells.c[i][d3.leastIndex(dist) ?? 0];
     };
 
     for (const b of pack.burgs as Burg[]) {
@@ -594,8 +594,8 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
   // ─── Brushes panel ───────────────────────────────────────────────────────────
 
   function openBrushesPanel(): void {
-    if (($("#brushesPanel") as any).is(":visible")) return;
-    ($("#brushesPanel") as any)
+    if ($("#brushesPanel").is(":visible")) return;
+    $("#brushesPanel")
       .dialog({
         title: "Paint Brushes",
         resizable: false,
@@ -986,12 +986,12 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
   // ─── Template editor ──────────────────────────────────────────────────────────
 
   function openTemplateEditor(): void {
-    if (($("#templateEditor") as any).is(":visible")) return;
+    if ($("#templateEditor").is(":visible")) return;
     const $body = ensureEl("templateBody");
 
-    ($("#templateEditor") as any).dialog({
+    $("#templateEditor").dialog({
       title: "Template Editor",
-      minHeight: "auto",
+      minHeight: "auto" as unknown as number,
       width: "fit-content",
       resizable: false,
       position: { my: "right top", at: "right-10 top+10", of: "svg" }
@@ -1000,7 +1000,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     if (modules.openTemplateEditor) return;
     modules.openTemplateEditor = true;
 
-    ($("#templateBody") as any).sortable({
+    $("#templateBody").sortable({
       items: "> div",
       handle: ".icon-resize-vertical",
       containment: "#templateBody",
@@ -1100,16 +1100,13 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     function setRange(event: Event): void {
       const target = event.target as HTMLSelectElement;
       if (target.value !== "interval") return;
-      (window as any).prompt(
-        "Set a height interval. Avoid space, use hyphen as a separator",
-        { default: "17-20" },
-        (v: string) => {
-          const opt = document.createElement("option");
-          opt.value = opt.innerHTML = v;
-          target.add(opt);
-          target.value = v;
-        }
-      );
+      showPrompt("Set a height interval. Avoid space, use hyphen as a separator", { default: "17-20" }, value => {
+        const v = String(value);
+        const opt = document.createElement("option");
+        opt.value = opt.innerHTML = v;
+        target.add(opt);
+        target.value = v;
+      });
     }
 
     function selectTemplate(e: Event): void {
@@ -1242,15 +1239,15 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
   // ─── Image converter ──────────────────────────────────────────────────────────
 
   function openImageConverter(): void {
-    if (($("#imageConverter") as any).is(":visible")) return;
+    if ($("#imageConverter").is(":visible")) return;
     const color = getColorScheme(null);
     (imageToLoad as HTMLInputElement).click();
     closeDialogs("#imageConverter");
 
-    ($("#imageConverter") as any).dialog({
+    $("#imageConverter").dialog({
       title: "Image Converter",
       maxHeight: svgHeight * 0.8,
-      minHeight: "auto",
+      minHeight: "auto" as unknown as number,
       width: "20em",
       position: { my: "right top", at: "right-10 top+10", of: "svg" },
       beforeClose: closeImageConverter
@@ -1333,7 +1330,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       sampleCanvas.height = grid.cellsY;
       sampleCanvas.getContext("2d")!.drawImage(sourceImage, 0, 0, grid.cellsX, grid.cellsY);
 
-      const q = new (window as any).RgbQuant({ colors: count });
+      const q = new RgbQuant({ colors: count });
       q.sample(sampleCanvas);
       const data = q.reduce(sampleCanvas);
       const pallete = q.palette(true);
@@ -1492,10 +1489,11 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     }
 
     function setConvertColorsNumber(): void {
-      (window as any).prompt(
+      showPrompt(
         `Please set maximum number of colors. <br>An actual number is usually lower and depends on color scheme`,
         { default: +(convertColors as HTMLInputElement).value, step: 1, min: 3, max: 255 },
-        (number: number) => {
+        value => {
+          const number = +value;
           (convertColors as HTMLInputElement).value = String(number);
           heightsFromImage(number);
         }
@@ -1542,7 +1540,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       (colorsSelectValue as HTMLElement).innerHTML = (colorsSelectFriendly as HTMLElement).innerHTML = "0";
       viewbox.style("cursor", "default").on(".drag", null);
       tip('Heightmap edit mode is active. Click on "Exit Customization" to finalize the heightmap', true);
-      ($("#imageConverter") as any).dialog("destroy");
+      $("#imageConverter").dialog("destroy");
       openBrushesPanel();
     }
 

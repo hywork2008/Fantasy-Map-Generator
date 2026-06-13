@@ -50,7 +50,7 @@ import {
 } from "../renderers";
 import { drawMarker } from "../renderers/index";
 import type { WorldNote } from "../types/WorldState";
-import { ensureEl, findCell, gauss, generateSeed, getNextId, isCtrlClick, P, rn } from "../utils";
+import { ensureEl, findCell, gauss, generateSeed, getNextId, isCtrlClick, P, rn, showPrompt } from "../utils";
 import { open as openChartsOverview } from "./charts-overview";
 import { editCultures, editReligions, editStates } from "./editors";
 import { openMinimapDialog } from "./minimap";
@@ -658,10 +658,8 @@ function regenerateMarkers(): void {
 
 function regenerateZones(event: MouseEvent): void {
   if (isCtrlClick(event)) {
-    (window as any).prompt(
-      "Please provide zones number multiplier",
-      { default: 1, step: 0.01, min: 0, max: 100 },
-      (v: number) => addNumberOfZones(v)
+    showPrompt("Please provide zones number multiplier", { default: 1, step: 0.01, min: 0, max: 100 }, v =>
+      addNumberOfZones(+v)
     );
   } else {
     addNumberOfZones(gauss(1, 0.5, 0.6, 5, 2));

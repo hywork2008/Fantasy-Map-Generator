@@ -171,7 +171,7 @@ export const renderGroupCOAs = async (g: SVGGElement): Promise<void> => {
   for (const use of g.children) {
     const i = +(use as SVGUseElement).dataset.i!;
     const id = `${type}COA${i}`;
-    COArenderer.trigger(id, (data[i] as any).coa);
+    COArenderer.trigger(id, (data[i] as { coa: unknown }).coa);
     use.setAttribute("href", `#${id}`);
   }
 };

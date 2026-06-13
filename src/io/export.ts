@@ -375,7 +375,7 @@ export async function getMapURL(type: string, options: GetMapURLOptions = {}): P
   if (cloneEl.getElementById("burgIcons")) {
     const groups = cloneEl.getElementById("burgIcons")!.querySelectorAll("g");
     for (const group of Array.from(groups)) {
-      const icon = svgDefs.querySelector((group as unknown as HTMLElement).dataset.icon ?? "");
+      const icon = svgDefs.querySelector((group as SVGGElement).dataset.icon ?? "");
       if (icon) cloneDefs.appendChild(icon.cloneNode(true));
     }
   }

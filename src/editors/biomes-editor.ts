@@ -1,7 +1,9 @@
 import { drag, easeSinIn, pointer, type Selection, sum, transition } from "d3";
+import { worldContext } from "../context/worldContext";
 import { Biomes } from "../modules/biomes";
 import { drawBiomes, drawReliefIcons } from "../renderers";
 import { findCell, getRandomColor, openURL, rn, si } from "../utils";
+import { getPackPolygon } from "../utils/graphUtils";
 
 export function editBiomes(): void {
   if (customization) return;
@@ -456,7 +458,7 @@ export function editBiomes(): void {
           .append("polygon")
           .attr("data-cell", i)
           .attr("data-biome", biomeNew)
-          .attr("points", getPackPolygon(i) as unknown as string)
+          .attr("points", getPackPolygon(i, worldContext.pack).join(" "))
           .attr("fill", color)
           .attr("stroke", color);
     });

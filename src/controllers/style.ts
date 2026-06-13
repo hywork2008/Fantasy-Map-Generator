@@ -278,8 +278,7 @@ function selectStyleElement(): void {
     ensureEl<HTMLInputElement>("styleStrokeWidthInput").value = String(el.attr("stroke-width") ?? 0);
     ensureEl<HTMLInputElement>("styleLetterSpacingInput").value = String(el.attr("letter-spacing") ?? 0);
     ensureEl<HTMLInputElement>("styleShadowInput").value = el.style("text-shadow") ?? "";
-    ensureEl<HTMLInputElement>("styleLabelsHideGroup").checked =
-      (el.node() as unknown as HTMLElement).style.display === "none";
+    ensureEl<HTMLInputElement>("styleLabelsHideGroup").checked = el.node()?.style.display === "none";
 
     ensureEl<HTMLElement>("styleFont").style.display = "block";
     ensureEl<HTMLSelectElement>("styleSelectFont").value = el.attr("font-family") ?? "";

@@ -1,4 +1,5 @@
 import { NamesbaseEditor } from "../editors/namesbase-editor";
+import { editNotes } from "../editors/notes-editor";
 import { ensureEl, minmax } from "../utils";
 
 export function initHotkeys(): void {
@@ -232,7 +233,6 @@ declare const editCultures: () => void;
 declare const editZones: () => void;
 declare const editReligions: () => void;
 declare const openEmblemEditor: () => void;
-declare const editNotes: () => void;
 declare const overviewCharts: () => void;
 declare const overviewBurgs: () => void;
 declare const overviewRoutes: () => void;

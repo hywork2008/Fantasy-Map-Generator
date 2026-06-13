@@ -1,4 +1,4 @@
-import { interpolateString, pointer } from "d3";
+import { color, interpolateString, pointer } from "d3";
 import { COArenderer } from "../modules/emblem/renderer";
 import { States } from "../modules/states-generator";
 import { drawStates } from "../renderers";
@@ -209,7 +209,7 @@ export function editDiplomacy(): void {
 
       el.setAttribute("fill", c);
       statesBody.select(`#state-gap${id}`).attr("stroke", c);
-      statesHalo.select(`#state-border${id}`).attr("stroke", (window as any).d3.color(c).darker().hex());
+      statesHalo.select(`#state-border${id}`).attr("stroke", color(c)?.darker().formatHex() ?? c);
     });
   }
 
@@ -340,7 +340,7 @@ export function editDiplomacy(): void {
   function changeRelation(subjectId: number, objectId: number, oldRelation: string, newRelation: string): void {
     if (newRelation === oldRelation) return;
     const states = pack.states;
-    const chronicle = states[0].diplomacy as any[];
+    const chronicle = states[0].diplomacy as unknown as string[][];
 
     const subjectName = states[subjectId].name;
     const objectName = states[objectId].name;
@@ -419,7 +419,7 @@ export function editDiplomacy(): void {
   }
 
   function showRelationsHistory(): void {
-    const chronicle = pack.states[0].diplomacy as any[];
+    const chronicle = pack.states[0].diplomacy as unknown as string[][];
 
     let message = /* html */ `<div autocorrect="off" spellcheck="false">`;
     chronicle.forEach((entry: string[], index: number) => {
@@ -432,7 +432,7 @@ export function editDiplomacy(): void {
     });
 
     if (!chronicle.length) {
-      (pack.states[0].diplomacy as any[]) = [[]];
+      (pack.states[0].diplomacy as unknown as string[][]) = [[]];
       message += /* html */ `<div><div contenteditable="true" data-id="0-0">No historical records</div>&#8205;</div>`;
     }
 
@@ -465,7 +465,7 @@ export function editDiplomacy(): void {
 
   function changeRelationsHistory(this: HTMLElement): void {
     const parts = this.dataset.id!.split("-");
-    const group = (pack.states[0].diplomacy as unknown as any[][])[+parts[0]];
+    const group = (pack.states[0].diplomacy as unknown as string[][])[+parts[0]];
     if (this.innerHTML === "") {
       group.splice(+parts[1], 1);
       this.remove();

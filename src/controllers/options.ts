@@ -436,9 +436,22 @@ function loadGoogleTranslate(): void {
 }
 
 function initGoogleTranslate(): void {
-  const g = (window as any).google;
-  new g.translate.TranslateElement(
-    { pageLanguage: "en", layout: g.translate.TranslateElement.InlineLayout.VERTICAL },
+  const google = (
+    window as Window &
+      typeof globalThis & {
+        google: {
+          translate: {
+            TranslateElement: new (opts: object, id: string) => undefined & { InlineLayout: Record<string, unknown> };
+          };
+        };
+      }
+  ).google;
+  new google.translate.TranslateElement(
+    {
+      pageLanguage: "en",
+      layout: (google.translate.TranslateElement as unknown as { InlineLayout: Record<string, unknown> }).InlineLayout
+        .VERTICAL
+    },
     "google_translate_element"
   );
 }
@@ -448,10 +461,10 @@ function resetLanguage(): void {
   if (!languageSelect?.value) return;
 
   languageSelect.value = "en";
-  (languageSelect as any).handleChange(new Event("change"));
+  (languageSelect as HTMLSelectElement & { handleChange: (event: Event) => void }).handleChange(new Event("change"));
 
   languageSelect.value = "en";
-  (languageSelect as any).handleChange(new Event("change"));
+  (languageSelect as HTMLSelectElement & { handleChange: (event: Event) => void }).handleChange(new Event("change"));
 }
 
 // ─── Zoom extent ──────────────────────────────────────────────────────────────
@@ -920,8 +933,8 @@ function enterStandardView(): void {
   if (!document.getElementById("canvas3d")) return;
   ThreeD.stop();
   ensureEl("canvas3d").remove();
-  if (options3dUpdate.offsetParent) ($("#options3d") as any).dialog("close");
-  if (preview3d.offsetParent) ($("#preview3d") as any).dialog("close");
+  if (options3dUpdate.offsetParent) $("#options3d").dialog("close");
+  if (preview3d.offsetParent) $("#preview3d").dialog("close");
 }
 
 async function enter3dView(type: string): Promise<void> {
@@ -952,7 +965,7 @@ async function enter3dView(type: string): Promise<void> {
 
   if (type === "heightmap3DView") {
     ensureEl("preview3d").appendChild(canvas);
-    ($("#preview3d") as any).dialog({
+    $("#preview3d").dialog({
       title: "3D Preview",
       resizable: true,
       position: { my: "left bottom", at: "left+10 bottom-20", of: "svg" },
@@ -973,10 +986,10 @@ function resize3d(): void {
 
 function toggle3dOptions(): void {
   if (options3dUpdate.offsetParent) {
-    ($("#options3d") as any).dialog("close");
+    $("#options3d").dialog("close");
     return;
   }
-  ($("#options3d") as any).dialog({
+  $("#options3d").dialog({
     title: "3D mode settings",
     resizable: false,
     width: fitContent(),
@@ -1186,9 +1199,9 @@ window.changeViewMode = changeViewMode;
 
 export function initOptions(): void {
   // draggable/sortable/disableSelection
-  ($("#optionsContainer") as any).draggable({ handle: ".drag-trigger", snap: "svg", snapMode: "both" });
-  ($("#exitCustomization") as any).draggable({ handle: "div" });
-  ($("#mapLayers") as any).disableSelection();
+  $("#optionsContainer").draggable({ handle: ".drag-trigger", snap: "svg", snapMode: "both" });
+  $("#exitCustomization").draggable({ handle: "div" });
+  $("#mapLayers").disableSelection();
 
   if (stored("disable_click_arrow_tooltip")) {
     clearMainTip();

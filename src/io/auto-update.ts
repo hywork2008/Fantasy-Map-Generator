@@ -88,7 +88,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
     States.defineStateForms(state);
     Provinces.generate(state);
     Provinces.getPoles(state);
-    if (!layerIsOn("toggleBorders")) ($("#borders") as any).fadeOut();
+    if (!layerIsOn("toggleBorders")) $("#borders").fadeOut();
     if (!layerIsOn("toggleStates")) regions.attr("display", "none").selectAll("path").remove();
 
     // v1.0 added zones layer

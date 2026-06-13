@@ -201,7 +201,7 @@ class CoastlineEditorModule {
         .data(neibCells)
         .enter()
         .append("polygon")
-        .attr("points", (d: number) => getPackPolygon(d, worldContext.pack) as unknown as string)
+        .attr("points", (d: number) => getPackPolygon(d, worldContext.pack).join(" "))
         .attr("data-c", (d: number) => d);
 
       debug
@@ -246,7 +246,7 @@ class CoastlineEditorModule {
       debug
         .select("#vertices")
         .selectAll("polygon")
-        .attr("points", (d: unknown) => getPackPolygon(d as number, worldContext.pack) as unknown as string);
+        .attr("points", (d: unknown) => getPackPolygon(d as number, worldContext.pack).join(" "));
     }
 
     function handleVertexDragEnd(): void {

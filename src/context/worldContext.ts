@@ -40,7 +40,7 @@ export interface WorldContext {
   /** Shared d3 line generator (curveBasis) used by controllers and editors */
   lineGen: (points: [number, number][]) => string;
   /** COA (coat-of-arms) renderer module, set when emblem module loads */
-  COArenderer: { trigger: (id: string, coa: unknown) => void } | null;
+  COArenderer: { trigger(id: string, coa: unknown): unknown; shieldPaths: Record<string, string> } | null;
   /** Zoom scale level (1 = no zoom) */
   scale: number;
   /** Current editor customization mode (0 = default, 1 = heightmap edit, etc.) */

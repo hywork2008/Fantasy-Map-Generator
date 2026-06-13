@@ -269,7 +269,7 @@ export function open(): void {
       renderChart(chart);
     });
 
-  ($("#chartsOverview") as any).dialog({
+  $("#chartsOverview").dialog({
     title: "Data Charts",
     position: { my: "center", at: "center", of: "svg" },
     close: handleClose
@@ -641,14 +641,14 @@ function changeViewColumns(): void {
 }
 
 function updateDialogPosition(): void {
-  const $el = ($ as any)("#chartsOverview");
+  const $el = $("#chartsOverview");
   if (!$el.hasClass("ui-dialog-content")) return;
   $el.dialog({ position: { my: "center", at: "center", of: "svg" } });
 }
 
 function handleClose(): void {
   ensureEl("chartsOverview__charts").innerHTML = "";
-  ($("#chartsOverview") as any).dialog("destroy");
+  $("#chartsOverview").dialog("destroy");
 }
 
 function getTextMinWidth(entities: string[]): number {

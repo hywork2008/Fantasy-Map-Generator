@@ -170,8 +170,7 @@ class Ruler extends Measurer {
       .attr("points", points)
       .attr("class", "white")
       .attr("stroke-width", size)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .call((d3.drag() as any).on("start", (startEvent: DragEv) => this.addControl(startEvent, this)));
+      .call(d3.drag<SVGPolylineElement, unknown>().on("start", e => this.addControl(e as DragEv, this)));
     el.append("polyline")
       .attr("points", points)
       .attr("class", "gray")
@@ -210,10 +209,10 @@ class Ruler extends Measurer {
         this.removePoint(this, i);
       })
       .call(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (d3.drag() as any).clickDistance(3).on("start", (startEvent: DragEv) => {
-          this.dragControl(this, i, startEvent);
-        })
+        d3
+          .drag<SVGCircleElement, unknown>()
+          .clickDistance(3)
+          .on("start", e => this.dragControl(this, i, e as DragEv))
       );
   }
 
@@ -321,21 +320,11 @@ class Opisometer extends Measurer {
     rulerPoints
       .append("circle")
       .attr("r", "1em")
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .call(
-        (d3.drag() as any).on("start", (startEvent: DragEv) => {
-          this.dragControl(this, 0, startEvent);
-        })
-      );
+      .call(d3.drag<SVGCircleElement, unknown>().on("start", e => this.dragControl(this, 0, e as DragEv)));
     rulerPoints
       .append("circle")
       .attr("r", "1em")
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .call(
-        (d3.drag() as any).on("start", (startEvent: DragEv) => {
-          this.dragControl(this, 1, startEvent);
-        })
-      );
+      .call(d3.drag<SVGCircleElement, unknown>().on("start", e => this.dragControl(this, 1, e as DragEv)));
     el.append("text")
       .attr("dx", ".35em")
       .attr("dy", "-.45em")
@@ -465,21 +454,11 @@ class RouteOpisometer extends Measurer {
     rulerPoints
       .append("circle")
       .attr("r", "1em")
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .call(
-        (d3.drag() as any).on("start", (startEvent: DragEv) => {
-          this.dragControl(this, 0, startEvent);
-        })
-      );
+      .call(d3.drag<SVGCircleElement, unknown>().on("start", e => this.dragControl(this, 0, e as DragEv)));
     rulerPoints
       .append("circle")
       .attr("r", "1em")
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .call(
-        (d3.drag() as any).on("start", (startEvent: DragEv) => {
-          this.dragControl(this, 1, startEvent);
-        })
-      );
+      .call(d3.drag<SVGCircleElement, unknown>().on("start", e => this.dragControl(this, 1, e as DragEv)));
     el.append("text")
       .attr("dx", ".35em")
       .attr("dy", "-.45em")

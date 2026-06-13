@@ -1,8 +1,11 @@
 import { curveCatmullRom, type D3DragEvent, drag, pointer, select } from "d3";
+import { worldContext } from "../context/worldContext";
 import type { River } from "../modules/river-generator";
 import { Rivers } from "../modules/river-generator";
 import type { TypedArray } from "../types/PackedGraph";
 import { ensureEl, findCell, getSegmentId, rand, rn } from "../utils";
+import { getPackPolygon } from "../utils/graphUtils";
+import { editNotes } from "./notes-editor";
 
 export function editRiver(id: string): void {
   if (customization) return;
@@ -13,7 +16,7 @@ export function editRiver(id: string): void {
   ensureEl("toggleCells").dataset.forced = String(+!layerIsOn("toggleCells"));
   if (!layerIsOn("toggleCells")) toggleCells();
 
-  elSelected = select(`#${id}`).on("click", addControlPoint as any) as any;
+  elSelected = select<SVGPathElement, unknown>(`#${id}`).on("click", addControlPoint) as unknown as typeof elSelected;
 
   tip(
     "Drag control points to change the river course. Click on point to remove it. Click on river to add additional control point. For major changes please create a new river instead",
@@ -130,7 +133,7 @@ export function editRiver(id: string): void {
       .selectAll("polygon")
       .data(validCells)
       .join("polygon")
-      .attr("points", (d: number) => getPackPolygon(d) as unknown as string);
+      .attr("points", (d: number) => getPackPolygon(d, worldContext.pack).join(" "));
   }
 
   let _rInitCell = 0,

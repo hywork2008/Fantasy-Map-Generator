@@ -1,7 +1,9 @@
 import { type D3DragEvent, drag, pointer, type Selection, sum } from "d3";
+import { worldContext } from "../context/worldContext";
 import type { Zone } from "../modules/zones-generator";
 import { drawPopulation, drawZones } from "../renderers";
 import { ensureEl, findCell, rn, si } from "../utils";
+import { getPackPolygon } from "../utils/graphUtils";
 
 type ZoneCellDatum = { cell: number; zoneId: number; fill: string };
 
@@ -178,8 +180,8 @@ export function editZones(): void {
     update: movezone
   });
 
-  function movezone(_ev: Event, ui: { item: { 0: HTMLElement; index(): number } }): void {
-    const zone = pack.zones.find((z: Zone) => z.i === +ui.item[0].dataset.id!);
+  function movezone(_ev: Event, ui: JQueryUI.SortableUIParams): void {
+    const zone = pack.zones.find((z: Zone) => z.i === +(ui.item[0] as HTMLElement).dataset.id!);
     if (!zone) return;
     const oldIndex = pack.zones.indexOf(zone);
     const newIndex = ui.item.index();
@@ -232,7 +234,7 @@ export function editZones(): void {
       .data(data, d => `${d.zoneId}-${d.cell}`)
       .enter()
       .append("polygon")
-      .attr("points", d => getPackPolygon(d.cell) as unknown as string)
+      .attr("points", d => getPackPolygon(d.cell, worldContext.pack).join(" "))
       .attr("fill", d => d.fill)
       .attr("data-zone", d => d.zoneId)
       .attr("data-cell", d => d.cell);
@@ -281,7 +283,7 @@ export function editZones(): void {
         .data(data, d => `${d.zoneId}-${d.cell}`)
         .enter()
         .append("polygon")
-        .attr("points", d => getPackPolygon(d.cell) as unknown as string)
+        .attr("points", d => getPackPolygon(d.cell, worldContext.pack).join(" "))
         .attr("fill", d => d.fill)
         .attr("data-zone", d => d.zoneId)
         .attr("data-cell", d => d.cell);
