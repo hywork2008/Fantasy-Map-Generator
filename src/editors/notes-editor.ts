@@ -1,7 +1,7 @@
 import type { WorldNote } from "../types/WorldState";
 import { ensureEl } from "../utils";
 
-function editNotes(id?: string, name?: string): void {
+export function editNotes(id?: string, name?: string): void {
   const notesLegend = ensureEl("notesLegend");
   const notesName = ensureEl<HTMLInputElement>("notesName");
   const notesSelect = ensureEl<HTMLSelectElement>("notesSelect");
@@ -221,5 +221,3 @@ function editNotes(id?: string, name?: string): void {
     if ((window as any).tinymce) (window as any).tinymce.remove();
   }
 }
-
-window.editNotes = editNotes as () => void;

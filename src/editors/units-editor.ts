@@ -4,7 +4,7 @@ import { drawTemperature } from "../renderers";
 import { drawScaleBar, fitScaleBar } from "../renderers/index";
 import { ensureEl, findCell } from "../utils";
 
-function editUnits(): void {
+export function editUnits(): void {
   closeDialogs("#unitsEditor, .stable");
   $("#unitsEditor").dialog();
 
@@ -298,5 +298,3 @@ function editUnits(): void {
     });
   }
 }
-
-window.editUnits = editUnits;

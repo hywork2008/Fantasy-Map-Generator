@@ -5,7 +5,7 @@ import { drawBiomes, drawBorders, drawCultures, drawProvinces, drawReligions, dr
 import { getFeaturePath } from "../renderers/index";
 import { ensureEl, rand, rn, si, unique } from "../utils";
 
-function editLake(event?: MouseEvent): void {
+export function editLake(event?: MouseEvent): void {
   if (customization) return;
   closeDialogs(".stable");
   if (layerIsOn("toggleCells")) toggleCells();
@@ -267,5 +267,3 @@ function editLake(event?: MouseEvent): void {
     unselect();
   }
 }
-
-window.editLake = editLake;

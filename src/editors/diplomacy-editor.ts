@@ -55,7 +55,7 @@ const relations: Record<RelationKey, { inText: string; color: string; tip: strin
   }
 };
 
-function editDiplomacy(): void {
+export function editDiplomacy(): void {
   if (customization) return;
   if (pack.states.filter(s => s.i && !s.removed).length < 2) {
     tip("There should be at least 2 states to edit the diplomacy", false, "error");
@@ -546,8 +546,6 @@ function editDiplomacy(): void {
     debug.selectAll(".highlight").remove();
   }
 }
-
-window.editDiplomacy = editDiplomacy;
 
 declare global {
   interface Window {

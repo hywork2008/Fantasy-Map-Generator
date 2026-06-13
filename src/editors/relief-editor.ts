@@ -17,7 +17,7 @@ interface DragRemoveState {
   tree: Quadtree<[number, number, SVGUseElement]>;
 }
 
-function editReliefIcon(clickedEl?: Element): void {
+export function editReliefIcon(clickedEl?: Element): void {
   if (customization) return;
   closeDialogs(".stable");
   if (!layerIsOn("toggleRelief")) toggleRelief();
@@ -347,5 +347,3 @@ function editReliefIcon(clickedEl?: Element): void {
     clearMainTip();
   }
 }
-
-window.editReliefIcon = editReliefIcon;

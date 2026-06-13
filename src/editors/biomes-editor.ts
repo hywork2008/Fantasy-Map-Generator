@@ -3,7 +3,7 @@ import { Biomes } from "../modules/biomes";
 import { drawBiomes, drawReliefIcons } from "../renderers";
 import { findCell, getRandomColor, openURL, rn, si } from "../utils";
 
-function editBiomes(): void {
+export function editBiomes(): void {
   if (customization) return;
   closeDialogs("#biomesEditor, .stable");
   if (!layerIsOn("toggleBiomes")) toggleBiomes();
@@ -527,5 +527,3 @@ function editBiomes(): void {
     exitBiomesCustomizationMode("close");
   }
 }
-
-window.editBiomes = editBiomes;

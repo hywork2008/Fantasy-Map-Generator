@@ -449,7 +449,7 @@ interface EmblemEl {
   name?: string;
 }
 
-function highlightEmblemElement(type: string, el: EmblemEl): void {
+export function highlightEmblemElement(type: string, el: EmblemEl): void {
   const id = el.i;
   const cells = pack.cells;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

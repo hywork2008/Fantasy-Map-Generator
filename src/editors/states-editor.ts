@@ -13,6 +13,7 @@ import { States } from "../modules/states-generator";
 import { drawBorders, drawPopulation, drawProvinces, drawStateLabels, drawStates } from "../renderers";
 import type { WorldNote } from "../types/WorldState";
 import { applySortingByHeader, ensureEl, findCell, rn, si } from "../utils";
+import { BrushHistoryClass as BrushHistory } from "./BrushHistory";
 
 const $body = insertEditorHtml();
 addListeners();

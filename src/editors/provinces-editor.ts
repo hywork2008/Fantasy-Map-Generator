@@ -13,7 +13,7 @@ import { States } from "../modules/states-generator";
 import { drawBorders, drawPopulation, drawProvinces, drawStateLabels, drawStates } from "../renderers";
 import { ensureEl, findCell, parseTransform, rn } from "../utils";
 
-function editProvinces(): void {
+export function editProvinces(): void {
   if (customization) return;
   closeDialogs("#provincesEditor, .stable");
   if (!layerIsOn("toggleProvinces")) toggleProvinces();
@@ -1424,5 +1424,3 @@ function updateLockStatus(provinceId: number, classList: DOMTokenList): void {
 }
 
 // ─── Global registration ───────────────────────────────────────────────────────
-
-window.editProvinces = editProvinces;

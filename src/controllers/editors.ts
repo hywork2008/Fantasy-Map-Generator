@@ -1,8 +1,19 @@
 import * as d3 from "d3";
+import { editBurg } from "../editors/burg-editor";
+import { coastlineEditor, editCoastline } from "../editors/coastline-editor";
+import { open as openCulturesEditor } from "../editors/cultures-editor";
+import { editEmblem } from "../editors/emblems-editor";
+import { editIce } from "../editors/ice-editor";
+import { editLabel } from "../editors/labels-editor";
+import { editLake } from "../editors/lakes-editor";
+import { editMarker } from "../editors/markers-editor";
+import { editRegiment } from "../editors/regiment-editor";
+import { editReliefIcon } from "../editors/relief-editor";
+import { open as openReligionsEditor } from "../editors/religions-editor";
+import { editRiver } from "../editors/rivers-editor";
+import { editRoute } from "../editors/routes-editor";
+import { open as openStatesEditor } from "../editors/states-editor";
 import { ensureEl, parseTransform, rn } from "../utils";
-import { open as openCulturesEditor } from "./cultures-editor";
-import { open as openReligionsEditor } from "./religions-editor";
-import { open as openStatesEditor } from "./states-editor";
 
 // ─── Default viewbox events ────────────────────────────────────────────────
 
@@ -978,24 +989,24 @@ function refreshAllEditors(): void {
 
 // ─── Dynamic editor launchers ─────────────────────────────────────────────
 
-function editStates(): void {
+export function editStates(): void {
   if (customization) return;
   openStatesEditor();
 }
 
-function editCultures(): void {
+export function editCultures(): void {
   if (customization) return;
   openCulturesEditor();
 }
 
-function editReligions(): void {
+export function editReligions(): void {
   if (customization) return;
   openReligionsEditor();
 }
 
-function editCoastlineSettings(): void {
+export function editCoastlineSettings(): void {
   if (customization) return;
-  window.CoastlineEditor.open();
+  coastlineEditor.open();
 }
 
 // ─── Global registration ───────────────────────────────────────────────────

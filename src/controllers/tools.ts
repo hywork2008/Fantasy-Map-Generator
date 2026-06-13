@@ -1,4 +1,12 @@
 import { pointer, quadtree } from "d3";
+import { editBiomes } from "../editors/biomes-editor";
+import { editDiplomacy } from "../editors/diplomacy-editor";
+import { editHeightmap } from "../editors/heightmap-editor";
+import { NamesbaseEditor } from "../editors/namesbase-editor";
+import { editNotes } from "../editors/notes-editor";
+import { editProvinces } from "../editors/provinces-editor";
+import { editUnits } from "../editors/units-editor";
+import { editZones } from "../editors/zones-editor";
 import type { Burg } from "../modules/burgs-generator";
 import { Burgs } from "../modules/burgs-generator";
 import { Cultures } from "../modules/cultures-generator";
@@ -44,6 +52,7 @@ import { drawMarker } from "../renderers/index";
 import type { WorldNote } from "../types/WorldState";
 import { ensureEl, findCell, gauss, generateSeed, getNextId, isCtrlClick, P, rn } from "../utils";
 import { open as openChartsOverview } from "./charts-overview";
+import { editCultures, editReligions, editStates } from "./editors";
 import { openMinimapDialog } from "./minimap";
 
 // ─── Tools panel event dispatcher ────────────────────────────────────────────

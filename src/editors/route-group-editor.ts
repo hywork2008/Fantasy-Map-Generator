@@ -1,7 +1,7 @@
 import { Routes } from "../modules/routes-generator";
 import { ensureEl } from "../utils";
 
-function editRouteGroups(): void {
+export function editRouteGroups(): void {
   if (customization) return;
   if (!layerIsOn("toggleRoutes")) toggleRoutes();
 
@@ -87,5 +87,3 @@ function editRouteGroups(): void {
     });
   }
 }
-
-window.editRouteGroups = editRouteGroups;

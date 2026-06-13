@@ -6,7 +6,7 @@ import { ensureEl, findCell, getSegmentId, rn } from "../utils";
 
 // ─── routes-editor ──────────────────────────────────────────────────────────
 
-function editRoute(id: string): void {
+export function editRoute(id: string): void {
   if (customization) return;
   if (elSelected && id === elSelected.attr("id")) return;
   closeDialogs(".stable");
@@ -441,7 +441,7 @@ function editRoute(id: string): void {
 
 let _createRoutePoints: [number, number, number][] = [];
 
-function createRoute(defaultGroup?: string): void {
+export function createRoute(defaultGroup?: string): void {
   if (customization) return;
   closeDialogs();
   if (!layerIsOn("toggleRoutes")) toggleRoutes();
@@ -586,6 +586,3 @@ function createRoute(defaultGroup?: string): void {
     if (forced && layerIsOn("toggleCells")) toggleCells();
   }
 }
-
-window.editRoute = editRoute;
-window.createRoute = createRoute;

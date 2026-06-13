@@ -1,10 +1,6 @@
 import { max as d3max, min as d3min, mean, median } from "d3";
 import { ensureEl, openURL, rn, unique } from "../utils";
 
-declare global {
-  var NamesbaseEditor: NamesbaseEditorModule;
-}
-
 const unsafe = /[|/]/g;
 
 const escapeHtml = (str: string): string =>
@@ -368,4 +364,4 @@ class NamesbaseEditorModule {
   }
 }
 
-window.NamesbaseEditor = new NamesbaseEditorModule();
+export const NamesbaseEditor = new NamesbaseEditorModule();

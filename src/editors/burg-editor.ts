@@ -5,7 +5,7 @@ import type { Culture } from "../modules/cultures-generator";
 import { COArenderer } from "../modules/emblem/renderer";
 import { ensureEl, findCell, openURL, parseTransform, rn, showPrompt } from "../utils";
 
-function editBurg(id?: number): void {
+export function editBurg(id?: number): void {
   if (customization) return;
   closeDialogs(".stable");
   if (!layerIsOn("toggleBurgIcons")) toggleBurgIcons();
@@ -519,11 +519,8 @@ const meanTempCityMap: Record<string, string> = {
   "30": "Khartoum (Sudan)"
 };
 
-function getTemperatureLikeness(temperature: number): string | null {
+export function getTemperatureLikeness(temperature: number): string | null {
   if (temperature < -5) return "Yakutsk (Russia)";
   if (temperature > 30) return "Mecca (Saudi Arabia)";
   return meanTempCityMap[String(temperature)] || null;
 }
-
-window.editBurg = editBurg;
-window.getTemperatureLikeness = getTemperatureLikeness;

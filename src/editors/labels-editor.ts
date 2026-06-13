@@ -1,7 +1,7 @@
 import { curveNatural, type D3DragEvent, drag, pointer, select } from "d3";
 import { ensureEl, findCell, parseTransform, round } from "../utils";
 
-function editLabel(tspan?: Element): void {
+export function editLabel(tspan?: Element): void {
   if (customization) return;
   closeDialogs();
   if (!layerIsOn("toggleLabels")) toggleLabels();
@@ -470,5 +470,3 @@ function editLabel(tspan?: Element): void {
     unselect();
   }
 }
-
-window.editLabel = editLabel;

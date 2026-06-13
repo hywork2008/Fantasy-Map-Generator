@@ -21,14 +21,16 @@ import type { Zone } from "../modules/zones-generator";
 import { Zones } from "../modules/zones-generator";
 import { drawFeatures } from "../renderers";
 import { ensureEl, findCell, generateSeed, minmax, rn } from "../utils";
+import { HeightmapEditorHistoryClass as HeightmapEditorHistory } from "./HeightmapEditorHistory";
 
 // ─── Module-level state ───────────────────────────────────────────────────────
 
 let editHeightmapLayers: string[] = [];
+let heightmapHistory: InstanceType<typeof HeightmapEditorHistory> | undefined;
 
 // ─── Main entry point ─────────────────────────────────────────────────────────
 
-function editHeightmap(options?: { mode?: string; tool?: string }): void {
+export function editHeightmap(options?: { mode?: string; tool?: string }): void {
   const { mode, tool } = options || {};
   restartHistory();
   viewbox.selectAll("#heights").remove();
@@ -1630,5 +1632,3 @@ function editHeightmap(options?: { mode?: string; tool?: string }): void {
 }
 
 // ─── Global registration ───────────────────────────────────────────────────────
-
-window.editHeightmap = editHeightmap;

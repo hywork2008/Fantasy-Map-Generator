@@ -5,7 +5,7 @@ import { ensureEl, findCell, rn, si } from "../utils";
 
 type ZoneCellDatum = { cell: number; zoneId: number; fill: string };
 
-function editZones(): void {
+export function editZones(): void {
   closeDialogs("#zonesEditor, .stable");
   if (!layerIsOn("toggleZones")) toggleZones();
   const body = ensureEl("zonesBodySection");
@@ -566,5 +566,3 @@ function editZones(): void {
     });
   }
 }
-
-window.editZones = editZones;

@@ -4,7 +4,7 @@ import { Markers } from "../modules/markers-generator";
 import { getPin } from "../renderers/index";
 import { ensureEl, findCell, rn } from "../utils";
 
-function editMarker(markerI?: number): void {
+export function editMarker(markerI?: number): void {
   if (customization) return;
   closeDialogs(".stable");
 
@@ -269,5 +269,3 @@ function editMarker(markerI?: number): void {
     clearMainTip();
   }
 }
-
-window.editMarker = editMarker;

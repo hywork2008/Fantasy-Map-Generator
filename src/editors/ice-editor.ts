@@ -4,7 +4,7 @@ import { Ice } from "../modules/ice";
 import { redrawIceberg } from "../renderers/index";
 import { parseTransform } from "../utils";
 
-function editIce(element: SVGElement): void {
+export function editIce(element: SVGElement): void {
   if (customization) return;
   if (elSelected && element === elSelected.node()) return;
 
@@ -130,5 +130,3 @@ function editIce(element: SVGElement): void {
     unselect();
   }
 }
-
-window.editIce = editIce;

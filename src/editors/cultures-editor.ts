@@ -4,6 +4,7 @@ import type { Burg } from "../modules/burgs-generator";
 
 type HighlightEvent = { id?: string | number | null; target?: EventTarget | null };
 
+import { type HierarchyElement, open as openHierarchyTree } from "../controllers/hierarchy-tree";
 import type { Culture } from "../modules/cultures-generator";
 import { Cultures } from "../modules/cultures-generator";
 import { COA } from "../modules/emblem/generator";
@@ -12,8 +13,8 @@ import type { NameBase } from "../modules/names-generator";
 import type { Province } from "../modules/provinces-generator";
 import type { State } from "../modules/states-generator";
 import { drawCultures, drawPopulation } from "../renderers";
-import { abbreviate, applySortingByHeader, debounce, ensureEl, findCell, rn, si } from "../utils";
-import { type HierarchyElement, open as openHierarchyTree } from "./hierarchy-tree";
+import { abbreviate, applySortingByHeader, capitalize, debounce, ensureEl, findCell, rn, si } from "../utils";
+import { NamesbaseEditor } from "./namesbase-editor";
 
 const cultureTypes = ["Generic", "River", "Lake", "Naval", "Nomadic", "Hunting", "Highland"];
 
@@ -105,7 +106,7 @@ function addListeners(): void {
   ensureEl("culturesManuallyUndo").on("click", undoCulturesManualAssignment);
   ensureEl("culturesManuallyApply").on("click", applyCultureManualAssignent);
   ensureEl("culturesManuallyCancel").on("click", () => exitCulturesManualAssignment());
-  ensureEl("culturesEditNamesBase").on("click", () => window.NamesbaseEditor.open());
+  ensureEl("culturesEditNamesBase").on("click", () => NamesbaseEditor.open());
   ensureEl("culturesAdd").on("click", enterAddCulturesMode);
   ensureEl("culturesExport").on("click", downloadCulturesCsv);
   ensureEl("culturesImport").on("click", () => ensureEl("culturesCSVToLoad").click());

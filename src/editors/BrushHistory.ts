@@ -24,9 +24,3 @@ export class BrushHistoryClass {
     return this.stack.length > 0;
   }
 }
-
-declare global {
-  var BrushHistory: typeof BrushHistoryClass;
-}
-
-window.BrushHistory = BrushHistoryClass;

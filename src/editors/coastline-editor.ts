@@ -1,5 +1,6 @@
 import Alea from "alea";
 import { drag, polygonArea, select } from "d3";
+import { worldContext } from "../context/worldContext";
 import {
   drawBiomes,
   drawBorders,
@@ -19,6 +20,7 @@ import {
 } from "../renderers/coastline-fractal";
 import { getFeaturePath } from "../renderers/index";
 import { ensureEl, rn, si, unique } from "../utils";
+import { getPackPolygon } from "../utils/graphUtils";
 
 interface SliderDef {
   id: string;
@@ -153,11 +155,6 @@ const COAST_PRESETS: Record<string, Omit<CoastlineSettings, "enabled">> = {
 
 const PREVIEW_SEED = "preview_coastline";
 
-declare global {
-  var CoastlineEditor: CoastlineEditorModule;
-  var editCoastline: (event?: MouseEvent) => void;
-}
-
 class CoastlineEditorModule {
   editCoastline(event?: MouseEvent): void {
     if (customization) return;
@@ -204,7 +201,7 @@ class CoastlineEditorModule {
         .data(neibCells)
         .enter()
         .append("polygon")
-        .attr("points", (d: number) => getPackPolygon(d) as unknown as string)
+        .attr("points", (d: number) => getPackPolygon(d, worldContext.pack) as unknown as string)
         .attr("data-c", (d: number) => d);
 
       debug
@@ -249,7 +246,7 @@ class CoastlineEditorModule {
       debug
         .select("#vertices")
         .selectAll("polygon")
-        .attr("points", (d: unknown) => getPackPolygon(d as number) as unknown as string);
+        .attr("points", (d: unknown) => getPackPolygon(d as number, worldContext.pack) as unknown as string);
     }
 
     function handleVertexDragEnd(): void {
@@ -723,6 +720,5 @@ class CoastlineEditorModule {
   }
 }
 
-const coastlineEditor = new CoastlineEditorModule();
-window.CoastlineEditor = coastlineEditor;
-window.editCoastline = (event?: MouseEvent) => coastlineEditor.editCoastline(event);
+export const coastlineEditor = new CoastlineEditorModule();
+export const editCoastline = (event?: MouseEvent) => coastlineEditor.editCoastline(event);

@@ -1,5 +1,3 @@
-import "../editors/BrushHistory";
-import "../editors/HeightmapEditorHistory";
 import "./voronoi";
 import { Features } from "./features";
 import { Names } from "./names-generator";

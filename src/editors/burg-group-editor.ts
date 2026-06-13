@@ -8,7 +8,7 @@ type ParsedValue = string | number | boolean | Record<string, boolean> | null;
 
 const GROUP_NAME_REGEXP = /^[\p{L}_][\p{L}\p{N}_-]*$/u;
 
-function editBurgGroups(): void {
+export function editBurgGroups(): void {
   if (customization) return;
   addLines();
 
@@ -365,5 +365,3 @@ function editBurgGroups(): void {
     $("#burgGroupsEditor").dialog("close");
   }
 }
-
-window.editBurgGroups = editBurgGroups;

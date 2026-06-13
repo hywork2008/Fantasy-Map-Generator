@@ -4,7 +4,7 @@ import { Rivers } from "../modules/river-generator";
 import type { TypedArray } from "../types/PackedGraph";
 import { ensureEl, findCell, getSegmentId, rand, rn } from "../utils";
 
-function editRiver(id: string): void {
+export function editRiver(id: string): void {
   if (customization) return;
   if (elSelected && id === elSelected.attr("id")) return;
   closeDialogs(".stable");
@@ -298,5 +298,3 @@ function editRiver(id: string): void {
     if (forced && layerIsOn("toggleCells")) toggleCells();
   }
 }
-
-window.editRiver = editRiver;
