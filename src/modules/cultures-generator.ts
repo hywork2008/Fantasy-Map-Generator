@@ -2,10 +2,7 @@ import { max, quadtree, range } from "d3";
 import type { PackedGraph } from "../types/PackedGraph";
 import type { WorldState } from "../types/WorldState";
 import { abbreviate, biased, ensureEl, getColors, getRandomColor, minmax, P, rand, rn, rw } from "../utils";
-
-declare global {
-  var Cultures: CulturesModule;
-}
+import { COA } from "./emblem/generator";
 
 export interface Culture {
   name: string;
@@ -1333,4 +1330,4 @@ class CulturesModule {
   }
 }
 
-window.Cultures = new CulturesModule();
+export const Cultures = new CulturesModule();

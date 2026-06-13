@@ -8,6 +8,17 @@ import {
   interpolateSpectral,
   scaleSequential
 } from "d3";
+import { OceanLayers } from "../modules/ocean-layers";
+import {
+  drawBurgIcons,
+  drawBurgLabels,
+  drawEmblems,
+  drawGrid,
+  drawHeightmap,
+  drawReliefIcons,
+  drawStateLabels
+} from "../renderers";
+import { drawRegiments, drawScaleBar, fitScaleBar } from "../renderers/index";
 import { drawHeights, ensureEl, parseTransform, rn, toHEX } from "../utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────

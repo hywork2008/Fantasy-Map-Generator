@@ -1,5 +1,7 @@
 import { type D3DragEvent, drag, pointer, select } from "d3";
 import type { IceIceberg } from "../modules/ice";
+import { Ice } from "../modules/ice";
+import { redrawIceberg } from "../renderers/index";
 import { parseTransform } from "../utils";
 
 function editIce(element: SVGElement): void {

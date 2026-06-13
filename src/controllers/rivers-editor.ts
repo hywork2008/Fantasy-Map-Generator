@@ -1,7 +1,8 @@
 import { curveCatmullRom, type D3DragEvent, drag, pointer, select } from "d3";
 import type { River } from "../modules/river-generator";
+import { Rivers } from "../modules/river-generator";
 import type { TypedArray } from "../types/PackedGraph";
-import { ensureEl, getSegmentId, rand, rn } from "../utils";
+import { ensureEl, findCell, getSegmentId, rand, rn } from "../utils";
 
 function editRiver(id: string): void {
   if (customization) return;

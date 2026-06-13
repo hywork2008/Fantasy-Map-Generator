@@ -1,6 +1,8 @@
 import { mean, sum } from "d3";
 import type { MilitaryRegiment } from "../modules/military-generator";
-import { capitalize, ensureEl, getAdjective, last, list, minmax, Pint, rand, rn } from "../utils";
+import { Military } from "../modules/military-generator";
+import { drawMarker, moveRegiment } from "../renderers/index";
+import { capitalize, ensureEl, findCell, getAdjective, last, list, minmax, Pint, rand, rn } from "../utils";
 
 interface BattleRegiment extends MilitaryRegiment {
   casualties: Record<string, number>;

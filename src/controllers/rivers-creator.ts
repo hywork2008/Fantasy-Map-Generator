@@ -1,5 +1,6 @@
 import { pointer } from "d3";
-import { last, rn } from "../utils";
+import { Rivers } from "../modules/river-generator";
+import { findCell, last, rn } from "../utils";
 
 function createRiver(): void {
   if (customization) return;

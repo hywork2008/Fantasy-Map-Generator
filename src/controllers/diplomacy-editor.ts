@@ -1,5 +1,8 @@
 import { interpolateString, pointer } from "d3";
-import { getAdjective } from "../utils";
+import { COArenderer } from "../modules/emblem/renderer";
+import { States } from "../modules/states-generator";
+import { drawStates } from "../renderers";
+import { findCell, getAdjective } from "../utils";
 
 type RelationKey =
   | "Ally"

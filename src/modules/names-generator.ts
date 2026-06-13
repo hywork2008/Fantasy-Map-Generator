@@ -1,9 +1,5 @@
 import { capitalize, isVowel, last, P, ra, rand } from "../utils";
 
-declare global {
-  var Names: NamesGenerator;
-}
-
 export interface NameBase {
   name: string; // name of the base
   i: number; // index of the base
@@ -691,4 +687,5 @@ class NamesGenerator {
   }
 }
 
-window.Names = new NamesGenerator();
+export type { NamesGenerator };
+export const Names = new NamesGenerator();

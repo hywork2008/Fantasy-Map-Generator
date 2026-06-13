@@ -1,11 +1,7 @@
 import { viewState } from "../context/viewState";
 import { worldContext } from "../context/worldContext";
 
-declare global {
-  var drawTexture: () => void;
-}
-
-const textureRenderer = (): void => {
+export const drawTexture = (): void => {
   const { graphWidth, graphHeight } = worldContext;
   const { texture } = viewState;
 
@@ -22,5 +18,3 @@ const textureRenderer = (): void => {
     .attr("height", graphHeight - y)
     .attr("href", href);
 };
-
-window.drawTexture = textureRenderer;

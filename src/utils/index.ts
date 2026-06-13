@@ -54,68 +54,6 @@ import { capitalize, isValidJSON, parseTransform, round, safeParseJSON, sanitize
 import { applySorting, applySortingByHeader, sortLines } from "./uiHelpers";
 import { convertTemperature, getIntegerFromSI, si } from "./unitUtils";
 
-window.rn = rn;
-window.lim = lim;
-window.minmax = minmax;
-window.normalize = normalize;
-window.lerp = lerp as typeof window.lerp;
-
-window.vowel = isVowel;
-window.trimVowels = trimVowels;
-window.getAdjective = getAdjective;
-window.nth = nth;
-window.abbreviate = abbreviate;
-window.list = list;
-
-window.last = last;
-window.unique = unique;
-window.getTypedArray = getTypedArray;
-window.createTypedArray = createTypedArray;
-window.INT8_MAX = TYPED_ARRAY_MAX_VALUES.INT8_MAX;
-window.UINT8_MAX = TYPED_ARRAY_MAX_VALUES.UINT8_MAX;
-window.UINT16_MAX = TYPED_ARRAY_MAX_VALUES.UINT16_MAX;
-window.UINT32_MAX = TYPED_ARRAY_MAX_VALUES.UINT32_MAX;
-
-window.rand = rand;
-window.P = P;
-window.each = each;
-window.gauss = gauss;
-window.Pint = Pint;
-window.ra = ra;
-window.rw = rw;
-window.biased = biased;
-window.getNumberInRange = getNumberInRange;
-window.generateSeed = generateSeed;
-
-window.convertTemperature = (temp: number, scale: string = window.temperatureScale?.value || "°C") =>
-  convertTemperature(temp, scale as "°C" | "°F");
-window.si = si;
-window.getInteger = getIntegerFromSI;
-window.toHEX = toHEX;
-window.getColors = getColors;
-window.getRandomColor = getRandomColor;
-window.getMixedColor = getMixedColor;
-window.C_12 = C_12;
-
-window.ensureEl = ensureEl;
-window.getComposedPath = getComposedPath;
-window.getNextId = getNextId;
-
-window.rollups = rollups;
-window.dist2 = distanceSquared;
-
-window.getIsolines = getIsolines;
-window.getPolesOfInaccessibility = getPolesOfInaccessibility;
-window.connectVertices = connectVertices;
-window.findPath = (start, end, getCost) => findPath(start, end, getCost, window.pack!);
-window.getVertexPath = cellsArray => getVertexPath(cellsArray, window.pack!);
-
-window.round = round;
-window.capitalize = capitalize;
-window.splitInTwo = splitInTwo;
-window.parseTransform = parseTransform;
-window.sanitizeId = sanitizeId;
-
 JSON.isValid = isValidJSON;
 JSON.safeParse = safeParseJSON;
 
@@ -127,6 +65,21 @@ Node.prototype.off = function (name, fn) {
   this.removeEventListener(name, fn);
   return this;
 };
+
+export function initUtils(): void {
+  // Initialize prompt when DOM is ready
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initializePrompt);
+  } else {
+    initializePrompt();
+  }
+}
+
+function findCell(x: number, y: number, radius?: number): number {
+  const pack = window.pack;
+  if (!pack?.cells?.p) return 0;
+  return findClosestCell(x, y, radius, pack) ?? 0;
+}
 
 declare global {
   interface JSON {
@@ -149,61 +102,6 @@ declare global {
   var graphHeight: number;
   var seed: string;
 }
-
-window.shouldRegenerateGrid = (grid: Grid | null | undefined, expectedSeed: number) =>
-  shouldRegenerateGrid(grid, expectedSeed, window.graphWidth, window.graphHeight);
-window.generateGrid = () => generateGrid(window.seed, window.graphWidth, window.graphHeight);
-window.findGridAll = (x: number, y: number, radius: number) => findGridAll(x, y, radius, window.grid!);
-window.findGridCell = (x: number, y: number) => findGridCell(x, y, window.grid!);
-window.findCell = (x: number, y: number, radius?: number) => {
-  const pack = window.pack;
-  if (!pack?.cells?.p) return 0;
-  return findClosestCell(x, y, radius, pack) ?? 0;
-};
-window.findAll = (x: number, y: number, radius: number) => findAllCellsInRadius(x, y, radius, window.pack!);
-window.getPackPolygon = (cellIndex: number) => getPackPolygon(cellIndex, window.pack!);
-window.getGridPolygon = (cellIndex: number) => getGridPolygon(cellIndex, window.grid!);
-window.calculateVoronoi = calculateVoronoi;
-window.poissonDiscSampler = poissonDiscSampler;
-window.findAllInQuadtree = findAllInQuadtree;
-window.drawHeights = drawHeights;
-window.isLand = (i: number) => isLand(i, window.pack!);
-window.isWater = (i: number) => isWater(i, window.pack!);
-
-window.clipPoly = (points: [number, number][], secure?: number) => clipPoly(points, graphWidth, graphHeight, secure);
-window.getSegmentId = getSegmentId;
-window.debounce = debounce;
-window.throttle = throttle;
-window.parseError = parseError;
-window.getBase64 = getBase64;
-window.openURL = openURL;
-window.wiki = wiki;
-window.link = link;
-window.isCtrlClick = isCtrlClick;
-window.generateDate = generateDate;
-window.getLongitude = (x: number, decimals?: number) => getLongitude(x, mapCoordinates, graphWidth, decimals);
-window.getLatitude = (y: number, decimals?: number) => getLatitude(y, mapCoordinates, graphHeight, decimals);
-window.getCoordinates = (x: number, y: number, decimals?: number) =>
-  getCoordinates(x, y, mapCoordinates, graphWidth, graphHeight, decimals);
-
-// Initialize prompt when DOM is ready
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", initializePrompt);
-} else {
-  initializePrompt();
-}
-
-window.drawCellsValue = (data: unknown[]) => drawCellsValue(data, window.pack!);
-window.drawPolygons = (data: number[]) =>
-  drawPolygons(
-    data,
-    window.terrs as unknown as import("d3").Selection<import("d3").BaseType, unknown, HTMLElement, unknown>,
-    window.grid!
-  );
-window.drawRouteConnections = () =>
-  drawRouteConnections((window as unknown as { packedGraph: import("../types/PackedGraph").PackedGraph }).packedGraph);
-window.drawPoint = drawPoint;
-window.drawPath = drawPath;
 
 export {
   abbreviate,
@@ -229,6 +127,7 @@ export {
   ensureEl,
   findAllCellsInRadius,
   findAllInQuadtree,
+  findCell,
   findClosestCell,
   findGridAll,
   findGridCell,

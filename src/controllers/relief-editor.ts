@@ -1,6 +1,6 @@
 import type { D3DragEvent, Quadtree } from "d3";
 import { drag, pointer, quadtree, range, select } from "d3";
-import { findAllInQuadtree, rn } from "../utils";
+import { findAllInQuadtree, findCell, rn } from "../utils";
 
 interface DragAddState {
   type: string;

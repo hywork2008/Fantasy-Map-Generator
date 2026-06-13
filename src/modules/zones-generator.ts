@@ -1,10 +1,7 @@
 import { max, mean } from "d3";
 import type { WorldState } from "../types/WorldState";
 import { gauss, getAdjective, P, ra, rand, rw } from "../utils";
-
-declare global {
-  var Zones: ZonesModule;
-}
+import { Routes } from "./routes-generator";
 
 export interface Zone {
   i: number;
@@ -629,4 +626,4 @@ class ZonesModule {
   }
 }
 
-window.Zones = new ZonesModule();
+export const Zones = new ZonesModule();

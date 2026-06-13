@@ -1,5 +1,6 @@
 import { interpolateString, sum } from "d3";
 import type { MilitaryUnit } from "../modules/military-generator";
+import { Military } from "../modules/military-generator";
 import { capitalize, rn, sanitizeId, si } from "../utils";
 
 type LimitEntity = { i?: number; name?: string; fullName?: string; color?: string; removed?: boolean };

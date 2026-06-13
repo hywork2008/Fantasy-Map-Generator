@@ -1,4 +1,5 @@
 import { mean } from "d3";
+import { Rivers } from "../modules/river-generator";
 import { ensureEl, rn } from "../utils";
 
 function overviewRivers(): void {

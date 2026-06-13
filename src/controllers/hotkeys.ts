@@ -1,7 +1,9 @@
 import { ensureEl, minmax } from "../utils";
 
-document.addEventListener("keydown", handleKeydown);
-document.addEventListener("keyup", handleKeyup);
+export function initHotkeys(): void {
+  document.addEventListener("keydown", handleKeydown);
+  document.addEventListener("keyup", handleKeyup);
+}
 
 function handleKeydown(event: KeyboardEvent): void {
   if (!allowHotkeys()) return;

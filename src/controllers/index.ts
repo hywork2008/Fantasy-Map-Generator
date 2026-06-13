@@ -1,7 +1,7 @@
 import "../versioning";
 import "../components";
 import "../config";
-import "./layers";
+import { initLayers } from "./layers";
 import "./style";
 import "./editors";
 import "./coastline-editor";
@@ -9,7 +9,7 @@ import "./elevation-profile";
 import "./namesbase-editor";
 import "../io";
 import "../utils/uiHelpers";
-import "./hotkeys";
+import { initHotkeys } from "./hotkeys";
 import "./measurers";
 import "./biomes-editor";
 import "./zones-editor";
@@ -19,7 +19,7 @@ import "./rivers-editor";
 import "./routes-editor";
 import "./notes-editor";
 import "./tools";
-import "./options";
+import { initOptions } from "./options";
 import "./heightmap-editor";
 import "./provinces-editor";
 import "./routes-overview";
@@ -47,4 +47,9 @@ import "./diplomacy-editor";
 import "./burgs-overview";
 import "./battle-screen";
 import "./3d";
-import "../main";
+
+export function initControllers(): void {
+  initLayers();
+  initHotkeys();
+  initOptions();
+}

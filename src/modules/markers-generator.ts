@@ -2,10 +2,8 @@ import { mean } from "d3";
 import type { PackedGraph } from "../types/PackedGraph";
 import type { WorldState } from "../types/WorldState";
 import { capitalize, convertTemperature, gauss, generateDate, getAdjective, last, P, ra, rand, rn, rw } from "../utils";
-
-declare global {
-  var Markers: MarkersModule;
-}
+import { Routes } from "./routes-generator";
+import { States } from "./states-generator";
 
 export type MarkerConfig = {
   type: string;
@@ -1657,4 +1655,4 @@ class MarkersModule {
   }
 }
 
-window.Markers = new MarkersModule();
+export const Markers = new MarkersModule();

@@ -2,18 +2,11 @@ import { color, easeSinInOut, transition } from "d3";
 import { viewState } from "../context/viewState";
 import { worldContext } from "../context/worldContext";
 import type { MilitaryRegiment } from "../modules/military-generator";
+import { Military } from "../modules/military-generator";
 import { rn } from "../utils";
 import { TIME } from "../utils/debug";
 
-declare global {
-  var drawMilitary: () => void;
-  var drawRegiments: (regiments: MilitaryRegiment[], stateId: number) => void;
-  var drawRegiment: (reg: MilitaryRegiment, stateId: number) => void;
-  var moveRegiment: (reg: MilitaryRegiment, x: number, y: number) => void;
-  var armies: import("d3").Selection<SVGGElement, unknown, null, undefined>;
-}
-
-const militaryRenderer = (): void => {
+export const drawMilitary = (): void => {
   TIME && console.time("drawMilitary");
   const { pack } = worldContext;
   const { armies } = viewState;
@@ -28,7 +21,7 @@ const militaryRenderer = (): void => {
   TIME && console.timeEnd("drawMilitary");
 };
 
-const drawRegimentsRenderer = (regiments: MilitaryRegiment[], s: number): void => {
+export const drawRegiments = (regiments: MilitaryRegiment[], s: number): void => {
   const { pack } = worldContext;
   const { armies } = viewState;
   const size = +armies.attr("box-size");
@@ -84,7 +77,7 @@ const drawRegimentsRenderer = (regiments: MilitaryRegiment[], s: number): void =
     .attr("href", d => (d.icon!.startsWith("http") || d.icon!.startsWith("data:image") ? d.icon! : ""));
 };
 
-const drawRegimentRenderer = (reg: MilitaryRegiment, stateId: number): void => {
+export const drawRegiment = (reg: MilitaryRegiment, stateId: number): void => {
   const { pack } = worldContext;
   const { armies } = viewState;
   const size = +armies.attr("box-size");
@@ -137,7 +130,7 @@ const drawRegimentRenderer = (reg: MilitaryRegiment, stateId: number): void => {
 };
 
 // move one regiment to another
-const moveRegimentRenderer = (reg: MilitaryRegiment, x: number, y: number): void => {
+export const moveRegiment = (reg: MilitaryRegiment, x: number, y: number): void => {
   const { armies } = viewState;
   const el = armies.select(`g#army${reg.state}`).select(`g#regiment${reg.state}-${reg.i}`);
   if (!el.size()) return;
@@ -171,8 +164,3 @@ const moveRegimentRenderer = (reg: MilitaryRegiment, x: number, y: number): void
     .attr("height", "6")
     .attr("width", "6");
 };
-
-window.drawMilitary = militaryRenderer;
-window.drawRegiments = drawRegimentsRenderer;
-window.drawRegiment = drawRegimentRenderer;
-window.moveRegiment = moveRegimentRenderer;

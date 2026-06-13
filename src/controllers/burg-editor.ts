@@ -1,7 +1,9 @@
 import { drag, pointer } from "d3";
 import type { Burg } from "../modules/burgs-generator";
+import { Burgs } from "../modules/burgs-generator";
 import type { Culture } from "../modules/cultures-generator";
-import { ensureEl, openURL, parseTransform, rn, showPrompt } from "../utils";
+import { COArenderer } from "../modules/emblem/renderer";
+import { ensureEl, findCell, openURL, parseTransform, rn, showPrompt } from "../utils";
 
 function editBurg(id?: number): void {
   if (customization) return;

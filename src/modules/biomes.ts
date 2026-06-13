@@ -2,10 +2,6 @@ import { mean, range } from "d3";
 import type { WorldState } from "../types/WorldState";
 import { rn } from "../utils";
 
-declare global {
-  var Biomes: BiomesModule;
-}
-
 class BiomesModule {
   private MIN_LAND_HEIGHT = 20;
 
@@ -141,4 +137,4 @@ class BiomesModule {
   }
 }
 
-window.Biomes = new BiomesModule();
+export const Biomes = new BiomesModule();

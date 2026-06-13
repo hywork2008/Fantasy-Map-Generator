@@ -49,11 +49,7 @@ const CURVE_MAP: Record<string, CurveFactory> = {
   curveStepBefore
 };
 
-declare global {
-  var drawHeightmap: () => void;
-}
-
-const heightmapRenderer = (): void => {
+export const drawHeightmap = (): void => {
   TIME && console.time("drawHeightmap");
   const { grid, graphWidth, graphHeight } = worldContext;
   const { terrs } = viewState;
@@ -201,5 +197,3 @@ const heightmapRenderer = (): void => {
 
   TIME && console.timeEnd("drawHeightmap");
 };
-
-window.drawHeightmap = heightmapRenderer;

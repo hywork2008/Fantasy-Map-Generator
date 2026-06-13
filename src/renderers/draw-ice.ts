@@ -2,12 +2,6 @@ import { viewState } from "../context/viewState";
 import { worldContext } from "../context/worldContext";
 import { TIME } from "../utils/debug";
 
-declare global {
-  var drawIce: () => void;
-  var redrawIceberg: (id: number) => void;
-  var redrawGlacier: (id: number) => void;
-}
-
 interface IceElement {
   i: number;
   points: string | [number, number][];
@@ -15,7 +9,7 @@ interface IceElement {
   offset?: [number, number];
 }
 
-const iceRenderer = (): void => {
+export const drawIce = (): void => {
   TIME && console.time("drawIce");
   const { pack } = worldContext;
   const { ice } = viewState;
@@ -37,7 +31,7 @@ const iceRenderer = (): void => {
   TIME && console.timeEnd("drawIce");
 };
 
-const redrawIcebergRenderer = (id: number): void => {
+export const redrawIceberg = (id: number): void => {
   TIME && console.time("redrawIceberg");
   const { pack } = worldContext;
   const { ice } = viewState;
@@ -57,7 +51,7 @@ const redrawIcebergRenderer = (id: number): void => {
   TIME && console.timeEnd("redrawIceberg");
 };
 
-const redrawGlacierRenderer = (id: number): void => {
+export const redrawGlacier = (id: number): void => {
   TIME && console.time("redrawGlacier");
   const { pack } = worldContext;
   const { ice } = viewState;
@@ -84,7 +78,3 @@ function getGlacierHtml(glacier: IceElement): string {
 function getIcebergHtml(iceberg: IceElement): string {
   return `<polygon points="${iceberg.points}" data-id="${iceberg.i}" ${iceberg.offset ? `transform="translate(${iceberg.offset[0]},${iceberg.offset[1]})"` : ""}/>`;
 }
-
-window.drawIce = iceRenderer;
-window.redrawIceberg = redrawIcebergRenderer;
-window.redrawGlacier = redrawGlacierRenderer;

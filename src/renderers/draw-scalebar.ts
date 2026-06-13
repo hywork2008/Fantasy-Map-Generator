@@ -1,23 +1,10 @@
-import type { Selection } from "d3";
 import { range } from "d3";
 import { worldContext } from "../context/worldContext";
 import { rn } from "../utils";
 
-declare global {
-  var drawScaleBar: (
-    scaleBar: Selection<SVGGElement, unknown, HTMLElement | null, unknown>,
-    scaleLevel: number
-  ) => void;
-  var fitScaleBar: (
-    scaleBar: Selection<SVGGElement, unknown, HTMLElement | null, unknown>,
-    fullWidth: number,
-    fullHeight: number
-  ) => void;
-}
-
 type ScaleBarSelection = d3.Selection<SVGGElement, unknown, HTMLElement | null, unknown>;
 
-const scaleBarRenderer = (scaleBar: ScaleBarSelection, scaleLevel: number): void => {
+export const drawScaleBar = (scaleBar: ScaleBarSelection, scaleLevel: number): void => {
   if (!scaleBar.size() || scaleBar.style("display") === "none") return;
   const { distanceScale } = worldContext;
 
@@ -112,7 +99,7 @@ function getLength(scaleBar: ScaleBarSelection, scaleLevel: number): number {
   return length;
 }
 
-const scaleBarResize = (scaleBar: ScaleBarSelection, fullWidth: number, fullHeight: number): void => {
+export const fitScaleBar = (scaleBar: ScaleBarSelection, fullWidth: number, fullHeight: number): void => {
   if (!scaleBar.select("rect").size() || scaleBar.style("display") === "none") return;
 
   const posX = +scaleBar.attr("data-x") || 99;
@@ -123,6 +110,3 @@ const scaleBarResize = (scaleBar: ScaleBarSelection, fullWidth: number, fullHeig
   const y = rn((fullHeight * posY) / 100 - bbox.height + 20);
   scaleBar.attr("transform", `translate(${x},${y})`);
 };
-
-window.drawScaleBar = scaleBarRenderer;
-window.fitScaleBar = scaleBarResize;

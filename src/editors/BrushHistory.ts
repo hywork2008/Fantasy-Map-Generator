@@ -2,7 +2,7 @@
  *  Stores SVG innerHTML snapshots taken before each brush stroke.
  *  No redo: once a snapshot is popped (undone) it is discarded.
  */
-class BrushHistoryClass {
+export class BrushHistoryClass {
   private readonly stack: string[] = [];
 
   constructor(private readonly maxSize = 100) {}

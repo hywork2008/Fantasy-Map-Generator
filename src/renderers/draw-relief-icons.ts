@@ -11,11 +11,7 @@ interface ReliefIcon {
   s: number;
 }
 
-declare global {
-  var drawReliefIcons: () => void;
-}
-
-const reliefIconsRenderer = (): void => {
+export const drawReliefIcons = (): void => {
   TIME && console.time("drawRelief");
   const { pack, biomesData } = worldContext;
   const { terrain } = viewState;
@@ -152,5 +148,3 @@ const reliefIconsRenderer = (): void => {
     return `#relief-${getOldIcon(type)}-1`; // simple
   }
 };
-
-window.drawReliefIcons = reliefIconsRenderer;

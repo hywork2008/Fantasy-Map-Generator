@@ -1,5 +1,5 @@
 import { curveNatural, type D3DragEvent, drag, pointer, select } from "d3";
-import { ensureEl, parseTransform, round } from "../utils";
+import { ensureEl, findCell, parseTransform, round } from "../utils";
 
 function editLabel(tspan?: Element): void {
   if (customization) return;

@@ -1,3 +1,5 @@
+import { Markers } from "../modules/markers-generator";
+import { drawMarkers } from "../renderers";
 import { ensureEl } from "../utils";
 
 function overviewMarkers(): void {

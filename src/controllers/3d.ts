@@ -4,7 +4,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { OBJExporter } from "three/examples/jsm/exporters/OBJExporter.js";
 import { LoopSubdivision } from "three-subdivide";
 import { cloudImage } from "../assets/cloud-image";
-import { rn } from "../utils";
+import { rn, throttle } from "../utils";
 
 interface ThreeDOptions {
   scale: number;

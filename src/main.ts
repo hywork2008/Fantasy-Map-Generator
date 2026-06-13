@@ -7,7 +7,25 @@ import { viewState } from "./context/viewState";
 import { worldContext } from "./context/worldContext";
 import { Rulers } from "./controllers/measurers";
 import { applyStoredOptions } from "./controllers/options";
+import { Biomes } from "./modules/biomes";
 import type { BurgGroup } from "./modules/burgs-generator";
+import { Burgs } from "./modules/burgs-generator";
+import { Cultures } from "./modules/cultures-generator";
+import { Features } from "./modules/features";
+import { HeightmapGenerator } from "./modules/heightmap-generator";
+import { Ice } from "./modules/ice";
+import { Lakes } from "./modules/lakes";
+import { Markers } from "./modules/markers-generator";
+import { Military } from "./modules/military-generator";
+import { Names } from "./modules/names-generator";
+import { OceanLayers } from "./modules/ocean-layers";
+import { Provinces } from "./modules/provinces-generator";
+import { Religions } from "./modules/religions-generator";
+import { Rivers } from "./modules/river-generator";
+import { Routes } from "./modules/routes-generator";
+import { States } from "./modules/states-generator";
+import { Zones } from "./modules/zones-generator";
+import { drawCoordinates, drawScaleBar, fitScaleBar } from "./renderers/index";
 import {
   TYPED_ARRAY_MAX_VALUES as _TMP,
   calculateVoronoi,
@@ -15,12 +33,16 @@ import {
   debounce,
   ensureEl,
   gauss,
+  generateGrid,
+  generateSeed,
   getPackPolygon,
   minmax,
   normalize,
   P,
+  parseError,
   rand,
-  rn
+  rn,
+  shouldRegenerateGrid
 } from "./utils";
 import type { Grid } from "./utils/graphUtils";
 
@@ -686,7 +708,7 @@ oceanLayers
 
 // ─── App initialization ───────────────────────────────────────────────────────
 
-document.addEventListener("DOMContentLoaded", async () => {
+export async function initMain(): Promise<void> {
   if (!location.hostname) {
     alertMessage.innerHTML = /* html */ `Fantasy Map Generator cannot run serverless. Follow the <a href="https://github.com/Azgaar/Fantasy-Map-Generator/wiki/Run-FMG-locally" target="_blank">instructions</a> on how you can easily run a local web-server`;
 
@@ -710,7 +732,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   restoreDefaultEvents?.();
   initiateAutosave();
   initTourPromptButton();
-});
+}
 
 function hideLoading() {
   d3.select("#loading").transition().duration(3000).style("opacity", 0);
@@ -1057,7 +1079,8 @@ async function generate(opts?: { seed?: string; graph?: Grid | null }) {
     applyGraphSize();
     randomizeOptions();
 
-    if (shouldRegenerateGrid(grid, +(precreatedSeed ?? 0))) grid = precreatedGraph || generateGrid();
+    if (shouldRegenerateGrid(grid, +(precreatedSeed ?? 0), graphWidth, graphHeight))
+      grid = precreatedGraph || generateGrid(seed, graphWidth, graphHeight);
     else delete (grid.cells as { h?: unknown }).h;
     grid.cells.h = await HeightmapGenerator.generate(grid);
     window.grid = grid;

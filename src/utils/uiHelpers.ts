@@ -1,6 +1,6 @@
 import * as d3 from "d3";
 import type { PackedGraphFeature } from "../modules/features";
-import { debounce, ensureEl, getComposedPath, link, rn, si } from "./index";
+import { convertTemperature, debounce, ensureEl, findCell, findGridCell, getComposedPath, link, rn, si } from "./index";
 
 // ─── Resize handler ───────────────────────────────────────────────────────────
 
@@ -87,7 +87,7 @@ function handleMouseMove(this: Element, event: MouseEvent): void {
   if (i === undefined) return;
 
   showNotes(event);
-  const gridCell = findGridCell(point[0], point[1]);
+  const gridCell = findGridCell(point[0], point[1], grid);
   if (tooltip.dataset.main) showMainTip();
   else showMapTooltip(point, event, i, gridCell);
   if ((ensureEl("cellInfo") as HTMLElement)?.offsetParent) updateCellInfo(point, i, gridCell);
@@ -377,7 +377,7 @@ function getElevation(f: PackedGraphFeature, h: number): string {
 function getDepth(f: PackedGraphFeature, p: [number, number]): string {
   if (f.land) return `0 ${heightUnit.value}`;
 
-  const gridH = grid.cells.h[findGridCell(p[0], p[1])];
+  const gridH = grid.cells.h[findGridCell(p[0], p[1], grid)];
   if (f.type === "lake") {
     const depth = gridH === 19 ? f.height / 2 : gridH;
     return getHeight(depth, "abs");
@@ -388,7 +388,7 @@ function getDepth(f: PackedGraphFeature, p: [number, number]): string {
 
 function getFriendlyHeight([x, y]: [number, number]): string {
   const packH = pack.cells.h[findCell(x, y)];
-  const gridH = grid.cells.h[findGridCell(x, y)];
+  const gridH = grid.cells.h[findGridCell(x, y, grid)];
   const h = packH < 20 ? gridH : packH;
   return getHeight(h);
 }
@@ -727,8 +727,6 @@ window.highlightEmblemElement = highlightEmblemElement;
 // ─── Legacy globals (from non-migrated JS files) ──────────────────────────────
 
 declare const MOBILE: boolean;
-declare const findGridCell: (x: number, y: number) => number;
-declare const convertTemperature: (temp: number) => string;
 declare const getArea: (area: number) => number;
 declare const getAreaUnit: () => string;
 

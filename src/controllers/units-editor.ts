@@ -1,5 +1,8 @@
 import { type D3DragEvent, drag, pointer } from "d3";
-import { ensureEl } from "../utils";
+import { Routes } from "../modules/routes-generator";
+import { drawTemperature } from "../renderers";
+import { drawScaleBar, fitScaleBar } from "../renderers/index";
+import { ensureEl, findCell } from "../utils";
 
 function editUnits(): void {
   closeDialogs("#unitsEditor, .stable");

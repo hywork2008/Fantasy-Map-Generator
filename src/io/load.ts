@@ -1,8 +1,13 @@
 import type * as d3 from "d3";
 import { fitMapView, reinitializeMapLayers } from "../main";
+import { Biomes } from "../modules/biomes";
+import { Burgs } from "../modules/burgs-generator";
+import { Features } from "../modules/features";
 import type { NameBase } from "../modules/names-generator";
 import type { River } from "../modules/river-generator";
-import { calculateVoronoi, ensureEl, last, link, minmax, parseError, rn } from "../utils";
+import { Routes } from "../modules/routes-generator";
+import { drawGrid } from "../renderers";
+import { calculateVoronoi, ensureEl, findCell, last, link, minmax, parseError, rn } from "../utils";
 import { resolveVersionConflicts } from "./auto-update";
 
 // ─── Quick load from browser storage ─────────────────────────────────────────
@@ -207,6 +212,7 @@ function showUploadMessage(type: string, mapData: string[] | null, mapVersion: s
     return;
   } else if (type === "ancient") {
     const archive = link("https://github.com/Azgaar/Fantasy-Map-Generator/wiki/Changelog", "archived version");
+
     message = `The map version you are trying to load (${mapVersion}) is too old and cannot be updated to the current version.<br>Please keep using an ${archive}`;
     title = "Ancient file";
   } else if (type === "newer") {

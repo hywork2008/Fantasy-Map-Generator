@@ -11,10 +11,7 @@ import {
   TYPED_ARRAY_MAX_VALUES,
   unique
 } from "../utils";
-
-declare global {
-  var Features: FeatureModule;
-}
+import { Lakes } from "./lakes";
 
 type FeatureType = "ocean" | "lake" | "island";
 
@@ -380,4 +377,4 @@ class FeatureModule {
   }
 }
 
-window.Features = new FeatureModule();
+export const Features = new FeatureModule();

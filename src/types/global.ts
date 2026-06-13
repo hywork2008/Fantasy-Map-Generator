@@ -10,8 +10,11 @@ import type {
   Ruler as RulerClass,
   Rulers as RulersClass
 } from "../controllers/measurers";
-import type { NameBase } from "../modules/names-generator";
-import type { Route } from "../modules/routes-generator";
+import type { FontDefinition } from "../modules/fonts";
+import type { HeightmapModule } from "../modules/heightmap-generator";
+import type { NameBase, NamesGenerator } from "../modules/names-generator";
+import type { Resampler } from "../modules/resample";
+import type { UITourModule } from "../modules/ui-tour";
 import type { Grid } from "../utils/graphUtils";
 import type { PackedGraph } from "./PackedGraph";
 import type { BiomesData, MapStyle, WorldNote, WorldOptions } from "./WorldState";
@@ -128,33 +131,6 @@ declare global {
   var savePreset: () => void;
   var removePreset: () => void;
 
-  var drawRoute: (route: Route) => void;
-  var drawBiomes: () => void;
-  var drawPrecipitation: () => void;
-  var drawPopulation: () => void;
-  var drawCells: () => void;
-  var drawCultures: () => void;
-  var drawReligions: () => void;
-  var drawStates: () => void;
-  var drawProvinces: () => void;
-  var drawGrid: () => void;
-  var drawCoordinates: () => void;
-  var drawTexture: () => void;
-  var drawRivers: () => void;
-  var drawRoutes: () => void;
-  var drawZones: () => void;
-  var drawHeightmap: () => void;
-  var drawBorders: () => void;
-  var drawBurgIcons: () => void;
-  var drawBurgLabels: () => void;
-  var drawStateLabels: (list?: number[]) => void;
-  var drawTemperature: () => void;
-  var drawMilitary: () => void;
-  var drawMarkers: () => void;
-  var drawEmblems: () => void;
-  var drawFeatures: () => void;
-  var drawIce: () => void;
-  var drawReliefIcons: () => void;
   var invokeActiveZooming: () => void;
 
   var toggleHeight: (event?: MouseEvent) => void;
@@ -268,6 +244,21 @@ declare global {
   var zoomTo: (x: number, y: number, zoom: number, duration: number) => void;
   var modules: Record<string, boolean>;
 
+  // Module singletons
+  var Names: NamesGenerator;
+  var Resample: Resampler;
+  var UITour: UITourModule;
+  var HeightmapGenerator: HeightmapModule;
+
+  // Font globals
+  var fonts: FontDefinition[];
+  var declareFont: (font: FontDefinition) => void;
+  var getUsedFonts: (svg: SVGSVGElement) => FontDefinition[];
+  var loadFontsAsDataURI: (fonts: FontDefinition[]) => Promise<FontDefinition[]>;
+  var addGoogleFont: (family: string) => Promise<void>;
+  var addLocalFont: (family: string) => void;
+  var addWebFont: (family: string, src: string) => void;
+
   // Additional HTML inputs (settings UI)
   var distanceScaleInput: HTMLInputElement;
   var populationRateInput: HTMLInputElement;
@@ -283,8 +274,6 @@ declare global {
   var clearLegend: () => void;
 
   // Utility globals (window-wrapped versions)
-  var last: <T>(arr: T[]) => T;
-  var findCell: (x: number, y: number, radius?: number) => number;
   var parseError: (error: unknown) => string;
 
   // ─── I/O module globals ───────────────────────────────────────────────────
@@ -416,8 +405,6 @@ declare global {
   var toggleOptions: (event?: Event) => void;
   var regeneratePrompt: (opts?: { seed?: string }) => void;
   var generateSeed: () => string;
-  var shouldRegenerateGrid: (grid: Grid | null | undefined, expectedSeed: number) => boolean;
-  var generateGrid: () => Grid;
   var drawHeights: (opts: {
     heights: number[];
     width: number;
@@ -745,7 +732,6 @@ declare global {
   var findGridAll: (x: number, y: number, r: number) => number[];
   var getGridPolygon: (i: number) => [number, number][];
   var generatePrecipitation: () => void;
-  var OceanLayers: () => void;
   var rankCells: () => void;
   var createTypedArray: (options: {
     maxValue: number;

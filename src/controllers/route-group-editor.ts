@@ -1,3 +1,4 @@
+import { Routes } from "../modules/routes-generator";
 import { ensureEl } from "../utils";
 
 function editRouteGroups(): void {

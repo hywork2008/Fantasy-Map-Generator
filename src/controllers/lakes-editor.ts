@@ -1,5 +1,8 @@
 import { type D3DragEvent, drag, mean, min, polygonArea, polygonLength, type Selection, select } from "d3";
 import type { PackedGraphFeature } from "../modules/features";
+import { Lakes } from "../modules/lakes";
+import { drawBiomes, drawBorders, drawCultures, drawProvinces, drawReligions, drawStates } from "../renderers";
+import { getFeaturePath } from "../renderers/index";
 import { ensureEl, rand, rn, si, unique } from "../utils";
 
 function editLake(event?: MouseEvent): void {

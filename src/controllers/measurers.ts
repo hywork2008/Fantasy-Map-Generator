@@ -1,5 +1,5 @@
 import * as d3 from "d3";
-import { getSegmentId, last, rn, round, si } from "../utils";
+import { findCell, getSegmentId, last, rn, round, si } from "../utils";
 
 // ─── Rulers container ─────────────────────────────────────────────────────────
 

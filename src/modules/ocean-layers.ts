@@ -4,9 +4,6 @@ import { clipPoly, P, rn, round } from "../utils";
 import type { GridCells } from "../utils/graphUtils";
 import type { Vertices } from "./voronoi";
 
-declare global {
-  var OceanLayers: typeof OceanModule.prototype.draw;
-}
 class OceanModule {
   private cells: GridCells | null = null;
   private vertices: Vertices | null = null;
@@ -113,4 +110,4 @@ class OceanModule {
   }
 }
 
-window.OceanLayers = () => new OceanModule(oceanLayers).draw();
+export const OceanLayers = () => new OceanModule(oceanLayers).draw();

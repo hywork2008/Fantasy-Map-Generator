@@ -3,7 +3,9 @@ import type { Religion } from "../modules/religions-generator";
 
 type HighlightEvent = { id?: string | number | null; target?: EventTarget | null };
 
-import { abbreviate, applySortingByHeader, debounce, ensureEl, rn, si } from "../utils";
+import { Religions } from "../modules/religions-generator";
+import { drawPopulation, drawReligions } from "../renderers";
+import { abbreviate, applySortingByHeader, debounce, ensureEl, findCell, rn, si } from "../utils";
 import { type HierarchyElement, open as openHierarchyTree } from "./hierarchy-tree";
 
 const $body = insertEditorHtml();

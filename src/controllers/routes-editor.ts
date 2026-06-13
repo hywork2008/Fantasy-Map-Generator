@@ -1,7 +1,8 @@
 import type * as d3 from "d3";
 import { drag, pointer, select } from "d3";
 import type { Route } from "../modules/routes-generator";
-import { ensureEl, getSegmentId, rn } from "../utils";
+import { Routes } from "../modules/routes-generator";
+import { ensureEl, findCell, getSegmentId, rn } from "../utils";
 
 // ─── routes-editor ──────────────────────────────────────────────────────────
 

@@ -1,5 +1,5 @@
 import { worldContext } from "../context/worldContext";
-import { ensureEl } from "../utils";
+import { ensureEl, generateGrid, generateSeed, shouldRegenerateGrid } from "../utils";
 import type { Grid } from "../utils/graphUtils";
 
 const initialSeed = generateSeed();
@@ -265,7 +265,9 @@ function getName(id: string): string {
 }
 
 function getGraph(currentGraph: Grid | null): Grid {
-  const newGraph = shouldRegenerateGrid(currentGraph, +seed) ? generateGrid() : structuredClone(currentGraph!);
+  const newGraph = shouldRegenerateGrid(currentGraph, +seed, graphWidth, graphHeight)
+    ? generateGrid(seed, graphWidth, graphHeight)
+    : structuredClone(currentGraph!);
   delete (newGraph.cells as { h?: unknown }).h;
   return newGraph;
 }

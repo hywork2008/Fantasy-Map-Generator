@@ -1,6 +1,8 @@
 import { pointer, sum } from "d3";
 import type { MilitaryRegiment, MilitaryUnit } from "../modules/military-generator";
-import { capitalize, ensureEl, rn } from "../utils";
+import { Military } from "../modules/military-generator";
+import { drawRegiment } from "../renderers/index";
+import { capitalize, ensureEl, findCell, last, rn } from "../utils";
 
 function overviewRegiments(state = -1): void {
   if (customization) return;

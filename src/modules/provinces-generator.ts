@@ -2,10 +2,8 @@ import Alea from "alea";
 import { max } from "d3";
 import type { WorldState } from "../types/WorldState";
 import { ensureEl, gauss, generateSeed, getMixedColor, getPolesOfInaccessibility, P, rand, rw } from "../utils";
-
-declare global {
-  var Provinces: ProvinceModule;
-}
+import { Burgs } from "./burgs-generator";
+import { COA } from "./emblem/generator";
 
 export interface Province {
   i: number;
@@ -335,4 +333,4 @@ class ProvinceModule {
   }
 }
 
-window.Provinces = new ProvinceModule();
+export const Provinces = new ProvinceModule();

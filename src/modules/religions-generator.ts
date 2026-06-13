@@ -14,10 +14,7 @@ import {
   rw,
   trimVowels
 } from "../utils";
-
-declare global {
-  var Religions: ReligionsModule;
-}
+import { Routes } from "./routes-generator";
 
 interface ReligionBase {
   type: "Folk" | "Organized" | "Cult" | "Heresy";
@@ -1130,4 +1127,4 @@ class ReligionsModule {
   }
 }
 
-window.Religions = new ReligionsModule();
+export const Religions = new ReligionsModule();

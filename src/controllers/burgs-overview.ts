@@ -1,6 +1,7 @@
 import * as d3 from "d3";
 import { pointer } from "d3";
-import { ensureEl, rn, si } from "../utils";
+import { Burgs } from "../modules/burgs-generator";
+import { ensureEl, findCell, rn, si } from "../utils";
 
 function overviewBurgs(settings: { stateId?: number | null; cultureId?: number | null } = {}): void {
   if (customization) return;

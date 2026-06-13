@@ -1,6 +1,15 @@
 import Alea from "alea";
 import { drag, polygonArea, select } from "d3";
 import {
+  drawBiomes,
+  drawBorders,
+  drawCultures,
+  drawFeatures,
+  drawProvinces,
+  drawReligions,
+  drawStates
+} from "../renderers";
+import {
   buildCoastlinePath,
   type CoastlineSettings,
   defaultCoastSettings,
@@ -8,6 +17,7 @@ import {
   makeRoughnessProfile,
   PROFILE_SIZE
 } from "../renderers/coastline-fractal";
+import { getFeaturePath } from "../renderers/index";
 import { ensureEl, rn, si, unique } from "../utils";
 
 interface SliderDef {

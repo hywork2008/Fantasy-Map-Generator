@@ -1,14 +1,38 @@
 import * as d3 from "d3";
 import type { Burg } from "../modules/burgs-generator";
+import { Burgs } from "../modules/burgs-generator";
 import type { Culture } from "../modules/cultures-generator";
+import { Cultures } from "../modules/cultures-generator";
+import { Features } from "../modules/features";
 import type { IceGlacier, IceIceberg } from "../modules/ice";
+import { Lakes } from "../modules/lakes";
 import type { Marker } from "../modules/markers-generator";
+import { Markers } from "../modules/markers-generator";
 import type { MilitaryRegiment } from "../modules/military-generator";
+import { Military } from "../modules/military-generator";
 import type { Province } from "../modules/provinces-generator";
+import { Provinces } from "../modules/provinces-generator";
 import type { Religion } from "../modules/religions-generator";
+import { Religions } from "../modules/religions-generator";
 import type { River } from "../modules/river-generator";
+import { Rivers } from "../modules/river-generator";
 import type { State } from "../modules/states-generator";
-import { ensureEl } from "../utils";
+import { States } from "../modules/states-generator";
+import { Zones } from "../modules/zones-generator";
+import {
+  drawBurgIcons,
+  drawBurgLabels,
+  drawFeatures,
+  drawHeightmap,
+  drawIce,
+  drawMarkers,
+  drawMilitary,
+  drawRoutes,
+  drawTexture,
+  drawZones
+} from "../renderers";
+import { drawScaleBar, fitScaleBar } from "../renderers/index";
+import { ensureEl, findCell } from "../utils";
 
 // update old map file to the current version
 export function resolveVersionConflicts(mapVersion: string): void {

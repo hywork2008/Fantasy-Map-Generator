@@ -1,4 +1,6 @@
 import type { Burg, BurgGroup } from "../modules/burgs-generator";
+import { Burgs } from "../modules/burgs-generator";
+import { drawBurgIcons, drawBurgLabels } from "../renderers";
 import { ensureEl } from "../utils";
 
 type LimitEntity = { i?: number; name?: string; fullName?: string; color?: string; removed?: boolean };

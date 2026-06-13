@@ -1,11 +1,41 @@
 import * as d3 from "d3";
+import {
+  drawBiomes,
+  drawBorders,
+  drawBurgIcons,
+  drawBurgLabels,
+  drawCells,
+  drawCoordinates,
+  drawCultures,
+  drawEmblems,
+  drawFeatures,
+  drawGrid,
+  drawHeightmap,
+  drawIce,
+  drawMarkers,
+  drawMilitary,
+  drawPopulation,
+  drawPrecipitation,
+  drawProvinces,
+  drawReliefIcons,
+  drawReligions,
+  drawRivers,
+  drawRoutes,
+  drawStateLabels,
+  drawStates,
+  drawTemperature,
+  drawTexture,
+  drawZones
+} from "../renderers";
 import { ensureEl, isCtrlClick } from "../utils";
 
 // Layer presets: map preset name → list of toggle button IDs that should be ON
 let presets: Record<string, string[]> = {};
 
-restoreCustomPresets();
-initSortable();
+export function initLayers(): void {
+  restoreCustomPresets();
+  initSortable();
+}
 
 // ─── Preset management ───────────────────────────────────────────────────────
 

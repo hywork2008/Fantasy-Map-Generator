@@ -8,10 +8,6 @@ import { shieldPositions } from "./shieldPositions";
 import { shieldSize } from "./size";
 import { templates } from "./templates";
 
-declare global {
-  var COArenderer: EmblemRenderModule;
-}
-
 interface Division {
   division: string;
   line?: string;
@@ -322,7 +318,5 @@ class EmblemRenderModule {
     if (layerIsOn("toggleEmblems")) this.trigger(id, coa);
   }
 }
-const coaRendererInstance = new EmblemRenderModule();
-window.COArenderer = coaRendererInstance;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-worldContext.COArenderer = coaRendererInstance as any;
+export const COArenderer = new EmblemRenderModule();
+worldContext.COArenderer = COArenderer as any;

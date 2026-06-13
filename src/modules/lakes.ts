@@ -3,10 +3,6 @@ import type { WorldState } from "../types/WorldState";
 import { ensureEl, rn } from "../utils";
 import type { PackedGraphFeature } from "./features";
 
-declare global {
-  var Lakes: LakesModule;
-}
-
 export class LakesModule {
   private LAKE_ELEVATION_DELTA = 0.1;
 
@@ -128,4 +124,4 @@ export class LakesModule {
   }
 }
 
-window.Lakes = new LakesModule();
+export const Lakes = new LakesModule();

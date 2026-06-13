@@ -1,23 +1,19 @@
 import { hsl } from "d3";
 import type { Burg } from "../modules/burgs-generator";
 import type { Culture } from "../modules/cultures-generator";
+import { Cultures } from "../modules/cultures-generator";
+import { COA } from "../modules/emblem/generator";
 import type { Emblem as RendererEmblem } from "../modules/emblem/renderer";
+import { COArenderer } from "../modules/emblem/renderer";
 import type { Province } from "../modules/provinces-generator";
 import type { State } from "../modules/states-generator";
-import { ensureEl, gauss, P, rand, rn, rw } from "../utils";
+import { drawStates } from "../renderers";
+import { fitScaleBar } from "../renderers/index";
+import { ensureEl, gauss, last, minmax, P, rand, rn, rw } from "../utils";
 import { exportToJson as exportToJsonModule } from "./export-json";
 import { open as openHeightmapSelection } from "./heightmap-selection";
 
 // ─── Init jQuery draggable / disable-selection ────────────────────────────────
-
-($("#optionsContainer") as any).draggable({ handle: ".drag-trigger", snap: "svg", snapMode: "both" });
-($("#exitCustomization") as any).draggable({ handle: "div" });
-($("#mapLayers") as any).disableSelection();
-
-if (stored("disable_click_arrow_tooltip")) {
-  clearMainTip();
-  optionsTrigger.classList.remove("glow");
-}
 
 // ─── Options pane show/hide ───────────────────────────────────────────────────
 
@@ -48,54 +44,6 @@ function toggleOptions(event?: Event): void {
 
 // ─── "New Map!" hover panel ───────────────────────────────────────────────────
 
-optionsTrigger.addEventListener("mouseenter", () => {
-  if (optionsTrigger.classList.contains("glow")) return;
-  if (ensureEl("options").style.display === "none") regenerate.style.display = "block";
-});
-
-collapsible.addEventListener("mouseleave", () => {
-  regenerate.style.display = "none";
-});
-
-// ─── Options tab switching ────────────────────────────────────────────────────
-
-document
-  .getElementById("options")!
-  .querySelector<HTMLElement>("div.tab")!
-  .addEventListener("click", (event: MouseEvent) => {
-    const target = event.target as HTMLElement;
-    if (target.tagName !== "BUTTON") return;
-    const id = target.id;
-    const active = ensureEl("options").querySelector<HTMLElement>(".tab > button.active");
-    if (active && id === active.id) return;
-
-    if (active) active.classList.remove("active");
-    ensureEl(id).classList.add("active");
-    document
-      .getElementById("options")!
-      .querySelectorAll<HTMLElement>(".tabcontent")
-      .forEach(e => {
-        e.style.display = "none";
-      });
-
-    if (id === "layersTab") {
-      layersContent.style.display = "block";
-    } else if (id === "styleTab") {
-      styleContent.style.display = "block";
-      selectStyleElement();
-    } else if (id === "optionsTab") {
-      optionsContent.style.display = "block";
-    } else if (id === "toolsTab") {
-      if (customization === 1) {
-        customizationMenu.style.display = "block";
-      } else {
-        toolsContent.style.display = "block";
-      }
-    } else if (id === "aboutTab") {
-      aboutContent.style.display = "block";
-    }
-  });
-
 // ─── Patreon supporters ────────────────────────────────────────────────────────
 
 async function showSupporters(): Promise<void> {
@@ -114,11 +62,6 @@ async function showSupporters(): Promise<void> {
 }
 
 // ─── Generic option change helpers ────────────────────────────────────────────
-
-ensureEl("options").addEventListener("change", storeValueIfRequired);
-ensureEl("dialogs").addEventListener("change", storeValueIfRequired);
-ensureEl("options").addEventListener("input", updateOutputToFollowInput);
-ensureEl("dialogs").addEventListener("input", updateOutputToFollowInput);
 
 function storeValueIfRequired(ev: Event): void {
   const target = ev.target as HTMLElement;
@@ -145,50 +88,6 @@ function updateOutputToFollowInput(ev: Event): void {
 }
 
 // ─── Options content listeners ────────────────────────────────────────────────
-
-const optionsContentEl = ensureEl("optionsContent");
-
-optionsContentEl.addEventListener("input", (event: Event) => {
-  const target = event.target as HTMLInputElement;
-  const { id, value } = target;
-  if (id === "mapWidthInput" || id === "mapHeightInput") mapSizeInputChange();
-  else if (id === "pointsInput") changeCellsDensity(+value);
-  else if (id === "culturesSet") changeCultureSet();
-  else if (id === "statesNumber") changeStatesNumber(value);
-  else if (id === "emblemShape") changeEmblemShape(value);
-  else if (id === "tooltipSize") changeTooltipSize(value);
-  else if (id === "themeHueInput") changeThemeHue(value);
-  else if (id === "themeColorInput") changeDialogsTheme(themeColorInput.value, transparencyInput.value);
-  else if (id === "transparencyInput") changeDialogsTheme(themeColorInput.value, value);
-});
-
-optionsContentEl.addEventListener("change", (event: Event) => {
-  const target = event.target as HTMLInputElement;
-  const { id, value } = target;
-  if (id === "zoomExtentMin" || id === "zoomExtentMax") changeZoomExtent(value);
-  else if (id === "optionsSeed") generateMapWithSeed();
-  else if (id === "uiSize") changeUiSize(+value);
-  else if (id === "shapeRendering") setRendering(value);
-  else if (id === "yearInput") changeYear();
-  else if (id === "eraInput") changeEra();
-  else if (id === "stateLabelsModeInput") options.stateLabelsMode = value as "auto" | "short" | "full";
-  else if (id === "azgaarAssistant") toggleAssistant?.();
-});
-
-optionsContentEl.addEventListener("click", (event: MouseEvent) => {
-  const { id } = event.target as HTMLElement;
-  if (id === "restoreDefaultCanvasSize") restoreDefaultCanvasSize();
-  else if (id === "optionsMapHistory") showSeedHistoryDialog();
-  else if (id === "optionsCopySeed") copyMapURL();
-  else if (id === "optionsEraRegenerate") regenerateEra();
-  else if (id === "templateInputContainer") openTemplateSelectionDialog();
-  else if (id === "zoomExtentDefault") restoreDefaultZoomExtent();
-  else if (id === "translateExtent") toggleTranslateExtent(event.target as HTMLElement);
-  else if (id === "speakerTest") testSpeaker();
-  else if (id === "themeColorRestore") restoreDefaultThemeColor();
-  else if (id === "loadGoogleTranslateButton") loadGoogleTranslate();
-  else if (id === "resetLanguage") resetLanguage();
-});
 
 // ─── Canvas size ───────────────────────────────────────────────────────────────
 
@@ -391,7 +290,7 @@ function changeCultureSet(): void {
 
 function changeEmblemShape(emblemShape: string): void {
   const image = document.getElementById("emblemShapeImage") as SVGPathElement | null;
-  const shapePath = window.COArenderer && (COArenderer.shieldPaths as Record<string, string>)[emblemShape];
+  const shapePath = COArenderer && (COArenderer.shieldPaths as Record<string, string>)[emblemShape];
   if (image) shapePath ? image.setAttribute("d", shapePath) : image.removeAttribute("d");
 
   const specificShape = ["culture", "state", "random"].includes(emblemShape) ? null : emblemShape;
@@ -767,15 +666,6 @@ function openTemplateSelectionDialog(): void {
 
 // ─── Sticked menu ─────────────────────────────────────────────────────────────
 
-ensureEl("sticked").addEventListener("click", (event: MouseEvent) => {
-  const id = (event.target as HTMLElement).id;
-  if (id === "newMapButton") regeneratePrompt();
-  else if (id === "saveButton") showSavePane();
-  else if (id === "exportButton") showExportPane();
-  else if (id === "loadButton") showLoadPane();
-  else if (id === "zoomReset") resetZoom(1000);
-});
-
 function regeneratePrompt(opts?: { seed?: string }): void {
   if (customization) {
     tip("New map cannot be generated when edit mode is active, please exit the mode and retry", false, "error");
@@ -928,13 +818,6 @@ function loadURL(): void {
   });
 }
 
-ensureEl<HTMLInputElement>("mapToLoad").addEventListener("change", function (this: HTMLInputElement) {
-  const fileToLoad = this.files![0];
-  this.value = "";
-  closeDialogs();
-  uploadMap(fileToLoad);
-});
-
 // ─── PNG tiles export ─────────────────────────────────────────────────────────
 
 function openExportToPngTiles(): void {
@@ -1013,8 +896,6 @@ function updateTilesOptions(this: HTMLInputElement | void): void {
 }
 
 // ─── View mode / 3D ───────────────────────────────────────────────────────────
-
-viewMode.addEventListener("click", changeViewMode);
 
 function changeViewMode(event: MouseEvent): void {
   const button = event.target as HTMLElement;
@@ -1302,5 +1183,137 @@ window.copyMapURL = copyMapURL;
 window.initGoogleTranslate = initGoogleTranslate;
 window.openTemplateSelectionDialog = openTemplateSelectionDialog;
 window.changeViewMode = changeViewMode;
+
+export function initOptions(): void {
+  // draggable/sortable/disableSelection
+  ($("#optionsContainer") as any).draggable({ handle: ".drag-trigger", snap: "svg", snapMode: "both" });
+  ($("#exitCustomization") as any).draggable({ handle: "div" });
+  ($("#mapLayers") as any).disableSelection();
+
+  if (stored("disable_click_arrow_tooltip")) {
+    clearMainTip();
+    optionsTrigger.classList.remove("glow");
+  }
+
+  // Options pane show/hide
+  optionsTrigger.addEventListener("mouseenter", () => {
+    if (optionsTrigger.classList.contains("glow")) return;
+    if (ensureEl("options").style.display === "none") regenerate.style.display = "block";
+  });
+
+  collapsible.addEventListener("mouseleave", () => {
+    regenerate.style.display = "none";
+  });
+
+  // Options tab switching
+  document
+    .getElementById("options")!
+    .querySelector<HTMLElement>("div.tab")!
+    .addEventListener("click", (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (target.tagName !== "BUTTON") return;
+      const id = target.id;
+      const active = ensureEl("options").querySelector<HTMLElement>(".tab > button.active");
+      if (active && id === active.id) return;
+
+      if (active) active.classList.remove("active");
+      ensureEl(id).classList.add("active");
+      document
+        .getElementById("options")!
+        .querySelectorAll<HTMLElement>(".tabcontent")
+        .forEach(e => {
+          e.style.display = "none";
+        });
+
+      if (id === "layersTab") {
+        layersContent.style.display = "block";
+      } else if (id === "styleTab") {
+        styleContent.style.display = "block";
+        selectStyleElement();
+      } else if (id === "optionsTab") {
+        optionsContent.style.display = "block";
+      } else if (id === "toolsTab") {
+        if (customization === 1) {
+          customizationMenu.style.display = "block";
+        } else {
+          toolsContent.style.display = "block";
+        }
+      } else if (id === "aboutTab") {
+        aboutContent.style.display = "block";
+      }
+    });
+
+  // Generic option change helpers
+  ensureEl("options").addEventListener("change", storeValueIfRequired);
+  ensureEl("dialogs").addEventListener("change", storeValueIfRequired);
+  ensureEl("options").addEventListener("input", updateOutputToFollowInput);
+  ensureEl("dialogs").addEventListener("input", updateOutputToFollowInput);
+
+  // Options content listeners
+  const optionsContentEl = ensureEl("optionsContent");
+
+  optionsContentEl.addEventListener("input", (event: Event) => {
+    const target = event.target as HTMLInputElement;
+    const { id, value } = target;
+    if (id === "mapWidthInput" || id === "mapHeightInput") mapSizeInputChange();
+    else if (id === "pointsInput") changeCellsDensity(+value);
+    else if (id === "culturesSet") changeCultureSet();
+    else if (id === "statesNumber") changeStatesNumber(value);
+    else if (id === "emblemShape") changeEmblemShape(value);
+    else if (id === "tooltipSize") changeTooltipSize(value);
+    else if (id === "themeHueInput") changeThemeHue(value);
+    else if (id === "themeColorInput") changeDialogsTheme(themeColorInput.value, transparencyInput.value);
+    else if (id === "transparencyInput") changeDialogsTheme(themeColorInput.value, value);
+  });
+
+  optionsContentEl.addEventListener("change", (event: Event) => {
+    const target = event.target as HTMLInputElement;
+    const { id, value } = target;
+    if (id === "zoomExtentMin" || id === "zoomExtentMax") changeZoomExtent(value);
+    else if (id === "optionsSeed") generateMapWithSeed();
+    else if (id === "uiSize") changeUiSize(+value);
+    else if (id === "shapeRendering") setRendering(value);
+    else if (id === "yearInput") changeYear();
+    else if (id === "eraInput") changeEra();
+    else if (id === "stateLabelsModeInput") options.stateLabelsMode = value as "auto" | "short" | "full";
+    else if (id === "azgaarAssistant") toggleAssistant?.();
+  });
+
+  optionsContentEl.addEventListener("click", (event: MouseEvent) => {
+    const { id } = event.target as HTMLElement;
+    if (id === "restoreDefaultCanvasSize") restoreDefaultCanvasSize();
+    else if (id === "optionsMapHistory") showSeedHistoryDialog();
+    else if (id === "optionsCopySeed") copyMapURL();
+    else if (id === "optionsEraRegenerate") regenerateEra();
+    else if (id === "templateInputContainer") openTemplateSelectionDialog();
+    else if (id === "zoomExtentDefault") restoreDefaultZoomExtent();
+    else if (id === "translateExtent") toggleTranslateExtent(event.target as HTMLElement);
+    else if (id === "speakerTest") testSpeaker();
+    else if (id === "themeColorRestore") restoreDefaultThemeColor();
+    else if (id === "loadGoogleTranslateButton") loadGoogleTranslate();
+    else if (id === "resetLanguage") resetLanguage();
+  });
+
+  // Sticked menu
+  ensureEl("sticked").addEventListener("click", (event: MouseEvent) => {
+    const id = (event.target as HTMLElement).id;
+    if (id === "newMapButton") regeneratePrompt();
+    else if (id === "saveButton") showSavePane();
+    else if (id === "exportButton") showExportPane();
+    else if (id === "loadButton") showLoadPane();
+    else if (id === "zoomReset") resetZoom(1000);
+  });
+
+  // Load map file
+  ensureEl<HTMLInputElement>("mapToLoad").addEventListener("change", function (this: HTMLInputElement) {
+    const fileToLoad = this.files![0];
+    this.value = "";
+    closeDialogs();
+    uploadMap(fileToLoad);
+  });
+
+  // View mode / 3D
+  viewMode.addEventListener("click", changeViewMode);
+}
 
 export { applyStoredOptions };

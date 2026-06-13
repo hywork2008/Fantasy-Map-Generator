@@ -1,13 +1,48 @@
 import { pointer, quadtree } from "d3";
 import type { Burg } from "../modules/burgs-generator";
+import { Burgs } from "../modules/burgs-generator";
+import { Cultures } from "../modules/cultures-generator";
+import { COA } from "../modules/emblem/generator";
+import { COArenderer } from "../modules/emblem/renderer";
+import { Features } from "../modules/features";
+import { Ice } from "../modules/ice";
+import { Lakes } from "../modules/lakes";
 import type { MarkerConfig } from "../modules/markers-generator";
+import { Markers } from "../modules/markers-generator";
+import { Military } from "../modules/military-generator";
 import type { Province } from "../modules/provinces-generator";
+import { Provinces } from "../modules/provinces-generator";
 import type { Religion } from "../modules/religions-generator";
+import { Religions } from "../modules/religions-generator";
 import type { River } from "../modules/river-generator";
+import { Rivers } from "../modules/river-generator";
 import type { Route } from "../modules/routes-generator";
+import { Routes } from "../modules/routes-generator";
 import type { State } from "../modules/states-generator";
+import { States } from "../modules/states-generator";
+import { Zones } from "../modules/zones-generator";
+import {
+  drawBorders,
+  drawBurgIcons,
+  drawBurgLabels,
+  drawCultures,
+  drawEmblems,
+  drawIce,
+  drawMarkers,
+  drawMilitary,
+  drawPopulation,
+  drawProvinces,
+  drawReliefIcons,
+  drawReligions,
+  drawRivers,
+  drawRoutes,
+  drawStateLabels,
+  drawStates,
+  drawZones
+} from "../renderers";
+import { drawMarker } from "../renderers/index";
 import type { WorldNote } from "../types/WorldState";
-import { ensureEl, gauss, generateSeed, getNextId, isCtrlClick, P, rn } from "../utils";
+import { ensureEl, findCell, gauss, generateSeed, getNextId, isCtrlClick, P, rn } from "../utils";
 import { open as openChartsOverview } from "./charts-overview";
 import { openMinimapDialog } from "./minimap";
 
@@ -942,7 +977,7 @@ function addMarkerOnClick(this: SVGElement, event: MouseEvent): void {
 
   const markersElement = ensureEl("markers");
   const rescale = +markersElement.getAttribute("rescale")!;
-  markersElement.insertAdjacentHTML("beforeend", window.drawMarker(marker, rescale));
+  markersElement.insertAdjacentHTML("beforeend", drawMarker(marker, rescale));
 
   if (!event.shiftKey) {
     document.getElementById("markerAdd")?.classList.remove("pressed");

@@ -1,5 +1,7 @@
 import { drag, easeSinIn, pointer, type Selection, sum, transition } from "d3";
-import { getRandomColor, openURL, rn, si } from "../utils";
+import { Biomes } from "../modules/biomes";
+import { drawBiomes, drawReliefIcons } from "../renderers";
+import { findCell, getRandomColor, openURL, rn, si } from "../utils";
 
 function editBiomes(): void {
   if (customization) return;

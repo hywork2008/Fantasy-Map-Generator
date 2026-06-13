@@ -1,11 +1,17 @@
 import * as d3 from "d3";
 import { color, interpolate, interpolateString, pointer } from "d3";
 import type { Burg } from "../modules/burgs-generator";
+import { Burgs } from "../modules/burgs-generator";
 import type { Culture } from "../modules/cultures-generator";
+import { COA } from "../modules/emblem/generator";
 import type { Emblem as RendererEmblem } from "../modules/emblem/renderer";
+import { COArenderer } from "../modules/emblem/renderer";
 import type { Province } from "../modules/provinces-generator";
+import { Provinces } from "../modules/provinces-generator";
 import type { State } from "../modules/states-generator";
-import { ensureEl, parseTransform, rn } from "../utils";
+import { States } from "../modules/states-generator";
+import { drawBorders, drawPopulation, drawProvinces, drawStateLabels, drawStates } from "../renderers";
+import { ensureEl, findCell, parseTransform, rn } from "../utils";
 
 function editProvinces(): void {
   if (customization) return;

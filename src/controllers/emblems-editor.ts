@@ -1,6 +1,8 @@
 import type * as d3 from "d3";
 import { drag } from "d3";
 import type { Burg } from "../modules/burgs-generator";
+import { COA } from "../modules/emblem/generator";
+import { COArenderer } from "../modules/emblem/renderer";
 import type { Province } from "../modules/provinces-generator";
 import type { State } from "../modules/states-generator";
 import { openURL, rn } from "../utils";

@@ -1,3 +1,4 @@
+import { Routes } from "../modules/routes-generator";
 import { ensureEl, rn } from "../utils";
 
 function overviewRoutes(): void {

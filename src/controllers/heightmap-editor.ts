@@ -1,10 +1,26 @@
 import * as d3 from "d3";
 import { hsl, interpolateRound, lab, max, mean, pointer, range, select } from "d3";
+import { Biomes } from "../modules/biomes";
 import type { Burg } from "../modules/burgs-generator";
+import { Burgs } from "../modules/burgs-generator";
 import type { Culture } from "../modules/cultures-generator";
+import { Cultures } from "../modules/cultures-generator";
+import { Features } from "../modules/features";
+import { Ice } from "../modules/ice";
+import { Lakes } from "../modules/lakes";
+import { Markers } from "../modules/markers-generator";
+import { Military } from "../modules/military-generator";
+import { OceanLayers } from "../modules/ocean-layers";
 import type { Province } from "../modules/provinces-generator";
+import { Provinces } from "../modules/provinces-generator";
+import { Religions } from "../modules/religions-generator";
+import { Rivers } from "../modules/river-generator";
+import { Routes } from "../modules/routes-generator";
+import { States } from "../modules/states-generator";
 import type { Zone } from "../modules/zones-generator";
-import { ensureEl, generateSeed, minmax, rn } from "../utils";
+import { Zones } from "../modules/zones-generator";
+import { drawFeatures } from "../renderers";
+import { ensureEl, findCell, generateSeed, minmax, rn } from "../utils";
 
 // ─── Module-level state ───────────────────────────────────────────────────────
 

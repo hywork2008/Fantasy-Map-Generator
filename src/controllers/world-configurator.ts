@@ -1,4 +1,9 @@
 import { geoGraticule, geoOrthographic, geoPath, interpolateSpectral, range, scaleSequential, select } from "d3";
+import { Biomes } from "../modules/biomes";
+import { Features } from "../modules/features";
+import { Lakes } from "../modules/lakes";
+import { Rivers } from "../modules/river-generator";
+import { drawBiomes, drawCoordinates, drawPrecipitation, drawRivers, drawTemperature } from "../renderers";
 import { ensureEl, parseTransform, rn, round } from "../utils";
 
 function editWorld(): void {

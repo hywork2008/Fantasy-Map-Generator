@@ -12,12 +12,16 @@ import {
   unique
 } from "../utils";
 import type { Grid } from "../utils/graphUtils";
+import { Features } from "./features";
+import { Ice } from "./ice";
+import { Markers } from "./markers-generator";
+import { OceanLayers } from "./ocean-layers";
+import { Provinces } from "./provinces-generator";
 import type { River } from "./river-generator";
+import { Rivers } from "./river-generator";
+import { Routes } from "./routes-generator";
+import { States } from "./states-generator";
 import type { Point } from "./voronoi";
-
-declare global {
-  var Resample: Resampler;
-}
 
 interface ResamplerProcessOptions {
   projection: (x: number, y: number) => [number, number];
@@ -456,4 +460,5 @@ class Resampler {
   }
 }
 
-window.Resample = new Resampler();
+export type { Resampler };
+export const Resample = new Resampler();

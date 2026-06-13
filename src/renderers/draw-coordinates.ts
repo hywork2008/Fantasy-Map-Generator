@@ -3,11 +3,7 @@ import { viewState } from "../context/viewState";
 import { worldContext } from "../context/worldContext";
 import { ensureEl, rn, round } from "../utils";
 
-declare global {
-  var drawCoordinates: () => void;
-}
-
-const coordinatesRenderer = (): void => {
+export const drawCoordinates = (): void => {
   const { mapCoordinates, graphWidth, graphHeight } = worldContext;
   const { scale } = worldContext;
   const { coordinates } = viewState;
@@ -70,5 +66,3 @@ const coordinatesRenderer = (): void => {
     .attr("y", d => d.y)
     .text(d => d.text);
 };
-
-window.drawCoordinates = coordinatesRenderer;

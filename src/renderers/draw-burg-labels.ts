@@ -3,18 +3,12 @@ import { worldContext } from "../context/worldContext";
 import type { Burg } from "../modules/burgs-generator";
 import { TIME } from "../utils/debug";
 
-declare global {
-  var drawBurgLabels: () => void;
-  var drawBurgLabel: (burg: Burg) => void;
-  var removeBurgLabel: (burgId: number) => void;
-}
-
 interface BurgGroup {
   name: string;
   order: number;
 }
 
-const burgLabelsRenderer = (): void => {
+export const drawBurgLabels = (): void => {
   TIME && console.time("drawBurgLabels");
   const { pack, options, style } = worldContext;
   const { burgLabels } = viewState;
@@ -48,7 +42,7 @@ const burgLabelsRenderer = (): void => {
   TIME && console.timeEnd("drawBurgLabels");
 };
 
-const drawBurgLabelRenderer = (burg: Burg): void => {
+export const drawBurgLabel = (burg: Burg): void => {
   const { burgLabels } = viewState;
   const labelGroup = burgLabels.select<SVGGElement>(`#${burg.group}`);
   if (labelGroup.empty()) {
@@ -59,7 +53,7 @@ const drawBurgLabelRenderer = (burg: Burg): void => {
   const dx = labelGroup.attr("data-dx") || 0;
   const dy = labelGroup.attr("data-dy") || 0;
 
-  removeBurgLabelRenderer(burg.i!);
+  removeBurgLabel(burg.i!);
   labelGroup
     .append("text")
     .attr("text-rendering", "optimizeSpeed")
@@ -72,7 +66,7 @@ const drawBurgLabelRenderer = (burg: Burg): void => {
     .text(burg.name!);
 };
 
-const removeBurgLabelRenderer = (burgId: number): void => {
+export const removeBurgLabel = (burgId: number): void => {
   const existingLabel = document.getElementById(`burgLabel${burgId}`);
   if (existingLabel) existingLabel.remove();
 };
@@ -101,7 +95,3 @@ function createLabelGroups(
     group.attr("id", name);
   }
 }
-
-window.drawBurgLabels = burgLabelsRenderer;
-window.drawBurgLabel = drawBurgLabelRenderer;
-window.removeBurgLabel = removeBurgLabelRenderer;
