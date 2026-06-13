@@ -1,5 +1,5 @@
-import Alea from "alea";
 import { max } from "d3";
+import { aleaPRNG } from "../components/AleaPRNG";
 import type { WorldState } from "../types/WorldState";
 import { ensureEl, gauss, generateSeed, getMixedColor, getPolesOfInaccessibility, P, rand, rw } from "../utils";
 import { Burgs } from "./burgs-generator";
@@ -69,7 +69,7 @@ class ProvinceModule {
     const { pack, seed } = state;
     TIME && console.time("generateProvinces");
     const localSeed = regenerate ? generateSeed() : seed;
-    Math.random = Alea(localSeed);
+    Math.random = aleaPRNG(localSeed);
 
     const { cells, states, burgs } = pack;
     const provinces: Province[] = [0 as unknown as Province]; // 0 index is reserved for "no province"

@@ -1,5 +1,6 @@
 import * as d3 from "d3";
 import { hsl, interpolateRound, lab, max, mean, pointer, range, select } from "d3";
+import { aleaPRNG } from "../components/AleaPRNG";
 import { Biomes } from "../modules/biomes";
 import type { Burg } from "../modules/burgs-generator";
 import { Burgs } from "../modules/burgs-generator";

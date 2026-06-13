@@ -1,7 +1,7 @@
-import Alea from "alea";
 import type { Quadtree } from "d3";
 import { color, quadtree } from "d3";
 import Delaunator from "delaunator";
+import { aleaPRNG } from "../components/AleaPRNG";
 import type { GridFeature } from "../modules/features";
 import { type Cells, type Point, type Vertices, Voronoi } from "../modules/voronoi";
 import type { PackedGraph, TypedArray } from "../types/PackedGraph";
@@ -152,7 +152,7 @@ export interface Grid {
  * @returns {Object} - The generated grid object containing spacing, cellsDesired, boundary, points, cellsX, cellsY, cells, vertices, and seed
  */
 export const generateGrid = (seed: string, graphWidth: number, graphHeight: number): Grid => {
-  Math.random = Alea(seed); // reset PRNG
+  Math.random = aleaPRNG(seed); // reset PRNG
   const { spacing, cellsDesired, boundary, points, cellsX, cellsY } = placePoints(graphWidth, graphHeight);
   const { cells, vertices } = calculateVoronoi(points, boundary);
   return {

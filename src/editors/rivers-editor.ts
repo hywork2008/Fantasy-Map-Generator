@@ -292,7 +292,7 @@ export function editRiver(id: string): void {
     debug.select("#controlPoints").remove();
     debug.select("#controlCells").remove();
 
-    elSelected!.on("click", null);
+    elSelected?.on("click", null);
     unselect();
     clearMainTip();
 

@@ -1,5 +1,5 @@
-import Alea from "alea";
 import { range as d3Range, leastIndex, mean } from "d3";
+import { aleaPRNG } from "../components/AleaPRNG";
 import { createTypedArray, ensureEl, findGridCell, getNumberInRange, lim, minmax, P, rand } from "../utils";
 import type { Grid } from "../utils/graphUtils";
 
@@ -541,7 +541,7 @@ class HeightmapModule {
   async generate(graph: Grid): Promise<Uint8Array> {
     TIME && console.time("defineHeightmap");
     const id = (ensureEl("templateInput")! as HTMLInputElement).value;
-    Math.random = Alea(seed);
+    Math.random = aleaPRNG(seed);
     const isTemplate = id in heightmapTemplates;
 
     const heights = isTemplate ? this.fromTemplate(graph, id) : await this.fromPrecreated(graph, id);

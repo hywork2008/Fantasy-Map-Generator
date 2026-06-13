@@ -2,7 +2,7 @@ import { type D3DragEvent, drag, pointer, type Selection, sum } from "d3";
 import { worldContext } from "../context/worldContext";
 import type { Zone } from "../modules/zones-generator";
 import { drawPopulation, drawZones } from "../renderers";
-import { ensureEl, findCell, rn, si } from "../utils";
+import { ensureEl, findCell, rn, si, unique } from "../utils";
 import { getPackPolygon } from "../utils/graphUtils";
 
 type ZoneCellDatum = { cell: number; zoneId: number; fill: string };

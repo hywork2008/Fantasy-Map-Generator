@@ -1,5 +1,5 @@
-import Alea from "alea";
 import { min } from "d3";
+import { aleaPRNG } from "../components/AleaPRNG";
 import { redrawGlacier, redrawIceberg } from "../renderers";
 import type { WorldState } from "../types/WorldState";
 import { clipPoly, getGridPolygon, getIsolines, lerp, minmax, normalize, P, ra, rand, rn } from "../utils";
@@ -39,7 +39,7 @@ class IceModule {
     this.clear();
     const { cells, features } = grid;
     const { temp, h } = cells;
-    Math.random = Alea(seed);
+    Math.random = aleaPRNG(seed);
 
     const ICEBERG_MAX_TEMP = 0;
     const GLACIER_MAX_TEMP = -8;

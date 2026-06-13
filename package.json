@@ -51,6 +51,8 @@
     "delaunator": "^5.0.1",
     "driver.js": "^1.4.0",
     "jquery": "^4.0.0",
+    "jquery-ui-dist": "^1.13.3",
+    "jquery-ui-touch-punch": "^0.2.3",
     "lineclip": "^2.0.0",
     "polylabel": "^2.0.1",
     "three": "^0.184.0",

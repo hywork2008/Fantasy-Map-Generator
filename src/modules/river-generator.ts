@@ -1,5 +1,5 @@
-import Alea from "alea";
 import { curveBasis, curveCatmullRom, line, mean, min, sum } from "d3";
+import { aleaPRNG } from "../components/AleaPRNG";
 import type { WorldState } from "../types/WorldState";
 import { each, rn, round, rw } from "../utils";
 import { Lakes } from "./lakes";
@@ -46,7 +46,7 @@ class RiverModule {
   generate(state: WorldState, allowErosion = true) {
     const { pack, grid, seed } = state;
     TIME && console.time("generateRivers");
-    Math.random = Alea(seed);
+    Math.random = aleaPRNG(seed);
     const { cells, features } = pack;
 
     const riversData: { [riverId: number]: number[] } = {};

@@ -1,5 +1,5 @@
-import Alea from "alea";
 import { polygonArea } from "d3";
+import { aleaPRNG } from "../components/AleaPRNG";
 import {
   clipPoly,
   connectVertices,
@@ -92,7 +92,7 @@ class FeatureModule {
    */
   markupGrid() {
     TIME && console.time("markupGrid");
-    Math.random = Alea(seed); // get the same result on heightmap edit in Erase mode
+    Math.random = aleaPRNG(seed); // get the same result on heightmap edit in Erase mode
 
     const { h: heights, c: neighbors, b: borderCells, i } = grid.cells;
     const cellsNumber = i.length;

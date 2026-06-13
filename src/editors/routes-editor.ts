@@ -6,6 +6,7 @@ import { Routes } from "../modules/routes-generator";
 import { ensureEl, findCell, getSegmentId, rn } from "../utils";
 import { getPackPolygon } from "../utils/graphUtils";
 import { editNotes } from "./notes-editor";
+import { editRouteGroups } from "./route-group-editor";
 
 // ─── routes-editor ──────────────────────────────────────────────────────────
 
@@ -26,6 +27,10 @@ export function editRoute(id: string): void {
   );
   debug.append("g").attr("id", "controlCells");
   debug.append("g").attr("id", "controlPoints");
+
+  let _rcRoute: Route | null = null;
+  let _rcInitCell = 0;
+  let _rcPointIndex = 0;
 
   {
     const route = getRoute();
@@ -111,10 +116,6 @@ export function editRoute(id: string): void {
       .join("polygon")
       .attr("points", (p: [number, number, number]) => getPackPolygon(p[2], worldContext.pack).join(" "));
   }
-
-  let _rcRoute: Route | null = null;
-  let _rcInitCell = 0;
-  let _rcPointIndex = 0;
 
   function dragControlPointStart(
     this: SVGCircleElement,
@@ -430,7 +431,7 @@ export function editRoute(id: string): void {
     debug.select("#controlPoints").remove();
     debug.select("#controlCells").remove();
 
-    elSelected!.on("click", null);
+    elSelected?.on("click", null);
     unselect();
     clearMainTip();
 

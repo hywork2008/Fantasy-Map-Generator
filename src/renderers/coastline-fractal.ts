@@ -1,4 +1,4 @@
-import Alea from "alea";
+import { aleaPRNG } from "../components/AleaPRNG";
 import { worldContext } from "../context/worldContext";
 
 export interface CoastlineSettings {
@@ -115,7 +115,7 @@ export function fractalizeCoastline(
 ): FractalizedShape {
   if (points.length < 3) return { points, origIndices: points.map((_, i) => i) };
   if (!defaultCoastSettings.enabled) return { points, origIndices: points.map((_, i) => i) };
-  const rand = Alea(`${worldContext.seed}_c${featureIndex}`);
+  const rand = aleaPRNG(`${worldContext.seed}_c${featureIndex}`);
   const settings =
     featureType === "lake" && defaultCoastSettings.lakeSmoothThreshMult !== 1
       ? {

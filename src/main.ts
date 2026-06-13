@@ -1,8 +1,16 @@
 // Azgaar (azgaar.fmg@yandex.com). Minsk, 2017-2023. MIT License
 // https://github.com/Azgaar/Fantasy-Map-Generator
 
+// jQuery setup: globals must be in a separate module so they are evaluated
+// before jquery-ui-dist and touch-punch (which expect window.jQuery at run time).
+import "./lib/jquery-globals";
+import "jquery-ui-dist/jquery-ui.js";
+import "jquery-ui-dist/jquery-ui.css";
+import "jquery-ui-touch-punch";
+
 import type { Selection } from "d3";
 import * as d3 from "d3";
+import { aleaPRNG } from "./components/AleaPRNG";
 import { viewState } from "./context/viewState";
 import { worldContext } from "./context/worldContext";
 import { Rulers } from "./controllers/measurers";

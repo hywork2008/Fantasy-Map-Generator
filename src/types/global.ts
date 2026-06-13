@@ -741,7 +741,6 @@ declare global {
     length: number;
     from?: ArrayLike<number>;
   }) => Uint8Array | Uint16Array | Uint32Array;
-  var aleaPRNG: (seed: string) => () => number;
   var RgbQuant: new (
     options: unknown
   ) => {

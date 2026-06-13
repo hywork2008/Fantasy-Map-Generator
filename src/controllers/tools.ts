@@ -1,4 +1,5 @@
 import { pointer, quadtree } from "d3";
+import { aleaPRNG } from "../components/AleaPRNG";
 import { editBiomes } from "../editors/biomes-editor";
 import { editDiplomacy } from "../editors/diplomacy-editor";
 import { editHeightmap } from "../editors/heightmap-editor";
@@ -250,7 +251,7 @@ function regenerateStates(): void {
 
 function recreateStates(): State[] | null {
   const localSeed = generateSeed();
-  (Math as Record<"random", () => number>).random = window.aleaPRNG(localSeed);
+  (Math as Record<"random", () => number>).random = aleaPRNG(localSeed);
 
   const statesCount = +ensureEl<HTMLInputElement>("statesNumber").value;
   if (!statesCount) {

@@ -1,5 +1,5 @@
-import Alea from "alea";
 import { drag, polygonArea, select } from "d3";
+import { aleaPRNG } from "../components/AleaPRNG";
 import { worldContext } from "../context/worldContext";
 import {
   drawBiomes,
@@ -537,7 +537,7 @@ class CoastlineEditorModule {
     const ctx = canvas.getContext("2d")!;
     ctx.clearRect(0, 0, W, H);
 
-    const rand = Alea(PREVIEW_SEED);
+    const rand = aleaPRNG(PREVIEW_SEED);
     const profile = makeRoughnessProfile(
       rand,
       defaultCoastSettings.roughnessContrast,
@@ -650,7 +650,7 @@ class CoastlineEditorModule {
     ];
 
     const shape = defaultCoastSettings.enabled
-      ? fractalize(basePts, Alea(PREVIEW_SEED), defaultCoastSettings)
+      ? fractalize(basePts, aleaPRNG(PREVIEW_SEED), defaultCoastSettings)
       : { points: basePts, origIndices: [0, 1, 2, 3] };
     const path = new Path2D(`${buildCoastlinePath(shape)}Z`);
 

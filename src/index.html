@@ -156,6 +156,8 @@
         this.rel = 'stylesheet';
       "
     />
+    <!-- jquery-ui.css is now imported via npm in src/main.ts -->
+    <!--
     <link
       rel="preload"
       href="libs/jquery-ui.css?v=1.106.5"
@@ -165,6 +167,7 @@
         this.rel = 'stylesheet';
       "
     />
+    -->
   </head>
   <body>
     <svg
@@ -8528,14 +8531,14 @@
     <!-- fill-box.js migrated to src/components/fill-box.ts -->
     <!-- slider-input.js migrated to src/components/slider-input.ts -->
 
-    <script src="libs/jquery-3.1.1.min.js"></script>
-    <script src="libs/jquery-ui.min.js"></script>
+    <!-- jQuery and jQuery UI are now loaded via npm in src/main.ts -->
+    <!-- <script src="libs/jquery-3.1.1.min.js"></script> -->
+    <!-- <script src="libs/jquery-ui.min.js"></script> -->
     <!-- versioning.js migrated to src/versioning.ts -->
     <script src="libs/flatqueue.js"></script>
     <script src="libs/delaunator.min.js"></script>
     <script src="libs/indexedDB.js?v=1.99.00"></script>
 
-    <script src="libs/alea.min.js?v1.105.0"></script>
     <script src="libs/polylabel.min.js?v1.105.0"></script>
     <script src="libs/simplify.js?v1.105.6"></script>
 
@@ -8589,7 +8592,8 @@
     <!-- transform-tool.js migrated to src/controllers/transform-tool.ts -->
     <!-- hotkeys.js migrated to src/controllers/hotkeys.ts -->
     <script defer src="libs/rgbquant.min.js"></script>
-    <script defer src="libs/jquery.ui.touch-punch.min.js"></script>
+    <!-- jquery-ui-touch-punch is now loaded via npm in src/main.ts -->
+    <!-- <script defer src="libs/jquery.ui.touch-punch.min.js"></script> -->
     <div id="tourPromptButton" style="display: none" data-tip="Take an interactive tour of the map generator">
       <button type="button" aria-label="Launch UI Tour">
         <svg preserveAspectRatio="xMidYMid" viewBox="0 0 58 52" height="30px" width="30px">

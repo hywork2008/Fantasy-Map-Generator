@@ -1,3 +1,4 @@
+import { aleaPRNG } from "../components/AleaPRNG";
 import { worldContext } from "../context/worldContext";
 import { ensureEl, generateGrid, generateSeed, shouldRegenerateGrid } from "../utils";
 import type { Grid } from "../utils/graphUtils";
