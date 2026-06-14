@@ -1,4 +1,5 @@
 import { color, curveBasisClosed, interpolateSpectral, leastIndex, line, max, min, range, scaleSequential } from "d3";
+import { TemperatureRenderer } from "../config/constants";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
@@ -53,8 +54,11 @@ export const drawTemperature = (
       ofSameType,
       addToChecked
     });
-    const relaxed = chain.filter((v: number, i: number) => i % 4 === 0 || vertices.c[v].some((c: number) => c >= n));
-    if (relaxed.length < 6) continue;
+    const relaxed = chain.filter(
+      (v: number, i: number) =>
+        i % TemperatureRenderer.RELAX_INTERVAL === 0 || vertices.c[v].some((c: number) => c >= n)
+    );
+    if (relaxed.length < TemperatureRenderer.MIN_CHAIN_LENGTH) continue;
 
     const points: [number, number][] = relaxed.map((v: number) => vertices.p[v]);
     chains.push([t, points]);
@@ -111,7 +115,7 @@ export const drawTemperature = (
     pushLabel(tc[0], tc[1], t);
 
     // add label on isoline bottom center
-    if (points.length > 20) {
+    if (points.length > TemperatureRenderer.LABEL_MIN_CHAIN_POINTS) {
       const bcIndex = leastIndex(
         points,
         (a: [number, number], b: [number, number]) =>
@@ -119,14 +123,14 @@ export const drawTemperature = (
       );
       const bc = points[bcIndex!];
       const dist2 = (tc[1] - bc[1]) ** 2 + (tc[0] - bc[0]) ** 2; // square distance between this and top point
-      if (dist2 > 100) pushLabel(bc[0], bc[1], t);
+      if (dist2 > TemperatureRenderer.LABEL_MIN_DIST2) pushLabel(bc[0], bc[1], t);
     }
   }
 
   function pushLabel(x: number, y: number, t: number): void {
     const { svgWidth, svgHeight } = worldContext;
-    if (x < 20 || x > svgWidth - 20) return;
-    if (y < 20 || y > svgHeight - 20) return;
+    if (x < TemperatureRenderer.LABEL_MARGIN || x > svgWidth - TemperatureRenderer.LABEL_MARGIN) return;
+    if (y < TemperatureRenderer.LABEL_MARGIN || y > svgHeight - TemperatureRenderer.LABEL_MARGIN) return;
     labels.push([x, y, t]);
   }
 

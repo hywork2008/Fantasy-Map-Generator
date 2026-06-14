@@ -1,5 +1,6 @@
 import { curveBasis, curveCatmullRom, line, mean, min, sum } from "d3";
 import { aleaPRNG } from "../components/AleaPRNG";
+import { HeightmapConstants, HeightThreshold, RiverConstants } from "../config/constants";
 import type { AppServices } from "../context/appServices";
 import { appServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
@@ -76,7 +77,7 @@ class RiverModule {
     };
 
     const drainWater = () => {
-      const MIN_FLUX_TO_FORM_RIVER = 30;
+      const MIN_FLUX_TO_FORM_RIVER = RiverConstants.MIN_FLUX_TO_FORM_RIVER;
       const cellsNumberModifier = (Number(pointsInput.dataset.cells) / 10000) ** 0.25;
 
       const prec = grid.cells.prec;
@@ -214,7 +215,7 @@ class RiverModule {
 
       for (const key in riversData) {
         const riverCells = riversData[key];
-        if (riverCells.length < 3) continue; // exclude tiny rivers
+        if (riverCells.length < RiverConstants.MIN_RIVER_CELLS) continue; // exclude tiny rivers
 
         const riverId = +key;
         for (const cell of riverCells) {
@@ -259,10 +260,10 @@ class RiverModule {
     };
 
     const downcutRivers = () => {
-      const MAX_DOWNCUT = 5;
+      const MAX_DOWNCUT = RiverConstants.MAX_DOWNCUT;
 
       for (const i of pack.cells.i) {
-        if (cells.h[i] < 35) continue; // don't donwcut lowlands
+        if (cells.h[i] < HeightThreshold.SHALLOW_WATER_MIN) continue; // don't downcut lowlands
         if (!cells.fl[i]) continue;
 
         const higherCells = cells.c[i].filter((c: number) => cells.h[c] > cells.h[i]);
@@ -355,7 +356,7 @@ class RiverModule {
         for (const l of lakes) {
           if (l.closed) continue;
           const minHeight = min(l.shoreline.map((s: number) => h[s])) as number;
-          if (minHeight >= 100 || l.height > minHeight) continue;
+          if (minHeight >= HeightThreshold.HEIGHT_MAX || l.height > minHeight) continue;
 
           if (iteration > elevateLakeMaxIteration) {
             l.shoreline.forEach((i: number) => {
@@ -367,16 +368,16 @@ class RiverModule {
           }
 
           depressions++;
-          l.height = (minHeight as number) + 0.2;
+          l.height = (minHeight as number) + HeightmapConstants.LAKE_HEIGHT_INCREMENT;
         }
       }
 
       for (const i of land) {
         const minHeight = min(cells.c[i].map((c: number) => height(c))) as number;
-        if (minHeight >= 100 || h[i] > minHeight) continue;
+        if (minHeight >= HeightThreshold.HEIGHT_MAX || h[i] > minHeight) continue;
 
         depressions++;
-        h[i] = minHeight + 0.1;
+        h[i] = minHeight + HeightmapConstants.DEPRESSION_FILL_STEP;
       }
 
       prevDepressions !== null && progress.push(depressions - prevDepressions);
@@ -544,7 +545,7 @@ class RiverModule {
   getType({ i, length, parent }: Pick<River, "i" | "length" | "parent">) {
     const { pack } = this.worldContext;
     if (this.smallLength === null) {
-      const threshold = Math.ceil(pack.rivers.length * 0.15);
+      const threshold = Math.ceil(pack.rivers.length * RiverConstants.SMALL_RIVER_LENGTH_PERCENTILE);
       this.smallLength = pack.rivers.map(r => r.length || 0).sort((a: number, b: number) => a - b)[threshold];
     }
 

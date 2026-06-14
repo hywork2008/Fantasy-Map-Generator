@@ -1,5 +1,6 @@
 import { min } from "d3";
 import { aleaPRNG } from "../components/AleaPRNG";
+import { TemperatureThreshold } from "../config/constants";
 import type { AppServices } from "../context/appServices";
 import { appServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
@@ -60,8 +61,8 @@ class IceModule {
     const { temp, h } = cells;
     Math.random = aleaPRNG(seed);
 
-    const ICEBERG_MAX_TEMP = 0;
-    const GLACIER_MAX_TEMP = -8;
+    const ICEBERG_MAX_TEMP = TemperatureThreshold.ICEBERG_MAX_TEMP;
+    const GLACIER_MAX_TEMP = TemperatureThreshold.GLACIER_MAX_TEMP;
     const minMaxTemp = min<number>(temp)!;
 
     // Generate glaciers on cold land

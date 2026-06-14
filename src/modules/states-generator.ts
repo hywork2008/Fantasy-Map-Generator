@@ -1,4 +1,5 @@
 import { mean, median, sum } from "d3";
+import { HeightThreshold } from "../config/constants";
 import type { AppServices } from "../context/appServices";
 import { appServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
@@ -111,13 +112,13 @@ class StatesModule {
 
   private getHeightCost(f: { type: string }, h: number, type: string) {
     if (type === "Lake" && f.type === "lake") return 10; // low lake crossing penalty for Lake cultures
-    if (type === "Naval" && h < 20) return 300; // low sea crossing penalty for Navals
-    if (type === "Nomadic" && h < 20) return 10000; // giant sea crossing penalty for Nomads
-    if (h < 20) return 1000; // general sea crossing penalty
-    if (type === "Highland" && h < 62) return 1100; // penalty for highlanders on lowlands
+    if (type === "Naval" && h < HeightThreshold.WATER_MAX_HEIGHT) return 300; // low sea crossing penalty for Navals
+    if (type === "Nomadic" && h < HeightThreshold.WATER_MAX_HEIGHT) return 10000; // giant sea crossing penalty for Nomads
+    if (h < HeightThreshold.WATER_MAX_HEIGHT) return 1000; // general sea crossing penalty
+    if (type === "Highland" && h < HeightThreshold.HIGHLAND_MIN) return 1100; // penalty for highlanders on lowlands
     if (type === "Highland") return 0; // no penalty for highlanders on highlands
-    if (h >= 67) return 2200; // general mountains crossing penalty
-    if (h >= 44) return 300; // general hills crossing penalty
+    if (h >= HeightThreshold.MOUNTAIN_MIN) return 2200; // general mountains crossing penalty
+    if (h >= HeightThreshold.HILL_MIN) return 300; // general hills crossing penalty
     return 0;
   }
 

@@ -1,5 +1,6 @@
 import { range as d3Range, leastIndex, mean } from "d3";
 import { aleaPRNG } from "../components/AleaPRNG";
+import { HeightmapConstants, HeightThreshold } from "../config/constants";
 import type { AppServices } from "../context/appServices";
 import { appServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
@@ -102,7 +103,10 @@ class HeightmapModule {
         if (x === undefined || y === undefined) return;
         start = findGridCell(x, y, this.grid);
         limit++;
-      } while (this.heights[start] + h > 90 && limit < 50);
+      } while (
+        this.heights[start] + h > HeightThreshold.HILL_MAX_HEIGHT &&
+        limit < HeightmapConstants.PLACEMENT_ITER_LIMIT
+      );
       change[start] = h;
       const queue = [start];
       while (queue.length) {
@@ -110,7 +114,9 @@ class HeightmapModule {
 
         for (const c of this.grid!.cells.c[q]) {
           if (change[c]) continue;
-          change[c] = change[q] ** this.blobPower * (Math.random() * 0.2 + 0.9);
+          change[c] =
+            change[q] ** this.blobPower *
+            (Math.random() * HeightmapConstants.JITTER_RANGE + HeightmapConstants.JITTER_MIN);
           if (change[c] > 1) queue.push(c);
         }
       }
@@ -138,17 +144,22 @@ class HeightmapModule {
         if (x === undefined || y === undefined) return;
         start = findGridCell(x, y, this.grid);
         limit++;
-      } while (this.heights[start] < 20 && limit < 50);
+      } while (
+        this.heights[start] < HeightThreshold.WATER_MAX_HEIGHT &&
+        limit < HeightmapConstants.PLACEMENT_ITER_LIMIT
+      );
 
       const queue = [start];
       while (queue.length) {
         const q = queue.shift() as number;
-        h = h ** this.blobPower * (Math.random() * 0.2 + 0.9);
+        h = h ** this.blobPower * (Math.random() * HeightmapConstants.JITTER_RANGE + HeightmapConstants.JITTER_MIN);
         if (h < 1) return;
 
         this.grid!.cells.c[q].forEach((c: number) => {
           if (used[c] || this.heights === null) return;
-          this.heights[c] = lim(this.heights[c] - h * (Math.random() * 0.2 + 0.9));
+          this.heights[c] = lim(
+            this.heights[c] - h * (Math.random() * HeightmapConstants.JITTER_RANGE + HeightmapConstants.JITTER_MIN)
+          );
           used[c] = 1;
           queue.push(c);
         });
@@ -217,7 +228,7 @@ class HeightmapModule {
           endY = Math.random() * graphHeight * 0.7 + graphHeight * 0.15;
           dist = Math.abs(endY - startY) + Math.abs(endX - startX);
           limit++;
-        } while ((dist < graphWidth / 8 || dist > graphWidth / 3) && limit < 50);
+        } while ((dist < graphWidth / 8 || dist > graphWidth / 3) && limit < HeightmapConstants.PLACEMENT_ITER_LIMIT);
 
         startCellId = findGridCell(startX, startY, this.grid);
         endCellId = findGridCell(endX, endY, this.grid);
@@ -250,7 +261,7 @@ class HeightmapModule {
 
       // generate prominences
       range.forEach((cur: number, d: number) => {
-        if (d % 6 !== 0) return;
+        if (d % HeightmapConstants.PROMINENCE_INTERVAL !== 0) return;
         for (const _l of d3Range(i)) {
           const index = leastIndex(
             this.grid!.cells.c[cur],
@@ -322,7 +333,10 @@ class HeightmapModule {
           startY = this.getPointInRange(rangeY, graphHeight) as number;
           startCellId = findGridCell(startX, startY, this.grid);
           limit++;
-        } while (this.heights[startCellId] < 20 && limit < 50);
+        } while (
+          this.heights[startCellId] < HeightThreshold.WATER_MAX_HEIGHT &&
+          limit < HeightmapConstants.PLACEMENT_ITER_LIMIT
+        );
 
         limit = 0;
         do {
@@ -330,7 +344,7 @@ class HeightmapModule {
           endY = Math.random() * graphHeight * 0.7 + graphHeight * 0.15;
           dist = Math.abs(endY - startY) + Math.abs(endX - startX);
           limit++;
-        } while ((dist < graphWidth / 8 || dist > graphWidth / 2) && limit < 50);
+        } while ((dist < graphWidth / 8 || dist > graphWidth / 2) && limit < HeightmapConstants.PLACEMENT_ITER_LIMIT);
 
         endCellId = findGridCell(endX, endY, this.grid);
       }
@@ -361,7 +375,7 @@ class HeightmapModule {
 
       // generate prominences
       range.forEach((cur: number, d: number) => {
-        if (d % 6 !== 0) return;
+        if (d % HeightmapConstants.PROMINENCE_INTERVAL !== 0) return;
         for (const _l of d3Range(i)) {
           const index = leastIndex(
             this.grid!.cells.c[cur],
@@ -442,9 +456,14 @@ class HeightmapModule {
 
   modify(range: string, add: number, mult: number, power?: number): void {
     if (!this.heights) return;
-    const min = range === "land" ? 20 : range === "all" ? 0 : +range.split("-")[0];
-    const max = range === "land" || range === "all" ? 100 : +range.split("-")[1];
-    const isLand = min === 20;
+    const min =
+      range === "land"
+        ? HeightThreshold.WATER_MAX_HEIGHT
+        : range === "all"
+          ? HeightThreshold.HEIGHT_MIN
+          : +range.split("-")[0];
+    const max = range === "land" || range === "all" ? HeightThreshold.HEIGHT_MAX : +range.split("-")[1];
+    const isLand = min === HeightThreshold.WATER_MAX_HEIGHT;
 
     this.heights = this.heights.map(h => {
       if (h < min || h > max) return h;
@@ -589,8 +608,15 @@ class HeightmapModule {
     if (!this.heights) return;
     for (let i = 0; i < this.heights.length; i++) {
       const lightness = imageData[i * 4] / 255;
-      const powered = lightness < 0.2 ? lightness : 0.2 + (lightness - 0.2) ** 0.8;
-      this.heights[i] = minmax(Math.floor(powered * 100), 0, 100);
+      const powered =
+        lightness < HeightmapConstants.IMAGE_WATER_THRESHOLD
+          ? lightness
+          : HeightmapConstants.IMAGE_WATER_THRESHOLD + (lightness - HeightmapConstants.IMAGE_WATER_THRESHOLD) ** 0.8;
+      this.heights[i] = minmax(
+        Math.floor(powered * HeightThreshold.HEIGHT_MAX),
+        HeightThreshold.HEIGHT_MIN,
+        HeightThreshold.HEIGHT_MAX
+      );
     }
   }
 

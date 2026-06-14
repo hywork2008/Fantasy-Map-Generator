@@ -1,5 +1,6 @@
 import { polygonArea } from "d3";
 import { aleaPRNG } from "../components/AleaPRNG";
+import { FeatureSizeRatio, HeightmapConstants, HeightThreshold, TemperatureThreshold } from "../config/constants";
 import type { AppServices } from "../context/appServices";
 import { appServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
@@ -147,7 +148,7 @@ class FeatureModule {
       neighbors,
       start: this.DEEP_WATER,
       increment: -1,
-      limit: -10
+      limit: HeightmapConstants.DEEP_WATER_LIMIT
     });
     grid.cells.t = distanceField;
     grid.cells.f = featureIds;
@@ -323,7 +324,7 @@ class FeatureModule {
       neighbors,
       start: this.DEEP_WATER,
       increment: -1,
-      limit: -10
+      limit: HeightmapConstants.DEEP_WATER_LIMIT
     }); // markup pack water
 
     pack.cells.t = distanceField;
@@ -340,10 +341,10 @@ class FeatureModule {
   defineGroups() {
     const { grid, pack } = this.worldContext;
     const gridCellsNumber = grid.cells.i.length;
-    const OCEAN_MIN_SIZE = gridCellsNumber / 25;
-    const SEA_MIN_SIZE = gridCellsNumber / 1000;
-    const CONTINENT_MIN_SIZE = gridCellsNumber / 10;
-    const ISLAND_MIN_SIZE = gridCellsNumber / 1000;
+    const OCEAN_MIN_SIZE = gridCellsNumber * FeatureSizeRatio.OCEAN_MIN;
+    const SEA_MIN_SIZE = gridCellsNumber * FeatureSizeRatio.SEA_MIN;
+    const CONTINENT_MIN_SIZE = gridCellsNumber * FeatureSizeRatio.CONTINENT_MIN;
+    const ISLAND_MIN_SIZE = gridCellsNumber * FeatureSizeRatio.ISLAND_MIN;
 
     const defineIslandGroup = (feature: PackedGraphFeature) => {
       const prevFeature = pack.features[pack.cells.f[feature.firstCell - 1]];
@@ -360,8 +361,9 @@ class FeatureModule {
     };
 
     const defineLakeGroup = (feature: PackedGraphFeature) => {
-      if (feature.temp < -3) return "frozen";
-      if (feature.height > 60 && feature.cells < 10 && feature.firstCell % 10 === 0) return "lava";
+      if (feature.temp < TemperatureThreshold.FROZEN_LAKE_TEMP) return "frozen";
+      if (feature.height > HeightThreshold.LAVA_LAKE_HEIGHT && feature.cells < 10 && feature.firstCell % 10 === 0)
+        return "lava";
 
       if (!feature.inlets && !feature.outlet) {
         if (feature.evaporation > feature.flux * 4) return "dry";

@@ -23,6 +23,7 @@ import {
   range
 } from "d3";
 import { createLayerCanvas } from "../canvas/map-canvas";
+import { HeightThreshold } from "../config/constants";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
@@ -85,7 +86,7 @@ export const drawHeightmap = (
       const h = cells.h[i];
       if (h > currentLayer) currentLayer += skip;
       if (h < currentLayer) continue;
-      if (currentLayer >= 20) break;
+      if (currentLayer >= HeightThreshold.WATER_MAX_HEIGHT) break;
       if (used[i]) continue; // already marked
       const onborder = cells.c[i].some((n: number) => cells.h[n] < h);
       if (!onborder) continue;
@@ -105,12 +106,12 @@ export const drawHeightmap = (
     const curveType = land.attr("curve") || "curveBasisClosed";
     const lineGen = line().curve(CURVE_MAP[curveType] ?? curveBasisClosed);
 
-    let currentLayer = 20;
+    let currentLayer = HeightThreshold.WATER_MAX_HEIGHT;
     for (const i of heights) {
       const h = cells.h[i];
       if (h > currentLayer) currentLayer += skip;
       if (h < currentLayer) continue;
-      if (currentLayer > 100) break; // no layers possible with height > 100
+      if (currentLayer > HeightThreshold.HEIGHT_MAX) break; // no layers possible with height > 100
       if (used[i]) continue; // already marked
       const onborder = cells.c[i].some((n: number) => cells.h[n] < h);
       if (!onborder) continue;
@@ -131,19 +132,19 @@ export const drawHeightmap = (
   const oceanCtx = createLayerCanvas(ocean.node()!, graphWidth, graphHeight);
   const landCtx = createLayerCanvas(land.node()!, graphWidth, graphHeight);
 
-  for (const height of range(0, 101)) {
-    const isOcean = height < 20;
+  for (const height of range(HeightThreshold.HEIGHT_MIN, HeightThreshold.HEIGHT_MAX + 1)) {
+    const isOcean = height < HeightThreshold.WATER_MAX_HEIGHT;
     const group = isOcean ? ocean : land;
     const ctx = isOcean ? oceanCtx : landCtx;
     const scheme = getColorScheme(group.attr("scheme"));
     const terracing = +group.attr("terracing") / 10 || 0;
 
-    if (height === 0 && renderOceanCells) {
+    if (height === HeightThreshold.HEIGHT_MIN && renderOceanCells) {
       ctx.fillStyle = scheme(1);
       ctx.fillRect(0, 0, graphWidth, graphHeight);
     }
 
-    if (height === 20) {
+    if (height === HeightThreshold.WATER_MAX_HEIGHT) {
       ctx.fillStyle = scheme(0.8);
       ctx.fillRect(0, 0, graphWidth, graphHeight);
     }

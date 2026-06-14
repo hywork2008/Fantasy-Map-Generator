@@ -1,4 +1,5 @@
 import { mean, min } from "d3";
+import { HeightmapConstants } from "../config/constants";
 import type { AppServices } from "../context/appServices";
 import { appServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
@@ -13,7 +14,7 @@ export class LakesModule {
   worldContext: WorldContext = worldContext;
   viewContext: Readonly<ViewContext> = viewContext;
   appServices: AppServices = appServices;
-  private LAKE_ELEVATION_DELTA = 0.1;
+  private LAKE_ELEVATION_DELTA = HeightmapConstants.LAKE_ELEVATION_DELTA;
 
   getHeight(feature: PackedGraphFeature) {
     const { pack } = this.worldContext;
