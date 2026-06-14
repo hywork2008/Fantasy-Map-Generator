@@ -352,7 +352,9 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
     }
 
     {
-      grid = JSON.parse(data[6]);
+      const parsedGrid = JSON.parse(data[6]) as typeof grid;
+      for (const key of Object.keys(grid)) delete (grid as unknown as Record<string, unknown>)[key];
+      Object.assign(grid, parsedGrid);
       const { cells: gCells, vertices } = calculateVoronoi(grid.points, grid.boundary);
       grid.cells = gCells as unknown as typeof grid.cells;
       grid.vertices = vertices;

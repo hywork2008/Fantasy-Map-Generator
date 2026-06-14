@@ -731,7 +731,7 @@ function enterReligionsManualAssignent(): void {
   viewbox
     .style("cursor", "crosshair")
     .on("click", selectReligionOnMapClick)
-    .call(d3.drag<SVGElement, unknown>().on("drag", dragReligionBrush))
+    .call(d3.drag<SVGGElement, unknown>().on("drag", dragReligionBrush))
     .on("touchmove mousemove", moveReligionBrush);
 
   $body.querySelector<HTMLElement>("div")!.classList.add("selected");

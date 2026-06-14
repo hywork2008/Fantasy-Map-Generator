@@ -277,14 +277,14 @@ export async function getMapURL(type: string, options: GetMapURLOptions = {}): P
         worldContext,
         viewContext,
         appServices,
-        clone.select("#scaleBar") as unknown as import("d3").Selection<SVGGElement, unknown, HTMLElement, unknown>,
+        clone.select("#scaleBar") as unknown as Selection<SVGGElement, unknown, null, undefined>,
         1
       );
       fitScaleBar(
         worldContext,
         viewContext,
         appServices,
-        clone.select("#scaleBar") as unknown as import("d3").Selection<SVGGElement, unknown, HTMLElement, unknown>,
+        clone.select("#scaleBar") as unknown as Selection<SVGGElement, unknown, null, undefined>,
         graphWidth,
         graphHeight
       );

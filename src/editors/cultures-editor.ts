@@ -805,7 +805,7 @@ function enterCultureManualAssignent(): void {
   viewbox
     .style("cursor", "crosshair")
     .on("click", selectCultureOnMapClick)
-    .call(d3.drag<SVGElement, unknown>().on("start", dragCultureBrushStart).on("drag", dragCultureBrush))
+    .call(d3.drag<SVGGElement, unknown>().on("start", dragCultureBrushStart).on("drag", dragCultureBrush))
     .on("touchmove mousemove", moveCultureBrush);
 
   $body.querySelector<HTMLElement>("div")!.classList.add("selected");

@@ -409,7 +409,7 @@ export function editBiomes(): void {
     viewbox
       .style("cursor", "crosshair")
       .on("click", selectBiomeOnMapClick)
-      .call(drag<SVGElement, unknown>().on("drag", dragBiomeBrush))
+      .call(drag<SVGGElement, unknown>().on("drag", dragBiomeBrush))
       .on("touchmove mousemove", moveBiomeBrush);
   }
 

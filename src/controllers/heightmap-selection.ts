@@ -12,6 +12,8 @@ let graph: Grid | null = null;
 let initialized = false;
 
 export function open(): void {
+  graph = getGraph(graph ?? worldContext.grid);
+
   if (!initialized) {
     appendStyleSheet();
     insertHtml();
@@ -23,7 +25,6 @@ export function open(): void {
 
   const $templateInput = ensureEl("templateInput") as HTMLInputElement;
   setSelected($templateInput.value);
-  graph = getGraph(graph ?? worldContext.grid);
 
   $("#heightmapSelection").dialog({
     title: "Select Heightmap",

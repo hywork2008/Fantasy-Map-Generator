@@ -3,7 +3,7 @@ import type { Selection, ZoomBehavior } from "d3";
 export interface ViewContext {
   svg: Selection<SVGSVGElement, unknown, null, undefined>;
   defs: Selection<SVGDefsElement, unknown, null, undefined>;
-  viewbox: Selection<SVGElement, unknown, null, undefined>;
+  viewbox: Selection<SVGGElement, unknown, null, undefined>;
   scaleBar: Selection<SVGGElement, unknown, null, undefined>;
   legend: Selection<SVGGElement, unknown, null, undefined>;
   ocean: Selection<SVGGElement, unknown, null, undefined>;
@@ -18,7 +18,7 @@ export interface ViewContext {
   gridOverlay: Selection<SVGGElement, unknown, null, undefined>;
   coordinates: Selection<SVGGElement, unknown, null, undefined>;
   compass: Selection<SVGGElement, unknown, null, undefined>;
-  rivers: Selection<SVGElement, unknown, null, undefined>;
+  rivers: Selection<SVGGElement, unknown, null, undefined>;
   terrain: Selection<SVGGElement, unknown, null, undefined>;
   relig: Selection<SVGGElement, unknown, null, undefined>;
   cults: Selection<SVGGElement, unknown, null, undefined>;
@@ -30,7 +30,7 @@ export interface ViewContext {
   borders: Selection<SVGGElement, unknown, null, undefined>;
   stateBorders: Selection<SVGGElement, unknown, null, undefined>;
   provinceBorders: Selection<SVGGElement, unknown, null, undefined>;
-  routes: Selection<SVGElement, unknown, null, undefined>;
+  routes: Selection<SVGGElement, unknown, null, undefined>;
   roads: Selection<SVGGElement, unknown, null, undefined>;
   trails: Selection<SVGGElement, unknown, null, undefined>;
   searoutes: Selection<SVGGElement, unknown, null, undefined>;
@@ -39,7 +39,7 @@ export interface ViewContext {
   ice: Selection<SVGGElement, unknown, null, undefined>;
   prec: Selection<SVGGElement, unknown, null, undefined>;
   population: Selection<SVGGElement, unknown, null, undefined>;
-  emblems: Selection<SVGElement, unknown, null, undefined>;
+  emblems: Selection<SVGGElement, unknown, null, undefined>;
   icons: Selection<SVGGElement, unknown, null, undefined>;
   labels: Selection<SVGGElement, unknown, null, undefined>;
   burgLabels: Selection<SVGGElement, unknown, null, undefined>;

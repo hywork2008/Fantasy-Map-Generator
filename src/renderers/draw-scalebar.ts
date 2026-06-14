@@ -4,7 +4,7 @@ import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { rn } from "../utils";
 
-type ScaleBarSelection = d3.Selection<SVGGElement, unknown, HTMLElement | null, unknown>;
+type ScaleBarSelection = d3.Selection<SVGGElement, unknown, null, undefined>;
 
 export const drawScaleBar = (
   worldContext: Readonly<WorldContext>,

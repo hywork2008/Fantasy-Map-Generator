@@ -909,7 +909,7 @@ export function editProvinces(): void {
     viewbox
       .style("cursor", "crosshair")
       .on("click", selectProvinceOnMapClick)
-      .call(d3.drag<SVGElement, unknown>().on("drag", dragBrush))
+      .call(d3.drag<SVGGElement, unknown>().on("drag", dragBrush))
       .on("touchmove", moveBrush)
       .on("mousemove", moveBrush);
 

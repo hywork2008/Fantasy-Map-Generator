@@ -69,7 +69,7 @@ declare global {
   var scaleBar: Selection<SVGGElement, unknown, null, undefined>;
   var legend: Selection<SVGGElement, unknown, null, undefined>;
 
-  var rivers: Selection<SVGElement, unknown, null, undefined>;
+  var rivers: Selection<SVGGElement, unknown, null, undefined>;
   var ocean: Selection<SVGGElement, unknown, null, undefined>;
   var oceanLayers: Selection<SVGGElement, unknown, null, undefined>;
   var oceanPattern: Selection<SVGGElement, unknown, null, undefined>;
@@ -81,7 +81,7 @@ declare global {
   var searoutes: Selection<SVGGElement, unknown, null, undefined>;
   var stateBorders: Selection<SVGGElement, unknown, null, undefined>;
   var provinceBorders: Selection<SVGGElement, unknown, null, undefined>;
-  var emblems: Selection<SVGElement, unknown, null, undefined>;
+  var emblems: Selection<SVGGElement, unknown, null, undefined>;
   var svg: Selection<SVGSVGElement, unknown, null, undefined>;
   var ice: Selection<SVGGElement, unknown, null, undefined>;
   var labels: Selection<SVGGElement, unknown, null, undefined>;
@@ -109,8 +109,8 @@ declare global {
   var armies: Selection<SVGGElement, unknown, null, undefined>;
   var svgWidth: number;
   var svgHeight: number;
-  var viewbox: Selection<SVGElement, unknown, null, undefined>;
-  var routes: Selection<SVGElement, unknown, null, undefined>;
+  var viewbox: Selection<SVGGElement, unknown, null, undefined>;
+  var routes: Selection<SVGGElement, unknown, null, undefined>;
   var biomesData: BiomesData;
   var notes: WorldNote[];
   var style: MapStyle;

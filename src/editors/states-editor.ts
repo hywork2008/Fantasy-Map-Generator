@@ -969,7 +969,7 @@ function enterStatesManualAssignent(): void {
   viewbox
     .style("cursor", "crosshair")
     .on("click", selectStateOnMapClick)
-    .call(d3.drag<SVGElement, unknown>().on("start", dragStateBrushStart).on("drag", dragStateBrush))
+    .call(d3.drag<SVGGElement, unknown>().on("start", dragStateBrushStart).on("drag", dragStateBrush))
     .on("touchmove mousemove", moveStateBrush);
 
   $body.querySelector<HTMLElement>("div")!.classList.add("selected");

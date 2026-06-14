@@ -124,7 +124,7 @@ let compass = viewbox.append("g").attr("id", "compass").style("display", "none")
   null,
   undefined
 >;
-let rivers = viewbox.append("g").attr("id", "rivers") as unknown as Selection<SVGElement, unknown, null, undefined>;
+let rivers = viewbox.append("g").attr("id", "rivers") as Selection<SVGGElement, unknown, null, undefined>;
 let terrain = viewbox.append("g").attr("id", "terrain") as Selection<SVGGElement, unknown, null, undefined>;
 let relig = viewbox.append("g").attr("id", "relig") as Selection<SVGGElement, unknown, null, undefined>;
 let cults = viewbox.append("g").attr("id", "cults") as Selection<SVGGElement, unknown, null, undefined>;
@@ -141,7 +141,7 @@ let provinceBorders = borders.append("g").attr("id", "provinceBorders") as Selec
   null,
   undefined
 >;
-let routes = viewbox.append("g").attr("id", "routes") as unknown as Selection<SVGElement, unknown, null, undefined>;
+let routes = viewbox.append("g").attr("id", "routes") as Selection<SVGGElement, unknown, null, undefined>;
 let roads = routes.append("g").attr("id", "roads") as Selection<SVGGElement, unknown, null, undefined>;
 let trails = routes.append("g").attr("id", "trails") as Selection<SVGGElement, unknown, null, undefined>;
 let searoutes = routes.append("g").attr("id", "searoutes") as Selection<SVGGElement, unknown, null, undefined>;
@@ -155,8 +155,8 @@ let prec = viewbox.append("g").attr("id", "prec").style("display", "none") as Se
   undefined
 >;
 let population = viewbox.append("g").attr("id", "population") as Selection<SVGGElement, unknown, null, undefined>;
-let emblems = viewbox.append("g").attr("id", "emblems").style("display", "none") as unknown as Selection<
-  SVGElement,
+let emblems = viewbox.append("g").attr("id", "emblems").style("display", "none") as Selection<
+  SVGGElement,
   unknown,
   null,
   undefined
@@ -227,7 +227,7 @@ legend
 
 window.svg = svg;
 window.defs = defs;
-window.viewbox = viewbox as unknown as Selection<SVGElement, unknown, null, undefined>;
+window.viewbox = viewbox;
 window.scaleBar = scaleBar;
 window.legend = legend;
 window.ocean = ocean;
@@ -242,7 +242,7 @@ window.cells = cells;
 window.gridOverlay = gridOverlay;
 window.coordinates = coordinates;
 window.compass = compass;
-window.rivers = rivers as Selection<SVGElement, unknown, null, undefined>;
+window.rivers = rivers;
 window.terrain = terrain;
 window.relig = relig;
 window.cults = cults;
@@ -254,7 +254,7 @@ window.zones = zones;
 window.borders = borders;
 window.stateBorders = stateBorders;
 window.provinceBorders = provinceBorders;
-window.routes = routes as Selection<SVGElement, unknown, null, undefined>;
+window.routes = routes;
 window.roads = roads;
 window.trails = trails;
 window.searoutes = searoutes;
@@ -263,7 +263,7 @@ window.coastline = coastline;
 window.ice = ice;
 window.prec = prec;
 window.population = population;
-window.emblems = emblems as Selection<SVGElement, unknown, null, undefined>;
+window.emblems = emblems;
 window.icons = icons;
 window.labels = labels;
 window.burgIcons = burgIcons;
@@ -280,7 +280,7 @@ window.burgLabels = burgLabels;
 Object.assign(viewContext, {
   svg,
   defs,
-  viewbox: viewbox as unknown as Selection<SVGElement, unknown, null, undefined>,
+  viewbox,
   scaleBar,
   legend,
   ocean,
@@ -295,7 +295,7 @@ Object.assign(viewContext, {
   gridOverlay,
   coordinates,
   compass,
-  rivers: rivers as Selection<SVGElement, unknown, null, undefined>,
+  rivers,
   terrain,
   relig,
   cults,
@@ -307,7 +307,7 @@ Object.assign(viewContext, {
   borders,
   stateBorders,
   provinceBorders,
-  routes: routes as Selection<SVGElement, unknown, null, undefined>,
+  routes,
   roads,
   trails,
   searoutes,
@@ -316,7 +316,7 @@ Object.assign(viewContext, {
   ice,
   prec,
   population,
-  emblems: emblems as Selection<SVGElement, unknown, null, undefined>,
+  emblems,
   icons,
   labels,
   burgLabels,
@@ -352,7 +352,7 @@ export function reinitializeMapLayers(): void {
   gridOverlay = viewbox.select("#gridOverlay") as Selection<SVGGElement, unknown, null, undefined>;
   coordinates = viewbox.select("#coordinates") as Selection<SVGGElement, unknown, null, undefined>;
   compass = viewbox.select("#compass") as Selection<SVGGElement, unknown, null, undefined>;
-  rivers = viewbox.select("#rivers") as unknown as Selection<SVGElement, unknown, null, undefined>;
+  rivers = viewbox.select("#rivers") as Selection<SVGGElement, unknown, null, undefined>;
   terrain = viewbox.select("#terrain") as Selection<SVGGElement, unknown, null, undefined>;
   relig = viewbox.select("#relig") as Selection<SVGGElement, unknown, null, undefined>;
   cults = viewbox.select("#cults") as Selection<SVGGElement, unknown, null, undefined>;
@@ -364,7 +364,7 @@ export function reinitializeMapLayers(): void {
   borders = viewbox.select("#borders") as Selection<SVGGElement, unknown, null, undefined>;
   stateBorders = borders.select("#stateBorders") as Selection<SVGGElement, unknown, null, undefined>;
   provinceBorders = borders.select("#provinceBorders") as Selection<SVGGElement, unknown, null, undefined>;
-  routes = viewbox.select("#routes") as unknown as Selection<SVGElement, unknown, null, undefined>;
+  routes = viewbox.select("#routes") as Selection<SVGGElement, unknown, null, undefined>;
   roads = routes.select("#roads") as Selection<SVGGElement, unknown, null, undefined>;
   trails = routes.select("#trails") as Selection<SVGGElement, unknown, null, undefined>;
   searoutes = routes.select("#searoutes") as Selection<SVGGElement, unknown, null, undefined>;
@@ -372,7 +372,7 @@ export function reinitializeMapLayers(): void {
   coastline = viewbox.select("#coastline") as Selection<SVGGElement, unknown, null, undefined>;
   prec = viewbox.select("#prec") as Selection<SVGGElement, unknown, null, undefined>;
   population = viewbox.select("#population") as Selection<SVGGElement, unknown, null, undefined>;
-  emblems = viewbox.select("#emblems") as unknown as Selection<SVGElement, unknown, null, undefined>;
+  emblems = viewbox.select("#emblems") as Selection<SVGGElement, unknown, null, undefined>;
   labels = viewbox.select("#labels") as Selection<SVGGElement, unknown, null, undefined>;
   icons = viewbox.select("#icons") as Selection<SVGGElement, unknown, null, undefined>;
   burgIcons = icons.select("#burgIcons") as Selection<SVGGElement, unknown, null, undefined>;
@@ -386,7 +386,7 @@ export function reinitializeMapLayers(): void {
 
   window.svg = svg;
   window.defs = defs;
-  window.viewbox = viewbox as unknown as Selection<SVGElement, unknown, null, undefined>;
+  window.viewbox = viewbox;
   window.scaleBar = scaleBar;
   window.legend = legend;
   window.ocean = ocean;
@@ -401,7 +401,7 @@ export function reinitializeMapLayers(): void {
   window.gridOverlay = gridOverlay;
   window.coordinates = coordinates;
   window.compass = compass;
-  window.rivers = rivers as Selection<SVGElement, unknown, null, undefined>;
+  window.rivers = rivers;
   window.terrain = terrain;
   window.relig = relig;
   window.cults = cults;
@@ -413,7 +413,7 @@ export function reinitializeMapLayers(): void {
   window.borders = borders;
   window.stateBorders = stateBorders;
   window.provinceBorders = provinceBorders;
-  window.routes = routes as Selection<SVGElement, unknown, null, undefined>;
+  window.routes = routes;
   window.roads = roads;
   window.trails = trails;
   window.searoutes = searoutes;
@@ -422,7 +422,7 @@ export function reinitializeMapLayers(): void {
   window.ice = ice;
   window.prec = prec;
   window.population = population;
-  window.emblems = emblems as Selection<SVGElement, unknown, null, undefined>;
+  window.emblems = emblems;
   window.icons = icons;
   window.labels = labels;
   window.burgIcons = burgIcons;
@@ -437,7 +437,7 @@ export function reinitializeMapLayers(): void {
   Object.assign(viewContext, {
     svg,
     defs,
-    viewbox: viewbox as unknown as Selection<SVGElement, unknown, null, undefined>,
+    viewbox,
     scaleBar,
     legend,
     ocean,
@@ -452,7 +452,7 @@ export function reinitializeMapLayers(): void {
     gridOverlay,
     coordinates,
     compass,
-    rivers: rivers as Selection<SVGElement, unknown, null, undefined>,
+    rivers,
     terrain,
     relig,
     cults,
@@ -464,7 +464,7 @@ export function reinitializeMapLayers(): void {
     borders,
     stateBorders,
     provinceBorders,
-    routes: routes as Selection<SVGElement, unknown, null, undefined>,
+    routes,
     roads,
     trails,
     searoutes,
@@ -473,7 +473,7 @@ export function reinitializeMapLayers(): void {
     ice,
     prec,
     population,
-    emblems: emblems as Selection<SVGElement, unknown, null, undefined>,
+    emblems,
     icons,
     labels,
     burgLabels,
@@ -520,14 +520,9 @@ export function fitMapView(): void {
 
 // ─── Main data variables ──────────────────────────────────────────────────────
 
-let grid = {} as typeof window.grid;
-let pack = {} as typeof window.pack;
-let seed = "" as string;
-let mapId = 0;
 const mapHistory: typeof window.mapHistory = [];
 const elSelected: typeof window.elSelected = null;
 const modules: typeof window.modules = window.modules ?? {};
-let notes: typeof window.notes = [];
 const rulers = new Rulers();
 let customization = 0;
 
@@ -552,14 +547,14 @@ const nameBases: typeof window.nameBases = Names.getNameBases();
 const color = d3.scaleSequential(d3.interpolateSpectral);
 const lineGen = d3.line().curve(d3.curveBasis);
 
-window.grid = grid;
-window.pack = pack;
-window.seed = seed;
-window.mapId = mapId;
+window.grid = worldContext.grid;
+window.pack = worldContext.pack;
+window.seed = worldContext.seed;
+window.mapId = worldContext.mapId;
 window.mapHistory = mapHistory;
 window.elSelected = elSelected;
 window.modules = modules;
-window.notes = notes;
+window.notes = worldContext.notes;
 window.rulers = rulers;
 window.customization = customization;
 window.options = options;
@@ -572,12 +567,7 @@ window.lineGen = lineGen;
 // ─── Populate worldContext singleton (initial values) ─────────────────────────
 
 Object.assign(worldContext, {
-  pack,
-  grid,
-  seed,
-  mapId,
   mapHistory,
-  notes,
   options,
   style,
   biomesData,
@@ -668,7 +658,6 @@ viewContext.viewY = viewY;
 
 // ─── Map dimensions and settings ──────────────────────────────────────────────
 
-let mapCoordinates: typeof window.mapCoordinates = {};
 const populationRate = +ensureEl<HTMLInputElement>("populationRateInput").value;
 const distanceScale = +ensureEl<HTMLInputElement>("distanceScaleInput").value;
 const urbanization = +ensureEl<HTMLInputElement>("urbanizationInput").value;
@@ -681,7 +670,7 @@ const graphHeight = +mapHeightInput.value;
 const svgWidth = graphWidth;
 const svgHeight = graphHeight;
 
-window.mapCoordinates = mapCoordinates;
+window.mapCoordinates = worldContext.mapCoordinates;
 window.populationRate = populationRate;
 window.distanceScale = distanceScale;
 window.urbanization = urbanization;
@@ -692,7 +681,6 @@ window.svgWidth = svgWidth;
 window.svgHeight = svgHeight;
 
 Object.assign(worldContext, {
-  mapCoordinates,
   populationRate,
   distanceScale,
   urbanization,
@@ -832,13 +820,15 @@ function focusOn() {
 
     if (cellParam) {
       const cell = +cellParam;
-      const [x, y] = pack.cells.p[cell];
+      const [x, y] = worldContext.pack.cells.p[cell];
       zoomTo(x, y, z, 1600);
       return;
     }
 
     if (burgParam) {
-      const burg = Number.isNaN(+burgParam) ? pack.burgs.find(b => b.name === burgParam) : pack.burgs[+burgParam];
+      const burg = Number.isNaN(+burgParam)
+        ? worldContext.pack.burgs.find(b => b.name === burgParam)
+        : worldContext.pack.burgs[+burgParam];
       if (!burg) return;
 
       const { x, y } = burg;
@@ -894,8 +884,8 @@ function initTourPromptButton() {
 }
 
 function findBurgForMFCG(params: URLSearchParams) {
-  const { cells: packedCells, burgs } = pack;
-  if (pack.burgs.length < 2) {
+  const { cells: packedCells, burgs } = worldContext.pack;
+  if (worldContext.pack.burgs.length < 2) {
     ERROR && console.error("Cannot select a burg for MFCG");
     return;
   }
@@ -1010,7 +1000,7 @@ function invokeActiveZooming() {
   }
 
   +markers.attr("rescale") &&
-    pack.markers?.forEach(marker => {
+    worldContext.pack.markers?.forEach(marker => {
       const { i, x = 0, y = 0, size = 30, hidden } = marker;
       const el = !hidden && document.getElementById(`marker${i}`);
       if (!el) return;
@@ -1086,21 +1076,24 @@ async function generate(opts?: { seed?: string; graph?: Grid | null }) {
 
     invokeActiveZooming();
     setSeed(precreatedSeed);
-    INFO && console.group(`Generated Map ${seed}`);
+    INFO && console.group(`Generated Map ${worldContext.seed}`);
 
     applyGraphSize();
     randomizeOptions();
 
-    if (shouldRegenerateGrid(grid, +(precreatedSeed ?? 0), graphWidth, graphHeight))
-      grid = precreatedGraph || generateGrid(seed, graphWidth, graphHeight);
-    else delete (grid.cells as { h?: unknown }).h;
-    grid.cells.h = await HeightmapGenerator.generate(worldContext, viewContext, appServices, grid);
-    window.grid = grid;
-    worldContext.grid = grid;
+    if (shouldRegenerateGrid(worldContext.grid, +(precreatedSeed ?? 0), graphWidth, graphHeight))
+      worldContext.grid = precreatedGraph || generateGrid(worldContext.seed, graphWidth, graphHeight);
+    else delete (worldContext.grid.cells as { h?: unknown }).h;
+    worldContext.grid.cells.h = await HeightmapGenerator.generate(
+      worldContext,
+      viewContext,
+      appServices,
+      worldContext.grid
+    );
+    window.grid = worldContext.grid;
 
-    pack = {} as typeof window.pack;
-    window.pack = pack;
-    worldContext.pack = pack;
+    worldContext.pack = {} as typeof worldContext.pack;
+    window.pack = worldContext.pack;
 
     Features.markupGrid();
     addLakesInDeepDepressions();
@@ -1179,6 +1172,7 @@ async function generate(opts?: { seed?: string; graph?: Grid | null }) {
 }
 
 function getWorldState() {
+  const { pack, grid, seed, options, nameBases, biomesData, notes, style } = worldContext;
   return { pack, grid, seed, options, nameBases, biomesData, notes, style };
 }
 
@@ -1187,17 +1181,17 @@ function setSeed(precreatedSeed?: string) {
     const first = !mapHistory[0];
     const params = new URL(window.location.href).searchParams;
     const urlSeed = params.get("seed");
-    if (first && params.get("from") === "MFCG" && urlSeed && urlSeed.length === 13) seed = urlSeed.slice(0, -4);
-    else if (first && urlSeed) seed = urlSeed;
-    else seed = generateSeed();
+    if (first && params.get("from") === "MFCG" && urlSeed && urlSeed.length === 13)
+      worldContext.seed = urlSeed.slice(0, -4);
+    else if (first && urlSeed) worldContext.seed = urlSeed;
+    else worldContext.seed = generateSeed();
   } else {
-    seed = precreatedSeed;
+    worldContext.seed = precreatedSeed;
   }
 
-  window.seed = seed;
-  worldContext.seed = seed;
-  ensureEl<HTMLInputElement>("optionsSeed").value = seed;
-  Math.random = aleaPRNG(seed);
+  window.seed = worldContext.seed;
+  ensureEl<HTMLInputElement>("optionsSeed").value = worldContext.seed;
+  Math.random = aleaPRNG(worldContext.seed);
 }
 
 // ─── Lake helpers ──────────────────────────────────────────────────────────
@@ -1207,7 +1201,7 @@ function addLakesInDeepDepressions() {
   const elevationLimit = +ensureEl<HTMLOutputElement>("lakeElevationLimitOutput").value;
   if (elevationLimit === 80) return;
 
-  const { cells: gridCells, features } = grid;
+  const { cells: gridCells, features } = worldContext.grid;
   const { c, h, b } = gridCells;
 
   for (const i of gridCells.i) {
@@ -1265,7 +1259,7 @@ function addLakesInDeepDepressions() {
 function openNearSeaLakes() {
   if (ensureEl<HTMLInputElement>("templateInput").value === "Atoll") return;
 
-  const { cells: gridCells, features } = grid;
+  const { cells: gridCells, features } = worldContext.grid;
   if (!features.find(f => f.type === "lake")) return;
   TIME && console.time("openLakes");
   const LIMIT = 22;
@@ -1339,7 +1333,7 @@ function defineMapSize() {
     if (template === "world") return [78, 27, 40];
     if (template === "world-from-pacific") return [75, 32, 30];
 
-    const part = grid.features.some(f => f.land && f.border);
+    const part = worldContext.grid.features.some(f => f.land && f.border);
     const max = part ? 80 : 100;
     const lat = () => gauss(P(0.5) ? 40 : 60, 20, 25, 75);
 
@@ -1375,15 +1369,15 @@ function calculateMapCoordinates() {
   const lonT = rn(Math.min((graphWidth / graphHeight) * latT, 360), 1);
   const lonE = rn(180 - (360 - lonT) * lonShift, 1);
   const lonW = rn(lonE - lonT, 1);
-  mapCoordinates = { latT, latN, latS, lonT, lonW, lonE };
-  window.mapCoordinates = mapCoordinates;
+  worldContext.mapCoordinates = { latT, latN, latS, lonT, lonW, lonE };
+  window.mapCoordinates = worldContext.mapCoordinates;
 }
 
 // ─── Temperature model ────────────────────────────────────────────────────────
 
 function calculateTemperatures() {
   TIME && console.time("calculateTemperatures");
-  const { cells: gridCells } = grid;
+  const { cells: gridCells } = worldContext.grid;
   gridCells.temp = new Int8Array(gridCells.i.length);
 
   const { temperatureEquator, temperatureNorthPole, temperatureSouthPole } = options;
@@ -1398,13 +1392,13 @@ function calculateTemperatures() {
 
   const exponent = +heightExponentInput.value;
 
-  for (let rowCellId = 0; rowCellId < gridCells.i.length; rowCellId += grid.cellsX) {
-    const [, y] = grid.points[rowCellId];
-    const rowLatitude = mapCoordinates.latN! - (y / graphHeight) * mapCoordinates.latT!;
+  for (let rowCellId = 0; rowCellId < gridCells.i.length; rowCellId += worldContext.grid.cellsX) {
+    const [, y] = worldContext.grid.points[rowCellId];
+    const rowLatitude = worldContext.mapCoordinates.latN! - (y / graphHeight) * worldContext.mapCoordinates.latT!;
     const tempSeaLevel = calculateSeaLevelTemp(rowLatitude);
     DEBUG.temperature && console.info(`${rn(rowLatitude)}° sea temperature: ${rn(tempSeaLevel)}°C`);
 
-    for (let cellId = rowCellId; cellId < rowCellId + grid.cellsX; cellId++) {
+    for (let cellId = rowCellId; cellId < rowCellId + worldContext.grid.cellsX; cellId++) {
       const tempAltitudeDrop = getAltitudeTemperatureDrop(gridCells.h[cellId]);
       gridCells.temp[cellId] = minmax(tempSeaLevel - tempAltitudeDrop, -128, 127);
     }
@@ -1433,7 +1427,7 @@ function calculateTemperatures() {
 function generatePrecipitation() {
   TIME && console.time("generatePrecipitation");
   prec.selectAll("*").remove();
-  const { cells: gridCells, cellsX, cellsY } = grid;
+  const { cells: gridCells, cellsX, cellsY } = worldContext.grid;
   gridCells.prec = new Uint8Array(gridCells.i.length);
 
   const cellsNumberModifier = (+(pointsInput.dataset.cells ?? 0) / 10000) ** 0.25;
@@ -1448,6 +1442,7 @@ function generatePrecipitation() {
   const latitudeModifier = [4, 2, 2, 2, 1, 1, 2, 2, 2, 2, 3, 3, 2, 2, 1, 1, 1, 0.5];
   const MAX_PASSABLE_ELEVATION = 85;
 
+  const { mapCoordinates } = worldContext;
   d3.range(0, gridCells.i.length, cellsX).forEach((c: number, i: number) => {
     const lat = mapCoordinates.latN! - (i / cellsY) * mapCoordinates.latT!;
     const latBand = ((Math.abs(lat) - 1) / 5) | 0;
@@ -1540,7 +1535,7 @@ function generatePrecipitation() {
         if (west && west.length > 3) {
           const from = west[0][0];
           const to = west[west.length - 1][0];
-          const y = (grid.points[from][1] + grid.points[to][1]) / 2;
+          const y = (worldContext.grid.points[from][1] + worldContext.grid.points[to][1]) / 2;
           wind.append("text").attr("text-rendering", "optimizeSpeed").attr("x", 20).attr("y", y).text("⇉");
         }
       }
@@ -1549,7 +1544,7 @@ function generatePrecipitation() {
         if (east && east.length > 3) {
           const from = east[0][0];
           const to = east[east.length - 1][0];
-          const y = (grid.points[from][1] + grid.points[to][1]) / 2;
+          const y = (worldContext.grid.points[from][1] + worldContext.grid.points[to][1]) / 2;
           wind
             .append("text")
             .attr("text-rendering", "optimizeSpeed")
@@ -1583,9 +1578,9 @@ function generatePrecipitation() {
 
 function reGraph() {
   TIME && console.time("reGraph");
-  const { cells: gridCells, points, features } = grid;
+  const { cells: gridCells, points, features } = worldContext.grid;
   const newCells: { p: [number, number][]; g: number[]; h: number[] } = { p: [], g: [], h: [] };
-  const spacing2 = grid.spacing ** 2;
+  const spacing2 = worldContext.grid.spacing ** 2;
 
   for (const i of gridCells.i) {
     const height = gridCells.h[i];
@@ -1618,15 +1613,21 @@ function reGraph() {
     newCells.h.push(height);
   }
 
-  const { cells: packCells, vertices } = calculateVoronoi(newCells.p, grid.boundary);
-  pack.vertices = vertices as unknown as typeof pack.vertices;
-  pack.cells = packCells as unknown as typeof pack.cells;
-  pack.cells.p = newCells.p;
-  pack.cells.g = createTypedArray({ maxValue: grid.points.length, from: newCells.g }) as unknown as typeof pack.cells.g;
-  pack.cells.h = createTypedArray({ maxValue: 100, from: newCells.h }) as unknown as typeof pack.cells.h;
-  pack.cells.area = createTypedArray({ maxValue: UINT16_MAX, length: packCells.i.length }).map(
+  const { cells: packCells, vertices } = calculateVoronoi(newCells.p, worldContext.grid.boundary);
+  worldContext.pack.vertices = vertices as unknown as typeof worldContext.pack.vertices;
+  worldContext.pack.cells = packCells as unknown as typeof worldContext.pack.cells;
+  worldContext.pack.cells.p = newCells.p;
+  worldContext.pack.cells.g = createTypedArray({
+    maxValue: worldContext.grid.points.length,
+    from: newCells.g
+  }) as unknown as typeof worldContext.pack.cells.g;
+  worldContext.pack.cells.h = createTypedArray({
+    maxValue: 100,
+    from: newCells.h
+  }) as unknown as typeof worldContext.pack.cells.h;
+  worldContext.pack.cells.area = createTypedArray({ maxValue: UINT16_MAX, length: packCells.i.length }).map(
     (_: unknown, cellId: number) => {
-      const area = Math.abs(d3.polygonArea(getPackPolygon(cellId, pack)));
+      const area = Math.abs(d3.polygonArea(getPackPolygon(cellId, worldContext.pack)));
       return Math.min(area, UINT16_MAX);
     }
   );
@@ -1642,7 +1643,7 @@ function isWetLand(moisture: number, temperature: number, height: number) {
 
 function rankCells() {
   TIME && console.time("rankCells");
-  const { cells: packCells, features } = pack;
+  const { cells: packCells, features } = worldContext.pack;
   packCells.s = new Int16Array(packCells.i.length);
   packCells.pop = new Float32Array(packCells.i.length);
 
@@ -1694,27 +1695,34 @@ function showStatistics() {
   const heightmapType = isTemplate ? "template" : "precreated";
   const isRandomTemplate = isTemplate && !locked("template") ? "random " : "";
 
-  const stats = `  Seed: ${seed}
+  const stats = `  Seed: ${worldContext.seed}
     Canvas size: ${graphWidth}x${graphHeight} px
     Heightmap: ${heightmap}
     Template: ${isRandomTemplate}${heightmapType}
-    Points: ${grid.points.length}
-    Cells: ${pack.cells.i.length}
+    Points: ${worldContext.grid.points.length}
+    Cells: ${worldContext.pack.cells.i.length}
     Map size: ${mapSizeOutput.value}%
-    States: ${pack.states.length - 1}
-    Provinces: ${pack.provinces.length - 1}
-    Burgs: ${pack.burgs.length - 1}
-    Religions: ${pack.religions.length - 1}
+    States: ${worldContext.pack.states.length - 1}
+    Provinces: ${worldContext.pack.provinces.length - 1}
+    Burgs: ${worldContext.pack.burgs.length - 1}
+    Religions: ${worldContext.pack.religions.length - 1}
     Culture set: ${culturesSet.value}
-    Cultures: ${pack.cultures.length - 1}`;
+    Cultures: ${worldContext.pack.cultures.length - 1}`;
 
-  mapId = Date.now();
-  window.mapId = mapId;
-  worldContext.mapId = mapId;
-  mapHistory.push({ seed, width: graphWidth, height: graphHeight, template: heightmap, created: mapId });
+  worldContext.mapId = Date.now();
+  window.mapId = worldContext.mapId;
+  mapHistory.push({
+    seed: worldContext.seed,
+    width: graphWidth,
+    height: graphHeight,
+    template: heightmap,
+    created: worldContext.mapId
+  });
   INFO && console.info(stats);
 
-  window.dispatchEvent(new CustomEvent("map:generated", { detail: { seed, mapId } }));
+  window.dispatchEvent(
+    new CustomEvent("map:generated", { detail: { seed: worldContext.seed, mapId: worldContext.mapId } })
+  );
 }
 
 const regenerateMap = debounce(async (opts?: { seed?: string } | string) => {
@@ -1750,9 +1758,8 @@ function undraw() {
       el.remove();
     });
   ensureEl("coas").innerHTML = "";
-  notes = [];
-  window.notes = notes;
-  worldContext.notes = notes;
+  worldContext.notes = [];
+  window.notes = worldContext.notes;
   unfog();
 }
 

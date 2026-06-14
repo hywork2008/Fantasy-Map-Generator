@@ -222,7 +222,7 @@ export function editZones(): void {
     viewbox
       .style("cursor", "crosshair")
       .on("click", selectZoneOnMapClick)
-      .call(drag<SVGElement, unknown>().on("drag", dragZoneBrush))
+      .call(drag<SVGGElement, unknown>().on("drag", dragZoneBrush))
       .on("touchmove mousemove", moveZoneBrush);
 
     body.querySelector("div")?.classList.add("selected");

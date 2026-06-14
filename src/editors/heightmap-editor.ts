@@ -687,7 +687,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
           .style("cursor", "crosshair")
           .call(
             d3
-              .drag<SVGElement, unknown>()
+              .drag<SVGGElement, unknown>()
               .on("start", dragBrushStart)
               .on("drag", dragBrushDrag)
               .on("end", updateHeightmap)

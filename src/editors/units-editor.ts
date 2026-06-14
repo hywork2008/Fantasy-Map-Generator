@@ -166,9 +166,9 @@ export function editUnits(): void {
       });
       this.classList.add("pressed");
       viewbox.style("cursor", "crosshair").call(
-        drag<SVGElement, unknown>().on(
+        drag<SVGGElement, unknown>().on(
           "start",
-          function (this: SVGElement, startEvent: D3DragEvent<SVGElement, unknown, unknown>) {
+          function (this: SVGGElement, startEvent: D3DragEvent<SVGGElement, unknown, unknown>) {
             const point = pointer(startEvent, this) as [number, number];
             const opisometer = rulers.create(Opisometer, [point]).draw();
 
@@ -205,9 +205,9 @@ export function editUnits(): void {
       this.classList.add("pressed");
 
       viewbox.style("cursor", "crosshair").call(
-        drag<SVGElement, unknown>().on(
+        drag<SVGGElement, unknown>().on(
           "start",
-          function (this: SVGElement, startEvent: D3DragEvent<SVGElement, unknown, unknown>) {
+          function (this: SVGGElement, startEvent: D3DragEvent<SVGGElement, unknown, unknown>) {
             const cells = pack.cells;
             const burgs = pack.burgs;
             const point = pointer(startEvent, this) as [number, number];
@@ -261,9 +261,9 @@ export function editUnits(): void {
       });
       this.classList.add("pressed");
       viewbox.style("cursor", "crosshair").call(
-        drag<SVGElement, unknown>().on(
+        drag<SVGGElement, unknown>().on(
           "start",
-          function (this: SVGElement, startEvent: D3DragEvent<SVGElement, unknown, unknown>) {
+          function (this: SVGGElement, startEvent: D3DragEvent<SVGGElement, unknown, unknown>) {
             const point = pointer(startEvent, this) as [number, number];
             const planimeter = rulers.create(Planimeter, [point]).draw();
 

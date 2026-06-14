@@ -136,7 +136,7 @@ export function editReliefIcon(clickedEl?: Element): void {
     viewbox
       .style("cursor", "crosshair")
       .call(
-        drag<SVGElement, unknown>()
+        drag<SVGGElement, unknown>()
           .on("start", function (this: SVGElement, _startEvent: D3DragEvent<SVGElement, unknown, unknown>) {
             const pressed = reliefIconsDiv.querySelector("svg.pressed") as SVGElement | null;
             if (!pressed) {
@@ -217,7 +217,7 @@ export function editReliefIcon(clickedEl?: Element): void {
     viewbox
       .style("cursor", "crosshair")
       .call(
-        drag<SVGElement, unknown>()
+        drag<SVGGElement, unknown>()
           .on("start", function (this: SVGElement) {
             const pressed = reliefIconsDiv.querySelector("svg.pressed") as SVGElement | null;
             if (!pressed) {

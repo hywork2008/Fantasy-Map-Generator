@@ -1231,14 +1231,14 @@ ensureEl("styleScaleBar").on("input", (event: Event) => {
       worldContext,
       viewContext,
       appServices,
-      scaleBar as unknown as import("d3").Selection<SVGGElement, unknown, HTMLElement, unknown>,
+      scaleBar as unknown as Selection<SVGGElement, unknown, null, undefined>,
       scale
     );
     fitScaleBar(
       worldContext,
       viewContext,
       appServices,
-      scaleBar as unknown as import("d3").Selection<SVGGElement, unknown, HTMLElement, unknown>,
+      scaleBar as unknown as Selection<SVGGElement, unknown, null, undefined>,
       svgWidth,
       svgHeight
     );
@@ -1378,14 +1378,14 @@ function applyStyleWithUiRefresh(styleJSON: StyleJSON): void {
     worldContext,
     viewContext,
     appServices,
-    scaleBar as unknown as import("d3").Selection<SVGGElement, unknown, HTMLElement, unknown>,
+    scaleBar as unknown as Selection<SVGGElement, unknown, null, undefined>,
     scale
   );
   fitScaleBar(
     worldContext,
     viewContext,
     appServices,
-    scaleBar as unknown as import("d3").Selection<SVGGElement, unknown, HTMLElement, unknown>,
+    scaleBar as unknown as Selection<SVGGElement, unknown, null, undefined>,
     svgWidth,
     svgHeight
   );
