@@ -1,6 +1,7 @@
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import { openDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, getLatitude, getLongitude, minmax, rn } from "../utils";
 import { fitMapToScreen } from "./options";
 
@@ -11,7 +12,7 @@ let appServices: AppServices;
 function openSubmapTool(): void {
   resetInputs();
 
-  $("#submapTool").dialog({
+  openDialog("submapTool", {
     title: "Create a submap",
     resizable: false,
     width: "32em",
@@ -21,8 +22,8 @@ function openSubmapTool(): void {
         closeDialogs();
         generateSubmap();
       },
-      Cancel: function () {
-        $(this).dialog("close");
+      Cancel: () => {
+        /* $(this).dialog("close") removed */
       }
     }
   });

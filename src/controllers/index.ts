@@ -9,7 +9,7 @@ import { initStyle } from "./style";
 import "./editors";
 import { initCoastlineEditor } from "../editors/coastline-editor";
 import "./elevation-profile";
-import "../editors/namesbase-editor";
+import { initNamesbaseEditor } from "../editors/namesbase-editor";
 import "../io";
 import "../utils/uiHelpers";
 import { initHotkeys } from "./hotkeys";
@@ -76,6 +76,8 @@ export function initControllers(
   initTools(worldContext, viewContext, appServices);
   initTransformTool(worldContext, viewContext, appServices);
   initWorldConfigurator(worldContext, viewContext, appServices);
+  initNamesbaseEditor();
+
   initBiomesEditor(worldContext, viewContext, appServices);
   initBurgGroupEditor(worldContext, viewContext, appServices);
   initCoastlineEditor(worldContext, viewContext, appServices);

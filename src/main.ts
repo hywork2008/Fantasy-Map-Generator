@@ -1,12 +1,8 @@
+import { openRichDialog } from "./ui/dialogs/dialogService";
 // Azgaar (azgaar.fmg@yandex.com). Minsk, 2017-2023. MIT License
 // https://github.com/Azgaar/Fantasy-Map-Generator
 
 // jQuery setup: globals must be in a separate module so they are evaluated
-// before jquery-ui-dist and touch-punch (which expect window.jQuery at run time).
-import "./lib/jquery-globals";
-import "jquery-ui-dist/jquery-ui.js";
-import "jquery-ui-dist/jquery-ui.css";
-import "jquery-ui-touch-punch";
 
 import type { Selection } from "d3";
 import "./store/domShim";
@@ -58,6 +54,8 @@ import {
   shouldRegenerateGrid
 } from "./utils";
 import type { Grid } from "./utils/graphUtils";
+
+window.alertMessage = document.createElement("div");
 
 const UINT16_MAX = _TMP.UINT16_MAX;
 
@@ -713,19 +711,7 @@ export async function initMain(): Promise<void> {
   if (!location.hostname) {
     alertMessage.innerHTML = /* html */ `Fantasy Map Generator cannot run serverless. Follow the <a href="https://github.com/Azgaar/Fantasy-Map-Generator/wiki/Run-FMG-locally" target="_blank">instructions</a> on how you can easily run a local web-server`;
 
-    $(alertMessage)
-      .closest("#alert")
-      .dialog({
-        resizable: false,
-        title: "Loading error",
-        width: "28em",
-        position: { my: "center center-4em", at: "center", of: "svg" },
-        buttons: {
-          OK: function () {
-            $(this).dialog("close");
-          }
-        }
-      });
+    openRichDialog({ content: alertMessage.innerHTML, title: "Loading error" });
   } else {
     hideLoading();
     await checkLoadParameters();
@@ -1045,13 +1031,14 @@ void (function addDragToUpload() {
     if (!file.name.endsWith(".map") && !file.name.endsWith(".gz")) {
       alertMessage.innerHTML =
         "Please upload a map file (<i>.map</i> or <i>.gz</i> formats) you have previously downloaded";
-      $("#alert").dialog({
+      openRichDialog({
+        content: window.alertMessage.innerHTML,
         resizable: false,
         title: "Invalid file format",
         position: { my: "center", at: "center", of: "svg" },
         buttons: {
-          Close: function () {
-            $(this).dialog("close");
+          Close: () => {
+            /* $(this).dialog("close") removed */
           }
         }
       });
@@ -1153,18 +1140,19 @@ async function generate(opts?: { seed?: string; graph?: Grid | null }) {
 
     alertMessage.innerHTML = /* html */ `An error has occurred on map generation. Please retry. <br />If error is critical, clear the stored data and try again.
       <p id="errorBox">${parsedError}</p>`;
-    $("#alert").dialog({
+    openRichDialog({
+      content: window.alertMessage.innerHTML,
       resizable: false,
       title: "Generation error",
       width: "32em",
       buttons: {
         "Cleanup data": () => cleanupData(),
-        Regenerate: function () {
+        Regenerate: () => {
           regenerateMap("generation error");
-          $(this).dialog("close");
+          /* $(this).dialog("close") removed */
         },
-        Ignore: function () {
-          $(this).dialog("close");
+        Ignore: () => {
+          /* $(this).dialog("close") removed */
         }
       },
       position: { my: "center", at: "center", of: "svg" }
@@ -1742,7 +1730,7 @@ const regenerateMap = debounce(async (opts?: { seed?: string } | string) => {
   await generate(typeof opts === "string" ? { seed: opts } : opts);
   drawLayers();
   if (ThreeD.options.isOn) ThreeD.redraw();
-  if ($("#worldConfigurator").is(":visible")) editWorld();
+  if (document.getElementById("worldConfigurator") !== null) editWorld();
 
   fitMapToScreen();
   shouldShowLoading && hideLoading();

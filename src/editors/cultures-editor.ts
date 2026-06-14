@@ -23,6 +23,7 @@ let worldContext: WorldContext;
 let viewContext: Readonly<ViewContext>;
 let appServices: AppServices;
 
+import { openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { NamesbaseEditor } from "./namesbase-editor";
 
 const cultureTypes = ["Generic", "River", "Lake", "Naval", "Nomadic", "Hunting", "Highland"];
@@ -41,7 +42,7 @@ export function open(): void {
 
   refreshCulturesEditor();
 
-  $("#culturesEditor").dialog({
+  openDialog("culturesEditor", {
     title: "Cultures Editor",
     resizable: false,
     close: closeCulturesEditor,
@@ -311,7 +312,7 @@ function culturesEditorAddLines(): void {
     togglePercentageMode();
   }
   applySorting($culturesHeader);
-  $("#culturesEditor").dialog({ width: fitContent() });
+  openDialog("culturesEditor", { width: fitContent() });
 }
 
 function getTypeOptions(type: string): string {
@@ -502,17 +503,18 @@ function changePopulation(this: Element): void {
   getRuralPop().oninput = () => update();
   getUrbanPop().oninput = () => update();
 
-  $("#alert").dialog({
+  openRichDialog({
+    content: window.alertMessage.innerHTML,
     resizable: false,
     title: "Change culture population",
     width: "24em",
     buttons: {
-      Apply: function () {
+      Apply: () => {
         applyPopulationChange(rural, urban, getRuralPop().value, getUrbanPop().value, cultureId);
-        $(this).dialog("close");
+        /* $(this).dialog("close") removed */
       },
-      Cancel: function () {
-        $(this).dialog("close");
+      Cancel: () => {
+        /* $(this).dialog("close") removed */
       }
     },
     position: { my: "center", at: "center", of: "svg" }
@@ -799,7 +801,7 @@ function enterCultureManualAssignent(): void {
   $body.querySelectorAll<HTMLElement>("div > input, select, span, svg").forEach(e => {
     e.style.pointerEvents = "none";
   });
-  $("#culturesEditor").dialog({ position: { my: "right top", at: "right-10 top+10", of: "svg" } });
+  openDialog("culturesEditor", { position: { my: "right top", at: "right-10 top+10", of: "svg" } });
 
   tip("Click on culture to select, drag the circle to change culture", true);
   viewbox
@@ -912,7 +914,7 @@ function exitCulturesManualAssignment(close?: boolean | string): void {
   $body.querySelectorAll<HTMLElement>("div > input, select, span, svg").forEach(e => {
     e.style.pointerEvents = "all";
   });
-  if (!close) $("#culturesEditor").dialog({ position: { my: "right top", at: "right-10 top+10", of: "svg" } });
+  if (!close) openDialog("culturesEditor", { position: { my: "right top", at: "right-10 top+10", of: "svg" } });
 
   debug.select("#cultureCenters").style("display", null);
   restoreDefaultEvents?.();

@@ -5,6 +5,7 @@ import type { WorldContext } from "../context/worldContext";
 import type { IceIceberg } from "../modules/ice";
 import { Ice } from "../modules/ice";
 import { redrawIceberg } from "../renderers/index";
+import { closeDialog, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { parseTransform } from "../utils";
 
 let worldContext: WorldContext;
@@ -43,7 +44,7 @@ export function editIce(element: SVGElement): void {
     .classed("draggable", true)
     .call(drag<SVGElement, unknown>().on("start", dragElementStart).on("drag", dragElementDrag));
 
-  $("#iceEditor").dialog({
+  openDialog("iceEditor", {
     title: `Edit ${type}`,
     resizable: false,
     position: { my: "center top+60", at: "top", of: "svg", collision: "fit" },
@@ -96,17 +97,18 @@ export function editIce(element: SVGElement): void {
   function removeIce(): void {
     const iceType = elSelected!.attr("type") === "glacier" ? "Glacier" : "Iceberg";
     alertMessage.innerHTML = /* html */ `Are you sure you want to remove the ${iceType}?`;
-    $("#alert").dialog({
+    openRichDialog({
+      content: window.alertMessage.innerHTML,
       resizable: false,
       title: `Remove ${iceType}`,
       buttons: {
-        Remove: function () {
-          $(this).dialog("close");
+        Remove: () => {
+          /* $(this).dialog("close") removed */
           Ice.removeIce(+elSelected!.attr("data-id"));
-          $("#iceEditor").dialog("close");
+          closeDialog("iceEditor");
         },
-        Cancel: function () {
-          $(this).dialog("close");
+        Cancel: () => {
+          /* $(this).dialog("close") removed */
         }
       }
     });

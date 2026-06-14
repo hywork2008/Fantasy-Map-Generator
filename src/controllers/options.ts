@@ -1,3 +1,5 @@
+import * as d3 from "d3";
+
 import { hsl } from "d3";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
@@ -13,6 +15,7 @@ import type { State } from "../modules/states-generator";
 import { drawStates } from "../renderers";
 import { fitScaleBar } from "../renderers/index";
 import { type OptionsState, useOptionsState } from "../store/optionsState";
+import { closeAllDialogs, closeDialog, openConfirm, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, gauss, last, minmax, P, rand, rn, rw } from "../utils";
 import { exportToJson as exportToJsonModule } from "./export-json";
 import { open as openHeightmapSelection } from "./heightmap-selection";
@@ -25,6 +28,8 @@ let appServices: AppServices;
 
 import { viewStateStore } from "../store";
 import { applyOption, lock, stored } from "../utils/uiHelpers";
+
+// duplicate import removed
 
 // ─── Options pane show/hide ───────────────────────────────────────────────────
 
@@ -64,12 +69,9 @@ export async function showSupporters(): Promise<void> {
   const list = mod.supporters.split("\n").sort();
   const columns = window.innerWidth < 800 ? 2 : 5;
 
-  alertMessage.innerHTML = `<ul style='column-count: ${columns}; column-gap: 2em'>${list.map((n: string) => `<li>${n}</li>`).join("")}</ul>`;
-  $("#alert").dialog({
-    resizable: false,
+  openRichDialog({
     title: "Patreon Supporters",
-    width: "min-width",
-    position: { my: "center", at: "center", of: "svg" }
+    content: `<ul style='column-count: ${columns}; column-gap: 2em'>${list.map((n: string) => `<li>${n}</li>`).join("")}</ul>`
   });
 }
 
@@ -158,7 +160,7 @@ export function fitMapToScreen(): void {
   const options = useOptionsState.getState();
   window.svgWidth = Math.min(options.mapWidth, window.innerWidth);
   window.svgHeight = Math.min(options.mapHeight, window.innerHeight);
-  svg.attr("width", window.svgWidth).attr("height", window.svgHeight);
+  d3.select("#map").attr("width", window.svgWidth).attr("height", window.svgHeight);
 
   const zoomMin = rn(Math.max(window.svgWidth / window.graphWidth, window.svgHeight / window.graphHeight), 3);
   zoomExtentMin.value = String(zoomMin);
@@ -223,12 +225,9 @@ function showSeedHistoryDialog(): void {
     const button = `<i data-tip="Click to generate a map with this seed" onclick="restoreSeed(${i})" class="icon-history optionsSeedRestore"></i>`;
     return `<li>Seed: ${h.seed} ${button}. Size: ${h.width}x${h.height}. Template: ${h.template}. Created: ${created}</li>`;
   });
-  alertMessage.innerHTML = `<ol style="margin: 0; padding-left: 1.5em">${lines.join("")}</ol>`;
-
-  $("#alert").dialog({
-    resizable: false,
+  openRichDialog({
     title: "Seed history",
-    position: { my: "center", at: "center", of: "svg" }
+    content: `<ol style="margin: 0; padding-left: 1.5em">${lines.join("")}</ol>`
   });
 }
 
@@ -736,21 +735,18 @@ function regeneratePrompt(opts?: { seed?: string }): void {
     return;
   }
 
-  alertMessage.innerHTML = `Are you sure you want to generate a new map?<br />All unsaved changes made to the current map will be lost`;
-  $("#alert").dialog({
-    resizable: false,
-    title: "Generate new map",
-    buttons: {
-      Cancel: function (this: Element) {
-        $(this).dialog("close");
-      },
-      Generate: function (this: Element) {
-        closeDialogs();
+  openConfirm(
+    `Are you sure you want to generate a new map?<br />All unsaved changes made to the current map will be lost`,
+    {
+      title: "Generate new map",
+      confirm: "Generate",
+      cancel: "Cancel",
+      onConfirm: () => {
+        closeAllDialogs();
         regenerateMap(opts);
-        $(this).dialog("close");
       }
     }
-  });
+  );
 }
 
 // ─── Save / export / load panes ───────────────────────────────────────────────
@@ -759,17 +755,7 @@ function showSavePane(): void {
   const sharableLinkContainer = ensureEl("sharableLinkContainer");
   sharableLinkContainer.style.display = "none";
 
-  $("#saveMapData").dialog({
-    title: "Save map",
-    resizable: false,
-    width: "25em",
-    position: { my: "center", at: "center", of: "svg" },
-    buttons: {
-      Close: function (this: Element) {
-        $(this).dialog("close");
-      }
-    }
-  });
+  openDialog("saveMapData", { title: "Save map" });
 }
 
 function copyLinkToClickboard(): void {
@@ -781,17 +767,7 @@ function copyLinkToClickboard(): void {
 function showExportPane(): void {
   ensureEl<HTMLInputElement>("showLabels").checked = !(hideLabels as HTMLInputElement).checked;
 
-  $("#exportMapData").dialog({
-    title: "Export map data",
-    resizable: false,
-    width: "26em",
-    position: { my: "center", at: "center", of: "svg" },
-    buttons: {
-      Close: function (this: Element) {
-        $(this).dialog("close");
-      }
-    }
-  });
+  openDialog("exportMapData", { title: "Export map data" });
 }
 
 function exportToJson(type: string): void {
@@ -799,14 +775,14 @@ function exportToJson(type: string): void {
 }
 
 async function showLoadPane(): Promise<void> {
-  $("#loadMapData").dialog({
+  openDialog("loadMapData", {
     title: "Load map",
-    resizable: false,
+
     width: "auto",
     position: { my: "center", at: "center", of: "svg" },
     buttons: {
       Close: function (this: Element) {
-        $(this).dialog("close");
+        /* $(this).dialog("close") removed */
       }
     }
   });
@@ -856,8 +832,9 @@ function loadURL(): void {
     <input id="mapURL" type="url" style="width: 24em" placeholder="https://e-cloud.com/test.map">
     <br><i>Please note server should allow CORS for file to be loaded. If CORS is not allowed, save file to Dropbox and provide a direct link</i>`;
   alertMessage.innerHTML = inner;
-  $("#alert").dialog({
-    resizable: false,
+  openRichDialog({
+    content: window.alertMessage.innerHTML,
+
     title: "Load map from URL",
     width: "27em",
     buttons: {
@@ -868,10 +845,10 @@ function loadURL(): void {
           return;
         }
         loadMapFromURL(value, 0);
-        $(this).dialog("close");
+        /* $(this).dialog("close") removed */
       },
       Cancel: function (this: Element) {
-        $(this).dialog("close");
+        /* $(this).dialog("close") removed */
       }
     }
   });
@@ -889,14 +866,13 @@ function openExportToPngTiles(): void {
     input.addEventListener("input", updateTilesOptions);
   });
 
-  $("#exportToPngTilesScreen").dialog({
-    resizable: false,
+  openDialog("exportToPngTilesScreen", {
     title: "Download tiles",
     width: "23em",
     buttons: {
       Download: () => exportToPngTiles(),
       Cancel: function (this: Element) {
-        $(this).dialog("close");
+        /* $(this).dialog("close") removed */
       }
     },
     close: () => {
@@ -984,8 +960,8 @@ function enterStandardView(): void {
   if (!document.getElementById("canvas3d")) return;
   ThreeD.stop();
   ensureEl("canvas3d").remove();
-  if (options3dUpdate.offsetParent) $("#options3d").dialog("close");
-  if (preview3d.offsetParent) $("#preview3d").dialog("close");
+  if (options3dUpdate.offsetParent) closeDialog("options3d");
+  if (preview3d.offsetParent) closeDialog("preview3d");
 }
 
 async function enter3dView(type: string): Promise<void> {
@@ -1016,9 +992,9 @@ async function enter3dView(type: string): Promise<void> {
 
   if (type === "heightmap3DView") {
     ensureEl("preview3d").appendChild(canvas);
-    $("#preview3d").dialog({
+    openDialog("preview3d", {
       title: "3D Preview",
-      resizable: true,
+
       position: { my: "left bottom", at: "left+10 bottom-20", of: "svg" },
       resizeStop: resize3d,
       close: enterStandardView
@@ -1037,12 +1013,12 @@ function resize3d(): void {
 
 function toggle3dOptions(): void {
   if (options3dUpdate.offsetParent) {
-    $("#options3d").dialog("close");
+    closeDialog("options3d");
     return;
   }
-  $("#options3d").dialog({
+  openDialog("options3d", {
     title: "3D mode settings",
-    resizable: false,
+
     width: fitContent(),
     position: { my: "right top", at: "right-30 top+10", of: "svg", collision: "fit" }
   });
@@ -1252,8 +1228,8 @@ export function initOptions(wc: WorldContext, vc: Readonly<ViewContext>, as: App
   viewContext = vc;
   appServices = as;
   // draggable/sortable/disableSelection
-  $("#optionsContainer").draggable({ handle: ".drag-trigger", snap: "svg", snapMode: "both" });
-  $("#exitCustomization").draggable({ handle: "div" });
+  // $("#optionsContainer").draggable({ handle: ".drag-trigger", snap: "svg", snapMode: "both" });
+  // $("#exitCustomization").draggable({ handle: "div" });
 
   if (stored("disable_click_arrow_tooltip")) {
     clearMainTip();

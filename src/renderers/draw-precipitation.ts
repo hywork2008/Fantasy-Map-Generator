@@ -8,7 +8,7 @@ import { TIME } from "../utils/debug";
 export const drawPrecipitation = (
   worldContext: Readonly<WorldContext>,
   viewContext: Readonly<ViewContext>,
-  appServices: AppServices
+  _appServices: AppServices
 ): void => {
   TIME && console.time("drawPrecipitation");
   const { grid } = worldContext;

@@ -6,7 +6,7 @@ import { TIME } from "../utils/debug";
 export const drawBorders = (
   worldContext: Readonly<WorldContext>,
   viewContext: Readonly<ViewContext>,
-  appServices: AppServices
+  _appServices: AppServices
 ) => {
   TIME && console.time("drawBorders");
   const { pack } = worldContext;

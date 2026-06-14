@@ -14,6 +14,7 @@ import { open as openReligionsEditor } from "../editors/religions-editor";
 import { editRiver } from "../editors/rivers-editor";
 import { editRoute } from "../editors/routes-editor";
 import { open as openStatesEditor } from "../editors/states-editor";
+import { closeAllDialogs, openConfirm, openDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, parseTransform, rn } from "../utils";
 
 // ─── Default viewbox events ────────────────────────────────────────────────
@@ -84,13 +85,10 @@ function unselect(): void {
 }
 
 function closeDialogs(except = "#except"): void {
-  try {
-    $(".dialog:visible")
-      .not(except)
-      .each(function (this: Element) {
-        $(this).dialog("close");
-      });
-  } catch (_) {}
+  // `#except` is kept for backward compatibility if callers pass `#dialogName`,
+  // but closeAllDialogs takes an ID without `#`.
+  const exceptId = except.startsWith("#") ? except.slice(1) : except;
+  closeAllDialogs(exceptId);
 }
 
 // ─── Brush circle ──────────────────────────────────────────────────────────
@@ -645,7 +643,7 @@ function highlightElement(element: Element, zoom?: number): void {
 
 function selectIcon(initial: string, callback: (value: string) => void): void {
   if (!callback) return;
-  $("#iconSelector").dialog();
+  openDialog("iconSelector", { title: "Select Icon", onClose: () => callback(initial) });
 
   const table = ensureEl<HTMLTableElement>("iconTable");
   const iconInput = ensureEl<HTMLInputElement>("iconInput");
@@ -902,19 +900,7 @@ function selectIcon(initial: string, callback: (value: string) => void): void {
       div.onclick = () => callback(div.style.backgroundImage.slice(5, -2));
     });
 
-  $("#iconSelector").dialog({
-    width: fitContent(),
-    title: "Select Icon",
-    buttons: {
-      Apply: function (this: Element) {
-        $(this).dialog("close");
-      },
-      Close: function (this: Element) {
-        callback(initial);
-        $(this).dialog("close");
-      }
-    }
-  });
+  openDialog("iconSelector"); // Refresh dialog bounds if needed
 }
 
 // ─── Area / units ──────────────────────────────────────────────────────────
@@ -949,19 +935,13 @@ function confirmationDialog(opts: {
     onConfirm
   } = opts;
 
-  const buttons: Record<string, (this: Element) => void> = {
-    [confirm]: function (this: Element) {
-      onConfirm?.();
-      $(this).dialog("close");
-    },
-    [cancel]: function (this: Element) {
-      onCancel?.();
-      $(this).dialog("close");
-    }
-  };
-
-  ensureEl("alertMessage").innerHTML = message;
-  $("#alert").dialog({ resizable: false, title, buttons });
+  openConfirm(message, {
+    title,
+    confirm,
+    cancel,
+    onConfirm,
+    onCancel
+  });
 }
 
 // ─── Event listener helper ─────────────────────────────────────────────────

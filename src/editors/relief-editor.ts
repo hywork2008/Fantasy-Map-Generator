@@ -1,5 +1,6 @@
 import type { D3DragEvent, Quadtree } from "d3";
 import { drag, pointer, quadtree, range, select } from "d3";
+import { closeDialog, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { findAllInQuadtree, findCell, rn } from "../utils";
 
 interface DragAddState {
@@ -44,7 +45,7 @@ export function editReliefIcon(clickedEl?: Element): void {
   updateReliefIconSelected();
   updateReliefSizeInput();
 
-  $("#reliefEditor").dialog({
+  openDialog("reliefEditor", {
     title: "Edit Relief Icons",
     resizable: false,
     width: "27em",
@@ -321,17 +322,18 @@ export function editReliefIcon(clickedEl?: Element): void {
         : `Are you sure you want to remove all icons (${size})?`;
     }
 
-    $("#alert").dialog({
+    openRichDialog({
+      content: window.alertMessage.innerHTML,
       resizable: false,
       title: "Remove relief icons",
       buttons: {
-        Remove: function () {
+        Remove: () => {
           if (selection) selection.remove();
-          $(this).dialog("close");
-          $("#reliefEditor").dialog("close");
+          /* $(this).dialog("close") removed */
+          closeDialog("reliefEditor");
         },
-        Cancel: function () {
-          $(this).dialog("close");
+        Cancel: () => {
+          /* $(this).dialog("close") removed */
         }
       }
     });

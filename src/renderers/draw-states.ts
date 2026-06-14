@@ -7,8 +7,8 @@ import { TIME } from "../utils/debug";
 
 export const drawStates = (
   worldContext: Readonly<WorldContext>,
-  viewContext: Readonly<ViewContext>,
-  appServices: AppServices
+  _viewContext: Readonly<ViewContext>,
+  _appServices: AppServices
 ): void => {
   TIME && console.time("drawStates");
   const { pack } = worldContext;

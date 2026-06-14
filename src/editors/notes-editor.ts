@@ -13,6 +13,7 @@ import "tinymce/plugins/wordcount";
 import "tinymce/icons/default/icons";
 import "tinymce/models/dom/model";
 import type { WorldNote } from "../types/WorldState";
+import { closeDialog, openDialog } from "../ui/dialogs/dialogService";
 import { ensureEl } from "../utils";
 
 export function editNotes(id?: string, name?: string): void {
@@ -53,7 +54,7 @@ export function editNotes(id?: string, name?: string): void {
     notesLegend.innerHTML = "No notes added. Click on an element (e.g. label or marker) and add a free text note";
   }
 
-  $("#notesEditor").dialog({
+  openDialog("notesEditor", {
     title: "Notes Editor",
     width: svgWidth * 0.8,
     height: svgHeight * 0.75,
@@ -158,7 +159,7 @@ export function editNotes(id?: string, name?: string): void {
     notes = notes.filter(({ id: noteId }) => noteId !== notesSelect.value);
 
     if (!notes.length) {
-      $("#notesEditor").dialog("close");
+      closeDialog("notesEditor");
       return;
     }
 

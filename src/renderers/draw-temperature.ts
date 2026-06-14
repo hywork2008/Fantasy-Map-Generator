@@ -8,7 +8,7 @@ import { TIME } from "../utils/debug";
 export const drawTemperature = (
   worldContext: Readonly<WorldContext>,
   viewContext: Readonly<ViewContext>,
-  appServices: AppServices
+  _appServices: AppServices
 ): void => {
   TIME && console.time("drawTemperature");
   const { grid, graphWidth, graphHeight } = worldContext;

@@ -1,6 +1,7 @@
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import { openDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, rn } from "../utils";
 import { fitMapToScreen } from "./options";
 
@@ -20,7 +21,7 @@ async function openTransformTool(): Promise<void> {
   resetInputs();
   loadPreview();
 
-  $("#transformTool").dialog({
+  openDialog("transformTool", {
     title: "Transform map",
     resizable: false,
     position: { my: "center", at: "center", of: "svg" },
@@ -29,8 +30,8 @@ async function openTransformTool(): Promise<void> {
         closeDialogs();
         transformMap();
       },
-      Cancel: function () {
-        $(this).dialog("close");
+      Cancel: () => {
+        /* $(this).dialog("close") removed */
       }
     }
   });

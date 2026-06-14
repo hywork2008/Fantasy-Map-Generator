@@ -22,17 +22,17 @@ interface StyleState {
 
   setActiveElement: (element: string) => void;
   setActiveGroup: (group: string) => void;
-  
+
   setVisibility: (visibility: Record<string, boolean>) => void;
   setValues: (values: Record<string, StyleValue>) => void;
   updateValue: (key: string, value: StyleValue) => void;
   setOptions: (key: string, options: SelectOption[]) => void;
-  
+
   setActivePreset: (preset: string) => void;
   setPresets: (systemPresets: string[], customPresets: string[]) => void;
 }
 
-export const useStyleState = create<StyleState>((set) => ({
+export const useStyleState = create<StyleState>(set => ({
   activeElement: "biomes",
   activeGroup: "",
 
@@ -44,14 +44,14 @@ export const useStyleState = create<StyleState>((set) => ({
   systemPresets: [],
   customPresets: [],
 
-  setActiveElement: (activeElement) => set({ activeElement }),
-  setActiveGroup: (activeGroup) => set({ activeGroup }),
-  
-  setVisibility: (visibility) => set({ visibility }),
-  setValues: (values) => set({ values }),
-  updateValue: (key, value) => set((state) => ({ values: { ...state.values, [key]: value } })),
-  setOptions: (key, optionsList) => set((state) => ({ options: { ...state.options, [key]: optionsList } })),
-  
-  setActivePreset: (activePreset) => set({ activePreset }),
+  setActiveElement: activeElement => set({ activeElement }),
+  setActiveGroup: activeGroup => set({ activeGroup }),
+
+  setVisibility: visibility => set({ visibility }),
+  setValues: values => set({ values }),
+  updateValue: (key, value) => set(state => ({ values: { ...state.values, [key]: value } })),
+  setOptions: (key, optionsList) => set(state => ({ options: { ...state.options, [key]: optionsList } })),
+
+  setActivePreset: activePreset => set({ activePreset }),
   setPresets: (systemPresets, customPresets) => set({ systemPresets, customPresets })
 }));

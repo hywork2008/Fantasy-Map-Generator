@@ -33,10 +33,6 @@
     // Arrow property to keep the same instance reference for add/removeEventListener
     private readonly showTip = () => tip(this.tip);
 
-    constructor() {
-      super();
-    }
-
     connectedCallback() {
       if (!this.querySelector("svg")) {
         this.appendChild(template.content.cloneNode(true));

@@ -5,6 +5,7 @@ import { COA } from "../modules/emblem/generator";
 import { COArenderer } from "../modules/emblem/renderer";
 import type { Province } from "../modules/provinces-generator";
 import type { State } from "../modules/states-generator";
+import { openDialog } from "../ui/dialogs/dialogService";
 import { openURL, rn } from "../utils";
 import { type EmblemEl, highlightEmblemElement } from "../utils/uiHelpers";
 
@@ -46,7 +47,7 @@ export function editEmblem(type?: string, id?: string, elInput?: Element | Burg 
 
   updateElementSelectors(type!, id!, el);
 
-  $("#emblemEditor").dialog({
+  openDialog("emblemEditor", {
     title: "Edit Emblem",
     resizable: true,
     width: "18.2em",
@@ -146,7 +147,7 @@ export function editEmblem(type?: string, id?: string, elInput?: Element | Burg 
     if (elVal) updateEmblemData(typeVal, idVal, elVal);
   }
 
-  function updateEmblemData(typeVal: string, idVal: string, elVal: Burg | Province | State): void {
+  function updateEmblemData(_typeVal: string, idVal: string, elVal: Burg | Province | State): void {
     if (!elVal.coa) return;
     document.getElementById("emblemImage")!.setAttribute("href", `#${idVal}`);
     const name = ("fullName" in elVal ? elVal.fullName : undefined) || elVal.name || "Unknown";
@@ -205,7 +206,7 @@ export function editEmblem(type?: string, id?: string, elInput?: Element | Burg 
   }
 
   function changeShape(): void {
-    if (!el || !el.coa) return;
+    if (!el?.coa) return;
     el.coa.shield = emblemShapeSelector.value;
     const coaEl = document.getElementById(id!);
     if (coaEl) coaEl.remove();
@@ -217,7 +218,7 @@ export function editEmblem(type?: string, id?: string, elInput?: Element | Burg 
   }
 
   function changeSize(event: Event): void {
-    if (!el || !el.coa) return;
+    if (!el?.coa) return;
     const size = +(event.target as HTMLInputElement).value;
     el.coa.size = size;
 
@@ -244,7 +245,7 @@ export function editEmblem(type?: string, id?: string, elInput?: Element | Burg 
   }
 
   function regenerate(): void {
-    if (!el || !el.coa) return;
+    if (!el?.coa) return;
     let parent: Province | State | null = null;
     if (type === "province") parent = pack.states[(el as Province).state] as State;
     else if (type === "burg") {
@@ -268,7 +269,7 @@ export function editEmblem(type?: string, id?: string, elInput?: Element | Burg 
   }
 
   function openInArmoria(): void {
-    if (!el || !el.coa) return;
+    if (!el?.coa) return;
     const coa = el.coa && !el.coa.custom ? el.coa : { t1: "sable" };
     const json = JSON.stringify(coa).replaceAll("#", "%23");
     const url = `https://azgaar.github.io/Armoria/?coa=${json}&from=FMG`;
@@ -299,7 +300,7 @@ export function editEmblem(type?: string, id?: string, elInput?: Element | Burg 
     const reader = new FileReader();
 
     reader.onload = readerEvent => {
-      if (!el || !el.coa) return;
+      if (!el?.coa) return;
       const result = (readerEvent.target as FileReader).result as string;
       const defsEmblems = document.getElementById("defs-emblems")!;
       const oldEmblem = document.getElementById(id!);

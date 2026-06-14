@@ -1,3 +1,4 @@
+import { openDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, openURL } from "../utils";
 
 interface AiProviderConfig {
@@ -200,7 +201,7 @@ async function handleStream(response: Response, getContent: (json: unknown) => v
 function generateWithAi(defaultPrompt: string, onApply: (result: string) => void): void {
   updateValues();
 
-  $("#aiGenerator").dialog({
+  openDialog("aiGenerator", {
     title: "AI Text Generator",
     position: { my: "center", at: "center", of: "svg" },
     resizable: false,
@@ -208,14 +209,14 @@ function generateWithAi(defaultPrompt: string, onApply: (result: string) => void
       Generate: (e?: Event) => {
         generate((e as Event).target as HTMLButtonElement);
       },
-      Apply: function () {
+      Apply: () => {
         const result = (ensureEl("aiGeneratorResult") as HTMLTextAreaElement).value;
         if (!result) return tip("No result to apply", true, "error", 4000);
         onApply(result);
-        $(this).dialog("close");
+        /* $(this).dialog("close") removed */
       },
-      Close: function () {
-        $(this).dialog("close");
+      Close: () => {
+        /* $(this).dialog("close") removed */
       }
     }
   });

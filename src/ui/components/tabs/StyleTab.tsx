@@ -1,6 +1,7 @@
 import { useEffect } from "react";
+import { applySliderChange, initStyleTab } from "../../../controllers/style";
 import { useStyleState } from "../../../store/styleState";
-import { initStyleTab, applySliderChange } from "../../../controllers/style";
+import { callWindowFn } from "../../../utils/windowGlobals";
 import { SliderInput } from "../SliderInput";
 
 export function StyleTab() {
@@ -18,13 +19,12 @@ export function StyleTab() {
       max={max}
       step={step}
       value={values[id] ?? ""}
-      onChange={(v) => applySliderChange(id, v)}
+      onChange={v => applySliderChange(id, v)}
     />
   );
 
   return (
     <div id="styleContent" className="tabcontent" style={{ display: "block" }}>
-
       <p
         data-tip="Select a style preset. State labels may required regeneration if font is changed"
         style={{ display: "inline-block" }}
@@ -34,7 +34,7 @@ export function StyleTab() {
       <select
         data-tip="Select a style preset"
         id="stylePreset"
-        onChange={(e) => (window as any).requestStylePresetChange(e.target.value)}
+        onChange={e => callWindowFn("requestStylePresetChange", e.target.value)}
         style={{ width: "45%", textTransform: "capitalize" }}
       ></select>
       <button
@@ -42,17 +42,21 @@ export function StyleTab() {
         data-tip="Click to save current style as a new preset"
         className="icon-plus sideButton"
         style={{ display: "inline-block" }}
-        onClick={(window as any).addStylePreset}
+        onClick={() => callWindowFn("addStylePreset")}
+        type="button"
       ></button>
       <button
         id="removeStyleButton"
         data-tip="Click to remove current custom style preset"
         className="icon-minus sideButton"
         style={{ display: "none" }}
-        onClick={(window as any).requestRemoveStylePreset}
+        onClick={() => callWindowFn("requestRemoveStylePreset")}
+        type="button"
       ></button>
 
-      <p data-tip="Select an element to edit its style" style={{ display: "inline-block" }}>Select element:</p>
+      <p data-tip="Select an element to edit its style" style={{ display: "inline-block" }}>
+        Select element:
+      </p>
       <select
         data-tip="Select an element to edit its style (list is ordered alphabetically)"
         id="styleElementSelect"
@@ -97,16 +101,15 @@ export function StyleTab() {
       </select>
 
       <table id="styleElements">
-        <caption
-          id="styleIsOff"
-          data-tip="The selected layer is not visible. Toogle it on to see style changes effect"
-        >
+        <caption id="styleIsOff" data-tip="The selected layer is not visible. Toogle it on to see style changes effect">
           Ensure the element visibility is toggled on!
         </caption>
 
         <tbody id="styleGroup" style={{ display: visibility.styleGroup ? "block" : "none" }}>
           <tr data-tip="Select element group">
-            <td><b>Group</b></td>
+            <td>
+              <b>Group</b>
+            </td>
             <td>
               <select id="styleGroupSelect"></select>
             </td>
@@ -117,7 +120,9 @@ export function StyleTab() {
           <tr id="styleHeightmapRenderOceanOption" data-tip="Check to render ocean heights">
             <td colSpan={2}>
               <input id="styleHeightmapRenderOcean" className="checkbox" type="checkbox" />
-              <label htmlFor="styleHeightmapRenderOcean" className="checkbox-label">Render ocean heights</label>
+              <label htmlFor="styleHeightmapRenderOcean" className="checkbox-label">
+                Render ocean heights
+              </label>
             </td>
           </tr>
 
@@ -156,6 +161,7 @@ export function StyleTab() {
                 data-tip="Click to add a custom heightmap color scheme"
                 data-stops="#ffffff,#EEEECC,#D2B48C,#008000,#008080"
                 className="icon-plus sideButton"
+                type="button"
               ></button>
             </td>
           </tr>
@@ -241,7 +247,8 @@ export function StyleTab() {
               <button
                 data-tip="Click and provide a URL to image to be set as a texture"
                 className="icon-plus sideButton"
-                onClick={(window as any).textureProvideURL}
+                onClick={() => callWindowFn("textureProvideURL")}
+                type="button"
               ></button>
             </td>
           </tr>
@@ -249,8 +256,18 @@ export function StyleTab() {
           <tr data-tip="Shift the texture by axes">
             <td>Shift by axes</td>
             <td>
-              <input id="styleTextureShiftX" type="number" defaultValue="0" data-tip="Shift texture by x axis in pixels" />
-              <input id="styleTextureShiftY" type="number" defaultValue="0" data-tip="Shift texture by y axis in pixels" />
+              <input
+                id="styleTextureShiftX"
+                type="number"
+                defaultValue="0"
+                data-tip="Shift texture by x axis in pixels"
+              />
+              <input
+                id="styleTextureShiftY"
+                type="number"
+                defaultValue="0"
+                data-tip="Shift texture by y axis in pixels"
+              />
             </td>
           </tr>
         </tbody>
@@ -417,13 +434,11 @@ export function StyleTab() {
             <td>Scale</td>
             <td>
               <input id="styleGridScale" type="number" min=".1" max="10" step=".01" />
-              <output
-                id="styleGridSizeFriendly"
-                data-tip="Distance between grid cell centers (in map scale)"
-              ></output>
+              <output id="styleGridSizeFriendly" data-tip="Distance between grid cell centers (in map scale)"></output>
               <a
                 href="https://github.com/Azgaar/Fantasy-Map-Generator/wiki/Scale-and-distance#grids"
                 target="_blank"
+                rel="noopener"
               >
                 <span
                   data-tip="Open wiki article scale and distance to know about grid scale"
@@ -474,9 +489,7 @@ export function StyleTab() {
             <td>{slider("styleReliefSize", ".2", "4", ".01")}</td>
           </tr>
 
-          <tr
-            data-tip="Define the density of relief icons. All relief icons will be regenerated. Highly affects performance!"
-          >
+          <tr data-tip="Define the density of relief icons. All relief icons will be regenerated. Highly affects performance!">
             <td>Density</td>
             <td>{slider("styleReliefDensity", ".3", ".8", ".01")}</td>
           </tr>
@@ -545,7 +558,7 @@ export function StyleTab() {
             <td>Font</td>
             <td>
               <select id="styleSelectFont" style={{ width: "85%" }}></select>
-              <button id="styleFontAdd" data-tip="Add a font" className="icon-plus sideButton"></button>
+              <button type="button" id="styleFontAdd" data-tip="Add a font" className="icon-plus sideButton"></button>
             </td>
           </tr>
         </tbody>
@@ -554,8 +567,12 @@ export function StyleTab() {
           <tr data-tip="Set font size">
             <td>Font size</td>
             <td>
-              <button id="styleFontPlus" data-tip="Increase font" className="whiteButton">+</button>
-              <button id="styleFontMinus" data-tip="Descrease font" className="whiteButton">-</button>
+              <button type="button" id="styleFontPlus" data-tip="Increase font" className="whiteButton">
+                +
+              </button>
+              <button type="button" id="styleFontMinus" data-tip="Descrease font" className="whiteButton">
+                -
+              </button>
               <input id="styleFontSize" type="number" min=".5" max="100" step=".1" />
             </td>
           </tr>
@@ -589,7 +606,9 @@ export function StyleTab() {
           <tr data-tip="Allow system to apply filter automatically based on zoom level">
             <td colSpan={2}>
               <input id="styleCoastlineAuto" className="checkbox" type="checkbox" />
-              <label htmlFor="styleCoastlineAuto" className="checkbox-label">Automatically change filter on zoom</label>
+              <label htmlFor="styleCoastlineAuto" className="checkbox-label">
+                Automatically change filter on zoom
+              </label>
             </td>
           </tr>
         </tbody>
@@ -622,7 +641,9 @@ export function StyleTab() {
 
           <tr data-tip="Select filter for states fill. Please note filters may cause performance issues!">
             <td>Body filter</td>
-            <td><select id="styleStatesBodyFilter"></select></td>
+            <td>
+              <select id="styleStatesBodyFilter"></select>
+            </td>
           </tr>
 
           <tr style={{ marginTop: "0.8em" }}>
@@ -641,7 +662,10 @@ export function StyleTab() {
             <td>{slider("styleStatesHaloOpacity", "0", "1", "0.01")}</td>
           </tr>
 
-          <tr data-tip="Select halo effect power (blur). Set to 0 to make it solid line" style={{ marginBottom: "1em" }}>
+          <tr
+            data-tip="Select halo effect power (blur). Set to 0 to make it solid line"
+            style={{ marginBottom: "1em" }}
+          >
             <td>Halo blur</td>
             <td>{slider("styleStatesHaloBlur", "0", "10", "0.01")}</td>
           </tr>
@@ -676,8 +700,15 @@ export function StyleTab() {
 
           <tr data-tip="Allow system to hide emblem groups if their size in too small or too big on that scale">
             <td colSpan={2}>
-              <input id="hideEmblems" className="checkbox" type="checkbox" onChange={(window as any).invokeActiveZooming} />
-              <label htmlFor="hideEmblems" className="checkbox-label">Toggle visibility automatically</label>
+              <input
+                id="hideEmblems"
+                className="checkbox"
+                type="checkbox"
+                onChange={e => callWindowFn("invokeActiveZooming", e)}
+              />
+              <label htmlFor="hideEmblems" className="checkbox-label">
+                Toggle visibility automatically
+              </label>
             </td>
           </tr>
         </tbody>
@@ -685,7 +716,9 @@ export function StyleTab() {
         <tbody id="styleFilter" style={{ display: visibility.styleFilter ? "block" : "none" }}>
           <tr data-tip="Select filter for element. Please note filters may cause performance issues!">
             <td>Filter</td>
-            <td><select id="styleFilterInput"></select></td>
+            <td>
+              <select id="styleFilterInput"></select>
+            </td>
           </tr>
         </tbody>
 
@@ -706,7 +739,9 @@ export function StyleTab() {
           <tr data-tip="Try to keep the same size on any map scale, turn off to get size change depending on scale">
             <td colSpan={2}>
               <input id="styleRescaleMarkers" className="checkbox" type="checkbox" />
-              <label htmlFor="styleRescaleMarkers" className="checkbox-label">Keep initial size on zoom change</label>
+              <label htmlFor="styleRescaleMarkers" className="checkbox-label">
+                Keep initial size on zoom change
+              </label>
             </td>
           </tr>
         </tbody>
@@ -715,21 +750,37 @@ export function StyleTab() {
           <tr data-tip="Completely hide the selected labels group using display:none">
             <td colSpan={2}>
               <input id="styleLabelsHideGroup" className="checkbox" type="checkbox" />
-              <label htmlFor="styleLabelsHideGroup" className="checkbox-label">Hide selected group</label>
+              <label htmlFor="styleLabelsHideGroup" className="checkbox-label">
+                Hide selected group
+              </label>
             </td>
           </tr>
 
           <tr data-tip="Allow system to hide labels if their size in too small or too big on that scale">
             <td colSpan={2}>
-              <input id="hideLabels" className="checkbox" type="checkbox" onChange={(window as any).invokeActiveZooming} />
-              <label htmlFor="hideLabels" className="checkbox-label">Toggle visibility automatically</label>
+              <input
+                id="hideLabels"
+                className="checkbox"
+                type="checkbox"
+                onChange={e => callWindowFn("invokeActiveZooming", e)}
+              />
+              <label htmlFor="hideLabels" className="checkbox-label">
+                Toggle visibility automatically
+              </label>
             </td>
           </tr>
 
           <tr data-tip="Allow system to rescale labels on zoom">
             <td colSpan={2}>
-              <input id="rescaleLabels" className="checkbox" type="checkbox" onChange={(window as any).invokeActiveZooming} />
-              <label htmlFor="rescaleLabels" className="checkbox-label">Rescale on zoom</label>
+              <input
+                id="rescaleLabels"
+                className="checkbox"
+                type="checkbox"
+                onChange={e => callWindowFn("invokeActiveZooming", e)}
+              />
+              <label htmlFor="rescaleLabels" className="checkbox-label">
+                Rescale on zoom
+              </label>
             </td>
           </tr>
         </tbody>
@@ -797,25 +848,47 @@ export function StyleTab() {
             <td>Back padding</td>
             <td style={{ display: "flex", gap: "4px" }}>
               <input id="styleScaleBarBackgroundPaddingTop" type="number" min="0" max="100" style={{ width: "5em" }} />
-              <input id="styleScaleBarBackgroundPaddingRight" type="number" min="0" max="100" style={{ width: "5em" }} />
-              <input id="styleScaleBarBackgroundPaddingBottom" type="number" min="0" max="100" style={{ width: "5em" }} />
+              <input
+                id="styleScaleBarBackgroundPaddingRight"
+                type="number"
+                min="0"
+                max="100"
+                style={{ width: "5em" }}
+              />
+              <input
+                id="styleScaleBarBackgroundPaddingBottom"
+                type="number"
+                min="0"
+                max="100"
+                style={{ width: "5em" }}
+              />
               <input id="styleScaleBarBackgroundPaddingLeft" type="number" min="0" max="100" style={{ width: "5em" }} />
             </td>
           </tr>
 
           <tr data-tip="Select background filter">
             <td>Back filter</td>
-            <td><select id="styleScaleBarBackgroundFilter"></select></td>
+            <td>
+              <select id="styleScaleBarBackgroundFilter"></select>
+            </td>
           </tr>
         </tbody>
       </table>
 
       <div id="mapFilters" data-tip="Set a filter to be applied to the map in general">
         <p>Toggle global filters:</p>
-        <button id="grayscale" className="radio">Grayscale</button>
-        <button id="sepia" className="radio">Sepia</button>
-        <button id="dingy" className="radio">Dingy</button>
-        <button id="tint" className="radio">Tint</button>
+        <button type="button" id="grayscale" className="radio">
+          Grayscale
+        </button>
+        <button type="button" id="sepia" className="radio">
+          Sepia
+        </button>
+        <button type="button" id="dingy" className="radio">
+          Dingy
+        </button>
+        <button type="button" id="tint" className="radio">
+          Tint
+        </button>
       </div>
     </div>
   );

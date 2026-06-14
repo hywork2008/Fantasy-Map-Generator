@@ -2,6 +2,7 @@ import { aleaPRNG } from "../components/AleaPRNG";
 import type { WorldContext } from "../context/worldContext";
 import { HeightmapGenerator } from "../modules/heightmap-generator";
 import { useOptionsState } from "../store/optionsState";
+import { openDialog } from "../ui/dialogs/dialogService";
 import { drawHeights, ensureEl, generateGrid, generateSeed, shouldRegenerateGrid } from "../utils";
 import { getColorScheme, heightmapColorSchemes } from "../utils/colorUtils";
 import type { Grid } from "../utils/graphUtils";
@@ -27,29 +28,29 @@ export function open(): void {
   const $templateInput = ensureEl("templateInput") as HTMLInputElement;
   setSelected($templateInput.value);
 
-  $("#heightmapSelection").dialog({
+  openDialog("heightmapSelection", {
     title: "Select Heightmap",
     resizable: false,
     position: { my: "center", at: "center", of: "svg" },
     buttons: {
-      Cancel: function () {
-        $(this).dialog("close");
+      Cancel: () => {
+        /* $(this).dialog("close") removed */
       },
-      Select: function () {
+      Select: () => {
         const id = getSelected();
         applyOption($templateInput, id, getName(id));
         useOptionsState.getState().setOption("template", id);
         lock("template");
-        $(this).dialog("close");
+        /* $(this).dialog("close") removed */
       },
-      "New Map": function () {
+      "New Map": () => {
         const id = getSelected();
         applyOption($templateInput, id, getName(id));
         useOptionsState.getState().setOption("template", id);
         lock("template");
         const seed = getSeed();
         regeneratePrompt({ seed });
-        $(this).dialog("close");
+        /* $(this).dialog("close") removed */
       }
     }
   });

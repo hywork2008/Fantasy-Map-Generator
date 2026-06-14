@@ -7,7 +7,7 @@ import { ensureEl, rn, round } from "../utils";
 export const drawCoordinates = (
   worldContext: Readonly<WorldContext>,
   viewContext: Readonly<ViewContext>,
-  appServices: AppServices
+  _appServices: AppServices
 ): void => {
   const { mapCoordinates, graphWidth, graphHeight } = worldContext;
   const { scale } = viewContext;

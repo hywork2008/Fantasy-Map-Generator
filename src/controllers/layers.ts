@@ -438,7 +438,7 @@ function toggleCells(event?: MouseEvent): void {
 function toggleIce(event?: MouseEvent): void {
   if (!layerIsOn("toggleIce")) {
     turnButtonOn("toggleIce");
-    $("#ice").fadeIn();
+    d3.select("#ice").style("display", "block");
     if (!ice.selectAll("*").size()) drawIce(worldContext, viewContext, appServices);
     if (event && isCtrlClick(event)) editStyle("ice");
   } else {
@@ -446,7 +446,7 @@ function toggleIce(event?: MouseEvent): void {
       editStyle("ice");
       return;
     }
-    $("#ice").fadeOut();
+    d3.select("#ice").style("display", "none");
     turnButtonOff("toggleIce");
   }
 }
@@ -564,14 +564,14 @@ function toggleCompass(event?: MouseEvent): void {
   if (!layerIsOn("toggleCompass")) {
     turnButtonOn("toggleCompass");
     if (!compass.select("use").size()) compass.append("use").attr("xlink:href", "#defs-compass-rose");
-    $("#compass").fadeIn();
+    d3.select("#compass").style("display", "block");
     if (event && isCtrlClick(event)) editStyle("compass");
   } else {
     if (event && isCtrlClick(event)) {
       editStyle("compass");
       return;
     }
-    $("#compass").fadeOut();
+    d3.select("#compass").style("display", "none");
     turnButtonOff("toggleCompass");
   }
 }
@@ -580,14 +580,14 @@ function toggleRelief(event?: MouseEvent): void {
   if (!layerIsOn("toggleRelief")) {
     turnButtonOn("toggleRelief");
     if (!terrain.selectAll("*").size()) drawReliefIcons(worldContext, viewContext, appServices);
-    $("#terrain").fadeIn();
+    d3.select("#terrain").style("display", "block");
     if (event && isCtrlClick(event)) editStyle("terrain");
   } else {
     if (event && isCtrlClick(event)) {
       editStyle("terrain");
       return;
     }
-    $("#terrain").fadeOut();
+    d3.select("#terrain").style("display", "none");
     turnButtonOff("toggleRelief");
   }
 }
@@ -595,14 +595,14 @@ function toggleRelief(event?: MouseEvent): void {
 function toggleLakes(event?: MouseEvent): void {
   if (!layerIsOn("toggleLakes")) {
     turnButtonOn("toggleLakes");
-    $("#lakes").fadeIn();
+    d3.select("#lakes").style("display", "block");
     if (event && isCtrlClick(event)) editStyle("lakes");
   } else {
     if (event && isCtrlClick(event)) {
       editStyle("lakes");
       return;
     }
-    $("#lakes").fadeOut();
+    d3.select("#lakes").style("display", "none");
     turnButtonOff("toggleLakes");
   }
 }
@@ -685,7 +685,7 @@ function toggleMarkers(event?: MouseEvent): void {
 function toggleLabels(event?: MouseEvent): void {
   if (!layerIsOn("toggleLabels")) {
     turnButtonOn("toggleLabels");
-    $("#labels").fadeIn();
+    d3.select("#labels").style("display", "block");
     if (labels.selectAll("text").size() === 0) drawLabels();
     if (event && isCtrlClick(event)) editStyle("labels");
   } else {
@@ -694,7 +694,7 @@ function toggleLabels(event?: MouseEvent): void {
       return;
     }
     turnButtonOff("toggleLabels");
-    $("#labels").fadeOut();
+    d3.select("#labels").style("display", "none");
   }
 }
 
@@ -733,14 +733,14 @@ function toggleRulers(event?: MouseEvent): void {
 function toggleScaleBar(event?: MouseEvent): void {
   if (!layerIsOn("toggleScaleBar")) {
     turnButtonOn("toggleScaleBar");
-    $("#scaleBar").fadeIn();
+    d3.select("#scaleBar").style("display", "block");
     if (event && isCtrlClick(event)) editStyle("scaleBar");
   } else {
     if (event && isCtrlClick(event)) {
       editStyle("scaleBar");
       return;
     }
-    $("#scaleBar").fadeOut();
+    d3.select("#scaleBar").style("display", "none");
     turnButtonOff("toggleScaleBar");
   }
 }
@@ -764,7 +764,7 @@ function toggleEmblems(event?: MouseEvent): void {
   if (!layerIsOn("toggleEmblems")) {
     turnButtonOn("toggleEmblems");
     if (!emblems.selectAll("use").size()) drawEmblems(worldContext, viewContext, appServices);
-    $("#emblems").fadeIn();
+    d3.select("#emblems").style("display", "block");
     invokeActiveZooming();
     if (event && isCtrlClick(event)) editStyle("emblems");
   } else {
@@ -772,7 +772,7 @@ function toggleEmblems(event?: MouseEvent): void {
       editStyle("emblems");
       return;
     }
-    $("#emblems").fadeOut();
+    d3.select("#emblems").style("display", "none");
     turnButtonOff("toggleEmblems");
   }
 }
@@ -780,14 +780,14 @@ function toggleEmblems(event?: MouseEvent): void {
 function toggleVignette(event?: MouseEvent): void {
   if (!layerIsOn("toggleVignette")) {
     turnButtonOn("toggleVignette");
-    $("#vignette").fadeIn();
+    d3.select("#vignette").style("display", "block");
     if (event && isCtrlClick(event)) editStyle("vignette");
   } else {
     if (event && isCtrlClick(event)) {
       editStyle("vignette");
       return;
     }
-    $("#vignette").fadeOut();
+    d3.select("#vignette").style("display", "none");
     turnButtonOff("toggleVignette");
   }
 }
@@ -798,38 +798,38 @@ export function syncSVGLayersOrder(layers: { id: string }[]): void {
   for (let i = 1; i < layers.length; i++) {
     const current = getLayer(layers[i].id);
     const prev = getLayer(layers[i - 1].id);
-    if (current && prev && current[0] && prev[0]) {
-      current.insertAfter(prev);
+    if (current && prev && current.parentNode === prev.parentNode) {
+      prev.parentNode?.insertBefore(current, prev.nextSibling);
     }
   }
 }
 
-function getLayer(id: string): JQuery<HTMLElement> | null {
-  if (id === "toggleLakes") return $("#lakes");
-  if (id === "toggleHeight") return $("#terrs");
-  if (id === "toggleBiomes") return $("#biomes");
-  if (id === "toggleCells") return $("#cells");
-  if (id === "toggleGrid") return $("#gridOverlay");
-  if (id === "toggleCoordinates") return $("#coordinates");
-  if (id === "toggleCompass") return $("#compass");
-  if (id === "toggleRivers") return $("#rivers");
-  if (id === "toggleRelief") return $("#terrain");
-  if (id === "toggleReligions") return $("#relig");
-  if (id === "toggleCultures") return $("#cults");
-  if (id === "toggleStates") return $("#regions");
-  if (id === "toggleProvinces") return $("#provs");
-  if (id === "toggleBorders") return $("#borders");
-  if (id === "toggleRoutes") return $("#routes");
-  if (id === "toggleTemperature") return $("#temperature");
-  if (id === "togglePrecipitation") return $("#prec");
-  if (id === "togglePopulation") return $("#population");
-  if (id === "toggleIce") return $("#ice");
-  if (id === "toggleTexture") return $("#texture");
-  if (id === "toggleEmblems") return $("#emblems");
-  if (id === "toggleLabels") return $("#labels");
-  if (id === "toggleBurgIcons") return $("#icons");
-  if (id === "toggleMarkers") return $("#markers");
-  if (id === "toggleRulers") return $("#ruler");
+function getLayer(id: string): HTMLElement | null {
+  if (id === "toggleLakes") return document.getElementById("lakes");
+  if (id === "toggleHeight") return document.getElementById("terrs");
+  if (id === "toggleBiomes") return document.getElementById("biomes");
+  if (id === "toggleCells") return document.getElementById("cells");
+  if (id === "toggleGrid") return document.getElementById("gridOverlay");
+  if (id === "toggleCoordinates") return document.getElementById("coordinates");
+  if (id === "toggleCompass") return document.getElementById("compass");
+  if (id === "toggleRivers") return document.getElementById("rivers");
+  if (id === "toggleRelief") return document.getElementById("terrain");
+  if (id === "toggleReligions") return document.getElementById("relig");
+  if (id === "toggleCultures") return document.getElementById("cults");
+  if (id === "toggleStates") return document.getElementById("regions");
+  if (id === "toggleProvinces") return document.getElementById("provs");
+  if (id === "toggleBorders") return document.getElementById("borders");
+  if (id === "toggleRoutes") return document.getElementById("routes");
+  if (id === "toggleTemperature") return document.getElementById("temperature");
+  if (id === "togglePrecipitation") return document.getElementById("prec");
+  if (id === "togglePopulation") return document.getElementById("population");
+  if (id === "toggleIce") return document.getElementById("ice");
+  if (id === "toggleTexture") return document.getElementById("texture");
+  if (id === "toggleEmblems") return document.getElementById("emblems");
+  if (id === "toggleLabels") return document.getElementById("labels");
+  if (id === "toggleBurgIcons") return document.getElementById("icons");
+  if (id === "toggleMarkers") return document.getElementById("markers");
+  if (id === "toggleRulers") return document.getElementById("ruler");
   return null;
 }
 

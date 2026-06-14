@@ -6,7 +6,7 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["src/**/*.ts"]
+    "includes": ["src/**/*.ts", "src/**/*.tsx"]
   },
   "formatter": {
     "enabled": true,
@@ -25,6 +25,14 @@
           "fix": "safe"
         },
         "noNonNullAssertion": "off"
+      },
+      "a11y": {
+        "noLabelWithoutControl": "warn",
+        "useKeyWithClickEvents": "warn",
+        "useKeyWithMouseEvents": "warn",
+        "noStaticElementInteractions": "warn",
+        "useValidAnchor": "warn",
+        "useAnchorContent": "warn"
       },
       "suspicious": {
         "noExplicitAny": "error",

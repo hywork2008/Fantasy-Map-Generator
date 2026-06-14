@@ -3,6 +3,7 @@ import type { Burg } from "../modules/burgs-generator";
 import { Burgs } from "../modules/burgs-generator";
 import type { Culture } from "../modules/cultures-generator";
 import { COArenderer } from "../modules/emblem/renderer";
+import { closeDialog, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { convertTemperature, ensureEl, findCell, openURL, parseTransform, rand, rn, showPrompt } from "../utils";
 import { editBurgGroups } from "./burg-group-editor";
 import { editEmblem } from "./emblems-editor";
@@ -39,7 +40,7 @@ export function editBurg(id?: number): void {
   updateGroupsList();
   updateBurgValues();
 
-  $("#burgEditor").dialog({
+  openDialog("burgEditor", {
     title: "Edit Burg",
     resizable: false,
     close: closeBurgEditor,
@@ -446,12 +447,13 @@ export function editBurg(id?: number): void {
 
     if (burg.capital) {
       alertMessage.innerHTML = /* html */ `You cannot remove the capital. You must change the state capital first`;
-      $("#alert").dialog({
+      openRichDialog({
+        content: window.alertMessage.innerHTML,
         resizable: false,
         title: "Remove burg",
         buttons: {
-          Ok: function () {
-            $(this).dialog("close");
+          Ok: () => {
+            /* $(this).dialog("close") removed */
           }
         }
       });
@@ -462,7 +464,7 @@ export function editBurg(id?: number): void {
         confirm: "Remove",
         onConfirm: () => {
           Burgs.remove(burgId);
-          $("#burgEditor").dialog("close");
+          closeDialog("burgEditor");
         }
       });
     }

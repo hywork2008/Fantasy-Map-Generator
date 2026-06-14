@@ -14,6 +14,7 @@ import { Provinces } from "../modules/provinces-generator";
 import type { State } from "../modules/states-generator";
 import { States } from "../modules/states-generator";
 import { drawBorders, drawPopulation, drawProvinces, drawStateLabels, drawStates } from "../renderers";
+import { openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, findCell, getRandomColor, isLand, parseTransform, rand, rn, si, unique } from "../utils";
 import { getPackPolygon } from "../utils/graphUtils";
 import { editEmblem } from "./emblems-editor";
@@ -40,7 +41,7 @@ export function editProvinces(): void {
   if (modules.editProvinces) return;
   modules.editProvinces = true;
 
-  $("#provincesEditor").dialog({
+  openDialog("provincesEditor", {
     title: "Provinces Editor",
     resizable: false,
     width: fitContent(),
@@ -222,7 +223,7 @@ export function editProvinces(): void {
       togglePercentageMode();
     }
     applySorting(ensureEl("provincesHeader") as HTMLElement);
-    $("#provincesEditor").dialog({ width: fitContent() });
+    openDialog("provincesEditor", { width: fitContent() });
   }
 
   function getCapitalOptions(burgs: number[], capital: number): string {
@@ -438,7 +439,8 @@ export function editProvinces(): void {
       totalPopPercEl().innerHTML = String(rn((totalNew / total) * 100));
     };
 
-    $("#alert").dialog({
+    openRichDialog({
+      content: window.alertMessage.innerHTML,
       resizable: false,
       title: "Change province population",
       width: "24em",
@@ -449,10 +451,10 @@ export function editProvinces(): void {
       buttons: {
         Apply: function (this: Element) {
           applyPopulationChange();
-          $(this).dialog("close");
+          /* $(this).dialog("close") removed */
         },
         Cancel: function (this: Element) {
-          $(this).dialog("close");
+          /* $(this).dialog("close") removed */
         }
       },
       position: { my: "center", at: "center", of: "svg" }
@@ -501,7 +503,8 @@ export function editProvinces(): void {
 
   function removeProvince(p: number): void {
     alertMessage.innerHTML = "Are you sure you want to remove the province? <br />This action cannot be reverted";
-    $("#alert").dialog({
+    openRichDialog({
+      content: window.alertMessage.innerHTML,
       resizable: false,
       title: "Remove province",
       buttons: {
@@ -527,10 +530,10 @@ export function editProvinces(): void {
           g.select(`#province-gap${p}`).remove();
           if (layerIsOn("toggleBorders")) drawBorders(worldContext, viewContext, appServices);
           refreshProvincesEditor();
-          $(this).dialog("close");
+          /* $(this).dialog("close") removed */
         },
         Cancel: function (this: Element) {
-          $(this).dialog("close");
+          /* $(this).dialog("close") removed */
         }
       }
     });
@@ -546,16 +549,16 @@ export function editProvinces(): void {
     const cultureId = pack.cells.culture[p.center];
     ensureEl("provinceCultureDisplay").innerText = (pack.cultures as Culture[])[cultureId].name;
 
-    $("#provinceNameEditor").dialog({
+    openDialog("provinceNameEditor", {
       resizable: false,
       title: "Change province name",
       buttons: {
         Apply: function (this: Element) {
           applyNameChange(p);
-          $(this).dialog("close");
+          /* $(this).dialog("close") removed */
         },
         Cancel: function (this: Element) {
-          $(this).dialog("close");
+          /* $(this).dialog("close") removed */
         }
       },
       position: { my: "center", at: "center", of: "svg" }
@@ -818,7 +821,8 @@ export function editProvinces(): void {
       setTimeout(hideNonfittingLabels, 2000);
     }
 
-    $("#alert").dialog({
+    openRichDialog({
+      content: window.alertMessage.innerHTML,
       title: "Provinces chart",
       width: fitContent(),
       position: { my: "left bottom", at: "left+10 bottom-10", of: "svg" },
@@ -901,7 +905,7 @@ export function editProvinces(): void {
     body.querySelectorAll<HTMLElement>("div > input, select, span, svg").forEach(e => {
       e.style.pointerEvents = "none";
     });
-    $("#provincesEditor").dialog({
+    openDialog("provincesEditor", {
       position: { my: "right top", at: "right-10 top+10", of: "svg", collision: "fit" }
     });
 
@@ -1060,7 +1064,7 @@ export function editProvinces(): void {
       e.style.pointerEvents = "all";
     });
     if (!close)
-      $("#provincesEditor").dialog({
+      openDialog("provincesEditor", {
         position: { my: "right top", at: "right-10 top+10", of: "svg", collision: "fit" }
       });
 
@@ -1199,12 +1203,13 @@ export function editProvinces(): void {
 
   function removeAllProvinces(): void {
     alertMessage.innerHTML = "Are you sure you want to remove all provinces? <br />This action cannot be reverted";
-    $("#alert").dialog({
+    openRichDialog({
+      content: window.alertMessage.innerHTML,
       resizable: false,
       title: "Remove all provinces",
       buttons: {
         Remove: function (this: Element) {
-          $(this).dialog("close");
+          /* $(this).dialog("close") removed */
 
           document.querySelectorAll("[id^='provinceCOA']").forEach(el => {
             el.remove();
@@ -1225,7 +1230,7 @@ export function editProvinces(): void {
           provincesEditorAddLines();
         },
         Cancel: function (this: Element) {
-          $(this).dialog("close");
+          /* $(this).dialog("close") removed */
         }
       }
     });
@@ -1257,11 +1262,12 @@ export function editProvinces(): void {
     const selectedState = +(ensureEl("provincesFilterState") as HTMLSelectElement).value;
     if (selectedState === -1) {
       alertMessage.innerHTML = "Please select a specific state from the filter to merge provinces within that state.";
-      $("#alert").dialog({
+      openRichDialog({
+        content: window.alertMessage.innerHTML,
         title: "Merge Provinces",
         buttons: {
           OK: function (this: Element) {
-            $(this).dialog("close");
+            /* $(this).dialog("close") removed */
           }
         }
       });
@@ -1270,11 +1276,12 @@ export function editProvinces(): void {
     const provincesToMerge = (pack.provinces as Province[]).filter(p => p.i && !p.removed && p.state === selectedState);
     if (provincesToMerge.length < 2) {
       alertMessage.innerHTML = "Not enough provinces in the selected state to merge.";
-      $("#alert").dialog({
+      openRichDialog({
+        content: window.alertMessage.innerHTML,
         title: "Merge Provinces",
         buttons: {
           OK: function (this: Element) {
-            $(this).dialog("close");
+            /* $(this).dialog("close") removed */
           }
         }
       });
@@ -1342,7 +1349,8 @@ export function editProvinces(): void {
         .attrTween("stroke-dasharray", () => interp);
     }
 
-    $("#alert").dialog({
+    openRichDialog({
+      content: window.alertMessage.innerHTML,
       width: 600,
       title: "Merge provinces",
       close: () => provinceHighlightOff(null),
@@ -1369,12 +1377,12 @@ export function editProvinces(): void {
             confirm: "Merge",
             onConfirm: () => {
               mergeProvinces(provincesToMergeIds, primaryProvinceId);
-              $(this).dialog("close");
+              /* $(this).dialog("close") removed */
             }
           });
         },
         Cancel: function (this: Element) {
-          $(this).dialog("close");
+          /* $(this).dialog("close") removed */
         }
       }
     });

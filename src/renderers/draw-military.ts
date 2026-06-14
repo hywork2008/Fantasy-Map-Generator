@@ -29,7 +29,7 @@ export const drawMilitary = (
 export const drawRegiments = (
   worldContext: Readonly<WorldContext>,
   viewContext: Readonly<ViewContext>,
-  appServices: AppServices,
+  _appServices: AppServices,
   regiments: MilitaryRegiment[],
   s: number
 ): void => {
@@ -91,7 +91,7 @@ export const drawRegiments = (
 export const drawRegiment = (
   worldContext: Readonly<WorldContext>,
   viewContext: Readonly<ViewContext>,
-  appServices: AppServices,
+  _appServices: AppServices,
   reg: MilitaryRegiment,
   stateId: number
 ): void => {
@@ -148,9 +148,9 @@ export const drawRegiment = (
 
 // move one regiment to another
 export const moveRegiment = (
-  worldContext: Readonly<WorldContext>,
+  _worldContext: Readonly<WorldContext>,
   viewContext: Readonly<ViewContext>,
-  appServices: AppServices,
+  _appServices: AppServices,
   reg: MilitaryRegiment,
   x: number,
   y: number

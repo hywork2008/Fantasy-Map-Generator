@@ -177,9 +177,9 @@ class NamesGenerator {
 
   // generate short name for culture
   getCultureShort(
-    worldContext: WorldContext,
-    viewContext: Readonly<ViewContext>,
-    appServices: AppServices,
+    _worldContext: WorldContext,
+    _viewContext: Readonly<ViewContext>,
+    _appServices: AppServices,
     culture: number
   ): string {
     const { pack } = this.worldContext;

@@ -1,4 +1,5 @@
 import { curveNatural, type D3DragEvent, drag, pointer, select } from "d3";
+import { closeDialog, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, findCell, parseTransform, round } from "../utils";
 import { editNotes } from "./notes-editor";
 
@@ -28,7 +29,7 @@ export function editLabel(tspan?: Element): void {
     .classed("draggable", true);
   viewbox.on("touchmove mousemove", showEditorTips);
 
-  $("#labelEditor").dialog({
+  openDialog("labelEditor", {
     title: "Edit Label",
     resizable: false,
     width: fitContent(),
@@ -291,13 +292,14 @@ export function editLabel(tspan?: Element): void {
       basic ? "all elements in the group" : "the entire label group"
     }? <br /><br />Labels to be
       removed: ${count}`;
-    $("#alert").dialog({
+    openRichDialog({
+      content: window.alertMessage.innerHTML,
       resizable: false,
       title: "Remove route group",
       buttons: {
-        Remove: function () {
-          $(this).dialog("close");
-          $("#labelEditor").dialog("close");
+        Remove: () => {
+          /* $(this).dialog("close") removed */
+          closeDialog("labelEditor");
           hideGroupSection();
           labels
             .select(`#${group}`)
@@ -308,8 +310,8 @@ export function editLabel(tspan?: Element): void {
             });
           if (!basic) labels.select(`#${group}`).remove();
         },
-        Cancel: function () {
-          $(this).dialog("close");
+        Cancel: () => {
+          /* $(this).dialog("close") removed */
         }
       }
     });
@@ -449,18 +451,19 @@ export function editLabel(tspan?: Element): void {
 
   function removeLabel(): void {
     alertMessage.innerHTML = "Are you sure you want to remove the label?";
-    $("#alert").dialog({
+    openRichDialog({
+      content: window.alertMessage.innerHTML,
       resizable: false,
       title: "Remove label",
       buttons: {
-        Remove: function () {
-          $(this).dialog("close");
+        Remove: () => {
+          /* $(this).dialog("close") removed */
           defs.select(`#textPath_${elSelected!.attr("id")}`).remove();
           elSelected!.remove();
-          $("#labelEditor").dialog("close");
+          closeDialog("labelEditor");
         },
-        Cancel: function () {
-          $(this).dialog("close");
+        Cancel: () => {
+          /* $(this).dialog("close") removed */
         }
       }
     });

@@ -1,5 +1,6 @@
 import * as d3 from "d3";
 import type { WorldContext } from "../context/worldContext";
+import { closeDialog, openDialog } from "../ui/dialogs/dialogService";
 import { capitalize, convertTemperature, ensureEl, rn, si } from "../utils";
 import { isWater } from "../utils/graphUtils";
 
@@ -275,7 +276,7 @@ export function open(): void {
       renderChart(chart);
     });
 
-  $("#chartsOverview").dialog({
+  openDialog("chartsOverview", {
     title: "Data Charts",
     position: { my: "center", at: "center", of: "svg" },
     close: handleClose
@@ -648,15 +649,11 @@ function changeViewColumns(): void {
   updateDialogPosition();
 }
 
-function updateDialogPosition(): void {
-  const $el = $("#chartsOverview");
-  if (!$el.hasClass("ui-dialog-content")) return;
-  $el.dialog({ position: { my: "center", at: "center", of: "svg" } });
-}
+function updateDialogPosition(): void {}
 
 function handleClose(): void {
   ensureEl("chartsOverview__charts").innerHTML = "";
-  $("#chartsOverview").dialog("destroy");
+  closeDialog("chartsOverview");
 }
 
 function getTextMinWidth(entities: string[]): number {

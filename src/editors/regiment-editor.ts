@@ -7,6 +7,7 @@ import type { MilitaryRegiment } from "../modules/military-generator";
 import { Military } from "../modules/military-generator";
 import { drawRegiment, moveRegiment } from "../renderers/index";
 import type { WorldNote } from "../types/WorldState";
+import { closeDialog, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { capitalize, ensureEl, findCell, last, rn } from "../utils";
 import { editNotes } from "./notes-editor";
 
@@ -32,7 +33,7 @@ export function editRegiment(selectorOrEl?: string | Element): void {
   drawBase();
   drawRotationControl();
 
-  $("#regimentEditor").dialog({
+  openDialog("regimentEditor", {
     title: "Edit Regiment",
     resizable: false,
     close: closeEditor,
@@ -365,7 +366,7 @@ export function editRegiment(selectorOrEl?: string | Element): void {
       .remove();
 
     clearMainTip();
-    $("#regimentEditor").dialog("close");
+    closeDialog("regimentEditor");
   }
 
   function toggleAttach(): void {
@@ -418,7 +419,7 @@ export function editRegiment(selectorOrEl?: string | Element): void {
     (elSelected as unknown as SVGGElement).remove();
 
     if (regimentsOverviewRefresh?.offsetParent) regimentsOverviewRefresh.click();
-    $("#regimentEditor").dialog("close");
+    closeDialog("regimentEditor");
     editRegiment(`#${regSelected.id}`);
   }
 
@@ -436,12 +437,13 @@ export function editRegiment(selectorOrEl?: string | Element): void {
 
   function removeRegiment(): void {
     alertMessage.innerHTML = "Are you sure you want to remove the regiment?";
-    $("#alert").dialog({
+    openRichDialog({
+      content: window.alertMessage.innerHTML,
       resizable: false,
       title: "Remove regiment",
       buttons: {
-        Remove: function () {
-          $(this).dialog("close");
+        Remove: () => {
+          /* $(this).dialog("close") removed */
           const military = pack.states[+getRegEl().dataset.state!].military ?? [];
           const regIndex = military.indexOf(getRegiment());
           if (regIndex === -1) return;
@@ -453,10 +455,10 @@ export function editRegiment(selectorOrEl?: string | Element): void {
 
           if (militaryOverviewRefresh?.offsetParent) militaryOverviewRefresh.click();
           if (regimentsOverviewRefresh?.offsetParent) regimentsOverviewRefresh.click();
-          $("#regimentEditor").dialog("close");
+          closeDialog("regimentEditor");
         },
-        Cancel: function () {
-          $(this).dialog("close");
+        Cancel: () => {
+          /* $(this).dialog("close") removed */
         }
       }
     });

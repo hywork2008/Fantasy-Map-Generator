@@ -1,4 +1,5 @@
 import * as d3 from "d3";
+import { closeDialog, openDialog } from "../ui/dialogs/dialogService";
 import { capitalize, ensureEl, minmax } from "../utils";
 
 export interface HierarchyElement {
@@ -81,7 +82,7 @@ export function open(props: HierarchyProps): void {
   ]);
   svgEl.attr("viewBox", `0, 0, ${width}, ${height}`);
 
-  $("#hierarchyTree").dialog({
+  openDialog("hierarchyTree", {
     title: `${capitalize(props.type)} tree`,
     position: { my: "left center", at: "left+10 center", of: "svg" },
     width
@@ -418,12 +419,12 @@ function selectElement(this: SVGGElement, _event: MouseEvent, d: d3.HierarchyPoi
     ensureEl("hierarchyTree_originSelector").innerHTML =
       `<form style="max-height: 35vh">${selectableElementsHtml.join("")}</form>`;
 
-    $("#hierarchyTree_originSelector").dialog({
+    openDialog("hierarchyTree_originSelector", {
       title: "Select origins",
       position: { my: "center", at: "center", of: "svg" },
       buttons: {
         Select: () => {
-          $("#hierarchyTree_originSelector").dialog("close");
+          closeDialog("hierarchyTree_originSelector");
           const $selector = ensureEl("hierarchyTree_originSelector");
           const selectedRadio = $selector.querySelector<HTMLInputElement>("input[type='radio']:checked");
           const selectedCheckboxes = $selector.querySelectorAll<HTMLInputElement>("input[type='checkbox']:checked");
@@ -436,7 +437,7 @@ function selectElement(this: SVGGElement, _event: MouseEvent, d: d3.HierarchyPoi
           createOriginButtons();
         },
         Cancel: () => {
-          $("#hierarchyTree_originSelector").dialog("close");
+          closeDialog("hierarchyTree_originSelector");
         }
       }
     });

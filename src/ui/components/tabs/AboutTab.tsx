@@ -1,12 +1,11 @@
-import React from "react";
+import type React from "react";
 import { showSupporters } from "../../../controllers/options";
+import { getWindowProp } from "../../../utils/windowGlobals";
 
 export const AboutTab: React.FC = () => {
   const startTour = () => {
-    const w = window as any;
-    if (w.UITour && w.UITour.start) {
-      w.UITour.start();
-    }
+    const tour = getWindowProp<{ start?: () => void }>("UITour");
+    tour?.start?.();
   };
 
   return (
@@ -16,6 +15,7 @@ export const AboutTab: React.FC = () => {
           id="startTourButton"
           onClick={startTour}
           data-tip="Take an interactive tour of the map generator"
+          type="button"
         >
           &#9654; Take an Interactive Tour
         </button>
@@ -28,9 +28,13 @@ export const AboutTab: React.FC = () => {
         <a href="https://github.com/Azgaar/Fantasy-Map-Generator/blob/master/LICENSE" target="_blank" rel="noreferrer">
           open source
         </a>{" "}
-        tool by Azgaar. You may use auto-generated maps as they are, edit them or even create a new map from
-        scratch. Check out the{" "}
-        <a href="https://github.com/Azgaar/Fantasy-Map-Generator/wiki/Quick-Start-Tutorial" target="_blank" rel="noreferrer">
+        tool by Azgaar. You may use auto-generated maps as they are, edit them or even create a new map from scratch.
+        Check out the{" "}
+        <a
+          href="https://github.com/Azgaar/Fantasy-Map-Generator/wiki/Quick-Start-Tutorial"
+          target="_blank"
+          rel="noreferrer"
+        >
           Quick start
         </a>
         ,{" "}
@@ -61,8 +65,8 @@ export const AboutTab: React.FC = () => {
       </p>
 
       <p>
-        The project is under active development. Creator and main maintainer: Azgaar. To track the development
-        progress see the{" "}
+        The project is under active development. Creator and main maintainer: Azgaar. To track the development progress
+        see the{" "}
         <a href="https://trello.com/b/7x832DG4/fantasy-map-generator" target="_blank" rel="noreferrer">
           devboard
         </a>
@@ -98,7 +102,7 @@ export const AboutTab: React.FC = () => {
         >
           <div>
             <div style={{ width: "0.8em", display: "inline-block", padding: "0 0.2em", fill: "white" }}>
-              <svg viewBox="0 0 569 546">
+              <svg viewBox="0 0 569 546" aria-hidden="true">
                 <circle cx="362.589996" cy="204.589996" data-fill="1" id="Oval" r="204.589996" />
                 <rect data-fill="2" height="545.799988" id="Rectangle" width="100" x="0" y="0" />
               </svg>
@@ -110,15 +114,21 @@ export const AboutTab: React.FC = () => {
 
       <p>
         Special thanks to{" "}
-        <a data-tip="Click to see list of supporters" onClick={showSupporters} style={{ cursor: 'pointer' }}>
+        <a data-tip="Click to see list of supporters" onClick={showSupporters} style={{ cursor: "pointer" }}>
           all supporters
         </a>{" "}
         on Patreon!
       </p>
 
       <div style={{ display: "flex", justifyContent: "center", padding: "0.8em 0.4em 0.4em", fontFamily: "cursive" }}>
-        <a href="https://u24.gov.ua/" style={{ width: "80%" }} data-tip="Support Ukraine" target="_blank" rel="noreferrer">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 350">
+        <a
+          href="https://u24.gov.ua/"
+          style={{ width: "80%" }}
+          data-tip="Support Ukraine"
+          target="_blank"
+          rel="noreferrer"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 350" aria-hidden="true">
             <rect width="100%" height="100%" fill="#005bbb"></rect>
             <rect y="50%" width="100%" height="50%" fill="#ffd500"></rect>
             <text x="50%" textAnchor="middle" fontSize="8em" y="32%" fill="#f5f5f5">

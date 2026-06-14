@@ -1,3 +1,4 @@
+import { openDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, minmax, rn } from "../utils";
 
 let minimapInitialized = false;
@@ -9,16 +10,16 @@ export function openMinimapDialog(): void {
 
   updateMinimap();
 
-  $("#minimap").dialog({
+  openDialog("minimap", {
     title: "Minimap",
     resizable: false,
     width: "auto",
     position: { my: "left bottom", at: "left+10 bottom-25", of: "svg", collision: "fit" },
-    open: function () {
-      $(this).parent().addClass("minimap-dialog");
+    open: () => {
+      // $(this).parent().addClass("minimap-dialog");
     },
-    close: function () {
-      $(this).dialog("destroy");
+    close: () => {
+      /* $(this).dialog("destroy") removed */
     }
   });
 }

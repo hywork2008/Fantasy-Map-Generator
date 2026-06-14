@@ -36,9 +36,9 @@ const pinShapes: PinShapes = {
 };
 
 export const getPin = (
-  worldContext: Readonly<WorldContext>,
-  viewContext: Readonly<ViewContext>,
-  appServices: AppServices,
+  _worldContext: Readonly<WorldContext>,
+  _viewContext: Readonly<ViewContext>,
+  _appServices: AppServices,
   shape = "bubble",
   fill = "#fff",
   stroke = "#000"

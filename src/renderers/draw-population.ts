@@ -5,7 +5,7 @@ import type { WorldContext } from "../context/worldContext";
 export const drawPopulation = (
   worldContext: Readonly<WorldContext>,
   viewContext: Readonly<ViewContext>,
-  appServices: AppServices
+  _appServices: AppServices
 ): void => {
   const { pack, urbanization } = worldContext;
   const { population } = viewContext;

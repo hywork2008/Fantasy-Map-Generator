@@ -5,6 +5,7 @@ import type { WorldContext } from "../context/worldContext";
 import type { Marker } from "../modules/markers-generator";
 import { Markers } from "../modules/markers-generator";
 import { getPin } from "../renderers/index";
+import { closeDialog, openDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, findCell, rn } from "../utils";
 import { editNotes } from "./notes-editor";
 
@@ -45,7 +46,7 @@ export function editMarker(markerI?: number): void {
 
   updateInputs();
 
-  $("#markerEditor").dialog({
+  openDialog("markerEditor", {
     title: "Edit Marker",
     resizable: false,
     position: { my: "left top", at: "left+10 top+10", of: "svg", collision: "fit" },
@@ -260,7 +261,7 @@ export function editMarker(markerI?: number): void {
   function deleteMarker(): void {
     Markers.deleteMarker(marker.i);
     element!.remove();
-    $("#markerEditor").dialog("close");
+    closeDialog("markerEditor");
     const refreshEl = ensureEl("markersOverviewRefresh") as HTMLElement;
     if (refreshEl.offsetParent) refreshEl.click();
   }

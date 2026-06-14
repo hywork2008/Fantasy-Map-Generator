@@ -25,7 +25,7 @@ type PathPoints = [number, number][];
 export const drawStateLabels = (
   worldContext: Readonly<WorldContext>,
   viewContext: Readonly<ViewContext>,
-  appServices: AppServices,
+  _appServices: AppServices,
   list?: number[]
 ): void => {
   TIME && console.time("drawStateLabels");

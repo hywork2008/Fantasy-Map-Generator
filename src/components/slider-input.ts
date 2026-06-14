@@ -21,10 +21,6 @@
   `;
 
   class SliderInput extends HTMLElement {
-    constructor() {
-      super();
-    }
-
     connectedCallback() {
       if (!this.querySelector("input[type=range]")) {
         this.appendChild(template.content.cloneNode(true));

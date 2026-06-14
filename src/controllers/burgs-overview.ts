@@ -2,6 +2,7 @@ import * as d3 from "d3";
 import { pointer } from "d3";
 import { editBurgGroups } from "../editors/burg-group-editor";
 import { Burgs } from "../modules/burgs-generator";
+import { openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { convertTemperature, ensureEl, findCell, getLatitude, getLongitude, rn, si } from "../utils";
 
 function overviewBurgs(settings: { stateId?: number | null; cultureId?: number | null } = {}): void {
@@ -14,12 +15,12 @@ function overviewBurgs(settings: { stateId?: number | null; cultureId?: number |
   updateFilter();
   updateLockAllIcon();
   burgsOverviewAddLines();
-  $("#burgsOverview").dialog();
+  openDialog("burgsOverview");
 
   if (modules.overviewBurgs) return;
   modules.overviewBurgs = true;
 
-  $("#burgsOverview").dialog({
+  openDialog("burgsOverview", {
     title: "Burgs Overview",
     resizable: false,
     width: fitContent(),
@@ -351,146 +352,146 @@ function overviewBurgs(settings: { stateId?: number | null; cultureId?: number |
     const h = height - margin.top - margin.bottom;
     const treeLayout = d3.pack<ChartDatum>().size([w, h]).padding(3);
 
-    alertMessage.innerHTML = /* html */ `<select id="burgsTreeType" style="display:block; margin-left:13px; font-size:11px">
+    const content = /* html */ `<select id="burgsTreeType" style="display:block; margin-left:13px; font-size:11px">
       <option value="states" selected>Group by state</option>
       <option value="cultures">Group by culture</option>
       <option value="parent">Group by province and state</option>
       <option value="provinces">Group by province</option>
-    </select>`;
-    alertMessage.innerHTML += `<div id='burgsInfo' class='chartInfo'>&#8205;</div>`;
-    const svg = d3
-      .select("#alertMessage")
-      .insert("svg", "#burgsInfo")
-      .attr("id", "burgsTree")
-      .attr("width", width)
-      .attr("height", height - 10)
-      .attr("stroke-width", 2);
-    const graph = svg.append("g").attr("transform", `translate(-50, -10)`);
-    document.getElementById("burgsTreeType")!.addEventListener("change", updateChart);
+    </select>
+    <div id='burgsInfo' class='chartInfo'>&#8205;</div>`;
 
-    treeLayout(root);
-
-    type PackNode = d3.HierarchyCircularNode<ChartDatum>;
-    const node = graph
-      .selectAll<SVGCircleElement, PackNode>("circle")
-      .data(root.leaves() as PackNode[])
-      .join("circle")
-      .attr("data-id", d => d.data.i ?? "")
-      .attr("r", d => d.r)
-      .attr("fill", d => d.parent?.data.color ?? "#ccc")
-      .attr("cx", d => d.x)
-      .attr("cy", d => d.y)
-      .on("mouseenter", (event: MouseEvent, d) => showInfo(event, d))
-      .on("mouseleave", (ev: MouseEvent) => hideInfo(ev))
-      .on("click", (_event, d) => zoomTo(d.data.x ?? 0, d.data.y ?? 0, 8, 2000));
-
-    function showInfo(ev: MouseEvent, d: PackNode): void {
-      d3.select(ev.target as Element)
-        .transition()
-        .duration(1500)
-        .attr("stroke", "#c13119");
-      const name = d.data.name;
-      const parent = d.parent?.data.name;
-      const population = si((d.value ?? 0) * populationRate * urbanization);
-
-      (document.getElementById("burgsInfo") as HTMLElement).innerHTML =
-        /* html */ `${name}. ${parent}. Population: ${population}`;
-      burgHighlightOn(ev as MouseEvent);
-      tip("Click to zoom into view");
-    }
-
-    function hideInfo(ev: MouseEvent): void {
-      burgHighlightOff();
-      const burgsInfoEl = document.getElementById("burgsInfo");
-      if (!burgsInfoEl) return;
-      burgsInfoEl.innerHTML = "&#8205;";
-      d3.select(ev.target as Element)
-        .transition()
-        .attr("stroke", null);
-      tip("");
-    }
-
-    function updateChart(this: HTMLSelectElement): void {
-      const getStatesData = () =>
-        pack.states.map(s => {
-          const c = s.color ? s.color : "#ccc";
-          const name = s.fullName ? s.fullName : s.name;
-          return { id: s.i, state: s.i ? 0 : null, color: c, name };
-        });
-
-      const getCulturesData = () =>
-        pack.cultures.map(c => {
-          const col = c.color ? c.color : "#ccc";
-          return { id: c.i, culture: c.i ? 0 : null, color: col, name: c.name };
-        });
-
-      const getParentData = () => {
-        const statesData = pack.states.map(s => {
-          const c = s.color ? s.color : "#ccc";
-          const name = s.fullName ? s.fullName : s.name;
-          return { id: s.i, parent: s.i ? 0 : null, color: c, name };
-        });
-        const provinces = pack
-          .provinces!.filter(p => p.i && !p.removed)
-          .map(p => {
-            return { id: p.i + statesData.length - 1, parent: p.state, color: p.color, name: p.fullName };
-          });
-        return [...statesData, ...provinces] as ChartDatum[];
-      };
-
-      const getProvincesData = (): ChartDatum[] =>
-        pack.provinces!.map(p => ({
-          id: p.i ? p.i : 0,
-          province: p.i ? 0 : null,
-          color: p.color ?? "#ccc",
-          name: p.fullName ?? p.name
-        }));
-
-      const value = (d: ChartDatum): number | null | undefined => {
-        if (this.value === "states") return d.state;
-        if (this.value === "cultures") return d.culture;
-        if (this.value === "parent") return d.parent;
-        if (this.value === "provinces") return d.province;
-      };
-
-      const mapping: Record<string, () => ChartDatum[]> = {
-        states: getStatesData,
-        cultures: getCulturesData,
-        parent: getParentData,
-        provinces: getProvincesData
-      };
-
-      const base = mapping[this.value]();
-      burgs.forEach(b => {
-        b.id = b.i! + base.length - 1;
-      });
-
-      const chartData: ChartDatum[] = [...base, ...burgs];
-
-      const newRoot = d3
-        .stratify<ChartDatum>()
-        .id(d => String(d.id))
-        .parentId(d => (value(d) != null ? String(value(d)) : null))(chartData)
-        .sum(d => d.population ?? 0)
-        .sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
-
-      node
-        .data(treeLayout(newRoot).leaves() as PackNode[])
-        .transition()
-        .duration(2000)
-        .attr("data-id", d => d.data.i ?? "")
-        .attr("fill", d => d.parent?.data.color ?? "#ccc")
-        .attr("cx", d => d.x)
-        .attr("cy", d => d.y)
-        .attr("r", d => d.r);
-    }
-
-    $("#alert").dialog({
+    openRichDialog({
       title: "Burgs bubble chart",
-      width: fitContent(),
-      position: { my: "left bottom", at: "left+10 bottom-10", of: "svg" },
-      buttons: {},
-      close: () => (alertMessage.innerHTML = "")
+      content,
+      onOpen: container => {
+        const svg = d3
+          .select(container)
+          .insert("svg", "#burgsInfo")
+          .attr("id", "burgsTree")
+          .attr("width", width)
+          .attr("height", height - 10)
+          .attr("stroke-width", 2);
+        const graph = svg.append("g").attr("transform", `translate(-50, -10)`);
+        document.getElementById("burgsTreeType")!.addEventListener("change", updateChart);
+
+        treeLayout(root);
+
+        type PackNode = d3.HierarchyCircularNode<ChartDatum>;
+
+        const node = graph
+          .selectAll<SVGCircleElement, PackNode>("circle")
+          .data(root.leaves() as PackNode[])
+          .join("circle")
+          .attr("data-id", d => d.data.i ?? "")
+          .attr("r", d => d.r)
+          .attr("fill", d => d.parent?.data.color ?? "#ccc")
+          .attr("cx", d => d.x)
+          .attr("cy", d => d.y)
+          .on("mouseenter", (event: MouseEvent, d) => showInfo(event, d))
+          .on("mouseleave", (ev: MouseEvent) => hideInfo(ev))
+          .on("click", (_event, d) => zoomTo(d.data.x ?? 0, d.data.y ?? 0, 8, 2000));
+
+        function updateChart(this: HTMLSelectElement): void {
+          const getStatesData = () =>
+            pack.states.map(s => {
+              const c = s.color ? s.color : "#ccc";
+              const name = s.fullName ? s.fullName : s.name;
+              return { id: s.i, state: s.i ? 0 : null, color: c, name };
+            });
+
+          const getCulturesData = () =>
+            pack.cultures.map(c => {
+              const col = c.color ? c.color : "#ccc";
+              return { id: c.i, culture: c.i ? 0 : null, color: col, name: c.name };
+            });
+
+          const getParentData = () => {
+            const statesData = pack.states.map(s => {
+              const c = s.color ? s.color : "#ccc";
+              const name = s.fullName ? s.fullName : s.name;
+              return { id: s.i, parent: s.i ? 0 : null, color: c, name };
+            });
+            const provinces = pack
+              .provinces!.filter(p => p.i && !p.removed)
+              .map(p => {
+                return { id: p.i + statesData.length - 1, parent: p.state, color: p.color, name: p.fullName };
+              });
+            return [...statesData, ...provinces] as ChartDatum[];
+          };
+
+          const getProvincesData = (): ChartDatum[] =>
+            pack.provinces!.map(p => ({
+              id: p.i ? p.i : 0,
+              province: p.i ? 0 : null,
+              color: p.color ?? "#ccc",
+              name: p.fullName ?? p.name
+            }));
+
+          const value = (d: ChartDatum): number | null | undefined => {
+            if (this.value === "states") return d.state;
+            if (this.value === "cultures") return d.culture;
+            if (this.value === "parent") return d.parent;
+            if (this.value === "provinces") return d.province;
+          };
+
+          const mapping: Record<string, () => ChartDatum[]> = {
+            states: getStatesData,
+            cultures: getCulturesData,
+            parent: getParentData,
+            provinces: getProvincesData
+          };
+
+          const base = mapping[this.value]();
+          burgs.forEach(b => {
+            b.id = b.i! + base.length - 1;
+          });
+
+          const chartData: ChartDatum[] = [...base, ...burgs];
+
+          const newRoot = d3
+            .stratify<ChartDatum>()
+            .id(d => String(d.id))
+            .parentId(d => (value(d) != null ? String(value(d)) : null))(chartData)
+            .sum(d => d.population ?? 0)
+            .sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
+
+          node
+            .data(treeLayout(newRoot).leaves() as PackNode[])
+            .transition()
+            .duration(2000)
+            .attr("data-id", d => d.data.i ?? "")
+            .attr("fill", d => d.parent?.data.color ?? "#ccc")
+            .attr("cx", d => d.x)
+            .attr("cy", d => d.y)
+            .attr("r", d => d.r);
+        }
+
+        function showInfo(ev: MouseEvent, d: PackNode): void {
+          d3.select(ev.target as Element)
+            .transition()
+            .duration(1500)
+            .attr("stroke", "#c13119");
+          const name = d.data.name;
+          const parent = d.parent?.data.name;
+          const population = si((d.value ?? 0) * populationRate * urbanization);
+
+          (document.getElementById("burgsInfo") as HTMLElement).innerHTML =
+            /* html */ `${name}. ${parent}. Population: ${population}`;
+          burgHighlightOn(ev as MouseEvent);
+          tip("Click to zoom into view");
+        }
+
+        function hideInfo(ev: MouseEvent): void {
+          burgHighlightOff();
+          const burgsInfoEl = document.getElementById("burgsInfo");
+          if (!burgsInfoEl) return;
+          burgsInfoEl.innerHTML = "&#8205;";
+          d3.select(ev.target as Element)
+            .transition()
+            .attr("stroke", null);
+          tip("");
+        }
+      }
     });
   }
 
@@ -538,27 +539,29 @@ function overviewBurgs(settings: { stateId?: number | null; cultureId?: number |
   }
 
   function renameBurgsInBulk(): void {
-    alertMessage.innerHTML = /* html */ `Download burgs list as a text file, make changes and re-upload the file. Make sure the file is a plain text document with each
-    name on its own line (the dilimiter is CRLF). If you do not want to change the name, just leave it as is`;
-
-    $("#alert").dialog({
+    openRichDialog({
       title: "Burgs bulk renaming",
-      width: "22em",
-      position: { my: "center", at: "center", of: "svg" },
-      buttons: {
-        Download: () => {
-          const data = pack.burgs
-            .filter(b => b.i && !b.removed)
-            .map(b => b.name)
-            .join("\r\n");
-          const name = `${getFileName("Burg names")}.txt`;
-          downloadFile(data, name);
+      content: `Download burgs list as a text file, make changes and re-upload the file. Make sure the file is a plain text document with each name on its own line (the dilimiter is CRLF). If you do not want to change the name, just leave it as is`,
+      buttons: [
+        {
+          label: "Download",
+          keepOpen: true,
+          onClick: () => {
+            const data = pack.burgs
+              .filter(b => b.i && !b.removed)
+              .map(b => b.name)
+              .join("\r\n");
+            const name = `${getFileName("Burg names")}.txt`;
+            downloadFile(data, name);
+          }
         },
-        Upload: () => (document.getElementById("burgsListToLoad") as HTMLInputElement).click(),
-        Cancel: function () {
-          $(this).dialog("close");
-        }
-      }
+        {
+          label: "Upload",
+          keepOpen: true,
+          onClick: () => (document.getElementById("burgsListToLoad") as HTMLInputElement).click()
+        },
+        { label: "Cancel", onClick: () => {} }
+      ]
     });
   }
 
@@ -590,7 +593,6 @@ function overviewBurgs(settings: { stateId?: number | null; cultureId?: number |
     message += `</tr></table>`;
 
     if (!change.length) message = "No changes found in the file. Please change some names to get a result";
-    alertMessage.innerHTML = message;
 
     const onConfirm = () => {
       for (let i = 0; i < change.length; i++) {

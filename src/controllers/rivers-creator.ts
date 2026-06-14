@@ -1,6 +1,7 @@
 import { pointer } from "d3";
 import type { WorldContext } from "../context/worldContext";
 import { Rivers } from "../modules/river-generator";
+import { closeDialog, openDialog } from "../ui/dialogs/dialogService";
 import { findCell, last, rn } from "../utils";
 import { getPackPolygon } from "../utils/graphUtils";
 
@@ -21,7 +22,7 @@ function createRiver(): void {
   const riverCells: number[] = [];
   const body = document.getElementById("riverCreatorBody") as HTMLElement;
 
-  $("#riverCreator").dialog({
+  openDialog("riverCreator", {
     title: "Create River",
     resizable: false,
     position: { my: "left top", at: "left+10 top+10", of: "#map" },
@@ -32,7 +33,7 @@ function createRiver(): void {
   modules.createRiver = true;
 
   document.getElementById("riverCreatorComplete")!.addEventListener("click", addRiver);
-  document.getElementById("riverCreatorCancel")!.addEventListener("click", () => $("#riverCreator").dialog("close"));
+  document.getElementById("riverCreatorCancel")!.addEventListener("click", () => closeDialog("riverCreator"));
   body.addEventListener("click", ev => {
     const el = ev.target as HTMLElement;
     const cl = el.classList;

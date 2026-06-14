@@ -1,4 +1,5 @@
 import { max as d3max, min as d3min, mean, median } from "d3";
+import { openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, openURL, rn, unique } from "../utils";
 
 const unsafe = /[|/]/g;
@@ -13,8 +14,12 @@ interface ParseError {
 }
 
 class NamesbaseEditorModule {
-  constructor() {
+  private listenersAdded = false;
+
+  init(): void {
+    if (this.listenersAdded) return;
     this.addListeners();
+    this.listenersAdded = true;
   }
 
   open(): void {
@@ -24,7 +29,7 @@ class NamesbaseEditorModule {
     this.createBasesList();
     this.updateInputs();
 
-    $("#namesbaseEditor").dialog({
+    openDialog("namesbaseEditor", {
       title: "Namesbase Editor",
       width: "60vw",
       position: { my: "center", at: "center", of: "svg" }
@@ -211,14 +216,15 @@ class NamesbaseEditorModule {
       <div data-tip="Percentage of names containing space character">Multi-word names: ${rn(multiwordRate * 100, 2)}%</div>
     </div>`;
 
-    $("#alert").dialog({
+    openRichDialog({
+      content: window.alertMessage.innerHTML,
       resizable: false,
       title: "Data Analysis",
       width: "auto",
       position: { my: "left top-30", at: "right+10 top", of: "#namesbaseEditor" },
       buttons: {
-        OK: function () {
-          $(this).dialog("close");
+        OK: () => {
+          /* $(this).dialog("close") removed */
         }
       }
     });
@@ -249,20 +255,21 @@ class NamesbaseEditorModule {
 
   private namesbaseRestoreDefault(): void {
     alertMessage.innerHTML = /* html */ `Are you sure you want to restore default namesbase?`;
-    const self = this;
-    $("#alert").dialog({
+
+    openRichDialog({
+      content: window.alertMessage.innerHTML,
       resizable: false,
       title: "Restore default data",
       buttons: {
-        Restore: function () {
-          $(this).dialog("close");
+        Restore: () => {
+          /* $(this).dialog("close") removed */
           Names.clearChains();
           nameBases = Names.getNameBases();
-          self.createBasesList();
-          self.updateInputs();
+          this.createBasesList();
+          this.updateInputs();
         },
-        Cancel: function () {
-          $(this).dialog("close");
+        Cancel: () => {
+          /* $(this).dialog("close") removed */
         }
       }
     });
@@ -346,14 +353,15 @@ class NamesbaseEditorModule {
         </div>
       </div>`;
 
-      $("#alert").dialog({
+      openRichDialog({
+        content: window.alertMessage.innerHTML,
         resizable: false,
         title: "Parsing error",
         width: "min(72vw, 68em)",
         position: { my: "center center-4em", at: "center", of: "svg" },
         buttons: {
-          Continue: function () {
-            $(this).dialog("close");
+          Continue: () => {
+            /* $(this).dialog("close") removed */
           }
         }
       });
@@ -365,3 +373,6 @@ class NamesbaseEditorModule {
 }
 
 export const NamesbaseEditor = new NamesbaseEditorModule();
+export function initNamesbaseEditor(): void {
+  NamesbaseEditor.init();
+}

@@ -5,6 +5,7 @@ import type { WorldContext } from "../context/worldContext";
 import type { MilitaryRegiment } from "../modules/military-generator";
 import { Military } from "../modules/military-generator";
 import { drawMarker, moveRegiment } from "../renderers/index";
+import { closeDialog, openDialog } from "../ui/dialogs/dialogService";
 import { capitalize, ensureEl, findCell, getAdjective, last, list, minmax, Pint, rand, rn, wiki } from "../utils";
 
 let worldContext: WorldContext;
@@ -67,7 +68,7 @@ class Battle {
     this.calculateStrength("defenders");
     this.getInitialMorale();
 
-    $("#battleScreen").dialog({
+    openDialog("battleScreen", {
       title: this.name,
       resizable: false,
       width: fitContent(),
@@ -259,7 +260,7 @@ class Battle {
       })
       .join("");
 
-    $("#regimentSelectorScreen").dialog({
+    openDialog("regimentSelectorScreen", {
       resizable: false,
       width: fitContent(),
       title: "Add regiment to the battle",
@@ -268,7 +269,7 @@ class Battle {
       buttons: {
         "Add to attackers": () => addSideClicked("attackers"),
         "Add to defenders": () => addSideClicked("defenders"),
-        Cancel: () => $("#regimentSelectorScreen").dialog("close")
+        Cancel: () => closeDialog("regimentSelectorScreen")
       }
     });
 
@@ -291,7 +292,7 @@ class Battle {
         return;
       }
 
-      $("#regimentSelectorScreen").dialog("close");
+      closeDialog("regimentSelectorScreen");
       selected.forEach(line => {
         const lineEl = line as HTMLElement;
         const state = pack.states[+lineEl.dataset.s!];
@@ -334,7 +335,7 @@ class Battle {
 
   changeName(ev: Event): void {
     this.name = (ev.target as HTMLInputElement).value;
-    $("#battleScreen").dialog({ title: this.name });
+    openDialog("battleScreen", { title: this.name });
   }
 
   generateName(type: string): void {
@@ -344,7 +345,7 @@ class Battle {
         : Names.getBase(rand(nameBases.length - 1));
     (ensureEl("battleNamePlace") as HTMLInputElement).value = this.place = place;
     (ensureEl("battleNameFull") as HTMLInputElement).value = this.name = this.defineName();
-    $("#battleScreen").dialog({ title: this.name });
+    openDialog("battleScreen", { title: this.name });
   }
 
   getJoinedForces(regiments: BattleRegiment[]): Record<string, number> {
@@ -855,7 +856,7 @@ class Battle {
     this.calculateStrength("attackers");
     this.calculateStrength("defenders");
     this.name = this.defineName();
-    $("#battleScreen").dialog({ title: this.name });
+    openDialog("battleScreen", { title: this.name });
   }
 
   changePhase(ev: Event, side: BattleSide): void {
@@ -958,7 +959,7 @@ class Battle {
 
     tip(`${this.name} is over. ${result}`, true, "success", 4000);
 
-    $("#battleScreen").dialog("destroy");
+    closeDialog("battleScreen");
     this.cleanData();
   }
 
@@ -970,7 +971,7 @@ class Battle {
       moveRegiment(worldContext, viewContext, appServices, r, r.px as number, r.py as number);
     });
 
-    $("#battleScreen").dialog("close");
+    closeDialog("battleScreen");
     this.cleanData();
   }
 

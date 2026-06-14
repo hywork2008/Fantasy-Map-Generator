@@ -835,7 +835,7 @@ declare global {
 
 // jQuery UI DialogOptions doesn't allow string for size fields like minHeight/maxHeight/minWidth/maxWidth,
 // but jQuery UI itself accepts "auto" and similar string values. Extend to match runtime behavior.
-declare namespace JQueryUI {
+declare namespace anyUI {
   interface DialogOptions {
     minHeight?: number | string;
     maxHeight?: number | string;

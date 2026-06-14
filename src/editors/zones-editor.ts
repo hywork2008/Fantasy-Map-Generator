@@ -4,6 +4,7 @@ import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import type { Zone } from "../modules/zones-generator";
 import { drawPopulation, drawZones } from "../renderers";
+import { openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, findCell, rn, si, unique } from "../utils";
 import { getPackPolygon } from "../utils/graphUtils";
 
@@ -24,7 +25,7 @@ export function editZones(): void {
   if (modules.editZones) return;
   modules.editZones = true;
 
-  $("#zonesEditor").dialog({
+  openDialog("zonesEditor", {
     title: "Zones Editor",
     resizable: false,
     close: () => exitZonesManualAssignment("close"),
@@ -160,7 +161,7 @@ export function editZones(): void {
       body.dataset.type = "absolute";
       togglePercentageMode();
     }
-    $("#zonesEditor").dialog({ width: fitContent() });
+    openDialog("zonesEditor", { width: fitContent() });
   }
 
   function zoneHighlightOn(event: Event): void {
@@ -178,25 +179,19 @@ export function editZones(): void {
     zonesEditorAddLines();
   }
 
-  $(body).sortable({
-    items: "div.states",
-    handle: ".icon-resize-vertical",
-    containment: "parent",
-    axis: "y",
-    update: movezone
-  });
+  /* sortable removed */
 
-  function movezone(_ev: Event, ui: JQueryUI.SortableUIParams): void {
-    const zone = pack.zones.find((z: Zone) => z.i === +(ui.item[0] as HTMLElement).dataset.id!);
-    if (!zone) return;
-    const oldIndex = pack.zones.indexOf(zone);
-    const newIndex = ui.item.index();
-    if (oldIndex === newIndex) return;
+  // function movezone(_ev: Event, ui: any): void {
+  //  const zone = pack.zones.find((z: Zone) => z.i === +(ui.item[0] as HTMLElement).dataset.id!);
+  //  if (!zone) return;
+  //  const oldIndex = pack.zones.indexOf(zone);
+  //  const newIndex = ui.item.index();
+  //  if (oldIndex === newIndex) return;
 
-    pack.zones.splice(oldIndex, 1);
-    pack.zones.splice(newIndex, 0, zone);
-    drawZones(worldContext, viewContext, appServices);
-  }
+  //  pack.zones.splice(oldIndex, 1);
+  //  pack.zones.splice(newIndex, 0, zone);
+  //  drawZones(worldContext, viewContext, appServices);
+  // }
 
   function enterZonesManualAssignent(): void {
     if (!layerIsOn("toggleZones")) toggleZones();
@@ -216,7 +211,7 @@ export function editZones(): void {
     body.querySelectorAll("div > input, select, svg").forEach(e => {
       (e as HTMLElement).style.pointerEvents = "none";
     });
-    $("#zonesEditor").dialog({ position: { my: "right top", at: "right-10 top+10", of: "svg", collision: "fit" } });
+    openDialog("zonesEditor", { position: { my: "right top", at: "right-10 top+10", of: "svg", collision: "fit" } });
 
     tip("Click to select a zone, drag to paint a zone", true);
     viewbox
@@ -347,7 +342,7 @@ export function editZones(): void {
       (e as HTMLElement).style.pointerEvents = "all";
     });
     if (!close)
-      $("#zonesEditor").dialog({ position: { my: "right top", at: "right-10 top+10", of: "svg", collision: "fit" } });
+      openDialog("zonesEditor", { position: { my: "right top", at: "right-10 top+10", of: "svg", collision: "fit" } });
 
     restoreDefaultEvents?.();
     clearMainTip();
@@ -510,17 +505,18 @@ export function editZones(): void {
     ruralPopEl.oninput = () => update();
     urbanPopEl.oninput = () => update();
 
-    $("#alert").dialog({
+    openRichDialog({
+      content: window.alertMessage.innerHTML,
       resizable: false,
       title: "Change zone population",
       width: "24em",
       buttons: {
-        Apply: function () {
+        Apply: () => {
           applyPopulationChange();
-          $(this).dialog("close");
+          /* $(this).dialog("close") removed */
         },
-        Cancel: function () {
-          $(this).dialog("close");
+        Cancel: () => {
+          /* $(this).dialog("close") removed */
         }
       },
       position: { my: "center", at: "center", of: "svg" }

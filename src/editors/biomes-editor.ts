@@ -4,6 +4,7 @@ import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { Biomes } from "../modules/biomes";
 import { drawBiomes, drawReliefIcons } from "../renderers";
+import { openDialog } from "../ui/dialogs/dialogService";
 import { findCell, getRandomColor, isLand, openURL, rn, si } from "../utils";
 import { getPackPolygon } from "../utils/graphUtils";
 
@@ -27,7 +28,7 @@ export function editBiomes(): void {
   if (modules.editBiomes) return;
   modules.editBiomes = true;
 
-  $("#biomesEditor").dialog({
+  openDialog("biomesEditor", {
     title: "Biomes Editor",
     resizable: false,
     width: fitContent(),
@@ -174,7 +175,7 @@ export function editBiomes(): void {
       togglePercentageMode();
     }
     applySorting(document.getElementById("biomesHeader") as HTMLElement);
-    $("#biomesEditor").dialog({ width: fitContent() });
+    openDialog("biomesEditor", { width: fitContent() });
   }
 
   function biomeHighlightOn(event: MouseEvent): void {
@@ -343,7 +344,7 @@ export function editBiomes(): void {
     (document.getElementById("biomesFooterBiomes") as HTMLElement).innerHTML = String(
       body.querySelectorAll(":scope > div").length
     );
-    $("#biomesEditor").dialog({ width: fitContent() });
+    openDialog("biomesEditor", { width: fitContent() });
   }
 
   function removeCustomBiome(el: HTMLElement): void {
@@ -403,7 +404,7 @@ export function editBiomes(): void {
       (e as HTMLElement).style.pointerEvents = "none";
     });
     (document.getElementById("biomesFooter") as HTMLElement).style.display = "none";
-    $("#biomesEditor").dialog({ position: { my: "right top", at: "right-10 top+10", of: "svg" } });
+    openDialog("biomesEditor", { position: { my: "right top", at: "right-10 top+10", of: "svg" } });
 
     tip("Click on biome to select, drag the circle to change biome", true);
     viewbox
@@ -515,7 +516,7 @@ export function editBiomes(): void {
         el.classList.remove("hidden");
       });
     (document.getElementById("biomesFooter") as HTMLElement).style.display = "block";
-    if (!close) $("#biomesEditor").dialog({ position: { my: "right top", at: "right-10 top+10", of: "svg" } });
+    if (!close) openDialog("biomesEditor", { position: { my: "right top", at: "right-10 top+10", of: "svg" } });
 
     restoreDefaultEvents?.();
     clearMainTip();

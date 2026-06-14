@@ -1,3 +1,4 @@
+import { openRichDialog } from "./ui/dialogs/dialogService";
 /**
  * Version Control Guidelines
  * --------------------------
@@ -127,7 +128,8 @@ function showUpdateWindow() {
     <p>Join our <a href="${discord}" target="_blank">Discord server</a> and <a href="${reddit}" target="_blank">Reddit community</a> to ask questions, share maps, discuss the Generator and Worldbuilding, report bugs and propose new features.</p>
     <span><i>Thanks for all supporters on <a href="${patreon}" target="_blank">Patreon</a>!</i></span>`;
 
-  $("#alert").dialog({
+  openRichDialog({
+    content: window.alertMessage.innerHTML,
     resizable: false,
     title: "Fantasy Map Generator update",
     width: "28em",
@@ -135,7 +137,7 @@ function showUpdateWindow() {
     buttons: {
       "Clear cache": () => cleanupData(),
       "Don't show again": function (this: HTMLElement) {
-        $(this).dialog("close");
+        /* $(this).dialog("close") removed */
         localStorage.setItem("version", VERSION);
       }
     }

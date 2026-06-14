@@ -6,7 +6,7 @@ import { TIME } from "../utils/debug";
 
 export const drawBiomes = (
   worldContext: Readonly<WorldContext>,
-  viewContext: Readonly<ViewContext>,
+  _viewContext: Readonly<ViewContext>,
   _appServices: AppServices
 ): void => {
   TIME && console.time("drawBiomes");

@@ -1,3 +1,4 @@
+import { openRichDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, link, parseError, ra, rn } from "../utils";
 
 // ─── Map serialization ────────────────────────────────────────────────────────
@@ -175,17 +176,18 @@ export async function saveMap(method: string): Promise<void> {
       "GitHub"
     )}. <p id="errorBox">${parseError(error)}</p>`;
 
-    $("#alert").dialog({
+    openRichDialog({
+      content: window.alertMessage.innerHTML,
       resizable: false,
       title: "Saving error",
       width: "28em",
       buttons: {
-        Retry: function () {
-          $(this).dialog("close");
+        Retry: () => {
+          /* $(this).dialog("close") removed */
           saveMap(method);
         },
-        Close: function () {
-          $(this).dialog("close");
+        Close: () => {
+          /* $(this).dialog("close") removed */
         }
       },
       position: { my: "center", at: "center", of: "svg" }

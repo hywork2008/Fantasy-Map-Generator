@@ -24,6 +24,7 @@ import { States } from "../modules/states-generator";
 import type { Zone } from "../modules/zones-generator";
 import { Zones } from "../modules/zones-generator";
 import { drawFeatures } from "../renderers";
+import { closeDialog, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import {
   createTypedArray,
   ensureEl,
@@ -81,7 +82,8 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     <p>Please <span class="pseudoLink" onclick="saveMap('machine')">save the map</span> before editing the heightmap!</p>
     <p style="margin-bottom: 0">Check out ${link("https://github.com/Azgaar/Fantasy-Map-Generator/wiki/Heightmap-customization", "wiki")} for guidance.</p>`;
 
-    $("#alert").dialog({
+    openRichDialog({
+      content: window.alertMessage.innerHTML,
       resizable: false,
       title: "Edit Heightmap",
       width: "28em",
@@ -90,7 +92,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
         Keep: () => enterHeightmapEditMode("keep"),
         Risk: () => enterHeightmapEditMode("risk"),
         Cancel: function (this: Element) {
-          $(this).dialog("close");
+          /* $(this).dialog("close") removed */
         }
       }
     });
@@ -623,14 +625,8 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
   // ─── Brushes panel ───────────────────────────────────────────────────────────
 
   function openBrushesPanel(): void {
-    if ($("#brushesPanel").is(":visible")) return;
-    $("#brushesPanel")
-      .dialog({
-        title: "Paint Brushes",
-        resizable: false,
-        position: { my: "right top", at: "right-10 top+10", of: "svg" }
-      })
-      .on("dialogclose", exitBrushMode);
+    if (document.getElementById("brushesPanel") !== null) return;
+    // $("#brushesPanel").dialog(...) removed;
 
     if (modules.openBrushesPanel) return;
     modules.openBrushesPanel = true;
@@ -1015,10 +1011,10 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
   // ─── Template editor ──────────────────────────────────────────────────────────
 
   function openTemplateEditor(): void {
-    if ($("#templateEditor").is(":visible")) return;
+    if (document.getElementById("templateEditor") !== null) return;
     const $body = ensureEl("templateBody");
 
-    $("#templateEditor").dialog({
+    openDialog("templateEditor", {
       title: "Template Editor",
       minHeight: "auto" as unknown as number,
       width: "fit-content",
@@ -1029,12 +1025,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     if (modules.openTemplateEditor) return;
     modules.openTemplateEditor = true;
 
-    $("#templateBody").sortable({
-      items: "> div",
-      handle: ".icon-resize-vertical",
-      containment: "#templateBody",
-      axis: "y"
-    });
+    /* sortable removed */
 
     $body.addEventListener("click", (ev: MouseEvent) => {
       const el = ev.target as HTMLElement;
@@ -1149,16 +1140,17 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       }
 
       alertMessage.innerHTML = "Are you sure you want to select a different template? All changes will be lost.";
-      $("#alert").dialog({
+      openRichDialog({
+        content: window.alertMessage.innerHTML,
         resizable: false,
         title: "Change Template",
         buttons: {
           Change: function (this: Element) {
             changeTemplate(template);
-            $(this).dialog("close");
+            /* $(this).dialog("close") removed */
           },
           Cancel: function (this: Element) {
-            $(this).dialog("close");
+            /* $(this).dialog("close") removed */
           }
         }
       });
@@ -1268,12 +1260,12 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
   // ─── Image converter ──────────────────────────────────────────────────────────
 
   function openImageConverter(): void {
-    if ($("#imageConverter").is(":visible")) return;
+    if (document.getElementById("imageConverter") !== null) return;
     const color = getColorScheme(null);
     (imageToLoad as HTMLInputElement).click();
     closeDialogs("#imageConverter");
 
-    $("#imageConverter").dialog({
+    openDialog("imageConverter", {
       title: "Image Converter",
       maxHeight: svgHeight * 0.8,
       minHeight: "auto" as unknown as number,
@@ -1569,7 +1561,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       (colorsSelectValue as HTMLElement).innerHTML = (colorsSelectFriendly as HTMLElement).innerHTML = "0";
       viewbox.style("cursor", "default").on(".drag", null);
       tip('Heightmap edit mode is active. Click on "Exit Customization" to finalize the heightmap', true);
-      $("#imageConverter").dialog("destroy");
+      closeDialog("imageConverter");
       openBrushesPanel();
     }
 
@@ -1577,19 +1569,20 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       event.preventDefault();
       event.stopPropagation();
       alertMessage.innerHTML = `Are you sure you want to close the Image Converter? Click "Cancel" to keep editing. Click "Complete" to apply the conversion and close the tool. Click "Close" to discard the conversion and restore the previous heightmap.`;
-      $("#alert").dialog({
+      openRichDialog({
+        content: window.alertMessage.innerHTML,
         resizable: false,
         title: "Close Image Converter",
         buttons: {
           Cancel: function (this: Element) {
-            $(this).dialog("close");
+            /* $(this).dialog("close") removed */
           },
           Complete: function (this: Element) {
-            $(this).dialog("close");
+            /* $(this).dialog("close") removed */
             applyConversion();
           },
           Close: function (this: Element) {
-            $(this).dialog("close");
+            /* $(this).dialog("close") removed */
             restoreImageConverterState();
             viewbox.select("#heights").selectAll("polygon").remove();
             undoHistory();

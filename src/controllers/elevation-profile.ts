@@ -18,6 +18,7 @@ import type { Burg } from "../modules/burgs-generator";
 import type { PackedGraphFeature } from "../modules/features";
 import type { Province } from "../modules/provinces-generator";
 import type { State } from "../modules/states-generator";
+import { openDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, getLatitude, getLongitude, rn } from "../utils";
 import { getColor, getColorScheme } from "../utils/colorUtils";
 
@@ -134,7 +135,7 @@ class ElevationProfileModule {
 
     draw();
 
-    $("#elevationProfile").dialog({
+    openDialog("elevationProfile", {
       title: "Elevation profile",
       resizable: false,
       close: closeElevationProfile,

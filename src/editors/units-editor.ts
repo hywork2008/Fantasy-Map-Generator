@@ -5,6 +5,7 @@ import type { WorldContext } from "../context/worldContext";
 import { Routes } from "../modules/routes-generator";
 import { drawTemperature } from "../renderers";
 import { drawScaleBar, fitScaleBar } from "../renderers/index";
+import { openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, findCell, showPrompt } from "../utils";
 
 let worldContext: WorldContext;
@@ -13,12 +14,12 @@ let appServices: AppServices;
 
 export function editUnits(): void {
   closeDialogs("#unitsEditor, .stable");
-  $("#unitsEditor").dialog();
+  openDialog("unitsEditor");
 
   if (modules.editUnits) return;
   modules.editUnits = true;
 
-  $("#unitsEditor").dialog({
+  openDialog("unitsEditor", {
     title: "Units Editor",
     position: { my: "right top", at: "right-10 top+10", of: "svg", collision: "fit" }
   });
@@ -290,17 +291,18 @@ export function editUnits(): void {
     if (!rulers.data.length) return;
     alertMessage.innerHTML = /* html */ ` Are you sure you want to remove all placed rulers?
       <br />If you just want to hide rulers, toggle the Rulers layer off in Menu`;
-    $("#alert").dialog({
+    openRichDialog({
+      content: window.alertMessage.innerHTML,
       resizable: false,
       title: "Remove all rulers",
       buttons: {
-        Remove: function () {
-          $(this).dialog("close");
+        Remove: () => {
+          /* $(this).dialog("close") removed */
           rulers.undraw();
           rulers = new Rulers();
         },
-        Cancel: function () {
-          $(this).dialog("close");
+        Cancel: () => {
+          /* $(this).dialog("close") removed */
         }
       }
     });

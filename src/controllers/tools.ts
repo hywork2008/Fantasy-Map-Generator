@@ -1,3 +1,4 @@
+import * as d3 from "d3";
 import { pointer, quadtree } from "d3";
 import { aleaPRNG } from "../components/AleaPRNG";
 import type { AppServices } from "../context/appServices";
@@ -56,6 +57,7 @@ import {
 } from "../renderers";
 import { drawMarker } from "../renderers/index";
 import type { WorldNote } from "../types/WorldState";
+import { openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, findCell, gauss, generateSeed, getNextId, isCtrlClick, P, rn, showPrompt } from "../utils";
 import { open as openChartsOverview } from "./charts-overview";
 import { editCultures, editReligions, editStates } from "./editors";
@@ -98,29 +100,24 @@ document.addEventListener("react-tool-action", e => {
     const dontAsk = sessionStorage.getItem("regenerateFeatureDontAsk");
     if (dontAsk) return processFeatureRegeneration(null, button);
 
-    alertMessage.innerHTML = `Regeneration will remove all the custom changes for the element.<br /><br />Are you sure you want to proceed?`;
-    $("#alert").dialog({
-      resizable: false,
+    openRichDialog({
       title: "Regenerate element",
-      buttons: {
-        Proceed: function (this: Element) {
-          processFeatureRegeneration(null, button);
-          $(this).dialog("close");
+      content: `Regenerate will remove all the custom changes for the element.<br /><br />Are you sure you want to proceed?`,
+      buttons: [
+        {
+          label: "Proceed",
+          onClick: () => {
+            const dontAskBox = document.getElementById("dontAsk") as HTMLInputElement;
+            if (dontAskBox?.checked) sessionStorage.setItem("regenerateFeatureDontAsk", "true");
+            processFeatureRegeneration(null, button);
+          }
         },
-        Cancel: function (this: Element) {
-          $(this).dialog("close");
-        }
-      },
-      open: function (this: Element) {
+        { label: "Cancel", onClick: () => {} }
+      ],
+      onOpen: container => {
         const checkbox =
-          '<span><input id="dontAsk" class="checkbox" type="checkbox"><label for="dontAsk" class="checkbox-label dontAsk"><i>do not ask again</i></label><span>';
-        const pane = (this as HTMLElement).parentElement!.querySelector(".ui-dialog-buttonpane")!;
-        pane.insertAdjacentHTML("afterbegin", checkbox);
-      },
-      close: function (this: Element) {
-        const box = (this as HTMLElement).parentElement!.querySelector<HTMLInputElement>(".checkbox");
-        if (box?.checked) sessionStorage.setItem("regenerateFeatureDontAsk", "true");
-        $(this).dialog("destroy");
+          '<div style="margin-top: 1em;"><span><input id="dontAsk" class="checkbox" type="checkbox"><label for="dontAsk" class="checkbox-label dontAsk"><i>do not ask again</i></label><span></div>';
+        container.insertAdjacentHTML("beforeend", checkbox);
       }
     });
   }
@@ -141,7 +138,7 @@ document.addEventListener("react-tool-action", e => {
 
 function processFeatureRegeneration(event: MouseEvent | null, button: string): void {
   if (button === "regenerateStateLabels") {
-    $("#labels").fadeIn();
+    d3.select("#labels").style("display", "block");
     drawStateLabels(worldContext, viewContext, appServices);
   } else if (button === "regenerateReliefIcons") {
     drawReliefIcons(worldContext, viewContext, appServices);
@@ -1033,72 +1030,67 @@ function configMarkersGeneration(): void {
     });
 
     const table = `<table class="table">${headers}<tbody>${lines.join("")}</tbody></table>`;
-    alertMessage.innerHTML = table;
 
-    alertMessage.querySelectorAll<HTMLButtonElement>("button.changeIcon").forEach(selectIconButton => {
-      selectIconButton.addEventListener("click", function () {
-        const image = this.parentElement!.querySelector<HTMLImageElement>(".image")!;
-        const emoji = this.parentElement!.querySelector<HTMLElement>(".emoji")!;
+    const applyChanges = () => {
+      const container = document.getElementById("alert");
+      if (!container) return;
+      const rows = container.querySelectorAll<HTMLTableRowElement>("tbody > tr");
+      const rowsData = Array.from(rows).map(row => {
+        const type = row.querySelector<HTMLInputElement>(".type")!.value;
+        const image = row.querySelector<HTMLImageElement>(".image")!;
+        const emoji = row.querySelector<HTMLElement>(".emoji")!;
         const icon = image.getAttribute("src") || emoji.textContent!;
-
-        selectIcon(icon, value => {
-          const isExt = value.startsWith("http") || value.startsWith("data:image");
-          image.setAttribute("src", isExt ? value : "");
-          image.hidden = !isExt;
-          emoji.textContent = isExt ? "" : value;
-        });
+        const multiplier = parseFloat(row.querySelector<HTMLInputElement>(".multiplier")!.value);
+        return { type, icon, multiplier };
       });
+
+      const config = Markers.getConfig();
+      const newConfig = config.map((markerType: MarkerConfig, index: number) => {
+        const { type, icon, multiplier } = rowsData[index];
+        return { ...markerType, type, icon, multiplier };
+      });
+      Markers.setConfig(newConfig);
+    };
+
+    openRichDialog({
+      title: "Markers generation settings",
+      content: table,
+      onOpen: container => {
+        container.querySelectorAll<HTMLButtonElement>("button.changeIcon").forEach(selectIconButton => {
+          selectIconButton.addEventListener("click", function () {
+            const image = this.parentElement!.querySelector<HTMLImageElement>(".image")!;
+            const emoji = this.parentElement!.querySelector<HTMLElement>(".emoji")!;
+            const icon = image.getAttribute("src") || emoji.textContent!;
+
+            selectIcon(icon, value => {
+              const isExt = value.startsWith("http") || value.startsWith("data:image");
+              image.setAttribute("src", isExt ? value : "");
+              image.hidden = !isExt;
+              emoji.textContent = isExt ? "" : value;
+            });
+          });
+        });
+      },
+      buttons: [
+        {
+          label: "Regenerate",
+          keepOpen: true,
+          onClick: () => {
+            applyChanges();
+            regenerateMarkers();
+            drawConfigTable();
+          }
+        },
+        { label: "Close", onClick: () => {} }
+      ]
     });
   }
-
-  const applyChanges = () => {
-    const rows = alertMessage.querySelectorAll<HTMLTableRowElement>("tbody > tr");
-    const rowsData = Array.from(rows).map(row => {
-      const type = row.querySelector<HTMLInputElement>(".type")!.value;
-      const image = row.querySelector<HTMLImageElement>(".image")!;
-      const emoji = row.querySelector<HTMLElement>(".emoji")!;
-      const icon = image.getAttribute("src") || emoji.textContent!;
-      const multiplier = parseFloat(row.querySelector<HTMLInputElement>(".multiplier")!.value);
-      return { type, icon, multiplier };
-    });
-
-    const config = Markers.getConfig();
-    const newConfig = config.map((markerType: MarkerConfig, index: number) => {
-      const { type, icon, multiplier } = rowsData[index];
-      return { ...markerType, type, icon, multiplier };
-    });
-    Markers.setConfig(newConfig);
-  };
-
-  $("#alert").dialog({
-    resizable: false,
-    title: "Markers generation settings",
-    position: { my: "left top", at: "left+10 top+10", of: "svg", collision: "fit" },
-    buttons: {
-      Regenerate: () => {
-        applyChanges();
-        regenerateMarkers();
-        drawConfigTable();
-      },
-      Close: function (this: Element) {
-        $(this).dialog("close");
-      }
-    },
-    open: function () {
-      const buttons = $(this).dialog("widget").find(".ui-dialog-buttonset > button");
-      buttons[0].addEventListener("mousemove", () => tip("Apply changes and regenerate markers"));
-      buttons[1].addEventListener("mousemove", () => tip("Close the window"));
-    },
-    close: function (this: Element) {
-      $(this).dialog("destroy");
-    }
-  });
 }
 
 // ─── Cell details & overview dialogs ─────────────────────────────────────────
 
 function viewCellDetails(): void {
-  $("#cellInfo").dialog({
+  openDialog("cellInfo", {
     resizable: false,
     width: "22em",
     title: "Cell Details",

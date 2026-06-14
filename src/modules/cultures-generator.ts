@@ -7,6 +7,7 @@ import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import type { PackedGraph } from "../types/PackedGraph";
 import type { WorldState } from "../types/WorldState";
+import { openRichDialog } from "../ui/dialogs/dialogService";
 import { abbreviate, biased, ensureEl, getColors, getRandomColor, minmax, P, rand, rn, rw } from "../utils";
 import { COA } from "./emblem/generator";
 
@@ -1047,12 +1048,13 @@ class CulturesModule {
           No cultures, states and burgs will be created.<br />
           Please consider changing climate settings in the World Configurator`;
 
-        $("#alert").dialog({
+        openRichDialog({
+          content: window.alertMessage.innerHTML,
           resizable: false,
           title: "Extreme climate warning",
           buttons: {
-            Ok: function () {
-              $(this).dialog("close");
+            Ok: () => {
+              /* $(this).dialog("close") removed */
             }
           }
         });
@@ -1062,12 +1064,13 @@ class CulturesModule {
         alertMessage.innerHTML = /* html */ ` There are only ${populated.length} populated cells and it's insufficient livable area.<br />
           Only ${count} out of ${culturesInput.value} requested cultures will be generated.<br />
           Please consider changing climate settings in the World Configurator`;
-        $("#alert").dialog({
+        openRichDialog({
+          content: window.alertMessage.innerHTML,
           resizable: false,
           title: "Extreme climate warning",
           buttons: {
-            Ok: function () {
-              $(this).dialog("close");
+            Ok: () => {
+              /* $(this).dialog("close") removed */
             }
           }
         });

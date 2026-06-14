@@ -7,7 +7,7 @@ import { getGridPolygon } from "../utils/graphUtils";
 export const drawCells = (
   worldContext: Readonly<WorldContext>,
   viewContext: Readonly<ViewContext>,
-  appServices: AppServices
+  _appServices: AppServices
 ): void => {
   const { pack, grid } = worldContext;
   const { customization } = viewContext;

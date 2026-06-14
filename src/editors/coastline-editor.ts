@@ -21,6 +21,7 @@ import {
   PROFILE_SIZE
 } from "../renderers/coastline-fractal";
 import { getFeaturePath } from "../renderers/index";
+import { openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, rn, si, unique } from "../utils";
 import { getPackPolygon } from "../utils/graphUtils";
 
@@ -167,7 +168,7 @@ class CoastlineEditorModule {
     closeDialogs(".stable");
     if (layerIsOn("toggleCells")) toggleCells();
 
-    $("#coastlineEditor").dialog({
+    openDialog("coastlineEditor", {
       title: "Edit Coastline",
       resizable: false,
       position: { my: "center top+20", at: "top", of: event, collision: "fit" },
@@ -359,13 +360,14 @@ class CoastlineEditorModule {
 
       const count = (elSelected!.node()!.parentNode as Element).childElementCount;
       alertMessage.innerHTML = `Are you sure you want to remove the group? All coastline elements of the group (${count}) will be moved under <i>sea_island</i> group`;
-      $("#alert").dialog({
+      openRichDialog({
+        content: window.alertMessage.innerHTML,
         resizable: false,
         title: "Remove coastline group",
         width: "26em",
         buttons: {
           Remove: function (this: HTMLElement) {
-            $(this).dialog("close");
+            /* $(this).dialog("close") removed */
             const sea = ensureEl("sea_island");
             const groupEl = ensureEl(group);
             while (groupEl.childNodes.length) {
@@ -376,7 +378,7 @@ class CoastlineEditorModule {
             ensureEl<HTMLSelectElement>("coastlineGroup").value = "sea_island";
           },
           Cancel: function (this: HTMLElement) {
-            $(this).dialog("close");
+            /* $(this).dialog("close") removed */
           }
         }
       });
@@ -469,7 +471,7 @@ class CoastlineEditorModule {
     this.updatePreviews();
     closeDialogs("#culturesEditor, .stable");
 
-    $("#coastlineSettingsDialog").dialog({
+    openDialog("coastlineSettingsDialog", {
       title: "Coastline Settings Editor",
       resizable: false,
       width: "auto",

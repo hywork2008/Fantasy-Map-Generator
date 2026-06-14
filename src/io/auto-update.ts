@@ -91,7 +91,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
     States.defineStateForms(state);
     Provinces.generate(worldContext, viewContext, appServices, state);
     Provinces.getPoles(state);
-    if (!layerIsOn("toggleBorders")) $("#borders").fadeOut();
+    if (!layerIsOn("toggleBorders")) d3.select("#borders").style("display", "none");
     if (!layerIsOn("toggleStates")) regions.attr("display", "none").selectAll("path").remove();
 
     // v1.0 added zones layer

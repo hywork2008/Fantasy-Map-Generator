@@ -13,6 +13,7 @@ import type { River } from "../modules/river-generator";
 import { Routes } from "../modules/routes-generator";
 import { drawGrid } from "../renderers";
 import { useOptionsState } from "../store/optionsState";
+import { openRichDialog } from "../ui/dialogs/dialogService";
 import { calculateVoronoi, ensureEl, findCell, last, link, minmax, parseError, rn } from "../utils";
 import { heightmapColorSchemes } from "../utils/colorUtils";
 import { resolveVersionConflicts } from "./auto-update";
@@ -67,16 +68,17 @@ export function loadMapPrompt(blob: Blob): void {
 
   alertMessage.innerHTML = /* html */ `Are you sure you want to load saved map?<br />
     All unsaved changes made to the current map will be lost`;
-  $("#alert").dialog({
+  openRichDialog({
+    content: window.alertMessage.innerHTML,
     resizable: false,
     title: "Load saved map",
     buttons: {
-      Cancel: function () {
-        $(this).dialog("close");
+      Cancel: () => {
+        /* $(this).dialog("close") removed */
       },
-      Load: function () {
+      Load: () => {
         loadLastSavedMap();
-        $(this).dialog("close");
+        /* $(this).dialog("close") removed */
       }
     }
   });
@@ -122,13 +124,14 @@ export function showUploadErrorMessage(error: string, maplink: string, random: n
   alertMessage.innerHTML = /* html */ `Cannot load map from the ${link(maplink, "link provided")}. ${
     random ? `A new random map is generated. ` : ""
   } Please ensure the linked file is reachable and CORS is allowed on server side`;
-  $("#alert").dialog({
+  openRichDialog({
+    content: window.alertMessage.innerHTML,
     title: "Loading error",
     width: "32em",
     buttons: {
       "Clear cache": () => cleanupData(),
-      OK: function () {
-        $(this).dialog("close");
+      OK: () => {
+        /* $(this).dialog("close") removed */
       }
     }
   });
@@ -235,12 +238,13 @@ function showUploadMessage(type: string, mapData: string[] | null, mapVersion: s
   }
 
   alertMessage.innerHTML = message;
-  $("#alert").dialog({
+  openRichDialog({
+    content: window.alertMessage.innerHTML,
     title,
     buttons: {
       "Clear cache": () => cleanupData(),
-      OK: function () {
-        $(this).dialog("close");
+      OK: () => {
+        /* $(this).dialog("close") removed */
       }
     }
   });
@@ -825,22 +829,23 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
     alertMessage.innerHTML = /* html */ `An error occurred while loading the map. Select a different file to load, <br>generate a new random map or cancel the loading.<br>Map version: ${mapVersion}. Generator version: ${VERSION}.
       <p id="errorBox">${parseError(error as Error)}</p>`;
 
-    $("#alert").dialog({
+    openRichDialog({
+      content: window.alertMessage.innerHTML,
       resizable: false,
       title: "Loading error",
       maxWidth: "40em" as unknown as number,
       buttons: {
         "Clear cache": () => cleanupData(),
-        "Select file": function () {
-          $(this).dialog("close");
+        "Select file": () => {
+          /* $(this).dialog("close") removed */
           mapToLoad.click();
         },
-        "New map": function () {
-          $(this).dialog("close");
+        "New map": () => {
+          /* $(this).dialog("close") removed */
           regenerateMap("loading error");
         },
-        Cancel: function () {
-          $(this).dialog("close");
+        Cancel: () => {
+          /* $(this).dialog("close") removed */
         }
       },
       position: { my: "center", at: "center", of: "svg" }

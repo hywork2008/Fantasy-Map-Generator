@@ -5,7 +5,7 @@ import type { WorldContext } from "../context/worldContext";
 export const drawTexture = (
   worldContext: Readonly<WorldContext>,
   viewContext: Readonly<ViewContext>,
-  appServices: AppServices
+  _appServices: AppServices
 ): void => {
   const { graphWidth, graphHeight } = worldContext;
   const { texture } = viewContext;

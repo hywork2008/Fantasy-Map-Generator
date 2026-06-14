@@ -15,6 +15,7 @@ import type { State } from "../modules/states-generator";
 import { States } from "../modules/states-generator";
 import { drawBorders, drawPopulation, drawProvinces, drawStateLabels, drawStates } from "../renderers";
 import type { WorldNote } from "../types/WorldState";
+import { openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { applySortingByHeader, ensureEl, findCell, getRandomColor, isLand, rand, rn, si } from "../utils";
 import { getPackPolygon } from "../utils/graphUtils";
 import { BrushHistoryClass as BrushHistory } from "./BrushHistory";
@@ -38,7 +39,7 @@ export function open(): void {
 
   refreshStatesEditor();
 
-  $("#statesEditor").dialog({
+  openDialog("statesEditor", {
     title: "States Editor",
     resizable: false,
     close: closeStatesEditor,
@@ -305,7 +306,7 @@ function statesEditorAddLines(): void {
     togglePercentageMode();
   }
   applySorting(ensureEl("statesHeader"));
-  $("#statesEditor").dialog({ width: fitContent() });
+  openDialog("statesEditor", { width: fitContent() });
 }
 
 function getCultureOptions(culture: number): string {
@@ -398,16 +399,16 @@ function editStateName(state: number): void {
   applyOption(stateNameEditorSelectForm, s.formName ?? "");
   ensureEl<HTMLInputElement>("stateNameEditorFull").value = s.fullName || "";
 
-  $("#stateNameEditor").dialog({
+  openDialog("stateNameEditor", {
     resizable: false,
     title: "Change state name",
     buttons: {
-      Apply: function () {
+      Apply: () => {
         applyNameChange(s);
-        $(this).dialog("close");
+        /* $(this).dialog("close") removed */
       },
-      Cancel: function () {
-        $(this).dialog("close");
+      Cancel: () => {
+        /* $(this).dialog("close") removed */
       }
     },
     position: { my: "center", at: "center", of: "svg" }
@@ -530,17 +531,18 @@ function changePopulation(stateId: number): void {
   getRuralPop().oninput = () => update();
   getUrbanPop().oninput = () => update();
 
-  $("#alert").dialog({
+  openRichDialog({
+    content: window.alertMessage.innerHTML,
     resizable: false,
     title: "Change state population",
     width: "24em",
     buttons: {
-      Apply: function () {
+      Apply: () => {
         applyPopulationChange();
-        $(this).dialog("close");
+        /* $(this).dialog("close") removed */
       },
-      Cancel: function () {
-        $(this).dialog("close");
+      Cancel: () => {
+        /* $(this).dialog("close") removed */
       }
     },
     position: { my: "center", at: "center", of: "svg" }
@@ -868,7 +870,8 @@ function showStatesChart(): void {
       .style("font-size", (d: HPNode) => `${rn((d.r ** 0.97 * 4) / lp(d.data.name), 2)}px`);
   }
 
-  $("#alert").dialog({
+  openRichDialog({
+    content: window.alertMessage.innerHTML,
     title: "States bubble chart",
     width: fitContent(),
     position: { my: "left bottom", at: "left+10 bottom-10", of: "svg" },
@@ -892,7 +895,7 @@ function openRegenerationMenu(): void {
     .forEach(el => {
       el.classList.remove("hidden");
     });
-  $("#statesEditor").dialog({
+  openDialog("statesEditor", {
     position: { my: "right top", at: "right-10 top+10", of: "svg", collision: "fit" }
   });
 }
@@ -937,7 +940,7 @@ function exitRegenerationMenu(): void {
     .forEach(el => {
       el.classList.add("hidden");
     });
-  $("#statesEditor").dialog({
+  openDialog("statesEditor", {
     position: { my: "right top", at: "right-10 top+10", of: "svg", collision: "fit" }
   });
 }
@@ -961,7 +964,7 @@ function enterStatesManualAssignent(): void {
   $body.querySelectorAll<HTMLElement>("div > input, select, span, svg").forEach(e => {
     e.style.pointerEvents = "none";
   });
-  $("#statesEditor").dialog({
+  openDialog("statesEditor", {
     position: { my: "right top", at: "right-10 top+10", of: "svg", collision: "fit" }
   });
 
@@ -1233,7 +1236,7 @@ function exitStatesManualAssignment(close: boolean): void {
     e.style.pointerEvents = "all";
   });
   if (!close)
-    $("#statesEditor").dialog({
+    openDialog("statesEditor", {
       position: { my: "right top", at: "right-10 top+10", of: "svg", collision: "fit" }
     });
 
@@ -1438,12 +1441,13 @@ function openStateMergeDialog(): void {
       .attrTween("stroke-dasharray", () => interpolate);
   }
 
-  $("#alert").dialog({
+  openRichDialog({
+    content: window.alertMessage.innerHTML,
     width: 600,
     title: `Merge states`,
     close: stateHighlightOff,
     buttons: {
-      Merge: function () {
+      Merge: () => {
         const formData = new FormData(ensureEl<HTMLFormElement>("mergeStatesForm"));
 
         const rulingStateId = Number(formData.get("rulingState"));
@@ -1465,12 +1469,12 @@ function openStateMergeDialog(): void {
           confirm: "Merge",
           onConfirm: () => {
             mergeStates(statesToMerge, rulingStateId);
-            $(this).dialog("close");
+            /* $(this).dialog("close") removed */
           }
         });
       },
-      Cancel: function () {
-        $(this).dialog("close");
+      Cancel: () => {
+        /* $(this).dialog("close") removed */
       }
     }
   });

@@ -7,6 +7,7 @@ import { Features } from "../modules/features";
 import { Lakes } from "../modules/lakes";
 import { Rivers } from "../modules/river-generator";
 import { drawBiomes, drawCoordinates, drawPrecipitation, drawRivers, drawTemperature } from "../renderers";
+import { openDialog } from "../ui/dialogs/dialogService";
 import { convertTemperature, ensureEl, parseTransform, rn, round } from "../utils";
 
 let worldContext: WorldContext;
@@ -16,7 +17,7 @@ let appServices: AppServices;
 function editWorld(): void {
   if (customization) return;
 
-  $("#worldConfigurator").dialog({
+  openDialog("worldConfigurator", {
     title: "Configure World",
     resizable: false,
     width: "minmax(40em, 85vw)",
@@ -26,14 +27,14 @@ function editWorld(): void {
         <input id="wcAutoChange" class="checkbox" type="checkbox" checked />
         <label for="wcAutoChange" class="checkbox-label"><i>auto-apply changes</i></label>
       </div>`;
-      const pane = (this as HTMLElement).parentElement!.querySelector(".ui-dialog-buttonpane");
+      const pane = (this as unknown as HTMLElement).parentElement!.querySelector(".ui-dialog-buttonpane");
       pane!.insertAdjacentHTML("afterbegin", checkbox);
 
-      const button = (this as HTMLElement).parentElement!.querySelector(".ui-dialog-buttonset > button");
+      const button = (this as unknown as HTMLElement).parentElement!.querySelector(".ui-dialog-buttonset > button");
       (button as HTMLElement).on("mousemove", () => tip("Apply current settings to the map"));
     },
-    close: function () {
-      $(this).dialog("destroy");
+    close: () => {
+      /* $(this).dialog("destroy") removed */
     }
   });
 

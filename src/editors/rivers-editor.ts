@@ -3,6 +3,7 @@ import type { WorldContext } from "../context/worldContext";
 import type { River } from "../modules/river-generator";
 import { Rivers } from "../modules/river-generator";
 import type { TypedArray } from "../types/PackedGraph";
+import { closeDialog, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, findCell, getSegmentId, rand, rn } from "../utils";
 import { getPackPolygon } from "../utils/graphUtils";
 import { editNotes } from "./notes-editor";
@@ -35,7 +36,7 @@ export function editRiver(id: string): void {
   drawControlPoints(riverPoints);
   drawRiverCells(riverCells);
 
-  $("#riverEditor").dialog({
+  openDialog("riverEditor", {
     title: "Edit River",
     resizable: false,
     position: { my: "left top", at: "left+10 top+10", of: "#map" },
@@ -271,20 +272,21 @@ export function editRiver(id: string): void {
 
   function removeRiver(): void {
     alertMessage.innerHTML = "Are you sure you want to remove the river and all its tributaries";
-    $("#alert").dialog({
+    openRichDialog({
+      content: window.alertMessage.innerHTML,
       resizable: false,
       width: "22em",
       title: "Remove river and tributaries",
       buttons: {
-        Remove: function () {
-          $(this).dialog("close");
+        Remove: () => {
+          /* $(this).dialog("close") removed */
           const river = +elSelected!.attr("id").slice(5);
           Rivers.remove(river);
           elSelected!.remove();
-          $("#riverEditor").dialog("close");
+          closeDialog("riverEditor");
         },
-        Cancel: function () {
-          $(this).dialog("close");
+        Cancel: () => {
+          /* $(this).dialog("close") removed */
         }
       }
     });

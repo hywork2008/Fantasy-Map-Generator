@@ -1,15 +1,19 @@
-import React, { useEffect } from "react";
+import type React from "react";
+import { useEffect } from "react";
+import { useOptionsState } from "../../store/optionsState";
 import { useViewState } from "../../store/viewState";
+import { CustomizationMenu } from "./CustomizationMenu";
+import { Sticked } from "./Sticked";
 import { AboutTab } from "./tabs/AboutTab";
 import { LayersTab } from "./tabs/LayersTab";
-import { StyleTab } from "./tabs/StyleTab";
 import { OptionsTab } from "./tabs/OptionsTab";
+import { StyleTab } from "./tabs/StyleTab";
 import { ToolsTab } from "./tabs/ToolsTab";
-import { Sticked } from "./Sticked";
-import { CustomizationMenu } from "./CustomizationMenu";
 
 export const OptionsContainer: React.FC = () => {
-  const { isMenuOpen, setMenuOpen, activeMenu, setActiveMenu, isCustomizationMode, setCustomizationMode } = useViewState();
+  const { isMenuOpen, setMenuOpen, activeMenu, setActiveMenu, isCustomizationMode, setCustomizationMode } =
+    useViewState();
+  const uiSize = useOptionsState(state => state.uiSize);
 
   useEffect(() => {
     const handleEnter = () => {
@@ -37,6 +41,7 @@ export const OptionsContainer: React.FC = () => {
           data-tip="Click to show the Menu"
           className="options glow"
           onClick={() => setMenuOpen(true)}
+          type="button"
         >
           ►
         </button>
@@ -45,12 +50,13 @@ export const OptionsContainer: React.FC = () => {
           data-tip="Click to generate a new map"
           className="options"
           style={{ display: "none" }}
+          type="button"
         >
           New Map!
         </button>
       </div>
 
-      <div id="options" style={{ display: isMenuOpen ? "block" : "none" }}>
+      <div id="options" style={{ display: isMenuOpen ? "block" : "none", width: `${uiSize * 300}px` }}>
         <div className="drag-trigger" data-tip="Drag to move the Menu"></div>
 
         <div className="tab">
@@ -59,6 +65,7 @@ export const OptionsContainer: React.FC = () => {
             data-tip="Click to hide the Menu"
             className="options"
             onClick={() => setMenuOpen(false)}
+            type="button"
           >
             ◄
           </button>
@@ -74,6 +81,7 @@ export const OptionsContainer: React.FC = () => {
               id={tab.id}
               className={`options ${activeMenu === tab.id ? "active" : ""}`}
               onClick={() => setActiveMenu(tab.id)}
+              type="button"
             >
               {tab.label}
             </button>

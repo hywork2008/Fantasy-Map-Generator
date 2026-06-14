@@ -6,6 +6,7 @@ import type { PackedGraphFeature } from "../modules/features";
 import { Lakes } from "../modules/lakes";
 import { drawBiomes, drawBorders, drawCultures, drawProvinces, drawReligions, drawStates } from "../renderers";
 import { getFeaturePath } from "../renderers/index";
+import { openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, rand, rn, si, unique } from "../utils";
 import { getPackPolygon } from "../utils/graphUtils";
 import { editNotes } from "./notes-editor";
@@ -19,7 +20,7 @@ export function editLake(event?: MouseEvent): void {
   closeDialogs(".stable");
   if (layerIsOn("toggleCells")) toggleCells();
 
-  $("#lakeEditor").dialog({
+  openDialog("lakeEditor", {
     title: "Edit Lake",
     resizable: false,
     position: { my: "center top+20", at: "top", of: event, collision: "fit" },
@@ -238,13 +239,14 @@ export function editLake(event?: MouseEvent): void {
 
     const count = (elSelected!.node()!.parentNode as SVGGElement).childElementCount;
     alertMessage.innerHTML = /* html */ `Are you sure you want to remove the group? All lakes of the group (${count}) will be turned into Freshwater`;
-    $("#alert").dialog({
+    openRichDialog({
+      content: window.alertMessage.innerHTML,
       resizable: false,
       title: "Remove lake group",
       width: "26em",
       buttons: {
-        Remove: function () {
-          $(this).dialog("close");
+        Remove: () => {
+          /* $(this).dialog("close") removed */
           const freshwater = ensureEl("freshwater");
           const groupEl = ensureEl(group);
           while (groupEl.childNodes.length) {
@@ -254,8 +256,8 @@ export function editLake(event?: MouseEvent): void {
           ensureEl<HTMLSelectElement>("lakeGroup").selectedOptions[0].remove();
           (ensureEl("lakeGroup") as HTMLSelectElement).value = "freshwater";
         },
-        Cancel: function () {
-          $(this).dialog("close");
+        Cancel: () => {
+          /* $(this).dialog("close") removed */
         }
       }
     });

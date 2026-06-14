@@ -5,6 +5,7 @@ import type { WorldContext } from "../context/worldContext";
 import type { MilitaryRegiment, MilitaryUnit } from "../modules/military-generator";
 import { Military } from "../modules/military-generator";
 import { drawRegiment } from "../renderers/index";
+import { openDialog } from "../ui/dialogs/dialogService";
 import { capitalize, ensureEl, findCell, getLatitude, getLongitude, last, rn, si } from "../utils";
 
 let worldContext: WorldContext;
@@ -19,13 +20,13 @@ function overviewRegiments(state = -1): void {
   const body = document.getElementById("regimentsBody") as HTMLElement;
   updateFilter(state);
   addLines();
-  $("#regimentsOverview").dialog();
+  openDialog("regimentsOverview");
 
   if (modules.overviewRegiments) return;
   modules.overviewRegiments = true;
   updateHeaders();
 
-  $("#regimentsOverview").dialog({
+  openDialog("regimentsOverview", {
     title: "Regiments Overview",
     resizable: false,
     width: fitContent(),

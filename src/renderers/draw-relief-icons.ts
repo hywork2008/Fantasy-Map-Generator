@@ -15,7 +15,7 @@ interface ReliefIcon {
 export const drawReliefIcons = (
   worldContext: Readonly<WorldContext>,
   viewContext: Readonly<ViewContext>,
-  appServices: AppServices
+  _appServices: AppServices
 ): void => {
   TIME && console.time("drawRelief");
   const { pack, biomesData } = worldContext;

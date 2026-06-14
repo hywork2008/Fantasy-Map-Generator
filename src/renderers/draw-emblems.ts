@@ -27,7 +27,7 @@ interface EmblemNode {
 export const drawEmblems = (
   worldContext: Readonly<WorldContext>,
   viewContext: Readonly<ViewContext>,
-  appServices: AppServices
+  _appServices: AppServices
 ): void => {
   TIME && console.time("drawEmblems");
   const { pack, graphHeight, graphWidth } = worldContext;
@@ -170,7 +170,7 @@ const getDataAndType = (worldContext: Readonly<WorldContext>, id: string): [Burg
 
 export const renderGroupCOAs = async (
   worldContext: Readonly<WorldContext>,
-  viewContext: Readonly<ViewContext>,
+  _viewContext: Readonly<ViewContext>,
   appServices: AppServices,
   g: SVGGElement
 ): Promise<void> => {

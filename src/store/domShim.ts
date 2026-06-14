@@ -61,6 +61,10 @@ document.getElementById = (id: string): HTMLElement | null => {
     statesGrowthRate: { value: "1", valueAsNumber: 1 },
     zoomExtentMin: { value: "1", valueAsNumber: 1 },
     zoomExtentMax: { value: "20", valueAsNumber: 20 },
+    populationRateInput: { value: "1000", valueAsNumber: 1000 },
+    distanceScaleInput: { value: "3", valueAsNumber: 3 },
+    urbanizationInput: { value: "1", valueAsNumber: 1 },
+    urbanDensityInput: { value: "10", valueAsNumber: 10 },
     // biome-ignore lint/suspicious/noExplicitAny: partial HTMLElement mock
     toolsContent: { addEventListener: () => {} } as any
   };
@@ -105,5 +109,9 @@ Object.defineProperties(window, {
   rescaleLabels: { get: () => document.getElementById("rescaleLabels") },
   zoomExtentMin: { get: () => document.getElementById("zoomExtentMin") },
   zoomExtentMax: { get: () => document.getElementById("zoomExtentMax") },
+  populationRateInput: { get: () => document.getElementById("populationRateInput") },
+  distanceScaleInput: { get: () => document.getElementById("distanceScaleInput") },
+  urbanizationInput: { get: () => document.getElementById("urbanizationInput") },
+  urbanDensityInput: { get: () => document.getElementById("urbanDensityInput") },
   toolsContent: { get: () => document.getElementById("toolsContent") }
 });

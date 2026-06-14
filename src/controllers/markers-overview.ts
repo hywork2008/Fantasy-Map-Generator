@@ -3,6 +3,7 @@ import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { Markers } from "../modules/markers-generator";
 import { drawMarkers } from "../renderers";
+import { openDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, getLatitude, getLongitude } from "../utils";
 
 let worldContext: WorldContext;
@@ -30,7 +31,7 @@ function overviewMarkers(): void {
 
   addLines();
 
-  $("#markersOverview").dialog({
+  openDialog("markersOverview", {
     title: "Markers Overview",
     resizable: false,
     width: fitContent(),

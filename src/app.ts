@@ -12,6 +12,8 @@ async function initApp(): Promise<void> {
   console.log("Initializing React UI...");
   const { initReactUI } = await import("./ui/index");
   initReactUI();
+  await new Promise(resolve => setTimeout(resolve, 0));
+
   console.log("Initializing utils...");
   initUtils();
   console.log("Initializing modules...");

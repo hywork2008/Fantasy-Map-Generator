@@ -4,6 +4,7 @@ import type { WorldContext } from "../context/worldContext";
 import type { Burg, BurgGroup } from "../modules/burgs-generator";
 import { Burgs } from "../modules/burgs-generator";
 import { drawBurgIcons, drawBurgLabels } from "../renderers";
+import { closeDialog, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { ensureEl } from "../utils";
 
 let worldContext: WorldContext;
@@ -19,7 +20,7 @@ export function editBurgGroups(): void {
   if (customization) return;
   addLines();
 
-  $("#burgGroupsEditor").dialog({
+  openDialog("burgGroupsEditor", {
     title: "Configure Burg groups",
     resizable: false,
     position: { my: "center", at: "center", of: "svg" },
@@ -34,8 +35,8 @@ export function editBurgGroups(): void {
         options.burgs.groups = Burgs.getDefaultGroups();
         addLines();
       },
-      Cancel: function () {
-        $(this).dialog("close");
+      Cancel: () => {
+        /* $(this).dialog("close") removed */
       }
     }
   });
@@ -145,7 +146,8 @@ export function editBurgGroups(): void {
         </tbody>
       </table>`;
 
-    $("#alert").dialog({
+    openRichDialog({
+      content: window.alertMessage.innerHTML,
       width: fitContent(),
       title: "Limit group",
       buttons: {
@@ -154,7 +156,7 @@ export function editBurgGroups(): void {
             (inp as HTMLInputElement).checked = !(inp as HTMLInputElement).checked;
           });
         },
-        Apply: function () {
+        Apply: () => {
           const inputs = Array.from(alertMessage.querySelectorAll("input")) as HTMLInputElement[];
           const selected = inputs.reduce((acc: string[], input) => {
             if (input.checked) acc.push(input.dataset.i!);
@@ -166,10 +168,10 @@ export function editBurgGroups(): void {
           const allAreSelected = selected.length === inputs.length;
           hiddenInput.value = allAreSelected ? "" : selected.join(",");
           el.innerHTML = allAreSelected ? "all" : "some";
-          $(this).dialog("close");
+          /* $(this).dialog("close") removed */
         },
-        Cancel: function () {
-          $(this).dialog("close");
+        Cancel: () => {
+          /* $(this).dialog("close") removed */
         }
       }
     });
@@ -225,11 +227,12 @@ export function editBurgGroups(): void {
         </table>
       </form>`;
 
-    $("#alert").dialog({
+    openRichDialog({
+      content: window.alertMessage.innerHTML,
       width: fitContent(),
       title: "Limit group by features",
       buttons: {
-        Apply: function () {
+        Apply: () => {
           const form = ensureEl("featuresLimitationForm") as HTMLFormElement;
           const values = features.reduce((acc: Record<string, boolean>, { name }) => {
             const value = (form.elements.namedItem(name) as HTMLInputElement | null)?.value;
@@ -239,11 +242,10 @@ export function editBurgGroups(): void {
 
           hiddenInput.value = JSON.stringify(values);
           el.innerHTML = Object.keys(values).length ? "some" : "any";
-
-          $(this).dialog("close");
+          /* $(this).dialog("close") removed */
         },
-        Cancel: function () {
-          $(this).dialog("close");
+        Cancel: () => {
+          /* $(this).dialog("close") removed */
         }
       }
     });
@@ -369,7 +371,7 @@ export function editBurgGroups(): void {
     if (layerIsOn("toggleLabels")) drawBurgLabels(worldContext, viewContext, appServices);
     if (burgsOverviewRefresh?.offsetParent) burgsOverviewRefresh.click();
 
-    $("#burgGroupsEditor").dialog("close");
+    closeDialog("burgGroupsEditor");
   }
 }
 

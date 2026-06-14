@@ -1,4 +1,5 @@
 import { Routes } from "../modules/routes-generator";
+import { openDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, showPrompt } from "../utils";
 
 export function editRouteGroups(): void {
@@ -7,7 +8,7 @@ export function editRouteGroups(): void {
 
   addLines();
 
-  $("#routeGroupsEditor").dialog({
+  openDialog("routeGroupsEditor", {
     title: "Edit Route groups",
     resizable: false,
     position: { my: "left top", at: "left+10 top+140", of: "#map" }

@@ -12,7 +12,7 @@ interface BurgGroup {
 export const drawBurgLabels = (
   worldContext: Readonly<WorldContext>,
   viewContext: Readonly<ViewContext>,
-  appServices: AppServices
+  _appServices: AppServices
 ): void => {
   TIME && console.time("drawBurgLabels");
   const { pack, options, style } = worldContext;
@@ -77,9 +77,9 @@ export const drawBurgLabel = (
 };
 
 export const removeBurgLabel = (
-  worldContext: Readonly<WorldContext>,
-  viewContext: Readonly<ViewContext>,
-  appServices: AppServices,
+  _worldContext: Readonly<WorldContext>,
+  _viewContext: Readonly<ViewContext>,
+  _appServices: AppServices,
   burgId: number
 ): void => {
   const existingLabel = document.getElementById(`burgLabel${burgId}`);

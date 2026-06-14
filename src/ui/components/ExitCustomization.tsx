@@ -1,4 +1,5 @@
-import React, { useEffect, useRef } from "react";
+import type React from "react";
+import { useEffect, useRef } from "react";
 
 export const ExitCustomization: React.FC = () => {
   const elRef = useRef<HTMLDivElement>(null);
@@ -8,7 +9,8 @@ export const ExitCustomization: React.FC = () => {
     if (!el) return;
 
     const handleShow = (e: Event) => {
-      const detail = (e as CustomEvent<{ opacity?: string; right?: string; bottom?: string; transform?: string }>).detail;
+      const detail = (e as CustomEvent<{ opacity?: string; right?: string; bottom?: string; transform?: string }>)
+        .detail;
       if (detail) {
         if (detail.opacity !== undefined) el.style.opacity = detail.opacity;
         if (detail.right !== undefined) el.style.right = detail.right;
@@ -34,7 +36,7 @@ export const ExitCustomization: React.FC = () => {
   return (
     <div id="exitCustomization" ref={elRef} style={{ display: "none" }}>
       <div data-tip="Drag to move the pane">
-        <button data-tip="Finalize the heightmap and exit the edit mode" id="finalizeHeightmap">
+        <button type="button" data-tip="Finalize the heightmap and exit the edit mode" id="finalizeHeightmap">
           Exit Customization
         </button>
       </div>

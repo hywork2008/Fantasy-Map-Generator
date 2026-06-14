@@ -3,6 +3,7 @@ import { drag, pointer, select } from "d3";
 import type { WorldContext } from "../context/worldContext";
 import type { Route } from "../modules/routes-generator";
 import { Routes } from "../modules/routes-generator";
+import { closeDialog, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, findCell, getSegmentId, rn } from "../utils";
 import { getPackPolygon } from "../utils/graphUtils";
 import { editNotes } from "./notes-editor";
@@ -42,7 +43,7 @@ export function editRoute(id: string): void {
     updateLockIcon();
   }
 
-  $("#routeEditor").dialog({
+  openDialog("routeEditor", {
     title: "Edit Route",
     resizable: false,
     position: { my: "left top", at: "left+10 top+10", of: "#map" },
@@ -294,20 +295,21 @@ export function editRoute(id: string): void {
         <select>${options.join("")}</select>
       </div>`;
 
-      $("#alert").dialog({
+      openRichDialog({
+        content: window.alertMessage.innerHTML,
         title: "Join routes",
         width: fitContent(),
         position: { my: "left top", at: "left+10 top+150", of: "#map" },
         buttons: {
           Cancel: () => {
-            $("#alert").dialog("close");
+            closeDialog("alert");
           },
           Join: () => {
             const selectedRouteId = +(alertMessage.querySelector("select") as HTMLSelectElement).value;
             const selectedRoute = pack.routes.find((r: Route) => r.i === selectedRouteId)!;
             joinRoutes(route, selectedRoute);
             tip("Routes joined", false, "success", 5000);
-            $("#alert").dialog("close");
+            closeDialog("alert");
           }
         }
       });
@@ -424,7 +426,7 @@ export function editRoute(id: string): void {
       confirm: "Remove",
       onConfirm: () => {
         Routes.remove(getRoute());
-        $("#routeEditor").dialog("close");
+        closeDialog("routeEditor");
       }
     });
   }
@@ -472,7 +474,7 @@ export function createRoute(defaultGroup?: string): void {
     })
     .join("");
 
-  $("#routeCreator").dialog({
+  openDialog("routeCreator", {
     title: "Create Route",
     resizable: false,
     position: { my: "left top", at: "left+10 top+10", of: "#map" },
@@ -486,7 +488,7 @@ export function createRoute(defaultGroup?: string): void {
   ensureEl("routeCreatorGroupSelect").on("change", () => drawRoutePreview(_createRoutePoints));
   ensureEl("routeCreatorGroupEdit").on("click", editRouteGroups);
   ensureEl("routeCreatorComplete").on("click", completeCreation);
-  ensureEl("routeCreatorCancel").on("click", () => $("#routeCreator").dialog("close"));
+  ensureEl("routeCreatorCancel").on("click", () => closeDialog("routeCreator"));
   body.on("click", (ev: Event) => {
     if ((ev.target as HTMLElement).classList.contains("icon-trash-empty"))
       removePoint((ev.target as HTMLElement).parentElement!.dataset.point!);

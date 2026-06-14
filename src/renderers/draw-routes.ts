@@ -8,7 +8,7 @@ import { TIME } from "../utils/debug";
 export const drawRoutes = (
   worldContext: Readonly<WorldContext>,
   viewContext: Readonly<ViewContext>,
-  appServices: AppServices
+  _appServices: AppServices
 ): void => {
   TIME && console.time("drawRoutes");
   const { pack } = worldContext;
@@ -31,9 +31,9 @@ export const drawRoutes = (
 };
 
 export const drawRoute = (
-  worldContext: Readonly<WorldContext>,
+  _worldContext: Readonly<WorldContext>,
   viewContext: Readonly<ViewContext>,
-  appServices: AppServices,
+  _appServices: AppServices,
   route: Route
 ): void => {
   const { routes } = viewContext;

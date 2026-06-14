@@ -1,5 +1,6 @@
 import { createRoute } from "../editors/routes-editor";
 import { Routes } from "../modules/routes-generator";
+import { openConfirm, openDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, rn } from "../utils";
 
 function overviewRoutes(): void {
@@ -9,12 +10,12 @@ function overviewRoutes(): void {
 
   const body = ensureEl("routesBody");
   routesOverviewAddLines();
-  $("#routesOverview").dialog();
+  openDialog("routesOverview");
 
   if (modules.overviewRoutes) return;
   modules.overviewRoutes = true;
 
-  $("#routesOverview").dialog({
+  openDialog("routesOverview", {
     title: "Routes Overview",
     resizable: false,
     width: fitContent(),
@@ -177,16 +178,14 @@ function overviewRoutes(): void {
     }
 
     const lockedCount = pack.routes.length - toRemove.length;
-    alertMessage.innerHTML =
+    openConfirm(
       lockedCount > 0
         ? /* html */ `Remove all <b>unlocked</b> routes (${toRemove.length})? <b>${lockedCount}</b> locked route(s) will be kept. This cannot be undone.`
-        : /* html */ `Are you sure you want to remove all routes? This action can't be undone`;
-
-    $("#alert").dialog({
-      resizable: false,
-      title: lockedCount > 0 ? "Remove unlocked routes" : "Remove all routes",
-      buttons: {
-        Remove: function () {
+        : /* html */ `Are you sure you want to remove all routes? This action can't be undone`,
+      {
+        title: lockedCount > 0 ? "Remove unlocked routes" : "Remove all routes",
+        confirm: "Remove",
+        onConfirm: () => {
           const routesToRemove = pack.routes.filter(route => !route.lock);
           if (!routesToRemove.length) {
             if (!pack.routes.length) {
@@ -194,7 +193,6 @@ function overviewRoutes(): void {
             } else {
               tip("All routes are now locked; nothing was removed.", false, "error");
             }
-            $(this).dialog("close");
             return;
           }
           for (const route of routesToRemove) {
@@ -202,13 +200,9 @@ function overviewRoutes(): void {
           }
           pack.cells.routes = Routes.buildLinks(pack.routes);
           routesOverviewAddLines();
-          $(this).dialog("close");
-        },
-        Cancel: function () {
-          $(this).dialog("close");
         }
       }
-    });
+    );
   }
 }
 

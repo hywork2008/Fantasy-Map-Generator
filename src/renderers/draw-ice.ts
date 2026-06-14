@@ -13,7 +13,7 @@ interface IceElement {
 export const drawIce = (
   worldContext: Readonly<WorldContext>,
   viewContext: Readonly<ViewContext>,
-  appServices: AppServices
+  _appServices: AppServices
 ): void => {
   TIME && console.time("drawIce");
   const { pack } = worldContext;
@@ -39,7 +39,7 @@ export const drawIce = (
 export const redrawIceberg = (
   worldContext: Readonly<WorldContext>,
   viewContext: Readonly<ViewContext>,
-  appServices: AppServices,
+  _appServices: AppServices,
   id: number
 ): void => {
   TIME && console.time("redrawIceberg");
@@ -64,7 +64,7 @@ export const redrawIceberg = (
 export const redrawGlacier = (
   worldContext: Readonly<WorldContext>,
   viewContext: Readonly<ViewContext>,
-  appServices: AppServices,
+  _appServices: AppServices,
   id: number
 ): void => {
   TIME && console.time("redrawGlacier");

@@ -4,6 +4,7 @@ import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import type { MilitaryUnit } from "../modules/military-generator";
 import { Military } from "../modules/military-generator";
+import { closeDialog, openConfirm, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { capitalize, rn, sanitizeId, si, wiki } from "../utils";
 
 let worldContext: WorldContext;
@@ -27,13 +28,13 @@ function overviewMilitary(): void {
 
   const body = document.getElementById("militaryBody") as HTMLElement;
   addLines();
-  $("#militaryOverview").dialog();
+  openDialog("militaryOverview");
 
   if (modules.overviewMilitary) return;
   modules.overviewMilitary = true;
   updateHeaders();
 
-  $("#militaryOverview").dialog({
+  openDialog("militaryOverview", {
     title: "Military Overview",
     resizable: false,
     width: fitContent(),
@@ -262,7 +263,7 @@ function overviewMilitary(): void {
       addUnitLine(unit);
     });
 
-    $("#militaryOptions").dialog({
+    openDialog("militaryOptions", {
       title: "Edit Military Units",
       resizable: false,
       width: fitContent(),
@@ -281,12 +282,13 @@ function overviewMilitary(): void {
             separate: 0
           }),
         Restore: restoreDefaultUnits,
-        Cancel: function () {
-          $(this).dialog("close");
+        Cancel: () => {
+          /* $(this).dialog("close") removed */
         }
       },
-      open: function () {
-        const buttons = $(this).dialog("widget").find(".ui-dialog-buttonset > button");
+      open: () => {
+        const buttons = document.body /* .dialog("widget") removed */
+          .querySelectorAll(".ui-dialog-buttonset > button");
         buttons[0].addEventListener("mousemove", () =>
           tip("Apply military units settings. <span style='color:#cb5858'>All forces will be recalculated!</span>")
         );
@@ -417,41 +419,51 @@ function overviewMilitary(): void {
           </tr>`
       );
 
-      alertMessage.innerHTML = /* html */ `<b>Limit unit by ${type}:</b>
-        <table style="margin-top:.3em">
-          <tbody>
-            ${lines.join("")}
-          </tbody>
-        </table>`;
-
-      $("#alert").dialog({
-        width: fitContent(),
+      openRichDialog({
         title: "Limit unit",
-        buttons: {
-          Invert: () => {
-            alertMessage.querySelectorAll("input").forEach(el => {
-              (el as HTMLInputElement).checked = !(el as HTMLInputElement).checked;
-            });
+        content: /* html */ `<b>Limit unit by ${type}:</b>
+          <table style="margin-top:.3em">
+            <tbody>
+              ${lines.join("")}
+            </tbody>
+          </table>`,
+        buttons: [
+          {
+            label: "Invert",
+            keepOpen: true,
+            onClick: () => {
+              const alertMsg = document.getElementById("alert");
+              if (alertMsg) {
+                alertMsg.querySelectorAll("input").forEach(el => {
+                  (el as HTMLInputElement).checked = !(el as HTMLInputElement).checked;
+                });
+              }
+            }
           },
-          Apply: function () {
-            const inputs = Array.from(alertMessage.querySelectorAll<HTMLInputElement>("input"));
-            const selected = inputs.reduce<string[]>((acc, input) => {
-              if (input.checked) acc.push(input.dataset.i!);
-              return acc;
-            }, []);
+          {
+            label: "Apply",
+            onClick: () => {
+              const alertMsg = document.getElementById("alert");
+              if (!alertMsg) return;
+              const inputs = Array.from(alertMsg.querySelectorAll<HTMLInputElement>("input"));
+              const selected = inputs.reduce<string[]>((acc, input) => {
+                if (input.checked) acc.push(input.dataset.i!);
+                return acc;
+              }, []);
 
-            if (!selected.length) return tip("Select at least one element", false, "error");
+              if (!selected.length) return tip("Select at least one element", false, "error");
 
-            const allAreSelected = selected.length === inputs.length;
-            el.dataset.value = allAreSelected ? "" : selected.join(",");
-            el.innerHTML = allAreSelected ? "all" : "some";
-            el.setAttribute("title", getLimitTip(selected.map(Number), data));
-            $(this).dialog("close");
+              const allAreSelected = selected.length === inputs.length;
+              el.dataset.value = allAreSelected ? "" : selected.join(",");
+              el.innerHTML = allAreSelected ? "all" : "some";
+              el.setAttribute("title", getLimitTip(selected.map(Number), data));
+            }
           },
-          Cancel: function () {
-            $(this).dialog("close");
+          {
+            label: "Cancel",
+            onClick: () => {}
           }
-        }
+        ]
       });
     }
 
@@ -463,7 +475,7 @@ function overviewMilitary(): void {
         return;
       }
 
-      $("#militaryOptions").dialog("close");
+      closeDialog("militaryOptions");
 
       options.military = unitLines.map((r, i) => {
         const elements = Array.from(r.querySelectorAll<HTMLElement>("input, button, select"));
@@ -505,22 +517,17 @@ function overviewMilitary(): void {
   }
 
   function militaryRecalculate(): void {
-    alertMessage.innerHTML =
-      "Are you sure you want to recalculate military forces for all states?<br>Regiments for all states will be regenerated";
-    $("#alert").dialog({
-      resizable: false,
-      title: "Remove regiment",
-      buttons: {
-        Recalculate: function () {
-          $(this).dialog("close");
+    openConfirm(
+      "Are you sure you want to recalculate military forces for all states?<br>Regiments for all states will be regenerated",
+      {
+        title: "Recalculate military",
+        confirm: "Recalculate",
+        onConfirm: () => {
           Military.generate(worldContext, viewContext, appServices, getWorldState());
           addLines();
-        },
-        Cancel: function () {
-          $(this).dialog("close");
         }
       }
-    });
+    );
   }
 
   function downloadMilitaryData(): void {

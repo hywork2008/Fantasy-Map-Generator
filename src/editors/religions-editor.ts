@@ -15,6 +15,7 @@ let worldContext: WorldContext;
 let viewContext: Readonly<ViewContext>;
 let appServices: AppServices;
 
+import { openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { getPackPolygon } from "../utils/graphUtils";
 
 const $body = insertEditorHtml();
@@ -31,7 +32,7 @@ export function open(): void {
   refreshReligionsEditor();
   drawReligionCenters();
 
-  $("#religionsEditor").dialog({
+  openDialog("religionsEditor", {
     title: "Religions Editor",
     resizable: false,
     close: closeReligionsEditor,
@@ -295,7 +296,7 @@ function religionsEditorAddLines(): void {
   }
 
   applySorting(religionsHeader);
-  $("#religionsEditor").dialog({ width: fitContent() });
+  openDialog("religionsEditor", { width: fitContent() });
 }
 
 function getTypeOptions(type: string): string {
@@ -463,17 +464,18 @@ function changePopulation(this: Element): void {
   getRuralPop().oninput = () => update();
   getUrbanPop().oninput = () => update();
 
-  $("#alert").dialog({
+  openRichDialog({
+    content: window.alertMessage.innerHTML,
     resizable: false,
     title: "Change believers number",
     width: "24em",
     buttons: {
-      Apply: function () {
+      Apply: () => {
         applyPopulationChange();
-        $(this).dialog("close");
+        /* $(this).dialog("close") removed */
       },
-      Cancel: function () {
-        $(this).dialog("close");
+      Cancel: () => {
+        /* $(this).dialog("close") removed */
       }
     },
     position: { my: "center", at: "center", of: "svg" }
@@ -725,7 +727,7 @@ function enterReligionsManualAssignent(): void {
   $body.querySelectorAll<HTMLElement>("div > input, select, span, svg").forEach(e => {
     e.style.pointerEvents = "none";
   });
-  $("#religionsEditor").dialog({ position: { my: "right top", at: "right-10 top+10", of: "svg" } });
+  openDialog("religionsEditor", { position: { my: "right top", at: "right-10 top+10", of: "svg" } });
 
   tip("Click on religion to select, drag the circle to change religion", true);
   viewbox
@@ -832,7 +834,7 @@ function exitReligionsManualAssignment(close?: boolean | string): void {
   $body.querySelectorAll<HTMLElement>("div > input, select, span, svg").forEach(e => {
     e.style.pointerEvents = "all";
   });
-  if (!close) $("#religionsEditor").dialog({ position: { my: "right top", at: "right-10 top+10", of: "svg" } });
+  if (!close) openDialog("religionsEditor", { position: { my: "right top", at: "right-10 top+10", of: "svg" } });
 
   debug.select("#religionCenters").style("display", null);
   restoreDefaultEvents?.();

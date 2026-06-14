@@ -12,7 +12,7 @@ interface BurgGroup {
 export const drawBurgIcons = (
   worldContext: Readonly<WorldContext>,
   viewContext: Readonly<ViewContext>,
-  appServices: AppServices
+  _appServices: AppServices
 ): void => {
   TIME && console.time("drawBurgIcons");
   const { pack, options, style } = worldContext;
@@ -82,9 +82,9 @@ export const drawBurgIcon = (
 };
 
 export const removeBurgIcon = (
-  worldContext: Readonly<WorldContext>,
-  viewContext: Readonly<ViewContext>,
-  appServices: AppServices,
+  _worldContext: Readonly<WorldContext>,
+  _viewContext: Readonly<ViewContext>,
+  _appServices: AppServices,
   burgId: number
 ): void => {
   const existingIcon = document.getElementById(`burg${burgId}`);

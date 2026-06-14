@@ -2,6 +2,7 @@ import * as d3 from "d3";
 import { fitMapToScreen } from "../controllers/options";
 import type { PackedGraphFeature } from "../modules/features";
 import { useOptionsState } from "../store/optionsState";
+import { openRichDialog } from "../ui/dialogs/dialogService";
 import {
   convertTemperature,
   debounce,
@@ -644,13 +645,14 @@ function showInfo(): void {
 
     <p>Chinese localization: <a href="https://www.8desk.top" target="_blank">8desk.top</a></p>`;
 
-  $("#alert").dialog({
+  openRichDialog({
+    content: window.alertMessage.innerHTML,
     resizable: false,
     title: document.title,
     width: "28em",
     buttons: {
       OK: function (this: HTMLElement) {
-        $(this).dialog("close");
+        /* $(this).dialog("close") removed */
       }
     },
     position: { my: "center", at: "center", of: "svg" }

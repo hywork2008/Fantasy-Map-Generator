@@ -7,7 +7,7 @@ import { TIME } from "../utils/debug";
 export const drawRivers = (
   worldContext: Readonly<WorldContext>,
   viewContext: Readonly<ViewContext>,
-  appServices: AppServices
+  _appServices: AppServices
 ): void => {
   TIME && console.time("drawRivers");
   const { pack } = worldContext;

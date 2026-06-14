@@ -1,5 +1,7 @@
-import React, { useEffect, useState } from "react";
-import { useLayerState, LayerConfig, DEFAULT_LAYERS } from "../../../store/layerState";
+import type React from "react";
+import { useEffect, useState } from "react";
+import { DEFAULT_LAYERS, type LayerConfig, useLayerState } from "../../../store/layerState";
+import { callWindowFn, getWindowFn, getWindowProp } from "../../../utils/windowGlobals";
 
 export const LayersTab: React.FC = () => {
   const { layers, setLayers, activeLayers, presets, activePreset, setActivePreset, reorderLayers } = useLayerState();
@@ -17,14 +19,14 @@ export const LayersTab: React.FC = () => {
     e.dataTransfer.effectAllowed = "move";
   };
 
-  const handleDragOver = (e: React.DragEvent, index: number) => {
+  const handleDragOver = (e: React.DragEvent, _index: number) => {
     e.preventDefault(); // Necessary to allow dropping
   };
 
   const handleDrop = (e: React.DragEvent, dropIndex: number) => {
     e.preventDefault();
     if (draggedIndex === null || draggedIndex === dropIndex) return;
-    
+
     reorderLayers(draggedIndex, dropIndex);
     setDraggedIndex(null);
   };
@@ -35,31 +37,31 @@ export const LayersTab: React.FC = () => {
     // The global function (e.g. window.toggleTexture) will fire and then call turnButtonOn/Off
     // which we will refactor to update the Zustand store.
     const fnName = layer.id;
-    if (typeof (window as any)[fnName] === "function") {
-      (window as any)[fnName](e.nativeEvent);
+    if (getWindowFn(fnName)) {
+      callWindowFn(fnName, e.nativeEvent);
     }
   };
 
   const handlePresetChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const val = e.target.value;
-    if (typeof (window as any).handleLayersPresetChange === "function") {
-      (window as any).handleLayersPresetChange(val);
+    if (getWindowFn("handleLayersPresetChange")) {
+      callWindowFn("handleLayersPresetChange", val);
     } else {
       setActivePreset(val);
     }
   };
 
   const handleViewMode = (e: React.MouseEvent) => {
-    if (typeof (window as any).changeViewMode === "function") {
-      (window as any).changeViewMode(e.nativeEvent);
-    }
+    callWindowFn("changeViewMode", e.nativeEvent);
   };
 
   const isCustom = activePreset === "custom";
 
   return (
     <div id="layersContent" className="tabcontent" style={{ display: "block" }}>
-      <p data-tip="Select a map layers preset" style={{ display: "inline-block", marginRight: '8px' }}>Layers preset:</p>
+      <p data-tip="Select a map layers preset" style={{ display: "inline-block", marginRight: "8px" }}>
+        Layers preset:
+      </p>
       <select
         data-tip="Select a map layers preset"
         id="layersPreset"
@@ -67,14 +69,16 @@ export const LayersTab: React.FC = () => {
         onChange={handlePresetChange}
         style={{ width: "45%" }}
       >
-        {Object.keys(presets).map((preset) => (
+        {Object.keys(presets).map(preset => (
           <option key={preset} value={preset} hidden={preset === "custom"}>
             {preset === "custom" ? "Custom (not saved)" : preset}
           </option>
         ))}
         {/* If custom is active but not in presets, we still show it because it's the current value */}
-        {isCustom && !presets["custom"] && (
-          <option hidden value="custom">Custom (not saved)</option>
+        {isCustom && !presets.custom && (
+          <option hidden value="custom">
+            Custom (not saved)
+          </option>
         )}
       </select>
 
@@ -83,14 +87,16 @@ export const LayersTab: React.FC = () => {
         data-tip="Click to save displayed layers as a new preset"
         className="icon-plus sideButton"
         style={{ display: isCustom ? "inline-block" : "none" }}
-        onClick={() => (window as any).savePreset?.()}
+        onClick={() => callWindowFn("savePreset")}
+        type="button"
       ></button>
       <button
         id="removePresetButton"
         data-tip="Click to remove current custom preset"
         className="icon-minus sideButton"
         style={{ display: isCustom ? "none" : "inline-block" }}
-        onClick={() => (window as any).removePreset?.()}
+        onClick={() => callWindowFn("removePreset")}
+        type="button"
       ></button>
 
       <p>Displayed layers and layers order:</p>
@@ -108,10 +114,10 @@ export const LayersTab: React.FC = () => {
               data-shortcut={layer.shortcut}
               className={`${isOn ? "" : "buttonoff"} ${layer.isSolid ? "solid" : ""}`}
               draggable
-              onDragStart={(e) => handleDragStart(e, index)}
-              onDragOver={(e) => handleDragOver(e, index)}
-              onDrop={(e) => handleDrop(e, index)}
-              onClick={(e) => handleToggle(e, layer)}
+              onDragStart={e => handleDragStart(e, index)}
+              onDragOver={e => handleDragOver(e, index)}
+              onDrop={e => handleDrop(e, index)}
+              onClick={e => handleToggle(e, layer)}
             >
               {layer.name}
             </li>
@@ -126,8 +132,9 @@ export const LayersTab: React.FC = () => {
         <button
           data-tip="Standard view mode that allows to edit the map"
           id="viewStandard"
-          className={(window as any).customization !== 1 ? "pressed" : ""}
+          className={getWindowProp<number>("customization") !== 1 ? "pressed" : ""}
           onClick={handleViewMode}
+          type="button"
         >
           Standard
         </button>
@@ -135,13 +142,15 @@ export const LayersTab: React.FC = () => {
           data-tip="Map presentation in 3D scene. Works best for heightmap. Cannot be used for editing"
           id="viewMesh"
           onClick={handleViewMode}
+          type="button"
         >
           3D scene
         </button>
-        <button 
-          data-tip="Project map on globe. Cannot be used for editing" 
+        <button
+          data-tip="Project map on globe. Cannot be used for editing"
           id="viewGlobe"
           onClick={handleViewMode}
+          type="button"
         >
           Globe
         </button>

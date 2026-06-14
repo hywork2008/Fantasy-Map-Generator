@@ -8,8 +8,8 @@ type ScaleBarSelection = d3.Selection<SVGGElement, unknown, null, undefined>;
 
 export const drawScaleBar = (
   worldContext: Readonly<WorldContext>,
-  viewContext: Readonly<ViewContext>,
-  appServices: AppServices,
+  _viewContext: Readonly<ViewContext>,
+  _appServices: AppServices,
   scaleBar: ScaleBarSelection,
   scaleLevel: number
 ): void => {
@@ -108,9 +108,9 @@ function getLength(_worldContext: Readonly<WorldContext>, _scaleBar: ScaleBarSel
 }
 
 export const fitScaleBar = (
-  worldContext: Readonly<WorldContext>,
-  viewContext: Readonly<ViewContext>,
-  appServices: AppServices,
+  _worldContext: Readonly<WorldContext>,
+  _viewContext: Readonly<ViewContext>,
+  _appServices: AppServices,
   scaleBar: ScaleBarSelection,
   fullWidth: number,
   fullHeight: number

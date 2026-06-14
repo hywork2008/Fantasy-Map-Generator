@@ -32,9 +32,9 @@ export const PROFILE_SIZE = 256;
 // Build a smooth closed roughness envelope via sum-of-cosine harmonics.
 // Intrinsically seam-free; result raised to `contrast` power for calm/rough contrast.
 export function makeRoughnessProfile(
-  worldContext: Readonly<WorldContext>,
-  viewContext: Readonly<ViewContext>,
-  appServices: AppServices,
+  _worldContext: Readonly<WorldContext>,
+  _viewContext: Readonly<ViewContext>,
+  _appServices: AppServices,
   rand: () => number,
   _contrast: number,
   _numHarmonics = 4
@@ -216,9 +216,9 @@ function isOnBorder(_worldContext: Readonly<WorldContext>, [x, y]: [number, numb
  * Jagged span: centripetal Catmull-Rom (α=0.5) through every fractal sub-point. Rounds sharp kinks into gentle curves.
  */
 export function buildCoastlinePath(
-  worldContext: Readonly<WorldContext>,
-  viewContext: Readonly<ViewContext>,
-  appServices: AppServices,
+  _worldContext: Readonly<WorldContext>,
+  _viewContext: Readonly<ViewContext>,
+  _appServices: AppServices,
   { points, origIndices }: FractalizedShape
 ): string {
   const N = points.length;

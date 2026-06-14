@@ -1,5 +1,6 @@
 import { mean } from "d3";
 import { Rivers } from "../modules/river-generator";
+import { openConfirm, openDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, rn } from "../utils";
 
 function overviewRivers(): void {
@@ -9,12 +10,12 @@ function overviewRivers(): void {
 
   const body = ensureEl("riversBody");
   riversOverviewAddLines();
-  $("#riversOverview").dialog();
+  openDialog("riversOverview");
 
   if (modules.overviewRivers) return;
   modules.overviewRivers = true;
 
-  $("#riversOverview").dialog({
+  openDialog("riversOverview", {
     title: "Rivers Overview",
     resizable: false,
     width: fitContent(),
@@ -166,38 +167,23 @@ function overviewRivers(): void {
 
   function triggerRiverRemove(this: HTMLElement): void {
     const river = +this.parentElement!.dataset.id!;
-    alertMessage.innerHTML = /* html */ `Are you sure you want to remove the river? All tributaries will be auto-removed`;
 
-    $("#alert").dialog({
-      resizable: false,
-      width: "22em",
+    openConfirm(/* html */ `Are you sure you want to remove the river? All tributaries will be auto-removed`, {
       title: "Remove river",
-      buttons: {
-        Remove: function () {
-          Rivers.remove(river);
-          riversOverviewAddLines();
-          $(this).dialog("close");
-        },
-        Cancel: function () {
-          $(this).dialog("close");
-        }
+      confirm: "Remove",
+      onConfirm: () => {
+        Rivers.remove(river);
+        riversOverviewAddLines();
       }
     });
   }
 
   function triggerAllRiversRemove(): void {
-    alertMessage.innerHTML = /* html */ `Are you sure you want to remove all rivers?`;
-    $("#alert").dialog({
-      resizable: false,
+    openConfirm(/* html */ `Are you sure you want to remove all rivers?`, {
       title: "Remove all rivers",
-      buttons: {
-        Remove: function () {
-          $(this).dialog("close");
-          removeAllRivers();
-        },
-        Cancel: function () {
-          $(this).dialog("close");
-        }
+      confirm: "Remove",
+      onConfirm: () => {
+        removeAllRivers();
       }
     });
   }

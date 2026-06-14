@@ -5,7 +5,7 @@ import type { WorldContext } from "../context/worldContext";
 export const drawGrid = (
   worldContext: Readonly<WorldContext>,
   viewContext: Readonly<ViewContext>,
-  appServices: AppServices
+  _appServices: AppServices
 ): void => {
   const { graphWidth, graphHeight } = worldContext;
   const { gridOverlay } = viewContext;

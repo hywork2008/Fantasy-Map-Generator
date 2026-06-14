@@ -1,4 +1,4 @@
-import React from "react";
+import type React from "react";
 
 interface SliderInputProps {
   id?: string;
@@ -25,15 +25,7 @@ export const SliderInput: React.FC<SliderInputProps> = ({
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: "0.4em" }} className={className} id={id}>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={handleChange}
-        style={{ flex: 1 }}
-      />
+      <input type="range" min={min} max={max} step={step} value={value} onChange={handleChange} style={{ flex: 1 }} />
       <input
         type="number"
         min={min}

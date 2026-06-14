@@ -5,6 +5,7 @@ import type { WorldContext } from "../context/worldContext";
 import { COArenderer } from "../modules/emblem/renderer";
 import { States } from "../modules/states-generator";
 import { drawStates } from "../renderers";
+import { openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { findCell, getAdjective } from "../utils";
 
 let worldContext: WorldContext;
@@ -85,7 +86,7 @@ export function editDiplomacy(): void {
   if (modules.editDiplomacy) return;
   modules.editDiplomacy = true;
 
-  $("#diplomacyEditor").dialog({
+  openDialog("diplomacyEditor", {
     title: "Diplomacy Editor",
     resizable: false,
     width: fitContent(),
@@ -168,7 +169,7 @@ export function editDiplomacy(): void {
     });
 
     applySorting(document.getElementById("diplomacyHeader") as HTMLElement);
-    $("#diplomacyEditor").dialog();
+    openDialog("diplomacyEditor");
   }
 
   function stateHighlightOn(event: MouseEvent): void {
@@ -292,11 +293,12 @@ export function editDiplomacy(): void {
       </form>
     `;
 
-    $("#alert").dialog({
+    openRichDialog({
+      content: window.alertMessage.innerHTML,
       width: fitContent(),
       title: `Change relations`,
       buttons: {
-        Apply: function () {
+        Apply: () => {
           const formData = new FormData(document.getElementById("relationsForm") as HTMLFormElement);
           const newRelation = formData.get("relationSelect") as string;
           const objectIds = [...formData.getAll("objectSelect")].map(Number);
@@ -304,10 +306,10 @@ export function editDiplomacy(): void {
           for (const oid of objectIds) {
             changeRelation(subjectId, oid, currentRelation, newRelation);
           }
-          $(this).dialog("close");
+          /* $(this).dialog("close") removed */
         },
-        Cancel: function () {
-          $(this).dialog("close");
+        Cancel: () => {
+          /* $(this).dialog("close") removed */
         }
       }
     });
@@ -450,7 +452,8 @@ export function editDiplomacy(): void {
       el.addEventListener("input", changeRelationsHistory);
     });
 
-    $("#alert").dialog({
+    openRichDialog({
+      content: window.alertMessage.innerHTML,
       title: "Relations history",
       position: { my: "center", at: "center", of: "svg" },
       buttons: {
@@ -459,12 +462,12 @@ export function editDiplomacy(): void {
           const name = `${getFileName("Relations history")}.txt`;
           downloadFile(data, name);
         },
-        Clear: function () {
+        Clear: () => {
           pack.states[0].diplomacy = [];
-          $(this).dialog("close");
+          /* $(this).dialog("close") removed */
         },
-        Close: function () {
-          $(this).dialog("close");
+        Close: () => {
+          /* $(this).dialog("close") removed */
         }
       }
     });
@@ -522,7 +525,7 @@ export function editDiplomacy(): void {
       selectRelation(subjectId, objectId, currentRelation);
     });
 
-    $("#diplomacyMatrix").dialog({
+    openDialog("diplomacyMatrix", {
       title: "Relations matrix",
       position: { my: "center", at: "center", of: "svg" },
       buttons: {}
