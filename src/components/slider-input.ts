@@ -23,20 +23,25 @@
   class SliderInput extends HTMLElement {
     constructor() {
       super();
-      this.appendChild(template.content.cloneNode(true));
+    }
 
-      const range = this.querySelector("input[type=range]") as HTMLInputElement;
-      const number = this.querySelector("input[type=number]") as HTMLInputElement;
+    connectedCallback() {
+      if (!this.querySelector("input[type=range]")) {
+        this.appendChild(template.content.cloneNode(true));
 
-      range.value = number.value = this.value || this.getAttribute("value") || "50";
-      range.min = number.min = this.getAttribute("min") || "0";
-      range.max = number.max = this.getAttribute("max") || "100";
-      range.step = number.step = this.getAttribute("step") || "1";
+        const range = this.querySelector("input[type=range]") as HTMLInputElement;
+        const number = this.querySelector("input[type=number]") as HTMLInputElement;
 
-      range.addEventListener("input", this.handleEvent.bind(this));
-      number.addEventListener("input", this.handleEvent.bind(this));
-      range.addEventListener("change", this.handleEvent.bind(this));
-      number.addEventListener("change", this.handleEvent.bind(this));
+        range.value = number.value = this.value || this.getAttribute("value") || "50";
+        range.min = number.min = this.getAttribute("min") || "0";
+        range.max = number.max = this.getAttribute("max") || "100";
+        range.step = number.step = this.getAttribute("step") || "1";
+
+        range.addEventListener("input", this.handleEvent.bind(this));
+        number.addEventListener("input", this.handleEvent.bind(this));
+        range.addEventListener("change", this.handleEvent.bind(this));
+        number.addEventListener("change", this.handleEvent.bind(this));
+      }
     }
 
     handleEvent(e: Event) {

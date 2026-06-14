@@ -30,7 +30,7 @@ import {
   drawTexture,
   drawZones
 } from "../renderers";
-import { ensureEl, isCtrlClick, showPrompt } from "../utils";
+import { isCtrlClick, showPrompt } from "../utils";
 
 let worldContext: WorldContext;
 let viewContext: Readonly<ViewContext>;
@@ -39,12 +39,20 @@ let appServices: AppServices;
 // Layer presets: map preset name → list of toggle button IDs that should be ON
 let presets: Record<string, string[]> = {};
 
+import { DEFAULT_LAYERS, useLayerState } from "../store/layerState";
+
 export function initLayers(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices): void {
   worldContext = wc;
   viewContext = vc;
   appServices = as;
+
+  // Initialize default layers if not set
+  if (useLayerState.getState().layers.length === 0) {
+    useLayerState.getState().setLayers(DEFAULT_LAYERS);
+  }
+
   restoreCustomPresets();
-  initSortable();
+  // initSortable is removed as React handles DND
 }
 
 // ─── Preset management ───────────────────────────────────────────────────────
@@ -149,45 +157,54 @@ function restoreCustomPresets(): void {
   presets = getDefaultPresets();
   const stored = localStorage.getItem("presets");
   const storedPresets: Record<string, string[]> | null = stored ? JSON.parse(stored) : null;
-  if (!storedPresets) return;
+  if (!storedPresets) {
+    useLayerState.getState().setPresets(presets);
+    return;
+  }
 
   for (const preset in storedPresets) {
-    if (presets[preset]) continue;
-    ensureEl<HTMLSelectElement>("layersPreset").add(new Option(preset, preset));
+    if (!presets[preset]) presets[preset] = storedPresets[preset];
   }
-  presets = storedPresets;
+  useLayerState.getState().setPresets(presets);
 }
 
 function applyLayersPreset(): void {
-  const preset = localStorage.getItem("preset") || ensureEl<HTMLSelectElement>("layersPreset").value;
+  const layerState = useLayerState.getState();
+  const preset = localStorage.getItem("preset") || layerState.activePreset;
   setLayersPreset(preset);
 
-  const layers = presets[preset] ?? [];
-  document.querySelectorAll<HTMLElement>("#mapLayers > li").forEach(el => {
-    const shouldBeOn = layers.includes(el.id);
-    if (shouldBeOn) el.classList.remove("buttonoff");
-    else el.classList.add("buttonoff");
+  const layers = layerState.presets[preset] ?? [];
+  const nextActiveLayers: Record<string, boolean> = { ...layerState.activeLayers };
+
+  layerState.layers.forEach(l => {
+    nextActiveLayers[l.id] = layers.includes(l.id);
   });
+  layerState.setAllActiveLayers(nextActiveLayers);
 }
 
 function setLayersPreset(preset: string): void {
-  ensureEl<HTMLSelectElement>("layersPreset").value = preset;
+  useLayerState.getState().setActivePreset(preset);
   localStorage.setItem("preset", preset);
-
-  const isDefault = !!getDefaultPresets()[preset];
-  ensureEl("removePresetButton").style.display = isDefault ? "none" : "inline-block";
-  ensureEl("savePresetButton").style.display = "none";
 }
 
 function handleLayersPresetChange(preset: string): void {
   setLayersPreset(preset);
 
-  const layers = presets[preset] ?? [];
-  document.querySelectorAll<HTMLElement>("#mapLayers > li").forEach(el => {
-    const isOn = layerIsOn(el.id);
-    const shouldBeOn = layers.includes(el.id);
-    if (shouldBeOn && !isOn) el.click();
-    if (isOn && !shouldBeOn) el.click();
+  const layerState = useLayerState.getState();
+  const layers = layerState.presets[preset] ?? [];
+
+  // Toggle actual SVG rendering logic (legacy layer drawing still triggers via window functions)
+  layerState.layers.forEach(l => {
+    const isOn = layerState.activeLayers[l.id];
+    const shouldBeOn = layers.includes(l.id);
+    if (shouldBeOn && !isOn) {
+      const fn = window[l.id];
+      if (typeof fn === "function") (fn as () => void)();
+    }
+    if (isOn && !shouldBeOn) {
+      const fn = window[l.id];
+      if (typeof fn === "function") (fn as () => void)();
+    }
   });
 
   if (document.getElementById("canvas3d")) setTimeout(() => ThreeD.update(), 400);
@@ -196,49 +213,49 @@ function handleLayersPresetChange(preset: string): void {
 function savePreset(): void {
   showPrompt("Please provide a preset name", { default: "" }, value => {
     const preset = String(value);
-    presets[preset] = Array.from(ensureEl("mapLayers").querySelectorAll<HTMLElement>("li:not(.buttonoff)"))
-      .map(node => node.id)
+    const state = useLayerState.getState();
+    const newPresets = { ...state.presets };
+    newPresets[preset] = state.layers
+      .filter(l => state.activeLayers[l.id])
+      .map(l => l.id)
       .sort();
-    ensureEl<HTMLSelectElement>("layersPreset").add(new Option(preset, preset, false, true));
-    localStorage.setItem("presets", JSON.stringify(presets));
+
+    state.setPresets(newPresets);
+    state.setActivePreset(preset);
+
+    localStorage.setItem("presets", JSON.stringify(newPresets));
     localStorage.setItem("preset", preset);
-    ensureEl("removePresetButton").style.display = "inline-block";
-    ensureEl("savePresetButton").style.display = "none";
   });
 }
 
 function removePreset(): void {
-  const layersPreset = ensureEl<HTMLSelectElement>("layersPreset");
-  const preset = layersPreset.value;
-  delete presets[preset];
-  const index = Array.from(layersPreset.options).findIndex(o => o.value === preset);
-  layersPreset.options.remove(index);
-  layersPreset.value = "custom";
-  ensureEl("removePresetButton").style.display = "none";
-  ensureEl("savePresetButton").style.display = "inline-block";
+  const state = useLayerState.getState();
+  const preset = state.activePreset;
+  const newPresets = { ...state.presets };
+  delete newPresets[preset];
 
-  localStorage.setItem("presets", JSON.stringify(presets));
+  state.setPresets(newPresets);
+  state.setActivePreset("custom");
+
+  localStorage.setItem("presets", JSON.stringify(newPresets));
   localStorage.removeItem("preset");
 }
 
 function getCurrentPreset(): void {
-  const layers = Array.from(document.querySelectorAll<HTMLElement>("#mapLayers > li:not(.buttonoff)"))
-    .map(node => node.id)
+  const state = useLayerState.getState();
+  const layers = state.layers
+    .filter(l => state.activeLayers[l.id])
+    .map(l => l.id)
     .sort();
 
-  for (const preset in presets) {
-    if (JSON.stringify(presets[preset].sort()) === JSON.stringify(layers)) {
-      ensureEl<HTMLSelectElement>("layersPreset").value = preset;
-      const isDefault = !!getDefaultPresets()[preset];
-      ensureEl("removePresetButton").style.display = isDefault ? "none" : "inline-block";
-      ensureEl("savePresetButton").style.display = "none";
+  for (const preset in state.presets) {
+    if (JSON.stringify(state.presets[preset].sort()) === JSON.stringify(layers)) {
+      state.setActivePreset(preset);
       return;
     }
   }
 
-  ensureEl<HTMLSelectElement>("layersPreset").value = "custom";
-  ensureEl("removePresetButton").style.display = "none";
-  ensureEl("savePresetButton").style.display = "inline-block";
+  state.setActivePreset("custom");
 }
 
 // ─── Layer orchestration ──────────────────────────────────────────────────────
@@ -285,16 +302,16 @@ function drawLabels(): void {
 // ─── Button helpers ───────────────────────────────────────────────────────────
 
 function layerIsOn(el: string): boolean {
-  return !ensureEl(el).classList.contains("buttonoff");
+  return useLayerState.getState().activeLayers[el] === true;
 }
 
 function turnButtonOff(el: string): void {
-  ensureEl(el).classList.add("buttonoff");
+  useLayerState.getState().toggleLayer(el, false);
   getCurrentPreset();
 }
 
 function turnButtonOn(el: string): void {
-  ensureEl(el).classList.remove("buttonoff");
+  useLayerState.getState().toggleLayer(el, true);
   getCurrentPreset();
 }
 
@@ -777,17 +794,14 @@ function toggleVignette(event?: MouseEvent): void {
 
 // ─── Layer reordering (jQuery UI sortable) ────────────────────────────────────
 
-function initSortable(): void {
-  $("#mapLayers").sortable({ items: "li:not(.solid)", containment: "parent", cancel: ".solid", update: moveLayer });
-}
-
-function moveLayer(_event: unknown, ui: { item: JQuery<HTMLElement> }): void {
-  const el = getLayer(ui.item.attr("id") as string);
-  if (!el) return;
-  const prev = getLayer(ui.item.prev().attr("id") as string);
-  const next = getLayer(ui.item.next().attr("id") as string);
-  if (prev) el.insertAfter(prev);
-  else if (next) el.insertBefore(next);
+export function syncSVGLayersOrder(layers: { id: string }[]): void {
+  for (let i = 1; i < layers.length; i++) {
+    const current = getLayer(layers[i].id);
+    const prev = getLayer(layers[i - 1].id);
+    if (current && prev && current[0] && prev[0]) {
+      current.insertAfter(prev);
+    }
+  }
 }
 
 function getLayer(id: string): JQuery<HTMLElement> | null {

@@ -9,6 +9,7 @@ import "jquery-ui-dist/jquery-ui.css";
 import "jquery-ui-touch-punch";
 
 import type { Selection } from "d3";
+import "./store/domShim";
 import * as d3 from "d3";
 import { aleaPRNG } from "./components/AleaPRNG";
 import { appServices } from "./context/appServices";
@@ -732,10 +733,6 @@ export async function initMain(): Promise<void> {
   restoreDefaultEvents?.();
   initiateAutosave();
   initTourPromptButton();
-
-  // Initialize React UI Root
-  const { initReactUI } = await import("./ui/index");
-  initReactUI();
 }
 
 function hideLoading() {

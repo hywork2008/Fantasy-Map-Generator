@@ -1,6 +1,7 @@
 import * as d3 from "d3";
 import { fitMapToScreen } from "../controllers/options";
 import type { PackedGraphFeature } from "../modules/features";
+import { useOptionsState } from "../store/optionsState";
 import {
   convertTemperature,
   debounce,
@@ -19,8 +20,7 @@ import {
 
 window.addEventListener("resize", () => {
   if (stored("mapWidth") && stored("mapHeight")) return;
-  mapWidthInput.value = String(window.innerWidth);
-  mapHeightInput.value = String(window.innerHeight);
+  useOptionsState.getState().setOptions({ mapWidth: window.innerWidth, mapHeight: window.innerHeight });
   fitMapToScreen?.();
 });
 
@@ -453,7 +453,7 @@ function getPopulationTip(i: number): string {
   return `Cell population: ${si(rural + urban)}; Rural: ${si(rural)}; Urban: ${si(urban)}`;
 }
 
-interface EmblemEl {
+export interface EmblemEl {
   i: number;
   x?: number;
   y?: number;
@@ -560,7 +560,7 @@ export function unlock(id: string): void {
 
 export function locked(id: string): boolean {
   const lockEl = document.getElementById(`lock_${id}`) as HTMLElement;
-  return lockEl.dataset.locked === "1";
+  return lockEl ? lockEl.dataset.locked === "1" : false;
 }
 
 export function stored(key: string): string | null {

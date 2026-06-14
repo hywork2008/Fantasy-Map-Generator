@@ -6,13 +6,12 @@ import { COArenderer } from "../modules/emblem/renderer";
 import type { Province } from "../modules/provinces-generator";
 import type { State } from "../modules/states-generator";
 import { openURL, rn } from "../utils";
-import { highlightEmblemElement } from "../utils/uiHelpers";
+import { type EmblemEl, highlightEmblemElement } from "../utils/uiHelpers";
 
-// biome-ignore lint/suspicious/noExplicitAny: polymorphic element
-export function editEmblem(type?: string, id?: string, elInput?: any): void {
+export function editEmblem(type?: string, id?: string, elInput?: Element | Burg | Province | State): void {
   if (customization) return;
-  let el = elInput;
-  if (!id && el) defineEmblemData(el);
+  let el: Burg | Province | State | undefined = elInput instanceof Element ? undefined : elInput;
+  if (!id && elInput instanceof Element) defineEmblemData(elInput);
 
   let _ex = 0,
     _ey = 0;
@@ -93,8 +92,7 @@ export function editEmblem(type?: string, id?: string, elInput?: any): void {
     el = g[i];
   }
 
-  // biome-ignore lint/suspicious/noExplicitAny: polymorphic element
-  function updateElementSelectors(typeVal: string, idVal: string, elVal: any): void {
+  function updateElementSelectors(typeVal: string, idVal: string, elVal: Burg | Province | State | undefined): void {
     let state = 0;
     let province = 0;
     let burg = 0;
@@ -105,17 +103,17 @@ export function editEmblem(type?: string, id?: string, elInput?: any): void {
     emblemBurgs.parentElement!.className = typeVal === "burg" ? "active" : "";
 
     // define selected values
-    // biome-ignore lint/suspicious/noExplicitAny: polymorphic element
-    const anyEl = elVal as any;
-    if (typeVal === "state") state = anyEl.i;
+    if (typeVal === "state") state = (elVal as State).i;
     else if (typeVal === "province") {
-      province = anyEl.i;
-      state = pack.states[anyEl.state].i;
+      const p = elVal as Province;
+      province = p.i;
+      state = pack.states[p.state].i;
     } else {
-      burg = anyEl.i;
-      const p = pack.cells.province[anyEl.cell];
+      const b = elVal as Burg;
+      burg = b.i!;
+      const p = pack.cells.province[b.cell];
       if (p) province = pack.provinces[p].i;
-      state = pack.states[anyEl.state].i;
+      state = pack.states[b.state!].i;
     }
 
     const validBurgs = pack.burgs.filter(b => b.i && !b.removed && b.coa);
@@ -144,15 +142,14 @@ export function editEmblem(type?: string, id?: string, elInput?: any): void {
     });
     emblemBurgs.options[0].disabled = true;
 
-    COArenderer.trigger(idVal, elVal.coa);
-    updateEmblemData(typeVal, idVal, elVal);
+    if (elVal) COArenderer.trigger(idVal, elVal.coa!);
+    if (elVal) updateEmblemData(typeVal, idVal, elVal);
   }
 
-  // biome-ignore lint/suspicious/noExplicitAny: polymorphic element
-  function updateEmblemData(typeVal: string, idVal: string, elVal: any): void {
+  function updateEmblemData(typeVal: string, idVal: string, elVal: Burg | Province | State): void {
     if (!elVal.coa) return;
     document.getElementById("emblemImage")!.setAttribute("href", `#${idVal}`);
-    const name = elVal.fullName || elVal.name || "Unknown";
+    const name = ("fullName" in elVal ? elVal.fullName : undefined) || elVal.name || "Unknown";
     document.getElementById("emblemArmiger")!.innerText = name;
 
     if (elVal.coa.custom) emblemShapeSelector.disabled = true;
@@ -216,7 +213,7 @@ export function editEmblem(type?: string, id?: string, elInput?: any): void {
   }
 
   function showArea(): void {
-    highlightEmblemElement(type!, el);
+    highlightEmblemElement(type!, el! as EmblemEl);
   }
 
   function changeSize(event: Event): void {
@@ -234,13 +231,11 @@ export function editEmblem(type?: string, id?: string, elInput?: any): void {
     // re-append use element
     const categotySize = +g.attr("font-size");
     const shift = (categotySize * size) / 2;
-    // biome-ignore lint/suspicious/noExplicitAny: polymorphic element
-    const anyEl = el as any;
-    const x = el.coa.x || anyEl.x || anyEl.pole[0];
-    const y = el.coa.y || anyEl.y || anyEl.pole[1];
+    const x = el.coa.x || ("x" in el ? (el as Burg).x : ((el as State | Province).pole?.[0] ?? 0));
+    const y = el.coa.y || ("y" in el ? (el as Burg).y : ((el as State | Province).pole?.[1] ?? 0));
 
     g.append("use")
-      .attr("data-i", el.i)
+      .attr("data-i", el.i!)
       .attr("x", rn(x - shift, 2))
       .attr("y", rn(y - shift, 2))
       .attr("width", `${size}em`)
@@ -251,16 +246,17 @@ export function editEmblem(type?: string, id?: string, elInput?: any): void {
   function regenerate(): void {
     if (!el || !el.coa) return;
     let parent: Province | State | null = null;
-    // biome-ignore lint/suspicious/noExplicitAny: polymorphic element
-    const anyEl = el as any;
-    if (type === "province") parent = pack.states[anyEl.state] as State;
+    if (type === "province") parent = pack.states[(el as Province).state] as State;
     else if (type === "burg") {
-      const province = pack.cells.province[anyEl.cell];
-      parent = province ? (pack.provinces[province] as Province) : (pack.states[anyEl.state] as State);
+      const b = el as Burg;
+      const province = pack.cells.province[b.cell];
+      parent = province ? (pack.provinces[province] as Province) : (pack.states[b.state!] as State);
     }
 
-    const parentCulture = parent && "culture" in parent ? (parent as { culture: number }).culture : 0;
-    const shield = el.coa.shield || COA.getShield(anyEl.culture || parentCulture, anyEl.state);
+    const parentCulture = parent && "culture" in parent ? (parent as State).culture : 0;
+    const elCulture = "culture" in el ? ((el as Burg | State).culture ?? 0) : 0;
+    const elState = "state" in el ? (el as Province | Burg).state : undefined;
+    const shield = el.coa.shield || COA.getShield(elCulture || parentCulture, elState);
     el.coa = COA.generate(parent ? parent.coa : null, 0.3, 0.1, undefined);
     el.coa.shield = shield;
     emblemShapeSelector.disabled = false;

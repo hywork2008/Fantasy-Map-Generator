@@ -67,11 +67,10 @@ let appServices: AppServices;
 
 // ─── Tools panel event dispatcher ────────────────────────────────────────────
 
-ensureEl("toolsContent").addEventListener("click", (event: MouseEvent) => {
+document.addEventListener("react-tool-action", e => {
   if (customization) return tip("Please exit the customization mode first", false, "error");
-  const target = event.target as HTMLElement;
-  if (!["BUTTON", "I"].includes(target.tagName)) return;
-  const button = target.id;
+  const button = e.detail?.action;
+  if (!button) return;
 
   if (button === "editHeightmapButton") editHeightmap();
   else if (button === "editBiomesButton") editBiomes();
@@ -95,10 +94,9 @@ ensureEl("toolsContent").addEventListener("click", (event: MouseEvent) => {
   else if (button === "overviewCellsButton") viewCellDetails();
   else if (button === "openMinimapButton") openMinimap?.();
 
-  const parentNode = target.parentNode as Element | null;
-  if (parentNode?.id === "regenerateFeature") {
+  if (button.startsWith("regenerate")) {
     const dontAsk = sessionStorage.getItem("regenerateFeatureDontAsk");
-    if (dontAsk) return processFeatureRegeneration(event, button);
+    if (dontAsk) return processFeatureRegeneration(null, button);
 
     alertMessage.innerHTML = `Regeneration will remove all the custom changes for the element.<br /><br />Are you sure you want to proceed?`;
     $("#alert").dialog({
@@ -106,7 +104,7 @@ ensureEl("toolsContent").addEventListener("click", (event: MouseEvent) => {
       title: "Regenerate element",
       buttons: {
         Proceed: function (this: Element) {
-          processFeatureRegeneration(event, button);
+          processFeatureRegeneration(null, button);
           $(this).dialog("close");
         },
         Cancel: function (this: Element) {
@@ -136,11 +134,12 @@ ensureEl("toolsContent").addEventListener("click", (event: MouseEvent) => {
   else if (button === "addMarker") toggleAddMarker();
   else if (button === "openSubmapTool") openSubmapTool?.();
   else if (button === "openTransformTool") openTransformTool?.();
+  else if (button === "openWorldConfigurator") window.editWorld?.();
 });
 
 // ─── Regeneration dispatcher ──────────────────────────────────────────────────
 
-function processFeatureRegeneration(event: MouseEvent, button: string): void {
+function processFeatureRegeneration(event: MouseEvent | null, button: string): void {
   if (button === "regenerateStateLabels") {
     $("#labels").fadeIn();
     drawStateLabels(worldContext, viewContext, appServices);
@@ -666,8 +665,8 @@ function regenerateMarkers(): void {
   if (markersOverviewRefreshEl?.offsetParent) markersOverviewRefreshEl.click();
 }
 
-function regenerateZones(event: MouseEvent): void {
-  if (isCtrlClick(event)) {
+function regenerateZones(event: MouseEvent | null): void {
+  if (event && isCtrlClick(event)) {
     showPrompt("Please provide zones number multiplier", { default: 1, step: 0.01, min: 0, max: 100 }, v =>
       addNumberOfZones(+v)
     );

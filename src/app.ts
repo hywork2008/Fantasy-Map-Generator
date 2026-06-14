@@ -7,8 +7,11 @@ import { initModules } from "./modules/index";
 import { initRenderers } from "./renderers/index";
 import { initUtils } from "./utils/index";
 
-function initApp(): void {
+async function initApp(): Promise<void> {
   console.log("initApp starting...");
+  console.log("Initializing React UI...");
+  const { initReactUI } = await import("./ui/index");
+  initReactUI();
   console.log("Initializing utils...");
   initUtils();
   console.log("Initializing modules...");

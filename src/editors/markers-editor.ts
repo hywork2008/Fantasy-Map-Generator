@@ -22,15 +22,7 @@ export function editMarker(markerI?: number): void {
 
   elSelected = select(element as unknown as Element)
     .raise()
-    .call(
-      drag<Element, unknown>()
-        // biome-ignore lint/suspicious/noExplicitAny: complex d3 type
-        .on("start", dragMarkerStart as any)
-        // biome-ignore lint/suspicious/noExplicitAny: complex d3 type
-        .on("drag", dragMarkerDrag as any)
-        // biome-ignore lint/suspicious/noExplicitAny: complex d3 type
-        .on("end", dragMarkerEnd as any)
-    )
+    .call(drag<Element, unknown>().on("start", dragMarkerStart).on("drag", dragMarkerDrag).on("end", dragMarkerEnd))
     .classed("draggable", true);
 
   if (ensureEl("notesEditor").offsetParent) editNotes(element.id, element.id);
@@ -92,18 +84,18 @@ export function editMarker(markerI?: number): void {
   let _mdx = 0,
     _mdy = 0;
 
-  function dragMarkerStart(this: SVGElement, event: D3DragEvent<SVGElement, unknown, unknown>): void {
+  function dragMarkerStart(this: Element, event: D3DragEvent<Element, unknown, unknown>): void {
     _mdx = +this.getAttribute("x")! - event.x;
     _mdy = +this.getAttribute("y")! - event.y;
   }
 
-  function dragMarkerDrag(this: SVGElement, event: D3DragEvent<SVGElement, unknown, unknown>): void {
+  function dragMarkerDrag(this: Element, event: D3DragEvent<Element, unknown, unknown>): void {
     const { x, y } = event;
     this.setAttribute("x", String(_mdx + x));
     this.setAttribute("y", String(_mdy + y));
   }
 
-  function dragMarkerEnd(this: SVGElement, event: D3DragEvent<SVGElement, unknown, unknown>): void {
+  function dragMarkerEnd(this: Element, event: D3DragEvent<Element, unknown, unknown>): void {
     const { x, y } = event;
     this.setAttribute("x", String(rn(_mdx + x, 2)));
     this.setAttribute("y", String(rn(_mdy + y, 2)));

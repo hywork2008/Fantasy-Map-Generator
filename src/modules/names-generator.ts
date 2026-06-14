@@ -4,6 +4,7 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
+import { useOptionsState } from "../store/optionsState";
 import { capitalize, isVowel, last, P, ra, rand } from "../utils";
 
 export interface NameBase {
@@ -308,6 +309,7 @@ class NamesGenerator {
     const baseName = this.getBase(base, min, max, "") as string;
     const name = P(0.7) ? this.addSuffix(baseName) : baseName;
     mapName.value = name;
+    useOptionsState.getState().setOption("mapName", name);
   }
 
   getNameBases(): NameBase[] {

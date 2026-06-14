@@ -108,15 +108,14 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     closeDialogs();
     tip('Heightmap edit mode is active. Click on "Exit Customization" to finalize the heightmap', true);
 
-    ensureEl("options")
-      .querySelectorAll<HTMLElement>(".tabcontent")
-      .forEach(tabcontent => {
-        tabcontent.style.display = "none";
-      });
-    ensureEl("options").querySelector<HTMLElement>(".tab > .active")!.classList.remove("active");
-    ensureEl("customizationMenu").style.display = "block";
-    ensureEl("toolsTab").classList.add("active");
-    heightmapEditMode.innerHTML = mode;
+    // Tell React to switch to customization mode (shows CustomizationMenu, sets toolsTab active)
+    document.dispatchEvent(new CustomEvent("react-enter-heightmap-edit"));
+
+    // Set the edit mode label after React has rendered the element
+    requestAnimationFrame(() => {
+      const editModeEl = document.getElementById("heightmapEditMode");
+      if (editModeEl) editModeEl.innerHTML = mode;
+    });
 
     if (mode === "erase") {
       undraw();
@@ -131,18 +130,29 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       (cellTypeFilter as HTMLSelectElement).value = "all";
     }
 
-    applyTemplate.style.display = mode === "erase" ? "inline-block" : "none";
-    convertImage.style.display = mode === "erase" ? "inline-block" : "none";
-    allowErosionBox.style.display = mode === "keep" ? "none" : "inline-block";
+    // These elements live inside CustomizationMenu; set their styles after React renders
+    requestAnimationFrame(() => {
+      const applyTemplateEl = document.getElementById("applyTemplate");
+      const convertImageEl = document.getElementById("convertImage");
+      const allowErosionBoxEl = document.getElementById("allowErosionBox");
+      if (applyTemplateEl) applyTemplateEl.style.display = mode === "erase" ? "inline-block" : "none";
+      if (convertImageEl) convertImageEl.style.display = mode === "erase" ? "inline-block" : "none";
+      if (allowErosionBoxEl) allowErosionBoxEl.style.display = mode === "keep" ? "none" : "inline-block";
+    });
 
     if (!sessionStorage.getItem("noExitButtonAnimation")) {
       sessionStorage.setItem("noExitButtonAnimation", "true");
-      exitCustomization.style.opacity = "0";
       const width = 12 * +uiSize.value * 11;
-      exitCustomization.style.right = `${(svgWidth - width) / 2}px`;
-      exitCustomization.style.bottom = `${svgHeight / 2}px`;
-      exitCustomization.style.transform = "scale(2)";
-      exitCustomization.style.display = "block";
+      document.dispatchEvent(
+        new CustomEvent("react-show-exit-customization", {
+          detail: {
+            opacity: "0",
+            right: `${(svgWidth - width) / 2}px`,
+            bottom: `${svgHeight / 2}px`,
+            transform: "scale(2)"
+          }
+        })
+      );
       d3.select("#exitCustomization")
         .transition()
         .duration(1000)
@@ -154,7 +164,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
         .style("bottom", "10px")
         .style("transform", "scale(1)");
     } else {
-      exitCustomization.style.display = "block";
+      document.dispatchEvent(new CustomEvent("react-show-exit-customization", {}));
     }
 
     turnButtonOn("toggleHeight");
@@ -221,11 +231,10 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     undo!.disabled = templateUndo.disabled = true;
 
     customization = 0;
-    customizationMenu.style.display = "none";
-    if (ensureEl("options").querySelector<HTMLElement>(".tab > button.active")?.id === "toolsTab")
-      toolsContent.style.display = "block";
     layersPreset.disabled = false;
-    exitCustomization.style.display = "none";
+    // Tell React to exit customization mode (restores normal tabs and hides CustomizationMenu)
+    document.dispatchEvent(new CustomEvent("react-exit-heightmap-edit"));
+    document.dispatchEvent(new CustomEvent("react-hide-exit-customization"));
 
     restoreDefaultEvents?.();
     clearMainTip();

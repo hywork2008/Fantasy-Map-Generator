@@ -1,80 +1,56 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect } from "react";
 import { useViewState } from "../../store/viewState";
 import { AboutTab } from "./tabs/AboutTab";
+import { LayersTab } from "./tabs/LayersTab";
+import { StyleTab } from "./tabs/StyleTab";
+import { OptionsTab } from "./tabs/OptionsTab";
+import { ToolsTab } from "./tabs/ToolsTab";
+import { Sticked } from "./Sticked";
+import { CustomizationMenu } from "./CustomizationMenu";
 
 export const OptionsContainer: React.FC = () => {
-  const { isMenuOpen, setMenuOpen, activeMenu, setActiveMenu } = useViewState();
-  const contentRef = useRef<HTMLDivElement>(null);
+  const { isMenuOpen, setMenuOpen, activeMenu, setActiveMenu, isCustomizationMode, setCustomizationMode } = useViewState();
 
-  // Re-parent legacy DOM tabs into our React container
   useEffect(() => {
-    const tabs = [
-      "layersContent",
-      "styleContent",
-      "optionsContent",
-      "toolsContent"
-    ];
+    const handleEnter = () => {
+      setCustomizationMode(true);
+      setActiveMenu("toolsTab");
+    };
+    const handleExit = () => {
+      setCustomizationMode(false);
+    };
 
-    if (contentRef.current) {
-      tabs.forEach(tabId => {
-        const el = document.getElementById(tabId);
-        if (el) {
-          contentRef.current!.appendChild(el);
-        }
-      });
-    }
+    document.addEventListener("react-enter-heightmap-edit", handleEnter);
+    document.addEventListener("react-exit-heightmap-edit", handleExit);
 
     return () => {
-      // Cleanup: move them back to body or leave them (since they live for the whole app)
+      document.removeEventListener("react-enter-heightmap-edit", handleEnter);
+      document.removeEventListener("react-exit-heightmap-edit", handleExit);
     };
-  }, []);
-
-  // Update display of legacy tabs based on activeMenu
-  useEffect(() => {
-    const tabs = [
-      { id: "layersContent", tabId: "layersTab" },
-      { id: "styleContent", tabId: "styleTab" },
-      { id: "optionsContent", tabId: "optionsTab" },
-      { id: "toolsContent", tabId: "toolsTab" }
-    ];
-
-    tabs.forEach(({ id, tabId }) => {
-      const el = document.getElementById(id);
-      if (el) {
-        el.style.display = activeMenu === tabId ? "block" : "none";
-      }
-    });
-  }, [activeMenu]);
-
-  // If menu is closed, show the trigger
-  if (!isMenuOpen) {
-    return (
-      <div id="optionsContainer" style={{ opacity: 1, pointerEvents: "auto" }}>
-        <div id="collapsible">
-          <button
-            id="optionsTrigger"
-            data-tip="Click to show the Menu"
-            className="options glow"
-            onClick={() => setMenuOpen(true)}
-          >
-            ►
-          </button>
-          <button
-            id="regenerate"
-            data-tip="Click to generate a new map"
-            className="options"
-            style={{ display: "none" }} // Logic for new map hover handles this later
-          >
-            New Map!
-          </button>
-        </div>
-      </div>
-    );
-  }
+  }, [setCustomizationMode, setActiveMenu]);
 
   return (
     <div id="optionsContainer" style={{ opacity: 1, pointerEvents: "auto" }}>
-      <div id="options" style={{ display: "block" }}>
+      <div id="collapsible" style={{ display: isMenuOpen ? "none" : "block" }}>
+        <button
+          id="optionsTrigger"
+          data-tip="Click to show the Menu"
+          className="options glow"
+          onClick={() => setMenuOpen(true)}
+        >
+          ►
+        </button>
+        <button
+          id="regenerate"
+          data-tip="Click to generate a new map"
+          className="options"
+          style={{ display: "none" }}
+        >
+          New Map!
+        </button>
+      </div>
+
+      <div id="options" style={{ display: isMenuOpen ? "block" : "none" }}>
         <div className="drag-trigger" data-tip="Drag to move the Menu"></div>
 
         <div className="tab">
@@ -104,11 +80,28 @@ export const OptionsContainer: React.FC = () => {
           ))}
         </div>
 
-        {/* This div holds the legacy DOM elements */}
-        <div ref={contentRef} />
-
         {/* React Tabs */}
-        {activeMenu === "aboutTab" && <AboutTab />}
+        <div style={{ display: activeMenu === "layersTab" ? "block" : "none" }}>
+          <LayersTab />
+        </div>
+        <div style={{ display: activeMenu === "styleTab" ? "block" : "none" }}>
+          <StyleTab />
+        </div>
+        <div style={{ display: activeMenu === "optionsTab" ? "block" : "none" }}>
+          <OptionsTab />
+        </div>
+        <div style={{ display: activeMenu === "toolsTab" && !isCustomizationMode ? "block" : "none" }}>
+          <ToolsTab />
+        </div>
+        <div style={{ display: activeMenu === "aboutTab" ? "block" : "none" }}>
+          <AboutTab />
+        </div>
+
+        {/* Heightmap customization tools - shown when in customization mode on Tools tab */}
+        <CustomizationMenu />
+
+        {/* Bottom action buttons */}
+        <Sticked />
       </div>
     </div>
   );

@@ -60,7 +60,7 @@ function clicked(this: Element, event: MouseEvent): void {
   const ancestor = great?.parentElement;
   if (!ancestor) return;
 
-  if (grand?.id === "emblems") editEmblem?.(undefined, undefined, el);
+  if (grand?.id === "emblems") editEmblem?.(undefined, undefined, el ?? undefined);
   else if (parent?.id === "rivers") editRiver?.(el!.id);
   else if (grand?.id === "routes") editRoute?.(el!.id);
   else if (ancestor.id === "labels" && el?.tagName === "tspan") editLabel?.(el);

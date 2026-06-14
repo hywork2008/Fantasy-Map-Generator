@@ -20,6 +20,9 @@ interface ChartDataPoint {
   value: number;
 }
 
+/** d3.stack で生成されるバーの各セグメントのデータポイント: [x0, x1] + インデックス i */
+type BarDataPoint = [number, number] & { i: number; data: unknown };
+
 // config
 const NEUTRAL_COLOR = "#ccc";
 const EMPTY_NAME = "no";
@@ -534,15 +537,11 @@ function createStackedBarChart(
     .join("g")
     .attr("fill", d => colors[d.key])
     .selectAll("rect")
-    // biome-ignore lint/suspicious/noExplicitAny: complex d3 type
-    .data((d: any) => d.data.filter((p: any) => p[0] !== p[1]))
+    .data(d => (d as unknown as { key: string; data: BarDataPoint[] }).data.filter((p: BarDataPoint) => p[0] !== p[1]))
     .join("rect")
-    // biome-ignore lint/suspicious/noExplicitAny: complex d3 type
-    .attr("x", (p: any) => Math.min(xScale(p[0]), xScale(p[1])))
-    // biome-ignore lint/suspicious/noExplicitAny: complex d3 type
-    .attr("y", (p: any) => yScale(Y[p.i]) ?? 0)
-    // biome-ignore lint/suspicious/noExplicitAny: complex d3 type
-    .attr("width", (p: any) => Math.abs(xScale(p[0]) - xScale(p[1])))
+    .attr("x", (p: BarDataPoint) => Math.min(xScale(p[0]), xScale(p[1])))
+    .attr("y", (p: BarDataPoint) => yScale(Y[p.i]) ?? 0)
+    .attr("width", (p: BarDataPoint) => Math.abs(xScale(p[0]) - xScale(p[1])))
     .attr("height", yScale.bandwidth());
 
   const totalZ = Object.fromEntries(
@@ -555,8 +554,7 @@ function createStackedBarChart(
       )
       .map(([y, yz]) => [y, d3.sum(yz, ([, val]) => val)])
   );
-  // biome-ignore lint/suspicious/noExplicitAny: complex d3 type
-  const getTooltip = (p: any) => tooltip(Y[p.i], Z[p.i], X[p.i], X[p.i] / totalZ[Y[p.i]]);
+  const getTooltip = (p: BarDataPoint) => tooltip(Y[p.i], Z[p.i], X[p.i], X[p.i] / totalZ[Y[p.i]]);
 
   bar.append("title").text(d => getTooltip(d).join("\r\n"));
   bar.on("mouseover", d => tip(getTooltip(d).join(". ")));

@@ -35,14 +35,15 @@
 
     constructor() {
       super();
-
-      this.appendChild(template.content.cloneNode(true));
-      this.querySelector("rect")?.setAttribute("fill", this.fill);
-      this.querySelector("svg")?.setAttribute("width", this.size);
-      this.querySelector("svg")?.setAttribute("height", this.size);
     }
 
     connectedCallback() {
+      if (!this.querySelector("svg")) {
+        this.appendChild(template.content.cloneNode(true));
+        this.querySelector("rect")?.setAttribute("fill", this.fill);
+        this.querySelector("svg")?.setAttribute("width", this.size);
+        this.querySelector("svg")?.setAttribute("height", this.size);
+      }
       this.addEventListener("mousemove", this.showTip);
     }
 

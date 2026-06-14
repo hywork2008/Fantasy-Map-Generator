@@ -12,6 +12,7 @@ import type { Province } from "../modules/provinces-generator";
 import type { State } from "../modules/states-generator";
 import { drawStates } from "../renderers";
 import { fitScaleBar } from "../renderers/index";
+import { type OptionsState, useOptionsState } from "../store/optionsState";
 import { ensureEl, gauss, last, minmax, P, rand, rn, rw } from "../utils";
 import { exportToJson as exportToJsonModule } from "./export-json";
 import { open as openHeightmapSelection } from "./heightmap-selection";
@@ -85,15 +86,15 @@ function updateOutputToFollowInput(ev: Event): void {
   const value = target.value;
 
   if (id === "manorsInput") {
-    manorsOutput.value = value === "1000" ? "auto" : value;
+    useOptionsState.getState().setOptions({ manors: value === "1000" ? 1000 : +value });
     return;
   }
 
   if (id.slice(-5) === "Input") {
-    const output = document.getElementById(`${id.slice(0, -5)}Output`) as HTMLInputElement | null;
+    const output = document.getElementById(`${id.slice(0, -5)}Output`) as HTMLInputElement | HTMLSelectElement | null;
     if (output) output.value = value;
   } else if (id.slice(-6) === "Output") {
-    const input = document.getElementById(`${id.slice(0, -6)}Input`) as HTMLInputElement | null;
+    const input = document.getElementById(`${id.slice(0, -6)}Input`) as HTMLInputElement | HTMLSelectElement | null;
     if (input) input.value = value;
   }
 }
@@ -103,15 +104,13 @@ function updateOutputToFollowInput(ev: Event): void {
 // ─── Canvas size ───────────────────────────────────────────────────────────────
 
 function mapSizeInputChange(): void {
-  const $mapWidthInput = ensureEl<HTMLInputElement>("mapWidthInput");
-  const $mapHeightInput = ensureEl<HTMLInputElement>("mapHeightInput");
-
+  const options = useOptionsState.getState();
   fitMapToScreen();
-  localStorage.setItem("mapWidth", $mapWidthInput.value);
-  localStorage.setItem("mapHeight", $mapHeightInput.value);
+  localStorage.setItem("mapWidth", String(options.mapWidth));
+  localStorage.setItem("mapHeight", String(options.mapHeight));
 
-  const tooWide = +$mapWidthInput.value > window.innerWidth;
-  const tooHigh = +$mapHeightInput.value > window.innerHeight;
+  const tooWide = options.mapWidth > window.innerWidth;
+  const tooHigh = options.mapHeight > window.innerHeight;
 
   if (tooWide || tooHigh) {
     const message = `Canvas size is larger than window size (${window.innerWidth} x ${window.innerHeight}). It can affect performance`;
@@ -120,16 +119,17 @@ function mapSizeInputChange(): void {
 }
 
 function restoreDefaultCanvasSize(): void {
-  mapWidthInput.value = String(window.innerWidth);
-  mapHeightInput.value = String(window.innerHeight);
+  const options = useOptionsState.getState();
+  options.setOptions({ mapWidth: window.innerWidth, mapHeight: window.innerHeight });
   localStorage.removeItem("mapHeight");
   localStorage.removeItem("mapWidth");
   fitMapToScreen();
 }
 
 function applyGraphSize(): void {
-  window.graphWidth = +mapWidthInput.value;
-  window.graphHeight = +mapHeightInput.value;
+  const options = useOptionsState.getState();
+  window.graphWidth = options.mapWidth;
+  window.graphHeight = options.mapHeight;
 
   landmass.select("rect").attr("x", 0).attr("y", 0).attr("width", window.graphWidth).attr("height", window.graphHeight);
   oceanPattern
@@ -155,8 +155,9 @@ function applyGraphSize(): void {
 }
 
 export function fitMapToScreen(): void {
-  window.svgWidth = Math.min(+mapWidthInput.value, window.innerWidth);
-  window.svgHeight = Math.min(+mapHeightInput.value, window.innerHeight);
+  const options = useOptionsState.getState();
+  window.svgWidth = Math.min(options.mapWidth, window.innerWidth);
+  window.svgHeight = Math.min(options.mapHeight, window.innerHeight);
   svg.attr("width", window.svgWidth).attr("height", window.svgHeight);
 
   const zoomMin = rn(Math.max(window.svgWidth / window.graphWidth, window.svgHeight / window.graphHeight), 3);
@@ -192,38 +193,16 @@ function toggleTranslateExtent(el: HTMLElement): void {
 
 // ─── Voice synthesis ──────────────────────────────────────────────────────────
 
-let voiceAttempts = 0;
-const voiceInterval = setInterval(() => {
-  voiceAttempts++;
-  const voices = speechSynthesis.getVoices();
-  if (!voices.length) {
-    if (voiceAttempts < 10) return;
-    clearInterval(voiceInterval);
-    const select = ensureEl<HTMLSelectElement>("speakerVoice");
-    if (select && !select.options.length) {
-      select.options.add(new Option("No voices available", "", false));
-    }
-    return;
-  }
-
-  clearInterval(voiceInterval);
-
-  const select = ensureEl<HTMLSelectElement>("speakerVoice");
-  voices.forEach((voice, i) => {
-    select.options.add(new Option(voice.name, String(i), false));
-  });
-  const storedVoice = stored("speakerVoice");
-  if (storedVoice) select.value = storedVoice;
-  else select.value = String(voices.findIndex(voice => voice.lang === "en-US"));
-}, 1000);
-
 function testSpeaker(): void {
-  const text = `${mapName.value}, ${options.year} ${options.era}`;
+  const store = useOptionsState.getState();
+  const text = `${store.mapName}, ${store.year} ${store.era}`;
   const speaker = new SpeechSynthesisUtterance(text);
   const voices = speechSynthesis.getVoices();
   if (voices.length) {
-    const voiceId = +ensureEl<HTMLSelectElement>("speakerVoice").value;
-    speaker.voice = voices[voiceId];
+    const selectedVoice = store.speakerVoice
+      ? (voices.find(v => v.name === store.speakerVoice) ?? voices[0])
+      : voices[0];
+    speaker.voice = selectedVoice;
   }
   speechSynthesis.speak(speaker);
 }
@@ -231,11 +210,11 @@ function testSpeaker(): void {
 // ─── Seed / map history ────────────────────────────────────────────────────────
 
 function generateMapWithSeed(): void {
-  if (optionsSeed.value === seed) {
+  if (useOptionsState.getState().seed === seed) {
     tip("The current map already has this seed", false, "error");
     return;
   }
-  regeneratePrompt({ seed: optionsSeed.value });
+  regeneratePrompt({ seed: useOptionsState.getState().seed });
 }
 
 function showSeedHistoryDialog(): void {
@@ -255,10 +234,7 @@ function showSeedHistoryDialog(): void {
 
 function restoreSeed(id: number): void {
   const { seed: s, width, height, template } = mapHistory[id];
-  ensureEl<HTMLInputElement>("optionsSeed").value = s;
-  ensureEl<HTMLInputElement>("mapWidthInput").value = String(width);
-  ensureEl<HTMLInputElement>("mapHeightInput").value = String(height);
-  ensureEl<HTMLInputElement>("templateInput").value = template;
+  useOptionsState.getState().setOptions({ seed: s, mapWidth: width, mapHeight: height, template });
 
   if (locked("template")) unlock("template");
 
@@ -267,7 +243,7 @@ function restoreSeed(id: number): void {
 
 function copyMapURL(): void {
   const lockedCount = document.querySelectorAll("i.icon-lock").length;
-  const search = `?seed=${optionsSeed.value}&width=${window.graphWidth}&height=${window.graphHeight}${lockedCount ? "" : "&options=default"}`;
+  const search = `?seed=${useOptionsState.getState().seed}&width=${window.graphWidth}&height=${window.graphHeight}${lockedCount ? "" : "&options=default"}`;
   navigator.clipboard
     .writeText(location.host + location.pathname + search)
     .then(() => tip("Map URL is copied to clipboard", false, "success", 3000))
@@ -293,11 +269,10 @@ const cellsDensityMap: Record<number, number> = {
 };
 
 function changeCellsDensity(value: number): void {
-  pointsInput.value = String(value);
-  const cells = cellsDensityMap[value] || +(pointsInput.dataset.cells ?? 10000);
-  pointsInput.dataset.cells = String(cells);
-  pointsOutputFormatted.value = `${cells / 1000}K`;
-  pointsOutputFormatted.style.color = getCellsDensityColor(cells);
+  useOptionsState.getState().setOptions({ points: value });
+  // const cells = cellsDensityMap[value] || +(10000);
+  // pointsOutputFormatted.value = `${cells / 1000}K`;
+  // pointsOutputFormatted.style.color = getCellsDensityColor(cells);
 }
 
 function getCellsDensityColor(cells: number): string {
@@ -307,11 +282,9 @@ function getCellsDensityColor(cells: number): string {
 // ─── Options changes ───────────────────────────────────────────────────────────
 
 function changeCultureSet(): void {
-  const max = (culturesSet.selectedOptions[0] as HTMLElement).dataset.max!;
-  (culturesInput as HTMLInputElement).max = (culturesOutput as HTMLInputElement).max = max;
-  if (+(culturesOutput as HTMLInputElement).value > +max) {
-    (culturesInput as HTMLInputElement).value = (culturesOutput as HTMLInputElement).value = max;
-  }
+  // const max = (culturesSet.selectedOptions[0] as HTMLElement).dataset.max!;
+  /* removed */
+  /* removed */
 }
 
 function changeEmblemShape(emblemShape: string): void {
@@ -361,7 +334,7 @@ function changeEmblemShape(emblemShape: string): void {
 }
 
 function changeStatesNumber(value: string): void {
-  ensureEl("statesNumber").style.color = +value ? "" : "#b12117";
+  /* statesNumber style removed */
   burgLabels.select("#capital").attr("data-size", Math.max(rn(6 - +value / 20), 3));
   labels.select("#countries").attr("data-size", Math.max(rn(18 - +value / 6), 4));
 }
@@ -372,7 +345,7 @@ function changeUiSize(value: number): void {
   const max = getUImaxSize();
   if (value > max) value = max;
 
-  uiSize.value = String(value);
+  useOptionsState.getState().setOptions({ uiSize: value });
   document.getElementsByTagName("body")[0].style.fontSize = `${rn(value * 10, 2)}px`;
   const optionsEl = document.getElementById("options");
   if (optionsEl) optionsEl.style.width = `${value * 300}px`;
@@ -392,23 +365,22 @@ const THEME_COLOR = "#997787";
 
 function restoreDefaultThemeColor(): void {
   localStorage.removeItem("themeColor");
-  changeDialogsTheme(THEME_COLOR, transparencyInput.value);
+  changeDialogsTheme(THEME_COLOR, String(useOptionsState.getState().transparency));
 }
 
 function changeThemeHue(hue: string): void {
-  const { s, l } = hsl(themeColorInput.value);
+  const { s, l } = hsl(useOptionsState.getState().themeColor);
   const newColor = hsl(+hue, s, l).formatHex();
-  changeDialogsTheme(newColor, transparencyInput.value);
+  changeDialogsTheme(newColor, String(useOptionsState.getState().transparency));
 }
 
 function changeDialogsTheme(themeColor: string, transparency: string): void {
-  transparencyInput.value = transparency;
+  useOptionsState.getState().setOptions({ transparency: +transparency });
   const alpha = (100 - +transparency) / 100;
   const alphaReduced = Math.min(alpha + 0.3, 1);
 
   const { h, s, l } = hsl(themeColor || THEME_COLOR);
-  themeColorInput.value = themeColor || THEME_COLOR;
-  themeHueInput.value = String(h);
+  useOptionsState.getState().setOptions({ themeColor: themeColor || THEME_COLOR });
 
   const getRGBA = (hue: number, saturation: number, lightness: number, a: number): string => {
     return hsl(hue, saturation, lightness, a).toString();
@@ -518,28 +490,44 @@ function restoreDefaultZoomExtent(): void {
 // ─── Apply stored options ─────────────────────────────────────────────────────
 
 function applyStoredOptions(): void {
+  const optionsStore = useOptionsState.getState();
+
   if (!stored("mapWidth") || !stored("mapHeight")) {
-    mapWidthInput.value = String(window.innerWidth);
-    mapHeightInput.value = String(window.innerHeight);
+    optionsStore.setOptions({
+      mapWidth: window.innerWidth,
+      mapHeight: window.innerHeight
+    });
+  } else {
+    optionsStore.setOptions({
+      mapWidth: +stored("mapWidth")!,
+      mapHeight: +stored("mapHeight")!
+    });
   }
 
   const heightmapId = stored("template");
   if (heightmapId) {
     const name = heightmapTemplates[heightmapId]?.name || precreatedHeightmaps[heightmapId]?.name || heightmapId;
-    applyOption(ensureEl("templateInput"), heightmapId, name);
+    const templateInput = document.getElementById("templateInput") as HTMLInputElement | HTMLSelectElement | null;
+    if (templateInput) applyOption(templateInput, heightmapId, name);
+    optionsStore.setOption("template", heightmapId);
   }
 
   if (stored("distanceUnit")) applyOption(distanceUnitInput, stored("distanceUnit")!);
   if (stored("heightUnit")) applyOption(heightUnit, stored("heightUnit")!);
 
+  const loadedOptions: Partial<Omit<OptionsState, "setOption" | "setOptions">> = {};
+
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i)!;
     if (key === "speakerVoice") continue;
 
-    const input = (document.getElementById(`${key}Input`) || document.getElementById(key)) as HTMLInputElement | null;
-    const output = document.getElementById(`${key}Output`) as HTMLInputElement | null;
-
     const value = stored(key)!;
+
+    const input = (document.getElementById(`${key}Input`) || document.getElementById(key)) as
+      | HTMLInputElement
+      | HTMLSelectElement
+      | null;
+    const output = document.getElementById(`${key}Output`) as HTMLInputElement | HTMLSelectElement | null;
     if (input) input.value = value;
     if (output) output.value = value;
     lock(key);
@@ -548,7 +536,34 @@ function applyStoredOptions(): void {
     if (key === "distanceScale") distanceScale = +value;
 
     if (key.slice(0, 5) === "style") applyOption(stylePreset, key, key.slice(5));
+
+    // Map valid keys to the Zustand store
+    const validKeys = [
+      "seed",
+      "points",
+      "mapName",
+      "year",
+      "era",
+      "cultures",
+      "culturesSet",
+      "statesNumber",
+      "provincesRatio",
+      "sizeVariety",
+      "growthRate",
+      "manors",
+      "religionsNumber",
+      "uiSize",
+      "tooltipSize",
+      "themeColor",
+      "transparency"
+    ];
+    if (validKeys.includes(key)) {
+      // biome-ignore lint/suspicious/noExplicitAny: dynamic key assignment for validated keys
+      (loadedOptions as any)[key] = Number.isNaN(+value) ? value : +value;
+    }
   }
+  // biome-ignore lint/suspicious/noExplicitAny: partial options object from legacy storage
+  optionsStore.setOptions(loadedOptions as any);
 
   if (stored("winds"))
     options.winds = stored("winds")!.split(",").map(Number) as [number, number, number, number, number, number];
@@ -560,22 +575,25 @@ function applyStoredOptions(): void {
   if (stored("tooltipSize")) changeTooltipSize(stored("tooltipSize")!);
   if (stored("regions")) changeStatesNumber(stored("regions")!);
 
-  (uiSize as HTMLInputElement).max = String(getUImaxSize());
   if (stored("uiSize")) changeUiSize(+stored("uiSize")!);
-  else changeUiSize(minmax(rn(+mapWidthInput.value / 1280, 1), 1, 2.5));
+  else changeUiSize(minmax(rn(optionsStore.mapWidth / 1280, 1), 1, 2.5));
 
   const params = new URL(window.location.href).searchParams;
   const width = +params.get("width")!;
   const height = +params.get("height")!;
-  if (width) mapWidthInput.value = String(width);
-  if (height) mapHeightInput.value = String(height);
+  if (width || height) {
+    optionsStore.setOptions({
+      mapWidth: width || optionsStore.mapWidth,
+      mapHeight: height || optionsStore.mapHeight
+    });
+  }
 
   const transparency = stored("transparency") || "5";
   const themeColor = stored("themeColor") || "";
   changeDialogsTheme(themeColor, transparency);
 
-  setRendering(shapeRendering.value);
-  options.stateLabelsMode = stateLabelsModeInput.value as "auto" | "short" | "full";
+  setRendering("auto");
+  options.stateLabelsMode = optionsStore.stateLabelsMode as "auto" | "short" | "full";
 }
 
 // ─── Randomize options ─────────────────────────────────────────────────────────
@@ -585,20 +603,21 @@ function randomizeOptions(): void {
 
   if (randomize || !locked("points")) changeCellsDensity(4);
   if (randomize || !locked("template")) randomizeHeightmapTemplate();
-  if (randomize || !locked("statesNumber")) (statesNumber as HTMLInputElement).value = String(gauss(18, 5, 2, 30));
+  if (randomize || !locked("statesNumber"))
+    useOptionsState.getState().setOptions({ statesNumber: Math.round(gauss(18, 5, 2, 30)) });
   if (randomize || !locked("provincesRatio"))
-    (provincesRatio as HTMLInputElement).value = String(gauss(20, 10, 20, 100));
+    useOptionsState.getState().setOptions({ provincesRatio: Math.round(gauss(20, 10, 20, 100)) });
   if (randomize || !locked("manors")) {
-    manorsInput.value = "1000";
-    manorsOutput.value = "auto";
+    useOptionsState.getState().setOptions({ manors: 1000 });
   }
-  if (randomize || !locked("religionsNumber")) (religionsNumber as HTMLInputElement).value = String(gauss(6, 3, 2, 10));
-  if (randomize || !locked("sizeVariety")) (sizeVariety as HTMLInputElement).value = String(gauss(4, 2, 0, 10, 1));
-  if (randomize || !locked("growthRate")) (growthRate as HTMLInputElement).value = String(rn(1 + Math.random(), 1));
+  if (randomize || !locked("religionsNumber"))
+    useOptionsState.getState().setOptions({ religionsNumber: Math.round(gauss(6, 3, 2, 10)) });
+  if (randomize || !locked("sizeVariety"))
+    useOptionsState.getState().setOptions({ sizeVariety: gauss(4, 2, 0, 10, 1) });
+  if (randomize || !locked("growthRate"))
+    useOptionsState.getState().setOptions({ growthRate: rn(1 + Math.random(), 1) });
   if (randomize || !locked("cultures"))
-    (culturesInput as HTMLInputElement).value = (culturesOutput as HTMLInputElement).value = String(
-      gauss(12, 3, 5, 30)
-    );
+    useOptionsState.getState().setOptions({ cultures: Math.round(gauss(12, 3, 5, 30)) });
   if (randomize || !locked("culturesSet")) randomizeCultureSet();
 
   if (randomize || !locked("temperatureEquator")) options.temperatureEquator = gauss(25, 7, 20, 35, 0);
@@ -627,7 +646,9 @@ function randomizeHeightmapTemplate(): void {
   }
   const template = rw(templates);
   const name = heightmapTemplates[template].name;
-  applyOption(ensureEl("templateInput"), template, name);
+  useOptionsState.getState().setOption("template", template);
+  const templateInput = document.getElementById("templateInput") as HTMLInputElement | HTMLSelectElement | null;
+  if (templateInput) applyOption(templateInput, template, name);
 }
 
 function randomizeCultureSet(): void {
@@ -641,7 +662,8 @@ function randomizeCultureSet(): void {
     darkFantasy: 3,
     random: 1
   };
-  (culturesSet as HTMLSelectElement).value = rw(sets);
+  const chosen = rw(sets);
+  useOptionsState.getState().setOption("culturesSet", chosen);
   changeCultureSet();
 }
 
@@ -663,11 +685,12 @@ function setRendering(value: string): void {
 // ─── Era ──────────────────────────────────────────────────────────────────────
 
 function generateEra(): void {
-  if (!stored("year")) (yearInput as HTMLInputElement).value = String(rand(100, 2000));
-  if (!stored("era"))
-    (eraInput as HTMLInputElement).value = `${Names.getBaseShort(P(0.7) ? 1 : rand(nameBases.length))} Era`;
-  options.year = +(yearInput as HTMLInputElement).value;
-  options.era = (eraInput as HTMLInputElement).value;
+  const store = useOptionsState.getState();
+  if (!stored("year")) store.setOptions({ year: rand(100, 2000) });
+  if (!stored("era")) store.setOptions({ era: `${Names.getBaseShort(P(0.7) ? 1 : rand(nameBases.length))} Era` });
+
+  options.year = store.year;
+  options.era = store.era;
   options.eraShort = options.era
     .split(" ")
     .map((w: string) => w[0].toUpperCase())
@@ -676,7 +699,9 @@ function generateEra(): void {
 
 function regenerateEra(): void {
   unlock("era");
-  options.era = (eraInput as HTMLInputElement).value = `${Names.getBaseShort(P(0.7) ? 1 : rand(nameBases.length))} Era`;
+  const era = `${Names.getBaseShort(P(0.7) ? 1 : rand(nameBases.length))} Era`;
+  useOptionsState.getState().setOptions({ era });
+  options.era = era;
   options.eraShort = options.era
     .split(" ")
     .map((w: string) => w[0].toUpperCase())
@@ -684,20 +709,14 @@ function regenerateEra(): void {
 }
 
 function changeYear(): void {
-  const val = (yearInput as HTMLInputElement).value;
-  if (!val) return;
-  if (Number.isNaN(+val)) {
-    tip("Current year should be a number", false, "error");
-    return;
-  }
-  options.year = +val;
+  // state managed by react, just sync global
+  options.year = useOptionsState.getState().year;
 }
 
 function changeEra(): void {
-  const val = (eraInput as HTMLInputElement).value;
-  if (!val) return;
+  // state managed by react, just sync global
   lock("era");
-  options.era = val;
+  options.era = useOptionsState.getState().era;
 }
 
 function openTemplateSelectionDialog(): void {
@@ -943,19 +962,24 @@ function changeViewMode(event: MouseEvent): void {
   const pressed = button.classList.contains("pressed");
   enterStandardView();
 
+  const viewStandardEl = document.getElementById("viewStandard");
   if (!pressed && button.id !== "viewStandard") {
-    viewStandard.classList.remove("pressed");
+    viewStandardEl?.classList.remove("pressed");
     button.classList.add("pressed");
     enter3dView(button.id);
   }
 }
 
 function enterStandardView(): void {
-  viewMode.querySelectorAll(".pressed").forEach(button => {
+  const viewModeEl = document.getElementById("viewMode");
+  const heightmap3DViewEl = document.getElementById("heightmap3DView");
+  const viewStandardEl = document.getElementById("viewStandard");
+
+  viewModeEl?.querySelectorAll(".pressed").forEach(button => {
     button.classList.remove("pressed");
   });
-  heightmap3DView.classList.remove("pressed");
-  viewStandard.classList.add("pressed");
+  heightmap3DViewEl?.classList.remove("pressed");
+  viewStandardEl?.classList.add("pressed");
 
   if (!document.getElementById("canvas3d")) return;
   ThreeD.stop();
@@ -999,7 +1023,7 @@ async function enter3dView(type: string): Promise<void> {
       resizeStop: resize3d,
       close: enterStandardView
     });
-  } else document.body.insertBefore(canvas, optionsContainer);
+  } else optionsContainer.parentNode?.insertBefore(canvas, optionsContainer);
 
   toggle3dOptions();
 }
@@ -1230,7 +1254,6 @@ export function initOptions(wc: WorldContext, vc: Readonly<ViewContext>, as: App
   // draggable/sortable/disableSelection
   $("#optionsContainer").draggable({ handle: ".drag-trigger", snap: "svg", snapMode: "both" });
   $("#exitCustomization").draggable({ handle: "div" });
-  $("#mapLayers").disableSelection();
 
   if (stored("disable_click_arrow_tooltip")) {
     clearMainTip();
@@ -1257,47 +1280,6 @@ export function initOptions(wc: WorldContext, vc: Readonly<ViewContext>, as: App
     });
   }
 
-  // Options tab switching
-  const optionsElTabs = document.getElementById("options");
-  if (optionsElTabs) {
-    const tabsContainer = optionsElTabs.querySelector<HTMLElement>("div.tab");
-    if (tabsContainer) {
-      tabsContainer.addEventListener("click", (event: MouseEvent) => {
-        const target = event.target as HTMLElement;
-        if (target.tagName !== "BUTTON") return;
-        const id = target.id;
-        const active = ensureEl("options").querySelector<HTMLElement>(".tab > button.active");
-        if (active && id === active.id) return;
-
-        if (active) active.classList.remove("active");
-        ensureEl(id).classList.add("active");
-        document
-          .getElementById("options")!
-          .querySelectorAll<HTMLElement>(".tabcontent")
-          .forEach(e => {
-            e.style.display = "none";
-          });
-
-        if (id === "layersTab") {
-          layersContent.style.display = "block";
-        } else if (id === "styleTab") {
-          styleContent.style.display = "block";
-          selectStyleElement();
-        } else if (id === "optionsTab") {
-          optionsContent.style.display = "block";
-        } else if (id === "toolsTab") {
-          if (customization === 1) {
-            customizationMenu.style.display = "block";
-          } else {
-            toolsContent.style.display = "block";
-          }
-        } else if (id === "aboutTab") {
-          aboutContent.style.display = "block";
-        }
-      });
-    }
-  }
-
   // Generic option change helpers
   // Generic option change helpers
   const optionsEl = document.getElementById("options");
@@ -1311,50 +1293,81 @@ export function initOptions(wc: WorldContext, vc: Readonly<ViewContext>, as: App
     dialogsEl.addEventListener("input", updateOutputToFollowInput);
   }
 
-  // Options content listeners
-  const optionsContentEl = ensureEl("optionsContent");
+  // React options listeners
+  document.addEventListener("react-map-size-change", mapSizeInputChange);
 
-  optionsContentEl.addEventListener("input", (event: Event) => {
-    const target = event.target as HTMLInputElement;
-    const { id, value } = target;
-    if (id === "mapWidthInput" || id === "mapHeightInput") mapSizeInputChange();
-    else if (id === "pointsInput") changeCellsDensity(+value);
-    else if (id === "culturesSet") changeCultureSet();
-    else if (id === "statesNumber") changeStatesNumber(value);
-    else if (id === "emblemShape") changeEmblemShape(value);
-    else if (id === "tooltipSize") changeTooltipSize(value);
-    else if (id === "themeHueInput") changeThemeHue(value);
-    else if (id === "themeColorInput") changeDialogsTheme(themeColorInput.value, transparencyInput.value);
-    else if (id === "transparencyInput") changeDialogsTheme(themeColorInput.value, value);
+  document.addEventListener("react-generate-map-with-seed", (e: Event) => {
+    const detail = (e as CustomEvent).detail;
+    // Update legacy inputs in case other parts of the system read from them
+    useOptionsState.getState().setOptions({ seed: detail.seed });
+    generateMapWithSeed();
   });
 
-  optionsContentEl.addEventListener("change", (event: Event) => {
-    const target = event.target as HTMLInputElement;
-    const { id, value } = target;
-    if (id === "zoomExtentMin" || id === "zoomExtentMax") changeZoomExtent(value);
-    else if (id === "optionsSeed") generateMapWithSeed();
-    else if (id === "uiSize") changeUiSize(+value);
-    else if (id === "shapeRendering") setRendering(value);
-    else if (id === "yearInput") changeYear();
-    else if (id === "eraInput") changeEra();
-    else if (id === "stateLabelsModeInput") options.stateLabelsMode = value as "auto" | "short" | "full";
-    else if (id === "azgaarAssistant") toggleAssistant?.();
+  document.addEventListener("react-change-ui-size", (e: Event) => {
+    changeUiSize((e as CustomEvent).detail.size);
   });
 
-  optionsContentEl.addEventListener("click", (event: MouseEvent) => {
-    const { id } = event.target as HTMLElement;
-    if (id === "restoreDefaultCanvasSize") restoreDefaultCanvasSize();
-    else if (id === "optionsMapHistory") showSeedHistoryDialog();
-    else if (id === "optionsCopySeed") copyMapURL();
-    else if (id === "optionsEraRegenerate") regenerateEra();
-    else if (id === "templateInputContainer") openTemplateSelectionDialog();
-    else if (id === "zoomExtentDefault") restoreDefaultZoomExtent();
-    else if (id === "translateExtent") toggleTranslateExtent(event.target as HTMLElement);
-    else if (id === "speakerTest") testSpeaker();
-    else if (id === "themeColorRestore") restoreDefaultThemeColor();
-    else if (id === "loadGoogleTranslateButton") loadGoogleTranslate();
-    else if (id === "resetLanguage") resetLanguage();
+  document.addEventListener("react-restore-theme", restoreDefaultThemeColor);
+
+  document.addEventListener("react-change-theme", (e: Event) => {
+    const { color, transparency } = (e as CustomEvent).detail;
+    changeDialogsTheme(color, transparency);
   });
+
+  document.addEventListener("react-regenerate-era", regenerateEra);
+
+  document.addEventListener("react-change-tooltip-size", (e: Event) => {
+    changeTooltipSize(String((e as CustomEvent).detail.size));
+  });
+
+  document.addEventListener("react-open-template-selection", openTemplateSelectionDialog);
+
+  document.addEventListener("react-change-emblem-shape", (e: Event) => {
+    changeEmblemShape((e as CustomEvent).detail.shape);
+  });
+
+  document.addEventListener("react-test-speaker", testSpeaker);
+
+  document.addEventListener("react-regenerate-map-name", () => {
+    Names.getMapName(true);
+  });
+
+  document.addEventListener("react-change-year", (e: Event) => {
+    options.year = (e as CustomEvent).detail.year;
+  });
+
+  document.addEventListener("react-change-era", (e: Event) => {
+    lock("era");
+    options.era = (e as CustomEvent).detail.era;
+    options.eraShort = (options.era ?? "")
+      .split(" ")
+      .map((w: string) => w[0]?.toUpperCase() ?? "")
+      .join("");
+  });
+
+  document.addEventListener("react-change-state-labels-mode", (e: Event) => {
+    options.stateLabelsMode = (e as CustomEvent).detail.mode as "auto" | "short" | "full";
+  });
+
+  document.addEventListener("react-change-cultures-set", () => {
+    const culturesSetMaxMap: Record<string, number> = {
+      world: 32,
+      european: 15,
+      oriental: 13,
+      english: 10,
+      antique: 10,
+      highFantasy: 17,
+      darkFantasy: 18,
+      random: 100
+    };
+    const { culturesSet, cultures } = useOptionsState.getState();
+    const max = culturesSetMaxMap[culturesSet] ?? 100;
+    if (cultures > max) useOptionsState.getState().setOption("cultures", max);
+  });
+
+  // Note: For other sliders (points, cultures, etc.), their changes are applied on map generation.
+  // If immediate change is needed, add specific react- events for them and call the corresponding functions
+  // like changeCellsDensity(), changeStatesNumber(), etc.
 
   // Sticked menu
   ensureEl("sticked").addEventListener("click", (event: MouseEvent) => {
@@ -1374,8 +1387,16 @@ export function initOptions(wc: WorldContext, vc: Readonly<ViewContext>, as: App
     uploadMap(fileToLoad);
   });
 
-  // View mode / 3D
-  viewMode.addEventListener("click", changeViewMode);
+  // View mode / 3D handled via React
 }
 
-export { applyStoredOptions };
+export {
+  applyStoredOptions,
+  changeZoomExtent,
+  loadGoogleTranslate,
+  resetLanguage,
+  restoreDefaultCanvasSize,
+  restoreDefaultZoomExtent,
+  testSpeaker,
+  toggleTranslateExtent
+};

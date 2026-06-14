@@ -12,6 +12,7 @@ import type { NameBase } from "../modules/names-generator";
 import type { River } from "../modules/river-generator";
 import { Routes } from "../modules/routes-generator";
 import { drawGrid } from "../renderers";
+import { useOptionsState } from "../store/optionsState";
 import { calculateVoronoi, ensureEl, findCell, last, link, minmax, parseError, rn } from "../utils";
 import { heightmapColorSchemes } from "../utils/colorUtils";
 import { resolveVersionConflicts } from "./auto-update";
@@ -251,7 +252,8 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
   try {
     closeDialogs?.();
     customization = 0;
-    if (customizationMenu.offsetParent) styleTab.click();
+    document.dispatchEvent(new CustomEvent("react-exit-heightmap-edit"));
+    document.dispatchEvent(new CustomEvent("react-hide-exit-customization"));
 
     {
       const params = data[0].split("|");
@@ -304,6 +306,19 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
     stateLabelsModeInput.value = options.stateLabelsMode;
     yearInput.value = String(options.year);
     eraInput.value = String(options.era);
+
+    // Sync loaded values into Zustand store so React UI reflects the loaded map
+    {
+      const settings = (data[1] || "").split("|");
+      const zustandUpdates: Record<string, string | number> = {};
+      if (settings[20]) zustandUpdates.mapName = settings[20];
+      if (settings[26]) zustandUpdates.growthRate = +settings[26];
+      if (options.stateLabelsMode) zustandUpdates.stateLabelsMode = options.stateLabelsMode;
+      if (options.year != null) zustandUpdates.year = options.year;
+      if (options.era != null) zustandUpdates.era = options.era;
+      // biome-ignore lint/suspicious/noExplicitAny: partial options object built from legacy save format
+      useOptionsState.getState().setOptions(zustandUpdates as any);
+    }
     shapeRendering.value = viewbox.attr("shape-rendering") || "geometricPrecision";
     if (data[2]) mapCoordinates = JSON.parse(data[2]);
     if (data[4]) notes = JSON.parse(data[4]);

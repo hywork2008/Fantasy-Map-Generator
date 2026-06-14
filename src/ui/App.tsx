@@ -1,5 +1,6 @@
 import { useViewState } from "../store";
 import { OptionsContainer } from "./components/OptionsContainer";
+import { ExitCustomization } from "./components/ExitCustomization";
 
 export const App = () => {
   const openDialogs = useViewState((state) => state.openDialogs);
@@ -8,6 +9,9 @@ export const App = () => {
     <div id="react-ui-container" style={{ pointerEvents: 'none', position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 1000 }}>
       {/* The Options Menu */}
       <OptionsContainer />
+
+      {/* Heightmap exit button - absolutely positioned, managed via custom events */}
+      <ExitCustomization />
 
       {/* Development Overlay */}
       {import.meta.env.DEV && (

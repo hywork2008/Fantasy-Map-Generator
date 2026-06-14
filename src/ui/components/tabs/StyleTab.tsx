@@ -1,0 +1,822 @@
+import { useEffect } from "react";
+import { useStyleState } from "../../../store/styleState";
+import { initStyleTab, applySliderChange } from "../../../controllers/style";
+import { SliderInput } from "../SliderInput";
+
+export function StyleTab() {
+  const visibility = useStyleState(state => state.visibility);
+  const values = useStyleState(state => state.values);
+
+  useEffect(() => {
+    initStyleTab();
+  }, []);
+
+  const slider = (id: string, min: string, max: string, step: string) => (
+    <SliderInput
+      id={id}
+      min={min}
+      max={max}
+      step={step}
+      value={values[id] ?? ""}
+      onChange={(v) => applySliderChange(id, v)}
+    />
+  );
+
+  return (
+    <div id="styleContent" className="tabcontent" style={{ display: "block" }}>
+
+      <p
+        data-tip="Select a style preset. State labels may required regeneration if font is changed"
+        style={{ display: "inline-block" }}
+      >
+        Style preset:
+      </p>
+      <select
+        data-tip="Select a style preset"
+        id="stylePreset"
+        onChange={(e) => (window as any).requestStylePresetChange(e.target.value)}
+        style={{ width: "45%", textTransform: "capitalize" }}
+      ></select>
+      <button
+        id="addStyleButton"
+        data-tip="Click to save current style as a new preset"
+        className="icon-plus sideButton"
+        style={{ display: "inline-block" }}
+        onClick={(window as any).addStylePreset}
+      ></button>
+      <button
+        id="removeStyleButton"
+        data-tip="Click to remove current custom style preset"
+        className="icon-minus sideButton"
+        style={{ display: "none" }}
+        onClick={(window as any).requestRemoveStylePreset}
+      ></button>
+
+      <p data-tip="Select an element to edit its style" style={{ display: "inline-block" }}>Select element:</p>
+      <select
+        data-tip="Select an element to edit its style (list is ordered alphabetically)"
+        id="styleElementSelect"
+        style={{ width: "42%" }}
+        defaultValue="ocean"
+      >
+        <option value="anchors">Anchor Icons</option>
+        <option value="biomes">Biomes</option>
+        <option value="borders">Borders</option>
+        <option value="burgIcons">Burg Icons</option>
+        <option value="cells">Cells</option>
+        <option value="coastline">Coastline</option>
+        <option value="coordinates">Coordinates</option>
+        <option value="cults">Cultures</option>
+        <option value="emblems">Emblems</option>
+        <option value="fogging">Fogging</option>
+        <option value="gridOverlay">Grid</option>
+        <option value="terrs">Heightmap</option>
+        <option value="ice">Ice</option>
+        <option value="labels">Labels</option>
+        <option value="lakes">Lakes</option>
+        <option value="landmass">Landmass</option>
+        <option value="legend">Legend</option>
+        <option value="markers">Markers</option>
+        <option value="armies">Military</option>
+        <option value="ocean">Ocean</option>
+        <option value="population">Population</option>
+        <option value="prec">Precipitation</option>
+        <option value="provs">Provinces</option>
+        <option value="terrain">Relief Icons</option>
+        <option value="relig">Religions</option>
+        <option value="rivers">Rivers</option>
+        <option value="routes">Routes</option>
+        <option value="ruler">Rulers</option>
+        <option value="scaleBar">Scale Bar</option>
+        <option value="regions">States</option>
+        <option value="temperature">Temperature</option>
+        <option value="texture">Texture</option>
+        <option value="vignette">Vignette</option>
+        <option value="compass">Wind Rose</option>
+        <option value="zones">Zones</option>
+      </select>
+
+      <table id="styleElements">
+        <caption
+          id="styleIsOff"
+          data-tip="The selected layer is not visible. Toogle it on to see style changes effect"
+        >
+          Ensure the element visibility is toggled on!
+        </caption>
+
+        <tbody id="styleGroup" style={{ display: visibility.styleGroup ? "block" : "none" }}>
+          <tr data-tip="Select element group">
+            <td><b>Group</b></td>
+            <td>
+              <select id="styleGroupSelect"></select>
+            </td>
+          </tr>
+        </tbody>
+
+        <tbody id="styleHeightmap" style={{ display: visibility.styleHeightmap ? "block" : "none" }}>
+          <tr id="styleHeightmapRenderOceanOption" data-tip="Check to render ocean heights">
+            <td colSpan={2}>
+              <input id="styleHeightmapRenderOcean" className="checkbox" type="checkbox" />
+              <label htmlFor="styleHeightmapRenderOcean" className="checkbox-label">Render ocean heights</label>
+            </td>
+          </tr>
+
+          <tr data-tip="Terracing power. Set to 0 to toggle off">
+            <td>Terracing</td>
+            <td>{slider("styleHeightmapTerracing", "0", "20", "1")}</td>
+          </tr>
+
+          <tr data-tip="Layers reduction rate. Increase to improve performance">
+            <td>Reduce layers</td>
+            <td>{slider("styleHeightmapSkip", "0", "10", "1")}</td>
+          </tr>
+
+          <tr data-tip="Line simplification rate. Increase to slightly improve performance">
+            <td>Simplify line</td>
+            <td>{slider("styleHeightmapSimplification", "0", "10", "1")}</td>
+          </tr>
+
+          <tr data-tip="Select line interpolation type">
+            <td>Line style</td>
+            <td>
+              <select id="styleHeightmapCurve">
+                <option value="curveBasisClosed">Curved</option>
+                <option value="curveLinear">Linear</option>
+                <option value="curveStep">Rectangular</option>
+              </select>
+            </td>
+          </tr>
+
+          <tr data-tip="Select color scheme for the element">
+            <td>Color scheme</td>
+            <td>
+              <select id="styleHeightmapScheme" style={{ width: "86%" }}></select>
+              <button
+                id="openCreateHeightmapSchemeButton"
+                data-tip="Click to add a custom heightmap color scheme"
+                data-stops="#ffffff,#EEEECC,#D2B48C,#008000,#008080"
+                className="icon-plus sideButton"
+              ></button>
+            </td>
+          </tr>
+        </tbody>
+
+        <tbody id="styleOpacity" style={{ display: visibility.styleOpacity ? "block" : "none" }}>
+          <tr data-tip="Set opacity. 0: transparent, 1: solid">
+            <td>Opacity</td>
+            <td>{slider("styleOpacityInput", "0", "1", "0.01")}</td>
+          </tr>
+        </tbody>
+
+        <tbody id="styleLegend" style={{ display: visibility.styleLegend ? "block" : "none" }}>
+          <tr data-tip="Set maximum number of items in one column">
+            <td>Column items</td>
+            <td>{slider("styleLegendColItems", "1", "30", "1")}</td>
+          </tr>
+
+          <tr data-tip="Set background color">
+            <td>Background</td>
+            <td>
+              <input id="styleLegendBack" type="color" defaultValue="#ffffff" />
+              <output id="styleLegendBackOutput">#ffffff</output>
+            </td>
+          </tr>
+
+          <tr data-tip="Set background opacity">
+            <td>Opacity</td>
+            <td>{slider("styleLegendOpacity", "0", "1", ".01")}</td>
+          </tr>
+        </tbody>
+
+        <tbody id="stylePopulation" style={{ display: visibility.stylePopulation ? "block" : "none" }}>
+          <tr data-tip="Set bar color for rural population">
+            <td>Rural color</td>
+            <td>
+              <input id="stylePopulationRuralStrokeInput" type="color" defaultValue="#0000ff" />
+              <output id="stylePopulationRuralStrokeOutput">#0000ff</output>
+            </td>
+          </tr>
+
+          <tr data-tip="Set bar color for urban population">
+            <td>Urban color</td>
+            <td>
+              <input id="stylePopulationUrbanStrokeInput" type="color" defaultValue="#ff0000" />
+              <output id="stylePopulationUrbanStrokeOutput">#ff0000</output>
+            </td>
+          </tr>
+        </tbody>
+
+        <tbody id="styleTexture" style={{ display: visibility.styleTexture ? "block" : "none" }}>
+          <tr data-tip="Select texture image. Big textures can highly affect performance">
+            <td>Image</td>
+            <td>
+              <select id="styleTextureInput" style={{ width: "86%" }}>
+                <option value="">No texture</option>
+                <option value="./images/textures/folded-paper-big.jpg">Folded paper big</option>
+                <option value="./images/textures/folded-paper-small.jpg">Folded paper small</option>
+                <option value="./images/textures/gray-paper.jpg">Gray paper</option>
+                <option value="./images/textures/soiled-paper.jpg">Soiled paper horizontal</option>
+                <option value="./images/textures/soiled-paper-vertical.jpg">Soided paper vertical</option>
+                <option value="./images/textures/plaster.jpg">Plaster</option>
+                <option value="./images/textures/ocean.jpg">Ocean</option>
+                <option value="./images/textures/antique-small.jpg">Antique small</option>
+                <option value="./images/textures/antique-big.jpg">Antique big</option>
+                <option value="./images/textures/pergamena-small.jpg">Pergamena small</option>
+                <option value="./images/textures/marble-big.jpg">Marble big</option>
+                <option value="./images/textures/marble-small.jpg">Marble small</option>
+                <option value="./images/textures/marble-blue-small.jpg">Marble Blue</option>
+                <option value="./images/textures/marble-blue-big.jpg">Marble Blue big</option>
+                <option value="./images/textures/stone-small.jpg">Stone small</option>
+                <option value="./images/textures/stone-big.jpg">Stone big</option>
+                <option value="./images/textures/timbercut-small.jpg">Timber Cut small</option>
+                <option value="./images/textures/timbercut-big.jpg">Timber Cut big</option>
+                <option value="./images/textures/mars-small.jpg">Mars small</option>
+                <option value="./images/textures/mars-big.jpg">Mars big</option>
+                <option value="./images/textures/mercury-small.jpg">Mercury small</option>
+                <option value="./images/textures/mercury-big.jpg">Mercury big</option>
+                <option value="./images/textures/mauritania-small.jpg">Mauritania small</option>
+                <option value="./images/textures/iran-small.jpg">Iran small</option>
+                <option value="./images/textures/spain-small.jpg">Spain small</option>
+              </select>
+              <button
+                data-tip="Click and provide a URL to image to be set as a texture"
+                className="icon-plus sideButton"
+                onClick={(window as any).textureProvideURL}
+              ></button>
+            </td>
+          </tr>
+
+          <tr data-tip="Shift the texture by axes">
+            <td>Shift by axes</td>
+            <td>
+              <input id="styleTextureShiftX" type="number" defaultValue="0" data-tip="Shift texture by x axis in pixels" />
+              <input id="styleTextureShiftY" type="number" defaultValue="0" data-tip="Shift texture by y axis in pixels" />
+            </td>
+          </tr>
+        </tbody>
+
+        <tbody id="styleVignette" style={{ display: visibility.styleVignette ? "block" : "none" }}>
+          <tr data-tip="Select precreated vignette">
+            <td>Preset</td>
+            <td>
+              <select id="styleVignettePreset"></select>
+            </td>
+          </tr>
+
+          <tr data-tip="Vignette rectangle position (in percents)">
+            <td>Position</td>
+            <td style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+              <div>
+                <span>x </span>
+                <input id="styleVignetteX" type="number" min="0" max="100" step="0.1" style={{ width: "5em" }} />
+                <span>width&nbsp; </span>
+                <input id="styleVignetteWidth" type="number" min="0" max="100" step="0.1" style={{ width: "5em" }} />
+              </div>
+              <div>
+                <span>y </span>
+                <input id="styleVignetteY" type="number" min="0" max="100" step="0.1" style={{ width: "5em" }} />
+                <span>height </span>
+                <input id="styleVignetteHeight" type="number" min="0" max="100" step="0.1" style={{ width: "5em" }} />
+              </div>
+            </td>
+          </tr>
+
+          <tr data-tip="Set vignette X and Y radius (in percents)">
+            <td>Radius</td>
+            <td>
+              <span>x </span>
+              <input id="styleVignetteRx" type="number" min="0" max="50" style={{ width: "5em" }} />
+              <span>y </span>
+              <input id="styleVignetteRy" type="number" min="0" max="50" style={{ width: "5em" }} />
+            </td>
+          </tr>
+
+          <tr data-tip="Set vignette blue propagation (in pixels)">
+            <td>Blur</td>
+            <td>{slider("styleVignetteBlur", "0", "400", "1")}</td>
+          </tr>
+        </tbody>
+
+        <tbody id="styleOcean" style={{ display: visibility.styleOcean ? "block" : "none" }}>
+          <tr data-tip="Select ocean pattern">
+            <td>Pattern</td>
+            <td>
+              <select id="styleOceanPattern">
+                <option value="">No pattern</option>
+                <option value="./images/pattern1.png">Pattern 1</option>
+                <option value="./images/pattern2.png">Pattern 2</option>
+                <option value="./images/pattern3.png">Pattern 3</option>
+                <option value="./images/pattern4.png">Pattern 4</option>
+                <option value="./images/pattern5.png">Pattern 5</option>
+                <option value="./images/pattern6.png">Pattern 6</option>
+                <option value="./images/kiwiroo.png">Kiwiroo</option>
+              </select>
+            </td>
+          </tr>
+
+          <tr data-tip="Set ocean pattern opacity">
+            <td>Pattern opacity</td>
+            <td>{slider("styleOceanPatternOpacity", "0", "1", ".01")}</td>
+          </tr>
+
+          <tr data-tip="Define the coast outline contours scheme">
+            <td>Ocean layers</td>
+            <td>
+              <select id="outlineLayers">
+                <option value="none">No outline</option>
+                <option value="random">Random</option>
+                <option value="-6,-3,-1">Standard 3</option>
+                <option value="-6,-4,-2">Indented 3</option>
+                <option value="-9,-6,-3,-1">Standard 4</option>
+                <option value="-6,-5,-4,-3,-2,-1">Smooth 6</option>
+                <option value="-9,-8,-7,-6,-5,-4,-3,-2,-1">Smooth 9</option>
+              </select>
+            </td>
+          </tr>
+
+          <tr data-tip="Set ocean color">
+            <td>Color</td>
+            <td>
+              <input id="styleOceanFill" type="color" defaultValue="#466eab" />
+              <output id="styleOceanFillOutput">#466eab</output>
+            </td>
+          </tr>
+        </tbody>
+
+        <tbody id="styleBurgIcons" style={{ display: visibility.styleBurgIcons ? "block" : "none" }}>
+          <tr data-tip="Select group icon">
+            <td>Icon</td>
+            <td>
+              <select id="styleBurgIconsIcon">
+                <option value="#icon-circle">Circle</option>
+                <option value="#icon-square">Square</option>
+                <option value="#icon-triangle">Triangle</option>
+                <option value="#icon-cross">Cross</option>
+                <option value="#icon-star">Star</option>
+                <option value="#icon-circled">Circled</option>
+                <option value="#icon-squared">Squared</option>
+                <option value="#icon-star-circled">Star circled</option>
+                <option value="#icon-star-circled-empty">Star circled empty</option>
+                <option value="#icon-star-squared">Star squared</option>
+                <option value="#icon-watabou-capital">Watabou capital</option>
+                <option value="#icon-watabou-city">Watabou city</option>
+                <option value="#icon-watabou-town">Watabou town</option>
+                <option value="#icon-watabou-village">Watabou village</option>
+                <option value="#icon-watabou-hamlet">Watabou hamlet</option>
+                <option value="#icon-watabou-fort">Watabou fort</option>
+                <option value="#icon-watabou-monastery">Watabou monastery</option>
+                <option value="#icon-watabou-caravanserai">Watabou caravanserai</option>
+                <option value="#icon-watabou-post">Watabou trade post</option>
+              </select>
+            </td>
+          </tr>
+
+          <tr data-tip="Set icon size">
+            <td>Icon size</td>
+            <td>{slider("styleBurgIconsIconSize", "0.01", "20", ".01")}</td>
+          </tr>
+
+          <tr data-tip="Set icon stroke linejoin">
+            <td>Stroke linejoin</td>
+            <td>
+              <select id="styleBurgIconsStrokeLinejoin">
+                <option value="inherit">Inherit</option>
+                <option value="butt">Butt</option>
+                <option value="round">Round</option>
+                <option value="square">Square</option>
+              </select>
+            </td>
+          </tr>
+
+          <tr data-tip="Define transparency of fill color">
+            <td>Fill opacity</td>
+            <td>{slider("styleBurgIconsFillOpacity", "0", "1", ".01")}</td>
+          </tr>
+        </tbody>
+
+        <tbody id="styleGrid" style={{ display: visibility.styleGrid ? "block" : "none" }}>
+          <tr data-tip="Select grid overlay type">
+            <td>Type</td>
+            <td>
+              <select id="styleGridType">
+                <option value="pointyHex">Hex grid (pointy)</option>
+                <option value="flatHex">Hex grid (flat)</option>
+                <option value="square">Square grid</option>
+                <option value="square45deg">Square 45 degrees grid</option>
+                <option value="squareTruncated">Truncated square grid</option>
+                <option value="squareTetrakis">Tetrakis square grid</option>
+                <option value="triangleHorizontal">Triangle grid (horizontal)</option>
+                <option value="triangleVertical">Triangle grid (vertical)</option>
+                <option value="trihexagonal">Trihexagonal grid</option>
+                <option value="rhombille">Rhombille grid</option>
+              </select>
+            </td>
+          </tr>
+
+          <tr data-tip="Set grid cells scale multiplier">
+            <td>Scale</td>
+            <td>
+              <input id="styleGridScale" type="number" min=".1" max="10" step=".01" />
+              <output
+                id="styleGridSizeFriendly"
+                data-tip="Distance between grid cell centers (in map scale)"
+              ></output>
+              <a
+                href="https://github.com/Azgaar/Fantasy-Map-Generator/wiki/Scale-and-distance#grids"
+                target="_blank"
+              >
+                <span
+                  data-tip="Open wiki article scale and distance to know about grid scale"
+                  className="icon-info-circled pointer"
+                ></span>
+              </a>
+            </td>
+          </tr>
+
+          <tr data-tip="Shift the element by axes">
+            <td>Shift by axes</td>
+            <td>
+              <input id="styleGridShiftX" type="number" data-tip="Shift by x axis in pixels" />
+              <input id="styleGridShiftY" type="number" data-tip="Shift by y axis in pixels" />
+            </td>
+          </tr>
+        </tbody>
+
+        <tbody id="styleCompass" style={{ display: visibility.styleCompass ? "block" : "none" }}>
+          <tr data-tip="Set wind (compass) rose size">
+            <td>Size</td>
+            <td>{slider("styleCompassSizeInput", ".02", "1", ".01")}</td>
+          </tr>
+
+          <tr data-tip="Shift wind (compass) rose by axes">
+            <td>Shift by axes</td>
+            <td>
+              <input id="styleCompassShiftX" type="number" defaultValue="80" data-tip="Shift by x axis in pixels" />
+              <input id="styleCompassShiftY" type="number" defaultValue="80" data-tip="Shift by y axis in pixels" />
+            </td>
+          </tr>
+        </tbody>
+
+        <tbody id="styleRelief" style={{ display: visibility.styleRelief ? "block" : "none" }}>
+          <tr data-tip="Select set of relief icons. All relief icons will be regenerated">
+            <td>Style</td>
+            <td>
+              <select id="styleReliefSet">
+                <option value="simple">Simple</option>
+                <option value="gray">Gray</option>
+                <option value="colored">Colored</option>
+              </select>
+            </td>
+          </tr>
+
+          <tr data-tip="Define the size of relief icons. All relief icons will be regenerated">
+            <td>Size</td>
+            <td>{slider("styleReliefSize", ".2", "4", ".01")}</td>
+          </tr>
+
+          <tr
+            data-tip="Define the density of relief icons. All relief icons will be regenerated. Highly affects performance!"
+          >
+            <td>Density</td>
+            <td>{slider("styleReliefDensity", ".3", ".8", ".01")}</td>
+          </tr>
+        </tbody>
+
+        <tbody id="styleFill" style={{ display: visibility.styleFill ? "block" : "none" }}>
+          <tr data-tip="Set fill color">
+            <td>Fill color</td>
+            <td>
+              <input id="styleFillInput" type="color" defaultValue="#5E4FA2" />
+              <output id="styleFillOutput">#5E4FA2</output>
+            </td>
+          </tr>
+        </tbody>
+
+        <tbody id="styleStroke" style={{ display: visibility.styleStroke ? "block" : "none" }}>
+          <tr data-tip="Set stroke color">
+            <td>Stroke color</td>
+            <td>
+              <input id="styleStrokeInput" type="color" defaultValue="#5E4FA2" />
+              <output id="styleStrokeOutput">#5E4FA2</output>
+            </td>
+          </tr>
+        </tbody>
+
+        <tbody id="styleStrokeWidth" style={{ display: visibility.styleStrokeWidth ? "block" : "none" }}>
+          <tr data-tip="Set stroke width">
+            <td>Stroke width</td>
+            <td>{slider("styleStrokeWidthInput", "0", "10", ".01")}</td>
+          </tr>
+        </tbody>
+
+        <tbody id="styleLetterSpacing" style={{ display: visibility.styleLetterSpacing ? "block" : "none" }}>
+          <tr data-tip="Set letter spacing">
+            <td>Letter spacing</td>
+            <td>{slider("styleLetterSpacingInput", "-1", "10", ".01")}</td>
+          </tr>
+        </tbody>
+
+        <tbody id="styleStrokeDash" style={{ display: visibility.styleStrokeDash ? "block" : "none" }}>
+          <tr data-tip="Set stroke dash array (e.g. 5 2) and linecap">
+            <td>Stroke dash</td>
+            <td>
+              <input id="styleStrokeDasharrayInput" type="text" defaultValue="1 2" style={{ width: "26%" }} />
+              <select id="styleStrokeLinecapInput" style={{ width: "32%" }}>
+                <option value="inherit">Inherit</option>
+                <option value="butt">Butt</option>
+                <option value="round">Round</option>
+                <option value="square">Square</option>
+              </select>
+            </td>
+          </tr>
+        </tbody>
+
+        <tbody id="styleShadow" style={{ display: visibility.styleShadow ? "block" : "none" }}>
+          <tr data-tip="Set text shadow">
+            <td>Text shadow</td>
+            <td>
+              <input id="styleShadowInput" type="text" />
+            </td>
+          </tr>
+        </tbody>
+
+        <tbody id="styleFont" style={{ display: visibility.styleFont ? "block" : "none" }}>
+          <tr data-tip="Select font">
+            <td>Font</td>
+            <td>
+              <select id="styleSelectFont" style={{ width: "85%" }}></select>
+              <button id="styleFontAdd" data-tip="Add a font" className="icon-plus sideButton"></button>
+            </td>
+          </tr>
+        </tbody>
+
+        <tbody id="styleSize" style={{ display: visibility.styleSize ? "block" : "none" }}>
+          <tr data-tip="Set font size">
+            <td>Font size</td>
+            <td>
+              <button id="styleFontPlus" data-tip="Increase font" className="whiteButton">+</button>
+              <button id="styleFontMinus" data-tip="Descrease font" className="whiteButton">-</button>
+              <input id="styleFontSize" type="number" min=".5" max="100" step=".1" />
+            </td>
+          </tr>
+        </tbody>
+
+        <tbody id="styleFontShift" style={{ display: visibility.styleFontShift ? "block" : "none" }}>
+          <tr data-tip="Set label shift along X and Y axes">
+            <td>Label shift</td>
+            <td>
+              <input
+                id="styleFontShiftX"
+                data-tip="Set label shift along Y axis"
+                type="number"
+                min="-5"
+                max="5"
+                step=".01"
+              />
+              <input
+                id="styleFontShiftY"
+                data-tip="Set label shift along Y axis"
+                type="number"
+                min="-5"
+                max="5"
+                step=".01"
+              />
+            </td>
+          </tr>
+        </tbody>
+
+        <tbody id="styleCoastline" style={{ display: visibility.styleCoastline ? "block" : "none" }}>
+          <tr data-tip="Allow system to apply filter automatically based on zoom level">
+            <td colSpan={2}>
+              <input id="styleCoastlineAuto" className="checkbox" type="checkbox" />
+              <label htmlFor="styleCoastlineAuto" className="checkbox-label">Automatically change filter on zoom</label>
+            </td>
+          </tr>
+        </tbody>
+
+        <tbody id="styleTemperature" style={{ display: visibility.styleTemperature ? "block" : "none" }}>
+          <tr data-tip="Define transparency of temperature leyer. Set to 0 to make it fully transparent">
+            <td>Fill opacity</td>
+            <td>{slider("styleTemperatureFillOpacityInput", "0", "1", ".01")}</td>
+          </tr>
+
+          <tr data-tip="Set labels size">
+            <td>Labels size</td>
+            <td>{slider("styleTemperatureFontSizeInput", "0", "30", "1")}</td>
+          </tr>
+
+          <tr data-tip="Set labels color">
+            <td>Labels color</td>
+            <td>
+              <input id="styleTemperatureFillInput" type="color" />
+              <output id="styleTemperatureFillOutput">#000</output>
+            </td>
+          </tr>
+        </tbody>
+
+        <tbody id="styleStates" style={{ display: visibility.styleStates ? "block" : "none" }}>
+          <tr data-tip="Set states fill opacity. 0: invisible, 1: solid">
+            <td>Body opacity</td>
+            <td>{slider("styleStatesBodyOpacity", "0", "1", "0.01")}</td>
+          </tr>
+
+          <tr data-tip="Select filter for states fill. Please note filters may cause performance issues!">
+            <td>Body filter</td>
+            <td><select id="styleStatesBodyFilter"></select></td>
+          </tr>
+
+          <tr style={{ marginTop: "0.8em" }}>
+            <td style={{ fontStyle: "italic" }}>
+              Halo is only rendered if "Rendering" option is set to "Best quality"!
+            </td>
+          </tr>
+
+          <tr data-tip="Set states halo effect width">
+            <td>Halo width</td>
+            <td>{slider("styleStatesHaloWidth", "0", "30", "0.1")}</td>
+          </tr>
+
+          <tr data-tip="Set states halo effect opacity. 0: invisible, 1: solid">
+            <td>Halo opacity</td>
+            <td>{slider("styleStatesHaloOpacity", "0", "1", "0.01")}</td>
+          </tr>
+
+          <tr data-tip="Select halo effect power (blur). Set to 0 to make it solid line" style={{ marginBottom: "1em" }}>
+            <td>Halo blur</td>
+            <td>{slider("styleStatesHaloBlur", "0", "10", "0.01")}</td>
+          </tr>
+        </tbody>
+
+        <tbody id="styleArmies" style={{ display: visibility.styleArmies ? "block" : "none" }}>
+          <tr data-tip="Set fill transparency. Set to 0 to make it fully transparent">
+            <td>Fill opacity</td>
+            <td>{slider("styleArmiesFillOpacity", "0", "1", ".01")}</td>
+          </tr>
+          <tr data-tip="Set regiment box size. All regiments will be redrawn on change (position will defaulted)">
+            <td>Box Size</td>
+            <td>{slider("styleArmiesSize", "0", "10", ".1")}</td>
+          </tr>
+        </tbody>
+
+        <tbody id="styleEmblems" style={{ display: visibility.styleEmblems ? "block" : "none" }}>
+          <tr data-tip="Set state emblems size multiplier">
+            <td>State size</td>
+            <td>{slider("emblemsStateSizeInput", "0", "5", ".01")}</td>
+          </tr>
+
+          <tr data-tip="Set province emblems size multiplier">
+            <td>Province size</td>
+            <td>{slider("emblemsProvinceSizeInput", "0", "5", ".01")}</td>
+          </tr>
+
+          <tr data-tip="Set burg emblems size multiplier">
+            <td>Burg size</td>
+            <td>{slider("emblemsBurgSizeInput", "0", "5", ".01")}</td>
+          </tr>
+
+          <tr data-tip="Allow system to hide emblem groups if their size in too small or too big on that scale">
+            <td colSpan={2}>
+              <input id="hideEmblems" className="checkbox" type="checkbox" onChange={(window as any).invokeActiveZooming} />
+              <label htmlFor="hideEmblems" className="checkbox-label">Toggle visibility automatically</label>
+            </td>
+          </tr>
+        </tbody>
+
+        <tbody id="styleFilter" style={{ display: visibility.styleFilter ? "block" : "none" }}>
+          <tr data-tip="Select filter for element. Please note filters may cause performance issues!">
+            <td>Filter</td>
+            <td><select id="styleFilterInput"></select></td>
+          </tr>
+        </tbody>
+
+        <tbody id="styleClipping" style={{ display: visibility.styleClipping ? "block" : "none" }}>
+          <tr data-tip="Set clipping. Only non-clipped part will be visible">
+            <td>Clipping</td>
+            <td>
+              <select id="styleClippingInput">
+                <option value="">No clipping</option>
+                <option value="url(#land)">Clip water</option>
+                <option value="url(#water)">Clip land</option>
+              </select>
+            </td>
+          </tr>
+        </tbody>
+
+        <tbody id="styleMarkers" style={{ display: visibility.styleMarkers ? "block" : "none" }}>
+          <tr data-tip="Try to keep the same size on any map scale, turn off to get size change depending on scale">
+            <td colSpan={2}>
+              <input id="styleRescaleMarkers" className="checkbox" type="checkbox" />
+              <label htmlFor="styleRescaleMarkers" className="checkbox-label">Keep initial size on zoom change</label>
+            </td>
+          </tr>
+        </tbody>
+
+        <tbody id="styleVisibility" style={{ display: visibility.styleVisibility ? "block" : "none" }}>
+          <tr data-tip="Completely hide the selected labels group using display:none">
+            <td colSpan={2}>
+              <input id="styleLabelsHideGroup" className="checkbox" type="checkbox" />
+              <label htmlFor="styleLabelsHideGroup" className="checkbox-label">Hide selected group</label>
+            </td>
+          </tr>
+
+          <tr data-tip="Allow system to hide labels if their size in too small or too big on that scale">
+            <td colSpan={2}>
+              <input id="hideLabels" className="checkbox" type="checkbox" onChange={(window as any).invokeActiveZooming} />
+              <label htmlFor="hideLabels" className="checkbox-label">Toggle visibility automatically</label>
+            </td>
+          </tr>
+
+          <tr data-tip="Allow system to rescale labels on zoom">
+            <td colSpan={2}>
+              <input id="rescaleLabels" className="checkbox" type="checkbox" onChange={(window as any).invokeActiveZooming} />
+              <label htmlFor="rescaleLabels" className="checkbox-label">Rescale on zoom</label>
+            </td>
+          </tr>
+        </tbody>
+
+        <tbody id="styleScaleBar" style={{ display: visibility.styleScaleBar ? "block" : "none" }}>
+          <tr data-tip="Set bar and font size">
+            <td>Size</td>
+            <td>
+              <span>Bar </span>
+              <input id="styleScaleBarSize" type="number" min=".5" max="5" step=".1" />
+              <span>Font </span>
+              <input id="styleScaleBarFontSize" type="number" min="1" max="100" step=".1" />
+            </td>
+          </tr>
+
+          <tr data-tip="Set position of the Scale bar bottom right corner (in percents)">
+            <td>Position</td>
+            <td>
+              <span>x </span>
+              <input id="styleScaleBarPositionX" type="number" min="0" max="100" step="0.1" style={{ width: "5em" }} />
+              <span>y </span>
+              <input id="styleScaleBarPositionY" type="number" min="0" max="100" step="0.1" style={{ width: "5em" }} />
+            </td>
+          </tr>
+
+          <tr data-tip="Type scale bar label, leave blank to hide label">
+            <td>Label</td>
+            <td>
+              <input id="styleScaleBarLabel" type="text" />
+            </td>
+          </tr>
+
+          <tr data-tip="Set background opacity. 0: transparent, 1: solid">
+            <td>Back opacity</td>
+            <td>{slider("styleScaleBarBackgroundOpacity", "0", "1", ".01")}</td>
+          </tr>
+
+          <tr data-tip="Set background fill color">
+            <td>Back fill</td>
+            <td>
+              <input id="styleScaleBarBackgroundFill" type="color" />
+              <output id="styleScaleBarBackgroundFillOutput"></output>
+            </td>
+          </tr>
+
+          <tr data-tip="Set background stroke color and width">
+            <td>Back stroke</td>
+            <td>
+              <input id="styleScaleBarBackgroundStroke" type="color" />
+              <output id="styleScaleBarBackgroundStrokeOutput"></output>
+
+              <span>Width </span>
+              <input
+                id="styleScaleBarBackgroundStrokeWidth"
+                type="number"
+                min="0"
+                max="10"
+                step="0.1"
+                style={{ width: "5em" }}
+              />
+            </td>
+          </tr>
+
+          <tr data-tip="Set background element padding: top, right, bottom, left (in pixels)">
+            <td>Back padding</td>
+            <td style={{ display: "flex", gap: "4px" }}>
+              <input id="styleScaleBarBackgroundPaddingTop" type="number" min="0" max="100" style={{ width: "5em" }} />
+              <input id="styleScaleBarBackgroundPaddingRight" type="number" min="0" max="100" style={{ width: "5em" }} />
+              <input id="styleScaleBarBackgroundPaddingBottom" type="number" min="0" max="100" style={{ width: "5em" }} />
+              <input id="styleScaleBarBackgroundPaddingLeft" type="number" min="0" max="100" style={{ width: "5em" }} />
+            </td>
+          </tr>
+
+          <tr data-tip="Select background filter">
+            <td>Back filter</td>
+            <td><select id="styleScaleBarBackgroundFilter"></select></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div id="mapFilters" data-tip="Set a filter to be applied to the map in general">
+        <p>Toggle global filters:</p>
+        <button id="grayscale" className="radio">Grayscale</button>
+        <button id="sepia" className="radio">Sepia</button>
+        <button id="dingy" className="radio">Dingy</button>
+        <button id="tint" className="radio">Tint</button>
+      </div>
+    </div>
+  );
+}

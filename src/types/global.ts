@@ -521,7 +521,7 @@ declare global {
   var regenerateMilitary: () => void;
   var regenerateIce: () => void;
   var regenerateMarkers: () => void;
-  var regenerateZones: (event: MouseEvent) => void;
+  var regenerateZones: (event: MouseEvent | null) => void;
   var openEmblemEditor: () => Promise<void>;
   var configMarkersGeneration: () => void;
   var viewCellDetails: () => void;

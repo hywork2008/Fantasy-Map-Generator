@@ -13,6 +13,10 @@ export interface ViewState {
   activeTool: string | null;
   setActiveTool: (toolId: string | null) => void;
 
+  // Track heightmap customization mode
+  isCustomizationMode: boolean;
+  setCustomizationMode: (mode: boolean) => void;
+
   // Example for modal/dialog visibility
   openDialogs: string[];
   openDialog: (dialogId: string) => void;
@@ -28,6 +32,9 @@ export const viewStateStore = createStore<ViewState>(set => ({
 
   activeTool: null,
   setActiveTool: toolId => set({ activeTool: toolId }),
+
+  isCustomizationMode: false,
+  setCustomizationMode: mode => set({ isCustomizationMode: mode }),
 
   openDialogs: [],
   openDialog: dialogId =>

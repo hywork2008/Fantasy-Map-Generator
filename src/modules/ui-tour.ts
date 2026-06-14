@@ -391,18 +391,13 @@ class UITourModule {
   }
 
   private showHeightmapCustomizationPanel(): void {
-    const toolsContent = byId("toolsContent");
-    const customizationMenu = byId("customizationMenu");
-    if (toolsContent) toolsContent.style.display = "none";
-    if (customizationMenu) customizationMenu.style.display = "block";
+    document.dispatchEvent(new CustomEvent("react-enter-heightmap-edit"));
   }
 
   private hideHeightmapCustomizationPanel(): void {
-    const toolsContent = byId("toolsContent");
     const customizationMenu = byId("customizationMenu");
     if (!customizationMenu || customizationMenu.style.display !== "block") return;
-    customizationMenu.style.display = "none";
-    if (toolsContent) toolsContent.style.display = "block";
+    document.dispatchEvent(new CustomEvent("react-exit-heightmap-edit"));
   }
 }
 

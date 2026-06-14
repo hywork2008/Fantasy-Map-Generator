@@ -1,6 +1,7 @@
 import { aleaPRNG } from "../components/AleaPRNG";
 import type { WorldContext } from "../context/worldContext";
 import { HeightmapGenerator } from "../modules/heightmap-generator";
+import { useOptionsState } from "../store/optionsState";
 import { drawHeights, ensureEl, generateGrid, generateSeed, shouldRegenerateGrid } from "../utils";
 import { getColorScheme, heightmapColorSchemes } from "../utils/colorUtils";
 import type { Grid } from "../utils/graphUtils";
@@ -37,12 +38,14 @@ export function open(): void {
       Select: function () {
         const id = getSelected();
         applyOption($templateInput, id, getName(id));
+        useOptionsState.getState().setOption("template", id);
         lock("template");
         $(this).dialog("close");
       },
       "New Map": function () {
         const id = getSelected();
         applyOption($templateInput, id, getName(id));
+        useOptionsState.getState().setOption("template", id);
         lock("template");
         const seed = getSeed();
         regeneratePrompt({ seed });

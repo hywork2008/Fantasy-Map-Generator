@@ -1,4 +1,5 @@
 import { createRoot } from "react-dom/client";
+import { flushSync } from "react-dom";
 import { App } from "./App";
 
 export function initReactUI() {
@@ -8,5 +9,7 @@ export function initReactUI() {
     return;
   }
   const root = createRoot(container);
-  root.render(<App />);
+  flushSync(() => {
+    root.render(<App />);
+  });
 }
