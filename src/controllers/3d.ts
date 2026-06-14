@@ -3,6 +3,9 @@ import { MapControls } from "three/examples/jsm/controls/MapControls.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { OBJExporter } from "three/examples/jsm/exporters/OBJExporter.js";
 import { LoopSubdivision } from "three-subdivide";
+
+THREE.ColorManagement.enabled = false;
+
 import { cloudImage } from "../assets/cloud-image";
 import { rn, throttle } from "../utils";
 
@@ -190,7 +193,7 @@ class ThreeDModule {
 
   setLightness(intensity: number): void {
     this.options.lightness = intensity;
-    this.ambientLight!.intensity = intensity;
+    this.ambientLight!.intensity = intensity * Math.PI;
     this.render();
   }
 
@@ -288,9 +291,9 @@ class ThreeDModule {
   private async newMesh(canvas: HTMLCanvasElement): Promise<boolean> {
     this.scene = new THREE.Scene();
 
-    this.ambientLight = new THREE.AmbientLight(0xcccccc, this.options.lightness);
+    this.ambientLight = new THREE.AmbientLight(0xcccccc, this.options.lightness * Math.PI);
     this.scene.add(this.ambientLight);
-    this.spotLight = new THREE.SpotLight(this.options.sunColor, 0.8, 2000, 0.8, 0, 0);
+    this.spotLight = new THREE.SpotLight(this.options.sunColor, 0.8 * Math.PI, 2000, 0.8, 0, 0);
     this.spotLight.position.set(this.options.sun.x, this.options.sun.y, this.options.sun.z);
     this.spotLight.castShadow = true;
     this.spotLight.shadow.mapSize.width = 2048;
@@ -298,6 +301,7 @@ class ThreeDModule {
     this.scene.add(this.spotLight);
 
     this.Renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+    this.Renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
     this.Renderer.setSize(canvas.width, canvas.height);
     this.Renderer.shadowMap.enabled = true;
     this.Renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -690,10 +694,11 @@ class ThreeDModule {
     );
 
     this.Renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+    this.Renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
     this.Renderer.setSize(canvas.width, canvas.height);
 
     if (this.material) this.material.dispose();
-    this.material = new THREE.MeshBasicMaterial();
+    this.material = new THREE.MeshBasicMaterial({ transparent: true });
     this.updateGlobeTexure(true);
 
     this.camera = new THREE.PerspectiveCamera(45, canvas.width / canvas.height, 0.1, 1000).translateZ(5);
@@ -736,24 +741,34 @@ class ThreeDModule {
     ctx.canvas.height = height;
 
     if (!world) {
-      const img = new Image();
-      img.onload = () => {
-        ctx.drawImage(img, 0, 0, width, height);
-      };
-      img.src = cloudImage;
+      await new Promise<void>(resolve => {
+        const img = new Image();
+        img.onload = () => {
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve();
+        };
+        img.src = cloudImage;
+      });
     }
 
-    const img2 = new Image();
-    img2.onload = () => {
-      if (!this.Renderer || !this.material) return;
-      ctx.drawImage(img2, dx, dy, mapWidth, mapHeight);
-      if (this.texture) this.texture.dispose();
-      this.texture = new THREE.CanvasTexture(ctx.canvas);
-      this.material.map = this.texture;
-      if (addMesh) this.addGlobe3dMesh();
-      else this.render();
-    };
-    img2.src = await getMapURL("mesh", { noScaleBar: true, fullMap: true, noVignette: true });
+    const mapUrl = await getMapURL("mesh", { noScaleBar: true, fullMap: true, noVignette: true });
+    await new Promise<void>(resolve => {
+      const img2 = new Image();
+      img2.onload = () => {
+        if (!this.Renderer || !this.material) {
+          resolve();
+          return;
+        }
+        ctx.drawImage(img2, dx, dy, mapWidth, mapHeight);
+        if (this.texture) this.texture.dispose();
+        this.texture = new THREE.CanvasTexture(ctx.canvas);
+        this.material.map = this.texture;
+        if (addMesh) this.addGlobe3dMesh();
+        else this.render();
+        resolve();
+      };
+      img2.src = mapUrl;
+    });
   }
 
   private addGlobe3dMesh(): void {
