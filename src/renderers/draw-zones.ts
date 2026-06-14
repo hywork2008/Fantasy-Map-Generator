@@ -1,4 +1,4 @@
-import { viewState } from "../context/viewState";
+import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import type { Zone } from "../modules/zones-generator";
 import { ensureEl, getVertexPath } from "../utils";
@@ -10,7 +10,7 @@ const drawZone = (pack: typeof worldContext.pack, { i, cells: zoneCells, type, c
 
 export const drawZones = (): void => {
   const { pack } = worldContext;
-  const { zones } = viewState;
+  const { zones } = viewContext;
   const filterBy = (ensureEl("zonesFilterType") as HTMLSelectElement).value;
   const isFiltered = filterBy && filterBy !== "all";
   const visibleZones = pack.zones.filter(

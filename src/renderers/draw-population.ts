@@ -1,10 +1,10 @@
 import { easeSinIn, transition } from "d3";
-import { viewState } from "../context/viewState";
+import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 
 export const drawPopulation = (): void => {
   const { pack, urbanization } = worldContext;
-  const { population } = viewState;
+  const { population } = viewContext;
   const { cells, burgs } = pack;
 
   population.selectAll("line").remove();

@@ -1,5 +1,5 @@
 import { extent, polygonContains } from "d3";
-import { viewState } from "../context/viewState";
+import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { getPackPolygon, minmax, poissonDiscSampler, rand, rn } from "../utils";
 import { TIME } from "../utils/debug";
@@ -14,7 +14,7 @@ interface ReliefIcon {
 export const drawReliefIcons = (): void => {
   TIME && console.time("drawRelief");
   const { pack, biomesData } = worldContext;
-  const { terrain } = viewState;
+  const { terrain } = viewContext;
 
   terrain.selectAll("*").remove();
 

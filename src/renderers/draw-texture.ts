@@ -1,9 +1,9 @@
-import { viewState } from "../context/viewState";
+import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 
 export const drawTexture = (): void => {
   const { graphWidth, graphHeight } = worldContext;
-  const { texture } = viewState;
+  const { texture } = viewContext;
 
   const x = Number(texture.attr("data-x") || 0);
   const y = Number(texture.attr("data-y") || 0);

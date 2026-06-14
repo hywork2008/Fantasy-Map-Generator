@@ -1,4 +1,4 @@
-import { viewState } from "../context/viewState";
+import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { TIME } from "../utils/debug";
 
@@ -12,7 +12,7 @@ interface IceElement {
 export const drawIce = (): void => {
   TIME && console.time("drawIce");
   const { pack } = worldContext;
-  const { ice } = viewState;
+  const { ice } = viewContext;
 
   ice.selectAll("*").remove();
 
@@ -34,7 +34,7 @@ export const drawIce = (): void => {
 export const redrawIceberg = (id: number): void => {
   TIME && console.time("redrawIceberg");
   const { pack } = worldContext;
-  const { ice } = viewState;
+  const { ice } = viewContext;
   const iceberg = pack.ice.find((element: IceElement) => element.i === id);
   let el = ice.selectAll<SVGPolygonElement, unknown>(`polygon[data-id="${id}"]:not([type="glacier"])`);
   if (!iceberg && !el.empty()) {
@@ -54,7 +54,7 @@ export const redrawIceberg = (id: number): void => {
 export const redrawGlacier = (id: number): void => {
   TIME && console.time("redrawGlacier");
   const { pack } = worldContext;
-  const { ice } = viewState;
+  const { ice } = viewContext;
   const glacier = pack.ice.find((element: IceElement) => element.i === id);
   let el = ice.selectAll<SVGPolygonElement, unknown>(`polygon[data-id="${id}"][type="glacier"]`);
   if (!glacier && !el.empty()) {

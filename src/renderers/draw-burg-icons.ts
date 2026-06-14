@@ -1,4 +1,4 @@
-import { viewState } from "../context/viewState";
+import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import type { Burg } from "../modules/burgs-generator";
 import { TIME } from "../utils/debug";
@@ -11,7 +11,7 @@ interface BurgGroup {
 export const drawBurgIcons = (): void => {
   TIME && console.time("drawBurgIcons");
   const { pack, options, style } = worldContext;
-  const { burgIcons, anchors } = viewState;
+  const { burgIcons, anchors } = viewContext;
   createIconGroups(options, style, burgIcons, anchors);
 
   for (const { name } of options.burgs.groups as BurgGroup[]) {
@@ -41,7 +41,7 @@ export const drawBurgIcons = (): void => {
 };
 
 export const drawBurgIcon = (burg: Burg): void => {
-  const { burgIcons, anchors } = viewState;
+  const { burgIcons, anchors } = viewContext;
   const iconGroup = burgIcons.select<SVGGElement>(`#${burg.group}`);
   if (iconGroup.empty()) {
     drawBurgIcons();
@@ -82,8 +82,8 @@ export const removeBurgIcon = (burgId: number): void => {
 function createIconGroups(
   options: typeof worldContext.options,
   style: typeof worldContext.style,
-  burgIcons: typeof viewState.burgIcons,
-  anchors: typeof viewState.anchors
+  burgIcons: typeof viewContext.burgIcons,
+  anchors: typeof viewContext.anchors
 ): void {
   document.querySelectorAll("g#burgIcons > g").forEach(group => {
     style.burgIcons[group.id] = Array.from(group.attributes).reduce((acc: { [key: string]: string }, attribute) => {

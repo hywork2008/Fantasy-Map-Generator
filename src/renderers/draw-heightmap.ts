@@ -22,7 +22,7 @@ import {
   line,
   range
 } from "d3";
-import { viewState } from "../context/viewState";
+import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import type { Vertices } from "../modules/voronoi";
 import { round } from "../utils";
@@ -53,7 +53,7 @@ const CURVE_MAP: Record<string, CurveFactory> = {
 export const drawHeightmap = (): void => {
   TIME && console.time("drawHeightmap");
   const { grid, graphWidth, graphHeight } = worldContext;
-  const { terrs } = viewState;
+  const { terrs } = viewContext;
 
   const ocean = terrs.select<SVGGElement>("#oceanHeights");
   const land = terrs.select<SVGGElement>("#landHeights");

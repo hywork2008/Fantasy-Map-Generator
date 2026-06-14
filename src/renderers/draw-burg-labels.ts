@@ -1,4 +1,4 @@
-import { viewState } from "../context/viewState";
+import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import type { Burg } from "../modules/burgs-generator";
 import { TIME } from "../utils/debug";
@@ -11,7 +11,7 @@ interface BurgGroup {
 export const drawBurgLabels = (): void => {
   TIME && console.time("drawBurgLabels");
   const { pack, options, style } = worldContext;
-  const { burgLabels } = viewState;
+  const { burgLabels } = viewContext;
   createLabelGroups(options, style, burgLabels);
 
   for (const { name } of options.burgs.groups as BurgGroup[]) {
@@ -43,7 +43,7 @@ export const drawBurgLabels = (): void => {
 };
 
 export const drawBurgLabel = (burg: Burg): void => {
-  const { burgLabels } = viewState;
+  const { burgLabels } = viewContext;
   const labelGroup = burgLabels.select<SVGGElement>(`#${burg.group}`);
   if (labelGroup.empty()) {
     drawBurgLabels();
@@ -74,7 +74,7 @@ export const removeBurgLabel = (burgId: number): void => {
 function createLabelGroups(
   options: typeof worldContext.options,
   style: typeof worldContext.style,
-  burgLabels: typeof viewState.burgLabels
+  burgLabels: typeof viewContext.burgLabels
 ): void {
   document.querySelectorAll("g#burgLabels > g").forEach(group => {
     style.burgLabels[group.id] = Array.from(group.attributes).reduce((acc: { [key: string]: string }, attribute) => {

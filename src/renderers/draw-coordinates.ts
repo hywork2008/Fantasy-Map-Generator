@@ -1,12 +1,12 @@
 import { geoEquirectangular, geoGraticule, geoPath } from "d3";
-import { viewState } from "../context/viewState";
+import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { ensureEl, rn, round } from "../utils";
 
 export const drawCoordinates = (): void => {
   const { mapCoordinates, graphWidth, graphHeight } = worldContext;
-  const { scale } = worldContext;
-  const { coordinates } = viewState;
+  const { scale } = viewContext;
+  const { coordinates } = viewContext;
 
   coordinates.selectAll("*").remove();
 

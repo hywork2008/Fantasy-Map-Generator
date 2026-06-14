@@ -11,7 +11,8 @@ import "jquery-ui-touch-punch";
 import type { Selection } from "d3";
 import * as d3 from "d3";
 import { aleaPRNG } from "./components/AleaPRNG";
-import { viewState } from "./context/viewState";
+import { appServices } from "./context/appServices";
+import { viewContext } from "./context/viewContext";
 import { worldContext } from "./context/worldContext";
 import { Rulers } from "./controllers/measurers";
 import { updateMinimap } from "./controllers/minimap";
@@ -274,9 +275,9 @@ window.ruler = ruler;
 window.debug = debug;
 window.burgLabels = burgLabels;
 
-// ─── Populate viewState singleton ────────────────────────────────────────────
+// ─── Populate viewContext singleton ────────────────────────────────────────────
 
-Object.assign(viewState, {
+Object.assign(viewContext, {
   svg,
   defs,
   viewbox: viewbox as unknown as Selection<SVGElement, unknown, null, undefined>,
@@ -433,7 +434,7 @@ export function reinitializeMapLayers(): void {
   window.debug = debug;
   window.burgLabels = burgLabels;
 
-  Object.assign(viewState, {
+  Object.assign(viewContext, {
     svg,
     defs,
     viewbox: viewbox as unknown as Selection<SVGElement, unknown, null, undefined>,
@@ -506,9 +507,9 @@ export function fitMapView(): void {
   window.scale = scale;
   window.viewX = viewX;
   window.viewY = viewY;
-  worldContext.scale = scale;
-  viewState.viewX = viewX;
-  viewState.viewY = viewY;
+  viewContext.scale = scale;
+  viewContext.viewX = viewX;
+  viewContext.viewY = viewY;
 
   // Set viewbox transform synchronously to avoid a one-frame flash at identity.
   viewbox.attr("transform", `translate(${tx} ${ty}) scale(${z})`);
@@ -607,9 +608,9 @@ function zoomRaf(event: { transform: { k: number; x: number; y: number } }) {
   window.scale = scale;
   window.viewX = viewX;
   window.viewY = viewY;
-  worldContext.scale = scale;
-  viewState.viewX = viewX;
-  viewState.viewY = viewY;
+  viewContext.scale = scale;
+  viewContext.viewX = viewX;
+  viewContext.viewY = viewY;
 
   pendingScaleChange = pendingScaleChange || isScaleChanged;
   pendingPositionChange = pendingPositionChange || isPositionChanged;
@@ -660,10 +661,10 @@ window.scale = scale;
 window.viewX = viewX;
 window.viewY = viewY;
 window.zoom = zoom as unknown as ZoomBehaviorExtended;
-viewState.zoom = zoom;
-worldContext.scale = scale;
-viewState.viewX = viewX;
-viewState.viewY = viewY;
+viewContext.zoom = zoom;
+viewContext.scale = scale;
+viewContext.viewX = viewX;
+viewContext.viewY = viewY;
 
 // ─── Map dimensions and settings ──────────────────────────────────────────────
 
@@ -997,7 +998,7 @@ function invokeActiveZooming() {
       const hidden = hideEmblems.checked && (size < 25 || size > 300);
       if (hidden) this.classList.add("hidden");
       else this.classList.remove("hidden");
-      if (!hidden && worldContext.COArenderer && this.children.length && !this.children[0].getAttribute("href"))
+      if (!hidden && appServices.COArenderer && this.children.length && !this.children[0].getAttribute("href"))
         renderGroupCOAs(this);
     });
   }
@@ -1726,7 +1727,7 @@ const regenerateMap = debounce(async (opts?: { seed?: string } | string) => {
   closeDialogs("#worldConfigurator, #options3d");
   customization = 0;
   window.customization = customization;
-  worldContext.customization = customization;
+  viewContext.customization = customization;
   resetZoom(1000);
   undraw();
   await generate(typeof opts === "string" ? { seed: opts } : opts);
@@ -1783,8 +1784,8 @@ window.isWetLand = isWetLand;
 
 // ─── Controlled debug namespace ───────────────────────────────────────────────
 // In DEV builds, expose organized debug access instead of scattered window.pack etc.
-// Usage: window.__fmg.worldContext.pack, window.__fmg.viewState.svg
+// Usage: window.__fmg.worldContext.pack, window.__fmg.viewContext.svg
 if (import.meta.env.DEV) {
-  window.__fmg = { worldContext, viewState };
+  window.__fmg = { worldContext, viewContext };
   console.info("[FMG] debug: You can access the internal state with window.__fmg");
 }

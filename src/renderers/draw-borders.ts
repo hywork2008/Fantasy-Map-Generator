@@ -1,4 +1,4 @@
-import { viewState } from "../context/viewState";
+import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { TIME } from "../utils/debug";
 
@@ -6,7 +6,7 @@ export const drawBorders = () => {
   TIME && console.time("drawBorders");
   const { pack } = worldContext;
   const { cells, vertices } = pack;
-  const { svg } = viewState;
+  const { svg } = viewContext;
 
   const statePath: string[] = [];
   const provincePath: string[] = [];

@@ -1,6 +1,6 @@
 import type { Selection, ZoomBehavior } from "d3";
 
-export interface ViewState {
+export interface ViewContext {
   svg: Selection<SVGSVGElement, unknown, null, undefined>;
   defs: Selection<SVGDefsElement, unknown, null, undefined>;
   viewbox: Selection<SVGElement, unknown, null, undefined>;
@@ -47,7 +47,7 @@ export interface ViewState {
   anchors: Selection<SVGGElement, unknown, null, undefined>;
   armies: Selection<SVGGElement, unknown, null, undefined>;
   markers: Selection<SVGGElement, unknown, null, undefined>;
-  fogging: Selection<SVGGElement, unknown, null, undefined>;
+  fogging: Selection<SVGGElement, unknown, null, undefined> | null;
   ruler: Selection<SVGGElement, unknown, null, undefined>;
   debug: Selection<SVGGElement, unknown, null, undefined>;
   // d3 zoom behavior attached to the svg element
@@ -55,11 +55,19 @@ export interface ViewState {
   // Current zoom state
   viewX: number;
   viewY: number;
+  /** Zoom scale level (1 = no zoom) */
+  scale: number;
+  /** Current editor customization mode (0 = default, 1 = heightmap edit, etc.) */
+  customization: number;
 }
 
 /**
  * Single mutable container for all SVG layer references and zoom state.
- * Cast as ViewState immediately — properties are guaranteed to be assigned by
+ * Cast as ViewContext immediately — properties are guaranteed to be assigned by
  * main.ts during the synchronous SVG setup phase before any renderer runs.
  */
-export const viewState = {} as ViewState;
+export const viewContext = {
+  fogging: null,
+  scale: 1,
+  customization: 0
+} as ViewContext;

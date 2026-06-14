@@ -1,4 +1,4 @@
-import { viewState } from "../context/viewState";
+import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { Rivers } from "../modules/river-generator";
 import { TIME } from "../utils/debug";
@@ -6,7 +6,7 @@ import { TIME } from "../utils/debug";
 export const drawRivers = (): void => {
   TIME && console.time("drawRivers");
   const { pack } = worldContext;
-  const { rivers } = viewState;
+  const { rivers } = viewContext;
 
   rivers.selectAll("*").remove();
 

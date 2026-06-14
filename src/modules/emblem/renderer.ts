@@ -1,4 +1,5 @@
-import { worldContext } from "../../context/worldContext";
+import { appServices } from "../../context/appServices";
+
 import { shieldBox } from "./box";
 import { colors } from "./colors";
 import { lines } from "./lines";
@@ -319,4 +320,4 @@ class EmblemRenderModule {
   }
 }
 export const COArenderer = new EmblemRenderModule();
-worldContext.COArenderer = COArenderer;
+appServices.COArenderer = COArenderer;

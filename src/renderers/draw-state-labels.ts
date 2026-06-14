@@ -1,5 +1,5 @@
 import { curveNatural, line, max, select } from "d3";
-import { viewState } from "../context/viewState";
+import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import type { TypedArray } from "../types/PackedGraph";
 import { drawPath, drawPoint, findClosestCell, minmax, rn, round, splitInTwo } from "../utils";
@@ -24,7 +24,7 @@ type PathPoints = [number, number][];
 export const drawStateLabels = (list?: number[]): void => {
   TIME && console.time("drawStateLabels");
   const { pack, options, graphWidth, graphHeight } = worldContext;
-  const { labels } = viewState;
+  const { labels } = viewContext;
 
   // temporary make the labels visible
   const layerDisplay = labels.style("display");

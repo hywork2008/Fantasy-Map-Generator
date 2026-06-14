@@ -1,5 +1,5 @@
 import { easeSinIn, transition } from "d3";
-import { viewState } from "../context/viewState";
+import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { rn } from "../utils";
 import { TIME } from "../utils/debug";
@@ -7,7 +7,7 @@ import { TIME } from "../utils/debug";
 export const drawPrecipitation = (): void => {
   TIME && console.time("drawPrecipitation");
   const { grid } = worldContext;
-  const { prec } = viewState;
+  const { prec } = viewContext;
 
   prec.selectAll("circle").remove();
   const { cells, points } = grid;

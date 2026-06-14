@@ -1,10 +1,10 @@
 import { select } from "d3";
-import { viewState } from "../context/viewState";
+import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 
 export const drawGrid = (): void => {
   const { graphWidth, graphHeight } = worldContext;
-  const { gridOverlay } = viewState;
+  const { gridOverlay } = viewContext;
 
   gridOverlay.selectAll("*").remove();
   const pattern = `#pattern_${gridOverlay.attr("type") || "pointyHex"}`;

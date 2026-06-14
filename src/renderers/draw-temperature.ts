@@ -1,5 +1,5 @@
 import { color, curveBasisClosed, interpolateSpectral, leastIndex, line, max, min, range, scaleSequential } from "d3";
-import { viewState } from "../context/viewState";
+import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { connectVertices, convertTemperature, ensureEl, round } from "../utils";
 import { TIME } from "../utils/debug";
@@ -7,7 +7,7 @@ import { TIME } from "../utils/debug";
 export const drawTemperature = (): void => {
   TIME && console.time("drawTemperature");
   const { grid, graphWidth, graphHeight } = worldContext;
-  const { temperature } = viewState;
+  const { temperature } = viewContext;
 
   temperature.selectAll("*").remove();
   const lineGen = line<[number, number]>().curve(curveBasisClosed);

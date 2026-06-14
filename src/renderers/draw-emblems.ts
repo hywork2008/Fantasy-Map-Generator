@@ -1,5 +1,6 @@
 import { forceCollide, forceSimulation, timeout } from "d3";
-import { viewState } from "../context/viewState";
+import { appServices } from "../context/appServices";
+import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import type { Burg } from "../modules/burgs-generator";
 import type { State } from "../modules/states-generator";
@@ -26,7 +27,7 @@ interface EmblemNode {
 export const drawEmblems = (): void => {
   TIME && console.time("drawEmblems");
   const { pack, graphHeight, graphWidth } = worldContext;
-  const { emblems } = viewState;
+  const { emblems } = viewContext;
   const { states, provinces, burgs } = pack;
 
   const validStates = states.filter(s => s.i && !s.removed && s.coa && s.coa.size !== 0);
@@ -164,7 +165,7 @@ const getDataAndType = (id: string): [Burg[] | Province[] | State[], string] => 
 };
 
 export const renderGroupCOAs = async (g: SVGGElement): Promise<void> => {
-  const { COArenderer } = worldContext;
+  const { COArenderer } = appServices;
   if (!COArenderer) return;
   const [data, type] = getDataAndType(g.id);
 

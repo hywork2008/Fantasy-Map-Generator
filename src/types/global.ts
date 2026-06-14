@@ -1,5 +1,5 @@
 import type { Quadtree, Selection } from "d3";
-import type { ViewState } from "../context/viewState";
+import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 
 import type { Battle as BattleClass } from "../controllers/battle-screen";
@@ -27,7 +27,7 @@ interface HeightmapTemplate {
 
 declare global {
   /** DEV-only: organized access to world data and SVG state for console debugging. */
-  var __fmg: { worldContext: WorldContext; viewState: ViewState } | undefined;
+  var __fmg: { worldContext: WorldContext; viewContext: ViewContext } | undefined;
 
   var seed: string;
   var pack: PackedGraph;

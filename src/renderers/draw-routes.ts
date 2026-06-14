@@ -1,4 +1,4 @@
-import { viewState } from "../context/viewState";
+import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import type { Route } from "../modules/routes-generator";
 import { Routes } from "../modules/routes-generator";
@@ -7,7 +7,7 @@ import { TIME } from "../utils/debug";
 export const drawRoutes = (): void => {
   TIME && console.time("drawRoutes");
   const { pack } = worldContext;
-  const { routes } = viewState;
+  const { routes } = viewContext;
   const routePaths: Record<string, string[]> = {};
 
   for (const route of pack.routes) {
@@ -26,6 +26,6 @@ export const drawRoutes = (): void => {
 };
 
 export const drawRoute = (route: Route): void => {
-  const { routes } = viewState;
+  const { routes } = viewContext;
   routes.select(`#${route.group}`).append("path").attr("d", Routes.getPath(route)).attr("id", `route${route.i}`);
 };

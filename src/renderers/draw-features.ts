@@ -1,5 +1,5 @@
 import { select } from "d3";
-import { viewState } from "../context/viewState";
+import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import type { PackedGraphFeature } from "../modules/features";
 import { clipPoly, round } from "../utils";
@@ -19,7 +19,7 @@ interface FeaturesHtml {
 export const drawFeatures = (): void => {
   TIME && console.time("drawFeatures");
   const { pack, graphWidth, graphHeight } = worldContext;
-  const { defs, coastline, lakes } = viewState;
+  const { defs, coastline, lakes } = viewContext;
 
   const html: FeaturesHtml = {
     paths: [],

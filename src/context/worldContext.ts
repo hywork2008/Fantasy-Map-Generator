@@ -1,4 +1,3 @@
-import type { Selection } from "d3";
 import type { NameBase } from "../modules/names-generator";
 import type { PackedGraph } from "../types/PackedGraph";
 import type { BiomesData, MapStyle, WorldNote, WorldOptions } from "../types/WorldState";
@@ -39,14 +38,6 @@ export interface WorldContext {
   distanceScale: number;
   /** Shared d3 line generator (curveBasis) used by controllers and editors */
   lineGen: (points: [number, number][]) => string;
-  /** COA (coat-of-arms) renderer module, set when emblem module loads */
-  COArenderer: { trigger(id: string, coa: unknown): unknown; shieldPaths: Record<string, string> } | null;
-  /** Zoom scale level (1 = no zoom) */
-  scale: number;
-  /** Current editor customization mode (0 = default, 1 = heightmap edit, etc.) */
-  customization: number;
-  /** Lazy d3.Selection for fogging layer — available after SVG init */
-  fogging: Selection<SVGGElement, unknown, null, undefined> | null;
 }
 
 /**
@@ -74,9 +65,5 @@ export const worldContext: WorldContext = {
   urbanization: 1,
   populationRate: 1,
   distanceScale: 1,
-  lineGen: () => "",
-  COArenderer: null,
-  scale: 1,
-  customization: 0,
-  fogging: null
+  lineGen: () => ""
 };
