@@ -1,6 +1,7 @@
 import * as d3 from "d3";
 import type { WorldContext } from "../context/worldContext";
 import { capitalize, convertTemperature, ensureEl, rn, si } from "../utils";
+import { isWater } from "../utils/graphUtils";
 
 let worldContext: WorldContext;
 
@@ -404,7 +405,7 @@ function renderChart({ id, entity, plotBy, groupBy, sorting, type }: ChartOption
   const groups = new Set<number>();
 
   for (const cellId of worldContext.pack.cells.i) {
-    if ((entityLandOnly || plotByLandOnly) && isWater(cellId)) continue;
+    if ((entityLandOnly || plotByLandOnly) && isWater(cellId, worldContext.pack)) continue;
     const entityId = entityCells[cellId];
     const groupId = groupCells[cellId];
     const value = quantize(cellId);
@@ -736,7 +737,6 @@ function sortData(data: ChartDataPoint[], sorting: string): ChartDataPoint[] {
 
 declare global {
   var getPrecipitation: (prec: number) => string;
-  var isWater: (i: number) => boolean;
 }
 
 export function initChartsOverview(wc: WorldContext) {

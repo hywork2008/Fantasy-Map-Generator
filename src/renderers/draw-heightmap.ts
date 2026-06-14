@@ -22,6 +22,7 @@ import {
   line,
   range
 } from "d3";
+import { createLayerCanvas } from "../canvas/map-canvas";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
@@ -54,7 +55,7 @@ const CURVE_MAP: Record<string, CurveFactory> = {
 export const drawHeightmap = (
   worldContext: Readonly<WorldContext>,
   viewContext: Readonly<ViewContext>,
-  appServices: AppServices
+  _appServices: AppServices
 ): void => {
   TIME && console.time("drawHeightmap");
   const { grid, graphWidth, graphHeight } = worldContext;
@@ -124,47 +125,42 @@ export const drawHeightmap = (
     }
   }
 
-  // render paths
+  // render paths to canvas inside foreignObject
+  // SVG masks (mask:url(#land) on #landHeights), filters, and opacity on the
+  // parent <g> elements are automatically applied to the canvas by the browser.
+  const oceanCtx = createLayerCanvas(ocean.node()!, graphWidth, graphHeight);
+  const landCtx = createLayerCanvas(land.node()!, graphWidth, graphHeight);
+
   for (const height of range(0, 101)) {
-    const group = height < 20 ? ocean : land;
+    const isOcean = height < 20;
+    const group = isOcean ? ocean : land;
+    const ctx = isOcean ? oceanCtx : landCtx;
     const scheme = getColorScheme(group.attr("scheme"));
+    const terracing = +group.attr("terracing") / 10 || 0;
 
     if (height === 0 && renderOceanCells) {
-      // draw base ocean layer
-      group
-        .append("rect")
-        .attr("x", 0)
-        .attr("y", 0)
-        .attr("width", graphWidth)
-        .attr("height", graphHeight)
-        .attr("fill", scheme(1));
+      ctx.fillStyle = scheme(1);
+      ctx.fillRect(0, 0, graphWidth, graphHeight);
     }
 
     if (height === 20) {
-      // draw base land layer
-      group
-        .append("rect")
-        .attr("x", 0)
-        .attr("y", 0)
-        .attr("width", graphWidth)
-        .attr("height", graphHeight)
-        .attr("fill", scheme(0.8));
+      ctx.fillStyle = scheme(0.8);
+      ctx.fillRect(0, 0, graphWidth, graphHeight);
     }
 
-    if (paths[height] && paths[height]!.length >= 10) {
-      const terracing = +group.attr("terracing") / 10 || 0;
-      const fillColor = getColor(height, scheme);
+    if (!paths[height] || paths[height]!.length < 10) continue;
+    const fillColor = getColor(height, scheme);
+    const path2d = new Path2D(paths[height]!);
 
-      if (terracing) {
-        group
-          .append("path")
-          .attr("d", paths[height]!)
-          .attr("transform", "translate(.7,1.4)")
-          .attr("fill", color(fillColor)!.darker(terracing).toString())
-          .attr("data-height", height);
-      }
-      group.append("path").attr("d", paths[height]!).attr("fill", fillColor).attr("data-height", height);
+    if (terracing) {
+      ctx.save();
+      ctx.translate(0.7, 1.4);
+      ctx.fillStyle = color(fillColor)!.darker(terracing).toString();
+      ctx.fill(path2d, "evenodd");
+      ctx.restore();
     }
+    ctx.fillStyle = fillColor;
+    ctx.fill(path2d, "evenodd");
   }
 
   // connect vertices to chain: specific case for heightmap

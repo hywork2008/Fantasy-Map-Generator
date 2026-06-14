@@ -248,6 +248,11 @@ export async function getMapURL(type: string, options: GetMapURLOptions = {}): P
 
   const cloneEl = ensureEl("map").cloneNode(true) as SVGSVGElement;
   cloneEl.id = "fantasyMap";
+  // <foreignObject class="fmc"> elements wrap canvas layers; they cannot be
+  // serialized to SVG and cause canvas taint when drawn via drawImage().
+  cloneEl.querySelectorAll("foreignObject.fmc").forEach(el => {
+    el.remove();
+  });
   document.body.appendChild(cloneEl);
   const clone = d3.select(cloneEl) as d3.Selection<SVGSVGElement, unknown, null, undefined>;
   if (!debug) clone.select("#debug")?.remove();

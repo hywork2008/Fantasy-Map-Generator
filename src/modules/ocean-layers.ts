@@ -1,5 +1,6 @@
 import type { Selection } from "d3";
 import { curveBasisClosed, line } from "d3";
+import { createLayerCanvas } from "../canvas/map-canvas";
 import type { AppServices } from "../context/appServices";
 import { appServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
@@ -110,11 +111,23 @@ class OceanModule {
       chains.push([t, points]);
     }
 
+    // Render depth paths to canvas inside foreignObject.
+    // The canvas sits after #oceanBase inside #oceanLayers so it renders on top
+    // of the base ocean color. SVG opacity, filters, and masks on ancestor groups
+    // are applied automatically by the browser's SVG compositor.
+    const ctx = createLayerCanvas(
+      this.oceanLayers.node()!,
+      this.worldContext.graphWidth,
+      this.worldContext.graphHeight
+    );
+    ctx.fillStyle = "#ecf2f9";
+    ctx.globalAlpha = opacity;
     for (const t of limits) {
       const layer = chains.filter(c => c[0] === t);
-      const path = layer.map(c => round(this.lineGen(c[1]) || "")).join("");
-      if (path) this.oceanLayers.append("path").attr("d", path).attr("fill", "#ecf2f9").attr("fill-opacity", opacity);
+      const pathStr = layer.map(c => round(this.lineGen(c[1]) || "")).join("");
+      if (pathStr) ctx.fill(new Path2D(pathStr), "evenodd");
     }
+    ctx.globalAlpha = 1;
 
     TIME && console.timeEnd("drawOceanLayers");
   }
