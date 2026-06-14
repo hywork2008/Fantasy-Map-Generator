@@ -13,7 +13,14 @@ import type { State } from "../modules/states-generator";
 import { drawStates } from "../renderers";
 import { fitScaleBar } from "../renderers/index";
 import { type OptionsState, useOptionsState } from "../store/optionsState";
-import { closeAllDialogs, closeDialog, openConfirm, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
+import {
+  closeAllDialogs,
+  closeDialog,
+  isDialogOpen,
+  openConfirm,
+  openDialog,
+  openRichDialog
+} from "../ui/dialogs/dialogService";
 import { ensureEl, gauss, last, minmax, P, rand, rn, rw } from "../utils";
 import { exportToJson as exportToJsonModule } from "./export-json";
 import { open as openHeightmapSelection } from "./heightmap-selection";
@@ -962,8 +969,8 @@ function enterStandardView(): void {
   if (!document.getElementById("canvas3d")) return;
   ThreeD.stop();
   ensureEl("canvas3d").remove();
-  if (options3dUpdate.offsetParent) closeDialog("options3d");
-  if (preview3d.offsetParent) closeDialog("preview3d");
+  if (isDialogOpen("options3d")) closeDialog("options3d");
+  if (isDialogOpen("preview3d")) closeDialog("preview3d");
 }
 
 async function enter3dView(type: string): Promise<void> {
@@ -980,6 +987,7 @@ async function enter3dView(type: string): Promise<void> {
     canvas.height = window.svgHeight;
     canvas.style.position = "absolute";
     canvas.style.display = "none";
+    canvas.style.pointerEvents = "auto";
   }
 
   const started = await ThreeD.create(canvas, type);
@@ -1014,7 +1022,7 @@ function resize3d(): void {
 }
 
 function toggle3dOptions(): void {
-  if (options3dUpdate.offsetParent) {
+  if (isDialogOpen("options3d")) {
     closeDialog("options3d");
     return;
   }
@@ -1025,156 +1033,158 @@ function toggle3dOptions(): void {
     position: { my: "right top", at: "right-30 top+10", of: "svg", collision: "fit" }
   });
 
-  updateValues();
+  setTimeout(() => {
+    updateValues();
 
-  if (modules.options3d) return;
-  modules.options3d = true;
+    if (modules.options3d) return;
+    modules.options3d = true;
 
-  ensureEl("options3dUpdate").addEventListener("click", ThreeD.update);
-  ensureEl("options3dSave").addEventListener("click", ThreeD.saveScreenshot);
-  ensureEl("options3dOBJSave").addEventListener("click", ThreeD.saveOBJ);
+    ensureEl("options3dUpdate").addEventListener("click", ThreeD.update);
+    ensureEl("options3dSave").addEventListener("click", ThreeD.saveScreenshot);
+    ensureEl("options3dOBJSave").addEventListener("click", ThreeD.saveOBJ);
 
-  ensureEl("options3dScaleRange").addEventListener("input", changeHeightScale);
-  ensureEl("options3dScaleNumber").addEventListener("change", changeHeightScale);
-  ensureEl("options3dLightnessRange").addEventListener("input", changeLightness);
-  ensureEl("options3dLightnessNumber").addEventListener("change", changeLightness);
-  ensureEl("options3dSunX").addEventListener("change", changeSunPosition);
-  ensureEl("options3dSunY").addEventListener("change", changeSunPosition);
-  ensureEl("options3dMeshSkinResolution").addEventListener("change", changeResolutionScale);
-  ensureEl("options3dMeshRotationRange").addEventListener("input", changeRotation);
-  ensureEl("options3dMeshRotationNumber").addEventListener("change", changeRotation);
-  ensureEl("options3dGlobeRotationRange").addEventListener("input", changeRotation);
-  ensureEl("options3dGlobeRotationNumber").addEventListener("change", changeRotation);
-  ensureEl("options3dMeshLabels3d").addEventListener("change", toggleLabels3d);
-  ensureEl("options3dMeshSkyMode").addEventListener("change", toggleSkyMode);
-  ensureEl("options3dMeshSky").addEventListener("input", changeColors);
-  ensureEl("options3dMeshWater").addEventListener("input", changeColors);
-  ensureEl("options3dGlobeResolution").addEventListener("change", changeResolution);
-  ensureEl("options3dMeshWireframeMode").addEventListener("change", toggleWireframe3d);
-  ensureEl("options3dSunColor").addEventListener("input", changeSunColor);
-  ensureEl("options3dSubdivide").addEventListener("change", toggle3dSubdivision);
-  ensureEl("options3dTimeOfDay").addEventListener("change", changeTimeOfDay);
+    ensureEl("options3dScaleRange").addEventListener("input", changeHeightScale);
+    ensureEl("options3dScaleNumber").addEventListener("change", changeHeightScale);
+    ensureEl("options3dLightnessRange").addEventListener("input", changeLightness);
+    ensureEl("options3dLightnessNumber").addEventListener("change", changeLightness);
+    ensureEl("options3dSunX").addEventListener("change", changeSunPosition);
+    ensureEl("options3dSunY").addEventListener("change", changeSunPosition);
+    ensureEl("options3dMeshSkinResolution").addEventListener("change", changeResolutionScale);
+    ensureEl("options3dMeshRotationRange").addEventListener("input", changeRotation);
+    ensureEl("options3dMeshRotationNumber").addEventListener("change", changeRotation);
+    ensureEl("options3dGlobeRotationRange").addEventListener("input", changeRotation);
+    ensureEl("options3dGlobeRotationNumber").addEventListener("change", changeRotation);
+    ensureEl("options3dMeshLabels3d").addEventListener("change", toggleLabels3d);
+    ensureEl("options3dMeshSkyMode").addEventListener("change", toggleSkyMode);
+    ensureEl("options3dMeshSky").addEventListener("input", changeColors);
+    ensureEl("options3dMeshWater").addEventListener("input", changeColors);
+    ensureEl("options3dGlobeResolution").addEventListener("change", changeResolution);
+    ensureEl("options3dMeshWireframeMode").addEventListener("change", toggleWireframe3d);
+    ensureEl("options3dSunColor").addEventListener("input", changeSunColor);
+    ensureEl("options3dSubdivide").addEventListener("change", toggle3dSubdivision);
+    ensureEl("options3dTimeOfDay").addEventListener("change", changeTimeOfDay);
 
-  function updateValues(): void {
-    const globe = ensureEl("canvas3d").dataset.type === "viewGlobe";
-    options3dMesh.style.display = globe ? "none" : "block";
-    options3dGlobe.style.display = globe ? "block" : "none";
-    options3dOBJSave.style.display = globe ? "none" : "inline-block";
-    (options3dScaleRange as HTMLInputElement).value = (options3dScaleNumber as HTMLInputElement).value = String(
-      ThreeD.options.scale
-    );
-    (options3dLightnessRange as HTMLInputElement).value = (options3dLightnessNumber as HTMLInputElement).value = String(
-      ThreeD.options.lightness * 100
-    );
-    (options3dSunX as HTMLInputElement).value = String(ThreeD.options.sun.x);
-    (options3dSunY as HTMLInputElement).value = String(ThreeD.options.sun.y);
-    (options3dMeshRotationRange as HTMLInputElement).value = (options3dMeshRotationNumber as HTMLInputElement).value =
-      String(ThreeD.options.rotateMesh);
-    (options3dMeshSkinResolution as HTMLInputElement).value = String(ThreeD.options.resolutionScale);
-    (options3dGlobeRotationRange as HTMLInputElement).value = (options3dGlobeRotationNumber as HTMLInputElement).value =
-      String(ThreeD.options.rotateGlobe);
-    (options3dMeshLabels3d as HTMLInputElement).value = String(ThreeD.options.labels3d);
-    (options3dMeshSkyMode as HTMLInputElement).value = String(ThreeD.options.extendedWater);
-    options3dColorSection.style.display = ThreeD.options.extendedWater ? "block" : "none";
-    (options3dMeshSky as HTMLInputElement).value = ThreeD.options.skyColor;
-    (options3dMeshWater as HTMLInputElement).value = ThreeD.options.waterColor;
-    (options3dGlobeResolution as HTMLInputElement).value = String(ThreeD.options.resolution);
-    (options3dSunColor as HTMLInputElement).value = ThreeD.options.sunColor;
-    (options3dSubdivide as HTMLInputElement).value = String(ThreeD.options.subdivide);
-    updateTimeOfDayPreset();
-  }
-
-  function updateTimeOfDayPreset(): void {
-    const presetSelect = ensureEl<HTMLSelectElement>("options3dTimeOfDay");
-    if (!presetSelect) return;
-
-    const { sun, sunColor, lightness } = ThreeD.options;
-
-    let matchingPreset = "custom";
-    for (const [name, preset] of Object.entries(ThreeD.timeOfDayPresets)) {
-      if (
-        preset.sun.x === sun.x &&
-        preset.sun.y === sun.y &&
-        preset.sun.z === sun.z &&
-        preset.sunColor === sunColor &&
-        Math.abs(preset.lightness - lightness) < 0.05
-      ) {
-        matchingPreset = name;
-        break;
-      }
+    function updateValues(): void {
+      const globe = ensureEl("canvas3d").dataset.type === "viewGlobe";
+      options3dMesh.style.display = globe ? "none" : "block";
+      options3dGlobe.style.display = globe ? "block" : "none";
+      options3dOBJSave.style.display = globe ? "none" : "inline-block";
+      (options3dScaleRange as HTMLInputElement).value = (options3dScaleNumber as HTMLInputElement).value = String(
+        ThreeD.options.scale
+      );
+      (options3dLightnessRange as HTMLInputElement).value = (options3dLightnessNumber as HTMLInputElement).value =
+        String(ThreeD.options.lightness * 100);
+      (options3dSunX as HTMLInputElement).value = String(ThreeD.options.sun.x);
+      (options3dSunY as HTMLInputElement).value = String(ThreeD.options.sun.y);
+      (options3dMeshRotationRange as HTMLInputElement).value = (options3dMeshRotationNumber as HTMLInputElement).value =
+        String(ThreeD.options.rotateMesh);
+      (options3dMeshSkinResolution as HTMLInputElement).value = String(ThreeD.options.resolutionScale);
+      (options3dGlobeRotationRange as HTMLInputElement).value = (
+        options3dGlobeRotationNumber as HTMLInputElement
+      ).value = String(ThreeD.options.rotateGlobe);
+      (options3dMeshLabels3d as HTMLInputElement).value = String(ThreeD.options.labels3d);
+      (options3dMeshSkyMode as HTMLInputElement).value = String(ThreeD.options.extendedWater);
+      options3dColorSection.style.display = ThreeD.options.extendedWater ? "block" : "none";
+      (options3dMeshSky as HTMLInputElement).value = ThreeD.options.skyColor;
+      (options3dMeshWater as HTMLInputElement).value = ThreeD.options.waterColor;
+      (options3dGlobeResolution as HTMLInputElement).value = String(ThreeD.options.resolution);
+      (options3dSunColor as HTMLInputElement).value = ThreeD.options.sunColor;
+      (options3dSubdivide as HTMLInputElement).value = String(ThreeD.options.subdivide);
+      updateTimeOfDayPreset();
     }
 
-    presetSelect.value = matchingPreset;
-  }
+    function updateTimeOfDayPreset(): void {
+      const presetSelect = ensureEl<HTMLSelectElement>("options3dTimeOfDay");
+      if (!presetSelect) return;
 
-  function changeTimeOfDay(this: HTMLSelectElement): void {
-    const presetName = this.value;
-    if (presetName === "custom") return;
-    ThreeD.setTimeOfDay(presetName);
-    updateValues();
-  }
+      const { sun, sunColor, lightness } = ThreeD.options;
 
-  function changeHeightScale(this: HTMLInputElement): void {
-    (options3dScaleRange as HTMLInputElement).value = (options3dScaleNumber as HTMLInputElement).value = this.value;
-    ThreeD.setScale(+this.value);
-  }
+      let matchingPreset = "custom";
+      for (const [name, preset] of Object.entries(ThreeD.timeOfDayPresets)) {
+        if (
+          preset.sun.x === sun.x &&
+          preset.sun.y === sun.y &&
+          preset.sun.z === sun.z &&
+          preset.sunColor === sunColor &&
+          Math.abs(preset.lightness - lightness) < 0.05
+        ) {
+          matchingPreset = name;
+          break;
+        }
+      }
 
-  function changeResolutionScale(this: HTMLInputElement): void {
-    (options3dMeshSkinResolution as HTMLInputElement).value = this.value;
-    ThreeD.setResolutionScale(+this.value);
-  }
+      presetSelect.value = matchingPreset;
+    }
 
-  function changeLightness(this: HTMLInputElement): void {
-    (options3dLightnessRange as HTMLInputElement).value = (options3dLightnessNumber as HTMLInputElement).value =
-      this.value;
-    ThreeD.setLightness(+this.value / 100);
-    const presetSelect = ensureEl<HTMLSelectElement>("options3dTimeOfDay");
-    if (presetSelect?.value !== "custom") presetSelect.value = "custom";
-  }
+    function changeTimeOfDay(this: HTMLSelectElement): void {
+      const presetName = this.value;
+      if (presetName === "custom") return;
+      ThreeD.setTimeOfDay(presetName);
+      updateValues();
+    }
 
-  function changeSunColor(this: HTMLInputElement): void {
-    ThreeD.setSunColor((options3dSunColor as HTMLInputElement).value);
-    const presetSelect = ensureEl<HTMLSelectElement>("options3dTimeOfDay");
-    if (presetSelect?.value !== "custom") presetSelect.value = "custom";
-  }
+    function changeHeightScale(this: HTMLInputElement): void {
+      (options3dScaleRange as HTMLInputElement).value = (options3dScaleNumber as HTMLInputElement).value = this.value;
+      ThreeD.setScale(+this.value);
+    }
 
-  function changeSunPosition(this: HTMLInputElement): void {
-    const x = +(options3dSunX as HTMLInputElement).value;
-    const y = +(options3dSunY as HTMLInputElement).value;
-    ThreeD.setSun(x, y, ThreeD.options.sun.z);
-    const presetSelect = ensureEl<HTMLSelectElement>("options3dTimeOfDay");
-    if (presetSelect?.value !== "custom") presetSelect.value = "custom";
-  }
+    function changeResolutionScale(this: HTMLInputElement): void {
+      (options3dMeshSkinResolution as HTMLInputElement).value = this.value;
+      ThreeD.setResolutionScale(+this.value);
+    }
 
-  function changeRotation(this: HTMLInputElement): void {
-    const sibling = (this.nextElementSibling || this.previousElementSibling) as HTMLInputElement;
-    sibling.value = this.value;
-    ThreeD.setRotation(+this.value);
-  }
+    function changeLightness(this: HTMLInputElement): void {
+      (options3dLightnessRange as HTMLInputElement).value = (options3dLightnessNumber as HTMLInputElement).value =
+        this.value;
+      ThreeD.setLightness(+this.value / 100);
+      const presetSelect = ensureEl<HTMLSelectElement>("options3dTimeOfDay");
+      if (presetSelect?.value !== "custom") presetSelect.value = "custom";
+    }
 
-  function toggleLabels3d(): void {
-    ThreeD.toggleLabels();
-  }
-  function toggle3dSubdivision(): void {
-    ThreeD.toggle3dSubdivision();
-  }
-  function toggleWireframe3d(): void {
-    ThreeD.toggleWireframe();
-  }
+    function changeSunColor(this: HTMLInputElement): void {
+      ThreeD.setSunColor((options3dSunColor as HTMLInputElement).value);
+      const presetSelect = ensureEl<HTMLSelectElement>("options3dTimeOfDay");
+      if (presetSelect?.value !== "custom") presetSelect.value = "custom";
+    }
 
-  function toggleSkyMode(): void {
-    const hide = ThreeD.options.extendedWater;
-    options3dColorSection.style.display = hide ? "none" : "block";
-    ThreeD.toggleSky();
-  }
+    function changeSunPosition(this: HTMLInputElement): void {
+      const x = +(options3dSunX as HTMLInputElement).value;
+      const y = +(options3dSunY as HTMLInputElement).value;
+      ThreeD.setSun(x, y, ThreeD.options.sun.z);
+      const presetSelect = ensureEl<HTMLSelectElement>("options3dTimeOfDay");
+      if (presetSelect?.value !== "custom") presetSelect.value = "custom";
+    }
 
-  function changeColors(): void {
-    ThreeD.setColors((options3dMeshSky as HTMLInputElement).value, (options3dMeshWater as HTMLInputElement).value);
-  }
+    function changeRotation(this: HTMLInputElement): void {
+      const sibling = (this.nextElementSibling || this.previousElementSibling) as HTMLInputElement;
+      sibling.value = this.value;
+      ThreeD.setRotation(+this.value);
+    }
 
-  function changeResolution(this: HTMLInputElement): void {
-    ThreeD.setResolution(+this.value);
-  }
+    function toggleLabels3d(): void {
+      ThreeD.toggleLabels();
+    }
+    function toggle3dSubdivision(): void {
+      ThreeD.toggle3dSubdivision();
+    }
+    function toggleWireframe3d(): void {
+      ThreeD.toggleWireframe();
+    }
+
+    function toggleSkyMode(): void {
+      const hide = ThreeD.options.extendedWater;
+      options3dColorSection.style.display = hide ? "none" : "block";
+      ThreeD.toggleSky();
+    }
+
+    function changeColors(): void {
+      ThreeD.setColors((options3dMeshSky as HTMLInputElement).value, (options3dMeshWater as HTMLInputElement).value);
+    }
+
+    function changeResolution(this: HTMLInputElement): void {
+      ThreeD.setResolution(+this.value);
+    }
+  }, 100);
 }
 
 // ─── Global registration ───────────────────────────────────────────────────────

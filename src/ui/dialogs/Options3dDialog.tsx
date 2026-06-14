@@ -151,7 +151,6 @@ export const Options3dDialog: React.FC = () => {
               className="icon-download"
             />
           </div>
-          <div id="preview3d" className="dialog stable" style={{ display: "none", padding: 0 }} />
         </div>
       </div>
     </Dialog>

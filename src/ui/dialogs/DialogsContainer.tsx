@@ -1,4 +1,5 @@
 import type React from "react";
+import { useEffect, useState } from "react";
 import { useDialogState } from "../../store/dialogState";
 import { AiGeneratorDialog } from "./AiGeneratorDialog";
 import { AlertDialog } from "./AlertDialog";
@@ -58,68 +59,77 @@ import { ZonesEditorDialog } from "./ZonesEditorDialog";
 
 export const DialogsContainer: React.FC = () => {
   const alertConfig = useDialogState(state => state.alertConfig);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   return (
     <div id="dialogs-root" style={{ pointerEvents: "none" }}>
-      <AlertDialog config={alertConfig} />
-      <PromptDialog />
-      <SaveMapDialog />
-      <ExportMapDialog />
-      <LoadMapDialog />
-      <ExportToPngTilesDialog />
-      <IconSelectorDialog />
-      <FontDialog />
-      <LabelEditorDialog />
-      <RiverEditorDialog />
-      <RiverCreatorDialog />
-      <LakeEditorDialog />
-      <ElevationProfileDialog />
-      <RouteEditorDialog />
-      <RouteCreatorDialog />
-      <RouteGroupsEditorDialog />
-      <IceEditorDialog />
-      <CoastlineEditorDialog />
-      <ReliefEditorDialog />
-      <BurgEditorDialog />
-      <MarkerEditorDialog />
-      <RegimentEditorDialog />
-      <RegimentSelectorScreenDialog />
-      <StateNameEditorDialog />
-      <DiplomacyMatrixDialog />
-      <ProvinceNameEditorDialog />
-      <SubmapToolDialog />
-      <TransformToolDialog />
-      <WorldConfiguratorDialog />
-      <BattleScreenDialog />
-      <BrushesPanelDialog />
-      <TemplateEditorDialog />
-      <ImageConverterDialog />
-      <BiomesEditorDialog />
-      <ProvincesEditorDialog />
-      <DiplomacyEditorDialog />
-      <NamesbaseEditorDialog />
-      <ZonesEditorDialog />
-      <NotesEditorDialog />
-      <AiGeneratorDialog />
-      <EmblemEditorDialog />
-      <UnitsEditorDialog />
-      <BurgsOverviewDialog />
-      <BurgGroupsEditorDialog />
-      <RoutesOverviewDialog />
-      <RiversOverviewDialog />
-      <MilitaryOverviewDialog />
-      <RegimentsOverviewDialog />
-      <MilitaryOptionsDialog />
-      <MarkersOverviewDialog />
-      <StyleSaverDialog />
-      <CellInfoDialog />
-      <MinimapDialog />
-      <Options3dDialog />
-      <Preview3dDialog />
-      {/* 
+      {mounted && (
+        <>
+          <AlertDialog config={alertConfig} />
+          <PromptDialog />
+          <SaveMapDialog />
+          <ExportMapDialog />
+          <LoadMapDialog />
+          <ExportToPngTilesDialog />
+          <IconSelectorDialog />
+          <FontDialog />
+          <LabelEditorDialog />
+          <RiverEditorDialog />
+          <RiverCreatorDialog />
+          <LakeEditorDialog />
+          <ElevationProfileDialog />
+          <RouteEditorDialog />
+          <RouteCreatorDialog />
+          <RouteGroupsEditorDialog />
+          <IceEditorDialog />
+          <CoastlineEditorDialog />
+          <ReliefEditorDialog />
+          <BurgEditorDialog />
+          <MarkerEditorDialog />
+          <RegimentEditorDialog />
+          <RegimentSelectorScreenDialog />
+          <StateNameEditorDialog />
+          <DiplomacyMatrixDialog />
+          <ProvinceNameEditorDialog />
+          <SubmapToolDialog />
+          <TransformToolDialog />
+          <WorldConfiguratorDialog />
+          <BattleScreenDialog />
+          <BrushesPanelDialog />
+          <TemplateEditorDialog />
+          <ImageConverterDialog />
+          <BiomesEditorDialog />
+          <ProvincesEditorDialog />
+          <DiplomacyEditorDialog />
+          <NamesbaseEditorDialog />
+          <ZonesEditorDialog />
+          <NotesEditorDialog />
+          <AiGeneratorDialog />
+          <EmblemEditorDialog />
+          <UnitsEditorDialog />
+          <BurgsOverviewDialog />
+          <BurgGroupsEditorDialog />
+          <RoutesOverviewDialog />
+          <RiversOverviewDialog />
+          <MilitaryOverviewDialog />
+          <RegimentsOverviewDialog />
+          <MilitaryOptionsDialog />
+          <MarkersOverviewDialog />
+          <StyleSaverDialog />
+          <CellInfoDialog />
+          <MinimapDialog />
+          <Options3dDialog />
+          <Preview3dDialog />
+          {/* 
         Here we will mount the other dialogs such as:
         <WorldConfigurator isOpen={openDialogs.has("worldConfigurator")} />
       */}
+        </>
+      )}
     </div>
   );
 };

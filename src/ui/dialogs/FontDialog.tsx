@@ -1,13 +1,44 @@
 import type React from "react";
+import { useState } from "react";
+import { addGoogleFont, addLocalFont, addWebFont, fonts } from "../../modules/fonts";
 import { useDialogState } from "../../store/dialogState";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
 export const FontDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("addFontDialog"));
+  const [method, setMethod] = useState("googleFont");
+  const [family, setFamily] = useState("");
+  const [src, setSrc] = useState("");
+
+  const handleAdd = () => {
+    if (!family) return tip("Please provide a font name", false, "error");
+
+    const existingFont =
+      method === "fontURL"
+        ? fonts.find(font => font.family === family && font.src === src)
+        : fonts.find(font => font.family === family);
+    if (existingFont) return tip("The font is already added", false, "error");
+
+    if (method === "fontURL") addWebFont(family, src);
+    else if (method === "googleFont") addGoogleFont(family);
+    else if (method === "localFont") addLocalFont(family);
+
+    setFamily("");
+    setSrc("");
+    closeDialog("addFontDialog");
+  };
 
   return (
-    <Dialog isOpen={isOpen} title="Add custom font" onClose={() => closeDialog("addFontDialog")}>
+    <Dialog
+      isOpen={isOpen}
+      title="Add custom font"
+      onClose={() => closeDialog("addFontDialog")}
+      buttons={[
+        { label: "Add", onClick: handleAdd },
+        { label: "Cancel", onClick: () => closeDialog("addFontDialog") }
+      ]}
+    >
       <span>There are 3 ways to add a custom font:</span>
       <p>
         <strong>Google font</strong>. Open{" "}
@@ -51,17 +82,25 @@ export const FontDialog: React.FC = () => {
         the same name, but with another URL
       </p>
       <div style={{ marginTop: "0.3em" }} data-tip="Select font adding method">
-        <select id="addFontMethod" defaultValue="googleFont">
+        <select id="addFontMethod" value={method} onChange={e => setMethod(e.target.value)}>
           <option value="googleFont">Google font</option>
           <option value="localFont">Local font</option>
           <option value="fontURL">Font URL</option>
         </select>
-        <input id="addFontNameInput" placeholder="font family" style={{ width: "15em" }} />
+        <input
+          id="addFontNameInput"
+          placeholder="font family"
+          style={{ width: "15em" }}
+          value={family}
+          onChange={e => setFamily(e.target.value)}
+        />
         <div>
           <input
             id="addFontURLInput"
             placeholder="font file URL"
-            style={{ width: "22.6em", marginTop: "0.1em", display: "none" }}
+            style={{ width: "22.6em", marginTop: "0.1em", display: method === "fontURL" ? "inline" : "none" }}
+            value={src}
+            onChange={e => setSrc(e.target.value)}
           />
         </div>
       </div>

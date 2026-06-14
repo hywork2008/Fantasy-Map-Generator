@@ -1052,48 +1052,6 @@ export function initStyleTab() {
     getEl().style("text-shadow", (e.target as HTMLInputElement).value);
   });
 
-  ensureEl("styleFontAdd").addEventListener("click", () => {
-    ensureEl<HTMLInputElement>("addFontNameInput").value = "";
-    ensureEl<HTMLInputElement>("addFontURLInput").value = "";
-
-    openDialog("addFontDialog", {
-      title: "Add custom font",
-      width: "26em",
-      position: { my: "center", at: "center", of: "svg" },
-      buttons: {
-        Add: function (this: HTMLElement) {
-          const family = ensureEl<HTMLInputElement>("addFontNameInput").value;
-          const src = ensureEl<HTMLInputElement>("addFontURLInput").value;
-          const method = ensureEl<HTMLSelectElement>("addFontMethod").value;
-
-          if (!family) return tip("Please provide a font name", false, "error");
-
-          const existingFont =
-            method === "fontURL"
-              ? fonts.find(font => font.family === family && font.src === src)
-              : fonts.find(font => font.family === family);
-          if (existingFont) return tip("The font is already added", false, "error");
-
-          if (method === "fontURL") addWebFont(family, src);
-          else if (method === "googleFont") addGoogleFont(family);
-          else if (method === "localFont") addLocalFont(family);
-
-          ensureEl<HTMLInputElement>("addFontNameInput").value = "";
-          ensureEl<HTMLInputElement>("addFontURLInput").value = "";
-          /* $(this).dialog("close") removed */
-        },
-        Cancel: function (this: HTMLElement) {
-          /* $(this).dialog("close") removed */
-        }
-      }
-    });
-  });
-
-  ensureEl("addFontMethod").addEventListener("change", (e: Event) => {
-    ensureEl<HTMLElement>("addFontURLInput").style.display =
-      (e.target as HTMLSelectElement).value === "fontURL" ? "inline" : "none";
-  });
-
   ensureEl("styleFontSize").addEventListener("change", () => {
     changeFontSize(getEl(), +ensureEl<HTMLInputElement>("styleFontSize").value);
   });

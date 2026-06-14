@@ -1,7 +1,9 @@
 import { useEffect } from "react";
 import { applySliderChange, initStyleTab } from "../../../controllers/style";
+import { fonts } from "../../../modules/fonts";
 import { useStyleState } from "../../../store/styleState";
 import { callWindowFn } from "../../../utils/windowGlobals";
+import { openDialog } from "../../dialogs/dialogService";
 import { SliderInput } from "../SliderInput";
 
 export function StyleTab() {
@@ -557,8 +559,20 @@ export function StyleTab() {
           <tr data-tip="Select font">
             <td>Font</td>
             <td>
-              <select id="styleSelectFont" style={{ width: "85%" }}></select>
-              <button type="button" id="styleFontAdd" data-tip="Add a font" className="icon-plus sideButton"></button>
+              <select id="styleSelectFont" style={{ width: "85%" }}>
+                {fonts.map(f => (
+                  <option key={f.family} value={f.family} style={{ fontFamily: f.family }}>
+                    {f.family}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                id="styleFontAdd"
+                data-tip="Add a font"
+                className="icon-plus sideButton"
+                onClick={() => openDialog("addFontDialog")}
+              ></button>
             </td>
           </tr>
         </tbody>

@@ -43,7 +43,7 @@ export const Dialog: React.FC<DialogProps> = ({ isOpen, title, onClose, children
     </div>
   );
 
-  // Default portal root is dialogs if it exists, else body
-  const root = document.getElementById("dialogs") || document.body;
+  // Default portal root is dialogs-root if it exists, else body
+  const root = document.getElementById("dialogs-root") || document.body;
   return ReactDOM.createPortal(dialogElement, root);
 };

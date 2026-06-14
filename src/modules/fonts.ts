@@ -1,5 +1,3 @@
-import { ensureEl } from "../utils";
-
 export type FontDefinition = {
   family: string;
   src?: string;
@@ -274,7 +272,8 @@ function declareDefaultFonts() {
 }
 
 function addFontOption(family: string) {
-  const options = document.getElementById("styleSelectFont")!;
+  const options = document.getElementById("styleSelectFont");
+  if (!options) return;
   const option = document.createElement("option");
   option.value = family;
   option.innerText = family;
@@ -373,7 +372,7 @@ export const addGoogleFont = async (family: string) => {
       fonts.push(...fontRanges);
       tip(`Google font ${family} is added to the list`, true, "success", 4000);
       addFontOption(family);
-      const select = ensureEl<HTMLSelectElement>("styleSelectFont");
+      const select = document.getElementById("styleSelectFont") as HTMLSelectElement | null;
       if (select) select.value = family;
       changeFont();
     })
@@ -392,7 +391,7 @@ export const addLocalFont = (family: string) => {
   document.fonts.add(fontFace);
   tip(`Local font ${family} is added to the fonts list`, true, "success", 4000);
   addFontOption(family);
-  const select = ensureEl<HTMLSelectElement>("styleSelectFont");
+  const select = document.getElementById("styleSelectFont") as HTMLSelectElement | null;
   if (select) select.value = family;
   changeFont();
 };
@@ -405,7 +404,7 @@ export const addWebFont = (family: string, url: string) => {
   document.fonts.add(fontFace);
   tip(`Font ${family} is added to the list`, true, "success", 4000);
   addFontOption(family);
-  const select = ensureEl<HTMLSelectElement>("styleSelectFont");
+  const select = document.getElementById("styleSelectFont") as HTMLSelectElement | null;
   if (select) select.value = family;
   changeFont();
 };

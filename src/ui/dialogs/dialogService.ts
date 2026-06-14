@@ -45,6 +45,11 @@ export function openPrompt(config: PromptConfig): void {
   dialogStore.getState().setPromptConfig(config);
 }
 
+/** ダイアログが開いているか確認する */
+export function isDialogOpen(id: string): boolean {
+  return dialogStore.getState().openDialogs.has(id);
+}
+
 /** 名前付きダイアログを開く */
 export function openDialog(id: string, config?: OpenDialogConfig): void {
   dialogStore.getState().openDialog(id, config);
