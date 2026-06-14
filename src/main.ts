@@ -732,6 +732,10 @@ export async function initMain(): Promise<void> {
   restoreDefaultEvents?.();
   initiateAutosave();
   initTourPromptButton();
+
+  // Initialize React UI Root
+  const { initReactUI } = await import("./ui/index");
+  initReactUI();
 }
 
 function hideLoading() {

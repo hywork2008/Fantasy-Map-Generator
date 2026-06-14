@@ -22,38 +22,42 @@ let appServices: AppServices;
 
 // ─── Init jQuery draggable / disable-selection ────────────────────────────────
 
+import { viewStateStore } from "../store";
+import { applyOption, lock, stored } from "../utils/uiHelpers";
+
 // ─── Options pane show/hide ───────────────────────────────────────────────────
 
 function showOptions(event?: Event): void {
   if (!stored("disable_click_arrow_tooltip")) {
     clearMainTip();
     localStorage.setItem("disable_click_arrow_tooltip", "true");
-    optionsTrigger.classList.remove("glow");
+    const trigger = document.getElementById("optionsTrigger");
+    if (trigger) trigger.classList.remove("glow");
   }
 
-  regenerate.style.display = "none";
-  ensureEl("options").style.display = "block";
-  optionsTrigger.style.display = "none";
+  const regen = document.getElementById("regenerate");
+  if (regen) regen.style.display = "none";
+  viewStateStore.getState().setMenuOpen(true);
 
   if (event) event.stopPropagation();
 }
 
 function hideOptions(event?: Event): void {
-  ensureEl("options").style.display = "none";
-  optionsTrigger.style.display = "block";
+  viewStateStore.getState().setMenuOpen(false);
   if (event) event.stopPropagation();
 }
 
 function toggleOptions(event?: Event): void {
-  if (ensureEl("options").style.display === "none") showOptions(event);
-  else hideOptions(event);
+  const isOpen = viewStateStore.getState().isMenuOpen;
+  viewStateStore.getState().setMenuOpen(!isOpen);
+  if (event) event.stopPropagation();
 }
 
 // ─── "New Map!" hover panel ───────────────────────────────────────────────────
 
 // ─── Patreon supporters ────────────────────────────────────────────────────────
 
-async function showSupporters(): Promise<void> {
+export async function showSupporters(): Promise<void> {
   const url = `${import.meta.env.BASE_URL}modules/dynamic/supporters.js`;
   const mod = (await import(/* @vite-ignore */ url)) as { supporters: string };
   const list = mod.supporters.split("\n").sort();
@@ -124,34 +128,49 @@ function restoreDefaultCanvasSize(): void {
 }
 
 function applyGraphSize(): void {
-  graphWidth = +mapWidthInput.value;
-  graphHeight = +mapHeightInput.value;
+  window.graphWidth = +mapWidthInput.value;
+  window.graphHeight = +mapHeightInput.value;
 
-  landmass.select("rect").attr("x", 0).attr("y", 0).attr("width", graphWidth).attr("height", graphHeight);
-  oceanPattern.select("rect").attr("x", 0).attr("y", 0).attr("width", graphWidth).attr("height", graphHeight);
-  oceanLayers.select("rect").attr("x", 0).attr("y", 0).attr("width", graphWidth).attr("height", graphHeight);
-  fogging.selectAll("rect").attr("x", 0).attr("y", 0).attr("width", graphWidth).attr("height", graphHeight);
-  defs.select("mask#fog > rect").attr("width", graphWidth).attr("height", graphHeight);
-  defs.select("mask#water > rect").attr("width", graphWidth).attr("height", graphHeight);
+  landmass.select("rect").attr("x", 0).attr("y", 0).attr("width", window.graphWidth).attr("height", window.graphHeight);
+  oceanPattern
+    .select("rect")
+    .attr("x", 0)
+    .attr("y", 0)
+    .attr("width", window.graphWidth)
+    .attr("height", window.graphHeight);
+  oceanLayers
+    .select("rect")
+    .attr("x", 0)
+    .attr("y", 0)
+    .attr("width", window.graphWidth)
+    .attr("height", window.graphHeight);
+  fogging
+    .selectAll("rect")
+    .attr("x", 0)
+    .attr("y", 0)
+    .attr("width", window.graphWidth)
+    .attr("height", window.graphHeight);
+  defs.select("mask#fog > rect").attr("width", window.graphWidth).attr("height", window.graphHeight);
+  defs.select("mask#water > rect").attr("width", window.graphWidth).attr("height", window.graphHeight);
 }
 
 export function fitMapToScreen(): void {
-  svgWidth = Math.min(+mapWidthInput.value, window.innerWidth);
-  svgHeight = Math.min(+mapHeightInput.value, window.innerHeight);
-  svg.attr("width", svgWidth).attr("height", svgHeight);
+  window.svgWidth = Math.min(+mapWidthInput.value, window.innerWidth);
+  window.svgHeight = Math.min(+mapHeightInput.value, window.innerHeight);
+  svg.attr("width", window.svgWidth).attr("height", window.svgHeight);
 
-  const zoomMin = rn(Math.max(svgWidth / graphWidth, svgHeight / graphHeight), 3);
+  const zoomMin = rn(Math.max(window.svgWidth / window.graphWidth, window.svgHeight / window.graphHeight), 3);
   zoomExtentMin.value = String(zoomMin);
   const zoomMax = +zoomExtentMax.value;
 
   zoom
     .translateExtent([
       [0, 0],
-      [graphWidth, graphHeight]
+      [window.graphWidth, window.graphHeight]
     ])
     .scaleExtent([zoomMin, zoomMax]);
 
-  fitScaleBar(worldContext, viewContext, appServices, scaleBar, svgWidth, svgHeight);
+  fitScaleBar(worldContext, viewContext, appServices, scaleBar, window.svgWidth, window.svgHeight);
   if (typeof fitLegendBox !== "undefined") fitLegendBox();
 }
 
@@ -160,13 +179,13 @@ function toggleTranslateExtent(el: HTMLElement): void {
   const on = el.dataset.on;
   if (+on) {
     zoom.translateExtent([
-      [-graphWidth / 2, -graphHeight / 2],
-      [graphWidth * 1.5, graphHeight * 1.5]
+      [-window.graphWidth / 2, -window.graphHeight / 2],
+      [window.graphWidth * 1.5, window.graphHeight * 1.5]
     ]);
   } else {
     zoom.translateExtent([
       [0, 0],
-      [graphWidth, graphHeight]
+      [window.graphWidth, window.graphHeight]
     ]);
   }
 }
@@ -248,7 +267,7 @@ function restoreSeed(id: number): void {
 
 function copyMapURL(): void {
   const lockedCount = document.querySelectorAll("i.icon-lock").length;
-  const search = `?seed=${optionsSeed.value}&width=${graphWidth}&height=${graphHeight}${lockedCount ? "" : "&options=default"}`;
+  const search = `?seed=${optionsSeed.value}&width=${window.graphWidth}&height=${window.graphHeight}${lockedCount ? "" : "&options=default"}`;
   navigator.clipboard
     .writeText(location.host + location.pathname + search)
     .then(() => tip("Map URL is copied to clipboard", false, "success", 3000))
@@ -355,7 +374,8 @@ function changeUiSize(value: number): void {
 
   uiSize.value = String(value);
   document.getElementsByTagName("body")[0].style.fontSize = `${rn(value * 10, 2)}px`;
-  ensureEl("options").style.width = `${value * 300}px`;
+  const optionsEl = document.getElementById("options");
+  if (optionsEl) optionsEl.style.width = `${value * 300}px`;
 }
 
 function getUImaxSize(): number {
@@ -883,8 +903,8 @@ function updateTilesOptions(this: HTMLInputElement | void): void {
   const tilesY = +ensureEl<HTMLInputElement>("tileRowsOutput").value || 2;
   const scale = +ensureEl<HTMLInputElement>("tileScaleOutput").value || 1;
 
-  const sizeX = graphWidth * scale * tilesX;
-  const sizeY = graphHeight * scale * tilesY;
+  const sizeX = window.graphWidth * scale * tilesX;
+  const sizeY = window.graphHeight * scale * tilesY;
   const totalSize = sizeX * sizeY;
 
   tileSize.innerHTML = `${sizeX} x ${sizeY} px`;
@@ -892,8 +912,8 @@ function updateTilesOptions(this: HTMLInputElement | void): void {
 
   const rects: string[] = [];
   const labelItems: string[] = [];
-  const tileW = (graphWidth / tilesX) | 0;
-  const tileH = (graphHeight / tilesY) | 0;
+  const tileW = (window.graphWidth / tilesX) | 0;
+  const tileH = (window.graphHeight / tilesY) | 0;
 
   const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
   function getRowLabel(row: number): string {
@@ -902,8 +922,8 @@ function updateTilesOptions(this: HTMLInputElement | void): void {
     return first + last;
   }
 
-  for (let y = 0, row = 0; y + tileH <= graphHeight; y += tileH, row++) {
-    for (let x = 0, column = 1; x + tileW <= graphWidth; x += tileW, column++) {
+  for (let y = 0, row = 0; y + tileH <= window.graphHeight; y += tileH, row++) {
+    for (let x = 0, column = 1; x + tileW <= window.graphWidth; x += tileW, column++) {
       rects.push(`<rect x=${x} y=${y} width=${tileW} height=${tileH} />`);
       labelItems.push(`<text x=${x + tileW / 2} y=${y + tileH / 2}>${getRowLabel(row)}${column}</text>`);
     }
@@ -950,12 +970,12 @@ async function enter3dView(type: string): Promise<void> {
   canvas.dataset.type = type;
 
   if (type === "heightmap3DView") {
-    canvas.width = parseFloat(preview3d.style.width) || graphWidth / 3;
-    canvas.height = canvas.width / (graphWidth / graphHeight);
+    canvas.width = parseFloat(preview3d.style.width) || window.graphWidth / 3;
+    canvas.height = canvas.width / (window.graphWidth / window.graphHeight);
     canvas.style.display = "block";
   } else {
-    canvas.width = svgWidth;
-    canvas.height = svgHeight;
+    canvas.width = window.svgWidth;
+    canvas.height = window.svgHeight;
     canvas.style.position = "absolute";
     canvas.style.display = "none";
   }
@@ -1214,62 +1234,82 @@ export function initOptions(wc: WorldContext, vc: Readonly<ViewContext>, as: App
 
   if (stored("disable_click_arrow_tooltip")) {
     clearMainTip();
-    optionsTrigger.classList.remove("glow");
+    const trigger = document.getElementById("optionsTrigger");
+    if (trigger) trigger.classList.remove("glow");
   }
 
   // Options pane show/hide
-  optionsTrigger.addEventListener("mouseenter", () => {
-    if (optionsTrigger.classList.contains("glow")) return;
-    if (ensureEl("options").style.display === "none") regenerate.style.display = "block";
-  });
+  const trigger2 = document.getElementById("optionsTrigger");
+  if (trigger2) {
+    trigger2.addEventListener("mouseenter", () => {
+      if (trigger2.classList.contains("glow")) return;
+      const optsEl = document.getElementById("options");
+      const regen = document.getElementById("regenerate");
+      if (optsEl && optsEl.style.display === "none" && regen) regen.style.display = "block";
+    });
+  }
 
-  collapsible.addEventListener("mouseleave", () => {
-    regenerate.style.display = "none";
-  });
+  const collap = document.getElementById("collapsible");
+  if (collap) {
+    collap.addEventListener("mouseleave", () => {
+      const regen = document.getElementById("regenerate");
+      if (regen) regen.style.display = "none";
+    });
+  }
 
   // Options tab switching
-  document
-    .getElementById("options")!
-    .querySelector<HTMLElement>("div.tab")!
-    .addEventListener("click", (event: MouseEvent) => {
-      const target = event.target as HTMLElement;
-      if (target.tagName !== "BUTTON") return;
-      const id = target.id;
-      const active = ensureEl("options").querySelector<HTMLElement>(".tab > button.active");
-      if (active && id === active.id) return;
+  const optionsElTabs = document.getElementById("options");
+  if (optionsElTabs) {
+    const tabsContainer = optionsElTabs.querySelector<HTMLElement>("div.tab");
+    if (tabsContainer) {
+      tabsContainer.addEventListener("click", (event: MouseEvent) => {
+        const target = event.target as HTMLElement;
+        if (target.tagName !== "BUTTON") return;
+        const id = target.id;
+        const active = ensureEl("options").querySelector<HTMLElement>(".tab > button.active");
+        if (active && id === active.id) return;
 
-      if (active) active.classList.remove("active");
-      ensureEl(id).classList.add("active");
-      document
-        .getElementById("options")!
-        .querySelectorAll<HTMLElement>(".tabcontent")
-        .forEach(e => {
-          e.style.display = "none";
-        });
+        if (active) active.classList.remove("active");
+        ensureEl(id).classList.add("active");
+        document
+          .getElementById("options")!
+          .querySelectorAll<HTMLElement>(".tabcontent")
+          .forEach(e => {
+            e.style.display = "none";
+          });
 
-      if (id === "layersTab") {
-        layersContent.style.display = "block";
-      } else if (id === "styleTab") {
-        styleContent.style.display = "block";
-        selectStyleElement();
-      } else if (id === "optionsTab") {
-        optionsContent.style.display = "block";
-      } else if (id === "toolsTab") {
-        if (customization === 1) {
-          customizationMenu.style.display = "block";
-        } else {
-          toolsContent.style.display = "block";
+        if (id === "layersTab") {
+          layersContent.style.display = "block";
+        } else if (id === "styleTab") {
+          styleContent.style.display = "block";
+          selectStyleElement();
+        } else if (id === "optionsTab") {
+          optionsContent.style.display = "block";
+        } else if (id === "toolsTab") {
+          if (customization === 1) {
+            customizationMenu.style.display = "block";
+          } else {
+            toolsContent.style.display = "block";
+          }
+        } else if (id === "aboutTab") {
+          aboutContent.style.display = "block";
         }
-      } else if (id === "aboutTab") {
-        aboutContent.style.display = "block";
-      }
-    });
+      });
+    }
+  }
 
   // Generic option change helpers
-  ensureEl("options").addEventListener("change", storeValueIfRequired);
-  ensureEl("dialogs").addEventListener("change", storeValueIfRequired);
-  ensureEl("options").addEventListener("input", updateOutputToFollowInput);
-  ensureEl("dialogs").addEventListener("input", updateOutputToFollowInput);
+  // Generic option change helpers
+  const optionsEl = document.getElementById("options");
+  if (optionsEl) {
+    optionsEl.addEventListener("change", storeValueIfRequired);
+    optionsEl.addEventListener("input", updateOutputToFollowInput);
+  }
+  const dialogsEl = document.getElementById("dialogs");
+  if (dialogsEl) {
+    dialogsEl.addEventListener("change", storeValueIfRequired);
+    dialogsEl.addEventListener("input", updateOutputToFollowInput);
+  }
 
   // Options content listeners
   const optionsContentEl = ensureEl("optionsContent");

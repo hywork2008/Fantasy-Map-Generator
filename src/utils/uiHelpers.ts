@@ -33,9 +33,10 @@ if (location.hostname !== "localhost" && location.hostname !== "127.0.0.1") {
 const tooltip = document.getElementById("tooltip")!;
 const onDataTipMove = debounce(showDataTip, 50);
 
-document.getElementById("dialogs")!.addEventListener("mousemove", onDataTipMove);
-document.getElementById("optionsContainer")!.addEventListener("mousemove", onDataTipMove);
-document.getElementById("exitCustomization")!.addEventListener("mousemove", onDataTipMove);
+document.getElementById("dialogs")?.addEventListener("mousemove", onDataTipMove);
+document.getElementById("optionsContainer")?.addEventListener("mousemove", onDataTipMove);
+document.getElementById("exitCustomization")?.addEventListener("mousemove", onDataTipMove);
+document.getElementById("react-ui-container")?.addEventListener("mousemove", onDataTipMove);
 
 const tipBackgroundMap: Record<string, string> = {
   info: "linear-gradient(0.1turn, #ffffff00, #5e5c5c80, #ffffff00)",
@@ -540,7 +541,7 @@ document.querySelectorAll("[data-locked]").forEach(e => {
   });
 });
 
-function lock(id: string): void {
+export function lock(id: string): void {
   const input = document.querySelector<HTMLInputElement>(`[data-stored="${id}"]`);
   if (input) store(id, input.value);
   const el = document.getElementById(`lock_${id}`);
@@ -549,7 +550,7 @@ function lock(id: string): void {
   el.className = "icon-lock";
 }
 
-function unlock(id: string): void {
+export function unlock(id: string): void {
   localStorage.removeItem(id);
   const el = document.getElementById(`lock_${id}`);
   if (!el) return;
@@ -557,16 +558,16 @@ function unlock(id: string): void {
   el.className = "icon-lock-open";
 }
 
-function locked(id: string): boolean {
+export function locked(id: string): boolean {
   const lockEl = document.getElementById(`lock_${id}`) as HTMLElement;
   return lockEl.dataset.locked === "1";
 }
 
-function stored(key: string): string | null {
+export function stored(key: string): string | null {
   return localStorage.getItem(key) || null;
 }
 
-function store(key: string, value: string): void {
+export function store(key: string, value: string): void {
   localStorage.setItem(key, value);
 }
 
@@ -577,7 +578,7 @@ Array.from(document.getElementsByClassName("speaker")).forEach(el => {
   el.addEventListener("click", () => speak(input.value));
 });
 
-function speak(text: string): void {
+export function speak(text: string): void {
   const speaker = new SpeechSynthesisUtterance(text);
   const voices = speechSynthesis.getVoices();
   if (voices.length) {
@@ -589,7 +590,7 @@ function speak(text: string): void {
 
 // ─── Dropdown utility ─────────────────────────────────────────────────────────
 
-function applyOption($select: HTMLSelectElement | HTMLInputElement, value: string, name = value): void {
+export function applyOption($select: HTMLSelectElement | HTMLInputElement, value: string, name = value): void {
   const select = $select as HTMLSelectElement;
   const isExisting = Array.from(select.options ?? []).some(o => o.value === value);
   if (!isExisting) select.options?.add(new Option(name, value));
