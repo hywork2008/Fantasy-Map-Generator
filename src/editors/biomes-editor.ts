@@ -3,7 +3,7 @@ import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { Biomes } from "../modules/biomes";
-import { drawBiomes, drawReliefIcons } from "../renderers";
+import { BiomesRenderer, ReliefIconsRenderer } from "../renderers";
 import { openDialog } from "../ui/dialogs/dialogService";
 import { findCell, getRandomColor, isLand, openURL, rn, si } from "../utils";
 import { getPackPolygon } from "../utils/graphUtils";
@@ -356,7 +356,7 @@ export function editBiomes(): void {
   }
 
   function regenerateIcons(): void {
-    drawReliefIcons(worldContext, viewContext, appServices);
+    ReliefIconsRenderer.render(worldContext, viewContext, appServices);
     if (!layerIsOn("toggleRelief")) toggleRelief();
   }
 
@@ -488,7 +488,7 @@ export function editBiomes(): void {
     });
 
     if (changed.size()) {
-      drawBiomes(worldContext, viewContext, appServices);
+      BiomesRenderer.render(worldContext, viewContext, appServices);
       refreshBiomesEditor();
     }
     exitBiomesCustomizationMode();
@@ -527,7 +527,7 @@ export function editBiomes(): void {
   function restoreInitialBiomes(): void {
     biomesData = Biomes.getDefault();
     Biomes.define(getWorldState());
-    drawBiomes(worldContext, viewContext, appServices);
+    BiomesRenderer.render(worldContext, viewContext, appServices);
     recalculatePopulation();
     refreshBiomesEditor();
   }

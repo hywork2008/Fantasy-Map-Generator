@@ -7,23 +7,29 @@ import { Military } from "../modules/military-generator";
 import { rn } from "../utils";
 import { TIME } from "../utils/debug";
 
-export const drawMilitary = (
-  worldContext: Readonly<WorldContext>,
-  viewContext: Readonly<ViewContext>,
-  appServices: AppServices
-): void => {
-  TIME && console.time("drawMilitary");
-  const { pack } = worldContext;
-  const { armies } = viewContext;
+import type { IRenderer } from "./core/IRenderer";
 
-  armies.selectAll("g").remove();
-  pack.states
-    .filter(s => s.i && !s.removed)
-    .forEach(s => {
-      drawRegiments(worldContext, viewContext, appServices, s.military || [], s.i);
-    });
+export const MilitaryRenderer: IRenderer = {
+  id: "military",
 
-  TIME && console.timeEnd("drawMilitary");
+  render(worldContext: Readonly<WorldContext>, viewContext: Readonly<ViewContext>, appServices: AppServices): void {
+    TIME && console.time("MilitaryRenderer");
+    const { pack } = worldContext;
+    const { armies } = viewContext;
+
+    armies.selectAll("g").remove();
+    pack.states
+      .filter(s => s.i && !s.removed)
+      .forEach(s => {
+        drawRegiments(worldContext, viewContext, appServices, s.military || [], s.i);
+      });
+
+    TIME && console.timeEnd("MilitaryRenderer");
+  },
+
+  clear(viewContext: Readonly<ViewContext>): void {
+    viewContext.armies.selectAll("g").remove();
+  }
 };
 
 export const drawRegiments = (

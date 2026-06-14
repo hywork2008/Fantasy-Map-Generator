@@ -252,6 +252,8 @@ export async function getMapURL(type: string, options: GetMapURLOptions = {}): P
 
   const cloneEl = ensureEl("map").cloneNode(true) as SVGSVGElement;
   cloneEl.id = "fantasyMap";
+  cloneEl.style.visibility = "visible";
+  cloneEl.style.pointerEvents = "auto";
   // <foreignObject class="fmc"> elements wrap canvas layers; they cannot be
   // serialized to SVG and cause canvas taint when drawn via drawImage().
   cloneEl.querySelectorAll("foreignObject.fmc").forEach(el => {

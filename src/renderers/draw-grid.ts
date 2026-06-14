@@ -2,39 +2,45 @@ import { select } from "d3";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-export const drawGrid = (
-  worldContext: Readonly<WorldContext>,
-  viewContext: Readonly<ViewContext>,
-  _appServices: AppServices
-): void => {
-  const { graphWidth, graphHeight } = worldContext;
-  const { gridOverlay } = viewContext;
+import type { IRenderer } from "./core/IRenderer";
 
-  gridOverlay.selectAll("*").remove();
-  const pattern = `#pattern_${gridOverlay.attr("type") || "pointyHex"}`;
-  const stroke = gridOverlay.attr("stroke") || "#808080";
-  const width = gridOverlay.attr("stroke-width") || 0.5;
-  const dasharray = gridOverlay.attr("stroke-dasharray") || null;
-  const linecap = gridOverlay.attr("stroke-linecap") || null;
-  const gridScale = gridOverlay.attr("scale") || 1;
-  const dx = gridOverlay.attr("dx") || 0;
-  const dy = gridOverlay.attr("dy") || 0;
-  const tr = `scale(${gridScale}) translate(${dx} ${dy})`;
+export const GridRenderer: IRenderer = {
+  id: "grid",
 
-  const maxWidth = Math.max(+mapWidthInput.value, graphWidth);
-  const maxHeight = Math.max(+mapHeightInput.value, graphHeight);
+  render(worldContext: Readonly<WorldContext>, viewContext: Readonly<ViewContext>, _appServices: AppServices): void {
+    const { graphWidth, graphHeight } = worldContext;
+    const { gridOverlay } = viewContext;
 
-  select(pattern)
-    .attr("stroke", stroke)
-    .attr("stroke-width", width)
-    .attr("stroke-dasharray", dasharray)
-    .attr("stroke-linecap", linecap)
-    .attr("patternTransform", tr);
+    gridOverlay.selectAll("*").remove();
+    const pattern = `#pattern_${gridOverlay.attr("type") || "pointyHex"}`;
+    const stroke = gridOverlay.attr("stroke") || "#808080";
+    const width = gridOverlay.attr("stroke-width") || 0.5;
+    const dasharray = gridOverlay.attr("stroke-dasharray") || null;
+    const linecap = gridOverlay.attr("stroke-linecap") || null;
+    const gridScale = gridOverlay.attr("scale") || 1;
+    const dx = gridOverlay.attr("dx") || 0;
+    const dy = gridOverlay.attr("dy") || 0;
+    const tr = `scale(${gridScale}) translate(${dx} ${dy})`;
 
-  gridOverlay
-    .append("rect")
-    .attr("width", maxWidth)
-    .attr("height", maxHeight)
-    .attr("fill", `url(${pattern})`)
-    .attr("stroke", "none");
+    const maxWidth = Math.max(+mapWidthInput.value, graphWidth);
+    const maxHeight = Math.max(+mapHeightInput.value, graphHeight);
+
+    select(pattern)
+      .attr("stroke", stroke)
+      .attr("stroke-width", width)
+      .attr("stroke-dasharray", dasharray)
+      .attr("stroke-linecap", linecap)
+      .attr("patternTransform", tr);
+
+    gridOverlay
+      .append("rect")
+      .attr("width", maxWidth)
+      .attr("height", maxHeight)
+      .attr("fill", `url(${pattern})`)
+      .attr("stroke", "none");
+  },
+
+  clear(viewContext: Readonly<ViewContext>): void {
+    viewContext.gridOverlay.selectAll("*").remove();
+  }
 };

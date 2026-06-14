@@ -6,6 +6,7 @@ import type { PackedGraphFeature } from "../modules/features";
 import { clipPoly, round } from "../utils";
 import { ERROR, TIME } from "../utils/debug";
 import { buildCoastlinePath, fractalizeCoastline } from "./coastline-fractal";
+import type { IRenderer } from "./core/IRenderer";
 
 declare const simplify: (points: [number, number][], tolerance: number, highestQuality?: boolean) => [number, number][];
 
@@ -17,62 +18,75 @@ interface FeaturesHtml {
   lakes: { [key: string]: string[] };
 }
 
-export const drawFeatures = (
-  worldContext: Readonly<WorldContext>,
-  viewContext: Readonly<ViewContext>,
-  appServices: AppServices
-): void => {
-  TIME && console.time("drawFeatures");
-  const { pack } = worldContext;
-  const { defs, coastline, lakes } = viewContext;
+export const FeaturesRenderer: IRenderer = {
+  id: "features",
 
-  const html: FeaturesHtml = {
-    paths: [],
-    landMask: [],
-    waterMask: ['<rect x="0" y="0" width="100%" height="100%" fill="white" />'],
-    coastline: {},
-    lakes: {}
-  };
+  render(worldContext: Readonly<WorldContext>, viewContext: Readonly<ViewContext>, appServices: AppServices): void {
+    TIME && console.time("FeaturesRenderer");
+    const { pack } = worldContext;
+    const { defs, coastline, lakes } = viewContext;
 
-  for (const feature of pack.features) {
-    if (!feature || feature.type === "ocean") continue;
+    const html: FeaturesHtml = {
+      paths: [],
+      landMask: [],
+      waterMask: ['<rect x="0" y="0" width="100%" height="100%" fill="white" />'],
+      coastline: {},
+      lakes: {}
+    };
 
-    html.paths.push(
-      `<path d="${featurePathRenderer(worldContext, viewContext, appServices, feature)}" id="feature_${feature.i}" data-f="${feature.i}"></path>`
-    );
+    for (const feature of pack.features) {
+      if (!feature || feature.type === "ocean") continue;
 
-    if (feature.type === "lake") {
-      html.landMask.push(`<use href="#feature_${feature.i}" data-f="${feature.i}" fill="black"></use>`);
-      html.waterMask.push(`<use href="#feature_${feature.i}" data-f="${feature.i}" fill="white"></use>`);
+      html.paths.push(
+        `<path d="${featurePathRenderer(worldContext, viewContext, appServices, feature)}" id="feature_${feature.i}" data-f="${feature.i}"></path>`
+      );
 
-      const lakeGroup = feature.group || "freshwater";
-      if (!html.lakes[lakeGroup]) html.lakes[lakeGroup] = [];
-      html.lakes[lakeGroup].push(`<use href="#feature_${feature.i}" data-f="${feature.i}"></use>`);
-    } else {
-      html.landMask.push(`<use href="#feature_${feature.i}" data-f="${feature.i}" fill="white"></use>`);
-      html.waterMask.push(`<use href="#feature_${feature.i}" data-f="${feature.i}" fill="black"></use>`);
+      if (feature.type === "lake") {
+        html.landMask.push(`<use href="#feature_${feature.i}" data-f="${feature.i}" fill="black"></use>`);
+        html.waterMask.push(`<use href="#feature_${feature.i}" data-f="${feature.i}" fill="white"></use>`);
 
-      const coastlineGroup = feature.group === "lake_island" ? "lake_island" : "sea_island";
-      if (!html.coastline[coastlineGroup]) html.coastline[coastlineGroup] = [];
-      html.coastline[coastlineGroup].push(`<use href="#feature_${feature.i}" data-f="${feature.i}"></use>`);
+        const lakeGroup = feature.group || "freshwater";
+        if (!html.lakes[lakeGroup]) html.lakes[lakeGroup] = [];
+        html.lakes[lakeGroup].push(`<use href="#feature_${feature.i}" data-f="${feature.i}"></use>`);
+      } else {
+        html.landMask.push(`<use href="#feature_${feature.i}" data-f="${feature.i}" fill="white"></use>`);
+        html.waterMask.push(`<use href="#feature_${feature.i}" data-f="${feature.i}" fill="black"></use>`);
+
+        const coastlineGroup = feature.group === "lake_island" ? "lake_island" : "sea_island";
+        if (!html.coastline[coastlineGroup]) html.coastline[coastlineGroup] = [];
+        html.coastline[coastlineGroup].push(`<use href="#feature_${feature.i}" data-f="${feature.i}"></use>`);
+      }
     }
+
+    defs.select("#featurePaths").html(html.paths.join(""));
+    defs.select("#land").html(html.landMask.join(""));
+    defs.select("#water").html(html.waterMask.join(""));
+
+    coastline.selectAll<SVGGElement, unknown>("g").each(function () {
+      const paths = html.coastline[this.id] || [];
+      select(this).html(paths.join(""));
+    });
+
+    lakes.selectAll<SVGGElement, unknown>("g").each(function () {
+      const paths = html.lakes[this.id] || [];
+      select(this).html(paths.join(""));
+    });
+
+    TIME && console.timeEnd("FeaturesRenderer");
+  },
+
+  clear(viewContext: Readonly<ViewContext>): void {
+    const { defs, coastline, lakes } = viewContext;
+    defs.select("#featurePaths").html("");
+    defs.select("#land").html("");
+    defs.select("#water").html('<rect x="0" y="0" width="100%" height="100%" fill="white" />');
+    coastline.selectAll<SVGGElement, unknown>("g").each(function () {
+      select(this).html("");
+    });
+    lakes.selectAll<SVGGElement, unknown>("g").each(function () {
+      select(this).html("");
+    });
   }
-
-  defs.select("#featurePaths").html(html.paths.join(""));
-  defs.select("#land").html(html.landMask.join(""));
-  defs.select("#water").html(html.waterMask.join(""));
-
-  coastline.selectAll<SVGGElement, unknown>("g").each(function () {
-    const paths = html.coastline[this.id] || [];
-    select(this).html(paths.join(""));
-  });
-
-  lakes.selectAll<SVGGElement, unknown>("g").each(function () {
-    const paths = html.lakes[this.id] || [];
-    select(this).html(paths.join(""));
-  });
-
-  TIME && console.timeEnd("drawFeatures");
 };
 
 function featurePathRenderer(

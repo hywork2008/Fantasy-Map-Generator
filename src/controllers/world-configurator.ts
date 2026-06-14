@@ -6,7 +6,13 @@ import { Biomes } from "../modules/biomes";
 import { Features } from "../modules/features";
 import { Lakes } from "../modules/lakes";
 import { Rivers } from "../modules/river-generator";
-import { drawBiomes, drawCoordinates, drawPrecipitation, drawRivers, drawTemperature } from "../renderers";
+import {
+  BiomesRenderer,
+  CoordinatesRenderer,
+  drawTemperature,
+  PrecipitationRenderer,
+  RiversRenderer
+} from "../renderers";
 import { openDialog } from "../ui/dialogs/dialogService";
 import { convertTemperature, ensureEl, parseTransform, rn, round } from "../utils";
 
@@ -111,10 +117,10 @@ function editWorld(): void {
     Lakes.defineNames(state);
 
     if (layerIsOn("toggleTemperature")) drawTemperature(worldContext, viewContext, appServices);
-    if (layerIsOn("togglePrecipitation")) drawPrecipitation(worldContext, viewContext, appServices);
-    if (layerIsOn("toggleBiomes")) drawBiomes(worldContext, viewContext, appServices);
-    if (layerIsOn("toggleCoordinates")) drawCoordinates(worldContext, viewContext, appServices);
-    if (layerIsOn("toggleRivers")) drawRivers(worldContext, viewContext, appServices);
+    if (layerIsOn("togglePrecipitation")) PrecipitationRenderer.render(worldContext, viewContext, appServices);
+    if (layerIsOn("toggleBiomes")) BiomesRenderer.render(worldContext, viewContext, appServices);
+    if (layerIsOn("toggleCoordinates")) CoordinatesRenderer.render(worldContext, viewContext, appServices);
+    if (layerIsOn("toggleRivers")) RiversRenderer.render(worldContext, viewContext, appServices);
     if (document.getElementById("canvas3d")) setTimeout(() => ThreeD.update(), 500);
   }
 

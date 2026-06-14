@@ -14,7 +14,7 @@ import type { Province } from "../modules/provinces-generator";
 import { Provinces } from "../modules/provinces-generator";
 import type { State } from "../modules/states-generator";
 import { States } from "../modules/states-generator";
-import { drawBorders, drawPopulation, drawProvinces, drawStateLabels, drawStates } from "../renderers";
+import { BordersRenderer, drawStateLabels, PopulationRenderer, ProvincesRenderer, StatesRenderer } from "../renderers";
 import type { WorldNote } from "../types/WorldState";
 import { openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { applySortingByHeader, ensureEl, findCell, getRandomColor, isLand, rand, rn, si } from "../utils";
@@ -582,7 +582,7 @@ function changePopulation(stateId: number): void {
       });
     }
 
-    if (layerIsOn("togglePopulation")) drawPopulation(worldContext, viewContext, appServices);
+    if (layerIsOn("togglePopulation")) PopulationRenderer.render(worldContext, viewContext, appServices);
     refreshStatesEditor();
   }
 }
@@ -688,9 +688,9 @@ function stateRemove(stateId: number): void {
 
   debug.selectAll(".highlight").remove();
 
-  if (layerIsOn("toggleStates")) drawStates(worldContext, viewContext, appServices);
-  if (layerIsOn("toggleBorders")) drawBorders(worldContext, viewContext, appServices);
-  if (layerIsOn("toggleProvinces")) drawProvinces(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleStates")) StatesRenderer.render(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleBorders")) BordersRenderer.render(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleProvinces")) ProvincesRenderer.render(worldContext, viewContext, appServices);
 
   refreshStatesEditor();
 }
@@ -908,9 +908,9 @@ function recalculateStates(must?: boolean): void {
   Provinces.getPoles(state);
   States.getPoles(state);
 
-  if (layerIsOn("toggleStates")) drawStates(worldContext, viewContext, appServices);
-  if (layerIsOn("toggleBorders")) drawBorders(worldContext, viewContext, appServices);
-  if (layerIsOn("toggleProvinces")) drawProvinces(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleStates")) StatesRenderer.render(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleBorders")) BordersRenderer.render(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleProvinces")) ProvincesRenderer.render(worldContext, viewContext, appServices);
   if ((adjustLabels as HTMLInputElement).checked) drawStateLabels(worldContext, viewContext, appServices);
 
   refreshStatesEditor();
@@ -1066,12 +1066,12 @@ function applyStatesManualAssignent(): void {
   if (affectedStates.length) {
     refreshStatesEditor();
     States.getPoles(getWorldState());
-    layerIsOn("toggleStates") ? drawStates(worldContext, viewContext, appServices) : toggleStates();
+    layerIsOn("toggleStates") ? StatesRenderer.render(worldContext, viewContext, appServices) : toggleStates();
     if ((adjustLabels as HTMLInputElement).checked)
       drawStateLabels(worldContext, viewContext, appServices, [...new Set(affectedStates)]);
     adjustProvinces([...new Set(affectedProvinces)]);
-    layerIsOn("toggleBorders") ? drawBorders(worldContext, viewContext, appServices) : toggleBorders();
-    if (layerIsOn("toggleProvinces")) drawProvinces(worldContext, viewContext, appServices);
+    layerIsOn("toggleBorders") ? BordersRenderer.render(worldContext, viewContext, appServices) : toggleBorders();
+    if (layerIsOn("toggleProvinces")) ProvincesRenderer.render(worldContext, viewContext, appServices);
   }
 
   exitStatesManualAssignment(false);
@@ -1360,8 +1360,8 @@ function addState(this: SVGElement, event: MouseEvent): void {
   COArenderer.add("state", newState, coa as RendererEmblem, statesArr[newState].pole![0], statesArr[newState].pole![1]);
 
   layerIsOn("toggleProvinces") && toggleProvinces();
-  layerIsOn("toggleStates") ? drawStates(worldContext, viewContext, appServices) : toggleStates();
-  layerIsOn("toggleBorders") ? drawBorders(worldContext, viewContext, appServices) : toggleBorders();
+  layerIsOn("toggleStates") ? StatesRenderer.render(worldContext, viewContext, appServices) : toggleStates();
+  layerIsOn("toggleBorders") ? BordersRenderer.render(worldContext, viewContext, appServices) : toggleBorders();
 
   statesEditorAddLines();
 }
@@ -1540,9 +1540,9 @@ function openStateMergeDialog(): void {
     debug.selectAll(".highlight").remove();
 
     States.getPoles(getWorldState());
-    layerIsOn("toggleStates") ? drawStates(worldContext, viewContext, appServices) : toggleStates();
-    layerIsOn("toggleBorders") ? drawBorders(worldContext, viewContext, appServices) : toggleBorders();
-    layerIsOn("toggleProvinces") && drawProvinces(worldContext, viewContext, appServices);
+    layerIsOn("toggleStates") ? StatesRenderer.render(worldContext, viewContext, appServices) : toggleStates();
+    layerIsOn("toggleBorders") ? BordersRenderer.render(worldContext, viewContext, appServices) : toggleBorders();
+    layerIsOn("toggleProvinces") && ProvincesRenderer.render(worldContext, viewContext, appServices);
     drawStateLabels(worldContext, viewContext, appServices, [rulingStateId]);
 
     refreshStatesEditor();

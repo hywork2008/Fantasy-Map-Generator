@@ -10,7 +10,7 @@ import type { Emblem as RendererEmblem } from "../modules/emblem/renderer";
 import { COArenderer } from "../modules/emblem/renderer";
 import type { Province } from "../modules/provinces-generator";
 import type { State } from "../modules/states-generator";
-import { drawStates } from "../renderers";
+import { StatesRenderer } from "../renderers";
 import { fitScaleBar } from "../renderers/index";
 import { type OptionsState, useOptionsState } from "../store/optionsState";
 import {
@@ -22,6 +22,7 @@ import {
   openRichDialog
 } from "../ui/dialogs/dialogService";
 import { ensureEl, gauss, last, minmax, P, rand, rn, rw } from "../utils";
+import { unselect } from "./editors";
 import { exportToJson as exportToJsonModule } from "./export-json";
 import { open as openHeightmapSelection } from "./heightmap-selection";
 
@@ -686,7 +687,8 @@ function setRendering(value: string): void {
   } else {
     coastline.select("#sea_island").style("filter", null);
     statesHalo.style("display", null);
-    if (pack.cells && statesHalo.selectAll("*").size() === 0) drawStates(worldContext, viewContext, appServices);
+    if (pack.cells && statesHalo.selectAll("*").size() === 0)
+      StatesRenderer.render(worldContext, viewContext, appServices);
   }
 }
 
@@ -969,6 +971,13 @@ function enterStandardView(): void {
   if (!document.getElementById("canvas3d")) return;
   ThreeD.stop();
   ensureEl("canvas3d").remove();
+
+  const mapEl = document.getElementById("map");
+  if (mapEl) {
+    mapEl.style.visibility = "visible";
+    mapEl.style.pointerEvents = "auto";
+  }
+
   if (isDialogOpen("options3d")) closeDialog("options3d");
   if (isDialogOpen("preview3d")) closeDialog("preview3d");
 }
@@ -1009,7 +1018,18 @@ async function enter3dView(type: string): Promise<void> {
       resizeStop: resize3d,
       close: enterStandardView
     });
-  } else optionsContainer.parentNode?.insertBefore(canvas, optionsContainer);
+  } else {
+    optionsContainer.parentNode?.insertBefore(canvas, optionsContainer);
+
+    // Hide SVG
+    const mapEl = document.getElementById("map");
+    if (mapEl) {
+      mapEl.style.visibility = "hidden";
+      mapEl.style.pointerEvents = "none";
+    }
+
+    if (typeof unselect === "function") unselect();
+  }
 
   toggle3dOptions();
 }

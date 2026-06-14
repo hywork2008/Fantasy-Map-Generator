@@ -23,16 +23,16 @@ import type { State } from "../modules/states-generator";
 import { States } from "../modules/states-generator";
 import { Zones } from "../modules/zones-generator";
 import {
-  drawBurgIcons,
-  drawBurgLabels,
-  drawFeatures,
-  drawHeightmap,
-  drawIce,
-  drawMarkers,
-  drawMilitary,
-  drawRoutes,
-  drawTexture,
-  drawZones
+  BurgIconsRenderer,
+  BurgLabelsRenderer,
+  FeaturesRenderer,
+  HeightmapRenderer,
+  IceRenderer,
+  MarkersRenderer,
+  MilitaryRenderer,
+  RoutesRenderer,
+  TextureRenderer,
+  ZonesRenderer
 } from "../renderers";
 import { drawScaleBar, fitScaleBar } from "../renderers/index";
 import { ensureEl, findCell, rand, rn, unique } from "../utils";
@@ -59,7 +59,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
       .attr("stroke-dasharray", "0 4 10 4")
       .attr("stroke-linecap", "round");
 
-    // v1.0 separated drawBorders from drawStates()
+    // v1.0 separated BordersRenderer from StatesRenderer()
     stateBorders = borders.append("g").attr("id", "stateBorders");
     provinceBorders = borders.append("g").attr("id", "provinceBorders");
     borders
@@ -347,7 +347,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
       .attr("stroke", "#e8f0f6")
       .attr("stroke-width", 1)
       .attr("filter", "url(#dropShadow05)");
-    drawIce(worldContext, viewContext, appServices);
+    IceRenderer.render(worldContext, viewContext, appServices);
 
     // v1.4 added icon and power attributes for units
     for (const unit of options.military!) {
@@ -632,7 +632,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
       markerElements.forEach(el => {
         el.remove();
       });
-      if (layerIsOn("markers")) drawMarkers(worldContext, viewContext, appServices);
+      if (layerIsOn("markers")) MarkersRenderer.render(worldContext, viewContext, appServices);
     }
   }
 
@@ -740,7 +740,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
       const href = textureImage.attr("xlink:href") || textureImage.attr("href") || textureImage.attr("src");
       texture.attr("data-href", href).attr("data-x", x).attr("data-y", y);
       textureImage.remove();
-      drawTexture(worldContext, viewContext, appServices);
+      TextureRenderer.render(worldContext, viewContext, appServices);
     }
   }
 
@@ -813,7 +813,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
       .attr("curve", curve)
       .attr("mask", "url(#land)");
 
-    if (layerIsOn("toggleHeight")) drawHeightmap(worldContext, viewContext, appServices);
+    if (layerIsOn("toggleHeight")) HeightmapRenderer.render(worldContext, viewContext, appServices);
 
     d3.select("#scaleBar").remove();
     scaleBar = svg
@@ -905,7 +905,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
       }
     }
     routes.selectAll("path").remove();
-    if (layerIsOn("toggleRoutes")) drawRoutes(worldContext, viewContext, appServices);
+    if (layerIsOn("toggleRoutes")) RoutesRenderer.render(worldContext, viewContext, appServices);
 
     pack.cells.routes = {};
     const links: Record<number, Record<number, number>> = pack.cells.routes;
@@ -934,7 +934,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
       pack.zones.push({ i, name, type, cells, color });
     });
     zones.style("display", null).selectAll("*").remove();
-    if (layerIsOn("toggleZones")) drawZones(worldContext, viewContext, appServices);
+    if (layerIsOn("toggleZones")) ZonesRenderer.render(worldContext, viewContext, appServices);
   }
 
   if (isOlderThan("1.104.0")) {
@@ -968,15 +968,15 @@ export function resolveVersionConflicts(mapVersion: string): void {
   }
 
   if (isOlderThan("1.107.0")) {
-    if (layerIsOn("toggleMarkers")) drawMarkers(worldContext, viewContext, appServices);
-    if (layerIsOn("toggleMilitary")) drawMilitary(worldContext, viewContext, appServices);
+    if (layerIsOn("toggleMarkers")) MarkersRenderer.render(worldContext, viewContext, appServices);
+    if (layerIsOn("toggleMilitary")) MilitaryRenderer.render(worldContext, viewContext, appServices);
   }
 
   if (isOlderThan("1.108.0")) {
     pack.features.forEach(f => {
       if (f?.type === "lake" && !f.group) f.group = "freshwater";
     });
-    drawFeatures(worldContext, viewContext, appServices);
+    FeaturesRenderer.render(worldContext, viewContext, appServices);
     viewbox.selectAll("#heights").remove();
   }
 
@@ -1031,8 +1031,8 @@ export function resolveVersionConflicts(mapVersion: string): void {
       }
     });
 
-    layerIsOn("toggleBurgIcons") && drawBurgIcons(worldContext, viewContext, appServices);
-    layerIsOn("toggleLabels") && drawBurgLabels(worldContext, viewContext, appServices);
+    layerIsOn("toggleBurgIcons") && BurgIconsRenderer.render(worldContext, viewContext, appServices);
+    layerIsOn("toggleLabels") && BurgLabelsRenderer.render(worldContext, viewContext, appServices);
 
     const legacyOptions = options as unknown as Record<string, unknown>;
     delete legacyOptions.showBurgPreview;
@@ -1081,7 +1081,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
           .attr("filter", "url(#dropShadow05)");
       }
 
-      if (layerIsOn("toggleIce")) drawIce(worldContext, viewContext, appServices);
+      if (layerIsOn("toggleIce")) IceRenderer.render(worldContext, viewContext, appServices);
     }
   }
 

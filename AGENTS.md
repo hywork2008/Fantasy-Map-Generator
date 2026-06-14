@@ -25,7 +25,10 @@ Editor (src/controllers/)  → Handles UI/User operations, mutates State, trigge
 | :--- | :--- | :--- | :--- |
 | **Generator** | ❌ Forbidden | ✅ Allowed | Procedural state generation and structural mutation. |
 | **Renderer** | ✅ Allowed (SVG only) | ❌ Forbidden | Map state visualization (`Readonly<WorldContext> -> SVG`). Must remain pure. |
-| **Editor** | ✅ Allowed | ✅ Allowed | User input handling, controlling state mutations, and triggering re-renders. |
+| **Editor** | ✅ Allowed (Strictly via events, no direct SVG drawing) | ✅ Allowed | User input handling, controlling state mutations, and triggering re-renders. |
+
+### Renderer Encapsulation Rule
+Direct DOM / SVG manipulation using `d3.select("...").append(...)` or similar methods is **strictly prohibited outside of the `src/renderers/` directory**. Non-Renderer layers (such as `src/controllers/` or `src/editors/`) must delegate all drawing operations to the appropriate Renderer (e.g., `BiomesRenderer.render()`).
 
 ## 2. Global State Elimination & Context Isolation
 

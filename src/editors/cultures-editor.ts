@@ -16,7 +16,7 @@ import { COArenderer } from "../modules/emblem/renderer";
 import type { NameBase } from "../modules/names-generator";
 import type { Province } from "../modules/provinces-generator";
 import type { State } from "../modules/states-generator";
-import { drawCultures, drawPopulation } from "../renderers";
+import { CulturesRenderer, PopulationRenderer } from "../renderers";
 import { abbreviate, applySortingByHeader, capitalize, debounce, ensureEl, findCell, isLand, rn, si } from "../utils";
 import { getPackPolygon } from "../utils/graphUtils";
 
@@ -560,7 +560,7 @@ function applyPopulationChange(
     });
   }
 
-  if (layerIsOn("togglePopulation")) drawPopulation(worldContext, viewContext, appServices);
+  if (layerIsOn("togglePopulation")) PopulationRenderer.render(worldContext, viewContext, appServices);
   refreshCulturesEditor();
 }
 
@@ -775,7 +775,7 @@ function showHierarchy(): void {
 function recalculateCultures(force?: boolean): void {
   if (force || ensureEl<HTMLInputElement>("culturesAutoChange").checked) {
     Cultures.expand(getWorldState());
-    drawCultures(worldContext, viewContext, appServices);
+    CulturesRenderer.render(worldContext, viewContext, appServices);
     pack.burgs.forEach((b: Burg) => {
       b.culture = pack.cells.culture[b.cell];
     });
@@ -890,7 +890,7 @@ function applyCultureManualAssignent(): void {
   });
 
   if (changed.size()) {
-    drawCultures(worldContext, viewContext, appServices);
+    CulturesRenderer.render(worldContext, viewContext, appServices);
     refreshCulturesEditor();
   }
   exitCulturesManualAssignment();
@@ -1107,7 +1107,7 @@ async function uploadCulturesData(this: HTMLInputElement): Promise<void> {
       removeCulture(c.i);
     });
 
-  drawCultures(worldContext, viewContext, appServices);
+  CulturesRenderer.render(worldContext, viewContext, appServices);
   refreshCulturesEditor();
 }
 

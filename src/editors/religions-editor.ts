@@ -9,7 +9,7 @@ type HighlightEvent = { id?: string | number | null; target?: EventTarget | null
 
 import { type HierarchyElement, open as openHierarchyTree } from "../controllers/hierarchy-tree";
 import { Religions } from "../modules/religions-generator";
-import { drawPopulation, drawReligions } from "../renderers";
+import { PopulationRenderer, ReligionsRenderer } from "../renderers";
 import { abbreviate, applySortingByHeader, debounce, ensureEl, findCell, isLand, rn, si } from "../utils";
 
 let worldContext: WorldContext;
@@ -513,7 +513,7 @@ function changePopulation(this: Element): void {
       });
     }
 
-    if (layerIsOn("togglePopulation")) drawPopulation(worldContext, viewContext, appServices);
+    if (layerIsOn("togglePopulation")) PopulationRenderer.render(worldContext, viewContext, appServices);
     refreshReligionsEditor();
   }
 }
@@ -810,7 +810,7 @@ function applyReligionsManualAssignent(): void {
   });
 
   if (changed.size()) {
-    drawReligions(worldContext, viewContext, appServices);
+    ReligionsRenderer.render(worldContext, viewContext, appServices);
     refreshReligionsEditor();
     drawReligionCenters();
   }
@@ -888,7 +888,7 @@ function addReligion(this: SVGElement, event: MouseEvent): void {
   if (event.shiftKey === false) exitAddReligionMode();
   Religions.add(center);
 
-  drawReligions(worldContext, viewContext, appServices);
+  ReligionsRenderer.render(worldContext, viewContext, appServices);
   refreshReligionsEditor();
   drawReligionCenters();
 }
@@ -937,7 +937,7 @@ function recalculateReligions(must?: boolean): void {
 
   Religions.recalculate();
 
-  drawReligions(worldContext, viewContext, appServices);
+  ReligionsRenderer.render(worldContext, viewContext, appServices);
   refreshReligionsEditor();
   drawReligionCenters();
 }

@@ -5,6 +5,17 @@ import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { connectVertices, convertTemperature, ensureEl, round } from "../utils";
 import { TIME } from "../utils/debug";
+import type { IRenderer } from "./core/IRenderer";
+
+export const TemperatureLayerRenderer: IRenderer = {
+  id: "temperature",
+  render(worldContext: Readonly<WorldContext>, viewContext: Readonly<ViewContext>, appServices: AppServices): void {
+    drawTemperature(worldContext, viewContext, appServices);
+  },
+  clear(viewContext: Readonly<ViewContext>): void {
+    viewContext.temperature.selectAll("*").remove();
+  }
+};
 
 export const drawTemperature = (
   worldContext: Readonly<WorldContext>,

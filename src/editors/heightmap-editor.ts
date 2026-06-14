@@ -24,7 +24,7 @@ import { Routes } from "../modules/routes-generator";
 import { States } from "../modules/states-generator";
 import type { Zone } from "../modules/zones-generator";
 import { Zones } from "../modules/zones-generator";
-import { drawFeatures } from "../renderers";
+import { FeaturesRenderer } from "../renderers";
 import { closeDialog, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import {
   createTypedArray,
@@ -252,7 +252,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     else if (mode === "keep") restoreKeptData();
     else if (mode === "risk") restoreRiskedData();
 
-    drawFeatures(worldContext, viewContext, appServices);
+    FeaturesRenderer.render(worldContext, viewContext, appServices);
     viewbox.selectAll("#heights").remove();
 
     turnButtonOff("toggleHeight");

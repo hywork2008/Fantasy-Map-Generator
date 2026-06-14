@@ -5,7 +5,7 @@ import type { WorldContext } from "../context/worldContext";
 import { interactionManager } from "../controllers/interactionManager";
 import { COArenderer } from "../modules/emblem/renderer";
 import { States } from "../modules/states-generator";
-import { drawStates } from "../renderers";
+import { StatesRenderer } from "../renderers";
 import { openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { findCell, getAdjective } from "../utils";
 
@@ -553,7 +553,7 @@ export function editDiplomacy(): void {
     clearMainTip();
     const selected = body.querySelector("div.Self");
     if (selected) selected.classList.remove("Self");
-    if (layerIsOn("toggleStates")) drawStates(worldContext, viewContext, appServices);
+    if (layerIsOn("toggleStates")) StatesRenderer.render(worldContext, viewContext, appServices);
     else toggleStates();
     debug.selectAll(".highlight").remove();
   }

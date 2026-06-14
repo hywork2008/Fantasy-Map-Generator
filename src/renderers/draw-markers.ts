@@ -4,6 +4,7 @@ import type { WorldContext } from "../context/worldContext";
 import type { Marker } from "../modules/markers-generator";
 import { rn } from "../utils";
 import { TIME } from "../utils/debug";
+import type { IRenderer } from "./core/IRenderer";
 
 type PinShapeFunction = (fill: string, stroke: string) => string;
 type PinShapes = { [key: string]: PinShapeFunction };
@@ -71,21 +72,25 @@ export function drawMarker(
     </svg>`;
 }
 
-export const drawMarkers = (
-  worldContext: Readonly<WorldContext>,
-  viewContext: Readonly<ViewContext>,
-  appServices: AppServices
-): void => {
-  TIME && console.time("drawMarkers");
-  const { pack } = worldContext;
-  const { markers } = viewContext;
+export const MarkersRenderer: IRenderer = {
+  id: "markers",
 
-  const rescale = +markers.attr("rescale");
-  const pinned = +markers.attr("pinned");
+  render(worldContext: Readonly<WorldContext>, viewContext: Readonly<ViewContext>, appServices: AppServices): void {
+    TIME && console.time("MarkersRenderer");
+    const { pack } = worldContext;
+    const { markers } = viewContext;
 
-  const markersData: Marker[] = pinned ? pack.markers.filter((m: Marker) => m.pinned) : pack.markers;
-  const html = markersData.map(marker => drawMarker(worldContext, viewContext, appServices, marker, rescale));
-  markers.html(html.join(""));
+    const rescale = +markers.attr("rescale");
+    const pinned = +markers.attr("pinned");
 
-  TIME && console.timeEnd("drawMarkers");
+    const markersData: Marker[] = pinned ? pack.markers.filter((m: Marker) => m.pinned) : pack.markers;
+    const html = markersData.map(marker => drawMarker(worldContext, viewContext, appServices, marker, rescale));
+    markers.html(html.join(""));
+
+    TIME && console.timeEnd("MarkersRenderer");
+  },
+
+  clear(viewContext: Readonly<ViewContext>): void {
+    viewContext.markers.selectAll("*").remove();
+  }
 };

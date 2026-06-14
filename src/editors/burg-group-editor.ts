@@ -3,7 +3,7 @@ import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import type { Burg, BurgGroup } from "../modules/burgs-generator";
 import { Burgs } from "../modules/burgs-generator";
-import { drawBurgIcons, drawBurgLabels } from "../renderers";
+import { BurgIconsRenderer, BurgLabelsRenderer } from "../renderers";
 import { closeDialog, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { ensureEl } from "../utils";
 
@@ -369,8 +369,8 @@ export function editBurgGroups(): void {
       Burgs.defineGroup(burg, populations);
     });
 
-    if (layerIsOn("toggleBurgIcons")) drawBurgIcons(worldContext, viewContext, appServices);
-    if (layerIsOn("toggleLabels")) drawBurgLabels(worldContext, viewContext, appServices);
+    if (layerIsOn("toggleBurgIcons")) BurgIconsRenderer.render(worldContext, viewContext, appServices);
+    if (layerIsOn("toggleLabels")) BurgLabelsRenderer.render(worldContext, viewContext, appServices);
     if (burgsOverviewRefresh?.offsetParent) burgsOverviewRefresh.click();
 
     closeDialog("burgGroupsEditor");

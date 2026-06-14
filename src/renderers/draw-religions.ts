@@ -1,30 +1,36 @@
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import { ensureEl, getGappedFillPaths, getIsolines } from "../utils";
+import { getGappedFillPaths, getIsolines } from "../utils";
 import { TIME } from "../utils/debug";
+import type { IRenderer } from "./core/IRenderer";
 
-export const drawReligions = (
-  worldContext: Readonly<WorldContext>,
-  _viewContext: Readonly<ViewContext>,
-  _appServices: AppServices
-): void => {
-  TIME && console.time("drawReligions");
-  const { pack } = worldContext;
-  const { cells, religions } = pack;
+export const ReligionsRenderer: IRenderer = {
+  id: "religions",
 
-  const bodyPaths = new Array(religions.length - 1);
-  const isolines: Record<string, { fill?: string; waterGap?: string }> = getIsolines(
-    pack,
-    cellId => cells.religion[cellId],
-    { fill: true, waterGap: true }
-  );
-  Object.entries(isolines).forEach(([index, { fill, waterGap }]) => {
-    const color = religions[+index].color;
-    bodyPaths.push(getGappedFillPaths("religion", fill, waterGap, color, +index));
-  });
+  render(worldContext: Readonly<WorldContext>, viewContext: Readonly<ViewContext>, _appServices: AppServices): void {
+    TIME && console.time("drawReligions");
+    const { pack } = worldContext;
+    const { cells, religions } = pack;
+    const { relig } = viewContext;
 
-  ensureEl("relig").innerHTML = bodyPaths.join("");
+    const bodyPaths = new Array(religions.length - 1);
+    const isolines: Record<string, { fill?: string; waterGap?: string }> = getIsolines(
+      pack,
+      cellId => cells.religion[cellId],
+      { fill: true, waterGap: true }
+    );
+    Object.entries(isolines).forEach(([index, { fill, waterGap }]) => {
+      const color = religions[+index].color;
+      bodyPaths.push(getGappedFillPaths("religion", fill, waterGap, color, +index));
+    });
 
-  TIME && console.timeEnd("drawReligions");
+    relig.html(bodyPaths.join(""));
+
+    TIME && console.timeEnd("drawReligions");
+  },
+
+  clear(viewContext: Readonly<ViewContext>): void {
+    viewContext.relig.html("");
+  }
 };

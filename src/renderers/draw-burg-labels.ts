@@ -4,47 +4,53 @@ import type { WorldContext } from "../context/worldContext";
 import type { Burg } from "../modules/burgs-generator";
 import { TIME } from "../utils/debug";
 
+import type { IRenderer } from "./core/IRenderer";
+
 interface BurgGroup {
   name: string;
   order: number;
 }
 
-export const drawBurgLabels = (
-  worldContext: Readonly<WorldContext>,
-  viewContext: Readonly<ViewContext>,
-  _appServices: AppServices
-): void => {
-  TIME && console.time("drawBurgLabels");
-  const { pack, options, style } = worldContext;
-  const { burgLabels } = viewContext;
-  createLabelGroups(options, style, burgLabels);
+export const BurgLabelsRenderer: IRenderer = {
+  id: "burgLabels",
 
-  for (const { name } of options.burgs.groups as BurgGroup[]) {
-    const burgsInGroup = pack.burgs.filter(b => b.group === name && !b.removed);
-    if (!burgsInGroup.length) continue;
+  render(worldContext: Readonly<WorldContext>, viewContext: Readonly<ViewContext>, _appServices: AppServices): void {
+    TIME && console.time("BurgLabelsRenderer");
+    const { pack, options, style } = worldContext;
+    const { burgLabels } = viewContext;
+    createLabelGroups(options, style, burgLabels);
 
-    const labelGroup = burgLabels.select<SVGGElement>(`#${name}`);
-    if (labelGroup.empty()) continue;
+    for (const { name } of options.burgs.groups as BurgGroup[]) {
+      const burgsInGroup = pack.burgs.filter(b => b.group === name && !b.removed);
+      if (!burgsInGroup.length) continue;
 
-    const dx = labelGroup.attr("data-dx") || 0;
-    const dy = labelGroup.attr("data-dy") || 0;
+      const labelGroup = burgLabels.select<SVGGElement>(`#${name}`);
+      if (labelGroup.empty()) continue;
 
-    labelGroup
-      .selectAll("text")
-      .data(burgsInGroup)
-      .enter()
-      .append("text")
-      .attr("text-rendering", "optimizeSpeed")
-      .attr("id", d => `burgLabel${d.i}`)
-      .attr("data-id", d => d.i!)
-      .attr("x", d => d.x)
-      .attr("y", d => d.y)
-      .attr("dx", `${dx}em`)
-      .attr("dy", `${dy}em`)
-      .text(d => d.name!);
+      const dx = labelGroup.attr("data-dx") || 0;
+      const dy = labelGroup.attr("data-dy") || 0;
+
+      labelGroup
+        .selectAll("text")
+        .data(burgsInGroup)
+        .enter()
+        .append("text")
+        .attr("text-rendering", "optimizeSpeed")
+        .attr("id", d => `burgLabel${d.i}`)
+        .attr("data-id", d => d.i!)
+        .attr("x", d => d.x)
+        .attr("y", d => d.y)
+        .attr("dx", `${dx}em`)
+        .attr("dy", `${dy}em`)
+        .text(d => d.name!);
+    }
+
+    TIME && console.timeEnd("BurgLabelsRenderer");
+  },
+
+  clear(viewContext: Readonly<ViewContext>): void {
+    viewContext.burgLabels.selectAll("*").remove();
   }
-
-  TIME && console.timeEnd("drawBurgLabels");
 };
 
 export const drawBurgLabel = (
@@ -56,7 +62,7 @@ export const drawBurgLabel = (
   const { burgLabels } = viewContext;
   const labelGroup = burgLabels.select<SVGGElement>(`#${burg.group}`);
   if (labelGroup.empty()) {
-    drawBurgLabels(worldContext, viewContext, appServices);
+    BurgLabelsRenderer.render(worldContext, viewContext, appServices);
     return;
   }
 

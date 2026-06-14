@@ -5,7 +5,14 @@ import type { WorldContext } from "../context/worldContext";
 import { interactionManager } from "../controllers/interactionManager";
 import type { PackedGraphFeature } from "../modules/features";
 import { Lakes } from "../modules/lakes";
-import { drawBiomes, drawBorders, drawCultures, drawProvinces, drawReligions, drawStates } from "../renderers";
+import {
+  BiomesRenderer,
+  BordersRenderer,
+  CulturesRenderer,
+  ProvincesRenderer,
+  ReligionsRenderer,
+  StatesRenderer
+} from "../renderers";
 import { getFeaturePath } from "../renderers/index";
 import { openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, rand, rn, si, unique } from "../utils";
@@ -138,12 +145,12 @@ export function editLake(event?: MouseEvent): void {
   }
 
   function handleVertexDragEnd(): void {
-    if (layerIsOn("toggleStates")) drawStates(worldContext, viewContext, appServices);
-    if (layerIsOn("toggleProvinces")) drawProvinces(worldContext, viewContext, appServices);
-    if (layerIsOn("toggleBorders")) drawBorders(worldContext, viewContext, appServices);
-    if (layerIsOn("toggleBiomes")) drawBiomes(worldContext, viewContext, appServices);
-    if (layerIsOn("toggleReligions")) drawReligions(worldContext, viewContext, appServices);
-    if (layerIsOn("toggleCultures")) drawCultures(worldContext, viewContext, appServices);
+    if (layerIsOn("toggleStates")) StatesRenderer.render(worldContext, viewContext, appServices);
+    if (layerIsOn("toggleProvinces")) ProvincesRenderer.render(worldContext, viewContext, appServices);
+    if (layerIsOn("toggleBorders")) BordersRenderer.render(worldContext, viewContext, appServices);
+    if (layerIsOn("toggleBiomes")) BiomesRenderer.render(worldContext, viewContext, appServices);
+    if (layerIsOn("toggleReligions")) ReligionsRenderer.render(worldContext, viewContext, appServices);
+    if (layerIsOn("toggleCultures")) CulturesRenderer.render(worldContext, viewContext, appServices);
   }
 
   function changeName(this: HTMLInputElement): void {
@@ -279,6 +286,7 @@ export function editLake(event?: MouseEvent): void {
   function closeLakesEditor(): void {
     debug.select("#vertices").remove();
     unselect();
+    modules.editLake = false;
   }
 }
 

@@ -3,37 +3,42 @@ import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { Rivers } from "../modules/river-generator";
 import { TIME } from "../utils/debug";
+import type { IRenderer } from "./core/IRenderer";
 
-export const drawRivers = (
-  worldContext: Readonly<WorldContext>,
-  viewContext: Readonly<ViewContext>,
-  _appServices: AppServices
-): void => {
-  TIME && console.time("drawRivers");
-  const { pack } = worldContext;
-  const { rivers } = viewContext;
+export const RiversRenderer: IRenderer = {
+  id: "rivers",
 
-  rivers.selectAll("*").remove();
+  render(worldContext: Readonly<WorldContext>, viewContext: Readonly<ViewContext>, _appServices: AppServices): void {
+    TIME && console.time("drawRivers");
+    const { pack } = worldContext;
+    const { rivers } = viewContext;
 
-  const riverPaths = pack.rivers
-    .filter(river => river.cells && river.cells.length >= 2)
-    .map(river => {
-      const { cells: riverCells, points, i, widthFactor, sourceWidth } = river;
+    rivers.selectAll("*").remove();
 
-      let resolvedPoints = points;
-      if (resolvedPoints && resolvedPoints.length !== riverCells!.length) {
-        console.error(
-          `River ${i} has ${riverCells!.length} cells, but only ${resolvedPoints.length} points defined. Resetting points data`
-        );
-        resolvedPoints = undefined;
-      }
+    const riverPaths = pack.rivers
+      .filter(river => river.cells && river.cells.length >= 2)
+      .map(river => {
+        const { cells: riverCells, points, i, widthFactor, sourceWidth } = river;
 
-      const meanderedPoints = Rivers.addMeandering(riverCells!, resolvedPoints ?? null);
-      const path = Rivers.getRiverPath(meanderedPoints, widthFactor, sourceWidth);
-      return `<path id="river${i}" d="${path}"/>`;
-    });
+        let resolvedPoints = points;
+        if (resolvedPoints && resolvedPoints.length !== riverCells!.length) {
+          console.error(
+            `River ${i} has ${riverCells!.length} cells, but only ${resolvedPoints.length} points defined. Resetting points data`
+          );
+          resolvedPoints = undefined;
+        }
 
-  rivers.html(riverPaths.join(""));
+        const meanderedPoints = Rivers.addMeandering(riverCells!, resolvedPoints ?? null);
+        const path = Rivers.getRiverPath(meanderedPoints, widthFactor, sourceWidth);
+        return `<path id="river${i}" d="${path}"/>`;
+      });
 
-  TIME && console.timeEnd("drawRivers");
+    rivers.html(riverPaths.join(""));
+
+    TIME && console.timeEnd("drawRivers");
+  },
+
+  clear(viewContext: Readonly<ViewContext>): void {
+    viewContext.rivers.selectAll("*").remove();
+  }
 };

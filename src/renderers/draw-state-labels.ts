@@ -5,6 +5,7 @@ import type { WorldContext } from "../context/worldContext";
 import type { TypedArray } from "../types/PackedGraph";
 import { drawPath, drawPoint, findClosestCell, minmax, rn, round, splitInTwo } from "../utils";
 import { DEBUG, TIME } from "../utils/debug";
+import type { IRenderer } from "./core/IRenderer";
 
 interface Ray {
   angle: number;
@@ -20,6 +21,16 @@ interface AngleData {
 }
 
 type PathPoints = [number, number][];
+
+export const StateLabelsRenderer: IRenderer = {
+  id: "state-labels",
+  render(worldContext: Readonly<WorldContext>, viewContext: Readonly<ViewContext>, appServices: AppServices): void {
+    drawStateLabels(worldContext, viewContext, appServices);
+  },
+  clear(viewContext: Readonly<ViewContext>): void {
+    viewContext.labels.select<SVGGElement>("g#states").html("");
+  }
+};
 
 // list - an optional array of stateIds to regenerate
 export const drawStateLabels = (

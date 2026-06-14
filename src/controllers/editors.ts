@@ -82,7 +82,7 @@ function clicked(this: Element, event: MouseEvent): void {
   else if (great?.id === "armies") editRegiment?.(el?.parentElement ?? undefined);
 }
 
-function unselect(): void {
+export function unselect(): void {
   restoreDefaultEvents();
   if (!elSelected) return;
   elSelected!.call(d3.drag<Element, unknown>().on("drag", null)).attr("class", null);

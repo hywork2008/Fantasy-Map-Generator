@@ -14,7 +14,7 @@ import type { Province } from "../modules/provinces-generator";
 import { Provinces } from "../modules/provinces-generator";
 import type { State } from "../modules/states-generator";
 import { States } from "../modules/states-generator";
-import { drawBorders, drawPopulation, drawProvinces, drawStateLabels, drawStates } from "../renderers";
+import { BordersRenderer, drawStateLabels, PopulationRenderer, ProvincesRenderer, StatesRenderer } from "../renderers";
 import { openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, findCell, getRandomColor, isLand, parseTransform, rand, rn, si, unique } from "../utils";
 import { getPackPolygon } from "../utils/graphUtils";
@@ -387,8 +387,8 @@ export function editProvinces(): void {
     const allStates = unique([...oldStates, ...newStates]);
 
     layerIsOn("toggleProvinces") && toggleProvinces();
-    layerIsOn("toggleStates") ? drawStates(worldContext, viewContext, appServices) : toggleStates();
-    layerIsOn("toggleBorders") ? drawBorders(worldContext, viewContext, appServices) : toggleBorders();
+    layerIsOn("toggleStates") ? StatesRenderer.render(worldContext, viewContext, appServices) : toggleStates();
+    layerIsOn("toggleBorders") ? BordersRenderer.render(worldContext, viewContext, appServices) : toggleBorders();
 
     const state = getWorldState();
     States.getPoles(state);
@@ -404,8 +404,8 @@ export function editProvinces(): void {
     });
 
     layerIsOn("toggleProvinces") && toggleProvinces();
-    layerIsOn("toggleStates") ? drawStates(worldContext, viewContext, appServices) : toggleStates();
-    layerIsOn("toggleBorders") ? drawBorders(worldContext, viewContext, appServices) : toggleBorders();
+    layerIsOn("toggleStates") ? StatesRenderer.render(worldContext, viewContext, appServices) : toggleStates();
+    layerIsOn("toggleBorders") ? BordersRenderer.render(worldContext, viewContext, appServices) : toggleBorders();
 
     unfog();
     closeDialogs();
@@ -490,7 +490,7 @@ export function editProvinces(): void {
         });
       }
 
-      if (layerIsOn("togglePopulation")) drawPopulation(worldContext, viewContext, appServices);
+      if (layerIsOn("togglePopulation")) PopulationRenderer.render(worldContext, viewContext, appServices);
       refreshProvincesEditor();
     }
   }
@@ -529,7 +529,7 @@ export function editProvinces(): void {
           const g = provs.select("#provincesBody");
           g.select(`#province${p}`).remove();
           g.select(`#province-gap${p}`).remove();
-          if (layerIsOn("toggleBorders")) drawBorders(worldContext, viewContext, appServices);
+          if (layerIsOn("toggleBorders")) BordersRenderer.render(worldContext, viewContext, appServices);
           refreshProvincesEditor();
           /* $(this).dialog("close") removed */
         },
@@ -1030,8 +1030,8 @@ export function editProvinces(): void {
       });
 
     Provinces.getPoles(getWorldState());
-    if (layerIsOn("toggleBorders")) drawBorders(worldContext, viewContext, appServices);
-    if (layerIsOn("toggleProvinces")) drawProvinces(worldContext, viewContext, appServices);
+    if (layerIsOn("toggleBorders")) BordersRenderer.render(worldContext, viewContext, appServices);
+    if (layerIsOn("toggleProvinces")) ProvincesRenderer.render(worldContext, viewContext, appServices);
 
     exitProvincesManualAssignment();
     refreshProvincesEditor();
@@ -1143,8 +1143,8 @@ export function editProvinces(): void {
       cells.province[cc] = province;
     });
 
-    if (layerIsOn("toggleBorders")) drawBorders(worldContext, viewContext, appServices);
-    if (layerIsOn("toggleProvinces")) drawProvinces(worldContext, viewContext, appServices);
+    if (layerIsOn("toggleBorders")) BordersRenderer.render(worldContext, viewContext, appServices);
+    if (layerIsOn("toggleProvinces")) ProvincesRenderer.render(worldContext, viewContext, appServices);
 
     collectStatistics();
     (ensureEl("provincesFilterState") as HTMLSelectElement).value = String(state);
@@ -1174,7 +1174,7 @@ export function editProvinces(): void {
     });
 
     if (!layerIsOn("toggleProvinces")) toggleProvinces();
-    else drawProvinces(worldContext, viewContext, appServices);
+    else ProvincesRenderer.render(worldContext, viewContext, appServices);
   }
 
   function downloadProvincesData(): void {
@@ -1223,7 +1223,7 @@ export function editProvinces(): void {
           });
 
           unfog();
-          if (layerIsOn("toggleBorders")) drawBorders(worldContext, viewContext, appServices);
+          if (layerIsOn("toggleBorders")) BordersRenderer.render(worldContext, viewContext, appServices);
           provs.select("#provincesBody").remove();
           turnButtonOff("toggleProvinces");
 
@@ -1427,8 +1427,8 @@ export function editProvinces(): void {
     collectStatistics();
     Provinces.getPoles(getWorldState());
 
-    if (layerIsOn("toggleProvinces")) drawProvinces(worldContext, viewContext, appServices);
-    if (layerIsOn("toggleBorders")) drawBorders(worldContext, viewContext, appServices);
+    if (layerIsOn("toggleProvinces")) ProvincesRenderer.render(worldContext, viewContext, appServices);
+    if (layerIsOn("toggleBorders")) BordersRenderer.render(worldContext, viewContext, appServices);
 
     unfog();
     debug.selectAll(".highlight").remove();

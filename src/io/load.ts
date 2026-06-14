@@ -11,7 +11,7 @@ import { Features } from "../modules/features";
 import type { NameBase } from "../modules/names-generator";
 import type { River } from "../modules/river-generator";
 import { Routes } from "../modules/routes-generator";
-import { drawGrid } from "../renderers";
+import { GridRenderer } from "../renderers";
 import { useOptionsState } from "../store/optionsState";
 import { openRichDialog } from "../ui/dialogs/dialogService";
 import { calculateVoronoi, ensureEl, findCell, last, link, minmax, parseError, rn } from "../utils";
@@ -808,7 +808,7 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
     }
     emblems.selectAll("use").attr("href", null);
     if (rulers && layerIsOn("toggleRulers")) rulers.draw();
-    if (layerIsOn("toggleGrid")) drawGrid(worldContext, viewContext, appServices);
+    if (layerIsOn("toggleGrid")) GridRenderer.render(worldContext, viewContext, appServices);
     restoreDefaultEvents?.();
     focusOn();
     invokeActiveZooming();

@@ -1,25 +1,30 @@
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import type { IRenderer } from "./core/IRenderer";
 
-export const drawTexture = (
-  worldContext: Readonly<WorldContext>,
-  viewContext: Readonly<ViewContext>,
-  _appServices: AppServices
-): void => {
-  const { graphWidth, graphHeight } = worldContext;
-  const { texture } = viewContext;
+export const TextureRenderer: IRenderer = {
+  id: "texture",
 
-  const x = Number(texture.attr("data-x") || 0);
-  const y = Number(texture.attr("data-y") || 0);
-  const href = texture.attr("data-href");
+  render(worldContext: Readonly<WorldContext>, viewContext: Readonly<ViewContext>, _appServices: AppServices): void {
+    const { graphWidth, graphHeight } = worldContext;
+    const { texture } = viewContext;
 
-  texture
-    .append("image")
-    .attr("preserveAspectRatio", "xMidYMid slice")
-    .attr("x", x)
-    .attr("y", y)
-    .attr("width", graphWidth - x)
-    .attr("height", graphHeight - y)
-    .attr("href", href);
+    const x = Number(texture.attr("data-x") || 0);
+    const y = Number(texture.attr("data-y") || 0);
+    const href = texture.attr("data-href");
+
+    texture
+      .append("image")
+      .attr("preserveAspectRatio", "xMidYMid slice")
+      .attr("x", x)
+      .attr("y", y)
+      .attr("width", graphWidth - x)
+      .attr("height", graphHeight - y)
+      .attr("href", href);
+  },
+
+  clear(viewContext: Readonly<ViewContext>): void {
+    viewContext.texture.selectAll("*").remove();
+  }
 };

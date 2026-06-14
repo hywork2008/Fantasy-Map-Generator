@@ -5,13 +5,13 @@ import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { OceanLayers } from "../modules/ocean-layers";
 import {
-  drawBurgIcons,
-  drawBurgLabels,
-  drawEmblems,
-  drawGrid,
-  drawHeightmap,
-  drawReliefIcons,
-  drawStateLabels
+  BurgIconsRenderer,
+  BurgLabelsRenderer,
+  drawStateLabels,
+  EmblemsRenderer,
+  GridRenderer,
+  HeightmapRenderer,
+  ReliefIconsRenderer
 } from "../renderers";
 import { drawRegiments, drawScaleBar, fitScaleBar } from "../renderers/index";
 import { useStyleState } from "../store/styleState";
@@ -521,7 +521,7 @@ function changeFontSize(el: AnySelection, size: number): void {
 // ─── updateElements ───────────────────────────────────────────────────────────
 
 function updateElements(): void {
-  if (layerIsOn("toggleHeight")) drawHeightmap(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleHeight")) HeightmapRenderer.render(worldContext, viewContext, appServices);
   if (legend.selectAll("*").size()) redrawLegend();
   oceanLayers.selectAll("path").remove();
   OceanLayers();
@@ -540,22 +540,22 @@ export function applySliderChange(id: string, value: string): void {
     case "styleStrokeWidthInput":
       getEl().attr("stroke-width", value);
       if (ensureEl<HTMLSelectElement>("styleElementSelect").value === "gridOverlay" && layerIsOn("toggleGrid"))
-        drawGrid(worldContext, viewContext, appServices);
+        GridRenderer.render(worldContext, viewContext, appServices);
       break;
     case "styleLetterSpacingInput":
       getEl().attr("letter-spacing", value);
       break;
     case "styleHeightmapTerracing":
       getEl().attr("terracing", value);
-      drawHeightmap(worldContext, viewContext, appServices);
+      HeightmapRenderer.render(worldContext, viewContext, appServices);
       break;
     case "styleHeightmapSkip":
       getEl().attr("skip", value);
-      drawHeightmap(worldContext, viewContext, appServices);
+      HeightmapRenderer.render(worldContext, viewContext, appServices);
       break;
     case "styleHeightmapSimplification":
       getEl().attr("relax", value);
-      drawHeightmap(worldContext, viewContext, appServices);
+      HeightmapRenderer.render(worldContext, viewContext, appServices);
       break;
     case "styleOceanPatternOpacity":
       document.getElementById("oceanicPattern")?.setAttribute("opacity", value);
@@ -574,12 +574,12 @@ export function applySliderChange(id: string, value: string): void {
       break;
     case "styleReliefSize":
       terrain.attr("size", value);
-      drawReliefIcons(worldContext, viewContext, appServices);
+      ReliefIconsRenderer.render(worldContext, viewContext, appServices);
       if (!layerIsOn("toggleRelief")) toggleRelief();
       break;
     case "styleReliefDensity":
       terrain.attr("density", value);
-      drawReliefIcons(worldContext, viewContext, appServices);
+      ReliefIconsRenderer.render(worldContext, viewContext, appServices);
       if (!layerIsOn("toggleRelief")) toggleRelief();
       break;
     case "styleLegendColItems":
@@ -624,15 +624,15 @@ export function applySliderChange(id: string, value: string): void {
     }
     case "emblemsStateSizeInput":
       emblems.select("#stateEmblems").attr("data-size", value);
-      drawEmblems(worldContext, viewContext, appServices);
+      EmblemsRenderer.render(worldContext, viewContext, appServices);
       break;
     case "emblemsProvinceSizeInput":
       emblems.select("#provinceEmblems").attr("data-size", value);
-      drawEmblems(worldContext, viewContext, appServices);
+      EmblemsRenderer.render(worldContext, viewContext, appServices);
       break;
     case "emblemsBurgSizeInput":
       emblems.select("#burgEmblems").attr("data-size", value);
-      drawEmblems(worldContext, viewContext, appServices);
+      EmblemsRenderer.render(worldContext, viewContext, appServices);
       break;
     case "styleScaleBarBackgroundOpacity":
       scaleBar.select<SVGRectElement>("#scaleBarBack").attr("opacity", value);
@@ -781,19 +781,19 @@ export function initStyleTab() {
     ensureEl<HTMLInputElement>("styleStrokeOutput").value = value;
     getEl().attr("stroke", value);
     if (ensureEl<HTMLSelectElement>("styleElementSelect").value === "gridOverlay" && layerIsOn("toggleGrid"))
-      drawGrid(worldContext, viewContext, appServices);
+      GridRenderer.render(worldContext, viewContext, appServices);
   });
 
   ensureEl("styleStrokeDasharrayInput").addEventListener("input", (e: Event) => {
     getEl().attr("stroke-dasharray", (e.target as HTMLInputElement).value);
     if (ensureEl<HTMLSelectElement>("styleElementSelect").value === "gridOverlay" && layerIsOn("toggleGrid"))
-      drawGrid(worldContext, viewContext, appServices);
+      GridRenderer.render(worldContext, viewContext, appServices);
   });
 
   ensureEl("styleStrokeLinecapInput").addEventListener("change", (e: Event) => {
     getEl().attr("stroke-linecap", (e.target as HTMLSelectElement).value);
     if (ensureEl<HTMLSelectElement>("styleElementSelect").value === "gridOverlay" && layerIsOn("toggleGrid"))
-      drawGrid(worldContext, viewContext, appServices);
+      GridRenderer.render(worldContext, viewContext, appServices);
   });
 
   ensureEl("styleLabelsHideGroup").addEventListener("change", (e: Event) => {
@@ -838,24 +838,24 @@ export function initStyleTab() {
 
   ensureEl("styleGridType").addEventListener("change", (e: Event) => {
     getEl().attr("type", (e.target as HTMLSelectElement).value);
-    if (layerIsOn("toggleGrid")) drawGrid(worldContext, viewContext, appServices);
+    if (layerIsOn("toggleGrid")) GridRenderer.render(worldContext, viewContext, appServices);
     calculateFriendlyGridSize();
   });
 
   ensureEl("styleGridScale").addEventListener("input", () => {
     getEl().attr("scale", ensureEl<HTMLInputElement>("styleGridScale").value);
-    if (layerIsOn("toggleGrid")) drawGrid(worldContext, viewContext, appServices);
+    if (layerIsOn("toggleGrid")) GridRenderer.render(worldContext, viewContext, appServices);
     calculateFriendlyGridSize();
   });
 
   ensureEl("styleGridShiftX").addEventListener("input", (e: Event) => {
     getEl().attr("dx", (e.target as HTMLInputElement).value);
-    if (layerIsOn("toggleGrid")) drawGrid(worldContext, viewContext, appServices);
+    if (layerIsOn("toggleGrid")) GridRenderer.render(worldContext, viewContext, appServices);
   });
 
   ensureEl("styleGridShiftY").addEventListener("input", (e: Event) => {
     getEl().attr("dy", (e.target as HTMLInputElement).value);
-    if (layerIsOn("toggleGrid")) drawGrid(worldContext, viewContext, appServices);
+    if (layerIsOn("toggleGrid")) GridRenderer.render(worldContext, viewContext, appServices);
   });
 
   ensureEl("styleRescaleMarkers").addEventListener("change", (e: Event) => {
@@ -888,7 +888,7 @@ export function initStyleTab() {
 
   ensureEl("styleHeightmapScheme").addEventListener("change", (e: Event) => {
     getEl().attr("scheme", (e.target as HTMLSelectElement).value);
-    drawHeightmap(worldContext, viewContext, appServices);
+    HeightmapRenderer.render(worldContext, viewContext, appServices);
   });
 
   ensureEl("openCreateHeightmapSchemeButton").addEventListener("click", function (this: HTMLButtonElement) {
@@ -971,7 +971,7 @@ export function initStyleTab() {
       }
       addCustomColorScheme(stops);
       getEl().attr("scheme", stops);
-      drawHeightmap(worldContext, viewContext, appServices);
+      HeightmapRenderer.render(worldContext, viewContext, appServices);
     }
 
     openRichDialog({
@@ -996,17 +996,17 @@ export function initStyleTab() {
 
   ensureEl("styleHeightmapRenderOcean").addEventListener("change", (e: Event) => {
     getEl().attr("data-render", +(e.target as HTMLInputElement).checked);
-    drawHeightmap(worldContext, viewContext, appServices);
+    HeightmapRenderer.render(worldContext, viewContext, appServices);
   });
 
   ensureEl("styleHeightmapCurve").addEventListener("change", (e: Event) => {
     getEl().attr("curve", (e.target as HTMLSelectElement).value);
-    drawHeightmap(worldContext, viewContext, appServices);
+    HeightmapRenderer.render(worldContext, viewContext, appServices);
   });
 
   ensureEl("styleReliefSet").addEventListener("change", (e: Event) => {
     terrain.attr("set", (e.target as HTMLSelectElement).value);
-    drawReliefIcons(worldContext, viewContext, appServices);
+    ReliefIconsRenderer.render(worldContext, viewContext, appServices);
     if (!layerIsOn("toggleRelief")) toggleRelief();
   });
 
@@ -1297,9 +1297,9 @@ export function initStyleTab() {
     const [presetName, styleData] = await getStylePreset(desiredPreset);
     localStorage.setItem("presetStyle", presetName);
     applyStyleWithUiRefresh(styleData);
-    if (layerIsOn("toggleBurgIcons")) drawBurgIcons(worldContext, viewContext, appServices);
+    if (layerIsOn("toggleBurgIcons")) BurgIconsRenderer.render(worldContext, viewContext, appServices);
     if (layerIsOn("toggleLabels")) {
-      drawBurgLabels(worldContext, viewContext, appServices);
+      BurgLabelsRenderer.render(worldContext, viewContext, appServices);
       drawStateLabels(worldContext, viewContext, appServices);
     }
   }

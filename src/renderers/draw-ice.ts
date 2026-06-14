@@ -10,30 +10,36 @@ interface IceElement {
   offset?: [number, number];
 }
 
-export const drawIce = (
-  worldContext: Readonly<WorldContext>,
-  viewContext: Readonly<ViewContext>,
-  _appServices: AppServices
-): void => {
-  TIME && console.time("drawIce");
-  const { pack } = worldContext;
-  const { ice } = viewContext;
+import type { IRenderer } from "./core/IRenderer";
 
-  ice.selectAll("*").remove();
+export const IceRenderer: IRenderer = {
+  id: "ice",
 
-  let html = "";
+  render(worldContext: Readonly<WorldContext>, viewContext: Readonly<ViewContext>, _appServices: AppServices): void {
+    TIME && console.time("IceRenderer");
+    const { pack } = worldContext;
+    const { ice } = viewContext;
 
-  pack.ice.forEach((iceElement: IceElement) => {
-    if (iceElement.type === "glacier") {
-      html += getGlacierHtml(iceElement);
-    } else if (iceElement.type === "iceberg") {
-      html += getIcebergHtml(iceElement);
-    }
-  });
+    ice.selectAll("*").remove();
 
-  ice.html(html);
+    let html = "";
 
-  TIME && console.timeEnd("drawIce");
+    pack.ice.forEach((iceElement: IceElement) => {
+      if (iceElement.type === "glacier") {
+        html += getGlacierHtml(iceElement);
+      } else if (iceElement.type === "iceberg") {
+        html += getIcebergHtml(iceElement);
+      }
+    });
+
+    ice.html(html);
+
+    TIME && console.timeEnd("IceRenderer");
+  },
+
+  clear(viewContext: Readonly<ViewContext>): void {
+    viewContext.ice.selectAll("*").remove();
+  }
 };
 
 export const redrawIceberg = (

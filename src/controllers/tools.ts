@@ -37,23 +37,23 @@ import type { State } from "../modules/states-generator";
 import { States } from "../modules/states-generator";
 import { Zones } from "../modules/zones-generator";
 import {
-  drawBorders,
-  drawBurgIcons,
-  drawBurgLabels,
-  drawCultures,
-  drawEmblems,
-  drawIce,
-  drawMarkers,
-  drawMilitary,
-  drawPopulation,
-  drawProvinces,
-  drawReliefIcons,
-  drawReligions,
-  drawRivers,
-  drawRoutes,
+  BordersRenderer,
+  BurgIconsRenderer,
+  BurgLabelsRenderer,
+  CulturesRenderer,
   drawStateLabels,
-  drawStates,
-  drawZones
+  EmblemsRenderer,
+  IceRenderer,
+  MarkersRenderer,
+  MilitaryRenderer,
+  PopulationRenderer,
+  ProvincesRenderer,
+  ReliefIconsRenderer,
+  ReligionsRenderer,
+  RiversRenderer,
+  RoutesRenderer,
+  StatesRenderer,
+  ZonesRenderer
 } from "../renderers";
 import { drawMarker } from "../renderers/index";
 import type { WorldNote } from "../types/WorldState";
@@ -142,7 +142,7 @@ function processFeatureRegeneration(event: MouseEvent | null, button: string): v
     d3.select("#labels").style("display", "block");
     drawStateLabels(worldContext, viewContext, appServices);
   } else if (button === "regenerateReliefIcons") {
-    drawReliefIcons(worldContext, viewContext, appServices);
+    ReliefIconsRenderer.render(worldContext, viewContext, appServices);
     if (!layerIsOn("toggleRelief")) toggleRelief();
   } else if (button === "regenerateRoutes") {
     regenerateRoutes();
@@ -195,7 +195,7 @@ function regenerateRoutes(): void {
   Routes.generate(worldContext, viewContext, appServices, getWorldState(), locked);
 
   routes.selectAll("path").remove();
-  if (layerIsOn("toggleRoutes")) drawRoutes(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleRoutes")) RoutesRenderer.render(worldContext, viewContext, appServices);
 }
 
 function regenerateRivers(): void {
@@ -204,7 +204,7 @@ function regenerateRivers(): void {
   Rivers.specify(worldContext, viewContext, appServices, state);
   Features.defineGroups();
   Lakes.defineNames(state);
-  if (layerIsOn("toggleRivers")) drawRivers(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleRivers")) RiversRenderer.render(worldContext, viewContext, appServices);
 }
 
 function recalculatePopulation(): void {
@@ -219,7 +219,9 @@ function recalculatePopulation(): void {
     b.population = rn(b.population * gauss(2, 3, 0.6, 20, 3), 3);
   });
 
-  layerIsOn("togglePopulation") ? drawPopulation(worldContext, viewContext, appServices) : togglePopulation();
+  layerIsOn("togglePopulation")
+    ? PopulationRenderer.render(worldContext, viewContext, appServices)
+    : togglePopulation();
 }
 
 function regenerateStates(): void {
@@ -241,13 +243,13 @@ function regenerateStates(): void {
   Provinces.generate(worldContext, viewContext, appServices, state, true);
   Provinces.getPoles(state);
 
-  layerIsOn("toggleStates") ? drawStates(worldContext, viewContext, appServices) : toggleStates();
-  layerIsOn("toggleBorders") ? drawBorders(worldContext, viewContext, appServices) : toggleBorders();
-  if (layerIsOn("toggleProvinces")) drawProvinces(worldContext, viewContext, appServices);
+  layerIsOn("toggleStates") ? StatesRenderer.render(worldContext, viewContext, appServices) : toggleStates();
+  layerIsOn("toggleBorders") ? BordersRenderer.render(worldContext, viewContext, appServices) : toggleBorders();
+  if (layerIsOn("toggleProvinces")) ProvincesRenderer.render(worldContext, viewContext, appServices);
 
   drawStateLabels(worldContext, viewContext, appServices);
   Military.generate(worldContext, viewContext, appServices, state);
-  if (layerIsOn("toggleEmblems")) drawEmblems(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleEmblems")) EmblemsRenderer.render(worldContext, viewContext, appServices);
 
   if (ensureEl("burgsOverviewRefresh").offsetParent) ensureEl<HTMLButtonElement>("burgsOverviewRefresh").click();
   if (document.getElementById("statesEditorRefresh")?.offsetParent)
@@ -420,14 +422,14 @@ function regenerateProvinces(): void {
   Provinces.generate(worldContext, viewContext, appServices, state, true, true);
   Provinces.getPoles(state);
 
-  if (layerIsOn("toggleBorders")) drawBorders(worldContext, viewContext, appServices);
-  layerIsOn("toggleProvinces") ? drawProvinces(worldContext, viewContext, appServices) : toggleProvinces();
+  if (layerIsOn("toggleBorders")) BordersRenderer.render(worldContext, viewContext, appServices);
+  layerIsOn("toggleProvinces") ? ProvincesRenderer.render(worldContext, viewContext, appServices) : toggleProvinces();
 
   document.querySelectorAll("[id^=provinceCOA]").forEach(el => {
     el.remove();
   });
   emblems.selectAll("use").remove();
-  if (layerIsOn("toggleEmblems")) drawEmblems(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleEmblems")) EmblemsRenderer.render(worldContext, viewContext, appServices);
   refreshAllEditors();
 }
 
@@ -543,14 +545,14 @@ function regenerateBurgs(): void {
 
   Burgs.specify(worldContext, viewContext, appServices, getWorldState());
   regenerateRoutes();
-  drawBurgIcons(worldContext, viewContext, appServices);
-  drawBurgLabels(worldContext, viewContext, appServices);
+  BurgIconsRenderer.render(worldContext, viewContext, appServices);
+  BurgLabelsRenderer.render(worldContext, viewContext, appServices);
 
   document.querySelectorAll("[id^=burgCOA]").forEach(el => {
     el.remove();
   });
   emblems.selectAll("use").remove();
-  if (layerIsOn("toggleEmblems")) drawEmblems(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleEmblems")) EmblemsRenderer.render(worldContext, viewContext, appServices);
 
   if (ensureEl("burgsOverviewRefresh").offsetParent) ensureEl<HTMLButtonElement>("burgsOverviewRefresh").click();
   if (document.getElementById("statesEditorRefresh")?.offsetParent)
@@ -609,12 +611,12 @@ function regenerateEmblems(): void {
     province.coa.shield = COA.getShield(culture, province.state!);
   });
 
-  layerIsOn("toggleEmblems") ? drawEmblems(worldContext, viewContext, appServices) : toggleEmblems();
+  layerIsOn("toggleEmblems") ? EmblemsRenderer.render(worldContext, viewContext, appServices) : toggleEmblems();
 }
 
 function regenerateReligions(): void {
   Religions.generate(worldContext, viewContext, appServices, getWorldState());
-  layerIsOn("toggleReligions") ? drawReligions(worldContext, viewContext, appServices) : toggleReligions();
+  layerIsOn("toggleReligions") ? ReligionsRenderer.render(worldContext, viewContext, appServices) : toggleReligions();
   refreshAllEditors();
 }
 
@@ -638,13 +640,13 @@ function regenerateCultures(): void {
     return { ...religion, culture: pack.cells.culture[religion.center!] };
   });
 
-  layerIsOn("toggleCultures") ? drawCultures(worldContext, viewContext, appServices) : toggleCultures();
+  layerIsOn("toggleCultures") ? CulturesRenderer.render(worldContext, viewContext, appServices) : toggleCultures();
   refreshAllEditors();
 }
 
 function regenerateMilitary(): void {
   Military.generate(worldContext, viewContext, appServices, getWorldState());
-  if (layerIsOn("toggleMilitary")) drawMilitary(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleMilitary")) MilitaryRenderer.render(worldContext, viewContext, appServices);
   else toggleMilitary();
   if (ensureEl("militaryOverviewRefresh").offsetParent) ensureEl<HTMLButtonElement>("militaryOverviewRefresh").click();
 }
@@ -652,13 +654,13 @@ function regenerateMilitary(): void {
 function regenerateIce(): void {
   if (!layerIsOn("toggleIce")) toggleIce();
   Ice.generate(worldContext, viewContext, appServices, getWorldState());
-  drawIce(worldContext, viewContext, appServices);
+  IceRenderer.render(worldContext, viewContext, appServices);
 }
 
 function regenerateMarkers(): void {
   Markers.regenerate();
   turnButtonOn("toggleMarkers");
-  drawMarkers(worldContext, viewContext, appServices);
+  MarkersRenderer.render(worldContext, viewContext, appServices);
   const markersOverviewRefreshEl = document.getElementById("markersOverviewRefresh") as HTMLButtonElement | null;
   if (markersOverviewRefreshEl?.offsetParent) markersOverviewRefreshEl.click();
 }
@@ -675,7 +677,7 @@ function regenerateZones(event: MouseEvent | null): void {
   function addNumberOfZones(number: number) {
     Zones.generate(worldContext, viewContext, appServices, getWorldState(), number);
     if (ensureEl("zonesEditorRefresh").offsetParent) ensureEl<HTMLButtonElement>("zonesEditorRefresh").click();
-    if (layerIsOn("toggleZones")) drawZones(worldContext, viewContext, appServices);
+    if (layerIsOn("toggleZones")) ZonesRenderer.render(worldContext, viewContext, appServices);
   }
 }
 
@@ -979,8 +981,7 @@ function addMarkerOnClick(this: SVGElement, event: MouseEvent): void {
   const isMarkerSelected = packMarkers.length && elSelected?.node()?.parentElement?.id === "markers";
   const selectedMarker = isMarkerSelected
     ? packMarkers.find(
-        (marker: import("../modules/markers-generator").Marker) =>
-          marker.i === +(elSelected as unknown as { attr(k: string): string }).attr("id").slice(6)
+        (marker: import("../modules/markers-generator").Marker) => marker.i === +elSelected!.attr("id").slice(6)
       )
     : null;
 

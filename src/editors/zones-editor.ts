@@ -3,7 +3,7 @@ import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import type { Zone } from "../modules/zones-generator";
-import { drawPopulation, drawZones } from "../renderers";
+import { PopulationRenderer, ZonesRenderer } from "../renderers";
 import { openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, findCell, rn, si, unique } from "../utils";
 import { getPackPolygon } from "../utils/graphUtils";
@@ -177,7 +177,7 @@ export function editZones(): void {
   }
 
   function filterZonesByType(): void {
-    drawZones(worldContext, viewContext, appServices);
+    ZonesRenderer.render(worldContext, viewContext, appServices);
     zonesEditorAddLines();
   }
 
@@ -192,7 +192,7 @@ export function editZones(): void {
 
   //  pack.zones.splice(oldIndex, 1);
   //  pack.zones.splice(newIndex, 0, zone);
-  //  drawZones(worldContext, viewContext, appServices);
+  //  ZonesRenderer.render(worldContext, viewContext, appServices);
   // }
 
   function enterZonesManualAssignent(): void {
@@ -315,13 +315,13 @@ export function editZones(): void {
       zone.cells = zoneCells[zone.i] || [];
     });
 
-    drawZones(worldContext, viewContext, appServices);
+    ZonesRenderer.render(worldContext, viewContext, appServices);
     zonesEditorAddLines();
     exitZonesManualAssignment();
   }
 
   function cancelZonesManualAssignent(): void {
-    drawZones(worldContext, viewContext, appServices);
+    ZonesRenderer.render(worldContext, viewContext, appServices);
     exitZonesManualAssignment();
   }
 
@@ -356,7 +356,7 @@ export function editZones(): void {
   function changeFill(fill: string, zone: Zone): void {
     const callback = (newFill: string) => {
       zone.color = newFill;
-      drawZones(worldContext, viewContext, appServices);
+      ZonesRenderer.render(worldContext, viewContext, appServices);
       zonesEditorAddLines();
     };
 
@@ -368,7 +368,7 @@ export function editZones(): void {
     if (isHidden) delete zone.hidden;
     else zone.hidden = true;
 
-    drawZones(worldContext, viewContext, appServices);
+    ZonesRenderer.render(worldContext, viewContext, appServices);
     zonesEditorAddLines();
   }
 
@@ -431,7 +431,7 @@ export function editZones(): void {
     pack.zones.push({ i: zoneId, name, type, color, cells: [] });
 
     zonesEditorAddLines();
-    drawZones(worldContext, viewContext, appServices);
+    ZonesRenderer.render(worldContext, viewContext, appServices);
   }
 
   function downloadZonesData(): void {
@@ -553,7 +553,7 @@ export function editZones(): void {
         });
       }
 
-      if (layerIsOn("togglePopulation")) drawPopulation(worldContext, viewContext, appServices);
+      if (layerIsOn("togglePopulation")) PopulationRenderer.render(worldContext, viewContext, appServices);
       zonesEditorAddLines();
     }
   }

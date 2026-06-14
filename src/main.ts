@@ -34,7 +34,7 @@ import { Routes } from "./modules/routes-generator";
 import { States } from "./modules/states-generator";
 import { Zones } from "./modules/zones-generator";
 import { renderGroupCOAs } from "./renderers/draw-emblems";
-import { drawCoordinates, drawScaleBar, fitScaleBar } from "./renderers/index";
+import { CoordinatesRenderer, drawScaleBar, fitScaleBar } from "./renderers/index";
 import {
   TYPED_ARRAY_MAX_VALUES as _TMP,
   calculateVoronoi,
@@ -616,7 +616,7 @@ function zoomRaf(event: { transform: { k: number; x: number; y: number } }) {
     viewbox.attr("transform", `translate(${viewX} ${viewY}) scale(${scale})`);
 
     if (didPositionChange) {
-      if (layerIsOn("toggleCoordinates")) drawCoordinates(worldContext, viewContext, appServices);
+      if (layerIsOn("toggleCoordinates")) CoordinatesRenderer.render(worldContext, viewContext, appServices);
     }
 
     if (customization === 1) {

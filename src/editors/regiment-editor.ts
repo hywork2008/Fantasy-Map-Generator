@@ -26,8 +26,8 @@ export function editRegiment(selectorOrEl?: string | Element): void {
     .selectAll<SVGGElement, unknown>(":scope > g > g")
     .call(drag<SVGGElement, unknown>().on("start", dragRegimentStart).on("drag", dragRegimentDrag));
   const rawEl = typeof selectorOrEl === "string" ? document.querySelector(selectorOrEl) : (selectorOrEl ?? null);
-  elSelected = rawEl as unknown as typeof elSelected;
-  const getRegEl = () => elSelected as unknown as SVGGElement;
+  elSelected = select(rawEl as Element);
+  const getRegEl = () => elSelected!.node() as SVGGElement;
   if (!pack.states[+getRegEl().dataset.state!]) return;
   if (!getRegiment()) return;
   updateRegimentData(getRegiment()!);
@@ -120,7 +120,7 @@ export function editRegiment(selectorOrEl?: string | Element): void {
 
   function drawRotationControl(): void {
     const reg = getRegiment();
-    const bbox = (elSelected as unknown as SVGGElement).getBBox();
+    const bbox = getRegEl().getBBox();
 
     debug
       .append("circle")
@@ -144,7 +144,7 @@ export function editRegiment(selectorOrEl?: string | Element): void {
     const reg = getRegiment();
     const { x, y } = event;
     const angle = rn(Math.atan2(y - reg.y, x - reg.x) * (180 / Math.PI), 2);
-    (elSelected as unknown as SVGGElement).setAttribute("transform", `rotate(${angle})`);
+    getRegEl().setAttribute("transform", `rotate(${angle})`);
     this.setAttribute("transform", `rotate(${angle})`);
     reg.angle = rn(angle, 2);
   }
@@ -155,17 +155,15 @@ export function editRegiment(selectorOrEl?: string | Element): void {
     (ensureEl("regimentType") as HTMLElement).className = reg.n ? "icon-anchor" : "icon-users";
 
     const size = +armies.attr("box-size");
-    const baseRect = (elSelected as unknown as SVGGElement).querySelectorAll("rect")[0];
-    const iconRect = (elSelected as unknown as SVGGElement).querySelectorAll("rect")[1];
-    const icon = (elSelected as unknown as SVGGElement).querySelector(".regimentIcon") as SVGElement;
+    const baseRect = getRegEl().querySelectorAll("rect")[0];
+    const iconRect = getRegEl().querySelectorAll("rect")[1];
+    const icon = getRegEl().querySelector(".regimentIcon") as SVGElement;
     const x = reg.n ? reg.x - size * 2 : reg.x - size * 3;
     baseRect.setAttribute("x", String(x));
     baseRect.setAttribute("width", String(reg.n ? size * 4 : size * 6));
     iconRect.setAttribute("x", String(x - size * 2));
     icon.setAttribute("x", String(x - size));
-    ((elSelected as unknown as SVGGElement).querySelector("text") as SVGTextElement).innerHTML = String(
-      Military.getTotal(reg)
-    );
+    (getRegEl().querySelector("text") as SVGTextElement).innerHTML = String(Military.getTotal(reg));
   }
 
   function changeName(this: HTMLInputElement): void {
@@ -188,13 +186,8 @@ export function editRegiment(selectorOrEl?: string | Element): void {
       (ensureEl("regimentEmblem") as HTMLElement).innerHTML = isExternal
         ? `<img src="${value}" style="width: 1em; height: 1em;">`
         : value;
-      ((elSelected as unknown as SVGGElement).querySelector(".regimentIcon") as SVGElement).innerHTML = isExternal
-        ? ""
-        : value;
-      ((elSelected as unknown as SVGGElement).querySelector(".regimentImage") as SVGImageElement).setAttribute(
-        "href",
-        isExternal ? value : ""
-      );
+      (getRegEl().querySelector(".regimentIcon") as SVGElement).innerHTML = isExternal ? "" : value;
+      (getRegEl().querySelector(".regimentImage") as SVGImageElement).setAttribute("href", isExternal ? value : "");
     });
   }
 
@@ -203,9 +196,7 @@ export function editRegiment(selectorOrEl?: string | Element): void {
     const reg = getRegiment();
     reg.u[u] = +this.value || 0;
     reg.a = sum(Object.values(reg.u) as number[]);
-    ((elSelected as unknown as SVGGElement).querySelector("text") as SVGTextElement).innerHTML = String(
-      Military.getTotal(reg)
-    );
+    (getRegEl().querySelector("text") as SVGTextElement).innerHTML = String(Military.getTotal(reg));
     if (militaryOverviewRefresh?.offsetParent) militaryOverviewRefresh.click();
     if (regimentsOverviewRefresh?.offsetParent) regimentsOverviewRefresh.click();
   }
@@ -235,9 +226,7 @@ export function editRegiment(selectorOrEl?: string | Element): void {
     (ensureEl("regimentComposition") as HTMLElement).querySelectorAll("input").forEach(el => {
       (el as HTMLInputElement).value = String(reg.u[(el as HTMLInputElement).dataset.u!] || 0);
     });
-    ((elSelected as unknown as SVGGElement).querySelector("text") as SVGTextElement).innerHTML = String(
-      Military.getTotal(reg)
-    );
+    (getRegEl().querySelector("text") as SVGTextElement).innerHTML = String(Military.getTotal(reg));
 
     // create new regiment
     const shift = +armies.attr("box-size") * 2;
@@ -421,9 +410,9 @@ export function editRegiment(selectorOrEl?: string | Element): void {
     // remove attached regiment
     const military = pack.states[oldState].military ?? [];
     military.splice(military.indexOf(reg), 1);
-    const index = notes.findIndex((n: WorldNote) => n.id === (elSelected as unknown as SVGGElement).id);
+    const index = notes.findIndex((n: WorldNote) => n.id === getRegEl().id);
     if (index !== -1) notes.splice(index, 1);
-    (elSelected as unknown as SVGGElement).remove();
+    getRegEl().remove();
 
     if (regimentsOverviewRefresh?.offsetParent) regimentsOverviewRefresh.click();
     closeDialog("regimentEditor");
@@ -431,7 +420,7 @@ export function editRegiment(selectorOrEl?: string | Element): void {
   }
 
   function regenerateLegend(): void {
-    const index = notes.findIndex((n: WorldNote) => n.id === (elSelected as unknown as SVGGElement).id);
+    const index = notes.findIndex((n: WorldNote) => n.id === getRegEl().id);
     if (index !== -1) notes.splice(index, 1);
 
     const s = pack.states[+getRegEl().dataset.state!];
@@ -439,7 +428,7 @@ export function editRegiment(selectorOrEl?: string | Element): void {
   }
 
   function editLegend(): void {
-    editNotes((elSelected as unknown as SVGGElement).id, getRegiment().name);
+    editNotes(getRegEl().id, getRegiment().name);
   }
 
   function removeRegiment(): void {
@@ -456,9 +445,9 @@ export function editRegiment(selectorOrEl?: string | Element): void {
           if (regIndex === -1) return;
           military.splice(regIndex, 1);
 
-          const index = notes.findIndex((n: WorldNote) => n.id === (elSelected as unknown as SVGGElement).id);
+          const index = notes.findIndex((n: WorldNote) => n.id === getRegEl().id);
           if (index !== -1) notes.splice(index, 1);
-          (elSelected as unknown as SVGGElement).remove();
+          getRegEl().remove();
 
           if (militaryOverviewRefresh?.offsetParent) militaryOverviewRefresh.click();
           if (regimentsOverviewRefresh?.offsetParent) regimentsOverviewRefresh.click();

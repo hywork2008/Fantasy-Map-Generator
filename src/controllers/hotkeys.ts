@@ -41,6 +41,16 @@ function handleKeyup(event: KeyboardEvent): void {
   else if (ctrl && code === "KeyC") saveMap("dropbox");
   else if (ctrl && code === "KeyZ" && undo?.offsetParent) undo.click();
   else if (ctrl && code === "KeyY" && redo?.offsetParent) redo.click();
+  // Block editing shortcuts in 3D mode
+  else if (
+    document.getElementById("canvas3d") !== null &&
+    (shift || altShift) &&
+    ["KeyH", "KeyB", "KeyS", "KeyP", "KeyD", "KeyL", "KeyC", "KeyN", "KeyZ", "KeyR", "KeyY", "KeyQ", "KeyO"].includes(
+      code
+    )
+  )
+    return;
+  else if (document.getElementById("canvas3d") !== null && ["!", "@", "#", "$", "%"].includes(key)) return;
   else if ((shift || altShift) && code === "KeyH") editHeightmap();
   else if ((shift || altShift) && code === "KeyB") editBiomes();
   else if ((shift || altShift) && code === "KeyS") editStates();

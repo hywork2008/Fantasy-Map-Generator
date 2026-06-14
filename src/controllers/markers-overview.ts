@@ -2,7 +2,7 @@ import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { Markers } from "../modules/markers-generator";
-import { drawMarkers } from "../renderers";
+import { MarkersRenderer } from "../renderers";
 import { openDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, getLatitude, getLongitude } from "../utils";
 
@@ -149,7 +149,7 @@ function overviewMarkers(): void {
 
     markerGroup.setAttribute("pinned", anyPinned ? "1" : "");
     if (!anyPinned) markerGroup.removeAttribute("pinned");
-    drawMarkers(worldContext, viewContext, appServices);
+    MarkersRenderer.render(worldContext, viewContext, appServices);
     addLines();
   }
 
@@ -186,7 +186,7 @@ function overviewMarkers(): void {
       markerGroup.setAttribute("pinned", "1");
     }
     el.classList.toggle("inactive");
-    drawMarkers(worldContext, viewContext, appServices);
+    MarkersRenderer.render(worldContext, viewContext, appServices);
   }
 
   function toggleLockStatus(el: HTMLElement, i: number): void {
