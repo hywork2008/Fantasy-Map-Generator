@@ -34,6 +34,7 @@ import { Rivers } from "./modules/river-generator";
 import { Routes } from "./modules/routes-generator";
 import { States } from "./modules/states-generator";
 import { Zones } from "./modules/zones-generator";
+import { renderGroupCOAs } from "./renderers/draw-emblems";
 import { drawCoordinates, drawScaleBar, fitScaleBar } from "./renderers/index";
 import {
   TYPED_ARRAY_MAX_VALUES as _TMP,
@@ -995,7 +996,7 @@ function invokeActiveZooming() {
       const hidden = hideEmblems.checked && (size < 25 || size > 300);
       if (hidden) this.classList.add("hidden");
       else this.classList.remove("hidden");
-      if (!hidden && COArenderer && this.children.length && !this.children[0].getAttribute("href"))
+      if (!hidden && worldContext.COArenderer && this.children.length && !this.children[0].getAttribute("href"))
         renderGroupCOAs(this);
     });
   }
