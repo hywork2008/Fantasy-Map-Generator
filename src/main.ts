@@ -16,6 +16,7 @@ import { worldContext } from "./context/worldContext";
 import { Rulers } from "./controllers/measurers";
 import { updateMinimap } from "./controllers/minimap";
 import { applyStoredOptions, fitMapToScreen } from "./controllers/options";
+import { editUnits } from "./editors/units-editor";
 import { Biomes } from "./modules/biomes";
 import type { Burg, BurgGroup } from "./modules/burgs-generator";
 import { Burgs } from "./modules/burgs-generator";
