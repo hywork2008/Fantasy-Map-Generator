@@ -762,21 +762,21 @@ export function initStyleTab() {
 
   // ─── Event listeners ──────────────────────────────────────────────────────────
 
-  ensureEl("styleElements").on("change", (ev: Event) => {
+  ensureEl("styleElements").addEventListener("change", (ev: Event) => {
     const target = ev.target as HTMLElement;
     if (target.dataset.stored) lock(target.dataset.stored);
   });
 
-  ensureEl("styleElementSelect").on("change", selectStyleElement);
-  ensureEl("styleGroupSelect").on("change", selectStyleElement);
+  ensureEl("styleElementSelect").addEventListener("change", selectStyleElement);
+  ensureEl("styleGroupSelect").addEventListener("change", selectStyleElement);
 
-  ensureEl("styleFillInput").on("input", (e: Event) => {
+  ensureEl("styleFillInput").addEventListener("input", (e: Event) => {
     const value = (e.target as HTMLInputElement).value;
     ensureEl<HTMLInputElement>("styleFillOutput").value = value;
     getEl().attr("fill", value);
   });
 
-  ensureEl("styleStrokeInput").on("input", (e: Event) => {
+  ensureEl("styleStrokeInput").addEventListener("input", (e: Event) => {
     const value = (e.target as HTMLInputElement).value;
     ensureEl<HTMLInputElement>("styleStrokeOutput").value = value;
     getEl().attr("stroke", value);
@@ -784,35 +784,35 @@ export function initStyleTab() {
       drawGrid(worldContext, viewContext, appServices);
   });
 
-  ensureEl("styleStrokeDasharrayInput").on("input", (e: Event) => {
+  ensureEl("styleStrokeDasharrayInput").addEventListener("input", (e: Event) => {
     getEl().attr("stroke-dasharray", (e.target as HTMLInputElement).value);
     if (ensureEl<HTMLSelectElement>("styleElementSelect").value === "gridOverlay" && layerIsOn("toggleGrid"))
       drawGrid(worldContext, viewContext, appServices);
   });
 
-  ensureEl("styleStrokeLinecapInput").on("change", (e: Event) => {
+  ensureEl("styleStrokeLinecapInput").addEventListener("change", (e: Event) => {
     getEl().attr("stroke-linecap", (e.target as HTMLSelectElement).value);
     if (ensureEl<HTMLSelectElement>("styleElementSelect").value === "gridOverlay" && layerIsOn("toggleGrid"))
       drawGrid(worldContext, viewContext, appServices);
   });
 
-  ensureEl("styleLabelsHideGroup").on("change", (e: Event) => {
+  ensureEl("styleLabelsHideGroup").addEventListener("change", (e: Event) => {
     if ((e.target as HTMLInputElement).checked) getEl().style("display", "none");
     else getEl().style("display", null);
   });
 
-  ensureEl("styleFilterInput").on("change", (e: Event) => {
+  ensureEl("styleFilterInput").addEventListener("change", (e: Event) => {
     const value = (e.target as HTMLSelectElement).value;
     if (ensureEl<HTMLSelectElement>("styleGroupSelect").value === "ocean")
       return void oceanLayers.attr("filter", value);
     getEl().attr("filter", value);
   });
 
-  ensureEl("styleTextureInput").on("change", (e: Event) => {
+  ensureEl("styleTextureInput").addEventListener("change", (e: Event) => {
     changeTexture((e.target as HTMLSelectElement).value);
   });
 
-  ensureEl("styleTextureShiftX").on("input", (e: Event) => {
+  ensureEl("styleTextureShiftX").addEventListener("input", (e: Event) => {
     const value = (e.target as HTMLInputElement).value;
     const numVal = +(e.target as HTMLInputElement).valueAsNumber;
     texture.attr("data-x", value);
@@ -822,7 +822,7 @@ export function initStyleTab() {
       .attr("width", graphWidth - numVal);
   });
 
-  ensureEl("styleTextureShiftY").on("input", (e: Event) => {
+  ensureEl("styleTextureShiftY").addEventListener("input", (e: Event) => {
     const value = (e.target as HTMLInputElement).value;
     const numVal = +(e.target as HTMLInputElement).valueAsNumber;
     texture.attr("data-y", value);
@@ -832,66 +832,66 @@ export function initStyleTab() {
       .attr("height", graphHeight - numVal);
   });
 
-  ensureEl("styleClippingInput").on("change", (e: Event) => {
+  ensureEl("styleClippingInput").addEventListener("change", (e: Event) => {
     getEl().attr("mask", (e.target as HTMLSelectElement).value);
   });
 
-  ensureEl("styleGridType").on("change", (e: Event) => {
+  ensureEl("styleGridType").addEventListener("change", (e: Event) => {
     getEl().attr("type", (e.target as HTMLSelectElement).value);
     if (layerIsOn("toggleGrid")) drawGrid(worldContext, viewContext, appServices);
     calculateFriendlyGridSize();
   });
 
-  ensureEl("styleGridScale").on("input", () => {
+  ensureEl("styleGridScale").addEventListener("input", () => {
     getEl().attr("scale", ensureEl<HTMLInputElement>("styleGridScale").value);
     if (layerIsOn("toggleGrid")) drawGrid(worldContext, viewContext, appServices);
     calculateFriendlyGridSize();
   });
 
-  ensureEl("styleGridShiftX").on("input", (e: Event) => {
+  ensureEl("styleGridShiftX").addEventListener("input", (e: Event) => {
     getEl().attr("dx", (e.target as HTMLInputElement).value);
     if (layerIsOn("toggleGrid")) drawGrid(worldContext, viewContext, appServices);
   });
 
-  ensureEl("styleGridShiftY").on("input", (e: Event) => {
+  ensureEl("styleGridShiftY").addEventListener("input", (e: Event) => {
     getEl().attr("dy", (e.target as HTMLInputElement).value);
     if (layerIsOn("toggleGrid")) drawGrid(worldContext, viewContext, appServices);
   });
 
-  ensureEl("styleRescaleMarkers").on("change", (e: Event) => {
+  ensureEl("styleRescaleMarkers").addEventListener("change", (e: Event) => {
     markers.attr("rescale", +(e.target as HTMLInputElement).checked);
     invokeActiveZooming();
   });
 
-  ensureEl("styleCoastlineAuto").on("change", (e: Event) => {
+  ensureEl("styleCoastlineAuto").addEventListener("change", (e: Event) => {
     const checked = (e.target as HTMLInputElement).checked;
     coastline.select("#sea_island").attr("auto-filter", +checked);
     ensureEl<HTMLElement>("styleFilter").style.display = checked ? "none" : "block";
     invokeActiveZooming();
   });
 
-  ensureEl("styleOceanFill").on("input", (e: Event) => {
+  ensureEl("styleOceanFill").addEventListener("input", (e: Event) => {
     const value = (e.target as HTMLInputElement).value;
     oceanLayers.select("rect").attr("fill", value);
     ensureEl<HTMLInputElement>("styleOceanFillOutput").value = value;
   });
 
-  ensureEl("styleOceanPattern").on("change", (e: Event) => {
+  ensureEl("styleOceanPattern").addEventListener("change", (e: Event) => {
     ensureEl("oceanicPattern").setAttribute("href", (e.target as HTMLSelectElement).value);
   });
 
-  ensureEl("outlineLayers").on("change", (e: Event) => {
+  ensureEl("outlineLayers").addEventListener("change", (e: Event) => {
     oceanLayers.selectAll("path").remove();
     oceanLayers.attr("layers", (e.target as HTMLSelectElement).value);
     OceanLayers();
   });
 
-  ensureEl("styleHeightmapScheme").on("change", (e: Event) => {
+  ensureEl("styleHeightmapScheme").addEventListener("change", (e: Event) => {
     getEl().attr("scheme", (e.target as HTMLSelectElement).value);
     drawHeightmap(worldContext, viewContext, appServices);
   });
 
-  ensureEl("openCreateHeightmapSchemeButton").on("click", function (this: HTMLButtonElement) {
+  ensureEl("openCreateHeightmapSchemeButton").addEventListener("click", function (this: HTMLButtonElement) {
     const button = this;
     const scheme = getEl().attr("scheme") ?? "bright";
     button.dataset.stops = scheme.startsWith("#")
@@ -994,65 +994,65 @@ export function initStyleTab() {
     });
   });
 
-  ensureEl("styleHeightmapRenderOcean").on("change", (e: Event) => {
+  ensureEl("styleHeightmapRenderOcean").addEventListener("change", (e: Event) => {
     getEl().attr("data-render", +(e.target as HTMLInputElement).checked);
     drawHeightmap(worldContext, viewContext, appServices);
   });
 
-  ensureEl("styleHeightmapCurve").on("change", (e: Event) => {
+  ensureEl("styleHeightmapCurve").addEventListener("change", (e: Event) => {
     getEl().attr("curve", (e.target as HTMLSelectElement).value);
     drawHeightmap(worldContext, viewContext, appServices);
   });
 
-  ensureEl("styleReliefSet").on("change", (e: Event) => {
+  ensureEl("styleReliefSet").addEventListener("change", (e: Event) => {
     terrain.attr("set", (e.target as HTMLSelectElement).value);
     drawReliefIcons(worldContext, viewContext, appServices);
     if (!layerIsOn("toggleRelief")) toggleRelief();
   });
 
-  ensureEl("styleTemperatureFillInput").on("input", (e: Event) => {
+  ensureEl("styleTemperatureFillInput").addEventListener("input", (e: Event) => {
     const value = (e.target as HTMLInputElement).value;
     temperature.attr("fill", value);
     ensureEl<HTMLInputElement>("styleTemperatureFillOutput").value = value;
   });
 
-  ensureEl("stylePopulationRuralStrokeInput").on("input", (e: Event) => {
+  ensureEl("stylePopulationRuralStrokeInput").addEventListener("input", (e: Event) => {
     const value = (e.target as HTMLInputElement).value;
     population.select("#rural").attr("stroke", value);
     ensureEl<HTMLInputElement>("stylePopulationRuralStrokeOutput").value = value;
   });
 
-  ensureEl("stylePopulationUrbanStrokeInput").on("input", (e: Event) => {
+  ensureEl("stylePopulationUrbanStrokeInput").addEventListener("input", (e: Event) => {
     const value = (e.target as HTMLInputElement).value;
     population.select("#urban").attr("stroke", value);
     ensureEl<HTMLInputElement>("stylePopulationUrbanStrokeOutput").value = value;
   });
 
-  ensureEl("styleBurgIconsIcon").on("change", (e: Event) => {
+  ensureEl("styleBurgIconsIcon").addEventListener("change", (e: Event) => {
     const value = (e.target as HTMLSelectElement).value;
     getEl().attr("data-icon", value).selectAll<SVGUseElement, unknown>("use").attr("href", value);
   });
 
-  ensureEl("styleBurgIconsStrokeLinejoin").on("change", (e: Event) => {
+  ensureEl("styleBurgIconsStrokeLinejoin").addEventListener("change", (e: Event) => {
     getEl().attr("stroke-linejoin", (e.target as HTMLSelectElement).value);
   });
 
-  ensureEl("styleCompassShiftX").on("input", () => shiftCompass());
-  ensureEl("styleCompassShiftY").on("input", () => shiftCompass());
+  ensureEl("styleCompassShiftX").addEventListener("input", () => shiftCompass());
+  ensureEl("styleCompassShiftY").addEventListener("input", () => shiftCompass());
 
-  ensureEl("styleLegendBack").on("input", (e: Event) => {
+  ensureEl("styleLegendBack").addEventListener("input", (e: Event) => {
     const value = (e.target as HTMLInputElement).value;
     ensureEl<HTMLInputElement>("styleLegendBackOutput").value = value;
     legend.select("#legendBox").attr("fill", value);
   });
 
-  ensureEl("styleSelectFont").on("change", changeFont);
+  ensureEl("styleSelectFont").addEventListener("change", changeFont);
 
-  ensureEl("styleShadowInput").on("input", (e: Event) => {
+  ensureEl("styleShadowInput").addEventListener("input", (e: Event) => {
     getEl().style("text-shadow", (e.target as HTMLInputElement).value);
   });
 
-  ensureEl("styleFontAdd").on("click", () => {
+  ensureEl("styleFontAdd").addEventListener("click", () => {
     ensureEl<HTMLInputElement>("addFontNameInput").value = "";
     ensureEl<HTMLInputElement>("addFontURLInput").value = "";
 
@@ -1089,40 +1089,40 @@ export function initStyleTab() {
     });
   });
 
-  ensureEl("addFontMethod").on("change", (e: Event) => {
+  ensureEl("addFontMethod").addEventListener("change", (e: Event) => {
     ensureEl<HTMLElement>("addFontURLInput").style.display =
       (e.target as HTMLSelectElement).value === "fontURL" ? "inline" : "none";
   });
 
-  ensureEl("styleFontSize").on("change", () => {
+  ensureEl("styleFontSize").addEventListener("change", () => {
     changeFontSize(getEl(), +ensureEl<HTMLInputElement>("styleFontSize").value);
   });
 
-  ensureEl("styleFontPlus").on("click", () => {
+  ensureEl("styleFontPlus").addEventListener("click", () => {
     const current = +ensureEl<HTMLInputElement>("styleFontSize").value || 12;
     changeFontSize(getEl(), Math.min(rn(current + 0.1, 1), 999));
   });
 
-  ensureEl("styleFontMinus").on("click", () => {
+  ensureEl("styleFontMinus").addEventListener("click", () => {
     const current = +ensureEl<HTMLInputElement>("styleFontSize").value || 12;
     changeFontSize(getEl(), Math.max(rn(current - 0.1, 1), 0.1));
   });
 
-  ensureEl("styleFontShiftX").on("input", (e: Event) => {
+  ensureEl("styleFontShiftX").addEventListener("input", (e: Event) => {
     const value = (e.target as HTMLInputElement).value;
     getEl().attr("data-dx", value).selectAll<SVGTextElement, unknown>("text").attr("dx", `${value}em`);
   });
 
-  ensureEl("styleFontShiftY").on("input", (e: Event) => {
+  ensureEl("styleFontShiftY").addEventListener("input", (e: Event) => {
     const value = (e.target as HTMLInputElement).value;
     getEl().attr("data-dy", value).selectAll<SVGTextElement, unknown>("text").attr("dy", `${value}em`);
   });
 
-  ensureEl("styleStatesBodyFilter").on("change", (e: Event) => {
+  ensureEl("styleStatesBodyFilter").addEventListener("change", (e: Event) => {
     statesBody.attr("filter", (e.target as HTMLSelectElement).value);
   });
 
-  ensureEl("styleVignettePreset").on("change", (e: Event) => {
+  ensureEl("styleVignettePreset").addEventListener("change", (e: Event) => {
     const presetName = (e.target as HTMLSelectElement).value;
     const attributes = JSON.parse(vignettePresets[presetName]) as Record<string, Record<string, string | null>>;
 
@@ -1159,31 +1159,31 @@ export function initStyleTab() {
     }
   });
 
-  ensureEl("styleVignetteX").on("input", (e: Event) => {
+  ensureEl("styleVignetteX").addEventListener("input", (e: Event) => {
     ensureEl("vignette-rect").setAttribute("x", `${(e.target as HTMLInputElement).value}%`);
   });
 
-  ensureEl("styleVignetteWidth").on("input", (e: Event) => {
+  ensureEl("styleVignetteWidth").addEventListener("input", (e: Event) => {
     ensureEl("vignette-rect").setAttribute("width", `${(e.target as HTMLInputElement).value}%`);
   });
 
-  ensureEl("styleVignetteY").on("input", (e: Event) => {
+  ensureEl("styleVignetteY").addEventListener("input", (e: Event) => {
     ensureEl("vignette-rect").setAttribute("y", `${(e.target as HTMLInputElement).value}%`);
   });
 
-  ensureEl("styleVignetteHeight").on("input", (e: Event) => {
+  ensureEl("styleVignetteHeight").addEventListener("input", (e: Event) => {
     ensureEl("vignette-rect").setAttribute("height", `${(e.target as HTMLInputElement).value}%`);
   });
 
-  ensureEl("styleVignetteRx").on("input", (e: Event) => {
+  ensureEl("styleVignetteRx").addEventListener("input", (e: Event) => {
     ensureEl("vignette-rect").setAttribute("rx", `${(e.target as HTMLInputElement).value}%`);
   });
 
-  ensureEl("styleVignetteRy").on("input", (e: Event) => {
+  ensureEl("styleVignetteRy").addEventListener("input", (e: Event) => {
     ensureEl("vignette-rect").setAttribute("ry", `${(e.target as HTMLInputElement).value}%`);
   });
 
-  ensureEl("styleScaleBar").on("input", (event: Event) => {
+  ensureEl("styleScaleBar").addEventListener("input", (event: Event) => {
     const scaleBarBack = scaleBar.select<SVGGElement>("#scaleBarBack");
     if (!scaleBarBack.size()) return;
 
@@ -1220,25 +1220,12 @@ export function initStyleTab() {
         "styleScaleBarBackgroundPaddingBottom"
       ].includes(id)
     ) {
-      drawScaleBar(
-        worldContext,
-        viewContext,
-        appServices,
-        scaleBar as unknown as Selection<SVGGElement, unknown, null, undefined>,
-        scale
-      );
-      fitScaleBar(
-        worldContext,
-        viewContext,
-        appServices,
-        scaleBar as unknown as Selection<SVGGElement, unknown, null, undefined>,
-        svgWidth,
-        svgHeight
-      );
+      drawScaleBar(worldContext, viewContext, appServices, scaleBar, scale);
+      fitScaleBar(worldContext, viewContext, appServices, scaleBar, svgWidth, svgHeight);
     }
   });
 
-  ensureEl("mapFilters").on("click", applyMapFilter);
+  ensureEl("mapFilters").addEventListener("click", applyMapFilter);
 
   // ─── Style preset functions (from style-presets.js) ───────────────────────────
 
@@ -1368,21 +1355,8 @@ export function initStyleTab() {
     presetEl.dataset.old = presetEl.value;
     invokeActiveZooming();
     setPresetRemoveButtonVisibiliy();
-    drawScaleBar(
-      worldContext,
-      viewContext,
-      appServices,
-      scaleBar as unknown as Selection<SVGGElement, unknown, null, undefined>,
-      scale
-    );
-    fitScaleBar(
-      worldContext,
-      viewContext,
-      appServices,
-      scaleBar as unknown as Selection<SVGGElement, unknown, null, undefined>,
-      svgWidth,
-      svgHeight
-    );
+    drawScaleBar(worldContext, viewContext, appServices, scaleBar, scale);
+    fitScaleBar(worldContext, viewContext, appServices, scaleBar, svgWidth, svgHeight);
   }
 
   function addStylePreset(): void {

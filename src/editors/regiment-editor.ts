@@ -3,6 +3,7 @@ import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import type { BattleRegiment } from "../controllers/battle-screen";
+import { interactionManager } from "../controllers/interactionManager";
 import type { MilitaryRegiment } from "../modules/military-generator";
 import { Military } from "../modules/military-generator";
 import { drawRegiment, moveRegiment } from "../renderers/index";
@@ -271,11 +272,13 @@ export function editRegiment(selectorOrEl?: string | Element): void {
   function toggleAdd(): void {
     (ensureEl("regimentAdd") as HTMLElement).classList.toggle("pressed");
     if ((ensureEl("regimentAdd") as HTMLElement).classList.contains("pressed")) {
-      viewbox.style("cursor", "crosshair").on("click", addRegimentOnClick);
+      viewbox.style("cursor", "crosshair");
+      interactionManager.setClickHandler(addRegimentOnClick);
       tip("Click on map to create new regiment or fleet", true);
     } else {
       clearMainTip();
-      viewbox.on("click", clicked).style("cursor", "default");
+      interactionManager.resetClickHandler();
+      viewbox.style("cursor", "default");
     }
   }
 
@@ -299,13 +302,15 @@ export function editRegiment(selectorOrEl?: string | Element): void {
   function toggleAttack(): void {
     (ensureEl("regimentAttack") as HTMLElement).classList.toggle("pressed");
     if ((ensureEl("regimentAttack") as HTMLElement).classList.contains("pressed")) {
-      viewbox.style("cursor", "crosshair").on("click", attackRegimentOnClick);
+      viewbox.style("cursor", "crosshair");
+      interactionManager.setClickHandler(attackRegimentOnClick);
       tip("Click on another regiment to initiate battle", true);
       armies.selectAll(":scope > g").classed("draggable", false);
     } else {
       clearMainTip();
       armies.selectAll(":scope > g").classed("draggable", true);
-      viewbox.on("click", clicked).style("cursor", "default");
+      interactionManager.resetClickHandler();
+      viewbox.style("cursor", "default");
     }
   }
 
@@ -372,13 +377,15 @@ export function editRegiment(selectorOrEl?: string | Element): void {
   function toggleAttach(): void {
     (ensureEl("regimentAttach") as HTMLElement).classList.toggle("pressed");
     if ((ensureEl("regimentAttach") as HTMLElement).classList.contains("pressed")) {
-      viewbox.style("cursor", "crosshair").on("click", attachRegimentOnClick);
+      viewbox.style("cursor", "crosshair");
+      interactionManager.setClickHandler(attachRegimentOnClick);
       tip("Click on another regiment to unite both regiments. The current regiment will be removed", true);
       armies.selectAll(":scope > g").classed("draggable", false);
     } else {
       clearMainTip();
       armies.selectAll(":scope > g").classed("draggable", true);
-      viewbox.on("click", clicked).style("cursor", "default");
+      interactionManager.resetClickHandler();
+      viewbox.style("cursor", "default");
     }
   }
 

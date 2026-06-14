@@ -147,7 +147,7 @@ class ProvinceModule {
         const color = getMixedColor(s.color!);
         const kinship = nameByBurg ? 0.8 : 0.4;
         const type = Burgs.getType(center, burg.port);
-        const coa = COA.generate(stateBurgs[i].coa ?? null, kinship, null as unknown as number, type);
+        const coa = COA.generate(stateBurgs[i].coa ?? null, kinship, null, type);
         coa.shield = COA.getShield(c, s.i);
 
         s.provinces.push(provinceId);

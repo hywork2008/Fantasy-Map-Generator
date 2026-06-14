@@ -31,7 +31,7 @@ function editWorld(): void {
       pane!.insertAdjacentHTML("afterbegin", checkbox);
 
       const button = (this as unknown as HTMLElement).parentElement!.querySelector(".ui-dialog-buttonset > button");
-      (button as HTMLElement).on("mousemove", () => tip("Apply current settings to the map"));
+      (button as HTMLElement).addEventListener("mousemove", () => tip("Apply current settings to the map"));
     },
     close: () => {
       /* $(this).dialog("destroy") removed */
@@ -54,12 +54,12 @@ function editWorld(): void {
   globe.select("#globeGraticule").attr("d", round(path(graticule()) ?? "", 1));
   updateWindDirections();
 
-  ensureEl("worldControls").on("input", handleControlsChange);
-  ensureEl("restoreWinds").on("click", restoreDefaultWinds);
-  ensureEl("wcWholeWorld").on("click", () => applyWorldPreset(100, 50));
-  ensureEl("wcNorthern").on("click", () => applyWorldPreset(33, 25));
-  ensureEl("wcTropical").on("click", () => applyWorldPreset(33, 50));
-  ensureEl("wcSouthern").on("click", () => applyWorldPreset(33, 75));
+  ensureEl("worldControls").addEventListener("input", handleControlsChange);
+  ensureEl("restoreWinds").addEventListener("click", restoreDefaultWinds);
+  ensureEl("wcWholeWorld").addEventListener("click", () => applyWorldPreset(100, 50));
+  ensureEl("wcNorthern").addEventListener("click", () => applyWorldPreset(33, 25));
+  ensureEl("wcTropical").addEventListener("click", () => applyWorldPreset(33, 50));
+  ensureEl("wcSouthern").addEventListener("click", () => applyWorldPreset(33, 75));
 
   function updateInputValues(): void {
     ensureEl("temperatureEquatorInput").setAttribute("value", String(options.temperatureEquator));

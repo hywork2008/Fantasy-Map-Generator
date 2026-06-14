@@ -90,7 +90,7 @@ function ensureMinimapMarkup(): void {
 }
 
 function minimapClickToPan(event: MouseEvent): void {
-  const minimap = ensureEl("minimapSurface") as unknown as SVGSVGElement;
+  const minimap = ensureEl<SVGSVGElement>("minimapSurface");
   if (!minimap) return;
 
   const point = minimap.createSVGPoint();

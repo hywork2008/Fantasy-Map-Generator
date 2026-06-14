@@ -61,6 +61,7 @@ import { openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, findCell, gauss, generateSeed, getNextId, isCtrlClick, P, rn, showPrompt } from "../utils";
 import { open as openChartsOverview } from "./charts-overview";
 import { editCultures, editReligions, editStates } from "./editors";
+import { interactionManager } from "./interactionManager";
 import { openMinimapDialog } from "./minimap";
 
 let worldContext: WorldContext;
@@ -706,7 +707,8 @@ function toggleAddLabel(): void {
     });
   addLabelBtn.classList.add("pressed");
   closeDialogs(".stable");
-  viewbox.style("cursor", "crosshair").on("click", addLabelOnClick);
+  viewbox.style("cursor", "crosshair");
+  interactionManager.setClickHandler(addLabelOnClick);
   tip("Click on map to place label. Hold Shift to add multiple", true);
   if (!layerIsOn("toggleLabels")) toggleLabels();
 }
@@ -790,7 +792,8 @@ function toggleAddRiver(): void {
   addRiverBtn.classList.add("pressed");
   addNewRiverEl.classList.add("pressed");
   closeDialogs(".stable");
-  viewbox.style("cursor", "crosshair").on("click", addRiverOnClick);
+  viewbox.style("cursor", "crosshair");
+  interactionManager.setClickHandler(addRiverOnClick);
   tip("Click on map to place new river or extend an existing one. Hold Shift to place multiple rivers", true, "warn");
   if (!layerIsOn("toggleRivers")) toggleRivers();
 }
@@ -960,7 +963,8 @@ function toggleAddMarker(): void {
   const markersAddFromOverviewEl = document.getElementById("markersAddFromOverview");
   if (markersAddFromOverviewEl) markersAddFromOverviewEl.classList.add("pressed");
 
-  viewbox.style("cursor", "crosshair").on("click", addMarkerOnClick);
+  viewbox.style("cursor", "crosshair");
+  interactionManager.setClickHandler(addMarkerOnClick);
   tip("Click on map to add a marker. Hold Shift to add multiple", true);
   if (!layerIsOn("toggleMarkers")) toggleMarkers();
 }

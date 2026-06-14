@@ -1,4 +1,3 @@
-import type { ZoomBehavior } from "d3";
 import * as d3 from "d3";
 import { editBurg } from "../editors/burg-editor";
 import { coastlineEditor, editCoastline } from "../editors/coastline-editor";
@@ -16,6 +15,7 @@ import { editRoute } from "../editors/routes-editor";
 import { open as openStatesEditor } from "../editors/states-editor";
 import { closeAllDialogs, openConfirm, openDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, parseTransform, rn } from "../utils";
+import { interactionManager } from "./interactionManager";
 
 // ─── Default viewbox events ────────────────────────────────────────────────
 
@@ -47,10 +47,17 @@ function makePanDrag(filter?: (ev: Event) => boolean): d3.DragBehavior<SVGGEleme
 }
 
 function restoreDefaultEvents(): void {
-  svg.call(zoom as unknown as ZoomBehavior<SVGSVGElement, unknown>);
-  viewbox.style("cursor", "default").on(".drag", null).on("click", clicked).on("touchmove mousemove", onMouseMove);
+  svg.call(zoom);
+  viewbox.style("cursor", "default").on(".drag", null);
+  interactionManager.init(
+    viewbox.node() as Element,
+    clicked as (event: MouseEvent) => void,
+    onMouseMove as (event: MouseEvent) => void
+  );
+  interactionManager.resetClickHandler();
+  interactionManager.resetMouseMoveHandler();
   legend.call(makePanDrag());
-  svg.call(zoom as unknown as ZoomBehavior<SVGSVGElement, unknown>);
+  svg.call(zoom);
 }
 
 function clicked(this: Element, event: MouseEvent): void {

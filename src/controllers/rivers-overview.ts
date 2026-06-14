@@ -22,13 +22,13 @@ function overviewRivers(): void {
     position: { my: "right top", at: "right-10 top+10", of: "svg", collision: "fit" }
   });
 
-  ensureEl("riversOverviewRefresh").on("click", riversOverviewAddLines);
-  ensureEl("addNewRiver").on("click", toggleAddRiver);
-  ensureEl("riverCreateNew").on("click", createRiver);
-  ensureEl("riversBasinHighlight").on("click", toggleBasinsHightlight);
-  ensureEl("riversExport").on("click", downloadRiversData);
-  ensureEl("riversRemoveAll").on("click", triggerAllRiversRemove);
-  ensureEl("riversSearch").on("input", riversOverviewAddLines);
+  ensureEl("riversOverviewRefresh").addEventListener("click", riversOverviewAddLines);
+  ensureEl("addNewRiver").addEventListener("click", toggleAddRiver);
+  ensureEl("riverCreateNew").addEventListener("click", createRiver);
+  ensureEl("riversBasinHighlight").addEventListener("click", toggleBasinsHightlight);
+  ensureEl("riversExport").addEventListener("click", downloadRiversData);
+  ensureEl("riversRemoveAll").addEventListener("click", triggerAllRiversRemove);
+  ensureEl("riversSearch").addEventListener("input", riversOverviewAddLines);
 
   function riversOverviewAddLines(): void {
     body.innerHTML = "";
@@ -87,12 +87,13 @@ function overviewRivers(): void {
     ensureEl("riversFooterWidth").innerHTML = `${rn(averageWidth * distanceScale, 3)} ${unit}`;
 
     for (const el of body.querySelectorAll("div.states"))
-      el.on("mouseenter", (ev: Event) => riverHighlightOn(ev as MouseEvent));
+      el.addEventListener("mouseenter", (ev: Event) => riverHighlightOn(ev as MouseEvent));
     for (const el of body.querySelectorAll("div.states"))
-      el.on("mouseleave", (ev: Event) => riverHighlightOff(ev as MouseEvent));
-    for (const el of body.querySelectorAll("div > span.icon-target")) el.on("click", zoomToRiver);
-    for (const el of body.querySelectorAll("div > span.icon-pencil")) el.on("click", openRiverEditor);
-    for (const el of body.querySelectorAll("div > span.icon-trash-empty")) el.on("click", triggerRiverRemove);
+      el.addEventListener("mouseleave", (ev: Event) => riverHighlightOff(ev as MouseEvent));
+    for (const el of body.querySelectorAll("div > span.icon-target")) el.addEventListener("click", zoomToRiver);
+    for (const el of body.querySelectorAll("div > span.icon-pencil")) el.addEventListener("click", openRiverEditor);
+    for (const el of body.querySelectorAll("div > span.icon-trash-empty"))
+      el.addEventListener("click", triggerRiverRemove);
 
     applySorting(ensureEl("riversHeader"));
   }

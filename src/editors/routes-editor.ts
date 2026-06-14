@@ -1,6 +1,7 @@
 import type * as d3 from "d3";
 import { drag, pointer, select } from "d3";
 import type { WorldContext } from "../context/worldContext";
+import { interactionManager } from "../controllers/interactionManager";
 import type { Route } from "../modules/routes-generator";
 import { Routes } from "../modules/routes-generator";
 import { closeDialog, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
@@ -54,18 +55,18 @@ export function editRoute(id: string): void {
   modules.editRoute = true;
 
   // add listeners
-  ensureEl("routeCreateSelectingCells").on("click", showCreationDialog);
-  ensureEl("routeSplit").on("click", togglePressed);
-  ensureEl("routeJoin").on("click", openJoinRoutesDialog);
-  ensureEl("routeElevationProfile").on("click", showRouteElevationProfile);
-  ensureEl("routeLegend").on("click", editRouteLegend);
-  ensureEl("routeLock").on("click", toggleLockButton);
-  ensureEl("routeRemove").on("click", removeRoute);
-  ensureEl("routeName").on("input", changeName);
-  ensureEl("routeGroup").on("input", changeGroup);
-  ensureEl("routeGroupEdit").on("click", editRouteGroups);
-  ensureEl("routeEditStyle").on("click", editRouteGroupStyle);
-  ensureEl("routeGenerateName").on("click", generateName);
+  ensureEl("routeCreateSelectingCells").addEventListener("click", showCreationDialog);
+  ensureEl("routeSplit").addEventListener("click", togglePressed);
+  ensureEl("routeJoin").addEventListener("click", openJoinRoutesDialog);
+  ensureEl("routeElevationProfile").addEventListener("click", showRouteElevationProfile);
+  ensureEl("routeLegend").addEventListener("click", editRouteLegend);
+  ensureEl("routeLock").addEventListener("click", toggleLockButton);
+  ensureEl("routeRemove").addEventListener("click", removeRoute);
+  ensureEl("routeName").addEventListener("input", changeName);
+  ensureEl("routeGroup").addEventListener("input", changeGroup);
+  ensureEl("routeGroupEdit").addEventListener("click", editRouteGroups);
+  ensureEl("routeEditStyle").addEventListener("click", editRouteGroupStyle);
+  ensureEl("routeGenerateName").addEventListener("click", generateName);
 
   function getRoute(): Route {
     const routeId = +elSelected!.attr("id").slice(5);
@@ -460,7 +461,8 @@ export function createRoute(defaultGroup?: string): void {
   tip("Click to add route point, click again to remove", true);
   debug.append("g").attr("id", "controlCells");
   debug.append("g").attr("id", "controlPoints");
-  viewbox.style("cursor", "crosshair").on("click", onClick);
+  viewbox.style("cursor", "crosshair");
+  interactionManager.setClickHandler(onClick);
 
   _createRoutePoints = [];
   const body = ensureEl("routeCreatorBody");
@@ -485,11 +487,11 @@ export function createRoute(defaultGroup?: string): void {
   modules.createRoute = true;
 
   // add listeners
-  ensureEl("routeCreatorGroupSelect").on("change", () => drawRoutePreview(_createRoutePoints));
-  ensureEl("routeCreatorGroupEdit").on("click", editRouteGroups);
-  ensureEl("routeCreatorComplete").on("click", completeCreation);
-  ensureEl("routeCreatorCancel").on("click", () => closeDialog("routeCreator"));
-  body.on("click", (ev: Event) => {
+  ensureEl("routeCreatorGroupSelect").addEventListener("change", () => drawRoutePreview(_createRoutePoints));
+  ensureEl("routeCreatorGroupEdit").addEventListener("click", editRouteGroups);
+  ensureEl("routeCreatorComplete").addEventListener("click", completeCreation);
+  ensureEl("routeCreatorCancel").addEventListener("click", () => closeDialog("routeCreator"));
+  body.addEventListener("click", (ev: Event) => {
     if ((ev.target as HTMLElement).classList.contains("icon-trash-empty"))
       removePoint((ev.target as HTMLElement).parentElement!.dataset.point!);
   });

@@ -9,7 +9,7 @@ import { connectVertices, ensureEl, getBase64, getCoordinates, rn, unique } from
 import { getColor, getColorScheme } from "../utils/colorUtils";
 import { getGridPolygon } from "../utils/graphUtils";
 
-type AnySelection = Selection<SVGGElement, unknown, null, undefined>;
+type AnySelection = Selection<SVGSVGElement, unknown, null, undefined>;
 
 // ─── Image exports ────────────────────────────────────────────────────────────
 
@@ -125,7 +125,7 @@ export async function exportToPngTiles(): Promise<void> {
 
   const urlSchema = await getMapURL("tiles", { debug: true, fullMap: true });
   await import(/* @vite-ignore */ `${import.meta.env.BASE_URL}libs/jszip.min.js`);
-  const zip = new (window as unknown as { JSZip: new () => JSZipInstance }).JSZip();
+  const zip = new window.JSZip();
 
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d")!;
@@ -203,6 +203,10 @@ interface JSZipInstance {
   generateAsync: (opts: { type: "blob" }) => Promise<Blob>;
 }
 
+declare global {
+  var JSZip: new () => JSZipInstance;
+}
+
 function loadImage(img: HTMLImageElement): Promise<void> {
   return new Promise((resolve, reject) => {
     img.onload = () => resolve();
@@ -258,7 +262,7 @@ export async function getMapURL(type: string, options: GetMapURLOptions = {}): P
   if (!debug) clone.select("#debug")?.remove();
 
   const cloneDefs = cloneEl.getElementsByTagName("defs")[0];
-  const svgDefs = ensureEl("defElements") as unknown as SVGSVGElement;
+  const svgDefs = ensureEl<SVGSVGElement>("defElements");
 
   const isFirefox = navigator.userAgent.toLowerCase().indexOf("firefox") > -1;
   if (isFirefox && type === "mesh") clone.select("#oceanPattern")?.remove();
@@ -278,18 +282,12 @@ export async function getMapURL(type: string, options: GetMapURLOptions = {}): P
     clone.select("#viewbox").attr("transform", null);
 
     if (!noScaleBar) {
-      drawScaleBar(
-        worldContext,
-        viewContext,
-        appServices,
-        clone.select("#scaleBar") as unknown as Selection<SVGGElement, unknown, null, undefined>,
-        1
-      );
+      drawScaleBar(worldContext, viewContext, appServices, clone.select<SVGGElement>("#scaleBar"), 1);
       fitScaleBar(
         worldContext,
         viewContext,
         appServices,
-        clone.select("#scaleBar") as unknown as Selection<SVGGElement, unknown, null, undefined>,
+        clone.select<SVGGElement>("#scaleBar"),
         graphWidth,
         graphHeight
       );
@@ -297,9 +295,9 @@ export async function getMapURL(type: string, options: GetMapURLOptions = {}): P
   }
   if (noScaleBar) clone.select("#scaleBar")?.remove();
 
-  if (type === "svg") removeUnusedElements(clone as unknown as AnySelection);
-  if (customization && type === "mesh") updateMeshCells(clone as unknown as AnySelection);
-  inlineStyle(clone as unknown as AnySelection);
+  if (type === "svg") removeUnusedElements(clone);
+  if (customization && type === "mesh") updateMeshCells(clone);
+  inlineStyle(clone);
 
   // remove unused filters
   const filters = cloneEl.querySelectorAll("filter");

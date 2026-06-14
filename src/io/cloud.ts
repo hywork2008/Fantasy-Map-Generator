@@ -25,6 +25,7 @@ declare global {
       };
     };
   };
+  var Dropbox: DropboxSDK;
 }
 
 const lSKey = (x: string) => `auth-${x}`;
@@ -60,7 +61,7 @@ const DBP = {
 
   async connect(token: string): Promise<void> {
     await import(/* @vite-ignore */ `${import.meta.env.BASE_URL}libs/dropbox-sdk.min.js`);
-    const sdk = (window as unknown as { Dropbox: DropboxSDK }).Dropbox;
+    const sdk = window.Dropbox;
     const auth = new sdk.DropboxAuth({ clientId: this.clientId });
     auth.setAccessToken(token);
     this.api = new sdk.Dropbox({ auth });

@@ -2,6 +2,7 @@ import { type D3DragEvent, drag, pointer, select } from "d3";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import { interactionManager } from "../controllers/interactionManager";
 import type { IceIceberg } from "../modules/ice";
 import { Ice } from "../modules/ice";
 import { redrawIceberg } from "../renderers/index";
@@ -76,11 +77,13 @@ export function editIce(element: SVGElement): void {
   function toggleAdd(): void {
     iceNew.classList.toggle("pressed");
     if (iceNew.classList.contains("pressed")) {
-      viewbox.style("cursor", "crosshair").on("click", addIcebergOnClick);
+      viewbox.style("cursor", "crosshair");
+      interactionManager.setClickHandler(addIcebergOnClick);
       tip("Click on map to create an iceberg. Hold Shift to add multiple", true);
     } else {
       clearMainTip();
-      viewbox.on("click", clicked).style("cursor", "default");
+      interactionManager.resetClickHandler();
+      viewbox.style("cursor", "default");
     }
   }
 

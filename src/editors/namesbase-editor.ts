@@ -39,34 +39,44 @@ class NamesbaseEditorModule {
   private addListeners(): void {
     const uploader = ensureEl<HTMLInputElement>("namesbaseToLoad");
 
-    ensureEl("namesbaseSelect").on("change", () => this.updateInputs());
-    ensureEl("namesbaseTextarea").on("change", () => this.updateNamesData());
-    ensureEl("namesbaseUpdateExamples").on("click", () => this.updateExamples());
-    ensureEl("namesbaseExamples").on("click", () => this.updateExamples());
-    ensureEl("namesbaseName").on("input", e => this.updateBaseName((e.target as HTMLInputElement).value));
-    ensureEl("namesbaseMin").on("input", e => this.updateBaseMin((e.target as HTMLInputElement).value));
-    ensureEl("namesbaseMax").on("input", e => this.updateBaseMax((e.target as HTMLInputElement).value));
-    ensureEl("namesbaseDouble").on("input", e => this.updateBaseDuplication((e.target as HTMLInputElement).value));
-    ensureEl("namesbaseAdd").on("click", () => this.namesbaseAdd());
-    ensureEl("namesbaseAnalyze").on("click", () => this.analyzeNamesbase());
-    ensureEl("namesbaseDefault").on("click", () => this.namesbaseRestoreDefault());
-    ensureEl("namesbaseDownload").on("click", () => this.namesbaseDownload());
-    ensureEl("namesbaseUpload").on("click", () => {
-      uploader.on("change", e => uploadFile(e.target as HTMLInputElement, d => this.namesbaseUpload(d, true)), {
-        once: true
-      });
+    ensureEl("namesbaseSelect").addEventListener("change", () => this.updateInputs());
+    ensureEl("namesbaseTextarea").addEventListener("change", () => this.updateNamesData());
+    ensureEl("namesbaseUpdateExamples").addEventListener("click", () => this.updateExamples());
+    ensureEl("namesbaseExamples").addEventListener("click", () => this.updateExamples());
+    ensureEl("namesbaseName").addEventListener("input", e => this.updateBaseName((e.target as HTMLInputElement).value));
+    ensureEl("namesbaseMin").addEventListener("input", e => this.updateBaseMin((e.target as HTMLInputElement).value));
+    ensureEl("namesbaseMax").addEventListener("input", e => this.updateBaseMax((e.target as HTMLInputElement).value));
+    ensureEl("namesbaseDouble").addEventListener("input", e =>
+      this.updateBaseDuplication((e.target as HTMLInputElement).value)
+    );
+    ensureEl("namesbaseAdd").addEventListener("click", () => this.namesbaseAdd());
+    ensureEl("namesbaseAnalyze").addEventListener("click", () => this.analyzeNamesbase());
+    ensureEl("namesbaseDefault").addEventListener("click", () => this.namesbaseRestoreDefault());
+    ensureEl("namesbaseDownload").addEventListener("click", () => this.namesbaseDownload());
+    ensureEl("namesbaseUpload").addEventListener("click", () => {
+      uploader.addEventListener(
+        "change",
+        e => uploadFile(e.target as HTMLInputElement, d => this.namesbaseUpload(d, true)),
+        {
+          once: true
+        }
+      );
       uploader.click();
     });
-    ensureEl("namesbaseUploadExtend").on("click", () => {
-      uploader.on("change", e => uploadFile(e.target as HTMLInputElement, d => this.namesbaseUpload(d, false)), {
-        once: true
-      });
+    ensureEl("namesbaseUploadExtend").addEventListener("click", () => {
+      uploader.addEventListener(
+        "change",
+        e => uploadFile(e.target as HTMLInputElement, d => this.namesbaseUpload(d, false)),
+        {
+          once: true
+        }
+      );
       uploader.click();
     });
-    ensureEl("namesbaseCA").on("click", () =>
+    ensureEl("namesbaseCA").addEventListener("click", () =>
       openURL("https://cartographyassets.com/asset-category/specific-assets/azgaars-generator/namebases/")
     );
-    ensureEl("namesbaseSpeak").on("click", () => speak(ensureEl("namesbaseExamples").textContent ?? ""));
+    ensureEl("namesbaseSpeak").addEventListener("click", () => speak(ensureEl("namesbaseExamples").textContent ?? ""));
   }
 
   private createBasesList(): void {

@@ -3,6 +3,7 @@ import { aleaPRNG } from "../components/AleaPRNG";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import { interactionManager } from "../controllers/interactionManager";
 import {
   drawBiomes,
   drawBorders,
@@ -180,18 +181,18 @@ class CoastlineEditorModule {
     elSelected = select(node as unknown as Element);
     selectCoastlineGroup(node);
     drawCoastlineVertices();
-    viewbox.on("touchmove mousemove", null);
+    interactionManager.setMouseMoveHandler(null);
 
     if (modules.editCoastline) return;
     modules.editCoastline = true;
 
-    ensureEl("coastlineGroupsShow").on("click", showGroupSection);
-    ensureEl("coastlineGroup").on("change", changeCoastlineGroup);
-    ensureEl("coastlineGroupAdd").on("click", toggleNewGroupInput);
-    ensureEl("coastlineGroupName").on("change", createNewGroup);
-    ensureEl("coastlineGroupRemove").on("click", removeCoastlineGroup);
-    ensureEl("coastlineGroupsHide").on("click", hideGroupSection);
-    ensureEl("coastlineEditStyle").on("click", editGroupStyle);
+    ensureEl("coastlineGroupsShow").addEventListener("click", showGroupSection);
+    ensureEl("coastlineGroup").addEventListener("change", changeCoastlineGroup);
+    ensureEl("coastlineGroupAdd").addEventListener("click", toggleNewGroupInput);
+    ensureEl("coastlineGroupName").addEventListener("change", createNewGroup);
+    ensureEl("coastlineGroupRemove").addEventListener("click", removeCoastlineGroup);
+    ensureEl("coastlineGroupsHide").addEventListener("click", hideGroupSection);
+    ensureEl("coastlineEditStyle").addEventListener("click", editGroupStyle);
 
     function drawCoastlineVertices(): void {
       const featureId = +elSelected!.attr("data-f");
@@ -407,7 +408,7 @@ class CoastlineEditorModule {
 
       const defaultVal = defaultCoastSettings[key] as number;
 
-      slider.on("input", () => {
+      slider.addEventListener("input", () => {
         const value = slider.valueAsNumber;
         defaultCoastSettings[key] = value;
         output.textContent = String(value);
@@ -415,7 +416,7 @@ class CoastlineEditorModule {
         drawFeatures(worldContext, viewContext, appServices);
       });
 
-      resetBtn.on("click", () => {
+      resetBtn.addEventListener("click", () => {
         (defaultCoastSettings[key] as number) = defaultVal;
         slider.value = String(defaultVal);
         output.textContent = String(defaultVal);
@@ -442,7 +443,7 @@ class CoastlineEditorModule {
     };
 
     syncToggle();
-    enabledCb.on("change", () => {
+    enabledCb.addEventListener("change", () => {
       defaultCoastSettings.enabled = enabledCb.checked;
       syncToggle();
       this.updatePreviews();
@@ -452,7 +453,7 @@ class CoastlineEditorModule {
     // Preset buttons
     for (const name of Object.keys(COAST_PRESETS)) {
       const btn = ensureEl<HTMLButtonElement>(`coastPreset_${name}`);
-      btn.on("click", () => {
+      btn.addEventListener("click", () => {
         const preset = COAST_PRESETS[name];
         for (const { id, key } of SLIDER_DEFS) {
           if (!(key in preset)) continue;

@@ -2,6 +2,7 @@ import { type D3DragEvent, drag, mean, min, polygonArea, polygonLength, type Sel
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import { interactionManager } from "../controllers/interactionManager";
 import type { PackedGraphFeature } from "../modules/features";
 import { Lakes } from "../modules/lakes";
 import { drawBiomes, drawBorders, drawCultures, drawProvinces, drawReligions, drawStates } from "../renderers";
@@ -33,21 +34,21 @@ export function editLake(event?: MouseEvent): void {
   updateLakeValues();
   selectLakeGroup();
   drawLakeVertices();
-  viewbox.on("touchmove mousemove", null);
+  interactionManager.setMouseMoveHandler(null);
 
   if (modules.editLake) return;
   modules.editLake = true;
 
   // add listeners
-  ensureEl("lakeName").on("input", changeName);
-  ensureEl("lakeNameCulture").on("click", generateNameCulture);
-  ensureEl("lakeNameRandom").on("click", generateNameRandom);
-  ensureEl("lakeGroup").on("change", changeLakeGroup);
-  ensureEl("lakeGroupAdd").on("click", toggleNewGroupInput);
-  ensureEl("lakeGroupName").on("change", createNewGroup);
-  ensureEl("lakeGroupRemove").on("click", removeLakeGroup);
-  ensureEl("lakeEditStyle").on("click", editGroupStyle);
-  ensureEl("lakeLegend").on("click", editLakeLegend);
+  ensureEl("lakeName").addEventListener("input", changeName);
+  ensureEl("lakeNameCulture").addEventListener("click", generateNameCulture);
+  ensureEl("lakeNameRandom").addEventListener("click", generateNameRandom);
+  ensureEl("lakeGroup").addEventListener("change", changeLakeGroup);
+  ensureEl("lakeGroupAdd").addEventListener("click", toggleNewGroupInput);
+  ensureEl("lakeGroupName").addEventListener("change", createNewGroup);
+  ensureEl("lakeGroupRemove").addEventListener("click", removeLakeGroup);
+  ensureEl("lakeEditStyle").addEventListener("click", editGroupStyle);
+  ensureEl("lakeLegend").addEventListener("click", editLakeLegend);
 
   function getLake(): PackedGraphFeature {
     const lakeId = +elSelected!.attr("data-f");

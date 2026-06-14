@@ -1,5 +1,3 @@
-import * as d3 from "d3";
-
 import { hsl } from "d3";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
@@ -160,7 +158,11 @@ export function fitMapToScreen(): void {
   const options = useOptionsState.getState();
   window.svgWidth = Math.min(options.mapWidth, window.innerWidth);
   window.svgHeight = Math.min(options.mapHeight, window.innerHeight);
-  d3.select("#map").attr("width", window.svgWidth).attr("height", window.svgHeight);
+  const mapEl = document.getElementById("map");
+  if (mapEl) {
+    mapEl.setAttribute("width", String(window.svgWidth));
+    mapEl.setAttribute("height", String(window.svgHeight));
+  }
 
   const zoomMin = rn(Math.max(window.svgWidth / window.graphWidth, window.svgHeight / window.graphHeight), 3);
   zoomExtentMin.value = String(zoomMin);

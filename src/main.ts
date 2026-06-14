@@ -217,10 +217,10 @@ fogging
   .attr("fill", "#e8f0f6")
   .attr("filter", "url(#splotch)");
 
-scaleBar.on("mousemove", () => tip("Click to open Units Editor")).on("click", () => editUnits());
-legend
-  .on("mousemove", () => tip("Drag to change the position. Click to hide the legend"))
-  .on("click", () => clearLegend());
+scaleBar.node()?.addEventListener("mousemove", () => tip("Click to open Units Editor"));
+scaleBar.node()?.addEventListener("click", () => editUnits());
+legend.node()?.addEventListener("mousemove", () => tip("Drag to change the position. Click to hide the legend"));
+legend.node()?.addEventListener("click", () => clearLegend());
 
 // ─── Expose SVG layers globally ───────────────────────────────────────────────
 
@@ -649,7 +649,7 @@ const zoom = d3.zoom<SVGSVGElement, unknown>().scaleExtent([1, 20]).on("zoom", z
 window.scale = scale;
 window.viewX = viewX;
 window.viewY = viewY;
-window.zoom = zoom as unknown as ZoomBehaviorExtended;
+window.zoom = zoom;
 viewContext.zoom = zoom;
 viewContext.scale = scale;
 viewContext.viewX = viewX;
@@ -721,16 +721,23 @@ export async function initMain(): Promise<void> {
   initTourPromptButton();
 }
 
+function applyTransition(id: string, duration: number, opacity: number) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.style.transition = `opacity ${duration}ms`;
+  el.style.opacity = String(opacity);
+}
+
 function hideLoading() {
-  d3.select("#loading").transition().duration(3000).style("opacity", 0);
-  d3.select("#optionsContainer").transition().duration(2000).style("opacity", 1);
-  d3.select("#tooltip").transition().duration(3000).style("opacity", 1);
+  applyTransition("loading", 3000, 0);
+  applyTransition("optionsContainer", 2000, 1);
+  applyTransition("tooltip", 3000, 1);
 }
 
 function showLoading() {
-  d3.select("#loading").transition().duration(200).style("opacity", 1);
-  d3.select("#optionsContainer").transition().duration(100).style("opacity", 0);
-  d3.select("#tooltip").transition().duration(200).style("opacity", 0);
+  applyTransition("loading", 200, 1);
+  applyTransition("optionsContainer", 100, 0);
+  applyTransition("tooltip", 200, 0);
 }
 
 async function checkLoadParameters() {
@@ -843,7 +850,7 @@ function toggleAssistant() {
           const bubble = document.getElementById("chat-widget-minimized");
           if (bubble) {
             bubble.dataset.tip = "Click to open the Assistant";
-            bubble.on("mouseover", showDataTip as EventListener);
+            bubble.addEventListener("mouseover", showDataTip as EventListener);
           }
         }, 5000);
       });
@@ -927,7 +934,7 @@ function findBurgForMFCG(params: URLSearchParams) {
       .text(b.name ?? "")
       .classed("drag", true)
       .on("mouseover", function () {
-        d3.select(this as Element).classed("drag", false);
+        (this as Element).classList.remove("drag");
         label.on("mouseover", null);
       });
   }

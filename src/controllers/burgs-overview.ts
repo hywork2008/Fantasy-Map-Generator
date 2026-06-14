@@ -4,6 +4,7 @@ import { editBurgGroups } from "../editors/burg-group-editor";
 import { Burgs } from "../modules/burgs-generator";
 import { openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { convertTemperature, ensureEl, findCell, getLatitude, getLongitude, rn, si } from "../utils";
+import { interactionManager } from "./interactionManager";
 
 function overviewBurgs(settings: { stateId?: number | null; cultureId?: number | null } = {}): void {
   if (customization) return;
@@ -255,7 +256,8 @@ function overviewBurgs(settings: { stateId?: number | null; cultureId?: number |
     customization = 3;
     this.classList.add("pressed");
     tip("Click on the map to create a new burg. Hold Shift to add multiple", true, "warn");
-    viewbox.style("cursor", "crosshair").on("click", addBurgOnClick);
+    viewbox.style("cursor", "crosshair");
+    interactionManager.setClickHandler(addBurgOnClick);
   }
 
   function addBurgOnClick(this: SVGElement, event: MouseEvent): void {
@@ -467,10 +469,9 @@ function overviewBurgs(settings: { stateId?: number | null; cultureId?: number |
         }
 
         function showInfo(ev: MouseEvent, d: PackNode): void {
-          d3.select(ev.target as Element)
-            .transition()
-            .duration(1500)
-            .attr("stroke", "#c13119");
+          const el = ev.target as HTMLElement;
+          el.style.transition = "stroke 1.5s";
+          el.setAttribute("stroke", "#c13119");
           const name = d.data.name;
           const parent = d.parent?.data.name;
           const population = si((d.value ?? 0) * populationRate * urbanization);
@@ -486,9 +487,9 @@ function overviewBurgs(settings: { stateId?: number | null; cultureId?: number |
           const burgsInfoEl = document.getElementById("burgsInfo");
           if (!burgsInfoEl) return;
           burgsInfoEl.innerHTML = "&#8205;";
-          d3.select(ev.target as Element)
-            .transition()
-            .attr("stroke", null);
+          const el = ev.target as HTMLElement;
+          el.style.transition = "";
+          el.removeAttribute("stroke");
           tip("");
         }
       }

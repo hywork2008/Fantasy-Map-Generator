@@ -47,18 +47,18 @@ export function editRiver(id: string): void {
   modules.editRiver = true;
 
   // add listeners
-  ensureEl("riverCreateSelectingCells").on("click", createRiver);
-  ensureEl("riverEditStyle").on("click", () => editStyle("rivers"));
-  ensureEl("riverElevationProfile").on("click", showRiverElevationProfile);
-  ensureEl("riverLegend").on("click", editRiverLegend);
-  ensureEl("riverRemove").on("click", removeRiver);
-  ensureEl("riverName").on("input", changeName);
-  ensureEl("riverType").on("input", changeType);
-  ensureEl("riverNameCulture").on("click", generateNameCulture);
-  ensureEl("riverNameRandom").on("click", generateNameRandom);
-  ensureEl("riverMainstem").on("change", changeParent);
-  ensureEl("riverSourceWidth").on("input", changeSourceWidth);
-  ensureEl("riverWidthFactor").on("input", changeWidthFactor);
+  ensureEl("riverCreateSelectingCells").addEventListener("click", createRiver);
+  ensureEl("riverEditStyle").addEventListener("click", () => editStyle("rivers"));
+  ensureEl("riverElevationProfile").addEventListener("click", showRiverElevationProfile);
+  ensureEl("riverLegend").addEventListener("click", editRiverLegend);
+  ensureEl("riverRemove").addEventListener("click", removeRiver);
+  ensureEl("riverName").addEventListener("input", changeName);
+  ensureEl("riverType").addEventListener("input", changeType);
+  ensureEl("riverNameCulture").addEventListener("click", generateNameCulture);
+  ensureEl("riverNameRandom").addEventListener("click", generateNameRandom);
+  ensureEl("riverMainstem").addEventListener("change", changeParent);
+  ensureEl("riverSourceWidth").addEventListener("input", changeSourceWidth);
+  ensureEl("riverWidthFactor").addEventListener("input", changeWidthFactor);
 
   function getRiver(): River {
     const riverId = +elSelected!.attr("id").slice(5);

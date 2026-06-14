@@ -45,8 +45,10 @@ export function editBurgGroups(): void {
   modules.editBurgGroups = true;
 
   // add listeners
-  ensureEl("burgGroupsForm").on("change", validateForm).on("submit", submitForm);
-  ensureEl("burgGroupsBody").on("click", (ev: Event) => {
+  const formEl = ensureEl("burgGroupsForm");
+  formEl.addEventListener("change", validateForm);
+  formEl.addEventListener("submit", submitForm);
+  ensureEl("burgGroupsBody").addEventListener("click", (ev: Event) => {
     const e = ev as MouseEvent;
     const el = e.target as HTMLElement;
     const line = el.closest("tr") as HTMLTableRowElement | null;

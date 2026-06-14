@@ -2,6 +2,7 @@ import * as d3 from "d3";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import { interactionManager } from "../controllers/interactionManager";
 import type { Burg } from "../modules/burgs-generator";
 import { Burgs } from "../modules/burgs-generator";
 import type { Culture } from "../modules/cultures-generator";
@@ -124,25 +125,25 @@ function insertEditorHtml(): HTMLElement {
 function addListeners(): void {
   applySortingByHeader("statesHeader");
 
-  ensureEl("statesEditorRefresh").on("click", refreshStatesEditor);
-  ensureEl("statesEditStyle").on("click", () => editStyle("regions"));
-  ensureEl("statesLegend").on("click", toggleLegend);
-  ensureEl("statesPercentage").on("click", togglePercentageMode);
-  ensureEl("statesChart").on("click", showStatesChart);
-  ensureEl("statesRegenerate").on("click", openRegenerationMenu);
-  ensureEl("statesRegenerateBack").on("click", exitRegenerationMenu);
-  ensureEl("statesRecalculate").on("click", () => recalculateStates(true));
-  ensureEl("statesRandomize").on("click", randomizeStatesExpansion);
-  ensureEl("statesGrowthRate").on("input", () => recalculateStates(false));
-  ensureEl("statesManually").on("click", enterStatesManualAssignent);
-  ensureEl("statesManuallyUndo").on("click", undoStatesManualAssignment);
-  ensureEl("statesManuallyApply").on("click", applyStatesManualAssignent);
-  ensureEl("statesManuallyCancel").on("click", () => exitStatesManualAssignment(false));
-  ensureEl("statesAdd").on("click", enterAddStateMode);
-  ensureEl("statesMerge").on("click", openStateMergeDialog);
-  ensureEl("statesExport").on("click", downloadStatesCsv);
+  ensureEl("statesEditorRefresh").addEventListener("click", refreshStatesEditor);
+  ensureEl("statesEditStyle").addEventListener("click", () => editStyle("regions"));
+  ensureEl("statesLegend").addEventListener("click", toggleLegend);
+  ensureEl("statesPercentage").addEventListener("click", togglePercentageMode);
+  ensureEl("statesChart").addEventListener("click", showStatesChart);
+  ensureEl("statesRegenerate").addEventListener("click", openRegenerationMenu);
+  ensureEl("statesRegenerateBack").addEventListener("click", exitRegenerationMenu);
+  ensureEl("statesRecalculate").addEventListener("click", () => recalculateStates(true));
+  ensureEl("statesRandomize").addEventListener("click", randomizeStatesExpansion);
+  ensureEl("statesGrowthRate").addEventListener("input", () => recalculateStates(false));
+  ensureEl("statesManually").addEventListener("click", enterStatesManualAssignent);
+  ensureEl("statesManuallyUndo").addEventListener("click", undoStatesManualAssignment);
+  ensureEl("statesManuallyApply").addEventListener("click", applyStatesManualAssignent);
+  ensureEl("statesManuallyCancel").addEventListener("click", () => exitStatesManualAssignment(false));
+  ensureEl("statesAdd").addEventListener("click", enterAddStateMode);
+  ensureEl("statesMerge").addEventListener("click", openStateMergeDialog);
+  ensureEl("statesExport").addEventListener("click", downloadStatesCsv);
 
-  $body.on("click", (event: Event) => {
+  $body.addEventListener("click", (event: Event) => {
     const $element = event.target as HTMLElement;
     const classList = $element.classList;
     const stateId = +(($element.parentNode as HTMLElement)?.dataset?.id ?? "0");
@@ -160,7 +161,7 @@ function addListeners(): void {
       updateLockStatus(stateId, classList);
   });
 
-  $body.on("input", (ev: Event) => {
+  $body.addEventListener("input", (ev: Event) => {
     const $element = ev.target as HTMLElement;
     const classList = $element.classList;
     const line = $element.parentNode as HTMLElement;
@@ -168,7 +169,7 @@ function addListeners(): void {
     if (classList.contains("stateCapital")) stateChangeCapitalName(state, line, ($element as HTMLInputElement).value);
   });
 
-  $body.on("change", (ev: Event) => {
+  $body.addEventListener("change", (ev: Event) => {
     const $element = ev.target as HTMLElement;
     const classList = $element.classList;
     const line = $element.parentNode as HTMLElement;
@@ -296,9 +297,9 @@ function statesEditorAddLines(): void {
   ensureEl("statesFooterPopulation").dataset.population = String(totalPopulation);
 
   $body.querySelectorAll(":scope > div").forEach($line => {
-    $line.on("mouseenter", stateHighlightOn);
-    $line.on("mouseleave", stateHighlightOff);
-    $line.on("click", selectStateOnLineClick);
+    $line.addEventListener("mouseenter", stateHighlightOn);
+    $line.addEventListener("mouseleave", stateHighlightOff);
+    $line.addEventListener("click", selectStateOnLineClick);
   });
 
   if ($body.dataset.type === "percentage") {
@@ -417,11 +418,11 @@ function editStateName(state: number): void {
   if (modules.editStateName) return;
   modules.editStateName = true;
 
-  ensureEl("stateNameEditorShortCulture").on("click", regenerateShortNameCulture);
-  ensureEl("stateNameEditorShortRandom").on("click", regenerateShortNameRandom);
-  ensureEl("stateNameEditorAddForm").on("click", addCustomForm);
-  ensureEl("stateNameEditorCustomForm").on("change", addCustomForm);
-  ensureEl("stateNameEditorFullRegenerate").on("click", regenerateFullName);
+  ensureEl("stateNameEditorShortCulture").addEventListener("click", regenerateShortNameCulture);
+  ensureEl("stateNameEditorShortRandom").addEventListener("click", regenerateShortNameRandom);
+  ensureEl("stateNameEditorAddForm").addEventListener("click", addCustomForm);
+  ensureEl("stateNameEditorCustomForm").addEventListener("change", addCustomForm);
+  ensureEl("stateNameEditorFullRegenerate").addEventListener("click", regenerateFullName);
 
   function regenerateShortNameCulture(): void {
     const stateId = +ensureEl("stateNameEditor").dataset.state!;
@@ -768,7 +769,7 @@ function showStatesChart(): void {
     .attr("text-anchor", "middle")
     .attr("dominant-baseline", "central");
   const graph = chartSvg.append("g").attr("transform", `translate(-50, 0)`);
-  ensureEl("statesTreeType").on("change", updateChart);
+  ensureEl("statesTreeType").addEventListener("change", updateChart);
 
   treeLayout(root);
 
@@ -804,9 +805,8 @@ function showStatesChart(): void {
     .attr("dy", (_d: string, i: number, n: ArrayLike<SVGTSpanElement>) => `${i ? 1 : (n.length - 1) / -2}em`);
 
   function showInfo(ev: MouseEvent, d: HPNode): void {
-    d3.select(ev.target as Element)
-      .select("circle")
-      .classed("selected", true);
+    const circle = (ev.target as Element).querySelector("circle");
+    if (circle) circle.classList.add("selected");
     const state = d.data.fullName;
 
     const area = `${getArea(d.data.area ?? 0)} ${getAreaUnit()}`;
@@ -834,9 +834,8 @@ function showStatesChart(): void {
     const statesInfoEl = document.getElementById("statesInfo");
     if (!statesInfoEl) return;
     statesInfoEl.innerHTML = "&#8205;";
-    d3.select(ev.target as Element)
-      .select("circle")
-      .classed("selected", false);
+    const circle = (ev.target as Element).querySelector("circle");
+    if (circle) circle.classList.remove("selected");
   }
 
   function updateChart(this: HTMLSelectElement): void {
@@ -1266,7 +1265,8 @@ function enterAddStateMode(this: HTMLButtonElement): void {
   customization = 3;
   this.classList.add("pressed");
   tip("Click on the map to create a new capital or promote an existing burg", true);
-  viewbox.style("cursor", "crosshair").on("click", addState);
+  viewbox.style("cursor", "crosshair");
+  interactionManager.setClickHandler(addState);
   $body.querySelectorAll<HTMLElement>("div > input, select, span, svg").forEach(e => {
     e.style.pointerEvents = "none";
   });
@@ -1304,7 +1304,7 @@ function addState(this: SVGElement, event: MouseEvent): void {
   const color = getRandomColor();
 
   const cultureType = (pack.cultures as Culture[])[culture].type;
-  const coa = COA.generate((burgs as Burg[])[burgId].coa ?? null, 0.4, null as unknown as number, cultureType);
+  const coa = COA.generate((burgs as Burg[])[burgId].coa ?? null, 0.4, null, cultureType);
   coa.shield = COA.getShield(culture);
 
   const statesArr = states as State[];

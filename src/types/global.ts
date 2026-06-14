@@ -1,4 +1,4 @@
-import type { Quadtree, Selection } from "d3";
+import type { Quadtree, Selection, ZoomBehavior } from "d3";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 
@@ -353,8 +353,8 @@ declare global {
       fullMap?: boolean;
     }
   ) => Promise<string>;
-  var removeUnusedElements: (clone: Selection<SVGGElement, unknown, null, undefined>) => void;
-  var inlineStyle: (clone: Selection<SVGGElement, unknown, null, undefined>) => void;
+  var removeUnusedElements: (clone: Selection<SVGSVGElement, unknown, null, undefined>) => void;
+  var inlineStyle: (clone: Selection<SVGSVGElement, unknown, null, undefined>) => void;
   var saveGeoJsonCells: () => void;
   var saveGeoJsonRoutes: () => void;
   var saveGeoJsonRivers: () => void;
@@ -377,14 +377,7 @@ declare global {
   // ─── Phase 8: hotkeys / uiHelpers / measurers ────────────────────────────
 
   // Zoom behavior (d3, from main.js)
-  var zoom: ZoomBehaviorExtended;
-  interface ZoomBehaviorExtended {
-    translateBy: (selection: unknown, dx: number, dy: number) => ZoomBehaviorExtended;
-    scaleTo: (selection: unknown, scale: number) => ZoomBehaviorExtended;
-    scaleBy: (selection: unknown, factor: number) => ZoomBehaviorExtended;
-    translateExtent: (extent: [[number, number], [number, number]]) => ZoomBehaviorExtended;
-    scaleExtent: (extent: [number, number]) => ZoomBehaviorExtended;
-  }
+  var zoom: ZoomBehavior<SVGSVGElement, unknown>;
 
   var MOBILE: boolean;
   var hideOptions: () => void;

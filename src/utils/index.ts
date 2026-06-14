@@ -57,15 +57,6 @@ import { convertTemperature, getIntegerFromSI, si } from "./unitUtils";
 JSON.isValid = isValidJSON;
 JSON.safeParse = safeParseJSON;
 
-Node.prototype.on = function (name, fn, options) {
-  this.addEventListener(name, fn, options);
-  return this;
-};
-Node.prototype.off = function (name, fn) {
-  this.removeEventListener(name, fn);
-  return this;
-};
-
 export function initUtils(): void {
   // Initialize prompt when DOM is ready
   if (document.readyState === "loading") {
@@ -88,9 +79,6 @@ declare global {
   }
 
   interface Node {
-    on: (name: string, fn: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions) => Node;
-    off: (name: string, fn: EventListenerOrEventListenerObject) => Node;
-
     temperatureScale?: { value?: string };
     pack?: import("../types/PackedGraph").PackedGraph;
     packedGraph?: import("../types/PackedGraph").PackedGraph;

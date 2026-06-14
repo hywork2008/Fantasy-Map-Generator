@@ -4,6 +4,7 @@ import { aleaPRNG } from "../components/AleaPRNG";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import { interactionManager } from "../controllers/interactionManager";
 import { Biomes } from "../modules/biomes";
 import type { Burg } from "../modules/burgs-generator";
 import { Burgs } from "../modules/burgs-generator";
@@ -174,7 +175,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     layersPreset.disabled = true;
     mockHeightmap();
 
-    viewbox.on("touchmove", moveCursor).on("mousemove", moveCursor);
+    interactionManager.setMouseMoveHandler(moveCursor);
     svg.on("dblclick.zoom", null);
 
     if (tool === "templateEditor") openTemplateEditor();
@@ -662,7 +663,8 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     function exitBrushMode(): void {
       const pressed = document.querySelector<HTMLElement>("#brushesButtons > button.pressed");
       if (pressed) pressed.classList.remove("pressed");
-      viewbox.style("cursor", "default").on(".drag", null).on("click", clicked);
+      viewbox.style("cursor", "default").on(".drag", null);
+      interactionManager.resetClickHandler();
       debug.selectAll(".lineCircle").remove();
       removeCircle();
       ensureEl("brushesSliders").style.display = "none";
@@ -682,10 +684,12 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
 
       if (button.id === "brushLine") {
         ensureEl("lineSlider").style.display = "block";
-        viewbox.style("cursor", "crosshair").on("click", placeLinearFeature);
+        viewbox.style("cursor", "crosshair");
+        interactionManager.setClickHandler(placeLinearFeature);
       } else if (button.id === "brushFill") {
         ensureEl("brushesSliders").style.display = "block";
-        viewbox.style("cursor", "crosshair").on("click", applyFillBrush);
+        viewbox.style("cursor", "crosshair");
+        interactionManager.setClickHandler(applyFillBrush);
       } else {
         ensureEl("brushesSliders").style.display = "block";
         viewbox

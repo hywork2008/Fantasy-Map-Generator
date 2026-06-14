@@ -1,4 +1,5 @@
 import { curveNatural, type D3DragEvent, drag, pointer, select } from "d3";
+import { interactionManager } from "../controllers/interactionManager";
 import { closeDialog, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, findCell, parseTransform, round } from "../utils";
 import { editNotes } from "./notes-editor";
@@ -27,7 +28,7 @@ export function editLabel(tspan?: Element): void {
         })
     )
     .classed("draggable", true);
-  viewbox.on("touchmove mousemove", showEditorTips);
+  interactionManager.setMouseMoveHandler(showEditorTips);
 
   openDialog("labelEditor", {
     title: "Edit Label",
@@ -45,35 +46,35 @@ export function editLabel(tspan?: Element): void {
   modules.editLabel = true;
 
   // add listeners
-  ensureEl("labelGroupShow").on("click", showGroupSection);
-  ensureEl("labelGroupHide").on("click", hideGroupSection);
-  ensureEl("labelGroupSelect").on("click", changeGroup);
-  ensureEl("labelGroupInput").on("change", createNewGroup);
-  ensureEl("labelGroupNew").on("click", toggleNewGroupInput);
-  ensureEl("labelGroupRemove").on("click", removeLabelsGroup);
+  ensureEl("labelGroupShow").addEventListener("click", showGroupSection);
+  ensureEl("labelGroupHide").addEventListener("click", hideGroupSection);
+  ensureEl("labelGroupSelect").addEventListener("click", changeGroup);
+  ensureEl("labelGroupInput").addEventListener("change", createNewGroup);
+  ensureEl("labelGroupNew").addEventListener("click", toggleNewGroupInput);
+  ensureEl("labelGroupRemove").addEventListener("click", removeLabelsGroup);
 
-  ensureEl("labelTextShow").on("click", showTextSection);
-  ensureEl("labelTextHide").on("click", hideTextSection);
-  ensureEl("labelText").on("input", changeText);
-  ensureEl("labelTextRandom").on("click", generateRandomName);
+  ensureEl("labelTextShow").addEventListener("click", showTextSection);
+  ensureEl("labelTextHide").addEventListener("click", hideTextSection);
+  ensureEl("labelText").addEventListener("input", changeText);
+  ensureEl("labelTextRandom").addEventListener("click", generateRandomName);
 
-  ensureEl("labelEditStyle").on("click", editGroupStyle);
+  ensureEl("labelEditStyle").addEventListener("click", editGroupStyle);
 
-  ensureEl("labelSizeShow").on("click", showSizeSection);
-  ensureEl("labelSizeHide").on("click", hideSizeSection);
-  ensureEl("labelOffsetShow").on("click", showOffsetSection);
-  ensureEl("labelOffsetHide").on("click", hideOffsetSection);
-  ensureEl("labelStartOffset").on("input", changeStartOffset);
-  ensureEl("labelStartOffsetValue").on("input", changeStartOffsetFromValue);
-  ensureEl("labelRelativeSize").on("input", changeRelativeSize);
+  ensureEl("labelSizeShow").addEventListener("click", showSizeSection);
+  ensureEl("labelSizeHide").addEventListener("click", hideSizeSection);
+  ensureEl("labelOffsetShow").addEventListener("click", showOffsetSection);
+  ensureEl("labelOffsetHide").addEventListener("click", hideOffsetSection);
+  ensureEl("labelStartOffset").addEventListener("input", changeStartOffset);
+  ensureEl("labelStartOffsetValue").addEventListener("input", changeStartOffsetFromValue);
+  ensureEl("labelRelativeSize").addEventListener("input", changeRelativeSize);
 
-  ensureEl("labelLetterSpacingShow").on("click", showLetterSpacingSection);
-  ensureEl("labelLetterSpacingHide").on("click", hideLetterSpacingSection);
-  ensureEl("labelLetterSpacingSize").on("input", changeLetterSpacingSize);
+  ensureEl("labelLetterSpacingShow").addEventListener("click", showLetterSpacingSection);
+  ensureEl("labelLetterSpacingHide").addEventListener("click", hideLetterSpacingSection);
+  ensureEl("labelLetterSpacingSize").addEventListener("input", changeLetterSpacingSize);
 
-  ensureEl("labelAlign").on("click", editLabelAlign);
-  ensureEl("labelLegend").on("click", editLabelLegend);
-  ensureEl("labelRemoveSingle").on("click", removeLabel);
+  ensureEl("labelAlign").addEventListener("click", editLabelAlign);
+  ensureEl("labelLegend").addEventListener("click", editLabelLegend);
+  ensureEl("labelRemoveSingle").addEventListener("click", removeLabel);
 
   function showEditorTips(this: SVGElement, event: MouseEvent): void {
     showMainTip();
@@ -122,7 +123,7 @@ export function editLabel(tspan?: Element): void {
   function drawControlPointsAndLine(): void {
     debug.select("#controlPoints").remove();
     debug.append("g").attr("id", "controlPoints").attr("transform", elSelected!.attr("transform"));
-    const path = ensureEl(`textPath_${elSelected!.attr("id")}`) as unknown as SVGPathElement;
+    const path = ensureEl<SVGPathElement>(`textPath_${elSelected!.attr("id")}`);
     debug.select("#controlPoints").append("path").attr("d", path.getAttribute("d")).on("click", addInterimControlPoint);
     const l = path.getTotalLength();
     if (!l) return;
@@ -151,7 +152,7 @@ export function editLabel(tspan?: Element): void {
   }
 
   function redrawLabelPath(): void {
-    const path = ensureEl(`textPath_${elSelected!.attr("id")}`) as unknown as SVGPathElement;
+    const path = ensureEl<SVGPathElement>(`textPath_${elSelected!.attr("id")}`);
     lineGen.curve(curveNatural);
     const points: [number, number][] = [];
     debug

@@ -4,6 +4,7 @@ import { Rivers } from "../modules/river-generator";
 import { closeDialog, openDialog } from "../ui/dialogs/dialogService";
 import { findCell, last, rn } from "../utils";
 import { getPackPolygon } from "../utils/graphUtils";
+import { interactionManager } from "./interactionManager";
 
 let worldContext: WorldContext;
 
@@ -17,7 +18,8 @@ function createRiver(): void {
 
   tip("Click to add river point, click again to remove", true);
   debug.append("g").attr("id", "controlCells");
-  viewbox.style("cursor", "crosshair").on("click", onCellClick);
+  viewbox.style("cursor", "crosshair");
+  interactionManager.setClickHandler(onCellClick);
 
   const riverCells: number[] = [];
   const body = document.getElementById("riverCreatorBody") as HTMLElement;

@@ -29,10 +29,10 @@ declare global {
 class ElevationProfileModule {
   open(cells: number[], routeLen: number, isRiver: boolean): void {
     closeDialogs("#elevationProfile, .stable");
-    ensureEl("epCurve").on("change", draw);
-    ensureEl("epSave").on("click", downloadCSV);
-    ensureEl("epSaveSVG").on("click", downloadSVG);
-    ensureEl("epSavePNG").on("click", downloadPNG);
+    ensureEl("epCurve").addEventListener("change", draw);
+    ensureEl("epSave").addEventListener("click", downloadCSV);
+    ensureEl("epSaveSVG").addEventListener("click", downloadSVG);
+    ensureEl("epSavePNG").addEventListener("click", downloadPNG);
 
     const firstCell = cells[0];
     const lastCell = cells.at(-1);
@@ -310,7 +310,7 @@ class ElevationProfileModule {
         .append("g")
         .attr("id", "epxaxis")
         .attr("transform", `translate(${xOffset},${chartHeight + yOffset + 20})`)
-        .call(xAxis as unknown as (g: Selection<SVGGElement, unknown, HTMLElement, unknown>) => void)
+        .call(xAxis)
         .selectAll("text")
         .style("text-anchor", "center");
 
@@ -318,7 +318,7 @@ class ElevationProfileModule {
         .append("g")
         .attr("id", "epyaxis")
         .attr("transform", `translate(${xOffset - 10},${yOffset})`)
-        .call(yAxis as unknown as (g: Selection<SVGGElement, unknown, HTMLElement, unknown>) => void);
+        .call(yAxis);
 
       // Grid lines
       const gridStyle = (g: Selection<SVGGElement, unknown, HTMLElement, unknown>): void => {
@@ -562,10 +562,10 @@ class ElevationProfileModule {
     }
 
     function closeElevationProfile(): void {
-      ensureEl("epCurve").off("change", draw);
-      ensureEl("epSave").off("click", downloadCSV);
-      ensureEl("epSaveSVG").off("click", downloadSVG);
-      ensureEl("epSavePNG").off("click", downloadPNG);
+      ensureEl("epCurve").removeEventListener("change", draw);
+      ensureEl("epSave").removeEventListener("click", downloadCSV);
+      ensureEl("epSaveSVG").removeEventListener("click", downloadSVG);
+      ensureEl("epSavePNG").removeEventListener("click", downloadPNG);
       ensureEl("elevationGraph").innerHTML = "";
       modules.elevation = false;
     }

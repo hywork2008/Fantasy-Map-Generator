@@ -2,6 +2,7 @@ import { color, interpolateString, pointer } from "d3";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import { interactionManager } from "../controllers/interactionManager";
 import { COArenderer } from "../modules/emblem/renderer";
 import { States } from "../modules/states-generator";
 import { drawStates } from "../renderers";
@@ -81,7 +82,8 @@ export function editDiplomacy(): void {
   if (layerIsOn("toggleReligions")) toggleReligions();
 
   refreshDiplomacyEditor();
-  viewbox.style("cursor", "crosshair").on("click", selectStateOnMapClick);
+  viewbox.style("cursor", "crosshair");
+  interactionManager.setClickHandler(selectStateOnMapClick);
 
   if (modules.editDiplomacy) return;
   modules.editDiplomacy = true;

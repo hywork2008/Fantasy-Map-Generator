@@ -7,6 +7,7 @@ import { Military } from "../modules/military-generator";
 import { drawRegiment } from "../renderers/index";
 import { openDialog } from "../ui/dialogs/dialogService";
 import { capitalize, ensureEl, findCell, getLatitude, getLongitude, last, rn, si } from "../utils";
+import { interactionManager } from "./interactionManager";
 
 let worldContext: WorldContext;
 let viewContext: Readonly<ViewContext>;
@@ -173,12 +174,14 @@ function overviewRegiments(state = -1): void {
   function toggleAdd(): void {
     document.getElementById("regimentsAddNew")!.classList.toggle("pressed");
     if (document.getElementById("regimentsAddNew")!.classList.contains("pressed")) {
-      viewbox.style("cursor", "crosshair").on("click", addRegimentOnClick);
+      viewbox.style("cursor", "crosshair");
+      interactionManager.setClickHandler(addRegimentOnClick);
       tip("Click on map to create new regiment or fleet", true);
       if (regimentAdd.offsetParent) regimentAdd.classList.add("pressed");
     } else {
       clearMainTip();
-      viewbox.on("click", clicked).style("cursor", "default");
+      interactionManager.resetClickHandler();
+      viewbox.style("cursor", "default");
       addLines();
       if (regimentAdd.offsetParent) regimentAdd.classList.remove("pressed");
     }

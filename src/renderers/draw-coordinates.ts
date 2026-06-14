@@ -36,7 +36,7 @@ export const drawCoordinates = (
   const labelsGroup = coordinates.append("g").attr("id", "coordinateLabels");
 
   const point = new DOMPoint(scale + desired + 2, scale + desired / 2);
-  const p = point.matrixTransform((ensureEl("viewbox") as unknown as SVGGraphicsElement).getScreenCTM()!.inverse());
+  const p = point.matrixTransform(ensureEl<SVGGElement>("viewbox").getScreenCTM()!.inverse());
 
   const data = graticule.lines().map(d => {
     const isLatitude = d.coordinates[0][1] === d.coordinates[1][1];

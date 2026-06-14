@@ -1,4 +1,5 @@
 import { drag, pointer } from "d3";
+import { interactionManager } from "../controllers/interactionManager";
 import type { Burg } from "../modules/burgs-generator";
 import { Burgs } from "../modules/burgs-generator";
 import type { Culture } from "../modules/cultures-generator";
@@ -51,34 +52,34 @@ export function editBurg(id?: number): void {
   modules.editBurg = true;
 
   // add listeners
-  ensureEl("burgName").on("input", changeName);
-  ensureEl("burgNameReRandom").on("click", generateNameRandom);
-  ensureEl("burgGroup").on("change", changeGroup);
-  ensureEl("burgGroupConfigure").on("click", editBurgGroups);
-  ensureEl("burgType").on("change", changeType);
-  ensureEl("burgCulture").on("change", changeCulture);
-  ensureEl("burgNameReCulture").on("click", generateNameCulture);
-  ensureEl("burgPopulation").on("change", changePopulation);
+  ensureEl("burgName").addEventListener("input", changeName);
+  ensureEl("burgNameReRandom").addEventListener("click", generateNameRandom);
+  ensureEl("burgGroup").addEventListener("change", changeGroup);
+  ensureEl("burgGroupConfigure").addEventListener("click", editBurgGroups);
+  ensureEl("burgType").addEventListener("change", changeType);
+  ensureEl("burgCulture").addEventListener("change", changeCulture);
+  ensureEl("burgNameReCulture").addEventListener("click", generateNameCulture);
+  ensureEl("burgPopulation").addEventListener("change", changePopulation);
   burgBody.querySelectorAll(".burgFeature").forEach(el => {
-    el.on("click", toggleFeature);
+    el.addEventListener("click", toggleFeature);
   });
-  ensureEl("burgLinkOpen").on("click", openBurgLink);
+  ensureEl("burgLinkOpen").addEventListener("click", openBurgLink);
 
-  ensureEl("burgStyleShow").on("click", showStyleSection);
-  ensureEl("burgStyleHide").on("click", hideStyleSection);
-  ensureEl("burgEditLabelStyle").on("click", editGroupLabelStyle);
-  ensureEl("burgEditIconStyle").on("click", editGroupIconStyle);
-  ensureEl("burgEditAnchorStyle").on("click", editGroupAnchorStyle);
+  ensureEl("burgStyleShow").addEventListener("click", showStyleSection);
+  ensureEl("burgStyleHide").addEventListener("click", hideStyleSection);
+  ensureEl("burgEditLabelStyle").addEventListener("click", editGroupLabelStyle);
+  ensureEl("burgEditIconStyle").addEventListener("click", editGroupIconStyle);
+  ensureEl("burgEditAnchorStyle").addEventListener("click", editGroupAnchorStyle);
 
-  ensureEl("burgEmblem").on("click", openEmblemEdit);
-  ensureEl("burgSetPreviewLink").on("click", setCustomPreview);
-  ensureEl("burgEditEmblem").on("click", openEmblemEdit);
-  ensureEl("burgLocate").on("click", zoomIntoBurg);
-  ensureEl("burgRelocate").on("click", toggleRelocateBurg);
-  ensureEl("burglLegend").on("click", editBurgLegend);
-  ensureEl("burgLock").on("click", toggleBurgLockButton);
-  ensureEl("burgRemove").on("click", removeSelectedBurg);
-  ensureEl("burgTemperatureGraph").on("click", showTemperatureGraph);
+  ensureEl("burgEmblem").addEventListener("click", openEmblemEdit);
+  ensureEl("burgSetPreviewLink").addEventListener("click", setCustomPreview);
+  ensureEl("burgEditEmblem").addEventListener("click", openEmblemEdit);
+  ensureEl("burgLocate").addEventListener("click", zoomIntoBurg);
+  ensureEl("burgRelocate").addEventListener("click", toggleRelocateBurg);
+  ensureEl("burglLegend").addEventListener("click", editBurgLegend);
+  ensureEl("burgLock").addEventListener("click", toggleBurgLockButton);
+  ensureEl("burgRemove").addEventListener("click", removeSelectedBurg);
+  ensureEl("burgTemperatureGraph").addEventListener("click", showTemperatureGraph);
 
   function updateGroupsList(): void {
     const burgGroupSelect = ensureEl("burgGroup") as HTMLSelectElement;
@@ -132,7 +133,7 @@ export function editBurg(id?: number): void {
     // set emblem image
     const coaID = `burgCOA${burgId}`;
     COArenderer.trigger(coaID, b.coa!);
-    (ensureEl("burgEmblem") as unknown as SVGUseElement).setAttribute("href", `#${coaID}`);
+    ensureEl<SVGUseElement>("burgEmblem").setAttribute("href", `#${coaID}`);
 
     updateBurgPreview(b);
   }
@@ -364,7 +365,8 @@ export function editBurg(id?: number): void {
     const toggler = ensureEl("toggleCells") as HTMLElement;
     (ensureEl("burgRelocate") as HTMLElement).classList.toggle("pressed");
     if ((ensureEl("burgRelocate") as HTMLElement).classList.contains("pressed")) {
-      viewbox.style("cursor", "crosshair").on("click", relocateBurgOnClick);
+      viewbox.style("cursor", "crosshair");
+      interactionManager.setClickHandler(relocateBurgOnClick);
       tip("Click on map to relocate burg. Hold Shift for continuous move", true);
       if (!layerIsOn("toggleCells")) {
         toggleCells();
@@ -372,7 +374,8 @@ export function editBurg(id?: number): void {
       }
     } else {
       clearMainTip();
-      viewbox.on("click", clicked).style("cursor", "default");
+      interactionManager.resetClickHandler();
+      viewbox.style("cursor", "default");
       if (layerIsOn("toggleCells") && toggler.dataset.forced) {
         toggleCells();
         toggler.dataset.forced = "false";

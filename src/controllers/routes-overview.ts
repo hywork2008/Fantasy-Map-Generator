@@ -22,12 +22,12 @@ function overviewRoutes(): void {
     position: { my: "right top", at: "right-10 top+10", of: "svg", collision: "fit" }
   });
 
-  ensureEl("routesOverviewRefresh").on("click", routesOverviewAddLines);
-  ensureEl("routesCreateNew").on("click", () => createRoute());
-  ensureEl("routesExport").on("click", downloadRoutesData);
-  ensureEl("routesLockAll").on("click", toggleLockAll);
-  ensureEl("routesRemoveAll").on("click", triggerAllRoutesRemove);
-  ensureEl("routesSearch").on("input", routesOverviewAddLines);
+  ensureEl("routesOverviewRefresh").addEventListener("click", routesOverviewAddLines);
+  ensureEl("routesCreateNew").addEventListener("click", () => createRoute());
+  ensureEl("routesExport").addEventListener("click", downloadRoutesData);
+  ensureEl("routesLockAll").addEventListener("click", toggleLockAll);
+  ensureEl("routesRemoveAll").addEventListener("click", triggerAllRoutesRemove);
+  ensureEl("routesSearch").addEventListener("input", routesOverviewAddLines);
 
   function routesOverviewAddLines(): void {
     body.innerHTML = "";
@@ -79,12 +79,13 @@ function overviewRoutes(): void {
       ) || 0;
     ensureEl("routesFooterLength").innerHTML = `${averageLength * distanceScale} ${distanceUnitInput.value}`;
 
-    for (const el of body.querySelectorAll("div.states")) el.on("mouseenter", routeHighlightOn);
-    for (const el of body.querySelectorAll("div.states")) el.on("mouseleave", routeHighlightOff);
-    for (const el of body.querySelectorAll("div > span.icon-target")) el.on("click", zoomToRoute);
-    for (const el of body.querySelectorAll("div > span.icon-pencil")) el.on("click", openRouteEditor);
-    for (const el of body.querySelectorAll("div > span.locks")) el.on("click", toggleLockStatus);
-    for (const el of body.querySelectorAll("div > span.icon-trash-empty")) el.on("click", triggerRouteRemove);
+    for (const el of body.querySelectorAll("div.states")) el.addEventListener("mouseenter", routeHighlightOn);
+    for (const el of body.querySelectorAll("div.states")) el.addEventListener("mouseleave", routeHighlightOff);
+    for (const el of body.querySelectorAll("div > span.icon-target")) el.addEventListener("click", zoomToRoute);
+    for (const el of body.querySelectorAll("div > span.icon-pencil")) el.addEventListener("click", openRouteEditor);
+    for (const el of body.querySelectorAll("div > span.locks")) el.addEventListener("click", toggleLockStatus);
+    for (const el of body.querySelectorAll("div > span.icon-trash-empty"))
+      el.addEventListener("click", triggerRouteRemove);
 
     applySorting(ensureEl("routesHeader"));
   }

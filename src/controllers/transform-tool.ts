@@ -39,14 +39,14 @@ async function openTransformTool(): Promise<void> {
   if (modules.openTransformTool) return;
   modules.openTransformTool = true;
 
-  ensureEl("transformToolBody").on("input", handleInput);
-  ensureEl("transformPreview")
-    .on("mousedown", handleMousedown)
-    .on("mouseup", () => {
-      mouseIsDown = false;
-    })
-    .on("mousemove", handleMousemove)
-    .on("wheel", handleWheel);
+  ensureEl("transformToolBody").addEventListener("input", handleInput);
+  const previewEl = ensureEl("transformPreview");
+  previewEl.addEventListener("mousedown", handleMousedown);
+  previewEl.addEventListener("mouseup", () => {
+    mouseIsDown = false;
+  });
+  previewEl.addEventListener("mousemove", handleMousemove);
+  previewEl.addEventListener("wheel", handleWheel);
 
   async function loadPreview(): Promise<void> {
     (ensureEl("transformPreview") as HTMLElement).style.width = `${width}px`;

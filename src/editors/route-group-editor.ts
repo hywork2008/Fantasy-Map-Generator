@@ -18,7 +18,7 @@ export function editRouteGroups(): void {
   modules.editRouteGroups = true;
 
   ensureEl("routeGroupsEditorAdd").addEventListener("click", addGroup);
-  ensureEl("routeGroupsEditorBody").on("click", (ev: Event) => {
+  ensureEl("routeGroupsEditorBody").addEventListener("click", (ev: Event) => {
     const group = (ev.target as Element).closest(".states")?.getAttribute("data-id");
     if (!group) return;
     if ((ev.target as Element).classList.contains("editStyle")) editStyle("routes", group);

@@ -3,6 +3,7 @@ import { color, interpolate, interpolateString, pointer } from "d3";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import { interactionManager } from "../controllers/interactionManager";
 import type { Burg } from "../modules/burgs-generator";
 import { Burgs } from "../modules/burgs-generator";
 import type { Culture } from "../modules/cultures-generator";
@@ -721,9 +722,8 @@ export function editProvinces(): void {
       .on("mouseleave", (event: MouseEvent) => hideInfo(event));
 
     function showInfo(ev: MouseEvent, d: HRNode): void {
-      d3.select(ev.target as Element)
-        .select("rect")
-        .classed("selected", true);
+      const rect = (ev.target as Element).querySelector("rect");
+      if (rect) rect.classList.add("selected");
       const name = d.data.fullName;
       const state = (pack.states as State[])[d.data.state!].fullName;
       const area = `${getArea(d.data.area ?? 0)} ${getAreaUnit()}`;
@@ -749,9 +749,8 @@ export function editProvinces(): void {
       const provinceInfoEl = document.getElementById("provinceInfo");
       if (!provinceInfoEl) return;
       provinceInfoEl.innerHTML = "&#8205;";
-      d3.select(ev.target as Element)
-        .select("rect")
-        .classed("selected", false);
+      const rect = (ev.target as Element).querySelector("rect");
+      if (rect) rect.classList.remove("selected");
     }
 
     node
@@ -1082,7 +1081,8 @@ export function editProvinces(): void {
     customization = 12;
     this.classList.add("pressed");
     tip("Click on the map to place a new province center", true);
-    viewbox.style("cursor", "crosshair").on("click", addProvince);
+    viewbox.style("cursor", "crosshair");
+    interactionManager.setClickHandler(addProvince);
     body.querySelectorAll<HTMLElement>("div > input, select, span, svg").forEach(e => {
       e.style.pointerEvents = "none";
     });

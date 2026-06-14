@@ -2,6 +2,7 @@ import * as d3 from "d3";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import { interactionManager } from "../controllers/interactionManager";
 import type { Religion } from "../modules/religions-generator";
 
 type HighlightEvent = { id?: string | number | null; target?: EventTarget | null };
@@ -113,18 +114,18 @@ function insertEditorHtml(): HTMLElement {
 function addListeners(): void {
   applySortingByHeader("religionsHeader");
 
-  ensureEl("religionsEditorRefresh").on("click", refreshReligionsEditor);
-  ensureEl("religionsEditStyle").on("click", () => editStyle("relig"));
-  ensureEl("religionsLegend").on("click", toggleLegend);
-  ensureEl("religionsPercentage").on("click", togglePercentageMode);
-  ensureEl("religionsHeirarchy").on("click", showHierarchy);
-  ensureEl("religionsExtinct").on("click", toggleExtinct);
-  ensureEl("religionsManually").on("click", enterReligionsManualAssignent);
-  ensureEl("religionsManuallyApply").on("click", applyReligionsManualAssignent);
-  ensureEl("religionsManuallyCancel").on("click", () => exitReligionsManualAssignment());
-  ensureEl("religionsAdd").on("click", enterAddReligionMode);
-  ensureEl("religionsExport").on("click", downloadReligionsCsv);
-  ensureEl("religionsRecalculate").on("click", () => recalculateReligions(true));
+  ensureEl("religionsEditorRefresh").addEventListener("click", refreshReligionsEditor);
+  ensureEl("religionsEditStyle").addEventListener("click", () => editStyle("relig"));
+  ensureEl("religionsLegend").addEventListener("click", toggleLegend);
+  ensureEl("religionsPercentage").addEventListener("click", togglePercentageMode);
+  ensureEl("religionsHeirarchy").addEventListener("click", showHierarchy);
+  ensureEl("religionsExtinct").addEventListener("click", toggleExtinct);
+  ensureEl("religionsManually").addEventListener("click", enterReligionsManualAssignent);
+  ensureEl("religionsManuallyApply").addEventListener("click", applyReligionsManualAssignent);
+  ensureEl("religionsManuallyCancel").addEventListener("click", () => exitReligionsManualAssignment());
+  ensureEl("religionsAdd").addEventListener("click", enterAddReligionMode);
+  ensureEl("religionsExport").addEventListener("click", downloadReligionsCsv);
+  ensureEl("religionsRecalculate").addEventListener("click", () => recalculateReligions(true));
 }
 
 function refreshReligionsEditor(): void {
@@ -246,48 +247,48 @@ function religionsEditorAddLines(): void {
   ensureEl("religionsFooterPopulation").dataset.population = String(totalPopulation);
 
   $body.querySelectorAll(":scope > div").forEach($line => {
-    $line.on("mouseenter", religionHighlightOn);
-    $line.on("mouseleave", religionHighlightOff);
-    $line.on("click", selectReligionOnLineClick);
+    $line.addEventListener("mouseenter", religionHighlightOn);
+    $line.addEventListener("mouseleave", religionHighlightOff);
+    $line.addEventListener("click", selectReligionOnLineClick);
   });
   $body.querySelectorAll("fill-box").forEach(el => {
-    el.on("click", religionChangeColor);
+    el.addEventListener("click", religionChangeColor);
   });
   $body.querySelectorAll("div > input.religionName").forEach(el => {
-    el.on("input", religionChangeName);
+    el.addEventListener("input", religionChangeName);
   });
   $body.querySelectorAll("div > select.religionType").forEach(el => {
-    el.on("change", religionChangeType);
+    el.addEventListener("change", religionChangeType);
   });
   $body.querySelectorAll("div > input.religionForm").forEach(el => {
-    el.on("input", religionChangeForm);
+    el.addEventListener("input", religionChangeForm);
   });
   $body.querySelectorAll("div > input.religionDeity").forEach(el => {
-    el.on("input", religionChangeDeity);
+    el.addEventListener("input", religionChangeDeity);
   });
   $body.querySelectorAll("div > span.icon-arrows-cw").forEach(el => {
-    el.on("click", regenerateDeity);
+    el.addEventListener("click", regenerateDeity);
   });
   $body.querySelectorAll("div > div.religionPopulation").forEach(el => {
-    el.on("click", changePopulation);
+    el.addEventListener("click", changePopulation);
   });
   $body.querySelectorAll("div > select.religionExtent").forEach(el => {
-    el.on("change", religionChangeExtent);
+    el.addEventListener("change", religionChangeExtent);
   });
   $body.querySelectorAll("div > input.religionExpantion").forEach(el => {
-    el.on("change", religionChangeExpansionism);
+    el.addEventListener("change", religionChangeExpansionism);
   });
   $body.querySelectorAll("div > span.icon-trash-empty").forEach(el => {
-    el.on("click", religionRemovePrompt);
+    el.addEventListener("click", religionRemovePrompt);
   });
   $body.querySelectorAll("div > span.icon-target").forEach($el => {
-    $el.on("click", highlightReligion);
+    $el.addEventListener("click", highlightReligion);
   });
   $body.querySelectorAll("div > span.icon-lock").forEach($el => {
-    $el.on("click", updateLockStatus);
+    $el.addEventListener("click", updateLockStatus);
   });
   $body.querySelectorAll("div > span.icon-lock-open").forEach($el => {
-    $el.on("click", updateLockStatus);
+    $el.addEventListener("click", updateLockStatus);
   });
 
   if ($body.dataset.type === "percentage") {
@@ -852,7 +853,8 @@ function enterAddReligionMode(this: HTMLButtonElement): void {
   customization = 8;
   this.classList.add("pressed");
   tip("Click on the map to add a new religion", true);
-  viewbox.style("cursor", "crosshair").on("click", addReligion);
+  viewbox.style("cursor", "crosshair");
+  interactionManager.setClickHandler(addReligion);
   $body.querySelectorAll<HTMLElement>("div > input, select, span, svg").forEach(e => {
     e.style.pointerEvents = "none";
   });

@@ -224,7 +224,7 @@ function generateWithAi(defaultPrompt: string, onApply: (result: string) => void
   if (modules.generateWithAi) return;
   modules.generateWithAi = true;
 
-  ensureEl("aiGeneratorKeyHelp").on("click", () => {
+  ensureEl("aiGeneratorKeyHelp").addEventListener("click", () => {
     const model = (ensureEl("aiGeneratorModel") as HTMLSelectElement).value;
     const provider = MODELS[model];
     openURL(PROVIDERS[provider].keyLink);

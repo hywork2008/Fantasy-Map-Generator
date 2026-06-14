@@ -2,6 +2,7 @@ import * as d3 from "d3";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import { interactionManager } from "../controllers/interactionManager";
 import { BrushHistoryClass as BrushHistory } from "../editors/BrushHistory";
 import type { Burg } from "../modules/burgs-generator";
 
@@ -106,21 +107,21 @@ function insertEditorHtml(): HTMLElement {
 function addListeners(): void {
   applySortingByHeader("culturesHeader");
 
-  ensureEl("culturesEditorRefresh").on("click", refreshCulturesEditor);
-  ensureEl("culturesEditStyle").on("click", () => editStyle("cults"));
-  ensureEl("culturesLegend").on("click", toggleLegend);
-  ensureEl("culturesPercentage").on("click", togglePercentageMode);
-  ensureEl("culturesHeirarchy").on("click", showHierarchy);
-  ensureEl("culturesRecalculate").on("click", () => recalculateCultures(true));
-  ensureEl("culturesManually").on("click", enterCultureManualAssignent);
-  ensureEl("culturesManuallyUndo").on("click", undoCulturesManualAssignment);
-  ensureEl("culturesManuallyApply").on("click", applyCultureManualAssignent);
-  ensureEl("culturesManuallyCancel").on("click", () => exitCulturesManualAssignment());
-  ensureEl("culturesEditNamesBase").on("click", () => NamesbaseEditor.open());
-  ensureEl("culturesAdd").on("click", enterAddCulturesMode);
-  ensureEl("culturesExport").on("click", downloadCulturesCsv);
-  ensureEl("culturesImport").on("click", () => ensureEl("culturesCSVToLoad").click());
-  ensureEl("culturesCSVToLoad").on("change", uploadCulturesData);
+  ensureEl("culturesEditorRefresh").addEventListener("click", refreshCulturesEditor);
+  ensureEl("culturesEditStyle").addEventListener("click", () => editStyle("cults"));
+  ensureEl("culturesLegend").addEventListener("click", toggleLegend);
+  ensureEl("culturesPercentage").addEventListener("click", togglePercentageMode);
+  ensureEl("culturesHeirarchy").addEventListener("click", showHierarchy);
+  ensureEl("culturesRecalculate").addEventListener("click", () => recalculateCultures(true));
+  ensureEl("culturesManually").addEventListener("click", enterCultureManualAssignent);
+  ensureEl("culturesManuallyUndo").addEventListener("click", undoCulturesManualAssignment);
+  ensureEl("culturesManuallyApply").addEventListener("click", applyCultureManualAssignent);
+  ensureEl("culturesManuallyCancel").addEventListener("click", () => exitCulturesManualAssignment());
+  ensureEl("culturesEditNamesBase").addEventListener("click", () => NamesbaseEditor.open());
+  ensureEl("culturesAdd").addEventListener("click", enterAddCulturesMode);
+  ensureEl("culturesExport").addEventListener("click", downloadCulturesCsv);
+  ensureEl("culturesImport").addEventListener("click", () => ensureEl("culturesCSVToLoad").click());
+  ensureEl("culturesCSVToLoad").addEventListener("change", uploadCulturesData);
 }
 
 function refreshCulturesEditor(): void {
@@ -258,48 +259,48 @@ function culturesEditorAddLines(): void {
   ensureEl("culturesFooterPopulation").dataset.population = String(totalPopulation);
 
   $body.querySelectorAll(":scope > div").forEach($line => {
-    $line.on("mouseenter", cultureHighlightOn);
-    $line.on("mouseleave", cultureHighlightOff);
-    $line.on("click", selectCultureOnLineClick);
+    $line.addEventListener("mouseenter", cultureHighlightOn);
+    $line.addEventListener("mouseleave", cultureHighlightOff);
+    $line.addEventListener("click", selectCultureOnLineClick);
   });
   $body.querySelectorAll("fill-box").forEach($el => {
-    $el.on("click", cultureChangeColor);
+    $el.addEventListener("click", cultureChangeColor);
   });
   $body.querySelectorAll("div > input.cultureName").forEach($el => {
-    $el.on("input", cultureChangeName);
+    $el.addEventListener("input", cultureChangeName);
   });
   $body.querySelectorAll("div > span.icon-cw").forEach($el => {
-    $el.on("click", cultureRegenerateName);
+    $el.addEventListener("click", cultureRegenerateName);
   });
   $body.querySelectorAll("div > input.cultureExpan").forEach($el => {
-    $el.on("change", cultureChangeExpansionism);
+    $el.addEventListener("change", cultureChangeExpansionism);
   });
   $body.querySelectorAll("div > select.cultureType").forEach($el => {
-    $el.on("change", cultureChangeType);
+    $el.addEventListener("change", cultureChangeType);
   });
   $body.querySelectorAll("div > select.cultureBase").forEach($el => {
-    $el.on("change", cultureChangeBase);
+    $el.addEventListener("change", cultureChangeBase);
   });
   $body.querySelectorAll("div > select.cultureEmblems").forEach($el => {
-    $el.on("change", cultureChangeEmblemsShape);
+    $el.addEventListener("change", cultureChangeEmblemsShape);
   });
   $body.querySelectorAll("div > div.culturePopulation").forEach($el => {
-    $el.on("click", changePopulation);
+    $el.addEventListener("click", changePopulation);
   });
   $body.querySelectorAll("div > span.icon-arrows-cw").forEach($el => {
-    $el.on("click", cultureRegenerateBurgs);
+    $el.addEventListener("click", cultureRegenerateBurgs);
   });
   $body.querySelectorAll("div > span.icon-target").forEach($el => {
-    $el.on("click", cultureHighlightElement);
+    $el.addEventListener("click", cultureHighlightElement);
   });
   $body.querySelectorAll("div > span.icon-trash-empty").forEach($el => {
-    $el.on("click", cultureRemovePrompt);
+    $el.addEventListener("click", cultureRemovePrompt);
   });
   $body.querySelectorAll("div > span.icon-lock").forEach($el => {
-    $el.on("click", updateLockStatus);
+    $el.addEventListener("click", updateLockStatus);
   });
   $body.querySelectorAll("div > span.icon-lock-open").forEach($el => {
-    $el.on("click", updateLockStatus);
+    $el.addEventListener("click", updateLockStatus);
   });
 
   const $culturesHeader = ensureEl("culturesHeader");
@@ -944,7 +945,8 @@ function enterAddCulturesMode(this: HTMLButtonElement): void {
   customization = 9;
   this.classList.add("pressed");
   tip("Click on the map to add a new culture", true);
-  viewbox.style("cursor", "crosshair").on("click", addCulture);
+  viewbox.style("cursor", "crosshair");
+  interactionManager.setClickHandler(addCulture);
   $body.querySelectorAll<HTMLElement>("div > input, select, span, svg").forEach(e => {
     e.style.pointerEvents = "none";
   });
