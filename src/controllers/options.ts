@@ -128,7 +128,7 @@ function applyGraphSize(): void {
   defs.select("mask#water > rect").attr("width", graphWidth).attr("height", graphHeight);
 }
 
-function fitMapToScreen(): void {
+export function fitMapToScreen(): void {
   svgWidth = Math.min(+mapWidthInput.value, window.innerWidth);
   svgHeight = Math.min(+mapHeightInput.value, window.innerHeight);
   svg.attr("width", svgWidth).attr("height", svgHeight);
@@ -1154,7 +1154,6 @@ window.showOptions = showOptions;
 window.hideOptions = hideOptions;
 window.toggleOptions = toggleOptions;
 window.applyGraphSize = applyGraphSize;
-window.fitMapToScreen = fitMapToScreen;
 window.applyStoredOptions = applyStoredOptions;
 window.randomizeOptions = randomizeOptions;
 window.randomizeHeightmapTemplate = randomizeHeightmapTemplate;

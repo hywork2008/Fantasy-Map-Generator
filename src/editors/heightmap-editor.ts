@@ -21,7 +21,19 @@ import { States } from "../modules/states-generator";
 import type { Zone } from "../modules/zones-generator";
 import { Zones } from "../modules/zones-generator";
 import { drawFeatures } from "../renderers";
-import { ensureEl, findCell, generateSeed, minmax, rn, showPrompt } from "../utils";
+import {
+  createTypedArray,
+  ensureEl,
+  findCell,
+  generateSeed,
+  getGridPolygon,
+  link,
+  minmax,
+  rn,
+  showPrompt,
+  unique
+} from "../utils";
+import { getColorScheme } from "../utils/colorUtils";
 import { HeightmapEditorHistoryClass as HeightmapEditorHistory } from "./HeightmapEditorHistory";
 
 // ─── Module-level state ───────────────────────────────────────────────────────

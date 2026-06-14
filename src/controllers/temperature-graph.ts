@@ -10,7 +10,7 @@ import {
   select,
   timeFormat
 } from "d3";
-import { rn, round } from "../utils";
+import { convertTemperature, rn, round } from "../utils";
 
 function showBurgTemperatureGraph(id: number): void {
   const b = pack.burgs[id];

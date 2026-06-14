@@ -1,6 +1,19 @@
 import * as d3 from "d3";
+import { fitMapToScreen } from "../controllers/options";
 import type { PackedGraphFeature } from "../modules/features";
-import { convertTemperature, debounce, ensureEl, findCell, findGridCell, getComposedPath, link, rn, si } from "./index";
+import {
+  convertTemperature,
+  debounce,
+  ensureEl,
+  findCell,
+  findGridCell,
+  getComposedPath,
+  getLatitude,
+  getLongitude,
+  link,
+  rn,
+  si
+} from "./index";
 
 // ─── Resize handler ───────────────────────────────────────────────────────────
 
@@ -8,7 +21,7 @@ window.addEventListener("resize", () => {
   if (stored("mapWidth") && stored("mapHeight")) return;
   mapWidthInput.value = String(window.innerWidth);
   mapHeightInput.value = String(window.innerHeight);
-  window.fitMapToScreen?.();
+  fitMapToScreen?.();
 });
 
 if (location.hostname !== "localhost" && location.hostname !== "127.0.0.1") {

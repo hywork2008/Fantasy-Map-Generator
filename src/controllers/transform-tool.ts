@@ -1,4 +1,5 @@
 import { ensureEl, rn } from "../utils";
+import { fitMapToScreen } from "./options";
 
 async function openTransformTool(): Promise<void> {
   const width = Math.min(400, window.innerWidth * 0.5);

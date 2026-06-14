@@ -7,7 +7,7 @@ import { worldContext } from "../context/worldContext";
 import { type HierarchyElement, open as openHierarchyTree } from "../controllers/hierarchy-tree";
 import { Religions } from "../modules/religions-generator";
 import { drawPopulation, drawReligions } from "../renderers";
-import { abbreviate, applySortingByHeader, debounce, ensureEl, findCell, rn, si } from "../utils";
+import { abbreviate, applySortingByHeader, debounce, ensureEl, findCell, isLand, rn, si } from "../utils";
 import { getPackPolygon } from "../utils/graphUtils";
 
 const $body = insertEditorHtml();

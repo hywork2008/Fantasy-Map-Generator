@@ -1,5 +1,5 @@
 import * as d3 from "d3";
-import { capitalize, ensureEl } from "../utils";
+import { capitalize, ensureEl, minmax } from "../utils";
 
 export interface HierarchyElement {
   i: number;

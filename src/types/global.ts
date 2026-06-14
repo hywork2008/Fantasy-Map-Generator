@@ -107,8 +107,6 @@ declare global {
   var texture: Selection<SVGGElement, unknown, null, undefined>;
   var zones: Selection<SVGGElement, unknown, null, undefined>;
   var armies: Selection<SVGGElement, unknown, null, undefined>;
-  var getColorScheme: (scheme: string | null) => (t: number) => string;
-  var getColor: (height: number, scheme: (t: number) => string) => string;
   var svgWidth: number;
   var svgHeight: number;
   var viewbox: Selection<SVGElement, unknown, null, undefined>;
@@ -178,8 +176,6 @@ declare global {
   var updateElements: () => void;
   var textureProvideURL: () => void;
   var fetchTextureURL: (url: string) => void;
-  var heightmapColorSchemes: Record<string, (t: number) => string>;
-  var addCustomColorScheme: (scheme: string) => void;
   var applyStyleOnLoad: () => Promise<void>;
   var applyStyle: (styleJSON: Record<string, Record<string, string | number | null>>) => void;
   var applyStyleWithUiRefresh: (styleJSON: Record<string, Record<string, string | number | null>>) => void;
@@ -232,8 +228,6 @@ declare global {
   var editWorld: () => void;
   var showExportPane: () => void;
   var getHeight: (h: number, abs?: string) => string;
-  var getLatitude: (y: number, precision?: number) => number;
-  var getLongitude: (x: number, precision?: number) => number;
   var getFileName: (name?: string) => string;
   var customization: number;
   var speak: (text: string) => void;
@@ -272,8 +266,6 @@ declare global {
   var clearLegend: () => void;
 
   // Utility globals (window-wrapped versions)
-  var parseError: (error: unknown) => string;
-
   // ─── I/O module globals ───────────────────────────────────────────────────
 
   // HTML inputs for world settings (used by save/load)
@@ -334,11 +326,8 @@ declare global {
   var isWetLand: (moisture: number, temperature: number, height: number) => boolean;
   var cleanupData: () => void;
   var clearMainTip: () => void;
-  var fitMapToScreen: () => void;
   var updateTextureSelectValue: (href: string) => void;
   var getCellPopulation: (i: number) => [number, number];
-  var getCoordinates: (x: number, y: number, decimals?: number) => [number, number];
-
   // ─── I/O: save module ───────────────────────────────────────────────────────
   var prepareMapData: () => string;
   var saveToStorage: (mapData: string, showTip?: boolean) => Promise<void>;
@@ -402,14 +391,6 @@ declare global {
   var hideOptions: () => void;
   var toggleOptions: (event?: Event) => void;
   var regeneratePrompt: (opts?: { seed?: string }) => void;
-  var generateSeed: () => string;
-  var drawHeights: (opts: {
-    heights: ArrayLike<number>;
-    width: number;
-    height: number;
-    scheme: (v: number) => string;
-    renderOcean: boolean;
-  }) => string;
   var findAllInQuadtree: (x: number, y: number, radius: number, quadtree: Quadtree<unknown>) => unknown[];
   var toggle3dOptions: () => void;
   var zonesRemove: HTMLButtonElement | null;
@@ -433,8 +414,6 @@ declare global {
   var overviewMilitary: () => void;
   var overviewBurgs: (settings?: { stateId?: number | null; cultureId?: number | null }) => void;
   var overviewMarkers: () => void;
-  var createRoute: () => void;
-
   // Tooltip element
   var tooltip: HTMLElement;
 
@@ -526,7 +505,6 @@ declare global {
   var highlightElement: (element: Element, zoom?: number) => void;
 
   // editor openers from editors.ts (dynamic modules)
-  var editEmblem: ((type?: string, id?: string, el?: unknown) => void) | undefined;
   var editLabel: ((tspan?: Element) => void) | undefined;
   var editBurg: ((burgId?: number) => void) | undefined;
   var editIce: ((el: SVGElement) => void) | undefined;
@@ -643,7 +621,6 @@ declare global {
   var precreatedHeightmaps: Record<string, import("../config/precreated-heightmaps").PrecreatedHeightmap>;
 
   // Utility functions
-  var minmax: (value: number, min: number, max: number) => number;
   var toggleAssistant: (() => void) | undefined;
 
   // Functions exported from options.ts
@@ -733,14 +710,8 @@ declare global {
   // Grid / generation helpers
   var findGridCell: (x: number, y: number, grid: Grid) => number;
   var findGridAll: (x: number, y: number, r: number) => number[];
-  var getGridPolygon: (i: number) => [number, number][];
   var generatePrecipitation: () => void;
   var rankCells: () => void;
-  var createTypedArray: (options: {
-    maxValue: number;
-    length: number;
-    from?: ArrayLike<number>;
-  }) => Uint8Array | Uint16Array | Uint32Array;
   var RgbQuant: new (
     options: unknown
   ) => {
@@ -750,7 +721,6 @@ declare global {
   };
 
   // UI helpers
-  var link: (url: string, text: string) => string;
   var undraw: () => void;
   var changeViewMode: (event: MouseEvent) => void;
   var clicked: (this: SVGElement, event: MouseEvent) => void;
@@ -758,15 +728,7 @@ declare global {
   var layersPreset: HTMLSelectElement;
 
   // utility globals (already on window via utils/index.ts, declared here for external JS compat)
-  var si: (value: number, decimals?: number) => string;
-  var rn: (value: number, decimals?: number) => number;
-  var rand: (min?: number, max?: number) => number;
-  var unique: <T>(arr: T[]) => T[];
   var findAll: (x: number, y: number, radius: number) => number[];
-  var isLand: (i: number) => boolean;
-  var getRandomColor: () => string;
-  var getSegmentId: (points: [number, number][], point: [number, number], dimension?: number) => number;
-
   // ─── Phase 10: provinces-editor.ts globals ──────────────────────────────────
 
   var P: (probability: number) => boolean;
@@ -783,8 +745,6 @@ declare global {
   var showBurgTemperatureGraph: (id: number) => void;
 
   // from minimap.ts
-  var updateMinimap: () => void;
-
   // from options.ts (cells density helpers)
   var cellsDensityMap: Record<number, number>;
   var getCellsDensityColor: (cells: number) => string;
@@ -867,17 +827,12 @@ declare global {
   var burgsFooterBurgs: HTMLElement;
   var burgsFooterPopulation: HTMLElement;
   var burgsHeader: HTMLElement;
-  var convertTemperature: (temp: number, scale?: string) => string;
-
   // diplomacy-editor.ts
   var diplomacyMatrix: HTMLElement;
 
   // 3d.ts
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  var throttle: (fn: () => void, ms: number) => () => void;
-
   // battle-screen.ts
-  var wiki: (topic: string) => void;
 }
 
 // jQuery UI DialogOptions doesn't allow string for size fields like minHeight/maxHeight/minWidth/maxWidth,

@@ -1,5 +1,6 @@
 import { worldContext } from "../context/worldContext";
-import { ensureEl, getGridPolygon, getPackPolygon } from "../utils";
+import { ensureEl, getPackPolygon } from "../utils";
+import { getGridPolygon } from "../utils/graphUtils";
 
 export const drawCells = (): void => {
   const { pack, grid, customization } = worldContext;

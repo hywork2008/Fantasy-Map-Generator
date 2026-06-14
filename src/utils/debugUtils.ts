@@ -1,6 +1,6 @@
 import type { BaseType, Selection } from "d3";
 import { curveBundle, line, max, min } from "d3";
-import { C_12 } from "./colorUtils";
+import { C_12, getColorScheme } from "./colorUtils";
 import type { Grid } from "./graphUtils";
 import { getGridPolygon } from "./graphUtils";
 import { normalize } from "./numberUtils";
@@ -35,7 +35,7 @@ export const drawPolygons = (
 ): void => {
   const maximum: number = max(data) as number;
   const minimum: number = min(data) as number;
-  const scheme = window.getColorScheme(terrs.select("#landHeights").attr("scheme"));
+  const scheme = getColorScheme(terrs.select("#landHeights").attr("scheme"));
 
   data = data.map(d => 1 - normalize(d, minimum, maximum));
   window.debug.selectAll("polygon").remove();

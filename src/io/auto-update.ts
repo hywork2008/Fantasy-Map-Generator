@@ -32,7 +32,7 @@ import {
   drawZones
 } from "../renderers";
 import { drawScaleBar, fitScaleBar } from "../renderers/index";
-import { ensureEl, findCell } from "../utils";
+import { ensureEl, findCell, rand, rn, unique } from "../utils";
 
 // update old map file to the current version
 export function resolveVersionConflicts(mapVersion: string): void {

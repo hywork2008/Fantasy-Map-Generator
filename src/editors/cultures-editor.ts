@@ -14,7 +14,7 @@ import type { NameBase } from "../modules/names-generator";
 import type { Province } from "../modules/provinces-generator";
 import type { State } from "../modules/states-generator";
 import { drawCultures, drawPopulation } from "../renderers";
-import { abbreviate, applySortingByHeader, capitalize, debounce, ensureEl, findCell, rn, si } from "../utils";
+import { abbreviate, applySortingByHeader, capitalize, debounce, ensureEl, findCell, isLand, rn, si } from "../utils";
 import { getPackPolygon } from "../utils/graphUtils";
 import { NamesbaseEditor } from "./namesbase-editor";
 

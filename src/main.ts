@@ -14,7 +14,8 @@ import { aleaPRNG } from "./components/AleaPRNG";
 import { viewState } from "./context/viewState";
 import { worldContext } from "./context/worldContext";
 import { Rulers } from "./controllers/measurers";
-import { applyStoredOptions } from "./controllers/options";
+import { updateMinimap } from "./controllers/minimap";
+import { applyStoredOptions, fitMapToScreen } from "./controllers/options";
 import { Biomes } from "./modules/biomes";
 import type { Burg, BurgGroup } from "./modules/burgs-generator";
 import { Burgs } from "./modules/burgs-generator";
@@ -646,7 +647,7 @@ function zoomRaf(event: { transform: { k: number; x: number; y: number } }) {
     }
 
     if (didPositionChange || didScaleChange) {
-      window.updateMinimap && updateMinimap();
+      updateMinimap();
     }
   });
 }

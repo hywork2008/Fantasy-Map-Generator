@@ -13,9 +13,10 @@ import type { State } from "../modules/states-generator";
 import { States } from "../modules/states-generator";
 import { drawBorders, drawPopulation, drawProvinces, drawStateLabels, drawStates } from "../renderers";
 import type { WorldNote } from "../types/WorldState";
-import { applySortingByHeader, ensureEl, findCell, rn, si } from "../utils";
+import { applySortingByHeader, ensureEl, findCell, getRandomColor, isLand, rand, rn, si } from "../utils";
 import { getPackPolygon } from "../utils/graphUtils";
 import { BrushHistoryClass as BrushHistory } from "./BrushHistory";
+import { editEmblem } from "./emblems-editor";
 
 const $body = insertEditorHtml();
 addListeners();

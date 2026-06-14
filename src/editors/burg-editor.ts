@@ -3,7 +3,7 @@ import type { Burg } from "../modules/burgs-generator";
 import { Burgs } from "../modules/burgs-generator";
 import type { Culture } from "../modules/cultures-generator";
 import { COArenderer } from "../modules/emblem/renderer";
-import { convertTemperature, ensureEl, findCell, openURL, parseTransform, rn, showPrompt } from "../utils";
+import { convertTemperature, ensureEl, findCell, openURL, parseTransform, rand, rn, showPrompt } from "../utils";
 import { editBurgGroups } from "./burg-group-editor";
 import { editEmblem } from "./emblems-editor";
 import { editNotes } from "./notes-editor";

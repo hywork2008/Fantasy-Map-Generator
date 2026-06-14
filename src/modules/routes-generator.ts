@@ -1,7 +1,8 @@
 import { curveCatmullRom, line } from "d3";
 import Delaunator from "delaunator";
 import type { WorldState } from "../types/WorldState";
-import { distanceSquared, findClosestCell, findPath, getAdjective, isLand, ra, rn, round, rw } from "../utils";
+import { distanceSquared, findClosestCell, findPath, getAdjective, ra, rn, round, rw } from "../utils";
+import { isLand } from "../utils/graphUtils";
 import type { Burg } from "./burgs-generator";
 import type { Point } from "./voronoi";
 

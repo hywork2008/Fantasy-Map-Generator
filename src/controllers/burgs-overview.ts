@@ -2,7 +2,7 @@ import * as d3 from "d3";
 import { pointer } from "d3";
 import { editBurgGroups } from "../editors/burg-group-editor";
 import { Burgs } from "../modules/burgs-generator";
-import { ensureEl, findCell, rn, si } from "../utils";
+import { convertTemperature, ensureEl, findCell, getLatitude, getLongitude, rn, si } from "../utils";
 
 function overviewBurgs(settings: { stateId?: number | null; cultureId?: number | null } = {}): void {
   if (customization) return;

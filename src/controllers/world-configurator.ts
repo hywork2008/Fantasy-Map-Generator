@@ -4,7 +4,7 @@ import { Features } from "../modules/features";
 import { Lakes } from "../modules/lakes";
 import { Rivers } from "../modules/river-generator";
 import { drawBiomes, drawCoordinates, drawPrecipitation, drawRivers, drawTemperature } from "../renderers";
-import { ensureEl, parseTransform, rn, round } from "../utils";
+import { convertTemperature, ensureEl, parseTransform, rn, round } from "../utils";
 
 function editWorld(): void {
   if (customization) return;

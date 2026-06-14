@@ -1,6 +1,6 @@
 import { Markers } from "../modules/markers-generator";
 import { drawMarkers } from "../renderers";
-import { ensureEl } from "../utils";
+import { ensureEl, getLatitude, getLongitude } from "../utils";
 
 function overviewMarkers(): void {
   if (customization) return;

@@ -1,4 +1,4 @@
-import { ensureEl, rn } from "../utils";
+import { ensureEl, minmax, rn } from "../utils";
 
 let minimapInitialized = false;
 
@@ -86,7 +86,6 @@ function ensureMinimapMarkup(): void {
   `;
 
   ensureEl("minimapSurface").addEventListener("click", minimapClickToPan);
-  window.updateMinimap = updateMinimap;
 }
 
 function minimapClickToPan(event: MouseEvent): void {
@@ -106,7 +105,7 @@ function minimapClickToPan(event: MouseEvent): void {
   zoomTo(x, y, scale, 450);
 }
 
-function updateMinimap(): void {
+export function updateMinimap(): void {
   const minimap = document.getElementById("minimapSurface") as SVGSVGElement | null;
   const viewport = document.getElementById("minimapViewport") as SVGRectElement | null;
   const mapUse = document.getElementById("minimapMapUse") as SVGUseElement | null;

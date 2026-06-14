@@ -1,4 +1,6 @@
 import type * as d3 from "d3";
+import { fitMapToScreen } from "../controllers/options";
+import { addCustomColorScheme } from "../controllers/style";
 import { fitMapView, reinitializeMapLayers } from "../main";
 import { Biomes } from "../modules/biomes";
 import { Burgs } from "../modules/burgs-generator";
@@ -8,6 +10,7 @@ import type { River } from "../modules/river-generator";
 import { Routes } from "../modules/routes-generator";
 import { drawGrid } from "../renderers";
 import { calculateVoronoi, ensureEl, findCell, last, link, minmax, parseError, rn } from "../utils";
+import { heightmapColorSchemes } from "../utils/colorUtils";
 import { resolveVersionConflicts } from "./auto-update";
 
 // ─── Quick load from browser storage ─────────────────────────────────────────

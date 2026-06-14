@@ -1,4 +1,5 @@
-import { ensureEl, rn } from "../utils";
+import { ensureEl, getLatitude, getLongitude, minmax, rn } from "../utils";
+import { fitMapToScreen } from "./options";
 
 function openSubmapTool(): void {
   resetInputs();

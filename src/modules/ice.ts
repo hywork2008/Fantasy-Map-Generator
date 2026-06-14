@@ -2,7 +2,8 @@ import { min } from "d3";
 import { aleaPRNG } from "../components/AleaPRNG";
 import { redrawGlacier, redrawIceberg } from "../renderers";
 import type { WorldState } from "../types/WorldState";
-import { clipPoly, getGridPolygon, getIsolines, lerp, minmax, normalize, P, ra, rand, rn } from "../utils";
+import { clipPoly, getIsolines, lerp, minmax, normalize, P, ra, rand, rn } from "../utils";
+import { getGridPolygon } from "../utils/graphUtils";
 import type { Point } from "./voronoi";
 
 export type IceGlacier = { i: number; points: [number, number][]; type: "glacier"; offset?: [number, number] };

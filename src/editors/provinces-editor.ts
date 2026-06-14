@@ -12,8 +12,9 @@ import { Provinces } from "../modules/provinces-generator";
 import type { State } from "../modules/states-generator";
 import { States } from "../modules/states-generator";
 import { drawBorders, drawPopulation, drawProvinces, drawStateLabels, drawStates } from "../renderers";
-import { ensureEl, findCell, parseTransform, rn } from "../utils";
+import { ensureEl, findCell, getRandomColor, isLand, parseTransform, rand, rn, si, unique } from "../utils";
 import { getPackPolygon } from "../utils/graphUtils";
+import { editEmblem } from "./emblems-editor";
 
 export function editProvinces(): void {
   if (customization) return;

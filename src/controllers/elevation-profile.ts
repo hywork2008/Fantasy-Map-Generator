@@ -18,7 +18,8 @@ import type { Burg } from "../modules/burgs-generator";
 import type { PackedGraphFeature } from "../modules/features";
 import type { Province } from "../modules/provinces-generator";
 import type { State } from "../modules/states-generator";
-import { ensureEl, rn } from "../utils";
+import { ensureEl, getLatitude, getLongitude, rn } from "../utils";
+import { getColor, getColorScheme } from "../utils/colorUtils";
 
 declare global {
   var ElevationProfile: ElevationProfileModule;

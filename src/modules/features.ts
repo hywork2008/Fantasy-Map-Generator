@@ -5,12 +5,12 @@ import {
   connectVertices,
   createTypedArray,
   distanceSquared,
-  isLand,
   isWater,
   rn,
   TYPED_ARRAY_MAX_VALUES,
   unique
 } from "../utils";
+import { isLand } from "../utils/graphUtils";
 import { Lakes } from "./lakes";
 
 type FeatureType = "ocean" | "lake" | "island";

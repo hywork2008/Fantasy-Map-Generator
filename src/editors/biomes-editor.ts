@@ -2,7 +2,7 @@ import { drag, easeSinIn, pointer, type Selection, sum, transition } from "d3";
 import { worldContext } from "../context/worldContext";
 import { Biomes } from "../modules/biomes";
 import { drawBiomes, drawReliefIcons } from "../renderers";
-import { findCell, getRandomColor, openURL, rn, si } from "../utils";
+import { findCell, getRandomColor, isLand, openURL, rn, si } from "../utils";
 import { getPackPolygon } from "../utils/graphUtils";
 
 export function editBiomes(): void {

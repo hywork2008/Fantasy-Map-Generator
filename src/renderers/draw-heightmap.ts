@@ -26,6 +26,7 @@ import { viewState } from "../context/viewState";
 import { worldContext } from "../context/worldContext";
 import type { Vertices } from "../modules/voronoi";
 import { round } from "../utils";
+import { getColor, getColorScheme } from "../utils/colorUtils";
 import { ERROR, TIME } from "../utils/debug";
 import type { GridCells } from "../utils/graphUtils";
 

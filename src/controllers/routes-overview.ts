@@ -1,3 +1,4 @@
+import { createRoute } from "../editors/routes-editor";
 import { Routes } from "../modules/routes-generator";
 import { ensureEl, rn } from "../utils";
 
@@ -21,7 +22,7 @@ function overviewRoutes(): void {
   });
 
   ensureEl("routesOverviewRefresh").on("click", routesOverviewAddLines);
-  ensureEl("routesCreateNew").on("click", createRoute);
+  ensureEl("routesCreateNew").on("click", () => createRoute());
   ensureEl("routesExport").on("click", downloadRoutesData);
   ensureEl("routesLockAll").on("click", toggleLockAll);
   ensureEl("routesRemoveAll").on("click", triggerAllRoutesRemove);

@@ -1,6 +1,6 @@
 import * as d3 from "d3";
 import { worldContext } from "../context/worldContext";
-import { ensureEl, rn, si } from "../utils";
+import { convertTemperature, ensureEl, rn, si } from "../utils";
 
 interface ChartOptions {
   id: number;
@@ -726,7 +726,6 @@ function sortData(data: ChartDataPoint[], sorting: string): ChartDataPoint[] {
 }
 
 declare global {
-  var convertTemperature: (temp: number, scale?: string) => string;
   var getPrecipitation: (prec: number) => string;
   var isWater: (i: number) => boolean;
   var capitalize: (str: string) => string;

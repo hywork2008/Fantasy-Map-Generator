@@ -1,13 +1,5 @@
 import type { Selection } from "d3";
-import {
-  interpolateGreens,
-  interpolateGreys,
-  interpolateRdYlGn,
-  interpolateRgb,
-  interpolateRgbBasis,
-  interpolateSpectral,
-  scaleSequential
-} from "d3";
+import { interpolateRgb, interpolateRgbBasis, scaleSequential } from "d3";
 import { OceanLayers } from "../modules/ocean-layers";
 import {
   drawBurgIcons,
@@ -20,41 +12,19 @@ import {
 } from "../renderers";
 import { drawRegiments, drawScaleBar, fitScaleBar } from "../renderers/index";
 import { drawHeights, ensureEl, parseTransform, rn, toHEX } from "../utils";
+import { heightmapColorSchemes } from "../utils/colorUtils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type StyleJSON = Record<string, Record<string, string | number | null>>;
-type ColorSchemeFunc = (t: number) => string;
 type AnySelection = Selection<SVGGElement, unknown, null, undefined>;
 
 // ─── Color schemes ────────────────────────────────────────────────────────────
 
-const heightmapColorSchemes: Record<string, ColorSchemeFunc> = {
-  bright: scaleSequential(interpolateSpectral),
-  light: scaleSequential(interpolateRdYlGn),
-  natural: scaleSequential(interpolateRgbBasis(["white", "#EEEECC", "tan", "green", "teal"])),
-  green: scaleSequential(interpolateGreens),
-  olive: scaleSequential(interpolateRgbBasis(["#ffffff", "#cea48d", "#d5b085", "#0c2c19", "#151320"])),
-  livid: scaleSequential(interpolateRgbBasis(["#BBBBDD", "#2A3440", "#17343B", "#0A1E24"])),
-  monochrome: scaleSequential(interpolateGreys)
-};
-
-function addCustomColorScheme(scheme: string): void {
+export function addCustomColorScheme(scheme: string): void {
   const stops = scheme.split(",");
   heightmapColorSchemes[scheme] = scaleSequential(interpolateRgbBasis(stops));
   ensureEl<HTMLSelectElement>("styleHeightmapScheme").options.add(new Option(scheme, scheme, false, true));
-}
-
-function getColorScheme(scheme: string | null = "bright"): ColorSchemeFunc {
-  const key = scheme ?? "bright";
-  if (!(key in heightmapColorSchemes)) {
-    heightmapColorSchemes[key] = scaleSequential(interpolateRgbBasis(key.split(",")));
-  }
-  return heightmapColorSchemes[key];
-}
-
-function getColor(value: number, scheme: ColorSchemeFunc = heightmapColorSchemes.bright): string {
-  return scheme(1 - (value < 20 ? value - 5 : value) / 100);
 }
 
 // ─── Style element selection ──────────────────────────────────────────────────
@@ -1741,12 +1711,6 @@ function setPresetRemoveButtonVisibiliy(): void {
 }
 
 // ─── Global exports ───────────────────────────────────────────────────────────
-
-window.heightmapColorSchemes = heightmapColorSchemes;
-window.addCustomColorScheme = addCustomColorScheme;
-window.getColorScheme = getColorScheme;
-window.getColor = getColor;
-
 window.editStyle = editStyle;
 window.selectStyleElement = selectStyleElement;
 window.calculateFriendlyGridSize = calculateFriendlyGridSize;

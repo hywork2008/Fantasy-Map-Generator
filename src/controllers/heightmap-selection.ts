@@ -1,6 +1,7 @@
 import { aleaPRNG } from "../components/AleaPRNG";
 import { worldContext } from "../context/worldContext";
-import { ensureEl, generateGrid, generateSeed, shouldRegenerateGrid } from "../utils";
+import { drawHeights, ensureEl, generateGrid, generateSeed, shouldRegenerateGrid } from "../utils";
+import { getColorScheme, heightmapColorSchemes } from "../utils/colorUtils";
 import type { Grid } from "../utils/graphUtils";
 
 const initialSeed = generateSeed();

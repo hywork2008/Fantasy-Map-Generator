@@ -8,9 +8,9 @@ import {
   debounce,
   generateDate,
   getBase64,
-  getCoordinates,
-  getLatitude,
-  getLongitude,
+  getCoordinates as getCoordinatesCore,
+  getLatitude as getLatitudeCore,
+  getLongitude as getLongitudeCore,
   getSegmentId,
   initializePrompt,
   isCtrlClick,
@@ -33,9 +33,9 @@ import {
   findGridCell,
   type Grid,
   generateGrid,
-  getGridPolygon,
+  getGridPolygon as getGridPolygonCore,
   getPackPolygon,
-  isLand,
+  isLand as isLandCore,
   isWater,
   poissonDiscSampler,
   shouldRegenerateGrid
@@ -103,6 +103,21 @@ declare global {
   var seed: string;
 }
 
+// Window-aware wrappers for functions whose core signature requires map globals.
+// These mirror the simplified types in declare global and replace the old window.X assignments.
+export const getLatitude = (y: number, decimals?: number): number =>
+  getLatitudeCore(y, window.mapCoordinates, window.graphHeight, decimals);
+
+export const getLongitude = (x: number, decimals?: number): number =>
+  getLongitudeCore(x, window.mapCoordinates, window.graphWidth, decimals);
+
+export const getCoordinates = (x: number, y: number, decimals?: number): [number, number] =>
+  getCoordinatesCore(x, y, window.mapCoordinates, window.graphWidth, window.graphHeight, decimals);
+
+export const isLand = (i: number): boolean => isLandCore(i, window.pack);
+
+export const getGridPolygon = (i: number): [number, number][] => getGridPolygonCore(i, window.grid);
+
 export {
   abbreviate,
   applySorting,
@@ -140,13 +155,9 @@ export {
   getBase64,
   getColors,
   getComposedPath,
-  getCoordinates,
   getGappedFillPaths,
-  getGridPolygon,
   getIntegerFromSI,
   getIsolines,
-  getLatitude,
-  getLongitude,
   getMixedColor,
   getNextId,
   getNumberInRange,
@@ -158,7 +169,6 @@ export {
   getVertexPath,
   initializePrompt,
   isCtrlClick,
-  isLand,
   isValidJSON,
   isVowel,
   isWater,

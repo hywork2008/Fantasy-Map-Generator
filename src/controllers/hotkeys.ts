@@ -1,5 +1,6 @@
 import { NamesbaseEditor } from "../editors/namesbase-editor";
 import { editNotes } from "../editors/notes-editor";
+import { createRoute } from "../editors/routes-editor";
 import { ensureEl, minmax } from "../utils";
 
 export function initHotkeys(): void {
@@ -243,6 +244,5 @@ declare const viewCellDetails: () => void;
 declare const toggleAddBurg: () => void;
 declare const toggleAddLabel: () => void;
 declare const toggleAddRiver: () => void;
-declare const createRoute: () => void;
 declare const toggleAddMarker: () => void;
 declare const showInfo: () => void;

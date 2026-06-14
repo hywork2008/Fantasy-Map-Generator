@@ -2,7 +2,7 @@ import { mean, sum } from "d3";
 import type { MilitaryRegiment } from "../modules/military-generator";
 import { Military } from "../modules/military-generator";
 import { drawMarker, moveRegiment } from "../renderers/index";
-import { capitalize, ensureEl, findCell, getAdjective, last, list, minmax, Pint, rand, rn } from "../utils";
+import { capitalize, ensureEl, findCell, getAdjective, last, list, minmax, Pint, rand, rn, wiki } from "../utils";
 
 interface BattleRegiment extends MilitaryRegiment {
   casualties: Record<string, number>;
@@ -989,5 +989,4 @@ declare global {
   interface Window {
     Battle: new (attacker: BattleRegiment, defender: BattleRegiment) => Battle;
   }
-  var wiki: (topic: string) => void;
 }
