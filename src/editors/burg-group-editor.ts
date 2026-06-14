@@ -1,7 +1,14 @@
+import type { AppServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
 import type { Burg, BurgGroup } from "../modules/burgs-generator";
 import { Burgs } from "../modules/burgs-generator";
 import { drawBurgIcons, drawBurgLabels } from "../renderers";
 import { ensureEl } from "../utils";
+
+let worldContext: WorldContext;
+let viewContext: Readonly<ViewContext>;
+let appServices: AppServices;
 
 type LimitEntity = { i?: number; name?: string; fullName?: string; color?: string; removed?: boolean };
 type ParsedValue = string | number | boolean | Record<string, boolean> | null;
@@ -358,10 +365,16 @@ export function editBurgGroups(): void {
       Burgs.defineGroup(burg, populations);
     });
 
-    if (layerIsOn("toggleBurgIcons")) drawBurgIcons();
-    if (layerIsOn("toggleLabels")) drawBurgLabels();
+    if (layerIsOn("toggleBurgIcons")) drawBurgIcons(worldContext, viewContext, appServices);
+    if (layerIsOn("toggleLabels")) drawBurgLabels(worldContext, viewContext, appServices);
     if (burgsOverviewRefresh?.offsetParent) burgsOverviewRefresh.click();
 
     $("#burgGroupsEditor").dialog("close");
   }
+}
+
+export function initBurgGroupEditor(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {
+  worldContext = wc;
+  viewContext = vc;
+  appServices = as;
 }

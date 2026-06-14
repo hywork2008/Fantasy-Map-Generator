@@ -1,8 +1,17 @@
 import { mean, range } from "d3";
+import type { AppServices } from "../context/appServices";
+import { appServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import { viewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
+import { worldContext } from "../context/worldContext";
 import type { WorldState } from "../types/WorldState";
 import { rn } from "../utils";
 
 class BiomesModule {
+  worldContext: WorldContext = worldContext;
+  viewContext: Readonly<ViewContext> = viewContext;
+  appServices: AppServices = appServices;
   private MIN_LAND_HEIGHT = 20;
 
   getDefault() {
@@ -118,6 +127,7 @@ class BiomesModule {
   }
 
   getId(moisture: number, temperature: number, height: number, hasRiver: boolean) {
+    const { biomesData } = this.worldContext;
     if (height < 20) return 0; // all water cells: marine biome
     if (temperature < -5) return 11; // too cold: permafrost biome
     if (temperature >= 25 && !hasRiver && moisture < 8) return 1; // too hot and dry: hot desert biome

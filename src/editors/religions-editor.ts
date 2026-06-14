@@ -1,13 +1,20 @@
 import * as d3 from "d3";
+import type { AppServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
 import type { Religion } from "../modules/religions-generator";
 
 type HighlightEvent = { id?: string | number | null; target?: EventTarget | null };
 
-import { worldContext } from "../context/worldContext";
 import { type HierarchyElement, open as openHierarchyTree } from "../controllers/hierarchy-tree";
 import { Religions } from "../modules/religions-generator";
 import { drawPopulation, drawReligions } from "../renderers";
 import { abbreviate, applySortingByHeader, debounce, ensureEl, findCell, isLand, rn, si } from "../utils";
+
+let worldContext: WorldContext;
+let viewContext: Readonly<ViewContext>;
+let appServices: AppServices;
+
 import { getPackPolygon } from "../utils/graphUtils";
 
 const $body = insertEditorHtml();
@@ -503,7 +510,7 @@ function changePopulation(this: Element): void {
       });
     }
 
-    if (layerIsOn("togglePopulation")) drawPopulation();
+    if (layerIsOn("togglePopulation")) drawPopulation(worldContext, viewContext, appServices);
     refreshReligionsEditor();
   }
 }
@@ -800,7 +807,7 @@ function applyReligionsManualAssignent(): void {
   });
 
   if (changed.size()) {
-    drawReligions();
+    drawReligions(worldContext, viewContext, appServices);
     refreshReligionsEditor();
     drawReligionCenters();
   }
@@ -877,7 +884,7 @@ function addReligion(this: SVGElement, event: MouseEvent): void {
   if (event.shiftKey === false) exitAddReligionMode();
   Religions.add(center);
 
-  drawReligions();
+  drawReligions(worldContext, viewContext, appServices);
   refreshReligionsEditor();
   drawReligionCenters();
 }
@@ -926,7 +933,7 @@ function recalculateReligions(must?: boolean): void {
 
   Religions.recalculate();
 
-  drawReligions();
+  drawReligions(worldContext, viewContext, appServices);
   refreshReligionsEditor();
   drawReligionCenters();
 }
@@ -940,4 +947,10 @@ function closeReligionsEditor(): void {
 declare global {
   var religionsAutoChange: HTMLInputElement;
   var religionsHeader: HTMLElement;
+}
+
+export function initReligionsEditor(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {
+  worldContext = wc;
+  viewContext = vc;
+  appServices = as;
 }

@@ -1,6 +1,8 @@
 import * as d3 from "d3";
 import { color, interpolate, interpolateString, pointer } from "d3";
-import { worldContext } from "../context/worldContext";
+import type { AppServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
 import type { Burg } from "../modules/burgs-generator";
 import { Burgs } from "../modules/burgs-generator";
 import type { Culture } from "../modules/cultures-generator";
@@ -15,6 +17,10 @@ import { drawBorders, drawPopulation, drawProvinces, drawStateLabels, drawStates
 import { ensureEl, findCell, getRandomColor, isLand, parseTransform, rand, rn, si, unique } from "../utils";
 import { getPackPolygon } from "../utils/graphUtils";
 import { editEmblem } from "./emblems-editor";
+
+let worldContext: WorldContext;
+let viewContext: Readonly<ViewContext>;
+let appServices: AppServices;
 
 export function editProvinces(): void {
   if (customization) return;
@@ -161,7 +167,7 @@ export function editProvinces(): void {
       const capital = p.burg ? ((pack.burgs as Burg[])[p.burg].name ?? "") : "";
       const separable = p.burg && p.burg !== (pack.states as State[])[p.state].capital;
       const focused = defs.select(`#fog #focusProvince${p.i}`).size();
-      COArenderer.trigger(`provinceCOA${p.i}`, p.coa);
+      COArenderer.trigger(`provinceCOA${p.i}`, p.coa as RendererEmblem);
       lines += /* html */ `<div
         class="states"
         data-id=${p.i}
@@ -379,25 +385,25 @@ export function editProvinces(): void {
     const allStates = unique([...oldStates, ...newStates]);
 
     layerIsOn("toggleProvinces") && toggleProvinces();
-    layerIsOn("toggleStates") ? drawStates() : toggleStates();
-    layerIsOn("toggleBorders") ? drawBorders() : toggleBorders();
+    layerIsOn("toggleStates") ? drawStates(worldContext, viewContext, appServices) : toggleStates();
+    layerIsOn("toggleBorders") ? drawBorders(worldContext, viewContext, appServices) : toggleBorders();
 
     const state = getWorldState();
     States.getPoles(state);
     States.findNeighbors();
     States.collectStatistics(state);
     States.defineStateForms(state, newStates);
-    drawStateLabels(allStates);
+    drawStateLabels(worldContext, viewContext, appServices, allStates);
 
     allStates.forEach(stateId => {
       emblems.select(`#stateEmblems > use[data-i='${stateId}']`)?.remove();
       const { coa, pole } = (pack.states as State[])[stateId];
-      COArenderer.add("state", stateId, coa, pole![0], pole![1]);
+      COArenderer.add("state", stateId, coa as RendererEmblem, pole![0], pole![1]);
     });
 
     layerIsOn("toggleProvinces") && toggleProvinces();
-    layerIsOn("toggleStates") ? drawStates() : toggleStates();
-    layerIsOn("toggleBorders") ? drawBorders() : toggleBorders();
+    layerIsOn("toggleStates") ? drawStates(worldContext, viewContext, appServices) : toggleStates();
+    layerIsOn("toggleBorders") ? drawBorders(worldContext, viewContext, appServices) : toggleBorders();
 
     unfog();
     closeDialogs();
@@ -481,7 +487,7 @@ export function editProvinces(): void {
         });
       }
 
-      if (layerIsOn("togglePopulation")) drawPopulation();
+      if (layerIsOn("togglePopulation")) drawPopulation(worldContext, viewContext, appServices);
       refreshProvincesEditor();
     }
   }
@@ -519,7 +525,7 @@ export function editProvinces(): void {
           const g = provs.select("#provincesBody");
           g.select(`#province${p}`).remove();
           g.select(`#province-gap${p}`).remove();
-          if (layerIsOn("toggleBorders")) drawBorders();
+          if (layerIsOn("toggleBorders")) drawBorders(worldContext, viewContext, appServices);
           refreshProvincesEditor();
           $(this).dialog("close");
         },
@@ -566,7 +572,7 @@ export function editProvinces(): void {
     function regenerateShortNameCulture(): void {
       const prov = +(ensureEl("provinceNameEditor") as HTMLElement).dataset.province!;
       const culture = pack.cells.culture[(pack.provinces as Province[])[prov].center];
-      const name = Names.getState(Names.getCultureShort(culture), culture);
+      const name = Names.getState(Names.getCultureShort(worldContext, viewContext, appServices, culture), culture);
       (ensureEl("provinceNameEditorShort") as HTMLInputElement).value = name;
     }
 
@@ -1021,8 +1027,8 @@ export function editProvinces(): void {
       });
 
     Provinces.getPoles(getWorldState());
-    if (layerIsOn("toggleBorders")) drawBorders();
-    if (layerIsOn("toggleProvinces")) drawProvinces();
+    if (layerIsOn("toggleBorders")) drawBorders(worldContext, viewContext, appServices);
+    if (layerIsOn("toggleProvinces")) drawProvinces(worldContext, viewContext, appServices);
 
     exitProvincesManualAssignment();
     refreshProvincesEditor();
@@ -1107,7 +1113,9 @@ export function editProvinces(): void {
     (pack.states as State[])[state].provinces!.push(province);
     const burg = cells.burg[center];
     const c = cells.culture[center];
-    const name = burg ? ((pack.burgs as Burg[])[burg].name ?? "") : Names.getState(Names.getCultureShort(c), c);
+    const name = burg
+      ? ((pack.burgs as Burg[])[burg].name ?? "")
+      : Names.getState(Names.getCultureShort(worldContext, viewContext, appServices, c), c);
     const formName = oldProvince ? provincesArr[oldProvince].formName : "Province";
     const fullName = `${name} ${formName}`;
     const stateColor = (pack.states as State[])[state].color ?? "";
@@ -1115,9 +1123,10 @@ export function editProvinces(): void {
     const newColor = stateColor[0] === "#" ? color(interpolate(stateColor, rndColor)(0.2))!.formatHex() : rndColor;
 
     const kinship = burg ? 0.8 : 0.4;
-    const parent = burg ? (pack.burgs as Burg[])[burg].coa : (pack.states as State[])[state].coa;
-    const type = Burgs.getType(center, parent.port);
-    const coa = COA.generate(parent, kinship, P(0.1) as unknown as number, type);
+    const parentBurg = burg ? (pack.burgs as Burg[])[burg] : null;
+    const type = Burgs.getType(center, parentBurg?.port);
+    const parentCOA = parentBurg ? parentBurg.coa : (pack.states as State[])[state].coa;
+    const coa = COA.generate(parentCOA ?? null, kinship, P(0.1) as unknown as number, type);
     coa.shield = COA.getShield(c, state) ?? "";
     COArenderer.add("province", province, coa as RendererEmblem, px, py);
 
@@ -1130,8 +1139,8 @@ export function editProvinces(): void {
       cells.province[cc] = province;
     });
 
-    if (layerIsOn("toggleBorders")) drawBorders();
-    if (layerIsOn("toggleProvinces")) drawProvinces();
+    if (layerIsOn("toggleBorders")) drawBorders(worldContext, viewContext, appServices);
+    if (layerIsOn("toggleProvinces")) drawProvinces(worldContext, viewContext, appServices);
 
     collectStatistics();
     (ensureEl("provincesFilterState") as HTMLSelectElement).value = String(state);
@@ -1161,7 +1170,7 @@ export function editProvinces(): void {
     });
 
     if (!layerIsOn("toggleProvinces")) toggleProvinces();
-    else drawProvinces();
+    else drawProvinces(worldContext, viewContext, appServices);
   }
 
   function downloadProvincesData(): void {
@@ -1209,7 +1218,7 @@ export function editProvinces(): void {
           });
 
           unfog();
-          if (layerIsOn("toggleBorders")) drawBorders();
+          if (layerIsOn("toggleBorders")) drawBorders(worldContext, viewContext, appServices);
           provs.select("#provincesBody").remove();
           turnButtonOff("toggleProvinces");
 
@@ -1410,8 +1419,8 @@ export function editProvinces(): void {
     collectStatistics();
     Provinces.getPoles(getWorldState());
 
-    if (layerIsOn("toggleProvinces")) drawProvinces();
-    if (layerIsOn("toggleBorders")) drawBorders();
+    if (layerIsOn("toggleProvinces")) drawProvinces(worldContext, viewContext, appServices);
+    if (layerIsOn("toggleBorders")) drawBorders(worldContext, viewContext, appServices);
 
     unfog();
     debug.selectAll(".highlight").remove();
@@ -1428,3 +1437,8 @@ function updateLockStatus(provinceId: number, classList: DOMTokenList): void {
 }
 
 // ─── Global registration ───────────────────────────────────────────────────────
+export function initProvincesEditor(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {
+  worldContext = wc;
+  viewContext = vc;
+  appServices = as;
+}

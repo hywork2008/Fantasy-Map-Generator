@@ -1,8 +1,15 @@
 import { color, interpolateString, pointer } from "d3";
+import type { AppServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
 import { COArenderer } from "../modules/emblem/renderer";
 import { States } from "../modules/states-generator";
 import { drawStates } from "../renderers";
 import { findCell, getAdjective } from "../utils";
+
+let worldContext: WorldContext;
+let viewContext: Readonly<ViewContext>;
+let appServices: AppServices;
 
 type RelationKey =
   | "Ally"
@@ -124,7 +131,7 @@ export function editDiplomacy(): void {
     const selectedId = selectedLine ? +selectedLine.dataset.id! : states.find(s => s.i && !s.removed)!.i;
     const selectedName = states[selectedId].name;
 
-    COArenderer.trigger(`stateCOA${selectedId}`, states[selectedId].coa);
+    COArenderer.trigger(`stateCOA${selectedId}`, states[selectedId].coa!);
     let lines = /* html */ `<div class="states Self" data-id=${selectedId} data-tip="List below shows relations to ${selectedName}">
       <div style="width: max-content">${states[selectedId].fullName}</div>
       <svg class="coaIcon" viewBox="0 0 200 200"><use href="#stateCOA${selectedId}"></use></svg>
@@ -140,7 +147,7 @@ export function editDiplomacy(): void {
       const tipChange = `Click to change relations. ${tipText}`;
 
       const name = (state.fullName ?? "").length < 23 ? (state.fullName ?? state.name) : state.name;
-      COArenderer.trigger(`stateCOA${state.i}`, state.coa);
+      COArenderer.trigger(`stateCOA${state.i}`, state.coa!);
 
       lines += /* html */ `<div class="states" data-id=${state.i} data-name="${name}" data-relations="${relation}">
         <svg data-tip="${tipSelect}" class="coaIcon" viewBox="0 0 200 200"><use href="#stateCOA${state.i}"></use></svg>
@@ -541,7 +548,7 @@ export function editDiplomacy(): void {
     clearMainTip();
     const selected = body.querySelector("div.Self");
     if (selected) selected.classList.remove("Self");
-    if (layerIsOn("toggleStates")) drawStates();
+    if (layerIsOn("toggleStates")) drawStates(worldContext, viewContext, appServices);
     else toggleStates();
     debug.selectAll(".highlight").remove();
   }
@@ -551,4 +558,10 @@ declare global {
   interface Window {
     editDiplomacy: () => void;
   }
+}
+
+export function initDiplomacyEditor(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {
+  worldContext = wc;
+  viewContext = vc;
+  appServices = as;
 }

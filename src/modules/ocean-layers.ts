@@ -1,10 +1,19 @@
 import type { Selection } from "d3";
 import { curveBasisClosed, line } from "d3";
+import type { AppServices } from "../context/appServices";
+import { appServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import { viewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
+import { worldContext } from "../context/worldContext";
 import { clipPoly, P, rn, round } from "../utils";
 import type { GridCells } from "../utils/graphUtils";
 import type { Vertices } from "./voronoi";
 
 class OceanModule {
+  worldContext: WorldContext = worldContext;
+  viewContext: Readonly<ViewContext> = viewContext;
+  appServices: AppServices = appServices;
   private cells: GridCells | null = null;
   private vertices: Vertices | null = null;
   private pointsN: number = 0;
@@ -64,6 +73,7 @@ class OceanModule {
   }
 
   draw() {
+    const { grid } = this.worldContext;
     const outline = this.oceanLayers.attr("layers");
     if (outline === "none") return;
     TIME && console.time("drawOceanLayers");

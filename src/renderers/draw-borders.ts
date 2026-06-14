@@ -1,8 +1,13 @@
-import { viewContext } from "../context/viewContext";
-import { worldContext } from "../context/worldContext";
+import type { AppServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
 import { TIME } from "../utils/debug";
 
-export const drawBorders = () => {
+export const drawBorders = (
+  worldContext: Readonly<WorldContext>,
+  viewContext: Readonly<ViewContext>,
+  appServices: AppServices
+) => {
   TIME && console.time("drawBorders");
   const { pack } = worldContext;
   const { cells, vertices } = pack;

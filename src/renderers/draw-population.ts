@@ -1,8 +1,12 @@
 import { easeSinIn, transition } from "d3";
-import { viewContext } from "../context/viewContext";
-import { worldContext } from "../context/worldContext";
-
-export const drawPopulation = (): void => {
+import type { AppServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
+export const drawPopulation = (
+  worldContext: Readonly<WorldContext>,
+  viewContext: Readonly<ViewContext>,
+  appServices: AppServices
+): void => {
   const { pack, urbanization } = worldContext;
   const { population } = viewContext;
   const { cells, burgs } = pack;

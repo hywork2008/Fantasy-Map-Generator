@@ -1,7 +1,14 @@
 import { interpolateString, sum } from "d3";
+import type { AppServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
 import type { MilitaryUnit } from "../modules/military-generator";
 import { Military } from "../modules/military-generator";
 import { capitalize, rn, sanitizeId, si, wiki } from "../utils";
+
+let worldContext: WorldContext;
+let viewContext: Readonly<ViewContext>;
+let appServices: AppServices;
 
 type LimitEntity = { i?: number; name?: string; fullName?: string; color?: string; removed?: boolean };
 type MilitaryUnitConfig = MilitaryUnit & {
@@ -491,7 +498,7 @@ function overviewMilitary(): void {
         return unit;
       });
       localStorage.setItem("military", JSON.stringify(options.military));
-      Military.generate(getWorldState());
+      Military.generate(worldContext, viewContext, appServices, getWorldState());
       updateHeaders();
       addLines();
     }
@@ -506,7 +513,7 @@ function overviewMilitary(): void {
       buttons: {
         Recalculate: function () {
           $(this).dialog("close");
-          Military.generate(getWorldState());
+          Military.generate(worldContext, viewContext, appServices, getWorldState());
           addLines();
         },
         Cancel: function () {
@@ -550,4 +557,10 @@ declare global {
   var militaryTotal: HTMLElement;
   var militaryHeader: HTMLElement;
   var militaryOptionsTable: HTMLTableElement;
+}
+
+export function initMilitaryOverview(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {
+  worldContext = wc;
+  viewContext = vc;
+  appServices = as;
 }

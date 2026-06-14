@@ -1,9 +1,14 @@
 import { geoEquirectangular, geoGraticule, geoPath } from "d3";
-import { viewContext } from "../context/viewContext";
-import { worldContext } from "../context/worldContext";
+import type { AppServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
 import { ensureEl, rn, round } from "../utils";
 
-export const drawCoordinates = (): void => {
+export const drawCoordinates = (
+  worldContext: Readonly<WorldContext>,
+  viewContext: Readonly<ViewContext>,
+  appServices: AppServices
+): void => {
   const { mapCoordinates, graphWidth, graphHeight } = worldContext;
   const { scale } = viewContext;
   const { coordinates } = viewContext;

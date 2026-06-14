@@ -1,5 +1,11 @@
 import { polygonArea } from "d3";
 import { aleaPRNG } from "../components/AleaPRNG";
+import type { AppServices } from "../context/appServices";
+import { appServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import { viewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
+import { worldContext } from "../context/worldContext";
 import {
   clipPoly,
   connectVertices,
@@ -49,6 +55,9 @@ export interface GridFeature {
 }
 
 class FeatureModule {
+  worldContext: WorldContext = worldContext;
+  viewContext: Readonly<ViewContext> = viewContext;
+  appServices: AppServices = appServices;
   private DEEPER_LAND = 3;
   private LANDLOCKED = 2;
   private LAND_COAST = 1;
@@ -91,6 +100,7 @@ class FeatureModule {
    * mark Grid features (ocean, lakes, islands) and calculate distance field
    */
   markupGrid() {
+    const { seed, grid } = this.worldContext;
     TIME && console.time("markupGrid");
     Math.random = aleaPRNG(seed); // get the same result on heightmap edit in Erase mode
 
@@ -150,6 +160,7 @@ class FeatureModule {
    * mark PackedGraph features (oceans, lakes, islands) and calculate distance field
    */
   markupPack() {
+    const { pack } = this.worldContext;
     const defineHaven = (cellId: number) => {
       const waterCells = neighbors[cellId].filter((index: number) => isWater(index, pack));
       const distances = waterCells.map((neibCellId: number) => distanceSquared(cells.p[cellId], cells.p[neibCellId]));
@@ -327,6 +338,7 @@ class FeatureModule {
    * define feature groups (ocean, sea, gulf, continent, island, isle, freshwater lake, salt lake, etc.)
    */
   defineGroups() {
+    const { grid, pack } = this.worldContext;
     const gridCellsNumber = grid.cells.i.length;
     const OCEAN_MIN_SIZE = gridCellsNumber / 25;
     const SEA_MIN_SIZE = gridCellsNumber / 1000;

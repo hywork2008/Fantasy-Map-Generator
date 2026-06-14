@@ -1,5 +1,4 @@
 import { appServices } from "../../context/appServices";
-
 import { shieldBox } from "./box";
 import { colors } from "./colors";
 import { lines } from "./lines";
@@ -19,24 +18,26 @@ interface Ordinary {
   ordinary: string;
   line?: string;
   t: string;
-  divided?: "field" | "division" | "counter";
+  divided?: string;
   above?: boolean;
 }
 
 interface Charge {
-  stroke: string;
+  stroke?: string;
   charge: string;
   t: string;
+  t2?: string;
+  t3?: string;
   size?: number;
-  sinister?: boolean;
-  reversed?: boolean;
+  sinister?: boolean | number;
+  reversed?: boolean | number;
   line?: string;
-  divided?: "field" | "division" | "counter";
-  p: number[]; // position on shield from 1 to 9
+  divided?: string;
+  p: number[] | string; // position on shield
 }
 
 export interface Emblem {
-  shield: string;
+  shield?: string;
   t1: string;
   division?: Division;
   ordinaries?: Ordinary[];
@@ -186,13 +187,14 @@ class EmblemRenderModule {
       const tertiary = this.clr(tertiaryTincture || tincture);
       const stroke = charge.stroke || "#000";
 
-      const chargePositions = [...new Set(charge.p)].filter(
+      // biome-ignore lint/suspicious/noExplicitAny: complex union type
+      const chargePositions = [...new Set(charge.p as any)].filter(
         position => positions[position as unknown as keyof typeof positions]
       ); // filter out invalid positions
 
       let svg = `<g fill="${primary}" style="--secondary: ${secondary}; --tertiary: ${tertiary}" stroke="${stroke}">`;
       for (const p of chargePositions) {
-        const transform = getElTransform(charge, p);
+        const transform = getElTransform(charge, p as string | number);
         svg += `<use href="#${charge.charge}_${id}" transform="${transform}"></use>`;
       }
       return `${svg}</g>`;

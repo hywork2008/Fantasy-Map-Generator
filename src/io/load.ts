@@ -1,4 +1,7 @@
 import type * as d3 from "d3";
+import { appServices } from "../context/appServices";
+import { viewContext } from "../context/viewContext";
+import { worldContext } from "../context/worldContext";
 import { fitMapToScreen } from "../controllers/options";
 import { addCustomColorScheme } from "../controllers/style";
 import { fitMapView, reinitializeMapLayers } from "../main";
@@ -402,12 +405,17 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
     }
 
     {
-      const isVisible = (selection: d3.Selection<any, any, any, any>) =>
-        selection.node() && selection.style("display") !== "none";
+      const isVisible = <T extends d3.BaseType, P extends d3.BaseType>(
+        selection: d3.Selection<T, unknown, P, unknown>
+      ) => selection.node() && (selection.node() as unknown as HTMLElement | SVGElement).style?.display !== "none";
       const isVisibleNode = (node: HTMLElement | null) => node && node.style.display !== "none";
-      const hasChildren = (selection: d3.Selection<any, any, any, any>) => selection.node()?.hasChildNodes();
-      const hasChild = (selection: d3.Selection<any, any, any, any>, selector: string) =>
-        selection.node()?.querySelector(selector);
+      const hasChildren = <T extends d3.BaseType, P extends d3.BaseType>(
+        selection: d3.Selection<T, unknown, P, unknown>
+      ) => (selection.node() as Element | null)?.hasChildNodes();
+      const hasChild = <T extends d3.BaseType, P extends d3.BaseType>(
+        selection: d3.Selection<T, unknown, P, unknown>,
+        selector: string
+      ) => (selection.node() as Element | null)?.querySelector(selector);
       const turnOn = (el: string) => ensureEl(el).classList.remove("buttonoff");
 
       ensureEl("mapLayers")
@@ -779,7 +787,7 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
     }
     emblems.selectAll("use").attr("href", null);
     if (rulers && layerIsOn("toggleRulers")) rulers.draw();
-    if (layerIsOn("toggleGrid")) drawGrid();
+    if (layerIsOn("toggleGrid")) drawGrid(worldContext, viewContext, appServices);
     restoreDefaultEvents?.();
     focusOn();
     invokeActiveZooming();

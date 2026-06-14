@@ -11,11 +11,11 @@ export class AleaPRNG {
   private s2: number = 0;
   private c: number = 1;
 
-  constructor(seed?: any) {
+  constructor(seed?: unknown) {
     this.init(seed !== undefined ? seed : Date.now());
   }
 
-  private init(seed: any): void {
+  private init(seed: unknown): void {
     let n = 0xefc8249d;
     const mash = (data: string) => {
       for (let i = 0; i < data.length; i++) {
@@ -80,7 +80,7 @@ export class AleaPRNG {
   }
 }
 
-export function aleaPRNG(seed: any): () => number {
+export function aleaPRNG(seed: unknown): () => number {
   const prng = new AleaPRNG(seed);
   return () => prng.fract32();
 }

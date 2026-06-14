@@ -1,9 +1,15 @@
 import { color } from "d3";
-import { worldContext } from "../context/worldContext";
+import type { AppServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
 import { ensureEl, getGappedFillPaths, getIsolines } from "../utils";
 import { TIME } from "../utils/debug";
 
-export const drawStates = (): void => {
+export const drawStates = (
+  worldContext: Readonly<WorldContext>,
+  viewContext: Readonly<ViewContext>,
+  appServices: AppServices
+): void => {
   TIME && console.time("drawStates");
   const { pack } = worldContext;
   const { cells, states } = pack;

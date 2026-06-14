@@ -1,5 +1,12 @@
+import type { AppServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
 import { ensureEl, getLatitude, getLongitude, minmax, rn } from "../utils";
 import { fitMapToScreen } from "./options";
+
+let worldContext: WorldContext;
+let viewContext: Readonly<ViewContext>;
+let appServices: AppServices;
 
 function openSubmapTool(): void {
   resetInputs();
@@ -55,6 +62,7 @@ function openSubmapTool(): void {
     fitMapToScreen();
     resetZoom(0);
     undraw();
+    Resample.init(worldContext, viewContext, appServices);
     Resample.process({ projection, inverse, scale });
 
     if ((ensureEl("submapRescaleBurgStyles") as HTMLInputElement).checked) rescaleBurgStyles(scale);
@@ -110,3 +118,9 @@ function openSubmapTool(): void {
 }
 
 window.openSubmapTool = openSubmapTool;
+
+export function initSubmapTool(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {
+  worldContext = wc;
+  viewContext = vc;
+  appServices = as;
+}

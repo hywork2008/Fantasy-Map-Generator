@@ -1,5 +1,7 @@
 import { type D3DragEvent, drag, mean, min, polygonArea, polygonLength, type Selection, select } from "d3";
-import { worldContext } from "../context/worldContext";
+import type { AppServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
 import type { PackedGraphFeature } from "../modules/features";
 import { Lakes } from "../modules/lakes";
 import { drawBiomes, drawBorders, drawCultures, drawProvinces, drawReligions, drawStates } from "../renderers";
@@ -7,6 +9,10 @@ import { getFeaturePath } from "../renderers/index";
 import { ensureEl, rand, rn, si, unique } from "../utils";
 import { getPackPolygon } from "../utils/graphUtils";
 import { editNotes } from "./notes-editor";
+
+let worldContext: WorldContext;
+let viewContext: Readonly<ViewContext>;
+let appServices: AppServices;
 
 export function editLake(event?: MouseEvent): void {
   if (customization) return;
@@ -22,7 +28,7 @@ export function editLake(event?: MouseEvent): void {
 
   const node = (event?.target ?? document.querySelector(".lakes path")) as SVGElement;
   debug.append("g").attr("id", "vertices");
-  elSelected = select(node);
+  elSelected = select(node as unknown as Element);
   updateLakeValues();
   selectLakeGroup();
   drawLakeVertices();
@@ -115,7 +121,9 @@ export function editLake(event?: MouseEvent): void {
     pack.vertices.p[vertexId] = [x, y];
 
     const feature = getLake();
-    defs.select(`#featurePaths > path#feature_${feature.i}`).attr("d", getFeaturePath(feature));
+    defs
+      .select(`#featurePaths > path#feature_${feature.i}`)
+      .attr("d", getFeaturePath(worldContext, viewContext, appServices, feature));
 
     const points = feature.vertices!.map((vertex: number) => pack.vertices.p[vertex]);
     feature.area = Math.abs(polygonArea(points));
@@ -128,12 +136,12 @@ export function editLake(event?: MouseEvent): void {
   }
 
   function handleVertexDragEnd(): void {
-    if (layerIsOn("toggleStates")) drawStates();
-    if (layerIsOn("toggleProvinces")) drawProvinces();
-    if (layerIsOn("toggleBorders")) drawBorders();
-    if (layerIsOn("toggleBiomes")) drawBiomes();
-    if (layerIsOn("toggleReligions")) drawReligions();
-    if (layerIsOn("toggleCultures")) drawCultures();
+    if (layerIsOn("toggleStates")) drawStates(worldContext, viewContext, appServices);
+    if (layerIsOn("toggleProvinces")) drawProvinces(worldContext, viewContext, appServices);
+    if (layerIsOn("toggleBorders")) drawBorders(worldContext, viewContext, appServices);
+    if (layerIsOn("toggleBiomes")) drawBiomes(worldContext, viewContext, appServices);
+    if (layerIsOn("toggleReligions")) drawReligions(worldContext, viewContext, appServices);
+    if (layerIsOn("toggleCultures")) drawCultures(worldContext, viewContext, appServices);
   }
 
   function changeName(this: HTMLInputElement): void {
@@ -269,4 +277,10 @@ export function editLake(event?: MouseEvent): void {
     debug.select("#vertices").remove();
     unselect();
   }
+}
+
+export function initLakesEditor(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {
+  worldContext = wc;
+  viewContext = vc;
+  appServices = as;
 }

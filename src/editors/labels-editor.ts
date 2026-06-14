@@ -11,15 +11,15 @@ export function editLabel(tspan?: Element): void {
   const text = textPath?.parentNode as SVGTextElement | undefined;
   let _ldx = 0,
     _ldy = 0;
-  elSelected = select(text as SVGTextElement)
+  elSelected = select(text as unknown as Element)
     .call(
-      drag<SVGTextElement, unknown>()
-        .on("start", (event: D3DragEvent<SVGTextElement, unknown, unknown>) => {
+      drag<Element, unknown>()
+        .on("start", (event: D3DragEvent<Element, unknown, unknown>) => {
           const tr = parseTransform(elSelected!.attr("transform"));
           _ldx = +tr[0] - event.x;
           _ldy = +tr[1] - event.y;
         })
-        .on("drag", (event: D3DragEvent<SVGTextElement, unknown, unknown>) => {
+        .on("drag", (event: D3DragEvent<Element, unknown, unknown>) => {
           const transform = `translate(${_ldx + event.x},${_ldy + event.y})`;
           elSelected!.attr("transform", transform);
           debug.select("#controlPoints").attr("transform", transform);
@@ -350,7 +350,7 @@ export function editLabel(tspan?: Element): void {
       const culture = pack.states[id].culture;
       name = Names.getState(Names.getCulture(culture, 4, 7, ""), culture);
     } else {
-      const box = elSelected!.node()!.getBBox();
+      const box = (elSelected!.node() as unknown as SVGGraphicsElement).getBBox();
       const cell = findCell((box.x + box.width) / 2, (box.y + box.height) / 2);
       const culture = pack.cells.culture[cell];
       name = Names.getCulture(culture);
@@ -434,7 +434,7 @@ export function editLabel(tspan?: Element): void {
   }
 
   function editLabelAlign(): void {
-    const bbox = elSelected!.node()!.getBBox();
+    const bbox = (elSelected!.node() as unknown as SVGGraphicsElement).getBBox();
     const c = [bbox.x + bbox.width / 2, bbox.y + bbox.height / 2];
     const path = defs.select(`#textPath_${elSelected!.attr("id")}`);
     path.attr("d", `M${c[0] - bbox.width},${c[1]}h${bbox.width * 2}`);

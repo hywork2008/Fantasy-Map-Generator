@@ -1,5 +1,11 @@
 import { curveBasis, curveCatmullRom, line, mean, min, sum } from "d3";
 import { aleaPRNG } from "../components/AleaPRNG";
+import type { AppServices } from "../context/appServices";
+import { appServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import { viewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
+import { worldContext } from "../context/worldContext";
 import type { WorldState } from "../types/WorldState";
 import { each, rn, round, rw } from "../utils";
 import { Lakes } from "./lakes";
@@ -23,6 +29,9 @@ export interface River {
 }
 
 class RiverModule {
+  worldContext: WorldContext = worldContext;
+  viewContext: Readonly<ViewContext> = viewContext;
+  appServices: AppServices = appServices;
   private FLUX_FACTOR = 500;
   private MAX_FLUX_WIDTH = 1;
   private LENGTH_FACTOR = 200;
@@ -43,7 +52,16 @@ class RiverModule {
 
   smallLength: number | null = null;
 
-  generate(state: WorldState, allowErosion = true) {
+  generate(
+    worldContext: WorldContext,
+    viewContext: Readonly<ViewContext>,
+    appServices: AppServices,
+    state: WorldState,
+    allowErosion = true
+  ) {
+    this.worldContext = worldContext;
+    this.viewContext = viewContext;
+    this.appServices = appServices;
     const { pack, grid, seed } = state;
     TIME && console.time("generateRivers");
     Math.random = aleaPRNG(seed);
@@ -294,6 +312,7 @@ class RiverModule {
   }
 
   alterHeights(): number[] {
+    const { pack } = this.worldContext;
     const { h, c, t } = pack.cells as {
       h: Uint8Array;
       c: number[][];
@@ -307,6 +326,7 @@ class RiverModule {
 
   // depression filling algorithm (for a correct water flux modeling)
   resolveDepressions(h: number[]) {
+    const { pack } = this.worldContext;
     const { cells, features } = pack;
     const maxIterations = +(document.getElementById("resolveDepressionsStepsOutput") as HTMLInputElement)?.value;
     const checkLakeMaxIteration = maxIterations * 0.85;
@@ -371,6 +391,7 @@ class RiverModule {
     riverPoints: Point[] | null = null,
     meandering = 0.5
   ): [number, number, number][] {
+    const { pack } = this.worldContext;
     const { fl, h } = pack.cells;
     const meandered = [];
     const points = this.getRiverPoints(riverCells, riverPoints);
@@ -421,6 +442,7 @@ class RiverModule {
   }
 
   getRiverPoints(riverCells: number[], riverPoints: [number, number][] | null) {
+    const { pack } = this.worldContext;
     if (riverPoints) return riverPoints;
 
     const { p } = pack.cells;
@@ -431,6 +453,7 @@ class RiverModule {
   }
 
   getBorderPoint(i: number) {
+    const { pack } = this.worldContext;
     const [x, y] = pack.cells.p[i];
     const min = Math.min(y, graphHeight - y, x, graphWidth - x);
     if (min === y) return [x, 0];
@@ -497,7 +520,10 @@ class RiverModule {
     return round(right + left, 1);
   }
 
-  specify(state: WorldState) {
+  specify(worldContext: WorldContext, viewContext: Readonly<ViewContext>, appServices: AppServices, state: WorldState) {
+    this.worldContext = worldContext;
+    this.viewContext = viewContext;
+    this.appServices = appServices;
     const { pack } = state;
     const rivers = pack.rivers;
     if (!rivers.length) return;
@@ -511,10 +537,12 @@ class RiverModule {
   }
 
   getName(cell: number) {
+    const { pack } = this.worldContext;
     return Names.getCulture(pack.cells.culture[cell]);
   }
 
   getType({ i, length, parent }: Pick<River, "i" | "length" | "parent">) {
+    const { pack } = this.worldContext;
     if (this.smallLength === null) {
       const threshold = Math.ceil(pack.rivers.length * 0.15);
       this.smallLength = pack.rivers.map(r => r.length || 0).sort((a: number, b: number) => a - b)[threshold];
@@ -538,6 +566,7 @@ class RiverModule {
 
   // remove river and all its tributaries
   remove(id: number) {
+    const { pack, grid } = this.worldContext;
     const cells = pack.cells;
     const riversToRemove = pack.rivers.filter(r => r.i === id || r.parent === id || r.basin === id).map(r => r.i);
     riversToRemove.forEach(r => {
@@ -553,6 +582,7 @@ class RiverModule {
   }
 
   getParent(r: number): number {
+    const { pack } = this.worldContext;
     const parent = pack.rivers.find(river => river.i === r)?.parent;
     if (!parent || parent === r) return r;
     if (!pack.rivers.some(river => river.i === parent)) return r;

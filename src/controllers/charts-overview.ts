@@ -1,6 +1,8 @@
 import * as d3 from "d3";
-import { worldContext } from "../context/worldContext";
+import type { WorldContext } from "../context/worldContext";
 import { capitalize, convertTemperature, ensureEl, rn, si } from "../utils";
+
+let worldContext: WorldContext;
 
 interface ChartOptions {
   id: number;
@@ -486,12 +488,14 @@ function createStackedBarChart(
     .offset(offset)(rolled)
     .map(s => {
       const defined = s.filter(d => !Number.isNaN(d[1]));
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const data = defined.map((d: any) => Object.assign(d, { i: new Map(d.data[1]).get(s.key) }));
+      const data = defined.map((d: unknown) => {
+        const point = d as { data: [string, [string, number[]][]] };
+        return Object.assign(point, { i: new Map(point.data[1]).get(s.key) });
+      });
       return { key: s.key, data };
     });
 
-  const xDomain = d3.extent(series.flatMap(d => d.data as number[])) as [number, number];
+  const xDomain = d3.extent(series.flatMap(d => (d.data as unknown as number[]).flat())) as [number, number];
 
   const xScale = d3.scaleLinear(xDomain, xRange);
   const yScale = d3.scaleBand(entities, yRange).paddingInner(Y_PADDING);
@@ -529,11 +533,15 @@ function createStackedBarChart(
     .join("g")
     .attr("fill", d => colors[d.key])
     .selectAll("rect")
-    .data(d => d.data.filter(([x1, x2]: number[]) => x1 !== x2))
+    // biome-ignore lint/suspicious/noExplicitAny: complex d3 type
+    .data((d: any) => d.data.filter((p: any) => p[0] !== p[1]))
     .join("rect")
-    .attr("x", ([x1, x2]) => Math.min(xScale(x1), xScale(x2)))
-    .attr("y", ({ i }) => yScale(Y[i]) ?? 0)
-    .attr("width", ([x1, x2]) => Math.abs(xScale(x1) - xScale(x2)))
+    // biome-ignore lint/suspicious/noExplicitAny: complex d3 type
+    .attr("x", (p: any) => Math.min(xScale(p[0]), xScale(p[1])))
+    // biome-ignore lint/suspicious/noExplicitAny: complex d3 type
+    .attr("y", (p: any) => yScale(Y[p.i]) ?? 0)
+    // biome-ignore lint/suspicious/noExplicitAny: complex d3 type
+    .attr("width", (p: any) => Math.abs(xScale(p[0]) - xScale(p[1])))
     .attr("height", yScale.bandwidth());
 
   const totalZ = Object.fromEntries(
@@ -546,7 +554,8 @@ function createStackedBarChart(
       )
       .map(([y, yz]) => [y, d3.sum(yz, ([, val]) => val)])
   );
-  const getTooltip = ({ i }: { i: number }) => tooltip(Y[i], Z[i], X[i], X[i] / totalZ[Y[i]]);
+  // biome-ignore lint/suspicious/noExplicitAny: complex d3 type
+  const getTooltip = (p: any) => tooltip(Y[p.i], Z[p.i], X[p.i], X[p.i] / totalZ[Y[p.i]]);
 
   bar.append("title").text(d => getTooltip(d).join("\r\n"));
   bar.on("mouseover", d => tip(getTooltip(d).join(". ")));
@@ -728,4 +737,8 @@ function sortData(data: ChartDataPoint[], sorting: string): ChartDataPoint[] {
 declare global {
   var getPrecipitation: (prec: number) => string;
   var isWater: (i: number) => boolean;
+}
+
+export function initChartsOverview(wc: WorldContext) {
+  worldContext = wc;
 }

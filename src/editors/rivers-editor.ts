@@ -1,11 +1,13 @@
 import { curveCatmullRom, type D3DragEvent, drag, pointer, select } from "d3";
-import { worldContext } from "../context/worldContext";
+import type { WorldContext } from "../context/worldContext";
 import type { River } from "../modules/river-generator";
 import { Rivers } from "../modules/river-generator";
 import type { TypedArray } from "../types/PackedGraph";
 import { ensureEl, findCell, getSegmentId, rand, rn } from "../utils";
 import { getPackPolygon } from "../utils/graphUtils";
 import { editNotes } from "./notes-editor";
+
+let worldContext: WorldContext;
 
 export function editRiver(id: string): void {
   if (customization) return;
@@ -87,7 +89,7 @@ export function editRiver(id: string): void {
   }
 
   function updateRiverLength(river: River): void {
-    river.length = rn(elSelected!.node()!.getTotalLength() / 2, 2);
+    river.length = rn((elSelected!.node() as unknown as SVGPathElement).getTotalLength() / 2, 2);
     const lengthUI = `${rn(river.length * distanceScale)} ${distanceUnitInput.value}`;
     ensureEl("riverLength").textContent = lengthUI;
   }
@@ -300,4 +302,8 @@ export function editRiver(id: string): void {
     ensureEl("toggleCells").dataset.forced = "0";
     if (forced && layerIsOn("toggleCells")) toggleCells();
   }
+}
+
+export function initRiversEditor(wc: WorldContext) {
+  worldContext = wc;
 }

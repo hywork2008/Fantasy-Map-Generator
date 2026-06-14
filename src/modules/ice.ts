@@ -1,11 +1,16 @@
 import { min } from "d3";
 import { aleaPRNG } from "../components/AleaPRNG";
+import type { AppServices } from "../context/appServices";
+import { appServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import { viewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
+import { worldContext } from "../context/worldContext";
 import { redrawGlacier, redrawIceberg } from "../renderers";
 import type { WorldState } from "../types/WorldState";
 import { clipPoly, getIsolines, lerp, minmax, normalize, P, ra, rand, rn } from "../utils";
 import { getGridPolygon } from "../utils/graphUtils";
 import type { Point } from "./voronoi";
-
 export type IceGlacier = { i: number; points: [number, number][]; type: "glacier"; offset?: [number, number] };
 export type IceIceberg = {
   i: number;
@@ -18,8 +23,12 @@ export type IceIceberg = {
 export type IceElement = IceGlacier | IceIceberg;
 
 class IceModule {
+  worldContext: WorldContext = worldContext;
+  viewContext: Readonly<ViewContext> = viewContext;
+  appServices: AppServices = appServices;
   // Find next available id for new ice element idealy filling gaps
   private getNextId() {
+    const { pack } = this.worldContext;
     if (pack.ice.length === 0) return 0;
     // find gaps in existing ids
     const existingIds = pack.ice.map(e => e.i).sort((a, b) => a - b);
@@ -31,11 +40,20 @@ class IceModule {
 
   // Clear all ice
   private clear() {
+    const { pack } = this.worldContext;
     pack.ice = [];
   }
 
   // Generate glaciers and icebergs based on temperature and height
-  public generate(state: WorldState) {
+  public generate(
+    worldContext: WorldContext,
+    viewContext: Readonly<ViewContext>,
+    appServices: AppServices,
+    state: WorldState
+  ) {
+    this.worldContext = worldContext;
+    this.viewContext = viewContext;
+    this.appServices = appServices;
     const { pack, grid, seed } = state;
     this.clear();
     const { cells, features } = grid;
@@ -94,6 +112,7 @@ class IceModule {
   }
 
   addIceberg(cellId: number, size: number) {
+    const { grid, pack } = this.worldContext;
     const [cx, cy] = grid.points[cellId];
     const points = getGridPolygon(cellId, grid).map(([x, y]: Point): [number, number] => [
       rn(lerp(cx, x, size), 2),
@@ -107,23 +126,25 @@ class IceModule {
       cellId,
       size
     });
-    redrawIceberg(id);
+    redrawIceberg(worldContext, viewContext, appServices, id);
   }
 
   removeIce(id: number) {
+    const { pack } = this.worldContext;
     const index = pack.ice.findIndex(element => element.i === id);
     if (index !== -1) {
       const type = pack.ice[index].type;
       pack.ice.splice(index, 1);
       if (type === "glacier") {
-        redrawGlacier(id);
+        redrawGlacier(worldContext, viewContext, appServices, id);
       } else {
-        redrawIceberg(id);
+        redrawIceberg(worldContext, viewContext, appServices, id);
       }
     }
   }
 
   randomizeIcebergShape(id: number) {
+    const { pack, grid } = this.worldContext;
     const iceberg = pack.ice.find(element => element.i === id);
     if (!iceberg || iceberg.type !== "iceberg") return;
 
@@ -144,6 +165,7 @@ class IceModule {
   }
 
   changeIcebergSize(id: number, newSize: number) {
+    const { pack, grid } = this.worldContext;
     const iceberg = pack.ice.find(element => element.i === id);
     if (!iceberg || iceberg.type !== "iceberg") return;
 

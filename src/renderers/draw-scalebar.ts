@@ -1,17 +1,25 @@
 import { range } from "d3";
-import { worldContext } from "../context/worldContext";
+import type { AppServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
 import { rn } from "../utils";
 
 type ScaleBarSelection = d3.Selection<SVGGElement, unknown, HTMLElement | null, unknown>;
 
-export const drawScaleBar = (scaleBar: ScaleBarSelection, scaleLevel: number): void => {
+export const drawScaleBar = (
+  worldContext: Readonly<WorldContext>,
+  viewContext: Readonly<ViewContext>,
+  appServices: AppServices,
+  scaleBar: ScaleBarSelection,
+  scaleLevel: number
+): void => {
   if (!scaleBar.size() || scaleBar.style("display") === "none") return;
   const { distanceScale } = worldContext;
 
   const unit = distanceUnitInput.value;
   const size = +scaleBar.attr("data-bar-size");
 
-  const length = getLength(scaleBar, scaleLevel);
+  const length = getLength(worldContext, scaleBar, scaleLevel);
   scaleBar.select("#scaleBarContent").remove(); // redraw content every time
   const content = scaleBar.append("g").attr("id", "scaleBarContent");
 
@@ -82,11 +90,11 @@ export const drawScaleBar = (scaleBar: ScaleBarSelection, scaleLevel: number): v
   }
 };
 
-function getLength(scaleBar: ScaleBarSelection, scaleLevel: number): number {
+function getLength(_worldContext: Readonly<WorldContext>, _scaleBar: ScaleBarSelection, scaleLevel: number): number {
   const init = 100;
-  const { distanceScale } = worldContext;
+  const { distanceScale } = _worldContext;
 
-  const size = +scaleBar.attr("data-bar-size");
+  const size = +_scaleBar.attr("data-bar-size");
   let val = (init * size * distanceScale) / scaleLevel; // bar length in distance unit
   if (val > 900)
     val = rn(val, -3); // round to 1000
@@ -99,7 +107,14 @@ function getLength(scaleBar: ScaleBarSelection, scaleLevel: number): number {
   return length;
 }
 
-export const fitScaleBar = (scaleBar: ScaleBarSelection, fullWidth: number, fullHeight: number): void => {
+export const fitScaleBar = (
+  worldContext: Readonly<WorldContext>,
+  viewContext: Readonly<ViewContext>,
+  appServices: AppServices,
+  scaleBar: ScaleBarSelection,
+  fullWidth: number,
+  fullHeight: number
+): void => {
   if (!scaleBar.select("rect").size() || scaleBar.style("display") === "none") return;
 
   const posX = +scaleBar.attr("data-x") || 99;

@@ -2,6 +2,9 @@ import type { Quadtree } from "d3";
 import { color, quadtree } from "d3";
 import Delaunator from "delaunator";
 import { aleaPRNG } from "../components/AleaPRNG";
+import { appServices } from "../context/appServices";
+import { viewContext } from "../context/viewContext";
+import { worldContext } from "../context/worldContext";
 import type { GridFeature } from "../modules/features";
 import { type Cells, type Point, type Vertices, Voronoi } from "../modules/voronoi";
 import type { PackedGraph, TypedArray } from "../types/PackedGraph";
@@ -182,7 +185,7 @@ export const calculateVoronoi = (points: Point[], boundary: Point[]): { cells: C
   TIME && console.timeEnd("calculateDelaunay");
 
   TIME && console.time("calculateVoronoi");
-  const voronoi = new Voronoi(delaunay, allPoints, points.length);
+  const voronoi = new Voronoi(worldContext, viewContext, appServices, delaunay, allPoints, points.length);
 
   const cells = voronoi.cells;
   cells.i = createTypedArray({

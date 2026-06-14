@@ -1,10 +1,15 @@
 import { easeSinIn, transition } from "d3";
-import { viewContext } from "../context/viewContext";
-import { worldContext } from "../context/worldContext";
+import type { AppServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
 import { rn } from "../utils";
 import { TIME } from "../utils/debug";
 
-export const drawPrecipitation = (): void => {
+export const drawPrecipitation = (
+  worldContext: Readonly<WorldContext>,
+  viewContext: Readonly<ViewContext>,
+  appServices: AppServices
+): void => {
   TIME && console.time("drawPrecipitation");
   const { grid } = worldContext;
   const { prec } = viewContext;

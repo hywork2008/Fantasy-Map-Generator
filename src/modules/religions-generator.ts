@@ -1,4 +1,10 @@
 import { quadtree } from "d3";
+import type { AppServices } from "../context/appServices";
+import { appServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import { viewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
+import { worldContext } from "../context/worldContext";
 import type { WorldState } from "../types/WorldState";
 import {
   abbreviate,
@@ -613,7 +619,19 @@ const expansionismMap: Record<string, () => number> = {
 };
 
 class ReligionsModule {
-  generate(state: WorldState) {
+  worldContext: WorldContext = worldContext;
+  viewContext: Readonly<ViewContext> = viewContext;
+  appServices: AppServices = appServices;
+
+  generate(
+    worldContext: WorldContext,
+    viewContext: Readonly<ViewContext>,
+    appServices: AppServices,
+    state: WorldState
+  ) {
+    this.worldContext = worldContext;
+    this.viewContext = viewContext;
+    this.appServices = appServices;
     const { pack } = state;
     TIME && console.time("generateReligions");
     const lockedReligions = pack.religions?.filter(r => r.i && r.lock && !r.removed) || [];
@@ -635,6 +653,7 @@ class ReligionsModule {
   }
 
   private generateFolkReligions(): ReligionBase[] {
+    const { pack } = this.worldContext;
     return pack.cultures
       .filter(c => c.i && !c.removed)
       .map(culture => ({
@@ -646,6 +665,7 @@ class ReligionsModule {
   }
 
   private generateOrganizedReligions(desiredReligionNumber: number, lockedReligions: Religion[]): ReligionBase[] {
+    const { pack } = this.worldContext;
     const cells = pack.cells;
     const lockedReligionCount = lockedReligions.filter(({ type }) => type !== "Folk").length || 0;
     const requiredReligionsNumber = desiredReligionNumber - lockedReligionCount;
@@ -709,6 +729,7 @@ class ReligionsModule {
   }
 
   private specifyReligions(newReligions: ReligionBase[]): NamedReligion[] {
+    const { pack } = this.worldContext;
     const { cells, cultures } = pack;
 
     const rawReligions = newReligions.map(({ type, form, culture: cultureId, center }) => {
@@ -840,6 +861,7 @@ class ReligionsModule {
 
   // finally generate and stores origins trees
   private defineOrigins(religionIds: Uint16Array, indexedReligions: Religion[]): Religion[] {
+    const { pack } = this.worldContext;
     const religionOriginsParamsMap: Record<string, { clusterSize: number; maxReligions: number }> = {
       Organized: { clusterSize: 100, maxReligions: 2 },
       Cult: { clusterSize: 50, maxReligions: 3 },
@@ -898,10 +920,11 @@ class ReligionsModule {
 
   // growth algorithm to assign cells to religions
   private expandReligions(religions: Religion[]): Uint16Array {
+    const { pack, biomesData } = this.worldContext;
     const { cells } = pack;
     const religionIds = this.spreadFolkReligions(religions);
 
-    const queue = new FlatQueue();
+    const queue = new FlatQueue<{ e: number; p: number; r: number; s: number }>();
     const cost: number[] = [];
 
     // limit cost for organized religions growth
@@ -963,6 +986,7 @@ class ReligionsModule {
 
   // folk religions initially get all cells of their culture, and locked religions are retained
   private spreadFolkReligions(religions: Religion[]): Uint16Array {
+    const { pack } = this.worldContext;
     const cells = pack.cells;
     const hasPrior = cells.religion && true;
     const religionIds = new Uint16Array(cells.i.length);
@@ -984,6 +1008,7 @@ class ReligionsModule {
   }
 
   private checkCenters() {
+    const { pack } = this.worldContext;
     const cells = pack.cells;
     pack.religions.forEach(r => {
       if (!r.i) return;
@@ -998,6 +1023,7 @@ class ReligionsModule {
   }
 
   recalculate() {
+    const { pack } = this.worldContext;
     const newReligionIds = this.expandReligions(pack.religions);
     pack.cells.religion = newReligionIds;
 
@@ -1005,6 +1031,7 @@ class ReligionsModule {
   }
 
   add(center: number) {
+    const { pack } = this.worldContext;
     const { cells, cultures, religions } = pack;
     const religionId = cells.religion[center];
     const i = religions.length;
@@ -1071,6 +1098,7 @@ class ReligionsModule {
   }
 
   private generateReligionName(variety: string, form: string, deity: string, center: number): [string, string] {
+    const { pack } = this.worldContext;
     const { cells, cultures, burgs, states } = pack;
 
     const random = () => Names.getCulture(cells.culture[center]);

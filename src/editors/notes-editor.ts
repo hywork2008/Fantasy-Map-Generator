@@ -106,7 +106,7 @@ export function editNotes(id?: string, name?: string): void {
         media_poster: false,
         browser_spellcheck: true,
         contextmenu: false,
-        setup: (editor: any) => {
+        setup: (editor: import("tinymce").Editor) => {
           editor.on("Change", updateLegend);
         }
       });

@@ -1,9 +1,14 @@
-import { viewContext } from "../context/viewContext";
-import { worldContext } from "../context/worldContext";
+import type { AppServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
 import { Rivers } from "../modules/river-generator";
 import { TIME } from "../utils/debug";
 
-export const drawRivers = (): void => {
+export const drawRivers = (
+  worldContext: Readonly<WorldContext>,
+  viewContext: Readonly<ViewContext>,
+  appServices: AppServices
+): void => {
   TIME && console.time("drawRivers");
   const { pack } = worldContext;
   const { rivers } = viewContext;

@@ -1,12 +1,22 @@
 import { mean, min } from "d3";
+import type { AppServices } from "../context/appServices";
+import { appServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import { viewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
+import { worldContext } from "../context/worldContext";
 import type { WorldState } from "../types/WorldState";
 import { ensureEl, rn } from "../utils";
 import type { PackedGraphFeature } from "./features";
 
 export class LakesModule {
+  worldContext: WorldContext = worldContext;
+  viewContext: Readonly<ViewContext> = viewContext;
+  appServices: AppServices = appServices;
   private LAKE_ELEVATION_DELTA = 0.1;
 
   getHeight(feature: PackedGraphFeature) {
+    const { pack } = this.worldContext;
     const heights = pack.cells.h;
     const minShoreHeight = min(feature.shoreline.map(cellId => heights[cellId])) || 20;
     return rn(minShoreHeight - this.LAKE_ELEVATION_DELTA, 2);
@@ -21,6 +31,7 @@ export class LakesModule {
   }
 
   getName(feature: PackedGraphFeature): string {
+    const { pack } = this.worldContext;
     const landCell = feature.shoreline[0];
     const culture = pack.cells.culture[landCell];
     return Names.getCulture(culture);
@@ -45,6 +56,7 @@ export class LakesModule {
   };
 
   defineClimateData(heights: number[] | Uint8Array) {
+    const { pack, grid } = this.worldContext;
     const { cells, features } = pack;
     const lakeOutCells = new Uint16Array(cells.i.length);
 
@@ -83,6 +95,7 @@ export class LakesModule {
 
   // check if lake can be potentially open (not in deep depression)
   detectCloseLakes(h: number[] | Uint8Array) {
+    const { pack } = this.worldContext;
     const { cells } = pack;
     const ELEVATION_LIMIT = +(ensureEl("lakeElevationLimitOutput") as HTMLInputElement)?.value;
 

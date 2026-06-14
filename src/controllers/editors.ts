@@ -77,7 +77,7 @@ function clicked(this: Element, event: MouseEvent): void {
 function unselect(): void {
   restoreDefaultEvents();
   if (!elSelected) return;
-  elSelected!.call(d3.drag<any, unknown>().on("drag", null)).attr("class", null);
+  elSelected!.call(d3.drag<Element, unknown>().on("drag", null)).attr("class", null);
   debug.selectAll("*").remove();
   viewbox.style("cursor", "default");
   elSelected = null;

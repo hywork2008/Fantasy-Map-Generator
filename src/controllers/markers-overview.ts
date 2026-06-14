@@ -1,6 +1,13 @@
+import type { AppServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
 import { Markers } from "../modules/markers-generator";
 import { drawMarkers } from "../renderers";
 import { ensureEl, getLatitude, getLongitude } from "../utils";
+
+let worldContext: WorldContext;
+let viewContext: Readonly<ViewContext>;
+let appServices: AppServices;
 
 function overviewMarkers(): void {
   if (customization) return;
@@ -141,7 +148,7 @@ function overviewMarkers(): void {
 
     markerGroup.setAttribute("pinned", anyPinned ? "1" : "");
     if (!anyPinned) markerGroup.removeAttribute("pinned");
-    drawMarkers();
+    drawMarkers(worldContext, viewContext, appServices);
     addLines();
   }
 
@@ -178,7 +185,7 @@ function overviewMarkers(): void {
       markerGroup.setAttribute("pinned", "1");
     }
     el.classList.toggle("inactive");
-    drawMarkers();
+    drawMarkers(worldContext, viewContext, appServices);
   }
 
   function toggleLockStatus(el: HTMLElement, i: number): void {
@@ -281,3 +288,9 @@ function overviewMarkers(): void {
 }
 
 window.overviewMarkers = overviewMarkers;
+
+export function initMarkersOverview(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {
+  worldContext = wc;
+  viewContext = vc;
+  appServices = as;
+}

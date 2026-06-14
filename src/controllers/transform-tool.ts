@@ -1,5 +1,12 @@
+import type { AppServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
 import { ensureEl, rn } from "../utils";
 import { fitMapToScreen } from "./options";
+
+let worldContext: WorldContext;
+let viewContext: Readonly<ViewContext>;
+let appServices: AppServices;
 
 async function openTransformTool(): Promise<void> {
   const width = Math.min(400, window.innerWidth * 0.5);
@@ -141,6 +148,7 @@ async function openTransformTool(): Promise<void> {
     fitMapToScreen();
     resetZoom(0);
     undraw();
+    Resample.init(worldContext, viewContext, appServices);
     Resample.process({ projection, inverse, scale: 1 });
 
     drawLayers();
@@ -191,3 +199,9 @@ async function openTransformTool(): Promise<void> {
 }
 
 window.openTransformTool = openTransformTool;
+
+export function initTransformTool(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {
+  worldContext = wc;
+  viewContext = vc;
+  appServices = as;
+}

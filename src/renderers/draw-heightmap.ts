@@ -22,8 +22,9 @@ import {
   line,
   range
 } from "d3";
-import { viewContext } from "../context/viewContext";
-import { worldContext } from "../context/worldContext";
+import type { AppServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
 import type { Vertices } from "../modules/voronoi";
 import { round } from "../utils";
 import { getColor, getColorScheme } from "../utils/colorUtils";
@@ -50,7 +51,11 @@ const CURVE_MAP: Record<string, CurveFactory> = {
   curveStepBefore
 };
 
-export const drawHeightmap = (): void => {
+export const drawHeightmap = (
+  worldContext: Readonly<WorldContext>,
+  viewContext: Readonly<ViewContext>,
+  appServices: AppServices
+): void => {
   TIME && console.time("drawHeightmap");
   const { grid, graphWidth, graphHeight } = worldContext;
   const { terrs } = viewContext;

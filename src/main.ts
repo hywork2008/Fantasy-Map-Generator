@@ -627,7 +627,7 @@ function zoomRaf(event: { transform: { k: number; x: number; y: number } }) {
     viewbox.attr("transform", `translate(${viewX} ${viewY}) scale(${scale})`);
 
     if (didPositionChange) {
-      if (layerIsOn("toggleCoordinates")) drawCoordinates();
+      if (layerIsOn("toggleCoordinates")) drawCoordinates(worldContext, viewContext, appServices);
     }
 
     if (customization === 1) {
@@ -645,8 +645,8 @@ function zoomRaf(event: { transform: { k: number; x: number; y: number } }) {
 
     if (didScaleChange) {
       invokeActiveZooming();
-      drawScaleBar(scaleBar, scale);
-      fitScaleBar(scaleBar, svgWidth, svgHeight);
+      drawScaleBar(worldContext, viewContext, appServices, scaleBar, scale);
+      fitScaleBar(worldContext, viewContext, appServices, scaleBar, svgWidth, svgHeight);
     }
 
     if (didPositionChange || didScaleChange) {
@@ -999,7 +999,7 @@ function invokeActiveZooming() {
       if (hidden) this.classList.add("hidden");
       else this.classList.remove("hidden");
       if (!hidden && appServices.COArenderer && this.children.length && !this.children[0].getAttribute("href"))
-        renderGroupCOAs(this);
+        renderGroupCOAs(worldContext, viewContext, appServices, this);
     });
   }
 
@@ -1094,7 +1094,7 @@ async function generate(opts?: { seed?: string; graph?: Grid | null }) {
     if (shouldRegenerateGrid(grid, +(precreatedSeed ?? 0), graphWidth, graphHeight))
       grid = precreatedGraph || generateGrid(seed, graphWidth, graphHeight);
     else delete (grid.cells as { h?: unknown }).h;
-    grid.cells.h = await HeightmapGenerator.generate(grid);
+    grid.cells.h = await HeightmapGenerator.generate(worldContext, viewContext, appServices, grid);
     window.grid = grid;
     worldContext.grid = grid;
 
@@ -1117,36 +1117,36 @@ async function generate(opts?: { seed?: string; graph?: Grid | null }) {
     createDefaultRuler();
 
     const state = getWorldState();
-    Rivers.generate(state);
+    Rivers.generate(worldContext, viewContext, appServices, state);
     Biomes.define(state);
     Features.defineGroups();
 
-    Ice.generate(state);
+    Ice.generate(worldContext, viewContext, appServices, state);
 
     rankCells();
-    Cultures.generate(state);
+    Cultures.generate(worldContext, viewContext, appServices, state);
     Cultures.expand(state);
 
-    Burgs.generate(state);
-    States.generate(state);
-    Routes.generate(state);
-    Religions.generate(state);
+    Burgs.generate(worldContext, viewContext, appServices, state);
+    States.generate(worldContext, viewContext, appServices, state);
+    Routes.generate(worldContext, viewContext, appServices, state);
+    Religions.generate(worldContext, viewContext, appServices, state);
 
-    Burgs.specify(state);
+    Burgs.specify(worldContext, viewContext, appServices, state);
     States.collectStatistics(state);
     States.defineStateForms(state);
 
-    Provinces.generate(state);
+    Provinces.generate(worldContext, viewContext, appServices, state);
     Provinces.getPoles(state);
 
-    Rivers.specify(state);
+    Rivers.specify(worldContext, viewContext, appServices, state);
     Lakes.defineNames(state);
 
-    Military.generate(state);
-    Markers.generate(state);
-    Zones.generate(state);
+    Military.generate(worldContext, viewContext, appServices, state);
+    Markers.generate(worldContext, viewContext, appServices, state);
+    Zones.generate(worldContext, viewContext, appServices, state);
 
-    drawScaleBar(scaleBar, scale);
+    drawScaleBar(worldContext, viewContext, appServices, scaleBar, scale);
     Names.getMapName(false);
 
     WARN && console.warn(`TOTAL: ${rn((performance.now() - timeStart) / 1000, 2)}s`);

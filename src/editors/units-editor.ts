@@ -1,8 +1,15 @@
 import { type D3DragEvent, drag, pointer } from "d3";
+import type { AppServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
 import { Routes } from "../modules/routes-generator";
 import { drawTemperature } from "../renderers";
 import { drawScaleBar, fitScaleBar } from "../renderers/index";
 import { ensureEl, findCell, showPrompt } from "../utils";
+
+let worldContext: WorldContext;
+let viewContext: Readonly<ViewContext>;
+let appServices: AppServices;
 
 export function editUnits(): void {
   closeDialogs("#unitsEditor, .stable");
@@ -17,8 +24,8 @@ export function editUnits(): void {
   });
 
   const renderScaleBar = () => {
-    drawScaleBar(scaleBar, scale);
-    fitScaleBar(scaleBar, svgWidth, svgHeight);
+    drawScaleBar(worldContext, viewContext, appServices, scaleBar, scale);
+    fitScaleBar(worldContext, viewContext, appServices, scaleBar, svgWidth, svgHeight);
   };
 
   // add listeners
@@ -73,11 +80,11 @@ export function editUnits(): void {
 
   function changeHeightExponent(): void {
     calculateTemperatures();
-    if (layerIsOn("toggleTemperature")) drawTemperature();
+    if (layerIsOn("toggleTemperature")) drawTemperature(worldContext, viewContext, appServices);
   }
 
   function changeTemperatureScale(): void {
-    if (layerIsOn("toggleTemperature")) drawTemperature();
+    if (layerIsOn("toggleTemperature")) drawTemperature(worldContext, viewContext, appServices);
   }
 
   function changePopulationRate(this: HTMLInputElement): void {
@@ -298,4 +305,10 @@ export function editUnits(): void {
       }
     });
   }
+}
+
+export function initUnitsEditor(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {
+  worldContext = wc;
+  viewContext = vc;
+  appServices = as;
 }

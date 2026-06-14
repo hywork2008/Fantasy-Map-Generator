@@ -1,5 +1,6 @@
-import { viewContext } from "../context/viewContext";
-import { worldContext } from "../context/worldContext";
+import type { AppServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
 import type { Marker } from "../modules/markers-generator";
 import { rn } from "../utils";
 import { TIME } from "../utils/debug";
@@ -34,16 +35,29 @@ const pinShapes: PinShapes = {
   no: () => ""
 };
 
-export const getPin = (shape = "bubble", fill = "#fff", stroke = "#000"): string => {
+export const getPin = (
+  worldContext: Readonly<WorldContext>,
+  viewContext: Readonly<ViewContext>,
+  appServices: AppServices,
+  shape = "bubble",
+  fill = "#fff",
+  stroke = "#000"
+): string => {
   const shapeFunction = pinShapes[shape] || pinShapes.bubble;
   return shapeFunction(fill, stroke);
 };
 
-export function drawMarker(marker: Marker, rescale = 1): string {
+export function drawMarker(
+  _worldContext: Readonly<WorldContext>,
+  viewContext: Readonly<ViewContext>,
+  _appServices: AppServices,
+  _marker: Marker,
+  _rescale = 1
+): string {
   const { scale } = viewContext;
-  const { i, icon, x, y, dx = 50, dy = 50, px = 12, size = 30, pin, fill, stroke } = marker;
+  const { i, icon, x, y, dx = 50, dy = 50, px = 12, size = 30, pin, fill, stroke } = _marker;
   const id = `marker${i}`;
-  const zoomSize = rescale ? Math.max(rn(size / 5 + 24 / scale, 2), 1) : size;
+  const zoomSize = _rescale ? Math.max(rn(size / 5 + 24 / scale, 2), 1) : size;
   const viewX = rn(x! - zoomSize / 2, 1);
   const viewY = rn(y! - zoomSize, 1);
 
@@ -51,13 +65,17 @@ export function drawMarker(marker: Marker, rescale = 1): string {
 
   return /* html */ `
     <svg id="${id}" viewbox="0 0 30 30" width="${zoomSize}" height="${zoomSize}" x="${viewX}" y="${viewY}">
-      <g>${getPin(pin, fill, stroke)}</g>
+      <g>${getPin(_worldContext, viewContext, _appServices, pin, fill, stroke)}</g>
       <text x="${dx}%" y="${dy}%" font-size="${px}px" >${isExternal ? "" : icon}</text>
       <image x="${dx / 2}%" y="${dy / 2}%" width="${px}px" height="${px}px" href="${isExternal ? icon : ""}" />
     </svg>`;
 }
 
-export const drawMarkers = (): void => {
+export const drawMarkers = (
+  worldContext: Readonly<WorldContext>,
+  viewContext: Readonly<ViewContext>,
+  appServices: AppServices
+): void => {
   TIME && console.time("drawMarkers");
   const { pack } = worldContext;
   const { markers } = viewContext;
@@ -66,7 +84,7 @@ export const drawMarkers = (): void => {
   const pinned = +markers.attr("pinned");
 
   const markersData: Marker[] = pinned ? pack.markers.filter((m: Marker) => m.pinned) : pack.markers;
-  const html = markersData.map(marker => drawMarker(marker, rescale));
+  const html = markersData.map(marker => drawMarker(worldContext, viewContext, appServices, marker, rescale));
   markers.html(html.join(""));
 
   TIME && console.timeEnd("drawMarkers");

@@ -1,6 +1,9 @@
 import * as d3 from "d3";
 import { hsl, interpolateRound, lab, max, mean, pointer, range, select } from "d3";
 import { aleaPRNG } from "../components/AleaPRNG";
+import type { AppServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
 import { Biomes } from "../modules/biomes";
 import type { Burg } from "../modules/burgs-generator";
 import { Burgs } from "../modules/burgs-generator";
@@ -35,6 +38,10 @@ import {
 } from "../utils";
 import { getColorScheme } from "../utils/colorUtils";
 import { HeightmapEditorHistoryClass as HeightmapEditorHistory } from "./HeightmapEditorHistory";
+
+let worldContext: WorldContext;
+let viewContext: Readonly<ViewContext>;
+let appServices: AppServices;
 
 // ─── Module-level state ───────────────────────────────────────────────────────
 
@@ -233,7 +240,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     else if (mode === "keep") restoreKeptData();
     else if (mode === "risk") restoreRiskedData();
 
-    drawFeatures();
+    drawFeatures(worldContext, viewContext, appServices);
     viewbox.selectAll("#heights").remove();
 
     turnButtonOff("toggleHeight");
@@ -275,7 +282,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     Features.markupPack();
 
     const state = getWorldState();
-    Rivers.generate(state, erosionAllowed);
+    Rivers.generate(worldContext, viewContext, appServices, state, erosionAllowed);
 
     if (!erosionAllowed) {
       for (const i of pack.cells.i) {
@@ -288,23 +295,23 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     Biomes.define(state);
     Features.defineGroups();
     rankCells();
-    Cultures.generate(state);
+    Cultures.generate(worldContext, viewContext, appServices, state);
     Cultures.expand(state);
-    Burgs.generate(state);
-    States.generate(state);
-    Routes.generate(state);
-    Religions.generate(state);
-    Burgs.specify(state);
+    Burgs.generate(worldContext, viewContext, appServices, state);
+    States.generate(worldContext, viewContext, appServices, state);
+    Routes.generate(worldContext, viewContext, appServices, state);
+    Religions.generate(worldContext, viewContext, appServices, state);
+    Burgs.specify(worldContext, viewContext, appServices, state);
     States.collectStatistics(state);
     States.defineStateForms(state);
-    Provinces.generate(state);
+    Provinces.generate(worldContext, viewContext, appServices, state);
     Provinces.getPoles(state);
-    Rivers.specify(state);
+    Rivers.specify(worldContext, viewContext, appServices, state);
     Lakes.defineNames(state);
-    Ice.generate(state);
-    Military.generate(state);
-    Markers.generate(state);
-    Zones.generate(state);
+    Ice.generate(worldContext, viewContext, appServices, state);
+    Military.generate(worldContext, viewContext, appServices, state);
+    Markers.generate(worldContext, viewContext, appServices, state);
+    Zones.generate(worldContext, viewContext, appServices, state);
 
     TIME && console.timeEnd("regenerateErasedData");
     INFO && console.groupEnd();
@@ -383,7 +390,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
 
     if (erosionAllowed) {
       const worldState = getWorldState();
-      Rivers.generate(worldState, true);
+      Rivers.generate(worldContext, viewContext, appServices, worldState, true);
       Features.defineGroups();
     }
 
@@ -471,7 +478,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
 
     const worldState = getWorldState();
     if (erosionAllowed) {
-      Rivers.specify(worldState);
+      Rivers.specify(worldContext, viewContext, appServices, worldState);
       Lakes.defineNames(worldState);
     }
 
@@ -492,7 +499,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       }
     }
 
-    Ice.generate(worldState);
+    Ice.generate(worldContext, viewContext, appServices, worldState);
     ice.selectAll("*").remove();
 
     TIME && console.timeEnd("restoreRiskedData");
@@ -1643,3 +1650,8 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
 }
 
 // ─── Global registration ───────────────────────────────────────────────────────
+export function initHeightmapEditor(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {
+  worldContext = wc;
+  viewContext = vc;
+  appServices = as;
+}

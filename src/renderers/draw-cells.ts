@@ -1,9 +1,14 @@
-import { viewContext } from "../context/viewContext";
-import { worldContext } from "../context/worldContext";
+import type { AppServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
 import { ensureEl, getPackPolygon } from "../utils";
 import { getGridPolygon } from "../utils/graphUtils";
 
-export const drawCells = (): void => {
+export const drawCells = (
+  worldContext: Readonly<WorldContext>,
+  viewContext: Readonly<ViewContext>,
+  appServices: AppServices
+): void => {
   const { pack, grid } = worldContext;
   const { customization } = viewContext;
   const cellsData = customization === 1 ? Array.from(grid.cells.i) : Array.from(pack.cells.i);

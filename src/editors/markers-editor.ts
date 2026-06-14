@@ -1,9 +1,16 @@
 import { type D3DragEvent, drag, type Selection, select } from "d3";
+import type { AppServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
 import type { Marker } from "../modules/markers-generator";
 import { Markers } from "../modules/markers-generator";
 import { getPin } from "../renderers/index";
 import { ensureEl, findCell, rn } from "../utils";
 import { editNotes } from "./notes-editor";
+
+let worldContext: WorldContext;
+let viewContext: Readonly<ViewContext>;
+let appServices: AppServices;
 
 export function editMarker(markerI?: number): void {
   if (customization) return;
@@ -13,9 +20,17 @@ export function editMarker(markerI?: number): void {
   if (!result) return;
   const { element, marker } = result;
 
-  elSelected = select(element)
+  elSelected = select(element as unknown as Element)
     .raise()
-    .call(drag<SVGElement, unknown>().on("start", dragMarkerStart).on("drag", dragMarkerDrag).on("end", dragMarkerEnd))
+    .call(
+      drag<Element, unknown>()
+        // biome-ignore lint/suspicious/noExplicitAny: complex d3 type
+        .on("start", dragMarkerStart as any)
+        // biome-ignore lint/suspicious/noExplicitAny: complex d3 type
+        .on("drag", dragMarkerDrag as any)
+        // biome-ignore lint/suspicious/noExplicitAny: complex d3 type
+        .on("end", dragMarkerEnd as any)
+    )
     .classed("draggable", true);
 
   if (ensureEl("notesEditor").offsetParent) editNotes(element.id, element.id);
@@ -222,7 +237,7 @@ export function editMarker(markerI?: number): void {
 
   function redrawPin({ i, hidden, pin = "bubble", fill = "#fff", stroke = "#000" }: Marker): void {
     const pinGroup = !hidden ? document.querySelector<SVGGElement>(`#marker${i} > g`) : null;
-    if (pinGroup) pinGroup.innerHTML = getPin(pin, fill, stroke);
+    if (pinGroup) pinGroup.innerHTML = getPin(worldContext, viewContext, appServices, pin, fill, stroke);
   }
 
   function editMarkerLegend(): void {
@@ -269,4 +284,10 @@ export function editMarker(markerI?: number): void {
     restoreDefaultEvents?.();
     clearMainTip();
   }
+}
+
+export function initMarkersEditor(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {
+  worldContext = wc;
+  viewContext = vc;
+  appServices = as;
 }

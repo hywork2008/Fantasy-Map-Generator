@@ -1,6 +1,7 @@
 import { select } from "d3";
-import { viewContext } from "../context/viewContext";
-import { worldContext } from "../context/worldContext";
+import type { AppServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
 import type { PackedGraphFeature } from "../modules/features";
 import { clipPoly, round } from "../utils";
 import { ERROR, TIME } from "../utils/debug";
@@ -16,9 +17,13 @@ interface FeaturesHtml {
   lakes: { [key: string]: string[] };
 }
 
-export const drawFeatures = (): void => {
+export const drawFeatures = (
+  worldContext: Readonly<WorldContext>,
+  viewContext: Readonly<ViewContext>,
+  appServices: AppServices
+): void => {
   TIME && console.time("drawFeatures");
-  const { pack, graphWidth, graphHeight } = worldContext;
+  const { pack } = worldContext;
   const { defs, coastline, lakes } = viewContext;
 
   const html: FeaturesHtml = {
@@ -33,7 +38,7 @@ export const drawFeatures = (): void => {
     if (!feature || feature.type === "ocean") continue;
 
     html.paths.push(
-      `<path d="${featurePathRenderer(pack, graphWidth, graphHeight, feature)}" id="feature_${feature.i}" data-f="${feature.i}"></path>`
+      `<path d="${featurePathRenderer(worldContext, viewContext, appServices, feature)}" id="feature_${feature.i}" data-f="${feature.i}"></path>`
     );
 
     if (feature.type === "lake") {
@@ -71,11 +76,12 @@ export const drawFeatures = (): void => {
 };
 
 function featurePathRenderer(
-  pack: typeof worldContext.pack,
-  graphWidth: number,
-  graphHeight: number,
+  worldContext: Readonly<WorldContext>,
+  viewContext: Readonly<ViewContext>,
+  appServices: AppServices,
   feature: PackedGraphFeature
 ): string {
+  const { pack, graphWidth, graphHeight } = worldContext;
   const points = feature.vertices.map(vertex => pack.vertices.p[vertex]);
   if (points.some(point => point === undefined)) {
     ERROR && console.error("Undefined point in getFeaturePath");
@@ -84,9 +90,13 @@ function featurePathRenderer(
 
   const simplifiedPoints = simplify(points, 0.3);
   const clippedPoints = clipPoly(simplifiedPoints, graphWidth, graphHeight, 1);
-  const shape = fractalizeCoastline(clippedPoints, feature.i, feature.type);
-  return `${round(buildCoastlinePath(shape))}Z`;
+  const shape = fractalizeCoastline(worldContext, viewContext, appServices, clippedPoints, feature.i, feature.type);
+  return `${round(buildCoastlinePath(worldContext, viewContext, appServices, shape))}Z`;
 }
 
-export const getFeaturePath = (feature: PackedGraphFeature): string =>
-  featurePathRenderer(worldContext.pack, worldContext.graphWidth, worldContext.graphHeight, feature);
+export const getFeaturePath = (
+  worldContext: Readonly<WorldContext>,
+  viewContext: Readonly<ViewContext>,
+  appServices: AppServices,
+  feature: PackedGraphFeature
+): string => featurePathRenderer(worldContext, viewContext, appServices, feature);

@@ -1,5 +1,7 @@
 import * as d3 from "d3";
-import { worldContext } from "../context/worldContext";
+import type { AppServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
 import type { Burg } from "../modules/burgs-generator";
 import { Burgs } from "../modules/burgs-generator";
 import type { Culture } from "../modules/cultures-generator";
@@ -17,6 +19,10 @@ import { applySortingByHeader, ensureEl, findCell, getRandomColor, isLand, rand,
 import { getPackPolygon } from "../utils/graphUtils";
 import { BrushHistoryClass as BrushHistory } from "./BrushHistory";
 import { editEmblem } from "./emblems-editor";
+
+let worldContext: WorldContext;
+let viewContext: Readonly<ViewContext>;
+let appServices: AppServices;
 
 const $body = insertEditorHtml();
 addListeners();
@@ -237,7 +243,7 @@ function statesEditorAddLines(): void {
     }
 
     const capital = (pack.burgs as Burg[])[s.capital].name ?? "";
-    COArenderer.trigger(`stateCOA${s.i}`, s.coa);
+    COArenderer.trigger(`stateCOA${s.i}`, s.coa as RendererEmblem);
     lines += /* html */ `<div
       class="states"
       data-id=${s.i}
@@ -419,7 +425,7 @@ function editStateName(state: number): void {
   function regenerateShortNameCulture(): void {
     const stateId = +ensureEl("stateNameEditor").dataset.state!;
     const culture = (pack.states[stateId] as State).culture;
-    const name = Names.getState(Names.getCultureShort(culture), culture);
+    const name = Names.getState(Names.getCultureShort(worldContext, viewContext, appServices, culture), culture);
     ensureEl<HTMLInputElement>("stateNameEditorShort").value = name;
   }
 
@@ -472,7 +478,8 @@ function editStateName(state: number): void {
     s.name = nameInput.value;
     s.formName = formSelect.value;
     s.fullName = fullNameInput.value;
-    if (changed && (ensureEl("stateNameEditorUpdateLabel") as HTMLInputElement).checked) drawStateLabels([s.i]);
+    if (changed && (ensureEl("stateNameEditorUpdateLabel") as HTMLInputElement).checked)
+      drawStateLabels(worldContext, viewContext, appServices, [s.i]);
     refreshStatesEditor();
   }
 }
@@ -572,7 +579,7 @@ function changePopulation(stateId: number): void {
       });
     }
 
-    if (layerIsOn("togglePopulation")) drawPopulation();
+    if (layerIsOn("togglePopulation")) drawPopulation(worldContext, viewContext, appServices);
     refreshStatesEditor();
   }
 }
@@ -678,9 +685,9 @@ function stateRemove(stateId: number): void {
 
   debug.selectAll(".highlight").remove();
 
-  if (layerIsOn("toggleStates")) drawStates();
-  if (layerIsOn("toggleBorders")) drawBorders();
-  if (layerIsOn("toggleProvinces")) drawProvinces();
+  if (layerIsOn("toggleStates")) drawStates(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleBorders")) drawBorders(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleProvinces")) drawProvinces(worldContext, viewContext, appServices);
 
   refreshStatesEditor();
 }
@@ -894,15 +901,15 @@ function recalculateStates(must?: boolean): void {
   if (!must && !(statesAutoChange as HTMLInputElement).checked) return;
 
   const state = getWorldState();
-  States.expandStates();
-  Provinces.generate(state);
+  States.expandStates(worldContext, viewContext, appServices);
+  Provinces.generate(worldContext, viewContext, appServices, state);
   Provinces.getPoles(state);
   States.getPoles(state);
 
-  if (layerIsOn("toggleStates")) drawStates();
-  if (layerIsOn("toggleBorders")) drawBorders();
-  if (layerIsOn("toggleProvinces")) drawProvinces();
-  if ((adjustLabels as HTMLInputElement).checked) drawStateLabels();
+  if (layerIsOn("toggleStates")) drawStates(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleBorders")) drawBorders(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleProvinces")) drawProvinces(worldContext, viewContext, appServices);
+  if ((adjustLabels as HTMLInputElement).checked) drawStateLabels(worldContext, viewContext, appServices);
 
   refreshStatesEditor();
 }
@@ -1057,11 +1064,12 @@ function applyStatesManualAssignent(): void {
   if (affectedStates.length) {
     refreshStatesEditor();
     States.getPoles(getWorldState());
-    layerIsOn("toggleStates") ? drawStates() : toggleStates();
-    if ((adjustLabels as HTMLInputElement).checked) drawStateLabels([...new Set(affectedStates)]);
+    layerIsOn("toggleStates") ? drawStates(worldContext, viewContext, appServices) : toggleStates();
+    if ((adjustLabels as HTMLInputElement).checked)
+      drawStateLabels(worldContext, viewContext, appServices, [...new Set(affectedStates)]);
     adjustProvinces([...new Set(affectedProvinces)]);
-    layerIsOn("toggleBorders") ? drawBorders() : toggleBorders();
-    if (layerIsOn("toggleProvinces")) drawProvinces();
+    layerIsOn("toggleBorders") ? drawBorders(worldContext, viewContext, appServices) : toggleBorders();
+    if (layerIsOn("toggleProvinces")) drawProvinces(worldContext, viewContext, appServices);
   }
 
   exitStatesManualAssignment(false);
@@ -1159,7 +1167,8 @@ function adjustProvinces(affectedProvinces: number[]): void {
     const nameByBurg = burgCell && P(0.5);
     const name = nameByBurg
       ? (burg?.name ?? "")
-      : oldProvince.name || Names.getState(Names.getCultureShort(culture), culture);
+      : oldProvince.name ||
+        Names.getState(Names.getCultureShort(worldContext, viewContext, appServices, culture), culture);
 
     const formOptions = ["Zone", "Area", "Territory", "Province"];
     const formName = burgCell && oldProvince.formName ? oldProvince.formName : ra(formOptions);
@@ -1292,7 +1301,7 @@ function addState(this: SVGElement, event: MouseEvent): void {
   const color = getRandomColor();
 
   const cultureType = (pack.cultures as Culture[])[culture].type;
-  const coa = COA.generate((burgs as Burg[])[burgId].coa, 0.4, null, cultureType);
+  const coa = COA.generate((burgs as Burg[])[burgId].coa ?? null, 0.4, null as unknown as number, cultureType);
   coa.shield = COA.getShield(culture);
 
   const statesArr = states as State[];
@@ -1344,12 +1353,12 @@ function addState(this: SVGElement, event: MouseEvent): void {
   States.defineStateForms(state, [newState]);
   adjustProvinces([cells.province[center]]);
 
-  drawStateLabels([newState]);
+  drawStateLabels(worldContext, viewContext, appServices, [newState]);
   COArenderer.add("state", newState, coa as RendererEmblem, statesArr[newState].pole![0], statesArr[newState].pole![1]);
 
   layerIsOn("toggleProvinces") && toggleProvinces();
-  layerIsOn("toggleStates") ? drawStates() : toggleStates();
-  layerIsOn("toggleBorders") ? drawBorders() : toggleBorders();
+  layerIsOn("toggleStates") ? drawStates(worldContext, viewContext, appServices) : toggleStates();
+  layerIsOn("toggleBorders") ? drawBorders(worldContext, viewContext, appServices) : toggleBorders();
 
   statesEditorAddLines();
 }
@@ -1527,10 +1536,10 @@ function openStateMergeDialog(): void {
     debug.selectAll(".highlight").remove();
 
     States.getPoles(getWorldState());
-    layerIsOn("toggleStates") ? drawStates() : toggleStates();
-    layerIsOn("toggleBorders") ? drawBorders() : toggleBorders();
-    layerIsOn("toggleProvinces") && drawProvinces();
-    drawStateLabels([rulingStateId]);
+    layerIsOn("toggleStates") ? drawStates(worldContext, viewContext, appServices) : toggleStates();
+    layerIsOn("toggleBorders") ? drawBorders(worldContext, viewContext, appServices) : toggleBorders();
+    layerIsOn("toggleProvinces") && drawProvinces(worldContext, viewContext, appServices);
+    drawStateLabels(worldContext, viewContext, appServices, [rulingStateId]);
 
     refreshStatesEditor();
   }
@@ -1592,4 +1601,10 @@ declare global {
   var adjustLabels: HTMLInputElement;
   var getMixedColor: (color: string) => string;
   var getAdjective: (name: string) => string;
+}
+
+export function initStatesEditor(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {
+  worldContext = wc;
+  viewContext = vc;
+  appServices = as;
 }

@@ -1,12 +1,17 @@
 import { color, easeSinInOut, transition } from "d3";
-import { viewContext } from "../context/viewContext";
-import { worldContext } from "../context/worldContext";
+import type { AppServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
 import type { MilitaryRegiment } from "../modules/military-generator";
 import { Military } from "../modules/military-generator";
 import { rn } from "../utils";
 import { TIME } from "../utils/debug";
 
-export const drawMilitary = (): void => {
+export const drawMilitary = (
+  worldContext: Readonly<WorldContext>,
+  viewContext: Readonly<ViewContext>,
+  appServices: AppServices
+): void => {
   TIME && console.time("drawMilitary");
   const { pack } = worldContext;
   const { armies } = viewContext;
@@ -15,13 +20,19 @@ export const drawMilitary = (): void => {
   pack.states
     .filter(s => s.i && !s.removed)
     .forEach(s => {
-      drawRegiments(s.military || [], s.i);
+      drawRegiments(worldContext, viewContext, appServices, s.military || [], s.i);
     });
 
   TIME && console.timeEnd("drawMilitary");
 };
 
-export const drawRegiments = (regiments: MilitaryRegiment[], s: number): void => {
+export const drawRegiments = (
+  worldContext: Readonly<WorldContext>,
+  viewContext: Readonly<ViewContext>,
+  appServices: AppServices,
+  regiments: MilitaryRegiment[],
+  s: number
+): void => {
   const { pack } = worldContext;
   const { armies } = viewContext;
   const size = +armies.attr("box-size");
@@ -77,7 +88,13 @@ export const drawRegiments = (regiments: MilitaryRegiment[], s: number): void =>
     .attr("href", d => (d.icon!.startsWith("http") || d.icon!.startsWith("data:image") ? d.icon! : ""));
 };
 
-export const drawRegiment = (reg: MilitaryRegiment, stateId: number): void => {
+export const drawRegiment = (
+  worldContext: Readonly<WorldContext>,
+  viewContext: Readonly<ViewContext>,
+  appServices: AppServices,
+  reg: MilitaryRegiment,
+  stateId: number
+): void => {
   const { pack } = worldContext;
   const { armies } = viewContext;
   const size = +armies.attr("box-size");
@@ -130,7 +147,14 @@ export const drawRegiment = (reg: MilitaryRegiment, stateId: number): void => {
 };
 
 // move one regiment to another
-export const moveRegiment = (reg: MilitaryRegiment, x: number, y: number): void => {
+export const moveRegiment = (
+  worldContext: Readonly<WorldContext>,
+  viewContext: Readonly<ViewContext>,
+  appServices: AppServices,
+  reg: MilitaryRegiment,
+  x: number,
+  y: number
+): void => {
   const { armies } = viewContext;
   const el = armies.select(`g#army${reg.state}`).select(`g#regiment${reg.state}-${reg.i}`);
   if (!el.size()) return;

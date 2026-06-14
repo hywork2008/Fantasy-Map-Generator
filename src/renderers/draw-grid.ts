@@ -1,8 +1,12 @@
 import { select } from "d3";
-import { viewContext } from "../context/viewContext";
-import { worldContext } from "../context/worldContext";
-
-export const drawGrid = (): void => {
+import type { AppServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
+export const drawGrid = (
+  worldContext: Readonly<WorldContext>,
+  viewContext: Readonly<ViewContext>,
+  appServices: AppServices
+): void => {
   const { graphWidth, graphHeight } = worldContext;
   const { gridOverlay } = viewContext;
 

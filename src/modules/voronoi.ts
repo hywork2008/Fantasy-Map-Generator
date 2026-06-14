@@ -1,4 +1,10 @@
 import type Delaunator from "delaunator";
+import type { AppServices } from "../context/appServices";
+import { appServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import { viewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
+import { worldContext } from "../context/worldContext";
 export type Vertices = { p: Point[]; v: number[][]; c: number[][] };
 export type Cells = {
   v: number[][];
@@ -16,13 +22,26 @@ export type Point = [number, number];
  * @param {number} pointsN The number of points.
  */
 export class Voronoi {
+  worldContext: WorldContext = worldContext;
+  viewContext: Readonly<ViewContext> = viewContext;
+  appServices: AppServices = appServices;
   delaunay: Delaunator<Float64Array<ArrayBufferLike>>;
   points: Point[];
   pointsN: number;
   cells: Cells = { v: [], c: [], b: [], i: new Uint32Array() }; // voronoi cells: v = cell vertices, c = adjacent cells, b = near-border cell, i = cell indexes;
   vertices: Vertices = { p: [], v: [], c: [] }; // cells vertices: p = vertex coordinates, v = neighboring vertices, c = adjacent cells
 
-  constructor(delaunay: Delaunator<Float64Array<ArrayBufferLike>>, points: Point[], pointsN: number) {
+  constructor(
+    worldContext: WorldContext,
+    viewContext: Readonly<ViewContext>,
+    appServices: AppServices,
+    delaunay: Delaunator<Float64Array<ArrayBufferLike>>,
+    points: Point[],
+    pointsN: number
+  ) {
+    this.worldContext = worldContext;
+    this.viewContext = viewContext;
+    this.appServices = appServices;
     this.delaunay = delaunay;
     this.points = points;
     this.pointsN = pointsN;

@@ -1,5 +1,11 @@
 import { mean, quadtree } from "d3";
 import { clipPolyline } from "lineclip";
+import type { AppServices } from "../context/appServices";
+import { appServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import { viewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
+import { worldContext } from "../context/worldContext";
 import type { PackedGraph } from "../types/PackedGraph";
 import type { WorldNote, WorldState } from "../types/WorldState";
 import {
@@ -36,6 +42,16 @@ type ParentMapDefinition = {
 };
 
 class Resampler {
+  worldContext: WorldContext = worldContext;
+  viewContext: Readonly<ViewContext> = viewContext;
+  appServices: AppServices = appServices;
+
+  init(worldContext: WorldContext, viewContext: Readonly<ViewContext>, appServices: AppServices) {
+    this.worldContext = worldContext;
+    this.viewContext = viewContext;
+    this.appServices = appServices;
+  }
+
   private saveRiversData(parentRivers: PackedGraph["rivers"]) {
     return parentRivers.map(river => {
       const meanderedPoints = Rivers.addMeandering(river.cells, river.points);
@@ -441,7 +457,16 @@ class Resampler {
 
     reGraph();
     Features.markupPack();
-    Ice.generate({ pack, grid, seed, options: worldOptions, nameBases, biomesData, notes, style });
+    Ice.generate(this.worldContext, this.viewContext, this.appServices, {
+      pack,
+      grid,
+      seed,
+      options: worldOptions,
+      nameBases,
+      biomesData,
+      notes,
+      style
+    });
     createDefaultRuler();
 
     this.restoreCellData(parentMap, inverse, scale);

@@ -1,5 +1,11 @@
 import { max } from "d3";
 import { aleaPRNG } from "../components/AleaPRNG";
+import type { AppServices } from "../context/appServices";
+import { appServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import { viewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
+import { worldContext } from "../context/worldContext";
 import type { WorldState } from "../types/WorldState";
 import { ensureEl, gauss, generateSeed, getMixedColor, getPolesOfInaccessibility, P, rand, rw } from "../utils";
 import { Burgs } from "./burgs-generator";
@@ -16,7 +22,7 @@ export interface Province {
   formName: string;
   fullName: string;
   color: string;
-  coa: any;
+  coa: import("./emblem/generator").Emblem | null;
   pole?: [number, number];
   area?: number;
   rural?: number;
@@ -25,6 +31,9 @@ export interface Province {
 }
 
 class ProvinceModule {
+  worldContext: WorldContext = worldContext;
+  viewContext: Readonly<ViewContext> = viewContext;
+  appServices: AppServices = appServices;
   forms: Record<string, Record<string, number>> = {
     Monarchy: {
       County: 22,
@@ -65,7 +74,17 @@ class ProvinceModule {
     }
   };
 
-  generate(state: WorldState, regenerate = false, regenerateLockedStates = false) {
+  generate(
+    worldContext: WorldContext,
+    viewContext: Readonly<ViewContext>,
+    appServices: AppServices,
+    state: WorldState,
+    regenerate = false,
+    regenerateLockedStates = false
+  ) {
+    this.worldContext = worldContext;
+    this.viewContext = viewContext;
+    this.appServices = appServices;
     const { pack, seed } = state;
     TIME && console.time("generateProvinces");
     const localSeed = regenerate ? generateSeed() : seed;
@@ -119,14 +138,16 @@ class ProvinceModule {
         const burg = stateBurgs[i];
         const c = stateBurgs[i].culture!;
         const nameByBurg = P(0.5);
-        const name = nameByBurg ? stateBurgs[i].name! : Names.getState(Names.getCultureShort(c), c);
+        const name = nameByBurg
+          ? stateBurgs[i].name!
+          : Names.getState(Names.getCultureShort(worldContext, viewContext, appServices, c), c);
         const formName = rw(form);
         form[formName] += 10;
         const fullName = `${name} ${formName}`;
         const color = getMixedColor(s.color!);
         const kinship = nameByBurg ? 0.8 : 0.4;
         const type = Burgs.getType(center, burg.port);
-        const coa = COA.generate(stateBurgs[i].coa, kinship, null, type);
+        const coa = COA.generate(stateBurgs[i].coa ?? null, kinship, null as unknown as number, type);
         coa.shield = COA.getShield(c, s.i);
 
         s.provinces.push(provinceId);
@@ -145,7 +166,7 @@ class ProvinceModule {
     });
 
     // expand generated provinces
-    const queue = new FlatQueue();
+    const queue = new FlatQueue<{ e: number; p: number; province: number; state: number }>();
     const cost: number[] = [];
 
     provinces.forEach(p => {
@@ -226,7 +247,7 @@ class ProvinceModule {
         // expand province
         const cost: number[] = [];
         cost[center] = 1;
-        queue.push({ e: center, p: 0 }, 0);
+        queue.push({ e: center, p: 0, province: provinceId, state: s.i }, 0);
         while (queue.length) {
           const { e, p } = queue.pop();
 
@@ -241,7 +262,7 @@ class ProvinceModule {
             if (!cost[nextCellId] || totalCost < cost[nextCellId]) {
               if (land && cells.state[nextCellId] === s.i) provinceIds[nextCellId] = provinceId; // assign province to a cell
               cost[nextCellId] = totalCost;
-              queue.push({ e: nextCellId, p: totalCost }, totalCost);
+              queue.push({ e: nextCellId, p: totalCost, province: provinceId, state: s.i }, totalCost);
             }
           });
         }
@@ -260,7 +281,7 @@ class ProvinceModule {
           const colonyName = colony && P(0.8) && getColonyName();
           if (colonyName) return colonyName;
           if (burgCell && P(0.5)) return burgs[burg].name;
-          return Names.getState(Names.getCultureShort(c), c);
+          return Names.getState(Names.getCultureShort(this.worldContext, this.viewContext, this.appServices, c), c);
         })();
 
         const formName = (() => {

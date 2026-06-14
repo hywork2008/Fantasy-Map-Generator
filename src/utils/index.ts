@@ -95,7 +95,7 @@ declare global {
     pack?: import("../types/PackedGraph").PackedGraph;
     packedGraph?: import("../types/PackedGraph").PackedGraph;
     grid?: Grid;
-    terrs?: import("d3").Selection<any, any, any, any>;
+    terrs?: import("d3").Selection<Element, unknown, null, undefined>;
   }
 
   var graphWidth: number;

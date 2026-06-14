@@ -1,7 +1,7 @@
 import { forceCollide, forceSimulation, timeout } from "d3";
-import { appServices } from "../context/appServices";
-import { viewContext } from "../context/viewContext";
-import { worldContext } from "../context/worldContext";
+import type { AppServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
 import type { Burg } from "../modules/burgs-generator";
 import type { State } from "../modules/states-generator";
 import { minmax, rn } from "../utils";
@@ -24,7 +24,11 @@ interface EmblemNode {
   shift: number;
 }
 
-export const drawEmblems = (): void => {
+export const drawEmblems = (
+  worldContext: Readonly<WorldContext>,
+  viewContext: Readonly<ViewContext>,
+  appServices: AppServices
+): void => {
   TIME && console.time("drawEmblems");
   const { pack, graphHeight, graphWidth } = worldContext;
   const { emblems } = viewContext;
@@ -156,7 +160,7 @@ export const drawEmblems = (): void => {
   TIME && console.timeEnd("drawEmblems");
 };
 
-const getDataAndType = (id: string): [Burg[] | Province[] | State[], string] => {
+const getDataAndType = (worldContext: Readonly<WorldContext>, id: string): [Burg[] | Province[] | State[], string] => {
   const { pack } = worldContext;
   if (id === "burgEmblems") return [pack.burgs, "burg"];
   if (id === "provinceEmblems") return [pack.provinces as Province[], "province"];
@@ -164,10 +168,15 @@ const getDataAndType = (id: string): [Burg[] | Province[] | State[], string] => 
   throw new Error(`Unknown emblem type: ${id}`);
 };
 
-export const renderGroupCOAs = async (g: SVGGElement): Promise<void> => {
+export const renderGroupCOAs = async (
+  worldContext: Readonly<WorldContext>,
+  viewContext: Readonly<ViewContext>,
+  appServices: AppServices,
+  g: SVGGElement
+): Promise<void> => {
   const { COArenderer } = appServices;
   if (!COArenderer) return;
-  const [data, type] = getDataAndType(g.id);
+  const [data, type] = getDataAndType(worldContext, g.id);
 
   for (const use of g.children) {
     const i = +(use as SVGUseElement).dataset.i!;

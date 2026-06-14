@@ -1,4 +1,10 @@
 import { quadtree } from "d3-quadtree";
+import type { AppServices } from "../context/appServices";
+import { appServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import { viewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
+import { worldContext } from "../context/worldContext";
 import { drawBurgIcon, drawBurgLabel, drawRoute, removeBurgIcon, removeBurgLabel } from "../renderers";
 import type { WorldState } from "../types/WorldState";
 import { each, ensureEl, findCell, gauss, minmax, normalize, P, rn } from "../utils";
@@ -44,7 +50,7 @@ export interface Burg {
   removed?: boolean;
   population?: number;
   type?: string;
-  coa?: any;
+  coa?: import("./emblem/generator").Emblem;
   citadel?: number;
   plaza?: number;
   walls?: number;
@@ -57,7 +63,12 @@ export interface Burg {
 }
 
 class BurgModule {
+  worldContext: WorldContext = worldContext;
+  viewContext: Readonly<ViewContext> = viewContext;
+  appServices: AppServices = appServices;
+
   shift() {
+    const { pack, grid } = this.worldContext;
     const { cells, features, burgs } = pack;
     const temp = grid.cells.temp;
 
@@ -122,7 +133,16 @@ class BurgModule {
     }
   }
 
-  generate(state: WorldState) {
+  generate(
+    worldContext: WorldContext,
+    viewContext: Readonly<ViewContext>,
+    appServices: AppServices,
+    state: WorldState
+  ) {
+    this.worldContext = worldContext;
+    this.viewContext = viewContext;
+    this.appServices = appServices;
+    const { grid } = this.worldContext;
     const { pack } = state;
     TIME && console.time("generateBurgs");
     const { cells } = pack;
@@ -170,7 +190,7 @@ class BurgModule {
         burg.i = burgId;
         burg.state = burgId;
         burg.culture = cells.culture[burg.cell];
-        burg.name = Names.getCultureShort(burg.culture);
+        burg.name = Names.getCultureShort(worldContext, viewContext, appServices, burg.culture);
         burg.feature = cells.f[burg.cell];
         burg.capital = 1;
         cells.burg[burg.cell] = burgId;
@@ -246,6 +266,7 @@ class BurgModule {
   }
 
   getType(cellId: number, port?: number) {
+    const { pack } = this.worldContext;
     const { cells, features } = pack;
 
     if (port) return "Naval";
@@ -268,6 +289,7 @@ class BurgModule {
   }
 
   private definePopulation(burg: Burg) {
+    const { pack } = this.worldContext;
     const cellId = burg.cell;
     let population = pack.cells.s[cellId] / 5;
     if (burg.capital) population *= 1.5;
@@ -279,6 +301,7 @@ class BurgModule {
   }
 
   private defineEmblem(burg: Burg) {
+    const { pack } = this.worldContext;
     burg.type = this.getType(burg.cell, burg.port);
 
     const state = pack.states[burg.state as number];
@@ -295,6 +318,7 @@ class BurgModule {
   }
 
   private defineFeatures(burg: Burg) {
+    const { pack } = this.worldContext;
     const pop = burg.population as number;
     burg.citadel = Number(burg.capital || (pop > 50 && P(0.75)) || (pop > 15 && P(0.5)) || P(0.1));
     burg.plaza = Number(
@@ -383,6 +407,7 @@ class BurgModule {
   }
 
   defineGroup(burg: Burg, populations: number[]) {
+    const { options, pack } = this.worldContext;
     if (burg.lock && burg.group) {
       // locked burgs: don't change group if it still exists
       const group = options.burgs.groups.find(g => g.name === burg.group);
@@ -432,7 +457,10 @@ class BurgModule {
     }
   }
 
-  specify(state: WorldState) {
+  specify(worldContext: WorldContext, viewContext: Readonly<ViewContext>, appServices: AppServices, state: WorldState) {
+    this.worldContext = worldContext;
+    this.viewContext = viewContext;
+    this.appServices = appServices;
     const { pack } = state;
     TIME && console.time("specifyBurgs");
 
@@ -457,6 +485,7 @@ class BurgModule {
   }
 
   private createWatabouCityLinks(burg: Burg) {
+    const { pack, seed, populationRate, urbanization } = this.worldContext;
     const cells = pack.cells;
     const { i, name, population: burgPopulation, cell } = burg;
     const burgSeed = String(burg.MFCG ?? seed + String(burg.i).padStart(4, "0"));
@@ -519,6 +548,7 @@ class BurgModule {
   }
 
   private createWatabouVillageLinks(burg: Burg) {
+    const { pack, seed, populationRate, urbanization, grid } = this.worldContext;
     const { cells, features } = pack;
     const { i, population, cell } = burg;
 
@@ -582,6 +612,7 @@ class BurgModule {
   }
 
   private createWatabouDwellingLinks(burg: Burg) {
+    const { seed, populationRate, urbanization } = this.worldContext;
     const burgSeed = seed + String(burg.i).padStart(4, "0");
     const pop = rn(burg.population! * populationRate * urbanization);
 
@@ -606,6 +637,7 @@ class BurgModule {
   }
 
   getPreview(burg: Burg): { link: string | null; preview: string | null } {
+    const { options } = this.worldContext;
     const previewGeneratorsMap: Record<string, (burg: Burg) => { link: string | null; preview: string | null }> = {
       "watabou-city": (burg: Burg) => this.createWatabouCityLinks(burg),
       "watabou-village": (burg: Burg) => this.createWatabouVillageLinks(burg),
@@ -620,6 +652,7 @@ class BurgModule {
   }
 
   add([x, y]: [number, number]) {
+    const { pack } = this.worldContext;
     const { cells } = pack;
 
     const burgId = pack.burgs.length;
@@ -643,7 +676,7 @@ class BurgModule {
     };
     this.definePopulation(burg);
     this.defineEmblem(burg);
-    COArenderer.add("burg", burgId, burg.coa, x, y);
+    COArenderer.add("burg", burgId, burg.coa as import("./emblem/generator").Emblem, x, y);
     this.defineFeatures(burg);
 
     const populations = pack.burgs
@@ -656,15 +689,16 @@ class BurgModule {
     cells.burg[cellId as number] = burgId;
 
     const newRoute = Routes.connect(cellId as number);
-    if (newRoute && layerIsOn("toggleRoutes")) drawRoute(newRoute);
+    if (newRoute && layerIsOn("toggleRoutes")) drawRoute(worldContext, viewContext, appServices, newRoute);
 
-    drawBurgIcon(burg);
-    drawBurgLabel(burg);
+    drawBurgIcon(worldContext, viewContext, appServices, burg);
+    drawBurgLabel(worldContext, viewContext, appServices, burg);
 
     return burgId;
   }
 
   changeGroup(burg: Burg, group?: string | null) {
+    const { pack } = this.worldContext;
     if (group) {
       burg.group = group;
     } else {
@@ -673,11 +707,12 @@ class BurgModule {
       this.defineGroup(burg, populations);
     }
 
-    drawBurgIcon(burg);
-    drawBurgLabel(burg);
+    drawBurgIcon(worldContext, viewContext, appServices, burg);
+    drawBurgLabel(worldContext, viewContext, appServices, burg);
   }
 
   remove(burgId: number) {
+    const { pack, notes } = this.worldContext;
     const burg = pack.burgs[burgId];
     if (!burg) return tip(`Burg ${burgId} not found`, false, "error");
 
@@ -693,8 +728,8 @@ class BurgModule {
       delete burg.coa;
     }
 
-    removeBurgIcon(burg.i!);
-    removeBurgLabel(burg.i!);
+    removeBurgIcon(worldContext, viewContext, appServices, burg.i!);
+    removeBurgLabel(worldContext, viewContext, appServices, burg.i!);
   }
 }
 export const Burgs = new BurgModule();

@@ -1,8 +1,15 @@
 import { mean, sum } from "d3";
+import type { AppServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
 import type { MilitaryRegiment } from "../modules/military-generator";
 import { Military } from "../modules/military-generator";
 import { drawMarker, moveRegiment } from "../renderers/index";
 import { capitalize, ensureEl, findCell, getAdjective, last, list, minmax, Pint, rand, rn, wiki } from "../utils";
+
+let worldContext: WorldContext;
+let viewContext: Readonly<ViewContext>;
+let appServices: AppServices;
 
 interface BattleRegiment extends MilitaryRegiment {
   casualties: Record<string, number>;
@@ -298,7 +305,7 @@ class Battle {
         const shift = side === "attackers" ? attackers.length * -8 : (defenders.length - 1) * 8;
         regiment.px = regiment.x;
         regiment.py = regiment.y;
-        moveRegiment(regiment, defenders[0].x, defenders[0].y + shift);
+        moveRegiment(worldContext, viewContext, appServices, regiment, defenders[0].x, defenders[0].y + shift);
       });
     }
 
@@ -923,14 +930,14 @@ class Battle {
       r.a = sum(Object.values(r.u) as number[]);
       armies.select(`g#${id} > text`).text(Military.getTotal(r));
 
-      moveRegiment(r, r.px as number, r.py as number);
+      moveRegiment(worldContext, viewContext, appServices, r, r.px as number, r.py as number);
     }
 
     const markerI = last(pack.markers)?.i + 1 || 0;
     {
       const marker = { i: markerI, x: this.x, y: this.y, cell: this.cell, icon: "⚔️", type: "battlefields", dy: 52 };
       pack.markers.push(marker);
-      const markerHTML = drawMarker(marker);
+      const markerHTML = drawMarker(worldContext, viewContext, appServices, marker);
       (document.getElementById("markers") as HTMLElement).insertAdjacentHTML("beforeend", markerHTML);
     }
 
@@ -957,10 +964,10 @@ class Battle {
 
   cancelResults(): void {
     this.attackers.regiments.forEach(r => {
-      moveRegiment(r, r.px as number, r.py as number);
+      moveRegiment(worldContext, viewContext, appServices, r, r.px as number, r.py as number);
     });
     this.defenders.regiments.forEach(r => {
-      moveRegiment(r, r.px as number, r.py as number);
+      moveRegiment(worldContext, viewContext, appServices, r, r.px as number, r.py as number);
     });
 
     $("#battleScreen").dialog("close");
@@ -989,4 +996,10 @@ declare global {
   interface Window {
     Battle: new (attacker: BattleRegiment, defender: BattleRegiment) => Battle;
   }
+}
+
+export function initBattleScreen(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {
+  worldContext = wc;
+  viewContext = vc;
+  appServices = as;
 }

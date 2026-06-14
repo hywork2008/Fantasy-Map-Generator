@@ -1,6 +1,7 @@
 import { extent, polygonContains } from "d3";
-import { viewContext } from "../context/viewContext";
-import { worldContext } from "../context/worldContext";
+import type { AppServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
 import { getPackPolygon, minmax, poissonDiscSampler, rand, rn } from "../utils";
 import { TIME } from "../utils/debug";
 
@@ -11,7 +12,11 @@ interface ReliefIcon {
   s: number;
 }
 
-export const drawReliefIcons = (): void => {
+export const drawReliefIcons = (
+  worldContext: Readonly<WorldContext>,
+  viewContext: Readonly<ViewContext>,
+  appServices: AppServices
+): void => {
   TIME && console.time("drawRelief");
   const { pack, biomesData } = worldContext;
   const { terrain } = viewContext;

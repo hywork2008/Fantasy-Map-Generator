@@ -1,5 +1,6 @@
-import { viewContext } from "../context/viewContext";
-import { worldContext } from "../context/worldContext";
+import type { AppServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
 import { TIME } from "../utils/debug";
 
 interface IceElement {
@@ -9,7 +10,11 @@ interface IceElement {
   offset?: [number, number];
 }
 
-export const drawIce = (): void => {
+export const drawIce = (
+  worldContext: Readonly<WorldContext>,
+  viewContext: Readonly<ViewContext>,
+  appServices: AppServices
+): void => {
   TIME && console.time("drawIce");
   const { pack } = worldContext;
   const { ice } = viewContext;
@@ -31,7 +36,12 @@ export const drawIce = (): void => {
   TIME && console.timeEnd("drawIce");
 };
 
-export const redrawIceberg = (id: number): void => {
+export const redrawIceberg = (
+  worldContext: Readonly<WorldContext>,
+  viewContext: Readonly<ViewContext>,
+  appServices: AppServices,
+  id: number
+): void => {
   TIME && console.time("redrawIceberg");
   const { pack } = worldContext;
   const { ice } = viewContext;
@@ -51,7 +61,12 @@ export const redrawIceberg = (id: number): void => {
   TIME && console.timeEnd("redrawIceberg");
 };
 
-export const redrawGlacier = (id: number): void => {
+export const redrawGlacier = (
+  worldContext: Readonly<WorldContext>,
+  viewContext: Readonly<ViewContext>,
+  appServices: AppServices,
+  id: number
+): void => {
   TIME && console.time("redrawGlacier");
   const { pack } = worldContext;
   const { ice } = viewContext;

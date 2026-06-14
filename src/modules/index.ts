@@ -1,3 +1,6 @@
+import type { AppServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
 import "./voronoi";
 import { Features } from "./features";
 import { Names } from "./names-generator";
@@ -32,25 +35,30 @@ export function initModules(): void {
  * Run the full world-generation pipeline in dependency order.
  * Each step mutates state.pack in place.
  */
-export function generateWorld(state: WorldState): void {
-  Rivers.generate(state);
+export function generateWorld(
+  worldContext: WorldContext,
+  viewContext: Readonly<ViewContext>,
+  appServices: AppServices,
+  state: WorldState
+): void {
+  Rivers.generate(worldContext, viewContext, appServices, state);
   Biomes.define(state);
   Features.defineGroups();
-  Ice.generate(state);
-  Cultures.generate(state);
+  Ice.generate(worldContext, viewContext, appServices, state);
+  Cultures.generate(worldContext, viewContext, appServices, state);
   Cultures.expand(state);
-  Burgs.generate(state);
-  States.generate(state);
-  Routes.generate(state);
-  Religions.generate(state);
-  Burgs.specify(state);
+  Burgs.generate(worldContext, viewContext, appServices, state);
+  States.generate(worldContext, viewContext, appServices, state);
+  Routes.generate(worldContext, viewContext, appServices, state);
+  Religions.generate(worldContext, viewContext, appServices, state);
+  Burgs.specify(worldContext, viewContext, appServices, state);
   States.collectStatistics(state);
   States.defineStateForms(state);
-  Provinces.generate(state);
+  Provinces.generate(worldContext, viewContext, appServices, state);
   Provinces.getPoles(state);
-  Rivers.specify(state);
+  Rivers.specify(worldContext, viewContext, appServices, state);
   Lakes.defineNames(state);
-  Military.generate(state);
-  Markers.generate(state);
-  Zones.generate(state);
+  Military.generate(worldContext, viewContext, appServices, state);
+  Markers.generate(worldContext, viewContext, appServices, state);
+  Zones.generate(worldContext, viewContext, appServices, state);
 }

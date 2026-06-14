@@ -1,5 +1,8 @@
 import type { Selection } from "d3";
 import * as d3 from "d3";
+import { appServices } from "../context/appServices";
+import { viewContext } from "../context/viewContext";
+import { worldContext } from "../context/worldContext";
 import { Rivers } from "../modules/river-generator";
 import { drawScaleBar, fitScaleBar } from "../renderers/index";
 import { connectVertices, ensureEl, getBase64, getCoordinates, rn, unique } from "../utils";
@@ -271,10 +274,16 @@ export async function getMapURL(type: string, options: GetMapURLOptions = {}): P
 
     if (!noScaleBar) {
       drawScaleBar(
+        worldContext,
+        viewContext,
+        appServices,
         clone.select("#scaleBar") as unknown as import("d3").Selection<SVGGElement, unknown, HTMLElement, unknown>,
         1
       );
       fitScaleBar(
+        worldContext,
+        viewContext,
+        appServices,
         clone.select("#scaleBar") as unknown as import("d3").Selection<SVGGElement, unknown, HTMLElement, unknown>,
         graphWidth,
         graphHeight

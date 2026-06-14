@@ -1,4 +1,7 @@
 import { drag, easeSinInOut, pointer, select, sum, transition } from "d3";
+import type { AppServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
 import type { BattleRegiment } from "../controllers/battle-screen";
 import type { MilitaryRegiment } from "../modules/military-generator";
 import { Military } from "../modules/military-generator";
@@ -6,6 +9,10 @@ import { drawRegiment, moveRegiment } from "../renderers/index";
 import type { WorldNote } from "../types/WorldState";
 import { capitalize, ensureEl, findCell, last, rn } from "../utils";
 import { editNotes } from "./notes-editor";
+
+let worldContext: WorldContext;
+let viewContext: Readonly<ViewContext>;
+let appServices: AppServices;
 
 export function editRegiment(selectorOrEl?: string | Element): void {
   if (customization) return;
@@ -255,7 +262,7 @@ export function editRegiment(selectorOrEl?: string | Element): void {
     newReg.name = Military.getName(newReg, military);
     military.push(newReg);
     Military.generateNote(newReg, pack.states[state]);
-    drawRegiment(newReg, state);
+    drawRegiment(worldContext, viewContext, appServices, newReg, state);
 
     if (regimentsOverviewRefresh?.offsetParent) regimentsOverviewRefresh.click();
   }
@@ -283,7 +290,7 @@ export function editRegiment(selectorOrEl?: string | Element): void {
     reg.name = Military.getName(reg, military);
     military.push(reg);
     Military.generateNote(reg, pack.states[state]);
-    drawRegiment(reg, state);
+    drawRegiment(worldContext, viewContext, appServices, reg, state);
     if (regimentsOverviewRefresh?.offsetParent) regimentsOverviewRefresh.click();
     toggleAdd();
   }
@@ -335,7 +342,7 @@ export function editRegiment(selectorOrEl?: string | Element): void {
     defender.px = defender.x;
     defender.py = defender.y;
 
-    moveRegiment(attacker, defender.x, defender.y - 8);
+    moveRegiment(worldContext, viewContext, appServices, attacker, defender.x, defender.y - 8);
 
     const attack = transition()
       .delay(300)
@@ -553,4 +560,10 @@ export function editRegiment(selectorOrEl?: string | Element): void {
     restoreDefaultEvents?.();
     elSelected = null;
   }
+}
+
+export function initRegimentEditor(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {
+  worldContext = wc;
+  viewContext = vc;
+  appServices = as;
 }

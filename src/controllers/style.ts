@@ -1,5 +1,8 @@
 import type { Selection } from "d3";
 import { interpolateRgb, interpolateRgbBasis, scaleSequential } from "d3";
+import type { AppServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
 import { OceanLayers } from "../modules/ocean-layers";
 import {
   drawBurgIcons,
@@ -13,6 +16,10 @@ import {
 import { drawRegiments, drawScaleBar, fitScaleBar } from "../renderers/index";
 import { drawHeights, ensureEl, parseTransform, rn, toHEX } from "../utils";
 import { heightmapColorSchemes } from "../utils/colorUtils";
+
+let worldContext: WorldContext;
+let viewContext: Readonly<ViewContext>;
+let appServices: AppServices;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -504,7 +511,7 @@ function changeFontSize(el: AnySelection, size: number): void {
 // ─── updateElements ───────────────────────────────────────────────────────────
 
 function updateElements(): void {
-  if (layerIsOn("toggleHeight")) drawHeightmap();
+  if (layerIsOn("toggleHeight")) drawHeightmap(worldContext, viewContext, appServices);
   if (legend.selectAll("*").size()) redrawLegend();
   oceanLayers.selectAll("path").remove();
   OceanLayers();
@@ -653,12 +660,14 @@ ensureEl("styleStrokeInput").on("input", (e: Event) => {
   const value = (e.target as HTMLInputElement).value;
   ensureEl<HTMLInputElement>("styleStrokeOutput").value = value;
   getEl().attr("stroke", value);
-  if (ensureEl<HTMLSelectElement>("styleElementSelect").value === "gridOverlay" && layerIsOn("toggleGrid")) drawGrid();
+  if (ensureEl<HTMLSelectElement>("styleElementSelect").value === "gridOverlay" && layerIsOn("toggleGrid"))
+    drawGrid(worldContext, viewContext, appServices);
 });
 
 ensureEl("styleStrokeWidthInput").on("input", (e: Event) => {
   getEl().attr("stroke-width", (e.target as HTMLInputElement).value);
-  if (ensureEl<HTMLSelectElement>("styleElementSelect").value === "gridOverlay" && layerIsOn("toggleGrid")) drawGrid();
+  if (ensureEl<HTMLSelectElement>("styleElementSelect").value === "gridOverlay" && layerIsOn("toggleGrid"))
+    drawGrid(worldContext, viewContext, appServices);
 });
 
 ensureEl("styleLetterSpacingInput").on("input", (e: Event) => {
@@ -667,12 +676,14 @@ ensureEl("styleLetterSpacingInput").on("input", (e: Event) => {
 
 ensureEl("styleStrokeDasharrayInput").on("input", (e: Event) => {
   getEl().attr("stroke-dasharray", (e.target as HTMLInputElement).value);
-  if (ensureEl<HTMLSelectElement>("styleElementSelect").value === "gridOverlay" && layerIsOn("toggleGrid")) drawGrid();
+  if (ensureEl<HTMLSelectElement>("styleElementSelect").value === "gridOverlay" && layerIsOn("toggleGrid"))
+    drawGrid(worldContext, viewContext, appServices);
 });
 
 ensureEl("styleStrokeLinecapInput").on("change", (e: Event) => {
   getEl().attr("stroke-linecap", (e.target as HTMLSelectElement).value);
-  if (ensureEl<HTMLSelectElement>("styleElementSelect").value === "gridOverlay" && layerIsOn("toggleGrid")) drawGrid();
+  if (ensureEl<HTMLSelectElement>("styleElementSelect").value === "gridOverlay" && layerIsOn("toggleGrid"))
+    drawGrid(worldContext, viewContext, appServices);
 });
 
 ensureEl("styleOpacityInput").on("input", (e: Event) => {
@@ -720,24 +731,24 @@ ensureEl("styleClippingInput").on("change", (e: Event) => {
 
 ensureEl("styleGridType").on("change", (e: Event) => {
   getEl().attr("type", (e.target as HTMLSelectElement).value);
-  if (layerIsOn("toggleGrid")) drawGrid();
+  if (layerIsOn("toggleGrid")) drawGrid(worldContext, viewContext, appServices);
   calculateFriendlyGridSize();
 });
 
 ensureEl("styleGridScale").on("input", () => {
   getEl().attr("scale", ensureEl<HTMLInputElement>("styleGridScale").value);
-  if (layerIsOn("toggleGrid")) drawGrid();
+  if (layerIsOn("toggleGrid")) drawGrid(worldContext, viewContext, appServices);
   calculateFriendlyGridSize();
 });
 
 ensureEl("styleGridShiftX").on("input", (e: Event) => {
   getEl().attr("dx", (e.target as HTMLInputElement).value);
-  if (layerIsOn("toggleGrid")) drawGrid();
+  if (layerIsOn("toggleGrid")) drawGrid(worldContext, viewContext, appServices);
 });
 
 ensureEl("styleGridShiftY").on("input", (e: Event) => {
   getEl().attr("dy", (e.target as HTMLInputElement).value);
-  if (layerIsOn("toggleGrid")) drawGrid();
+  if (layerIsOn("toggleGrid")) drawGrid(worldContext, viewContext, appServices);
 });
 
 ensureEl("styleRescaleMarkers").on("change", (e: Event) => {
@@ -774,7 +785,7 @@ ensureEl("outlineLayers").on("change", (e: Event) => {
 
 ensureEl("styleHeightmapScheme").on("change", (e: Event) => {
   getEl().attr("scheme", (e.target as HTMLSelectElement).value);
-  drawHeightmap();
+  drawHeightmap(worldContext, viewContext, appServices);
 });
 
 ensureEl("openCreateHeightmapSchemeButton").on("click", function (this: HTMLButtonElement) {
@@ -868,7 +879,7 @@ ensureEl("openCreateHeightmapSchemeButton").on("click", function (this: HTMLButt
     }
     addCustomColorScheme(stops);
     getEl().attr("scheme", stops);
-    drawHeightmap();
+    drawHeightmap(worldContext, viewContext, appServices);
     handleClose();
   }
 
@@ -887,44 +898,44 @@ ensureEl("openCreateHeightmapSchemeButton").on("click", function (this: HTMLButt
 
 ensureEl("styleHeightmapRenderOcean").on("change", (e: Event) => {
   getEl().attr("data-render", +(e.target as HTMLInputElement).checked);
-  drawHeightmap();
+  drawHeightmap(worldContext, viewContext, appServices);
 });
 
 ensureEl("styleHeightmapTerracing").on("input", (e: Event) => {
   getEl().attr("terracing", (e.target as HTMLInputElement).value);
-  drawHeightmap();
+  drawHeightmap(worldContext, viewContext, appServices);
 });
 
 ensureEl("styleHeightmapSkip").on("input", (e: Event) => {
   getEl().attr("skip", (e.target as HTMLInputElement).value);
-  drawHeightmap();
+  drawHeightmap(worldContext, viewContext, appServices);
 });
 
 ensureEl("styleHeightmapSimplification").on("input", (e: Event) => {
   getEl().attr("relax", (e.target as HTMLInputElement).value);
-  drawHeightmap();
+  drawHeightmap(worldContext, viewContext, appServices);
 });
 
 ensureEl("styleHeightmapCurve").on("change", (e: Event) => {
   getEl().attr("curve", (e.target as HTMLSelectElement).value);
-  drawHeightmap();
+  drawHeightmap(worldContext, viewContext, appServices);
 });
 
 ensureEl("styleReliefSet").on("change", (e: Event) => {
   terrain.attr("set", (e.target as HTMLSelectElement).value);
-  drawReliefIcons();
+  drawReliefIcons(worldContext, viewContext, appServices);
   if (!layerIsOn("toggleRelief")) toggleRelief();
 });
 
 ensureEl("styleReliefSize").on("change", (e: Event) => {
   terrain.attr("size", (e.target as HTMLInputElement).value);
-  drawReliefIcons();
+  drawReliefIcons(worldContext, viewContext, appServices);
   if (!layerIsOn("toggleRelief")) toggleRelief();
 });
 
 ensureEl("styleReliefDensity").on("change", (e: Event) => {
   terrain.attr("density", (e.target as HTMLInputElement).value);
-  drawReliefIcons();
+  drawReliefIcons(worldContext, viewContext, appServices);
   if (!layerIsOn("toggleRelief")) toggleRelief();
 });
 
@@ -1095,23 +1106,23 @@ ensureEl("styleArmiesSize").on("input", (e: Event) => {
   armies.selectAll("g").remove();
   pack.states.forEach(s => {
     if (!s.i || s.removed || !s.military?.length) return;
-    drawRegiments(s.military, s.i);
+    drawRegiments(worldContext, viewContext, appServices, s.military, s.i);
   });
 });
 
 ensureEl("emblemsStateSizeInput").on("change", (e: Event) => {
   emblems.select("#stateEmblems").attr("data-size", (e.target as HTMLInputElement).value);
-  drawEmblems();
+  drawEmblems(worldContext, viewContext, appServices);
 });
 
 ensureEl("emblemsProvinceSizeInput").on("change", (e: Event) => {
   emblems.select("#provinceEmblems").attr("data-size", (e.target as HTMLInputElement).value);
-  drawEmblems();
+  drawEmblems(worldContext, viewContext, appServices);
 });
 
 ensureEl("emblemsBurgSizeInput").on("change", (e: Event) => {
   emblems.select("#burgEmblems").attr("data-size", (e.target as HTMLInputElement).value);
-  drawEmblems();
+  drawEmblems(worldContext, viewContext, appServices);
 });
 
 ensureEl("styleVignettePreset").on("change", (e: Event) => {
@@ -1216,8 +1227,17 @@ ensureEl("styleScaleBar").on("input", (event: Event) => {
       "styleScaleBarBackgroundPaddingBottom"
     ].includes(id)
   ) {
-    drawScaleBar(scaleBar as unknown as import("d3").Selection<SVGGElement, unknown, HTMLElement, unknown>, scale);
+    drawScaleBar(
+      worldContext,
+      viewContext,
+      appServices,
+      scaleBar as unknown as import("d3").Selection<SVGGElement, unknown, HTMLElement, unknown>,
+      scale
+    );
     fitScaleBar(
+      worldContext,
+      viewContext,
+      appServices,
       scaleBar as unknown as import("d3").Selection<SVGGElement, unknown, HTMLElement, unknown>,
       svgWidth,
       svgHeight
@@ -1338,10 +1358,10 @@ async function changeStyle(desiredPreset: string): Promise<void> {
   const [presetName, styleData] = await getStylePreset(desiredPreset);
   localStorage.setItem("presetStyle", presetName);
   applyStyleWithUiRefresh(styleData);
-  if (layerIsOn("toggleBurgIcons")) drawBurgIcons();
+  if (layerIsOn("toggleBurgIcons")) drawBurgIcons(worldContext, viewContext, appServices);
   if (layerIsOn("toggleLabels")) {
-    drawBurgLabels();
-    drawStateLabels();
+    drawBurgLabels(worldContext, viewContext, appServices);
+    drawStateLabels(worldContext, viewContext, appServices);
   }
 }
 
@@ -1354,8 +1374,17 @@ function applyStyleWithUiRefresh(styleJSON: StyleJSON): void {
   presetEl.dataset.old = presetEl.value;
   invokeActiveZooming();
   setPresetRemoveButtonVisibiliy();
-  drawScaleBar(scaleBar as unknown as import("d3").Selection<SVGGElement, unknown, HTMLElement, unknown>, scale);
+  drawScaleBar(
+    worldContext,
+    viewContext,
+    appServices,
+    scaleBar as unknown as import("d3").Selection<SVGGElement, unknown, HTMLElement, unknown>,
+    scale
+  );
   fitScaleBar(
+    worldContext,
+    viewContext,
+    appServices,
     scaleBar as unknown as import("d3").Selection<SVGGElement, unknown, HTMLElement, unknown>,
     svgWidth,
     svgHeight
@@ -1729,3 +1758,9 @@ window.requestStylePresetChange = requestStylePresetChange;
 window.requestRemoveStylePreset = requestRemoveStylePreset;
 window.removeStylePreset = removeStylePreset;
 window.updateMapFilter = updateMapFilter;
+
+export function initStyle(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {
+  worldContext = wc;
+  viewContext = vc;
+  appServices = as;
+}

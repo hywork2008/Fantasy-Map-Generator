@@ -1,4 +1,10 @@
 import { mean, median, sum } from "d3";
+import type { AppServices } from "../context/appServices";
+import { appServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import { viewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
+import { worldContext } from "../context/worldContext";
 import type { WorldState } from "../types/WorldState";
 import {
   each,
@@ -35,7 +41,7 @@ export interface State {
   type: string;
   center: number;
   culture: number;
-  coa: any; // eslint-disable-line @typescript-eslint/no-explicit-any -- two incompatible Emblem types (generator vs renderer)
+  coa: import("./emblem/generator").Emblem | null;
   lock?: boolean;
   removed?: boolean;
   pole?: [number, number];
@@ -53,12 +59,17 @@ export interface State {
   form?: string;
   military?: MilitaryRegiment[];
   provinces?: number[];
-  temp?: any; // eslint-disable-line @typescript-eslint/no-explicit-any -- temporary computation scratch space, deleted after use
+  temp?: Record<string, number> & { platoons?: import("./military-generator").Platoon[] };
   alert?: number;
 }
 
 class StatesModule {
+  worldContext: WorldContext = worldContext;
+  viewContext: Readonly<ViewContext> = viewContext;
+  appServices: AppServices = appServices;
+
   private createStates() {
+    const { pack } = this.worldContext;
     const states: State[] = [{ i: 0, name: "Neutrals" } as State];
     const each5th = each(5);
     const sizeVariety = (ensureEl("sizeVariety") as HTMLInputElement).valueAsNumber;
@@ -67,7 +78,10 @@ class StatesModule {
       if (!burg.i || !burg.capital) return;
 
       const expansionism = rn(Math.random() * sizeVariety + 1, 1);
-      const basename = burg.name!.length < 9 && each5th(burg.cell) ? burg.name! : Names.getCultureShort(burg.culture!);
+      const basename =
+        burg.name!.length < 9 && each5th(burg.cell)
+          ? burg.name!
+          : Names.getCultureShort(this.worldContext, this.viewContext, this.appServices, burg.culture!);
       const name = Names.getState(basename, burg.culture!);
       const type = pack.cultures[burg.culture!].type;
       const coa = COA.generate(null, null, null, type);
@@ -88,6 +102,7 @@ class StatesModule {
   }
 
   private getBiomeCost(b: number, biome: number, type: string) {
+    const { biomesData } = this.worldContext;
     if (b === biome) return 10; // tiny penalty for native biome
     if (type === "Hunting") return biomesData.cost[biome] * 2; // non-native biome penalty for hunters
     if (type === "Nomadic" && biome > 4 && biome < 10) return biomesData.cost[biome] * 3; // forest biome penalty for nomads
@@ -107,6 +122,7 @@ class StatesModule {
   }
 
   private getRiverCost(r: number, i: number, type: string) {
+    const { pack } = this.worldContext;
     if (type === "River") return r ? 0 : 100; // penalty for river cultures
     if (!r) return 0; // no penalty for others if there is no river
     return minmax(pack.cells.fl[i] / 10, 20, 100); // river penalty from 20 to 100 based on flux
@@ -119,28 +135,40 @@ class StatesModule {
     return 0;
   }
 
-  generate(state: WorldState) {
+  generate(
+    worldContext: WorldContext,
+    viewContext: Readonly<ViewContext>,
+    appServices: AppServices,
+    state: WorldState
+  ) {
+    this.worldContext = worldContext;
+    this.viewContext = viewContext;
+    this.appServices = appServices;
     const { pack } = state;
     TIME && console.time("generateStates");
     pack.states = this.createStates();
-    this.expandStates();
+    this.expandStates(this.worldContext, this.viewContext, this.appServices);
     this.normalize();
     this.getPoles(state);
     this.findNeighbors();
-    this.assignColors();
+    this.assignColors(this.worldContext, this.viewContext, this.appServices);
     this.generateCampaigns();
     this.generateDiplomacy();
 
     TIME && console.timeEnd("generateStates");
   }
 
-  expandStates() {
+  expandStates(worldContext: WorldContext, viewContext: Readonly<ViewContext>, appServices: AppServices) {
+    this.worldContext = worldContext;
+    this.viewContext = viewContext;
+    this.appServices = appServices;
+    const { pack } = this.worldContext;
     TIME && console.time("expandStates");
     const { cells, states, cultures, burgs } = pack;
 
     cells.state = cells.state || new Uint16Array(cells.i.length);
 
-    const queue = new FlatQueue();
+    const queue = new FlatQueue<{ e: number; p: number; s: number; b: number }>();
     const cost: number[] = [];
 
     const globalGrowthRate = (document.getElementById("growthRate") as HTMLInputElement | null)?.valueAsNumber || 1;
@@ -205,6 +233,7 @@ class StatesModule {
   }
 
   normalize() {
+    const { pack } = this.worldContext;
     TIME && console.time("normalizeStates");
     const { cells, burgs } = pack;
 
@@ -236,6 +265,7 @@ class StatesModule {
   }
 
   findNeighbors() {
+    const { pack } = this.worldContext;
     const { cells, states } = pack;
 
     const stateNeighbors: Set<number>[] = [];
@@ -264,7 +294,11 @@ class StatesModule {
     });
   }
 
-  assignColors() {
+  assignColors(worldContext: WorldContext, viewContext: Readonly<ViewContext>, appServices: AppServices) {
+    this.worldContext = worldContext;
+    this.viewContext = viewContext;
+    this.appServices = appServices;
+    const { pack } = this.worldContext;
     TIME && console.time("assignColors");
     const colors = ["#66c2a5", "#fc8d62", "#8da0cb", "#e78ac3", "#a6d854", "#ffd92f"]; // d3.schemeSet2;
     const states = pack.states;
@@ -318,6 +352,7 @@ class StatesModule {
   }
 
   generateCampaign(state: State) {
+    const { pack, options } = this.worldContext;
     const wars = {
       War: 6,
       Conflict: 2,
@@ -332,7 +367,10 @@ class StatesModule {
     const neighbors = state.neighbors?.length ? state.neighbors : [0];
     return neighbors
       .map((i: number) => {
-        const name = i && P(0.8) ? pack.states[i].name : Names.getCultureShort(state.culture);
+        const name =
+          i && P(0.8)
+            ? pack.states[i].name
+            : Names.getCultureShort(this.worldContext, this.viewContext, this.appServices, state.culture);
         const currentYear = options.year!;
         const start = gauss(currentYear - 100, 150, 1, currentYear - 6);
         const end = start + gauss(4, 5, 1, currentYear - start - 1);
@@ -342,6 +380,7 @@ class StatesModule {
   }
 
   generateCampaigns() {
+    const { pack } = this.worldContext;
     pack.states.forEach(s => {
       if (!s.i || s.removed) return;
       s.campaigns = this.generateCampaign(s);
@@ -350,6 +389,7 @@ class StatesModule {
 
   // generate Diplomatic Relationships
   generateDiplomacy() {
+    const { pack, options } = this.worldContext;
     TIME && console.time("generateDiplomacy");
     const { cells, states } = pack;
     states[0].diplomacy = [];

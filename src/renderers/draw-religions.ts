@@ -1,8 +1,14 @@
-import { worldContext } from "../context/worldContext";
+import type { AppServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
 import { ensureEl, getGappedFillPaths, getIsolines } from "../utils";
 import { TIME } from "../utils/debug";
 
-export const drawReligions = (): void => {
+export const drawReligions = (
+  worldContext: Readonly<WorldContext>,
+  viewContext: Readonly<ViewContext>,
+  appServices: AppServices
+): void => {
   TIME && console.time("drawReligions");
   const { pack } = worldContext;
   const { cells, religions } = pack;

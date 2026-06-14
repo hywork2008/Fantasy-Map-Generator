@@ -1,4 +1,7 @@
 import * as d3 from "d3";
+import { appServices } from "../context/appServices";
+import { viewContext } from "../context/viewContext";
+import { worldContext } from "../context/worldContext";
 import type { Burg } from "../modules/burgs-generator";
 import { Burgs } from "../modules/burgs-generator";
 import type { Culture } from "../modules/cultures-generator";
@@ -41,7 +44,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
   if (isOlderThan("1.0.0")) {
     // v1.0 added a new religions layer
     relig = viewbox.insert("g", "#terrain").attr("id", "relig");
-    Religions.generate(getWorldState());
+    Religions.generate(worldContext, viewContext, appServices, getWorldState());
 
     // v1.0 added a legend box
     legend = svg.append("g").attr("id", "legend");
@@ -86,7 +89,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
     States.generateCampaigns();
     States.generateDiplomacy();
     States.defineStateForms(state);
-    Provinces.generate(state);
+    Provinces.generate(worldContext, viewContext, appServices, state);
     Provinces.getPoles(state);
     if (!layerIsOn("toggleBorders")) $("#borders").fadeOut();
     if (!layerIsOn("toggleStates")) regions.attr("display", "none").selectAll("path").remove();
@@ -99,9 +102,9 @@ export function resolveVersionConflicts(mapVersion: string): void {
       .attr("stroke-width", 0)
       .attr("stroke-dasharray", null)
       .attr("stroke-linecap", "butt");
-    Zones.generate(state);
+    Zones.generate(worldContext, viewContext, appServices, state);
     if (!markers.selectAll("*").size()) {
-      Markers.generate(state);
+      Markers.generate(worldContext, viewContext, appServices, state);
       turnButtonOn("toggleMarkers");
     }
 
@@ -320,7 +323,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
       .attr("stroke", "#000")
       .attr("stroke-width", 0.3);
     turnButtonOn("toggleMilitary");
-    Military.generate(getWorldState());
+    Military.generate(worldContext, viewContext, appServices, getWorldState());
   }
 
   if (isOlderThan("1.4.0")) {
@@ -344,7 +347,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
       .attr("stroke", "#e8f0f6")
       .attr("stroke-width", 1)
       .attr("filter", "url(#dropShadow05)");
-    drawIce();
+    drawIce(worldContext, viewContext, appServices);
 
     // v1.4 added icon and power attributes for units
     for (const unit of options.military!) {
@@ -629,7 +632,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
       markerElements.forEach(el => {
         el.remove();
       });
-      if (layerIsOn("markers")) drawMarkers();
+      if (layerIsOn("markers")) drawMarkers(worldContext, viewContext, appServices);
     }
   }
 
@@ -678,13 +681,16 @@ export function resolveVersionConflicts(mapVersion: string): void {
 
   if (isOlderThan("1.91.0")) {
     pack.states.forEach(state => {
-      if (state.coa === "custom") state.coa = { custom: true };
+      if ((state.coa as unknown as string) === "custom")
+        state.coa = { custom: true } as import("../modules/emblem/generator").Emblem;
     });
     (pack.provinces as Province[]).forEach(province => {
-      if (province.coa === "custom") province.coa = { custom: true };
+      if ((province.coa as unknown as string) === "custom")
+        province.coa = { custom: true } as import("../modules/emblem/generator").Emblem;
     });
     (pack.burgs as Burg[]).forEach(burg => {
-      if (burg.coa === "custom") burg.coa = { custom: true };
+      if ((burg.coa as unknown as string) === "custom")
+        burg.coa = { custom: true } as import("../modules/emblem/generator").Emblem;
     });
 
     emblems.selectAll<SVGUseElement, unknown>("use").each(function () {
@@ -734,7 +740,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
       const href = textureImage.attr("xlink:href") || textureImage.attr("href") || textureImage.attr("src");
       texture.attr("data-href", href).attr("data-x", x).attr("data-y", y);
       textureImage.remove();
-      drawTexture();
+      drawTexture(worldContext, viewContext, appServices);
     }
   }
 
@@ -807,7 +813,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
       .attr("curve", curve)
       .attr("mask", "url(#land)");
 
-    if (layerIsOn("toggleHeight")) drawHeightmap();
+    if (layerIsOn("toggleHeight")) drawHeightmap(worldContext, viewContext, appServices);
 
     d3.select("#scaleBar").remove();
     scaleBar = svg
@@ -832,8 +838,8 @@ export function resolveVersionConflicts(mapVersion: string): void {
       .attr("data-right", 15)
       .attr("data-bottom", 15)
       .attr("data-left", 10);
-    drawScaleBar(scaleBar, scale);
-    fitScaleBar(scaleBar, svgWidth, svgHeight);
+    drawScaleBar(worldContext, viewContext, appServices, scaleBar, scale);
+    fitScaleBar(worldContext, viewContext, appServices, scaleBar, svgWidth, svgHeight);
     if (!layerIsOn("toggleScaleBar")) scaleBar.style("display", "none");
 
     armies.selectAll<SVGGElement, unknown>(":scope > g").each(function () {
@@ -899,7 +905,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
       }
     }
     routes.selectAll("path").remove();
-    if (layerIsOn("toggleRoutes")) drawRoutes();
+    if (layerIsOn("toggleRoutes")) drawRoutes(worldContext, viewContext, appServices);
 
     pack.cells.routes = {};
     const links: Record<number, Record<number, number>> = pack.cells.routes;
@@ -928,7 +934,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
       pack.zones.push({ i, name, type, cells, color });
     });
     zones.style("display", null).selectAll("*").remove();
-    if (layerIsOn("toggleZones")) drawZones();
+    if (layerIsOn("toggleZones")) drawZones(worldContext, viewContext, appServices);
   }
 
   if (isOlderThan("1.104.0")) {
@@ -962,15 +968,15 @@ export function resolveVersionConflicts(mapVersion: string): void {
   }
 
   if (isOlderThan("1.107.0")) {
-    if (layerIsOn("toggleMarkers")) drawMarkers();
-    if (layerIsOn("toggleMilitary")) drawMilitary();
+    if (layerIsOn("toggleMarkers")) drawMarkers(worldContext, viewContext, appServices);
+    if (layerIsOn("toggleMilitary")) drawMilitary(worldContext, viewContext, appServices);
   }
 
   if (isOlderThan("1.108.0")) {
     pack.features.forEach(f => {
       if (f?.type === "lake" && !f.group) f.group = "freshwater";
     });
-    drawFeatures();
+    drawFeatures(worldContext, viewContext, appServices);
     viewbox.selectAll("#heights").remove();
   }
 
@@ -1025,8 +1031,8 @@ export function resolveVersionConflicts(mapVersion: string): void {
       }
     });
 
-    layerIsOn("toggleBurgIcons") && drawBurgIcons();
-    layerIsOn("toggleLabels") && drawBurgLabels();
+    layerIsOn("toggleBurgIcons") && drawBurgIcons(worldContext, viewContext, appServices);
+    layerIsOn("toggleLabels") && drawBurgLabels(worldContext, viewContext, appServices);
 
     const legacyOptions = options as unknown as Record<string, unknown>;
     delete legacyOptions.showBurgPreview;
@@ -1075,7 +1081,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
           .attr("filter", "url(#dropShadow05)");
       }
 
-      if (layerIsOn("toggleIce")) drawIce();
+      if (layerIsOn("toggleIce")) drawIce(worldContext, viewContext, appServices);
     }
   }
 

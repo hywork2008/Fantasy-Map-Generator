@@ -1,10 +1,15 @@
 import { color, curveBasisClosed, interpolateSpectral, leastIndex, line, max, min, range, scaleSequential } from "d3";
-import { viewContext } from "../context/viewContext";
-import { worldContext } from "../context/worldContext";
+import type { AppServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
 import { connectVertices, convertTemperature, ensureEl, round } from "../utils";
 import { TIME } from "../utils/debug";
 
-export const drawTemperature = (): void => {
+export const drawTemperature = (
+  worldContext: Readonly<WorldContext>,
+  viewContext: Readonly<ViewContext>,
+  appServices: AppServices
+): void => {
   TIME && console.time("drawTemperature");
   const { grid, graphWidth, graphHeight } = worldContext;
   const { temperature } = viewContext;

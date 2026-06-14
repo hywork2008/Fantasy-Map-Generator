@@ -1,10 +1,17 @@
 import { geoGraticule, geoOrthographic, geoPath, interpolateSpectral, range, scaleSequential, select } from "d3";
+import type { AppServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
 import { Biomes } from "../modules/biomes";
 import { Features } from "../modules/features";
 import { Lakes } from "../modules/lakes";
 import { Rivers } from "../modules/river-generator";
 import { drawBiomes, drawCoordinates, drawPrecipitation, drawRivers, drawTemperature } from "../renderers";
 import { convertTemperature, ensureEl, parseTransform, rn, round } from "../utils";
+
+let worldContext: WorldContext;
+let viewContext: Readonly<ViewContext>;
+let appServices: AppServices;
 
 function editWorld(): void {
   if (customization) return;
@@ -95,18 +102,18 @@ function editWorld(): void {
     generatePrecipitation();
     const state = getWorldState();
     const heights = new Uint8Array(pack.cells.h);
-    Rivers.generate(state);
-    Rivers.specify(state);
+    Rivers.generate(worldContext, viewContext, appServices, state);
+    Rivers.specify(worldContext, viewContext, appServices, state);
     pack.cells.h = new Float32Array(heights);
     Biomes.define(state);
     Features.defineGroups();
     Lakes.defineNames(state);
 
-    if (layerIsOn("toggleTemperature")) drawTemperature();
-    if (layerIsOn("togglePrecipitation")) drawPrecipitation();
-    if (layerIsOn("toggleBiomes")) drawBiomes();
-    if (layerIsOn("toggleCoordinates")) drawCoordinates();
-    if (layerIsOn("toggleRivers")) drawRivers();
+    if (layerIsOn("toggleTemperature")) drawTemperature(worldContext, viewContext, appServices);
+    if (layerIsOn("togglePrecipitation")) drawPrecipitation(worldContext, viewContext, appServices);
+    if (layerIsOn("toggleBiomes")) drawBiomes(worldContext, viewContext, appServices);
+    if (layerIsOn("toggleCoordinates")) drawCoordinates(worldContext, viewContext, appServices);
+    if (layerIsOn("toggleRivers")) drawRivers(worldContext, viewContext, appServices);
     if (document.getElementById("canvas3d")) setTimeout(() => ThreeD.update(), 500);
   }
 
@@ -216,3 +223,9 @@ function editWorld(): void {
 }
 
 window.editWorld = editWorld;
+
+export function initWorldConfigurator(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {
+  worldContext = wc;
+  viewContext = vc;
+  appServices = as;
+}

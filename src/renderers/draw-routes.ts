@@ -1,10 +1,15 @@
-import { viewContext } from "../context/viewContext";
-import { worldContext } from "../context/worldContext";
+import type { AppServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
 import type { Route } from "../modules/routes-generator";
 import { Routes } from "../modules/routes-generator";
 import { TIME } from "../utils/debug";
 
-export const drawRoutes = (): void => {
+export const drawRoutes = (
+  worldContext: Readonly<WorldContext>,
+  viewContext: Readonly<ViewContext>,
+  appServices: AppServices
+): void => {
   TIME && console.time("drawRoutes");
   const { pack } = worldContext;
   const { routes } = viewContext;
@@ -25,7 +30,12 @@ export const drawRoutes = (): void => {
   TIME && console.timeEnd("drawRoutes");
 };
 
-export const drawRoute = (route: Route): void => {
+export const drawRoute = (
+  worldContext: Readonly<WorldContext>,
+  viewContext: Readonly<ViewContext>,
+  appServices: AppServices,
+  route: Route
+): void => {
   const { routes } = viewContext;
   routes.select(`#${route.group}`).append("path").attr("d", Routes.getPath(route)).attr("id", `route${route.i}`);
 };

@@ -1,3 +1,6 @@
+import { appServices } from "./context/appServices";
+import { viewContext } from "./context/viewContext";
+import { worldContext } from "./context/worldContext";
 import { initControllers } from "./controllers/index";
 import { initMain } from "./main";
 import { initModules } from "./modules/index";
@@ -13,7 +16,7 @@ function initApp(): void {
   console.log("Initializing renderers...");
   initRenderers();
   console.log("Initializing controllers...");
-  initControllers();
+  initControllers(worldContext, viewContext, appServices);
   console.log("Initializing main...");
   initMain();
   console.log("initApp completed!");

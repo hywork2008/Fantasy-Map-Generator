@@ -1,8 +1,11 @@
 import { aleaPRNG } from "../components/AleaPRNG";
-import { worldContext } from "../context/worldContext";
+import type { WorldContext } from "../context/worldContext";
+import { HeightmapGenerator } from "../modules/heightmap-generator";
 import { drawHeights, ensureEl, generateGrid, generateSeed, shouldRegenerateGrid } from "../utils";
 import { getColorScheme, heightmapColorSchemes } from "../utils/colorUtils";
 import type { Grid } from "../utils/graphUtils";
+
+let worldContext: WorldContext;
 
 const initialSeed = generateSeed();
 let graph: Grid | null = null;
@@ -332,4 +335,8 @@ function getHeightmapPreview(heights: Uint8Array | null): string {
     renderOcean
   });
   return dataUrl;
+}
+
+export function initHeightmapSelection(wc: WorldContext) {
+  worldContext = wc;
 }

@@ -1,11 +1,20 @@
 import { range as d3Range, leastIndex, mean } from "d3";
 import { aleaPRNG } from "../components/AleaPRNG";
+import type { AppServices } from "../context/appServices";
+import { appServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import { viewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
+import { worldContext } from "../context/worldContext";
 import { createTypedArray, ensureEl, findGridCell, getNumberInRange, lim, minmax, P, rand } from "../utils";
 import type { Grid } from "../utils/graphUtils";
 
 type Tool = "Hill" | "Pit" | "Range" | "Trough" | "Strait" | "Mask" | "Invert" | "Add" | "Multiply" | "Smooth";
 
 class HeightmapModule {
+  worldContext: WorldContext = worldContext;
+  viewContext: Readonly<ViewContext> = viewContext;
+  appServices: AppServices = appServices;
   grid: Grid | null = null;
   heights: Uint8Array | null = null;
   blobPower: number = 0;
@@ -538,7 +547,16 @@ class HeightmapModule {
     }
   }
 
-  async generate(graph: Grid): Promise<Uint8Array> {
+  async generate(
+    worldContext: WorldContext,
+    viewContext: Readonly<ViewContext>,
+    appServices: AppServices,
+    graph: Grid
+  ): Promise<Uint8Array> {
+    this.worldContext = worldContext;
+    this.viewContext = viewContext;
+    this.appServices = appServices;
+    const { seed } = this.worldContext;
     TIME && console.time("defineHeightmap");
     const id = (ensureEl("templateInput")! as HTMLInputElement).value;
     Math.random = aleaPRNG(seed);

@@ -1,4 +1,10 @@
 import { quadtree, sum } from "d3";
+import type { AppServices } from "../context/appServices";
+import { appServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import { viewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
+import { worldContext } from "../context/worldContext";
 import type { WorldState } from "../types/WorldState";
 import { findAllInQuadtree, gauss, minmax, nth, ra, rand, rn, si } from "../utils";
 import type { State } from "./states-generator";
@@ -38,7 +44,7 @@ export interface MilitaryRegiment {
   angle?: number;
 }
 
-interface Platoon {
+export interface Platoon {
   cell: number;
   a: number; // platoon army
   t: number; // total troops in platoon
@@ -52,7 +58,20 @@ interface Platoon {
 }
 
 class MilitaryModule {
-  generate(state: WorldState) {
+  worldContext: WorldContext = worldContext;
+  viewContext: Readonly<ViewContext> = viewContext;
+  appServices: AppServices = appServices;
+
+  generate(
+    worldContext: WorldContext,
+    viewContext: Readonly<ViewContext>,
+    appServices: AppServices,
+    state: WorldState
+  ) {
+    this.worldContext = worldContext;
+    this.viewContext = viewContext;
+    this.appServices = appServices;
+    const { populationRate, urbanization, notes } = this.worldContext;
     const { pack, options } = state;
     TIME && console.time("generateMilitary");
     const { cells, states } = pack;
@@ -210,7 +229,7 @@ class MilitaryModule {
     };
 
     valid.forEach(s => {
-      s.temp = {};
+      s.temp = {} as Exclude<State["temp"], undefined>;
       const d = s.diplomacy!;
 
       const expansionRate = minmax(s.expansionism / expn / (s.area! / area), 0.25, 4); // how much state expansionism is realized
@@ -279,7 +298,7 @@ class MilitaryModule {
 
       for (const unit of military) {
         const perc = +unit.rural;
-        if (Number.isNaN(perc) || perc <= 0 || !stateObj.temp[unit.name]) continue;
+        if (Number.isNaN(perc) || perc <= 0 || !stateObj.temp![unit.name]) continue;
         if (!passUnitLimits(unit, biome, state, culture, religion)) continue;
         if (unit.type === "naval" && !cells.haven[i]) continue; // only near-ocean cells create naval units
 
@@ -290,7 +309,7 @@ class MilitaryModule {
                 unit.type as keyof (typeof cellTypeModifier)[keyof typeof cellTypeModifier]
               ]; // cell specific modifier
         const army = modifier * perc * cellTypeMod; // rural cell army
-        const total = rn(army * stateObj.temp[unit.name] * populationRate); // total troops
+        const total = rn(army * stateObj.temp![unit.name] * populationRate); // total troops
         if (!total) continue;
 
         let [x, y] = p[i];
@@ -303,7 +322,7 @@ class MilitaryModule {
           n = 1;
         }
 
-        stateObj.temp.platoons.push({
+        stateObj.temp!.platoons!.push({
           cell: i,
           a: total,
           t: total,
@@ -336,7 +355,7 @@ class MilitaryModule {
 
       for (const unit of military) {
         const perc = +unit.urban;
-        if (Number.isNaN(perc) || perc <= 0 || !stateObj.temp[unit.name]) continue;
+        if (Number.isNaN(perc) || perc <= 0 || !stateObj.temp![unit.name]) continue;
         if (!passUnitLimits(unit, biome, state, culture!, religion)) continue;
         if (unit.type === "naval" && (!b.port || !cells.haven[b.cell])) continue; // only ports create naval units
 
@@ -347,7 +366,7 @@ class MilitaryModule {
                 unit.type as keyof (typeof burgTypeModifier)[keyof typeof burgTypeModifier]
               ]; // cell specific modifier
         const army = m * perc * mod; // urban cell army
-        const total = rn(army * stateObj.temp[unit.name] * populationRate); // total troops
+        const total = rn(army * stateObj.temp![unit.name] * populationRate); // total troops
         if (!total) continue;
 
         let [x, y] = p[b.cell];
@@ -360,7 +379,7 @@ class MilitaryModule {
           n = 1;
         }
 
-        stateObj.temp.platoons.push({
+        stateObj.temp!.platoons!.push({
           cell: b.cell,
           a: total,
           t: total,
@@ -458,7 +477,7 @@ class MilitaryModule {
 
     // get regiments for each state
     valid.forEach(s => {
-      s.military = createRegiments(s.temp.platoons, s);
+      s.military = createRegiments(s.temp!.platoons!, s);
       delete s.temp; // do not store temp data
     });
 
@@ -521,6 +540,7 @@ class MilitaryModule {
   }
 
   getName(r: MilitaryRegiment, regiments: MilitaryRegiment[]) {
+    const { pack } = this.worldContext;
     const cells = pack.cells;
     const proper = r.n
       ? null
@@ -540,6 +560,7 @@ class MilitaryModule {
   }
 
   generateNote(r: MilitaryRegiment, s: State) {
+    const { pack, options, notes } = this.worldContext;
     const cells = pack.cells;
     const base =
       cells.burg[r.cell] && pack.burgs[cells.burg[r.cell]]
@@ -577,6 +598,7 @@ class MilitaryModule {
 
   // get default regiment emblem
   getEmblem(r: MilitaryRegiment) {
+    const { pack, options } = this.worldContext;
     if (!r.n && !Object.values(r.u).length) return "🔰"; // "Newbie" regiment without troops
     if (
       !r.n &&

@@ -1,5 +1,6 @@
-import { viewContext } from "../context/viewContext";
-import { worldContext } from "../context/worldContext";
+import type { AppServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
 import type { Burg } from "../modules/burgs-generator";
 import { TIME } from "../utils/debug";
 
@@ -8,7 +9,11 @@ interface BurgGroup {
   order: number;
 }
 
-export const drawBurgIcons = (): void => {
+export const drawBurgIcons = (
+  worldContext: Readonly<WorldContext>,
+  viewContext: Readonly<ViewContext>,
+  appServices: AppServices
+): void => {
   TIME && console.time("drawBurgIcons");
   const { pack, options, style } = worldContext;
   const { burgIcons, anchors } = viewContext;
@@ -40,15 +45,20 @@ export const drawBurgIcons = (): void => {
   TIME && console.timeEnd("drawBurgIcons");
 };
 
-export const drawBurgIcon = (burg: Burg): void => {
+export const drawBurgIcon = (
+  worldContext: Readonly<WorldContext>,
+  viewContext: Readonly<ViewContext>,
+  appServices: AppServices,
+  burg: Burg
+): void => {
   const { burgIcons, anchors } = viewContext;
   const iconGroup = burgIcons.select<SVGGElement>(`#${burg.group}`);
   if (iconGroup.empty()) {
-    drawBurgIcons();
+    drawBurgIcons(worldContext, viewContext, appServices);
     return;
   }
 
-  removeBurgIcon(burg.i!);
+  removeBurgIcon(worldContext, viewContext, appServices, burg.i!);
   const icon = iconGroup.attr("data-icon") || "#icon-circle";
   burgIcons
     .select(`#${burg.group}`)
@@ -71,7 +81,12 @@ export const drawBurgIcon = (burg: Burg): void => {
   }
 };
 
-export const removeBurgIcon = (burgId: number): void => {
+export const removeBurgIcon = (
+  worldContext: Readonly<WorldContext>,
+  viewContext: Readonly<ViewContext>,
+  appServices: AppServices,
+  burgId: number
+): void => {
   const existingIcon = document.getElementById(`burg${burgId}`);
   if (existingIcon) existingIcon.remove();
 
@@ -80,10 +95,10 @@ export const removeBurgIcon = (burgId: number): void => {
 };
 
 function createIconGroups(
-  options: typeof worldContext.options,
-  style: typeof worldContext.style,
-  burgIcons: typeof viewContext.burgIcons,
-  anchors: typeof viewContext.anchors
+  _options: WorldContext["options"],
+  style: WorldContext["style"],
+  _burgIcons: ViewContext["burgIcons"],
+  _anchors: ViewContext["anchors"]
 ): void {
   document.querySelectorAll("g#burgIcons > g").forEach(group => {
     style.burgIcons[group.id] = Array.from(group.attributes).reduce((acc: { [key: string]: string }, attribute) => {
@@ -103,16 +118,16 @@ function createIconGroups(
 
   const defaultIconStyle = style.burgIcons.town || Object.values(style.burgIcons)[0] || {};
   const defaultAnchorStyle = style.anchors.town || Object.values(style.anchors)[0] || {};
-  const sortedGroups = [...(options.burgs.groups as BurgGroup[])].sort((a, b) => a.order - b.order);
+  const sortedGroups = [...(_options.burgs.groups as BurgGroup[])].sort((a, b) => a.order - b.order);
   for (const { name } of sortedGroups) {
-    const burgGroup = burgIcons.append("g");
+    const burgGroup = _burgIcons.append("g");
     const iconStyles = style.burgIcons[name] || defaultIconStyle;
     Object.entries(iconStyles).forEach(([key, value]) => {
       burgGroup.attr(key, value);
     });
     burgGroup.attr("id", name);
 
-    const anchorGroup = anchors.append("g");
+    const anchorGroup = _anchors.append("g");
     const anchorStyles = style.anchors[name] || defaultAnchorStyle;
     Object.entries(anchorStyles).forEach(([key, value]) => {
       anchorGroup.attr(key, value);

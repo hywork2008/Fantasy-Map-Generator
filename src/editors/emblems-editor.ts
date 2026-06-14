@@ -8,9 +8,10 @@ import type { State } from "../modules/states-generator";
 import { openURL, rn } from "../utils";
 import { highlightEmblemElement } from "../utils/uiHelpers";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function editEmblem(type?: string, id?: string, el?: any): void {
+// biome-ignore lint/suspicious/noExplicitAny: polymorphic element
+export function editEmblem(type?: string, id?: string, elInput?: any): void {
   if (customization) return;
+  let el = elInput;
   if (!id && el) defineEmblemData(el);
 
   let _ex = 0,
@@ -92,7 +93,7 @@ export function editEmblem(type?: string, id?: string, el?: any): void {
     el = g[i];
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // biome-ignore lint/suspicious/noExplicitAny: polymorphic element
   function updateElementSelectors(typeVal: string, idVal: string, elVal: any): void {
     let state = 0;
     let province = 0;
@@ -104,14 +105,17 @@ export function editEmblem(type?: string, id?: string, el?: any): void {
     emblemBurgs.parentElement!.className = typeVal === "burg" ? "active" : "";
 
     // define selected values
-    if (typeVal === "state") state = elVal.i;
+    // biome-ignore lint/suspicious/noExplicitAny: polymorphic element
+    const anyEl = elVal as any;
+    if (typeVal === "state") state = anyEl.i;
     else if (typeVal === "province") {
-      province = elVal.i;
-      state = pack.states[elVal.state].i;
+      province = anyEl.i;
+      state = pack.states[anyEl.state].i;
     } else {
-      burg = elVal.i;
-      province = pack.cells.province[elVal.cell] ? pack.provinces[pack.cells.province[elVal.cell]].i : 0;
-      state = elVal.state;
+      burg = anyEl.i;
+      const p = pack.cells.province[anyEl.cell];
+      if (p) province = pack.provinces[p].i;
+      state = pack.states[anyEl.state].i;
     }
 
     const validBurgs = pack.burgs.filter(b => b.i && !b.removed && b.coa);
@@ -144,18 +148,17 @@ export function editEmblem(type?: string, id?: string, el?: any): void {
     updateEmblemData(typeVal, idVal, elVal);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // biome-ignore lint/suspicious/noExplicitAny: polymorphic element
   function updateEmblemData(typeVal: string, idVal: string, elVal: any): void {
     if (!elVal.coa) return;
     document.getElementById("emblemImage")!.setAttribute("href", `#${idVal}`);
-    let name = elVal.fullName || elVal.name;
-    if (typeVal === "burg") name = `Burg of ${name}`;
+    const name = elVal.fullName || elVal.name || "Unknown";
     document.getElementById("emblemArmiger")!.innerText = name;
 
     if (elVal.coa.custom) emblemShapeSelector.disabled = true;
     else {
       emblemShapeSelector.disabled = false;
-      emblemShapeSelector.value = elVal.coa.shield;
+      emblemShapeSelector.value = elVal.coa.shield || "";
     }
 
     const size = elVal.coa.size || 1;
@@ -205,6 +208,7 @@ export function editEmblem(type?: string, id?: string, el?: any): void {
   }
 
   function changeShape(): void {
+    if (!el || !el.coa) return;
     el.coa.shield = emblemShapeSelector.value;
     const coaEl = document.getElementById(id!);
     if (coaEl) coaEl.remove();
@@ -216,6 +220,7 @@ export function editEmblem(type?: string, id?: string, el?: any): void {
   }
 
   function changeSize(event: Event): void {
+    if (!el || !el.coa) return;
     const size = +(event.target as HTMLInputElement).value;
     el.coa.size = size;
 
@@ -229,8 +234,10 @@ export function editEmblem(type?: string, id?: string, el?: any): void {
     // re-append use element
     const categotySize = +g.attr("font-size");
     const shift = (categotySize * size) / 2;
-    const x = el.coa.x || el.x || el.pole[0];
-    const y = el.coa.y || el.y || el.pole[1];
+    // biome-ignore lint/suspicious/noExplicitAny: polymorphic element
+    const anyEl = el as any;
+    const x = el.coa.x || anyEl.x || anyEl.pole[0];
+    const y = el.coa.y || anyEl.y || anyEl.pole[1];
 
     g.append("use")
       .attr("data-i", el.i)
@@ -242,19 +249,22 @@ export function editEmblem(type?: string, id?: string, el?: any): void {
   }
 
   function regenerate(): void {
+    if (!el || !el.coa) return;
     let parent: Province | State | null = null;
-    if (type === "province") parent = pack.states[el.state] as State;
+    // biome-ignore lint/suspicious/noExplicitAny: polymorphic element
+    const anyEl = el as any;
+    if (type === "province") parent = pack.states[anyEl.state] as State;
     else if (type === "burg") {
-      const province = pack.cells.province[el.cell];
-      parent = province ? (pack.provinces[province] as Province) : (pack.states[el.state] as State);
+      const province = pack.cells.province[anyEl.cell];
+      parent = province ? (pack.provinces[province] as Province) : (pack.states[anyEl.state] as State);
     }
 
     const parentCulture = parent && "culture" in parent ? (parent as { culture: number }).culture : 0;
-    const shield = el.coa.shield || COA.getShield(el.culture || parentCulture, el.state);
+    const shield = el.coa.shield || COA.getShield(anyEl.culture || parentCulture, anyEl.state);
     el.coa = COA.generate(parent ? parent.coa : null, 0.3, 0.1, undefined);
     el.coa.shield = shield;
     emblemShapeSelector.disabled = false;
-    emblemShapeSelector.value = el.coa.shield;
+    emblemShapeSelector.value = el.coa.shield as string;
 
     const coaEl = document.getElementById(id!);
     if (coaEl) coaEl.remove();
@@ -262,6 +272,7 @@ export function editEmblem(type?: string, id?: string, el?: any): void {
   }
 
   function openInArmoria(): void {
+    if (!el || !el.coa) return;
     const coa = el.coa && !el.coa.custom ? el.coa : { t1: "sable" };
     const json = JSON.stringify(coa).replaceAll("#", "%23");
     const url = `https://azgaar.github.io/Armoria/?coa=${json}&from=FMG`;
@@ -292,6 +303,7 @@ export function editEmblem(type?: string, id?: string, el?: any): void {
     const reader = new FileReader();
 
     reader.onload = readerEvent => {
+      if (!el || !el.coa) return;
       const result = (readerEvent.target as FileReader).result as string;
       const defsEmblems = document.getElementById("defs-emblems")!;
       const oldEmblem = document.getElementById(id!);
@@ -329,7 +341,7 @@ export function editEmblem(type?: string, id?: string, el?: any): void {
       if (el.coa.size) customCoa.size = el.coa.size;
       if (el.coa.x) customCoa.x = el.coa.x;
       if (el.coa.y) customCoa.y = el.coa.y;
-      el.coa = customCoa;
+      el.coa = customCoa as unknown as import("../modules/emblem/generator").Emblem;
 
       emblemShapeSelector.disabled = true;
     };
@@ -349,7 +361,8 @@ export function editEmblem(type?: string, id?: string, el?: any): void {
     const size = +emblemsDownloadSize.value;
     const url = await getURL(coa, size);
     const link = document.createElement("a");
-    link.download = `${getFileName(`Emblem ${el.fullName || el.name}`)}.${format}`;
+    const name = el ? ("fullName" in el && el.fullName ? el.fullName : el.name) : "unknown";
+    link.download = `${getFileName(`Emblem ${name}`)}.${format}`;
 
     if (format === "svg") downloadSVG(url, link);
     else downloadRaster(format, url, link, size);
@@ -514,9 +527,9 @@ export function editEmblem(type?: string, id?: string, el?: any): void {
   async function renderAllEmblems(states: State[], provinces: Province[], burgs: Burg[]): Promise<void> {
     tip("Preparing for download...", true, "warn");
 
-    const statePromises = states.map(state => COArenderer.trigger(`stateCOA${state.i}`, state.coa));
-    const provincePromises = provinces.map(province => COArenderer.trigger(`provinceCOA${province.i}`, province.coa));
-    const burgPromises = burgs.map(burg => COArenderer.trigger(`burgCOA${burg.i}`, burg.coa));
+    const statePromises = states.map(state => COArenderer.trigger(`stateCOA${state.i}`, state.coa!));
+    const provincePromises = provinces.map(province => COArenderer.trigger(`provinceCOA${province.i}`, province.coa!));
+    const burgPromises = burgs.map(burg => COArenderer.trigger(`burgCOA${burg.i}`, burg.coa!));
     const promises = [...statePromises, ...provincePromises, ...burgPromises];
 
     return Promise.allSettled(promises).then(() => clearMainTip());

@@ -1,4 +1,10 @@
 import { mean } from "d3";
+import type { AppServices } from "../context/appServices";
+import { appServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import { viewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
+import { worldContext } from "../context/worldContext";
 import type { PackedGraph } from "../types/PackedGraph";
 import type { WorldState } from "../types/WorldState";
 import { capitalize, convertTemperature, gauss, generateDate, getAdjective, last, P, ra, rand, rn, rw } from "../utils";
@@ -38,6 +44,9 @@ export interface Marker {
 }
 
 class MarkersModule {
+  worldContext: WorldContext = worldContext;
+  viewContext: Readonly<ViewContext> = viewContext;
+  appServices: AppServices = appServices;
   private config: MarkerConfig[];
   private occupied: boolean[];
 
@@ -54,7 +63,15 @@ class MarkersModule {
     this.config = newConfig;
   }
 
-  generate(state: WorldState) {
+  generate(
+    worldContext: WorldContext,
+    viewContext: Readonly<ViewContext>,
+    appServices: AppServices,
+    state: WorldState
+  ) {
+    this.worldContext = worldContext;
+    this.viewContext = viewContext;
+    this.appServices = appServices;
     const { pack } = state;
     this.resetConfig();
     pack.markers = [];
@@ -62,6 +79,7 @@ class MarkersModule {
   }
 
   regenerate() {
+    const { pack, notes } = this.worldContext;
     pack.markers = pack.markers.filter(({ i, lock, cell }) => {
       if (lock) {
         this.occupied[cell] = true;
@@ -78,6 +96,7 @@ class MarkersModule {
   }
 
   add(marker: Marker) {
+    const { pack } = this.worldContext;
     const base = this.config.find(c => c.type === marker.type);
     if (base) {
       const { icon, type, dx, dy, px } = base;
@@ -93,6 +112,7 @@ class MarkersModule {
   }
 
   deleteMarker(markerId: number) {
+    let { notes, pack } = this.worldContext;
     const noteId = `marker${markerId}`;
     notes = notes.filter(note => note.id !== noteId);
     pack.markers = pack.markers.filter(m => m.i !== markerId);
@@ -461,6 +481,7 @@ class MarkersModule {
   }
 
   private generateTypes() {
+    const { pack } = this.worldContext;
     TIME && console.time("addMarkers");
 
     this.config.forEach(({ type, icon, dx, dy, px, min, each, multiplier, list, add }) => {
@@ -496,6 +517,7 @@ class MarkersModule {
   }
 
   private addMarker(base: Partial<Marker>, partialMarker: Partial<Marker>): Marker | undefined {
+    const { pack } = this.worldContext;
     if (partialMarker.cell === undefined) return;
     const i = last(pack.markers)?.i + 1 || 0;
     const [x, y] = this.getMarkerCoordinates(partialMarker.cell);
@@ -506,6 +528,7 @@ class MarkersModule {
   }
 
   private getMarkerCoordinates(cell: number) {
+    const { pack } = this.worldContext;
     const { cells, burgs } = pack;
     const burgId = cells.burg[cell];
 
@@ -522,6 +545,7 @@ class MarkersModule {
   }
 
   private addVolcano(id: string, cell: number) {
+    const { pack, notes } = this.worldContext;
     const { cells } = pack;
 
     const proper = Names.getCulture(cells.culture[cell]);
@@ -539,6 +563,7 @@ class MarkersModule {
   }
 
   private addHotSpring(id: string, cell: number) {
+    const { pack, notes } = this.worldContext;
     const { cells } = pack;
 
     const proper = Names.getCulture(cells.culture[cell]);
@@ -554,6 +579,7 @@ class MarkersModule {
   }
 
   private addWaterSource(id: string, cell: number) {
+    const { pack, notes } = this.worldContext;
     const { cells } = pack;
 
     const type = rw({
@@ -581,6 +607,7 @@ class MarkersModule {
   }
 
   private addMine(id: string, cell: number) {
+    const { pack, populationRate, urbanization, notes } = this.worldContext;
     const { cells } = pack;
 
     const resources = {
@@ -614,6 +641,7 @@ class MarkersModule {
   }
 
   private addBridge(id: string, cell: number) {
+    const { pack, notes } = this.worldContext;
     const { cells } = pack;
 
     const burg = pack.burgs[cells.burg[cell]];
@@ -912,6 +940,7 @@ class MarkersModule {
   }
 
   private addLighthouse(id: string, cell: number) {
+    const { pack, notes } = this.worldContext;
     const { cells } = pack;
 
     const proper = cells.burg[cell] ? pack.burgs[cells.burg[cell]].name! : Names.getCulture(cells.culture[cell]);
@@ -929,6 +958,7 @@ class MarkersModule {
   }
 
   private addWaterfall(id: string, cell: number) {
+    const { pack, notes } = this.worldContext;
     const { cells } = pack;
 
     const descriptions = [
@@ -955,6 +985,7 @@ class MarkersModule {
   }
 
   private addBattlefield(id: string, cell: number) {
+    const { pack, options, notes } = this.worldContext;
     const { cells, states } = pack;
 
     const state = states[cells.state[cell]];
@@ -971,6 +1002,7 @@ class MarkersModule {
   }
 
   private addDungeon(id: string, cell: number) {
+    const { seed, notes } = this.worldContext;
     const dungeonSeed = `${seed}${cell}`;
     const name = "Dungeon";
     const legend = `<div>Undiscovered dungeon. See <a href="https://watabou.github.io/one-page-dungeon/?seed=${dungeonSeed}" target="_blank">One page dungeon</a></div><iframe style="pointer-events: none;" src="https://watabou.github.io/one-page-dungeon/?seed=${dungeonSeed}" sandbox="allow-scripts allow-same-origin"></iframe>`;
@@ -984,6 +1016,7 @@ class MarkersModule {
   }
 
   private addLakeMonster(id: string, cell: number) {
+    const { pack, notes } = this.worldContext;
     const lake = pack.features[pack.cells.f[cell]];
 
     // Check that the feature is a lake in case the user clicked on a wrong
@@ -1016,7 +1049,7 @@ class MarkersModule {
   }
 
   private addSeaMonster(id: string, _cell: number) {
-    const name = `${Names.getCultureShort(0)} Monster`;
+    const name = `${Names.getCultureShort(this.worldContext, this.viewContext, this.appServices, 0)} Monster`;
     const length = gauss(25, 10, 10, 100);
     const legend = `Old sailors tell stories of a gigantic sea monster inhabiting these dangerous waters. Rumors say it can be ${length} ${heightUnit.value} long.`;
     notes.push({ id, name, legend });
@@ -1027,6 +1060,7 @@ class MarkersModule {
   }
 
   private addHillMonster(id: string, cell: number) {
+    const { pack, notes } = this.worldContext;
     const { cells } = pack;
 
     const adjectives = [
@@ -1110,6 +1144,7 @@ class MarkersModule {
   }
 
   private addSacredMountain(id: string, cell: number) {
+    const { pack, notes } = this.worldContext;
     const { cells, religions } = pack;
 
     const culture = cells.c[cell].map(c => cells.culture[c]).find(c => c)!;
@@ -1128,6 +1163,7 @@ class MarkersModule {
   }
 
   private addSacredForest(id: string, cell: number) {
+    const { pack, notes } = this.worldContext;
     const { cells, religions } = pack;
 
     const culture = cells.culture[cell];
@@ -1143,6 +1179,7 @@ class MarkersModule {
   }
 
   private addSacredPinery(id: string, cell: number) {
+    const { pack, notes } = this.worldContext;
     const { cells, religions } = pack;
 
     const culture = cells.culture[cell];
@@ -1166,6 +1203,7 @@ class MarkersModule {
   }
 
   private addSacredPalmGrove(id: string, cell: number) {
+    const { pack, notes } = this.worldContext;
     const { cells, religions } = pack;
 
     const culture = cells.culture[cell];
@@ -1180,6 +1218,7 @@ class MarkersModule {
   }
 
   private addBrigands(id: string, cell: number) {
+    const { pack, notes } = this.worldContext;
     const { cells } = pack;
 
     const animals = [
@@ -1250,6 +1289,7 @@ class MarkersModule {
   }
 
   private addStatue(id: string, cell: number) {
+    const { pack, notes } = this.worldContext;
     const { cells } = pack;
 
     const variants = [
@@ -1320,6 +1360,7 @@ class MarkersModule {
   }
 
   private addLibrary(id: string, cell: number) {
+    const { pack, notes } = this.worldContext;
     const { cells } = pack;
 
     const type = rw({ Library: 3, Archive: 1, Collection: 1 });
@@ -1356,6 +1397,7 @@ class MarkersModule {
   }
 
   private addJoust(id: string, cell: number) {
+    const { pack, notes } = this.worldContext;
     const { cells, burgs } = pack;
     const types = ["Joust", "Competition", "Melee", "Tournament", "Contest"];
     const virtues = ["cunning", "might", "speed", "the greats", "acumen", "brutality"];
@@ -1381,6 +1423,7 @@ class MarkersModule {
   }
 
   private addFair(id: string, cell: number) {
+    const { pack, notes } = this.worldContext;
     const { cells, burgs } = pack;
     if (!cells.burg[cell]) return;
 
@@ -1397,6 +1440,7 @@ class MarkersModule {
   }
 
   private addCanoe(id: string, cell: number) {
+    const { pack, notes } = this.worldContext;
     const river = pack.rivers.find(r => r.i === pack.cells.r[cell]);
 
     const name = `Minor Jetty`;
@@ -1475,6 +1519,7 @@ class MarkersModule {
   }
 
   private addDances(id: string, cell: number) {
+    const { pack, notes } = this.worldContext;
     const { cells, burgs } = pack;
     const burgName = burgs[cells.burg[cell]].name;
     const socialTypes = [
@@ -1527,6 +1572,7 @@ class MarkersModule {
   }
 
   private addCave(id: string, cell: number) {
+    const { pack, notes } = this.worldContext;
     const { cells } = pack;
 
     const formations = {
@@ -1567,6 +1613,7 @@ class MarkersModule {
   }
 
   private addPortal(id: string, cell: number) {
+    const { pack, notes } = this.worldContext;
     const { cells, burgs } = pack;
 
     if (!cells.burg[cell]) return;
@@ -1578,6 +1625,7 @@ class MarkersModule {
   }
 
   private listRifts({ cells }: PackedGraph) {
+    const { biomesData } = this.worldContext;
     return cells.i.filter(i => !this.occupied[i] && cells.pop[i] <= 3 && biomesData.habitability[cells.biome[i]]);
   }
 
@@ -1613,6 +1661,7 @@ class MarkersModule {
   }
 
   private addNecropolis(id: string, cell: number) {
+    const { pack, notes } = this.worldContext;
     const { cells } = pack;
 
     const toponym = Names.getCulture(cells.culture[cell]);

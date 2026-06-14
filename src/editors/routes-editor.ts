@@ -1,12 +1,14 @@
 import type * as d3 from "d3";
 import { drag, pointer, select } from "d3";
-import { worldContext } from "../context/worldContext";
+import type { WorldContext } from "../context/worldContext";
 import type { Route } from "../modules/routes-generator";
 import { Routes } from "../modules/routes-generator";
 import { ensureEl, findCell, getSegmentId, rn } from "../utils";
 import { getPackPolygon } from "../utils/graphUtils";
 import { editNotes } from "./notes-editor";
 import { editRouteGroups } from "./route-group-editor";
+
+let worldContext: WorldContext;
 
 // ─── routes-editor ──────────────────────────────────────────────────────────
 
@@ -589,4 +591,8 @@ export function createRoute(defaultGroup?: string): void {
     ensureEl("toggleCells").dataset.forced = "0";
     if (forced && layerIsOn("toggleCells")) toggleCells();
   }
+}
+
+export function initRoutesEditor(wc: WorldContext) {
+  worldContext = wc;
 }

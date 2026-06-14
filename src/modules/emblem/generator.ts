@@ -41,6 +41,9 @@ export interface Emblem {
   ordinaries?: EmblemOrdinary[];
   charges?: EmblemCharge[];
   custom?: boolean;
+  size?: number;
+  x?: number;
+  y?: number;
 }
 
 class EmblemGeneratorModule {

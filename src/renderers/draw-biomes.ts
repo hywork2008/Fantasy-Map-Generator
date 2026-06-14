@@ -1,8 +1,14 @@
-import { worldContext } from "../context/worldContext";
+import type { AppServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
 import { ensureEl, getGappedFillPaths, getIsolines } from "../utils";
 import { TIME } from "../utils/debug";
 
-export const drawBiomes = (): void => {
+export const drawBiomes = (
+  worldContext: Readonly<WorldContext>,
+  viewContext: Readonly<ViewContext>,
+  _appServices: AppServices
+): void => {
   TIME && console.time("drawBiomes");
 
   const { pack, biomesData } = worldContext;

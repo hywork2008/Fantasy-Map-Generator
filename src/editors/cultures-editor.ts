@@ -1,10 +1,12 @@
 import * as d3 from "d3";
+import type { AppServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
 import { BrushHistoryClass as BrushHistory } from "../editors/BrushHistory";
 import type { Burg } from "../modules/burgs-generator";
 
 type HighlightEvent = { id?: string | number | null; target?: EventTarget | null };
 
-import { worldContext } from "../context/worldContext";
 import { type HierarchyElement, open as openHierarchyTree } from "../controllers/hierarchy-tree";
 import type { Culture } from "../modules/cultures-generator";
 import { Cultures } from "../modules/cultures-generator";
@@ -16,6 +18,11 @@ import type { State } from "../modules/states-generator";
 import { drawCultures, drawPopulation } from "../renderers";
 import { abbreviate, applySortingByHeader, capitalize, debounce, ensureEl, findCell, isLand, rn, si } from "../utils";
 import { getPackPolygon } from "../utils/graphUtils";
+
+let worldContext: WorldContext;
+let viewContext: Readonly<ViewContext>;
+let appServices: AppServices;
+
 import { NamesbaseEditor } from "./namesbase-editor";
 
 const cultureTypes = ["Generic", "River", "Lake", "Naval", "Nomadic", "Hunting", "Highland"];
@@ -387,7 +394,7 @@ function cultureRegenerateName(this: Element): void {
     return;
   }
 
-  const name = Names.getCultureShort(cultureId);
+  const name = Names.getCultureShort(worldContext, viewContext, appServices, cultureId);
   (this.parentNode as Element).querySelector<HTMLInputElement>("input.cultureName")!.value = name;
   pack.cultures[cultureId].name = name;
 }
@@ -550,7 +557,7 @@ function applyPopulationChange(
     });
   }
 
-  if (layerIsOn("togglePopulation")) drawPopulation();
+  if (layerIsOn("togglePopulation")) drawPopulation(worldContext, viewContext, appServices);
   refreshCulturesEditor();
 }
 
@@ -765,7 +772,7 @@ function showHierarchy(): void {
 function recalculateCultures(force?: boolean): void {
   if (force || ensureEl<HTMLInputElement>("culturesAutoChange").checked) {
     Cultures.expand(getWorldState());
-    drawCultures();
+    drawCultures(worldContext, viewContext, appServices);
     pack.burgs.forEach((b: Burg) => {
       b.culture = pack.cells.culture[b.cell];
     });
@@ -880,7 +887,7 @@ function applyCultureManualAssignent(): void {
   });
 
   if (changed.size()) {
-    drawCultures();
+    drawCultures(worldContext, viewContext, appServices);
     refreshCulturesEditor();
   }
   exitCulturesManualAssignment();
@@ -1096,7 +1103,7 @@ async function uploadCulturesData(this: HTMLInputElement): Promise<void> {
       removeCulture(c.i);
     });
 
-  drawCultures();
+  drawCultures(worldContext, viewContext, appServices);
   refreshCulturesEditor();
 }
 
@@ -1113,5 +1120,11 @@ function updateLockStatus(this: Element): void {
 }
 
 declare global {
-  var ra: (arr: unknown[]) => any;
+  var ra: <T>(arr: T[]) => T;
+}
+
+export function initCulturesEditor(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {
+  worldContext = wc;
+  viewContext = vc;
+  appServices = as;
 }

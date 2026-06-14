@@ -1,6 +1,8 @@
 import { drag, polygonArea, select } from "d3";
 import { aleaPRNG } from "../components/AleaPRNG";
-import { worldContext } from "../context/worldContext";
+import type { AppServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
 import {
   drawBiomes,
   drawBorders,
@@ -21,6 +23,10 @@ import {
 import { getFeaturePath } from "../renderers/index";
 import { ensureEl, rn, si, unique } from "../utils";
 import { getPackPolygon } from "../utils/graphUtils";
+
+let worldContext: WorldContext;
+let viewContext: Readonly<ViewContext>;
+let appServices: AppServices;
 
 interface SliderDef {
   id: string;
@@ -170,7 +176,7 @@ class CoastlineEditorModule {
 
     const node = (event?.target ?? document.querySelector(".coastline path")) as SVGElement;
     debug.append("g").attr("id", "vertices");
-    elSelected = select(node);
+    elSelected = select(node as unknown as Element);
     selectCoastlineGroup(node);
     drawCoastlineVertices();
     viewbox.on("touchmove mousemove", null);
@@ -237,7 +243,9 @@ class CoastlineEditorModule {
 
       const featureId = +elSelected!.attr("data-f");
       const feature = features[featureId];
-      defs.select(`#featurePaths > path#feature_${featureId}`).attr("d", getFeaturePath(feature));
+      defs
+        .select(`#featurePaths > path#feature_${featureId}`)
+        .attr("d", getFeaturePath(worldContext, viewContext, appServices, feature));
 
       const points = (feature.vertices as number[]).map((v: number) => vertices.p[v]);
       feature.area = Math.abs(polygonArea(points as [number, number][]));
@@ -250,12 +258,12 @@ class CoastlineEditorModule {
     }
 
     function handleVertexDragEnd(): void {
-      if (layerIsOn("toggleStates")) drawStates();
-      if (layerIsOn("toggleProvinces")) drawProvinces();
-      if (layerIsOn("toggleBorders")) drawBorders();
-      if (layerIsOn("toggleBiomes")) drawBiomes();
-      if (layerIsOn("toggleReligions")) drawReligions();
-      if (layerIsOn("toggleCultures")) drawCultures();
+      if (layerIsOn("toggleStates")) drawStates(worldContext, viewContext, appServices);
+      if (layerIsOn("toggleProvinces")) drawProvinces(worldContext, viewContext, appServices);
+      if (layerIsOn("toggleBorders")) drawBorders(worldContext, viewContext, appServices);
+      if (layerIsOn("toggleBiomes")) drawBiomes(worldContext, viewContext, appServices);
+      if (layerIsOn("toggleReligions")) drawReligions(worldContext, viewContext, appServices);
+      if (layerIsOn("toggleCultures")) drawCultures(worldContext, viewContext, appServices);
     }
 
     function showGroupSection(): void {
@@ -402,7 +410,7 @@ class CoastlineEditorModule {
         defaultCoastSettings[key] = value;
         output.textContent = String(value);
         this.updatePreviews();
-        drawFeatures();
+        drawFeatures(worldContext, viewContext, appServices);
       });
 
       resetBtn.on("click", () => {
@@ -410,7 +418,7 @@ class CoastlineEditorModule {
         slider.value = String(defaultVal);
         output.textContent = String(defaultVal);
         this.updatePreviews();
-        drawFeatures();
+        drawFeatures(worldContext, viewContext, appServices);
       });
     }
 
@@ -436,7 +444,7 @@ class CoastlineEditorModule {
       defaultCoastSettings.enabled = enabledCb.checked;
       syncToggle();
       this.updatePreviews();
-      drawFeatures();
+      drawFeatures(worldContext, viewContext, appServices);
     });
 
     // Preset buttons
@@ -454,7 +462,7 @@ class CoastlineEditorModule {
           output.textContent = String(val);
         }
         this.updatePreviews();
-        drawFeatures();
+        drawFeatures(worldContext, viewContext, appServices);
       });
     }
 
@@ -539,6 +547,9 @@ class CoastlineEditorModule {
 
     const rand = aleaPRNG(PREVIEW_SEED);
     const profile = makeRoughnessProfile(
+      worldContext,
+      viewContext,
+      appServices,
       rand,
       defaultCoastSettings.roughnessContrast,
       defaultCoastSettings.profileHarmonics
@@ -650,9 +661,9 @@ class CoastlineEditorModule {
     ];
 
     const shape = defaultCoastSettings.enabled
-      ? fractalize(basePts, aleaPRNG(PREVIEW_SEED), defaultCoastSettings)
+      ? fractalize(worldContext, viewContext, appServices, basePts, aleaPRNG(PREVIEW_SEED), defaultCoastSettings)
       : { points: basePts, origIndices: [0, 1, 2, 3] };
-    const path = new Path2D(`${buildCoastlinePath(shape)}Z`);
+    const path = new Path2D(`${buildCoastlinePath(worldContext, viewContext, appServices, shape)}Z`);
 
     // Ocean background — radial gradient, lighter at centre
     const bgGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(W, H) * 0.85);
@@ -722,3 +733,9 @@ class CoastlineEditorModule {
 
 export const coastlineEditor = new CoastlineEditorModule();
 export const editCoastline = (event?: MouseEvent) => coastlineEditor.editCoastline(event);
+
+export function initCoastlineEditor(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {
+  worldContext = wc;
+  viewContext = vc;
+  appServices = as;
+}

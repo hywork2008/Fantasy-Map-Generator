@@ -1,8 +1,10 @@
 import { pointer } from "d3";
-import { worldContext } from "../context/worldContext";
+import type { WorldContext } from "../context/worldContext";
 import { Rivers } from "../modules/river-generator";
 import { findCell, last, rn } from "../utils";
 import { getPackPolygon } from "../utils/graphUtils";
+
+let worldContext: WorldContext;
 
 function createRiver(): void {
   if (customization) return;
@@ -154,3 +156,7 @@ function createRiver(): void {
 }
 
 window.createRiver = createRiver;
+
+export function initRiversCreator(wc: WorldContext) {
+  worldContext = wc;
+}

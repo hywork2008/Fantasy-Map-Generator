@@ -185,8 +185,7 @@ declare global {
   var requestRemoveStylePreset: () => void;
   var removeStylePreset: () => void;
   var updateMapFilter: () => void;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  var FlatQueue: new <T = any>() => {
+  var FlatQueue: new <T = unknown>() => {
     push: (item: T, priority: number) => void;
     pop: () => T;
     peekValue: () => number;
@@ -494,8 +493,7 @@ declare global {
   var drawLegend: (name: string, data: Array<[string | number, string, string]>) => void;
   var fitLegendBox: () => void;
   var refreshAllEditors: () => void;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  var elSelected: import("d3").Selection<any, unknown, null, undefined> | null;
+  var elSelected: import("d3").Selection<Element, unknown, null, undefined> | null;
   var unselect: () => void;
   var listen: (el: EventTarget, event: string, handler: EventListener) => () => void;
   var moveCircle: (x: number, y: number, r?: number) => void;

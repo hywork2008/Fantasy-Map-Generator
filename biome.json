@@ -27,7 +27,7 @@
         "noNonNullAssertion": "off"
       },
       "suspicious": {
-        "noExplicitAny": "off",
+        "noExplicitAny": "error",
         "noGlobalIsNan": {
           "level": "error",
           "fix": "safe"

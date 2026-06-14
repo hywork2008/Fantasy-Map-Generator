@@ -1,8 +1,15 @@
 import { type D3DragEvent, drag, pointer, select } from "d3";
+import type { AppServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
 import type { IceIceberg } from "../modules/ice";
 import { Ice } from "../modules/ice";
 import { redrawIceberg } from "../renderers/index";
 import { parseTransform } from "../utils";
+
+let worldContext: WorldContext;
+let viewContext: Readonly<ViewContext>;
+let appServices: AppServices;
 
 export function editIce(element: SVGElement): void {
   if (customization) return;
@@ -11,10 +18,10 @@ export function editIce(element: SVGElement): void {
   closeDialogs(".stable");
   if (!layerIsOn("toggleIce")) toggleIce();
 
-  elSelected = select(element);
-  const id = +elSelected.attr("data-id");
+  elSelected = select(element as unknown as Element);
+  const id = +elSelected!.attr("data-id");
   const iceElement = pack.ice.find(el => el.i === id);
-  const isGlacier = elSelected.attr("type") === "glacier";
+  const isGlacier = elSelected!.attr("type") === "glacier";
   const type = isGlacier ? "Glacier" : "Iceberg";
 
   const iceRandomize = document.getElementById("iceRandomize") as HTMLElement;
@@ -55,14 +62,14 @@ export function editIce(element: SVGElement): void {
   function randomizeShape(): void {
     const selectedId = +elSelected!.attr("data-id");
     Ice.randomizeIcebergShape(selectedId);
-    redrawIceberg(selectedId);
+    redrawIceberg(worldContext, viewContext, appServices, selectedId);
   }
 
   function changeSize(this: HTMLInputElement): void {
     const newSize = +this.value;
     const selectedId = +elSelected!.attr("data-id");
     Ice.changeIcebergSize(selectedId, newSize);
-    redrawIceberg(selectedId);
+    redrawIceberg(worldContext, viewContext, appServices, selectedId);
   }
 
   function toggleAdd(): void {
@@ -129,4 +136,10 @@ export function editIce(element: SVGElement): void {
     iceNew.classList.remove("pressed");
     unselect();
   }
+}
+
+export function initIceEditor(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {
+  worldContext = wc;
+  viewContext = vc;
+  appServices = as;
 }

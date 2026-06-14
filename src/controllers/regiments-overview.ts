@@ -1,8 +1,15 @@
 import { pointer, sum } from "d3";
+import type { AppServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
 import type { MilitaryRegiment, MilitaryUnit } from "../modules/military-generator";
 import { Military } from "../modules/military-generator";
 import { drawRegiment } from "../renderers/index";
 import { capitalize, ensureEl, findCell, getLatitude, getLongitude, last, rn, si } from "../utils";
+
+let worldContext: WorldContext;
+let viewContext: Readonly<ViewContext>;
+let appServices: AppServices;
 
 function overviewRegiments(state = -1): void {
   if (customization) return;
@@ -206,7 +213,7 @@ function overviewRegiments(state = -1): void {
     reg.name = Military.getName(reg, military);
     military.push(reg);
     Military.generateNote(reg, pack.states[stateFilter]);
-    drawRegiment(reg, stateFilter);
+    drawRegiment(worldContext, viewContext, appServices, reg, stateFilter);
     toggleAdd();
   }
 
@@ -245,3 +252,9 @@ function overviewRegiments(state = -1): void {
 }
 
 window.overviewRegiments = overviewRegiments;
+
+export function initRegimentsOverview(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {
+  worldContext = wc;
+  viewContext = vc;
+  appServices = as;
+}

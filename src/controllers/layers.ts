@@ -1,4 +1,7 @@
 import * as d3 from "d3";
+import type { AppServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
 import {
   drawBiomes,
   drawBorders,
@@ -29,10 +32,17 @@ import {
 } from "../renderers";
 import { ensureEl, isCtrlClick, showPrompt } from "../utils";
 
+let worldContext: WorldContext;
+let viewContext: Readonly<ViewContext>;
+let appServices: AppServices;
+
 // Layer presets: map preset name → list of toggle button IDs that should be ON
 let presets: Record<string, string[]> = {};
 
-export function initLayers(): void {
+export function initLayers(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices): void {
+  worldContext = wc;
+  viewContext = vc;
+  appServices = as;
   restoreCustomPresets();
   initSortable();
 }
@@ -234,41 +244,41 @@ function getCurrentPreset(): void {
 // ─── Layer orchestration ──────────────────────────────────────────────────────
 
 function drawLayers(): void {
-  drawFeatures();
-  if (layerIsOn("toggleTexture")) drawTexture();
-  if (layerIsOn("toggleHeight")) drawHeightmap();
-  if (layerIsOn("toggleBiomes")) drawBiomes();
-  if (layerIsOn("toggleCells")) drawCells();
-  if (layerIsOn("toggleGrid")) drawGrid();
-  if (layerIsOn("toggleCoordinates")) drawCoordinates();
+  drawFeatures(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleTexture")) drawTexture(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleHeight")) drawHeightmap(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleBiomes")) drawBiomes(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleCells")) drawCells(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleGrid")) drawGrid(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleCoordinates")) drawCoordinates(worldContext, viewContext, appServices);
   if (layerIsOn("toggleCompass")) {
     if (!compass.select("use").size()) compass.append("use").attr("xlink:href", "#defs-compass-rose");
     compass.style("display", "block");
   }
-  if (layerIsOn("toggleRivers")) drawRivers();
-  if (layerIsOn("toggleRelief")) drawReliefIcons();
-  if (layerIsOn("toggleReligions")) drawReligions();
-  if (layerIsOn("toggleCultures")) drawCultures();
-  if (layerIsOn("toggleStates")) drawStates();
-  if (layerIsOn("toggleProvinces")) drawProvinces();
-  if (layerIsOn("toggleZones")) drawZones();
-  if (layerIsOn("toggleBorders")) drawBorders();
-  if (layerIsOn("toggleRoutes")) drawRoutes();
-  if (layerIsOn("toggleTemperature")) drawTemperature();
-  if (layerIsOn("togglePopulation")) drawPopulation();
-  if (layerIsOn("toggleIce")) drawIce();
-  if (layerIsOn("togglePrecipitation")) drawPrecipitation();
-  if (layerIsOn("toggleEmblems")) drawEmblems();
+  if (layerIsOn("toggleRivers")) drawRivers(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleRelief")) drawReliefIcons(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleReligions")) drawReligions(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleCultures")) drawCultures(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleStates")) drawStates(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleProvinces")) drawProvinces(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleZones")) drawZones(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleBorders")) drawBorders(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleRoutes")) drawRoutes(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleTemperature")) drawTemperature(worldContext, viewContext, appServices);
+  if (layerIsOn("togglePopulation")) drawPopulation(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleIce")) drawIce(worldContext, viewContext, appServices);
+  if (layerIsOn("togglePrecipitation")) drawPrecipitation(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleEmblems")) drawEmblems(worldContext, viewContext, appServices);
   if (layerIsOn("toggleLabels")) drawLabels();
-  if (layerIsOn("toggleBurgIcons")) drawBurgIcons();
-  if (layerIsOn("toggleMilitary")) drawMilitary();
-  if (layerIsOn("toggleMarkers")) drawMarkers();
+  if (layerIsOn("toggleBurgIcons")) drawBurgIcons(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleMilitary")) drawMilitary(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleMarkers")) drawMarkers(worldContext, viewContext, appServices);
   if (layerIsOn("toggleRulers")) rulers.draw();
 }
 
 function drawLabels(): void {
-  drawStateLabels();
-  drawBurgLabels();
+  drawStateLabels(worldContext, viewContext, appServices);
+  drawBurgLabels(worldContext, viewContext, appServices);
   invokeActiveZooming();
 }
 
@@ -299,7 +309,7 @@ function toggleHeight(event?: MouseEvent): void {
   const children = terrs.selectAll("#oceanHeights > *, #landHeights > *");
   if (!children.size()) {
     turnButtonOn("toggleHeight");
-    drawHeightmap();
+    drawHeightmap(worldContext, viewContext, appServices);
     if (event && isCtrlClick(event)) editStyle("terrs");
   } else {
     if (event && isCtrlClick(event)) {
@@ -314,7 +324,7 @@ function toggleHeight(event?: MouseEvent): void {
 function toggleTemperature(event?: MouseEvent): void {
   if (!temperature.selectAll("*").size()) {
     turnButtonOn("toggleTemperature");
-    drawTemperature();
+    drawTemperature(worldContext, viewContext, appServices);
     if (event && isCtrlClick(event)) editStyle("temperature");
   } else {
     if (event && isCtrlClick(event)) {
@@ -329,7 +339,7 @@ function toggleTemperature(event?: MouseEvent): void {
 function toggleBiomes(event?: MouseEvent): void {
   if (!biomes.selectAll("path").size()) {
     turnButtonOn("toggleBiomes");
-    drawBiomes();
+    drawBiomes(worldContext, viewContext, appServices);
     if (event && isCtrlClick(event)) editStyle("biomes");
   } else {
     if (event && isCtrlClick(event)) {
@@ -344,7 +354,7 @@ function toggleBiomes(event?: MouseEvent): void {
 function togglePrecipitation(event?: MouseEvent): void {
   if (!prec.selectAll("circle").size()) {
     turnButtonOn("togglePrecipitation");
-    drawPrecipitation();
+    drawPrecipitation(worldContext, viewContext, appServices);
     if (event && isCtrlClick(event)) editStyle("prec");
   } else {
     if (event && isCtrlClick(event)) {
@@ -362,7 +372,7 @@ function togglePrecipitation(event?: MouseEvent): void {
 function togglePopulation(event?: MouseEvent): void {
   if (!population.selectAll("line").size()) {
     turnButtonOn("togglePopulation");
-    drawPopulation();
+    drawPopulation(worldContext, viewContext, appServices);
     if (event && isCtrlClick(event)) editStyle("population");
   } else {
     if (event && isCtrlClick(event)) {
@@ -396,7 +406,7 @@ function togglePopulation(event?: MouseEvent): void {
 function toggleCells(event?: MouseEvent): void {
   if (!cells.selectAll("path").size()) {
     turnButtonOn("toggleCells");
-    drawCells();
+    drawCells(worldContext, viewContext, appServices);
     if (event && isCtrlClick(event)) editStyle("cells");
   } else {
     if (event && isCtrlClick(event)) {
@@ -412,7 +422,7 @@ function toggleIce(event?: MouseEvent): void {
   if (!layerIsOn("toggleIce")) {
     turnButtonOn("toggleIce");
     $("#ice").fadeIn();
-    if (!ice.selectAll("*").size()) drawIce();
+    if (!ice.selectAll("*").size()) drawIce(worldContext, viewContext, appServices);
     if (event && isCtrlClick(event)) editStyle("ice");
   } else {
     if (event && isCtrlClick(event)) {
@@ -429,7 +439,7 @@ function toggleCultures(event?: MouseEvent): void {
   const empty = !cults.selectAll("path").size();
   if (empty && activeCultures.length) {
     turnButtonOn("toggleCultures");
-    drawCultures();
+    drawCultures(worldContext, viewContext, appServices);
     if (event && isCtrlClick(event)) editStyle("cults");
   } else {
     if (event && isCtrlClick(event)) {
@@ -445,7 +455,7 @@ function toggleReligions(event?: MouseEvent): void {
   const activeReligions = pack.religions.filter(r => r.i && !r.removed);
   if (!relig.selectAll("path").size() && activeReligions.length) {
     turnButtonOn("toggleReligions");
-    drawReligions();
+    drawReligions(worldContext, viewContext, appServices);
     if (event && isCtrlClick(event)) editStyle("relig");
   } else {
     if (event && isCtrlClick(event)) {
@@ -460,7 +470,7 @@ function toggleReligions(event?: MouseEvent): void {
 function toggleStates(event?: MouseEvent): void {
   if (!layerIsOn("toggleStates")) {
     turnButtonOn("toggleStates");
-    drawStates();
+    drawStates(worldContext, viewContext, appServices);
     if (event && isCtrlClick(event)) editStyle("regions");
   } else {
     if (event && isCtrlClick(event)) {
@@ -475,7 +485,7 @@ function toggleStates(event?: MouseEvent): void {
 function toggleBorders(event?: MouseEvent): void {
   if (!layerIsOn("toggleBorders")) {
     turnButtonOn("toggleBorders");
-    drawBorders();
+    drawBorders(worldContext, viewContext, appServices);
     if (event && isCtrlClick(event)) editStyle("borders");
   } else {
     if (event && isCtrlClick(event)) {
@@ -490,7 +500,7 @@ function toggleBorders(event?: MouseEvent): void {
 function toggleProvinces(event?: MouseEvent): void {
   if (!layerIsOn("toggleProvinces")) {
     turnButtonOn("toggleProvinces");
-    drawProvinces();
+    drawProvinces(worldContext, viewContext, appServices);
     if (event && isCtrlClick(event)) editStyle("provs");
   } else {
     if (event && isCtrlClick(event)) {
@@ -505,7 +515,7 @@ function toggleProvinces(event?: MouseEvent): void {
 function toggleGrid(event?: MouseEvent): void {
   if (!gridOverlay.selectAll("*").size()) {
     turnButtonOn("toggleGrid");
-    drawGrid();
+    drawGrid(worldContext, viewContext, appServices);
     calculateFriendlyGridSize();
     if (event && isCtrlClick(event)) editStyle("gridOverlay");
   } else {
@@ -521,7 +531,7 @@ function toggleGrid(event?: MouseEvent): void {
 function toggleCoordinates(event?: MouseEvent): void {
   if (!coordinates.selectAll("*").size()) {
     turnButtonOn("toggleCoordinates");
-    drawCoordinates();
+    drawCoordinates(worldContext, viewContext, appServices);
     if (event && isCtrlClick(event)) editStyle("coordinates");
   } else {
     if (event && isCtrlClick(event)) {
@@ -552,7 +562,7 @@ function toggleCompass(event?: MouseEvent): void {
 function toggleRelief(event?: MouseEvent): void {
   if (!layerIsOn("toggleRelief")) {
     turnButtonOn("toggleRelief");
-    if (!terrain.selectAll("*").size()) drawReliefIcons();
+    if (!terrain.selectAll("*").size()) drawReliefIcons(worldContext, viewContext, appServices);
     $("#terrain").fadeIn();
     if (event && isCtrlClick(event)) editStyle("terrain");
   } else {
@@ -583,7 +593,7 @@ function toggleLakes(event?: MouseEvent): void {
 function toggleTexture(event?: MouseEvent): void {
   if (!layerIsOn("toggleTexture")) {
     turnButtonOn("toggleTexture");
-    drawTexture();
+    drawTexture(worldContext, viewContext, appServices);
     if (event && isCtrlClick(event)) editStyle("texture");
   } else {
     if (event && isCtrlClick(event)) {
@@ -598,7 +608,7 @@ function toggleTexture(event?: MouseEvent): void {
 function toggleRivers(event?: MouseEvent): void {
   if (!layerIsOn("toggleRivers")) {
     turnButtonOn("toggleRivers");
-    drawRivers();
+    drawRivers(worldContext, viewContext, appServices);
     if (event && isCtrlClick(event)) editStyle("rivers");
   } else {
     if (event && isCtrlClick(event)) {
@@ -613,7 +623,7 @@ function toggleRivers(event?: MouseEvent): void {
 function toggleRoutes(event?: MouseEvent): void {
   if (!layerIsOn("toggleRoutes")) {
     turnButtonOn("toggleRoutes");
-    drawRoutes();
+    drawRoutes(worldContext, viewContext, appServices);
     if (event && isCtrlClick(event)) editStyle("routes");
   } else {
     if (event && isCtrlClick(event)) {
@@ -628,7 +638,7 @@ function toggleRoutes(event?: MouseEvent): void {
 function toggleMilitary(event?: MouseEvent): void {
   if (!layerIsOn("toggleMilitary")) {
     turnButtonOn("toggleMilitary");
-    drawMilitary();
+    drawMilitary(worldContext, viewContext, appServices);
     if (event && isCtrlClick(event)) editStyle("armies");
   } else {
     if (event && isCtrlClick(event)) {
@@ -643,7 +653,7 @@ function toggleMilitary(event?: MouseEvent): void {
 function toggleMarkers(event?: MouseEvent): void {
   if (!layerIsOn("toggleMarkers")) {
     turnButtonOn("toggleMarkers");
-    drawMarkers();
+    drawMarkers(worldContext, viewContext, appServices);
     if (event && isCtrlClick(event)) editStyle("markers");
   } else {
     if (event && isCtrlClick(event)) {
@@ -674,7 +684,7 @@ function toggleLabels(event?: MouseEvent): void {
 function toggleBurgIcons(event?: MouseEvent): void {
   if (!layerIsOn("toggleBurgIcons")) {
     turnButtonOn("toggleBurgIcons");
-    drawBurgIcons();
+    drawBurgIcons(worldContext, viewContext, appServices);
     if (event && isCtrlClick(event)) editStyle("burgIcons");
   } else {
     if (event && isCtrlClick(event)) {
@@ -721,7 +731,7 @@ function toggleScaleBar(event?: MouseEvent): void {
 function toggleZones(event?: MouseEvent): void {
   if (!layerIsOn("toggleZones")) {
     turnButtonOn("toggleZones");
-    drawZones();
+    drawZones(worldContext, viewContext, appServices);
     if (event && isCtrlClick(event)) editStyle("zones");
   } else {
     if (event && isCtrlClick(event)) {
@@ -736,7 +746,7 @@ function toggleZones(event?: MouseEvent): void {
 function toggleEmblems(event?: MouseEvent): void {
   if (!layerIsOn("toggleEmblems")) {
     turnButtonOn("toggleEmblems");
-    if (!emblems.selectAll("use").size()) drawEmblems();
+    if (!emblems.selectAll("use").size()) drawEmblems(worldContext, viewContext, appServices);
     $("#emblems").fadeIn();
     invokeActiveZooming();
     if (event && isCtrlClick(event)) editStyle("emblems");

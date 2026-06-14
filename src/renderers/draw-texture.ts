@@ -1,7 +1,12 @@
-import { viewContext } from "../context/viewContext";
-import { worldContext } from "../context/worldContext";
+import type { AppServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
 
-export const drawTexture = (): void => {
+export const drawTexture = (
+  worldContext: Readonly<WorldContext>,
+  viewContext: Readonly<ViewContext>,
+  appServices: AppServices
+): void => {
   const { graphWidth, graphHeight } = worldContext;
   const { texture } = viewContext;
 

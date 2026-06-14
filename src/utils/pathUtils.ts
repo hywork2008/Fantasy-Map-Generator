@@ -332,7 +332,7 @@ export const findPath = (
 
   const from = [];
   const cost = [];
-  const queue = new window.FlatQueue();
+  const queue = new window.FlatQueue<number>();
   queue.push(start, 0);
 
   while (queue.length) {

@@ -1,4 +1,7 @@
 import { hsl } from "d3";
+import type { AppServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
 import type { Burg } from "../modules/burgs-generator";
 import type { Culture } from "../modules/cultures-generator";
 import { Cultures } from "../modules/cultures-generator";
@@ -12,6 +15,10 @@ import { fitScaleBar } from "../renderers/index";
 import { ensureEl, gauss, last, minmax, P, rand, rn, rw } from "../utils";
 import { exportToJson as exportToJsonModule } from "./export-json";
 import { open as openHeightmapSelection } from "./heightmap-selection";
+
+let worldContext: WorldContext;
+let viewContext: Readonly<ViewContext>;
+let appServices: AppServices;
 
 // ─── Init jQuery draggable / disable-selection ────────────────────────────────
 
@@ -144,7 +151,7 @@ export function fitMapToScreen(): void {
     ])
     .scaleExtent([zoomMin, zoomMax]);
 
-  fitScaleBar(scaleBar, svgWidth, svgHeight);
+  fitScaleBar(worldContext, viewContext, appServices, scaleBar, svgWidth, svgHeight);
   if (typeof fitLegendBox !== "undefined") fitLegendBox();
 }
 
@@ -629,7 +636,7 @@ function setRendering(value: string): void {
   } else {
     coastline.select("#sea_island").style("filter", null);
     statesHalo.style("display", null);
-    if (pack.cells && statesHalo.selectAll("*").size() === 0) drawStates();
+    if (pack.cells && statesHalo.selectAll("*").size() === 0) drawStates(worldContext, viewContext, appServices);
   }
 }
 
@@ -1196,7 +1203,10 @@ window.initGoogleTranslate = initGoogleTranslate;
 window.openTemplateSelectionDialog = openTemplateSelectionDialog;
 window.changeViewMode = changeViewMode;
 
-export function initOptions(): void {
+export function initOptions(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices): void {
+  worldContext = wc;
+  viewContext = vc;
+  appServices = as;
   // draggable/sortable/disableSelection
   $("#optionsContainer").draggable({ handle: ".drag-trigger", snap: "svg", snapMode: "both" });
   $("#exitCustomization").draggable({ handle: "div" });

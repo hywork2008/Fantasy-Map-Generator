@@ -1,5 +1,11 @@
 import { curveCatmullRom, line } from "d3";
 import Delaunator from "delaunator";
+import type { AppServices } from "../context/appServices";
+import { appServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import { viewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
+import { worldContext } from "../context/worldContext";
 import type { WorldState } from "../types/WorldState";
 import { distanceSquared, findClosestCell, findPath, getAdjective, ra, rn, round, rw } from "../utils";
 import { isLand } from "../utils/graphUtils";
@@ -181,6 +187,10 @@ export interface Route {
 }
 
 class RoutesModule {
+  worldContext: WorldContext = worldContext;
+  viewContext: Readonly<ViewContext> = viewContext;
+  appServices: AppServices = appServices;
+
   buildLinks(routes: Route[]): Record<number, Record<number, number>> {
     const links: Record<number, Record<number, number>> = {};
 
@@ -271,6 +281,7 @@ class RoutesModule {
   }
 
   private createCostEvaluator({ isWater, connections }: { isWater: boolean; connections: Map<string, boolean> }) {
+    const { pack, biomesData, grid } = this.worldContext;
     function getLandPathCost(current: number, next: number) {
       if (pack.cells.h[next] < 20) return Infinity; // ignore water cells
 
@@ -339,6 +350,7 @@ class RoutesModule {
     start: number;
     exit: number;
   }) {
+    const { pack } = this.worldContext;
     const getCost = this.createCostEvaluator({ isWater, connections });
     const pathCells = findPath(start, current => current === exit, getCost, pack);
     if (!pathCells) return [];
@@ -347,6 +359,7 @@ class RoutesModule {
   }
 
   private generateMainRoads(connections: Map<string, boolean>) {
+    const { pack } = this.worldContext;
     TIME && console.time("generateMainRoads");
     const { capitalsByFeature } = this.sortBurgsByFeature(pack.burgs);
     const mainRoads: Route[] = [];
@@ -387,6 +400,7 @@ class RoutesModule {
   }
 
   private generateTrails(connections: Map<string, boolean>) {
+    const { pack } = this.worldContext;
     TIME && console.time("generateTrails");
     const { burgsByFeature } = this.sortBurgsByFeature(pack.burgs);
     const trails: Route[] = [];
@@ -416,6 +430,7 @@ class RoutesModule {
   }
 
   private generateSeaRoutes(connections: Map<string, boolean>) {
+    const { pack } = this.worldContext;
     TIME && console.time("generateSeaRoutes");
     const { portsByFeature } = this.sortBurgsByFeature(pack.burgs);
     const seaRoutes: Route[] = [];
@@ -448,6 +463,7 @@ class RoutesModule {
   }
 
   private preparePointsArray(): Point[] {
+    const { pack } = this.worldContext;
     const { cells, burgs } = pack;
     return cells.p.map(([x, y], cellId) => {
       const burgId = cells.burg[cellId];
@@ -457,6 +473,7 @@ class RoutesModule {
   }
 
   private getPoints(group: string, cells: number[], points: Point[]): [number, number, number][] {
+    const { pack } = this.worldContext;
     const data: [number, number, number][] = cells.map(
       cellId => [...points[cellId], cellId] as [number, number, number]
     );
@@ -550,7 +567,16 @@ class RoutesModule {
     return routes;
   }
 
-  generate(state: WorldState, lockedRoutes: Route[] = []) {
+  generate(
+    worldContext: WorldContext,
+    viewContext: Readonly<ViewContext>,
+    appServices: AppServices,
+    state: WorldState,
+    lockedRoutes: Route[] = []
+  ) {
+    this.worldContext = worldContext;
+    this.viewContext = viewContext;
+    this.appServices = appServices;
     const { pack } = state;
     const connections = new Map();
     lockedRoutes.forEach((route: Route) => {
@@ -566,16 +592,19 @@ class RoutesModule {
 
   // utility functions
   isConnected(cellId: number): boolean {
+    const { pack } = this.worldContext;
     const routes = pack.cells.routes;
     return routes[cellId] && Object.keys(routes[cellId]).length > 0;
   }
 
   getNextId() {
+    const { pack } = this.worldContext;
     return pack.routes.length ? Math.max(...pack.routes.map(r => r.i)) + 1 : 0;
   }
 
   // connect cell with routes system by land
   connect(cellId: number): Route | undefined {
+    const { pack } = this.worldContext;
     const getCost = this.createCostEvaluator({
       isWater: false,
       connections: new Map()
@@ -611,11 +640,13 @@ class RoutesModule {
   }
 
   areConnected(from: number, to: number): boolean {
+    const { pack } = this.worldContext;
     const routeId = pack.cells.routes[from]?.[to];
     return routeId !== undefined;
   }
 
   getRoute(from: number, to: number) {
+    const { pack } = this.worldContext;
     const routeId = pack.cells.routes[from]?.[to];
     if (routeId === undefined) return null;
 
@@ -626,6 +657,7 @@ class RoutesModule {
   }
 
   hasRoad(cellId: number): boolean {
+    const { pack } = this.worldContext;
     const connections = pack.cells.routes[cellId];
     if (!connections) return false;
 
@@ -637,6 +669,7 @@ class RoutesModule {
   }
 
   isCrossroad(cellId: number): boolean {
+    const { pack } = this.worldContext;
     const connections = pack.cells.routes[cellId];
     if (!connections) return false;
     if (Object.keys(connections).length > 3) return true;
@@ -648,6 +681,7 @@ class RoutesModule {
   }
 
   remove(route: Route) {
+    const { pack } = this.worldContext;
     const routes = pack.cells.routes;
 
     for (const point of route.points) {
@@ -667,6 +701,7 @@ class RoutesModule {
   }
 
   getConnectivityRate(cellId: number): number {
+    const { pack } = this.worldContext;
     const connections = pack.cells.routes[cellId];
     if (!connections) return 0;
 
@@ -688,6 +723,7 @@ class RoutesModule {
   }
 
   generateName({ group, points }: { group: string; points: number[][] }): string {
+    const { pack } = this.worldContext;
     if (points.length < 4) return "Unnamed route segment";
 
     function getBurgName() {
@@ -712,7 +748,7 @@ class RoutesModule {
 
   getPath({ group, points }: { group: string; points: number[][] }): string {
     const lineGen = line();
-    const ROUTE_CURVES: Record<string, any> = {
+    const ROUTE_CURVES: Record<string, import("d3").CurveFactory | import("d3").CurveFactoryLineOnly> = {
       roads: curveCatmullRom.alpha(0.1),
       trails: curveCatmullRom.alpha(0.1),
       searoutes: curveCatmullRom.alpha(0.5),

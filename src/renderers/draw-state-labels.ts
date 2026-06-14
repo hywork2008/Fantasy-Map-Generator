@@ -1,6 +1,7 @@
 import { curveNatural, line, max, select } from "d3";
-import { viewContext } from "../context/viewContext";
-import { worldContext } from "../context/worldContext";
+import type { AppServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
 import type { TypedArray } from "../types/PackedGraph";
 import { drawPath, drawPoint, findClosestCell, minmax, rn, round, splitInTwo } from "../utils";
 import { DEBUG, TIME } from "../utils/debug";
@@ -21,7 +22,12 @@ interface AngleData {
 type PathPoints = [number, number][];
 
 // list - an optional array of stateIds to regenerate
-export const drawStateLabels = (list?: number[]): void => {
+export const drawStateLabels = (
+  worldContext: Readonly<WorldContext>,
+  viewContext: Readonly<ViewContext>,
+  appServices: AppServices,
+  list?: number[]
+): void => {
   TIME && console.time("drawStateLabels");
   const { pack, options, graphWidth, graphHeight } = worldContext;
   const { labels } = viewContext;

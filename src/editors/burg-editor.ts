@@ -130,7 +130,7 @@ export function editBurg(id?: number): void {
 
     // set emblem image
     const coaID = `burgCOA${burgId}`;
-    COArenderer.trigger(coaID, b.coa);
+    COArenderer.trigger(coaID, b.coa!);
     (ensureEl("burgEmblem") as unknown as SVGUseElement).setAttribute("href", `#${coaID}`);
 
     updateBurgPreview(b);

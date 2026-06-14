@@ -1,4 +1,10 @@
 import { max, quadtree, range } from "d3";
+import type { AppServices } from "../context/appServices";
+import { appServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import { viewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
+import { worldContext } from "../context/worldContext";
 import type { PackedGraph } from "../types/PackedGraph";
 import type { WorldState } from "../types/WorldState";
 import { abbreviate, biased, ensureEl, getColors, getRandomColor, minmax, P, rand, rn, rw } from "../utils";
@@ -26,6 +32,9 @@ export interface Culture {
 }
 
 class CulturesModule {
+  worldContext: WorldContext = worldContext;
+  viewContext: Readonly<ViewContext> = viewContext;
+  appServices: AppServices = appServices;
   cells: PackedGraph["cells"] | null = null;
 
   getRandomShield() {
@@ -34,6 +43,7 @@ class CulturesModule {
   }
 
   getDefault(count: number = 0): Omit<Culture, "i">[] {
+    const { pack, grid, nameBases } = this.worldContext;
     // generic sorting functions
     const cells = pack.cells,
       s = cells.s,
@@ -1006,7 +1016,15 @@ class CulturesModule {
     ];
   }
 
-  generate(state: WorldState) {
+  generate(
+    worldContext: WorldContext,
+    viewContext: Readonly<ViewContext>,
+    appServices: AppServices,
+    state: WorldState
+  ) {
+    this.worldContext = worldContext;
+    this.viewContext = viewContext;
+    this.appServices = appServices;
     const { pack } = state;
     let { nameBases } = state;
     TIME && console.time("generateCultures");
@@ -1193,6 +1211,7 @@ class CulturesModule {
   }
 
   add(center: number) {
+    const { pack } = this.worldContext;
     const defaultCultures = this.getDefault();
     let culture: number, base: number, name: string;
 
@@ -1234,11 +1253,12 @@ class CulturesModule {
   }
 
   expand(state: WorldState) {
+    const { biomesData } = this.worldContext;
     const { pack } = state;
     TIME && console.time("expandCultures");
     const { cells, cultures } = pack;
 
-    const queue = new FlatQueue();
+    const queue = new FlatQueue<{ cellId: number; cultureId: number; priority: number }>();
     const cost: number[] = [];
 
     const neutralRate = (document.getElementById("neutralRate") as HTMLInputElement | null)?.valueAsNumber || 1;
@@ -1258,7 +1278,7 @@ class CulturesModule {
 
     for (const culture of cultures) {
       if (!culture.i || culture.removed || culture.lock) continue;
-      queue.push({ cellId: culture.center, cultureId: culture.i, priority: 0 }, 0);
+      queue.push({ cellId: culture.center!, cultureId: culture.i, priority: 0 }, 0);
     }
 
     const getBiomeCost = (c: number, biome: number, type: string) => {
