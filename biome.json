@@ -64,6 +64,27 @@
   },
   "overrides": [
     {
+      "includes": ["src/modules/**/*.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedGlobals": {
+              "level": "warn",
+              "options": {
+                "deniedGlobals": {
+                  "document": "Generator/module files must not access the DOM directly. Pass DOM dependencies via function arguments instead.",
+                  "window": "Generator/module files must not assign to window or use window globals. Use explicit imports or function arguments instead.",
+                  "navigator": "Generator/module files must not access browser APIs. Pass dependencies via function arguments instead.",
+                  "location": "Generator/module files must not access browser location. Pass via function arguments instead.",
+                  "history": "Generator/module files must not access browser history. Pass via function arguments instead."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
       "includes": ["src/renderers/**/*.ts"],
       "linter": {
         "rules": {
