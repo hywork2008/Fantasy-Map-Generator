@@ -29,11 +29,18 @@ export type PromptConfig = {
   onCancel?: () => void;
 };
 
+export type BaseDialogConfig = {
+  close?: () => void;
+  onClose?: () => void;
+  [key: string]: unknown;
+};
+
 export interface DialogState {
   openDialogs: Set<string>;
+  dialogConfigs: Record<string, BaseDialogConfig>;
   alertConfig: DialogConfig | null;
   promptConfig: PromptConfig | null;
-  openDialog: (id: string, config?: unknown) => void;
+  openDialog: (id: string, config?: BaseDialogConfig) => void;
   closeDialog: (id: string) => void;
   closeAllDialogs: (except?: string) => void;
   setAlertConfig: (config: DialogConfig | null) => void;
@@ -42,25 +49,53 @@ export interface DialogState {
 
 export const dialogStore = createStore<DialogState>(set => ({
   openDialogs: new Set(),
+  dialogConfigs: {},
   alertConfig: null,
   promptConfig: null,
-  openDialog: id =>
+  openDialog: (id, config) =>
     set(state => {
       const newSet = new Set(state.openDialogs);
       newSet.add(id);
-      return { openDialogs: newSet };
+      const newConfigs = { ...state.dialogConfigs };
+      if (config) newConfigs[id] = config;
+      return {
+        openDialogs: newSet,
+        dialogConfigs: newConfigs
+      };
     }),
   closeDialog: id =>
     set(state => {
       const newSet = new Set(state.openDialogs);
-      newSet.delete(id);
-      return { openDialogs: newSet };
+      if (newSet.has(id)) {
+        newSet.delete(id);
+        const config = state.dialogConfigs[id];
+        if (config) {
+          if (typeof config.onClose === "function") config.onClose();
+          else if (typeof config.close === "function") config.close();
+        }
+      }
+      const newConfigs = { ...state.dialogConfigs };
+      delete newConfigs[id];
+      return { openDialogs: newSet, dialogConfigs: newConfigs };
     }),
   closeAllDialogs: except =>
     set(state => {
       const newSet = new Set<string>();
-      if (except && state.openDialogs.has(except)) newSet.add(except);
-      return { openDialogs: newSet };
+      const newConfigs = { ...state.dialogConfigs };
+
+      for (const id of state.openDialogs) {
+        if (id === except) {
+          newSet.add(id);
+        } else {
+          const config = state.dialogConfigs[id];
+          if (config) {
+            if (typeof config.onClose === "function") config.onClose();
+            else if (typeof config.close === "function") config.close();
+          }
+          delete newConfigs[id];
+        }
+      }
+      return { openDialogs: newSet, dialogConfigs: newConfigs };
     }),
   setAlertConfig: config => set({ alertConfig: config }),
   setPromptConfig: config => set({ promptConfig: config })
