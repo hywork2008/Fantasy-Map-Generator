@@ -15,11 +15,11 @@ export type TypedArray = Uint8Array | Uint16Array | Uint32Array | Int8Array | In
 
 export interface PackedGraph {
   cells: {
-    i: number[]; // cell indices
+    i: TypedArray; // cell indices
     c: number[][]; // neighboring cells
     v: number[][]; // neighboring vertices
     p: [number, number][]; // cell polygon points
-    b: boolean[]; // cell is on border
+    b: TypedArray; // cell is on border
     h: TypedArray; // cell heights
     q: Quadtree<[number, number, number]>; // cell quadtree index
     /** Terrain type */
@@ -31,7 +31,7 @@ export interface PackedGraph {
     pop: TypedArray; // cell population
     conf: TypedArray; // cell water confidence
     haven: TypedArray; // cell is a haven
-    g: number[]; // cell ground type
+    g: TypedArray; // cell ground type
     culture: TypedArray; // cell culture id
     biome: TypedArray; // cell biome id
     harbor: TypedArray; // cell harbour presence
@@ -43,11 +43,11 @@ export interface PackedGraph {
     routes: Record<number, Record<number, number>>;
   };
   vertices: {
-    i: number[]; // vertex indices
+    i: TypedArray; // vertex indices
     c: [number, number, number][]; // neighboring cells
     v: number[][]; // neighboring vertices
-    x: number[]; // x coordinates
-    y: number[]; // y coordinates
+    x: TypedArray; // x coordinates
+    y: TypedArray; // y coordinates
     p: [number, number][]; // vertex points
   };
   rivers: River[];

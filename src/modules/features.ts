@@ -183,7 +183,7 @@ class FeatureModule {
       return [startCell, featureVertices];
 
       function findOnBorderCell(firstCell: number) {
-        const isOnBorder = (cellId: number) => borderCells[cellId] || neighbors[cellId].some(ofDifferentType);
+        const isOnBorder = (cellId: number) => Boolean(borderCells[cellId]) || neighbors[cellId].some(ofDifferentType);
         if (isOnBorder(firstCell)) return firstCell;
 
         const startCell = cells.i.filter(ofSameType).find(isOnBorder);

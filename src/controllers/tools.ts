@@ -360,7 +360,7 @@ function recreateStates(): State[] | null {
     newStates.push(state);
   });
 
-  for (const i of pack.cells.i as number[]) {
+  for (const i of pack.cells.i) {
     const stateId = pack.cells.state[i];
     const lockedStateIndex = lockedStatesIds.indexOf(stateId) + 1;
     pack.cells.state[i] = lockedStateIndex;
@@ -862,7 +862,8 @@ function addRiverOnClick(this: SVGElement, event: MouseEvent): void {
 
     const oldRiverId = cells.r[min];
     const oldRiver = packRivers.find((river: River) => river.i === oldRiverId);
-    const oldRiverCells: number[] = oldRiver?.cells || cells.i.filter((ci: number) => cells.r[ci] === oldRiverId);
+    const oldRiverCells: number[] =
+      oldRiver?.cells || Array.from(cells.i.filter((ci: number) => cells.r[ci] === oldRiverId));
     const oldRiverCellsUpper = oldRiverCells.filter((ci: number) => h[ci] > h[min]);
 
     if (riverCells.length <= oldRiverCellsUpper.length) {

@@ -70,10 +70,10 @@ const getBorderPath = (vertices: VertexData, vertexChain: number[], discontinue:
  * Restores the path from exit to start using the 'from' mapping.
  * @param {number} exit - The ID of the exit cell.
  * @param {number} start - The ID of the starting cell.
- * @param {number[]} from - An array mapping each cell ID to the cell ID it came from.
+ * @param {ArrayLike<number>} from - An array mapping each cell ID to the cell ID it came from.
  * @returns {number[]} An array of cell IDs representing the path from start to exit.
  */
-const restorePath = (exit: number, start: number, from: number[]) => {
+const restorePath = (exit: number, start: number, from: ArrayLike<number>) => {
   const pathCells = [];
 
   let current = exit;
@@ -330,8 +330,9 @@ export const findPath = (
 ): number[] | null => {
   if (isExit(start)) return null;
 
-  const from = [];
-  const cost = [];
+  const numCells = packedGraph.cells.c.length;
+  const from = new Int32Array(numCells);
+  const cost = new Float32Array(numCells).fill(Infinity);
   const queue = new window.FlatQueue<number>();
   queue.push(start, 0);
 

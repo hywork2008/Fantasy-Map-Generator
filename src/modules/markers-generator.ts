@@ -20,7 +20,7 @@ export type MarkerConfig = {
   min: number;
   each: number;
   multiplier: number;
-  list: (pack: PackedGraph) => number[];
+  list: (pack: PackedGraph) => Iterable<number> | ArrayLike<number>;
   add: (id: string, cell: number) => void;
 };
 

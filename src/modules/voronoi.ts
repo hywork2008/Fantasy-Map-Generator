@@ -9,7 +9,7 @@ export type Vertices = { p: Point[]; v: number[][]; c: number[][] };
 export type Cells = {
   v: number[][];
   c: number[][];
-  b: number[];
+  b: Uint8Array;
   i: Uint32Array<ArrayBufferLike>;
 };
 export type Point = [number, number];
@@ -28,7 +28,7 @@ export class Voronoi {
   delaunay: Delaunator<Float64Array<ArrayBufferLike>>;
   points: Point[];
   pointsN: number;
-  cells: Cells = { v: [], c: [], b: [], i: new Uint32Array() }; // voronoi cells: v = cell vertices, c = adjacent cells, b = near-border cell, i = cell indexes;
+  cells: Cells = { v: [], c: [], b: new Uint8Array(), i: new Uint32Array() }; // voronoi cells: v = cell vertices, c = adjacent cells, b = near-border cell, i = cell indexes;
   vertices: Vertices = { p: [], v: [], c: [] }; // cells vertices: p = vertex coordinates, v = neighboring vertices, c = adjacent cells
 
   constructor(
@@ -45,6 +45,7 @@ export class Voronoi {
     this.delaunay = delaunay;
     this.points = points;
     this.pointsN = pointsN;
+    this.cells.b = new Uint8Array(pointsN);
     this.vertices;
 
     // Half-edges are the indices into the delaunator outputs:

@@ -1081,7 +1081,7 @@ function adjustProvinces(affectedProvinces: number[]): void {
   affectedProvinces.forEach((provinceId: number) => {
     if (!provinces[provinceId]) return;
 
-    const provCells = (cells.i as number[]).filter((i: number) => cells.province[i] === provinceId);
+    const provCells = Array.from(cells.i.filter((i: number) => cells.province[i] === provinceId));
     const provStates = [...new Set(provCells.map((i: number) => cells.state[i]))];
 
     if (provinceId && provStates.length === 1) {

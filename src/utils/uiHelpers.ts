@@ -492,7 +492,7 @@ export function highlightEmblemElement(type: string, el: EmblemEl): void {
   const borderCells = cells.i.filter(
     (cellId: number) => obj[cellId] === id && cells.c[cellId].some((n: number) => obj[n] !== id)
   );
-  const data = Array.from(borderCells as number[])
+  const data = Array.from(borderCells)
     .filter((_c, idx) => !(idx % 2))
     .map((cellId: number) => cells.p[cellId])
     .map((pt: [number, number]) => [pt[0], pt[1], Math.hypot(pt[0] - x, pt[1] - y)]);

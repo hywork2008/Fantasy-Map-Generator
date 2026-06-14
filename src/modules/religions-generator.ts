@@ -724,7 +724,7 @@ class ReligionsModule {
 
       if (validBurgs.length >= requiredReligionsNumber)
         return validBurgs.sort((a, b) => b.population! - a.population!).map(burg => burg.cell);
-      return cells.i.filter(i => cells.s[i] > 2).sort((a, b) => cells.s[b] - cells.s[a]);
+      return Array.from(cells.i.filter(i => cells.s[i] > 2).sort((a, b) => cells.s[b] - cells.s[a]));
     }
   }
 
