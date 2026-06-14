@@ -25,7 +25,7 @@ export const Dialog: React.FC<DialogProps> = ({ isOpen, title, onClose, children
       <div className="fmg-dialog-titlebar">
         <div className="fmg-dialog-title">{title}</div>
         {onClose && (
-          <button type="button" className="fmg-dialog-close" aria-label="Close">
+          <button type="button" className="fmg-dialog-close" aria-label="Close" onClick={onClose}>
             ✕
           </button>
         )}
@@ -34,7 +34,7 @@ export const Dialog: React.FC<DialogProps> = ({ isOpen, title, onClose, children
       {buttons && buttons.length > 0 && (
         <div className="fmg-dialog-buttonpane">
           {buttons.map(btn => (
-            <button type="button" key={btn.label} className="fmg-dialog-button">
+            <button type="button" key={btn.label} className="fmg-dialog-button" onClick={btn.onClick}>
               {btn.label}
             </button>
           ))}

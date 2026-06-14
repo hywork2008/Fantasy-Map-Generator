@@ -4,6 +4,7 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
+  pointer-events: auto;
   background-color: #2b2b2b;
   border: 1px solid #444;
   border-radius: 4px;
