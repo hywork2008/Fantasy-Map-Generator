@@ -431,9 +431,8 @@ class Resampler {
     });
   }
 
-  process(options: ResamplerProcessOptions): void {
-    const worldOptions = window.options; // capture global WorldOptions before local 'options' shadows it
-    const { projection, inverse, scale } = options;
+  process(resampleConfig: ResamplerProcessOptions): void {
+    const { projection, inverse, scale } = resampleConfig;
     const parentMap = {
       grid: structuredClone(grid),
       pack: structuredClone(pack),
@@ -461,7 +460,7 @@ class Resampler {
       pack,
       grid,
       seed,
-      options: worldOptions,
+      options: worldContext.options,
       nameBases,
       biomesData,
       notes,
