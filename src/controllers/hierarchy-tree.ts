@@ -159,7 +159,7 @@ function getRoot(): d3.HierarchyPointNode<HierarchyElement> | null {
       .id(d => String(d.i))
       .parentId(d => (d.origins[0] !== null && d.origins[0] !== undefined ? String(d.origins[0]) : null))(
       validElements
-    ) as unknown as d3.HierarchyPointNode<HierarchyElement>;
+    ) as d3.HierarchyPointNode<HierarchyElement>;
     oldRoot = root;
     return root;
   } catch (error) {
@@ -364,7 +364,7 @@ function selectElement(this: SVGGElement, _event: MouseEvent, d: d3.HierarchyPoi
   (ensureEl("hierarchyTree_selectedCode") as HTMLInputElement).value = dataElement.code ?? "";
 
   (ensureEl("hierarchyTree_selectedCode") as HTMLInputElement).onchange = function (this: GlobalEventHandlers): void {
-    const input = this as unknown as HTMLInputElement;
+    const input = this as HTMLInputElement;
     if (input.value.length > 3) return void tip("Abbreviation must be 3 characters or less", false, "error", 3000);
     if (!input.value.length) return void tip("Abbreviation cannot be empty", false, "error", 3000);
     node.select("text").text(input.value);

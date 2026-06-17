@@ -151,7 +151,15 @@ export const ToolsTab: React.FC = () => {
           type="button"
           onClick={() => triggerEvent("regenerateMarkers")}
         >
-          Markers
+          Markers{" "}
+          <i
+            className="icon-cog"
+            data-tip="Click to set number multiplier"
+            onClick={e => {
+              e.stopPropagation();
+              triggerEvent("configRegenerateMarkers");
+            }}
+          />
         </button>
         <button
           data-tip="Click to recalculate military forces"
@@ -206,11 +214,11 @@ export const ToolsTab: React.FC = () => {
         </button>
       </div>
 
-      <div className="separator">Click to add</div>
+      <div className="separator">Add</div>
       <div className="grid" id="addFeature">
         <button
           id="addBurgTool"
-          data-tip="Click to add a new burg"
+          data-tip="Click on map to place a burg. Hold Shift to add multiple"
           type="button"
           onClick={() => triggerEvent("addBurgTool")}
         >
@@ -218,7 +226,7 @@ export const ToolsTab: React.FC = () => {
         </button>
         <button
           id="addLabel"
-          data-tip="Click to add a free text label"
+          data-tip="Click on map to place label. Hold Shift to add multiple"
           type="button"
           onClick={() => triggerEvent("addLabel")}
         >
@@ -226,7 +234,7 @@ export const ToolsTab: React.FC = () => {
         </button>
         <button
           id="addMarker"
-          data-tip="Click to add a new marker"
+          data-tip="Click on map to place a marker. Hold Shift to add multiple"
           type="button"
           onClick={() => triggerEvent("addMarker")}
         >
@@ -234,7 +242,7 @@ export const ToolsTab: React.FC = () => {
         </button>
         <button
           id="addRiver"
-          data-tip="Click to place a new river or extend an existing"
+          data-tip="Click on map to place a river. Hold Shift to add multiple"
           type="button"
           onClick={() => triggerEvent("addRiver")}
         >
@@ -242,7 +250,7 @@ export const ToolsTab: React.FC = () => {
         </button>
         <button
           id="addRoute"
-          data-tip="Click to add a new route"
+          data-tip="Open route creation dialog"
           type="button"
           onClick={() => triggerEvent("addRoute")}
         >
@@ -250,48 +258,49 @@ export const ToolsTab: React.FC = () => {
         </button>
       </div>
 
-      <div className="separator">Click to configure</div>
+      <div className="separator">Show</div>
       <div className="grid">
-        <button data-tip="Click to view charts" type="button" onClick={() => triggerEvent("overviewChartsButton")}>
-          Charts
-        </button>
         <button
-          data-tip="Click to configure cell details"
+          data-tip="Click to open Cell details view"
           type="button"
           onClick={() => triggerEvent("overviewCellsButton")}
         >
-          Cell Details
+          Cells
         </button>
-        <button data-tip="Click to toggle minimap" type="button" onClick={() => triggerEvent("openMinimapButton")}>
+        <button
+          data-tip="Click to open Charts to overview cells data"
+          type="button"
+          onClick={() => triggerEvent("overviewChartsButton")}
+        >
+          Charts
+        </button>
+        <button
+          data-tip="Click to open minimap overview. Click minimap to center view"
+          type="button"
+          onClick={() => triggerEvent("openMinimapButton")}
+        >
           Minimap
         </button>
         <button
-          data-tip="Click to configure markers generation"
+          data-tip="Click to open World Configurator (temperature, precipitation, etc.)"
           type="button"
-          onClick={() => triggerEvent("configRegenerateMarkers")}
+          onClick={() => triggerEvent("openWorldConfigurator")}
         >
-          Markers Config
+          World
         </button>
+      </div>
+
+      <div className="separator">Create</div>
+      <div className="grid">
         <button
-          data-tip="Click to create a submap from current map"
+          data-tip="Click to generate a submap from the current viewport"
           type="button"
           onClick={() => triggerEvent("openSubmapTool")}
         >
           Submap
         </button>
-        <button
-          data-tip="Click to transform the map (scale, rotate, translate)"
-          type="button"
-          onClick={() => triggerEvent("openTransformTool")}
-        >
+        <button data-tip="Click to transform the map" type="button" onClick={() => triggerEvent("openTransformTool")}>
           Transform
-        </button>
-        <button
-          data-tip="Click to configure world settings (temperature, precipitation, etc.)"
-          type="button"
-          onClick={() => triggerEvent("openWorldConfigurator")}
-        >
-          World
         </button>
       </div>
     </div>

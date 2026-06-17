@@ -20,6 +20,16 @@ export interface OptionsState {
   religionsNumber: number;
   stateLabelsMode: "auto" | "short" | "full";
 
+  // Generation growth/expansion rates
+  neutralRate: number;
+  statesGrowthRate: number;
+
+  // World scale settings
+  populationRate: number;
+  distanceScale: number;
+  urbanization: number;
+  urbanDensity: number;
+
   // Tool settings
   uiSize: number;
   tooltipSize: number;
@@ -30,6 +40,14 @@ export interface OptionsState {
   azgaarAssistant: "show" | "hide";
   speakerVoice: string;
   emblemShape: string;
+
+  // Zoom settings
+  zoomExtentMin: number;
+  zoomExtentMax: number;
+
+  // Rendering settings
+  shapeRendering: "crispEdges" | "optimizeSpeed" | "geometricPrecision";
+  rescaleLabels: boolean;
 
   // Actions
   setOption: <K extends keyof Omit<OptionsState, "setOption">>(key: K, value: OptionsState[K]) => void;
@@ -55,6 +73,14 @@ export const useOptionsState = create<OptionsState>(set => ({
   religionsNumber: 6,
   stateLabelsMode: "auto",
 
+  neutralRate: 1,
+  statesGrowthRate: 1,
+
+  populationRate: 1000,
+  distanceScale: 3,
+  urbanization: 1,
+  urbanDensity: 10,
+
   uiSize: 1,
   tooltipSize: 14,
   themeColor: "#997787",
@@ -64,6 +90,12 @@ export const useOptionsState = create<OptionsState>(set => ({
   azgaarAssistant: "show",
   speakerVoice: "",
   emblemShape: "culture",
+
+  zoomExtentMin: 1,
+  zoomExtentMax: 20,
+
+  shapeRendering: "crispEdges",
+  rescaleLabels: true,
 
   setOption: (key, value) => set({ [key]: value }),
   setOptions: updates => set(updates)

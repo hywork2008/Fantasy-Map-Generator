@@ -49,6 +49,9 @@ export function open(): void {
 }
 
 function insertEditorHtml(): HTMLElement {
+  const existing = document.getElementById("statesBodySection");
+  if (existing) return existing;
+
   const editorHtml = /* html */ `<div id="statesEditor" class="dialog stable">
     <div id="statesHeader" class="header" style="grid-template-columns: 11em 8em 7em 7em 6em 6em 8em 6em 7em 6em">
       <div data-tip="Click to sort by state name" class="sortable alphabetically" data-sortby="name">State&nbsp;</div>

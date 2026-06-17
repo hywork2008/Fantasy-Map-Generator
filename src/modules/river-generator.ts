@@ -7,6 +7,7 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
+import { useOptionsState } from "../store/optionsState";
 import type { WorldState } from "../types/WorldState";
 import { each, rn, round, rw } from "../utils";
 import { Lakes } from "./lakes";
@@ -78,7 +79,8 @@ class RiverModule {
 
     const drainWater = () => {
       const MIN_FLUX_TO_FORM_RIVER = RiverConstants.MIN_FLUX_TO_FORM_RIVER;
-      const cellsNumberModifier = (Number(pointsInput.dataset.cells) / 10000) ** 0.25;
+      const { points } = useOptionsState.getState();
+      const cellsNumberModifier = ((points === 4 ? 10000 : points * 2500) / 10000) ** 0.25;
 
       const prec = grid.cells.prec;
       const land = cells.i.filter((i: number) => h[i] >= 20).sort((a: number, b: number) => h[b] - h[a]);
@@ -210,7 +212,8 @@ class RiverModule {
       cells.conf = new Uint16Array(cells.i.length);
       pack.rivers = [];
 
-      const defaultWidthFactor = rn(1 / (Number(pointsInput.dataset.cells) / 10000) ** 0.25, 2);
+      const pointsVal = useOptionsState.getState().points;
+      const defaultWidthFactor = rn(1 / ((pointsVal === 4 ? 10000 : pointsVal * 2500) / 10000) ** 0.25, 2);
       const mainStemWidthFactor = defaultWidthFactor * 1.2;
 
       for (const key in riversData) {

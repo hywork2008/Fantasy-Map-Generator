@@ -5,6 +5,7 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
+import { useOptionsState } from "../store/optionsState";
 import type { PackedGraph } from "../types/PackedGraph";
 import type { WorldState } from "../types/WorldState";
 import { openRichDialog } from "../ui/dialogs/dialogService";
@@ -61,7 +62,7 @@ class CulturesModule {
     const sf = (cell: number, fee = 4) =>
       cells.haven[cell] && pack.features[cells.f[cells.haven[cell]]].type !== "lake" ? 1 : fee; // not on sea coast fee
 
-    if (culturesSet.value === "european") {
+    if (useOptionsState.getState().culturesSet === "european") {
       return [
         {
           name: "Shwazen",
@@ -171,7 +172,7 @@ class CulturesModule {
       ];
     }
 
-    if (culturesSet.value === "oriental") {
+    if (useOptionsState.getState().culturesSet === "oriental") {
       return [
         {
           name: "Koryo",
@@ -267,7 +268,7 @@ class CulturesModule {
       ];
     }
 
-    if (culturesSet.value === "english") {
+    if (useOptionsState.getState().culturesSet === "english") {
       const getName = () => Names.getBase(1, 5, 9, "");
       return [
         { name: getName(), base: 1, odd: 1, shield: "heater" },
@@ -283,7 +284,7 @@ class CulturesModule {
       ];
     }
 
-    if (culturesSet.value === "antique") {
+    if (useOptionsState.getState().culturesSet === "antique") {
       return [
         {
           name: "Roman",
@@ -400,7 +401,7 @@ class CulturesModule {
       ];
     }
 
-    if (culturesSet.value === "highFantasy") {
+    if (useOptionsState.getState().culturesSet === "highFantasy") {
       return [
         // fantasy races
         {
@@ -526,7 +527,7 @@ class CulturesModule {
       ];
     }
 
-    if (culturesSet.value === "darkFantasy") {
+    if (useOptionsState.getState().culturesSet === "darkFantasy") {
       return [
         // common real-world English
         {
@@ -773,7 +774,7 @@ class CulturesModule {
       ];
     }
 
-    if (culturesSet.value === "random") {
+    if (useOptionsState.getState().culturesSet === "random") {
       return range(count).map(() => {
         const rnd = rand(nameBases.length - 1);
         const name = Names.getBaseShort(rnd);
@@ -1032,9 +1033,8 @@ class CulturesModule {
     this.cells = pack.cells;
     const cultureIds = new Uint16Array(this.cells!.i.length); // cell cultures
 
-    const culturesInputNumber = +(ensureEl("culturesInput") as HTMLInputElement).value;
-    const culturesInSetNumber = +((ensureEl("culturesSet") as HTMLSelectElement).selectedOptions[0].dataset.max ?? "0");
-    let count = Math.min(culturesInputNumber, culturesInSetNumber);
+    const culturesInputNumber = useOptionsState.getState().cultures;
+    let count = Math.min(culturesInputNumber, 100);
     const populated = this.cells!.i.filter((i: number) => this.cells!.s[i]); // populated cells
 
     if (populated.length < count * 25) {
@@ -1062,7 +1062,7 @@ class CulturesModule {
       } else {
         WARN && console.warn(`Not enough populated cells (${populated.length}). Will generate only ${count} cultures`);
         alertMessage.innerHTML = /* html */ ` There are only ${populated.length} populated cells and it's insufficient livable area.<br />
-          Only ${count} out of ${culturesInput.value} requested cultures will be generated.<br />
+          Only ${count} out of ${culturesInputNumber} requested cultures will be generated.<br />
           Please consider changing climate settings in the World Configurator`;
         openRichDialog({
           content: window.alertMessage.innerHTML,
@@ -1152,7 +1152,7 @@ class CulturesModule {
       else if (type === "Nomadic") base = 1.5;
       else if (type === "Hunting") base = 0.7;
       else if (type === "Highland") base = 1.2;
-      return rn(((Math.random() * (ensureEl("sizeVariety") as HTMLInputElement).valueAsNumber) / 2 + 1) * base, 1);
+      return rn(((Math.random() * useOptionsState.getState().sizeVariety) / 2 + 1) * base, 1);
     };
 
     cultures.forEach((c: Culture, i: number) => {
@@ -1235,7 +1235,7 @@ class CulturesModule {
     const color = getRandomColor();
 
     // define emblem shape
-    const emblemShape = (document.getElementById("emblemShape") as HTMLInputElement).value;
+    const emblemShape = useOptionsState.getState().emblemShape;
 
     pack.cultures.push({
       name,
@@ -1264,7 +1264,7 @@ class CulturesModule {
     const queue = new FlatQueue<{ cellId: number; cultureId: number; priority: number }>();
     const cost: number[] = [];
 
-    const neutralRate = (document.getElementById("neutralRate") as HTMLInputElement | null)?.valueAsNumber || 1;
+    const neutralRate = useOptionsState.getState().neutralRate;
     const maxExpansionCost = cells.i.length * 0.6 * neutralRate; // limit cost for culture growth
 
     // remove culture from all cells except of locked

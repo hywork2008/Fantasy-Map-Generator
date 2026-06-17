@@ -323,7 +323,15 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
       // biome-ignore lint/suspicious/noExplicitAny: partial options object built from legacy save format
       useOptionsState.getState().setOptions(zustandUpdates as any);
     }
-    shapeRendering.value = viewbox.attr("shape-rendering") || "geometricPrecision";
+    useOptionsState
+      .getState()
+      .setOption(
+        "shapeRendering",
+        (viewbox.attr("shape-rendering") || "geometricPrecision") as
+          | "crispEdges"
+          | "optimizeSpeed"
+          | "geometricPrecision"
+      );
     if (data[2]) mapCoordinates = JSON.parse(data[2]);
     if (data[4]) notes = JSON.parse(data[4]);
     if (data[33]) rulers.fromString(data[33]);

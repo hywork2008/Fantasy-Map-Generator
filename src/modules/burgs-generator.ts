@@ -6,8 +6,9 @@ import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import { drawBurgIcon, drawBurgLabel, drawRoute, removeBurgIcon, removeBurgLabel } from "../renderers";
+import { useOptionsState } from "../store/optionsState";
 import type { WorldState } from "../types/WorldState";
-import { each, ensureEl, findCell, gauss, minmax, normalize, P, rn } from "../utils";
+import { each, findCell, gauss, minmax, normalize, P, rn } from "../utils";
 import { COA } from "./emblem/generator";
 import { COArenderer } from "./emblem/renderer";
 import { Routes } from "./routes-generator";
@@ -246,7 +247,7 @@ class BurgModule {
     TIME && console.timeEnd("generateBurgs");
 
     function getCapitalsNumber() {
-      let number = (ensureEl("statesNumber") as HTMLInputElement).valueAsNumber;
+      let number = useOptionsState.getState().statesNumber;
 
       if (populatedCells.length < number * 10) {
         number = Math.floor(populatedCells.length / 10);
@@ -257,11 +258,11 @@ class BurgModule {
     }
 
     function getTownsNumber() {
-      const manorsInput = ensureEl("manorsInput") as HTMLInputElement;
-      const isAuto = manorsInput.value === "1000"; // '1000' is considered as auto
+      const manors = useOptionsState.getState().manors;
+      const isAuto = manors === 1000; // 1000 is considered as auto
       if (isAuto) return rn(populatedCells.length / 5 / (grid.points.length / 10000) ** 0.8);
 
-      return Math.min(manorsInput.valueAsNumber, populatedCells.length);
+      return Math.min(manors, populatedCells.length);
     }
   }
 

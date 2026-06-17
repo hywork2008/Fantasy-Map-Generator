@@ -2,6 +2,7 @@ import { color } from "d3";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import { useOptionsState } from "../store/optionsState";
 import { getGappedFillPaths, getIsolines } from "../utils";
 import { TIME } from "../utils/debug";
 import type { IRenderer } from "./core/IRenderer";
@@ -19,7 +20,7 @@ export const StatesRenderer: IRenderer = {
     const clipPaths = new Array(maxLength);
     const haloPaths = new Array(maxLength);
 
-    const renderHalo = shapeRendering.value === "geometricPrecision";
+    const renderHalo = useOptionsState.getState().shapeRendering === "geometricPrecision";
     const isolines: Record<string, { fill?: string; waterGap?: string; halo?: string }> = getIsolines(
       pack,
       cellId => cells.state[cellId],

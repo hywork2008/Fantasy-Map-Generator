@@ -7,7 +7,8 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
-import { createTypedArray, ensureEl, findGridCell, getNumberInRange, lim, minmax, P, rand } from "../utils";
+import { useOptionsState } from "../store/optionsState";
+import { createTypedArray, findGridCell, getNumberInRange, lim, minmax, P, rand } from "../utils";
 import type { Grid } from "../utils/graphUtils";
 
 type Tool = "Hill" | "Pit" | "Range" | "Trough" | "Strait" | "Mask" | "Invert" | "Add" | "Multiply" | "Smooth";
@@ -577,7 +578,7 @@ class HeightmapModule {
     this.appServices = appServices;
     const { seed } = this.worldContext;
     TIME && console.time("defineHeightmap");
-    const id = (ensureEl("templateInput")! as HTMLInputElement).value;
+    const id = useOptionsState.getState().template;
     Math.random = aleaPRNG(seed);
     const isTemplate = id in heightmapTemplates;
 

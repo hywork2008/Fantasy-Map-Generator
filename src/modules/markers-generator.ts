@@ -5,6 +5,7 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
+import { useOptionsState } from "../store/optionsState";
 import type { PackedGraph } from "../types/PackedGraph";
 import type { WorldState } from "../types/WorldState";
 import { capitalize, convertTemperature, gauss, generateDate, getAdjective, last, P, ra, rand, rn, rw } from "../utils";
@@ -119,7 +120,7 @@ class MarkersModule {
   }
 
   private getDefaultConfig(): MarkerConfig[] {
-    const culturesSet = (document.getElementById("culturesSet") as HTMLSelectElement | null)?.value || "";
+    const culturesSet = useOptionsState.getState().culturesSet;
     const isFantasy = culturesSet.includes("Fantasy");
 
     /*

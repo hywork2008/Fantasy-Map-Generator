@@ -176,11 +176,13 @@ class CoastlineEditorModule {
       close: closeCoastlineEditor
     });
 
-    const node = (event?.target ?? document.querySelector(".coastline path")) as SVGElement;
+    const node = (event?.target ?? document.querySelector(".coastline path")) as SVGElement | null;
     debug.append("g").attr("id", "vertices");
-    elSelected = select(node as unknown as Element);
-    selectCoastlineGroup(node);
-    drawCoastlineVertices();
+    elSelected = node ? select(node as unknown as Element) : null;
+    if (node) {
+      selectCoastlineGroup(node);
+      drawCoastlineVertices();
+    }
     interactionManager.setMouseMoveHandler(null);
 
     if (modules.editCoastline) return;

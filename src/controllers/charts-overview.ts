@@ -428,7 +428,7 @@ function renderChart({ id, entity, plotBy, groupBy, sorting, type }: ChartOption
       const value = aggregate(values);
       return { name, group, value };
     });
-  }) as unknown as ChartDataPoint[];
+  });
 
   const sortedData = sortData(chartData, sorting);
   const colors = getColors();

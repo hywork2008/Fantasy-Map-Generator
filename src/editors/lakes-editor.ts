@@ -37,7 +37,7 @@ export function editLake(event?: MouseEvent): void {
 
   const node = (event?.target ?? document.querySelector(".lakes path")) as SVGElement;
   debug.append("g").attr("id", "vertices");
-  elSelected = select(node as unknown as Element);
+  elSelected = select(node as Element);
   updateLakeValues();
   selectLakeGroup();
   drawLakeVertices();

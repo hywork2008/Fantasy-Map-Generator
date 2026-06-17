@@ -11,6 +11,7 @@ import { BurgGroupsEditorDialog } from "./BurgGroupsEditorDialog";
 import { BurgsOverviewDialog } from "./BurgsOverviewDialog";
 import { CellInfoDialog } from "./CellInfoDialog";
 import { CoastlineEditorDialog } from "./CoastlineEditorDialog";
+import { CoastlineSettingsEditorDialog } from "./CoastlineSettingsEditorDialog";
 import { DiplomacyEditorDialog } from "./DiplomacyEditorDialog";
 import { DiplomacyMatrixDialog } from "./DiplomacyMatrixDialog";
 import { ElevationProfileDialog } from "./ElevationProfileDialog";
@@ -49,6 +50,7 @@ import { RouteGroupsEditorDialog } from "./RouteGroupsEditorDialog";
 import { RoutesOverviewDialog } from "./RoutesOverviewDialog";
 import { SaveMapDialog } from "./SaveMapDialog";
 import { StateNameEditorDialog } from "./StateNameEditorDialog";
+import { StatesEditorDialog } from "./StatesEditorDialog";
 import { StyleSaverDialog } from "./StyleSaverDialog";
 import { SubmapToolDialog } from "./SubmapToolDialog";
 import { TemplateEditorDialog } from "./TemplateEditorDialog";
@@ -87,6 +89,8 @@ export const DialogsContainer: React.FC = () => {
           <RouteGroupsEditorDialog />
           <IceEditorDialog />
           <CoastlineEditorDialog />
+          <CoastlineSettingsEditorDialog />
+          <StatesEditorDialog />
           <ReliefEditorDialog />
           <BurgEditorDialog />
           <MarkerEditorDialog />

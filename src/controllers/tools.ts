@@ -56,11 +56,12 @@ import {
   ZonesRenderer
 } from "../renderers";
 import { drawMarker } from "../renderers/index";
+import { useOptionsState } from "../store/optionsState";
 import type { WorldNote } from "../types/WorldState";
 import { openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, findCell, gauss, generateSeed, getNextId, isCtrlClick, P, rn, showPrompt } from "../utils";
 import { open as openChartsOverview } from "./charts-overview";
-import { editCultures, editReligions, editStates } from "./editors";
+import { editCoastlineSettings, editCultures, editReligions, editStates } from "./editors";
 import { interactionManager } from "./interactionManager";
 import { openMinimapDialog } from "./minimap";
 
@@ -261,7 +262,7 @@ function recreateStates(): State[] | null {
   const localSeed = generateSeed();
   (Math as Record<"random", () => number>).random = aleaPRNG(localSeed);
 
-  const statesCount = +ensureEl<HTMLInputElement>("statesNumber").value;
+  const statesCount = useOptionsState.getState().statesNumber;
   if (!statesCount) {
     tip(`<i>States Number</i> option value is zero. No counties are generated`, false, "error");
     return null;

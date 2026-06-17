@@ -22,8 +22,8 @@ export const GridRenderer: IRenderer = {
     const dy = gridOverlay.attr("dy") || 0;
     const tr = `scale(${gridScale}) translate(${dx} ${dy})`;
 
-    const maxWidth = Math.max(+mapWidthInput.value, graphWidth);
-    const maxHeight = Math.max(+mapHeightInput.value, graphHeight);
+    const maxWidth = graphWidth;
+    const maxHeight = graphHeight;
 
     select(pattern)
       .attr("stroke", stroke)

@@ -7,9 +7,9 @@ import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import type { GridFeature } from "../modules/features";
 import { type Cells, type Point, type Vertices, Voronoi } from "../modules/voronoi";
+import { useOptionsState } from "../store/optionsState";
 import type { PackedGraph, TypedArray } from "../types/PackedGraph";
 import { createTypedArray } from "./arrayUtils";
-import { ensureEl } from "./nodeUtils";
 import { rn } from "./numberUtils";
 
 /** Grid-level cells: base voronoi topology plus all properties added by the generation pipeline */
@@ -92,7 +92,8 @@ const placePoints = (
   cellsY: number;
 } => {
   TIME && console.time("placePoints");
-  const cellsDesired = +(ensureEl("pointsInput").dataset.cells || 0);
+  const { points: pointsOpt } = useOptionsState.getState();
+  const cellsDesired = pointsOpt === 4 ? 10000 : pointsOpt * 2500;
   const spacing = rn(Math.sqrt((graphWidth * graphHeight) / cellsDesired), 2); // spacing between points before jittering
 
   const boundary = getBoundaryPoints(graphWidth, graphHeight, spacing);
@@ -128,7 +129,8 @@ export const shouldRegenerateGrid = (
   if (!grid) return true;
   if (expectedSeed && expectedSeed !== grid.seed) return true;
 
-  const cellsDesired = +(ensureEl("pointsInput").dataset?.cells || 0);
+  const { points: pointsOpt } = useOptionsState.getState();
+  const cellsDesired = pointsOpt === 4 ? 10000 : pointsOpt * 2500;
   if (cellsDesired !== grid.cellsDesired) return true;
 
   const newSpacing = rn(Math.sqrt((graphWidth * graphHeight) / cellsDesired), 2);

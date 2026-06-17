@@ -6,10 +6,10 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
+import { useOptionsState } from "../store/optionsState";
 import type { WorldState } from "../types/WorldState";
 import {
   each,
-  ensureEl,
   gauss,
   getAdjective,
   getMixedColor,
@@ -73,7 +73,7 @@ class StatesModule {
     const { pack } = this.worldContext;
     const states: State[] = [{ i: 0, name: "Neutrals" } as State];
     const each5th = each(5);
-    const sizeVariety = (ensureEl("sizeVariety") as HTMLInputElement).valueAsNumber;
+    const sizeVariety = useOptionsState.getState().sizeVariety;
 
     pack.burgs.forEach(burg => {
       if (!burg.i || !burg.capital) return;
@@ -172,9 +172,7 @@ class StatesModule {
     const queue = new FlatQueue<{ e: number; p: number; s: number; b: number }>();
     const cost: number[] = [];
 
-    const globalGrowthRate = (document.getElementById("growthRate") as HTMLInputElement | null)?.valueAsNumber || 1;
-    const statesGrowthRate =
-      (document.getElementById("statesGrowthRate") as HTMLInputElement | null)?.valueAsNumber || 1;
+    const { growthRate: globalGrowthRate, statesGrowthRate } = useOptionsState.getState();
     const growthRate = (cells.i.length / 2) * globalGrowthRate * statesGrowthRate; // limit cost for state growth
 
     // remove state from all cells except of locked

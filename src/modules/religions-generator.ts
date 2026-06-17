@@ -5,11 +5,11 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
+import { useOptionsState } from "../store/optionsState";
 import type { WorldState } from "../types/WorldState";
 import {
   abbreviate,
   each,
-  ensureEl,
   gauss,
   getAdjective,
   getMixedColor,
@@ -637,7 +637,10 @@ class ReligionsModule {
     const lockedReligions = pack.religions?.filter(r => r.i && r.lock && !r.removed) || [];
 
     const folkReligions = this.generateFolkReligions();
-    const organizedReligions = this.generateOrganizedReligions(+religionsNumber.value, lockedReligions);
+    const organizedReligions = this.generateOrganizedReligions(
+      useOptionsState.getState().religionsNumber,
+      lockedReligions
+    );
 
     const namedReligions = this.specifyReligions([...folkReligions, ...organizedReligions]);
     const indexedReligions = this.combineReligions(namedReligions, lockedReligions);
@@ -928,7 +931,7 @@ class ReligionsModule {
     const cost: number[] = [];
 
     // limit cost for organized religions growth
-    const maxExpansionCost = (cells.i.length / 20) * (ensureEl("growthRate") as HTMLInputElement).valueAsNumber;
+    const maxExpansionCost = (cells.i.length / 20) * useOptionsState.getState().growthRate;
 
     religions
       .filter(r => r.i && !r.lock && r.type !== "Folk" && !r.removed)

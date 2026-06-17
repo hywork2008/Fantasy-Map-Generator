@@ -279,7 +279,7 @@ export function editRegiment(selectorOrEl?: string | Element): void {
     const military = pack.states[state].military ?? [];
     const i = military.length ? last(military).i + 1 : 0;
     const n = +(pack.cells.h[cell] < 20);
-    const reg = { a: 0, cell, i, n, u: {}, x, y, bx: x, by: y, state, icon: "🛡️" } as unknown as MilitaryRegiment;
+    const reg = { a: 0, cell, i, n, u: {}, x, y, bx: x, by: y, state, icon: "🛡️" } as MilitaryRegiment;
     reg.name = Military.getName(reg, military);
     military.push(reg);
     Military.generateNote(reg, pack.states[state]);

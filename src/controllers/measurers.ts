@@ -12,7 +12,7 @@ class Rulers {
 
   create<T>(Type: new (points: [number, number][]) => T, points: [number, number][]): T {
     const measurer = new Type(points);
-    this.data.push(measurer as unknown as Measurer);
+    this.data.push(measurer as Measurer);
     return measurer;
   }
 

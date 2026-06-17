@@ -5,7 +5,6 @@ import { openRichDialog } from "./ui/dialogs/dialogService";
 // jQuery setup: globals must be in a separate module so they are evaluated
 
 import type { Selection } from "d3";
-import "./store/domShim";
 import * as d3 from "d3";
 import { aleaPRNG } from "./components/AleaPRNG";
 import { appServices } from "./context/appServices";
@@ -35,6 +34,7 @@ import { States } from "./modules/states-generator";
 import { Zones } from "./modules/zones-generator";
 import { renderGroupCOAs } from "./renderers/draw-emblems";
 import { CoordinatesRenderer, drawScaleBar, fitScaleBar } from "./renderers/index";
+import { useOptionsState } from "./store/optionsState";
 import {
   TYPED_ARRAY_MAX_VALUES as _TMP,
   calculateVoronoi,
@@ -657,15 +657,11 @@ viewContext.viewY = viewY;
 
 // ─── Map dimensions and settings ──────────────────────────────────────────────
 
-const populationRate = +ensureEl<HTMLInputElement>("populationRateInput").value;
-const distanceScale = +ensureEl<HTMLInputElement>("distanceScaleInput").value;
-const urbanization = +ensureEl<HTMLInputElement>("urbanizationInput").value;
-const urbanDensity = +ensureEl<HTMLInputElement>("urbanDensityInput").value;
+const { populationRate, distanceScale, urbanization, urbanDensity } = useOptionsState.getState();
 
 applyStoredOptions();
 
-const graphWidth = +mapWidthInput.value;
-const graphHeight = +mapHeightInput.value;
+const { mapWidth: graphWidth, mapHeight: graphHeight } = useOptionsState.getState();
 const svgWidth = graphWidth;
 const svgHeight = graphHeight;
 
@@ -838,7 +834,7 @@ function focusOn() {
 
 let isAssistantLoaded = false;
 function toggleAssistant() {
-  const showAssistant = (document.getElementById("azgaarAssistant") as HTMLInputElement)?.value === "show";
+  const showAssistant = useOptionsState.getState().azgaarAssistant === "show";
   if (showAssistant) {
     if (isAssistantLoaded) {
       const assistantContainer = document.getElementById("chat-widget-container");
@@ -956,7 +952,7 @@ function resetZoom(d = 1000) {
 }
 
 function invokeActiveZooming() {
-  const isOptimized = shapeRendering.value === "optimizeSpeed";
+  const isOptimized = useOptionsState.getState().shapeRendering === "optimizeSpeed";
 
   if (coastline.select("#sea_island").size() && +coastline.select("#sea_island").attr("auto-filter")) {
     const filter = scale > 1.5 && scale <= 2.6 ? null : scale > 2.6 ? "url(#blurFilter)" : "url(#dropShadow)";
@@ -968,7 +964,7 @@ function invokeActiveZooming() {
       if (this.id === "burgLabels") return;
       const desired = +this.dataset.size!;
       const relative = Math.max(rn((desired + desired / scale) / 2, 2), 1);
-      if (rescaleLabels.checked) this.setAttribute("font-size", String(relative));
+      if (useOptionsState.getState().rescaleLabels) this.setAttribute("font-size", String(relative));
 
       const hidden = hideLabels.checked && (relative * scale < 6 || relative * scale > 60);
       if (hidden) this.classList.add("hidden");
@@ -1186,7 +1182,9 @@ function setSeed(precreatedSeed?: string) {
   }
 
   window.seed = worldContext.seed;
-  ensureEl<HTMLInputElement>("optionsSeed").value = worldContext.seed;
+  useOptionsState.getState().setOption("seed", worldContext.seed);
+  const seedInput = document.getElementById("optionsSeed") as HTMLInputElement | null;
+  if (seedInput) seedInput.value = worldContext.seed;
   Math.random = aleaPRNG(worldContext.seed);
 }
 
@@ -1253,7 +1251,7 @@ function addLakesInDeepDepressions() {
 }
 
 function openNearSeaLakes() {
-  if (ensureEl<HTMLInputElement>("templateInput").value === "Atoll") return;
+  if (useOptionsState.getState().template === "Atoll") return;
 
   const { cells: gridCells, features } = worldContext.grid;
   if (!features.find(f => f.type === "lake")) return;
@@ -1303,7 +1301,7 @@ function defineMapSize() {
   if (randomize || !locked("longitude")) longitudeOutput.value = longitudeInput.value = String(longitude);
 
   function getSizeAndLatitude(): [number, number, number] {
-    const template = ensureEl<HTMLInputElement>("templateInput").value;
+    const template = useOptionsState.getState().template;
 
     if (template === "africa-centric") return [45, 53, 38];
     if (template === "arabia") return [20, 35, 35];
@@ -1426,7 +1424,8 @@ function generatePrecipitation() {
   const { cells: gridCells, cellsX, cellsY } = worldContext.grid;
   gridCells.prec = new Uint8Array(gridCells.i.length);
 
-  const cellsNumberModifier = (+(pointsInput.dataset.cells ?? 0) / 10000) ** 0.25;
+  const { points: pointsOpt } = useOptionsState.getState();
+  const cellsNumberModifier = ((pointsOpt === 4 ? 10000 : pointsOpt * 2500) / 10000) ** 0.25;
   const precInputModifier = +precInput.value / 100;
   const modifier = cellsNumberModifier * precInputModifier;
 
@@ -1610,17 +1609,17 @@ function reGraph() {
   }
 
   const { cells: packCells, vertices } = calculateVoronoi(newCells.p, worldContext.grid.boundary);
-  worldContext.pack.vertices = vertices as unknown as typeof worldContext.pack.vertices;
-  worldContext.pack.cells = packCells as unknown as typeof worldContext.pack.cells;
+  worldContext.pack.vertices = vertices as typeof worldContext.pack.vertices;
+  worldContext.pack.cells = packCells as typeof worldContext.pack.cells;
   worldContext.pack.cells.p = newCells.p;
   worldContext.pack.cells.g = createTypedArray({
     maxValue: worldContext.grid.points.length,
     from: newCells.g
-  }) as unknown as typeof worldContext.pack.cells.g;
+  }) as typeof worldContext.pack.cells.g;
   worldContext.pack.cells.h = createTypedArray({
     maxValue: 100,
     from: newCells.h
-  }) as unknown as typeof worldContext.pack.cells.h;
+  }) as typeof worldContext.pack.cells.h;
   worldContext.pack.cells.area = createTypedArray({ maxValue: UINT16_MAX, length: packCells.i.length }).map(
     (_: unknown, cellId: number) => {
       const area = Math.abs(d3.polygonArea(getPackPolygon(cellId, worldContext.pack)));
@@ -1686,7 +1685,7 @@ function rankCells() {
 }
 
 function showStatistics() {
-  const heightmap = ensureEl<HTMLInputElement>("templateInput").value;
+  const heightmap = useOptionsState.getState().template;
   const isTemplate = heightmap in heightmapTemplates;
   const heightmapType = isTemplate ? "template" : "precreated";
   const isRandomTemplate = isTemplate && !locked("template") ? "random " : "";
@@ -1702,7 +1701,7 @@ function showStatistics() {
     Provinces: ${worldContext.pack.provinces.length - 1}
     Burgs: ${worldContext.pack.burgs.length - 1}
     Religions: ${worldContext.pack.religions.length - 1}
-    Culture set: ${culturesSet.value}
+    Culture set: ${useOptionsState.getState().culturesSet}
     Cultures: ${worldContext.pack.cultures.length - 1}`;
 
   worldContext.mapId = Date.now();
@@ -1724,7 +1723,8 @@ function showStatistics() {
 const regenerateMap = debounce(async (opts?: { seed?: string } | string) => {
   WARN && console.warn("Generate new random map");
 
-  const cellsDesired = +ensureEl("pointsInput").dataset.cells!;
+  const { points: pointsForLoading } = useOptionsState.getState();
+  const cellsDesired = pointsForLoading === 4 ? 10000 : pointsForLoading * 2500;
   const shouldShowLoading = cellsDesired > 10000;
   shouldShowLoading && showLoading();
 

@@ -6,8 +6,9 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
+import { useOptionsState } from "../store/optionsState";
 import type { WorldState } from "../types/WorldState";
-import { ensureEl, gauss, generateSeed, getMixedColor, getPolesOfInaccessibility, P, rand, rw } from "../utils";
+import { gauss, generateSeed, getMixedColor, getPolesOfInaccessibility, P, rand, rw } from "../utils";
 import { Burgs } from "./burgs-generator";
 import { COA } from "./emblem/generator";
 
@@ -112,7 +113,7 @@ class ProvinceModule {
       });
     }
 
-    const provincesRatio = (ensureEl("provincesRatio") as HTMLInputElement).valueAsNumber;
+    const provincesRatio = useOptionsState.getState().provincesRatio;
     const maxGrowth = provincesRatio === 100 ? 1000 : gauss(20, 5, 5, 100) * provincesRatio ** 0.5; // max growth
 
     // generate provinces for selected burgs

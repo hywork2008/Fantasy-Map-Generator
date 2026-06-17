@@ -664,6 +664,7 @@ function showInfo(): void {
 window.tip = tip;
 window.clearMainTip = clearMainTip;
 window.showMainTip = showMainTip;
+window.showDataTip = showDataTip;
 window.showElementLockTip = showElementLockTip;
 window.highlightEditorLine = highlightEditorLine;
 window.onMouseMove = onMouseMove;

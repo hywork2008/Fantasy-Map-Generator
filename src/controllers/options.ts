@@ -173,8 +173,8 @@ export function fitMapToScreen(): void {
   }
 
   const zoomMin = rn(Math.max(window.svgWidth / window.graphWidth, window.svgHeight / window.graphHeight), 3);
-  zoomExtentMin.value = String(zoomMin);
-  const zoomMax = +zoomExtentMax.value;
+  useOptionsState.getState().setOption("zoomExtentMin", zoomMin);
+  const zoomMax = useOptionsState.getState().zoomExtentMax;
 
   zoom
     .translateExtent([
@@ -478,21 +478,20 @@ function resetLanguage(): void {
 // ─── Zoom extent ──────────────────────────────────────────────────────────────
 
 function changeZoomExtent(value: string): void {
-  if (+zoomExtentMin.value > +zoomExtentMax.value) {
-    [zoomExtentMin.value, zoomExtentMax.value] = [zoomExtentMax.value, zoomExtentMin.value];
-  }
-  const min = Math.max(+zoomExtentMin.value, 0.01);
-  const max = Math.min(+zoomExtentMax.value, 200);
-  zoomExtentMin.value = String(min);
-  zoomExtentMax.value = String(max);
+  const store = useOptionsState.getState();
+  let curMin = store.zoomExtentMin;
+  let curMax = store.zoomExtentMax;
+  if (curMin > curMax) [curMin, curMax] = [curMax, curMin];
+  const min = Math.max(curMin, 0.01);
+  const max = Math.min(curMax, 200);
+  store.setOptions({ zoomExtentMin: min, zoomExtentMax: max });
   zoom.scaleExtent([min, max]);
   const scale = minmax(+value, 0.01, 200);
   zoom.scaleTo(svg, scale);
 }
 
 function restoreDefaultZoomExtent(): void {
-  zoomExtentMin.value = "1";
-  zoomExtentMax.value = "20";
+  useOptionsState.getState().setOptions({ zoomExtentMin: 1, zoomExtentMax: 20 });
   zoom.scaleExtent([1, 20]).scaleTo(svg, 1);
 }
 
@@ -632,18 +631,17 @@ function randomizeOptions(): void {
   if (randomize || !locked("temperatureEquator")) options.temperatureEquator = gauss(25, 7, 20, 35, 0);
   if (randomize || !locked("temperatureNorthPole")) options.temperatureNorthPole = gauss(-25, 7, -40, 10, 0);
   if (randomize || !locked("temperatureSouthPole")) options.temperatureSouthPole = gauss(-15, 7, -40, 10, 0);
-  if (randomize || !locked("prec"))
-    precInput.value = (precOutput as unknown as HTMLInputElement).value = String(gauss(100, 40, 5, 500));
+  if (randomize || !locked("prec")) precInput.value = String(gauss(100, 40, 5, 500));
 
   const US = navigator.language === "en-US";
   if (randomize || !locked("distanceScale")) {
     const dsv = gauss(3, 1, 1, 5);
-    (distanceScaleInput as HTMLInputElement).value = String(dsv);
+    useOptionsState.getState().setOption("distanceScale", dsv);
     distanceScale = dsv;
   }
-  if (!stored("distanceUnit")) (distanceUnitInput as HTMLInputElement).value = US ? "mi" : "km";
-  if (!stored("heightUnit")) (heightUnit as unknown as HTMLInputElement).value = US ? "ft" : "m";
-  if (!stored("temperatureScale")) (temperatureScale as unknown as HTMLInputElement).value = US ? "°F" : "°C";
+  if (!stored("distanceUnit")) distanceUnitInput.value = US ? "mi" : "km";
+  if (!stored("heightUnit")) heightUnit.value = US ? "ft" : "m";
+  if (!stored("temperatureScale")) temperatureScale.value = US ? "°F" : "°C";
 
   generateEra();
 }
