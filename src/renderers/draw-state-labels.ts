@@ -1,6 +1,6 @@
 import { curveNatural, line, max, select } from "d3";
 import type { AppServices } from "../context/appServices";
-import type { ViewContext } from "../context/viewContext";
+import type { SettlementLayers } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import type { TypedArray } from "../types/PackedGraph";
 import { drawPath, drawPoint, findClosestCell, minmax, rn, round, splitInTwo } from "../utils";
@@ -24,10 +24,14 @@ type PathPoints = [number, number][];
 
 export const StateLabelsRenderer: IRenderer = {
   id: "state-labels",
-  render(worldContext: Readonly<WorldContext>, viewContext: Readonly<ViewContext>, appServices: AppServices): void {
+  render(
+    worldContext: Readonly<WorldContext>,
+    viewContext: Readonly<SettlementLayers>,
+    appServices: AppServices
+  ): void {
     drawStateLabels(worldContext, viewContext, appServices);
   },
-  clear(viewContext: Readonly<ViewContext>): void {
+  clear(viewContext: Readonly<SettlementLayers>): void {
     viewContext.labels.select<SVGGElement>("g#states").html("");
   }
 };
@@ -35,7 +39,7 @@ export const StateLabelsRenderer: IRenderer = {
 // list - an optional array of stateIds to regenerate
 export const drawStateLabels = (
   worldContext: Readonly<WorldContext>,
-  viewContext: Readonly<ViewContext>,
+  viewContext: Readonly<SettlementLayers>,
   _appServices: AppServices,
   list?: number[]
 ): void => {

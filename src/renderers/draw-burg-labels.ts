@@ -1,5 +1,5 @@
 import type { AppServices } from "../context/appServices";
-import type { ViewContext } from "../context/viewContext";
+import type { SettlementLayers, ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import type { Burg } from "../modules/burgs-generator";
 import { TIME } from "../utils/debug";
@@ -14,7 +14,11 @@ interface BurgGroup {
 export const BurgLabelsRenderer: IRenderer = {
   id: "burgLabels",
 
-  render(worldContext: Readonly<WorldContext>, viewContext: Readonly<ViewContext>, _appServices: AppServices): void {
+  render(
+    worldContext: Readonly<WorldContext>,
+    viewContext: Readonly<SettlementLayers>,
+    _appServices: AppServices
+  ): void {
     TIME && console.time("BurgLabelsRenderer");
     const { pack, options, style } = worldContext;
     const { burgLabels } = viewContext;
@@ -48,7 +52,7 @@ export const BurgLabelsRenderer: IRenderer = {
     TIME && console.timeEnd("BurgLabelsRenderer");
   },
 
-  clear(viewContext: Readonly<ViewContext>): void {
+  clear(viewContext: Readonly<SettlementLayers>): void {
     viewContext.burgLabels.selectAll("*").remove();
   }
 };
@@ -95,7 +99,7 @@ export const removeBurgLabel = (
 function createLabelGroups(
   _options: WorldContext["options"],
   style: WorldContext["style"],
-  _burgLabels: ViewContext["burgLabels"]
+  _burgLabels: SettlementLayers["burgLabels"]
 ): void {
   document.querySelectorAll("g#burgLabels > g").forEach(group => {
     style.burgLabels[group.id] = Array.from(group.attributes).reduce((acc: { [key: string]: string }, attribute) => {

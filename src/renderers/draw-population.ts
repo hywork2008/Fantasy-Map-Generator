@@ -1,13 +1,17 @@
 import { easeSinIn, transition } from "d3";
 import type { AppServices } from "../context/appServices";
-import type { ViewContext } from "../context/viewContext";
+import type { SettlementLayers } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import type { IRenderer } from "./core/IRenderer";
 
 export const PopulationRenderer: IRenderer = {
   id: "population",
 
-  render(worldContext: Readonly<WorldContext>, viewContext: Readonly<ViewContext>, _appServices: AppServices): void {
+  render(
+    worldContext: Readonly<WorldContext>,
+    viewContext: Readonly<SettlementLayers>,
+    _appServices: AppServices
+  ): void {
     const { pack, urbanization } = worldContext;
     const { population } = viewContext;
     const { cells, burgs } = pack;
@@ -53,7 +57,7 @@ export const PopulationRenderer: IRenderer = {
       .attr("y2", d => d[2]);
   },
 
-  clear(viewContext: Readonly<ViewContext>): void {
+  clear(viewContext: Readonly<SettlementLayers>): void {
     viewContext.population.selectAll("line").remove();
   }
 };

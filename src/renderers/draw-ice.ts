@@ -1,5 +1,5 @@
 import type { AppServices } from "../context/appServices";
-import type { ViewContext } from "../context/viewContext";
+import type { EnvironmentLayers } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { TIME } from "../utils/debug";
 
@@ -15,7 +15,11 @@ import type { IRenderer } from "./core/IRenderer";
 export const IceRenderer: IRenderer = {
   id: "ice",
 
-  render(worldContext: Readonly<WorldContext>, viewContext: Readonly<ViewContext>, _appServices: AppServices): void {
+  render(
+    worldContext: Readonly<WorldContext>,
+    viewContext: Readonly<EnvironmentLayers>,
+    _appServices: AppServices
+  ): void {
     TIME && console.time("IceRenderer");
     const { pack } = worldContext;
     const { ice } = viewContext;
@@ -37,14 +41,14 @@ export const IceRenderer: IRenderer = {
     TIME && console.timeEnd("IceRenderer");
   },
 
-  clear(viewContext: Readonly<ViewContext>): void {
+  clear(viewContext: Readonly<EnvironmentLayers>): void {
     viewContext.ice.selectAll("*").remove();
   }
 };
 
 export const redrawIceberg = (
   worldContext: Readonly<WorldContext>,
-  viewContext: Readonly<ViewContext>,
+  viewContext: Readonly<EnvironmentLayers>,
   _appServices: AppServices,
   id: number
 ): void => {
@@ -69,7 +73,7 @@ export const redrawIceberg = (
 
 export const redrawGlacier = (
   worldContext: Readonly<WorldContext>,
-  viewContext: Readonly<ViewContext>,
+  viewContext: Readonly<EnvironmentLayers>,
   _appServices: AppServices,
   id: number
 ): void => {

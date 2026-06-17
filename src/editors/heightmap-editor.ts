@@ -552,7 +552,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       .selectAll<SVGPolygonElement, number>("polygon")
       .data(data)
       .join("polygon")
-      .attr("points", d => getGridPolygon(d).join(" "))
+      .attr("points", d => getGridPolygon(d, worldContext.grid).join(" "))
       .attr("id", d => `cell${d}`)
       .attr("fill", d => getColor(grid.cells.h[d]));
   }
@@ -569,7 +569,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       if (!cell.size())
         cell = heights
           .append<SVGPolygonElement>("polygon")
-          .attr("points", getGridPolygon(i).join(" "))
+          .attr("points", getGridPolygon(i, worldContext.grid).join(" "))
           .attr("id", `cell${i}`);
       cell.attr("fill", getColor(grid.cells.h[i]));
     });
@@ -1372,7 +1372,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
         .selectAll<SVGPolygonElement, number>("polygon")
         .data(Array.from(grid.cells.i))
         .join("polygon")
-        .attr("points", d => getGridPolygon(d).join(" "))
+        .attr("points", d => getGridPolygon(d, worldContext.grid).join(" "))
         .attr("id", d => `cell${d}`)
         .attr("fill", d => `rgb(${data[d * 4]}, ${data[d * 4 + 1]}, ${data[d * 4 + 2]})`)
         .on("click", mapClicked);

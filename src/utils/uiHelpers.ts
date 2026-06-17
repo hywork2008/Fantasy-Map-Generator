@@ -1,4 +1,5 @@
 import * as d3 from "d3";
+import { worldContext } from "../context/worldContext";
 import { fitMapToScreen } from "../controllers/options";
 import type { PackedGraphFeature } from "../modules/features";
 import { useOptionsState } from "../store/optionsState";
@@ -331,9 +332,9 @@ function updateCellInfo(point: [number, number], i: number, g: number): void {
   infoY.innerHTML = String(rn(point[1]));
   const y = infoY.innerHTML;
   const f = cells.f[i];
-  infoLat.innerHTML = toDMS(getLatitude(+y, 4), "lat");
-  infoLon.innerHTML = toDMS(getLongitude(+x, 4), "lon");
-  infoGeozone.innerHTML = getGeozone(getLatitude(+y, 4));
+  infoLat.innerHTML = toDMS(getLatitude(+y, worldContext.mapCoordinates, worldContext.graphHeight, 4), "lat");
+  infoLon.innerHTML = toDMS(getLongitude(+x, worldContext.mapCoordinates, worldContext.graphWidth, 4), "lon");
+  infoGeozone.innerHTML = getGeozone(getLatitude(+y, worldContext.mapCoordinates, worldContext.graphHeight, 4));
 
   infoCell.innerHTML = String(i);
   infoArea.innerHTML = cells.area[i] ? `${si(getArea(cells.area[i]))} ${getAreaUnit()}` : "n/a";

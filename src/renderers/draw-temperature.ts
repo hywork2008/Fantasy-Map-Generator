@@ -1,7 +1,7 @@
 import { color, curveBasisClosed, interpolateSpectral, leastIndex, line, max, min, range, scaleSequential } from "d3";
 import { TemperatureRenderer } from "../config/constants";
 import type { AppServices } from "../context/appServices";
-import type { ViewContext } from "../context/viewContext";
+import type { EnvironmentLayers } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { connectVertices, convertTemperature, ensureEl, round } from "../utils";
 import { TIME } from "../utils/debug";
@@ -9,17 +9,21 @@ import type { IRenderer } from "./core/IRenderer";
 
 export const TemperatureLayerRenderer: IRenderer = {
   id: "temperature",
-  render(worldContext: Readonly<WorldContext>, viewContext: Readonly<ViewContext>, appServices: AppServices): void {
+  render(
+    worldContext: Readonly<WorldContext>,
+    viewContext: Readonly<EnvironmentLayers>,
+    appServices: AppServices
+  ): void {
     drawTemperature(worldContext, viewContext, appServices);
   },
-  clear(viewContext: Readonly<ViewContext>): void {
+  clear(viewContext: Readonly<EnvironmentLayers>): void {
     viewContext.temperature.selectAll("*").remove();
   }
 };
 
 export const drawTemperature = (
   worldContext: Readonly<WorldContext>,
-  viewContext: Readonly<ViewContext>,
+  viewContext: Readonly<EnvironmentLayers>,
   _appServices: AppServices
 ): void => {
   TIME && console.time("drawTemperature");

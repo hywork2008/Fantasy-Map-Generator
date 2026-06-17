@@ -766,7 +766,7 @@ function dragReligionBrush(this: SVGElement, event: d3.D3DragEvent<SVGElement, u
   moveCircle(x, y, radius);
 
   const found = radius > 5 ? findAll(x, y, radius) : [findCell(x, y, radius)];
-  const selection = found.filter(isLand);
+  const selection = found.filter(i => isLand(i, worldContext.pack));
   if (selection) changeReligionForSelection(selection);
 }
 

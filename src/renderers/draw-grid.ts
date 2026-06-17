@@ -1,13 +1,13 @@
 import { select } from "d3";
 import type { AppServices } from "../context/appServices";
-import type { ViewContext } from "../context/viewContext";
+import type { OverlayLayers } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import type { IRenderer } from "./core/IRenderer";
 
 export const GridRenderer: IRenderer = {
   id: "grid",
 
-  render(worldContext: Readonly<WorldContext>, viewContext: Readonly<ViewContext>, _appServices: AppServices): void {
+  render(worldContext: Readonly<WorldContext>, viewContext: Readonly<OverlayLayers>, _appServices: AppServices): void {
     const { graphWidth, graphHeight } = worldContext;
     const { gridOverlay } = viewContext;
 
@@ -40,7 +40,7 @@ export const GridRenderer: IRenderer = {
       .attr("stroke", "none");
   },
 
-  clear(viewContext: Readonly<ViewContext>): void {
+  clear(viewContext: Readonly<OverlayLayers>): void {
     viewContext.gridOverlay.selectAll("*").remove();
   }
 };

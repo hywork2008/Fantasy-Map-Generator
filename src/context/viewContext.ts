@@ -1,58 +1,83 @@
 import type { Selection, ZoomBehavior } from "d3";
 
-export interface ViewContext {
+type SvgGroup = Selection<SVGGElement, unknown, null, undefined>;
+
+/** Core SVG structure and viewport infrastructure. */
+export interface RootLayers {
   svg: Selection<SVGSVGElement, unknown, null, undefined>;
   defs: Selection<SVGDefsElement, unknown, null, undefined>;
-  viewbox: Selection<SVGGElement, unknown, null, undefined>;
-  scaleBar: Selection<SVGGElement, unknown, null, undefined>;
-  legend: Selection<SVGGElement, unknown, null, undefined>;
-  ocean: Selection<SVGGElement, unknown, null, undefined>;
-  oceanLayers: Selection<SVGGElement, unknown, null, undefined>;
-  oceanPattern: Selection<SVGGElement, unknown, null, undefined>;
-  landmass: Selection<SVGGElement, unknown, null, undefined>;
-  texture: Selection<SVGGElement, unknown, null, undefined>;
-  terrs: Selection<SVGGElement, unknown, null, undefined>;
-  lakes: Selection<SVGGElement, unknown, null, undefined>;
-  biomes: Selection<SVGGElement, unknown, null, undefined>;
-  cells: Selection<SVGGElement, unknown, null, undefined>;
-  gridOverlay: Selection<SVGGElement, unknown, null, undefined>;
-  coordinates: Selection<SVGGElement, unknown, null, undefined>;
-  compass: Selection<SVGGElement, unknown, null, undefined>;
-  rivers: Selection<SVGGElement, unknown, null, undefined>;
-  terrain: Selection<SVGGElement, unknown, null, undefined>;
-  relig: Selection<SVGGElement, unknown, null, undefined>;
-  cults: Selection<SVGGElement, unknown, null, undefined>;
-  regions: Selection<SVGGElement, unknown, null, undefined>;
-  statesBody: Selection<SVGGElement, unknown, null, undefined>;
-  statesHalo: Selection<SVGGElement, unknown, null, undefined>;
-  provs: Selection<SVGGElement, unknown, null, undefined>;
-  zones: Selection<SVGGElement, unknown, null, undefined>;
-  borders: Selection<SVGGElement, unknown, null, undefined>;
-  stateBorders: Selection<SVGGElement, unknown, null, undefined>;
-  provinceBorders: Selection<SVGGElement, unknown, null, undefined>;
-  routes: Selection<SVGGElement, unknown, null, undefined>;
-  roads: Selection<SVGGElement, unknown, null, undefined>;
-  trails: Selection<SVGGElement, unknown, null, undefined>;
-  searoutes: Selection<SVGGElement, unknown, null, undefined>;
-  temperature: Selection<SVGGElement, unknown, null, undefined>;
-  coastline: Selection<SVGGElement, unknown, null, undefined>;
-  ice: Selection<SVGGElement, unknown, null, undefined>;
-  prec: Selection<SVGGElement, unknown, null, undefined>;
-  population: Selection<SVGGElement, unknown, null, undefined>;
-  emblems: Selection<SVGGElement, unknown, null, undefined>;
-  icons: Selection<SVGGElement, unknown, null, undefined>;
-  labels: Selection<SVGGElement, unknown, null, undefined>;
-  burgLabels: Selection<SVGGElement, unknown, null, undefined>;
-  burgIcons: Selection<SVGGElement, unknown, null, undefined>;
-  anchors: Selection<SVGGElement, unknown, null, undefined>;
-  armies: Selection<SVGGElement, unknown, null, undefined>;
-  markers: Selection<SVGGElement, unknown, null, undefined>;
-  fogging: Selection<SVGGElement, unknown, null, undefined> | null;
-  ruler: Selection<SVGGElement, unknown, null, undefined>;
-  debug: Selection<SVGGElement, unknown, null, undefined>;
-  // d3 zoom behavior attached to the svg element
+  viewbox: SvgGroup;
+  scaleBar: SvgGroup;
+  legend: SvgGroup;
+  ruler: SvgGroup;
+  debug: SvgGroup;
+  fogging: SvgGroup | null;
+}
+
+/** Natural environment layers. */
+export interface EnvironmentLayers {
+  ocean: SvgGroup;
+  oceanLayers: SvgGroup;
+  oceanPattern: SvgGroup;
+  landmass: SvgGroup;
+  texture: SvgGroup;
+  terrs: SvgGroup;
+  lakes: SvgGroup;
+  biomes: SvgGroup;
+  rivers: SvgGroup;
+  terrain: SvgGroup;
+  coastline: SvgGroup;
+  ice: SvgGroup;
+  prec: SvgGroup;
+  temperature: SvgGroup;
+}
+
+/** Political and cultural division layers. */
+export interface PoliticalLayers {
+  relig: SvgGroup;
+  cults: SvgGroup;
+  regions: SvgGroup;
+  statesBody: SvgGroup;
+  statesHalo: SvgGroup;
+  provs: SvgGroup;
+  zones: SvgGroup;
+  borders: SvgGroup;
+  stateBorders: SvgGroup;
+  provinceBorders: SvgGroup;
+}
+
+/** Route and transport infrastructure layers. */
+export interface InfrastructureLayers {
+  routes: SvgGroup;
+  roads: SvgGroup;
+  trails: SvgGroup;
+  searoutes: SvgGroup;
+}
+
+/** Settlement, label and military layers. */
+export interface SettlementLayers {
+  icons: SvgGroup;
+  labels: SvgGroup;
+  burgLabels: SvgGroup;
+  burgIcons: SvgGroup;
+  anchors: SvgGroup;
+  armies: SvgGroup;
+  markers: SvgGroup;
+  emblems: SvgGroup;
+  population: SvgGroup;
+}
+
+/** Map overlay and diagnostic layers. */
+export interface OverlayLayers {
+  cells: SvgGroup;
+  gridOverlay: SvgGroup;
+  coordinates: SvgGroup;
+  compass: SvgGroup;
+}
+
+/** Zoom/pan state and editor mode. */
+export interface ViewState {
   zoom: ZoomBehavior<SVGSVGElement, unknown>;
-  // Current zoom state
   viewX: number;
   viewY: number;
   /** Zoom scale level (1 = no zoom) */
@@ -60,6 +85,19 @@ export interface ViewContext {
   /** Current editor customization mode (0 = default, 1 = heightmap edit, etc.) */
   customization: number;
 }
+
+/**
+ * Full view context: composition of all domain-grouped layer interfaces.
+ * Renderers should declare only the group(s) they need rather than this full type.
+ */
+export interface ViewContext
+  extends RootLayers,
+    EnvironmentLayers,
+    PoliticalLayers,
+    InfrastructureLayers,
+    SettlementLayers,
+    OverlayLayers,
+    ViewState {}
 
 /**
  * Single mutable container for all SVG layer references and zoom state.

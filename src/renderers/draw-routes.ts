@@ -1,5 +1,5 @@
 import type { AppServices } from "../context/appServices";
-import type { ViewContext } from "../context/viewContext";
+import type { InfrastructureLayers } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import type { Route } from "../modules/routes-generator";
 import { Routes } from "../modules/routes-generator";
@@ -9,7 +9,11 @@ import type { IRenderer } from "./core/IRenderer";
 export const RoutesRenderer: IRenderer = {
   id: "routes",
 
-  render(worldContext: Readonly<WorldContext>, viewContext: Readonly<ViewContext>, _appServices: AppServices): void {
+  render(
+    worldContext: Readonly<WorldContext>,
+    viewContext: Readonly<InfrastructureLayers>,
+    _appServices: AppServices
+  ): void {
     TIME && console.time("drawRoutes");
     const { pack } = worldContext;
     const { routes } = viewContext;
@@ -30,14 +34,14 @@ export const RoutesRenderer: IRenderer = {
     TIME && console.timeEnd("drawRoutes");
   },
 
-  clear(viewContext: Readonly<ViewContext>): void {
+  clear(viewContext: Readonly<InfrastructureLayers>): void {
     viewContext.routes.selectAll("path").remove();
   }
 };
 
 export const drawRoute = (
   _worldContext: Readonly<WorldContext>,
-  viewContext: Readonly<ViewContext>,
+  viewContext: Readonly<InfrastructureLayers>,
   _appServices: AppServices,
   route: Route
 ): void => {

@@ -1,12 +1,16 @@
 import type { AppServices } from "../context/appServices";
-import type { ViewContext } from "../context/viewContext";
+import type { EnvironmentLayers } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import type { IRenderer } from "./core/IRenderer";
 
 export const TextureRenderer: IRenderer = {
   id: "texture",
 
-  render(worldContext: Readonly<WorldContext>, viewContext: Readonly<ViewContext>, _appServices: AppServices): void {
+  render(
+    worldContext: Readonly<WorldContext>,
+    viewContext: Readonly<EnvironmentLayers>,
+    _appServices: AppServices
+  ): void {
     const { graphWidth, graphHeight } = worldContext;
     const { texture } = viewContext;
 
@@ -24,7 +28,7 @@ export const TextureRenderer: IRenderer = {
       .attr("href", href);
   },
 
-  clear(viewContext: Readonly<ViewContext>): void {
+  clear(viewContext: Readonly<EnvironmentLayers>): void {
     viewContext.texture.selectAll("*").remove();
   }
 };

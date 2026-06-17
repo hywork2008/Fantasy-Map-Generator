@@ -1,6 +1,6 @@
 import { geoEquirectangular, geoGraticule, geoPath } from "d3";
 import type { AppServices } from "../context/appServices";
-import type { ViewContext } from "../context/viewContext";
+import type { OverlayLayers, ViewState } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { ensureEl, rn, round } from "../utils";
 import type { IRenderer } from "./core/IRenderer";
@@ -8,7 +8,11 @@ import type { IRenderer } from "./core/IRenderer";
 export const CoordinatesRenderer: IRenderer = {
   id: "coordinates",
 
-  render(worldContext: Readonly<WorldContext>, viewContext: Readonly<ViewContext>, _appServices: AppServices): void {
+  render(
+    worldContext: Readonly<WorldContext>,
+    viewContext: Readonly<OverlayLayers & ViewState>,
+    _appServices: AppServices
+  ): void {
     const { mapCoordinates, graphWidth, graphHeight } = worldContext;
     const { scale } = viewContext;
     const { coordinates } = viewContext;
@@ -72,7 +76,7 @@ export const CoordinatesRenderer: IRenderer = {
       .text(d => d.text);
   },
 
-  clear(viewContext: Readonly<ViewContext>): void {
+  clear(viewContext: Readonly<OverlayLayers & ViewState>): void {
     viewContext.coordinates.selectAll("*").remove();
   }
 };

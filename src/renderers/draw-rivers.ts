@@ -1,5 +1,5 @@
 import type { AppServices } from "../context/appServices";
-import type { ViewContext } from "../context/viewContext";
+import type { EnvironmentLayers } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { Rivers } from "../modules/river-generator";
 import { TIME } from "../utils/debug";
@@ -8,7 +8,11 @@ import type { IRenderer } from "./core/IRenderer";
 export const RiversRenderer: IRenderer = {
   id: "rivers",
 
-  render(worldContext: Readonly<WorldContext>, viewContext: Readonly<ViewContext>, _appServices: AppServices): void {
+  render(
+    worldContext: Readonly<WorldContext>,
+    viewContext: Readonly<EnvironmentLayers>,
+    _appServices: AppServices
+  ): void {
     TIME && console.time("drawRivers");
     const { pack } = worldContext;
     const { rivers } = viewContext;
@@ -38,7 +42,7 @@ export const RiversRenderer: IRenderer = {
     TIME && console.timeEnd("drawRivers");
   },
 
-  clear(viewContext: Readonly<ViewContext>): void {
+  clear(viewContext: Readonly<EnvironmentLayers>): void {
     viewContext.rivers.selectAll("*").remove();
   }
 };

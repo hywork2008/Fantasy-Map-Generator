@@ -1,5 +1,5 @@
 import type { AppServices } from "../context/appServices";
-import type { ViewContext } from "../context/viewContext";
+import type { SettlementLayers, ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import type { Burg } from "../modules/burgs-generator";
 import { TIME } from "../utils/debug";
@@ -14,7 +14,11 @@ interface BurgGroup {
 export const BurgIconsRenderer: IRenderer = {
   id: "burgIcons",
 
-  render(worldContext: Readonly<WorldContext>, viewContext: Readonly<ViewContext>, _appServices: AppServices): void {
+  render(
+    worldContext: Readonly<WorldContext>,
+    viewContext: Readonly<SettlementLayers>,
+    _appServices: AppServices
+  ): void {
     TIME && console.time("drawBurgIcons");
     const { pack, options, style } = worldContext;
     const { burgIcons, anchors } = viewContext;
@@ -46,7 +50,7 @@ export const BurgIconsRenderer: IRenderer = {
     TIME && console.timeEnd("drawBurgIcons");
   },
 
-  clear(viewContext: Readonly<ViewContext>): void {
+  clear(viewContext: Readonly<SettlementLayers>): void {
     viewContext.burgIcons.selectAll("*").remove();
     viewContext.anchors.selectAll("*").remove();
   }
@@ -104,8 +108,8 @@ export const removeBurgIcon = (
 function createIconGroups(
   _options: WorldContext["options"],
   style: WorldContext["style"],
-  _burgIcons: ViewContext["burgIcons"],
-  _anchors: ViewContext["anchors"]
+  _burgIcons: SettlementLayers["burgIcons"],
+  _anchors: SettlementLayers["anchors"]
 ): void {
   document.querySelectorAll("g#burgIcons > g").forEach(group => {
     style.burgIcons[group.id] = Array.from(group.attributes).reduce((acc: { [key: string]: string }, attribute) => {

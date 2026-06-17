@@ -1,6 +1,6 @@
 import { extent, polygonContains } from "d3";
 import type { AppServices } from "../context/appServices";
-import type { ViewContext } from "../context/viewContext";
+import type { EnvironmentLayers } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { getPackPolygon, minmax, poissonDiscSampler, rand, rn } from "../utils";
 import { TIME } from "../utils/debug";
@@ -16,7 +16,11 @@ interface ReliefIcon {
 export const ReliefIconsRenderer: IRenderer = {
   id: "relief-icons",
 
-  render(worldContext: Readonly<WorldContext>, viewContext: Readonly<ViewContext>, _appServices: AppServices): void {
+  render(
+    worldContext: Readonly<WorldContext>,
+    viewContext: Readonly<EnvironmentLayers>,
+    _appServices: AppServices
+  ): void {
     TIME && console.time("drawRelief");
     const { pack, biomesData } = worldContext;
     const { terrain } = viewContext;
@@ -154,7 +158,7 @@ export const ReliefIconsRenderer: IRenderer = {
     }
   },
 
-  clear(viewContext: Readonly<ViewContext>): void {
+  clear(viewContext: Readonly<EnvironmentLayers>): void {
     viewContext.terrain.selectAll("*").remove();
   }
 };

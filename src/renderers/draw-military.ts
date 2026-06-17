@@ -1,6 +1,6 @@
 import { color, easeSinInOut, transition } from "d3";
 import type { AppServices } from "../context/appServices";
-import type { ViewContext } from "../context/viewContext";
+import type { SettlementLayers } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import type { MilitaryRegiment } from "../modules/military-generator";
 import { Military } from "../modules/military-generator";
@@ -12,7 +12,11 @@ import type { IRenderer } from "./core/IRenderer";
 export const MilitaryRenderer: IRenderer = {
   id: "military",
 
-  render(worldContext: Readonly<WorldContext>, viewContext: Readonly<ViewContext>, appServices: AppServices): void {
+  render(
+    worldContext: Readonly<WorldContext>,
+    viewContext: Readonly<SettlementLayers>,
+    appServices: AppServices
+  ): void {
     TIME && console.time("MilitaryRenderer");
     const { pack } = worldContext;
     const { armies } = viewContext;
@@ -27,14 +31,14 @@ export const MilitaryRenderer: IRenderer = {
     TIME && console.timeEnd("MilitaryRenderer");
   },
 
-  clear(viewContext: Readonly<ViewContext>): void {
+  clear(viewContext: Readonly<SettlementLayers>): void {
     viewContext.armies.selectAll("g").remove();
   }
 };
 
 export const drawRegiments = (
   worldContext: Readonly<WorldContext>,
-  viewContext: Readonly<ViewContext>,
+  viewContext: Readonly<SettlementLayers>,
   _appServices: AppServices,
   regiments: MilitaryRegiment[],
   s: number
@@ -96,7 +100,7 @@ export const drawRegiments = (
 
 export const drawRegiment = (
   worldContext: Readonly<WorldContext>,
-  viewContext: Readonly<ViewContext>,
+  viewContext: Readonly<SettlementLayers>,
   _appServices: AppServices,
   reg: MilitaryRegiment,
   stateId: number
@@ -155,7 +159,7 @@ export const drawRegiment = (
 // move one regiment to another
 export const moveRegiment = (
   _worldContext: Readonly<WorldContext>,
-  viewContext: Readonly<ViewContext>,
+  viewContext: Readonly<SettlementLayers>,
   _appServices: AppServices,
   reg: MilitaryRegiment,
   x: number,

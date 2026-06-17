@@ -523,8 +523,8 @@ function overviewBurgs(settings: { stateId?: number | null; cultureId?: number |
 
       data += `${b.x},`;
       data += `${b.y},`;
-      data += `${getLatitude(b.y, 2)},`;
-      data += `${getLongitude(b.x, 2)},`;
+      data += `${getLatitude(b.y, worldContext.mapCoordinates, worldContext.graphHeight, 2)},`;
+      data += `${getLongitude(b.x, worldContext.mapCoordinates, worldContext.graphWidth, 2)},`;
       data += `${parseInt(getHeight(pack.cells.h[b.cell]), 10)},`;
       const temperature = grid.cells.temp![pack.cells.g![b.cell]];
       data += `${convertTemperature(temperature)},`;

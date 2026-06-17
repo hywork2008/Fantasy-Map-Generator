@@ -1,6 +1,6 @@
 import { forceCollide, forceSimulation, timeout } from "d3";
 import type { AppServices } from "../context/appServices";
-import type { ViewContext } from "../context/viewContext";
+import type { SettlementLayers } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import type { Burg } from "../modules/burgs-generator";
 import type { State } from "../modules/states-generator";
@@ -29,7 +29,11 @@ import type { IRenderer } from "./core/IRenderer";
 export const EmblemsRenderer: IRenderer = {
   id: "emblems",
 
-  render(worldContext: Readonly<WorldContext>, viewContext: Readonly<ViewContext>, _appServices: AppServices): void {
+  render(
+    worldContext: Readonly<WorldContext>,
+    viewContext: Readonly<SettlementLayers>,
+    _appServices: AppServices
+  ): void {
     TIME && console.time("EmblemsRenderer");
     const { pack, graphHeight, graphWidth } = worldContext;
     const { emblems } = viewContext;
@@ -161,7 +165,7 @@ export const EmblemsRenderer: IRenderer = {
     TIME && console.timeEnd("EmblemsRenderer");
   },
 
-  clear(viewContext: Readonly<ViewContext>): void {
+  clear(viewContext: Readonly<SettlementLayers>): void {
     viewContext.emblems.selectAll("use").remove();
   }
 };
@@ -176,7 +180,7 @@ const getDataAndType = (worldContext: Readonly<WorldContext>, id: string): [Burg
 
 export const renderGroupCOAs = async (
   worldContext: Readonly<WorldContext>,
-  _viewContext: Readonly<ViewContext>,
+  _viewContext: Readonly<SettlementLayers>,
   appServices: AppServices,
   g: SVGGElement
 ): Promise<void> => {

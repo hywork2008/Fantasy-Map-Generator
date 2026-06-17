@@ -1,5 +1,5 @@
 import type { AppServices } from "../context/appServices";
-import type { ViewContext } from "../context/viewContext";
+import type { RootLayers } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { TIME } from "../utils/debug";
 import type { IRenderer } from "./core/IRenderer";
@@ -7,7 +7,7 @@ import type { IRenderer } from "./core/IRenderer";
 export const BordersRenderer: IRenderer = {
   id: "borders",
 
-  render(worldContext: Readonly<WorldContext>, viewContext: Readonly<ViewContext>, _appServices: AppServices): void {
+  render(worldContext: Readonly<WorldContext>, viewContext: Readonly<RootLayers>, _appServices: AppServices): void {
     TIME && console.time("BordersRenderer");
     const { pack } = worldContext;
     const { cells, vertices } = pack;
@@ -169,7 +169,7 @@ export const BordersRenderer: IRenderer = {
     TIME && console.timeEnd("BordersRenderer");
   },
 
-  clear(viewContext: Readonly<ViewContext>): void {
+  clear(viewContext: Readonly<RootLayers>): void {
     viewContext.svg.select<SVGGElement>("#borders").selectAll("path").remove();
   }
 };

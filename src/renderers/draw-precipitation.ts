@@ -1,6 +1,6 @@
 import { easeSinIn, transition } from "d3";
 import type { AppServices } from "../context/appServices";
-import type { ViewContext } from "../context/viewContext";
+import type { EnvironmentLayers } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { useOptionsState } from "../store/optionsState";
 import { rn } from "../utils";
@@ -10,7 +10,11 @@ import type { IRenderer } from "./core/IRenderer";
 export const PrecipitationRenderer: IRenderer = {
   id: "precipitation",
 
-  render(worldContext: Readonly<WorldContext>, viewContext: Readonly<ViewContext>, _appServices: AppServices): void {
+  render(
+    worldContext: Readonly<WorldContext>,
+    viewContext: Readonly<EnvironmentLayers>,
+    _appServices: AppServices
+  ): void {
     TIME && console.time("PrecipitationRenderer");
     const { grid } = worldContext;
     const { prec } = viewContext;
@@ -41,7 +45,7 @@ export const PrecipitationRenderer: IRenderer = {
     TIME && console.timeEnd("PrecipitationRenderer");
   },
 
-  clear(viewContext: Readonly<ViewContext>): void {
+  clear(viewContext: Readonly<EnvironmentLayers>): void {
     viewContext.prec.selectAll("circle").remove();
   }
 };

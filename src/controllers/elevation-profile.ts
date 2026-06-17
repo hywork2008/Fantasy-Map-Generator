@@ -14,6 +14,7 @@ import {
   scaleLinear,
   select
 } from "d3";
+import { worldContext } from "../context/worldContext";
 import type { Burg } from "../modules/burgs-generator";
 import type { PackedGraphFeature } from "../modules/features";
 import type { Province } from "../modules/provinces-generator";
@@ -500,8 +501,8 @@ class ElevationProfileModule {
           k + 1,
           x,
           y,
-          getLatitude(y, 2),
-          getLongitude(x, 2),
+          getLatitude(y, worldContext.mapCoordinates, worldContext.graphHeight, 2),
+          getLongitude(x, worldContext.mapCoordinates, worldContext.graphWidth, 2),
           cell,
           getHeight(h),
           h,

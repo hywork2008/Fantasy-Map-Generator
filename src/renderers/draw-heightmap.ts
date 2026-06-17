@@ -24,7 +24,7 @@ import {
 import { createLayerCanvas } from "../canvas/map-canvas";
 import { HeightThreshold } from "../config/constants";
 import type { AppServices } from "../context/appServices";
-import type { ViewContext } from "../context/viewContext";
+import type { EnvironmentLayers } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import type { Vertices } from "../modules/voronoi";
 import { round } from "../utils";
@@ -56,7 +56,11 @@ const CURVE_MAP: Record<string, CurveFactory> = {
 export const HeightmapRenderer: IRenderer = {
   id: "heightmap",
 
-  render(worldContext: Readonly<WorldContext>, viewContext: Readonly<ViewContext>, _appServices: AppServices): void {
+  render(
+    worldContext: Readonly<WorldContext>,
+    viewContext: Readonly<EnvironmentLayers>,
+    _appServices: AppServices
+  ): void {
     TIME && console.time("HeightmapRenderer");
     const { grid, graphWidth, graphHeight } = worldContext;
     const { terrs } = viewContext;
@@ -208,7 +212,7 @@ export const HeightmapRenderer: IRenderer = {
     TIME && console.timeEnd("HeightmapRenderer");
   },
 
-  clear(viewContext: Readonly<ViewContext>): void {
+  clear(viewContext: Readonly<EnvironmentLayers>): void {
     const { terrs } = viewContext;
     terrs.select<SVGGElement>("#oceanHeights").selectAll("*").remove();
     terrs.select<SVGGElement>("#landHeights").selectAll("*").remove();

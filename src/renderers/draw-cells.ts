@@ -1,5 +1,5 @@
 import type { AppServices } from "../context/appServices";
-import type { ViewContext } from "../context/viewContext";
+import type { ViewState } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { ensureEl, getPackPolygon } from "../utils";
 import { getGridPolygon } from "../utils/graphUtils";
@@ -8,7 +8,7 @@ import type { IRenderer } from "./core/IRenderer";
 export const CellsRenderer: IRenderer = {
   id: "cells",
 
-  render(worldContext: Readonly<WorldContext>, viewContext: Readonly<ViewContext>, _appServices: AppServices): void {
+  render(worldContext: Readonly<WorldContext>, viewContext: Readonly<ViewState>, _appServices: AppServices): void {
     const { pack, grid } = worldContext;
     const { customization } = viewContext;
     const cellsData = customization === 1 ? Array.from(grid.cells.i) : Array.from(pack.cells.i);
@@ -18,7 +18,7 @@ export const CellsRenderer: IRenderer = {
     ensureEl("cells").innerHTML = `<path d="${paths.join("")}" />`;
   },
 
-  clear(_viewContext: Readonly<ViewContext>): void {
+  clear(_viewContext: Readonly<ViewState>): void {
     ensureEl("cells").innerHTML = "";
   }
 };

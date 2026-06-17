@@ -1,5 +1,5 @@
 import type { AppServices } from "../context/appServices";
-import type { ViewContext } from "../context/viewContext";
+import type { PoliticalLayers } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { getGappedFillPaths, getIsolines } from "../utils";
 import { TIME } from "../utils/debug";
@@ -8,7 +8,11 @@ import type { IRenderer } from "./core/IRenderer";
 export const ReligionsRenderer: IRenderer = {
   id: "religions",
 
-  render(worldContext: Readonly<WorldContext>, viewContext: Readonly<ViewContext>, _appServices: AppServices): void {
+  render(
+    worldContext: Readonly<WorldContext>,
+    viewContext: Readonly<PoliticalLayers>,
+    _appServices: AppServices
+  ): void {
     TIME && console.time("drawReligions");
     const { pack } = worldContext;
     const { cells, religions } = pack;
@@ -30,7 +34,7 @@ export const ReligionsRenderer: IRenderer = {
     TIME && console.timeEnd("drawReligions");
   },
 
-  clear(viewContext: Readonly<ViewContext>): void {
+  clear(viewContext: Readonly<PoliticalLayers>): void {
     viewContext.relig.html("");
   }
 };

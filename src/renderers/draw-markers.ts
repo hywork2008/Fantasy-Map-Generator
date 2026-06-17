@@ -1,5 +1,5 @@
 import type { AppServices } from "../context/appServices";
-import type { ViewContext } from "../context/viewContext";
+import type { SettlementLayers, ViewState } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import type { Marker } from "../modules/markers-generator";
 import { rn } from "../utils";
@@ -38,7 +38,7 @@ const pinShapes: PinShapes = {
 
 export const getPin = (
   _worldContext: Readonly<WorldContext>,
-  _viewContext: Readonly<ViewContext>,
+  _viewContext: Readonly<SettlementLayers & ViewState>,
   _appServices: AppServices,
   shape = "bubble",
   fill = "#fff",
@@ -50,7 +50,7 @@ export const getPin = (
 
 export function drawMarker(
   _worldContext: Readonly<WorldContext>,
-  viewContext: Readonly<ViewContext>,
+  viewContext: Readonly<SettlementLayers & ViewState>,
   _appServices: AppServices,
   _marker: Marker,
   _rescale = 1
@@ -75,7 +75,11 @@ export function drawMarker(
 export const MarkersRenderer: IRenderer = {
   id: "markers",
 
-  render(worldContext: Readonly<WorldContext>, viewContext: Readonly<ViewContext>, appServices: AppServices): void {
+  render(
+    worldContext: Readonly<WorldContext>,
+    viewContext: Readonly<SettlementLayers & ViewState>,
+    appServices: AppServices
+  ): void {
     TIME && console.time("MarkersRenderer");
     const { pack } = worldContext;
     const { markers } = viewContext;
@@ -90,7 +94,7 @@ export const MarkersRenderer: IRenderer = {
     TIME && console.timeEnd("MarkersRenderer");
   },
 
-  clear(viewContext: Readonly<ViewContext>): void {
+  clear(viewContext: Readonly<SettlementLayers & ViewState>): void {
     viewContext.markers.selectAll("*").remove();
   }
 };

@@ -1,5 +1,5 @@
 import type { AppServices } from "../context/appServices";
-import type { ViewContext } from "../context/viewContext";
+import type { PoliticalLayers } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { getGappedFillPaths, getIsolines } from "../utils";
 import { TIME } from "../utils/debug";
@@ -8,7 +8,11 @@ import type { IRenderer } from "./core/IRenderer";
 export const ProvincesRenderer: IRenderer = {
   id: "provinces",
 
-  render(worldContext: Readonly<WorldContext>, viewContext: Readonly<ViewContext>, _appServices: AppServices): void {
+  render(
+    worldContext: Readonly<WorldContext>,
+    viewContext: Readonly<PoliticalLayers>,
+    _appServices: AppServices
+  ): void {
     TIME && console.time("ProvincesRenderer");
     const { pack } = worldContext;
     const { cells, provinces } = pack;
@@ -42,7 +46,7 @@ export const ProvincesRenderer: IRenderer = {
     TIME && console.timeEnd("ProvincesRenderer");
   },
 
-  clear(viewContext: Readonly<ViewContext>): void {
+  clear(viewContext: Readonly<PoliticalLayers>): void {
     viewContext.provs.html("");
   }
 };

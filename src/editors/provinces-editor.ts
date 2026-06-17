@@ -973,7 +973,7 @@ export function editProvinces(): void {
     moveCircle(event.x, event.y, r);
 
     const found = r > 5 ? findAll(event.x, event.y, r) : [findCell(event.x, event.y)];
-    const selection = found.filter(isLand);
+    const selection = found.filter(i => isLand(i, worldContext.pack));
     if (selection) changeForSelection(selection);
   }
 

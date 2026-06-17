@@ -1,6 +1,6 @@
 import { color } from "d3";
 import type { AppServices } from "../context/appServices";
-import type { ViewContext } from "../context/viewContext";
+import type { RootLayers } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { useOptionsState } from "../store/optionsState";
 import { getGappedFillPaths, getIsolines } from "../utils";
@@ -10,7 +10,7 @@ import type { IRenderer } from "./core/IRenderer";
 export const StatesRenderer: IRenderer = {
   id: "states",
 
-  render(worldContext: Readonly<WorldContext>, viewContext: Readonly<ViewContext>, _appServices: AppServices): void {
+  render(worldContext: Readonly<WorldContext>, viewContext: Readonly<RootLayers>, _appServices: AppServices): void {
     TIME && console.time("drawStates");
     const { pack } = worldContext;
     const { cells, states } = pack;
@@ -47,7 +47,7 @@ export const StatesRenderer: IRenderer = {
     TIME && console.timeEnd("drawStates");
   },
 
-  clear(viewContext: Readonly<ViewContext>): void {
+  clear(viewContext: Readonly<RootLayers>): void {
     viewContext.svg.select<SVGGElement>("#statesBody").html("");
     viewContext.defs.select<SVGGElement>("#statePaths").html("");
     viewContext.svg.select<SVGGElement>("#statesHalo").html("");

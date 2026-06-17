@@ -1,5 +1,5 @@
 import type { AppServices } from "../context/appServices";
-import type { ViewContext } from "../context/viewContext";
+import type { PoliticalLayers } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import type { Zone } from "../modules/zones-generator";
 import { ensureEl, getVertexPath } from "../utils";
@@ -13,7 +13,11 @@ const drawZone = (pack: WorldContext["pack"], { i, cells: zoneCells, type, color
 export const ZonesRenderer: IRenderer = {
   id: "zones",
 
-  render(worldContext: Readonly<WorldContext>, viewContext: Readonly<ViewContext>, _appServices: AppServices): void {
+  render(
+    worldContext: Readonly<WorldContext>,
+    viewContext: Readonly<PoliticalLayers>,
+    _appServices: AppServices
+  ): void {
     const { pack } = worldContext;
     const { zones } = viewContext;
     const filterBy = (ensureEl("zonesFilterType") as HTMLSelectElement).value;
@@ -24,7 +28,7 @@ export const ZonesRenderer: IRenderer = {
     zones.html(visibleZones.map(z => drawZone(pack, z)).join(""));
   },
 
-  clear(viewContext: Readonly<ViewContext>): void {
+  clear(viewContext: Readonly<PoliticalLayers>): void {
     viewContext.zones.html("");
   }
 };

@@ -845,7 +845,7 @@ function dragCultureBrush(this: SVGElement, event: d3.D3DragEvent<SVGElement, un
   moveCircle(p[0], p[1], radius);
 
   const found = radius > 5 ? findAll(p[0], p[1], radius) : [findCell(p[0], p[1], radius)];
-  const selection = found.filter(isLand);
+  const selection = found.filter(i => isLand(i, worldContext.pack));
   if (selection) changeCultureForSelection(selection);
 }
 

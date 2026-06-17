@@ -267,8 +267,8 @@ function overviewMarkers(): void {
       const name = note ? quote(note.name) : "Unknown";
       const legend = note ? quote(note.legend) : "";
 
-      const lat = getLatitude(y, 2);
-      const lon = getLongitude(x, 2);
+      const lat = getLatitude(y, worldContext.mapCoordinates, worldContext.graphHeight, 2);
+      const lon = getLongitude(x, worldContext.mapCoordinates, worldContext.graphWidth, 2);
 
       return [i, type, icon, name, legend, x, y, lat, lon].join(",");
     });

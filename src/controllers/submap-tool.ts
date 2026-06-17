@@ -79,14 +79,18 @@ function openSubmapTool(): void {
       newSize;
 
     const latT = mapCoordinates.latT! / scale;
-    const latN = getLatitude(y0);
+    const latN = getLatitude(y0, worldContext.mapCoordinates, worldContext.graphHeight);
     const latShift = (90 - latN) / (180 - latT);
     const newLat = String(rn(latShift * 100, 2));
     (ensureEl("latitudeOutput") as HTMLOutputElement).value = (ensureEl("latitudeInput") as HTMLInputElement).value =
       newLat;
 
     const lotT = mapCoordinates.lonT! / scale;
-    const lonE = getLongitude(x0 + graphWidth / scale);
+    const lonE = getLongitude(
+      x0 + worldContext.graphWidth / scale,
+      worldContext.mapCoordinates,
+      worldContext.graphWidth
+    );
     const lonShift = (180 - lonE) / (360 - lotT);
     const newLon = String(rn(lonShift * 100, 2));
     (ensureEl("longitudeOutput") as HTMLOutputElement).value = (ensureEl("longitudeInput") as HTMLInputElement).value =

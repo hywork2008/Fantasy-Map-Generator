@@ -443,7 +443,7 @@ export function editBiomes(): void {
     const [px, py] = pointer(event, this);
     moveCircle(px, py, r);
     const found = r > 5 ? findAll(px, py, r) : [findCell(px, py)];
-    const selection = found.filter(isLand);
+    const selection = found.filter(i => isLand(i, worldContext.pack));
     if (selection) changeBiomeForSelection(selection);
   }
 

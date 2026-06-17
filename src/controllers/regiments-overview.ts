@@ -240,13 +240,13 @@ function overviewRegiments(state = -1): void {
 
         data += `${r.x},`;
         data += `${r.y},`;
-        data += `${getLatitude(r.y, 2)},`;
-        data += `${getLongitude(r.x, 2)},`;
+        data += `${getLatitude(r.y, worldContext.mapCoordinates, worldContext.graphHeight, 2)},`;
+        data += `${getLongitude(r.x, worldContext.mapCoordinates, worldContext.graphWidth, 2)},`;
 
         data += `${r.bx},`;
         data += `${r.by},`;
-        data += `${getLatitude(r.by, 2)},`;
-        data += `${getLongitude(r.bx, 2)}\n`;
+        data += `${getLatitude(r.by, worldContext.mapCoordinates, worldContext.graphHeight, 2)},`;
+        data += `${getLongitude(r.bx, worldContext.mapCoordinates, worldContext.graphWidth, 2)}\n`;
       }
     }
 

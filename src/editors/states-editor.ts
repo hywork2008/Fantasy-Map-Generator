@@ -1024,7 +1024,7 @@ function dragStateBrush(this: SVGElement, event: d3.D3DragEvent<SVGElement, unkn
   moveCircle(p[0], p[1], r);
 
   const found = r > 5 ? findAll(p[0], p[1], r) : [findCell(p[0], p[1])];
-  const selection = found.filter(isLand);
+  const selection = found.filter(i => isLand(i, worldContext.pack));
   if (selection) changeStateForSelection(selection);
 }
 
