@@ -14,7 +14,18 @@ import type { Province } from "../modules/provinces-generator";
 import { Provinces } from "../modules/provinces-generator";
 import type { State } from "../modules/states-generator";
 import { States } from "../modules/states-generator";
-import { BordersRenderer, drawStateLabels, PopulationRenderer, ProvincesRenderer, StatesRenderer } from "../renderers";
+import {
+  BordersRenderer,
+  BurgIconsRenderer,
+  BurgLabelsRenderer,
+  drawBurgIcon,
+  drawBurgLabel,
+  drawRoute,
+  drawStateLabels,
+  PopulationRenderer,
+  ProvincesRenderer,
+  StatesRenderer
+} from "../renderers";
 import type { WorldNote } from "../types/WorldState";
 import { openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { applySortingByHeader, ensureEl, findCell, getRandomColor, isLand, rand, rn, si } from "../utils";
@@ -651,6 +662,8 @@ function stateRemove(stateId: number): void {
       }
     }
   });
+  if (layerIsOn("toggleBurgIcons")) BurgIconsRenderer.render(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleLabels")) BurgLabelsRenderer.render(worldContext, viewContext, appServices);
 
   Array.from(pack.cells.state).forEach((s: number, i: number) => {
     if (s === stateId) pack.cells.state[i] = 0;
@@ -1290,7 +1303,14 @@ function addState(this: SVGElement, event: MouseEvent): void {
     return;
   }
 
-  if (!burgId) burgId = Burgs.add(point);
+  if (!burgId) {
+    const { burgId: addedId, newRoute } = Burgs.add(point);
+    burgId = addedId;
+    const addedBurg = (burgs as Burg[])[burgId];
+    drawBurgIcon(worldContext, viewContext, appServices, addedBurg);
+    drawBurgLabel(worldContext, viewContext, appServices, addedBurg);
+    if (newRoute && layerIsOn("toggleRoutes")) drawRoute(worldContext, viewContext, appServices, newRoute);
+  }
 
   const oldState = cells.state[center];
   const newState = (states as State[]).length;
@@ -1298,6 +1318,8 @@ function addState(this: SVGElement, event: MouseEvent): void {
   (burgs as Burg[])[burgId].capital = 1;
   (burgs as Burg[])[burgId].state = newState;
   Burgs.changeGroup((burgs as Burg[])[burgId]);
+  drawBurgIcon(worldContext, viewContext, appServices, (burgs as Burg[])[burgId]);
+  drawBurgLabel(worldContext, viewContext, appServices, (burgs as Burg[])[burgId]);
 
   if (event.shiftKey === false) exitAddStateMode();
 
@@ -1530,6 +1552,8 @@ function openStateMergeDialog(): void {
         burg.state = rulingStateId;
       }
     });
+    if (layerIsOn("toggleBurgIcons")) BurgIconsRenderer.render(worldContext, viewContext, appServices);
+    if (layerIsOn("toggleLabels")) BurgLabelsRenderer.render(worldContext, viewContext, appServices);
 
     (pack.provinces as Province[]).forEach(province => {
       if (province.i && !province.removed && statesToMerge.includes(province.state)) province.state = rulingStateId;

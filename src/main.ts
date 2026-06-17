@@ -546,14 +546,61 @@ const nameBases: typeof window.nameBases = Names.getNameBases();
 const color = d3.scaleSequential(d3.interpolateSpectral);
 const lineGen = d3.line().curve(d3.curveBasis);
 
-window.grid = worldContext.grid;
-window.pack = worldContext.pack;
-window.seed = worldContext.seed;
-window.mapId = worldContext.mapId;
+// ─── worldContext → window proxy bindings (C3) ───────────────────────────────
+// Reading/writing window.pack, .grid, .seed, .mapId, .notes, .mapCoordinates
+// goes through worldContext, so manual re-sync after each generation is gone.
+Object.defineProperty(window, "pack", {
+  get: () => worldContext.pack,
+  set: v => {
+    worldContext.pack = v;
+  },
+  configurable: true,
+  enumerable: true
+});
+Object.defineProperty(window, "grid", {
+  get: () => worldContext.grid,
+  set: v => {
+    worldContext.grid = v;
+  },
+  configurable: true,
+  enumerable: true
+});
+Object.defineProperty(window, "seed", {
+  get: () => worldContext.seed,
+  set: v => {
+    worldContext.seed = v;
+  },
+  configurable: true,
+  enumerable: true
+});
+Object.defineProperty(window, "mapId", {
+  get: () => worldContext.mapId,
+  set: v => {
+    worldContext.mapId = v;
+  },
+  configurable: true,
+  enumerable: true
+});
+Object.defineProperty(window, "notes", {
+  get: () => worldContext.notes,
+  set: v => {
+    worldContext.notes = v;
+  },
+  configurable: true,
+  enumerable: true
+});
+Object.defineProperty(window, "mapCoordinates", {
+  get: () => worldContext.mapCoordinates,
+  set: v => {
+    worldContext.mapCoordinates = v;
+  },
+  configurable: true,
+  enumerable: true
+});
+
 window.mapHistory = mapHistory;
 window.elSelected = elSelected;
 window.modules = modules;
-window.notes = worldContext.notes;
 window.rulers = rulers;
 window.customization = customization;
 window.options = options;
@@ -665,7 +712,6 @@ const { mapWidth: graphWidth, mapHeight: graphHeight } = useOptionsState.getStat
 const svgWidth = graphWidth;
 const svgHeight = graphHeight;
 
-window.mapCoordinates = worldContext.mapCoordinates;
 window.populationRate = populationRate;
 window.distanceScale = distanceScale;
 window.urbanization = urbanization;
@@ -1081,10 +1127,7 @@ async function generate(opts?: { seed?: string; graph?: Grid | null }) {
       appServices,
       worldContext.grid
     );
-    window.grid = worldContext.grid;
-
     worldContext.pack = {} as typeof worldContext.pack;
-    window.pack = worldContext.pack;
 
     Features.markupGrid();
     addLakesInDeepDepressions();
@@ -1181,7 +1224,6 @@ function setSeed(precreatedSeed?: string) {
     worldContext.seed = precreatedSeed;
   }
 
-  window.seed = worldContext.seed;
   useOptionsState.getState().setOption("seed", worldContext.seed);
   const seedInput = document.getElementById("optionsSeed") as HTMLInputElement | null;
   if (seedInput) seedInput.value = worldContext.seed;
@@ -1364,7 +1406,6 @@ function calculateMapCoordinates() {
   const lonE = rn(180 - (360 - lonT) * lonShift, 1);
   const lonW = rn(lonE - lonT, 1);
   worldContext.mapCoordinates = { latT, latN, latS, lonT, lonW, lonE };
-  window.mapCoordinates = worldContext.mapCoordinates;
 }
 
 // ─── Temperature model ────────────────────────────────────────────────────────
@@ -1705,7 +1746,6 @@ function showStatistics() {
     Cultures: ${worldContext.pack.cultures.length - 1}`;
 
   worldContext.mapId = Date.now();
-  window.mapId = worldContext.mapId;
   mapHistory.push({
     seed: worldContext.seed,
     width: graphWidth,
@@ -1755,7 +1795,6 @@ function undraw() {
     });
   ensureEl("coas").innerHTML = "";
   worldContext.notes = [];
-  window.notes = worldContext.notes;
   unfog();
 }
 

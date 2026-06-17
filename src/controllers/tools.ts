@@ -251,6 +251,8 @@ function regenerateStates(): void {
   drawStateLabels(worldContext, viewContext, appServices);
   Military.generate(worldContext, viewContext, appServices, state);
   if (layerIsOn("toggleEmblems")) EmblemsRenderer.render(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleBurgIcons")) BurgIconsRenderer.render(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleLabels")) BurgLabelsRenderer.render(worldContext, viewContext, appServices);
 
   if (ensureEl("burgsOverviewRefresh").offsetParent) ensureEl<HTMLButtonElement>("burgsOverviewRefresh").click();
   if (document.getElementById("statesEditorRefresh")?.offsetParent)
@@ -535,7 +537,7 @@ function regenerateBurgs(): void {
     .filter((s: State) => s.i && !s.removed && !s.capital)
     .forEach((s: State) => {
       const [x, y] = cells.p[s.center!] as [number, number];
-      const burgId = Burgs.add([x, y]);
+      const { burgId } = Burgs.add([x, y]);
       s.capital = burgId;
       s.center = pack.burgs[burgId].cell;
       const burg = pack.burgs[burgId];

@@ -14,7 +14,15 @@ import type { Province } from "../modules/provinces-generator";
 import { Provinces } from "../modules/provinces-generator";
 import type { State } from "../modules/states-generator";
 import { States } from "../modules/states-generator";
-import { BordersRenderer, drawStateLabels, PopulationRenderer, ProvincesRenderer, StatesRenderer } from "../renderers";
+import {
+  BordersRenderer,
+  drawBurgIcon,
+  drawBurgLabel,
+  drawStateLabels,
+  PopulationRenderer,
+  ProvincesRenderer,
+  StatesRenderer
+} from "../renderers";
 import { openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, findCell, getRandomColor, isLand, parseTransform, rand, rn, si, unique } from "../utils";
 import { getPackPolygon } from "../utils/graphUtils";
@@ -324,6 +332,8 @@ export function editProvinces(): void {
     const capital = (burgs as Burg[])[burgId];
     capital.capital = 1;
     Burgs.changeGroup(capital);
+    drawBurgIcon(worldContext, viewContext, appServices, capital);
+    drawBurgLabel(worldContext, viewContext, appServices, capital);
 
     (provinceBurgs ?? []).forEach((b: number) => {
       (burgs as Burg[])[b].state = newStateId;

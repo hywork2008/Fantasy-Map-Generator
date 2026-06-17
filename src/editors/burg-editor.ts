@@ -1,9 +1,13 @@
 import { drag, pointer } from "d3";
+import { appServices } from "../context/appServices";
+import { viewContext } from "../context/viewContext";
+import { worldContext } from "../context/worldContext";
 import { interactionManager } from "../controllers/interactionManager";
 import type { Burg } from "../modules/burgs-generator";
 import { Burgs } from "../modules/burgs-generator";
 import type { Culture } from "../modules/cultures-generator";
 import { COArenderer } from "../modules/emblem/renderer";
+import { drawBurgIcon, drawBurgLabel } from "../renderers";
 import { closeDialog, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { convertTemperature, ensureEl, findCell, openURL, parseTransform, rand, rn, showPrompt } from "../utils";
 import { editBurgGroups } from "./burg-group-editor";
@@ -155,6 +159,8 @@ export function editBurg(id?: number): void {
     const burgId = +elSelected!.attr("data-id");
     const burg = pack.burgs[burgId];
     Burgs.changeGroup(burg, this.value);
+    drawBurgIcon(worldContext, viewContext, appServices, burg);
+    drawBurgLabel(worldContext, viewContext, appServices, burg);
   }
 
   function changeType(this: HTMLSelectElement): void {
@@ -245,10 +251,14 @@ export function editBurg(id?: number): void {
     const capital = burgs[burgId];
     capital.capital = 1;
     Burgs.changeGroup(capital);
+    drawBurgIcon(worldContext, viewContext, appServices, capital);
+    drawBurgLabel(worldContext, viewContext, appServices, capital);
 
     const oldCapital = burgs[oldCapitalId];
     oldCapital.capital = 0;
     Burgs.changeGroup(oldCapital);
+    drawBurgIcon(worldContext, viewContext, appServices, oldCapital);
+    drawBurgLabel(worldContext, viewContext, appServices, oldCapital);
   }
 
   function toggleBurgLockButton(): void {

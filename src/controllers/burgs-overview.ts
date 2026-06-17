@@ -1,7 +1,11 @@
 import * as d3 from "d3";
 import { pointer } from "d3";
+import { appServices } from "../context/appServices";
+import { viewContext } from "../context/viewContext";
+import { worldContext } from "../context/worldContext";
 import { editBurgGroups } from "../editors/burg-group-editor";
 import { Burgs } from "../modules/burgs-generator";
+import { drawBurgIcon, drawBurgLabel, drawRoute } from "../renderers";
 import { openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { convertTemperature, ensureEl, findCell, getLatitude, getLongitude, rn, si } from "../utils";
 import { interactionManager } from "./interactionManager";
@@ -273,7 +277,11 @@ function overviewBurgs(settings: { stateId?: number | null; cultureId?: number |
       return;
     }
 
-    Burgs.add(point);
+    const { burgId, newRoute } = Burgs.add(point);
+    const burg = pack.burgs[burgId];
+    drawBurgIcon(worldContext, viewContext, appServices, burg);
+    drawBurgLabel(worldContext, viewContext, appServices, burg);
+    if (newRoute && layerIsOn("toggleRoutes")) drawRoute(worldContext, viewContext, appServices, newRoute);
 
     if (event.shiftKey === false) {
       exitAddBurgMode();

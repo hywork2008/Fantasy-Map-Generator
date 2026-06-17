@@ -5,7 +5,7 @@ import type { WorldContext } from "../context/worldContext";
 import { interactionManager } from "../controllers/interactionManager";
 import type { IceIceberg } from "../modules/ice";
 import { Ice } from "../modules/ice";
-import { redrawIceberg } from "../renderers/index";
+import { redrawGlacier, redrawIceberg } from "../renderers/index";
 import { closeDialog, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { parseTransform } from "../utils";
 
@@ -92,7 +92,8 @@ export function editIce(element: SVGElement): void {
     const i = findGridCell(x, y, grid);
     const size = +((document.getElementById("iceSize") as HTMLInputElement)?.value || "1") || 1;
 
-    Ice.addIceberg(i, size);
+    const id = Ice.addIceberg(i, size);
+    redrawIceberg(worldContext, viewContext, appServices, id);
 
     if (event.shiftKey === false) toggleAdd();
   }
@@ -106,8 +107,10 @@ export function editIce(element: SVGElement): void {
       title: `Remove ${iceType}`,
       buttons: {
         Remove: () => {
-          /* $(this).dialog("close") removed */
-          Ice.removeIce(+elSelected!.attr("data-id"));
+          const id = +elSelected!.attr("data-id");
+          const removedType = Ice.removeIce(id);
+          if (removedType === "glacier") redrawGlacier(worldContext, viewContext, appServices, id);
+          else if (removedType === "iceberg") redrawIceberg(worldContext, viewContext, appServices, id);
           closeDialog("iceEditor");
         },
         Cancel: () => {

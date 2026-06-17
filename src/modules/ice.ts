@@ -7,7 +7,6 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
-import { redrawGlacier, redrawIceberg } from "../renderers";
 import type { WorldState } from "../types/WorldState";
 import { clipPoly, getIsolines, lerp, minmax, normalize, P, ra, rand, rn } from "../utils";
 import { getGridPolygon } from "../utils/graphUtils";
@@ -112,7 +111,7 @@ class IceModule {
     }
   }
 
-  addIceberg(cellId: number, size: number) {
+  addIceberg(cellId: number, size: number): number {
     const { grid, pack } = this.worldContext;
     const [cx, cy] = grid.points[cellId];
     const points = getGridPolygon(cellId, grid).map(([x, y]: Point): [number, number] => [
@@ -127,21 +126,16 @@ class IceModule {
       cellId,
       size
     });
-    redrawIceberg(worldContext, viewContext, appServices, id);
+    return id;
   }
 
-  removeIce(id: number) {
+  removeIce(id: number): "glacier" | "iceberg" | undefined {
     const { pack } = this.worldContext;
     const index = pack.ice.findIndex(element => element.i === id);
-    if (index !== -1) {
-      const type = pack.ice[index].type;
-      pack.ice.splice(index, 1);
-      if (type === "glacier") {
-        redrawGlacier(worldContext, viewContext, appServices, id);
-      } else {
-        redrawIceberg(worldContext, viewContext, appServices, id);
-      }
-    }
+    if (index === -1) return undefined;
+    const type = pack.ice[index].type;
+    pack.ice.splice(index, 1);
+    return type;
   }
 
   randomizeIcebergShape(id: number) {

@@ -5,12 +5,13 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
-import { drawBurgIcon, drawBurgLabel, drawRoute, removeBurgIcon, removeBurgLabel } from "../renderers";
+import { removeBurgIcon, removeBurgLabel } from "../renderers";
 import { useOptionsState } from "../store/optionsState";
 import type { WorldState } from "../types/WorldState";
 import { each, findCell, gauss, minmax, normalize, P, rn } from "../utils";
 import { COA } from "./emblem/generator";
 import { COArenderer } from "./emblem/renderer";
+import type { Route } from "./routes-generator";
 import { Routes } from "./routes-generator";
 
 export interface BurgGroup {
@@ -652,7 +653,7 @@ class BurgModule {
     return previewGeneratorsMap[group.preview](burg);
   }
 
-  add([x, y]: [number, number]) {
+  add([x, y]: [number, number]): { burgId: number; newRoute?: Route } {
     const { pack } = this.worldContext;
     const { cells } = pack;
 
@@ -690,12 +691,8 @@ class BurgModule {
     cells.burg[cellId as number] = burgId;
 
     const newRoute = Routes.connect(cellId as number);
-    if (newRoute && layerIsOn("toggleRoutes")) drawRoute(worldContext, viewContext, appServices, newRoute);
 
-    drawBurgIcon(worldContext, viewContext, appServices, burg);
-    drawBurgLabel(worldContext, viewContext, appServices, burg);
-
-    return burgId;
+    return { burgId, newRoute };
   }
 
   changeGroup(burg: Burg, group?: string | null) {
@@ -707,9 +704,6 @@ class BurgModule {
       const populations = validBurgs.map(b => b.population as number).sort((a, b) => a - b);
       this.defineGroup(burg, populations);
     }
-
-    drawBurgIcon(worldContext, viewContext, appServices, burg);
-    drawBurgLabel(worldContext, viewContext, appServices, burg);
   }
 
   remove(burgId: number) {
