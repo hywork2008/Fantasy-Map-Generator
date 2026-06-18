@@ -14,7 +14,7 @@ import {
   RiversRenderer
 } from "../renderers";
 import { openDialog } from "../ui/dialogs/dialogService";
-import { convertTemperature, ensureEl, parseTransform, rn, round } from "../utils";
+import { convertTemperature, debounce, ensureEl, parseTransform, rn, round } from "../utils";
 
 let worldContext: WorldContext;
 let viewContext: Readonly<ViewContext>;
@@ -64,6 +64,8 @@ function editWorld(): void {
     ensureEl("temperatureSouthPoleF").innerText = convertTemperature(options.temperatureSouthPole, "°F");
   }
 
+  const debouncedUpdateWorld = debounce(updateWorld, 300);
+
   function handleControlsChange(event: Event): void {
     const target = event.target as HTMLInputElement;
     const stored = target.dataset.stored!;
@@ -82,7 +84,7 @@ function editWorld(): void {
       ensureEl("temperatureSouthPoleF").innerText = convertTemperature(options.temperatureSouthPole, "°F");
     }
 
-    if ((ensureEl("wcAutoChange") as HTMLInputElement).checked) updateWorld();
+    if ((ensureEl("wcAutoChange") as HTMLInputElement).checked) debouncedUpdateWorld();
   }
 
   function updateWorld(): void {
