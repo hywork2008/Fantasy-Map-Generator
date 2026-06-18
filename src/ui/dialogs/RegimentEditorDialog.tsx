@@ -39,7 +39,7 @@ export const RegimentEditorDialog: React.FC = () => {
         <div id="regimentComposition" className="table"></div>
       </div>
 
-      <div id="regimentBottom">
+      <div id="regimentFooter">
         <button type="button" id="regimentAttack" data-tip="Attack foreign regiment" className="icon-target"></button>
         <button
           type="button"

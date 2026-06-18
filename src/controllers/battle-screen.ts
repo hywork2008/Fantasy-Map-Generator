@@ -317,7 +317,7 @@ class Battle {
   }
 
   showNameSection(): void {
-    document.querySelectorAll<HTMLElement>("#battleBottom > button").forEach(el => {
+    document.querySelectorAll<HTMLElement>("#battleFooter > button").forEach(el => {
       el.style.display = "none";
     });
     (ensureEl("battleNameSection") as HTMLElement).style.display = "inline-block";
@@ -327,7 +327,7 @@ class Battle {
   }
 
   hideNameSection(): void {
-    document.querySelectorAll<HTMLElement>("#battleBottom > button").forEach(el => {
+    document.querySelectorAll<HTMLElement>("#battleFooter > button").forEach(el => {
       el.style.display = "inline-block";
     });
     (ensureEl("battleNameSection") as HTMLElement).style.display = "none";

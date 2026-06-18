@@ -78,7 +78,7 @@ export const MarkerEditorDialog: React.FC = () => {
         </div>
       </div>
 
-      <div id="markerBottom">
+      <div id="markerFooter">
         <button type="button" id="markerNotes" data-tip="Edit place legend (notes)" className="icon-edit"></button>
         <button
           type="button"

@@ -37,7 +37,7 @@ export const StyleSaverDialog: React.FC = () => {
               defaultValue={""}
             />
           </div>
-          <div id="styleSaverBottom">
+          <div id="styleSaverFooter">
             <button
               type="button"
               id="styleSaverSave"
@@ -63,7 +63,6 @@ export const StyleSaverDialog: React.FC = () => {
               className="icon-drafting-compass"
             />
           </div>
-          <div id="cellInfo" style={{ display: "none" }} className="dialog stable"></div>
         </div>
       </div>
     </Dialog>

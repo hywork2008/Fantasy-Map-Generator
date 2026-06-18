@@ -33,12 +33,12 @@ export const MarkersOverviewDialog: React.FC = () => {
               Search: <input id="markersSearch" type="search" />
             </label>
           </div>
-          <div id="markersFooter" className="totalLine">
+          <div id="markersTotal" className="totalLine">
             <div data-tip="Markers number">
               Markers: <span id="markersFooterNumber">0</span> of <span id="markersFooterTotal">0</span>
             </div>
           </div>
-          <div id="markersBottom">
+          <div id="markersFooter">
             <button
               type="button"
               id="markersOverviewRefresh"
@@ -100,7 +100,7 @@ export const MarkersOverviewDialog: React.FC = () => {
                 defaultValue={""}
               />
             </div>
-            <div id="styleSaverBottom">
+            <div id="styleSaverFooter">
               <button
                 type="button"
                 id="styleSaverSave"
@@ -127,7 +127,6 @@ export const MarkersOverviewDialog: React.FC = () => {
               />
             </div>
           </div>
-          <div id="cellInfo" style={{ display: "none" }} className="dialog stable"></div>
         </div>
       </div>
     </Dialog>

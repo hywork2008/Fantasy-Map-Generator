@@ -573,6 +573,14 @@ function applyStoredOptions(): void {
   // biome-ignore lint/suspicious/noExplicitAny: partial options object from legacy storage
   optionsStore.setOptions(loadedOptions as any);
 
+  // Remove stale heightExponent values that are outside the valid slider range (1–5).
+  // These can accumulate when the slider defaults incorrectly, causing all land cells to become glacier.
+  const storedHeightExp = stored("heightExponent");
+  if (storedHeightExp !== null) {
+    const exp = +storedHeightExp;
+    if (!Number.isFinite(exp) || exp < 1 || exp > 5) localStorage.removeItem("heightExponent");
+  }
+
   if (stored("winds"))
     options.winds = stored("winds")!.split(",").map(Number) as [number, number, number, number, number, number];
   if (stored("temperatureEquator")) options.temperatureEquator = +stored("temperatureEquator")!;
@@ -631,7 +639,7 @@ function randomizeOptions(): void {
   if (randomize || !locked("temperatureEquator")) options.temperatureEquator = gauss(25, 7, 20, 35, 0);
   if (randomize || !locked("temperatureNorthPole")) options.temperatureNorthPole = gauss(-25, 7, -40, 10, 0);
   if (randomize || !locked("temperatureSouthPole")) options.temperatureSouthPole = gauss(-15, 7, -40, 10, 0);
-  if (randomize || !locked("prec")) precInput.value = String(gauss(100, 40, 5, 500));
+  if ((randomize || !locked("prec")) && precInput) precInput.value = String(gauss(100, 40, 5, 500));
 
   const US = navigator.language === "en-US";
   if (randomize || !locked("distanceScale")) {
@@ -639,9 +647,9 @@ function randomizeOptions(): void {
     useOptionsState.getState().setOption("distanceScale", dsv);
     distanceScale = dsv;
   }
-  if (!stored("distanceUnit")) distanceUnitInput.value = US ? "mi" : "km";
-  if (!stored("heightUnit")) heightUnit.value = US ? "ft" : "m";
-  if (!stored("temperatureScale")) temperatureScale.value = US ? "°F" : "°C";
+  if (!stored("distanceUnit") && distanceUnitInput) distanceUnitInput.value = US ? "mi" : "km";
+  if (!stored("heightUnit") && heightUnit) heightUnit.value = US ? "ft" : "m";
+  if (!stored("temperatureScale") && temperatureScale) temperatureScale.value = US ? "°F" : "°C";
 
   generateEra();
 }

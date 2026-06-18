@@ -162,7 +162,7 @@ export function editUnits(): void {
     } else {
       if (!layerIsOn("toggleRulers")) toggleRulers();
       tip("Draw a curve to measure length. Hold Shift to disallow path optimization", true);
-      unitsBottom.querySelectorAll(".pressed").forEach(b => {
+      unitsFooter.querySelectorAll(".pressed").forEach(b => {
         b.classList.remove("pressed");
       });
       this.classList.add("pressed");
@@ -200,7 +200,7 @@ export function editUnits(): void {
     } else {
       if (!layerIsOn("toggleRulers")) toggleRulers();
       tip("Draw a curve along routes to measure length. Hold Shift to measure away from roads.", true);
-      unitsBottom.querySelectorAll(".pressed").forEach(b => {
+      unitsFooter.querySelectorAll(".pressed").forEach(b => {
         b.classList.remove("pressed");
       });
       this.classList.add("pressed");
@@ -257,7 +257,7 @@ export function editUnits(): void {
     } else {
       if (!layerIsOn("toggleRulers")) toggleRulers();
       tip("Draw a curve to measure its area. Hold Shift to disallow path optimization", true);
-      unitsBottom.querySelectorAll(".pressed").forEach(b => {
+      unitsFooter.querySelectorAll(".pressed").forEach(b => {
         b.classList.remove("pressed");
       });
       this.classList.add("pressed");

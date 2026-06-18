@@ -1,5 +1,6 @@
 import type React from "react";
 import { useEffect, useState } from "react";
+import { applyStoredOptions } from "../../controllers/options";
 import { useDialogState } from "../../store/dialogState";
 import { AiGeneratorDialog } from "./AiGeneratorDialog";
 import { AlertDialog } from "./AlertDialog";
@@ -10,8 +11,10 @@ import { BurgEditorDialog } from "./BurgEditorDialog";
 import { BurgGroupsEditorDialog } from "./BurgGroupsEditorDialog";
 import { BurgsOverviewDialog } from "./BurgsOverviewDialog";
 import { CellInfoDialog } from "./CellInfoDialog";
+import { ChartsOverviewDialog } from "./ChartsOverviewDialog";
 import { CoastlineEditorDialog } from "./CoastlineEditorDialog";
 import { CoastlineSettingsEditorDialog } from "./CoastlineSettingsEditorDialog";
+import { CulturesEditorDialog } from "./CulturesEditorDialog";
 import { DiplomacyEditorDialog } from "./DiplomacyEditorDialog";
 import { DiplomacyMatrixDialog } from "./DiplomacyMatrixDialog";
 import { ElevationProfileDialog } from "./ElevationProfileDialog";
@@ -41,6 +44,7 @@ import { RegimentEditorDialog } from "./RegimentEditorDialog";
 import { RegimentSelectorScreenDialog } from "./RegimentSelectorScreenDialog";
 import { RegimentsOverviewDialog } from "./RegimentsOverviewDialog";
 import { ReliefEditorDialog } from "./ReliefEditorDialog";
+import { ReligionsEditorDialog } from "./ReligionsEditorDialog";
 import { RiverCreatorDialog } from "./RiverCreatorDialog";
 import { RiverEditorDialog } from "./RiverEditorDialog";
 import { RiversOverviewDialog } from "./RiversOverviewDialog";
@@ -67,6 +71,10 @@ export const DialogsContainer: React.FC = () => {
     setMounted(true);
   }, []);
 
+  useEffect(() => {
+    if (mounted) applyStoredOptions();
+  }, [mounted]);
+
   return (
     <div id="dialogs-root" style={{ pointerEvents: "none" }}>
       {mounted && (
@@ -91,6 +99,8 @@ export const DialogsContainer: React.FC = () => {
           <CoastlineEditorDialog />
           <CoastlineSettingsEditorDialog />
           <StatesEditorDialog />
+          <CulturesEditorDialog />
+          <ReligionsEditorDialog />
           <ReliefEditorDialog />
           <BurgEditorDialog />
           <MarkerEditorDialog />
@@ -126,6 +136,7 @@ export const DialogsContainer: React.FC = () => {
           <StyleSaverDialog />
           <CellInfoDialog />
           <MinimapDialog />
+          <ChartsOverviewDialog />
           <Options3dDialog />
           <Preview3dDialog />
           {/* 

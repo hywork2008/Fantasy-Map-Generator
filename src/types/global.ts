@@ -768,7 +768,7 @@ declare global {
   ) => void;
 
   // HTML elements for units-editor
-  var unitsBottom: HTMLElement;
+  var unitsFooter: HTMLElement;
 
   // HTML elements for relief-editor
   var reliefTools: HTMLElement;

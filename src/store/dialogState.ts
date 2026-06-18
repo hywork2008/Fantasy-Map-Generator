@@ -63,22 +63,26 @@ export const dialogStore = createStore<DialogState>(set => ({
         dialogConfigs: newConfigs
       };
     }),
-  closeDialog: id =>
+  closeDialog: id => {
+    let callback: (() => void) | undefined;
     set(state => {
       const newSet = new Set(state.openDialogs);
       if (newSet.has(id)) {
         newSet.delete(id);
         const config = state.dialogConfigs[id];
         if (config) {
-          if (typeof config.onClose === "function") config.onClose();
-          else if (typeof config.close === "function") config.close();
+          if (typeof config.onClose === "function") callback = config.onClose;
+          else if (typeof config.close === "function") callback = config.close;
         }
       }
       const newConfigs = { ...state.dialogConfigs };
       delete newConfigs[id];
       return { openDialogs: newSet, dialogConfigs: newConfigs };
-    }),
-  closeAllDialogs: except =>
+    });
+    callback?.();
+  },
+  closeAllDialogs: except => {
+    const callbacks: Array<() => void> = [];
     set(state => {
       const newSet = new Set<string>();
       const newConfigs = { ...state.dialogConfigs };
@@ -89,14 +93,16 @@ export const dialogStore = createStore<DialogState>(set => ({
         } else {
           const config = state.dialogConfigs[id];
           if (config) {
-            if (typeof config.onClose === "function") config.onClose();
-            else if (typeof config.close === "function") config.close();
+            if (typeof config.onClose === "function") callbacks.push(config.onClose);
+            else if (typeof config.close === "function") callbacks.push(config.close);
           }
           delete newConfigs[id];
         }
       }
       return { openDialogs: newSet, dialogConfigs: newConfigs };
-    }),
+    });
+    for (const cb of callbacks) cb();
+  },
   setAlertConfig: config => set({ alertConfig: config }),
   setPromptConfig: config => set({ promptConfig: config })
 }));

@@ -106,7 +106,8 @@ function handleMouseMove(this: Element, event: MouseEvent): void {
   const gridCell = findGridCell(point[0], point[1], grid);
   if (tooltip.dataset.main) showMainTip();
   else showMapTooltip(point, event, i, gridCell);
-  if ((ensureEl("cellInfo") as HTMLElement)?.offsetParent) updateCellInfo(point, i, gridCell);
+  const cellInfoEl = document.getElementById("cellInfo") as HTMLElement | null;
+  if (cellInfoEl?.offsetParent) updateCellInfo(point, i, gridCell);
 }
 
 let currentNoteId: string | null = null;

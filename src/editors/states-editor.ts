@@ -37,12 +37,17 @@ let worldContext: WorldContext;
 let viewContext: Readonly<ViewContext>;
 let appServices: AppServices;
 
-const $body = insertEditorHtml();
-addListeners();
+let $body!: HTMLElement;
+let statesListenersAdded = false;
 const statesManualHistory = new BrushHistory();
 
 export function open(): void {
   closeDialogs("#statesEditor, .stable");
+  if (!statesListenersAdded) {
+    $body = insertEditorHtml();
+    addListeners();
+    statesListenersAdded = true;
+  }
   if (!layerIsOn("toggleStates")) toggleStates();
   if (!layerIsOn("toggleBorders")) toggleBorders();
   if (layerIsOn("toggleCultures")) toggleCultures();
@@ -79,7 +84,7 @@ function insertEditorHtml(): HTMLElement {
 
     <div id="statesBodySection" class="table" data-type="absolute"></div>
 
-    <div id="statesFooter" class="totalLine">
+    <div id="statesTotal" class="totalLine">
       <div data-tip="States number" style="margin-left: 5px">States:&nbsp;<span id="statesFooterStates">0</span></div>
       <div data-tip="Total land cells number" style="margin-left: 12px">Cells:&nbsp;<span id="statesFooterCells">0</span></div>
       <div data-tip="Total burgs number" style="margin-left: 12px">Burgs:&nbsp;<span id="statesFooterBurgs">0</span></div>
@@ -87,7 +92,7 @@ function insertEditorHtml(): HTMLElement {
       <div data-tip="Total population" style="margin-left: 12px">Population:&nbsp;<span id="statesFooterPopulation">0</span></div>
     </div>
 
-    <div id="statesBottom">
+    <div id="statesFooter">
       <button id="statesEditorRefresh" data-tip="Refresh the Editor" class="icon-cw"></button>
       <button id="statesEditStyle" data-tip="Edit states style in Style Editor" class="icon-adjust"></button>
       <button id="statesLegend" data-tip="Toggle Legend box" class="icon-list-bullet"></button>
@@ -898,7 +903,7 @@ function showStatesChart(): void {
 }
 
 function openRegenerationMenu(): void {
-  ensureEl("statesBottom")
+  ensureEl("statesFooter")
     .querySelectorAll<HTMLElement>(":scope > button")
     .forEach(el => {
       el.style.display = "none";
@@ -944,14 +949,15 @@ function randomizeStatesExpansion(): void {
 }
 
 function exitRegenerationMenu(): void {
-  ensureEl("statesBottom")
+  ensureEl("statesFooter")
     .querySelectorAll<HTMLElement>(":scope > button")
     .forEach(el => {
       el.style.display = "inline-block";
     });
   ensureEl("statesRegenerateButtons").style.display = "none";
-  ensureEl("statesEditor")
-    .querySelectorAll(".show")
+  document
+    .getElementById("statesEditor")
+    ?.querySelectorAll(".show")
     .forEach(el => {
       el.classList.add("hidden");
     });
@@ -964,18 +970,19 @@ function enterStatesManualAssignent(): void {
   if (!layerIsOn("toggleStates")) toggleStates();
   customization = 2;
   statesBody.append("g").attr("id", "temp");
-  document.querySelectorAll<HTMLElement>("#statesBottom > button").forEach(el => {
+  document.querySelectorAll<HTMLElement>("#statesFooter > button").forEach(el => {
     el.style.display = "none";
   });
   ensureEl("statesManuallyButtons").style.display = "inline-block";
   ensureEl("statesHalo").style.display = "none";
 
-  ensureEl("statesEditor")
-    .querySelectorAll(".hide")
+  document
+    .getElementById("statesEditor")
+    ?.querySelectorAll(".hide")
     .forEach(el => {
       el.classList.add("hidden");
     });
-  ensureEl("statesFooter").style.display = "none";
+  ensureEl("statesTotal").style.display = "none";
   $body.querySelectorAll<HTMLElement>("div > input, select, span, svg").forEach(e => {
     e.style.pointerEvents = "none";
   });
@@ -1235,18 +1242,24 @@ function exitStatesManualAssignment(close: boolean): void {
   statesManualHistory.reset();
   statesBody.select("#temp").remove();
   removeCircle();
-  document.querySelectorAll<HTMLElement>("#statesBottom > button").forEach(el => {
+  restoreDefaultEvents?.();
+  clearMainTip();
+
+  if (!$body) return;
+
+  document.querySelectorAll<HTMLElement>("#statesFooter > button").forEach(el => {
     el.style.display = "inline-block";
   });
   ensureEl("statesManuallyButtons").style.display = "none";
   ensureEl("statesHalo").style.display = "block";
 
-  ensureEl("statesEditor")
-    .querySelectorAll(".hide:not(.show)")
+  document
+    .getElementById("statesEditor")
+    ?.querySelectorAll(".hide:not(.show)")
     .forEach(el => {
       el.classList.remove("hidden");
     });
-  ensureEl("statesFooter").style.display = "block";
+  ensureEl("statesTotal").style.display = "block";
   $body.querySelectorAll<HTMLElement>("div > input, select, span, svg").forEach(e => {
     e.style.pointerEvents = "all";
   });
@@ -1255,8 +1268,6 @@ function exitStatesManualAssignment(close: boolean): void {
       position: { my: "right top", at: "right-10 top+10", of: "svg", collision: "fit" }
     });
 
-  restoreDefaultEvents?.();
-  clearMainTip();
   const selected = $body.querySelector("div.selected");
   if (selected) selected.classList.remove("selected");
 }

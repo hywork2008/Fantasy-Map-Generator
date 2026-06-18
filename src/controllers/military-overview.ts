@@ -71,7 +71,8 @@ function overviewMilitary(): void {
     header.querySelectorAll(".removable").forEach(el => {
       el.remove();
     });
-    const insert = (html: string) => document.getElementById("militaryTotal")!.insertAdjacentHTML("beforebegin", html);
+    const insert = (html: string) =>
+      document.getElementById("militaryTotalColumn")!.insertAdjacentHTML("beforebegin", html);
     for (const u of options.military!) {
       const label = capitalize(u.name.replace(/_/g, " "));
       insert(
@@ -561,7 +562,7 @@ declare global {
   var militaryFooterForces: HTMLElement;
   var militaryFooterRate: HTMLElement;
   var militaryFooterAlert: HTMLElement;
-  var militaryTotal: HTMLElement;
+  var militaryTotalColumn: HTMLElement;
   var militaryHeader: HTMLElement;
   var militaryOptionsTable: HTMLTableElement;
 }

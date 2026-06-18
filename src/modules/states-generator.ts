@@ -72,6 +72,7 @@ class StatesModule {
   private createStates() {
     const { pack } = this.worldContext;
     const states: State[] = [{ i: 0, name: "Neutrals" } as State];
+    if (!pack.burgs?.length) return states;
     const each5th = each(5);
     const sizeVariety = useOptionsState.getState().sizeVariety;
 
@@ -147,6 +148,11 @@ class StatesModule {
     this.appServices = appServices;
     const { pack } = state;
     TIME && console.time("generateStates");
+    if (!pack.burgs?.length) {
+      pack.states = [{ i: 0, name: "Neutrals" } as State];
+      pack.cells.state = pack.cells.state || new Uint16Array(pack.cells.i.length);
+      return;
+    }
     pack.states = this.createStates();
     this.expandStates(this.worldContext, this.viewContext, this.appServices);
     this.normalize();

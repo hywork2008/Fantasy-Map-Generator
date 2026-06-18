@@ -135,7 +135,7 @@ export const Options3dDialog: React.FC = () => {
               Equirectangular projection is used
             </div>
           </div>
-          <div id="options3dBottom" style={{ marginTop: "0.2em" }}>
+          <div id="options3dFooter" style={{ marginTop: "0.2em" }}>
             <button type="button" id="options3dUpdate" data-tip="Update the scene" className="icon-cw" />
             <button type="button" data-tip="Configure world and map size and climate settings" className="icon-globe" />
             <button

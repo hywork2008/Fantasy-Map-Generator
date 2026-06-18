@@ -1,6 +1,7 @@
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import { useOptionsState } from "../store/optionsState";
 import { openDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, rn } from "../utils";
 import { fitMapToScreen } from "./options";
@@ -79,7 +80,7 @@ async function openTransformTool(): Promise<void> {
     (ensureEl("transformShiftY") as HTMLInputElement).value = "0";
     handleInput();
 
-    updateCellsNumber((ensureEl("pointsInput") as HTMLInputElement).value);
+    updateCellsNumber(String(useOptionsState.getState().points));
     (ensureEl("transformPointsInput") as HTMLInputElement).oninput = (e: Event) =>
       updateCellsNumber((e.target as HTMLInputElement).value);
 
@@ -140,7 +141,7 @@ async function openTransformTool(): Promise<void> {
     INFO && console.group("transformMap");
 
     const transformPointsValue = (ensureEl("transformPointsInput") as HTMLInputElement).value;
-    const globalPointsValue = (ensureEl("pointsInput") as HTMLInputElement).value;
+    const globalPointsValue = String(useOptionsState.getState().points);
     if (transformPointsValue !== globalPointsValue) changeCellsDensity(+transformPointsValue);
 
     const [projection, inverse] = getProjection();

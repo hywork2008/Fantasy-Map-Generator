@@ -898,7 +898,7 @@ function addRiverOnClick(this: SVGElement, event: MouseEvent): void {
   const source = riverCells[0];
   const mouth = riverCells[riverCells.length - 2];
 
-  const defaultWidthFactor = rn(1 / (pointsInput.dataset.cells ? +pointsInput.dataset.cells / 10000 : 1) ** 0.25, 2);
+  const defaultWidthFactor = rn(1 / ((cellsDensityMap[useOptionsState.getState().points] ?? 10000) / 10000) ** 0.25, 2);
   const widthFactor =
     river?.widthFactor || (!parent || parent === riverId ? defaultWidthFactor * 1.2 : defaultWidthFactor);
   const sourceWidth = river?.sourceWidth || Rivers.getSourceWidth(cells.fl[source]);

@@ -35,6 +35,7 @@ import {
   ZonesRenderer
 } from "../renderers";
 import { drawScaleBar, fitScaleBar } from "../renderers/index";
+import { useOptionsState } from "../store/optionsState";
 import { ensureEl, findCell, rand, rn, unique } from "../utils";
 
 // update old map file to the current version
@@ -532,7 +533,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
     d3.select("#rivers").attr("style", null);
     const { cells, rivers: packRivers } = pack;
     const defaultWidthFactor = rn(
-      1 / ((pointsInput.dataset.cells ? +pointsInput.dataset.cells : 10000) / 10000) ** 0.25,
+      1 / ((cellsDensityMap[useOptionsState.getState().points] ?? 10000) / 10000) ** 0.25,
       2
     );
 

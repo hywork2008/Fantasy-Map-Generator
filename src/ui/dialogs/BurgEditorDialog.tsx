@@ -163,7 +163,7 @@ export const BurgEditorDialog: React.FC = () => {
         </div>
       </div>
 
-      <div id="burgBottom">
+      <div id="burgFooter">
         <button type="button" id="burgStyleShow" data-tip="Show style edit section" className="icon-brush"></button>
         <div id="burgStyleSection" style={{ display: "none" }}>
           <button type="button" id="burgStyleHide" data-tip="Hide style edit section" className="icon-brush"></button>

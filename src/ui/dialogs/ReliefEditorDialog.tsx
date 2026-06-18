@@ -350,7 +350,7 @@ export const ReliefEditorDialog: React.FC = () => {
         </svg>
       </div>
 
-      <div id="reliefBottom">
+      <div id="reliefFooter">
         <button
           type="button"
           id="reliefEditStyle"

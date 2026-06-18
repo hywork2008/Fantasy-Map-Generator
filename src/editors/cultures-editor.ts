@@ -29,12 +29,17 @@ import { NamesbaseEditor } from "./namesbase-editor";
 
 const cultureTypes = ["Generic", "River", "Lake", "Naval", "Nomadic", "Hunting", "Highland"];
 
-const $body = insertEditorHtml();
-addListeners();
+let $body!: HTMLElement;
+let culturesListenersAdded = false;
 const culturesManualHistory = new BrushHistory();
 
 export function open(): void {
   closeDialogs("#culturesEditor, .stable");
+  if (!culturesListenersAdded) {
+    $body = insertEditorHtml();
+    addListeners();
+    culturesListenersAdded = true;
+  }
   if (!layerIsOn("toggleCultures")) toggleCultures();
   if (layerIsOn("toggleStates")) toggleStates();
   if (layerIsOn("toggleBiomes")) toggleBiomes();
@@ -53,6 +58,9 @@ export function open(): void {
 }
 
 function insertEditorHtml(): HTMLElement {
+  const existing = document.getElementById("culturesBody");
+  if (existing) return existing;
+
   const editorHtml = /* html */ `<div id="culturesEditor" class="dialog stable">
     <div id="culturesHeader" class="header" style="grid-template-columns: 10em 7em 9em 4em 8em 5em 7em 8em">
       <div data-tip="Click to sort by culture name" class="sortable alphabetically" data-sortby="name">Culture&nbsp;</div>
@@ -66,14 +74,14 @@ function insertEditorHtml(): HTMLElement {
     </div>
     <div id="culturesBody" class="table" data-type="absolute"></div>
 
-    <div id="culturesFooter" class="totalLine">
+    <div id="culturesTotal" class="totalLine">
       <div data-tip="Cultures number" style="margin-left: 12px">Cultures:&nbsp;<span id="culturesFooterCultures">0</span></div>
       <div data-tip="Total land cells number" style="margin-left: 12px">Cells:&nbsp;<span id="culturesFooterCells">0</span></div>
       <div data-tip="Total land area" style="margin-left: 12px">Land Area:&nbsp;<span id="culturesFooterArea">0</span></div>
       <div data-tip="Total population" style="margin-left: 12px">Population:&nbsp;<span id="culturesFooterPopulation">0</span></div>
     </div>
 
-    <div id="culturesBottom">
+    <div id="culturesFooter">
       <button id="culturesEditorRefresh" data-tip="Refresh the Editor" class="icon-cw"></button>
       <button id="culturesEditStyle" data-tip="Edit cultures style in Style Editor" class="icon-adjust"></button>
       <button id="culturesLegend" data-tip="Toggle Legend box" class="icon-list-bullet"></button>
@@ -787,18 +795,19 @@ function enterCultureManualAssignent(): void {
   if (!layerIsOn("toggleCultures")) toggleCultures();
   customization = 4;
   cults.append("g").attr("id", "temp");
-  document.querySelectorAll<HTMLElement>("#culturesBottom > *").forEach(el => {
+  document.querySelectorAll<HTMLElement>("#culturesFooter > *").forEach(el => {
     el.style.display = "none";
   });
   ensureEl("culturesManuallyButtons").style.display = "inline-block";
   debug.select("#cultureCenters").style("display", "none");
 
-  ensureEl("culturesEditor")
-    .querySelectorAll(".hide")
+  document
+    .getElementById("culturesEditor")
+    ?.querySelectorAll(".hide")
     .forEach(el => {
       el.classList.add("hidden");
     });
-  ensureEl("culturesFooter").style.display = "none";
+  ensureEl("culturesTotal").style.display = "none";
   $body.querySelectorAll<HTMLElement>("div > input, select, span, svg").forEach(e => {
     e.style.pointerEvents = "none";
   });
@@ -901,25 +910,29 @@ function exitCulturesManualAssignment(close?: boolean | string): void {
   culturesManualHistory.reset();
   cults.select("#temp").remove();
   removeCircle();
-  document.querySelectorAll<HTMLElement>("#culturesBottom > *").forEach(el => {
+  debug.select("#cultureCenters").style("display", null);
+  restoreDefaultEvents?.();
+  clearMainTip();
+
+  if (!$body) return;
+
+  document.querySelectorAll<HTMLElement>("#culturesFooter > *").forEach(el => {
     el.style.display = "inline-block";
   });
   ensureEl("culturesManuallyButtons").style.display = "none";
 
-  ensureEl("culturesEditor")
-    .querySelectorAll(".hide")
+  document
+    .getElementById("culturesEditor")
+    ?.querySelectorAll(".hide")
     .forEach(el => {
       el.classList.remove("hidden");
     });
-  ensureEl("culturesFooter").style.display = "block";
+  ensureEl("culturesTotal").style.display = "block";
   $body.querySelectorAll<HTMLElement>("div > input, select, span, svg").forEach(e => {
     e.style.pointerEvents = "all";
   });
   if (!close) openDialog("culturesEditor", { position: { my: "right top", at: "right-10 top+10", of: "svg" } });
 
-  debug.select("#cultureCenters").style("display", null);
-  restoreDefaultEvents?.();
-  clearMainTip();
   const selected = $body.querySelector("div.selected");
   if (selected) selected.classList.remove("selected");
 }

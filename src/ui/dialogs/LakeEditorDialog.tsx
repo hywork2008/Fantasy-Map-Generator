@@ -95,7 +95,7 @@ export const LakeEditorDialog: React.FC = () => {
         </div>
       </div>
 
-      <div id="lakeBottom">
+      <div id="lakeFooter">
         <button
           type="button"
           id="lakeLegend"

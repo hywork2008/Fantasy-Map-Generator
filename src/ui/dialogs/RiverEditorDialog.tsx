@@ -70,7 +70,7 @@ export const RiverEditorDialog: React.FC = () => {
         </div>
       </div>
 
-      <div id="riverBottom">
+      <div id="riverFooter">
         <button
           id="riverCreateSelectingCells"
           data-tip="Create a new river selecting river cells"

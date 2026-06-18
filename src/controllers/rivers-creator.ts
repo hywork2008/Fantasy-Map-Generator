@@ -1,6 +1,7 @@
 import { pointer } from "d3";
 import type { WorldContext } from "../context/worldContext";
 import { Rivers } from "../modules/river-generator";
+import { useOptionsState } from "../store/optionsState";
 import { closeDialog, openDialog } from "../ui/dialogs/dialogService";
 import { findCell, last, rn } from "../utils";
 import { getPackPolygon } from "../utils/graphUtils";
@@ -100,7 +101,7 @@ function createRiver(): void {
     const mouth = parent === riverId ? last(riverCells) : riverCells[riverCells.length - 2];
     const sourceWidth = Rivers.getSourceWidth(cells.fl[source]);
     const defaultWidthFactor = rn(
-      1 / ((pointsInput.dataset.cells ? +pointsInput.dataset.cells : 10000) / 10000) ** 0.25,
+      1 / ((cellsDensityMap[useOptionsState.getState().points] ?? 10000) / 10000) ** 0.25,
       2
     );
     const widthFactor = 1.2 * defaultWidthFactor;

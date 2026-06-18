@@ -257,11 +257,6 @@ const plotTypeMap: Record<
 let charts: ChartOptions[] = [];
 let prevMapId = -1;
 
-appendStyleSheet();
-insertHtml();
-addListeners();
-changeViewColumns();
-
 export function open(): void {
   closeDialogs("#chartsOverview, .stable");
 
@@ -271,91 +266,16 @@ export function open(): void {
   }
 
   if (!charts.length) addChart();
-  else
-    charts.forEach(chart => {
-      renderChart(chart);
-    });
+  else for (const chart of charts) renderChart(chart);
 
   openDialog("chartsOverview", {
-    title: "Data Charts",
-    position: { my: "center", at: "center", of: "svg" },
-    close: handleClose
+    onClose: () => {
+      ensureEl("chartsOverview__charts").innerHTML = "";
+    }
   });
 }
 
-function appendStyleSheet(): void {
-  const style = document.createElement("style");
-  style.textContent = /* css */ `
-    #chartsOverview { max-width: 90vw !important; max-height: 90vh !important; overflow: hidden; display: grid; grid-template-rows: auto 1fr; }
-    #chartsOverview__form { font-size: 1.1em; margin: 0.3em 0; display: grid; grid-template-columns: auto auto; grid-gap: 0.3em; align-items: start; justify-items: end; }
-    @media (max-width: 600px) { #chartsOverview__form { font-size: 1em; grid-template-columns: 1fr; justify-items: normal; } }
-    #chartsOverview__charts { overflow: auto; scroll-behavior: smooth; display: grid; }
-    #chartsOverview__charts figure { margin: 0; }
-    #chartsOverview__charts figcaption { font-size: 1.2em; margin: 0 1% 0 4%; display: grid; grid-template-columns: 1fr auto; }
-  `;
-  document.head.appendChild(style);
-}
-
-function insertHtml(): void {
-  const entities = Object.entries(entitiesMap).map(([entity, { label }]) => [entity, label]);
-  const plotBy = Object.entries(quantizationMap).map(([key, { label }]) => [key, label]);
-
-  const createOption = ([value, label]: string[]) => `<option value="${value}">${label}</option>`;
-  const createOptions = (values: string[][]) => values.map(createOption).join("");
-
-  const html = /* html */ `<div id="chartsOverview" class="dialog stable">
-    <form id="chartsOverview__form">
-      <div>
-        <button data-tip="Add a chart" type="submit">Plot</button>
-        <select data-tip="Select entity (y axis)" id="chartsOverview__entitiesSelect">${createOptions(entities)}</select>
-        <label>by
-          <select data-tip="Select value to plot by (x axis)" id="chartsOverview__plotBySelect">${createOptions(plotBy)}</select>
-        </label>
-        <label>grouped by
-          <select data-tip="Select entity to group by. If you don't need grouping, set it the same as the entity" id="chartsOverview__groupBySelect">${createOptions(entities)}</select>
-        </label>
-        <label data-tip="Sorting type">sorted
-          <select id="chartsOverview__sortingSelect">
-            <option value="value">by value</option>
-            <option value="name">by name</option>
-            <option value="natural">naturally</option>
-          </select>
-        </label>
-      </div>
-      <div>
-        <span data-tip="Chart type">Type</span>
-        <select id="chartsOverview__chartType">
-          <option value="stackedBar" selected>Stacked Bar</option>
-          <option value="normalizedStackedBar">Normalized Stacked Bar</option>
-        </select>
-        <span data-tip="Columns to display">Columns</span>
-        <select id="chartsOverview__viewColumns">
-          <option value="1" selected>1</option>
-          <option value="2">2</option>
-          <option value="3">3</option>
-          <option value="4">4</option>
-        </select>
-      </div>
-    </form>
-    <section id="chartsOverview__charts"></section>
-  </div>`;
-
-  ensureEl("dialogs").insertAdjacentHTML("beforeend", html);
-
-  (ensureEl("chartsOverview__entitiesSelect") as HTMLSelectElement).value = "states";
-  (ensureEl("chartsOverview__plotBySelect") as HTMLSelectElement).value = "total_population";
-  (ensureEl("chartsOverview__groupBySelect") as HTMLSelectElement).value = "cultures";
-}
-
-function addListeners(): void {
-  (ensureEl("chartsOverview__form") as HTMLFormElement).addEventListener("submit", e => {
-    e.preventDefault();
-    addChart();
-  });
-  ensureEl("chartsOverview__viewColumns").addEventListener("change", changeViewColumns);
-}
-
-function addChart(): void {
+export function addChart(): void {
   const entity = (ensureEl("chartsOverview__entitiesSelect") as HTMLSelectElement).value;
   const plotBy = (ensureEl("chartsOverview__plotBySelect") as HTMLSelectElement).value;
   let groupBy = (ensureEl("chartsOverview__groupBySelect") as HTMLSelectElement).value;
@@ -371,7 +291,6 @@ function addChart(): void {
   const chartOptions: ChartOptions = { id: Date.now(), entity, plotBy, groupBy, sorting, type };
   charts.push(chartOptions);
   renderChart(chartOptions);
-  updateDialogPosition();
 }
 
 function renderChart({ id, entity, plotBy, groupBy, sorting, type }: ChartOptions): void {
@@ -555,7 +474,10 @@ function createStackedBarChart(
       )
       .map(([y, yz]) => [y, d3.sum(yz, ([, val]) => val)])
   );
-  const getTooltip = (p: BarDataPoint) => tooltip(Y[p.i], Z[p.i], X[p.i], X[p.i] / totalZ[Y[p.i]]);
+  const getTooltip = (p: BarDataPoint) => {
+    if (p.i == null) return [];
+    return tooltip(Y[p.i], Z[p.i], X[p.i], X[p.i] / totalZ[Y[p.i]]);
+  };
 
   bar.append("title").text(d => getTooltip(d).join("\r\n"));
   bar.on("mouseover", d => tip(getTooltip(d).join(". ")));
@@ -634,7 +556,6 @@ function insertChart(id: number, sortedData: ChartDataPoint[], $chart: SVGElemen
   const removeChart = () => {
     $figure.remove();
     charts = charts.filter(chart => chart.id !== id);
-    updateDialogPosition();
   };
 
   $figure.querySelector<HTMLButtonElement>("button.icon-download")!.addEventListener("click", downloadChartData);
@@ -642,17 +563,13 @@ function insertChart(id: number, sortedData: ChartDataPoint[], $chart: SVGElemen
   $figure.querySelector<HTMLButtonElement>("button.icon-trash")!.addEventListener("click", removeChart);
 }
 
-function changeViewColumns(): void {
+export function changeViewColumns(): void {
   const columns = (ensureEl("chartsOverview__viewColumns") as HTMLSelectElement).value;
   const $charts = ensureEl("chartsOverview__charts");
   $charts.style.gridTemplateColumns = `repeat(${columns}, 1fr)`;
-  updateDialogPosition();
 }
 
-function updateDialogPosition(): void {}
-
-function handleClose(): void {
-  ensureEl("chartsOverview__charts").innerHTML = "";
+export function handleClose(): void {
   closeDialog("chartsOverview");
 }
 

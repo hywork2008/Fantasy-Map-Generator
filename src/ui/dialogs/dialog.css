@@ -87,3 +87,8 @@
 .fmg-dialog-button:hover {
   background-color: #666;
 }
+
+.fmg-dialog.fmg-dialog--overflow-hidden > .fmg-dialog-content {
+  overflow: hidden;
+  padding: 0;
+}

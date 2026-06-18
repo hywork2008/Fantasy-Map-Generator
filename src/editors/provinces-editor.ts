@@ -899,7 +899,7 @@ export function editProvinces(): void {
       .attr("stroke", "#ff0000")
       .attr("stroke-width", 1);
 
-    document.querySelectorAll<HTMLElement>("#provincesBottom > *").forEach(el => {
+    document.querySelectorAll<HTMLElement>("#provincesFooter > *").forEach(el => {
       el.style.display = "none";
     });
     ensureEl("provincesManuallyButtons").style.display = "inline-block";
@@ -910,7 +910,7 @@ export function editProvinces(): void {
         el.classList.add("hidden");
       });
     ensureEl("provincesHeader").querySelector<HTMLElement>("div[data-sortby='state']")!.style.left = "7.7em";
-    ensureEl("provincesFooter").style.display = "none";
+    ensureEl("provincesTotal").style.display = "none";
     body.querySelectorAll<HTMLElement>("div > input, select, span, svg").forEach(e => {
       e.style.pointerEvents = "none";
     });
@@ -1057,7 +1057,7 @@ export function editProvinces(): void {
     stateBorders.select("path").attr("stroke", null).attr("stroke-width", null);
     debug.selectAll("path.selected").remove();
 
-    document.querySelectorAll<HTMLElement>("#provincesBottom > *").forEach(el => {
+    document.querySelectorAll<HTMLElement>("#provincesFooter > *").forEach(el => {
       el.style.display = "inline-block";
     });
     ensureEl("provincesManuallyButtons").style.display = "none";
@@ -1068,7 +1068,7 @@ export function editProvinces(): void {
         el.classList.remove("hidden");
       });
     ensureEl("provincesHeader").querySelector<HTMLElement>("div[data-sortby='state']")!.style.left = "22em";
-    ensureEl("provincesFooter").style.display = "block";
+    ensureEl("provincesTotal").style.display = "block";
     body.querySelectorAll<HTMLElement>("div > input, select, span, svg").forEach(e => {
       e.style.pointerEvents = "all";
     });

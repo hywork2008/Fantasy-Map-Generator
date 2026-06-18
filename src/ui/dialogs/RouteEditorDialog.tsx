@@ -32,7 +32,7 @@ export const RouteEditorDialog: React.FC = () => {
         </div>
       </div>
 
-      <div id="routeBottom">
+      <div id="routeFooter">
         <button
           id="routeCreateSelectingCells"
           data-tip="Create a new route selecting route cells"

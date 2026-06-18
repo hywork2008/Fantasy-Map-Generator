@@ -19,11 +19,16 @@ let appServices: AppServices;
 import { openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { getPackPolygon } from "../utils/graphUtils";
 
-const $body = insertEditorHtml();
-addListeners();
+let $body!: HTMLElement;
+let religionsListenersAdded = false;
 
 export function open(): void {
   closeDialogs("#religionsEditor, .stable");
+  if (!religionsListenersAdded) {
+    $body = insertEditorHtml();
+    addListeners();
+    religionsListenersAdded = true;
+  }
   if (!layerIsOn("toggleReligions")) toggleReligions();
   if (layerIsOn("toggleStates")) toggleStates();
   if (layerIsOn("toggleBiomes")) toggleBiomes();
@@ -43,6 +48,9 @@ export function open(): void {
 }
 
 function insertEditorHtml(): HTMLElement {
+  const existing = document.getElementById("religionsBody");
+  if (existing) return existing;
+
   const editorHtml = /* html */ `<div id="religionsEditor" class="dialog stable">
     <div id="religionsHeader" class="header" style="grid-template-columns: 13em 6em 7em 18em 6em 7em 6em 7em">
       <div data-tip="Click to sort by religion name" class="sortable alphabetically" data-sortby="name">Religion&nbsp;</div>
@@ -56,7 +64,7 @@ function insertEditorHtml(): HTMLElement {
     </div>
     <div id="religionsBody" class="table" data-type="absolute"></div>
 
-    <div id="religionsFooter" class="totalLine">
+    <div id="religionsTotal" class="totalLine">
       <div data-tip="Total number of organized religions" style="margin-left: 12px">
         Organized:&nbsp;<span id="religionsOrganized">0</span>
       </div>
@@ -77,7 +85,7 @@ function insertEditorHtml(): HTMLElement {
       </div>
     </div>
 
-    <div id="religionsBottom">
+    <div id="religionsFooter">
       <button id="religionsEditorRefresh" data-tip="Refresh the Editor" class="icon-cw"></button>
       <button id="religionsEditStyle" data-tip="Edit religions style in Style Editor" class="icon-adjust"></button>
       <button id="religionsLegend" data-tip="Toggle Legend box" class="icon-list-bullet"></button>
@@ -713,18 +721,19 @@ function enterReligionsManualAssignent(): void {
   if (!layerIsOn("toggleReligions")) toggleReligions();
   customization = 7;
   relig.append("g").attr("id", "temp");
-  document.querySelectorAll<HTMLElement>("#religionsBottom > *").forEach(el => {
+  document.querySelectorAll<HTMLElement>("#religionsFooter > *").forEach(el => {
     el.style.display = "none";
   });
   ensureEl("religionsManuallyButtons").style.display = "inline-block";
   debug.select("#religionCenters").style("display", "none");
 
-  ensureEl("religionsEditor")
-    .querySelectorAll(".hide")
+  document
+    .getElementById("religionsEditor")
+    ?.querySelectorAll(".hide")
     .forEach(el => {
       el.classList.add("hidden");
     });
-  ensureEl("religionsFooter").style.display = "none";
+  ensureEl("religionsTotal").style.display = "none";
   $body.querySelectorAll<HTMLElement>("div > input, select, span, svg").forEach(e => {
     e.style.pointerEvents = "none";
   });
@@ -821,25 +830,29 @@ function exitReligionsManualAssignment(close?: boolean | string): void {
   customization = 0;
   relig.select("#temp").remove();
   removeCircle();
-  document.querySelectorAll<HTMLElement>("#religionsBottom > *").forEach(el => {
+  debug.select("#religionCenters").style("display", null);
+  restoreDefaultEvents?.();
+  clearMainTip();
+
+  if (!$body) return;
+
+  document.querySelectorAll<HTMLElement>("#religionsFooter > *").forEach(el => {
     el.style.display = "inline-block";
   });
   ensureEl("religionsManuallyButtons").style.display = "none";
 
-  ensureEl("religionsEditor")
-    .querySelectorAll(".hide")
+  document
+    .getElementById("religionsEditor")
+    ?.querySelectorAll(".hide")
     .forEach(el => {
       el.classList.remove("hidden");
     });
-  ensureEl("religionsFooter").style.display = "block";
+  ensureEl("religionsTotal").style.display = "block";
   $body.querySelectorAll<HTMLElement>("div > input, select, span, svg").forEach(e => {
     e.style.pointerEvents = "all";
   });
   if (!close) openDialog("religionsEditor", { position: { my: "right top", at: "right-10 top+10", of: "svg" } });
 
-  debug.select("#religionCenters").style("display", null);
-  restoreDefaultEvents?.();
-  clearMainTip();
   const $selected = $body.querySelector("div.selected");
   if ($selected) $selected.classList.remove("selected");
 }

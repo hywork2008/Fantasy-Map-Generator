@@ -283,14 +283,14 @@ export function editBurg(id?: number): void {
   }
 
   function showStyleSection(): void {
-    document.querySelectorAll<HTMLElement>("#burgBottom > button").forEach(el => {
+    document.querySelectorAll<HTMLElement>("#burgFooter > button").forEach(el => {
       el.style.display = "none";
     });
     (ensureEl("burgStyleSection") as HTMLElement).style.display = "inline-block";
   }
 
   function hideStyleSection(): void {
-    document.querySelectorAll<HTMLElement>("#burgBottom > button").forEach(el => {
+    document.querySelectorAll<HTMLElement>("#burgFooter > button").forEach(el => {
       el.style.display = "inline-block";
     });
     (ensureEl("burgStyleSection") as HTMLElement).style.display = "none";

@@ -1,6 +1,7 @@
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import { useOptionsState } from "../store/optionsState";
 import { openDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, getLatitude, getLongitude, minmax, rn } from "../utils";
 import { fitMapToScreen } from "./options";
@@ -32,7 +33,7 @@ function openSubmapTool(): void {
   modules.openSubmapTool = true;
 
   function resetInputs(): void {
-    updateCellsNumber((ensureEl("pointsInput") as HTMLInputElement).value);
+    updateCellsNumber(String(useOptionsState.getState().points));
     (ensureEl("submapPointsInput") as HTMLInputElement).oninput = (e: Event) =>
       updateCellsNumber((e.target as HTMLInputElement).value);
 
@@ -53,7 +54,7 @@ function openSubmapTool(): void {
     recalculateMapSize(x0, y0);
 
     const submapPointsValue = (ensureEl("submapPointsInput") as HTMLInputElement).value;
-    const globalPointsValue = (ensureEl("pointsInput") as HTMLInputElement).value;
+    const globalPointsValue = String(useOptionsState.getState().points);
     if (submapPointsValue !== globalPointsValue) changeCellsDensity(+submapPointsValue);
 
     const projection = (x: number, y: number): [number, number] => [(x - x0) * scale, (y - y0) * scale];

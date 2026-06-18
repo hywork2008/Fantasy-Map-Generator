@@ -1425,7 +1425,8 @@ function calculateTemperatures() {
   const tempSouthTropic = temperatureEquator + tropics[1] * tropicalGradient;
   const southernGradient = (tempSouthTropic - temperatureSouthPole) / (90 + tropics[1]);
 
-  const exponent = +heightExponentInput.value;
+  const rawExp = +(heightExponentInput?.value ?? "2");
+  const exponent = Number.isFinite(rawExp) && rawExp >= 1 && rawExp <= 5 ? rawExp : 1.8;
 
   for (let rowCellId = 0; rowCellId < gridCells.i.length; rowCellId += worldContext.grid.cellsX) {
     const [, y] = worldContext.grid.points[rowCellId];
@@ -1467,7 +1468,7 @@ function generatePrecipitation() {
 
   const { points: pointsOpt } = useOptionsState.getState();
   const cellsNumberModifier = ((pointsOpt === 4 ? 10000 : pointsOpt * 2500) / 10000) ** 0.25;
-  const precInputModifier = +precInput.value / 100;
+  const precInputModifier = +(precInput?.value || "100") / 100;
   const modifier = cellsNumberModifier * precInputModifier;
 
   const westerly: [number, number, number][] = [];

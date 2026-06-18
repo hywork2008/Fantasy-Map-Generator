@@ -386,10 +386,10 @@ export function editBiomes(): void {
     customization = 6;
     (biomes as Selection<SVGGElement, unknown, null, undefined>).append("g").attr("id", "temp");
 
-    document.querySelectorAll("#biomesBottom > button").forEach(el => {
+    document.querySelectorAll("#biomesFooter > button").forEach(el => {
       (el as HTMLElement).style.display = "none";
     });
-    document.querySelectorAll("#biomesBottom > div").forEach(el => {
+    document.querySelectorAll("#biomesFooter > div").forEach(el => {
       (el as HTMLElement).style.display = "block";
     });
     body.querySelector("div.biomes")!.classList.add("selected");
@@ -403,7 +403,7 @@ export function editBiomes(): void {
     body.querySelectorAll("div > input, select, span, svg").forEach(e => {
       (e as HTMLElement).style.pointerEvents = "none";
     });
-    (document.getElementById("biomesFooter") as HTMLElement).style.display = "none";
+    (document.getElementById("biomesTotal") as HTMLElement).style.display = "none";
     openDialog("biomesEditor", { position: { my: "right top", at: "right-10 top+10", of: "svg" } });
 
     tip("Click on biome to select, drag the circle to change biome", true);
@@ -499,10 +499,10 @@ export function editBiomes(): void {
     (biomes as Selection<SVGGElement, unknown, null, undefined>).select("#temp").remove();
     removeCircle();
 
-    document.querySelectorAll("#biomesBottom > button").forEach(el => {
+    document.querySelectorAll("#biomesFooter > button").forEach(el => {
       (el as HTMLElement).style.display = "inline-block";
     });
-    document.querySelectorAll("#biomesBottom > div").forEach(el => {
+    document.querySelectorAll("#biomesFooter > div").forEach(el => {
       (el as HTMLElement).style.display = "none";
     });
 
@@ -515,7 +515,7 @@ export function editBiomes(): void {
       .forEach(el => {
         el.classList.remove("hidden");
       });
-    (document.getElementById("biomesFooter") as HTMLElement).style.display = "block";
+    (document.getElementById("biomesTotal") as HTMLElement).style.display = "block";
     if (!close) openDialog("biomesEditor", { position: { my: "right top", at: "right-10 top+10", of: "svg" } });
 
     restoreDefaultEvents?.();

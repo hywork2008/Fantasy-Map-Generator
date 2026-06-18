@@ -9,7 +9,7 @@ export const RiverCreatorDialog: React.FC = () => {
   return (
     <Dialog isOpen={isOpen} title="River Creator" onClose={() => closeDialog("riverCreator")}>
       <div id="riverCreatorBody" className="table"></div>
-      <div id="riverCreatorBottom">
+      <div id="riverCreatorFooter">
         <button
           type="button"
           id="riverCreatorComplete"

@@ -199,7 +199,7 @@ export function editZones(): void {
     if (!layerIsOn("toggleZones")) toggleZones();
     customization = 10;
 
-    document.querySelectorAll("#zonesBottom > *").forEach(el => {
+    document.querySelectorAll("#zonesFooter > *").forEach(el => {
       (el as HTMLElement).style.display = "none";
     });
     ensureEl("zonesManuallyButtons").style.display = "inline-block";
@@ -209,7 +209,7 @@ export function editZones(): void {
       .forEach(el => {
         el.classList.add("hidden");
       });
-    (document.getElementById("zonesFooter") as HTMLElement).style.display = "none";
+    (document.getElementById("zonesTotal") as HTMLElement).style.display = "none";
     body.querySelectorAll("div > input, select, svg").forEach(e => {
       (e as HTMLElement).style.pointerEvents = "none";
     });
@@ -328,18 +328,18 @@ export function editZones(): void {
   function exitZonesManualAssignment(close?: string): void {
     customization = 0;
     removeCircle();
-    document.querySelectorAll("#zonesBottom > *").forEach(el => {
+    document.querySelectorAll("#zonesFooter > *").forEach(el => {
       (el as HTMLElement).style.display = "inline-block";
     });
     ensureEl("zonesManuallyButtons").style.display = "none";
 
     document
-      .getElementById("zonesEditor")!
+      .getElementById("zonesEditorContainer")!
       .querySelectorAll(".hide:not(.show)")
       .forEach(el => {
         el.classList.remove("hidden");
       });
-    (document.getElementById("zonesFooter") as HTMLElement).style.display = "block";
+    (document.getElementById("zonesTotal") as HTMLElement).style.display = "block";
     body.querySelectorAll("div > input, select, svg").forEach(e => {
       (e as HTMLElement).style.pointerEvents = "all";
     });
