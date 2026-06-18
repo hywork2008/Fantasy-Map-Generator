@@ -297,7 +297,6 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
       if (settings[19]) options = JSON.parse(settings[19]);
       if (settings[16]) options.temperatureEquator = +settings[16];
       if (settings[17]) options.temperatureNorthPole = options.temperatureSouthPole = +settings[17];
-      if (settings[20]) mapName.value = settings[20];
       if (settings[21]) hideLabels.checked = !!+settings[21];
       if (settings[22]) stylePreset.value = settings[22];
       if (settings[23]) rescaleLabels.checked = !!+settings[23];
@@ -306,11 +305,7 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
         urbanDensity = +settings[24];
       }
       if (settings[25]) longitudeInput.value = longitudeOutput.value = String(minmax(+(settings[25] || "50"), 0, 100));
-      if (settings[26]) growthRate.value = settings[26];
     }
-    stateLabelsModeInput.value = options.stateLabelsMode;
-    yearInput.value = String(options.year);
-    eraInput.value = String(options.era);
 
     // Sync loaded values into Zustand store so React UI reflects the loaded map
     {

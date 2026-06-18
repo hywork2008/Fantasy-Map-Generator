@@ -5,7 +5,7 @@ class MapInteractionManager {
   private activeMouseMoveHandler: MapEventHandler | null = null;
   private defaultClickHandler: MapEventHandler | null = null;
   private defaultMouseMoveHandler: MapEventHandler | null = null;
-  private isInitialized = false;
+  private currentElement: Element | null = null;
 
   constructor() {
     this.handleViewboxClick = this.handleViewboxClick.bind(this);
@@ -13,15 +13,22 @@ class MapInteractionManager {
   }
 
   public init(viewboxElement: Element, defaultClick: MapEventHandler, defaultMouseMove: MapEventHandler): void {
-    if (this.isInitialized) return;
     this.defaultClickHandler = defaultClick;
     this.defaultMouseMoveHandler = defaultMouseMove;
 
-    // Use native event listeners for delegation
+    if (this.currentElement === viewboxElement) return;
+
+    // Remove listeners from the previous element (e.g. after map reload replaces SVG)
+    if (this.currentElement) {
+      this.currentElement.removeEventListener("click", this.handleViewboxClick as EventListener);
+      this.currentElement.removeEventListener("mousemove", this.handleViewboxMouseMove as EventListener);
+      this.currentElement.removeEventListener("touchmove", this.handleViewboxMouseMove as EventListener);
+    }
+
     viewboxElement.addEventListener("click", this.handleViewboxClick as EventListener);
     viewboxElement.addEventListener("mousemove", this.handleViewboxMouseMove as EventListener);
     viewboxElement.addEventListener("touchmove", this.handleViewboxMouseMove as EventListener);
-    this.isInitialized = true;
+    this.currentElement = viewboxElement;
   }
 
   public setClickHandler(handler: MapEventHandler | null): void {

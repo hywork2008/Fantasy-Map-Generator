@@ -1,3 +1,5 @@
+import { useOptionsState } from "../store/optionsState";
+
 export function exportToJson(type: string): void {
   if (customization) {
     tip("Data cannot be exported when edit mode is active, please exit the mode and retry", false, "error");
@@ -78,7 +80,7 @@ function getMapInfo() {
     version: VERSION,
     description: "Azgaar's Fantasy Map Generator output: azgaar.github.io/Fantasy-map-generator",
     exportedAt: new Date().toISOString(),
-    mapName: mapName.value,
+    mapName: useOptionsState.getState().mapName,
     width: graphWidth,
     height: graphHeight,
     seed,
@@ -101,7 +103,7 @@ function getSettings() {
     longitude: longitudeOutput.value,
     prec: precOutput.value,
     options,
-    mapName: mapName.value,
+    mapName: useOptionsState.getState().mapName,
     hideLabels: hideLabels.checked,
     stylePreset: stylePreset.value,
     rescaleLabels: rescaleLabels.checked,

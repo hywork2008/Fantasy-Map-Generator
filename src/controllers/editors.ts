@@ -1,4 +1,5 @@
 import * as d3 from "d3";
+import { useOptionsState } from "../store/optionsState";
 import { editBurg } from "../editors/burg-editor";
 import { coastlineEditor, editCoastline } from "../editors/coastline-editor";
 import { open as openCulturesEditor } from "../editors/cultures-editor";
@@ -573,7 +574,7 @@ function unfog(id?: string): void {
 
 function getFileName(dataType?: string): string {
   const pad = (n: number) => (n < 10 ? `0${n}` : String(n));
-  const name = mapName.value;
+  const name = useOptionsState.getState().mapName;
   const type = dataType ? `${dataType} ` : "";
   const date = new Date();
   const dateString = [

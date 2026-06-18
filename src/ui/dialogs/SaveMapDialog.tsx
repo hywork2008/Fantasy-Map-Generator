@@ -1,5 +1,6 @@
 import type React from "react";
 import { useDialogState } from "../../store/dialogState";
+import { callWindowFn } from "../../utils/windowGlobals";
 import { Dialog } from "./Dialog";
 
 export const SaveMapDialog: React.FC = () => {
@@ -16,13 +17,26 @@ export const SaveMapDialog: React.FC = () => {
     >
       <div style={{ marginTop: "0.3em" }}>
         <strong>Save map to</strong>
-        <button data-tip="Download map file to your local disk" style={{ fontWeight: 600 }} type="button">
+        <button
+          data-tip="Download map file to your local disk"
+          style={{ fontWeight: 600 }}
+          type="button"
+          onClick={() => callWindowFn("saveMap", "machine")}
+        >
           machine
         </button>
-        <button type="button" data-tip="Save map file to your Dropbox">
+        <button
+          type="button"
+          data-tip="Save map file to your Dropbox"
+          onClick={() => callWindowFn("saveMap", "dropbox")}
+        >
           dropbox
         </button>
-        <button type="button" data-tip="Save the project to browser storage only">
+        <button
+          type="button"
+          data-tip="Save the project to browser storage only"
+          onClick={() => callWindowFn("saveMap", "storage")}
+        >
           browser
         </button>
       </div>
