@@ -630,6 +630,7 @@ let viewY = 0;
 let rafId: number | null = null;
 let pendingScaleChange = false;
 let pendingPositionChange = false;
+let activeZoomingTimeout: ReturnType<typeof setTimeout> | undefined;
 
 function zoomRaf(event: { transform: { k: number; x: number; y: number } }) {
   const { k, x, y } = event.transform;
@@ -679,8 +680,14 @@ function zoomRaf(event: { transform: { k: number; x: number; y: number } }) {
       }
     }
 
+    if (didScaleChange || didPositionChange) {
+      clearTimeout(activeZoomingTimeout);
+      activeZoomingTimeout = setTimeout(() => {
+        invokeActiveZooming();
+      }, 100);
+    }
+
     if (didScaleChange) {
-      invokeActiveZooming();
       drawScaleBar(worldContext, viewContext, appServices, scaleBar, scale);
       fitScaleBar(worldContext, viewContext, appServices, scaleBar, svgWidth, svgHeight);
     }
@@ -1005,10 +1012,35 @@ function invokeActiveZooming() {
     coastline.select("#sea_island").attr("filter", filter);
   }
 
+  const burgGroups = worldContext.options.burgs?.groups || [];
+  const getScaleThreshold = (groupId: string) => {
+    const group = (burgGroups as BurgGroup[]).find(g => g.name === groupId);
+    if (!group) return 0;
+    // Order 1 -> visible always (threshold 0)
+    // Order 2 -> visible if scale > 2.5
+    // Order 3 -> visible if scale > 4.5
+    return group.order === 1 ? 0 : group.order * 2 - 1.5;
+  };
+
+  const isBurgGroupHidden = (groupId: string) => scale < getScaleThreshold(groupId);
+
   if (labels.style("display") !== "none") {
     labels.selectAll<SVGGElement, unknown>("g").each(function () {
       if (this.id === "burgLabels") return;
-      const desired = +this.dataset.size!;
+
+      const parent = this.parentElement;
+      if (parent && parent.id === "burgLabels") {
+        // Semantic zooming for burg labels
+        const hidden = isBurgGroupHidden(this.id);
+        if (hidden) {
+          this.classList.add("hidden");
+        } else {
+          this.classList.remove("hidden");
+        }
+        return;
+      }
+
+      const desired = +(this.getAttribute("data-size") || 0);
       const relative = Math.max(rn((desired + desired / scale) / 2, 2), 1);
       if (useOptionsState.getState().rescaleLabels) this.setAttribute("font-size", String(relative));
 
@@ -1016,16 +1048,54 @@ function invokeActiveZooming() {
       if (hidden) this.classList.add("hidden");
       else this.classList.remove("hidden");
     });
+
+    import("./renderers").then(({ BurgLabelsRenderer }) => {
+      BurgLabelsRenderer.render(worldContext, viewContext, appServices);
+    });
+  }
+
+  if (icons.style("display") !== "none") {
+    icons.selectAll<SVGGElement, unknown>("g#burgIcons > g").each(function () {
+      const hidden = isBurgGroupHidden(this.id);
+      if (hidden) {
+        this.classList.add("hidden");
+      } else {
+        this.classList.remove("hidden");
+      }
+    });
+
+    import("./renderers").then(({ BurgIconsRenderer }) => {
+      BurgIconsRenderer.render(worldContext, viewContext, appServices);
+    });
   }
 
   if (emblems.style("display") !== "none") {
     emblems.selectAll<SVGGElement, unknown>("g").each(function () {
+      if (this.id === "burgEmblems") return;
+
+      const parent = this.parentElement;
+      if (parent && parent.id === "burgEmblems") {
+        const hidden = isBurgGroupHidden(this.id);
+        if (hidden) this.classList.add("hidden");
+        else this.classList.remove("hidden");
+        return;
+      }
+
+      const emblemScaleThresholds: Record<string, number> = { stateEmblems: 0, provinceEmblems: 2 };
+      const minScale = emblemScaleThresholds[this.id] ?? 0;
       const size = +(this.getAttribute("font-size") ?? 0) * scale;
-      const hidden = hideEmblems.checked && (size < 25 || size > 300);
+      const hidden = scale < minScale || (hideEmblems.checked && (size < 25 || size > 300));
       if (hidden) this.classList.add("hidden");
       else this.classList.remove("hidden");
       if (!hidden && appServices.COArenderer && this.children.length && !this.children[0].getAttribute("href"))
         renderGroupCOAs(worldContext, viewContext, appServices, this);
+    });
+
+    emblems.selectAll<SVGGElement, unknown>("g#burgEmblems > g").each(function () {
+      const hidden = this.classList.contains("hidden");
+      if (!hidden && appServices.COArenderer && this.children.length && !this.children[0].getAttribute("href")) {
+        renderGroupCOAs(worldContext, viewContext, appServices, this.parentElement as unknown as SVGGElement);
+      }
     });
   }
 

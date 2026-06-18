@@ -14,17 +14,32 @@ interface BurgGroup {
 export const BurgLabelsRenderer: IRenderer = {
   id: "burgLabels",
 
-  render(
-    worldContext: Readonly<WorldContext>,
-    viewContext: Readonly<SettlementLayers>,
-    _appServices: AppServices
-  ): void {
+  render(worldContext: Readonly<WorldContext>, viewContext: Readonly<ViewContext>, _appServices: AppServices): void {
     TIME && console.time("BurgLabelsRenderer");
     const { pack, options, style } = worldContext;
     const { burgLabels } = viewContext;
     createLabelGroups(options, style, burgLabels);
 
-    for (const { name } of options.burgs.groups as BurgGroup[]) {
+    const scale = viewContext.scale || 1;
+    const viewX = viewContext.viewX || 0;
+    const viewY = viewContext.viewY || 0;
+    const svgWidth = worldContext.svgWidth || window.innerWidth;
+    const svgHeight = worldContext.svgHeight || window.innerHeight;
+
+    const minX = -viewX / scale;
+    const maxX = (svgWidth - viewX) / scale;
+    const minY = -viewY / scale;
+    const maxY = (svgHeight - viewY) / scale;
+    const margin = 50 / scale;
+
+    const isVisible = (x: number, y: number) => {
+      return x >= minX - margin && x <= maxX + margin && y >= minY - margin && y <= maxY + margin;
+    };
+
+    for (const { name, order } of options.burgs.groups as BurgGroup[]) {
+      const threshold = order === 1 ? 0 : order * 2 - 1.5;
+      if (scale < threshold) continue;
+
       const burgsInGroup = pack.burgs.filter(b => b.group === name && !b.removed);
       if (!burgsInGroup.length) continue;
 
@@ -34,11 +49,12 @@ export const BurgLabelsRenderer: IRenderer = {
       const dx = labelGroup.attr("data-dx") || 0;
       const dy = labelGroup.attr("data-dy") || 0;
 
+      const visibleBurgs = burgsInGroup.filter(b => isVisible(b.x, b.y));
+
       labelGroup
-        .selectAll("text")
-        .data(burgsInGroup)
-        .enter()
-        .append("text")
+        .selectAll<SVGTextElement, Burg>("text")
+        .data(visibleBurgs, d => d.i ?? 0)
+        .join("text")
         .attr("text-rendering", "optimizeSpeed")
         .attr("id", d => `burgLabel${d.i}`)
         .attr("data-id", d => d.i!)
@@ -52,7 +68,7 @@ export const BurgLabelsRenderer: IRenderer = {
     TIME && console.timeEnd("BurgLabelsRenderer");
   },
 
-  clear(viewContext: Readonly<SettlementLayers>): void {
+  clear(viewContext: Readonly<ViewContext>): void {
     viewContext.burgLabels.selectAll("*").remove();
   }
 };
@@ -101,17 +117,20 @@ function createLabelGroups(
   style: WorldContext["style"],
   _burgLabels: SettlementLayers["burgLabels"]
 ): void {
+  const existingIds = new Set<string>();
   document.querySelectorAll("g#burgLabels > g").forEach(group => {
+    existingIds.add(group.id);
     style.burgLabels[group.id] = Array.from(group.attributes).reduce((acc: { [key: string]: string }, attribute) => {
+      if (attribute.name === "class") return acc;
       acc[attribute.name] = attribute.value;
       return acc;
     }, {});
-    group.remove();
   });
 
   const defaultStyle = style.burgLabels.town || Object.values(style.burgLabels)[0] || {};
   const sortedGroups = [...(_options.burgs.groups as BurgGroup[])].sort((a, b) => a.order - b.order);
   for (const { name } of sortedGroups) {
+    if (existingIds.has(name)) continue;
     const group = _burgLabels.append("g");
     const styles = style.burgLabels[name] || defaultStyle;
     Object.entries(styles).forEach(([key, value]) => {

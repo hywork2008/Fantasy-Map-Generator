@@ -22,6 +22,7 @@ interface EmblemNode {
   y: number;
   size: number;
   shift: number;
+  group?: string;
 }
 
 import type { IRenderer } from "./core/IRenderer";
@@ -75,7 +76,8 @@ export const EmblemsRenderer: IRenderer = {
         x: burg.coa!.x || x,
         y: burg.coa!.y || y,
         size,
-        shift
+        shift,
+        group: burg.group
       };
     });
 
@@ -127,15 +129,23 @@ export const EmblemsRenderer: IRenderer = {
       }
 
       const burgNodes = nodes.filter(node => node.type === "burg");
-      const burgString = burgNodes
-        .map(
-          d =>
-            `<use data-i="${d.i}" x="${rn(d.x - d.shift)}" y="${rn(d.y - d.shift)}" width="${d.size}em" height="${
-              d.size
-            }em"/>`
-        )
-        .join("");
-      emblems.select<SVGGElement>("#burgEmblems").attr("font-size", sizeBurgs).html(burgString);
+
+      const burgGroups = new Set(burgNodes.map(n => n.group).filter(Boolean));
+      let burgHtml = "";
+      for (const g of burgGroups) {
+        const groupNodes = burgNodes.filter(n => n.group === g);
+        const groupString = groupNodes
+          .map(
+            d =>
+              `<use data-i="${d.i}" x="${rn(d.x - d.shift)}" y="${rn(d.y - d.shift)}" width="${d.size}em" height="${
+                d.size
+              }em"/>`
+          )
+          .join("");
+        burgHtml += `<g id="${g}">${groupString}</g>`;
+      }
+
+      emblems.select<SVGGElement>("#burgEmblems").attr("font-size", sizeBurgs).html(burgHtml);
 
       const provinceNodes = nodes.filter(node => node.type === "province");
       const provinceString = provinceNodes
@@ -188,7 +198,10 @@ export const renderGroupCOAs = async (
   if (!COArenderer) return;
   const [data, type] = getDataAndType(worldContext, g.id);
 
-  for (const use of g.children) {
+  // Note: For burgEmblems, `g` might be the `#burgEmblems` containing `<g id="capitals">` etc.
+  // We need to recursively find all `<use>` elements.
+  const uses = g.querySelectorAll("use");
+  for (const use of Array.from(uses)) {
     const i = +(use as SVGUseElement).dataset.i!;
     const id = `${type}COA${i}`;
     COArenderer.trigger(id, (data[i] as { coa: unknown }).coa);
