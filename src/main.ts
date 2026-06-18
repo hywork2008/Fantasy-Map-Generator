@@ -1004,6 +1004,12 @@ function resetZoom(d = 1000) {
   svg.transition().duration(d).call(zoom.transform, d3.zoomIdentity);
 }
 
+// At max zoom (scale=20), reduce screen size of labels/icons/emblems to 50% of unscaled size.
+// Derived from: (base / scale^e) * scale = base * scale^(1-e), want scale^(1-e)=10 at scale=20 → e=log(2)/log(20)
+const ZOOM_SIZE_EXP = Math.log(2) / Math.log(20);
+// Hide state-level labels and emblems when zoomed in past this scale (city-level view)
+const STATE_HIDE_SCALE = 7;
+
 function invokeActiveZooming() {
   const isOptimized = useOptionsState.getState().shapeRendering === "optimizeSpeed";
 
@@ -1031,13 +1037,24 @@ function invokeActiveZooming() {
 
       const parent = this.parentElement;
       if (parent && parent.id === "burgLabels") {
-        // Semantic zooming for burg labels
         const hidden = isBurgGroupHidden(this.id);
         if (hidden) {
           this.classList.add("hidden");
         } else {
           this.classList.remove("hidden");
+          // Reduce font-size at high zoom so labels don't overrun each other
+          const baseSize = +(this.getAttribute("data-size") || this.getAttribute("font-size") || 0);
+          if (baseSize > 0) {
+            if (!this.hasAttribute("data-size")) this.setAttribute("data-size", String(baseSize));
+            this.setAttribute("font-size", String(rn(Math.max(baseSize / scale ** ZOOM_SIZE_EXP, 0.1), 2)));
+          }
         }
+        return;
+      }
+
+      // Hide state-level label groups at high zoom (city-level view)
+      if ((this.id === "states" || this.id === "countries") && scale >= STATE_HIDE_SCALE) {
+        this.classList.add("hidden");
         return;
       }
 
@@ -1062,6 +1079,12 @@ function invokeActiveZooming() {
         this.classList.add("hidden");
       } else {
         this.classList.remove("hidden");
+        // Reduce icon size (1em-based symbols) at high zoom
+        const baseSize = +(this.getAttribute("data-size") || this.getAttribute("font-size") || 0);
+        if (baseSize > 0) {
+          if (!this.hasAttribute("data-size")) this.setAttribute("data-size", String(baseSize));
+          this.setAttribute("font-size", String(rn(Math.max(baseSize / scale ** ZOOM_SIZE_EXP, 0.1), 2)));
+        }
       }
     });
 
@@ -1072,7 +1095,14 @@ function invokeActiveZooming() {
 
   if (emblems.style("display") !== "none") {
     emblems.selectAll<SVGGElement, unknown>("g").each(function () {
-      if (this.id === "burgEmblems") return;
+      // burgEmblems container: reduce font-size at high zoom (COA <use> elements use width/height in em units)
+      if (this.id === "burgEmblems") {
+        const baseSize = +(this.getAttribute("data-zoom-size") || this.getAttribute("font-size") || 0);
+        if (baseSize > 0) {
+          this.setAttribute("font-size", String(rn(Math.max(baseSize / scale ** ZOOM_SIZE_EXP, 0.1), 2)));
+        }
+        return;
+      }
 
       const parent = this.parentElement;
       if (parent && parent.id === "burgEmblems") {
@@ -1084,8 +1114,17 @@ function invokeActiveZooming() {
 
       const emblemScaleThresholds: Record<string, number> = { stateEmblems: 0, provinceEmblems: 2 };
       const minScale = emblemScaleThresholds[this.id] ?? 0;
-      const size = +(this.getAttribute("font-size") ?? 0) * scale;
-      const hidden = scale < minScale || (hideEmblems.checked && (size < 25 || size > 300));
+      // Reduce font-size at high zoom so state/province COAs don't grow too large
+      const baseSize = +(this.getAttribute("data-zoom-size") || this.getAttribute("font-size") || 0);
+      if (baseSize > 0) {
+        this.setAttribute("font-size", String(rn(Math.max(baseSize / scale ** ZOOM_SIZE_EXP, 0.1), 2)));
+      }
+      const scaledSize = +(this.getAttribute("font-size") ?? 0) * scale;
+      const isStateEmblem = this.id === "stateEmblems";
+      const hidden =
+        scale < minScale ||
+        (isStateEmblem && scale >= STATE_HIDE_SCALE) ||
+        (hideEmblems.checked && (scaledSize < 25 || scaledSize > 300));
       if (hidden) this.classList.add("hidden");
       else this.classList.remove("hidden");
       if (!hidden && appServices.COArenderer && this.children.length && !this.children[0].getAttribute("href"))

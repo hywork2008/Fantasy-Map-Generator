@@ -145,7 +145,11 @@ export const EmblemsRenderer: IRenderer = {
         burgHtml += `<g id="${g}">${groupString}</g>`;
       }
 
-      emblems.select<SVGGElement>("#burgEmblems").attr("font-size", sizeBurgs).html(burgHtml);
+      emblems
+        .select<SVGGElement>("#burgEmblems")
+        .attr("font-size", sizeBurgs)
+        .attr("data-zoom-size", sizeBurgs)
+        .html(burgHtml);
 
       const provinceNodes = nodes.filter(node => node.type === "province");
       const provinceString = provinceNodes
@@ -156,7 +160,11 @@ export const EmblemsRenderer: IRenderer = {
             }em"/>`
         )
         .join("");
-      emblems.select<SVGGElement>("#provinceEmblems").attr("font-size", sizeProvinces).html(provinceString);
+      emblems
+        .select<SVGGElement>("#provinceEmblems")
+        .attr("font-size", sizeProvinces)
+        .attr("data-zoom-size", sizeProvinces)
+        .html(provinceString);
 
       const stateNodes = nodes.filter(node => node.type === "state");
       const stateString = stateNodes
@@ -167,7 +175,11 @@ export const EmblemsRenderer: IRenderer = {
             }em"/>`
         )
         .join("");
-      emblems.select<SVGGElement>("#stateEmblems").attr("font-size", sizeStates).html(stateString);
+      emblems
+        .select<SVGGElement>("#stateEmblems")
+        .attr("font-size", sizeStates)
+        .attr("data-zoom-size", sizeStates)
+        .html(stateString);
 
       invokeActiveZooming();
     });
