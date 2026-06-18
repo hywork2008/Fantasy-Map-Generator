@@ -1,4 +1,5 @@
 import { getUsedFonts } from "../modules/fonts";
+import { useOptionsState } from "../store/optionsState";
 import { openRichDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, link, parseError, ra, rn } from "../utils";
 
@@ -30,7 +31,7 @@ export function prepareMapData(): string {
     "", // previously used for tempNorthOutput.value
     precOutput.value,
     JSON.stringify(options),
-    mapName.value,
+    useOptionsState.getState().mapName,
     +hideLabels.checked,
     stylePreset.value,
     +rescaleLabels.checked,

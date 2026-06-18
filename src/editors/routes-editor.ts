@@ -4,6 +4,7 @@ import type { WorldContext } from "../context/worldContext";
 import { interactionManager } from "../controllers/interactionManager";
 import type { Route } from "../modules/routes-generator";
 import { Routes } from "../modules/routes-generator";
+import { dialogStore } from "../store/dialogState";
 import { closeDialog, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, findCell, getSegmentId, rn } from "../utils";
 import { getPackPolygon } from "../utils/graphUtils";
@@ -172,7 +173,7 @@ export function editRoute(id: string): void {
   function redrawRoute(route: Route): void {
     elSelected!.attr("d", Routes.getPath(route));
     updateRouteLength(route);
-    if ((ensureEl("elevationProfile") as HTMLElement).offsetParent) showRouteElevationProfile();
+    if (dialogStore.getState().openDialogs.has("elevationProfile")) showRouteElevationProfile();
   }
 
   function addControlPoint(this: SVGPathElement, event: MouseEvent): void {

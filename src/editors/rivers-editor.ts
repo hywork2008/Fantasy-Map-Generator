@@ -2,6 +2,7 @@ import { curveCatmullRom, type D3DragEvent, drag, pointer, select } from "d3";
 import type { WorldContext } from "../context/worldContext";
 import type { River } from "../modules/river-generator";
 import { Rivers } from "../modules/river-generator";
+import { dialogStore } from "../store/dialogState";
 import type { TypedArray } from "../types/PackedGraph";
 import { closeDialog, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, findCell, getSegmentId, rand, rn } from "../utils";
@@ -29,6 +30,11 @@ export function editRiver(id: string): void {
   debug.append("g").attr("id", "controlPoints");
 
   updateRiverData();
+
+  let _rInitCell = 0,
+    _rMovedToCell: number | null = null,
+    _rRiver: River | null = null,
+    _rFlCells: TypedArray | null = null;
 
   const river = getRiver();
   const { cells: riverCells, points } = river;
@@ -139,11 +145,6 @@ export function editRiver(id: string): void {
       .attr("points", (d: number) => getPackPolygon(d, worldContext.pack).join(" "));
   }
 
-  let _rInitCell = 0,
-    _rMovedToCell: number | null = null,
-    _rRiver: River | null = null,
-    _rFlCells: TypedArray | null = null;
-
   function dragControlPointStart(
     this: SVGCircleElement,
     event: D3DragEvent<SVGCircleElement, [number, number], unknown>
@@ -191,7 +192,7 @@ export function editRiver(id: string): void {
     elSelected!.attr("d", path);
 
     updateRiverLength(river);
-    if ((ensureEl("elevationProfile") as HTMLElement).offsetParent) showRiverElevationProfile();
+    if (dialogStore.getState().openDialogs.has("elevationProfile")) showRiverElevationProfile();
   }
 
   function addControlPoint(this: SVGPathElement, event: MouseEvent): void {

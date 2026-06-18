@@ -23,26 +23,7 @@ let appServices: AppServices;
 function editWorld(): void {
   if (customization) return;
 
-  openDialog("worldConfigurator", {
-    title: "Configure World",
-    resizable: false,
-    width: "minmax(40em, 85vw)",
-    buttons: { "Update world": updateWorld },
-    open: function () {
-      const checkbox = /* html */ `<div class="dontAsk" data-tip="Automatically update world on input changes and button clicks">
-        <input id="wcAutoChange" class="checkbox" type="checkbox" checked />
-        <label for="wcAutoChange" class="checkbox-label"><i>auto-apply changes</i></label>
-      </div>`;
-      const pane = (this as unknown as HTMLElement).parentElement!.querySelector(".ui-dialog-buttonpane");
-      pane!.insertAdjacentHTML("afterbegin", checkbox);
-
-      const button = (this as unknown as HTMLElement).parentElement!.querySelector(".ui-dialog-buttonset > button");
-      (button as HTMLElement).addEventListener("mousemove", () => tip("Apply current settings to the map"));
-    },
-    close: () => {
-      /* $(this).dialog("destroy") removed */
-    }
-  });
+  openDialog("worldConfigurator");
 
   const globe = select("#globe");
   const projection = geoOrthographic().translate([100, 100]).scale(100);
@@ -51,6 +32,8 @@ function editWorld(): void {
   updateInputValues();
   updateGlobeTemperature();
   updateGlobePosition();
+
+  window.updateWorld = updateWorld;
 
   if (modules.editWorld) return;
   modules.editWorld = true;

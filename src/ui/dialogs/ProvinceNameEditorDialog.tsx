@@ -8,7 +8,7 @@ export const ProvinceNameEditorDialog: React.FC = () => {
 
   return (
     <Dialog isOpen={isOpen} title="Province Name Editor" onClose={() => closeDialog("provinceNameEditor")}>
-      <div data-province="0" id="provinceNameEditorContainer">
+      <div data-province="0" id="provinceNameEditor">
         <div>
           <div data-tip="Province short name" className="label">
             Short name:
@@ -122,6 +122,14 @@ export const ProvinceNameEditorDialog: React.FC = () => {
         >
           Dominant culture:&nbsp;<span id="provinceCultureDisplay"></span>
         </div>
+      </div>
+      <div className="fmg-dialog-buttonpane">
+        <button type="button" className="fmg-dialog-button" onClick={() => window.applyProvinceNameChange?.()}>
+          Apply
+        </button>
+        <button type="button" className="fmg-dialog-button" onClick={() => closeDialog("provinceNameEditor")}>
+          Cancel
+        </button>
       </div>
     </Dialog>
   );

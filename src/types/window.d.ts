@@ -3,6 +3,8 @@ import React from "react";
 declare global {
   interface Window {
     editWorld?: () => void;
+    updateWorld?: () => void;
+    applyProvinceNameChange?: () => void;
     [key: string]: unknown;
   }
 

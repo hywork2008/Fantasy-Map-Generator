@@ -260,6 +260,20 @@ export const WorldConfiguratorDialog: React.FC = () => {
             </button>
           </div>
         </div>
+        <div
+          className="fmg-dialog-buttonpane"
+          style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}
+        >
+          <div className="dontAsk" data-tip="Automatically update world on input changes and button clicks">
+            <input id="wcAutoChange" className="checkbox" type="checkbox" defaultChecked />
+            <label htmlFor="wcAutoChange" className="checkbox-label">
+              <i>auto-apply changes</i>
+            </label>
+          </div>
+          <button type="button" className="fmg-dialog-button" onClick={() => window.updateWorld?.()}>
+            Update world
+          </button>
+        </div>
       </div>
     </Dialog>
   );

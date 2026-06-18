@@ -24,7 +24,7 @@ import {
   StatesRenderer
 } from "../renderers";
 import { useOptionsState } from "../store/optionsState";
-import { openDialog, openRichDialog } from "../ui/dialogs/dialogService";
+import { closeDialog, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, findCell, getRandomColor, isLand, parseTransform, rand, rn, si, unique } from "../utils";
 import { getPackPolygon } from "../utils/graphUtils";
 import { editEmblem } from "./emblems-editor";
@@ -561,20 +561,12 @@ export function editProvinces(): void {
     const cultureId = pack.cells.culture[p.center];
     ensureEl("provinceCultureDisplay").innerText = (pack.cultures as Culture[])[cultureId].name;
 
-    openDialog("provinceNameEditor", {
-      resizable: false,
-      title: "Change province name",
-      buttons: {
-        Apply: function (this: Element) {
-          applyNameChange(p);
-          /* $(this).dialog("close") removed */
-        },
-        Cancel: function (this: Element) {
-          /* $(this).dialog("close") removed */
-        }
-      },
-      position: { my: "center", at: "center", of: "svg" }
-    });
+    openDialog("provinceNameEditor");
+
+    window.applyProvinceNameChange = () => {
+      applyNameChange(p);
+      closeDialog("provinceNameEditor");
+    };
 
     if (modules.editProvinceName) return;
     modules.editProvinceName = true;

@@ -1065,7 +1065,7 @@ function toggle3dOptions(): void {
     if (modules.options3d) return;
     modules.options3d = true;
 
-    ensureEl("options3dUpdate").addEventListener("click", ThreeD.update);
+    ensureEl("options3dUpdate").addEventListener("click", () => ThreeD.update());
     ensureEl("options3dSave").addEventListener("click", ThreeD.saveScreenshot);
     ensureEl("options3dOBJSave").addEventListener("click", ThreeD.saveOBJ);
 
