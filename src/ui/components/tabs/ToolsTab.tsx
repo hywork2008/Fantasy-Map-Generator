@@ -98,7 +98,12 @@ export const ToolsTab: React.FC = () => {
         >
           Routes
         </button>
-        <button data-tip="Click to open States Editor" type="button" onClick={() => triggerEvent("editStatesButton")}>
+        <button
+          id="editStatesButton"
+          data-tip="Click to open States Editor"
+          type="button"
+          onClick={() => triggerEvent("editStatesButton")}
+        >
           States
         </button>
         <button data-tip="Click to open Units Editor" type="button" onClick={() => triggerEvent("editUnitsButton")}>
@@ -162,6 +167,7 @@ export const ToolsTab: React.FC = () => {
           />
         </button>
         <button
+          id="regenerateMilitary"
           data-tip="Click to recalculate military forces"
           type="button"
           onClick={() => triggerEvent("regenerateMilitary")}

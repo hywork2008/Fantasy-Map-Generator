@@ -25,37 +25,39 @@ export const ExportMapDialog: React.FC = () => {
       buttons={[{ label: "Close", onClick: () => closeDialog("exportMapData") }]}
       style={{ width: "26em" }}
     >
-      <div style={{ marginBottom: "0.3em", fontWeight: "bold" }}>Download image</div>
-      <div>
-        <button type="button" data-tip="Download the map as vector image (open directly in browser or Inkscape)">
-          .svg
-        </button>
-        <button type="button" data-tip="Download visible part of the map as .png (lossless compressed)">
-          .png
-        </button>
-        <button type="button" data-tip="Download visible part of the map as .jpeg (lossy compressed) image">
-          .jpeg
-        </button>
-        <button type="button" data-tip="Split map into smaller png tiles and download as zip archive">
-          tiles
-        </button>
-        <span data-tip="Check to not allow system to automatically hide labels">
-          <input
-            id="showLabels"
-            ref={showLabelsRef}
-            className="checkbox"
-            type="checkbox"
-            onChange={e => {
-              const hideLabels = document.getElementById("hideLabels") as HTMLInputElement | null;
-              if (hideLabels) {
-                hideLabels.checked = !e.target.checked;
-              }
-            }}
-          />
-          <label htmlFor="showLabels" className="checkbox-label" style={{ marginLeft: "1.2em" }}>
-            <i>show labels</i>
-          </label>
-        </span>
+      <div id="exportMapData">
+        <div style={{ marginBottom: "0.3em", fontWeight: "bold" }}>Download image</div>
+        <div>
+          <button type="button" data-tip="Download the map as vector image (open directly in browser or Inkscape)">
+            .svg
+          </button>
+          <button type="button" data-tip="Download visible part of the map as .png (lossless compressed)">
+            .png
+          </button>
+          <button type="button" data-tip="Download visible part of the map as .jpeg (lossy compressed) image">
+            .jpeg
+          </button>
+          <button type="button" data-tip="Split map into smaller png tiles and download as zip archive">
+            tiles
+          </button>
+          <span data-tip="Check to not allow system to automatically hide labels">
+            <input
+              id="showLabels"
+              ref={showLabelsRef}
+              className="checkbox"
+              type="checkbox"
+              onChange={e => {
+                const hideLabels = document.getElementById("hideLabels") as HTMLInputElement | null;
+                if (hideLabels) {
+                  hideLabels.checked = !e.target.checked;
+                }
+              }}
+            />
+            <label htmlFor="showLabels" className="checkbox-label" style={{ marginLeft: "1.2em" }}>
+              <i>show labels</i>
+            </label>
+          </span>
+        </div>
       </div>
     </Dialog>
   );
