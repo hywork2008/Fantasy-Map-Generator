@@ -3,6 +3,7 @@ import { interpolateRgb, interpolateRgbBasis, scaleSequential } from "d3";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import { onFontAdded } from "../modules/fonts";
 import { OceanLayers } from "../modules/ocean-layers";
 import {
   BurgIconsRenderer,
@@ -695,6 +696,17 @@ function fetchTextureURL(url: string): void {
 }
 
 export function initStyleTab() {
+  onFontAdded((family, shouldSelect) => {
+    const select = document.getElementById("styleSelectFont") as HTMLSelectElement | null;
+    if (!select) return;
+    if (!select.querySelector(`option[value="${family}"]`)) {
+      const option = new Option(family, family);
+      option.style.fontFamily = family;
+      select.append(option);
+    }
+    if (shouldSelect) select.value = family;
+  });
+
   // ─── Initialization: filter dropdowns ────────────────────────────────────────
 
   {

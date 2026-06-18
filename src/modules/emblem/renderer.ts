@@ -1,4 +1,5 @@
 import { appServices } from "../../context/appServices";
+import { viewContext } from "../../context/viewContext";
 import { shieldBox } from "./box";
 import { colors } from "./colors";
 import { lines } from "./lines";
@@ -73,9 +74,8 @@ class EmblemRenderModule {
         else throw new Error("Cannot fetch charge");
       })
       .then(text => {
-        const html = document.createElement("html");
-        html.innerHTML = text;
-        const g: SVGAElement = html.querySelector("g") as SVGAElement;
+        const doc = new DOMParser().parseFromString(text, "image/svg+xml");
+        const g: SVGAElement = doc.querySelector("g") as SVGAElement;
         g.setAttribute("id", `${charge}_${id}`);
         return g.outerHTML;
       })
@@ -298,7 +298,7 @@ class EmblemRenderModule {
         ${overlay}</svg>`;
 
     // insert coa svg to defs
-    document.getElementById("coas")!.insertAdjacentHTML("beforeend", svg);
+    (viewContext.defs.select("#coas").node() as Element).insertAdjacentHTML("beforeend", svg);
     return true;
   }
 
@@ -306,15 +306,15 @@ class EmblemRenderModule {
   async trigger(id: string, coa: Emblem) {
     if (!coa) return console.warn(`Emblem ${id} is undefined`);
     if (coa.custom) return console.warn("Cannot render custom emblem", coa);
-    if (!document.getElementById(id)) return this.draw(id, coa);
+    if (!viewContext.defs.select(`#${id}`).node()) return this.draw(id, coa);
   }
 
   async add(type: string, i: number, coa: Emblem, x: number, y: number) {
     const id = `${type}COA${i}`;
-    const g: HTMLElement = document.getElementById(`${type}Emblems`) as HTMLElement;
+    const g = emblems.select(`#${type}Emblems`).node() as SVGGElement | null;
 
-    if (emblems.selectAll("use").size()) {
-      const size = parseFloat(g.getAttribute("font-size") || "50");
+    if (emblems.selectAll("use").size() && g) {
+      const size = parseFloat(g.getAttribute("font-size") ?? "50");
       const use = `<use data-i="${i}" x="${x - size / 2}" y="${y - size / 2}" width="1em" height="1em" href="#${id}"/>`;
       g.insertAdjacentHTML("beforeend", use);
     }

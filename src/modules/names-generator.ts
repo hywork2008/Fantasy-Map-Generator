@@ -308,8 +308,6 @@ class NamesGenerator {
     const max = Math.max(nameBases[base].max - 3, min);
     const baseName = this.getBase(base, min, max, "") as string;
     const name = P(0.7) ? this.addSuffix(baseName) : baseName;
-    const mapNameInput = document.getElementById("mapName") as HTMLInputElement | null;
-    if (mapNameInput) mapNameInput.value = name;
     useOptionsState.getState().setOption("mapName", name);
   }
 

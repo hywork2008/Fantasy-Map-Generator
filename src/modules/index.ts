@@ -27,7 +27,9 @@ import type { WorldState } from "../types/WorldState";
 import { UITour } from "./ui-tour";
 
 export function initModules(): void {
+  // biome-ignore lint/style/noRestrictedGlobals: Names and UITour are still consumed as browser globals by controllers and editors pending migration to explicit imports
   window.Names = Names;
+  // biome-ignore lint/style/noRestrictedGlobals: same as above
   window.UITour = UITour;
   initFonts();
 }

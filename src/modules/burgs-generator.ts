@@ -719,7 +719,7 @@ class BurgModule {
     if (noteId !== -1) notes.splice(noteId, 1);
 
     if (burg.coa) {
-      document.getElementById(`burgCOA${burgId}`)?.remove();
+      viewContext.defs.select(`#burgCOA${burgId}`).remove();
       emblems.select(`#burgEmblems > use[data-i='${burgId}']`).remove();
       delete burg.coa;
     }

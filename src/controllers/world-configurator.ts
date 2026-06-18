@@ -121,7 +121,7 @@ function editWorld(): void {
     if (layerIsOn("toggleBiomes")) BiomesRenderer.render(worldContext, viewContext, appServices);
     if (layerIsOn("toggleCoordinates")) CoordinatesRenderer.render(worldContext, viewContext, appServices);
     if (layerIsOn("toggleRivers")) RiversRenderer.render(worldContext, viewContext, appServices);
-    if (document.getElementById("canvas3d")) setTimeout(() => ThreeD.update(), 500);
+    if (ThreeD.options.isOn) requestAnimationFrame(() => ThreeD.update());
   }
 
   function updateGlobePosition(): void {

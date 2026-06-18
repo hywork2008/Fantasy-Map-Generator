@@ -1,3 +1,4 @@
+import { getUsedFonts } from "../modules/fonts";
 import { openRichDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, link, parseError, ra, rn } from "../utils";
 

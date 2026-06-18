@@ -1049,7 +1049,7 @@ class CulturesModule {
           Please consider changing climate settings in the World Configurator`;
 
         openRichDialog({
-          content: window.alertMessage.innerHTML,
+          content: alertMessage.innerHTML,
           resizable: false,
           title: "Extreme climate warning",
           buttons: {
@@ -1065,7 +1065,7 @@ class CulturesModule {
           Only ${count} out of ${culturesInputNumber} requested cultures will be generated.<br />
           Please consider changing climate settings in the World Configurator`;
         openRichDialog({
-          content: window.alertMessage.innerHTML,
+          content: alertMessage.innerHTML,
           resizable: false,
           title: "Extreme climate warning",
           buttons: {

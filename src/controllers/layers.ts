@@ -207,7 +207,8 @@ function handleLayersPresetChange(preset: string): void {
     }
   });
 
-  if (document.getElementById("canvas3d")) setTimeout(() => ThreeD.update(), 400);
+  // Re-render 3D texture after SVG layer changes have been painted
+  if (ThreeD.options.isOn) requestAnimationFrame(() => ThreeD.update());
 }
 
 function savePreset(): void {

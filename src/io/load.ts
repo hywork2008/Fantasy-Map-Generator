@@ -8,6 +8,7 @@ import { fitMapView, reinitializeMapLayers } from "../main";
 import { Biomes } from "../modules/biomes";
 import { Burgs } from "../modules/burgs-generator";
 import { Features } from "../modules/features";
+import { declareFont, fonts } from "../modules/fonts";
 import type { NameBase } from "../modules/names-generator";
 import type { River } from "../modules/river-generator";
 import { Routes } from "../modules/routes-generator";

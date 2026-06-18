@@ -68,7 +68,7 @@ class HeightmapModule {
 
   private getPointInRange(range: string, length: number): number | undefined {
     if (typeof range !== "string") {
-      window.ERROR && console.error("Range should be a string");
+      ERROR && console.error("Range should be a string");
       return;
     }
 
@@ -624,6 +624,7 @@ class HeightmapModule {
   fromPrecreated(graph: Grid, id: string): Promise<Uint8Array> {
     return new Promise(resolve => {
       // create canvas where 1px corresponds to a cell
+      // biome-ignore lint/style/noRestrictedGlobals: HTMLCanvasElement is used for off-screen pixel processing, not DOM manipulation
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
       const { cellsX, cellsY } = graph;

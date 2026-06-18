@@ -10,7 +10,6 @@ import type {
   Ruler as RulerClass,
   Rulers as RulersClass
 } from "../controllers/measurers";
-import type { FontDefinition } from "../modules/fonts";
 import type { HeightmapModule } from "../modules/heightmap-generator";
 import type { NameBase, NamesGenerator } from "../modules/names-generator";
 import type { Resampler } from "../modules/resample";
@@ -240,15 +239,6 @@ declare global {
   var Resample: Resampler;
   var UITour: UITourModule;
   var HeightmapGenerator: HeightmapModule;
-
-  // Font globals
-  var fonts: FontDefinition[];
-  var declareFont: (font: FontDefinition) => void;
-  var getUsedFonts: (svg: SVGSVGElement) => FontDefinition[];
-  var loadFontsAsDataURI: (fonts: FontDefinition[]) => Promise<FontDefinition[]>;
-  var addGoogleFont: (family: string) => Promise<void>;
-  var addLocalFont: (family: string) => void;
-  var addWebFont: (family: string, src: string) => void;
 
   // Additional HTML inputs (settings UI)
   var distanceScaleInput: HTMLInputElement;
