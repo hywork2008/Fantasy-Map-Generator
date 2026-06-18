@@ -1137,6 +1137,21 @@ function invokeActiveZooming() {
         renderGroupCOAs(worldContext, viewContext, appServices, this.parentElement as unknown as SVGGElement);
       }
     });
+
+    // Viewport culling: hide individual <use> elements whose positions fall outside the visible area.
+    // x/y attributes are top-left corners in map coordinates; margin accounts for emblem half-size.
+    const EMBLEM_VIEWPORT_MARGIN = 100;
+    const vLeft = -viewX / scale - EMBLEM_VIEWPORT_MARGIN;
+    const vTop = -viewY / scale - EMBLEM_VIEWPORT_MARGIN;
+    const vRight = (svgWidth - viewX) / scale + EMBLEM_VIEWPORT_MARGIN;
+    const vBottom = (svgHeight - viewY) / scale + EMBLEM_VIEWPORT_MARGIN;
+
+    emblems.selectAll<SVGUseElement, unknown>("use").each(function () {
+      const x = +this.getAttribute("x")!;
+      const y = +this.getAttribute("y")!;
+      if (x > vLeft && x < vRight && y > vTop && y < vBottom) this.classList.remove("hidden");
+      else this.classList.add("hidden");
+    });
   }
 
   if (!customization && !isOptimized) {
