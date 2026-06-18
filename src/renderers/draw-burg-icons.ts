@@ -52,7 +52,7 @@ export const BurgIconsRenderer: IRenderer = {
         const icon = iconsGroup.attr("data-icon") || "#icon-circle";
         iconsGroup
           .selectAll<SVGUseElement, Burg>("use")
-          .data(visibleBurgs, d => d.i ?? 0)
+          .data(visibleBurgs, d => d?.i ?? 0)
           .join("use")
           .attr("id", d => `burg${d.i}`)
           .attr("data-id", d => d.i!)
@@ -68,7 +68,7 @@ export const BurgIconsRenderer: IRenderer = {
       if (!portGroup.empty()) {
         portGroup
           .selectAll<SVGUseElement, Burg>("use")
-          .data(portsInGroup, d => d.i ?? 0)
+          .data(portsInGroup, d => d?.i ?? 0)
           .join("use")
           .attr("id", d => `anchor${d.i}`)
           .attr("data-id", d => d.i!)

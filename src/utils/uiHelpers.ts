@@ -164,7 +164,9 @@ function showMapTooltip(point: [number, number], e: MouseEvent, i: number, g: nu
     d3.select(e.target as Element).raise();
     d3.select(parent).raise();
 
-    const name = g2[idx].fullName || g2[idx].name;
+    const entity = g2[idx];
+    if (!entity) return;
+    const name = entity.fullName || entity.name;
     tip(`${name} ${type} emblem. Click to edit. Hold Shift to show associated area or place`);
     return;
   }

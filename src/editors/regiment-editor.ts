@@ -21,6 +21,22 @@ export function editRegiment(selectorOrEl?: string | Element): void {
   closeDialogs(".stable");
   if (!layerIsOn("toggleMilitary")) toggleMilitary();
 
+  let _regDragState: {
+    reg: MilitaryRegiment;
+    w: number;
+    h: number;
+    size: number;
+    self: boolean;
+    baseRect: Element;
+    text: Element;
+    iconRect: Element;
+    icon: SVGElement;
+    image: SVGImageElement;
+    baseLine: d3.Selection<SVGLineElement, unknown, null, undefined>;
+    rotationControl: d3.Selection<SVGCircleElement, unknown, null, undefined>;
+  } | null = null;
+  let _baseDragReg: MilitaryRegiment | null = null;
+
   armies.selectAll(":scope > g").classed("draggable", true);
   armies
     .selectAll<SVGGElement, unknown>(":scope > g > g")
@@ -179,6 +195,7 @@ export function editRegiment(selectorOrEl?: string | Element): void {
 
   function changeEmblem(): void {
     const regiment = getRegiment();
+    const regEl = getRegEl();
 
     selectIcon(regiment.icon ?? "", (value: string) => {
       regiment.icon = value;
@@ -186,8 +203,9 @@ export function editRegiment(selectorOrEl?: string | Element): void {
       (ensureEl("regimentEmblem") as HTMLElement).innerHTML = isExternal
         ? `<img src="${value}" style="width: 1em; height: 1em;">`
         : value;
-      (getRegEl().querySelector(".regimentIcon") as SVGElement).innerHTML = isExternal ? "" : value;
-      (getRegEl().querySelector(".regimentImage") as SVGImageElement).setAttribute("href", isExternal ? value : "");
+      if (!regEl?.isConnected) return;
+      (regEl.querySelector(".regimentIcon") as SVGElement).innerHTML = isExternal ? "" : value;
+      (regEl.querySelector(".regimentImage") as SVGImageElement).setAttribute("href", isExternal ? value : "");
     });
   }
 
@@ -460,21 +478,6 @@ export function editRegiment(selectorOrEl?: string | Element): void {
     });
   }
 
-  let _regDragState: {
-    reg: MilitaryRegiment;
-    w: number;
-    h: number;
-    size: number;
-    self: boolean;
-    baseRect: Element;
-    text: Element;
-    iconRect: Element;
-    icon: SVGElement;
-    image: SVGImageElement;
-    baseLine: d3.Selection<SVGLineElement, unknown, null, undefined>;
-    rotationControl: d3.Selection<SVGCircleElement, unknown, null, undefined>;
-  } | null = null;
-
   function dragRegimentStart(this: SVGGElement): void {
     select(this).raise();
     select(this.parentNode as Element).raise();
@@ -527,8 +530,6 @@ export function editRegiment(selectorOrEl?: string | Element): void {
         .attr("transform-origin", `${x}px ${y}px`);
     }
   }
-
-  let _baseDragReg: MilitaryRegiment | null = null;
 
   function dragBaseStart(): void {
     _baseDragReg = getRegiment();
