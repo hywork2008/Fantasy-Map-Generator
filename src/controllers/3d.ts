@@ -232,7 +232,8 @@ class ThreeDModule {
     this.options.labels3d = this.options.labels3d ? 0 : 1;
 
     if (this.options.labels3d) {
-      this.createLabels().then(() => this.update());
+      this.createLabels();
+      this.update();
     } else {
       this.deleteLabels();
       this.update();
@@ -336,8 +337,8 @@ class ThreeDModule {
     return true;
   }
 
-  private textureToSprite(textureUrl: string, width: number, height: number): THREE.Sprite {
-    const map = new THREE.TextureLoader().load(textureUrl);
+  private textureToSprite(canvas: HTMLCanvasElement, width: number, height: number): THREE.Sprite {
+    const map = new THREE.CanvasTexture(canvas);
     map.anisotropy = this.Renderer!.capabilities.getMaxAnisotropy();
     const mat = new THREE.SpriteMaterial({ map });
 
@@ -347,7 +348,7 @@ class ThreeDModule {
     return sprite;
   }
 
-  private async createTextLabel({
+  private createTextLabel({
     text,
     font,
     size,
@@ -359,7 +360,7 @@ class ThreeDModule {
     size: number;
     color: string;
     quality: number;
-  }): Promise<THREE.Sprite> {
+  }): THREE.Sprite {
     this.context2d.font = `${size * quality}px ${font}`;
     this.context2d.canvas.width = this.context2d.measureText(text).width;
     this.context2d.canvas.height = size * quality * 1.25;
@@ -370,7 +371,7 @@ class ThreeDModule {
     this.context2d.fillText(text, 0, size * quality);
 
     return this.textureToSprite(
-      this.context2d.canvas.toDataURL(),
+      this.context2d.canvas,
       this.context2d.canvas.width / quality,
       this.context2d.canvas.height / quality
     );
@@ -382,11 +383,12 @@ class ThreeDModule {
 
     this.raycaster!.ray.origin.x = x;
     this.raycaster!.ray.origin.z = z;
-    const y = this.raycaster!.intersectObject(this.mesh!)[0].point.y;
+    const intersections = this.raycaster!.intersectObject(this.mesh!);
+    const y = intersections[0]?.point.y ?? 0;
     return [x, y, z];
   }
 
-  private async createLabels(): Promise<void> {
+  private createLabels(): void {
     this.raycaster = new THREE.Raycaster();
     this.raycaster.set(new THREE.Vector3(0, 1000, 0), new THREE.Vector3(0, -1, 0));
 
@@ -466,7 +468,7 @@ class ThreeDModule {
       const [x, y, z] = this.get3dCoords(burg.x, burg.y);
 
       if (layerIsOn("toggleLabels")) {
-        const burgSprite = (await this.createTextLabel({ text: burg.name ?? "", ...burgOptions })) as LabelSprite;
+        const burgSprite = this.createTextLabel({ text: burg.name ?? "", ...burgOptions }) as LabelSprite;
         burgSprite.position.set(x, y + burgOptions.elevation, z);
         burgSprite.size = burgOptions.size;
         this.labels.push(burgSprite);
@@ -499,7 +501,7 @@ class ThreeDModule {
 
         const [x, y, z] = this.get3dCoords(state.pole![0], state.pole![1]);
         const text = states.select(`#stateLabel${state.i}`)?.text() || state.name;
-        const stateSprite = (await this.createTextLabel({ text, ...stateOptions })) as LabelSprite;
+        const stateSprite = this.createTextLabel({ text, ...stateOptions }) as LabelSprite;
 
         stateSprite.position.set(x, y + stateOptions.elevation, z);
         stateSprite.size = stateOptions.size;
@@ -634,7 +636,7 @@ class ThreeDModule {
     this.render();
 
     if (this.options.labels3d) {
-      await this.createLabels();
+      this.createLabels();
       this.render();
     }
   }
