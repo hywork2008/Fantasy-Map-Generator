@@ -1,5 +1,4 @@
 import * as d3 from "d3";
-import { useOptionsState } from "../store/optionsState";
 import { editBurg } from "../editors/burg-editor";
 import { coastlineEditor, editCoastline } from "../editors/coastline-editor";
 import { open as openCulturesEditor } from "../editors/cultures-editor";
@@ -14,6 +13,7 @@ import { open as openReligionsEditor } from "../editors/religions-editor";
 import { editRiver } from "../editors/rivers-editor";
 import { editRoute } from "../editors/routes-editor";
 import { open as openStatesEditor } from "../editors/states-editor";
+import { useOptionsState } from "../store/optionsState";
 import { closeAllDialogs, openConfirm, openDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, parseTransform, rn } from "../utils";
 import { interactionManager } from "./interactionManager";

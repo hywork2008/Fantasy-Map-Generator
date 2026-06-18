@@ -297,6 +297,7 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
       if (settings[19]) options = JSON.parse(settings[19]);
       if (settings[16]) options.temperatureEquator = +settings[16];
       if (settings[17]) options.temperatureNorthPole = options.temperatureSouthPole = +settings[17];
+      worldContext.options = options;
       if (settings[21]) hideLabels.checked = !!+settings[21];
       if (settings[22]) stylePreset.value = settings[22];
       if (settings[23]) rescaleLabels.checked = !!+settings[23];

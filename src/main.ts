@@ -1013,13 +1013,14 @@ function invokeActiveZooming() {
   }
 
   const burgGroups = worldContext.options.burgs?.groups || [];
+  const maxBurgOrder = Math.max(...(burgGroups as BurgGroup[]).map((g: BurgGroup) => g.order), 1);
   const getScaleThreshold = (groupId: string) => {
     const group = (burgGroups as BurgGroup[]).find(g => g.name === groupId);
     if (!group) return 0;
-    // Order 1 -> visible always (threshold 0)
-    // Order 2 -> visible if scale > 2.5
-    // Order 3 -> visible if scale > 4.5
-    return group.order === 1 ? 0 : group.order * 2 - 1.5;
+    // Higher order = more important (capital=9) = visible at all zoom levels (threshold 0)
+    // Lower order = less important (hamlet=1) = visible only at high zoom
+    const invertedOrder = maxBurgOrder - group.order + 1;
+    return invertedOrder === 1 ? 0 : invertedOrder * 2 - 1.5;
   };
 
   const isBurgGroupHidden = (groupId: string) => scale < getScaleThreshold(groupId);
