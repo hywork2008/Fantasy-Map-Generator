@@ -5,8 +5,8 @@
   left: 50%;
   transform: translate(-50%, -50%);
   pointer-events: auto;
-  background-color: #2b2b2b;
-  border: 1px solid #444;
+  background: var(--bg-dialogs);
+  border: 1px solid var(--dark-solid);
   border-radius: 4px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
   display: flex;
@@ -15,10 +15,10 @@
   max-width: 90vw;
   max-height: 90vh;
   z-index: 100;
-  color: #ddd;
-  font-family: inherit;
+  color: var(--dark-solid);
+  font-family: var(--monospace);
+  font-size: 12px;
   backdrop-filter: blur(4px);
-  background: rgba(43, 43, 43, 0.95);
 }
 
 .fmg-dialog-titlebar {
@@ -26,16 +26,17 @@
   justify-content: space-between;
   align-items: center;
   padding: 8px 12px;
-  background-color: #333;
-  border-bottom: 1px solid #444;
+  background: var(--header);
+  border-bottom: 1px solid var(--dark-solid);
   border-radius: 4px 4px 0 0;
   cursor: move;
   user-select: none;
+  color: white;
 }
 
 .fmg-dialog-title {
   font-weight: bold;
-  font-size: 14px;
+  font-size: 12px;
   margin: 0;
   padding: 0;
 }
@@ -43,7 +44,7 @@
 .fmg-dialog-close {
   background: transparent;
   border: none;
-  color: #aaa;
+  color: rgba(255, 255, 255, 0.7);
   cursor: pointer;
   font-size: 16px;
   line-height: 1;
@@ -52,14 +53,14 @@
 }
 
 .fmg-dialog-close:hover {
-  color: #fff;
+  color: white;
 }
 
 .fmg-dialog-content {
   padding: 16px;
   overflow-y: auto;
   flex: 1;
-  font-size: 14px;
+  font-size: 12px;
 }
 
 .fmg-dialog-buttonpane {
@@ -67,25 +68,25 @@
   justify-content: flex-end;
   gap: 8px;
   padding: 12px 16px;
-  border-top: 1px solid #444;
-  background-color: rgba(0, 0, 0, 0.2);
+  border-top: 1px solid var(--dark-solid);
+  background: var(--bg-light);
   border-radius: 0 0 4px 4px;
 }
 
 .fmg-dialog-button {
-  background-color: #555;
-  color: #fff;
-  border: 1px solid #666;
+  background: var(--header);
+  color: white;
+  border: 1px solid var(--dark-solid);
   padding: 6px 12px;
   border-radius: 3px;
   cursor: pointer;
-  font-family: inherit;
-  font-size: 13px;
+  font-family: var(--monospace);
+  font-size: 12px;
   transition: background-color 0.2s;
 }
 
 .fmg-dialog-button:hover {
-  background-color: #666;
+  background: var(--header-active);
 }
 
 .fmg-dialog.fmg-dialog--overflow-hidden > .fmg-dialog-content {
