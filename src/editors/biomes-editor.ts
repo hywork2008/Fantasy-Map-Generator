@@ -1,4 +1,4 @@
-import { drag, easeSinIn, pointer, type Selection, sum, transition } from "d3";
+import { drag, easeSinIn, pointer, type Selection, sum } from "d3";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
@@ -22,7 +22,6 @@ export function editBiomes(): void {
   if (layerIsOn("toggleProvinces")) toggleProvinces();
 
   const body = document.getElementById("biomesBody")!;
-  const animate = transition().duration(2000).ease(easeSinIn);
   refreshBiomesEditor();
 
   if (modules.editBiomes) return;
@@ -184,7 +183,9 @@ export function editBiomes(): void {
     (biomes as Selection<SVGGElement, unknown, null, undefined>)
       .select(`#biome${biome}`)
       .raise()
-      .transition(animate as import("d3").Transition<import("d3").BaseType, unknown, null, undefined>)
+      .transition()
+      .duration(2000)
+      .ease(easeSinIn)
       .attr("stroke-width", 2)
       .attr("stroke", "#cd4c11");
   }

@@ -1,5 +1,4 @@
 import { appServices } from "../../context/appServices";
-import { viewContext } from "../../context/viewContext";
 import { shieldBox } from "./box";
 import { colors } from "./colors";
 import { lines } from "./lines";
@@ -297,8 +296,8 @@ class EmblemRenderModule {
         <g clip-path="url(#${shield}_${id})">${field}${divisionGroup}${templateAboveAll()}</g>
         ${overlay}</svg>`;
 
-    // insert coa svg to defs
-    (viewContext.defs.select("#coas").node() as Element).insertAdjacentHTML("beforeend", svg);
+    // insert coa svg into #coas (not inside defs)
+    document.getElementById("coas")!.insertAdjacentHTML("beforeend", svg);
     return true;
   }
 
@@ -306,7 +305,7 @@ class EmblemRenderModule {
   async trigger(id: string, coa: Emblem) {
     if (!coa) return console.warn(`Emblem ${id} is undefined`);
     if (coa.custom) return console.warn("Cannot render custom emblem", coa);
-    if (!viewContext.defs.select(`#${id}`).node()) return this.draw(id, coa);
+    if (!document.getElementById(id)) return this.draw(id, coa);
   }
 
   async add(type: string, i: number, coa: Emblem, x: number, y: number) {

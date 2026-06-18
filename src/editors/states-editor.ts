@@ -26,6 +26,7 @@ import {
   ProvincesRenderer,
   StatesRenderer
 } from "../renderers";
+import { useOptionsState } from "../store/optionsState";
 import type { WorldNote } from "../types/WorldState";
 import { openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { applySortingByHeader, ensureEl, findCell, getRandomColor, isLand, rand, rn, si } from "../utils";
@@ -765,7 +766,7 @@ function showStatesChart(): void {
     .sum(d => d.area ?? 0)
     .sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
 
-  const size = 150 + 200 * +uiSize.value;
+  const size = 150 + 200 * useOptionsState.getState().uiSize;
   const margin = { top: 0, right: -50, bottom: 0, left: -50 };
   const w = +size - margin.left - margin.right;
   const h = +size - margin.top - margin.bottom;

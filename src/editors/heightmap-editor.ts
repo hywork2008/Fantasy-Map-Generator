@@ -25,11 +25,13 @@ import { States } from "../modules/states-generator";
 import type { Zone } from "../modules/zones-generator";
 import { Zones } from "../modules/zones-generator";
 import { FeaturesRenderer } from "../renderers";
-import { closeDialog, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
+import { useOptionsState } from "../store/optionsState";
+import { closeDialog, isDialogOpen, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import {
   createTypedArray,
   ensureEl,
   findCell,
+  findGridCell,
   generateSeed,
   getGridPolygon,
   link,
@@ -145,7 +147,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
 
     if (!sessionStorage.getItem("noExitButtonAnimation")) {
       sessionStorage.setItem("noExitButtonAnimation", "true");
-      const width = 12 * +uiSize.value * 11;
+      const width = 12 * useOptionsState.getState().uiSize * 11;
       document.dispatchEvent(
         new CustomEvent("react-show-exit-customization", {
           detail: {
@@ -1015,7 +1017,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
   // ─── Template editor ──────────────────────────────────────────────────────────
 
   function openTemplateEditor(): void {
-    if (document.getElementById("templateEditor") !== null) return;
+    if (isDialogOpen("templateEditor")) return;
     const $body = ensureEl("templateBody");
 
     openDialog("templateEditor", {
@@ -1050,7 +1052,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       }
     });
 
-    ensureEl("templateEditor").addEventListener("keypress", (event: KeyboardEvent) => {
+    ensureEl("templateEditorContainer").addEventListener("keypress", (event: KeyboardEvent) => {
       if (event.key === "Enter") {
         event.preventDefault();
         executeTemplate();
@@ -1282,7 +1284,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     canvas.id = "canvas";
     canvas.width = graphWidth;
     canvas.height = graphHeight;
-    document.body.insertBefore(canvas, optionsContainer);
+    optionsContainer.parentNode?.insertBefore(canvas, optionsContainer);
 
     setOverlayOpacity(0);
     clearMainTip();
@@ -1608,7 +1610,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     preview.id = "preview";
     preview.width = grid.cellsX;
     preview.height = grid.cellsY;
-    document.body.insertBefore(preview, optionsContainer);
+    optionsContainer.parentNode?.insertBefore(preview, optionsContainer);
     preview.addEventListener("mouseover", () => tip("Heightmap preview. Click to download a screen-sized image"));
     preview.addEventListener("click", downloadPreview);
     drawHeightmapPreview();
@@ -1643,7 +1645,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       const ctx = canvas.getContext("2d")!;
       canvas.width = graphWidth;
       canvas.height = graphHeight;
-      document.body.insertBefore(canvas, optionsContainer);
+      optionsContainer.parentNode?.insertBefore(canvas, optionsContainer);
       ctx.drawImage(img, 0, 0, graphWidth, graphHeight);
       const imgBig = canvas.toDataURL("image/png");
       const link = document.createElement("a");

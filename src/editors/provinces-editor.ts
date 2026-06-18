@@ -23,6 +23,7 @@ import {
   ProvincesRenderer,
   StatesRenderer
 } from "../renderers";
+import { useOptionsState } from "../store/optionsState";
 import { openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, findCell, getRandomColor, isLand, parseTransform, rand, rn, si, unique } from "../utils";
 import { getPackPolygon } from "../utils/graphUtils";
@@ -694,8 +695,8 @@ export function editProvinces(): void {
       .parentId(d => (d.state !== null && d.state !== undefined ? String(d.state) : null))(data)
       .sum(d => d.area ?? 0);
 
-    const width = 300 + 300 * +(uiSize as HTMLInputElement).value;
-    const height = 90 + 90 * +(uiSize as HTMLInputElement).value;
+    const width = 300 + 300 * useOptionsState.getState().uiSize;
+    const height = 90 + 90 * useOptionsState.getState().uiSize;
     const margin = { top: 10, right: 10, bottom: 0, left: 10 };
     const w = width - margin.left - margin.right;
     const h = height - margin.top - margin.bottom;

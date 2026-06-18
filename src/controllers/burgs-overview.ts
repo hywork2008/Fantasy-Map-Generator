@@ -3,9 +3,11 @@ import { pointer } from "d3";
 import { appServices } from "../context/appServices";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
+import { editBurg } from "../editors/burg-editor";
 import { editBurgGroups } from "../editors/burg-group-editor";
 import { Burgs } from "../modules/burgs-generator";
 import { drawBurgIcon, drawBurgLabel, drawRoute } from "../renderers";
+import { useOptionsState } from "../store/optionsState";
 import { openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { convertTemperature, ensureEl, findCell, getLatitude, getLongitude, rn, si } from "../utils";
 import { interactionManager } from "./interactionManager";
@@ -217,7 +219,7 @@ function overviewBurgs(settings: { stateId?: number | null; cultureId?: number |
 
   function openBurgEditor(this: HTMLElement): void {
     const burg = +(this.parentNode as HTMLElement).dataset.id!;
-    editBurg!(burg);
+    editBurg(burg);
   }
 
   function triggerBurgRemove(this: HTMLElement): void {
@@ -355,8 +357,8 @@ function overviewBurgs(settings: { stateId?: number | null; cultureId?: number |
       .sum(d => d.population ?? 0)
       .sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
 
-    const width = 150 + 200 * +uiSize.value;
-    const height = 150 + 200 * +uiSize.value;
+    const width = 150 + 200 * useOptionsState.getState().uiSize;
+    const height = 150 + 200 * useOptionsState.getState().uiSize;
     const margin = { top: 0, right: -50, bottom: -10, left: -50 };
     const w = width - margin.left - margin.right;
     const h = height - margin.top - margin.bottom;
