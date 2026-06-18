@@ -1,4 +1,5 @@
 import * as d3 from "d3";
+import polylabel from "polylabel";
 import { findCell, getSegmentId, last, rn, round, si } from "../utils";
 
 // ─── Rulers container ─────────────────────────────────────────────────────────
@@ -531,8 +532,8 @@ class Planimeter extends Measurer {
 
     const polygonArea = rn(Math.abs(d3.polygonArea(this.points)));
     const area = `${si(getArea(polygonArea))} ${getAreaUnit()}`;
-    const c = polylabel([this.points], 1.0) as [number, number];
-    this.el.select("text").attr("x", c[0]).attr("y", c[1]).text(area);
+    const [cx, cy] = polylabel([this.points], 1.0);
+    this.el.select("text").attr("x", cx).attr("y", cy).text(area);
   }
 }
 
@@ -582,7 +583,6 @@ export { Rulers };
 // ─── Legacy globals (from non-migrated JS files) ──────────────────────────────
 
 declare const lineGen: { (points: [number, number][]): string; curve: (curve: unknown) => typeof lineGen };
-declare const polylabel: (polygon: number[][][], precision?: number) => [number, number];
 declare const parseTransform: (transform: string) => number[];
 declare const getArea: (area: number) => number;
 declare const getAreaUnit: () => string;

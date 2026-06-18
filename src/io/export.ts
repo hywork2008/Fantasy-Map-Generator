@@ -1,5 +1,6 @@
 import type { Selection } from "d3";
 import * as d3 from "d3";
+import JSZip from "jszip";
 import { appServices } from "../context/appServices";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
@@ -125,8 +126,7 @@ export async function exportToPngTiles(): Promise<void> {
   status.innerHTML = "Preparing files...";
 
   const urlSchema = await getMapURL("tiles", { debug: true, fullMap: true });
-  await import(/* @vite-ignore */ `${import.meta.env.BASE_URL}libs/jszip.min.js`);
-  const zip = new window.JSZip();
+  const zip = new JSZip();
 
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d")!;
@@ -197,15 +197,6 @@ export async function exportToPngTiles(): Promise<void> {
       status.innerHTML = "Tiles export failed";
       tip(`PNG tiles export failed: ${error?.message || "Unknown error"}`, true, "error", 5000);
     });
-}
-
-interface JSZipInstance {
-  file: (name: string, data: Blob) => void;
-  generateAsync: (opts: { type: "blob" }) => Promise<Blob>;
-}
-
-declare global {
-  var JSZip: new () => JSZipInstance;
 }
 
 function loadImage(img: HTMLImageElement): Promise<void> {

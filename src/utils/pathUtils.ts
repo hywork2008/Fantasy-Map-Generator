@@ -1,3 +1,4 @@
+import FlatQueue from "flatqueue";
 import polylabel from "polylabel";
 import { rn } from "./numberUtils";
 
@@ -333,12 +334,12 @@ export const findPath = (
   const numCells = packedGraph.cells.c.length;
   const from = new Int32Array(numCells);
   const cost = new Float32Array(numCells).fill(Infinity);
-  const queue = new window.FlatQueue<number>();
+  const queue = new FlatQueue<number>();
   queue.push(start, 0);
 
   while (queue.length) {
-    const currentCost = queue.peekValue();
-    const current = queue.pop();
+    const currentCost = queue.peekValue()!;
+    const current = queue.pop()!;
 
     for (const next of packedGraph.cells.c[current]) {
       if (isExit(next)) {

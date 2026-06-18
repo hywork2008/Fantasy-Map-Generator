@@ -1,12 +1,7 @@
 // Cloud provider implementations (Dropbox only)
 
-interface DropboxAuthInstance {
-  setAccessToken: (token: string) => void;
-}
-interface DropboxSDK {
-  DropboxAuth: new (opts: { clientId: string }) => DropboxAuthInstance;
-  Dropbox: new (opts: { auth: DropboxAuthInstance }) => Record<string, (p: unknown) => Promise<unknown>>;
-}
+import { DropboxAuth, Dropbox as DropboxClient } from "dropbox";
+
 interface DropboxResponse<T> {
   result: T;
 }
@@ -25,7 +20,6 @@ declare global {
       };
     };
   };
-  var Dropbox: DropboxSDK;
 }
 
 const lSKey = (x: string) => `auth-${x}`;
@@ -37,7 +31,8 @@ const DBP = {
   clientId: "pdr9ae64ip0qno4",
   authWindow: null as Window | null,
   token: null as string | null,
-  api: null as Record<string, (p: unknown) => Promise<unknown>> | null,
+  // biome-ignore lint/suspicious/noExplicitAny: Dropbox instance methods called dynamically by name
+  api: null as any,
 
   async call(name: string, param: unknown): Promise<unknown> {
     try {
@@ -60,11 +55,9 @@ const DBP = {
   },
 
   async connect(token: string): Promise<void> {
-    await import(/* @vite-ignore */ `${import.meta.env.BASE_URL}libs/dropbox-sdk.min.js`);
-    const sdk = window.Dropbox;
-    const auth = new sdk.DropboxAuth({ clientId: this.clientId });
+    const auth = new DropboxAuth({ clientId: this.clientId });
     auth.setAccessToken(token);
-    this.api = new sdk.Dropbox({ auth });
+    this.api = new DropboxClient({ auth });
   },
 
   async save(fileName: string, contents: string): Promise<boolean> {

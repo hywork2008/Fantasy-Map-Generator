@@ -184,13 +184,6 @@ declare global {
   var requestRemoveStylePreset: () => void;
   var removeStylePreset: () => void;
   var updateMapFilter: () => void;
-  var FlatQueue: new <T = unknown>() => {
-    push: (item: T, priority: number) => void;
-    pop: () => T;
-    peekValue: () => number;
-    length: number;
-  };
-
   var tip: (
     message: string,
     autoHide?: boolean,
@@ -454,9 +447,6 @@ declare global {
   // d3 line generator (from main.js)
   var lineGen: import("d3").Line<[number, number]>;
 
-  // polylabel library (loaded via <script> in index.html)
-  var polylabel: (polygon: [number, number][][], precision?: number) => [number, number];
-
   // Measurer constructors (from measurers.ts)
   var Rulers: typeof RulersClass;
   var Ruler: typeof RulerClass;
@@ -693,14 +683,6 @@ declare global {
   var findGridAll: (x: number, y: number, r: number) => number[];
   var generatePrecipitation: () => void;
   var rankCells: () => void;
-  var RgbQuant: new (
-    options: unknown
-  ) => {
-    sample(canvas: HTMLCanvasElement): void;
-    reduce(canvas: HTMLCanvasElement): Uint8Array;
-    palette(flat?: boolean): unknown;
-  };
-
   // UI helpers
   var undraw: () => void;
   var changeViewMode: (event: MouseEvent) => void;

@@ -1,5 +1,6 @@
 import * as d3 from "d3";
 import { hsl, interpolateRound, lab, max, mean, pointer, range, select } from "d3";
+import RgbQuant from "rgbquant";
 import { aleaPRNG } from "../components/AleaPRNG";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";

@@ -1,4 +1,5 @@
 import { quadtree } from "d3";
+import FlatQueue from "flatqueue";
 import type { AppServices } from "../context/appServices";
 import { appServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
@@ -944,7 +945,7 @@ class ReligionsModule {
     const religionsMap = new Map(religions.map(r => [r.i, r]));
 
     while (queue.length) {
-      const { e: cellId, p, r, s: state } = queue.pop();
+      const { e: cellId, p, r, s: state } = queue.pop()!;
       const religion = religionsMap.get(r)!;
       const { culture, expansion, expansionism } = religion;
 

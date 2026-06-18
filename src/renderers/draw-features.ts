@@ -1,4 +1,5 @@
 import { select } from "d3";
+import _simplify from "simplify-js";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
@@ -8,7 +9,13 @@ import { ERROR, TIME } from "../utils/debug";
 import { buildCoastlinePath, fractalizeCoastline } from "./coastline-fractal";
 import type { IRenderer } from "./core/IRenderer";
 
-declare const simplify: (points: [number, number][], tolerance: number, highestQuality?: boolean) => [number, number][];
+function simplify(points: [number, number][], tolerance: number, highestQuality?: boolean): [number, number][] {
+  return _simplify(
+    points.map(([x, y]) => ({ x, y })),
+    tolerance,
+    highestQuality
+  ).map(({ x, y }) => [x, y] as [number, number]);
+}
 
 interface FeaturesHtml {
   paths: string[];

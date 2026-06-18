@@ -1,4 +1,5 @@
 import { max, mean } from "d3";
+import FlatQueue from "flatqueue";
 import type { AppServices } from "../context/appServices";
 import { appServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
@@ -280,7 +281,7 @@ class ZonesModule {
     queue.push({ e: burg.cell, p: 0 }, 0);
 
     while (queue.length) {
-      const next = queue.pop();
+      const next = queue.pop()!;
       if (cells.burg[next.e] || cells.pop[next.e]) cellsArray.push(next.e);
       usedCells[next.e] = 1;
 
@@ -418,7 +419,7 @@ class ZonesModule {
     queue.push({ e: burg.cell, p: 0 }, 0);
 
     while (queue.length) {
-      const next = queue.pop();
+      const next = queue.pop()!;
       if (cells.burg[next.e] || cells.pop[next.e]) cellsArray.push(next.e);
       usedCells[next.e] = 1;
 

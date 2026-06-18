@@ -1,4 +1,5 @@
 import { max, quadtree, range } from "d3";
+import FlatQueue from "flatqueue";
 import type { AppServices } from "../context/appServices";
 import { appServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
@@ -1320,7 +1321,7 @@ class CulturesModule {
     };
 
     while (queue.length) {
-      const { cellId, priority, cultureId } = queue.pop();
+      const { cellId, priority, cultureId } = queue.pop()!;
       const { type, expansionism } = cultures[cultureId];
       const sourceBiome = cells.biome[cellId];
 

@@ -1,4 +1,5 @@
 import { mean, median, sum } from "d3";
+import FlatQueue from "flatqueue";
 import { HeightThreshold } from "../config/constants";
 import type { AppServices } from "../context/appServices";
 import { appServices } from "../context/appServices";
@@ -200,7 +201,7 @@ class StatesModule {
     }
 
     while (queue.length) {
-      const next = queue.pop();
+      const next = queue.pop()!;
 
       const { e, p, s, b } = next;
       const { type, culture } = states[s];

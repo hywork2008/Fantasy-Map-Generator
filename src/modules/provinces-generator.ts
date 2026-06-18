@@ -1,4 +1,5 @@
 import { max } from "d3";
+import FlatQueue from "flatqueue";
 import { aleaPRNG } from "../components/AleaPRNG";
 import type { AppServices } from "../context/appServices";
 import { appServices } from "../context/appServices";
@@ -178,7 +179,7 @@ class ProvinceModule {
     });
 
     while (queue.length) {
-      const { e, p, province, state } = queue.pop();
+      const { e, p, province, state } = queue.pop()!;
 
       cells.c[e].forEach(e => {
         if (isProvinceCellLocked(e)) return; // do not overwrite cell of locked provinces
@@ -250,7 +251,7 @@ class ProvinceModule {
         cost[center] = 1;
         queue.push({ e: center, p: 0, province: provinceId, state: s.i }, 0);
         while (queue.length) {
-          const { e, p } = queue.pop();
+          const { e, p } = queue.pop()!;
 
           cells.c[e].forEach(nextCellId => {
             if (provinceIds[nextCellId]) return;
