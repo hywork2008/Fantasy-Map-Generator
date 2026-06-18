@@ -39,7 +39,7 @@ export const BurgLabelsRenderer: IRenderer = {
     const maxOrder = Math.max(...(options.burgs.groups as BurgGroup[]).map(g => g.order), 1);
     for (const { name, order } of options.burgs.groups as BurgGroup[]) {
       const invertedOrder = maxOrder - order + 1;
-      const threshold = invertedOrder === 1 ? 0 : invertedOrder * 2 - 1.5;
+      const threshold = invertedOrder === 1 ? 1.5 : invertedOrder * 2 - 1.5;
       if (scale < threshold) continue;
 
       const burgsInGroup = pack.burgs.filter(b => b.group === name && !b.removed);
@@ -54,7 +54,10 @@ export const BurgLabelsRenderer: IRenderer = {
       const visibleBurgs = burgsInGroup.filter(b => isVisible(b.x, b.y));
 
       // Purge <text> elements from loaded .map files that have no D3 data binding — the key function below crashes on undefined datum.
-      labelGroup.selectAll<SVGTextElement, Burg | undefined>("text").filter(d => d === undefined).remove();
+      labelGroup
+        .selectAll<SVGTextElement, Burg | undefined>("text")
+        .filter(d => d === undefined)
+        .remove();
 
       labelGroup
         .selectAll<SVGTextElement, Burg>("text")

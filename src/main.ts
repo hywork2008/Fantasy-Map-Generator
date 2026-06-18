@@ -1023,10 +1023,10 @@ function invokeActiveZooming() {
   const getScaleThreshold = (groupId: string) => {
     const group = (burgGroups as BurgGroup[]).find(g => g.name === groupId);
     if (!group) return 0;
-    // Higher order = more important (capital=9) = visible at all zoom levels (threshold 0)
+    // Higher order = more important (capital=9) = visible at lower zoom levels
     // Lower order = less important (hamlet=1) = visible only at high zoom
     const invertedOrder = maxBurgOrder - group.order + 1;
-    return invertedOrder === 1 ? 0 : invertedOrder * 2 - 1.5;
+    return invertedOrder === 1 ? 1.5 : invertedOrder * 2 - 1.5;
   };
 
   const isBurgGroupHidden = (groupId: string) => scale < getScaleThreshold(groupId);
