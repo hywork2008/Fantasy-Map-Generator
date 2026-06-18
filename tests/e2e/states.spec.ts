@@ -34,10 +34,11 @@ test.describe("States", () => {
     await page.waitForSelector("#statesEditor", {state: "visible", timeout: 5000});
     await page.waitForTimeout(300);
 
-    // Find a state row and get its ID
+    // Find a real state row (id > 0; id=0 is neutral and has no trash icon)
     const stateId = await page.evaluate(() => {
-      const stateRow = document.querySelector("#statesBodySection > div[data-id]") as HTMLElement;
-      return stateRow ? parseInt(stateRow.dataset.id!, 10) : null;
+      const rows = Array.from(document.querySelectorAll("#statesBodySection > div[data-id]")) as HTMLElement[];
+      const realState = rows.find(row => parseInt(row.dataset.id!, 10) > 0);
+      return realState ? parseInt(realState.dataset.id!, 10) : null;
     });
 
     expect(stateId).not.toBeNull();
@@ -48,12 +49,17 @@ test.describe("States", () => {
       return states.filter((s: any) => s.i && !s.removed && s.neighbors && s.neighbors.includes(id)).length;
     }, stateId!);
 
-    // Click the trash icon to remove the state
-    await page.click(`#statesBodySection > div[data-id="${stateId}"] .icon-trash-empty`);
+    // Dispatch a click directly on the trash icon (hidden by default via CSS)
+    // to trigger the state removal prompt via event delegation
+    await page.evaluate((id: number) => {
+      const row = document.querySelector(`#statesBodySection > div[data-id="${id}"]`);
+      const trashIcon = row?.querySelector(".icon-trash-empty");
+      trashIcon?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    }, stateId!);
 
-    // Confirm the removal in the jQuery dialog - look for "Remove" button in the dialog buttonpane
-    await page.waitForSelector(".ui-dialog:has(#alert) .ui-dialog-buttonpane", {state: "visible", timeout: 3000});
-    await page.click(".ui-dialog:has(#alert) .ui-dialog-buttonpane button:first-child"); // "Remove" is first button
+    // Confirm the removal in the React dialog - "Remove" is the confirm button (last)
+    await page.waitForSelector(".fmg-dialog .fmg-dialog-buttonpane", {state: "visible", timeout: 3000});
+    await page.click(".fmg-dialog .fmg-dialog-buttonpane .fmg-dialog-button:last-child"); // "Remove" is last button
     await page.waitForTimeout(500);
 
     // Verify the state is no longer in neighbors of any other state
@@ -64,8 +70,8 @@ test.describe("States", () => {
 
     expect(neighborsAfter).toBe(0);
 
-    // Close the States Editor - the close button is in the jQuery UI dialog wrapper
-    await page.click(".ui-dialog:has(#statesEditor) .ui-dialog-titlebar-close");
+    // Close the States Editor - the close button is in the React dialog
+    await page.click(".fmg-dialog:has(#statesEditor) .fmg-dialog-close");
     await page.waitForTimeout(200);
 
     // Now click "Military" regenerate button and verify no errors

@@ -88,8 +88,11 @@ test.describe("Lakes layer", () => {
     // Simulate what moveLayer does when the user drags Lakes above Heightmap:
     // panel item "toggleLakes" is now before "toggleHeight" → el.insertBefore(#terrs)
     await page.evaluate(() => {
-      const $ = (window as any).$;
-      $("#lakes").insertBefore($("#terrs"));
+      const lakes = document.getElementById("lakes");
+      const terrs = document.getElementById("terrs");
+      if (lakes && terrs && terrs.parentNode) {
+        terrs.parentNode.insertBefore(lakes, terrs);
+      }
     });
 
     // After move: #lakes should be before #terrs in SVG → renders behind heightmap

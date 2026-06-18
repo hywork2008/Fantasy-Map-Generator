@@ -194,7 +194,7 @@ test.describe("UI Tour", () => {
     await advanceSteps(page, 10);
     expect(await popoverTitle(page)).toBe(STEP_TITLES[10]);
 
-    await expect(page.locator("#optionsContent")).toBeVisible();
+    await expect(page.locator("#optionsTabContent")).toBeVisible();
   });
 
   test("layers tab remains active on Layer Presets and Toggle Individual Layers steps", async ({ page }) => {
@@ -227,10 +227,10 @@ test.describe("UI Tour", () => {
 
     await advanceSteps(page, 11);
     expect(await popoverTitle(page)).toBe(STEP_TITLES[11]);
-    await expect(page.locator("#optionsContent")).toBeVisible();
+    await expect(page.locator("#optionsTabContent")).toBeVisible();
 
     await nextStep(page, STEP_TITLES[12]);
-    await expect(page.locator("#optionsContent")).toBeVisible();
+    await expect(page.locator("#optionsTabContent")).toBeVisible();
   });
 
   test("tools tab content is visible on Tools Tab and Edit the Heightmap steps", async ({ page }) => {
@@ -271,13 +271,13 @@ test.describe("UI Tour", () => {
     expect(await popoverTitle(page)).toBe(STEP_TITLES[12]);
 
     // Dialog not yet open.
-    await expect(page.locator("#worldConfigurator")).toBeHidden();
+    await expect(page.locator("#worldConfiguratorContainer")).toBeHidden();
 
     // Clicking Next calls editWorld() then moveNext().
     await nextStep(page, STEP_TITLES[13]);
 
     // Dialog must be visible and tour must be on the World Configurator step.
-    await expect(page.locator("#worldConfigurator")).toBeVisible();
+    await expect(page.locator("#worldConfiguratorContainer")).toBeVisible();
   });
 
   test("World Configurator dialog closes and tools tab activates when advancing from World Configurator step", async ({
@@ -289,12 +289,12 @@ test.describe("UI Tour", () => {
     // advanceSteps(13): click 13 fires Configure World's onNextClick (editWorld + moveNext).
     await advanceSteps(page, 13);
     expect(await popoverTitle(page)).toBe(STEP_TITLES[13]);
-    await expect(page.locator("#worldConfigurator")).toBeVisible();
+    await expect(page.locator("#worldConfiguratorContainer")).toBeVisible();
 
     // Clicking Next fires closeDialogs() + clickTab("toolsTab") + moveNext().
     await nextStep(page, STEP_TITLES[14]);
 
-    await expect(page.locator("#worldConfigurator")).toBeHidden();
+    await expect(page.locator("#worldConfiguratorContainer")).toBeHidden();
     await expect(page.locator("#toolsContent")).toBeVisible();
   });
 
@@ -414,12 +414,12 @@ test.describe("UI Tour", () => {
     // Advance to World Configurator step — dialog is open.
     await advanceSteps(page, 13);
     expect(await popoverTitle(page)).toBe(STEP_TITLES[13]);
-    await expect(page.locator("#worldConfigurator")).toBeVisible();
+    await expect(page.locator("#worldConfiguratorContainer")).toBeVisible();
 
     // Go back: onHighlightStarted on Configure World must close the dialog.
     await prevStep(page, STEP_TITLES[12]);
-    await expect(page.locator("#worldConfigurator")).toBeHidden();
-    await expect(page.locator("#optionsContent")).toBeVisible();
+    await expect(page.locator("#worldConfiguratorContainer")).toBeHidden();
+    await expect(page.locator("#optionsTabContent")).toBeVisible();
   });
 
   test("back from Tools Tab to World Configurator reopens the dialog", async ({ page }) => {
@@ -429,11 +429,11 @@ test.describe("UI Tour", () => {
     // Advance to Tools Tab — World Configurator dialog is closed.
     await advanceSteps(page, 14);
     expect(await popoverTitle(page)).toBe(STEP_TITLES[14]);
-    await expect(page.locator("#worldConfigurator")).toBeHidden();
+    await expect(page.locator("#worldConfiguratorContainer")).toBeHidden();
 
     // Go back: onHighlightStarted on World Configurator must reopen the dialog.
     await prevStep(page, STEP_TITLES[13]);
-    await expect(page.locator("#worldConfigurator")).toBeVisible();
+    await expect(page.locator("#worldConfiguratorContainer")).toBeVisible();
   });
 
   test("back from About Tab to Heightmap Editor shows the customization panel", async ({ page }) => {
@@ -544,13 +544,13 @@ test.describe("UI Tour", () => {
 
     // Arrive at World Configurator step with dialog open.
     await advanceSteps(page, 13);
-    await expect(page.locator("#worldConfigurator")).toBeVisible();
+    await expect(page.locator("#worldConfiguratorContainer")).toBeVisible();
 
     await page.locator(".driver-popover-close-btn").click();
     await page.waitForSelector(".driver-popover", { state: "hidden" });
 
     // onDestroyStarted calls closeDialogs() then closeOptionsPanel().
-    await expect(page.locator("#worldConfigurator")).toBeHidden();
+    await expect(page.locator("#worldConfiguratorContainer")).toBeHidden();
     await expect(page.locator("#options")).toBeHidden();
   });
 
@@ -636,7 +636,7 @@ test.describe("UI Tour", () => {
     await expect(page.locator("#options")).toBeVisible();
 
     // Only the Options tab content should be visible — not toolsContent.
-    await expect(page.locator("#optionsContent")).toBeVisible();
+    await expect(page.locator("#optionsTabContent")).toBeVisible();
     await expect(page.locator("#toolsContent")).toBeHidden();
   });
 });
