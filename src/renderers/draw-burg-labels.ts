@@ -53,6 +53,9 @@ export const BurgLabelsRenderer: IRenderer = {
 
       const visibleBurgs = burgsInGroup.filter(b => isVisible(b.x, b.y));
 
+      // Purge <text> elements from loaded .map files that have no D3 data binding — the key function below crashes on undefined datum.
+      labelGroup.selectAll<SVGTextElement, Burg | undefined>("text").filter(d => d === undefined).remove();
+
       labelGroup
         .selectAll<SVGTextElement, Burg>("text")
         .data(visibleBurgs, d => d.i ?? 0)
@@ -94,6 +97,7 @@ export const drawBurgLabel = (
   removeBurgLabel(worldContext, viewContext, appServices, burg.i!);
   labelGroup
     .append("text")
+    .datum(burg)
     .attr("text-rendering", "optimizeSpeed")
     .attr("id", `burgLabel${burg.i}`)
     .attr("data-id", burg.i!)
