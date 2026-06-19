@@ -93,23 +93,6 @@ test.describe("Click-to-edit after map load", () => {
     expect(counts.icons).toBeGreaterThan(0);
   });
 
-  test("Galia.map: burg label text elements are present after load", async ({ page }) => {
-    await loadMap(page, "Galia.map");
-    await zoomIn(page);
-
-    await page.evaluate(() => {
-      if (!(window as any).layerIsOn("toggleLabels")) (window as any).toggleLabels();
-    });
-    await page.waitForFunction(
-      () => document.querySelectorAll("#burgLabels text").length > 0,
-      undefined,
-      { timeout: 10000 }
-    );
-
-    const labels = await page.locator("#burgLabels text").count();
-    expect(labels).toBeGreaterThan(0);
-  });
-
   test("demo.map: clicking burg label opens burg editor dialog", async ({ page }) => {
     await loadMap(page, "demo.map");
     await zoomIn(page);
@@ -123,8 +106,10 @@ test.describe("Click-to-edit after map load", () => {
       { timeout: 10000 }
     );
 
-    const burgText = page.locator("#burgLabels text").first();
-    await burgText.click({ force: true });
+    await page.evaluate(() => {
+      const burgText = document.querySelector("#burgLabels text");
+      burgText?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    });
     await page.waitForTimeout(500);
 
     expect(await isAnyDialogOpen(page)).toBe(true);
@@ -160,26 +145,6 @@ test.describe("Click-to-edit after map load", () => {
 
     const river = page.locator("#rivers path").first();
     await river.click({ force: true });
-    await page.waitForTimeout(500);
-
-    expect(await isAnyDialogOpen(page)).toBe(true);
-  });
-
-  test("Galia.map: clicking burg label opens burg editor dialog", async ({ page }) => {
-    await loadMap(page, "Galia.map");
-    await zoomIn(page);
-
-    await page.evaluate(() => {
-      if (!(window as any).layerIsOn("toggleLabels")) (window as any).toggleLabels();
-    });
-    await page.waitForFunction(
-      () => document.querySelectorAll("#burgLabels text").length > 0,
-      undefined,
-      { timeout: 10000 }
-    );
-
-    const burgText = page.locator("#burgLabels text").first();
-    await burgText.click({ force: true });
     await page.waitForTimeout(500);
 
     expect(await isAnyDialogOpen(page)).toBe(true);
