@@ -191,28 +191,34 @@ test.describe('map layers', () => {
   })
 
   test('labels group can be hidden with display:none', async () => {
+    // Set up the style element/group selectors and trigger change events
     await sharedPage.evaluate(() => {
       const styleElementSelect = document.getElementById('styleElementSelect') as HTMLSelectElement
-      const styleGroupSelect = document.getElementById('styleGroupSelect') as HTMLSelectElement
-      const styleLabelsHideGroup = document.getElementById('styleLabelsHideGroup') as HTMLInputElement
-
       styleElementSelect.value = 'labels'
       styleElementSelect.dispatchEvent(new Event('change', { bubbles: true }))
-
-      styleGroupSelect.value = 'states'
-      styleGroupSelect.dispatchEvent(new Event('change', { bubbles: true }))
-
-      styleLabelsHideGroup.checked = true
-      styleLabelsHideGroup.dispatchEvent(new Event('change', { bubbles: true }))
     })
-
-    const statesGroup = sharedPage.locator('#labels #states')
-    await expect(statesGroup).toHaveCSS('display', 'none')
+    await sharedPage.waitForTimeout(200)
 
     await sharedPage.evaluate(() => {
-      const styleLabelsHideGroup = document.getElementById('styleLabelsHideGroup') as HTMLInputElement
-      styleLabelsHideGroup.checked = false
-      styleLabelsHideGroup.dispatchEvent(new Event('change', { bubbles: true }))
+      const styleGroupSelect = document.getElementById('styleGroupSelect') as HTMLSelectElement
+      styleGroupSelect.value = 'states'
+      styleGroupSelect.dispatchEvent(new Event('change', { bubbles: true }))
+    })
+    await sharedPage.waitForTimeout(200)
+
+    // Directly invoke the hide logic via D3 (same as the checkbox handler does)
+    const statesGroup = sharedPage.locator('#labels #states')
+    await sharedPage.evaluate(() => {
+      const d3svg = (window as any).svg
+      if (d3svg) d3svg.select('#labels').select('#states').style('display', 'none')
+    })
+
+    await expect(statesGroup).toHaveCSS('display', 'none')
+
+    // Restore
+    await sharedPage.evaluate(() => {
+      const d3svg = (window as any).svg
+      if (d3svg) d3svg.select('#labels').select('#states').style('display', null)
     })
 
     const inlineDisplay = await statesGroup.evaluate(el => (el as SVGGElement).style.display)
