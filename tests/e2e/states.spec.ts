@@ -57,9 +57,12 @@ test.describe("States", () => {
       trashIcon?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
     }, stateId!);
 
-    // Confirm the removal in the React dialog - "Remove" is the confirm button (last)
-    await page.waitForSelector(".fmg-dialog .fmg-dialog-buttonpane", {state: "visible", timeout: 3000});
-    await page.click(".fmg-dialog .fmg-dialog-buttonpane .fmg-dialog-button:last-child"); // "Remove" is last button
+    // Wait for the "Remove" button in the confirmation dialog to become visible.
+    // NOTE: waitForSelector checks the FIRST matching element; use locator+expect instead
+    // so it finds any visible ".fmg-dialog-button" containing "Remove".
+    const removeButton = page.locator('.fmg-dialog-button', {hasText: "Remove"});
+    await expect(removeButton).toBeVisible({timeout: 5000});
+    await removeButton.click();
     await page.waitForTimeout(500);
 
     // Verify the state is no longer in neighbors of any other state

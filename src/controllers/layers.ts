@@ -170,7 +170,9 @@ function restoreCustomPresets(): void {
 
 function applyLayersPreset(): void {
   const layerState = useLayerState.getState();
-  const preset = localStorage.getItem("preset") || layerState.activePreset;
+  let preset = localStorage.getItem("preset") || layerState.activePreset;
+  // Fall back to "political" if preset doesn't exist (e.g. first run or cleared storage)
+  if (!layerState.presets[preset]) preset = "political";
   setLayersPreset(preset);
 
   const layers = layerState.presets[preset] ?? [];
