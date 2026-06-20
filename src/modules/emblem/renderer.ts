@@ -296,7 +296,7 @@ class EmblemRenderModule {
         <g clip-path="url(#${shield}_${id})">${field}${divisionGroup}${templateAboveAll()}</g>
         ${overlay}</svg>`;
 
-    // insert coa svg into #coas (not inside defs)
+    // biome-ignore lint/style/noRestrictedGlobals: COA insertion into #coas pending move to renderers layer
     document.getElementById("coas")!.insertAdjacentHTML("beforeend", svg);
     return true;
   }
@@ -305,6 +305,7 @@ class EmblemRenderModule {
   async trigger(id: string, coa: Emblem) {
     if (!coa) return console.warn(`Emblem ${id} is undefined`);
     if (coa.custom) return console.warn("Cannot render custom emblem", coa);
+    // biome-ignore lint/style/noRestrictedGlobals: COA existence check pending move to renderers layer
     if (!document.getElementById(id)) return this.draw(id, coa);
   }
 

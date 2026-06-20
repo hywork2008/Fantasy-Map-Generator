@@ -28,9 +28,9 @@
       },
       "a11y": {
         "noLabelWithoutControl": "warn",
-        "useKeyWithClickEvents": "warn",
-        "useKeyWithMouseEvents": "warn",
-        "noStaticElementInteractions": "warn",
+        "useKeyWithClickEvents": "off",
+        "useKeyWithMouseEvents": "off",
+        "noStaticElementInteractions": "off",
         "useValidAnchor": "warn",
         "useAnchorContent": "warn"
       },

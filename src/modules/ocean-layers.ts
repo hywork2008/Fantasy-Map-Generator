@@ -22,7 +22,7 @@ class OceanModule {
   private lineGen = line().curve(curveBasisClosed);
   private oceanLayers: Selection<SVGGElement, unknown, null, undefined>;
 
-  constructor(oceanLayers: Selection<SVGGElement, unknown, null, undefined>) {
+  constructor(_oceanLayers: Selection<SVGGElement, unknown, null, undefined>) {
     this.oceanLayers = viewContext.oceanLayers;
   }
 

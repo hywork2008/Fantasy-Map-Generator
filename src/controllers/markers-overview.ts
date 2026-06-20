@@ -300,4 +300,4 @@ export function overviewMarkers(): void {
   }
 }
 
-export function initMarkersOverview(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {}
+export function initMarkersOverview(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: AppServices) {}

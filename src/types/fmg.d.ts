@@ -1,6 +1,6 @@
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import type { UITourModule } from "../modules/ui-tour";
+import type { UITourModule } from "../controllers/ui-tour";
 import type { Grid } from "../utils/graphUtils";
 import type { WorldState } from "./WorldState";
 

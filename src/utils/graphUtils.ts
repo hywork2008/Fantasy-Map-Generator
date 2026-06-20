@@ -260,7 +260,7 @@ export const findClosestCell = (
   x: number,
   y: number,
   radius = Infinity,
-  pack: { cells: { p: [number, number][] } }
+  _pack: { cells: { p: [number, number][] } }
 ): number | undefined => {
   if (!worldContext.pack.cells?.p) throw new Error("Pack cells not found");
   let qTree = quadtreeCache.get(worldContext.pack.cells.p);

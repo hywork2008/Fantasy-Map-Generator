@@ -1737,4 +1737,4 @@ export function initStyleTab() {
   _requestRemoveStylePreset = requestRemoveStylePreset;
 }
 
-export function initStyle(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {}
+export function initStyle(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: AppServices) {}

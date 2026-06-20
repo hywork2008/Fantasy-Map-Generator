@@ -1494,4 +1494,4 @@ function updateLockStatus(provinceId: number, classList: DOMTokenList): void {
 }
 
 // ─── Global registration ───────────────────────────────────────────────────────
-export function initProvincesEditor(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {}
+export function initProvincesEditor(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: AppServices) {}

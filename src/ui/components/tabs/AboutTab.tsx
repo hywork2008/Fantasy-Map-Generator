@@ -1,6 +1,6 @@
 import type React from "react";
 import { showSupporters } from "../../../controllers/options";
-import { UITour } from "../../../modules/ui-tour";
+import { UITour } from "../../../controllers/ui-tour";
 
 export const AboutTab: React.FC = () => {
   const startTour = () => {
@@ -113,9 +113,21 @@ export const AboutTab: React.FC = () => {
 
       <p>
         Special thanks to{" "}
-        <a data-tip="Click to see list of supporters" onClick={showSupporters} style={{ cursor: "pointer" }}>
+        <button
+          type="button"
+          data-tip="Click to see list of supporters"
+          onClick={showSupporters}
+          style={{
+            cursor: "pointer",
+            background: "none",
+            border: "none",
+            padding: 0,
+            color: "inherit",
+            textDecoration: "underline"
+          }}
+        >
           all supporters
-        </a>{" "}
+        </button>{" "}
         on Patreon!
       </p>
 
@@ -127,7 +139,12 @@ export const AboutTab: React.FC = () => {
           target="_blank"
           rel="noreferrer"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 350" aria-hidden="true">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 1000 350"
+            role="img"
+            aria-label="Support Ukraine - u24.gov.ua"
+          >
             <rect width="100%" height="100%" fill="#005bbb"></rect>
             <rect y="50%" width="100%" height="50%" fill="#ffd500"></rect>
             <text x="50%" textAnchor="middle" fontSize="8em" y="32%" fill="#f5f5f5">

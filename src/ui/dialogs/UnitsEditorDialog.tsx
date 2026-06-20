@@ -12,10 +12,10 @@ export const UnitsEditorDialog: React.FC = () => {
           <div id="unitsBody" style={{ marginLeft: "1.1em" }}>
             <div className="unitsHeader" style={{ marginTop: "0.4em" }}>
               <span className="icon-map-signs" />
-              <label>Distance:</label>
+              <span>Distance:</span>
             </div>
             <div data-tip="Select a distance unit or provide a custom name">
-              <label>Distance unit:</label>
+              <label htmlFor="distanceUnitInput">Distance unit:</label>
               <select id="distanceUnitInput" data-stored="distanceUnit" defaultValue="mi">
                 <option value="mi">Mile (mi)</option>
                 <option value="km">Kilometer (km)</option>
@@ -29,19 +29,19 @@ export const UnitsEditorDialog: React.FC = () => {
             <div data-tip="Select how many distance units are in one pixel">
               <i data-locked={0} id="lock_distanceScale" className="icon-lock-open" />
               <slider-input id="distanceScaleInput" data-stored="distanceScale" min=".01" max={20} step=".1" value={3}>
-                <label>1 map pixel:</label>
+                <span>1 map pixel:</span>
               </slider-input>
             </div>
             <div data-tip="Area unit name, type &quot;square&quot; to add ² to the distance unit">
-              <label>Area unit:</label>
+              <label htmlFor="areaUnit">Area unit:</label>
               <input id="areaUnit" data-stored="areaUnit" type="text" defaultValue="square" />
             </div>
             <div className="unitsHeader">
               <span className="icon-signal" />
-              <label>Altitude:</label>
+              <span>Altitude:</span>
             </div>
             <div data-tip="Select an altitude unit or provide a custom name">
-              <label>Height unit:</label>
+              <label htmlFor="heightUnit">Height unit:</label>
               <select id="heightUnit" data-stored="heightUnit" defaultValue="ft">
                 <option value="ft">Feet (ft)</option>
                 <option value="m">Meters (m)</option>
@@ -58,15 +58,15 @@ export const UnitsEditorDialog: React.FC = () => {
                 step=".01"
                 value={2}
               >
-                <label>Exponent:</label>
+                <span>Exponent:</span>
               </slider-input>
             </div>
             <div className="unitsHeader" data-tip="Select Temperature scale">
               <span className="icon-temperature-high" />
-              <label>Temperature:</label>
+              <span>Temperature:</span>
             </div>
             <div>
-              <label>Temperature scale:</label>
+              <label htmlFor="temperatureScale">Temperature scale:</label>
               <select id="temperatureScale" data-stored="temperatureScale" defaultValue="°C">
                 <option value="°C">degree Celsius (°C)</option>
                 <option value="°F">degree Fahrenheit (°F)</option>
@@ -80,7 +80,7 @@ export const UnitsEditorDialog: React.FC = () => {
             </div>
             <div className="unitsHeader">
               <span className="icon-male" />
-              <label>Population:</label>
+              <span>Population:</span>
             </div>
             <div data-tip="Set how many people are in one population point">
               <slider-input
@@ -91,17 +91,17 @@ export const UnitsEditorDialog: React.FC = () => {
                 step={10}
                 value={1000}
               >
-                <label>1 population point:</label>
+                <span>1 population point:</span>
               </slider-input>
             </div>
             <div data-tip="Set urban population modifier. Change to increase or descrese burgs population">
               <slider-input id="urbanizationInput" data-stored="urbanization" min=".01" max={5} step=".01" value={1}>
-                <label>Urbanization rate:</label>
+                <span>Urbanization rate:</span>
               </slider-input>
             </div>
             <div data-tip="Set urban density: average population per building in Medieval Fantasy City Generator">
               <slider-input id="urbanDensityInput" data-stored="urbanDensity" min={1} max={200} step={1} value={10}>
-                <label>Urban density:</label>
+                <span>Urban density:</span>
               </slider-input>
             </div>
           </div>

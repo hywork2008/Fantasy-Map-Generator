@@ -221,4 +221,4 @@ export function editWorld(): void {
   }
 }
 
-export function initWorldConfigurator(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {}
+export function initWorldConfigurator(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: AppServices) {}

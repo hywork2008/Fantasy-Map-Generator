@@ -1236,7 +1236,7 @@ export function toggle3dOptions(): void {
   }, 100);
 }
 
-export function initOptions(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices): void {
+export function initOptions(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: AppServices): void {
   // draggable/sortable/disableSelection
   // $("#optionsContainer").draggable({ handle: ".drag-trigger", snap: "svg", snapMode: "both" });
   // $("#exitCustomization").draggable({ handle: "div" });

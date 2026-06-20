@@ -998,4 +998,4 @@ class Battle {
 
 export type { Battle, BattleRegiment };
 
-export function initBattleScreen(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {}
+export function initBattleScreen(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: AppServices) {}

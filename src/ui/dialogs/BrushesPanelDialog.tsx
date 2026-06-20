@@ -177,11 +177,11 @@ export const BrushesPanelDialog: React.FC = () => {
             style={{ display: "none" }}
           >
             <button type="button" id="rescaleCondHide" data-tip="Hide rescaler" className="icon-if" />
-            <label>h ≥</label>
+            <span>h ≥</span>
             <input id="rescaleLower" defaultValue={20} type="number" min={0} max={100} />
-            <label>≤</label>
+            <span>≤</span>
             <input id="rescaleHigher" defaultValue={100} type="number" min={1} max={100} />
-            <label>⇒</label>
+            <span>⇒</span>
             <select id="conditionSign" defaultValue="multiply">
               <option value="multiply">×</option>
               <option value="divide">÷</option>

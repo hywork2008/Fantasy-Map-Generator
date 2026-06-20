@@ -89,6 +89,7 @@ class MarkersModule {
         return true;
       }
       const id = `marker${i}`;
+      // biome-ignore lint/style/noRestrictedGlobals: SVG marker removal pending delegation to renderer
       document.getElementById(id)?.remove();
       const index = notes.findIndex(note => note.id === id);
       if (index !== -1) notes.splice(index, 1);

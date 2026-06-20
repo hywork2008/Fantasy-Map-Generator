@@ -576,4 +576,4 @@ declare global {
   var militaryOptionsTable: HTMLTableElement;
 }
 
-export function initMilitaryOverview(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {}
+export function initMilitaryOverview(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: AppServices) {}

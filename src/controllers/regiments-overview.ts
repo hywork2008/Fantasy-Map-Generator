@@ -261,4 +261,4 @@ export function overviewRegiments(state = -1): void {
   }
 }
 
-export function initRegimentsOverview(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {}
+export function initRegimentsOverview(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: AppServices) {}

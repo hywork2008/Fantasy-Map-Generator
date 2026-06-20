@@ -297,4 +297,4 @@ export function editLake(event?: MouseEvent): void {
   }
 }
 
-export function initLakesEditor(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {}
+export function initLakesEditor(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: AppServices) {}

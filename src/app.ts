@@ -14,11 +14,11 @@ import {
   toggleLayerById
 } from "./controllers/layers";
 import { changeViewMode } from "./controllers/options";
+import { UITour } from "./controllers/ui-tour";
 import { editBurg } from "./editors/burg-editor";
 import { buildGeoJsonZones, saveGeoJsonZones } from "./io/export";
 import { generate, initMain, regenerateMap } from "./main";
 import { initModules } from "./modules/index";
-import { UITour } from "./modules/ui-tour";
 import { initRenderers } from "./renderers/index";
 import { initUtils } from "./utils/index";
 

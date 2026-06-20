@@ -72,7 +72,8 @@ export const LoadMapDialog: React.FC = () => {
 
         <div style={{ marginTop: "0.3em" }}>
           <div id="sharableLinkContainer" style={{ display: "none" }}>
-            <a id="sharableLink" target="_blank" rel="noreferrer">
+            {/* biome-ignore lint/a11y/useValidAnchor: href is set dynamically by legacy JS before the link is displayed */}
+            <a id="sharableLink" href="#" target="_blank" rel="noreferrer">
               {" "}
             </a>
             <i data-tip="Copy link to the clipboard" className="icon-clone pointer"></i>

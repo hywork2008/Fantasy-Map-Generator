@@ -582,4 +582,4 @@ declare global {
   }
 }
 
-export function initDiplomacyEditor(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {}
+export function initDiplomacyEditor(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: AppServices) {}

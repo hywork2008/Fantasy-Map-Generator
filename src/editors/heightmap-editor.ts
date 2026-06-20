@@ -1707,4 +1707,4 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
 }
 
 // ─── Global registration ───────────────────────────────────────────────────────
-export function initHeightmapEditor(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {}
+export function initHeightmapEditor(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: AppServices) {}

@@ -31,7 +31,7 @@ export const drawCellsValue = (data: unknown[], packedGraph: { cells: { p: numbe
  */
 export const drawPolygons = (
   data: number[],
-  terrs: Selection<BaseType, unknown, HTMLElement, unknown>,
+  _terrs: Selection<BaseType, unknown, HTMLElement, unknown>,
   grid: Grid
 ): void => {
   const maximum: number = max(data) as number;

@@ -44,7 +44,7 @@ export const Options3dDialog: React.FC = () => {
               </select>
             </div>
             <div data-tip="Quick preset lighting for different times of day" style={{ marginTop: "0.4em" }}>
-              <label>Time of day:</label>
+              <label htmlFor="options3dTimeOfDay">Time of day:</label>
               <select id="options3dTimeOfDay" style={{ width: "10em", marginBottom: "0.3em" }} defaultValue="noon">
                 <option value="custom">Custom</option>
                 <option value="dawn">Dawn</option>
@@ -54,7 +54,7 @@ export const Options3dDialog: React.FC = () => {
               </select>
             </div>
             <div data-tip="Set sun position (x, y) and color" style={{ marginTop: "0.4em" }}>
-              <label>Sun position and color:</label>
+              <span>Sun position and color:</span>
               <div style={{ display: "flex", gap: "0.2em" }}>
                 <input id="options3dSunX" type="number" min={-2500} max={2500} step={100} style={{ width: "4.7em" }} />
                 <input id="options3dSunY" type="number" min={0} max={5000} step={100} style={{ width: "4.7em" }} />
