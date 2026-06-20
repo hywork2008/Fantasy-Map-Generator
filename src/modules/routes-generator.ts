@@ -8,6 +8,7 @@ import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import type { WorldState } from "../types/WorldState";
 import { distanceSquared, findClosestCell, findPath, getAdjective, ra, rn, round, rw } from "../utils";
+import { TIME } from "../utils/debug";
 import { isLand } from "../utils/graphUtils";
 import type { Burg } from "./burgs-generator";
 import type { Point } from "./voronoi";

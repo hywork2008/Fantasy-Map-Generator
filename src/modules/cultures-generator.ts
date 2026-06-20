@@ -11,6 +11,7 @@ import type { PackedGraph } from "../types/PackedGraph";
 import type { WorldState } from "../types/WorldState";
 import { openRichDialog } from "../ui/dialogs/dialogService";
 import { abbreviate, biased, ensureEl, getColors, getRandomColor, minmax, P, rand, rn, rw } from "../utils";
+import { ERROR, TIME, WARN } from "../utils/debug";
 
 import { COA } from "./emblem/generator";
 import { Names } from "./names-generator";

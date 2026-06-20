@@ -24,6 +24,7 @@ import {
   rw,
   trimVowels
 } from "../utils";
+import { TIME } from "../utils/debug";
 import { COA } from "./emblem/generator";
 import type { MilitaryRegiment } from "./military-generator";
 import { Names } from "./names-generator";

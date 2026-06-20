@@ -3,6 +3,7 @@ import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { editRiver } from "../editors/rivers-editor";
 import { Rivers } from "../modules/river-generator";
+import { modules } from "../store/editorState";
 import { closeDialogs, openConfirm, openDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, rn } from "../utils";
 import { applySorting, fitContent } from "../utils/uiHelpers";

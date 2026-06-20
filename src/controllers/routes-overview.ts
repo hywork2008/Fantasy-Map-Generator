@@ -2,6 +2,7 @@ import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { createRoute, editRoute } from "../editors/routes-editor";
 import { Routes } from "../modules/routes-generator";
+import { modules } from "../store/editorState";
 import { closeDialogs, openConfirm, openDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, rn } from "../utils";
 import { applySorting, fitContent, tip } from "../utils/uiHelpers";
@@ -220,5 +221,3 @@ export function overviewRoutes(): void {
     );
   }
 }
-
-window.overviewRoutes = overviewRoutes;

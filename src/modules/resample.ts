@@ -26,6 +26,7 @@ import {
   rn,
   unique
 } from "../utils";
+import { WARN } from "../utils/debug";
 import type { Grid } from "../utils/graphUtils";
 import { Features } from "./features";
 import { Ice } from "./ice";

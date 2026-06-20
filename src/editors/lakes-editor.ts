@@ -21,6 +21,7 @@ import {
   StatesRenderer
 } from "../renderers";
 import { getFeaturePath } from "../renderers/index";
+import { elSelected, modules, setElSelected } from "../store/editorState";
 import { closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, rand, rn, si, unique } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
@@ -42,7 +43,7 @@ export function editLake(event?: MouseEvent): void {
 
   const node = (event?.target ?? document.querySelector(".lakes path")) as SVGElement;
   viewContext.debug.append("g").attr("id", "vertices");
-  elSelected = select(node as Element);
+  setElSelected(select(node as Element));
   updateLakeValues();
   selectLakeGroup();
   drawLakeVertices();

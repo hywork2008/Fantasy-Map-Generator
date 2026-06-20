@@ -1,4 +1,5 @@
 import Alea from "alea";
+import { heightmapTemplates, precreatedHeightmaps } from "../config";
 import type { WorldContext } from "../context/worldContext";
 import { editHeightmap } from "../editors/heightmap-editor";
 import { HeightmapGenerator } from "../modules/heightmap-generator";

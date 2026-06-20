@@ -8,6 +8,7 @@ import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import type { WorldState } from "../types/WorldState";
 import { rn } from "../utils";
+import { TIME } from "../utils/debug";
 
 class BiomesModule {
   worldContext: WorldContext = worldContext;

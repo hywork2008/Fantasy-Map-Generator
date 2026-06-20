@@ -2,9 +2,11 @@ import * as d3 from "d3";
 import { zoomTo } from "../actions";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
+import { elSelected, setElSelected } from "../store/editorState";
 import { useOptionsState } from "../store/optionsState";
 import { closeDialogs, openConfirm, openDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, parseTransform, rn } from "../utils";
+import { TIME } from "../utils/debug";
 import { onMouseMove, tip } from "../utils/uiHelpers";
 import { interactionManager } from "./interactionManager";
 
@@ -85,7 +87,7 @@ export function unselect(): void {
   elSelected!.call(d3.drag<Element, unknown>().on("drag", null)).attr("class", null);
   viewContext.debug.selectAll("*").remove();
   viewContext.viewbox.style("cursor", "default");
-  elSelected = null;
+  setElSelected(null);
 }
 
 export { closeDialogs };

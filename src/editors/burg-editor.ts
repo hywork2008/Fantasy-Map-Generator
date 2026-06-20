@@ -14,6 +14,7 @@ import type { Culture } from "../modules/cultures-generator";
 import { Names } from "../modules/names-generator";
 import { drawBurgIcon, drawBurgLabel } from "../renderers";
 import { COArenderer } from "../renderers/emblem-renderer";
+import { elSelected, modules, setElSelected } from "../store/editorState";
 import { closeDialog, closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { convertTemperature, ensureEl, findCell, openURL, parseTransform, rand, rn, showPrompt } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
@@ -29,7 +30,7 @@ export function editBurg(id?: number): void {
   if (!layerIsOn("toggleLabels")) toggleLabels();
 
   const burg = id;
-  elSelected = viewContext.burgLabels.select(`[data-id='${burg}']`);
+  setElSelected(viewContext.burgLabels.select(`[data-id='${burg}']`));
   let _bdx = 0,
     _bdy = 0;
   viewContext.burgLabels

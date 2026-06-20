@@ -10,6 +10,7 @@ import { worldContext } from "../context/worldContext";
 import { useOptionsState } from "../store/optionsState";
 import type { WorldState } from "../types/WorldState";
 import { each, rn, round, rw } from "../utils";
+import { TIME, WARN } from "../utils/debug";
 import { Lakes } from "./lakes";
 import { Names } from "./names-generator";
 import type { Point } from "./voronoi";

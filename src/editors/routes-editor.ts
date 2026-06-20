@@ -9,9 +9,11 @@ import { editStyle } from "../controllers/style";
 import type { Route } from "../modules/routes-generator";
 import { Routes } from "../modules/routes-generator";
 import { dialogStore } from "../store/dialogState";
+import { elSelected, modules, setElSelected } from "../store/editorState";
 import { closeDialog, closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, findCell, getSegmentId, rn } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
+import { ERROR } from "../utils/debug";
 import { getPackPolygon } from "../utils/graphUtils";
 import { clearMainTip, fitContent, tip } from "../utils/uiHelpers";
 import { editNotes } from "./notes-editor";
@@ -30,7 +32,7 @@ export function editRoute(id: string): void {
   ensureEl("toggleCells").dataset.forced = String(+!layerIsOn("toggleCells"));
   if (!layerIsOn("toggleCells")) toggleCells();
 
-  elSelected = select<SVGPathElement, unknown>(`#${id}`).on("click", addControlPoint) as unknown as typeof elSelected;
+  setElSelected(select<SVGPathElement, unknown>(`#${id}`).on("click", addControlPoint) as unknown as typeof elSelected);
 
   tip(
     "Drag control points to change the route. Click on point to remove it. Click on the route to add additional control point. For major changes please create a new route instead",

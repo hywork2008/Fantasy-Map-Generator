@@ -4,6 +4,7 @@ import type { PackedGraphFeature } from "../modules/features";
 import type { Province } from "../modules/provinces-generator";
 import type { State } from "../modules/states-generator";
 import { type ChartData, ElevationProfileRenderer } from "../renderers/elevation-profile-renderer";
+import { modules } from "../store/editorState";
 import { closeDialogs, openDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, getLatitude, getLongitude, rn } from "../utils";
 import { getHeight, tip } from "../utils/uiHelpers";

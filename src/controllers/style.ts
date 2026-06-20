@@ -18,10 +18,12 @@ import {
   ReliefIconsRenderer
 } from "../renderers";
 import { drawRegiments, drawScaleBar, fitScaleBar } from "../renderers/index";
+import { modules } from "../store/editorState";
 import { useStyleState } from "../store/styleState";
 import { closeDialog, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { drawHeights, ensureEl, parseTransform, rn, toHEX } from "../utils";
 import { heightmapColorSchemes } from "../utils/colorUtils";
+import { ERROR, INFO } from "../utils/debug";
 import { applyOption, lock, tip } from "../utils/uiHelpers";
 import { VERSION } from "../versioning";
 import { confirmationDialog, downloadFile, redrawLegend, uploadFile } from "./editors";

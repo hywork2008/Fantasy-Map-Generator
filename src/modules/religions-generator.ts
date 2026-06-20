@@ -21,6 +21,7 @@ import {
   rw,
   trimVowels
 } from "../utils";
+import { ERROR, TIME, WARN } from "../utils/debug";
 import { Names } from "./names-generator";
 import { Routes } from "./routes-generator";
 

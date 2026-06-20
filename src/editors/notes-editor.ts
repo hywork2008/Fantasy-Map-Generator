@@ -1,4 +1,5 @@
 import tinymce from "tinymce";
+import { modules } from "../store/editorState";
 import "tinymce/themes/silver";
 import "tinymce/plugins/autolink";
 import "tinymce/plugins/lists";

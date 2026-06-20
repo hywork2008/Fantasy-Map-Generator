@@ -9,6 +9,7 @@ import { layerIsOn, toggleMilitary } from "../controllers/layers";
 import type { MilitaryRegiment } from "../modules/military-generator";
 import { Military } from "../modules/military-generator";
 import { drawRegiment, moveRegiment } from "../renderers/index";
+import { elSelected, modules, setElSelected } from "../store/editorState";
 import type { WorldNote } from "../types/WorldState";
 import { closeDialog, closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { capitalize, ensureEl, findCell, last, rn } from "../utils";
@@ -46,7 +47,7 @@ export function editRegiment(selectorOrEl?: string | Element): void {
     .selectAll<SVGGElement, unknown>(":scope > g > g")
     .call(drag<SVGGElement, unknown>().on("start", dragRegimentStart).on("drag", dragRegimentDrag));
   const rawEl = typeof selectorOrEl === "string" ? document.querySelector(selectorOrEl) : (selectorOrEl ?? null);
-  elSelected = select(rawEl as Element);
+  setElSelected(select(rawEl as Element));
   const getRegEl = () => elSelected!.node() as SVGGElement;
   if (!worldContext.pack.states[+getRegEl().dataset.state!]) return;
   if (!getRegiment()) return;
@@ -563,7 +564,7 @@ export function editRegiment(selectorOrEl?: string | Element): void {
     (ensureEl("regimentAttack") as HTMLElement).classList.remove("pressed");
     (ensureEl("regimentAttach") as HTMLElement).classList.remove("pressed");
     restoreDefaultEvents?.();
-    elSelected = null;
+    setElSelected(null);
   }
 }
 

@@ -1,4 +1,5 @@
 import { changeFont } from "../controllers/style";
+import { ERROR } from "../utils/debug";
 import { tip } from "../utils/uiHelpers";
 
 export type FontDefinition = {

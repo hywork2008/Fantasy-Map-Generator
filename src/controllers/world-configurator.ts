@@ -18,6 +18,7 @@ import {
   RiversRenderer
 } from "../renderers";
 import { ThreeDRenderer } from "../renderers/three-d-renderer";
+import { modules } from "../store/editorState";
 import { openDialog } from "../ui/dialogs/dialogService";
 import { convertTemperature, debounce, ensureEl, parseTransform, rn, round } from "../utils";
 import { lock } from "../utils/uiHelpers";

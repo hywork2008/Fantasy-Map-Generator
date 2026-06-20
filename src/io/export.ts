@@ -11,6 +11,7 @@ import { Rivers } from "../modules/river-generator";
 import { drawScaleBar, fitScaleBar } from "../renderers/index";
 import { connectVertices, ensureEl, getBase64, getCoordinates, rn, unique } from "../utils";
 import { getColor, getColorScheme } from "../utils/colorUtils";
+import { ERROR, TIME } from "../utils/debug";
 import { getGridPolygon } from "../utils/graphUtils";
 import { getCellPopulation, getFriendlyHeight, tip } from "../utils/uiHelpers";
 

@@ -9,6 +9,7 @@ import { editStyle } from "../controllers/style";
 import type { IceIceberg } from "../modules/ice";
 import { Ice } from "../modules/ice";
 import { redrawGlacier, redrawIceberg } from "../renderers/index";
+import { elSelected, modules, setElSelected } from "../store/editorState";
 import { closeDialog, closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { findGridCell, parseTransform } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
@@ -25,7 +26,7 @@ export function editIce(element: SVGElement): void {
   closeDialogs(".stable");
   if (!layerIsOn("toggleIce")) toggleIce();
 
-  elSelected = select(element as unknown as Element);
+  setElSelected(select(element as unknown as Element));
   const id = +elSelected!.attr("data-id");
   const iceElement = worldContext.pack.ice.find(el => el.i === id);
   const isGlacier = elSelected!.attr("type") === "glacier";

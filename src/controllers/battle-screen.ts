@@ -9,6 +9,7 @@ import type { MilitaryRegiment } from "../modules/military-generator";
 import { Military } from "../modules/military-generator";
 import { Names } from "../modules/names-generator";
 import { drawMarker, moveRegiment } from "../renderers/index";
+import { modules } from "../store/editorState";
 import { closeDialog, closeDialogs, openDialog } from "../ui/dialogs/dialogService";
 import { capitalize, ensureEl, findCell, getAdjective, last, list, minmax, P, Pint, rand, rn, wiki } from "../utils";
 import { applySorting, fitContent, tip } from "../utils/uiHelpers";

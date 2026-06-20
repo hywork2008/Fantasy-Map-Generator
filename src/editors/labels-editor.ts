@@ -6,6 +6,7 @@ import { interactionManager } from "../controllers/interactionManager";
 import { layerIsOn, toggleLabels } from "../controllers/layers";
 import { editStyle } from "../controllers/style";
 import { Names } from "../modules/names-generator";
+import { elSelected, modules, setElSelected } from "../store/editorState";
 import { closeDialog, closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, findCell, parseTransform, round } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
@@ -21,7 +22,7 @@ export function editLabel(tspan?: Element): void {
   const text = textPath?.parentNode as SVGTextElement | undefined;
   let _ldx = 0,
     _ldy = 0;
-  elSelected = select(text as unknown as Element)
+  setElSelected(select(text as unknown as Element))
     .call(
       drag<Element, unknown>()
         .on("start", (event: D3DragEvent<Element, unknown, unknown>) => {

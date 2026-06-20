@@ -3,7 +3,9 @@ import polylabel from "polylabel";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { type DragEv, type MeasurerSel, MeasurersRenderer } from "../renderers/measurers-renderer";
+import { rulers, setRulers } from "../store/editorState";
 import { findCell, getSegmentId, last, rn, round, si } from "../utils";
+import { TIME } from "../utils/debug";
 import { getAreaUnit } from "../utils/uiHelpers";
 
 // ─── Rulers container ─────────────────────────────────────────────────────────
@@ -493,7 +495,7 @@ export function createDefaultRuler(): void {
     if (x > rightmostVertex[0] && x <= MAX_X) rightmostVertex = [x, y];
   }
 
-  rulers = new Rulers();
+  setRulers(new Rulers());
   rulers.create(Ruler, [leftmostVertex, rightmostVertex]);
 
   TIME && console.timeEnd("createDefaultRuler");

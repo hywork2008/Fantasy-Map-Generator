@@ -1,5 +1,6 @@
 import { worldContext } from "../../context/worldContext";
 import { ensureEl, P, rw } from "../../utils";
+import { ERROR } from "../../utils/debug";
 import { charges } from "./charges";
 import { divisions } from "./divisions";
 import { lineWeights } from "./lineWeights";

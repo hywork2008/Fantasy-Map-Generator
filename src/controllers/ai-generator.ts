@@ -1,5 +1,7 @@
+import { modules } from "../store/editorState";
 import { openDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, openURL } from "../utils";
+import { ERROR } from "../utils/debug";
 import { tip } from "../utils/uiHelpers";
 
 interface AiProviderConfig {

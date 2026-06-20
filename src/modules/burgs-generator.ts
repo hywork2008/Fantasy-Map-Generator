@@ -10,6 +10,7 @@ import { COArenderer } from "../renderers/emblem-renderer";
 import { useOptionsState } from "../store/optionsState";
 import type { WorldState } from "../types/WorldState";
 import { each, findCell, gauss, minmax, normalize, P, rn } from "../utils";
+import { ERROR, TIME, WARN } from "../utils/debug";
 import { tip } from "../utils/uiHelpers";
 import { COA } from "./emblem/generator";
 import { Names } from "./names-generator";

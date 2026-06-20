@@ -124,7 +124,11 @@ export const ProvinceNameEditorDialog: React.FC = () => {
         </div>
       </div>
       <div className="fmg-dialog-buttonpane">
-        <button type="button" className="fmg-dialog-button" onClick={() => window.applyProvinceNameChange?.()}>
+        <button
+          type="button"
+          className="fmg-dialog-button"
+          onClick={() => document.dispatchEvent(new CustomEvent("applyProvinceNameChange"))}
+        >
           Apply
         </button>
         <button type="button" className="fmg-dialog-button" onClick={() => closeDialog("provinceNameEditor")}>

@@ -1,5 +1,7 @@
+import { heightmapTemplates } from "./config";
 import { clearLegend, closeDialogs, unfog } from "./controllers/editors";
 import { openRichDialog } from "./ui/dialogs/dialogService";
+import { DEBUG, ERROR, INFO, TIME, WARN } from "./utils/debug";
 
 // Azgaar (azgaar.fmg@yandex.com). Minsk, 2017-2023. MIT License
 // https://github.com/Azgaar/Fantasy-Map-Generator
@@ -15,7 +17,7 @@ import { viewContext } from "./context/viewContext";
 import { worldContext } from "./context/worldContext";
 import { restoreDefaultEvents } from "./controllers/editors";
 import { applyLayersPreset, drawLayers, layerIsOn } from "./controllers/layers";
-import { createDefaultRuler, Rulers } from "./controllers/measurers";
+import { createDefaultRuler } from "./controllers/measurers";
 import { updateMinimap } from "./controllers/minimap";
 import { applyGraphSize, applyStoredOptions, fitMapToScreen, randomizeOptions } from "./controllers/options";
 import { applyStyleOnLoad } from "./controllers/style";
@@ -76,22 +78,6 @@ const UINT16_MAX = _TMP.UINT16_MAX;
 // ─── Debug / feature flags ────────────────────────────────────────────────────
 
 const PRODUCTION = location.hostname && location.hostname !== "localhost" && location.hostname !== "127.0.0.1";
-const DEBUG: Record<string, boolean | undefined> =
-  (safeParseJSON(localStorage.getItem("debug") ?? "") as Record<string, boolean | undefined>) || {};
-const INFO = true;
-const TIME = true;
-const WARN = true;
-const ERROR = true;
-const MOBILE: boolean =
-  window.innerWidth < 600 ||
-  (navigator as Navigator & { userAgentData?: { mobile?: boolean } }).userAgentData?.mobile === true;
-
-window.DEBUG = DEBUG;
-window.INFO = INFO;
-window.TIME = TIME;
-window.WARN = WARN;
-window.ERROR = ERROR;
-window.MOBILE = MOBILE;
 
 if (PRODUCTION && "serviceWorker" in navigator) {
   window.addEventListener("load", () => {
@@ -429,10 +415,7 @@ export function fitMapView(): void {
 // ─── Main data variables ──────────────────────────────────────────────────────
 
 const mapHistory: Array<{ seed: string; width: number; height: number; template: string; created: number }> = [];
-const modules: typeof window.modules = window.modules ?? {};
-window.modules = modules; // shared panel-opened registry across controllers
-window.elSelected = null; // shared mutable D3 selection across editor modules
-window.rulers = new Rulers(); // shared mutable Rulers instance across editors
+
 viewContext.customization = 0;
 
 const options = {

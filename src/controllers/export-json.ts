@@ -2,6 +2,7 @@ import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { useOptionsState } from "../store/optionsState";
 import { closeDialogs } from "../ui/dialogs/dialogService";
+import { TIME } from "../utils/debug";
 import { tip } from "../utils/uiHelpers";
 import { VERSION } from "../versioning";
 import { getFileName } from "./editors";

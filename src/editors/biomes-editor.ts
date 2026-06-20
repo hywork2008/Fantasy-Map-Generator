@@ -23,6 +23,7 @@ import {
 import { editStyle } from "../controllers/style";
 import { Biomes } from "../modules/biomes";
 import { BiomesRenderer, ReliefIconsRenderer } from "../renderers";
+import { modules } from "../store/editorState";
 import { closeDialogs, openDialog } from "../ui/dialogs/dialogService";
 import { findAll, findCell, getRandomColor, isLand, openURL, rn, si } from "../utils";
 import { getPackPolygon } from "../utils/graphUtils";

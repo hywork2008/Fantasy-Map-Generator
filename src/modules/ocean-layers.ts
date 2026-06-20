@@ -8,6 +8,7 @@ import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import { clipPoly, P, rn, round } from "../utils";
+import { ERROR, TIME } from "../utils/debug";
 import type { GridCells } from "../utils/graphUtils";
 import type { Vertices } from "./voronoi";
 

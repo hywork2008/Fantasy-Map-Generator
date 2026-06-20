@@ -51,6 +51,7 @@ import {
 } from "../renderers";
 import type { Emblem as RendererEmblem } from "../renderers/emblem-renderer";
 import { COArenderer } from "../renderers/emblem-renderer";
+import { modules } from "../store/editorState";
 import { useOptionsState } from "../store/optionsState";
 import type { WorldNote } from "../types/WorldState";
 import { closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";

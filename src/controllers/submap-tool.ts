@@ -3,9 +3,11 @@ import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { undraw } from "../main";
+import { modules } from "../store/editorState";
 import { useOptionsState } from "../store/optionsState";
 import { closeDialogs, openDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, getLatitude, getLongitude, minmax, rn } from "../utils";
+import { INFO } from "../utils/debug";
 import { drawLayers } from "./layers";
 import { applyGraphSize, cellsDensityMap, changeCellsDensity, fitMapToScreen, getCellsDensityColor } from "./options";
 

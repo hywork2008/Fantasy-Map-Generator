@@ -4,6 +4,7 @@ import { confirmationDialog } from "../controllers/editors";
 import { layerIsOn, toggleRoutes } from "../controllers/layers";
 import { editStyle } from "../controllers/style";
 import { Routes } from "../modules/routes-generator";
+import { modules } from "../store/editorState";
 import { openDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, showPrompt } from "../utils";
 import { tip } from "../utils/uiHelpers";

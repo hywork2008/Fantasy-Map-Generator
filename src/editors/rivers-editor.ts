@@ -9,6 +9,7 @@ import { Names } from "../modules/names-generator";
 import type { River } from "../modules/river-generator";
 import { Rivers } from "../modules/river-generator";
 import { dialogStore } from "../store/dialogState";
+import { elSelected, modules, setElSelected } from "../store/editorState";
 import type { TypedArray } from "../types/PackedGraph";
 import { closeDialog, closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, findCell, getSegmentId, rand, rn } from "../utils";
@@ -28,7 +29,7 @@ export function editRiver(id: string): void {
   ensureEl("toggleCells").dataset.forced = String(+!layerIsOn("toggleCells"));
   if (!layerIsOn("toggleCells")) toggleCells();
 
-  elSelected = select<SVGPathElement, unknown>(`#${id}`).on("click", addControlPoint) as unknown as typeof elSelected;
+  setElSelected(select<SVGPathElement, unknown>(`#${id}`).on("click", addControlPoint) as unknown as typeof elSelected);
 
   tip(
     "Drag control points to change the river course. Click on point to remove it. Click on river to add additional control point. For major changes please create a new river instead",

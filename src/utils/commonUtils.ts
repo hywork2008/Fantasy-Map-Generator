@@ -1,4 +1,5 @@
 import { clipPolygon } from "lineclip";
+
 import { last } from "./arrayUtils";
 import { distanceSquared } from "./functionUtils";
 import { rn } from "./numberUtils";

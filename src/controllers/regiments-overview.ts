@@ -8,6 +8,7 @@ import { worldContext } from "../context/worldContext";
 import type { MilitaryRegiment, MilitaryUnit } from "../modules/military-generator";
 import { Military } from "../modules/military-generator";
 import { drawRegiment } from "../renderers/index";
+import { modules } from "../store/editorState";
 import { closeDialogs, openDialog } from "../ui/dialogs/dialogService";
 import { capitalize, ensureEl, findCell, getLatitude, getLongitude, last, rn, si } from "../utils";
 import { applySorting, clearMainTip, fitContent, sortLines, tip } from "../utils/uiHelpers";

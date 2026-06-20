@@ -28,5 +28,3 @@ export const precreatedHeightmaps: Record<string, PrecreatedHeightmap> = {
   world: { id: 21, name: "World" },
   "world-from-pacific": { id: 22, name: "World from Pacific" }
 };
-
-window.precreatedHeightmaps = precreatedHeightmaps;

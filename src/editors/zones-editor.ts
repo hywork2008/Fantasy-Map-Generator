@@ -17,6 +17,7 @@ import { layerIsOn, toggleZones } from "../controllers/layers";
 import { editStyle } from "../controllers/style";
 import type { Zone } from "../modules/zones-generator";
 import { PopulationRenderer, ZonesRenderer } from "../renderers";
+import { modules } from "../store/editorState";
 import { closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, findAll, findCell, rn, si, unique } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";

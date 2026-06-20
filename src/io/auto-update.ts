@@ -42,8 +42,10 @@ import {
   ZonesRenderer
 } from "../renderers";
 import { drawScaleBar, fitScaleBar } from "../renderers/index";
+import { rulers, setRulers } from "../store/editorState";
 import { useOptionsState } from "../store/optionsState";
 import { ensureEl, findCell, P, rand, rn, unique } from "../utils";
+import { ERROR } from "../utils/debug";
 import { compareVersions } from "../versioning";
 
 // update old map file to the current version
@@ -475,7 +477,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
   if (isOlderThan("1.61.0")) {
     // v1.61 changed rulers data
     viewContext.ruler.style("display", null);
-    rulers = new Rulers();
+    setRulers(new Rulers());
 
     viewContext.ruler.selectAll<SVGLineElement, unknown>(".ruler > .white").each(function () {
       const x1 = +this.getAttribute("x1")!;

@@ -2,6 +2,7 @@ import { pointer } from "d3";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { Rivers } from "../modules/river-generator";
+import { modules } from "../store/editorState";
 import { useOptionsState } from "../store/optionsState";
 import { closeDialog, closeDialogs, openDialog } from "../ui/dialogs/dialogService";
 import { findCell, last, rn } from "../utils";

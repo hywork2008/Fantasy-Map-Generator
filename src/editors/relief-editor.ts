@@ -5,6 +5,7 @@ import { worldContext } from "../context/worldContext";
 import { moveCircle, removeCircle, restoreDefaultEvents, unselect } from "../controllers/editors";
 import { layerIsOn, toggleRelief } from "../controllers/layers";
 import { editStyle } from "../controllers/style";
+import { elSelected, modules, setElSelected } from "../store/editorState";
 import { closeDialog, closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { findAllInQuadtree, findCell, rn } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
@@ -46,7 +47,7 @@ export function editReliefIcon(clickedEl?: Element): void {
         })
     )
     .classed("draggable", true);
-  elSelected = select(clickedEl ?? (document.querySelector("#terrain use") as Element));
+  setElSelected(select(clickedEl ?? (document.querySelector("#terrain use") as Element)));
 
   restoreEditMode();
   updateReliefIconSelected();

@@ -3,6 +3,7 @@ import * as d3 from "d3";
 import { hsl, interpolateRound, lab, max, mean, pointer, range, select } from "d3";
 import RgbQuant from "rgbquant";
 import { getWorldState, resetZoom } from "../actions";
+import { heightmapTemplates } from "../config";
 import type { AppServices } from "../context/appServices";
 import { appServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
@@ -50,6 +51,7 @@ import type { Zone } from "../modules/zones-generator";
 import { Zones } from "../modules/zones-generator";
 import { FeaturesRenderer } from "../renderers";
 import { ThreeDRenderer } from "../renderers/three-d-renderer";
+import { modules } from "../store/editorState";
 import { useOptionsState } from "../store/optionsState";
 import { closeDialog, closeDialogs, isDialogOpen, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import {
@@ -68,6 +70,7 @@ import {
 } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
 import { getColorScheme } from "../utils/colorUtils";
+import { ERROR, INFO, TIME } from "../utils/debug";
 import { clearMainTip, locked, showMainTip, tip } from "../utils/uiHelpers";
 import { HeightmapEditorHistoryClass as HeightmapEditorHistory } from "./HeightmapEditorHistory";
 

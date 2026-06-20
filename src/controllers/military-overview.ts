@@ -9,6 +9,7 @@ import { worldContext } from "../context/worldContext";
 import { toggleStates } from "../controllers/layers";
 import type { MilitaryUnit } from "../modules/military-generator";
 import { Military } from "../modules/military-generator";
+import { modules } from "../store/editorState";
 import { closeDialog, closeDialogs, openConfirm, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { capitalize, rn, sanitizeId, si, wiki } from "../utils";
 import { applySorting, fitContent, sortLines, tip } from "../utils/uiHelpers";

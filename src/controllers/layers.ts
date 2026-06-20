@@ -30,6 +30,7 @@ import {
   TextureRenderer,
   ZonesRenderer
 } from "../renderers";
+import { rulers } from "../store/editorState";
 import { isCtrlClick, showPrompt } from "../utils";
 
 let worldContext: WorldContext;

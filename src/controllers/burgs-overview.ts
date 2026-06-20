@@ -9,6 +9,7 @@ import { editBurgGroups } from "../editors/burg-group-editor";
 import { Burgs } from "../modules/burgs-generator";
 import { Names } from "../modules/names-generator";
 import { drawBurgIcon, drawBurgLabel, drawRoute } from "../renderers";
+import { modules } from "../store/editorState";
 import { useOptionsState } from "../store/optionsState";
 import { closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { convertTemperature, ensureEl, findCell, getLatitude, getLongitude, rn, si } from "../utils";

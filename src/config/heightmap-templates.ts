@@ -168,5 +168,3 @@ export const heightmapTemplates: Record<string, HeightmapTemplateEntry> = {
   oldWorld: { id: 12, name: "Old World", template: oldWorld, probability: 8 },
   fractious: { id: 13, name: "Fractious", template: fractious, probability: 3 }
 };
-
-window.heightmapTemplates = heightmapTemplates;

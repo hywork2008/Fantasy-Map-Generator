@@ -59,6 +59,7 @@ import {
 } from "../renderers";
 import { COArenderer } from "../renderers/emblem-renderer";
 import { drawMarker } from "../renderers/index";
+import { elSelected } from "../store/editorState";
 import { useOptionsState } from "../store/optionsState";
 import type { WorldNote } from "../types/WorldState";
 import { closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";

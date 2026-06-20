@@ -732,7 +732,9 @@ export function applySorting(headers: HTMLElement): void {
 
 // ─── Legacy globals (from non-migrated JS files) ──────────────────────────────
 
-declare const MOBILE: boolean;
+const MOBILE: boolean =
+  window.innerWidth < 600 ||
+  (navigator as Navigator & { userAgentData?: { mobile?: boolean } }).userAgentData?.mobile === true;
 
 export function getArea(rawArea: number): number {
   return rawArea * worldContext.distanceScale ** 2;

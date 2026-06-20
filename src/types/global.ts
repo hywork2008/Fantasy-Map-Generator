@@ -1,6 +1,5 @@
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-
 import type { Battle as BattleClass } from "../controllers/battle-screen";
 import type {
   Opisometer as OpismeterClass,
@@ -12,37 +11,9 @@ import type {
 import type { HeightmapModule } from "../modules/heightmap-generator";
 import type { Resampler } from "../modules/resample";
 
-interface HeightmapTemplate {
-  name: string;
-  template: string;
-  [key: string]: unknown;
-}
-
 declare global {
   /** DEV-only: organized access to world data and SVG state for console debugging. */
   var __fmg: { worldContext: WorldContext; viewContext: ViewContext } | undefined;
-
-  var TIME: boolean;
-  var INFO: boolean;
-  var WARN: boolean;
-  var ERROR: boolean;
-  var DEBUG: { stateLabels?: boolean; [key: string]: boolean | undefined };
-  var MOBILE: boolean;
-
-  var heightmapTemplates: Record<string, HeightmapTemplate>;
-  var precreatedHeightmaps: Record<string, import("../config/precreated-heightmaps").PrecreatedHeightmap>;
-
-  var modules: Record<string, boolean>;
-  var elSelected: import("d3").Selection<Element, unknown, null, undefined> | null;
-  var rulers: {
-    draw: () => void;
-    data: { id: number; draw: () => unknown; undraw: () => void }[];
-    create: <T>(Type: new (points: [number, number][]) => T, points: [number, number][]) => T;
-    remove: (id: number) => void;
-    fromString: (str: string) => void;
-    toString: () => string;
-    undraw: () => void;
-  };
 
   // Module singletons
   var Resample: Resampler;
@@ -57,9 +28,6 @@ declare global {
 
   // battle-screen.ts
   var Battle: typeof BattleClass;
-
-  // Overview panel opener (routes-overview.ts still uses window registration)
-  var overviewRoutes: () => void;
 
   // Dialog HTML elements — accessed via window.X in uiHelpers.ts (browser auto-globals from element IDs)
   var biomesEditor: HTMLElement | undefined;

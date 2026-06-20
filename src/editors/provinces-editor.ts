@@ -50,6 +50,7 @@ import {
 } from "../renderers";
 import type { Emblem as RendererEmblem } from "../renderers/emblem-renderer";
 import { COArenderer } from "../renderers/emblem-renderer";
+import { modules } from "../store/editorState";
 import { useOptionsState } from "../store/optionsState";
 import { closeDialog, closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, findAll, findCell, getRandomColor, isLand, P, parseTransform, rand, rn, si, unique } from "../utils";
@@ -601,10 +602,12 @@ export function editProvinces(): void {
 
     openDialog("provinceNameEditor");
 
-    window.applyProvinceNameChange = () => {
+    const apply = () => {
       applyNameChange(p);
       closeDialog("provinceNameEditor");
+      document.removeEventListener("applyProvinceNameChange", apply);
     };
+    document.addEventListener("applyProvinceNameChange", apply);
 
     if (modules.editProvinceName) return;
     modules.editProvinceName = true;

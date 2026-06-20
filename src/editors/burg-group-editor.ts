@@ -6,6 +6,7 @@ import { layerIsOn } from "../controllers/layers";
 import type { Burg, BurgGroup } from "../modules/burgs-generator";
 import { Burgs } from "../modules/burgs-generator";
 import { BurgIconsRenderer, BurgLabelsRenderer } from "../renderers";
+import { modules } from "../store/editorState";
 import { closeDialog, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { ensureEl } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";

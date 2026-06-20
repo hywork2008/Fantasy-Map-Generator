@@ -6,6 +6,7 @@ import { confirmationDialog, listen, restoreDefaultEvents, selectIcon, unselect 
 import type { Marker } from "../modules/markers-generator";
 import { Markers } from "../modules/markers-generator";
 import { getPin } from "../renderers/index";
+import { setElSelected } from "../store/editorState";
 import { closeDialog, closeDialogs, openDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, findCell, rn } from "../utils";
 import { clearMainTip } from "../utils/uiHelpers";
@@ -23,7 +24,7 @@ export function editMarker(markerI?: number): void {
   if (!result) return;
   const { element, marker } = result;
 
-  elSelected = select(element as unknown as Element)
+  setElSelected(select(element as unknown as Element))
     .raise()
     .call(drag<Element, unknown>().on("start", dragMarkerStart).on("drag", dragMarkerDrag).on("end", dragMarkerEnd))
     .classed("draggable", true);

@@ -25,6 +25,7 @@ import {
   PROFILE_SIZE
 } from "../renderers/coastline-fractal";
 import { getFeaturePath } from "../renderers/index";
+import { elSelected, modules, setElSelected } from "../store/editorState";
 import { closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, rn, si, unique } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
@@ -183,7 +184,7 @@ class CoastlineEditorModule {
 
     const node = (event?.target ?? document.querySelector(".coastline path")) as SVGElement | null;
     viewContext.debug.append("g").attr("id", "vertices");
-    elSelected = node ? select(node as unknown as Element) : null;
+    setElSelected(node ? select(node as unknown as Element) : null);
     if (node) {
       selectCoastlineGroup(node);
       drawCoastlineVertices();

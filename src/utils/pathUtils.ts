@@ -1,5 +1,6 @@
 import FlatQueue from "flatqueue";
 import polylabel from "polylabel";
+
 import { rn } from "./numberUtils";
 
 interface VertexData {

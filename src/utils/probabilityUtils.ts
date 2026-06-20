@@ -1,4 +1,5 @@
 import { randomNormal } from "d3";
+
 import { minmax, rn } from "./numberUtils";
 
 /**

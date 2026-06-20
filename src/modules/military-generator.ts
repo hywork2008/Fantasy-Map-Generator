@@ -7,6 +7,7 @@ import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import type { WorldState } from "../types/WorldState";
 import { findAllInQuadtree, gauss, minmax, nth, ra, rand, rn, si } from "../utils";
+import { TIME } from "../utils/debug";
 import type { State } from "./states-generator";
 
 export interface MilitaryUnit {

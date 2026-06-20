@@ -20,6 +20,7 @@ import { editStyle } from "../controllers/style";
 import { States } from "../modules/states-generator";
 import { StatesRenderer } from "../renderers";
 import { COArenderer } from "../renderers/emblem-renderer";
+import { modules } from "../store/editorState";
 import { closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { findCell, getAdjective } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";

@@ -8,6 +8,7 @@ import { calculateFriendlyGridSize } from "../controllers/style";
 import { Routes } from "../modules/routes-generator";
 import { drawTemperature } from "../renderers";
 import { drawScaleBar, fitScaleBar } from "../renderers/index";
+import { modules, rulers, setRulers } from "../store/editorState";
 import { closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, findCell, showPrompt } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
@@ -311,7 +312,7 @@ export function editUnits(): void {
         Remove: () => {
           /* $(this).dialog("close") removed */
           rulers.undraw();
-          rulers = new Rulers();
+          setRulers(new Rulers());
         },
         Cancel: () => {
           /* $(this).dialog("close") removed */

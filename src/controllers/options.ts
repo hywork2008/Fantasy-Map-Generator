@@ -1,4 +1,5 @@
 import { hsl } from "d3";
+import { heightmapTemplates, precreatedHeightmaps } from "../config";
 import { THEME_COLOR } from "../config/constants";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
@@ -18,6 +19,7 @@ import type { Emblem as RendererEmblem } from "../renderers/emblem-renderer";
 import { COArenderer } from "../renderers/emblem-renderer";
 import { fitScaleBar } from "../renderers/index";
 import { ThreeDRenderer } from "../renderers/three-d-renderer";
+import { modules } from "../store/editorState";
 import { type OptionsState, useOptionsState } from "../store/optionsState";
 import {
   closeAllDialogs,

@@ -9,6 +9,7 @@ import type { GridFeature } from "../modules/features";
 import { type Cells, type Point, type Vertices, Voronoi } from "../modules/voronoi";
 import { useOptionsState } from "../store/optionsState";
 import type { PackedGraph, TypedArray } from "../types/PackedGraph";
+import { TIME } from "../utils/debug";
 import { createTypedArray } from "./arrayUtils";
 import { rn } from "./numberUtils";
 
@@ -590,7 +591,6 @@ export const drawHeights = ({
 };
 
 declare global {
-  var TIME: boolean;
   interface Window {
     shouldRegenerateGrid: (grid: Grid | null | undefined, expectedSeed: number) => boolean;
     generateGrid: () => Grid;

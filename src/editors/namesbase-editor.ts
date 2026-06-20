@@ -6,6 +6,7 @@ import { Names } from "../modules/names-generator";
 import { closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, openURL, rn, unique } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
+import { ERROR } from "../utils/debug";
 import { speak, tip } from "../utils/uiHelpers";
 
 const unsafe = /[|/]/g;

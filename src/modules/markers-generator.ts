@@ -9,6 +9,7 @@ import { useOptionsState } from "../store/optionsState";
 import type { PackedGraph } from "../types/PackedGraph";
 import type { WorldState } from "../types/WorldState";
 import { capitalize, convertTemperature, gauss, generateDate, getAdjective, last, P, ra, rand, rn, rw } from "../utils";
+import { TIME } from "../utils/debug";
 import { getFriendlyHeight } from "../utils/uiHelpers";
 import { Names } from "./names-generator";
 import { Routes } from "./routes-generator";

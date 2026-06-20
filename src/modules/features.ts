@@ -17,6 +17,7 @@ import {
   TYPED_ARRAY_MAX_VALUES,
   unique
 } from "../utils";
+import { TIME } from "../utils/debug";
 import { isLand } from "../utils/graphUtils";
 import { Lakes } from "./lakes";
 
