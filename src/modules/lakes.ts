@@ -6,8 +6,9 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
+import { useOptionsState } from "../store/optionsState";
 import type { WorldState } from "../types/WorldState";
-import { ensureEl, rn } from "../utils";
+import { rn } from "../utils";
 import type { PackedGraphFeature } from "./features";
 import { Names } from "./names-generator";
 
@@ -99,7 +100,7 @@ export class LakesModule {
   detectCloseLakes(h: number[] | Uint8Array) {
     const { pack } = this.worldContext;
     const { cells } = pack;
-    const ELEVATION_LIMIT = +(ensureEl("lakeElevationLimitOutput") as HTMLInputElement)?.value;
+    const ELEVATION_LIMIT = useOptionsState.getState().lakeElevationLimit;
 
     pack.features.forEach(feature => {
       if (feature.type !== "lake") return;

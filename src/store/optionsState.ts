@@ -19,6 +19,8 @@ export interface OptionsState {
   manors: number;
   religionsNumber: number;
   stateLabelsMode: "auto" | "short" | "full";
+  resolveDepressionsSteps: number;
+  lakeElevationLimit: number;
 
   // Generation growth/expansion rates
   neutralRate: number;
@@ -72,6 +74,8 @@ export const useOptionsState = create<OptionsState>(set => ({
   manors: 1000,
   religionsNumber: 6,
   stateLabelsMode: "auto",
+  resolveDepressionsSteps: 250,
+  lakeElevationLimit: 20,
 
   neutralRate: 1,
   statesGrowthRate: 1,

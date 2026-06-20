@@ -11,7 +11,7 @@ import type { PackedGraph } from "../types/PackedGraph";
 import type { WorldState } from "../types/WorldState";
 import { openRichDialog } from "../ui/dialogs/dialogService";
 import { abbreviate, biased, ensureEl, getColors, getRandomColor, minmax, P, rand, rn, rw } from "../utils";
-import { alertMessage } from "../utils/alertMessageEl";
+
 import { COA } from "./emblem/generator";
 import { Names } from "./names-generator";
 
@@ -1047,12 +1047,12 @@ class CulturesModule {
         pack.cultures = [{ name: "Wildlands", i: 0, base: 1, shield: "round" }];
         this.cells!.culture = cultureIds;
 
-        alertMessage.innerHTML = /* html */ `The climate is harsh and people cannot live in this world.<br />
+        const alertContent = /* html */ `The climate is harsh and people cannot live in this world.<br />
           No cultures, states and burgs will be created.<br />
           Please consider changing climate settings in the World Configurator`;
 
         openRichDialog({
-          content: alertMessage.innerHTML,
+          content: alertContent,
           resizable: false,
           title: "Extreme climate warning",
           buttons: {
@@ -1064,11 +1064,11 @@ class CulturesModule {
         return;
       } else {
         WARN && console.warn(`Not enough populated cells (${populated.length}). Will generate only ${count} cultures`);
-        alertMessage.innerHTML = /* html */ ` There are only ${populated.length} populated cells and it's insufficient livable area.<br />
+        const alertContent = /* html */ ` There are only ${populated.length} populated cells and it's insufficient livable area.<br />
           Only ${count} out of ${culturesInputNumber} requested cultures will be generated.<br />
           Please consider changing climate settings in the World Configurator`;
         openRichDialog({
-          content: alertMessage.innerHTML,
+          content: alertContent,
           resizable: false,
           title: "Extreme climate warning",
           buttons: {

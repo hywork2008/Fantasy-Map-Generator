@@ -1,7 +1,6 @@
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { getFileName } from "../controllers/editors";
-import { getUsedFonts } from "../modules/fonts";
 import { Names } from "../modules/names-generator";
 import { useOptionsState } from "../store/optionsState";
 import { closeDialogs, openRichDialog } from "../ui/dialogs/dialogService";
@@ -9,6 +8,7 @@ import { ensureEl, link, parseError, ra, rn } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
 import { tip } from "../utils/uiHelpers";
 import { VERSION } from "../versioning";
+import { getUsedFonts } from "./export";
 import { ldb } from "./ldb";
 
 // ─── Map serialization ────────────────────────────────────────────────────────

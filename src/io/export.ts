@@ -6,7 +6,7 @@ import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { downloadFile, getFileName } from "../controllers/editors";
 import { layerIsOn } from "../controllers/layers";
-import { getUsedFonts, loadFontsAsDataURI } from "../modules/fonts";
+import { fonts, loadFontsAsDataURI } from "../modules/fonts";
 import { Rivers } from "../modules/river-generator";
 import { drawScaleBar, fitScaleBar } from "../renderers/index";
 import { connectVertices, ensureEl, getBase64, getCoordinates, rn, unique } from "../utils";
@@ -489,6 +489,26 @@ export async function getMapURL(type: string, options: GetMapURLOptions = {}): P
 }
 
 // ─── SVG cleanup helpers ──────────────────────────────────────────────────────
+
+export const getUsedFonts = (svg: SVGSVGElement) => {
+  const usedFontFamilies = new Set();
+
+  const labelGroups = svg.querySelectorAll("#labels g");
+  for (const labelGroup of labelGroups) {
+    const font = labelGroup.getAttribute("font-family");
+    if (font) usedFontFamilies.add(font);
+  }
+
+  const provinceFont = viewContext.provs.attr("font-family");
+  if (provinceFont) usedFontFamilies.add(provinceFont);
+
+  const legend = svg.querySelector("#legend");
+  const legendFont = legend?.getAttribute("font-family");
+  if (legendFont) usedFontFamilies.add(legendFont);
+
+  const usedFonts = fonts.filter(font => usedFontFamilies.has(font.family));
+  return usedFonts;
+};
 
 export function removeUnusedElements(clone: AnySelection): void {
   if (!viewContext.terrain.selectAll("use").size()) clone.select("#defs-relief")?.remove();

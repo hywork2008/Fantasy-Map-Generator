@@ -1,4 +1,3 @@
-import { viewContext } from "../context/viewContext";
 import { changeFont } from "../controllers/style";
 import { tip } from "../utils/uiHelpers";
 
@@ -334,26 +333,6 @@ export const loadFontsAsDataURI = async (fonts: FontDefinition[]) => {
   });
 
   return await Promise.all(promises);
-};
-
-export const getUsedFonts = (svg: SVGSVGElement) => {
-  const usedFontFamilies = new Set();
-
-  const labelGroups = svg.querySelectorAll("#labels g");
-  for (const labelGroup of labelGroups) {
-    const font = labelGroup.getAttribute("font-family");
-    if (font) usedFontFamilies.add(font);
-  }
-
-  const provinceFont = viewContext.provs.attr("font-family");
-  if (provinceFont) usedFontFamilies.add(provinceFont);
-
-  const legend = svg.querySelector("#legend");
-  const legendFont = legend?.getAttribute("font-family");
-  if (legendFont) usedFontFamilies.add(legendFont);
-
-  const usedFonts = fonts.filter(font => usedFontFamilies.has(font.family));
-  return usedFonts;
 };
 
 export const addGoogleFont = async (family: string) => {

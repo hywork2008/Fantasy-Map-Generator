@@ -333,8 +333,7 @@ class RiverModule {
   resolveDepressions(h: number[]) {
     const { pack } = this.worldContext;
     const { cells, features } = pack;
-    // biome-ignore lint/style/noRestrictedGlobals: DOM read pending migration to WorldContext.options
-    const maxIterations = +(document.getElementById("resolveDepressionsStepsOutput") as HTMLInputElement)?.value;
+    const maxIterations = useOptionsState.getState().resolveDepressionsSteps;
     const checkLakeMaxIteration = maxIterations * 0.85;
     const elevateLakeMaxIteration = maxIterations * 0.75;
 
