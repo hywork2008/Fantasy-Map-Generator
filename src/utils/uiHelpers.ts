@@ -749,10 +749,14 @@ export function removeCircle(): void {
 }
 
 export function getAreaUnit(squareMark = "²"): string {
-  const areaUnitEl = ensureEl<HTMLSelectElement>("areaUnit");
-  return areaUnitEl.value === "square"
-    ? ensureEl<HTMLInputElement>("distanceUnitInput").value + squareMark
-    : areaUnitEl.value;
+  const areaUnitEl = document.getElementById("areaUnit") as HTMLSelectElement | null;
+  const areaUnitValue = areaUnitEl ? areaUnitEl.value : localStorage.getItem("areaUnit") || "square";
+  if (areaUnitValue === "square") {
+    const distUnitEl = document.getElementById("distanceUnitInput") as HTMLInputElement | null;
+    const distUnitValue = distUnitEl ? distUnitEl.value : localStorage.getItem("distanceUnit") || "km";
+    return distUnitValue + squareMark;
+  }
+  return areaUnitValue;
 }
 
 // Info DOM elements

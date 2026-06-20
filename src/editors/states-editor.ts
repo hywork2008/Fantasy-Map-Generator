@@ -9,9 +9,7 @@ import {
   confirmationDialog,
   downloadFile,
   drawLegend,
-  fog,
   getFileName,
-  highlightElement,
   moveCircle,
   restoreDefaultEvents,
   unfog
@@ -53,6 +51,7 @@ import type { Emblem as RendererEmblem } from "../renderers/emblem-renderer";
 import { COArenderer } from "../renderers/emblem-renderer";
 import { modules } from "../store/editorState";
 import { useOptionsState } from "../store/optionsState";
+import { getStatesEditorState, setStatesEditorState } from "../store/statesEditorState";
 import type { WorldNote } from "../types/WorldState";
 import { closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, findAll, findCell, getRandomColor, isLand, P, rand, rn, si } from "../utils";
@@ -60,8 +59,6 @@ import { alertMessage } from "../utils/alertMessageEl";
 import { getPackPolygon } from "../utils/graphUtils";
 import {
   applyOption,
-  applySorting,
-  applySortingByHeader,
   clearMainTip,
   fitContent,
   getArea,
@@ -71,188 +68,34 @@ import {
   tip
 } from "../utils/uiHelpers";
 import { BrushHistoryClass as BrushHistory } from "./BrushHistory";
-import { editEmblem } from "./emblems-editor";
 
 let worldContext: WorldContext;
 let viewContext: ViewContext;
 let appServices: AppServices;
 
 let $body!: HTMLElement;
-let statesListenersAdded = false;
 const statesManualHistory = new BrushHistory();
 
 export function open(): void {
   closeDialogs("#statesEditor, .stable");
-  if (!statesListenersAdded) {
-    $body = insertEditorHtml();
-    addListeners();
-    statesListenersAdded = true;
-  }
   if (!layerIsOn("toggleStates")) toggleStates();
   if (!layerIsOn("toggleBorders")) toggleBorders();
   if (layerIsOn("toggleCultures")) toggleCultures();
   if (layerIsOn("toggleBiomes")) toggleBiomes();
   if (layerIsOn("toggleReligions")) toggleReligions();
 
+  setStatesEditorState({ isOpen: true, isRegenerationMenuOpen: false, customizationMode: 0 });
   refreshStatesEditor();
-
-  openDialog("statesEditor", {
-    title: "States Editor",
-    resizable: false,
-    close: closeStatesEditor,
-    position: { my: "right top", at: "right-10 top+10", of: "svg", collision: "fit" }
-  });
 }
 
-function insertEditorHtml(): HTMLElement {
-  const existing = document.getElementById("statesBodySection");
-  if (existing) return existing;
-
-  const editorHtml = /* html */ `<div id="statesEditor" class="dialog stable">
-    <div id="statesHeader" class="header" style="grid-template-columns: 11em 8em 7em 7em 6em 6em 8em 6em 7em 6em">
-      <div data-tip="Click to sort by state name" class="sortable alphabetically" data-sortby="name">State&nbsp;</div>
-      <div data-tip="Click to sort by state form name" class="sortable alphabetically" data-sortby="form">Form&nbsp;</div>
-      <div data-tip="Click to sort by capital name" class="sortable alphabetically" data-sortby="capital">Capital&nbsp;</div>
-      <div data-tip="Click to sort by state dominant culture" class="sortable alphabetically hide" data-sortby="culture">Culture&nbsp;</div>
-      <div data-tip="Click to sort by state burgs count" class="sortable hide" data-sortby="burgs">Burgs&nbsp;</div>
-      <div data-tip="Click to sort by state area" class="sortable hide icon-sort-number-down" data-sortby="area">Area&nbsp;</div>
-      <div data-tip="Click to sort by state population" class="sortable hide" data-sortby="population">Population&nbsp;</div>
-      <div data-tip="Click to sort by state type" class="sortable alphabetically hidden show hide" data-sortby="type">Type&nbsp;</div>
-      <div data-tip="Click to sort by state expansion value" class="sortable hidden show hide" data-sortby="expansionism">Expansion&nbsp;</div>
-      <div data-tip="Click to sort by state cells count" class="sortable hidden show hide" data-sortby="cells">Cells&nbsp;</div>
-    </div>
-
-    <div id="statesBodySection" class="table" data-type="absolute"></div>
-
-    <div id="statesTotal" class="totalLine">
-      <div data-tip="States number" style="margin-left: 5px">States:&nbsp;<span id="statesFooterStates">0</span></div>
-      <div data-tip="Total land cells number" style="margin-left: 12px">Cells:&nbsp;<span id="statesFooterCells">0</span></div>
-      <div data-tip="Total burgs number" style="margin-left: 12px">Burgs:&nbsp;<span id="statesFooterBurgs">0</span></div>
-      <div data-tip="Total land area" style="margin-left: 12px">Land Area:&nbsp;<span id="statesFooterArea">0</span></div>
-      <div data-tip="Total population" style="margin-left: 12px">Population:&nbsp;<span id="statesFooterPopulation">0</span></div>
-    </div>
-
-    <div id="statesFooter">
-      <button id="statesEditorRefresh" data-tip="Refresh the Editor" class="icon-cw"></button>
-      <button id="statesEditStyle" data-tip="Edit states style in Style Editor" class="icon-adjust"></button>
-      <button id="statesLegend" data-tip="Toggle Legend box" class="icon-list-bullet"></button>
-      <button id="statesPercentage" data-tip="Toggle percentage / absolute values views" class="icon-percent"></button>
-      <button id="statesChart" data-tip="Show states bubble chart" class="icon-chart-area"></button>
-
-      <button id="statesRegenerate" data-tip="Show the regeneration menu and more data" class="icon-cog-alt"></button>
-      <div id="statesRegenerateButtons" style="display: none">
-        <button id="statesRegenerateBack" data-tip="Hide the regeneration menu" class="icon-cog-alt"></button>
-        <button id="statesRandomize" data-tip="Randomize states Expansion value and re-calculate states and provinces" class="icon-shuffle"></button>
-        <div data-tip="Additional growth rate. Defines how many land cells remain neutral" style="display: inline-block">
-          <slider-input id="statesGrowthRate" min=".1" max="3" step=".05" value="1">Growth rate:</slider-input>
-        </div>
-        <button id="statesRecalculate" data-tip="Recalculate states based on current values of growth-related attributes" class="icon-retweet"></button>
-        <div data-tip="Allow states neutral distance, expansion and type changes to take an immediate effect" style="display: inline-block">
-          <input id="statesAutoChange" class="checkbox" type="checkbox" />
-          <label for="statesAutoChange" class="checkbox-label"><i>auto-apply changes</i></label>
-        </div>
-        <div data-tip="Allow system to change state labels when states data is change" style="display: inline-block">
-          <input id="adjustLabels" class="checkbox" type="checkbox" />
-          <label for="adjustLabels" class="checkbox-label"><i>auto-change labels</i></label>
-        </div>
-      </div>
-
-      <button id="statesManually" data-tip="Manually re-assign states" class="icon-brush"></button>
-      <div id="statesManuallyButtons" style="display: none">
-        <div data-tip="Change brush size. Shortcuts: + / ] to increase; - / [ to decrease" style="margin-block: 0.3em;">
-          <slider-input id="statesBrush" min="1" max="100" value="15">Brush size:</slider-input>
-        </div>
-        <button id="statesManuallyUndo" data-tip="Undo last brush stroke" class="icon-ccw"></button>
-        <button id="statesManuallyApply" data-tip="Apply assignment" class="icon-check"></button>
-        <button id="statesManuallyCancel" data-tip="Cancel assignment" class="icon-cancel"></button>
-        <div data-tip="When enabled, only neutral cells can be painted" style="display: inline-block">
-          <input id="statesManuallyProtect" class="checkbox" type="checkbox" />
-          <label for="statesManuallyProtect" class="checkbox-label"><i>do not overwrite existing</i></label>
-        </div>
-      </div>
-
-      <button id="statesAdd" data-tip="Add a new state. Hold Shift to add multiple" class="icon-plus"></button>
-      <button id="statesMerge" data-tip="Merge several states into one" class="icon-layer-group"></button>
-      <button id="statesExport" data-tip="Save state-related data as a text file (.csv)" class="icon-download"></button>
-    </div>
-  </div>`;
-
-  ensureEl("dialogs").insertAdjacentHTML("beforeend", editorHtml);
-  return ensureEl("statesBodySection");
-}
-
-function addListeners(): void {
-  applySortingByHeader("statesHeader");
-
-  ensureEl("statesEditorRefresh").addEventListener("click", refreshStatesEditor);
-  ensureEl("statesEditStyle").addEventListener("click", () => editStyle("regions"));
-  ensureEl("statesLegend").addEventListener("click", toggleLegend);
-  ensureEl("statesPercentage").addEventListener("click", togglePercentageMode);
-  ensureEl("statesChart").addEventListener("click", showStatesChart);
-  ensureEl("statesRegenerate").addEventListener("click", openRegenerationMenu);
-  ensureEl("statesRegenerateBack").addEventListener("click", exitRegenerationMenu);
-  ensureEl("statesRecalculate").addEventListener("click", () => recalculateStates(true));
-  ensureEl("statesRandomize").addEventListener("click", randomizeStatesExpansion);
-  ensureEl("statesGrowthRate").addEventListener("input", () => recalculateStates(false));
-  ensureEl("statesManually").addEventListener("click", enterStatesManualAssignent);
-  ensureEl("statesManuallyUndo").addEventListener("click", undoStatesManualAssignment);
-  ensureEl("statesManuallyApply").addEventListener("click", applyStatesManualAssignent);
-  ensureEl("statesManuallyCancel").addEventListener("click", () => exitStatesManualAssignment(false));
-  ensureEl("statesAdd").addEventListener("click", enterAddStateMode);
-  ensureEl("statesMerge").addEventListener("click", openStateMergeDialog);
-  ensureEl("statesExport").addEventListener("click", downloadStatesCsv);
-
-  $body.addEventListener("click", (event: Event) => {
-    const $element = event.target as HTMLElement;
-    const classList = $element.classList;
-    const stateId = +(($element.parentNode as HTMLElement)?.dataset?.id ?? "0");
-    if ($element.tagName === "FILL-BOX") stateChangeFill($element);
-    else if (classList.contains("name")) editStateName(stateId);
-    else if (classList.contains("coaIcon"))
-      editEmblem?.("state", `stateCOA${stateId}`, worldContext.pack.states[stateId]);
-    else if (classList.contains("icon-star-empty")) stateCapitalZoomIn(stateId);
-    else if (classList.contains("icon-dot-circled")) overviewBurgs({ stateId });
-    else if (classList.contains("statePopulation")) changePopulation(stateId);
-    else if (classList.contains("icon-pin")) toggleFog(stateId, classList);
-    else if (classList.contains("icon-target"))
-      highlightElement(viewContext.regions.select(`#state${stateId}`).node() as Element, 4);
-    else if (classList.contains("icon-trash-empty")) stateRemovePrompt(stateId);
-    else if (classList.contains("icon-lock") || classList.contains("icon-lock-open"))
-      updateLockStatus(stateId, classList);
-  });
-
-  $body.addEventListener("input", (ev: Event) => {
-    const $element = ev.target as HTMLElement;
-    const classList = $element.classList;
-    const line = $element.parentNode as HTMLElement;
-    const state = +line.dataset.id!;
-    if (classList.contains("stateCapital")) stateChangeCapitalName(state, line, ($element as HTMLInputElement).value);
-  });
-
-  $body.addEventListener("change", (ev: Event) => {
-    const $element = ev.target as HTMLElement;
-    const classList = $element.classList;
-    const line = $element.parentNode as HTMLElement;
-    const state = +line.dataset.id!;
-    if (classList.contains("stateCulture")) stateChangeCulture(state, line, ($element as HTMLSelectElement).value);
-    else if (classList.contains("cultureType")) stateChangeType(state, line, ($element as HTMLSelectElement).value);
-    else if (classList.contains("statePower"))
-      stateChangeExpansionism(state, line, ($element as HTMLInputElement).value);
-  });
-}
-
-function refreshStatesEditor(): void {
+export function refreshStatesEditor(): void {
   States.collectStatistics(getWorldState());
-  statesEditorAddLines();
-}
 
-function statesEditorAddLines(): void {
-  const unit = getAreaUnit();
-  const hidden = ensureEl("statesRegenerateButtons").style.display === "block" ? "" : "hidden";
-  let lines = "";
   let totalArea = 0;
   let totalPopulation = 0;
   let totalBurgs = 0;
+
+  const statesRowData = [];
 
   for (const s of worldContext.pack.states as State[]) {
     if (s.removed) continue;
@@ -260,136 +103,246 @@ function statesEditorAddLines(): void {
     const rural = (s.rural ?? 0) * worldContext.populationRate;
     const urban = (s.urban ?? 0) * worldContext.populationRate * worldContext.urbanization;
     const population = rn(rural + urban);
-    const populationTip = `Total population: ${si(population)}; Rural population: ${si(rural)}; Urban population: ${si(urban)}. Click to change`;
+
     totalArea += area;
     totalPopulation += population;
     totalBurgs += s.burgs ?? 0;
-    const focused = viewContext.defs.select(`#fog #focusState${s.i}`).size();
 
-    if (!s.i) {
-      lines += /* html */ `<div
-        class="states"
-        data-id=${s.i}
-        data-name="${s.name}"
-        data-cells=${s.cells}
-        data-area=${area}
-        data-population=${population}
-        data-burgs=${s.burgs}
-        data-color=""
-        data-form=""
-        data-capital=""
-        data-culture=""
-        data-type=""
-        data-expansionism=""
-      >
-        <svg width="1em" height="1em" class="placeholder"></svg>
-        <input data-tip="Neutral lands name. Click to change" class="stateName name pointer italic" value="${s.name}" readonly />
-        <svg class="coaIcon placeholder"></svg>
-        <input class="stateForm placeholder" value="none" />
-        <span class="icon-star-empty placeholder"></span>
-        <input class="stateCapital placeholder" />
-        <select class="stateCulture placeholder hide">${getCultureOptions(0)}</select>
-        <span data-tip="Click to overview neutral burgs" class="icon-dot-circled pointer hide" style="padding-right: 1px"></span>
-        <div data-tip="Burgs count" class="stateBurgs hide">${s.burgs ?? 0}</div>
-        <span data-tip="Neutral lands area" style="padding-right: 4px" class="icon-map-o hide"></span>
-        <div data-tip="Neutral lands area" class="stateArea hide" style="width: 6em">${si(area)} ${unit}</div>
-        <span data-tip="${populationTip}" class="icon-male hide"></span>
-        <div data-tip="${populationTip}" class="statePopulation pointer hide" style="width: 5em">${si(population)}</div>
-        <select class="cultureType ${hidden} placeholder show hide">${getTypeOptions(0)}</select>
-        <span class="icon-resize-full ${hidden} placeholder show hide"></span>
-        <input class="statePower ${hidden} placeholder show hide" type="number" value="0" />
-        <span data-tip="Cells count" class="icon-check-empty ${hidden} show hide"></span>
-        <div data-tip="Cells count" class="stateCells ${hidden} show hide">${s.cells ?? 0}</div>
-      </div>`;
-      continue;
+    const capitalName = s.i ? ((worldContext.pack.burgs as Burg[])[s.capital]?.name ?? "") : "";
+    const cultureName = s.i ? ((worldContext.pack.cultures as Culture[])[s.culture]?.name ?? "") : "";
+
+    if (s.i) {
+      COArenderer.trigger(`stateCOA${s.i}`, s.coa as RendererEmblem);
     }
 
-    const capital = (worldContext.pack.burgs as Burg[])[s.capital].name ?? "";
-    COArenderer.trigger(`stateCOA${s.i}`, s.coa as RendererEmblem);
-    lines += /* html */ `<div
-      class="states"
-      data-id=${s.i}
-      data-name="${s.name}"
-      data-form="${s.formName ?? ""}"
-      data-capital="${capital}"
-      data-color="${s.color ?? ""}"
-      data-cells=${s.cells ?? 0}
-      data-area=${area}
-      data-population=${population}
-      data-burgs=${s.burgs ?? 0}
-      data-culture=${(worldContext.pack.cultures as Culture[])[s.culture].name}
-      data-type=${s.type}
-      data-expansionism=${s.expansionism}
-    >
-      <fill-box fill="${s.color}"></fill-box>
-      <input data-tip="State name. Click to change" class="stateName name pointer" value="${s.name}" readonly />
-      <svg data-tip="Click to show and edit state emblem" class="coaIcon pointer" viewBox="0 0 200 200"><use href="#stateCOA${s.i}"></use></svg>
-      <input data-tip="State form name. Click to change" class="stateForm name pointer" value="${s.formName}" readonly />
-      <span data-tip="State capital. Click to zoom into view" class="icon-star-empty pointer"></span>
-      <input data-tip="Capital name. Click and type to rename" class="stateCapital" value="${capital}" autocorrect="off" spellcheck="false" />
-      <select data-tip="Dominant culture. Click to change" class="stateCulture hide">${getCultureOptions(s.culture)}</select>
-      <span data-tip="Click to overview state burgs" style="padding-right: 1px" class="icon-dot-circled pointer hide"></span>
-      <div data-tip="Burgs count" class="stateBurgs hide">${s.burgs ?? 0}</div>
-      <span data-tip="State area" style="padding-right: 4px" class="icon-map-o hide"></span>
-      <div data-tip="State area" class="stateArea hide" style="width: 6em">${si(area)} ${unit}</div>
-      <span data-tip="${populationTip}" class="icon-male hide"></span>
-      <div data-tip="${populationTip}" class="statePopulation pointer hide" style="width: 5em">${si(population)}</div>
-      <select data-tip="State type. Defines growth model. Click to change" class="cultureType ${hidden} show hide">${getTypeOptions(s.type)}</select>
-      <span data-tip="State expansionism" class="icon-resize-full ${hidden} show hide"></span>
-      <input data-tip="Expansionism (defines competitive size). Change to re-calculate states based on new value"
-        class="statePower ${hidden} show hide" type="number" min="0" max="99" step=".1" value=${s.expansionism} />
-      <span data-tip="Cells count" class="icon-check-empty ${hidden} show hide"></span>
-      <div data-tip="Cells count" class="stateCells ${hidden} show hide">${s.cells ?? 0}</div>
-      <span data-tip="Locate the state" class="icon-target hide"></span>
-      <span data-tip="Toggle state focus" class="icon-pin ${focused ? "" : " inactive"} hide"></span>
-      <span data-tip="Lock the state to protect it from re-generation" class="icon-lock${s.lock ? "" : "-open"} hide"></span>
-      <span data-tip="Remove the state" class="icon-trash-empty hide"></span>
-    </div>`;
+    statesRowData.push({
+      i: s.i,
+      name: s.name,
+      color: s.color ?? "",
+      form: s.form ?? "",
+      formName: s.formName ?? "",
+      capital: s.capital,
+      capitalName,
+      culture: s.culture,
+      cultureName,
+      burgs: s.burgs ?? 0,
+      area,
+      population,
+      type: s.type || "Generic",
+      expansionism: s.expansionism || 0,
+      cells: s.cells ?? 0,
+      rural,
+      urban,
+      isLocked: !!s.lock
+    });
   }
-  $body.innerHTML = lines;
 
-  ensureEl("statesFooterStates").innerHTML = String(
-    (worldContext.pack.states as State[]).filter(s => s.i && !s.removed).length
-  );
-  ensureEl("statesFooterCells").innerHTML = String(Array.from(worldContext.pack.cells.h).filter(h => h >= 20).length);
-  ensureEl("statesFooterBurgs").innerHTML = String(totalBurgs);
-  ensureEl("statesFooterArea").innerHTML = si(totalArea) + unit;
-  ensureEl("statesFooterArea").dataset.area = String(totalArea);
-  ensureEl("statesFooterPopulation").innerHTML = si(totalPopulation);
-  ensureEl("statesFooterPopulation").dataset.population = String(totalPopulation);
+  const validStates = statesRowData.filter(s => s.i > 0).length;
+  const validCells = Array.from(worldContext.pack.cells.h).filter(h => h >= 20).length;
 
-  $body.querySelectorAll(":scope > div").forEach($line => {
-    $line.addEventListener("mouseenter", stateHighlightOn);
-    $line.addEventListener("mouseleave", stateHighlightOff);
-    $line.addEventListener("click", selectStateOnLineClick);
+  setStatesEditorState({
+    states: statesRowData,
+    totalStates: validStates,
+    totalCells: validCells,
+    totalBurgs,
+    totalArea,
+    totalPopulation
   });
-
-  if ($body.dataset.type === "percentage") {
-    $body.dataset.type = "absolute";
-    togglePercentageMode();
-  }
-  applySorting(ensureEl("statesHeader"));
-  openDialog("statesEditor", { width: fitContent() });
 }
 
-function getCultureOptions(culture: number): string {
-  let options = "";
-  (worldContext.pack.cultures as Culture[]).forEach(c => {
-    if (!c.removed) {
-      options += `<option ${c.i === culture ? "selected" : ""} value="${c.i}">${c.name}</option>`;
+export const statesEditorActions = {
+  closeStatesEditor(): void {
+    setStatesEditorState({ isOpen: false });
+    if (viewContext.customization === 2) exitStatesManualAssignment(true);
+    if (viewContext.customization === 3) exitAddStateMode();
+    viewContext.debug.selectAll(".highlight").remove();
+  },
+
+  refresh(): void {
+    refreshStatesEditor();
+  },
+
+  editStyle(): void {
+    editStyle("regions");
+  },
+
+  toggleLegend(): void {
+    if (viewContext.legend.selectAll("*").size()) {
+      clearLegend();
+      return;
     }
-  });
-  return options;
-}
+    const data = (worldContext.pack.states as State[])
+      .filter(s => s.i && !s.removed && s.cells)
+      .sort((a, b) => (b.area ?? 0) - (a.area ?? 0))
+      .map(s => [s.i, s.color ?? "", s.name] as [number, string, string]);
+    drawLegend("States", data);
+  },
 
-function getTypeOptions(type: string | number): string {
-  let options = "";
-  const types = ["Generic", "River", "Lake", "Naval", "Nomadic", "Hunting", "Highland"];
-  types.forEach(t => {
-    options += `<option ${type === t ? "selected" : ""} value="${t}">${t}</option>`;
-  });
-  return options;
-}
+  togglePercentageMode(): void {
+    const st = getStatesEditorState();
+    setStatesEditorState({ isPercentageMode: !st.isPercentageMode });
+  },
+
+  showStatesChart(): void {
+    showStatesChart();
+  },
+
+  toggleRegenerationMenu(): void {
+    const st = getStatesEditorState();
+    setStatesEditorState({ isRegenerationMenuOpen: !st.isRegenerationMenuOpen });
+  },
+
+  randomizeStatesExpansion(): void {
+    randomizeStatesExpansion();
+  },
+
+  changeGrowthRate(rate: number): void {
+    setStatesEditorState({ growthRate: rate });
+    recalculateStates(false);
+  },
+
+  recalculateStates(must: boolean): void {
+    recalculateStates(must);
+  },
+
+  setAutoChange(val: boolean): void {
+    setStatesEditorState({ autoChange: val });
+  },
+
+  setAdjustLabels(val: boolean): void {
+    setStatesEditorState({ adjustLabels: val });
+  },
+
+  toggleManualAssignment(): void {
+    const st = getStatesEditorState();
+    if (st.customizationMode === 1) {
+      exitStatesManualAssignment(false);
+    } else {
+      enterStatesManualAssignent();
+    }
+  },
+
+  changeBrushSize(size: number): void {
+    setStatesEditorState({ brushSize: size });
+  },
+
+  undoManualAssignment(): void {
+    undoStatesManualAssignment();
+  },
+
+  applyManualAssignment(): void {
+    applyStatesManualAssignent();
+  },
+
+  cancelManualAssignment(): void {
+    exitStatesManualAssignment(false);
+  },
+
+  setProtectExisting(val: boolean): void {
+    setStatesEditorState({ protectExisting: val });
+  },
+
+  toggleAddStateMode(_shift: boolean): void {
+    const st = getStatesEditorState();
+    if (st.customizationMode === 2) {
+      exitAddStateMode();
+    } else {
+      setStatesEditorState({ customizationMode: 3 });
+      tip("Click on the map to create a new capital or promote an existing burg", true);
+      viewContext.viewbox.style("cursor", "crosshair");
+      interactionManager.setClickHandler(addState);
+    }
+  },
+
+  openStateMergeDialog(): void {
+    openStateMergeDialog();
+  },
+
+  downloadStatesCsv(): void {
+    downloadStatesCsv();
+  },
+
+  changeSort(field: string): void {
+    const st = getStatesEditorState();
+    if (st.sortBy === field) {
+      setStatesEditorState({ sortDirection: st.sortDirection === 1 ? -1 : 1 });
+    } else {
+      setStatesEditorState({ sortBy: field, sortDirection: 1 });
+    }
+  },
+
+  changeColor(stateId: number): void {
+    const currentFill = worldContext.pack.states[stateId].color;
+    const callback = (newFill: string) => {
+      worldContext.pack.states[stateId].color = newFill;
+      viewContext.statesBody.select(`#state${stateId}`).attr("fill", newFill);
+      viewContext.statesBody.select(`#state-gap${stateId}`).attr("stroke", newFill);
+      const halo = d3.color(newFill)?.darker()?.formatHex() ?? "#666666";
+      viewContext.statesHalo.select(`#state-border${stateId}`).attr("stroke", halo);
+
+      const solidColor = newFill[0] === "#" ? newFill : "#999";
+      const darkerColor = d3.color(solidColor)!.darker().formatHex();
+      viewContext.armies.select(`#army${stateId}`).attr("fill", solidColor);
+      viewContext.armies.select(`#army${stateId}`).selectAll("g > rect:nth-of-type(2)").attr("fill", darkerColor);
+      refreshStatesEditor();
+    };
+    window.openPicker(currentFill ?? "", callback);
+  },
+
+  editStateName(stateId: number): void {
+    editStateName(stateId);
+  },
+
+  zoomCapital(stateId: number): void {
+    stateCapitalZoomIn(stateId);
+  },
+
+  changeCapitalName(stateId: number, val: string): void {
+    const capital = (worldContext.pack.states[stateId] as State).capital;
+    if (!capital) return;
+    (worldContext.pack.burgs as Burg[])[capital].name = val;
+    (document.querySelector(`#burgLabel${capital}`) as Element).textContent = val;
+    refreshStatesEditor();
+  },
+
+  getCultureOptions(_selectedCulture: number): Culture[] {
+    return (worldContext.pack.cultures as Culture[]).filter(c => !c.removed);
+  },
+
+  changeCulture(stateId: number, val: number): void {
+    (worldContext.pack.states[stateId] as State).culture = val;
+    refreshStatesEditor();
+  },
+
+  overviewBurgs(stateId: number): void {
+    overviewBurgs({ stateId });
+  },
+
+  changePopulation(stateId: number): void {
+    changePopulation(stateId);
+  },
+
+  changeType(stateId: number, val: string): void {
+    worldContext.pack.states[stateId].type = val;
+    recalculateStates();
+  },
+
+  changeExpansionism(stateId: number, val: number): void {
+    worldContext.pack.states[stateId].expansionism = val;
+    recalculateStates();
+  },
+
+  toggleLock(stateId: number): void {
+    const s = worldContext.pack.states[stateId] as State;
+    s.lock = !s.lock;
+    refreshStatesEditor();
+  },
+
+  removeState(stateId: number): void {
+    if (viewContext.customization) return;
+    stateRemovePrompt(stateId);
+  }
+};
 
 function stateHighlightOn(event: Event): void {
   if (!layerIsOn("toggleStates")) return;
@@ -422,27 +375,6 @@ function stateHighlightOff(): void {
   viewContext.debug.selectAll<SVGElement, unknown>(".highlight").each(function () {
     d3.select(this).transition().duration(1000).attr("opacity", 0).remove();
   });
-}
-
-function stateChangeFill(el: Element): void {
-  const currentFill = el.getAttribute("fill");
-  const state = +(el.parentNode as HTMLElement).dataset.id!;
-
-  const callback = (newFill: string) => {
-    (el as unknown as { fill: string }).fill = newFill;
-    worldContext.pack.states[state].color = newFill;
-    viewContext.statesBody.select(`#state${state}`).attr("fill", newFill);
-    viewContext.statesBody.select(`#state-gap${state}`).attr("stroke", newFill);
-    const halo = d3.color(newFill)?.darker()?.formatHex() ?? "#666666";
-    viewContext.statesHalo.select(`#state-border${state}`).attr("stroke", halo);
-
-    const solidColor = newFill[0] === "#" ? newFill : "#999";
-    const darkerColor = d3.color(solidColor)!.darker().formatHex();
-    viewContext.armies.select(`#army${state}`).attr("fill", solidColor);
-    viewContext.armies.select(`#army${state}`).selectAll("g > rect:nth-of-type(2)").attr("fill", darkerColor);
-  };
-
-  openPicker(currentFill ?? "", callback);
 }
 
 function editStateName(state: number): void {
@@ -548,14 +480,6 @@ function editStateName(state: number): void {
   }
 }
 
-function stateChangeCapitalName(state: number, line: HTMLElement, value: string): void {
-  line.dataset.capital = value;
-  const capital = (worldContext.pack.states[state] as State).capital;
-  if (!capital) return;
-  (worldContext.pack.burgs as Burg[])[capital].name = value;
-  (document.querySelector(`#burgLabel${capital}`) as Element).textContent = value;
-}
-
 function changePopulation(stateId: number): void {
   const state = worldContext.pack.states[stateId] as State;
   if (!state.cells) {
@@ -657,30 +581,6 @@ function stateCapitalZoomIn(state: number): void {
   zoomTo(x, y, 8, 2000);
 }
 
-function stateChangeCulture(state: number, line: HTMLElement, value: string): void {
-  (worldContext.pack.states[state] as State).culture = +value;
-  line.dataset.base = String((worldContext.pack.states[state] as State).culture);
-}
-
-function stateChangeType(state: number, line: HTMLElement, value: string): void {
-  line.dataset.type = worldContext.pack.states[state].type = value;
-  recalculateStates();
-}
-
-function stateChangeExpansionism(state: number, line: HTMLElement, value: string): void {
-  line.dataset.expansionism = value;
-  worldContext.pack.states[state].expansionism = +value;
-  recalculateStates();
-}
-
-function toggleFog(state: number, cl: DOMTokenList): void {
-  if (viewContext.customization) return;
-  const path = viewContext.statesBody.select(`#state${state}`).attr("d");
-  const id = `focusState${state}`;
-  cl.contains("inactive") ? fog(id, path) : unfog(id);
-  cl.toggle("inactive");
-}
-
 function stateRemovePrompt(state: number): void {
   if (viewContext.customization) return;
 
@@ -757,41 +657,6 @@ function stateRemove(stateId: number): void {
   if (layerIsOn("toggleProvinces")) ProvincesRenderer.render(worldContext, viewContext, appServices);
 
   refreshStatesEditor();
-}
-
-function toggleLegend(): void {
-  if (viewContext.legend.selectAll("*").size()) {
-    clearLegend();
-    return;
-  }
-
-  const data = (worldContext.pack.states as State[])
-    .filter(s => s.i && !s.removed && s.cells)
-    .sort((a, b) => (b.area ?? 0) - (a.area ?? 0))
-    .map(s => [s.i, s.color ?? "", s.name] as [number, string, string]);
-  drawLegend("States", data);
-}
-
-function togglePercentageMode(): void {
-  if ($body.dataset.type === "absolute") {
-    $body.dataset.type = "percentage";
-    const totalCells = +ensureEl("statesFooterCells").innerText;
-    const totalBurgs = +ensureEl("statesFooterBurgs").innerText;
-    const totalArea = +ensureEl("statesFooterArea").dataset.area!;
-    const totalPopulation = +ensureEl("statesFooterPopulation").dataset.population!;
-
-    $body.querySelectorAll(":scope > div").forEach((el: Element) => {
-      const { cells, burgs, area, population } = (el as HTMLElement).dataset;
-      el.querySelector<HTMLElement>(".stateCells")!.innerText = `${rn((+(cells ?? 0) / totalCells) * 100)}%`;
-      el.querySelector<HTMLElement>(".stateBurgs")!.innerText = `${rn((+(burgs ?? 0) / totalBurgs) * 100)}%`;
-      el.querySelector<HTMLElement>(".stateArea")!.innerText = `${rn((+(area ?? 0) / totalArea) * 100)}%`;
-      el.querySelector<HTMLElement>(".statePopulation")!.innerText =
-        `${rn((+(population ?? 0) / totalPopulation) * 100)}%`;
-    });
-  } else {
-    $body.dataset.type = "absolute";
-    statesEditorAddLines();
-  }
 }
 
 function showStatesChart(): void {
@@ -945,24 +810,6 @@ function showStatesChart(): void {
   });
 }
 
-function openRegenerationMenu(): void {
-  ensureEl("statesFooter")
-    .querySelectorAll<HTMLElement>(":scope > button")
-    .forEach(el => {
-      el.style.display = "none";
-    });
-  ensureEl("statesRegenerateButtons").style.display = "block";
-
-  ensureEl("statesEditor")
-    .querySelectorAll(".show")
-    .forEach(el => {
-      el.classList.remove("hidden");
-    });
-  openDialog("statesEditor", {
-    position: { my: "right top", at: "right-10 top+10", of: "svg", collision: "fit" }
-  });
-}
-
 function recalculateStates(must?: boolean): void {
   if (!must && !(statesAutoChange as HTMLInputElement).checked) return;
 
@@ -989,24 +836,6 @@ function randomizeStatesExpansion(): void {
       String(expansionism);
   });
   recalculateStates(true);
-}
-
-function exitRegenerationMenu(): void {
-  ensureEl("statesFooter")
-    .querySelectorAll<HTMLElement>(":scope > button")
-    .forEach(el => {
-      el.style.display = "inline-block";
-    });
-  ensureEl("statesRegenerateButtons").style.display = "none";
-  document
-    .getElementById("statesEditor")
-    ?.querySelectorAll(".show")
-    .forEach(el => {
-      el.classList.add("hidden");
-    });
-  openDialog("statesEditor", {
-    position: { my: "right top", at: "right-10 top+10", of: "svg", collision: "fit" }
-  });
 }
 
 function enterStatesManualAssignent(): void {
@@ -1042,13 +871,6 @@ function enterStatesManualAssignent(): void {
 
   $body.querySelector<HTMLElement>("div")!.classList.add("selected");
   statesManualHistory.reset();
-}
-
-function selectStateOnLineClick(this: HTMLElement): void {
-  if (viewContext.customization !== 2) return;
-  if ((this.parentNode as Element).id !== "statesBodySection") return;
-  $body.querySelector("div.selected")!.classList.remove("selected");
-  this.classList.add("selected");
 }
 
 function selectStateOnMapClick(this: SVGElement, event: MouseEvent): void {
@@ -1327,21 +1149,6 @@ function undoStatesManualAssignment(): void {
   temp.innerHTML = statesManualHistory.pop() ?? "";
 }
 
-function enterAddStateMode(this: HTMLButtonElement): void {
-  if (this.classList.contains("pressed")) {
-    exitAddStateMode();
-    return;
-  }
-  viewContext.customization = 3;
-  this.classList.add("pressed");
-  tip("Click on the map to create a new capital or promote an existing burg", true);
-  viewContext.viewbox.style("cursor", "crosshair");
-  interactionManager.setClickHandler(addState);
-  $body.querySelectorAll<HTMLElement>("div > input, select, span, svg").forEach(e => {
-    e.style.pointerEvents = "none";
-  });
-}
-
 function addState(this: SVGElement, event: MouseEvent): void {
   const { cells, states, burgs } = worldContext.pack;
   const point = d3.pointer(event, this);
@@ -1442,7 +1249,7 @@ function addState(this: SVGElement, event: MouseEvent): void {
   layerIsOn("toggleStates") ? StatesRenderer.render(worldContext, viewContext, appServices) : toggleStates();
   layerIsOn("toggleBorders") ? BordersRenderer.render(worldContext, viewContext, appServices) : toggleBorders();
 
-  statesEditorAddLines();
+  refreshStatesEditor();
 }
 
 function exitAddStateMode(): void {
@@ -1664,21 +1471,6 @@ function downloadStatesCsv(): void {
 
   const name = `${getFileName("States")}.csv`;
   downloadFile(csvData, name);
-}
-
-function closeStatesEditor(): void {
-  if (viewContext.customization === 2) exitStatesManualAssignment(true);
-  if (viewContext.customization === 3) exitAddStateMode();
-  viewContext.debug.selectAll(".highlight").remove();
-  $body.innerHTML = "";
-}
-
-function updateLockStatus(stateId: number, classList: DOMTokenList): void {
-  const s = worldContext.pack.states[stateId] as State;
-  s.lock = !s.lock;
-
-  classList.toggle("icon-lock-open");
-  classList.toggle("icon-lock");
 }
 
 declare global {

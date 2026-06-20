@@ -1397,7 +1397,7 @@ export function initOptions(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: 
   // like changeCellsDensity(), changeStatesNumber(), etc.
 
   // Sticked menu
-  ensureEl("sticked").addEventListener("click", (event: MouseEvent) => {
+  document.getElementById("sticked")?.addEventListener("click", (event: MouseEvent) => {
     const id = (event.target as HTMLElement).id;
     if (id === "newMapButton") regeneratePrompt();
     else if (id === "saveButton") showSavePane();
@@ -1407,7 +1407,7 @@ export function initOptions(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: 
   });
 
   // Load map file
-  ensureEl<HTMLInputElement>("mapToLoad").addEventListener("change", function (this: HTMLInputElement) {
+  document.getElementById("mapToLoad")?.addEventListener("change", function (this: HTMLInputElement) {
     const fileToLoad = this.files![0];
     this.value = "";
     closeDialogs();

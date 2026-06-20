@@ -51,6 +51,7 @@ import { RiversOverviewDialog } from "./RiversOverviewDialog";
 import { RouteCreatorDialog } from "./RouteCreatorDialog";
 import { RouteEditorDialog } from "./RouteEditorDialog";
 import { RouteGroupsEditorDialog } from "./RouteGroupsEditorDialog";
+import { RoutesEditorDialog } from "./RoutesEditorDialog";
 import { RoutesOverviewDialog } from "./RoutesOverviewDialog";
 import { SaveMapDialog } from "./SaveMapDialog";
 import { StateNameEditorDialog } from "./StateNameEditorDialog";
@@ -101,6 +102,7 @@ export const DialogsContainer: React.FC = () => {
           <StatesEditorDialog />
           <CulturesEditorDialog />
           <ReligionsEditorDialog />
+          <RoutesEditorDialog />
           <ReliefEditorDialog />
           <BurgEditorDialog />
           <MarkerEditorDialog />

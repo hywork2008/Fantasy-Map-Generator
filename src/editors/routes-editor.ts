@@ -10,7 +10,8 @@ import type { Route } from "../modules/routes-generator";
 import { Routes } from "../modules/routes-generator";
 import { dialogStore } from "../store/dialogState";
 import { elSelected, modules, setElSelected } from "../store/editorState";
-import { closeDialog, closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
+import { getRoutesEditorState, setRoutesEditorState } from "../store/routesEditorState";
+import { closeDialog, closeDialogs, openRichDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, findCell, getSegmentId, rn } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
 import { ERROR } from "../utils/debug";
@@ -21,7 +22,15 @@ import { editRouteGroups } from "./route-group-editor";
 
 let worldContext: WorldContext;
 
-// ─── routes-editor ──────────────────────────────────────────────────────────
+let _rcRoute: Route | null = null;
+let _rcInitCell = 0;
+let _rcPointIndex = 0;
+let _isSplitMode = false;
+let _createRoutePoints: { x: number; y: number; cellId: number }[] = [];
+
+export function initRoutesEditor(wc: WorldContext) {
+  worldContext = wc;
+}
 
 export function editRoute(id: string): void {
   if (viewContext.customization) return;
@@ -41,245 +50,370 @@ export function editRoute(id: string): void {
   viewContext.debug.append("g").attr("id", "controlCells");
   viewContext.debug.append("g").attr("id", "controlPoints");
 
-  let _rcRoute: Route | null = null;
-  let _rcInitCell = 0;
-  let _rcPointIndex = 0;
+  const route = getRoute();
+  drawControlPoints(route.points);
+  drawRouteCells(route.points);
 
-  {
-    const route = getRoute();
-    updateRouteData(route);
-    drawControlPoints(route.points);
-    drawRouteCells(route.points);
-    updateLockIcon();
-  }
-
-  openDialog("routeEditor", {
-    title: "Edit Route",
-    resizable: false,
-    position: { my: "left top", at: "left+10 top+10", of: "#map" },
-    close: closeRouteEditor
-  });
+  setRoutesEditorState({ isOpen: true, isCreatorOpen: false });
+  updateRouteData(route);
 
   if (modules.editRoute) return;
   modules.editRoute = true;
+}
 
-  // add listeners
-  ensureEl("routeCreateSelectingCells").addEventListener("click", showCreationDialog);
-  ensureEl("routeSplit").addEventListener("click", togglePressed);
-  ensureEl("routeJoin").addEventListener("click", openJoinRoutesDialog);
-  ensureEl("routeElevationProfile").addEventListener("click", showRouteElevationProfile);
-  ensureEl("routeLegend").addEventListener("click", editRouteLegend);
-  ensureEl("routeLock").addEventListener("click", toggleLockButton);
-  ensureEl("routeRemove").addEventListener("click", removeRoute);
-  ensureEl("routeName").addEventListener("input", changeName);
-  ensureEl("routeGroup").addEventListener("input", changeGroup);
-  ensureEl("routeGroupEdit").addEventListener("click", editRouteGroups);
-  ensureEl("routeEditStyle").addEventListener("click", editRouteGroupStyle);
-  ensureEl("routeGenerateName").addEventListener("click", generateName);
+function getRoute(): Route {
+  const routeId = +elSelected!.attr("id").slice(5);
+  return worldContext.pack.routes.find((route: Route) => route.i === routeId)!;
+}
 
-  function getRoute(): Route {
-    const routeId = +elSelected!.attr("id").slice(5);
-    return worldContext.pack.routes.find((route: Route) => route.i === routeId)!;
-  }
+function updateRouteData(route: Route): void {
+  route.name = route.name || Routes.generateName(route);
+  route.length = route.length || Routes.getLength(route.i);
 
-  function updateRouteData(route: Route): void {
-    route.name = route.name || Routes.generateName(route);
-    (ensureEl("routeName") as HTMLInputElement).value = route.name;
+  const allGroups = Array.from(viewContext.routes.selectAll<SVGGElement, unknown>("g").nodes()).map(n => n.id);
+  const distanceUnitInput = ensureEl<HTMLInputElement>("distanceUnitInput");
+  const lengthStr = `${rn(route.length * worldContext.distanceScale)} ${distanceUnitInput?.value || "km"}`;
 
-    const routeGroup = ensureEl<HTMLSelectElement>("routeGroup");
-    routeGroup.options.length = 0;
-    viewContext.routes.selectAll<SVGGElement, unknown>("g").each(function (this: SVGGElement) {
-      routeGroup.options.add(new Option(this.id, this.id, false, this.id === route.group));
-    });
+  const isWaterRoute = route.points.some(([, , cellId]) => worldContext.pack.cells.h[cellId] < 20);
 
-    updateRouteLength(route);
+  setRoutesEditorState({
+    routeId: `route${route.i}`,
+    routeName: route.name,
+    routeGroup: route.group,
+    routeLength: lengthStr,
+    isWaterRoute,
+    isLocked: !!route.lock,
+    allGroups
+  });
+}
 
-    const isWater = route.points.some(([, , cellId]) => worldContext.pack.cells.h[cellId] < 20);
-    ensureEl("routeElevationProfile").style.display = isWater ? "none" : "inline-block";
-  }
+function updateRouteLength(route: Route): void {
+  route.length = Routes.getLength(route.i);
+  const distanceUnitInput = ensureEl<HTMLInputElement>("distanceUnitInput");
+  const lengthStr = `${rn(route.length * worldContext.distanceScale)} ${distanceUnitInput?.value || "km"}`;
+  setRoutesEditorState({ routeLength: lengthStr });
+}
 
-  function updateRouteLength(route: Route): void {
-    route.length = Routes.getLength(route.i);
-    ensureEl("routeLength").textContent = `${rn(route.length * worldContext.distanceScale)} ${distanceUnitInput.value}`;
-  }
+function drawControlPoints(pts: [number, number, number][]): void {
+  viewContext.debug
+    .select("#controlPoints")
+    .selectAll<SVGCircleElement, [number, number, number]>("circle")
+    .data(pts)
+    .join<SVGCircleElement>("circle")
+    .attr("cx", d => d[0])
+    .attr("cy", d => d[1])
+    .attr("r", 0.6)
+    .call(
+      drag<SVGCircleElement, [number, number, number]>()
+        .on("start", dragControlPointStart)
+        .on("drag", dragControlPointDrag)
+        .on("end", dragControlPointEnd)
+    )
+    .on("click", handleControlPointClick);
+}
 
-  function drawControlPoints(pts: [number, number, number][]): void {
-    viewContext.debug
-      .select("#controlPoints")
-      .selectAll<SVGCircleElement, [number, number, number]>("circle")
-      .data(pts)
-      .join<SVGCircleElement>("circle")
-      .attr("cx", d => d[0])
-      .attr("cy", d => d[1])
-      .attr("r", 0.6)
-      .call(
-        drag<SVGCircleElement, [number, number, number]>()
-          .on("start", dragControlPointStart)
-          .on("drag", dragControlPointDrag)
-          .on("end", dragControlPointEnd)
-      )
-      .on("click", handleControlPointClick);
-  }
+function drawRouteCells(pts: [number, number, number][]): void {
+  viewContext.debug
+    .select("#controlCells")
+    .selectAll("polygon")
+    .data(pts)
+    .join("polygon")
+    .attr("points", (p: [number, number, number]) =>
+      getPackPolygon(p[2], worldContext.pack)
+        .map(pt => pt.join(","))
+        .join(" ")
+    );
+}
 
-  function drawRouteCells(pts: [number, number, number][]): void {
-    viewContext.debug
-      .select("#controlCells")
-      .selectAll("polygon")
-      .data(pts)
-      .join("polygon")
-      .attr("points", (p: [number, number, number]) => getPackPolygon(p[2], worldContext.pack).join(" "));
-  }
+function dragControlPointStart(
+  this: SVGCircleElement,
+  event: d3.D3DragEvent<SVGCircleElement, [number, number, number], [number, number, number]>
+): void {
+  _rcRoute = getRoute();
+  _rcInitCell = event.subject[2] as number;
+  _rcPointIndex = _rcRoute.points.indexOf(event.subject);
+}
 
-  function dragControlPointStart(
-    this: SVGCircleElement,
-    event: d3.D3DragEvent<SVGCircleElement, [number, number, number], [number, number, number]>
-  ): void {
-    _rcRoute = getRoute();
-    _rcInitCell = event.subject[2] as number;
-    _rcPointIndex = _rcRoute.points.indexOf(event.subject);
-  }
+function dragControlPointDrag(
+  this: SVGCircleElement,
+  event: d3.D3DragEvent<SVGCircleElement, [number, number, number], [number, number, number]>
+): void {
+  if (!_rcRoute) return;
+  this.setAttribute("cx", String(event.x));
+  this.setAttribute("cy", String(event.y));
 
-  function dragControlPointDrag(
-    this: SVGCircleElement,
-    event: d3.D3DragEvent<SVGCircleElement, [number, number, number], [number, number, number]>
-  ): void {
-    if (!_rcRoute) return;
-    this.setAttribute("cx", String(event.x));
-    this.setAttribute("cy", String(event.y));
+  const x = rn(event.x, 2);
+  const y = rn(event.y, 2);
+  const cellId = findCell(x, y);
 
-    const x = rn(event.x, 2);
-    const y = rn(event.y, 2);
-    const cellId = findCell(x, y);
+  _rcRoute.points[_rcPointIndex] = [x, y, cellId];
+  select(this).datum(_rcRoute.points[_rcPointIndex]);
+  redrawRoute(_rcRoute);
+  drawRouteCells(_rcRoute.points);
+}
 
-    _rcRoute.points[_rcPointIndex] = [x, y, cellId];
-    select(this).datum(_rcRoute.points[_rcPointIndex]);
-    redrawRoute(_rcRoute);
-    drawRouteCells(_rcRoute.points);
-  }
+function dragControlPointEnd(
+  event: d3.D3DragEvent<SVGCircleElement, [number, number, number], [number, number, number]>
+): void {
+  if (!_rcRoute) return;
+  const movedToCell = findCell(event.x, event.y);
 
-  function dragControlPointEnd(
-    event: d3.D3DragEvent<SVGCircleElement, [number, number, number], [number, number, number]>
-  ): void {
-    if (!_rcRoute) return;
-    const movedToCell = findCell(event.x, event.y);
+  if (movedToCell !== _rcInitCell) {
+    const prev = _rcRoute.points[_rcPointIndex - 1];
+    if (prev) {
+      removeConnection(_rcInitCell, prev[2]);
+      addConnection(movedToCell, prev[2], _rcRoute.i);
+    }
 
-    if (movedToCell !== _rcInitCell) {
-      const prev = _rcRoute.points[_rcPointIndex - 1];
-      if (prev) {
-        removeConnection(_rcInitCell, prev[2]);
-        addConnection(movedToCell, prev[2], _rcRoute.i);
-      }
-
-      const next = _rcRoute.points[_rcPointIndex + 1];
-      if (next) {
-        removeConnection(_rcInitCell, next[2]);
-        addConnection(movedToCell, next[2], _rcRoute.i);
-      }
+    const next = _rcRoute.points[_rcPointIndex + 1];
+    if (next) {
+      removeConnection(_rcInitCell, next[2]);
+      addConnection(movedToCell, next[2], _rcRoute.i);
     }
   }
+}
 
-  function redrawRoute(route: Route): void {
-    elSelected!.attr("d", Routes.getPath(route));
-    updateRouteLength(route);
-    if (dialogStore.getState().openDialogs.has("elevationProfile")) showRouteElevationProfile();
+function redrawRoute(route: Route): void {
+  elSelected!.attr("d", Routes.getPath(route));
+  updateRouteLength(route);
+  if (dialogStore.getState().openDialogs.has("elevationProfile")) routesEditorActions.showRouteElevationProfile();
+}
+
+function addControlPoint(this: SVGPathElement, event: MouseEvent): void {
+  const route = getRoute();
+  const [x, y] = pointer(event, this);
+  const cellId = findCell(x, y);
+
+  const point: [number, number, number] = [rn(x, 2), rn(y, 2), cellId];
+  const isNewCell = !route.points.some(p => p[2] === cellId);
+
+  const index = getSegmentId(route.points as unknown as [number, number][], point as unknown as [number, number], 2);
+  route.points.splice(index, 0, point);
+
+  if (isNewCell) {
+    const prev = route.points[index - 1];
+    const next = route.points[index + 1];
+
+    if (!prev) ERROR && console.error("Can't add control point to the start of the route");
+    if (!next) ERROR && console.error("Can't add control point to the end of the route");
+    if (!prev || !next) return;
+
+    removeConnection(prev[2], next[2]);
+    addConnection(prev[2], cellId, route.i);
+    addConnection(cellId, next[2], route.i);
+
+    drawRouteCells(route.points);
   }
 
-  function addControlPoint(this: SVGPathElement, event: MouseEvent): void {
-    const route = getRoute();
-    const [x, y] = pointer(event, this);
-    const cellId = findCell(x, y);
+  drawControlPoints(route.points);
+  redrawRoute(route);
+}
 
-    const point: [number, number, number] = [rn(x, 2), rn(y, 2), cellId];
-    const isNewCell = !route.points.some(p => p[2] === cellId);
+function handleControlPointClick(this: SVGCircleElement, _event: MouseEvent): void {
+  const controlPoint = select(this);
+  const pt = controlPoint.datum() as [number, number, number];
+  const route = getRoute();
+  if (route.points.length < 3) return;
 
-    const index = getSegmentId(route.points as unknown as [number, number][], point as unknown as [number, number], 2);
-    route.points.splice(index, 0, point);
+  const index = route.points.indexOf(pt);
 
-    if (isNewCell) {
+  if (_isSplitMode) {
+    splitRoute();
+  } else {
+    removeControlPoint(controlPoint);
+  }
+
+  function splitRoute(): void {
+    const oldRoutePoints = route.points.slice(0, index + 1);
+    const newRoutePoints = route.points.slice(index);
+
+    route.points = oldRoutePoints;
+    drawControlPoints(route.points);
+    drawRouteCells(route.points);
+    redrawRoute(route);
+
+    const newRoute: Route = {
+      i: Routes.getNextId(),
+      group: route.group,
+      feature: route.feature,
+      name: route.name,
+      points: newRoutePoints
+    };
+    worldContext.pack.routes.push(newRoute);
+
+    for (let i = 0; i < newRoute.points.length; i++) {
+      const cellId = newRoute.points[i][2];
+      const nextPoint = newRoute.points[i + 1];
+      if (nextPoint) addConnection(cellId, nextPoint[2], newRoute.i);
+    }
+
+    viewContext.routes
+      .select(`#${newRoute.group}`)
+      .append("path")
+      .attr("d", Routes.getPath(newRoute))
+      .attr("id", `route${newRoute.i}`);
+
+    _isSplitMode = false;
+  }
+
+  function removeControlPoint(cp: d3.Selection<SVGCircleElement, unknown, null, undefined>): void {
+    const isOnlyPointInCell = route.points.filter(p => p[2] === pt[2]).length === 1;
+    if (isOnlyPointInCell) {
       const prev = route.points[index - 1];
       const next = route.points[index + 1];
-
-      if (!prev) ERROR && console.error("Can't add control point to the start of the route");
-      if (!next) ERROR && console.error("Can't add control point to the end of the route");
-      if (!prev || !next) return;
-
-      removeConnection(prev[2], next[2]);
-      addConnection(prev[2], cellId, route.i);
-      addConnection(cellId, next[2], route.i);
-
-      drawRouteCells(route.points);
+      if (prev) removeConnection(prev[2], pt[2]);
+      if (next) removeConnection(pt[2], next[2]);
+      if (prev && next) addConnection(prev[2], next[2], route.i);
     }
 
-    drawControlPoints(route.points);
+    cp.remove();
+    route.points = route.points.filter(p => p !== pt);
+
+    drawRouteCells(route.points);
     redrawRoute(route);
   }
+}
 
-  function handleControlPointClick(this: SVGCircleElement, _event: MouseEvent): void {
-    const controlPoint = select(this);
-    const pt = controlPoint.datum() as [number, number, number];
+function removeConnection(from: number, to: number): void {
+  const routeMap = worldContext.pack.cells.routes;
+  if (routeMap[from]) delete routeMap[from][to];
+  if (routeMap[to]) delete routeMap[to][from];
+}
+
+function addConnection(from: number, to: number, routeId: number): void {
+  const routeMap = worldContext.pack.cells.routes;
+
+  if (!routeMap[from]) routeMap[from] = {};
+  routeMap[from][to] = routeId;
+
+  if (!routeMap[to]) routeMap[to] = {};
+  routeMap[to][from] = routeId;
+}
+
+export function createRoute(defaultGroup?: string): void {
+  if (viewContext.customization) return;
+  closeDialogs();
+  if (!layerIsOn("toggleRoutes")) toggleRoutes();
+
+  ensureEl("toggleCells").dataset.forced = String(+!layerIsOn("toggleCells"));
+  if (!layerIsOn("toggleCells")) toggleCells();
+
+  tip("Click to add route point, click again to remove", true);
+  viewContext.debug.append("g").attr("id", "controlCells");
+  viewContext.debug.append("g").attr("id", "controlPoints");
+  viewContext.viewbox.style("cursor", "crosshair");
+  interactionManager.setClickHandler(onCreatorClick);
+
+  _createRoutePoints = [];
+  const allGroups = Array.from(viewContext.routes.selectAll<SVGGElement, unknown>("g").nodes()).map(n => n.id);
+
+  setRoutesEditorState({
+    isOpen: false,
+    isCreatorOpen: true,
+    creatorGroup: defaultGroup || "roads",
+    creatorPoints: [],
+    allGroups
+  });
+
+  if (modules.createRoute) return;
+  modules.createRoute = true;
+}
+
+function onCreatorClick(event: MouseEvent): void {
+  const [x, y] = pointer(event);
+  const cellId = findCell(x, y);
+  _createRoutePoints.push({ x: rn(x, 2), y: rn(y, 2), cellId });
+
+  setRoutesEditorState({ creatorPoints: [..._createRoutePoints] });
+  drawRoutePreview();
+}
+
+function drawRoutePreview(): void {
+  const pts = _createRoutePoints.map(p => [p.x, p.y, p.cellId] as [number, number, number]);
+
+  viewContext.debug
+    .select("#controlCells")
+    .selectAll("polygon")
+    .data(pts)
+    .join("polygon")
+    .attr("points", (p: [number, number, number]) =>
+      getPackPolygon(p[2], worldContext.pack)
+        .map(pt => pt.join(","))
+        .join(" ")
+    )
+    .attr("class", "current");
+
+  viewContext.debug
+    .select("#controlPoints")
+    .selectAll("circle")
+    .data(pts)
+    .join("circle")
+    .attr("cx", d => d[0])
+    .attr("cy", d => d[1])
+    .attr("r", 0.6);
+
+  const group = getRoutesEditorState().creatorGroup;
+
+  viewContext.routes.select("#routeTemp").remove();
+  viewContext.routes
+    .select(`#${group}`)
+    .append("path")
+    .attr("d", Routes.getPath({ group, points: pts, i: -1, feature: 0 } as Route))
+    .attr("id", "routeTemp");
+}
+
+export const routesEditorActions = {
+  closeRouteEditor(): void {
+    setRoutesEditorState({ isOpen: false });
+    viewContext.debug.select("#controlPoints").remove();
+    viewContext.debug.select("#controlCells").remove();
+
+    elSelected?.on("click", null);
+    unselect();
+    clearMainTip();
+
+    const forced = +ensureEl("toggleCells").dataset.forced!;
+    ensureEl("toggleCells").dataset.forced = "0";
+    if (forced && layerIsOn("toggleCells")) toggleCells();
+  },
+
+  changeName(name: string): void {
+    getRoute().name = name;
+    setRoutesEditorState({ routeName: name });
+  },
+
+  generateName(): void {
     const route = getRoute();
-    if (route.points.length < 3) return;
+    const name = Routes.generateName(route);
+    route.name = name;
+    setRoutesEditorState({ routeName: name });
+  },
 
-    const index = route.points.indexOf(pt);
-    const isSplitMode = ensureEl("routeSplit").classList.contains("pressed");
-    if (isSplitMode) {
-      splitRoute();
-    } else {
-      removeControlPoint(controlPoint);
-    }
+  changeGroup(group: string): void {
+    ensureEl(group).appendChild(elSelected!.node()!);
+    getRoute().group = group;
+    setRoutesEditorState({ routeGroup: group });
+  },
 
-    function splitRoute(): void {
-      const oldRoutePoints = route.points.slice(0, index + 1);
-      const newRoutePoints = route.points.slice(index);
+  editRouteGroups(): void {
+    editRouteGroups();
+  },
 
-      route.points = oldRoutePoints;
-      drawControlPoints(route.points);
-      drawRouteCells(route.points);
-      redrawRoute(route);
+  editRouteGroupStyle(): void {
+    const { group } = getRoute();
+    editStyle("routes", group);
+  },
 
-      const newRoute: Route = {
-        i: Routes.getNextId(),
-        group: route.group,
-        feature: route.feature,
-        name: route.name,
-        points: newRoutePoints
-      };
-      worldContext.pack.routes.push(newRoute);
+  showCreationDialog(): void {
+    const route = getRoute();
+    createRoute(route.group);
+  },
 
-      for (let i = 0; i < newRoute.points.length; i++) {
-        const cellId = newRoute.points[i][2];
-        const nextPoint = newRoute.points[i + 1];
-        if (nextPoint) addConnection(cellId, nextPoint[2], newRoute.i);
-      }
+  toggleSplitMode(): void {
+    _isSplitMode = !_isSplitMode;
+  },
 
-      viewContext.routes
-        .select(`#${newRoute.group}`)
-        .append("path")
-        .attr("d", Routes.getPath(newRoute))
-        .attr("id", `route${newRoute.i}`);
-
-      ensureEl("routeSplit").classList.remove("pressed");
-    }
-
-    function removeControlPoint(cp: d3.Selection<SVGCircleElement, unknown, null, undefined>): void {
-      const isOnlyPointInCell = route.points.filter(p => p[2] === pt[2]).length === 1;
-      if (isOnlyPointInCell) {
-        const prev = route.points[index - 1];
-        const next = route.points[index + 1];
-        if (prev) removeConnection(prev[2], pt[2]);
-        if (next) removeConnection(pt[2], next[2]);
-        if (prev && next) addConnection(prev[2], next[2], route.i);
-      }
-
-      cp.remove();
-      route.points = route.points.filter(p => p !== pt);
-
-      drawRouteCells(route.points);
-      redrawRoute(route);
-    }
-  }
-
-  function openJoinRoutesDialog(): void {
+  openJoinRoutesDialog(): void {
     const route = getRoute();
     const firstCell = route.points.at(0)![2];
     const lastCell = route.points.at(-1)![2];
@@ -295,10 +429,11 @@ export function editRoute(id: string): void {
     });
 
     if (candidateRoutes.length) {
+      const distanceUnitInput = ensureEl<HTMLInputElement>("distanceUnitInput");
       const options = candidateRoutes.map((r: Route) => {
         r.name = r.name || Routes.generateName(r);
         r.length = r.length || Routes.getLength(r.i);
-        const length = `${rn(r.length * worldContext.distanceScale)} ${distanceUnitInput.value}`;
+        const length = `${rn(r.length * worldContext.distanceScale)} ${distanceUnitInput?.value || "km"}`;
         return `<option value="${r.i}">${r.name} (${length})</option>`;
       });
       alertMessage.innerHTML = /* html */ `<div>Route to join with:
@@ -317,7 +452,29 @@ export function editRoute(id: string): void {
           Join: () => {
             const selectedRouteId = +(alertMessage.querySelector("select") as HTMLSelectElement).value;
             const selectedRoute = worldContext.pack.routes.find((r: Route) => r.i === selectedRouteId)!;
-            joinRoutes(route, selectedRoute);
+
+            if (route.points.at(-1)![2] === selectedRoute.points.at(0)![2]) {
+              route.points = [...route.points, ...selectedRoute.points.slice(1)];
+            } else if (route.points.at(0)![2] === selectedRoute.points.at(-1)![2]) {
+              route.points = [...selectedRoute.points, ...route.points.slice(1)];
+            } else if (route.points.at(0)![2] === selectedRoute.points.at(0)![2]) {
+              route.points = [...route.points.reverse(), ...selectedRoute.points.slice(1)];
+            } else if (route.points.at(-1)![2] === selectedRoute.points.at(-1)![2]) {
+              route.points = [...route.points, ...selectedRoute.points.reverse().slice(1)];
+            }
+
+            for (let i = 0; i < route.points.length; i++) {
+              const pt = route.points[i];
+              const nextPoint = route.points[i + 1];
+              if (nextPoint) addConnection(pt[2], nextPoint[2], route.i);
+            }
+
+            Routes.remove(selectedRoute);
+            drawControlPoints(route.points);
+            redrawRoute(route);
+            drawRouteCells(route.points);
+            updateRouteData(route);
+
             tip("Routes joined", false, "success", 5000);
             closeDialog("alert");
           }
@@ -326,246 +483,68 @@ export function editRoute(id: string): void {
     } else {
       tip("No routes to join with. Route must start or end at current route's start or end cell", false, "error", 4000);
     }
-  }
+  },
 
-  function joinRoutes(route: Route, joinedRoute: Route): void {
-    if (route.points.at(-1)![2] === joinedRoute.points.at(0)![2]) {
-      route.points = [...route.points, ...joinedRoute.points.slice(1)];
-    } else if (route.points.at(0)![2] === joinedRoute.points.at(-1)![2]) {
-      route.points = [...joinedRoute.points, ...route.points.slice(1)];
-    } else if (route.points.at(0)![2] === joinedRoute.points.at(0)![2]) {
-      route.points = [...route.points.reverse(), ...joinedRoute.points.slice(1)];
-    } else if (route.points.at(-1)![2] === joinedRoute.points.at(-1)![2]) {
-      route.points = [...route.points, ...joinedRoute.points.reverse().slice(1)];
-    }
-
-    for (let i = 0; i < route.points.length; i++) {
-      const pt = route.points[i];
-      const nextPoint = route.points[i + 1];
-      if (nextPoint) addConnection(pt[2], nextPoint[2], route.i);
-    }
-
-    Routes.remove(joinedRoute);
-    drawControlPoints(route.points);
-    redrawRoute(route);
-    drawRouteCells(route.points);
-  }
-
-  function showCreationDialog(): void {
-    const route = getRoute();
-    createRoute(route.group);
-  }
-
-  function togglePressed(this: HTMLElement): void {
-    this.classList.toggle("pressed");
-  }
-
-  function removeConnection(from: number, to: number): void {
-    const routeMap = worldContext.pack.cells.routes;
-    if (routeMap[from]) delete routeMap[from][to];
-    if (routeMap[to]) delete routeMap[to][from];
-  }
-
-  function addConnection(from: number, to: number, routeId: number): void {
-    const routeMap = worldContext.pack.cells.routes;
-
-    if (!routeMap[from]) routeMap[from] = {};
-    routeMap[from][to] = routeId;
-
-    if (!routeMap[to]) routeMap[to] = {};
-    routeMap[to][from] = routeId;
-  }
-
-  function changeName(this: HTMLInputElement): void {
-    getRoute().name = this.value;
-  }
-
-  function changeGroup(this: HTMLInputElement): void {
-    const group = this.value;
-    ensureEl(group).appendChild(elSelected!.node()!);
-    getRoute().group = group;
-  }
-
-  function generateName(): void {
-    const route = getRoute();
-    route.name = (ensureEl("routeName") as HTMLInputElement).value = Routes.generateName(route);
-  }
-
-  function showRouteElevationProfile(): void {
+  showRouteElevationProfile(): void {
     const route = getRoute();
     const length = rn(route.length! * worldContext.distanceScale);
-    ElevationProfile.open(
-      route.points.map(p => p[2]),
-      length,
-      false
-    );
-  }
+    // Use window.ElevationProfile if it's imported that way in original, wait it might be a global
+    // Fallback: we can just call any function that does it. Let's see if ElevationProfile is globally available.
+    // In original it just called `ElevationProfile.open(...)`.
+    if (window.ElevationProfile) {
+      window.ElevationProfile.open(
+        route.points.map(p => p[2]),
+        length,
+        false
+      );
+    }
+  },
 
-  function editRouteLegend(): void {
+  editRouteLegend(): void {
     const rid = elSelected!.attr("id");
     const route = getRoute();
     editNotes(rid, route.name!);
-  }
+  },
 
-  function editRouteGroupStyle(): void {
-    const { group } = getRoute();
-    editStyle("routes", group);
-  }
-
-  function toggleLockButton(): void {
+  toggleLockButton(): void {
     const route = getRoute();
     route.lock = !route.lock;
-    updateLockIcon();
-  }
+    setRoutesEditorState({ isLocked: !!route.lock });
+  },
 
-  function updateLockIcon(): void {
-    const route = getRoute();
-    if (route.lock) {
-      ensureEl("routeLock").classList.remove("icon-lock-open");
-      ensureEl("routeLock").classList.add("icon-lock");
-    } else {
-      ensureEl("routeLock").classList.remove("icon-lock");
-      ensureEl("routeLock").classList.add("icon-lock-open");
-    }
-  }
-
-  function removeRoute(): void {
+  removeRoute(): void {
     confirmationDialog({
       title: "Remove route",
       message: "Are you sure you want to remove the route? <br>This action cannot be reverted",
       confirm: "Remove",
       onConfirm: () => {
         Routes.remove(getRoute());
-        closeDialog("routeEditor");
+        routesEditorActions.closeRouteEditor();
       }
     });
-  }
+  },
 
-  function closeRouteEditor(): void {
-    viewContext.debug.select("#controlPoints").remove();
-    viewContext.debug.select("#controlCells").remove();
+  // Creator actions
+  changeCreatorGroup(group: string): void {
+    setRoutesEditorState({ creatorGroup: group });
+    setTimeout(drawRoutePreview, 0);
+  },
 
-    elSelected?.on("click", null);
-    unselect();
-    clearMainTip();
+  removeCreatorPoint(pointString: string): void {
+    _createRoutePoints = _createRoutePoints.filter(p => `${p.x}-${p.y}-${p.cellId}` !== pointString);
+    setRoutesEditorState({ creatorPoints: [..._createRoutePoints] });
+    drawRoutePreview();
+  },
 
-    const forced = +ensureEl("toggleCells").dataset.forced!;
-    ensureEl("toggleCells").dataset.forced = "0";
-    if (forced && layerIsOn("toggleCells")) toggleCells();
-  }
-}
-
-// ─── routes-creator ──────────────────────────────────────────────────────────
-
-let _createRoutePoints: [number, number, number][] = [];
-
-export function createRoute(defaultGroup?: string): void {
-  if (viewContext.customization) return;
-  closeDialogs();
-  if (!layerIsOn("toggleRoutes")) toggleRoutes();
-
-  ensureEl("toggleCells").dataset.forced = String(+!layerIsOn("toggleCells"));
-  if (!layerIsOn("toggleCells")) toggleCells();
-
-  tip("Click to add route point, click again to remove", true);
-  viewContext.debug.append("g").attr("id", "controlCells");
-  viewContext.debug.append("g").attr("id", "controlPoints");
-  viewContext.viewbox.style("cursor", "crosshair");
-  interactionManager.setClickHandler(onClick);
-
-  _createRoutePoints = [];
-  const body = ensureEl("routeCreatorBody");
-
-  ensureEl<HTMLSelectElement>("routeCreatorGroupSelect").innerHTML = Array.from(
-    viewContext.routes.selectAll<SVGGElement, unknown>("g").nodes()
-  )
-    .map(el => {
-      const selected = defaultGroup || "roads";
-      return `<option value="${el.id}" ${el.id === selected ? "selected" : ""}>${el.id}</option>`;
-    })
-    .join("");
-
-  openDialog("routeCreator", {
-    title: "Create Route",
-    resizable: false,
-    position: { my: "left top", at: "left+10 top+10", of: "#map" },
-    close: closeRouteCreator
-  });
-
-  if (modules.createRoute) return;
-  modules.createRoute = true;
-
-  // add listeners
-  ensureEl("routeCreatorGroupSelect").addEventListener("change", () => drawRoutePreview(_createRoutePoints));
-  ensureEl("routeCreatorGroupEdit").addEventListener("click", editRouteGroups);
-  ensureEl("routeCreatorComplete").addEventListener("click", completeCreation);
-  ensureEl("routeCreatorCancel").addEventListener("click", () => closeDialog("routeCreator"));
-  body.addEventListener("click", (ev: Event) => {
-    if ((ev.target as HTMLElement).classList.contains("icon-trash-empty"))
-      removePoint((ev.target as HTMLElement).parentElement!.dataset.point!);
-  });
-
-  function onClick(event: MouseEvent): void {
-    const [x, y] = pointer(event);
-    const cellId = findCell(x, y);
-    const point: [number, number, number] = [rn(x, 2), rn(y, 2), cellId];
-    _createRoutePoints.push(point);
-
-    drawRoutePreview(_createRoutePoints);
-
-    body.innerHTML += `<div class="editorLine" style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 1em;" data-point="${point.join(
-      "-"
-    )}">
-      <span><b>Cell</b>: ${cellId}</span>
-      <span><b>X</b>: ${point[0]}</span>
-      <span><b>Y</b>: ${point[1]}</span>
-      <span data-tip="Remove the point" class="icon-trash-empty pointer"></span>
-    </div>`;
-  }
-
-  function removePoint(pointString: string): void {
-    _createRoutePoints = _createRoutePoints.filter(p => p.join("-") !== pointString);
-    drawRoutePreview(_createRoutePoints);
-    body.querySelector(`[data-point='${pointString}']`)?.remove();
-  }
-
-  function drawRoutePreview(pts: [number, number, number][]): void {
-    viewContext.debug
-      .select("#controlCells")
-      .selectAll("polygon")
-      .data(pts)
-      .join("polygon")
-      .attr("points", (p: [number, number, number]) => getPackPolygon(p[2], worldContext.pack).join(" "))
-      .attr("class", "current");
-
-    viewContext.debug
-      .select("#controlPoints")
-      .selectAll("circle")
-      .data(pts)
-      .join("circle")
-      .attr("cx", d => d[0])
-      .attr("cy", d => d[1])
-      .attr("r", 0.6);
-
-    const group = ensureEl<HTMLSelectElement>("routeCreatorGroupSelect").value;
-
-    viewContext.routes.select("#routeTemp").remove();
-    viewContext.routes
-      .select(`#${group}`)
-      .append("path")
-      .attr("d", Routes.getPath({ group, points: pts, i: -1, feature: 0 } as Route))
-      .attr("id", "routeTemp");
-  }
-
-  function completeCreation(): void {
-    const pts = _createRoutePoints;
+  completeCreation(): void {
+    const pts = _createRoutePoints.map(p => [p.x, p.y, p.cellId] as [number, number, number]);
     if (pts.length < 2) {
       tip("Add at least 2 points", false, "error");
       return;
     }
 
     const routeId = Routes.getNextId();
-    const group = ensureEl<HTMLSelectElement>("routeCreatorGroupSelect").value;
+    const group = getRoutesEditorState().creatorGroup;
     const feature = worldContext.pack.cells.f[pts[0][2]];
     const route: Route = { points: pts, group, feature, i: routeId };
     worldContext.pack.routes.push(route);
@@ -588,11 +567,14 @@ export function createRoute(defaultGroup?: string): void {
     }
 
     viewContext.routes.select("#routeTemp").attr("id", `route${routeId}`);
-    editRoute(`route${routeId}`);
-  }
 
-  function closeRouteCreator(): void {
-    body.innerHTML = "";
+    // Auto switch to edit mode
+    routesEditorActions.closeRouteCreator();
+    editRoute(`route${routeId}`);
+  },
+
+  closeRouteCreator(): void {
+    setRoutesEditorState({ isCreatorOpen: false });
     viewContext.debug.select("#controlCells").remove();
     viewContext.debug.select("#controlPoints").remove();
     viewContext.routes.select("#routeTemp").remove();
@@ -604,8 +586,4 @@ export function createRoute(defaultGroup?: string): void {
     ensureEl("toggleCells").dataset.forced = "0";
     if (forced && layerIsOn("toggleCells")) toggleCells();
   }
-}
-
-export function initRoutesEditor(wc: WorldContext) {
-  worldContext = wc;
-}
+};

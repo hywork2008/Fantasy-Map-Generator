@@ -17,12 +17,12 @@ import { layerIsOn, toggleZones } from "../controllers/layers";
 import { editStyle } from "../controllers/style";
 import type { Zone } from "../modules/zones-generator";
 import { PopulationRenderer, ZonesRenderer } from "../renderers";
-import { modules } from "../store/editorState";
-import { closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
-import { ensureEl, findAll, findCell, rn, si, unique } from "../utils";
+import { getZonesEditorState, setZonesEditorState } from "../store/zonesEditorState";
+import { closeDialogs, openRichDialog } from "../ui/dialogs/dialogService";
+import { findAll, findCell, rn, unique } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
 import { getPackPolygon } from "../utils/graphUtils";
-import { clearMainTip, fitContent, getArea, getAreaUnit, removeCircle, showMainTip, tip } from "../utils/uiHelpers";
+import { clearMainTip, getArea, removeCircle, showMainTip, tip } from "../utils/uiHelpers";
 
 let worldContext: WorldContext;
 let viewContext: ViewContext;
@@ -30,233 +30,244 @@ let appServices: AppServices;
 
 type ZoneCellDatum = { cell: number; zoneId: number; fill: string };
 
+export const zonesEditorActions = {
+  closeZonesEditor(): void {
+    setZonesEditorState({ isOpen: false });
+    exitZonesManualAssignment("close");
+  },
+
+  refresh(): void {
+    zonesEditorAddLines();
+  },
+
+  editStyle(): void {
+    editStyle("zones");
+  },
+
+  toggleLegend(): void {
+    toggleLegend();
+  },
+
+  changeSort(_field: string): void {
+    // sorting is handled by React Component, so we don't need to do anything here
+  },
+
+  enterManualAssignment(): void {
+    enterZonesManualAssignent();
+  },
+
+  applyManualAssignment(): void {
+    applyZonesManualAssignent();
+  },
+
+  cancelManualAssignment(): void {
+    cancelZonesManualAssignent();
+  },
+
+  addZone(): void {
+    addZonesLayer();
+  },
+
+  downloadCsv(): void {
+    downloadZonesData();
+  },
+
+  selectZone(zoneId: number): void {
+    const st = getZonesEditorState();
+    if (st.customizationMode) {
+      setZonesEditorState({ zones: st.zones.map(z => ({ ...z, focused: z.i === zoneId })) });
+    }
+  },
+
+  changeColor(zoneId: number): void {
+    const zone = worldContext.pack.zones.find(z => z.i === zoneId);
+    if (zone) changeFill(zone.color, zone);
+  },
+
+  changeName(zoneId: number, val: string): void {
+    const zone = worldContext.pack.zones.find(z => z.i === zoneId);
+    if (zone) changeDescription(zone, val);
+    zonesEditorAddLines();
+  },
+
+  changeType(zoneId: number, val: string): void {
+    const zone = worldContext.pack.zones.find(z => z.i === zoneId);
+    if (zone) changeType(zone, val);
+    zonesEditorAddLines();
+  },
+
+  changePopulation(zoneId: number): void {
+    const zone = worldContext.pack.zones.find(z => z.i === zoneId);
+    if (zone) changePopulation(zone);
+  },
+
+  toggleVisibility(zoneId: number): void {
+    const zone = worldContext.pack.zones.find(z => z.i === zoneId);
+    if (zone) toggleVisibility(zone);
+  },
+
+  toggleFog(zoneId: number): void {
+    const zone = worldContext.pack.zones.find(z => z.i === zoneId);
+    if (zone) toggleFog(zone);
+  },
+
+  removeZone(zoneId: number): void {
+    const zone = worldContext.pack.zones.find(z => z.i === zoneId);
+    if (zone) zoneRemove(zone);
+  },
+
+  highlightOn(zoneId: number): void {
+    viewContext.zones.select(`#zone${zoneId}`).style("outline", "1px solid red");
+  },
+
+  highlightOff(zoneId: number): void {
+    viewContext.zones.select(`#zone${zoneId}`).style("outline", null);
+  }
+};
+
 export function editZones(): void {
   closeDialogs("#zonesEditor, .stable");
   if (!layerIsOn("toggleZones")) toggleZones();
-  const body = ensureEl("zonesBodySection");
 
   updateFilters();
   zonesEditorAddLines();
 
-  if (modules.editZones) return;
-  modules.editZones = true;
+  setZonesEditorState({ isOpen: true });
+}
 
-  openDialog("zonesEditor", {
-    title: "Zones Editor",
-    resizable: false,
-    close: () => exitZonesManualAssignment("close"),
-    position: { my: "right top", at: "right-10 top+10", of: "svg", collision: "fit" }
+function updateFilters(): void {
+  const types = unique(worldContext.pack.zones.map((zone: Zone) => zone.type));
+  setZonesEditorState({ types });
+}
+
+export function refreshZonesEditor(): void {
+  zonesEditorAddLines();
+}
+
+function zonesEditorAddLines(): void {
+  const st = getZonesEditorState();
+  const filteredZones =
+    st.filterBy === "all"
+      ? worldContext.pack.zones
+      : worldContext.pack.zones.filter((zone: Zone) => zone.type === st.filterBy);
+
+  const lines = filteredZones.map(({ i, name, type, cells, color, hidden }: Zone) => {
+    const area = getArea(sum(cells.map((idx: number) => worldContext.pack.cells.area[idx])));
+    const rural = sum(cells.map((idx: number) => worldContext.pack.cells.pop[idx])) * worldContext.populationRate;
+    const urban =
+      sum(
+        cells
+          .map((idx: number) => worldContext.pack.cells.burg[idx])
+          .map((b: number) => worldContext.pack.burgs[b].population)
+      ) *
+      worldContext.populationRate *
+      worldContext.urbanization;
+    const population = rn(rural + urban);
+    const focused = viewContext.defs.select(`#fog #focusZone${i}`).size();
+
+    return {
+      i,
+      name,
+      type,
+      cells: cells.length,
+      area,
+      population,
+      rural,
+      urban,
+      color,
+      hidden: !!hidden,
+      focused: !!focused
+    };
   });
 
-  // add listeners
-  ensureEl("zonesFilterType").addEventListener("click", updateFilters);
-  ensureEl("zonesFilterType").addEventListener("change", filterZonesByType);
-  ensureEl("zonesEditorRefresh").addEventListener("click", zonesEditorAddLines);
-  ensureEl("zonesEditStyle").addEventListener("click", () => editStyle("zones"));
-  ensureEl("zonesLegend").addEventListener("click", toggleLegend);
-  ensureEl("zonesPercentage").addEventListener("click", togglePercentageMode);
-  ensureEl("zonesManually").addEventListener("click", enterZonesManualAssignent);
-  ensureEl("zonesManuallyApply").addEventListener("click", applyZonesManualAssignent);
-  ensureEl("zonesManuallyCancel").addEventListener("click", cancelZonesManualAssignent);
-  ensureEl("zonesAdd").addEventListener("click", addZonesLayer);
-  ensureEl("zonesExport").addEventListener("click", downloadZonesData);
-  ensureEl("zonesRemove").addEventListener("click", (e: Event) =>
-    (e.target as HTMLElement).classList.toggle("pressed")
+  const totalArea = getArea(worldContext.graphWidth * worldContext.graphHeight);
+  const totalPop =
+    (sum(worldContext.pack.cells.pop) +
+      sum(worldContext.pack.burgs.filter((b: { removed?: boolean }) => !b.removed).map(b => b.population ?? 0)) *
+        worldContext.urbanization) *
+    worldContext.populationRate;
+
+  setZonesEditorState({
+    zones: lines,
+    totalZones: worldContext.pack.zones.length,
+    totalCells: worldContext.pack.cells.i.length,
+    totalArea,
+    totalPopulation: totalPop
+  });
+}
+
+function enterZonesManualAssignent(): void {
+  if (!layerIsOn("toggleZones")) toggleZones();
+  viewContext.customization = 10;
+  setZonesEditorState({ customizationMode: 10 });
+
+  tip("Click to select a zone, drag to paint a zone", true);
+  viewContext.viewbox
+    .style("cursor", "crosshair")
+    .on("click", selectZoneOnMapClick)
+    .call(drag<SVGGElement, unknown>().on("drag", dragZoneBrush))
+    .on("touchmove mousemove", moveZoneBrush);
+
+  viewContext.zones.selectAll("*").remove();
+
+  const st = getZonesEditorState();
+  const filterBy = st.filterBy;
+  const isFiltered = filterBy && filterBy !== "all";
+  const visibleZones = worldContext.pack.zones.filter(
+    (zone: Zone) => !zone.hidden && (!isFiltered || zone.type === filterBy)
   );
+  const data = visibleZones.flatMap(({ i, cells, color }: Zone) =>
+    cells.map((cell: number) => ({ cell, zoneId: i, fill: color }))
+  );
+  viewContext.zones
+    .selectAll<SVGPolygonElement, ZoneCellDatum>("polygon")
+    .data(data, d => `${d.zoneId}-${d.cell}`)
+    .enter()
+    .append("polygon")
+    .attr("points", d => getPackPolygon(d.cell, worldContext.pack).join(" "))
+    .attr("fill", d => d.fill)
+    .attr("data-zone", d => d.zoneId)
+    .attr("data-cell", d => d.cell);
+}
 
-  body.addEventListener("click", (ev: Event) => {
-    const line = (ev.target as HTMLElement).closest("div.states") as HTMLElement | null;
-    if (!line) return;
-    const zone = worldContext.pack.zones.find(z => z.i === +line.dataset.id!);
-    if (!zone) return;
-
-    if (viewContext.customization) {
-      if (zone.hidden) return;
-      body.querySelector("div.selected")?.classList.remove("selected");
-      line.classList.add("selected");
-      return;
-    }
-
-    const fillBox = (ev.target as HTMLElement).closest("fill-box");
-    if (fillBox) changeFill(fillBox.getAttribute("fill")!, zone);
-    else if ((ev.target as HTMLElement).classList.contains("zonePopulation")) changePopulation(zone);
-    else if ((ev.target as HTMLElement).classList.contains("zoneRemove")) zoneRemove(zone);
-    else if ((ev.target as HTMLElement).classList.contains("zoneHide")) toggleVisibility(zone);
-    else if ((ev.target as HTMLElement).classList.contains("zoneFog"))
-      toggleFog(zone, (ev.target as HTMLElement).classList);
-  });
-
-  body.addEventListener("input", (ev: Event) => {
-    const line = (ev.target as HTMLElement).closest("div.states") as HTMLElement | null;
-    if (!line) return;
-    const zone = worldContext.pack.zones.find(z => z.i === +line.dataset.id!);
-    if (!zone) return;
-
-    if ((ev.target as HTMLElement).classList.contains("zoneName"))
-      changeDescription(zone, (ev.target as HTMLInputElement).value);
-    else if ((ev.target as HTMLElement).classList.contains("zoneType"))
-      changeType(zone, (ev.target as HTMLInputElement).value);
-  });
-
-  function updateFilters(): void {
-    const filterSelect = ensureEl<HTMLSelectElement>("zonesFilterType");
-    const types = unique(worldContext.pack.zones.map((zone: Zone) => zone.type));
-    const typeToFilterBy = types.includes(filterSelect.value) ? filterSelect.value : "all";
-
-    filterSelect.innerHTML = `<option value='all'>all</option>${types.map((type: string) => `<option value="${type}">${type}</option>`).join("")}`;
-    filterSelect.value = typeToFilterBy;
+function selectZoneOnMapClick(event: MouseEvent): void {
+  if ((event.target as SVGElement).parentElement?.id !== "zones") return;
+  const zoneId = (event.target as SVGElement).dataset?.zone;
+  if (zoneId) {
+    zonesEditorActions.selectZone(+zoneId);
   }
+}
 
-  function zonesEditorAddLines(): void {
-    const typeToFilterBy = ensureEl<HTMLSelectElement>("zonesFilterType").value;
-    const filteredZones =
-      typeToFilterBy === "all"
-        ? worldContext.pack.zones
-        : worldContext.pack.zones.filter((zone: Zone) => zone.type === typeToFilterBy);
+function dragZoneBrush(this: SVGElement, event: D3DragEvent<SVGElement, unknown, unknown>): void {
+  if (!event.dx && !event.dy) return;
+  const st = getZonesEditorState();
+  const radius = st.brushSize;
+  const eraseMode = event.sourceEvent.shiftKey;
+  const landOnly = st.landOnlyBrush;
+  const [x, y] = pointer(event, this);
+  moveCircle(x, y, radius);
 
-    const lines = filteredZones.map(({ i, name, type, cells, color, hidden }: Zone) => {
-      const area = getArea(sum(cells.map((idx: number) => worldContext.pack.cells.area[idx])));
-      const rural = sum(cells.map((idx: number) => worldContext.pack.cells.pop[idx])) * worldContext.populationRate;
-      const urban =
-        sum(
-          cells
-            .map((idx: number) => worldContext.pack.cells.burg[idx])
-            .map((b: number) => worldContext.pack.burgs[b].population)
-        ) *
-        worldContext.populationRate *
-        worldContext.urbanization;
-      const population = rn(rural + urban);
-      const populationTip = `Total population: ${si(population)}; Rural population: ${si(
-        rural
-      )}; Urban population: ${si(urban)}. Click to change`;
-      const focused = viewContext.defs.select(`#fog #focusZone${i}`).size();
+  let selection = radius > 5 ? findAll(x, y, radius) : [findCell(x, y)];
+  if (landOnly) selection = selection.filter(i => worldContext.pack.cells.h[i] >= 20);
+  if (!selection.length) return;
 
-      return /* html */ `<div class="states" data-id="${i}" data-color="${color}" data-description="${name}"
-        data-type="${type}" data-cells=${cells.length} data-area=${area} data-population=${population} style="${
-          hidden && "opacity: 0.5"
-        }">
-        <fill-box fill="${color}"></fill-box>
-        <input data-tip="Zone description. Click and type to change" style="width: 11em" class="zoneName" value="${name}" autocorrect="off" spellcheck="false">
-        <input data-tip="Zone type. Click and type to change" class="zoneType" value="${type}">
-        <span data-tip="Cells count" class="icon-check-empty hide"></span>
-        <div data-tip="Cells count" class="stateCells hide">${cells.length}</div>
-        <span data-tip="Zone area" style="padding-right:4px" class="icon-map-o hide"></span>
-        <div data-tip="Zone area" class="biomeArea hide">${`${si(area)} ${getAreaUnit()}`}</div>
-        <span data-tip="${populationTip}" class="icon-male hide"></span>
-        <div data-tip="${populationTip}" class="zonePopulation hide pointer">${si(population)}</div>
-        <span data-tip="Drag to raise or lower the zone" class="icon-resize-vertical hide"></span>
-        <span data-tip="Toggle zone focus" class="zoneFog icon-pin ${focused ? "" : "inactive"} hide ${
-          cells.length ? "" : "placeholder"
-        }"></span>
-        <span data-tip="Toggle zone visibility" class="zoneHide icon-eye hide ${
-          cells.length ? "" : " placeholder"
-        }"></span>
-        <span data-tip="Remove zone" class="zoneRemove icon-trash-empty hide"></span>
-      </div>`;
-    });
+  const focusedZone = st.zones.find((z: { focused: boolean }) => z.focused);
+  const zoneId = focusedZone?.i || 0;
+  const zone = worldContext.pack.zones.find((z: Zone) => z.i === zoneId);
+  if (!zone && !eraseMode) return;
 
-    body.innerHTML = lines.join("");
-
-    const totalArea = getArea(worldContext.graphWidth * worldContext.graphHeight);
-    const zonesFooterArea = document.getElementById("zonesFooterArea") as HTMLElement;
-    const zonesFooterPopulation = document.getElementById("zonesFooterPopulation") as HTMLElement;
-    const zonesFooterNumber = document.getElementById("zonesFooterNumber") as HTMLElement;
-    const zonesFooterCells = document.getElementById("zonesFooterCells") as HTMLElement;
-
-    zonesFooterArea.dataset.area = String(totalArea);
-    const totalPop =
-      (sum(worldContext.pack.cells.pop) +
-        sum(worldContext.pack.burgs.filter((b: { removed?: boolean }) => !b.removed).map(b => b.population ?? 0)) *
-          worldContext.urbanization) *
-      worldContext.populationRate;
-    zonesFooterPopulation.dataset.population = String(totalPop);
-    zonesFooterNumber.innerHTML = `${filteredZones.length} of ${worldContext.pack.zones.length}`;
-    zonesFooterCells.innerHTML = String(worldContext.pack.cells.i.length);
-    zonesFooterArea.innerHTML = `${si(totalArea)} ${getAreaUnit()}`;
-    zonesFooterPopulation.innerHTML = si(totalPop);
-
-    body.querySelectorAll("div.states").forEach(el => {
-      el.addEventListener("mouseenter", zoneHighlightOn);
-    });
-    body.querySelectorAll("div.states").forEach(el => {
-      el.addEventListener("mouseleave", zoneHighlightOff);
-    });
-
-    if (body.dataset.type === "percentage") {
-      body.dataset.type = "absolute";
-      togglePercentageMode();
-    }
-    openDialog("zonesEditor", { width: fitContent() });
-  }
-
-  function zoneHighlightOn(event: Event): void {
-    const zoneId = (event.target as HTMLElement).dataset.id;
-    viewContext.zones.select(`#zone${zoneId}`).style("outline", "1px solid red");
-  }
-
-  function zoneHighlightOff(event: Event): void {
-    const zoneId = (event.target as HTMLElement).dataset.id;
-    viewContext.zones.select(`#zone${zoneId}`).style("outline", null);
-  }
-
-  function filterZonesByType(): void {
-    ZonesRenderer.render(worldContext, viewContext, appServices);
-    zonesEditorAddLines();
-  }
-
-  /* sortable removed */
-
-  // function movezone(_ev: Event, ui: any): void {
-  //  const zone = pack.zones.find((z: Zone) => z.i === +(ui.item[0] as HTMLElement).dataset.id!);
-  //  if (!zone) return;
-  //  const oldIndex = pack.zones.indexOf(zone);
-  //  const newIndex = ui.item.index();
-  //  if (oldIndex === newIndex) return;
-
-  //  pack.zones.splice(oldIndex, 1);
-  //  pack.zones.splice(newIndex, 0, zone);
-  //  ZonesRenderer.render(worldContext, viewContext, appServices);
-  // }
-
-  function enterZonesManualAssignent(): void {
-    if (!layerIsOn("toggleZones")) toggleZones();
-    viewContext.customization = 10;
-
-    document.querySelectorAll("#zonesFooter > *").forEach(el => {
-      (el as HTMLElement).style.display = "none";
-    });
-    ensureEl("zonesManuallyButtons").style.display = "inline-block";
-    document
-      .getElementById("zonesEditor")!
-      .querySelectorAll(".hide")
-      .forEach(el => {
-        el.classList.add("hidden");
-      });
-    (document.getElementById("zonesTotal") as HTMLElement).style.display = "none";
-    body.querySelectorAll("div > input, select, svg").forEach(e => {
-      (e as HTMLElement).style.pointerEvents = "none";
-    });
-    openDialog("zonesEditor", { position: { my: "right top", at: "right-10 top+10", of: "svg", collision: "fit" } });
-
-    tip("Click to select a zone, drag to paint a zone", true);
-    viewContext.viewbox
-      .style("cursor", "crosshair")
-      .on("click", selectZoneOnMapClick)
-      .call(drag<SVGGElement, unknown>().on("drag", dragZoneBrush))
-      .on("touchmove mousemove", moveZoneBrush);
-
-    body.querySelector("div")?.classList.add("selected");
-
-    viewContext.zones.selectAll("*").remove();
-
-    const filterBy = ensureEl<HTMLSelectElement>("zonesFilterType").value;
-    const isFiltered = filterBy && filterBy !== "all";
-    const visibleZones = worldContext.pack.zones.filter(
-      (zone: Zone) => !zone.hidden && (!isFiltered || zone.type === filterBy)
-    );
-    const data = visibleZones.flatMap(({ i, cells, color }: Zone) =>
-      cells.map((cell: number) => ({ cell, zoneId: i, fill: color }))
-    );
+  if (eraseMode) {
+    const data = viewContext.zones
+      .selectAll<SVGPolygonElement, ZoneCellDatum>("polygon")
+      .data()
+      .filter(d => !(d.zoneId === zoneId && selection.includes(d.cell)));
+    viewContext.zones
+      .selectAll<SVGPolygonElement, ZoneCellDatum>("polygon")
+      .data(data, d => `${d.zoneId}-${d.cell}`)
+      .exit()
+      .remove();
+  } else {
+    const data = selection.map(cell => ({ cell, zoneId, fill: zone!.color }));
     viewContext.zones
       .selectAll<SVGPolygonElement, ZoneCellDatum>("polygon")
       .data(data, d => `${d.zoneId}-${d.cell}`)
@@ -267,257 +278,165 @@ export function editZones(): void {
       .attr("data-zone", d => d.zoneId)
       .attr("data-cell", d => d.cell);
   }
+}
 
-  function selectZoneOnMapClick(event: MouseEvent): void {
-    if ((event.target as SVGElement).parentElement?.id !== "zones") return;
-    const zoneId = (event.target as SVGElement).dataset?.zone;
-    const el = body.querySelector(`div[data-id='${zoneId}']`) as HTMLElement | null;
-    if (!el) return;
+function moveZoneBrush(event: MouseEvent): void {
+  showMainTip();
+  const [px, py] = pointer(event);
+  const st = getZonesEditorState();
+  const radius = st.brushSize;
+  moveCircle(px, py, radius);
+}
 
-    body.querySelector("div.selected")?.classList.remove("selected");
-    el.classList.add("selected");
-  }
+function applyZonesManualAssignent(): void {
+  const data = viewContext.zones.selectAll<SVGPolygonElement, ZoneCellDatum>("polygon").data();
+  const zoneCells: Record<number, number[]> = data.reduce((acc: Record<number, number[]>, d) => {
+    if (!acc[d.zoneId]) acc[d.zoneId] = [];
+    acc[d.zoneId].push(d.cell);
+    return acc;
+  }, {});
 
-  function dragZoneBrush(this: SVGElement, event: D3DragEvent<SVGElement, unknown, unknown>): void {
-    if (!event.dx && !event.dy) return;
-    const radius = +ensureEl<HTMLInputElement>("zonesBrush").value;
-    const eraseMode = ensureEl("zonesRemove").classList.contains("pressed");
-    const landOnly = ensureEl<HTMLInputElement>("zonesBrushLandOnly").checked;
-    const [x, y] = pointer(event, this);
-    moveCircle(x, y, radius);
+  const st = getZonesEditorState();
+  const filterBy = st.filterBy;
+  const isFiltered = filterBy && filterBy !== "all";
+  const visibleZones = worldContext.pack.zones.filter(
+    (zone: Zone) => !zone.hidden && (!isFiltered || zone.type === filterBy)
+  );
+  visibleZones.forEach((zone: Zone) => {
+    zone.cells = zoneCells[zone.i] || [];
+  });
 
-    let selection = radius > 5 ? findAll(x, y, radius) : [findCell(x, y)];
-    if (landOnly) selection = selection.filter(i => worldContext.pack.cells.h[i] >= 20);
-    if (!selection.length) return;
+  ZonesRenderer.render(worldContext, viewContext, appServices);
+  zonesEditorAddLines();
+  exitZonesManualAssignment();
+}
 
-    const zoneId = +((body.querySelector("div.selected") as HTMLElement | null)?.dataset.id ?? "0");
-    const zone = worldContext.pack.zones.find((z: Zone) => z.i === zoneId);
-    if (!zone) return;
+function cancelZonesManualAssignent(): void {
+  ZonesRenderer.render(worldContext, viewContext, appServices);
+  exitZonesManualAssignment();
+}
 
-    if (eraseMode) {
-      const data = viewContext.zones
-        .selectAll<SVGPolygonElement, ZoneCellDatum>("polygon")
-        .data()
-        .filter(d => !(d.zoneId === zoneId && selection.includes(d.cell)));
-      viewContext.zones
-        .selectAll<SVGPolygonElement, ZoneCellDatum>("polygon")
-        .data(data, d => `${d.zoneId}-${d.cell}`)
-        .exit()
-        .remove();
-    } else {
-      const data = selection.map(cell => ({ cell, zoneId, fill: zone.color }));
-      viewContext.zones
-        .selectAll<SVGPolygonElement, ZoneCellDatum>("polygon")
-        .data(data, d => `${d.zoneId}-${d.cell}`)
-        .enter()
-        .append("polygon")
-        .attr("points", d => getPackPolygon(d.cell, worldContext.pack).join(" "))
-        .attr("fill", d => d.fill)
-        .attr("data-zone", d => d.zoneId)
-        .attr("data-cell", d => d.cell);
-    }
-  }
+function exitZonesManualAssignment(_close?: string): void {
+  viewContext.customization = 0;
+  setZonesEditorState({ customizationMode: 0 });
+  removeCircle();
 
-  function moveZoneBrush(event: MouseEvent): void {
-    showMainTip();
-    const [px, py] = pointer(event);
-    const radius = +ensureEl<HTMLInputElement>("zonesBrush").value;
-    moveCircle(px, py, radius);
-  }
+  restoreDefaultEvents?.();
+  clearMainTip();
+}
 
-  function applyZonesManualAssignent(): void {
-    const data = viewContext.zones.selectAll<SVGPolygonElement, ZoneCellDatum>("polygon").data();
-    const zoneCells: Record<number, number[]> = data.reduce((acc: Record<number, number[]>, d) => {
-      if (!acc[d.zoneId]) acc[d.zoneId] = [];
-      acc[d.zoneId].push(d.cell);
-      return acc;
-    }, {});
-
-    const filterBy = ensureEl<HTMLSelectElement>("zonesFilterType").value;
-    const isFiltered = filterBy && filterBy !== "all";
-    const visibleZones = worldContext.pack.zones.filter(
-      (zone: Zone) => !zone.hidden && (!isFiltered || zone.type === filterBy)
-    );
-    visibleZones.forEach((zone: Zone) => {
-      zone.cells = zoneCells[zone.i] || [];
-    });
-
+function changeFill(fill: string, zone: Zone): void {
+  const callback = (newFill: string) => {
+    zone.color = newFill;
     ZonesRenderer.render(worldContext, viewContext, appServices);
     zonesEditorAddLines();
-    exitZonesManualAssignment();
+  };
+
+  openPicker(fill, callback);
+}
+
+function toggleVisibility(zone: Zone): void {
+  const isHidden = Boolean(zone.hidden);
+  if (isHidden) delete zone.hidden;
+  else zone.hidden = true;
+
+  ZonesRenderer.render(worldContext, viewContext, appServices);
+  zonesEditorAddLines();
+}
+
+function toggleFog(zone: Zone): void {
+  const st = getZonesEditorState();
+  const zRow = st.zones.find(z => z.i === zone.i);
+  const inactive = !zRow?.focused;
+  if (inactive) {
+    const path = viewContext.zones.select(`#zone${zone.i}`).attr("d");
+    fog(`focusZone${zone.i}`, path);
+  } else {
+    unfog(`focusZone${zone.i}`);
+  }
+  zonesEditorAddLines();
+}
+
+function toggleLegend(): void {
+  if ((viewContext.legend as Selection<SVGGElement, unknown, null, undefined>).selectAll("*").size()) {
+    clearLegend();
+    return;
   }
 
-  function cancelZonesManualAssignent(): void {
-    ZonesRenderer.render(worldContext, viewContext, appServices);
-    exitZonesManualAssignment();
+  const st = getZonesEditorState();
+  const filterBy = st.filterBy;
+  const isFiltered = filterBy && filterBy !== "all";
+  const visibleZones = worldContext.pack.zones.filter(
+    (zone: Zone) => !zone.hidden && (!isFiltered || zone.type === filterBy)
+  );
+  const data = visibleZones.map(({ i, name, color }: Zone) => [`zone${i}`, color, name] as [string, string, string]);
+  drawLegend("Zones", data);
+}
+
+function addZonesLayer(): void {
+  const zoneId = worldContext.pack.zones.length ? Math.max(...worldContext.pack.zones.map((z: Zone) => z.i)) + 1 : 0;
+  const name = "Unknown zone";
+  const type = "Unknown";
+  const color = `url(#hatch${zoneId % 42})`;
+  worldContext.pack.zones.push({ i: zoneId, name, type, color, cells: [] });
+
+  zonesEditorAddLines();
+  ZonesRenderer.render(worldContext, viewContext, appServices);
+}
+
+function downloadZonesData(): void {
+  const st = getZonesEditorState();
+  const unit = "sq";
+  let data = `Id,Color,Description,Type,Cells,Area ${unit},Population\n`;
+
+  st.zones.forEach(z => {
+    data += `${z.i},`;
+    data += `${z.color},`;
+    data += `${z.name},`;
+    data += `${z.type},`;
+    data += `${z.cells},`;
+    data += `${z.area},`;
+    data += `${z.population}\n`;
+  });
+
+  const name = `${getFileName("Zones")}.csv`;
+  downloadFile(data, name);
+}
+
+function changeDescription(zone: Zone, value: string): void {
+  zone.name = value;
+  viewContext.zones.select(`#zone${zone.i}`).attr("data-description", value);
+}
+
+function changeType(zone: Zone, value: string): void {
+  zone.type = value;
+  viewContext.zones.select(`#zone${zone.i}`).attr("data-type", value);
+}
+
+function changePopulation(zone: Zone): void {
+  const landCells = zone.cells.filter(i => worldContext.pack.cells.h[i] >= 20);
+  if (!landCells.length) {
+    tip("Zone does not have any land cells, cannot change population", false, "error");
+    return;
   }
 
-  function exitZonesManualAssignment(close?: string): void {
-    viewContext.customization = 0;
-    removeCircle();
-    document.querySelectorAll("#zonesFooter > *").forEach(el => {
-      (el as HTMLElement).style.display = "inline-block";
-    });
-    ensureEl("zonesManuallyButtons").style.display = "none";
+  const burgs = worldContext.pack.burgs.filter(
+    (b: { removed?: boolean; cell: number }) => !b.removed && landCells.includes(b.cell)
+  );
+  const rural = rn(sum(landCells.map((i: number) => worldContext.pack.cells.pop[i])) * worldContext.populationRate);
+  const urban = rn(
+    sum(
+      landCells
+        .map((i: number) => worldContext.pack.cells.burg[i])
+        .map((b: number) => worldContext.pack.burgs[b].population)
+    ) *
+      worldContext.populationRate *
+      worldContext.urbanization
+  );
+  const total = rural + urban;
+  const l = (n: number) => Number(n).toLocaleString();
 
-    document
-      .getElementById("zonesEditorContainer")!
-      .querySelectorAll(".hide:not(.show)")
-      .forEach(el => {
-        el.classList.remove("hidden");
-      });
-    (document.getElementById("zonesTotal") as HTMLElement).style.display = "block";
-    body.querySelectorAll("div > input, select, svg").forEach(e => {
-      (e as HTMLElement).style.pointerEvents = "all";
-    });
-    if (!close)
-      openDialog("zonesEditor", { position: { my: "right top", at: "right-10 top+10", of: "svg", collision: "fit" } });
-
-    restoreDefaultEvents?.();
-    clearMainTip();
-
-    const selected = body.querySelector("div.selected");
-    if (selected) selected.classList.remove("selected");
-  }
-
-  function changeFill(fill: string, zone: Zone): void {
-    const callback = (newFill: string) => {
-      zone.color = newFill;
-      ZonesRenderer.render(worldContext, viewContext, appServices);
-      zonesEditorAddLines();
-    };
-
-    openPicker(fill, callback);
-  }
-
-  function toggleVisibility(zone: Zone): void {
-    const isHidden = Boolean(zone.hidden);
-    if (isHidden) delete zone.hidden;
-    else zone.hidden = true;
-
-    ZonesRenderer.render(worldContext, viewContext, appServices);
-    zonesEditorAddLines();
-  }
-
-  function toggleFog(zone: Zone, cl: DOMTokenList): void {
-    const inactive = cl.contains("inactive");
-    cl.toggle("inactive");
-
-    if (inactive) {
-      const path = viewContext.zones.select(`#zone${zone.i}`).attr("d");
-      fog(`focusZone${zone.i}`, path);
-    } else {
-      unfog(`focusZone${zone.i}`);
-    }
-  }
-
-  function toggleLegend(): void {
-    if ((viewContext.legend as Selection<SVGGElement, unknown, null, undefined>).selectAll("*").size()) {
-      clearLegend();
-      return;
-    }
-
-    const filterBy = ensureEl<HTMLSelectElement>("zonesFilterType").value;
-    const isFiltered = filterBy && filterBy !== "all";
-    const visibleZones = worldContext.pack.zones.filter(
-      (zone: Zone) => !zone.hidden && (!isFiltered || zone.type === filterBy)
-    );
-    const data = visibleZones.map(({ i, name, color }: Zone) => [`zone${i}`, color, name] as [string, string, string]);
-    drawLegend("Zones", data);
-  }
-
-  function togglePercentageMode(): void {
-    const zonesFooterCells = document.getElementById("zonesFooterCells") as HTMLElement;
-    const zonesFooterArea = document.getElementById("zonesFooterArea") as HTMLElement;
-    const zonesFooterPopulation = document.getElementById("zonesFooterPopulation") as HTMLElement;
-
-    if (body.dataset.type === "absolute") {
-      body.dataset.type = "percentage";
-      const totalCells = +zonesFooterCells.innerHTML;
-      const totalArea = +zonesFooterArea.dataset.area!;
-      const totalPopulation = +zonesFooterPopulation.dataset.population!;
-
-      body.querySelectorAll(":scope > div").forEach(el => {
-        const div = el as HTMLElement;
-        (div.querySelector(".stateCells") as HTMLElement).innerHTML =
-          `${rn((+div.dataset.cells! / totalCells) * 100, 2)}%`;
-        (div.querySelector(".biomeArea") as HTMLElement).innerHTML =
-          `${rn((+div.dataset.area! / totalArea) * 100, 2)}%`;
-        (div.querySelector(".zonePopulation") as HTMLElement).innerHTML =
-          `${rn((+div.dataset.population! / totalPopulation) * 100, 2)}%`;
-      });
-    } else {
-      body.dataset.type = "absolute";
-      zonesEditorAddLines();
-    }
-  }
-
-  function addZonesLayer(): void {
-    const zoneId = worldContext.pack.zones.length ? Math.max(...worldContext.pack.zones.map((z: Zone) => z.i)) + 1 : 0;
-    const name = "Unknown zone";
-    const type = "Unknown";
-    const color = `url(#hatch${zoneId % 42})`;
-    worldContext.pack.zones.push({ i: zoneId, name, type, color, cells: [] });
-
-    zonesEditorAddLines();
-    ZonesRenderer.render(worldContext, viewContext, appServices);
-  }
-
-  function downloadZonesData(): void {
-    const areaUnitEl = document.getElementById("areaUnit") as HTMLSelectElement;
-    const distanceUnitEl = document.getElementById("distanceUnitInput") as HTMLInputElement;
-    const unit = areaUnitEl.value === "square" ? `${distanceUnitEl.value}2` : areaUnitEl.value;
-    let data = `Id,Color,Description,Type,Cells,Area ${unit},Population\n`;
-
-    body.querySelectorAll(":scope > div").forEach(el => {
-      const div = el as HTMLElement;
-      data += `${div.dataset.id},`;
-      data += `${div.dataset.color},`;
-      data += `${div.dataset.description},`;
-      data += `${div.dataset.type},`;
-      data += `${div.dataset.cells},`;
-      data += `${div.dataset.area},`;
-      data += `${div.dataset.population}\n`;
-    });
-
-    const name = `${getFileName("Zones")}.csv`;
-    downloadFile(data, name);
-  }
-
-  function changeDescription(zone: Zone, value: string): void {
-    zone.name = value;
-    viewContext.zones.select(`#zone${zone.i}`).attr("data-description", value);
-  }
-
-  function changeType(zone: Zone, value: string): void {
-    zone.type = value;
-    viewContext.zones.select(`#zone${zone.i}`).attr("data-type", value);
-  }
-
-  function changePopulation(zone: Zone): void {
-    const landCells = zone.cells.filter(i => worldContext.pack.cells.h[i] >= 20);
-    if (!landCells.length) {
-      tip("Zone does not have any land cells, cannot change population", false, "error");
-      return;
-    }
-
-    const burgs = worldContext.pack.burgs.filter(
-      (b: { removed?: boolean; cell: number }) => !b.removed && landCells.includes(b.cell)
-    );
-    const rural = rn(sum(landCells.map((i: number) => worldContext.pack.cells.pop[i])) * worldContext.populationRate);
-    const urban = rn(
-      sum(
-        landCells
-          .map((i: number) => worldContext.pack.cells.burg[i])
-          .map((b: number) => worldContext.pack.burgs[b].population)
-      ) *
-        worldContext.populationRate *
-        worldContext.urbanization
-    );
-    const total = rural + urban;
-    const l = (n: number) => Number(n).toLocaleString();
-
-    alertMessage.innerHTML = /* html */ `Rural: <input type="number" min="0" step="1" id="ruralPop" value=${rural} style="width:6em" /> Urban:
+  alertMessage.innerHTML = /* html */ `Rural: <input type="number" min="0" step="1" id="ruralPop" value=${rural} style="width:6em" /> Urban:
       <input type="number" min="0" step="1" id="urbanPop" value=${urban} style="width:6em" ${
         burgs.length ? "" : "disabled"
       } />
@@ -525,85 +444,84 @@ export function editZones(): void {
         total
       )}</span> (<span id="totalPopPerc">100</span>%)</p>`;
 
-    const ruralPopEl = document.getElementById("ruralPop") as HTMLInputElement;
-    const urbanPopEl = document.getElementById("urbanPop") as HTMLInputElement;
-    const totalPopEl = document.getElementById("totalPop") as HTMLElement;
-    const totalPopPercEl = document.getElementById("totalPopPerc") as HTMLElement;
+  const ruralPopEl = document.getElementById("ruralPop") as HTMLInputElement;
+  const urbanPopEl = document.getElementById("urbanPop") as HTMLInputElement;
+  const totalPopEl = document.getElementById("totalPop") as HTMLElement;
+  const totalPopPercEl = document.getElementById("totalPopPerc") as HTMLElement;
 
-    const update = () => {
-      const totalNew = ruralPopEl.valueAsNumber + urbanPopEl.valueAsNumber;
-      if (Number.isNaN(totalNew)) return;
-      totalPopEl.innerHTML = l(totalNew);
-      totalPopPercEl.innerHTML = String(rn((totalNew / total) * 100));
-    };
+  const update = () => {
+    const totalNew = ruralPopEl.valueAsNumber + urbanPopEl.valueAsNumber;
+    if (Number.isNaN(totalNew)) return;
+    totalPopEl.innerHTML = l(totalNew);
+    totalPopPercEl.innerHTML = String(rn((totalNew / total) * 100));
+  };
 
-    ruralPopEl.oninput = () => update();
-    urbanPopEl.oninput = () => update();
+  ruralPopEl.oninput = () => update();
+  urbanPopEl.oninput = () => update();
 
-    openRichDialog({
-      content: alertMessage.innerHTML,
-      resizable: false,
-      title: "Change zone population",
-      width: "24em",
-      buttons: {
-        Apply: () => {
-          applyPopulationChange();
-          /* $(this).dialog("close") removed */
-        },
-        Cancel: () => {
-          /* $(this).dialog("close") removed */
-        }
+  openRichDialog({
+    content: alertMessage.innerHTML,
+    resizable: false,
+    title: "Change zone population",
+    width: "24em",
+    buttons: {
+      Apply: () => {
+        applyPopulationChange();
+        /* $(this).dialog("close") removed */
       },
-      position: { my: "center", at: "center", of: "svg" }
-    });
+      Cancel: () => {
+        /* $(this).dialog("close") removed */
+      }
+    },
+    position: { my: "center", at: "center", of: "svg" }
+  });
 
-    function applyPopulationChange(): void {
-      const ruralChange = ruralPopEl.valueAsNumber / rural;
-      if (Number.isFinite(ruralChange) && ruralChange !== 1) {
-        landCells.forEach(i => {
-          worldContext.pack.cells.pop[i] *= ruralChange;
-        });
-      }
-      if (!Number.isFinite(ruralChange) && +ruralPopEl.value > 0) {
-        const points = ruralPopEl.valueAsNumber / worldContext.populationRate;
-        const pop = rn(points / landCells.length);
-        landCells.forEach(i => {
-          worldContext.pack.cells.pop[i] = pop;
-        });
-      }
+  function applyPopulationChange(): void {
+    const ruralChange = ruralPopEl.valueAsNumber / rural;
+    if (Number.isFinite(ruralChange) && ruralChange !== 1) {
+      landCells.forEach(i => {
+        worldContext.pack.cells.pop[i] *= ruralChange;
+      });
+    }
+    if (!Number.isFinite(ruralChange) && +ruralPopEl.value > 0) {
+      const points = ruralPopEl.valueAsNumber / worldContext.populationRate;
+      const pop = rn(points / landCells.length);
+      landCells.forEach(i => {
+        worldContext.pack.cells.pop[i] = pop;
+      });
+    }
 
-      const urbanChange = urbanPopEl.valueAsNumber / urban;
-      if (Number.isFinite(urbanChange) && urbanChange !== 1) {
-        burgs.forEach(b => {
-          b.population = rn((b.population ?? 0) * urbanChange, 4);
-        });
-      }
-      if (!Number.isFinite(urbanChange) && +urbanPopEl.value > 0) {
-        const points = urbanPopEl.valueAsNumber / worldContext.populationRate / worldContext.urbanization;
-        const population = rn(points / burgs.length, 4);
-        burgs.forEach(b => {
-          b.population = population;
-        });
-      }
+    const urbanChange = urbanPopEl.valueAsNumber / urban;
+    if (Number.isFinite(urbanChange) && urbanChange !== 1) {
+      burgs.forEach(b => {
+        b.population = rn((b.population ?? 0) * urbanChange, 4);
+      });
+    }
+    if (!Number.isFinite(urbanChange) && +urbanPopEl.value > 0) {
+      const points = urbanPopEl.valueAsNumber / worldContext.populationRate / worldContext.urbanization;
+      const population = rn(points / burgs.length, 4);
+      burgs.forEach(b => {
+        b.population = population;
+      });
+    }
 
-      if (layerIsOn("togglePopulation")) PopulationRenderer.render(worldContext, viewContext, appServices);
+    if (layerIsOn("togglePopulation")) PopulationRenderer.render(worldContext, viewContext, appServices);
+    zonesEditorAddLines();
+  }
+}
+
+function zoneRemove(zone: Zone): void {
+  confirmationDialog({
+    title: "Remove zone",
+    message: "Are you sure you want to remove the zone? <br>This action cannot be reverted",
+    confirm: "Remove",
+    onConfirm: () => {
+      worldContext.pack.zones = worldContext.pack.zones.filter((z: Zone) => z.i !== zone.i);
+      viewContext.zones.select(`#zone${zone.i}`).remove();
+      unfog(`focusZone${zone.i}`);
       zonesEditorAddLines();
     }
-  }
-
-  function zoneRemove(zone: Zone): void {
-    confirmationDialog({
-      title: "Remove zone",
-      message: "Are you sure you want to remove the zone? <br>This action cannot be reverted",
-      confirm: "Remove",
-      onConfirm: () => {
-        worldContext.pack.zones = worldContext.pack.zones.filter((z: Zone) => z.i !== zone.i);
-        viewContext.zones.select(`#zone${zone.i}`).remove();
-        unfog(`focusZone${zone.i}`);
-        zonesEditorAddLines();
-      }
-    });
-  }
+  });
 }
 
 export function initZonesEditor(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {
