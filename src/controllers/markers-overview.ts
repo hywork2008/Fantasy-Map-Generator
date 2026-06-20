@@ -228,7 +228,8 @@ export function overviewMarkers(): void {
 
   function toggleAddMarkerMode(): void {
     markersAddFromOverview.classList.toggle("pressed");
-    addMarker.click();
+    const addMarker = document.getElementById("addMarker");
+    if (addMarker) addMarker.click();
   }
 
   function changeMarkerType(): void {
@@ -293,8 +294,8 @@ export function overviewMarkers(): void {
   function close(): void {
     for (const removeListener of listeners) removeListener();
 
-    addMarker.classList.remove("pressed");
-    markerAdd.classList.remove("pressed");
+    const addMarker = document.getElementById("addMarker");
+    if (addMarker) addMarker.classList.remove("pressed");
     restoreDefaultEvents?.();
     clearMainTip();
   }

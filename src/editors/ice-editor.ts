@@ -9,8 +9,9 @@ import { editStyle } from "../controllers/style";
 import type { IceIceberg } from "../modules/ice";
 import { Ice } from "../modules/ice";
 import { redrawGlacier, redrawIceberg } from "../renderers/index";
-import { elSelected, modules, setElSelected } from "../store/editorState";
-import { closeDialog, closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
+import { elSelected, setElSelected } from "../store/editorState";
+import { getIceEditorState, setIceEditorState } from "../store/iceEditorState";
+import { closeDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { findGridCell, parseTransform } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
 import { clearMainTip, tip } from "../utils/uiHelpers";
@@ -23,7 +24,6 @@ export function editIce(element: SVGElement): void {
   if (viewContext.customization) return;
   if (elSelected && element === elSelected.node()) return;
 
-  closeDialogs(".stable");
   if (!layerIsOn("toggleIce")) toggleIce();
 
   setElSelected(select(element as unknown as Element));
@@ -31,100 +31,11 @@ export function editIce(element: SVGElement): void {
   const iceElement = worldContext.pack.ice.find(el => el.i === id);
   const isGlacier = elSelected!.attr("type") === "glacier";
   const type = isGlacier ? "Glacier" : "Iceberg";
+  const size = isGlacier ? 1 : ((iceElement as IceIceberg)?.size ?? 1);
 
-  const iceRandomize = document.getElementById("iceRandomize") as HTMLElement;
-  const iceSizeEl = document.getElementById("iceSize") as HTMLInputElement;
-
-  iceRandomize.style.display = isGlacier ? "none" : "inline-block";
-  iceSizeEl.style.display = isGlacier ? "none" : "inline-block";
-  if (!isGlacier) iceSizeEl.value = String((iceElement as IceIceberg)?.size ?? "");
-
-  // Declare before the early-return guard so drag handlers never see TDZ variables.
-  // (function declarations are hoisted but `let` is not, so placing these after the
-  // `if (modules.editIce) return` would leave them uninitialised on every call after the first.)
   let _idx = 0,
     _idy = 0,
     _iceId = 0;
-
-  viewContext.ice
-    .selectAll<SVGElement, unknown>("*")
-    .classed("draggable", true)
-    .call(drag<SVGElement, unknown>().on("start", dragElementStart).on("drag", dragElementDrag));
-
-  openDialog("iceEditor", {
-    title: `Edit ${type}`,
-    resizable: false,
-    position: { my: "center top+60", at: "top", of: "svg", collision: "fit" },
-    close: closeEditor
-  });
-
-  if (modules.editIce) return;
-  modules.editIce = true;
-
-  document.getElementById("iceEditStyle")!.addEventListener("click", () => editStyle("ice"));
-  iceRandomize.addEventListener("click", randomizeShape);
-  iceSizeEl.addEventListener("input", changeSize);
-  iceNew.addEventListener("click", toggleAdd);
-  document.getElementById("iceRemove")!.addEventListener("click", removeIce);
-
-  function randomizeShape(): void {
-    const selectedId = +elSelected!.attr("data-id");
-    Ice.randomizeIcebergShape(selectedId);
-    redrawIceberg(worldContext, viewContext, appServices, selectedId);
-  }
-
-  function changeSize(this: HTMLInputElement): void {
-    const newSize = +this.value;
-    const selectedId = +elSelected!.attr("data-id");
-    Ice.changeIcebergSize(selectedId, newSize);
-    redrawIceberg(worldContext, viewContext, appServices, selectedId);
-  }
-
-  function toggleAdd(): void {
-    iceNew.classList.toggle("pressed");
-    if (iceNew.classList.contains("pressed")) {
-      viewContext.viewbox.style("cursor", "crosshair");
-      interactionManager.setClickHandler(addIcebergOnClick);
-      tip("Click on map to create an iceberg. Hold Shift to add multiple", true);
-    } else {
-      clearMainTip();
-      interactionManager.resetClickHandler();
-      viewContext.viewbox.style("cursor", "default");
-    }
-  }
-
-  function addIcebergOnClick(this: SVGElement, event: MouseEvent): void {
-    const [x, y] = pointer(event, this);
-    const i = findGridCell(x, y, worldContext.grid);
-    const size = +((document.getElementById("iceSize") as HTMLInputElement)?.value || "1") || 1;
-
-    const id = Ice.addIceberg(i, size);
-    redrawIceberg(worldContext, viewContext, appServices, id);
-
-    if (event.shiftKey === false) toggleAdd();
-  }
-
-  function removeIce(): void {
-    const iceType = elSelected!.attr("type") === "glacier" ? "Glacier" : "Iceberg";
-    alertMessage.innerHTML = /* html */ `Are you sure you want to remove the ${iceType}?`;
-    openRichDialog({
-      content: alertMessage.innerHTML,
-      resizable: false,
-      title: `Remove ${iceType}`,
-      buttons: {
-        Remove: () => {
-          const id = +elSelected!.attr("data-id");
-          const removedType = Ice.removeIce(id);
-          if (removedType === "glacier") redrawGlacier(worldContext, viewContext, appServices, id);
-          else if (removedType === "iceberg") redrawIceberg(worldContext, viewContext, appServices, id);
-          closeDialog("iceEditor");
-        },
-        Cancel: () => {
-          /* $(this).dialog("close") removed */
-        }
-      }
-    });
-  }
 
   function dragElementStart(this: SVGElement, event: D3DragEvent<SVGElement, unknown, unknown>): void {
     _iceId = +elSelected!.attr("data-id");
@@ -141,16 +52,103 @@ export function editIce(element: SVGElement): void {
     if (iceData) iceData.offset = [_idx + x, _idy + y];
   }
 
-  function closeEditor(): void {
-    viewContext.ice
-      .selectAll<SVGElement, unknown>("*")
-      .classed("draggable", false)
-      .call(drag<SVGElement, unknown>().on("drag", null));
+  viewContext.ice
+    .selectAll<SVGElement, unknown>("*")
+    .classed("draggable", true)
+    .call(drag<SVGElement, unknown>().on("start", dragElementStart).on("drag", dragElementDrag));
+
+  setIceEditorState({
+    isOpen: true,
+    type,
+    selectedId: id,
+    size,
+    isAdding: false
+  });
+}
+
+function randomizeShape(): void {
+  const { selectedId } = getIceEditorState();
+  if (selectedId === null) return;
+  Ice.randomizeIcebergShape(selectedId);
+  redrawIceberg(worldContext, viewContext, appServices, selectedId);
+}
+
+function changeSize(newSize: number): void {
+  const { selectedId } = getIceEditorState();
+  if (selectedId === null) return;
+  setIceEditorState({ size: newSize });
+  Ice.changeIcebergSize(selectedId, newSize);
+  redrawIceberg(worldContext, viewContext, appServices, selectedId);
+}
+
+function addIcebergOnClick(this: SVGElement, event: MouseEvent): void {
+  const [x, y] = pointer(event, this);
+  const i = findGridCell(x, y, worldContext.grid);
+  const { size } = getIceEditorState();
+
+  const id = Ice.addIceberg(i, size);
+  redrawIceberg(worldContext, viewContext, appServices, id);
+
+  if (event.shiftKey === false) toggleAdd();
+}
+
+function toggleAdd(): void {
+  const { isAdding } = getIceEditorState();
+  const nextIsAdding = !isAdding;
+  setIceEditorState({ isAdding: nextIsAdding });
+
+  if (nextIsAdding) {
+    viewContext.viewbox.style("cursor", "crosshair");
+    interactionManager.setClickHandler(addIcebergOnClick);
+    tip("Click on map to create an iceberg. Hold Shift to add multiple", true);
+  } else {
     clearMainTip();
-    iceNew.classList.remove("pressed");
-    unselect();
+    interactionManager.resetClickHandler();
+    viewContext.viewbox.style("cursor", "default");
   }
 }
+
+function removeIce(): void {
+  const { type, selectedId } = getIceEditorState();
+  if (selectedId === null) return;
+
+  alertMessage.innerHTML = /* html */ `Are you sure you want to remove the ${type}?`;
+  openRichDialog({
+    content: alertMessage.innerHTML,
+    resizable: false,
+    title: `Remove ${type}`,
+    buttons: {
+      Remove: () => {
+        const removedType = Ice.removeIce(selectedId);
+        if (removedType === "glacier") redrawGlacier(worldContext, viewContext, appServices, selectedId);
+        else if (removedType === "iceberg") redrawIceberg(worldContext, viewContext, appServices, selectedId);
+        closeIceEditor();
+      },
+      Cancel: () => {
+        /* Cancel */
+      }
+    }
+  });
+}
+
+export function closeIceEditor(): void {
+  setIceEditorState({ isOpen: false, isAdding: false });
+  viewContext.ice
+    .selectAll<SVGElement, unknown>("*")
+    .classed("draggable", false)
+    .call(drag<SVGElement, unknown>().on("drag", null));
+  clearMainTip();
+  unselect();
+  closeDialog("iceEditor");
+}
+
+export const iceEditorActions = {
+  randomizeShape,
+  changeSize,
+  toggleAdd,
+  removeIce,
+  openStyleEditor: () => editStyle("ice")
+};
 
 export function initIceEditor(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {
   worldContext = wc;
