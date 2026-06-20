@@ -348,7 +348,7 @@ function uploadImage(file: File, uploadType: "image" | "svg"): void {
 async function download(format: string): Promise<void> {
   const { targetId, targetElement, downloadSize } = getEmblemEditorState();
   const el = targetElement;
-  const coa = document.getElementById(targetId) as unknown as SVGElement;
+  const coa = document.getElementById(targetId) as Element as SVGElement;
   const url = await getURL(coa, downloadSize);
   const link = document.createElement("a");
   const name = el ? ("fullName" in el && el.fullName ? el.fullName : el.name) : "unknown";
@@ -418,7 +418,7 @@ async function downloadGallery(): Promise<void> {
     `<div><h2>States</h2>` +
     validStates
       .map(state => {
-        const stateEl = document.getElementById(`stateCOA${state.i}`) as unknown as SVGElement;
+        const stateEl = document.getElementById(`stateCOA${state.i}`) as Element as SVGElement;
         return `<figure id="state_${state.i}"><a href="#provinces_${state.i}"><figcaption>${
           state.fullName
         }</figcaption>${getSVG(stateEl, 200)}</a></figure>`;
@@ -431,7 +431,7 @@ async function downloadGallery(): Promise<void> {
       const stateProvinces = validProvinces.filter(p => p.state === state.i);
       const figures = stateProvinces
         .map(province => {
-          const provEl = document.getElementById(`provinceCOA${province.i}`) as unknown as SVGElement;
+          const provEl = document.getElementById(`provinceCOA${province.i}`) as Element as SVGElement;
           return `<figure id="province_${province.i}"><a href="#burgs_${province.i}"><figcaption>${
             province.fullName
           }</figcaption>${getSVG(provEl, 200)}</a></figure>`;
@@ -452,7 +452,7 @@ async function downloadGallery(): Promise<void> {
           const provinceBurgs = stateBurgs.filter(b => worldContext.pack.cells.province[b.cell] === province.i);
           const provinceBurgFigures = provinceBurgs
             .map(burg => {
-              const burgEl = document.getElementById(`burgCOA${burg.i}`) as unknown as SVGElement;
+              const burgEl = document.getElementById(`burgCOA${burg.i}`) as Element as SVGElement;
               return `<figure id="burg_${burg.i}"><figcaption>${burg.name}</figcaption>${getSVG(burgEl, 200)}</figure>`;
             })
             .join("");
@@ -465,7 +465,7 @@ async function downloadGallery(): Promise<void> {
       const stateBurgOutOfProvinces = stateBurgs.filter(b => !worldContext.pack.cells.province[b.cell]);
       const stateBurgOutOfProvincesFigures = stateBurgOutOfProvinces
         .map(burg => {
-          const burgEl = document.getElementById(`burgCOA${burg.i}`) as unknown as SVGElement;
+          const burgEl = document.getElementById(`burgCOA${burg.i}`) as Element as SVGElement;
           return `<figure id="burg_${burg.i}"><figcaption>${burg.name}</figcaption>${getSVG(burgEl, 200)}</figure>`;
         })
         .join("");
@@ -480,7 +480,7 @@ async function downloadGallery(): Promise<void> {
     ? "<div><h2>Independent burgs</h2>" +
       neutralBurgs
         .map(burg => {
-          const burgEl = document.getElementById(`burgCOA${burg.i}`) as unknown as SVGElement;
+          const burgEl = document.getElementById(`burgCOA${burg.i}`) as Element as SVGElement;
           return `<figure id="burg_${burg.i}"><figcaption>${burg.name}</figcaption>${getSVG(burgEl, 200)}</figure>`;
         })
         .join("") +

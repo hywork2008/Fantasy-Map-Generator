@@ -26,7 +26,7 @@ export function editIce(element: SVGElement): void {
 
   if (!layerIsOn("toggleIce")) toggleIce();
 
-  setElSelected(select(element as unknown as Element));
+  setElSelected(select(element as Element));
   const id = +elSelected!.attr("data-id");
   const iceElement = worldContext.pack.ice.find(el => el.i === id);
   const isGlacier = elSelected!.attr("type") === "glacier";

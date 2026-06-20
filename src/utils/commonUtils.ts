@@ -295,11 +295,7 @@ export const initializePrompt = (): void => {
     required: true
   };
 
-  (
-    window as unknown as {
-      prompt: (promptText?: string, options?: PromptOptions, callback?: (value: number | string) => void) => void;
-    }
-  ).prompt = (
+  window.customPrompt = (
     promptText: string = defaultText,
     options: PromptOptions = defaultOptions,
     callback?: (value: number | string) => void
@@ -354,12 +350,13 @@ type CustomPromptFn = (
 ) => void;
 
 export function showPrompt(text: string, options: PromptOptions, callback: (value: number | string) => void): void {
-  (window as unknown as { prompt: CustomPromptFn }).prompt(text, options, callback);
+  window.customPrompt?.(text, options, callback);
 }
 
 declare global {
   interface Window {
     ERROR: boolean;
+    customPrompt?: CustomPromptFn;
 
     clipPoly: (points: [number, number][], secure?: number) => [number, number][];
     getSegmentId: typeof getSegmentId;

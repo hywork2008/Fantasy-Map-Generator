@@ -28,7 +28,7 @@ export function editMarker(markerI?: number): void {
   if (!result) return;
   const { element, marker } = result;
 
-  setElSelected(select(element as unknown as Element))
+  setElSelected(select(element as Element))
     .raise()
     .call(drag<Element, unknown>().on("start", dragMarkerStart).on("drag", dragMarkerDrag).on("end", dragMarkerEnd))
     .classed("draggable", true);

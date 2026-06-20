@@ -10,7 +10,7 @@ export const ensureEl = <T extends Element = HTMLElement>(id: string): T => {
     console.error(`Element with id "${id}" not found.`);
     // TOBE: throw new Error(`Element with id "${id}" not found.`);
   }
-  return el as unknown as T;
+  return el as Element as T;
 };
 
 /**

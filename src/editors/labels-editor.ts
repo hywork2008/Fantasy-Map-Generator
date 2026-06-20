@@ -23,7 +23,7 @@ export function editLabel(tspan?: Element): void {
   let _ldx = 0,
     _ldy = 0;
 
-  setElSelected(select(text as unknown as Element))
+  setElSelected(select(text as Element))
     .call(
       drag<Element, unknown>()
         .on("start", (event: D3DragEvent<Element, unknown, unknown>) => {
@@ -283,7 +283,7 @@ function generateRandomName(): void {
     const culture = worldContext.pack.states[id].culture;
     name = Names.getState(Names.getCulture(culture, 4, 7, ""), culture);
   } else {
-    const box = (elSelected!.node() as unknown as SVGGraphicsElement).getBBox();
+    const box = (elSelected!.node() as SVGGraphicsElement).getBBox();
     const cell = findCell((box.x + box.width) / 2, (box.y + box.height) / 2);
     const culture = worldContext.pack.cells.culture[cell];
     name = Names.getCulture(culture);
@@ -318,7 +318,7 @@ function changeLetterSpacingSize(value: number): void {
 }
 
 function editLabelAlign(): void {
-  const bbox = (elSelected!.node() as unknown as SVGGraphicsElement).getBBox();
+  const bbox = (elSelected!.node() as SVGGraphicsElement).getBBox();
   const c = [bbox.x + bbox.width / 2, bbox.y + bbox.height / 2];
   const path = viewContext.defs.select(`#textPath_${elSelected!.attr("id")}`);
   path.attr("d", `M${c[0] - bbox.width},${c[1]}h${bbox.width * 2}`);

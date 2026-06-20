@@ -47,7 +47,7 @@ function updateRiverData(): void {
   const basinName = worldContext.pack.rivers.find((river: River) => river.i === r.basin)?.name ?? "";
   const distanceUnitInput = ensureEl<HTMLSelectElement>("distanceUnitInput");
 
-  r.length = rn((elSelected!.node() as unknown as SVGPathElement).getTotalLength() / 2, 2);
+  r.length = rn((elSelected!.node() as SVGPathElement).getTotalLength() / 2, 2);
   const lengthUI = `${rn(r.length * worldContext.distanceScale)} ${distanceUnitInput.value}`;
 
   const { cells: riverCells, discharge, widthFactor, sourceWidth } = r;

@@ -632,7 +632,7 @@ class CoastlineEditorModule {
 
     const node = (event?.target ?? document.querySelector(".coastline path")) as SVGElement | null;
     viewContext.debug.append("g").attr("id", "vertices");
-    setElSelected(node ? select(node as unknown as Element) : null);
+    setElSelected(node ? select(node as Element) : null);
     if (node) {
       drawCoastlineVertices();
     }

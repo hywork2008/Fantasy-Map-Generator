@@ -152,7 +152,7 @@ export const unitsEditorActions = {
 
     const width = Math.min(worldContext.graphWidth, viewContext.svgWidth);
     const height = Math.min(worldContext.graphHeight, viewContext.svgHeight);
-    const pt = (document.getElementById("map") as unknown as SVGSVGElement).createSVGPoint();
+    const pt = (document.getElementById("map") as Element as SVGSVGElement).createSVGPoint();
     pt.x = width / 2;
     pt.y = height / 4;
     const p = pt.matrixTransform((viewContext.viewbox.node() as SVGGraphicsElement).getScreenCTM()!.inverse());

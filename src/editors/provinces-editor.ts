@@ -934,7 +934,7 @@ function applyProvincesManualAssignment(): void {
     .select("#temp")
     .selectAll("polygon")
     .each(function () {
-      const el = this as unknown as SVGPolygonElement;
+      const el = this as SVGPolygonElement;
       const i = +el.dataset.cell!;
       worldContext.pack.cells.province[i] = +el.dataset.province!;
     });
