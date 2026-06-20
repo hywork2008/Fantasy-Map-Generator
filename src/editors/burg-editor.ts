@@ -14,9 +14,10 @@ import type { Culture } from "../modules/cultures-generator";
 import { Names } from "../modules/names-generator";
 import { drawBurgIcon, drawBurgLabel } from "../renderers";
 import { COArenderer } from "../renderers/emblem-renderer";
+import { getBurgEditorState } from "../store/burgEditorState";
 import { elSelected, modules, setElSelected } from "../store/editorState";
 import { closeDialog, closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
-import { convertTemperature, ensureEl, findCell, openURL, parseTransform, rand, rn, showPrompt } from "../utils";
+import { convertTemperature, findCell, openURL, parseTransform, rand, rn, showPrompt } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
 import { clearMainTip, getHeight, tip } from "../utils/uiHelpers";
 import { editBurgGroups } from "./burg-group-editor";
@@ -51,365 +52,104 @@ export function editBurg(id?: number): void {
         })
     )
     .classed("draggable", true);
-  updateGroupsList();
-  updateBurgValues();
+
+  burgEditorInternal.updateGroupsList();
+  burgEditorInternal.updateBurgValues();
 
   openDialog("burgEditor", {
     title: "Edit Burg",
     resizable: false,
-    close: closeBurgEditor,
+    close: burgEditorInternal.closeBurgEditor,
     position: { my: "left top", at: "left+10 top+10", of: "svg", collision: "fit" }
   });
 
   if (modules.editBurg) return;
   modules.editBurg = true;
+}
 
-  // add listeners
-  ensureEl("burgName").addEventListener("input", changeName);
-  ensureEl("burgNameReRandom").addEventListener("click", generateNameRandom);
-  ensureEl("burgGroup").addEventListener("change", changeGroup);
-  ensureEl("burgGroupConfigure").addEventListener("click", editBurgGroups);
-  ensureEl("burgType").addEventListener("change", changeType);
-  ensureEl("burgCulture").addEventListener("change", changeCulture);
-  ensureEl("burgNameReCulture").addEventListener("click", generateNameCulture);
-  ensureEl("burgPopulation").addEventListener("change", changePopulation);
-  burgBody.querySelectorAll(".burgFeature").forEach(el => {
-    el.addEventListener("click", toggleFeature);
-  });
-  ensureEl("burgLinkOpen").addEventListener("click", openBurgLink);
+const burgEditorInternal = {
+  getBurgId(): number {
+    return +elSelected!.attr("data-id");
+  },
 
-  ensureEl("burgStyleShow").addEventListener("click", showStyleSection);
-  ensureEl("burgStyleHide").addEventListener("click", hideStyleSection);
-  ensureEl("burgEditLabelStyle").addEventListener("click", editGroupLabelStyle);
-  ensureEl("burgEditIconStyle").addEventListener("click", editGroupIconStyle);
-  ensureEl("burgEditAnchorStyle").addEventListener("click", editGroupAnchorStyle);
+  updateGroupsList(): void {
+    const groups = worldContext.options.burgs.groups.map(g => g.name);
+    getBurgEditorState().setGroups(groups);
+  },
 
-  ensureEl("burgEmblem").addEventListener("click", openEmblemEdit);
-  ensureEl("burgSetPreviewLink").addEventListener("click", setCustomPreview);
-  ensureEl("burgEditEmblem").addEventListener("click", openEmblemEdit);
-  ensureEl("burgLocate").addEventListener("click", zoomIntoBurg);
-  ensureEl("burgRelocate").addEventListener("click", toggleRelocateBurg);
-  ensureEl("burglLegend").addEventListener("click", editBurgLegend);
-  ensureEl("burgLock").addEventListener("click", toggleBurgLockButton);
-  ensureEl("burgRemove").addEventListener("click", removeSelectedBurg);
-  ensureEl("burgTemperatureGraph").addEventListener("click", showTemperatureGraph);
-
-  function updateGroupsList(): void {
-    const burgGroupSelect = ensureEl("burgGroup") as HTMLSelectElement;
-    burgGroupSelect.options.length = 0;
-    for (const { name } of worldContext.options.burgs.groups) {
-      burgGroupSelect.options.add(new Option(name, name));
-    }
-  }
-
-  function updateBurgValues(): void {
-    const burgId = +elSelected!.attr("data-id");
+  updateBurgValues(): void {
+    const burgId = burgEditorInternal.getBurgId();
     const b = worldContext.pack.burgs[burgId];
     const province = worldContext.pack.cells.province[b.cell];
     const provinceName = province ? `${worldContext.pack.provinces[province].fullName}, ` : "";
     const stateName = worldContext.pack.states[b.state!].fullName || worldContext.pack.states[b.state!].name;
-    (ensureEl("burgProvinceAndState") as HTMLElement).innerHTML = provinceName + stateName;
+    const provinceAndState = provinceName + stateName;
 
-    (ensureEl("burgName") as HTMLInputElement).value = b.name ?? "";
-    (ensureEl("burgGroup") as HTMLSelectElement).value = b.group ?? "";
-    (ensureEl("burgType") as HTMLSelectElement).value = b.type || "Generic";
-    (ensureEl("burgPopulation") as HTMLInputElement).value = String(
-      rn((b.population ?? 0) * worldContext.populationRate * worldContext.urbanization)
-    );
-    (ensureEl("burgEditAnchorStyle") as HTMLElement).style.display = +(b.port ?? 0) ? "inline-block" : "none";
-
-    // update list and select culture
-    const cultureSelect = ensureEl("burgCulture") as HTMLSelectElement;
-    cultureSelect.options.length = 0;
-    const cultures = worldContext.pack.cultures.filter((c: Culture) => !c.removed);
-    cultures.forEach((c: Culture) => {
-      cultureSelect.options.add(new Option(c.name, String(c.i), false, c.i === b.culture));
-    });
+    const cultures = worldContext.pack.cultures
+      .filter((c: Culture) => !c.removed)
+      .map((c: Culture) => ({ id: c.i, name: c.name }));
+    getBurgEditorState().setCultures(cultures);
 
     const temperature = worldContext.grid.cells.temp[worldContext.pack.cells.g[b.cell]];
-    (ensureEl("burgTemperature") as HTMLElement).innerHTML = convertTemperature(temperature);
-    (ensureEl("burgTemperatureLikeIn") as HTMLElement).dataset.tip =
-      `Average yearly temperature is like in ${getTemperatureLikeness(temperature)}`;
-    (ensureEl("burgElevation") as HTMLElement).innerHTML = getHeight(worldContext.pack.cells.h[b.cell]);
+    const tempStr = convertTemperature(temperature);
+    const tempLikeIn = `Average yearly temperature is like in ${getTemperatureLikeness(temperature)}`;
+    const elevationStr = getHeight(worldContext.pack.cells.h[b.cell]);
 
-    // toggle features
-    (ensureEl("burgCapital") as HTMLElement).classList.toggle("inactive", !b.capital);
-    (ensureEl("burgPort") as HTMLElement).classList.toggle("inactive", !b.port);
-    (ensureEl("burgCitadel") as HTMLElement).classList.toggle("inactive", !b.citadel);
-    (ensureEl("burgWalls") as HTMLElement).classList.toggle("inactive", !b.walls);
-    (ensureEl("burgPlaza") as HTMLElement).classList.toggle("inactive", !b.plaza);
-    (ensureEl("burgTemple") as HTMLElement).classList.toggle("inactive", !b.temple);
-    (ensureEl("burgShanty") as HTMLElement).classList.toggle("inactive", !b.shanty);
-
-    updateBurgLockIcon();
-
-    // set emblem image
     const coaID = `burgCOA${burgId}`;
     COArenderer.trigger(coaID, b.coa!);
-    ensureEl<SVGUseElement>("burgEmblem").setAttribute("href", `#${coaID}`);
 
-    updateBurgPreview(b);
-  }
-
-  function changeName(this: HTMLInputElement): void {
-    const burgId = +elSelected!.attr("data-id");
-    worldContext.pack.burgs[burgId].name = this.value;
-    elSelected!.text(this.value);
-  }
-
-  function generateNameRandom(): void {
-    const base = rand(worldContext.nameBases.length - 1);
-    const nameInput = ensureEl("burgName") as HTMLInputElement;
-    nameInput.value = Names.getBase(base);
-    changeName.call(nameInput);
-  }
-
-  function changeGroup(this: HTMLSelectElement): void {
-    const burgId = +elSelected!.attr("data-id");
-    const burg = worldContext.pack.burgs[burgId];
-    Burgs.changeGroup(burg, this.value);
-    drawBurgIcon(worldContext, viewContext, appServices, burg);
-    drawBurgLabel(worldContext, viewContext, appServices, burg);
-  }
-
-  function changeType(this: HTMLSelectElement): void {
-    const burgId = +elSelected!.attr("data-id");
-    worldContext.pack.burgs[burgId].type = this.value;
-  }
-
-  function changeCulture(this: HTMLSelectElement): void {
-    const burgId = +elSelected!.attr("data-id");
-    worldContext.pack.burgs[burgId].culture = +this.value;
-  }
-
-  function generateNameCulture(): void {
-    const burgId = +elSelected!.attr("data-id");
-    const culture = worldContext.pack.burgs[burgId].culture;
-    const nameInput = ensureEl("burgName") as HTMLInputElement;
-    nameInput.value = Names.getCulture(culture ?? 0);
-    changeName.call(nameInput);
-  }
-
-  function changePopulation(this: HTMLInputElement): void {
-    const burgId = +elSelected!.attr("data-id");
-    const burg = worldContext.pack.burgs[burgId];
-
-    worldContext.pack.burgs[burgId].population = rn(
-      +this.value / worldContext.populationRate / worldContext.urbanization,
-      4
-    );
-    updateBurgPreview(burg);
-  }
-
-  function toggleFeature(this: HTMLElement): void {
-    const burgId = +elSelected!.attr("data-id");
-    const burg = worldContext.pack.burgs[burgId];
-
-    const feature = this.dataset.feature!;
-    const value = Number(this.classList.contains("inactive"));
-
-    if (feature === "port") togglePort(burgId);
-    else if (feature === "capital") toggleCapital(burgId);
-    else (burg as unknown as Record<string, number | undefined>)[feature] = value;
-
-    this.classList.toggle("inactive", !(burg as unknown as Record<string, number | undefined>)[feature]);
-
-    (ensureEl("burgEditAnchorStyle") as HTMLElement).style.display = burg.port ? "inline-block" : "none";
-    updateBurgPreview(burg);
-  }
-
-  function togglePort(burgId: number): void {
-    const burg = worldContext.pack.burgs[burgId];
-    if (burg.port) {
-      burg.port = 0;
-
-      const anchor = document.querySelector(`#anchors [data-id='${burgId}']`);
-      if (anchor) anchor.remove();
-    } else {
-      const haven = worldContext.pack.cells.haven[burg.cell];
-      if (!haven) tip("Port haven is not found, system won't be able to make a searoute", false, "warn");
-      const portFeature = haven ? worldContext.pack.cells.f[haven] : -1;
-      burg.port = portFeature;
-
-      viewContext.anchors
-        .select(`#${burg.group}`)
-        .append("use")
-        .attr("href", "#icon-anchor")
-        .attr("id", `anchor${burg.i}`)
-        .attr("data-id", burg.i ?? 0)
-        .attr("x", burg.x)
-        .attr("y", burg.y);
-    }
-  }
-
-  function toggleCapital(burgId: number): void {
-    const { burgs, states } = worldContext.pack;
-
-    if (burgs[burgId].capital) {
-      tip("To change capital please assign a capital status to another burg of this state", false, "error");
-      return;
-    }
-
-    const stateId = burgs[burgId].state;
-    if (!stateId) {
-      tip("Neutral lands cannot have a capital", false, "error");
-      return;
-    }
-
-    const oldCapitalId = states[stateId].capital;
-    states[stateId].capital = burgId;
-    states[stateId].center = burgs[burgId].cell;
-
-    const capital = burgs[burgId];
-    capital.capital = 1;
-    Burgs.changeGroup(capital);
-    drawBurgIcon(worldContext, viewContext, appServices, capital);
-    drawBurgLabel(worldContext, viewContext, appServices, capital);
-
-    const oldCapital = burgs[oldCapitalId];
-    oldCapital.capital = 0;
-    Burgs.changeGroup(oldCapital);
-    drawBurgIcon(worldContext, viewContext, appServices, oldCapital);
-    drawBurgLabel(worldContext, viewContext, appServices, oldCapital);
-  }
-
-  function toggleBurgLockButton(): void {
-    const burgId = +elSelected!.attr("data-id");
-    const burg = worldContext.pack.burgs[burgId];
-    burg.lock = !burg.lock;
-
-    updateBurgLockIcon();
-  }
-
-  function updateBurgLockIcon(): void {
-    const burgId = +elSelected!.attr("data-id");
-    const b = worldContext.pack.burgs[burgId];
-    const lockBtn = ensureEl("burgLock") as HTMLElement;
-    if (b.lock) {
-      lockBtn.classList.remove("icon-lock-open");
-      lockBtn.classList.add("icon-lock");
-    } else {
-      lockBtn.classList.remove("icon-lock");
-      lockBtn.classList.add("icon-lock-open");
-    }
-  }
-
-  function showStyleSection(): void {
-    document.querySelectorAll<HTMLElement>("#burgFooter > button").forEach(el => {
-      el.style.display = "none";
+    getBurgEditorState().setBurgData({
+      id: burgId,
+      emblemId: coaID,
+      provinceAndState,
+      name: b.name ?? "",
+      group: b.group ?? "",
+      type: b.type || "Generic",
+      culture: b.culture ?? 0,
+      population: rn((b.population ?? 0) * worldContext.populationRate * worldContext.urbanization),
+      temperature: tempStr,
+      temperatureLikeIn: tempLikeIn,
+      elevation: elevationStr,
+      capital: !!b.capital,
+      port: !!b.port,
+      citadel: !!b.citadel,
+      walls: !!b.walls,
+      plaza: !!b.plaza,
+      temple: !!b.temple,
+      shanty: !!b.shanty,
+      lock: !!b.lock
     });
-    (ensureEl("burgStyleSection") as HTMLElement).style.display = "inline-block";
-  }
 
-  function hideStyleSection(): void {
-    document.querySelectorAll<HTMLElement>("#burgFooter > button").forEach(el => {
-      el.style.display = "inline-block";
-    });
-    (ensureEl("burgStyleSection") as HTMLElement).style.display = "none";
-  }
+    burgEditorInternal.updateBurgPreview(b);
+  },
 
-  function editGroupLabelStyle(): void {
-    const g = (elSelected!.node()!.parentNode as SVGGElement).id;
-    closeDialogs(".stable");
-    editStyle("labels", g);
-  }
-
-  function editGroupIconStyle(): void {
-    const g = (elSelected!.node()!.parentNode as SVGGElement).id;
-    closeDialogs(".stable");
-    editStyle("burgIcons", g);
-  }
-
-  function editGroupAnchorStyle(): void {
-    const g = (elSelected!.node()!.parentNode as SVGGElement).id;
-    closeDialogs(".stable");
-    editStyle("anchors", g);
-  }
-
-  function updateBurgPreview(burg: Burg): void {
+  updateBurgPreview(burg: Burg): void {
     const preview = Burgs.getPreview(burg).preview;
+    const container = document.getElementById("burgPreviewObject");
+    const section = document.getElementById("burgPreviewSection");
+
     if (!preview) {
-      (ensureEl("burgPreviewSection") as HTMLElement).style.display = "none";
+      if (section) section.style.display = "none";
       return;
     }
 
-    (ensureEl("burgPreviewSection") as HTMLElement).style.display = "block";
-
-    // recreate object to force reload (Chrome bug)
-    const container = ensureEl("burgPreviewObject") as HTMLElement;
-    container.innerHTML = "";
-    const object = document.createElement("object");
-    object.style.width = "100%";
-    object.style.maxWidth = "60vw";
-    object.style.maxHeight = "60vh";
-    object.data = preview;
-    container.insertBefore(object, null);
-  }
-
-  function openBurgLink(): void {
-    const burgId = +elSelected!.attr("data-id");
-    const burg = worldContext.pack.burgs[burgId];
-    const link = Burgs.getPreview(burg).link;
-    if (link) openURL(link);
-  }
-
-  function setCustomPreview(): void {
-    const burgId = +elSelected!.attr("data-id");
-    const burg = worldContext.pack.burgs[burgId];
-
-    showPrompt(
-      "Provide custom URL to the burg map. It can be a link to a generator or just an image. Leave empty to use the default map preview",
-      { default: Burgs.getPreview(burg).link ?? "", required: false },
-      link => {
-        const url = String(link);
-        if (url) burg.link = url;
-        else delete burg.link;
-        updateBurgPreview(burg);
-      }
-    );
-  }
-
-  function openEmblemEdit(): void {
-    const burgId = +elSelected!.attr("data-id");
-    const burg = worldContext.pack.burgs[burgId];
-    editEmblem!("burg", `burgCOA${burgId}`, burg);
-  }
-
-  function zoomIntoBurg(): void {
-    const burgId = +elSelected!.attr("data-id");
-    const burg = worldContext.pack.burgs[burgId];
-    const x = burg.x;
-    const y = burg.y;
-    zoomTo(x, y, 8, 2000);
-  }
-
-  function toggleRelocateBurg(): void {
-    const toggler = ensureEl("toggleCells") as HTMLElement;
-    (ensureEl("burgRelocate") as HTMLElement).classList.toggle("pressed");
-    if ((ensureEl("burgRelocate") as HTMLElement).classList.contains("pressed")) {
-      viewContext.viewbox.style("cursor", "crosshair");
-      interactionManager.setClickHandler(relocateBurgOnClick);
-      tip("Click on map to relocate burg. Hold Shift for continuous move", true);
-      if (!layerIsOn("toggleCells")) {
-        toggleCells();
-        toggler.dataset.forced = "true";
-      }
-    } else {
-      clearMainTip();
-      interactionManager.resetClickHandler();
-      viewContext.viewbox.style("cursor", "default");
-      if (layerIsOn("toggleCells") && toggler.dataset.forced) {
-        toggleCells();
-        toggler.dataset.forced = "false";
-      }
+    if (section) section.style.display = "block";
+    if (container) {
+      container.innerHTML = "";
+      const object = document.createElement("object");
+      object.style.width = "100%";
+      object.style.maxWidth = "60vw";
+      object.style.maxHeight = "60vh";
+      object.data = preview;
+      container.insertBefore(object, null);
     }
-  }
+  },
 
-  function relocateBurgOnClick(this: SVGElement, event: MouseEvent): void {
+  relocateBurgOnClick(this: SVGElement, event: MouseEvent): void {
     const cells = worldContext.pack.cells;
     const pt = pointer(event, this) as [number, number];
     const cellId = findCell(pt[0], pt[1]);
-    const burgId = +elSelected!.attr("data-id");
+    const burgId = burgEditorInternal.getBurgId();
     const burg = worldContext.pack.burgs[burgId];
 
     if (cells.h[cellId] < 20) {
@@ -452,22 +192,223 @@ export function editBurg(id?: number): void {
     burg.y = y;
     if (burg.capital) worldContext.pack.states[newState].center = burg.cell;
 
-    if (event.shiftKey === false) toggleRelocateBurg();
-  }
+    if (event.shiftKey === false) burgEditorActions.toggleRelocateBurg();
+  },
 
-  function editBurgLegend(): void {
+  closeBurgEditor(): void {
+    getBurgEditorState().setIsRelocateMode(false);
+    viewContext.burgLabels
+      .selectAll("text")
+      .call(
+        drag().on("drag", null) as unknown as (
+          selection: import("d3").Selection<import("d3").BaseType, unknown, SVGGElement, unknown>
+        ) => void
+      )
+      .classed("draggable", false);
+    unselect();
+    modules.editBurg = false;
+  }
+};
+
+export const burgEditorActions = {
+  changeName(value: string): void {
+    const burgId = burgEditorInternal.getBurgId();
+    worldContext.pack.burgs[burgId].name = value;
+    elSelected!.text(value);
+    getBurgEditorState().updateBurgData({ name: value });
+  },
+
+  generateNameRandom(): void {
+    const base = rand(worldContext.nameBases.length - 1);
+    const newName = Names.getBase(base);
+    burgEditorActions.changeName(newName);
+  },
+
+  changeGroup(newGroup: string): void {
+    const burgId = burgEditorInternal.getBurgId();
+    const burg = worldContext.pack.burgs[burgId];
+    Burgs.changeGroup(burg, newGroup);
+    drawBurgIcon(worldContext, viewContext, appServices, burg);
+    drawBurgLabel(worldContext, viewContext, appServices, burg);
+    getBurgEditorState().updateBurgData({ group: newGroup });
+  },
+
+  editBurgGroups(): void {
+    editBurgGroups();
+  },
+
+  changeType(newType: string): void {
+    const burgId = burgEditorInternal.getBurgId();
+    worldContext.pack.burgs[burgId].type = newType;
+    getBurgEditorState().updateBurgData({ type: newType });
+  },
+
+  changeCulture(newCulture: number): void {
+    const burgId = burgEditorInternal.getBurgId();
+    worldContext.pack.burgs[burgId].culture = newCulture;
+    getBurgEditorState().updateBurgData({ culture: newCulture });
+  },
+
+  generateNameCulture(): void {
+    const burgId = burgEditorInternal.getBurgId();
+    const culture = worldContext.pack.burgs[burgId].culture;
+    const newName = Names.getCulture(culture ?? 0);
+    burgEditorActions.changeName(newName);
+  },
+
+  changePopulation(newPopulation: string): void {
+    const burgId = burgEditorInternal.getBurgId();
+    const burg = worldContext.pack.burgs[burgId];
+
+    const parsedPop = rn(+newPopulation / worldContext.populationRate / worldContext.urbanization, 4);
+    worldContext.pack.burgs[burgId].population = parsedPop;
+
+    getBurgEditorState().updateBurgData({
+      population: rn((burg.population ?? 0) * worldContext.populationRate * worldContext.urbanization)
+    });
+    burgEditorInternal.updateBurgPreview(burg);
+  },
+
+  toggleFeature(feature: string): void {
+    const burgId = burgEditorInternal.getBurgId();
+    const burg = worldContext.pack.burgs[burgId];
+
+    if (feature === "port") {
+      if (burg.port) {
+        burg.port = 0;
+        const anchor = document.querySelector(`#anchors [data-id='${burgId}']`);
+        if (anchor) anchor.remove();
+      } else {
+        const haven = worldContext.pack.cells.haven[burg.cell];
+        if (!haven) tip("Port haven is not found, system won't be able to make a searoute", false, "warn");
+        const portFeature = haven ? worldContext.pack.cells.f[haven] : -1;
+        burg.port = portFeature;
+
+        viewContext.anchors
+          .select(`#${burg.group}`)
+          .append("use")
+          .attr("href", "#icon-anchor")
+          .attr("id", `anchor${burg.i}`)
+          .attr("data-id", burg.i ?? 0)
+          .attr("x", burg.x)
+          .attr("y", burg.y);
+      }
+    } else if (feature === "capital") {
+      if (burg.capital) {
+        tip("To change capital please assign a capital status to another burg of this state", false, "error");
+        return;
+      }
+      const stateId = burg.state;
+      if (!stateId) {
+        tip("Neutral lands cannot have a capital", false, "error");
+        return;
+      }
+
+      const oldCapitalId = worldContext.pack.states[stateId].capital;
+      worldContext.pack.states[stateId].capital = burgId;
+      worldContext.pack.states[stateId].center = burg.cell;
+
+      burg.capital = 1;
+      Burgs.changeGroup(burg);
+      drawBurgIcon(worldContext, viewContext, appServices, burg);
+      drawBurgLabel(worldContext, viewContext, appServices, burg);
+
+      const oldCapital = worldContext.pack.burgs[oldCapitalId];
+      oldCapital.capital = 0;
+      Burgs.changeGroup(oldCapital);
+      drawBurgIcon(worldContext, viewContext, appServices, oldCapital);
+      drawBurgLabel(worldContext, viewContext, appServices, oldCapital);
+    } else {
+      const bObj = burg as unknown as Record<string, number | undefined>;
+      bObj[feature] = bObj[feature] ? 0 : 1;
+    }
+
+    getBurgEditorState().updateBurgData({
+      capital: !!burg.capital,
+      port: !!burg.port,
+      citadel: !!burg.citadel,
+      walls: !!burg.walls,
+      plaza: !!burg.plaza,
+      temple: !!burg.temple,
+      shanty: !!burg.shanty
+    });
+    burgEditorInternal.updateBurgPreview(burg);
+  },
+
+  openBurgLink(): void {
+    const burgId = burgEditorInternal.getBurgId();
+    const burg = worldContext.pack.burgs[burgId];
+    const link = Burgs.getPreview(burg).link;
+    if (link) openURL(link);
+  },
+
+  setCustomPreview(): void {
+    const burgId = burgEditorInternal.getBurgId();
+    const burg = worldContext.pack.burgs[burgId];
+
+    showPrompt(
+      "Provide custom URL to the burg map. It can be a link to a generator or just an image. Leave empty to use the default map preview",
+      { default: Burgs.getPreview(burg).link ?? "", required: false },
+      link => {
+        const url = String(link);
+        if (url) burg.link = url;
+        else delete burg.link;
+        burgEditorInternal.updateBurgPreview(burg);
+      }
+    );
+  },
+
+  openEmblemEdit(): void {
+    const burgId = burgEditorInternal.getBurgId();
+    const burg = worldContext.pack.burgs[burgId];
+    editEmblem!("burg", `burgCOA${burgId}`, burg);
+  },
+
+  zoomIntoBurg(): void {
+    const burgId = burgEditorInternal.getBurgId();
+    const burg = worldContext.pack.burgs[burgId];
+    zoomTo(burg.x, burg.y, 8, 2000);
+  },
+
+  toggleRelocateBurg(): void {
+    const isRelocating = !getBurgEditorState().isRelocateMode;
+    getBurgEditorState().setIsRelocateMode(isRelocating);
+
+    const toggler = document.getElementById("toggleCells") as HTMLElement | null;
+    if (isRelocating) {
+      viewContext.viewbox.style("cursor", "crosshair");
+      interactionManager.setClickHandler(burgEditorInternal.relocateBurgOnClick);
+      tip("Click on map to relocate burg. Hold Shift for continuous move", true);
+      if (!layerIsOn("toggleCells")) {
+        toggleCells();
+        if (toggler) toggler.dataset.forced = "true";
+      }
+    } else {
+      clearMainTip();
+      interactionManager.resetClickHandler();
+      viewContext.viewbox.style("cursor", "default");
+      if (layerIsOn("toggleCells") && toggler?.dataset.forced) {
+        toggleCells();
+        toggler.dataset.forced = "false";
+      }
+    }
+  },
+
+  editBurgLegend(): void {
     const burgId = elSelected!.attr("data-id");
     const name = elSelected!.text();
     editNotes(`burg${burgId}`, name);
-  }
+  },
 
-  function showTemperatureGraph(): void {
-    const burgId = +elSelected!.attr("data-id");
-    showBurgTemperatureGraph(burgId);
-  }
+  toggleBurgLockButton(): void {
+    const burgId = burgEditorInternal.getBurgId();
+    const burg = worldContext.pack.burgs[burgId];
+    burg.lock = !burg.lock;
+    getBurgEditorState().updateBurgData({ lock: !!burg.lock });
+  },
 
-  function removeSelectedBurg(): void {
-    const burgId = +elSelected!.attr("data-id");
+  removeSelectedBurg(): void {
+    const burgId = burgEditorInternal.getBurgId();
     const burg = worldContext.pack.burgs[burgId];
 
     if (burg.capital) {
@@ -476,11 +417,7 @@ export function editBurg(id?: number): void {
         content: alertMessage.innerHTML,
         resizable: false,
         title: "Remove burg",
-        buttons: {
-          Ok: () => {
-            /* $(this).dialog("close") removed */
-          }
-        }
+        buttons: { Ok: () => {} }
       });
     } else {
       confirmationDialog({
@@ -493,21 +430,39 @@ export function editBurg(id?: number): void {
         }
       });
     }
-  }
+  },
 
-  function closeBurgEditor(): void {
-    (ensureEl("burgRelocate") as HTMLElement).classList.remove("pressed");
-    viewContext.burgLabels
-      .selectAll("text")
-      .call(
-        drag().on("drag", null) as unknown as (
-          selection: import("d3").Selection<import("d3").BaseType, unknown, SVGGElement, unknown>
-        ) => void
-      )
-      .classed("draggable", false);
-    unselect();
+  showStyleSection(): void {
+    getBurgEditorState().setIsStyleSectionOpen(true);
+  },
+
+  hideStyleSection(): void {
+    getBurgEditorState().setIsStyleSectionOpen(false);
+  },
+
+  editGroupLabelStyle(): void {
+    const g = (elSelected!.node()!.parentNode as SVGGElement).id;
+    closeDialogs(".stable");
+    editStyle("labels", g);
+  },
+
+  editGroupIconStyle(): void {
+    const g = (elSelected!.node()!.parentNode as SVGGElement).id;
+    closeDialogs(".stable");
+    editStyle("burgIcons", g);
+  },
+
+  editGroupAnchorStyle(): void {
+    const g = (elSelected!.node()!.parentNode as SVGGElement).id;
+    closeDialogs(".stable");
+    editStyle("anchors", g);
+  },
+
+  showTemperatureGraph(): void {
+    const burgId = burgEditorInternal.getBurgId();
+    showBurgTemperatureGraph(burgId);
   }
-}
+};
 
 // in °C, array from -5 °C; source: https://en.wikipedia.org/wiki/List_of_city_by_average_temperature
 const meanTempCityMap: Record<string, string> = {
