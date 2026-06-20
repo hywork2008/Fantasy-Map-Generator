@@ -46,11 +46,12 @@ async function zoomIn(page: any, z = 2) {
 
 function isAnyDialogOpen(page: any) {
   return page.evaluate(() => {
-    // Dialogs use class "fmg-dialog". When open, display is "" (not set inline).
+    // React dialogs use class "fmg-dialog". When open, display is "" (not set inline).
     // When closed, display is "none" (set inline by React).
-    return Array.from(document.querySelectorAll(".fmg-dialog")).some(
+    const reactDialogs = Array.from(document.querySelectorAll(".fmg-dialog")).some(
       el => (el as HTMLElement).style.display !== "none"
     );
+    return reactDialogs;
   });
 }
 
@@ -143,10 +144,11 @@ test.describe("Click-to-edit after map load", () => {
     const riverCount = await page.locator("#rivers path").count();
     if (riverCount === 0) return;
 
-    const river = page.locator("#rivers path").first();
-    await river.click({ force: true });
-    await page.waitForTimeout(500);
+    await page.evaluate(() => {
+      const river = document.querySelector("#rivers path");
+      river?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    });
 
-    expect(await isAnyDialogOpen(page)).toBe(true);
+    await expect(page.locator(".fmg-dialog", { hasText: "River Editor" })).toBeVisible({ timeout: 5000 });
   });
 });
