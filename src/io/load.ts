@@ -14,7 +14,7 @@ import type { NameBase } from "../modules/names-generator";
 import type { River } from "../modules/river-generator";
 import { Routes } from "../modules/routes-generator";
 import { GridRenderer } from "../renderers";
-import { useOptionsState } from "../store/optionsState";
+import { type OptionsState, useOptionsState } from "../store/optionsState";
 import { closeDialogs, openRichDialog } from "../ui/dialogs/dialogService";
 import { calculateVoronoi, ensureEl, findCell, last, link, minmax, parseError, rn } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
@@ -317,14 +317,13 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
     // Sync loaded values into Zustand store so React UI reflects the loaded map
     {
       const settings = (data[1] || "").split("|");
-      const zustandUpdates: Record<string, string | number> = {};
+      const zustandUpdates: Partial<Omit<OptionsState, "setOption" | "setOptions">> = {};
       if (settings[20]) zustandUpdates.mapName = settings[20];
       if (settings[26]) zustandUpdates.growthRate = +settings[26];
       if (worldContext.options.stateLabelsMode) zustandUpdates.stateLabelsMode = worldContext.options.stateLabelsMode;
       if (worldContext.options.year != null) zustandUpdates.year = worldContext.options.year;
       if (worldContext.options.era != null) zustandUpdates.era = worldContext.options.era;
-      // biome-ignore lint/suspicious/noExplicitAny: partial options object built from legacy save format
-      useOptionsState.getState().setOptions(zustandUpdates as any);
+      useOptionsState.getState().setOptions(zustandUpdates);
     }
     useOptionsState
       .getState()

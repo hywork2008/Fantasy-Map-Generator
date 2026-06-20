@@ -11,10 +11,10 @@ async function loadMap(page: any, filename: string) {
   // By the time waitForSelector resolves (~1s), the initial random map has already
   // finished generating (~200ms), so this listener only catches the file upload's event.
   await page.evaluate(() => {
-    (window as any).__fmgMapLoaded = false;
+    window.__fmgMapLoaded = false;
     window.addEventListener(
       "map:generated",
-      () => { (window as any).__fmgMapLoaded = true; },
+      () => { window.__fmgMapLoaded = true; },
       { once: true }
     );
   });
@@ -23,7 +23,7 @@ async function loadMap(page: any, filename: string) {
 
   // Wait for showStatistics() to complete — it fires map:generated after all rendering is done
   await page.waitForFunction(
-    () => Boolean((window as any).__fmgMapLoaded),
+    () => Boolean(window.__fmgMapLoaded),
     undefined,
     { timeout: 60000 }
   );

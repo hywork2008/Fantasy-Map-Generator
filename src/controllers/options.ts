@@ -577,12 +577,10 @@ export function applyStoredOptions(): void {
       "transparency"
     ];
     if (validKeys.includes(key)) {
-      // biome-ignore lint/suspicious/noExplicitAny: dynamic key assignment for validated keys
-      (loadedOptions as any)[key] = Number.isNaN(+value) ? value : +value;
+      (loadedOptions as Record<string, string | number>)[key] = Number.isNaN(+value) ? value : +value;
     }
   }
-  // biome-ignore lint/suspicious/noExplicitAny: partial options object from legacy storage
-  optionsStore.setOptions(loadedOptions as any);
+  optionsStore.setOptions(loadedOptions);
 
   // Remove stale heightExponent values that are outside the valid slider range (1–5).
   // These can accumulate when the slider defaults incorrectly, causing all land cells to become glacier.

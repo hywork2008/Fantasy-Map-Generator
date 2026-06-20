@@ -32,17 +32,17 @@ const DBP = {
   clientId: "pdr9ae64ip0qno4",
   authWindow: null as Window | null,
   token: null as string | null,
-  // biome-ignore lint/suspicious/noExplicitAny: Dropbox instance methods called dynamically by name
-  api: null as any,
+  api: null as DropboxClient | null,
 
   async call(name: string, param: unknown): Promise<unknown> {
+    type DropboxDynamic = Record<string, (param: unknown) => Promise<unknown>>;
     try {
       if (!this.api) await this.initialize();
-      return await this.api![name](param);
+      return await (this.api as unknown as DropboxDynamic)[name](param);
     } catch (e) {
       if ((e as Error).name !== "DropboxResponseError") throw e;
       await this.auth();
-      return await this.api![name](param);
+      return await (this.api as unknown as DropboxDynamic)[name](param);
     }
   },
 

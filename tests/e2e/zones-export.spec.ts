@@ -145,6 +145,7 @@ test.describe("Zone Export", () => {
     }, zoneId);
 
     expect(testZone).toBeDefined();
+    if (!testZone) throw new Error("testZone not found");
 
     // Assert feature.properties match zone properties
     expect(testZoneFeature.properties.id).toBe(testZone.i);

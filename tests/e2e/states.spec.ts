@@ -44,12 +44,6 @@ test.describe("States", () => {
 
     expect(stateId).not.toBeNull();
 
-    // Verify this state is in neighbors of other states before removal
-    const neighborsBefore = await page.evaluate((id: number) => {
-      const {states} = window.fmg.world.pack;
-      return states.filter((s: any) => s.i && !s.removed && s.neighbors && s.neighbors.includes(id)).length;
-    }, stateId!);
-
     // Dispatch a click directly on the trash icon (hidden by default via CSS)
     // to trigger the state removal prompt via event delegation
     await page.evaluate((id: number) => {

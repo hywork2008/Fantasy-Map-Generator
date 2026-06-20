@@ -188,10 +188,8 @@ class EmblemRenderModule {
       const tertiary = this.clr(tertiaryTincture || tincture);
       const stroke = charge.stroke || "#000";
 
-      // biome-ignore lint/suspicious/noExplicitAny: complex union type
-      const chargePositions = [...new Set(charge.p as any)].filter(
-        position => positions[position as unknown as keyof typeof positions]
-      ); // filter out invalid positions
+      const pValues: (string | number)[] = Array.isArray(charge.p) ? charge.p : [...charge.p];
+      const chargePositions = [...new Set(pValues)].filter(position => positions[position as keyof typeof positions]); // filter out invalid positions
 
       let svg = `<g fill="${primary}" style="--secondary: ${secondary}; --tertiary: ${tertiary}" stroke="${stroke}">`;
       for (const p of chargePositions) {
