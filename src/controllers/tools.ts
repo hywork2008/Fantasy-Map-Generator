@@ -1,7 +1,7 @@
+import Alea from "alea";
 import * as d3 from "d3";
 import { pointer, quadtree } from "d3";
 import { getWorldState } from "../actions";
-import { aleaPRNG } from "../components/AleaPRNG";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
@@ -300,7 +300,7 @@ function regenerateStates(): void {
 
 function recreateStates(): State[] | null {
   const localSeed = generateSeed();
-  (Math as Record<"random", () => number>).random = aleaPRNG(localSeed);
+  (Math as Record<"random", () => number>).random = Alea(localSeed);
 
   const statesCount = useOptionsState.getState().statesNumber;
   if (!statesCount) {

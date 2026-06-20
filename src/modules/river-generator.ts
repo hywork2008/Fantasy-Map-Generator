@@ -1,5 +1,5 @@
+import Alea from "alea";
 import { curveBasis, curveCatmullRom, line, mean, min, sum } from "d3";
-import { aleaPRNG } from "../components/AleaPRNG";
 import { HeightmapConstants, HeightThreshold, RiverConstants } from "../config/constants";
 import type { AppServices } from "../context/appServices";
 import { appServices } from "../context/appServices";
@@ -67,7 +67,7 @@ class RiverModule {
     this.appServices = appServices;
     const { pack, grid, seed } = state;
     TIME && console.time("generateRivers");
-    Math.random = aleaPRNG(seed);
+    Math.random = Alea(seed);
     const { cells, features } = pack;
 
     const riversData: { [riverId: number]: number[] } = {};

@@ -1,4 +1,4 @@
-import { aleaPRNG } from "../components/AleaPRNG";
+import Alea from "alea";
 import type { WorldContext } from "../context/worldContext";
 import { editHeightmap } from "../editors/heightmap-editor";
 import { HeightmapGenerator } from "../modules/heightmap-generator";
@@ -216,7 +216,7 @@ function insertHtml(): void {
   sections[0].innerHTML = Object.keys(heightmapTemplates)
     .map((key: string) => {
       const name = heightmapTemplates[key].name;
-      Math.random = aleaPRNG(initialSeed);
+      Math.random = Alea(initialSeed);
       const heights = HeightmapGenerator.fromTemplate(graph!, key);
 
       return /* html */ `<article data-id="${key}" data-seed="${initialSeed}">
@@ -304,7 +304,7 @@ function regeneratePreview(article: HTMLElement, id: string): void {
   graph = getGraph(graph);
   const seed = generateSeed();
   article.dataset.seed = seed;
-  Math.random = aleaPRNG(seed);
+  Math.random = Alea(seed);
   drawTemplatePreview(id);
 }
 
@@ -314,7 +314,7 @@ function redrawAll(): void {
   for (const article of Array.from(articles) as HTMLElement[]) {
     const { id, seed } = (article as HTMLElement).dataset;
     if (!id || !seed) continue;
-    Math.random = aleaPRNG(seed);
+    Math.random = Alea(seed);
 
     const isTemplate = id in heightmapTemplates;
     if (isTemplate) drawTemplatePreview(id);

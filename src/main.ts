@@ -1,14 +1,15 @@
 import { clearLegend, closeDialogs, unfog } from "./controllers/editors";
 import { openRichDialog } from "./ui/dialogs/dialogService";
+
 // Azgaar (azgaar.fmg@yandex.com). Minsk, 2017-2023. MIT License
 // https://github.com/Azgaar/Fantasy-Map-Generator
 
 // jQuery setup: globals must be in a separate module so they are evaluated
 
+import Alea from "alea";
 import type { Selection } from "d3";
 import * as d3 from "d3";
 import { getWorldState, resetZoom, zoomTo } from "./actions";
-import { aleaPRNG } from "./components/AleaPRNG";
 import { appServices } from "./context/appServices";
 import { viewContext } from "./context/viewContext";
 import { worldContext } from "./context/worldContext";
@@ -1193,7 +1194,7 @@ function setSeed(precreatedSeed?: string) {
   useOptionsState.getState().setOption("seed", worldContext.seed);
   const seedInput = document.getElementById("optionsSeed") as HTMLInputElement | null;
   if (seedInput) seedInput.value = worldContext.seed;
-  Math.random = aleaPRNG(worldContext.seed);
+  Math.random = Alea(worldContext.seed);
 }
 
 // ─── Lake helpers ──────────────────────────────────────────────────────────

@@ -1,5 +1,5 @@
+import Alea from "alea";
 import { drag, polygonArea, select } from "d3";
-import { aleaPRNG } from "../components/AleaPRNG";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
@@ -556,7 +556,7 @@ class CoastlineEditorModule {
     const ctx = canvas.getContext("2d")!;
     ctx.clearRect(0, 0, W, H);
 
-    const rand = aleaPRNG(PREVIEW_SEED);
+    const rand = Alea(PREVIEW_SEED);
     const profile = makeRoughnessProfile(
       worldContext,
       viewContext,
@@ -672,7 +672,7 @@ class CoastlineEditorModule {
     ];
 
     const shape = defaultCoastSettings.enabled
-      ? fractalize(worldContext, viewContext, appServices, basePts, aleaPRNG(PREVIEW_SEED), defaultCoastSettings)
+      ? fractalize(worldContext, viewContext, appServices, basePts, Alea(PREVIEW_SEED), defaultCoastSettings)
       : { points: basePts, origIndices: [0, 1, 2, 3] };
     const path = new Path2D(`${buildCoastlinePath(worldContext, viewContext, appServices, shape)}Z`);
 

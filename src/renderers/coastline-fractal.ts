@@ -1,4 +1,4 @@
-import { aleaPRNG } from "../components/AleaPRNG";
+import Alea from "alea";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
@@ -127,7 +127,7 @@ export function fractalizeCoastline(
 ): FractalizedShape {
   if (points.length < 3) return { points, origIndices: points.map((_, i) => i) };
   if (!defaultCoastSettings.enabled) return { points, origIndices: points.map((_, i) => i) };
-  const rand = aleaPRNG(`${worldContext.seed}_c${_featureIndex}`);
+  const rand = Alea(`${worldContext.seed}_c${_featureIndex}`);
   const settings =
     _featureType === "lake" && defaultCoastSettings.lakeSmoothThreshMult !== 1
       ? {

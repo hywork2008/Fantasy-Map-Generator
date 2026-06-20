@@ -1,6 +1,6 @@
+import Alea from "alea";
 import { max } from "d3";
 import FlatQueue from "flatqueue";
-import { aleaPRNG } from "../components/AleaPRNG";
 import type { AppServices } from "../context/appServices";
 import { appServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
@@ -91,7 +91,7 @@ class ProvinceModule {
     const { pack, seed } = state;
     TIME && console.time("generateProvinces");
     const localSeed = regenerate ? generateSeed() : seed;
-    Math.random = aleaPRNG(localSeed);
+    Math.random = Alea(localSeed);
 
     const { cells, states, burgs } = pack;
     const provinces: Province[] = [0 as unknown as Province]; // 0 index is reserved for "no province"

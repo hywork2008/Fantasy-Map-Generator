@@ -1,5 +1,5 @@
+import Alea from "alea";
 import { min } from "d3";
-import { aleaPRNG } from "../components/AleaPRNG";
 import { TemperatureThreshold } from "../config/constants";
 import type { AppServices } from "../context/appServices";
 import { appServices } from "../context/appServices";
@@ -58,7 +58,7 @@ class IceModule {
     this.clear();
     const { cells, features } = grid;
     const { temp, h } = cells;
-    Math.random = aleaPRNG(seed);
+    Math.random = Alea(seed);
 
     const ICEBERG_MAX_TEMP = TemperatureThreshold.ICEBERG_MAX_TEMP;
     const GLACIER_MAX_TEMP = TemperatureThreshold.GLACIER_MAX_TEMP;

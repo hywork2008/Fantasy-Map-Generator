@@ -1,3 +1,19 @@
+declare module "alea" {
+  interface AleaRandom {
+    (): number;
+    uint32(): number;
+    fract53(): number;
+    exportState(): [number, number, number, number];
+    importState(state: [number, number, number, number]): void;
+  }
+  interface AleaConstructor {
+    (...args: unknown[]): AleaRandom;
+    importState(state: [number, number, number, number]): AleaRandom;
+  }
+  const Alea: AleaConstructor;
+  export = Alea;
+}
+
 declare module "jquery-ui-dist/jquery-ui.js";
 declare module "jquery-ui-touch-punch";
 

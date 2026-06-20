@@ -1,5 +1,5 @@
+import Alea from "alea";
 import { polygonArea } from "d3";
-import { aleaPRNG } from "../components/AleaPRNG";
 import { FeatureSizeRatio, HeightmapConstants, HeightThreshold, TemperatureThreshold } from "../config/constants";
 import type { AppServices } from "../context/appServices";
 import { appServices } from "../context/appServices";
@@ -103,7 +103,7 @@ class FeatureModule {
   markupGrid() {
     const { seed, grid } = this.worldContext;
     TIME && console.time("markupGrid");
-    Math.random = aleaPRNG(seed); // get the same result on heightmap edit in Erase mode
+    Math.random = Alea(seed); // get the same result on heightmap edit in Erase mode
 
     const { h: heights, c: neighbors, b: borderCells, i } = grid.cells;
     const cellsNumber = i.length;

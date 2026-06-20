@@ -1,5 +1,5 @@
+import Alea from "alea";
 import { range as d3Range, leastIndex, mean } from "d3";
-import { aleaPRNG } from "../components/AleaPRNG";
 import { HeightmapConstants, HeightThreshold } from "../config/constants";
 import type { AppServices } from "../context/appServices";
 import { appServices } from "../context/appServices";
@@ -597,7 +597,7 @@ class HeightmapModule {
     const { seed } = this.worldContext;
     TIME && console.time("defineHeightmap");
     const id = useOptionsState.getState().template;
-    Math.random = aleaPRNG(seed);
+    Math.random = Alea(seed);
     const isTemplate = id in heightmapTemplates;
 
     const heights = isTemplate ? this.fromTemplate(graph, id) : await this.fromPrecreated(graph, id);
