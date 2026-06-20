@@ -37,8 +37,8 @@ test.describe.configure({ timeout: 90000 });
 // burg layers so BurgLabelsRenderer / BurgIconsRenderer render at the higher scale.
 async function zoomIn(page: any, z = 2) {
   await page.evaluate((scale: number) => {
-    const w = window as any;
-    w.zoomTo(w.graphWidth / 2, w.graphHeight / 2, scale, 0);
+    const { world, actions } = window.fmg;
+    actions.zoomTo(world.graphWidth / 2, world.graphHeight / 2, scale, 0);
   }, z);
   // Wait for requestAnimationFrame (zoomRaf) + invokeActiveZooming debounce (100ms)
   await page.waitForTimeout(200);
@@ -76,8 +76,8 @@ test.describe("Click-to-edit after map load", () => {
     await zoomIn(page);
 
     await page.evaluate(() => {
-      if (!(window as any).layerIsOn("toggleLabels")) (window as any).toggleLabels();
-      if (!(window as any).layerIsOn("toggleBurgIcons")) (window as any).toggleBurgIcons();
+      if (!window.fmg.actions.layerIsOn("toggleLabels")) window.fmg.actions.toggleLabels();
+      if (!window.fmg.actions.layerIsOn("toggleBurgIcons")) window.fmg.actions.toggleBurgIcons();
     });
     await page.waitForFunction(
       () => document.querySelectorAll("#burgLabels text").length > 0,
@@ -98,7 +98,7 @@ test.describe("Click-to-edit after map load", () => {
     await zoomIn(page);
 
     await page.evaluate(() => {
-      if (!(window as any).layerIsOn("toggleLabels")) (window as any).toggleLabels();
+      if (!window.fmg.actions.layerIsOn("toggleLabels")) window.fmg.actions.toggleLabels();
     });
     await page.waitForFunction(
       () => document.querySelectorAll("#burgLabels text").length > 0,
@@ -120,7 +120,7 @@ test.describe("Click-to-edit after map load", () => {
     await zoomIn(page);
 
     await page.evaluate(() => {
-      if (!(window as any).layerIsOn("toggleBurgIcons")) (window as any).toggleBurgIcons();
+      if (!window.fmg.actions.layerIsOn("toggleBurgIcons")) window.fmg.actions.toggleBurgIcons();
     });
     await page.waitForFunction(
       () => document.querySelectorAll("#burgIcons use").length > 0,

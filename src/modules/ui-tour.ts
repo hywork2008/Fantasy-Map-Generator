@@ -249,6 +249,7 @@ class UITourModule {
           element: "#editHeightmapButton",
           onHighlightStarted: () => {
             this.clickTab("toolsTab");
+            this.hideHeightmapCustomizationPanel();
           },
           popover: {
             title: "Edit the Heightmap",
@@ -398,8 +399,6 @@ class UITourModule {
   }
 
   private hideHeightmapCustomizationPanel(): void {
-    const customizationMenu = byId("customizationMenu");
-    if (!customizationMenu || customizationMenu.style.display !== "block") return;
     document.dispatchEvent(new CustomEvent("react-exit-heightmap-edit"));
   }
 }

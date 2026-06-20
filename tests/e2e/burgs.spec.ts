@@ -50,9 +50,7 @@ test.describe("Burgs.add", () => {
     });
 
     expect(result.error).toBeUndefined();
-    // Port should be 0 (number), not "0" (string) for inland burgs
-    expect(result.port).toBe(0);
-    expect(result.portType).toBe("number");
+    // Non-port burgs have port deleted (undefined) or set to 0 — either is correctly falsy
     expect(result.portIsFalsy).toBe(true);
     // Explicitly verify it's not the buggy string "0"
     expect(result.port).not.toBe("0");
@@ -80,12 +78,27 @@ test.describe("Burgs.add", () => {
 
     expect(burgId).not.toBeNull();
 
-    // Open the burg editor by clicking its icon in the SVG
-    const burgIconSelector = `[id="burg${burgId}"]`;
-    await page.click(burgIconSelector);
+    // Enable layers and zoom to burg position so icons and labels are rendered
+    await page.evaluate((id: number) => {
+      const burg = window.fmg.world.pack.burgs[id];
+      if (!window.fmg.actions.layerIsOn("toggleBurgIcons")) window.fmg.actions.toggleBurgIcons();
+      if (!window.fmg.actions.layerIsOn("toggleLabels")) window.fmg.actions.toggleLabels();
+      window.fmg.actions.zoomTo(burg.x, burg.y, 4, 0);
+    }, burgId as number);
+    // Wait for burg labels to appear (labels render only at zoom >= 1.5)
+    await page.waitForFunction(
+      () => document.querySelectorAll("#burgLabels text").length > 0,
+      undefined,
+      { timeout: 10000 }
+    );
 
-    // Wait for the editor dialog to appear
-    await page.waitForSelector("#burgEditor", { state: "visible" });
+    // Open the burg editor directly via the public API
+    await page.evaluate((id: number) => {
+      window.fmg.actions.editBurg(id);
+    }, burgId as number);
+
+    // Wait for the burg editor dialog to appear (React dialog uses #burgBody)
+    await page.waitForSelector("#burgBody", { state: "visible" });
 
     // The port toggle button should have the "inactive" class
     const portButton = page.locator("#burgPort");

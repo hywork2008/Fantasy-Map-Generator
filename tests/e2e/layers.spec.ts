@@ -209,16 +209,14 @@ test.describe('map layers', () => {
     // Directly invoke the hide logic via D3 (same as the checkbox handler does)
     const statesGroup = sharedPage.locator('#labels #states')
     await sharedPage.evaluate(() => {
-      const d3svg = (window as any).svg
-      if (d3svg) d3svg.select('#labels').select('#states').style('display', 'none')
+      window.fmg.view.svg.select('#labels').select('#states').style('display', 'none')
     })
 
     await expect(statesGroup).toHaveCSS('display', 'none')
 
     // Restore
     await sharedPage.evaluate(() => {
-      const d3svg = (window as any).svg
-      if (d3svg) d3svg.select('#labels').select('#states').style('display', null)
+      window.fmg.view.svg.select('#labels').select('#states').style('display', null)
     })
 
     const inlineDisplay = await statesGroup.evaluate(el => (el as SVGGElement).style.display)

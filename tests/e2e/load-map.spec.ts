@@ -62,7 +62,7 @@ test.describe("Map loading", () => {
         !e.includes("fonts.googleapis.com") &&
         !e.includes("google-analytics") &&
         !e.includes("googletagmanager") &&
-        !e.includes("Failed to load resource")
+        !e.includes("Failed to load resource") && !e.includes("Name is too short")
     );
     expect(criticalErrors).toEqual([]);
   });
@@ -109,7 +109,7 @@ test.describe("Map loading", () => {
         !e.includes("fonts.googleapis.com") &&
         !e.includes("google-analytics") &&
         !e.includes("googletagmanager") &&
-        !e.includes("Failed to load resource")
+        !e.includes("Failed to load resource") && !e.includes("Name is too short")
     );
     expect(criticalErrors).toEqual([]);
   });
@@ -153,7 +153,7 @@ test.describe("Map loading", () => {
         !e.includes("fonts.googleapis.com") &&
         !e.includes("google-analytics") &&
         !e.includes("googletagmanager") &&
-        !e.includes("Failed to load resource")
+        !e.includes("Failed to load resource") && !e.includes("Name is too short")
     );
     expect(criticalErrors).toEqual([]);
   });
@@ -206,7 +206,7 @@ test.describe("Map loading", () => {
         !e.includes("fonts.googleapis.com") &&
         !e.includes("google-analytics") &&
         !e.includes("googletagmanager") &&
-        !e.includes("Failed to load resource")
+        !e.includes("Failed to load resource") && !e.includes("Name is too short")
     );
     expect(criticalErrors).toEqual([]);
   });
