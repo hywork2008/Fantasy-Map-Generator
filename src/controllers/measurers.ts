@@ -2,6 +2,7 @@ import * as d3 from "d3";
 import polylabel from "polylabel";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
+import { type DragEv, type MeasurerSel, MeasurersRenderer } from "../renderers/measurers-renderer";
 import { findCell, getSegmentId, last, rn, round, si } from "../utils";
 import { getAreaUnit } from "../utils/uiHelpers";
 
@@ -65,9 +66,6 @@ class Rulers {
 
 // ─── Abstract measurer base ───────────────────────────────────────────────────
 
-type MeasurerSel = d3.Selection<SVGGElement, unknown, d3.BaseType, unknown>;
-type DragEv = d3.D3DragEvent<SVGGElement, unknown, unknown>;
-
 abstract class Measurer {
   points: [number, number][];
   id: number;
@@ -110,6 +108,7 @@ abstract class Measurer {
     this.points.push(point);
     this.updateCurve();
     this.updateLabel();
+    if (this instanceof Ruler) MeasurersRenderer.drawRulerPoints(this.el, this.points, this.getCallbacks());
   }
 
   optimize(): void {
@@ -136,6 +135,7 @@ abstract class Measurer {
   abstract draw(): this;
   abstract updateCurve(): void;
   abstract updateLabel(): void;
+  abstract getCallbacks(): import("../renderers/measurers-renderer").MeasurerCallbacks;
 }
 
 // ─── Ruler (straight polyline measurer) ──────────────────────────────────────
@@ -158,70 +158,34 @@ class Ruler extends Measurer {
     i ? this.points.push([x, y]) : this.points.unshift([x, y]);
   }
 
+  getCallbacks() {
+    return {
+      onDragStart: this.drag,
+      onPointDragStart: (i: number, e: DragEv) => this.dragControl(this, i, e),
+      onLineDragStart: (e: DragEv) => this.addControl(e, this),
+      onRemoveClick: () => rulers.remove(this.id),
+      onPointClick: (i: number) => this.removePoint(this, i)
+    };
+  }
+
   draw(): this {
     if (this.el) this.el.selectAll("*").remove();
-    const points = this.getPointsString();
+    const pointsStr = this.getPointsString();
     const size = this.getSize();
     const dash = this.getDash();
 
-    this.el = viewContext.ruler
-      .append("g")
-      .attr("class", "ruler")
-      .call(d3.drag<SVGGElement, unknown>().on("start", this.drag))
-      .attr("font-size", 10 * size);
-    const el = this.el;
-    el.append("polyline")
-      .attr("points", points)
-      .attr("class", "white")
-      .attr("stroke-width", size)
-      .call(d3.drag<SVGPolylineElement, unknown>().on("start", e => this.addControl(e as DragEv, this)));
-    el.append("polyline")
-      .attr("points", points)
-      .attr("class", "gray")
-      .attr("stroke-width", rn(size * 1.2, 2))
-      .attr("stroke-dasharray", dash);
-    el.append("g")
-      .attr("class", "rulerPoints")
-      .attr("stroke-width", 0.5 * size)
-      .attr("font-size", 2 * size);
-    el.append("text")
-      .attr("dx", ".35em")
-      .attr("dy", "-.45em")
-      .on("click", () => rulers.remove(this.id));
-    this.drawPoints(el);
+    this.el = MeasurersRenderer.drawRuler(
+      viewContext.ruler,
+      this.id,
+      pointsStr,
+      this.points,
+      size,
+      dash,
+      this.getCallbacks()
+    );
+
     this.updateLabel();
     return this;
-  }
-
-  drawPoints(el: MeasurerSel): void {
-    const g = el.select<SVGGElement>(".rulerPoints");
-    g.selectAll("circle").remove();
-
-    for (let i = 0; i < this.points.length; i++) {
-      const [x, y] = this.points[i];
-      this.drawPoint(g, x, y, i);
-    }
-  }
-
-  drawPoint(el: MeasurerSel, x: number, y: number, i: number): void {
-    el.append("circle")
-      .attr("r", "1em")
-      .attr("cx", x)
-      .attr("cy", y)
-      .attr("class", this.isEdge(i) ? "edge" : "control")
-      .on("click", () => {
-        this.removePoint(this, i);
-      })
-      .call(
-        d3
-          .drag<SVGCircleElement, unknown>()
-          .clickDistance(3)
-          .on("start", e => this.dragControl(this, i, e as DragEv))
-      );
-  }
-
-  isEdge(i: number): boolean {
-    return i === 0 || i === this.points.length - 1;
   }
 
   updateCurve(): void {
@@ -232,7 +196,7 @@ class Ruler extends Measurer {
     const length = this.getLength();
     const text = `${rn(length * worldContext.distanceScale)} ${distanceUnitInput.value}`;
     const [x, y] = last(this.points);
-    this.el.select("text").attr("x", x).attr("y", y).text(text);
+    MeasurersRenderer.updateLabel(this.el, text, x, y);
   }
 
   getLength(): number {
@@ -246,10 +210,7 @@ class Ruler extends Measurer {
   }
 
   dragControl(context: Ruler, pointId: number, startEvent: DragEv): void {
-    let addPoint = context.isEdge(pointId) && startEvent.sourceEvent.ctrlKey;
-    let circle = context.el.select(`circle:nth-child(${pointId + 1})`);
-    const line = context.el.selectAll("polyline");
-
+    let addPoint = (pointId === 0 || pointId === context.points.length - 1) && startEvent.sourceEvent.ctrlKey;
     let x0 = rn(startEvent.x, 1);
     let y0 = rn(startEvent.y, 1);
     let axis: "x" | "y" | null = null;
@@ -258,9 +219,8 @@ class Ruler extends Measurer {
       if (addPoint) {
         if (dragEvent.dx < 0.1 && dragEvent.dy < 0.1) return;
         context.pushPoint(pointId);
-        context.drawPoints(context.el);
+        MeasurersRenderer.drawRulerPoints(context.el, context.points, context.getCallbacks());
         if (pointId) pointId++;
-        circle = context.el.select(`circle:nth-child(${pointId + 1})`);
         addPoint = false;
       }
 
@@ -277,8 +237,7 @@ class Ruler extends Measurer {
       }
 
       context.updatePoint(pointId, x, y);
-      line.attr("points", context.getPointsString());
-      circle.attr("cx", x).attr("cy", y);
+      MeasurersRenderer.updateRulerDrag(context.el, context.getPointsString(), pointId, x, y);
       context.updateLabel();
     });
   }
@@ -289,12 +248,11 @@ class Ruler extends Measurer {
     const pointId = getSegmentId(context.points, [x, y]);
 
     context.points.splice(pointId, 0, [x, y]);
-    context.drawPoints(context.el);
+    MeasurersRenderer.drawRulerPoints(context.el, context.points, context.getCallbacks());
     context.dragControl(context, pointId, startEvent);
   }
 
   removePoint(context: Ruler, pointId: number): void {
-    if (this.points.length < 3) return;
     this.points.splice(pointId, 1);
     context.draw();
   }
@@ -303,36 +261,22 @@ class Ruler extends Measurer {
 // ─── Opisometer (curved path measurer) ───────────────────────────────────────
 
 class Opisometer extends Measurer {
+  getCallbacks() {
+    return {
+      onDragStart: this.drag,
+      onPointDragStart: (i: number, e: DragEv) => this.dragControl(this, i, e),
+      onLineDragStart: () => {},
+      onRemoveClick: () => rulers.remove(this.id),
+      onPointClick: () => {}
+    };
+  }
+
   draw(): this {
     if (this.el) this.el.selectAll("*").remove();
     const size = this.getSize();
     const dash = this.getDash();
 
-    this.el = viewContext.ruler
-      .append("g")
-      .attr("class", "opisometer")
-      .call(d3.drag<SVGGElement, unknown>().on("start", this.drag))
-      .attr("font-size", 10 * size);
-    const el = this.el;
-    el.append("path").attr("class", "white").attr("stroke-width", size);
-    el.append("path").attr("class", "gray").attr("stroke-width", size).attr("stroke-dasharray", dash);
-    const rulerPoints = el
-      .append("g")
-      .attr("class", "rulerPoints")
-      .attr("stroke-width", 0.5 * size)
-      .attr("font-size", 2 * size);
-    rulerPoints
-      .append("circle")
-      .attr("r", "1em")
-      .call(d3.drag<SVGCircleElement, unknown>().on("start", e => this.dragControl(this, 0, e as DragEv)));
-    rulerPoints
-      .append("circle")
-      .attr("r", "1em")
-      .call(d3.drag<SVGCircleElement, unknown>().on("start", e => this.dragControl(this, 1, e as DragEv)));
-    el.append("text")
-      .attr("dx", ".35em")
-      .attr("dy", "-.45em")
-      .on("click", () => rulers.remove(this.id));
+    this.el = MeasurersRenderer.drawOpisometer(viewContext.ruler, this.id, size, dash, this.getCallbacks());
 
     this.updateCurve();
     this.updateLabel();
@@ -342,19 +286,16 @@ class Opisometer extends Measurer {
   updateCurve(): void {
     lineGen.curve(d3.curveCatmullRom.alpha(0.5));
     const path = round(lineGen(this.points));
-    this.el.selectAll("path").attr("d", path);
-
     const left = this.points[0];
     const right = last(this.points);
-    this.el.select(".rulerPoints > circle:first-child").attr("cx", left[0]).attr("cy", left[1]);
-    this.el.select(".rulerPoints > circle:last-child").attr("cx", right[0]).attr("cy", right[1]);
+    MeasurersRenderer.updateOpisometerCurve(this.el, path, left, right);
   }
 
   updateLabel(): void {
     const length = this.el.select<SVGPathElement>("path").node()!.getTotalLength();
     const text = `${rn(length * worldContext.distanceScale)} ${distanceUnitInput.value}`;
     const [x, y] = last(this.points);
-    this.el.select("text").attr("x", x).attr("y", y).text(text);
+    MeasurersRenderer.updateLabel(this.el, text, x, y);
   }
 
   dragControl(context: Opisometer, right: number, startEvent: DragEv): void {
@@ -438,35 +379,22 @@ class RouteOpisometer extends Measurer {
     return [x, y];
   }
 
+  getCallbacks() {
+    return {
+      onDragStart: this.drag,
+      onPointDragStart: (i: number, e: DragEv) => this.dragControl(this, i, e),
+      onLineDragStart: () => {},
+      onRemoveClick: () => rulers.remove(this.id),
+      onPointClick: () => {}
+    };
+  }
+
   draw(): this {
     if (this.el) this.el.selectAll("*").remove();
     const size = this.getSize();
     const dash = this.getDash();
 
-    this.el = viewContext.ruler
-      .append("g")
-      .attr("class", "opisometer")
-      .attr("font-size", 10 * size);
-    const el = this.el;
-    el.append("path").attr("class", "white").attr("stroke-width", size);
-    el.append("path").attr("class", "gray").attr("stroke-width", size).attr("stroke-dasharray", dash);
-    const rulerPoints = el
-      .append("g")
-      .attr("class", "rulerPoints")
-      .attr("stroke-width", 0.5 * size)
-      .attr("font-size", 2 * size);
-    rulerPoints
-      .append("circle")
-      .attr("r", "1em")
-      .call(d3.drag<SVGCircleElement, unknown>().on("start", e => this.dragControl(this, 0, e as DragEv)));
-    rulerPoints
-      .append("circle")
-      .attr("r", "1em")
-      .call(d3.drag<SVGCircleElement, unknown>().on("start", e => this.dragControl(this, 1, e as DragEv)));
-    el.append("text")
-      .attr("dx", ".35em")
-      .attr("dy", "-.45em")
-      .on("click", () => rulers.remove(this.id));
+    this.el = MeasurersRenderer.drawOpisometer(viewContext.ruler, this.id, size, dash, this.getCallbacks());
 
     this.updateCurve();
     this.updateLabel();
@@ -476,19 +404,16 @@ class RouteOpisometer extends Measurer {
   updateCurve(): void {
     lineGen.curve(d3.curveCatmullRom.alpha(0.5));
     const path = round(lineGen(this.points));
-    this.el.selectAll("path").attr("d", path);
-
     const left = this.points[0];
     const right = last(this.points);
-    this.el.select(".rulerPoints > circle:first-child").attr("cx", left[0]).attr("cy", left[1]);
-    this.el.select(".rulerPoints > circle:last-child").attr("cx", right[0]).attr("cy", right[1]);
+    MeasurersRenderer.updateOpisometerCurve(this.el, path, left, right);
   }
 
   updateLabel(): void {
     const length = this.el.select<SVGPathElement>("path").node()!.getTotalLength();
     const text = `${rn(length * worldContext.distanceScale)} ${distanceUnitInput.value}`;
     const [x, y] = last(this.points);
-    this.el.select("text").attr("x", x).attr("y", y).text(text);
+    MeasurersRenderer.updateLabel(this.el, text, x, y);
   }
 
   dragControl(context: RouteOpisometer, right: boolean | number, startEvent: DragEv): void {
@@ -506,18 +431,21 @@ class RouteOpisometer extends Measurer {
 // ─── Planimeter (area measurer) ───────────────────────────────────────────────
 
 class Planimeter extends Measurer {
+  getCallbacks() {
+    return {
+      onDragStart: this.drag,
+      onPointDragStart: () => {},
+      onLineDragStart: () => {},
+      onRemoveClick: () => rulers.remove(this.id),
+      onPointClick: () => {}
+    };
+  }
+
   draw(): this {
     if (this.el) this.el.selectAll("*").remove();
     const size = this.getSize();
 
-    this.el = viewContext.ruler
-      .append("g")
-      .attr("class", "planimeter")
-      .call(d3.drag<SVGGElement, unknown>().on("start", this.drag))
-      .attr("font-size", 10 * size);
-    const el = this.el;
-    el.append("path").attr("class", "planimeter").attr("stroke-width", size);
-    el.append("text").on("click", () => rulers.remove(this.id));
+    this.el = MeasurersRenderer.drawPlanimeter(viewContext.ruler, this.id, size, this.getCallbacks());
 
     this.updateCurve();
     this.updateLabel();
@@ -527,7 +455,7 @@ class Planimeter extends Measurer {
   updateCurve(): void {
     lineGen.curve(d3.curveCatmullRomClosed.alpha(0.5));
     const path = round(lineGen(this.points));
-    this.el.selectAll("path").attr("d", path);
+    MeasurersRenderer.updatePlanimeterCurve(this.el, path);
   }
 
   updateLabel(): void {
@@ -536,7 +464,7 @@ class Planimeter extends Measurer {
     const polygonArea = rn(Math.abs(d3.polygonArea(this.points)));
     const area = `${si(getArea(polygonArea))} ${getAreaUnit()}`;
     const [cx, cy] = polylabel([this.points], 1.0);
-    this.el.select("text").attr("x", cx).attr("y", cy).text(area);
+    MeasurersRenderer.updateLabel(this.el, area, cx, cy);
   }
 }
 
