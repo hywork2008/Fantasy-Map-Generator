@@ -73,9 +73,9 @@ export const AboutTab: React.FC = () => {
         <a href="https://github.com/Azgaar/Fantasy-Map-Generator/wiki/Changelog" target="_blank" rel="noreferrer">
           changelog
         </a>
-        . Please report bugs{" "}
+        . Please report bugs on the{" "}
         <a href="https://github.com/Azgaar/Fantasy-Map-Generator/issues" target="_blank" rel="noreferrer">
-          here
+          GitHub Issues page
         </a>
         . You can also contact me directly via{" "}
         <a href="mailto:azgaar.fmg@yandex.by" target="_blank" rel="noreferrer">

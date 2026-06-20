@@ -1039,7 +1039,7 @@ void (function addDragToUpload() {
 
     const overlay = ensureEl("mapOverlay");
     overlay.style.display = "none";
-    if (!e.dataTransfer?.items || e.dataTransfer.items.length !== 1) return;
+    if (e.dataTransfer?.items?.length !== 1) return;
     const file = e.dataTransfer.items[0].getAsFile();
     if (!file) return;
 

@@ -3,7 +3,7 @@
     "useDefineForClassFields": true,
     "module": "ESNext",
     "target": "esnext",
-    "lib": ["ES2023", "WebWorker"],
+    "lib": ["ES2024", "WebWorker"],
     "skipLibCheck": true,
     "isolatedModules": true,
 
