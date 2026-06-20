@@ -1,8 +1,10 @@
 import * as d3 from "d3";
 import type { WorldContext } from "../context/worldContext";
-import { closeDialog, openDialog } from "../ui/dialogs/dialogService";
+import { closeDialog, closeDialogs, openDialog } from "../ui/dialogs/dialogService";
 import { capitalize, convertTemperature, ensureEl, rn, si } from "../utils";
 import { isWater } from "../utils/graphUtils";
+import { getArea, getAreaUnit, getHeight, tip } from "../utils/uiHelpers";
+import { downloadFile, getFileName } from "./editors";
 
 let worldContext: WorldContext;
 

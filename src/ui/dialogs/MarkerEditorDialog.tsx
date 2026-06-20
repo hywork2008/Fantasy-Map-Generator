@@ -1,6 +1,6 @@
 import type React from "react";
 import { useDialogState } from "../../store/dialogState";
-import { callWindowFn } from "../../utils/windowGlobals";
+import { showElementLockTip } from "../../utils/uiHelpers";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
@@ -84,7 +84,7 @@ export const MarkerEditorDialog: React.FC = () => {
           type="button"
           id="markerLock"
           className="icon-lock-open"
-          onMouseOver={e => callWindowFn("showElementLockTip", e)}
+          onMouseOver={e => showElementLockTip(e.nativeEvent)}
         ></button>
         <button
           type="button"

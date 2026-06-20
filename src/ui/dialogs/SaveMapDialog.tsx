@@ -1,6 +1,6 @@
 import type React from "react";
+import { saveMap } from "../../io/save";
 import { useDialogState } from "../../store/dialogState";
-import { callWindowFn } from "../../utils/windowGlobals";
 import { Dialog } from "./Dialog";
 
 export const SaveMapDialog: React.FC = () => {
@@ -21,22 +21,14 @@ export const SaveMapDialog: React.FC = () => {
           data-tip="Download map file to your local disk"
           style={{ fontWeight: 600 }}
           type="button"
-          onClick={() => callWindowFn("saveMap", "machine")}
+          onClick={() => saveMap("machine")}
         >
           machine
         </button>
-        <button
-          type="button"
-          data-tip="Save map file to your Dropbox"
-          onClick={() => callWindowFn("saveMap", "dropbox")}
-        >
+        <button type="button" data-tip="Save map file to your Dropbox" onClick={() => saveMap("dropbox")}>
           dropbox
         </button>
-        <button
-          type="button"
-          data-tip="Save the project to browser storage only"
-          onClick={() => callWindowFn("saveMap", "storage")}
-        >
+        <button type="button" data-tip="Save the project to browser storage only" onClick={() => saveMap("storage")}>
           browser
         </button>
       </div>

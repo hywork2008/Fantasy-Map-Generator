@@ -2,19 +2,24 @@ import { type D3DragEvent, drag, pointer, select } from "d3";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import { unselect } from "../controllers/editors";
 import { interactionManager } from "../controllers/interactionManager";
+import { layerIsOn, toggleIce } from "../controllers/layers";
+import { editStyle } from "../controllers/style";
 import type { IceIceberg } from "../modules/ice";
 import { Ice } from "../modules/ice";
 import { redrawGlacier, redrawIceberg } from "../renderers/index";
-import { closeDialog, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
-import { parseTransform } from "../utils";
+import { closeDialog, closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
+import { findGridCell, parseTransform } from "../utils";
+import { alertMessage } from "../utils/alertMessageEl";
+import { clearMainTip, tip } from "../utils/uiHelpers";
 
 let worldContext: WorldContext;
-let viewContext: Readonly<ViewContext>;
+let viewContext: ViewContext;
 let appServices: AppServices;
 
 export function editIce(element: SVGElement): void {
-  if (customization) return;
+  if (viewContext.customization) return;
   if (elSelected && element === elSelected.node()) return;
 
   closeDialogs(".stable");
@@ -22,7 +27,7 @@ export function editIce(element: SVGElement): void {
 
   elSelected = select(element as unknown as Element);
   const id = +elSelected!.attr("data-id");
-  const iceElement = pack.ice.find(el => el.i === id);
+  const iceElement = worldContext.pack.ice.find(el => el.i === id);
   const isGlacier = elSelected!.attr("type") === "glacier";
   const type = isGlacier ? "Glacier" : "Iceberg";
 
@@ -40,7 +45,7 @@ export function editIce(element: SVGElement): void {
     _idy = 0,
     _iceId = 0;
 
-  ice
+  viewContext.ice
     .selectAll<SVGElement, unknown>("*")
     .classed("draggable", true)
     .call(drag<SVGElement, unknown>().on("start", dragElementStart).on("drag", dragElementDrag));
@@ -77,19 +82,19 @@ export function editIce(element: SVGElement): void {
   function toggleAdd(): void {
     iceNew.classList.toggle("pressed");
     if (iceNew.classList.contains("pressed")) {
-      viewbox.style("cursor", "crosshair");
+      viewContext.viewbox.style("cursor", "crosshair");
       interactionManager.setClickHandler(addIcebergOnClick);
       tip("Click on map to create an iceberg. Hold Shift to add multiple", true);
     } else {
       clearMainTip();
       interactionManager.resetClickHandler();
-      viewbox.style("cursor", "default");
+      viewContext.viewbox.style("cursor", "default");
     }
   }
 
   function addIcebergOnClick(this: SVGElement, event: MouseEvent): void {
     const [x, y] = pointer(event, this);
-    const i = findGridCell(x, y, grid);
+    const i = findGridCell(x, y, worldContext.grid);
     const size = +((document.getElementById("iceSize") as HTMLInputElement)?.value || "1") || 1;
 
     const id = Ice.addIceberg(i, size);
@@ -102,7 +107,7 @@ export function editIce(element: SVGElement): void {
     const iceType = elSelected!.attr("type") === "glacier" ? "Glacier" : "Iceberg";
     alertMessage.innerHTML = /* html */ `Are you sure you want to remove the ${iceType}?`;
     openRichDialog({
-      content: window.alertMessage.innerHTML,
+      content: alertMessage.innerHTML,
       resizable: false,
       title: `Remove ${iceType}`,
       buttons: {
@@ -131,12 +136,12 @@ export function editIce(element: SVGElement): void {
     const x = event.x;
     const y = event.y;
     this.setAttribute("transform", `translate(${_idx + x},${_idy + y})`);
-    const iceData = pack.ice.find(el => el.i === _iceId);
+    const iceData = worldContext.pack.ice.find(el => el.i === _iceId);
     if (iceData) iceData.offset = [_idx + x, _idy + y];
   }
 
   function closeEditor(): void {
-    ice
+    viewContext.ice
       .selectAll<SVGElement, unknown>("*")
       .classed("draggable", false)
       .call(drag<SVGElement, unknown>().on("drag", null));

@@ -697,7 +697,7 @@ class RoutesModule {
     }
 
     pack.routes = pack.routes.filter(r => r.i !== route.i);
-    viewbox.select(`#route${route.i}`).remove();
+    viewContext.viewbox.select(`#route${route.i}`).remove();
   }
 
   getConnectivityRate(cellId: number): number {
@@ -760,7 +760,7 @@ class RoutesModule {
   }
 
   getLength(routeId: number): number {
-    const path = routes.select(`#route${routeId}`).node() as SVGPathElement;
+    const path = viewContext.routes.select(`#route${routeId}`).node() as SVGPathElement;
     return path.getTotalLength();
   }
 }

@@ -1,4 +1,5 @@
 import { test, expect, Page } from "@playwright/test";
+import { waitForMapGeneration } from "./helpers/fmg-helpers";
 
 // Tour step titles in order — used to verify we're on the right step.
 const STEP_TITLES = [
@@ -27,9 +28,7 @@ const STEP_TITLES = [
 ];
 
 async function waitForMapLoad(page: Page) {
-  await page.waitForFunction(() => (window as any).mapId !== undefined, {
-    timeout: 60000,
-  });
+  await waitForMapGeneration(page);
   await page.waitForTimeout(500);
 }
 

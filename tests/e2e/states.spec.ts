@@ -1,4 +1,5 @@
 import {test, expect} from "@playwright/test";
+import { waitForMapGeneration } from "./helpers/fmg-helpers";
 
 test.describe("States", () => {
   test.beforeEach(async ({context, page}) => {
@@ -14,7 +15,7 @@ test.describe("States", () => {
     await page.goto("/?seed=test-states&width=1280&height=720");
 
     // Wait for map generation to complete
-    await page.waitForFunction(() => (window as any).mapId !== undefined, {timeout: 60000});
+    await waitForMapGeneration(page);
 
     // Additional wait for any rendering/animations to settle
     await page.waitForTimeout(500);
@@ -45,7 +46,7 @@ test.describe("States", () => {
 
     // Verify this state is in neighbors of other states before removal
     const neighborsBefore = await page.evaluate((id: number) => {
-      const {states} = (window as any).pack;
+      const {states} = window.fmg.world.pack;
       return states.filter((s: any) => s.i && !s.removed && s.neighbors && s.neighbors.includes(id)).length;
     }, stateId!);
 
@@ -67,7 +68,7 @@ test.describe("States", () => {
 
     // Verify the state is no longer in neighbors of any other state
     const neighborsAfter = await page.evaluate((id: number) => {
-      const {states} = (window as any).pack;
+      const {states} = window.fmg.world.pack;
       return states.filter((s: any) => s.i && !s.removed && s.neighbors && s.neighbors.includes(id)).length;
     }, stateId!);
 
@@ -83,7 +84,7 @@ test.describe("States", () => {
 
     // Verify military was regenerated without throwing
     const militaryResult = await page.evaluate(() => {
-      const {states} = (window as any).pack;
+      const {states} = window.fmg.world.pack;
       const validStates = states.filter((s: any) => s.i && !s.removed);
       // Check that at least some states have military data
       return {

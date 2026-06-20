@@ -1,21 +1,11 @@
 import * as d3 from "d3";
-import { editBurg } from "../editors/burg-editor";
-import { coastlineEditor, editCoastline } from "../editors/coastline-editor";
-import { open as openCulturesEditor } from "../editors/cultures-editor";
-import { editEmblem } from "../editors/emblems-editor";
-import { editIce } from "../editors/ice-editor";
-import { editLabel } from "../editors/labels-editor";
-import { editLake } from "../editors/lakes-editor";
-import { editMarker } from "../editors/markers-editor";
-import { editRegiment } from "../editors/regiment-editor";
-import { editReliefIcon } from "../editors/relief-editor";
-import { open as openReligionsEditor } from "../editors/religions-editor";
-import { editRiver } from "../editors/rivers-editor";
-import { editRoute } from "../editors/routes-editor";
-import { open as openStatesEditor } from "../editors/states-editor";
+import { zoomTo } from "../actions";
+import { viewContext } from "../context/viewContext";
+import { worldContext } from "../context/worldContext";
 import { useOptionsState } from "../store/optionsState";
-import { closeAllDialogs, openConfirm, openDialog } from "../ui/dialogs/dialogService";
+import { closeDialogs, openConfirm, openDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, parseTransform, rn } from "../utils";
+import { onMouseMove, tip } from "../utils/uiHelpers";
 import { interactionManager } from "./interactionManager";
 
 // ─── Default viewbox events ────────────────────────────────────────────────
@@ -36,8 +26,8 @@ function makePanDrag(filter?: (ev: Event) => boolean): d3.DragBehavior<SVGGEleme
       bh = bbox.height;
     })
     .on("drag", function (this: SVGGElement, event: d3.D3DragEvent<SVGGElement, unknown, unknown>) {
-      const px = rn(((ox + event.x + bw) / svgWidth) * 100, 2);
-      const py = rn(((oy + event.y + bh) / svgHeight) * 100, 2);
+      const px = rn(((ox + event.x + bw) / viewContext.svgWidth) * 100, 2);
+      const py = rn(((oy + event.y + bh) / viewContext.svgHeight) * 100, 2);
       d3.select(this)
         .attr("transform", `translate(${ox + event.x},${oy + event.y})`)
         .attr("data-x", px)
@@ -47,18 +37,18 @@ function makePanDrag(filter?: (ev: Event) => boolean): d3.DragBehavior<SVGGEleme
   return drag;
 }
 
-function restoreDefaultEvents(): void {
-  svg.call(zoom);
-  viewbox.style("cursor", "default").on(".drag", null);
+export function restoreDefaultEvents(): void {
+  viewContext.svg.call(viewContext.zoom);
+  viewContext.viewbox.style("cursor", "default").on(".drag", null);
   interactionManager.init(
-    viewbox.node() as Element,
+    viewContext.viewbox.node() as Element,
     clicked as (event: MouseEvent) => void,
     onMouseMove as (event: MouseEvent) => void
   );
   interactionManager.resetClickHandler();
   interactionManager.resetMouseMoveHandler();
-  legend.call(makePanDrag());
-  svg.call(zoom);
+  viewContext.legend.call(makePanDrag());
+  viewContext.svg.call(viewContext.zoom);
 }
 
 function clicked(this: Element, event: MouseEvent): void {
@@ -69,39 +59,40 @@ function clicked(this: Element, event: MouseEvent): void {
   const ancestor = great?.parentElement;
   if (!ancestor) return;
 
-  if (grand?.id === "emblems") editEmblem?.(undefined, undefined, el ?? undefined);
-  else if (parent?.id === "rivers") editRiver?.(el!.id);
-  else if (grand?.id === "routes") editRoute?.(el!.id);
-  else if (ancestor.id === "labels" && el?.tagName === "tspan") editLabel?.(el);
-  else if (grand?.id === "burgLabels") editBurg?.(+(el as SVGElement).dataset.id!);
-  else if (grand?.id === "burgIcons") editBurg?.(+(el as SVGElement).dataset.id!);
-  else if (parent?.id === "ice") editIce?.(el as SVGElement);
-  else if (parent?.id === "terrain") editReliefIcon?.(el as SVGElement);
-  else if (grand?.id === "markers" || great?.id === "markers") editMarker?.();
-  else if (grand?.id === "coastline") editCoastline?.(event);
-  else if (grand?.id === "lakes") editLake?.(event);
-  else if (great?.id === "armies") editRegiment?.(el?.parentElement ?? undefined);
+  if (grand?.id === "emblems")
+    import("../editors/emblems-editor").then(m => m.editEmblem(undefined, undefined, el ?? undefined));
+  else if (parent?.id === "rivers") import("../editors/rivers-editor").then(m => m.editRiver(el!.id));
+  else if (grand?.id === "routes") import("../editors/routes-editor").then(m => m.editRoute(el!.id));
+  else if (ancestor.id === "labels" && el?.tagName === "tspan")
+    import("../editors/labels-editor").then(m => m.editLabel(el as Element));
+  else if (grand?.id === "burgLabels")
+    import("../editors/burg-editor").then(m => m.editBurg(+(el as SVGElement).dataset.id!));
+  else if (grand?.id === "burgIcons")
+    import("../editors/burg-editor").then(m => m.editBurg(+(el as SVGElement).dataset.id!));
+  else if (parent?.id === "ice") import("../editors/ice-editor").then(m => m.editIce(el as SVGElement));
+  else if (parent?.id === "terrain") import("../editors/relief-editor").then(m => m.editReliefIcon(el as SVGElement));
+  else if (grand?.id === "markers" || great?.id === "markers")
+    import("../editors/markers-editor").then(m => m.editMarker());
+  else if (grand?.id === "coastline") import("../editors/coastline-editor").then(m => m.editCoastline(event));
+  else if (grand?.id === "lakes") import("../editors/lakes-editor").then(m => m.editLake(event));
+  else if (great?.id === "armies")
+    import("../editors/regiment-editor").then(m => m.editRegiment(el?.parentElement ?? undefined));
 }
 
 export function unselect(): void {
   restoreDefaultEvents();
   if (!elSelected) return;
   elSelected!.call(d3.drag<Element, unknown>().on("drag", null)).attr("class", null);
-  debug.selectAll("*").remove();
-  viewbox.style("cursor", "default");
+  viewContext.debug.selectAll("*").remove();
+  viewContext.viewbox.style("cursor", "default");
   elSelected = null;
 }
 
-function closeDialogs(except = "#except"): void {
-  // `#except` is kept for backward compatibility if callers pass `#dialogName`,
-  // but closeAllDialogs takes an ID without `#`.
-  const exceptId = except.startsWith("#") ? except.slice(1) : except;
-  closeAllDialogs(exceptId);
-}
+export { closeDialogs };
 
 // ─── Brush circle ──────────────────────────────────────────────────────────
 
-function moveCircle(x: number, y: number, r = 20): void {
+export function moveCircle(x: number, y: number, r = 20): void {
   const circle = document.getElementById("brushCircle");
   if (!circle) {
     ensureEl("debug").insertAdjacentHTML(
@@ -115,24 +106,18 @@ function moveCircle(x: number, y: number, r = 20): void {
   }
 }
 
-function removeCircle(): void {
-  document.getElementById("brushCircle")?.remove();
-}
+export { removeCircle } from "../utils/uiHelpers";
 
 // ─── Misc editor utilities ────────────────────────────────────────────────
 
-function fitContent(): string {
-  return !("chrome" in window) ? "-moz-max-content" : "fit-content";
-}
-
 // ─── Legend ────────────────────────────────────────────────────────────────
 
-function drawLegend(name: string, data: Array<[string | number, string, string]>): void {
-  legend.selectAll("*").remove();
-  legend.attr("data", data.join("|"));
+export function drawLegend(name: string, data: Array<[string | number, string, string]>): void {
+  viewContext.legend.selectAll("*").remove();
+  viewContext.legend.attr("data", data.join("|"));
 
   const itemsInCol = +(document.getElementById("styleLegendColItems") as HTMLInputElement).value;
-  const fontSize = +legend.attr("font-size");
+  const fontSize = +viewContext.legend.attr("font-size");
   const backClr = (document.getElementById("styleLegendBack") as HTMLInputElement).value;
   const opacity = +(document.getElementById("styleLegendOpacity") as HTMLInputElement).value;
 
@@ -141,13 +126,17 @@ function drawLegend(name: string, data: Array<[string | number, string, string]>
   const colOffset = fontSize;
   const vOffset = fontSize / 2;
 
-  const boxes = legend.append("g").attr("stroke-width", 0.5).attr("stroke", "#111111").attr("stroke-dasharray", "none");
-  const labels = legend.append("g").attr("fill", "#000000").attr("stroke", "none");
+  const boxes = viewContext.legend
+    .append("g")
+    .attr("stroke-width", 0.5)
+    .attr("stroke", "#111111")
+    .attr("stroke-dasharray", "none");
+  const labels = viewContext.legend.append("g").attr("fill", "#000000").attr("stroke", "none");
 
   const columns = Math.ceil(data.length / itemsInCol);
   for (let column = 0, i = 0; column < columns; column++) {
     const linesInColumn = Math.ceil(data.length / columns);
-    const offset = column ? colOffset * 2 + (legend.node() as SVGGElement).getBBox().width : colOffset;
+    const offset = column ? colOffset * 2 + (viewContext.legend.node() as SVGGElement).getBBox().width : colOffset;
 
     for (let l = 0; l < linesInColumn && data[i]; l++, i++) {
       boxes
@@ -167,7 +156,7 @@ function drawLegend(name: string, data: Array<[string | number, string, string]>
     }
   }
 
-  const labelOffset = colOffset + (legend.node() as SVGGElement).getBBox().width / 2;
+  const labelOffset = colOffset + (viewContext.legend.node() as SVGGElement).getBBox().width / 2;
   labels
     .append("text")
     .attr("text-rendering", "optimizeSpeed")
@@ -179,11 +168,11 @@ function drawLegend(name: string, data: Array<[string | number, string, string]>
     .attr("x", labelOffset)
     .attr("y", fontSize * 1.1 + vOffset / 2);
 
-  const bbox = (legend.node() as SVGGElement).getBBox();
+  const bbox = (viewContext.legend.node() as SVGGElement).getBBox();
   const width = bbox.width + colOffset * 2;
   const height = bbox.height + colOffset / 2 + vOffset;
 
-  legend
+  viewContext.legend
     .insert("rect", ":first-child")
     .attr("id", "legendBox")
     .attr("x", 0)
@@ -196,20 +185,20 @@ function drawLegend(name: string, data: Array<[string | number, string, string]>
   fitLegendBox();
 }
 
-function fitLegendBox(): void {
-  if (!legend.selectAll("*").size()) return;
-  const px = Number.isNaN(+legend.attr("data-x")) ? 99 : +legend.attr("data-x") / 100;
-  const py = Number.isNaN(+legend.attr("data-y")) ? 93 : +legend.attr("data-y") / 100;
-  const bbox = (legend.node() as SVGGElement).getBBox();
-  const x = rn(svgWidth * px - bbox.width);
-  const y = rn(svgHeight * py - bbox.height);
-  legend.attr("transform", `translate(${x},${y})`);
+export function fitLegendBox(): void {
+  if (!viewContext.legend.selectAll("*").size()) return;
+  const px = Number.isNaN(+viewContext.legend.attr("data-x")) ? 99 : +viewContext.legend.attr("data-x") / 100;
+  const py = Number.isNaN(+viewContext.legend.attr("data-y")) ? 93 : +viewContext.legend.attr("data-y") / 100;
+  const bbox = (viewContext.legend.node() as SVGGElement).getBBox();
+  const x = rn(viewContext.svgWidth * px - bbox.width);
+  const y = rn(viewContext.svgHeight * py - bbox.height);
+  viewContext.legend.attr("transform", `translate(${x},${y})`);
 }
 
-function redrawLegend(): void {
-  if (legend.select("rect").size()) {
-    const name = legend.select("#legendLabel").text();
-    const data = legend
+export function redrawLegend(): void {
+  if (viewContext.legend.select("rect").size()) {
+    const name = viewContext.legend.select("#legendLabel").text();
+    const data = viewContext.legend
       .attr("data")
       .split("|")
       .map((l: string) => l.split(",") as [string, string, string]);
@@ -217,9 +206,9 @@ function redrawLegend(): void {
   }
 }
 
-function clearLegend(): void {
-  legend.selectAll("*").remove();
-  legend.attr("data", null);
+export function clearLegend(): void {
+  viewContext.legend.selectAll("*").remove();
+  viewContext.legend.attr("data", null);
 }
 
 // ─── Color picker ─────────────────────────────────────────────────────────
@@ -397,7 +386,7 @@ function createPicker(): void {
     .attr("height", 30)
     .attr("id", "pickerHeader")
     .on("mousemove", pos);
-  picker.attr("transform", `translate(${(svgWidth - width) / 2},${(svgHeight - height) / 2})`);
+  picker.attr("transform", `translate(${(viewContext.svgWidth - width) / 2},${(viewContext.svgHeight - height) / 2})`);
 }
 
 function updateSelectedRect(fill: string): void {
@@ -544,11 +533,11 @@ function changePickerSpace(this: HTMLInputElement): void {
 
 // ─── Fogging ───────────────────────────────────────────────────────────────
 
-function fog(id: string, path: string): void {
-  if (defs.select(`#fog #${id}`).size()) return;
+export function fog(id: string, path: string): void {
+  if (viewContext.defs.select(`#fog #${id}`).size()) return;
   const fadeIn = d3.transition().duration(2000).ease(d3.easeSinInOut);
-  if (defs.select("#fog path").size()) {
-    defs
+  if (viewContext.defs.select("#fog path").size()) {
+    viewContext.defs
       .select("#fog")
       .append("path")
       .attr("d", path)
@@ -557,22 +546,24 @@ function fog(id: string, path: string): void {
       .transition(fadeIn)
       .attr("opacity", 1);
   } else {
-    defs.select("#fog").append("path").attr("d", path).attr("id", id).attr("opacity", 1);
-    const opacity = fogging.attr("opacity");
-    fogging.style("display", "block").attr("opacity", 0).transition(fadeIn).attr("opacity", opacity);
+    viewContext.defs.select("#fog").append("path").attr("d", path).attr("id", id).attr("opacity", 1);
+    const opacity = viewContext.fogging!.attr("opacity");
+    viewContext.fogging!.style("display", "block").attr("opacity", 0).transition(fadeIn).attr("opacity", opacity);
   }
 }
 
-function unfog(id?: string): void {
-  let el = id ? defs.select(`#fog #${id}`) : (defs.select(null) as ReturnType<typeof defs.select>);
-  if (!id || !el.size()) el = defs.select("#fog").selectAll("path") as typeof el;
+export function unfog(id?: string): void {
+  let el = id
+    ? viewContext.defs.select(`#fog #${id}`)
+    : (viewContext.defs.select(null) as ReturnType<typeof viewContext.defs.select>);
+  if (!id || !el.size()) el = viewContext.defs.select("#fog").selectAll("path") as typeof el;
   el.remove();
-  if (!defs.selectAll("#fog path").size()) fogging.style("display", "none");
+  if (!viewContext.defs.selectAll("#fog path").size()) viewContext.fogging!.style("display", "none");
 }
 
 // ─── File utilities ────────────────────────────────────────────────────────
 
-function getFileName(dataType?: string): string {
+export function getFileName(dataType?: string): string {
   const pad = (n: number) => (n < 10 ? `0${n}` : String(n));
   const name = useOptionsState.getState().mapName;
   const type = dataType ? `${dataType} ` : "";
@@ -587,7 +578,7 @@ function getFileName(dataType?: string): string {
   return `${name} ${type}${dateString}`;
 }
 
-function downloadFile(data: string | Blob, name: string, type = "text/plain"): void {
+export function downloadFile(data: string | Blob, name: string, type = "text/plain"): void {
   const dataBlob = data instanceof Blob ? data : new Blob([data], { type });
   const url = window.URL.createObjectURL(dataBlob);
   const link = document.createElement("a");
@@ -597,7 +588,7 @@ function downloadFile(data: string | Blob, name: string, type = "text/plain"): v
   window.setTimeout(() => window.URL.revokeObjectURL(url), 2000);
 }
 
-function uploadFile(el: HTMLInputElement, callback: (data: string) => void): void {
+export function uploadFile(el: HTMLInputElement, callback: (data: string) => void): void {
   const fileReader = new FileReader();
   fileReader.readAsText(el.files![0], "UTF-8");
   el.value = "";
@@ -613,14 +604,14 @@ function getBBox(element: SVGRectElement): { x: number; y: number; width: number
   };
 }
 
-function highlightElement(element: Element, zoom?: number): void {
-  if (debug.select(".highlighted").size()) return;
+export function highlightElement(element: Element, zoom?: number): void {
+  if (viewContext.debug.select(".highlighted").size()) return;
   const box =
     element.tagName === "svg" ? getBBox(element as SVGRectElement) : (element as SVGGraphicsElement).getBBox();
   const transform = element.getAttribute("transform") ?? null;
   const enter = d3.transition().duration(1000).ease(d3.easeBounceOut);
 
-  const highlight = debug
+  const highlight = viewContext.debug
     .append("rect")
     .attr("x", box.x)
     .attr("y", box.y)
@@ -643,13 +634,13 @@ function highlightElement(element: Element, zoom?: number): void {
     if (tr[0]) x += +tr[0];
     let y = box.y + box.height / 2;
     if (tr[1]) y += +tr[1];
-    zoomTo(x, y, scale > 2 ? scale : zoom, 1600);
+    zoomTo(x, y, viewContext.scale > 2 ? viewContext.scale : zoom, 1600);
   }
 }
 
 // ─── Icon selector ─────────────────────────────────────────────────────────
 
-function selectIcon(initial: string, callback: (value: string) => void): void {
+export function selectIcon(initial: string, callback: (value: string) => void): void {
   if (!callback) return;
   openDialog("iconSelector", { title: "Select Icon", onClose: () => callback(initial) });
 
@@ -857,10 +848,10 @@ function selectIcon(initial: string, callback: (value: string) => void): void {
     const externalResources = new Set<string>();
     const isExternal = (url: string) => url.startsWith("http") || url.startsWith("data:image");
 
-    (options.military as Array<{ icon: string }>)?.forEach(unit => {
+    (worldContext.options.military as Array<{ icon: string }>)?.forEach(unit => {
       if (isExternal(unit.icon)) externalResources.add(unit.icon);
     });
-    pack.states.forEach(state => {
+    worldContext.pack.states.forEach(state => {
       state?.military?.forEach(regiment => {
         if (regiment.icon && isExternal(regiment.icon)) externalResources.add(regiment.icon);
       });
@@ -913,20 +904,11 @@ function selectIcon(initial: string, callback: (value: string) => void): void {
 
 // ─── Area / units ──────────────────────────────────────────────────────────
 
-function getAreaUnit(squareMark = "²"): string {
-  const areaUnitEl = ensureEl<HTMLSelectElement>("areaUnit");
-  return areaUnitEl.value === "square"
-    ? ensureEl<HTMLInputElement>("distanceUnitInput").value + squareMark
-    : areaUnitEl.value;
-}
-
-function getArea(rawArea: number): number {
-  return rawArea * distanceScale ** 2;
-}
+export { fitContent, getArea, getAreaUnit } from "../utils/uiHelpers";
 
 // ─── Confirmation dialog ───────────────────────────────────────────────────
 
-function confirmationDialog(opts: {
+export function confirmationDialog(opts: {
   title?: string;
   message?: string;
   cancel?: string;
@@ -954,14 +936,14 @@ function confirmationDialog(opts: {
 
 // ─── Event listener helper ─────────────────────────────────────────────────
 
-function listen(element: EventTarget, event: string, handler: EventListener): () => void {
+export function listen(element: EventTarget, event: string, handler: EventListener): () => void {
   element.addEventListener(event, handler);
   return () => element.removeEventListener(event, handler);
 }
 
 // ─── Refresh all open editors ─────────────────────────────────────────────
 
-function refreshAllEditors(): void {
+export function refreshAllEditors(): void {
   TIME && console.time("refreshAllEditors");
   if (document.getElementById("culturesEditorRefresh")?.offsetParent)
     (document.getElementById("culturesEditorRefresh") as HTMLButtonElement).click();
@@ -979,54 +961,21 @@ function refreshAllEditors(): void {
 // ─── Dynamic editor launchers ─────────────────────────────────────────────
 
 export function editStates(): void {
-  if (customization) return;
-  openStatesEditor();
+  if (viewContext.customization) return;
+  import("../editors/states-editor").then(m => m.open());
 }
 
 export function editCultures(): void {
-  if (customization) return;
-  openCulturesEditor();
+  if (viewContext.customization) return;
+  import("../editors/cultures-editor").then(m => m.open());
 }
 
 export function editReligions(): void {
-  if (customization) return;
-  openReligionsEditor();
+  if (viewContext.customization) return;
+  import("../editors/religions-editor").then(m => m.open());
 }
 
 export function editCoastlineSettings(): void {
-  if (customization) return;
-  coastlineEditor.open();
+  if (viewContext.customization) return;
+  import("../editors/coastline-editor").then(m => m.coastlineEditor.open());
 }
-
-// ─── Global registration ───────────────────────────────────────────────────
-
-if (!window.modules) window.modules = {};
-window.modules.editors = true;
-
-window.restoreDefaultEvents = restoreDefaultEvents;
-window.unselect = unselect;
-window.closeDialogs = closeDialogs;
-window.moveCircle = moveCircle;
-window.removeCircle = removeCircle;
-window.fitContent = fitContent;
-window.drawLegend = drawLegend;
-window.fitLegendBox = fitLegendBox;
-window.redrawLegend = redrawLegend;
-window.clearLegend = clearLegend;
-window.openPicker = openPicker;
-window.fog = fog;
-window.unfog = unfog;
-window.getFileName = getFileName;
-window.downloadFile = downloadFile;
-window.uploadFile = uploadFile;
-window.highlightElement = highlightElement;
-window.selectIcon = selectIcon;
-window.getAreaUnit = getAreaUnit;
-window.getArea = getArea;
-window.confirmationDialog = confirmationDialog;
-window.listen = listen;
-window.refreshAllEditors = refreshAllEditors;
-window.editStates = editStates;
-window.editCultures = editCultures;
-window.editReligions = editReligions;
-window.editCoastlineSettings = editCoastlineSettings;

@@ -1,9 +1,11 @@
 import * as d3 from "d3";
+import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
-import { fitMapToScreen } from "../controllers/options";
+import { layerIsOn } from "../controllers/layers";
 import type { PackedGraphFeature } from "../modules/features";
 import { useOptionsState } from "../store/optionsState";
 import { openRichDialog } from "../ui/dialogs/dialogService";
+import { alertMessage } from "../utils/alertMessageEl";
 import {
   convertTemperature,
   debounce,
@@ -23,7 +25,7 @@ import {
 window.addEventListener("resize", () => {
   if (stored("mapWidth") && stored("mapHeight")) return;
   useOptionsState.getState().setOptions({ mapWidth: window.innerWidth, mapHeight: window.innerHeight });
-  fitMapToScreen?.();
+  document.dispatchEvent(new CustomEvent("fmg:fit-map-to-screen"));
 });
 
 if (location.hostname !== "localhost" && location.hostname !== "127.0.0.1") {
@@ -47,7 +49,12 @@ const tipBackgroundMap: Record<string, string> = {
   error: "linear-gradient(0.1turn, #ffffff00, #e11d1dcc, #ffffff00)"
 };
 
-function tip(message: string, main = false, type: "info" | "warn" | "error" | "success" = "info", time = 0): void {
+export function tip(
+  message: string,
+  main = false,
+  type: "info" | "warn" | "error" | "success" = "info",
+  time = 0
+): void {
   tooltip.innerHTML = message;
   tooltip.style.background = tipBackgroundMap[type];
 
@@ -58,18 +65,18 @@ function tip(message: string, main = false, type: "info" | "warn" | "error" | "s
   if (time) setTimeout(clearMainTip, time);
 }
 
-function showMainTip(): void {
+export function showMainTip(): void {
   tooltip.style.background = tooltip.dataset.color ?? "";
   tooltip.innerHTML = tooltip.dataset.main ?? "";
 }
 
-function clearMainTip(): void {
+export function clearMainTip(): void {
   tooltip.dataset.color = "";
   tooltip.dataset.main = "";
   tooltip.innerHTML = "";
 }
 
-function showDataTip(event: MouseEvent): void {
+export function showDataTip(event: MouseEvent): void {
   const target = event.target as HTMLElement;
   if (!target) return;
 
@@ -84,7 +91,7 @@ function showDataTip(event: MouseEvent): void {
   tip(dataTip);
 }
 
-function showElementLockTip(event: MouseEvent): void {
+export function showElementLockTip(event: MouseEvent): void {
   const locked = (event?.target as HTMLElement)?.classList?.contains("icon-lock");
   if (locked) {
     tip("Locked. Click to unlock the element and allow it to be changed by regeneration tools");
@@ -95,7 +102,7 @@ function showElementLockTip(event: MouseEvent): void {
 
 // ─── Mouse move handler ───────────────────────────────────────────────────────
 
-const onMouseMove = debounce(handleMouseMove as (event: MouseEvent) => void, 100);
+export const onMouseMove = debounce(handleMouseMove as (event: MouseEvent) => void, 100);
 
 function handleMouseMove(this: Element, event: MouseEvent): void {
   const point = d3.pointer(event, this) as [number, number];
@@ -103,7 +110,7 @@ function handleMouseMove(this: Element, event: MouseEvent): void {
   if (i === undefined) return;
 
   showNotes(event);
-  const gridCell = findGridCell(point[0], point[1], grid);
+  const gridCell = findGridCell(point[0], point[1], worldContext.grid);
   if (tooltip.dataset.main) showMainTip();
   else showMapTooltip(point, event, i, gridCell);
   const cellInfoEl = document.getElementById("cellInfo") as HTMLElement | null;
@@ -119,7 +126,7 @@ function showNotes(e: MouseEvent): void {
   if ((target.parentNode?.parentNode as HTMLElement)?.id === "burgLabels") id = `burg${target.dataset.id}`;
   else if ((target.parentNode?.parentNode as HTMLElement)?.id === "burgIcons") id = `burg${target.dataset.id}`;
 
-  const note = notes.find(note => note.id === id);
+  const note = worldContext.notes.find(note => note.id === id);
   if (note !== undefined && note.legend !== "") {
     if (currentNoteId === id) return;
     currentNoteId = id;
@@ -127,7 +134,11 @@ function showNotes(e: MouseEvent): void {
     document.getElementById("notes")!.style.display = "block";
     document.getElementById("notesHeader")!.innerHTML = note.name;
     document.getElementById("notesBody")!.innerHTML = note.legend;
-  } else if (!options.pinNotes && !window.markerEditor?.offsetParent && !(e as KeyboardEvent & MouseEvent).shiftKey) {
+  } else if (
+    !worldContext.options.pinNotes &&
+    !window.markerEditor?.offsetParent &&
+    !(e as KeyboardEvent & MouseEvent).shiftKey
+  ) {
     document.getElementById("notes")!.style.display = "none";
     document.getElementById("notesHeader")!.innerHTML = "";
     document.getElementById("notesBody")!.innerHTML = "";
@@ -137,12 +148,12 @@ function showNotes(e: MouseEvent): void {
 
 function showMapTooltip(point: [number, number], e: MouseEvent, i: number, g: number): void {
   tip("");
-  if (!pack?.cells) return;
+  if (!worldContext.pack?.cells) return;
   const path = e.composedPath ? e.composedPath() : getComposedPath((e.target as Node | null) ?? window);
   if (!path[path.length - 8]) return;
   const group = (path[path.length - 7] as HTMLElement).id;
   const subgroup = (path[path.length - 8] as HTMLElement).id;
-  const land = pack.cells.h[i] >= 20;
+  const land = worldContext.pack.cells.h[i] >= 20;
 
   if (group === "armies") {
     tip(`${(e.target as HTMLElement).parentElement!.dataset.name}. Click to edit`);
@@ -154,10 +165,10 @@ function showMapTooltip(point: [number, number], e: MouseEvent, i: number, g: nu
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [g2, type]: [EmblemEl[], string] =
       parent.id === "burgEmblems"
-        ? [pack.burgs as EmblemEl[], "burg"]
+        ? [worldContext.pack.burgs as EmblemEl[], "burg"]
         : parent.id === "provinceEmblems"
-          ? [pack.provinces as EmblemEl[], "province"]
-          : [pack.states as EmblemEl[], "state"];
+          ? [worldContext.pack.provinces as EmblemEl[], "province"]
+          : [worldContext.pack.states as EmblemEl[], "state"];
     const idx = +(e.target as SVGElement).dataset.i!;
     if (e.shiftKey) highlightEmblemElement(type, g2[idx]);
 
@@ -173,16 +184,17 @@ function showMapTooltip(point: [number, number], e: MouseEvent, i: number, g: nu
 
   if (group === "rivers") {
     const river = +(e.target as HTMLElement).id.slice(5);
-    const r = pack.rivers.find(r => r.i === river);
+    const r = worldContext.pack.rivers.find(r => r.i === river);
     const name = r ? `${r.name} ${r.type}` : "";
     tip(`${name}. Click to edit`);
-    if (window.riversOverview?.offsetParent) highlightEditorLine(window.riversOverview, river, 5000);
+    const riversOverviewEl = document.getElementById("riversOverview");
+    if (riversOverviewEl?.offsetParent) highlightEditorLine(riversOverviewEl, river, 5000);
     return;
   }
 
   if (group === "routes") {
     const routeId = +(e.target as HTMLElement).id.slice(5);
-    const route = pack.routes.find(route => route.i === routeId);
+    const route = worldContext.pack.routes.find(route => route.i === routeId);
     if (route) {
       if (route.name) {
         tip(`${route.name}. Click to edit the Route`);
@@ -201,8 +213,8 @@ function showMapTooltip(point: [number, number], e: MouseEvent, i: number, g: nu
   if (subgroup === "burgLabels" || subgroup === "burgIcons") {
     const burgId = +(path[path.length - 10] as HTMLElement).dataset.id!;
     if (burgId) {
-      const burg = pack.burgs[burgId];
-      const population = si((burg.population ?? 0) * populationRate * urbanization);
+      const burg = worldContext.pack.burgs[burgId];
+      const population = si((burg.population ?? 0) * worldContext.populationRate * worldContext.urbanization);
       tip(`${burg.name} ${burg.group}. Population: ${population}. Click to edit`);
       if (window.burgsOverview?.offsetParent) highlightEditorLine(window.burgsOverview, burgId, 5000);
       return;
@@ -258,7 +270,7 @@ function showMapTooltip(point: [number, number], e: MouseEvent, i: number, g: nu
 
   if (group === "lakes" && !land) {
     const lakeId = +(e.target as HTMLElement).dataset.f!;
-    const name = pack.features[lakeId]?.name;
+    const name = worldContext.pack.features[lakeId]?.name;
     const fullName = subgroup === "freshwater" ? name : `${name} ${subgroup}`;
     tip(`${fullName} lake. Click to edit`);
     return;
@@ -271,7 +283,7 @@ function showMapTooltip(point: [number, number], e: MouseEvent, i: number, g: nu
   if (group === "zones") {
     const zoneEl = path[path.length - 8] as HTMLElement;
     const zoneId = +zoneEl.dataset.id!;
-    const zone = pack.zones.find(zone => zone.i === zoneId);
+    const zone = worldContext.pack.zones.find(zone => zone.i === zoneId);
     if (zone) tip(zone.name);
     if (window.zonesEditor?.offsetParent) highlightEditorLine(window.zonesEditor, zoneId, 5000);
     return;
@@ -284,23 +296,23 @@ function showMapTooltip(point: [number, number], e: MouseEvent, i: number, g: nu
 
   if (layerIsOn("togglePrecipitation") && land) tip(`Annual Precipitation: ${getFriendlyPrecipitation(i)}`);
   else if (layerIsOn("togglePopulation")) tip(getPopulationTip(i));
-  else if (layerIsOn("toggleTemperature")) tip(`Temperature: ${convertTemperature(grid.cells.temp[g])}`);
-  else if (layerIsOn("toggleBiomes") && pack.cells.biome[i]) {
-    const biome = pack.cells.biome[i];
-    tip(`Biome: ${biomesData.name[biome]}`);
+  else if (layerIsOn("toggleTemperature")) tip(`Temperature: ${convertTemperature(worldContext.grid.cells.temp[g])}`);
+  else if (layerIsOn("toggleBiomes") && worldContext.pack.cells.biome[i]) {
+    const biome = worldContext.pack.cells.biome[i];
+    tip(`Biome: ${worldContext.biomesData.name[biome]}`);
     if (window.biomesEditor?.offsetParent) highlightEditorLine(window.biomesEditor!, biome);
-  } else if (layerIsOn("toggleReligions") && pack.cells.religion[i]) {
-    const religion = pack.cells.religion[i];
-    const r = pack.religions[religion];
+  } else if (layerIsOn("toggleReligions") && worldContext.pack.cells.religion[i]) {
+    const religion = worldContext.pack.cells.religion[i];
+    const r = worldContext.pack.religions[religion];
     const type = r.type === "Cult" || r.type === "Heresy" ? r.type : `${r.type} religion`;
     tip(`${type}: ${r.name}`);
     if (document.getElementById("religionsEditor")?.offsetParent)
       highlightEditorLine(window.religionsEditor!, religion);
-  } else if (pack.cells.state[i] && (layerIsOn("toggleProvinces") || layerIsOn("toggleStates"))) {
-    const state = pack.cells.state[i];
-    const stateName = pack.states[state].fullName;
-    const province = pack.cells.province[i];
-    const prov = province ? `${pack.provinces[province].fullName}, ` : "";
+  } else if (worldContext.pack.cells.state[i] && (layerIsOn("toggleProvinces") || layerIsOn("toggleStates"))) {
+    const state = worldContext.pack.cells.state[i];
+    const stateName = worldContext.pack.states[state].fullName;
+    const province = worldContext.pack.cells.province[i];
+    const prov = province ? `${worldContext.pack.provinces[province].fullName}, ` : "";
     tip(prov + stateName);
     if (document.getElementById("statesEditor")?.offsetParent) highlightEditorLine(window.statesEditor!, state);
     if (document.getElementById("diplomacyEditor")?.offsetParent) highlightEditorLine(window.diplomacyEditor!, state);
@@ -309,14 +321,14 @@ function showMapTooltip(point: [number, number], e: MouseEvent, i: number, g: nu
       highlightEditorLine(window.provincesEditor!, province);
     if (document.getElementById("mergeStatesForm")?.offsetParent)
       highlightEditorLine(ensureEl("mergeStatesForm") as HTMLElement, state);
-  } else if (layerIsOn("toggleCultures") && pack.cells.culture[i]) {
-    const culture = pack.cells.culture[i];
-    tip(`Culture: ${pack.cultures[culture].name}`);
+  } else if (layerIsOn("toggleCultures") && worldContext.pack.cells.culture[i]) {
+    const culture = worldContext.pack.cells.culture[i];
+    tip(`Culture: ${worldContext.pack.cultures[culture].name}`);
     if (document.getElementById("culturesEditor")?.offsetParent) highlightEditorLine(window.culturesEditor!, culture);
   } else if (layerIsOn("toggleHeight")) tip(`Height: ${getFriendlyHeight(point)}`);
 }
 
-function highlightEditorLine(editor: HTMLElement, id: number, timeout = 10000): void {
+export function highlightEditorLine(editor: HTMLElement, id: number, timeout = 10000): void {
   for (const el of editor.getElementsByClassName("hovered")) el.classList.remove("hovered");
   const hovered = Array.from(editor.querySelectorAll("div")).find(el => el.dataset.id === String(id));
   if (hovered) hovered.classList.add("hovered");
@@ -329,7 +341,7 @@ function highlightEditorLine(editor: HTMLElement, id: number, timeout = 10000): 
 // ─── Cell info panel ──────────────────────────────────────────────────────────
 
 function updateCellInfo(point: [number, number], i: number, g: number): void {
-  const cells = pack.cells;
+  const cells = worldContext.pack.cells;
   infoX.innerHTML = String(rn(point[0]));
   const x = infoX.innerHTML;
   infoY.innerHTML = String(rn(point[1]));
@@ -341,28 +353,30 @@ function updateCellInfo(point: [number, number], i: number, g: number): void {
 
   infoCell.innerHTML = String(i);
   infoArea.innerHTML = cells.area[i] ? `${si(getArea(cells.area[i]))} ${getAreaUnit()}` : "n/a";
-  infoElevation.innerHTML = getElevation(pack.features[f], pack.cells.h[i]);
-  infoDepth.innerHTML = getDepth(pack.features[f], point);
-  infoTemp.innerHTML = convertTemperature(grid.cells.temp[g]);
+  infoElevation.innerHTML = getElevation(worldContext.pack.features[f], worldContext.pack.cells.h[i]);
+  infoDepth.innerHTML = getDepth(worldContext.pack.features[f], point);
+  infoTemp.innerHTML = convertTemperature(worldContext.grid.cells.temp[g]);
   infoPrec.innerHTML = cells.h[i] >= 20 ? getFriendlyPrecipitation(i) : "n/a";
   infoRiver.innerHTML = cells.h[i] >= 20 && cells.r[i] ? getRiverInfo(cells.r[i]) : "no";
   infoState.innerHTML =
     cells.h[i] >= 20
       ? cells.state[i]
-        ? `${pack.states[cells.state[i]].fullName} (${cells.state[i]})`
+        ? `${worldContext.pack.states[cells.state[i]].fullName} (${cells.state[i]})`
         : "neutral lands (0)"
       : "no";
   infoProvince.innerHTML = cells.province[i]
-    ? `${pack.provinces[cells.province[i]].fullName} (${cells.province[i]})`
+    ? `${worldContext.pack.provinces[cells.province[i]].fullName} (${cells.province[i]})`
     : "no";
-  infoCulture.innerHTML = cells.culture[i] ? `${pack.cultures[cells.culture[i]].name} (${cells.culture[i]})` : "no";
+  infoCulture.innerHTML = cells.culture[i]
+    ? `${worldContext.pack.cultures[cells.culture[i]].name} (${cells.culture[i]})`
+    : "no";
   infoReligion.innerHTML = cells.religion[i]
-    ? `${pack.religions[cells.religion[i]].name} (${cells.religion[i]})`
+    ? `${worldContext.pack.religions[cells.religion[i]].name} (${cells.religion[i]})`
     : "no";
   infoPopulation.innerHTML = getFriendlyPopulation(i);
-  infoBurg.innerHTML = cells.burg[i] ? `${pack.burgs[cells.burg[i]].name} (${cells.burg[i]})` : "no";
-  infoFeature.innerHTML = f ? `${pack.features[f].group} (${f})` : "n/a";
-  infoBiome.innerHTML = biomesData.name[cells.biome[i]];
+  infoBurg.innerHTML = cells.burg[i] ? `${worldContext.pack.burgs[cells.burg[i]].name} (${cells.burg[i]})` : "no";
+  infoFeature.innerHTML = f ? `${worldContext.pack.features[f].group} (${f})` : "n/a";
+  infoBiome.innerHTML = worldContext.biomesData.name[cells.biome[i]];
 }
 
 function getGeozone(latitude: number): string {
@@ -377,7 +391,7 @@ function getGeozone(latitude: number): string {
   return "Antarctic";
 }
 
-function toDMS(coord: number, c: "lat" | "lon"): string {
+export function toDMS(coord: number, c: "lat" | "lon"): string {
   const degrees = Math.floor(Math.abs(coord));
   const minutesNotTruncated = (Math.abs(coord) - degrees) * 60;
   const minutes = Math.floor(minutesNotTruncated);
@@ -396,7 +410,7 @@ function getElevation(f: PackedGraphFeature, h: number): string {
 function getDepth(f: PackedGraphFeature, p: [number, number]): string {
   if (f.land) return `0 ${heightUnit.value}`;
 
-  const gridH = grid.cells.h[findGridCell(p[0], p[1], grid)];
+  const gridH = worldContext.grid.cells.h[findGridCell(p[0], p[1], worldContext.grid)];
   if (f.type === "lake") {
     const depth = gridH === 19 ? f.height / 2 : gridH;
     return getHeight(depth, "abs");
@@ -405,14 +419,14 @@ function getDepth(f: PackedGraphFeature, p: [number, number]): string {
   return getHeight(gridH, "abs");
 }
 
-function getFriendlyHeight([x, y]: [number, number]): string {
-  const packH = pack.cells.h[findCell(x, y)];
-  const gridH = grid.cells.h[findGridCell(x, y, grid)];
+export function getFriendlyHeight([x, y]: [number, number]): string {
+  const packH = worldContext.pack.cells.h[findCell(x, y)];
+  const gridH = worldContext.grid.cells.h[findGridCell(x, y, worldContext.grid)];
   const h = packH < 20 ? gridH : packH;
   return getHeight(h);
 }
 
-function getHeight(h: number, abs?: string): string {
+export function getHeight(h: number, abs?: string): string {
   const unit = heightUnit.value;
   let unitRatio = 3.281;
   if (unit === "m") unitRatio = 1;
@@ -430,20 +444,22 @@ function getPrecipitation(prec: number): string {
   return `${prec * 100} mm`;
 }
 
-function getFriendlyPrecipitation(i: number): string {
-  const prec = grid.cells.prec[pack.cells.g[i]];
+export function getFriendlyPrecipitation(i: number): string {
+  const prec = worldContext.grid.cells.prec[worldContext.pack.cells.g[i]];
   return getPrecipitation(prec);
 }
 
-function getRiverInfo(id: number): string {
-  const r = pack.rivers.find(r => r.i === id);
+export function getRiverInfo(id: number): string {
+  const r = worldContext.pack.rivers.find(r => r.i === id);
   return r ? `${r.name} ${r.type} (${id})` : "n/a";
 }
 
-function getCellPopulation(i: number): [number, number] {
-  const rural = pack.cells.pop[i] * populationRate;
-  const urban = pack.cells.burg[i]
-    ? (pack.burgs[pack.cells.burg[i]].population ?? 0) * populationRate * urbanization
+export function getCellPopulation(i: number): [number, number] {
+  const rural = worldContext.pack.cells.pop[i] * worldContext.populationRate;
+  const urban = worldContext.pack.cells.burg[i]
+    ? (worldContext.pack.burgs[worldContext.pack.cells.burg[i]].population ?? 0) *
+      worldContext.populationRate *
+      worldContext.urbanization
     : 0;
   return [rural, urban];
 }
@@ -453,7 +469,7 @@ function getFriendlyPopulation(i: number): string {
   return `${si(rural + urban)} (${si(rural)} rural, urban ${si(urban)})`;
 }
 
-function getPopulationTip(i: number): string {
+export function getPopulationTip(i: number): string {
   const [rural, urban] = getCellPopulation(i);
   return `Cell population: ${si(rural + urban)}; Rural: ${si(rural)}; Urban: ${si(urban)}`;
 }
@@ -470,13 +486,13 @@ export interface EmblemEl {
 
 export function highlightEmblemElement(type: string, el: EmblemEl): void {
   const id = el.i;
-  const cells = pack.cells;
+  const cells = worldContext.pack.cells;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const animation = d3.transition().duration(1000).ease(d3.easeSinIn);
 
   if (type === "burg") {
     const { x = 0, y = 0 } = el;
-    debug
+    viewContext.debug
       .append("circle")
       .attr("cx", x)
       .attr("cy", y)
@@ -493,7 +509,7 @@ export function highlightEmblemElement(type: string, el: EmblemEl): void {
     return;
   }
 
-  const [x, y] = el.pole || pack.cells.p[el.center!];
+  const [x, y] = el.pole || worldContext.pack.cells.p[el.center!];
   const obj = type === "state" ? cells.state : cells.province;
   const borderCells = cells.i.filter(
     (cellId: number) => obj[cellId] === id && cells.c[cellId].some((n: number) => obj[n] !== id)
@@ -503,7 +519,7 @@ export function highlightEmblemElement(type: string, el: EmblemEl): void {
     .map((cellId: number) => cells.p[cellId])
     .map((pt: [number, number]) => [pt[0], pt[1], Math.hypot(pt[0] - x, pt[1] - y)]);
 
-  debug
+  viewContext.debug
     .selectAll("line")
     .data(data)
     .enter()
@@ -604,7 +620,7 @@ export function applyOption($select: HTMLSelectElement | HTMLInputElement, value
 
 // ─── Info dialog ──────────────────────────────────────────────────────────────
 
-function showInfo(): void {
+export function showInfo(): void {
   const Discord = link("https://discordapp.com/invite/X7E84HU", "Discord");
   const Reddit = link("https://www.reddit.com/r/FantasyMapGenerator", "Reddit");
   const Patreon = link("https://www.patreon.com/azgaar", "Patreon");
@@ -650,7 +666,7 @@ function showInfo(): void {
     <p>Chinese localization: <a href="https://www.8desk.top" target="_blank">8desk.top</a></p>`;
 
   openRichDialog({
-    content: window.alertMessage.innerHTML,
+    content: alertMessage.innerHTML,
     resizable: false,
     title: document.title,
     width: "28em",
@@ -662,31 +678,6 @@ function showInfo(): void {
     position: { my: "center", at: "center", of: "svg" }
   });
 }
-
-// ─── Global exports ───────────────────────────────────────────────────────────
-
-window.tip = tip;
-window.clearMainTip = clearMainTip;
-window.showMainTip = showMainTip;
-window.showDataTip = showDataTip;
-window.showElementLockTip = showElementLockTip;
-window.highlightEditorLine = highlightEditorLine;
-window.onMouseMove = onMouseMove;
-window.lock = lock;
-window.unlock = unlock;
-window.locked = locked;
-window.stored = stored;
-window.store = store;
-window.speak = speak;
-window.applyOption = applyOption;
-window.showInfo = showInfo;
-window.getCellPopulation = getCellPopulation;
-window.getFriendlyHeight = getFriendlyHeight;
-window.getFriendlyPrecipitation = getFriendlyPrecipitation;
-window.getPopulationTip = getPopulationTip;
-window.getHeight = getHeight;
-window.toDMS = toDMS;
-window.getRiverInfo = getRiverInfo;
 
 // ─── Table sorting ────────────────────────────────────────────────────────────
 
@@ -740,16 +731,28 @@ export function applySorting(headers: HTMLElement): void {
     });
 }
 
-window.applySortingByHeader = applySortingByHeader;
-window.applySorting = applySorting;
-window.sortLines = sortLines;
-window.highlightEmblemElement = highlightEmblemElement;
-
 // ─── Legacy globals (from non-migrated JS files) ──────────────────────────────
 
 declare const MOBILE: boolean;
-declare const getArea: (area: number) => number;
-declare const getAreaUnit: () => string;
+
+export function getArea(rawArea: number): number {
+  return rawArea * worldContext.distanceScale ** 2;
+}
+
+export function fitContent(): string {
+  return !("chrome" in window) ? "-moz-max-content" : "fit-content";
+}
+
+export function removeCircle(): void {
+  document.getElementById("brushCircle")?.remove();
+}
+
+export function getAreaUnit(squareMark = "²"): string {
+  const areaUnitEl = ensureEl<HTMLSelectElement>("areaUnit");
+  return areaUnitEl.value === "square"
+    ? ensureEl<HTMLInputElement>("distanceUnitInput").value + squareMark
+    : areaUnitEl.value;
+}
 
 // Info DOM elements
 declare const infoX: HTMLElement;

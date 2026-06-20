@@ -1,14 +1,13 @@
 import type React from "react";
+import { exportToPngTiles } from "../../io/export";
 import { useDialogState } from "../../store/dialogState";
-import { callWindowFn } from "../../utils/windowGlobals";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
-
 export const ExportToPngTilesDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("exportToPngTilesScreen"));
 
   const handleExport = () => {
-    callWindowFn("exportToPngTiles");
+    exportToPngTiles();
   };
 
   return (

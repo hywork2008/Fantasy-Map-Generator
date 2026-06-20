@@ -2,7 +2,6 @@ import type React from "react";
 import { useDialogState } from "../../store/dialogState";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
-
 export const UnitsEditorDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("unitsEditor"));
 

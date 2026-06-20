@@ -1,10 +1,31 @@
 import * as d3 from "d3";
+import { getWorldState } from "../actions";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { interactionManager } from "../controllers/interactionManager";
+import {
+  layerIsOn,
+  toggleBiomes,
+  toggleCultures,
+  toggleProvinces,
+  toggleReligions,
+  toggleStates
+} from "../controllers/layers";
+import { editStyle } from "../controllers/style";
 import { BrushHistoryClass as BrushHistory } from "../editors/BrushHistory";
 import type { Burg } from "../modules/burgs-generator";
+import {
+  applySorting,
+  applySortingByHeader,
+  clearMainTip,
+  fitContent,
+  getArea,
+  getAreaUnit,
+  removeCircle,
+  showMainTip,
+  tip
+} from "../utils/uiHelpers";
 
 type HighlightEvent = { id?: string | number | null; target?: EventTarget | null };
 
@@ -17,14 +38,26 @@ import type { NameBase } from "../modules/names-generator";
 import type { Province } from "../modules/provinces-generator";
 import type { State } from "../modules/states-generator";
 import { CulturesRenderer, PopulationRenderer } from "../renderers";
-import { abbreviate, applySortingByHeader, capitalize, debounce, ensureEl, findCell, isLand, rn, si } from "../utils";
+import { abbreviate, capitalize, debounce, ensureEl, findAll, findCell, isLand, rn, si } from "../utils";
 import { getPackPolygon } from "../utils/graphUtils";
 
 let worldContext: WorldContext;
-let viewContext: Readonly<ViewContext>;
+let viewContext: ViewContext;
 let appServices: AppServices;
 
-import { openDialog, openRichDialog } from "../ui/dialogs/dialogService";
+import {
+  clearLegend,
+  confirmationDialog,
+  downloadFile,
+  drawLegend,
+  getFileName,
+  highlightElement,
+  moveCircle,
+  restoreDefaultEvents
+} from "../controllers/editors";
+import { Names } from "../modules/names-generator";
+import { closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
+import { alertMessage } from "../utils/alertMessageEl";
 import { NamesbaseEditor } from "./namesbase-editor";
 
 const cultureTypes = ["Generic", "River", "Lake", "Naval", "Nomadic", "Hunting", "Highland"];
@@ -139,7 +172,7 @@ function refreshCulturesEditor(): void {
 }
 
 function culturesCollectStatistics(): void {
-  const { cells, cultures, burgs } = pack;
+  const { cells, cultures, burgs } = worldContext.pack;
   cultures.forEach((c: Culture) => {
     c.cells = c.area = c.rural = c.urban = 0;
   });
@@ -166,11 +199,11 @@ function culturesEditorAddLines(): void {
     ?.parentNode as HTMLOptGroupElement | null;
   const selectShape = emblemShapeGroup?.label === "Diversiform";
 
-  for (const c of pack.cultures as Culture[]) {
+  for (const c of worldContext.pack.cultures as Culture[]) {
     if (c.removed) continue;
     const area = getArea(c.area ?? 0);
-    const rural = (c.rural ?? 0) * populationRate;
-    const urban = (c.urban ?? 0) * populationRate * urbanization;
+    const rural = (c.rural ?? 0) * worldContext.populationRate;
+    const urban = (c.urban ?? 0) * worldContext.populationRate * worldContext.urbanization;
     const population = rn(rural + urban);
     const populationTip = `Total population: ${si(population)}. Rural population: ${si(rural)}. Urban population: ${si(urban)}. Click to edit`;
     totalArea += area;
@@ -259,8 +292,12 @@ function culturesEditorAddLines(): void {
   }
   $body.innerHTML = lines;
 
-  ensureEl("culturesFooterCultures").innerHTML = String(pack.cultures.filter((c: Culture) => c.i && !c.removed).length);
-  ensureEl("culturesFooterCells").innerHTML = String(Array.from(pack.cells.h).filter((h: number) => h >= 20).length);
+  ensureEl("culturesFooterCultures").innerHTML = String(
+    worldContext.pack.cultures.filter((c: Culture) => c.i && !c.removed).length
+  );
+  ensureEl("culturesFooterCells").innerHTML = String(
+    Array.from(worldContext.pack.cells.h).filter((h: number) => h >= 20).length
+  );
   ensureEl("culturesFooterArea").innerHTML = `${si(totalArea)} ${unit}`;
   ensureEl("culturesFooterPopulation").innerHTML = si(totalPopulation);
   ensureEl("culturesFooterArea").dataset.area = String(totalArea);
@@ -334,10 +371,10 @@ function getTypeOptions(type: string): string {
 
 function getBaseOptions(base: number): string {
   let options = "";
-  nameBases.forEach((n: { name: string }, i: number) => {
+  worldContext.nameBases.forEach((n: { name: string }, i: number) => {
     options += `<option ${base === i ? "selected" : ""} value="${i}">${n.name}</option>`;
   });
-  if (!nameBases[base]) options += `<option selected value="${base}">removed</option>`;
+  if (!worldContext.nameBases[base]) options += `<option selected value="${base}">removed</option>`;
   return options;
 }
 
@@ -357,19 +394,29 @@ const cultureHighlightOn = debounce((event: HighlightEvent) => {
   const cultureId = Number(event.id || (event.target as HTMLElement | null)?.dataset?.id);
 
   if (!layerIsOn("toggleCultures")) return;
-  if (customization) return;
+  if (viewContext.customization) return;
 
   const animate = d3.transition().duration(2000).ease(d3.easeSinIn);
-  cults.select(`#culture${cultureId}`).raise().transition(animate).attr("stroke-width", 2.5).attr("stroke", "#d0240f");
-  debug.select(`#cultureCenter${cultureId}`).raise().transition(animate).attr("r", 3).attr("stroke", "#d0240f");
+  viewContext.cults
+    .select(`#culture${cultureId}`)
+    .raise()
+    .transition(animate)
+    .attr("stroke-width", 2.5)
+    .attr("stroke", "#d0240f");
+  viewContext.debug
+    .select(`#cultureCenter${cultureId}`)
+    .raise()
+    .transition(animate)
+    .attr("r", 3)
+    .attr("stroke", "#d0240f");
 }, 200);
 
 function cultureHighlightOff(event: HighlightEvent): void {
   const cultureId = Number(event.id || (event.target as HTMLElement | null)?.dataset?.id);
 
   if (!layerIsOn("toggleCultures")) return;
-  cults.select(`#culture${cultureId}`).transition().attr("stroke-width", null).attr("stroke", null);
-  debug.select(`#cultureCenter${cultureId}`).transition().attr("r", 2).attr("stroke", null);
+  viewContext.cults.select(`#culture${cultureId}`).transition().attr("stroke-width", null).attr("stroke", null);
+  viewContext.debug.select(`#cultureCenter${cultureId}`).transition().attr("r", 2).attr("stroke", null);
 }
 
 function cultureChangeColor(this: Element & { fill?: string }): void {
@@ -378,9 +425,9 @@ function cultureChangeColor(this: Element & { fill?: string }): void {
 
   const callback = (newFill: string) => {
     this.fill = newFill;
-    pack.cultures[cultureId].color = newFill;
-    cults.select(`#culture${cultureId}`).attr("fill", newFill);
-    debug.select(`#cultureCenter${cultureId}`).attr("fill", newFill);
+    worldContext.pack.cultures[cultureId].color = newFill;
+    viewContext.cults.select(`#culture${cultureId}`).attr("fill", newFill);
+    viewContext.debug.select(`#cultureCenter${cultureId}`).attr("fill", newFill);
   };
 
   openPicker(currentFill ?? "#ffffff", callback);
@@ -389,37 +436,37 @@ function cultureChangeColor(this: Element & { fill?: string }): void {
 function cultureChangeName(this: HTMLInputElement): void {
   const culture = +(this.parentNode as HTMLElement).dataset.id!;
   (this.parentNode as HTMLElement).dataset.name = this.value;
-  pack.cultures[culture].name = this.value;
-  pack.cultures[culture].code = abbreviate(
+  worldContext.pack.cultures[culture].name = this.value;
+  worldContext.pack.cultures[culture].code = abbreviate(
     this.value,
-    pack.cultures.map((c: Culture) => c.code ?? "")
+    worldContext.pack.cultures.map((c: Culture) => c.code ?? "")
   );
 }
 
 function cultureRegenerateName(this: Element): void {
   const cultureId = +(this.parentNode as HTMLElement).dataset.id!;
-  const base = pack.cultures[cultureId].base;
-  if (!nameBases[base]) {
+  const base = worldContext.pack.cultures[cultureId].base;
+  if (!worldContext.nameBases[base]) {
     tip("Namesbase is not defined, please select a valid namesbase", false, "error", 5000);
     return;
   }
 
   const name = Names.getCultureShort(worldContext, viewContext, appServices, cultureId);
   (this.parentNode as Element).querySelector<HTMLInputElement>("input.cultureName")!.value = name;
-  pack.cultures[cultureId].name = name;
+  worldContext.pack.cultures[cultureId].name = name;
 }
 
 function cultureChangeExpansionism(this: HTMLInputElement): void {
   const culture = +(this.parentNode as HTMLElement).dataset.id!;
   (this.parentNode as HTMLElement).dataset.expansionism = this.value;
-  pack.cultures[culture].expansionism = +this.value;
+  worldContext.pack.cultures[culture].expansionism = +this.value;
   recalculateCultures();
 }
 
 function cultureChangeType(this: HTMLSelectElement): void {
   const culture = +(this.parentNode as HTMLElement).dataset.id!;
   (this.parentNode as HTMLElement).dataset.type = this.value;
-  pack.cultures[culture].type = this.value;
+  worldContext.pack.cultures[culture].type = this.value;
   recalculateCultures();
 }
 
@@ -427,13 +474,13 @@ function cultureChangeBase(this: HTMLSelectElement): void {
   const culture = +(this.parentNode as HTMLElement).dataset.id!;
   const v = +this.value;
   (this.parentNode as HTMLElement).dataset.base = String(v);
-  pack.cultures[culture].base = v;
+  worldContext.pack.cultures[culture].base = v;
 }
 
 function cultureChangeEmblemsShape(this: HTMLSelectElement): void {
   const culture = +(this.parentNode as HTMLElement).dataset.id!;
   const shape = this.value;
-  (this.parentNode as HTMLElement).dataset.emblems = pack.cultures[culture].shield = shape;
+  (this.parentNode as HTMLElement).dataset.emblems = worldContext.pack.cultures[culture].shield = shape;
 
   const rerenderCOA = (id: string, coa: unknown) => {
     const $coa = document.getElementById(id);
@@ -442,16 +489,16 @@ function cultureChangeEmblemsShape(this: HTMLSelectElement): void {
     COArenderer.trigger(id, coa as import("../modules/emblem/renderer").Emblem);
   };
 
-  pack.states.forEach((state: State) => {
+  worldContext.pack.states.forEach((state: State) => {
     if (state.culture !== culture || !state.i || state.removed || !state.coa || state.coa.custom) return;
     if (shape === state.coa.shield) return;
     state.coa.shield = shape;
     rerenderCOA(`stateCOA${state.i}`, state.coa);
   });
 
-  pack.provinces.forEach((province: Province) => {
+  worldContext.pack.provinces.forEach((province: Province) => {
     if (
-      pack.cells.culture[province.center] !== culture ||
+      worldContext.pack.cells.culture[province.center] !== culture ||
       !province.i ||
       province.removed ||
       !province.coa ||
@@ -463,7 +510,7 @@ function cultureChangeEmblemsShape(this: HTMLSelectElement): void {
     rerenderCOA(`provinceCOA${province.i}`, province.coa);
   });
 
-  pack.burgs.forEach((burg: Burg) => {
+  worldContext.pack.burgs.forEach((burg: Burg) => {
     if (burg.culture !== culture || !burg.i || burg.removed || !burg.coa || burg.coa.custom) return;
     if (shape === burg.coa.shield) return;
     burg.coa.shield = shape;
@@ -473,17 +520,17 @@ function cultureChangeEmblemsShape(this: HTMLSelectElement): void {
 
 function changePopulation(this: Element): void {
   const cultureId = +(this.parentNode as HTMLElement).dataset.id!;
-  const culture = pack.cultures[cultureId] as Culture;
+  const culture = worldContext.pack.cultures[cultureId] as Culture;
   if (!culture.cells) {
     tip("Culture does not have any cells, cannot change population", false, "error");
     return;
   }
 
-  const rural = rn((culture.rural ?? 0) * populationRate);
-  const urban = rn((culture.urban ?? 0) * populationRate * urbanization);
+  const rural = rn((culture.rural ?? 0) * worldContext.populationRate);
+  const urban = rn((culture.urban ?? 0) * worldContext.populationRate * worldContext.urbanization);
   const total = rural + urban;
   const format = (n: number) => Number(n).toLocaleString();
-  const burgs = pack.burgs.filter((b: Burg) => !b.removed && b.culture === cultureId);
+  const burgs = worldContext.pack.burgs.filter((b: Burg) => !b.removed && b.culture === cultureId);
 
   alertMessage.innerHTML = /* html */ `<div>
     <i>Change population of all cells assigned to the culture</i>
@@ -513,7 +560,7 @@ function changePopulation(this: Element): void {
   getUrbanPop().oninput = () => update();
 
   openRichDialog({
-    content: window.alertMessage.innerHTML,
+    content: alertMessage.innerHTML,
     resizable: false,
     title: "Change culture population",
     width: "24em",
@@ -539,21 +586,21 @@ function applyPopulationChange(
 ): void {
   const ruralChange = +newRural / oldRural;
   if (Number.isFinite(ruralChange) && ruralChange !== 1) {
-    const cells = pack.cells.i.filter((i: number) => pack.cells.culture[i] === culture);
+    const cells = worldContext.pack.cells.i.filter((i: number) => worldContext.pack.cells.culture[i] === culture);
     cells.forEach((i: number) => {
-      pack.cells.pop[i] *= ruralChange;
+      worldContext.pack.cells.pop[i] *= ruralChange;
     });
   }
   if (!Number.isFinite(ruralChange) && +newRural > 0) {
-    const points = +newRural / populationRate;
-    const cells = pack.cells.i.filter((i: number) => pack.cells.culture[i] === culture);
+    const points = +newRural / worldContext.populationRate;
+    const cells = worldContext.pack.cells.i.filter((i: number) => worldContext.pack.cells.culture[i] === culture);
     const pop = rn(points / cells.length);
     cells.forEach((i: number) => {
-      pack.cells.pop[i] = pop;
+      worldContext.pack.cells.pop[i] = pop;
     });
   }
 
-  const burgs = pack.burgs.filter((b: Burg) => !b.removed && b.culture === culture);
+  const burgs = worldContext.pack.burgs.filter((b: Burg) => !b.removed && b.culture === culture);
   const urbanChange = +newUrban / oldUrban;
   if (Number.isFinite(urbanChange) && urbanChange !== 1) {
     burgs.forEach((b: Burg) => {
@@ -561,7 +608,7 @@ function applyPopulationChange(
     });
   }
   if (!Number.isFinite(urbanChange) && +newUrban > 0) {
-    const points = +newUrban / populationRate / urbanization;
+    const points = +newUrban / worldContext.populationRate / worldContext.urbanization;
     const population = rn(points / burgs.length, 4);
     burgs.forEach((b: Burg) => {
       b.population = population;
@@ -573,28 +620,28 @@ function applyPopulationChange(
 }
 
 function cultureRegenerateBurgs(this: Element): void {
-  if (customization === 4) return;
+  if (viewContext.customization === 4) return;
 
   const cultureId = +(this.parentNode as HTMLElement).dataset.id!;
-  const base = pack.cultures[cultureId].base;
-  if (!nameBases[base]) {
+  const base = worldContext.pack.cultures[cultureId].base;
+  if (!worldContext.nameBases[base]) {
     tip("Namesbase is not defined, please select a valid namesbase", false, "error", 5000);
     return;
   }
 
-  const cultureBurgs = pack.burgs.filter((b: Burg) => b.culture === cultureId && !b.removed && !b.lock);
+  const cultureBurgs = worldContext.pack.burgs.filter((b: Burg) => b.culture === cultureId && !b.removed && !b.lock);
   cultureBurgs.forEach((b: Burg) => {
     b.name = Names.getCulture(cultureId);
-    labels.select(`[data-id='${b.i}']`).text(b.name);
+    viewContext.labels.select(`[data-id='${b.i}']`).text(b.name);
   });
   tip(`Names for ${cultureBurgs.length} burgs are regenerated`, false, "success");
 }
 
 function removeCulture(cultureId: number): void {
-  cults.select(`#culture${cultureId}`).remove();
-  debug.select(`#cultureCenter${cultureId}`).remove();
+  viewContext.cults.select(`#culture${cultureId}`).remove();
+  viewContext.debug.select(`#cultureCenter${cultureId}`).remove();
 
-  const { burgs, states, cells, cultures } = pack;
+  const { burgs, states, cells, cultures } = worldContext.pack;
 
   burgs
     .filter((b: Burg) => b.culture === cultureId)
@@ -620,11 +667,11 @@ function removeCulture(cultureId: number): void {
 
 function cultureHighlightElement(this: Element): void {
   const cultureId = +(this.parentNode as HTMLElement).dataset.id!;
-  highlightElement(cults.select(`#culture${cultureId}`).node() as Element, 4);
+  highlightElement(viewContext.cults.select(`#culture${cultureId}`).node() as Element, 4);
 }
 
 function cultureRemovePrompt(this: Element): void {
-  if (customization) return;
+  if (viewContext.customization) return;
 
   const cultureId = +(this.parentNode as HTMLElement).dataset.id!;
   confirmationDialog({
@@ -637,15 +684,15 @@ function cultureRemovePrompt(this: Element): void {
 
 function drawCultureCenters(): void {
   const tooltip = "Drag to move the culture center (ancestral home)";
-  debug.select("#cultureCenters").remove();
-  const cultureCenters = debug
+  viewContext.debug.select("#cultureCenters").remove();
+  const cultureCenters = viewContext.debug
     .append("g")
     .attr("id", "cultureCenters")
     .attr("stroke-width", 0.8)
     .attr("stroke", "#444444")
     .style("cursor", "move");
 
-  const data = pack.cultures.filter((c: Culture) => c.i && !c.removed);
+  const data = worldContext.pack.cultures.filter((c: Culture) => c.i && !c.removed);
   cultureCenters
     .selectAll("circle")
     .data(data)
@@ -655,8 +702,8 @@ function drawCultureCenters(): void {
     .attr("data-id", (d: Culture) => d.i)
     .attr("r", 2)
     .attr("fill", (d: Culture) => d.color ?? "")
-    .attr("cx", (d: Culture) => pack.cells.p[d.center!][0])
-    .attr("cy", (d: Culture) => pack.cells.p[d.center!][1])
+    .attr("cx", (d: Culture) => worldContext.pack.cells.p[d.center!][0])
+    .attr("cy", (d: Culture) => worldContext.pack.cells.p[d.center!][1])
     .on("mouseenter", (event: MouseEvent & { id?: string }, d: Culture) => {
       tip(tooltip, true);
       $body.querySelector(`div[data-id='${d.i}']`)?.classList.add("selected");
@@ -708,21 +755,21 @@ function cultureCenterDragInner(
   const { x, y } = event;
   this.setAttribute("transform", `translate(${_ccdX0 + x},${_ccdY0 + y})`);
   const cell = findCell(x, y);
-  if (pack.cells.h[cell] < 20) return;
+  if (worldContext.pack.cells.h[cell] < 20) return;
 
-  pack.cultures[_ccdId].center = cell;
+  worldContext.pack.cultures[_ccdId].center = cell;
   recalculateCultures();
 }
 
 const cultureCenterDragDebounced = debounce(cultureCenterDragInner, 50);
 
 function toggleLegend(): void {
-  if (legend.selectAll("*").size()) {
+  if (viewContext.legend.selectAll("*").size()) {
     clearLegend();
     return;
   }
 
-  const data = pack.cultures
+  const data = worldContext.pack.cultures
     .filter((c: Culture) => c.i && !c.removed && c.cells)
     .sort((a: Culture, b: Culture) => (b.area ?? 0) - (a.area ?? 0))
     .map((c: Culture) => [c.i, c.color, c.name] as [number, string, string]);
@@ -750,11 +797,12 @@ function togglePercentageMode(): void {
 }
 
 function showHierarchy(): void {
-  if (customization) return;
+  if (viewContext.customization) return;
 
   const getDescription = (culture: HierarchyElement) => {
     const { name, type, rural, urban } = culture as HierarchyElement & { type: string; rural: number; urban: number };
-    const population = rural * populationRate + urban * populationRate * urbanization;
+    const population =
+      rural * worldContext.populationRate + urban * worldContext.populationRate * worldContext.urbanization;
     const populationText = population > 0 ? `${si(rn(population))} people` : "Extinct";
     return `${name} culture. ${type}. ${populationText}`;
   };
@@ -772,7 +820,7 @@ function showHierarchy(): void {
 
   openHierarchyTree({
     type: "cultures",
-    data: pack.cultures as unknown as HierarchyElement[],
+    data: worldContext.pack.cultures as unknown as HierarchyElement[],
     onNodeEnter: cultureHighlightOn,
     onNodeLeave: cultureHighlightOff,
     getDescription,
@@ -784,8 +832,8 @@ function recalculateCultures(force?: boolean): void {
   if (force || ensureEl<HTMLInputElement>("culturesAutoChange").checked) {
     Cultures.expand(getWorldState());
     CulturesRenderer.render(worldContext, viewContext, appServices);
-    pack.burgs.forEach((b: Burg) => {
-      b.culture = pack.cells.culture[b.cell];
+    worldContext.pack.burgs.forEach((b: Burg) => {
+      b.culture = worldContext.pack.cells.culture[b.cell];
     });
     refreshCulturesEditor();
   }
@@ -793,13 +841,13 @@ function recalculateCultures(force?: boolean): void {
 
 function enterCultureManualAssignent(): void {
   if (!layerIsOn("toggleCultures")) toggleCultures();
-  customization = 4;
-  cults.append("g").attr("id", "temp");
+  viewContext.customization = 4;
+  viewContext.cults.append("g").attr("id", "temp");
   document.querySelectorAll<HTMLElement>("#culturesFooter > *").forEach(el => {
     el.style.display = "none";
   });
   ensureEl("culturesManuallyButtons").style.display = "inline-block";
-  debug.select("#cultureCenters").style("display", "none");
+  viewContext.debug.select("#cultureCenters").style("display", "none");
 
   document
     .getElementById("culturesEditor")
@@ -814,7 +862,7 @@ function enterCultureManualAssignent(): void {
   openDialog("culturesEditor", { position: { my: "right top", at: "right-10 top+10", of: "svg" } });
 
   tip("Click on culture to select, drag the circle to change culture", true);
-  viewbox
+  viewContext.viewbox
     .style("cursor", "crosshair")
     .on("click", selectCultureOnMapClick)
     .call(d3.drag<SVGGElement, unknown>().on("start", dragCultureBrushStart).on("drag", dragCultureBrush))
@@ -825,7 +873,7 @@ function enterCultureManualAssignent(): void {
 }
 
 function selectCultureOnLineClick(this: Element): void {
-  if (customization !== 4) return;
+  if (viewContext.customization !== 4) return;
   const previous = $body.querySelector("div.selected");
   if (previous) previous.classList.remove("selected");
   (this as Element).classList.add("selected");
@@ -834,10 +882,10 @@ function selectCultureOnLineClick(this: Element): void {
 function selectCultureOnMapClick(this: SVGElement, event: MouseEvent): void {
   const point = d3.pointer(event, this);
   const i = findCell(point[0], point[1]);
-  if (pack.cells.h[i] < 20) return;
+  if (worldContext.pack.cells.h[i] < 20) return;
 
-  const assigned = cults.select("#temp").select(`polygon[data-cell='${i}']`);
-  const culture = assigned.size() ? +assigned.attr("data-culture") : pack.cells.culture[i];
+  const assigned = viewContext.cults.select("#temp").select(`polygon[data-cell='${i}']`);
+  const culture = assigned.size() ? +assigned.attr("data-culture") : worldContext.pack.cells.culture[i];
 
   $body.querySelector("div.selected")!.classList.remove("selected");
   $body.querySelector<HTMLElement>(`div[data-id='${culture}']`)!.classList.add("selected");
@@ -859,15 +907,15 @@ function dragCultureBrush(this: SVGElement, event: d3.D3DragEvent<SVGElement, un
 }
 
 function changeCultureForSelection(selection: number[]): void {
-  const temp = cults.select("#temp");
+  const temp = viewContext.cults.select("#temp");
   const selected = $body.querySelector<HTMLElement>("div.selected")!;
 
   const cultureNew = +selected.dataset.id!;
-  const color = pack.cultures[cultureNew]?.color || "#ffffff";
+  const color = worldContext.pack.cultures[cultureNew]?.color || "#ffffff";
 
   selection.forEach((i: number) => {
     const exists = temp.select(`polygon[data-cell='${i}']`);
-    const cultureOld = exists.size() ? +exists.attr("data-culture") : pack.cells.culture[i];
+    const cultureOld = exists.size() ? +exists.attr("data-culture") : worldContext.pack.cells.culture[i];
     if (cultureNew === cultureOld) return;
 
     if (exists.size()) exists.attr("data-culture", cultureNew).attr("fill", color).attr("stroke", color);
@@ -890,12 +938,12 @@ function moveCultureBrush(this: SVGElement, event: MouseEvent): void {
 }
 
 function applyCultureManualAssignent(): void {
-  const changed = cults.select("#temp").selectAll<SVGPolygonElement, unknown>("polygon");
+  const changed = viewContext.cults.select("#temp").selectAll<SVGPolygonElement, unknown>("polygon");
   changed.each(function (this: SVGPolygonElement) {
     const i = +this.dataset.cell!;
     const c = +this.dataset.culture!;
-    pack.cells.culture[i] = c;
-    if (pack.cells.burg[i]) pack.burgs[pack.cells.burg[i]].culture = c;
+    worldContext.pack.cells.culture[i] = c;
+    if (worldContext.pack.cells.burg[i]) worldContext.pack.burgs[worldContext.pack.cells.burg[i]].culture = c;
   });
 
   if (changed.size()) {
@@ -906,11 +954,11 @@ function applyCultureManualAssignent(): void {
 }
 
 function exitCulturesManualAssignment(close?: boolean | string): void {
-  customization = 0;
+  viewContext.customization = 0;
   culturesManualHistory.reset();
-  cults.select("#temp").remove();
+  viewContext.cults.select("#temp").remove();
   removeCircle();
-  debug.select("#cultureCenters").style("display", null);
+  viewContext.debug.select("#cultureCenters").style("display", null);
   restoreDefaultEvents?.();
   clearMainTip();
 
@@ -938,13 +986,13 @@ function exitCulturesManualAssignment(close?: boolean | string): void {
 }
 
 function saveCulturesManualSnapshot(): void {
-  const temp = cults.select("#temp").node() as Element | null;
+  const temp = viewContext.cults.select("#temp").node() as Element | null;
   if (!temp) return;
   culturesManualHistory.push(temp.innerHTML);
 }
 
 function undoCulturesManualAssignment(): void {
-  const temp = cults.select("#temp").node() as Element | null;
+  const temp = viewContext.cults.select("#temp").node() as Element | null;
   if (!temp || !culturesManualHistory.canUndo) return;
   temp.innerHTML = culturesManualHistory.pop() ?? "";
 }
@@ -955,10 +1003,10 @@ function enterAddCulturesMode(this: HTMLButtonElement): void {
     return;
   }
 
-  customization = 9;
+  viewContext.customization = 9;
   this.classList.add("pressed");
   tip("Click on the map to add a new culture", true);
-  viewbox.style("cursor", "crosshair");
+  viewContext.viewbox.style("cursor", "crosshair");
   interactionManager.setClickHandler(addCulture);
   $body.querySelectorAll<HTMLElement>("div > input, select, span, svg").forEach(e => {
     e.style.pointerEvents = "none";
@@ -966,7 +1014,7 @@ function enterAddCulturesMode(this: HTMLButtonElement): void {
 }
 
 function exitAddCultureMode(): void {
-  customization = 0;
+  viewContext.customization = 0;
   restoreDefaultEvents?.();
   clearMainTip();
   $body.querySelectorAll<HTMLElement>("div > input, select, span, svg").forEach(e => {
@@ -980,12 +1028,12 @@ function addCulture(this: SVGElement, event: MouseEvent): void {
   const point = d3.pointer(event, this);
   const center = findCell(point[0], point[1]);
 
-  if (pack.cells.h[center] < 20) {
+  if (worldContext.pack.cells.h[center] < 20) {
     tip("You cannot place culture center into the water. Please click on a land cell", false, "error");
     return;
   }
 
-  const occupied = pack.cultures.some((c: Culture) => !c.removed && c.center === center);
+  const occupied = worldContext.pack.cultures.some((c: Culture) => !c.removed && c.center === center);
   if (occupied) {
     tip("This cell is already a culture center. Please select a different cell", false, "error");
     return;
@@ -1005,11 +1053,11 @@ function downloadCulturesCsv(): void {
   const data = lines.map(($line: Element) => {
     const { id, name, color, cells, expansionism, type, area, population, emblems, base } = ($line as HTMLElement)
       .dataset;
-    const namesbase = nameBases[+(base ?? 0)].name;
-    const { origins } = pack.cultures[+(id ?? 0)];
+    const namesbase = worldContext.nameBases[+(base ?? 0)].name;
+    const { origins } = worldContext.pack.cultures[+(id ?? 0)];
     const originList = (origins as number[])
       .filter(origin => origin)
-      .map((origin: number) => pack.cultures[origin].name);
+      .map((origin: number) => worldContext.pack.cultures[origin].name);
     const originText = `"${originList.join(", ")}"`;
     return [id, name, color, cells, expansionism, type, area, population, namesbase, emblems, originText].join(",");
   });
@@ -1020,7 +1068,7 @@ function downloadCulturesCsv(): void {
 }
 
 function closeCulturesEditor(): void {
-  debug.select("#cultureCenters").remove();
+  viewContext.debug.select("#cultureCenters").remove();
   exitCulturesManualAssignment("close");
   exitAddCultureMode();
 }
@@ -1041,7 +1089,7 @@ async function uploadCulturesData(this: HTMLInputElement): Promise<void> {
     namesbase: d.Namesbase
   }));
 
-  const { cultures, cells } = pack;
+  const { cultures, cells } = worldContext.pack;
   const shapes = Object.keys(COA.shields.types).flatMap((type: string) => Object.keys(COA.shields[type]));
 
   const populated = Array.from(cells.pop)
@@ -1111,7 +1159,7 @@ async function uploadCulturesData(this: HTMLInputElement): Promise<void> {
 
     restoreOrigins(culture.origins);
     current.shield = shapes.includes(culture.emblemsShape!) ? culture.emblemsShape! : "heater";
-    current.base = nameBases.findIndex((n: NameBase) => n.name === culture.namesbase);
+    current.base = worldContext.nameBases.findIndex((n: NameBase) => n.name === culture.namesbase);
   }
 
   cultures
@@ -1125,11 +1173,11 @@ async function uploadCulturesData(this: HTMLInputElement): Promise<void> {
 }
 
 function updateLockStatus(this: Element): void {
-  if (customization) return;
+  if (viewContext.customization) return;
 
   const cultureId = +(this.parentNode as HTMLElement).dataset.id!;
   const classList = this.classList;
-  const c = pack.cultures[cultureId] as Culture;
+  const c = worldContext.pack.cultures[cultureId] as Culture;
   c.lock = !c.lock;
 
   classList.toggle("icon-lock-open");

@@ -181,7 +181,7 @@ export const EmblemsRenderer: IRenderer = {
         .attr("data-zoom-size", sizeStates)
         .html(stateString);
 
-      invokeActiveZooming();
+      document.dispatchEvent(new CustomEvent("fmg:invoke-active-zooming"));
     });
 
     TIME && console.timeEnd("EmblemsRenderer");

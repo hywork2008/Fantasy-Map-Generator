@@ -1,20 +1,22 @@
 import { pointer, sum } from "d3";
 import type { AppServices } from "../context/appServices";
+import { appServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
+import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import { worldContext } from "../context/worldContext";
 import type { MilitaryRegiment, MilitaryUnit } from "../modules/military-generator";
 import { Military } from "../modules/military-generator";
 import { drawRegiment } from "../renderers/index";
-import { openDialog } from "../ui/dialogs/dialogService";
+import { closeDialogs, openDialog } from "../ui/dialogs/dialogService";
 import { capitalize, ensureEl, findCell, getLatitude, getLongitude, last, rn, si } from "../utils";
+import { applySorting, clearMainTip, fitContent, sortLines, tip } from "../utils/uiHelpers";
+import { downloadFile, getFileName } from "./editors";
 import { interactionManager } from "./interactionManager";
+import { layerIsOn, toggleMilitary } from "./layers";
 
-let worldContext: WorldContext;
-let viewContext: Readonly<ViewContext>;
-let appServices: AppServices;
-
-function overviewRegiments(state = -1): void {
-  if (customization) return;
+export function overviewRegiments(state = -1): void {
+  if (viewContext.customization) return;
   closeDialogs(".stable");
   if (!layerIsOn("toggleMilitary")) toggleMilitary();
 
@@ -42,12 +44,12 @@ function overviewRegiments(state = -1): void {
 
   function updateHeaders(): void {
     const header = document.getElementById("regimentsHeader") as HTMLElement;
-    const units = options.military!.length;
+    const units = worldContext.options.military!.length;
     header.style.gridTemplateColumns = `9em 13em repeat(${units}, 5.2em) 7em`;
 
     for (const el of header.querySelectorAll(".removable")) el.remove();
     const insert = (html: string) => document.getElementById("regimentsTotal")!.insertAdjacentHTML("beforebegin", html);
-    for (const u of options.military!) {
+    for (const u of worldContext.options.military!) {
       const label = capitalize(u.name.replace(/_/g, " "));
       insert(
         `<div data-tip="Regiment ${u.name} units number. Click to sort" class="sortable removable" data-sortby="${u.name}">${label}&nbsp;</div>`
@@ -66,13 +68,15 @@ function overviewRegiments(state = -1): void {
     let lines = "";
     const regiments: MilitaryRegiment[] = [];
 
-    for (const s of pack.states) {
+    for (const s of worldContext.pack.states) {
       if (!s.i || s.removed || !s.military?.length) continue;
       if (stateFilter !== -1 && s.i !== stateFilter) continue;
 
       for (const r of s.military) {
-        const sortData = options.military!.map((u: MilitaryUnit) => `data-${u.name}=${r.u[u.name] || 0}`).join(" ");
-        const lineData = options
+        const sortData = worldContext.options
+          .military!.map((u: MilitaryUnit) => `data-${u.name}=${r.u[u.name] || 0}`)
+          .join(" ");
+        const lineData = worldContext.options
           .military!.map(
             (u: MilitaryUnit) =>
               `<div data-type="${u.name}" data-tip="${capitalize(u.name)} units number">${r.u[u.name] || 0}</div>`
@@ -84,8 +88,8 @@ function overviewRegiments(state = -1): void {
           <input data-tip="${s.fullName}" style="width:6em" value="${s.name}" readonly />
           ${
             r.icon && (r.icon.startsWith("http") || r.icon.startsWith("data:image"))
-              ? `<img src="${r.icon}" data-tip="Regiment's emblem" style="width:1.2em; height:1.2em; vertical-align: middle;">`
-              : `<span data-tip="Regiment's emblem" style="width:1em">${r.icon ?? ""}</span>`
+              ? `<img src="${r.icon}" data-tip="Regiment's emblem" worldContext.style="width:1.2em; height:1.2em; vertical-align: middle;">`
+              : `<span data-tip="Regiment's emblem" worldContext.style="width:1em">${r.icon ?? ""}</span>`
           }
           <input data-tip="Regiment's name" style="width:13em" value="${r.name}" readonly />
           ${lineData}
@@ -99,10 +103,10 @@ function overviewRegiments(state = -1): void {
 
     lines += /* html */ `<div id="regimentsTotalLine" class="totalLine" data-tip="Total of all displayed regiments">
       <div style="width: 21em; margin-left: 1em">Regiments: ${regiments.length}</div>
-      ${options
+      ${worldContext.options
         .military!.map(
           (u: MilitaryUnit) =>
-            `<div style="width:5em">${si(sum(regiments.map((r: MilitaryRegiment) => r.u[u.name] || 0)))}</div>`
+            `<div worldContext.style="width:5em">${si(sum(regiments.map((r: MilitaryRegiment) => r.u[u.name] || 0)))}</div>`
         )
         .join(" ")}
       <div style="width:5em">${si(sum(regiments.map((r: MilitaryRegiment) => r.a)))}</div>
@@ -125,7 +129,9 @@ function overviewRegiments(state = -1): void {
     const filter = document.getElementById("regimentsFilter") as HTMLSelectElement;
     filter.options.length = 0;
     filter.options.add(new Option("all", "-1", false, stateId === -1));
-    const statesSorted = pack.states.filter(s => s.i && !s.removed).sort((a, b) => (a.name > b.name ? 1 : -1));
+    const statesSorted = worldContext.pack.states
+      .filter(s => s.i && !s.removed)
+      .sort((a, b) => (a.name > b.name ? 1 : -1));
     for (const s of statesSorted) filter.options.add(new Option(s.name, String(s.i), false, s.i === stateId));
   }
 
@@ -133,15 +139,15 @@ function overviewRegiments(state = -1): void {
     const el = event.currentTarget as HTMLElement;
     const stateId = +el.dataset.s!;
     const id = +el.dataset.id!;
-    if (customization || !stateId) return;
-    armies.select(`g > g#regiment${stateId}-${id}`).transition().duration(2000).style("fill", "#ff0000");
+    if (viewContext.customization || !stateId) return;
+    viewContext.armies.select(`g > g#regiment${stateId}-${id}`).transition().duration(2000).style("fill", "#ff0000");
   }
 
   function regimentHighlightOff(event: MouseEvent): void {
     const el = event.currentTarget as HTMLElement;
     const stateId = +el.dataset.s!;
     const id = +el.dataset.id!;
-    armies.select(`g > g#regiment${stateId}-${id}`).transition().duration(1000).style("fill", null);
+    viewContext.armies.select(`g > g#regiment${stateId}-${id}`).transition().duration(1000).style("fill", null);
   }
 
   function togglePercentageMode(): void {
@@ -174,14 +180,14 @@ function overviewRegiments(state = -1): void {
   function toggleAdd(): void {
     document.getElementById("regimentsAddNew")!.classList.toggle("pressed");
     if (document.getElementById("regimentsAddNew")!.classList.contains("pressed")) {
-      viewbox.style("cursor", "crosshair");
+      viewContext.viewbox.style("cursor", "crosshair");
       interactionManager.setClickHandler(addRegimentOnClick);
       tip("Click on map to create new regiment or fleet", true);
       if (regimentAdd.offsetParent) regimentAdd.classList.add("pressed");
     } else {
       clearMainTip();
       interactionManager.resetClickHandler();
-      viewbox.style("cursor", "default");
+      viewContext.viewbox.style("cursor", "default");
       addLines();
       if (regimentAdd.offsetParent) regimentAdd.classList.remove("pressed");
     }
@@ -196,11 +202,11 @@ function overviewRegiments(state = -1): void {
 
     const [px, py] = pointer(event, this);
     const cell = findCell(px, py);
-    const x = pack.cells.p[cell][0];
-    const y = pack.cells.p[cell][1];
-    const military = pack.states[stateFilter].military!;
+    const x = worldContext.pack.cells.p[cell][0];
+    const y = worldContext.pack.cells.p[cell][1];
+    const military = worldContext.pack.states[stateFilter].military!;
     const i = military.length ? last(military).i + 1 : 0;
-    const n = +(pack.cells.h[cell] < 20);
+    const n = +(worldContext.pack.cells.h[cell] < 20);
     const reg = {
       a: 0,
       cell,
@@ -216,19 +222,19 @@ function overviewRegiments(state = -1): void {
     } as MilitaryRegiment;
     reg.name = Military.getName(reg, military);
     military.push(reg);
-    Military.generateNote(reg, pack.states[stateFilter]);
+    Military.generateNote(reg, worldContext.pack.states[stateFilter]);
     drawRegiment(worldContext, viewContext, appServices, reg, stateFilter);
     toggleAdd();
   }
 
   function downloadRegimentsData(): void {
-    const units = options.military!.map((u: MilitaryUnit) => u.name);
+    const units = worldContext.options.military!.map((u: MilitaryUnit) => u.name);
     let data =
       "State,Id,Icon,Name," +
       units.map((u: string) => capitalize(u)).join(",") +
       ",X,Y,Latitude,Longitude,Base X,Base Y,Base Latitude,Base Longitude\n";
 
-    for (const s of pack.states) {
+    for (const s of worldContext.pack.states) {
       if (!s.i || s.removed || !s.military?.length) continue;
 
       for (const r of s.military) {
@@ -255,10 +261,4 @@ function overviewRegiments(state = -1): void {
   }
 }
 
-window.overviewRegiments = overviewRegiments;
-
-export function initRegimentsOverview(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {
-  worldContext = wc;
-  viewContext = vc;
-  appServices = as;
-}
+export function initRegimentsOverview(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {}

@@ -1,7 +1,13 @@
+import { viewContext } from "../context/viewContext";
+import { worldContext } from "../context/worldContext";
 import { useOptionsState } from "../store/optionsState";
+import { closeDialogs } from "../ui/dialogs/dialogService";
+import { tip } from "../utils/uiHelpers";
+import { VERSION } from "../versioning";
+import { getFileName } from "./editors";
 
 export function exportToJson(type: string): void {
-  if (customization) {
+  if (viewContext.customization) {
     tip("Data cannot be exported when edit mode is active, please exit the mode and retry", false, "error");
     return;
   }
@@ -36,12 +42,12 @@ function getFullDataJson(): string {
   return JSON.stringify({
     info,
     settings,
-    mapCoordinates,
+    mapCoordinates: worldContext.mapCoordinates,
     pack: packData,
     grid: gridData,
-    biomesData,
-    notes,
-    nameBases
+    biomesData: worldContext.biomesData,
+    notes: worldContext.notes,
+    nameBases: worldContext.nameBases
   });
 }
 
@@ -49,18 +55,26 @@ function getMinimalDataJson(): string {
   const info = getMapInfo();
   const settings = getSettings();
   const packData = {
-    features: pack.features,
-    cultures: pack.cultures,
-    burgs: pack.burgs,
-    states: pack.states,
-    provinces: pack.provinces,
-    religions: pack.religions,
-    rivers: pack.rivers,
-    markers: pack.markers,
-    routes: pack.routes,
-    zones: pack.zones
+    features: worldContext.pack.features,
+    cultures: worldContext.pack.cultures,
+    burgs: worldContext.pack.burgs,
+    states: worldContext.pack.states,
+    provinces: worldContext.pack.provinces,
+    religions: worldContext.pack.religions,
+    rivers: worldContext.pack.rivers,
+    markers: worldContext.pack.markers,
+    routes: worldContext.pack.routes,
+    zones: worldContext.pack.zones
   };
-  return JSON.stringify({ info, settings, mapCoordinates, pack: packData, biomesData, notes, nameBases });
+  return JSON.stringify({
+    info,
+    settings,
+    mapCoordinates: worldContext.mapCoordinates,
+    pack: packData,
+    biomesData: worldContext.biomesData,
+    notes: worldContext.notes,
+    nameBases: worldContext.nameBases
+  });
 }
 
 function getPackDataJson(): string {
@@ -81,64 +95,64 @@ function getMapInfo() {
     description: "Azgaar's Fantasy Map Generator output: azgaar.github.io/Fantasy-map-generator",
     exportedAt: new Date().toISOString(),
     mapName: useOptionsState.getState().mapName,
-    width: graphWidth,
-    height: graphHeight,
-    seed,
-    mapId
+    width: worldContext.graphWidth,
+    height: worldContext.graphHeight,
+    seed: worldContext.seed,
+    mapId: worldContext.mapId
   };
 }
 
 function getSettings() {
   return {
     distanceUnit: distanceUnitInput.value,
-    distanceScale,
+    distanceScale: worldContext.distanceScale,
     areaUnit: areaUnit.value,
     heightUnit: heightUnit.value,
     heightExponent: heightExponentInput.value,
     temperatureScale: temperatureScale.value,
-    populationRate,
-    urbanization,
+    populationRate: worldContext.populationRate,
+    urbanization: worldContext.urbanization,
     mapSize: mapSizeOutput.value,
     latitude: latitudeOutput.value,
     longitude: longitudeOutput.value,
     prec: precOutput.value,
-    options,
+    options: worldContext.options,
     mapName: useOptionsState.getState().mapName,
     hideLabels: hideLabels.checked,
     stylePreset: stylePreset.value,
     rescaleLabels: rescaleLabels.checked,
-    urbanDensity
+    urbanDensity: worldContext.urbanDensity
   };
 }
 
 function getPackCellsData() {
   const data = {
-    v: pack.cells.v,
-    c: pack.cells.c,
-    p: pack.cells.p,
-    g: Array.from(pack.cells.g),
-    h: Array.from(pack.cells.h),
-    area: Array.from(pack.cells.area),
-    f: Array.from(pack.cells.f),
-    t: Array.from(pack.cells.t),
-    haven: Array.from(pack.cells.haven),
-    harbor: Array.from(pack.cells.harbor),
-    fl: Array.from(pack.cells.fl),
-    r: Array.from(pack.cells.r),
-    conf: Array.from(pack.cells.conf),
-    biome: Array.from(pack.cells.biome),
-    s: Array.from(pack.cells.s),
-    pop: Array.from(pack.cells.pop),
-    culture: Array.from(pack.cells.culture),
-    burg: Array.from(pack.cells.burg),
-    routes: pack.cells.routes,
-    state: Array.from(pack.cells.state),
-    religion: Array.from(pack.cells.religion),
-    province: Array.from(pack.cells.province)
+    v: worldContext.pack.cells.v,
+    c: worldContext.pack.cells.c,
+    p: worldContext.pack.cells.p,
+    g: Array.from(worldContext.pack.cells.g),
+    h: Array.from(worldContext.pack.cells.h),
+    area: Array.from(worldContext.pack.cells.area),
+    f: Array.from(worldContext.pack.cells.f),
+    t: Array.from(worldContext.pack.cells.t),
+    haven: Array.from(worldContext.pack.cells.haven),
+    harbor: Array.from(worldContext.pack.cells.harbor),
+    fl: Array.from(worldContext.pack.cells.fl),
+    r: Array.from(worldContext.pack.cells.r),
+    conf: Array.from(worldContext.pack.cells.conf),
+    biome: Array.from(worldContext.pack.cells.biome),
+    s: Array.from(worldContext.pack.cells.s),
+    pop: Array.from(worldContext.pack.cells.pop),
+    culture: Array.from(worldContext.pack.cells.culture),
+    burg: Array.from(worldContext.pack.cells.burg),
+    routes: worldContext.pack.cells.routes,
+    state: Array.from(worldContext.pack.cells.state),
+    religion: Array.from(worldContext.pack.cells.religion),
+    province: Array.from(worldContext.pack.cells.province)
   };
 
   return {
-    cells: Array.from(pack.cells.i).map(cellId => ({
+    cells: Array.from(worldContext.pack.cells.i).map(cellId => ({
       i: cellId,
       v: data.v[cellId],
       c: data.c[cellId],
@@ -163,39 +177,39 @@ function getPackCellsData() {
       religion: data.religion[cellId],
       province: data.province[cellId]
     })),
-    vertices: Array.from(pack.vertices.p).map((_, vertexId) => ({
+    vertices: Array.from(worldContext.pack.vertices.p).map((_, vertexId) => ({
       i: vertexId,
-      p: pack.vertices.p[vertexId],
-      v: pack.vertices.v[vertexId],
-      c: pack.vertices.c[vertexId]
+      p: worldContext.pack.vertices.p[vertexId],
+      v: worldContext.pack.vertices.v[vertexId],
+      c: worldContext.pack.vertices.c[vertexId]
     })),
-    features: pack.features,
-    cultures: pack.cultures,
-    burgs: pack.burgs,
-    states: pack.states,
-    provinces: pack.provinces,
-    religions: pack.religions,
-    rivers: pack.rivers,
-    markers: pack.markers,
-    routes: pack.routes,
-    zones: pack.zones
+    features: worldContext.pack.features,
+    cultures: worldContext.pack.cultures,
+    burgs: worldContext.pack.burgs,
+    states: worldContext.pack.states,
+    provinces: worldContext.pack.provinces,
+    religions: worldContext.pack.religions,
+    rivers: worldContext.pack.rivers,
+    markers: worldContext.pack.markers,
+    routes: worldContext.pack.routes,
+    zones: worldContext.pack.zones
   };
 }
 
 function getGridCellsData() {
   const dataArrays = {
-    v: grid.cells.v,
-    c: grid.cells.c,
-    b: grid.cells.b,
-    f: Array.from(grid.cells.f),
-    t: Array.from(grid.cells.t),
-    h: Array.from(grid.cells.h),
-    temp: Array.from(grid.cells.temp),
-    prec: Array.from(grid.cells.prec)
+    v: worldContext.grid.cells.v,
+    c: worldContext.grid.cells.c,
+    b: worldContext.grid.cells.b,
+    f: Array.from(worldContext.grid.cells.f),
+    t: Array.from(worldContext.grid.cells.t),
+    h: Array.from(worldContext.grid.cells.h),
+    temp: Array.from(worldContext.grid.cells.temp),
+    prec: Array.from(worldContext.grid.cells.prec)
   };
 
   return {
-    cells: Array.from(grid.cells.i).map(cellId => ({
+    cells: Array.from(worldContext.grid.cells.i).map(cellId => ({
       i: cellId,
       v: dataArrays.v[cellId],
       c: dataArrays.c[cellId],
@@ -206,21 +220,19 @@ function getGridCellsData() {
       temp: dataArrays.temp[cellId],
       prec: dataArrays.prec[cellId]
     })),
-    vertices: Array.from(grid.vertices.p).map((_, vertexId) => ({
+    vertices: Array.from(worldContext.grid.vertices.p).map((_, vertexId) => ({
       i: vertexId,
-      p: grid.vertices.p[vertexId],
-      v: grid.vertices.v[vertexId],
-      c: grid.vertices.c[vertexId]
+      p: worldContext.grid.vertices.p[vertexId],
+      v: worldContext.grid.vertices.v[vertexId],
+      c: worldContext.grid.vertices.c[vertexId]
     })),
-    cellsDesired: grid.cellsDesired,
-    spacing: grid.spacing,
-    cellsY: grid.cellsY,
-    cellsX: grid.cellsX,
-    points: grid.points,
-    boundary: grid.boundary,
-    seed: grid.seed,
-    features: pack.features
+    cellsDesired: worldContext.grid.cellsDesired,
+    spacing: worldContext.grid.spacing,
+    cellsY: worldContext.grid.cellsY,
+    cellsX: worldContext.grid.cellsX,
+    points: worldContext.grid.points,
+    boundary: worldContext.grid.boundary,
+    seed: worldContext.grid.seed,
+    features: worldContext.pack.features
   };
 }
-
-window.exportToJson = exportToJson;

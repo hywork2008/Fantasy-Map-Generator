@@ -1,17 +1,29 @@
+import { zoomTo } from "../actions";
 import type { AppServices } from "../context/appServices";
+import { appServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
+import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import { worldContext } from "../context/worldContext";
+import { editMarker } from "../editors/markers-editor";
 import { Markers } from "../modules/markers-generator";
 import { MarkersRenderer } from "../renderers";
-import { openDialog } from "../ui/dialogs/dialogService";
+import { closeDialogs, openDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, getLatitude, getLongitude } from "../utils";
+import { applySorting, clearMainTip, fitContent } from "../utils/uiHelpers";
+import {
+  confirmationDialog,
+  downloadFile,
+  getFileName,
+  highlightElement,
+  listen,
+  restoreDefaultEvents
+} from "./editors";
+import { layerIsOn, toggleMarkers } from "./layers";
+import { configMarkersGeneration } from "./tools";
 
-let worldContext: WorldContext;
-let viewContext: Readonly<ViewContext>;
-let appServices: AppServices;
-
-function overviewMarkers(): void {
-  if (customization) return;
+export function overviewMarkers(): void {
+  if (viewContext.customization) return;
   closeDialogs("#markersOverview, .stable");
   if (!layerIsOn("toggleMarkers")) toggleMarkers();
 
@@ -96,7 +108,7 @@ function overviewMarkers(): void {
   }
 
   function addLines(): void {
-    let markers = pack.markers;
+    let markers = worldContext.pack.markers;
 
     const searchText = markersSearch.value.toLowerCase().trim();
     if (searchText) {
@@ -112,8 +124,8 @@ function overviewMarkers(): void {
           <div class="states" data-i=${i} data-type="${type}">
             ${
               icon.startsWith("http") || icon.startsWith("data:image")
-                ? `<img src="${icon}" data-tip="Marker icon" style="width:1.2em; height:1.2em; vertical-align: middle;">`
-                : `<span data-tip="Marker icon" style="width:1.2em">${icon}</span>`
+                ? `<img src="${icon}" data-tip="Marker icon" worldContext.style="width:1.2em; height:1.2em; vertical-align: middle;">`
+                : `<span data-tip="Marker icon" worldContext.style="width:1.2em">${icon}</span>`
             }
             <div data-tip="Marker type" style="width:10em">${type}</div>
             <span style="padding-right:.1em" data-tip="Edit marker" class="icon-pencil"></span>
@@ -131,7 +143,7 @@ function overviewMarkers(): void {
 
     body.innerHTML = lines;
     markersFooterNumberEl.innerText = String(markers.length);
-    markersFooterTotal.innerText = String(pack.markers.length);
+    markersFooterTotal.innerText = String(worldContext.pack.markers.length);
 
     applySorting(ensureEl("markersHeader"));
   }
@@ -139,7 +151,7 @@ function overviewMarkers(): void {
   function invertPin(): void {
     let anyPinned = false;
 
-    pack.markers.forEach(marker => {
+    worldContext.pack.markers.forEach(marker => {
       const pinned = !marker.pinned;
       if (pinned) {
         marker.pinned = true;
@@ -154,12 +166,12 @@ function overviewMarkers(): void {
   }
 
   function invertLock(): void {
-    pack.markers = pack.markers.map(marker => ({ ...marker, lock: !marker.lock }));
+    worldContext.pack.markers = worldContext.pack.markers.map(marker => ({ ...marker, lock: !marker.lock }));
     addLines();
   }
 
   function openEditor(i: number): void {
-    const marker = pack.markers.find(marker => marker.i === i);
+    const marker = worldContext.pack.markers.find(marker => marker.i === i);
     if (!marker) return;
 
     const x = marker.x ?? 0;
@@ -175,11 +187,11 @@ function overviewMarkers(): void {
   }
 
   function pinMarker(el: HTMLElement, i: number): void {
-    const marker = pack.markers.find(marker => marker.i === i);
+    const marker = worldContext.pack.markers.find(marker => marker.i === i);
     if (!marker) return;
     if (marker.pinned) {
       delete marker.pinned;
-      const anyPinned = pack.markers.some(marker => marker.pinned);
+      const anyPinned = worldContext.pack.markers.some(marker => marker.pinned);
       if (!anyPinned) markerGroup.removeAttribute("pinned");
     } else {
       marker.pinned = true;
@@ -190,7 +202,7 @@ function overviewMarkers(): void {
   }
 
   function toggleLockStatus(el: HTMLElement, i: number): void {
-    const marker = pack.markers.find(marker => marker.i === i);
+    const marker = worldContext.pack.markers.find(marker => marker.i === i);
     if (!marker) return;
     if (marker.lock) {
       delete marker.lock;
@@ -226,8 +238,8 @@ function overviewMarkers(): void {
   }
 
   function removeMarkerById(i: number): void {
-    notes = notes.filter(note => note.id !== `marker${i}`);
-    pack.markers = pack.markers.filter(marker => marker.i !== i);
+    worldContext.notes = worldContext.notes.filter(note => note.id !== `marker${i}`);
+    worldContext.pack.markers = worldContext.pack.markers.filter(marker => marker.i !== i);
     document.getElementById(`marker${i}`)?.remove();
     addLines();
   }
@@ -242,12 +254,12 @@ function overviewMarkers(): void {
   }
 
   function removeAllMarkers(): void {
-    pack.markers = pack.markers.filter(({ i, lock }) => {
+    worldContext.pack.markers = worldContext.pack.markers.filter(({ i, lock }) => {
       if (lock) return true;
 
       const id = `marker${i}`;
       document.getElementById(id)?.remove();
-      notes = notes.filter(note => note.id !== id);
+      worldContext.notes = worldContext.notes.filter(note => note.id !== id);
       return false;
     });
 
@@ -258,12 +270,12 @@ function overviewMarkers(): void {
     const headers = "Id,Type,Icon,Name,Note,X,Y,Latitude,Longitude\n";
     const quote = (s: string) => `"${s.replaceAll('"', '""')}"`;
 
-    const bodyLines = pack.markers.map(marker => {
+    const bodyLines = worldContext.pack.markers.map(marker => {
       const { i, type, icon } = marker;
       const x = marker.x ?? 0;
       const y = marker.y ?? 0;
 
-      const note = notes.find(note => note.id === `marker${i}`);
+      const note = worldContext.notes.find(note => note.id === `marker${i}`);
       const name = note ? quote(note.name) : "Unknown";
       const legend = note ? quote(note.legend) : "";
 
@@ -288,10 +300,4 @@ function overviewMarkers(): void {
   }
 }
 
-window.overviewMarkers = overviewMarkers;
-
-export function initMarkersOverview(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {
-  worldContext = wc;
-  viewContext = vc;
-  appServices = as;
-}
+export function initMarkersOverview(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {}

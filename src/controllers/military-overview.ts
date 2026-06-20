@@ -1,15 +1,20 @@
 import { interpolateString, sum } from "d3";
+import { getWorldState } from "../actions";
 import type { AppServices } from "../context/appServices";
+import { appServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
+import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import { worldContext } from "../context/worldContext";
+import { toggleStates } from "../controllers/layers";
 import type { MilitaryUnit } from "../modules/military-generator";
 import { Military } from "../modules/military-generator";
-import { closeDialog, openConfirm, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
+import { closeDialog, closeDialogs, openConfirm, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { capitalize, rn, sanitizeId, si, wiki } from "../utils";
-
-let worldContext: WorldContext;
-let viewContext: Readonly<ViewContext>;
-let appServices: AppServices;
+import { applySorting, fitContent, sortLines, tip } from "../utils/uiHelpers";
+import { downloadFile, getFileName, selectIcon } from "./editors";
+import { layerIsOn, toggleBorders, toggleMilitary } from "./layers";
+import { overviewRegiments } from "./regiments-overview";
 
 type LimitEntity = { i?: number; name?: string; fullName?: string; color?: string; removed?: boolean };
 type MilitaryUnitConfig = MilitaryUnit & {
@@ -19,8 +24,8 @@ type MilitaryUnitConfig = MilitaryUnit & {
   religions?: number[];
 };
 
-function overviewMilitary(): void {
-  if (customization) return;
+export function overviewMilitary(): void {
+  if (viewContext.customization) return;
   closeDialogs("#militaryOverview, .stable");
   if (!layerIsOn("toggleStates")) toggleStates();
   if (!layerIsOn("toggleBorders")) toggleBorders();
@@ -65,7 +70,7 @@ function overviewMilitary(): void {
 
   function updateHeaders(): void {
     const header = document.getElementById("militaryHeader") as HTMLElement;
-    const units = options.military!.length;
+    const units = worldContext.options.military!.length;
     header.style.gridTemplateColumns = `8em repeat(${units}, 5.2em) 4em 7em 5em 6em`;
 
     header.querySelectorAll(".removable").forEach(el => {
@@ -73,7 +78,7 @@ function overviewMilitary(): void {
     });
     const insert = (html: string) =>
       document.getElementById("militaryTotalColumn")!.insertAdjacentHTML("beforebegin", html);
-    for (const u of options.military!) {
+    for (const u of worldContext.options.military!) {
       const label = capitalize(u.name.replace(/_/g, " "));
       insert(
         `<div data-tip="State ${u.name} units number. Click to sort" class="sortable removable" data-sortby="${u.name.toLowerCase()}">${label}&nbsp;</div>`
@@ -89,16 +94,20 @@ function overviewMilitary(): void {
   function addLines(): void {
     body.innerHTML = "";
     let lines = "";
-    const states = pack.states.filter(s => s.i && !s.removed);
+    const states = worldContext.pack.states.filter(s => s.i && !s.removed);
 
     for (const s of states) {
-      const population = rn(((s.rural ?? 0) + (s.urban ?? 0) * urbanization) * populationRate);
+      const population = rn(
+        ((s.rural ?? 0) + (s.urban ?? 0) * worldContext.urbanization) * worldContext.populationRate
+      );
       const getForces = (u: { name: string }) => s.military!.reduce((acc, r) => acc + (r.u[u.name] || 0), 0);
-      const total = options.military!.reduce((acc, u) => acc + getForces(u) * u.crew, 0);
+      const total = worldContext.options.military!.reduce((acc, u) => acc + getForces(u) * u.crew, 0);
       const rate = (total / population) * 100;
 
-      const sortData = options.military!.map(u => `data-${u.name.toLowerCase()}="${getForces(u)}"`).join(" ");
-      const lineData = options
+      const sortData = worldContext.options
+        .military!.map(u => `data-${u.name.toLowerCase()}="${getForces(u)}"`)
+        .join(" ");
+      const lineData = worldContext.options
         .military!.map(u => `<div data-type="${u.name}" data-tip="State ${u.name} units number">${getForces(u)}</div>`)
         .join(" ");
 
@@ -147,7 +156,7 @@ function overviewMilitary(): void {
   }
 
   function changeAlert(state: number, line: HTMLElement, alert: number): void {
-    const s = pack.states[state];
+    const s = worldContext.pack.states[state];
     const dif = s.alert || alert ? alert / s.alert! : 0;
     s.alert = alert;
     line.dataset.alert = String(alert);
@@ -157,18 +166,18 @@ function overviewMilitary(): void {
         r.u[u] = rn(r.u[u] * dif);
       });
       r.a = sum(Object.values(r.u) as number[]);
-      armies.select(`g>g#regiment${s.i}-${r.i}>text`).text(Military.getTotal(r));
+      viewContext.armies.select(`g>g#regiment${s.i}-${r.i}>text`).text(Military.getTotal(r));
     });
 
     const getForces = (u: { name: string }) => s.military!.reduce((acc, r) => acc + (r.u[u.name] || 0), 0);
-    options.military!.forEach(u => {
+    worldContext.options.military!.forEach(u => {
       line.dataset[u.name] = (line.querySelector(`div[data-type='${u.name}']`) as HTMLElement).innerHTML = String(
         getForces(u)
       );
     });
 
-    const population = rn(((s.rural ?? 0) + (s.urban ?? 0) * urbanization) * populationRate);
-    const total = options.military!.reduce((acc, u) => acc + getForces(u) * u.crew, 0);
+    const population = rn(((s.rural ?? 0) + (s.urban ?? 0) * worldContext.urbanization) * worldContext.populationRate);
+    const total = worldContext.options.military!.reduce((acc, u) => acc + getForces(u) * u.crew, 0);
     const rate = (total / population) * 100;
     line.dataset.total = String(total);
     line.dataset.rate = String(rate);
@@ -180,7 +189,7 @@ function overviewMilitary(): void {
 
   function updateFooter(): void {
     const lines = Array.from(body.querySelectorAll<HTMLElement>(":scope > div"));
-    const statesNumber = pack.states.filter(s => s.i && !s.removed).length;
+    const statesNumber = worldContext.pack.states.filter(s => s.i && !s.removed).length;
     (document.getElementById("militaryFooterStates") as HTMLElement).innerHTML = String(statesNumber);
     const total = sum(lines.map(el => +el.dataset.total!));
     (document.getElementById("militaryFooterForcesTotal") as HTMLElement).innerHTML = si(total);
@@ -194,13 +203,13 @@ function overviewMilitary(): void {
 
   function stateHighlightOn(event: MouseEvent): void {
     const state = +(event.target as HTMLElement).dataset.id!;
-    if (customization || !state) return;
-    armies.select(`#army${state}`).transition().duration(2000).style("fill", "#ff0000");
+    if (viewContext.customization || !state) return;
+    viewContext.armies.select(`#army${state}`).transition().duration(2000).style("fill", "#ff0000");
 
     if (!layerIsOn("toggleStates")) return;
-    const d = regions.select(`#state${state}`).attr("d");
+    const d = viewContext.regions.select(`#state${state}`).attr("d");
 
-    const path = debug
+    const path = viewContext.debug
       .append("path")
       .attr("class", "highlight")
       .attr("d", d)
@@ -220,13 +229,18 @@ function overviewMilitary(): void {
   }
 
   function stateHighlightOff(event: MouseEvent): void {
-    debug.selectAll(".highlight").each(function () {
+    viewContext.debug.selectAll(".highlight").each(function () {
       (this as Element & { __transition?: { end?: () => void } }).__transition?.end?.();
     });
-    debug.selectAll<SVGElement, unknown>(".highlight").transition().duration(1000).attr("opacity", 0).remove();
+    viewContext.debug
+      .selectAll<SVGElement, unknown>(".highlight")
+      .transition()
+      .duration(1000)
+      .attr("opacity", 0)
+      .remove();
 
     const state = +(event.target as HTMLElement).dataset.id!;
-    armies.select(`#army${state}`).transition().duration(1000).style("fill", null);
+    viewContext.armies.select(`#army${state}`).transition().duration(1000).style("fill", null);
   }
 
   function togglePercentageMode(): void {
@@ -260,7 +274,7 @@ function overviewMilitary(): void {
     const types = ["melee", "ranged", "mounted", "machinery", "naval", "armored", "aviation", "magical"];
     const tableBody = document.getElementById("militaryOptions")!.querySelector("tbody") as HTMLTableSectionElement;
     removeUnitLines();
-    options.military!.forEach(unit => {
+    worldContext.options.military!.forEach(unit => {
       addUnitLine(unit);
     });
 
@@ -317,14 +331,14 @@ function overviewMilitary(): void {
       }
 
       if (type === "biomes") {
-        const { i, name, color: bColor } = biomesData;
+        const { i, name, color: bColor } = worldContext.biomesData;
         const biomesArray = Array(i.length).fill(null);
         const biomes = biomesArray.map((_: null, idx: number) => ({ i: idx, name: name[idx], color: bColor[idx] }));
         return selectLimitation(el, biomes);
       }
-      if (type === "states") return selectLimitation(el, pack.states);
-      if (type === "cultures") return selectLimitation(el, pack.cultures);
-      if (type === "religions") return selectLimitation(el, pack.religions);
+      if (type === "states") return selectLimitation(el, worldContext.pack.states);
+      if (type === "cultures") return selectLimitation(el, worldContext.pack.cultures);
+      if (type === "religions") return selectLimitation(el, worldContext.pack.religions);
     });
 
     function removeUnitLines(): void {
@@ -357,7 +371,7 @@ function overviewMilitary(): void {
         `<button
           data-tip="Select allowed ${attr}"
           data-type="${attr}"
-          title="${getLimitTip(unit[attr], (pack as unknown as Record<string, LimitEntity[]>)[attr])}"
+          title="${getLimitTip(unit[attr], (worldContext.pack as unknown as Record<string, LimitEntity[]>)[attr])}"
           data-value="${getLimitValue(unit[attr])}">
           ${getLimitText(unit[attr])}
         </button>`;
@@ -366,7 +380,7 @@ function overviewMilitary(): void {
           <button data-type="icon" data-tip="Click to select unit icon">
             ${
               icon.startsWith("http") || icon.startsWith("data:image")
-                ? `<img src="${icon}" style="width:1.2em;height:1.2em;pointer-events:none;">`
+                ? `<img src="${icon}" worldContext.style="width:1.2em;height:1.2em;pointer-events:none;">`
                 : icon || ""
             }
           </button>
@@ -478,7 +492,7 @@ function overviewMilitary(): void {
 
       closeDialog("militaryOptions");
 
-      options.military = unitLines.map((r, i) => {
+      worldContext.options.military = unitLines.map((r, i) => {
         const elements = Array.from(r.querySelectorAll<HTMLElement>("input, button, select"));
         const [icon, _name, biomes, states, cultures, religions, rural, urban, crew, power, type, separate] =
           elements.map(el => {
@@ -510,7 +524,7 @@ function overviewMilitary(): void {
         if (religions) unit.religions = religions as number[];
         return unit;
       });
-      localStorage.setItem("military", JSON.stringify(options.military));
+      localStorage.setItem("military", JSON.stringify(worldContext.options.military));
       Military.generate(worldContext, viewContext, appServices, getWorldState());
       updateHeaders();
       addLines();
@@ -532,7 +546,7 @@ function overviewMilitary(): void {
   }
 
   function downloadMilitaryData(): void {
-    const units = options.military!.map(u => u.name);
+    const units = worldContext.options.military!.map(u => u.name);
     let data = `Id,State,${units.map(u => capitalize(u)).join(",")},Total,Population,Rate,War Alert\n`;
 
     body.querySelectorAll<HTMLElement>(":scope > div").forEach(el => {
@@ -550,12 +564,7 @@ function overviewMilitary(): void {
   }
 }
 
-window.overviewMilitary = overviewMilitary;
-
 declare global {
-  interface Window {
-    overviewMilitary: () => void;
-  }
   var overviewMilitaryCustomize: boolean | undefined;
   var militaryFooterStates: HTMLElement;
   var militaryFooterForcesTotal: HTMLElement;
@@ -567,8 +576,4 @@ declare global {
   var militaryOptionsTable: HTMLTableElement;
 }
 
-export function initMilitaryOverview(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {
-  worldContext = wc;
-  viewContext = vc;
-  appServices = as;
-}
+export function initMilitaryOverview(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {}

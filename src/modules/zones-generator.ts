@@ -8,6 +8,7 @@ import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import type { WorldState } from "../types/WorldState";
 import { gauss, getAdjective, P, ra, rand, rw } from "../utils";
+import { Names } from "./names-generator";
 import { Routes } from "./routes-generator";
 
 export interface Zone {

@@ -1,8 +1,12 @@
+import { getWorldState, resetZoom, zoomTo } from "./actions";
 import { appServices } from "./context/appServices";
 import { viewContext } from "./context/viewContext";
 import { worldContext } from "./context/worldContext";
+import { restoreDefaultEvents, unselect } from "./controllers/editors";
 import { initControllers } from "./controllers/index";
-import { initMain } from "./main";
+import { handleLayersPresetChange, removePreset, savePreset, toggleLayerById } from "./controllers/layers";
+import { changeViewMode } from "./controllers/options";
+import { generate, initMain, regenerateMap } from "./main";
 import { initModules } from "./modules/index";
 import { initRenderers } from "./renderers/index";
 import { initUtils } from "./utils/index";
@@ -24,6 +28,27 @@ async function initApp(): Promise<void> {
   initControllers(worldContext, viewContext, appServices);
   console.log("Initializing main...");
   initMain();
+
+  // Assemble the single typed public API surface — frozen after all modules are ready.
+  window.fmg = Object.freeze({
+    world: worldContext,
+    view: viewContext,
+    actions: Object.freeze({
+      generate,
+      regenerateMap,
+      zoomTo,
+      resetZoom,
+      toggleLayer: toggleLayerById,
+      handleLayersPresetChange,
+      savePreset,
+      removePreset,
+      changeViewMode,
+      restoreDefaultEvents,
+      unselect,
+      getWorldState
+    })
+  });
+
   console.log("initApp completed!");
 }
 

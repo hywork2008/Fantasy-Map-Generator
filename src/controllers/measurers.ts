@@ -1,6 +1,9 @@
 import * as d3 from "d3";
 import polylabel from "polylabel";
+import { viewContext } from "../context/viewContext";
+import { worldContext } from "../context/worldContext";
 import { findCell, getSegmentId, last, rn, round, si } from "../utils";
+import { getAreaUnit } from "../utils/uiHelpers";
 
 // ─── Rulers container ─────────────────────────────────────────────────────────
 
@@ -80,11 +83,11 @@ abstract class Measurer {
   }
 
   getSize(): number {
-    return rn((1 / scale ** 0.3) * 2, 2);
+    return rn((1 / viewContext.scale ** 0.3) * 2, 2);
   }
 
   getDash(): number {
-    return rn(30 / distanceScale, 2);
+    return rn(30 / worldContext.distanceScale, 2);
   }
 
   drag(this: SVGGElement, startEvent: DragEv): void {
@@ -161,7 +164,7 @@ class Ruler extends Measurer {
     const size = this.getSize();
     const dash = this.getDash();
 
-    this.el = ruler
+    this.el = viewContext.ruler
       .append("g")
       .attr("class", "ruler")
       .call(d3.drag<SVGGElement, unknown>().on("start", this.drag))
@@ -227,7 +230,7 @@ class Ruler extends Measurer {
 
   updateLabel(): void {
     const length = this.getLength();
-    const text = `${rn(length * distanceScale)} ${distanceUnitInput.value}`;
+    const text = `${rn(length * worldContext.distanceScale)} ${distanceUnitInput.value}`;
     const [x, y] = last(this.points);
     this.el.select("text").attr("x", x).attr("y", y).text(text);
   }
@@ -305,7 +308,7 @@ class Opisometer extends Measurer {
     const size = this.getSize();
     const dash = this.getDash();
 
-    this.el = ruler
+    this.el = viewContext.ruler
       .append("g")
       .attr("class", "opisometer")
       .call(d3.drag<SVGGElement, unknown>().on("start", this.drag))
@@ -349,7 +352,7 @@ class Opisometer extends Measurer {
 
   updateLabel(): void {
     const length = this.el.select<SVGPathElement>("path").node()!.getTotalLength();
-    const text = `${rn(length * distanceScale)} ${distanceUnitInput.value}`;
+    const text = `${rn(length * worldContext.distanceScale)} ${distanceUnitInput.value}`;
     const [x, y] = last(this.points);
     this.el.select("text").attr("x", x).attr("y", y).text(text);
   }
@@ -384,7 +387,7 @@ class RouteOpisometer extends Measurer {
 
   constructor(points: [number, number][]) {
     super(points);
-    if (pack.cells) {
+    if (worldContext.pack.cells) {
       this.cellStops = points.map(p => findCell(p[0], p[1]));
     } else {
       this.cellStops = null;
@@ -427,8 +430,8 @@ class RouteOpisometer extends Measurer {
   }
 
   getCellRouteCoord(c: number): [number, number] {
-    const cells = pack.cells;
-    const burgs = pack.burgs;
+    const cells = worldContext.pack.cells;
+    const burgs = worldContext.pack.burgs;
     const b = cells.burg[c];
     const x = b ? burgs[b].x : cells.p[c][0];
     const y = b ? burgs[b].y : cells.p[c][1];
@@ -440,7 +443,7 @@ class RouteOpisometer extends Measurer {
     const size = this.getSize();
     const dash = this.getDash();
 
-    this.el = ruler
+    this.el = viewContext.ruler
       .append("g")
       .attr("class", "opisometer")
       .attr("font-size", 10 * size);
@@ -483,7 +486,7 @@ class RouteOpisometer extends Measurer {
 
   updateLabel(): void {
     const length = this.el.select<SVGPathElement>("path").node()!.getTotalLength();
-    const text = `${rn(length * distanceScale)} ${distanceUnitInput.value}`;
+    const text = `${rn(length * worldContext.distanceScale)} ${distanceUnitInput.value}`;
     const [x, y] = last(this.points);
     this.el.select("text").attr("x", x).attr("y", y).text(text);
   }
@@ -507,7 +510,7 @@ class Planimeter extends Measurer {
     if (this.el) this.el.selectAll("*").remove();
     const size = this.getSize();
 
-    this.el = ruler
+    this.el = viewContext.ruler
       .append("g")
       .attr("class", "planimeter")
       .call(d3.drag<SVGGElement, unknown>().on("start", this.drag))
@@ -539,21 +542,21 @@ class Planimeter extends Measurer {
 
 // ─── Factory function ─────────────────────────────────────────────────────────
 
-function createDefaultRuler(): void {
+export function createDefaultRuler(): void {
   TIME && console.time("createDefaultRuler");
-  const { features, vertices } = pack;
+  const { features, vertices } = worldContext.pack;
 
   const areas = features.map(f => (f.land ? f.area || 0 : -Infinity));
   const largestLand = areas.indexOf(Math.max(...areas));
   const featureVertices = features[largestLand].vertices;
 
   const MIN_X = 100;
-  const MAX_X = graphWidth - 100;
+  const MAX_X = worldContext.graphWidth - 100;
   const MIN_Y = 100;
-  const MAX_Y = graphHeight - 100;
+  const MAX_Y = worldContext.graphHeight - 100;
 
-  let leftmostVertex: [number, number] = [graphWidth - MIN_X, graphHeight / 2];
-  let rightmostVertex: [number, number] = [MIN_X, graphHeight / 2];
+  let leftmostVertex: [number, number] = [worldContext.graphWidth - MIN_X, worldContext.graphHeight / 2];
+  let rightmostVertex: [number, number] = [MIN_X, worldContext.graphHeight / 2];
 
   for (const vertex of featureVertices) {
     const [x, y] = vertices.p[vertex] as [number, number];
@@ -568,15 +571,6 @@ function createDefaultRuler(): void {
   TIME && console.timeEnd("createDefaultRuler");
 }
 
-// ─── Global exports ───────────────────────────────────────────────────────────
-
-window.Rulers = Rulers;
-window.Ruler = Ruler;
-window.Opisometer = Opisometer;
-window.RouteOpisometer = RouteOpisometer;
-window.Planimeter = Planimeter;
-window.createDefaultRuler = createDefaultRuler;
-
 export type { Opisometer, Planimeter, RouteOpisometer, Ruler };
 export { Rulers };
 
@@ -585,5 +579,4 @@ export { Rulers };
 declare const lineGen: { (points: [number, number][]): string; curve: (curve: unknown) => typeof lineGen };
 declare const parseTransform: (transform: string) => number[];
 declare const getArea: (area: number) => number;
-declare const getAreaUnit: () => string;
 declare const Routes: { isConnected: (cell: number) => boolean };

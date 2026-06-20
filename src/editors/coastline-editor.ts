@@ -3,7 +3,10 @@ import { aleaPRNG } from "../components/AleaPRNG";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import { unselect } from "../controllers/editors";
 import { interactionManager } from "../controllers/interactionManager";
+import { layerIsOn, toggleCells } from "../controllers/layers";
+import { editStyle } from "../controllers/style";
 import {
   BiomesRenderer,
   BordersRenderer,
@@ -22,12 +25,14 @@ import {
   PROFILE_SIZE
 } from "../renderers/coastline-fractal";
 import { getFeaturePath } from "../renderers/index";
-import { openDialog, openRichDialog } from "../ui/dialogs/dialogService";
+import { closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, rn, si, unique } from "../utils";
+import { alertMessage } from "../utils/alertMessageEl";
 import { getPackPolygon } from "../utils/graphUtils";
+import { getArea, getAreaUnit, tip } from "../utils/uiHelpers";
 
 let worldContext: WorldContext;
-let viewContext: Readonly<ViewContext>;
+let viewContext: ViewContext;
 let appServices: AppServices;
 
 interface SliderDef {
@@ -165,7 +170,7 @@ const PREVIEW_SEED = "preview_coastline";
 
 class CoastlineEditorModule {
   editCoastline(event?: MouseEvent): void {
-    if (customization) return;
+    if (viewContext.customization) return;
     closeDialogs(".stable");
     if (layerIsOn("toggleCells")) toggleCells();
 
@@ -177,7 +182,7 @@ class CoastlineEditorModule {
     });
 
     const node = (event?.target ?? document.querySelector(".coastline path")) as SVGElement | null;
-    debug.append("g").attr("id", "vertices");
+    viewContext.debug.append("g").attr("id", "vertices");
     elSelected = node ? select(node as unknown as Element) : null;
     if (node) {
       selectCoastlineGroup(node);
@@ -198,14 +203,14 @@ class CoastlineEditorModule {
 
     function drawCoastlineVertices(): void {
       const featureId = +elSelected!.attr("data-f");
-      const { vertices, area } = pack.features[featureId];
+      const { vertices, area } = worldContext.pack.features[featureId];
 
-      const cellsNumber = pack.cells.i.length;
-      const neibCells = unique((vertices as number[]).flatMap((v: number) => pack.vertices.c[v]) as number[]).filter(
-        (cellId: number) => cellId < cellsNumber
-      );
+      const cellsNumber = worldContext.pack.cells.i.length;
+      const neibCells = unique(
+        (vertices as number[]).flatMap((v: number) => worldContext.pack.vertices.c[v]) as number[]
+      ).filter((cellId: number) => cellId < cellsNumber);
 
-      debug
+      viewContext.debug
         .select("#vertices")
         .selectAll("polygon")
         .data(neibCells)
@@ -214,14 +219,14 @@ class CoastlineEditorModule {
         .attr("points", (d: number) => getPackPolygon(d, worldContext.pack).join(" "))
         .attr("data-c", (d: number) => d);
 
-      debug
+      viewContext.debug
         .select("#vertices")
         .selectAll("circle")
         .data(vertices as number[])
         .enter()
         .append("circle")
-        .attr("cx", (d: number) => pack.vertices.p[d][0])
-        .attr("cy", (d: number) => pack.vertices.p[d][1])
+        .attr("cx", (d: number) => worldContext.pack.vertices.p[d][0])
+        .attr("cy", (d: number) => worldContext.pack.vertices.p[d][1])
         .attr("r", 0.4)
         .attr("data-v", (d: number) => d)
         .call(drag<SVGCircleElement, number>().on("drag", handleVertexDrag).on("end", handleVertexDragEnd))
@@ -236,7 +241,7 @@ class CoastlineEditorModule {
       this: SVGCircleElement,
       dragEvent: import("d3").D3DragEvent<SVGCircleElement, unknown, unknown>
     ): void {
-      const { vertices, features } = pack;
+      const { vertices, features } = worldContext.pack;
       const x = rn(dragEvent.x, 2);
       const y = rn(dragEvent.y, 2);
       this.setAttribute("cx", String(x));
@@ -247,7 +252,7 @@ class CoastlineEditorModule {
 
       const featureId = +elSelected!.attr("data-f");
       const feature = features[featureId];
-      defs
+      viewContext.defs
         .select(`#featurePaths > path#feature_${featureId}`)
         .attr("d", getFeaturePath(worldContext, viewContext, appServices, feature));
 
@@ -255,7 +260,7 @@ class CoastlineEditorModule {
       feature.area = Math.abs(polygonArea(points as [number, number][]));
       ensureEl("coastlineArea").textContent = `${si(getArea(feature.area!))} ${getAreaUnit()}`;
 
-      debug
+      viewContext.debug
         .select("#vertices")
         .selectAll("polygon")
         .attr("points", (d: unknown) => getPackPolygon(d as number, worldContext.pack).join(" "));
@@ -291,7 +296,7 @@ class CoastlineEditorModule {
       const group = (el.parentNode as SVGGElement).id;
       const sel = ensureEl<HTMLSelectElement>("coastlineGroup");
       sel.options.length = 0;
-      coastline.selectAll("g").each(function () {
+      viewContext.coastline.selectAll("g").each(function () {
         const g = this as SVGGElement;
         sel.options.add(new Option(g.id, g.id, false, g.id === group));
       });
@@ -364,7 +369,7 @@ class CoastlineEditorModule {
       const count = (elSelected!.node()!.parentNode as Element).childElementCount;
       alertMessage.innerHTML = `Are you sure you want to remove the group? All coastline elements of the group (${count}) will be moved under <i>sea_island</i> group`;
       openRichDialog({
-        content: window.alertMessage.innerHTML,
+        content: alertMessage.innerHTML,
         resizable: false,
         title: "Remove coastline group",
         width: "26em",
@@ -393,7 +398,7 @@ class CoastlineEditorModule {
     }
 
     function closeCoastlineEditor(): void {
-      debug.select("#vertices").remove();
+      viewContext.debug.select("#vertices").remove();
       unselect();
       modules.editCoastline = false;
     }

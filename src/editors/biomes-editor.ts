@@ -1,19 +1,48 @@
 import { drag, easeSinIn, pointer, type Selection, sum } from "d3";
+import { getWorldState } from "../actions";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import {
+  clearLegend,
+  downloadFile,
+  drawLegend,
+  getFileName,
+  moveCircle,
+  restoreDefaultEvents
+} from "../controllers/editors";
+import {
+  layerIsOn,
+  toggleBiomes,
+  toggleCultures,
+  toggleProvinces,
+  toggleRelief,
+  toggleReligions,
+  toggleStates
+} from "../controllers/layers";
+import { editStyle } from "../controllers/style";
 import { Biomes } from "../modules/biomes";
 import { BiomesRenderer, ReliefIconsRenderer } from "../renderers";
-import { openDialog } from "../ui/dialogs/dialogService";
-import { findCell, getRandomColor, isLand, openURL, rn, si } from "../utils";
+import { closeDialogs, openDialog } from "../ui/dialogs/dialogService";
+import { findAll, findCell, getRandomColor, isLand, openURL, rn, si } from "../utils";
 import { getPackPolygon } from "../utils/graphUtils";
+import {
+  applySorting,
+  clearMainTip,
+  fitContent,
+  getArea,
+  getAreaUnit,
+  removeCircle,
+  showMainTip,
+  tip
+} from "../utils/uiHelpers";
 
 let worldContext: WorldContext;
-let viewContext: Readonly<ViewContext>;
+let viewContext: ViewContext;
 let appServices: AppServices;
 
 export function editBiomes(): void {
-  if (customization) return;
+  if (viewContext.customization) return;
   closeDialogs("#biomesEditor, .stable");
   if (!layerIsOn("toggleBiomes")) toggleBiomes();
   if (layerIsOn("toggleStates")) toggleStates();
@@ -54,7 +83,7 @@ export function editBiomes(): void {
     if (el.tagName === "FILL-BOX") biomeChangeColor(el);
     else if (cl.contains("icon-info-circled")) openWiki(el);
     else if (cl.contains("icon-trash-empty")) removeCustomBiome(el);
-    if (customization === 6) selectBiomeOnLineClick(el);
+    if (viewContext.customization === 6) selectBiomeOnLineClick(el);
   });
 
   body.addEventListener("change", ev => {
@@ -70,35 +99,35 @@ export function editBiomes(): void {
   }
 
   function biomesCollectStatistics(): void {
-    const cells = pack.cells;
-    const array = new Uint8Array(biomesData.i.length);
-    biomesData.cells = Array.from(array);
-    biomesData.area = Array.from(array);
-    biomesData.rural = Array.from(array);
-    biomesData.urban = Array.from(array);
+    const cells = worldContext.pack.cells;
+    const array = new Uint8Array(worldContext.biomesData.i.length);
+    worldContext.biomesData.cells = Array.from(array);
+    worldContext.biomesData.area = Array.from(array);
+    worldContext.biomesData.rural = Array.from(array);
+    worldContext.biomesData.urban = Array.from(array);
 
     for (const i of cells.i) {
       if (cells.h[i] < 20) continue;
       const b = cells.biome[i];
-      biomesData.cells![b] += 1;
-      biomesData.area![b] += cells.area[i];
-      biomesData.rural![b] += cells.pop[i];
-      if (cells.burg[i]) biomesData.urban![b] += pack.burgs[cells.burg[i]]?.population ?? 0;
+      worldContext.biomesData.cells![b] += 1;
+      worldContext.biomesData.area![b] += cells.area[i];
+      worldContext.biomesData.rural![b] += cells.pop[i];
+      if (cells.burg[i]) worldContext.biomesData.urban![b] += worldContext.pack.burgs[cells.burg[i]]?.population ?? 0;
     }
   }
 
   function biomesEditorAddLines(): void {
     const unit = ` ${getAreaUnit()}`;
-    const b = biomesData;
+    const b = worldContext.biomesData;
     let lines = "",
       totalArea = 0,
       totalPopulation = 0;
 
     for (const i of b.i) {
-      if (!i || biomesData.name[i] === "removed") continue;
+      if (!i || worldContext.biomesData.name[i] === "removed") continue;
       const area = getArea(b.area![i]);
-      const rural = b.rural![i] * populationRate;
-      const urban = b.urban![i] * populationRate * urbanization;
+      const rural = b.rural![i] * worldContext.populationRate;
+      const urban = b.urban![i] * worldContext.populationRate * worldContext.urbanization;
       const population = rn(rural + urban);
       const populationTip = `Total population: ${si(population)}; Rural population: ${si(
         rural
@@ -147,12 +176,12 @@ export function editBiomes(): void {
     }
     body.innerHTML = lines;
 
-    const totalMapArea = getArea(sum(pack.cells.area));
+    const totalMapArea = getArea(sum(worldContext.pack.cells.area));
     (document.getElementById("biomesFooterBiomes") as HTMLElement).innerHTML = String(
       body.querySelectorAll(":scope > div").length
     );
     (document.getElementById("biomesFooterCells") as HTMLElement).innerHTML = String(
-      pack.cells.h.filter(h => h >= 20).length
+      worldContext.pack.cells.h.filter(h => h >= 20).length
     );
     const biomesFooterArea = document.getElementById("biomesFooterArea") as HTMLElement;
     const biomesFooterPopulation = document.getElementById("biomesFooterPopulation") as HTMLElement;
@@ -178,9 +207,9 @@ export function editBiomes(): void {
   }
 
   function biomeHighlightOn(event: MouseEvent): void {
-    if (customization === 6) return;
+    if (viewContext.customization === 6) return;
     const biome = +(event.target as HTMLElement).dataset.id!;
-    (biomes as Selection<SVGGElement, unknown, null, undefined>)
+    (viewContext.biomes as Selection<SVGGElement, unknown, null, undefined>)
       .select(`#biome${biome}`)
       .raise()
       .transition()
@@ -191,10 +220,10 @@ export function editBiomes(): void {
   }
 
   function biomeHighlightOff(event: MouseEvent): void {
-    if (customization === 6) return;
+    if (viewContext.customization === 6) return;
     const biome = +(event.target as HTMLElement).dataset.id!;
-    const color = biomesData.color[biome];
-    (biomes as Selection<SVGGElement, unknown, null, undefined>)
+    const color = worldContext.biomesData.color[biome];
+    (viewContext.biomes as Selection<SVGGElement, unknown, null, undefined>)
       .select(`#biome${biome}`)
       .transition()
       .attr("stroke-width", 0.7)
@@ -207,8 +236,8 @@ export function editBiomes(): void {
 
     const callback = (newFill: string) => {
       (el as Element & { fill?: string }).fill = newFill;
-      biomesData.color[biome] = newFill;
-      (biomes as Selection<SVGGElement, unknown, null, undefined>)
+      worldContext.biomesData.color[biome] = newFill;
+      (viewContext.biomes as Selection<SVGGElement, unknown, null, undefined>)
         .select(`#biome${biome}`)
         .attr("fill", newFill)
         .attr("stroke", newFill);
@@ -220,18 +249,18 @@ export function editBiomes(): void {
   function biomeChangeName(el: HTMLInputElement): void {
     const biome = +(el.parentNode as HTMLElement).dataset.id!;
     (el.parentNode as HTMLElement).dataset.name = el.value;
-    biomesData.name[biome] = el.value;
+    worldContext.biomesData.name[biome] = el.value;
   }
 
   function biomeChangeHabitability(el: HTMLInputElement): void {
     const biome = +(el.parentNode as HTMLElement).dataset.id!;
     const failed = Number.isNaN(+el.value) || +el.value < 0 || +el.value > 9999;
     if (failed) {
-      el.value = String(biomesData.habitability[biome]);
+      el.value = String(worldContext.biomesData.habitability[biome]);
       tip("Please provide a valid number in range 0-9999", false, "error");
       return;
     }
-    biomesData.habitability[biome] = +el.value;
+    worldContext.biomesData.habitability[biome] = +el.value;
     (el.parentNode as HTMLElement).dataset.habitability = el.value;
     recalculatePopulation();
     refreshBiomesEditor();
@@ -265,11 +294,11 @@ export function editBiomes(): void {
   }
 
   function toggleLegend(): void {
-    if ((legend as Selection<SVGGElement, unknown, null, undefined>).selectAll("*").size()) {
+    if ((viewContext.legend as Selection<SVGGElement, unknown, null, undefined>).selectAll("*").size()) {
       clearLegend();
       return;
     }
-    const d = biomesData;
+    const d = worldContext.biomesData;
     const data = Array.from(d.i)
       .filter(i => d.cells![i])
       .sort((a, b) => d.area![b] - d.area![a])
@@ -306,8 +335,8 @@ export function editBiomes(): void {
   }
 
   function addCustomBiome(): void {
-    const b = biomesData;
-    const i = biomesData.i.length;
+    const b = worldContext.biomesData;
+    const i = worldContext.biomesData.i.length;
     if (i > 254) {
       tip("Maximum number of biomes reached (255), data cleansing is required", false, "error");
       return;
@@ -351,7 +380,7 @@ export function editBiomes(): void {
   function removeCustomBiome(el: HTMLElement): void {
     const biome = +(el.parentNode as HTMLElement).dataset.id!;
     (el.parentNode as HTMLElement).remove();
-    biomesData.name[biome] = "removed";
+    worldContext.biomesData.name[biome] = "removed";
     const footer = document.getElementById("biomesFooterBiomes") as HTMLElement;
     footer.innerHTML = String(+footer.innerHTML - 1);
   }
@@ -384,8 +413,8 @@ export function editBiomes(): void {
 
   function enterBiomesCustomizationMode(): void {
     if (!layerIsOn("toggleBiomes")) toggleBiomes();
-    customization = 6;
-    (biomes as Selection<SVGGElement, unknown, null, undefined>).append("g").attr("id", "temp");
+    viewContext.customization = 6;
+    (viewContext.biomes as Selection<SVGGElement, unknown, null, undefined>).append("g").attr("id", "temp");
 
     document.querySelectorAll("#biomesFooter > button").forEach(el => {
       (el as HTMLElement).style.display = "none";
@@ -408,7 +437,7 @@ export function editBiomes(): void {
     openDialog("biomesEditor", { position: { my: "right top", at: "right-10 top+10", of: "svg" } });
 
     tip("Click on biome to select, drag the circle to change biome", true);
-    viewbox
+    viewContext.viewbox
       .style("cursor", "crosshair")
       .on("click", selectBiomeOnMapClick)
       .call(drag<SVGGElement, unknown>().on("drag", dragBiomeBrush))
@@ -424,15 +453,15 @@ export function editBiomes(): void {
   function selectBiomeOnMapClick(event: MouseEvent): void {
     const [px, py] = pointer(event);
     const i = findCell(px, py);
-    if (pack.cells.h[i] < 20) {
+    if (worldContext.pack.cells.h[i] < 20) {
       tip("You cannot reassign water via biomes. Please edit the Heightmap to change water", false, "error");
       return;
     }
 
-    const assigned = (biomes as Selection<SVGGElement, unknown, null, undefined>)
+    const assigned = (viewContext.biomes as Selection<SVGGElement, unknown, null, undefined>)
       .select("#temp")
       .select(`polygon[data-cell='${i}']`);
-    const biome = assigned.size() ? +assigned.attr("data-biome") : pack.cells.biome[i];
+    const biome = assigned.size() ? +assigned.attr("data-biome") : worldContext.pack.cells.biome[i];
 
     body.querySelector("div.selected")!.classList.remove("selected");
     body.querySelector(`div[data-id='${biome}']`)!.classList.add("selected");
@@ -449,15 +478,15 @@ export function editBiomes(): void {
   }
 
   function changeBiomeForSelection(selection: number[]): void {
-    const temp = (biomes as Selection<SVGGElement, unknown, null, undefined>).select("#temp");
+    const temp = (viewContext.biomes as Selection<SVGGElement, unknown, null, undefined>).select("#temp");
     const selected = body.querySelector("div.selected") as HTMLElement;
 
     const biomeNew = selected.dataset.id!;
-    const color = biomesData.color[+biomeNew];
+    const color = worldContext.biomesData.color[+biomeNew];
 
     selection.forEach(i => {
       const exists = temp.select(`polygon[data-cell='${i}']`);
-      const biomeOld = exists.size() ? +exists.attr("data-biome") : pack.cells.biome[i];
+      const biomeOld = exists.size() ? +exists.attr("data-biome") : worldContext.pack.cells.biome[i];
       if (+biomeNew === biomeOld) return;
 
       if (exists.size()) exists.attr("data-biome", biomeNew).attr("fill", color).attr("stroke", color);
@@ -480,12 +509,14 @@ export function editBiomes(): void {
   }
 
   function applyBiomesChange(): void {
-    const changed = (biomes as Selection<SVGGElement, unknown, null, undefined>).select("#temp").selectAll("polygon");
+    const changed = (viewContext.biomes as Selection<SVGGElement, unknown, null, undefined>)
+      .select("#temp")
+      .selectAll("polygon");
     changed.each(function () {
       const el = this as SVGPolygonElement;
       const i = +el.dataset.cell!;
       const b = +el.dataset.biome!;
-      pack.cells.biome[i] = b;
+      worldContext.pack.cells.biome[i] = b;
     });
 
     if (changed.size()) {
@@ -496,8 +527,8 @@ export function editBiomes(): void {
   }
 
   function exitBiomesCustomizationMode(close?: string): void {
-    customization = 0;
-    (biomes as Selection<SVGGElement, unknown, null, undefined>).select("#temp").remove();
+    viewContext.customization = 0;
+    (viewContext.biomes as Selection<SVGGElement, unknown, null, undefined>).select("#temp").remove();
     removeCircle();
 
     document.querySelectorAll("#biomesFooter > button").forEach(el => {
@@ -526,7 +557,7 @@ export function editBiomes(): void {
   }
 
   function restoreInitialBiomes(): void {
-    biomesData = Biomes.getDefault();
+    worldContext.biomesData = Biomes.getDefault();
     Biomes.define(getWorldState());
     BiomesRenderer.render(worldContext, viewContext, appServices);
     recalculatePopulation();

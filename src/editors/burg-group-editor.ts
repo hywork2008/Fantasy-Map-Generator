@@ -1,14 +1,18 @@
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import { confirmationDialog } from "../controllers/editors";
+import { layerIsOn } from "../controllers/layers";
 import type { Burg, BurgGroup } from "../modules/burgs-generator";
 import { Burgs } from "../modules/burgs-generator";
 import { BurgIconsRenderer, BurgLabelsRenderer } from "../renderers";
 import { closeDialog, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { ensureEl } from "../utils";
+import { alertMessage } from "../utils/alertMessageEl";
+import { fitContent, tip } from "../utils/uiHelpers";
 
 let worldContext: WorldContext;
-let viewContext: Readonly<ViewContext>;
+let viewContext: ViewContext;
 let appServices: AppServices;
 
 type LimitEntity = { i?: number; name?: string; fullName?: string; color?: string; removed?: boolean };
@@ -17,7 +21,7 @@ type ParsedValue = string | number | boolean | Record<string, boolean> | null;
 const GROUP_NAME_REGEXP = /^[\p{L}_][\p{L}\p{N}_-]*$/u;
 
 export function editBurgGroups(): void {
-  if (customization) return;
+  if (viewContext.customization) return;
   addLines();
 
   openDialog("burgGroupsEditor", {
@@ -32,7 +36,7 @@ export function editBurgGroups(): void {
         ensureEl("burgGroupsBody").insertAdjacentHTML("beforeend", createLine({ name: "", active: true, order: 1 }));
       },
       Restore: () => {
-        options.burgs.groups = Burgs.getDefaultGroups();
+        worldContext.options.burgs.groups = Burgs.getDefaultGroups();
         addLines();
       },
       Cancel: () => {
@@ -55,14 +59,17 @@ export function editBurgGroups(): void {
     if (!line) return;
 
     if (el.getAttribute("name") === "biomes") {
-      const biomes = Array(biomesData.i.length)
+      const biomes = Array(worldContext.biomesData.i.length)
         .fill(null)
-        .map((_, i) => ({ i, name: biomesData.name[i], color: biomesData.color[i] }));
+        .map((_, i) => ({ i, name: worldContext.biomesData.name[i], color: worldContext.biomesData.color[i] }));
       return selectLimitation(el as HTMLButtonElement, biomes);
     }
-    if (el.getAttribute("name") === "states") return selectLimitation(el as HTMLButtonElement, pack.states);
-    if (el.getAttribute("name") === "cultures") return selectLimitation(el as HTMLButtonElement, pack.cultures);
-    if (el.getAttribute("name") === "religions") return selectLimitation(el as HTMLButtonElement, pack.religions);
+    if (el.getAttribute("name") === "states")
+      return selectLimitation(el as HTMLButtonElement, worldContext.pack.states);
+    if (el.getAttribute("name") === "cultures")
+      return selectLimitation(el as HTMLButtonElement, worldContext.pack.cultures);
+    if (el.getAttribute("name") === "religions")
+      return selectLimitation(el as HTMLButtonElement, worldContext.pack.religions);
     if (el.getAttribute("name") === "features") return selectFeaturesLimitation(el as HTMLButtonElement);
     if (el.getAttribute("name") === "up") return line.parentNode!.insertBefore(line, line.previousElementSibling);
     if (el.getAttribute("name") === "down") return line.parentNode!.insertBefore(line.nextElementSibling!, line);
@@ -70,12 +77,12 @@ export function editBurgGroups(): void {
   });
 
   function addLines(): void {
-    const lines = options.burgs.groups.map(createLine);
+    const lines = worldContext.options.burgs.groups.map(createLine);
     ensureEl("burgGroupsBody").innerHTML = lines.join("");
   }
 
   function createLine(group: BurgGroup): string {
-    const count = pack.burgs.filter((burg: Burg) => !burg.removed && burg.group === group.name).length;
+    const count = worldContext.pack.burgs.filter((burg: Burg) => !burg.removed && burg.group === group.name).length;
     // prettier-ignore
     return /* html */ `<tr name="${group.name}">
       <td data-tip="Rendering order: higher values are rendered on top"><input type="number" name="order" min="1" max="999" step="1" required value="${group.order || ""}" /></td>
@@ -149,7 +156,7 @@ export function editBurgGroups(): void {
       </table>`;
 
     openRichDialog({
-      content: window.alertMessage.innerHTML,
+      content: alertMessage.innerHTML,
       width: fitContent(),
       title: "Limit group",
       buttons: {
@@ -230,7 +237,7 @@ export function editBurgGroups(): void {
       </form>`;
 
     openRichDialog({
-      content: window.alertMessage.innerHTML,
+      content: alertMessage.innerHTML,
       width: fitContent(),
       title: "Limit group by features",
       buttons: {
@@ -348,7 +355,7 @@ export function editBurgGroups(): void {
       return input.value || null;
     }
 
-    options.burgs.groups = lines.map((line: HTMLTableRowElement) => {
+    worldContext.options.burgs.groups = lines.map((line: HTMLTableRowElement) => {
       const inputs = line.querySelectorAll<HTMLInputElement | HTMLSelectElement>("input, select");
       const group = Array.from(inputs).reduce((obj: Record<string, ParsedValue>, input) => {
         const value = parseInput(input);
@@ -357,10 +364,10 @@ export function editBurgGroups(): void {
       }, {});
       return group as unknown as BurgGroup;
     });
-    localStorage.setItem("burg-groups", JSON.stringify(options.burgs.groups));
+    localStorage.setItem("burg-groups", JSON.stringify(worldContext.options.burgs.groups));
 
     // put burgs to new groups
-    const validBurgs = pack.burgs.filter((b: Burg) => b.i && !b.removed);
+    const validBurgs = worldContext.pack.burgs.filter((b: Burg) => b.i && !b.removed);
     const populations = validBurgs
       .map((b: Burg) => b.population)
       .filter((p): p is number => p !== undefined)

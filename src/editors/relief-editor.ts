@@ -1,7 +1,14 @@
 import type { D3DragEvent, Quadtree } from "d3";
 import { drag, pointer, quadtree, range, select } from "d3";
-import { closeDialog, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
+import { viewContext } from "../context/viewContext";
+import { worldContext } from "../context/worldContext";
+import { moveCircle, removeCircle, restoreDefaultEvents, unselect } from "../controllers/editors";
+import { layerIsOn, toggleRelief } from "../controllers/layers";
+import { editStyle } from "../controllers/style";
+import { closeDialog, closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { findAllInQuadtree, findCell, rn } from "../utils";
+import { alertMessage } from "../utils/alertMessageEl";
+import { clearMainTip, showMainTip, tip } from "../utils/uiHelpers";
 
 interface DragAddState {
   type: string;
@@ -19,13 +26,13 @@ interface DragRemoveState {
 }
 
 export function editReliefIcon(clickedEl?: Element): void {
-  if (customization) return;
+  if (viewContext.customization) return;
   closeDialogs(".stable");
   if (!layerIsOn("toggleRelief")) toggleRelief();
 
   let _rdx = 0,
     _rdy = 0;
-  terrain
+  viewContext.terrain
     .selectAll<SVGUseElement, unknown>("use")
     .call(
       drag<SVGUseElement, unknown>()
@@ -134,7 +141,7 @@ export function editReliefIcon(clickedEl?: Element): void {
       (reliefIconsDiv.querySelector("svg") as SVGElement).classList.add("pressed");
     }
 
-    viewbox
+    viewContext.viewbox
       .style("cursor", "crosshair")
       .call(
         drag<SVGGElement, unknown>()
@@ -150,7 +157,7 @@ export function editReliefIcon(clickedEl?: Element): void {
             const size = +reliefSizeNumber.value;
             const tree = quadtree<number[]>();
             const positions: number[] = [];
-            terrain.selectAll<SVGUseElement, unknown>("use").each(function (this: SVGUseElement) {
+            viewContext.terrain.selectAll<SVGUseElement, unknown>("use").each(function (this: SVGUseElement) {
               const x = +this.getAttribute("x")! + +this.getAttribute("width")! / 2;
               const y = +this.getAttribute("y")! + +this.getAttribute("height")! / 2;
               tree.add([x, y, x]);
@@ -171,7 +178,7 @@ export function editReliefIcon(clickedEl?: Element): void {
               const cx = p[0] + rad * Math.cos(a);
               const cy = p[1] + rad * Math.sin(a);
               if (tree.find(cx, cy, spacing)) return;
-              if (pack.cells.h[findCell(cx, cy)] < 20) return;
+              if (worldContext.pack.cells.h[findCell(cx, cy)] < 20) return;
               const h = rn((size / 2) * (Math.random() * 0.4 + 0.8), 2);
               const x = rn(cx - h, 2);
               const y = rn(cy - h, 2);
@@ -181,7 +188,7 @@ export function editReliefIcon(clickedEl?: Element): void {
               while (positions[nth] && z > positions[nth]) nth++;
               tree.add([cx, cy]);
               positions.push(z);
-              terrain
+              viewContext.terrain
                 .insert("use", `:nth-child(${nth})`)
                 .attr("href", type)
                 .attr("x", x)
@@ -215,7 +222,7 @@ export function editReliefIcon(clickedEl?: Element): void {
     (document.getElementById("reliefSpacingDiv") as HTMLElement).style.display = "none";
     reliefIconsSeletionAny.style.display = "inline-block";
 
-    viewbox
+    viewContext.viewbox
       .style("cursor", "crosshair")
       .call(
         drag<SVGGElement, unknown>()
@@ -228,8 +235,8 @@ export function editReliefIcon(clickedEl?: Element): void {
             const r = +reliefRadiusNumber.value;
             const type = pressed.dataset.type;
             const icons = type
-              ? terrain.selectAll<SVGUseElement, unknown>(`use[href='${type}']`)
-              : terrain.selectAll<SVGUseElement, unknown>("use");
+              ? viewContext.terrain.selectAll<SVGUseElement, unknown>(`use[href='${type}']`)
+              : viewContext.terrain.selectAll<SVGUseElement, unknown>("use");
             const tree = quadtree<[number, number, SVGUseElement]>();
             icons.each(function (this: SVGUseElement) {
               const x = +this.getAttribute("x")! + +this.getAttribute("width")! / 2;
@@ -314,8 +321,8 @@ export function editReliefIcon(clickedEl?: Element): void {
     } else {
       const type = (reliefIconsDiv.querySelector("svg.pressed") as SVGElement)?.dataset.type;
       selection = type
-        ? terrain.selectAll<SVGUseElement, unknown>(`use[href='${type}']`)
-        : terrain.selectAll<SVGUseElement, unknown>("use");
+        ? viewContext.terrain.selectAll<SVGUseElement, unknown>(`use[href='${type}']`)
+        : viewContext.terrain.selectAll<SVGUseElement, unknown>("use");
       const size = selection.size();
       alertMessage.innerHTML = type
         ? `Are you sure you want to remove all ${type} icons (${size})?`
@@ -323,7 +330,7 @@ export function editReliefIcon(clickedEl?: Element): void {
     }
 
     openRichDialog({
-      content: window.alertMessage.innerHTML,
+      content: alertMessage.innerHTML,
       resizable: false,
       title: "Remove relief icons",
       buttons: {
@@ -340,7 +347,7 @@ export function editReliefIcon(clickedEl?: Element): void {
   }
 
   function closeReliefEditor(): void {
-    terrain
+    viewContext.terrain
       .selectAll<SVGUseElement, unknown>("use")
       .call(drag<SVGUseElement, unknown>().on("drag", null))
       .classed("draggable", false);

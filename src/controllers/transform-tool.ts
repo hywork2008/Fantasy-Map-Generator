@@ -1,19 +1,23 @@
+import { resetZoom } from "../actions";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import { getMapURL } from "../io/export";
+import { undraw } from "../main";
 import { useOptionsState } from "../store/optionsState";
-import { openDialog } from "../ui/dialogs/dialogService";
+import { closeDialogs, openDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, rn } from "../utils";
-import { fitMapToScreen } from "./options";
+import { drawLayers } from "./layers";
+import { applyGraphSize, cellsDensityMap, changeCellsDensity, fitMapToScreen, getCellsDensityColor } from "./options";
 
 let worldContext: WorldContext;
-let viewContext: Readonly<ViewContext>;
+let viewContext: ViewContext;
 let appServices: AppServices;
 
-async function openTransformTool(): Promise<void> {
+export async function openTransformTool(): Promise<void> {
   const width = Math.min(400, window.innerWidth * 0.5);
-  const previewScale = width / graphWidth;
-  const height = graphHeight * previewScale;
+  const previewScale = width / worldContext.graphWidth;
+  const height = worldContext.graphHeight * previewScale;
 
   let mouseIsDown = false;
   let mouseX = 0;
@@ -159,8 +163,8 @@ async function openTransformTool(): Promise<void> {
   }
 
   function getProjection(): [(x: number, y: number) => [number, number], (x: number, y: number) => [number, number]] {
-    const centerX = graphWidth / 2;
-    const centerY = graphHeight / 2;
+    const centerX = worldContext.graphWidth / 2;
+    const centerY = worldContext.graphHeight / 2;
     const shiftX = +(ensureEl("transformShiftX") as HTMLInputElement).value;
     const shiftY = +(ensureEl("transformShiftY") as HTMLInputElement).value;
     const angle = (+(ensureEl("transformAngleInput") as HTMLInputElement).value / 180) * Math.PI;
@@ -199,8 +203,6 @@ async function openTransformTool(): Promise<void> {
     return [project, inverse];
   }
 }
-
-window.openTransformTool = openTransformTool;
 
 export function initTransformTool(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {
   worldContext = wc;

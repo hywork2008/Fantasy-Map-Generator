@@ -1,18 +1,26 @@
 import { curveCatmullRom, type D3DragEvent, drag, pointer, select } from "d3";
+import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import { unselect } from "../controllers/editors";
+import { layerIsOn, toggleCells, toggleRivers } from "../controllers/layers";
+import { createRiver } from "../controllers/rivers-creator";
+import { editStyle } from "../controllers/style";
+import { Names } from "../modules/names-generator";
 import type { River } from "../modules/river-generator";
 import { Rivers } from "../modules/river-generator";
 import { dialogStore } from "../store/dialogState";
 import type { TypedArray } from "../types/PackedGraph";
-import { closeDialog, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
+import { closeDialog, closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, findCell, getSegmentId, rand, rn } from "../utils";
+import { alertMessage } from "../utils/alertMessageEl";
 import { getPackPolygon } from "../utils/graphUtils";
+import { clearMainTip, tip } from "../utils/uiHelpers";
 import { editNotes } from "./notes-editor";
 
 let worldContext: WorldContext;
 
 export function editRiver(id: string): void {
-  if (customization) return;
+  if (viewContext.customization) return;
   if (elSelected && id === elSelected.attr("id")) return;
   closeDialogs(".stable");
   if (!layerIsOn("toggleRivers")) toggleRivers();
@@ -26,8 +34,8 @@ export function editRiver(id: string): void {
     "Drag control points to change the river course. Click on point to remove it. Click on river to add additional control point. For major changes please create a new river instead",
     true
   );
-  debug.append("g").attr("id", "controlCells");
-  debug.append("g").attr("id", "controlPoints");
+  viewContext.debug.append("g").attr("id", "controlCells");
+  viewContext.debug.append("g").attr("id", "controlPoints");
 
   updateRiverData();
 
@@ -68,7 +76,7 @@ export function editRiver(id: string): void {
 
   function getRiver(): River {
     const riverId = +elSelected!.attr("id").slice(5);
-    return pack.rivers.find(r => r.i === riverId)!;
+    return worldContext.pack.rivers.find(r => r.i === riverId)!;
   }
 
   function updateRiverData(): void {
@@ -80,12 +88,13 @@ export function editRiver(id: string): void {
     const parentSelect = ensureEl<HTMLSelectElement>("riverMainstem");
     parentSelect.options.length = 0;
     const parent = r.parent || r.i;
-    const sortedRivers = pack.rivers.slice().sort((a: River, b: River) => (a.name > b.name ? 1 : -1));
+    const sortedRivers = worldContext.pack.rivers.slice().sort((a: River, b: River) => (a.name > b.name ? 1 : -1));
     sortedRivers.forEach((river: River) => {
       const opt = new Option(river.name, String(river.i), false, river.i === parent);
       parentSelect.options.add(opt);
     });
-    ensureEl("riverBasin").textContent = pack.rivers.find((river: River) => river.i === r.basin)?.name ?? "";
+    ensureEl("riverBasin").textContent =
+      worldContext.pack.rivers.find((river: River) => river.i === r.basin)?.name ?? "";
 
     ensureEl("riverDischarge").textContent = `${r.discharge} m³/s`;
     (ensureEl("riverSourceWidth") as HTMLInputElement).value = String(r.sourceWidth);
@@ -97,7 +106,7 @@ export function editRiver(id: string): void {
 
   function updateRiverLength(river: River): void {
     river.length = rn((elSelected!.node() as unknown as SVGPathElement).getTotalLength() / 2, 2);
-    const lengthUI = `${rn(river.length * distanceScale)} ${distanceUnitInput.value}`;
+    const lengthUI = `${rn(river.length * worldContext.distanceScale)} ${distanceUnitInput.value}`;
     ensureEl("riverLength").textContent = lengthUI;
   }
 
@@ -113,12 +122,12 @@ export function editRiver(id: string): void {
       })
     );
 
-    const width = `${rn(river.width * distanceScale, 3)} ${distanceUnitInput.value}`;
+    const width = `${rn(river.width * worldContext.distanceScale, 3)} ${distanceUnitInput.value}`;
     ensureEl("riverWidth").textContent = width;
   }
 
   function drawControlPoints(pts: [number, number][]): void {
-    debug
+    viewContext.debug
       .select<SVGGElement>("#controlPoints")
       .selectAll<SVGCircleElement, [number, number]>("circle")
       .data(pts)
@@ -136,8 +145,8 @@ export function editRiver(id: string): void {
   }
 
   function drawRiverCells(cellList: number[]): void {
-    const validCells = [...new Set(cellList)].filter(i => pack.cells.i[i]);
-    debug
+    const validCells = [...new Set(cellList)].filter(i => worldContext.pack.cells.i[i]);
+    viewContext.debug
       .select("#controlCells")
       .selectAll("polygon")
       .data(validCells)
@@ -150,7 +159,7 @@ export function editRiver(id: string): void {
     event: D3DragEvent<SVGCircleElement, [number, number], unknown>
   ): void {
     _rRiver = getRiver();
-    _rFlCells = pack.cells.fl;
+    _rFlCells = worldContext.pack.cells.fl;
     _rInitCell = findCell(event.x, event.y);
     _rMovedToCell = null;
   }
@@ -170,7 +179,7 @@ export function editRiver(id: string): void {
   }
 
   function dragControlPointEnd(this: SVGCircleElement): void {
-    const { r } = pack.cells;
+    const { r } = worldContext.pack.cells;
     if (_rMovedToCell !== null && !r[_rMovedToCell]) {
       r[_rInitCell] = 0;
       r[_rMovedToCell] = _rRiver!.i;
@@ -183,10 +192,10 @@ export function editRiver(id: string): void {
 
   function redrawRiver(): void {
     const river = getRiver();
-    river.points = debug.selectAll("#controlPoints > *").data() as [number, number][];
+    river.points = viewContext.debug.selectAll("#controlPoints > *").data() as [number, number][];
     river.cells = river.points.map(([x, y]) => findCell(x, y));
 
-    lineGen.curve(curveCatmullRom.alpha(0.1));
+    viewContext.lineGen.curve(curveCatmullRom.alpha(0.1));
     const meanderedPoints = Rivers.addMeandering(river.cells, river.points);
     const path = Rivers.getRiverPath(meanderedPoints, river.widthFactor, river.sourceWidth);
     elSelected!.attr("d", path);
@@ -200,7 +209,7 @@ export function editRiver(id: string): void {
     const point: [number, number] = [rn(x, 1), rn(y, 1)];
 
     const river = getRiver();
-    if (!river.points) river.points = debug.selectAll("#controlPoints > *").data() as [number, number][];
+    if (!river.points) river.points = viewContext.debug.selectAll("#controlPoints > *").data() as [number, number][];
 
     const index = getSegmentId(river.points, point, 2);
     river.points.splice(index, 0, point);
@@ -231,14 +240,18 @@ export function editRiver(id: string): void {
 
   function generateNameRandom(): void {
     const r = getRiver();
-    if (r) r.name = (ensureEl("riverName") as HTMLInputElement).value = Names.getBase(rand(nameBases.length - 1));
+    if (r)
+      r.name = (ensureEl("riverName") as HTMLInputElement).value = Names.getBase(
+        rand(worldContext.nameBases.length - 1)
+      );
   }
 
   function changeParent(this: HTMLSelectElement): void {
     const r = getRiver();
     r.parent = +this.value;
-    r.basin = pack.rivers.find((river: River) => river.i === r.parent)?.basin ?? r.i;
-    ensureEl("riverBasin").textContent = pack.rivers.find((river: River) => river.i === r.basin)?.name ?? "";
+    r.basin = worldContext.pack.rivers.find((river: River) => river.i === r.parent)?.basin ?? r.i;
+    ensureEl("riverBasin").textContent =
+      worldContext.pack.rivers.find((river: River) => river.i === r.basin)?.name ?? "";
   }
 
   function changeSourceWidth(this: HTMLInputElement): void {
@@ -256,12 +269,12 @@ export function editRiver(id: string): void {
   }
 
   function showRiverElevationProfile(): void {
-    const pts = debug
+    const pts = viewContext.debug
       .selectAll<Element, [number, number]>("#controlPoints > *")
       .data()
       .map(([x, y]) => findCell(x, y));
     const river = getRiver();
-    const riverLen = rn(river.length * distanceScale);
+    const riverLen = rn(river.length * worldContext.distanceScale);
     ElevationProfile.open(pts, riverLen, true);
   }
 
@@ -274,7 +287,7 @@ export function editRiver(id: string): void {
   function removeRiver(): void {
     alertMessage.innerHTML = "Are you sure you want to remove the river and all its tributaries";
     openRichDialog({
-      content: window.alertMessage.innerHTML,
+      content: alertMessage.innerHTML,
       resizable: false,
       width: "22em",
       title: "Remove river and tributaries",
@@ -294,8 +307,8 @@ export function editRiver(id: string): void {
   }
 
   function closeRiverEditor(): void {
-    debug.select("#controlPoints").remove();
-    debug.select("#controlCells").remove();
+    viewContext.debug.select("#controlPoints").remove();
+    viewContext.debug.select("#controlCells").remove();
 
     elSelected?.on("click", null);
     unselect();

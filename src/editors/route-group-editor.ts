@@ -1,9 +1,15 @@
+import { viewContext } from "../context/viewContext";
+import { worldContext } from "../context/worldContext";
+import { confirmationDialog } from "../controllers/editors";
+import { layerIsOn, toggleRoutes } from "../controllers/layers";
+import { editStyle } from "../controllers/style";
 import { Routes } from "../modules/routes-generator";
 import { openDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, showPrompt } from "../utils";
+import { tip } from "../utils/uiHelpers";
 
 export function editRouteGroups(): void {
-  if (customization) return;
+  if (viewContext.customization) return;
   if (!layerIsOn("toggleRoutes")) toggleRoutes();
 
   addLines();
@@ -28,7 +34,7 @@ export function editRouteGroups(): void {
   function addLines(): void {
     ensureEl("routeGroupsEditorBody").innerHTML = "";
 
-    const lines = routes
+    const lines = viewContext.routes
       .selectAll<SVGGElement, unknown>("g")
       .nodes()
       .map(el => {
@@ -60,7 +66,7 @@ export function editRouteGroups(): void {
         return tip("Element with this name already exists. Provide a unique name", false, "error");
       if (Number.isFinite(+group.charAt(0))) return tip("Group name should start with a letter", false, "error");
 
-      routes
+      viewContext.routes
         .append("g")
         .attr("id", group)
         .attr("stroke", "#000000")
@@ -81,8 +87,8 @@ export function editRouteGroups(): void {
         "Are you sure you want to remove the entire route group? All routes in this group will be removed.<br>This action can't be reverted",
       confirm: "Remove",
       onConfirm: () => {
-        pack.routes.filter(r => r.group === group).forEach(Routes.remove);
-        if (!DEFAULT_GROUPS.includes(group)) routes.select(`#${group}`).remove();
+        worldContext.pack.routes.filter(r => r.group === group).forEach(Routes.remove);
+        if (!DEFAULT_GROUPS.includes(group)) viewContext.routes.select(`#${group}`).remove();
         addLines();
       }
     });

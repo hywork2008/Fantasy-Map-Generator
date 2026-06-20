@@ -1,6 +1,7 @@
 import type React from "react";
+import { connectToDropbox, loadURL } from "../../controllers/options";
+import { createSharableDropboxLink, loadFromDropbox, quickLoad } from "../../io/load";
 import { useDialogState } from "../../store/dialogState";
-import { callWindowFn } from "../../utils/windowGlobals";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
@@ -25,15 +26,11 @@ export const LoadMapDialog: React.FC = () => {
         <button
           data-tip="Load map file (.map or .gz) file from URL. Note that the server should allow CORS"
           type="button"
-          onClick={() => callWindowFn("loadURL")}
+          onClick={() => loadURL()}
         >
           URL
         </button>{" "}
-        <button
-          type="button"
-          data-tip="Load map from browser storage (if saved before)"
-          onClick={() => callWindowFn("quickLoad")}
-        >
+        <button type="button" data-tip="Load map from browser storage (if saved before)" onClick={() => quickLoad()}>
           storage
         </button>
       </div>
@@ -49,7 +46,7 @@ export const LoadMapDialog: React.FC = () => {
             id="dropboxConnectButton"
             data-tip="Connect your Dropbox account to be able to load maps from it"
             type="button"
-            onClick={() => callWindowFn("connectToDropbox")}
+            onClick={() => connectToDropbox()}
           >
             Connect
           </button>
@@ -60,14 +57,14 @@ export const LoadMapDialog: React.FC = () => {
           <button
             type="button"
             data-tip="Load map file (.map or .gz) from your Dropbox"
-            onClick={() => callWindowFn("loadFromDropbox")}
+            onClick={() => loadFromDropbox()}
           >
             Load
           </button>{" "}
           <button
             data-tip="Select file and create a link to share with your friends"
             type="button"
-            onClick={() => callWindowFn("createSharableDropboxLink")}
+            onClick={() => createSharableDropboxLink()}
           >
             Share
           </button>

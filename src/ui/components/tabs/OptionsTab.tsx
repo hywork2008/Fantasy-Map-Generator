@@ -2,7 +2,6 @@ import type React from "react";
 import { useEffect, useState } from "react";
 import { useOptionsState } from "../../../store/optionsState";
 import { SliderInput } from "../SliderInput";
-
 export const OptionsTab: React.FC = () => {
   const options = useOptionsState();
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);

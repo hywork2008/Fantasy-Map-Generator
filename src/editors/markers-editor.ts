@@ -2,19 +2,21 @@ import { type D3DragEvent, drag, type Selection, select } from "d3";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import { confirmationDialog, listen, restoreDefaultEvents, selectIcon, unselect } from "../controllers/editors";
 import type { Marker } from "../modules/markers-generator";
 import { Markers } from "../modules/markers-generator";
 import { getPin } from "../renderers/index";
-import { closeDialog, openDialog } from "../ui/dialogs/dialogService";
+import { closeDialog, closeDialogs, openDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, findCell, rn } from "../utils";
+import { clearMainTip } from "../utils/uiHelpers";
 import { editNotes } from "./notes-editor";
 
 let worldContext: WorldContext;
-let viewContext: Readonly<ViewContext>;
+let viewContext: ViewContext;
 let appServices: AppServices;
 
 export function editMarker(markerI?: number): void {
-  if (customization) return;
+  if (viewContext.customization) return;
   closeDialogs(".stable");
 
   const result = getElement(markerI!);
@@ -71,7 +73,7 @@ export function editMarker(markerI?: number): void {
 
   function getElement(idx: number): { element: SVGElement; marker: Marker } | null {
     const el = document.getElementById(`marker${idx}`) as SVGElement | null;
-    const m = pack.markers.find(({ i }) => i === idx);
+    const m = worldContext.pack.markers.find(({ i }) => i === idx);
     if (!el || !m) return null;
     return { element: el, marker: m };
   }
@@ -79,7 +81,7 @@ export function editMarker(markerI?: number): void {
   function getSameTypeMarkers(): Marker[] {
     const currentType = marker.type;
     if (!currentType) return [marker];
-    return pack.markers.filter(({ type }) => type === currentType);
+    return worldContext.pack.markers.filter(({ type }) => type === currentType);
   }
 
   let _mdx = 0,
@@ -101,7 +103,7 @@ export function editMarker(markerI?: number): void {
     this.setAttribute("x", String(rn(_mdx + x, 2)));
     this.setAttribute("y", String(rn(_mdy + y, 2)));
     const size = marker.size || 30;
-    const zoomSize = Math.max(rn(size / 5 + 24 / scale, 2), 1);
+    const zoomSize = Math.max(rn(size / 5 + 24 / viewContext.scale, 2), 1);
     marker.x = rn(x + _mdx + zoomSize / 2, 1);
     marker.y = rn(y + _mdy + zoomSize, 1);
     marker.cell = findCell(marker.x, marker.y);
@@ -167,7 +169,7 @@ export function editMarker(markerI?: number): void {
 
   function changeMarkerSize(this: HTMLInputElement): void {
     const size = +this.value;
-    const rescale = +(markers as Selection<SVGGElement, unknown, null, undefined>).attr("rescale");
+    const rescale = +(viewContext.markers as Selection<SVGGElement, unknown, null, undefined>).attr("rescale");
 
     getSameTypeMarkers().forEach(m => {
       m.size = size;
@@ -175,7 +177,7 @@ export function editMarker(markerI?: number): void {
       const el = !hidden ? document.getElementById(`marker${i}`) : null;
       if (!el) return;
 
-      const zoomedSize = rescale ? Math.max(rn(size / 5 + 24 / scale, 2), 1) : size;
+      const zoomedSize = rescale ? Math.max(rn(size / 5 + 24 / viewContext.scale, 2), 1) : size;
       el.setAttribute("width", String(zoomedSize));
       el.setAttribute("height", String(zoomedSize));
       el.setAttribute("x", String(rn((x ?? 0) - zoomedSize / 2, 1)));

@@ -1,3 +1,7 @@
+import { viewContext } from "../context/viewContext";
+import { changeFont } from "../controllers/style";
+import { tip } from "../utils/uiHelpers";
+
 export type FontDefinition = {
   family: string;
   src?: string;
@@ -341,7 +345,7 @@ export const getUsedFonts = (svg: SVGSVGElement) => {
     if (font) usedFontFamilies.add(font);
   }
 
-  const provinceFont = provs.attr("font-family");
+  const provinceFont = viewContext.provs.attr("font-family");
   if (provinceFont) usedFontFamilies.add(provinceFont);
 
   const legend = svg.querySelector("#legend");

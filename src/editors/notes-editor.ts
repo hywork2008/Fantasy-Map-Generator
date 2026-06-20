@@ -12,9 +12,14 @@ import "tinymce/plugins/image";
 import "tinymce/plugins/wordcount";
 import "tinymce/icons/default/icons";
 import "tinymce/models/dom/model";
+import { viewContext } from "../context/viewContext";
+import { worldContext } from "../context/worldContext";
+import { generateWithAi } from "../controllers/ai-generator";
+import { confirmationDialog, downloadFile, getFileName, highlightElement, uploadFile } from "../controllers/editors";
 import type { WorldNote } from "../types/WorldState";
 import { closeDialog, openDialog } from "../ui/dialogs/dialogService";
 import { ensureEl } from "../utils";
+import { tip } from "../utils/uiHelpers";
 
 export function editNotes(id?: string, name?: string): void {
   const notesLegend = ensureEl("notesLegend");
@@ -24,23 +29,23 @@ export function editNotes(id?: string, name?: string): void {
 
   // update list of objects
   notesSelect.options.length = 0;
-  notes.forEach(({ id: noteId }) => {
+  worldContext.notes.forEach(({ id: noteId }) => {
     notesSelect.options.add(new Option(noteId, noteId));
   });
 
   // update pin notes icon
-  const notesArePinned = options.pinNotes;
+  const notesArePinned = worldContext.options.pinNotes;
   if (notesArePinned) notesPin.classList.add("pressed");
   else notesPin.classList.remove("pressed");
 
   // select an object
-  if (notes.length || id) {
-    if (!id) id = notes[0].id;
-    let note = notes.find(note => note.id === id) ?? null;
+  if (worldContext.notes.length || id) {
+    if (!id) id = worldContext.notes[0].id;
+    let note = worldContext.notes.find(note => note.id === id) ?? null;
     if (!note) {
       if (!name) name = id;
       note = { id: id!, name: name!, legend: "" };
-      notes.push(note);
+      worldContext.notes.push(note);
       notesSelect.options.add(new Option(id, id));
     }
 
@@ -56,8 +61,8 @@ export function editNotes(id?: string, name?: string): void {
 
   openDialog("notesEditor", {
     title: "Notes Editor",
-    width: svgWidth * 0.8,
-    height: svgHeight * 0.75,
+    width: viewContext.svgWidth * 0.8,
+    height: viewContext.svgHeight * 0.75,
     position: { my: "center", at: "center", of: "svg" },
     close: removeEditor
   });
@@ -115,7 +120,7 @@ export function editNotes(id?: string, name?: string): void {
   }
 
   function updateLegend(): void {
-    const note = notes.find(note => note.id === notesSelect.value);
+    const note = worldContext.notes.find(note => note.id === notesSelect.value);
     if (!note) {
       tip("Note element is not found", true, "error", 4000);
       return;
@@ -132,7 +137,7 @@ export function editNotes(id?: string, name?: string): void {
   }
 
   function changeElement(this: HTMLSelectElement): void {
-    const note = notes.find(note => note.id === this.value);
+    const note = worldContext.notes.find(note => note.id === this.value);
     if (!note) {
       tip("Note element is not found", true, "error", 4000);
       return;
@@ -146,7 +151,7 @@ export function editNotes(id?: string, name?: string): void {
   }
 
   function changeName(this: HTMLInputElement): void {
-    const note = notes.find(note => note.id === notesSelect.value);
+    const note = worldContext.notes.find(note => note.id === notesSelect.value);
     if (!note) {
       tip("Note element is not found", true, "error", 4000);
       return;
@@ -156,15 +161,15 @@ export function editNotes(id?: string, name?: string): void {
   }
 
   function removeLegend(): void {
-    notes = notes.filter(({ id: noteId }) => noteId !== notesSelect.value);
+    worldContext.notes = worldContext.notes.filter(({ id: noteId }) => noteId !== notesSelect.value);
 
-    if (!notes.length) {
+    if (!worldContext.notes.length) {
       closeDialog("notesEditor");
       return;
     }
 
     removeEditor();
-    editNotes(notes[0].id, notes[0].name);
+    editNotes(worldContext.notes[0].id, worldContext.notes[0].name);
   }
 
   function validateHighlightElement(): void {
@@ -184,7 +189,7 @@ export function editNotes(id?: string, name?: string): void {
   }
 
   function openAiGenerator(): void {
-    const note = notes.find(note => note.id === notesSelect.value);
+    const note = worldContext.notes.find(note => note.id === notesSelect.value);
 
     let prompt = `Respond with description. Use simple dry language. Invent facts, names and details. Split to paragraphs and format to HTML. Remove h tags, remove markdown.`;
     if (note?.name) prompt += ` Name: ${note.name}.`;
@@ -203,7 +208,7 @@ export function editNotes(id?: string, name?: string): void {
   }
 
   function downloadLegends(): void {
-    const notesData = JSON.stringify(notes);
+    const notesData = JSON.stringify(worldContext.notes);
     const fname = `${getFileName("Notes")}.txt`;
     downloadFile(notesData, fname);
   }
@@ -213,9 +218,9 @@ export function editNotes(id?: string, name?: string): void {
       tip("Cannot load the file. Please check the data format", false, "error");
       return;
     }
-    notes = JSON.parse(dataLoaded) as WorldNote[];
+    worldContext.notes = JSON.parse(dataLoaded) as WorldNote[];
     notesSelect.options.length = 0;
-    editNotes(notes[0].id, notes[0].name);
+    editNotes(worldContext.notes[0].id, worldContext.notes[0].name);
   }
 
   function triggerNotesRemove(): void {
@@ -228,7 +233,7 @@ export function editNotes(id?: string, name?: string): void {
   }
 
   function toggleNotesPin(this: HTMLElement): void {
-    options.pinNotes = !options.pinNotes;
+    worldContext.options.pinNotes = !worldContext.options.pinNotes;
     this.classList.toggle("pressed");
   }
 

@@ -1,5 +1,6 @@
 import * as d3 from "d3";
 import { pointer, quadtree } from "d3";
+import { getWorldState } from "../actions";
 import { aleaPRNG } from "../components/AleaPRNG";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
@@ -14,6 +15,7 @@ import { editProvinces } from "../editors/provinces-editor";
 import { createRoute } from "../editors/routes-editor";
 import { editUnits } from "../editors/units-editor";
 import { editZones } from "../editors/zones-editor";
+import { rankCells } from "../main";
 import type { Burg } from "../modules/burgs-generator";
 import { Burgs } from "../modules/burgs-generator";
 import { Cultures } from "../modules/cultures-generator";
@@ -25,6 +27,7 @@ import { Lakes } from "../modules/lakes";
 import type { MarkerConfig } from "../modules/markers-generator";
 import { Markers } from "../modules/markers-generator";
 import { Military } from "../modules/military-generator";
+import { Names } from "../modules/names-generator";
 import type { Province } from "../modules/provinces-generator";
 import { Provinces } from "../modules/provinces-generator";
 import type { Religion } from "../modules/religions-generator";
@@ -58,21 +61,56 @@ import {
 import { drawMarker } from "../renderers/index";
 import { useOptionsState } from "../store/optionsState";
 import type { WorldNote } from "../types/WorldState";
-import { openDialog, openRichDialog } from "../ui/dialogs/dialogService";
+import { closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, findCell, gauss, generateSeed, getNextId, isCtrlClick, P, rn, showPrompt } from "../utils";
+import { clearMainTip, tip } from "../utils/uiHelpers";
+import { overviewBurgs } from "./burgs-overview";
 import { open as openChartsOverview } from "./charts-overview";
-import { editCoastlineSettings, editCultures, editReligions, editStates } from "./editors";
+import {
+  editCoastlineSettings,
+  editCultures,
+  editReligions,
+  editStates,
+  refreshAllEditors,
+  restoreDefaultEvents,
+  selectIcon,
+  unfog
+} from "./editors";
 import { interactionManager } from "./interactionManager";
+import {
+  layerIsOn,
+  toggleBorders,
+  toggleCultures,
+  toggleEmblems,
+  toggleIce,
+  toggleLabels,
+  toggleMarkers,
+  toggleMilitary,
+  togglePopulation,
+  toggleProvinces,
+  toggleRelief,
+  toggleReligions,
+  toggleRivers,
+  toggleRoutes,
+  toggleStates,
+  turnButtonOn
+} from "./layers";
+import { overviewMilitary } from "./military-overview";
 import { openMinimapDialog } from "./minimap";
+import { cellsDensityMap } from "./options";
+import { overviewRoutes } from "./routes-overview";
+import { openSubmapTool } from "./submap-tool";
+import { openTransformTool } from "./transform-tool";
+import { editWorld } from "./world-configurator";
 
 let worldContext: WorldContext;
-let viewContext: Readonly<ViewContext>;
+let viewContext: ViewContext;
 let appServices: AppServices;
 
 // ─── Tools panel event dispatcher ────────────────────────────────────────────
 
 document.addEventListener("react-tool-action", e => {
-  if (customization) return tip("Please exit the customization mode first", false, "error");
+  if (viewContext.customization) return tip("Please exit the customization mode first", false, "error");
   const button = e.detail?.action;
   if (!button) return;
 
@@ -92,9 +130,9 @@ document.addEventListener("react-tool-action", e => {
   else if (button === "overviewChartsButton") overviewCharts();
   else if (button === "overviewBurgsButton") overviewBurgs();
   else if (button === "overviewRoutesButton") overviewRoutes();
-  else if (button === "overviewRiversButton") overviewRivers();
+  else if (button === "overviewRiversButton") import("./rivers-overview").then(m => m.overviewRivers());
   else if (button === "overviewMilitaryButton") overviewMilitary();
-  else if (button === "overviewMarkersButton") overviewMarkers();
+  else if (button === "overviewMarkersButton") import("./markers-overview").then(m => m.overviewMarkers());
   else if (button === "overviewCellsButton") viewCellDetails();
   else if (button === "openMinimapButton") openMinimap?.();
 
@@ -133,7 +171,7 @@ document.addEventListener("react-tool-action", e => {
   else if (button === "addMarker") toggleAddMarker();
   else if (button === "openSubmapTool") openSubmapTool?.();
   else if (button === "openTransformTool") openTransformTool?.();
-  else if (button === "openWorldConfigurator") window.editWorld?.();
+  else if (button === "openWorldConfigurator") editWorld();
 });
 
 // ─── Regeneration dispatcher ──────────────────────────────────────────────────
@@ -164,11 +202,11 @@ function processFeatureRegeneration(event: MouseEvent | null, button: string): v
 
 // ─── Emblem editor opener ────────────────────────────────────────────────────
 
-async function openEmblemEditor(): Promise<void> {
+export async function openEmblemEditor(): Promise<void> {
   let type: string, id: string, el: State | Burg;
 
-  const firstState = pack.states.find((s: State) => s.i && !s.removed && s.coa);
-  const firstBurg = pack.burgs.find((b: Burg) => b.i && !b.removed && b.coa);
+  const firstState = worldContext.pack.states.find((s: State) => s.i && !s.removed && s.coa);
+  const firstBurg = worldContext.pack.burgs.find((b: Burg) => b.i && !b.removed && b.coa);
 
   if (firstState) {
     type = "state";
@@ -190,12 +228,12 @@ async function openEmblemEditor(): Promise<void> {
 // ─── Regenerate functions ─────────────────────────────────────────────────────
 
 function regenerateRoutes(): void {
-  const locked = pack.routes
+  const locked = worldContext.pack.routes
     .filter((route: Route) => route.lock)
     .map((route: Route, index: number) => ({ ...route, i: index }));
   Routes.generate(worldContext, viewContext, appServices, getWorldState(), locked);
 
-  routes.selectAll("path").remove();
+  viewContext.routes.selectAll("path").remove();
   if (layerIsOn("toggleRoutes")) RoutesRenderer.render(worldContext, viewContext, appServices);
 }
 
@@ -209,12 +247,12 @@ function regenerateRivers(): void {
 }
 
 function recalculatePopulation(): void {
-  window.rankCells();
+  rankCells();
 
-  pack.burgs.forEach((b: Burg) => {
+  worldContext.pack.burgs.forEach((b: Burg) => {
     if (!b.i || b.removed || b.lock) return;
     const i = b.cell;
-    b.population = rn(Math.max(pack.cells.s[i] / 8 + b.i! / 1000 + (i % 100) / 1000, 0.1), 3);
+    b.population = rn(Math.max(worldContext.pack.cells.s[i] / 8 + b.i! / 1000 + (i % 100) / 1000, 0.1), 3);
     if (b.capital) b.population = b.population! * 1.3;
     if (b.port) b.population = b.population! * 1.3;
     b.population = rn(b.population * gauss(2, 3, 0.6, 20, 3), 3);
@@ -229,7 +267,7 @@ function regenerateStates(): void {
   const newStates = recreateStates();
   if (!newStates) return;
 
-  pack.states = newStates;
+  worldContext.pack.states = newStates;
   const state = getWorldState();
   States.expandStates(worldContext, viewContext, appServices);
   States.normalize();
@@ -270,7 +308,7 @@ function recreateStates(): State[] | null {
     return null;
   }
 
-  const validBurgs = pack.burgs.filter((b: Burg) => b.i && !b.removed);
+  const validBurgs = worldContext.pack.burgs.filter((b: Burg) => b.i && !b.removed);
   if (!validBurgs.length) {
     tip("There are no any burgs to generate states. Please create burgs first", false, "error");
     return null;
@@ -284,7 +322,7 @@ function recreateStates(): State[] | null {
     );
   }
 
-  const validStates = pack.states.filter((s: State) => s.i && !s.removed);
+  const validStates = worldContext.pack.states.filter((s: State) => s.i && !s.removed);
   const lockedStates = validStates.filter((s: State) => s.lock);
   const lockedStatesIds = lockedStates.map((s: State) => s.i);
   const lockedStatesCapitals = lockedStates.map((s: State) => s.capital);
@@ -302,7 +340,7 @@ function recreateStates(): State[] | null {
     }
   }
 
-  for (const state of pack.states as State[]) {
+  for (const state of worldContext.pack.states as State[]) {
     if (!state.i || state.removed || state.lock) continue;
     document.getElementById(`stateLabel${state.i}`)?.remove();
     document.getElementById(`textPath_stateLabel${state.i}`)?.remove();
@@ -312,7 +350,7 @@ function recreateStates(): State[] | null {
     for (const provinceId of state.provinces ?? []) {
       document.getElementById(`provinceCOA${provinceId}`)?.remove();
       document.querySelector(`#provinceEmblems > use[data-i="${provinceId}"]`)?.remove();
-      pack.provinces[provinceId].removed = true;
+      worldContext.pack.provinces[provinceId].removed = true;
     }
   }
 
@@ -325,18 +363,18 @@ function recreateStates(): State[] | null {
     .map(pair => pair[0]);
 
   const count = Math.min(statesCount, validBurgs.length) + 1;
-  let spacing = (graphWidth + graphHeight) / 2 / count;
+  let spacing = (worldContext.graphWidth + worldContext.graphHeight) / 2 / count;
 
   const capitalsTree = quadtree<[number, number]>()
     .x(d => d[0])
     .y(d => d[1]);
   const isTooClose = (x: number, y: number, sp: number) => Boolean(capitalsTree.find(x, y, sp));
 
-  const newStates: State[] = [{ i: 0, name: pack.states[0].name } as State];
+  const newStates: State[] = [{ i: 0, name: worldContext.pack.states[0].name } as State];
 
   lockedStates.forEach((state: State) => {
     const newId = newStates.length;
-    const { x, y } = pack.burgs[state.capital];
+    const { x, y } = worldContext.pack.burgs[state.capital];
     capitalsTree.add([x, y]);
 
     document.getElementById(`textPath_stateLabel${state.i}`)?.setAttribute("id", `textPath_stateLabel${newId}`);
@@ -354,18 +392,18 @@ function recreateStates(): State[] | null {
     document.querySelector(`#stateEmblems > use[data-i="${state.i}"]`)?.setAttribute("data-i", String(newId));
 
     (state.provinces ?? []).forEach((provinceId: number) => {
-      if (!pack.provinces[provinceId]) return;
-      pack.provinces[provinceId].state = newId;
+      if (!worldContext.pack.provinces[provinceId]) return;
+      worldContext.pack.provinces[provinceId].state = newId;
     });
 
     state.i = newId;
     newStates.push(state);
   });
 
-  for (const i of pack.cells.i) {
-    const stateId = pack.cells.state[i];
+  for (const i of worldContext.pack.cells.i) {
+    const stateId = worldContext.pack.cells.state[i];
     const lockedStateIndex = lockedStatesIds.indexOf(stateId) + 1;
-    pack.cells.state[i] = lockedStateIndex;
+    worldContext.pack.cells.state[i] = lockedStateIndex;
   }
 
   for (let i = newStates.length; i < count; i++) {
@@ -394,14 +432,14 @@ function recreateStates(): State[] | null {
             Names as unknown as { getCulture(c: number, a: number, b: number, s: string, n: number): string }
           ).getCulture(culture, 3, 6, "", 0);
     const name = Names.getState(basename, culture);
-    const nomadic = [1, 2, 3, 4].includes(pack.cells.biome[capital.cell]);
+    const nomadic = [1, 2, 3, 4].includes(worldContext.pack.cells.biome[capital.cell]);
     const type = nomadic
       ? "Nomadic"
-      : pack.cultures[culture!].type === "Nomadic"
+      : worldContext.pack.cultures[culture!].type === "Nomadic"
         ? "Generic"
-        : pack.cultures[culture!].type;
+        : worldContext.pack.cultures[culture!].type;
     const expansionism = rn(Math.random() * +ensureEl<HTMLInputElement>("sizeVariety").value + 1, 1);
-    const cultureType = pack.cultures[culture!].type;
+    const cultureType = worldContext.pack.cultures[culture!].type;
     const coa = COA.generate(capital.coa || null, 0.3, null, cultureType ?? "Generic");
     coa.shield = capital.coa?.shield;
     newStates.push({
@@ -431,17 +469,17 @@ function regenerateProvinces(): void {
   document.querySelectorAll("[id^=provinceCOA]").forEach(el => {
     el.remove();
   });
-  emblems.selectAll("use").remove();
+  viewContext.emblems.selectAll("use").remove();
   if (layerIsOn("toggleEmblems")) EmblemsRenderer.render(worldContext, viewContext, appServices);
   refreshAllEditors();
 }
 
 function regenerateBurgs(): void {
-  const { cells, burgs: packBurgs, states, provinces } = pack;
+  const { cells, burgs: packBurgs, states, provinces } = worldContext.pack;
 
-  window.rankCells();
+  rankCells();
 
-  notes = notes.filter((note: WorldNote) => {
+  worldContext.notes = worldContext.notes.filter((note: WorldNote) => {
     if (note.id.startsWith("burg")) {
       const burgId = +note.id.slice(4);
       return packBurgs[burgId]?.lock;
@@ -471,8 +509,8 @@ function regenerateBurgs(): void {
     const lockedBurg = lockedburgs[j];
     const newId = newBurgs.length;
 
-    const noteIndex = notes.findIndex((note: WorldNote) => note.id === `burg${lockedBurg.i}`);
-    if (noteIndex !== -1) notes[noteIndex].id = `burg${newId}`;
+    const noteIndex = worldContext.notes.findIndex((note: WorldNote) => note.id === `burg${lockedBurg.i}`);
+    if (noteIndex !== -1) worldContext.notes[noteIndex].id = `burg${newId}`;
 
     lockedBurg.i = newId;
     newBurgs.push(lockedBurg);
@@ -494,9 +532,9 @@ function regenerateBurgs(): void {
   const manorsInputEl = ensureEl<HTMLInputElement>("manorsInput");
   const burgsCount =
     (manorsInputEl.value === "1000"
-      ? rn(sorted.length / 5 / (grid.points.length / 10000) ** 0.8)
+      ? rn(sorted.length / 5 / (worldContext.grid.points.length / 10000) ** 0.8)
       : +manorsInputEl.value) + existingStatesCount;
-  const burgSpacing = (graphWidth + graphHeight) / 150 / (burgsCount ** 0.7 / 66);
+  const burgSpacing = (worldContext.graphWidth + worldContext.graphHeight) / 150 / (burgsCount ** 0.7 / 66);
 
   for (let i = 0; i < sorted.length && newBurgs.length < burgsCount; i++) {
     const id = newBurgs.length;
@@ -530,7 +568,7 @@ function regenerateBurgs(): void {
     cells.burg[cell] = id;
   }
 
-  pack.burgs = newBurgs;
+  worldContext.pack.burgs = newBurgs;
   Burgs.shift();
 
   states
@@ -539,8 +577,8 @@ function regenerateBurgs(): void {
       const [x, y] = cells.p[s.center!] as [number, number];
       const { burgId } = Burgs.add([x, y]);
       s.capital = burgId;
-      s.center = pack.burgs[burgId].cell;
-      const burg = pack.burgs[burgId];
+      s.center = worldContext.pack.burgs[burgId].cell;
+      const burg = worldContext.pack.burgs[burgId];
       burg.state = s.i;
       burg.capital = 1;
       Burgs.changeGroup(burg);
@@ -554,7 +592,7 @@ function regenerateBurgs(): void {
   document.querySelectorAll("[id^=burgCOA]").forEach(el => {
     el.remove();
   });
-  emblems.selectAll("use").remove();
+  viewContext.emblems.selectAll("use").remove();
   if (layerIsOn("toggleEmblems")) EmblemsRenderer.render(worldContext, viewContext, appServices);
 
   if (ensureEl("burgsOverviewRefresh").offsetParent) ensureEl<HTMLButtonElement>("burgsOverviewRefresh").click();
@@ -562,7 +600,7 @@ function regenerateBurgs(): void {
     (document.getElementById("statesEditorRefresh") as HTMLButtonElement).click();
 }
 
-function regenerateEmblems(): void {
+export function regenerateEmblems(): void {
   document.querySelectorAll("[id^=stateCOA]").forEach(el => {
     el.remove();
   });
@@ -572,18 +610,18 @@ function regenerateEmblems(): void {
   document.querySelectorAll("[id^=burgCOA]").forEach(el => {
     el.remove();
   });
-  emblems.selectAll("use").remove();
+  viewContext.emblems.selectAll("use").remove();
 
-  pack.states.forEach((state: State) => {
+  worldContext.pack.states.forEach((state: State) => {
     if (!state.i || state.removed) return;
-    const cultureType = pack.cultures[state.culture!].type;
+    const cultureType = worldContext.pack.cultures[state.culture!].type;
     state.coa = COA.generate(null, 0, null, cultureType ?? "Generic");
     state.coa.shield = COA.getShield(state.culture!);
   });
 
-  pack.burgs.forEach((burg: Burg) => {
+  worldContext.pack.burgs.forEach((burg: Burg) => {
     if (!burg.i || burg.removed) return;
-    const state = pack.states[burg.state!];
+    const state = worldContext.pack.states[burg.state!];
     let kinship = state ? 0.25 : 0;
     if (burg.capital) kinship += 0.1;
     else if (burg.port) kinship -= 0.1;
@@ -592,9 +630,9 @@ function regenerateEmblems(): void {
     burg.coa.shield = COA.getShield(burg.culture!, state ? burg.state! : 0);
   });
 
-  pack.provinces.forEach((province: Province) => {
+  worldContext.pack.provinces.forEach((province: Province) => {
     if (!province.i || province.removed) return;
-    const parent = province.burg ? pack.burgs[province.burg] : pack.states[province.state!];
+    const parent = province.burg ? worldContext.pack.burgs[province.burg] : worldContext.pack.states[province.state!];
     let dominion = false;
 
     if (!province.burg) {
@@ -608,7 +646,7 @@ function regenerateEmblems(): void {
 
     const nameByBurg = province.burg && province.name.slice(0, 3) === (parent as Burg | State).name?.slice(0, 3);
     const kinship = dominion ? 0 : nameByBurg ? 0.8 : 0.4;
-    const culture = pack.cells.culture[province.center!];
+    const culture = worldContext.pack.cells.culture[province.center!];
     const type = Burgs.getType(province.center!, (parent as Burg).port);
     province.coa = COA.generate((parent as State).coa, kinship, dominion ? 1 : 0, type);
     province.coa.shield = COA.getShield(culture, province.state!);
@@ -628,19 +666,19 @@ function regenerateCultures(): void {
   Cultures.generate(worldContext, viewContext, appServices, state);
   Cultures.expand(state);
 
-  pack.states = pack.states.map((st: State) => {
+  worldContext.pack.states = worldContext.pack.states.map((st: State) => {
     if (!st.i || st.removed) return st;
-    return { ...st, culture: pack.cells.culture[st.center!] };
+    return { ...st, culture: worldContext.pack.cells.culture[st.center!] };
   });
 
-  pack.burgs = pack.burgs.map((burg: Burg) => {
+  worldContext.pack.burgs = worldContext.pack.burgs.map((burg: Burg) => {
     if (!burg.i || burg.removed) return burg;
-    return { ...burg, culture: pack.cells.culture[burg.cell] };
+    return { ...burg, culture: worldContext.pack.cells.culture[burg.cell] };
   });
 
-  pack.religions = pack.religions.map((religion: Religion) => {
+  worldContext.pack.religions = worldContext.pack.religions.map((religion: Religion) => {
     if (!religion.i || religion.removed) return religion;
-    return { ...religion, culture: pack.cells.culture[religion.center!] };
+    return { ...religion, culture: worldContext.pack.cells.culture[religion.center!] };
   });
 
   layerIsOn("toggleCultures") ? CulturesRenderer.render(worldContext, viewContext, appServices) : toggleCultures();
@@ -697,7 +735,7 @@ function unpressClickToAddButton(): void {
   clearMainTip();
 }
 
-function toggleAddLabel(): void {
+export function toggleAddLabel(): void {
   const addLabelBtn = ensureEl("addLabel");
   if (addLabelBtn.classList.contains("pressed")) {
     unpressClickToAddButton();
@@ -712,7 +750,7 @@ function toggleAddLabel(): void {
     });
   addLabelBtn.classList.add("pressed");
   closeDialogs(".stable");
-  viewbox.style("cursor", "crosshair");
+  viewContext.viewbox.style("cursor", "crosshair");
   interactionManager.setClickHandler(addLabelOnClick);
   tip("Click on map to place label. Hold Shift to add multiple", true);
   if (!layerIsOn("toggleLabels")) toggleLabels();
@@ -722,16 +760,16 @@ function addLabelOnClick(this: SVGElement, event: MouseEvent): void {
   const point = pointer(event, this);
 
   const cell = findCell(point[0], point[1]);
-  const culture = pack.cells.culture[cell];
+  const culture = worldContext.pack.cells.culture[cell];
   const name = Names.getCulture(culture);
   const id = getNextId("label");
 
   const lastSelected = ensureEl<HTMLSelectElement>("labelGroupSelect").value;
   const groupId = ["", "states", "burgLabels"].includes(lastSelected) ? "#addedLabels" : `#${lastSelected}`;
 
-  let group = labels.select<SVGGElement>(groupId);
+  let group = viewContext.labels.select<SVGGElement>(groupId);
   if (!group.size()) {
-    group = labels
+    group = viewContext.labels
       .append("g")
       .attr("id", "addedLabels")
       .attr("fill", "#3e3e4b")
@@ -762,7 +800,7 @@ function addLabelOnClick(this: SVGElement, event: MouseEvent): void {
     .attr("x", 0)
     .text(name);
 
-  defs
+  viewContext.defs
     .select("#textPaths")
     .append("path")
     .attr("id", `textPath_${id}`)
@@ -771,14 +809,14 @@ function addLabelOnClick(this: SVGElement, event: MouseEvent): void {
   if (!event.shiftKey) unpressClickToAddButton();
 }
 
-function toggleAddBurg(): void {
+export function toggleAddBurg(): void {
   unpressClickToAddButton();
   ensureEl("addBurgTool").classList.add("pressed");
   overviewBurgs();
   ensureEl("addNewBurg").click();
 }
 
-function toggleAddRiver(): void {
+export function toggleAddRiver(): void {
   const addRiverBtn = ensureEl("addRiver");
   const addNewRiverEl = ensureEl("addNewRiver");
 
@@ -797,14 +835,14 @@ function toggleAddRiver(): void {
   addRiverBtn.classList.add("pressed");
   addNewRiverEl.classList.add("pressed");
   closeDialogs(".stable");
-  viewbox.style("cursor", "crosshair");
+  viewContext.viewbox.style("cursor", "crosshair");
   interactionManager.setClickHandler(addRiverOnClick);
   tip("Click on map to place new river or extend an existing one. Hold Shift to place multiple rivers", true, "warn");
   if (!layerIsOn("toggleRivers")) toggleRivers();
 }
 
 function addRiverOnClick(this: SVGElement, event: MouseEvent): void {
-  const { cells, rivers: packRivers } = pack;
+  const { cells, rivers: packRivers } = worldContext.pack;
   const point = pointer(event, this);
   let i = findCell(point[0], point[1]);
 
@@ -822,7 +860,7 @@ function addRiverOnClick(this: SVGElement, event: MouseEvent): void {
   let riverId = Rivers.getNextId(packRivers);
   let parent = riverId;
 
-  const initialFlux = grid.cells.prec[cells.g[i]];
+  const initialFlux = worldContext.grid.cells.prec[cells.g[i]];
   cells.fl[i] = initialFlux;
 
   const h = Rivers.alterHeights();
@@ -840,7 +878,7 @@ function addRiverOnClick(this: SVGElement, event: MouseEvent): void {
 
     if (h[min] < 20) {
       riverCells.push(min);
-      const feature = pack.features[cells.f[min]];
+      const feature = worldContext.pack.features[cells.f[min]];
       if (feature.type === "lake") {
         if (feature.outlet) parent = feature.outlet;
         if (feature.inlets) {
@@ -884,7 +922,7 @@ function addRiverOnClick(this: SVGElement, event: MouseEvent): void {
     oldRiverCells.forEach((cell: number) => {
       if (h[cell] > h[min]) {
         cells.r[cell] = 0;
-        cells.fl[cell] = grid.cells.prec[cells.g[cell]];
+        cells.fl[cell] = worldContext.grid.cells.prec[cells.g[cell]];
       } else {
         riverCells.push(cell);
         cells.fl[cell] += cells.fl[i];
@@ -939,7 +977,7 @@ function addRiverOnClick(this: SVGElement, event: MouseEvent): void {
 
   const path = Rivers.getRiverPath(meanderedPoints, widthFactor, sourceWidth);
   const id = `river${riverId}`;
-  const riversG = viewbox.select("#rivers");
+  const riversG = viewContext.viewbox.select("#rivers");
   riversG.append("path").attr("id", id).attr("d", path);
 
   if (!event.shiftKey) {
@@ -968,14 +1006,14 @@ function toggleAddMarker(): void {
   const markersAddFromOverviewEl = document.getElementById("markersAddFromOverview");
   if (markersAddFromOverviewEl) markersAddFromOverviewEl.classList.add("pressed");
 
-  viewbox.style("cursor", "crosshair");
+  viewContext.viewbox.style("cursor", "crosshair");
   interactionManager.setClickHandler(addMarkerOnClick);
   tip("Click on map to add a marker. Hold Shift to add multiple", true);
   if (!layerIsOn("toggleMarkers")) toggleMarkers();
 }
 
 function addMarkerOnClick(this: SVGElement, event: MouseEvent): void {
-  const { markers: packMarkers } = pack;
+  const { markers: packMarkers } = worldContext.pack;
   const point = pointer(event, this);
   const x = rn(point[0], 2);
   const y = rn(point[1], 2);
@@ -1010,7 +1048,7 @@ function addMarkerOnClick(this: SVGElement, event: MouseEvent): void {
 
 // ─── Markers config ───────────────────────────────────────────────────────────
 
-function configMarkersGeneration(): void {
+export function configMarkersGeneration(): void {
   drawConfigTable();
 
   function drawConfigTable() {
@@ -1033,7 +1071,7 @@ function configMarkersGeneration(): void {
           <button class="changeIcon icon-pencil"></button>
         </td>
         <td><input class="multiplier" type="number" min="0" max="100" step="0.1" value="${multiplier}" /></td>
-        <td style="text-align:center">${pack.markers.filter((marker: import("../modules/markers-generator").Marker) => marker.type === type).length}</td>
+        <td style="text-align:center">${worldContext.pack.markers.filter((marker: import("../modules/markers-generator").Marker) => marker.type === type).length}</td>
       </tr>`;
     });
 
@@ -1097,7 +1135,7 @@ function configMarkersGeneration(): void {
 
 // ─── Cell details & overview dialogs ─────────────────────────────────────────
 
-function viewCellDetails(): void {
+export function viewCellDetails(): void {
   openDialog("cellInfo", {
     resizable: false,
     width: "22em",
@@ -1106,39 +1144,13 @@ function viewCellDetails(): void {
   });
 }
 
-function overviewCharts(): void {
+export function overviewCharts(): void {
   openChartsOverview();
 }
 
 function openMinimap(): void {
   openMinimapDialog();
 }
-
-// ─── Global registration ───────────────────────────────────────────────────────
-
-window.recalculatePopulation = recalculatePopulation;
-window.regenerateRoutes = regenerateRoutes;
-window.regenerateRivers = regenerateRivers;
-window.regenerateStates = regenerateStates;
-window.regenerateProvinces = regenerateProvinces;
-window.regenerateBurgs = regenerateBurgs;
-window.regenerateEmblems = regenerateEmblems;
-window.regenerateReligions = regenerateReligions;
-window.regenerateCultures = regenerateCultures;
-window.regenerateMilitary = regenerateMilitary;
-window.regenerateIce = regenerateIce;
-window.regenerateMarkers = regenerateMarkers;
-window.regenerateZones = regenerateZones;
-window.openEmblemEditor = openEmblemEditor;
-window.configMarkersGeneration = configMarkersGeneration;
-window.viewCellDetails = viewCellDetails;
-window.overviewCharts = overviewCharts;
-window.openMinimap = openMinimap;
-window.toggleAddLabel = toggleAddLabel;
-window.toggleAddBurg = toggleAddBurg;
-window.toggleAddRiver = toggleAddRiver;
-window.toggleAddMarker = toggleAddMarker;
-window.unpressClickToAddButton = unpressClickToAddButton;
 
 export function initTools(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {
   worldContext = wc;

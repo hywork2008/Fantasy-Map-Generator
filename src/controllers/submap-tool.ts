@@ -1,16 +1,19 @@
+import { resetZoom } from "../actions";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import { undraw } from "../main";
 import { useOptionsState } from "../store/optionsState";
-import { openDialog } from "../ui/dialogs/dialogService";
+import { closeDialogs, openDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, getLatitude, getLongitude, minmax, rn } from "../utils";
-import { fitMapToScreen } from "./options";
+import { drawLayers } from "./layers";
+import { applyGraphSize, cellsDensityMap, changeCellsDensity, fitMapToScreen, getCellsDensityColor } from "./options";
 
 let worldContext: WorldContext;
-let viewContext: Readonly<ViewContext>;
+let viewContext: ViewContext;
 let appServices: AppServices;
 
-function openSubmapTool(): void {
+export function openSubmapTool(): void {
   resetInputs();
 
   openDialog("submapTool", {
@@ -50,24 +53,30 @@ function openSubmapTool(): void {
   function generateSubmap(): void {
     INFO && console.group("generateSubmap");
 
-    const [x0, y0] = [Math.abs(viewX / scale), Math.abs(viewY / scale)];
+    const [x0, y0] = [Math.abs(viewContext.viewX / viewContext.scale), Math.abs(viewContext.viewY / viewContext.scale)];
     recalculateMapSize(x0, y0);
 
     const submapPointsValue = (ensureEl("submapPointsInput") as HTMLInputElement).value;
     const globalPointsValue = String(useOptionsState.getState().points);
     if (submapPointsValue !== globalPointsValue) changeCellsDensity(+submapPointsValue);
 
-    const projection = (x: number, y: number): [number, number] => [(x - x0) * scale, (y - y0) * scale];
-    const inverse = (x: number, y: number): [number, number] => [x / scale + x0, y / scale + y0];
+    const projection = (x: number, y: number): [number, number] => [
+      (x - x0) * viewContext.scale,
+      (y - y0) * viewContext.scale
+    ];
+    const inverse = (x: number, y: number): [number, number] => [
+      x / viewContext.scale + x0,
+      y / viewContext.scale + y0
+    ];
 
     applyGraphSize();
     fitMapToScreen();
     resetZoom(0);
     undraw();
     Resample.init(worldContext, viewContext, appServices);
-    Resample.process({ projection, inverse, scale });
+    Resample.process({ projection, inverse, scale: viewContext.scale });
 
-    if ((ensureEl("submapRescaleBurgStyles") as HTMLInputElement).checked) rescaleBurgStyles(scale);
+    if ((ensureEl("submapRescaleBurgStyles") as HTMLInputElement).checked) rescaleBurgStyles(viewContext.scale);
     drawLayers();
 
     INFO && console.groupEnd();
@@ -75,20 +84,20 @@ function openSubmapTool(): void {
 
   function recalculateMapSize(x0: number, y0: number): void {
     const mapSize = +(ensureEl("mapSizeOutput") as HTMLOutputElement).value;
-    const newSize = String(rn(mapSize / scale, 2));
+    const newSize = String(rn(mapSize / viewContext.scale, 2));
     (ensureEl("mapSizeOutput") as HTMLOutputElement).value = (ensureEl("mapSizeInput") as HTMLInputElement).value =
       newSize;
 
-    const latT = mapCoordinates.latT! / scale;
+    const latT = worldContext.mapCoordinates.latT! / viewContext.scale;
     const latN = getLatitude(y0, worldContext.mapCoordinates, worldContext.graphHeight);
     const latShift = (90 - latN) / (180 - latT);
     const newLat = String(rn(latShift * 100, 2));
     (ensureEl("latitudeOutput") as HTMLOutputElement).value = (ensureEl("latitudeInput") as HTMLInputElement).value =
       newLat;
 
-    const lotT = mapCoordinates.lonT! / scale;
+    const lotT = worldContext.mapCoordinates.lonT! / viewContext.scale;
     const lonE = getLongitude(
-      x0 + worldContext.graphWidth / scale,
+      x0 + worldContext.graphWidth / viewContext.scale,
       worldContext.mapCoordinates,
       worldContext.graphWidth
     );
@@ -97,14 +106,14 @@ function openSubmapTool(): void {
     (ensureEl("longitudeOutput") as HTMLOutputElement).value = (ensureEl("longitudeInput") as HTMLInputElement).value =
       newLon;
 
-    distanceScale = rn(distanceScale / scale, 2);
-    distanceScaleInput.value = String(distanceScale);
-    populationRate = rn(populationRate / scale, 2);
-    populationRateInput.value = String(populationRate);
+    worldContext.distanceScale = rn(worldContext.distanceScale / viewContext.scale, 2);
+    distanceScaleInput.value = String(worldContext.distanceScale);
+    worldContext.populationRate = rn(worldContext.populationRate / viewContext.scale, 2);
+    populationRateInput.value = String(worldContext.populationRate);
   }
 
   function rescaleBurgStyles(scaleFactor: number): void {
-    const burgIconsNode = burgIcons.node()!;
+    const burgIconsNode = viewContext.burgIcons.node()!;
     const burgIconGroups = [...burgIconsNode.querySelectorAll("g")];
     for (const group of burgIconGroups) {
       const newSize = rn(minmax(+(group.getAttribute("size") ?? 1) * scaleFactor, 0.2, 10), 2);
@@ -114,7 +123,7 @@ function openSubmapTool(): void {
       group.setAttribute("stroke-width", String(newStroke));
     }
 
-    const burgLabelsNode = burgLabels.node()!;
+    const burgLabelsNode = viewContext.burgLabels.node()!;
     const burgLabelGroups = [...burgLabelsNode.querySelectorAll("g")];
     for (const group of burgLabelGroups) {
       const size = +(group.dataset.size ?? 1);
@@ -122,8 +131,6 @@ function openSubmapTool(): void {
     }
   }
 }
-
-window.openSubmapTool = openSubmapTool;
 
 export function initSubmapTool(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {
   worldContext = wc;

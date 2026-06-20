@@ -64,3 +64,12 @@ export function closeDialog(id: string): void {
 export function closeAllDialogs(except?: string): void {
   dialogStore.getState().closeAllDialogs(except);
 }
+
+/**
+ * Legacy compatibility wrapper: accepts optional "#id" or "id" prefix.
+ * Sub-editors should import this directly from dialogService to avoid circular deps with editors.ts.
+ */
+export function closeDialogs(except = "#except"): void {
+  const exceptId = except.startsWith("#") ? except.slice(1) : except;
+  closeAllDialogs(exceptId);
+}

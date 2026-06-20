@@ -1,11 +1,19 @@
 import { curveNatural, type D3DragEvent, drag, pointer, select } from "d3";
+import { viewContext } from "../context/viewContext";
+import { worldContext } from "../context/worldContext";
+import { unselect } from "../controllers/editors";
 import { interactionManager } from "../controllers/interactionManager";
-import { closeDialog, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
+import { layerIsOn, toggleLabels } from "../controllers/layers";
+import { editStyle } from "../controllers/style";
+import { Names } from "../modules/names-generator";
+import { closeDialog, closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, findCell, parseTransform, round } from "../utils";
+import { alertMessage } from "../utils/alertMessageEl";
+import { fitContent, showMainTip, tip } from "../utils/uiHelpers";
 import { editNotes } from "./notes-editor";
 
 export function editLabel(tspan?: Element): void {
-  if (customization) return;
+  if (viewContext.customization) return;
   closeDialogs();
   if (!layerIsOn("toggleLabels")) toggleLabels();
 
@@ -24,7 +32,7 @@ export function editLabel(tspan?: Element): void {
         .on("drag", (event: D3DragEvent<Element, unknown, unknown>) => {
           const transform = `translate(${_ldx + event.x},${_ldy + event.y})`;
           elSelected!.attr("transform", transform);
-          debug.select("#controlPoints").attr("transform", transform);
+          viewContext.debug.select("#controlPoints").attr("transform", transform);
         })
     )
     .classed("draggable", true);
@@ -97,7 +105,7 @@ export function editLabel(tspan?: Element): void {
     const select = ensureEl("labelGroupSelect") as HTMLSelectElement;
     select.options.length = 0;
 
-    labels.selectAll<SVGGElement, unknown>(":scope > g").each(function (this: SVGGElement) {
+    viewContext.labels.selectAll<SVGGElement, unknown>(":scope > g").each(function (this: SVGGElement) {
       if (this.id === "states") return;
       if (this.id === "burgLabels") return;
       select.options.add(new Option(this.id, this.id, false, this.id === group));
@@ -121,10 +129,14 @@ export function editLabel(tspan?: Element): void {
   }
 
   function drawControlPointsAndLine(): void {
-    debug.select("#controlPoints").remove();
-    debug.append("g").attr("id", "controlPoints").attr("transform", elSelected!.attr("transform"));
+    viewContext.debug.select("#controlPoints").remove();
+    viewContext.debug.append("g").attr("id", "controlPoints").attr("transform", elSelected!.attr("transform"));
     const path = ensureEl<SVGPathElement>(`textPath_${elSelected!.attr("id")}`);
-    debug.select("#controlPoints").append("path").attr("d", path.getAttribute("d")).on("click", addInterimControlPoint);
+    viewContext.debug
+      .select("#controlPoints")
+      .append("path")
+      .attr("d", path.getAttribute("d"))
+      .on("click", addInterimControlPoint);
     const l = path.getTotalLength();
     if (!l) return;
     const increment = l / Math.max(Math.ceil(l / 200), 2);
@@ -140,7 +152,7 @@ export function editLabel(tspan?: Element): void {
   }
 
   function addControlPoint(pt: SVGPoint): void {
-    debug
+    viewContext.debug
       .select("#controlPoints")
       .append("circle")
       .attr("cx", pt.x)
@@ -153,17 +165,17 @@ export function editLabel(tspan?: Element): void {
 
   function redrawLabelPath(): void {
     const path = ensureEl<SVGPathElement>(`textPath_${elSelected!.attr("id")}`);
-    lineGen.curve(curveNatural);
+    viewContext.lineGen.curve(curveNatural);
     const points: [number, number][] = [];
-    debug
+    viewContext.debug
       .select("#controlPoints")
       .selectAll<SVGCircleElement, unknown>("circle")
       .each(function (this: SVGCircleElement) {
         points.push([+this.getAttribute("cx")!, +this.getAttribute("cy")!]);
       });
-    const d = round(lineGen(points) ?? "");
+    const d = round(viewContext.lineGen(points) ?? "");
     path.setAttribute("d", d);
-    debug.select("#controlPoints > path").attr("d", d);
+    viewContext.debug.select("#controlPoints > path").attr("d", d);
   }
 
   function clickControlPoint(this: SVGCircleElement): void {
@@ -175,7 +187,7 @@ export function editLabel(tspan?: Element): void {
     const pt = pointer(event, this) as [number, number];
 
     const dists: number[] = [];
-    debug
+    viewContext.debug
       .select("#controlPoints")
       .selectAll<SVGCircleElement, unknown>("circle")
       .each(function (this: SVGCircleElement) {
@@ -194,7 +206,7 @@ export function editLabel(tspan?: Element): void {
     }
 
     const before = `:nth-child(${index + 2})`;
-    debug
+    viewContext.debug
       .select("#controlPoints")
       .insert("circle", before)
       .attr("cx", pt[0])
@@ -294,7 +306,7 @@ export function editLabel(tspan?: Element): void {
     }? <br /><br />Labels to be
       removed: ${count}`;
     openRichDialog({
-      content: window.alertMessage.innerHTML,
+      content: alertMessage.innerHTML,
       resizable: false,
       title: "Remove route group",
       buttons: {
@@ -302,14 +314,14 @@ export function editLabel(tspan?: Element): void {
           /* $(this).dialog("close") removed */
           closeDialog("labelEditor");
           hideGroupSection();
-          labels
+          viewContext.labels
             .select(`#${group}`)
             .selectAll<SVGTextElement, unknown>("text")
             .each(function (this: SVGTextElement) {
               ensureEl(`textPath_${this.id}`).remove();
               this.remove();
             });
-          if (!basic) labels.select(`#${group}`).remove();
+          if (!basic) viewContext.labels.select(`#${group}`).remove();
         },
         Cancel: () => {
           /* $(this).dialog("close") removed */
@@ -350,12 +362,12 @@ export function editLabel(tspan?: Element): void {
     let name = "";
     if (elSelected!.attr("id").slice(0, 10) === "stateLabel") {
       const id = +elSelected!.attr("id").slice(10);
-      const culture = pack.states[id].culture;
+      const culture = worldContext.pack.states[id].culture;
       name = Names.getState(Names.getCulture(culture, 4, 7, ""), culture);
     } else {
       const box = (elSelected!.node() as unknown as SVGGraphicsElement).getBBox();
       const cell = findCell((box.x + box.width) / 2, (box.y + box.height) / 2);
-      const culture = pack.cells.culture[cell];
+      const culture = worldContext.pack.cells.culture[cell];
       name = Names.getCulture(culture);
     }
     (ensureEl("labelText") as HTMLInputElement).value = name;
@@ -439,7 +451,7 @@ export function editLabel(tspan?: Element): void {
   function editLabelAlign(): void {
     const bbox = (elSelected!.node() as unknown as SVGGraphicsElement).getBBox();
     const c = [bbox.x + bbox.width / 2, bbox.y + bbox.height / 2];
-    const path = defs.select(`#textPath_${elSelected!.attr("id")}`);
+    const path = viewContext.defs.select(`#textPath_${elSelected!.attr("id")}`);
     path.attr("d", `M${c[0] - bbox.width},${c[1]}h${bbox.width * 2}`);
     drawControlPointsAndLine();
   }
@@ -453,13 +465,13 @@ export function editLabel(tspan?: Element): void {
   function removeLabel(): void {
     alertMessage.innerHTML = "Are you sure you want to remove the label?";
     openRichDialog({
-      content: window.alertMessage.innerHTML,
+      content: alertMessage.innerHTML,
       resizable: false,
       title: "Remove label",
       buttons: {
         Remove: () => {
           /* $(this).dialog("close") removed */
-          defs.select(`#textPath_${elSelected!.attr("id")}`).remove();
+          viewContext.defs.select(`#textPath_${elSelected!.attr("id")}`).remove();
           elSelected!.remove();
           closeDialog("labelEditor");
         },
@@ -471,7 +483,7 @@ export function editLabel(tspan?: Element): void {
   }
 
   function closeLabelEditor(): void {
-    debug.select("#controlPoints").remove();
+    viewContext.debug.select("#controlPoints").remove();
     unselect();
   }
 }

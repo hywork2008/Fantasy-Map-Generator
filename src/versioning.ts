@@ -1,4 +1,5 @@
 import { openRichDialog } from "./ui/dialogs/dialogService";
+import { alertMessage } from "./utils/alertMessageEl";
 /**
  * Version Control Guidelines
  * --------------------------
@@ -129,7 +130,7 @@ function showUpdateWindow() {
     <span><i>Thanks for all supporters on <a href="${patreon}" target="_blank">Patreon</a>!</i></span>`;
 
   openRichDialog({
-    content: window.alertMessage.innerHTML,
+    content: alertMessage.innerHTML,
     resizable: false,
     title: "Fantasy Map Generator update",
     width: "28em",
@@ -143,9 +144,3 @@ function showUpdateWindow() {
     }
   });
 }
-
-window.VERSION = VERSION;
-window.parseMapVersion = parseMapVersion;
-window.isValidVersion = isValidVersion;
-window.compareVersions = compareVersions;
-window.cleanupData = cleanupData;

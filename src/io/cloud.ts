@@ -1,6 +1,7 @@
 // Cloud provider implementations (Dropbox only)
 
 import { DropboxAuth, Dropbox as DropboxClient } from "dropbox";
+import { tip } from "../utils/uiHelpers";
 
 interface DropboxResponse<T> {
   result: T;

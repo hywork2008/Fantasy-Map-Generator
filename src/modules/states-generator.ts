@@ -26,6 +26,7 @@ import {
 } from "../utils";
 import { COA } from "./emblem/generator";
 import type { MilitaryRegiment } from "./military-generator";
+import { Names } from "./names-generator";
 
 export interface Campaign {
   name: string;

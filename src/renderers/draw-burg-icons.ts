@@ -23,8 +23,8 @@ export const BurgIconsRenderer: IRenderer = {
     const scale = viewContext.scale || 1;
     const viewX = viewContext.viewX || 0;
     const viewY = viewContext.viewY || 0;
-    const svgWidth = worldContext.svgWidth || window.innerWidth;
-    const svgHeight = worldContext.svgHeight || window.innerHeight;
+    const svgWidth = viewContext.svgWidth || window.innerWidth;
+    const svgHeight = viewContext.svgHeight || window.innerHeight;
 
     const minX = -viewX / scale;
     const maxX = (svgWidth - viewX) / scale;

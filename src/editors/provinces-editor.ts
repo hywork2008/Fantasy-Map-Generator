@@ -1,15 +1,42 @@
 import * as d3 from "d3";
 import { color, interpolate, interpolateString, pointer } from "d3";
+import { getWorldState, zoomTo } from "../actions";
 import type { AppServices } from "../context/appServices";
+import { appServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
+import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import { worldContext } from "../context/worldContext";
+import { overviewBurgs } from "../controllers/burgs-overview";
+import {
+  confirmationDialog,
+  downloadFile,
+  editStates,
+  fog,
+  getFileName,
+  highlightElement,
+  moveCircle,
+  removeCircle,
+  restoreDefaultEvents,
+  unfog
+} from "../controllers/editors";
 import { interactionManager } from "../controllers/interactionManager";
+import {
+  layerIsOn,
+  toggleBorders,
+  toggleCultures,
+  toggleProvinces,
+  toggleStates,
+  turnButtonOff
+} from "../controllers/layers";
+import { editStyle } from "../controllers/style";
 import type { Burg } from "../modules/burgs-generator";
 import { Burgs } from "../modules/burgs-generator";
 import type { Culture } from "../modules/cultures-generator";
 import { COA } from "../modules/emblem/generator";
 import type { Emblem as RendererEmblem } from "../modules/emblem/renderer";
 import { COArenderer } from "../modules/emblem/renderer";
+import { Names } from "../modules/names-generator";
 import type { Province } from "../modules/provinces-generator";
 import { Provinces } from "../modules/provinces-generator";
 import type { State } from "../modules/states-generator";
@@ -24,24 +51,31 @@ import {
   StatesRenderer
 } from "../renderers";
 import { useOptionsState } from "../store/optionsState";
-import { closeDialog, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
-import { ensureEl, findCell, getRandomColor, isLand, parseTransform, rand, rn, si, unique } from "../utils";
+import { closeDialog, closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
+import { ensureEl, findAll, findCell, getRandomColor, isLand, P, parseTransform, rand, rn, si, unique } from "../utils";
+import { alertMessage } from "../utils/alertMessageEl";
 import { getPackPolygon } from "../utils/graphUtils";
+import {
+  applyOption,
+  applySorting,
+  clearMainTip,
+  fitContent,
+  getArea,
+  getAreaUnit,
+  showMainTip,
+  tip
+} from "../utils/uiHelpers";
 import { editEmblem } from "./emblems-editor";
 
-let worldContext: WorldContext;
-let viewContext: Readonly<ViewContext>;
-let appServices: AppServices;
-
 export function editProvinces(): void {
-  if (customization) return;
+  if (viewContext.customization) return;
   closeDialogs("#provincesEditor, .stable");
   if (!layerIsOn("toggleProvinces")) toggleProvinces();
   if (!layerIsOn("toggleBorders")) toggleBorders();
   if (layerIsOn("toggleStates")) toggleStates();
   if (layerIsOn("toggleCultures")) toggleCultures();
 
-  provs
+  viewContext.provs
     .selectAll<SVGTextElement, unknown>("text")
     .call(d3.drag<SVGTextElement, unknown>().on("start", dragLabelStart).on("drag", dragLabel))
     .classed("draggable", true);
@@ -76,21 +110,22 @@ export function editProvinces(): void {
   ensureEl("provincesRecolor").addEventListener("click", recolorProvinces);
 
   body.addEventListener("click", (ev: MouseEvent) => {
-    if (customization) return;
+    if (viewContext.customization) return;
     const el = ev.target as HTMLElement;
     const cl = el.classList;
     const line = el.parentNode as HTMLElement;
     const p = +line.dataset.id!;
-    const stateId = pack.provinces[p].state;
+    const stateId = worldContext.pack.provinces[p].state;
 
     if (el.tagName === "FILL-BOX") changeFill(el);
     else if (cl.contains("name")) editProvinceName(p);
-    else if (cl.contains("coaIcon")) editEmblem?.("province", `provinceCOA${p}`, pack.provinces[p]);
+    else if (cl.contains("coaIcon")) editEmblem?.("province", `provinceCOA${p}`, worldContext.pack.provinces[p]);
     else if (cl.contains("icon-star-empty")) capitalZoomIn(p);
     else if (cl.contains("icon-flag-empty")) triggerIndependencePrompts(p);
     else if (cl.contains("icon-dot-circled")) overviewBurgs({ stateId });
     else if (cl.contains("culturePopulation")) changePopulation(p);
-    else if (cl.contains("icon-target")) highlightElement(provs.select(`#province${p}`).node() as Element, 8);
+    else if (cl.contains("icon-target"))
+      highlightElement(viewContext.provs.select(`#province${p}`).node() as Element, 8);
     else if (cl.contains("icon-pin")) toggleFog(p, cl);
     else if (cl.contains("icon-trash-empty")) removeProvince(p);
     else if (cl.contains("icon-lock") || cl.contains("icon-lock-open")) updateLockStatus(p, cl);
@@ -111,9 +146,9 @@ export function editProvinces(): void {
   }
 
   function collectStatistics(): void {
-    const { cells } = pack;
-    const provinces = pack.provinces as Province[];
-    const burgs = pack.burgs as Burg[];
+    const { cells } = worldContext.pack;
+    const provinces = worldContext.pack.provinces as Province[];
+    const burgs = worldContext.pack.burgs as Burg[];
 
     provinces.forEach(p => {
       if (!p.i || p.removed) return;
@@ -143,7 +178,7 @@ export function editProvinces(): void {
     const selectedState = stateFilter.value || "1";
     stateFilter.options.length = 0;
     stateFilter.options.add(new Option("all", "-1", false, selectedState === "-1"));
-    const statesSorted = (pack.states as State[])
+    const statesSorted = (worldContext.pack.states as State[])
       .filter(s => s.i && !s.removed)
       .sort((a, b) => (a.name > b.name ? 1 : -1));
     statesSorted.forEach(s => {
@@ -154,7 +189,7 @@ export function editProvinces(): void {
   function provincesEditorAddLines(): void {
     const unit = ` ${getAreaUnit()}`;
     const selectedState = +(ensureEl("provincesFilterState") as HTMLSelectElement).value;
-    let filtered = (pack.provinces as Province[]).filter(p => p.i && !p.removed);
+    let filtered = (worldContext.pack.provinces as Province[]).filter(p => p.i && !p.removed);
     if (selectedState !== -1) filtered = filtered.filter(p => p.state === selectedState);
     body.innerHTML = "";
 
@@ -166,18 +201,18 @@ export function editProvinces(): void {
     for (const p of filtered) {
       const area = getArea(p.area ?? 0);
       totalArea += area;
-      const rural = (p.rural ?? 0) * populationRate;
-      const urban = (p.urban ?? 0) * populationRate * urbanization;
+      const rural = (p.rural ?? 0) * worldContext.populationRate;
+      const urban = (p.urban ?? 0) * worldContext.populationRate * worldContext.urbanization;
       const population = rn(rural + urban);
       const populationTip = `Total population: ${si(population)}; Rural population: ${si(rural)}; Urban population: ${si(urban)}`;
       totalPopulation += population;
       const burgCount = p.burgs?.length ?? 0;
       totalBurgs += burgCount;
 
-      const stateName = (pack.states as State[])[p.state].name;
-      const capital = p.burg ? ((pack.burgs as Burg[])[p.burg].name ?? "") : "";
-      const separable = p.burg && p.burg !== (pack.states as State[])[p.state].capital;
-      const focused = defs.select(`#fog #focusProvince${p.i}`).size();
+      const stateName = (worldContext.pack.states as State[])[p.state].name;
+      const capital = p.burg ? ((worldContext.pack.burgs as Burg[])[p.burg].name ?? "") : "";
+      const separable = p.burg && p.burg !== (worldContext.pack.states as State[])[p.state].capital;
+      const focused = viewContext.defs.select(`#fog #focusProvince${p.i}`).size();
       COArenderer.trigger(`provinceCOA${p.i}`, p.coa as RendererEmblem);
       lines += /* html */ `<div
         class="states"
@@ -239,7 +274,7 @@ export function editProvinces(): void {
   function getCapitalOptions(burgs: number[], capital: number): string {
     let options = "";
     burgs.forEach(b => {
-      options += `<option ${b === capital ? "selected" : ""} value="${b}">${(pack.burgs as Burg[])[b].name ?? ""}</option>`;
+      options += `<option ${b === capital ? "selected" : ""} value="${b}">${(worldContext.pack.burgs as Burg[])[b].name ?? ""}</option>`;
     });
     return options;
   }
@@ -250,9 +285,9 @@ export function editProvinces(): void {
     if (el) el.classList.add("active");
 
     if (!layerIsOn("toggleProvinces")) return;
-    if (customization) return;
+    if (viewContext.customization) return;
     const animate = d3.transition().duration(2000).ease(d3.easeSinIn);
-    provs
+    viewContext.provs
       .select(`#province${province}`)
       .raise()
       .transition(animate)
@@ -268,11 +303,11 @@ export function editProvinces(): void {
     }
 
     if (!layerIsOn("toggleProvinces") || !province) {
-      debug.selectAll(".highlight").remove();
+      viewContext.debug.selectAll(".highlight").remove();
       return;
     }
-    provs.select(`#province${province}`).transition().attr("stroke-width", null).attr("stroke", null);
-    debug.selectAll(".highlight").remove();
+    viewContext.provs.select(`#province${province}`).transition().attr("stroke-width", null).attr("stroke", null);
+    viewContext.debug.selectAll(".highlight").remove();
   }
 
   function changeFill(el: HTMLElement): void {
@@ -281,8 +316,8 @@ export function editProvinces(): void {
 
     const callback = (newFill: string) => {
       (el as unknown as { fill: string }).fill = newFill;
-      (pack.provinces as Province[])[p].color = newFill;
-      const g = provs.select("#provincesBody");
+      (worldContext.pack.provinces as Province[])[p].color = newFill;
+      const g = viewContext.provs.select("#provincesBody");
       g.select(`#province${p}`).attr("fill", newFill);
       g.select(`#province-gap${p}`).attr("stroke", newFill);
     };
@@ -291,8 +326,8 @@ export function editProvinces(): void {
   }
 
   function capitalZoomIn(p: number): void {
-    const capital = (pack.provinces as Province[])[p].burg;
-    const l = burgLabels.select(`[data-id='${capital}']`);
+    const capital = (worldContext.pack.provinces as Province[])[p].burg;
+    const l = viewContext.burgLabels.select(`[data-id='${capital}']`);
     const x = +l.attr("x");
     const y = +l.attr("y");
     zoomTo(x, y, 8, 2000);
@@ -311,7 +346,7 @@ export function editProvinces(): void {
   }
 
   function declareProvinceIndependence(provinceId: number): [number, number] {
-    const { states, provinces, cells, burgs } = pack;
+    const { states, provinces, cells, burgs } = worldContext.pack;
     const province = (provinces as Province[])[provinceId];
     const { name, burg: burgId, burgs: provinceBurgs } = province;
 
@@ -345,7 +380,7 @@ export function editProvinces(): void {
     const coa = province.coa;
     const coaEl = document.getElementById(`provinceCOA${provinceId}`);
     if (coaEl) coaEl.id = `stateCOA${newStateId}`;
-    emblems.select(`#provinceEmblems > use[data-i='${provinceId}']`).remove();
+    viewContext.emblems.select(`#provinceEmblems > use[data-i='${provinceId}']`).remove();
 
     Array.from(cells.i)
       .filter((i: number) => cells.province[i] === provinceId)
@@ -409,8 +444,8 @@ export function editProvinces(): void {
     drawStateLabels(worldContext, viewContext, appServices, allStates);
 
     allStates.forEach(stateId => {
-      emblems.select(`#stateEmblems > use[data-i='${stateId}']`)?.remove();
-      const { coa, pole } = (pack.states as State[])[stateId];
+      viewContext.emblems.select(`#stateEmblems > use[data-i='${stateId}']`)?.remove();
+      const { coa, pole } = (worldContext.pack.states as State[])[stateId];
       COArenderer.add("state", stateId, coa as RendererEmblem, pole![0], pole![1]);
     });
 
@@ -424,14 +459,14 @@ export function editProvinces(): void {
   }
 
   function changePopulation(province: number): void {
-    const p = (pack.provinces as Province[])[province];
-    const cells = Array.from(pack.cells.i).filter(i => pack.cells.province[i] === province);
+    const p = (worldContext.pack.provinces as Province[])[province];
+    const cells = Array.from(worldContext.pack.cells.i).filter(i => worldContext.pack.cells.province[i] === province);
     if (!cells.length) {
       tip("Province does not have any cells, cannot change population", false, "error");
       return;
     }
-    const rural = rn((p.rural ?? 0) * populationRate);
-    const urban = rn((p.urban ?? 0) * populationRate * urbanization);
+    const rural = rn((p.rural ?? 0) * worldContext.populationRate);
+    const urban = rn((p.urban ?? 0) * worldContext.populationRate * worldContext.urbanization);
     const total = rural + urban;
     const l = (n: number) => Number(n).toLocaleString();
 
@@ -452,7 +487,7 @@ export function editProvinces(): void {
     };
 
     openRichDialog({
-      content: window.alertMessage.innerHTML,
+      content: alertMessage.innerHTML,
       resizable: false,
       title: "Change province population",
       width: "24em",
@@ -476,28 +511,31 @@ export function editProvinces(): void {
       const ruralChange = ruralPopEl().valueAsNumber / rural;
       if (Number.isFinite(ruralChange) && ruralChange !== 1) {
         cells.forEach(i => {
-          pack.cells.pop[i] *= ruralChange;
+          worldContext.pack.cells.pop[i] *= ruralChange;
         });
       }
       if (!Number.isFinite(ruralChange) && ruralPopEl().valueAsNumber > 0) {
-        const points = ruralPopEl().valueAsNumber / populationRate;
+        const points = ruralPopEl().valueAsNumber / worldContext.populationRate;
         const pop = rn(points / cells.length);
         cells.forEach(i => {
-          pack.cells.pop[i] = pop;
+          worldContext.pack.cells.pop[i] = pop;
         });
       }
 
       const urbanChange = urbanPopEl().valueAsNumber / urban;
       if (Number.isFinite(urbanChange) && urbanChange !== 1) {
         p.burgs?.forEach((b: number) => {
-          (pack.burgs as Burg[])[b].population = rn(((pack.burgs as Burg[])[b].population ?? 0) * urbanChange, 4);
+          (worldContext.pack.burgs as Burg[])[b].population = rn(
+            ((worldContext.pack.burgs as Burg[])[b].population ?? 0) * urbanChange,
+            4
+          );
         });
       }
       if (!Number.isFinite(urbanChange) && urbanPopEl().valueAsNumber > 0) {
-        const points = urbanPopEl().valueAsNumber / populationRate / urbanization;
+        const points = urbanPopEl().valueAsNumber / worldContext.populationRate / worldContext.urbanization;
         const population = rn(points / (p.burgs?.length ?? 1), 4);
         p.burgs?.forEach((b: number) => {
-          (pack.burgs as Burg[])[b].population = population;
+          (worldContext.pack.burgs as Burg[])[b].population = population;
         });
       }
 
@@ -507,7 +545,7 @@ export function editProvinces(): void {
   }
 
   function toggleFog(p: number, cl: DOMTokenList): void {
-    const path = provs.select(`#province${p}`).attr("d");
+    const path = viewContext.provs.select(`#province${p}`).attr("d");
     const id = `focusProvince${p}`;
     cl.contains("inactive") ? fog(id, path) : unfog(id);
     cl.toggle("inactive");
@@ -516,16 +554,16 @@ export function editProvinces(): void {
   function removeProvince(p: number): void {
     alertMessage.innerHTML = "Are you sure you want to remove the province? <br />This action cannot be reverted";
     openRichDialog({
-      content: window.alertMessage.innerHTML,
+      content: alertMessage.innerHTML,
       resizable: false,
       title: "Remove province",
       buttons: {
         Remove: function (this: Element) {
-          pack.cells.province.forEach((province: number, i: number) => {
-            if (province === p) pack.cells.province[i] = 0;
+          worldContext.pack.cells.province.forEach((province: number, i: number) => {
+            if (province === p) worldContext.pack.cells.province[i] = 0;
           });
-          const s = (pack.provinces as Province[])[p].state;
-          const state = (pack.states as State[])[s];
+          const s = (worldContext.pack.provinces as Province[])[p].state;
+          const state = (worldContext.pack.states as State[])[s];
           if (state.provinces?.includes(p)) state.provinces.splice(state.provinces.indexOf(p), 1);
 
           unfog(`focusProvince${p}`);
@@ -533,11 +571,11 @@ export function editProvinces(): void {
           const coaId = `provinceCOA${p}`;
           const coaEl = document.getElementById(coaId);
           if (coaEl) coaEl.remove();
-          emblems.select(`#provinceEmblems > use[data-i='${p}']`).remove();
+          viewContext.emblems.select(`#provinceEmblems > use[data-i='${p}']`).remove();
 
-          (pack.provinces as Province[])[p] = { i: p, removed: true } as Province;
+          (worldContext.pack.provinces as Province[])[p] = { i: p, removed: true } as Province;
 
-          const g = provs.select("#provincesBody");
+          const g = viewContext.provs.select("#provincesBody");
           g.select(`#province${p}`).remove();
           g.select(`#province-gap${p}`).remove();
           if (layerIsOn("toggleBorders")) BordersRenderer.render(worldContext, viewContext, appServices);
@@ -552,14 +590,14 @@ export function editProvinces(): void {
   }
 
   function editProvinceName(province: number): void {
-    const p = (pack.provinces as Province[])[province];
+    const p = (worldContext.pack.provinces as Province[])[province];
     ensureEl("provinceNameEditor").dataset.province = String(province);
     (ensureEl("provinceNameEditorShort") as HTMLInputElement).value = p.name;
     applyOption(ensureEl("provinceNameEditorSelectForm") as HTMLSelectElement, p.formName);
     (ensureEl("provinceNameEditorFull") as HTMLInputElement).value = p.fullName;
 
-    const cultureId = pack.cells.culture[p.center];
-    ensureEl("provinceCultureDisplay").innerText = (pack.cultures as Culture[])[cultureId].name;
+    const cultureId = worldContext.pack.cells.culture[p.center];
+    ensureEl("provinceCultureDisplay").innerText = (worldContext.pack.cultures as Culture[])[cultureId].name;
 
     openDialog("provinceNameEditor");
 
@@ -578,13 +616,13 @@ export function editProvinces(): void {
 
     function regenerateShortNameCulture(): void {
       const prov = +(ensureEl("provinceNameEditor") as HTMLElement).dataset.province!;
-      const culture = pack.cells.culture[(pack.provinces as Province[])[prov].center];
+      const culture = worldContext.pack.cells.culture[(worldContext.pack.provinces as Province[])[prov].center];
       const name = Names.getState(Names.getCultureShort(worldContext, viewContext, appServices, culture), culture);
       (ensureEl("provinceNameEditorShort") as HTMLInputElement).value = name;
     }
 
     function regenerateShortNameRandom(): void {
-      const base = rand(nameBases.length - 1);
+      const base = rand(worldContext.nameBases.length - 1);
       const name = Names.getState(Names.getBase(base), 0, base);
       (ensureEl("provinceNameEditorShort") as HTMLInputElement).value = name;
     }
@@ -615,15 +653,15 @@ export function editProvinces(): void {
       p.name = (ensureEl("provinceNameEditorShort") as HTMLInputElement).value;
       p.formName = (ensureEl("provinceNameEditorSelectForm") as HTMLSelectElement).value;
       p.fullName = (ensureEl("provinceNameEditorFull") as HTMLInputElement).value;
-      provs.select(`#provinceLabel${p.i}`).text(p.name);
+      viewContext.provs.select(`#provinceLabel${p.i}`).text(p.name);
       refreshProvincesEditor();
     }
   }
 
   function changeCapital(p: number, line: HTMLElement, value: string): void {
-    line.dataset.capital = (pack.burgs as Burg[])[+value].name ?? "";
-    (pack.provinces as Province[])[p].center = (pack.burgs as Burg[])[+value].cell;
-    (pack.provinces as Province[])[p].burg = +value;
+    line.dataset.capital = (worldContext.pack.burgs as Burg[])[+value].name ?? "";
+    (worldContext.pack.provinces as Province[])[p].center = (worldContext.pack.burgs as Burg[])[+value].cell;
+    (worldContext.pack.provinces as Province[])[p].burg = +value;
   }
 
   function togglePercentageMode(): void {
@@ -661,10 +699,10 @@ export function editProvinces(): void {
   function showChart(): void {
     const getClr = (s: State) =>
       !s.i || s.removed || !s.color || s.color[0] !== "#" ? "#666" : color(s.color)?.darker();
-    const states = (pack.states as State[]).map(
+    const states = (worldContext.pack.states as State[]).map(
       s => ({ id: s.i, state: s.i ? 0 : null, color: getClr(s) }) as ChartNode
     );
-    const provinces = (pack.provinces as Province[])
+    const provinces = (worldContext.pack.provinces as Province[])
       .filter(p => p.i && !p.removed)
       .map(
         p =>
@@ -728,10 +766,10 @@ export function editProvinces(): void {
       const rect = (ev.target as Element).querySelector("rect");
       if (rect) rect.classList.add("selected");
       const name = d.data.fullName;
-      const state = (pack.states as State[])[d.data.state!].fullName;
+      const state = (worldContext.pack.states as State[])[d.data.state!].fullName;
       const area = `${getArea(d.data.area ?? 0)} ${getAreaUnit()}`;
-      const rural = rn((d.data.rural ?? 0) * populationRate);
-      const urban = rn((d.data.urban ?? 0) * populationRate * urbanization);
+      const rural = rn((d.data.rural ?? 0) * worldContext.populationRate);
+      const urban = rn((d.data.urban ?? 0) * worldContext.populationRate * worldContext.urbanization);
       const treeTypeEl = document.getElementById("provincesTreeType") as HTMLSelectElement;
       const value =
         treeTypeEl?.value === "area"
@@ -824,7 +862,7 @@ export function editProvinces(): void {
     }
 
     openRichDialog({
-      content: window.alertMessage.innerHTML,
+      content: alertMessage.innerHTML,
       title: "Provinces chart",
       width: fitContent(),
       position: { my: "left bottom", at: "left+10 bottom-10", of: "svg" },
@@ -838,10 +876,10 @@ export function editProvinces(): void {
   }
 
   function toggleLabels(): void {
-    const hidden = provs.select("#provinceLabels").style("display") === "none";
-    provs.select("#provinceLabels").style("display", `${hidden ? "block" : "none"}`);
-    provs.attr("data-labels", +hidden);
-    provs
+    const hidden = viewContext.provs.select("#provinceLabels").style("display") === "none";
+    viewContext.provs.select("#provinceLabels").style("display", `${hidden ? "block" : "none"}`);
+    viewContext.provs.attr("data-labels", +hidden);
+    viewContext.provs
       .selectAll<SVGTextElement, unknown>("text")
       .call(d3.drag<SVGTextElement, unknown>().on("start", dragLabelStart).on("drag", dragLabel))
       .classed("draggable", true);
@@ -860,10 +898,11 @@ export function editProvinces(): void {
 
         body.querySelectorAll<HTMLElement>(":scope > div").forEach(el => {
           const provinceId = +el.dataset.id!;
-          const province = (pack.provinces as Province[])[provinceId];
+          const province = (worldContext.pack.provinces as Province[])[provinceId];
           if (!province.burg) return;
-          if (province.burg === (pack.states as State[])[province.state].capital) return;
-          if ((province.burgs ?? []).some((burgId: number) => (pack.burgs as Burg[])[burgId].capital)) return;
+          if (province.burg === (worldContext.pack.states as State[])[province.state].capital) return;
+          if ((province.burgs ?? []).some((burgId: number) => (worldContext.pack.burgs as Burg[])[burgId].capital))
+            return;
 
           const [oldStateId, newStateId] = declareProvinceIndependence(provinceId);
           oldStateIds.push(oldStateId);
@@ -879,12 +918,12 @@ export function editProvinces(): void {
     if (!layerIsOn("toggleProvinces")) toggleProvinces();
     if (!layerIsOn("toggleBorders")) toggleBorders();
 
-    provinceBorders.select("path").attr("stroke", "#000").attr("stroke-width", 0.5);
-    stateBorders.select("path").attr("stroke", "#000").attr("stroke-width", 1.2);
+    viewContext.provinceBorders.select("path").attr("stroke", "#000").attr("stroke-width", 0.5);
+    viewContext.stateBorders.select("path").attr("stroke", "#000").attr("stroke-width", 1.2);
 
-    customization = 11;
-    provs.select("g#provincesBody").append("g").attr("id", "temp").attr("stroke-width", 0.3);
-    provs
+    viewContext.customization = 11;
+    viewContext.provs.select("g#provincesBody").append("g").attr("id", "temp").attr("stroke-width", 0.3);
+    viewContext.provs
       .select("g#provincesBody")
       .append("g")
       .attr("id", "centers")
@@ -912,7 +951,7 @@ export function editProvinces(): void {
     });
 
     tip("Click on a province to select, drag the circle to change province", true);
-    viewbox
+    viewContext.viewbox
       .style("cursor", "crosshair")
       .on("click", selectProvinceOnMapClick)
       .call(d3.drag<SVGGElement, unknown>().on("drag", dragBrush))
@@ -928,7 +967,7 @@ export function editProvinces(): void {
 
   function selectProvinceOnLineClick(this: HTMLElement): void {
     if ((this.parentNode as HTMLElement)?.id !== "provincesBodySection") return;
-    if (customization === 11) {
+    if (viewContext.customization === 11) {
       body.querySelector<HTMLElement>("div.selected")?.classList.remove("selected");
       this.classList.add("selected");
       selectProvince(+this.dataset.id!);
@@ -938,10 +977,10 @@ export function editProvinces(): void {
   function selectProvinceOnMapClick(this: SVGElement, event: MouseEvent): void {
     const [px, py] = pointer(event, this);
     const i = findCell(px, py);
-    if (pack.cells.h[i] < 20 || !pack.cells.state[i]) return;
+    if (worldContext.pack.cells.h[i] < 20 || !worldContext.pack.cells.state[i]) return;
 
-    const assigned = provs.select("g#temp").select(`polygon[data-cell='${i}']`);
-    const province = assigned.size() ? +assigned.attr("data-province") : pack.cells.province[i];
+    const assigned = viewContext.provs.select("g#temp").select(`polygon[data-cell='${i}']`);
+    const province = assigned.size() ? +assigned.attr("data-province") : worldContext.pack.cells.province[i];
 
     const editorLine = body.querySelector<HTMLElement>(`div[data-id='${province}']`);
     if (!editorLine) {
@@ -955,9 +994,9 @@ export function editProvinces(): void {
   }
 
   function selectProvince(p: number): void {
-    debug.selectAll("path.selected").remove();
-    const path = provs.select(`#province${p}`).attr("d");
-    debug.append("path").attr("class", "selected").attr("d", path);
+    viewContext.debug.selectAll("path.selected").remove();
+    const path = viewContext.provs.select(`#province${p}`).attr("d");
+    viewContext.debug.append("path").attr("class", "selected").attr("d", path);
   }
 
   function dragBrush(this: SVGElement, event: d3.D3DragEvent<SVGElement, unknown, unknown>): void {
@@ -971,21 +1010,21 @@ export function editProvinces(): void {
   }
 
   function changeForSelection(selection: number[]): void {
-    const temp = provs.select("#temp");
-    const centers = provs.select("#centers");
+    const temp = viewContext.provs.select("#temp");
+    const centers = viewContext.provs.select("#centers");
     const selected = body.querySelector<HTMLElement>("div.selected");
     if (!selected) return;
 
     const provinceNew = +selected.dataset.id!;
-    const state = (pack.provinces as Province[])[provinceNew].state;
-    const fill = (pack.provinces as Province[])[provinceNew].color || "#ffffff";
+    const state = (worldContext.pack.provinces as Province[])[provinceNew].state;
+    const fill = (worldContext.pack.provinces as Province[])[provinceNew].color || "#ffffff";
 
     selection.forEach(i => {
-      if (!pack.cells.state[i] || pack.cells.state[i] !== state) return;
+      if (!worldContext.pack.cells.state[i] || worldContext.pack.cells.state[i] !== state) return;
       const exists = temp.select(`polygon[data-cell='${i}']`);
-      const provinceOld = exists.size() ? +exists.attr("data-province") : pack.cells.province[i];
+      const provinceOld = exists.size() ? +exists.attr("data-province") : worldContext.pack.cells.province[i];
       if (provinceNew === provinceOld) return;
-      if (i === (pack.provinces as Province[])[provinceOld]?.center) {
+      if (i === (worldContext.pack.provinces as Province[])[provinceOld]?.center) {
         const center = centers.select(`polygon[data-center='${i}']`);
         if (!center.size())
           centers
@@ -1001,7 +1040,7 @@ export function editProvinces(): void {
       }
 
       if (exists.size()) {
-        if (pack.cells.province[i] === provinceNew) exists.remove();
+        if (worldContext.pack.cells.province[i] === provinceNew) exists.remove();
         else exists.attr("data-province", provinceNew).attr("fill", fill);
       } else {
         temp
@@ -1023,13 +1062,13 @@ export function editProvinces(): void {
   }
 
   function applyProvincesManualAssignment(): void {
-    provs
+    viewContext.provs
       .select("#temp")
       .selectAll("polygon")
       .each(function () {
         const el = this as unknown as SVGPolygonElement;
         const i = +el.dataset.cell!;
-        pack.cells.province[i] = +el.dataset.province!;
+        worldContext.pack.cells.province[i] = +el.dataset.province!;
       });
 
     Provinces.getPoles(getWorldState());
@@ -1041,14 +1080,14 @@ export function editProvinces(): void {
   }
 
   function exitProvincesManualAssignment(close?: string): void {
-    customization = 0;
-    provs.select("#temp").remove();
-    provs.select("#centers").remove();
+    viewContext.customization = 0;
+    viewContext.provs.select("#temp").remove();
+    viewContext.provs.select("#centers").remove();
     removeCircle();
 
-    provinceBorders.select("path").attr("stroke", null).attr("stroke-width", null);
-    stateBorders.select("path").attr("stroke", null).attr("stroke-width", null);
-    debug.selectAll("path.selected").remove();
+    viewContext.provinceBorders.select("path").attr("stroke", null).attr("stroke-width", null);
+    viewContext.stateBorders.select("path").attr("stroke", null).attr("stroke-width", null);
+    viewContext.debug.selectAll("path.selected").remove();
 
     document.querySelectorAll<HTMLElement>("#provincesFooter > *").forEach(el => {
       el.style.display = "inline-block";
@@ -1081,10 +1120,10 @@ export function editProvinces(): void {
       return;
     }
 
-    customization = 12;
+    viewContext.customization = 12;
     this.classList.add("pressed");
     tip("Click on the map to place a new province center", true);
-    viewbox.style("cursor", "crosshair");
+    viewContext.viewbox.style("cursor", "crosshair");
     interactionManager.setClickHandler(addProvince);
     body.querySelectorAll<HTMLElement>("div > input, select, span, svg").forEach(e => {
       e.style.pointerEvents = "none";
@@ -1092,7 +1131,7 @@ export function editProvinces(): void {
   }
 
   function addProvince(this: SVGElement, event: MouseEvent): void {
-    const { cells, provinces } = pack;
+    const { cells, provinces } = worldContext.pack;
     const [px, py] = pointer(event, this);
     const center = findCell(px, py);
     if (cells.h[center] < 20) {
@@ -1117,22 +1156,22 @@ export function editProvinces(): void {
       exitAddProvinceMode.call(ensureEl("provincesAdd") as HTMLButtonElement);
 
     const province = provincesArr.length;
-    (pack.states as State[])[state].provinces!.push(province);
+    (worldContext.pack.states as State[])[state].provinces!.push(province);
     const burg = cells.burg[center];
     const c = cells.culture[center];
     const name = burg
-      ? ((pack.burgs as Burg[])[burg].name ?? "")
+      ? ((worldContext.pack.burgs as Burg[])[burg].name ?? "")
       : Names.getState(Names.getCultureShort(worldContext, viewContext, appServices, c), c);
     const formName = oldProvince ? provincesArr[oldProvince].formName : "Province";
     const fullName = `${name} ${formName}`;
-    const stateColor = (pack.states as State[])[state].color ?? "";
+    const stateColor = (worldContext.pack.states as State[])[state].color ?? "";
     const rndColor = getRandomColor();
     const newColor = stateColor[0] === "#" ? color(interpolate(stateColor, rndColor)(0.2))!.formatHex() : rndColor;
 
     const kinship = burg ? 0.8 : 0.4;
-    const parentBurg = burg ? (pack.burgs as Burg[])[burg] : null;
+    const parentBurg = burg ? (worldContext.pack.burgs as Burg[])[burg] : null;
     const type = Burgs.getType(center, parentBurg?.port);
-    const parentCOA = parentBurg ? parentBurg.coa : (pack.states as State[])[state].coa;
+    const parentCOA = parentBurg ? parentBurg.coa : (worldContext.pack.states as State[])[state].coa;
     const coa = COA.generate(parentCOA ?? null, kinship, P(0.1) as unknown as number, type);
     coa.shield = COA.getShield(c, state) ?? "";
     COArenderer.add("province", province, coa as RendererEmblem, px, py);
@@ -1155,7 +1194,7 @@ export function editProvinces(): void {
   }
 
   function exitAddProvinceMode(this: HTMLButtonElement): void {
-    customization = 0;
+    viewContext.customization = 0;
     restoreDefaultEvents?.();
     clearMainTip();
     body.querySelectorAll<HTMLElement>("div > input, select, span, svg").forEach(e => {
@@ -1168,10 +1207,10 @@ export function editProvinces(): void {
   function recolorProvinces(): void {
     const state = +(ensureEl("provincesFilterState") as HTMLSelectElement).value;
 
-    (pack.provinces as Province[]).forEach(p => {
+    (worldContext.pack.provinces as Province[]).forEach(p => {
       if (!p || p.removed) return;
       if (state !== -1 && p.state !== state) return;
-      const stateColor = (pack.states as State[])[p.state].color ?? "";
+      const stateColor = (worldContext.pack.states as State[])[p.state].color ?? "";
       const rndColor = getRandomColor();
       p.color = stateColor[0] === "#" ? color(interpolate(stateColor, rndColor)(0.2))!.formatHex() : rndColor;
     });
@@ -1186,7 +1225,7 @@ export function editProvinces(): void {
 
     body.querySelectorAll<HTMLElement>(":scope > div").forEach(el => {
       const key = parseInt(el.dataset.id!, 10);
-      const provincePack = (pack.provinces as Province[])[key];
+      const provincePack = (worldContext.pack.provinces as Province[])[key];
       data += `${el.dataset.id},`;
       data += `${el.dataset.name},`;
       data += `${provincePack.fullName},`;
@@ -1196,8 +1235,8 @@ export function editProvinces(): void {
       data += `${el.dataset.capital},`;
       data += `${el.dataset.area},`;
       data += `${el.dataset.population},`;
-      data += `${Math.round((provincePack.rural ?? 0) * populationRate)},`;
-      data += `${Math.round((provincePack.urban ?? 0) * populationRate * urbanization)},`;
+      data += `${Math.round((provincePack.rural ?? 0) * worldContext.populationRate)},`;
+      data += `${Math.round((provincePack.urban ?? 0) * worldContext.populationRate * worldContext.urbanization)},`;
       data += `${el.dataset.burgs}\n`;
     });
 
@@ -1207,7 +1246,7 @@ export function editProvinces(): void {
   function removeAllProvinces(): void {
     alertMessage.innerHTML = "Are you sure you want to remove all provinces? <br />This action cannot be reverted";
     openRichDialog({
-      content: window.alertMessage.innerHTML,
+      content: alertMessage.innerHTML,
       resizable: false,
       title: "Remove all provinces",
       buttons: {
@@ -1217,17 +1256,17 @@ export function editProvinces(): void {
           document.querySelectorAll("[id^='provinceCOA']").forEach(el => {
             el.remove();
           });
-          emblems.select("#provinceEmblems").selectAll("*").remove();
+          viewContext.emblems.select("#provinceEmblems").selectAll("*").remove();
 
-          pack.provinces = [0 as unknown as Province];
-          pack.cells.province = new Uint16Array(pack.cells.i.length);
-          (pack.states as State[]).forEach(s => {
+          worldContext.pack.provinces = [0 as unknown as Province];
+          worldContext.pack.cells.province = new Uint16Array(worldContext.pack.cells.i.length);
+          (worldContext.pack.states as State[]).forEach(s => {
             s.provinces = [];
           });
 
           unfog();
           if (layerIsOn("toggleBorders")) BordersRenderer.render(worldContext, viewContext, appServices);
-          provs.select("#provincesBody").remove();
+          viewContext.provs.select("#provincesBody").remove();
           turnButtonOff("toggleProvinces");
 
           provincesEditorAddLines();
@@ -1253,12 +1292,13 @@ export function editProvinces(): void {
   }
 
   function closeProvincesEditor(): void {
-    provs
+    viewContext.provs
       .selectAll<SVGTextElement, unknown>("text")
       .call(d3.drag<SVGTextElement, unknown>().on("drag", null))
       .attr("class", null);
-    if (customization === 11) exitProvincesManualAssignment("close");
-    if (customization === 12) exitAddProvinceMode.call(document.getElementById("provincesAdd") as HTMLButtonElement);
+    if (viewContext.customization === 11) exitProvincesManualAssignment("close");
+    if (viewContext.customization === 12)
+      exitAddProvinceMode.call(document.getElementById("provincesAdd") as HTMLButtonElement);
   }
 
   function openProvinceMergeDialog(): void {
@@ -1266,7 +1306,7 @@ export function editProvinces(): void {
     if (selectedState === -1) {
       alertMessage.innerHTML = "Please select a specific state from the filter to merge provinces within that state.";
       openRichDialog({
-        content: window.alertMessage.innerHTML,
+        content: alertMessage.innerHTML,
         title: "Merge Provinces",
         buttons: {
           OK: function (this: Element) {
@@ -1276,11 +1316,13 @@ export function editProvinces(): void {
       });
       return;
     }
-    const provincesToMerge = (pack.provinces as Province[]).filter(p => p.i && !p.removed && p.state === selectedState);
+    const provincesToMerge = (worldContext.pack.provinces as Province[]).filter(
+      p => p.i && !p.removed && p.state === selectedState
+    );
     if (provincesToMerge.length < 2) {
       alertMessage.innerHTML = "Not enough provinces in the selected state to merge.";
       openRichDialog({
-        content: window.alertMessage.innerHTML,
+        content: alertMessage.innerHTML,
         title: "Merge Provinces",
         buttons: {
           OK: function (this: Element) {
@@ -1328,12 +1370,12 @@ export function editProvinces(): void {
       if (!layerIsOn("toggleProvinces")) return;
       const province = +(event.currentTarget as HTMLElement).dataset.id!;
       if (!province) return;
-      const d = provs.select(`#province${province}`).attr("d");
+      const d = viewContext.provs.select(`#province${province}`).attr("d");
       if (!d) return;
 
       provinceHighlightOff(null);
 
-      const path = debug
+      const path = viewContext.debug
         .append("path")
         .attr("class", "highlight")
         .attr("d", d)
@@ -1353,7 +1395,7 @@ export function editProvinces(): void {
     }
 
     openRichDialog({
-      content: window.alertMessage.innerHTML,
+      content: alertMessage.innerHTML,
       width: 600,
       title: "Merge provinces",
       close: () => provinceHighlightOff(null),
@@ -1373,9 +1415,11 @@ export function editProvinces(): void {
             title: "Merge provinces",
             message: `
               <p>The following provinces will be <strong>removed</strong>: ${provincesToMergeIds
-                .map(provinceId => `${emblem(provinceId)}${(pack.provinces as Province[])[provinceId].name}`)
+                .map(
+                  provinceId => `${emblem(provinceId)}${(worldContext.pack.provinces as Province[])[provinceId].name}`
+                )
                 .join(", ")}.</p>
-              <p>Removed provinces data (burgs and cells) will be assigned to ${emblem(primaryProvinceId)}${(pack.provinces as Province[])[primaryProvinceId].name}.</p>
+              <p>Removed provinces data (burgs and cells) will be assigned to ${emblem(primaryProvinceId)}${(worldContext.pack.provinces as Province[])[primaryProvinceId].name}.</p>
               <p>Are you sure you want to merge provinces? This action cannot be reverted.</p>`,
             confirm: "Merge",
             onConfirm: () => {
@@ -1395,19 +1439,19 @@ export function editProvinces(): void {
     unfog(`focusProvince${provinceId}`);
     const coaEl = document.getElementById(`provinceCOA${provinceId}`);
     if (coaEl) coaEl.remove();
-    emblems.select(`#provinceEmblems > use[data-i='${provinceId}']`).remove();
+    viewContext.emblems.select(`#provinceEmblems > use[data-i='${provinceId}']`).remove();
   }
 
   function mergeProvinces(ids: number[], primary: number): void {
-    const primaryProvince = (pack.provinces as Province[])[primary];
+    const primaryProvince = (worldContext.pack.provinces as Province[])[primary];
     const provinceIdMap = new Map<number, number>();
 
     ids.forEach(id => {
       if (id === primary) return;
-      const province = (pack.provinces as Province[])[id];
+      const province = (worldContext.pack.provinces as Province[])[id];
 
       (province.burgs ?? []).forEach((b: number) => {
-        (pack.burgs as Burg[])[b].province = primary;
+        (worldContext.pack.burgs as Burg[])[b].province = primary;
         if (!primaryProvince.burgs?.includes(b)) primaryProvince.burgs?.push(b);
       });
       if (!primaryProvince.burg && province.burg) {
@@ -1416,16 +1460,18 @@ export function editProvinces(): void {
 
       provinceIdMap.set(id, primary);
       cleanupMergedProvince(id);
-      (pack.provinces as Province[])[id] = { i: id, removed: true } as Province;
+      (worldContext.pack.provinces as Province[])[id] = { i: id, removed: true } as Province;
     });
 
-    pack.cells.province.forEach((oldProvinceId: number, cellIndex: number) => {
+    worldContext.pack.cells.province.forEach((oldProvinceId: number, cellIndex: number) => {
       const newProvinceId = provinceIdMap.get(oldProvinceId);
-      if (newProvinceId !== undefined) pack.cells.province[cellIndex] = newProvinceId;
+      if (newProvinceId !== undefined) worldContext.pack.cells.province[cellIndex] = newProvinceId;
     });
 
-    const state = (pack.states as State[])[primaryProvince.state];
-    state.provinces = (state.provinces ?? []).filter((p: number) => !(pack.provinces as Province[])[p].removed);
+    const state = (worldContext.pack.states as State[])[primaryProvince.state];
+    state.provinces = (state.provinces ?? []).filter(
+      (p: number) => !(worldContext.pack.provinces as Province[])[p].removed
+    );
 
     collectStatistics();
     Provinces.getPoles(getWorldState());
@@ -1434,22 +1480,18 @@ export function editProvinces(): void {
     if (layerIsOn("toggleBorders")) BordersRenderer.render(worldContext, viewContext, appServices);
 
     unfog();
-    debug.selectAll(".highlight").remove();
+    viewContext.debug.selectAll(".highlight").remove();
 
     refreshProvincesEditor();
   }
 }
 
 function updateLockStatus(provinceId: number, classList: DOMTokenList): void {
-  const p = (pack.provinces as Province[])[provinceId];
+  const p = (worldContext.pack.provinces as Province[])[provinceId];
   p.lock = !p.lock;
   classList.toggle("icon-lock-open");
   classList.toggle("icon-lock");
 }
 
 // ─── Global registration ───────────────────────────────────────────────────────
-export function initProvincesEditor(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {
-  worldContext = wc;
-  viewContext = vc;
-  appServices = as;
-}
+export function initProvincesEditor(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {}

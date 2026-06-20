@@ -2,6 +2,7 @@ import { createTypedArray, getTypedArray, last, TYPED_ARRAY_MAX_VALUES, unique }
 import { abbreviate, getAdjective, isVowel, list, nth, trimVowels } from "./languageUtils";
 import { lerp, lim, minmax, normalize, rn } from "./numberUtils";
 import "./polyfills";
+import { worldContext } from "../context/worldContext";
 import { C_12, getColors, getMixedColor, getRandomColor, toHEX } from "./colorUtils";
 import {
   clipPoly,
@@ -67,9 +68,13 @@ export function initUtils(): void {
 }
 
 function findCell(x: number, y: number, radius?: number): number {
-  const pack = window.pack;
+  const { pack } = worldContext;
   if (!pack?.cells?.p) return 0;
   return findClosestCell(x, y, radius, pack) ?? 0;
+}
+
+function findAll(x: number, y: number, radius: number): number[] {
+  return findAllCellsInRadius(x, y, radius, worldContext.pack);
 }
 
 declare global {
@@ -113,6 +118,7 @@ export {
   drawRouteConnections,
   each,
   ensureEl,
+  findAll,
   findAllCellsInRadius,
   findAllInQuadtree,
   findCell,

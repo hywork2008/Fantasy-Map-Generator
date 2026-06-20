@@ -1,16 +1,21 @@
 import { pointer } from "d3";
+import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { Rivers } from "../modules/river-generator";
 import { useOptionsState } from "../store/optionsState";
-import { closeDialog, openDialog } from "../ui/dialogs/dialogService";
+import { closeDialog, closeDialogs, openDialog } from "../ui/dialogs/dialogService";
 import { findCell, last, rn } from "../utils";
 import { getPackPolygon } from "../utils/graphUtils";
+import { clearMainTip, tip } from "../utils/uiHelpers";
+import { restoreDefaultEvents } from "./editors";
 import { interactionManager } from "./interactionManager";
+import { layerIsOn, toggleCells, toggleRivers } from "./layers";
+import { cellsDensityMap } from "./options";
 
 let worldContext: WorldContext;
 
-function createRiver(): void {
-  if (customization) return;
+export function createRiver(): void {
+  if (viewContext.customization) return;
   closeDialogs();
   if (!layerIsOn("toggleRivers")) toggleRivers();
 
@@ -18,8 +23,8 @@ function createRiver(): void {
   if (!layerIsOn("toggleCells")) toggleCells();
 
   tip("Click to add river point, click again to remove", true);
-  debug.append("g").attr("id", "controlCells");
-  viewbox.style("cursor", "crosshair");
+  viewContext.debug.append("g").attr("id", "controlCells");
+  viewContext.viewbox.style("cursor", "crosshair");
   interactionManager.setClickHandler(onCellClick);
 
   const riverCells: number[] = [];
@@ -41,7 +46,7 @@ function createRiver(): void {
     const el = ev.target as HTMLElement;
     const cl = el.classList;
     const cell = +el.parentElement!.dataset.cell!;
-    if (cl.contains("editFlux")) pack.cells.fl[cell] = +(el as HTMLInputElement).value;
+    if (cl.contains("editFlux")) worldContext.pack.cells.fl[cell] = +(el as HTMLInputElement).value;
     else if (cl.contains("icon-trash-empty")) removeCell(cell);
   });
 
@@ -57,7 +62,7 @@ function createRiver(): void {
     riverCells.push(cell);
     drawCells(riverCells);
 
-    const flux = pack.cells.fl[cell];
+    const flux = worldContext.pack.cells.fl[cell];
     const lineHtml = `<div class="editorLine" data-cell="${cell}">
       <span>Cell ${cell}</span>
       <span data-tip="Set flux affects river width" style="margin-left: 0.4em">Flux</span>
@@ -74,7 +79,7 @@ function createRiver(): void {
   }
 
   function drawCells(cells: number[]): void {
-    debug
+    viewContext.debug
       .select("#controlCells")
       .selectAll("polygon")
       .data(cells)
@@ -84,7 +89,7 @@ function createRiver(): void {
   }
 
   function addRiver(): void {
-    const { rivers, cells } = pack;
+    const { rivers, cells } = worldContext.pack;
     if (riverCells.length < 2) {
       tip("Add at least 2 cells", false, "error");
       return;
@@ -138,18 +143,18 @@ function createRiver(): void {
     });
     const id = `river${riverId}`;
 
-    viewbox
+    viewContext.viewbox
       .select("#rivers")
       .append("path")
       .attr("id", id)
       .attr("d", Rivers.getRiverPath(meanderedPoints, widthFactor, sourceWidth));
 
-    editRiver(id);
+    import("../editors/rivers-editor").then(m => m.editRiver(id));
   }
 
   function closeRiverCreator(): void {
     body.innerHTML = "";
-    debug.select("#controlCells").remove();
+    viewContext.debug.select("#controlCells").remove();
     restoreDefaultEvents?.();
     clearMainTip();
 
@@ -158,8 +163,6 @@ function createRiver(): void {
     if (forced && layerIsOn("toggleCells")) toggleCells();
   }
 }
-
-window.createRiver = createRiver;
 
 export function initRiversCreator(wc: WorldContext) {
   worldContext = wc;

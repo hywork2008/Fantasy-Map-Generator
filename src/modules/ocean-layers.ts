@@ -23,7 +23,7 @@ class OceanModule {
   private oceanLayers: Selection<SVGGElement, unknown, null, undefined>;
 
   constructor(oceanLayers: Selection<SVGGElement, unknown, null, undefined>) {
-    this.oceanLayers = oceanLayers;
+    this.oceanLayers = viewContext.oceanLayers;
   }
 
   randomizeOutline() {
@@ -105,8 +105,8 @@ class OceanModule {
 
       const points = clipPoly(
         relaxed.map(v => this.vertices!.p[v]),
-        graphWidth,
-        graphHeight
+        worldContext.graphWidth,
+        worldContext.graphHeight
       );
       chains.push([t, points]);
     }
@@ -133,4 +133,4 @@ class OceanModule {
   }
 }
 
-export const OceanLayers = () => new OceanModule(oceanLayers).draw();
+export const OceanLayers = () => new OceanModule(viewContext.oceanLayers).draw();

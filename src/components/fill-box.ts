@@ -1,3 +1,5 @@
+import { tip } from "../utils/uiHelpers";
+
 {
   const style = /* css */ `
     fill-box:not([disabled]) {

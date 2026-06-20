@@ -2,14 +2,19 @@ import { type D3DragEvent, drag, pointer } from "d3";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import { restoreDefaultEvents } from "../controllers/editors";
+import { layerIsOn, toggleRulers } from "../controllers/layers";
+import { calculateFriendlyGridSize } from "../controllers/style";
 import { Routes } from "../modules/routes-generator";
 import { drawTemperature } from "../renderers";
 import { drawScaleBar, fitScaleBar } from "../renderers/index";
-import { openDialog, openRichDialog } from "../ui/dialogs/dialogService";
+import { closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, findCell, showPrompt } from "../utils";
+import { alertMessage } from "../utils/alertMessageEl";
+import { clearMainTip, lock, tip, unlock } from "../utils/uiHelpers";
 
 let worldContext: WorldContext;
-let viewContext: Readonly<ViewContext>;
+let viewContext: ViewContext;
 let appServices: AppServices;
 
 export function editUnits(): void {
@@ -25,8 +30,15 @@ export function editUnits(): void {
   });
 
   const renderScaleBar = () => {
-    drawScaleBar(worldContext, viewContext, appServices, scaleBar, scale);
-    fitScaleBar(worldContext, viewContext, appServices, scaleBar, svgWidth, svgHeight);
+    drawScaleBar(worldContext, viewContext, appServices, viewContext.scaleBar, viewContext.scale);
+    fitScaleBar(
+      worldContext,
+      viewContext,
+      appServices,
+      viewContext.scaleBar,
+      viewContext.svgWidth,
+      viewContext.svgHeight
+    );
   };
 
   // add listeners
@@ -64,7 +76,7 @@ export function editUnits(): void {
   }
 
   function changeDistanceScale(this: HTMLInputElement): void {
-    distanceScale = +this.value;
+    worldContext.distanceScale = +this.value;
     renderScaleBar();
     calculateFriendlyGridSize();
   }
@@ -80,7 +92,7 @@ export function editUnits(): void {
   }
 
   function changeHeightExponent(): void {
-    calculateTemperatures();
+    document.dispatchEvent(new CustomEvent("fmg:world-recalculate", { detail: { temps: true } }));
     if (layerIsOn("toggleTemperature")) drawTemperature(worldContext, viewContext, appServices);
   }
 
@@ -89,20 +101,20 @@ export function editUnits(): void {
   }
 
   function changePopulationRate(this: HTMLInputElement): void {
-    populationRate = +this.value;
+    worldContext.populationRate = +this.value;
   }
 
   function changeUrbanizationRate(this: HTMLInputElement): void {
-    urbanization = +this.value;
+    worldContext.urbanization = +this.value;
   }
 
   function changeUrbanDensity(this: HTMLInputElement): void {
-    urbanDensity = +this.value;
+    worldContext.urbanDensity = +this.value;
   }
 
   function restoreDefaultUnits(): void {
-    distanceScale = 3;
-    distanceScaleInput.value = String(distanceScale);
+    worldContext.distanceScale = 3;
+    distanceScaleInput.value = String(worldContext.distanceScale);
     unlock("distanceScale");
 
     // units
@@ -121,17 +133,17 @@ export function editUnits(): void {
     // height exponent
     heightExponentInput.value = "1.8";
     localStorage.removeItem("heightExponent");
-    calculateTemperatures();
+    document.dispatchEvent(new CustomEvent("fmg:world-recalculate", { detail: { temps: true } }));
 
     renderScaleBar();
 
     // population
     populationRateInput.value = "1000";
-    populationRate = +populationRateInput.value;
+    worldContext.populationRate = +populationRateInput.value;
     urbanizationInput.value = "1";
-    urbanization = +urbanizationInput.value;
+    worldContext.urbanization = +urbanizationInput.value;
     urbanDensityInput.value = "10";
-    urbanDensity = +urbanDensityInput.value;
+    worldContext.urbanDensity = +urbanDensityInput.value;
     localStorage.removeItem("populationRate");
     localStorage.removeItem("urbanization");
     localStorage.removeItem("urbanDensity");
@@ -140,14 +152,14 @@ export function editUnits(): void {
   function addRuler(): void {
     if (!layerIsOn("toggleRulers")) toggleRulers();
 
-    const width = Math.min(graphWidth, svgWidth);
-    const height = Math.min(graphHeight, svgHeight);
+    const width = Math.min(worldContext.graphWidth, viewContext.svgWidth);
+    const height = Math.min(worldContext.graphHeight, viewContext.svgHeight);
     const pt = (document.getElementById("map") as unknown as SVGSVGElement).createSVGPoint();
     pt.x = width / 2;
     pt.y = height / 4;
-    const p = pt.matrixTransform((viewbox.node() as SVGGraphicsElement).getScreenCTM()!.inverse());
+    const p = pt.matrixTransform((viewContext.viewbox.node() as SVGGraphicsElement).getScreenCTM()!.inverse());
 
-    const dx = width / 4 / scale;
+    const dx = width / 4 / viewContext.scale;
     const dy = (rulers.data.length * 40) % (height / 2);
     const from: [number, number] = [(p.x - dx) | 0, (p.y + dy) | 0];
     const to: [number, number] = [(p.x + dx) | 0, (p.y + dy) | 0];
@@ -166,7 +178,7 @@ export function editUnits(): void {
         b.classList.remove("pressed");
       });
       this.classList.add("pressed");
-      viewbox.style("cursor", "crosshair").call(
+      viewContext.viewbox.style("cursor", "crosshair").call(
         drag<SVGGElement, unknown>().on(
           "start",
           function (this: SVGGElement, startEvent: D3DragEvent<SVGGElement, unknown, unknown>) {
@@ -205,12 +217,12 @@ export function editUnits(): void {
       });
       this.classList.add("pressed");
 
-      viewbox.style("cursor", "crosshair").call(
+      viewContext.viewbox.style("cursor", "crosshair").call(
         drag<SVGGElement, unknown>().on(
           "start",
           function (this: SVGGElement, startEvent: D3DragEvent<SVGGElement, unknown, unknown>) {
-            const cells = pack.cells;
-            const burgs = pack.burgs;
+            const cells = worldContext.pack.cells;
+            const burgs = worldContext.pack.burgs;
             const point = pointer(startEvent, this) as [number, number];
             const c = findCell(point[0], point[1]);
 
@@ -261,7 +273,7 @@ export function editUnits(): void {
         b.classList.remove("pressed");
       });
       this.classList.add("pressed");
-      viewbox.style("cursor", "crosshair").call(
+      viewContext.viewbox.style("cursor", "crosshair").call(
         drag<SVGGElement, unknown>().on(
           "start",
           function (this: SVGGElement, startEvent: D3DragEvent<SVGGElement, unknown, unknown>) {
@@ -292,7 +304,7 @@ export function editUnits(): void {
     alertMessage.innerHTML = /* html */ ` Are you sure you want to remove all placed rulers?
       <br />If you just want to hide rulers, toggle the Rulers layer off in Menu`;
     openRichDialog({
-      content: window.alertMessage.innerHTML,
+      content: alertMessage.innerHTML,
       resizable: false,
       title: "Remove all rulers",
       buttons: {

@@ -1,11 +1,10 @@
 import type React from "react";
 import { showSupporters } from "../../../controllers/options";
-import { getWindowProp } from "../../../utils/windowGlobals";
+import { UITour } from "../../../modules/ui-tour";
 
 export const AboutTab: React.FC = () => {
   const startTour = () => {
-    const tour = getWindowProp<{ start?: () => void }>("UITour");
-    tour?.start?.();
+    UITour.start();
   };
 
   return (

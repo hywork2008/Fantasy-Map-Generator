@@ -1,6 +1,5 @@
 import type React from "react";
 import { create } from "zustand";
-import { callWindowFn } from "../utils/windowGlobals";
 
 export interface LayerConfig {
   id: string;
@@ -320,7 +319,7 @@ export const useLayerState = create<LayerState>((set, get) => ({
     // Defer to the next tick to ensure state is updated before calling legacy d3 drawing
     setTimeout(() => {
       // Synchronize the actual SVG layer order using the global function from layers.ts
-      callWindowFn("syncSVGLayersOrder", layers);
+      import("../controllers/layers").then(m => m.syncSVGLayersOrder(layers));
     }, 0);
   },
 

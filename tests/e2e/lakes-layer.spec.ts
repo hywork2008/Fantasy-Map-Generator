@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { waitForMapGeneration } from "./helpers/fmg-helpers";
 
 test.describe("Lakes layer", () => {
   test.beforeEach(async ({ context, page }) => {
@@ -13,9 +14,7 @@ test.describe("Lakes layer", () => {
     await page.goto("/?seed=test-seed&width=1280&height=720");
 
     // Wait for map generation to complete
-    await page.waitForFunction(() => (window as any).mapId !== undefined, {
-      timeout: 60000,
-    });
+    await waitForMapGeneration(page);
 
     // Wait for any post-generation rendering to settle
     await page.waitForTimeout(500);
@@ -27,7 +26,7 @@ test.describe("Lakes layer", () => {
     const lakes = page.locator("#lakes");
 
     // Open the options panel (layers tab) so the toggle button is reachable
-    await page.evaluate(() => (window as any).showOptions());
+    await page.click("#optionsTrigger");
 
     // Lakes should be visible by default
     await expect(lakes).toBeVisible();

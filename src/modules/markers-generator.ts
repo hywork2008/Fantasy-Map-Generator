@@ -9,6 +9,8 @@ import { useOptionsState } from "../store/optionsState";
 import type { PackedGraph } from "../types/PackedGraph";
 import type { WorldState } from "../types/WorldState";
 import { capitalize, convertTemperature, gauss, generateDate, getAdjective, last, P, ra, rand, rn, rw } from "../utils";
+import { getFriendlyHeight } from "../utils/uiHelpers";
+import { Names } from "./names-generator";
 import { Routes } from "./routes-generator";
 import { States } from "./states-generator";
 
@@ -113,10 +115,9 @@ class MarkersModule {
   }
 
   deleteMarker(markerId: number) {
-    let { notes, pack } = this.worldContext;
     const noteId = `marker${markerId}`;
-    notes = notes.filter(note => note.id !== noteId);
-    pack.markers = pack.markers.filter(m => m.i !== markerId);
+    this.worldContext.notes = this.worldContext.notes.filter(note => note.id !== noteId);
+    this.worldContext.pack.markers = this.worldContext.pack.markers.filter(m => m.i !== markerId);
   }
 
   private getDefaultConfig(): MarkerConfig[] {
@@ -931,7 +932,7 @@ class MarkersModule {
     const course = `${ra(methods)} ${meal}`.toLowerCase();
     const drink = `${P(0.5) ? ra(types) : ra(colors)} ${ra(drinks)}`.toLowerCase();
     const legend = `A big and famous roadside ${typeName}. Delicious ${course} with ${drink} is served here.`;
-    notes.push({ id, name: `The ${name}`, legend });
+    worldContext.notes.push({ id, name: `The ${name}`, legend });
   }
 
   private listLighthouses({ cells }: PackedGraph) {
@@ -1053,7 +1054,7 @@ class MarkersModule {
     const name = `${Names.getCultureShort(this.worldContext, this.viewContext, this.appServices, 0)} Monster`;
     const length = gauss(25, 10, 10, 100);
     const legend = `Old sailors tell stories of a gigantic sea monster inhabiting these dangerous waters. Rumors say it can be ${length} ${heightUnit.value} long.`;
-    notes.push({ id, name, legend });
+    worldContext.notes.push({ id, name, legend });
   }
 
   private listHillMonsters({ cells }: PackedGraph) {
@@ -1282,7 +1283,7 @@ class MarkersModule {
   private addPirates(id: string, _cell: number) {
     const name = "Pirates";
     const legend = "Pirate ships have been spotted in these waters.";
-    notes.push({ id, name, legend });
+    worldContext.notes.push({ id, name, legend });
   }
 
   private listStatues({ cells }: PackedGraph) {
@@ -1353,7 +1354,7 @@ class MarkersModule {
     const ruinType = ra(types);
     const name = `Ruined ${ruinType}`;
     const legend = `Ruins of an ancient ${ruinType.toLowerCase()}. Untold riches may lie within.`;
-    notes.push({ id, name, legend });
+    worldContext.notes.push({ id, name, legend });
   }
 
   private listLibraries({ cells }: PackedGraph) {
@@ -1390,7 +1391,7 @@ class MarkersModule {
     const adjective = ra(adjectives);
     const name = `Travelling ${adjective} Circus`;
     const legend = `Roll up, roll up, this ${adjective.toLowerCase()} circus is here for a limited time only.`;
-    notes.push({ id, name, legend });
+    worldContext.notes.push({ id, name, legend });
   }
 
   private listJousts({ cells, burgs }: PackedGraph) {
@@ -1512,7 +1513,7 @@ class MarkersModule {
 
     const name = `${animalChoice} migration`;
     const legend = `A huge group of ${animalChoice.toLowerCase()} are migrating, whether part of their annual routine, or something more extraordinary.`;
-    notes.push({ id, name, legend });
+    worldContext.notes.push({ id, name, legend });
   }
 
   private listDances({ cells, burgs }: PackedGraph) {
@@ -1565,7 +1566,7 @@ class MarkersModule {
     const mirageAdjective = ra(adjectives);
     const name = `${mirageAdjective} mirage`;
     const legend = `This ${mirageAdjective.toLowerCase()} mirage has been luring travellers out of their way for eons.`;
-    notes.push({ id, name, legend });
+    worldContext.notes.push({ id, name, legend });
   }
 
   private listCaves({ cells }: PackedGraph) {
@@ -1644,7 +1645,7 @@ class MarkersModule {
     const riftType = ra(types);
     const name = `${riftType} Rift`;
     const legend = `A rumoured ${riftType.toLowerCase()} rift in this area is causing ${ra(descriptions)}.`;
-    notes.push({ id, name, legend });
+    worldContext.notes.push({ id, name, legend });
   }
 
   private listDisturbedBurial({ cells }: PackedGraph) {
@@ -1654,7 +1655,7 @@ class MarkersModule {
   private addDisturbedBurial(id: string, _cell: number) {
     const name = "Disturbed Burial";
     const legend = "A burial site has been disturbed in this area, causing the dead to rise and attack the living.";
-    notes.push({ id, name, legend });
+    worldContext.notes.push({ id, name, legend });
   }
 
   private listNecropolis({ cells }: PackedGraph) {
@@ -1701,7 +1702,7 @@ class MarkersModule {
     const name = "Random encounter";
     const encounterSeed = cell; // use just cell Id to not overwhelm the Vercel KV database
     const legend = `<div>You have encountered a character.</div><iframe src="https://deorum.vercel.app/encounter/${encounterSeed}" width="375" height="600" sandbox="allow-scripts allow-same-origin allow-popups"></iframe>`;
-    notes.push({ id, name, legend });
+    worldContext.notes.push({ id, name, legend });
   }
 }
 

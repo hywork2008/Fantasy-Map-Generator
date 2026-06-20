@@ -1,3 +1,4 @@
+import { worldContext } from "../../context/worldContext";
 import { ensureEl, P, rw } from "../../utils";
 import { charges } from "./charges";
 import { divisions } from "./divisions";
@@ -427,9 +428,10 @@ class EmblemGeneratorModule {
     const shapeGroup = emblemShape.selectedOptions[0]?.parentElement?.getAttribute("label") || "Diversiform";
     if (shapeGroup !== "Diversiform") return emblemShape.value;
 
-    if (emblemShape.value === "state" && state && pack.states[state].coa) return pack.states[state].coa!.shield!;
-    if (pack.cultures[culture].shield) return pack.cultures[culture].shield!;
-    ERROR && console.error("Shield shape is not defined on culture level", pack.cultures[culture]);
+    if (emblemShape.value === "state" && state && worldContext.pack.states[state].coa)
+      return worldContext.pack.states[state].coa!.shield!;
+    if (worldContext.pack.cultures[culture].shield) return worldContext.pack.cultures[culture].shield!;
+    ERROR && console.error("Shield shape is not defined on culture level", worldContext.pack.cultures[culture]);
     return "heater";
   }
 

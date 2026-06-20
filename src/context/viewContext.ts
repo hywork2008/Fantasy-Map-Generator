@@ -1,4 +1,4 @@
-import type { Selection, ZoomBehavior } from "d3";
+import type { Line, Selection, ZoomBehavior } from "d3";
 
 type SvgGroup = Selection<SVGGElement, unknown, null, undefined>;
 
@@ -75,7 +75,7 @@ export interface OverlayLayers {
   compass: SvgGroup;
 }
 
-/** Zoom/pan state and editor mode. */
+/** Zoom/pan state, display dimensions, and editor mode. */
 export interface ViewState {
   zoom: ZoomBehavior<SVGSVGElement, unknown>;
   viewX: number;
@@ -84,6 +84,18 @@ export interface ViewState {
   scale: number;
   /** Current editor customization mode (0 = default, 1 = heightmap edit, etc.) */
   customization: number;
+  /**
+   * Display width of the SVG element — Math.min(graphWidth, window.innerWidth).
+   * Changes on browser resize; view concern, not world data.
+   */
+  svgWidth: number;
+  /**
+   * Display height of the SVG element — Math.min(graphHeight, window.innerHeight).
+   * Changes on browser resize; view concern, not world data.
+   */
+  svgHeight: number;
+  /** D3 curveBasis line generator shared by renderers and editors. */
+  lineGen: Line<[number, number]>;
 }
 
 /**
@@ -107,5 +119,8 @@ export interface ViewContext
 export const viewContext = {
   fogging: null,
   scale: 1,
-  customization: 0
+  customization: 0,
+  svgWidth: 0,
+  svgHeight: 0,
+  lineGen: (() => "") as unknown as Line<[number, number]>
 } as ViewContext;

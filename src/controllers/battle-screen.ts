@@ -1,16 +1,17 @@
 import { mean, sum } from "d3";
 import type { AppServices } from "../context/appServices";
+import { appServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
+import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import { worldContext } from "../context/worldContext";
 import type { MilitaryRegiment } from "../modules/military-generator";
 import { Military } from "../modules/military-generator";
+import { Names } from "../modules/names-generator";
 import { drawMarker, moveRegiment } from "../renderers/index";
-import { closeDialog, openDialog } from "../ui/dialogs/dialogService";
-import { capitalize, ensureEl, findCell, getAdjective, last, list, minmax, Pint, rand, rn, wiki } from "../utils";
-
-let worldContext: WorldContext;
-let viewContext: Readonly<ViewContext>;
-let appServices: AppServices;
+import { closeDialog, closeDialogs, openDialog } from "../ui/dialogs/dialogService";
+import { capitalize, ensureEl, findCell, getAdjective, last, list, minmax, P, Pint, rand, rn, wiki } from "../utils";
+import { applySorting, fitContent, tip } from "../utils/uiHelpers";
 
 interface BattleRegiment extends MilitaryRegiment {
   casualties: Record<string, number>;
@@ -45,9 +46,9 @@ class Battle {
   name!: string;
 
   constructor(attacker: BattleRegiment, defender: BattleRegiment) {
-    if (customization) return;
+    if (viewContext.customization) return;
     closeDialogs(".stable");
-    customization = 13;
+    viewContext.customization = 13;
 
     Battle.context = this;
     this.iteration = 0;
@@ -115,14 +116,18 @@ class Battle {
     const attacker = this.attackers.regiments[0];
     const defender = this.defenders.regiments[0];
     const getType = () => {
-      const typesA = Object.keys(attacker.u).map((name: string) => options.military!.find(u => u.name === name)!.type);
-      const typesD = Object.keys(defender.u).map((name: string) => options.military!.find(u => u.name === name)!.type);
+      const typesA = Object.keys(attacker.u).map(
+        (name: string) => worldContext.options.military!.find(u => u.name === name)!.type
+      );
+      const typesD = Object.keys(defender.u).map(
+        (name: string) => worldContext.options.military!.find(u => u.name === name)!.type
+      );
 
       if (attacker.n && defender.n) return "naval";
       if (typesA.every((t: string) => t === "aviation") && typesD.every((t: string) => t === "aviation")) return "air";
       if (attacker.n && !defender.n && typesA.some((t: string) => t !== "naval")) return "landing";
-      if (!defender.n && pack.burgs[pack.cells.burg![this.cell]].walls) return "siege";
-      if (P(0.1) && [5, 6, 7, 8, 9, 12].includes(pack.cells.biome![this.cell])) return "ambush";
+      if (!defender.n && worldContext.pack.burgs[worldContext.pack.cells.burg![this.cell]].walls) return "siege";
+      if (P(0.1) && [5, 6, 7, 8, 9, 12].includes(worldContext.pack.cells.biome![this.cell])) return "ambush";
       return "field";
     };
 
@@ -148,11 +153,11 @@ class Battle {
   }
 
   definePlace(): string {
-    const cells = pack.cells;
+    const cells = worldContext.pack.cells;
     const i = this.cell;
-    const burg = cells.burg![i] ? pack.burgs[cells.burg![i]].name : null;
+    const burg = cells.burg![i] ? worldContext.pack.burgs[cells.burg![i]].name : null;
     const getRiver = (idx: number) => {
-      const river = pack.rivers!.find(r => r.i === idx);
+      const river = worldContext.pack.rivers!.find(r => r.i === idx);
       return `${river!.name} ${river!.type}`;
     };
     const river = !burg && cells.r![i] ? getRiver(cells.r![i]) : null;
@@ -183,7 +188,7 @@ class Battle {
   addHeaders(): void {
     let headers = "<thead><tr><th></th><th></th>";
 
-    for (const u of options.military!) {
+    for (const u of worldContext.options.military!) {
       const label = capitalize(u.name.replace(/_/g, " "));
       const isExternal = u.icon.startsWith("http") || u.icon.startsWith("data:image");
       const iconHTML = isExternal ? `<img src="${u.icon}" width="15" height="15">` : u.icon;
@@ -201,8 +206,8 @@ class Battle {
     }, {});
     regiment.survivors = Object.assign({}, regiment.u);
 
-    const state = pack.states[regiment.state];
-    const distance = (Math.hypot(this.y - regiment.by, this.x - regiment.bx) * distanceScale) | 0;
+    const state = worldContext.pack.states[regiment.state];
+    const distance = (Math.hypot(this.y - regiment.by, this.x - regiment.bx) * worldContext.distanceScale) | 0;
     const color = (state.color ?? "#999")[0] === "#" ? (state.color ?? "#999") : "#999";
 
     const isExternal = regiment.icon?.startsWith("http") || regiment.icon?.startsWith("data:image");
@@ -217,7 +222,7 @@ class Battle {
     let casualties = `<tr class="battleCasualties"><td></td><td data-tip="${state.fullName ?? ""}">${(state.fullName ?? "").slice(0, 26)}</td>`;
     let survivors = `<tr class="battleSurvivors"><td></td><td data-tip="Supply line length, affects morale">Distance to base: ${distance} ${distanceUnitInput.value}</td>`;
 
-    for (const u of options.military!) {
+    for (const u of worldContext.options.military!) {
       initial += `<td data-tip="Initial forces" style="width: 2.5em; text-align: center">${regiment.u[u.name] || 0}</td>`;
       casualties += `<td data-tip="Casualties" style="width: 2.5em; text-align: center; color: red">0</td>`;
       survivors += `<td data-tip="Survivors" style="width: 2.5em; text-align: center; color: green">${regiment.u[u.name] || 0}</td>`;
@@ -236,16 +241,18 @@ class Battle {
   addSide(): void {
     const body = ensureEl("regimentSelectorBody");
     const context = Battle.context!;
-    const regiments = pack.states.filter(s => s.military && !s.removed).flatMap(s => s.military as BattleRegiment[]);
+    const regiments = worldContext.pack.states
+      .filter(s => s.military && !s.removed)
+      .flatMap(s => s.military as BattleRegiment[]);
     const distance = (reg: BattleRegiment) =>
-      `${rn(Math.hypot(context.y - reg.y, context.x - reg.x) * distanceScale)} ${distanceUnitInput.value}`;
+      `${rn(Math.hypot(context.y - reg.y, context.x - reg.x) * worldContext.distanceScale)} ${distanceUnitInput.value}`;
     const isAdded = (reg: BattleRegiment) =>
       context.defenders.regiments.some((r: BattleRegiment) => r === reg) ||
       context.attackers.regiments.some((r: BattleRegiment) => r === reg);
 
     body.innerHTML = (regiments as BattleRegiment[])
       .map((r: BattleRegiment) => {
-        const s = pack.states[r.state];
+        const s = worldContext.pack.states[r.state];
         const added = isAdded(r);
         const dist = added ? `0 ${distanceUnitInput.value}` : distance(r);
         return `<div ${added ? "class='inactive'" : ""} data-s=${s.i} data-i=${r.i} data-state=${s.name} data-regiment=${r.name}
@@ -295,7 +302,7 @@ class Battle {
       closeDialog("regimentSelectorScreen");
       selected.forEach(line => {
         const lineEl = line as HTMLElement;
-        const state = pack.states[+lineEl.dataset.s!];
+        const state = worldContext.pack.states[+lineEl.dataset.s!];
         const regiment = state.military!.find((r: MilitaryRegiment) => r.i === +lineEl.dataset.i!) as BattleRegiment;
         Battle.prototype.addRegiment.call(context, side, regiment);
         Battle.prototype.calculateStrength.call(context, side);
@@ -341,8 +348,8 @@ class Battle {
   generateName(type: string): void {
     const place =
       type === "culture"
-        ? Names.getCulture(pack.cells.culture![this.cell], undefined, undefined, "")
-        : Names.getBase(rand(nameBases.length - 1));
+        ? Names.getCulture(worldContext.pack.cells.culture![this.cell], undefined, undefined, "")
+        : Names.getBase(rand(worldContext.nameBases.length - 1));
     (ensureEl("battleNamePlace") as HTMLInputElement).value = this.place = place;
     (ensureEl("battleNameFull") as HTMLInputElement).value = this.name = this.defineName();
     openDialog("battleScreen", { title: this.name });
@@ -540,9 +547,9 @@ class Battle {
 
     const forces = this.getJoinedForces(this[side].regiments);
     const phase = this[side].phase!;
-    const adjuster = Math.max(populationRate / 10, 10);
+    const adjuster = Math.max(worldContext.populationRate / 10, 10);
     this[side].power =
-      sum(options.military!.map(u => (forces[u.name] || 0) * u.power * scheme[phase][u.type])) / adjuster;
+      sum(worldContext.options.military!.map(u => (forces[u.name] || 0) * u.power * scheme[phase][u.type])) / adjuster;
     const UIvalue = this[side].power ? Math.max(this[side].power | 0, 1) : 0;
     (ensureEl(`battlePower_${side}`) as HTMLElement).innerHTML = String(UIvalue);
   }
@@ -597,7 +604,7 @@ class Battle {
         const total = sum(Object.values(forces) as number[]);
         const ranged =
           sum(
-            options
+            worldContext.options
               .military!.filter(u => u.type === "ranged")
               .map(u => u.name)
               .map((u: string) => forces[u])
@@ -636,7 +643,7 @@ class Battle {
       if (P((powerRatio - 1) / 2)) return ["storming", "defense"];
 
       if (prev[0] !== "storming") {
-        const machinery = options.military!.filter(u => u.type === "machinery").map(u => u.name);
+        const machinery = worldContext.options.military!.filter(u => u.type === "machinery").map(u => u.name);
 
         const attackersForces = this.getJoinedForces(this.attackers.regiments);
         const machineryA = sum(machinery.map((u: string) => attackersForces[u]));
@@ -807,7 +814,7 @@ class Battle {
       const battleSurvivors = tbody.querySelector(".battleSurvivors") as HTMLElement;
 
       let index = 3;
-      for (const u of options.military!) {
+      for (const u of worldContext.options.military!) {
         (battleCasualties.querySelector(`td:nth-child(${index})`) as HTMLElement).innerHTML = String(
           r.casualties[u.name] || 0
         );
@@ -899,7 +906,7 @@ class Battle {
     function applyResultForSide(r: BattleRegiment, side: BattleSide): void {
       const id = `regiment${r.state}-${r.i}`;
 
-      const note = notes.find(n => n.id === id);
+      const note = worldContext.notes.find(n => n.id === id);
       if (note) {
         const status = side === "attackers" ? battleStatus[0] : battleStatus[1];
         const losses = r.a ? Math.abs(sum(Object.values(r.casualties) as number[])) / r.a : 1;
@@ -923,39 +930,39 @@ class Battle {
           .map((t: string) => (r.casualties[t] ? `${Math.abs(r.casualties[t])} ${t}` : null))
           .filter((c: string | null) => c);
         const casualtiesText = casualties.length ? ` Casualties: ${list(casualties as string[])}.` : "";
-        const legend = `\r\n\r\n${battleName} (${options.year} ${options.eraShort}): ${status}. The regiment ${regStatus}.${casualtiesText}`;
+        const legend = `\r\n\r\n${battleName} (${worldContext.options.year} ${worldContext.options.eraShort}): ${status}. The regiment ${regStatus}.${casualtiesText}`;
         note.legend += legend;
       }
 
       r.u = Object.assign({}, r.survivors);
       r.a = sum(Object.values(r.u) as number[]);
-      armies.select(`g#${id} > text`).text(Military.getTotal(r));
+      viewContext.armies.select(`g#${id} > text`).text(Military.getTotal(r));
 
       moveRegiment(worldContext, viewContext, appServices, r, r.px as number, r.py as number);
     }
 
-    const markerI = last(pack.markers)?.i + 1 || 0;
+    const markerI = last(worldContext.pack.markers)?.i + 1 || 0;
     {
       const marker = { i: markerI, x: this.x, y: this.y, cell: this.cell, icon: "⚔️", type: "battlefields", dy: 52 };
-      pack.markers.push(marker);
+      worldContext.pack.markers.push(marker);
       const markerHTML = drawMarker(worldContext, viewContext, appServices, marker);
       (document.getElementById("markers") as HTMLElement).insertAdjacentHTML("beforeend", markerHTML);
     }
 
     const getSide = (regs: BattleRegiment[], n: number) =>
       regs.length > 1
-        ? `${n ? "regiments" : "forces"} of ${list([...new Set(regs.map(r => pack.states[r.state].name))])}`
-        : `${getAdjective(pack.states[regs[0].state].name)} ${regs[0].name}`;
+        ? `${n ? "regiments" : "forces"} of ${list([...new Set(regs.map(r => worldContext.pack.states[r.state].name))])}`
+        : `${getAdjective(worldContext.pack.states[regs[0].state].name)} ${regs[0].name}`;
     const getLosses = (casualties: number) => Math.min(rn(casualties * 100), 100);
 
     const status = battleStatus[+P(0.7)];
     const result = `The ${this.getTypeName()} ended in ${status}`;
-    const legend = `${this.name} took place in ${options.year} ${options.eraShort}. It was fought between ${getSide(
+    const legend = `${this.name} took place in ${worldContext.options.year} ${worldContext.options.eraShort}. It was fought between ${getSide(
       this.attackers.regiments,
       1
     )} and ${getSide(this.defenders.regiments, 0)}. ${result}.
       \r\nAttackers losses: ${getLosses(this.attackers.casualties)}%, defenders losses: ${getLosses(this.defenders.casualties)}%`;
-    notes.push({ id: `marker${markerI}`, name: this.name, legend });
+    worldContext.notes.push({ id: `marker${markerI}`, name: this.name, legend });
 
     tip(`${this.name} is over. ${result}`, true, "success", 4000);
 
@@ -977,7 +984,7 @@ class Battle {
 
   cleanData(): void {
     battleAttackers.innerHTML = battleDefenders.innerHTML = "";
-    customization = 0;
+    viewContext.customization = 0;
 
     this.attackers.regiments.concat(this.defenders.regiments).forEach(r => {
       delete r.px;
@@ -989,18 +996,6 @@ class Battle {
   }
 }
 
-window.Battle = Battle;
-
 export type { Battle, BattleRegiment };
 
-declare global {
-  interface Window {
-    Battle: new (attacker: BattleRegiment, defender: BattleRegiment) => Battle;
-  }
-}
-
-export function initBattleScreen(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {
-  worldContext = wc;
-  viewContext = vc;
-  appServices = as;
-}
+export function initBattleScreen(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {}

@@ -1,30 +1,38 @@
 import { drag, pointer } from "d3";
+import { zoomTo } from "../actions";
 import { appServices } from "../context/appServices";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
+import { confirmationDialog, unselect } from "../controllers/editors";
 import { interactionManager } from "../controllers/interactionManager";
+import { layerIsOn, toggleBurgIcons, toggleCells, toggleLabels } from "../controllers/layers";
+import { editStyle } from "../controllers/style";
+import { showBurgTemperatureGraph } from "../controllers/temperature-graph";
 import type { Burg } from "../modules/burgs-generator";
 import { Burgs } from "../modules/burgs-generator";
 import type { Culture } from "../modules/cultures-generator";
 import { COArenderer } from "../modules/emblem/renderer";
+import { Names } from "../modules/names-generator";
 import { drawBurgIcon, drawBurgLabel } from "../renderers";
-import { closeDialog, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
+import { closeDialog, closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { convertTemperature, ensureEl, findCell, openURL, parseTransform, rand, rn, showPrompt } from "../utils";
+import { alertMessage } from "../utils/alertMessageEl";
+import { clearMainTip, getHeight, tip } from "../utils/uiHelpers";
 import { editBurgGroups } from "./burg-group-editor";
 import { editEmblem } from "./emblems-editor";
 import { editNotes } from "./notes-editor";
 
 export function editBurg(id?: number): void {
-  if (customization) return;
+  if (viewContext.customization) return;
   closeDialogs(".stable");
   if (!layerIsOn("toggleBurgIcons")) toggleBurgIcons();
   if (!layerIsOn("toggleLabels")) toggleLabels();
 
   const burg = id;
-  elSelected = burgLabels.select(`[data-id='${burg}']`);
+  elSelected = viewContext.burgLabels.select(`[data-id='${burg}']`);
   let _bdx = 0,
     _bdy = 0;
-  burgLabels
+  viewContext.burgLabels
     .selectAll<SVGTextElement, unknown>("text")
     .call(
       drag<SVGTextElement, unknown>()
@@ -88,40 +96,40 @@ export function editBurg(id?: number): void {
   function updateGroupsList(): void {
     const burgGroupSelect = ensureEl("burgGroup") as HTMLSelectElement;
     burgGroupSelect.options.length = 0;
-    for (const { name } of options.burgs.groups) {
+    for (const { name } of worldContext.options.burgs.groups) {
       burgGroupSelect.options.add(new Option(name, name));
     }
   }
 
   function updateBurgValues(): void {
     const burgId = +elSelected!.attr("data-id");
-    const b = pack.burgs[burgId];
-    const province = pack.cells.province[b.cell];
-    const provinceName = province ? `${pack.provinces[province].fullName}, ` : "";
-    const stateName = pack.states[b.state!].fullName || pack.states[b.state!].name;
+    const b = worldContext.pack.burgs[burgId];
+    const province = worldContext.pack.cells.province[b.cell];
+    const provinceName = province ? `${worldContext.pack.provinces[province].fullName}, ` : "";
+    const stateName = worldContext.pack.states[b.state!].fullName || worldContext.pack.states[b.state!].name;
     (ensureEl("burgProvinceAndState") as HTMLElement).innerHTML = provinceName + stateName;
 
     (ensureEl("burgName") as HTMLInputElement).value = b.name ?? "";
     (ensureEl("burgGroup") as HTMLSelectElement).value = b.group ?? "";
     (ensureEl("burgType") as HTMLSelectElement).value = b.type || "Generic";
     (ensureEl("burgPopulation") as HTMLInputElement).value = String(
-      rn((b.population ?? 0) * populationRate * urbanization)
+      rn((b.population ?? 0) * worldContext.populationRate * worldContext.urbanization)
     );
     (ensureEl("burgEditAnchorStyle") as HTMLElement).style.display = +(b.port ?? 0) ? "inline-block" : "none";
 
     // update list and select culture
     const cultureSelect = ensureEl("burgCulture") as HTMLSelectElement;
     cultureSelect.options.length = 0;
-    const cultures = pack.cultures.filter((c: Culture) => !c.removed);
+    const cultures = worldContext.pack.cultures.filter((c: Culture) => !c.removed);
     cultures.forEach((c: Culture) => {
       cultureSelect.options.add(new Option(c.name, String(c.i), false, c.i === b.culture));
     });
 
-    const temperature = grid.cells.temp[pack.cells.g[b.cell]];
+    const temperature = worldContext.grid.cells.temp[worldContext.pack.cells.g[b.cell]];
     (ensureEl("burgTemperature") as HTMLElement).innerHTML = convertTemperature(temperature);
     (ensureEl("burgTemperatureLikeIn") as HTMLElement).dataset.tip =
       `Average yearly temperature is like in ${getTemperatureLikeness(temperature)}`;
-    (ensureEl("burgElevation") as HTMLElement).innerHTML = getHeight(pack.cells.h[b.cell]);
+    (ensureEl("burgElevation") as HTMLElement).innerHTML = getHeight(worldContext.pack.cells.h[b.cell]);
 
     // toggle features
     (ensureEl("burgCapital") as HTMLElement).classList.toggle("inactive", !b.capital);
@@ -144,12 +152,12 @@ export function editBurg(id?: number): void {
 
   function changeName(this: HTMLInputElement): void {
     const burgId = +elSelected!.attr("data-id");
-    pack.burgs[burgId].name = this.value;
+    worldContext.pack.burgs[burgId].name = this.value;
     elSelected!.text(this.value);
   }
 
   function generateNameRandom(): void {
-    const base = rand(nameBases.length - 1);
+    const base = rand(worldContext.nameBases.length - 1);
     const nameInput = ensureEl("burgName") as HTMLInputElement;
     nameInput.value = Names.getBase(base);
     changeName.call(nameInput);
@@ -157,7 +165,7 @@ export function editBurg(id?: number): void {
 
   function changeGroup(this: HTMLSelectElement): void {
     const burgId = +elSelected!.attr("data-id");
-    const burg = pack.burgs[burgId];
+    const burg = worldContext.pack.burgs[burgId];
     Burgs.changeGroup(burg, this.value);
     drawBurgIcon(worldContext, viewContext, appServices, burg);
     drawBurgLabel(worldContext, viewContext, appServices, burg);
@@ -165,17 +173,17 @@ export function editBurg(id?: number): void {
 
   function changeType(this: HTMLSelectElement): void {
     const burgId = +elSelected!.attr("data-id");
-    pack.burgs[burgId].type = this.value;
+    worldContext.pack.burgs[burgId].type = this.value;
   }
 
   function changeCulture(this: HTMLSelectElement): void {
     const burgId = +elSelected!.attr("data-id");
-    pack.burgs[burgId].culture = +this.value;
+    worldContext.pack.burgs[burgId].culture = +this.value;
   }
 
   function generateNameCulture(): void {
     const burgId = +elSelected!.attr("data-id");
-    const culture = pack.burgs[burgId].culture;
+    const culture = worldContext.pack.burgs[burgId].culture;
     const nameInput = ensureEl("burgName") as HTMLInputElement;
     nameInput.value = Names.getCulture(culture ?? 0);
     changeName.call(nameInput);
@@ -183,15 +191,18 @@ export function editBurg(id?: number): void {
 
   function changePopulation(this: HTMLInputElement): void {
     const burgId = +elSelected!.attr("data-id");
-    const burg = pack.burgs[burgId];
+    const burg = worldContext.pack.burgs[burgId];
 
-    pack.burgs[burgId].population = rn(+this.value / populationRate / urbanization, 4);
+    worldContext.pack.burgs[burgId].population = rn(
+      +this.value / worldContext.populationRate / worldContext.urbanization,
+      4
+    );
     updateBurgPreview(burg);
   }
 
   function toggleFeature(this: HTMLElement): void {
     const burgId = +elSelected!.attr("data-id");
-    const burg = pack.burgs[burgId];
+    const burg = worldContext.pack.burgs[burgId];
 
     const feature = this.dataset.feature!;
     const value = Number(this.classList.contains("inactive"));
@@ -207,19 +218,19 @@ export function editBurg(id?: number): void {
   }
 
   function togglePort(burgId: number): void {
-    const burg = pack.burgs[burgId];
+    const burg = worldContext.pack.burgs[burgId];
     if (burg.port) {
       burg.port = 0;
 
       const anchor = document.querySelector(`#anchors [data-id='${burgId}']`);
       if (anchor) anchor.remove();
     } else {
-      const haven = pack.cells.haven[burg.cell];
+      const haven = worldContext.pack.cells.haven[burg.cell];
       if (!haven) tip("Port haven is not found, system won't be able to make a searoute", false, "warn");
-      const portFeature = haven ? pack.cells.f[haven] : -1;
+      const portFeature = haven ? worldContext.pack.cells.f[haven] : -1;
       burg.port = portFeature;
 
-      anchors
+      viewContext.anchors
         .select(`#${burg.group}`)
         .append("use")
         .attr("href", "#icon-anchor")
@@ -231,7 +242,7 @@ export function editBurg(id?: number): void {
   }
 
   function toggleCapital(burgId: number): void {
-    const { burgs, states } = pack;
+    const { burgs, states } = worldContext.pack;
 
     if (burgs[burgId].capital) {
       tip("To change capital please assign a capital status to another burg of this state", false, "error");
@@ -263,7 +274,7 @@ export function editBurg(id?: number): void {
 
   function toggleBurgLockButton(): void {
     const burgId = +elSelected!.attr("data-id");
-    const burg = pack.burgs[burgId];
+    const burg = worldContext.pack.burgs[burgId];
     burg.lock = !burg.lock;
 
     updateBurgLockIcon();
@@ -271,7 +282,7 @@ export function editBurg(id?: number): void {
 
   function updateBurgLockIcon(): void {
     const burgId = +elSelected!.attr("data-id");
-    const b = pack.burgs[burgId];
+    const b = worldContext.pack.burgs[burgId];
     const lockBtn = ensureEl("burgLock") as HTMLElement;
     if (b.lock) {
       lockBtn.classList.remove("icon-lock-open");
@@ -336,14 +347,14 @@ export function editBurg(id?: number): void {
 
   function openBurgLink(): void {
     const burgId = +elSelected!.attr("data-id");
-    const burg = pack.burgs[burgId];
+    const burg = worldContext.pack.burgs[burgId];
     const link = Burgs.getPreview(burg).link;
     if (link) openURL(link);
   }
 
   function setCustomPreview(): void {
     const burgId = +elSelected!.attr("data-id");
-    const burg = pack.burgs[burgId];
+    const burg = worldContext.pack.burgs[burgId];
 
     showPrompt(
       "Provide custom URL to the burg map. It can be a link to a generator or just an image. Leave empty to use the default map preview",
@@ -359,13 +370,13 @@ export function editBurg(id?: number): void {
 
   function openEmblemEdit(): void {
     const burgId = +elSelected!.attr("data-id");
-    const burg = pack.burgs[burgId];
+    const burg = worldContext.pack.burgs[burgId];
     editEmblem!("burg", `burgCOA${burgId}`, burg);
   }
 
   function zoomIntoBurg(): void {
     const burgId = +elSelected!.attr("data-id");
-    const burg = pack.burgs[burgId];
+    const burg = worldContext.pack.burgs[burgId];
     const x = burg.x;
     const y = burg.y;
     zoomTo(x, y, 8, 2000);
@@ -375,7 +386,7 @@ export function editBurg(id?: number): void {
     const toggler = ensureEl("toggleCells") as HTMLElement;
     (ensureEl("burgRelocate") as HTMLElement).classList.toggle("pressed");
     if ((ensureEl("burgRelocate") as HTMLElement).classList.contains("pressed")) {
-      viewbox.style("cursor", "crosshair");
+      viewContext.viewbox.style("cursor", "crosshair");
       interactionManager.setClickHandler(relocateBurgOnClick);
       tip("Click on map to relocate burg. Hold Shift for continuous move", true);
       if (!layerIsOn("toggleCells")) {
@@ -385,7 +396,7 @@ export function editBurg(id?: number): void {
     } else {
       clearMainTip();
       interactionManager.resetClickHandler();
-      viewbox.style("cursor", "default");
+      viewContext.viewbox.style("cursor", "default");
       if (layerIsOn("toggleCells") && toggler.dataset.forced) {
         toggleCells();
         toggler.dataset.forced = "false";
@@ -394,11 +405,11 @@ export function editBurg(id?: number): void {
   }
 
   function relocateBurgOnClick(this: SVGElement, event: MouseEvent): void {
-    const cells = pack.cells;
+    const cells = worldContext.pack.cells;
     const pt = pointer(event, this) as [number, number];
     const cellId = findCell(pt[0], pt[1]);
     const burgId = +elSelected!.attr("data-id");
-    const burg = pack.burgs[burgId];
+    const burg = worldContext.pack.burgs[burgId];
 
     if (cells.h[cellId] < 20) {
       tip("Cannot place burg into the water! Select a land cell", false, "error");
@@ -420,10 +431,10 @@ export function editBurg(id?: number): void {
     const x = rn(pt[0], 2);
     const y = rn(pt[1], 2);
 
-    burgIcons.select(`#burg${burgId}`).attr("x", x).attr("y", y);
-    burgLabels.select(`#burgLabel${burgId}`).attr("transform", null).attr("x", x).attr("y", y);
+    viewContext.burgIcons.select(`#burg${burgId}`).attr("x", x).attr("y", y);
+    viewContext.burgLabels.select(`#burgLabel${burgId}`).attr("transform", null).attr("x", x).attr("y", y);
 
-    const anchor = anchors.select(`use[data-id='${burgId}']`);
+    const anchor = viewContext.anchors.select(`use[data-id='${burgId}']`);
     if (anchor.size()) {
       const size = anchor.attr("width");
       const xa = rn(x - +size * 0.47, 2);
@@ -438,7 +449,7 @@ export function editBurg(id?: number): void {
     burg.state = newState;
     burg.x = x;
     burg.y = y;
-    if (burg.capital) pack.states[newState].center = burg.cell;
+    if (burg.capital) worldContext.pack.states[newState].center = burg.cell;
 
     if (event.shiftKey === false) toggleRelocateBurg();
   }
@@ -456,12 +467,12 @@ export function editBurg(id?: number): void {
 
   function removeSelectedBurg(): void {
     const burgId = +elSelected!.attr("data-id");
-    const burg = pack.burgs[burgId];
+    const burg = worldContext.pack.burgs[burgId];
 
     if (burg.capital) {
       alertMessage.innerHTML = /* html */ `You cannot remove the capital. You must change the state capital first`;
       openRichDialog({
-        content: window.alertMessage.innerHTML,
+        content: alertMessage.innerHTML,
         resizable: false,
         title: "Remove burg",
         buttons: {
@@ -485,7 +496,7 @@ export function editBurg(id?: number): void {
 
   function closeBurgEditor(): void {
     (ensureEl("burgRelocate") as HTMLElement).classList.remove("pressed");
-    burgLabels
+    viewContext.burgLabels
       .selectAll("text")
       .call(
         drag().on("drag", null) as unknown as (

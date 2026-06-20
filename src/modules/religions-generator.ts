@@ -21,6 +21,7 @@ import {
   rw,
   trimVowels
 } from "../utils";
+import { Names } from "./names-generator";
 import { Routes } from "./routes-generator";
 
 interface ReligionBase {
@@ -706,7 +707,7 @@ class ReligionsModule {
       }
 
       // min distance between religion inceptions
-      const spacing = (graphWidth + graphHeight) / 2 / desiredReligionNumber;
+      const spacing = (worldContext.graphWidth + worldContext.graphHeight) / 2 / desiredReligionNumber;
 
       for (const cellId of candidateCells) {
         const [x, y] = cells.p[cellId];

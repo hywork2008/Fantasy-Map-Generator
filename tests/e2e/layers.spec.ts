@@ -1,4 +1,5 @@
 import { Browser, BrowserContext, expect, Page, test } from '@playwright/test'
+import { waitForMapGeneration } from './helpers/fmg-helpers'
 
 // All tests in this describe block only READ the DOM — they never modify state.
 // Load the map once for the entire suite instead of before every test.
@@ -23,9 +24,8 @@ test.describe('map layers', () => {
     // - Snapshots are OS-independent (configured in playwright.config.ts).
     await sharedPage.goto('/?seed=test-seed&&width=1280&height=720')
 
-    // Wait for map generation to complete by checking window.mapId
-    // mapId is exposed on window at the very end of showStatistics()
-    await sharedPage.waitForFunction(() => (window as any).mapId !== undefined, { timeout: 60000 })
+    // Wait for map generation to complete
+    await waitForMapGeneration(sharedPage)
 
     // Additional wait for any rendering/animations to settle
     await sharedPage.waitForTimeout(500)

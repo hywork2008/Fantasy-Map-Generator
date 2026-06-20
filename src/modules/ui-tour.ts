@@ -1,5 +1,8 @@
 import { driver } from "driver.js";
+import { closeDialogs } from "../ui/dialogs/dialogService";
 import "driver.js/dist/driver.css";
+import { showExportPane } from "../controllers/options";
+import { editWorld } from "../controllers/world-configurator";
 
 const byId = (id: string) => document.getElementById(id);
 

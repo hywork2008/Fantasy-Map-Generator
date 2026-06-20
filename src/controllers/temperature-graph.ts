@@ -10,14 +10,16 @@ import {
   select,
   timeFormat
 } from "d3";
+import { worldContext } from "../context/worldContext";
 import { openRichDialog } from "../ui/dialogs/dialogService";
 import { convertTemperature, rn, round } from "../utils";
+import { tip } from "../utils/uiHelpers";
 
-function showBurgTemperatureGraph(id: number): void {
-  const b = pack.burgs[id];
-  const lat = mapCoordinates.latN! - (b.y / graphHeight) * mapCoordinates.latT!;
-  const burgTemp = grid.cells.temp[pack.cells.g[b.cell]];
-  const prec = grid.cells.prec[pack.cells.g[b.cell]];
+export function showBurgTemperatureGraph(id: number): void {
+  const b = worldContext.pack.burgs[id];
+  const lat = worldContext.mapCoordinates.latN! - (b.y / worldContext.graphHeight) * worldContext.mapCoordinates.latT!;
+  const burgTemp = worldContext.grid.cells.temp[worldContext.pack.cells.g[b.cell]];
+  const prec = worldContext.grid.cells.prec[worldContext.pack.cells.g[b.cell]];
 
   // prettier-ignore
   const weights = [
@@ -252,5 +254,3 @@ function showBurgTemperatureGraph(id: number): void {
     }
   });
 }
-
-window.showBurgTemperatureGraph = showBurgTemperatureGraph;

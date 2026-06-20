@@ -9,8 +9,10 @@ import { removeBurgIcon, removeBurgLabel } from "../renderers";
 import { useOptionsState } from "../store/optionsState";
 import type { WorldState } from "../types/WorldState";
 import { each, findCell, gauss, minmax, normalize, P, rn } from "../utils";
+import { tip } from "../utils/uiHelpers";
 import { COA } from "./emblem/generator";
 import { COArenderer } from "./emblem/renderer";
+import { Names } from "./names-generator";
 import type { Route } from "./routes-generator";
 import { Routes } from "./routes-generator";
 
@@ -167,7 +169,7 @@ class BurgModule {
       const sorted = populatedCells.sort((a, b) => score[b] - score[a]);
 
       const capitalsNumber = getCapitalsNumber();
-      let spacing = (graphWidth + graphHeight) / 2 / capitalsNumber; // min distance between capitals
+      let spacing = (worldContext.graphWidth + worldContext.graphHeight) / 2 / capitalsNumber; // min distance between capitals
 
       for (let i = 0; burgs.length <= capitalsNumber; i++) {
         const cell = sorted[i];
@@ -206,7 +208,7 @@ class BurgModule {
       const sorted = populatedCells.sort((a, b) => score[b] - score[a]);
 
       const burgsNumber = getTownsNumber();
-      let spacing = (graphWidth + graphHeight) / 150 / (burgsNumber ** 0.7 / 66); // min distance between town
+      let spacing = (worldContext.graphWidth + worldContext.graphHeight) / 150 / (burgsNumber ** 0.7 / 66); // min distance between town
 
       for (let added = 0; added < burgsNumber && spacing > 1; ) {
         for (let i = 0; added < burgsNumber && i < sorted.length; i++) {
@@ -493,7 +495,7 @@ class BurgModule {
     const { i, name, population: burgPopulation, cell } = burg;
     const burgSeed = String(burg.MFCG ?? seed + String(burg.i).padStart(4, "0"));
 
-    const sizeRaw = 2.13 * ((burgPopulation! * populationRate) / urbanDensity) ** 0.385;
+    const sizeRaw = 2.13 * ((burgPopulation! * populationRate) / worldContext.urbanDensity) ** 0.385;
     const size = minmax(Math.ceil(sizeRaw), 6, 100);
     const population = rn(burgPopulation! * populationRate * urbanization);
 
@@ -720,7 +722,7 @@ class BurgModule {
 
     if (burg.coa) {
       viewContext.defs.select(`#burgCOA${burgId}`).remove();
-      emblems.select(`#burgEmblems > use[data-i='${burgId}']`).remove();
+      viewContext.emblems.select(`#burgEmblems > use[data-i='${burgId}']`).remove();
       delete burg.coa;
     }
 

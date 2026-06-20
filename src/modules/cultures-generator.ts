@@ -11,7 +11,9 @@ import type { PackedGraph } from "../types/PackedGraph";
 import type { WorldState } from "../types/WorldState";
 import { openRichDialog } from "../ui/dialogs/dialogService";
 import { abbreviate, biased, ensureEl, getColors, getRandomColor, minmax, P, rand, rn, rw } from "../utils";
+import { alertMessage } from "../utils/alertMessageEl";
 import { COA } from "./emblem/generator";
+import { Names } from "./names-generator";
 
 export interface Culture {
   name: string;
@@ -1112,7 +1114,7 @@ class CulturesModule {
     const codes: string[] = [];
 
     const placeCenter = (sortingFn: (i: number) => number) => {
-      let spacing = (graphWidth + graphHeight) / 2 / count;
+      let spacing = (worldContext.graphWidth + worldContext.graphHeight) / 2 / count;
       const MAX_ATTEMPTS = 100;
 
       const sorted = [...populated].sort((a, b) => sortingFn(b) - sortingFn(a));

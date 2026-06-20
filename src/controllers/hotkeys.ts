@@ -1,7 +1,65 @@
+import { resetZoom } from "../actions";
+import { viewContext } from "../context/viewContext";
+import { editBiomes } from "../editors/biomes-editor";
+import { editDiplomacy } from "../editors/diplomacy-editor";
+import { editHeightmap } from "../editors/heightmap-editor";
 import { NamesbaseEditor } from "../editors/namesbase-editor";
 import { editNotes } from "../editors/notes-editor";
+import { editProvinces } from "../editors/provinces-editor";
 import { createRoute } from "../editors/routes-editor";
+import { editUnits } from "../editors/units-editor";
+import { editZones } from "../editors/zones-editor";
+import { quickLoad } from "../io/load";
+import { saveMap, toggleSaveReminder } from "../io/save";
+import { closeDialogs } from "../ui/dialogs/dialogService";
 import { ensureEl, minmax } from "../utils";
+import { showInfo } from "../utils/uiHelpers";
+import { overviewBurgs } from "./burgs-overview";
+import { editCoastlineSettings, editCultures, editReligions, editStates } from "./editors";
+import {
+  toggleBiomes,
+  toggleBorders,
+  toggleBurgIcons,
+  toggleCells,
+  toggleCompass,
+  toggleCoordinates,
+  toggleCultures,
+  toggleEmblems,
+  toggleGrid,
+  toggleHeight,
+  toggleIce,
+  toggleLabels,
+  toggleLakes,
+  toggleMarkers,
+  toggleMilitary,
+  togglePopulation,
+  togglePrecipitation,
+  toggleProvinces,
+  toggleRelief,
+  toggleReligions,
+  toggleRivers,
+  toggleRoutes,
+  toggleRulers,
+  toggleScaleBar,
+  toggleStates,
+  toggleTemperature,
+  toggleTexture,
+  toggleVignette,
+  toggleZones
+} from "./layers";
+import { overviewMarkers } from "./markers-overview";
+import { overviewMilitary } from "./military-overview";
+import { hideOptions, regeneratePrompt, toggle3dOptions, toggleOptions } from "./options";
+import { overviewRivers } from "./rivers-overview";
+import { overviewRoutes } from "./routes-overview";
+import {
+  openEmblemEditor,
+  overviewCharts,
+  toggleAddBurg,
+  toggleAddLabel,
+  toggleAddRiver,
+  viewCellDetails
+} from "./tools";
 
 export function initHotkeys(): void {
   document.addEventListener("keydown", handleKeydown);
@@ -39,8 +97,8 @@ function handleKeyup(event: KeyboardEvent): void {
   else if (ctrl && code === "KeyQ") toggleSaveReminder();
   else if (ctrl && code === "KeyS") saveMap("machine");
   else if (ctrl && code === "KeyC") saveMap("dropbox");
-  else if (ctrl && code === "KeyZ" && undo?.offsetParent) undo.click();
-  else if (ctrl && code === "KeyY" && redo?.offsetParent) redo.click();
+  else if (ctrl && code === "KeyZ") (document.getElementById("undo") as HTMLButtonElement | null)?.click();
+  else if (ctrl && code === "KeyY") (document.getElementById("redo") as HTMLButtonElement | null)?.click();
   // Block editing shortcuts in 3D mode
   else if (
     document.getElementById("canvas3d") !== null &&
@@ -75,7 +133,7 @@ function handleKeyup(event: KeyboardEvent): void {
   else if (key === "@") toggleAddLabel();
   else if (key === "#") toggleAddRiver();
   else if (key === "$") createRoute();
-  else if (key === "%") toggleAddMarker();
+  else if (key === "%") (document.getElementById("addMarker") as HTMLButtonElement | null)?.click();
   else if (code === "KeyX") toggleTexture();
   else if (code === "KeyH") toggleHeight();
   else if (code === "KeyQ") toggleLakes();
@@ -102,25 +160,25 @@ function handleKeyup(event: KeyboardEvent): void {
   else if (code === "KeyI") toggleBurgIcons();
   else if (code === "KeyM") toggleMilitary();
   else if (code === "KeyK") toggleMarkers();
-  else if (code === "Equal" && !customization) toggleRulers();
+  else if (code === "Equal" && !viewContext.customization) toggleRulers();
   else if (code === "Slash") toggleScaleBar();
   else if (code === "BracketLeft" && !handleBracketSizeChange(code)) toggleVignette();
   else if (code === "BracketRight") handleBracketSizeChange(code);
-  else if (code === "ArrowLeft") zoom.translateBy(svg, 10, 0);
-  else if (code === "ArrowRight") zoom.translateBy(svg, -10, 0);
-  else if (code === "ArrowUp") zoom.translateBy(svg, 0, 10);
-  else if (code === "ArrowDown") zoom.translateBy(svg, 0, -10);
+  else if (code === "ArrowLeft") viewContext.zoom.translateBy(viewContext.svg, 10, 0);
+  else if (code === "ArrowRight") viewContext.zoom.translateBy(viewContext.svg, -10, 0);
+  else if (code === "ArrowUp") viewContext.zoom.translateBy(viewContext.svg, 0, 10);
+  else if (code === "ArrowDown") viewContext.zoom.translateBy(viewContext.svg, 0, -10);
   else if (key === "+" || key === "-" || key === "=") handleSizeChange(key);
   else if (key === "0") resetZoom(1000);
-  else if (key === "1") zoom.scaleTo(svg, 1);
-  else if (key === "2") zoom.scaleTo(svg, 2);
-  else if (key === "3") zoom.scaleTo(svg, 3);
-  else if (key === "4") zoom.scaleTo(svg, 4);
-  else if (key === "5") zoom.scaleTo(svg, 5);
-  else if (key === "6") zoom.scaleTo(svg, 6);
-  else if (key === "7") zoom.scaleTo(svg, 7);
-  else if (key === "8") zoom.scaleTo(svg, 8);
-  else if (key === "9") zoom.scaleTo(svg, 9);
+  else if (key === "1") viewContext.zoom.scaleTo(viewContext.svg, 1);
+  else if (key === "2") viewContext.zoom.scaleTo(viewContext.svg, 2);
+  else if (key === "3") viewContext.zoom.scaleTo(viewContext.svg, 3);
+  else if (key === "4") viewContext.zoom.scaleTo(viewContext.svg, 4);
+  else if (key === "5") viewContext.zoom.scaleTo(viewContext.svg, 5);
+  else if (key === "6") viewContext.zoom.scaleTo(viewContext.svg, 6);
+  else if (key === "7") viewContext.zoom.scaleTo(viewContext.svg, 7);
+  else if (key === "8") viewContext.zoom.scaleTo(viewContext.svg, 8);
+  else if (key === "9") viewContext.zoom.scaleTo(viewContext.svg, 9);
   else if (ctrl) toggleMode();
 }
 
@@ -163,7 +221,7 @@ function handleSizeChange(key: string): void {
   }
 
   const scaleBy = key === "+" ? 1.2 : 0.8;
-  zoom.scaleBy(svg, scaleBy);
+  viewContext.zoom.scaleBy(viewContext.svg, scaleBy);
 }
 
 function handleBracketSizeChange(code: string): boolean {
@@ -187,6 +245,7 @@ function handleBracketSizeChange(code: string): boolean {
 }
 
 function toggleMode(): void {
+  const zonesRemove = document.getElementById("zonesRemove");
   if (zonesRemove?.offsetParent) {
     zonesRemove.classList.contains("pressed")
       ? zonesRemove.classList.remove("pressed")
@@ -216,43 +275,3 @@ function closeAllDialogs(): void {
   closeDialogs();
   hideOptions();
 }
-
-// ─── Legacy globals (from non-migrated JS files) ──────────────────────────────
-
-declare const zoom: {
-  translateBy: (selection: unknown, dx: number, dy: number) => unknown;
-  scaleTo: (selection: unknown, scale: number) => unknown;
-  scaleBy: (selection: unknown, factor: number) => unknown;
-};
-declare const hideOptions: () => void;
-declare const toggleOptions: (event: Event) => void;
-declare const regeneratePrompt: () => void;
-declare const toggle3dOptions: () => void;
-declare const zonesRemove: HTMLButtonElement | null;
-declare const undo: HTMLButtonElement | null;
-declare const redo: HTMLButtonElement | null;
-declare const resetZoom: (duration?: number) => void;
-
-// Editor openers (from editors.js - not yet migrated)
-declare const editHeightmap: () => void;
-declare const editBiomes: () => void;
-declare const editStates: () => void;
-declare const editProvinces: () => void;
-declare const editDiplomacy: () => void;
-declare const editCoastlineSettings: () => void;
-declare const editCultures: () => void;
-declare const editZones: () => void;
-declare const editReligions: () => void;
-declare const openEmblemEditor: () => void;
-declare const overviewCharts: () => void;
-declare const overviewBurgs: () => void;
-declare const overviewRoutes: () => void;
-declare const overviewRivers: () => void;
-declare const overviewMilitary: () => void;
-declare const overviewMarkers: () => void;
-declare const viewCellDetails: () => void;
-declare const toggleAddBurg: () => void;
-declare const toggleAddLabel: () => void;
-declare const toggleAddRiver: () => void;
-declare const toggleAddMarker: () => void;
-declare const showInfo: () => void;

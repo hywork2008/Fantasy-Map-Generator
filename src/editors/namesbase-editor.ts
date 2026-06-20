@@ -1,6 +1,12 @@
 import { max as d3max, min as d3min, mean, median } from "d3";
-import { openDialog, openRichDialog } from "../ui/dialogs/dialogService";
+import { viewContext } from "../context/viewContext";
+import { worldContext } from "../context/worldContext";
+import { downloadFile, getFileName, uploadFile } from "../controllers/editors";
+import { Names } from "../modules/names-generator";
+import { closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, openURL, rn, unique } from "../utils";
+import { alertMessage } from "../utils/alertMessageEl";
+import { speak, tip } from "../utils/uiHelpers";
 
 const unsafe = /[|/]/g;
 
@@ -23,7 +29,7 @@ class NamesbaseEditorModule {
   }
 
   open(): void {
-    if (customization) return;
+    if (viewContext.customization) return;
     closeDialogs("#namesbaseEditor, .stable");
 
     this.createBasesList();
@@ -82,22 +88,22 @@ class NamesbaseEditorModule {
   private createBasesList(): void {
     const select = ensureEl<HTMLSelectElement>("namesbaseSelect");
     select.innerHTML = "";
-    nameBases.forEach((b, i) => {
+    worldContext.nameBases.forEach((b, i) => {
       select.options.add(new Option(b.name, String(i)));
     });
   }
 
   private updateInputs(): void {
     const base = +ensureEl<HTMLSelectElement>("namesbaseSelect").value;
-    if (!nameBases[base]) {
+    if (!worldContext.nameBases[base]) {
       tip(`Namesbase ${base} is not defined`, false, "error");
       return;
     }
-    (ensureEl("namesbaseTextarea") as HTMLTextAreaElement).value = nameBases[base].b;
-    (ensureEl("namesbaseName") as HTMLInputElement).value = nameBases[base].name;
-    (ensureEl("namesbaseMin") as HTMLInputElement).value = String(nameBases[base].min);
-    (ensureEl("namesbaseMax") as HTMLInputElement).value = String(nameBases[base].max);
-    (ensureEl("namesbaseDouble") as HTMLInputElement).value = nameBases[base].d;
+    (ensureEl("namesbaseTextarea") as HTMLTextAreaElement).value = worldContext.nameBases[base].b;
+    (ensureEl("namesbaseName") as HTMLInputElement).value = worldContext.nameBases[base].name;
+    (ensureEl("namesbaseMin") as HTMLInputElement).value = String(worldContext.nameBases[base].min);
+    (ensureEl("namesbaseMax") as HTMLInputElement).value = String(worldContext.nameBases[base].max);
+    (ensureEl("namesbaseDouble") as HTMLInputElement).value = worldContext.nameBases[base].d;
     this.updateExamples();
   }
 
@@ -124,7 +130,7 @@ class NamesbaseEditorModule {
       return;
     }
     const securedNamesData = input.value.replace(/[/|]/g, "");
-    nameBases[base].b = securedNamesData;
+    worldContext.nameBases[base].b = securedNamesData;
     input.value = securedNamesData;
     Names.updateChain(base);
   }
@@ -134,30 +140,30 @@ class NamesbaseEditorModule {
     const select = ensureEl<HTMLSelectElement>("namesbaseSelect");
     const name = rawName.replace(/[/|]/g, "");
     select.options[select.selectedIndex].innerHTML = name;
-    nameBases[base].name = name;
+    worldContext.nameBases[base].name = name;
   }
 
   private updateBaseMin(value: string): void {
     const base = +ensureEl<HTMLSelectElement>("namesbaseSelect").value;
-    if (+value > nameBases[base].max) {
+    if (+value > worldContext.nameBases[base].max) {
       tip("Minimal length cannot be greater than maximal", false, "error");
       return;
     }
-    nameBases[base].min = +value;
+    worldContext.nameBases[base].min = +value;
   }
 
   private updateBaseMax(value: string): void {
     const base = +ensureEl<HTMLSelectElement>("namesbaseSelect").value;
-    if (+value < nameBases[base].min) {
+    if (+value < worldContext.nameBases[base].min) {
       tip("Maximal length should be greater than minimal", false, "error");
       return;
     }
-    nameBases[base].max = +value;
+    worldContext.nameBases[base].max = +value;
   }
 
   private updateBaseDuplication(value: string): void {
     const base = +ensureEl<HTMLSelectElement>("namesbaseSelect").value;
-    nameBases[base].d = value;
+    worldContext.nameBases[base].d = value;
   }
 
   private analyzeNamesbase(): void {
@@ -227,7 +233,7 @@ class NamesbaseEditorModule {
     </div>`;
 
     openRichDialog({
-      content: window.alertMessage.innerHTML,
+      content: alertMessage.innerHTML,
       resizable: false,
       title: "Data Analysis",
       width: "auto",
@@ -241,10 +247,10 @@ class NamesbaseEditorModule {
   }
 
   private namesbaseAdd(): void {
-    const baseId = nameBases.length;
+    const baseId = worldContext.nameBases.length;
     const b =
       "This,is,an,example,of,name,base,showing,correct,format,It,should,have,at,least,one,hundred,names,separated,with,comma";
-    nameBases.push({
+    worldContext.nameBases.push({
       name: `Base${baseId}`,
       i: baseId,
       min: 5,
@@ -267,14 +273,14 @@ class NamesbaseEditorModule {
     alertMessage.innerHTML = /* html */ `Are you sure you want to restore default namesbase?`;
 
     openRichDialog({
-      content: window.alertMessage.innerHTML,
+      content: alertMessage.innerHTML,
       resizable: false,
       title: "Restore default data",
       buttons: {
         Restore: () => {
           /* $(this).dialog("close") removed */
           Names.clearChains();
-          nameBases = Names.getNameBases();
+          worldContext.nameBases = Names.getNameBases();
           this.createBasesList();
           this.updateInputs();
         },
@@ -286,7 +292,7 @@ class NamesbaseEditorModule {
   }
 
   private namesbaseDownload(): void {
-    const data = nameBases.map(b => `${b.name}|${b.min}|${b.max}|${b.d}|${b.m}|${b.b}`).join("\r\n");
+    const data = worldContext.nameBases.map(b => `${b.name}|${b.min}|${b.max}|${b.d}|${b.m}|${b.b}`).join("\r\n");
     const name = `${getFileName("Namesbase")}.txt`;
     downloadFile(data, name);
   }
@@ -302,7 +308,7 @@ class NamesbaseEditorModule {
     }
 
     Names.clearChains();
-    if (override) nameBases = [];
+    if (override) worldContext.nameBases = [];
 
     const errors: ParseError[] = [];
     lines.forEach((line, index) => {
@@ -312,9 +318,9 @@ class NamesbaseEditorModule {
         if (!name) throw new Error("Name is missing");
         const names = rawNames?.replace(unsafe, "");
         if (!names) throw new Error("Names are missing");
-        nameBases.push({
+        worldContext.nameBases.push({
           name,
-          i: nameBases.length,
+          i: worldContext.nameBases.length,
           min: +min,
           max: +max,
           d,
@@ -364,7 +370,7 @@ class NamesbaseEditorModule {
       </div>`;
 
       openRichDialog({
-        content: window.alertMessage.innerHTML,
+        content: alertMessage.innerHTML,
         resizable: false,
         title: "Parsing error",
         width: "min(72vw, 68em)",

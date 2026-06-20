@@ -11,8 +11,8 @@
 
 ### 主なタスク
 1. **3大コンテキストの型定義と実装**
-   - **`WorldContext`**: 世界の本質的データ (`pack`, `grid`, `seed`, `options` 等)。SVGやUIへの依存を持たない純粋なデータストア。
-   - **`ViewContext`**: SVGとD3セレクションの器 (`svg`, `layers`, `zoom` 等)。データを知らない純粋なビューコンテキスト。
+   - **`WorldContext`**: 世界の本質的データ (`pack`, `grid`, `seed`, `options`, `graphWidth`, `graphHeight` 等)。SVGやUIへの依存を持たない純粋なデータストア。`graphWidth`/`graphHeight` は `options.mapWidth`/`options.mapHeight` の等価物であり世界生成パラメータであるため、ブラウザリサイズで変化しないこの層に属する。
+   - **`ViewContext`**: SVGとD3セレクションの器 (`svg`, `layers`, `zoom`, `svgWidth`, `svgHeight` 等)。データを知らない純粋なビューコンテキスト。`svgWidth`/`svgHeight` は `Math.min(graphWidth, window.innerWidth)` であり、ブラウザウィンドウサイズに依存して変化する表示パラメータのためこの層に属する。D3レンダリングユーティリティ(`lineGen` 等) も同様にここに置く。
    - **`AppServices`**: 共通の純粋関数や状態管理 (`rng`, `history`, `storage` 等)。
 2. **各層への明示的な引数渡し (DI)**
    - `Generator` には `WorldContext` と `rng` のみを渡す。

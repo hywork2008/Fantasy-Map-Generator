@@ -3,11 +3,17 @@ import { MapControls } from "three/examples/jsm/controls/MapControls.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { OBJExporter } from "three/examples/jsm/exporters/OBJExporter.js";
 import { LoopSubdivision } from "three-subdivide";
+import { layerIsOn } from "./layers";
 
 THREE.ColorManagement.enabled = false;
 
 import { cloudImage } from "../assets/cloud-image";
+import { viewContext } from "../context/viewContext";
+import { worldContext } from "../context/worldContext";
+import { getMapURL } from "../io/export";
 import { rn, throttle } from "../utils";
+import { tip } from "../utils/uiHelpers";
+import { downloadFile, getFileName } from "./editors";
 
 interface ThreeDOptions {
   scale: number;
@@ -130,7 +136,13 @@ class ThreeDModule {
     this.scene!.remove(this.mesh!);
     this.Renderer!.setSize(this.Renderer!.domElement.width, this.Renderer!.domElement.height);
     if (this.options.isGlobe) this.updateGlobeTexure();
-    else this.createMesh(graphWidth, graphHeight, grid.cellsX, grid.cellsY);
+    else
+      this.createMesh(
+        worldContext.graphWidth,
+        worldContext.graphHeight,
+        worldContext.grid.cellsX,
+        worldContext.grid.cellsY
+      );
     this.render();
   }
 
@@ -222,7 +234,7 @@ class ThreeDModule {
       this.scene!.background = null;
       this.scene!.fog = null;
       this.scene!.remove(this.waterMesh!);
-    } else this.extendWater(graphWidth, graphHeight);
+    } else this.extendWater(worldContext.graphWidth, worldContext.graphHeight);
 
     this.options.extendedWater = this.options.extendedWater ? 0 : 1;
     this.redraw();
@@ -306,8 +318,13 @@ class ThreeDModule {
     this.Renderer.setSize(canvas.width, canvas.height);
     this.Renderer.shadowMap.enabled = true;
     this.Renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    if (this.options.extendedWater) this.extendWater(graphWidth, graphHeight);
-    this.createMesh(graphWidth, graphHeight, grid.cellsX, grid.cellsY);
+    if (this.options.extendedWater) this.extendWater(worldContext.graphWidth, worldContext.graphHeight);
+    this.createMesh(
+      worldContext.graphWidth,
+      worldContext.graphHeight,
+      worldContext.grid.cellsX,
+      worldContext.grid.cellsY
+    );
 
     this.camera = new THREE.PerspectiveCamera(70, canvas.width / canvas.height, 0.1, 2000);
     this.camera.position.set(0, 400, 500);
@@ -378,8 +395,8 @@ class ThreeDModule {
   }
 
   private get3dCoords(baseX: number, baseY: number): [number, number, number] {
-    const x = baseX - graphWidth / 2;
-    const z = baseY - graphHeight / 2;
+    const x = baseX - worldContext.graphWidth / 2;
+    const z = baseY - worldContext.graphHeight / 2;
 
     this.raycaster!.ray.origin.x = x;
     this.raycaster!.ray.origin.z = z;
@@ -392,7 +409,7 @@ class ThreeDModule {
     this.raycaster = new THREE.Raycaster();
     this.raycaster.set(new THREE.Vector3(0, 1000, 0), new THREE.Vector3(0, -1, 0));
 
-    const states = viewbox.select("#labels #states");
+    const states = viewContext.viewbox.select("#labels #states");
 
     const stateOptions = {
       font: states.attr("font-family"),
@@ -420,7 +437,7 @@ class ThreeDModule {
     } | null => {
       if (!burg.group) return null;
 
-      const labelGroup = burgLabels.select(`#${burg.group}`);
+      const labelGroup = viewContext.burgLabels.select(`#${burg.group}`);
       if (labelGroup.empty()) return null;
 
       const font = labelGroup.attr("font-family") || "Arial";
@@ -458,8 +475,8 @@ class ThreeDModule {
       return lineMaterials[groupName];
     };
 
-    for (let i = 1; i < pack.burgs.length; i++) {
-      const burg = pack.burgs[i];
+    for (let i = 1; i < worldContext.pack.burgs.length; i++) {
+      const burg = worldContext.pack.burgs[i];
       if (burg.removed) continue;
 
       const burgOptions = getBurgLabelOptions(burg);
@@ -495,8 +512,8 @@ class ThreeDModule {
     }
 
     if (layerIsOn("toggleLabels")) {
-      for (let i = 1; i < pack.states.length; i++) {
-        const state = pack.states[i];
+      for (let i = 1; i < worldContext.pack.states.length; i++) {
+        const state = worldContext.pack.states[i];
         if (state.removed) continue;
 
         const [x, y, z] = this.get3dCoords(state.pole![0], state.pole![1]);
@@ -543,7 +560,6 @@ class ThreeDModule {
     const url = await getMapURL("mesh", {
       noLabels: Boolean(this.options.labels3d),
       noWater: Boolean(this.options.extendedWater),
-      noViewbox: true,
       fullMap: true
     });
     const canvas = document.createElement("canvas");
@@ -570,9 +586,9 @@ class ThreeDModule {
 
   private async createMesh(width: number, height: number, segmentsX: number, segmentsY: number): Promise<void> {
     this.gridToPackCellMap = new Map();
-    if (pack.cells?.g && pack.cells?.i) {
-      for (const packCellIndex of pack.cells.i) {
-        const gridCellIndex = pack.cells.g[packCellIndex];
+    if (worldContext.pack.cells?.g && worldContext.pack.cells?.i) {
+      for (const packCellIndex of worldContext.pack.cells.i) {
+        const gridCellIndex = worldContext.pack.cells.g[packCellIndex];
         if (!this.gridToPackCellMap.has(gridCellIndex)) {
           this.gridToPackCellMap.set(gridCellIndex, packCellIndex);
         }
@@ -645,21 +661,21 @@ class ThreeDModule {
   private readonly DIVIDER = 100 - 18;
 
   private getMeshHeight(i: number): number {
-    const height = grid.cells.h[i];
+    const height = worldContext.grid.cells.h[i];
 
     let waterCellId: number | null = null;
     if (height < 20) {
       waterCellId = i;
-    } else if (grid.cells.c![i]) {
-      waterCellId = grid.cells.c![i].find((c: number) => grid.cells.h[c] < 20) ?? null;
+    } else if (worldContext.grid.cells.c![i]) {
+      waterCellId = worldContext.grid.cells.c![i].find((c: number) => worldContext.grid.cells.h[c] < 20) ?? null;
     }
 
     if (waterCellId !== null) {
       const packCellIndex = this.gridToPackCellMap!.get(waterCellId);
-      const featureId = pack.cells.f![packCellIndex!];
+      const featureId = worldContext.pack.cells.f![packCellIndex!];
       if (featureId === undefined) return 0;
 
-      const feature = pack.features![featureId];
+      const feature = worldContext.pack.features![featureId];
       const waterHeight = feature.type === "lake" && feature.height ? feature.height : 20;
       return ((waterHeight - this.LOWER_BY_WATER) / this.DIVIDER) * this.options.scale;
     }
@@ -727,15 +743,15 @@ class ThreeDModule {
   }
 
   private async updateGlobeTexure(addMesh?: boolean): Promise<void> {
-    const world = (mapCoordinates.latT || 0) > 179;
+    const world = (worldContext.mapCoordinates.latT || 0) > 179;
 
     const scale = this.options.resolution;
     const height = 512 * scale;
     const width = 1024 * scale;
 
-    const mapHeight = rn(((mapCoordinates.latT || 0) / 180) * height);
-    const mapWidth = world ? mapHeight * 2 : rn((graphWidth / graphHeight) * mapHeight);
-    const dy = world ? 0 : ((90 - (mapCoordinates.latN || 0)) / 180) * height;
+    const mapHeight = rn(((worldContext.mapCoordinates.latT || 0) / 180) * height);
+    const mapWidth = world ? mapHeight * 2 : rn((worldContext.graphWidth / worldContext.graphHeight) * mapHeight);
+    const dy = world ? 0 : ((90 - (worldContext.mapCoordinates.latN || 0)) / 180) * height;
     const dx = world ? 0 : mapWidth / 4;
 
     const ctx = document.createElement("canvas").getContext("2d") as CanvasRenderingContext2D;

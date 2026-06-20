@@ -2,9 +2,10 @@ import type * as d3 from "d3";
 import { appServices } from "../context/appServices";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
-import { fitMapToScreen } from "../controllers/options";
-import { addCustomColorScheme } from "../controllers/style";
-import { fitMapView, reinitializeMapLayers } from "../main";
+import { clearLegend, restoreDefaultEvents } from "../controllers/editors";
+import { getCurrentPreset, layerIsOn } from "../controllers/layers";
+import { addCustomColorScheme, updateTextureSelectValue } from "../controllers/style";
+import { editUnits } from "../editors/units-editor";
 import { Biomes } from "../modules/biomes";
 import { Burgs } from "../modules/burgs-generator";
 import { Features } from "../modules/features";
@@ -14,10 +15,14 @@ import type { River } from "../modules/river-generator";
 import { Routes } from "../modules/routes-generator";
 import { GridRenderer } from "../renderers";
 import { useOptionsState } from "../store/optionsState";
-import { openRichDialog } from "../ui/dialogs/dialogService";
+import { closeDialogs, openRichDialog } from "../ui/dialogs/dialogService";
 import { calculateVoronoi, ensureEl, findCell, last, link, minmax, parseError, rn } from "../utils";
+import { alertMessage } from "../utils/alertMessageEl";
 import { heightmapColorSchemes } from "../utils/colorUtils";
+import { applyOption, clearMainTip, tip } from "../utils/uiHelpers";
+import { cleanupData, compareVersions, isValidVersion, parseMapVersion, VERSION } from "../versioning";
 import { resolveVersionConflicts } from "./auto-update";
+import { ldb } from "./ldb";
 
 // ─── Quick load from browser storage ─────────────────────────────────────────
 
@@ -61,7 +66,7 @@ export async function createSharableDropboxLink(): Promise<void> {
 // ─── Load prompt (check for unsaved changes) ─────────────────────────────────
 
 export function loadMapPrompt(blob: Blob): void {
-  const workingTime = (Date.now() - last(mapHistory).created) / 60000;
+  const workingTime = (Date.now() - last(worldContext.mapHistory).created) / 60000;
   if (workingTime < 5) {
     loadLastSavedMap();
     return;
@@ -70,7 +75,7 @@ export function loadMapPrompt(blob: Blob): void {
   alertMessage.innerHTML = /* html */ `Are you sure you want to load saved map?<br />
     All unsaved changes made to the current map will be lost`;
   openRichDialog({
-    content: window.alertMessage.innerHTML,
+    content: alertMessage.innerHTML,
     resizable: false,
     title: "Load saved map",
     buttons: {
@@ -114,7 +119,7 @@ export async function loadMapFromURL(maplink: string, random: number): Promise<v
         ? "Cannot load map from URL: request timed out"
         : (error as Error).message;
     showUploadErrorMessage(message, maplink, random);
-    if (random) generateMapOnLoad();
+    if (random) document.dispatchEvent(new CustomEvent("fmg:generate-map-on-load"));
   } finally {
     clearTimeout(timeoutId);
   }
@@ -126,7 +131,7 @@ export function showUploadErrorMessage(error: string, maplink: string, random: n
     random ? `A new random map is generated. ` : ""
   } Please ensure the linked file is reachable and CORS is allowed on server side`;
   openRichDialog({
-    content: window.alertMessage.innerHTML,
+    content: alertMessage.innerHTML,
     title: "Loading error",
     width: "32em",
     buttons: {
@@ -193,7 +198,7 @@ export async function parseLoadedResult(
     const isDelimited = resultAsString.substring(0, 10).includes("|");
     let content = isDelimited ? resultAsString : decodeURIComponent(atob(resultAsString));
 
-    const svgMatch = content.match(/<svg[^>]*id="map"[\s\S]*?<\/svg>/);
+    const svgMatch = content.match(/<viewContext.svg[^>]*id="map"[\s\S]*?<\/viewContext.svg>/);
     const svgContent = svgMatch![0];
     if (svgContent.includes("\r\n")) {
       const correctedSvgContent = svgContent.replace(/\r\n/g, "\n");
@@ -240,7 +245,7 @@ function showUploadMessage(type: string, mapData: string[] | null, mapVersion: s
 
   alertMessage.innerHTML = message;
   openRichDialog({
-    content: window.alertMessage.innerHTML,
+    content: alertMessage.innerHTML,
     title,
     buttons: {
       "Clear cache": () => cleanupData(),
@@ -256,20 +261,20 @@ function showUploadMessage(type: string, mapData: string[] | null, mapVersion: s
 export async function parseLoadedData(data: string[], mapVersion: string): Promise<void> {
   try {
     closeDialogs?.();
-    customization = 0;
+    viewContext.customization = 0;
     document.dispatchEvent(new CustomEvent("react-exit-heightmap-edit"));
     document.dispatchEvent(new CustomEvent("react-hide-exit-customization"));
 
     {
       const params = data[0].split("|");
       if (params[3]) {
-        seed = params[3];
-        optionsSeed.value = seed;
+        worldContext.seed = params[3];
+        optionsSeed.value = worldContext.seed;
         INFO && console.group(`Loaded Map ${seed}`);
       } else INFO && console.group("Loaded Map");
-      if (params[4]) graphWidth = +params[4];
-      if (params[5]) graphHeight = +params[5];
-      mapId = params[6] ? +params[6] : Date.now();
+      if (params[4]) worldContext.graphWidth = +params[4];
+      if (params[5]) worldContext.graphHeight = +params[5];
+      worldContext.mapId = params[6] ? +params[6] : Date.now();
     }
 
     {
@@ -277,7 +282,7 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
       if (settings[0]) applyOption(distanceUnitInput, settings[0]);
       if (settings[1]) {
         distanceScaleInput.value = settings[1];
-        distanceScale = +settings[1];
+        worldContext.distanceScale = +settings[1];
       }
       if (settings[2]) areaUnit.value = settings[2];
       if (settings[3]) applyOption(heightUnit, settings[3]);
@@ -285,25 +290,26 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
       if (settings[5]) temperatureScale.value = settings[5];
       if (settings[12]) {
         populationRateInput.value = settings[12];
-        populationRate = +settings[12];
+        worldContext.populationRate = +settings[12];
       }
       if (settings[13]) {
         urbanizationInput.value = settings[13];
-        urbanization = +settings[13];
+        worldContext.urbanization = +settings[13];
       }
       if (settings[14]) mapSizeInput.value = mapSizeOutput.value = String(minmax(+settings[14], 1, 100));
       if (settings[15]) latitudeInput.value = latitudeOutput.value = String(minmax(+settings[15], 0, 100));
       if (settings[18]) precInput.value = precOutput.value = settings[18];
-      if (settings[19]) options = JSON.parse(settings[19]);
-      if (settings[16]) options.temperatureEquator = +settings[16];
-      if (settings[17]) options.temperatureNorthPole = options.temperatureSouthPole = +settings[17];
-      worldContext.options = options;
+      if (settings[19]) worldContext.options = JSON.parse(settings[19]);
+      if (settings[16]) worldContext.options.temperatureEquator = +settings[16];
+      if (settings[17])
+        worldContext.options.temperatureNorthPole = worldContext.options.temperatureSouthPole = +settings[17];
+
       if (settings[21]) hideLabels.checked = !!+settings[21];
       if (settings[22]) stylePreset.value = settings[22];
       if (settings[23]) rescaleLabels.checked = !!+settings[23];
       if (settings[24]) {
         urbanDensityInput.value = settings[24];
-        urbanDensity = +settings[24];
+        worldContext.urbanDensity = +settings[24];
       }
       if (settings[25]) longitudeInput.value = longitudeOutput.value = String(minmax(+(settings[25] || "50"), 0, 100));
     }
@@ -314,9 +320,9 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
       const zustandUpdates: Record<string, string | number> = {};
       if (settings[20]) zustandUpdates.mapName = settings[20];
       if (settings[26]) zustandUpdates.growthRate = +settings[26];
-      if (options.stateLabelsMode) zustandUpdates.stateLabelsMode = options.stateLabelsMode;
-      if (options.year != null) zustandUpdates.year = options.year;
-      if (options.era != null) zustandUpdates.era = options.era;
+      if (worldContext.options.stateLabelsMode) zustandUpdates.stateLabelsMode = worldContext.options.stateLabelsMode;
+      if (worldContext.options.year != null) zustandUpdates.year = worldContext.options.year;
+      if (worldContext.options.era != null) zustandUpdates.era = worldContext.options.era;
       // biome-ignore lint/suspicious/noExplicitAny: partial options object built from legacy save format
       useOptionsState.getState().setOptions(zustandUpdates as any);
     }
@@ -324,13 +330,13 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
       .getState()
       .setOption(
         "shapeRendering",
-        (viewbox.attr("shape-rendering") || "geometricPrecision") as
+        (viewContext.viewbox.attr("shape-rendering") || "geometricPrecision") as
           | "crispEdges"
           | "optimizeSpeed"
           | "geometricPrecision"
       );
-    if (data[2]) mapCoordinates = JSON.parse(data[2]);
-    if (data[4]) notes = JSON.parse(data[4]);
+    if (data[2]) worldContext.mapCoordinates = JSON.parse(data[2]);
+    if (data[4]) worldContext.notes = JSON.parse(data[4]);
     if (data[33]) rulers.fromString(data[33]);
     if (data[34]) {
       const usedFonts = JSON.parse(data[34]);
@@ -347,86 +353,87 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
 
     {
       const biomesRaw = data[3].split("|");
-      biomesData = Biomes.getDefault();
-      biomesData.color = biomesRaw[0].split(",");
-      biomesData.habitability = biomesRaw[1].split(",").map(h => +h);
-      biomesData.name = biomesRaw[2].split(",");
-      for (let i = biomesData.i.length; i < biomesData.name.length; i++) {
-        biomesData.i.push(biomesData.i.length);
-        biomesData.iconsDensity.push(0);
-        biomesData.icons.push([]);
-        biomesData.cost.push(50);
+      worldContext.biomesData = Biomes.getDefault();
+      worldContext.biomesData.color = biomesRaw[0].split(",");
+      worldContext.biomesData.habitability = biomesRaw[1].split(",").map(h => +h);
+      worldContext.biomesData.name = biomesRaw[2].split(",");
+      for (let i = worldContext.biomesData.i.length; i < worldContext.biomesData.name.length; i++) {
+        worldContext.biomesData.i.push(worldContext.biomesData.i.length);
+        worldContext.biomesData.iconsDensity.push(0);
+        worldContext.biomesData.icons.push([]);
+        worldContext.biomesData.cost.push(50);
       }
     }
-    svg.remove();
+    viewContext.svg.remove();
     document.body.insertAdjacentHTML("afterbegin", data[5]);
-    reinitializeMapLayers();
+    document.dispatchEvent(new CustomEvent("fmg:reinitialize-map-layers"));
 
-    if (!texture.size()) {
-      texture = viewbox
+    if (!viewContext.texture.size()) {
+      viewContext.texture = viewContext.viewbox
         .insert("g", "#landmass")
         .attr("id", "texture")
-        .attr("data-href", "./images/textures/plaster.jpg") as unknown as typeof texture;
+        .attr("data-href", "./images/textures/plaster.jpg") as unknown as typeof viewContext.texture;
     }
-    if (!emblems.size()) {
-      emblems = viewbox
+    if (!viewContext.emblems.size()) {
+      viewContext.emblems = viewContext.viewbox
         .insert("g", "#labels")
         .attr("id", "emblems")
-        .style("display", "none") as unknown as typeof emblems;
+        .style("display", "none") as unknown as typeof viewContext.emblems;
     }
 
     {
-      const parsedGrid = JSON.parse(data[6]) as typeof grid;
-      for (const key of Object.keys(grid)) delete (grid as unknown as Record<string, unknown>)[key];
-      Object.assign(grid, parsedGrid);
-      const { cells: gCells, vertices } = calculateVoronoi(grid.points, grid.boundary);
-      grid.cells = gCells as unknown as typeof grid.cells;
-      grid.vertices = vertices;
-      grid.cells.h = Uint8Array.from(data[7].split(","), Number);
-      grid.cells.prec = Uint8Array.from(data[8].split(","), Number);
-      grid.cells.f = Uint16Array.from(data[9].split(","), Number);
-      grid.cells.t = Int8Array.from(data[10].split(","), Number);
-      grid.cells.temp = Int8Array.from(data[11].split(","), Number);
+      const parsedGrid = JSON.parse(data[6]) as typeof worldContext.grid;
+      for (const key of Object.keys(worldContext.grid))
+        delete (worldContext.grid as unknown as Record<string, unknown>)[key];
+      Object.assign(worldContext.grid, parsedGrid);
+      const { cells: gCells, vertices } = calculateVoronoi(worldContext.grid.points, worldContext.grid.boundary);
+      worldContext.grid.cells = gCells as unknown as typeof worldContext.grid.cells;
+      worldContext.grid.vertices = vertices;
+      worldContext.grid.cells.h = Uint8Array.from(data[7].split(","), Number);
+      worldContext.grid.cells.prec = Uint8Array.from(data[8].split(","), Number);
+      worldContext.grid.cells.f = Uint16Array.from(data[9].split(","), Number);
+      worldContext.grid.cells.t = Int8Array.from(data[10].split(","), Number);
+      worldContext.grid.cells.temp = Int8Array.from(data[11].split(","), Number);
     }
-    reGraph();
+    document.dispatchEvent(new CustomEvent("fmg:re-graph"));
     Features.markupPack();
-    pack.features = JSON.parse(data[12]);
-    pack.cultures = JSON.parse(data[13]);
-    pack.states = JSON.parse(data[14]);
-    pack.burgs = JSON.parse(data[15]);
-    pack.religions = data[29] ? JSON.parse(data[29]) : [{ i: 0, name: "No religion" }];
-    pack.provinces = data[30] ? JSON.parse(data[30]) : [0];
-    pack.rivers = data[32] ? JSON.parse(data[32]) : [];
-    pack.markers = data[35] ? JSON.parse(data[35]) : [];
-    pack.routes = data[37] ? JSON.parse(data[37]) : [];
-    pack.zones = data[38] ? JSON.parse(data[38]) : [];
-    pack.cells.biome = Uint8Array.from(data[16].split(","), Number);
-    pack.cells.burg = Uint16Array.from(data[17].split(","), Number);
-    pack.cells.conf = Uint8Array.from(data[18].split(","), Number);
-    pack.cells.culture = Uint16Array.from(data[19].split(","), Number);
-    pack.cells.fl = Uint16Array.from(data[20].split(","), Number);
-    pack.cells.pop = Float32Array.from(data[21].split(","), Number);
-    pack.cells.r = Uint16Array.from(data[22].split(","), Number);
+    worldContext.pack.features = JSON.parse(data[12]);
+    worldContext.pack.cultures = JSON.parse(data[13]);
+    worldContext.pack.states = JSON.parse(data[14]);
+    worldContext.pack.burgs = JSON.parse(data[15]);
+    worldContext.pack.religions = data[29] ? JSON.parse(data[29]) : [{ i: 0, name: "No religion" }];
+    worldContext.pack.provinces = data[30] ? JSON.parse(data[30]) : [0];
+    worldContext.pack.rivers = data[32] ? JSON.parse(data[32]) : [];
+    worldContext.pack.markers = data[35] ? JSON.parse(data[35]) : [];
+    worldContext.pack.routes = data[37] ? JSON.parse(data[37]) : [];
+    worldContext.pack.zones = data[38] ? JSON.parse(data[38]) : [];
+    worldContext.pack.cells.biome = Uint8Array.from(data[16].split(","), Number);
+    worldContext.pack.cells.burg = Uint16Array.from(data[17].split(","), Number);
+    worldContext.pack.cells.conf = Uint8Array.from(data[18].split(","), Number);
+    worldContext.pack.cells.culture = Uint16Array.from(data[19].split(","), Number);
+    worldContext.pack.cells.fl = Uint16Array.from(data[20].split(","), Number);
+    worldContext.pack.cells.pop = Float32Array.from(data[21].split(","), Number);
+    worldContext.pack.cells.r = Uint16Array.from(data[22].split(","), Number);
     // data[23] had deprecated cells.road
-    pack.cells.s = Uint16Array.from(data[24].split(","), Number);
-    pack.cells.state = Uint16Array.from(data[25].split(","), Number);
-    pack.cells.religion = data[26]
+    worldContext.pack.cells.s = Uint16Array.from(data[24].split(","), Number);
+    worldContext.pack.cells.state = Uint16Array.from(data[25].split(","), Number);
+    worldContext.pack.cells.religion = data[26]
       ? Uint16Array.from(data[26].split(","), Number)
-      : new Uint16Array(pack.cells.i.length);
-    pack.cells.province = data[27]
+      : new Uint16Array(worldContext.pack.cells.i.length);
+    worldContext.pack.cells.province = data[27]
       ? Uint16Array.from(data[27].split(","), Number)
-      : new Uint16Array(pack.cells.i.length);
+      : new Uint16Array(worldContext.pack.cells.i.length);
     // data[28] had deprecated cells.crossroad
-    pack.cells.routes = data[36] ? JSON.parse(data[36]) : {};
-    pack.ice = data[39] ? JSON.parse(data[39]) : [];
+    worldContext.pack.cells.routes = data[36] ? JSON.parse(data[36]) : {};
+    worldContext.pack.ice = data[39] ? JSON.parse(data[39]) : [];
 
     if (data[31]) {
       const namesDL = data[31].split("/");
       namesDL.forEach((d, i) => {
         const e = d.split("|");
         if (!e.length) return;
-        const b = e[5].split(",").length > 2 || !nameBases[i] ? e[5] : nameBases[i].b;
-        nameBases[i] = { name: e[0], min: +e[1], max: +e[2], d: e[3], m: +e[4], b } as NameBase;
+        const b = e[5].split(",").length > 2 || !worldContext.nameBases[i] ? e[5] : worldContext.nameBases[i].b;
+        worldContext.nameBases[i] = { name: e[0], min: +e[1], max: +e[2], d: e[3], m: +e[4], b } as NameBase;
       });
     }
 
@@ -450,40 +457,40 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
           el.classList.add("buttonoff");
         });
 
-      if (hasChild(texture, "image")) turnOn("toggleTexture");
-      if (hasChildren(terrs.select("#landHeights"))) turnOn("toggleHeight");
-      if (isVisible(lakes)) turnOn("toggleLakes");
-      if (hasChildren(biomes)) turnOn("toggleBiomes");
-      if (hasChildren(cells)) turnOn("toggleCells");
-      if (hasChildren(gridOverlay)) turnOn("toggleGrid");
-      if (hasChildren(coordinates)) turnOn("toggleCoordinates");
-      if (isVisible(compass) && hasChild(compass, "use")) turnOn("toggleCompass");
-      if (hasChildren(rivers)) turnOn("toggleRivers");
-      if (isVisible(terrain) && hasChildren(terrain)) turnOn("toggleRelief");
-      if (hasChildren(relig)) turnOn("toggleReligions");
-      if (hasChildren(cults)) turnOn("toggleCultures");
-      if (hasChildren(statesBody)) turnOn("toggleStates");
-      if (hasChildren(provs)) turnOn("toggleProvinces");
-      if (hasChildren(zones) && isVisible(zones)) turnOn("toggleZones");
-      if (isVisible(borders) && hasChild(borders, "path")) turnOn("toggleBorders");
-      if (isVisible(routes) && hasChild(routes, "path")) turnOn("toggleRoutes");
-      if (hasChildren(temperature)) turnOn("toggleTemperature");
-      if (hasChild(population, "line")) turnOn("togglePopulation");
-      if (isVisible(ice)) turnOn("toggleIce");
-      if (hasChild(prec, "circle")) turnOn("togglePrecipitation");
-      if (isVisible(emblems) && hasChild(emblems, "use")) turnOn("toggleEmblems");
-      if (isVisible(labels)) turnOn("toggleLabels");
-      if (isVisible(icons)) turnOn("toggleBurgIcons");
-      if (hasChildren(armies) && isVisible(armies)) turnOn("toggleMilitary");
-      if (hasChild(markers, "svg")) turnOn("toggleMarkers");
-      if (isVisible(ruler)) turnOn("toggleRulers");
-      if (isVisible(scaleBar)) turnOn("toggleScaleBar");
+      if (hasChild(viewContext.texture, "image")) turnOn("toggleTexture");
+      if (hasChildren(viewContext.terrs.select("#landHeights"))) turnOn("toggleHeight");
+      if (isVisible(viewContext.lakes)) turnOn("toggleLakes");
+      if (hasChildren(viewContext.biomes)) turnOn("toggleBiomes");
+      if (hasChildren(viewContext.cells)) turnOn("toggleCells");
+      if (hasChildren(viewContext.gridOverlay)) turnOn("toggleGrid");
+      if (hasChildren(viewContext.coordinates)) turnOn("toggleCoordinates");
+      if (isVisible(viewContext.compass) && hasChild(viewContext.compass, "use")) turnOn("toggleCompass");
+      if (hasChildren(viewContext.rivers)) turnOn("toggleRivers");
+      if (isVisible(viewContext.terrain) && hasChildren(viewContext.terrain)) turnOn("toggleRelief");
+      if (hasChildren(viewContext.relig)) turnOn("toggleReligions");
+      if (hasChildren(viewContext.cults)) turnOn("toggleCultures");
+      if (hasChildren(viewContext.statesBody)) turnOn("toggleStates");
+      if (hasChildren(viewContext.provs)) turnOn("toggleProvinces");
+      if (hasChildren(viewContext.zones) && isVisible(viewContext.zones)) turnOn("toggleZones");
+      if (isVisible(viewContext.borders) && hasChild(viewContext.borders, "path")) turnOn("toggleBorders");
+      if (isVisible(viewContext.routes) && hasChild(viewContext.routes, "path")) turnOn("toggleRoutes");
+      if (hasChildren(viewContext.temperature)) turnOn("toggleTemperature");
+      if (hasChild(viewContext.population, "line")) turnOn("togglePopulation");
+      if (isVisible(viewContext.ice)) turnOn("toggleIce");
+      if (hasChild(viewContext.prec, "circle")) turnOn("togglePrecipitation");
+      if (isVisible(viewContext.emblems) && hasChild(viewContext.emblems, "use")) turnOn("toggleEmblems");
+      if (isVisible(viewContext.labels)) turnOn("toggleLabels");
+      if (isVisible(viewContext.icons)) turnOn("toggleBurgIcons");
+      if (hasChildren(viewContext.armies) && isVisible(viewContext.armies)) turnOn("toggleMilitary");
+      if (hasChild(viewContext.markers, "svg")) turnOn("toggleMarkers");
+      if (isVisible(viewContext.ruler)) turnOn("toggleRulers");
+      if (isVisible(viewContext.scaleBar)) turnOn("toggleScaleBar");
       if (isVisibleNode(ensureEl("vignette") as HTMLElement)) turnOn("toggleVignette");
 
       getCurrentPreset();
     }
-    scaleBar.on("mousemove", () => tip("Click to open Units Editor")).on("click", () => editUnits());
-    legend
+    viewContext.scaleBar.on("mousemove", () => tip("Click to open Units Editor")).on("click", () => editUnits());
+    viewContext.legend
       .on("mousemove", () => tip("Drag to change the position. Click to hide the legend"))
       .on("click", () => clearLegend());
 
@@ -499,16 +506,16 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
     }
 
     {
-      const textureHref = texture.attr("data-href");
+      const textureHref = viewContext.texture.attr("data-href");
       if (textureHref) updateTextureSelectValue(textureHref);
     }
 
     // data integrity checks
     {
-      const { cells: pCells, vertices: pVertices } = pack;
+      const { cells: pCells, vertices: pVertices } = worldContext.pack;
 
       const cellsMismatch = pCells.i.length !== pCells.state.length;
-      const featureVerticesMismatch = pack.features.some(f =>
+      const featureVerticesMismatch = worldContext.pack.features.some(f =>
         f?.vertices?.some((vertex: number) => !pVertices.p[vertex])
       );
 
@@ -554,7 +561,7 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
             }
           });
 
-          pack.burgs.forEach(burg => {
+          worldContext.pack.burgs.forEach(burg => {
             if (!burg.i || burg.removed || burg.cell === undefined || burg.x === undefined || burg.y === undefined)
               return;
             if (burg.cell >= n) {
@@ -570,14 +577,14 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
         }
 
         if (featureVerticesMismatch) {
-          pack.features.forEach(f => {
+          worldContext.pack.features.forEach(f => {
             if (f?.vertices) f.vertices = f.vertices.filter((v: number) => !!pVertices.p[v]);
           });
         }
       }
 
       const invalidStates = [...new Set(pCells.state)].filter(
-        (s): s is number => !pack.states[s as number] || !!pack.states[s as number].removed
+        (s): s is number => !worldContext.pack.states[s as number] || !!worldContext.pack.states[s as number].removed
       );
       invalidStates.forEach(s => {
         const invalidCells = pCells.i.filter(i => pCells.state[i] === s);
@@ -588,7 +595,8 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
       });
 
       const invalidProvinces = [...new Set(pCells.province)].filter(
-        (p): p is number => !!p && (!pack.provinces[p as number] || !!pack.provinces[p as number].removed)
+        (p): p is number =>
+          !!p && (!worldContext.pack.provinces[p as number] || !!worldContext.pack.provinces[p as number].removed)
       );
       invalidProvinces.forEach(p => {
         const invalidCells = pCells.i.filter(i => pCells.province[i] === p);
@@ -599,7 +607,8 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
       });
 
       const invalidCultures = [...new Set(pCells.culture)].filter(
-        (c): c is number => !pack.cultures[c as number] || !!pack.cultures[c as number].removed
+        (c): c is number =>
+          !worldContext.pack.cultures[c as number] || !!worldContext.pack.cultures[c as number].removed
       );
       invalidCultures.forEach(c => {
         const invalidCells = pCells.i.filter(i => pCells.culture[i] === c);
@@ -610,7 +619,8 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
       });
 
       const invalidReligions = [...new Set(pCells.religion)].filter(
-        (r): r is number => !pack.religions[r as number] || !!pack.religions[r as number].removed
+        (r): r is number =>
+          !worldContext.pack.religions[r as number] || !!worldContext.pack.religions[r as number].removed
       );
       invalidReligions.forEach(r => {
         const invalidCells = pCells.i.filter(i => pCells.religion[i] === r);
@@ -620,7 +630,9 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
         ERROR && console.error("[Data integrity] Invalid religion", r, "is assigned to cells", invalidCells);
       });
 
-      const invalidFeatures = [...new Set(pCells.f)].filter((f): f is number => !!f && !pack.features[f as number]);
+      const invalidFeatures = [...new Set(pCells.f)].filter(
+        (f): f is number => !!f && !worldContext.pack.features[f as number]
+      );
       invalidFeatures.forEach(f => {
         const invalidCells = pCells.i.filter(i => pCells.f[i] === f);
         invalidCells.forEach(i => {
@@ -631,7 +643,8 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
 
       const invalidBurgs = [...new Set(pCells.burg)].filter(
         (burgId): burgId is number =>
-          !!burgId && (!pack.burgs[burgId as number] || !!pack.burgs[burgId as number].removed)
+          !!burgId &&
+          (!worldContext.pack.burgs[burgId as number] || !!worldContext.pack.burgs[burgId as number].removed)
       );
       invalidBurgs.forEach(burgId => {
         const invalidCells = pCells.i.filter(i => pCells.burg[i] === burgId);
@@ -642,18 +655,18 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
       });
 
       const invalidRivers = [...new Set(pCells.r)].filter(
-        (r): r is number => !!r && !pack.rivers.find((river: River) => river.i === r)
+        (r): r is number => !!r && !worldContext.pack.rivers.find((river: River) => river.i === r)
       );
       invalidRivers.forEach(r => {
         const invalidCells = pCells.i.filter(i => pCells.r[i] === r);
         invalidCells.forEach(i => {
           pCells.r[i] = 0;
         });
-        rivers.select(`river${r}`).remove();
+        viewContext.rivers.select(`river${r}`).remove();
         ERROR && console.error("[Data integrity] Invalid river", r, "is assigned to cells", invalidCells);
       });
 
-      pack.burgs.forEach(burg => {
+      worldContext.pack.burgs.forEach(burg => {
         if (typeof burg.capital === "boolean") burg.capital = Number(burg.capital);
 
         if (!burg.i && burg.lock) {
@@ -692,12 +705,12 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
           pCells.burg[burg.cell] = burg.i;
         }
 
-        if (burg.state && !pack.states[burg.state]) {
+        if (burg.state && !worldContext.pack.states[burg.state]) {
           ERROR && console.error("[Data integrity] Burg", burg.i, "is linked to invalid state", burg.state);
           burg.state = 0;
         }
 
-        if (burg.state && pack.states[burg.state].removed) {
+        if (burg.state && worldContext.pack.states[burg.state].removed) {
           ERROR && console.error("[Data integrity] Burg", burg.i, "is linked to removed state", burg.state);
           burg.state = 0;
         }
@@ -708,10 +721,10 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
         }
       });
 
-      pack.states.forEach((state: { i: number; removed?: boolean }) => {
+      worldContext.pack.states.forEach((state: { i: number; removed?: boolean }) => {
         if (state.removed) return;
 
-        const stateBurgs = pack.burgs.filter(b => b.state === state.i && !b.removed);
+        const stateBurgs = worldContext.pack.burgs.filter(b => b.state === state.i && !b.removed);
         const capitalBurgs = stateBurgs.filter(b => b.capital);
 
         if (!state.i && capitalBurgs.length) {
@@ -749,9 +762,9 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
         }
       });
 
-      pack.provinces.forEach((p: { i: number; removed?: boolean; state: number }) => {
+      worldContext.pack.provinces.forEach((p: { i: number; removed?: boolean; state: number }) => {
         if (!p.i || p.removed) return;
-        if (pack.states[p.state] && !pack.states[p.state].removed) return;
+        if (worldContext.pack.states[p.state] && !worldContext.pack.states[p.state].removed) return;
         ERROR &&
           console.error(
             `[Data integrity] Province ${p.i} is linked to removed state ${p.state}. Removing the province`
@@ -759,46 +772,46 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
         p.removed = true;
       });
 
-      pack.routes.forEach((route: { i: number; points: unknown[] }) => {
+      worldContext.pack.routes.forEach((route: { i: number; points: unknown[] }) => {
         if (!route.points || route.points.length < 2) {
           ERROR && console.error(`[Data integrity] Route ${route.i} has less than 2 points. Removing the route`);
           Routes.remove(route as Parameters<typeof Routes.remove>[0]);
         }
       });
 
-      for (const from in pack.cells.routes) {
-        const value = pack.cells.routes[from];
+      for (const from in worldContext.pack.cells.routes) {
+        const value = worldContext.pack.cells.routes[from];
         if (!value) continue;
 
         if (Object.keys(value).length === 0) {
-          delete pack.cells.routes[from];
+          delete worldContext.pack.cells.routes[from];
           continue;
         }
 
         for (const to in value) {
           const routeId = value[to];
-          const route = pack.routes.find((r: { i: number }) => r.i === routeId);
+          const route = worldContext.pack.routes.find((r: { i: number }) => r.i === routeId);
           if (!route) {
             ERROR &&
               console.error(`[Data integrity] Route ${routeId} from ${from} to ${to} is missing. Removing the route`);
-            delete pack.cells.routes[from][to];
+            delete worldContext.pack.cells.routes[from][to];
           }
         }
       }
 
       {
         const markerIds: boolean[] = [];
-        const lastMarker = last(pack.markers) as { i: number } | undefined;
+        const lastMarker = last(worldContext.pack.markers) as { i: number } | undefined;
         let nextId = lastMarker ? lastMarker.i + 1 : 0;
 
-        pack.markers.forEach((marker: { i: number }) => {
+        worldContext.pack.markers.forEach((marker: { i: number }) => {
           if (markerIds[marker.i]) {
             ERROR && console.error("[Data integrity] Marker", marker.i, "has non-unique id. Changing to", nextId);
 
             const domElements = document.querySelectorAll(`#marker${marker.i}`);
             if (domElements[1]) domElements[1].id = `marker${nextId}`;
 
-            const noteElements = notes.filter(note => note.id === `marker${marker.i}`);
+            const noteElements = worldContext.notes.filter(note => note.id === `marker${marker.i}`);
             if (noteElements[1]) noteElements[1].id = `marker${nextId}`;
 
             marker.i = nextId;
@@ -808,23 +821,23 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
           }
         });
 
-        pack.markers.sort((a: { i: number }, b: { i: number }) => a.i - b.i);
+        worldContext.pack.markers.sort((a: { i: number }, b: { i: number }) => a.i - b.i);
       }
     }
-    emblems.selectAll("use").attr("href", null);
+    viewContext.emblems.selectAll("use").attr("href", null);
     if (rulers && layerIsOn("toggleRulers")) rulers.draw();
     if (layerIsOn("toggleGrid")) GridRenderer.render(worldContext, viewContext, appServices);
     restoreDefaultEvents?.();
-    focusOn();
-    invokeActiveZooming();
-    fitMapToScreen();
-    fitMapView();
+    document.dispatchEvent(new CustomEvent("fmg:focus-on"));
+    document.dispatchEvent(new CustomEvent("fmg:invoke-active-zooming"));
+    document.dispatchEvent(new CustomEvent("fmg:fit-map-to-screen"));
+    document.dispatchEvent(new CustomEvent("fmg:fit-map-view"));
 
     WARN &&
       console.warn(
         `TOTAL: ${rn((performance.now() - ((uploadMap as { timeStart?: number }).timeStart ?? 0)) / 1000, 2)}s`
       );
-    showStatistics();
+    document.dispatchEvent(new CustomEvent("fmg:show-statistics"));
     INFO && console.groupEnd();
     tip("Map is successfully loaded", true, "success", 7000);
   } catch (error) {
@@ -835,7 +848,7 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
       <p id="errorBox">${parseError(error as Error)}</p>`;
 
     openRichDialog({
-      content: window.alertMessage.innerHTML,
+      content: alertMessage.innerHTML,
       resizable: false,
       title: "Loading error",
       maxWidth: "40em" as unknown as number,
@@ -847,7 +860,7 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
         },
         "New map": () => {
           /* $(this).dialog("close") removed */
-          regenerateMap("loading error");
+          document.dispatchEvent(new CustomEvent("fmg:regenerate-map", { detail: "loading error" }));
         },
         Cancel: () => {
           /* $(this).dialog("close") removed */
@@ -857,15 +870,3 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
     });
   }
 }
-
-// ─── Global exports ───────────────────────────────────────────────────────────
-
-window.quickLoad = quickLoad;
-window.loadFromDropbox = loadFromDropbox;
-window.createSharableDropboxLink = createSharableDropboxLink;
-window.loadMapPrompt = loadMapPrompt;
-window.loadMapFromURL = loadMapFromURL;
-window.uploadMap = uploadMap;
-window.showUploadErrorMessage = showUploadErrorMessage;
-window.parseLoadedResult = parseLoadedResult;
-window.parseLoadedData = parseLoadedData;

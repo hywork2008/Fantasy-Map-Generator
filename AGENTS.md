@@ -32,15 +32,15 @@ Direct DOM / SVG manipulation using `d3.select("...").append(...)` or similar me
 
 ## 2. Global State Elimination & Context Isolation
 
-The legacy practice of attaching objects and functions directly to the global `window` scope is heavily penalized.
+The legacy practice of attaching objects and functions directly to the global `window` scope is prohibited.
 
-- **Zero Global Pollution**: Do NOT assign variables, configurations, or modules to `window.*`. All internal dependencies must be resolved via standard ES `import`/`export` syntax.
+- **Zero Individual Global Pollution**: Do NOT assign any variable, function, or module to `window.*` individually. All internal module dependencies must be resolved via standard ES `import`/`export` syntax. The `window.*` registration blocks historically present at the end of controller files (e.g. `window.editStates = editStates;`) are dead code and must be deleted on sight.
+- **One Allowed Exception — `window.fmg`**: The single permitted global exposure is the typed `window.fmg` namespace, assembled in `app.ts` after all modules have been initialized (see Section 6). No other `window.*` assignment is ever acceptable.
 - **Context Injection (DI)**: State must be explicitly managed through the three major contexts or injected via function arguments:
-  - `WorldContext`: Pure world data store (`pack`, `grid`, `seed`, `options`). No SVG or UI logic.
-  - `ViewContext`: Pure view infrastructure store (`svg`, `layers`, `zoom`).
-  - `AppServices`: Shared utility functions (`rng`, `history`, `storage`).
-- **Object In-place Mutation Constraint**: During legacy synchronization transitions, never replace `grid` or `pack` object references directly (e.g., `grid = newObject`). Use `Object.assign()` to perform in-place mutations so that shared references across legacy code boundaries remain synchronized.
-- **Development Mode Backdoor**: Attaching state to the global scope is only permitted inside the explicit DEV environment gate: `if (import.meta.env.DEV) { window.__fmg = { worldContext, viewState }; }`.
+  - `WorldContext`: Pure world data store (`pack`, `grid`, `seed`, `mapId`, `options`, `graphWidth`, `graphHeight`, `mapCoordinates`, etc.). No SVG or UI logic. `graphWidth`/`graphHeight` are equivalent to `options.mapWidth/Height` — they define the logical coordinate space of the generated world and do not change on browser resize, so they belong here.
+  - `ViewContext`: Pure view infrastructure store (`svg`, `viewbox`, all SVG layer `Selection` references, `zoom`, `svgWidth`, `svgHeight`, `lineGen`, etc.). `svgWidth`/`svgHeight` are `Math.min(graphWidth, window.innerWidth/Height)` — they depend on the browser window and change on resize, so they belong here, not in `WorldContext`. D3 rendering utilities (`lineGen`) are likewise view concerns.
+  - `AppServices`: Shared utility services (`rng`, `storage`, `COArenderer`).
+- **Object In-place Mutation Constraint**: Never replace `grid` or `pack` object references directly (e.g., `grid = newObject`). Use `Object.assign()` to perform in-place mutations so that shared references across module boundaries remain synchronized.
 
 ---
 
@@ -60,7 +60,97 @@ The legacy practice of attaching objects and functions directly to the global `w
 
 ---
 
-## 5. Development Pipeline and Git Discipline
+## 5. E2E Test Access Patterns
+
+E2E tests (Playwright) must never rely on arbitrary `window.*` globals. The only permitted access points are:
+
+- **`window.fmg.world.*`** — Read world state (e.g., `window.fmg.world.mapId` for generation-complete polling, `window.fmg.world.pack` for data assertions).
+- **`window.fmg.view.*`** — Access SVG layer references and view geometry (e.g., `window.fmg.view.graphWidth`).
+- **`window.fmg.actions.*`** — Invoke intentional public operations (e.g., `window.fmg.actions.zoomTo(x, y, scale)`).
+
+All `page.evaluate()` calls that touch `window.fmg` must be encapsulated in helper functions under `tests/e2e/helpers/` rather than inlined into test bodies. This insulates individual tests from structural changes to `window.fmg`.
+
+User interactions must be driven through DOM clicks and events (Playwright locators), not by calling controller functions via `window.fmg`. `window.fmg` access in tests is reserved for **setup/teardown** and **state assertions** only.
+
+---
+
+## 6. `window.fmg` — The Public API Namespace
+
+`window.fmg` is the single typed, intentional, and externally observable API surface of the application. It is a frozen object assembled once, at the final step of `app.ts`, after every module has been fully initialized.
+
+### 6.1 Structure
+
+```typescript
+// src/types/fmg.d.ts  ← sole source of truth for global types
+interface FMGWorldAPI {
+  readonly pack: PackedGraph;
+  readonly grid: Grid;
+  readonly seed: string;
+  readonly mapId: number;
+  readonly notes: WorldNote[];
+  readonly mapCoordinates: MapCoordinates;
+  readonly options: WorldOptions;
+}
+
+interface FMGViewAPI {
+  readonly svg: d3.Selection<SVGSVGElement, unknown, null, undefined>;
+  readonly viewbox: d3.Selection<SVGGElement, unknown, null, undefined>;
+  /** Browser-window-constrained display dimensions (Math.min(graphWidth, window.innerWidth)) */
+  readonly svgWidth: number;
+  readonly svgHeight: number;
+  // All other SVG layer selections are also accessible here (ViewContext)
+  // graphWidth/graphHeight belong to FMGWorldAPI (WorldContext), not here
+}
+
+interface FMGActionsAPI {
+  generate(options?: { seed?: string; graph?: Grid | null }): Promise<void>;
+  zoomTo(x: number, y: number, scale: number, duration?: number): void;
+  getWorldState(): WorldState;
+}
+
+interface FMGNamespace {
+  readonly world: FMGWorldAPI;
+  readonly view: FMGViewAPI;
+  readonly actions: FMGActionsAPI;
+}
+
+declare global {
+  interface Window {
+    fmg: FMGNamespace;
+  }
+}
+```
+
+### 6.2 Assembly Rule
+
+`window.fmg` is created exactly once, at the end of `initApp()` in `src/app.ts`, and immediately frozen:
+
+```typescript
+// src/app.ts — final step of initApp()
+window.fmg = Object.freeze({
+  world: worldContext,      // C3 Object.defineProperty ensures always-current refs
+  view: viewContext,
+  actions: { generate, zoomTo, getWorldState },
+});
+```
+
+**No controller, editor, renderer, or module file may assign to `window.fmg` or any sub-property of it.**
+
+### 6.3 Type Authority
+
+- `src/types/fmg.d.ts` is the **sole** file that declares types for `window.fmg`. All sub-interface types must be defined or re-exported from there.
+- `src/types/global.ts` must be kept minimal — it must not duplicate declarations that belong in `fmg.d.ts`. The goal is to eventually reduce `global.ts` to zero declarations.
+- The `[key: string]: unknown` index signature in `src/types/window.d.ts` must be removed once all individual `window.*` registrations have been eliminated.
+
+### 6.4 What Does NOT Belong in `window.fmg`
+
+- Controller-internal functions (`editStates`, `toggleHeight`, `layerIsOn`, `confirmationDialog`, etc.) — these are consumed via ES6 imports by other TS modules and must never be surfaced on `window.fmg`.
+- Editor lifecycle functions (`initLayers`, `initStyle`, `initTools`, etc.) — these are called once during initialization and have no meaningful post-init callers outside the module.
+- Debug flags (`DEBUG`, `INFO`, `WARN`, `ERROR`) — use the module-level exports directly.
+
+---
+
+## 7. Development Pipeline and Git Discipline
 
 - **Pre-commit Quality Gate**: Prior to crafting any commit, you must execute the compilation validation (`npm run build` or `npx tsc --noEmit`) and structural verification linting scripts to ensure zero errors are introduced.
 - **Commit Format**: All Git commit messages must be explicitly written in English following structural conventions (e.g., `refactor: migrate module-name to TypeScript`). Do not commit automatically if an error occurs during building.

@@ -12,6 +12,7 @@ import type { WorldState } from "../types/WorldState";
 import { gauss, generateSeed, getMixedColor, getPolesOfInaccessibility, P, rand, rw } from "../utils";
 import { Burgs } from "./burgs-generator";
 import { COA } from "./emblem/generator";
+import { Names } from "./names-generator";
 
 export interface Province {
   i: number;

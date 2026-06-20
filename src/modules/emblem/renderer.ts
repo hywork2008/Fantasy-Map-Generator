@@ -1,4 +1,6 @@
 import { appServices } from "../../context/appServices";
+import { viewContext } from "../../context/viewContext";
+import { layerIsOn } from "../../controllers/layers";
 import { shieldBox } from "./box";
 import { colors } from "./colors";
 import { lines } from "./lines";
@@ -310,9 +312,9 @@ class EmblemRenderModule {
 
   async add(type: string, i: number, coa: Emblem, x: number, y: number) {
     const id = `${type}COA${i}`;
-    const g = emblems.select(`#${type}Emblems`).node() as SVGGElement | null;
+    const g = viewContext.emblems.select(`#${type}Emblems`).node() as SVGGElement | null;
 
-    if (emblems.selectAll("use").size() && g) {
+    if (viewContext.emblems.selectAll("use").size() && g) {
       const size = parseFloat(g.getAttribute("font-size") ?? "50");
       const use = `<use data-i="${i}" x="${x - size / 2}" y="${y - size / 2}" width="1em" height="1em" href="#${id}"/>`;
       g.insertAdjacentHTML("beforeend", use);

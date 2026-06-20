@@ -1,7 +1,15 @@
+import { viewContext } from "../context/viewContext";
+import { worldContext } from "../context/worldContext";
+import { getFileName } from "../controllers/editors";
 import { getUsedFonts } from "../modules/fonts";
+import { Names } from "../modules/names-generator";
 import { useOptionsState } from "../store/optionsState";
-import { openRichDialog } from "../ui/dialogs/dialogService";
+import { closeDialogs, openRichDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, link, parseError, ra, rn } from "../utils";
+import { alertMessage } from "../utils/alertMessageEl";
+import { tip } from "../utils/uiHelpers";
+import { VERSION } from "../versioning";
+import { ldb } from "./ldb";
 
 // ─── Map serialization ────────────────────────────────────────────────────────
 
@@ -9,10 +17,18 @@ export function prepareMapData(): string {
   const date = new Date();
   const dateString = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
   const license = "File can be loaded in azgaar.github.io/Fantasy-Map-Generator";
-  const params = [VERSION, license, dateString, seed, graphWidth, graphHeight, mapId].join("|");
+  const params = [
+    VERSION,
+    license,
+    dateString,
+    worldContext.seed,
+    worldContext.graphWidth,
+    worldContext.graphHeight,
+    worldContext.mapId
+  ].join("|");
   const settings = [
     distanceUnitInput.value,
-    distanceScale,
+    worldContext.distanceScale,
     areaUnit.value,
     heightUnit.value,
     heightExponentInput.value,
@@ -23,32 +39,36 @@ export function prepareMapData(): string {
     "", // previously used for barBackColor.value
     "", // previously used for barPosX.value
     "", // previously used for barPosY.value
-    populationRate,
-    urbanization,
+    worldContext.populationRate,
+    worldContext.urbanization,
     mapSizeOutput.value,
     latitudeOutput.value,
     "", // previously used for temperatureEquatorOutput.value
     "", // previously used for tempNorthOutput.value
     precOutput.value,
-    JSON.stringify(options),
+    JSON.stringify(worldContext.options),
     useOptionsState.getState().mapName,
     +hideLabels.checked,
     stylePreset.value,
     +rescaleLabels.checked,
-    urbanDensity,
+    worldContext.urbanDensity,
     longitudeOutput.value,
     useOptionsState.getState().growthRate
   ].join("|");
-  const coords = JSON.stringify(mapCoordinates);
-  const biomes = [biomesData.color, biomesData.habitability, biomesData.name].join("|");
-  const notesData = JSON.stringify(notes);
+  const coords = JSON.stringify(worldContext.mapCoordinates);
+  const biomes = [
+    worldContext.biomesData.color,
+    worldContext.biomesData.habitability,
+    worldContext.biomesData.name
+  ].join("|");
+  const notesData = JSON.stringify(worldContext.notes);
   const rulersString = rulers.toString();
-  const fonts = JSON.stringify(getUsedFonts(svg.node()!));
+  const fonts = JSON.stringify(getUsedFonts(viewContext.svg.node()!));
 
   // clone SVG and reset transform to defaults
   const cloneEl = document.getElementById("map")!.cloneNode(true) as SVGSVGElement;
-  cloneEl.setAttribute("width", String(graphWidth));
-  cloneEl.setAttribute("height", String(graphHeight));
+  cloneEl.setAttribute("width", String(worldContext.graphWidth));
+  cloneEl.setAttribute("height", String(worldContext.graphHeight));
   cloneEl.querySelector("#viewbox")!.removeAttribute("transform");
   cloneEl.querySelector("#ruler")!.innerHTML = "";
 
@@ -61,24 +81,24 @@ export function prepareMapData(): string {
 
   const serializedSVG = new XMLSerializer().serializeToString(cloneEl);
 
-  const { spacing, cellsX, cellsY, boundary, points, features, cellsDesired } = grid;
+  const { spacing, cellsX, cellsY, boundary, points, features, cellsDesired } = worldContext.grid;
   const gridGeneral = JSON.stringify({ spacing, cellsX, cellsY, boundary, points, features, cellsDesired });
-  const packFeatures = JSON.stringify(pack.features);
-  const cultures = JSON.stringify(pack.cultures);
-  const states = JSON.stringify(pack.states);
-  const burgs = JSON.stringify(pack.burgs);
-  const religions = JSON.stringify(pack.religions);
-  const provinces = JSON.stringify(pack.provinces);
-  const rivers = JSON.stringify(pack.rivers);
-  const markers = JSON.stringify(pack.markers);
-  const cellRoutes = JSON.stringify(pack.cells.routes);
-  const routes = JSON.stringify(pack.routes);
-  const zones = JSON.stringify(pack.zones);
-  const ice = JSON.stringify(pack.ice);
+  const packFeatures = JSON.stringify(worldContext.pack.features);
+  const cultures = JSON.stringify(worldContext.pack.cultures);
+  const states = JSON.stringify(worldContext.pack.states);
+  const burgs = JSON.stringify(worldContext.pack.burgs);
+  const religions = JSON.stringify(worldContext.pack.religions);
+  const provinces = JSON.stringify(worldContext.pack.provinces);
+  const rivers = JSON.stringify(worldContext.pack.rivers);
+  const markers = JSON.stringify(worldContext.pack.markers);
+  const cellRoutes = JSON.stringify(worldContext.pack.cells.routes);
+  const routes = JSON.stringify(worldContext.pack.routes);
+  const zones = JSON.stringify(worldContext.pack.zones);
+  const ice = JSON.stringify(worldContext.pack.ice);
 
   // store name array only if not the same as default
   const defaultNB = Names.getNameBases();
-  const namesData = nameBases
+  const namesData = worldContext.nameBases
     .map((b, i) => {
       const names = defaultNB[i] && defaultNB[i].b === b.b ? "" : b.b;
       return `${b.name}|${b.min}|${b.max}|${b.d}|${b.m}|${names}`;
@@ -86,7 +106,7 @@ export function prepareMapData(): string {
     .join("/");
 
   // round population to save space
-  const pop = Array.from(pack.cells.pop).map(p => rn(p, 4));
+  const pop = Array.from(worldContext.pack.cells.pop).map(p => rn(p, 4));
 
   const mapData = [
     params,
@@ -96,27 +116,27 @@ export function prepareMapData(): string {
     notesData,
     serializedSVG,
     gridGeneral,
-    grid.cells.h,
-    grid.cells.prec,
-    grid.cells.f,
-    grid.cells.t,
-    grid.cells.temp,
+    worldContext.grid.cells.h,
+    worldContext.grid.cells.prec,
+    worldContext.grid.cells.f,
+    worldContext.grid.cells.t,
+    worldContext.grid.cells.temp,
     packFeatures,
     cultures,
     states,
     burgs,
-    pack.cells.biome,
-    pack.cells.burg,
-    pack.cells.conf,
-    pack.cells.culture,
-    pack.cells.fl,
+    worldContext.pack.cells.biome,
+    worldContext.pack.cells.burg,
+    worldContext.pack.cells.conf,
+    worldContext.pack.cells.culture,
+    worldContext.pack.cells.fl,
     pop,
-    pack.cells.r,
+    worldContext.pack.cells.r,
     [], // deprecated pack.cells.road
-    pack.cells.s,
-    pack.cells.state,
-    pack.cells.religion,
-    pack.cells.province,
+    worldContext.pack.cells.s,
+    worldContext.pack.cells.state,
+    worldContext.pack.cells.religion,
+    worldContext.pack.cells.province,
     [], // deprecated pack.cells.crossroad
     religions,
     provinces,
@@ -161,7 +181,8 @@ async function saveToDropbox(mapData: string, filename: string): Promise<void> {
 // ─── Main save entry point ────────────────────────────────────────────────────
 
 export async function saveMap(method: string): Promise<void> {
-  if (customization) return tip("Map cannot be saved in EDIT mode, please complete the edit and retry", false, "error");
+  if (viewContext.customization)
+    return tip("Map cannot be saved in EDIT mode, please complete the edit and retry", false, "error");
   closeDialogs("#alert");
 
   try {
@@ -179,7 +200,7 @@ export async function saveMap(method: string): Promise<void> {
     )}. <p id="errorBox">${parseError(error)}</p>`;
 
     openRichDialog({
-      content: window.alertMessage.innerHTML,
+      content: alertMessage.innerHTML,
       resizable: false,
       title: "Saving error",
       width: "28em",
@@ -209,7 +230,8 @@ export async function initiateAutosave(): Promise<void> {
 
     const diffInMinutes = (Date.now() - lastSavedAt) / MINUTE;
     if (diffInMinutes < timeoutMinutes) return;
-    if (customization) return tip("Autosave: map cannot be saved in edit mode", false, "warning" as never, 2000);
+    if (viewContext.customization)
+      return tip("Autosave: map cannot be saved in edit mode", false, "warning" as never, 2000);
 
     try {
       tip("Autosave: saving map...", false, "warning" as never, 3000);
@@ -244,7 +266,7 @@ const saveReminder = (() => {
   const interval = 15 * 60 * 1000;
 
   const reminderId = setInterval(() => {
-    if (customization) return;
+    if (viewContext.customization) return;
     tip(ra(message), true, "warn" as never, 2500);
   }, interval);
 
@@ -265,19 +287,10 @@ export function toggleSaveReminder(): void {
     saveReminderState.status = 1;
     saveReminderState.reminderId = setInterval(
       () => {
-        if (customization) return;
+        if (viewContext.customization) return;
         tip(ra(["Please remember to save the map to your desktop"]), true, "warn" as never, 2500);
       },
       15 * 60 * 1000
     );
   }
 }
-
-// ─── Global exports ───────────────────────────────────────────────────────────
-
-window.prepareMapData = prepareMapData;
-window.saveToStorage = saveToStorage;
-window.saveToMachine = saveToMachine;
-window.saveMap = saveMap;
-window.initiateAutosave = initiateAutosave;
-window.toggleSaveReminder = toggleSaveReminder;

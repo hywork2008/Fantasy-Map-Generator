@@ -1,8 +1,11 @@
 import type { Selection } from "d3";
 import { interpolateRgb, interpolateRgbBasis, scaleSequential } from "d3";
 import type { AppServices } from "../context/appServices";
+import { appServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
+import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import { worldContext } from "../context/worldContext";
 import { onFontAdded } from "../modules/fonts";
 import { OceanLayers } from "../modules/ocean-layers";
 import {
@@ -19,10 +22,10 @@ import { useStyleState } from "../store/styleState";
 import { closeDialog, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { drawHeights, ensureEl, parseTransform, rn, toHEX } from "../utils";
 import { heightmapColorSchemes } from "../utils/colorUtils";
-
-let worldContext: WorldContext;
-let viewContext: Readonly<ViewContext>;
-let appServices: AppServices;
+import { applyOption, lock, tip } from "../utils/uiHelpers";
+import { VERSION } from "../versioning";
+import { confirmationDialog, downloadFile, redrawLegend, uploadFile } from "./editors";
+import { layerIsOn, toggleRelief } from "./layers";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -37,10 +40,15 @@ export function addCustomColorScheme(scheme: string): void {
   ensureEl<HTMLSelectElement>("styleHeightmapScheme").options.add(new Option(scheme, scheme, false, true));
 }
 
+document.addEventListener("fmg:edit-style", (e: Event) => {
+  const { element, group } = (e as CustomEvent<{ element: string; group?: string }>).detail;
+  editStyle(element, group);
+});
+
 // ─── Style element selection ──────────────────────────────────────────────────
 
-function editStyle(element: string, group?: string): void {
-  showOptions();
+export function editStyle(element: string, group?: string): void {
+  import("./options").then(m => m.showOptions());
   ensureEl<HTMLButtonElement>("styleTab").click();
   ensureEl<HTMLSelectElement>("styleElementSelect").value = element;
   if (group) ensureEl<HTMLSelectElement>("styleGroupSelect").options.add(new Option(group, group, true, true));
@@ -57,7 +65,7 @@ function editStyle(element: string, group?: string): void {
 
 function selectStyleElement(): void {
   const styleElement = ensureEl<HTMLSelectElement>("styleElementSelect").value;
-  let el: AnySelection = svg.select<SVGGElement>(`#${styleElement}`);
+  let el: AnySelection = viewContext.svg.select<SVGGElement>(`#${styleElement}`);
 
   const visibility: Record<string, boolean> = {};
   const sliderValues: Record<string, string> = {};
@@ -76,7 +84,7 @@ function selectStyleElement(): void {
 
   // Prevent D3 v7 `.attr()` getter from throwing if the selection is empty.
   if (el.empty()) {
-    el = svg.select<SVGGElement>(() => document.createElementNS("http://www.w3.org/2000/svg", "g"));
+    el = viewContext.svg.select<SVGGElement>(() => document.createElementNS("http://www.w3.org/2000/svg", "g"));
   }
 
   if (!["landmass", "legend", "ocean", "regions"].includes(styleElement)) {
@@ -182,7 +190,7 @@ function selectStyleElement(): void {
 
   if (styleElement === "markers") {
     visibility.styleMarkers = true;
-    ensureEl<HTMLInputElement>("styleRescaleMarkers").checked = Boolean(+markers.attr("rescale")!);
+    ensureEl<HTMLInputElement>("styleRescaleMarkers").checked = Boolean(+viewContext.markers.attr("rescale")!);
   }
 
   if (styleElement === "gridOverlay") {
@@ -196,7 +204,7 @@ function selectStyleElement(): void {
 
   if (styleElement === "compass") {
     visibility.styleCompass = true;
-    const tr = parseTransform(compass.select("use").attr("transform"));
+    const tr = parseTransform(viewContext.compass.select("use").attr("transform"));
     ensureEl<HTMLInputElement>("styleCompassShiftX").value = String(tr[0]);
     ensureEl<HTMLInputElement>("styleCompassShiftY").value = String(tr[1]);
     sliderValues.styleCompassSizeInput = String(tr[2]);
@@ -204,15 +212,15 @@ function selectStyleElement(): void {
 
   if (styleElement === "terrain") {
     visibility.styleRelief = true;
-    sliderValues.styleReliefSize = String(terrain.attr("size") ?? 1);
-    sliderValues.styleReliefDensity = String(terrain.attr("density") ?? 0.4);
-    ensureEl<HTMLSelectElement>("styleReliefSet").value = terrain.attr("set") ?? "";
+    sliderValues.styleReliefSize = String(viewContext.terrain.attr("size") ?? 1);
+    sliderValues.styleReliefDensity = String(viewContext.terrain.attr("density") ?? 0.4);
+    ensureEl<HTMLSelectElement>("styleReliefSet").value = viewContext.terrain.attr("set") ?? "";
   }
 
   if (styleElement === "population") {
     visibility.stylePopulation = true;
-    const ruralStroke = population.select("#rural").attr("stroke") ?? "";
-    const urbanStroke = population.select("#urban").attr("stroke") ?? "";
+    const ruralStroke = viewContext.population.select("#rural").attr("stroke") ?? "";
+    const urbanStroke = viewContext.population.select("#urban").attr("stroke") ?? "";
     ensureEl<HTMLInputElement>("stylePopulationRuralStrokeInput").value = ruralStroke;
     ensureEl<HTMLInputElement>("stylePopulationRuralStrokeOutput").value = ruralStroke;
     ensureEl<HTMLInputElement>("stylePopulationUrbanStrokeInput").value = urbanStroke;
@@ -223,11 +231,11 @@ function selectStyleElement(): void {
 
   if (styleElement === "regions") {
     visibility.styleStates = true;
-    sliderValues.styleStatesBodyOpacity = String(statesBody.attr("opacity") ?? 1);
-    ensureEl<HTMLInputElement>("styleStatesBodyFilter").value = statesBody.attr("filter") ?? "";
-    sliderValues.styleStatesHaloWidth = String(statesHalo.attr("data-width") ?? 10);
-    sliderValues.styleStatesHaloOpacity = String(statesHalo.attr("opacity") ?? 1);
-    const blurMatch = statesHalo.attr("filter")?.match(/blur\(([^)]+)\)/);
+    sliderValues.styleStatesBodyOpacity = String(viewContext.statesBody.attr("opacity") ?? 1);
+    ensureEl<HTMLInputElement>("styleStatesBodyFilter").value = viewContext.statesBody.attr("filter") ?? "";
+    sliderValues.styleStatesHaloWidth = String(viewContext.statesHalo.attr("data-width") ?? 10);
+    sliderValues.styleStatesHaloOpacity = String(viewContext.statesHalo.attr("opacity") ?? 1);
+    const blurMatch = viewContext.statesHalo.attr("filter")?.match(/blur\(([^)]+)\)/);
     sliderValues.styleStatesHaloBlur = String(blurMatch ? parseFloat(blurMatch[1]) : 0);
   }
 
@@ -332,14 +340,14 @@ function selectStyleElement(): void {
 
   if (styleElement === "ocean") {
     visibility.styleOcean = true;
-    const oceanBase = oceanLayers.select<SVGRectElement>("#oceanBase");
+    const oceanBase = viewContext.oceanLayers.select<SVGRectElement>("#oceanBase");
     const fill = oceanBase.attr("fill") ?? "";
     ensureEl<HTMLInputElement>("styleOceanFill").value = fill;
     ensureEl<HTMLInputElement>("styleOceanFillOutput").value = fill;
     ensureEl<HTMLInputElement>("styleOceanPattern").value =
       document.getElementById("oceanicPattern")?.getAttribute("href") ?? "";
     sliderValues.styleOceanPatternOpacity = document.getElementById("oceanicPattern")?.getAttribute("opacity") ?? "1";
-    ensureEl<HTMLSelectElement>("outlineLayers").value = oceanLayers.attr("layers") ?? "";
+    ensureEl<HTMLSelectElement>("outlineLayers").value = viewContext.oceanLayers.attr("layers") ?? "";
   }
 
   if (styleElement === "temperature") {
@@ -368,9 +376,9 @@ function selectStyleElement(): void {
     visibility.styleEmblems = true;
     visibility.styleStrokeWidth = true;
     sliderValues.styleStrokeWidthInput = String(el.attr("stroke-width") ?? 1);
-    sliderValues.emblemsStateSizeInput = emblems.select("#stateEmblems").attr("data-size") ?? "1";
-    sliderValues.emblemsProvinceSizeInput = emblems.select("#provinceEmblems").attr("data-size") ?? "1";
-    sliderValues.emblemsBurgSizeInput = emblems.select("#burgEmblems").attr("data-size") ?? "1";
+    sliderValues.emblemsStateSizeInput = viewContext.emblems.select("#stateEmblems").attr("data-size") ?? "1";
+    sliderValues.emblemsProvinceSizeInput = viewContext.emblems.select("#provinceEmblems").attr("data-size") ?? "1";
+    sliderValues.emblemsBurgSizeInput = viewContext.emblems.select("#burgEmblems").attr("data-size") ?? "1";
   }
 
   // update group options
@@ -391,14 +399,14 @@ function selectStyleElement(): void {
 
   if (styleElement === "coastline" && ensureEl<HTMLSelectElement>("styleGroupSelect").value === "sea_island") {
     visibility.styleCoastline = true;
-    const auto = Boolean(coastline.select("#sea_island").attr("auto-filter"));
+    const auto = Boolean(viewContext.coastline.select("#sea_island").attr("auto-filter"));
     ensureEl<HTMLInputElement>("styleCoastlineAuto").checked = auto;
     if (auto) visibility.styleFilter = false;
   }
 
   if (styleElement === "scaleBar") {
     visibility.styleScaleBar = true;
-    const scaleBarEl = scaleBar;
+    const scaleBarEl = viewContext.scaleBar;
     ensureEl<HTMLInputElement>("styleScaleBarSize").value = scaleBarEl.attr("data-bar-size") ?? "";
     ensureEl<HTMLInputElement>("styleScaleBarFontSize").value = scaleBarEl.attr("font-size") ?? "";
     ensureEl<HTMLInputElement>("styleScaleBarPositionX").value = scaleBarEl.attr("data-x") ?? "99";
@@ -447,14 +455,14 @@ function getEl(): AnySelection {
   const el = ensureEl<HTMLSelectElement>("styleElementSelect").value;
   const g = ensureEl<HTMLSelectElement>("styleGroupSelect").value;
 
-  let selection = svg.select<SVGGElement>(`#${el}`);
+  let selection = viewContext.svg.select<SVGGElement>(`#${el}`);
   if (g !== el && g !== "") {
     selection = selection.select<SVGGElement>(`#${g}`);
   }
 
   // Prevent D3 v7 `.attr()` getter from throwing if the selection is empty.
   if (selection.empty()) {
-    return svg.select<SVGGElement>(() => document.createElementNS("http://www.w3.org/2000/svg", "g"));
+    return viewContext.svg.select<SVGGElement>(() => document.createElementNS("http://www.w3.org/2000/svg", "g"));
   }
 
   return selection;
@@ -463,11 +471,11 @@ function getEl(): AnySelection {
 // ─── Texture helpers ──────────────────────────────────────────────────────────
 
 function changeTexture(href: string): void {
-  texture.attr("data-href", href);
-  texture.select("image").attr("href", href);
+  viewContext.texture.attr("data-href", href);
+  viewContext.texture.select("image").attr("href", href);
 }
 
-function updateTextureSelectValue(href: string): void {
+export function updateTextureSelectValue(href: string): void {
   const select = ensureEl<HTMLSelectElement>("styleTextureInput");
   const isAdded = Array.from(select.options).some(option => option.value === href);
   if (isAdded) {
@@ -480,9 +488,9 @@ function updateTextureSelectValue(href: string): void {
 
 // ─── Grid size calculator ─────────────────────────────────────────────────────
 
-function calculateFriendlyGridSize(): void {
+export function calculateFriendlyGridSize(): void {
   const size = +ensureEl<HTMLInputElement>("styleGridScale").value * 25;
-  const friendly = `${rn(size * distanceScale, 2)} ${distanceUnitInput.value}`;
+  const friendly = `${rn(size * worldContext.distanceScale, 2)} ${distanceUnitInput.value}`;
   ensureEl<HTMLInputElement>("styleGridSizeFriendly").value = friendly;
 }
 
@@ -492,12 +500,12 @@ function shiftCompass(sizeOverride?: string): void {
   const x = ensureEl<HTMLInputElement>("styleCompassShiftX").value;
   const y = ensureEl<HTMLInputElement>("styleCompassShiftY").value;
   const size = sizeOverride ?? useStyleState.getState().values.styleCompassSizeInput ?? "0.3";
-  compass.select("use").attr("transform", `translate(${x} ${y}) scale(${size})`);
+  viewContext.compass.select("use").attr("transform", `translate(${x} ${y}) scale(${size})`);
 }
 
 // ─── Font helpers ─────────────────────────────────────────────────────────────
 
-function changeFont(): void {
+export function changeFont(): void {
   const family = ensureEl<HTMLSelectElement>("styleSelectFont").value;
   getEl().attr("font-family", family);
   if (ensureEl<HTMLSelectElement>("styleElementSelect").value === "legend") redrawLegend();
@@ -508,8 +516,8 @@ function changeFontSize(el: AnySelection, size: number): void {
   const styleElement = ensureEl<HTMLSelectElement>("styleElementSelect").value;
 
   const getSizeOnScale = (element: string): number => {
-    if (element === "labels") return Math.max(rn((size + size / scale) / 2, 2), 1);
-    if (element === "coordinates") return rn(size / scale ** 0.8, 2);
+    if (element === "labels") return Math.max(rn((size + size / viewContext.scale) / 2, 2), 1);
+    if (element === "coordinates") return rn(size / viewContext.scale ** 0.8, 2);
     return size;
   };
 
@@ -523,10 +531,10 @@ function changeFontSize(el: AnySelection, size: number): void {
 
 function updateElements(): void {
   if (layerIsOn("toggleHeight")) HeightmapRenderer.render(worldContext, viewContext, appServices);
-  if (legend.selectAll("*").size()) redrawLegend();
-  oceanLayers.selectAll("path").remove();
+  if (viewContext.legend.selectAll("*").size()) redrawLegend();
+  viewContext.oceanLayers.selectAll("path").remove();
   OceanLayers();
-  invokeActiveZooming();
+  import("../main").then(m => m.invokeActiveZooming());
 }
 
 // ─── Slider change dispatcher (called from React SliderInput components) ──────
@@ -574,69 +582,69 @@ export function applySliderChange(id: string, value: string): void {
       shiftCompass(value);
       break;
     case "styleReliefSize":
-      terrain.attr("size", value);
+      viewContext.terrain.attr("size", value);
       ReliefIconsRenderer.render(worldContext, viewContext, appServices);
       if (!layerIsOn("toggleRelief")) toggleRelief();
       break;
     case "styleReliefDensity":
-      terrain.attr("density", value);
+      viewContext.terrain.attr("density", value);
       ReliefIconsRenderer.render(worldContext, viewContext, appServices);
       if (!layerIsOn("toggleRelief")) toggleRelief();
       break;
     case "styleLegendColItems":
-      legend.select("#legendBox").attr("data-columns", value);
+      viewContext.legend.select("#legendBox").attr("data-columns", value);
       redrawLegend();
       break;
     case "styleLegendOpacity":
-      legend.select("#legendBox").attr("fill-opacity", value);
+      viewContext.legend.select("#legendBox").attr("fill-opacity", value);
       break;
     case "styleTemperatureFillOpacityInput":
-      temperature.attr("fill-opacity", value);
+      viewContext.temperature.attr("fill-opacity", value);
       break;
     case "styleTemperatureFontSizeInput":
-      temperature.attr("font-size", `${value}px`);
+      viewContext.temperature.attr("font-size", `${value}px`);
       break;
     case "styleStatesBodyOpacity":
-      statesBody.attr("opacity", value);
+      viewContext.statesBody.attr("opacity", value);
       break;
     case "styleStatesHaloWidth":
-      statesHalo.attr("data-width", value).attr("stroke-width", value);
+      viewContext.statesHalo.attr("data-width", value).attr("stroke-width", value);
       break;
     case "styleStatesHaloOpacity":
-      statesHalo.attr("opacity", value);
+      viewContext.statesHalo.attr("opacity", value);
       break;
     case "styleStatesHaloBlur": {
       const blur = Number(value) > 0 ? `blur(${value}px)` : null;
-      statesHalo.attr("filter", blur);
+      viewContext.statesHalo.attr("filter", blur);
       break;
     }
     case "styleArmiesFillOpacity":
-      armies.attr("fill-opacity", value);
+      viewContext.armies.attr("fill-opacity", value);
       break;
     case "styleArmiesSize": {
       const numVal = Number(value);
-      armies.attr("box-size", numVal).attr("font-size", numVal * 2);
-      armies.selectAll("g").remove();
-      pack.states.forEach(s => {
+      viewContext.armies.attr("box-size", numVal).attr("font-size", numVal * 2);
+      viewContext.armies.selectAll("g").remove();
+      worldContext.pack.states.forEach(s => {
         if (!s.i || s.removed || !s.military?.length) return;
         drawRegiments(worldContext, viewContext, appServices, s.military, s.i);
       });
       break;
     }
     case "emblemsStateSizeInput":
-      emblems.select("#stateEmblems").attr("data-size", value);
+      viewContext.emblems.select("#stateEmblems").attr("data-size", value);
       EmblemsRenderer.render(worldContext, viewContext, appServices);
       break;
     case "emblemsProvinceSizeInput":
-      emblems.select("#provinceEmblems").attr("data-size", value);
+      viewContext.emblems.select("#provinceEmblems").attr("data-size", value);
       EmblemsRenderer.render(worldContext, viewContext, appServices);
       break;
     case "emblemsBurgSizeInput":
-      emblems.select("#burgEmblems").attr("data-size", value);
+      viewContext.emblems.select("#burgEmblems").attr("data-size", value);
       EmblemsRenderer.render(worldContext, viewContext, appServices);
       break;
     case "styleScaleBarBackgroundOpacity":
-      scaleBar.select<SVGRectElement>("#scaleBarBack").attr("opacity", value);
+      viewContext.scaleBar.select<SVGRectElement>("#scaleBarBack").attr("opacity", value);
       break;
   }
 }
@@ -646,7 +654,7 @@ export function applySliderChange(id: string, value: string): void {
 function applyMapFilter(event: Event): void {
   if ((event.target as HTMLElement).tagName !== "BUTTON") return;
   const button = event.target as HTMLButtonElement;
-  svg.attr("data-filter", null).attr("filter", null);
+  viewContext.svg.attr("data-filter", null).attr("filter", null);
   if (button.classList.contains("pressed")) {
     button.classList.remove("pressed");
     return;
@@ -657,12 +665,12 @@ function applyMapFilter(event: Event): void {
       b.classList.remove("pressed");
     });
   button.classList.add("pressed");
-  svg.attr("data-filter", button.id).attr("filter", `url(#filter-${button.id})`);
+  viewContext.svg.attr("data-filter", button.id).attr("filter", `url(#filter-${button.id})`);
 }
 
 // ─── Texture URL dialog ───────────────────────────────────────────────────────
 
-function textureProvideURL(): void {
+export function textureProvideURL(): void {
   openRichDialog({
     title: "Load custom texture",
     content: /* html */ `Provide a texture image URL:
@@ -683,7 +691,7 @@ function textureProvideURL(): void {
   });
 }
 
-function fetchTextureURL(url: string): void {
+export function fetchTextureURL(url: string): void {
   INFO && console.info("Provided URL is", url); // INFO is a global debug flag
   const img = new Image();
   img.onload = () => {
@@ -693,6 +701,33 @@ function fetchTextureURL(url: string): void {
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
   };
   img.src = url;
+}
+
+// ─── Module-level forwarding refs set by initStyleTab ────────────────────────
+
+let _applyStyleOnLoad: (() => Promise<void>) | null = null;
+let _requestStylePresetChange: ((preset: string) => void) | null = null;
+let _addStylePreset: (() => void) | null = null;
+let _requestRemoveStylePreset: (() => void) | null = null;
+
+export async function applyStyleOnLoad(): Promise<void> {
+  if (!_applyStyleOnLoad) throw new Error("applyStyleOnLoad called before initStyleTab");
+  return _applyStyleOnLoad();
+}
+
+export function requestStylePresetChange(preset: string): void {
+  if (!_requestStylePresetChange) throw new Error("requestStylePresetChange called before initStyleTab");
+  _requestStylePresetChange(preset);
+}
+
+export function addStylePreset(): void {
+  if (!_addStylePreset) throw new Error("addStylePreset called before initStyleTab");
+  _addStylePreset();
+}
+
+export function requestRemoveStylePreset(): void {
+  if (!_requestRemoveStylePreset) throw new Error("requestRemoveStylePreset called before initStyleTab");
+  _requestRemoveStylePreset();
 }
 
 export function initStyleTab() {
@@ -816,7 +851,7 @@ export function initStyleTab() {
   ensureEl("styleFilterInput").addEventListener("change", (e: Event) => {
     const value = (e.target as HTMLSelectElement).value;
     if (ensureEl<HTMLSelectElement>("styleGroupSelect").value === "ocean")
-      return void oceanLayers.attr("filter", value);
+      return void viewContext.oceanLayers.attr("filter", value);
     getEl().attr("filter", value);
   });
 
@@ -827,21 +862,21 @@ export function initStyleTab() {
   ensureEl("styleTextureShiftX").addEventListener("input", (e: Event) => {
     const value = (e.target as HTMLInputElement).value;
     const numVal = +(e.target as HTMLInputElement).valueAsNumber;
-    texture.attr("data-x", value);
-    texture
+    viewContext.texture.attr("data-x", value);
+    viewContext.texture
       .select("image")
       .attr("x", value)
-      .attr("width", graphWidth - numVal);
+      .attr("width", worldContext.graphWidth - numVal);
   });
 
   ensureEl("styleTextureShiftY").addEventListener("input", (e: Event) => {
     const value = (e.target as HTMLInputElement).value;
     const numVal = +(e.target as HTMLInputElement).valueAsNumber;
-    texture.attr("data-y", value);
-    texture
+    viewContext.texture.attr("data-y", value);
+    viewContext.texture
       .select("image")
       .attr("y", value)
-      .attr("height", graphHeight - numVal);
+      .attr("height", worldContext.graphHeight - numVal);
   });
 
   ensureEl("styleClippingInput").addEventListener("change", (e: Event) => {
@@ -871,20 +906,20 @@ export function initStyleTab() {
   });
 
   ensureEl("styleRescaleMarkers").addEventListener("change", (e: Event) => {
-    markers.attr("rescale", +(e.target as HTMLInputElement).checked);
-    invokeActiveZooming();
+    viewContext.markers.attr("rescale", +(e.target as HTMLInputElement).checked);
+    import("../main").then(m => m.invokeActiveZooming());
   });
 
   ensureEl("styleCoastlineAuto").addEventListener("change", (e: Event) => {
     const checked = (e.target as HTMLInputElement).checked;
-    coastline.select("#sea_island").attr("auto-filter", +checked);
+    viewContext.coastline.select("#sea_island").attr("auto-filter", +checked);
     ensureEl<HTMLElement>("styleFilter").style.display = checked ? "none" : "block";
-    invokeActiveZooming();
+    import("../main").then(m => m.invokeActiveZooming());
   });
 
   ensureEl("styleOceanFill").addEventListener("input", (e: Event) => {
     const value = (e.target as HTMLInputElement).value;
-    oceanLayers.select("rect").attr("fill", value);
+    viewContext.oceanLayers.select("rect").attr("fill", value);
     ensureEl<HTMLInputElement>("styleOceanFillOutput").value = value;
   });
 
@@ -893,8 +928,8 @@ export function initStyleTab() {
   });
 
   ensureEl("outlineLayers").addEventListener("change", (e: Event) => {
-    oceanLayers.selectAll("path").remove();
-    oceanLayers.attr("layers", (e.target as HTMLSelectElement).value);
+    viewContext.oceanLayers.selectAll("path").remove();
+    viewContext.oceanLayers.attr("layers", (e.target as HTMLSelectElement).value);
     OceanLayers();
   });
 
@@ -914,9 +949,9 @@ export function initStyleTab() {
       const stops = button.dataset.stops!.split(",");
       const previewScheme = scaleSequential(interpolateRgbBasis(stops));
       const preview = drawHeights({
-        heights: Array.from(grid.cells.h),
-        width: grid.cellsX,
-        height: grid.cellsY,
+        heights: Array.from(worldContext.grid.cells.h),
+        width: worldContext.grid.cellsX,
+        height: worldContext.grid.cellsY,
         scheme: previewScheme,
         renderOcean: false
       });
@@ -1017,26 +1052,26 @@ export function initStyleTab() {
   });
 
   ensureEl("styleReliefSet").addEventListener("change", (e: Event) => {
-    terrain.attr("set", (e.target as HTMLSelectElement).value);
+    viewContext.terrain.attr("set", (e.target as HTMLSelectElement).value);
     ReliefIconsRenderer.render(worldContext, viewContext, appServices);
     if (!layerIsOn("toggleRelief")) toggleRelief();
   });
 
   ensureEl("styleTemperatureFillInput").addEventListener("input", (e: Event) => {
     const value = (e.target as HTMLInputElement).value;
-    temperature.attr("fill", value);
+    viewContext.temperature.attr("fill", value);
     ensureEl<HTMLInputElement>("styleTemperatureFillOutput").value = value;
   });
 
   ensureEl("stylePopulationRuralStrokeInput").addEventListener("input", (e: Event) => {
     const value = (e.target as HTMLInputElement).value;
-    population.select("#rural").attr("stroke", value);
+    viewContext.population.select("#rural").attr("stroke", value);
     ensureEl<HTMLInputElement>("stylePopulationRuralStrokeOutput").value = value;
   });
 
   ensureEl("stylePopulationUrbanStrokeInput").addEventListener("input", (e: Event) => {
     const value = (e.target as HTMLInputElement).value;
-    population.select("#urban").attr("stroke", value);
+    viewContext.population.select("#urban").attr("stroke", value);
     ensureEl<HTMLInputElement>("stylePopulationUrbanStrokeOutput").value = value;
   });
 
@@ -1055,7 +1090,7 @@ export function initStyleTab() {
   ensureEl("styleLegendBack").addEventListener("input", (e: Event) => {
     const value = (e.target as HTMLInputElement).value;
     ensureEl<HTMLInputElement>("styleLegendBackOutput").value = value;
-    legend.select("#legendBox").attr("fill", value);
+    viewContext.legend.select("#legendBox").attr("fill", value);
   });
 
   ensureEl("styleSelectFont").addEventListener("change", changeFont);
@@ -1089,7 +1124,7 @@ export function initStyleTab() {
   });
 
   ensureEl("styleStatesBodyFilter").addEventListener("change", (e: Event) => {
-    statesBody.attr("filter", (e.target as HTMLSelectElement).value);
+    viewContext.statesBody.attr("filter", (e.target as HTMLSelectElement).value);
   });
 
   ensureEl("styleVignettePreset").addEventListener("change", (e: Event) => {
@@ -1154,17 +1189,17 @@ export function initStyleTab() {
   });
 
   ensureEl("styleScaleBar").addEventListener("input", (event: Event) => {
-    const scaleBarBack = scaleBar.select<SVGGElement>("#scaleBarBack");
+    const scaleBarBack = viewContext.scaleBar.select<SVGGElement>("#scaleBarBack");
     if (!scaleBarBack.size()) return;
 
     const target = event.target as HTMLInputElement;
     const { id, value } = target;
 
-    if (id === "styleScaleBarSize") scaleBar.attr("data-bar-size", value);
-    else if (id === "styleScaleBarFontSize") scaleBar.attr("font-size", value);
-    else if (id === "styleScaleBarPositionX") scaleBar.attr("data-x", value);
-    else if (id === "styleScaleBarPositionY") scaleBar.attr("data-y", value);
-    else if (id === "styleScaleBarLabel") scaleBar.attr("data-label", value);
+    if (id === "styleScaleBarSize") viewContext.scaleBar.attr("data-bar-size", value);
+    else if (id === "styleScaleBarFontSize") viewContext.scaleBar.attr("font-size", value);
+    else if (id === "styleScaleBarPositionX") viewContext.scaleBar.attr("data-x", value);
+    else if (id === "styleScaleBarPositionY") viewContext.scaleBar.attr("data-y", value);
+    else if (id === "styleScaleBarLabel") viewContext.scaleBar.attr("data-label", value);
     else if (id === "styleScaleBarBackgroundFill") {
       scaleBarBack.attr("fill", value);
       ensureEl<HTMLInputElement>("styleScaleBarBackgroundFillOutput").value = value;
@@ -1190,8 +1225,15 @@ export function initStyleTab() {
         "styleScaleBarBackgroundPaddingBottom"
       ].includes(id)
     ) {
-      drawScaleBar(worldContext, viewContext, appServices, scaleBar, scale);
-      fitScaleBar(worldContext, viewContext, appServices, scaleBar, svgWidth, svgHeight);
+      drawScaleBar(worldContext, viewContext, appServices, viewContext.scaleBar, viewContext.scale);
+      fitScaleBar(
+        worldContext,
+        viewContext,
+        appServices,
+        viewContext.scaleBar,
+        viewContext.svgWidth,
+        viewContext.svgHeight
+      );
     }
   });
 
@@ -1246,15 +1288,15 @@ export function initStyleTab() {
     for (const selector in styleJSON) {
       if (selector.startsWith("#burgLabels")) {
         const group = selector.split("#").pop()!;
-        style.burgLabels[group] = styleJSON[selector] as Record<string, string>;
+        worldContext.style.burgLabels[group] = styleJSON[selector] as Record<string, string>;
       }
       if (selector.startsWith("#burgIcons")) {
         const group = selector.split("#").pop()!;
-        style.burgIcons[group] = styleJSON[selector] as Record<string, string>;
+        worldContext.style.burgIcons[group] = styleJSON[selector] as Record<string, string>;
       }
       if (selector.startsWith("#anchors")) {
         const group = selector.split("#").pop()!;
-        style.anchors[group] = styleJSON[selector] as Record<string, string>;
+        worldContext.style.anchors[group] = styleJSON[selector] as Record<string, string>;
       }
 
       const el = document.querySelector(selector);
@@ -1323,10 +1365,17 @@ export function initStyleTab() {
     updateMapFilter();
     const presetEl = ensureEl<HTMLSelectElement>("stylePreset");
     presetEl.dataset.old = presetEl.value;
-    invokeActiveZooming();
+    import("../main").then(m => m.invokeActiveZooming());
     setPresetRemoveButtonVisibiliy();
-    drawScaleBar(worldContext, viewContext, appServices, scaleBar, scale);
-    fitScaleBar(worldContext, viewContext, appServices, scaleBar, svgWidth, svgHeight);
+    drawScaleBar(worldContext, viewContext, appServices, viewContext.scaleBar, viewContext.scale);
+    fitScaleBar(
+      worldContext,
+      viewContext,
+      appServices,
+      viewContext.scaleBar,
+      viewContext.svgWidth,
+      viewContext.svgHeight
+    );
   }
 
   function addStylePreset(): void {
@@ -1527,7 +1576,7 @@ export function initStyleTab() {
       ];
       const anchorsAttributes = ["opacity", "fill", "font-size", "stroke", "stroke-width", "filter"];
 
-      options.burgs.groups.forEach(({ name }) => {
+      worldContext.options.burgs.groups.forEach(({ name }) => {
         attributes[`#burgLabels > g#${name}`] = burgLabelsAttributes;
         attributes[`#burgIcons > g#${name}`] = burgIconsAttributes;
         attributes[`#anchors > g#${name}`] = anchorsAttributes;
@@ -1666,7 +1715,7 @@ export function initStyleTab() {
   }
 
   function updateMapFilter(): void {
-    const filter = svg.attr("data-filter");
+    const filter = viewContext.svg.attr("data-filter");
     ensureEl("mapFilters")
       .querySelectorAll<HTMLButtonElement>(".pressed")
       .forEach(button => {
@@ -1681,29 +1730,11 @@ export function initStyleTab() {
     ensureEl<HTMLElement>("removeStyleButton").style.display = isDefault ? "none" : "inline-block";
   }
 
-  // ─── Global exports ───────────────────────────────────────────────────────────
-  window.editStyle = editStyle;
-  window.selectStyleElement = selectStyleElement;
-  window.calculateFriendlyGridSize = calculateFriendlyGridSize;
-  window.changeFont = changeFont;
-  window.updateElements = updateElements;
-  window.fetchTextureURL = fetchTextureURL;
-  window.textureProvideURL = textureProvideURL;
-  window.updateTextureSelectValue = updateTextureSelectValue;
-
-  window.applyStyleOnLoad = applyStyleOnLoad;
-  window.applyStyle = applyStyle;
-  window.applyStyleWithUiRefresh = applyStyleWithUiRefresh;
-  window.changeStyle = changeStyle;
-  window.addStylePreset = addStylePreset;
-  window.requestStylePresetChange = requestStylePresetChange;
-  window.requestRemoveStylePreset = requestRemoveStylePreset;
-  window.removeStylePreset = removeStylePreset;
-  window.updateMapFilter = updateMapFilter;
+  // Wire up module-level forwarding refs
+  _applyStyleOnLoad = applyStyleOnLoad;
+  _requestStylePresetChange = requestStylePresetChange;
+  _addStylePreset = addStylePreset;
+  _requestRemoveStylePreset = requestRemoveStylePreset;
 }
 
-export function initStyle(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {
-  worldContext = wc;
-  viewContext = vc;
-  appServices = as;
-}
+export function initStyle(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {}

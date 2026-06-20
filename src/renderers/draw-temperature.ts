@@ -1,7 +1,7 @@
 import { color, curveBasisClosed, interpolateSpectral, leastIndex, line, max, min, range, scaleSequential } from "d3";
 import { TemperatureRenderer } from "../config/constants";
 import type { AppServices } from "../context/appServices";
-import type { EnvironmentLayers } from "../context/viewContext";
+import type { EnvironmentLayers, ViewState } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { connectVertices, convertTemperature, ensureEl, round } from "../utils";
 import { TIME } from "../utils/debug";
@@ -11,7 +11,7 @@ export const TemperatureLayerRenderer: IRenderer = {
   id: "temperature",
   render(
     worldContext: Readonly<WorldContext>,
-    viewContext: Readonly<EnvironmentLayers>,
+    viewContext: Readonly<EnvironmentLayers & ViewState>,
     appServices: AppServices
   ): void {
     drawTemperature(worldContext, viewContext, appServices);
@@ -23,7 +23,7 @@ export const TemperatureLayerRenderer: IRenderer = {
 
 export const drawTemperature = (
   worldContext: Readonly<WorldContext>,
-  viewContext: Readonly<EnvironmentLayers>,
+  viewContext: Readonly<EnvironmentLayers & ViewState>,
   _appServices: AppServices
 ): void => {
   TIME && console.time("drawTemperature");
@@ -117,7 +117,7 @@ export const drawTemperature = (
   }
 
   function addLabel(points: [number, number][], t: number): void {
-    const { svgWidth } = worldContext;
+    const { svgWidth } = viewContext;
     const xCenter = svgWidth / 2;
 
     // add label on isoline top center
@@ -143,7 +143,7 @@ export const drawTemperature = (
   }
 
   function pushLabel(x: number, y: number, t: number): void {
-    const { svgWidth, svgHeight } = worldContext;
+    const { svgWidth, svgHeight } = viewContext;
     if (x < TemperatureRenderer.LABEL_MARGIN || x > svgWidth - TemperatureRenderer.LABEL_MARGIN) return;
     if (y < TemperatureRenderer.LABEL_MARGIN || y > svgHeight - TemperatureRenderer.LABEL_MARGIN) return;
     labels.push([x, y, t]);

@@ -1,7 +1,12 @@
 import { hsl } from "d3";
+import { THEME_COLOR } from "../config/constants";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
+import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import { worldContext } from "../context/worldContext";
+import { exportToPngTiles } from "../io/export";
+import { loadMapFromURL, uploadMap } from "../io/load";
 import type { Burg } from "../modules/burgs-generator";
 import type { Culture } from "../modules/cultures-generator";
 import { Cultures } from "../modules/cultures-generator";
@@ -16,30 +21,28 @@ import { type OptionsState, useOptionsState } from "../store/optionsState";
 import {
   closeAllDialogs,
   closeDialog,
+  closeDialogs,
   isDialogOpen,
   openConfirm,
   openDialog,
   openRichDialog
 } from "../ui/dialogs/dialogService";
 import { ensureEl, gauss, last, minmax, P, rand, rn, rw } from "../utils";
-import { unselect } from "./editors";
+import { fitLegendBox, unselect } from "./editors";
 import { exportToJson as exportToJsonModule } from "./export-json";
-import { open as openHeightmapSelection } from "./heightmap-selection";
-
-let worldContext: WorldContext;
-let viewContext: Readonly<ViewContext>;
-let appServices: AppServices;
 
 // ─── Init jQuery draggable / disable-selection ────────────────────────────────
 
+import { resetZoom } from "../actions";
+import { appServices } from "../context/appServices";
+import { Names } from "../modules/names-generator";
 import { viewStateStore } from "../store";
-import { applyOption, lock, stored } from "../utils/uiHelpers";
-
-// duplicate import removed
+import { alertMessage } from "../utils/alertMessageEl";
+import { applyOption, clearMainTip, fitContent, lock, locked, stored, tip, unlock } from "../utils/uiHelpers";
 
 // ─── Options pane show/hide ───────────────────────────────────────────────────
 
-function showOptions(event?: Event): void {
+export function showOptions(event?: Event): void {
   if (!stored("disable_click_arrow_tooltip")) {
     clearMainTip();
     localStorage.setItem("disable_click_arrow_tooltip", "true");
@@ -54,12 +57,12 @@ function showOptions(event?: Event): void {
   if (event) event.stopPropagation();
 }
 
-function hideOptions(event?: Event): void {
+export function hideOptions(event?: Event): void {
   viewStateStore.getState().setMenuOpen(false);
   if (event) event.stopPropagation();
 }
 
-function toggleOptions(event?: Event): void {
+export function toggleOptions(event?: Event): void {
   const isOpen = viewStateStore.getState().isMenuOpen;
   viewStateStore.getState().setMenuOpen(!isOpen);
   if (event) event.stopPropagation();
@@ -134,71 +137,78 @@ function restoreDefaultCanvasSize(): void {
   fitMapToScreen();
 }
 
-function applyGraphSize(): void {
+export function applyGraphSize(): void {
   const options = useOptionsState.getState();
-  window.graphWidth = options.mapWidth;
-  window.graphHeight = options.mapHeight;
+  worldContext.graphWidth = options.mapWidth;
+  worldContext.graphHeight = options.mapHeight;
+  const { graphWidth, graphHeight } = worldContext;
 
-  landmass.select("rect").attr("x", 0).attr("y", 0).attr("width", window.graphWidth).attr("height", window.graphHeight);
-  oceanPattern
+  viewContext.landmass.select("rect").attr("x", 0).attr("y", 0).attr("width", graphWidth).attr("height", graphHeight);
+  viewContext.oceanPattern
     .select("rect")
     .attr("x", 0)
     .attr("y", 0)
-    .attr("width", window.graphWidth)
-    .attr("height", window.graphHeight);
-  oceanLayers
+    .attr("width", graphWidth)
+    .attr("height", graphHeight);
+  viewContext.oceanLayers
     .select("rect")
     .attr("x", 0)
     .attr("y", 0)
-    .attr("width", window.graphWidth)
-    .attr("height", window.graphHeight);
-  fogging
-    .selectAll("rect")
+    .attr("width", graphWidth)
+    .attr("height", graphHeight);
+  viewContext
+    .fogging!.selectAll("rect")
     .attr("x", 0)
     .attr("y", 0)
-    .attr("width", window.graphWidth)
-    .attr("height", window.graphHeight);
-  defs.select("mask#fog > rect").attr("width", window.graphWidth).attr("height", window.graphHeight);
-  defs.select("mask#water > rect").attr("width", window.graphWidth).attr("height", window.graphHeight);
+    .attr("width", graphWidth)
+    .attr("height", graphHeight);
+  viewContext.defs.select("mask#fog > rect").attr("width", graphWidth).attr("height", graphHeight);
+  viewContext.defs.select("mask#water > rect").attr("width", graphWidth).attr("height", graphHeight);
 }
 
 export function fitMapToScreen(): void {
   const options = useOptionsState.getState();
-  window.svgWidth = Math.min(options.mapWidth, window.innerWidth);
-  window.svgHeight = Math.min(options.mapHeight, window.innerHeight);
+  const svgWidth = Math.min(options.mapWidth, window.innerWidth);
+  const svgHeight = Math.min(options.mapHeight, window.innerHeight);
+  Object.assign(viewContext, { svgWidth, svgHeight });
+
   const mapEl = document.getElementById("map");
   if (mapEl) {
-    mapEl.setAttribute("width", String(window.svgWidth));
-    mapEl.setAttribute("height", String(window.svgHeight));
+    mapEl.setAttribute("width", String(svgWidth));
+    mapEl.setAttribute("height", String(svgHeight));
   }
 
-  const zoomMin = rn(Math.max(window.svgWidth / window.graphWidth, window.svgHeight / window.graphHeight), 3);
+  const { graphWidth, graphHeight } = worldContext;
+  const zoomMin = rn(Math.max(svgWidth / graphWidth, svgHeight / graphHeight), 3);
   useOptionsState.getState().setOption("zoomExtentMin", zoomMin);
   const zoomMax = useOptionsState.getState().zoomExtentMax;
 
-  zoom
+  viewContext.zoom
     .translateExtent([
       [0, 0],
-      [window.graphWidth, window.graphHeight]
+      [graphWidth, graphHeight]
     ])
     .scaleExtent([zoomMin, zoomMax]);
 
-  fitScaleBar(worldContext, viewContext, appServices, scaleBar, window.svgWidth, window.svgHeight);
+  fitScaleBar(worldContext, viewContext, appServices, viewContext.scaleBar, svgWidth, svgHeight);
   if (typeof fitLegendBox !== "undefined") fitLegendBox();
 }
+
+document.addEventListener("fmg:fit-map-to-screen", fitMapToScreen);
 
 function toggleTranslateExtent(el: HTMLElement): void {
   el.dataset.on = String(+!+(el.dataset.on ?? "0"));
   const on = el.dataset.on;
+  const { graphWidth, graphHeight } = worldContext;
   if (+on) {
-    zoom.translateExtent([
-      [-window.graphWidth / 2, -window.graphHeight / 2],
-      [window.graphWidth * 1.5, window.graphHeight * 1.5]
+    viewContext.zoom.translateExtent([
+      [-graphWidth / 2, -graphHeight / 2],
+      [graphWidth * 1.5, graphHeight * 1.5]
     ]);
   } else {
-    zoom.translateExtent([
+    viewContext.zoom.translateExtent([
       [0, 0],
-      [window.graphWidth, window.graphHeight]
+      [graphWidth, graphHeight]
     ]);
   }
 }
@@ -222,15 +232,15 @@ function testSpeaker(): void {
 // ─── Seed / map history ────────────────────────────────────────────────────────
 
 function generateMapWithSeed(): void {
-  if (useOptionsState.getState().seed === seed) {
+  if (useOptionsState.getState().seed === worldContext.seed) {
     tip("The current map already has this seed", false, "error");
     return;
   }
   regeneratePrompt({ seed: useOptionsState.getState().seed });
 }
 
-function showSeedHistoryDialog(): void {
-  const lines = mapHistory.map((h, i) => {
+export function showSeedHistoryDialog(): void {
+  const lines = worldContext.mapHistory.map((h, i) => {
     const created = new Date(h.created).toLocaleTimeString();
     const button = `<i data-tip="Click to generate a map with this seed" onclick="restoreSeed(${i})" class="icon-history optionsSeedRestore"></i>`;
     return `<li>Seed: ${h.seed} ${button}. Size: ${h.width}x${h.height}. Template: ${h.template}. Created: ${created}</li>`;
@@ -241,8 +251,8 @@ function showSeedHistoryDialog(): void {
   });
 }
 
-function restoreSeed(id: number): void {
-  const { seed: s, width, height, template } = mapHistory[id];
+export function restoreSeed(id: number): void {
+  const { seed: s, width, height, template } = worldContext.mapHistory[id];
   useOptionsState.getState().setOptions({ seed: s, mapWidth: width, mapHeight: height, template });
 
   if (locked("template")) unlock("template");
@@ -250,9 +260,10 @@ function restoreSeed(id: number): void {
   regeneratePrompt({ seed: s });
 }
 
-function copyMapURL(): void {
+export function copyMapURL(): void {
   const lockedCount = document.querySelectorAll("i.icon-lock").length;
-  const search = `?seed=${useOptionsState.getState().seed}&width=${window.graphWidth}&height=${window.graphHeight}${lockedCount ? "" : "&options=default"}`;
+  const { graphWidth, graphHeight } = worldContext;
+  const search = `?seed=${useOptionsState.getState().seed}&width=${graphWidth}&height=${graphHeight}${lockedCount ? "" : "&options=default"}`;
   navigator.clipboard
     .writeText(location.host + location.pathname + search)
     .then(() => tip("Map URL is copied to clipboard", false, "success", 3000))
@@ -261,7 +272,7 @@ function copyMapURL(): void {
 
 // ─── Cells density ─────────────────────────────────────────────────────────────
 
-const cellsDensityMap: Record<number, number> = {
+export const cellsDensityMap: Record<number, number> = {
   1: 1000,
   2: 2000,
   3: 5000,
@@ -277,14 +288,14 @@ const cellsDensityMap: Record<number, number> = {
   13: 100000
 };
 
-function changeCellsDensity(value: number): void {
+export function changeCellsDensity(value: number): void {
   useOptionsState.getState().setOptions({ points: value });
   // const cells = cellsDensityMap[value] || +(10000);
   // pointsOutputFormatted.value = `${cells / 1000}K`;
   // pointsOutputFormatted.style.color = getCellsDensityColor(cells);
 }
 
-function getCellsDensityColor(cells: number): string {
+export function getCellsDensityColor(cells: number): string {
   return cells > 50000 ? "#b12117" : cells !== 10000 ? "#dfdf12" : "#053305";
 }
 
@@ -303,7 +314,7 @@ function changeEmblemShape(emblemShape: string): void {
 
   const specificShape = ["culture", "state", "random"].includes(emblemShape) ? null : emblemShape;
   if (emblemShape === "random")
-    (pack.cultures as Culture[])
+    (worldContext.pack.cultures as Culture[])
       .filter(c => !c.removed)
       .forEach(c => {
         c.shield = Cultures.getRandomShield();
@@ -316,7 +327,7 @@ function changeEmblemShape(emblemShape: string): void {
     COArenderer.trigger(id, coa);
   };
 
-  (pack.states as State[]).forEach(state => {
+  (worldContext.pack.states as State[]).forEach(state => {
     if (!state.i || state.removed || !state.coa || state.coa.custom) return;
     const newShield = specificShape || COA.getShield(state.culture);
     if (newShield === state.coa.shield) return;
@@ -324,16 +335,16 @@ function changeEmblemShape(emblemShape: string): void {
     rerenderCOA(`stateCOA${state.i}`, state.coa);
   });
 
-  (pack.provinces as Province[]).forEach(province => {
+  (worldContext.pack.provinces as Province[]).forEach(province => {
     if (!province.i || province.removed || !province.coa || province.coa.custom) return;
-    const culture = pack.cells.culture[province.center];
+    const culture = worldContext.pack.cells.culture[province.center];
     const newShield = specificShape || COA.getShield(culture, province.state);
     if (newShield === province.coa.shield) return;
     province.coa.shield = newShield;
     rerenderCOA(`provinceCOA${province.i}`, province.coa);
   });
 
-  pack.burgs.forEach((burg: Burg) => {
+  worldContext.pack.burgs.forEach((burg: Burg) => {
     if (!burg.i || burg.removed || !burg.coa || burg.coa.custom) return;
     const newShield = specificShape || COA.getShield(burg.culture ?? 0, burg.state);
     if (newShield === burg.coa.shield) return;
@@ -344,8 +355,8 @@ function changeEmblemShape(emblemShape: string): void {
 
 function changeStatesNumber(value: string): void {
   /* statesNumber style removed */
-  burgLabels.select("#capital").attr("data-size", Math.max(rn(6 - +value / 20), 3));
-  labels.select("#countries").attr("data-size", Math.max(rn(18 - +value / 6), 4));
+  viewContext.burgLabels.select("#capital").attr("data-size", Math.max(rn(6 - +value / 20), 3));
+  viewContext.labels.select("#countries").attr("data-size", Math.max(rn(18 - +value / 6), 4));
 }
 
 function changeUiSize(value: number): void {
@@ -370,14 +381,12 @@ function changeTooltipSize(value: string): void {
 
 // ─── Theme / color ─────────────────────────────────────────────────────────────
 
-const THEME_COLOR = "#997787";
-
 function restoreDefaultThemeColor(): void {
   localStorage.removeItem("themeColor");
   changeDialogsTheme(THEME_COLOR, String(useOptionsState.getState().transparency));
 }
 
-function changeThemeHue(hue: string): void {
+export function changeThemeHue(hue: string): void {
   const { s, l } = hsl(useOptionsState.getState().themeColor);
   const newColor = hsl(+hue, s, l).formatHex();
   changeDialogsTheme(newColor, String(useOptionsState.getState().transparency));
@@ -443,7 +452,7 @@ function loadGoogleTranslate(): void {
   document.head.appendChild(script);
 }
 
-function initGoogleTranslate(): void {
+export function initGoogleTranslate(): void {
   const google = (
     window as Window &
       typeof globalThis & {
@@ -485,19 +494,19 @@ function changeZoomExtent(value: string): void {
   const min = Math.max(curMin, 0.01);
   const max = Math.min(curMax, 200);
   store.setOptions({ zoomExtentMin: min, zoomExtentMax: max });
-  zoom.scaleExtent([min, max]);
+  viewContext.zoom.scaleExtent([min, max]);
   const scale = minmax(+value, 0.01, 200);
-  zoom.scaleTo(svg, scale);
+  viewContext.zoom.scaleTo(viewContext.svg, scale);
 }
 
 function restoreDefaultZoomExtent(): void {
   useOptionsState.getState().setOptions({ zoomExtentMin: 1, zoomExtentMax: 20 });
-  zoom.scaleExtent([1, 20]).scaleTo(svg, 1);
+  viewContext.zoom.scaleExtent([1, 20]).scaleTo(viewContext.svg, 1);
 }
 
 // ─── Apply stored options ─────────────────────────────────────────────────────
 
-function applyStoredOptions(): void {
+export function applyStoredOptions(): void {
   const optionsStore = useOptionsState.getState();
 
   if (!stored("mapWidth") || !stored("mapHeight")) {
@@ -541,7 +550,7 @@ function applyStoredOptions(): void {
     lock(key);
 
     if (key === "points") changeCellsDensity(+value);
-    if (key === "distanceScale") distanceScale = +value;
+    if (key === "distanceScale") worldContext.distanceScale = +value;
 
     if (key.slice(0, 5) === "style") applyOption(stylePreset, key, key.slice(5));
 
@@ -582,11 +591,18 @@ function applyStoredOptions(): void {
   }
 
   if (stored("winds"))
-    options.winds = stored("winds")!.split(",").map(Number) as [number, number, number, number, number, number];
-  if (stored("temperatureEquator")) options.temperatureEquator = +stored("temperatureEquator")!;
-  if (stored("temperatureNorthPole")) options.temperatureNorthPole = +stored("temperatureNorthPole")!;
-  if (stored("temperatureSouthPole")) options.temperatureSouthPole = +stored("temperatureSouthPole")!;
-  if (stored("military")) options.military = JSON.parse(stored("military")!);
+    worldContext.options.winds = stored("winds")!.split(",").map(Number) as [
+      number,
+      number,
+      number,
+      number,
+      number,
+      number
+    ];
+  if (stored("temperatureEquator")) worldContext.options.temperatureEquator = +stored("temperatureEquator")!;
+  if (stored("temperatureNorthPole")) worldContext.options.temperatureNorthPole = +stored("temperatureNorthPole")!;
+  if (stored("temperatureSouthPole")) worldContext.options.temperatureSouthPole = +stored("temperatureSouthPole")!;
+  if (stored("military")) worldContext.options.military = JSON.parse(stored("military")!);
 
   if (stored("tooltipSize")) changeTooltipSize(stored("tooltipSize")!);
   if (stored("regions")) changeStatesNumber(stored("regions")!);
@@ -609,12 +625,12 @@ function applyStoredOptions(): void {
   changeDialogsTheme(themeColor, transparency);
 
   setRendering("auto");
-  options.stateLabelsMode = optionsStore.stateLabelsMode as "auto" | "short" | "full";
+  worldContext.options.stateLabelsMode = optionsStore.stateLabelsMode as "auto" | "short" | "full";
 }
 
 // ─── Randomize options ─────────────────────────────────────────────────────────
 
-function randomizeOptions(): void {
+export function randomizeOptions(): void {
   const randomize = new URL(window.location.href).searchParams.get("options") === "default";
 
   if (randomize || !locked("points")) changeCellsDensity(4);
@@ -636,16 +652,18 @@ function randomizeOptions(): void {
     useOptionsState.getState().setOptions({ cultures: Math.round(gauss(12, 3, 5, 30)) });
   if (randomize || !locked("culturesSet")) randomizeCultureSet();
 
-  if (randomize || !locked("temperatureEquator")) options.temperatureEquator = gauss(25, 7, 20, 35, 0);
-  if (randomize || !locked("temperatureNorthPole")) options.temperatureNorthPole = gauss(-25, 7, -40, 10, 0);
-  if (randomize || !locked("temperatureSouthPole")) options.temperatureSouthPole = gauss(-15, 7, -40, 10, 0);
+  if (randomize || !locked("temperatureEquator")) worldContext.options.temperatureEquator = gauss(25, 7, 20, 35, 0);
+  if (randomize || !locked("temperatureNorthPole"))
+    worldContext.options.temperatureNorthPole = gauss(-25, 7, -40, 10, 0);
+  if (randomize || !locked("temperatureSouthPole"))
+    worldContext.options.temperatureSouthPole = gauss(-15, 7, -40, 10, 0);
   if ((randomize || !locked("prec")) && precInput) precInput.value = String(gauss(100, 40, 5, 500));
 
   const US = navigator.language === "en-US";
   if (randomize || !locked("distanceScale")) {
     const dsv = gauss(3, 1, 1, 5);
     useOptionsState.getState().setOption("distanceScale", dsv);
-    distanceScale = dsv;
+    worldContext.distanceScale = dsv;
   }
   if (!stored("distanceUnit") && distanceUnitInput) distanceUnitInput.value = US ? "mi" : "km";
   if (!stored("heightUnit") && heightUnit) heightUnit.value = US ? "ft" : "m";
@@ -685,6 +703,9 @@ function randomizeCultureSet(): void {
 // ─── Rendering ────────────────────────────────────────────────────────────────
 
 function setRendering(value: string): void {
+  // viewContext is not injected yet when called at module level before initOptions()
+  if (!viewContext) return;
+  const { viewbox, coastline, statesHalo } = viewContext;
   viewbox.attr("shape-rendering", value);
 
   if (value === "optimizeSpeed") {
@@ -693,7 +714,7 @@ function setRendering(value: string): void {
   } else {
     coastline.select("#sea_island").style("filter", null);
     statesHalo.style("display", null);
-    if (pack.cells && statesHalo.selectAll("*").size() === 0)
+    if (worldContext.pack.cells && statesHalo.selectAll("*").size() === 0)
       StatesRenderer.render(worldContext, viewContext, appServices);
   }
 }
@@ -703,11 +724,12 @@ function setRendering(value: string): void {
 function generateEra(): void {
   const store = useOptionsState.getState();
   if (!stored("year")) store.setOptions({ year: rand(100, 2000) });
-  if (!stored("era")) store.setOptions({ era: `${Names.getBaseShort(P(0.7) ? 1 : rand(nameBases.length))} Era` });
+  if (!stored("era"))
+    store.setOptions({ era: `${Names.getBaseShort(P(0.7) ? 1 : rand(worldContext.nameBases.length))} Era` });
 
-  options.year = store.year;
-  options.era = store.era;
-  options.eraShort = options.era
+  worldContext.options.year = store.year;
+  worldContext.options.era = store.era;
+  worldContext.options.eraShort = worldContext.options.era
     .split(" ")
     .map((w: string) => w[0].toUpperCase())
     .join("");
@@ -715,40 +737,40 @@ function generateEra(): void {
 
 function regenerateEra(): void {
   unlock("era");
-  const era = `${Names.getBaseShort(P(0.7) ? 1 : rand(nameBases.length))} Era`;
+  const era = `${Names.getBaseShort(P(0.7) ? 1 : rand(worldContext.nameBases.length))} Era`;
   useOptionsState.getState().setOptions({ era });
-  options.era = era;
-  options.eraShort = options.era
+  worldContext.options.era = era;
+  worldContext.options.eraShort = worldContext.options.era
     .split(" ")
     .map((w: string) => w[0].toUpperCase())
     .join("");
 }
 
-function changeYear(): void {
+export function changeYear(): void {
   // state managed by react, just sync global
-  options.year = useOptionsState.getState().year;
+  worldContext.options.year = useOptionsState.getState().year;
 }
 
-function changeEra(): void {
+export function changeEra(): void {
   // state managed by react, just sync global
   lock("era");
-  options.era = useOptionsState.getState().era;
+  worldContext.options.era = useOptionsState.getState().era;
 }
 
 function openTemplateSelectionDialog(): void {
-  openHeightmapSelection();
+  import("./heightmap-selection").then(m => m.open());
 }
 
 // ─── Sticked menu ─────────────────────────────────────────────────────────────
 
-function regeneratePrompt(opts?: { seed?: string }): void {
-  if (customization) {
+export function regeneratePrompt(opts?: { seed?: string }): void {
+  if (viewContext.customization) {
     tip("New map cannot be generated when edit mode is active, please exit the mode and retry", false, "error");
     return;
   }
-  const workingTime = (Date.now() - last(mapHistory).created) / 60000;
+  const workingTime = (Date.now() - last(worldContext.mapHistory).created) / 60000;
   if (workingTime < 1) {
-    regenerateMap(opts);
+    document.dispatchEvent(new CustomEvent("fmg:regenerate-map", { detail: opts }));
     return;
   }
 
@@ -760,7 +782,7 @@ function regeneratePrompt(opts?: { seed?: string }): void {
       cancel: "Cancel",
       onConfirm: () => {
         closeAllDialogs();
-        regenerateMap(opts);
+        document.dispatchEvent(new CustomEvent("fmg:regenerate-map", { detail: opts }));
       }
     }
   );
@@ -775,19 +797,19 @@ function showSavePane(): void {
   openDialog("saveMapData", { title: "Save map" });
 }
 
-function copyLinkToClickboard(): void {
+export function copyLinkToClickboard(): void {
   const shrableLink = ensureEl("sharableLink");
   const link = shrableLink.getAttribute("href")!;
   navigator.clipboard.writeText(link).then(() => tip("Link is copied to the clipboard", true, "success", 8000));
 }
 
-function showExportPane(): void {
-  ensureEl<HTMLInputElement>("showLabels").checked = !(hideLabels as HTMLInputElement).checked;
+export function showExportPane(): void {
+  ensureEl<HTMLInputElement>("showLabels").checked = !hideLabels.checked;
 
   openDialog("exportMapData", { title: "Export map data" });
 }
 
-function exportToJson(type: string): void {
+export function exportToJson(type: string): void {
   exportToJsonModule(type);
 }
 
@@ -838,19 +860,19 @@ async function showLoadPane(): Promise<void> {
   ensureEl("loadFromDropboxSelect").style.display = "none";
 }
 
-async function connectToDropbox(): Promise<void> {
+export async function connectToDropbox(): Promise<void> {
   await Cloud.providers.dropbox.initialize();
   if (Cloud.providers.dropbox.api) showLoadPane();
 }
 
-function loadURL(): void {
+export function loadURL(): void {
   const pattern = /(ftp|http|https):\/\/(\w+:{0,1}\w*@)?(\S+)(:[0-9]+)?(\/|\/([\w#!:.?+=&%@!\-/]))?/;
   const inner = `Provide URL to map file:
     <input id="mapURL" type="url" style="width: 24em" placeholder="https://e-cloud.com/test.map">
     <br><i>Please note server should allow CORS for file to be loaded. If CORS is not allowed, save file to Dropbox and provide a direct link</i>`;
   alertMessage.innerHTML = inner;
   openRichDialog({
-    content: window.alertMessage.innerHTML,
+    content: alertMessage.innerHTML,
 
     title: "Load map from URL",
     width: "27em",
@@ -873,7 +895,7 @@ function loadURL(): void {
 
 // ─── PNG tiles export ─────────────────────────────────────────────────────────
 
-function openExportToPngTiles(): void {
+export function openExportToPngTiles(): void {
   ensureEl("tileStatus").innerHTML = "";
   closeDialogs();
   updateTilesOptions();
@@ -896,7 +918,7 @@ function openExportToPngTiles(): void {
       inputs.forEach(input => {
         input.removeEventListener("input", updateTilesOptions);
       });
-      debug.selectAll("*").remove();
+      viewContext.debug.selectAll("*").remove();
     }
   });
 }
@@ -915,8 +937,9 @@ function updateTilesOptions(this: HTMLInputElement | void): void {
   const tilesY = +ensureEl<HTMLInputElement>("tileRowsOutput").value || 2;
   const scale = +ensureEl<HTMLInputElement>("tileScaleOutput").value || 1;
 
-  const sizeX = window.graphWidth * scale * tilesX;
-  const sizeY = window.graphHeight * scale * tilesY;
+  const { graphWidth, graphHeight } = worldContext;
+  const sizeX = graphWidth * scale * tilesX;
+  const sizeY = graphHeight * scale * tilesY;
   const totalSize = sizeX * sizeY;
 
   tileSize.innerHTML = `${sizeX} x ${sizeY} px`;
@@ -924,8 +947,8 @@ function updateTilesOptions(this: HTMLInputElement | void): void {
 
   const rects: string[] = [];
   const labelItems: string[] = [];
-  const tileW = (window.graphWidth / tilesX) | 0;
-  const tileH = (window.graphHeight / tilesY) | 0;
+  const tileW = (graphWidth / tilesX) | 0;
+  const tileH = (graphHeight / tilesY) | 0;
 
   const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
   function getRowLabel(row: number): string {
@@ -934,14 +957,14 @@ function updateTilesOptions(this: HTMLInputElement | void): void {
     return first + last;
   }
 
-  for (let y = 0, row = 0; y + tileH <= window.graphHeight; y += tileH, row++) {
-    for (let x = 0, column = 1; x + tileW <= window.graphWidth; x += tileW, column++) {
+  for (let y = 0, row = 0; y + tileH <= graphHeight; y += tileH, row++) {
+    for (let x = 0, column = 1; x + tileW <= graphWidth; x += tileW, column++) {
       rects.push(`<rect x=${x} y=${y} width=${tileW} height=${tileH} />`);
       labelItems.push(`<text x=${x + tileW / 2} y=${y + tileH / 2}>${getRowLabel(row)}${column}</text>`);
     }
   }
 
-  debug.html(
+  viewContext.debug.html(
     `<g fill='none' stroke='#000'>${rects.join("")}</g>` +
       `<g fill='#000' stroke='none' text-anchor='middle' dominant-baseline='central' font-size='18px'>${labelItems.join("")}</g>`
   );
@@ -949,7 +972,7 @@ function updateTilesOptions(this: HTMLInputElement | void): void {
 
 // ─── View mode / 3D ───────────────────────────────────────────────────────────
 
-function changeViewMode(event: MouseEvent): void {
+export function changeViewMode(event: MouseEvent): void {
   const button = event.target as HTMLElement;
   if (button.tagName !== "BUTTON") return;
   const pressed = button.classList.contains("pressed");
@@ -963,7 +986,7 @@ function changeViewMode(event: MouseEvent): void {
   }
 }
 
-function enterStandardView(): void {
+export function enterStandardView(): void {
   const viewModeEl = document.getElementById("viewMode");
   const heightmap3DViewEl = document.getElementById("heightmap3DView");
   const viewStandardEl = document.getElementById("viewStandard");
@@ -994,12 +1017,12 @@ async function enter3dView(type: string): Promise<void> {
   canvas.dataset.type = type;
 
   if (type === "heightmap3DView") {
-    canvas.width = parseFloat(preview3d.style.width) || window.graphWidth / 3;
-    canvas.height = canvas.width / (window.graphWidth / window.graphHeight);
+    canvas.width = parseFloat(preview3d.style.width) || worldContext.graphWidth / 3;
+    canvas.height = canvas.width / (worldContext.graphWidth / worldContext.graphHeight);
     canvas.style.display = "block";
   } else {
-    canvas.width = window.svgWidth;
-    canvas.height = window.svgHeight;
+    canvas.width = viewContext.svgWidth;
+    canvas.height = viewContext.svgHeight;
     canvas.style.position = "absolute";
     canvas.style.display = "none";
     canvas.style.pointerEvents = "auto";
@@ -1047,7 +1070,7 @@ function resize3d(): void {
   ThreeD.redraw();
 }
 
-function toggle3dOptions(): void {
+export function toggle3dOptions(): void {
   if (isDialogOpen("options3d")) {
     closeDialog("options3d");
     return;
@@ -1109,7 +1132,7 @@ function toggle3dOptions(): void {
         options3dGlobeRotationNumber as HTMLInputElement
       ).value = String(ThreeD.options.rotateGlobe);
       (options3dMeshLabels3d as HTMLInputElement).value = String(ThreeD.options.labels3d);
-      (options3dMeshSkyMode as HTMLInputElement).value = String(ThreeD.options.extendedWater);
+      options3dMeshSkyMode.value = String(ThreeD.options.extendedWater);
       options3dColorSection.style.display = ThreeD.options.extendedWater ? "block" : "none";
       (options3dMeshSky as HTMLInputElement).value = ThreeD.options.skyColor;
       (options3dMeshWater as HTMLInputElement).value = ThreeD.options.waterColor;
@@ -1213,58 +1236,7 @@ function toggle3dOptions(): void {
   }, 100);
 }
 
-// ─── Global registration ───────────────────────────────────────────────────────
-
-window.showOptions = showOptions;
-window.hideOptions = hideOptions;
-window.toggleOptions = toggleOptions;
-window.applyGraphSize = applyGraphSize;
-window.applyStoredOptions = applyStoredOptions;
-window.randomizeOptions = randomizeOptions;
-window.randomizeHeightmapTemplate = randomizeHeightmapTemplate;
-window.randomizeCultureSet = randomizeCultureSet;
-window.generateEra = generateEra;
-window.regenerateEra = regenerateEra;
-window.changeYear = changeYear;
-window.changeEra = changeEra;
-window.changeCellsDensity = changeCellsDensity;
-window.cellsDensityMap = cellsDensityMap;
-window.getCellsDensityColor = getCellsDensityColor;
-window.changeCultureSet = changeCultureSet;
-window.changeEmblemShape = changeEmblemShape;
-window.changeStatesNumber = changeStatesNumber;
-window.changeUiSize = changeUiSize;
-window.changeTooltipSize = changeTooltipSize;
-window.changeThemeHue = changeThemeHue;
-window.changeDialogsTheme = changeDialogsTheme;
-window.restoreDefaultThemeColor = restoreDefaultThemeColor;
-window.setRendering = setRendering;
-window.regeneratePrompt = regeneratePrompt;
-window.showSavePane = showSavePane;
-window.showExportPane = showExportPane;
-window.showLoadPane = showLoadPane;
-window.copyLinkToClickboard = copyLinkToClickboard;
-window.exportToJson = exportToJson;
-window.connectToDropbox = connectToDropbox;
-window.loadURL = loadURL;
-window.openExportToPngTiles = openExportToPngTiles;
-window.updateTilesOptions = updateTilesOptions;
-window.enterStandardView = enterStandardView;
-window.enter3dView = enter3dView;
-window.toggle3dOptions = toggle3dOptions;
-window.resize3d = resize3d;
-window.showSupporters = showSupporters;
-window.showSeedHistoryDialog = showSeedHistoryDialog;
-window.restoreSeed = restoreSeed;
-window.copyMapURL = copyMapURL;
-window.initGoogleTranslate = initGoogleTranslate;
-window.openTemplateSelectionDialog = openTemplateSelectionDialog;
-window.changeViewMode = changeViewMode;
-
 export function initOptions(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices): void {
-  worldContext = wc;
-  viewContext = vc;
-  appServices = as;
   // draggable/sortable/disableSelection
   // $("#optionsContainer").draggable({ handle: ".drag-trigger", snap: "svg", snapMode: "both" });
   // $("#exitCustomization").draggable({ handle: "div" });
@@ -1347,20 +1319,20 @@ export function initOptions(wc: WorldContext, vc: Readonly<ViewContext>, as: App
   });
 
   document.addEventListener("react-change-year", (e: Event) => {
-    options.year = (e as CustomEvent).detail.year;
+    worldContext.options.year = (e as CustomEvent).detail.year;
   });
 
   document.addEventListener("react-change-era", (e: Event) => {
     lock("era");
-    options.era = (e as CustomEvent).detail.era;
-    options.eraShort = (options.era ?? "")
+    worldContext.options.era = (e as CustomEvent).detail.era;
+    worldContext.options.eraShort = (worldContext.options.era ?? "")
       .split(" ")
       .map((w: string) => w[0]?.toUpperCase() ?? "")
       .join("");
   });
 
   document.addEventListener("react-change-state-labels-mode", (e: Event) => {
-    options.stateLabelsMode = (e as CustomEvent).detail.mode as "auto" | "short" | "full";
+    worldContext.options.stateLabelsMode = (e as CustomEvent).detail.mode as "auto" | "short" | "full";
   });
 
   document.addEventListener("react-change-cultures-set", () => {
@@ -1405,7 +1377,6 @@ export function initOptions(wc: WorldContext, vc: Readonly<ViewContext>, as: App
 }
 
 export {
-  applyStoredOptions,
   changeZoomExtent,
   loadGoogleTranslate,
   resetLanguage,

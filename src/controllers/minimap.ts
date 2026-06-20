@@ -1,4 +1,7 @@
-import { openDialog } from "../ui/dialogs/dialogService";
+import { zoomTo } from "../actions";
+import { viewContext } from "../context/viewContext";
+import { worldContext } from "../context/worldContext";
+import { closeDialogs, openDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, minmax, rn } from "../utils";
 
 let minimapInitialized = false;
@@ -101,9 +104,9 @@ function minimapClickToPan(event: MouseEvent): void {
   if (!ctm) return;
 
   const svgPoint = point.matrixTransform(ctm.inverse());
-  const x = minmax(svgPoint.x, 0, graphWidth);
-  const y = minmax(svgPoint.y, 0, graphHeight);
-  zoomTo(x, y, scale, 450);
+  const x = minmax(svgPoint.x, 0, worldContext.graphWidth);
+  const y = minmax(svgPoint.y, 0, worldContext.graphHeight);
+  zoomTo(x, y, viewContext.scale, 450);
 }
 
 export function updateMinimap(): void {
@@ -112,18 +115,18 @@ export function updateMinimap(): void {
   const mapUse = document.getElementById("minimapMapUse") as SVGUseElement | null;
   if (!minimap || !viewport || !mapUse) return;
 
-  minimap.setAttribute("viewBox", `0 0 ${graphWidth} ${graphHeight}`);
+  minimap.setAttribute("viewBox", `0 0 ${worldContext.graphWidth} ${worldContext.graphHeight}`);
 
-  const inverseScale = scale ? 1 / scale : 1;
+  const inverseScale = viewContext.scale ? 1 / viewContext.scale : 1;
   mapUse.setAttribute(
     "transform",
-    `translate(${rn(-viewX * inverseScale, 3)} ${rn(-viewY * inverseScale, 3)}) scale(${rn(inverseScale, 6)})`
+    `translate(${rn(-viewContext.viewX * inverseScale, 3)} ${rn(-viewContext.viewY * inverseScale, 3)}) scale(${rn(inverseScale, 6)})`
   );
 
-  const left = Math.max(0, -viewX * inverseScale);
-  const top = Math.max(0, -viewY * inverseScale);
-  const right = Math.min(graphWidth, left + svgWidth * inverseScale);
-  const bottom = Math.min(graphHeight, top + svgHeight * inverseScale);
+  const left = Math.max(0, -viewContext.viewX * inverseScale);
+  const top = Math.max(0, -viewContext.viewY * inverseScale);
+  const right = Math.min(worldContext.graphWidth, left + viewContext.svgWidth * inverseScale);
+  const bottom = Math.min(worldContext.graphHeight, top + viewContext.svgHeight * inverseScale);
 
   viewport.setAttribute("x", String(rn(left, 3)));
   viewport.setAttribute("y", String(rn(top, 3)));

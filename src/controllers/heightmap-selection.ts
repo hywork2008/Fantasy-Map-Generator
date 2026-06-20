@@ -1,11 +1,15 @@
 import { aleaPRNG } from "../components/AleaPRNG";
 import type { WorldContext } from "../context/worldContext";
+import { editHeightmap } from "../editors/heightmap-editor";
 import { HeightmapGenerator } from "../modules/heightmap-generator";
 import { useOptionsState } from "../store/optionsState";
-import { openDialog } from "../ui/dialogs/dialogService";
+import { closeDialogs, openDialog } from "../ui/dialogs/dialogService";
 import { drawHeights, ensureEl, generateGrid, generateSeed, shouldRegenerateGrid } from "../utils";
 import { getColorScheme, heightmapColorSchemes } from "../utils/colorUtils";
 import type { Grid } from "../utils/graphUtils";
+import { applyOption, lock } from "../utils/uiHelpers";
+import { confirmationDialog } from "./editors";
+import { regeneratePrompt } from "./options";
 
 let worldContext: WorldContext;
 
@@ -275,8 +279,8 @@ function getName(id: string): string {
 }
 
 function getGraph(currentGraph: Grid | null): Grid {
-  const newGraph = shouldRegenerateGrid(currentGraph, +seed, graphWidth, graphHeight)
-    ? generateGrid(seed, graphWidth, graphHeight)
+  const newGraph = shouldRegenerateGrid(currentGraph, +seed, worldContext.graphWidth, worldContext.graphHeight)
+    ? generateGrid(seed, worldContext.graphWidth, worldContext.graphHeight)
     : structuredClone(currentGraph!);
   delete (newGraph.cells as { h?: unknown }).h;
   return newGraph;

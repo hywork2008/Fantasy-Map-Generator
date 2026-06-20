@@ -1,8 +1,15 @@
 import { useEffect } from "react";
-import { applySliderChange, initStyleTab } from "../../../controllers/style";
+import {
+  addStylePreset,
+  applySliderChange,
+  initStyleTab,
+  requestRemoveStylePreset,
+  requestStylePresetChange,
+  textureProvideURL
+} from "../../../controllers/style";
+import { invokeActiveZooming } from "../../../main";
 import { fonts } from "../../../modules/fonts";
 import { useStyleState } from "../../../store/styleState";
-import { callWindowFn } from "../../../utils/windowGlobals";
 import { openDialog } from "../../dialogs/dialogService";
 import { SliderInput } from "../SliderInput";
 
@@ -36,7 +43,7 @@ export function StyleTab() {
       <select
         data-tip="Select a style preset"
         id="stylePreset"
-        onChange={e => callWindowFn("requestStylePresetChange", e.target.value)}
+        onChange={e => requestStylePresetChange(e.target.value)}
         style={{ width: "45%", textTransform: "capitalize" }}
       ></select>
       <button
@@ -44,7 +51,7 @@ export function StyleTab() {
         data-tip="Click to save current style as a new preset"
         className="icon-plus sideButton"
         style={{ display: "inline-block" }}
-        onClick={() => callWindowFn("addStylePreset")}
+        onClick={() => addStylePreset()}
         type="button"
       ></button>
       <button
@@ -52,7 +59,7 @@ export function StyleTab() {
         data-tip="Click to remove current custom style preset"
         className="icon-minus sideButton"
         style={{ display: "none" }}
-        onClick={() => callWindowFn("requestRemoveStylePreset")}
+        onClick={() => requestRemoveStylePreset()}
         type="button"
       ></button>
 
@@ -249,7 +256,7 @@ export function StyleTab() {
               <button
                 data-tip="Click and provide a URL to image to be set as a texture"
                 className="icon-plus sideButton"
-                onClick={() => callWindowFn("textureProvideURL")}
+                onClick={() => textureProvideURL()}
                 type="button"
               ></button>
             </td>
@@ -714,12 +721,7 @@ export function StyleTab() {
 
           <tr data-tip="Allow system to hide emblem groups if their size in too small or too big on that scale">
             <td colSpan={2}>
-              <input
-                id="hideEmblems"
-                className="checkbox"
-                type="checkbox"
-                onChange={e => callWindowFn("invokeActiveZooming", e)}
-              />
+              <input id="hideEmblems" className="checkbox" type="checkbox" onChange={() => invokeActiveZooming()} />
               <label htmlFor="hideEmblems" className="checkbox-label">
                 Toggle visibility automatically
               </label>
@@ -772,12 +774,7 @@ export function StyleTab() {
 
           <tr data-tip="Allow system to hide labels if their size in too small or too big on that scale">
             <td colSpan={2}>
-              <input
-                id="hideLabels"
-                className="checkbox"
-                type="checkbox"
-                onChange={e => callWindowFn("invokeActiveZooming", e)}
-              />
+              <input id="hideLabels" className="checkbox" type="checkbox" onChange={() => invokeActiveZooming()} />
               <label htmlFor="hideLabels" className="checkbox-label">
                 Toggle visibility automatically
               </label>
@@ -786,12 +783,7 @@ export function StyleTab() {
 
           <tr data-tip="Allow system to rescale labels on zoom">
             <td colSpan={2}>
-              <input
-                id="rescaleLabels"
-                className="checkbox"
-                type="checkbox"
-                onChange={e => callWindowFn("invokeActiveZooming", e)}
-              />
+              <input id="rescaleLabels" className="checkbox" type="checkbox" onChange={() => invokeActiveZooming()} />
               <label htmlFor="rescaleLabels" className="checkbox-label">
                 Rescale on zoom
               </label>

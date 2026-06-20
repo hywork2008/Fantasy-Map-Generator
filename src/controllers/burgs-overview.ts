@@ -1,19 +1,24 @@
 import * as d3 from "d3";
 import { pointer } from "d3";
+import { zoomTo } from "../actions";
 import { appServices } from "../context/appServices";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
-import { editBurg } from "../editors/burg-editor";
+import { editBurg, getTemperatureLikeness } from "../editors/burg-editor";
 import { editBurgGroups } from "../editors/burg-group-editor";
 import { Burgs } from "../modules/burgs-generator";
+import { Names } from "../modules/names-generator";
 import { drawBurgIcon, drawBurgLabel, drawRoute } from "../renderers";
 import { useOptionsState } from "../store/optionsState";
-import { openDialog, openRichDialog } from "../ui/dialogs/dialogService";
+import { closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { convertTemperature, ensureEl, findCell, getLatitude, getLongitude, rn, si } from "../utils";
+import { applySorting, clearMainTip, fitContent, getHeight, tip } from "../utils/uiHelpers";
+import { confirmationDialog, downloadFile, getFileName, restoreDefaultEvents, uploadFile } from "./editors";
 import { interactionManager } from "./interactionManager";
+import { layerIsOn, toggleBurgIcons, toggleLabels } from "./layers";
 
-function overviewBurgs(settings: { stateId?: number | null; cultureId?: number | null } = {}): void {
-  if (customization) return;
+export function overviewBurgs(settings: { stateId?: number | null; cultureId?: number | null } = {}): void {
+  if (viewContext.customization) return;
   closeDialogs("#burgsOverview, .stable");
   if (!layerIsOn("toggleBurgIcons")) toggleBurgIcons();
   if (!layerIsOn("toggleLabels")) toggleLabels();
@@ -61,8 +66,10 @@ function overviewBurgs(settings: { stateId?: number | null; cultureId?: number |
     const selectedState = settings.stateId !== null ? settings.stateId : +stateFilter.value || -1;
     stateFilter.options.length = 0;
     stateFilter.options.add(new Option("all", "-1", false, selectedState === -1));
-    stateFilter.options.add(new Option(pack.states[0].name, "0", false, selectedState === 0));
-    const statesSorted = pack.states.filter(s => s.i && !s.removed).sort((a, b) => (a.name > b.name ? 1 : -1));
+    stateFilter.options.add(new Option(worldContext.pack.states[0].name, "0", false, selectedState === 0));
+    const statesSorted = worldContext.pack.states
+      .filter(s => s.i && !s.removed)
+      .sort((a, b) => (a.name > b.name ? 1 : -1));
     statesSorted.forEach(s => {
       stateFilter.options.add(new Option(s.name, String(s.i), false, s.i === selectedState));
     });
@@ -71,8 +78,10 @@ function overviewBurgs(settings: { stateId?: number | null; cultureId?: number |
     const selectedCulture = settings.cultureId !== null ? settings.cultureId : +cultureFilter.value || -1;
     cultureFilter.options.length = 0;
     cultureFilter.options.add(new Option(`all`, "-1", false, selectedCulture === -1));
-    cultureFilter.options.add(new Option(pack.cultures[0].name, "0", false, selectedCulture === 0));
-    const culturesSorted = pack.cultures.filter(c => c.i && !c.removed).sort((a, b) => (a.name > b.name ? 1 : -1));
+    cultureFilter.options.add(new Option(worldContext.pack.cultures[0].name, "0", false, selectedCulture === 0));
+    const culturesSorted = worldContext.pack.cultures
+      .filter(c => c.i && !c.removed)
+      .sort((a, b) => (a.name > b.name ? 1 : -1));
     culturesSorted.forEach(c => {
       cultureFilter.options.add(new Option(c.name, String(c.i), false, c.i === selectedCulture));
     });
@@ -83,16 +92,16 @@ function overviewBurgs(settings: { stateId?: number | null; cultureId?: number |
     const selectedStateId = +(ensureEl("burgsFilterState") as HTMLSelectElement).value;
     const selectedCultureId = +(ensureEl("burgsFilterCulture") as HTMLSelectElement).value;
 
-    const validBurgs = pack.burgs.filter(b => b.i && !b.removed);
+    const validBurgs = worldContext.pack.burgs.filter(b => b.i && !b.removed);
     let filtered = validBurgs;
 
     if (searchText) {
       filtered = filtered.filter(b => {
         const name = b.name!.toLowerCase();
-        const state = (pack.states[b.state!]?.name || "").toLowerCase();
-        const prov = pack.cells.province![b.cell];
-        const province = prov ? pack.provinces![prov]?.name.toLowerCase() : "";
-        const culture = (pack.cultures[b.culture!]?.name || "").toLowerCase();
+        const state = (worldContext.pack.states[b.state!]?.name || "").toLowerCase();
+        const prov = worldContext.pack.cells.province![b.cell];
+        const province = prov ? worldContext.pack.provinces![prov]?.name.toLowerCase() : "";
+        const culture = (worldContext.pack.cultures[b.culture!]?.name || "").toLowerCase();
         return (
           name.includes(searchText) ||
           state.includes(searchText) ||
@@ -110,13 +119,13 @@ function overviewBurgs(settings: { stateId?: number | null; cultureId?: number |
     let totalPopulation = 0;
 
     for (const b of filtered) {
-      const population = b.population! * populationRate * urbanization;
+      const population = b.population! * worldContext.populationRate * worldContext.urbanization;
       totalPopulation += population;
       const features = b.capital && b.port ? "a-capital-port" : b.capital ? "c-capital" : b.port ? "p-port" : "z-burg";
-      const state = pack.states[b.state!].name;
-      const prov = pack.cells.province![b.cell];
-      const province = prov ? pack.provinces![prov].name : "";
-      const culture = pack.cultures[b.culture!].name;
+      const state = worldContext.pack.states[b.state!].name;
+      const prov = worldContext.pack.cells.province![b.cell];
+      const province = prov ? worldContext.pack.provinces![prov].name : "";
+      const culture = worldContext.pack.cultures[b.culture!].name;
 
       lines += /* html */ `<div
         class="states"
@@ -184,12 +193,12 @@ function overviewBurgs(settings: { stateId?: number | null; cultureId?: number |
 
   function burgHighlightOn(event: MouseEvent): void {
     const burg = +(event.target as HTMLElement).dataset.id!;
-    const label = burgLabels.select(`[data-id='${burg}']`);
+    const label = viewContext.burgLabels.select(`[data-id='${burg}']`);
     if (label.size()) label.classed("drag", true);
   }
 
   function burgHighlightOff(): void {
-    burgLabels.selectAll("text.drag").classed("drag", false);
+    viewContext.burgLabels.selectAll("text.drag").classed("drag", false);
   }
 
   function zoomIntoBurg(this: HTMLElement): void {
@@ -203,7 +212,7 @@ function overviewBurgs(settings: { stateId?: number | null; cultureId?: number |
   function toggleBurgLockStatus(this: HTMLElement): void {
     const burgId = +(this.parentNode as HTMLElement).dataset.id!;
 
-    const burg = pack.burgs[burgId];
+    const burg = worldContext.pack.burgs[burgId];
     burg.lock = !burg.lock;
 
     if (this.classList.contains("icon-lock")) {
@@ -224,7 +233,7 @@ function overviewBurgs(settings: { stateId?: number | null; cultureId?: number |
 
   function triggerBurgRemove(this: HTMLElement): void {
     const burgId = +(this.parentNode as HTMLElement).dataset.id!;
-    if (pack.burgs[burgId].capital) {
+    if (worldContext.pack.burgs[burgId].capital) {
       tip("You cannot remove the capital. Please change the state capital first", false, "error");
       return;
     }
@@ -243,14 +252,14 @@ function overviewBurgs(settings: { stateId?: number | null; cultureId?: number |
   function regenerateNames(): void {
     body.querySelectorAll<HTMLElement>(":scope > div").forEach(el => {
       const burg = +el.dataset.id!;
-      if (pack.burgs[burg].lock) return;
+      if (worldContext.pack.burgs[burg].lock) return;
 
-      const culture = pack.burgs[burg].culture!;
+      const culture = worldContext.pack.burgs[burg].culture!;
       const name = Names.getCulture(culture);
 
       (el.querySelector(".burgName") as HTMLInputElement).value = name;
-      pack.burgs[burg].name = el.dataset.name = name;
-      burgLabels.select(`[data-id='${burg}']`).text(name);
+      worldContext.pack.burgs[burg].name = el.dataset.name = name;
+      viewContext.burgLabels.select(`[data-id='${burg}']`).text(name);
     });
   }
 
@@ -259,10 +268,10 @@ function overviewBurgs(settings: { stateId?: number | null; cultureId?: number |
       exitAddBurgMode();
       return;
     }
-    customization = 3;
+    viewContext.customization = 3;
     this.classList.add("pressed");
     tip("Click on the map to create a new burg. Hold Shift to add multiple", true, "warn");
-    viewbox.style("cursor", "crosshair");
+    viewContext.viewbox.style("cursor", "crosshair");
     interactionManager.setClickHandler(addBurgOnClick);
   }
 
@@ -270,17 +279,17 @@ function overviewBurgs(settings: { stateId?: number | null; cultureId?: number |
     const point = pointer(event, this) as [number, number];
     const cell = findCell(point[0], point[1]);
 
-    if (pack.cells.h[cell] < 20) {
+    if (worldContext.pack.cells.h[cell] < 20) {
       tip("You cannot place state into the water. Please click on a land cell", false, "error");
       return;
     }
-    if (pack.cells.burg![cell]) {
+    if (worldContext.pack.cells.burg![cell]) {
       tip("There is already a burg in this cell. Please select a free cell", false, "error");
       return;
     }
 
     const { burgId, newRoute } = Burgs.add(point);
-    const burg = pack.burgs[burgId];
+    const burg = worldContext.pack.burgs[burgId];
     drawBurgIcon(worldContext, viewContext, appServices, burg);
     drawBurgLabel(worldContext, viewContext, appServices, burg);
     if (newRoute && layerIsOn("toggleRoutes")) drawRoute(worldContext, viewContext, appServices, newRoute);
@@ -292,7 +301,7 @@ function overviewBurgs(settings: { stateId?: number | null; cultureId?: number |
   }
 
   function exitAddBurgMode(): void {
-    customization = 0;
+    viewContext.customization = 0;
     restoreDefaultEvents?.();
     clearMainTip();
     const addBurgToolEl = document.getElementById("addBurgTool");
@@ -317,17 +326,17 @@ function overviewBurgs(settings: { stateId?: number | null; cultureId?: number |
       capital?: number | boolean;
     }
 
-    const states: ChartDatum[] = pack.states.map(s => ({
+    const states: ChartDatum[] = worldContext.pack.states.map(s => ({
       id: s.i,
       state: s.i ? 0 : null,
       color: s.color ?? "#ccc",
       name: s.fullName ?? s.name
     }));
 
-    const burgs: ChartDatum[] = pack.burgs
+    const burgs: ChartDatum[] = worldContext.pack.burgs
       .filter(b => b.i && !b.removed)
       .map(b => {
-        const province = pack.cells.province![b.cell];
+        const province = worldContext.pack.cells.province![b.cell];
         const parent = province ? province + states.length - 1 : b.state;
         return {
           id: b.i! + states.length - 1,
@@ -405,25 +414,25 @@ function overviewBurgs(settings: { stateId?: number | null; cultureId?: number |
 
         function updateChart(this: HTMLSelectElement): void {
           const getStatesData = () =>
-            pack.states.map(s => {
+            worldContext.pack.states.map(s => {
               const c = s.color ? s.color : "#ccc";
               const name = s.fullName ? s.fullName : s.name;
               return { id: s.i, state: s.i ? 0 : null, color: c, name };
             });
 
           const getCulturesData = () =>
-            pack.cultures.map(c => {
+            worldContext.pack.cultures.map(c => {
               const col = c.color ? c.color : "#ccc";
               return { id: c.i, culture: c.i ? 0 : null, color: col, name: c.name };
             });
 
           const getParentData = () => {
-            const statesData = pack.states.map(s => {
+            const statesData = worldContext.pack.states.map(s => {
               const c = s.color ? s.color : "#ccc";
               const name = s.fullName ? s.fullName : s.name;
               return { id: s.i, parent: s.i ? 0 : null, color: c, name };
             });
-            const provinces = pack
+            const provinces = worldContext.pack
               .provinces!.filter(p => p.i && !p.removed)
               .map(p => {
                 return { id: p.i + statesData.length - 1, parent: p.state, color: p.color, name: p.fullName };
@@ -432,7 +441,7 @@ function overviewBurgs(settings: { stateId?: number | null; cultureId?: number |
           };
 
           const getProvincesData = (): ChartDatum[] =>
-            pack.provinces!.map(p => ({
+            worldContext.pack.provinces!.map(p => ({
               id: p.i ? p.i : 0,
               province: p.i ? 0 : null,
               color: p.color ?? "#ccc",
@@ -484,7 +493,7 @@ function overviewBurgs(settings: { stateId?: number | null; cultureId?: number |
           el.setAttribute("stroke", "#c13119");
           const name = d.data.name;
           const parent = d.parent?.data.name;
-          const population = si((d.value ?? 0) * populationRate * urbanization);
+          const population = si((d.value ?? 0) * worldContext.populationRate * worldContext.urbanization);
 
           (document.getElementById("burgsInfo") as HTMLElement).innerHTML =
             /* html */ `${name}. ${parent}. Population: ${population}`;
@@ -508,27 +517,27 @@ function overviewBurgs(settings: { stateId?: number | null; cultureId?: number |
 
   function downloadBurgsData(): void {
     let data = `Id,Burg,Province,Province Full Name,State,State Full Name,Culture,Religion,Group,Population,X,Y,Latitude,Longitude,Elevation (${heightUnit.value}),Temperature,Temperature likeness,Capital,Port,Citadel,Walls,Plaza,Temple,Shanty Town,Emblem,Preview link\n`;
-    const valid = pack.burgs.filter(b => b.i && !b.removed);
+    const valid = worldContext.pack.burgs.filter(b => b.i && !b.removed);
 
     valid.forEach(b => {
       data += `${b.i},`;
       data += `${b.name},`;
-      const province = pack.cells.province![b.cell];
-      data += province ? `${pack.provinces![province].name},` : ",";
-      data += province ? `${pack.provinces![province].fullName},` : ",";
-      data += `${pack.states[b.state!].name},`;
-      data += `${pack.states[b.state!].fullName},`;
-      data += `${pack.cultures[b.culture!].name},`;
-      data += `${pack.religions![pack.cells.religion![b.cell]].name},`;
+      const province = worldContext.pack.cells.province![b.cell];
+      data += province ? `${worldContext.pack.provinces![province].name},` : ",";
+      data += province ? `${worldContext.pack.provinces![province].fullName},` : ",";
+      data += `${worldContext.pack.states[b.state!].name},`;
+      data += `${worldContext.pack.states[b.state!].fullName},`;
+      data += `${worldContext.pack.cultures[b.culture!].name},`;
+      data += `${worldContext.pack.religions![worldContext.pack.cells.religion![b.cell]].name},`;
       data += `${b.group!},`;
-      data += `${rn(b.population! * populationRate * urbanization)},`;
+      data += `${rn(b.population! * worldContext.populationRate * worldContext.urbanization)},`;
 
       data += `${b.x},`;
       data += `${b.y},`;
       data += `${getLatitude(b.y, worldContext.mapCoordinates, worldContext.graphHeight, 2)},`;
       data += `${getLongitude(b.x, worldContext.mapCoordinates, worldContext.graphWidth, 2)},`;
-      data += `${parseInt(getHeight(pack.cells.h[b.cell]), 10)},`;
-      const temperature = grid.cells.temp![pack.cells.g![b.cell]];
+      data += `${parseInt(getHeight(worldContext.pack.cells.h[b.cell]), 10)},`;
+      const temperature = worldContext.grid.cells.temp![worldContext.pack.cells.g![b.cell]];
       data += `${convertTemperature(temperature)},`;
       data += `${getTemperatureLikeness(temperature)},`;
 
@@ -558,7 +567,7 @@ function overviewBurgs(settings: { stateId?: number | null; cultureId?: number |
           label: "Download",
           keepOpen: true,
           onClick: () => {
-            const data = pack.burgs
+            const data = worldContext.pack.burgs
               .filter(b => b.i && !b.removed)
               .map(b => b.name)
               .join("\r\n");
@@ -594,7 +603,7 @@ function overviewBurgs(settings: { stateId?: number | null; cultureId?: number |
     let message = `Burgs to be renamed as below:`;
     message += `<table class="overflow-table"><tr><th>Id</th><th>Current name</th><th>New Name</th></tr>`;
 
-    const validBurgs = pack.burgs.filter(b => b.i && !b.removed);
+    const validBurgs = worldContext.pack.burgs.filter(b => b.i && !b.removed);
     for (let i = 0; i < data.length && i <= validBurgs.length; i++) {
       const v = data[i];
       if (!v || !validBurgs[i] || v === validBurgs[i].name) continue;
@@ -608,8 +617,8 @@ function overviewBurgs(settings: { stateId?: number | null; cultureId?: number |
     const onConfirm = () => {
       for (let i = 0; i < change.length; i++) {
         const id = change[i].id;
-        pack.burgs[id].name = change[i].name;
-        burgLabels.select(`[data-id='${id}']`).text(change[i].name);
+        worldContext.pack.burgs[id].name = change[i].name;
+        viewContext.burgLabels.select(`[data-id='${id}']`).text(change[i].name);
       }
       burgsOverviewAddLines();
     };
@@ -623,7 +632,7 @@ function overviewBurgs(settings: { stateId?: number | null; cultureId?: number |
   }
 
   function triggerAllBurgsRemove(): void {
-    const number = pack.burgs.filter(b => b.i && !b.removed && !b.capital && !b.lock).length;
+    const number = worldContext.pack.burgs.filter(b => b.i && !b.removed && !b.capital && !b.lock).length;
     confirmationDialog({
       title: `Remove ${number} burgs`,
       message: `
@@ -631,7 +640,7 @@ function overviewBurgs(settings: { stateId?: number | null; cultureId?: number |
         <br><i>To remove a capital you have to remove its state first</i>`,
       confirm: "Remove",
       onConfirm: () => {
-        pack.burgs
+        worldContext.pack.burgs
           .filter(b => b.i && !(b.capital || b.lock))
           .forEach(b => {
             Burgs.remove(b.i!);
@@ -642,7 +651,7 @@ function overviewBurgs(settings: { stateId?: number | null; cultureId?: number |
   }
 
   function toggleLockAll(): void {
-    const activeBurgs = pack.burgs.filter(b => b.i && !b.removed);
+    const activeBurgs = worldContext.pack.burgs.filter(b => b.i && !b.removed);
     const allLocked = activeBurgs.every(burg => burg.lock);
 
     activeBurgs.forEach(burg => {
@@ -654,15 +663,7 @@ function overviewBurgs(settings: { stateId?: number | null; cultureId?: number |
   }
 
   function updateLockAllIcon(): void {
-    const allLocked = pack.burgs.every(({ lock, i, removed }) => lock || !i || removed);
+    const allLocked = worldContext.pack.burgs.every(({ lock, i, removed }) => lock || !i || removed);
     ensureEl("burgsLockAll").className = allLocked ? "icon-lock-open" : "icon-lock";
-  }
-}
-
-window.overviewBurgs = overviewBurgs;
-
-declare global {
-  interface Window {
-    overviewBurgs: (settings?: { stateId?: number | null; cultureId?: number | null }) => void;
   }
 }

@@ -9,6 +9,7 @@ import { worldContext } from "../context/worldContext";
 import type { WorldState } from "../types/WorldState";
 import { ensureEl, rn } from "../utils";
 import type { PackedGraphFeature } from "./features";
+import { Names } from "./names-generator";
 
 export class LakesModule {
   worldContext: WorldContext = worldContext;
@@ -39,7 +40,7 @@ export class LakesModule {
   }
 
   cleanupLakeData = () => {
-    for (const feature of pack.features) {
+    for (const feature of worldContext.pack.features) {
       if (feature.type !== "lake") continue;
       delete feature.river;
       delete feature.enteringFlux;
@@ -47,11 +48,11 @@ export class LakesModule {
       delete feature.closed;
       feature.height = rn(feature.height, 3);
 
-      const inlets = feature.inlets?.filter(r => pack.rivers.find(river => river.i === r));
+      const inlets = feature.inlets?.filter(r => worldContext.pack.rivers.find(river => river.i === r));
       if (!inlets?.length) delete feature.inlets;
       else feature.inlets = inlets;
 
-      const outlet = feature.outlet && pack.rivers.find(river => river.i === feature.outlet);
+      const outlet = feature.outlet && worldContext.pack.rivers.find(river => river.i === feature.outlet);
       if (!outlet) delete feature.outlet;
     }
   };

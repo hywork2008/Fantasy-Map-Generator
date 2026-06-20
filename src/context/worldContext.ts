@@ -25,19 +25,19 @@ export interface WorldContext {
   biomesData: BiomesData;
   nameBases: NameBase[];
   style: MapStyle & { burgLabels: object; burgIcons: object; anchors: object };
+  /** Logical map coordinate space width — equivalent to options.mapWidth, constant per map */
   graphWidth: number;
+  /** Logical map coordinate space height — equivalent to options.mapHeight, constant per map */
   graphHeight: number;
-  svgWidth: number;
-  svgHeight: number;
   mapCoordinates: MapCoordinates;
   /** Urbanization rate read from the UI input at map load */
   urbanization: number;
+  /** Urban density read from the UI input at map load */
+  urbanDensity: number;
   /** Population per cell read from the UI input at map load */
   populationRate: number;
   /** Distance scale factor read from the UI input at map load */
   distanceScale: number;
-  /** Shared d3 line generator (curveBasis) used by controllers and editors */
-  lineGen: (points: [number, number][]) => string;
 }
 
 /**
@@ -59,11 +59,9 @@ export const worldContext: WorldContext = {
   style: { burgLabels: {}, burgIcons: {}, anchors: {} } as WorldContext["style"],
   graphWidth: 0,
   graphHeight: 0,
-  svgWidth: 0,
-  svgHeight: 0,
   mapCoordinates: {},
   urbanization: 1,
+  urbanDensity: 10,
   populationRate: 1,
-  distanceScale: 1,
-  lineGen: () => ""
+  distanceScale: 1
 };

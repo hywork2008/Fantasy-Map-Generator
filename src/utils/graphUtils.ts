@@ -262,12 +262,12 @@ export const findClosestCell = (
   radius = Infinity,
   pack: { cells: { p: [number, number][] } }
 ): number | undefined => {
-  if (!pack.cells?.p) throw new Error("Pack cells not found");
-  let qTree = quadtreeCache.get(pack.cells.p);
+  if (!worldContext.pack.cells?.p) throw new Error("Pack cells not found");
+  let qTree = quadtreeCache.get(worldContext.pack.cells.p);
   if (!qTree) {
-    qTree = quadtree(pack.cells.p.map(([px, py], i) => [px, py, i]));
+    qTree = quadtree(worldContext.pack.cells.p.map(([px, py], i) => [px, py, i]));
     if (!qTree) throw new Error("Failed to create quadtree");
-    quadtreeCache.set(pack.cells.p, qTree);
+    quadtreeCache.set(worldContext.pack.cells.p, qTree);
   }
   const found = qTree.find(x, y, radius);
   return found ? found[2] : undefined;

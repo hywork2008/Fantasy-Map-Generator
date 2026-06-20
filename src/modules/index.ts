@@ -3,7 +3,6 @@ import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import "./voronoi";
 import { Features } from "./features";
-import { Names } from "./names-generator";
 import "./ocean-layers";
 import { Biomes } from "./biomes";
 import { Burgs } from "./burgs-generator";
@@ -24,13 +23,8 @@ import "./resample";
 
 import type { WorldStateAt } from "../types/pipeline";
 import type { WorldState } from "../types/WorldState";
-import { UITour } from "./ui-tour";
 
 export function initModules(): void {
-  // biome-ignore lint/style/noRestrictedGlobals: Names and UITour are still consumed as browser globals by controllers and editors pending migration to explicit imports
-  window.Names = Names;
-  // biome-ignore lint/style/noRestrictedGlobals: same as above
-  window.UITour = UITour;
   initFonts();
 }
 

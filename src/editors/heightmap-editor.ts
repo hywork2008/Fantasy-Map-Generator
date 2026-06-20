@@ -1,11 +1,34 @@
 import * as d3 from "d3";
 import { hsl, interpolateRound, lab, max, mean, pointer, range, select } from "d3";
 import RgbQuant from "rgbquant";
+import { getWorldState, resetZoom } from "../actions";
 import { aleaPRNG } from "../components/AleaPRNG";
 import type { AppServices } from "../context/appServices";
+import { appServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
+import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import { worldContext } from "../context/worldContext";
+import {
+  downloadFile,
+  getFileName,
+  moveCircle,
+  removeCircle,
+  restoreDefaultEvents,
+  uploadFile
+} from "../controllers/editors";
 import { interactionManager } from "../controllers/interactionManager";
+import { getCurrentPreset, layerIsOn, turnButtonOff, turnButtonOn } from "../controllers/layers";
+import { changeViewMode, enterStandardView } from "../controllers/options";
+import {
+  addLakesInDeepDepressions,
+  calculateTemperatures,
+  generatePrecipitation,
+  openNearSeaLakes,
+  rankCells,
+  reGraph,
+  undraw
+} from "../main";
 import { Biomes } from "../modules/biomes";
 import type { Burg } from "../modules/burgs-generator";
 import { Burgs } from "../modules/burgs-generator";
@@ -27,11 +50,12 @@ import type { Zone } from "../modules/zones-generator";
 import { Zones } from "../modules/zones-generator";
 import { FeaturesRenderer } from "../renderers";
 import { useOptionsState } from "../store/optionsState";
-import { closeDialog, isDialogOpen, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
+import { closeDialog, closeDialogs, isDialogOpen, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import {
   createTypedArray,
   ensureEl,
   findCell,
+  findGridAll,
   findGridCell,
   generateSeed,
   getGridPolygon,
@@ -41,12 +65,10 @@ import {
   showPrompt,
   unique
 } from "../utils";
+import { alertMessage } from "../utils/alertMessageEl";
 import { getColorScheme } from "../utils/colorUtils";
+import { clearMainTip, locked, showMainTip, tip } from "../utils/uiHelpers";
 import { HeightmapEditorHistoryClass as HeightmapEditorHistory } from "./HeightmapEditorHistory";
-
-let worldContext: WorldContext;
-let viewContext: Readonly<ViewContext>;
-let appServices: AppServices;
 
 // ─── Module-level state ───────────────────────────────────────────────────────
 
@@ -58,8 +80,8 @@ let heightmapHistory: InstanceType<typeof HeightmapEditorHistory> | undefined;
 export function editHeightmap(options?: { mode?: string; tool?: string }): void {
   const { mode, tool } = options || {};
   restartHistory();
-  viewbox.selectAll("#heights").remove();
-  viewbox.insert("g", "#terrs").attr("id", "heights");
+  viewContext.viewbox.selectAll("#heights").remove();
+  viewContext.viewbox.insert("g", "#terrs").attr("id", "heights");
 
   if (!mode) showModeDialog();
   else enterHeightmapEditMode(mode);
@@ -84,10 +106,10 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     <p>You can <i>keep</i> the data, but you won't be able to change the coastline.</p>
     <p>Try <i>risk</i> mode to change the coastline and keep the data. The data will be restored as much as possible, but it can cause unpredictable errors.</p>
     <p>Please <span class="pseudoLink" onclick="saveMap('machine')">save the map</span> before editing the heightmap!</p>
-    <p style="margin-bottom: 0">Check out ${link("https://github.com/Azgaar/Fantasy-Map-Generator/wiki/Heightmap-customization", "wiki")} for guidance.</p>`;
+    <p style="margin-bottom: 0">Check out ${link("https://github.com/Azgaar/Fantasy-Map-Generator/wiki/Heightmap-viewContext.customization", "wiki")} for guidance.</p>`;
 
     openRichDialog({
-      content: window.alertMessage.innerHTML,
+      content: alertMessage.innerHTML,
       resizable: false,
       title: "Edit Heightmap",
       width: "28em",
@@ -110,7 +132,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       ensureEl(l).click();
     });
 
-    customization = 1;
+    viewContext.customization = 1;
     closeDialogs();
     tip('Heightmap edit mode is active. Click on "Exit Customization" to finalize the heightmap', true);
 
@@ -127,12 +149,12 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       undraw();
       (cellTypeFilter as HTMLSelectElement).value = "all";
     } else if (mode === "keep") {
-      viewbox.selectAll("#landmass, #lakes").style("display", "none");
+      viewContext.viewbox.selectAll("#landmass, #lakes").style("display", "none");
       (cellTypeFilter as HTMLSelectElement).value = "land";
     } else if (mode === "risk") {
-      defs.selectAll("#land, #water").selectAll("path").remove();
-      defs.select("#featurePaths").selectAll("path").remove();
-      viewbox.selectAll("#coastline use, #lakes path, #oceanLayers path").remove();
+      viewContext.defs.selectAll("#land, #water").selectAll("path").remove();
+      viewContext.defs.select("#featurePaths").selectAll("path").remove();
+      viewContext.viewbox.selectAll("#coastline use, #lakes path, #oceanLayers path").remove();
       (cellTypeFilter as HTMLSelectElement).value = "all";
     }
 
@@ -153,8 +175,8 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
         new CustomEvent("react-show-exit-customization", {
           detail: {
             opacity: "0",
-            right: `${(svgWidth - width) / 2}px`,
-            bottom: `${svgHeight / 2}px`,
+            right: `${(viewContext.svgWidth - width) / 2}px`,
+            bottom: `${viewContext.svgHeight / 2}px`,
             transform: "scale(2)"
           }
         })
@@ -179,7 +201,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     mockHeightmap();
 
     interactionManager.setMouseMoveHandler(moveCursor);
-    svg.on("dblclick.zoom", null);
+    viewContext.svg.on("dblclick.zoom", null);
 
     if (tool === "templateEditor") openTemplateEditor();
     else if (tool === "imageConverter") openImageConverter();
@@ -188,18 +210,18 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
 
   function moveCursor(this: SVGElement, event: MouseEvent): void {
     const [x, y] = pointer(event, this);
-    const cell = findGridCell(x, y, grid);
+    const cell = findGridCell(x, y, worldContext.grid);
     heightmapInfoX.innerHTML = String(rn(x));
     heightmapInfoY.innerHTML = String(rn(y));
     heightmapInfoCell.innerHTML = String(cell);
-    heightmapInfoHeight.innerHTML = `${grid.cells.h[cell]} (${getHeight(grid.cells.h[cell])})`;
+    heightmapInfoHeight.innerHTML = `${worldContext.grid.cells.h[cell]} (${getHeight(worldContext.grid.cells.h[cell])})`;
     if ((tooltip as HTMLElement).dataset.main) showMainTip();
 
     const pressed = ensureEl("brushesButtons").querySelector<HTMLButtonElement>("button.pressed");
     if (!pressed) return;
 
     if (pressed.id === "brushLine") {
-      debug.select("line").attr("x2", x).attr("y2", y);
+      viewContext.debug.select("line").attr("x2", x).attr("y2", y);
       return;
     }
     if (pressed.id === "brushFill") {
@@ -223,7 +245,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
   }
 
   function finalizeHeightmap(): void {
-    if (viewbox.select("#heights").selectAll("*").size() < 200) {
+    if (viewContext.viewbox.select("#heights").selectAll("*").size() < 200) {
       tip("Insufficient land area. There should be at least 200 land cells!", false, "error");
       return;
     }
@@ -236,7 +258,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     redo!.disabled = templateRedo.disabled = true;
     undo!.disabled = templateUndo.disabled = true;
 
-    customization = 0;
+    viewContext.customization = 0;
     layersPreset.disabled = false;
     // Tell React to exit customization mode (restores normal tabs and hides CustomizationMenu)
     document.dispatchEvent(new CustomEvent("react-exit-heightmap-edit"));
@@ -256,7 +278,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     else if (mode === "risk") restoreRiskedData();
 
     FeaturesRenderer.render(worldContext, viewContext, appServices);
-    viewbox.selectAll("#heights").remove();
+    viewContext.viewbox.selectAll("#heights").remove();
 
     turnButtonOff("toggleHeight");
     document
@@ -267,9 +289,9 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
         if ((wasOn && !layerIsOn((e as HTMLElement).id)) || (!wasOn && layerIsOn((e as HTMLElement).id)))
           (e as HTMLElement).click();
       });
-    if (!layerIsOn("toggleBorders")) borders.selectAll("path").remove();
-    if (!layerIsOn("toggleStates")) regions.selectAll("path").remove();
-    if (!layerIsOn("toggleRivers")) rivers.selectAll("*").remove();
+    if (!layerIsOn("toggleBorders")) viewContext.borders.selectAll("path").remove();
+    if (!layerIsOn("toggleStates")) viewContext.regions.selectAll("path").remove();
+    if (!layerIsOn("toggleRivers")) viewContext.rivers.selectAll("*").remove();
 
     getCurrentPreset();
   }
@@ -278,11 +300,11 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     INFO && console.group("Edit Heightmap");
     TIME && console.time("regenerateErasedData");
 
-    pack.cultures = [];
-    pack.burgs = [];
-    pack.states = [];
-    pack.provinces = [];
-    pack.religions = [];
+    worldContext.pack.cultures = [];
+    worldContext.pack.burgs = [];
+    worldContext.pack.states = [];
+    worldContext.pack.provinces = [];
+    worldContext.pack.religions = [];
 
     const erosionAllowed = (allowErosion as HTMLInputElement).checked;
     Features.markupGrid();
@@ -300,10 +322,13 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     Rivers.generate(worldContext, viewContext, appServices, state, erosionAllowed);
 
     if (!erosionAllowed) {
-      for (const i of pack.cells.i) {
-        const g = pack.cells.g[i];
-        if (pack.cells.h[i] !== grid.cells.h[g] && pack.cells.h[i] >= 20 === grid.cells.h[g] >= 20)
-          pack.cells.h[i] = grid.cells.h[g];
+      for (const i of worldContext.pack.cells.i) {
+        const g = worldContext.pack.cells.g[i];
+        if (
+          worldContext.pack.cells.h[i] !== worldContext.grid.cells.h[g] &&
+          worldContext.pack.cells.h[i] >= 20 === worldContext.grid.cells.h[g] >= 20
+        )
+          worldContext.pack.cells.h[i] = worldContext.grid.cells.h[g];
       }
     }
 
@@ -333,9 +358,9 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
   }
 
   function restoreKeptData(): void {
-    viewbox.selectAll("#landmass, #lakes").style("display", null);
-    for (const i of pack.cells.i) {
-      pack.cells.h[i] = grid.cells.h[pack.cells.g[i]];
+    viewContext.viewbox.selectAll("#landmass, #lakes").style("display", null);
+    for (const i of worldContext.pack.cells.i) {
+      worldContext.pack.cells.h[i] = worldContext.grid.cells.h[worldContext.pack.cells.g[i]];
     }
   }
 
@@ -344,7 +369,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     TIME && console.time("restoreRiskedData");
     const erosionAllowed = (allowErosion as HTMLInputElement).checked;
 
-    const l = grid.cells.i.length;
+    const l = worldContext.grid.cells.i.length;
     const biome = new Uint8Array(l);
     const pop = new Uint16Array(l);
     const routesMap: Record<number, Record<number, number>> = {};
@@ -358,40 +383,40 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     const r = new Uint16Array(l);
     const conf = new Uint8Array(l);
 
-    for (const i of pack.cells.i) {
-      const g = pack.cells.g[i];
-      biome[g] = pack.cells.biome[i];
-      culture[g] = pack.cells.culture[i];
-      pop[g] = pack.cells.pop[i];
-      routesMap[g] = pack.cells.routes[i];
-      s[g] = pack.cells.s[i];
-      stateArr[g] = pack.cells.state[i];
-      province[g] = pack.cells.province[i];
-      burg[g] = pack.cells.burg[i];
-      religion[g] = pack.cells.religion[i];
+    for (const i of worldContext.pack.cells.i) {
+      const g = worldContext.pack.cells.g[i];
+      biome[g] = worldContext.pack.cells.biome[i];
+      culture[g] = worldContext.pack.cells.culture[i];
+      pop[g] = worldContext.pack.cells.pop[i];
+      routesMap[g] = worldContext.pack.cells.routes[i];
+      s[g] = worldContext.pack.cells.s[i];
+      stateArr[g] = worldContext.pack.cells.state[i];
+      province[g] = worldContext.pack.cells.province[i];
+      burg[g] = worldContext.pack.cells.burg[i];
+      religion[g] = worldContext.pack.cells.religion[i];
       if (!erosionAllowed) {
-        fl[g] = pack.cells.fl[i];
-        r[g] = pack.cells.r[i];
-        conf[g] = pack.cells.conf[i];
+        fl[g] = worldContext.pack.cells.fl[i];
+        r[g] = worldContext.pack.cells.r[i];
+        conf[g] = worldContext.pack.cells.conf[i];
       }
     }
 
-    for (const i of grid.cells.i) {
+    for (const i of worldContext.grid.cells.i) {
       if (!burg[i]) continue;
-      if (grid.cells.h[i] < 20) grid.cells.h[i] = 20;
+      if (worldContext.grid.cells.h[i] < 20) worldContext.grid.cells.h[i] = 20;
     }
 
-    for (const c of pack.cultures as (Culture & { x?: number; y?: number })[]) {
+    for (const c of worldContext.pack.cultures as (Culture & { x?: number; y?: number })[]) {
       if (!c.i || c.removed) continue;
-      const p = pack.cells.p[c.center!] as [number, number];
+      const p = worldContext.pack.cells.p[c.center!] as [number, number];
       c.x = p[0];
       c.y = p[1];
     }
 
     const zoneGridCellsMap = new Map<number, number[]>();
-    for (const zone of pack.zones as Zone[]) {
+    for (const zone of worldContext.pack.zones as Zone[]) {
       if (!zone.cells?.length) continue;
-      const zoneGridCells = zone.cells.map(i => pack.cells.g[i]);
+      const zoneGridCells = zone.cells.map(i => worldContext.pack.cells.g[i]);
       zoneGridCellsMap.set(zone.i, unique(zoneGridCells));
     }
 
@@ -409,84 +434,91 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       Features.defineGroups();
     }
 
-    const n = pack.cells.i.length;
-    pack.cells.pop = new Float32Array(n);
-    pack.cells.routes = {};
-    pack.cells.s = new Uint16Array(n);
-    pack.cells.burg = new Uint16Array(n);
-    pack.cells.state = new Uint16Array(n);
-    pack.cells.province = new Uint16Array(n);
-    pack.cells.culture = new Uint16Array(n);
-    pack.cells.religion = new Uint16Array(n);
-    pack.cells.biome = new Uint8Array(n);
+    const n = worldContext.pack.cells.i.length;
+    worldContext.pack.cells.pop = new Float32Array(n);
+    worldContext.pack.cells.routes = {};
+    worldContext.pack.cells.s = new Uint16Array(n);
+    worldContext.pack.cells.burg = new Uint16Array(n);
+    worldContext.pack.cells.state = new Uint16Array(n);
+    worldContext.pack.cells.province = new Uint16Array(n);
+    worldContext.pack.cells.culture = new Uint16Array(n);
+    worldContext.pack.cells.religion = new Uint16Array(n);
+    worldContext.pack.cells.biome = new Uint8Array(n);
 
     if (!erosionAllowed) {
-      pack.cells.r = new Uint16Array(n);
-      pack.cells.conf = new Uint8Array(n);
-      pack.cells.fl = new Uint16Array(n);
+      worldContext.pack.cells.r = new Uint16Array(n);
+      worldContext.pack.cells.conf = new Uint8Array(n);
+      worldContext.pack.cells.fl = new Uint16Array(n);
     }
 
-    for (const i of pack.cells.i) {
-      const g = pack.cells.g[i];
-      const isLand = pack.cells.h[i] >= 20;
+    for (const i of worldContext.pack.cells.i) {
+      const g = worldContext.pack.cells.g[i];
+      const isLand = worldContext.pack.cells.h[i] >= 20;
 
       if (!erosionAllowed) {
-        pack.cells.r[i] = r[g];
-        pack.cells.conf[i] = conf[g];
-        pack.cells.fl[i] = fl[g];
+        worldContext.pack.cells.r[i] = r[g];
+        worldContext.pack.cells.conf[i] = conf[g];
+        worldContext.pack.cells.fl[i] = fl[g];
       }
 
-      pack.cells.biome[i] =
+      worldContext.pack.cells.biome[i] =
         isLand && biome[g]
           ? biome[g]
-          : Biomes.getId(grid.cells.prec[g], grid.cells.temp[g], pack.cells.h[i], Boolean(pack.cells.r[i]));
+          : Biomes.getId(
+              worldContext.grid.cells.prec[g],
+              worldContext.grid.cells.temp[g],
+              worldContext.pack.cells.h[i],
+              Boolean(worldContext.pack.cells.r[i])
+            );
 
       if (!isLand) continue;
-      pack.cells.culture[i] = culture[g];
-      pack.cells.pop[i] = pop[g];
-      pack.cells.routes[i] = routesMap[g];
-      pack.cells.s[i] = s[g];
-      pack.cells.state[i] = stateArr[g];
-      pack.cells.province[i] = province[g];
-      pack.cells.religion[i] = religion[g];
+      worldContext.pack.cells.culture[i] = culture[g];
+      worldContext.pack.cells.pop[i] = pop[g];
+      worldContext.pack.cells.routes[i] = routesMap[g];
+      worldContext.pack.cells.s[i] = s[g];
+      worldContext.pack.cells.state[i] = stateArr[g];
+      worldContext.pack.cells.province[i] = province[g];
+      worldContext.pack.cells.religion[i] = religion[g];
     }
 
     const findBurgCell = (x: number, y: number): number => {
       const i = findCell(x, y);
-      if (pack.cells.h[i] >= 20) return i;
-      const dist = pack.cells.c[i].map((c: number) =>
-        pack.cells.h[c] < 20 ? Infinity : (pack.cells.p[c][0] - x) ** 2 + (pack.cells.p[c][1] - y) ** 2
+      if (worldContext.pack.cells.h[i] >= 20) return i;
+      const dist = worldContext.pack.cells.c[i].map((c: number) =>
+        worldContext.pack.cells.h[c] < 20
+          ? Infinity
+          : (worldContext.pack.cells.p[c][0] - x) ** 2 + (worldContext.pack.cells.p[c][1] - y) ** 2
       );
-      return pack.cells.c[i][d3.leastIndex(dist) ?? 0];
+      return worldContext.pack.cells.c[i][d3.leastIndex(dist) ?? 0];
     };
 
-    for (const b of pack.burgs as Burg[]) {
+    for (const b of worldContext.pack.burgs as Burg[]) {
       if (!b.i || b.removed) continue;
       b.cell = findBurgCell(b.x!, b.y!);
-      b.feature = pack.cells.f[b.cell];
-      pack.cells.burg[b.cell] = b.i!;
-      if (!b.capital && pack.cells.h[b.cell] < 20) Burgs.remove(b.i);
-      if (b.capital) pack.states[b.state!].center = b.cell;
+      b.feature = worldContext.pack.cells.f[b.cell];
+      worldContext.pack.cells.burg[b.cell] = b.i!;
+      if (!b.capital && worldContext.pack.cells.h[b.cell] < 20) Burgs.remove(b.i);
+      if (b.capital) worldContext.pack.states[b.state!].center = b.cell;
     }
 
-    for (const p of pack.provinces as Province[]) {
+    for (const p of worldContext.pack.provinces as Province[]) {
       if (!p.i || p.removed) continue;
-      const provCells = Array.from(pack.cells.i).filter(i => pack.cells.province[i] === p.i);
+      const provCells = Array.from(worldContext.pack.cells.i).filter(i => worldContext.pack.cells.province[i] === p.i);
       if (!provCells.length) {
         const st = p.state;
-        const stateProvs = pack.states[st].provinces as number[];
+        const stateProvs = worldContext.pack.states[st].provinces as number[];
         if (stateProvs.includes(p.i)) stateProvs.splice(stateProvs.indexOf(p.i), 1);
         p.removed = true;
         continue;
       }
-      if (p.burg && !pack.burgs[p.burg].removed) p.center = pack.burgs[p.burg].cell;
+      if (p.burg && !worldContext.pack.burgs[p.burg].removed) p.center = worldContext.pack.burgs[p.burg].cell;
       else {
         p.center = provCells[0];
-        p.burg = pack.cells.burg[p.center];
+        p.burg = worldContext.pack.cells.burg[p.center];
       }
     }
 
-    for (const c of pack.cultures as (Culture & { x?: number; y?: number })[]) {
+    for (const c of worldContext.pack.cultures as (Culture & { x?: number; y?: number })[]) {
       if (!c.i || c.removed) continue;
       c.center = findCell(c.x!, c.y!);
     }
@@ -498,13 +530,13 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     }
 
     const gridToPackMap = new Map<number, number[]>();
-    for (const i of pack.cells.i) {
-      const g = pack.cells.g[i];
+    for (const i of worldContext.pack.cells.i) {
+      const g = worldContext.pack.cells.g[i];
       if (!gridToPackMap.has(g)) gridToPackMap.set(g, []);
       gridToPackMap.get(g)!.push(i);
     }
 
-    for (const zone of pack.zones as Zone[]) {
+    for (const zone of worldContext.pack.zones as Zone[]) {
       const gridCells = zoneGridCellsMap.get(zone.i);
       if (gridCells?.length) {
         const packCells = gridCells.flatMap(g => gridToPackMap.get(g) || []);
@@ -515,7 +547,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     }
 
     Ice.generate(worldContext, viewContext, appServices, worldState);
-    ice.selectAll("*").remove();
+    viewContext.ice.selectAll("*").remove();
 
     TIME && console.timeEnd("restoreRiskedData");
     INFO && console.groupEnd();
@@ -523,18 +555,20 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
 
   function updateHeightmap(): void {
     const prev = heightmapHistory?.current as Uint8Array | undefined;
-    const changed = prev ? (grid.cells.h as Uint8Array).reduce((s, h, i) => (h !== prev[i] ? s + 1 : s), 0) : 0;
+    const changed = prev
+      ? (worldContext.grid.cells.h as Uint8Array).reduce((s, h, i) => (h !== prev[i] ? s + 1 : s), 0)
+      : 0;
     tip(`Cells changed: ${changed}`);
     if (!changed) return;
 
     if (prev && (cellTypeFilter as HTMLSelectElement).value === "land") {
-      for (const i of grid.cells.i) {
-        if (prev[i] < 20 || grid.cells.h[i] < 20) grid.cells.h[i] = prev[i];
+      for (const i of worldContext.grid.cells.i) {
+        if (prev[i] < 20 || worldContext.grid.cells.h[i] < 20) worldContext.grid.cells.h[i] = prev[i];
       }
     }
     if (prev && (cellTypeFilter as HTMLSelectElement).value === "water") {
-      for (const i of grid.cells.i) {
-        if (prev[i] >= 20 || grid.cells.h[i] >= 20) grid.cells.h[i] = prev[i];
+      for (const i of worldContext.grid.cells.i) {
+        if (prev[i] >= 20 || worldContext.grid.cells.h[i] >= 20) worldContext.grid.cells.h[i] = prev[i];
       }
     }
 
@@ -548,24 +582,24 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
   }
 
   function mockHeightmap(): void {
-    const all = Array.from(grid.cells.i) as number[];
-    const data = (renderOcean as HTMLInputElement).checked ? all : all.filter(i => grid.cells.h[i] >= 20);
-    viewbox
+    const all = Array.from(worldContext.grid.cells.i) as number[];
+    const data = (renderOcean as HTMLInputElement).checked ? all : all.filter(i => worldContext.grid.cells.h[i] >= 20);
+    viewContext.viewbox
       .select<SVGGElement>("#heights")
       .selectAll<SVGPolygonElement, number>("polygon")
       .data(data)
       .join("polygon")
       .attr("points", d => getGridPolygon(d, worldContext.grid).join(" "))
       .attr("id", d => `cell${d}`)
-      .attr("fill", d => getColor(grid.cells.h[d]));
+      .attr("fill", d => getColor(worldContext.grid.cells.h[d]));
   }
 
   function mockHeightmapSelection(selection: number[]): void {
     const ocean = (renderOcean as HTMLInputElement).checked;
-    const heights = viewbox.select<SVGGElement>("#heights");
+    const heights = viewContext.viewbox.select<SVGGElement>("#heights");
     selection.forEach(i => {
       let cell = heights.select<SVGPolygonElement>(`#cell${i}`);
-      if (!ocean && grid.cells.h[i] < 20) {
+      if (!ocean && worldContext.grid.cells.h[i] < 20) {
         cell.remove();
         return;
       }
@@ -574,18 +608,19 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
           .append<SVGPolygonElement>("polygon")
           .attr("points", getGridPolygon(i, worldContext.grid).join(" "))
           .attr("id", `cell${i}`);
-      cell.attr("fill", getColor(grid.cells.h[i]));
+      cell.attr("fill", getColor(worldContext.grid.cells.h[i]));
     });
   }
 
   function updateStatistics(): void {
-    const landCells = (grid.cells.h as Uint8Array).reduce((s, h) => (h >= 20 ? s + 1 : s), 0);
-    ensureEl("landmassCounter").innerText = `${landCells} (${rn((landCells / grid.cells.i.length) * 100)}%)`;
-    ensureEl("landmassAverage").innerText = String(rn(mean(Array.from(grid.cells.h)) ?? 0));
+    const landCells = (worldContext.grid.cells.h as Uint8Array).reduce((s, h) => (h >= 20 ? s + 1 : s), 0);
+    ensureEl("landmassCounter").innerText =
+      `${landCells} (${rn((landCells / worldContext.grid.cells.i.length) * 100)}%)`;
+    ensureEl("landmassAverage").innerText = String(rn(mean(Array.from(worldContext.grid.cells.h)) ?? 0));
   }
 
   function updateHistory(noStat?: string): void {
-    heightmapHistory!.push(grid.cells.h);
+    heightmapHistory!.push(worldContext.grid.cells.h);
     undo!.disabled = templateUndo.disabled = !heightmapHistory!.canUndo;
     redo!.disabled = templateRedo.disabled = true;
     if (!noStat) {
@@ -598,7 +633,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
   function undoHistory(): void {
     const h = heightmapHistory!.undo();
     if (!h) return;
-    grid.cells.h = h;
+    worldContext.grid.cells.h = h;
     undo!.disabled = templateUndo.disabled = !heightmapHistory!.canUndo;
     redo!.disabled = templateRedo.disabled = !heightmapHistory!.canRedo;
     mockHeightmap();
@@ -610,7 +645,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
   function redoHistory(): void {
     const h = heightmapHistory!.redo();
     if (!h) return;
-    grid.cells.h = h;
+    worldContext.grid.cells.h = h;
     undo!.disabled = templateUndo.disabled = !heightmapHistory!.canUndo;
     redo!.disabled = templateRedo.disabled = !heightmapHistory!.canRedo;
     mockHeightmap();
@@ -666,9 +701,9 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     function exitBrushMode(): void {
       const pressed = document.querySelector<HTMLElement>("#brushesButtons > button.pressed");
       if (pressed) pressed.classList.remove("pressed");
-      viewbox.style("cursor", "default").on(".drag", null);
+      viewContext.viewbox.style("cursor", "default").on(".drag", null);
       interactionManager.resetClickHandler();
-      debug.selectAll(".lineCircle").remove();
+      viewContext.debug.selectAll(".lineCircle").remove();
       removeCircle();
       ensureEl("brushesSliders").style.display = "none";
       ensureEl("lineSlider").style.display = "none";
@@ -687,15 +722,15 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
 
       if (button.id === "brushLine") {
         ensureEl("lineSlider").style.display = "block";
-        viewbox.style("cursor", "crosshair");
+        viewContext.viewbox.style("cursor", "crosshair");
         interactionManager.setClickHandler(placeLinearFeature);
       } else if (button.id === "brushFill") {
         ensureEl("brushesSliders").style.display = "block";
-        viewbox.style("cursor", "crosshair");
+        viewContext.viewbox.style("cursor", "crosshair");
         interactionManager.setClickHandler(applyFillBrush);
       } else {
         ensureEl("brushesSliders").style.display = "block";
-        viewbox
+        viewContext.viewbox
           .style("cursor", "crosshair")
           .call(
             d3
@@ -714,12 +749,18 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
 
     function placeLinearFeature(this: SVGElement, event: MouseEvent): void {
       const [x, y] = pointer(event, this);
-      const toCell = findGridCell(x, y, grid);
+      const toCell = findGridCell(x, y, worldContext.grid);
 
-      const lineCircle = debug.selectAll(".lineCircle");
+      const lineCircle = viewContext.debug.selectAll(".lineCircle");
       if (!lineCircle.size()) {
-        debug.append("line").attr("id", "brushCircle").attr("x1", x).attr("y1", y).attr("x2", x).attr("y2", y);
-        debug
+        viewContext.debug
+          .append("line")
+          .attr("id", "brushCircle")
+          .attr("x1", x)
+          .attr("y1", y)
+          .attr("x2", x)
+          .attr("y2", y);
+        viewContext.debug
           .append("circle")
           .attr("data-cell", toCell)
           .attr("class", "lineCircle")
@@ -733,19 +774,19 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       }
 
       const fromCell = +lineCircle.attr("data-cell");
-      debug.selectAll("*").remove();
+      viewContext.debug.selectAll("*").remove();
       const power = (heightmapLinePower as HTMLInputElement).valueAsNumber;
       if (power === 0) {
         tip("Power should not be zero", false, "error");
         return;
       }
 
-      const heights = grid.cells.h as Uint8Array;
+      const heights = worldContext.grid.cells.h as Uint8Array;
       const operation =
         power > 0
           ? HeightmapGenerator.addRange.bind(HeightmapGenerator)
           : HeightmapGenerator.addTrough.bind(HeightmapGenerator);
-      HeightmapGenerator.setGraph(grid);
+      HeightmapGenerator.setGraph(worldContext.grid);
       operation("1", String(Math.abs(power)), "", "", fromCell, toCell);
       const changedHeights = HeightmapGenerator.getHeights() as Uint8Array;
 
@@ -763,8 +804,8 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
 
     function applyFillBrush(this: SVGElement, event: MouseEvent): void {
       const [x, y] = pointer(event, this);
-      const start = findGridCell(x, y, grid);
-      const startHeight = grid.cells.h[start];
+      const start = findGridCell(x, y, worldContext.grid);
+      const startHeight = worldContext.grid.cells.h[start];
       const isWaterFill = startHeight < 20;
       const MIN_FILL_CELLS = 3;
 
@@ -798,7 +839,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       isWaterFill: boolean,
       targetHeight: number
     ): { selection: number[]; reachedBorder: boolean } {
-      const { h: heights, c: neighbors, i: cells } = grid.cells;
+      const { h: heights, c: neighbors, i: cells } = worldContext.grid.cells;
       const visited = new Uint8Array(cells.length);
       const stack = [start];
       const selection: number[] = [];
@@ -810,7 +851,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
         visited[cell] = 1;
         if (!matchesFillTarget(heights[cell], isWaterFill, targetHeight)) continue;
         selection.push(cell);
-        if (grid.cells.b[cell]) reachedBorder = true;
+        if (worldContext.grid.cells.b[cell]) reachedBorder = true;
         (neighbors[cell] as number[]).forEach((next: number) => {
           if (!visited[next]) stack.push(next);
         });
@@ -824,7 +865,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
 
     function applyConeToSelection(selection: number[], isWaterFill: boolean, targetHeight: number): number[] {
       const power = (heightmapBrushPower as HTMLInputElement).valueAsNumber * 10;
-      const { h: heights, c: neighbors, i: cells } = grid.cells;
+      const { h: heights, c: neighbors, i: cells } = worldContext.grid.cells;
       const inSelection = new Uint8Array(cells.length);
       const edgeDistance = new Uint16Array(cells.length);
       const changed: number[] = [];
@@ -871,7 +912,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
 
     function dragBrushStart(this: SVGElement, event: d3.D3DragEvent<SVGElement, unknown, unknown>): void {
       const [x, y] = pointer(event, this);
-      _hbStart = findGridCell(x, y, grid);
+      _hbStart = findGridCell(x, y, worldContext.grid);
     }
 
     function dragBrushDrag(this: SVGElement, event: d3.D3DragEvent<SVGElement, unknown, unknown>): void {
@@ -879,11 +920,12 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       const p = pointer(event, this);
       moveCircle(p[0], p[1], r);
       if (~~event.sourceEvent.timeStamp % 5 !== 0) return;
-      const inRadius = findGridAll(p[0], p[1], r);
+      const inRadius = findGridAll(p[0], p[1], r, worldContext.grid);
       let sel = inRadius;
-      if ((cellTypeFilter as HTMLSelectElement).value === "land") sel = inRadius.filter(i => grid.cells.h[i] >= 20);
+      if ((cellTypeFilter as HTMLSelectElement).value === "land")
+        sel = inRadius.filter(i => worldContext.grid.cells.h[i] >= 20);
       else if ((cellTypeFilter as HTMLSelectElement).value === "water")
-        sel = inRadius.filter(i => grid.cells.h[i] < 20);
+        sel = inRadius.filter(i => worldContext.grid.cells.h[i] < 20);
       if (sel?.length) changeHeightForSelection(sel, _hbStart);
     }
 
@@ -893,7 +935,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       const land = (cellTypeFilter as HTMLSelectElement).value === "land";
       const ocean = (cellTypeFilter as HTMLSelectElement).value === "water";
       const lim = (v: number) => minmax(v, land ? 20 : 0, ocean ? 19 : 100);
-      const heights = grid.cells.h as Uint8Array;
+      const heights = worldContext.grid.cells.h as Uint8Array;
       const brush = document.querySelector<HTMLElement>("#brushesButtons > button.pressed")!.id;
 
       if (brush === "brushRaise")
@@ -920,7 +962,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
         selection.forEach(i => {
           heights[i] = rn(
             ((mean(
-              (grid.cells.c[i] as number[])
+              (worldContext.grid.cells.c[i] as number[])
                 .filter(c => (land ? heights[c] >= 20 : ocean ? heights[c] < 20 : true))
                 .map(c => heights[c])
             ) ?? heights[i]) +
@@ -949,7 +991,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       const land = (cellTypeFilter as HTMLSelectElement).value === "land";
       const ocean = (cellTypeFilter as HTMLSelectElement).value === "water";
       const lim = (val: number) => minmax(val, 0, 100);
-      grid.cells.h = (grid.cells.h as Uint8Array).map(h => {
+      worldContext.grid.cells.h = (worldContext.grid.cells.h as Uint8Array).map(h => {
         if (land && (h < 20 || h + v < 20)) return h;
         if (ocean && h >= 20) return h;
         const newH = lim(h + v);
@@ -972,26 +1014,28 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
         return;
       }
 
-      HeightmapGenerator.setGraph(grid);
+      HeightmapGenerator.setGraph(worldContext.grid);
       if (operator === "multiply") HeightmapGenerator.modify(range_, 0, operand, 0);
       else if (operator === "divide") HeightmapGenerator.modify(range_, 0, 1 / operand, 0);
       else if (operator === "add") HeightmapGenerator.modify(range_, operand, 1, 0);
       else if (operator === "subtract") HeightmapGenerator.modify(range_, -1 * operand, 1, 0);
       else if (operator === "exponent") HeightmapGenerator.modify(range_, 0, 1, operand);
 
-      grid.cells.h = HeightmapGenerator.getHeights()!;
+      worldContext.grid.cells.h = HeightmapGenerator.getHeights()!;
       updateHeightmap();
     }
 
     function smoothAllHeights(): void {
-      HeightmapGenerator.setGraph(grid);
+      HeightmapGenerator.setGraph(worldContext.grid);
       HeightmapGenerator.smooth(4, 1.5);
-      grid.cells.h = HeightmapGenerator.getHeights()!;
+      worldContext.grid.cells.h = HeightmapGenerator.getHeights()!;
       updateHeightmap();
     }
 
     function disruptAllHeights(): void {
-      grid.cells.h = (grid.cells.h as Uint8Array).map(h => (h < 15 ? h : minmax(h + 2.5 - Math.random() * 4, 0, 100)));
+      worldContext.grid.cells.h = (worldContext.grid.cells.h as Uint8Array).map(h =>
+        h < 15 ? h : minmax(h + 2.5 - Math.random() * 4, 0, 100)
+      );
       updateHeightmap();
     }
 
@@ -1004,13 +1048,13 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
         tip("Not allowed when 'only water cells' filter is set", false, "error");
         return;
       }
-      const someHeights = (grid.cells.h as Uint8Array).some(h => h);
+      const someHeights = (worldContext.grid.cells.h as Uint8Array).some(h => h);
       if (!someHeights) {
         tip("Heightmap is already cleared, please do not click twice if not required", false, "error");
         return;
       }
-      grid.cells.h = new Uint8Array(grid.cells.i.length);
-      viewbox.select("#heights").selectAll("*").remove();
+      worldContext.grid.cells.h = new Uint8Array(worldContext.grid.cells.i.length);
+      viewContext.viewbox.select("#heights").selectAll("*").remove();
       updateHistory();
     }
   }
@@ -1148,7 +1192,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
 
       alertMessage.innerHTML = "Are you sure you want to select a different template? All changes will be lost.";
       openRichDialog({
-        content: window.alertMessage.innerHTML,
+        content: alertMessage.innerHTML,
         resizable: false,
         title: "Change Template",
         buttons: {
@@ -1189,8 +1233,8 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       Math.random = aleaPRNG(seed);
       (ensureEl("templateSeed") as HTMLInputElement).value = seed;
 
-      grid.cells.h = createTypedArray({ maxValue: 100, length: grid.points.length });
-      HeightmapGenerator.setGraph(grid);
+      worldContext.grid.cells.h = createTypedArray({ maxValue: 100, length: worldContext.grid.points.length });
+      HeightmapGenerator.setGraph(worldContext.grid);
       restartHistory();
 
       for (const step of Array.from(steps)) {
@@ -1213,11 +1257,11 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
         else if (type === "Multiply") HeightmapGenerator.modify(dist, 0, +count!);
         else if (type === "Smooth") HeightmapGenerator.smooth(+count!);
 
-        grid.cells.h = HeightmapGenerator.getHeights()!;
+        worldContext.grid.cells.h = HeightmapGenerator.getHeights()!;
         updateHistory("noStat");
       }
 
-      grid.cells.h = HeightmapGenerator.getHeights()!;
+      worldContext.grid.cells.h = HeightmapGenerator.getHeights()!;
       updateStatistics();
       mockHeightmap();
       if (document.getElementById("preview")) drawHeightmapPreview();
@@ -1274,7 +1318,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
 
     openDialog("imageConverter", {
       title: "Image Converter",
-      maxHeight: svgHeight * 0.8,
+      maxHeight: viewContext.svgHeight * 0.8,
       minHeight: "auto" as unknown as number,
       width: "20em",
       position: { my: "right top", at: "right-10 top+10", of: "svg" },
@@ -1283,16 +1327,16 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
 
     const canvas = document.createElement("canvas");
     canvas.id = "canvas";
-    canvas.width = graphWidth;
-    canvas.height = graphHeight;
+    canvas.width = worldContext.graphWidth;
+    canvas.height = worldContext.graphHeight;
     optionsContainer.parentNode?.insertBefore(canvas, optionsContainer);
 
     setOverlayOpacity(0);
     clearMainTip();
     tip("Image Converter is opened. Upload image and assign height value for each color", false, "warn");
 
-    grid.cells.h = new Uint8Array(grid.cells.i.length);
-    viewbox.select("#heights").selectAll("*").remove();
+    worldContext.grid.cells.h = new Uint8Array(worldContext.grid.cells.i.length);
+    viewContext.viewbox.select("#heights").selectAll("*").remove();
     updateHistory();
 
     if (modules.openImageConverter) return;
@@ -1343,7 +1387,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       document.body.appendChild(img);
       img.onload = () => {
         const ctx = (ensureEl("canvas") as HTMLCanvasElement).getContext("2d")!;
-        ctx.drawImage(img, 0, 0, graphWidth, graphHeight);
+        ctx.drawImage(img, 0, 0, worldContext.graphWidth, worldContext.graphHeight);
         heightsFromImage(+(convertColors as HTMLInputElement).value);
         resetZoom();
       };
@@ -1354,26 +1398,26 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     function heightsFromImage(count: number): void {
       const sourceImage = ensureEl("canvas") as HTMLCanvasElement;
       const sampleCanvas = document.createElement("canvas");
-      sampleCanvas.width = grid.cellsX;
-      sampleCanvas.height = grid.cellsY;
-      sampleCanvas.getContext("2d")!.drawImage(sourceImage, 0, 0, grid.cellsX, grid.cellsY);
+      sampleCanvas.width = worldContext.grid.cellsX;
+      sampleCanvas.height = worldContext.grid.cellsY;
+      sampleCanvas.getContext("2d")!.drawImage(sourceImage, 0, 0, worldContext.grid.cellsX, worldContext.grid.cellsY);
 
       const q = new RgbQuant({ colors: count });
       q.sample(sampleCanvas);
       const data = q.reduce(sampleCanvas);
       const pallete = q.palette(true);
 
-      viewbox.select("#heights").selectAll("*").remove();
+      viewContext.viewbox.select("#heights").selectAll("*").remove();
       select("#imageConverter").selectAll("div.color-div").remove();
       (colorsSelect as HTMLElement).style.display = "block";
       (colorsUnassigned as HTMLElement).style.display = "block";
       (colorsAssigned as HTMLElement).style.display = "none";
       sampleCanvas.remove();
 
-      viewbox
+      viewContext.viewbox
         .select<SVGGElement>("#heights")
         .selectAll<SVGPolygonElement, number>("polygon")
-        .data(Array.from(grid.cells.i))
+        .data(Array.from(worldContext.grid.cells.i))
         .join("polygon")
         .attr("points", d => getGridPolygon(d, worldContext.grid).join(" "))
         .attr("id", d => `cell${d}`)
@@ -1402,7 +1446,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     }
 
     function colorClicked(this: HTMLElement): void {
-      viewbox.select("#heights").selectAll(".selectedCell").attr("class", null);
+      viewContext.viewbox.select("#heights").selectAll(".selectedCell").attr("class", null);
       const unselect = this.classList.contains("selectedColor");
       const selectedColor = (imageConverter as HTMLElement).querySelector<HTMLElement>("div.selectedColor");
       if (selectedColor) selectedColor.classList.remove("selectedColor");
@@ -1420,8 +1464,8 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
         (colorsSelectFriendly as HTMLElement).innerHTML = getHeight(h);
       }
       const clr = this.getAttribute("data-color");
-      viewbox.select("#heights").selectAll("polygon.selectedCell").classed("selectedCell", false);
-      viewbox.select("#heights").selectAll(`polygon[fill='${clr}']`).classed("selectedCell", true);
+      viewContext.viewbox.select("#heights").selectAll("polygon.selectedCell").classed("selectedCell", false);
+      viewContext.viewbox.select("#heights").selectAll(`polygon[fill='${clr}']`).classed("selectedCell", true);
     }
 
     function assignHeight(this: HTMLElement): void {
@@ -1432,7 +1476,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       selectedColor.setAttribute("data-color", rgb);
       selectedColor.setAttribute("data-height", String(height));
 
-      viewbox
+      viewContext.viewbox
         .select("#heights")
         .selectAll<SVGElement, unknown>(".selectedCell")
         .each(function () {
@@ -1491,7 +1535,11 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
         const clr = el.dataset.color!;
         const h = type === "hue" ? getHeightByHue(clr) : type === "lum" ? getHeightByLum(clr) : getHeightByScheme(clr);
         const colorTo = color(1 - (h < 20 ? (h - 5) / 100 : h / 100));
-        viewbox.select("#heights").selectAll(`polygon[fill='${clr}']`).attr("fill", colorTo).attr("data-height", h);
+        viewContext.viewbox
+          .select("#heights")
+          .selectAll(`polygon[fill='${clr}']`)
+          .attr("fill", colorTo)
+          .attr("data-height", h);
 
         if (assinged[h]) {
           el.remove();
@@ -1538,22 +1586,22 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
         tip("Please assign colors to heights first", false, "error");
         return;
       }
-      viewbox
+      viewContext.viewbox
         .select("#heights")
         .selectAll<SVGElement, unknown>("polygon")
         .each(function () {
           const h = +(this as SVGElement).dataset.height! || 0;
           const i = +(this as SVGElement).id.slice(4);
-          grid.cells.h[i] = h;
+          worldContext.grid.cells.h[i] = h;
         });
-      viewbox.select("#heights").selectAll("polygon").remove();
+      viewContext.viewbox.select("#heights").selectAll("polygon").remove();
       updateHeightmap();
       restoreImageConverterState();
     }
 
     function cancelConversion(): void {
       restoreImageConverterState();
-      viewbox.select("#heights").selectAll("polygon").remove();
+      viewContext.viewbox.select("#heights").selectAll("polygon").remove();
       undoHistory();
     }
 
@@ -1566,7 +1614,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       (colorsAssigned as HTMLElement).style.display = "none";
       (colorsUnassigned as HTMLElement).style.display = "none";
       (colorsSelectValue as HTMLElement).innerHTML = (colorsSelectFriendly as HTMLElement).innerHTML = "0";
-      viewbox.style("cursor", "default").on(".drag", null);
+      viewContext.viewbox.style("cursor", "default").on(".drag", null);
       tip('Heightmap edit mode is active. Click on "Exit Customization" to finalize the heightmap', true);
       closeDialog("imageConverter");
       openBrushesPanel();
@@ -1577,7 +1625,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       event.stopPropagation();
       alertMessage.innerHTML = `Are you sure you want to close the Image Converter? Click "Cancel" to keep editing. Click "Complete" to apply the conversion and close the tool. Click "Close" to discard the conversion and restore the previous heightmap.`;
       openRichDialog({
-        content: window.alertMessage.innerHTML,
+        content: alertMessage.innerHTML,
         resizable: false,
         title: "Close Image Converter",
         buttons: {
@@ -1591,7 +1639,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
           Close: function (this: Element) {
             /* $(this).dialog("close") removed */
             restoreImageConverterState();
-            viewbox.select("#heights").selectAll("polygon").remove();
+            viewContext.viewbox.select("#heights").selectAll("polygon").remove();
             undoHistory();
           }
         }
@@ -1609,8 +1657,8 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     }
     const preview = document.createElement("canvas");
     preview.id = "preview";
-    preview.width = grid.cellsX;
-    preview.height = grid.cellsY;
+    preview.width = worldContext.grid.cellsX;
+    preview.height = worldContext.grid.cellsY;
     optionsContainer.parentNode?.insertBefore(preview, optionsContainer);
     preview.addEventListener("mouseover", () => tip("Heightmap preview. Click to download a screen-sized image"));
     preview.addEventListener("click", downloadPreview);
@@ -1621,9 +1669,9 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     const canvas = document.getElementById("preview") as HTMLCanvasElement;
     if (!canvas) return;
     const ctx = canvas.getContext("2d")!;
-    const imageData = ctx.createImageData(grid.cellsX, grid.cellsY);
+    const imageData = ctx.createImageData(worldContext.grid.cellsX, worldContext.grid.cellsY);
 
-    (grid.cells.h as Uint8Array).forEach((height, i) => {
+    (worldContext.grid.cells.h as Uint8Array).forEach((height, i) => {
       const h = height < 20 ? Math.max(height / 1.5, 0) : height;
       const v = (h / 100) * 255;
       const n = i * 4;
@@ -1644,10 +1692,10 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     img.onload = () => {
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d")!;
-      canvas.width = graphWidth;
-      canvas.height = graphHeight;
+      canvas.width = worldContext.graphWidth;
+      canvas.height = worldContext.graphHeight;
       optionsContainer.parentNode?.insertBefore(canvas, optionsContainer);
-      ctx.drawImage(img, 0, 0, graphWidth, graphHeight);
+      ctx.drawImage(img, 0, 0, worldContext.graphWidth, worldContext.graphHeight);
       const imgBig = canvas.toDataURL("image/png");
       const link = document.createElement("a");
       link.download = `${getFileName("Heightmap")}.png`;
@@ -1659,8 +1707,4 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
 }
 
 // ─── Global registration ───────────────────────────────────────────────────────
-export function initHeightmapEditor(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {
-  worldContext = wc;
-  viewContext = vc;
-  appServices = as;
-}
+export function initHeightmapEditor(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {}

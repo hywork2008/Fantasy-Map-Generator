@@ -1,6 +1,7 @@
 import * as d3 from "d3";
-import { closeDialog, openDialog } from "../ui/dialogs/dialogService";
+import { closeDialog, closeDialogs, openDialog } from "../ui/dialogs/dialogService";
 import { capitalize, ensureEl, minmax } from "../utils";
+import { tip } from "../utils/uiHelpers";
 
 export interface HierarchyElement {
   i: number;

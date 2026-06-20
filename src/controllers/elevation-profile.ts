@@ -14,14 +14,17 @@ import {
   scaleLinear,
   select
 } from "d3";
+import { zoomTo } from "../actions";
 import { worldContext } from "../context/worldContext";
 import type { Burg } from "../modules/burgs-generator";
 import type { PackedGraphFeature } from "../modules/features";
 import type { Province } from "../modules/provinces-generator";
 import type { State } from "../modules/states-generator";
-import { openDialog } from "../ui/dialogs/dialogService";
+import { closeDialogs, openDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, getLatitude, getLongitude, rn } from "../utils";
 import { getColor, getColorScheme } from "../utils/colorUtils";
+import { getHeight, tip } from "../utils/uiHelpers";
+import { downloadFile, getFileName } from "./editors";
 
 declare global {
   var ElevationProfile: ElevationProfileModule;
@@ -45,8 +48,8 @@ class ElevationProfileModule {
     // For rivers, remember the general slope direction to prevent rendering uphill flow
     let slope = 0;
     if (isRiver) {
-      const firstH = pack.cells.h[firstCell];
-      const lastH = pack.cells.h[lastCell];
+      const firstH = worldContext.pack.cells.h[firstCell];
+      const lastH = worldContext.pack.cells.h[lastCell];
       if (firstH < lastH) slope = 1;
       else if (firstH > lastH) slope = -1;
     }
@@ -89,10 +92,10 @@ class ElevationProfileModule {
 
     for (let i = 0, prevB = 0, prevH = -1; i < cells.length; i++) {
       const cell = cells[i];
-      let h = pack.cells.h[cell];
+      let h = worldContext.pack.cells.h[cell];
 
       if (h < 20) {
-        const f = pack.features[pack.cells.f[cell]] as PackedGraphFeature;
+        const f = worldContext.pack.features[worldContext.pack.cells.f[cell]] as PackedGraphFeature;
         h = f.type === "lake" ? f.height : 20;
       }
 
@@ -103,7 +106,7 @@ class ElevationProfileModule {
       }
       prevH = h;
 
-      let b = pack.cells.burg[cell];
+      let b = worldContext.pack.cells.burg[cell];
       if (b === prevB) b = 0;
       else prevB = b;
       if (b) {
@@ -111,7 +114,7 @@ class ElevationProfileModule {
         lastBurgCell = cell;
       }
 
-      chartData.biome[i] = pack.cells.biome[cell];
+      chartData.biome[i] = worldContext.pack.cells.biome[cell];
       chartData.burg[i] = b;
       chartData.cell[i] = cell;
       const sh = getHeight(h);
@@ -187,7 +190,7 @@ class ElevationProfileModule {
         .attr("fill", "darkgray");
 
       // Terrain elevation gradient (top = peak colour, bottom = valley colour)
-      const colors = getColorScheme("natural");
+      const scheme = getColorScheme("natural");
       const landGrad = defs
         .append("linearGradient")
         .attr("id", "landdef")
@@ -197,7 +200,7 @@ class ElevationProfileModule {
         .attr("y2", "100%");
 
       if (chartData.mah === chartData.mih) {
-        const c = getColor(chartData.mih, colors);
+        const c = getColor(chartData.mih, scheme);
         landGrad.append("stop").attr("offset", "0%").attr("style", `stop-color:${c};stop-opacity:1`);
         landGrad.append("stop").attr("offset", "100%").attr("style", `stop-color:${c};stop-opacity:1`);
       } else {
@@ -207,7 +210,7 @@ class ElevationProfileModule {
           landGrad
             .append("stop")
             .attr("offset", `${(s / steps) * 100}%`)
-            .attr("style", `stop-color:${getColor(h, colors)};stop-opacity:1`);
+            .attr("style", `stop-color:${getColor(h, scheme)};stop-opacity:1`);
         }
       }
 
@@ -269,21 +272,25 @@ class ElevationProfileModule {
       for (let k = 0; k < pts.length; k++) {
         const cell = chartData.cell[k];
         const biome = chartData.biome[k];
-        const province = pack.cells.province[cell];
+        const province = worldContext.pack.cells.province[cell];
         const burgId = chartData.burg[k];
-        const pop = pack.cells.pop[cell] + (burgId ? ((pack.burgs[burgId] as Burg).population ?? 0) * urbanization : 0);
-        const provinceName = province ? (pack.provinces[province] as Province).name : null;
-        const stateName = (pack.states[pack.cells.state[cell]] as State).name;
-        const religionName = (pack.religions[pack.cells.religion[cell]] as { name: string }).name;
-        const cultureName = (pack.cultures[pack.cells.culture[cell]] as { name: string }).name;
+        const pop =
+          worldContext.pack.cells.pop[cell] +
+          (burgId ? ((worldContext.pack.burgs[burgId] as Burg).population ?? 0) * worldContext.urbanization : 0);
+        const provinceName = province ? (worldContext.pack.provinces[province] as Province).name : null;
+        const stateName = (worldContext.pack.states[worldContext.pack.cells.state[cell]] as State).name;
+        const religionName = (worldContext.pack.religions[worldContext.pack.cells.religion[cell]] as { name: string })
+          .name;
+        const cultureName = (worldContext.pack.cultures[worldContext.pack.cells.culture[cell]] as { name: string })
+          .name;
         const dataTip = [
-          biomesData.name[biome],
+          worldContext.biomesData.name[biome],
           provinceName,
           stateName,
           religionName,
           cultureName,
           `height: ${chartData.height[k]} ${hu}`,
-          `population ${rn(pop * populationRate)}`
+          `population ${rn(pop * worldContext.populationRate)}`
         ]
           .filter(Boolean)
           .join(", ");
@@ -294,8 +301,8 @@ class ElevationProfileModule {
           .attr("y", yOffset + chartHeight)
           .attr("width", tileWidth)
           .attr("height", biomesHeight)
-          .attr("fill", biomesData.color[biome])
-          .attr("stroke", biomesData.color[biome])
+          .attr("fill", worldContext.biomesData.color[biome])
+          .attr("stroke", worldContext.biomesData.color[biome])
           .attr("data-tip", dataTip);
       }
 
@@ -354,7 +361,7 @@ class ElevationProfileModule {
       for (let k = 0; k < pts.length; k++) {
         if (!chartData.burg[k]) continue;
         const b = chartData.burg[k];
-        const burg = pack.burgs[b] as Burg;
+        const burg = worldContext.pack.burgs[b] as Burg;
         const lx = pts[k][0];
         const ptY = pts[k][1];
         let ly = ptY - LABEL_GAP;
@@ -462,8 +469,8 @@ class ElevationProfileModule {
             [
               `${dist} ${distanceUnitInput.value} from start`,
               `Elevation: ${chartData.height[idx]} ${heightUnit.value}`,
-              biomesData.name[chartData.biome[idx]],
-              burgId ? ((pack.burgs[burgId] as Burg).name ?? null) : null
+              worldContext.biomesData.name[chartData.biome[idx]],
+              burgId ? ((worldContext.pack.burgs[burgId] as Burg).name ?? null) : null
             ]
               .filter(Boolean)
               .join(". ")
@@ -481,22 +488,22 @@ class ElevationProfileModule {
         "Id,x,y,lat,lon,Cell,Height,Height value,Population,Burg,Burg population,Biome,Biome color,Culture,Culture color,Religion,Religion color,Province,Province color,State,State color\n";
       const rows = chartData.points.map((_, k) => {
         const cell = chartData.cell[k];
-        const [x, y] = pack.cells.p[cells[k]];
-        const h = pack.cells.h[cell];
-        const burgId = pack.cells.burg[cell];
-        const pop = pack.cells.pop[cell];
-        const burg = burgId ? (pack.burgs[burgId] as Burg) : null;
-        const burgPop = burg ? (burg.population ?? 0) * populationRate * urbanization : 0;
-        const culture = pack.cultures[pack.cells.culture[cell]] as {
+        const [x, y] = worldContext.pack.cells.p[cells[k]];
+        const h = worldContext.pack.cells.h[cell];
+        const burgId = worldContext.pack.cells.burg[cell];
+        const pop = worldContext.pack.cells.pop[cell];
+        const burg = burgId ? (worldContext.pack.burgs[burgId] as Burg) : null;
+        const burgPop = burg ? (burg.population ?? 0) * worldContext.populationRate * worldContext.urbanization : 0;
+        const culture = worldContext.pack.cultures[worldContext.pack.cells.culture[cell]] as {
           name: string;
           color: string;
         };
-        const religion = pack.religions[pack.cells.religion[cell]] as {
+        const religion = worldContext.pack.religions[worldContext.pack.cells.religion[cell]] as {
           name: string;
           color: string;
         };
-        const province = pack.provinces[pack.cells.province[cell]] as Province | 0;
-        const state = pack.states[pack.cells.state[cell]] as State;
+        const province = worldContext.pack.provinces[worldContext.pack.cells.province[cell]] as Province | 0;
+        const state = worldContext.pack.states[worldContext.pack.cells.state[cell]] as State;
         return [
           k + 1,
           x,
@@ -506,11 +513,11 @@ class ElevationProfileModule {
           cell,
           getHeight(h),
           h,
-          rn(pop * populationRate),
+          rn(pop * worldContext.populationRate),
           burg?.name ?? "",
           burgPop,
-          biomesData.name[pack.cells.biome[cell]],
-          biomesData.color[pack.cells.biome[cell]],
+          worldContext.biomesData.name[worldContext.pack.cells.biome[cell]],
+          worldContext.biomesData.color[worldContext.pack.cells.biome[cell]],
           culture.name,
           culture.color,
           religion.name,
@@ -572,5 +579,3 @@ class ElevationProfileModule {
     }
   }
 }
-
-window.ElevationProfile = new ElevationProfileModule();

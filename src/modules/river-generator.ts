@@ -11,6 +11,7 @@ import { useOptionsState } from "../store/optionsState";
 import type { WorldState } from "../types/WorldState";
 import { each, rn, round, rw } from "../utils";
 import { Lakes } from "./lakes";
+import { Names } from "./names-generator";
 import type { Point } from "./voronoi";
 
 export interface River {
@@ -459,11 +460,11 @@ class RiverModule {
   getBorderPoint(i: number) {
     const { pack } = this.worldContext;
     const [x, y] = pack.cells.p[i];
-    const min = Math.min(y, graphHeight - y, x, graphWidth - x);
+    const min = Math.min(y, worldContext.graphHeight - y, x, worldContext.graphWidth - x);
     if (min === y) return [x, 0];
-    else if (min === graphHeight - y) return [x, graphHeight];
+    else if (min === worldContext.graphHeight - y) return [x, worldContext.graphHeight];
     else if (min === x) return [0, y];
-    return [graphWidth, y];
+    return [worldContext.graphWidth, y];
   }
 
   getOffset({
@@ -574,7 +575,7 @@ class RiverModule {
     const cells = pack.cells;
     const riversToRemove = pack.rivers.filter(r => r.i === id || r.parent === id || r.basin === id).map(r => r.i);
     riversToRemove.forEach(r => {
-      rivers.select(`#river${r}`).remove();
+      viewContext.rivers.select(`#river${r}`).remove();
     });
     cells.r.forEach((r, i) => {
       if (!r || !riversToRemove.includes(r)) return;

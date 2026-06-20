@@ -1,7 +1,11 @@
 import { geoGraticule, geoOrthographic, geoPath, interpolateSpectral, range, scaleSequential, select } from "d3";
+import { getWorldState } from "../actions";
 import type { AppServices } from "../context/appServices";
+import { appServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
+import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import { worldContext } from "../context/worldContext";
 import { Biomes } from "../modules/biomes";
 import { Features } from "../modules/features";
 import { Lakes } from "../modules/lakes";
@@ -15,13 +19,11 @@ import {
 } from "../renderers";
 import { openDialog } from "../ui/dialogs/dialogService";
 import { convertTemperature, debounce, ensureEl, parseTransform, rn, round } from "../utils";
+import { lock } from "../utils/uiHelpers";
+import { layerIsOn } from "./layers";
 
-let worldContext: WorldContext;
-let viewContext: Readonly<ViewContext>;
-let appServices: AppServices;
-
-function editWorld(): void {
-  if (customization) return;
+export function editWorld(): void {
+  if (viewContext.customization) return;
 
   openDialog("worldConfigurator");
 
@@ -32,8 +34,6 @@ function editWorld(): void {
   updateInputValues();
   updateGlobeTemperature();
   updateGlobePosition();
-
-  window.updateWorld = updateWorld;
 
   if (modules.editWorld) return;
   modules.editWorld = true;
@@ -51,17 +51,21 @@ function editWorld(): void {
   ensureEl("wcSouthern").addEventListener("click", () => applyWorldPreset(33, 75));
 
   function updateInputValues(): void {
-    ensureEl("temperatureEquatorInput").setAttribute("value", String(options.temperatureEquator));
-    (ensureEl("temperatureEquatorOutput") as HTMLOutputElement).value = String(options.temperatureEquator);
-    ensureEl("temperatureEquatorF").innerText = convertTemperature(options.temperatureEquator, "°F");
+    ensureEl("temperatureEquatorInput").setAttribute("value", String(worldContext.options.temperatureEquator));
+    (ensureEl("temperatureEquatorOutput") as HTMLOutputElement).value = String(worldContext.options.temperatureEquator);
+    ensureEl("temperatureEquatorF").innerText = convertTemperature(worldContext.options.temperatureEquator, "°F");
 
-    ensureEl("temperatureNorthPoleInput").setAttribute("value", String(options.temperatureNorthPole));
-    (ensureEl("temperatureNorthPoleOutput") as HTMLOutputElement).value = String(options.temperatureNorthPole);
-    ensureEl("temperatureNorthPoleF").innerText = convertTemperature(options.temperatureNorthPole, "°F");
+    ensureEl("temperatureNorthPoleInput").setAttribute("value", String(worldContext.options.temperatureNorthPole));
+    (ensureEl("temperatureNorthPoleOutput") as HTMLOutputElement).value = String(
+      worldContext.options.temperatureNorthPole
+    );
+    ensureEl("temperatureNorthPoleF").innerText = convertTemperature(worldContext.options.temperatureNorthPole, "°F");
 
-    ensureEl("temperatureSouthPoleInput").setAttribute("value", String(options.temperatureSouthPole));
-    (ensureEl("temperatureSouthPoleOutput") as HTMLOutputElement).value = String(options.temperatureSouthPole);
-    ensureEl("temperatureSouthPoleF").innerText = convertTemperature(options.temperatureSouthPole, "°F");
+    ensureEl("temperatureSouthPoleInput").setAttribute("value", String(worldContext.options.temperatureSouthPole));
+    (ensureEl("temperatureSouthPoleOutput") as HTMLOutputElement).value = String(
+      worldContext.options.temperatureSouthPole
+    );
+    ensureEl("temperatureSouthPoleF").innerText = convertTemperature(worldContext.options.temperatureSouthPole, "°F");
   }
 
   const debouncedUpdateWorld = debounce(updateWorld, 300);
@@ -74,14 +78,14 @@ function editWorld(): void {
     lock(stored);
 
     if (stored === "temperatureEquator") {
-      options.temperatureEquator = Number(target.value);
-      ensureEl("temperatureEquatorF").innerText = convertTemperature(options.temperatureEquator, "°F");
+      worldContext.options.temperatureEquator = Number(target.value);
+      ensureEl("temperatureEquatorF").innerText = convertTemperature(worldContext.options.temperatureEquator, "°F");
     } else if (stored === "temperatureNorthPole") {
-      options.temperatureNorthPole = Number(target.value);
-      ensureEl("temperatureNorthPoleF").innerText = convertTemperature(options.temperatureNorthPole, "°F");
+      worldContext.options.temperatureNorthPole = Number(target.value);
+      ensureEl("temperatureNorthPoleF").innerText = convertTemperature(worldContext.options.temperatureNorthPole, "°F");
     } else if (stored === "temperatureSouthPole") {
-      options.temperatureSouthPole = Number(target.value);
-      ensureEl("temperatureSouthPoleF").innerText = convertTemperature(options.temperatureSouthPole, "°F");
+      worldContext.options.temperatureSouthPole = Number(target.value);
+      ensureEl("temperatureSouthPoleF").innerText = convertTemperature(worldContext.options.temperatureSouthPole, "°F");
     }
 
     if ((ensureEl("wcAutoChange") as HTMLInputElement).checked) debouncedUpdateWorld();
@@ -90,13 +94,12 @@ function editWorld(): void {
   function updateWorld(): void {
     updateGlobeTemperature();
     updateGlobePosition();
-    calculateTemperatures();
-    generatePrecipitation();
+    document.dispatchEvent(new CustomEvent("fmg:world-recalculate", { detail: { temps: true, prec: true } }));
     const state = getWorldState();
-    const heights = new Uint8Array(pack.cells.h);
+    const heights = new Uint8Array(worldContext.pack.cells.h);
     Rivers.generate(worldContext, viewContext, appServices, state);
     Rivers.specify(worldContext, viewContext, appServices, state);
-    pack.cells.h = new Float32Array(heights);
+    worldContext.pack.cells.h = new Float32Array(heights);
     Biomes.define(state);
     Features.defineGroups();
     Lakes.defineNames(state);
@@ -111,17 +114,17 @@ function editWorld(): void {
 
   function updateGlobePosition(): void {
     const size = +(ensureEl("mapSizeOutput") as HTMLOutputElement).value;
-    const eqD = ((graphHeight / 2) * 100) / size;
+    const eqD = ((worldContext.graphHeight / 2) * 100) / size;
 
-    calculateMapCoordinates();
-    const mc = mapCoordinates;
+    document.dispatchEvent(new CustomEvent("fmg:world-recalculate", { detail: { coords: true } }));
+    const mc = worldContext.mapCoordinates;
     const unit = distanceUnitInput.value;
-    const meridian = toKilometer(eqD * 2 * distanceScale);
-    ensureEl("mapSize").innerHTML = `${graphWidth}x${graphHeight}`;
+    const meridian = toKilometer(eqD * 2 * worldContext.distanceScale);
+    ensureEl("mapSize").innerHTML = `${worldContext.graphWidth}x${worldContext.graphHeight}`;
     ensureEl("mapSizeFriendly").innerHTML =
-      `${rn(graphWidth * distanceScale)}x${rn(graphHeight * distanceScale)} ${unit}`;
+      `${rn(worldContext.graphWidth * worldContext.distanceScale)}x${rn(worldContext.graphHeight * worldContext.distanceScale)} ${unit}`;
     ensureEl("meridianLength").innerHTML = String(rn(eqD * 2));
-    ensureEl("meridianLengthFriendly").innerHTML = `${rn(eqD * 2 * distanceScale)} ${unit}`;
+    ensureEl("meridianLengthFriendly").innerHTML = `${rn(eqD * 2 * worldContext.distanceScale)} ${unit}`;
     ensureEl("meridianLengthEarth").innerHTML = meridian ? ` = ${rn(meridian / 200)}%🌏` : "";
     ensureEl("mapCoordinates").innerHTML =
       `${lat(mc.latN!)} ${Math.abs(rn(mc.lonW!))}°W; ${lat(mc.latS!)} ${rn(mc.lonE!)}°E`;
@@ -149,9 +152,9 @@ function editWorld(): void {
   }
 
   function updateGlobeTemperature(): void {
-    const tEq = options.temperatureEquator;
-    const tNP = options.temperatureNorthPole;
-    const tSP = options.temperatureSouthPole;
+    const tEq = worldContext.options.temperatureEquator;
+    const tNP = worldContext.options.temperatureNorthPole;
+    const tSP = worldContext.options.temperatureSouthPole;
 
     const colorScale = scaleSequential(interpolateSpectral);
     const getColor = (value: number) => colorScale(1 - value);
@@ -174,7 +177,7 @@ function editWorld(): void {
       .selectAll<SVGPathElement, unknown>("path")
       .each(function (this: SVGPathElement) {
         const tr = parseTransform(this.getAttribute("transform") ?? "");
-        this.setAttribute("transform", `rotate(${options.winds[idx]} ${tr[1]} ${tr[2]})`);
+        this.setAttribute("transform", `rotate(${worldContext.options.winds[idx]} ${tr[1]} ${tr[2]})`);
         idx++;
       });
   }
@@ -183,22 +186,26 @@ function editWorld(): void {
     const arrow = (event.target as Element)?.nextElementSibling as SVGElement | null;
     if (!arrow) return;
     const tier = +(arrow.dataset.tier ?? 0);
-    options.winds[tier] = (options.winds[tier] + 45) % 360;
+    worldContext.options.winds[tier] = (worldContext.options.winds[tier] + 45) % 360;
     const tr = parseTransform(arrow.getAttribute("transform") ?? "");
-    arrow.setAttribute("transform", `rotate(${options.winds[tier]} ${tr[1]} ${tr[2]})`);
-    localStorage.setItem("winds", String(options.winds));
+    arrow.setAttribute("transform", `rotate(${worldContext.options.winds[tier]} ${tr[1]} ${tr[2]})`);
+    localStorage.setItem("winds", String(worldContext.options.winds));
 
-    const mapTiers = range(mapCoordinates.latN!, mapCoordinates.latS!, -30).map(c => ((90 - c) / 30) | 0);
+    const mapTiers = range(worldContext.mapCoordinates.latN!, worldContext.mapCoordinates.latS!, -30).map(
+      c => ((90 - c) / 30) | 0
+    );
     if ((ensureEl("wcAutoChange") as HTMLInputElement).checked && mapTiers.includes(tier)) updateWorld();
   }
 
   function restoreDefaultWinds(): void {
     const defaultWinds: [number, number, number, number, number, number] = [225, 45, 225, 315, 135, 315];
-    const mapTiers = range(mapCoordinates.latN!, mapCoordinates.latS!, -30).map(c => ((90 - c) / 30) | 0);
+    const mapTiers = range(worldContext.mapCoordinates.latN!, worldContext.mapCoordinates.latS!, -30).map(
+      c => ((90 - c) / 30) | 0
+    );
     const update =
       (ensureEl("wcAutoChange") as HTMLInputElement).checked &&
-      mapTiers.some(t => options.winds[t] !== defaultWinds[t]);
-    options.winds = defaultWinds;
+      mapTiers.some(t => worldContext.options.winds[t] !== defaultWinds[t]);
+    worldContext.options.winds = defaultWinds;
     updateWindDirections();
     if (update) updateWorld();
   }
@@ -214,10 +221,4 @@ function editWorld(): void {
   }
 }
 
-window.editWorld = editWorld;
-
-export function initWorldConfigurator(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {
-  worldContext = wc;
-  viewContext = vc;
-  appServices = as;
-}
+export function initWorldConfigurator(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {}

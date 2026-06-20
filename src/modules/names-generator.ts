@@ -6,6 +6,7 @@ import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import { useOptionsState } from "../store/optionsState";
 import { capitalize, isVowel, last, P, ra, rand } from "../utils";
+import { locked, tip, unlock } from "../utils/uiHelpers";
 
 export interface NameBase {
   name: string; // name of the base

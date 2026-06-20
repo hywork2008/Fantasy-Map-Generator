@@ -1,10 +1,17 @@
 import { type D3DragEvent, drag, mean, min, polygonArea, polygonLength, type Selection, select } from "d3";
 import type { AppServices } from "../context/appServices";
+import { appServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
+import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import { worldContext } from "../context/worldContext";
+import { unselect } from "../controllers/editors";
 import { interactionManager } from "../controllers/interactionManager";
+import { layerIsOn, toggleCells } from "../controllers/layers";
+import { editStyle } from "../controllers/style";
 import type { PackedGraphFeature } from "../modules/features";
 import { Lakes } from "../modules/lakes";
+import { Names } from "../modules/names-generator";
 import {
   BiomesRenderer,
   BordersRenderer,
@@ -14,17 +21,15 @@ import {
   StatesRenderer
 } from "../renderers";
 import { getFeaturePath } from "../renderers/index";
-import { openDialog, openRichDialog } from "../ui/dialogs/dialogService";
+import { closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, rand, rn, si, unique } from "../utils";
+import { alertMessage } from "../utils/alertMessageEl";
 import { getPackPolygon } from "../utils/graphUtils";
+import { getArea, getAreaUnit, getHeight, tip } from "../utils/uiHelpers";
 import { editNotes } from "./notes-editor";
 
-let worldContext: WorldContext;
-let viewContext: Readonly<ViewContext>;
-let appServices: AppServices;
-
 export function editLake(event?: MouseEvent): void {
-  if (customization) return;
+  if (viewContext.customization) return;
   closeDialogs(".stable");
   if (layerIsOn("toggleCells")) toggleCells();
 
@@ -36,7 +41,7 @@ export function editLake(event?: MouseEvent): void {
   });
 
   const node = (event?.target ?? document.querySelector(".lakes path")) as SVGElement;
-  debug.append("g").attr("id", "vertices");
+  viewContext.debug.append("g").attr("id", "vertices");
   elSelected = select(node as Element);
   updateLakeValues();
   selectLakeGroup();
@@ -59,18 +64,18 @@ export function editLake(event?: MouseEvent): void {
 
   function getLake(): PackedGraphFeature {
     const lakeId = +elSelected!.attr("data-f");
-    return pack.features.find(feature => feature.i === lakeId)!;
+    return worldContext.pack.features.find(feature => feature.i === lakeId)!;
   }
 
   function updateLakeValues(): void {
-    const { cells, vertices, rivers } = pack;
+    const { cells, vertices, rivers } = worldContext.pack;
 
     const l = getLake();
     (ensureEl("lakeName") as HTMLInputElement).value = l.name ?? "";
     ensureEl("lakeArea").textContent = `${si(getArea(l.area!))} ${getAreaUnit()}`;
 
     const length = polygonLength(l.vertices!.map((v: number) => vertices.p[v]));
-    ensureEl("lakeShoreLength").textContent = `${si(length * distanceScale)} ${distanceUnitInput.value}`;
+    ensureEl("lakeShoreLength").textContent = `${si(length * worldContext.distanceScale)} ${distanceUnitInput.value}`;
 
     const lakeCells = Array.from(cells.i.filter(i => cells.f[i] === l.i));
     const heights = lakeCells.map(i => cells.h[i]);
@@ -94,8 +99,8 @@ export function editLake(event?: MouseEvent): void {
     const feature = getLake();
     const verts = feature.vertices!;
 
-    const neibCells = unique(verts.flatMap((v: number) => pack.vertices.c[v]));
-    debug
+    const neibCells = unique(verts.flatMap((v: number) => worldContext.pack.vertices.c[v]));
+    viewContext.debug
       .select("#vertices")
       .selectAll("polygon")
       .data(neibCells)
@@ -104,14 +109,14 @@ export function editLake(event?: MouseEvent): void {
       .attr("points", (d: number) => getPackPolygon(d, worldContext.pack).join(" "))
       .attr("data-c", (d: number) => d);
 
-    debug
+    viewContext.debug
       .select("#vertices")
       .selectAll("circle")
       .data(verts)
       .enter()
       .append("circle")
-      .attr("cx", (d: number) => pack.vertices.p[d][0])
-      .attr("cy", (d: number) => pack.vertices.p[d][1])
+      .attr("cx", (d: number) => worldContext.pack.vertices.p[d][0])
+      .attr("cy", (d: number) => worldContext.pack.vertices.p[d][1])
       .attr("r", 0.4)
       .attr("data-v", (d: number) => d)
       .call(drag<SVGCircleElement, number>().on("drag", handleVertexDrag).on("end", handleVertexDragEnd))
@@ -127,18 +132,18 @@ export function editLake(event?: MouseEvent): void {
     this.setAttribute("cy", String(y));
 
     const vertexId = select(this).datum() as number;
-    pack.vertices.p[vertexId] = [x, y];
+    worldContext.pack.vertices.p[vertexId] = [x, y];
 
     const feature = getLake();
-    defs
+    viewContext.defs
       .select(`#featurePaths > path#feature_${feature.i}`)
       .attr("d", getFeaturePath(worldContext, viewContext, appServices, feature));
 
-    const points = feature.vertices!.map((vertex: number) => pack.vertices.p[vertex]);
+    const points = feature.vertices!.map((vertex: number) => worldContext.pack.vertices.p[vertex]);
     feature.area = Math.abs(polygonArea(points));
     ensureEl("lakeArea").textContent = `${si(getArea(feature.area!))} ${getAreaUnit()}`;
 
-    debug
+    viewContext.debug
       .select("#vertices")
       .selectAll("polygon")
       .attr("points", (d: unknown) => getPackPolygon(d as number, worldContext.pack).join(" "));
@@ -164,14 +169,16 @@ export function editLake(event?: MouseEvent): void {
 
   function generateNameRandom(): void {
     const lake = getLake();
-    lake.name = (ensureEl("lakeName") as HTMLInputElement).value = Names.getBase(rand(nameBases.length - 1));
+    lake.name = (ensureEl("lakeName") as HTMLInputElement).value = Names.getBase(
+      rand(worldContext.nameBases.length - 1)
+    );
   }
 
   function selectLakeGroup(): void {
     const lake = getLake();
     const select = ensureEl<HTMLSelectElement>("lakeGroup");
     select.options.length = 0;
-    (lakes as Selection<SVGGElement, unknown, null, undefined>).selectAll("g").each(function () {
+    (viewContext.lakes as Selection<SVGGElement, unknown, null, undefined>).selectAll("g").each(function () {
       const g = this as SVGGElement;
       select.options.add(new Option(g.id, g.id, false, g.id === lake.group));
     });
@@ -248,7 +255,7 @@ export function editLake(event?: MouseEvent): void {
     const count = (elSelected!.node()!.parentNode as SVGGElement).childElementCount;
     alertMessage.innerHTML = /* html */ `Are you sure you want to remove the group? All lakes of the group (${count}) will be turned into Freshwater`;
     openRichDialog({
-      content: window.alertMessage.innerHTML,
+      content: alertMessage.innerHTML,
       resizable: false,
       title: "Remove lake group",
       width: "26em",
@@ -284,14 +291,10 @@ export function editLake(event?: MouseEvent): void {
   }
 
   function closeLakesEditor(): void {
-    debug.select("#vertices").remove();
+    viewContext.debug.select("#vertices").remove();
     unselect();
     modules.editLake = false;
   }
 }
 
-export function initLakesEditor(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {
-  worldContext = wc;
-  viewContext = vc;
-  appServices = as;
-}
+export function initLakesEditor(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {}

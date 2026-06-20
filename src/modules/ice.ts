@@ -66,6 +66,7 @@ class IceModule {
 
     // Generate glaciers on cold land
     {
+      const { graphWidth, graphHeight } = worldContext;
       const type = "iceShield";
       const getType = (cellId: number) => (h[cellId] >= 20 && temp[cellId] <= GLACIER_MAX_TEMP ? type : null);
       const isolines = getIsolines(grid, getType, { polygons: true });

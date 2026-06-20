@@ -1,10 +1,18 @@
 import { mean } from "d3";
+import { viewContext } from "../context/viewContext";
+import { worldContext } from "../context/worldContext";
+import { editRiver } from "../editors/rivers-editor";
 import { Rivers } from "../modules/river-generator";
-import { openConfirm, openDialog } from "../ui/dialogs/dialogService";
+import { closeDialogs, openConfirm, openDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, rn } from "../utils";
+import { applySorting, fitContent } from "../utils/uiHelpers";
+import { downloadFile, getFileName, highlightElement } from "./editors";
+import { layerIsOn, toggleRivers } from "./layers";
+import { createRiver } from "./rivers-creator";
+import { toggleAddRiver } from "./tools";
 
-function overviewRivers(): void {
-  if (customization) return;
+export function overviewRivers(): void {
+  if (viewContext.customization) return;
   closeDialogs("#riversOverview, .stable");
   if (!layerIsOn("toggleRivers")) toggleRivers();
 
@@ -35,9 +43,9 @@ function overviewRivers(): void {
     let lines = "";
     const unit = distanceUnitInput.value;
 
-    const riversById = new Map(pack.rivers.map(river => [river.i, river]));
+    const riversById = new Map(worldContext.pack.rivers.map(river => [river.i, river]));
 
-    let filteredRivers = pack.rivers;
+    let filteredRivers = worldContext.pack.rivers;
     const searchText = (ensureEl("riversSearch") as HTMLInputElement).value.toLowerCase().trim();
     if (searchText) {
       filteredRivers = filteredRivers.filter(r => {
@@ -51,8 +59,8 @@ function overviewRivers(): void {
 
     for (const r of filteredRivers) {
       const discharge = `${r.discharge} m³/s`;
-      const length = `${rn(r.length * distanceScale)} ${unit}`;
-      const width = `${rn(r.width * distanceScale, 3)} ${unit}`;
+      const length = `${rn(r.length * worldContext.distanceScale)} ${unit}`;
+      const width = `${rn(r.width * worldContext.distanceScale, 3)} ${unit}`;
       const basin = riversById.get(r.basin)?.name;
 
       lines += /* html */ `<div
@@ -78,13 +86,13 @@ function overviewRivers(): void {
     }
     body.insertAdjacentHTML("beforeend", lines);
 
-    ensureEl("riversFooterNumber").innerHTML = `${filteredRivers.length} of ${pack.rivers.length}`;
+    ensureEl("riversFooterNumber").innerHTML = `${filteredRivers.length} of ${worldContext.pack.rivers.length}`;
     const averageDischarge = rn(mean(filteredRivers.map(r => r.discharge)) ?? 0) || 0;
     ensureEl("riversFooterDischarge").innerHTML = `${averageDischarge} m³/s`;
     const averageLength = rn(mean(filteredRivers.map(r => r.length)) ?? 0) || 0;
-    ensureEl("riversFooterLength").innerHTML = `${averageLength * distanceScale} ${unit}`;
+    ensureEl("riversFooterLength").innerHTML = `${averageLength * worldContext.distanceScale} ${unit}`;
     const averageWidth = rn(mean(filteredRivers.map(r => r.width)) ?? 0, 3) || 0;
-    ensureEl("riversFooterWidth").innerHTML = `${rn(averageWidth * distanceScale, 3)} ${unit}`;
+    ensureEl("riversFooterWidth").innerHTML = `${rn(averageWidth * worldContext.distanceScale, 3)} ${unit}`;
 
     for (const el of body.querySelectorAll("div.states"))
       el.addEventListener("mouseenter", (ev: Event) => riverHighlightOn(ev as MouseEvent));
@@ -101,27 +109,27 @@ function overviewRivers(): void {
   function riverHighlightOn(event: MouseEvent): void {
     if (!layerIsOn("toggleRivers")) toggleRivers();
     const r = +(event.target as HTMLElement).dataset.id!;
-    rivers.select(`#river${r}`).attr("stroke", "red").attr("stroke-width", 1);
+    viewContext.rivers.select(`#river${r}`).attr("stroke", "red").attr("stroke-width", 1);
   }
 
   function riverHighlightOff(e: MouseEvent): void {
     const r = +(e.target as HTMLElement).dataset.id!;
-    rivers.select(`#river${r}`).attr("stroke", null).attr("stroke-width", null);
+    viewContext.rivers.select(`#river${r}`).attr("stroke", null).attr("stroke-width", null);
   }
 
   function zoomToRiver(this: HTMLElement): void {
     const r = +this.parentElement!.dataset.id!;
-    const river = rivers.select(`#river${r}`).node() as Element;
+    const river = viewContext.rivers.select(`#river${r}`).node() as Element;
     highlightElement(river, 3);
   }
 
   function toggleBasinsHightlight(): void {
-    if (rivers.attr("data-basin") === "hightlighted") {
-      rivers.selectAll("*").attr("fill", null);
-      rivers.attr("data-basin", null);
+    if (viewContext.rivers.attr("data-basin") === "hightlighted") {
+      viewContext.rivers.selectAll("*").attr("fill", null);
+      viewContext.rivers.attr("data-basin", null);
     } else {
-      rivers.attr("data-basin", "hightlighted");
-      const basins = [...new Set(pack.rivers.map(r => r.basin))];
+      viewContext.rivers.attr("data-basin", "hightlighted");
+      const basins = [...new Set(worldContext.pack.rivers.map(r => r.basin))];
       const colors = [
         "#1f77b4",
         "#ff7f0e",
@@ -137,10 +145,10 @@ function overviewRivers(): void {
 
       basins.forEach((b, i) => {
         const color = colors[i % colors.length];
-        pack.rivers
+        worldContext.pack.rivers
           .filter(r => r.basin === b)
           .forEach(r => {
-            rivers.select(`#river${r.i}`).attr("fill", color);
+            viewContext.rivers.select(`#river${r.i}`).attr("fill", color);
           });
       });
     }
@@ -152,8 +160,8 @@ function overviewRivers(): void {
     body.querySelectorAll(":scope > div").forEach(el => {
       const d = (el as HTMLElement).dataset;
       const discharge = `${d.discharge} m³/s`;
-      const length = `${rn(+(d.length || 0) * distanceScale)} ${distanceUnitInput.value}`;
-      const width = `${rn(+(d.width || 0) * distanceScale, 3)} ${distanceUnitInput.value}`;
+      const length = `${rn(+(d.length || 0) * worldContext.distanceScale)} ${distanceUnitInput.value}`;
+      const width = `${rn(+(d.width || 0) * worldContext.distanceScale, 3)} ${distanceUnitInput.value}`;
       data += `${[d.id, d.name, d.type, discharge, length, width, d.basin].join(",")}\n`;
     });
 
@@ -190,11 +198,9 @@ function overviewRivers(): void {
   }
 
   function removeAllRivers(): void {
-    pack.rivers = [];
-    pack.cells.r = new Uint16Array(pack.cells.i.length);
-    rivers.selectAll("*").remove();
+    worldContext.pack.rivers = [];
+    worldContext.pack.cells.r = new Uint16Array(worldContext.pack.cells.i.length);
+    viewContext.rivers.selectAll("*").remove();
     riversOverviewAddLines();
   }
 }
-
-window.overviewRivers = overviewRivers;

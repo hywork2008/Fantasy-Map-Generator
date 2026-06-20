@@ -1,10 +1,12 @@
 import type React from "react";
 import { useEffect, useState } from "react";
+import { viewContext } from "../../../context/viewContext";
+import { handleLayersPresetChange, removePreset, savePreset, toggleLayerById } from "../../../controllers/layers";
+import { changeViewMode } from "../../../controllers/options";
 import { DEFAULT_LAYERS, type LayerConfig, useLayerState } from "../../../store/layerState";
-import { callWindowFn, getWindowFn, getWindowProp } from "../../../utils/windowGlobals";
 
 export const LayersTab: React.FC = () => {
-  const { layers, setLayers, activeLayers, presets, activePreset, setActivePreset, reorderLayers } = useLayerState();
+  const { layers, setLayers, activeLayers, presets, activePreset, reorderLayers } = useLayerState();
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
   // Initialize defaults if not set
@@ -32,27 +34,15 @@ export const LayersTab: React.FC = () => {
   };
 
   const handleToggle = (e: React.MouseEvent, layer: LayerConfig) => {
-    // In original code, clicking toggles the layer, ctrl+click opens style editor.
-    // We delegate to the global functions for now to avoid re-implementing all d3 logic immediately.
-    // The global function (e.g. window.toggleTexture) will fire and then call turnButtonOn/Off
-    // which we will refactor to update the Zustand store.
-    const fnName = layer.id;
-    if (getWindowFn(fnName)) {
-      callWindowFn(fnName, e.nativeEvent);
-    }
+    toggleLayerById(layer.id, e.nativeEvent);
   };
 
   const handlePresetChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const val = e.target.value;
-    if (getWindowFn("handleLayersPresetChange")) {
-      callWindowFn("handleLayersPresetChange", val);
-    } else {
-      setActivePreset(val);
-    }
+    handleLayersPresetChange(e.target.value);
   };
 
   const handleViewMode = (e: React.MouseEvent) => {
-    callWindowFn("changeViewMode", e.nativeEvent);
+    changeViewMode(e.nativeEvent);
   };
 
   const isCustom = activePreset === "custom";
@@ -87,7 +77,7 @@ export const LayersTab: React.FC = () => {
         data-tip="Click to save displayed layers as a new preset"
         className="icon-plus sideButton"
         style={{ display: isCustom ? "inline-block" : "none" }}
-        onClick={() => callWindowFn("savePreset")}
+        onClick={() => savePreset()}
         type="button"
       ></button>
       <button
@@ -95,7 +85,7 @@ export const LayersTab: React.FC = () => {
         data-tip="Click to remove current custom preset"
         className="icon-minus sideButton"
         style={{ display: isCustom ? "none" : "inline-block" }}
-        onClick={() => callWindowFn("removePreset")}
+        onClick={() => removePreset()}
         type="button"
       ></button>
 
@@ -132,7 +122,7 @@ export const LayersTab: React.FC = () => {
         <button
           data-tip="Standard view mode that allows to edit the map"
           id="viewStandard"
-          className={getWindowProp<number>("customization") !== 1 ? "pressed" : ""}
+          className={viewContext.customization !== 1 ? "pressed" : ""}
           onClick={handleViewMode}
           type="button"
         >

@@ -4,12 +4,15 @@ import JSZip from "jszip";
 import { appServices } from "../context/appServices";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
+import { downloadFile, getFileName } from "../controllers/editors";
+import { layerIsOn } from "../controllers/layers";
 import { getUsedFonts, loadFontsAsDataURI } from "../modules/fonts";
 import { Rivers } from "../modules/river-generator";
 import { drawScaleBar, fitScaleBar } from "../renderers/index";
 import { connectVertices, ensureEl, getBase64, getCoordinates, rn, unique } from "../utils";
 import { getColor, getColorScheme } from "../utils/colorUtils";
 import { getGridPolygon } from "../utils/graphUtils";
+import { getCellPopulation, getFriendlyHeight, tip } from "../utils/uiHelpers";
 
 type AnySelection = Selection<SVGSVGElement, unknown, null, undefined>;
 
@@ -40,8 +43,8 @@ export async function exportToPng(): Promise<void> {
     const link = document.createElement("a");
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d")!;
-    canvas.width = svgWidth * pngResolutionInput.valueAsNumber;
-    canvas.height = svgHeight * pngResolutionInput.valueAsNumber;
+    canvas.width = viewContext.svgWidth * pngResolutionInput.valueAsNumber;
+    canvas.height = viewContext.svgHeight * pngResolutionInput.valueAsNumber;
 
     const blob = await new Promise<Blob>((resolve, reject) => {
       const img = new Image();
@@ -84,8 +87,8 @@ export async function exportToJpeg(): Promise<void> {
     const url = await getMapURL("png");
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d")!;
-    canvas.width = svgWidth * pngResolutionInput.valueAsNumber;
-    canvas.height = svgHeight * pngResolutionInput.valueAsNumber;
+    canvas.width = viewContext.svgWidth * pngResolutionInput.valueAsNumber;
+    canvas.height = viewContext.svgHeight * pngResolutionInput.valueAsNumber;
 
     const quality = Math.min(rn(1 - pngResolutionInput.valueAsNumber / 20, 2), 0.92);
     const blob = await new Promise<Blob>((resolve, reject) => {
@@ -130,8 +133,8 @@ export async function exportToPngTiles(): Promise<void> {
 
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d")!;
-  canvas.width = graphWidth;
-  canvas.height = graphHeight;
+  canvas.width = worldContext.graphWidth;
+  canvas.height = worldContext.graphHeight;
 
   const imgSchema = new Image();
   imgSchema.src = urlSchema;
@@ -149,10 +152,10 @@ export async function exportToPngTiles(): Promise<void> {
   const scale = +(ensureEl("tileScaleOutput") as HTMLInputElement).value || 1;
   const tolesTotal = tilesX * tilesY;
 
-  const tileW = (graphWidth / tilesX) | 0;
-  const tileH = (graphHeight / tilesY) | 0;
+  const tileW = (worldContext.graphWidth / tilesX) | 0;
+  const tileH = (worldContext.graphHeight / tilesY) | 0;
 
-  const width = graphWidth * scale;
+  const width = worldContext.graphWidth * scale;
   const height = width * (tileH / tileW);
   canvas.width = width;
   canvas.height = height;
@@ -168,9 +171,9 @@ export async function exportToPngTiles(): Promise<void> {
     return first + last;
   }
 
-  for (let y = 0, row = 0, id = 1; y + tileH <= graphHeight; y += tileH, row++) {
+  for (let y = 0, row = 0, id = 1; y + tileH <= worldContext.graphHeight; y += tileH, row++) {
     const rowName = getRowLabel(row);
-    for (let x = 0, cell = 1; x + tileW <= graphWidth; x += tileW, cell++, id++) {
+    for (let x = 0, cell = 1; x + tileW <= worldContext.graphWidth; x += tileW, cell++, id++) {
       status.innerHTML = `Rendering tile ${rowName}${cell} (${id} of ${tolesTotal})...`;
       ctx.drawImage(img, x, y, tileW, tileH, 0, 0, width, height);
       const tileBlob = await canvasToBlob(canvas, "image/png");
@@ -272,7 +275,7 @@ export async function getMapURL(type: string, options: GetMapURLOptions = {}): P
   if (noIce) clone.select("#ice")?.remove();
   if (noVignette) clone.select("#vignette")?.remove();
   if (fullMap) {
-    clone.attr("width", String(graphWidth)).attr("height", String(graphHeight));
+    clone.attr("width", String(worldContext.graphWidth)).attr("height", String(worldContext.graphHeight));
     clone.select("#viewbox").attr("transform", null);
 
     if (!noScaleBar) {
@@ -282,15 +285,15 @@ export async function getMapURL(type: string, options: GetMapURLOptions = {}): P
         viewContext,
         appServices,
         clone.select<SVGGElement>("#scaleBar"),
-        graphWidth,
-        graphHeight
+        worldContext.graphWidth,
+        worldContext.graphHeight
       );
     }
   }
   if (noScaleBar) clone.select("#scaleBar")?.remove();
 
   if (type === "svg") removeUnusedElements(clone);
-  if (customization && type === "mesh") updateMeshCells(clone);
+  if (viewContext.customization && type === "mesh") updateMeshCells(clone);
   inlineStyle(clone);
 
   // remove unused filters
@@ -319,7 +322,7 @@ export async function getMapURL(type: string, options: GetMapURLOptions = {}): P
   }
 
   // add displayed emblems
-  if (layerIsOn("toggleEmblems") && emblems.selectAll("use").size()) {
+  if (layerIsOn("toggleEmblems") && viewContext.emblems.selectAll("use").size()) {
     cloneEl
       .getElementById("emblems")
       ?.querySelectorAll("use")
@@ -488,7 +491,7 @@ export async function getMapURL(type: string, options: GetMapURLOptions = {}): P
 // ─── SVG cleanup helpers ──────────────────────────────────────────────────────
 
 export function removeUnusedElements(clone: AnySelection): void {
-  if (!terrain.selectAll("use").size()) clone.select("#defs-relief")?.remove();
+  if (!viewContext.terrain.selectAll("use").size()) clone.select("#defs-relief")?.remove();
 
   for (let empty = 1; empty; ) {
     empty = 0;
@@ -504,17 +507,19 @@ export function removeUnusedElements(clone: AnySelection): void {
 }
 
 function updateMeshCells(clone: AnySelection): void {
-  const data = renderOcean.checked ? grid.cells.i : grid.cells.i.filter((i: number) => grid.cells.h[i] >= 20);
-  const scheme = getColorScheme(terrs.select("#landHeights").attr("scheme"));
+  const data = renderOcean.checked
+    ? worldContext.grid.cells.i
+    : worldContext.grid.cells.i.filter((i: number) => worldContext.grid.cells.h[i] >= 20);
+  const scheme = getColorScheme(viewContext.terrs.select("#landHeights").attr("scheme"));
   clone.select("#heights").attr("filter", "url(#blur1)");
   clone
     .select("#heights")
     .selectAll("polygon")
     .data(data)
     .join("polygon")
-    .attr("points", (d: number) => getGridPolygon(d, grid).join(" "))
+    .attr("points", (d: number) => getGridPolygon(d, worldContext.grid).join(" "))
     .attr("id", (d: number) => `cell${d}`)
-    .attr("stroke", (d: number) => getColor(grid.cells.h[d], scheme));
+    .attr("stroke", (d: number) => getColor(worldContext.grid.cells.h[d], scheme));
 }
 
 export function inlineStyle(clone: AnySelection): void {
@@ -551,7 +556,7 @@ export function inlineStyle(clone: AnySelection): void {
 // ─── GeoJSON exports ──────────────────────────────────────────────────────────
 
 export function saveGeoJsonCells(): void {
-  const { cells, vertices } = pack;
+  const { cells, vertices } = worldContext.pack;
 
   const getPopulation = (i: number) => {
     const [r, u] = getCellPopulation(i);
@@ -574,7 +579,7 @@ export function saveGeoJsonCells(): void {
     const coordinates = getCellCoordinates(cells.v[i]);
     const height = getHeight(i);
     const biome = cells.biome[i];
-    const type = pack.features[cells.f[i]].type;
+    const type = worldContext.pack.features[cells.f[i]].type;
     const population = getPopulation(i);
     const state = cells.state[i];
     const province = cells.province[i];
@@ -592,22 +597,24 @@ export function saveGeoJsonCells(): void {
 }
 
 export function saveGeoJsonRoutes(): void {
-  const features = pack.routes.map((r: { i: number; points: number[][]; group: string; name?: string }) => {
-    const coordinates = r.points.map(([x, y]) =>
-      getCoordinates(x, y, worldContext.mapCoordinates, worldContext.graphWidth, worldContext.graphHeight, 4)
-    );
-    return {
-      type: "Feature",
-      geometry: { type: "LineString", coordinates },
-      properties: { id: r.i, group: r.group, name: r.name ?? null }
-    };
-  });
+  const features = worldContext.pack.routes.map(
+    (r: { i: number; points: number[][]; group: string; name?: string }) => {
+      const coordinates = r.points.map(([x, y]) =>
+        getCoordinates(x, y, worldContext.mapCoordinates, worldContext.graphWidth, worldContext.graphHeight, 4)
+      );
+      return {
+        type: "Feature",
+        geometry: { type: "LineString", coordinates },
+        properties: { id: r.i, group: r.group, name: r.name ?? null }
+      };
+    }
+  );
   const json = { type: "FeatureCollection", features };
   downloadFile(JSON.stringify(json), `${getFileName("Routes")}.geojson`, "application/json");
 }
 
 export function saveGeoJsonRivers(): void {
-  const features = pack.rivers.flatMap(
+  const features = worldContext.pack.rivers.flatMap(
     (r: {
       i: number;
       cells: number[];
@@ -655,7 +662,7 @@ export function saveGeoJsonRivers(): void {
 }
 
 export function saveGeoJsonMarkers(): void {
-  const features = pack.markers.map(
+  const features = worldContext.pack.markers.map(
     (marker: {
       i: number;
       type: string;
@@ -675,7 +682,7 @@ export function saveGeoJsonMarkers(): void {
         worldContext.graphHeight,
         4
       );
-      const note = notes.find(n => n.id === `marker${i}`);
+      const note = worldContext.notes.find(n => n.id === `marker${i}`);
       const properties = { id: i, type, icon, x, y, ...note, size, fill, stroke };
       return { type: "Feature", geometry: { type: "Point", coordinates }, properties };
     }
@@ -688,7 +695,7 @@ export function saveGeoJsonMarkers(): void {
 }
 
 export function saveGeoJsonZones(): void {
-  const { zones, cells, vertices } = pack;
+  const { zones, cells, vertices } = worldContext.pack;
   const json: GeoJSON = { type: "FeatureCollection", features: [] };
 
   function getZonePolygonCoordinates(zoneCells: number[]): [number, number][][] {
@@ -706,7 +713,7 @@ export function saveGeoJsonZones(): void {
       const onBorder = neighbors.some(ofDifferentType);
       if (!onBorder) continue;
 
-      const feature = pack.features[cells.f[cellId]];
+      const feature = worldContext.pack.features[cells.f[cellId]];
       if (feature.type === "lake" && feature.shoreline) {
         if ((feature.shoreline as number[]).every(ofSameType)) continue;
       }
@@ -777,18 +784,3 @@ interface GeoJSON {
   type: "FeatureCollection";
   features: unknown[];
 }
-
-// ─── Global exports ───────────────────────────────────────────────────────────
-
-window.exportToSvg = exportToSvg;
-window.exportToPng = exportToPng;
-window.exportToJpeg = exportToJpeg;
-window.exportToPngTiles = exportToPngTiles;
-window.getMapURL = getMapURL;
-window.removeUnusedElements = removeUnusedElements;
-window.inlineStyle = inlineStyle;
-window.saveGeoJsonCells = saveGeoJsonCells;
-window.saveGeoJsonRoutes = saveGeoJsonRoutes;
-window.saveGeoJsonRivers = saveGeoJsonRivers;
-window.saveGeoJsonMarkers = saveGeoJsonMarkers;
-window.saveGeoJsonZones = saveGeoJsonZones;

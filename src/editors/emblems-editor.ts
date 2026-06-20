@@ -1,5 +1,8 @@
 import type * as d3 from "d3";
 import { drag } from "d3";
+import { viewContext } from "../context/viewContext";
+import { worldContext } from "../context/worldContext";
+import { downloadFile, getFileName } from "../controllers/editors";
 import type { Burg } from "../modules/burgs-generator";
 import { COA } from "../modules/emblem/generator";
 import { COArenderer } from "../modules/emblem/renderer";
@@ -7,16 +10,16 @@ import type { Province } from "../modules/provinces-generator";
 import type { State } from "../modules/states-generator";
 import { openDialog } from "../ui/dialogs/dialogService";
 import { openURL, rn } from "../utils";
-import { type EmblemEl, highlightEmblemElement } from "../utils/uiHelpers";
+import { clearMainTip, type EmblemEl, highlightEmblemElement, tip } from "../utils/uiHelpers";
 
 export function editEmblem(type?: string, id?: string, elInput?: Element | Burg | Province | State): void {
-  if (customization) return;
+  if (viewContext.customization) return;
   let el: Burg | Province | State | undefined = elInput instanceof Element ? undefined : elInput;
   if (!id && elInput instanceof Element) defineEmblemData(elInput);
 
   let _ex = 0,
     _ey = 0;
-  emblems
+  viewContext.emblems
     .selectAll<SVGUseElement, unknown>("use")
     .call(
       drag<SVGUseElement, unknown>()
@@ -83,10 +86,10 @@ export function editEmblem(type?: string, id?: string, elInput?: Element | Burg 
     const parent = clickedEl.parentNode as Element;
     const [g, t] =
       parent.id === "burgEmblems"
-        ? [pack.burgs, "burg"]
+        ? [worldContext.pack.burgs, "burg"]
         : parent.id === "provinceEmblems"
-          ? [pack.provinces, "province"]
-          : [pack.states, "state"];
+          ? [worldContext.pack.provinces, "province"]
+          : [worldContext.pack.states, "state"];
     const i = +(clickedEl as SVGElement).dataset.i!;
     type = t;
     id = `${type}COA${i}`;
@@ -108,36 +111,38 @@ export function editEmblem(type?: string, id?: string, elInput?: Element | Burg 
     else if (typeVal === "province") {
       const p = elVal as Province;
       province = p.i;
-      state = pack.states[p.state].i;
+      state = worldContext.pack.states[p.state].i;
     } else {
       const b = elVal as Burg;
       burg = b.i!;
-      const p = pack.cells.province[b.cell];
-      if (p) province = pack.provinces[p].i;
-      state = pack.states[b.state!].i;
+      const p = worldContext.pack.cells.province[b.cell];
+      if (p) province = worldContext.pack.provinces[p].i;
+      state = worldContext.pack.states[b.state!].i;
     }
 
-    const validBurgs = pack.burgs.filter(b => b.i && !b.removed && b.coa);
+    const validBurgs = worldContext.pack.burgs.filter(b => b.i && !b.removed && b.coa);
 
     // update option list and select actual values
     emblemStates.options.length = 0;
     const neutralBurgs = validBurgs.filter(b => !b.state);
-    if (neutralBurgs.length) emblemStates.options.add(new Option(pack.states[0].name, "0", false, !state));
-    const stateList = (pack.states as State[]).filter(s => s.i && !s.removed);
+    if (neutralBurgs.length) emblemStates.options.add(new Option(worldContext.pack.states[0].name, "0", false, !state));
+    const stateList = (worldContext.pack.states as State[]).filter(s => s.i && !s.removed);
     stateList.forEach(s => {
       emblemStates.options.add(new Option(s.name ?? "", String(s.i), false, s.i === state));
     });
 
     emblemProvinces.options.length = 0;
     emblemProvinces.options.add(new Option("", "0", false, !province));
-    const provinceList = (pack.provinces as Province[]).filter(p => !p.removed && p.state === state);
+    const provinceList = (worldContext.pack.provinces as Province[]).filter(p => !p.removed && p.state === state);
     provinceList.forEach(p => {
       emblemProvinces.options.add(new Option(p.name, String(p.i), false, p.i === province));
     });
 
     emblemBurgs.options.length = 0;
     emblemBurgs.options.add(new Option("", "0", false, !burg));
-    const burgList = validBurgs.filter(b => (province ? pack.cells.province[b.cell] === province : b.state === state));
+    const burgList = validBurgs.filter(b =>
+      province ? worldContext.pack.cells.province[b.cell] === province : b.state === state
+    );
     burgList.forEach(b => {
       emblemBurgs.options.add(new Option(b.capital ? `👑 ${b.name}` : b.name, String(b.i), false, b.i === burg));
     });
@@ -168,10 +173,10 @@ export function editEmblem(type?: string, id?: string, elInput?: Element | Burg 
     const stateId = +emblemStates.value;
     if (stateId) {
       type = "state";
-      el = pack.states[stateId];
+      el = worldContext.pack.states[stateId];
       id = `stateCOA${stateId}`;
     } else {
-      const neutralBurgs = pack.burgs.filter(b => b.i && !b.removed && !b.state);
+      const neutralBurgs = worldContext.pack.burgs.filter(b => b.i && !b.removed && !b.state);
       if (!neutralBurgs.length) return;
       type = "burg";
       el = neutralBurgs[0];
@@ -185,12 +190,12 @@ export function editEmblem(type?: string, id?: string, elInput?: Element | Burg 
 
     if (provinceId) {
       type = "province";
-      el = pack.provinces[provinceId];
+      el = worldContext.pack.provinces[provinceId];
       id = `provinceCOA${provinceId}`;
     } else {
       const stateId = +emblemStates.value;
       type = "state";
-      el = pack.states[stateId];
+      el = worldContext.pack.states[stateId];
       id = `stateCOA${stateId}`;
     }
 
@@ -200,7 +205,7 @@ export function editEmblem(type?: string, id?: string, elInput?: Element | Burg 
   function selectBurg(): void {
     const burgId = +emblemBurgs.value;
     type = "burg";
-    el = pack.burgs[burgId];
+    el = worldContext.pack.burgs[burgId];
     id = `burgCOA${burgId}`;
     updateElementSelectors(type!, id!, el);
   }
@@ -225,7 +230,7 @@ export function editEmblem(type?: string, id?: string, elInput?: Element | Burg 
     (document.getElementById("emblemSizeSlider") as HTMLInputElement).value = String(size);
     (document.getElementById("emblemSizeNumber") as HTMLInputElement).value = String(size);
 
-    const g = emblems.select(`#${type}Emblems`);
+    const g = viewContext.emblems.select(`#${type}Emblems`);
     g.select(`[data-i='${el.i}']`).remove();
     if (!size) return;
 
@@ -247,11 +252,13 @@ export function editEmblem(type?: string, id?: string, elInput?: Element | Burg 
   function regenerate(): void {
     if (!el?.coa) return;
     let parent: Province | State | null = null;
-    if (type === "province") parent = pack.states[(el as Province).state] as State;
+    if (type === "province") parent = worldContext.pack.states[(el as Province).state] as State;
     else if (type === "burg") {
       const b = el as Burg;
-      const province = pack.cells.province[b.cell];
-      parent = province ? (pack.provinces[province] as Province) : (pack.states[b.state!] as State);
+      const province = worldContext.pack.cells.province[b.cell];
+      parent = province
+        ? (worldContext.pack.provinces[province] as Province)
+        : (worldContext.pack.states[b.state!] as State);
     }
 
     const parentCulture = parent && "culture" in parent ? (parent as State).culture : 0;
@@ -409,9 +416,9 @@ export function editEmblem(type?: string, id?: string, elInput?: Element | Burg 
 
   async function downloadGallery(): Promise<void> {
     const name = getFileName("Emblems Gallery");
-    const validStates = (pack.states as State[]).filter(s => s.i && !s.removed && s.coa);
-    const validProvinces = (pack.provinces as Province[]).filter(p => p.i && !p.removed && p.coa);
-    const validBurgs = pack.burgs.filter(b => b.i && !b.removed && b.coa);
+    const validStates = (worldContext.pack.states as State[]).filter(s => s.i && !s.removed && s.coa);
+    const validProvinces = (worldContext.pack.provinces as Province[]).filter(p => p.i && !p.removed && p.coa);
+    const validBurgs = worldContext.pack.burgs.filter(b => b.i && !b.removed && b.coa);
     await renderAllEmblems(validStates, validProvinces, validBurgs);
     runDownload();
 
@@ -453,7 +460,7 @@ export function editEmblem(type?: string, id?: string, elInput?: Element | Burg 
           let stateBurgSections = validProvinces
             .filter(p => p.state === state.i)
             .map(province => {
-              const provinceBurgs = stateBurgs.filter(b => pack.cells.province[b.cell] === province.i);
+              const provinceBurgs = stateBurgs.filter(b => worldContext.pack.cells.province[b.cell] === province.i);
               const provinceBurgFigures = provinceBurgs
                 .map(burg => {
                   const burgEl = document.getElementById(`burgCOA${burg.i}`) as unknown as SVGElement;
@@ -466,7 +473,7 @@ export function editEmblem(type?: string, id?: string, elInput?: Element | Burg 
             })
             .join("");
 
-          const stateBurgOutOfProvinces = stateBurgs.filter(b => !pack.cells.province[b.cell]);
+          const stateBurgOutOfProvinces = stateBurgs.filter(b => !worldContext.pack.cells.province[b.cell]);
           const stateBurgOutOfProvincesFigures = stateBurgOutOfProvinces
             .map(burg => {
               const burgEl = document.getElementById(`burgCOA${burg.i}`) as unknown as SVGElement;
@@ -533,7 +540,7 @@ export function editEmblem(type?: string, id?: string, elInput?: Element | Burg 
   }
 
   function closeEmblemEditor(): void {
-    emblems
+    viewContext.emblems
       .selectAll<SVGUseElement, unknown>("use")
       .call(drag<SVGUseElement, unknown>().on("drag", null))
       .attr("class", null);
