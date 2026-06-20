@@ -186,7 +186,7 @@ class UITourModule {
           }
         },
         {
-          element: "#optionsContent",
+          element: "#optionsTabContent",
           onHighlightStarted: () => {
             this.clickTab("optionsTab");
           },
@@ -198,7 +198,7 @@ class UITourModule {
           }
         },
         {
-          element: "#configureWorld",
+          element: "#configureWorldButton",
           onHighlightStarted: () => {
             closeDialogs();
             this.clickTab("optionsTab");
@@ -214,7 +214,7 @@ class UITourModule {
           }
         },
         {
-          element: "#worldConfigurator",
+          element: "#worldConfiguratorContainer",
           disableActiveInteraction: false,
           onHighlightStarted: () => {
             editWorld();

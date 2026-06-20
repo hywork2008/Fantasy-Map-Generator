@@ -37,10 +37,9 @@ if (location.hostname !== "localhost" && location.hostname !== "127.0.0.1") {
 const tooltip = document.getElementById("tooltip")!;
 const onDataTipMove = debounce(showDataTip, 50);
 
-document.getElementById("dialogs")?.addEventListener("mousemove", onDataTipMove);
-document.getElementById("optionsContainer")?.addEventListener("mousemove", onDataTipMove);
-document.getElementById("exitCustomization")?.addEventListener("mousemove", onDataTipMove);
-document.getElementById("react-ui-container")?.addEventListener("mousemove", onDataTipMove);
+// Use document-level delegation so React-rendered containers (which don't
+// exist at module load time) are covered without re-binding after mount.
+document.addEventListener("mousemove", onDataTipMove);
 
 const tipBackgroundMap: Record<string, string> = {
   info: "linear-gradient(0.1turn, #ffffff00, #5e5c5c80, #ffffff00)",

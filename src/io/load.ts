@@ -198,9 +198,9 @@ export async function parseLoadedResult(
     const isDelimited = resultAsString.substring(0, 10).includes("|");
     let content = isDelimited ? resultAsString : decodeURIComponent(atob(resultAsString));
 
-    const svgMatch = content.match(/<viewContext.svg[^>]*id="map"[\s\S]*?<\/viewContext.svg>/);
-    const svgContent = svgMatch![0];
-    if (svgContent.includes("\r\n")) {
+    const svgMatch = content.match(/<svg[^>]*id="map"[\s\S]*?<\/svg>/);
+    const svgContent = svgMatch?.[0];
+    if (svgContent?.includes("\r\n")) {
       const correctedSvgContent = svgContent.replace(/\r\n/g, "\n");
       content = content.replace(svgContent, correctedSvgContent);
     }
@@ -270,7 +270,7 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
       if (params[3]) {
         worldContext.seed = params[3];
         optionsSeed.value = worldContext.seed;
-        INFO && console.group(`Loaded Map ${seed}`);
+        INFO && console.group(`Loaded Map ${worldContext.seed}`);
       } else INFO && console.group("Loaded Map");
       if (params[4]) worldContext.graphWidth = +params[4];
       if (params[5]) worldContext.graphHeight = +params[5];

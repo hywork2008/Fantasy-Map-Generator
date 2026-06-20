@@ -39,6 +39,8 @@ import { Names } from "../modules/names-generator";
 import { viewStateStore } from "../store";
 import { alertMessage } from "../utils/alertMessageEl";
 import { applyOption, clearMainTip, fitContent, lock, locked, stored, tip, unlock } from "../utils/uiHelpers";
+import { cleanupData } from "../versioning";
+import { editWorld } from "./world-configurator";
 
 // ─── Options pane show/hide ───────────────────────────────────────────────────
 
@@ -1349,6 +1351,41 @@ export function initOptions(wc: WorldContext, vc: Readonly<ViewContext>, as: App
     const { culturesSet, cultures } = useOptionsState.getState();
     const max = culturesSetMaxMap[culturesSet] ?? 100;
     if (cultures > max) useOptionsState.getState().setOption("cultures", max);
+  });
+
+  document.addEventListener("react-restore-default-zoom-extent", restoreDefaultZoomExtent);
+
+  document.addEventListener("react-change-zoom-extent", (e: Event) => {
+    changeZoomExtent(String((e as CustomEvent<{ value: string }>).detail.value));
+  });
+
+  document.addEventListener("react-set-translate-extent", (e: Event) => {
+    const { on } = (e as CustomEvent<{ on: boolean }>).detail;
+    const { graphWidth, graphHeight } = worldContext;
+    if (on) {
+      viewContext.zoom.translateExtent([
+        [-graphWidth / 2, -graphHeight / 2],
+        [graphWidth * 1.5, graphHeight * 1.5]
+      ]);
+    } else {
+      viewContext.zoom.translateExtent([
+        [0, 0],
+        [graphWidth, graphHeight]
+      ]);
+    }
+  });
+
+  document.addEventListener("react-change-shape-rendering", (e: Event) => {
+    const { value } = (e as CustomEvent<{ value: string }>).detail;
+    useOptionsState.getState().setOption("shapeRendering", value as OptionsState["shapeRendering"]);
+    setRendering(value);
+  });
+
+  document.addEventListener("react-load-google-translate", loadGoogleTranslate);
+  document.addEventListener("react-reset-language", resetLanguage);
+  document.addEventListener("react-open-world-configurator", editWorld);
+  document.addEventListener("react-cleanup-data", () => {
+    void cleanupData();
   });
 
   // Note: For other sliders (points, cultures, etc.), their changes are applied on map generation.

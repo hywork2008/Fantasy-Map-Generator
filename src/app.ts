@@ -4,10 +4,21 @@ import { viewContext } from "./context/viewContext";
 import { worldContext } from "./context/worldContext";
 import { restoreDefaultEvents, unselect } from "./controllers/editors";
 import { initControllers } from "./controllers/index";
-import { handleLayersPresetChange, removePreset, savePreset, toggleLayerById } from "./controllers/layers";
+import {
+  handleLayersPresetChange,
+  layerIsOn,
+  removePreset,
+  savePreset,
+  toggleBurgIcons,
+  toggleLabels,
+  toggleLayerById
+} from "./controllers/layers";
 import { changeViewMode } from "./controllers/options";
+import { editBurg } from "./editors/burg-editor";
+import { buildGeoJsonZones, saveGeoJsonZones } from "./io/export";
 import { generate, initMain, regenerateMap } from "./main";
 import { initModules } from "./modules/index";
+import { UITour } from "./modules/ui-tour";
 import { initRenderers } from "./renderers/index";
 import { initUtils } from "./utils/index";
 
@@ -45,7 +56,14 @@ async function initApp(): Promise<void> {
       changeViewMode,
       restoreDefaultEvents,
       unselect,
-      getWorldState
+      getWorldState,
+      UITour,
+      layerIsOn,
+      toggleLabels,
+      toggleBurgIcons,
+      saveGeoJsonZones,
+      getGeoJsonZones: buildGeoJsonZones,
+      editBurg
     })
   });
 

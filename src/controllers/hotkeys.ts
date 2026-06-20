@@ -76,7 +76,6 @@ function handleKeydown(event: KeyboardEvent): void {
 }
 
 function handleKeyup(event: KeyboardEvent): void {
-  if (!modules.editors) return;
   if (!allowHotkeys()) return;
 
   event.stopPropagation();

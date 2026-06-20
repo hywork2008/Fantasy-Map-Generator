@@ -5,6 +5,7 @@ import { SliderInput } from "../SliderInput";
 export const OptionsTab: React.FC = () => {
   const options = useOptionsState();
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [translateExtentOn, setTranslateExtentOn] = useState(false);
 
   useEffect(() => {
     const loadVoices = () => setVoices(speechSynthesis.getVoices());
@@ -647,8 +648,133 @@ export const OptionsTab: React.FC = () => {
               </svg>
             </td>
           </tr>
+
+          <tr data-tip="Set minimum and maximum possible zoom level">
+            <td>
+              <i
+                data-tip="Restore default zoom extent: [1, 20]"
+                id="zoomExtentDefault"
+                className="icon-ccw"
+                onClick={() => document.dispatchEvent(new CustomEvent("react-restore-default-zoom-extent"))}
+              ></i>
+            </td>
+            <td>Zoom extent</td>
+            <td>
+              <span data-tip="Minimal possible zoom level (should be > 0)">min</span>
+              <input
+                data-tip="Minimal possible zoom level (should be > 0)"
+                id="zoomExtentMin"
+                className="paired"
+                type="number"
+                min="0.2"
+                step="0.1"
+                max="20"
+                value={options.zoomExtentMin}
+                onChange={e => {
+                  options.setOption("zoomExtentMin", Number(e.target.value));
+                  document.dispatchEvent(
+                    new CustomEvent("react-change-zoom-extent", { detail: { value: e.target.value } })
+                  );
+                }}
+              />
+              <span data-tip="Maximal possible zoom level (should be > 1)">max</span>
+              <input
+                data-tip="Maximal possible zoom level (should be > 1)"
+                id="zoomExtentMax"
+                className="paired"
+                type="number"
+                min="1"
+                max="50"
+                value={options.zoomExtentMax}
+                onChange={e => {
+                  options.setOption("zoomExtentMax", Number(e.target.value));
+                  document.dispatchEvent(
+                    new CustomEvent("react-change-zoom-extent", { detail: { value: e.target.value } })
+                  );
+                }}
+              />
+            </td>
+            <td>
+              <i
+                data-tip="Allow to drag map beyond canvas borders"
+                id="translateExtent"
+                className={`icon-hand-paper-o${translateExtentOn ? " active" : ""}`}
+                onClick={() => {
+                  const next = !translateExtentOn;
+                  setTranslateExtentOn(next);
+                  document.dispatchEvent(new CustomEvent("react-set-translate-extent", { detail: { on: next } }));
+                }}
+              ></i>
+            </td>
+          </tr>
+
+          <tr data-tip="Select rendering model. Try to set to 'optimized' if you face performance issues">
+            <td></td>
+            <td>Rendering</td>
+            <td>
+              <select
+                id="shapeRendering"
+                value={options.shapeRendering}
+                onChange={e => {
+                  options.setOption(
+                    "shapeRendering",
+                    e.target.value as "crispEdges" | "optimizeSpeed" | "geometricPrecision"
+                  );
+                  document.dispatchEvent(
+                    new CustomEvent("react-change-shape-rendering", { detail: { value: e.target.value } })
+                  );
+                }}
+              >
+                <option value="geometricPrecision">Best quality</option>
+                <option value="optimizeSpeed">Best performance</option>
+              </select>
+            </td>
+            <td></td>
+          </tr>
+
+          <tr data-tip="Load Google Translate and select language. Note that automatic translation can break some page functionality. In this case reset the language back to English or refresh the page">
+            <td>
+              <i
+                data-tip="Reset language to English"
+                id="resetLanguage"
+                className="icon-ccw"
+                onClick={() => document.dispatchEvent(new CustomEvent("react-reset-language"))}
+              ></i>
+            </td>
+            <td>Language</td>
+            <td>
+              <button
+                type="button"
+                id="loadGoogleTranslateButton"
+                onClick={() => document.dispatchEvent(new CustomEvent("react-load-google-translate"))}
+              >
+                Init Google Translate
+              </button>
+              <div id="google_translate_element"></div>
+            </td>
+            <td></td>
+          </tr>
         </tbody>
       </table>
+
+      <div>
+        <button
+          type="button"
+          id="configureWorldButton"
+          data-tip="Click to open world configurator to setup map position on Globe and World climate"
+          onClick={() => document.dispatchEvent(new CustomEvent("react-open-world-configurator"))}
+        >
+          Configure World
+        </button>
+        <button
+          type="button"
+          id="optionsReset"
+          data-tip="Click to restore default options and reload the page"
+          onClick={() => document.dispatchEvent(new CustomEvent("react-cleanup-data"))}
+        >
+          Reset to defaults
+        </button>
+      </div>
     </div>
   );
 };

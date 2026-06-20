@@ -694,7 +694,7 @@ export function saveGeoJsonMarkers(): void {
   );
 }
 
-export function saveGeoJsonZones(): void {
+export function buildGeoJsonZones(): object {
   const { zones, cells, vertices } = worldContext.pack;
   const json: GeoJSON = { type: "FeatureCollection", features: [] };
 
@@ -777,6 +777,11 @@ export function saveGeoJsonZones(): void {
     }
   );
 
+  return json;
+}
+
+export function saveGeoJsonZones(): void {
+  const json = buildGeoJsonZones();
   downloadFile(JSON.stringify(json), `${getFileName("Zones")}.geojson`, "application/json");
 }
 

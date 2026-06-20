@@ -44,6 +44,7 @@ export const ToolsTab: React.FC = () => {
           Emblems
         </button>
         <button
+          id="editHeightmapButton"
           data-tip="Click to open Heightmap customization menu"
           type="button"
           onClick={() => triggerEvent("editHeightmapButton")}

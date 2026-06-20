@@ -1,5 +1,6 @@
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import type { UITourModule } from "../modules/ui-tour";
 import type { Grid } from "../utils/graphUtils";
 import type { WorldState } from "./WorldState";
 
@@ -21,6 +22,13 @@ export interface FMGActionsAPI {
   restoreDefaultEvents(): void;
   unselect(): void;
   getWorldState(): WorldState;
+  UITour: UITourModule;
+  layerIsOn(el: string): boolean;
+  toggleLabels(event?: MouseEvent): void;
+  toggleBurgIcons(event?: MouseEvent): void;
+  saveGeoJsonZones(): void;
+  getGeoJsonZones(): object;
+  editBurg(id?: number): void;
 }
 
 export interface FMGNamespace {

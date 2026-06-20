@@ -70,15 +70,16 @@ export const OptionsContainer: React.FC = () => {
             ◄
           </button>
           {[
-            { id: "layersTab", label: "Layers" },
-            { id: "styleTab", label: "Style" },
-            { id: "optionsTab", label: "Options" },
-            { id: "toolsTab", label: "Tools" },
-            { id: "aboutTab", label: "About" }
+            { id: "layersTab", label: "Layers", tip: "Click to change map layers" },
+            { id: "styleTab", label: "Style", tip: "Click to open style editor" },
+            { id: "optionsTab", label: "Options", tip: "Click to change generation and UI options" },
+            { id: "toolsTab", label: "Tools", tip: "Click to open tools menu" },
+            { id: "aboutTab", label: "About", tip: "Click to see Generator info" }
           ].map(tab => (
             <button
               key={tab.id}
               id={tab.id}
+              data-tip={tab.tip}
               className={`options ${activeMenu === tab.id ? "active" : ""}`}
               onClick={() => setActiveMenu(tab.id)}
               type="button"
