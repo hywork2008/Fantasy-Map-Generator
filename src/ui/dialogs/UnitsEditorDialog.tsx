@@ -1,9 +1,11 @@
 import type React from "react";
-import { useDialogState } from "../../store/dialogState";
+import { unitsEditorActions } from "../../editors/units-editor";
+import { useUnitsEditorState } from "../../store/unitsEditorState";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
+
 export const UnitsEditorDialog: React.FC = () => {
-  const isOpen = useDialogState(state => state.openDialogs.has("unitsEditor"));
+  const { isOpen, rulerMode } = useUnitsEditorState();
 
   return (
     <Dialog isOpen={isOpen} title="Units Editor" onClose={() => closeDialog("unitsEditor")}>
@@ -16,7 +18,12 @@ export const UnitsEditorDialog: React.FC = () => {
             </div>
             <div data-tip="Select a distance unit or provide a custom name">
               <label htmlFor="distanceUnitInput">Distance unit:</label>
-              <select id="distanceUnitInput" data-stored="distanceUnit" defaultValue="mi">
+              <select
+                id="distanceUnitInput"
+                data-stored="distanceUnit"
+                defaultValue="mi"
+                onChange={e => unitsEditorActions.changeDistanceUnit(e.currentTarget.value)}
+              >
                 <option value="mi">Mile (mi)</option>
                 <option value="km">Kilometer (km)</option>
                 <option value="lg">League (lg)</option>
@@ -28,7 +35,15 @@ export const UnitsEditorDialog: React.FC = () => {
             </div>
             <div data-tip="Select how many distance units are in one pixel">
               <i data-locked={0} id="lock_distanceScale" className="icon-lock-open" />
-              <slider-input id="distanceScaleInput" data-stored="distanceScale" min=".01" max={20} step=".1" value={3}>
+              <slider-input
+                id="distanceScaleInput"
+                data-stored="distanceScale"
+                min=".01"
+                max={20}
+                step=".1"
+                value={3}
+                onChange={e => unitsEditorActions.changeDistanceScale(+(e.currentTarget as HTMLInputElement).value)}
+              >
                 <span>1 map pixel:</span>
               </slider-input>
             </div>
@@ -42,7 +57,12 @@ export const UnitsEditorDialog: React.FC = () => {
             </div>
             <div data-tip="Select an altitude unit or provide a custom name">
               <label htmlFor="heightUnit">Height unit:</label>
-              <select id="heightUnit" data-stored="heightUnit" defaultValue="ft">
+              <select
+                id="heightUnit"
+                data-stored="heightUnit"
+                defaultValue="ft"
+                onChange={e => unitsEditorActions.changeHeightUnit(e.currentTarget.value)}
+              >
                 <option value="ft">Feet (ft)</option>
                 <option value="m">Meters (m)</option>
                 <option value="f">Fathoms (f)</option>
@@ -57,6 +77,7 @@ export const UnitsEditorDialog: React.FC = () => {
                 max="2.2"
                 step=".01"
                 value={2}
+                onChange={unitsEditorActions.changeHeightExponent}
               >
                 <span>Exponent:</span>
               </slider-input>
@@ -67,7 +88,12 @@ export const UnitsEditorDialog: React.FC = () => {
             </div>
             <div>
               <label htmlFor="temperatureScale">Temperature scale:</label>
-              <select id="temperatureScale" data-stored="temperatureScale" defaultValue="°C">
+              <select
+                id="temperatureScale"
+                data-stored="temperatureScale"
+                defaultValue="°C"
+                onChange={unitsEditorActions.changeTemperatureScale}
+              >
                 <option value="°C">degree Celsius (°C)</option>
                 <option value="°F">degree Fahrenheit (°F)</option>
                 <option value="K">Kelvin (K)</option>
@@ -90,17 +116,34 @@ export const UnitsEditorDialog: React.FC = () => {
                 max={10000}
                 step={10}
                 value={1000}
+                onChange={e => unitsEditorActions.changePopulationRate(+(e.currentTarget as HTMLInputElement).value)}
               >
                 <span>1 population point:</span>
               </slider-input>
             </div>
             <div data-tip="Set urban population modifier. Change to increase or descrese burgs population">
-              <slider-input id="urbanizationInput" data-stored="urbanization" min=".01" max={5} step=".01" value={1}>
+              <slider-input
+                id="urbanizationInput"
+                data-stored="urbanization"
+                min=".01"
+                max={5}
+                step=".01"
+                value={1}
+                onChange={e => unitsEditorActions.changeUrbanizationRate(+(e.currentTarget as HTMLInputElement).value)}
+              >
                 <span>Urbanization rate:</span>
               </slider-input>
             </div>
             <div data-tip="Set urban density: average population per building in Medieval Fantasy City Generator">
-              <slider-input id="urbanDensityInput" data-stored="urbanDensity" min={1} max={200} step={1} value={10}>
+              <slider-input
+                id="urbanDensityInput"
+                data-stored="urbanDensity"
+                min={1}
+                max={200}
+                step={1}
+                value={10}
+                onChange={e => unitsEditorActions.changeUrbanDensity(+(e.currentTarget as HTMLInputElement).value)}
+              >
                 <span>Urban density:</span>
               </slider-input>
             </div>
@@ -108,20 +151,21 @@ export const UnitsEditorDialog: React.FC = () => {
           <div id="unitsFooter">
             <button
               type="button"
-              id="addLinearRuler"
               data-tip="Click to place a linear measurer (ruler)"
               className="icon-ruler"
+              onClick={unitsEditorActions.addRuler}
             />
             <button
               type="button"
-              id="addOpisometer"
               data-tip="Drag to measure a curve length (opisometer)"
-              className="icon-drafting-compass"
+              className={`icon-drafting-compass ${rulerMode === "opisometer" ? "pressed" : ""}`}
+              onClick={unitsEditorActions.toggleOpisometerMode}
             />
             <button
               type="button"
-              id="addRouteOpisometer"
               data-tip="Drag to measure a curve length that sticks to routes (route opisometer)"
+              className={rulerMode === "routeOpisometer" ? "pressed" : undefined}
+              onClick={unitsEditorActions.toggleRouteOpisometerMode}
             >
               <svg width="0.88em" height="0.88em" aria-hidden="true">
                 <use xlinkHref="#icon-route" />
@@ -129,17 +173,22 @@ export const UnitsEditorDialog: React.FC = () => {
             </button>
             <button
               type="button"
-              id="addPlanimeter"
               data-tip="Drag to measure a polygon area (planimeter)"
-              className="icon-draw-polygon"
+              className={`icon-draw-polygon ${rulerMode === "planimeter" ? "pressed" : ""}`}
+              onClick={unitsEditorActions.togglePlanimeterMode}
             />
             <button
               type="button"
-              id="removeRulers"
               data-tip="Remove all rulers from the map. Click on ruler label to remove a ruler separately"
               className="icon-trash"
+              onClick={unitsEditorActions.removeAllRulers}
             />
-            <button type="button" id="unitsRestore" data-tip="Restore default units settings" className="icon-ccw" />
+            <button
+              type="button"
+              data-tip="Restore default units settings"
+              className="icon-ccw"
+              onClick={unitsEditorActions.restoreDefaultUnits}
+            />
           </div>
         </div>
       </div>

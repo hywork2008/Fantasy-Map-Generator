@@ -1,382 +1,267 @@
 import type React from "react";
-import { useDialogState } from "../../store/dialogState";
+import { reliefEditorActions } from "../../editors/relief-editor";
+import type { ReliefIconSet } from "../../store/reliefEditorState";
+import { useReliefEditorState } from "../../store/reliefEditorState";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
+interface IconDef {
+  type: string;
+  tip: string;
+  x?: string;
+  y?: string;
+  width: number;
+  height: number;
+}
+
+const STD = { width: 40, height: 40 } as const;
+const TREE = { x: "-25%", y: "-25%", width: 60, height: 60 } as const;
+
+const ICON_SETS: Record<ReliefIconSet, IconDef[]> = {
+  simple: [
+    { type: "#relief-mount-1", tip: "Mountain", ...STD },
+    { type: "#relief-hill-1", tip: "Hill", ...STD },
+    { type: "#relief-deciduous-1", tip: "Deciduous Tree", ...TREE },
+    { type: "#relief-conifer-1", tip: "Conifer Tree", ...TREE },
+    { type: "#relief-palm-1", tip: "Palm", ...TREE },
+    { type: "#relief-acacia-1", tip: "Acacia", ...TREE },
+    { type: "#relief-swamp-1", tip: "Swamp", x: "-50%", y: "-50%", width: 80, height: 80 },
+    { type: "#relief-grass-1", tip: "Grass", x: "-100%", y: "-100%", width: 120, height: 120 },
+    { type: "#relief-dune-1", tip: "Dune", ...TREE }
+  ],
+  colored: [
+    { type: "#relief-mount-2", tip: "Mountain", ...STD },
+    { type: "#relief-mount-3", tip: "Mountain", ...STD },
+    { type: "#relief-mount-4", tip: "Mountain", ...STD },
+    { type: "#relief-mount-5", tip: "Mountain", ...STD },
+    { type: "#relief-mount-6", tip: "Mountain", ...STD },
+    { type: "#relief-mount-7", tip: "Mountain", ...STD },
+    { type: "#relief-mountSnow-1", tip: "Snow Mountain", ...STD },
+    { type: "#relief-mountSnow-2", tip: "Snow Mountain", ...STD },
+    { type: "#relief-mountSnow-3", tip: "Snow Mountain", ...STD },
+    { type: "#relief-mountSnow-4", tip: "Snow Mountain", ...STD },
+    { type: "#relief-mountSnow-5", tip: "Snow Mountain", ...STD },
+    { type: "#relief-mountSnow-6", tip: "Snow Mountain", ...STD },
+    { type: "#relief-vulcan-1", tip: "Volcano", ...STD },
+    { type: "#relief-vulcan-2", tip: "Volcano", ...STD },
+    { type: "#relief-vulcan-3", tip: "Volcano", ...STD },
+    { type: "#relief-hill-2", tip: "Hill", ...STD },
+    { type: "#relief-hill-3", tip: "Hill", ...STD },
+    { type: "#relief-hill-4", tip: "Hill", ...STD },
+    { type: "#relief-hill-5", tip: "Hill", ...STD },
+    { type: "#relief-dune-2", tip: "Dune", ...STD },
+    { type: "#relief-deciduous-2", tip: "Deciduous Tree", ...TREE },
+    { type: "#relief-deciduous-3", tip: "Deciduous Tree", ...TREE },
+    { type: "#relief-conifer-2", tip: "Conifer Tree", ...TREE },
+    { type: "#relief-coniferSnow-1", tip: "Snow Conifer Tree", ...TREE },
+    { type: "#relief-acacia-2", tip: "Acacia", ...TREE },
+    { type: "#relief-palm-2", tip: "Palm", ...TREE },
+    { type: "#relief-grass-2", tip: "Grass", ...TREE },
+    { type: "#relief-swamp-2", tip: "Swamp", ...TREE },
+    { type: "#relief-swamp-3", tip: "Swamp", ...TREE },
+    { type: "#relief-cactus-1", tip: "Cactus", ...TREE },
+    { type: "#relief-cactus-2", tip: "Cactus", ...TREE },
+    { type: "#relief-cactus-3", tip: "Cactus", ...TREE },
+    { type: "#relief-deadTree-1", tip: "Dead Tree", ...TREE },
+    { type: "#relief-deadTree-2", tip: "Dead Tree", ...TREE }
+  ],
+  gray: [
+    { type: "#relief-mount-2-bw", tip: "Mountain", ...STD },
+    { type: "#relief-mount-3-bw", tip: "Mountain", ...STD },
+    { type: "#relief-mount-4-bw", tip: "Mountain", ...STD },
+    { type: "#relief-mount-5-bw", tip: "Mountain", ...STD },
+    { type: "#relief-mount-6-bw", tip: "Mountain", ...STD },
+    { type: "#relief-mount-7-bw", tip: "Mountain", ...STD },
+    { type: "#relief-mountSnow-1-bw", tip: "Snow Mountain", ...STD },
+    { type: "#relief-mountSnow-2-bw", tip: "Snow Mountain", ...STD },
+    { type: "#relief-mountSnow-3-bw", tip: "Snow Mountain", ...STD },
+    { type: "#relief-mountSnow-4-bw", tip: "Snow Mountain", ...STD },
+    { type: "#relief-mountSnow-5-bw", tip: "Snow Mountain", ...STD },
+    { type: "#relief-mountSnow-6-bw", tip: "Snow Mountain", ...STD },
+    { type: "#relief-vulcan-1-bw", tip: "Volcano", ...STD },
+    { type: "#relief-vulcan-2-bw", tip: "Volcano", ...STD },
+    { type: "#relief-vulcan-3-bw", tip: "Volcano", ...STD },
+    { type: "#relief-hill-2-bw", tip: "Hill", ...STD },
+    { type: "#relief-hill-3-bw", tip: "Hill", ...STD },
+    { type: "#relief-hill-4-bw", tip: "Hill", ...STD },
+    { type: "#relief-hill-5-bw", tip: "Hill", ...STD },
+    { type: "#relief-dune-2-bw", tip: "Dune", ...STD },
+    { type: "#relief-deciduous-2-bw", tip: "Deciduous Tree", ...TREE },
+    { type: "#relief-deciduous-3-bw", tip: "Deciduous Tree", ...TREE },
+    { type: "#relief-conifer-2-bw", tip: "Conifer Tree", ...TREE },
+    { type: "#relief-coniferSnow-1-bw", tip: "Snow Conifer Tree", ...TREE },
+    { type: "#relief-acacia-2-bw", tip: "Acacia", ...TREE },
+    { type: "#relief-palm-2-bw", tip: "Palm", ...TREE },
+    { type: "#relief-grass-2-bw", tip: "Grass", ...TREE },
+    { type: "#relief-swamp-2-bw", tip: "Swamp", ...TREE },
+    { type: "#relief-swamp-3-bw", tip: "Swamp", ...TREE },
+    { type: "#relief-cactus-1-bw", tip: "Cactus", ...TREE },
+    { type: "#relief-cactus-2-bw", tip: "Cactus", ...TREE },
+    { type: "#relief-cactus-3-bw", tip: "Cactus", ...TREE },
+    { type: "#relief-deadTree-1-bw", tip: "Dead Tree", ...TREE },
+    { type: "#relief-deadTree-2-bw", tip: "Dead Tree", ...TREE }
+  ]
+};
+
 export const ReliefEditorDialog: React.FC = () => {
-  const isOpen = useDialogState(state => state.openDialogs.has("reliefEditor"));
+  const { isOpen, mode, iconSet, size, radius, spacing, selectedIconType } = useReliefEditorState();
+
+  if (!isOpen) return null;
+
+  const icons = ICON_SETS[iconSet];
 
   return (
     <Dialog isOpen={isOpen} title="Relief Editor" onClose={() => closeDialog("reliefEditor")}>
-      <div id="reliefTools" data-tip="Select mode of operation">
+      <div data-tip="Select mode of operation">
         <div className="reliefEditorLabel">Mode:</div>
         <button
           type="button"
-          id="reliefIndividual"
           data-tip="Edit individual selected icon"
-          className="icon-info pressed"
-        ></button>
-        <button type="button" id="reliefBulkAdd" data-tip="Place icons in a bulk" className="icon-brush"></button>
-        <button type="button" id="reliefBulkRemove" data-tip="Remove icons in a bulk" className="icon-eraser"></button>
+          className={`icon-info ${mode === "individual" ? "pressed" : ""}`}
+          onClick={reliefEditorActions.enterIndividualMode}
+        />
+        <button
+          type="button"
+          data-tip="Place icons in a bulk"
+          className={`icon-brush ${mode === "bulkAdd" ? "pressed" : ""}`}
+          onClick={reliefEditorActions.enterBulkAddMode}
+        />
+        <button
+          type="button"
+          data-tip="Remove icons in a bulk"
+          className={`icon-eraser ${mode === "bulkRemove" ? "pressed" : ""}`}
+          onClick={reliefEditorActions.enterBulkRemoveMode}
+        />
 
         <div style={{ marginLeft: "4.6em" }}>Set:</div>
-        <select id="reliefEditorSet">
+        <select
+          value={iconSet}
+          onChange={e => reliefEditorActions.changeIconSet(e.currentTarget.value as ReliefIconSet)}
+        >
           <option value="simple">Simple</option>
           <option value="colored">Colored</option>
           <option value="gray">Gray</option>
         </select>
       </div>
 
-      <div id="reliefSizeDiv" data-tip="Set icon size for individual icon or for bulk placement">
-        <div className="reliefEditorLabel">Size:</div>
-        <input
-          id="reliefSize"
-          type="range"
-          min="2"
-          max="50"
-          defaultValue="5"
-          onInput={e => {
-            const num = document.getElementById("reliefSizeNumber") as HTMLInputElement;
-            if (num) num.value = e.currentTarget.value;
-          }}
-        />
-        <input
-          id="reliefSizeNumber"
-          type="number"
-          min="2"
-          defaultValue="5"
-          onInput={e => {
-            const r = document.getElementById("reliefSize") as HTMLInputElement;
-            if (r) r.value = e.currentTarget.value;
-          }}
-        />
-      </div>
+      {mode !== "bulkRemove" && (
+        <div data-tip="Set icon size for individual icon or for bulk placement">
+          <div className="reliefEditorLabel">Size:</div>
+          <input
+            type="range"
+            min="2"
+            max="50"
+            value={size}
+            onChange={e => reliefEditorActions.changeIconSize(+e.currentTarget.value)}
+          />
+          <input
+            type="number"
+            min="2"
+            value={size}
+            onChange={e => reliefEditorActions.changeIconSize(+e.currentTarget.value)}
+          />
+        </div>
+      )}
 
-      <div id="reliefRadiusDiv" data-tip="Set brush radius for icons placement on deletion" style={{ display: "none" }}>
-        <div className="reliefEditorLabel">Radius:</div>
-        <input
-          id="reliefRadius"
-          type="range"
-          min="1"
-          max="100"
-          defaultValue="15"
-          onInput={e => {
-            const num = document.getElementById("reliefRadiusNumber") as HTMLInputElement;
-            if (num) num.value = e.currentTarget.value;
-          }}
-        />
-        <input
-          id="reliefRadiusNumber"
-          type="number"
-          min="1"
-          defaultValue="15"
-          onInput={e => {
-            const r = document.getElementById("reliefRadius") as HTMLInputElement;
-            if (r) r.value = e.currentTarget.value;
-          }}
-        />
-      </div>
+      {mode !== "individual" && (
+        <div data-tip="Set brush radius for icons placement or deletion">
+          <div className="reliefEditorLabel">Radius:</div>
+          <input
+            type="range"
+            min="1"
+            max="100"
+            value={radius}
+            onChange={e => reliefEditorActions.changeRadius(+e.currentTarget.value)}
+          />
+          <input
+            type="number"
+            min="1"
+            value={radius}
+            onChange={e => reliefEditorActions.changeRadius(+e.currentTarget.value)}
+          />
+        </div>
+      )}
 
-      <div id="reliefSpacingDiv" data-tip="Set spacing between relief icons" style={{ display: "none" }}>
-        <div className="reliefEditorLabel">Spacing:</div>
-        <input
-          id="reliefSpacing"
-          type="range"
-          min="2"
-          max="20"
-          defaultValue="5"
-          onInput={e => {
-            const num = document.getElementById("reliefSpacingNumber") as HTMLInputElement;
-            if (num) num.value = e.currentTarget.value;
-          }}
-        />
-        <input
-          id="reliefSpacingNumber"
-          type="number"
-          min="2"
-          defaultValue="5"
-          onInput={e => {
-            const r = document.getElementById("reliefSpacing") as HTMLInputElement;
-            if (r) r.value = e.currentTarget.value;
-          }}
-        />
-      </div>
+      {mode === "bulkAdd" && (
+        <div data-tip="Set spacing between relief icons">
+          <div className="reliefEditorLabel">Spacing:</div>
+          <input
+            type="range"
+            min="2"
+            max="20"
+            value={spacing}
+            onChange={e => reliefEditorActions.changeSpacing(+e.currentTarget.value)}
+          />
+          <input
+            type="number"
+            min="2"
+            value={spacing}
+            onChange={e => reliefEditorActions.changeSpacing(+e.currentTarget.value)}
+          />
+        </div>
+      )}
 
       <div id="reliefIconsDiv" data-tip="Select icon">
-        <div data-type="simple" style={{ display: "none" }}>
-          <svg data-type="#relief-mount-1" data-tip="Select Mountain icon" aria-hidden="true">
-            <use href="#relief-mount-1" width="40" height="40"></use>
+        {icons.map(({ type, tip: tipText, x, y, width, height }) => (
+          <svg
+            key={type}
+            data-type={type}
+            data-tip={`Select ${tipText} icon`}
+            aria-hidden="true"
+            className={selectedIconType === type ? "pressed" : undefined}
+            onClick={() => reliefEditorActions.changeIcon(type)}
+          >
+            <use href={type} x={x} y={y} width={width} height={height} />
           </svg>
-          <svg data-type="#relief-hill-1" data-tip="Select Hill icon" aria-hidden="true">
-            <use href="#relief-hill-1" width="40" height="40"></use>
-          </svg>
-          <svg data-type="#relief-deciduous-1" data-tip="Select Deciduous Tree icon" aria-hidden="true">
-            <use href="#relief-deciduous-1" x="-25%" y="-25%" width="60" height="60"></use>
-          </svg>
-          <svg data-type="#relief-conifer-1" data-tip="Select Conifer Tree icon" aria-hidden="true">
-            <use href="#relief-conifer-1" x="-25%" y="-25%" width="60" height="60"></use>
-          </svg>
-          <svg data-type="#relief-palm-1" data-tip="Select Palm icon" aria-hidden="true">
-            <use href="#relief-palm-1" x="-25%" y="-25%" width="60" height="60"></use>
-          </svg>
-          <svg data-type="#relief-acacia-1" data-tip="Select Acacia icon" aria-hidden="true">
-            <use href="#relief-acacia-1" x="-25%" y="-25%" width="60" height="60"></use>
-          </svg>
-          <svg data-type="#relief-swamp-1" data-tip="Select Swamp icon" aria-hidden="true">
-            <use href="#relief-swamp-1" x="-50%" y="-50%" width="80" height="80"></use>
-          </svg>
-          <svg data-type="#relief-grass-1" data-tip="Select Grass icon" aria-hidden="true">
-            <use href="#relief-grass-1" x="-100%" y="-100%" width="120" height="120"></use>
-          </svg>
-          <svg data-type="#relief-dune-1" data-tip="Select Dune icon" aria-hidden="true">
-            <use href="#relief-dune-1" x="-25%" y="-25%" width="60" height="60"></use>
-          </svg>
-        </div>
+        ))}
 
-        <div data-type="colored" style={{ display: "none" }}>
-          <svg data-type="#relief-mount-2" data-tip="Select Mountain icon" aria-hidden="true">
-            <use href="#relief-mount-2" width="40" height="40"></use>
-          </svg>
-          <svg data-type="#relief-mount-3" data-tip="Select Mountain icon" aria-hidden="true">
-            <use href="#relief-mount-3" width="40" height="40"></use>
-          </svg>
-          <svg data-type="#relief-mount-4" data-tip="Select Mountain icon" aria-hidden="true">
-            <use href="#relief-mount-4" width="40" height="40"></use>
-          </svg>
-          <svg data-type="#relief-mount-5" data-tip="Select Mountain icon" aria-hidden="true">
-            <use href="#relief-mount-5" width="40" height="40"></use>
-          </svg>
-          <svg data-type="#relief-mount-6" data-tip="Select Mountain icon" aria-hidden="true">
-            <use href="#relief-mount-6" width="40" height="40"></use>
-          </svg>
-          <svg data-type="#relief-mount-7" data-tip="Select Mountain icon" aria-hidden="true">
-            <use href="#relief-mount-7" width="40" height="40"></use>
-          </svg>
-          <svg data-type="#relief-mountSnow-1" data-tip="Select Snow Mountain icon" aria-hidden="true">
-            <use href="#relief-mountSnow-1" width="40" height="40"></use>
-          </svg>
-          <svg data-type="#relief-mountSnow-2" data-tip="Select Snow Mountain icon" aria-hidden="true">
-            <use href="#relief-mountSnow-2" width="40" height="40"></use>
-          </svg>
-          <svg data-type="#relief-mountSnow-3" data-tip="Select Snow Mountain icon" aria-hidden="true">
-            <use href="#relief-mountSnow-3" width="40" height="40"></use>
-          </svg>
-          <svg data-type="#relief-mountSnow-4" data-tip="Select Snow Mountain icon" aria-hidden="true">
-            <use href="#relief-mountSnow-4" width="40" height="40"></use>
-          </svg>
-          <svg data-type="#relief-mountSnow-5" data-tip="Select Snow Mountain icon" aria-hidden="true">
-            <use href="#relief-mountSnow-5" width="40" height="40"></use>
-          </svg>
-          <svg data-type="#relief-mountSnow-6" data-tip="Select Snow Mountain icon" aria-hidden="true">
-            <use href="#relief-mountSnow-6" width="40" height="40"></use>
-          </svg>
-          <svg data-type="#relief-vulcan-1" data-tip="Select Volcano icon" aria-hidden="true">
-            <use href="#relief-vulcan-1" width="40" height="40"></use>
-          </svg>
-          <svg data-type="#relief-vulcan-2" data-tip="Select Volcano icon" aria-hidden="true">
-            <use href="#relief-vulcan-2" width="40" height="40"></use>
-          </svg>
-          <svg data-type="#relief-vulcan-3" data-tip="Select Volcano icon" aria-hidden="true">
-            <use href="#relief-vulcan-3" width="40" height="40"></use>
-          </svg>
-          <svg data-type="#relief-hill-2" data-tip="Select Hill icon" aria-hidden="true">
-            <use href="#relief-hill-2" width="40" height="40"></use>
-          </svg>
-          <svg data-type="#relief-hill-3" data-tip="Select Hill icon" aria-hidden="true">
-            <use href="#relief-hill-3" width="40" height="40"></use>
-          </svg>
-          <svg data-type="#relief-hill-4" data-tip="Select Hill icon" aria-hidden="true">
-            <use href="#relief-hill-4" width="40" height="40"></use>
-          </svg>
-          <svg data-type="#relief-hill-5" data-tip="Select Hill icon" aria-hidden="true">
-            <use href="#relief-hill-5" width="40" height="40"></use>
-          </svg>
-          <svg data-type="#relief-dune-2" data-tip="Select Dune icon" aria-hidden="true">
-            <use href="#relief-dune-2" width="40" height="40"></use>
-          </svg>
-          <svg data-type="#relief-deciduous-2" data-tip="Select Deciduous Tree icon" aria-hidden="true">
-            <use href="#relief-deciduous-2" x="-25%" y="-25%" width="60" height="60"></use>
-          </svg>
-          <svg data-type="#relief-deciduous-3" data-tip="Select Deciduous Tree icon" aria-hidden="true">
-            <use href="#relief-deciduous-3" x="-25%" y="-25%" width="60" height="60"></use>
-          </svg>
-          <svg data-type="#relief-conifer-2" data-tip="Select Conifer Tree icon" aria-hidden="true">
-            <use href="#relief-conifer-2" x="-25%" y="-25%" width="60" height="60"></use>
-          </svg>
-          <svg data-type="#relief-coniferSnow-1" data-tip="Select Snow Conifer Tree icon" aria-hidden="true">
-            <use href="#relief-coniferSnow-1" x="-25%" y="-25%" width="60" height="60"></use>
-          </svg>
-          <svg data-type="#relief-acacia-2" data-tip="Select Acacia icon" aria-hidden="true">
-            <use href="#relief-acacia-2" x="-25%" y="-25%" width="60" height="60"></use>
-          </svg>
-          <svg data-type="#relief-palm-2" data-tip="Select Palm icon" aria-hidden="true">
-            <use href="#relief-palm-2" x="-25%" y="-25%" width="60" height="60"></use>
-          </svg>
-          <svg data-type="#relief-grass-2" data-tip="Select Grass icon" aria-hidden="true">
-            <use href="#relief-grass-2" x="-25%" y="-25%" width="60" height="60"></use>
-          </svg>
-          <svg data-type="#relief-swamp-2" data-tip="Select Swamp icon" aria-hidden="true">
-            <use href="#relief-swamp-2" x="-25%" y="-25%" width="60" height="60"></use>
-          </svg>
-          <svg data-type="#relief-swamp-3" data-tip="Select Swamp icon" aria-hidden="true">
-            <use href="#relief-swamp-3" x="-25%" y="-25%" width="60" height="60"></use>
-          </svg>
-          <svg data-type="#relief-cactus-1" data-tip="Select Cactus icon" aria-hidden="true">
-            <use href="#relief-cactus-1" x="-25%" y="-25%" width="60" height="60"></use>
-          </svg>
-          <svg data-type="#relief-cactus-2" data-tip="Select Cactus icon" aria-hidden="true">
-            <use href="#relief-cactus-2" x="-25%" y="-25%" width="60" height="60"></use>
-          </svg>
-          <svg data-type="#relief-cactus-3" data-tip="Select Cactus icon" aria-hidden="true">
-            <use href="#relief-cactus-3" x="-25%" y="-25%" width="60" height="60"></use>
-          </svg>
-          <svg data-type="#relief-deadTree-1" data-tip="Select Dead Tree icon" aria-hidden="true">
-            <use href="#relief-deadTree-1" x="-25%" y="-25%" width="60" height="60"></use>
-          </svg>
-          <svg data-type="#relief-deadTree-2" data-tip="Select Dead Tree icon" aria-hidden="true">
-            <use href="#relief-deadTree-2" x="-25%" y="-25%" width="60" height="60"></use>
-          </svg>
-        </div>
-
-        <div data-type="gray" style={{ display: "none" }}>
-          <svg data-type="#relief-mount-2-bw" data-tip="Select Mountain icon" aria-hidden="true">
-            <use href="#relief-mount-2-bw" width="40" height="40"></use>
-          </svg>
-          <svg data-type="#relief-mount-3-bw" data-tip="Select Mountain icon" aria-hidden="true">
-            <use href="#relief-mount-3-bw" width="40" height="40"></use>
-          </svg>
-          <svg data-type="#relief-mount-4-bw" data-tip="Select Mountain icon" aria-hidden="true">
-            <use href="#relief-mount-4-bw" width="40" height="40"></use>
-          </svg>
-          <svg data-type="#relief-mount-5-bw" data-tip="Select Mountain icon" aria-hidden="true">
-            <use href="#relief-mount-5-bw" width="40" height="40"></use>
-          </svg>
-          <svg data-type="#relief-mount-6-bw" data-tip="Select Mountain icon" aria-hidden="true">
-            <use href="#relief-mount-6-bw" width="40" height="40"></use>
-          </svg>
-          <svg data-type="#relief-mount-7-bw" data-tip="Select Mountain icon" aria-hidden="true">
-            <use href="#relief-mount-7-bw" width="40" height="40"></use>
-          </svg>
-          <svg data-type="#relief-mountSnow-1-bw" data-tip="Select Snow Mountain icon" aria-hidden="true">
-            <use href="#relief-mountSnow-1-bw" width="40" height="40"></use>
-          </svg>
-          <svg data-type="#relief-mountSnow-2-bw" data-tip="Select Snow Mountain icon" aria-hidden="true">
-            <use href="#relief-mountSnow-2-bw" width="40" height="40"></use>
-          </svg>
-          <svg data-type="#relief-mountSnow-3-bw" data-tip="Select Snow Mountain icon" aria-hidden="true">
-            <use href="#relief-mountSnow-3-bw" width="40" height="40"></use>
-          </svg>
-          <svg data-type="#relief-mountSnow-4-bw" data-tip="Select Snow Mountain icon" aria-hidden="true">
-            <use href="#relief-mountSnow-4-bw" width="40" height="40"></use>
-          </svg>
-          <svg data-type="#relief-mountSnow-5-bw" data-tip="Select Snow Mountain icon" aria-hidden="true">
-            <use href="#relief-mountSnow-5-bw" width="40" height="40"></use>
-          </svg>
-          <svg data-type="#relief-mountSnow-6-bw" data-tip="Select Snow Mountain icon" aria-hidden="true">
-            <use href="#relief-mountSnow-6-bw" width="40" height="40"></use>
-          </svg>
-          <svg data-type="#relief-vulcan-1-bw" data-tip="Select Volcano icon" aria-hidden="true">
-            <use href="#relief-vulcan-1-bw" width="40" height="40"></use>
-          </svg>
-          <svg data-type="#relief-vulcan-2-bw" data-tip="Select Volcano icon" aria-hidden="true">
-            <use href="#relief-vulcan-2-bw" width="40" height="40"></use>
-          </svg>
-          <svg data-type="#relief-vulcan-3-bw" data-tip="Select Volcano icon" aria-hidden="true">
-            <use href="#relief-vulcan-3-bw" width="40" height="40"></use>
-          </svg>
-          <svg data-type="#relief-hill-2-bw" data-tip="Select Hill icon" aria-hidden="true">
-            <use href="#relief-hill-2-bw" width="40" height="40"></use>
-          </svg>
-          <svg data-type="#relief-hill-3-bw" data-tip="Select Hill icon" aria-hidden="true">
-            <use href="#relief-hill-3-bw" width="40" height="40"></use>
-          </svg>
-          <svg data-type="#relief-hill-4-bw" data-tip="Select Hill icon" aria-hidden="true">
-            <use href="#relief-hill-4-bw" width="40" height="40"></use>
-          </svg>
-          <svg data-type="#relief-hill-5-bw" data-tip="Select Hill icon" aria-hidden="true">
-            <use href="#relief-hill-5-bw" width="40" height="40"></use>
-          </svg>
-          <svg data-type="#relief-dune-2-bw" data-tip="Select Dune icon" aria-hidden="true">
-            <use href="#relief-dune-2-bw" width="40" height="40"></use>
-          </svg>
-          <svg data-type="#relief-deciduous-2-bw" data-tip="Select Deciduous Tree icon" aria-hidden="true">
-            <use href="#relief-deciduous-2-bw" x="-25%" y="-25%" width="60" height="60"></use>
-          </svg>
-          <svg data-type="#relief-deciduous-3-bw" data-tip="Select Deciduous Tree icon" aria-hidden="true">
-            <use href="#relief-deciduous-3-bw" x="-25%" y="-25%" width="60" height="60"></use>
-          </svg>
-          <svg data-type="#relief-conifer-2-bw" data-tip="Select Conifer Tree icon" aria-hidden="true">
-            <use href="#relief-conifer-2-bw" x="-25%" y="-25%" width="60" height="60"></use>
-          </svg>
-          <svg data-type="#relief-coniferSnow-1-bw" data-tip="Select Snow Conifer Tree icon" aria-hidden="true">
-            <use href="#relief-coniferSnow-1-bw" x="-25%" y="-25%" width="60" height="60"></use>
-          </svg>
-          <svg data-type="#relief-acacia-2-bw" data-tip="Select Acacia icon" aria-hidden="true">
-            <use href="#relief-acacia-2-bw" x="-25%" y="-25%" width="60" height="60"></use>
-          </svg>
-          <svg data-type="#relief-palm-2-bw" data-tip="Select Palm icon" aria-hidden="true">
-            <use href="#relief-palm-2-bw" x="-25%" y="-25%" width="60" height="60"></use>
-          </svg>
-          <svg data-type="#relief-grass-2-bw" data-tip="Select Grass icon" aria-hidden="true">
-            <use href="#relief-grass-2-bw" x="-25%" y="-25%" width="60" height="60"></use>
-          </svg>
-          <svg data-type="#relief-swamp-2-bw" data-tip="Select Swamp icon" aria-hidden="true">
-            <use href="#relief-swamp-2-bw" x="-25%" y="-25%" width="60" height="60"></use>
-          </svg>
-          <svg data-type="#relief-swamp-3-bw" data-tip="Select Swamp icon" aria-hidden="true">
-            <use href="#relief-swamp-3-bw" x="-25%" y="-25%" width="60" height="60"></use>
-          </svg>
-          <svg data-type="#relief-cactus-1-bw" data-tip="Select Cactus icon" aria-hidden="true">
-            <use href="#relief-cactus-1-bw" x="-25%" y="-25%" width="60" height="60"></use>
-          </svg>
-          <svg data-type="#relief-cactus-2-bw" data-tip="Select Cactus icon" aria-hidden="true">
-            <use href="#relief-cactus-2-bw" x="-25%" y="-25%" width="60" height="60"></use>
-          </svg>
-          <svg data-type="#relief-cactus-3-bw" data-tip="Select Cactus icon" aria-hidden="true">
-            <use href="#relief-cactus-3-bw" x="-25%" y="-25%" width="60" height="60"></use>
-          </svg>
-          <svg data-type="#relief-deadTree-1-bw" data-tip="Select Dead Tree icon" aria-hidden="true">
-            <use href="#relief-deadTree-1-bw" x="-25%" y="-25%" width="60" height="60"></use>
-          </svg>
-          <svg data-type="#relief-deadTree-2-bw" data-tip="Select Dead Tree icon" aria-hidden="true">
-            <use href="#relief-deadTree-2-bw" x="-25%" y="-25%" width="60" height="60"></use>
-          </svg>
-        </div>
-
-        <svg id="reliefIconsSeletionAny" data-tip="Select any type of icons" aria-hidden="true">
-          <text x="50%" y="50%">
-            Any
-          </text>
-        </svg>
+        {mode === "bulkRemove" && (
+          <svg
+            id="reliefIconsSeletionAny"
+            data-tip="Select any type of icons"
+            aria-hidden="true"
+            className={selectedIconType === null ? "pressed" : undefined}
+            onClick={reliefEditorActions.selectAnyIcon}
+          >
+            <text x="50%" y="50%">
+              Any
+            </text>
+          </svg>
+        )}
       </div>
 
       <div id="reliefFooter">
         <button
           type="button"
-          id="reliefEditStyle"
           data-tip="Edit Relief Icons style in Style Editor"
           className="icon-adjust"
-        ></button>
-        <button type="button" id="reliefCopy" data-tip="Copy selected relief icon" className="icon-clone"></button>
+          onClick={reliefEditorActions.editStyle}
+        />
         <button
           type="button"
-          id="reliefMoveFront"
+          data-tip="Copy selected relief icon"
+          className="icon-clone"
+          onClick={reliefEditorActions.copyIcon}
+        />
+        <button
+          type="button"
           data-tip="Move selected relief icon to front"
           className="icon-level-up"
-        ></button>
+          onClick={reliefEditorActions.moveIconFront}
+        />
         <button
           type="button"
-          id="reliefMoveBack"
           data-tip="Move selected relief icon back"
           className="icon-level-down"
-        ></button>
+          onClick={reliefEditorActions.moveIconBack}
+        />
         <button
-          id="reliefRemove"
           data-tip="Remove selected relief icon or icon type"
           data-shortcut="Delete"
           className="icon-trash fastDelete"
           type="button"
-        ></button>
+          onClick={reliefEditorActions.removeIcon}
+        />
       </div>
     </Dialog>
   );

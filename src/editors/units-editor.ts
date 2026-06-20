@@ -9,8 +9,9 @@ import { Routes } from "../modules/routes-generator";
 import { drawTemperature } from "../renderers";
 import { drawScaleBar, fitScaleBar } from "../renderers/index";
 import { modules, rulers, setRulers } from "../store/editorState";
+import { getUnitsEditorState, setUnitsEditorState } from "../store/unitsEditorState";
 import { closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
-import { ensureEl, findCell, showPrompt } from "../utils";
+import { findCell, showPrompt } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
 import { clearMainTip, lock, tip, unlock } from "../utils/uiHelpers";
 
@@ -20,137 +21,133 @@ let appServices: AppServices;
 
 export function editUnits(): void {
   closeDialogs("#unitsEditor, .stable");
-  openDialog("unitsEditor");
-
-  if (modules.editUnits) return;
-  modules.editUnits = true;
+  setUnitsEditorState({ isOpen: true, rulerMode: "none" });
 
   openDialog("unitsEditor", {
     title: "Units Editor",
     position: { my: "right top", at: "right-10 top+10", of: "svg", collision: "fit" }
   });
 
-  const renderScaleBar = () => {
-    drawScaleBar(worldContext, viewContext, appServices, viewContext.scaleBar, viewContext.scale);
-    fitScaleBar(
-      worldContext,
-      viewContext,
-      appServices,
-      viewContext.scaleBar,
-      viewContext.svgWidth,
-      viewContext.svgHeight
-    );
-  };
+  modules.editUnits = true;
+}
 
-  // add listeners
-  ensureEl("distanceUnitInput").addEventListener("change", changeDistanceUnit);
-  ensureEl("distanceScaleInput").addEventListener("change", changeDistanceScale);
-  ensureEl("heightUnit").addEventListener("change", changeHeightUnit);
-  ensureEl("heightExponentInput").addEventListener("input", changeHeightExponent);
-  ensureEl("temperatureScale").addEventListener("change", changeTemperatureScale);
+const renderScaleBar = () => {
+  drawScaleBar(worldContext, viewContext, appServices, viewContext.scaleBar, viewContext.scale);
+  fitScaleBar(
+    worldContext,
+    viewContext,
+    appServices,
+    viewContext.scaleBar,
+    viewContext.svgWidth,
+    viewContext.svgHeight
+  );
+};
 
-  ensureEl("populationRateInput").addEventListener("change", changePopulationRate);
-  ensureEl("urbanizationInput").addEventListener("change", changeUrbanizationRate);
-  ensureEl("urbanDensityInput").addEventListener("change", changeUrbanDensity);
-
-  ensureEl("addLinearRuler").addEventListener("click", addRuler);
-  ensureEl("addOpisometer").addEventListener("click", toggleOpisometerMode);
-  ensureEl("addRouteOpisometer").addEventListener("click", toggleRouteOpisometerMode);
-  ensureEl("addPlanimeter").addEventListener("click", togglePlanimeterMode);
-  ensureEl("removeRulers").addEventListener("click", removeAllRulers);
-  ensureEl("unitsRestore").addEventListener("click", restoreDefaultUnits);
-
-  function changeDistanceUnit(this: HTMLSelectElement): void {
-    if (this.value === "custom_name") {
-      showPrompt("Provide a custom name for a distance unit", { default: "" }, value => {
-        const custom = String(value);
-        this.options.add(new Option(custom, custom, false, true));
+export const unitsEditorActions = {
+  changeDistanceUnit(value: string): void {
+    if (value === "custom_name") {
+      const select = document.getElementById("distanceUnitInput") as HTMLSelectElement;
+      showPrompt("Provide a custom name for a distance unit", { default: "" }, customValue => {
+        const custom = String(customValue);
+        select.options.add(new Option(custom, custom, false, true));
         lock("distanceUnit");
         renderScaleBar();
         calculateFriendlyGridSize();
       });
       return;
     }
-
     renderScaleBar();
     calculateFriendlyGridSize();
-  }
+  },
 
-  function changeDistanceScale(this: HTMLInputElement): void {
-    worldContext.distanceScale = +this.value;
+  changeDistanceScale(value: number): void {
+    worldContext.distanceScale = value;
     renderScaleBar();
     calculateFriendlyGridSize();
-  }
+  },
 
-  function changeHeightUnit(this: HTMLSelectElement): void {
-    if (this.value !== "custom_name") return;
-
-    showPrompt("Provide a custom name for a height unit", { default: "" }, value => {
-      const custom = String(value);
-      this.options.add(new Option(custom, custom, false, true));
+  changeHeightUnit(value: string): void {
+    if (value !== "custom_name") return;
+    const select = document.getElementById("heightUnit") as HTMLSelectElement;
+    showPrompt("Provide a custom name for a height unit", { default: "" }, customValue => {
+      const custom = String(customValue);
+      select.options.add(new Option(custom, custom, false, true));
       lock("heightUnit");
     });
-  }
+  },
 
-  function changeHeightExponent(): void {
+  changeHeightExponent(): void {
     document.dispatchEvent(new CustomEvent("fmg:world-recalculate", { detail: { temps: true } }));
     if (layerIsOn("toggleTemperature")) drawTemperature(worldContext, viewContext, appServices);
-  }
+  },
 
-  function changeTemperatureScale(): void {
+  changeTemperatureScale(): void {
     if (layerIsOn("toggleTemperature")) drawTemperature(worldContext, viewContext, appServices);
-  }
+  },
 
-  function changePopulationRate(this: HTMLInputElement): void {
-    worldContext.populationRate = +this.value;
-  }
+  changePopulationRate(value: number): void {
+    worldContext.populationRate = value;
+  },
 
-  function changeUrbanizationRate(this: HTMLInputElement): void {
-    worldContext.urbanization = +this.value;
-  }
+  changeUrbanizationRate(value: number): void {
+    worldContext.urbanization = value;
+  },
 
-  function changeUrbanDensity(this: HTMLInputElement): void {
-    worldContext.urbanDensity = +this.value;
-  }
+  changeUrbanDensity(value: number): void {
+    worldContext.urbanDensity = value;
+  },
 
-  function restoreDefaultUnits(): void {
+  restoreDefaultUnits(): void {
     worldContext.distanceScale = 3;
-    distanceScaleInput.value = String(worldContext.distanceScale);
+    const distanceScaleInput = document.getElementById("distanceScaleInput") as HTMLInputElement | null;
+    if (distanceScaleInput) distanceScaleInput.value = String(worldContext.distanceScale);
     unlock("distanceScale");
 
-    // units
     const US = navigator.language === "en-US";
     const UK = navigator.language === "en-GB";
-    distanceUnitInput.value = US || UK ? "mi" : "km";
-    heightUnit.value = US || UK ? "ft" : "m";
-    temperatureScale.value = US ? "°F" : "°C";
-    areaUnit.value = "square";
+    const distanceUnitInput = document.getElementById("distanceUnitInput") as HTMLSelectElement | null;
+    const heightUnit = document.getElementById("heightUnit") as HTMLSelectElement | null;
+    const temperatureScale = document.getElementById("temperatureScale") as HTMLSelectElement | null;
+    const areaUnit = document.getElementById("areaUnit") as HTMLInputElement | null;
+
+    if (distanceUnitInput) distanceUnitInput.value = US || UK ? "mi" : "km";
+    if (heightUnit) heightUnit.value = US || UK ? "ft" : "m";
+    if (temperatureScale) temperatureScale.value = US ? "°F" : "°C";
+    if (areaUnit) areaUnit.value = "square";
     localStorage.removeItem("distanceUnit");
     localStorage.removeItem("heightUnit");
     localStorage.removeItem("temperatureScale");
     localStorage.removeItem("areaUnit");
     calculateFriendlyGridSize();
 
-    // height exponent
-    heightExponentInput.value = "1.8";
+    const heightExponentInput = document.getElementById("heightExponentInput") as HTMLInputElement | null;
+    if (heightExponentInput) heightExponentInput.value = "1.8";
     localStorage.removeItem("heightExponent");
     document.dispatchEvent(new CustomEvent("fmg:world-recalculate", { detail: { temps: true } }));
 
     renderScaleBar();
 
-    // population
-    populationRateInput.value = "1000";
-    worldContext.populationRate = +populationRateInput.value;
-    urbanizationInput.value = "1";
-    worldContext.urbanization = +urbanizationInput.value;
-    urbanDensityInput.value = "10";
-    worldContext.urbanDensity = +urbanDensityInput.value;
+    const populationRateInput = document.getElementById("populationRateInput") as HTMLInputElement | null;
+    const urbanizationInput = document.getElementById("urbanizationInput") as HTMLInputElement | null;
+    const urbanDensityInput = document.getElementById("urbanDensityInput") as HTMLInputElement | null;
+    if (populationRateInput) {
+      populationRateInput.value = "1000";
+      worldContext.populationRate = 1000;
+    }
+    if (urbanizationInput) {
+      urbanizationInput.value = "1";
+      worldContext.urbanization = 1;
+    }
+    if (urbanDensityInput) {
+      urbanDensityInput.value = "10";
+      worldContext.urbanDensity = 10;
+    }
     localStorage.removeItem("populationRate");
     localStorage.removeItem("urbanization");
     localStorage.removeItem("urbanDensity");
-  }
+  },
 
-  function addRuler(): void {
+  addRuler(): void {
     if (!layerIsOn("toggleRulers")) toggleRulers();
 
     const width = Math.min(worldContext.graphWidth, viewContext.svgWidth);
@@ -165,142 +162,131 @@ export function editUnits(): void {
     const from: [number, number] = [(p.x - dx) | 0, (p.y + dy) | 0];
     const to: [number, number] = [(p.x + dx) | 0, (p.y + dy) | 0];
     rulers.create(Ruler, [from, to]).draw();
-  }
+  },
 
-  function toggleOpisometerMode(this: HTMLElement): void {
-    if (this.classList.contains("pressed")) {
+  toggleOpisometerMode(): void {
+    const { rulerMode } = getUnitsEditorState();
+    if (rulerMode === "opisometer") {
       restoreDefaultEvents?.();
       clearMainTip();
-      this.classList.remove("pressed");
-    } else {
-      if (!layerIsOn("toggleRulers")) toggleRulers();
-      tip("Draw a curve to measure length. Hold Shift to disallow path optimization", true);
-      unitsFooter.querySelectorAll(".pressed").forEach(b => {
-        b.classList.remove("pressed");
-      });
-      this.classList.add("pressed");
-      viewContext.viewbox.style("cursor", "crosshair").call(
-        drag<SVGGElement, unknown>().on(
-          "start",
-          function (this: SVGGElement, startEvent: D3DragEvent<SVGGElement, unknown, unknown>) {
-            const point = pointer(startEvent, this) as [number, number];
-            const opisometer = rulers.create(Opisometer, [point]).draw();
+      setUnitsEditorState({ rulerMode: "none" });
+      return;
+    }
+    if (!layerIsOn("toggleRulers")) toggleRulers();
+    tip("Draw a curve to measure length. Hold Shift to disallow path optimization", true);
+    setUnitsEditorState({ rulerMode: "opisometer" });
+    viewContext.viewbox.style("cursor", "crosshair").call(
+      drag<SVGGElement, unknown>().on(
+        "start",
+        function (this: SVGGElement, startEvent: D3DragEvent<SVGGElement, unknown, unknown>) {
+          const point = pointer(startEvent, this) as [number, number];
+          const opisometer = rulers.create(Opisometer, [point]).draw();
 
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          startEvent.on("drag", (event: D3DragEvent<SVGGElement, unknown, unknown>) => {
+            opisometer.addPoint(event, pointer(event, this) as [number, number]);
+          });
+
+          startEvent.on("end", (event: D3DragEvent<SVGGElement, unknown, unknown>) => {
+            restoreDefaultEvents?.();
+            clearMainTip();
+            setUnitsEditorState({ rulerMode: "none" });
+            if (opisometer.points.length < 2) rulers.remove(opisometer.id);
+            if (!event.sourceEvent.shiftKey) opisometer.optimize();
+          });
+        }
+      )
+    );
+  },
+
+  toggleRouteOpisometerMode(): void {
+    const { rulerMode } = getUnitsEditorState();
+    if (rulerMode === "routeOpisometer") {
+      restoreDefaultEvents?.();
+      clearMainTip();
+      setUnitsEditorState({ rulerMode: "none" });
+      return;
+    }
+    if (!layerIsOn("toggleRulers")) toggleRulers();
+    tip("Draw a curve along routes to measure length. Hold Shift to measure away from roads.", true);
+    setUnitsEditorState({ rulerMode: "routeOpisometer" });
+
+    viewContext.viewbox.style("cursor", "crosshair").call(
+      drag<SVGGElement, unknown>().on(
+        "start",
+        function (this: SVGGElement, startEvent: D3DragEvent<SVGGElement, unknown, unknown>) {
+          const cells = worldContext.pack.cells;
+          const burgs = worldContext.pack.burgs;
+          const point = pointer(startEvent, this) as [number, number];
+          const c = findCell(point[0], point[1]);
+
+          if (Routes.isConnected(c) || startEvent.sourceEvent.shiftKey) {
+            const b = cells.burg[c];
+            const x = b ? burgs[b].x : cells.p[c][0];
+            const y = b ? burgs[b].y : cells.p[c][1];
+            const routeOpisometer = rulers.create(RouteOpisometer, [[x, y]]).draw();
+
             startEvent.on("drag", (event: D3DragEvent<SVGGElement, unknown, unknown>) => {
-              opisometer.addPoint(event, pointer(event, this) as [number, number]);
+              const pt = pointer(event, this) as [number, number];
+              const ci = findCell(pt[0], pt[1]);
+              if (Routes.isConnected(ci) || event.sourceEvent.shiftKey) {
+                routeOpisometer.trackCell(ci, true);
+              }
             });
 
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            startEvent.on("end", (event: D3DragEvent<SVGGElement, unknown, unknown>) => {
+            startEvent.on("end", () => {
               restoreDefaultEvents?.();
               clearMainTip();
-              (document.getElementById("addOpisometer") as HTMLElement).classList.remove("pressed");
-              if (opisometer.points.length < 2) rulers.remove(opisometer.id);
-              if (!event.sourceEvent.shiftKey) opisometer.optimize();
+              setUnitsEditorState({ rulerMode: "none" });
+              if (routeOpisometer.points.length < 2) {
+                rulers.remove(routeOpisometer.id);
+              }
             });
+          } else {
+            restoreDefaultEvents?.();
+            clearMainTip();
+            setUnitsEditorState({ rulerMode: "none" });
+            tip("Must start in a cell with a route in it", false, "error");
           }
-        )
-      );
-    }
-  }
+        }
+      )
+    );
+  },
 
-  function toggleRouteOpisometerMode(this: HTMLElement): void {
-    if (this.classList.contains("pressed")) {
+  togglePlanimeterMode(): void {
+    const { rulerMode } = getUnitsEditorState();
+    if (rulerMode === "planimeter") {
       restoreDefaultEvents?.();
       clearMainTip();
-      this.classList.remove("pressed");
-    } else {
-      if (!layerIsOn("toggleRulers")) toggleRulers();
-      tip("Draw a curve along routes to measure length. Hold Shift to measure away from roads.", true);
-      unitsFooter.querySelectorAll(".pressed").forEach(b => {
-        b.classList.remove("pressed");
-      });
-      this.classList.add("pressed");
-
-      viewContext.viewbox.style("cursor", "crosshair").call(
-        drag<SVGGElement, unknown>().on(
-          "start",
-          function (this: SVGGElement, startEvent: D3DragEvent<SVGGElement, unknown, unknown>) {
-            const cells = worldContext.pack.cells;
-            const burgs = worldContext.pack.burgs;
-            const point = pointer(startEvent, this) as [number, number];
-            const c = findCell(point[0], point[1]);
-
-            if (Routes.isConnected(c) || startEvent.sourceEvent.shiftKey) {
-              const b = cells.burg[c];
-              const x = b ? burgs[b].x : cells.p[c][0];
-              const y = b ? burgs[b].y : cells.p[c][1];
-              const routeOpisometer = rulers.create(RouteOpisometer, [[x, y]]).draw();
-
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              startEvent.on("drag", (event: D3DragEvent<SVGGElement, unknown, unknown>) => {
-                const pt = pointer(event, this) as [number, number];
-                const ci = findCell(pt[0], pt[1]);
-                if (Routes.isConnected(ci) || event.sourceEvent.shiftKey) {
-                  routeOpisometer.trackCell(ci, true);
-                }
-              });
-
-              startEvent.on("end", () => {
-                restoreDefaultEvents?.();
-                clearMainTip();
-                (document.getElementById("addRouteOpisometer") as HTMLElement).classList.remove("pressed");
-                if (routeOpisometer.points.length < 2) {
-                  rulers.remove(routeOpisometer.id);
-                }
-              });
-            } else {
-              restoreDefaultEvents?.();
-              clearMainTip();
-              (document.getElementById("addRouteOpisometer") as HTMLElement).classList.remove("pressed");
-              tip("Must start in a cell with a route in it", false, "error");
-            }
-          }
-        )
-      );
+      setUnitsEditorState({ rulerMode: "none" });
+      return;
     }
-  }
+    if (!layerIsOn("toggleRulers")) toggleRulers();
+    tip("Draw a curve to measure its area. Hold Shift to disallow path optimization", true);
+    setUnitsEditorState({ rulerMode: "planimeter" });
+    viewContext.viewbox.style("cursor", "crosshair").call(
+      drag<SVGGElement, unknown>().on(
+        "start",
+        function (this: SVGGElement, startEvent: D3DragEvent<SVGGElement, unknown, unknown>) {
+          const point = pointer(startEvent, this) as [number, number];
+          const planimeter = rulers.create(Planimeter, [point]).draw();
 
-  function togglePlanimeterMode(this: HTMLElement): void {
-    if (this.classList.contains("pressed")) {
-      restoreDefaultEvents?.();
-      clearMainTip();
-      this.classList.remove("pressed");
-    } else {
-      if (!layerIsOn("toggleRulers")) toggleRulers();
-      tip("Draw a curve to measure its area. Hold Shift to disallow path optimization", true);
-      unitsFooter.querySelectorAll(".pressed").forEach(b => {
-        b.classList.remove("pressed");
-      });
-      this.classList.add("pressed");
-      viewContext.viewbox.style("cursor", "crosshair").call(
-        drag<SVGGElement, unknown>().on(
-          "start",
-          function (this: SVGGElement, startEvent: D3DragEvent<SVGGElement, unknown, unknown>) {
-            const point = pointer(startEvent, this) as [number, number];
-            const planimeter = rulers.create(Planimeter, [point]).draw();
+          startEvent.on("drag", (event: D3DragEvent<SVGGElement, unknown, unknown>) => {
+            planimeter.addPoint(event, pointer(event, this) as [number, number]);
+          });
 
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            startEvent.on("drag", (event: D3DragEvent<SVGGElement, unknown, unknown>) => {
-              planimeter.addPoint(event, pointer(event, this) as [number, number]);
-            });
+          startEvent.on("end", (event: D3DragEvent<SVGGElement, unknown, unknown>) => {
+            restoreDefaultEvents?.();
+            clearMainTip();
+            setUnitsEditorState({ rulerMode: "none" });
+            if (planimeter.points.length < 3) rulers.remove(planimeter.id);
+            else if (!event.sourceEvent.shiftKey) planimeter.optimize();
+          });
+        }
+      )
+    );
+  },
 
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            startEvent.on("end", (event: D3DragEvent<SVGGElement, unknown, unknown>) => {
-              restoreDefaultEvents?.();
-              clearMainTip();
-              (document.getElementById("addPlanimeter") as HTMLElement).classList.remove("pressed");
-              if (planimeter.points.length < 3) rulers.remove(planimeter.id);
-              else if (!event.sourceEvent.shiftKey) planimeter.optimize();
-            });
-          }
-        )
-      );
-    }
-  }
-
-  function removeAllRulers(): void {
+  removeAllRulers(): void {
     if (!rulers.data.length) return;
     alertMessage.innerHTML = /* html */ ` Are you sure you want to remove all placed rulers?
       <br />If you just want to hide rulers, toggle the Rulers layer off in Menu`;
@@ -310,17 +296,14 @@ export function editUnits(): void {
       title: "Remove all rulers",
       buttons: {
         Remove: () => {
-          /* $(this).dialog("close") removed */
           rulers.undraw();
           setRulers(new Rulers());
         },
-        Cancel: () => {
-          /* $(this).dialog("close") removed */
-        }
+        Cancel: () => {}
       }
     });
   }
-}
+};
 
 export function initUnitsEditor(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {
   worldContext = wc;

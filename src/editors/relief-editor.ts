@@ -6,6 +6,8 @@ import { moveCircle, removeCircle, restoreDefaultEvents, unselect } from "../con
 import { layerIsOn, toggleRelief } from "../controllers/layers";
 import { editStyle } from "../controllers/style";
 import { elSelected, modules, setElSelected } from "../store/editorState";
+import type { ReliefIconSet } from "../store/reliefEditorState";
+import { getReliefEditorState, setReliefEditorState } from "../store/reliefEditorState";
 import { closeDialog, closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { findAllInQuadtree, findCell, rn } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
@@ -18,13 +20,15 @@ interface DragAddState {
   size: number;
   tree: Quadtree<number[]>;
   positions: number[];
-  el: SVGElement;
 }
 
 interface DragRemoveState {
   r: number;
   tree: Quadtree<[number, number, SVGUseElement]>;
 }
+
+let d3DragAddState: DragAddState | null = null;
+let d3DragRemoveState: DragRemoveState | null = null;
 
 export function editReliefIcon(clickedEl?: Element): void {
   if (viewContext.customization) return;
@@ -49,9 +53,10 @@ export function editReliefIcon(clickedEl?: Element): void {
     .classed("draggable", true);
   setElSelected(select(clickedEl ?? (document.querySelector("#terrain use") as Element)));
 
-  restoreEditMode();
   updateReliefIconSelected();
   updateReliefSizeInput();
+
+  setReliefEditorState({ isOpen: true, mode: "individual" });
 
   openDialog("reliefEditor", {
     title: "Edit Relief Icons",
@@ -61,101 +66,72 @@ export function editReliefIcon(clickedEl?: Element): void {
     close: closeReliefEditor
   });
 
-  if (modules.editReliefIcon) return;
   modules.editReliefIcon = true;
+}
 
-  // add listeners
-  document.getElementById("reliefIndividual")!.addEventListener("click", enterIndividualMode);
-  document.getElementById("reliefBulkAdd")!.addEventListener("click", enterBulkAddMode);
-  document.getElementById("reliefBulkRemove")!.addEventListener("click", enterBulkRemoveMode);
+function updateReliefIconSelected(): void {
+  const type = elSelected!.attr("href") || elSelected!.attr("data-type");
+  const button = document.querySelector(`#reliefIconsDiv svg[data-type='${type}']`) as SVGElement | null;
+  if (!button) return;
+  const iconSet = (button.parentNode as HTMLElement).dataset.type as ReliefIconSet;
+  setReliefEditorState({ selectedIconType: type, iconSet });
+}
 
-  document.getElementById("reliefSize")!.addEventListener("input", changeIconSize);
-  document.getElementById("reliefSizeNumber")!.addEventListener("input", changeIconSize);
-  document.getElementById("reliefEditorSet")!.addEventListener("change", changeIconsSet);
-  reliefIconsDiv.querySelectorAll("svg").forEach(el => {
-    el.addEventListener("click", changeIcon);
-  });
+function updateReliefSizeInput(): void {
+  const size = +elSelected!.attr("width");
+  setReliefEditorState({ size: rn(size) });
+}
 
-  document.getElementById("reliefEditStyle")!.addEventListener("click", () => editStyle("terrain"));
-  document.getElementById("reliefCopy")!.addEventListener("click", copyIcon);
-  document.getElementById("reliefMoveFront")!.addEventListener("click", () => elSelected!.raise());
-  document.getElementById("reliefMoveBack")!.addEventListener("click", () => elSelected!.lower());
-  document.getElementById("reliefRemove")!.addEventListener("click", removeIcon);
+function moveBrush(this: SVGElement, event: MouseEvent): void {
+  showMainTip();
+  const pt = pointer(event, this) as [number, number];
+  const radius = getReliefEditorState().radius;
+  moveCircle(pt[0], pt[1], radius);
+}
 
-  function restoreEditMode(): void {
-    if (!reliefTools.querySelector("button.pressed")) enterIndividualMode();
-    else if (reliefBulkAdd.classList.contains("pressed")) enterBulkAddMode();
-    else if (reliefBulkRemove.classList.contains("pressed")) enterBulkRemoveMode();
-  }
+function closeReliefEditor(): void {
+  viewContext.terrain
+    .selectAll<SVGUseElement, unknown>("use")
+    .call(drag<SVGUseElement, unknown>().on("drag", null))
+    .classed("draggable", false);
+  removeCircle();
+  unselect();
+  clearMainTip();
+  setReliefEditorState({ isOpen: false });
+}
 
-  function updateReliefIconSelected(): void {
-    const type = elSelected!.attr("href") || elSelected!.attr("data-type");
-    const button = reliefIconsDiv.querySelector(`svg[data-type='${type}']`) as SVGElement;
-
-    reliefIconsDiv.querySelectorAll("svg.pressed").forEach(b => {
-      b.classList.remove("pressed");
-    });
-    button.classList.add("pressed");
-    reliefIconsDiv.querySelectorAll("div").forEach(b => {
-      (b as HTMLElement).style.display = "none";
-    });
-    (button.parentNode as HTMLElement).style.display = "block";
-    reliefEditorSet.value = (button.parentNode as HTMLElement).dataset.type!;
-  }
-
-  function updateReliefSizeInput(): void {
-    const size = +elSelected!.attr("width");
-    reliefSize.value = reliefSizeNumber.value = String(rn(size));
-  }
-
-  function enterIndividualMode(): void {
-    reliefTools.querySelectorAll("button.pressed").forEach(b => {
-      b.classList.remove("pressed");
-    });
-    reliefIndividual.classList.add("pressed");
-
-    (document.getElementById("reliefSizeDiv") as HTMLElement).style.display = "block";
-    (document.getElementById("reliefRadiusDiv") as HTMLElement).style.display = "none";
-    (document.getElementById("reliefSpacingDiv") as HTMLElement).style.display = "none";
-    reliefIconsSeletionAny.style.display = "none";
-
+export const reliefEditorActions = {
+  enterIndividualMode(): void {
+    setReliefEditorState({ mode: "individual" });
     removeCircle();
     updateReliefSizeInput();
     restoreDefaultEvents?.();
     clearMainTip();
-  }
+  },
 
-  function enterBulkAddMode(): void {
-    reliefTools.querySelectorAll("button.pressed").forEach(b => {
-      b.classList.remove("pressed");
-    });
-    reliefBulkAdd.classList.add("pressed");
-
-    (document.getElementById("reliefSizeDiv") as HTMLElement).style.display = "block";
-    (document.getElementById("reliefRadiusDiv") as HTMLElement).style.display = "block";
-    (document.getElementById("reliefSpacingDiv") as HTMLElement).style.display = "block";
-    reliefIconsSeletionAny.style.display = "none";
-
-    const pressedType = reliefIconsDiv.querySelector("svg.pressed") as SVGElement;
-    if (pressedType.id === "reliefIconsSeletionAny") {
-      reliefIconsSeletionAny.classList.remove("pressed");
-      (reliefIconsDiv.querySelector("svg") as SVGElement).classList.add("pressed");
-    }
+  enterBulkAddMode(): void {
+    const state = getReliefEditorState();
+    // If "any" icon was selected (only valid in bulkRemove), switch to first icon in current set
+    const newSelectedType =
+      state.selectedIconType === null
+        ? ((
+            document.querySelector(
+              `#reliefIconsDiv div[data-type='${state.iconSet}'] svg:first-child`
+            ) as SVGElement | null
+          )?.dataset.type ?? null)
+        : state.selectedIconType;
+    setReliefEditorState({ mode: "bulkAdd", selectedIconType: newSelectedType });
 
     viewContext.viewbox
       .style("cursor", "crosshair")
       .call(
         drag<SVGGElement, unknown>()
-          .on("start", function (this: SVGElement, _startEvent: D3DragEvent<SVGElement, unknown, unknown>) {
-            const pressed = reliefIconsDiv.querySelector("svg.pressed") as SVGElement | null;
-            if (!pressed) {
+          .on("start", function (this: SVGElement) {
+            const { selectedIconType, radius, spacing, size } = getReliefEditorState();
+            if (!selectedIconType) {
               tip("Please select an icon", false, "error");
               return;
             }
-            const type = pressed.dataset.type!;
-            const r = +reliefRadiusNumber.value;
-            const spacing = +reliefSpacingNumber.value;
-            const size = +reliefSizeNumber.value;
             const tree = quadtree<number[]>();
             const positions: number[] = [];
             viewContext.terrain.selectAll<SVGUseElement, unknown>("use").each(function (this: SVGUseElement) {
@@ -165,8 +141,7 @@ export function editReliefIcon(clickedEl?: Element): void {
               const box = this.getBBox();
               positions.push(box.y + box.height);
             });
-
-            d3DragAddState = { type, r, spacing, size, tree, positions, el: this };
+            d3DragAddState = { type: selectedIconType, r: radius, spacing, size, tree, positions };
           })
           .on("drag", function (this: SVGElement, event: D3DragEvent<SVGElement, unknown, unknown>) {
             if (!d3DragAddState) return;
@@ -201,42 +176,19 @@ export function editReliefIcon(clickedEl?: Element): void {
       )
       .on("touchmove mousemove", moveBrush);
     tip("Drag to place relief icons within radius", true);
-  }
+  },
 
-  let d3DragAddState: DragAddState | null = null;
-
-  function moveBrush(this: SVGElement, event: MouseEvent): void {
-    showMainTip();
-    const pt = pointer(event, this) as [number, number];
-    const radius = +reliefRadiusNumber.value;
-    moveCircle(pt[0], pt[1], radius);
-  }
-
-  function enterBulkRemoveMode(): void {
-    reliefTools.querySelectorAll("button.pressed").forEach(b => {
-      b.classList.remove("pressed");
-    });
-    reliefBulkRemove.classList.add("pressed");
-
-    (document.getElementById("reliefSizeDiv") as HTMLElement).style.display = "none";
-    (document.getElementById("reliefRadiusDiv") as HTMLElement).style.display = "block";
-    (document.getElementById("reliefSpacingDiv") as HTMLElement).style.display = "none";
-    reliefIconsSeletionAny.style.display = "inline-block";
+  enterBulkRemoveMode(): void {
+    setReliefEditorState({ mode: "bulkRemove" });
 
     viewContext.viewbox
       .style("cursor", "crosshair")
       .call(
         drag<SVGGElement, unknown>()
           .on("start", function (this: SVGElement) {
-            const pressed = reliefIconsDiv.querySelector("svg.pressed") as SVGElement | null;
-            if (!pressed) {
-              tip("Please select an icon", false, "error");
-              return;
-            }
-            const r = +reliefRadiusNumber.value;
-            const type = pressed.dataset.type;
-            const icons = type
-              ? viewContext.terrain.selectAll<SVGUseElement, unknown>(`use[href='${type}']`)
+            const { selectedIconType, radius } = getReliefEditorState();
+            const icons = selectedIconType
+              ? viewContext.terrain.selectAll<SVGUseElement, unknown>(`use[href='${selectedIconType}']`)
               : viewContext.terrain.selectAll<SVGUseElement, unknown>("use");
             const tree = quadtree<[number, number, SVGUseElement]>();
             icons.each(function (this: SVGUseElement) {
@@ -244,7 +196,7 @@ export function editReliefIcon(clickedEl?: Element): void {
               const y = +this.getAttribute("y")! + +this.getAttribute("height")! / 2;
               tree.add([x, y, this]);
             });
-            d3DragRemoveState = { r, tree };
+            d3DragRemoveState = { r: radius, tree };
           })
           .on("drag", function (this: SVGElement, event: D3DragEvent<SVGElement, unknown, unknown>) {
             if (!d3DragRemoveState) return;
@@ -258,75 +210,82 @@ export function editReliefIcon(clickedEl?: Element): void {
       )
       .on("touchmove mousemove", moveBrush);
     tip("Drag to remove relief icons in radius", true);
-  }
+  },
 
-  let d3DragRemoveState: DragRemoveState | null = null;
+  changeIconSet(iconSet: ReliefIconSet): void {
+    setReliefEditorState({ iconSet });
+  },
 
-  function changeIconSize(this: HTMLInputElement): void {
-    reliefSizeNumber.value = this.value;
-    reliefSize.value = this.value;
-    const size = +this.value;
-    if (!reliefIndividual.classList.contains("pressed")) return;
-
-    const shift = (size - +elSelected!.attr("width")) / 2;
-    elSelected!.attr("width", size).attr("height", size);
+  changeIconSize(value: number): void {
+    const { mode } = getReliefEditorState();
+    setReliefEditorState({ size: value });
+    if (mode !== "individual") return;
+    const shift = (value - +elSelected!.attr("width")) / 2;
+    elSelected!.attr("width", value).attr("height", value);
     const x = +elSelected!.attr("x");
     const y = +elSelected!.attr("y");
     elSelected!.attr("x", x - shift).attr("y", y - shift);
-  }
+  },
 
-  function changeIconsSet(this: HTMLSelectElement): void {
-    const set = this.value;
-    reliefIconsDiv.querySelectorAll("div").forEach(b => {
-      (b as HTMLElement).style.display = "none";
-    });
-    (reliefIconsDiv.querySelector(`div[data-type='${set}']`) as HTMLElement).style.display = "block";
-  }
+  changeRadius(value: number): void {
+    setReliefEditorState({ radius: value });
+  },
 
-  function changeIcon(this: SVGElement): void {
-    if (this.classList.contains("pressed")) return;
+  changeSpacing(value: number): void {
+    setReliefEditorState({ spacing: value });
+  },
 
-    reliefIconsDiv.querySelectorAll("svg.pressed").forEach(b => {
-      b.classList.remove("pressed");
-    });
-    this.classList.add("pressed");
-
-    if (reliefIndividual.classList.contains("pressed")) {
-      const type = this.dataset.type!;
+  changeIcon(type: string): void {
+    const { mode } = getReliefEditorState();
+    setReliefEditorState({ selectedIconType: type });
+    if (mode === "individual") {
       elSelected!.attr("href", type);
     }
-  }
+  },
 
-  function copyIcon(): void {
+  selectAnyIcon(): void {
+    setReliefEditorState({ selectedIconType: null });
+  },
+
+  copyIcon(): void {
     const parent = elSelected!.node()!.parentNode as Element;
     const copy = elSelected!.node()!.cloneNode(true) as SVGUseElement;
-
     let x = +elSelected!.attr("x") - 3;
     let y = +elSelected!.attr("y") - 3;
     while (parent.querySelector(`[x='${x}']`)) {
       x -= 3;
       y -= 3;
     }
-
     copy.setAttribute("x", String(x));
     copy.setAttribute("y", String(y));
     parent.insertBefore(copy, null);
-  }
+  },
 
-  function removeIcon(): void {
+  moveIconFront(): void {
+    elSelected!.raise();
+  },
+
+  moveIconBack(): void {
+    elSelected!.lower();
+  },
+
+  editStyle(): void {
+    editStyle("terrain");
+  },
+
+  removeIcon(): void {
+    const { mode, selectedIconType } = getReliefEditorState();
     let selection: { remove(): unknown; size(): number } | null = null;
-    const pressed = reliefTools.querySelector("button.pressed") as HTMLButtonElement;
-    if (pressed.id === "reliefIndividual") {
+    if (mode === "individual") {
       alertMessage.innerHTML = "Are you sure you want to remove the icon?";
       selection = elSelected;
     } else {
-      const type = (reliefIconsDiv.querySelector("svg.pressed") as SVGElement)?.dataset.type;
-      selection = type
-        ? viewContext.terrain.selectAll<SVGUseElement, unknown>(`use[href='${type}']`)
+      selection = selectedIconType
+        ? viewContext.terrain.selectAll<SVGUseElement, unknown>(`use[href='${selectedIconType}']`)
         : viewContext.terrain.selectAll<SVGUseElement, unknown>("use");
       const size = selection.size();
-      alertMessage.innerHTML = type
-        ? `Are you sure you want to remove all ${type} icons (${size})?`
+      alertMessage.innerHTML = selectedIconType
+        ? `Are you sure you want to remove all ${selectedIconType} icons (${size})?`
         : `Are you sure you want to remove all icons (${size})?`;
     }
 
@@ -337,23 +296,10 @@ export function editReliefIcon(clickedEl?: Element): void {
       buttons: {
         Remove: () => {
           if (selection) selection.remove();
-          /* $(this).dialog("close") removed */
           closeDialog("reliefEditor");
         },
-        Cancel: () => {
-          /* $(this).dialog("close") removed */
-        }
+        Cancel: () => {}
       }
     });
   }
-
-  function closeReliefEditor(): void {
-    viewContext.terrain
-      .selectAll<SVGUseElement, unknown>("use")
-      .call(drag<SVGUseElement, unknown>().on("drag", null))
-      .classed("draggable", false);
-    removeCircle();
-    unselect();
-    clearMainTip();
-  }
-}
+};
