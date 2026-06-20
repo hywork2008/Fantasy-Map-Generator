@@ -1,14 +1,15 @@
-import { appServices } from "../../context/appServices";
-import { viewContext } from "../../context/viewContext";
-import { layerIsOn } from "../../controllers/layers";
-import { shieldBox } from "./box";
-import { colors } from "./colors";
-import { lines } from "./lines";
-import { shieldPaths } from "./paths";
-import { patterns } from "./patterns";
-import { shieldPositions } from "./shieldPositions";
-import { shieldSize } from "./size";
-import { templates } from "./templates";
+import { appServices } from "../context/appServices";
+import { viewContext } from "../context/viewContext";
+import { layerIsOn } from "../controllers/layers";
+import { shieldBox } from "../modules/emblem/box";
+import { colors } from "../modules/emblem/colors";
+import { lines } from "../modules/emblem/lines";
+import { shieldPaths } from "../modules/emblem/paths";
+import { patterns } from "../modules/emblem/patterns";
+import { shieldPositions } from "../modules/emblem/shieldPositions";
+import { shieldSize } from "../modules/emblem/size";
+import { templates } from "../modules/emblem/templates";
+import { ERROR } from "../utils/debug";
 
 interface Division {
   division: string;
@@ -296,7 +297,6 @@ class EmblemRenderModule {
         <g clip-path="url(#${shield}_${id})">${field}${divisionGroup}${templateAboveAll()}</g>
         ${overlay}</svg>`;
 
-    // biome-ignore lint/style/noRestrictedGlobals: COA insertion into #coas pending move to renderers layer
     document.getElementById("coas")!.insertAdjacentHTML("beforeend", svg);
     return true;
   }
@@ -305,7 +305,6 @@ class EmblemRenderModule {
   async trigger(id: string, coa: Emblem) {
     if (!coa) return console.warn(`Emblem ${id} is undefined`);
     if (coa.custom) return console.warn("Cannot render custom emblem", coa);
-    // biome-ignore lint/style/noRestrictedGlobals: COA existence check pending move to renderers layer
     if (!document.getElementById(id)) return this.draw(id, coa);
   }
 

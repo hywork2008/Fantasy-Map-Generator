@@ -3,17 +3,17 @@ import { MapControls } from "three/examples/jsm/controls/MapControls.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { OBJExporter } from "three/examples/jsm/exporters/OBJExporter.js";
 import { LoopSubdivision } from "three-subdivide";
-import { layerIsOn } from "./layers";
+import { layerIsOn } from "../controllers/layers";
 
 THREE.ColorManagement.enabled = false;
 
 import { cloudImage } from "../assets/cloud-image";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
+import { downloadFile, getFileName } from "../controllers/editors";
 import { getMapURL } from "../io/export";
 import { rn, throttle } from "../utils";
 import { tip } from "../utils/uiHelpers";
-import { downloadFile, getFileName } from "./editors";
 
 interface ThreeDOptions {
   scale: number;
@@ -41,10 +41,6 @@ interface TimeOfDayPreset {
   lightness: number;
   skyColor: string;
   waterColor: string;
-}
-
-declare global {
-  var ThreeD: ThreeDModule;
 }
 
 type LabelSprite = THREE.Sprite & { size: number };
@@ -844,5 +840,4 @@ interface ThreeDAPI {
   saveScreenshot: () => Promise<void>;
   saveOBJ: () => void;
 }
-
-window.ThreeD = new ThreeDModule();
+export const ThreeDRenderer = new ThreeDModule();

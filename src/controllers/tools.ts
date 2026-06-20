@@ -20,7 +20,6 @@ import type { Burg } from "../modules/burgs-generator";
 import { Burgs } from "../modules/burgs-generator";
 import { Cultures } from "../modules/cultures-generator";
 import { COA } from "../modules/emblem/generator";
-import { COArenderer } from "../modules/emblem/renderer";
 import { Features } from "../modules/features";
 import { Ice } from "../modules/ice";
 import { Lakes } from "../modules/lakes";
@@ -58,6 +57,7 @@ import {
   StatesRenderer,
   ZonesRenderer
 } from "../renderers";
+import { COArenderer } from "../renderers/emblem-renderer";
 import { drawMarker } from "../renderers/index";
 import { useOptionsState } from "../store/optionsState";
 import type { WorldNote } from "../types/WorldState";

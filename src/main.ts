@@ -45,6 +45,7 @@ import { States } from "./modules/states-generator";
 import { Zones } from "./modules/zones-generator";
 import { renderGroupCOAs } from "./renderers/draw-emblems";
 import { CoordinatesRenderer, drawScaleBar, fitScaleBar } from "./renderers/index";
+import { ThreeDRenderer } from "./renderers/three-d-renderer";
 import { useOptionsState } from "./store/optionsState";
 import {
   TYPED_ARRAY_MAX_VALUES as _TMP,
@@ -1743,7 +1744,7 @@ export const regenerateMap = debounce(async (opts?: { seed?: string } | string) 
   undraw();
   await generate(typeof opts === "string" ? { seed: opts } : opts);
   drawLayers();
-  if (ThreeD.options.isOn) ThreeD.redraw();
+  if (ThreeDRenderer.options.isOn) ThreeDRenderer.redraw();
   if (document.getElementById("worldConfigurator") !== null) editWorld();
 
   fitMapToScreen();

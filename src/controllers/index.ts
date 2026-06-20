@@ -48,11 +48,11 @@ import "../editors/emblems-editor";
 import { initDiplomacyEditor } from "../editors/diplomacy-editor";
 import { initMilitaryOverview } from "./military-overview";
 import "./burgs-overview";
-import { initBattleScreen } from "./battle-screen";
-import "./3d";
+
 import { initCulturesEditor } from "../editors/cultures-editor";
 import { initReligionsEditor } from "../editors/religions-editor";
 import { initStatesEditor } from "../editors/states-editor";
+import { initBattleScreen } from "./battle-screen";
 import { initChartsOverview } from "./charts-overview";
 import { initHeightmapSelection } from "./heightmap-selection";
 

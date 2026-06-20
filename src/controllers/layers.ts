@@ -39,6 +39,7 @@ let appServices: AppServices;
 // Layer presets: map preset name → list of toggle button IDs that should be ON
 let presets: Record<string, string[]> = {};
 
+import { ThreeDRenderer } from "../renderers/three-d-renderer";
 import { DEFAULT_LAYERS, useLayerState } from "../store/layerState";
 import { tip } from "../utils/uiHelpers";
 
@@ -207,7 +208,7 @@ export function handleLayersPresetChange(preset: string): void {
   });
 
   // Re-render 3D texture after SVG layer changes have been painted
-  if (ThreeD.options.isOn) requestAnimationFrame(() => ThreeD.update());
+  if (ThreeDRenderer.options.isOn) requestAnimationFrame(() => ThreeDRenderer.update());
 }
 
 export function savePreset(): void {

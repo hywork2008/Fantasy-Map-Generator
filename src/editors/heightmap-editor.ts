@@ -49,6 +49,7 @@ import { States } from "../modules/states-generator";
 import type { Zone } from "../modules/zones-generator";
 import { Zones } from "../modules/zones-generator";
 import { FeaturesRenderer } from "../renderers";
+import { ThreeDRenderer } from "../renderers/three-d-renderer";
 import { useOptionsState } from "../store/optionsState";
 import { closeDialog, closeDialogs, isDialogOpen, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import {
@@ -626,7 +627,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     if (!noStat) {
       updateStatistics();
       if (document.getElementById("preview")) drawHeightmapPreview();
-      if (document.getElementById("canvas3d")) ThreeD.redraw();
+      if (document.getElementById("canvas3d")) ThreeDRenderer.redraw();
     }
   }
 
@@ -639,7 +640,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     mockHeightmap();
     updateStatistics();
     if (document.getElementById("preview")) drawHeightmapPreview();
-    if (document.getElementById("canvas3d")) ThreeD.redraw();
+    if (document.getElementById("canvas3d")) ThreeDRenderer.redraw();
   }
 
   function redoHistory(): void {
@@ -651,7 +652,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     mockHeightmap();
     updateStatistics();
     if (document.getElementById("preview")) drawHeightmapPreview();
-    if (document.getElementById("canvas3d")) ThreeD.redraw();
+    if (document.getElementById("canvas3d")) ThreeDRenderer.redraw();
   }
 
   function restartHistory(): void {
@@ -1265,7 +1266,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       updateStatistics();
       mockHeightmap();
       if (document.getElementById("preview")) drawHeightmapPreview();
-      if (document.getElementById("canvas3d")) ThreeD.redraw();
+      if (document.getElementById("canvas3d")) ThreeDRenderer.redraw();
     }
 
     function downloadTemplate(): void {

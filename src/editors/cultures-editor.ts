@@ -33,11 +33,11 @@ import { type HierarchyElement, open as openHierarchyTree } from "../controllers
 import type { Culture } from "../modules/cultures-generator";
 import { Cultures } from "../modules/cultures-generator";
 import { COA } from "../modules/emblem/generator";
-import { COArenderer } from "../modules/emblem/renderer";
 import type { NameBase } from "../modules/names-generator";
 import type { Province } from "../modules/provinces-generator";
 import type { State } from "../modules/states-generator";
 import { CulturesRenderer, PopulationRenderer } from "../renderers";
+import { COArenderer } from "../renderers/emblem-renderer";
 import { abbreviate, capitalize, debounce, ensureEl, findAll, findCell, isLand, rn, si } from "../utils";
 import { getPackPolygon } from "../utils/graphUtils";
 
@@ -486,7 +486,7 @@ function cultureChangeEmblemsShape(this: HTMLSelectElement): void {
     const $coa = document.getElementById(id);
     if (!$coa) return;
     $coa.remove();
-    COArenderer.trigger(id, coa as import("../modules/emblem/renderer").Emblem);
+    COArenderer.trigger(id, coa as import("../renderers/emblem-renderer").Emblem);
   };
 
   worldContext.pack.states.forEach((state: State) => {

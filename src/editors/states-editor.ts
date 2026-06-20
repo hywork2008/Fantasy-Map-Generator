@@ -31,8 +31,6 @@ import type { Burg } from "../modules/burgs-generator";
 import { Burgs } from "../modules/burgs-generator";
 import type { Culture } from "../modules/cultures-generator";
 import { COA } from "../modules/emblem/generator";
-import type { Emblem as RendererEmblem } from "../modules/emblem/renderer";
-import { COArenderer } from "../modules/emblem/renderer";
 import type { MilitaryRegiment } from "../modules/military-generator";
 import { Names } from "../modules/names-generator";
 import type { Province } from "../modules/provinces-generator";
@@ -51,6 +49,8 @@ import {
   ProvincesRenderer,
   StatesRenderer
 } from "../renderers";
+import type { Emblem as RendererEmblem } from "../renderers/emblem-renderer";
+import { COArenderer } from "../renderers/emblem-renderer";
 import { useOptionsState } from "../store/optionsState";
 import type { WorldNote } from "../types/WorldState";
 import { closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";

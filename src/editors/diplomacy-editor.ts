@@ -17,9 +17,9 @@ import {
   toggleStates
 } from "../controllers/layers";
 import { editStyle } from "../controllers/style";
-import { COArenderer } from "../modules/emblem/renderer";
 import { States } from "../modules/states-generator";
 import { StatesRenderer } from "../renderers";
+import { COArenderer } from "../renderers/emblem-renderer";
 import { closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { findCell, getAdjective } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";

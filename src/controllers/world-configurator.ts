@@ -17,6 +17,7 @@ import {
   PrecipitationRenderer,
   RiversRenderer
 } from "../renderers";
+import { ThreeDRenderer } from "../renderers/three-d-renderer";
 import { openDialog } from "../ui/dialogs/dialogService";
 import { convertTemperature, debounce, ensureEl, parseTransform, rn, round } from "../utils";
 import { lock } from "../utils/uiHelpers";
@@ -109,7 +110,7 @@ export function editWorld(): void {
     if (layerIsOn("toggleBiomes")) BiomesRenderer.render(worldContext, viewContext, appServices);
     if (layerIsOn("toggleCoordinates")) CoordinatesRenderer.render(worldContext, viewContext, appServices);
     if (layerIsOn("toggleRivers")) RiversRenderer.render(worldContext, viewContext, appServices);
-    if (ThreeD.options.isOn) requestAnimationFrame(() => ThreeD.update());
+    if (ThreeDRenderer.options.isOn) requestAnimationFrame(() => ThreeDRenderer.update());
   }
 
   function updateGlobePosition(): void {
