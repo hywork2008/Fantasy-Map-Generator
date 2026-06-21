@@ -1,6 +1,6 @@
 import FlatQueue from "flatqueue";
 import { worldContext } from "../context/worldContext";
-import { ra } from "../utils";
+import { ra } from "../utils/probabilityUtils";
 import type { Burg } from "./burgs-generator";
 import type { Deal } from "./markets-generator";
 import { Markets } from "./markets-generator";

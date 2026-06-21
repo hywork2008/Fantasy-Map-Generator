@@ -758,6 +758,33 @@ class StatesModule {
     return adjName ? `${getAdjective(state.name)} ${state.formName}` : `${state.formName} of ${state.name}`;
   }
 
+  collectTaxes(): void {
+    const { pack } = this.worldContext;
+    const { states, burgs, markets = [], deals = [] } = pack;
+
+    for (const deal of deals) {
+      if (!deal.tax) continue;
+
+      let sellerStateId: number | undefined;
+      if (deal.sellerType === "burg") {
+        sellerStateId = (burgs[deal.seller] as { state?: number } | undefined)?.state;
+      } else if (deal.sellerType === "market") {
+        const market = markets.find(m => m?.i === deal.seller);
+        if (market) sellerStateId = (burgs[market.centerBurgId] as { state?: number } | undefined)?.state;
+      }
+
+      if (!sellerStateId) continue;
+      const state = states[sellerStateId];
+      if (!state?.i) continue;
+      state.treasury = rn((state.treasury ?? 0) + deal.tax, 2);
+    }
+
+    for (const state of states) {
+      if (!state?.i || !state.pollTax) continue;
+      state.treasury = rn((state.treasury ?? 0) + state.pollTax * ((state.rural ?? 0) + (state.urban ?? 0)), 2);
+    }
+  }
+
   getSalesTax(burg: { state?: number }): number {
     const stateId = burg.state || 0;
     if (!stateId) return 0;

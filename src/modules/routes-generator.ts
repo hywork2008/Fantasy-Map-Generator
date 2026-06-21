@@ -11,6 +11,7 @@ import { distanceSquared, findClosestCell, findPath, getAdjective, ra, rn, round
 import { TIME } from "../utils/debug";
 import { isLand } from "../utils/graphUtils";
 import type { Burg } from "./burgs-generator";
+import { MIN_NAVIGABLE_FLUX, Rivers } from "./river-generator";
 import type { Point } from "./voronoi";
 
 const ROUTES_SHARP_ANGLE = 135;
@@ -191,6 +192,138 @@ class RoutesModule {
   worldContext: WorldContext = worldContext;
   viewContext: Readonly<ViewContext> = viewContext;
   appServices: AppServices = appServices;
+
+  private riverAdjacency = new Set<string>();
+  private riverPolygons = new Map<number, [number, number, number][]>();
+  private cellPolygonIndex = new Map<number, { riverId: number; polygonIdx: number }>();
+
+  sync(): void {
+    const { pack } = this.worldContext;
+    this.riverAdjacency.clear();
+    this.riverPolygons.clear();
+    this.cellPolygonIndex.clear();
+
+    for (const river of pack.rivers ?? []) {
+      if (!river) continue;
+
+      for (let seqIdx = 0; seqIdx < river.cells.length; seqIdx++) {
+        const cell = river.cells[seqIdx];
+        if (cell < 0) continue;
+        if (seqIdx + 1 < river.cells.length) {
+          const nextCell = river.cells[seqIdx + 1];
+          this.riverAdjacency.add(`${cell}-${nextCell}`);
+          if (nextCell >= 0) this.riverAdjacency.add(`${nextCell}-${cell}`);
+        }
+      }
+
+      const polygon = Rivers.addMeandering(river.cells);
+      this.riverPolygons.set(river.i, polygon);
+
+      let cursor = 0;
+      for (const cell of river.cells) {
+        if (cell < 0) continue;
+        const [cx, cy] = pack.cells.p[cell];
+        while (cursor < polygon.length && (polygon[cursor][0] !== cx || polygon[cursor][1] !== cy)) {
+          cursor++;
+        }
+        if (cursor < polygon.length) {
+          this.cellPolygonIndex.set(cell, { riverId: river.i, polygonIdx: cursor });
+          cursor++;
+        }
+      }
+    }
+  }
+
+  getWaterPathCost(current: number, next: number): number {
+    const { pack } = this.worldContext;
+    const { h, r, fl } = pack.cells;
+    const haven = pack.cells.haven as typeof pack.cells.haven | undefined;
+
+    const currentIsWater = h[current] < 20;
+    const nextIsWater = h[next] < 20;
+
+    if (this.riverAdjacency.has(`${current}-${next}`)) {
+      if (!currentIsWater && !nextIsWater) {
+        if (r[current] && fl[current] >= MIN_NAVIGABLE_FLUX && r[next] && fl[next] >= MIN_NAVIGABLE_FLUX) {
+          return distanceSquared(pack.cells.p[current], pack.cells.p[next]);
+        }
+        return Infinity;
+      }
+      const landCell = currentIsWater ? next : current;
+      if (r[landCell] && fl[landCell] >= MIN_NAVIGABLE_FLUX) {
+        return distanceSquared(pack.cells.p[current], pack.cells.p[next]);
+      }
+      return Infinity;
+    }
+
+    if (currentIsWater && nextIsWater) {
+      return distanceSquared(pack.cells.p[current], pack.cells.p[next]);
+    }
+
+    if (!currentIsWater && nextIsWater && !r[current]) {
+      const havenCell = haven?.[current];
+      if (havenCell) {
+        return havenCell === next ? distanceSquared(pack.cells.p[current], pack.cells.p[next]) : Infinity;
+      }
+      return distanceSquared(pack.cells.p[current], pack.cells.p[next]);
+    }
+
+    return Infinity;
+  }
+
+  addMeandering(cells: number[], anchors: [number, number][]): [number, number, number][] {
+    const result: [number, number, number][] = [];
+    let i = 0;
+
+    while (i < cells.length) {
+      const cell = cells[i];
+      const polyInfo = this.cellPolygonIndex.get(cell);
+
+      if (!polyInfo) {
+        const [ax, ay] = anchors[i];
+        result.push([ax, ay, cell]);
+        i++;
+        continue;
+      }
+
+      const riverId = polyInfo.riverId;
+      let runEnd = i + 1;
+      while (runEnd < cells.length) {
+        const nextInfo = this.cellPolygonIndex.get(cells[runEnd]);
+        if (!nextInfo || nextInfo.riverId !== riverId) break;
+        runEnd++;
+      }
+
+      const polygon = this.riverPolygons.get(riverId)!;
+      const runCells = cells.slice(i, runEnd);
+      const startPolyIdx = this.cellPolygonIndex.get(runCells[0])!.polygonIdx;
+      const endPolyIdx = this.cellPolygonIndex.get(runCells[runCells.length - 1])!.polygonIdx;
+      const isUpstream = startPolyIdx > endPolyIdx;
+
+      const fromIdx = Math.min(startPolyIdx, endPolyIdx);
+      const toIdx = Math.max(startPolyIdx, endPolyIdx);
+      const rawSlice = polygon.slice(fromIdx, toIdx + 1);
+      const orderedSlice = isUpstream ? rawSlice.slice().reverse() : rawSlice;
+
+      const anchorSlicePos = new Map<number, number>();
+      for (let ci = 0; ci < runCells.length; ci++) {
+        const pIdx = this.cellPolygonIndex.get(runCells[ci])!.polygonIdx;
+        const slicePos = isUpstream ? startPolyIdx - pIdx : pIdx - startPolyIdx;
+        anchorSlicePos.set(slicePos, ci);
+      }
+
+      let cellRunIdx = 0;
+      for (let k = 0; k < orderedSlice.length; k++) {
+        const anchor = anchorSlicePos.get(k);
+        if (anchor !== undefined) cellRunIdx = anchor;
+        result.push([orderedSlice[k][0], orderedSlice[k][1], runCells[cellRunIdx]]);
+      }
+
+      i = runEnd;
+    }
+
+    return result;
+  }
 
   buildLinks(routes: Route[]): Record<number, Record<number, number>> {
     const links: Record<number, Record<number, number>> = {};

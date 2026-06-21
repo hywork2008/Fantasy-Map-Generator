@@ -362,6 +362,84 @@ export const findPath = (
   return null;
 };
 
+export function meander(
+  cells: number[],
+  positions: [number, number][],
+  options: {
+    startStep?: number;
+    meandering?: number;
+    bounds?: { width: number; height: number };
+    anchors?: [number, number][];
+  } = {}
+): { points: [number, number][]; anchorIndices: number[] } {
+  const { startStep = 10, meandering = 0.5, bounds, anchors: anchorOverrides } = options;
+
+  const points: [number, number][] = [];
+  const anchorIndices: number[] = [];
+
+  const getBorderPoint = (prevCellIdx: number): [number, number] => {
+    const [px, py] = positions[cells[prevCellIdx]];
+    if (!bounds) return [px, py];
+    const { width, height } = bounds;
+    const minDist = Math.min(py, height - py, px, width - px);
+    if (minDist === py) return [px, 0];
+    if (minDist === height - py) return [px, height];
+    if (minDist === px) return [0, py];
+    return [width, py];
+  };
+
+  const getPos = (i: number): [number, number] => {
+    if (anchorOverrides) return anchorOverrides[i];
+    const cell = cells[i];
+    if (cell < 0) return getBorderPoint(i - 1);
+    return positions[cell];
+  };
+
+  let step = startStep;
+
+  for (let i = 0; i < cells.length; i++, step++) {
+    const cell = cells[i];
+    const isLastCell = i === cells.length - 1;
+    const [x1, y1] = getPos(i);
+
+    anchorIndices.push(points.length);
+    points.push([x1, y1]);
+
+    if (isLastCell || cell < 0) break;
+
+    const nextCellValue = cells[i + 1];
+    const [x2, y2] = getPos(i + 1);
+
+    if (nextCellValue < 0) {
+      anchorIndices.push(points.length);
+      points.push([x2, y2]);
+      break;
+    }
+
+    const dist2 = (x2 - x1) ** 2 + (y2 - y1) ** 2;
+    if (dist2 <= 25 && cells.length >= 6) continue;
+
+    const amplitude = meandering + 1 / step + Math.max(meandering - step / 100, 0);
+    const angle = Math.atan2(y2 - y1, x2 - x1);
+    const sinA = Math.sin(angle) * amplitude;
+    const cosA = Math.cos(angle) * amplitude;
+
+    if (step < 20 && (dist2 > 64 || (dist2 > 36 && cells.length < 5))) {
+      const p1x = (x1 * 2 + x2) / 3 - sinA;
+      const p1y = (y1 * 2 + y2) / 3 + cosA;
+      const p2x = (x1 + x2 * 2) / 3 + sinA / 2;
+      const p2y = (y1 + y2 * 2) / 3 - cosA / 2;
+      points.push([p1x, p1y], [p2x, p2y]);
+    } else if (dist2 > 25 || cells.length < 6) {
+      const p1x = (x1 + x2) / 2 - sinA;
+      const p1y = (y1 + y2) / 2 + cosA;
+      points.push([p1x, p1y]);
+    }
+  }
+
+  return { points, anchorIndices };
+}
+
 export const getGappedFillPaths = (
   elementName: string,
   fill: string | null | undefined,
