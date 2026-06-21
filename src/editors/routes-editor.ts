@@ -3,6 +3,7 @@ import { drag, pointer, select } from "d3";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { confirmationDialog, restoreDefaultEvents, unselect } from "../controllers/editors";
+import { openElevationProfile } from "../controllers/elevation-profile";
 import { interactionManager } from "../controllers/interactionManager";
 import { layerIsOn, toggleCells, toggleRoutes } from "../controllers/layers";
 import { editStyle } from "../controllers/style";
@@ -491,13 +492,11 @@ export const routesEditorActions = {
     // Use window.ElevationProfile if it's imported that way in original, wait it might be a global
     // Fallback: we can just call any function that does it. Let's see if ElevationProfile is globally available.
     // In original it just called `ElevationProfile.open(...)`.
-    if (window.ElevationProfile) {
-      window.ElevationProfile.open(
-        route.points.map(p => p[2]),
-        length,
-        false
-      );
-    }
+    openElevationProfile(
+      route.points.map(p => p[2]),
+      length,
+      false
+    );
   },
 
   editRouteLegend(): void {

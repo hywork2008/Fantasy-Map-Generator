@@ -1,26 +1,28 @@
 import * as d3 from "d3";
-import type { WorldContext } from "../context/worldContext";
-import { closeDialog, closeDialogs, openDialog } from "../ui/dialogs/dialogService";
-import { capitalize, convertTemperature, ensureEl, rn, si } from "../utils";
+import { worldContext } from "../context/worldContext";
+import { openDialog } from "../ui/dialogs/dialogService";
+import { capitalize, convertTemperature, rn, si } from "../utils";
 import { isWater } from "../utils/graphUtils";
 import { getArea, getAreaUnit, getHeight, tip } from "../utils/uiHelpers";
-import { downloadFile, getFileName } from "./editors";
 
-let worldContext: WorldContext;
+export interface ChartDataPoint {
+  name: string;
+  group: string;
+  value: number;
+}
+
+export interface BuiltChart {
+  svgElement: SVGElement;
+  title: string;
+  sortedData: ChartDataPoint[];
+}
 
 interface ChartOptions {
-  id: number;
   entity: string;
   plotBy: string;
   groupBy: string;
   sorting: string;
   type: string;
-}
-
-interface ChartDataPoint {
-  name: string;
-  group: string;
-  value: number;
 }
 
 /** d3.stack で生成されるバーの各セグメントのデータポイント: [x0, x1] + インデックス i */
@@ -256,46 +258,22 @@ const plotTypeMap: Record<
   normalizedStackedBar: { offset: d3.stackOffsetExpand, formatX: value => `${rn(value * 100)}%` }
 };
 
-let charts: ChartOptions[] = [];
-let prevMapId = -1;
-
-export function open(): void {
-  closeDialogs("#chartsOverview, .stable");
-
-  if (prevMapId !== worldContext.mapId) {
-    charts = [];
-    prevMapId = worldContext.mapId;
-  }
-
-  if (!charts.length) addChart();
-  else for (const chart of charts) renderChart(chart);
-
-  openDialog("chartsOverview", {
-    onClose: () => {
-      ensureEl("chartsOverview__charts").innerHTML = "";
-    }
-  });
+export function openChartsOverview(): void {
+  openDialog("chartsOverview");
 }
 
-export function addChart(): void {
-  const entity = (ensureEl("chartsOverview__entitiesSelect") as HTMLSelectElement).value;
-  const plotBy = (ensureEl("chartsOverview__plotBySelect") as HTMLSelectElement).value;
-  let groupBy = (ensureEl("chartsOverview__groupBySelect") as HTMLSelectElement).value;
-  const sorting = (ensureEl("chartsOverview__sortingSelect") as HTMLSelectElement).value;
-  const type = (ensureEl("chartsOverview__chartType") as HTMLSelectElement).value;
-
+export function buildChart({ entity, plotBy, groupBy, sorting, type }: ChartOptions): BuiltChart | null {
   const { stackable } = quantizationMap[plotBy];
+  let resolvedGroupBy = groupBy;
   if (!stackable && groupBy !== entity) {
     tip(`Grouping is not supported for ${plotBy}`, false, "warn", 4000);
-    groupBy = entity;
+    resolvedGroupBy = entity;
   }
 
-  const chartOptions: ChartOptions = { id: Date.now(), entity, plotBy, groupBy, sorting, type };
-  charts.push(chartOptions);
-  renderChart(chartOptions);
+  return renderChart({ entity, plotBy, groupBy: resolvedGroupBy, sorting, type });
 }
 
-function renderChart({ id, entity, plotBy, groupBy, sorting, type }: ChartOptions): void {
+function renderChart({ entity, plotBy, groupBy, sorting, type }: ChartOptions): BuiltChart {
   const {
     label: plotByLabel,
     stringify,
@@ -327,7 +305,6 @@ function renderChart({ id, entity, plotBy, groupBy, sorting, type }: ChartOption
   };
 
   const dataCollection: Record<number, Record<number, number[]>> = {};
-  const groups = new Set<number>();
 
   for (const cellId of worldContext.pack.cells.i) {
     if ((entityLandOnly || plotByLandOnly) && isWater(cellId, worldContext.pack)) continue;
@@ -338,8 +315,6 @@ function renderChart({ id, entity, plotBy, groupBy, sorting, type }: ChartOption
     if (!dataCollection[entityId]) dataCollection[entityId] = { [groupId]: [value] };
     else if (!dataCollection[entityId][groupId]) dataCollection[entityId][groupId] = [value];
     else dataCollection[entityId][groupId].push(value);
-
-    groups.add(groupId);
   }
 
   const chartData: ChartDataPoint[] = Object.entries(dataCollection).flatMap(([entityId, groupData]) => {
@@ -355,15 +330,14 @@ function renderChart({ id, entity, plotBy, groupBy, sorting, type }: ChartOption
   const colors = getColors();
   const { offset, formatX = formatTicks } = plotTypeMap[type];
 
-  const $chart = createStackedBarChart(sortedData, {
+  const svgElement = createStackedBarChart(sortedData, {
     colors,
     tooltip,
     offset,
     formatX: formatX as (v: number) => string
   });
-  insertChart(id, sortedData, $chart, title);
 
-  ensureEl("chartsOverview__charts").lastElementChild?.scrollIntoView();
+  return { svgElement, title, sortedData };
 }
 
 function createStackedBarChart(
@@ -526,55 +500,6 @@ function createStackedBarChart(
   return svgNode.node()!;
 }
 
-function insertChart(id: number, sortedData: ChartDataPoint[], $chart: SVGElement, title: string): void {
-  const $chartContainer = ensureEl("chartsOverview__charts");
-  const $figure = document.createElement("figure");
-  const $caption = document.createElement("figcaption");
-
-  const figureNo = $chartContainer.childElementCount + 1;
-  $caption.innerHTML = /* html */ `
-    <div><strong>Figure ${figureNo}</strong>. ${title}</div>
-    <div>
-      <button data-tip="Download chart data as a text file (.csv)" class="icon-download"></button>
-      <button data-tip="Download the chart in svg format (can open in browser or Inkscape)" class="icon-chart-bar"></button>
-      <button data-tip="Remove the chart" class="icon-trash"></button>
-    </div>`;
-
-  $figure.appendChild($chart);
-  $figure.appendChild($caption);
-  $chartContainer.appendChild($figure);
-
-  const downloadChartData = () => {
-    const name = `${getFileName(title)}.csv`;
-    const headers = "Name,Group,Value\n";
-    const values = sortedData.map(({ name, group, value }) => `${name},${group},${value}`).join("\n");
-    downloadFile(headers + values, name);
-  };
-
-  const downloadChartSvg = () => {
-    downloadFile($chart.outerHTML, `${getFileName(title)}.svg`);
-  };
-
-  const removeChart = () => {
-    $figure.remove();
-    charts = charts.filter(chart => chart.id !== id);
-  };
-
-  $figure.querySelector<HTMLButtonElement>("button.icon-download")!.addEventListener("click", downloadChartData);
-  $figure.querySelector<HTMLButtonElement>("button.icon-chart-bar")!.addEventListener("click", downloadChartSvg);
-  $figure.querySelector<HTMLButtonElement>("button.icon-trash")!.addEventListener("click", removeChart);
-}
-
-export function changeViewColumns(): void {
-  const columns = (ensureEl("chartsOverview__viewColumns") as HTMLSelectElement).value;
-  const $charts = ensureEl("chartsOverview__charts");
-  $charts.style.gridTemplateColumns = `repeat(${columns}, 1fr)`;
-}
-
-export function handleClose(): void {
-  closeDialog("chartsOverview");
-}
-
 function getTextMinWidth(entities: string[]): number {
   return (d3.max(entities.map(name => name.length)) ?? 0) * RESERVED_PX_PER_CHAR;
 }
@@ -651,8 +576,4 @@ function sortData(data: ChartDataPoint[], sorting: string): ChartDataPoint[] {
 
 declare global {
   var getPrecipitation: (prec: number) => string;
-}
-
-export function initChartsOverview(wc: WorldContext) {
-  worldContext = wc;
 }

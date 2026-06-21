@@ -2,6 +2,7 @@ import { curveCatmullRom, type D3DragEvent, drag, pointer, select } from "d3";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { unselect } from "../controllers/editors";
+import { openElevationProfile } from "../controllers/elevation-profile";
 import { layerIsOn, toggleCells, toggleRivers } from "../controllers/layers";
 import { createRiver } from "../controllers/rivers-creator";
 import { editStyle } from "../controllers/style";
@@ -264,7 +265,7 @@ export const riverEditorActions = {
     const r = getRiver();
     if (!r) return;
     const riverLen = rn(r.length * worldContext.distanceScale);
-    ElevationProfile.open(pts, riverLen, true);
+    openElevationProfile(pts, riverLen, true);
   },
 
   editRiverLegend: (): void => {

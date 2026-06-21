@@ -1,8 +1,11 @@
 import type React from "react";
-import { useEffect } from "react";
-import { addChart, changeViewColumns, handleClose } from "../../controllers/charts-overview";
+import { useEffect, useRef, useState } from "react";
+import { worldContext } from "../../context/worldContext";
+import { type BuiltChart, buildChart, type ChartDataPoint } from "../../controllers/charts-overview";
+import { downloadFile, getFileName } from "../../controllers/editors";
 import { useDialogState } from "../../store/dialogState";
 import { Dialog } from "./Dialog";
+import { closeDialog } from "./dialogService";
 
 const ENTITY_OPTIONS = [
   { value: "states", label: "State" },
@@ -32,12 +35,110 @@ const PLOT_BY_OPTIONS = [
   { value: "river_cells", label: "Number of river cells" }
 ];
 
+interface ChartItem extends BuiltChart {
+  id: number;
+}
+
+interface ChartFigureProps {
+  chart: ChartItem;
+  figureNo: number;
+  onRemove: (id: number) => void;
+}
+
+const ChartFigure: React.FC<ChartFigureProps> = ({ chart, figureNo, onRemove }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    el.innerHTML = "";
+    el.appendChild(chart.svgElement);
+    el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [chart.svgElement]);
+
+  function downloadCsv(): void {
+    const name = `${getFileName(chart.title)}.csv`;
+    const headers = "Name,Group,Value\n";
+    const values = chart.sortedData
+      .map(({ name, group, value }: ChartDataPoint) => `${name},${group},${value}`)
+      .join("\n");
+    downloadFile(headers + values, name);
+  }
+
+  function downloadSvg(): void {
+    downloadFile(chart.svgElement.outerHTML, `${getFileName(chart.title)}.svg`);
+  }
+
+  return (
+    <figure style={{ margin: 0, display: "flex", flexDirection: "column", gap: "0.3em" }}>
+      <div ref={containerRef} />
+      <figcaption style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.9em" }}>
+        <div>
+          <strong>Figure {figureNo}</strong>. {chart.title}
+        </div>
+        <div style={{ display: "flex", gap: "0.2em" }}>
+          <button
+            type="button"
+            data-tip="Download chart data as a text file (.csv)"
+            className="icon-download"
+            onClick={downloadCsv}
+          />
+          <button
+            type="button"
+            data-tip="Download the chart in svg format"
+            className="icon-chart-bar"
+            onClick={downloadSvg}
+          />
+          <button type="button" data-tip="Remove the chart" className="icon-trash" onClick={() => onRemove(chart.id)} />
+        </div>
+      </figcaption>
+    </figure>
+  );
+};
+
 export const ChartsOverviewDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("chartsOverview"));
 
+  const [entity, setEntity] = useState("states");
+  const [plotBy, setPlotBy] = useState("total_population");
+  const [groupBy, setGroupBy] = useState("cultures");
+  const [sorting, setSorting] = useState("value");
+  const [chartType, setChartType] = useState("stackedBar");
+  const [viewColumns, setViewColumns] = useState("1");
+  const [charts, setCharts] = useState<ChartItem[]>([]);
+  const [prevMapId, setPrevMapId] = useState(-1);
+
+  // Reset charts when map changes or dialog opens
   useEffect(() => {
-    if (isOpen) changeViewColumns();
+    if (!isOpen) return;
+    const currentMapId = worldContext.mapId;
+    if (currentMapId !== prevMapId) {
+      setCharts([]);
+      setPrevMapId(currentMapId);
+    }
+  }, [isOpen, prevMapId]);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: fires only on dialog open, not on chart list changes
+  useEffect(() => {
+    if (isOpen && charts.length === 0) handleAddChart();
   }, [isOpen]);
+
+  // Clear charts on close
+  function handleClose(): void {
+    setCharts([]);
+    closeDialog("chartsOverview");
+  }
+
+  function handleAddChart(): void {
+    const result = buildChart({ entity, plotBy, groupBy, sorting, type: chartType });
+    if (result) {
+      setCharts(prev => [...prev, { ...result, id: Date.now() }]);
+    }
+  }
+
+  function handleRemoveChart(id: number): void {
+    setCharts(prev => prev.filter(c => c.id !== id));
+  }
 
   return (
     <Dialog
@@ -49,10 +150,9 @@ export const ChartsOverviewDialog: React.FC = () => {
     >
       <div style={{ display: "grid", gridTemplateRows: "auto 1fr", overflow: "hidden", flex: 1, padding: "0.5em" }}>
         <form
-          id="chartsOverview__form"
           onSubmit={e => {
             e.preventDefault();
-            addChart();
+            handleAddChart();
           }}
           style={{
             fontSize: "1.1em",
@@ -68,7 +168,7 @@ export const ChartsOverviewDialog: React.FC = () => {
             <button data-tip="Add a chart" type="submit">
               Plot
             </button>
-            <select data-tip="Select entity (y axis)" id="chartsOverview__entitiesSelect" defaultValue="states">
+            <select data-tip="Select entity (y axis)" value={entity} onChange={e => setEntity(e.target.value)}>
               {ENTITY_OPTIONS.map(o => (
                 <option key={o.value} value={o.value}>
                   {o.label}
@@ -79,8 +179,8 @@ export const ChartsOverviewDialog: React.FC = () => {
               by
               <select
                 data-tip="Select value to plot by (x axis)"
-                id="chartsOverview__plotBySelect"
-                defaultValue="total_population"
+                value={plotBy}
+                onChange={e => setPlotBy(e.target.value)}
               >
                 {PLOT_BY_OPTIONS.map(o => (
                   <option key={o.value} value={o.value}>
@@ -93,8 +193,8 @@ export const ChartsOverviewDialog: React.FC = () => {
               grouped by
               <select
                 data-tip="Select entity to group by. If you don't need grouping, set it the same as the entity"
-                id="chartsOverview__groupBySelect"
-                defaultValue="cultures"
+                value={groupBy}
+                onChange={e => setGroupBy(e.target.value)}
               >
                 {ENTITY_OPTIONS.map(o => (
                   <option key={o.value} value={o.value}>
@@ -105,7 +205,7 @@ export const ChartsOverviewDialog: React.FC = () => {
             </label>
             <label data-tip="Sorting type" style={{ display: "flex", alignItems: "center", gap: "0.3em" }}>
               sorted
-              <select id="chartsOverview__sortingSelect" defaultValue="value">
+              <select value={sorting} onChange={e => setSorting(e.target.value)}>
                 <option value="value">by value</option>
                 <option value="name">by name</option>
                 <option value="natural">naturally</option>
@@ -114,12 +214,12 @@ export const ChartsOverviewDialog: React.FC = () => {
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4em", alignItems: "center" }}>
             <span data-tip="Chart type">Type</span>
-            <select id="chartsOverview__chartType" defaultValue="stackedBar">
+            <select value={chartType} onChange={e => setChartType(e.target.value)}>
               <option value="stackedBar">Stacked Bar</option>
               <option value="normalizedStackedBar">Normalized Stacked Bar</option>
             </select>
             <span data-tip="Columns to display">Columns</span>
-            <select id="chartsOverview__viewColumns" defaultValue="1" onChange={changeViewColumns}>
+            <select value={viewColumns} onChange={e => setViewColumns(e.target.value)}>
               <option value="1">1</option>
               <option value="2">2</option>
               <option value="3">3</option>
@@ -128,7 +228,20 @@ export const ChartsOverviewDialog: React.FC = () => {
           </div>
         </form>
 
-        <section id="chartsOverview__charts" style={{ overflow: "auto", scrollBehavior: "smooth", display: "grid" }} />
+        <section
+          style={{
+            overflow: "auto",
+            scrollBehavior: "smooth",
+            display: "grid",
+            gridTemplateColumns: `repeat(${viewColumns}, 1fr)`,
+            gap: "1em",
+            padding: "0.5em"
+          }}
+        >
+          {charts.map((chart, i) => (
+            <ChartFigure key={chart.id} chart={chart} figureNo={i + 1} onRemove={handleRemoveChart} />
+          ))}
+        </section>
       </div>
     </Dialog>
   );

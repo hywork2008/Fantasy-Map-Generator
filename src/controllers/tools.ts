@@ -69,7 +69,7 @@ import { closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogSe
 import { ensureEl, findCell, gauss, generateSeed, getNextId, isCtrlClick, P, rn, showPrompt } from "../utils";
 import { clearMainTip, tip } from "../utils/uiHelpers";
 import { overviewBurgs } from "./burgs-overview";
-import { open as openChartsOverview } from "./charts-overview";
+import { openChartsOverview } from "./charts-overview";
 import {
   editCoastlineSettings,
   editCultures,
