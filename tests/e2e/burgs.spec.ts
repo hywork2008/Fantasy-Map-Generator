@@ -33,8 +33,7 @@ test.describe("Burgs.add", () => {
         if (!burg || burg.removed) continue;
         const cell = burg.cell;
         const isLand = cells.h[cell] >= 20;
-        const hasNoHarbor = !cells.harbor[cell];
-        if (isLand && hasNoHarbor) {
+        if (isLand && !burg.port) {
           return {
             burgId: b,
             port: burg.port,
@@ -68,8 +67,7 @@ test.describe("Burgs.add", () => {
         if (!burg || burg.removed) continue;
         const cell = burg.cell;
         const isLand = cells.h[cell] >= 20;
-        const hasNoHarbor = !cells.harbor[cell];
-        if (isLand && hasNoHarbor) {
+        if (isLand && !burg.port) {
           return b;
         }
       }
@@ -103,5 +101,54 @@ test.describe("Burgs.add", () => {
     // The port toggle button should have the "inactive" class
     const portButton = page.locator("#burgPort");
     await expect(portButton).toHaveClass(/inactive/);
+  });
+
+  test("should correctly create and handle river ports (inland ports)", async ({
+    page,
+  }) => {
+    // Find an existing inland burg that IS a port (river port)
+    const burgId = await page.evaluate(() => {
+      const { cells, burgs } = window.fmg.world.pack;
+
+      for (let b = 1; b < burgs.length; b++) {
+        const burg = burgs[b];
+        if (!burg || burg.removed) continue;
+        const cell = burg.cell;
+        const isLand = cells.h[cell] >= 20;
+        if (isLand && burg.port) {
+          return b;
+        }
+      }
+      return null;
+    });
+
+    expect(burgId).not.toBeNull();
+
+    // Enable layers and zoom to burg position so icons and labels are rendered
+    await page.evaluate((id: number) => {
+      const burg = window.fmg.world.pack.burgs[id];
+      if (!window.fmg.actions.layerIsOn("toggleBurgIcons")) window.fmg.actions.toggleBurgIcons();
+      if (!window.fmg.actions.layerIsOn("toggleLabels")) window.fmg.actions.toggleLabels();
+      window.fmg.actions.zoomTo(burg.x, burg.y, 4, 0);
+    }, burgId as number);
+    
+    // Wait for burg labels to appear
+    await page.waitForFunction(
+      () => document.querySelectorAll("#burgLabels text").length > 0,
+      undefined,
+      { timeout: 10000 }
+    );
+
+    // Open the burg editor directly via the public API
+    await page.evaluate((id: number) => {
+      window.fmg.actions.editBurg(id);
+    }, burgId as number);
+
+    // Wait for the burg editor dialog to appear
+    await page.waitForSelector("#burgBody", { state: "visible" });
+
+    // The port toggle button should NOT have the "inactive" class
+    const portButton = page.locator("#burgPort");
+    await expect(portButton).not.toHaveClass(/inactive/);
   });
 });
