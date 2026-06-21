@@ -9,15 +9,6 @@ const pack = worldContext.pack;
 const _viewbox = viewContext.viewbox;
 const _options = worldContext.options;
 
-// Mock jQuery and window objects since they're mostly removed
-const $ = _selector => {
-  return {
-    dialog: () => {},
-    draggable: () => {},
-    on: () => {}
-  };
-};
-
 // Mock other missing globals
 const _restoreDefaultEvents = () => {};
 const _applySorting = () => {};
@@ -254,25 +245,43 @@ function open(onApply: (distribution: string) => void, initialExpression = "") {
     });
     pickerEl.appendChild(grid);
 
-    $(pickerEl).dialog({
-      title: "Select Biomes",
-      width: "34em",
-      resizable: false,
-      buttons: {
-        Cancel: function () {
-          $(this).dialog("close");
-        },
-        Apply: function () {
-          cond.biomeIds = entries.filter(e => e.cb.checked).map(e => e.id);
-          onApplied();
-          $(this).dialog("close");
-        }
-      },
-      close: () => {
-        $(pickerEl).dialog("destroy");
-        pickerEl.remove();
-      }
-    });
+    const dialog = document.createElement("dialog");
+    dialog.className = "ded-native-dialog";
+    dialog.style.width = "34em";
+
+    const header = document.createElement("div");
+    header.className = "ded-dialog-header";
+    header.textContent = "Select Biomes";
+
+    const body = document.createElement("div");
+    body.className = "ded-dialog-body";
+    body.appendChild(grid);
+
+    const footer = document.createElement("div");
+    footer.className = "ded-dialog-footer";
+
+    const cancelBtn = document.createElement("button");
+    cancelBtn.textContent = "Cancel";
+    cancelBtn.onclick = () => dialog.close();
+
+    const applyBtn = document.createElement("button");
+    applyBtn.textContent = "Apply";
+    applyBtn.onclick = () => {
+      cond.biomeIds = entries.filter(e => e.cb.checked).map(e => e.id);
+      onApplied();
+      dialog.close();
+    };
+
+    footer.appendChild(cancelBtn);
+    footer.appendChild(applyBtn);
+
+    dialog.appendChild(header);
+    dialog.appendChild(body);
+    dialog.appendChild(footer);
+
+    dialog.onclose = () => dialog.remove();
+    document.body.appendChild(dialog);
+    dialog.showModal();
   }
 
   function openFeatureTypePicker(cond: DistCondition, onApplied: () => void) {
@@ -297,25 +306,43 @@ function open(onApply: (distribution: string) => void, initialExpression = "") {
     });
     pickerEl.appendChild(list);
 
-    $(pickerEl).dialog({
-      title: "Select Feature Types",
-      width: "18em",
-      resizable: false,
-      buttons: {
-        Cancel: function () {
-          $(this).dialog("close");
-        },
-        Apply: function () {
-          cond.typeValues = entries.filter(e => e.cb.checked).map(e => e.value);
-          onApplied();
-          $(this).dialog("close");
-        }
-      },
-      close: () => {
-        $(pickerEl).dialog("destroy");
-        pickerEl.remove();
-      }
-    });
+    const dialog = document.createElement("dialog");
+    dialog.className = "ded-native-dialog";
+    dialog.style.width = "18em";
+
+    const header = document.createElement("div");
+    header.className = "ded-dialog-header";
+    header.textContent = "Select Feature Types";
+
+    const body = document.createElement("div");
+    body.className = "ded-dialog-body";
+    body.appendChild(list);
+
+    const footer = document.createElement("div");
+    footer.className = "ded-dialog-footer";
+
+    const cancelBtn = document.createElement("button");
+    cancelBtn.textContent = "Cancel";
+    cancelBtn.onclick = () => dialog.close();
+
+    const applyBtn = document.createElement("button");
+    applyBtn.textContent = "Apply";
+    applyBtn.onclick = () => {
+      cond.typeValues = entries.filter(e => e.cb.checked).map(e => e.value);
+      onApplied();
+      dialog.close();
+    };
+
+    footer.appendChild(cancelBtn);
+    footer.appendChild(applyBtn);
+
+    dialog.appendChild(header);
+    dialog.appendChild(body);
+    dialog.appendChild(footer);
+
+    dialog.onclose = () => dialog.remove();
+    document.body.appendChild(dialog);
+    dialog.showModal();
   }
 
   function openShorePicker(cond: DistCondition, onApplied: () => void) {
@@ -340,25 +367,43 @@ function open(onApply: (distribution: string) => void, initialExpression = "") {
     });
     pickerEl.appendChild(list);
 
-    $(pickerEl).dialog({
-      title: "Select Shore Proximity",
-      width: "18em",
-      resizable: false,
-      buttons: {
-        Cancel: function () {
-          $(this).dialog("close");
-        },
-        Apply: function () {
-          cond.shoreValues = entries.filter(e => e.cb.checked).map(e => e.value);
-          onApplied();
-          $(this).dialog("close");
-        }
-      },
-      close: () => {
-        $(pickerEl).dialog("destroy");
-        pickerEl.remove();
-      }
-    });
+    const dialog = document.createElement("dialog");
+    dialog.className = "ded-native-dialog";
+    dialog.style.width = "18em";
+
+    const header = document.createElement("div");
+    header.className = "ded-dialog-header";
+    header.textContent = "Select Shore Proximity";
+
+    const body = document.createElement("div");
+    body.className = "ded-dialog-body";
+    body.appendChild(list);
+
+    const footer = document.createElement("div");
+    footer.className = "ded-dialog-footer";
+
+    const cancelBtn = document.createElement("button");
+    cancelBtn.textContent = "Cancel";
+    cancelBtn.onclick = () => dialog.close();
+
+    const applyBtn = document.createElement("button");
+    applyBtn.textContent = "Apply";
+    applyBtn.onclick = () => {
+      cond.shoreValues = entries.filter(e => e.cb.checked).map(e => e.value);
+      onApplied();
+      dialog.close();
+    };
+
+    footer.appendChild(cancelBtn);
+    footer.appendChild(applyBtn);
+
+    dialog.appendChild(header);
+    dialog.appendChild(body);
+    dialog.appendChild(footer);
+
+    dialog.onclose = () => dialog.remove();
+    document.body.appendChild(dialog);
+    dialog.showModal();
   }
 
   function buildParamsArea(cond: DistCondition): HTMLElement {
@@ -648,6 +693,41 @@ function open(onApply: (distribution: string) => void, initialExpression = "") {
       .ded-ref-code        { color:var(--dark-solid); font-weight:bold; }
       .ded-ref-desc        { color:#555; margin-top:2px; }
       .ded-ref-note        { color:#555; margin-top:2px; font-style:italic; }
+      
+      .ded-native-dialog {
+        padding: 0;
+        border: 1px solid var(--light-solid, #ccc);
+        border-radius: 4px;
+        background: var(--bg-color, #fff);
+        color: var(--text-color, #000);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      }
+      .ded-native-dialog::backdrop {
+        background: rgba(0,0,0,0.5);
+      }
+      .ded-dialog-header {
+        padding: 8px 12px;
+        border-bottom: 1px solid var(--light-solid, #ccc);
+        font-weight: bold;
+        background: var(--bg-color, #fff);
+      }
+      .ded-dialog-body {
+        padding: 12px;
+        max-height: 70vh;
+        overflow-y: auto;
+      }
+      .ded-dialog-footer {
+        padding: 8px 12px;
+        border-top: 1px solid var(--light-solid, #ccc);
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        background: var(--bg-color, #fff);
+      }
+      .ded-dialog-footer button {
+        padding: 4px 12px;
+        cursor: pointer;
+      }
     </style>
 
     <div class="ded-wrap">
@@ -684,25 +764,46 @@ function open(onApply: (distribution: string) => void, initialExpression = "") {
     updateOutput();
   });
 
-  $(popupEl).dialog({
-    title: "Distribution Editor",
-    width: "60em",
-    resizable: true,
-    buttons: {
-      Cancel: function () {
-        $(this).dialog("close");
-      },
-      Apply: function () {
-        const expr = generateExpression();
-        onApply(expr);
-        $(this).dialog("close");
-      }
-    },
-    close: () => {
-      $(popupEl).dialog("destroy");
-      popupEl.remove();
-    }
-  });
+  const dialog = document.createElement("dialog");
+  dialog.className = "ded-native-dialog";
+  dialog.style.width = "60em";
+
+  const header = document.createElement("div");
+  header.className = "ded-dialog-header";
+  header.textContent = "Distribution Editor";
+
+  const body = document.createElement("div");
+  body.className = "ded-dialog-body";
+  body.appendChild(popupEl);
+
+  const footer = document.createElement("div");
+  footer.className = "ded-dialog-footer";
+
+  const cancelBtn = document.createElement("button");
+  cancelBtn.textContent = "Cancel";
+  cancelBtn.onclick = () => dialog.close();
+
+  const applyBtn = document.createElement("button");
+  applyBtn.textContent = "Apply";
+  applyBtn.onclick = () => {
+    const expr = generateExpression();
+    onApply(expr);
+    dialog.close();
+  };
+
+  footer.appendChild(cancelBtn);
+  footer.appendChild(applyBtn);
+
+  dialog.appendChild(header);
+  dialog.appendChild(body);
+  dialog.appendChild(footer);
+
+  dialog.onclose = () => {
+    popupEl.remove();
+    dialog.remove();
+  };
+  document.body.appendChild(dialog);
+  dialog.showModal();
 }
 
 function splitTopLevel(expr: string, sep: string): string[] {
