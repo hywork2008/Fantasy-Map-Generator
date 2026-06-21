@@ -252,8 +252,23 @@ export async function getMapURL(type: string, options: GetMapURLOptions = {}): P
   cloneEl.style.pointerEvents = "auto";
   // <foreignObject class="fmc"> elements wrap canvas layers; they cannot be
   // serialized to SVG and cause canvas taint when drawn via drawImage().
-  cloneEl.querySelectorAll("foreignObject.fmc").forEach(el => {
-    el.remove();
+  // We convert their canvases to data URIs and replace them with <image> elements in the clone.
+  const originalMap = document.getElementById("map");
+  const originalForeignObjects = originalMap?.querySelectorAll("foreignObject.fmc");
+  cloneEl.querySelectorAll("foreignObject.fmc").forEach((el, index) => {
+    const originalCanvas = originalForeignObjects?.[index]?.querySelector("canvas");
+    if (originalCanvas) {
+      const dataUrl = originalCanvas.toDataURL("image/png");
+      const img = document.createElementNS("http://www.w3.org/2000/svg", "image");
+      img.setAttribute("width", el.getAttribute("width") || "100%");
+      img.setAttribute("height", el.getAttribute("height") || "100%");
+      img.setAttribute("href", dataUrl);
+      img.setAttribute("x", el.getAttribute("x") || "0");
+      img.setAttribute("y", el.getAttribute("y") || "0");
+      el.parentNode?.replaceChild(img, el);
+    } else {
+      el.remove();
+    }
   });
   document.body.appendChild(cloneEl);
   const clone = d3.select(cloneEl) as d3.Selection<SVGSVGElement, unknown, null, undefined>;

@@ -2,7 +2,7 @@ import type { AppServices } from "../context/appServices";
 import type { PoliticalLayers } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import type { Zone } from "../modules/zones-generator";
-import { ensureEl, getVertexPath } from "../utils";
+import { getVertexPath } from "../utils";
 import type { IRenderer } from "./core/IRenderer";
 
 const drawZone = (pack: WorldContext["pack"], { i, cells: zoneCells, type, color }: Zone): string => {
@@ -20,7 +20,8 @@ export const ZonesRenderer: IRenderer = {
   ): void {
     const { pack } = worldContext;
     const { zones } = viewContext;
-    const filterBy = (ensureEl("zonesFilterType") as HTMLSelectElement).value;
+    const filterEl = document.getElementById("zonesFilterType") as HTMLSelectElement | null;
+    const filterBy = filterEl?.value;
     const isFiltered = filterBy && filterBy !== "all";
     const visibleZones = pack.zones.filter(
       ({ hidden, cells: zoneCells, type }) => !hidden && zoneCells.length && (!isFiltered || type === filterBy)

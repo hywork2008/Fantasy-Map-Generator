@@ -239,9 +239,6 @@ export function handleLayersPresetChange(preset: string): void {
     const shouldBeOn = layers.includes(l.id);
     if (shouldBeOn !== isOn) toggleLayerById(l.id);
   });
-
-  // Re-render 3D texture after SVG layer changes have been painted
-  if (ThreeDRenderer.options.isOn) requestAnimationFrame(() => ThreeDRenderer.update());
 }
 
 export function savePreset(): void {
@@ -346,11 +343,13 @@ export function layerIsOn(el: string): boolean {
 export function turnButtonOff(el: string): void {
   useLayerState.getState().toggleLayer(el, false);
   getCurrentPreset();
+  schedule3dUpdate();
 }
 
 export function turnButtonOn(el: string): void {
   useLayerState.getState().toggleLayer(el, true);
   getCurrentPreset();
+  schedule3dUpdate();
 }
 
 // ─── Toggle functions ─────────────────────────────────────────────────────────
@@ -960,6 +959,17 @@ const TOGGLE_REGISTRY: Record<string, (event?: MouseEvent) => void> = {
   toggleMarketsLayer,
   toggleTrade
 };
+
+let pending3dUpdate = false;
+function schedule3dUpdate() {
+  if (ThreeDRenderer.options.isOn && !pending3dUpdate) {
+    pending3dUpdate = true;
+    requestAnimationFrame(() => {
+      pending3dUpdate = false;
+      ThreeDRenderer.update();
+    });
+  }
+}
 
 export function toggleLayerById(id: string, event?: MouseEvent): void {
   TOGGLE_REGISTRY[id]?.(event);
