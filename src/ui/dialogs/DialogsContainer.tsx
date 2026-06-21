@@ -23,6 +23,7 @@ import { ExportMapDialog } from "./ExportMapDialog";
 import { ExportToPngTilesDialog } from "./ExportToPngTilesDialog";
 import { FontDialog } from "./FontDialog";
 import { GoodsEditorDialog } from "./GoodsEditorDialog";
+import { HierarchyTreeDialog } from "./HierarchyTreeDialog";
 import { IceEditorDialog } from "./IceEditorDialog";
 import { IconSelectorDialog } from "./IconSelectorDialog";
 import { ImageConverterDialog } from "./ImageConverterDialog";
@@ -140,6 +141,7 @@ export const DialogsContainer: React.FC = () => {
           <RoutesOverviewDialog />
           <RiversOverviewDialog />
           <MilitaryOverviewDialog />
+          <HierarchyTreeDialog />
           <RegimentsOverviewDialog />
           <MilitaryOptionsDialog />
           <MarkersOverviewDialog />

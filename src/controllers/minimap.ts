@@ -1,112 +1,12 @@
-import { zoomTo } from "../actions";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { closeDialogs, openDialog } from "../ui/dialogs/dialogService";
-import { ensureEl, minmax, rn } from "../utils";
-
-let minimapInitialized = false;
+import { rn } from "../utils";
 
 export function openMinimapDialog(): void {
   closeDialogs("#minimap, .stable");
-  ensureMinimapStyles();
-  ensureMinimapMarkup();
-
+  openDialog("minimap");
   updateMinimap();
-
-  openDialog("minimap", {
-    title: "Minimap",
-    resizable: false,
-    width: "auto",
-    position: { my: "left bottom", at: "left+10 bottom-25", of: "svg", collision: "fit" },
-    open: () => {
-      // $(this).parent().addClass("minimap-dialog");
-    },
-    close: () => {
-      /* $(this).dialog("destroy") removed */
-    }
-  });
-}
-
-function ensureMinimapStyles(): void {
-  if (document.getElementById("minimapStyles")) return;
-
-  const style = document.createElement("style");
-  style.id = "minimapStyles";
-  style.textContent = /* css */ `
-    .minimap-dialog .ui-dialog-content {
-      padding: 0 !important;
-      overflow: hidden;
-    }
-
-    #minimap {
-      padding: 0 !important;
-      background: transparent;
-    }
-
-    #minimapViewportWrap {
-      position: relative;
-      width: 20em;
-      border: 0;
-    }
-
-    #minimapSurface {
-      display: block;
-      width: 100%;
-      height: auto;
-      cursor: crosshair;
-    }
-
-    #minimapMapUse {
-      pointer-events: none;
-    }
-
-    #minimapViewport {
-      fill: rgba(190, 255, 137, 0.1);
-      stroke: #624954;
-      stroke-width: 1;
-      stroke-dasharray: 4;
-      vector-effect: non-scaling-stroke;
-      pointer-events: none;
-    }
-  `;
-
-  document.head.append(style);
-}
-
-function ensureMinimapMarkup(): void {
-  if (minimapInitialized) return;
-
-  const container = ensureEl("minimapContent");
-  if (!container) return;
-
-  minimapInitialized = true;
-  container.innerHTML = /* html */ `
-    <div id="minimapViewportWrap">
-      <svg id="minimapSurface" preserveAspectRatio="xMidYMid meet" aria-label="Map minimap">
-        <use id="minimapMapUse" href="#viewbox"></use>
-        <rect id="minimapViewport"></rect>
-      </svg>
-    </div>
-  `;
-
-  ensureEl("minimapSurface").addEventListener("click", minimapClickToPan);
-}
-
-function minimapClickToPan(event: MouseEvent): void {
-  const minimap = ensureEl<SVGSVGElement>("minimapSurface");
-  if (!minimap) return;
-
-  const point = minimap.createSVGPoint();
-  point.x = event.clientX;
-  point.y = event.clientY;
-
-  const ctm = minimap.getScreenCTM();
-  if (!ctm) return;
-
-  const svgPoint = point.matrixTransform(ctm.inverse());
-  const x = minmax(svgPoint.x, 0, worldContext.graphWidth);
-  const y = minmax(svgPoint.y, 0, worldContext.graphHeight);
-  zoomTo(x, y, viewContext.scale, 450);
 }
 
 export function updateMinimap(): void {

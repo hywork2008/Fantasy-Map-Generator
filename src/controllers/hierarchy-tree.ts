@@ -1,6 +1,8 @@
 import * as d3 from "d3";
-import { closeDialog, closeDialogs, openDialog } from "../ui/dialogs/dialogService";
-import { capitalize, ensureEl, minmax } from "../utils";
+import { dialogStore } from "../store/dialogState";
+import { hierarchyTreeStore } from "../store/hierarchyTreeState";
+import { closeDialogs } from "../ui/dialogs/dialogService";
+import { minmax } from "../utils";
 import { tip } from "../utils/uiHelpers";
 
 export interface HierarchyElement {
@@ -23,24 +25,17 @@ export interface HierarchyProps {
   getShape: (element: HierarchyElement) => string | undefined;
 }
 
-// DOM is inserted before d3 selections are made
-appendStyleSheet();
-insertHtml();
-
 const MARGINS = { top: 10, right: 10, bottom: -5, left: 10 };
 
-const handleZoom = (event: d3.D3ZoomEvent<SVGSVGElement, unknown>) =>
-  viewboxEl.attr("transform", event.transform.toString());
-const zoom = d3.zoom<SVGSVGElement, unknown>().scaleExtent([0.2, 1.5]).on("zoom", handleZoom);
-
+let zoom: d3.ZoomBehavior<SVGSVGElement, unknown>;
 let oldRoot: d3.HierarchyPointNode<HierarchyElement> | null = null;
 
-const svgEl = d3.select<SVGSVGElement, unknown>("#hierarchyTree > svg").call(zoom);
-const viewboxEl = svgEl.select<SVGGElement>("g#hierarchyTree_viewbox");
-const primaryLinks = viewboxEl.select<SVGGElement>("g#hierarchyTree_linksPrimary");
-const secondaryLinks = viewboxEl.select<SVGGElement>("g#hierarchyTree_linksSecondary");
-const nodesEl = viewboxEl.select<SVGGElement>("g#hierarchyTree_nodes");
-const dragLine = viewboxEl.select<SVGPathElement>("path#hierarchyTree_dragLine");
+let svgEl: d3.Selection<SVGSVGElement, unknown, null, undefined>;
+let viewboxEl: d3.Selection<SVGGElement, unknown, null, undefined>;
+let primaryLinks: d3.Selection<SVGGElement, unknown, null, undefined>;
+let secondaryLinks: d3.Selection<SVGGElement, unknown, null, undefined>;
+let nodesEl: d3.Selection<SVGGElement, unknown, null, undefined>;
+let dragLine: d3.Selection<SVGPathElement, unknown, null, undefined>;
 
 let dataElements: HierarchyElement[] = [];
 let validElements: HierarchyElement[] = [];
@@ -52,12 +47,30 @@ let getShape: (element: HierarchyElement) => string | undefined = () => undefine
 export function open(props: HierarchyProps): void {
   closeDialogs("#hierarchyTree, .stable");
 
-  dataElements = props.data;
-  validElements = cleanupOrigins(dataElements);
-  if (validElements.length < 3) {
+  const valid = cleanupOrigins(props.data);
+  if (valid.length < 3) {
     tip(`Not enough ${props.type} to show hierarchy`, false, "error");
     return;
   }
+
+  hierarchyTreeStore.getState().setProps(props);
+  dialogStore.getState().openDialog("hierarchyTree");
+}
+
+export function initHierarchyTree(svgNode: SVGSVGElement, props: HierarchyProps): void {
+  const handleZoom = (event: d3.D3ZoomEvent<SVGSVGElement, unknown>) =>
+    viewboxEl.attr("transform", event.transform.toString());
+  zoom = d3.zoom<SVGSVGElement, unknown>().scaleExtent([0.2, 1.5]).on("zoom", handleZoom);
+
+  svgEl = d3.select<SVGSVGElement, unknown>(svgNode).call(zoom);
+  viewboxEl = svgEl.select<SVGGElement>("g#hierarchyTree_viewbox");
+  primaryLinks = viewboxEl.select<SVGGElement>("g#hierarchyTree_linksPrimary");
+  secondaryLinks = viewboxEl.select<SVGGElement>("g#hierarchyTree_linksSecondary");
+  nodesEl = viewboxEl.select<SVGGElement>("g#hierarchyTree_nodes");
+  dragLine = viewboxEl.select<SVGPathElement>("path#hierarchyTree_dragLine");
+
+  dataElements = props.data;
+  validElements = cleanupOrigins(dataElements);
 
   onNodeEnter = props.onNodeEnter;
   onNodeLeave = props.onNodeLeave;
@@ -83,64 +96,7 @@ export function open(props: HierarchyProps): void {
   ]);
   svgEl.attr("viewBox", `0, 0, ${width}, ${height}`);
 
-  openDialog("hierarchyTree", {
-    title: `${capitalize(props.type)} tree`,
-    position: { my: "left center", at: "left+10 center", of: "svg" },
-    width
-  });
-
   renderTree(root, treeLayout);
-}
-
-function appendStyleSheet(): void {
-  const style = document.createElement("style");
-  style.textContent = /* css */ `
-    #hierarchyTree_selectedOrigins > button { margin: 0 2px; }
-    #hierarchyTree { display: flex; flex-direction: column; justify-content: space-between; }
-    #hierarchyTree > svg { height: 100%; }
-    .hierarchyTree_selectedOrigins { margin-right: 15px; }
-    .hierarchyTree_selectedOrigin { border: 1px solid #aaa; background: none; padding: 1px 4px; }
-    .hierarchyTree_selectedOrigin:hover { border: 1px solid #333; }
-    .hierarchyTree_selectedOrigin::after { content: "✕"; margin-left: 8px; color: #999; }
-    .hierarchyTree_selectedOrigin:hover:after { color: #333; }
-    #hierarchyTree_originSelector { display: none; }
-    #hierarchyTree_originSelector > form > div { padding: 0.3em; margin: 1px 0; border-radius: 1em; }
-    #hierarchyTree_originSelector > form > div:hover { background-color: #ddd; }
-    #hierarchyTree_originSelector > form > div[checked] { background-color: #c6d6d6; }
-    #hierarchyTree_nodes > g > text { pointer-events: none; stroke: none; font-size: 11px; }
-    #hierarchyTree_nodes > g.selected { stroke: #c13119; stroke-width: 1; cursor: move; }
-    #hierarchyTree_dragLine { marker-end: url(#end-arrow); stroke: #333333; stroke-dasharray: 5; stroke-dashoffset: 1000; animation: dash 80s linear backwards; }
-  `;
-  document.head.appendChild(style);
-}
-
-function insertHtml(): void {
-  const html = /* html */ `<div id="hierarchyTree" class="dialog" style="overflow: hidden;">
-    <svg>
-      <g id="hierarchyTree_viewbox" style="text-anchor: middle; dominant-baseline: central">
-        <g transform="translate(10, -45)">
-          <g id="hierarchyTree_links" fill="none" stroke="#aaa">
-            <g id="hierarchyTree_linksPrimary"></g>
-            <g id="hierarchyTree_linksSecondary" stroke-dasharray="1"></g>
-          </g>
-          <g id="hierarchyTree_nodes"></g>
-          <path id="hierarchyTree_dragLine" path='' />
-        </g>
-      </g>
-    </svg>
-    <div id="hierarchyTree_details" class='chartInfo'>
-      <div id='hierarchyTree_infoLine' style="display: block">&#8205;</div>
-      <div id='hierarchyTree_selected' style="display: none">
-        <span><span id='hierarchyTree_selectedName'></span>. </span>
-        <span data-name="Type short name (abbreviation)">Abbreviation: <input id='hierarchyTree_selectedCode' type='text' maxlength='3' size='3' /></span>
-        <span>Origins: <span id='hierarchyTree_selectedOrigins'></span></span>
-        <button data-tip='Edit this node&#39;s origins' class="hierarchyTree_selectedButton" id='hierarchyTree_selectedSelectButton'>Edit</button>
-        <button data-tip='Unselect this node' class="hierarchyTree_selectedButton" id='hierarchyTree_selectedCloseButton'>Unselect</button>
-      </div>
-    </div>
-    <div id="hierarchyTree_originSelector"></div>
-  </div>`;
-  ensureEl("dialogs").insertAdjacentHTML("beforeend", html);
 }
 
 function cleanupOrigins(elements: HierarchyElement[]): HierarchyElement[] {
@@ -284,7 +240,7 @@ function mapCoords(
   }
 }
 
-function updateTree(): void {
+export function updateTree(): void {
   if (!oldRoot) return;
   const prevRoot = oldRoot;
   const root = getRoot();
@@ -359,110 +315,21 @@ function selectElement(this: SVGGElement, _event: MouseEvent, d: d3.HierarchyPoi
   nodesEl.selectAll("g").style("outline", "none");
   node.style("outline", "1px solid #c13119");
 
-  ensureEl("hierarchyTree_selected").style.display = "block";
-  ensureEl("hierarchyTree_infoLine").style.display = "none";
-  (ensureEl("hierarchyTree_selectedName") as HTMLElement).innerText = dataElement.name;
-  (ensureEl("hierarchyTree_selectedCode") as HTMLInputElement).value = dataElement.code ?? "";
-
-  (ensureEl("hierarchyTree_selectedCode") as HTMLInputElement).onchange = function (this: GlobalEventHandlers): void {
-    const input = this as HTMLInputElement;
-    if (input.value.length > 3) return void tip("Abbreviation must be 3 characters or less", false, "error", 3000);
-    if (!input.value.length) return void tip("Abbreviation cannot be empty", false, "error", 3000);
-    node.select("text").text(input.value);
-    dataElement.code = input.value;
-  };
-
-  const createOriginButtons = () => {
-    ensureEl("hierarchyTree_selectedOrigins").innerHTML = dataElement.origins
-      .filter(origin => origin)
-      .map((origin, index) => {
-        const { name, code } = validElements.find(r => r.i === origin) || { name: "", code: "" };
-        const type = index ? "Secondary" : "Primary";
-        const tipText = `${type} origin: ${name}. Click to remove link to that origin`;
-        return `<button data-id="${origin}" class="hierarchyTree_selectedButton hierarchyTree_selectedOrigin" data-tip="${tipText}">${code}</button>`;
-      })
-      .join("");
-
-    ensureEl("hierarchyTree_selectedOrigins").onclick = (event: MouseEvent) => {
-      const target = event.target as HTMLElement;
-      if (target.tagName !== "BUTTON") return;
-      const origin = Number(target.dataset.id);
-      const filtered = dataElement.origins.filter(elementOrigin => elementOrigin !== origin);
-      dataElement.origins = filtered.length ? filtered : [0];
-      target.remove();
-      updateTree();
-    };
-  };
-
-  createOriginButtons();
-
-  ensureEl("hierarchyTree_selectedSelectButton").onclick = () => {
-    const origins = dataElement.origins;
-    const descendants = d.descendants().map(d => d.data.i);
-    const selectableElements = validElements.filter(({ i }) => !descendants.includes(i));
-
-    const selectableElementsHtml = selectableElements.map(({ i, name, code, color }) => {
-      const isPrimary = origins[0] === i ? "checked" : "";
-      const isChecked = origins.includes(i) ? "checked" : "";
-      if (i === 0) {
-        return `<div ${isChecked}><input data-tip="Set as primary origin" type="radio" name="primary" value="${i}" ${isPrimary} /> Top level</div>`;
-      }
-      return `<div ${isChecked}>
-        <input data-tip="Set as primary origin" type="radio" name="primary" value="${i}" ${isPrimary} />
-        <input data-id="${i}" id="selectElementOrigin${i}" class="checkbox" type="checkbox" ${isChecked} />
-        <label data-tip="Check to set as a secondary origin" for="selectElementOrigin${i}" class="checkbox-label">
-          <fill-box fill="${color as string}" size=".8em" disabled></fill-box>
-          ${code as string}: ${name}
-        </label>
-      </div>`;
-    });
-
-    ensureEl("hierarchyTree_originSelector").innerHTML =
-      `<form style="max-height: 35vh">${selectableElementsHtml.join("")}</form>`;
-
-    openDialog("hierarchyTree_originSelector", {
-      title: "Select origins",
-      position: { my: "center", at: "center", of: "svg" },
-      buttons: {
-        Select: () => {
-          closeDialog("hierarchyTree_originSelector");
-          const $selector = ensureEl("hierarchyTree_originSelector");
-          const selectedRadio = $selector.querySelector<HTMLInputElement>("input[type='radio']:checked");
-          const selectedCheckboxes = $selector.querySelectorAll<HTMLInputElement>("input[type='checkbox']:checked");
-          const primary = selectedRadio ? Number(selectedRadio.value) : 0;
-          const secondary = Array.from(selectedCheckboxes)
-            .map(input => Number(input.dataset.id))
-            .filter(origin => origin !== primary);
-          dataElement.origins = [primary, ...secondary];
-          updateTree();
-          createOriginButtons();
-        },
-        Cancel: () => {
-          closeDialog("hierarchyTree_originSelector");
-        }
-      }
-    });
-  };
-
-  ensureEl("hierarchyTree_selectedCloseButton").onclick = () => {
-    node.style("outline", "none");
-    ensureEl("hierarchyTree_selected").style.display = "none";
-    ensureEl("hierarchyTree_infoLine").style.display = "block";
-  };
+  hierarchyTreeStore.getState().setSelectedElementId(dataElement.i);
 }
 
 function handleNoteEnter(this: SVGGElement, _event: MouseEvent, d: d3.HierarchyPointNode<HierarchyElement>): void {
   if (d.depth === 0) return;
   this.classList.add("selected");
   onNodeEnter(d);
-  (ensureEl("hierarchyTree_infoLine") as HTMLElement).innerText = getDescription(d.data);
+  hierarchyTreeStore.getState().setInfoLine(getDescription(d.data));
   tip("Drag to other node to add parent, click to edit");
 }
 
 function handleNodeExit(this: SVGGElement, _event: MouseEvent, d: d3.HierarchyPointNode<HierarchyElement>): void {
   this.classList.remove("selected");
   onNodeLeave(d);
-  ensureEl("hierarchyTree_infoLine").innerHTML = "&#8205;";
+  hierarchyTreeStore.getState().setInfoLine("\u200D");
   tip("");
 }
 
