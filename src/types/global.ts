@@ -58,8 +58,6 @@ declare global {
   var addMarker: HTMLElement;
   var allowErosion: HTMLInputElement;
   var areaUnit: HTMLSelectElement;
-  var battleAttackers: HTMLElement;
-  var battleDefenders: HTMLElement;
   var burgBody: HTMLElement;
   var burgsOverviewRefresh: HTMLElement;
   var cellTypeFilter: HTMLSelectElement;

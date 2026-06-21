@@ -1,427 +1,571 @@
-import type React from "react";
+import { sum } from "d3";
+import React, { useState } from "react";
+import { worldContext } from "../../context/worldContext";
+import {
+  battleAction_addRegimentToSide,
+  battleAction_addSide,
+  battleAction_applyResults,
+  battleAction_cancelResults,
+  battleAction_changeName,
+  battleAction_changePhase,
+  battleAction_changePlace,
+  battleAction_changeType,
+  battleAction_generateName,
+  battleAction_hideNameSection,
+  battleAction_randomize,
+  battleAction_rollDie,
+  battleAction_run,
+  battleAction_showNameSection,
+  battleAction_wiki
+} from "../../controllers/battle-screen";
+import type { BattleRegimentDisplay, BattleSide } from "../../store/battleScreenState";
+import { useBattleScreenState } from "../../store/battleScreenState";
 import { useDialogState } from "../../store/dialogState";
+import { applySorting, tip } from "../../utils/uiHelpers";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
-export const BattleScreenDialog: React.FC = () => {
-  const isOpen = useDialogState(state => state.openDialogs.has("battleScreen"));
+// ── Phase data ─────────────────────────────────────────────────────────────
+
+interface PhaseOption {
+  phase: string;
+  tip: string;
+}
+
+type PhaseSides = { attackers: PhaseOption[]; defenders: PhaseOption[] };
+
+const SHARED_FIELD: PhaseOption[] = [
+  { phase: "skirmish", tip: "Skirmish phase. Ranged units excel" },
+  { phase: "melee", tip: "Melee phase. Melee units excel" },
+  { phase: "pursue", tip: "Pursue phase. Mounted units excel" },
+  { phase: "retreat", tip: "Retreat phase. Units strength reduced" }
+];
+
+const SHARED_NAVAL: PhaseOption[] = [
+  { phase: "shelling", tip: "Shelling phase. Naval artillery bombardment of enemy fleet" },
+  { phase: "boarding", tip: "Boarding phase. Melee units go aboard" },
+  { phase: "chase", tip: "Сhase phase. Naval units pursue and rarely shell enemy fleet" },
+  { phase: "withdrawal", tip: "Withdrawal phase. Naval units try to escape enemy fleet" }
+];
+
+const SHARED_AIR: PhaseOption[] = [
+  { phase: "maneuvering", tip: "Maneuvering phase. Units strength reduced" },
+  { phase: "dogfight", tip: "Dogfight phase. Units strength increased" },
+  { phase: "pursue", tip: "Pursue phase. Units strength increased" },
+  { phase: "retreat", tip: "Retreat phase. Units strength reduced" }
+];
+
+const PHASE_DATA: Record<string, PhaseSides> = {
+  field: { attackers: SHARED_FIELD, defenders: SHARED_FIELD },
+  naval: { attackers: SHARED_NAVAL, defenders: SHARED_NAVAL },
+  siege: {
+    attackers: [
+      { phase: "blockade", tip: "Blockade phase. Prepare or hold the blockade" },
+      { phase: "bombardment", tip: "Bombardment phase. Attack enemy with machinery units" },
+      { phase: "storming", tip: "Storming phase. Storm enemy town. Melee units excel" },
+      { phase: "looting", tip: "Looting phase. Plunder the town. Units strength increased" },
+      { phase: "retreat", tip: "Retreat phase. Units strength reduced" }
+    ],
+    defenders: [
+      { phase: "sheltering", tip: "Sheltering phase. Hide behind the walls and wait" },
+      { phase: "sortie", tip: "Sortie phase. Make a sortie from besieged town. Melee units excel" },
+      { phase: "bombardment", tip: "Bombardment phase. Attack enemy with machinery units" },
+      { phase: "defense", tip: "Defense phase. Ranged and melee units excel" },
+      { phase: "surrendering", tip: "Surrendering phase. Give up the defense. Units strength reduced" },
+      { phase: "pursue", tip: "Pursue phase. Mounted units excel" }
+    ]
+  },
+  ambush: {
+    attackers: [
+      { phase: "shock", tip: "Shock phase. Units strength reduced" },
+      { phase: "melee", tip: "Melee phase. Melee units excel" },
+      { phase: "pursue", tip: "Pursue phase. Mounted units excel" },
+      { phase: "retreat", tip: "Retreat phase. Units strength reduced" }
+    ],
+    defenders: [
+      { phase: "surprise", tip: "Surprise attack phase. Units strength increased, ranged units excel" },
+      { phase: "melee", tip: "Melee phase. Melee units excel" },
+      { phase: "pursue", tip: "Pursue phase. Mounted units excel" },
+      { phase: "retreat", tip: "Retreat phase. Units strength reduced" }
+    ]
+  },
+  landing: {
+    attackers: [
+      { phase: "landing", tip: "Landing phase. Amphibious attack. Units are vulnerable against prepared defense" },
+      { phase: "melee", tip: "Melee phase. Melee units excel" },
+      { phase: "pursue", tip: "Pursue phase. Mounted units excel" },
+      { phase: "flee", tip: "Flee phase. Units strength reduced" }
+    ],
+    defenders: [
+      { phase: "shock", tip: "Shock phase. Units are not prepared for a defense" },
+      { phase: "defense", tip: "Defense phase. Prepared defense. Units strength increased" },
+      { phase: "melee", tip: "Melee phase. Melee units excel" },
+      { phase: "waiting", tip: "Waiting phase. Cannot pursue fleeing naval" },
+      { phase: "pursue", tip: "Pursue phase. Try to intercept fleeing attackers. Mounted units excel" },
+      { phase: "retreat", tip: "Retreat phase. Units strength reduced" }
+    ]
+  },
+  air: { attackers: SHARED_AIR, defenders: SHARED_AIR }
+};
+
+// ── Sub-components ──────────────────────────────────────────────────────────
+
+interface PhasePickerProps {
+  side: BattleSide;
+  battleType: string;
+  currentPhase: string;
+}
+
+const PhasePicker: React.FC<PhasePickerProps> = ({ side, battleType, currentPhase }) => {
+  const [open, setOpen] = useState(false);
+  const options = PHASE_DATA[battleType]?.[side] ?? SHARED_FIELD;
+
+  const handleToggle = (ev: React.MouseEvent) => {
+    ev.stopPropagation();
+    setOpen(prev => !prev);
+  };
+
+  const handleSelect = (phase: string) => {
+    battleAction_changePhase(side, phase);
+    setOpen(false);
+  };
 
   return (
-    <Dialog isOpen={isOpen} title="Battle Screen" onClose={() => closeDialog("battleScreen")}>
+    <div style={{ display: "inline-block" }}>
+      <button
+        type="button"
+        className={`icon-button-${currentPhase || "skirmish"}`}
+        style={{ width: "3.2em" }}
+        data-tip={options.find(o => o.phase === currentPhase)?.tip ?? ""}
+        onClick={handleToggle}
+      />
+      {open && (
+        <div className="battlePhases" style={{ display: "block" }}>
+          {options.map(opt => (
+            <button
+              key={opt.phase}
+              type="button"
+              className={`icon-button-${opt.phase}`}
+              data-phase={opt.phase}
+              data-tip={opt.tip}
+              onClick={() => handleSelect(opt.phase)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+interface SideHeaderProps {
+  label: string;
+  side: BattleSide;
+  morale: number;
+  power: number;
+  phase: string;
+  die: number;
+  battleType: string;
+}
+
+const SideHeader: React.FC<SideHeaderProps> = ({ label, side, morale, power, phase, die, battleType }) => (
+  <div style={{ fontSize: "1.2em", fontWeight: "bold", width: "unset" }}>
+    <span>{label}</span>
+    <div style={{ float: "right", fontSize: "0.7em" }}>
+      <meter data-tip={`${label} morale: ${morale}`} min={0} max={100} low={33} high={66} optimum={80} value={morale} />
+      <div
+        data-tip={`${label} strength during this phase. Strength defines dealt damage`}
+        style={{ display: "inline-block", textAlign: "center" }}
+        className="icon-button-power"
+      >
+        {power}
+      </div>
+      <PhasePicker side={side} battleType={battleType} currentPhase={phase} />
+      <button
+        type="button"
+        data-tip={`Random factor for ${label.toLowerCase()}. Click to re-roll`}
+        style={{ padding: "0.1em 0.2em", width: "3.2em" }}
+        className="icon-button-die"
+        onClick={() => battleAction_rollDie(side)}
+      >
+        {die}
+      </button>
+    </div>
+  </div>
+);
+
+interface RegimentTableProps {
+  regiments: BattleRegimentDisplay[];
+  militaryUnitNames: Array<{ name: string; icon: string }>;
+}
+
+const RegimentTable: React.FC<RegimentTableProps> = ({ regiments, militaryUnitNames }) => (
+  <table>
+    <thead>
+      <tr>
+        <th />
+        <th />
+        {militaryUnitNames.map(u => {
+          const isExternal = u.icon.startsWith("http") || u.icon.startsWith("data:image");
+          return (
+            <th key={u.name} data-tip={u.name}>
+              {isExternal ? <img src={u.icon} width="15" height="15" alt={u.name} /> : u.icon}
+            </th>
+          );
+        })}
+        <th data-tip="Total military">Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      {regiments.map(r => {
+        const isExternal = r.icon.startsWith("http") || r.icon.startsWith("data:image");
+        const iconHtml = isExternal
+          ? `<image href="${r.icon}" x="0.1em" y="0.1em" width="1.2em" height="1.2em"></image>`
+          : `<text x="50%" y="1em" style="text-anchor: middle">${r.icon}</text>`;
+        const svgIcon = `<svg width="1.4em" height="1.4em" style="margin-bottom: -.6em; stroke: #333">
+          <rect x="0" y="0" width="100%" height="100%" fill="${r.stateColor}"></rect>${iconHtml}</svg>`;
+
+        const totalCasualties = sum(Object.values(r.casualties));
+        const totalSurvivors = sum(Object.values(r.survivors));
+
+        return (
+          <React.Fragment key={r.key}>
+            <tr className="battleInitial">
+              {/* biome-ignore lint/security/noDangerouslySetInnerHtml: SVG icon requires raw HTML */}
+              <td dangerouslySetInnerHTML={{ __html: svgIcon }} />
+              <td className="regiment" data-tip={r.regimentName}>
+                {r.regimentName.slice(0, 24)}
+              </td>
+              {militaryUnitNames.map(u => (
+                <td key={u.name} data-tip="Initial forces" style={{ width: "2.5em", textAlign: "center" }}>
+                  {r.initialUnits[u.name] || 0}
+                </td>
+              ))}
+              <td data-tip="Initial forces" style={{ width: "2.5em", textAlign: "center" }}>
+                {r.initialTotal}
+              </td>
+            </tr>
+            <tr className="battleCasualties">
+              <td />
+              <td data-tip={r.stateFullName}>{r.stateFullName.slice(0, 26)}</td>
+              {militaryUnitNames.map(u => (
+                <td key={u.name} data-tip="Casualties" style={{ width: "2.5em", textAlign: "center", color: "red" }}>
+                  {r.casualties[u.name] || 0}
+                </td>
+              ))}
+              <td data-tip="Casualties" style={{ width: "2.5em", textAlign: "center", color: "red" }}>
+                {totalCasualties}
+              </td>
+            </tr>
+            <tr className="battleSurvivors">
+              <td />
+              <td data-tip="Supply line length, affects morale">Distance to base: {r.distanceLabel}</td>
+              {militaryUnitNames.map(u => (
+                <td key={u.name} data-tip="Survivors" style={{ width: "2.5em", textAlign: "center", color: "green" }}>
+                  {r.survivors[u.name] || 0}
+                </td>
+              ))}
+              <td data-tip="Survivors" style={{ width: "2.5em", textAlign: "center", color: "green" }}>
+                {totalSurvivors}
+              </td>
+            </tr>
+          </React.Fragment>
+        );
+      })}
+    </tbody>
+  </table>
+);
+
+// ── Regiment selector dialog ────────────────────────────────────────────────
+
+export const RegimentSelectorScreenDialog: React.FC = () => {
+  const isOpen = useDialogState(state => state.openDialogs.has("regimentSelectorScreen"));
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  const regiments = isOpen
+    ? (worldContext.pack.states ?? [])
+        .filter(s => s.military && !s.removed)
+        .flatMap(s => (s.military ?? []).map(r => ({ state: s, regiment: r })))
+    : [];
+
+  const attackers = useBattleScreenState(s => s.attackers.regiments);
+  const defenders = useBattleScreenState(s => s.defenders.regiments);
+  const addedKeys = new Set([...attackers, ...defenders].map(r => r.key));
+
+  const distanceUnit = (document.getElementById("distanceUnitInput") as HTMLSelectElement | null)?.value ?? "km";
+
+  const toggleSelect = (key: string, isAdded: boolean) => {
+    if (isAdded) {
+      tip("Regiment is already in the battle", false, "error");
+      return;
+    }
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const addClicked = (side: BattleSide) => {
+    if (!selected.size) {
+      tip("Please select a regiment first", false, "error");
+      return;
+    }
+    for (const key of selected) {
+      const [sI, rI] = key.split("-").map(Number);
+      battleAction_addRegimentToSide(side, sI, rI);
+    }
+    setSelected(new Set());
+    closeDialog("regimentSelectorScreen");
+  };
+
+  return (
+    <Dialog
+      isOpen={isOpen}
+      title="Add regiment to the battle"
+      onClose={() => {
+        setSelected(new Set());
+        closeDialog("regimentSelectorScreen");
+      }}
+      buttons={[
+        { label: "Add to attackers", onClick: () => addClicked("attackers") },
+        { label: "Add to defenders", onClick: () => addClicked("defenders") },
+        {
+          label: "Cancel",
+          onClick: () => {
+            setSelected(new Set());
+            closeDialog("regimentSelectorScreen");
+          }
+        }
+      ]}
+    >
+      <div
+        id="regimentSelectorHeader"
+        className="header"
+        style={{ gridTemplateColumns: "9em 13em 4em 6em" }}
+        ref={el => {
+          if (el) applySorting(el);
+        }}
+      >
+        <div data-tip="Click to sort by state name" className="sortable alphabetically" data-sortby="state">
+          State&nbsp;
+        </div>
+        <div data-tip="Click to sort by regiment name" className="sortable alphabetically" data-sortby="regiment">
+          Regiment&nbsp;
+        </div>
+        <div data-tip="Click to sort by total military forces" className="sortable" data-sortby="total">
+          Total&nbsp;
+        </div>
+        <div
+          data-tip="Click to sort by distance to the battlefield"
+          className="sortable icon-sort-number-up"
+          data-sortby="distance"
+        >
+          Distance&nbsp;
+        </div>
+      </div>
+      <div id="regimentSelectorBody" className="table">
+        {regiments.map(({ state: s, regiment: r }) => {
+          const key = `${s.i}-${r.i}`;
+          const isAdded = addedKeys.has(key);
+          const isSelected = selected.has(key);
+          return (
+            <div
+              key={key}
+              className={isAdded ? "inactive" : isSelected ? "selected" : ""}
+              data-s={s.i}
+              data-i={r.i}
+              data-state={s.name}
+              data-regiment={r.name}
+              data-total={r.a}
+              data-tip="Click to select regiment"
+              onClick={() => toggleSelect(key, isAdded)}
+              style={{ cursor: isAdded ? "default" : "pointer" }}
+            >
+              <svg
+                width=".9em"
+                height=".9em"
+                style={{ marginBottom: "-1px", stroke: "#333" }}
+                aria-label={s.name ?? ""}
+              >
+                <rect x="0" y="0" width="100%" height="100%" fill={s.color ?? "#999"} />
+              </svg>
+              <div style={{ width: "6em" }}>{(s.name ?? "").slice(0, 11)}</div>
+              <div style={{ width: "1.2em" }}>{r.icon}</div>
+              <div style={{ width: "13em" }}>{r.name.slice(0, 24)}</div>
+              <div style={{ width: "4em" }}>{r.a}</div>
+              <div style={{ width: "4em" }}>{isAdded ? `0 ${distanceUnit}` : `? ${distanceUnit}`}</div>
+            </div>
+          );
+        })}
+      </div>
+    </Dialog>
+  );
+};
+
+// ── Main battle screen dialog ───────────────────────────────────────────────
+
+export const BattleScreenDialog: React.FC = () => {
+  const isOpen = useDialogState(state => state.openDialogs.has("battleScreen"));
+  const { name, type, place, attackers, defenders, nameSectionVisible, militaryUnits } = useBattleScreenState();
+
+  const unitNames = militaryUnits.map(u => ({ name: u.name, icon: u.icon }));
+
+  return (
+    <Dialog isOpen={isOpen} title={name} onClose={() => battleAction_cancelResults()}>
       <div id="battleScreenContainer">
         <div>
           <div id="battleBody">
-            <div className="template" style={{ display: "none" }} id="battlePhases_field">
-              <button
-                type="button"
-                data-tip="Skirmish phase. Ranged units excel"
-                data-phase="skirmish"
-                className="icon-button-skirmish"
-              />
-              <button
-                type="button"
-                data-tip="Melee phase. Melee units excel"
-                data-phase="melee"
-                className="icon-button-melee"
-              />
-              <button
-                type="button"
-                data-tip="Pursue phase. Mounted units excel"
-                data-phase="pursue"
-                className="icon-button-pursue"
-              />
-              <button
-                type="button"
-                data-tip="Retreat phase. Units strength reduced"
-                data-phase="retreat"
-                className="icon-button-retreat"
-              />
-            </div>
-            <div className="template" style={{ display: "none" }} id="battlePhases_naval">
-              <button
-                type="button"
-                data-tip="Shelling phase. Naval artillery bombardment of enemy fleet"
-                data-phase="shelling"
-                className="icon-button-shelling"
-              />
-              <button
-                type="button"
-                data-tip="Boarding phase. Melee units go aboard"
-                data-phase="boarding"
-                className="icon-button-boarding"
-              />
-              <button
-                type="button"
-                data-tip="Сhase phase. Naval units pursue and rarely shell enemy fleet"
-                data-phase="chase"
-                className="icon-button-chase"
-              />
-              <button
-                type="button"
-                data-tip="Withdrawal phase. Naval units try to escape enemy fleet"
-                data-phase="withdrawal"
-                className="icon-button-withdrawal"
-              />
-            </div>
-            <div className="template" style={{ display: "none" }} id="battlePhases_siege_attackers">
-              <button
-                type="button"
-                data-tip="Blockade phase. Prepare or hold the blockade"
-                data-phase="blockade"
-                className="icon-button-blockade"
-              />
-              <button
-                type="button"
-                data-tip="Bombardment phase. Attack enemy with machinery units"
-                data-phase="bombardment"
-                className="icon-button-bombardment"
-              />
-              <button
-                type="button"
-                data-tip="Storming phase. Storm enemy town. Melee units excel"
-                data-phase="storming"
-                className="icon-button-storming"
-              />
-              <button
-                type="button"
-                data-tip="Looting phase. Plunder the town. Units strength increased"
-                data-phase="looting"
-                className="icon-button-looting"
-              />
-              <button
-                type="button"
-                data-tip="Retreat phase. Units strength reduced"
-                data-phase="retreat"
-                className="icon-button-retreat"
-              />
-            </div>
-            <div className="template" style={{ display: "none" }} id="battlePhases_siege_defenders">
-              <button
-                type="button"
-                data-tip="Sheltering phase. Hide behind the walls and wait"
-                data-phase="sheltering"
-                className="icon-button-sheltering"
-              />
-              <button
-                type="button"
-                data-tip="Sortie phase. Make a sortie from besieged town. Melee units excel"
-                data-phase="sortie"
-                className="icon-button-sortie"
-              />
-              <button
-                type="button"
-                data-tip="Bombardment phase. Attack enemy with machinery units"
-                data-phase="bombardment"
-                className="icon-button-bombardment"
-              />
-              <button
-                type="button"
-                data-tip="Defense phase. Ranged and melee units excel"
-                data-phase="defense"
-                className="icon-button-defense"
-              />
-              <button
-                type="button"
-                data-tip="Surrendering phase. Give up the defense. Units strength reduced"
-                data-phase="surrendering"
-                className="icon-button-surrendering"
-              />
-              <button
-                type="button"
-                data-tip="Pursue phase. Mounted units excel"
-                data-phase="pursue"
-                className="icon-button-pursue"
-              />
-            </div>
-            <div className="template" style={{ display: "none" }} id="battlePhases_ambush_attackers">
-              <button
-                type="button"
-                data-tip="Shock phase. Units strength reduced"
-                data-phase="shock"
-                className="icon-button-shock"
-              />
-              <button
-                type="button"
-                data-tip="Melee phase. Melee units excel"
-                data-phase="melee"
-                className="icon-button-melee"
-              />
-              <button
-                type="button"
-                data-tip="Pursue phase. Mounted units excel"
-                data-phase="pursue"
-                className="icon-button-pursue"
-              />
-              <button
-                type="button"
-                data-tip="Retreat phase. Units strength reduced"
-                data-phase="retreat"
-                className="icon-button-retreat"
-              />
-            </div>
-            <div className="template" style={{ display: "none" }} id="battlePhases_ambush_defenders">
-              <button
-                type="button"
-                data-tip="Surprice attack phase. Units strength increased, ranged units excel"
-                data-phase="surprise"
-                className="icon-button-surprise"
-              />
-              <button
-                type="button"
-                data-tip="Melee phase. Melee units excel"
-                data-phase="melee"
-                className="icon-button-melee"
-              />
-              <button
-                type="button"
-                data-tip="Pursue phase. Mounted units excel"
-                data-phase="pursue"
-                className="icon-button-pursue"
-              />
-              <button
-                type="button"
-                data-tip="Retreat phase. Units strength reduced"
-                data-phase="retreat"
-                className="icon-button-retreat"
-              />
-            </div>
-            <div className="template" style={{ display: "none" }} id="battlePhases_landing_attackers">
-              <button
-                type="button"
-                data-tip="Landing phase. Amphibious attack. Units are vulnerable against prepared defense"
-                data-phase="landing"
-                className="icon-button-landing"
-              />
-              <button
-                type="button"
-                data-tip="Melee phase. Melee units excel"
-                data-phase="melee"
-                className="icon-button-melee"
-              />
-              <button
-                type="button"
-                data-tip="Pursue phase. Mounted units excel"
-                data-phase="pursue"
-                className="icon-button-pursue"
-              />
-              <button
-                type="button"
-                data-tip="Flee phase. Units strength reduced"
-                data-phase="flee"
-                className="icon-button-flee"
-              />
-            </div>
-            <div className="template" style={{ display: "none" }} id="battlePhases_landing_defenders">
-              <button
-                type="button"
-                data-tip="Shock phase. Units are not prepared for a defense"
-                data-phase="shock"
-                className="icon-button-shock"
-              />
-              <button
-                type="button"
-                data-tip="Defense phase. Prepared defense. Units strength increased"
-                data-phase="defense"
-                className="icon-button-defense"
-              />
-              <button
-                type="button"
-                data-tip="Melee phase. Melee units excel"
-                data-phase="melee"
-                className="icon-button-melee"
-              />
-              <button
-                type="button"
-                data-tip="Waiting phase. Cannot pursue fleeing naval"
-                data-phase="waiting"
-                className="icon-button-waiting"
-              />
-              <button
-                type="button"
-                data-tip="Pursue phase. Try to intercept fleeing attackers. Mounted units excel"
-                data-phase="pursue"
-                className="icon-button-pursue"
-              />
-              <button
-                type="button"
-                data-tip="Retreat phase. Units strength reduced"
-                data-phase="retreat"
-                className="icon-button-retreat"
-              />
-            </div>
-            <div className="template" style={{ display: "none" }} id="battlePhases_air">
-              <button
-                type="button"
-                data-tip="Maneuvering phase. Units strength reduced"
-                data-phase="maneuvering"
-                className="icon-button-maneuvering"
-              />
-              <button
-                type="button"
-                data-tip="Dogfight phase. Units strength increased"
-                data-phase="dogfight"
-                className="icon-button-dogfight"
-              />
-              <button
-                type="button"
-                data-tip="Pursue phase. Units strength increased"
-                data-phase="pursue"
-                className="icon-button-pursue"
-              />
-              <button
-                type="button"
-                data-tip="Retreat phase. Units strength reduced"
-                data-phase="retreat"
-                className="icon-button-retreat"
-              />
-            </div>
-            <div style={{ fontSize: "1.2em", fontWeight: "bold", width: "unset" }}>
-              <span>Attackers</span>
-              <div style={{ float: "right", fontSize: "0.7em" }}>
-                <meter
-                  id="battleMorale_attackers"
-                  data-tip="Attackers morale: "
-                  min={0}
-                  max={100}
-                  low={33}
-                  high={66}
-                  optimum={80}
-                />
-                <div
-                  id="battlePower_attackers"
-                  data-tip="Attackers strength during this phase. Strength defines dealt damage"
-                  style={{ display: "inline-block", textAlign: "center" }}
-                  className="icon-button-power"
-                />
-                <div style={{ display: "inline-block" }}>
-                  <button type="button" id="battlePhase_attackers" style={{ width: "3.2em" }} />
-                  <div className="battlePhases" style={{ display: "none" }} />
-                </div>
-                <button
-                  type="button"
-                  id="battleDie_attackers"
-                  data-tip="Random factor for attackers. Click to re-roll"
-                  style={{ padding: "0.1em 0.2em", width: "3.2em" }}
-                  className="icon-button-die"
-                />
-              </div>
-            </div>
-            <table id="battleAttackers" />
-            <div style={{ fontSize: "1.2em", fontWeight: "bold", width: "unset" }}>
-              <span>Defenders</span>
-              <div style={{ float: "right", fontSize: "0.7em" }}>
-                <meter
-                  id="battleMorale_defenders"
-                  data-tip="Defenders morale: "
-                  min={0}
-                  max={100}
-                  low={33}
-                  high={66}
-                  optimum={80}
-                />
-                <div
-                  id="battlePower_defenders"
-                  data-tip="Defenders strength during this phase. Strength defines dealt damage"
-                  style={{ display: "inline-block", textAlign: "center" }}
-                  className="icon-button-power"
-                />
-                <div style={{ display: "inline-block" }}>
-                  <button type="button" id="battlePhase_defenders" style={{ width: "3.2em" }} />
-                  <div className="battlePhases" style={{ display: "none" }} />
-                </div>
-                <button
-                  type="button"
-                  id="battleDie_defenders"
-                  data-tip="Random factor for defenders. Click to re-roll"
-                  style={{ padding: "0.1em 0.2em", width: "3.2em" }}
-                  className="icon-button-die"
-                />
-              </div>
-            </div>
-            <table id="battleDefenders" />
+            <SideHeader
+              label="Attackers"
+              side="attackers"
+              morale={attackers.morale}
+              power={attackers.power}
+              phase={attackers.phase}
+              die={attackers.die}
+              battleType={type}
+            />
+            <RegimentTable regiments={attackers.regiments} militaryUnitNames={unitNames} />
+
+            <SideHeader
+              label="Defenders"
+              side="defenders"
+              morale={defenders.morale}
+              power={defenders.power}
+              phase={defenders.phase}
+              die={defenders.die}
+              battleType={type}
+            />
+            <RegimentTable regiments={defenders.regiments} militaryUnitNames={unitNames} />
           </div>
+
           <div id="battleFooter">
-            <button type="button" id="battleType" data-tip="Battle type. Click to change" />
-            <div className="battleTypes" style={{ display: "none" }}>
-              <button
-                data-tip="Field Battle: a standard type of combat"
-                data-type="field"
-                className="icon-button-field"
-                type="button"
-              />
-              <button
-                data-tip="Naval Battle: naval units combat"
-                data-type="naval"
-                className="icon-button-naval"
-                type="button"
-              />
-              <button
-                data-tip="Siege: burg blockade and storming"
-                data-type="siege"
-                className="icon-button-siege"
-                type="button"
-              />
-              <button
-                data-tip="Ambush: surprise attack"
-                data-type="ambush"
-                className="icon-button-ambush"
-                type="button"
-              />
-              <button
-                data-tip="Landing: amphibious attack"
-                data-type="landing"
-                className="icon-button-landing"
-                type="button"
-              />
-              <button
-                data-tip="Air Battle: maneuring fight of avia units"
-                data-type="air"
-                className="icon-button-air"
-                type="button"
-              />
-            </div>
-            <button type="button" id="battleNameShow" data-tip="Set battle name" className="icon-font" />
-            <div id="battleNameSection" style={{ display: "none" }}>
-              <button type="button" id="battleNameHide" data-tip="Hide the battle name section" className="icon-font" />
-              <input id="battleNamePlace" data-tip="Type place name" style={{ width: "30%" }} />
-              <input id="battleNameFull" data-tip="Type full battle name" style={{ width: "46%" }} />
+            {/* Battle type selector */}
+            <BattleTypePicker currentType={type} />
+
+            {/* Name controls */}
+            {!nameSectionVisible && (
               <button
                 type="button"
-                id="battleNameCulture"
-                data-tip="Generate culture-specific name for place and battle"
-                className="icon-book"
+                data-tip="Set battle name"
+                className="icon-font"
+                onClick={battleAction_showNameSection}
               />
-              <button
-                type="button"
-                id="battleNameRandom"
-                data-tip="Generate random name for place and battle"
-                className="icon-globe"
-              />
-            </div>
+            )}
+            {nameSectionVisible && (
+              <div id="battleNameSection">
+                <button
+                  type="button"
+                  data-tip="Hide the battle name section"
+                  className="icon-font"
+                  onClick={battleAction_hideNameSection}
+                />
+                <input
+                  data-tip="Type place name"
+                  style={{ width: "30%" }}
+                  value={place}
+                  onChange={e => battleAction_changePlace(e.target.value)}
+                />
+                <input
+                  data-tip="Type full battle name"
+                  style={{ width: "46%" }}
+                  value={name}
+                  onChange={e => battleAction_changeName(e.target.value)}
+                />
+                <button
+                  type="button"
+                  data-tip="Generate culture-specific name for place and battle"
+                  className="icon-book"
+                  onClick={() => battleAction_generateName("culture")}
+                />
+                <button
+                  type="button"
+                  data-tip="Generate random name for place and battle"
+                  className="icon-globe"
+                  onClick={() => battleAction_generateName("random")}
+                />
+              </div>
+            )}
+
             <button
               type="button"
-              id="battleAddRegiment"
               data-tip="Add regiment to the battle"
               className="icon-user-plus"
+              onClick={battleAction_addSide}
             />
-            <button type="button" id="battleRoll" data-tip="Roll dice to update random factor" className="icon-die" />
-            <button type="button" id="battleRun" data-tip="Iterate battle" className="icon-play" />
             <button
               type="button"
-              id="battleApply"
+              data-tip="Roll dice to update random factor"
+              className="icon-die"
+              onClick={battleAction_randomize}
+            />
+            <button type="button" data-tip="Iterate battle" className="icon-play" onClick={battleAction_run} />
+            <button
+              type="button"
               data-tip="End battle: apply current results and close the screen"
               className="icon-check"
+              onClick={battleAction_applyResults}
             />
             <button
               type="button"
-              id="battleCancel"
               data-tip="Cancel battle: roll back results and close the screen"
               className="icon-cancel"
+              onClick={battleAction_cancelResults}
             />
-            <button type="button" id="battleWiki" data-tip="Open Battle Simulation Tutorial" className="icon-info" />
+            <button
+              type="button"
+              data-tip="Open Battle Simulation Tutorial"
+              className="icon-info"
+              onClick={battleAction_wiki}
+            />
           </div>
         </div>
       </div>
     </Dialog>
+  );
+};
+
+// ── Battle type picker ──────────────────────────────────────────────────────
+
+const BATTLE_TYPES = [
+  { type: "field", tip: "Field Battle: a standard type of combat" },
+  { type: "naval", tip: "Naval Battle: naval units combat" },
+  { type: "siege", tip: "Siege: burg blockade and storming" },
+  { type: "ambush", tip: "Ambush: surprise attack" },
+  { type: "landing", tip: "Landing: amphibious attack" },
+  { type: "air", tip: "Air Battle: maneuring fight of avia units" }
+];
+
+const BattleTypePicker: React.FC<{ currentType: string }> = ({ currentType }) => {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <>
+      <button
+        type="button"
+        data-tip="Battle type. Click to change"
+        className={`icon-button-${currentType}`}
+        onClick={ev => {
+          ev.stopPropagation();
+          setOpen(prev => !prev);
+        }}
+      />
+      {open && (
+        <div className="battleTypes">
+          {BATTLE_TYPES.map(bt => (
+            <button
+              key={bt.type}
+              type="button"
+              data-tip={bt.tip}
+              className={`icon-button-${bt.type}`}
+              onClick={() => {
+                battleAction_changeType(bt.type);
+                setOpen(false);
+              }}
+            />
+          ))}
+        </div>
+      )}
+    </>
   );
 };

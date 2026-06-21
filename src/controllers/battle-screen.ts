@@ -9,10 +9,11 @@ import type { MilitaryRegiment } from "../modules/military-generator";
 import { Military } from "../modules/military-generator";
 import { Names } from "../modules/names-generator";
 import { drawMarker, moveRegiment } from "../renderers/index";
-import { modules } from "../store/editorState";
+import type { BattleRegimentDisplay, BattleSide } from "../store/battleScreenState";
+import { getBattleScreenState } from "../store/battleScreenState";
 import { closeDialog, closeDialogs, openDialog } from "../ui/dialogs/dialogService";
-import { capitalize, ensureEl, findCell, getAdjective, last, list, minmax, P, Pint, rand, rn, wiki } from "../utils";
-import { applySorting, fitContent, tip } from "../utils/uiHelpers";
+import { findCell, getAdjective, last, list, minmax, P, Pint, rand, rn, wiki } from "../utils";
+import { tip } from "../utils/uiHelpers";
 
 interface BattleRegiment extends MilitaryRegiment {
   casualties: Record<string, number>;
@@ -20,8 +21,6 @@ interface BattleRegiment extends MilitaryRegiment {
   px?: number;
   py?: number;
 }
-
-type BattleSide = "attackers" | "defenders";
 
 interface BattleForces {
   regiments: BattleRegiment[];
@@ -59,7 +58,14 @@ class Battle {
     this.attackers = { regiments: [], distances: [], morale: 100, casualties: 0, power: 0 };
     this.defenders = { regiments: [], distances: [], morale: 100, casualties: 0, power: 0 };
 
-    this.addHeaders();
+    const store = getBattleScreenState();
+    store.setBattleState({
+      militaryUnits: worldContext.options.military ?? [],
+      attackers: { regiments: [], morale: 100, power: 0, phase: "", die: 1 },
+      defenders: { regiments: [], morale: 100, power: 0, phase: "", die: 1 },
+      nameSectionVisible: false
+    });
+
     this.addRegiment("attackers", attacker);
     this.addRegiment("defenders", defender);
     this.place = this.definePlace();
@@ -70,47 +76,13 @@ class Battle {
     this.calculateStrength("defenders");
     this.getInitialMorale();
 
+    store.setBattleState({ name: this.name, type: this.type, place: this.place });
+
     openDialog("battleScreen", {
       title: this.name,
       resizable: false,
-      width: fitContent(),
-      position: { my: "center", at: "center", of: "#map" },
       close: () => Battle.context!.cancelResults()
     });
-
-    if (modules.Battle) return;
-    modules.Battle = true;
-
-    ensureEl("battleType").addEventListener("click", ev => this.toggleChange(ev));
-    (ensureEl("battleType").nextElementSibling as HTMLElement).addEventListener("click", ev =>
-      Battle.context!.changeType(ev)
-    );
-    ensureEl("battleNameShow").addEventListener("click", () => Battle.context!.showNameSection());
-    ensureEl("battleNamePlace").addEventListener(
-      "change",
-      ev => (Battle.context!.place = (ev.target as HTMLInputElement).value)
-    );
-    ensureEl("battleNameFull").addEventListener("change", ev => Battle.context!.changeName(ev));
-    ensureEl("battleNameCulture").addEventListener("click", () => Battle.context!.generateName("culture"));
-    ensureEl("battleNameRandom").addEventListener("click", () => Battle.context!.generateName("random"));
-    ensureEl("battleNameHide").addEventListener("click", this.hideNameSection);
-    ensureEl("battleAddRegiment").addEventListener("click", this.addSide);
-    ensureEl("battleRoll").addEventListener("click", () => Battle.context!.randomize());
-    ensureEl("battleRun").addEventListener("click", () => Battle.context!.run());
-    ensureEl("battleApply").addEventListener("click", () => Battle.context!.applyResults());
-    ensureEl("battleCancel").addEventListener("click", () => Battle.context!.cancelResults());
-    ensureEl("battleWiki").addEventListener("click", () => wiki("Battle-Simulator"));
-
-    ensureEl("battlePhase_attackers").addEventListener("click", ev => this.toggleChange(ev));
-    (ensureEl("battlePhase_attackers").nextElementSibling as HTMLElement).addEventListener("click", ev =>
-      Battle.context!.changePhase(ev, "attackers")
-    );
-    ensureEl("battlePhase_defenders").addEventListener("click", ev => this.toggleChange(ev));
-    (ensureEl("battlePhase_defenders").nextElementSibling as HTMLElement).addEventListener("click", ev =>
-      Battle.context!.changePhase(ev, "defenders")
-    );
-    ensureEl("battleDie_attackers").addEventListener("click", () => Battle.context!.rollDie("attackers"));
-    ensureEl("battleDie_defenders").addEventListener("click", () => Battle.context!.rollDie("defenders"));
   }
 
   defineType(): void {
@@ -133,24 +105,7 @@ class Battle {
     };
 
     this.type = getType();
-    this.setType();
-  }
-
-  setType(): void {
-    ensureEl("battleType").className = `icon-button-${this.type}`;
-
-    const sideSpecific = document.getElementById(`battlePhases_${this.type}_attackers`) as HTMLTemplateElement | null;
-    const attackers = sideSpecific
-      ? sideSpecific.content
-      : (document.getElementById(`battlePhases_${this.type}`) as HTMLTemplateElement).content;
-    const defenders = sideSpecific
-      ? (document.getElementById(`battlePhases_${this.type}_defenders`) as HTMLTemplateElement).content
-      : attackers;
-
-    (ensureEl("battlePhase_attackers").nextElementSibling as HTMLElement).innerHTML = "";
-    (ensureEl("battlePhase_defenders").nextElementSibling as HTMLElement).innerHTML = "";
-    (ensureEl("battlePhase_attackers").nextElementSibling as HTMLElement).append(attackers.cloneNode(true));
-    (ensureEl("battlePhase_defenders").nextElementSibling as HTMLElement).append(defenders.cloneNode(true));
+    getBattleScreenState().setBattleState({ type: this.type });
   }
 
   definePlace(): string {
@@ -186,20 +141,6 @@ class Battle {
     return "battle";
   }
 
-  addHeaders(): void {
-    let headers = "<thead><tr><th></th><th></th>";
-
-    for (const u of worldContext.options.military!) {
-      const label = capitalize(u.name.replace(/_/g, " "));
-      const isExternal = u.icon.startsWith("http") || u.icon.startsWith("data:image");
-      const iconHTML = isExternal ? `<img src="${u.icon}" width="15" height="15">` : u.icon;
-      headers += `<th data-tip="${label}">${iconHTML}</th>`;
-    }
-
-    headers += "<th data-tip='Total military''>Total</th></tr></thead>";
-    battleAttackers.innerHTML = battleDefenders.innerHTML = headers;
-  }
-
   addRegiment(side: BattleSide, regiment: BattleRegiment): void {
     regiment.casualties = Object.keys(regiment.u).reduce((a: Record<string, number>, b: string) => {
       a[b] = 0;
@@ -209,141 +150,52 @@ class Battle {
 
     const state = worldContext.pack.states[regiment.state];
     const distance = (Math.hypot(this.y - regiment.by, this.x - regiment.bx) * worldContext.distanceScale) | 0;
+    const distanceUnit = (document.getElementById("distanceUnitInput") as HTMLSelectElement | null)?.value ?? "km";
     const color = (state.color ?? "#999")[0] === "#" ? (state.color ?? "#999") : "#999";
 
-    const isExternal = regiment.icon?.startsWith("http") || regiment.icon?.startsWith("data:image");
-    const iconHtml = isExternal
-      ? `<image href="${regiment.icon}" x="0.1em" y="0.1em" width="1.2em" height="1.2em"></image>`
-      : `<text x="50%" y="1em" style="text-anchor: middle">${regiment.icon}</text>`;
-    const icon = `<svg width="1.4em" height="1.4em" style="margin-bottom: -.6em; stroke: #333">
-      <rect x="0" y="0" width="100%" height="100%" fill="${color}"></rect>${iconHtml}</svg>`;
-    const body = `<tbody id="battle${state.i}-${regiment.i}">`;
+    const display: BattleRegimentDisplay = {
+      key: `${state.i}-${regiment.i}`,
+      stateIndex: state.i,
+      regimentIndex: regiment.i,
+      regimentName: regiment.name,
+      stateFullName: state.fullName ?? state.name ?? "",
+      stateColor: color,
+      icon: regiment.icon ?? "",
+      distanceLabel: `${distance} ${distanceUnit}`,
+      initialUnits: { ...regiment.u },
+      casualties: { ...regiment.casualties },
+      survivors: { ...regiment.survivors },
+      initialTotal: regiment.a || 0
+    };
 
-    let initial = `<tr class="battleInitial"><td>${icon}</td><td class="regiment" data-tip="${regiment.name}">${regiment.name.slice(0, 24)}</td>`;
-    let casualties = `<tr class="battleCasualties"><td></td><td data-tip="${state.fullName ?? ""}">${(state.fullName ?? "").slice(0, 26)}</td>`;
-    let survivors = `<tr class="battleSurvivors"><td></td><td data-tip="Supply line length, affects morale">Distance to base: ${distance} ${distanceUnitInput.value}</td>`;
-
-    for (const u of worldContext.options.military!) {
-      initial += `<td data-tip="Initial forces" style="width: 2.5em; text-align: center">${regiment.u[u.name] || 0}</td>`;
-      casualties += `<td data-tip="Casualties" style="width: 2.5em; text-align: center; color: red">0</td>`;
-      survivors += `<td data-tip="Survivors" style="width: 2.5em; text-align: center; color: green">${regiment.u[u.name] || 0}</td>`;
-    }
-
-    initial += `<td data-tip="Initial forces" style="width: 2.5em; text-align: center">${regiment.a || 0}</td></tr>`;
-    casualties += `<td data-tip="Casualties"  style="width: 2.5em; text-align: center; color: red">0</td></tr>`;
-    survivors += `<td data-tip="Survivors" style="width: 2.5em; text-align: center; color: green">${regiment.a || 0}</td></tr>`;
-
-    const div = side === "attackers" ? battleAttackers : battleDefenders;
-    div.innerHTML += `${body + initial + casualties + survivors}</tbody>`;
+    getBattleScreenState().addRegimentToSide(side, display);
     this[side].regiments.push(regiment);
     this[side].distances.push(distance);
   }
 
   addSide(): void {
-    const body = ensureEl("regimentSelectorBody");
-    const context = Battle.context!;
-    const regiments = worldContext.pack.states
-      .filter(s => s.military && !s.removed)
-      .flatMap(s => s.military as BattleRegiment[]);
-    const distance = (reg: BattleRegiment) =>
-      `${rn(Math.hypot(context.y - reg.y, context.x - reg.x) * worldContext.distanceScale)} ${distanceUnitInput.value}`;
-    const isAdded = (reg: BattleRegiment) =>
-      context.defenders.regiments.some((r: BattleRegiment) => r === reg) ||
-      context.attackers.regiments.some((r: BattleRegiment) => r === reg);
-
-    body.innerHTML = (regiments as BattleRegiment[])
-      .map((r: BattleRegiment) => {
-        const s = worldContext.pack.states[r.state];
-        const added = isAdded(r);
-        const dist = added ? `0 ${distanceUnitInput.value}` : distance(r);
-        return `<div ${added ? "class='inactive'" : ""} data-s=${s.i} data-i=${r.i} data-state=${s.name} data-regiment=${r.name}
-        data-total=${r.a} data-distance=${dist} data-tip="Click to select regiment">
-        <svg width=".9em" height=".9em" style="margin-bottom:-1px; stroke: #333"><rect x="0" y="0" width="100%" height="100%" fill="${s.color}" ></svg>
-        <div style="width:6em">${s.name.slice(0, 11)}</div>
-        <div style="width:1.2em">${r.icon}</div>
-        <div style="width:13em">${r.name.slice(0, 24)}</div>
-        <div style="width:4em">${r.a}</div>
-        <div style="width:4em">${dist}</div>
-      </div>`;
-      })
-      .join("");
-
     openDialog("regimentSelectorScreen", {
-      resizable: false,
-      width: fitContent(),
-      title: "Add regiment to the battle",
-      position: { my: "left center", at: "right+10 center", of: "#battleScreen" },
-      close: addSideClosed,
-      buttons: {
-        "Add to attackers": () => addSideClicked("attackers"),
-        "Add to defenders": () => addSideClicked("defenders"),
-        Cancel: () => closeDialog("regimentSelectorScreen")
-      }
+      title: "Add regiment to the battle"
     });
-
-    applySorting(document.getElementById("regimentSelectorHeader") as HTMLElement);
-    body.addEventListener("click", selectLine);
-
-    function selectLine(ev: Event): void {
-      const target = ev.target as HTMLElement;
-      if (target.className === "inactive") {
-        tip("Regiment is already in the battle", false, "error");
-        return;
-      }
-      target.classList.toggle("selected");
-    }
-
-    function addSideClicked(side: BattleSide): void {
-      const selected = body.querySelectorAll(".selected");
-      if (!selected.length) {
-        tip("Please select a regiment first", false, "error");
-        return;
-      }
-
-      closeDialog("regimentSelectorScreen");
-      selected.forEach(line => {
-        const lineEl = line as HTMLElement;
-        const state = worldContext.pack.states[+lineEl.dataset.s!];
-        const regiment = state.military!.find((r: MilitaryRegiment) => r.i === +lineEl.dataset.i!) as BattleRegiment;
-        Battle.prototype.addRegiment.call(context, side, regiment);
-        Battle.prototype.calculateStrength.call(context, side);
-        Battle.prototype.getInitialMorale.call(context);
-
-        const defenders = context.defenders.regiments;
-        const attackers = context.attackers.regiments;
-        const shift = side === "attackers" ? attackers.length * -8 : (defenders.length - 1) * 8;
-        regiment.px = regiment.x;
-        regiment.py = regiment.y;
-        moveRegiment(worldContext, viewContext, appServices, regiment, defenders[0].x, defenders[0].y + shift);
-      });
-    }
-
-    function addSideClosed(): void {
-      body.innerHTML = "";
-      body.removeEventListener("click", selectLine);
-    }
   }
 
   showNameSection(): void {
-    document.querySelectorAll<HTMLElement>("#battleFooter > button").forEach(el => {
-      el.style.display = "none";
-    });
-    (ensureEl("battleNameSection") as HTMLElement).style.display = "inline-block";
-
-    (ensureEl("battleNamePlace") as HTMLInputElement).value = this.place;
-    (ensureEl("battleNameFull") as HTMLInputElement).value = this.name;
+    getBattleScreenState().setBattleState({ nameSectionVisible: true });
   }
 
   hideNameSection(): void {
-    document.querySelectorAll<HTMLElement>("#battleFooter > button").forEach(el => {
-      el.style.display = "inline-block";
-    });
-    (ensureEl("battleNameSection") as HTMLElement).style.display = "none";
+    getBattleScreenState().setBattleState({ nameSectionVisible: false });
   }
 
-  changeName(ev: Event): void {
-    this.name = (ev.target as HTMLInputElement).value;
+  changeName(value: string): void {
+    this.name = value;
+    getBattleScreenState().setBattleState({ name: this.name });
     openDialog("battleScreen", { title: this.name });
+  }
+
+  changePlace(value: string): void {
+    this.place = value;
+    getBattleScreenState().setBattleState({ place: value });
   }
 
   generateName(type: string): void {
@@ -351,8 +203,9 @@ class Battle {
       type === "culture"
         ? Names.getCulture(worldContext.pack.cells.culture![this.cell], undefined, undefined, "")
         : Names.getBase(rand(worldContext.nameBases.length - 1));
-    (ensureEl("battleNamePlace") as HTMLInputElement).value = this.place = place;
-    (ensureEl("battleNameFull") as HTMLInputElement).value = this.name = this.defineName();
+    this.place = place;
+    this.name = this.defineName();
+    getBattleScreenState().setBattleState({ place: this.place, name: this.name });
     openDialog("battleScreen", { title: this.name });
   }
 
@@ -551,8 +404,8 @@ class Battle {
     const adjuster = Math.max(worldContext.populationRate / 10, 10);
     this[side].power =
       sum(worldContext.options.military!.map(u => (forces[u.name] || 0) * u.power * scheme[phase][u.type])) / adjuster;
-    const UIvalue = this[side].power ? Math.max(this[side].power | 0, 1) : 0;
-    (ensureEl(`battlePower_${side}`) as HTMLElement).innerHTML = String(UIvalue);
+
+    getBattleScreenState().setSidePower(side, this[side].power ? Math.max(this[side].power | 0, 1) : 0);
   }
 
   getInitialMorale(): void {
@@ -566,10 +419,7 @@ class Battle {
   }
 
   updateMorale(side: BattleSide): void {
-    const morale = ensureEl(`battleMorale_${side}`) as HTMLInputElement;
-    morale.dataset.tip = morale.dataset.tip!.replace(morale.value, "");
-    morale.value = String(this[side].morale | 0);
-    morale.dataset.tip += morale.value;
+    getBattleScreenState().setSideMorale(side, this[side].morale | 0);
   }
 
   randomize(): void {
@@ -581,12 +431,13 @@ class Battle {
   }
 
   rollDie(side: BattleSide): void {
-    const el = ensureEl(`battleDie_${side}`) as HTMLElement;
-    const prev = +el.innerHTML;
+    const prev = this[side].die ?? 0;
+    let next: number;
     do {
-      el.innerHTML = String(rand(1, 6));
-    } while (+el.innerHTML === prev);
-    this[side].die = +el.innerHTML;
+      next = rand(1, 6);
+    } while (next === prev);
+    this[side].die = next;
+    getBattleScreenState().setSideDie(side, next);
   }
 
   selectPhase(): void {
@@ -723,17 +574,8 @@ class Battle {
     this.attackers.phase = phase[0];
     this.defenders.phase = phase[1];
 
-    const buttonA = ensureEl("battlePhase_attackers") as HTMLElement;
-    buttonA.className = `icon-button-${this.attackers.phase}`;
-    buttonA.dataset.tip = (
-      buttonA.nextElementSibling!.querySelector(`[data-phase='${phase[0]}']`) as HTMLElement
-    ).dataset.tip;
-
-    const buttonD = ensureEl("battlePhase_defenders") as HTMLElement;
-    buttonD.className = `icon-button-${this.defenders.phase}`;
-    buttonD.dataset.tip = (
-      buttonD.nextElementSibling!.querySelector(`[data-phase='${phase[1]}']`) as HTMLElement
-    ).dataset.tip;
+    getBattleScreenState().setSidePhase("attackers", phase[0]);
+    getBattleScreenState().setSidePhase("defenders", phase[1]);
   }
 
   run(): void {
@@ -788,13 +630,15 @@ class Battle {
     this.attackers.morale = Math.max(this.attackers.morale - casualtiesA * 100 - 1, 0);
     this.defenders.morale = Math.max(this.defenders.morale - casualtiesD * 100 - 1, 0);
 
-    this.updateTable("attackers");
-    this.updateTable("defenders");
+    this.syncCasualtiesDisplay("attackers");
+    this.syncCasualtiesDisplay("defenders");
 
     this.iteration += 1;
     this.selectPhase();
     this.calculateStrength("attackers");
     this.calculateStrength("defenders");
+    this.updateMorale("attackers");
+    this.updateMorale("defenders");
   }
 
   calculateCasualties(side: BattleSide, casualties: number): void {
@@ -808,80 +652,35 @@ class Battle {
     }
   }
 
-  updateTable(side: BattleSide): void {
+  syncCasualtiesDisplay(side: BattleSide): void {
+    const store = getBattleScreenState();
     for (const r of this[side].regiments) {
-      const tbody = document.getElementById(`battle${r.state}-${r.i}`) as HTMLElement;
-      const battleCasualties = tbody.querySelector(".battleCasualties") as HTMLElement;
-      const battleSurvivors = tbody.querySelector(".battleSurvivors") as HTMLElement;
-
-      let index = 3;
-      for (const u of worldContext.options.military!) {
-        (battleCasualties.querySelector(`td:nth-child(${index})`) as HTMLElement).innerHTML = String(
-          r.casualties[u.name] || 0
-        );
-        (battleSurvivors.querySelector(`td:nth-child(${index})`) as HTMLElement).innerHTML = String(
-          r.survivors[u.name] || 0
-        );
-        index++;
-      }
-
-      (battleCasualties.querySelector(`td:nth-child(${index})`) as HTMLElement).innerHTML = String(
-        sum(Object.values(r.casualties) as number[])
-      );
-      (battleSurvivors.querySelector(`td:nth-child(${index})`) as HTMLElement).innerHTML = String(
-        sum(Object.values(r.survivors) as number[])
-      );
+      const key = `${r.state}-${r.i}`;
+      store.updateRegimentCasualties(side, key, { ...r.casualties }, { ...r.survivors });
     }
-    this.updateMorale(side);
   }
 
-  toggleChange(ev: Event): void {
-    ev.stopPropagation();
-    const button = ev.target as HTMLElement;
-    const div = button.nextElementSibling as HTMLElement;
-
-    const hideSection = (): void => {
-      button.style.opacity = "1";
-      div.style.display = "none";
-    };
-    if (div.style.display === "block") {
-      hideSection();
-      return;
-    }
-
-    button.style.opacity = "0.5";
-    div.style.display = "block";
-
-    document.body.addEventListener("click", hideSection, { once: true });
-  }
-
-  changeType(ev: Event): void {
-    const target = ev.target as HTMLElement;
-    if (target.tagName !== "BUTTON") return;
-    this.type = target.dataset.type!;
-    this.setType();
+  changeType(type: string): void {
+    this.type = type;
+    getBattleScreenState().setBattleState({ type });
     this.selectPhase();
     this.calculateStrength("attackers");
     this.calculateStrength("defenders");
     this.name = this.defineName();
+    getBattleScreenState().setBattleState({ name: this.name });
     openDialog("battleScreen", { title: this.name });
   }
 
-  changePhase(ev: Event, side: BattleSide): void {
-    const target = ev.target as HTMLElement;
-    if (target.tagName !== "BUTTON") return;
-    this[side].phase = target.dataset.phase!;
-    const phase = this[side].phase!;
-    const button = ensureEl(`battlePhase_${side}`) as HTMLElement;
-    button.className = `icon-button-${phase}`;
-    button.dataset.tip = target.dataset.tip!;
+  changePhase(side: BattleSide, phase: string): void {
+    this[side].phase = phase;
+    getBattleScreenState().setSidePhase(side, phase);
     this.calculateStrength(side);
   }
 
   applyResults(): void {
     const battleName = this.name;
-    const maxCasualties = Math.max(this.attackers.casualties, this.attackers.casualties);
-    const relativeCasualties = this.defenders.casualties / (this.attackers.casualties + this.attackers.casualties);
+    const maxCasualties = Math.max(this.attackers.casualties, this.defenders.casualties);
+    const relativeCasualties = this.defenders.casualties / (this.attackers.casualties + this.defenders.casualties);
     const battleStatus = getBattleStatus(relativeCasualties, maxCasualties);
 
     function getBattleStatus(relative: number, max: number): [string, string] {
@@ -984,7 +783,6 @@ class Battle {
   }
 
   cleanData(): void {
-    battleAttackers.innerHTML = battleDefenders.innerHTML = "";
     viewContext.customization = 0;
 
     this.attackers.regiments.concat(this.defenders.regiments).forEach(r => {
@@ -994,7 +792,86 @@ class Battle {
       delete (r as Partial<BattleRegiment>).survivors;
     });
     Battle.context = undefined;
+    getBattleScreenState().reset();
   }
+}
+
+// ── Public action helpers called from the React component ─────────────────────
+
+export function battleAction_rollDie(side: BattleSide): void {
+  Battle.context?.rollDie(side);
+}
+
+export function battleAction_run(): void {
+  Battle.context?.run();
+}
+
+export function battleAction_applyResults(): void {
+  Battle.context?.applyResults();
+}
+
+export function battleAction_cancelResults(): void {
+  Battle.context?.cancelResults();
+}
+
+export function battleAction_randomize(): void {
+  Battle.context?.randomize();
+}
+
+export function battleAction_changeType(type: string): void {
+  Battle.context?.changeType(type);
+}
+
+export function battleAction_changePhase(side: BattleSide, phase: string): void {
+  Battle.context?.changePhase(side, phase);
+}
+
+export function battleAction_changeName(value: string): void {
+  Battle.context?.changeName(value);
+}
+
+export function battleAction_changePlace(value: string): void {
+  Battle.context?.changePlace(value);
+}
+
+export function battleAction_generateName(type: "culture" | "random"): void {
+  Battle.context?.generateName(type);
+}
+
+export function battleAction_showNameSection(): void {
+  Battle.context?.showNameSection();
+}
+
+export function battleAction_hideNameSection(): void {
+  Battle.context?.hideNameSection();
+}
+
+export function battleAction_addSide(): void {
+  Battle.context?.addSide();
+}
+
+export function battleAction_addRegimentToSide(side: BattleSide, stateI: number, regimentI: number): void {
+  const context = Battle.context;
+  if (!context) return;
+
+  const state = worldContext.pack.states[stateI];
+  const regiment = state.military?.find(r => r.i === regimentI) as BattleRegiment | undefined;
+  if (!regiment) return;
+
+  context.addRegiment(side, regiment);
+  context.calculateStrength(side);
+  context.getInitialMorale();
+
+  const defenders = context.defenders.regiments;
+  const attackers = context.attackers.regiments;
+  const shift = side === "attackers" ? attackers.length * -8 : (defenders.length - 1) * 8;
+  regiment.px = regiment.x;
+  regiment.py = regiment.y;
+  moveRegiment(worldContext, viewContext, appServices, regiment, defenders[0].x, defenders[0].y + shift);
+}
+
+export function battleAction_wiki(): void {
+  wiki("Battle-Simulator");
 }
 
 export type { Battle, BattleRegiment };
