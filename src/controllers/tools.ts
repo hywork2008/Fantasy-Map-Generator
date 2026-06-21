@@ -115,7 +115,7 @@ let appServices: AppServices;
 
 document.addEventListener("react-tool-action", e => {
   if (viewContext.customization) return tip("Please exit the customization mode first", false, "error");
-  const button = e.detail?.action;
+  const button = (e as CustomEvent).detail?.action;
   if (!button) return;
 
   if (button === "editHeightmapButton") editHeightmap();
