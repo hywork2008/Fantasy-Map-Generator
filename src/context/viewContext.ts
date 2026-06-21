@@ -67,6 +67,16 @@ export interface SettlementLayers {
   population: SvgGroup;
 }
 
+/** Economy visualization layers. */
+export interface EconomyLayers {
+  goods: SvgGroup;
+  /** Market region fill polygons — rendered below the Icons layer so city icons remain visible. */
+  marketsFill: SvgGroup;
+  /** Market border paths, center circles, and labels — rendered above the Icons layer. */
+  markets: SvgGroup;
+  tradeAnimation: SvgGroup;
+}
+
 /** Map overlay and diagnostic layers. */
 export interface OverlayLayers {
   cells: SvgGroup;
@@ -108,6 +118,7 @@ export interface ViewContext
     PoliticalLayers,
     InfrastructureLayers,
     SettlementLayers,
+    EconomyLayers,
     OverlayLayers,
     ViewState {}
 

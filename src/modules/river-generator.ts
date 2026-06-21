@@ -604,6 +604,61 @@ class RiverModule {
   getNextId(rivers: { i: number }[]) {
     return rivers.length ? Math.max(...rivers.map(r => r.i)) + 1 : 1;
   }
+
+  isNavigable(cellId: number): boolean {
+    const { cells } = this.worldContext.pack;
+    return Boolean(cells.r[cellId]) && cells.fl[cellId] >= MIN_NAVIGABLE_FLUX;
+  }
+
+  // Walk an outlet chain starting from a lake feature; returns the ultimate receiving feature id.
+  resolveLakeDrainFeature(lakeFeatureId: number): number | null {
+    const { features, rivers, cells } = this.worldContext.pack;
+    const lake = features[lakeFeatureId];
+    if (lake?.type !== "lake") return null;
+    if (!lake.outlet) return lakeFeatureId; // closed lake: return itself
+
+    const riverById = new Map(rivers.map(r => [r.i, r]));
+    const visited = new Set<number>();
+    let river = riverById.get(lake.outlet);
+    while (river && !visited.has(river.i)) {
+      visited.add(river.i);
+      const lastCell = river.cells[river.cells.length - 1];
+      if (lastCell < 0) return null; // outlet exits the map
+
+      const feature = features[cells.f[lastCell]];
+      if (!feature) return null;
+      if (feature.type === "ocean") return feature.i;
+      if (feature.type !== "lake") return null;
+      if (!feature.outlet) return feature.i; // closed downstream lake
+      river = riverById.get(feature.outlet);
+    }
+    return null;
+  }
+
+  // Walk a river chain downstream through lakes until we reach the final receiving body.
+  resolveDrainFeature(cellId: number): number | null {
+    const { cells, features, rivers } = this.worldContext.pack;
+    const startRiver = cells.r[cellId];
+    if (!startRiver) return null;
+
+    const riverById = new Map(rivers.map(r => [r.i, r]));
+    let river = riverById.get(startRiver);
+    const visited = new Set<number>();
+    while (river && !visited.has(river.i)) {
+      visited.add(river.i);
+      const lastCell = river.cells[river.cells.length - 1];
+      if (lastCell < 0) return null; // off-map exit
+
+      const feature = features[cells.f[lastCell]];
+      if (!feature) return null;
+      if (feature.type === "ocean") return feature.i;
+      if (feature.type !== "lake") return null;
+      if (!feature.outlet) return feature.i; // closed lake terminus
+      river = riverById.get(feature.outlet);
+    }
+    return null;
+  }
 }
 
+export const MIN_NAVIGABLE_FLUX = 100;
 export const Rivers = new RiverModule();

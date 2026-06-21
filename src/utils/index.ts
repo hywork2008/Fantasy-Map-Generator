@@ -53,7 +53,7 @@ import {
 import { biased, each, gauss, generateSeed, getNumberInRange, P, Pint, ra, rand, rw } from "./probabilityUtils";
 import { capitalize, isValidJSON, parseTransform, round, safeParseJSON, sanitizeId, splitInTwo } from "./stringUtils";
 import { applySorting, applySortingByHeader, sortLines } from "./uiHelpers";
-import { convertTemperature, getIntegerFromSI, si } from "./unitUtils";
+import { convertTemperature, formatPrice, getIntegerFromSI, si } from "./unitUtils";
 
 JSON.isValid = isValidJSON;
 JSON.safeParse = safeParseJSON;
@@ -126,6 +126,7 @@ export {
   findGridAll,
   findGridCell,
   findPath,
+  formatPrice,
   gauss,
   generateDate,
   generateGrid,

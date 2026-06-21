@@ -16,6 +16,10 @@ import { ERROR, TIME, WARN } from "../utils/debug";
 import { COA } from "./emblem/generator";
 import { Names } from "./names-generator";
 
+export const CULTURE_TYPES = ["Generic", "Hunting", "Highland", "River", "Lake", "Naval", "Nomadic"] as const;
+export type CultureType = (typeof CULTURE_TYPES)[number];
+export const DEFAULT_CULTURE_TYPE: CultureType = "Generic";
+
 export interface Culture {
   name: string;
   i: number;
@@ -27,7 +31,7 @@ export interface Culture {
   sort?: (i: number) => number;
   odd?: number;
   color?: string;
-  type?: string;
+  type?: CultureType;
   expansionism?: number;
   origins?: (number | null)[];
   removed?: boolean;

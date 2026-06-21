@@ -8,7 +8,10 @@ import type {
   Ruler as RulerClass,
   Rulers as RulersClass
 } from "../controllers/measurers";
+import type { GoodsModule } from "../modules/goods-generator";
 import type { HeightmapModule } from "../modules/heightmap-generator";
+import type { MarketsModule } from "../modules/markets-generator";
+import type { ProductionModule } from "../modules/production-generator";
 import type { Resampler } from "../modules/resample";
 
 declare global {
@@ -18,6 +21,9 @@ declare global {
   // Module singletons
   var Resample: Resampler;
   var HeightmapGenerator: HeightmapModule;
+  var Goods: GoodsModule;
+  var Production: ProductionModule;
+  var Markets: MarketsModule;
 
   // Measurer constructors (from measurers.ts)
   var Rulers: typeof RulersClass;
@@ -44,6 +50,9 @@ declare global {
 
   // Provinces editor callback (set dynamically, read in ProvinceNameEditorDialog.tsx)
   var applyProvinceNameChange: (() => void) | undefined;
+
+  // Legacy global path helper used by erosion-bake (set at runtime)
+  var getFeaturePath: ((feature: unknown) => string) | undefined;
 
   // Browser auto-globals from HTML element IDs (readonly, created by the DOM)
   var addMarker: HTMLElement;

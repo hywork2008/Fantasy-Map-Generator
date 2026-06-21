@@ -24,5 +24,5 @@
     "noUncheckedSideEffectImports": true
   },
   "include": ["src"],
-  "exclude": ["src/e2e", "src/sw.ts"]
+  "exclude": ["src/e2e", "src/sw.ts", "src/**/*.test.ts", "src/test-setup.ts"]
 }

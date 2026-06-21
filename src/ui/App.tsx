@@ -33,14 +33,11 @@ export const App = () => {
             position: "absolute",
             bottom: 10,
             right: 10,
-            background: "rgba(0,0,0,0.7)",
-            color: "white",
             padding: "5px 10px",
             borderRadius: "4px",
             fontSize: "10px"
           }}
         >
-          React + Zustand Active
           {openDialogs.length > 0 && ` | Open Dialogs: ${openDialogs.join(", ")}`}
         </div>
       )}

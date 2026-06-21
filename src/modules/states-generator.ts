@@ -33,8 +33,8 @@ export interface Campaign {
   name: string;
   start: number;
   end?: number;
-  attacker?: number;
-  defender?: number;
+  attacker: number;
+  defender: number;
 }
 
 export interface State {
@@ -65,6 +65,9 @@ export interface State {
   provinces?: number[];
   temp?: Record<string, number> & { platoons?: import("./military-generator").Platoon[] };
   alert?: number;
+  salesTax?: number;
+  pollTax?: number;
+  treasury?: number;
 }
 
 class StatesModule {
@@ -382,7 +385,7 @@ class StatesModule {
         const currentYear = options.year!;
         const start = gauss(currentYear - 100, 150, 1, currentYear - 6);
         const end = start + gauss(4, 5, 1, currentYear - start - 1);
-        return { name: `${getAdjective(name)} ${rw(wars)}`, start, end };
+        return { name: `${getAdjective(name)} ${rw(wars)}`, start, end, attacker: state.i!, defender: i };
       })
       .sort((a, b) => a.start - b.start);
   }
@@ -753,6 +756,12 @@ class StatesModule {
     if (!state.name && state.formName) return `The ${state.formName}`;
     const adjName = adjForms.includes(state.formName) && !/-| /.test(state.name);
     return adjName ? `${getAdjective(state.name)} ${state.formName}` : `${state.formName} of ${state.name}`;
+  }
+
+  getSalesTax(burg: { state?: number }): number {
+    const stateId = burg.state || 0;
+    if (!stateId) return 0;
+    return this.worldContext.pack.states?.[stateId]?.salesTax ?? 0;
   }
 }
 

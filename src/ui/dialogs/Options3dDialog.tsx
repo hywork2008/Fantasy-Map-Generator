@@ -84,6 +84,58 @@ export const Options3dDialog: React.FC = () => {
                 </i>
               </label>
             </div>
+            <div
+              data-tip="Texture the terrain as a satellite image. Replaces the standard map texture"
+              style={{ margin: "0.6em 0 0.3em -0.2em" }}
+            >
+              <input id="options3dSatellite" className="checkbox" type="checkbox" />
+              <label htmlFor="options3dSatellite" className="checkbox-label">
+                <i>Satellite texture</i>
+              </label>
+            </div>
+            <div
+              data-tip="Bake procedural erosion detail into the 3D terrain. Visual only, the map data is not changed"
+              style={{ margin: "0.6em 0 0.3em -0.2em" }}
+            >
+              <input id="options3dErosion" className="checkbox" type="checkbox" />
+              <label htmlFor="options3dErosion" className="checkbox-label">
+                <i>Erode terrain</i>
+              </label>
+            </div>
+
+            <div id="options3dErosionSection" style={{ display: "none" }}>
+              <div data-tip="Set eroded mesh detail level (vertices on the long side)">
+                <div>Mesh detail:</div>
+                <select id="options3dErosionDetail" style={{ width: "10em" }} defaultValue="1024">
+                  <option value="256">256</option>
+                  <option value="512">512</option>
+                  <option value="1024">1024</option>
+                  <option value="2048">2048 [slow]</option>
+                </select>
+              </div>
+
+              <div data-tip="Set the strength of erosion gullies and ridges">
+                <div>Gully strength:</div>
+                <input id="options3dErosionStrengthRange" type="range" min={0} max={100} />
+                <input id="options3dErosionStrengthNumber" type="number" min={0} max={100} style={{ width: "4em" }} />
+              </div>
+
+              <div data-tip="Set how deep the valleys are carved along the rivers">
+                <div>River valleys:</div>
+                <input id="options3dErosionRiverDepthRange" type="range" min={0} max={100} />
+                <input id="options3dErosionRiverDepthNumber" type="number" min={0} max={100} style={{ width: "4em" }} />
+              </div>
+
+              <div data-tip="Set the number of erosion detail layers. More octaves add finer gullies">
+                <div>Detail octaves:</div>
+                <select id="options3dErosionOctaves" style={{ width: "6em" }} defaultValue="2">
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                  <option value="4">4</option>
+                </select>
+              </div>
+            </div>
             <div data-tip="Toggle wireframe mode" style={{ margin: "0.6em 0 0.3em -0.2em" }}>
               <input id="options3dMeshWireframeMode" className="checkbox" type="checkbox" />
               <label htmlFor="options3dMeshWireframeMode" className="checkbox-label">

@@ -40,8 +40,13 @@ let appServices: AppServices;
 // Layer presets: map preset name → list of toggle button IDs that should be ON
 let presets: Record<string, string[]> = {};
 
+import { TradeAnimation } from "../modules/trade-animation";
+import { drawGoods } from "../renderers/draw-goods";
+import { drawMarketsLayer } from "../renderers/draw-markets";
+import { clear as clearTradeAnim, draw as drawTradeAnim } from "../renderers/draw-trade-animation";
 import { ThreeDRenderer } from "../renderers/three-d-renderer";
 import { DEFAULT_LAYERS, useLayerState } from "../store/layerState";
+import { openDialog } from "../ui/dialogs/dialogService";
 import { tip } from "../utils/uiHelpers";
 
 const editStyle = (element: string, group?: string) =>
@@ -59,7 +64,24 @@ export function initLayers(wc: WorldContext, vc: Readonly<ViewContext>, as: AppS
   }
 
   restoreCustomPresets();
+  initLayerClickHandlers();
   // initSortable is removed as React handles DND
+}
+
+export function initLayerClickHandlers(): void {
+  viewContext.goods.on("click.openEditor", (event: MouseEvent) => {
+    const target = event.target as SVGElement;
+    if (target.closest("#goodsIcons, #goodsBurgs")) {
+      openDialog("goodsEditor");
+    }
+  });
+
+  viewContext.markets.on("click.openMarket", (event: MouseEvent) => {
+    const target = event.target as SVGElement;
+    const g = target.closest<SVGGElement>("g[data-id]");
+    if (!g?.dataset.id) return;
+    openDialog("marketOverview", { marketId: +g.dataset.id });
+  });
 }
 
 // ─── Preset management ───────────────────────────────────────────────────────
@@ -156,7 +178,17 @@ function getDefaultPresets(): Record<string, string[]> {
       "toggleStates",
       "toggleVignette"
     ],
-    landmass: ["toggleScaleBar"]
+    landmass: ["toggleScaleBar"],
+    goods: ["toggleBurgIcons", "toggleGoods", "toggleLakes", "toggleRivers", "toggleScaleBar", "toggleVignette"],
+    trade: [
+      "toggleBurgIcons",
+      "toggleLakes",
+      "toggleRivers",
+      "toggleRoutes",
+      "toggleScaleBar",
+      "toggleTrade",
+      "toggleVignette"
+    ]
   };
 }
 
@@ -293,6 +325,9 @@ export function drawLayers(): void {
   if (layerIsOn("toggleBurgIcons")) BurgIconsRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleMilitary")) MilitaryRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleMarkers")) MarkersRenderer.render(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleGoods")) drawGoods(getDefaultGoodsSet());
+  if (layerIsOn("toggleMarketsLayer")) drawMarketsLayer();
+  if (layerIsOn("toggleTrade")) TradeAnimation.start();
   if (layerIsOn("toggleRulers")) rulers.draw();
 }
 
@@ -796,6 +831,57 @@ export function toggleVignette(event?: MouseEvent): void {
   }
 }
 
+function getDefaultGoodsSet(): Set<number> {
+  const wood = worldContext.pack.goods?.find(g => g.name === "Wood");
+  return wood ? new Set([wood.i]) : new Set(worldContext.pack.goods?.map(g => g.i) ?? []);
+}
+
+export function toggleGoods(event?: MouseEvent): void {
+  if (!layerIsOn("toggleGoods")) {
+    turnButtonOn("toggleGoods");
+    drawGoods(getDefaultGoodsSet());
+    if (event && isCtrlClick(event)) editStyle("goodsIcons");
+  } else {
+    if (event && isCtrlClick(event)) {
+      editStyle("goodsIcons");
+      return;
+    }
+    viewContext.goods.selectAll("#goodsCells,#goodsIcons,#goodsBurgs").html("");
+    turnButtonOff("toggleGoods");
+  }
+}
+
+export function toggleMarketsLayer(event?: MouseEvent): void {
+  if (!layerIsOn("toggleMarketsLayer")) {
+    turnButtonOn("toggleMarketsLayer");
+    drawMarketsLayer();
+    if (event && isCtrlClick(event)) editStyle("markets");
+  } else {
+    if (event && isCtrlClick(event)) {
+      editStyle("markets");
+      return;
+    }
+    viewContext.marketsFill.html("").style("display", "none");
+    viewContext.markets.html("").style("display", "none");
+    turnButtonOff("toggleMarketsLayer");
+  }
+}
+
+export function toggleTrade(event?: MouseEvent): void {
+  if (!layerIsOn("toggleTrade")) {
+    turnButtonOn("toggleTrade");
+    TradeAnimation.start();
+    if (event && isCtrlClick(event)) editStyle("tradeAnimation");
+  } else {
+    if (event && isCtrlClick(event)) {
+      editStyle("tradeAnimation");
+      return;
+    }
+    TradeAnimation.stop();
+    turnButtonOff("toggleTrade");
+  }
+}
+
 // ─── Layer reordering (jQuery UI sortable) ────────────────────────────────────
 
 export function syncSVGLayersOrder(layers: { id: string }[]): void {
@@ -833,6 +919,9 @@ function getLayer(id: string): HTMLElement | null {
   if (id === "toggleLabels") return document.getElementById("labels");
   if (id === "toggleBurgIcons") return document.getElementById("icons");
   if (id === "toggleMarkers") return document.getElementById("markers");
+  if (id === "toggleGoods") return document.getElementById("goodsCells");
+  if (id === "toggleMarketsLayer") return document.getElementById("marketsLayer");
+  if (id === "toggleTrade") return document.getElementById("tradeAnimation");
   if (id === "toggleRulers") return document.getElementById("ruler");
   return null;
 }
@@ -866,11 +955,20 @@ const TOGGLE_REGISTRY: Record<string, (event?: MouseEvent) => void> = {
   toggleScaleBar,
   toggleZones,
   toggleEmblems,
-  toggleVignette
+  toggleVignette,
+  toggleGoods,
+  toggleMarketsLayer,
+  toggleTrade
 };
 
 export function toggleLayerById(id: string, event?: MouseEvent): void {
   TOGGLE_REGISTRY[id]?.(event);
 }
+
+TradeAnimation.bind({
+  draw: drawTradeAnim,
+  clear: clearTradeAnim,
+  isLayerOn: () => layerIsOn("toggleTrade")
+});
 
 // d3 is the UMD global exposed by the legacy <script> tag in index.html

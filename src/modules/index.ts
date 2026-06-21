@@ -17,9 +17,15 @@ import { States } from "./states-generator";
 import { Zones } from "./zones-generator";
 import "./emblem";
 import { initFonts } from "./fonts";
+import { Goods } from "./goods-generator";
 import { Ice } from "./ice";
 import { Markers } from "./markers-generator";
+import { Markets } from "./markets-generator";
+import { Production } from "./production-generator";
 import "./resample";
+
+export type { BakeParams, ErosionBakeResult } from "./erosion-bake";
+export { Goods, Markets, Production };
 
 import type { WorldStateAt } from "../types/pipeline";
 import type { WorldState } from "../types/WorldState";

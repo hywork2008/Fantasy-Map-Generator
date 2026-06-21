@@ -205,6 +205,29 @@ export const DEFAULT_LAYERS: LayerConfig[] = [
       "Icebergs and glaciers: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
   },
   {
+    id: "toggleGoods",
+    name: (
+      <>
+        <u>G</u>oods
+      </>
+    ),
+    shortcut: null,
+    tooltip: "Goods and Production: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
+  },
+  {
+    id: "toggleMarketsLayer",
+    name: <>Markets</>,
+    shortcut: null,
+    tooltip: "Markets: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
+  },
+  {
+    id: "toggleTrade",
+    name: <>Trade</>,
+    shortcut: "`",
+    tooltip:
+      "Trade: animated trade deal flows. Click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
+  },
+  {
     id: "togglePrecipitation",
     name: (
       <>

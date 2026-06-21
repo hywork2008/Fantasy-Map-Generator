@@ -17,7 +17,7 @@ import { alertMessage } from "./utils/alertMessageEl";
  * For the changes that may be interesting to end users, update the `latestPublicChanges` array below (new changes on top).
  */
 
-export const VERSION = "1.122.12";
+export const VERSION = "1.125.1";
 
 export function parseMapVersion(version: string): string {
   let [major, minor, patch] = version.split(".");

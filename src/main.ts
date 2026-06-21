@@ -16,7 +16,7 @@ import { appServices } from "./context/appServices";
 import { viewContext } from "./context/viewContext";
 import { worldContext } from "./context/worldContext";
 import { restoreDefaultEvents } from "./controllers/editors";
-import { applyLayersPreset, drawLayers, layerIsOn } from "./controllers/layers";
+import { applyLayersPreset, drawLayers, initLayerClickHandlers, layerIsOn } from "./controllers/layers";
 import { createDefaultRuler } from "./controllers/measurers";
 import { updateMinimap } from "./controllers/minimap";
 import { applyGraphSize, applyStoredOptions, fitMapToScreen, randomizeOptions } from "./controllers/options";
@@ -32,13 +32,16 @@ import type { Burg, BurgGroup } from "./modules/burgs-generator";
 import { Burgs } from "./modules/burgs-generator";
 import { Cultures } from "./modules/cultures-generator";
 import { Features } from "./modules/features";
+import { Goods } from "./modules/goods-generator";
 import { HeightmapGenerator } from "./modules/heightmap-generator";
 import { Ice } from "./modules/ice";
 import { Lakes } from "./modules/lakes";
 import { Markers } from "./modules/markers-generator";
+import { Markets } from "./modules/markets-generator";
 import { Military } from "./modules/military-generator";
 import { Names } from "./modules/names-generator";
 import { OceanLayers } from "./modules/ocean-layers";
+import { Production } from "./modules/production-generator";
 import { Provinces } from "./modules/provinces-generator";
 import { Religions } from "./modules/religions-generator";
 import { Rivers } from "./modules/river-generator";
@@ -160,12 +163,36 @@ let emblems = viewbox.append("g").attr("id", "emblems").style("display", "none")
   null,
   undefined
 >;
+let marketsLayerFill = viewbox.append("g").attr("id", "marketsLayerFill").style("display", "none") as Selection<
+  SVGGElement,
+  unknown,
+  null,
+  undefined
+>;
 let icons = viewbox.append("g").attr("id", "icons") as Selection<SVGGElement, unknown, null, undefined>;
 let labels = viewbox.append("g").attr("id", "labels") as Selection<SVGGElement, unknown, null, undefined>;
 let burgIcons = icons.append("g").attr("id", "burgIcons") as Selection<SVGGElement, unknown, null, undefined>;
 let anchors = icons.append("g").attr("id", "anchors") as Selection<SVGGElement, unknown, null, undefined>;
 let armies = viewbox.append("g").attr("id", "armies") as Selection<SVGGElement, unknown, null, undefined>;
 let markers = viewbox.append("g").attr("id", "markers") as Selection<SVGGElement, unknown, null, undefined>;
+let goods = viewbox.append("g").attr("id", "goods").style("display", "none") as Selection<
+  SVGGElement,
+  unknown,
+  null,
+  undefined
+>;
+let marketsLayer = viewbox.append("g").attr("id", "marketsLayer").style("display", "none") as Selection<
+  SVGGElement,
+  unknown,
+  null,
+  undefined
+>;
+let tradeAnimation = viewbox.append("g").attr("id", "tradeAnimation") as Selection<
+  SVGGElement,
+  unknown,
+  null,
+  undefined
+>;
 let fogging = viewbox
   .append("g")
   .attr("id", "fogging-cont")
@@ -271,6 +298,10 @@ Object.assign(viewContext, {
   anchors,
   armies,
   markers,
+  goods,
+  marketsFill: marketsLayerFill,
+  markets: marketsLayer,
+  tradeAnimation,
   fogging,
   ruler,
   debug,
@@ -326,6 +357,20 @@ export function reinitializeMapLayers(): void {
   anchors = icons.select("#anchors") as Selection<SVGGElement, unknown, null, undefined>;
   armies = viewbox.select("#armies") as Selection<SVGGElement, unknown, null, undefined>;
   markers = viewbox.select("#markers") as Selection<SVGGElement, unknown, null, undefined>;
+  goods = viewbox.select("#goods") as Selection<SVGGElement, unknown, null, undefined>;
+  marketsLayer = viewbox.select<SVGGElement>("#marketsLayer");
+  if (!marketsLayer.size()) {
+    // Pre-1.125.x saves used #markets; rename in-place so subsequent saves use the new id
+    marketsLayer = viewbox.select<SVGGElement>("#markets").attr("id", "marketsLayer");
+  }
+  marketsLayerFill = viewbox.select<SVGGElement>("#marketsLayerFill");
+  if (!marketsLayerFill.size()) {
+    const anchor = marketsLayer.node();
+    marketsLayerFill = (anchor ? viewbox.insert<SVGGElement>("g", () => anchor) : viewbox.append<SVGGElement>("g"))
+      .attr("id", "marketsLayerFill")
+      .style("display", "none");
+  }
+  tradeAnimation = viewbox.select("#tradeAnimation") as Selection<SVGGElement, unknown, null, undefined>;
   ruler = viewbox.select("#ruler") as Selection<SVGGElement, unknown, null, undefined>;
   fogging = viewbox.select("#fogging") as Selection<SVGGElement, unknown, null, undefined>;
   debug = viewbox.select("#debug") as Selection<SVGGElement, unknown, null, undefined>;
@@ -378,10 +423,16 @@ export function reinitializeMapLayers(): void {
     anchors,
     armies,
     markers,
+    goods,
+    marketsFill: marketsLayerFill,
+    markets: marketsLayer,
+    tradeAnimation,
     fogging,
     ruler,
     debug
   });
+
+  initLayerClickHandlers();
 }
 
 // ─── Fit loaded map to screen (called after reinitializeMapLayers + fitMapToScreen) ─
@@ -1126,6 +1177,10 @@ export async function generate(opts?: { seed?: string; graph?: Grid | null }) {
     Military.generate(worldContext, viewContext, appServices, state);
     Markers.generate(worldContext, viewContext, appServices, state);
     Zones.generate(worldContext, viewContext, appServices, state);
+
+    Goods.generate();
+    Markets.generate();
+    Production.produce();
 
     drawScaleBar(worldContext, viewContext, appServices, scaleBar, scale);
     Names.getMapName(false);

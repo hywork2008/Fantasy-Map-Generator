@@ -152,6 +152,16 @@
           }
         }
       }
+    },
+    {
+      "includes": ["**/*.test.ts", "src/test-setup.ts"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noExplicitAny": "off"
+          }
+        }
+      }
     }
   ]
 }

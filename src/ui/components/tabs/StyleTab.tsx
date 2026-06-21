@@ -82,6 +82,9 @@ export function StyleTab() {
         <option value="cults">Cultures</option>
         <option value="emblems">Emblems</option>
         <option value="fogging">Fogging</option>
+        <option value="goodsCells">Goods: production</option>
+        <option value="goodsIcons">Goods: resources</option>
+        <option value="goodsBurgs">Goods: burg plates</option>
         <option value="gridOverlay">Grid</option>
         <option value="terrs">Heightmap</option>
         <option value="ice">Ice</option>
@@ -90,6 +93,7 @@ export function StyleTab() {
         <option value="landmass">Landmass</option>
         <option value="legend">Legend</option>
         <option value="markers">Markers</option>
+        <option value="markets">Markets</option>
         <option value="armies">Military</option>
         <option value="ocean">Ocean</option>
         <option value="population">Population</option>
@@ -104,6 +108,7 @@ export function StyleTab() {
         <option value="regions">States</option>
         <option value="temperature">Temperature</option>
         <option value="texture">Texture</option>
+        <option value="tradeAnimation">Trade Animation</option>
         <option value="vignette">Vignette</option>
         <option value="compass">Wind Rose</option>
         <option value="zones">Zones</option>
@@ -726,6 +731,24 @@ export function StyleTab() {
                 Toggle visibility automatically
               </label>
             </td>
+          </tr>
+        </tbody>
+
+        <tbody id="styleGoods" style={{ display: visibility.styleGoods ? "block" : "none" }}>
+          <tr data-tip="Show or hide circle around good icons">
+            <td colSpan={2}>
+              <input id="styleGoodsCircle" className="checkbox" type="checkbox" />
+              <label htmlFor="styleGoodsCircle" className="checkbox-label">
+                Show circle
+              </label>
+            </td>
+          </tr>
+        </tbody>
+
+        <tbody id="styleMarketsLayer" style={{ display: visibility.styleMarketsLayer ? "block" : "none" }}>
+          <tr data-tip="Set market territory zone fill transparency. Defaults to transparent">
+            <td>Fill opacity</td>
+            <td>{slider("styleMarketsLayerFillOpacity", "0", "1", ".01")}</td>
           </tr>
         </tbody>
 

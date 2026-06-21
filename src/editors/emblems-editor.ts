@@ -4,7 +4,7 @@ import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { downloadFile, getFileName } from "../controllers/editors";
 import type { Burg } from "../modules/burgs-generator";
-import { COA } from "../modules/emblem/generator";
+import { COA, type Emblem } from "../modules/emblem/generator";
 import type { Province } from "../modules/provinces-generator";
 import type { State } from "../modules/states-generator";
 import { COArenderer } from "../renderers/emblem-renderer";
@@ -336,7 +336,7 @@ function uploadImage(file: File, uploadType: "image" | "svg"): void {
     if (el.coa.size) customCoa.size = el.coa.size;
     if (el.coa.x) customCoa.x = el.coa.x;
     if (el.coa.y) customCoa.y = el.coa.y;
-    el.coa = customCoa as unknown as import("../modules/emblem/generator").Emblem;
+    el.coa = customCoa as unknown as Emblem;
 
     setEmblemEditorState({ isCustom: true, uploadMode: false });
   };

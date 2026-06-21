@@ -30,14 +30,14 @@ import {
 type HighlightEvent = { id?: string | number | null; target?: EventTarget | null };
 
 import { type HierarchyElement, open as openHierarchyTree } from "../controllers/hierarchy-tree";
-import type { Culture } from "../modules/cultures-generator";
+import type { Culture, CultureType } from "../modules/cultures-generator";
 import { Cultures } from "../modules/cultures-generator";
 import { COA } from "../modules/emblem/generator";
 import type { NameBase } from "../modules/names-generator";
 import type { Province } from "../modules/provinces-generator";
 import type { State } from "../modules/states-generator";
 import { CulturesRenderer, PopulationRenderer } from "../renderers";
-import { COArenderer } from "../renderers/emblem-renderer";
+import { COArenderer, type Emblem as RendererEmblem } from "../renderers/emblem-renderer";
 import { abbreviate, capitalize, debounce, ensureEl, findAll, findCell, isLand, rn, si } from "../utils";
 import { getPackPolygon } from "../utils/graphUtils";
 
@@ -466,7 +466,7 @@ function cultureChangeExpansionism(this: HTMLInputElement): void {
 function cultureChangeType(this: HTMLSelectElement): void {
   const culture = +(this.parentNode as HTMLElement).dataset.id!;
   (this.parentNode as HTMLElement).dataset.type = this.value;
-  worldContext.pack.cultures[culture].type = this.value;
+  worldContext.pack.cultures[culture].type = this.value as CultureType;
   recalculateCultures();
 }
 
@@ -486,7 +486,7 @@ function cultureChangeEmblemsShape(this: HTMLSelectElement): void {
     const $coa = document.getElementById(id);
     if (!$coa) return;
     $coa.remove();
-    COArenderer.trigger(id, coa as import("../renderers/emblem-renderer").Emblem);
+    COArenderer.trigger(id, coa as RendererEmblem);
   };
 
   worldContext.pack.states.forEach((state: State) => {
@@ -1137,8 +1137,8 @@ async function uploadCulturesData(this: HTMLInputElement): Promise<void> {
       );
       current.color = culture.color;
       current.expansionism = +culture.expansionism;
-      if (cultureTypes.includes(culture.type!)) current.type = culture.type;
-      else current.type = "Generic";
+      if (cultureTypes.includes(culture.type!)) current.type = culture.type as CultureType;
+      else current.type = "Generic" as CultureType;
     }
 
     const restoreOrigins = (originsString: string) => {

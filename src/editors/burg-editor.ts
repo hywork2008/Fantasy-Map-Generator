@@ -10,7 +10,7 @@ import { editStyle } from "../controllers/style";
 import { showBurgTemperatureGraph } from "../controllers/temperature-graph";
 import type { Burg } from "../modules/burgs-generator";
 import { Burgs } from "../modules/burgs-generator";
-import type { Culture } from "../modules/cultures-generator";
+import type { Culture, CultureType } from "../modules/cultures-generator";
 import { Names } from "../modules/names-generator";
 import { drawBurgIcon, drawBurgLabel } from "../renderers";
 import { COArenderer } from "../renderers/emblem-renderer";
@@ -24,14 +24,16 @@ import { editBurgGroups } from "./burg-group-editor";
 import { editEmblem } from "./emblems-editor";
 import { editNotes } from "./notes-editor";
 
+let _currentBurgId = 0;
+
 export function editBurg(id?: number): void {
   if (viewContext.customization) return;
   closeDialogs(".stable");
   if (!layerIsOn("toggleBurgIcons")) toggleBurgIcons();
   if (!layerIsOn("toggleLabels")) toggleLabels();
 
-  const burg = id;
-  setElSelected(viewContext.burgLabels.select(`[data-id='${burg}']`));
+  _currentBurgId = id ?? 0;
+  setElSelected(viewContext.burgLabels.select(`[data-id='${_currentBurgId}']`));
   let _bdx = 0,
     _bdy = 0;
   viewContext.burgLabels
@@ -69,7 +71,7 @@ export function editBurg(id?: number): void {
 
 const burgEditorInternal = {
   getBurgId(): number {
-    return +elSelected!.attr("data-id");
+    return _currentBurgId;
   },
 
   updateGroupsList(): void {
@@ -214,7 +216,7 @@ export const burgEditorActions = {
   changeName(value: string): void {
     const burgId = burgEditorInternal.getBurgId();
     worldContext.pack.burgs[burgId].name = value;
-    elSelected!.text(value);
+    if (elSelected?.node()) elSelected.text(value);
     getBurgEditorState().updateBurgData({ name: value });
   },
 
@@ -239,7 +241,7 @@ export const burgEditorActions = {
 
   changeType(newType: string): void {
     const burgId = burgEditorInternal.getBurgId();
-    worldContext.pack.burgs[burgId].type = newType;
+    worldContext.pack.burgs[burgId].type = newType as CultureType;
     getBurgEditorState().updateBurgData({ type: newType });
   },
 
@@ -395,9 +397,8 @@ export const burgEditorActions = {
   },
 
   editBurgLegend(): void {
-    const burgId = elSelected!.attr("data-id");
-    const name = elSelected!.text();
-    editNotes(`burg${burgId}`, name);
+    const burg = worldContext.pack.burgs[_currentBurgId];
+    editNotes(`burg${_currentBurgId}`, burg?.name ?? "");
   },
 
   toggleBurgLockButton(): void {
@@ -441,19 +442,22 @@ export const burgEditorActions = {
   },
 
   editGroupLabelStyle(): void {
-    const g = (elSelected!.node()!.parentNode as SVGGElement).id;
+    const node = elSelected?.node();
+    const g = node ? (node.parentNode as SVGGElement).id : (worldContext.pack.burgs[_currentBurgId]?.group ?? "");
     closeDialogs(".stable");
     editStyle("labels", g);
   },
 
   editGroupIconStyle(): void {
-    const g = (elSelected!.node()!.parentNode as SVGGElement).id;
+    const node = elSelected?.node();
+    const g = node ? (node.parentNode as SVGGElement).id : (worldContext.pack.burgs[_currentBurgId]?.group ?? "");
     closeDialogs(".stable");
     editStyle("burgIcons", g);
   },
 
   editGroupAnchorStyle(): void {
-    const g = (elSelected!.node()!.parentNode as SVGGElement).id;
+    const node = elSelected?.node();
+    const g = node ? (node.parentNode as SVGGElement).id : (worldContext.pack.burgs[_currentBurgId]?.group ?? "");
     closeDialogs(".stable");
     editStyle("anchors", g);
   },

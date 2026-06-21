@@ -21,12 +21,15 @@ import { Burgs } from "../modules/burgs-generator";
 import { Cultures } from "../modules/cultures-generator";
 import { COA } from "../modules/emblem/generator";
 import { Features } from "../modules/features";
+import { Goods } from "../modules/goods-generator";
 import { Ice } from "../modules/ice";
 import { Lakes } from "../modules/lakes";
-import type { MarkerConfig } from "../modules/markers-generator";
+import type { Marker, MarkerConfig } from "../modules/markers-generator";
 import { Markers } from "../modules/markers-generator";
+import { Markets } from "../modules/markets-generator";
 import { Military } from "../modules/military-generator";
 import { Names } from "../modules/names-generator";
+import { Production } from "../modules/production-generator";
 import type { Province } from "../modules/provinces-generator";
 import { Provinces } from "../modules/provinces-generator";
 import type { Religion } from "../modules/religions-generator";
@@ -136,6 +139,13 @@ document.addEventListener("react-tool-action", e => {
   else if (button === "overviewMarkersButton") import("./markers-overview").then(m => m.overviewMarkers());
   else if (button === "overviewCellsButton") viewCellDetails();
   else if (button === "openMinimapButton") openMinimap?.();
+  else if (button === "editGoods") {
+    import("../ui/dialogs/dialogService").then(m => m.openDialog("goodsEditor"));
+  } else if (button === "overviewMarketsButton") {
+    import("../ui/dialogs/dialogService").then(m => m.openDialog("marketsOverview"));
+  } else if (button === "editTradeAnimationButton") {
+    import("../ui/dialogs/dialogService").then(m => m.openDialog("tradeAnimationEditor"));
+  }
 
   if (button.startsWith("regenerate")) {
     const dontAsk = sessionStorage.getItem("regenerateFeatureDontAsk");
@@ -199,6 +209,13 @@ function processFeatureRegeneration(event: MouseEvent | null, button: string): v
   else if (button === "regenerateIce") regenerateIce();
   else if (button === "regenerateMarkers") regenerateMarkers();
   else if (button === "regenerateZones") regenerateZones(event);
+  else if (button === "regenerateEconomy") {
+    Goods.generate();
+    Markets.generate(true);
+    Production.produce();
+  } else if (button === "regenerateGoods") Goods.generate();
+  else if (button === "regenerateMarkets") Markets.generate(true);
+  else if (button === "regenerateProduction") Production.produce();
 }
 
 // ─── Emblem editor opener ────────────────────────────────────────────────────
@@ -1022,15 +1039,13 @@ function addMarkerOnClick(this: SVGElement, event: MouseEvent): void {
 
   const isMarkerSelected = packMarkers.length && elSelected?.node()?.parentElement?.id === "markers";
   const selectedMarker = isMarkerSelected
-    ? packMarkers.find(
-        (marker: import("../modules/markers-generator").Marker) => marker.i === +elSelected!.attr("id").slice(6)
-      )
+    ? packMarkers.find((marker: Marker) => marker.i === +elSelected!.attr("id").slice(6))
     : null;
 
   const selectedType = ensureEl<HTMLInputElement>("addedMarkerType").value;
   const selectedConfig = Markers.getConfig().find(({ type }: MarkerConfig) => type === selectedType);
   const baseMarker = selectedMarker || selectedConfig || { icon: "❓" };
-  const marker = Markers.add({ ...baseMarker, x, y, cell } as unknown as import("../modules/markers-generator").Marker);
+  const marker = Markers.add({ ...baseMarker, x, y, cell } as unknown as Marker);
 
   if (selectedConfig?.add) {
     selectedConfig.add(`marker${marker.i}`, cell);
@@ -1072,7 +1087,7 @@ export function configMarkersGeneration(): void {
           <button class="changeIcon icon-pencil"></button>
         </td>
         <td><input class="multiplier" type="number" min="0" max="100" step="0.1" value="${multiplier}" /></td>
-        <td style="text-align:center">${worldContext.pack.markers.filter((marker: import("../modules/markers-generator").Marker) => marker.type === type).length}</td>
+        <td style="text-align:center">${worldContext.pack.markers.filter((marker: Marker) => marker.type === type).length}</td>
       </tr>`;
     });
 

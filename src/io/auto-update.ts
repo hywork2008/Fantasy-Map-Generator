@@ -12,14 +12,18 @@ import type { Burg } from "../modules/burgs-generator";
 import { Burgs } from "../modules/burgs-generator";
 import type { Culture } from "../modules/cultures-generator";
 import { Cultures } from "../modules/cultures-generator";
+import type { Emblem } from "../modules/emblem/generator";
 import { Features } from "../modules/features";
+import { Goods } from "../modules/goods-generator";
 import type { IceGlacier, IceIceberg } from "../modules/ice";
 import { Lakes } from "../modules/lakes";
 import type { Marker } from "../modules/markers-generator";
 import { Markers } from "../modules/markers-generator";
+import { Markets } from "../modules/markets-generator";
 import type { MilitaryRegiment } from "../modules/military-generator";
 import { Military } from "../modules/military-generator";
 import { Names } from "../modules/names-generator";
+import { Production } from "../modules/production-generator";
 import type { Province } from "../modules/provinces-generator";
 import { Provinces } from "../modules/provinces-generator";
 import type { Religion } from "../modules/religions-generator";
@@ -702,16 +706,13 @@ export function resolveVersionConflicts(mapVersion: string): void {
 
   if (isOlderThan("1.91.0")) {
     worldContext.pack.states.forEach(state => {
-      if ((state.coa as unknown as string) === "custom")
-        state.coa = { custom: true } as import("../modules/emblem/generator").Emblem;
+      if ((state.coa as unknown as string) === "custom") state.coa = { custom: true } as Emblem;
     });
     (worldContext.pack.provinces as Province[]).forEach(province => {
-      if ((province.coa as unknown as string) === "custom")
-        province.coa = { custom: true } as import("../modules/emblem/generator").Emblem;
+      if ((province.coa as unknown as string) === "custom") province.coa = { custom: true } as Emblem;
     });
     (worldContext.pack.burgs as Burg[]).forEach(burg => {
-      if ((burg.coa as unknown as string) === "custom")
-        burg.coa = { custom: true } as import("../modules/emblem/generator").Emblem;
+      if ((burg.coa as unknown as string) === "custom") burg.coa = { custom: true } as Emblem;
     });
 
     viewContext.emblems.selectAll<SVGUseElement, unknown>("use").each(function () {
@@ -1125,6 +1126,65 @@ export function resolveVersionConflicts(mapVersion: string): void {
     worldContext.pack.zones.forEach(zone => {
       zone.cells = unique(zone.cells);
     });
+  }
+
+  if (isOlderThan("1.124.0")) {
+    // v1.124.0 added goods, markets, deals and trade animation SVG layers and data
+    const goodsLayer = viewContext.viewbox
+      .insert("g", "#population")
+      .attr("id", "goods")
+      .style("display", "none")
+      .attr("stroke-width", "0.32")
+      .attr("filter", "url(#dropShadow01)");
+    goodsLayer.append("g").attr("id", "goodsCells");
+    goodsLayer.append("g").attr("id", "goodsIcons").attr("data-circle", "1");
+    goodsLayer.append("g").attr("id", "goodsBurgs");
+
+    const marketsLayerFill = viewContext.viewbox
+      .insert("g", "#icons")
+      .attr("id", "marketsLayerFill")
+      .style("display", "none");
+    const marketsLayer = viewContext.viewbox
+      .insert("g", "#fogging-cont")
+      .attr("id", "marketsLayer")
+      .style("display", "none");
+    const tradeAnimationLayer = viewContext.viewbox.insert("g", "#fogging-cont").attr("id", "tradeAnimation");
+
+    Object.assign(viewContext, {
+      goods: goodsLayer,
+      marketsFill: marketsLayerFill,
+      markets: marketsLayer,
+      tradeAnimation: tradeAnimationLayer
+    });
+
+    for (const state of worldContext.pack.states) {
+      if (!state) continue;
+      if (!state.i || state.removed) {
+        if (state.i === 0) {
+          state.salesTax = 0;
+          state.pollTax = 0;
+          state.treasury = 0;
+        }
+        continue;
+      }
+      state.salesTax = rn(rand(5, 15) / 100, 2);
+      state.pollTax = rn(rand(1, 5) / 100, 2);
+      state.treasury = 0;
+    }
+
+    Goods.generate();
+    Markets.generate();
+    Production.produce();
+  }
+
+  if (isOlderThan("1.125.0")) {
+    // v1.125.0 persists economy data in save format (indices 40-44).
+    // Pre-1.125.0 maps load with empty pack.goods/markets/deals; regenerate from world state.
+    if (!worldContext.pack.goods?.length) {
+      Goods.generate();
+      Markets.generate();
+      Production.produce();
+    }
   }
 }
 

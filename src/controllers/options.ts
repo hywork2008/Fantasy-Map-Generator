@@ -1116,6 +1116,17 @@ export function toggle3dOptions(): void {
     ensureEl("options3dSubdivide").addEventListener("change", toggle3dSubdivision);
     ensureEl("options3dTimeOfDay").addEventListener("change", changeTimeOfDay);
 
+    ensureEl("options3dSatellite").addEventListener("change", toggleSatellite);
+    ensureEl("options3dErosion").addEventListener("change", toggleErosion);
+    ensureEl("options3dErosionDetail").addEventListener("change", changeErosionDetail);
+    ensureEl("options3dErosionStrengthRange").addEventListener("input", changeErosionStrength);
+    ensureEl("options3dErosionStrengthNumber").addEventListener("change", changeErosionStrength);
+    ensureEl("options3dErosionRiverDepthRange").addEventListener("input", changeErosionRiverDepth);
+    ensureEl("options3dErosionRiverDepthNumber").addEventListener("change", changeErosionRiverDepth);
+    ensureEl("options3dErosionOctaves").addEventListener("change", changeErosionOctaves);
+
+    document.addEventListener("fmg:sync-erosion-ui", syncErosionUI);
+
     function updateValues(): void {
       const globe = ensureEl("canvas3d").dataset.type === "viewGlobe";
       options3dMesh.style.display = globe ? "none" : "block";
@@ -1142,6 +1153,17 @@ export function toggle3dOptions(): void {
       (options3dGlobeResolution as HTMLInputElement).value = String(ThreeDRenderer.options.resolution);
       (options3dSunColor as HTMLInputElement).value = ThreeDRenderer.options.sunColor;
       (options3dSubdivide as HTMLInputElement).value = String(ThreeDRenderer.options.subdivide);
+      ensureEl<HTMLInputElement>("options3dSatellite").checked = ThreeDRenderer.options.satellite;
+      ensureEl<HTMLInputElement>("options3dErosion").checked = ThreeDRenderer.options.erosion;
+      ensureEl<HTMLSelectElement>("options3dErosionDetail").value = String(ThreeDRenderer.options.erosionDetail);
+      ensureEl<HTMLInputElement>("options3dErosionStrengthRange").value = ensureEl<HTMLInputElement>(
+        "options3dErosionStrengthNumber"
+      ).value = String(ThreeDRenderer.options.erosionStrength);
+      ensureEl<HTMLInputElement>("options3dErosionRiverDepthRange").value = ensureEl<HTMLInputElement>(
+        "options3dErosionRiverDepthNumber"
+      ).value = String(ThreeDRenderer.options.erosionRiverDepth);
+      ensureEl<HTMLSelectElement>("options3dErosionOctaves").value = String(ThreeDRenderer.options.erosionOctaves);
+      syncErosionUI();
       updateTimeOfDayPreset();
     }
 
@@ -1238,6 +1260,54 @@ export function toggle3dOptions(): void {
 
     function changeResolution(this: HTMLInputElement): void {
       ThreeDRenderer.setResolution(+this.value);
+    }
+
+    function toggleSatellite(this: HTMLInputElement): void {
+      ThreeDRenderer.toggleSatellite();
+      syncErosionUI();
+    }
+
+    function toggleErosion(this: HTMLInputElement): void {
+      ThreeDRenderer.toggleErosion();
+      syncErosionUI();
+    }
+
+    function changeErosionDetail(this: HTMLSelectElement): void {
+      ThreeDRenderer.setErosionDetail(+this.value);
+    }
+
+    function changeErosionStrength(this: HTMLInputElement): void {
+      ensureEl<HTMLInputElement>("options3dErosionStrengthRange").value = ensureEl<HTMLInputElement>(
+        "options3dErosionStrengthNumber"
+      ).value = this.value;
+      ThreeDRenderer.setErosionStrength(+this.value);
+    }
+
+    function changeErosionRiverDepth(this: HTMLInputElement): void {
+      ensureEl<HTMLInputElement>("options3dErosionRiverDepthRange").value = ensureEl<HTMLInputElement>(
+        "options3dErosionRiverDepthNumber"
+      ).value = this.value;
+      ThreeDRenderer.setErosionRiverDepth(+this.value);
+    }
+
+    function changeErosionOctaves(this: HTMLSelectElement): void {
+      ThreeDRenderer.setErosionOctaves(+this.value);
+    }
+
+    function syncErosionUI(): void {
+      const erosionChecked = ensureEl<HTMLInputElement>("options3dErosion").checked;
+      ensureEl("options3dErosionSection").style.display = erosionChecked ? "block" : "none";
+
+      const useSubdivide = !erosionChecked;
+      const subdivideCheck = ensureEl<HTMLInputElement>("options3dSubdivide");
+      subdivideCheck.disabled = !useSubdivide;
+      if (!useSubdivide) {
+        subdivideCheck.checked = false;
+        ensureEl("options3dSubdivide").parentElement!.style.opacity = "0.5";
+      } else {
+        subdivideCheck.checked = Boolean(ThreeDRenderer.options.subdivide);
+        ensureEl("options3dSubdivide").parentElement!.style.opacity = "1";
+      }
     }
   }, 100);
 }

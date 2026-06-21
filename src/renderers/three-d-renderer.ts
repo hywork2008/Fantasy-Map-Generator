@@ -4,6 +4,13 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { OBJExporter } from "three/examples/jsm/exporters/OBJExporter.js";
 import { LoopSubdivision } from "three-subdivide";
 import { layerIsOn } from "../controllers/layers";
+import * as ErosionBake from "../modules/erosion-bake";
+import {
+  disposeRiverFlowTexture,
+  disposeSatelliteTexture,
+  generateRiverFlowTexture,
+  generateSatelliteTexture
+} from "./draw-satellite-texture";
 
 THREE.ColorManagement.enabled = false;
 
@@ -31,6 +38,12 @@ interface ThreeDOptions {
   resolution: number;
   resolutionScale: number;
   subdivide: number;
+  erosion: boolean;
+  erosionDetail: number;
+  erosionStrength: number;
+  erosionRiverDepth: number;
+  erosionOctaves: number;
+  satellite: boolean;
   isOn?: boolean;
   isGlobe?: boolean;
 }
@@ -61,7 +74,13 @@ class ThreeDModule {
     wireframe: 0,
     resolution: 2,
     resolutionScale: 2048,
-    subdivide: 0
+    subdivide: 0,
+    erosion: false,
+    erosionDetail: 1024,
+    erosionStrength: 30,
+    erosionRiverDepth: 10,
+    erosionOctaves: 2,
+    satellite: false
   };
 
   readonly timeOfDayPresets: Record<string, TimeOfDayPreset> = {
@@ -114,6 +133,10 @@ class ThreeDModule {
   private icons: THREE.Mesh[] = [];
   private lines: THREE.Line[] = [];
   private gridToPackCellMap: Map<number, number> | null = null;
+  private erosionBakeActive: boolean = false;
+  private erosionBakeData: ErosionBake.ErosionBakeResult | null = null;
+  private waterAnimationFrame: number | null = null;
+  private waterTime = { value: 0 };
   private readonly context2d = document.createElement("canvas").getContext("2d") as CanvasRenderingContext2D;
   private renderThrottled: () => void;
 
@@ -155,6 +178,12 @@ class ThreeDModule {
     if (this.material) this.material.dispose();
     if (this.waterPlane) this.waterPlane.dispose();
     if (this.waterMaterial) this.waterMaterial.dispose();
+    ErosionBake.dispose();
+    disposeSatelliteTexture();
+    disposeRiverFlowTexture();
+    this.stopWaterAnimation();
+    this.erosionBakeActive = false;
+    this.erosionBakeData = null;
     this.deleteLabels();
 
     this.Renderer!.renderLists.dispose();
@@ -250,6 +279,36 @@ class ThreeDModule {
 
   toggle3dSubdivision(): void {
     this.options.subdivide = this.options.subdivide ? 0 : 1;
+    this.redraw();
+  }
+
+  toggleErosion(): void {
+    this.options.erosion = !this.options.erosion;
+    this.redraw();
+  }
+
+  setErosionStrength(value: number): void {
+    this.options.erosionStrength = value;
+    this.redraw();
+  }
+
+  setErosionRiverDepth(value: number): void {
+    this.options.erosionRiverDepth = value;
+    this.redraw();
+  }
+
+  setErosionDetail(value: number): void {
+    this.options.erosionDetail = value;
+    this.redraw();
+  }
+
+  setErosionOctaves(value: number): void {
+    this.options.erosionOctaves = value;
+    this.redraw();
+  }
+
+  toggleSatellite(): void {
+    this.options.satellite = !this.options.satellite;
     this.redraw();
   }
 
@@ -394,9 +453,16 @@ class ThreeDModule {
     const x = baseX - worldContext.graphWidth / 2;
     const z = baseY - worldContext.graphHeight / 2;
 
-    this.raycaster!.ray.origin.x = x;
-    this.raycaster!.ray.origin.z = z;
-    const intersections = this.raycaster!.intersectObject(this.mesh!);
+    if (this.erosionBakeActive) {
+      const y = ErosionBake.heightAt(baseX, baseY, this.options.scale);
+      return [x, y, z];
+    }
+
+    if (!this.raycaster || !this.mesh) return [x, 0, z];
+
+    this.raycaster.ray.origin.x = x;
+    this.raycaster.ray.origin.z = z;
+    const intersections = this.raycaster.intersectObject(this.mesh);
     const y = intersections[0]?.point.y ?? 0;
     return [x, y, z];
   }
@@ -581,6 +647,7 @@ class ThreeDModule {
   }
 
   private async createMesh(width: number, height: number, segmentsX: number, segmentsY: number): Promise<void> {
+    this.stopWaterAnimation();
     this.gridToPackCellMap = new Map();
     if (worldContext.pack.cells?.g && worldContext.pack.cells?.i) {
       for (const packCellIndex of worldContext.pack.cells.i) {
@@ -591,8 +658,10 @@ class ThreeDModule {
       }
     }
 
-    if (this.texture) this.texture.dispose();
-    if (!this.options.wireframe) {
+    const useSatellite = Boolean(this.options.satellite && !this.options.isGlobe && !this.options.wireframe);
+
+    if (this.texture && !this.options.wireframe && !useSatellite) this.texture.dispose();
+    if (!this.options.wireframe && !useSatellite) {
       const url = await this.createMeshTextureUrl();
       await new Promise<void>(resolve => {
         this.texture = new THREE.TextureLoader().load(
@@ -612,35 +681,114 @@ class ThreeDModule {
 
     if (this.options.wireframe) {
       this.material.wireframe = true;
-    } else {
+    } else if (!useSatellite) {
       this.material.map = this.texture ?? null;
       this.material.transparent = true;
     }
 
+    let bakeResult: ErosionBake.ErosionBakeResult | null = null;
+    if ((this.options.erosion || useSatellite) && !this.options.isGlobe) {
+      const baseBakeResolution =
+        this.options.erosionDetail >= 2048 ? 4096 : this.options.erosionDetail > 512 ? 2048 : 1024;
+      const satelliteBakeResolution =
+        this.options.resolutionScale >= 8192 ? 8192 : this.options.resolutionScale >= 4096 ? 2048 : 1024;
+      const desiredBakeResolution = useSatellite
+        ? Math.max(baseBakeResolution, satelliteBakeResolution)
+        : baseBakeResolution;
+      const maxBakeResolution = Math.min(this.Renderer!.capabilities.maxTextureSize, 8192);
+
+      bakeResult = await ErosionBake.bake(this.Renderer!, {
+        strength: this.options.erosion ? this.options.erosionStrength : 0,
+        riverDepth: this.options.erosion ? this.options.erosionRiverDepth : 0,
+        octaves: this.options.erosion ? this.options.erosionOctaves : 1,
+        bakeResolution: Math.min(desiredBakeResolution, maxBakeResolution)
+      });
+      if (!bakeResult && this.options.erosion) {
+        console.warn("3D erosion bake failed, falling back to standard mesh");
+        tip("Eroded terrain is not supported on this device", false, "warn", 4000);
+        this.options.erosion = false;
+        document.dispatchEvent(new CustomEvent("fmg:sync-erosion-ui"));
+      }
+    }
+
+    this.erosionBakeActive = Boolean(bakeResult) && Boolean(this.options.erosion);
+    this.erosionBakeData = bakeResult;
+    if (!useSatellite) {
+      disposeSatelliteTexture();
+      disposeRiverFlowTexture();
+    }
+
     if (this.geometry) this.geometry.dispose();
-    this.geometry = new THREE.PlaneGeometry(width, height, segmentsX - 1, segmentsY - 1);
-
-    const vertices = this.geometry.getAttribute("position");
-    for (let i = 0; i < vertices.count; i++) {
-      vertices.setZ(i, this.getMeshHeight(i));
-    }
-
-    this.geometry.setAttribute("position", vertices);
-    this.geometry.computeVertexNormals();
     if (this.mesh) this.scene!.remove(this.mesh);
-    if (this.options.subdivide) {
-      const subdivideParams = {
-        split: true,
-        uvSmooth: false,
-        preserveEdges: true,
-        flatOnly: false,
-        maxTriangles: Infinity
-      };
-      const smoothGeometry = LoopSubdivision.modify(this.geometry, 1, subdivideParams);
-      this.mesh = new THREE.Mesh(smoothGeometry, this.material);
-    } else {
+
+    if (this.erosionBakeActive) {
+      const segLong = this.options.erosionDetail;
+      const segX = width >= height ? segLong : Math.max(2, Math.round((segLong * width) / height));
+      const segY = width >= height ? Math.max(2, Math.round((segLong * height) / width)) : segLong;
+      this.geometry = new THREE.PlaneGeometry(width, height, segX - 1, segY - 1);
+
+      const vertices = this.geometry.getAttribute("position");
+      for (let i = 0; i < vertices.count; i++) {
+        const mapX = vertices.getX(i) + width / 2;
+        const mapY = height / 2 - vertices.getY(i);
+        vertices.setZ(i, ErosionBake.heightAt(mapX, mapY, this.options.scale));
+      }
+      this.geometry.computeVertexNormals();
       this.mesh = new THREE.Mesh(this.geometry, this.material);
+    } else {
+      this.geometry = new THREE.PlaneGeometry(width, height, segmentsX - 1, segmentsY - 1);
+
+      const vertices = this.geometry.getAttribute("position");
+      for (let i = 0; i < vertices.count; i++) {
+        vertices.setZ(i, this.getMeshHeight(i));
+      }
+
+      this.geometry.setAttribute("position", vertices);
+      this.geometry.computeVertexNormals();
+      if (this.options.subdivide) {
+        const subdivideParams = {
+          split: true,
+          uvSmooth: false,
+          preserveEdges: true,
+          flatOnly: false,
+          maxTriangles: Infinity
+        };
+        const smoothGeometry = LoopSubdivision.modify(this.geometry, 1, subdivideParams);
+        this.mesh = new THREE.Mesh(smoothGeometry, this.material);
+      } else {
+        this.mesh = new THREE.Mesh(this.geometry, this.material);
+      }
     }
+
+    if (useSatellite) {
+      const satelliteTexture =
+        bakeResult &&
+        generateSatelliteTexture(this.Renderer!, bakeResult, {
+          scale: this.options.scale,
+          maxOutput: Math.max(512, Math.min(this.options.resolutionScale, 8192))
+        });
+      if (satelliteTexture) {
+        this.material.map = satelliteTexture;
+        this.applyWaterAnimation(this.material as THREE.MeshLambertMaterial, generateRiverFlowTexture());
+        this.startWaterAnimation();
+      } else {
+        const url = await this.createMeshTextureUrl();
+        await new Promise<void>(resolve => {
+          this.texture = new THREE.TextureLoader().load(
+            url,
+            () => resolve(),
+            undefined,
+            () => resolve()
+          );
+        });
+        if (this.texture && this.Renderer) {
+          this.texture.anisotropy = this.Renderer.capabilities.getMaxAnisotropy();
+        }
+        this.material.map = this.texture ?? null;
+        this.material.transparent = true;
+      }
+    }
+
     this.mesh.rotation.x = -Math.PI / 2;
     this.mesh.castShadow = true;
     this.mesh.receiveShadow = true;
@@ -693,11 +841,25 @@ class ThreeDModule {
   }
 
   private async update3dTexture(): Promise<void> {
+    if (!this.material || !this.Renderer) return;
+
+    if (this.options.satellite && this.erosionBakeData && !this.options.isGlobe && !this.options.wireframe) {
+      const satelliteTexture = generateSatelliteTexture(this.Renderer, this.erosionBakeData, {
+        scale: this.options.scale,
+        maxOutput: Math.max(512, Math.min(this.options.resolutionScale, 8192))
+      });
+      if (satelliteTexture) {
+        this.material.map = satelliteTexture;
+        this.render();
+        return;
+      }
+    }
+
     if (this.texture) this.texture.dispose();
     const url = await this.createMeshTextureUrl();
     window.setTimeout(() => window.URL.revokeObjectURL(url), 4000);
     this.texture = new THREE.TextureLoader().load(url, () => this.render());
-    this.material!.map = this.texture ?? null;
+    this.material.map = this.texture ?? null;
   }
 
   private async newGlobe(canvas: HTMLCanvasElement): Promise<boolean> {
@@ -813,6 +975,92 @@ class ThreeDModule {
     this.animationFrame = requestAnimationFrame(() => this.animate());
     if (this.controls?.update) this.controls.update();
   }
+
+  private startWaterAnimation(): void {
+    if (this.waterAnimationFrame) return;
+    const tick = (time: number) => {
+      this.waterAnimationFrame = requestAnimationFrame(tick);
+      this.waterTime.value = time / 1000;
+      this.render();
+    };
+    this.waterAnimationFrame = requestAnimationFrame(tick);
+  }
+
+  private stopWaterAnimation(): void {
+    if (this.waterAnimationFrame) cancelAnimationFrame(this.waterAnimationFrame);
+    this.waterAnimationFrame = null;
+  }
+
+  private applyWaterAnimation(mat: THREE.MeshLambertMaterial, flowTexture: THREE.Texture): void {
+    mat.onBeforeCompile = (shader: { uniforms: Record<string, unknown>; fragmentShader: string }) => {
+      shader.uniforms.uTime = this.waterTime;
+      shader.uniforms.uFlow = { value: flowTexture };
+      shader.fragmentShader =
+        /* glsl */ `uniform float uTime;
+        uniform sampler2D uFlow;
+        float fmgWaterHash(vec2 p) {
+          vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+          p3 += dot(p3, p3.yzx + 33.33);
+          return fract((p3.x + p3.y) * p3.z);
+        }
+        float fmgWaterNoise(vec2 p) {
+          vec2 i = floor(p);
+          vec2 f = fract(p);
+          vec2 u = f * f * (3.0 - 2.0 * f);
+          float a = fmgWaterHash(i);
+          float b = fmgWaterHash(i + vec2(1.0, 0.0));
+          float c = fmgWaterHash(i + vec2(0.0, 1.0));
+          float d = fmgWaterHash(i + vec2(1.0, 1.0));
+          return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+        }
+        ` +
+        shader.fragmentShader.replace(
+          "#include <map_fragment>",
+          /* glsl */ `#include <map_fragment>
+          float waterMask = 1.0 - smoothstep(0.30, 0.38, diffuseColor.a);
+          if (waterMask > 0.001) {
+            vec2 wp = vMapUv * vec2(140.0, 100.0);
+            float n1 = fmgWaterNoise(wp + vec2(uTime * 0.6, uTime * 0.25));
+            float n2 = fmgWaterNoise(wp * 2.3 - vec2(uTime * 0.45, -uTime * 0.7));
+            float waves = n1 * 0.65 + n2 * 0.35;
+            float crest = pow(waves, 4.0);
+            float swell = sin(dot(vMapUv, vec2(36.0, 28.0)) + uTime * 0.6) * 0.025;
+            diffuseColor.rgb *= 1.0 + waterMask * ((waves - 0.5) * 0.12 + swell);
+            diffuseColor.rgb += waterMask * crest * vec3(0.04, 0.09, 0.09);
+            float shoreGlow = smoothstep(0.02, 0.3, diffuseColor.a) * waterMask;
+            float surf = shoreGlow * (0.5 + 0.5 * sin(uTime * 1.5 + (n1 - 0.5) * 9.0 + dot(vMapUv, vec2(420.0, 380.0))));
+            diffuseColor.rgb += surf * 0.08 * vec3(0.9, 1.0, 1.0);
+          }
+          float lakeBand = smoothstep(0.64, 0.69, diffuseColor.a) * (1.0 - smoothstep(0.71, 0.78, diffuseColor.a));
+          if (lakeBand > 0.001) {
+            vec2 lp = vMapUv * vec2(160.0, 115.0);
+            float l1 = fmgWaterNoise(lp + vec2(uTime * 0.18, uTime * 0.12));
+            float l2 = fmgWaterNoise(lp * 2.1 - vec2(uTime * 0.14, -uTime * 0.21));
+            diffuseColor.rgb *= 1.0 + lakeBand * (l1 * 0.6 + l2 * 0.4 - 0.5) * 0.05;
+          }
+          float riverBand = smoothstep(0.36, 0.42, diffuseColor.a) * (1.0 - smoothstep(0.50, 0.58, diffuseColor.a));
+          if (riverBand > 0.001) {
+            vec4 flow = texture2D(uFlow, vMapUv);
+            if (flow.b > 0.1) {
+              float steep = clamp(flow.b * 1.186 - 0.186, 0.0, 1.0);
+              float flowPhase = atan(flow.r - 0.5, flow.g - 0.5);
+              float speedMul = 1.0 + steep * 2.0;
+              float texNoise = fmgWaterNoise(vMapUv * vec2(380.0, 280.0));
+              float fineNoise = fmgWaterNoise(vMapUv * vec2(880.0, 640.0));
+              float flowWave = sin(flowPhase - uTime * 2.2 * speedMul + texNoise * 2.5) * 0.6
+                + sin(flowPhase * 2.0 - uTime * 3.4 * speedMul + 1.7 + texNoise * 3.5) * 0.4;
+              diffuseColor.rgb *= 1.0 + riverBand * flowWave * (0.5 + texNoise) * mix(0.05, 0.11, steep);
+              
+              float fineRipple = sin(flowPhase * 30.0 - uTime * 24.0 * speedMul + fineNoise * 4.0);
+              float aeration = pow(steep, 3.0) * smoothstep(0.2, 0.8, fineRipple) * fineNoise;
+              diffuseColor.rgb = mix(diffuseColor.rgb, vec3(1.0), riverBand * aeration * 0.85);
+            }
+          }
+          diffuseColor.a = 1.0;
+        `
+        );
+    };
+  }
 }
 
 export type { ThreeDAPI, ThreeDModule, ThreeDOptions };
@@ -839,5 +1087,11 @@ interface ThreeDAPI {
   timeOfDayPresets: Record<string, TimeOfDayPreset>;
   saveScreenshot: () => Promise<void>;
   saveOBJ: () => void;
+  toggleErosion: () => void;
+  setErosionStrength: (value: number) => void;
+  setErosionRiverDepth: (value: number) => void;
+  setErosionDetail: (value: number) => void;
+  setErosionOctaves: (value: number) => void;
+  toggleSatellite: () => void;
 }
 export const ThreeDRenderer = new ThreeDModule();

@@ -157,6 +157,24 @@ export const BurgEditorDialog: React.FC = () => {
               <span id="burgElevation">{burgData.elevation}</span> above sea level
             </div>
 
+            <div data-tip="Burg average daily production">
+              <div className="label">Production:</div>
+              <span
+                id="burgProduction"
+                style={{ display: "inline-flex", flexWrap: "wrap", columnGap: "0.3em", maxWidth: "110px" }}
+              />
+            </div>
+
+            <div data-tip="Wealth is gross product per population point for the current production run. It is a per-capita productivity measure, not the burg's cumulative treasury.">
+              <div className="label">Wealth</div>
+              <span id="burgWealth" />
+            </div>
+
+            <div data-tip="Treasury is the burg's cumulative cash balance after all production, purchases, and sales.">
+              <div className="label">Treasury</div>
+              <span id="burgTreasury" />
+            </div>
+
             <div>
               <div className="label">Features:</div>
               <span
@@ -289,6 +307,17 @@ export const BurgEditorDialog: React.FC = () => {
               data-tip="Zoom map and center view in the burg"
               className="icon-target"
               onClick={() => burgEditorActions.zoomIntoBurg()}
+            ></button>
+            <button
+              type="button"
+              id="burgProductionOverview"
+              data-tip="Show production overview for this burg"
+              className="icon-chart-bar"
+              onClick={() =>
+                document.dispatchEvent(
+                  new CustomEvent("react-tool-action", { detail: { action: "burgProductionOverview" } })
+                )
+              }
             ></button>
             <button
               type="button"

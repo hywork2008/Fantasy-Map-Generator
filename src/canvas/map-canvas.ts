@@ -22,6 +22,7 @@ export function createLayerCanvas(svgGroup: SVGGElement, width: number, height: 
   fo.setAttribute("y", "0");
   fo.setAttribute("width", String(width));
   fo.setAttribute("height", String(height));
+  fo.setAttribute("pointer-events", "none");
 
   const canvas = document.createElement("canvas");
   canvas.width = width;

@@ -427,6 +427,15 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
     // data[28] had deprecated cells.crossroad
     worldContext.pack.cells.routes = data[36] ? JSON.parse(data[36]) : {};
     worldContext.pack.ice = data[39] ? JSON.parse(data[39]) : [];
+    worldContext.pack.cells.good = data[40]
+      ? Uint16Array.from(data[40].split(","), Number)
+      : new Uint16Array(worldContext.pack.cells.i.length);
+    worldContext.pack.goods = data[41] ? JSON.parse(data[41]) : [];
+    worldContext.pack.markets = data[42] ? JSON.parse(data[42]) : [];
+    worldContext.pack.deals = data[43] ? JSON.parse(data[43]) : [];
+    worldContext.pack.cells.market = data[44]
+      ? Uint16Array.from(data[44].split(","), Number)
+      : new Uint16Array(worldContext.pack.cells.i.length);
 
     if (data[31]) {
       const namesDL = data[31].split("/");

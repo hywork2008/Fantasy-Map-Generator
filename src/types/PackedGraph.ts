@@ -2,8 +2,10 @@ import type { Quadtree } from "d3";
 import type { Burg } from "../modules/burgs-generator";
 import type { Culture } from "../modules/cultures-generator";
 import type { PackedGraphFeature } from "../modules/features";
+import type { Good } from "../modules/goods-generator";
 import type { IceElement } from "../modules/ice";
 import type { Marker } from "../modules/markers-generator";
+import type { Deal, Market } from "../modules/markets-generator";
 import type { Province } from "../modules/provinces-generator";
 import type { Religion } from "../modules/religions-generator";
 import type { River } from "../modules/river-generator";
@@ -40,6 +42,8 @@ export interface PackedGraph {
     state: TypedArray; // cell state id
     area: TypedArray; // cell area
     province: TypedArray; // cell province id
+    good: Uint16Array; // cell good id
+    market: Uint16Array; // cell market id
     routes: Record<number, Record<number, number>>;
   };
   vertices: {
@@ -61,4 +65,7 @@ export interface PackedGraph {
   markers: Marker[];
   ice: IceElement[];
   provinces: Province[];
+  goods: Good[];
+  markets: Market[];
+  deals: Deal[];
 }

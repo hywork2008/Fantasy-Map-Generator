@@ -44,6 +44,14 @@ export const ToolsTab: React.FC = () => {
           Emblems
         </button>
         <button
+          data-tip="Click to open Goods Editor"
+          data-shortcut="Shift + G"
+          type="button"
+          onClick={() => triggerEvent("editGoods")}
+        >
+          Goods
+        </button>
+        <button
           id="editHeightmapButton"
           data-tip="Click to open Heightmap customization menu"
           type="button"
@@ -57,6 +65,13 @@ export const ToolsTab: React.FC = () => {
           onClick={() => triggerEvent("overviewMarkersButton")}
         >
           Markers
+        </button>
+        <button
+          data-tip="Click to open Markets Overview"
+          type="button"
+          onClick={() => triggerEvent("overviewMarketsButton")}
+        >
+          Markets
         </button>
         <button
           data-tip="Click to open Military Forces Overview"
@@ -107,6 +122,13 @@ export const ToolsTab: React.FC = () => {
         >
           States
         </button>
+        <button
+          data-tip="Click to open Trade Animation Editor"
+          type="button"
+          onClick={() => triggerEvent("editTradeAnimationButton")}
+        >
+          Trade
+        </button>
         <button data-tip="Click to open Units Editor" type="button" onClick={() => triggerEvent("editUnitsButton")}>
           Units
         </button>
@@ -139,6 +161,20 @@ export const ToolsTab: React.FC = () => {
           Emblems
         </button>
         <button
+          data-tip="Rebuild market territories, production, trade deals, and taxes from the current goods and markets"
+          type="button"
+          onClick={() => triggerEvent("regenerateEconomy")}
+        >
+          Economy
+        </button>
+        <button
+          data-tip="Click to regenerate bonus goods placement"
+          type="button"
+          onClick={() => triggerEvent("regenerateGoods")}
+        >
+          Goods
+        </button>
+        <button
           data-tip="Click to regenerate icebergs and glaciers"
           type="button"
           onClick={() => triggerEvent("regenerateIce")}
@@ -151,6 +187,13 @@ export const ToolsTab: React.FC = () => {
           onClick={() => triggerEvent("regenerateStateLabels")}
         >
           State Labels
+        </button>
+        <button
+          data-tip="Click to regenerate markets and their territories"
+          type="button"
+          onClick={() => triggerEvent("regenerateMarkets")}
+        >
+          Markets
         </button>
         <button
           data-tip="Click to regenerate unlocked markers"
@@ -181,6 +224,13 @@ export const ToolsTab: React.FC = () => {
           onClick={() => triggerEvent("regeneratePopulation")}
         >
           Population
+        </button>
+        <button
+          data-tip="Click to regenerate production and trade deals"
+          type="button"
+          onClick={() => triggerEvent("regenerateProduction")}
+        >
+          Production
         </button>
         <button
           data-tip="Click to regenerate non-locked provinces"
