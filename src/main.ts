@@ -1032,6 +1032,29 @@ export function invokeActiveZooming() {
     });
   }
 
+  if (goods.style("display") !== "none") {
+    // Viewport culling + zoom-scale threshold for goods icons and burg plates.
+    // data-min-scale encodes the minimum zoom level needed to show each element:
+    // high-production locations are visible from afar, low-production only when zoomed in.
+    const GOODS_MARGIN = 20;
+    const vLeft = -viewX / scale - GOODS_MARGIN;
+    const vTop = -viewY / scale - GOODS_MARGIN;
+    const vRight = (svgWidth - viewX) / scale + GOODS_MARGIN;
+    const vBottom = (svgHeight - viewY) / scale + GOODS_MARGIN;
+
+    goods.selectAll<SVGGElement, unknown>("#goodsIcons > g, #goodsBurgs > g").each(function () {
+      const x = +this.getAttribute("data-x")!;
+      const y = +this.getAttribute("data-y")!;
+      const minScale = +this.getAttribute("data-min-scale")! || 0;
+
+      const inViewport = x > vLeft && x < vRight && y > vTop && y < vBottom;
+      const aboveThreshold = scale >= minScale;
+
+      if (inViewport && aboveThreshold) this.classList.remove("hidden");
+      else this.classList.add("hidden");
+    });
+  }
+
   if (!viewContext.customization && !isOptimized) {
     const desired = +statesHalo.attr("data-width");
     const haloSize = rn(desired / scale ** 0.8, 2);

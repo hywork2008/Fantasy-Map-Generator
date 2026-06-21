@@ -23,16 +23,29 @@ const PLATE_PAD_Y = 0.6;
 const PLATE_RX = 1;
 const PLATE_FILL = "#f5f5f5";
 
+// Zoom scale range for goods visibility: high-production locations visible from afar,
+// low-production locations only appear when zoomed in.
+const MIN_GOODS_SCALE = 1.5;
+const MAX_GOODS_SCALE = 8;
+
 export function drawGoods(displayedGoods: Set<number>) {
   TIME && console.time("drawGoods");
   ensureSubgroups();
 
-  drawGoodsCellsCanvas(displayedGoods);
-  viewContext.goods.select("#goodsIcons").html(buildGoodsIconsContent(displayedGoods));
-  viewContext.goods.select("#goodsBurgs").html(buildGoodsBurgsContent(displayedGoods));
+  const biomeProduction = Goods.getBiomesProduction();
+  const cellBonusWeights = drawGoodsCellsCanvas(displayedGoods, biomeProduction);
+  const cellMinScales = weightsToMinScales(cellBonusWeights);
+
+  const burgWeights = computeBurgWeights(displayedGoods);
+  const burgMinScales = weightsToMinScales(burgWeights);
+
+  viewContext.goods.select("#goodsIcons").html(buildGoodsIconsContent(displayedGoods, cellMinScales));
+  viewContext.goods.select("#goodsBurgs").html(buildGoodsBurgsContent(displayedGoods, burgMinScales));
 
   viewContext.goods.style("display", null);
   TIME && console.timeEnd("drawGoods");
+
+  document.dispatchEvent(new CustomEvent("fmg:invoke-active-zooming"));
 }
 
 function ensureSubgroups() {
@@ -41,16 +54,24 @@ function ensureSubgroups() {
   }
 }
 
-function drawGoodsCellsCanvas(displayedGoods: Set<number>): void {
+/**
+ * Draws cell production heatmap onto canvas and returns bonus-good production per cell.
+ * Returns Map<cellId, bonusGoodProduction> for use in icon min-scale computation.
+ */
+function drawGoodsCellsCanvas(
+  displayedGoods: Set<number>,
+  biomeProduction: Record<number, { goodId: number; production: number }[]>
+): Map<number, number> {
   const { graphWidth, graphHeight } = worldContext;
   const node = viewContext.goods.select<SVGGElement>("#goodsCells").node()!;
   const ctx = createLayerCanvas(node, graphWidth, graphHeight);
 
-  if (!displayedGoods.size) return;
+  const cellBonusWeights = new Map<number, number>();
+
+  if (!displayedGoods.size) return cellBonusWeights;
 
   // First pass: accumulate total production per cell to find the global max
   const cellTotals = new Map<number, { produced: Map<number, number>; total: number }>();
-  const biomeProduction = Goods.getBiomesProduction();
   let maxTotal = 0;
   for (const cellId of worldContext.pack.cells.i) {
     let total = 0;
@@ -68,7 +89,7 @@ function drawGoodsCellsCanvas(displayedGoods: Set<number>): void {
     if (total > maxTotal) maxTotal = total;
   }
 
-  if (maxTotal === 0) return;
+  if (maxTotal === 0) return cellBonusWeights;
 
   // Second pass: draw polygons onto canvas with opacity normalized against the global max
   for (const [cellId, { produced, total }] of cellTotals) {
@@ -87,10 +108,43 @@ function drawGoodsCellsCanvas(displayedGoods: Set<number>): void {
       ctx.closePath();
       ctx.fill();
     }
+
+    // Collect bonus-good production weight for icon visibility
+    const bonusGoodId = worldContext.pack.cells.good[cellId];
+    if (bonusGoodId && displayedGoods.has(bonusGoodId)) {
+      const bonusAmount = produced.get(bonusGoodId) ?? 0;
+      if (bonusAmount > 0) cellBonusWeights.set(cellId, bonusAmount);
+    }
   }
+
+  return cellBonusWeights;
 }
 
-function buildGoodsIconsContent(displayedGoods: Set<number>): string {
+/** Returns Map<burgId, totalDisplayedProduction> for burg plate min-scale computation. */
+function computeBurgWeights(displayedGoods: Set<number>): Map<number, number> {
+  const result = new Map<number, number>();
+  for (const burg of worldContext.pack.burgs) {
+    if (!burg.i || burg.removed || !burg.production) continue;
+    const produced = Production.getBurgProduction(burg);
+    let total = 0;
+    for (const goodId of displayedGoods) total += produced[goodId] || 0;
+    if (total > 0) result.set(burg.i, total);
+  }
+  return result;
+}
+
+/** Normalizes production weights to zoom scale thresholds. Higher weight → lower minScale. */
+function weightsToMinScales(weights: Map<number, number>): Map<number, number> {
+  const maxWeight = Math.max(...weights.values(), 1);
+  const result = new Map<number, number>();
+  for (const [id, weight] of weights) {
+    const normalized = weight / maxWeight;
+    result.set(id, rn(MAX_GOODS_SCALE - normalized * (MAX_GOODS_SCALE - MIN_GOODS_SCALE), 2));
+  }
+  return result;
+}
+
+function buildGoodsIconsContent(displayedGoods: Set<number>, cellMinScales: Map<number, number>): string {
   if (!displayedGoods.size || !worldContext.pack.cells.good) return "";
 
   const drawCircle = +viewContext.goods.select("#goodsIcons").attr("data-circle");
@@ -102,15 +156,16 @@ function buildGoodsIconsContent(displayedGoods: Set<number>): string {
     if (!good) continue;
 
     const [x, y] = worldContext.pack.cells.p[cellId];
+    const minScale = cellMinScales.get(cellId) ?? MAX_GOODS_SCALE;
     const stroke = Goods.getStroke(good.color);
-    html += `<g data-i="${good.i}">${
+    html += `<g data-i="${good.i}" data-x="${rn(x, 1)}" data-y="${rn(y, 1)}" data-min-scale="${minScale}">${
       drawCircle ? `<circle cx="${x}" cy="${y}" r="${HALF}" fill="${good.color}" stroke="${stroke}" />` : ""
     }<use href="#${good.icon}" x="${x - HALF}" y="${y - HALF}" width="${SIZE}" height="${SIZE}"/></g>`;
   }
   return html;
 }
 
-function buildGoodsBurgsContent(displayedGoods: Set<number>): string {
+function buildGoodsBurgsContent(displayedGoods: Set<number>, burgMinScales: Map<number, number>): string {
   if (!displayedGoods.size) return "";
 
   let html = "";
@@ -145,6 +200,8 @@ function buildGoodsBurgsContent(displayedGoods: Set<number>): string {
     const iconY = plateY + PLATE_PAD_Y;
     const mid = iconY + PLATE_ICON / 2;
 
+    const minScale = burgMinScales.get(burg.i) ?? MAX_GOODS_SCALE;
+
     let content = `<rect x="${rn(plateX, 1)}" y="${rn(plateY, 1)}" width="${rn(plateWidth, 1)}" height="${rn(plateHeight, 1)}" rx="${PLATE_RX}" fill="${PLATE_FILL}"/>`;
     let offset = plateX + PLATE_PAD_X;
     for (const { good, value, width } of entries) {
@@ -155,7 +212,7 @@ function buildGoodsBurgsContent(displayedGoods: Set<number>): string {
       offset += width + PLATE_ENTRY_GAP;
     }
 
-    html += `<g data-id="${burg.i}">${content}</g>`;
+    html += `<g data-id="${burg.i}" data-x="${rn(burg.x, 1)}" data-y="${rn(burg.y, 1)}" data-min-scale="${minScale}">${content}</g>`;
   }
   return html;
 }
