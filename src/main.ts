@@ -696,7 +696,7 @@ async function checkLoadParameters() {
     return;
   }
 
-  if (ensureEl<HTMLSelectElement>("onloadBehavior").value === "lastSaved") {
+  if (useOptionsState.getState().onloadBehavior === "lastSaved") {
     try {
       const blob = await ldb.get("lastMap");
       if (blob) {

@@ -24,14 +24,17 @@ class NamesbaseEditorModule {
   private listenersAdded = false;
 
   init(): void {
-    if (this.listenersAdded) return;
-    this.addListeners();
-    this.listenersAdded = true;
+    // Listeners are now added lazily on first open because React might not have rendered the DOM yet.
   }
 
   open(): void {
     if (viewContext.customization) return;
     closeDialogs("#namesbaseEditor, .stable");
+
+    if (!this.listenersAdded) {
+      this.addListeners();
+      this.listenersAdded = true;
+    }
 
     this.createBasesList();
     this.updateInputs();
