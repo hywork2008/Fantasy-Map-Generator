@@ -1,5 +1,6 @@
 import type React from "react";
 import { useDialogState } from "../../store/dialogState";
+import { SliderInput } from "../components/SliderInput";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
@@ -102,21 +103,21 @@ export const BrushesPanelDialog: React.FC = () => {
           </div>
           <div id="brushesSliders" style={{ display: "none" }}>
             <div data-tip="Change brush size. Shortcut: + to increase; – to decrease">
-              <slider-input id="heightmapBrushRadius" min={1} max={100} value={25}>
+              <SliderInput id="heightmapBrushRadius" min={1} max={100} value={25}>
                 <div style={{ width: "3.5em" }}>Radius:</div>
-              </slider-input>
+              </SliderInput>
             </div>
             <div data-tip="Change brush power">
-              <slider-input id="heightmapBrushPower" min={1} max={10} value={5}>
+              <SliderInput id="heightmapBrushPower" min={1} max={10} value={5}>
                 <div style={{ width: "3.5em" }}>Power:</div>
-              </slider-input>
+              </SliderInput>
             </div>
           </div>
           <div id="lineSlider" style={{ display: "none" }}>
             <div data-tip="Change tool power. Shortcut: + to increase; – to decrease">
-              <slider-input id="heightmapLinePower" min={-100} max={100} value={30}>
+              <SliderInput id="heightmapLinePower" min={-100} max={100} value={30}>
                 <div style={{ width: "3.5em" }}>Power:</div>
-              </slider-input>
+              </SliderInput>
             </div>
           </div>
           <div data-tip="Restrict brush to specific cell types" style={{ marginBottom: "0.6em" }}>

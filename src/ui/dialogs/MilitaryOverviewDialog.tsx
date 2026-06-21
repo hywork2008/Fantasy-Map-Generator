@@ -1,4 +1,5 @@
-import React, { useMemo } from "react";
+import type React from "react";
+import { useMemo } from "react";
 import { worldContext } from "../../context/worldContext";
 import { downloadFile, getFileName } from "../../controllers/editors";
 import {
@@ -7,11 +8,11 @@ import {
   militaryStateHighlightOn,
   updateStateWarAlert
 } from "../../controllers/military-overview";
-
 import { overviewRegiments } from "../../controllers/regiments-overview";
 import { dialogStore, useDialogState } from "../../store/dialogState";
 import { useMilitaryOverviewState } from "../../store/militaryOverviewState";
 import { capitalize, rn, si, wiki } from "../../utils";
+import { FillBox } from "../components/FillBox";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
@@ -216,7 +217,7 @@ export const MilitaryOverviewDialog: React.FC = () => {
                 onMouseEnter={() => militaryStateHighlightOn(l.id)}
                 onMouseLeave={() => militaryStateHighlightOff(l.id)}
               >
-                {React.createElement("fill-box", { "data-tip": l.fullName, fill: l.color, disabled: true })}
+                <FillBox data-tip={l.fullName} fill={l.color} disabled />
                 <input data-tip={l.fullName} style={{ width: "6em" }} value={l.name} readOnly />
                 {militaryOptions.map(u => (
                   <div key={u.name} data-tip={`State ${u.name} units number`}>

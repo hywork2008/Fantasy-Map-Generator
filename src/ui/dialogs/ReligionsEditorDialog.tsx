@@ -4,6 +4,7 @@ import { religionsEditorActions } from "../../editors/religions-editor";
 import { useReligionsEditorState } from "../../store/religionsEditorState";
 import { rn, si } from "../../utils";
 import { getAreaUnit } from "../../utils/uiHelpers";
+import { FillBox } from "../components/FillBox";
 import { Dialog } from "./Dialog";
 
 export const ReligionsEditorDialog: React.FC = () => {
@@ -153,8 +154,7 @@ export const ReligionsEditorDialog: React.FC = () => {
                 style={{ pointerEvents: isBrushMode ? "none" : "all" }}
               >
                 {r.i ? (
-                  // @ts-expect-error - fill-box is a custom element
-                  <fill-box fill={r.color} onClick={() => religionsEditorActions.changeFill(r.i)} />
+                  <FillBox fill={r.color} onClick={() => religionsEditorActions.changeFill(r.i)} />
                 ) : (
                   <svg width="9" height="9" className="placeholder" aria-label="placeholder" role="img">
                     <title>placeholder</title>

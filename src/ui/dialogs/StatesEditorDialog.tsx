@@ -4,6 +4,8 @@ import { statesEditorActions } from "../../editors/states-editor";
 import { useStatesEditorState } from "../../store/statesEditorState";
 import { rn, si } from "../../utils";
 import { getAreaUnit } from "../../utils/uiHelpers";
+import { FillBox } from "../components/FillBox";
+import { SliderInput } from "../components/SliderInput";
 import { Dialog } from "./Dialog";
 
 export const StatesEditorDialog: React.FC = () => {
@@ -173,7 +175,7 @@ export const StatesEditorDialog: React.FC = () => {
                 }}
               >
                 {/* @ts-ignore */}
-                <fill-box fill={s.color} onClick={() => (isNeutral ? null : statesEditorActions.changeColor(s.i))} />
+                <FillBox fill={s.color} onClick={isNeutral ? undefined : () => statesEditorActions.changeColor(s.i)} />
                 <input
                   type="text"
                   data-tip="State name. Click to change"
@@ -386,18 +388,16 @@ export const StatesEditorDialog: React.FC = () => {
               data-tip="Additional growth rate. Defines how many land cells remain neutral"
               style={{ display: "inline-block" }}
             >
-              <slider-input
+              <SliderInput
                 id="statesGrowthRate"
                 min=".1"
                 max="3"
                 step=".05"
                 value={growthRate}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                  statesEditorActions.changeGrowthRate(parseFloat(e.target.value))
-                }
+                onChange={value => statesEditorActions.changeGrowthRate(parseFloat(value))}
               >
                 Growth rate:
-              </slider-input>
+              </SliderInput>
             </div>
             <button
               type="button"
@@ -452,17 +452,15 @@ export const StatesEditorDialog: React.FC = () => {
               data-tip="Change brush size. Shortcuts: + / ] to increase; - / [ to decrease"
               style={{ display: "inline-block" }}
             >
-              <slider-input
+              <SliderInput
                 id="statesBrush"
                 min="1"
                 max="100"
                 value={brushSize}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                  statesEditorActions.changeBrushSize(parseInt(e.target.value, 10))
-                }
+                onChange={value => statesEditorActions.changeBrushSize(parseInt(value, 10))}
               >
                 Brush size:
-              </slider-input>
+              </SliderInput>
             </div>
             <button
               type="button"

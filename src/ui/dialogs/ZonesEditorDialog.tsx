@@ -2,6 +2,7 @@ import type React from "react";
 import { useState } from "react";
 import { zonesEditorActions } from "../../editors/zones-editor";
 import { setZonesEditorState, useZonesEditorState, type ZoneRowData } from "../../store/zonesEditorState";
+import { FillBox } from "../components/FillBox";
 import { SliderInput } from "../components/SliderInput";
 import { Dialog } from "./Dialog";
 
@@ -112,7 +113,7 @@ export const ZonesEditorDialog: React.FC = () => {
               }}
             >
               {/* @ts-ignore */}
-              <fill-box fill={z.color} onClick={() => zonesEditorActions.changeColor(z.i)}></fill-box>
+              <FillBox fill={z.color} onClick={() => zonesEditorActions.changeColor(z.i)} />
               <input
                 className="zoneName"
                 style={{ width: "11em" }}

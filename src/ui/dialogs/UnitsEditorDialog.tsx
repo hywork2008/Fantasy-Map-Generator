@@ -1,6 +1,7 @@
 import type React from "react";
 import { unitsEditorActions } from "../../editors/units-editor";
 import { useUnitsEditorState } from "../../store/unitsEditorState";
+import { SliderInput } from "../components/SliderInput";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
@@ -35,17 +36,17 @@ export const UnitsEditorDialog: React.FC = () => {
             </div>
             <div data-tip="Select how many distance units are in one pixel">
               <i data-locked={0} id="lock_distanceScale" className="icon-lock-open" />
-              <slider-input
+              <SliderInput
                 id="distanceScaleInput"
                 data-stored="distanceScale"
                 min=".01"
                 max={20}
                 step=".1"
                 value={3}
-                onChange={e => unitsEditorActions.changeDistanceScale(+(e.currentTarget as HTMLInputElement).value)}
+                onChange={value => unitsEditorActions.changeDistanceScale(Number(value))}
               >
                 <span>1 map pixel:</span>
-              </slider-input>
+              </SliderInput>
             </div>
             <div data-tip="Area unit name, type &quot;square&quot; to add ² to the distance unit">
               <label htmlFor="areaUnit">Area unit:</label>
@@ -70,17 +71,17 @@ export const UnitsEditorDialog: React.FC = () => {
               </select>
             </div>
             <div data-tip="Set height exponent, i.e. a value for altitude change sharpness. Altitude affects temperature and hence biomes">
-              <slider-input
+              <SliderInput
                 id="heightExponentInput"
                 data-stored="heightExponent"
                 min="1.5"
                 max="2.2"
                 step=".01"
                 value={2}
-                onChange={unitsEditorActions.changeHeightExponent}
+                onChange={() => unitsEditorActions.changeHeightExponent()}
               >
                 <span>Exponent:</span>
-              </slider-input>
+              </SliderInput>
             </div>
             <div className="unitsHeader" data-tip="Select Temperature scale">
               <span className="icon-temperature-high" />
@@ -109,43 +110,43 @@ export const UnitsEditorDialog: React.FC = () => {
               <span>Population:</span>
             </div>
             <div data-tip="Set how many people are in one population point">
-              <slider-input
+              <SliderInput
                 id="populationRateInput"
                 data-stored="populationRate"
                 min={10}
                 max={10000}
                 step={10}
                 value={1000}
-                onChange={e => unitsEditorActions.changePopulationRate(+(e.currentTarget as HTMLInputElement).value)}
+                onChange={value => unitsEditorActions.changePopulationRate(Number(value))}
               >
                 <span>1 population point:</span>
-              </slider-input>
+              </SliderInput>
             </div>
             <div data-tip="Set urban population modifier. Change to increase or descrese burgs population">
-              <slider-input
+              <SliderInput
                 id="urbanizationInput"
                 data-stored="urbanization"
                 min=".01"
                 max={5}
                 step=".01"
                 value={1}
-                onChange={e => unitsEditorActions.changeUrbanizationRate(+(e.currentTarget as HTMLInputElement).value)}
+                onChange={value => unitsEditorActions.changeUrbanizationRate(Number(value))}
               >
                 <span>Urbanization rate:</span>
-              </slider-input>
+              </SliderInput>
             </div>
             <div data-tip="Set urban density: average population per building in Medieval Fantasy City Generator">
-              <slider-input
+              <SliderInput
                 id="urbanDensityInput"
                 data-stored="urbanDensity"
                 min={1}
                 max={200}
                 step={1}
                 value={10}
-                onChange={e => unitsEditorActions.changeUrbanDensity(+(e.currentTarget as HTMLInputElement).value)}
+                onChange={value => unitsEditorActions.changeUrbanDensity(Number(value))}
               >
                 <span>Urban density:</span>
-              </slider-input>
+              </SliderInput>
             </div>
           </div>
           <div id="unitsFooter">

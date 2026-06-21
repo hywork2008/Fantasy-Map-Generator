@@ -1,5 +1,6 @@
 import type React from "react";
 import { useDialogState } from "../../store/dialogState";
+import { SliderInput } from "../components/SliderInput";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
@@ -88,9 +89,9 @@ export const CulturesEditorDialog: React.FC = () => {
               data-tip="Change brush size. Shortcuts: + / ] to increase; - / [ to decrease"
               style={{ marginBlock: "0.3em" }}
             >
-              <slider-input id="culturesBrush" min="1" max="100" value="15">
+              <SliderInput id="culturesBrush" min="1" max="100" value="15">
                 Brush size:
-              </slider-input>
+              </SliderInput>
             </div>
             <button type="button" id="culturesManuallyUndo" data-tip="Undo last brush stroke" className="icon-ccw" />
             <button type="button" id="culturesManuallyApply" data-tip="Apply assignment" className="icon-check" />

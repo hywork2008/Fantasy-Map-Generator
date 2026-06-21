@@ -1,9 +1,10 @@
 import type React from "react";
-import { createElement, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { initHierarchyTree, updateTree } from "../../controllers/hierarchy-tree";
 import { useDialogState } from "../../store/dialogState";
 import { useHierarchyTreeState } from "../../store/hierarchyTreeState";
 import { tip } from "../../utils/uiHelpers";
+import { FillBox } from "../components/FillBox";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
@@ -80,7 +81,7 @@ const OriginSelector: React.FC<OriginSelectorProps> = ({ selectedNode, elements,
                 }}
               />
               <label htmlFor={`selectElementOrigin${i}`} className="checkbox-label">
-                {createElement("fill-box", { fill: color as string, size: ".8em", disabled: true })}
+                <FillBox fill={color as string} size=".8em" disabled />
                 {code}: {name}
               </label>
             </div>

@@ -1,4 +1,4 @@
-import type React from "react";
+import { type ReactNode, useEffect, useState } from "react";
 
 interface SliderInputProps {
   id?: string;
@@ -6,32 +6,55 @@ interface SliderInputProps {
   max?: string | number;
   step?: string | number;
   value: string | number;
-  onChange: (value: string) => void;
+  onChange?: (value: string) => void;
   className?: string;
+  children?: ReactNode;
+  "data-stored"?: string;
 }
 
-export const SliderInput: React.FC<SliderInputProps> = ({
+export const SliderInput = ({
   id,
-  min = "0",
-  max = "100",
-  step = "1",
-  value,
+  min = 0,
+  max = 100,
+  step = 1,
+  value: valueProp,
   onChange,
-  className = ""
-}) => {
+  className,
+  children,
+  "data-stored": dataStored
+}: SliderInputProps) => {
+  const [value, setValue] = useState(String(valueProp));
+
+  useEffect(() => {
+    setValue(String(valueProp));
+  }, [valueProp]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onChange(e.target.value);
+    setValue(e.target.value);
+    onChange?.(e.target.value);
   };
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: "0.4em" }} className={className} id={id}>
-      <input type="range" min={min} max={max} step={step} value={value} onChange={handleChange} style={{ flex: 1 }} />
+    <div style={{ display: "flex", alignItems: "center", gap: "0.4em" }} className={className}>
+      {children}
+      <input
+        id={id}
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        data-stored={dataStored}
+        onChange={handleChange}
+        style={{ flex: 1 }}
+      />
       <input
         type="number"
         min={min}
         max={max}
         step={step}
         value={value}
+        data-stored={dataStored}
         onChange={handleChange}
         style={{ width: "4em" }}
       />

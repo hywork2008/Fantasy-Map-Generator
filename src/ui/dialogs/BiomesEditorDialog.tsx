@@ -1,5 +1,6 @@
 import type React from "react";
 import { useDialogState } from "../../store/dialogState";
+import { SliderInput } from "../components/SliderInput";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
@@ -73,7 +74,7 @@ export const BiomesEditorDialog: React.FC = () => {
                 style={{ marginBlock: "0.3em" }}
               >
                 Brush size:
-                <slider-input id="biomesBrush" min={1} max={100} value={15} />
+                <SliderInput id="biomesBrush" min={1} max={100} value={15} />
               </div>
               <button
                 type="button"

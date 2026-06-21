@@ -1,8 +1,10 @@
-import React, { useMemo } from "react";
+import type React from "react";
+import { useMemo } from "react";
 import { provincesEditorActions, selectProvinceOnLineClick } from "../../editors/provinces-editor";
 import { useProvincesEditorState } from "../../store/provincesEditorState";
 import { rn, si } from "../../utils";
 import { getAreaUnit } from "../../utils/uiHelpers";
+import { FillBox } from "../components/FillBox";
 import { Dialog } from "./Dialog";
 
 export const ProvincesEditorDialog: React.FC = () => {
@@ -144,10 +146,7 @@ export const ProvincesEditorDialog: React.FC = () => {
                   onMouseLeave={() => provincesEditorActions.provinceHighlightOff(null)}
                   style={{ pointerEvents: customization ? "none" : "all" }}
                 >
-                  {React.createElement("fill-box", {
-                    fill: p.color,
-                    onClick: () => provincesEditorActions.changeFill(p.i)
-                  })}
+                  <FillBox fill={p.color} onClick={() => provincesEditorActions.changeFill(p.i)} />
                   <input
                     data-tip="Province name. Click to change"
                     className="name pointer"

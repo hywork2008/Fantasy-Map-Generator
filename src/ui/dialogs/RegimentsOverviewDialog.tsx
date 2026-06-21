@@ -1,6 +1,6 @@
 import { sum } from "d3";
 import type React from "react";
-import { createElement, useEffect, useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { worldContext } from "../../context/worldContext";
 import {
   addRegimentOnMap,
@@ -12,6 +12,7 @@ import {
 import { useDialogState } from "../../store/dialogState";
 import { useRegimentsOverviewState } from "../../store/regimentsOverviewState";
 import { capitalize, si } from "../../utils";
+import { FillBox } from "../components/FillBox";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
@@ -180,7 +181,7 @@ export const RegimentsOverviewDialog: React.FC = () => {
                 }
                 style={{ cursor: "pointer" }}
               >
-                {createElement("fill-box", { "data-tip": stateFullName, fill: stateColor, disabled: true })}
+                <FillBox data-tip={stateFullName} fill={stateColor} disabled />
                 <input data-tip={stateFullName} style={{ width: "6em" }} value={stateName} readOnly />
                 {r.icon && (r.icon.startsWith("http") || r.icon.startsWith("data:image")) ? (
                   <img
