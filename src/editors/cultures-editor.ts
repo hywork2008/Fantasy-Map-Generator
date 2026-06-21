@@ -3,6 +3,17 @@ import { getWorldState } from "../actions";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import {
+  clearLegend,
+  confirmationDialog,
+  downloadFile,
+  drawLegend,
+  getFileName,
+  highlightElement,
+  moveCircle,
+  restoreDefaultEvents
+} from "../controllers/editors";
+import { type HierarchyElement, open as openHierarchyTree } from "../controllers/hierarchy-tree";
 import { interactionManager } from "../controllers/interactionManager";
 import {
   layerIsOn,
@@ -15,71 +26,48 @@ import {
 import { editStyle } from "../controllers/style";
 import { BrushHistoryClass as BrushHistory } from "../editors/BrushHistory";
 import type { Burg } from "../modules/burgs-generator";
-import {
-  applySorting,
-  applySortingByHeader,
-  clearMainTip,
-  fitContent,
-  getArea,
-  getAreaUnit,
-  removeCircle,
-  showMainTip,
-  tip
-} from "../utils/uiHelpers";
-
-type HighlightEvent = { id?: string | number | null; target?: EventTarget | null };
-
-import { type HierarchyElement, open as openHierarchyTree } from "../controllers/hierarchy-tree";
 import type { Culture, CultureType } from "../modules/cultures-generator";
 import { Cultures } from "../modules/cultures-generator";
 import { COA } from "../modules/emblem/generator";
 import type { NameBase } from "../modules/names-generator";
+import { Names } from "../modules/names-generator";
 import type { Province } from "../modules/provinces-generator";
 import type { State } from "../modules/states-generator";
 import { CulturesRenderer, PopulationRenderer } from "../renderers";
 import { COArenderer, type Emblem as RendererEmblem } from "../renderers/emblem-renderer";
-import { abbreviate, capitalize, debounce, ensureEl, findAll, findCell, isLand, rn, si } from "../utils";
+import type { CultureRowData, NameBaseOption } from "../store/culturesEditorState";
+import { getCulturesEditorState, setCulturesEditorState } from "../store/culturesEditorState";
+import { closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
+import { abbreviate, debounce, findAll, findCell, parseTransform, rn, si } from "../utils";
 import { getPackPolygon } from "../utils/graphUtils";
+import { clearMainTip, getArea, getAreaUnit, removeCircle, showMainTip, tip } from "../utils/uiHelpers";
+import { NamesbaseEditor } from "./namesbase-editor";
+
+const cultureTypes = ["Generic", "River", "Lake", "Naval", "Nomadic", "Hunting", "Highland"];
 
 let worldContext: WorldContext;
 let viewContext: ViewContext;
 let appServices: AppServices;
 
-import {
-  clearLegend,
-  confirmationDialog,
-  downloadFile,
-  drawLegend,
-  getFileName,
-  highlightElement,
-  moveCircle,
-  restoreDefaultEvents
-} from "../controllers/editors";
-import { Names } from "../modules/names-generator";
-import { closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
-import { alertMessage } from "../utils/alertMessageEl";
-import { NamesbaseEditor } from "./namesbase-editor";
-
-const cultureTypes = ["Generic", "River", "Lake", "Naval", "Nomadic", "Hunting", "Highland"];
-
-let $body!: HTMLElement;
-let culturesListenersAdded = false;
 const culturesManualHistory = new BrushHistory();
+
+export function initCulturesEditor(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {
+  worldContext = wc;
+  viewContext = vc;
+  appServices = as;
+}
 
 export function open(): void {
   closeDialogs("#culturesEditor, .stable");
-  if (!culturesListenersAdded) {
-    $body = insertEditorHtml();
-    addListeners();
-    culturesListenersAdded = true;
-  }
   if (!layerIsOn("toggleCultures")) toggleCultures();
   if (layerIsOn("toggleStates")) toggleStates();
   if (layerIsOn("toggleBiomes")) toggleBiomes();
   if (layerIsOn("toggleReligions")) toggleReligions();
   if (layerIsOn("toggleProvinces")) toggleProvinces();
 
-  refreshCulturesEditor();
+  setCulturesEditorState({ isOpen: true });
+  culturesEditorActions.refresh();
+  drawCultureCenters();
 
   openDialog("culturesEditor", {
     title: "Cultures Editor",
@@ -87,312 +75,566 @@ export function open(): void {
     close: closeCulturesEditor,
     position: { my: "right top", at: "right-10 top+10", of: "svg" }
   });
-  $body.focus();
 }
 
-function insertEditorHtml(): HTMLElement {
-  const existing = document.getElementById("culturesBody");
-  if (existing) return existing;
-
-  const editorHtml = /* html */ `<div id="culturesEditor" class="dialog stable">
-    <div id="culturesHeader" class="header" style="grid-template-columns: 10em 7em 9em 4em 8em 5em 7em 8em">
-      <div data-tip="Click to sort by culture name" class="sortable alphabetically" data-sortby="name">Culture&nbsp;</div>
-      <div data-tip="Click to sort by type" class="sortable alphabetically" data-sortby="type">Type&nbsp;</div>
-      <div data-tip="Click to sort by culture namesbase" class="sortable" data-sortby="base">Namesbase&nbsp;</div>
-      <div data-tip="Click to sort by culture cells count" class="sortable hide" data-sortby="cells">Cells&nbsp;</div>
-      <div data-tip="Click to sort by expansionism" class="sortable hide" data-sortby="expansionism">Expansion&nbsp;</div>
-      <div data-tip="Click to sort by culture area" class="sortable hide" data-sortby="area">Area&nbsp;</div>
-      <div data-tip="Click to sort by culture population" class="sortable hide icon-sort-number-down" data-sortby="population">Population&nbsp;</div>
-      <div data-tip="Click to sort by culture emblems shape" class="sortable alphabetically hide" data-sortby="emblems">Emblems&nbsp;</div>
-    </div>
-    <div id="culturesBody" class="table" data-type="absolute"></div>
-
-    <div id="culturesTotal" class="totalLine">
-      <div data-tip="Cultures number" style="margin-left: 12px">Cultures:&nbsp;<span id="culturesFooterCultures">0</span></div>
-      <div data-tip="Total land cells number" style="margin-left: 12px">Cells:&nbsp;<span id="culturesFooterCells">0</span></div>
-      <div data-tip="Total land area" style="margin-left: 12px">Land Area:&nbsp;<span id="culturesFooterArea">0</span></div>
-      <div data-tip="Total population" style="margin-left: 12px">Population:&nbsp;<span id="culturesFooterPopulation">0</span></div>
-    </div>
-
-    <div id="culturesFooter">
-      <button id="culturesEditorRefresh" data-tip="Refresh the Editor" class="icon-cw"></button>
-      <button id="culturesEditStyle" data-tip="Edit cultures style in Style Editor" class="icon-adjust"></button>
-      <button id="culturesLegend" data-tip="Toggle Legend box" class="icon-list-bullet"></button>
-      <button id="culturesPercentage" data-tip="Toggle percentage / absolute values display mode" class="icon-percent"></button>
-      <button id="culturesHeirarchy" data-tip="Show cultures hierarchy tree" class="icon-sitemap"></button>
-      <button id="culturesManually" data-tip="Manually re-assign cultures" class="icon-brush"></button>
-      <div id="culturesManuallyButtons" style="display: none">
-        <div data-tip="Change brush size. Shortcuts: + / ] to increase; - / [ to decrease" style="margin-block: 0.3em;">
-          <slider-input id="culturesBrush" min="1" max="100" value="15">Brush size:</slider-input>
-        </div>
-        <button id="culturesManuallyUndo" data-tip="Undo last brush stroke" class="icon-ccw"></button>
-        <button id="culturesManuallyApply" data-tip="Apply assignment" class="icon-check"></button>
-        <button id="culturesManuallyCancel" data-tip="Cancel assignment" class="icon-cancel"></button>
-      </div>
-      <button id="culturesEditNamesBase" data-tip="Edit a database used for names generation" class="icon-font"></button>
-      <button id="culturesAdd" data-tip="Add a new culture. Hold Shift to add multiple" class="icon-plus"></button>
-      <button id="culturesExport" data-tip="Download cultures-related data" class="icon-download"></button>
-      <button id="culturesImport" data-tip="Upload cultures-related data" class="icon-upload"></button>
-      <button id="culturesRecalculate" data-tip="Recalculate cultures based on current values of growth-related attributes" class="icon-retweet"></button>
-      <span data-tip="Allow culture centers, expansion and type changes to take an immediate effect" style="display: inline-flex">
-        <input id="culturesAutoChange" class="checkbox" type="checkbox" />
-        <label for="culturesAutoChange" class="checkbox-label"><i>auto-apply changes</i></label>
-      </span>
-    </div>
-  </div>`;
-
-  ensureEl("dialogs").insertAdjacentHTML("beforeend", editorHtml);
-  return ensureEl("culturesBody");
+function closeCulturesEditor(): void {
+  setCulturesEditorState({ isOpen: false });
+  viewContext.debug.select("#cultureCenters").remove();
+  exitCulturesManualAssignment();
+  exitAddCultureMode();
 }
 
-function addListeners(): void {
-  applySortingByHeader("culturesHeader");
+function recalculateCultures(force?: boolean): void {
+  const { autoChange } = getCulturesEditorState();
+  if (!force && !autoChange) return;
 
-  ensureEl("culturesEditorRefresh").addEventListener("click", refreshCulturesEditor);
-  ensureEl("culturesEditStyle").addEventListener("click", () => editStyle("cults"));
-  ensureEl("culturesLegend").addEventListener("click", toggleLegend);
-  ensureEl("culturesPercentage").addEventListener("click", togglePercentageMode);
-  ensureEl("culturesHeirarchy").addEventListener("click", showHierarchy);
-  ensureEl("culturesRecalculate").addEventListener("click", () => recalculateCultures(true));
-  ensureEl("culturesManually").addEventListener("click", enterCultureManualAssignent);
-  ensureEl("culturesManuallyUndo").addEventListener("click", undoCulturesManualAssignment);
-  ensureEl("culturesManuallyApply").addEventListener("click", applyCultureManualAssignent);
-  ensureEl("culturesManuallyCancel").addEventListener("click", () => exitCulturesManualAssignment());
-  ensureEl("culturesEditNamesBase").addEventListener("click", () => NamesbaseEditor.open());
-  ensureEl("culturesAdd").addEventListener("click", enterAddCulturesMode);
-  ensureEl("culturesExport").addEventListener("click", downloadCulturesCsv);
-  ensureEl("culturesImport").addEventListener("click", () => ensureEl("culturesCSVToLoad").click());
-  ensureEl("culturesCSVToLoad").addEventListener("change", uploadCulturesData);
-}
-
-function refreshCulturesEditor(): void {
-  culturesCollectStatistics();
-  culturesEditorAddLines();
-  drawCultureCenters();
-}
-
-function culturesCollectStatistics(): void {
-  const { cells, cultures, burgs } = worldContext.pack;
-  cultures.forEach((c: Culture) => {
-    c.cells = c.area = c.rural = c.urban = 0;
+  Cultures.expand(getWorldState());
+  CulturesRenderer.render(worldContext, viewContext, appServices);
+  worldContext.pack.burgs.forEach((b: Burg) => {
+    b.culture = worldContext.pack.cells.culture[b.cell];
   });
-
-  for (const i of cells.i) {
-    if (cells.h[i] < 20) continue;
-    const cultureId = cells.culture[i];
-    const cul = cultures[cultureId] as Culture;
-    cul.cells = (cul.cells ?? 0) + 1;
-    cul.area = (cul.area ?? 0) + cells.area[i];
-    cul.rural = (cul.rural ?? 0) + cells.pop[i];
-    const burgId = cells.burg[i];
-    if (burgId) cul.urban = (cul.urban ?? 0) + ((burgs[burgId] as Burg).population ?? 0);
-  }
+  culturesEditorActions.refresh();
 }
 
-function culturesEditorAddLines(): void {
-  const unit = getAreaUnit();
-  let lines = "";
-  let totalArea = 0;
-  let totalPopulation = 0;
+export const culturesEditorActions = {
+  refresh(): void {
+    const { cells, cultures, burgs } = worldContext.pack;
 
-  const emblemShapeGroup = ensureEl<HTMLSelectElement>("emblemShape").selectedOptions[0]
-    ?.parentNode as HTMLOptGroupElement | null;
-  const selectShape = emblemShapeGroup?.label === "Diversiform";
+    (cultures as Culture[]).forEach((c: Culture) => {
+      c.cells = c.area = c.rural = c.urban = 0;
+    });
 
-  for (const c of worldContext.pack.cultures as Culture[]) {
-    if (c.removed) continue;
-    const area = getArea(c.area ?? 0);
-    const rural = (c.rural ?? 0) * worldContext.populationRate;
-    const urban = (c.urban ?? 0) * worldContext.populationRate * worldContext.urbanization;
-    const population = rn(rural + urban);
-    const populationTip = `Total population: ${si(population)}. Rural population: ${si(rural)}. Urban population: ${si(urban)}. Click to edit`;
-    totalArea += area;
-    totalPopulation += population;
-
-    if (!c.i) {
-      lines += /* html */ `<div
-          class="states"
-          data-id="${c.i}"
-          data-name="${c.name}"
-          data-color=""
-          data-cells="${c.cells}"
-          data-area="${area}"
-          data-population="${population}"
-          data-base="${c.base}"
-          data-type=""
-          data-expansionism=""
-          data-emblems="${c.shield}"
-        >
-          <svg width="11" height="11" class="placeholder"></svg>
-          <input data-tip="Neutral culture name. Click and type to change" class="cultureName italic" style="width: 7em"
-            value="${c.name}" autocorrect="off" spellcheck="false" />
-          <span class="icon-cw placeholder"></span>
-          <select class="cultureType placeholder">${getTypeOptions(c.type ?? "")}</select>
-          <span data-tip="Click to re-generate names for burgs with this culture assigned" class="icon-arrows-cw hide"></span>
-          <select data-tip="Culture namesbase. Click to change. Click on arrows to re-generate names"
-            class="cultureBase">${getBaseOptions(c.base)}</select>
-          <span data-tip="Cells count" class="icon-check-empty hide"></span>
-          <div data-tip="Cells count" class="cultureCells hide" style="width: 4em">${c.cells}</div>
-          <span class="icon-resize-full placeholder hide"></span>
-          <input class="cultureExpan placeholder hide" type="number" />
-          <span data-tip="Culture area" style="padding-right: 4px" class="icon-map-o hide"></span>
-          <div data-tip="Culture area" class="cultureArea hide" style="width: 6em">${si(area)} ${unit}</div>
-          <span data-tip="${populationTip}" class="icon-male hide"></span>
-          <div data-tip="${populationTip}" class="culturePopulation hide pointer"
-            style="width: 4em">${si(population)}</div>
-          ${getShapeOptions(selectShape, c.shield)}
-        </div>`;
-      continue;
+    for (const i of cells.i) {
+      if (cells.h[i] < 20) continue;
+      const cultureId = cells.culture[i];
+      const cul = cultures[cultureId] as Culture;
+      cul.cells = (cul.cells ?? 0) + 1;
+      cul.area = (cul.area ?? 0) + cells.area[i];
+      cul.rural = (cul.rural ?? 0) + cells.pop[i];
+      const burgId = cells.burg[i];
+      if (burgId) cul.urban = (cul.urban ?? 0) + ((burgs[burgId] as Burg).population ?? 0);
     }
 
-    lines += /* html */ `<div
-        class="states"
-        data-id="${c.i}"
-        data-name="${c.name}"
-        data-color="${c.color}"
-        data-cells="${c.cells}"
-        data-area="${area}"
-        data-population="${population}"
-        data-base="${c.base}"
-        data-type="${c.type}"
-        data-expansionism="${c.expansionism}"
-        data-emblems="${c.shield}"
-      >
-        <fill-box fill="${c.color}"></fill-box>
-        <input data-tip="Culture name. Click and type to change" class="cultureName" style="width: 7em"
-          value="${c.name}" autocorrect="off" spellcheck="false" />
-        <span data-tip="Regenerate culture name" class="icon-cw hiddenIcon" style="visibility: hidden"></span>
-        <select data-tip="Culture type. Defines growth model. Click to change"
-          class="cultureType">${getTypeOptions(c.type ?? "")}</select>
-        <span data-tip="Click to re-generate names for burgs with this culture assigned" class="icon-arrows-cw hide"></span>
-        <select data-tip="Culture namesbase. Click to change. Click on arrows to re-generate names"
-          class="cultureBase">${getBaseOptions(c.base)}</select>
-        <span data-tip="Cells count" class="icon-check-empty hide"></span>
-        <div data-tip="Cells count" class="cultureCells hide" style="width: 4em">${c.cells}</div>
-        <span data-tip="Culture expansionism. Defines competitive size" class="icon-resize-full hide"></span>
-        <input
-          data-tip="Culture expansionism. Defines competitive size. Click to change, then click Recalculate to apply change"
-          class="cultureExpan hide"
-          type="number"
-          min="0"
-          max="99"
-          step=".1"
-          value=${c.expansionism}
-        />
-        <span data-tip="Culture area" style="padding-right: 4px" class="icon-map-o hide"></span>
-        <div data-tip="Culture area" class="cultureArea hide" style="width: 6em">${si(area)} ${unit}</div>
-        <span data-tip="${populationTip}" class="icon-male hide"></span>
-        <div data-tip="${populationTip}" class="culturePopulation hide pointer"
-          style="width: 4em">${si(population)}</div>
-        ${getShapeOptions(selectShape, c.shield)}
-        <span data-tip="Locate the culture" class="icon-target hide"></span>
-        <span data-tip="Lock culture" class="icon-lock${c.lock ? "" : "-open"} hide"></span>
-        <span data-tip="Remove culture" class="icon-trash-empty hide"></span>
-      </div>`;
+    let totalArea = 0;
+    let totalPopulation = 0;
+    const totalCells = Array.from(cells.h).filter((h: number) => h >= 20).length;
+
+    const rowData: CultureRowData[] = (cultures as Culture[])
+      .filter((c: Culture) => !c.removed)
+      .map((c: Culture) => {
+        const area = getArea(c.area ?? 0);
+        const rural = (c.rural ?? 0) * worldContext.populationRate;
+        const urban = (c.urban ?? 0) * worldContext.populationRate * worldContext.urbanization;
+        const population = rn(rural + urban);
+
+        totalArea += area;
+        totalPopulation += population;
+
+        return {
+          i: c.i,
+          name: c.name,
+          color: c.color ?? "",
+          type: c.type ?? "",
+          base: c.base,
+          cells: c.cells ?? 0,
+          expansionism: c.expansionism ?? 0,
+          area,
+          population,
+          rural,
+          urban,
+          shield: c.shield ?? "heater",
+          lock: c.lock
+        };
+      });
+
+    const emblemShapeGroup = document.getElementById("emblemShape") as HTMLSelectElement | null;
+    const selectedGroup = emblemShapeGroup?.selectedOptions[0]?.parentNode as HTMLOptGroupElement | null;
+    const selectShape = selectedGroup?.label === "Diversiform";
+
+    const nameBases: NameBaseOption[] = (worldContext.nameBases as NameBase[]).map((n, i) => ({ i, name: n.name }));
+
+    setCulturesEditorState({
+      cultures: rowData,
+      nameBases,
+      totalCells,
+      totalArea,
+      totalPopulation,
+      selectShape
+    });
+  },
+
+  changeSort(sortBy: string): void {
+    const state = getCulturesEditorState();
+    if (state.sortBy === sortBy) {
+      setCulturesEditorState({ sortDirection: state.sortDirection * -1 });
+    } else {
+      setCulturesEditorState({ sortBy, sortDirection: 1 });
+    }
+  },
+
+  togglePercentageMode(): void {
+    setCulturesEditorState(s => ({ isPercentageMode: !s.isPercentageMode }));
+  },
+
+  setAutoChange(autoChange: boolean): void {
+    setCulturesEditorState({ autoChange });
+  },
+
+  editStyle(): void {
+    editStyle("cults");
+  },
+
+  toggleLegend(): void {
+    if (viewContext.legend.selectAll("*").size()) {
+      clearLegend();
+      return;
+    }
+
+    const data = (worldContext.pack.cultures as Culture[])
+      .filter((c: Culture) => c.i && !c.removed && c.cells)
+      .sort((a: Culture, b: Culture) => (b.area ?? 0) - (a.area ?? 0))
+      .map((c: Culture) => [c.i, c.color, c.name] as [number, string, string]);
+    drawLegend("Cultures", data);
+  },
+
+  showHierarchy(): void {
+    if (viewContext.customization) return;
+
+    const getDescription = (culture: HierarchyElement) => {
+      const { name, type, rural, urban } = culture as HierarchyElement & {
+        type: string;
+        rural: number;
+        urban: number;
+      };
+      const population =
+        (rural ?? 0) * worldContext.populationRate +
+        (urban ?? 0) * worldContext.populationRate * worldContext.urbanization;
+      const populationText = population > 0 ? `${si(rn(population))} people` : "Extinct";
+      return `${name} culture. ${type}. ${populationText}`;
+    };
+
+    const getShape = ({ type }: HierarchyElement) => {
+      if (type === "Generic") return "circle";
+      if (type === "River") return "diamond";
+      if (type === "Lake") return "hexagon";
+      if (type === "Naval") return "square";
+      if (type === "Highland") return "concave";
+      if (type === "Nomadic") return "octagon";
+      if (type === "Hunting") return "pentagon";
+      return undefined;
+    };
+
+    openHierarchyTree({
+      type: "cultures",
+      data: worldContext.pack.cultures as unknown as HierarchyElement[],
+      onNodeEnter: (event: { id?: string | number | null }) => cultureHighlightOn({ id: event.id }),
+      onNodeLeave: (event: { id?: string | number | null }) => cultureHighlightOff({ id: event.id }),
+      getDescription,
+      getShape
+    });
+  },
+
+  recalculateCultures(): void {
+    recalculateCultures(true);
+  },
+
+  changeName(i: number, name: string): void {
+    const c = worldContext.pack.cultures[i] as Culture;
+    c.name = name;
+    c.code = abbreviate(
+      name,
+      (worldContext.pack.cultures as Culture[]).map((cu: Culture) => cu.code ?? "")
+    );
+    culturesEditorActions.refresh();
+  },
+
+  regenerateName(i: number): void {
+    const base = (worldContext.pack.cultures[i] as Culture).base;
+    if (!worldContext.nameBases[base]) {
+      tip("Namesbase is not defined, please select a valid namesbase", false, "error", 5000);
+      return;
+    }
+    const name = Names.getCultureShort(worldContext, viewContext, appServices, i);
+    (worldContext.pack.cultures[i] as Culture).name = name;
+    culturesEditorActions.refresh();
+  },
+
+  changeFill(i: number): void {
+    const c = worldContext.pack.cultures[i] as Culture;
+    openPicker(c.color ?? "#ffffff", (newFill: string) => {
+      c.color = newFill;
+      viewContext.cults.select(`#culture${i}`).attr("fill", newFill);
+      viewContext.debug.select(`#cultureCenter${i}`).attr("fill", newFill);
+      culturesEditorActions.refresh();
+    });
+  },
+
+  changeType(i: number, type: string): void {
+    (worldContext.pack.cultures[i] as Culture).type = type as CultureType;
+    recalculateCultures();
+  },
+
+  changeBase(i: number, base: number): void {
+    (worldContext.pack.cultures[i] as Culture).base = base;
+    culturesEditorActions.refresh();
+  },
+
+  changeExpansionism(i: number, expansionism: number): void {
+    (worldContext.pack.cultures[i] as Culture).expansionism = expansionism;
+    recalculateCultures();
+  },
+
+  changeEmblemsShape(i: number, shape: string): void {
+    (worldContext.pack.cultures[i] as Culture).shield = shape;
+
+    const rerenderCOA = (id: string, coa: unknown) => {
+      const $coa = document.getElementById(id);
+      if (!$coa) return;
+      $coa.remove();
+      COArenderer.trigger(id, coa as RendererEmblem);
+    };
+
+    (worldContext.pack.states as State[]).forEach((state: State) => {
+      if (state.culture !== i || !state.i || state.removed || !state.coa || state.coa.custom) return;
+      if (shape === state.coa.shield) return;
+      state.coa.shield = shape;
+      rerenderCOA(`stateCOA${state.i}`, state.coa);
+    });
+
+    (worldContext.pack.provinces as Province[]).forEach((province: Province) => {
+      if (
+        worldContext.pack.cells.culture[province.center] !== i ||
+        !province.i ||
+        province.removed ||
+        !province.coa ||
+        province.coa.custom
+      )
+        return;
+      if (shape === province.coa.shield) return;
+      province.coa.shield = shape;
+      rerenderCOA(`provinceCOA${province.i}`, province.coa);
+    });
+
+    (worldContext.pack.burgs as Burg[]).forEach((burg: Burg) => {
+      if (burg.culture !== i || !burg.i || burg.removed || !burg.coa || burg.coa.custom) return;
+      if (shape === burg.coa.shield) return;
+      burg.coa.shield = shape;
+      rerenderCOA(`burgCOA${burg.i}`, burg.coa);
+    });
+
+    culturesEditorActions.refresh();
+  },
+
+  changePopulation(i: number): void {
+    const culture = worldContext.pack.cultures[i] as Culture;
+    if (!culture.cells) {
+      tip("Culture does not have any cells, cannot change population", false, "error");
+      return;
+    }
+
+    const rural = rn((culture.rural ?? 0) * worldContext.populationRate);
+    const urban = rn((culture.urban ?? 0) * worldContext.populationRate * worldContext.urbanization);
+    const total = rural + urban;
+    const format = (n: number) => Number(n).toLocaleString();
+    const burgList = (worldContext.pack.burgs as Burg[]).filter((b: Burg) => !b.removed && b.culture === i);
+
+    const content = /* html */ `<div>
+      <i>Change population of all cells assigned to the culture</i>
+      <div style="margin: 0.5em 0">
+        Rural: <input type="number" min="0" step="1" id="ruralPop" value=${rural} style="width:6em" />
+        Urban: <input type="number" min="0" step="1" id="urbanPop" value=${urban} style="width:6em"
+          ${burgList.length ? "" : "disabled"} />
+      </div>
+      <div>Total population: ${format(total)} ⇒ <span id="totalPop">${format(total)}</span>
+        (<span id="totalPopPerc">100</span>%)
+      </div>
+    </div>`;
+
+    openRichDialog({
+      content,
+      resizable: false,
+      title: "Change culture population",
+      width: "24em",
+      buttons: {
+        Apply: () => {
+          const getRuralPop = () => document.getElementById("ruralPop") as HTMLInputElement;
+          const getUrbanPop = () => document.getElementById("urbanPop") as HTMLInputElement;
+          applyPopulationChange(rural, urban, getRuralPop().value, getUrbanPop().value, i);
+          import("../ui/dialogs/dialogService").then(({ closeDialog }) => closeDialog("richDialog"));
+        },
+        Cancel: () => {
+          import("../ui/dialogs/dialogService").then(({ closeDialog }) => closeDialog("richDialog"));
+        }
+      },
+      position: { my: "center", at: "center", of: "svg" },
+      onOpen: () => {
+        const getRuralPop = () => document.getElementById("ruralPop") as HTMLInputElement;
+        const getUrbanPop = () => document.getElementById("urbanPop") as HTMLInputElement;
+        const update = () => {
+          const totalNew = getRuralPop().valueAsNumber + getUrbanPop().valueAsNumber;
+          if (Number.isNaN(totalNew)) return;
+          const totalPopEl = document.getElementById("totalPop");
+          const totalPopPercEl = document.getElementById("totalPopPerc");
+          if (totalPopEl) totalPopEl.innerHTML = format(totalNew);
+          if (totalPopPercEl) totalPopPercEl.innerHTML = String(rn((totalNew / total) * 100));
+        };
+        getRuralPop().oninput = update;
+        getUrbanPop().oninput = update;
+      }
+    });
+  },
+
+  regenerateBurgs(i: number): void {
+    if (viewContext.customization === 4) return;
+
+    const base = (worldContext.pack.cultures[i] as Culture).base;
+    if (!worldContext.nameBases[base]) {
+      tip("Namesbase is not defined, please select a valid namesbase", false, "error", 5000);
+      return;
+    }
+
+    const cultureBurgs = (worldContext.pack.burgs as Burg[]).filter(
+      (b: Burg) => b.culture === i && !b.removed && !b.lock
+    );
+    cultureBurgs.forEach((b: Burg) => {
+      b.name = Names.getCulture(i);
+      viewContext.labels.select(`[data-id='${b.i}']`).text(b.name);
+    });
+    tip(`Names for ${cultureBurgs.length} burgs are regenerated`, false, "success");
+  },
+
+  cultureHighlightOn(i: number): void {
+    cultureHighlightOn({ id: i });
+  },
+
+  cultureHighlightOff(i: number): void {
+    cultureHighlightOff({ id: i });
+  },
+
+  selectCultureOnLineClick(i: number): void {
+    if (viewContext.customization !== 4) return;
+    setCulturesEditorState({ selectedCultureId: i });
+  },
+
+  highlightCulture(i: number): void {
+    highlightElement(viewContext.cults.select(`#culture${i}`).node() as Element, 4);
+  },
+
+  triggerRemove(i: number): void {
+    if (viewContext.customization) return;
+    confirmationDialog({
+      title: "Remove culture",
+      message: "Are you sure you want to remove the culture? <br>This action cannot be reverted",
+      confirm: "Remove",
+      onConfirm: () => removeCulture(i)
+    });
+  },
+
+  updateLockStatus(i: number): void {
+    const c = worldContext.pack.cultures[i] as Culture;
+    c.lock = !c.lock;
+    culturesEditorActions.refresh();
+  },
+
+  enterCultureManualAssignment(): void {
+    if (!layerIsOn("toggleCultures")) toggleCultures();
+    viewContext.customization = 4;
+    setCulturesEditorState({ customization: 4, selectedCultureId: 0 });
+
+    viewContext.cults.append("g").attr("id", "temp");
+    viewContext.debug.select("#cultureCenters").style("display", "none");
+
+    tip("Click on culture to select, drag the circle to change culture", true);
+    viewContext.viewbox
+      .style("cursor", "crosshair")
+      .on("click", selectCultureOnMapClick)
+      .call(d3.drag<SVGGElement, unknown>().on("start", dragCultureBrushStart).on("drag", dragCultureBrush))
+      .on("touchmove mousemove", moveCultureBrush);
+
+    culturesManualHistory.reset();
+  },
+
+  exitCultureManualAssignment(): void {
+    exitCulturesManualAssignment();
+  },
+
+  applyCultureManualAssignment(): void {
+    const changed = viewContext.cults.select("#temp").selectAll<SVGPolygonElement, unknown>("polygon");
+    changed.each(function (this: SVGPolygonElement) {
+      const i = +this.dataset.cell!;
+      const c = +this.dataset.culture!;
+      worldContext.pack.cells.culture[i] = c;
+      if (worldContext.pack.cells.burg[i]) worldContext.pack.burgs[worldContext.pack.cells.burg[i]].culture = c;
+    });
+
+    if (changed.size()) {
+      CulturesRenderer.render(worldContext, viewContext, appServices);
+      culturesEditorActions.refresh();
+    }
+    exitCulturesManualAssignment();
+  },
+
+  undoCultureManualAssignment(): void {
+    const temp = viewContext.cults.select("#temp").node() as Element | null;
+    if (!temp || !culturesManualHistory.canUndo) return;
+    temp.innerHTML = culturesManualHistory.pop() ?? "";
+  },
+
+  changeBrushSize(size: number): void {
+    setCulturesEditorState({ brushSize: size });
+  },
+
+  enterAddCulturesMode(): void {
+    if (getCulturesEditorState().customization === 9) {
+      exitAddCultureMode();
+      return;
+    }
+    viewContext.customization = 9;
+    setCulturesEditorState({ customization: 9 });
+    tip("Click on the map to add a new culture", true);
+    viewContext.viewbox.style("cursor", "crosshair");
+    interactionManager.setClickHandler(addCulture);
+  },
+
+  downloadCulturesCsv(): void {
+    const unit = getAreaUnit("2");
+    const headers = `Id,Name,Color,Cells,Expansionism,Type,Area ${unit},Population,Namesbase,Emblems Shape,Origins`;
+
+    const { cultures, nameBases } = getCulturesEditorState();
+    const lines = cultures
+      .filter(c => c.i)
+      .map(c => {
+        const namesbase = nameBases[c.base]?.name ?? "";
+        const { origins } = worldContext.pack.cultures[c.i] as Culture;
+        const originList = ((origins ?? []) as number[])
+          .filter(o => o)
+          .map((o: number) => (worldContext.pack.cultures[o] as Culture)?.name ?? "");
+        const originText = `"${originList.join(", ")}"`;
+        return [
+          c.i,
+          c.name,
+          c.color,
+          c.cells,
+          c.expansionism,
+          c.type,
+          c.area,
+          c.population,
+          namesbase,
+          c.shield,
+          originText
+        ].join(",");
+      });
+
+    const csvData = [headers].concat(lines).join("\n");
+    downloadFile(csvData, `${getFileName("Cultures")}.csv`);
+  },
+
+  async uploadCulturesData(file: File): Promise<void> {
+    const csv = await file.text();
+    const data = d3.csvParse(csv, d => ({
+      name: d.Name,
+      i: +d.Id,
+      color: d.Color,
+      expansionism: +d.Expansionism,
+      type: d.Type,
+      population: +d.Population,
+      emblemsShape: d["Emblems Shape"],
+      origins: d.Origins ?? "",
+      namesbase: d.Namesbase
+    }));
+
+    const { cultures, cells } = worldContext.pack;
+    const shapes = Object.keys(COA.shields.types).flatMap((type: string) => Object.keys(COA.shields[type]));
+
+    const populated = Array.from(cells.pop)
+      .map((c: number, i: number) => (c ? i : null))
+      .filter((c: number | null): c is number => c !== null);
+    (cultures as Culture[]).forEach((item: Culture) => {
+      if (item.i) item.removed = true;
+    });
+
+    for (const culture of data) {
+      let current: Culture;
+      if (culture.i < (cultures as Culture[]).length) {
+        current = (cultures as Culture[])[culture.i];
+        const ratio = (current.urban ?? 0) / ((current.rural ?? 0) + (current.urban ?? 0));
+        applyPopulationChange(
+          current.rural ?? 0,
+          current.urban ?? 0,
+          culture.population * (1 - ratio),
+          culture.population * ratio,
+          culture.i
+        );
+      } else {
+        current = {
+          i: (cultures as Culture[]).length,
+          center: ra(populated),
+          area: 0,
+          cells: 0,
+          origins: [0],
+          rural: 0,
+          urban: 0,
+          name: "",
+          base: 0,
+          shield: "heater"
+        };
+        (cultures as Culture[]).push(current);
+      }
+
+      current.removed = false;
+      current.name = culture.name ?? "";
+
+      if (current.i) {
+        current.code = abbreviate(
+          current.name,
+          (cultures as Culture[]).map((c: Culture) => c.code ?? "")
+        );
+        current.color = culture.color ?? "";
+        current.expansionism = +culture.expansionism;
+        if (cultureTypes.includes(culture.type!)) current.type = culture.type as CultureType;
+        else current.type = "Generic" as CultureType;
+      }
+
+      const restoreOrigins = (originsString: string) => {
+        const originNames = originsString
+          .replaceAll('"', "")
+          .split(",")
+          .map((s: string) => s.trim())
+          .filter((s: string) => s);
+
+        const originIds = originNames.map((name: string) => {
+          const id = (cultures as Culture[]).findIndex((c: Culture) => c.name === name);
+          return id === -1 ? null : id;
+        });
+
+        current.origins = originIds.filter((id: number | null) => id !== null) as number[];
+        if (!current.origins.length) current.origins = [0];
+      };
+
+      restoreOrigins(culture.origins);
+      current.shield = shapes.includes(culture.emblemsShape!) ? culture.emblemsShape! : "heater";
+      current.base = (worldContext.nameBases as NameBase[]).findIndex((n: NameBase) => n.name === culture.namesbase);
+    }
+
+    (cultures as Culture[])
+      .filter((c: Culture) => c.removed)
+      .forEach((c: Culture) => {
+        removeCulture(c.i);
+      });
+
+    CulturesRenderer.render(worldContext, viewContext, appServices);
+    culturesEditorActions.refresh();
+  },
+
+  openNamesbaseEditor(): void {
+    NamesbaseEditor.open();
   }
-  $body.innerHTML = lines;
+};
 
-  ensureEl("culturesFooterCultures").innerHTML = String(
-    worldContext.pack.cultures.filter((c: Culture) => c.i && !c.removed).length
-  );
-  ensureEl("culturesFooterCells").innerHTML = String(
-    Array.from(worldContext.pack.cells.h).filter((h: number) => h >= 20).length
-  );
-  ensureEl("culturesFooterArea").innerHTML = `${si(totalArea)} ${unit}`;
-  ensureEl("culturesFooterPopulation").innerHTML = si(totalPopulation);
-  ensureEl("culturesFooterArea").dataset.area = String(totalArea);
-  ensureEl("culturesFooterPopulation").dataset.population = String(totalPopulation);
-
-  $body.querySelectorAll(":scope > div").forEach($line => {
-    $line.addEventListener("mouseenter", cultureHighlightOn);
-    $line.addEventListener("mouseleave", cultureHighlightOff);
-    $line.addEventListener("click", selectCultureOnLineClick);
-  });
-  $body.querySelectorAll("fill-box").forEach($el => {
-    $el.addEventListener("click", cultureChangeColor);
-  });
-  $body.querySelectorAll("div > input.cultureName").forEach($el => {
-    $el.addEventListener("input", cultureChangeName);
-  });
-  $body.querySelectorAll("div > span.icon-cw").forEach($el => {
-    $el.addEventListener("click", cultureRegenerateName);
-  });
-  $body.querySelectorAll("div > input.cultureExpan").forEach($el => {
-    $el.addEventListener("change", cultureChangeExpansionism);
-  });
-  $body.querySelectorAll("div > select.cultureType").forEach($el => {
-    $el.addEventListener("change", cultureChangeType);
-  });
-  $body.querySelectorAll("div > select.cultureBase").forEach($el => {
-    $el.addEventListener("change", cultureChangeBase);
-  });
-  $body.querySelectorAll("div > select.cultureEmblems").forEach($el => {
-    $el.addEventListener("change", cultureChangeEmblemsShape);
-  });
-  $body.querySelectorAll("div > div.culturePopulation").forEach($el => {
-    $el.addEventListener("click", changePopulation);
-  });
-  $body.querySelectorAll("div > span.icon-arrows-cw").forEach($el => {
-    $el.addEventListener("click", cultureRegenerateBurgs);
-  });
-  $body.querySelectorAll("div > span.icon-target").forEach($el => {
-    $el.addEventListener("click", cultureHighlightElement);
-  });
-  $body.querySelectorAll("div > span.icon-trash-empty").forEach($el => {
-    $el.addEventListener("click", cultureRemovePrompt);
-  });
-  $body.querySelectorAll("div > span.icon-lock").forEach($el => {
-    $el.addEventListener("click", updateLockStatus);
-  });
-  $body.querySelectorAll("div > span.icon-lock-open").forEach($el => {
-    $el.addEventListener("click", updateLockStatus);
-  });
-
-  const $culturesHeader = ensureEl("culturesHeader");
-  ($culturesHeader.querySelector("div[data-sortby='emblems']") as HTMLElement).style.display = selectShape
-    ? "inline-block"
-    : "none";
-
-  if ($body.dataset.type === "percentage") {
-    $body.dataset.type = "absolute";
-    togglePercentageMode();
-  }
-  applySorting($culturesHeader);
-  openDialog("culturesEditor", { width: fitContent() });
-}
-
-function getTypeOptions(type: string): string {
-  let options = "";
-  cultureTypes.forEach(t => {
-    options += `<option ${type === t ? "selected" : ""} value="${t}">${t}</option>`;
-  });
-  return options;
-}
-
-function getBaseOptions(base: number): string {
-  let options = "";
-  worldContext.nameBases.forEach((n: { name: string }, i: number) => {
-    options += `<option ${base === i ? "selected" : ""} value="${i}">${n.name}</option>`;
-  });
-  if (!worldContext.nameBases[base]) options += `<option selected value="${base}">removed</option>`;
-  return options;
-}
-
-function getShapeOptions(selectShape: boolean, selected: string): string {
-  if (!selectShape) return "";
-
-  const shapes = Object.keys(COA.shields.types).flatMap((type: string) =>
-    Object.keys(COA.shields[type])
-  ) as unknown as string[];
-  const options = shapes.map(
-    (shape: string) => `<option ${shape === selected ? "selected" : ""} value="${shape}">${capitalize(shape)}</option>`
-  );
-  return `<select data-tip="Emblem shape associated with culture. Click to change" class="cultureEmblems hide">${options}</select>`;
-}
+type HighlightEvent = { id?: string | number | null };
 
 const cultureHighlightOn = debounce((event: HighlightEvent) => {
-  const cultureId = Number(event.id || (event.target as HTMLElement | null)?.dataset?.id);
-
+  const cultureId = Number(event.id);
   if (!layerIsOn("toggleCultures")) return;
   if (viewContext.customization) return;
 
@@ -412,169 +654,10 @@ const cultureHighlightOn = debounce((event: HighlightEvent) => {
 }, 200);
 
 function cultureHighlightOff(event: HighlightEvent): void {
-  const cultureId = Number(event.id || (event.target as HTMLElement | null)?.dataset?.id);
-
+  const cultureId = Number(event.id);
   if (!layerIsOn("toggleCultures")) return;
   viewContext.cults.select(`#culture${cultureId}`).transition().attr("stroke-width", null).attr("stroke", null);
   viewContext.debug.select(`#cultureCenter${cultureId}`).transition().attr("r", 2).attr("stroke", null);
-}
-
-function cultureChangeColor(this: Element & { fill?: string }): void {
-  const currentFill = this.getAttribute("fill");
-  const cultureId = +(this.parentNode as HTMLElement).dataset.id!;
-
-  const callback = (newFill: string) => {
-    this.fill = newFill;
-    worldContext.pack.cultures[cultureId].color = newFill;
-    viewContext.cults.select(`#culture${cultureId}`).attr("fill", newFill);
-    viewContext.debug.select(`#cultureCenter${cultureId}`).attr("fill", newFill);
-  };
-
-  openPicker(currentFill ?? "#ffffff", callback);
-}
-
-function cultureChangeName(this: HTMLInputElement): void {
-  const culture = +(this.parentNode as HTMLElement).dataset.id!;
-  (this.parentNode as HTMLElement).dataset.name = this.value;
-  worldContext.pack.cultures[culture].name = this.value;
-  worldContext.pack.cultures[culture].code = abbreviate(
-    this.value,
-    worldContext.pack.cultures.map((c: Culture) => c.code ?? "")
-  );
-}
-
-function cultureRegenerateName(this: Element): void {
-  const cultureId = +(this.parentNode as HTMLElement).dataset.id!;
-  const base = worldContext.pack.cultures[cultureId].base;
-  if (!worldContext.nameBases[base]) {
-    tip("Namesbase is not defined, please select a valid namesbase", false, "error", 5000);
-    return;
-  }
-
-  const name = Names.getCultureShort(worldContext, viewContext, appServices, cultureId);
-  (this.parentNode as Element).querySelector<HTMLInputElement>("input.cultureName")!.value = name;
-  worldContext.pack.cultures[cultureId].name = name;
-}
-
-function cultureChangeExpansionism(this: HTMLInputElement): void {
-  const culture = +(this.parentNode as HTMLElement).dataset.id!;
-  (this.parentNode as HTMLElement).dataset.expansionism = this.value;
-  worldContext.pack.cultures[culture].expansionism = +this.value;
-  recalculateCultures();
-}
-
-function cultureChangeType(this: HTMLSelectElement): void {
-  const culture = +(this.parentNode as HTMLElement).dataset.id!;
-  (this.parentNode as HTMLElement).dataset.type = this.value;
-  worldContext.pack.cultures[culture].type = this.value as CultureType;
-  recalculateCultures();
-}
-
-function cultureChangeBase(this: HTMLSelectElement): void {
-  const culture = +(this.parentNode as HTMLElement).dataset.id!;
-  const v = +this.value;
-  (this.parentNode as HTMLElement).dataset.base = String(v);
-  worldContext.pack.cultures[culture].base = v;
-}
-
-function cultureChangeEmblemsShape(this: HTMLSelectElement): void {
-  const culture = +(this.parentNode as HTMLElement).dataset.id!;
-  const shape = this.value;
-  (this.parentNode as HTMLElement).dataset.emblems = worldContext.pack.cultures[culture].shield = shape;
-
-  const rerenderCOA = (id: string, coa: unknown) => {
-    const $coa = document.getElementById(id);
-    if (!$coa) return;
-    $coa.remove();
-    COArenderer.trigger(id, coa as RendererEmblem);
-  };
-
-  worldContext.pack.states.forEach((state: State) => {
-    if (state.culture !== culture || !state.i || state.removed || !state.coa || state.coa.custom) return;
-    if (shape === state.coa.shield) return;
-    state.coa.shield = shape;
-    rerenderCOA(`stateCOA${state.i}`, state.coa);
-  });
-
-  worldContext.pack.provinces.forEach((province: Province) => {
-    if (
-      worldContext.pack.cells.culture[province.center] !== culture ||
-      !province.i ||
-      province.removed ||
-      !province.coa ||
-      province.coa.custom
-    )
-      return;
-    if (shape === province.coa.shield) return;
-    province.coa.shield = shape;
-    rerenderCOA(`provinceCOA${province.i}`, province.coa);
-  });
-
-  worldContext.pack.burgs.forEach((burg: Burg) => {
-    if (burg.culture !== culture || !burg.i || burg.removed || !burg.coa || burg.coa.custom) return;
-    if (shape === burg.coa.shield) return;
-    burg.coa.shield = shape;
-    rerenderCOA(`burgCOA${burg.i}`, burg.coa);
-  });
-}
-
-function changePopulation(this: Element): void {
-  const cultureId = +(this.parentNode as HTMLElement).dataset.id!;
-  const culture = worldContext.pack.cultures[cultureId] as Culture;
-  if (!culture.cells) {
-    tip("Culture does not have any cells, cannot change population", false, "error");
-    return;
-  }
-
-  const rural = rn((culture.rural ?? 0) * worldContext.populationRate);
-  const urban = rn((culture.urban ?? 0) * worldContext.populationRate * worldContext.urbanization);
-  const total = rural + urban;
-  const format = (n: number) => Number(n).toLocaleString();
-  const burgs = worldContext.pack.burgs.filter((b: Burg) => !b.removed && b.culture === cultureId);
-
-  alertMessage.innerHTML = /* html */ `<div>
-    <i>Change population of all cells assigned to the culture</i>
-    <div style="margin: 0.5em 0">
-      Rural: <input type="number" min="0" step="1" id="ruralPop" value=${rural} style="width:6em" />
-      Urban: <input type="number" min="0" step="1" id="urbanPop" value=${urban} style="width:6em"
-        ${burgs.length ? "" : "disabled"} />
-    </div>
-    <div>Total population: ${format(total)} ⇒ <span id="totalPop">${format(total)}</span>
-      (<span id="totalPopPerc">100</span>%)
-    </div>
-  </div>`;
-
-  const getRuralPop = () => document.getElementById("ruralPop") as HTMLInputElement;
-  const getUrbanPop = () => document.getElementById("urbanPop") as HTMLInputElement;
-
-  const update = () => {
-    const totalNew = getRuralPop().valueAsNumber + getUrbanPop().valueAsNumber;
-    if (Number.isNaN(totalNew)) return;
-    const totalPopEl = document.getElementById("totalPop");
-    const totalPopPercEl = document.getElementById("totalPopPerc");
-    if (totalPopEl) totalPopEl.innerHTML = format(totalNew);
-    if (totalPopPercEl) totalPopPercEl.innerHTML = String(rn((totalNew / total) * 100));
-  };
-
-  getRuralPop().oninput = () => update();
-  getUrbanPop().oninput = () => update();
-
-  openRichDialog({
-    content: alertMessage.innerHTML,
-    resizable: false,
-    title: "Change culture population",
-    width: "24em",
-    buttons: {
-      Apply: () => {
-        applyPopulationChange(rural, urban, getRuralPop().value, getUrbanPop().value, cultureId);
-        /* $(this).dialog("close") removed */
-      },
-      Cancel: () => {
-        /* $(this).dialog("close") removed */
-      }
-    },
-    position: { my: "center", at: "center", of: "svg" }
-  });
 }
 
 function applyPopulationChange(
@@ -600,41 +683,23 @@ function applyPopulationChange(
     });
   }
 
-  const burgs = worldContext.pack.burgs.filter((b: Burg) => !b.removed && b.culture === culture);
+  const burgList = (worldContext.pack.burgs as Burg[]).filter((b: Burg) => !b.removed && b.culture === culture);
   const urbanChange = +newUrban / oldUrban;
   if (Number.isFinite(urbanChange) && urbanChange !== 1) {
-    burgs.forEach((b: Burg) => {
+    burgList.forEach((b: Burg) => {
       b.population = rn((b.population ?? 0) * urbanChange, 4);
     });
   }
   if (!Number.isFinite(urbanChange) && +newUrban > 0) {
     const points = +newUrban / worldContext.populationRate / worldContext.urbanization;
-    const population = rn(points / burgs.length, 4);
-    burgs.forEach((b: Burg) => {
+    const population = rn(points / burgList.length, 4);
+    burgList.forEach((b: Burg) => {
       b.population = population;
     });
   }
 
   if (layerIsOn("togglePopulation")) PopulationRenderer.render(worldContext, viewContext, appServices);
-  refreshCulturesEditor();
-}
-
-function cultureRegenerateBurgs(this: Element): void {
-  if (viewContext.customization === 4) return;
-
-  const cultureId = +(this.parentNode as HTMLElement).dataset.id!;
-  const base = worldContext.pack.cultures[cultureId].base;
-  if (!worldContext.nameBases[base]) {
-    tip("Namesbase is not defined, please select a valid namesbase", false, "error", 5000);
-    return;
-  }
-
-  const cultureBurgs = worldContext.pack.burgs.filter((b: Burg) => b.culture === cultureId && !b.removed && !b.lock);
-  cultureBurgs.forEach((b: Burg) => {
-    b.name = Names.getCulture(cultureId);
-    viewContext.labels.select(`[data-id='${b.i}']`).text(b.name);
-  });
-  tip(`Names for ${cultureBurgs.length} burgs are regenerated`, false, "success");
+  culturesEditorActions.refresh();
 }
 
 function removeCulture(cultureId: number): void {
@@ -643,43 +708,26 @@ function removeCulture(cultureId: number): void {
 
   const { burgs, states, cells, cultures } = worldContext.pack;
 
-  burgs
+  (burgs as Burg[])
     .filter((b: Burg) => b.culture === cultureId)
     .forEach((b: Burg) => {
       b.culture = 0;
     });
-  states.forEach((s: State) => {
+  (states as State[]).forEach((s: State) => {
     if (s.culture === cultureId) s.culture = 0;
   });
-  cells.culture.forEach((c: number, i: number) => {
+  Array.from(cells.culture).forEach((c: number, i: number) => {
     if (c === cultureId) cells.culture[i] = 0;
   });
-  cultures[cultureId].removed = true;
+  (cultures as Culture[])[cultureId].removed = true;
 
-  cultures
+  (cultures as Culture[])
     .filter((c: Culture) => c.i && !c.removed)
     .forEach((c: Culture) => {
       c.origins = (c.origins ?? []).filter((origin): origin is number => origin !== null && origin !== cultureId);
       if (!c.origins.length) c.origins = [0];
     });
-  refreshCulturesEditor();
-}
-
-function cultureHighlightElement(this: Element): void {
-  const cultureId = +(this.parentNode as HTMLElement).dataset.id!;
-  highlightElement(viewContext.cults.select(`#culture${cultureId}`).node() as Element, 4);
-}
-
-function cultureRemovePrompt(this: Element): void {
-  if (viewContext.customization) return;
-
-  const cultureId = +(this.parentNode as HTMLElement).dataset.id!;
-  confirmationDialog({
-    title: "Remove culture",
-    message: "Are you sure you want to remove the culture? <br>This action cannot be reverted",
-    confirm: "Remove",
-    onConfirm: () => removeCulture(cultureId)
-  });
+  culturesEditorActions.refresh();
 }
 
 function drawCultureCenters(): void {
@@ -692,7 +740,7 @@ function drawCultureCenters(): void {
     .attr("stroke", "#444444")
     .style("cursor", "move");
 
-  const data = worldContext.pack.cultures.filter((c: Culture) => c.i && !c.removed);
+  const data = (worldContext.pack.cultures as Culture[]).filter((c: Culture) => c.i && !c.removed);
   cultureCenters
     .selectAll("circle")
     .data(data)
@@ -704,15 +752,13 @@ function drawCultureCenters(): void {
     .attr("fill", (d: Culture) => d.color ?? "")
     .attr("cx", (d: Culture) => worldContext.pack.cells.p[d.center!][0])
     .attr("cy", (d: Culture) => worldContext.pack.cells.p[d.center!][1])
-    .on("mouseenter", (event: MouseEvent & { id?: string }, d: Culture) => {
+    .on("mouseenter", (_event: MouseEvent, d: Culture) => {
       tip(tooltip, true);
-      $body.querySelector(`div[data-id='${d.i}']`)?.classList.add("selected");
-      cultureHighlightOn(event);
+      cultureHighlightOn({ id: d.i });
     })
-    .on("mouseleave", (event: MouseEvent & { id?: string }, d: Culture) => {
+    .on("mouseleave", (_event: MouseEvent, d: Culture) => {
       tip("", true);
-      $body.querySelector(`div[data-id='${d.i}']`)?.classList.remove("selected");
-      cultureHighlightOff(event);
+      cultureHighlightOff({ id: d.i });
     })
     .call(
       d3
@@ -757,127 +803,11 @@ function cultureCenterDragInner(
   const cell = findCell(x, y);
   if (worldContext.pack.cells.h[cell] < 20) return;
 
-  worldContext.pack.cultures[_ccdId].center = cell;
+  (worldContext.pack.cultures[_ccdId] as Culture).center = cell;
   recalculateCultures();
 }
 
 const cultureCenterDragDebounced = debounce(cultureCenterDragInner, 50);
-
-function toggleLegend(): void {
-  if (viewContext.legend.selectAll("*").size()) {
-    clearLegend();
-    return;
-  }
-
-  const data = worldContext.pack.cultures
-    .filter((c: Culture) => c.i && !c.removed && c.cells)
-    .sort((a: Culture, b: Culture) => (b.area ?? 0) - (a.area ?? 0))
-    .map((c: Culture) => [c.i, c.color, c.name] as [number, string, string]);
-  drawLegend("Cultures", data);
-}
-
-function togglePercentageMode(): void {
-  if ($body.dataset.type === "absolute") {
-    $body.dataset.type = "percentage";
-    const totalCells = +ensureEl("culturesFooterCells").innerText;
-    const totalArea = +ensureEl("culturesFooterArea").dataset.area!;
-    const totalPopulation = +ensureEl("culturesFooterPopulation").dataset.population!;
-
-    $body.querySelectorAll(":scope > div").forEach(el => {
-      const { cells, area, population } = (el as HTMLElement).dataset;
-      el.querySelector<HTMLElement>(".cultureCells")!.innerText = `${rn((+(cells ?? 0) / totalCells) * 100)}%`;
-      el.querySelector<HTMLElement>(".cultureArea")!.innerText = `${rn((+(area ?? 0) / totalArea) * 100)}%`;
-      el.querySelector<HTMLElement>(".culturePopulation")!.innerText =
-        `${rn((+(population ?? 0) / totalPopulation) * 100)}%`;
-    });
-  } else {
-    $body.dataset.type = "absolute";
-    culturesEditorAddLines();
-  }
-}
-
-function showHierarchy(): void {
-  if (viewContext.customization) return;
-
-  const getDescription = (culture: HierarchyElement) => {
-    const { name, type, rural, urban } = culture as HierarchyElement & { type: string; rural: number; urban: number };
-    const population =
-      rural * worldContext.populationRate + urban * worldContext.populationRate * worldContext.urbanization;
-    const populationText = population > 0 ? `${si(rn(population))} people` : "Extinct";
-    return `${name} culture. ${type}. ${populationText}`;
-  };
-
-  const getShape = ({ type }: HierarchyElement) => {
-    if (type === "Generic") return "circle";
-    if (type === "River") return "diamond";
-    if (type === "Lake") return "hexagon";
-    if (type === "Naval") return "square";
-    if (type === "Highland") return "concave";
-    if (type === "Nomadic") return "octagon";
-    if (type === "Hunting") return "pentagon";
-    return undefined;
-  };
-
-  openHierarchyTree({
-    type: "cultures",
-    data: worldContext.pack.cultures as unknown as HierarchyElement[],
-    onNodeEnter: cultureHighlightOn,
-    onNodeLeave: cultureHighlightOff,
-    getDescription,
-    getShape
-  });
-}
-
-function recalculateCultures(force?: boolean): void {
-  if (force || ensureEl<HTMLInputElement>("culturesAutoChange").checked) {
-    Cultures.expand(getWorldState());
-    CulturesRenderer.render(worldContext, viewContext, appServices);
-    worldContext.pack.burgs.forEach((b: Burg) => {
-      b.culture = worldContext.pack.cells.culture[b.cell];
-    });
-    refreshCulturesEditor();
-  }
-}
-
-function enterCultureManualAssignent(): void {
-  if (!layerIsOn("toggleCultures")) toggleCultures();
-  viewContext.customization = 4;
-  viewContext.cults.append("g").attr("id", "temp");
-  document.querySelectorAll<HTMLElement>("#culturesFooter > *").forEach(el => {
-    el.style.display = "none";
-  });
-  ensureEl("culturesManuallyButtons").style.display = "inline-block";
-  viewContext.debug.select("#cultureCenters").style("display", "none");
-
-  document
-    .getElementById("culturesEditor")
-    ?.querySelectorAll(".hide")
-    .forEach(el => {
-      el.classList.add("hidden");
-    });
-  ensureEl("culturesTotal").style.display = "none";
-  $body.querySelectorAll<HTMLElement>("div > input, select, span, svg").forEach(e => {
-    e.style.pointerEvents = "none";
-  });
-  openDialog("culturesEditor", { position: { my: "right top", at: "right-10 top+10", of: "svg" } });
-
-  tip("Click on culture to select, drag the circle to change culture", true);
-  viewContext.viewbox
-    .style("cursor", "crosshair")
-    .on("click", selectCultureOnMapClick)
-    .call(d3.drag<SVGGElement, unknown>().on("start", dragCultureBrushStart).on("drag", dragCultureBrush))
-    .on("touchmove mousemove", moveCultureBrush);
-
-  $body.querySelector<HTMLElement>("div")!.classList.add("selected");
-  culturesManualHistory.reset();
-}
-
-function selectCultureOnLineClick(this: Element): void {
-  if (viewContext.customization !== 4) return;
-  const previous = $body.querySelector("div.selected");
-  if (previous) previous.classList.remove("selected");
-  (this as Element).classList.add("selected");
-}
 
 function selectCultureOnMapClick(this: SVGElement, event: MouseEvent): void {
   const point = d3.pointer(event, this);
@@ -886,9 +816,7 @@ function selectCultureOnMapClick(this: SVGElement, event: MouseEvent): void {
 
   const assigned = viewContext.cults.select("#temp").select(`polygon[data-cell='${i}']`);
   const culture = assigned.size() ? +assigned.attr("data-culture") : worldContext.pack.cells.culture[i];
-
-  $body.querySelector("div.selected")!.classList.remove("selected");
-  $body.querySelector<HTMLElement>(`div[data-id='${culture}']`)!.classList.add("selected");
+  setCulturesEditorState({ selectedCultureId: culture });
 }
 
 function dragCultureBrushStart(): void {
@@ -897,21 +825,18 @@ function dragCultureBrushStart(): void {
 
 function dragCultureBrush(this: SVGElement, event: d3.D3DragEvent<SVGElement, unknown, unknown>): void {
   if (!event.dx && !event.dy) return;
-  const radius = +(ensureEl("culturesBrush") as HTMLInputElement).value;
+  const { brushSize, selectedCultureId } = getCulturesEditorState();
   const p = d3.pointer(event, this);
-  moveCircle(p[0], p[1], radius);
+  moveCircle(p[0], p[1], brushSize);
 
-  const found = radius > 5 ? findAll(p[0], p[1], radius) : [findCell(p[0], p[1], radius)];
-  const selection = found.filter(i => isLand(i, worldContext.pack));
-  if (selection) changeCultureForSelection(selection);
+  const found = brushSize > 5 ? findAll(p[0], p[1], brushSize) : [findCell(p[0], p[1])];
+  const selection = found.filter(i => worldContext.pack.cells.h[i] >= 20);
+  if (selection.length) changeCultureForSelection(selection, selectedCultureId);
 }
 
-function changeCultureForSelection(selection: number[]): void {
+function changeCultureForSelection(selection: number[], cultureNew: number): void {
   const temp = viewContext.cults.select("#temp");
-  const selected = $body.querySelector<HTMLElement>("div.selected")!;
-
-  const cultureNew = +selected.dataset.id!;
-  const color = worldContext.pack.cultures[cultureNew]?.color || "#ffffff";
+  const color = (worldContext.pack.cultures[cultureNew] as Culture)?.color ?? "#ffffff";
 
   selection.forEach((i: number) => {
     const exists = temp.select(`polygon[data-cell='${i}']`);
@@ -930,98 +855,35 @@ function changeCultureForSelection(selection: number[]): void {
   });
 }
 
-function moveCultureBrush(this: SVGElement, event: MouseEvent): void {
+function moveCultureBrush(this: SVGElement, event: MouseEvent | TouchEvent): void {
   showMainTip();
-  const point = d3.pointer(event, this);
-  const radius = +(ensureEl("culturesBrush") as HTMLInputElement).value;
-  moveCircle(point[0], point[1], radius);
-}
-
-function applyCultureManualAssignent(): void {
-  const changed = viewContext.cults.select("#temp").selectAll<SVGPolygonElement, unknown>("polygon");
-  changed.each(function (this: SVGPolygonElement) {
-    const i = +this.dataset.cell!;
-    const c = +this.dataset.culture!;
-    worldContext.pack.cells.culture[i] = c;
-    if (worldContext.pack.cells.burg[i]) worldContext.pack.burgs[worldContext.pack.cells.burg[i]].culture = c;
-  });
-
-  if (changed.size()) {
-    CulturesRenderer.render(worldContext, viewContext, appServices);
-    refreshCulturesEditor();
+  const { brushSize } = getCulturesEditorState();
+  let point: [number, number];
+  if (window.TouchEvent && event instanceof TouchEvent) {
+    point = d3.pointer(event.touches[0], this);
+  } else {
+    point = d3.pointer(event as MouseEvent, this);
   }
-  exitCulturesManualAssignment();
+  moveCircle(point[0], point[1], brushSize);
 }
 
-function exitCulturesManualAssignment(close?: boolean | string): void {
+function exitCulturesManualAssignment(): void {
   viewContext.customization = 0;
+  setCulturesEditorState({ customization: 0 });
   culturesManualHistory.reset();
   viewContext.cults.select("#temp").remove();
   removeCircle();
   viewContext.debug.select("#cultureCenters").style("display", null);
   restoreDefaultEvents?.();
   clearMainTip();
-
-  if (!$body) return;
-
-  document.querySelectorAll<HTMLElement>("#culturesFooter > *").forEach(el => {
-    el.style.display = "inline-block";
-  });
-  ensureEl("culturesManuallyButtons").style.display = "none";
-
-  document
-    .getElementById("culturesEditor")
-    ?.querySelectorAll(".hide")
-    .forEach(el => {
-      el.classList.remove("hidden");
-    });
-  ensureEl("culturesTotal").style.display = "block";
-  $body.querySelectorAll<HTMLElement>("div > input, select, span, svg").forEach(e => {
-    e.style.pointerEvents = "all";
-  });
-  if (!close) openDialog("culturesEditor", { position: { my: "right top", at: "right-10 top+10", of: "svg" } });
-
-  const selected = $body.querySelector("div.selected");
-  if (selected) selected.classList.remove("selected");
-}
-
-function saveCulturesManualSnapshot(): void {
-  const temp = viewContext.cults.select("#temp").node() as Element | null;
-  if (!temp) return;
-  culturesManualHistory.push(temp.innerHTML);
-}
-
-function undoCulturesManualAssignment(): void {
-  const temp = viewContext.cults.select("#temp").node() as Element | null;
-  if (!temp || !culturesManualHistory.canUndo) return;
-  temp.innerHTML = culturesManualHistory.pop() ?? "";
-}
-
-function enterAddCulturesMode(this: HTMLButtonElement): void {
-  if (this.classList.contains("pressed")) {
-    exitAddCultureMode();
-    return;
-  }
-
-  viewContext.customization = 9;
-  this.classList.add("pressed");
-  tip("Click on the map to add a new culture", true);
-  viewContext.viewbox.style("cursor", "crosshair");
-  interactionManager.setClickHandler(addCulture);
-  $body.querySelectorAll<HTMLElement>("div > input, select, span, svg").forEach(e => {
-    e.style.pointerEvents = "none";
-  });
 }
 
 function exitAddCultureMode(): void {
+  if (getCulturesEditorState().customization !== 9) return;
   viewContext.customization = 0;
+  setCulturesEditorState({ customization: 0 });
   restoreDefaultEvents?.();
   clearMainTip();
-  $body.querySelectorAll<HTMLElement>("div > input, select, span, svg").forEach(e => {
-    e.style.pointerEvents = "all";
-  });
-  const culturesAdd = document.getElementById("culturesAdd");
-  if (culturesAdd?.classList.contains("pressed")) culturesAdd.classList.remove("pressed");
 }
 
 function addCulture(this: SVGElement, event: MouseEvent): void {
@@ -1033,7 +895,7 @@ function addCulture(this: SVGElement, event: MouseEvent): void {
     return;
   }
 
-  const occupied = worldContext.pack.cultures.some((c: Culture) => !c.removed && c.center === center);
+  const occupied = (worldContext.pack.cultures as Culture[]).some((c: Culture) => !c.removed && c.center === center);
   if (occupied) {
     tip("This cell is already a culture center. Please select a different cell", false, "error");
     return;
@@ -1043,153 +905,15 @@ function addCulture(this: SVGElement, event: MouseEvent): void {
   Cultures.add(center);
 
   drawCultureCenters();
-  culturesEditorAddLines();
+  culturesEditorActions.refresh();
 }
 
-function downloadCulturesCsv(): void {
-  const unit = getAreaUnit("2");
-  const headers = `Id,Name,Color,Cells,Expansionism,Type,Area ${unit},Population,Namesbase,Emblems Shape,Origins`;
-  const lines = Array.from($body.querySelectorAll(":scope > div"));
-  const data = lines.map(($line: Element) => {
-    const { id, name, color, cells, expansionism, type, area, population, emblems, base } = ($line as HTMLElement)
-      .dataset;
-    const namesbase = worldContext.nameBases[+(base ?? 0)].name;
-    const { origins } = worldContext.pack.cultures[+(id ?? 0)];
-    const originList = (origins as number[])
-      .filter(origin => origin)
-      .map((origin: number) => worldContext.pack.cultures[origin].name);
-    const originText = `"${originList.join(", ")}"`;
-    return [id, name, color, cells, expansionism, type, area, population, namesbase, emblems, originText].join(",");
-  });
-  const csvData = [headers].concat(data).join("\n");
-
-  const name = `${getFileName("Cultures")}.csv`;
-  downloadFile(csvData, name);
-}
-
-function closeCulturesEditor(): void {
-  viewContext.debug.select("#cultureCenters").remove();
-  exitCulturesManualAssignment("close");
-  exitAddCultureMode();
-}
-
-async function uploadCulturesData(this: HTMLInputElement): Promise<void> {
-  const file = this.files![0];
-  this.value = "";
-  const csv = await file.text();
-  const data = d3.csvParse(csv, d => ({
-    name: d.Name,
-    i: +d.Id,
-    color: d.Color,
-    expansionism: +d.Expansionism,
-    type: d.Type,
-    population: +d.Population,
-    emblemsShape: d["Emblems Shape"],
-    origins: d.Origins ?? "",
-    namesbase: d.Namesbase
-  }));
-
-  const { cultures, cells } = worldContext.pack;
-  const shapes = Object.keys(COA.shields.types).flatMap((type: string) => Object.keys(COA.shields[type]));
-
-  const populated = Array.from(cells.pop)
-    .map((c: number, i: number) => (c ? i : null))
-    .filter((c: number | null) => c !== null);
-  cultures.forEach((item: Culture) => {
-    if (item.i) item.removed = true;
-  });
-
-  for (const culture of data) {
-    let current: Culture;
-    if (culture.i < cultures.length) {
-      current = cultures[culture.i];
-      const ratio = (current.urban ?? 0) / ((current.rural ?? 0) + (current.urban ?? 0));
-      applyPopulationChange(
-        current.rural ?? 0,
-        current.urban ?? 0,
-        culture.population * (1 - ratio),
-        culture.population * ratio,
-        culture.i
-      );
-    } else {
-      current = {
-        i: cultures.length,
-        center: ra(populated),
-        area: 0,
-        cells: 0,
-        origins: [0],
-        rural: 0,
-        urban: 0,
-        name: "",
-        base: 0,
-        shield: "heater"
-      };
-      cultures.push(current);
-    }
-
-    current.removed = false;
-    current.name = culture.name;
-
-    if (current.i) {
-      current.code = abbreviate(
-        current.name,
-        cultures.map((c: Culture) => c.code ?? "")
-      );
-      current.color = culture.color;
-      current.expansionism = +culture.expansionism;
-      if (cultureTypes.includes(culture.type!)) current.type = culture.type as CultureType;
-      else current.type = "Generic" as CultureType;
-    }
-
-    const restoreOrigins = (originsString: string) => {
-      const originNames = originsString
-        .replaceAll('"', "")
-        .split(",")
-        .map(s => s.trim())
-        .filter(s => s);
-
-      const originIds = originNames.map((name: string) => {
-        const id = cultures.findIndex((c: Culture) => c.name === name);
-        return id === -1 ? null : id;
-      });
-
-      current.origins = originIds.filter((id: number | null) => id !== null);
-      if (!current.origins.length) current.origins = [0];
-    };
-
-    restoreOrigins(culture.origins);
-    current.shield = shapes.includes(culture.emblemsShape!) ? culture.emblemsShape! : "heater";
-    current.base = worldContext.nameBases.findIndex((n: NameBase) => n.name === culture.namesbase);
-  }
-
-  cultures
-    .filter((c: Culture) => c.removed)
-    .forEach((c: Culture) => {
-      removeCulture(c.i);
-    });
-
-  CulturesRenderer.render(worldContext, viewContext, appServices);
-  refreshCulturesEditor();
-}
-
-function updateLockStatus(this: Element): void {
-  if (viewContext.customization) return;
-
-  const cultureId = +(this.parentNode as HTMLElement).dataset.id!;
-  const classList = this.classList;
-  const c = worldContext.pack.cultures[cultureId] as Culture;
-  c.lock = !c.lock;
-
-  classList.toggle("icon-lock-open");
-  classList.toggle("icon-lock");
+function saveCulturesManualSnapshot(): void {
+  const temp = viewContext.cults.select("#temp").node() as Element | null;
+  if (!temp) return;
+  culturesManualHistory.push(temp.innerHTML);
 }
 
 declare global {
   var ra: <T>(arr: T[]) => T;
-}
-
-export function initCulturesEditor(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {
-  worldContext = wc;
-  viewContext = vc;
-  appServices = as;
 }
