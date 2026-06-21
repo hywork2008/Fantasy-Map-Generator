@@ -51,7 +51,6 @@ import { initCulturesEditor } from "../editors/cultures-editor";
 import { initReligionsEditor } from "../editors/religions-editor";
 import { initStatesEditor } from "../editors/states-editor";
 import { initBattleScreen } from "./battle-screen";
-import { initHeightmapSelection } from "./heightmap-selection";
 
 export function initControllers(
   worldContext: WorldContext,
@@ -60,7 +59,6 @@ export function initControllers(
 ): void {
   initHotkeys();
   initBattleScreen(worldContext, viewContext, appServices);
-  initHeightmapSelection(worldContext);
   initLayers(worldContext, viewContext, appServices);
   initMilitaryOverview(worldContext, viewContext, appServices);
   initOptions(worldContext, viewContext, appServices);

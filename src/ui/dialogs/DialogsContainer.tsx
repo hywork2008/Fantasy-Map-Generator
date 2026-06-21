@@ -23,6 +23,7 @@ import { ExportMapDialog } from "./ExportMapDialog";
 import { ExportToPngTilesDialog } from "./ExportToPngTilesDialog";
 import { FontDialog } from "./FontDialog";
 import { GoodsEditorDialog } from "./GoodsEditorDialog";
+import { HeightmapSelectionDialog } from "./HeightmapSelectionDialog";
 import { HierarchyTreeDialog } from "./HierarchyTreeDialog";
 import { IceEditorDialog } from "./IceEditorDialog";
 import { IconSelectorDialog } from "./IconSelectorDialog";
@@ -157,6 +158,7 @@ export const DialogsContainer: React.FC = () => {
           <CellInfoDialog />
           <MinimapDialog />
           <ChartsOverviewDialog />
+          <HeightmapSelectionDialog />
           <Options3dDialog />
           <Preview3dDialog />
           {/* 

@@ -12,7 +12,7 @@ import { editZones } from "../editors/zones-editor";
 import { quickLoad } from "../io/load";
 import { saveMap, toggleSaveReminder } from "../io/save";
 import { closeDialogs } from "../ui/dialogs/dialogService";
-import { ensureEl, minmax } from "../utils";
+import { minmax } from "../utils";
 import { showInfo } from "../utils/uiHelpers";
 import { overviewBurgs } from "./burgs-overview";
 import { editCoastlineSettings, editCultures, editReligions, editStates } from "./editors";
@@ -92,7 +92,7 @@ function handleKeyup(event: KeyboardEvent): void {
   else if (code === "Tab") toggleOptions(event);
   else if (code === "Escape") closeAllDialogs();
   else if (code === "Delete") removeElementOnKey();
-  else if (code === "KeyO" && ensureEl("canvas3d")) toggle3dOptions();
+  else if (code === "KeyO" && document.getElementById("canvas3d")) toggle3dOptions();
   else if (ctrl && code === "KeyQ") toggleSaveReminder();
   else if (ctrl && code === "KeyS") saveMap("machine");
   else if (ctrl && code === "KeyC") saveMap("dropbox");
@@ -193,22 +193,24 @@ function allowHotkeys(): boolean {
 function handleSizeChange(key: string): void {
   let brush: HTMLInputElement | null = null;
 
-  if ((ensureEl("heightmapBrushRadius") as HTMLElement)?.offsetParent)
-    brush = ensureEl("heightmapBrushRadius") as HTMLInputElement;
-  else if ((ensureEl("heightmapBrushPower") as HTMLElement)?.offsetParent)
-    brush = ensureEl("heightmapBrushPower") as HTMLInputElement;
-  else if ((ensureEl("heightmapLinePower") as HTMLElement)?.offsetParent)
-    brush = ensureEl("heightmapLinePower") as HTMLInputElement;
-  else if ((ensureEl("biomesBrush") as HTMLElement)?.offsetParent) brush = ensureEl("biomesBrush") as HTMLInputElement;
+  if ((document.getElementById("heightmapBrushRadius") as HTMLElement)?.offsetParent)
+    brush = document.getElementById("heightmapBrushRadius") as HTMLInputElement;
+  else if ((document.getElementById("heightmapBrushPower") as HTMLElement)?.offsetParent)
+    brush = document.getElementById("heightmapBrushPower") as HTMLInputElement;
+  else if ((document.getElementById("heightmapLinePower") as HTMLElement)?.offsetParent)
+    brush = document.getElementById("heightmapLinePower") as HTMLInputElement;
+  else if ((document.getElementById("biomesBrush") as HTMLElement)?.offsetParent)
+    brush = document.getElementById("biomesBrush") as HTMLInputElement;
   else if (document.getElementById("culturesBrush")?.offsetParent)
     brush = document.getElementById("culturesBrush") as HTMLInputElement;
   else if (document.getElementById("statesBrush")?.offsetParent)
     brush = document.getElementById("statesBrush") as HTMLInputElement;
-  else if ((ensureEl("provincesBrush") as HTMLElement)?.offsetParent)
-    brush = ensureEl("provincesBrush") as HTMLInputElement;
+  else if ((document.getElementById("provincesBrush") as HTMLElement)?.offsetParent)
+    brush = document.getElementById("provincesBrush") as HTMLInputElement;
   else if (document.getElementById("religionsBrush")?.offsetParent)
     brush = document.getElementById("religionsBrush") as HTMLInputElement;
-  else if ((ensureEl("zonesBrush") as HTMLElement)?.offsetParent) brush = ensureEl("zonesBrush") as HTMLInputElement;
+  else if ((document.getElementById("zonesBrush") as HTMLElement)?.offsetParent)
+    brush = document.getElementById("zonesBrush") as HTMLInputElement;
 
   if (brush) {
     const change = key === "-" ? -5 : 5;
@@ -224,18 +226,20 @@ function handleSizeChange(key: string): void {
 }
 
 function handleBracketSizeChange(code: string): boolean {
-  const isHeightmapBrushPressed = Boolean((ensureEl("brushesButtons") as HTMLElement)?.querySelector("button.pressed"));
+  const isHeightmapBrushPressed = Boolean(
+    (document.getElementById("brushesButtons") as HTMLElement)?.querySelector("button.pressed")
+  );
   const hasActiveBrush =
     isHeightmapBrushPressed ||
-    (ensureEl("heightmapBrushRadius") as HTMLElement)?.offsetParent ||
-    (ensureEl("heightmapBrushPower") as HTMLElement)?.offsetParent ||
-    (ensureEl("heightmapLinePower") as HTMLElement)?.offsetParent ||
-    (ensureEl("biomesBrush") as HTMLElement)?.offsetParent ||
+    (document.getElementById("heightmapBrushRadius") as HTMLElement)?.offsetParent ||
+    (document.getElementById("heightmapBrushPower") as HTMLElement)?.offsetParent ||
+    (document.getElementById("heightmapLinePower") as HTMLElement)?.offsetParent ||
+    (document.getElementById("biomesBrush") as HTMLElement)?.offsetParent ||
     document.getElementById("culturesBrush")?.offsetParent ||
     document.getElementById("statesBrush")?.offsetParent ||
-    (ensureEl("provincesBrush") as HTMLElement)?.offsetParent ||
+    (document.getElementById("provincesBrush") as HTMLElement)?.offsetParent ||
     document.getElementById("religionsBrush")?.offsetParent ||
-    (ensureEl("zonesBrush") as HTMLElement)?.offsetParent;
+    (document.getElementById("zonesBrush") as HTMLElement)?.offsetParent;
 
   if (!hasActiveBrush) return false;
 

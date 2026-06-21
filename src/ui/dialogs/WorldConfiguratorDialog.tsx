@@ -1,16 +1,239 @@
+import { geoGraticule, geoOrthographic, geoPath, interpolateSpectral, range, scaleSequential, select } from "d3";
 import type React from "react";
+import { useCallback, useEffect, useRef } from "react";
+import { worldContext } from "../../context/worldContext";
+import { updateWorld } from "../../controllers/world-configurator";
 import { useDialogState } from "../../store/dialogState";
+import { convertTemperature, debounce, parseTransform, rn, round } from "../../utils";
+import { lock } from "../../utils/uiHelpers";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
+
+function getEl<T extends HTMLElement>(id: string): T | null {
+  return document.getElementById(id) as T | null;
+}
+
+const debouncedUpdateWorld = debounce(updateWorld, 300);
+
 export const WorldConfiguratorDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("worldConfigurator"));
+  const globeRef = useRef<SVGSVGElement>(null);
+
+  const getProjectionPath = useCallback(() => {
+    const projection = geoOrthographic().translate([100, 100]).scale(100);
+    return geoPath(projection);
+  }, []);
+
+  const updateInputValues = useCallback(() => {
+    const eq = worldContext.options.temperatureEquator;
+    getEl("temperatureEquatorInput")?.setAttribute("value", String(eq));
+    const eqOut = getEl<HTMLOutputElement>("temperatureEquatorOutput");
+    if (eqOut) eqOut.value = String(eq);
+    const eqF = getEl("temperatureEquatorF");
+    if (eqF) eqF.innerText = convertTemperature(eq, "°F");
+
+    const np = worldContext.options.temperatureNorthPole;
+    getEl("temperatureNorthPoleInput")?.setAttribute("value", String(np));
+    const npOut = getEl<HTMLOutputElement>("temperatureNorthPoleOutput");
+    if (npOut) npOut.value = String(np);
+    const npF = getEl("temperatureNorthPoleF");
+    if (npF) npF.innerText = convertTemperature(np, "°F");
+
+    const sp = worldContext.options.temperatureSouthPole;
+    getEl("temperatureSouthPoleInput")?.setAttribute("value", String(sp));
+    const spOut = getEl<HTMLOutputElement>("temperatureSouthPoleOutput");
+    if (spOut) spOut.value = String(sp);
+    const spF = getEl("temperatureSouthPoleF");
+    if (spF) spF.innerText = convertTemperature(sp, "°F");
+  }, []);
+
+  const updateGlobeTemperature = useCallback(() => {
+    if (!globeRef.current) return;
+    const globe = select(globeRef.current);
+    const tEq = worldContext.options.temperatureEquator;
+    const tNP = worldContext.options.temperatureNorthPole;
+    const tSP = worldContext.options.temperatureSouthPole;
+
+    const colorScale = scaleSequential(interpolateSpectral);
+    const getColor = (value: number) => colorScale(1 - value);
+    const [tMin, tMax] = [-25, 30];
+    const tDelta = tMax - tMin;
+
+    globe.select("#grad90").attr("stop-color", getColor((tNP - tMin) / tDelta));
+    globe.select("#grad60").attr("stop-color", getColor((tEq - ((tEq - tNP) * 2) / 3 - tMin) / tDelta));
+    globe.select("#grad30").attr("stop-color", getColor((tEq - ((tEq - tNP) * 1) / 4 - tMin) / tDelta));
+    globe.select("#grad0").attr("stop-color", getColor((tEq - tMin) / tDelta));
+    globe.select("#grad-30").attr("stop-color", getColor((tEq - ((tEq - tSP) * 1) / 4 - tMin) / tDelta));
+    globe.select("#grad-60").attr("stop-color", getColor((tEq - ((tEq - tSP) * 2) / 3 - tMin) / tDelta));
+    globe.select("#grad-90").attr("stop-color", getColor((tSP - tMin) / tDelta));
+  }, []);
+
+  const updateGlobePosition = useCallback(() => {
+    if (!globeRef.current) return;
+    const globe = select(globeRef.current);
+    const path = getProjectionPath();
+
+    const size = +(getEl<HTMLOutputElement>("mapSizeOutput")?.value ?? "100");
+    const eqD = ((worldContext.graphHeight / 2) * 100) / size;
+
+    document.dispatchEvent(new CustomEvent("fmg:world-recalculate", { detail: { coords: true } }));
+    const mc = worldContext.mapCoordinates;
+    const unit = (document.getElementById("distanceUnitInput") as HTMLSelectElement | null)?.value ?? "km";
+
+    const eqD2 = eqD * 2;
+    const meridianInUnit = eqD2 * worldContext.distanceScale;
+    const meridian = toKilometer(meridianInUnit, unit);
+
+    const mapSizeEl = getEl("mapSize");
+    if (mapSizeEl) mapSizeEl.innerHTML = `${worldContext.graphWidth}x${worldContext.graphHeight}`;
+    const mapSizeFriendlyEl = getEl("mapSizeFriendly");
+    if (mapSizeFriendlyEl)
+      mapSizeFriendlyEl.innerHTML = `${rn(worldContext.graphWidth * worldContext.distanceScale)}x${rn(worldContext.graphHeight * worldContext.distanceScale)} ${unit}`;
+    const meridianLengthEl = getEl("meridianLength");
+    if (meridianLengthEl) meridianLengthEl.innerHTML = String(rn(eqD2));
+    const meridianLengthFriendlyEl = getEl("meridianLengthFriendly");
+    if (meridianLengthFriendlyEl) meridianLengthFriendlyEl.innerHTML = `${rn(meridianInUnit)} ${unit}`;
+    const meridianLengthEarthEl = getEl("meridianLengthEarth");
+    if (meridianLengthEarthEl) meridianLengthEarthEl.innerHTML = meridian ? ` = ${rn(meridian / 200)}%🌏` : "";
+    const mapCoordsEl = getEl("mapCoordinates");
+    if (mapCoordsEl)
+      mapCoordsEl.innerHTML = `${lat(mc.latN!)} ${Math.abs(rn(mc.lonW!))}°W; ${lat(mc.latS!)} ${rn(mc.lonE!)}°E`;
+
+    const area = geoGraticule().extent([
+      [mc.lonW!, mc.latN!],
+      [mc.lonE!, mc.latS!]
+    ]);
+    globe.select("#globeArea").attr("d", round(path(area.outline()) ?? "", 1));
+  }, [getProjectionPath]);
+
+  const updateWindDirections = useCallback(() => {
+    if (!globeRef.current) return;
+    let idx = 0;
+    select(globeRef.current)
+      .select("#globeWindArrows")
+      .selectAll<SVGPathElement, unknown>("path")
+      .each(function (this: SVGPathElement) {
+        const tr = parseTransform(this.getAttribute("transform") ?? "");
+        this.setAttribute("transform", `rotate(${worldContext.options.winds[idx]} ${tr[1]} ${tr[2]})`);
+        idx++;
+      });
+  }, []);
+
+  const refreshGlobe = useCallback(() => {
+    updateInputValues();
+    updateGlobeTemperature();
+    updateGlobePosition();
+    if (!globeRef.current) return;
+    const globe = select(globeRef.current);
+    const path = getProjectionPath();
+    const graticule = geoGraticule();
+    globe.select("#globeGraticule").attr("d", round(path(graticule()) ?? "", 1));
+    updateWindDirections();
+  }, [getProjectionPath, updateGlobePosition, updateGlobeTemperature, updateInputValues, updateWindDirections]);
+
+  // Initialize on open
+  useEffect(() => {
+    if (!isOpen) return;
+    refreshGlobe();
+  }, [isOpen, refreshGlobe]);
+
+  // Refresh when map regenerates while dialog is open
+  useEffect(() => {
+    const handler = () => {
+      if (isOpen) refreshGlobe();
+    };
+    document.addEventListener("fmg:world-configurator-refresh", handler);
+    return () => document.removeEventListener("fmg:world-configurator-refresh", handler);
+  }, [isOpen, refreshGlobe]);
+
+  function isAutoChange(): boolean {
+    return getEl<HTMLInputElement>("wcAutoChange")?.checked ?? true;
+  }
+
+  function handleControlsChange(event: React.FormEvent<HTMLFieldSetElement>): void {
+    const target = event.target as HTMLInputElement;
+    const stored = target.dataset.stored;
+    if (!stored) return;
+
+    const inputEl = getEl<HTMLInputElement>(`${stored}Input`);
+    const outputEl = getEl<HTMLOutputElement>(`${stored}Output`);
+    if (inputEl) inputEl.value = target.value;
+    if (outputEl) outputEl.value = target.value;
+    lock(stored);
+
+    const val = Number(target.value);
+    if (stored === "temperatureEquator") {
+      worldContext.options.temperatureEquator = val;
+      const eqF = getEl("temperatureEquatorF");
+      if (eqF) eqF.innerText = convertTemperature(val, "°F");
+      updateGlobeTemperature();
+    } else if (stored === "temperatureNorthPole") {
+      worldContext.options.temperatureNorthPole = val;
+      const npF = getEl("temperatureNorthPoleF");
+      if (npF) npF.innerText = convertTemperature(val, "°F");
+      updateGlobeTemperature();
+    } else if (stored === "temperatureSouthPole") {
+      worldContext.options.temperatureSouthPole = val;
+      const spF = getEl("temperatureSouthPoleF");
+      if (spF) spF.innerText = convertTemperature(val, "°F");
+      updateGlobeTemperature();
+    } else if (stored === "mapSize" || stored === "latitude" || stored === "longitude") {
+      updateGlobePosition();
+    }
+
+    if (isAutoChange()) debouncedUpdateWorld();
+  }
+
+  function handleWindChange(event: React.MouseEvent<SVGGElement>): void {
+    const arrow = (event.target as Element)?.nextElementSibling as SVGElement | null;
+    if (!arrow) return;
+    const tier = +(arrow.dataset.tier ?? 0);
+    worldContext.options.winds[tier] = (worldContext.options.winds[tier] + 45) % 360;
+    const tr = parseTransform(arrow.getAttribute("transform") ?? "");
+    arrow.setAttribute("transform", `rotate(${worldContext.options.winds[tier]} ${tr[1]} ${tr[2]})`);
+    localStorage.setItem("winds", String(worldContext.options.winds));
+
+    const mapTiers = range(worldContext.mapCoordinates.latN!, worldContext.mapCoordinates.latS!, -30).map(
+      c => ((90 - c) / 30) | 0
+    );
+    if (isAutoChange() && mapTiers.includes(tier)) updateWorld();
+  }
+
+  function restoreDefaultWinds(): void {
+    const defaultWinds: [number, number, number, number, number, number] = [225, 45, 225, 315, 135, 315];
+    const mapTiers = range(worldContext.mapCoordinates.latN!, worldContext.mapCoordinates.latS!, -30).map(
+      c => ((90 - c) / 30) | 0
+    );
+    const needsUpdate = isAutoChange() && mapTiers.some(t => worldContext.options.winds[t] !== defaultWinds[t]);
+    worldContext.options.winds = defaultWinds;
+    updateWindDirections();
+    if (needsUpdate) updateWorld();
+  }
+
+  function applyWorldPreset(size: number, latShift: number): void {
+    const mapSizeInput = getEl<HTMLInputElement>("mapSizeInput");
+    const mapSizeOutput = getEl<HTMLOutputElement>("mapSizeOutput");
+    const latInput = getEl<HTMLInputElement>("latitudeInput");
+    const latOutput = getEl<HTMLOutputElement>("latitudeOutput");
+    if (mapSizeInput) mapSizeInput.value = String(size);
+    if (mapSizeOutput) mapSizeOutput.value = String(size);
+    if (latInput) latInput.value = String(latShift);
+    if (latOutput) latOutput.value = String(latShift);
+    lock("mapSize");
+    lock("latitude");
+    if (isAutoChange()) updateWorld();
+  }
 
   return (
     <Dialog isOpen={isOpen} title="WorldConfigurator" onClose={() => closeDialog("worldConfigurator")}>
       <div id="worldConfiguratorContainer">
         <div>
           <div style={{ display: "flex" }}>
-            <div id="worldControls">
+            <fieldset
+              id="worldControls"
+              onInput={handleControlsChange}
+              style={{ border: "none", padding: 0, margin: 0 }}
+            >
               <div>
                 <i data-locked={0} id="lock_temperatureEquator" className="icon-lock-open" />
                 <label data-tip="Set temperature at equator">
@@ -163,9 +386,9 @@ export const WorldConfiguratorDialog: React.FC = () => {
               <div data-tip="Map coordinates on globe">
                 <i>Coords:</i> <span id="mapCoordinates" />
               </div>
-            </div>
+            </fieldset>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
-              <svg id="globe" width="22em" viewBox="-20 -25 240 240" aria-hidden="true">
+              <svg ref={globeRef} id="globe" width="22em" viewBox="-20 -25 240 240" aria-hidden="true">
                 <defs>
                   <linearGradient id="temperatureGradient" x1={0} x2={0} y1={0} y2={1}>
                     <stop id="grad90" offset="0%" stopColor="blue" />
@@ -186,7 +409,13 @@ export const WorldConfiguratorDialog: React.FC = () => {
                   <line x1={5} x2={220} y1={187} y2={187} />
                   <line x1={5} x2={220} y1={200} y2={200} />
                 </g>
-                <g id="globeWindArrows" data-tip="Click to change wind direction" strokeLinejoin="round">
+                <g
+                  id="globeWindArrows"
+                  data-tip="Click to change wind direction"
+                  strokeLinejoin="round"
+                  onClick={handleWindChange}
+                  style={{ cursor: "pointer" }}
+                >
                   <circle cx={210} cy={6} r={12} />
                   <path data-tier={0} d="M210,11 v-10 l-3,3 m6,0 l-3,-3" transform="rotate(225 210 6)" />
                   <circle cx={210} cy={30} r={12} />
@@ -238,23 +467,48 @@ export const WorldConfiguratorDialog: React.FC = () => {
                 <path id="globeGraticule" />
                 <path id="globeArea" />
               </svg>
-              <button type="button" id="restoreWinds" data-tip="Click to restore default (Earth-based) wind directions">
+              <button
+                type="button"
+                id="restoreWinds"
+                data-tip="Click to restore default (Earth-based) wind directions"
+                onClick={restoreDefaultWinds}
+              >
                 Restore winds
               </button>
             </div>
           </div>
           <div style={{ marginTop: "0.3em" }}>
             <i>Presets:</i>
-            <button type="button" id="wcWholeWorld" data-tip="Click to set map size to cover the whole world">
+            <button
+              type="button"
+              id="wcWholeWorld"
+              data-tip="Click to set map size to cover the whole world"
+              onClick={() => applyWorldPreset(100, 50)}
+            >
               Whole world
             </button>
-            <button type="button" id="wcNorthern" data-tip="Click to set map size to cover the Northern latitudes">
+            <button
+              type="button"
+              id="wcNorthern"
+              data-tip="Click to set map size to cover the Northern latitudes"
+              onClick={() => applyWorldPreset(33, 25)}
+            >
               Northern
             </button>
-            <button type="button" id="wcTropical" data-tip="Click to set map size to cover the Tropical latitudes">
+            <button
+              type="button"
+              id="wcTropical"
+              data-tip="Click to set map size to cover the Tropical latitudes"
+              onClick={() => applyWorldPreset(33, 50)}
+            >
               Tropical
             </button>
-            <button type="button" id="wcSouthern" data-tip="Click to set map size to cover the Southern latitudes">
+            <button
+              type="button"
+              id="wcSouthern"
+              data-tip="Click to set map size to cover the Southern latitudes"
+              onClick={() => applyWorldPreset(33, 75)}
+            >
               Southern
             </button>
           </div>
@@ -269,7 +523,7 @@ export const WorldConfiguratorDialog: React.FC = () => {
               <i>auto-apply changes</i>
             </label>
           </div>
-          <button type="button" className="fmg-dialog-button" onClick={() => window.updateWorld?.()}>
+          <button type="button" className="fmg-dialog-button" onClick={updateWorld}>
             Update world
           </button>
         </div>
@@ -277,3 +531,17 @@ export const WorldConfiguratorDialog: React.FC = () => {
     </Dialog>
   );
 };
+
+function toKilometer(v: number, unit: string): number {
+  if (unit === "km") return v;
+  if (unit === "mi") return v * 1.60934;
+  if (unit === "lg") return v * 4.828;
+  if (unit === "vr") return v * 1.0668;
+  if (unit === "nmi") return v * 1.852;
+  if (unit === "nlg") return v * 5.556;
+  return 0;
+}
+
+function lat(latVal: number): string {
+  return latVal > 0 ? `${Math.abs(rn(latVal))}°N` : `${Math.abs(rn(latVal))}°S`;
+}

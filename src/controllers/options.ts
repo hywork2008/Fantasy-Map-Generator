@@ -761,7 +761,7 @@ export function changeEra(): void {
 }
 
 function openTemplateSelectionDialog(): void {
-  import("./heightmap-selection").then(m => m.open());
+  import("./heightmap-selection").then(m => m.openHeightmapSelection());
 }
 
 // ─── Sticked menu ─────────────────────────────────────────────────────────────

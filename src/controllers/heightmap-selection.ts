@@ -1,352 +1,73 @@
 import Alea from "alea";
 import { heightmapTemplates, precreatedHeightmaps } from "../config";
-import type { WorldContext } from "../context/worldContext";
-import { editHeightmap } from "../editors/heightmap-editor";
+import { worldContext } from "../context/worldContext";
 import { HeightmapGenerator } from "../modules/heightmap-generator";
-import { useOptionsState } from "../store/optionsState";
-import { closeDialogs, openDialog } from "../ui/dialogs/dialogService";
-import { drawHeights, ensureEl, generateGrid, generateSeed, shouldRegenerateGrid } from "../utils";
+import { openDialog } from "../ui/dialogs/dialogService";
 import { getColorScheme, heightmapColorSchemes } from "../utils/colorUtils";
 import type { Grid } from "../utils/graphUtils";
-import { applyOption, lock } from "../utils/uiHelpers";
-import { confirmationDialog } from "./editors";
-import { regeneratePrompt } from "./options";
+import { drawHeights, generateGrid, shouldRegenerateGrid } from "../utils/graphUtils";
 
-let worldContext: WorldContext;
+// Cached grid to avoid regenerating on every open
+let cachedGraph: Grid | null = null;
 
-const initialSeed = generateSeed();
-let graph: Grid | null = null;
-let initialized = false;
+export const INITIAL_COLOR_SCHEME = Object.keys(heightmapColorSchemes)[0] ?? "Bright";
 
-export function open(): void {
-  graph = getGraph(graph ?? worldContext.grid);
-
-  if (!initialized) {
-    appendStyleSheet();
-    insertHtml();
-    addListeners();
-    initialized = true;
-  }
-
-  closeDialogs(".stable");
-
-  const $templateInput = ensureEl("templateInput") as HTMLInputElement;
-  setSelected($templateInput.value);
-
-  openDialog("heightmapSelection", {
-    title: "Select Heightmap",
-    resizable: false,
-    position: { my: "center", at: "center", of: "svg" },
-    buttons: {
-      Cancel: () => {
-        /* $(this).dialog("close") removed */
-      },
-      Select: () => {
-        const id = getSelected();
-        applyOption($templateInput, id, getName(id));
-        useOptionsState.getState().setOption("template", id);
-        lock("template");
-        /* $(this).dialog("close") removed */
-      },
-      "New Map": () => {
-        const id = getSelected();
-        applyOption($templateInput, id, getName(id));
-        useOptionsState.getState().setOption("template", id);
-        lock("template");
-        const seed = getSeed();
-        regeneratePrompt({ seed });
-        /* $(this).dialog("close") removed */
-      }
-    }
-  });
+export function openHeightmapSelection(): void {
+  cachedGraph = computeGraph(cachedGraph);
+  openDialog("heightmapSelection");
 }
 
-function appendStyleSheet(): void {
-  const style = document.createElement("style");
-  style.textContent = /* css */ `
-    div.dialog > div.heightmap-selection {
-      width: 70vw;
-      height: 70vh;
-    }
-
-    .heightmap-selection_container {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-      grid-gap: 6px;
-    }
-
-    @media (max-width: 600px) {
-      .heightmap-selection_container {
-        grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-        grid-gap: 4px;
-      }
-    }
-
-    @media (min-width: 2000px) {
-      .heightmap-selection_container {
-        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-        grid-gap: 8px;
-      }
-    }
-
-    .heightmap-selection_options {
-      display: grid;
-      grid-template-columns: 2fr 1fr;
-    }
-
-    .heightmap-selection_options > div:first-child {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      align-items: center;
-      justify-self: start;
-      justify-items: start;
-    }
-
-    @media (max-width: 600px) {
-      .heightmap-selection_options {
-        grid-template-columns: 3fr 1fr;
-      }
-
-      .heightmap-selection_options > div:first-child {
-        display: block;
-      }
-    }
-
-    .heightmap-selection_options > div:last-child {
-      justify-self: end;
-    }
-
-    .heightmap-selection article {
-      padding: 4px;
-      border-radius: 8px;
-      transition: all 0.1s ease-in-out;
-      filter: drop-shadow(1px 1px 4px #999);
-    }
-
-    .heightmap-selection article:hover {
-      background-color: #ddd;
-      filter: drop-shadow(1px 1px 8px #999);
-      cursor: pointer;
-    }
-
-    .heightmap-selection article.selected {
-      background-color: #ccc;
-      outline: 1px solid var(--dark-solid);
-      filter: drop-shadow(1px 1px 8px #999);
-    }
-
-    .heightmap-selection article > div {
-      display: flex;
-      justify-content: space-between;
-      padding: 2px 1px;
-    }
-
-    .heightmap-selection article > img {
-      width: 100%;
-      aspect-ratio: ${worldContext.graphWidth}/${worldContext.graphHeight};
-      border-radius: 8px;
-      object-fit: fill;
-    }
-
-    .heightmap-selection article .regeneratePreview {
-      outline: 1px solid #bbb;
-      padding: 1px 3px;
-      border-radius: 4px;
-      transition: all 0.1s ease-in-out;
-    }
-
-    .heightmap-selection article .regeneratePreview:hover {
-      outline: 1px solid #666;
-    }
-
-    .heightmap-selection article .regeneratePreview:active {
-      outline: 1px solid #333;
-      color: #000;
-      transform: rotate(45deg);
-    }
-  `;
-
-  document.head.appendChild(style);
-}
-
-function insertHtml(): void {
-  const heightmapColorSchemeOptions = Object.keys(heightmapColorSchemes)
-    .map((scheme: string) => `<option value="${scheme}">${scheme}</option>`)
-    .join("");
-
-  const heightmapSelectionHtml = /* html */ `<div id="heightmapSelection" class="dialog stable">
-    <div class="heightmap-selection">
-      <section data-tip="Select heightmap template – template provides unique, but similar-looking maps on generation">
-        <header><h1>Heightmap templates</h1></header>
-        <div class="heightmap-selection_container"></div>
-      </section>
-      <section data-tip="Select precreated heightmap – it will be the same for each map">
-        <header><h1>Precreated heightmaps</h1></header>
-        <div class="heightmap-selection_container"></div>
-      </section>
-      <section>
-        <header><h1>Options</h1></header>
-        <div class="heightmap-selection_options">
-          <div>
-            <label data-tip="Rerender all preview images" class="checkbox-label" id="heightmapSelectionRedrawPreview">
-              <i class="icon-cw"></i>
-              Redraw preview
-            </label>
-            <div>
-              <input id="heightmapSelectionRenderOcean" class="checkbox" type="checkbox" />
-              <label data-tip="Draw heights of water cells" for="heightmapSelectionRenderOcean" class="checkbox-label">Render ocean heights</label>
-            </div>
-            <div data-tip="Color scheme used for heightmap preview">
-              Color scheme
-              <select id="heightmapSelectionColorScheme">${heightmapColorSchemeOptions}</select>
-            </div>
-          </div>
-          <div>
-            <button data-tip="Open Template Editor" data-tool="templateEditor" id="heightmapSelectionEditTemplates">Edit Templates</button>
-            <button data-tip="Open Image Converter" data-tool="imageConverter" id="heightmapSelectionImportHeightmap">Import Heightmap</button>
-          </div>
-        </div>
-      </section>
-    </div>
-  </div>`;
-
-  ensureEl("dialogs").insertAdjacentHTML("beforeend", heightmapSelectionHtml);
-
-  const sections = document.getElementsByClassName("heightmap-selection_container");
-
-  sections[0].innerHTML = Object.keys(heightmapTemplates)
-    .map((key: string) => {
-      const name = heightmapTemplates[key].name;
-      Math.random = Alea(initialSeed);
-      const heights = HeightmapGenerator.fromTemplate(graph!, key);
-
-      return /* html */ `<article data-id="${key}" data-seed="${initialSeed}">
-        <img src="${getHeightmapPreview(heights)}" alt="${name}" />
-        <div>
-          ${name}
-          <span data-tip="Regenerate preview" class="icon-cw regeneratePreview"></span>
-        </div>
-      </article>`;
-    })
-    .join("");
-
-  sections[1].innerHTML = Object.keys(precreatedHeightmaps)
-    .map((key: string) => {
-      const name = precreatedHeightmaps[key].name;
-      drawPrecreatedHeightmap(key);
-
-      return /* html */ `<article data-id="${key}" data-seed="${initialSeed}">
-        <img alt="${name}" />
-        <div>${name}</div>
-      </article>`;
-    })
-    .join("");
-}
-
-function addListeners(): void {
-  ensureEl("heightmapSelection").addEventListener("click", (event: Event) => {
-    const article = (event.target as HTMLElement).closest("#heightmapSelection article") as HTMLElement | null;
-    if (!article) return;
-
-    const id = article.dataset.id!;
-    if ((event.target as HTMLElement).matches("span.icon-cw")) regeneratePreview(article, id);
-    setSelected(id);
-  });
-
-  ensureEl("heightmapSelectionRenderOcean").addEventListener("change", redrawAll);
-  ensureEl("heightmapSelectionColorScheme").addEventListener("change", redrawAll);
-  ensureEl("heightmapSelectionRedrawPreview").addEventListener("click", redrawAll);
-  ensureEl("heightmapSelectionEditTemplates").addEventListener("click", confirmHeightmapEdit);
-  ensureEl("heightmapSelectionImportHeightmap").addEventListener("click", confirmHeightmapEdit);
-}
-
-function getSelected(): string {
-  return (ensureEl("heightmapSelection").querySelector(".selected") as HTMLElement)?.dataset?.id ?? "";
-}
-
-function setSelected(id: string): void {
-  const $heightmapSelection = ensureEl("heightmapSelection");
-  ($heightmapSelection.querySelector(".selected") as HTMLElement)?.classList?.remove("selected");
-  ($heightmapSelection.querySelector(`[data-id="${id}"]`) as HTMLElement)?.classList?.add("selected");
-}
-
-function getSeed(): string {
-  return (ensureEl("heightmapSelection").querySelector(".selected") as HTMLElement)?.dataset?.seed ?? "";
-}
-
-function getName(id: string): string {
-  const isTemplate = id in heightmapTemplates;
-  return isTemplate ? heightmapTemplates[id].name : precreatedHeightmaps[id].name;
-}
-
-function getGraph(currentGraph: Grid | null): Grid {
-  const newGraph = shouldRegenerateGrid(currentGraph, +seed, worldContext.graphWidth, worldContext.graphHeight)
-    ? generateGrid(seed, worldContext.graphWidth, worldContext.graphHeight)
+export function computeGraph(currentGraph: Grid | null): Grid {
+  const needsRegen = shouldRegenerateGrid(
+    currentGraph,
+    +worldContext.seed,
+    worldContext.graphWidth,
+    worldContext.graphHeight
+  );
+  const newGraph = needsRegen
+    ? generateGrid(worldContext.seed, worldContext.graphWidth, worldContext.graphHeight)
     : structuredClone(currentGraph!);
   delete (newGraph.cells as { h?: unknown }).h;
+  cachedGraph = newGraph;
   return newGraph;
 }
 
-function drawTemplatePreview(id: string): void {
-  const heights = HeightmapGenerator.fromTemplate(graph!, id);
-  const dataUrl = getHeightmapPreview(heights);
-  const article = ensureEl("heightmapSelection").querySelector(`[data-id="${id}"]`) as HTMLElement;
-  (article.querySelector("img") as HTMLImageElement).src = dataUrl;
+export function getOrComputeGraph(): Grid {
+  if (!cachedGraph) cachedGraph = computeGraph(null);
+  return cachedGraph;
 }
 
-async function drawPrecreatedHeightmap(id: string): Promise<void> {
-  const heights = await HeightmapGenerator.fromPrecreated(graph!, id);
-  const dataUrl = getHeightmapPreview(heights);
-  const article = ensureEl("heightmapSelection").querySelector(`[data-id="${id}"]`) as HTMLElement;
-  (article.querySelector("img") as HTMLImageElement).src = dataUrl;
-}
-
-function regeneratePreview(article: HTMLElement, id: string): void {
-  graph = getGraph(graph);
-  const seed = generateSeed();
-  article.dataset.seed = seed;
+export function buildTemplatePreview(id: string, seed: string, scheme: string, renderOcean: boolean): string {
+  const graph = getOrComputeGraph();
   Math.random = Alea(seed);
-  drawTemplatePreview(id);
+  const heights = HeightmapGenerator.fromTemplate(graph, id);
+  return renderHeightmapToDataUrl(heights, graph, scheme, renderOcean);
 }
 
-function redrawAll(): void {
-  graph = getGraph(graph);
-  const articles = ensureEl("heightmapSelection").querySelectorAll("article");
-  for (const article of Array.from(articles) as HTMLElement[]) {
-    const { id, seed } = (article as HTMLElement).dataset;
-    if (!id || !seed) continue;
-    Math.random = Alea(seed);
-
-    const isTemplate = id in heightmapTemplates;
-    if (isTemplate) drawTemplatePreview(id);
-    else drawPrecreatedHeightmap(id);
-  }
+export async function buildPrecreatedPreview(id: string, scheme: string, renderOcean: boolean): Promise<string> {
+  const graph = getOrComputeGraph();
+  const heights = await HeightmapGenerator.fromPrecreated(graph, id);
+  return renderHeightmapToDataUrl(heights, graph, scheme, renderOcean);
 }
 
-function confirmHeightmapEdit(this: HTMLElement): void {
-  const tool = this.dataset.tool!;
-
-  confirmationDialog({
-    title: this.dataset.tip!,
-    message: "Opening the tool will erase the current map. Are you sure you want to proceed?",
-    confirm: "Continue",
-    onConfirm: () => editHeightmap({ mode: "erase", tool })
-  });
+export function getHeightmapName(id: string): string {
+  if (id in heightmapTemplates) return heightmapTemplates[id].name;
+  if (id in precreatedHeightmaps) return precreatedHeightmaps[id].name;
+  return id;
 }
 
-function getHeightmapPreview(heights: Uint8Array | null): string {
-  const scheme = getColorScheme((ensureEl("heightmapSelectionColorScheme") as HTMLSelectElement).value);
-  const renderOcean = (ensureEl("heightmapSelectionRenderOcean") as HTMLInputElement).checked;
-  const dataUrl = drawHeights({
+function renderHeightmapToDataUrl(
+  heights: Uint8Array | null,
+  graph: Grid,
+  scheme: string,
+  renderOcean: boolean
+): string {
+  const colorScheme = getColorScheme(scheme);
+  return drawHeights({
     heights: heights ?? new Uint8Array(),
-    width: graph!.cellsX,
-    height: graph!.cellsY,
-    scheme,
+    width: graph.cellsX,
+    height: graph.cellsY,
+    scheme: colorScheme,
     renderOcean
   });
-  return dataUrl;
-}
-
-export function initHeightmapSelection(wc: WorldContext) {
-  worldContext = wc;
 }
