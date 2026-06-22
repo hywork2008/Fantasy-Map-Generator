@@ -1,14 +1,14 @@
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import { ensureEl, getGappedFillPaths, getIsolines } from "../utils";
+import { getGappedFillPaths, getIsolines } from "../utils";
 import { TIME } from "../utils/debug";
 import type { IRenderer } from "./core/IRenderer";
 
 export const CulturesRenderer: IRenderer = {
   id: "cultures",
 
-  render(worldContext: Readonly<WorldContext>, _viewContext: Readonly<ViewContext>, _appServices: AppServices): void {
+  render(worldContext: Readonly<WorldContext>, viewContext: Readonly<ViewContext>, _appServices: AppServices): void {
     TIME && console.time("CulturesRenderer");
     const { pack } = worldContext;
     const { cells, cultures } = pack;
@@ -24,12 +24,12 @@ export const CulturesRenderer: IRenderer = {
       bodyPaths.push(getGappedFillPaths("culture", fill, waterGap, color, +index));
     });
 
-    ensureEl("cults").innerHTML = bodyPaths.join("");
+    viewContext.cults.html(bodyPaths.join(""));
 
     TIME && console.timeEnd("CulturesRenderer");
   },
 
-  clear(_viewContext: Readonly<ViewContext>): void {
-    ensureEl("cults").innerHTML = "";
+  clear(viewContext: Readonly<ViewContext>): void {
+    viewContext.cults.html("");
   }
 };

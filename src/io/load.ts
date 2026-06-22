@@ -290,7 +290,10 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
       if (settings[2]) areaUnit.value = settings[2];
       if (settings[3]) applyOption(heightUnit, settings[3]);
       if (settings[4]) heightExponentInput.value = settings[4];
-      if (settings[5]) temperatureScale.value = settings[5];
+      if (settings[5]) {
+        temperatureScale.value = settings[5];
+        useOptionsState.getState().setOption("temperatureScale", settings[5]);
+      }
       if (settings[12]) {
         populationRateInput.value = settings[12];
         worldContext.populationRate = +settings[12];

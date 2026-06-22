@@ -10,7 +10,7 @@ import { useOptionsState } from "../store/optionsState";
 import type { PackedGraph } from "../types/PackedGraph";
 import type { WorldState } from "../types/WorldState";
 import { openRichDialog } from "../ui/dialogs/dialogService";
-import { abbreviate, biased, ensureEl, getColors, getRandomColor, minmax, P, rand, rn, rw } from "../utils";
+import { abbreviate, biased, getColors, getRandomColor, minmax, P, rand, rn, rw } from "../utils";
 import { ERROR, TIME, WARN } from "../utils/debug";
 
 import { COA } from "./emblem/generator";
@@ -1114,7 +1114,7 @@ class CulturesModule {
     pack.cultures = cultures;
     const centers = quadtree<[number, number]>();
     const colors = getColors(count);
-    const emblemShape = (ensureEl("emblemShape") as HTMLInputElement).value;
+    const emblemShape = useOptionsState.getState().emblemShape;
 
     const codes: string[] = [];
 

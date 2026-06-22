@@ -1,5 +1,6 @@
 import type React from "react";
 import { unitsEditorActions } from "../../editors/units-editor";
+import { useOptionsState } from "../../store/optionsState";
 import { useUnitsEditorState } from "../../store/unitsEditorState";
 import { SliderInput } from "../components/SliderInput";
 import { Dialog } from "./Dialog";
@@ -93,7 +94,10 @@ export const UnitsEditorDialog: React.FC = () => {
                 id="temperatureScale"
                 data-stored="temperatureScale"
                 defaultValue="°C"
-                onChange={unitsEditorActions.changeTemperatureScale}
+                onChange={e => {
+                  useOptionsState.getState().setOption("temperatureScale", e.currentTarget.value);
+                  unitsEditorActions.changeTemperatureScale();
+                }}
               >
                 <option value="°C">degree Celsius (°C)</option>
                 <option value="°F">degree Fahrenheit (°F)</option>

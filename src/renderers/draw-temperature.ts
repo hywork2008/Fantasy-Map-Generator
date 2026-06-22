@@ -3,7 +3,8 @@ import { TemperatureRenderer } from "../config/constants";
 import type { AppServices } from "../context/appServices";
 import type { EnvironmentLayers, ViewState } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import { connectVertices, convertTemperature, ensureEl, round } from "../utils";
+import { useOptionsState } from "../store/optionsState";
+import { connectVertices, convertTemperature, round } from "../utils";
 import { TIME } from "../utils/debug";
 import type { IRenderer } from "./core/IRenderer";
 
@@ -34,8 +35,9 @@ export const drawTemperature = (
   const lineGen = line<[number, number]>().curve(curveBasisClosed);
   const scheme = scaleSequential(interpolateSpectral);
 
-  const tMax = +(ensureEl("temperatureEquatorOutput") as HTMLInputElement).max;
-  const tMin = +(ensureEl("temperatureEquatorOutput") as HTMLInputElement).min;
+  // Fixed bounds matching the temperatureEquatorOutput range input min/max attributes
+  const tMax = 50;
+  const tMin = -50;
   const delta = tMax - tMin;
 
   const { cells, vertices } = grid;
@@ -98,7 +100,7 @@ export const drawTemperature = (
     temperature.append("path").attr("d", path).attr("fill", fill).attr("stroke", stroke.toString());
   }
 
-  const scale = (ensureEl("temperatureScale") as HTMLSelectElement).value as Parameters<typeof convertTemperature>[1];
+  const scale = useOptionsState.getState().temperatureScale as Parameters<typeof convertTemperature>[1];
 
   const tempLabels = temperature.append("g").attr("id", "tempLabels").attr("fill-opacity", 1);
   tempLabels

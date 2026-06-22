@@ -42,6 +42,7 @@ export interface OptionsState {
   azgaarAssistant: "show" | "hide";
   speakerVoice: string;
   emblemShape: string;
+  temperatureScale: string;
 
   // Zoom settings
   zoomExtentMin: number;
@@ -94,6 +95,7 @@ export const useOptionsState = create<OptionsState>(set => ({
   azgaarAssistant: "show",
   speakerVoice: "",
   emblemShape: "culture",
+  temperatureScale: localStorage.getItem("temperatureScale") ?? "°C",
 
   zoomExtentMin: 1,
   zoomExtentMax: 20,

@@ -1,8 +1,8 @@
 import { geoEquirectangular, geoGraticule, geoPath } from "d3";
 import type { AppServices } from "../context/appServices";
-import type { OverlayLayers, ViewState } from "../context/viewContext";
+import type { OverlayLayers, RootLayers, ViewState } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import { ensureEl, rn, round } from "../utils";
+import { rn, round } from "../utils";
 import type { IRenderer } from "./core/IRenderer";
 
 export const CoordinatesRenderer: IRenderer = {
@@ -10,7 +10,7 @@ export const CoordinatesRenderer: IRenderer = {
 
   render(
     worldContext: Readonly<WorldContext>,
-    viewContext: Readonly<OverlayLayers & ViewState>,
+    viewContext: Readonly<RootLayers & OverlayLayers & ViewState>,
     _appServices: AppServices
   ): void {
     const { mapCoordinates, graphWidth, graphHeight } = worldContext;
@@ -40,7 +40,7 @@ export const CoordinatesRenderer: IRenderer = {
     const labelsGroup = coordinates.append("g").attr("id", "coordinateLabels");
 
     const point = new DOMPoint(scale + desired + 2, scale + desired / 2);
-    const p = point.matrixTransform(ensureEl<SVGGElement>("viewbox").getScreenCTM()!.inverse());
+    const p = point.matrixTransform(viewContext.viewbox.node()!.getScreenCTM()!.inverse());
 
     const data = graticule.lines().map(d => {
       const isLatitude = d.coordinates[0][1] === d.coordinates[1][1];
@@ -76,7 +76,7 @@ export const CoordinatesRenderer: IRenderer = {
       .text(d => d.text);
   },
 
-  clear(viewContext: Readonly<OverlayLayers & ViewState>): void {
+  clear(viewContext: Readonly<RootLayers & OverlayLayers & ViewState>): void {
     viewContext.coordinates.selectAll("*").remove();
   }
 };

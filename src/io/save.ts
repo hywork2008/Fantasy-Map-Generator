@@ -5,7 +5,7 @@ import { Names } from "../modules/names-generator";
 import { rulers } from "../store/editorState";
 import { useOptionsState } from "../store/optionsState";
 import { closeDialogs, openRichDialog } from "../ui/dialogs/dialogService";
-import { ensureEl, link, parseError, ra, rn } from "../utils";
+import { link, parseError, ra, rn } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
 import { ERROR } from "../utils/debug";
 import { tip } from "../utils/uiHelpers";
@@ -235,7 +235,7 @@ export async function initiateAutosave(): Promise<void> {
   let lastSavedAt = Date.now();
 
   async function autosave() {
-    const timeoutMinutes = (ensureEl("autosaveIntervalOutput") as HTMLInputElement).valueAsNumber;
+    const timeoutMinutes = useOptionsState.getState().autosaveInterval;
     if (!timeoutMinutes) return;
 
     const diffInMinutes = (Date.now() - lastSavedAt) / MINUTE;

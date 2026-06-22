@@ -1,5 +1,6 @@
 import { worldContext } from "../../context/worldContext";
-import { ensureEl, P, rw } from "../../utils";
+import { useOptionsState } from "../../store/optionsState";
+import { P, rw } from "../../utils";
 import { ERROR } from "../../utils/debug";
 import { charges } from "./charges";
 import { divisions } from "./divisions";
@@ -425,11 +426,12 @@ class EmblemGeneratorModule {
   }
 
   getShield(culture: number, state?: number): string {
-    const emblemShape = ensureEl<HTMLSelectElement>("emblemShape");
-    const shapeGroup = emblemShape.selectedOptions[0]?.parentElement?.getAttribute("label") || "Diversiform";
-    if (shapeGroup !== "Diversiform") return emblemShape.value;
+    const emblemShapeValue = useOptionsState.getState().emblemShape;
+    // "Diversiform" optgroup values delegate to context; all other optgroups are fixed shape names
+    const DIVERSIFORM_VALUES = ["culture", "random", "state"];
+    if (!DIVERSIFORM_VALUES.includes(emblemShapeValue)) return emblemShapeValue;
 
-    if (emblemShape.value === "state" && state && worldContext.pack.states[state].coa)
+    if (emblemShapeValue === "state" && state && worldContext.pack.states[state].coa)
       return worldContext.pack.states[state].coa!.shield!;
     if (worldContext.pack.cultures[culture].shield) return worldContext.pack.cultures[culture].shield!;
     ERROR && console.error("Shield shape is not defined on culture level", worldContext.pack.cultures[culture]);

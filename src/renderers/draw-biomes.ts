@@ -1,14 +1,14 @@
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import { ensureEl, getGappedFillPaths, getIsolines } from "../utils";
+import { getGappedFillPaths, getIsolines } from "../utils";
 import { TIME } from "../utils/debug";
 import type { IRenderer } from "./core/IRenderer";
 
 export const BiomesRenderer: IRenderer = {
   id: "biomes",
 
-  render(worldContext: Readonly<WorldContext>, _viewContext: Readonly<ViewContext>, _appServices: AppServices): void {
+  render(worldContext: Readonly<WorldContext>, viewContext: Readonly<ViewContext>, _appServices: AppServices): void {
     TIME && console.time("drawBiomes");
 
     const { pack, biomesData } = worldContext;
@@ -24,12 +24,12 @@ export const BiomesRenderer: IRenderer = {
       bodyPaths.push(getGappedFillPaths("biome", fill, waterGap, color, +index));
     });
 
-    ensureEl("biomes").innerHTML = bodyPaths.join("");
+    viewContext.biomes.html(bodyPaths.join(""));
 
     TIME && console.timeEnd("drawBiomes");
   },
 
-  clear(_viewContext: Readonly<ViewContext>): void {
-    ensureEl("biomes").innerHTML = "";
+  clear(viewContext: Readonly<ViewContext>): void {
+    viewContext.biomes.html("");
   }
 };

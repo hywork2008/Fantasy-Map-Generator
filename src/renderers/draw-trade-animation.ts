@@ -2,7 +2,7 @@ import { curveCatmullRom, easeLinear, line } from "d3";
 import { viewContext } from "../context/viewContext";
 import { TradeAnimation, type TradeBatch } from "../modules/trade-animation";
 import type { Point } from "../modules/voronoi";
-import { ensureEl, minmax } from "../utils";
+import { minmax } from "../utils";
 
 const lineGen = line<Point>().curve(curveCatmullRom.alpha(0.1));
 
@@ -15,7 +15,7 @@ let symbolsReady: Promise<void> | null = null;
 
 function ensureSymbols(): Promise<void> {
   if (symbolsReady) return symbolsReady;
-  const defs = ensureEl("trade-markers");
+  const defs = viewContext.svg.select<Element>("#trade-markers").node()!;
   symbolsReady = (async () => {
     await Promise.all(
       Object.values(MARKER_SYMBOLS).map(async ({ id, src }) => {

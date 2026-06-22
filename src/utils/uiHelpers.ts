@@ -8,7 +8,7 @@ import { openRichDialog } from "../ui/dialogs/dialogService";
 import { alertMessage } from "../utils/alertMessageEl";
 import { debounce, getLatitude, getLongitude, link } from "./commonUtils";
 import { findCell, findGridCell } from "./graphUtils";
-import { ensureEl, getComposedPath, layerIsOn } from "./nodeUtils";
+import { getComposedPath, layerIsOn } from "./nodeUtils";
 import { rn } from "./numberUtils";
 import { convertTemperature, si } from "./unitUtils";
 
@@ -310,8 +310,8 @@ function showMapTooltip(point: [number, number], e: MouseEvent, i: number, g: nu
     if (document.getElementById("militaryOverview")?.offsetParent) highlightEditorLine(window.militaryOverview!, state);
     if (document.getElementById("provincesEditor")?.offsetParent)
       highlightEditorLine(window.provincesEditor!, province);
-    if (document.getElementById("mergeStatesForm")?.offsetParent)
-      highlightEditorLine(ensureEl("mergeStatesForm") as HTMLElement, state);
+    const mergeStatesForm = document.getElementById("mergeStatesForm");
+    if (mergeStatesForm?.offsetParent) highlightEditorLine(mergeStatesForm, state);
   } else if (layerIsOn("toggleCultures") && worldContext.pack.cells.culture[i]) {
     const culture = worldContext.pack.cells.culture[i];
     tip(`Culture: ${worldContext.pack.cultures[culture].name}`);
