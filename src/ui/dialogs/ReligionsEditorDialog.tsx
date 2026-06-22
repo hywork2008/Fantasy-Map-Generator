@@ -6,6 +6,7 @@ import { rn, si } from "../../utils";
 import { getAreaUnit } from "../../utils/uiHelpers";
 import { FillBox } from "../components/FillBox";
 import { Dialog } from "./Dialog";
+import { closeDialog } from "./dialogService";
 
 export const ReligionsEditorDialog: React.FC = () => {
   const {
@@ -67,7 +68,7 @@ export const ReligionsEditorDialog: React.FC = () => {
   const isBrushMode = customization === 7;
 
   return (
-    <Dialog isOpen={isOpen} title="Religions Editor" onClose={religionsEditorActions.exitReligionsManualAssignment}>
+    <Dialog isOpen={isOpen} title="Religions Editor" onClose={() => closeDialog("religionsEditor")}>
       <div id="religionsEditor">
         <div
           id="religionsHeader"

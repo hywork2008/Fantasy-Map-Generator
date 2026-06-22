@@ -8,6 +8,7 @@ import { toggleCells, toggleGoods } from "../controllers/layers";
 import { Goods } from "../modules/goods-generator";
 import { Markets } from "../modules/markets-generator";
 import { isDealRecord, isMfgRecord, Production } from "../modules/production-generator";
+import { getCellProduction } from "../modules/production-utils";
 import { drawGoods } from "../renderers/draw-goods";
 import { ensureEl, rn, unique } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
@@ -341,7 +342,7 @@ function getProduction() {
   // rural production
   const productionByBiome = Goods.getBiomesProduction();
   for (const cellId of worldContext.pack.cells.i) {
-    const produced = Production.getCellProduction(cellId, productionByBiome);
+    const produced = getCellProduction(cellId, productionByBiome);
     for (const goodId in produced) {
       addProduction(Number(goodId), produced[goodId] || 0, "cell");
     }

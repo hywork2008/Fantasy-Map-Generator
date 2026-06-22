@@ -6,6 +6,7 @@ import { rn, si } from "../../utils";
 import { getAreaUnit } from "../../utils/uiHelpers";
 import { FillBox } from "../components/FillBox";
 import { Dialog } from "./Dialog";
+import { closeDialog } from "./dialogService";
 
 export const ProvincesEditorDialog: React.FC = () => {
   const {
@@ -63,7 +64,7 @@ export const ProvincesEditorDialog: React.FC = () => {
   const unit = getAreaUnit();
 
   return (
-    <Dialog isOpen={isOpen} title="Provinces Editor" onClose={provincesEditorActions.exitProvincesManualAssignment}>
+    <Dialog isOpen={isOpen} title="Provinces Editor" onClose={() => closeDialog("provincesEditor")}>
       <div id="provincesEditorContainer">
         <div>
           <div

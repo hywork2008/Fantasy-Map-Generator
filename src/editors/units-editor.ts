@@ -26,6 +26,7 @@ export function editUnits(): void {
 
   openDialog("unitsEditor", {
     title: "Units Editor",
+    close: () => setUnitsEditorState({ isOpen: false }),
     position: { my: "right top", at: "right-10 top+10", of: "svg", collision: "fit" }
   });
 
