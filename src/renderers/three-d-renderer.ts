@@ -3,8 +3,8 @@ import { MapControls } from "three/examples/jsm/controls/MapControls.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { OBJExporter } from "three/examples/jsm/exporters/OBJExporter.js";
 import { LoopSubdivision } from "three-subdivide";
-import { layerIsOn } from "../controllers/layers";
 import * as ErosionBake from "../modules/erosion-bake";
+import { layerIsOn } from "../utils/nodeUtils";
 import {
   disposeRiverFlowTexture,
   disposeSatelliteTexture,

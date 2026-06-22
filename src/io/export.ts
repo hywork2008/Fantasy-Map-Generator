@@ -5,7 +5,6 @@ import { appServices } from "../context/appServices";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { downloadFile, getFileName } from "../controllers/editors";
-import { layerIsOn } from "../controllers/layers";
 import { fonts, loadFontsAsDataURI } from "../modules/fonts";
 import { Rivers } from "../modules/river-generator";
 import { drawScaleBar, fitScaleBar } from "../renderers/index";
@@ -13,6 +12,7 @@ import { connectVertices, ensureEl, getBase64, getCoordinates, rn, unique } from
 import { getColor, getColorScheme } from "../utils/colorUtils";
 import { ERROR, TIME } from "../utils/debug";
 import { getGridPolygon } from "../utils/graphUtils";
+import { layerIsOn } from "../utils/nodeUtils";
 import { getCellPopulation, getFriendlyHeight, tip } from "../utils/uiHelpers";
 
 type AnySelection = Selection<SVGSVGElement, unknown, null, undefined>;

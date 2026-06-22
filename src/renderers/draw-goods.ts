@@ -4,6 +4,7 @@ import { worldContext } from "../context/worldContext";
 import type { Good } from "../modules/goods-generator";
 import { Goods } from "../modules/goods-generator";
 import { Production } from "../modules/production-generator";
+import { getCellProduction } from "../modules/production-utils";
 import { normalize, rn } from "../utils";
 import { TIME } from "../utils/debug";
 import { getPackPolygon } from "../utils/graphUtils";
@@ -75,11 +76,11 @@ function drawGoodsCellsCanvas(
   let maxTotal = 0;
   for (const cellId of worldContext.pack.cells.i) {
     let total = 0;
-    const produced = Production.getCellProduction(cellId, biomeProduction);
+    const produced = getCellProduction(cellId, biomeProduction);
     const filteredProduced = Object.entries(produced).reduce((map, [goodId, amount]) => {
       if (displayedGoods.has(+goodId)) {
-        map.set(+goodId, amount);
-        total += amount;
+        map.set(+goodId, amount as number);
+        total += amount as number;
       }
       return map;
     }, new Map<number, number>());

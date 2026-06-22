@@ -3,7 +3,7 @@ import { appServices } from "../context/appServices";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { clearLegend, restoreDefaultEvents } from "../controllers/editors";
-import { getCurrentPreset, layerIsOn } from "../controllers/layers";
+import { getCurrentPreset } from "../controllers/layers";
 import { addCustomColorScheme, updateTextureSelectValue } from "../controllers/style";
 import { editUnits } from "../editors/units-editor";
 import { Biomes } from "../modules/biomes";
@@ -21,6 +21,7 @@ import { calculateVoronoi, ensureEl, findCell, last, link, minmax, parseError, r
 import { alertMessage } from "../utils/alertMessageEl";
 import { heightmapColorSchemes } from "../utils/colorUtils";
 import { ERROR, INFO, WARN } from "../utils/debug";
+import { layerIsOn } from "../utils/nodeUtils";
 import { applyOption, clearMainTip, tip } from "../utils/uiHelpers";
 import { cleanupData, compareVersions, isValidVersion, parseMapVersion, VERSION } from "../versioning";
 import { resolveVersionConflicts } from "./auto-update";

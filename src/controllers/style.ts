@@ -24,10 +24,11 @@ import { closeDialog, openDialog, openRichDialog } from "../ui/dialogs/dialogSer
 import { drawHeights, ensureEl, parseTransform, rn, toHEX } from "../utils";
 import { heightmapColorSchemes } from "../utils/colorUtils";
 import { ERROR, INFO } from "../utils/debug";
+import { layerIsOn } from "../utils/nodeUtils";
 import { applyOption, lock, tip } from "../utils/uiHelpers";
 import { VERSION } from "../versioning";
 import { confirmationDialog, downloadFile, redrawLegend, uploadFile } from "./editors";
-import { layerIsOn, toggleRelief } from "./layers";
+import { toggleRelief } from "./layers";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -741,7 +742,10 @@ export function initStyleTab() {
       option.style.fontFamily = family;
       select.append(option);
     }
-    if (shouldSelect) select.value = family;
+    if (shouldSelect) {
+      select.value = family;
+      changeFont();
+    }
   });
 
   // ─── Initialization: filter dropdowns ────────────────────────────────────────

@@ -8,7 +8,7 @@ import { TIME } from "../utils/debug";
 import type { Burg } from "./burgs-generator";
 import type { DemandCategory, Good } from "./goods-generator";
 import { DEMAND_PRIORITY, DEMAND_TARGET_FACTORS, Goods } from "./goods-generator";
-import { Production } from "./production-generator";
+import { getCellProduction } from "./production-utils";
 import { States } from "./states-generator";
 
 const PRICE_FLOOR_FACTOR = 0.25;
@@ -185,7 +185,7 @@ export class MarketsModule {
       const market = this.marketById[worldContext.pack.cells.market[cellId]];
       if (!market) continue;
 
-      const produced = Production.getCellProduction(cellId, biomeProduction);
+      const produced = getCellProduction(cellId, biomeProduction);
       for (const [goodId, amount] of Object.entries(produced)) {
         const good = Goods.get(+goodId);
         if (!good) continue;

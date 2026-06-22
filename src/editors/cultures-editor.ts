@@ -15,14 +15,7 @@ import {
 } from "../controllers/editors";
 import { type HierarchyElement, open as openHierarchyTree } from "../controllers/hierarchy-tree";
 import { interactionManager } from "../controllers/interactionManager";
-import {
-  layerIsOn,
-  toggleBiomes,
-  toggleCultures,
-  toggleProvinces,
-  toggleReligions,
-  toggleStates
-} from "../controllers/layers";
+import { toggleBiomes, toggleCultures, toggleProvinces, toggleReligions, toggleStates } from "../controllers/layers";
 import { editStyle } from "../controllers/style";
 import { BrushHistoryClass as BrushHistory } from "../editors/BrushHistory";
 import type { Burg } from "../modules/burgs-generator";
@@ -40,6 +33,7 @@ import { getCulturesEditorState, setCulturesEditorState } from "../store/culture
 import { closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { abbreviate, debounce, findAll, findCell, parseTransform, rn, si } from "../utils";
 import { getPackPolygon } from "../utils/graphUtils";
+import { layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, getArea, getAreaUnit, removeCircle, showMainTip, tip } from "../utils/uiHelpers";
 import { NamesbaseEditor } from "./namesbase-editor";
 

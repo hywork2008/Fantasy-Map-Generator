@@ -13,14 +13,7 @@ import {
   restoreDefaultEvents
 } from "../controllers/editors";
 import { type HierarchyElement, open as openHierarchyTree } from "../controllers/hierarchy-tree";
-import {
-  layerIsOn,
-  toggleBiomes,
-  toggleCultures,
-  toggleProvinces,
-  toggleReligions,
-  toggleStates
-} from "../controllers/layers";
+import { toggleBiomes, toggleCultures, toggleProvinces, toggleReligions, toggleStates } from "../controllers/layers";
 import { editStyle } from "../controllers/style";
 import type { Religion } from "../modules/religions-generator";
 import { Religions } from "../modules/religions-generator";
@@ -30,6 +23,7 @@ import { getReligionsEditorState, setReligionsEditorState } from "../store/relig
 import { closeDialog, closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { abbreviate, debounce, findAll, findCell, rn, si } from "../utils";
 import { getPackPolygon } from "../utils/graphUtils";
+import { layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, getArea, getAreaUnit, removeCircle, tip } from "../utils/uiHelpers";
 
 type HighlightEvent = { id?: string | number | null; target?: EventTarget | null };

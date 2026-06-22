@@ -3,7 +3,7 @@ import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { unselect } from "../controllers/editors";
 import { interactionManager } from "../controllers/interactionManager";
-import { layerIsOn, toggleLabels } from "../controllers/layers";
+import { toggleLabels } from "../controllers/layers";
 import { editStyle } from "../controllers/style";
 import { Names } from "../modules/names-generator";
 import { elSelected, setElSelected } from "../store/editorState";
@@ -11,6 +11,7 @@ import { getLabelsEditorState, type LabelEditorSection, setLabelsEditorState } f
 import { closeDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, findCell, parseTransform, round } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
+import { layerIsOn } from "../utils/nodeUtils";
 import { showMainTip, tip } from "../utils/uiHelpers";
 import { editNotes } from "./notes-editor";
 

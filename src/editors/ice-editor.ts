@@ -4,7 +4,7 @@ import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { unselect } from "../controllers/editors";
 import { interactionManager } from "../controllers/interactionManager";
-import { layerIsOn, toggleIce } from "../controllers/layers";
+import { toggleIce } from "../controllers/layers";
 import { editStyle } from "../controllers/style";
 import type { IceIceberg } from "../modules/ice";
 import { Ice } from "../modules/ice";
@@ -14,6 +14,7 @@ import { getIceEditorState, setIceEditorState } from "../store/iceEditorState";
 import { closeDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { findGridCell, parseTransform } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
+import { layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, tip } from "../utils/uiHelpers";
 
 let worldContext: WorldContext;

@@ -13,7 +13,7 @@ import {
   restoreDefaultEvents,
   unfog
 } from "../controllers/editors";
-import { layerIsOn, toggleZones } from "../controllers/layers";
+import { toggleZones } from "../controllers/layers";
 import { editStyle } from "../controllers/style";
 import type { Zone } from "../modules/zones-generator";
 import { PopulationRenderer, ZonesRenderer } from "../renderers";
@@ -22,6 +22,7 @@ import { closeDialogs, openRichDialog } from "../ui/dialogs/dialogService";
 import { findAll, findCell, rn, unique } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
 import { getPackPolygon } from "../utils/graphUtils";
+import { layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, getArea, removeCircle, showMainTip, tip } from "../utils/uiHelpers";
 
 let worldContext: WorldContext;

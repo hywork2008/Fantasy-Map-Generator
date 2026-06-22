@@ -1,6 +1,5 @@
 import { appServices } from "../context/appServices";
 import { viewContext } from "../context/viewContext";
-import { layerIsOn } from "../controllers/layers";
 import { shieldBox } from "../modules/emblem/box";
 import { colors } from "../modules/emblem/colors";
 import { lines } from "../modules/emblem/lines";
@@ -10,6 +9,7 @@ import { shieldPositions } from "../modules/emblem/shieldPositions";
 import { shieldSize } from "../modules/emblem/size";
 import { templates } from "../modules/emblem/templates";
 import { ERROR } from "../utils/debug";
+import { layerIsOn } from "../utils/nodeUtils";
 
 interface Division {
   division: string;

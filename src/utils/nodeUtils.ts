@@ -1,3 +1,5 @@
+import { useLayerState } from "../store/layerState";
+
 /**
  * @param id - The ID of the element to retrieve
  * @typeParam T - The type of the element to retrieve, extending HTMLElement
@@ -11,6 +13,10 @@ export const ensureEl = <T extends Element = HTMLElement>(id: string): T => {
     // TOBE: throw new Error(`Element with id "${id}" not found.`);
   }
   return el as Element as T;
+};
+
+export const layerIsOn = (layer: string): boolean => {
+  return useLayerState.getState().activeLayers[layer] === true;
 };
 
 /**

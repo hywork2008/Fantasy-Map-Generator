@@ -7,7 +7,7 @@ import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import { unselect } from "../controllers/editors";
 import { interactionManager } from "../controllers/interactionManager";
-import { layerIsOn, toggleCells } from "../controllers/layers";
+import { toggleCells } from "../controllers/layers";
 import { editStyle } from "../controllers/style";
 import type { PackedGraphFeature } from "../modules/features";
 import { Lakes } from "../modules/lakes";
@@ -27,6 +27,7 @@ import { closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogSe
 import { rand, rn, unique } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
 import { getPackPolygon } from "../utils/graphUtils";
+import { layerIsOn } from "../utils/nodeUtils";
 import { getArea, tip } from "../utils/uiHelpers";
 import { editNotes } from "./notes-editor";
 

@@ -3,7 +3,7 @@ import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { getMapURL } from "../io/export";
-import { undraw } from "../main";
+
 import { modules } from "../store/editorState";
 import { useOptionsState } from "../store/optionsState";
 import { closeDialogs, openDialog } from "../ui/dialogs/dialogService";
@@ -46,7 +46,7 @@ export async function openTransformTool(): Promise<void> {
   if (modules.openTransformTool) return;
   modules.openTransformTool = true;
 
-  ensureEl("transformToolBody").addEventListener("input", handleInput);
+  ensureEl("transformToolBody").addEventListener("input", async () => handleInput());
   const previewEl = ensureEl("transformPreview");
   previewEl.addEventListener("mousedown", handleMousedown);
   previewEl.addEventListener("mouseup", () => {
@@ -143,7 +143,7 @@ export async function openTransformTool(): Promise<void> {
     handleInput();
   }
 
-  function transformMap(): void {
+  async function transformMap(): Promise<void> {
     INFO && console.group("transformMap");
 
     const transformPointsValue = (ensureEl("transformPointsInput") as HTMLInputElement).value;
@@ -155,6 +155,7 @@ export async function openTransformTool(): Promise<void> {
     applyGraphSize();
     fitMapToScreen();
     resetZoom(0);
+    const { undraw } = await import("../main");
     undraw();
     Resample.init(worldContext, viewContext, appServices);
     Resample.process({ projection, inverse, scale: 1 });

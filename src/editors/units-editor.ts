@@ -3,7 +3,7 @@ import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { restoreDefaultEvents } from "../controllers/editors";
-import { layerIsOn, toggleRulers } from "../controllers/layers";
+import { toggleRulers } from "../controllers/layers";
 import { calculateFriendlyGridSize } from "../controllers/style";
 import { Routes } from "../modules/routes-generator";
 import { drawTemperature } from "../renderers";
@@ -13,6 +13,7 @@ import { getUnitsEditorState, setUnitsEditorState } from "../store/unitsEditorSt
 import { closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { findCell, showPrompt } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
+import { layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, lock, tip, unlock } from "../utils/uiHelpers";
 
 let worldContext: WorldContext;

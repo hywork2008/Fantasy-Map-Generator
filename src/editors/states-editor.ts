@@ -16,7 +16,6 @@ import {
 } from "../controllers/editors";
 import { interactionManager } from "../controllers/interactionManager";
 import {
-  layerIsOn,
   toggleBiomes,
   toggleBorders,
   toggleCultures,
@@ -68,6 +67,7 @@ import {
 } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
 import { getPackPolygon } from "../utils/graphUtils";
+import { layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, fitContent, getArea, getAreaUnit, removeCircle, showMainTip, tip } from "../utils/uiHelpers";
 import { BrushHistoryClass as BrushHistory } from "./BrushHistory";
 

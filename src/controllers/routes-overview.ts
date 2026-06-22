@@ -2,8 +2,9 @@ import { viewContext } from "../context/viewContext";
 import { modules } from "../store/editorState";
 import { useRoutesOverviewState } from "../store/routesOverviewState";
 import { closeDialogs, openDialog } from "../ui/dialogs/dialogService";
+import { layerIsOn } from "../utils/nodeUtils";
 import { fitContent } from "../utils/uiHelpers";
-import { layerIsOn, toggleRoutes } from "./layers";
+import { toggleRoutes } from "./layers";
 
 export function overviewRoutes(): void {
   if (viewContext.customization) return;

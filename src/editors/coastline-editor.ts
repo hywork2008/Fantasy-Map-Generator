@@ -5,7 +5,7 @@ import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { unselect } from "../controllers/editors";
 import { interactionManager } from "../controllers/interactionManager";
-import { layerIsOn, toggleCells } from "../controllers/layers";
+import { toggleCells } from "../controllers/layers";
 import { editStyle } from "../controllers/style";
 import {
   BiomesRenderer,
@@ -30,6 +30,7 @@ import { closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogSe
 import { ensureEl, rn, si, unique } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
 import { getPackPolygon } from "../utils/graphUtils";
+import { layerIsOn } from "../utils/nodeUtils";
 import { getArea, getAreaUnit, tip } from "../utils/uiHelpers";
 
 let worldContext: WorldContext;

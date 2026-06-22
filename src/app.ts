@@ -6,7 +6,6 @@ import { restoreDefaultEvents, unselect } from "./controllers/editors";
 import { initControllers } from "./controllers/index";
 import {
   handleLayersPresetChange,
-  layerIsOn,
   removePreset,
   savePreset,
   toggleBurgIcons,
@@ -21,6 +20,7 @@ import { generate, initMain, regenerateMap } from "./main";
 import { initModules } from "./modules/index";
 import { initRenderers } from "./renderers/index";
 import { initUtils } from "./utils/index";
+import { layerIsOn } from "./utils/nodeUtils";
 
 async function initApp(): Promise<void> {
   console.log("initApp starting...");

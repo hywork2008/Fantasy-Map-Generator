@@ -8,10 +8,11 @@ import { drawRegiment } from "../renderers/index";
 import { useRegimentsOverviewState } from "../store/regimentsOverviewState";
 import { closeDialogs, openDialog } from "../ui/dialogs/dialogService";
 import { capitalize, findCell, getLatitude, getLongitude, last } from "../utils";
+import { layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, tip } from "../utils/uiHelpers";
 import { downloadFile, getFileName } from "./editors";
 import { interactionManager } from "./interactionManager";
-import { layerIsOn, toggleMilitary } from "./layers";
+import { toggleMilitary } from "./layers";
 
 export function overviewRegiments(stateId = -1): void {
   if (viewContext.customization) return;

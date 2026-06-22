@@ -5,7 +5,7 @@ import type { WorldContext } from "../context/worldContext";
 import type { BattleRegiment } from "../controllers/battle-screen";
 import { restoreDefaultEvents, selectIcon } from "../controllers/editors";
 import { interactionManager } from "../controllers/interactionManager";
-import { layerIsOn, toggleMilitary } from "../controllers/layers";
+import { toggleMilitary } from "../controllers/layers";
 import type { MilitaryRegiment } from "../modules/military-generator";
 import { Military } from "../modules/military-generator";
 import { drawRegiment, moveRegiment } from "../renderers/index";
@@ -15,6 +15,7 @@ import type { WorldNote } from "../types/WorldState";
 import { closeDialog, closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { findCell, last, rn } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
+import { layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, tip } from "../utils/uiHelpers";
 import { editNotes } from "./notes-editor";
 

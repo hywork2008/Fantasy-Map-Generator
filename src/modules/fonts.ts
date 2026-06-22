@@ -1,4 +1,3 @@
-import { changeFont } from "../controllers/style";
 import { ERROR } from "../utils/debug";
 import { tip } from "../utils/uiHelpers";
 
@@ -359,7 +358,6 @@ export const addGoogleFont = async (family: string) => {
       fonts.push(...fontRanges);
       tip(`Google font ${family} is added to the list`, true, "success", 4000);
       notifyFontAdded(family, true);
-      changeFont();
     })
     .catch(err => {
       tip(`Failed to load Google font ${family}`, true, "error", 4000);
@@ -377,7 +375,6 @@ export const addLocalFont = (family: string) => {
   document.fonts.add(fontFace);
   tip(`Local font ${family} is added to the fonts list`, true, "success", 4000);
   notifyFontAdded(family, true);
-  changeFont();
 };
 
 export const addWebFont = (family: string, url: string) => {
@@ -389,7 +386,6 @@ export const addWebFont = (family: string, url: string) => {
   document.fonts.add(fontFace);
   tip(`Font ${family} is added to the list`, true, "success", 4000);
   notifyFontAdded(family, true);
-  changeFont();
 };
 
 export { fonts };

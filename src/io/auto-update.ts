@@ -4,7 +4,7 @@ import { appServices } from "../context/appServices";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { unfog } from "../controllers/editors";
-import { layerIsOn, toggleEmblems, turnButtonOff, turnButtonOn } from "../controllers/layers";
+import { toggleEmblems, turnButtonOff, turnButtonOn } from "../controllers/layers";
 import { createDefaultRuler } from "../controllers/measurers";
 import { cellsDensityMap } from "../controllers/options";
 import { regenerateEmblems } from "../controllers/tools";
@@ -50,6 +50,7 @@ import { rulers, setRulers } from "../store/editorState";
 import { useOptionsState } from "../store/optionsState";
 import { ensureEl, findCell, P, rand, rn, unique } from "../utils";
 import { ERROR } from "../utils/debug";
+import { layerIsOn } from "../utils/nodeUtils";
 import { compareVersions } from "../versioning";
 
 // update old map file to the current version

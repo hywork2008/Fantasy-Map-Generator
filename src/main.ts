@@ -16,7 +16,7 @@ import { appServices } from "./context/appServices";
 import { viewContext } from "./context/viewContext";
 import { worldContext } from "./context/worldContext";
 import { restoreDefaultEvents } from "./controllers/editors";
-import { applyLayersPreset, drawLayers, initLayerClickHandlers, layerIsOn } from "./controllers/layers";
+import { applyLayersPreset, drawLayers, initLayerClickHandlers } from "./controllers/layers";
 import { createDefaultRuler } from "./controllers/measurers";
 import { updateMinimap } from "./controllers/minimap";
 import { applyGraphSize, applyStoredOptions, fitMapToScreen, randomizeOptions } from "./controllers/options";
@@ -74,6 +74,7 @@ import {
 } from "./utils";
 import { alertMessage } from "./utils/alertMessageEl";
 import type { Grid } from "./utils/graphUtils";
+import { layerIsOn } from "./utils/nodeUtils";
 import { clearMainTip, locked, showDataTip, tip } from "./utils/uiHelpers";
 import { cleanupData } from "./versioning";
 

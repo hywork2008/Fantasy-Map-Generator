@@ -18,7 +18,7 @@ import {
 } from "../renderers";
 import { ThreeDRenderer } from "../renderers/three-d-renderer";
 import { openDialog } from "../ui/dialogs/dialogService";
-import { layerIsOn } from "./layers";
+import { layerIsOn } from "../utils/nodeUtils";
 
 export function editWorld(): void {
   if (viewContext.customization) return;

@@ -47,6 +47,7 @@ import { clear as clearTradeAnim, draw as drawTradeAnim } from "../renderers/dra
 import { ThreeDRenderer } from "../renderers/three-d-renderer";
 import { DEFAULT_LAYERS, useLayerState } from "../store/layerState";
 import { openDialog } from "../ui/dialogs/dialogService";
+import { layerIsOn } from "../utils/nodeUtils";
 import { tip } from "../utils/uiHelpers";
 
 const editStyle = (element: string, group?: string) =>
@@ -335,10 +336,6 @@ function drawLabels(): void {
 }
 
 // ─── Button helpers ───────────────────────────────────────────────────────────
-
-export function layerIsOn(el: string): boolean {
-  return useLayerState.getState().activeLayers[el] === true;
-}
 
 export function turnButtonOff(el: string): void {
   useLayerState.getState().toggleLayer(el, false);

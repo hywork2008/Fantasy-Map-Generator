@@ -12,7 +12,6 @@ import {
   restoreDefaultEvents
 } from "../controllers/editors";
 import {
-  layerIsOn,
   toggleBiomes,
   toggleCultures,
   toggleProvinces,
@@ -29,6 +28,7 @@ import { modules } from "../store/editorState";
 import { closeDialogs, openDialog } from "../ui/dialogs/dialogService";
 import { findAll, findCell, getRandomColor, isLand, openURL, rn, si } from "../utils";
 import { getPackPolygon } from "../utils/graphUtils";
+import { layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, fitContent, getArea, getAreaUnit, removeCircle, showMainTip, tip } from "../utils/uiHelpers";
 
 let worldContext: WorldContext;

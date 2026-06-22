@@ -6,8 +6,9 @@ import { MarkersRenderer } from "../renderers";
 import { useMarkersOverviewState } from "../store/markersOverviewState";
 import { closeDialogs, openDialog } from "../ui/dialogs/dialogService";
 import { getLatitude, getLongitude } from "../utils";
+import { layerIsOn } from "../utils/nodeUtils";
 import { downloadFile, getFileName, highlightElement } from "./editors";
-import { layerIsOn, toggleMarkers } from "./layers";
+import { toggleMarkers } from "./layers";
 
 export function overviewMarkers(): void {
   if (viewContext.customization) return;

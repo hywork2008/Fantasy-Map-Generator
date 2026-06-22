@@ -4,13 +4,14 @@ import { pointer } from "d3";
 import { zoomTo } from "../actions";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
-import { layerIsOn, toggleCells, toggleGoods } from "../controllers/layers";
+import { toggleCells, toggleGoods } from "../controllers/layers";
 import { Goods } from "../modules/goods-generator";
 import { Markets } from "../modules/markets-generator";
 import { isDealRecord, isMfgRecord, Production } from "../modules/production-generator";
 import { drawGoods } from "../renderers/draw-goods";
 import { ensureEl, rn, unique } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
+import { layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, tip } from "../utils/uiHelpers";
 
 const viewbox = viewContext.viewbox;

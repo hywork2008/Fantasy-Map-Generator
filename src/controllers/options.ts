@@ -7,7 +7,7 @@ import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import { exportToPngTiles } from "../io/export";
-import { loadMapFromURL, uploadMap } from "../io/load";
+
 import type { Burg } from "../modules/burgs-generator";
 import type { Culture } from "../modules/cultures-generator";
 import { Cultures } from "../modules/cultures-generator";
@@ -886,7 +886,7 @@ export function loadURL(): void {
           tip("Please provide a valid URL", false, "error");
           return;
         }
-        loadMapFromURL(value, 0);
+        import("../io/load").then(m => m.loadMapFromURL(value, 0));
         /* $(this).dialog("close") removed */
       },
       Cancel: function (this: Element) {
@@ -1481,7 +1481,7 @@ export function initOptions(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: 
     const fileToLoad = this.files![0];
     this.value = "";
     closeDialogs();
-    uploadMap(fileToLoad);
+    import("../io/load").then(m => m.uploadMap(fileToLoad));
   });
 
   // View mode / 3D handled via React

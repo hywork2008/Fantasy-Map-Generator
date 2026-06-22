@@ -2,7 +2,6 @@ import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { confirmationDialog } from "../controllers/editors";
-import { layerIsOn } from "../controllers/layers";
 import type { Burg, BurgGroup } from "../modules/burgs-generator";
 import { Burgs } from "../modules/burgs-generator";
 import { BurgIconsRenderer, BurgLabelsRenderer } from "../renderers";
@@ -10,6 +9,7 @@ import { modules } from "../store/editorState";
 import { closeDialog, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { ensureEl } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
+import { layerIsOn } from "../utils/nodeUtils";
 import { fitContent, tip } from "../utils/uiHelpers";
 
 let worldContext: WorldContext;

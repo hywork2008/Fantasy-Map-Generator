@@ -3,7 +3,7 @@ import { drag, pointer, quadtree, range, select } from "d3";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { moveCircle, removeCircle, restoreDefaultEvents, unselect } from "../controllers/editors";
-import { layerIsOn, toggleRelief } from "../controllers/layers";
+import { toggleRelief } from "../controllers/layers";
 import { editStyle } from "../controllers/style";
 import { elSelected, modules, setElSelected } from "../store/editorState";
 import type { ReliefIconSet } from "../store/reliefEditorState";
@@ -11,6 +11,7 @@ import { getReliefEditorState, setReliefEditorState } from "../store/reliefEdito
 import { closeDialog, closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { findAllInQuadtree, findCell, rn } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
+import { layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, showMainTip, tip } from "../utils/uiHelpers";
 
 interface DragAddState {

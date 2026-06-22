@@ -3,7 +3,7 @@ import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { unselect } from "../controllers/editors";
 import { openElevationProfile } from "../controllers/elevation-profile";
-import { layerIsOn, toggleCells, toggleRivers } from "../controllers/layers";
+import { toggleCells, toggleRivers } from "../controllers/layers";
 import { createRiver } from "../controllers/rivers-creator";
 import { editStyle } from "../controllers/style";
 import { Names } from "../modules/names-generator";
@@ -16,6 +16,7 @@ import { closeDialog, closeDialogs, openDialog, openRichDialog } from "../ui/dia
 import { ensureEl, findCell, getSegmentId, rand, rn } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
 import { getPackPolygon } from "../utils/graphUtils";
+import { layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, tip } from "../utils/uiHelpers";
 import { editNotes } from "./notes-editor";
 

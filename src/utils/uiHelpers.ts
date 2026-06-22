@@ -1,24 +1,16 @@
 import * as d3 from "d3";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
-import { layerIsOn } from "../controllers/layers";
+
 import type { PackedGraphFeature } from "../modules/features";
 import { useOptionsState } from "../store/optionsState";
 import { openRichDialog } from "../ui/dialogs/dialogService";
 import { alertMessage } from "../utils/alertMessageEl";
-import {
-  convertTemperature,
-  debounce,
-  ensureEl,
-  findCell,
-  findGridCell,
-  getComposedPath,
-  getLatitude,
-  getLongitude,
-  link,
-  rn,
-  si
-} from "./index";
+import { debounce, getLatitude, getLongitude, link } from "./commonUtils";
+import { findCell, findGridCell } from "./graphUtils";
+import { ensureEl, getComposedPath, layerIsOn } from "./nodeUtils";
+import { rn } from "./numberUtils";
+import { convertTemperature, si } from "./unitUtils";
 
 // ─── Resize handler ───────────────────────────────────────────────────────────
 

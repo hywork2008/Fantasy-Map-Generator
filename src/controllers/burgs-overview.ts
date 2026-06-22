@@ -12,10 +12,11 @@ import { useBurgsOverviewState } from "../store/burgsOverviewState";
 import { useOptionsState } from "../store/optionsState";
 import { closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { convertTemperature, findCell, getLatitude, getLongitude, rn, si } from "../utils";
+import { layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, getHeight, tip } from "../utils/uiHelpers";
 import { confirmationDialog, downloadFile, getFileName, restoreDefaultEvents } from "./editors";
 import { interactionManager } from "./interactionManager";
-import { layerIsOn, toggleBurgIcons, toggleLabels } from "./layers";
+import { toggleBurgIcons, toggleLabels } from "./layers";
 
 export function overviewBurgs(settings: { stateId?: number | null; cultureId?: number | null } = {}): void {
   if (viewContext.customization) return;

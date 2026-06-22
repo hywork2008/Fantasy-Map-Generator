@@ -607,3 +607,13 @@ declare global {
     drawHeights: typeof drawHeights;
   }
 }
+
+export function findCell(x: number, y: number, radius?: number): number {
+  const { pack } = worldContext;
+  if (!pack?.cells?.p) return 0;
+  return findClosestCell(x, y, radius, pack) ?? 0;
+}
+
+export function findAll(x: number, y: number, radius: number): number[] {
+  return findAllCellsInRadius(x, y, radius, worldContext.pack);
+}

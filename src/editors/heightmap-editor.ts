@@ -19,17 +19,8 @@ import {
   uploadFile
 } from "../controllers/editors";
 import { interactionManager } from "../controllers/interactionManager";
-import { getCurrentPreset, layerIsOn, turnButtonOff, turnButtonOn } from "../controllers/layers";
+import { getCurrentPreset, turnButtonOff, turnButtonOn } from "../controllers/layers";
 import { changeViewMode, enterStandardView } from "../controllers/options";
-import {
-  addLakesInDeepDepressions,
-  calculateTemperatures,
-  generatePrecipitation,
-  openNearSeaLakes,
-  rankCells,
-  reGraph,
-  undraw
-} from "../main";
 import { Biomes } from "../modules/biomes";
 import type { Burg } from "../modules/burgs-generator";
 import { Burgs } from "../modules/burgs-generator";
@@ -71,6 +62,7 @@ import {
 import { alertMessage } from "../utils/alertMessageEl";
 import { getColorScheme } from "../utils/colorUtils";
 import { ERROR, INFO, TIME } from "../utils/debug";
+import { layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, locked, showMainTip, tip } from "../utils/uiHelpers";
 import { HeightmapEditorHistoryClass as HeightmapEditorHistory } from "./HeightmapEditorHistory";
 
@@ -128,7 +120,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     });
   }
 
-  function enterHeightmapEditMode(mode: string) {
+  async function enterHeightmapEditMode(mode: string) {
     editHeightmapLayers = Array.from(mapLayers.querySelectorAll("li:not(.buttonoff)")).map(
       node => (node as HTMLElement).id
     );
@@ -150,6 +142,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     });
 
     if (mode === "erase") {
+      const { undraw } = await import("../main");
       undraw();
       (cellTypeFilter as HTMLSelectElement).value = "all";
     } else if (mode === "keep") {
@@ -248,7 +241,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     return `${rn(height * unitRatio)} ${unit}`;
   }
 
-  function finalizeHeightmap(): void {
+  async function finalizeHeightmap(): Promise<void> {
     if (viewContext.viewbox.select("#heights").selectAll("*").size() < 200) {
       tip("Insufficient land area. There should be at least 200 land cells!", false, "error");
       return;
@@ -277,9 +270,9 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     if (document.getElementById("canvas3d")) enterStandardView();
 
     const mode = heightmapEditMode.innerHTML;
-    if (mode === "erase") regenerateErasedData();
+    if (mode === "erase") await regenerateErasedData();
     else if (mode === "keep") restoreKeptData();
-    else if (mode === "risk") restoreRiskedData();
+    else if (mode === "risk") await restoreRiskedData();
 
     FeaturesRenderer.render(worldContext, viewContext, appServices);
     viewContext.viewbox.selectAll("#heights").remove();
@@ -300,9 +293,17 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     getCurrentPreset();
   }
 
-  function regenerateErasedData(): void {
+  async function regenerateErasedData(): Promise<void> {
     INFO && console.group("Edit Heightmap");
     TIME && console.time("regenerateErasedData");
+    const {
+      addLakesInDeepDepressions,
+      openNearSeaLakes,
+      calculateTemperatures,
+      generatePrecipitation,
+      reGraph,
+      rankCells
+    } = await import("../main");
 
     worldContext.pack.cultures = [];
     worldContext.pack.burgs = [];
@@ -368,9 +369,12 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     }
   }
 
-  function restoreRiskedData(): void {
+  async function restoreRiskedData(): Promise<void> {
     INFO && console.group("Edit Heightmap");
     TIME && console.time("restoreRiskedData");
+    const { addLakesInDeepDepressions, calculateTemperatures, generatePrecipitation, reGraph } = await import(
+      "../main"
+    );
     const erosionAllowed = (allowErosion as HTMLInputElement).checked;
 
     const l = worldContext.grid.cells.i.length;

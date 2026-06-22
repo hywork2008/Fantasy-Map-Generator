@@ -1,12 +1,13 @@
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { confirmationDialog } from "../controllers/editors";
-import { layerIsOn, toggleRoutes } from "../controllers/layers";
+import { toggleRoutes } from "../controllers/layers";
 import { editStyle } from "../controllers/style";
 import { Routes } from "../modules/routes-generator";
 import { modules } from "../store/editorState";
 import { openDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, showPrompt } from "../utils";
+import { layerIsOn } from "../utils/nodeUtils";
 import { tip } from "../utils/uiHelpers";
 
 export function editRouteGroups(): void {

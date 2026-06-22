@@ -12,8 +12,9 @@ import { modules } from "../store/editorState";
 import { useMilitaryOverviewState } from "../store/militaryOverviewState";
 import { closeDialogs, openConfirm, openDialog } from "../ui/dialogs/dialogService";
 import { rn } from "../utils";
+import { layerIsOn } from "../utils/nodeUtils";
 import { fitContent } from "../utils/uiHelpers";
-import { layerIsOn, toggleBorders, toggleMilitary } from "./layers";
+import { toggleBorders, toggleMilitary } from "./layers";
 
 export function overviewMilitary(): void {
   if (viewContext.customization) return;

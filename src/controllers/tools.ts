@@ -15,7 +15,7 @@ import { editProvinces } from "../editors/provinces-editor";
 import { createRoute } from "../editors/routes-editor";
 import { editUnits } from "../editors/units-editor";
 import { editZones } from "../editors/zones-editor";
-import { rankCells } from "../main";
+
 import type { Burg } from "../modules/burgs-generator";
 import { Burgs } from "../modules/burgs-generator";
 import { Cultures } from "../modules/cultures-generator";
@@ -67,6 +67,7 @@ import { useOptionsState } from "../store/optionsState";
 import type { WorldNote } from "../types/WorldState";
 import { closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { ensureEl, findCell, gauss, generateSeed, getNextId, isCtrlClick, P, rn, showPrompt } from "../utils";
+import { layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, tip } from "../utils/uiHelpers";
 import { overviewBurgs } from "./burgs-overview";
 import { openChartsOverview } from "./charts-overview";
@@ -82,7 +83,6 @@ import {
 } from "./editors";
 import { interactionManager } from "./interactionManager";
 import {
-  layerIsOn,
   toggleBorders,
   toggleCultures,
   toggleEmblems,
@@ -264,7 +264,8 @@ function regenerateRivers(): void {
   if (layerIsOn("toggleRivers")) RiversRenderer.render(worldContext, viewContext, appServices);
 }
 
-function recalculatePopulation(): void {
+async function recalculatePopulation(): Promise<void> {
+  const { rankCells } = await import("../main");
   rankCells();
 
   worldContext.pack.burgs.forEach((b: Burg) => {
@@ -492,8 +493,9 @@ function regenerateProvinces(): void {
   refreshAllEditors();
 }
 
-function regenerateBurgs(): void {
+async function regenerateBurgs(): Promise<void> {
   const { cells, burgs: packBurgs, states, provinces } = worldContext.pack;
+  const { rankCells } = await import("../main");
 
   rankCells();
 

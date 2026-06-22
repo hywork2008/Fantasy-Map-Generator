@@ -7,10 +7,11 @@ import { useOptionsState } from "../store/optionsState";
 import { closeDialog, closeDialogs, openDialog } from "../ui/dialogs/dialogService";
 import { findCell, last, rn } from "../utils";
 import { getPackPolygon } from "../utils/graphUtils";
+import { layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, tip } from "../utils/uiHelpers";
 import { restoreDefaultEvents } from "./editors";
 import { interactionManager } from "./interactionManager";
-import { layerIsOn, toggleCells, toggleRivers } from "./layers";
+import { toggleCells, toggleRivers } from "./layers";
 import { cellsDensityMap } from "./options";
 
 let worldContext: WorldContext;

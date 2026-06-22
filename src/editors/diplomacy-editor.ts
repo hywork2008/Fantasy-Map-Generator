@@ -8,7 +8,6 @@ import { worldContext } from "../context/worldContext";
 import { downloadFile, getFileName, restoreDefaultEvents } from "../controllers/editors";
 import { interactionManager } from "../controllers/interactionManager";
 import {
-  layerIsOn,
   toggleBiomes,
   toggleBorders,
   toggleCultures,
@@ -24,6 +23,7 @@ import { modules } from "../store/editorState";
 import { closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { findCell, getAdjective } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
+import { layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, tip } from "../utils/uiHelpers";
 
 type RelationKey =

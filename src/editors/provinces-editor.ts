@@ -21,14 +21,7 @@ import {
   unfog
 } from "../controllers/editors";
 import { interactionManager } from "../controllers/interactionManager";
-import {
-  layerIsOn,
-  toggleBorders,
-  toggleCultures,
-  toggleProvinces,
-  toggleStates,
-  turnButtonOff
-} from "../controllers/layers";
+import { toggleBorders, toggleCultures, toggleProvinces, toggleStates, turnButtonOff } from "../controllers/layers";
 import { editStyle } from "../controllers/style";
 import type { Burg } from "../modules/burgs-generator";
 import { Burgs } from "../modules/burgs-generator";
@@ -62,6 +55,7 @@ import { closeDialog, closeDialogs, openDialog, openRichDialog } from "../ui/dia
 import { findAll, findCell, getRandomColor, isLand, P, parseTransform, rand, rn, si, unique } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
 import { getPackPolygon } from "../utils/graphUtils";
+import { layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, fitContent, getArea, getAreaUnit, showMainTip, tip } from "../utils/uiHelpers";
 import { editEmblem } from "./emblems-editor";
 

@@ -1,29 +1,22 @@
-import { sum } from "d3";
 import { worldContext } from "../context/worldContext";
 import { minmax, rn } from "../utils";
 import { DEBUG, ERROR, TIME } from "../utils/debug";
 import type { Burg } from "./burgs-generator";
-import { DEFAULT_CULTURE_TYPE } from "./cultures-generator";
+
 import type { DemandCategory, Good } from "./goods-generator";
 import { DEMAND_PRIORITY, Goods, getDemandTargets } from "./goods-generator";
 import type { Deal, Market } from "./markets-generator";
 import { Markets } from "./markets-generator";
+import { getModifiers, MAX_BONUS_PRODUCTION } from "./production-utils";
 import { States } from "./states-generator";
-import type { Zone } from "./zones-generator";
 
-const BONUS_RURAL_PRODUCTION = 0.25;
 const BONUS_URBAN_PRODUCTION = 1;
 const MIN_BONUS_PRODUCTION = 1;
-const MAX_BONUS_PRODUCTION = 5;
 
 export class ProductionModule {
-  private zoneCellSets: Map<number, Set<number>> | null = null; // lazy zoneId -> cells lookup, built only when a good uses zone multipliers
-  private zoneCellSetsSource: Zone[] | null = null;
-
   produce() {
     TIME && console.time("generateProduction");
 
-    this.zoneCellSets = null; // rebuild lookup to reflect any in-place zone edits
     Markets.collectRuralProduction();
     Markets.initializeMarketPrices();
 
@@ -93,7 +86,7 @@ export class ProductionModule {
 
     const good = Goods.get(worldContext.pack.cells.good[burg.cell]);
     if (good) {
-      const modifier = this.getModifiers(good, burg.cell);
+      const modifier = getModifiers(good, burg.cell);
       const bonus = minmax(population * BONUS_URBAN_PRODUCTION, MIN_BONUS_PRODUCTION, MAX_BONUS_PRODUCTION);
       const localBonus = bonus * modifier;
       if (localBonus > 0) {
@@ -148,7 +141,7 @@ export class ProductionModule {
   ): void {
     const { good, ingredients, maxYield } = decision.action;
     const actualYield = Math.min(workerFraction, maxYield);
-    const cultureModifier = this.getModifiers(good, state.burg.cell);
+    const cultureModifier = getModifiers(good, state.burg.cell);
     const produced = rn(actualYield * cultureModifier, 2);
     if (!produced) return;
 
@@ -454,7 +447,7 @@ export class ProductionModule {
       marketCostTotal += fromMarket * quote.buyPrice;
     }
 
-    const modifier = this.getModifiers(recipe.good, state.burg.cell);
+    const modifier = getModifiers(recipe.good, state.burg.cell);
     const outQuote = Markets.quoteMarket(state.market, recipe.good.i);
     const sellValue = (outQuote.sellPrice || recipe.good.value) * modifier;
     const ingredientCost = marketCostTotal / actualUnits;
@@ -497,7 +490,7 @@ export class ProductionModule {
 
     path[good.i] = true;
 
-    const modifier = this.getModifiers(good, state.burg.cell);
+    const modifier = getModifiers(good, state.burg.cell);
     const sellQuote = Markets.quoteMarket(state.market, good.i);
     const sellValuePerUnit = (sellQuote.sellPrice || good.value) * modifier;
     const totalProjectedGain = sellValuePerUnit * targetUnits * demandEffect.multiplier;
@@ -680,86 +673,6 @@ export class ProductionModule {
       produced[record.goodId] = rn((produced[record.goodId] || 0) + record.units, 2);
     }
     return produced;
-  }
-
-  // Rural production for a single land cell
-  getCellProduction(
-    cellId: number,
-    biomeProduction: Record<number, { goodId: number; production: number }[]>
-  ): Record<number, number> {
-    const produced: Record<number, number> = {};
-
-    const modifier = (good: Good) => this.getModifiers(good, cellId);
-    const add = (goodId: number, amount: number) => {
-      produced[goodId] = rn((produced[goodId] || 0) + amount, 2);
-    };
-
-    const isWater = worldContext.pack.cells.h[cellId] < 20;
-    const pop = isWater
-      ? sum(worldContext.pack.cells.c[cellId].map(c => worldContext.pack.cells.pop[c])) || 0
-      : worldContext.pack.cells.pop[cellId];
-
-    if (pop > 0) {
-      for (const { goodId, production } of biomeProduction[worldContext.pack.cells.biome[cellId]] || []) {
-        const good = Goods.get(goodId);
-        if (good) add(goodId, pop * production * modifier(good));
-      }
-
-      const bonusGoodId = worldContext.pack.cells.good[cellId];
-      if (bonusGoodId) {
-        const good = Goods.get(bonusGoodId);
-        if (good) {
-          const bonus = Math.min(pop * BONUS_RURAL_PRODUCTION, MAX_BONUS_PRODUCTION);
-          add(bonusGoodId, bonus * modifier(good));
-        }
-      }
-    }
-
-    return produced;
-  }
-
-  private getModifiers(good: Good, cellId: number): number {
-    const mult = good.multipliers;
-    if (!mult) return 1;
-
-    const biomeId = worldContext.pack.cells.biome[cellId];
-    const cultureId = worldContext.pack.cells.culture[cellId];
-    const stateId = worldContext.pack.cells.state[cellId];
-    const religionId = worldContext.pack.cells.religion[cellId];
-
-    const burgId = worldContext.pack.cells.burg[cellId];
-    const cultureType =
-      (burgId ? worldContext.pack.burgs[burgId]?.type : worldContext.pack.cultures[cultureId]?.type) ??
-      DEFAULT_CULTURE_TYPE;
-
-    let modifier =
-      (mult.cultureType?.[cultureType] ?? 1) *
-      (mult.culture?.[cultureId] ?? 1) *
-      (mult.state?.[stateId] ?? 1) *
-      (mult.religion?.[religionId] ?? 1) *
-      (mult.biome?.[biomeId] ?? 1);
-
-    if (mult.zone) {
-      const zoneCellSets = this.getZoneCellSets();
-      for (const zoneIdStr in mult.zone) {
-        const value = mult.zone[+zoneIdStr];
-        if (value === undefined || value === 1) continue;
-        if (zoneCellSets.get(+zoneIdStr)?.has(cellId)) modifier *= value;
-      }
-    }
-
-    return modifier;
-  }
-
-  private getZoneCellSets(): Map<number, Set<number>> {
-    const zones = worldContext.pack.zones || [];
-    if (this.zoneCellSets && this.zoneCellSetsSource === zones) return this.zoneCellSets;
-
-    const sets = new Map<number, Set<number>>();
-    for (const zone of zones) sets.set(zone.i, new Set(zone.cells));
-    this.zoneCellSets = sets;
-    this.zoneCellSetsSource = zones;
-    return sets;
   }
 }
 
