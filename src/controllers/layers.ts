@@ -294,6 +294,9 @@ export function getCurrentPreset(): void {
 
 export function drawLayers(): void {
   FeaturesRenderer.render(worldContext, viewContext, appServices);
+  // FeaturesRenderer always renders lake paths (needed for masks), so explicitly
+  // sync the #lakes display state with the toggle after rendering.
+  if (!layerIsOn("toggleLakes")) d3.select("#lakes").style("display", "none");
   if (layerIsOn("toggleTexture")) TextureRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleHeight")) HeightmapRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleBiomes")) BiomesRenderer.render(worldContext, viewContext, appServices);
