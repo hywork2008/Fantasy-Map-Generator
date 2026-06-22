@@ -47,7 +47,6 @@ import { useOptionsState } from "../store/optionsState";
 import { closeDialog, closeDialogs, isDialogOpen, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import {
   createTypedArray,
-  ensureEl,
   findCell,
   findGridAll,
   findGridCell,
@@ -85,15 +84,15 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
   if (modules.editHeightmap) return;
   modules.editHeightmap = true;
 
-  ensureEl("paintBrushes").addEventListener("click", openBrushesPanel);
-  ensureEl("applyTemplate").addEventListener("click", openTemplateEditor);
-  ensureEl("convertImage").addEventListener("click", openImageConverter);
-  ensureEl("heightmapPreview").addEventListener("click", toggleHeightmapPreview);
-  ensureEl("heightmap3DView").addEventListener("click", changeViewMode);
-  ensureEl("finalizeHeightmap").addEventListener("click", finalizeHeightmap);
-  ensureEl("renderOcean").addEventListener("click", mockHeightmap);
-  ensureEl("templateUndo").addEventListener("click", undoHistory);
-  ensureEl("templateRedo").addEventListener("click", redoHistory);
+  document.getElementById("paintBrushes")!.addEventListener("click", openBrushesPanel);
+  document.getElementById("applyTemplate")!.addEventListener("click", openTemplateEditor);
+  document.getElementById("convertImage")!.addEventListener("click", openImageConverter);
+  document.getElementById("heightmapPreview")!.addEventListener("click", toggleHeightmapPreview);
+  document.getElementById("heightmap3DView")!.addEventListener("click", changeViewMode);
+  document.getElementById("finalizeHeightmap")!.addEventListener("click", finalizeHeightmap);
+  document.getElementById("renderOcean")!.addEventListener("click", mockHeightmap);
+  document.getElementById("templateUndo")!.addEventListener("click", undoHistory);
+  document.getElementById("templateRedo")!.addEventListener("click", redoHistory);
 
   function showModeDialog() {
     alertMessage.innerHTML = `Heightmap is a core element on which all other data (rivers, burgs, states etc) is based. So the best edit approach is to
@@ -125,7 +124,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       node => (node as HTMLElement).id
     );
     editHeightmapLayers.forEach(l => {
-      ensureEl(l).click();
+      document.getElementById(l)!.click();
     });
 
     viewContext.customization = 1;
@@ -214,7 +213,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     heightmapInfoHeight.innerHTML = `${worldContext.grid.cells.h[cell]} (${getHeight(worldContext.grid.cells.h[cell])})`;
     if ((tooltip as HTMLElement).dataset.main) showMainTip();
 
-    const pressed = ensureEl("brushesButtons").querySelector<HTMLButtonElement>("button.pressed");
+    const pressed = document.getElementById("brushesButtons")!.querySelector<HTMLButtonElement>("button.pressed");
     if (!pressed) return;
 
     if (pressed.id === "brushLine") {
@@ -246,7 +245,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       tip("Insufficient land area. There should be at least 200 land cells!", false, "error");
       return;
     }
-    if (ensureEl("imageConverter").offsetParent) {
+    if (document.getElementById("imageConverter")?.offsetParent) {
       tip("Please exit the Image Conversion mode first", false, "error");
       return;
     }
@@ -622,9 +621,11 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
 
   function updateStatistics(): void {
     const landCells = (worldContext.grid.cells.h as Uint8Array).reduce((s, h) => (h >= 20 ? s + 1 : s), 0);
-    ensureEl("landmassCounter").innerText =
+    document.getElementById("landmassCounter")!.innerText =
       `${landCells} (${rn((landCells / worldContext.grid.cells.i.length) * 100)}%)`;
-    ensureEl("landmassAverage").innerText = String(rn(mean(Array.from(worldContext.grid.cells.h)) ?? 0));
+    document.getElementById("landmassAverage")!.innerText = String(
+      rn(mean(Array.from(worldContext.grid.cells.h)) ?? 0)
+    );
   }
 
   function updateHistory(noStat?: string): void {
@@ -678,33 +679,35 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     if (modules.openBrushesPanel) return;
     modules.openBrushesPanel = true;
 
-    ensureEl("brushesButtons").addEventListener("click", (e: Event) => toggleBrushMode(e as MouseEvent));
-    ensureEl("cellTypeFilter").addEventListener("change", cellTypeFilterChange);
-    ensureEl("undo").addEventListener("click", undoHistory);
-    ensureEl("redo").addEventListener("click", redoHistory);
-    ensureEl("rescaleShow").addEventListener("click", () => {
-      ensureEl("modifyButtons").style.display = "none";
-      ensureEl("rescaleSection").style.display = "block";
+    document
+      .getElementById("brushesButtons")!
+      .addEventListener("click", (e: Event) => toggleBrushMode(e as MouseEvent));
+    document.getElementById("cellTypeFilter")!.addEventListener("change", cellTypeFilterChange);
+    document.getElementById("undo")!.addEventListener("click", undoHistory);
+    document.getElementById("redo")!.addEventListener("click", redoHistory);
+    document.getElementById("rescaleShow")!.addEventListener("click", () => {
+      document.getElementById("modifyButtons")!.style.display = "none";
+      document.getElementById("rescaleSection")!.style.display = "block";
     });
-    ensureEl("rescaleHide").addEventListener("click", () => {
-      ensureEl("modifyButtons").style.display = "block";
-      ensureEl("rescaleSection").style.display = "none";
+    document.getElementById("rescaleHide")!.addEventListener("click", () => {
+      document.getElementById("modifyButtons")!.style.display = "block";
+      document.getElementById("rescaleSection")!.style.display = "none";
     });
-    ensureEl("rescaler").addEventListener("change", (e: Event) =>
-      rescale((e.target as HTMLInputElement).valueAsNumber)
-    );
-    ensureEl("rescaleCondShow").addEventListener("click", () => {
-      ensureEl("modifyButtons").style.display = "none";
-      ensureEl("rescaleCondSection").style.display = "block";
+    document
+      .getElementById("rescaler")!
+      .addEventListener("change", (e: Event) => rescale((e.target as HTMLInputElement).valueAsNumber));
+    document.getElementById("rescaleCondShow")!.addEventListener("click", () => {
+      document.getElementById("modifyButtons")!.style.display = "none";
+      document.getElementById("rescaleCondSection")!.style.display = "block";
     });
-    ensureEl("rescaleCondHide").addEventListener("click", () => {
-      ensureEl("modifyButtons").style.display = "block";
-      ensureEl("rescaleCondSection").style.display = "none";
+    document.getElementById("rescaleCondHide")!.addEventListener("click", () => {
+      document.getElementById("modifyButtons")!.style.display = "block";
+      document.getElementById("rescaleCondSection")!.style.display = "none";
     });
-    ensureEl("rescaleExecute").addEventListener("click", rescaleWithCondition);
-    ensureEl("smoothHeights").addEventListener("click", smoothAllHeights);
-    ensureEl("disruptHeights").addEventListener("click", disruptAllHeights);
-    ensureEl("brushClear").addEventListener("click", startFromScratch);
+    document.getElementById("rescaleExecute")!.addEventListener("click", rescaleWithCondition);
+    document.getElementById("smoothHeights")!.addEventListener("click", smoothAllHeights);
+    document.getElementById("disruptHeights")!.addEventListener("click", disruptAllHeights);
+    document.getElementById("brushClear")!.addEventListener("click", startFromScratch);
 
     function exitBrushMode(): void {
       const pressed = document.querySelector<HTMLElement>("#brushesButtons > button.pressed");
@@ -713,8 +716,8 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       interactionManager.resetClickHandler();
       viewContext.debug.selectAll(".lineCircle").remove();
       removeCircle();
-      ensureEl("brushesSliders").style.display = "none";
-      ensureEl("lineSlider").style.display = "none";
+      document.getElementById("brushesSliders")!.style.display = "none";
+      document.getElementById("lineSlider")!.style.display = "none";
     }
 
     function toggleBrushMode(event: MouseEvent): void {
@@ -729,15 +732,15 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       toggleFillBrushUi(button.id === "brushFill");
 
       if (button.id === "brushLine") {
-        ensureEl("lineSlider").style.display = "block";
+        document.getElementById("lineSlider")!.style.display = "block";
         viewContext.viewbox.style("cursor", "crosshair");
         interactionManager.setClickHandler(placeLinearFeature);
       } else if (button.id === "brushFill") {
-        ensureEl("brushesSliders").style.display = "block";
+        document.getElementById("brushesSliders")!.style.display = "block";
         viewContext.viewbox.style("cursor", "crosshair");
         interactionManager.setClickHandler(applyFillBrush);
       } else {
-        ensureEl("brushesSliders").style.display = "block";
+        document.getElementById("brushesSliders")!.style.display = "block";
         viewContext.viewbox
           .style("cursor", "crosshair")
           .call(
@@ -751,7 +754,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     }
 
     function toggleFillBrushUi(isFillBrush: boolean): void {
-      const radiusRow = ensureEl("heightmapBrushRadius").parentElement;
+      const radiusRow = document.getElementById("heightmapBrushRadius")?.parentElement;
       if (radiusRow) radiusRow.style.display = isFillBrush ? "none" : "";
     }
 
@@ -1006,7 +1009,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
         return ocean ? Math.min(newH, 19) : newH;
       });
       updateHeightmap();
-      (ensureEl("rescaler") as HTMLInputElement).value = "0";
+      (document.getElementById("rescaler") as HTMLInputElement).value = "0";
     }
 
     function rescaleWithCondition(): void {
@@ -1071,7 +1074,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
 
   function openTemplateEditor(): void {
     if (isDialogOpen("templateEditor")) return;
-    const $body = ensureEl("templateBody");
+    const $body = document.getElementById("templateBody")!;
 
     openDialog("templateEditor", {
       title: "Template Editor",
@@ -1105,19 +1108,21 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       }
     });
 
-    ensureEl("templateEditorContainer").addEventListener("keypress", (event: KeyboardEvent) => {
+    document.getElementById("templateEditorContainer")!.addEventListener("keypress", (event: KeyboardEvent) => {
       if (event.key === "Enter") {
         event.preventDefault();
         executeTemplate();
       }
     });
 
-    ensureEl("templateTools").addEventListener("click", addStepOnClick);
-    ensureEl("templateSelect").addEventListener("change", selectTemplate);
-    ensureEl("templateRun").addEventListener("click", executeTemplate);
-    ensureEl("templateSave").addEventListener("click", downloadTemplate);
-    ensureEl("templateLoad").addEventListener("click", () => (templateToLoad as HTMLInputElement).click());
-    ensureEl("templateToLoad").addEventListener("change", function (this: HTMLInputElement) {
+    document.getElementById("templateTools")!.addEventListener("click", addStepOnClick);
+    document.getElementById("templateSelect")!.addEventListener("change", selectTemplate);
+    document.getElementById("templateRun")!.addEventListener("click", executeTemplate);
+    document.getElementById("templateSave")!.addEventListener("click", downloadTemplate);
+    document
+      .getElementById("templateLoad")!
+      .addEventListener("click", () => (templateToLoad as HTMLInputElement).click());
+    document.getElementById("templateToLoad")!.addEventListener("change", function (this: HTMLInputElement) {
       uploadFile(this, uploadTemplate);
     });
 
@@ -1125,12 +1130,12 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       const target = e.target as HTMLElement;
       if (target.tagName !== "BUTTON") return;
       const type = target.dataset.type!;
-      ensureEl("templateBody").dataset.changed = "1";
+      document.getElementById("templateBody")!.dataset.changed = "1";
       addStep(type);
     }
 
     function addStep(type: string, count?: string, dist?: string, arg4?: string, arg5?: string): void {
-      const body = ensureEl("templateBody");
+      const body = document.getElementById("templateBody")!;
       body.insertAdjacentHTML("beforeend", getStepHTML(type, count, dist, arg4, arg5));
 
       const $elDist = body.querySelector<HTMLSelectElement>("div:last-child > span > .templateDist");
@@ -1189,7 +1194,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     }
 
     function selectTemplate(e: Event): void {
-      const body = ensureEl("templateBody");
+      const body = document.getElementById("templateBody")!;
       const steps = body.querySelectorAll("div").length;
       const changed = +body.getAttribute("data-changed")!;
       const template = (e.target as HTMLSelectElement).value;
@@ -1216,7 +1221,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     }
 
     function changeTemplate(template: string): void {
-      const body = ensureEl("templateBody");
+      const body = document.getElementById("templateBody")!;
       body.setAttribute("data-changed", "0");
       body.innerHTML = "";
       const templateString = heightmapTemplates[template]?.template as string | undefined;
@@ -1233,13 +1238,13 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     }
 
     function executeTemplate(): void {
-      const steps = ensureEl("templateBody").querySelectorAll<HTMLElement>("#templateBody > div");
+      const steps = document.getElementById("templateBody")!.querySelectorAll<HTMLElement>("#templateBody > div");
       if (!steps.length) return;
 
-      const currentSeed = (ensureEl("templateSeed") as HTMLInputElement).value;
+      const currentSeed = (document.getElementById("templateSeed") as HTMLInputElement).value;
       const seed = (locked("templateSeed") && currentSeed) || generateSeed();
       Math.random = Alea(seed);
-      (ensureEl("templateSeed") as HTMLInputElement).value = seed;
+      (document.getElementById("templateSeed") as HTMLInputElement).value = seed;
 
       worldContext.grid.cells.h = createTypedArray({ maxValue: 100, length: worldContext.grid.points.length });
       HeightmapGenerator.setGraph(worldContext.grid);
@@ -1277,7 +1282,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     }
 
     function downloadTemplate(): void {
-      const body = ensureEl("templateBody");
+      const body = document.getElementById("templateBody")!;
       (body as HTMLElement).dataset.changed = "0";
       const steps = body.querySelectorAll<HTMLElement>("#templateBody > div");
       if (!steps.length) return;
@@ -1361,18 +1366,20 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       .on("touchmove mousemove", showPalleteHeight)
       .on("click", assignHeight);
 
-    ensureEl("convertImageLoad").addEventListener("click", () => (imageToLoad as HTMLInputElement).click());
-    ensureEl("imageToLoad").addEventListener("change", loadImage);
-    ensureEl("convertAutoLum").addEventListener("click", () => autoAssing("lum"));
-    ensureEl("convertAutoHue").addEventListener("click", () => autoAssing("hue"));
-    ensureEl("convertAutoFMG").addEventListener("click", () => autoAssing("scheme"));
-    ensureEl("convertColorsButton").addEventListener("click", setConvertColorsNumber);
-    ensureEl("convertComplete").addEventListener("click", applyConversion);
-    ensureEl("convertCancel").addEventListener("click", cancelConversion);
-    ensureEl("convertOverlay").addEventListener("input", function (this: HTMLInputElement) {
+    document
+      .getElementById("convertImageLoad")!
+      .addEventListener("click", () => (imageToLoad as HTMLInputElement).click());
+    document.getElementById("imageToLoad")!.addEventListener("change", loadImage);
+    document.getElementById("convertAutoLum")!.addEventListener("click", () => autoAssing("lum"));
+    document.getElementById("convertAutoHue")!.addEventListener("click", () => autoAssing("hue"));
+    document.getElementById("convertAutoFMG")!.addEventListener("click", () => autoAssing("scheme"));
+    document.getElementById("convertColorsButton")!.addEventListener("click", setConvertColorsNumber);
+    document.getElementById("convertComplete")!.addEventListener("click", applyConversion);
+    document.getElementById("convertCancel")!.addEventListener("click", cancelConversion);
+    document.getElementById("convertOverlay")!.addEventListener("input", function (this: HTMLInputElement) {
       setOverlayOpacity(+this.value);
     });
-    ensureEl("convertOverlayNumber").addEventListener("input", function (this: HTMLInputElement) {
+    document.getElementById("convertOverlayNumber")!.addEventListener("input", function (this: HTMLInputElement) {
       setOverlayOpacity(+this.value);
     });
 
@@ -1394,7 +1401,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       img.style.display = "none";
       document.body.appendChild(img);
       img.onload = () => {
-        const ctx = (ensureEl("canvas") as HTMLCanvasElement).getContext("2d")!;
+        const ctx = (document.getElementById("canvas") as HTMLCanvasElement).getContext("2d")!;
         ctx.drawImage(img, 0, 0, worldContext.graphWidth, worldContext.graphHeight);
         heightsFromImage(+(convertColors as HTMLInputElement).value);
         resetZoom();
@@ -1404,7 +1411,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     }
 
     function heightsFromImage(count: number): void {
-      const sourceImage = ensureEl("canvas") as HTMLCanvasElement;
+      const sourceImage = document.getElementById("canvas") as HTMLCanvasElement;
       const sampleCanvas = document.createElement("canvas");
       sampleCanvas.width = worldContext.grid.cellsX;
       sampleCanvas.height = worldContext.grid.cellsY;
@@ -1444,7 +1451,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
         .attr("class", "color-div")
         .on("click", colorClicked);
 
-      (ensureEl("colorsUnassignedNumber") as HTMLElement).innerHTML = String(colors.length);
+      document.getElementById("colorsUnassignedNumber")!.innerHTML = String(colors.length);
     }
 
     function mapClicked(this: SVGElement): void {
@@ -1495,10 +1502,10 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       if (selectedColor.parentElement?.id === "colorsUnassignedContainer") {
         (colorsAssignedContainer as HTMLElement).appendChild(selectedColor);
         (colorsAssigned as HTMLElement).style.display = "block";
-        (ensureEl("colorsUnassignedNumber") as HTMLElement).innerHTML = String(
+        document.getElementById("colorsUnassignedNumber")!.innerHTML = String(
           (colorsUnassignedContainer as HTMLElement).childElementCount - 2
         );
-        (ensureEl("colorsAssignedNumber") as HTMLElement).innerHTML = String(
+        document.getElementById("colorsAssignedNumber")!.innerHTML = String(
           (colorsAssignedContainer as HTMLElement).childElementCount - 2
         );
       }
@@ -1567,7 +1574,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
 
       (colorsAssigned as HTMLElement).style.display = "block";
       (colorsUnassigned as HTMLElement).style.display = "none";
-      (ensureEl("colorsAssignedNumber") as HTMLElement).innerHTML = String(
+      document.getElementById("colorsAssignedNumber")!.innerHTML = String(
         (colorsAssignedContainer as HTMLElement).childElementCount - 2
       );
     }
@@ -1586,7 +1593,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
 
     function setOverlayOpacity(v: number): void {
       (convertOverlay as HTMLInputElement).value = (convertOverlayNumber as HTMLInputElement).value = String(v);
-      (ensureEl("canvas") as HTMLCanvasElement).style.opacity = String(v);
+      (document.getElementById("canvas") as HTMLCanvasElement).style.opacity = String(v);
     }
 
     function applyConversion(): void {

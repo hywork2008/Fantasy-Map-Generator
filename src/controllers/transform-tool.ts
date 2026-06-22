@@ -7,7 +7,7 @@ import { getMapURL } from "../io/export";
 import { modules } from "../store/editorState";
 import { useOptionsState } from "../store/optionsState";
 import { closeDialogs, openDialog } from "../ui/dialogs/dialogService";
-import { ensureEl, rn } from "../utils";
+import { rn } from "../utils";
 import { INFO } from "../utils/debug";
 import { drawLayers } from "./layers";
 import { applyGraphSize, cellsDensityMap, changeCellsDensity, fitMapToScreen, getCellsDensityColor } from "./options";
@@ -46,8 +46,8 @@ export async function openTransformTool(): Promise<void> {
   if (modules.openTransformTool) return;
   modules.openTransformTool = true;
 
-  ensureEl("transformToolBody").addEventListener("input", async () => handleInput());
-  const previewEl = ensureEl("transformPreview");
+  document.getElementById("transformToolBody")!.addEventListener("input", async () => handleInput());
+  const previewEl = document.getElementById("transformPreview")!;
   previewEl.addEventListener("mousedown", handleMousedown);
   previewEl.addEventListener("mouseup", () => {
     mouseIsDown = false;
@@ -56,8 +56,8 @@ export async function openTransformTool(): Promise<void> {
   previewEl.addEventListener("wheel", handleWheel);
 
   async function loadPreview(): Promise<void> {
-    (ensureEl("transformPreview") as HTMLElement).style.width = `${width}px`;
-    (ensureEl("transformPreview") as HTMLElement).style.height = `${height}px`;
+    (document.getElementById("transformPreview") as HTMLElement).style.width = `${width}px`;
+    (document.getElementById("transformPreview") as HTMLElement).style.height = `${height}px`;
 
     const opts = { noWater: true, fullMap: true, noLabels: true, noScaleBar: true, noVignette: true, noIce: true };
     const url = await getMapURL("png", opts);
@@ -66,7 +66,7 @@ export async function openTransformTool(): Promise<void> {
     const img = new Image();
     img.src = url;
     img.onload = () => {
-      const $canvas = ensureEl("transformPreviewCanvas") as HTMLCanvasElement;
+      const $canvas = document.getElementById("transformPreviewCanvas") as HTMLCanvasElement;
       $canvas.style.width = `${width}px`;
       $canvas.style.height = `${height}px`;
       $canvas.width = width * SCALE;
@@ -76,42 +76,42 @@ export async function openTransformTool(): Promise<void> {
   }
 
   function resetInputs(): void {
-    (ensureEl("transformAngleInput") as HTMLInputElement).value = "0";
-    (ensureEl("transformAngleOutput") as HTMLOutputElement).value = "0";
-    (ensureEl("transformMirrorH") as HTMLInputElement).checked = false;
-    (ensureEl("transformMirrorV") as HTMLInputElement).checked = false;
-    (ensureEl("transformScaleInput") as HTMLInputElement).value = "0";
-    (ensureEl("transformScaleResult") as HTMLOutputElement).value = "1";
-    (ensureEl("transformShiftX") as HTMLInputElement).value = "0";
-    (ensureEl("transformShiftY") as HTMLInputElement).value = "0";
+    (document.getElementById("transformAngleInput") as HTMLInputElement).value = "0";
+    (document.getElementById("transformAngleOutput") as HTMLOutputElement).value = "0";
+    (document.getElementById("transformMirrorH") as HTMLInputElement).checked = false;
+    (document.getElementById("transformMirrorV") as HTMLInputElement).checked = false;
+    (document.getElementById("transformScaleInput") as HTMLInputElement).value = "0";
+    (document.getElementById("transformScaleResult") as HTMLOutputElement).value = "1";
+    (document.getElementById("transformShiftX") as HTMLInputElement).value = "0";
+    (document.getElementById("transformShiftY") as HTMLInputElement).value = "0";
     handleInput();
 
     updateCellsNumber(String(useOptionsState.getState().points));
-    (ensureEl("transformPointsInput") as HTMLInputElement).oninput = (e: Event) =>
+    (document.getElementById("transformPointsInput") as HTMLInputElement).oninput = (e: Event) =>
       updateCellsNumber((e.target as HTMLInputElement).value);
 
     function updateCellsNumber(value: string): void {
-      (ensureEl("transformPointsInput") as HTMLInputElement).value = value;
+      (document.getElementById("transformPointsInput") as HTMLInputElement).value = value;
       const cells = cellsDensityMap[+value];
-      (ensureEl("transformPointsInput") as HTMLInputElement).dataset.cells = String(cells);
-      const output = ensureEl("transformPointsFormatted") as HTMLOutputElement;
+      (document.getElementById("transformPointsInput") as HTMLInputElement).dataset.cells = String(cells);
+      const output = document.getElementById("transformPointsFormatted") as HTMLOutputElement;
       output.value = `${cells / 1000}K`;
       output.style.color = getCellsDensityColor(cells);
     }
   }
 
   function handleInput(): void {
-    const angle = (+(ensureEl("transformAngleInput") as HTMLInputElement).value / 180) * Math.PI;
-    const shiftX = +(ensureEl("transformShiftX") as HTMLInputElement).value;
-    const shiftY = +(ensureEl("transformShiftY") as HTMLInputElement).value;
-    const mirrorH = (ensureEl("transformMirrorH") as HTMLInputElement).checked;
-    const mirrorV = (ensureEl("transformMirrorV") as HTMLInputElement).checked;
+    const angle = (+(document.getElementById("transformAngleInput") as HTMLInputElement).value / 180) * Math.PI;
+    const shiftX = +(document.getElementById("transformShiftX") as HTMLInputElement).value;
+    const shiftY = +(document.getElementById("transformShiftY") as HTMLInputElement).value;
+    const mirrorH = (document.getElementById("transformMirrorH") as HTMLInputElement).checked;
+    const mirrorV = (document.getElementById("transformMirrorV") as HTMLInputElement).checked;
 
     const EXP = 1.0965;
-    const scaleVal = rn(EXP ** +(ensureEl("transformScaleInput") as HTMLInputElement).value, 2);
-    (ensureEl("transformScaleResult") as HTMLOutputElement).value = String(scaleVal);
+    const scaleVal = rn(EXP ** +(document.getElementById("transformScaleInput") as HTMLInputElement).value, 2);
+    (document.getElementById("transformScaleResult") as HTMLOutputElement).value = String(scaleVal);
 
-    (ensureEl("transformPreviewCanvas") as HTMLElement).style.transform = `
+    (document.getElementById("transformPreviewCanvas") as HTMLElement).style.transform = `
       translate(${shiftX * previewScale}px, ${shiftY * previewScale}px)
       scale(${mirrorH ? -scaleVal : scaleVal}, ${mirrorV ? -scaleVal : scaleVal})
       rotate(${angle}rad)
@@ -121,8 +121,8 @@ export async function openTransformTool(): Promise<void> {
   function handleMousedown(e: Event): void {
     mouseIsDown = true;
     const me = e as MouseEvent;
-    const shiftX = +(ensureEl("transformShiftX") as HTMLInputElement).value;
-    const shiftY = +(ensureEl("transformShiftY") as HTMLInputElement).value;
+    const shiftX = +(document.getElementById("transformShiftX") as HTMLInputElement).value;
+    const shiftY = +(document.getElementById("transformShiftY") as HTMLInputElement).value;
     mouseX = shiftX - me.clientX / previewScale;
     mouseY = shiftY - me.clientY / previewScale;
   }
@@ -131,14 +131,18 @@ export async function openTransformTool(): Promise<void> {
     if (!mouseIsDown) return;
     e.preventDefault();
     const me = e as MouseEvent;
-    (ensureEl("transformShiftX") as HTMLInputElement).value = String(Math.round(mouseX + me.clientX / previewScale));
-    (ensureEl("transformShiftY") as HTMLInputElement).value = String(Math.round(mouseY + me.clientY / previewScale));
+    (document.getElementById("transformShiftX") as HTMLInputElement).value = String(
+      Math.round(mouseX + me.clientX / previewScale)
+    );
+    (document.getElementById("transformShiftY") as HTMLInputElement).value = String(
+      Math.round(mouseY + me.clientY / previewScale)
+    );
     handleInput();
   }
 
   function handleWheel(e: Event): void {
     const we = e as WheelEvent;
-    const $scaleInput = ensureEl("transformScaleInput") as HTMLInputElement;
+    const $scaleInput = document.getElementById("transformScaleInput") as HTMLInputElement;
     $scaleInput.value = String($scaleInput.valueAsNumber - Math.sign(we.deltaY));
     handleInput();
   }
@@ -146,7 +150,7 @@ export async function openTransformTool(): Promise<void> {
   async function transformMap(): Promise<void> {
     INFO && console.group("transformMap");
 
-    const transformPointsValue = (ensureEl("transformPointsInput") as HTMLInputElement).value;
+    const transformPointsValue = (document.getElementById("transformPointsInput") as HTMLInputElement).value;
     const globalPointsValue = String(useOptionsState.getState().points);
     if (transformPointsValue !== globalPointsValue) changeCellsDensity(+transformPointsValue);
 
@@ -168,14 +172,14 @@ export async function openTransformTool(): Promise<void> {
   function getProjection(): [(x: number, y: number) => [number, number], (x: number, y: number) => [number, number]] {
     const centerX = worldContext.graphWidth / 2;
     const centerY = worldContext.graphHeight / 2;
-    const shiftX = +(ensureEl("transformShiftX") as HTMLInputElement).value;
-    const shiftY = +(ensureEl("transformShiftY") as HTMLInputElement).value;
-    const angle = (+(ensureEl("transformAngleInput") as HTMLInputElement).value / 180) * Math.PI;
+    const shiftX = +(document.getElementById("transformShiftX") as HTMLInputElement).value;
+    const shiftY = +(document.getElementById("transformShiftY") as HTMLInputElement).value;
+    const angle = (+(document.getElementById("transformAngleInput") as HTMLInputElement).value / 180) * Math.PI;
     const cos = Math.cos(angle);
     const sin = Math.sin(angle);
-    const scaleVal = +(ensureEl("transformScaleResult") as HTMLOutputElement).value;
-    const mirrorH = (ensureEl("transformMirrorH") as HTMLInputElement).checked;
-    const mirrorV = (ensureEl("transformMirrorV") as HTMLInputElement).checked;
+    const scaleVal = +(document.getElementById("transformScaleResult") as HTMLOutputElement).value;
+    const mirrorH = (document.getElementById("transformMirrorH") as HTMLInputElement).checked;
+    const mirrorV = (document.getElementById("transformMirrorV") as HTMLInputElement).checked;
 
     function project(x: number, y: number): [number, number] {
       x -= centerX;

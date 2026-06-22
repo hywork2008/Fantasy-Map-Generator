@@ -21,7 +21,7 @@ import { drawRegiments, drawScaleBar, fitScaleBar } from "../renderers/index";
 import { modules } from "../store/editorState";
 import { useStyleState } from "../store/styleState";
 import { closeDialog, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
-import { drawHeights, ensureEl, parseTransform, rn, toHEX } from "../utils";
+import { drawHeights, parseTransform, rn, toHEX } from "../utils";
 import { heightmapColorSchemes } from "../utils/colorUtils";
 import { ERROR, INFO } from "../utils/debug";
 import { layerIsOn } from "../utils/nodeUtils";
@@ -40,7 +40,9 @@ type AnySelection = Selection<SVGGElement, unknown, null, undefined>;
 export function addCustomColorScheme(scheme: string): void {
   const stops = scheme.split(",");
   heightmapColorSchemes[scheme] = scaleSequential(interpolateRgbBasis(stops));
-  ensureEl<HTMLSelectElement>("styleHeightmapScheme").options.add(new Option(scheme, scheme, false, true));
+  (document.getElementById("styleHeightmapScheme") as HTMLSelectElement).options.add(
+    new Option(scheme, scheme, false, true)
+  );
 }
 
 document.addEventListener("fmg:edit-style", (e: Event) => {
@@ -52,22 +54,25 @@ document.addEventListener("fmg:edit-style", (e: Event) => {
 
 export function editStyle(element: string, group?: string): void {
   import("./options").then(m => m.showOptions());
-  ensureEl<HTMLButtonElement>("styleTab").click();
-  ensureEl<HTMLSelectElement>("styleElementSelect").value = element;
-  if (group) ensureEl<HTMLSelectElement>("styleGroupSelect").options.add(new Option(group, group, true, true));
+  (document.getElementById("styleTab") as HTMLButtonElement).click();
+  (document.getElementById("styleElementSelect") as HTMLSelectElement).value = element;
+  if (group)
+    (document.getElementById("styleGroupSelect") as HTMLSelectElement).options.add(
+      new Option(group, group, true, true)
+    );
   selectStyleElement();
 
-  ensureEl("styleElementSelect").classList.add("glow");
-  if (group) ensureEl("styleGroupSelect").classList.add("glow");
+  document.getElementById("styleElementSelect")!.classList.add("glow");
+  if (group) document.getElementById("styleGroupSelect")!.classList.add("glow");
 
   setTimeout(() => {
-    ensureEl("styleElementSelect").classList.remove("glow");
-    if (group) ensureEl("styleGroupSelect").classList.remove("glow");
+    document.getElementById("styleElementSelect")!.classList.remove("glow");
+    if (group) document.getElementById("styleGroupSelect")!.classList.remove("glow");
   }, 1500);
 }
 
 function selectStyleElement(): void {
-  const styleElement = ensureEl<HTMLSelectElement>("styleElementSelect").value;
+  const styleElement = (document.getElementById("styleElementSelect") as HTMLSelectElement).value;
   let el: AnySelection = viewContext.svg.select<SVGGElement>(`#${styleElement}`);
 
   const visibility: Record<string, boolean> = {};
@@ -77,7 +82,7 @@ function selectStyleElement(): void {
   visibility.styleIsOff = Boolean(isLayerOff);
 
   if (["anchors", "borders", "burgIcons", "coastline", "lakes", "labels", "routes", "terrs"].includes(styleElement)) {
-    const group = ensureEl<HTMLSelectElement>("styleGroupSelect").value;
+    const group = (document.getElementById("styleGroupSelect") as HTMLSelectElement).value;
     const defaultGroupSelector = styleElement === "terrs" ? "#landHeights" : "g";
     el =
       group && el.select<SVGGElement>(`#${group}`).size()
@@ -97,14 +102,14 @@ function selectStyleElement(): void {
 
   if (!["landmass", "legend", "regions", "scaleBar"].includes(styleElement)) {
     visibility.styleFilter = true;
-    ensureEl<HTMLInputElement>("styleFilterInput").value = el.attr("filter") ?? "";
+    (document.getElementById("styleFilterInput") as HTMLInputElement).value = el.attr("filter") ?? "";
   }
 
   if (["fogging", "ice", "lakes", "landmass", "prec", "rivers", "scaleBar", "vignette"].includes(styleElement)) {
     visibility.styleFill = true;
     const fill = el.attr("fill") ?? "";
-    ensureEl<HTMLInputElement>("styleFillInput").value = fill;
-    ensureEl<HTMLInputElement>("styleFillOutput").value = fill;
+    (document.getElementById("styleFillInput") as HTMLInputElement).value = fill;
+    (document.getElementById("styleFillOutput") as HTMLInputElement).value = fill;
   }
 
   if (
@@ -128,8 +133,8 @@ function selectStyleElement(): void {
   ) {
     visibility.styleStroke = true;
     const stroke = el.attr("stroke") ?? "";
-    ensureEl<HTMLInputElement>("styleStrokeInput").value = stroke;
-    ensureEl<HTMLInputElement>("styleStrokeOutput").value = stroke;
+    (document.getElementById("styleStrokeInput") as HTMLInputElement).value = stroke;
+    (document.getElementById("styleStrokeOutput") as HTMLInputElement).value = stroke;
     visibility.styleStrokeWidth = true;
     sliderValues.styleStrokeWidthInput = String(el.attr("stroke-width") ?? 0);
   }
@@ -148,8 +153,10 @@ function selectStyleElement(): void {
     ].includes(styleElement)
   ) {
     visibility.styleStrokeDash = true;
-    ensureEl<HTMLInputElement>("styleStrokeDasharrayInput").value = el.attr("stroke-dasharray") ?? "";
-    ensureEl<HTMLInputElement>("styleStrokeLinecapInput").value = el.attr("stroke-linecap") ?? "inherit";
+    (document.getElementById("styleStrokeDasharrayInput") as HTMLInputElement).value =
+      el.attr("stroke-dasharray") ?? "";
+    (document.getElementById("styleStrokeLinecapInput") as HTMLInputElement).value =
+      el.attr("stroke-linecap") ?? "inherit";
   }
 
   if (
@@ -169,47 +176,51 @@ function selectStyleElement(): void {
     ].includes(styleElement)
   ) {
     visibility.styleClipping = true;
-    ensureEl<HTMLInputElement>("styleClippingInput").value = el.attr("mask") ?? "";
+    (document.getElementById("styleClippingInput") as HTMLInputElement).value = el.attr("mask") ?? "";
   }
 
   if (styleElement === "texture") {
     visibility.styleTexture = true;
-    ensureEl<HTMLInputElement>("styleTextureShiftX").value = String(el.attr("data-x") ?? 0);
-    ensureEl<HTMLInputElement>("styleTextureShiftY").value = String(el.attr("data-y") ?? 0);
+    (document.getElementById("styleTextureShiftX") as HTMLInputElement).value = String(el.attr("data-x") ?? 0);
+    (document.getElementById("styleTextureShiftY") as HTMLInputElement).value = String(el.attr("data-y") ?? 0);
     updateTextureSelectValue(el.attr("data-href") ?? "");
   }
 
   if (styleElement === "terrs") {
     visibility.styleHeightmap = true;
-    ensureEl<HTMLElement>("styleHeightmapRenderOceanOption").style.display =
+    (document.getElementById("styleHeightmapRenderOceanOption") as HTMLElement).style.display =
       el.attr("id") === "oceanHeights" ? "block" : "none";
-    ensureEl<HTMLInputElement>("styleHeightmapRenderOcean").checked = Boolean(+el.attr("data-render")!);
-    ensureEl<HTMLSelectElement>("styleHeightmapScheme").value = el.attr("scheme") ?? "";
+    (document.getElementById("styleHeightmapRenderOcean") as HTMLInputElement).checked = Boolean(
+      +el.attr("data-render")!
+    );
+    (document.getElementById("styleHeightmapScheme") as HTMLSelectElement).value = el.attr("scheme") ?? "";
     sliderValues.styleHeightmapTerracing = el.attr("terracing") ?? "";
     sliderValues.styleHeightmapSkip = el.attr("skip") ?? "";
     sliderValues.styleHeightmapSimplification = el.attr("relax") ?? "";
-    ensureEl<HTMLSelectElement>("styleHeightmapCurve").value = el.attr("curve") ?? "";
+    (document.getElementById("styleHeightmapCurve") as HTMLSelectElement).value = el.attr("curve") ?? "";
   }
 
   if (styleElement === "markers") {
     visibility.styleMarkers = true;
-    ensureEl<HTMLInputElement>("styleRescaleMarkers").checked = Boolean(+viewContext.markers.attr("rescale")!);
+    (document.getElementById("styleRescaleMarkers") as HTMLInputElement).checked = Boolean(
+      +viewContext.markers.attr("rescale")!
+    );
   }
 
   if (styleElement === "gridOverlay") {
     visibility.styleGrid = true;
-    ensureEl<HTMLSelectElement>("styleGridType").value = el.attr("type") ?? "";
-    ensureEl<HTMLInputElement>("styleGridScale").value = String(el.attr("scale") ?? 1);
-    ensureEl<HTMLInputElement>("styleGridShiftX").value = String(el.attr("dx") ?? 0);
-    ensureEl<HTMLInputElement>("styleGridShiftY").value = String(el.attr("dy") ?? 0);
+    (document.getElementById("styleGridType") as HTMLSelectElement).value = el.attr("type") ?? "";
+    (document.getElementById("styleGridScale") as HTMLInputElement).value = String(el.attr("scale") ?? 1);
+    (document.getElementById("styleGridShiftX") as HTMLInputElement).value = String(el.attr("dx") ?? 0);
+    (document.getElementById("styleGridShiftY") as HTMLInputElement).value = String(el.attr("dy") ?? 0);
     calculateFriendlyGridSize();
   }
 
   if (styleElement === "compass") {
     visibility.styleCompass = true;
     const tr = parseTransform(viewContext.compass.select("use").attr("transform"));
-    ensureEl<HTMLInputElement>("styleCompassShiftX").value = String(tr[0]);
-    ensureEl<HTMLInputElement>("styleCompassShiftY").value = String(tr[1]);
+    (document.getElementById("styleCompassShiftX") as HTMLInputElement).value = String(tr[0]);
+    (document.getElementById("styleCompassShiftY") as HTMLInputElement).value = String(tr[1]);
     sliderValues.styleCompassSizeInput = String(tr[2]);
   }
 
@@ -217,17 +228,17 @@ function selectStyleElement(): void {
     visibility.styleRelief = true;
     sliderValues.styleReliefSize = String(viewContext.terrain.attr("size") ?? 1);
     sliderValues.styleReliefDensity = String(viewContext.terrain.attr("density") ?? 0.4);
-    ensureEl<HTMLSelectElement>("styleReliefSet").value = viewContext.terrain.attr("set") ?? "";
+    (document.getElementById("styleReliefSet") as HTMLSelectElement).value = viewContext.terrain.attr("set") ?? "";
   }
 
   if (styleElement === "population") {
     visibility.stylePopulation = true;
     const ruralStroke = viewContext.population.select("#rural").attr("stroke") ?? "";
     const urbanStroke = viewContext.population.select("#urban").attr("stroke") ?? "";
-    ensureEl<HTMLInputElement>("stylePopulationRuralStrokeInput").value = ruralStroke;
-    ensureEl<HTMLInputElement>("stylePopulationRuralStrokeOutput").value = ruralStroke;
-    ensureEl<HTMLInputElement>("stylePopulationUrbanStrokeInput").value = urbanStroke;
-    ensureEl<HTMLInputElement>("stylePopulationUrbanStrokeOutput").value = urbanStroke;
+    (document.getElementById("stylePopulationRuralStrokeInput") as HTMLInputElement).value = ruralStroke;
+    (document.getElementById("stylePopulationRuralStrokeOutput") as HTMLInputElement).value = ruralStroke;
+    (document.getElementById("stylePopulationUrbanStrokeInput") as HTMLInputElement).value = urbanStroke;
+    (document.getElementById("stylePopulationUrbanStrokeOutput") as HTMLInputElement).value = urbanStroke;
     visibility.styleStrokeWidth = true;
     sliderValues.styleStrokeWidthInput = String(el.attr("stroke-width") ?? 0);
   }
@@ -235,7 +246,8 @@ function selectStyleElement(): void {
   if (styleElement === "regions") {
     visibility.styleStates = true;
     sliderValues.styleStatesBodyOpacity = String(viewContext.statesBody.attr("opacity") ?? 1);
-    ensureEl<HTMLInputElement>("styleStatesBodyFilter").value = viewContext.statesBody.attr("filter") ?? "";
+    (document.getElementById("styleStatesBodyFilter") as HTMLInputElement).value =
+      viewContext.statesBody.attr("filter") ?? "";
     sliderValues.styleStatesHaloWidth = String(viewContext.statesHalo.attr("data-width") ?? 10);
     sliderValues.styleStatesHaloOpacity = String(viewContext.statesHalo.attr("opacity") ?? 1);
     const blurMatch = viewContext.statesHalo.attr("filter")?.match(/blur\(([^)]+)\)/);
@@ -246,11 +258,11 @@ function selectStyleElement(): void {
     visibility.styleFill = true;
     visibility.styleSize = true;
     const fill = el.attr("fill") ?? "#111111";
-    ensureEl<HTMLInputElement>("styleFillInput").value = fill;
-    ensureEl<HTMLInputElement>("styleFillOutput").value = fill;
+    (document.getElementById("styleFillInput") as HTMLInputElement).value = fill;
+    (document.getElementById("styleFillOutput") as HTMLInputElement).value = fill;
     visibility.styleFont = true;
-    ensureEl<HTMLSelectElement>("styleSelectFont").value = el.attr("font-family") ?? "";
-    ensureEl<HTMLInputElement>("styleFontSize").value = el.attr("font-size") ?? "";
+    (document.getElementById("styleSelectFont") as HTMLSelectElement).value = el.attr("font-family") ?? "";
+    (document.getElementById("styleFontSize") as HTMLInputElement).value = el.attr("font-size") ?? "";
   }
 
   if (styleElement === "labels") {
@@ -264,31 +276,32 @@ function selectStyleElement(): void {
 
     const fill = el.attr("fill") ?? "#3e3e4b";
     const stroke = el.attr("stroke") ?? "#3a3a3a";
-    ensureEl<HTMLInputElement>("styleFillInput").value = fill;
-    ensureEl<HTMLInputElement>("styleFillOutput").value = fill;
-    ensureEl<HTMLInputElement>("styleStrokeInput").value = stroke;
-    ensureEl<HTMLInputElement>("styleStrokeOutput").value = stroke;
+    (document.getElementById("styleFillInput") as HTMLInputElement).value = fill;
+    (document.getElementById("styleFillOutput") as HTMLInputElement).value = fill;
+    (document.getElementById("styleStrokeInput") as HTMLInputElement).value = stroke;
+    (document.getElementById("styleStrokeOutput") as HTMLInputElement).value = stroke;
     sliderValues.styleStrokeWidthInput = String(el.attr("stroke-width") ?? 0);
     sliderValues.styleLetterSpacingInput = String(el.attr("letter-spacing") ?? 0);
-    ensureEl<HTMLInputElement>("styleShadowInput").value = el.style("text-shadow") ?? "";
-    ensureEl<HTMLInputElement>("styleLabelsHideGroup").checked = el.node()?.style.display === "none";
+    (document.getElementById("styleShadowInput") as HTMLInputElement).value = el.style("text-shadow") ?? "";
+    (document.getElementById("styleLabelsHideGroup") as HTMLInputElement).checked = el.node()?.style.display === "none";
 
     visibility.styleFont = true;
-    ensureEl<HTMLSelectElement>("styleSelectFont").value = el.attr("font-family") ?? "";
-    ensureEl<HTMLInputElement>("styleFontSize").value = el.attr("data-size") ?? "";
+    (document.getElementById("styleSelectFont") as HTMLSelectElement).value = el.attr("font-family") ?? "";
+    (document.getElementById("styleFontSize") as HTMLInputElement).value = el.attr("data-size") ?? "";
 
     if ((el.node() as Element).parentElement?.id === "burgLabels") {
       visibility.styleFontShift = true;
-      ensureEl<HTMLInputElement>("styleFontShiftX").value = String(el.attr("data-dx") ?? 0);
-      ensureEl<HTMLInputElement>("styleFontShiftY").value = String(el.attr("data-dy") ?? 0);
+      (document.getElementById("styleFontShiftX") as HTMLInputElement).value = String(el.attr("data-dx") ?? 0);
+      (document.getElementById("styleFontShiftY") as HTMLInputElement).value = String(el.attr("data-dy") ?? 0);
     }
   }
 
   if (styleElement === "burgIcons") {
     visibility.styleBurgIcons = true;
-    ensureEl<HTMLSelectElement>("styleBurgIconsIcon").value = el.attr("data-icon") ?? "";
+    (document.getElementById("styleBurgIconsIcon") as HTMLSelectElement).value = el.attr("data-icon") ?? "";
     sliderValues.styleBurgIconsIconSize = el.attr("font-size") ?? "";
-    ensureEl<HTMLSelectElement>("styleBurgIconsStrokeLinejoin").value = el.attr("stroke-linejoin") ?? "";
+    (document.getElementById("styleBurgIconsStrokeLinejoin") as HTMLSelectElement).value =
+      el.attr("stroke-linejoin") ?? "";
     sliderValues.styleBurgIconsFillOpacity = el.attr("fill-opacity") ?? "";
 
     visibility.styleFill = true;
@@ -297,13 +310,15 @@ function selectStyleElement(): void {
     visibility.styleStrokeDash = true;
     const fill = el.attr("fill") ?? "#ffffff";
     const stroke = el.attr("stroke") ?? "#3e3e4b";
-    ensureEl<HTMLInputElement>("styleFillInput").value = fill;
-    ensureEl<HTMLInputElement>("styleFillOutput").value = fill;
-    ensureEl<HTMLInputElement>("styleStrokeInput").value = stroke;
-    ensureEl<HTMLInputElement>("styleStrokeOutput").value = stroke;
+    (document.getElementById("styleFillInput") as HTMLInputElement).value = fill;
+    (document.getElementById("styleFillOutput") as HTMLInputElement).value = fill;
+    (document.getElementById("styleStrokeInput") as HTMLInputElement).value = stroke;
+    (document.getElementById("styleStrokeOutput") as HTMLInputElement).value = stroke;
     sliderValues.styleStrokeWidthInput = String(el.attr("stroke-width") ?? 0.24);
-    ensureEl<HTMLInputElement>("styleStrokeDasharrayInput").value = el.attr("stroke-dasharray") ?? "";
-    ensureEl<HTMLInputElement>("styleStrokeLinecapInput").value = el.attr("stroke-linecap") ?? "inherit";
+    (document.getElementById("styleStrokeDasharrayInput") as HTMLInputElement).value =
+      el.attr("stroke-dasharray") ?? "";
+    (document.getElementById("styleStrokeLinecapInput") as HTMLInputElement).value =
+      el.attr("stroke-linecap") ?? "inherit";
   }
 
   if (styleElement === "anchors") {
@@ -313,12 +328,12 @@ function selectStyleElement(): void {
     visibility.styleSize = true;
     const fill = el.attr("fill") ?? "#ffffff";
     const stroke = el.attr("stroke") ?? "#3e3e4b";
-    ensureEl<HTMLInputElement>("styleFillInput").value = fill;
-    ensureEl<HTMLInputElement>("styleFillOutput").value = fill;
-    ensureEl<HTMLInputElement>("styleStrokeInput").value = stroke;
-    ensureEl<HTMLInputElement>("styleStrokeOutput").value = stroke;
+    (document.getElementById("styleFillInput") as HTMLInputElement).value = fill;
+    (document.getElementById("styleFillOutput") as HTMLInputElement).value = fill;
+    (document.getElementById("styleStrokeInput") as HTMLInputElement).value = stroke;
+    (document.getElementById("styleStrokeOutput") as HTMLInputElement).value = stroke;
     sliderValues.styleStrokeWidthInput = String(el.attr("stroke-width") ?? 0.24);
-    ensureEl<HTMLInputElement>("styleFontSize").value = String(el.attr("font-size") ?? 1);
+    (document.getElementById("styleFontSize") as HTMLInputElement).value = String(el.attr("font-size") ?? 1);
   }
 
   if (styleElement === "legend") {
@@ -329,28 +344,29 @@ function selectStyleElement(): void {
     const legendBox = el.select<SVGRectElement>("#legendBox");
     sliderValues.styleLegendColItems = el.attr("data-columns") ?? "";
     const backFill = legendBox.size() ? (legendBox.attr("fill") ?? "#ffffff") : "#ffffff";
-    ensureEl<HTMLInputElement>("styleLegendBack").value = backFill;
-    ensureEl<HTMLInputElement>("styleLegendBackOutput").value = backFill;
+    (document.getElementById("styleLegendBack") as HTMLInputElement).value = backFill;
+    (document.getElementById("styleLegendBackOutput") as HTMLInputElement).value = backFill;
     sliderValues.styleLegendOpacity = String(legendBox.size() ? (legendBox.attr("fill-opacity") ?? 1) : 1);
     const stroke = el.attr("stroke") ?? "#111111";
-    ensureEl<HTMLInputElement>("styleStrokeInput").value = stroke;
-    ensureEl<HTMLInputElement>("styleStrokeOutput").value = stroke;
+    (document.getElementById("styleStrokeInput") as HTMLInputElement).value = stroke;
+    (document.getElementById("styleStrokeOutput") as HTMLInputElement).value = stroke;
     sliderValues.styleStrokeWidthInput = String(el.attr("stroke-width") ?? 0.5);
     visibility.styleFont = true;
-    ensureEl<HTMLSelectElement>("styleSelectFont").value = el.attr("font-family") ?? "";
-    ensureEl<HTMLInputElement>("styleFontSize").value = el.attr("data-size") ?? "";
+    (document.getElementById("styleSelectFont") as HTMLSelectElement).value = el.attr("font-family") ?? "";
+    (document.getElementById("styleFontSize") as HTMLInputElement).value = el.attr("data-size") ?? "";
   }
 
   if (styleElement === "ocean") {
     visibility.styleOcean = true;
     const oceanBase = viewContext.oceanLayers.select<SVGRectElement>("#oceanBase");
     const fill = oceanBase.attr("fill") ?? "";
-    ensureEl<HTMLInputElement>("styleOceanFill").value = fill;
-    ensureEl<HTMLInputElement>("styleOceanFillOutput").value = fill;
-    ensureEl<HTMLInputElement>("styleOceanPattern").value =
+    (document.getElementById("styleOceanFill") as HTMLInputElement).value = fill;
+    (document.getElementById("styleOceanFillOutput") as HTMLInputElement).value = fill;
+    (document.getElementById("styleOceanPattern") as HTMLInputElement).value =
       document.getElementById("oceanicPattern")?.getAttribute("href") ?? "";
     sliderValues.styleOceanPatternOpacity = document.getElementById("oceanicPattern")?.getAttribute("opacity") ?? "1";
-    ensureEl<HTMLSelectElement>("outlineLayers").value = viewContext.oceanLayers.attr("layers") ?? "";
+    (document.getElementById("outlineLayers") as HTMLSelectElement).value =
+      viewContext.oceanLayers.attr("layers") ?? "";
   }
 
   if (styleElement === "temperature") {
@@ -359,14 +375,14 @@ function selectStyleElement(): void {
     sliderValues.styleStrokeWidthInput = el.attr("stroke-width") ?? "";
     sliderValues.styleTemperatureFillOpacityInput = String(el.attr("fill-opacity") ?? 0.1);
     const tempFill = el.attr("fill") ?? "#000";
-    ensureEl<HTMLInputElement>("styleTemperatureFillInput").value = tempFill;
-    ensureEl<HTMLInputElement>("styleTemperatureFillOutput").value = tempFill;
+    (document.getElementById("styleTemperatureFillInput") as HTMLInputElement).value = tempFill;
+    (document.getElementById("styleTemperatureFillOutput") as HTMLInputElement).value = tempFill;
     sliderValues.styleTemperatureFontSizeInput = (el.attr("font-size") ?? "8").replace(/px$/, "");
   }
 
   if (styleElement === "coordinates") {
     visibility.styleSize = true;
-    ensureEl<HTMLInputElement>("styleFontSize").value = el.attr("data-size") ?? "";
+    (document.getElementById("styleFontSize") as HTMLInputElement).value = el.attr("data-size") ?? "";
   }
 
   if (styleElement === "armies") {
@@ -385,52 +401,63 @@ function selectStyleElement(): void {
   }
 
   // update group options
-  ensureEl<HTMLSelectElement>("styleGroupSelect").options.length = 0;
+  (document.getElementById("styleGroupSelect") as HTMLSelectElement).options.length = 0;
   if (["anchors", "borders", "burgIcons", "coastline", "lakes", "labels", "routes", "terrs"].includes(styleElement)) {
-    const groups = ensureEl(styleElement).querySelectorAll<SVGGElement>("g");
+    const groups = document.getElementById(styleElement)!.querySelectorAll<SVGGElement>("g");
     groups.forEach(g => {
       if (g.id === "burgLabels") return;
       const option = new Option(`${g.id} (${g.childElementCount})`, g.id, false, false);
-      ensureEl<HTMLSelectElement>("styleGroupSelect").options.add(option);
+      (document.getElementById("styleGroupSelect") as HTMLSelectElement).options.add(option);
     });
-    ensureEl<HTMLSelectElement>("styleGroupSelect").value = el.attr("id") ?? "";
+    (document.getElementById("styleGroupSelect") as HTMLSelectElement).value = el.attr("id") ?? "";
     visibility.styleGroup = true;
   } else {
-    ensureEl<HTMLSelectElement>("styleGroupSelect").options.add(new Option(styleElement, styleElement, false, true));
+    (document.getElementById("styleGroupSelect") as HTMLSelectElement).options.add(
+      new Option(styleElement, styleElement, false, true)
+    );
     visibility.styleGroup = false;
   }
 
-  if (styleElement === "coastline" && ensureEl<HTMLSelectElement>("styleGroupSelect").value === "sea_island") {
+  if (
+    styleElement === "coastline" &&
+    (document.getElementById("styleGroupSelect") as HTMLSelectElement).value === "sea_island"
+  ) {
     visibility.styleCoastline = true;
     const auto = Boolean(viewContext.coastline.select("#sea_island").attr("auto-filter"));
-    ensureEl<HTMLInputElement>("styleCoastlineAuto").checked = auto;
+    (document.getElementById("styleCoastlineAuto") as HTMLInputElement).checked = auto;
     if (auto) visibility.styleFilter = false;
   }
 
   if (styleElement === "scaleBar") {
     visibility.styleScaleBar = true;
     const scaleBarEl = viewContext.scaleBar;
-    ensureEl<HTMLInputElement>("styleScaleBarSize").value = scaleBarEl.attr("data-bar-size") ?? "";
-    ensureEl<HTMLInputElement>("styleScaleBarFontSize").value = scaleBarEl.attr("font-size") ?? "";
-    ensureEl<HTMLInputElement>("styleScaleBarPositionX").value = scaleBarEl.attr("data-x") ?? "99";
-    ensureEl<HTMLInputElement>("styleScaleBarPositionY").value = scaleBarEl.attr("data-y") ?? "99";
-    ensureEl<HTMLInputElement>("styleScaleBarLabel").value = scaleBarEl.attr("data-label") ?? "";
+    (document.getElementById("styleScaleBarSize") as HTMLInputElement).value = scaleBarEl.attr("data-bar-size") ?? "";
+    (document.getElementById("styleScaleBarFontSize") as HTMLInputElement).value = scaleBarEl.attr("font-size") ?? "";
+    (document.getElementById("styleScaleBarPositionX") as HTMLInputElement).value = scaleBarEl.attr("data-x") ?? "99";
+    (document.getElementById("styleScaleBarPositionY") as HTMLInputElement).value = scaleBarEl.attr("data-y") ?? "99";
+    (document.getElementById("styleScaleBarLabel") as HTMLInputElement).value = scaleBarEl.attr("data-label") ?? "";
 
     const scaleBarBack = scaleBarEl.select<SVGRectElement>("#scaleBarBack");
     if (scaleBarBack.size()) {
       sliderValues.styleScaleBarBackgroundOpacity = scaleBarBack.attr("opacity") ?? "";
       const backFill = scaleBarBack.attr("fill") ?? "";
-      ensureEl<HTMLInputElement>("styleScaleBarBackgroundFill").value = backFill;
-      ensureEl<HTMLInputElement>("styleScaleBarBackgroundFillOutput").value = backFill;
+      (document.getElementById("styleScaleBarBackgroundFill") as HTMLInputElement).value = backFill;
+      (document.getElementById("styleScaleBarBackgroundFillOutput") as HTMLInputElement).value = backFill;
       const backStroke = scaleBarBack.attr("stroke") ?? "";
-      ensureEl<HTMLInputElement>("styleScaleBarBackgroundStroke").value = backStroke;
-      ensureEl<HTMLInputElement>("styleScaleBarBackgroundStrokeOutput").value = backStroke;
-      ensureEl<HTMLInputElement>("styleScaleBarBackgroundStrokeWidth").value = scaleBarBack.attr("stroke-width") ?? "";
-      ensureEl<HTMLInputElement>("styleScaleBarBackgroundFilter").value = scaleBarBack.attr("filter") ?? "";
-      ensureEl<HTMLInputElement>("styleScaleBarBackgroundPaddingTop").value = scaleBarBack.attr("data-top") ?? "";
-      ensureEl<HTMLInputElement>("styleScaleBarBackgroundPaddingRight").value = scaleBarBack.attr("data-right") ?? "";
-      ensureEl<HTMLInputElement>("styleScaleBarBackgroundPaddingBottom").value = scaleBarBack.attr("data-bottom") ?? "";
-      ensureEl<HTMLInputElement>("styleScaleBarBackgroundPaddingLeft").value = scaleBarBack.attr("data-left") ?? "";
+      (document.getElementById("styleScaleBarBackgroundStroke") as HTMLInputElement).value = backStroke;
+      (document.getElementById("styleScaleBarBackgroundStrokeOutput") as HTMLInputElement).value = backStroke;
+      (document.getElementById("styleScaleBarBackgroundStrokeWidth") as HTMLInputElement).value =
+        scaleBarBack.attr("stroke-width") ?? "";
+      (document.getElementById("styleScaleBarBackgroundFilter") as HTMLInputElement).value =
+        scaleBarBack.attr("filter") ?? "";
+      (document.getElementById("styleScaleBarBackgroundPaddingTop") as HTMLInputElement).value =
+        scaleBarBack.attr("data-top") ?? "";
+      (document.getElementById("styleScaleBarBackgroundPaddingRight") as HTMLInputElement).value =
+        scaleBarBack.attr("data-right") ?? "";
+      (document.getElementById("styleScaleBarBackgroundPaddingBottom") as HTMLInputElement).value =
+        scaleBarBack.attr("data-bottom") ?? "";
+      (document.getElementById("styleScaleBarBackgroundPaddingLeft") as HTMLInputElement).value =
+        scaleBarBack.attr("data-left") ?? "";
     }
   }
 
@@ -439,12 +466,14 @@ function selectStyleElement(): void {
     const maskRect = document.getElementById("vignette-rect");
     if (maskRect) {
       const digit = (str: string | null) => (str ?? "").replace(/[^\d.]/g, "");
-      ensureEl<HTMLInputElement>("styleVignetteX").value = digit(maskRect.getAttribute("x"));
-      ensureEl<HTMLInputElement>("styleVignetteY").value = digit(maskRect.getAttribute("y"));
-      ensureEl<HTMLInputElement>("styleVignetteWidth").value = digit(maskRect.getAttribute("width"));
-      ensureEl<HTMLInputElement>("styleVignetteHeight").value = digit(maskRect.getAttribute("height"));
-      ensureEl<HTMLInputElement>("styleVignetteRx").value = digit(maskRect.getAttribute("rx"));
-      ensureEl<HTMLInputElement>("styleVignetteRy").value = digit(maskRect.getAttribute("ry"));
+      (document.getElementById("styleVignetteX") as HTMLInputElement).value = digit(maskRect.getAttribute("x"));
+      (document.getElementById("styleVignetteY") as HTMLInputElement).value = digit(maskRect.getAttribute("y"));
+      (document.getElementById("styleVignetteWidth") as HTMLInputElement).value = digit(maskRect.getAttribute("width"));
+      (document.getElementById("styleVignetteHeight") as HTMLInputElement).value = digit(
+        maskRect.getAttribute("height")
+      );
+      (document.getElementById("styleVignetteRx") as HTMLInputElement).value = digit(maskRect.getAttribute("rx"));
+      (document.getElementById("styleVignetteRy") as HTMLInputElement).value = digit(maskRect.getAttribute("ry"));
       sliderValues.styleVignetteBlur = digit(maskRect.getAttribute("filter"));
     }
   }
@@ -455,8 +484,8 @@ function selectStyleElement(): void {
 // ─── Helper: get current D3 selection ─────────────────────────────────────────
 
 function getEl(): AnySelection {
-  const el = ensureEl<HTMLSelectElement>("styleElementSelect").value;
-  const g = ensureEl<HTMLSelectElement>("styleGroupSelect").value;
+  const el = (document.getElementById("styleElementSelect") as HTMLSelectElement).value;
+  const g = (document.getElementById("styleGroupSelect") as HTMLSelectElement).value;
 
   let selection = viewContext.svg.select<SVGGElement>(`#${el}`);
   if (g !== el && g !== "") {
@@ -479,7 +508,7 @@ function changeTexture(href: string): void {
 }
 
 export function updateTextureSelectValue(href: string): void {
-  const select = ensureEl<HTMLSelectElement>("styleTextureInput");
+  const select = document.getElementById("styleTextureInput") as HTMLSelectElement;
   const isAdded = Array.from(select.options).some(option => option.value === href);
   if (isAdded) {
     select.value = href;
@@ -492,16 +521,16 @@ export function updateTextureSelectValue(href: string): void {
 // ─── Grid size calculator ─────────────────────────────────────────────────────
 
 export function calculateFriendlyGridSize(): void {
-  const size = +ensureEl<HTMLInputElement>("styleGridScale").value * 25;
+  const size = +(document.getElementById("styleGridScale") as HTMLInputElement).value * 25;
   const friendly = `${rn(size * worldContext.distanceScale, 2)} ${distanceUnitInput.value}`;
-  ensureEl<HTMLInputElement>("styleGridSizeFriendly").value = friendly;
+  (document.getElementById("styleGridSizeFriendly") as HTMLInputElement).value = friendly;
 }
 
 // ─── Compass helper ───────────────────────────────────────────────────────────
 
 function shiftCompass(sizeOverride?: string): void {
-  const x = ensureEl<HTMLInputElement>("styleCompassShiftX").value;
-  const y = ensureEl<HTMLInputElement>("styleCompassShiftY").value;
+  const x = (document.getElementById("styleCompassShiftX") as HTMLInputElement).value;
+  const y = (document.getElementById("styleCompassShiftY") as HTMLInputElement).value;
   const size = sizeOverride ?? useStyleState.getState().values.styleCompassSizeInput ?? "0.3";
   viewContext.compass.select("use").attr("transform", `translate(${x} ${y}) scale(${size})`);
 }
@@ -509,14 +538,14 @@ function shiftCompass(sizeOverride?: string): void {
 // ─── Font helpers ─────────────────────────────────────────────────────────────
 
 export function changeFont(): void {
-  const family = ensureEl<HTMLSelectElement>("styleSelectFont").value;
+  const family = (document.getElementById("styleSelectFont") as HTMLSelectElement).value;
   getEl().attr("font-family", family);
-  if (ensureEl<HTMLSelectElement>("styleElementSelect").value === "legend") redrawLegend();
+  if ((document.getElementById("styleElementSelect") as HTMLSelectElement).value === "legend") redrawLegend();
 }
 
 function changeFontSize(el: AnySelection, size: number): void {
-  ensureEl<HTMLInputElement>("styleFontSize").value = String(size);
-  const styleElement = ensureEl<HTMLSelectElement>("styleElementSelect").value;
+  (document.getElementById("styleFontSize") as HTMLInputElement).value = String(size);
+  const styleElement = (document.getElementById("styleElementSelect") as HTMLSelectElement).value;
 
   const getSizeOnScale = (element: string): number => {
     if (element === "labels") return Math.max(rn((size + size / viewContext.scale) / 2, 2), 1);
@@ -551,7 +580,10 @@ export function applySliderChange(id: string, value: string): void {
       break;
     case "styleStrokeWidthInput":
       getEl().attr("stroke-width", value);
-      if (ensureEl<HTMLSelectElement>("styleElementSelect").value === "gridOverlay" && layerIsOn("toggleGrid"))
+      if (
+        (document.getElementById("styleElementSelect") as HTMLSelectElement).value === "gridOverlay" &&
+        layerIsOn("toggleGrid")
+      )
         GridRenderer.render(worldContext, viewContext, appServices);
       break;
     case "styleLetterSpacingInput":
@@ -662,7 +694,8 @@ function applyMapFilter(event: Event): void {
     button.classList.remove("pressed");
     return;
   }
-  ensureEl("mapFilters")
+  document
+    .getElementById("mapFilters")!
     .querySelectorAll<HTMLButtonElement>(".pressed")
     .forEach(b => {
       b.classList.remove("pressed");
@@ -698,7 +731,7 @@ export function fetchTextureURL(url: string): void {
   INFO && console.info("Provided URL is", url); // INFO is a global debug flag
   const img = new Image();
   img.onload = () => {
-    const canvas = ensureEl<HTMLCanvasElement>("texturePreview");
+    const canvas = document.getElementById("texturePreview") as HTMLCanvasElement;
     const ctx = canvas.getContext("2d")!;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
@@ -751,7 +784,7 @@ export function initStyleTab() {
   // ─── Initialization: filter dropdowns ────────────────────────────────────────
 
   {
-    const filters = Array.from(ensureEl("filters").querySelectorAll<SVGFilterElement>("filter"));
+    const filters = Array.from(document.getElementById("filters")!.querySelectorAll<SVGFilterElement>("filter"));
     const emptyOption = '<option value="" selected>None</option>';
     const options = filters.map(filter => {
       const id = filter.getAttribute("id")!;
@@ -759,14 +792,14 @@ export function initStyleTab() {
       return `<option value="url(#${id})">${name}</option>`;
     });
     const allOptions = emptyOption + options.join("");
-    ensureEl("styleFilterInput").innerHTML = allOptions;
-    ensureEl("styleStatesBodyFilter").innerHTML = allOptions;
-    ensureEl("styleScaleBarBackgroundFilter").innerHTML = allOptions;
+    document.getElementById("styleFilterInput")!.innerHTML = allOptions;
+    document.getElementById("styleStatesBodyFilter")!.innerHTML = allOptions;
+    document.getElementById("styleScaleBarBackgroundFilter")!.innerHTML = allOptions;
   }
 
   // ─── Initialization: heightmap scheme dropdown ────────────────────────────────
 
-  ensureEl<HTMLSelectElement>("styleHeightmapScheme").innerHTML = Object.keys(heightmapColorSchemes)
+  (document.getElementById("styleHeightmapScheme") as HTMLSelectElement).innerHTML = Object.keys(heightmapColorSchemes)
     .map(scheme => `<option value="${scheme}">${scheme}</option>`)
     .join("");
 
@@ -783,7 +816,9 @@ export function initStyleTab() {
   };
 
   Object.keys(vignettePresets).forEach(preset => {
-    ensureEl<HTMLSelectElement>("styleVignettePreset").options.add(new Option(preset, preset, false, false));
+    (document.getElementById("styleVignettePreset") as HTMLSelectElement).options.add(
+      new Option(preset, preset, false, false)
+    );
   });
 
   // ─── Initialization: style preset dropdown ────────────────────────────────────
@@ -810,62 +845,71 @@ export function initStyleTab() {
     const customOptions = storedStyles.map(
       key => `<option value="${key}">${key.replace(customPresetPrefix, "")} [custom]</option>`
     );
-    ensureEl("stylePreset").innerHTML = systemOptions.join("") + customOptions.join("");
+    document.getElementById("stylePreset")!.innerHTML = systemOptions.join("") + customOptions.join("");
   }
 
   // ─── Event listeners ──────────────────────────────────────────────────────────
 
-  ensureEl("styleElements").addEventListener("change", (ev: Event) => {
+  document.getElementById("styleElements")!.addEventListener("change", (ev: Event) => {
     const target = ev.target as HTMLElement;
     if (target.dataset.stored) lock(target.dataset.stored);
   });
 
-  ensureEl("styleElementSelect").addEventListener("change", selectStyleElement);
-  ensureEl("styleGroupSelect").addEventListener("change", selectStyleElement);
+  document.getElementById("styleElementSelect")!.addEventListener("change", selectStyleElement);
+  document.getElementById("styleGroupSelect")!.addEventListener("change", selectStyleElement);
 
-  ensureEl("styleFillInput").addEventListener("input", (e: Event) => {
+  document.getElementById("styleFillInput")!.addEventListener("input", (e: Event) => {
     const value = (e.target as HTMLInputElement).value;
-    ensureEl<HTMLInputElement>("styleFillOutput").value = value;
+    (document.getElementById("styleFillOutput") as HTMLInputElement).value = value;
     getEl().attr("fill", value);
   });
 
-  ensureEl("styleStrokeInput").addEventListener("input", (e: Event) => {
+  document.getElementById("styleStrokeInput")!.addEventListener("input", (e: Event) => {
     const value = (e.target as HTMLInputElement).value;
-    ensureEl<HTMLInputElement>("styleStrokeOutput").value = value;
+    (document.getElementById("styleStrokeOutput") as HTMLInputElement).value = value;
     getEl().attr("stroke", value);
-    if (ensureEl<HTMLSelectElement>("styleElementSelect").value === "gridOverlay" && layerIsOn("toggleGrid"))
+    if (
+      (document.getElementById("styleElementSelect") as HTMLSelectElement).value === "gridOverlay" &&
+      layerIsOn("toggleGrid")
+    )
       GridRenderer.render(worldContext, viewContext, appServices);
   });
 
-  ensureEl("styleStrokeDasharrayInput").addEventListener("input", (e: Event) => {
+  document.getElementById("styleStrokeDasharrayInput")!.addEventListener("input", (e: Event) => {
     getEl().attr("stroke-dasharray", (e.target as HTMLInputElement).value);
-    if (ensureEl<HTMLSelectElement>("styleElementSelect").value === "gridOverlay" && layerIsOn("toggleGrid"))
+    if (
+      (document.getElementById("styleElementSelect") as HTMLSelectElement).value === "gridOverlay" &&
+      layerIsOn("toggleGrid")
+    )
       GridRenderer.render(worldContext, viewContext, appServices);
   });
 
-  ensureEl("styleStrokeLinecapInput").addEventListener("change", (e: Event) => {
+  document.getElementById("styleStrokeLinecapInput")!.addEventListener("change", (e: Event) => {
     getEl().attr("stroke-linecap", (e.target as HTMLSelectElement).value);
-    if (ensureEl<HTMLSelectElement>("styleElementSelect").value === "gridOverlay" && layerIsOn("toggleGrid"))
+    if (
+      (document.getElementById("styleElementSelect") as HTMLSelectElement).value === "gridOverlay" &&
+      layerIsOn("toggleGrid")
+    )
       GridRenderer.render(worldContext, viewContext, appServices);
   });
 
-  ensureEl("styleLabelsHideGroup").addEventListener("change", (e: Event) => {
+  document.getElementById("styleLabelsHideGroup")!.addEventListener("change", (e: Event) => {
     if ((e.target as HTMLInputElement).checked) getEl().style("display", "none");
     else getEl().style("display", null);
   });
 
-  ensureEl("styleFilterInput").addEventListener("change", (e: Event) => {
+  document.getElementById("styleFilterInput")!.addEventListener("change", (e: Event) => {
     const value = (e.target as HTMLSelectElement).value;
-    if (ensureEl<HTMLSelectElement>("styleGroupSelect").value === "ocean")
+    if ((document.getElementById("styleGroupSelect") as HTMLSelectElement).value === "ocean")
       return void viewContext.oceanLayers.attr("filter", value);
     getEl().attr("filter", value);
   });
 
-  ensureEl("styleTextureInput").addEventListener("change", (e: Event) => {
+  document.getElementById("styleTextureInput")!.addEventListener("change", (e: Event) => {
     changeTexture((e.target as HTMLSelectElement).value);
   });
 
-  ensureEl("styleTextureShiftX").addEventListener("input", (e: Event) => {
+  document.getElementById("styleTextureShiftX")!.addEventListener("input", (e: Event) => {
     const value = (e.target as HTMLInputElement).value;
     const numVal = +(e.target as HTMLInputElement).valueAsNumber;
     viewContext.texture.attr("data-x", value);
@@ -875,7 +919,7 @@ export function initStyleTab() {
       .attr("width", worldContext.graphWidth - numVal);
   });
 
-  ensureEl("styleTextureShiftY").addEventListener("input", (e: Event) => {
+  document.getElementById("styleTextureShiftY")!.addEventListener("input", (e: Event) => {
     const value = (e.target as HTMLInputElement).value;
     const numVal = +(e.target as HTMLInputElement).valueAsNumber;
     viewContext.texture.attr("data-y", value);
@@ -885,255 +929,260 @@ export function initStyleTab() {
       .attr("height", worldContext.graphHeight - numVal);
   });
 
-  ensureEl("styleClippingInput").addEventListener("change", (e: Event) => {
+  document.getElementById("styleClippingInput")!.addEventListener("change", (e: Event) => {
     getEl().attr("mask", (e.target as HTMLSelectElement).value);
   });
 
-  ensureEl("styleGridType").addEventListener("change", (e: Event) => {
+  document.getElementById("styleGridType")!.addEventListener("change", (e: Event) => {
     getEl().attr("type", (e.target as HTMLSelectElement).value);
     if (layerIsOn("toggleGrid")) GridRenderer.render(worldContext, viewContext, appServices);
     calculateFriendlyGridSize();
   });
 
-  ensureEl("styleGridScale").addEventListener("input", () => {
-    getEl().attr("scale", ensureEl<HTMLInputElement>("styleGridScale").value);
+  document.getElementById("styleGridScale")!.addEventListener("input", () => {
+    getEl().attr("scale", (document.getElementById("styleGridScale") as HTMLInputElement).value);
     if (layerIsOn("toggleGrid")) GridRenderer.render(worldContext, viewContext, appServices);
     calculateFriendlyGridSize();
   });
 
-  ensureEl("styleGridShiftX").addEventListener("input", (e: Event) => {
+  document.getElementById("styleGridShiftX")!.addEventListener("input", (e: Event) => {
     getEl().attr("dx", (e.target as HTMLInputElement).value);
     if (layerIsOn("toggleGrid")) GridRenderer.render(worldContext, viewContext, appServices);
   });
 
-  ensureEl("styleGridShiftY").addEventListener("input", (e: Event) => {
+  document.getElementById("styleGridShiftY")!.addEventListener("input", (e: Event) => {
     getEl().attr("dy", (e.target as HTMLInputElement).value);
     if (layerIsOn("toggleGrid")) GridRenderer.render(worldContext, viewContext, appServices);
   });
 
-  ensureEl("styleRescaleMarkers").addEventListener("change", (e: Event) => {
+  document.getElementById("styleRescaleMarkers")!.addEventListener("change", (e: Event) => {
     viewContext.markers.attr("rescale", +(e.target as HTMLInputElement).checked);
     import("../main").then(m => m.invokeActiveZooming());
   });
 
-  ensureEl("styleCoastlineAuto").addEventListener("change", (e: Event) => {
+  document.getElementById("styleCoastlineAuto")!.addEventListener("change", (e: Event) => {
     const checked = (e.target as HTMLInputElement).checked;
     viewContext.coastline.select("#sea_island").attr("auto-filter", +checked);
-    ensureEl<HTMLElement>("styleFilter").style.display = checked ? "none" : "block";
+    (document.getElementById("styleFilter") as HTMLElement).style.display = checked ? "none" : "block";
     import("../main").then(m => m.invokeActiveZooming());
   });
 
-  ensureEl("styleOceanFill").addEventListener("input", (e: Event) => {
+  document.getElementById("styleOceanFill")!.addEventListener("input", (e: Event) => {
     const value = (e.target as HTMLInputElement).value;
     viewContext.oceanLayers.select("rect").attr("fill", value);
-    ensureEl<HTMLInputElement>("styleOceanFillOutput").value = value;
+    (document.getElementById("styleOceanFillOutput") as HTMLInputElement).value = value;
   });
 
-  ensureEl("styleOceanPattern").addEventListener("change", (e: Event) => {
-    ensureEl("oceanicPattern").setAttribute("href", (e.target as HTMLSelectElement).value);
+  document.getElementById("styleOceanPattern")!.addEventListener("change", (e: Event) => {
+    document.getElementById("oceanicPattern")!.setAttribute("href", (e.target as HTMLSelectElement).value);
   });
 
-  ensureEl("outlineLayers").addEventListener("change", (e: Event) => {
+  document.getElementById("outlineLayers")!.addEventListener("change", (e: Event) => {
     viewContext.oceanLayers.selectAll("path").remove();
     viewContext.oceanLayers.attr("layers", (e.target as HTMLSelectElement).value);
     OceanLayers();
   });
 
-  ensureEl("styleHeightmapScheme").addEventListener("change", (e: Event) => {
+  document.getElementById("styleHeightmapScheme")!.addEventListener("change", (e: Event) => {
     getEl().attr("scheme", (e.target as HTMLSelectElement).value);
     HeightmapRenderer.render(worldContext, viewContext, appServices);
   });
 
-  ensureEl("openCreateHeightmapSchemeButton").addEventListener("click", function (this: HTMLButtonElement) {
-    const button = this;
-    const scheme = getEl().attr("scheme") ?? "bright";
-    button.dataset.stops = scheme.startsWith("#")
-      ? scheme
-      : [0, 0.25, 0.5, 0.75, 1].map(heightmapColorSchemes[scheme]).map(toHEX).join(",");
+  document
+    .getElementById("openCreateHeightmapSchemeButton")!
+    .addEventListener("click", function (this: HTMLButtonElement) {
+      const button = this;
+      const scheme = getEl().attr("scheme") ?? "bright";
+      button.dataset.stops = scheme.startsWith("#")
+        ? scheme
+        : [0, 0.25, 0.5, 0.75, 1].map(heightmapColorSchemes[scheme]).map(toHEX).join(",");
 
-    function renderPreview(): void {
-      const stops = button.dataset.stops!.split(",");
-      const previewScheme = scaleSequential(interpolateRgbBasis(stops));
-      const preview = drawHeights({
-        heights: Array.from(worldContext.grid.cells.h),
-        width: worldContext.grid.cellsX,
-        height: worldContext.grid.cellsY,
-        scheme: previewScheme,
-        renderOcean: false
-      });
-      ensureEl<HTMLImageElement>("heightmapSchemePreview").src = preview;
-    }
-
-    function renderStops(): void {
-      const stops = button.dataset.stops!.split(",");
-
-      const colorInput = (color: string) =>
-        `<input type="color" class="stop" value="${color}" data-tip="Click to set the color" style="width: 2.5em; border: none;" />`;
-      const removeStopButton = (index: number) =>
-        `<button class="remove" data-index="${index}" data-tip="Remove color stop" style="margin-top: 0.3em; height: max-content;">x</button>`;
-      const addStopButton = () =>
-        `<button class="add" data-tip="Add color stop in between" style="margin-top: 0.3em; height: max-content;">+</button>`;
-
-      const container = ensureEl("heightmapSchemeStops");
-      container.innerHTML = stops
-        .map((stop, index) => `${colorInput(stop)}${index && index < stops.length - 1 ? removeStopButton(index) : ""}`)
-        .join(addStopButton());
-
-      Array.from(container.querySelectorAll<HTMLInputElement>("input.stop")).forEach((input, index) => {
-        input.oninput = function () {
-          stops[index] = (this as HTMLInputElement).value;
-          button.dataset.stops = stops.join(",");
-          renderPreview();
-          renderGradient();
-        };
-      });
-
-      Array.from(container.querySelectorAll<HTMLButtonElement>("button.remove")).forEach(btn => {
-        btn.onclick = function () {
-          const index = +(this as HTMLButtonElement).dataset.index!;
-          stops.splice(index, 1);
-          button.dataset.stops = stops.join(",");
-          renderPreview();
-          renderStops();
-          renderGradient();
-        };
-      });
-
-      Array.from(container.querySelectorAll<HTMLButtonElement>("button.add")).forEach((btn, index) => {
-        btn.onclick = () => {
-          const middleColor = interpolateRgb(stops[index], stops[index + 1])(0.5);
-          stops.splice(index + 1, 0, toHEX(middleColor));
-          button.dataset.stops = stops.join(",");
-          renderPreview();
-          renderStops();
-          renderGradient();
-        };
-      });
-    }
-
-    function renderGradient(): void {
-      const stops = button.dataset.stops!;
-      ensureEl<HTMLElement>("heightmapSchemeGradient").style.background = `linear-gradient(to right, ${stops})`;
-    }
-
-    function handleCreate(): void {
-      const stops = button.dataset.stops!;
-      if (stops in heightmapColorSchemes) {
-        tip("This scheme already exists", false, "error");
-        return;
+      function renderPreview(): void {
+        const stops = button.dataset.stops!.split(",");
+        const previewScheme = scaleSequential(interpolateRgbBasis(stops));
+        const preview = drawHeights({
+          heights: Array.from(worldContext.grid.cells.h),
+          width: worldContext.grid.cellsX,
+          height: worldContext.grid.cellsY,
+          scheme: previewScheme,
+          renderOcean: false
+        });
+        (document.getElementById("heightmapSchemePreview") as HTMLImageElement).src = preview;
       }
-      addCustomColorScheme(stops);
-      getEl().attr("scheme", stops);
-      HeightmapRenderer.render(worldContext, viewContext, appServices);
-    }
 
-    openRichDialog({
-      title: "Create heightmap color scheme",
-      content: /* html */ `<div>
+      function renderStops(): void {
+        const stops = button.dataset.stops!.split(",");
+
+        const colorInput = (color: string) =>
+          `<input type="color" class="stop" value="${color}" data-tip="Click to set the color" style="width: 2.5em; border: none;" />`;
+        const removeStopButton = (index: number) =>
+          `<button class="remove" data-index="${index}" data-tip="Remove color stop" style="margin-top: 0.3em; height: max-content;">x</button>`;
+        const addStopButton = () =>
+          `<button class="add" data-tip="Add color stop in between" style="margin-top: 0.3em; height: max-content;">+</button>`;
+
+        const container = document.getElementById("heightmapSchemeStops")!;
+        container.innerHTML = stops
+          .map(
+            (stop, index) => `${colorInput(stop)}${index && index < stops.length - 1 ? removeStopButton(index) : ""}`
+          )
+          .join(addStopButton());
+
+        Array.from(container.querySelectorAll<HTMLInputElement>("input.stop")).forEach((input, index) => {
+          input.oninput = function () {
+            stops[index] = (this as HTMLInputElement).value;
+            button.dataset.stops = stops.join(",");
+            renderPreview();
+            renderGradient();
+          };
+        });
+
+        Array.from(container.querySelectorAll<HTMLButtonElement>("button.remove")).forEach(btn => {
+          btn.onclick = function () {
+            const index = +(this as HTMLButtonElement).dataset.index!;
+            stops.splice(index, 1);
+            button.dataset.stops = stops.join(",");
+            renderPreview();
+            renderStops();
+            renderGradient();
+          };
+        });
+
+        Array.from(container.querySelectorAll<HTMLButtonElement>("button.add")).forEach((btn, index) => {
+          btn.onclick = () => {
+            const middleColor = interpolateRgb(stops[index], stops[index + 1])(0.5);
+            stops.splice(index + 1, 0, toHEX(middleColor));
+            button.dataset.stops = stops.join(",");
+            renderPreview();
+            renderStops();
+            renderGradient();
+          };
+        });
+      }
+
+      function renderGradient(): void {
+        const stops = button.dataset.stops!;
+        (document.getElementById("heightmapSchemeGradient") as HTMLElement).style.background =
+          `linear-gradient(to right, ${stops})`;
+      }
+
+      function handleCreate(): void {
+        const stops = button.dataset.stops!;
+        if (stops in heightmapColorSchemes) {
+          tip("This scheme already exists", false, "error");
+          return;
+        }
+        addCustomColorScheme(stops);
+        getEl().attr("scheme", stops);
+        HeightmapRenderer.render(worldContext, viewContext, appServices);
+      }
+
+      openRichDialog({
+        title: "Create heightmap color scheme",
+        content: /* html */ `<div>
         <i>Define heightmap gradient colors from high to low altitude</i>
         <img id="heightmapSchemePreview" alt="heightmap preview" style="margin-top: 0.5em; width: 100%;" />
         <div id="heightmapSchemeStops" style="margin-block: 0.5em; display: flex; flex-wrap: wrap;"></div>
         <div id="heightmapSchemeGradient" style="height: 1.9em; border: 1px solid #767676;"></div>
       </div>`,
-      onOpen: () => {
-        renderPreview();
-        renderStops();
-        renderGradient();
-      },
-      buttons: [
-        { label: "Create", onClick: handleCreate },
-        { label: "Cancel", onClick: () => {} }
-      ]
+        onOpen: () => {
+          renderPreview();
+          renderStops();
+          renderGradient();
+        },
+        buttons: [
+          { label: "Create", onClick: handleCreate },
+          { label: "Cancel", onClick: () => {} }
+        ]
+      });
     });
-  });
 
-  ensureEl("styleHeightmapRenderOcean").addEventListener("change", (e: Event) => {
+  document.getElementById("styleHeightmapRenderOcean")!.addEventListener("change", (e: Event) => {
     getEl().attr("data-render", +(e.target as HTMLInputElement).checked);
     HeightmapRenderer.render(worldContext, viewContext, appServices);
   });
 
-  ensureEl("styleHeightmapCurve").addEventListener("change", (e: Event) => {
+  document.getElementById("styleHeightmapCurve")!.addEventListener("change", (e: Event) => {
     getEl().attr("curve", (e.target as HTMLSelectElement).value);
     HeightmapRenderer.render(worldContext, viewContext, appServices);
   });
 
-  ensureEl("styleReliefSet").addEventListener("change", (e: Event) => {
+  document.getElementById("styleReliefSet")!.addEventListener("change", (e: Event) => {
     viewContext.terrain.attr("set", (e.target as HTMLSelectElement).value);
     ReliefIconsRenderer.render(worldContext, viewContext, appServices);
     if (!layerIsOn("toggleRelief")) toggleRelief();
   });
 
-  ensureEl("styleTemperatureFillInput").addEventListener("input", (e: Event) => {
+  document.getElementById("styleTemperatureFillInput")!.addEventListener("input", (e: Event) => {
     const value = (e.target as HTMLInputElement).value;
     viewContext.temperature.attr("fill", value);
-    ensureEl<HTMLInputElement>("styleTemperatureFillOutput").value = value;
+    (document.getElementById("styleTemperatureFillOutput") as HTMLInputElement).value = value;
   });
 
-  ensureEl("stylePopulationRuralStrokeInput").addEventListener("input", (e: Event) => {
+  document.getElementById("stylePopulationRuralStrokeInput")!.addEventListener("input", (e: Event) => {
     const value = (e.target as HTMLInputElement).value;
     viewContext.population.select("#rural").attr("stroke", value);
-    ensureEl<HTMLInputElement>("stylePopulationRuralStrokeOutput").value = value;
+    (document.getElementById("stylePopulationRuralStrokeOutput") as HTMLInputElement).value = value;
   });
 
-  ensureEl("stylePopulationUrbanStrokeInput").addEventListener("input", (e: Event) => {
+  document.getElementById("stylePopulationUrbanStrokeInput")!.addEventListener("input", (e: Event) => {
     const value = (e.target as HTMLInputElement).value;
     viewContext.population.select("#urban").attr("stroke", value);
-    ensureEl<HTMLInputElement>("stylePopulationUrbanStrokeOutput").value = value;
+    (document.getElementById("stylePopulationUrbanStrokeOutput") as HTMLInputElement).value = value;
   });
 
-  ensureEl("styleBurgIconsIcon").addEventListener("change", (e: Event) => {
+  document.getElementById("styleBurgIconsIcon")!.addEventListener("change", (e: Event) => {
     const value = (e.target as HTMLSelectElement).value;
     getEl().attr("data-icon", value).selectAll<SVGUseElement, unknown>("use").attr("href", value);
   });
 
-  ensureEl("styleBurgIconsStrokeLinejoin").addEventListener("change", (e: Event) => {
+  document.getElementById("styleBurgIconsStrokeLinejoin")!.addEventListener("change", (e: Event) => {
     getEl().attr("stroke-linejoin", (e.target as HTMLSelectElement).value);
   });
 
-  ensureEl("styleCompassShiftX").addEventListener("input", () => shiftCompass());
-  ensureEl("styleCompassShiftY").addEventListener("input", () => shiftCompass());
+  document.getElementById("styleCompassShiftX")!.addEventListener("input", () => shiftCompass());
+  document.getElementById("styleCompassShiftY")!.addEventListener("input", () => shiftCompass());
 
-  ensureEl("styleLegendBack").addEventListener("input", (e: Event) => {
+  document.getElementById("styleLegendBack")!.addEventListener("input", (e: Event) => {
     const value = (e.target as HTMLInputElement).value;
-    ensureEl<HTMLInputElement>("styleLegendBackOutput").value = value;
+    (document.getElementById("styleLegendBackOutput") as HTMLInputElement).value = value;
     viewContext.legend.select("#legendBox").attr("fill", value);
   });
 
-  ensureEl("styleSelectFont").addEventListener("change", changeFont);
+  document.getElementById("styleSelectFont")!.addEventListener("change", changeFont);
 
-  ensureEl("styleShadowInput").addEventListener("input", (e: Event) => {
+  document.getElementById("styleShadowInput")!.addEventListener("input", (e: Event) => {
     getEl().style("text-shadow", (e.target as HTMLInputElement).value);
   });
 
-  ensureEl("styleFontSize").addEventListener("change", () => {
-    changeFontSize(getEl(), +ensureEl<HTMLInputElement>("styleFontSize").value);
+  document.getElementById("styleFontSize")!.addEventListener("change", () => {
+    changeFontSize(getEl(), +(document.getElementById("styleFontSize") as HTMLInputElement).value);
   });
 
-  ensureEl("styleFontPlus").addEventListener("click", () => {
-    const current = +ensureEl<HTMLInputElement>("styleFontSize").value || 12;
+  document.getElementById("styleFontPlus")!.addEventListener("click", () => {
+    const current = +(document.getElementById("styleFontSize") as HTMLInputElement).value || 12;
     changeFontSize(getEl(), Math.min(rn(current + 0.1, 1), 999));
   });
 
-  ensureEl("styleFontMinus").addEventListener("click", () => {
-    const current = +ensureEl<HTMLInputElement>("styleFontSize").value || 12;
+  document.getElementById("styleFontMinus")!.addEventListener("click", () => {
+    const current = +(document.getElementById("styleFontSize") as HTMLInputElement).value || 12;
     changeFontSize(getEl(), Math.max(rn(current - 0.1, 1), 0.1));
   });
 
-  ensureEl("styleFontShiftX").addEventListener("input", (e: Event) => {
+  document.getElementById("styleFontShiftX")!.addEventListener("input", (e: Event) => {
     const value = (e.target as HTMLInputElement).value;
     getEl().attr("data-dx", value).selectAll<SVGTextElement, unknown>("text").attr("dx", `${value}em`);
   });
 
-  ensureEl("styleFontShiftY").addEventListener("input", (e: Event) => {
+  document.getElementById("styleFontShiftY")!.addEventListener("input", (e: Event) => {
     const value = (e.target as HTMLInputElement).value;
     getEl().attr("data-dy", value).selectAll<SVGTextElement, unknown>("text").attr("dy", `${value}em`);
   });
 
-  ensureEl("styleStatesBodyFilter").addEventListener("change", (e: Event) => {
+  document.getElementById("styleStatesBodyFilter")!.addEventListener("change", (e: Event) => {
     viewContext.statesBody.attr("filter", (e.target as HTMLSelectElement).value);
   });
 
-  ensureEl("styleVignettePreset").addEventListener("change", (e: Event) => {
+  document.getElementById("styleVignettePreset")!.addEventListener("change", (e: Event) => {
     const presetName = (e.target as HTMLSelectElement).value;
     const attributes = JSON.parse(vignettePresets[presetName]) as Record<string, Record<string, string | null>>;
 
@@ -1147,54 +1196,56 @@ export function initStyleTab() {
       }
     }
 
-    const vignette = ensureEl("vignette");
+    const vignette = document.getElementById("vignette")!;
     if (vignette) {
       const opacityVal = vignette.getAttribute("opacity") ?? "";
       useStyleState.getState().updateValue("styleOpacityInput", opacityVal);
       const fill = vignette.getAttribute("fill") ?? "";
-      ensureEl<HTMLInputElement>("styleFillInput").value = fill;
-      ensureEl<HTMLInputElement>("styleFillOutput").value = fill;
-      ensureEl<HTMLSelectElement>("styleFilterInput").value = vignette.getAttribute("filter") ?? "";
+      (document.getElementById("styleFillInput") as HTMLInputElement).value = fill;
+      (document.getElementById("styleFillOutput") as HTMLInputElement).value = fill;
+      (document.getElementById("styleFilterInput") as HTMLSelectElement).value = vignette.getAttribute("filter") ?? "";
     }
 
-    const maskRect = ensureEl("vignette-rect");
+    const maskRect = document.getElementById("vignette-rect")!;
     if (maskRect) {
       const digit = (str: string | null) => (str ?? "").replace(/[^\d.]/g, "");
-      ensureEl<HTMLInputElement>("styleVignetteX").value = digit(maskRect.getAttribute("x"));
-      ensureEl<HTMLInputElement>("styleVignetteY").value = digit(maskRect.getAttribute("y"));
-      ensureEl<HTMLInputElement>("styleVignetteWidth").value = digit(maskRect.getAttribute("width"));
-      ensureEl<HTMLInputElement>("styleVignetteHeight").value = digit(maskRect.getAttribute("height"));
-      ensureEl<HTMLInputElement>("styleVignetteRx").value = digit(maskRect.getAttribute("rx"));
-      ensureEl<HTMLInputElement>("styleVignetteRy").value = digit(maskRect.getAttribute("ry"));
+      (document.getElementById("styleVignetteX") as HTMLInputElement).value = digit(maskRect.getAttribute("x"));
+      (document.getElementById("styleVignetteY") as HTMLInputElement).value = digit(maskRect.getAttribute("y"));
+      (document.getElementById("styleVignetteWidth") as HTMLInputElement).value = digit(maskRect.getAttribute("width"));
+      (document.getElementById("styleVignetteHeight") as HTMLInputElement).value = digit(
+        maskRect.getAttribute("height")
+      );
+      (document.getElementById("styleVignetteRx") as HTMLInputElement).value = digit(maskRect.getAttribute("rx"));
+      (document.getElementById("styleVignetteRy") as HTMLInputElement).value = digit(maskRect.getAttribute("ry"));
       useStyleState.getState().updateValue("styleVignetteBlur", digit(maskRect.getAttribute("filter")));
     }
   });
 
-  ensureEl("styleVignetteX").addEventListener("input", (e: Event) => {
-    ensureEl("vignette-rect").setAttribute("x", `${(e.target as HTMLInputElement).value}%`);
+  document.getElementById("styleVignetteX")!.addEventListener("input", (e: Event) => {
+    document.getElementById("vignette-rect")!.setAttribute("x", `${(e.target as HTMLInputElement).value}%`);
   });
 
-  ensureEl("styleVignetteWidth").addEventListener("input", (e: Event) => {
-    ensureEl("vignette-rect").setAttribute("width", `${(e.target as HTMLInputElement).value}%`);
+  document.getElementById("styleVignetteWidth")!.addEventListener("input", (e: Event) => {
+    document.getElementById("vignette-rect")!.setAttribute("width", `${(e.target as HTMLInputElement).value}%`);
   });
 
-  ensureEl("styleVignetteY").addEventListener("input", (e: Event) => {
-    ensureEl("vignette-rect").setAttribute("y", `${(e.target as HTMLInputElement).value}%`);
+  document.getElementById("styleVignetteY")!.addEventListener("input", (e: Event) => {
+    document.getElementById("vignette-rect")!.setAttribute("y", `${(e.target as HTMLInputElement).value}%`);
   });
 
-  ensureEl("styleVignetteHeight").addEventListener("input", (e: Event) => {
-    ensureEl("vignette-rect").setAttribute("height", `${(e.target as HTMLInputElement).value}%`);
+  document.getElementById("styleVignetteHeight")!.addEventListener("input", (e: Event) => {
+    document.getElementById("vignette-rect")!.setAttribute("height", `${(e.target as HTMLInputElement).value}%`);
   });
 
-  ensureEl("styleVignetteRx").addEventListener("input", (e: Event) => {
-    ensureEl("vignette-rect").setAttribute("rx", `${(e.target as HTMLInputElement).value}%`);
+  document.getElementById("styleVignetteRx")!.addEventListener("input", (e: Event) => {
+    document.getElementById("vignette-rect")!.setAttribute("rx", `${(e.target as HTMLInputElement).value}%`);
   });
 
-  ensureEl("styleVignetteRy").addEventListener("input", (e: Event) => {
-    ensureEl("vignette-rect").setAttribute("ry", `${(e.target as HTMLInputElement).value}%`);
+  document.getElementById("styleVignetteRy")!.addEventListener("input", (e: Event) => {
+    document.getElementById("vignette-rect")!.setAttribute("ry", `${(e.target as HTMLInputElement).value}%`);
   });
 
-  ensureEl("styleScaleBar").addEventListener("input", (event: Event) => {
+  document.getElementById("styleScaleBar")!.addEventListener("input", (event: Event) => {
     const scaleBarBack = viewContext.scaleBar.select<SVGGElement>("#scaleBarBack");
     if (!scaleBarBack.size()) return;
 
@@ -1208,10 +1259,10 @@ export function initStyleTab() {
     else if (id === "styleScaleBarLabel") viewContext.scaleBar.attr("data-label", value);
     else if (id === "styleScaleBarBackgroundFill") {
       scaleBarBack.attr("fill", value);
-      ensureEl<HTMLInputElement>("styleScaleBarBackgroundFillOutput").value = value;
+      (document.getElementById("styleScaleBarBackgroundFillOutput") as HTMLInputElement).value = value;
     } else if (id === "styleScaleBarBackgroundStroke") {
       scaleBarBack.attr("stroke", value);
-      ensureEl<HTMLInputElement>("styleScaleBarBackgroundStrokeOutput").value = value;
+      (document.getElementById("styleScaleBarBackgroundStrokeOutput") as HTMLInputElement).value = value;
     } else if (id === "styleScaleBarBackgroundStrokeWidth") scaleBarBack.attr("stroke-width", value);
     else if (id === "styleScaleBarBackgroundFilter") scaleBarBack.attr("filter", value);
     else if (id === "styleScaleBarBackgroundPaddingTop") scaleBarBack.attr("data-top", value);
@@ -1243,7 +1294,7 @@ export function initStyleTab() {
     }
   });
 
-  ensureEl("mapFilters").addEventListener("click", applyMapFilter);
+  document.getElementById("mapFilters")!.addEventListener("click", applyMapFilter);
 
   // ─── Style preset functions (from style-presets.js) ───────────────────────────
 
@@ -1252,7 +1303,7 @@ export function initStyleTab() {
     const [appliedPreset, styleData] = await getStylePreset(desiredPreset);
     applyStyle(styleData);
     updateMapFilter();
-    const presetEl = ensureEl<HTMLSelectElement>("stylePreset");
+    const presetEl = document.getElementById("stylePreset") as HTMLSelectElement;
     presetEl.value = appliedPreset;
     presetEl.dataset.old = appliedPreset;
     setPresetRemoveButtonVisibiliy();
@@ -1347,7 +1398,7 @@ export function initStyleTab() {
         changeStyle(preset);
       },
       onCancel: () => {
-        const presetEl = ensureEl<HTMLSelectElement>("stylePreset");
+        const presetEl = document.getElementById("stylePreset") as HTMLSelectElement;
         presetEl.value = presetEl.dataset.old ?? "default";
       }
     });
@@ -1369,7 +1420,7 @@ export function initStyleTab() {
     updateElements();
     selectStyleElement();
     updateMapFilter();
-    const presetEl = ensureEl<HTMLSelectElement>("stylePreset");
+    const presetEl = document.getElementById("stylePreset") as HTMLSelectElement;
     presetEl.dataset.old = presetEl.value;
     import("../main").then(m => m.invokeActiveZooming());
     setPresetRemoveButtonVisibiliy();
@@ -1391,19 +1442,28 @@ export function initStyleTab() {
       position: { my: "center", at: "center", of: "svg" }
     });
 
-    const styleName = ensureEl<HTMLSelectElement>("stylePreset").value.replace(customPresetPrefix, "");
-    ensureEl<HTMLInputElement>("styleSaverName").value = styleName;
-    ensureEl<HTMLTextAreaElement>("styleSaverJSON").value = JSON.stringify(collectStyleData(), null, 2);
+    const styleName = (document.getElementById("stylePreset") as HTMLSelectElement).value.replace(
+      customPresetPrefix,
+      ""
+    );
+    (document.getElementById("styleSaverName") as HTMLInputElement).value = styleName;
+    (document.getElementById("styleSaverJSON") as HTMLTextAreaElement).value = JSON.stringify(
+      collectStyleData(),
+      null,
+      2
+    );
     checkName();
 
     if (modules.saveStyle) return;
     modules.saveStyle = true;
 
-    ensureEl("styleSaverName").addEventListener("input", checkName);
-    ensureEl("styleSaverSave").addEventListener("click", saveStyle);
-    ensureEl("styleSaverDownload").addEventListener("click", styleDownload);
-    ensureEl("styleSaverLoad").addEventListener("click", () => ensureEl<HTMLInputElement>("styleToLoad").click());
-    ensureEl("styleToLoad").addEventListener("change", loadStyleFile);
+    document.getElementById("styleSaverName")!.addEventListener("input", checkName);
+    document.getElementById("styleSaverSave")!.addEventListener("click", saveStyle);
+    document.getElementById("styleSaverDownload")!.addEventListener("click", styleDownload);
+    document
+      .getElementById("styleSaverLoad")!
+      .addEventListener("click", () => (document.getElementById("styleToLoad") as HTMLInputElement).click());
+    document.getElementById("styleToLoad")!.addEventListener("change", loadStyleFile);
 
     function collectStyleData(): StyleJSON {
       const result: StyleJSON = {};
@@ -1611,29 +1671,29 @@ export function initStyleTab() {
     }
 
     function checkName(): void {
-      const rawName = ensureEl<HTMLInputElement>("styleSaverName").value;
+      const rawName = (document.getElementById("styleSaverName") as HTMLInputElement).value;
       const styleName = customPresetPrefix + rawName;
 
       const isSystem = systemPresets.includes(styleName) || systemPresets.includes(rawName);
       if (isSystem) {
-        ensureEl("styleSaverTip").innerHTML = "default";
+        document.getElementById("styleSaverTip")!.innerHTML = "default";
         return;
       }
 
-      const isExisting = Array.from(ensureEl<HTMLSelectElement>("stylePreset").options).some(
+      const isExisting = Array.from((document.getElementById("stylePreset") as HTMLSelectElement).options).some(
         option => option.value === styleName
       );
       if (isExisting) {
-        ensureEl("styleSaverTip").innerHTML = "existing";
+        document.getElementById("styleSaverTip")!.innerHTML = "existing";
         return;
       }
 
-      ensureEl("styleSaverTip").innerHTML = "new";
+      document.getElementById("styleSaverTip")!.innerHTML = "new";
     }
 
     function saveStyle(): void {
-      const styleJSON = ensureEl<HTMLTextAreaElement>("styleSaverJSON").value;
-      const desiredName = ensureEl<HTMLInputElement>("styleSaverName").value;
+      const styleJSON = (document.getElementById("styleSaverJSON") as HTMLTextAreaElement).value;
+      const desiredName = (document.getElementById("styleSaverName") as HTMLInputElement).value;
 
       if (!styleJSON) {
         tip("Please provide a style JSON", false, "error");
@@ -1647,13 +1707,13 @@ export function initStyleTab() {
         tip("Please provide a preset name", false, "error");
         return;
       }
-      if (ensureEl("styleSaverTip").innerHTML === "default") {
+      if (document.getElementById("styleSaverTip")!.innerHTML === "default") {
         tip("You cannot overwrite default preset, please change the name", false, "error");
         return;
       }
 
       const presetName = customPresetPrefix + desiredName;
-      applyOption(ensureEl<HTMLSelectElement>("stylePreset"), presetName, `${desiredName} [custom]`);
+      applyOption(document.getElementById("stylePreset") as HTMLSelectElement, presetName, `${desiredName} [custom]`);
       localStorage.setItem("presetStyle", presetName);
       localStorage.setItem(presetName, styleJSON);
 
@@ -1663,8 +1723,8 @@ export function initStyleTab() {
     }
 
     function styleDownload(): void {
-      const styleJSON = ensureEl<HTMLTextAreaElement>("styleSaverJSON").value;
-      const styleName = ensureEl<HTMLInputElement>("styleSaverName").value;
+      const styleJSON = (document.getElementById("styleSaverJSON") as HTMLTextAreaElement).value;
+      const styleName = (document.getElementById("styleSaverName") as HTMLInputElement).value;
 
       if (!styleJSON) {
         tip("Please provide a style JSON", false, "error");
@@ -1689,8 +1749,12 @@ export function initStyleTab() {
         const isValid = JSON.isValid(dataLoaded);
         if (!isValid) return tip("Loaded data is not a valid JSON, please check the format", false, "error");
 
-        ensureEl<HTMLTextAreaElement>("styleSaverJSON").value = JSON.stringify(JSON.parse(dataLoaded), null, 2);
-        ensureEl<HTMLInputElement>("styleSaverName").value = fileName;
+        (document.getElementById("styleSaverJSON") as HTMLTextAreaElement).value = JSON.stringify(
+          JSON.parse(dataLoaded),
+          null,
+          2
+        );
+        (document.getElementById("styleSaverName") as HTMLInputElement).value = fileName;
         checkName();
         tip("Style preset is uploaded", false, "success", 4000);
       });
@@ -1698,7 +1762,7 @@ export function initStyleTab() {
   }
 
   function requestRemoveStylePreset(): void {
-    const isDefault = systemPresets.includes(ensureEl<HTMLSelectElement>("stylePreset").value);
+    const isDefault = systemPresets.includes((document.getElementById("stylePreset") as HTMLSelectElement).value);
     if (isDefault) {
       tip("Cannot remove system preset", false, "error");
       return;
@@ -1713,7 +1777,7 @@ export function initStyleTab() {
   }
 
   function removeStylePreset(): void {
-    const presetEl = ensureEl<HTMLSelectElement>("stylePreset");
+    const presetEl = document.getElementById("stylePreset") as HTMLSelectElement;
     localStorage.removeItem("presetStyle");
     localStorage.removeItem(presetEl.value);
     presetEl.selectedOptions[0]?.remove();
@@ -1722,18 +1786,19 @@ export function initStyleTab() {
 
   function updateMapFilter(): void {
     const filter = viewContext.svg.attr("data-filter");
-    ensureEl("mapFilters")
+    document
+      .getElementById("mapFilters")!
       .querySelectorAll<HTMLButtonElement>(".pressed")
       .forEach(button => {
         button.classList.remove("pressed");
       });
     if (!filter) return;
-    ensureEl("mapFilters").querySelector<HTMLButtonElement>(`#${filter}`)?.classList.add("pressed");
+    document.getElementById("mapFilters")!.querySelector<HTMLButtonElement>(`#${filter}`)?.classList.add("pressed");
   }
 
   function setPresetRemoveButtonVisibiliy(): void {
-    const isDefault = systemPresets.includes(ensureEl<HTMLSelectElement>("stylePreset").value);
-    ensureEl<HTMLElement>("removeStyleButton").style.display = isDefault ? "none" : "inline-block";
+    const isDefault = systemPresets.includes((document.getElementById("stylePreset") as HTMLSelectElement).value);
+    (document.getElementById("removeStyleButton") as HTMLElement).style.display = isDefault ? "none" : "inline-block";
   }
 
   // Wire up module-level forwarding refs

@@ -17,7 +17,7 @@ import { GridRenderer } from "../renderers";
 import { rulers } from "../store/editorState";
 import { type OptionsState, useOptionsState } from "../store/optionsState";
 import { closeDialogs, openRichDialog } from "../ui/dialogs/dialogService";
-import { calculateVoronoi, ensureEl, findCell, last, link, minmax, parseError, rn } from "../utils";
+import { calculateVoronoi, findCell, last, link, minmax, parseError, rn } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
 import { heightmapColorSchemes } from "../utils/colorUtils";
 import { ERROR, INFO, WARN } from "../utils/debug";
@@ -41,7 +41,7 @@ export async function quickLoad(): Promise<void> {
 // ─── Dropbox load ─────────────────────────────────────────────────────────────
 
 export async function loadFromDropbox(): Promise<void> {
-  const mapPath = ensureEl<HTMLSelectElement>("loadFromDropboxSelect").value;
+  const mapPath = (document.getElementById("loadFromDropboxSelect") as HTMLSelectElement).value;
   console.info("Loading map from Dropbox:", mapPath);
   const blob = await Cloud.providers.dropbox.load(mapPath);
   uploadMap(blob);
@@ -49,8 +49,8 @@ export async function loadFromDropbox(): Promise<void> {
 
 export async function createSharableDropboxLink(): Promise<void> {
   const mapFile = document.querySelector("#loadFromDropbox select") as HTMLSelectElement | null;
-  const sharableLink = ensureEl("sharableLink") as HTMLAnchorElement;
-  const sharableLinkContainer = ensureEl("sharableLinkContainer");
+  const sharableLink = document.getElementById("sharableLink") as HTMLAnchorElement;
+  const sharableLinkContainer = document.getElementById("sharableLinkContainer")!;
 
   try {
     const previewLink = await Cloud.providers.dropbox.getLink(mapFile?.value ?? "");
@@ -154,7 +154,7 @@ export function uploadMap(file: Blob, callback?: () => void): void {
   const fileReader = new FileReader();
   fileReader.onloadend = async (fileLoadedEvent: ProgressEvent<FileReader>) => {
     if (callback) callback();
-    ensureEl("coas").innerHTML = "";
+    document.getElementById("coas")!.innerHTML = "";
 
     const result = fileLoadedEvent.target!.result as ArrayBuffer;
     const { mapData, mapVersion } = await parseLoadedResult(result);
@@ -463,11 +463,12 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
         selection: d3.Selection<T, unknown, P, unknown>,
         selector: string
       ) => (selection.node() as Element | null)?.querySelector(selector);
-      const turnOn = (el: string) => ensureEl(el).classList.remove("buttonoff");
+      const turnOn = (el: string) => document.getElementById(el)!.classList.remove("buttonoff");
 
-      ensureEl("mapLayers")
+      document
+        .getElementById("mapLayers")!
         .querySelectorAll("li")
-        .forEach(el => {
+        .forEach((el: Element) => {
           el.classList.add("buttonoff");
         });
 
@@ -499,7 +500,7 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
       if (hasChild(viewContext.markers, "svg")) turnOn("toggleMarkers");
       if (isVisible(viewContext.ruler)) turnOn("toggleRulers");
       if (isVisible(viewContext.scaleBar)) turnOn("toggleScaleBar");
-      if (isVisibleNode(ensureEl("vignette") as HTMLElement)) turnOn("toggleVignette");
+      if (isVisibleNode(document.getElementById("vignette") as HTMLElement)) turnOn("toggleVignette");
 
       getCurrentPreset();
     }

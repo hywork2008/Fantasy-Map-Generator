@@ -10,7 +10,7 @@ import { Markets } from "../modules/markets-generator";
 import { isDealRecord, isMfgRecord, Production } from "../modules/production-generator";
 import { getCellProduction } from "../modules/production-utils";
 import { drawGoods } from "../renderers/draw-goods";
-import { ensureEl, rn, unique } from "../utils";
+import { rn, unique } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
 import { layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, tip } from "../utils/uiHelpers";
@@ -72,19 +72,19 @@ export function open() {
   // dialog call removed
 
   if (!isInitialized) {
-    ensureEl("goodsEditorRefresh").addEventListener("click", goodsEditorAddLines);
-    ensureEl("goodsPercentage").addEventListener("click", togglePercentageMode);
-    ensureEl("goodsTagsFilter").addEventListener("click", openTagsVisibilityDialog);
-    ensureEl("goodsAssign").addEventListener("click", enterResourceAssignMode);
-    ensureEl("goodsAdd").addEventListener("click", () => goodEditor(undefined, refreshEditor));
-    ensureEl("goodsRestore").addEventListener("click", goodsRestoreDefaults);
-    ensureEl("goodsExport").addEventListener("click", downloadGoodsData);
-    ensureEl("goodsDisplayAll").addEventListener("change", toggleAllDisplayed);
-    ensureEl("goodsChains").addEventListener("click", () => ProductionChains.open());
-    ensureEl("goodsRegenerateGoods").addEventListener("click", requestGoodsRegeneration);
-    ensureEl("goodsRegenerateProduction").addEventListener("click", requestProductionRegeneration);
+    document.getElementById("goodsEditorRefresh")!.addEventListener("click", goodsEditorAddLines);
+    document.getElementById("goodsPercentage")!.addEventListener("click", togglePercentageMode);
+    document.getElementById("goodsTagsFilter")!.addEventListener("click", openTagsVisibilityDialog);
+    document.getElementById("goodsAssign")!.addEventListener("click", enterResourceAssignMode);
+    document.getElementById("goodsAdd")!.addEventListener("click", () => goodEditor(undefined, refreshEditor));
+    document.getElementById("goodsRestore")!.addEventListener("click", goodsRestoreDefaults);
+    document.getElementById("goodsExport")!.addEventListener("click", downloadGoodsData);
+    document.getElementById("goodsDisplayAll")!.addEventListener("change", toggleAllDisplayed);
+    document.getElementById("goodsChains")!.addEventListener("click", () => ProductionChains.open());
+    document.getElementById("goodsRegenerateGoods")!.addEventListener("click", requestGoodsRegeneration);
+    document.getElementById("goodsRegenerateProduction")!.addEventListener("click", requestProductionRegeneration);
 
-    ensureEl("goodsBody").addEventListener("click", ev => {
+    document.getElementById("goodsBody")!.addEventListener("click", ev => {
       const el = ev.target as HTMLElement;
       const cl = el.classList;
       const line = el.parentNode as HTMLElement;
@@ -100,7 +100,7 @@ export function open() {
 }
 
 function goodsEditorAddLines() {
-  const body = ensureEl("goodsBody");
+  const body = document.getElementById("goodsBody")!;
   const production = getProduction();
   const stockData = getAllStockData();
   let lines = "";
@@ -148,10 +148,10 @@ function goodsEditorAddLines() {
     .map(p => p.burg + p.cell)
     .reduce((sum, v) => sum + v, 0);
   const totalStock = Object.values(stockData).reduce((sum, d) => sum + d.total, 0);
-  ensureEl("goodsDisplayed").innerHTML = String(displayedGoods.size);
-  ensureEl("goodsNumber").innerHTML = String(worldContext.pack.goods.length);
-  ensureEl("goodsProduced").innerHTML = String(rn(totalProduced));
-  ensureEl("goodsStock").innerHTML = String(rn(totalStock));
+  document.getElementById("goodsDisplayed")!.innerHTML = String(displayedGoods.size);
+  document.getElementById("goodsNumber")!.innerHTML = String(worldContext.pack.goods.length);
+  document.getElementById("goodsProduced")!.innerHTML = String(rn(totalProduced));
+  document.getElementById("goodsStock")!.innerHTML = String(rn(totalStock));
 
   body.querySelectorAll("div.states").forEach(el => void el.addEventListener("click", selectResourceOnLineClick));
   body.querySelectorAll<HTMLButtonElement>(".goodProduced").forEach(el => {
@@ -182,7 +182,7 @@ function goodsEditorAddLines() {
     togglePercentageMode();
   }
   updateDisplayAllCheckbox();
-  applySorting(ensureEl("goodsHeader")!);
+  applySorting(document.getElementById("goodsHeader")!);
   applyTagVisibilityFilter();
   // dialog call removed
 }
@@ -374,7 +374,7 @@ function openTagsVisibilityDialog() {
 }
 
 function applyTagVisibilityFilter() {
-  const body = ensureEl("goodsBody");
+  const body = document.getElementById("goodsBody")!;
   const hasFilter = visibleTags.size > 0;
 
   body.querySelectorAll<HTMLElement>(":scope > div.states").forEach(line => {
@@ -383,7 +383,7 @@ function applyTagVisibilityFilter() {
     line.classList.toggle("hidden", !matches);
   });
 
-  const filterBtn = ensureEl("goodsTagsFilter");
+  const filterBtn = document.getElementById("goodsTagsFilter");
   if (filterBtn) filterBtn.classList.toggle("active", hasFilter);
 }
 
@@ -401,7 +401,7 @@ function goodsRestoreDefaults() {
 }
 
 function togglePercentageMode() {
-  const body = ensureEl("goodsBody");
+  const body = document.getElementById("goodsBody")!;
   if (body.dataset.type === "absolute") {
     body.dataset.type = "percentage";
     let totalProduced = 0;
@@ -436,16 +436,17 @@ function enterResourceAssignMode(this: HTMLElement) {
   this.classList.add("pressed");
   if (!layerIsOn("toggleGoods")) toggleGoods();
   if (!layerIsOn("toggleCells")) {
-    ensureEl<HTMLButtonElement>("toggleCells").dataset.forced = "true";
+    (document.getElementById("toggleCells") as HTMLButtonElement).dataset.forced = "true";
     toggleCells();
   }
 
-  ensureEl("goodsEditor")
+  document
+    .getElementById("goodsEditor")!
     .querySelectorAll(".hide")
     .forEach(el => {
       el.classList.add("hidden");
     });
-  ensureEl("goodsHeader").style = "grid-template-columns: 7.5em 6em; margin-left: 22px;";
+  document.getElementById("goodsHeader")!.style.cssText = "grid-template-columns: 7.5em 6em; margin-left: 22px;";
 
   // dialog call removed
 
@@ -455,13 +456,13 @@ function enterResourceAssignMode(this: HTMLElement) {
 
 function selectResourceOnLineClick(this: HTMLElement) {
   if (viewContext.customization !== 14) return;
-  const body = ensureEl("goodsBody");
+  const body = document.getElementById("goodsBody")!;
   body.querySelector<HTMLElement>("div.selected")?.classList.remove("selected");
   this.classList.add("selected");
 }
 
 function changeResourceOnCellClick(this: SVGElement) {
-  const body = ensureEl("goodsBody");
+  const body = document.getElementById("goodsBody")!;
   const point = pointer(event, this);
   const cellId = findCell(...point);
   if (cellId === undefined) return;
@@ -483,20 +484,21 @@ function changeResourceOnCellClick(this: SVGElement) {
 }
 
 function exitResourceAssignMode(close?: string) {
-  const body = ensureEl("goodsBody");
+  const body = document.getElementById("goodsBody")!;
   viewContext.customization = 0;
-  ensureEl("goodsAssign").classList.remove("pressed");
+  document.getElementById("goodsAssign")!.classList.remove("pressed");
 
   if (layerIsOn("toggleCells")) {
-    const toggler = ensureEl<HTMLButtonElement>("toggleCells");
+    const toggler = document.getElementById("toggleCells") as HTMLButtonElement;
     if (toggler.dataset.forced) toggleCells();
     delete toggler.dataset.forced;
   }
 
-  ensureEl("goodsEditor")
+  document
+    .getElementById("goodsEditor")!
     .querySelectorAll(".hide")
     .forEach(el => void el.classList.remove("hidden"));
-  ensureEl("goodsHeader").style = "grid-template-columns: 4em 7.4em 7em 6.8em 6em 4.6em 1.6em;";
+  document.getElementById("goodsHeader")!.style.cssText = "grid-template-columns: 4em 7.4em 7em 6.8em 6em 4.6em 1.6em;";
 
   if (!close) goodsEditorAddLines();
 
@@ -547,7 +549,8 @@ function toggleAllDisplayed(this: HTMLInputElement) {
   displayedGoods.clear();
   if (this.checked) for (const good of worldContext.pack.goods) displayedGoods.add(good.i);
 
-  ensureEl("goodsBody")
+  document
+    .getElementById("goodsBody")!
     .querySelectorAll<HTMLInputElement>(".goodDisplayed")
     .forEach(checkbox => {
       const id = Number((checkbox.closest(".states") as HTMLElement).dataset.id);
@@ -558,11 +561,11 @@ function toggleAllDisplayed(this: HTMLInputElement) {
 }
 
 function updateDisplayAllCheckbox() {
-  const master = ensureEl<HTMLInputElement>("goodsDisplayAll");
+  const master = document.getElementById("goodsDisplayAll") as HTMLInputElement;
   const total = worldContext.pack.goods.length;
   master.checked = total > 0 && displayedGoods.size === total;
   master.indeterminate = displayedGoods.size > 0 && displayedGoods.size < total;
-  ensureEl("goodsDisplayed").innerHTML = String(displayedGoods.size);
+  document.getElementById("goodsDisplayed")!.innerHTML = String(displayedGoods.size);
 }
 
 function requestGoodsRegeneration() {
@@ -598,7 +601,7 @@ function removeGood(good: Good, line: HTMLElement) {
     Goods.sync();
     displayedGoods.delete(good.i);
     line.remove();
-    ensureEl("goodsNumber").innerHTML = String(worldContext.pack.goods.length);
+    document.getElementById("goodsNumber")!.innerHTML = String(worldContext.pack.goods.length);
 
     updateDisplayAllCheckbox();
     drawGoods(displayedGoods);
@@ -608,5 +611,5 @@ function removeGood(good: Good, line: HTMLElement) {
 
 function _closeGoodsEditor() {
   if (viewContext.customization === 14) exitResourceAssignMode("close");
-  ensureEl("goodsBody").innerHTML = "";
+  document.getElementById("goodsBody")!.innerHTML = "";
 }

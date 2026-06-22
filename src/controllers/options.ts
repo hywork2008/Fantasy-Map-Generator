@@ -30,7 +30,7 @@ import {
   openDialog,
   openRichDialog
 } from "../ui/dialogs/dialogService";
-import { ensureEl, gauss, last, minmax, P, rand, rn, rw } from "../utils";
+import { gauss, last, minmax, P, rand, rn, rw } from "../utils";
 import { fitLegendBox, unselect } from "./editors";
 import { exportToJson as exportToJsonModule } from "./export-json";
 
@@ -443,7 +443,7 @@ function loadGoogleTranslate(): void {
   const script = document.createElement("script");
   script.src = "https://translate.google.com/translate_a/element.js?cb=initGoogleTranslate";
   script.onload = () => {
-    ensureEl("loadGoogleTranslateButton").remove();
+    document.getElementById("loadGoogleTranslateButton")!.remove();
 
     document
       .getElementById("mapLayers")!
@@ -794,20 +794,20 @@ export function regeneratePrompt(opts?: { seed?: string }): void {
 // ─── Save / export / load panes ───────────────────────────────────────────────
 
 function showSavePane(): void {
-  const sharableLinkContainer = ensureEl("sharableLinkContainer");
+  const sharableLinkContainer = document.getElementById("sharableLinkContainer")!;
   sharableLinkContainer.style.display = "none";
 
   openDialog("saveMapData", { title: "Save map" });
 }
 
 export function copyLinkToClickboard(): void {
-  const shrableLink = ensureEl("sharableLink");
+  const shrableLink = document.getElementById("sharableLink")!;
   const link = shrableLink.getAttribute("href")!;
   navigator.clipboard.writeText(link).then(() => tip("Link is copied to the clipboard", true, "success", 8000));
 }
 
 export function showExportPane(): void {
-  ensureEl<HTMLInputElement>("showLabels").checked = !hideLabels.checked;
+  (document.getElementById("showLabels") as HTMLInputElement).checked = !hideLabels.checked;
 
   openDialog("exportMapData", { title: "Export map data" });
 }
@@ -831,10 +831,10 @@ async function showLoadPane(): Promise<void> {
 
   const dropbox = Cloud.providers.dropbox;
   if (dropbox.api) {
-    ensureEl("dropboxConnectButton").style.display = "none";
-    ensureEl("loadFromDropboxSelect").style.display = "block";
-    const loadFromDropboxButtons = ensureEl("loadFromDropboxButtons");
-    const fileSelect = ensureEl<HTMLSelectElement>("loadFromDropboxSelect");
+    document.getElementById("dropboxConnectButton")!.style.display = "none";
+    document.getElementById("loadFromDropboxSelect")!.style.display = "block";
+    const loadFromDropboxButtons = document.getElementById("loadFromDropboxButtons")!;
+    const fileSelect = document.getElementById("loadFromDropboxSelect") as HTMLSelectElement;
     fileSelect.innerHTML = `<option value="" disabled selected>Loading...</option>`;
 
     const files = await dropbox.list();
@@ -858,9 +858,9 @@ async function showLoadPane(): Promise<void> {
     return;
   }
 
-  ensureEl("dropboxConnectButton").style.display = "inline-block";
-  ensureEl("loadFromDropboxButtons").style.display = "none";
-  ensureEl("loadFromDropboxSelect").style.display = "none";
+  document.getElementById("dropboxConnectButton")!.style.display = "inline-block";
+  document.getElementById("loadFromDropboxButtons")!.style.display = "none";
+  document.getElementById("loadFromDropboxSelect")!.style.display = "none";
 }
 
 export async function connectToDropbox(): Promise<void> {
@@ -899,11 +899,11 @@ export function loadURL(): void {
 // ─── PNG tiles export ─────────────────────────────────────────────────────────
 
 export function openExportToPngTiles(): void {
-  ensureEl("tileStatus").innerHTML = "";
+  document.getElementById("tileStatus")!.innerHTML = "";
   closeDialogs();
   updateTilesOptions();
 
-  const inputs = ensureEl("exportToPngTilesScreen").querySelectorAll<HTMLInputElement>("input");
+  const inputs = document.getElementById("exportToPngTilesScreen")!.querySelectorAll<HTMLInputElement>("input");
   inputs.forEach(input => {
     input.addEventListener("input", updateTilesOptions);
   });
@@ -935,10 +935,10 @@ function updateTilesOptions(this: HTMLInputElement | void): void {
     if (prev && (prev as HTMLInputElement).tagName === "INPUT") (prev as HTMLInputElement).value = el.value;
   }
 
-  const tileSize = ensureEl("tileSize");
-  const tilesX = +ensureEl<HTMLInputElement>("tileColsOutput").value || 2;
-  const tilesY = +ensureEl<HTMLInputElement>("tileRowsOutput").value || 2;
-  const scale = +ensureEl<HTMLInputElement>("tileScaleOutput").value || 1;
+  const tileSize = document.getElementById("tileSize")!;
+  const tilesX = +(document.getElementById("tileColsOutput") as HTMLInputElement).value || 2;
+  const tilesY = +(document.getElementById("tileRowsOutput") as HTMLInputElement).value || 2;
+  const scale = +(document.getElementById("tileScaleOutput") as HTMLInputElement).value || 1;
 
   const { graphWidth, graphHeight } = worldContext;
   const sizeX = graphWidth * scale * tilesX;
@@ -1002,7 +1002,7 @@ export function enterStandardView(): void {
 
   if (!document.getElementById("canvas3d")) return;
   ThreeDRenderer.stop();
-  ensureEl("canvas3d").remove();
+  document.getElementById("canvas3d")!.remove();
 
   const mapEl = document.getElementById("map");
   if (mapEl) {
@@ -1042,7 +1042,7 @@ async function enter3dView(type: string): Promise<void> {
   };
 
   if (type === "heightmap3DView") {
-    ensureEl("preview3d").appendChild(canvas);
+    document.getElementById("preview3d")!.appendChild(canvas);
     openDialog("preview3d", {
       title: "3D Preview",
 
@@ -1067,7 +1067,7 @@ async function enter3dView(type: string): Promise<void> {
 }
 
 function resize3d(): void {
-  const canvas = ensureEl<HTMLCanvasElement>("canvas3d");
+  const canvas = document.getElementById("canvas3d") as HTMLCanvasElement;
   canvas.width = parseFloat(preview3d.style.width);
   canvas.height = parseFloat(preview3d.style.height) - 2;
   ThreeDRenderer.redraw();
@@ -1091,44 +1091,44 @@ export function toggle3dOptions(): void {
     if (modules.options3d) return;
     modules.options3d = true;
 
-    ensureEl("options3dUpdate").addEventListener("click", () => ThreeDRenderer.update());
-    ensureEl("options3dSave").addEventListener("click", ThreeDRenderer.saveScreenshot);
-    ensureEl("options3dOBJSave").addEventListener("click", ThreeDRenderer.saveOBJ);
+    document.getElementById("options3dUpdate")!.addEventListener("click", () => ThreeDRenderer.update());
+    document.getElementById("options3dSave")!.addEventListener("click", ThreeDRenderer.saveScreenshot);
+    document.getElementById("options3dOBJSave")!.addEventListener("click", ThreeDRenderer.saveOBJ);
 
-    ensureEl("options3dScaleRange").addEventListener("input", changeHeightScale);
-    ensureEl("options3dScaleNumber").addEventListener("change", changeHeightScale);
-    ensureEl("options3dLightnessRange").addEventListener("input", changeLightness);
-    ensureEl("options3dLightnessNumber").addEventListener("change", changeLightness);
-    ensureEl("options3dSunX").addEventListener("change", changeSunPosition);
-    ensureEl("options3dSunY").addEventListener("change", changeSunPosition);
-    ensureEl("options3dMeshSkinResolution").addEventListener("change", changeResolutionScale);
-    ensureEl("options3dMeshRotationRange").addEventListener("input", changeRotation);
-    ensureEl("options3dMeshRotationNumber").addEventListener("change", changeRotation);
-    ensureEl("options3dGlobeRotationRange").addEventListener("input", changeRotation);
-    ensureEl("options3dGlobeRotationNumber").addEventListener("change", changeRotation);
-    ensureEl("options3dMeshLabels3d").addEventListener("change", toggleLabels3d);
-    ensureEl("options3dMeshSkyMode").addEventListener("change", toggleSkyMode);
-    ensureEl("options3dMeshSky").addEventListener("input", changeColors);
-    ensureEl("options3dMeshWater").addEventListener("input", changeColors);
-    ensureEl("options3dGlobeResolution").addEventListener("change", changeResolution);
-    ensureEl("options3dMeshWireframeMode").addEventListener("change", toggleWireframe3d);
-    ensureEl("options3dSunColor").addEventListener("input", changeSunColor);
-    ensureEl("options3dSubdivide").addEventListener("change", toggle3dSubdivision);
-    ensureEl("options3dTimeOfDay").addEventListener("change", changeTimeOfDay);
+    document.getElementById("options3dScaleRange")!.addEventListener("input", changeHeightScale);
+    document.getElementById("options3dScaleNumber")!.addEventListener("change", changeHeightScale);
+    document.getElementById("options3dLightnessRange")!.addEventListener("input", changeLightness);
+    document.getElementById("options3dLightnessNumber")!.addEventListener("change", changeLightness);
+    document.getElementById("options3dSunX")!.addEventListener("change", changeSunPosition);
+    document.getElementById("options3dSunY")!.addEventListener("change", changeSunPosition);
+    document.getElementById("options3dMeshSkinResolution")!.addEventListener("change", changeResolutionScale);
+    document.getElementById("options3dMeshRotationRange")!.addEventListener("input", changeRotation);
+    document.getElementById("options3dMeshRotationNumber")!.addEventListener("change", changeRotation);
+    document.getElementById("options3dGlobeRotationRange")!.addEventListener("input", changeRotation);
+    document.getElementById("options3dGlobeRotationNumber")!.addEventListener("change", changeRotation);
+    document.getElementById("options3dMeshLabels3d")!.addEventListener("change", toggleLabels3d);
+    document.getElementById("options3dMeshSkyMode")!.addEventListener("change", toggleSkyMode);
+    document.getElementById("options3dMeshSky")!.addEventListener("input", changeColors);
+    document.getElementById("options3dMeshWater")!.addEventListener("input", changeColors);
+    document.getElementById("options3dGlobeResolution")!.addEventListener("change", changeResolution);
+    document.getElementById("options3dMeshWireframeMode")!.addEventListener("change", toggleWireframe3d);
+    document.getElementById("options3dSunColor")!.addEventListener("input", changeSunColor);
+    document.getElementById("options3dSubdivide")!.addEventListener("change", toggle3dSubdivision);
+    document.getElementById("options3dTimeOfDay")!.addEventListener("change", changeTimeOfDay);
 
-    ensureEl("options3dSatellite").addEventListener("change", toggleSatellite);
-    ensureEl("options3dErosion").addEventListener("change", toggleErosion);
-    ensureEl("options3dErosionDetail").addEventListener("change", changeErosionDetail);
-    ensureEl("options3dErosionStrengthRange").addEventListener("input", changeErosionStrength);
-    ensureEl("options3dErosionStrengthNumber").addEventListener("change", changeErosionStrength);
-    ensureEl("options3dErosionRiverDepthRange").addEventListener("input", changeErosionRiverDepth);
-    ensureEl("options3dErosionRiverDepthNumber").addEventListener("change", changeErosionRiverDepth);
-    ensureEl("options3dErosionOctaves").addEventListener("change", changeErosionOctaves);
+    document.getElementById("options3dSatellite")!.addEventListener("change", toggleSatellite);
+    document.getElementById("options3dErosion")!.addEventListener("change", toggleErosion);
+    document.getElementById("options3dErosionDetail")!.addEventListener("change", changeErosionDetail);
+    document.getElementById("options3dErosionStrengthRange")!.addEventListener("input", changeErosionStrength);
+    document.getElementById("options3dErosionStrengthNumber")!.addEventListener("change", changeErosionStrength);
+    document.getElementById("options3dErosionRiverDepthRange")!.addEventListener("input", changeErosionRiverDepth);
+    document.getElementById("options3dErosionRiverDepthNumber")!.addEventListener("change", changeErosionRiverDepth);
+    document.getElementById("options3dErosionOctaves")!.addEventListener("change", changeErosionOctaves);
 
     document.addEventListener("fmg:sync-erosion-ui", syncErosionUI);
 
     function updateValues(): void {
-      const globe = ensureEl("canvas3d").dataset.type === "viewGlobe";
+      const globe = document.getElementById("canvas3d")!.dataset.type === "viewGlobe";
       options3dMesh.style.display = globe ? "none" : "block";
       options3dGlobe.style.display = globe ? "block" : "none";
       options3dOBJSave.style.display = globe ? "none" : "inline-block";
@@ -1153,22 +1153,26 @@ export function toggle3dOptions(): void {
       (options3dGlobeResolution as HTMLInputElement).value = String(ThreeDRenderer.options.resolution);
       (options3dSunColor as HTMLInputElement).value = ThreeDRenderer.options.sunColor;
       (options3dSubdivide as HTMLInputElement).value = String(ThreeDRenderer.options.subdivide);
-      ensureEl<HTMLInputElement>("options3dSatellite").checked = ThreeDRenderer.options.satellite;
-      ensureEl<HTMLInputElement>("options3dErosion").checked = ThreeDRenderer.options.erosion;
-      ensureEl<HTMLSelectElement>("options3dErosionDetail").value = String(ThreeDRenderer.options.erosionDetail);
-      ensureEl<HTMLInputElement>("options3dErosionStrengthRange").value = ensureEl<HTMLInputElement>(
-        "options3dErosionStrengthNumber"
+      (document.getElementById("options3dSatellite") as HTMLInputElement).checked = ThreeDRenderer.options.satellite;
+      (document.getElementById("options3dErosion") as HTMLInputElement).checked = ThreeDRenderer.options.erosion;
+      (document.getElementById("options3dErosionDetail") as HTMLSelectElement).value = String(
+        ThreeDRenderer.options.erosionDetail
+      );
+      (document.getElementById("options3dErosionStrengthRange") as HTMLInputElement).value = (
+        document.getElementById("options3dErosionStrengthNumber") as HTMLInputElement
       ).value = String(ThreeDRenderer.options.erosionStrength);
-      ensureEl<HTMLInputElement>("options3dErosionRiverDepthRange").value = ensureEl<HTMLInputElement>(
-        "options3dErosionRiverDepthNumber"
+      (document.getElementById("options3dErosionRiverDepthRange") as HTMLInputElement).value = (
+        document.getElementById("options3dErosionRiverDepthNumber") as HTMLInputElement
       ).value = String(ThreeDRenderer.options.erosionRiverDepth);
-      ensureEl<HTMLSelectElement>("options3dErosionOctaves").value = String(ThreeDRenderer.options.erosionOctaves);
+      (document.getElementById("options3dErosionOctaves") as HTMLSelectElement).value = String(
+        ThreeDRenderer.options.erosionOctaves
+      );
       syncErosionUI();
       updateTimeOfDayPreset();
     }
 
     function updateTimeOfDayPreset(): void {
-      const presetSelect = ensureEl<HTMLSelectElement>("options3dTimeOfDay");
+      const presetSelect = document.getElementById("options3dTimeOfDay") as HTMLSelectElement;
       if (!presetSelect) return;
 
       const { sun, sunColor, lightness } = ThreeDRenderer.options;
@@ -1211,13 +1215,13 @@ export function toggle3dOptions(): void {
       (options3dLightnessRange as HTMLInputElement).value = (options3dLightnessNumber as HTMLInputElement).value =
         this.value;
       ThreeDRenderer.setLightness(+this.value / 100);
-      const presetSelect = ensureEl<HTMLSelectElement>("options3dTimeOfDay");
+      const presetSelect = document.getElementById("options3dTimeOfDay") as HTMLSelectElement;
       if (presetSelect?.value !== "custom") presetSelect.value = "custom";
     }
 
     function changeSunColor(this: HTMLInputElement): void {
       ThreeDRenderer.setSunColor((options3dSunColor as HTMLInputElement).value);
-      const presetSelect = ensureEl<HTMLSelectElement>("options3dTimeOfDay");
+      const presetSelect = document.getElementById("options3dTimeOfDay") as HTMLSelectElement;
       if (presetSelect?.value !== "custom") presetSelect.value = "custom";
     }
 
@@ -1225,7 +1229,7 @@ export function toggle3dOptions(): void {
       const x = +(options3dSunX as HTMLInputElement).value;
       const y = +(options3dSunY as HTMLInputElement).value;
       ThreeDRenderer.setSun(x, y, ThreeDRenderer.options.sun.z);
-      const presetSelect = ensureEl<HTMLSelectElement>("options3dTimeOfDay");
+      const presetSelect = document.getElementById("options3dTimeOfDay") as HTMLSelectElement;
       if (presetSelect?.value !== "custom") presetSelect.value = "custom";
     }
 
@@ -1277,15 +1281,15 @@ export function toggle3dOptions(): void {
     }
 
     function changeErosionStrength(this: HTMLInputElement): void {
-      ensureEl<HTMLInputElement>("options3dErosionStrengthRange").value = ensureEl<HTMLInputElement>(
-        "options3dErosionStrengthNumber"
+      (document.getElementById("options3dErosionStrengthRange") as HTMLInputElement).value = (
+        document.getElementById("options3dErosionStrengthNumber") as HTMLInputElement
       ).value = this.value;
       ThreeDRenderer.setErosionStrength(+this.value);
     }
 
     function changeErosionRiverDepth(this: HTMLInputElement): void {
-      ensureEl<HTMLInputElement>("options3dErosionRiverDepthRange").value = ensureEl<HTMLInputElement>(
-        "options3dErosionRiverDepthNumber"
+      (document.getElementById("options3dErosionRiverDepthRange") as HTMLInputElement).value = (
+        document.getElementById("options3dErosionRiverDepthNumber") as HTMLInputElement
       ).value = this.value;
       ThreeDRenderer.setErosionRiverDepth(+this.value);
     }
@@ -1295,18 +1299,18 @@ export function toggle3dOptions(): void {
     }
 
     function syncErosionUI(): void {
-      const erosionChecked = ensureEl<HTMLInputElement>("options3dErosion").checked;
-      ensureEl("options3dErosionSection").style.display = erosionChecked ? "block" : "none";
+      const erosionChecked = (document.getElementById("options3dErosion") as HTMLInputElement).checked;
+      document.getElementById("options3dErosionSection")!.style.display = erosionChecked ? "block" : "none";
 
       const useSubdivide = !erosionChecked;
-      const subdivideCheck = ensureEl<HTMLInputElement>("options3dSubdivide");
+      const subdivideCheck = document.getElementById("options3dSubdivide") as HTMLInputElement;
       subdivideCheck.disabled = !useSubdivide;
       if (!useSubdivide) {
         subdivideCheck.checked = false;
-        ensureEl("options3dSubdivide").parentElement!.style.opacity = "0.5";
+        subdivideCheck.parentElement!.style.opacity = "0.5";
       } else {
         subdivideCheck.checked = Boolean(ThreeDRenderer.options.subdivide);
-        ensureEl("options3dSubdivide").parentElement!.style.opacity = "1";
+        subdivideCheck.parentElement!.style.opacity = "1";
       }
     }
   }, 100);

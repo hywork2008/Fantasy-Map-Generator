@@ -4,7 +4,7 @@ import { worldContext } from "../context/worldContext";
 import { downloadFile, getFileName, uploadFile } from "../controllers/editors";
 import { Names } from "../modules/names-generator";
 import { closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
-import { ensureEl, openURL, rn, unique } from "../utils";
+import { openURL, rn, unique } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
 import { ERROR } from "../utils/debug";
 import { speak, tip } from "../utils/uiHelpers";
@@ -47,23 +47,29 @@ class NamesbaseEditorModule {
   }
 
   private addListeners(): void {
-    const uploader = ensureEl<HTMLInputElement>("namesbaseToLoad");
+    const uploader = document.getElementById("namesbaseToLoad") as HTMLInputElement;
 
-    ensureEl("namesbaseSelect").addEventListener("change", () => this.updateInputs());
-    ensureEl("namesbaseTextarea").addEventListener("change", () => this.updateNamesData());
-    ensureEl("namesbaseUpdateExamples").addEventListener("click", () => this.updateExamples());
-    ensureEl("namesbaseExamples").addEventListener("click", () => this.updateExamples());
-    ensureEl("namesbaseName").addEventListener("input", e => this.updateBaseName((e.target as HTMLInputElement).value));
-    ensureEl("namesbaseMin").addEventListener("input", e => this.updateBaseMin((e.target as HTMLInputElement).value));
-    ensureEl("namesbaseMax").addEventListener("input", e => this.updateBaseMax((e.target as HTMLInputElement).value));
-    ensureEl("namesbaseDouble").addEventListener("input", e =>
-      this.updateBaseDuplication((e.target as HTMLInputElement).value)
-    );
-    ensureEl("namesbaseAdd").addEventListener("click", () => this.namesbaseAdd());
-    ensureEl("namesbaseAnalyze").addEventListener("click", () => this.analyzeNamesbase());
-    ensureEl("namesbaseDefault").addEventListener("click", () => this.namesbaseRestoreDefault());
-    ensureEl("namesbaseDownload").addEventListener("click", () => this.namesbaseDownload());
-    ensureEl("namesbaseUpload").addEventListener("click", () => {
+    document.getElementById("namesbaseSelect")!.addEventListener("change", () => this.updateInputs());
+    document.getElementById("namesbaseTextarea")!.addEventListener("change", () => this.updateNamesData());
+    document.getElementById("namesbaseUpdateExamples")!.addEventListener("click", () => this.updateExamples());
+    document.getElementById("namesbaseExamples")!.addEventListener("click", () => this.updateExamples());
+    document
+      .getElementById("namesbaseName")!
+      .addEventListener("input", e => this.updateBaseName((e.target as HTMLInputElement).value));
+    document
+      .getElementById("namesbaseMin")!
+      .addEventListener("input", e => this.updateBaseMin((e.target as HTMLInputElement).value));
+    document
+      .getElementById("namesbaseMax")!
+      .addEventListener("input", e => this.updateBaseMax((e.target as HTMLInputElement).value));
+    document
+      .getElementById("namesbaseDouble")!
+      .addEventListener("input", e => this.updateBaseDuplication((e.target as HTMLInputElement).value));
+    document.getElementById("namesbaseAdd")!.addEventListener("click", () => this.namesbaseAdd());
+    document.getElementById("namesbaseAnalyze")!.addEventListener("click", () => this.analyzeNamesbase());
+    document.getElementById("namesbaseDefault")!.addEventListener("click", () => this.namesbaseRestoreDefault());
+    document.getElementById("namesbaseDownload")!.addEventListener("click", () => this.namesbaseDownload());
+    document.getElementById("namesbaseUpload")!.addEventListener("click", () => {
       uploader.addEventListener(
         "change",
         e => uploadFile(e.target as HTMLInputElement, d => this.namesbaseUpload(d, true)),
@@ -73,7 +79,7 @@ class NamesbaseEditorModule {
       );
       uploader.click();
     });
-    ensureEl("namesbaseUploadExtend").addEventListener("click", () => {
+    document.getElementById("namesbaseUploadExtend")!.addEventListener("click", () => {
       uploader.addEventListener(
         "change",
         e => uploadFile(e.target as HTMLInputElement, d => this.namesbaseUpload(d, false)),
@@ -83,14 +89,18 @@ class NamesbaseEditorModule {
       );
       uploader.click();
     });
-    ensureEl("namesbaseCA").addEventListener("click", () =>
-      openURL("https://cartographyassets.com/asset-category/specific-assets/azgaars-generator/namebases/")
-    );
-    ensureEl("namesbaseSpeak").addEventListener("click", () => speak(ensureEl("namesbaseExamples").textContent ?? ""));
+    document
+      .getElementById("namesbaseCA")!
+      .addEventListener("click", () =>
+        openURL("https://cartographyassets.com/asset-category/specific-assets/azgaars-generator/namebases/")
+      );
+    document
+      .getElementById("namesbaseSpeak")!
+      .addEventListener("click", () => speak(document.getElementById("namesbaseExamples")!.textContent ?? ""));
   }
 
   private createBasesList(): void {
-    const select = ensureEl<HTMLSelectElement>("namesbaseSelect");
+    const select = document.getElementById("namesbaseSelect") as HTMLSelectElement;
     select.innerHTML = "";
     worldContext.nameBases.forEach((b, i) => {
       select.options.add(new Option(b.name, String(i)));
@@ -98,21 +108,21 @@ class NamesbaseEditorModule {
   }
 
   private updateInputs(): void {
-    const base = +ensureEl<HTMLSelectElement>("namesbaseSelect").value;
+    const base = +(document.getElementById("namesbaseSelect") as HTMLSelectElement).value;
     if (!worldContext.nameBases[base]) {
       tip(`Namesbase ${base} is not defined`, false, "error");
       return;
     }
-    (ensureEl("namesbaseTextarea") as HTMLTextAreaElement).value = worldContext.nameBases[base].b;
-    (ensureEl("namesbaseName") as HTMLInputElement).value = worldContext.nameBases[base].name;
-    (ensureEl("namesbaseMin") as HTMLInputElement).value = String(worldContext.nameBases[base].min);
-    (ensureEl("namesbaseMax") as HTMLInputElement).value = String(worldContext.nameBases[base].max);
-    (ensureEl("namesbaseDouble") as HTMLInputElement).value = worldContext.nameBases[base].d;
+    (document.getElementById("namesbaseTextarea") as HTMLTextAreaElement).value = worldContext.nameBases[base].b;
+    (document.getElementById("namesbaseName") as HTMLInputElement).value = worldContext.nameBases[base].name;
+    (document.getElementById("namesbaseMin") as HTMLInputElement).value = String(worldContext.nameBases[base].min);
+    (document.getElementById("namesbaseMax") as HTMLInputElement).value = String(worldContext.nameBases[base].max);
+    (document.getElementById("namesbaseDouble") as HTMLInputElement).value = worldContext.nameBases[base].d;
     this.updateExamples();
   }
 
   private updateExamples(): void {
-    const base = +ensureEl<HTMLSelectElement>("namesbaseSelect").value;
+    const base = +(document.getElementById("namesbaseSelect") as HTMLSelectElement).value;
     let examples = "";
     for (let i = 0; i < 7; i++) {
       const example = Names.getBase(base);
@@ -123,12 +133,12 @@ class NamesbaseEditorModule {
       if (i) examples += ", ";
       examples += example;
     }
-    ensureEl("namesbaseExamples").innerHTML = examples;
+    document.getElementById("namesbaseExamples")!.innerHTML = examples;
   }
 
   private updateNamesData(): void {
-    const base = +ensureEl<HTMLSelectElement>("namesbaseSelect").value;
-    const input = ensureEl<HTMLTextAreaElement>("namesbaseTextarea");
+    const base = +(document.getElementById("namesbaseSelect") as HTMLSelectElement).value;
+    const input = document.getElementById("namesbaseTextarea") as HTMLTextAreaElement;
     if (input.value.split(",").length < 3) {
       tip("The names data provided is too short or incorrect", false, "error");
       return;
@@ -140,15 +150,15 @@ class NamesbaseEditorModule {
   }
 
   private updateBaseName(rawName: string): void {
-    const base = +ensureEl<HTMLSelectElement>("namesbaseSelect").value;
-    const select = ensureEl<HTMLSelectElement>("namesbaseSelect");
+    const select = document.getElementById("namesbaseSelect") as HTMLSelectElement;
+    const base = +select.value;
     const name = rawName.replace(/[/|]/g, "");
     select.options[select.selectedIndex].innerHTML = name;
     worldContext.nameBases[base].name = name;
   }
 
   private updateBaseMin(value: string): void {
-    const base = +ensureEl<HTMLSelectElement>("namesbaseSelect").value;
+    const base = +(document.getElementById("namesbaseSelect") as HTMLSelectElement).value;
     if (+value > worldContext.nameBases[base].max) {
       tip("Minimal length cannot be greater than maximal", false, "error");
       return;
@@ -157,7 +167,7 @@ class NamesbaseEditorModule {
   }
 
   private updateBaseMax(value: string): void {
-    const base = +ensureEl<HTMLSelectElement>("namesbaseSelect").value;
+    const base = +(document.getElementById("namesbaseSelect") as HTMLSelectElement).value;
     if (+value < worldContext.nameBases[base].min) {
       tip("Maximal length should be greater than minimal", false, "error");
       return;
@@ -166,12 +176,12 @@ class NamesbaseEditorModule {
   }
 
   private updateBaseDuplication(value: string): void {
-    const base = +ensureEl<HTMLSelectElement>("namesbaseSelect").value;
+    const base = +(document.getElementById("namesbaseSelect") as HTMLSelectElement).value;
     worldContext.nameBases[base].d = value;
   }
 
   private analyzeNamesbase(): void {
-    const namesSourceString = (ensureEl("namesbaseTextarea") as HTMLTextAreaElement).value;
+    const namesSourceString = (document.getElementById("namesbaseTextarea") as HTMLTextAreaElement).value;
     const namesArray = namesSourceString.toLowerCase().split(",");
     const length = namesArray.length;
     if (!namesSourceString || !length) {
@@ -263,14 +273,15 @@ class NamesbaseEditorModule {
       m: 0,
       b
     });
-    ensureEl<HTMLSelectElement>("namesbaseSelect").add(new Option(`Base${baseId}`, String(baseId)));
-    (ensureEl("namesbaseSelect") as HTMLSelectElement).value = String(baseId);
-    (ensureEl("namesbaseTextarea") as HTMLTextAreaElement).value = b;
-    (ensureEl("namesbaseName") as HTMLInputElement).value = `Base${baseId}`;
-    (ensureEl("namesbaseMin") as HTMLInputElement).value = "5";
-    (ensureEl("namesbaseMax") as HTMLInputElement).value = "12";
-    (ensureEl("namesbaseDouble") as HTMLInputElement).value = "";
-    ensureEl("namesbaseExamples").innerHTML = "Please provide names data";
+    const newSelect = document.getElementById("namesbaseSelect") as HTMLSelectElement;
+    newSelect.add(new Option(`Base${baseId}`, String(baseId)));
+    newSelect.value = String(baseId);
+    (document.getElementById("namesbaseTextarea") as HTMLTextAreaElement).value = b;
+    (document.getElementById("namesbaseName") as HTMLInputElement).value = `Base${baseId}`;
+    (document.getElementById("namesbaseMin") as HTMLInputElement).value = "5";
+    (document.getElementById("namesbaseMax") as HTMLInputElement).value = "12";
+    (document.getElementById("namesbaseDouble") as HTMLInputElement).value = "";
+    document.getElementById("namesbaseExamples")!.innerHTML = "Please provide names data";
   }
 
   private namesbaseRestoreDefault(): void {
