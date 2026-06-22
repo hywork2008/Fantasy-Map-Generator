@@ -26,7 +26,8 @@ export const StatesEditorDialog: React.FC = () => {
     totalBurgs,
     totalArea,
     totalPopulation,
-    states
+    states,
+    manualSelectedStateId
   } = useStatesEditorState();
 
   const sortedStates = useMemo(() => {
@@ -166,7 +167,7 @@ export const StatesEditorDialog: React.FC = () => {
             return (
               <div
                 key={s.i}
-                className="states"
+                className={`states${customizationMode === 1 && s.i === manualSelectedStateId ? " selected" : ""}`}
                 data-id={s.i}
                 style={{
                   display: "grid",

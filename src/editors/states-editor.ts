@@ -49,32 +49,101 @@ import {
 } from "../renderers";
 import type { Emblem as RendererEmblem } from "../renderers/emblem-renderer";
 import { COArenderer } from "../renderers/emblem-renderer";
-import { modules } from "../store/editorState";
 import { useOptionsState } from "../store/optionsState";
 import { getStatesEditorState, setStatesEditorState } from "../store/statesEditorState";
 import type { WorldNote } from "../types/WorldState";
-import { closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
-import { ensureEl, findAll, findCell, getRandomColor, isLand, P, rand, rn, si } from "../utils";
+import { closeDialogs, openRichDialog } from "../ui/dialogs/dialogService";
+import {
+  ensureEl,
+  findAll,
+  findCell,
+  getAdjective,
+  getMixedColor,
+  getRandomColor,
+  isLand,
+  P,
+  rand,
+  rn,
+  si
+} from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
 import { getPackPolygon } from "../utils/graphUtils";
-import {
-  applyOption,
-  clearMainTip,
-  fitContent,
-  getArea,
-  getAreaUnit,
-  removeCircle,
-  showMainTip,
-  tip
-} from "../utils/uiHelpers";
+import { clearMainTip, fitContent, getArea, getAreaUnit, removeCircle, showMainTip, tip } from "../utils/uiHelpers";
 import { BrushHistoryClass as BrushHistory } from "./BrushHistory";
 
 let worldContext: WorldContext;
 let viewContext: ViewContext;
 let appServices: AppServices;
 
-let $body!: HTMLElement;
 const statesManualHistory = new BrushHistory();
+
+// formName (e.g. "Kingdom") → form category (e.g. "Monarchy")
+const FORM_CATEGORIES: Record<string, string> = {
+  Beylik: "Monarchy",
+  Despotate: "Monarchy",
+  Dominion: "Monarchy",
+  Duchy: "Monarchy",
+  Emirate: "Monarchy",
+  Empire: "Monarchy",
+  Horde: "Monarchy",
+  "Grand Duchy": "Monarchy",
+  Heptarchy: "Monarchy",
+  Khaganate: "Monarchy",
+  Khanate: "Monarchy",
+  Kingdom: "Monarchy",
+  Marches: "Monarchy",
+  Principality: "Monarchy",
+  Satrapy: "Monarchy",
+  Shogunate: "Monarchy",
+  Sultanate: "Monarchy",
+  Tsardom: "Monarchy",
+  Ulus: "Monarchy",
+  Viceroyalty: "Monarchy",
+  Chancellery: "Republic",
+  "City-state": "Republic",
+  Diarchy: "Republic",
+  Federation: "Republic",
+  "Free City": "Republic",
+  "Most Serene Republic": "Republic",
+  Oligarchy: "Republic",
+  Protectorate: "Republic",
+  Republic: "Republic",
+  Tetrarchy: "Republic",
+  "Trade Company": "Republic",
+  Triumvirate: "Republic",
+  Confederacy: "Union",
+  Confederation: "Union",
+  Conglomerate: "Union",
+  Commonwealth: "Union",
+  League: "Union",
+  Union: "Union",
+  "United Hordes": "Union",
+  "United Kingdom": "Union",
+  "United Provinces": "Union",
+  "United Republic": "Union",
+  "United States": "Union",
+  "United Tribes": "Union",
+  Bishopric: "Theocracy",
+  Brotherhood: "Theocracy",
+  Caliphate: "Theocracy",
+  Diocese: "Theocracy",
+  "Divine Duchy": "Theocracy",
+  "Divine Grand Duchy": "Theocracy",
+  "Divine Principality": "Theocracy",
+  "Divine Kingdom": "Theocracy",
+  "Divine Empire": "Theocracy",
+  Eparchy: "Theocracy",
+  Exarchate: "Theocracy",
+  "Holy State": "Theocracy",
+  Imamah: "Theocracy",
+  Patriarchate: "Theocracy",
+  Theocracy: "Theocracy",
+  Commune: "Anarchy",
+  Community: "Anarchy",
+  Council: "Anarchy",
+  "Free Territory": "Anarchy",
+  Tribes: "Anarchy"
+};
 
 export function open(): void {
   closeDialogs("#statesEditor, .stable");
@@ -247,7 +316,8 @@ export const statesEditorActions = {
     if (st.customizationMode === 2) {
       exitAddStateMode();
     } else {
-      setStatesEditorState({ customizationMode: 3 });
+      viewContext.customization = 3;
+      setStatesEditorState({ customizationMode: 2 });
       tip("Click on the map to create a new capital or promote an existing burg", true);
       viewContext.viewbox.style("cursor", "crosshair");
       interactionManager.setClickHandler(addState);
@@ -256,6 +326,47 @@ export const statesEditorActions = {
 
   openStateMergeDialog(): void {
     openStateMergeDialog();
+  },
+
+  highlightStateOnMap(stateId: number): void {
+    if (!layerIsOn("toggleStates")) return;
+    stateHighlightOff();
+    stateHighlightById(stateId);
+  },
+
+  clearStateHighlight(): void {
+    stateHighlightOff();
+  },
+
+  closeMergeDialog(): void {
+    stateHighlightOff();
+    setStatesEditorState({ mergeDialog: null });
+  },
+
+  confirmMerge(rulingStateId: number | null, statesToMerge: number[]): void {
+    if (!rulingStateId) {
+      tip("Please select a state to merge into", false, "error");
+      return;
+    }
+    const mergeList = statesToMerge.filter(id => id !== rulingStateId);
+    if (!mergeList.length) {
+      tip("Please select several states to merge", false, "error");
+      return;
+    }
+    const rulingState = worldContext.pack.states[rulingStateId] as State;
+    const emblem = (i: number) => `<svg class="coaIcon" viewBox="0 0 200 200"><use href="#stateCOA${i}"></use></svg>`;
+    confirmationDialog({
+      title: "Merge states",
+      message: `
+        <p>The following states will be <strong>removed</strong>: ${mergeList.map(id => `${emblem(id)}${(worldContext.pack.states[id] as State).name}`).join(", ")}.</p>
+        <p>Removed states data (burgs, provinces, regiments) will be assigned to ${emblem(rulingState.i)}${rulingState.name}.</p>
+        <p>Are you sure you want to merge states? This action cannot be reverted.</p>`,
+      confirm: "Merge",
+      onConfirm: () => {
+        mergeStates(mergeList, rulingStateId);
+        setStatesEditorState({ mergeDialog: null });
+      }
+    });
   },
 
   downloadStatesCsv(): void {
@@ -341,6 +452,67 @@ export const statesEditorActions = {
   removeState(stateId: number): void {
     if (viewContext.customization) return;
     stateRemovePrompt(stateId);
+  },
+
+  nameEditorUpdate(updates: Partial<import("../store/statesEditorState").NameEditorData>): void {
+    const ne = getStatesEditorState().nameEditor;
+    if (!ne) return;
+    setStatesEditorState({ nameEditor: { ...ne, ...updates } });
+  },
+
+  nameEditorGenerateShortCulture(): void {
+    const ne = getStatesEditorState().nameEditor;
+    if (!ne) return;
+    const culture = (worldContext.pack.states[ne.stateId] as State).culture;
+    const name = Names.getState(Names.getCultureShort(worldContext, viewContext, appServices, culture), culture);
+    setStatesEditorState({ nameEditor: { ...ne, shortName: name } });
+  },
+
+  nameEditorGenerateShortRandom(): void {
+    const ne = getStatesEditorState().nameEditor;
+    if (!ne) return;
+    const base = rand(worldContext.nameBases.length - 1);
+    const name = Names.getState(Names.getBase(base), 0, base);
+    setStatesEditorState({ nameEditor: { ...ne, shortName: name } });
+  },
+
+  nameEditorRegenerateFullName(): void {
+    const ne = getStatesEditorState().nameEditor;
+    if (!ne) return;
+    const { shortName, formName, regenTick } = ne;
+    let fullName: string;
+    if (!formName) fullName = shortName;
+    else if (!shortName) fullName = `The ${formName}`;
+    else fullName = regenTick % 2 ? `${getAdjective(shortName)} ${formName}` : `${formName} of ${shortName}`;
+    setStatesEditorState({ nameEditor: { ...ne, fullName, regenTick: regenTick + 1 } });
+  },
+
+  nameEditorApply(): void {
+    const ne = getStatesEditorState().nameEditor;
+    if (!ne) return;
+    const s = worldContext.pack.states[ne.stateId] as State;
+
+    const nameChanged = ne.shortName !== s.name;
+    const formChanged = ne.formName !== (s.formName ?? "");
+    const fullNameChanged = ne.fullName !== (s.fullName ?? "");
+    const changed = nameChanged || formChanged || fullNameChanged;
+
+    if (formChanged && ne.formName) {
+      const form = FORM_CATEGORIES[ne.formName];
+      if (form) s.form = form;
+    }
+
+    s.name = ne.shortName;
+    s.formName = ne.formName;
+    s.fullName = ne.fullName;
+
+    if (changed && ne.updateLabel) drawStateLabels(worldContext, viewContext, appServices, [s.i]);
+    setStatesEditorState({ nameEditor: null });
+    refreshStatesEditor();
+  },
+
+  nameEditorClose(): void {
+    setStatesEditorState({ nameEditor: null });
   }
 };
 
@@ -350,7 +522,12 @@ function stateHighlightOn(event: Event): void {
 
   const state = +((event.target as HTMLElement).dataset.id ?? 0);
   if (viewContext.customization || !state) return;
-  const d = viewContext.regions.select(`#state${state}`).attr("d");
+  stateHighlightById(state);
+}
+
+function stateHighlightById(stateId: number): void {
+  const d = viewContext.regions.select(`#state${stateId}`).attr("d");
+  if (!d) return;
 
   const path = viewContext.debug
     .append("path")
@@ -377,107 +554,20 @@ function stateHighlightOff(): void {
   });
 }
 
-function editStateName(state: number): void {
-  const stateNameEditorCustomForm = ensureEl<HTMLInputElement>("stateNameEditorCustomForm");
-  const stateNameEditorSelectForm = ensureEl<HTMLSelectElement>("stateNameEditorSelectForm");
-
-  stateNameEditorCustomForm.value = "";
-  const addModeActive = stateNameEditorCustomForm.style.display === "inline-block";
-  if (addModeActive) {
-    stateNameEditorCustomForm.style.display = "none";
-    stateNameEditorSelectForm.style.display = "inline-block";
-  }
-
-  const s = worldContext.pack.states[state] as State;
-  ensureEl("stateNameEditor").dataset.state = String(state);
-  ensureEl<HTMLInputElement>("stateNameEditorShort").value = s.name || "";
-  applyOption(stateNameEditorSelectForm, s.formName ?? "");
-  ensureEl<HTMLInputElement>("stateNameEditorFull").value = s.fullName || "";
-
-  openDialog("stateNameEditor", {
-    resizable: false,
-    title: "Change state name",
-    buttons: {
-      Apply: () => {
-        applyNameChange(s);
-        /* $(this).dialog("close") removed */
-      },
-      Cancel: () => {
-        /* $(this).dialog("close") removed */
-      }
-    },
-    position: { my: "center", at: "center", of: "svg" }
+function editStateName(stateId: number): void {
+  const s = worldContext.pack.states[stateId] as State;
+  setStatesEditorState({
+    nameEditor: {
+      stateId,
+      shortName: s.name || "",
+      formName: s.formName ?? "",
+      fullName: s.fullName || "",
+      isCustomFormMode: false,
+      customFormInput: "",
+      updateLabel: true,
+      regenTick: 0
+    }
   });
-
-  if (modules.editStateName) return;
-  modules.editStateName = true;
-
-  ensureEl("stateNameEditorShortCulture").addEventListener("click", regenerateShortNameCulture);
-  ensureEl("stateNameEditorShortRandom").addEventListener("click", regenerateShortNameRandom);
-  ensureEl("stateNameEditorAddForm").addEventListener("click", addCustomForm);
-  ensureEl("stateNameEditorCustomForm").addEventListener("change", addCustomForm);
-  ensureEl("stateNameEditorFullRegenerate").addEventListener("click", regenerateFullName);
-
-  function regenerateShortNameCulture(): void {
-    const stateId = +ensureEl("stateNameEditor").dataset.state!;
-    const culture = (worldContext.pack.states[stateId] as State).culture;
-    const name = Names.getState(Names.getCultureShort(worldContext, viewContext, appServices, culture), culture);
-    ensureEl<HTMLInputElement>("stateNameEditorShort").value = name;
-  }
-
-  function regenerateShortNameRandom(): void {
-    const base = rand(worldContext.nameBases.length - 1);
-    const name = Names.getState(Names.getBase(base), 0, base);
-    ensureEl<HTMLInputElement>("stateNameEditorShort").value = name;
-  }
-
-  function addCustomForm(): void {
-    const value = stateNameEditorCustomForm.value;
-    const isAddModeActive = stateNameEditorCustomForm.style.display === "inline-block";
-    stateNameEditorCustomForm.style.display = isAddModeActive ? "none" : "inline-block";
-    stateNameEditorSelectForm.style.display = isAddModeActive ? "inline-block" : "none";
-    if (value && isAddModeActive) applyOption(stateNameEditorSelectForm, value);
-    stateNameEditorCustomForm.value = "";
-  }
-
-  function regenerateFullName(): void {
-    const short = ensureEl<HTMLInputElement>("stateNameEditorShort").value;
-    const form = ensureEl<HTMLSelectElement>("stateNameEditorSelectForm").value;
-    ensureEl<HTMLInputElement>("stateNameEditorFull").value = computeFullName();
-
-    function computeFullName(): string {
-      if (!form) return short;
-      if (!short && form) return `The ${form}`;
-      const fullRegenEl = ensureEl("stateNameEditorFullRegenerate");
-      const tick = +fullRegenEl.dataset.tick!;
-      fullRegenEl.dataset.tick = String(tick + 1);
-      return tick % 2 ? `${getAdjective(short)} ${form}` : `${form} of ${short}`;
-    }
-  }
-
-  function applyNameChange(s: State): void {
-    const nameInput = ensureEl<HTMLInputElement>("stateNameEditorShort");
-    const formSelect = ensureEl<HTMLSelectElement>("stateNameEditorSelectForm");
-    const fullNameInput = ensureEl<HTMLInputElement>("stateNameEditorFull");
-
-    const nameChanged = nameInput.value !== s.name;
-    const formChanged = formSelect.value !== s.formName;
-    const fullNameChanged = fullNameInput.value !== (s.fullName ?? "");
-    const changed = nameChanged || formChanged || fullNameChanged;
-
-    if (formChanged) {
-      const selected = formSelect.selectedOptions[0];
-      const form = (selected.parentElement as HTMLOptGroupElement).label || null;
-      if (form) s.form = form;
-    }
-
-    s.name = nameInput.value;
-    s.formName = formSelect.value;
-    s.fullName = fullNameInput.value;
-    if (changed && (ensureEl("stateNameEditorUpdateLabel") as HTMLInputElement).checked)
-      drawStateLabels(worldContext, viewContext, appServices, [s.i]);
-    refreshStatesEditor();
-  }
 }
 
 function changePopulation(stateId: number): void {
@@ -811,7 +901,7 @@ function showStatesChart(): void {
 }
 
 function recalculateStates(must?: boolean): void {
-  if (!must && !(statesAutoChange as HTMLInputElement).checked) return;
+  if (!must && !getStatesEditorState().autoChange) return;
 
   const state = getWorldState();
   States.expandStates(worldContext, viewContext, appServices);
@@ -822,7 +912,7 @@ function recalculateStates(must?: boolean): void {
   if (layerIsOn("toggleStates")) StatesRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleBorders")) BordersRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleProvinces")) ProvincesRenderer.render(worldContext, viewContext, appServices);
-  if ((adjustLabels as HTMLInputElement).checked) drawStateLabels(worldContext, viewContext, appServices);
+  if (getStatesEditorState().adjustLabels) drawStateLabels(worldContext, viewContext, appServices);
 
   refreshStatesEditor();
 }
@@ -830,10 +920,7 @@ function recalculateStates(must?: boolean): void {
 function randomizeStatesExpansion(): void {
   (worldContext.pack.states as State[]).forEach(s => {
     if (!s.i || s.removed) return;
-    const expansionism = rn(Math.random() * 4 + 1, 1);
-    s.expansionism = expansionism;
-    ($body.querySelector(`div.states[data-id='${s.i}'] > input.statePower`) as HTMLInputElement).value =
-      String(expansionism);
+    s.expansionism = rn(Math.random() * 4 + 1, 1);
   });
   recalculateStates(true);
 }
@@ -842,25 +929,10 @@ function enterStatesManualAssignent(): void {
   if (!layerIsOn("toggleStates")) toggleStates();
   viewContext.customization = 2;
   viewContext.statesBody.append("g").attr("id", "temp");
-  document.querySelectorAll<HTMLElement>("#statesFooter > button").forEach(el => {
-    el.style.display = "none";
-  });
-  ensureEl("statesManuallyButtons").style.display = "inline-block";
   ensureEl("statesHalo").style.display = "none";
 
-  document
-    .getElementById("statesEditor")
-    ?.querySelectorAll(".hide")
-    .forEach(el => {
-      el.classList.add("hidden");
-    });
-  ensureEl("statesTotal").style.display = "none";
-  $body.querySelectorAll<HTMLElement>("div > input, select, span, svg").forEach(e => {
-    e.style.pointerEvents = "none";
-  });
-  openDialog("statesEditor", {
-    position: { my: "right top", at: "right-10 top+10", of: "svg", collision: "fit" }
-  });
+  const firstState = (worldContext.pack.states as State[]).find(s => s.i && !s.removed);
+  setStatesEditorState({ customizationMode: 1, manualSelectedStateId: firstState?.i ?? 0 });
 
   tip("Click on state to select, drag the circle to change state", true);
   viewContext.viewbox
@@ -869,7 +941,6 @@ function enterStatesManualAssignent(): void {
     .call(d3.drag<SVGGElement, unknown>().on("start", dragStateBrushStart).on("drag", dragStateBrush))
     .on("touchmove mousemove", moveStateBrush);
 
-  $body.querySelector<HTMLElement>("div")!.classList.add("selected");
   statesManualHistory.reset();
 }
 
@@ -880,9 +951,7 @@ function selectStateOnMapClick(this: SVGElement, event: MouseEvent): void {
 
   const assigned = viewContext.statesBody.select("#temp").select(`polygon[data-cell='${i}']`);
   const state = assigned.size() ? +assigned.attr("data-state") : worldContext.pack.cells.state[i];
-
-  $body.querySelector("div.selected")!.classList.remove("selected");
-  $body.querySelector<HTMLElement>(`div[data-id='${state}']`)!.classList.add("selected");
+  setStatesEditorState({ manualSelectedStateId: state });
 }
 
 function dragStateBrushStart(): void {
@@ -891,7 +960,7 @@ function dragStateBrushStart(): void {
 
 function dragStateBrush(this: SVGElement, event: d3.D3DragEvent<SVGElement, unknown, unknown>): void {
   if (!event.dx && !event.dy) return;
-  const r = +(ensureEl("statesBrush") as HTMLInputElement).value;
+  const r = getStatesEditorState().brushSize;
   const p = d3.pointer(event, this);
   moveCircle(p[0], p[1], r);
 
@@ -903,10 +972,8 @@ function dragStateBrush(this: SVGElement, event: d3.D3DragEvent<SVGElement, unkn
 function changeStateForSelection(selection: number[]): void {
   const temp = viewContext.statesBody.select("#temp");
 
-  const $selected = $body.querySelector<HTMLElement>("div.selected")!;
-  const stateNew = +$selected.dataset.id!;
+  const { manualSelectedStateId: stateNew, protectExisting: preventOverwrite } = getStatesEditorState();
   const color = (worldContext.pack.states[stateNew] as State).color || "#ffffff";
-  const preventOverwrite = (document.getElementById("statesManuallyProtect") as HTMLInputElement)?.checked;
 
   selection.forEach((i: number) => {
     const exists = temp.select(`polygon[data-cell='${i}']`);
@@ -930,7 +997,7 @@ function changeStateForSelection(selection: number[]): void {
 function moveStateBrush(this: SVGElement, event: MouseEvent): void {
   showMainTip();
   const point = d3.pointer(event, this);
-  const radius = +(ensureEl("statesBrush") as HTMLInputElement).value;
+  const radius = getStatesEditorState().brushSize;
   moveCircle(point[0], point[1], radius);
 }
 
@@ -955,7 +1022,7 @@ function applyStatesManualAssignent(): void {
     refreshStatesEditor();
     States.getPoles(getWorldState());
     layerIsOn("toggleStates") ? StatesRenderer.render(worldContext, viewContext, appServices) : toggleStates();
-    if ((adjustLabels as HTMLInputElement).checked)
+    if (getStatesEditorState().adjustLabels)
       drawStateLabels(worldContext, viewContext, appServices, [...new Set(affectedStates)]);
     adjustProvinces([...new Set(affectedProvinces)]);
     layerIsOn("toggleBorders") ? BordersRenderer.render(worldContext, viewContext, appServices) : toggleBorders();
@@ -1102,39 +1169,15 @@ function adjustProvinces(affectedProvinces: number[]): void {
   }
 }
 
-function exitStatesManualAssignment(close: boolean): void {
+function exitStatesManualAssignment(_close: boolean): void {
   viewContext.customization = 0;
   statesManualHistory.reset();
   viewContext.statesBody.select("#temp").remove();
   removeCircle();
   restoreDefaultEvents?.();
   clearMainTip();
-
-  if (!$body) return;
-
-  document.querySelectorAll<HTMLElement>("#statesFooter > button").forEach(el => {
-    el.style.display = "inline-block";
-  });
-  ensureEl("statesManuallyButtons").style.display = "none";
   ensureEl("statesHalo").style.display = "block";
-
-  document
-    .getElementById("statesEditor")
-    ?.querySelectorAll(".hide:not(.show)")
-    .forEach(el => {
-      el.classList.remove("hidden");
-    });
-  ensureEl("statesTotal").style.display = "block";
-  $body.querySelectorAll<HTMLElement>("div > input, select, span, svg").forEach(e => {
-    e.style.pointerEvents = "all";
-  });
-  if (!close)
-    openDialog("statesEditor", {
-      position: { my: "right top", at: "right-10 top+10", of: "svg", collision: "fit" }
-    });
-
-  const selected = $body.querySelector("div.selected");
-  if (selected) selected.classList.remove("selected");
+  setStatesEditorState({ customizationMode: 0, manualSelectedStateId: 0 });
 }
 
 function saveStatesManualSnapshot(): void {
@@ -1256,228 +1299,120 @@ function exitAddStateMode(): void {
   viewContext.customization = 0;
   restoreDefaultEvents?.();
   clearMainTip();
-  $body.querySelectorAll<HTMLElement>("div > input, select, span, svg").forEach(e => {
-    e.style.pointerEvents = "all";
-  });
-  const statesAdd = document.getElementById("statesAdd");
-  if (statesAdd?.classList.contains("pressed")) statesAdd.classList.remove("pressed");
+  setStatesEditorState({ customizationMode: 0 });
 }
 
 function openStateMergeDialog(): void {
-  const emblem = (i: number) => `<svg class="coaIcon" viewBox="0 0 200 200"><use href="#stateCOA${i}"></use></svg>`;
-  const validStates = (worldContext.pack.states as State[]).filter(s => s.i && !s.removed);
+  const validStates = (worldContext.pack.states as State[])
+    .filter(s => s.i && !s.removed)
+    .map(s => ({
+      i: s.i,
+      name: s.name,
+      fullName: s.fullName ?? s.name,
+      color: s.color ?? "#666"
+    }));
+  setStatesEditorState({ mergeDialog: validStates });
+}
 
-  const statesSelector = validStates
-    .map(
-      (s: State) => `
-      <div data-id="${s.i}" data-tip="${s.fullName}" style="cursor:default">
-        <input type="radio" name="rulingState" value="${s.i}" />
-        <input id="selectState${s.i}" class="checkbox" type="checkbox" name="statesToMerge" value="${s.i}" />
-        <label for="selectState${s.i}" class="checkbox-label"><fill-box fill="${s.color}" disabled></fill-box>${emblem(s.i)}${s.fullName}</label>
-      </div>
-    `
-    )
-    .join("");
+function mergeStates(statesToMerge: number[], rulingStateId: number): void {
+  const rulingState = worldContext.pack.states[rulingStateId] as State;
+  const rulingStateArmy = ensureEl(`army${rulingStateId}`);
 
-  alertMessage.innerHTML = /* html */ `
-    <form id='mergeStatesForm' style="overflow: hidden; display: flex; flex-direction: column; gap: 1em;">
-      <p style="margin:0">
-        Check the <b>checkbox</b> next to each state you want to merge.
-        Use the <b>radio button</b> to pick the <em>ruling state</em> that will absorb all others (its name, color, and capital will be kept).
-        Hover over a row to highlight the state on the map.
-      </p>
-      <main style='display: grid; grid-template-columns: 1fr 1fr; gap: .3em;'>
-        ${statesSelector}
-      </main>
-    </form>
-  `;
+  statesToMerge.forEach((stateId: number) => {
+    const state = worldContext.pack.states[stateId] as State;
+    state.removed = true;
 
-  ensureEl("mergeStatesForm")
-    .querySelectorAll("div[data-id]")
-    .forEach(el => {
-      el.addEventListener("mouseenter", highlightStateOnMergeHover);
-      el.addEventListener("mouseleave", () => stateHighlightOff());
+    viewContext.statesBody.select(`#state${stateId}`).remove();
+    viewContext.statesBody.select(`#state-gap${stateId}`).remove();
+    viewContext.statesHalo.select(`#state-border${stateId}`).remove();
+    viewContext.labels.select(`#stateLabel${stateId}`).remove();
+    viewContext.defs.select(`#textPath_stateLabel${stateId}`).remove();
+
+    ensureEl(`stateCOA${stateId}`).remove();
+    viewContext.emblems.select(`#stateEmblems > use[data-i='${stateId}']`).remove();
+
+    (state.military ?? []).forEach((regiment: MilitaryRegiment) => {
+      const oldId = `regiment${stateId}-${regiment.i}`;
+      const newIndex = (rulingState.military ?? []).length;
+      rulingState.military ??= [];
+      rulingState.military.push({ ...regiment, i: newIndex });
+      const newId = `regiment${rulingStateId}-${newIndex}`;
+
+      const note = (worldContext.notes as WorldNote[]).find(n => n.id === oldId);
+      if (note) note.id = newId;
+
+      const element = document.getElementById(oldId);
+      if (element) {
+        element.id = newId;
+        element.dataset.state = String(rulingStateId);
+        element.dataset.id = String(newIndex);
+        rulingStateArmy.appendChild(element);
+      }
     });
 
-  function highlightStateOnMergeHover(event: Event): void {
-    if (!layerIsOn("toggleStates")) return;
-    const state = +(event.currentTarget as HTMLElement).dataset.id!;
-    if (!state) return;
-    const d = viewContext.regions.select(`#state${state}`).attr("d");
-    if (!d) return;
-
-    stateHighlightOff();
-
-    const path = viewContext.debug
-      .append("path")
-      .attr("class", "highlight")
-      .attr("d", d)
-      .attr("fill", "none")
-      .attr("stroke", "red")
-      .attr("stroke-width", 1)
-      .attr("opacity", 1)
-      .attr("filter", "url(#blur1)");
-
-    const totalLength = (path.node() as SVGPathElement).getTotalLength();
-    const duration = (totalLength + 5000) / 2;
-    const interpolate = d3.interpolateString(`0, ${totalLength}`, `${totalLength}, ${totalLength}`);
-    path
-      .transition()
-      .duration(duration)
-      .attrTween("stroke-dasharray", () => interpolate);
-  }
-
-  openRichDialog({
-    content: alertMessage.innerHTML,
-    width: 600,
-    title: `Merge states`,
-    close: stateHighlightOff,
-    buttons: {
-      Merge: () => {
-        const formData = new FormData(ensureEl<HTMLFormElement>("mergeStatesForm"));
-
-        const rulingStateId = Number(formData.get("rulingState"));
-        if (!rulingStateId) return tip("Please select a state to merge into", false, "error");
-        const rullingState = worldContext.pack.states[rulingStateId] as State;
-
-        const statesToMerge = formData
-          .getAll("statesToMerge")
-          .map(Number)
-          .filter((stateId: number) => stateId !== rulingStateId);
-        if (!statesToMerge.length) return tip("Please select several states to merge", false, "error");
-
-        confirmationDialog({
-          title: "Merge states",
-          message: `
-            <p>The following states will be <strong>removed</strong>: ${statesToMerge.map((stateId: number) => `${emblem(stateId)}${(worldContext.pack.states[stateId] as State).name}`).join(", ")}.</p>
-            <p>Removed states data (burgs, provinces, regiments) will be assigned to ${emblem(rullingState.i)}${rullingState.name}.</p>
-            <p>Are you sure you want to merge states? This action cannot be reverted.</p>`,
-          confirm: "Merge",
-          onConfirm: () => {
-            mergeStates(statesToMerge, rulingStateId);
-            /* $(this).dialog("close") removed */
-          }
-        });
-      },
-      Cancel: () => {
-        /* $(this).dialog("close") removed */
-      }
-    }
+    viewContext.armies.select(`g#army${stateId}`).remove();
   });
 
-  function mergeStates(statesToMerge: number[], rulingStateId: number): void {
-    const rulingState = worldContext.pack.states[rulingStateId] as State;
-    const rulingStateArmy = ensureEl(`army${rulingStateId}`);
-
-    statesToMerge.forEach((stateId: number) => {
-      const state = worldContext.pack.states[stateId] as State;
-      state.removed = true;
-
-      viewContext.statesBody.select(`#state${stateId}`).remove();
-      viewContext.statesBody.select(`#state-gap${stateId}`).remove();
-      viewContext.statesHalo.select(`#state-border${stateId}`).remove();
-      viewContext.labels.select(`#stateLabel${stateId}`).remove();
-      viewContext.defs.select(`#textPath_stateLabel${stateId}`).remove();
-
-      ensureEl(`stateCOA${stateId}`).remove();
-      viewContext.emblems.select(`#stateEmblems > use[data-i='${stateId}']`).remove();
-
-      (state.military ?? []).forEach((regiment: MilitaryRegiment) => {
-        const oldId = `regiment${stateId}-${regiment.i}`;
-        const newIndex = (rulingState.military ?? []).length;
-        rulingState.military ??= [];
-        rulingState.military.push({ ...regiment, i: newIndex });
-        const newId = `regiment${rulingStateId}-${newIndex}`;
-
-        const note = (worldContext.notes as WorldNote[]).find(n => n.id === oldId);
-        if (note) note.id = newId;
-
-        const element = document.getElementById(oldId);
-        if (element) {
-          element.id = newId;
-          element.dataset.state = String(rulingStateId);
-          element.dataset.id = String(newIndex);
-          rulingStateArmy.appendChild(element);
-        }
-      });
-
-      viewContext.armies.select(`g#army${stateId}`).remove();
-    });
-
-    (worldContext.pack.burgs as Burg[]).forEach(burg => {
-      if (statesToMerge.includes(burg.state ?? -1)) {
-        if (burg.capital) {
-          burg.capital = 0;
-          Burgs.changeGroup(burg);
-        }
-        burg.state = rulingStateId;
+  (worldContext.pack.burgs as Burg[]).forEach(burg => {
+    if (statesToMerge.includes(burg.state ?? -1)) {
+      if (burg.capital) {
+        burg.capital = 0;
+        Burgs.changeGroup(burg);
       }
-    });
-    if (layerIsOn("toggleBurgIcons")) BurgIconsRenderer.render(worldContext, viewContext, appServices);
-    if (layerIsOn("toggleLabels")) BurgLabelsRenderer.render(worldContext, viewContext, appServices);
+      burg.state = rulingStateId;
+    }
+  });
+  if (layerIsOn("toggleBurgIcons")) BurgIconsRenderer.render(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleLabels")) BurgLabelsRenderer.render(worldContext, viewContext, appServices);
 
-    (worldContext.pack.provinces as Province[]).forEach(province => {
-      if (province.i && !province.removed && statesToMerge.includes(province.state)) province.state = rulingStateId;
-    });
+  (worldContext.pack.provinces as Province[]).forEach(province => {
+    if (province.i && !province.removed && statesToMerge.includes(province.state)) province.state = rulingStateId;
+  });
 
-    Array.from(worldContext.pack.cells.state).forEach((s: number, i: number) => {
-      if (statesToMerge.includes(s)) worldContext.pack.cells.state[i] = rulingStateId;
-    });
+  Array.from(worldContext.pack.cells.state).forEach((s: number, i: number) => {
+    if (statesToMerge.includes(s)) worldContext.pack.cells.state[i] = rulingStateId;
+  });
 
-    unfog();
-    viewContext.debug.selectAll(".highlight").remove();
+  unfog();
+  viewContext.debug.selectAll(".highlight").remove();
 
-    States.getPoles(getWorldState());
-    layerIsOn("toggleStates") ? StatesRenderer.render(worldContext, viewContext, appServices) : toggleStates();
-    layerIsOn("toggleBorders") ? BordersRenderer.render(worldContext, viewContext, appServices) : toggleBorders();
-    layerIsOn("toggleProvinces") && ProvincesRenderer.render(worldContext, viewContext, appServices);
-    drawStateLabels(worldContext, viewContext, appServices, [rulingStateId]);
+  States.getPoles(getWorldState());
+  layerIsOn("toggleStates") ? StatesRenderer.render(worldContext, viewContext, appServices) : toggleStates();
+  layerIsOn("toggleBorders") ? BordersRenderer.render(worldContext, viewContext, appServices) : toggleBorders();
+  layerIsOn("toggleProvinces") && ProvincesRenderer.render(worldContext, viewContext, appServices);
+  drawStateLabels(worldContext, viewContext, appServices, [rulingStateId]);
 
-    refreshStatesEditor();
-  }
+  refreshStatesEditor();
 }
 
 function downloadStatesCsv(): void {
   const unit = getAreaUnit("2");
   const headers = `Id,State,Full Name,Form,Color,Capital,Culture,Type,Expansionism,Cells,Burgs,Area ${unit},Total Population,Rural Population,Urban Population`;
-  const lines = Array.from($body.querySelectorAll(":scope > div"));
-  const data = lines.map(($line: Element) => {
-    const { id, name, form, color, capital, culture, type, expansionism, cells, burgs, area, population } = (
-      $line as HTMLElement
-    ).dataset;
-    const s2 = worldContext.pack.states[+(id ?? 0)] as State;
-    const fullName = s2.fullName ?? "";
-    const ruralPopulation = Math.round((s2.rural ?? 0) * worldContext.populationRate);
-    const urbanPopulation = Math.round((s2.urban ?? 0) * worldContext.populationRate * worldContext.urbanization);
+  const { states } = getStatesEditorState();
+  const data = states.map(s => {
+    const packState = worldContext.pack.states[s.i] as State;
     return [
-      id,
-      name,
-      fullName,
-      form,
-      color,
-      capital,
-      culture,
-      type,
-      expansionism,
-      cells,
-      burgs,
-      area,
-      population,
-      ruralPopulation,
-      urbanPopulation
+      s.i,
+      s.name,
+      packState.fullName ?? "",
+      s.form,
+      s.color,
+      s.capitalName,
+      s.cultureName,
+      s.type,
+      s.expansionism,
+      s.cells,
+      s.burgs,
+      s.area,
+      s.population,
+      Math.round(s.rural),
+      Math.round(s.urban)
     ].join(",");
   });
   const csvData = [headers].concat(data).join("\n");
 
   const name = `${getFileName("States")}.csv`;
   downloadFile(csvData, name);
-}
-
-declare global {
-  var statesAutoChange: HTMLInputElement;
-  var adjustLabels: HTMLInputElement;
-  var getMixedColor: (color: string) => string;
-  var getAdjective: (name: string) => string;
 }
 
 export function initStatesEditor(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {

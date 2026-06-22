@@ -1,5 +1,23 @@
 import { create } from "zustand";
 
+export interface MergeStateData {
+  i: number;
+  name: string;
+  fullName: string;
+  color: string;
+}
+
+export interface NameEditorData {
+  stateId: number;
+  shortName: string;
+  formName: string;
+  fullName: string;
+  isCustomFormMode: boolean;
+  customFormInput: string;
+  updateLabel: boolean;
+  regenTick: number;
+}
+
 export interface StateRowData {
   i: number;
   name: string;
@@ -55,6 +73,15 @@ export interface StatesEditorState {
 
   // List data
   states: StateRowData[];
+
+  // Manual assignment selected state
+  manualSelectedStateId: number;
+
+  // Name editor dialog state (null = closed)
+  nameEditor: NameEditorData | null;
+
+  // Merge dialog state (null = closed, array = open with valid states)
+  mergeDialog: MergeStateData[] | null;
 }
 
 export const useStatesEditorState = create<StatesEditorState>(() => ({
@@ -81,7 +108,11 @@ export const useStatesEditorState = create<StatesEditorState>(() => ({
   totalArea: 0,
   totalPopulation: 0,
 
-  states: []
+  states: [],
+
+  manualSelectedStateId: 0,
+  nameEditor: null,
+  mergeDialog: null
 }));
 
 export const getStatesEditorState = useStatesEditorState.getState;

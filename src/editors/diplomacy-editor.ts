@@ -19,12 +19,12 @@ import {
 import { editStyle } from "../controllers/style";
 import { States } from "../modules/states-generator";
 import { StatesRenderer } from "../renderers";
-import { COArenderer } from "../renderers/emblem-renderer";
+import { type DiplomacyRowData, getDiplomacyEditorState, setDiplomacyEditorState } from "../store/diplomacyEditorState";
 import { modules } from "../store/editorState";
 import { closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { findCell, getAdjective } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
-import { applySorting, clearMainTip, fitContent, tip } from "../utils/uiHelpers";
+import { clearMainTip, tip } from "../utils/uiHelpers";
 
 type RelationKey =
   | "Ally"
@@ -37,7 +37,7 @@ type RelationKey =
   | "Vassal"
   | "Suzerain";
 
-const relations: Record<RelationKey, { inText: string; color: string; tip: string }> = {
+export const relations: Record<RelationKey, { inText: string; color: string; tip: string }> = {
   Ally: {
     inText: "is an ally of",
     color: "#00b300",
@@ -84,8 +84,6 @@ export function editDiplomacy(): void {
     return;
   }
 
-  const body = document.getElementById("diplomacyBodySection") as HTMLElement;
-
   closeDialogs("#diplomacyEditor, .stable");
   if (!layerIsOn("toggleStates")) toggleStates();
   if (!layerIsOn("toggleBorders")) toggleBorders();
@@ -101,40 +99,7 @@ export function editDiplomacy(): void {
   if (modules.editDiplomacy) return;
   modules.editDiplomacy = true;
 
-  openDialog("diplomacyEditor", {
-    title: "Diplomacy Editor",
-    resizable: false,
-    width: fitContent(),
-    close: closeDiplomacyEditor,
-    position: { my: "right top", at: "right-10 top+10", of: "svg", collision: "fit" }
-  });
-
-  document.getElementById("diplomacyEditorRefresh")!.addEventListener("click", refreshDiplomacyEditor);
-  document.getElementById("diplomacyEditStyle")!.addEventListener("click", () => editStyle("regions"));
-  document.getElementById("diplomacyRegenerate")!.addEventListener("click", regenerateRelations);
-  document.getElementById("diplomacyReset")!.addEventListener("click", resetRelations);
-  document.getElementById("diplomacyShowMatrix")!.addEventListener("click", showRelationsMatrix);
-  document.getElementById("diplomacyHistory")!.addEventListener("click", showRelationsHistory);
-  document.getElementById("diplomacyExport")!.addEventListener("click", downloadDiplomacyData);
-
-  body.addEventListener("click", ev => {
-    const el = ev.target as HTMLElement;
-    if (el.parentElement!.classList.contains("Self")) return;
-
-    if (el.classList.contains("changeRelations")) {
-      const line = el.parentElement as HTMLElement;
-      const subjectId = +line.dataset.id!;
-      const objectId = +(body.querySelector("div.Self")! as HTMLElement).dataset.id!;
-      const currentRelation = line.dataset.relations!;
-
-      selectRelation(subjectId, objectId, currentRelation);
-      return;
-    }
-
-    body.querySelector("div.Self")!.classList.remove("Self");
-    el.parentElement!.classList.add("Self");
-    refreshDiplomacyEditor();
-  });
+  openDialog("diplomacyEditor");
 
   function refreshDiplomacyEditor(): void {
     diplomacyEditorAddLines();
@@ -143,87 +108,45 @@ export function editDiplomacy(): void {
 
   function diplomacyEditorAddLines(): void {
     const states = worldContext.pack.states;
-    const selectedLine = body.querySelector("div.Self") as HTMLElement | null;
-    const selectedId = selectedLine ? +selectedLine.dataset.id! : states.find(s => s.i && !s.removed)!.i;
-    const selectedName = states[selectedId].name;
+    const { selectedStateId } = getDiplomacyEditorState() ?? { selectedStateId: 0 };
+    const selectedId = selectedStateId || states.find(s => s.i && !s.removed)!.i;
 
-    COArenderer.trigger(`stateCOA${selectedId}`, states[selectedId].coa!);
-    let lines = /* html */ `<div class="states Self" data-id=${selectedId} data-tip="List below shows relations to ${selectedName}">
-      <div style="width: max-content">${states[selectedId].fullName}</div>
-      <svg class="coaIcon" viewBox="0 0 200 200"><use href="#stateCOA${selectedId}"></use></svg>
-    </div>`;
+    const rowData: DiplomacyRowData[] = [];
+
+    // Self Row
+    rowData.push({
+      i: selectedId,
+      name: states[selectedId].name,
+      fullName: states[selectedId].fullName || "",
+      color: "none",
+      relation: "Self",
+      inText: "Self"
+    });
 
     for (const state of states) {
       if (!state.i || state.removed || state.i === selectedId) continue;
       const relation = state.diplomacy![selectedId] as RelationKey;
       const { color, inText } = relations[relation];
+      const name = (state.fullName && state.fullName.length < 23 ? state.fullName : state.name) as string;
 
-      const tipText = `${state.name} ${inText} ${selectedName}`;
-      const tipSelect = `${tipText}. Click to see relations to ${state.name}`;
-      const tipChange = `Click to change relations. ${tipText}`;
-
-      const name = (state.fullName ?? "").length < 23 ? (state.fullName ?? state.name) : state.name;
-      COArenderer.trigger(`stateCOA${state.i}`, state.coa!);
-
-      lines += /* html */ `<div class="states" data-id=${state.i} data-name="${name}" data-relations="${relation}">
-        <svg data-tip="${tipSelect}" class="coaIcon" viewBox="0 0 200 200"><use href="#stateCOA${state.i}"></use></svg>
-        <div data-tip="${tipSelect}" style="width: 12em">${name}</div>
-        <div data-tip="${tipChange}" class="changeRelations" style="width: 6em">
-          <fill-box fill="${color}" size=".9em"></fill-box>
-          ${relation}
-        </div>
-      </div>`;
+      rowData.push({
+        i: state.i,
+        name: name,
+        fullName: state.fullName || "",
+        color,
+        relation,
+        inText
+      });
     }
-    body.innerHTML = lines;
 
-    body.querySelectorAll("div.states").forEach(el => {
-      el.addEventListener("mouseenter", ev => stateHighlightOn(ev as MouseEvent));
+    setDiplomacyEditorState({
+      states: rowData,
+      selectedStateId: selectedId
     });
-    body.querySelectorAll("div.states").forEach(el => {
-      el.addEventListener("mouseleave", () => stateHighlightOff());
-    });
-
-    applySorting(document.getElementById("diplomacyHeader") as HTMLElement);
-    openDialog("diplomacyEditor");
-  }
-
-  function stateHighlightOn(event: MouseEvent): void {
-    if (!layerIsOn("toggleStates")) return;
-    const state = +(event.target as HTMLElement).dataset.id!;
-    if (viewContext.customization || !state) return;
-    const d = viewContext.regions.select(`#state${state}`).attr("d");
-
-    const path = viewContext.debug
-      .append("path")
-      .attr("class", "highlight")
-      .attr("d", d)
-      .attr("fill", "none")
-      .attr("stroke", "red")
-      .attr("stroke-width", 1)
-      .attr("opacity", 1)
-      .attr("filter", "url(#blur1)");
-
-    const l = (path.node() as SVGPathElement).getTotalLength();
-    const dur = (l + 5000) / 2;
-    const interp = interpolateString(`0,${l}`, `${l},${l}`);
-    path
-      .transition()
-      .duration(dur)
-      .attrTween("stroke-dasharray", () => (t: number) => interp(t));
-  }
-
-  function stateHighlightOff(): void {
-    viewContext.debug
-      .selectAll<SVGElement, unknown>(".highlight")
-      .transition()
-      .duration(1000)
-      .attr("opacity", 0)
-      .remove();
   }
 
   function showStateRelations(): void {
-    const selectedLine = body.querySelector("div.Self") as HTMLElement | null;
-    const sel = selectedLine ? +selectedLine.dataset.id! : worldContext.pack.states.find(s => s.i && !s.removed)?.i;
+    const sel = getDiplomacyEditorState()?.selectedStateId || worldContext.pack.states.find(s => s.i && !s.removed)?.i;
     if (!sel) return;
     if (!layerIsOn("toggleStates")) toggleStates();
 
@@ -246,124 +169,20 @@ export function editDiplomacy(): void {
     const i = findCell(point[0], point[1]);
     const state = worldContext.pack.cells.state![i];
     if (!state) return;
-    const selectedLine = body.querySelector("div.Self") as HTMLElement;
-    if (+selectedLine.dataset.id! === state) return;
 
-    selectedLine.classList.remove("Self");
-    (body.querySelector(`div[data-id='${state}']`) as HTMLElement).classList.add("Self");
+    setDiplomacyEditorState({ selectedStateId: state });
     refreshDiplomacyEditor();
   }
 
   function selectRelation(subjectId: number, objectId: number, currentRelation: string): void {
-    const states = worldContext.pack.states;
-    const subject = states[subjectId];
-
-    const relationsSelector = Object.entries(relations)
-      .map(
-        ([relation, { color: c, inText, tip }]) => /* html */ `
-          <div data-tip="${tip}">
-            <label class="pointer">
-              <input type="radio" name="relationSelect" value="${relation}"
-              ${currentRelation === relation && "checked"} >
-              <fill-box fill="${c}" size=".8em"></fill-box>
-              ${inText}
-          </label>
-          </div>
-        `
-      )
-      .join("");
-
-    const objectsSelector = states
-      .filter(s => s.i && !s.removed && s.i !== subjectId)
-      .map(
-        s => /* html */ `
-          <div data-tip="${s.fullName}">
-            <input id="selectState${s.i}" class="checkbox" type="checkbox" name="objectSelect" value="${s.i}"
-            ${s.i === objectId && "checked"} />
-            <label for="selectState${s.i}" class="checkbox-label">
-              <svg class="coaIcon" viewBox="0 0 200 200">
-                <use href="#stateCOA${s.i}"></use>
-              </svg>
-              ${s.fullName}
-            </label>
-          </div>
-        `
-      )
-      .join("");
-
-    alertMessage.innerHTML = /* html */ `
-      <form id='relationsForm' style="overflow: hidden; display: flex; flex-direction: column; gap: .3em; padding: 0.1em 0;">
-        <header>
-          <svg class="coaIcon" viewBox="0 0 200 200">
-            <use href="#stateCOA${subject.i}"></use>
-          </svg>
-          <b>${subject.fullName}</b>
-        </header>
-
-        <main style='display: flex; gap: 1em;'>
-          <section style="display: flex; flex-direction: column; gap: .3em;">${relationsSelector}</section>
-          <section style="display: flex; flex-direction: column; gap: .3em;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.3em;">
-              <label style="font-weight: 500; font-size: 0.95em;">States:</label>
-              <button id="selectAllNoneBtn" type="button" style="padding: 0.3em 0.8em; cursor: pointer; font-size: 0.9em;" data-tip="Toggle selection of all states. Also supports Ctrl+A.">Select All / None</button>
-            </div>
-            <div id="stateSelectionContainer" style="display: flex; flex-direction: column; gap: .3em;">${objectsSelector}</div>
-          </section>
-        </main>
-      </form>
-    `;
-
-    openRichDialog({
-      content: alertMessage.innerHTML,
-      width: fitContent(),
-      title: `Change relations`,
-      buttons: {
-        Apply: () => {
-          const formData = new FormData(document.getElementById("relationsForm") as HTMLFormElement);
-          const newRelation = formData.get("relationSelect") as string;
-          const objectIds = [...formData.getAll("objectSelect")].map(Number);
-
-          for (const oid of objectIds) {
-            changeRelation(subjectId, oid, currentRelation, newRelation);
-          }
-          /* $(this).dialog("close") removed */
-        },
-        Cancel: () => {
-          /* $(this).dialog("close") removed */
-        }
+    setDiplomacyEditorState({
+      relationDialog: {
+        isOpen: true,
+        subjectId,
+        objectId,
+        currentRelation
       }
     });
-
-    const selectAllNoneBtn = document.getElementById("selectAllNoneBtn") as HTMLButtonElement;
-    const stateCheckboxes = () =>
-      document.querySelectorAll<HTMLInputElement>("#stateSelectionContainer input[name='objectSelect']");
-
-    function updateButtonState(): void {
-      const checkboxes = stateCheckboxes();
-      const allChecked = Array.from(checkboxes).every(cb => cb.checked);
-      if (allChecked && checkboxes.length > 0) {
-        selectAllNoneBtn.classList.add("pressed");
-      } else {
-        selectAllNoneBtn.classList.remove("pressed");
-      }
-    }
-
-    function toggleSelectAll(): void {
-      const checkboxes = stateCheckboxes();
-      const allChecked = Array.from(checkboxes).every(cb => cb.checked);
-      const newState = !allChecked;
-      checkboxes.forEach(cb => {
-        cb.checked = newState;
-      });
-      updateButtonState();
-    }
-
-    selectAllNoneBtn.addEventListener("click", e => {
-      e.preventDefault();
-      toggleSelectAll();
-    });
-
-    updateButtonState();
   }
 
   function changeRelation(subjectId: number, objectId: number, oldRelation: string, newRelation: string): void {
@@ -432,8 +251,7 @@ export function editDiplomacy(): void {
   }
 
   function resetRelations(): void {
-    const selectedLine = body.querySelector("div.Self") as HTMLElement | null;
-    const selectedId = selectedLine ? +selectedLine.dataset.id! : 0;
+    const selectedId = getDiplomacyEditorState()?.selectedStateId || 0;
     if (!selectedId) return;
     const states = worldContext.pack.states;
 
@@ -566,16 +384,71 @@ export function editDiplomacy(): void {
     downloadFile(data, name);
   }
 
-  function closeDiplomacyEditor(): void {
+  function closeDiplomacyEditorImpl(): void {
     restoreDefaultEvents?.();
     clearMainTip();
-    const selected = body.querySelector("div.Self");
-    if (selected) selected.classList.remove("Self");
     if (layerIsOn("toggleStates")) StatesRenderer.render(worldContext, viewContext, appServices);
     else toggleStates();
     viewContext.debug.selectAll(".highlight").remove();
   }
+  diplomacyEditorActions.refreshDiplomacyEditor = refreshDiplomacyEditor;
+  diplomacyEditorActions.selectRelation = selectRelation;
+  diplomacyEditorActions.changeRelation = changeRelation;
+  diplomacyEditorActions.regenerateRelations = regenerateRelations;
+  diplomacyEditorActions.resetRelations = resetRelations;
+  diplomacyEditorActions.showRelationsHistory = showRelationsHistory;
+  diplomacyEditorActions.showRelationsMatrix = showRelationsMatrix;
+  diplomacyEditorActions.downloadDiplomacyData = downloadDiplomacyData;
+  diplomacyEditorActions.closeDiplomacyEditor = closeDiplomacyEditorImpl;
 }
+
+export const diplomacyEditorActions = {
+  refreshDiplomacyEditor: () => {},
+  stateHighlightOn: (stateId: number) => {
+    if (!layerIsOn("toggleStates")) return;
+    if (viewContext.customization || !stateId) return;
+    const d = viewContext.regions.select(`#state${stateId}`).attr("d");
+
+    const path = viewContext.debug
+      .append("path")
+      .attr("class", "highlight")
+      .attr("d", d)
+      .attr("fill", "none")
+      .attr("stroke", "red")
+      .attr("stroke-width", 1)
+      .attr("opacity", 1)
+      .attr("filter", "url(#blur1)");
+
+    const l = (path.node() as SVGPathElement).getTotalLength();
+    const dur = (l + 5000) / 2;
+    const interp = interpolateString(`0,${l}`, `${l},${l}`);
+    path
+      .transition()
+      .duration(dur)
+      .attrTween("stroke-dasharray", () => (t: number) => interp(t));
+  },
+  stateHighlightOff: () => {
+    viewContext.debug
+      .selectAll<SVGElement, unknown>(".highlight")
+      .transition()
+      .duration(1000)
+      .attr("opacity", 0)
+      .remove();
+  },
+  selectState: (stateId: number) => {
+    setDiplomacyEditorState({ selectedStateId: stateId });
+    diplomacyEditorActions.refreshDiplomacyEditor();
+  },
+  selectRelation: (_subjectId: number, _objectId: number, _currentRelation: string) => {},
+  changeRelation: (_subjectId: number, _objectId: number, _currentRelation: string, _newRelation: string) => {},
+  regenerateRelations: () => {},
+  resetRelations: () => {},
+  showRelationsHistory: () => {},
+  showRelationsMatrix: () => {},
+  downloadDiplomacyData: () => {},
+  editStyle,
+  closeDiplomacyEditor: () => {}
+};
 
 declare global {
   interface Window {

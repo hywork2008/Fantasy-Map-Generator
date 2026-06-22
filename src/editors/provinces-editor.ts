@@ -1,5 +1,5 @@
 import * as d3 from "d3";
-import { color, interpolate, interpolateString, pointer } from "d3";
+import { color, interpolate, pointer } from "d3";
 import { getWorldState, zoomTo } from "../actions";
 import type { AppServices } from "../context/appServices";
 import { appServices } from "../context/appServices";
@@ -59,10 +59,10 @@ import {
   setProvincesEditorState
 } from "../store/provincesEditorState";
 import { closeDialog, closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
-import { ensureEl, findAll, findCell, getRandomColor, isLand, P, parseTransform, rand, rn, si, unique } from "../utils";
+import { findAll, findCell, getRandomColor, isLand, P, parseTransform, rand, rn, si, unique } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
 import { getPackPolygon } from "../utils/graphUtils";
-import { applyOption, clearMainTip, fitContent, getArea, getAreaUnit, showMainTip, tip } from "../utils/uiHelpers";
+import { clearMainTip, fitContent, getArea, getAreaUnit, showMainTip, tip } from "../utils/uiHelpers";
 import { editEmblem } from "./emblems-editor";
 
 export function editProvinces(): void {
@@ -494,76 +494,21 @@ function removeProvince(p: number): void {
 
 function editProvinceName(province: number): void {
   const p = (worldContext.pack.provinces as Province[])[province];
-  ensureEl("provinceNameEditor").dataset.province = String(province);
-  const shortInput = ensureEl("provinceNameEditorShort") as HTMLInputElement;
-  const selectForm = ensureEl("provinceNameEditorSelectForm") as HTMLSelectElement;
-  const fullInput = ensureEl("provinceNameEditorFull") as HTMLInputElement;
-
-  shortInput.value = p.name;
-  applyOption(selectForm, p.formName);
-  fullInput.value = p.fullName;
-
   const cultureId = worldContext.pack.cells.culture[p.center];
-  ensureEl("provinceCultureDisplay").innerText = (worldContext.pack.cultures as Culture[])[cultureId].name;
+  const cultureName = (worldContext.pack.cultures as Culture[])[cultureId]?.name || "Unknown";
 
-  openDialog("provinceNameEditor");
-
-  const apply = () => {
-    applyNameChange(p);
-    closeDialog("provinceNameEditor");
-    document.removeEventListener("applyProvinceNameChange", apply);
-  };
-  document.addEventListener("applyProvinceNameChange", apply);
-
-  if (modules.editProvinceName) return;
-  modules.editProvinceName = true;
-
-  ensureEl("provinceNameEditorShortCulture").addEventListener("click", regenerateShortNameCulture);
-  ensureEl("provinceNameEditorShortRandom").addEventListener("click", regenerateShortNameRandom);
-  ensureEl("provinceNameEditorAddForm").addEventListener("click", addCustomForm);
-  ensureEl("provinceNameEditorFullRegenerate").addEventListener("click", regenerateFullName);
-
-  function regenerateShortNameCulture(): void {
-    const prov = +(ensureEl("provinceNameEditor") as HTMLElement).dataset.province!;
-    const culture = worldContext.pack.cells.culture[(worldContext.pack.provinces as Province[])[prov].center];
-    const name = Names.getState(Names.getCultureShort(worldContext, viewContext, appServices, culture), culture);
-    shortInput.value = name;
-  }
-
-  function regenerateShortNameRandom(): void {
-    const base = rand(worldContext.nameBases.length - 1);
-    const name = Names.getState(Names.getBase(base), 0, base);
-    shortInput.value = name;
-  }
-
-  function addCustomForm(): void {
-    const customForm = ensureEl("provinceNameEditorCustomForm") as HTMLInputElement;
-    const value = customForm.value;
-    const displayed = customForm.style.display === "inline-block";
-    customForm.style.display = displayed ? "none" : "inline-block";
-    selectForm.style.display = displayed ? "inline-block" : "none";
-    if (displayed) applyOption(selectForm, value);
-  }
-
-  function regenerateFullName(): void {
-    const short = shortInput.value;
-    const form = selectForm.value;
-    fullInput.value = getFullName();
-
-    function getFullName(): string {
-      if (!form) return short;
-      if (!short && form) return `The ${form}`;
-      return `${short} ${form}`;
+  setProvincesEditorState({
+    nameEditor: {
+      provinceId: p.i,
+      shortName: p.name || "",
+      formName: p.formName || "",
+      fullName: p.fullName || "",
+      isCustomFormMode: false,
+      customFormInput: "",
+      cultureName,
+      regenTick: 0
     }
-  }
-
-  function applyNameChange(p: Province): void {
-    p.name = shortInput.value;
-    p.formName = selectForm.value;
-    p.fullName = fullInput.value;
-    viewContext.provs.select(`#provinceLabel${p.i}`).text(p.name);
-    refreshProvincesEditor();
-  }
+  });
 }
 
 function changeCapital(p: number, value: string): void {
@@ -1172,99 +1117,13 @@ function openProvinceMergeDialog(): void {
     return;
   }
 
-  const emblem = (i: number) => `<svg class="coaIcon" viewBox="0 0 200 200"><use href="#provinceCOA${i}"></use></svg>`;
-  const provincesSelector = provincesToMerge
-    .map(
-      (p: Province) => `
-    <div data-id="${p.i}" data-tip="${p.fullName || p.name}" style="cursor:default">
-      <input type="radio" name="rulingProvince" value="${p.i}" />
-      <input id="selectProvince${p.i}" class="checkbox" type="checkbox" name="provincesToMerge" value="${p.i}" />
-      <label for="selectProvince${p.i}" class="checkbox-label"><fill-box fill="${p.color}" disabled></fill-box>${emblem(p.i)}${p.name}</label>
-    </div>`
-    )
-    .join("");
-
-  alertMessage.innerHTML = `
-    <form id='mergeProvincesForm' style="overflow: hidden; display: flex; flex-direction: column; gap: 1em;">
-      <p style="margin:0">
-        Check the <b>checkbox</b> next to each province you want to merge.
-        Use the <b>radio button</b> to pick the <em>primary province</em> that will absorb all others.
-        Hover over a row to highlight the province on the map.
-      </p>
-      <main style='display: grid; grid-template-columns: 1fr 1fr; gap: .3em;'>
-        ${provincesSelector}
-      </main>
-    </form>`;
-
-  document
-    .getElementById("mergeProvincesForm")!
-    .querySelectorAll("div[data-id]")
-    .forEach(el => {
-      el.addEventListener("mouseenter", highlightProvinceOnMergeHover);
-      el.addEventListener("mouseleave", () => provinceHighlightOff(null));
-    });
-
-  function highlightProvinceOnMergeHover(event: Event): void {
-    if (!layerIsOn("toggleProvinces")) return;
-    const province = +(event.currentTarget as HTMLElement).dataset.id!;
-    if (!province) return;
-    const d = viewContext.provs.select(`#province${province}`).attr("d");
-    if (!d) return;
-
-    provinceHighlightOff(null);
-
-    const path = viewContext.debug
-      .append("path")
-      .attr("class", "highlight")
-      .attr("d", d)
-      .attr("fill", "none")
-      .attr("stroke", "red")
-      .attr("stroke-width", 1)
-      .attr("opacity", 1)
-      .attr("filter", "url(#blur1)");
-
-    const totalLength = (path.node() as SVGPathElement).getTotalLength();
-    const duration = (totalLength + 5000) / 2;
-    const interp = interpolateString(`0, ${totalLength}`, `${totalLength}, ${totalLength}`);
-    path
-      .transition()
-      .duration(duration)
-      .attrTween("stroke-dasharray", () => interp);
-  }
-
-  openRichDialog({
-    content: alertMessage.innerHTML,
-    width: 600,
-    title: "Merge provinces",
-    close: () => provinceHighlightOff(null),
-    buttons: {
-      Merge: function (this: Element) {
-        const formData = new FormData(document.getElementById("mergeProvincesForm") as HTMLFormElement);
-        const primaryProvinceId = Number(formData.get("rulingProvince"));
-        if (!primaryProvinceId) return tip("Please select a province to merge into", false, "error");
-
-        const provincesToMergeIds = formData
-          .getAll("provincesToMerge")
-          .map(Number)
-          .filter(provinceId => provinceId !== primaryProvinceId);
-        if (!provincesToMergeIds.length) return tip("Please select several provinces to merge", false, "error");
-
-        confirmationDialog({
-          title: "Merge provinces",
-          message: `
-            <p>The following provinces will be <strong>removed</strong>: ${provincesToMergeIds
-              .map(provinceId => `${emblem(provinceId)}${(worldContext.pack.provinces as Province[])[provinceId].name}`)
-              .join(", ")}.</p>
-            <p>Removed provinces data (burgs and cells) will be assigned to ${emblem(primaryProvinceId)}${(worldContext.pack.provinces as Province[])[primaryProvinceId].name}.</p>
-            <p>Are you sure you want to merge provinces? This action cannot be reverted.</p>`,
-          confirm: "Merge",
-          onConfirm: () => {
-            mergeProvinces(provincesToMergeIds, primaryProvinceId);
-          }
-        });
-      },
-      Cancel: function (this: Element) {}
-    }
+  setProvincesEditorState({
+    mergeDialog: provincesToMerge.map(p => ({
+      i: p.i,
+      name: p.name,
+      fullName: p.fullName || `${p.name} ${p.formName}`,
+      color: p.color || "#ffffff"
+    }))
   });
 }
 
@@ -1377,7 +1236,89 @@ export const provincesEditorActions = {
   triggerProvincesRelease,
   enterAddProvinceMode,
   openProvinceMergeDialog,
-  recolorProvinces
+  recolorProvinces,
+
+  nameEditorUpdate(updates: Partial<import("../store/provincesEditorState").ProvinceNameEditorData>): void {
+    const ne = getProvincesEditorState().nameEditor;
+    if (!ne) return;
+    setProvincesEditorState({ nameEditor: { ...ne, ...updates } });
+  },
+
+  nameEditorGenerateShortCulture(): void {
+    const ne = getProvincesEditorState().nameEditor;
+    if (!ne) return;
+    const province = (worldContext.pack.provinces as Province[])[ne.provinceId];
+    const culture = worldContext.pack.cells.culture[province.center];
+    const name = Names.getState(Names.getCultureShort(worldContext, viewContext, appServices, culture), culture);
+    setProvincesEditorState({ nameEditor: { ...ne, shortName: name } });
+  },
+
+  nameEditorGenerateShortRandom(): void {
+    const ne = getProvincesEditorState().nameEditor;
+    if (!ne) return;
+    const base = rand(worldContext.nameBases.length - 1);
+    const name = Names.getState(Names.getBase(base), 0, base);
+    setProvincesEditorState({ nameEditor: { ...ne, shortName: name } });
+  },
+
+  nameEditorRegenerateFullName(): void {
+    const ne = getProvincesEditorState().nameEditor;
+    if (!ne) return;
+    const { shortName, formName } = ne;
+    let fullName: string;
+    if (!formName) fullName = shortName;
+    else if (!shortName) fullName = `The ${formName}`;
+    else fullName = `${shortName} ${formName}`;
+    setProvincesEditorState({ nameEditor: { ...ne, fullName } });
+  },
+
+  nameEditorApply(): void {
+    const ne = getProvincesEditorState().nameEditor;
+    if (!ne) return;
+    const p = (worldContext.pack.provinces as Province[])[ne.provinceId];
+    p.name = ne.shortName;
+    p.formName = ne.formName;
+    p.fullName = ne.fullName;
+    viewContext.provs.select(`#provinceLabel${p.i}`).text(p.name);
+    setProvincesEditorState({ nameEditor: null });
+    refreshProvincesEditor();
+  },
+
+  nameEditorClose(): void {
+    setProvincesEditorState({ nameEditor: null });
+  },
+
+  closeMergeDialog(): void {
+    provinceHighlightOff(null);
+    setProvincesEditorState({ mergeDialog: null });
+  },
+
+  confirmMerge(rulingProvinceId: number | null, provincesToMerge: number[]): void {
+    if (!rulingProvinceId) {
+      tip("Please select a province to merge into", false, "error");
+      return;
+    }
+    const mergeList = provincesToMerge.filter(id => id !== rulingProvinceId);
+    if (!mergeList.length) {
+      tip("Please select several provinces to merge", false, "error");
+      return;
+    }
+    const rulingProvince = (worldContext.pack.provinces as Province[])[rulingProvinceId];
+    const emblem = (i: number) =>
+      `<svg class="coaIcon" viewBox="0 0 200 200"><use href="#provinceCOA${i}"></use></svg>`;
+    confirmationDialog({
+      title: "Merge provinces",
+      message: `
+        <p>The following provinces will be <strong>removed</strong>: ${mergeList.map(id => `${emblem(id)}${(worldContext.pack.provinces as Province[])[id].name}`).join(", ")}.</p>
+        <p>Removed provinces data (burgs and cells) will be assigned to ${emblem(rulingProvince.i)}${rulingProvince.name}.</p>
+        <p>Are you sure you want to merge provinces? This action cannot be reverted.</p>`,
+      confirm: "Merge",
+      onConfirm: () => {
+        mergeProvinces(mergeList, rulingProvinceId);
+        setProvincesEditorState({ mergeDialog: null });
+      }
+    });
+  }
 };
 
 export function initProvincesEditor(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: AppServices) {}

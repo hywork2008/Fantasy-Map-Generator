@@ -17,6 +17,7 @@ import { CoastlineSettingsEditorDialog } from "./CoastlineSettingsEditorDialog";
 import { CulturesEditorDialog } from "./CulturesEditorDialog";
 import { DiplomacyEditorDialog } from "./DiplomacyEditorDialog";
 import { DiplomacyMatrixDialog } from "./DiplomacyMatrixDialog";
+import { DiplomacyRelationDialog } from "./DiplomacyRelationDialog";
 import { ElevationProfileDialog } from "./ElevationProfileDialog";
 import { EmblemEditorDialog } from "./EmblemEditorDialog";
 import { ExportMapDialog } from "./ExportMapDialog";
@@ -46,6 +47,7 @@ import { Options3dDialog } from "./Options3dDialog";
 import { Preview3dDialog } from "./Preview3dDialog";
 import { ProductionChainsDialog } from "./ProductionChainsDialog";
 import { PromptDialog } from "./PromptDialog";
+import { ProvinceMergeDialog } from "./ProvinceMergeDialog";
 import { ProvinceNameEditorDialog } from "./ProvinceNameEditorDialog";
 import { ProvincesEditorDialog } from "./ProvincesEditorDialog";
 import { RegimentEditorDialog } from "./RegimentEditorDialog";
@@ -61,6 +63,7 @@ import { RouteGroupsEditorDialog } from "./RouteGroupsEditorDialog";
 import { RoutesEditorDialog } from "./RoutesEditorDialog";
 import { RoutesOverviewDialog } from "./RoutesOverviewDialog";
 import { SaveMapDialog } from "./SaveMapDialog";
+import { StateMergeDialog } from "./StateMergeDialog";
 import { StateNameEditorDialog } from "./StateNameEditorDialog";
 import { StatesEditorDialog } from "./StatesEditorDialog";
 import { StyleSaverDialog } from "./StyleSaverDialog";
@@ -109,6 +112,7 @@ export const DialogsContainer: React.FC = () => {
           <CoastlineEditorDialog />
           <CoastlineSettingsEditorDialog />
           <StatesEditorDialog />
+          <StateMergeDialog />
           <CulturesEditorDialog />
           <ReligionsEditorDialog />
           <RoutesEditorDialog />
@@ -120,6 +124,7 @@ export const DialogsContainer: React.FC = () => {
           <StateNameEditorDialog />
           <DiplomacyMatrixDialog />
           <ProvinceNameEditorDialog />
+          <ProvinceMergeDialog />
           <SubmapToolDialog />
           <TransformToolDialog />
           <WorldConfiguratorDialog />
@@ -130,6 +135,7 @@ export const DialogsContainer: React.FC = () => {
           <BiomesEditorDialog />
           <ProvincesEditorDialog />
           <DiplomacyEditorDialog />
+          <DiplomacyRelationDialog />
           <NamesbaseEditorDialog />
           <ZonesEditorDialog />
           <NotesEditorDialog />

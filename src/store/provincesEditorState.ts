@@ -1,5 +1,23 @@
 import { create } from "zustand";
 
+export interface MergeProvinceData {
+  i: number;
+  name: string;
+  fullName: string;
+  color: string;
+}
+
+export interface ProvinceNameEditorData {
+  provinceId: number;
+  shortName: string;
+  formName: string;
+  fullName: string;
+  isCustomFormMode: boolean;
+  customFormInput: string;
+  cultureName: string;
+  regenTick: number;
+}
+
 export interface ProvinceRowData {
   i: number;
   name: string;
@@ -42,6 +60,9 @@ export interface ProvincesEditorState {
   totalBurgs: number;
   totalArea: number;
   totalPopulation: number;
+
+  mergeDialog: MergeProvinceData[] | null;
+  nameEditor: ProvinceNameEditorData | null;
 }
 
 export const useProvincesEditorState = create<ProvincesEditorState>(() => ({
@@ -59,7 +80,10 @@ export const useProvincesEditorState = create<ProvincesEditorState>(() => ({
   totalProvinces: 0,
   totalBurgs: 0,
   totalArea: 0,
-  totalPopulation: 0
+  totalPopulation: 0,
+
+  mergeDialog: null,
+  nameEditor: null
 }));
 
 export const getProvincesEditorState = useProvincesEditorState.getState;

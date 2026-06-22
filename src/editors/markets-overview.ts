@@ -15,17 +15,9 @@ import type { Burg } from "../modules/burgs-generator";
 import type { Deal, Market } from "../modules/markets-generator";
 import { Markets } from "../modules/markets-generator";
 import { drawMarketsLayer, highlightMarketOff, highlightMarketOn } from "../renderers/draw-markets";
-import {
-  ensureEl,
-  findAllCellsInRadius,
-  findCell,
-  findClosestCell,
-  formatPrice,
-  getIsolines,
-  getVertexPath,
-  rn
-} from "../utils";
-import { applySorting, clearMainTip, showMainTip, tip } from "../utils/uiHelpers";
+import { getMarketsOverviewState, type MarketRowData, setMarketsOverviewState } from "../store/marketsOverviewState";
+import { ensureEl, findAllCellsInRadius, findCell, findClosestCell, getIsolines, getVertexPath, rn } from "../utils";
+import { clearMainTip, showMainTip, tip } from "../utils/uiHelpers";
 
 const viewbox = viewContext.viewbox;
 
@@ -44,79 +36,29 @@ export function open(): void {
   // dialog call removed
 
   if (!isInitialized) {
-    ensureEl("marketsOverviewRefresh").addEventListener("click", marketsOverviewAddLines);
-    ensureEl("marketsOverviewExport").addEventListener("click", downloadMarketsCsv);
-    ensureEl("marketsOverviewCompare").addEventListener("click", () => (() => {})());
-    ensureEl("marketsOverviewPercentage").addEventListener("click", togglePercentageMode);
-    ensureEl("marketsManually").addEventListener("click", () => {
-      if (viewContext.customization === 15) exitMarketsManualAssignment(false);
-      else enterMarketsManualAssignment();
-    });
-    ensureEl("marketsManuallyUndo").addEventListener("click", undoMarketsManualStep);
-    ensureEl("marketsManuallyApply").addEventListener("click", () => exitMarketsManualAssignment(true));
-    ensureEl("marketsManuallyCancel").addEventListener("click", () => exitMarketsManualAssignment(false));
-    ensureEl("marketsAdd").addEventListener("click", () => {
-      if (viewContext.customization === 16) exitAddMarketMode();
-      else enterAddMarketMode();
-    });
-    ensureEl("marketsRegenerate").addEventListener("click", regenerateMarkets);
-    ensureEl("marketsRegenerateProduction").addEventListener("click", regenerateProduction);
-    ensureEl("marketsOverviewBody").addEventListener("click", (ev: Event) => {
-      const target = ev.target as HTMLElement;
-
-      const fillBox = target.closest<HTMLElement>("fill-box");
-      if (fillBox) {
-        const row = fillBox.closest<HTMLElement>(".states.market");
-        const marketId = row ? +row.dataset.id! : 0;
-        // marketId 0 is the "No market" row — it has no color to edit
-        if (marketId) marketChangeFill(fillBox, marketId);
-        return;
-      }
-
-      if (target.classList.contains("icon-trash-empty")) {
-        const line = target.closest<HTMLElement>(".states.market");
-        if (!line) return;
-        confirmRemoveMarket(+line.dataset.id!);
-        return;
-      }
-
-      const line = target.closest<HTMLElement>(".states.market");
-      if (!line) return;
-      const marketId = +line.dataset.id!;
-
-      if (viewContext.customization === 15) {
-        ensureEl("marketsOverviewBody")
-          .querySelector<HTMLElement>(".states.market.selected")
-          ?.classList.remove("selected");
-        line.classList.add("selected");
-      } else if (marketId) {
-        // marketId 0 is the non-editable "No market" summary row — no detail dialog
-        // TODO: open market detail dialog
-      }
-    });
-
     isInitialized = true;
   }
 }
 
 function marketsOverviewAddLines(): void {
   const markets = worldContext.pack.markets;
-  const body = ensureEl("marketsOverviewBody");
-
-  if (body.dataset.type === "percentage") {
-    body.dataset.type = "absolute";
-  }
 
   if (!markets?.length) {
-    body.innerHTML = "No markets available";
-    updateFooter(0, 0, 0, 0);
+    setMarketsOverviewState({
+      markets: [],
+      totalMarkets: 0,
+      avgSales: 0,
+      avgBuys: 0,
+      avgValue: 0
+    });
     return;
   }
 
-  let lines = "";
   let totalSales = 0;
   let totalBuys = 0;
   let totalValue = 0;
+
+  const rowData: MarketRowData[] = [];
 
   for (const market of markets) {
     const centerName = Markets.getName(market);
@@ -130,44 +72,45 @@ function marketsOverviewAddLines(): void {
     totalBuys += buys;
     totalValue += value;
 
-    lines += /*html*/ `<div class="states market" data-id="${market.i}"
-        data-market="${centerName}" data-owner="${ownerName}"
-        data-cells="${cells}" data-burgs="${burgs}"
-        data-stock="${stock}" data-sales="${sales}" data-buys="${buys}" data-value="${value}">
-      <fill-box fill="${market.color}"></fill-box>
-      <div data-tip="Market name. Click to view details" class="marketName" style="width:7em">${centerName}</div>
-      <div data-tip="Owning state" class="marketOwner" style="width:8em">${ownerName}</div>
-      <div data-tip="Number of cells in market territory" data-type="cells" class="marketCells" style="width:3.5em">${cells}</div>
-      <div data-tip="Number of burgs in market territory" data-type="burgs" class="marketBurgs hide" style="width:3.5em">${burgs}</div>
-      <div data-tip="Total stock of all goods in this market" data-type="stock" class="marketStock hide" style="width:5em">${stock}</div>
-      <div data-tip="Total gross sales revenue" data-type="sales" class="marketSales hide" style="width:6em">${formatPrice(rn(sales))}</div>
-      <div data-tip="Total purchase spending" data-type="buys" class="marketBuysCol hide" style="width:6em">${formatPrice(rn(buys))}</div>
-      <div data-tip="Market value: net trading flow plus unsold inventory value minus tax" data-type="value" class="marketValue hide" style="width:6em">${formatPrice(rn(value))}</div>
-      <span data-tip="Remove this market" class="icon-trash-empty hiddenIcon hide" style="visibility:hidden"></span>
-    </div>`;
+    rowData.push({
+      i: market.i,
+      centerName,
+      ownerName,
+      cells,
+      burgs,
+      stock,
+      sales,
+      buys,
+      value,
+      color: market.color,
+      isNoMarket: false
+    });
   }
 
-  lines += renderNoMarketRow();
-
-  body.innerHTML = lines;
-
-  body.querySelectorAll<HTMLElement>(".states.market").forEach(row => {
-    const marketId = row.dataset.id!;
-    if (marketId === "0") return; // "No market" row: not a real market, no hover highlight
-    row.addEventListener("mouseenter", () => highlightMarketOn(marketId));
-    row.addEventListener("mouseleave", () => highlightMarketOff(marketId));
+  rowData.push({
+    i: 0,
+    centerName: "No market",
+    ownerName: "—",
+    cells: getMarketCells(0),
+    burgs: getMarketBurgs(0),
+    stock: 0,
+    sales: 0,
+    buys: 0,
+    value: 0,
+    color: "none",
+    isNoMarket: true
   });
 
   const count = markets.length;
-  updateFooter(
-    count,
-    count ? rn(totalSales / count, 2) : 0,
-    count ? rn(totalBuys / count, 2) : 0,
-    count ? rn(totalValue / count, 2) : 0
-  );
-  applySorting(ensureEl("marketsOverviewHeader"));
+  setMarketsOverviewState({
+    markets: rowData,
+    totalMarkets: count,
+    avgSales: count ? rn(totalSales / count, 2) : 0,
+    avgBuys: count ? rn(totalBuys / count, 2) : 0,
+    avgValue: count ? rn(totalValue / count, 2) : 0
+  });
 
-  // dialog call removed
+  // delay sorting apply to after react render if possible, but leaving out for now.
 }
 
 function enterMarketsManualAssignment(): void {
@@ -213,22 +156,7 @@ function saveMarketsManualSnapshot(): void {
   if (marketsWorking) marketsManualHistory.push(Uint16Array.from(marketsWorking));
 }
 
-function renderNoMarketRow(): string {
-  const cells = getMarketCells(0);
-  const burgs = getMarketBurgs(0);
-  return /*html*/ `<div class="states market" data-id="0"  data-market="No market" data-owner="" data-cells="${cells}" data-burgs="${burgs}" data-stock="0" data-sales="0" data-buys="0" data-value="0">
-    <fill-box fill="none" data-tip="Cells assigned to no market"></fill-box>
-    <div data-tip="Cells with no market; their burgs are excluded from production" class="marketName" style="width:7em">No market</div>
-    <div class="marketOwner" style="width:8em">—</div>
-    <div data-tip="Number of cells with no market" data-type="cells" class="marketCells" style="width:3.5em">${cells}</div>
-    <div data-tip="Number of burgs with no market" data-type="burgs" class="marketBurgs hide" style="width:3.5em">${burgs}</div>
-    <div data-type="stock" class="marketStock hide" style="width:5em">—</div>
-    <div data-type="sales" class="marketSales hide" style="width:6em">—</div>
-    <div data-type="buys" class="marketBuysCol hide" style="width:6em">—</div>
-    <div data-type="value" class="marketValue hide" style="width:6em">—</div>
-    <span class="hide" style="width:1.2em"></span>
-  </div>`;
-}
+// renderNoMarketRow removed
 
 function selectMarketOnMapClick(this: SVGGElement, event: MouseEvent): void {
   const [x, y] = pointer(event, this);
@@ -523,34 +451,11 @@ function getMarketFinancials(market: Market): {
 }
 
 function togglePercentageMode(): void {
-  const body = ensureEl("marketsOverviewBody");
-  if (body.dataset.type === "absolute") {
-    body.dataset.type = "percentage";
-    const rows = Array.from(body.querySelectorAll<HTMLElement>(":scope > div"));
-    const totals: Record<string, number> = {};
-    const numericTypes = ["cells", "burgs", "stock", "sales", "buys", "value"];
-    for (const type of numericTypes) {
-      totals[type] = rows.reduce((sum, row) => sum + (+row.dataset[type]! || 0), 0);
-    }
-    rows.forEach(row => {
-      row.querySelectorAll<HTMLElement>("div[data-type]").forEach(cell => {
-        const type = cell.dataset.type!;
-        const val = +row.dataset[type]! || 0;
-        cell.textContent = totals[type] ? `${rn((val / totals[type]) * 100, 2)}%` : "0%";
-      });
-    });
-  } else {
-    body.dataset.type = "absolute";
-    marketsOverviewAddLines();
-  }
+  const isPercentageMode = getMarketsOverviewState()?.isPercentageMode || false;
+  setMarketsOverviewState({ isPercentageMode: !isPercentageMode });
 }
 
-function updateFooter(count: number, avgSales: number, avgBuys: number, avgValue: number): void {
-  ensureEl("marketsOverviewFooterMarkets").innerHTML = String(count);
-  ensureEl("marketsOverviewFooterSales").innerHTML = formatPrice(avgSales);
-  ensureEl("marketsOverviewFooterBuys").innerHTML = formatPrice(avgBuys);
-  ensureEl("marketsOverviewFooterValue").innerHTML = formatPrice(avgValue);
-}
+// updateFooter removed
 
 function getOwnerStateName(market: Market): string {
   const center = worldContext.pack.burgs[market.centerBurgId];
@@ -601,5 +506,20 @@ function downloadMarketsCsv(): void {
 export function closeMarketsOverview(): void {
   if (viewContext.customization === 15) exitMarketsManualAssignment(false);
   if (viewContext.customization === 16) exitAddMarketMode();
-  ensureEl("marketsOverviewBody").innerHTML = "";
 }
+
+export const marketsOverviewActions = {
+  marketsOverviewAddLines,
+  togglePercentageMode,
+  downloadMarketsCsv,
+  regenerateMarkets,
+  regenerateProduction,
+  enterMarketsManualAssignment,
+  undoMarketsManualStep,
+  exitMarketsManualAssignment,
+  enterAddMarketMode,
+  confirmRemoveMarket,
+  marketChangeFill,
+  highlightMarketOn,
+  highlightMarketOff
+};

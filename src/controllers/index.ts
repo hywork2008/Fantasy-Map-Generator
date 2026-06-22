@@ -2,7 +2,7 @@ import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import "../versioning";
-import "../components";
+
 import "../config";
 import { initLayers } from "./layers";
 import { initStyle } from "./style";
