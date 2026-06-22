@@ -910,7 +910,7 @@ export function invokeActiveZooming() {
 
   const isBurgGroupHidden = (groupId: string) => scale < getScaleThreshold(groupId);
 
-  if (labels.style("display") !== "none") {
+  if (layerIsOn("toggleLabels")) {
     labels.selectAll<SVGGElement, unknown>("g").each(function () {
       if (this.id === "burgLabels") return;
 
@@ -951,7 +951,7 @@ export function invokeActiveZooming() {
     });
   }
 
-  if (icons.style("display") !== "none") {
+  if (layerIsOn("toggleBurgIcons")) {
     icons.selectAll<SVGGElement, unknown>("g#burgIcons > g").each(function () {
       const hidden = isBurgGroupHidden(this.id);
       if (hidden) {
@@ -972,7 +972,7 @@ export function invokeActiveZooming() {
     });
   }
 
-  if (emblems.style("display") !== "none") {
+  if (layerIsOn("toggleEmblems")) {
     emblems.selectAll<SVGGElement, unknown>("g").each(function () {
       // burgEmblems container: reduce font-size at high zoom (COA <use> elements use width/height in em units)
       if (this.id === "burgEmblems") {
@@ -1033,7 +1033,7 @@ export function invokeActiveZooming() {
     });
   }
 
-  if (goods.style("display") !== "none") {
+  if (layerIsOn("toggleGoods")) {
     // Viewport culling + zoom-scale threshold for goods icons and burg plates.
     // data-min-scale encodes the minimum zoom level needed to show each element:
     // high-production locations are visible from afar, low-production only when zoomed in.
@@ -1075,7 +1075,7 @@ export function invokeActiveZooming() {
       el.setAttribute("y", String(rn(y - zoomedSize, 1)));
     });
 
-  if (ruler.style("display") !== "none") {
+  if (layerIsOn("toggleRulers")) {
     const size = rn((10 / scale ** 0.3) * 2, 2);
     ruler.selectAll("text").attr("font-size", size);
   }
