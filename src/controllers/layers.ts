@@ -406,38 +406,153 @@ export function toggleBiomes(event?: MouseEvent): void {
 }
 
 export function togglePrecipitation(event?: MouseEvent): void {
-  if (!viewContext.prec.selectAll("circle").size()) {
+  if (!layerIsOn("togglePrecipitation")) {
+    if (precipitationAnimRafId !== null) {
+      cancelAnimationFrame(precipitationAnimRafId);
+      precipitationAnimRafId = null;
+    }
+    // Save current r before interrupt so the entry animation can resume from the
+    // interrupted position rather than resetting to 0.
+    const priorR = new Map<string, number>();
+    viewContext.prec.selectAll<SVGCircleElement, unknown>("circle").each(function () {
+      priorR.set(`${this.getAttribute("cx")}_${this.getAttribute("cy")}`, parseFloat(this.getAttribute("r") ?? "0"));
+    });
+
+    viewContext.prec.interrupt();
+    viewContext.prec.selectAll("*").interrupt();
+    viewContext.prec.style("display", "block");
+
     turnButtonOn("togglePrecipitation");
     PrecipitationRenderer.render(worldContext, viewContext, appServices);
+
+    precipitationAnimRafId = requestAnimationFrame(() => {
+      precipitationAnimRafId = null;
+      viewContext.prec.selectAll<SVGCircleElement, unknown>("circle").each(function () {
+        const finalR = parseFloat(this.getAttribute("r") ?? "0");
+        const startR = priorR.get(`${this.getAttribute("cx")}_${this.getAttribute("cy")}`) ?? 0;
+        d3.select(this).attr("r", startR).transition().duration(800).ease(d3.easeSinIn).attr("r", finalR);
+      });
+    });
+
     if (event && isCtrlClick(event)) editStyle("prec");
   } else {
     if (event && isCtrlClick(event)) {
       editStyle("prec");
       return;
     }
+    // Cancel any cosmetic-animation RAF that hasn't fired yet.
+    if (precipitationAnimRafId !== null) {
+      cancelAnimationFrame(precipitationAnimRafId);
+      precipitationAnimRafId = null;
+    }
+    // Interrupt any in-progress cosmetic animation or leftover transitions.
+    viewContext.prec.selectAll("*").interrupt();
+    viewContext.prec.interrupt();
+
     turnButtonOff("togglePrecipitation");
     const hide = d3.transition().duration(1000).ease(d3.easeSinIn);
     viewContext.prec.selectAll("text").attr("opacity", 1).transition(hide).attr("opacity", 0);
     viewContext.prec.selectAll("circle").transition(hide).attr("r", 0).remove();
-    viewContext.prec.transition().delay(1000).style("display", "none");
+    // Piggyback the 3D update on the parent group's display:none transition end.
+    // "end" fires when the hide completes; "interrupt" fires instead if the ON path
+    // cancels this transition — keeping the 3D update cleanly in sync either way.
+    viewContext.prec
+      .transition()
+      .delay(1000)
+      .style("display", "none")
+      .on("end.3d", () => {
+        if (ThreeDRenderer.options.isOn) ThreeDRenderer.update();
+      });
   }
 }
 
 export function togglePopulation(event?: MouseEvent): void {
-  if (!viewContext.population.selectAll("line").size()) {
+  if (!layerIsOn("togglePopulation")) {
+    if (populationAnimRafId !== null) {
+      cancelAnimationFrame(populationAnimRafId);
+      populationAnimRafId = null;
+    }
+    // Save current y2 before interrupt so the entry animation can resume from the
+    // interrupted position rather than resetting to zero. Use "x1_y1" as key since
+    // (x1, y1) is the unique cell/burg position and remains stable across render().
+    const priorRuralY2 = new Map<string, number>();
+    const priorUrbanY2 = new Map<string, number>();
+    viewContext.population
+      .select("#rural")
+      .selectAll<SVGLineElement, unknown>("line")
+      .each(function () {
+        priorRuralY2.set(
+          `${this.getAttribute("x1")}_${this.getAttribute("y1")}`,
+          parseFloat(this.getAttribute("y2") ?? "0")
+        );
+      });
+    viewContext.population
+      .select("#urban")
+      .selectAll<SVGLineElement, unknown>("line")
+      .each(function () {
+        priorUrbanY2.set(
+          `${this.getAttribute("x1")}_${this.getAttribute("y1")}`,
+          parseFloat(this.getAttribute("y2") ?? "0")
+        );
+      });
+
+    viewContext.population.interrupt();
+    viewContext.population.selectAll("*").interrupt();
+
     turnButtonOn("togglePopulation");
     PopulationRenderer.render(worldContext, viewContext, appServices);
+
+    populationAnimRafId = requestAnimationFrame(() => {
+      populationAnimRafId = null;
+      viewContext.population
+        .select("#rural")
+        .selectAll<SVGLineElement, unknown>("line")
+        .each(function () {
+          const finalY2 = parseFloat(this.getAttribute("y2") ?? "0");
+          const startY2 =
+            priorRuralY2.get(`${this.getAttribute("x1")}_${this.getAttribute("y1")}`) ??
+            parseFloat(this.getAttribute("y1") ?? "0");
+          d3.select(this).attr("y2", startY2).transition().duration(2000).ease(d3.easeSinIn).attr("y2", finalY2);
+        });
+      viewContext.population
+        .select("#urban")
+        .selectAll<SVGLineElement, unknown>("line")
+        .each(function () {
+          const finalY2 = parseFloat(this.getAttribute("y2") ?? "0");
+          const startY2 =
+            priorUrbanY2.get(`${this.getAttribute("x1")}_${this.getAttribute("y1")}`) ??
+            parseFloat(this.getAttribute("y1") ?? "0");
+          d3.select(this)
+            .attr("y2", startY2)
+            .transition()
+            .delay(500)
+            .duration(2000)
+            .ease(d3.easeSinIn)
+            .attr("y2", finalY2);
+        });
+    });
+
     if (event && isCtrlClick(event)) editStyle("population");
   } else {
     if (event && isCtrlClick(event)) {
       editStyle("population");
       return;
     }
+    // Cancel any cosmetic-animation RAF that hasn't fired yet.
+    if (populationAnimRafId !== null) {
+      cancelAnimationFrame(populationAnimRafId);
+      populationAnimRafId = null;
+    }
+    // Interrupt any in-progress cosmetic animation or leftover transitions.
+    viewContext.population.interrupt();
+    viewContext.population.selectAll("*").interrupt();
+
     turnButtonOff("togglePopulation");
 
     const isD3data = viewContext.population.select("line").datum();
     if (!isD3data) {
       viewContext.population.selectAll("line").remove();
+      // No transition — the RAF from turnButtonOff captures the correct empty state.
     } else {
       const hide = d3.transition().duration(1000).ease(d3.easeSinIn);
       viewContext.population
@@ -453,6 +568,15 @@ export function togglePopulation(event?: MouseEvent): void {
         .delay(1000)
         .attr("y2", (d: unknown) => (d as [number, number])[1])
         .remove();
+      // Urban lines finish last (1000ms delay + 1000ms duration = 2000ms total).
+      // A no-op transition on the parent group fires "end" when done; "interrupt"
+      // fires instead if the ON path cancels it — keeping 3D in sync either way.
+      viewContext.population
+        .transition()
+        .delay(2000)
+        .on("end.3d", () => {
+          if (ThreeDRenderer.options.isOn) ThreeDRenderer.update();
+        });
     }
   }
 }
@@ -961,6 +1085,9 @@ const TOGGLE_REGISTRY: Record<string, (event?: MouseEvent) => void> = {
 };
 
 let pending3dUpdate = false;
+let precipitationAnimRafId: number | null = null;
+let populationAnimRafId: number | null = null;
+
 function schedule3dUpdate() {
   if (ThreeDRenderer.options.isOn && !pending3dUpdate) {
     pending3dUpdate = true;

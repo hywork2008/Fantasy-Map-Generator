@@ -38,8 +38,6 @@ export const PrecipitationRenderer: IRenderer = {
       .append("circle")
       .attr("cx", d => points[d][0])
       .attr("cy", d => points[d][1])
-      .attr("r", 0)
-      .transition(show)
       .attr("r", d => getRadius(cells.prec[d] as number));
 
     TIME && console.timeEnd("PrecipitationRenderer");

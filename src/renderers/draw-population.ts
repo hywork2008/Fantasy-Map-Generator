@@ -1,4 +1,3 @@
-import { easeSinIn, transition } from "d3";
 import type { AppServices } from "../context/appServices";
 import type { SettlementLayers } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
@@ -18,8 +17,6 @@ export const PopulationRenderer: IRenderer = {
 
     population.selectAll("line").remove();
 
-    const show = transition().duration(2000).ease(easeSinIn);
-
     const rural = Array.from(
       cells.i.filter(i => (cells.pop[i] as number) > 0),
       i => [...cells.p[i], cells.p[i][1] - (cells.pop[i] as number) / 5] as [number, number, number]
@@ -34,8 +31,6 @@ export const PopulationRenderer: IRenderer = {
       .attr("x1", d => d[0])
       .attr("y1", d => d[1])
       .attr("x2", d => d[0])
-      .attr("y2", d => d[1])
-      .transition(show)
       .attr("y2", d => d[2]);
 
     const urban = burgs
@@ -51,9 +46,6 @@ export const PopulationRenderer: IRenderer = {
       .attr("x1", d => d[0])
       .attr("y1", d => d[1])
       .attr("x2", d => d[0])
-      .attr("y2", d => d[1])
-      .transition(show)
-      .delay(500)
       .attr("y2", d => d[2]);
   },
 
