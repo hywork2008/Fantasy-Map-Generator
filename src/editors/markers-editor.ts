@@ -8,8 +8,10 @@ import { Markers } from "../modules/markers-generator";
 import { getPin } from "../renderers/index";
 import { setElSelected } from "../store/editorState";
 import { getMarkersEditorState, setMarkersEditorState } from "../store/markersEditorState";
+import { useMarkersOverviewState } from "../store/markersOverviewState";
+import { useNotesEditorState } from "../store/notesEditorState";
 import { closeDialog, closeDialogs } from "../ui/dialogs/dialogService";
-import { ensureEl, findCell, rn } from "../utils";
+import { findCell, rn } from "../utils";
 import { clearMainTip } from "../utils/uiHelpers";
 import { editNotes } from "./notes-editor";
 
@@ -33,7 +35,7 @@ export function editMarker(markerI?: number): void {
     .call(drag<Element, unknown>().on("start", dragMarkerStart).on("drag", dragMarkerDrag).on("end", dragMarkerEnd))
     .classed("draggable", true);
 
-  if (ensureEl("notesEditor").offsetParent) editNotes(element.id, element.id);
+  if (useNotesEditorState.getState().isOpen) editNotes(element.id, element.id);
 
   setMarkersEditorState({
     isOpen: true,
@@ -247,8 +249,7 @@ function deleteMarker(): void {
   const element = document.getElementById(`marker${selectedId}`);
   if (element) element.remove();
   closeMarkerEditor();
-  const refreshEl = ensureEl("markersOverviewRefresh") as HTMLElement;
-  if (refreshEl.offsetParent) refreshEl.click();
+  useMarkersOverviewState.getState().refresh();
 }
 
 export function closeMarkerEditor(): void {

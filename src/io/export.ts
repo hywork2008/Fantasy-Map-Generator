@@ -8,7 +8,7 @@ import { downloadFile, getFileName } from "../controllers/editors";
 import { fonts, loadFontsAsDataURI } from "../modules/fonts";
 import { Rivers } from "../modules/river-generator";
 import { drawScaleBar, fitScaleBar } from "../renderers/index";
-import { connectVertices, ensureEl, getBase64, getCoordinates, rn, unique } from "../utils";
+import { connectVertices, getBase64, getCoordinates, rn, unique } from "../utils";
 import { getColor, getColorScheme } from "../utils/colorUtils";
 import { ERROR, TIME } from "../utils/debug";
 import { getGridPolygon } from "../utils/graphUtils";
@@ -126,7 +126,7 @@ export async function exportToJpeg(): Promise<void> {
 // ─── PNG tile export ──────────────────────────────────────────────────────────
 
 export async function exportToPngTiles(): Promise<void> {
-  const status = ensureEl("tileStatus");
+  const status = document.getElementById("tileStatus")!;
   status.innerHTML = "Preparing files...";
 
   const urlSchema = await getMapURL("tiles", { debug: true, fullMap: true });
@@ -148,9 +148,9 @@ export async function exportToPngTiles(): Promise<void> {
   zip.file("schema.png", blob);
 
   const url = await getMapURL("tiles", { fullMap: true });
-  const tilesX = +(ensureEl("tileColsOutput") as HTMLInputElement).value || 2;
-  const tilesY = +(ensureEl("tileRowsOutput") as HTMLInputElement).value || 2;
-  const scale = +(ensureEl("tileScaleOutput") as HTMLInputElement).value || 1;
+  const tilesX = +(document.getElementById("tileColsOutput") as HTMLInputElement)?.value || 2;
+  const tilesY = +(document.getElementById("tileRowsOutput") as HTMLInputElement)?.value || 2;
+  const scale = +(document.getElementById("tileScaleOutput") as HTMLInputElement)?.value || 1;
   const tolesTotal = tilesX * tilesY;
 
   const tileW = (worldContext.graphWidth / tilesX) | 0;
@@ -246,7 +246,7 @@ export async function getMapURL(type: string, options: GetMapURLOptions = {}): P
     fullMap = false
   } = options;
 
-  const cloneEl = ensureEl("map").cloneNode(true) as SVGSVGElement;
+  const cloneEl = viewContext.svg.node()!.cloneNode(true) as SVGSVGElement;
   cloneEl.id = "fantasyMap";
   cloneEl.style.visibility = "visible";
   cloneEl.style.pointerEvents = "auto";
@@ -275,7 +275,7 @@ export async function getMapURL(type: string, options: GetMapURLOptions = {}): P
   if (!debug) clone.select("#debug")?.remove();
 
   const cloneDefs = cloneEl.getElementsByTagName("defs")[0];
-  const svgDefs = ensureEl<SVGSVGElement>("defElements");
+  const svgDefs = document.getElementById("defElements") as unknown as SVGSVGElement;
 
   const isFirefox = navigator.userAgent.toLowerCase().indexOf("firefox") > -1;
   if (isFirefox && type === "mesh") clone.select("#oceanPattern")?.remove();
@@ -345,7 +345,7 @@ export async function getMapURL(type: string, options: GetMapURLOptions = {}): P
       .forEach(el => {
         const href = el.getAttribute("href") || el.getAttribute("xlink:href");
         if (!href) return;
-        const emblem = ensureEl(href.slice(1));
+        const emblem = document.getElementById(href.slice(1));
         if (emblem) cloneDefs.append(emblem.cloneNode(true));
       });
   } else {

@@ -13,7 +13,7 @@ import { dialogStore } from "../store/dialogState";
 import { elSelected, setElSelected } from "../store/editorState";
 import type { TypedArray } from "../types/PackedGraph";
 import { closeDialog, closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
-import { ensureEl, findCell, getSegmentId, rand, rn } from "../utils";
+import { findCell, getSegmentId, rand, rn } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
 import { getPackPolygon } from "../utils/graphUtils";
 import { layerIsOn } from "../utils/nodeUtils";
@@ -47,10 +47,10 @@ function updateRiverData(): void {
   }));
 
   const basinName = worldContext.pack.rivers.find((river: River) => river.i === r.basin)?.name ?? "";
-  const distanceUnitInput = ensureEl<HTMLSelectElement>("distanceUnitInput");
+  const distanceUnitInput = document.getElementById("distanceUnitInput") as HTMLSelectElement | null;
 
   r.length = rn((elSelected!.node() as SVGPathElement).getTotalLength() / 2, 2);
-  const lengthUI = `${rn(r.length * worldContext.distanceScale)} ${distanceUnitInput.value}`;
+  const lengthUI = `${rn(r.length * worldContext.distanceScale)} ${distanceUnitInput?.value ?? "km"}`;
 
   const { cells: riverCells, discharge, widthFactor, sourceWidth } = r;
   const meanderedPoints = Rivers.addMeandering(riverCells);
@@ -62,7 +62,7 @@ function updateRiverData(): void {
       startingWidth: sourceWidth
     })
   );
-  const widthUI = `${rn(r.width * worldContext.distanceScale, 3)} ${distanceUnitInput.value}`;
+  const widthUI = `${rn(r.width * worldContext.distanceScale, 3)} ${distanceUnitInput?.value ?? "km"}`;
 
   import("../store/riverEditorState").then(({ getRiverEditorState }) => {
     getRiverEditorState().setRiverData({
@@ -302,8 +302,8 @@ export function editRiver(id: string): void {
   closeDialogs(".stable");
   if (!layerIsOn("toggleRivers")) toggleRivers();
 
-  const toggleCellsEl = ensureEl("toggleCells");
-  toggleCellsEl.dataset.forced = String(+!layerIsOn("toggleCells"));
+  const toggleCellsEl = document.getElementById("toggleCells");
+  if (toggleCellsEl) toggleCellsEl.dataset.forced = String(+!layerIsOn("toggleCells"));
   if (!layerIsOn("toggleCells")) toggleCells();
 
   setElSelected(select<SVGPathElement, unknown>(`#${id}`).on("click", addControlPoint) as unknown as typeof elSelected);

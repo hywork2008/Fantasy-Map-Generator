@@ -3,7 +3,7 @@
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { Goods } from "../modules/goods-generator";
-import { convertTemperature, ensureEl, list, rn } from "../utils";
+import { convertTemperature, list, rn } from "../utils";
 
 const pack = worldContext.pack;
 const _viewbox = viewContext.viewbox;
@@ -213,9 +213,9 @@ function open(onApply: (distribution: string) => void, initialExpression = "") {
 
   function updateOutput() {
     const expr = generateExpression();
-    ensureEl<HTMLInputElement>("distExprOutput").value = expr;
-    ensureEl<HTMLElement>("distCellCount").textContent = countMatchingCells(expr) || "";
-    ensureEl<HTMLElement>("distHumanPreview").textContent = interpretDistribution(expr);
+    (document.getElementById("distExprOutput") as HTMLInputElement).value = expr;
+    document.getElementById("distCellCount")!.textContent = countMatchingCells(expr) || "";
+    document.getElementById("distHumanPreview")!.textContent = interpretDistribution(expr);
   }
 
   function openBiomePicker(cond: DistCondition, onApplied: () => void) {
@@ -578,7 +578,7 @@ function open(onApply: (distribution: string) => void, initialExpression = "") {
   }
 
   function renderGroupList() {
-    const groupList = ensureEl<HTMLElement>("distGroupList")!;
+    const groupList = document.getElementById("distGroupList")!;
     groupList.innerHTML = "";
 
     groups.forEach((group, groupIdx) => {
@@ -758,7 +758,7 @@ function open(onApply: (distribution: string) => void, initialExpression = "") {
   renderGroupList();
   updateOutput();
 
-  ensureEl<HTMLButtonElement>("distAddGroup").on("click", () => {
+  document.getElementById("distAddGroup")!.addEventListener("click", () => {
     groups.push([createDefaultCondition()]);
     renderGroupList();
     updateOutput();

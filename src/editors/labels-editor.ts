@@ -9,7 +9,7 @@ import { Names } from "../modules/names-generator";
 import { elSelected, setElSelected } from "../store/editorState";
 import { getLabelsEditorState, type LabelEditorSection, setLabelsEditorState } from "../store/labelsEditorState";
 import { closeDialog, openRichDialog } from "../ui/dialogs/dialogService";
-import { ensureEl, findCell, parseTransform, round } from "../utils";
+import { findCell, parseTransform, round } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
 import { layerIsOn } from "../utils/nodeUtils";
 import { showMainTip, tip } from "../utils/uiHelpers";
@@ -86,7 +86,7 @@ function showEditorTips(this: SVGElement, event: MouseEvent): void {
 function drawControlPointsAndLine(): void {
   viewContext.debug.select("#controlPoints").remove();
   viewContext.debug.append("g").attr("id", "controlPoints").attr("transform", elSelected!.attr("transform"));
-  const path = ensureEl<SVGPathElement>(`textPath_${elSelected!.attr("id")}`);
+  const path = viewContext.svg.select<SVGPathElement>(`#textPath_${elSelected!.attr("id")}`).node()!;
   viewContext.debug
     .select("#controlPoints")
     .append("path")
@@ -119,7 +119,7 @@ function addControlPoint(pt: SVGPoint): void {
 }
 
 function redrawLabelPath(): void {
-  const path = ensureEl<SVGPathElement>(`textPath_${elSelected!.attr("id")}`);
+  const path = viewContext.svg.select<SVGPathElement>(`#textPath_${elSelected!.attr("id")}`).node()!;
   viewContext.lineGen.curve(curveNatural);
   const points: [number, number][] = [];
   viewContext.debug
@@ -180,7 +180,7 @@ function toggleSection(section: LabelEditorSection): void {
 }
 
 function changeGroup(newGroup: string): void {
-  ensureEl(newGroup).appendChild(elSelected!.node()!);
+  document.getElementById(newGroup)!.appendChild(elSelected!.node()!);
   setLabelsEditorState({ group: newGroup });
 }
 
@@ -223,9 +223,9 @@ function createNewGroup(): void {
     groupOptions = groupOptions.filter(g => g !== oldGroup.id).concat(groupName);
   } else {
     const newGroup = elSelected!.node()!.parentNode!.cloneNode(false) as SVGGElement;
-    ensureEl("labels").appendChild(newGroup);
+    viewContext.labels.node()!.appendChild(newGroup);
     newGroup.id = groupName;
-    ensureEl(groupName).appendChild(elSelected!.node()!);
+    document.getElementById(groupName)!.appendChild(elSelected!.node()!);
     groupOptions = [...groupOptions, groupName];
   }
 
@@ -251,7 +251,7 @@ function removeLabelsGroup(): void {
           .select(`#${group}`)
           .selectAll<SVGTextElement, unknown>("text")
           .each(function (this: SVGTextElement) {
-            ensureEl(`textPath_${this.id}`).remove();
+            document.getElementById(`textPath_${this.id}`)?.remove();
             this.remove();
           });
         if (!isBasicGroup) viewContext.labels.select(`#${group}`).remove();

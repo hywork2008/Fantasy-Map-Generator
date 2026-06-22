@@ -19,7 +19,6 @@ import { confirmationDialog, downloadFile, getFileName, highlightElement, upload
 import { getNotesEditorState, setNotesEditorState } from "../store/notesEditorState";
 import type { WorldNote } from "../types/WorldState";
 import { closeDialog, openDialog } from "../ui/dialogs/dialogService";
-import { ensureEl } from "../utils";
 import { tip } from "../utils/uiHelpers";
 
 export function editNotes(id?: string, name?: string): void {
@@ -45,7 +44,7 @@ export function editNotes(id?: string, name?: string): void {
     });
 
     requestAnimationFrame(() => {
-      const notesLegend = ensureEl("notesLegend");
+      const notesLegend = document.getElementById("notesLegend")!;
       notesLegend.innerHTML = note!.legend;
       initEditor();
       updateNotesBox(note!);
@@ -60,7 +59,7 @@ export function editNotes(id?: string, name?: string): void {
     });
 
     requestAnimationFrame(() => {
-      const notesLegend = ensureEl("notesLegend");
+      const notesLegend = document.getElementById("notesLegend")!;
       notesLegend.innerHTML = "No notes added. Click on an element (e.g. label or marker) and add a free text note";
     });
   }
@@ -136,7 +135,7 @@ function changeElement(id: string): void {
 
   setNotesEditorState({ selectedId: id, noteName: note.name });
 
-  const notesLegend = ensureEl("notesLegend");
+  const notesLegend = document.getElementById("notesLegend")!;
   notesLegend.innerHTML = note.legend;
   updateNotesBox(note);
 
@@ -191,7 +190,7 @@ function openAiGenerator(): void {
   if (note?.legend) prompt += ` Data: ${note.legend}`;
 
   const onApply = (result: string) => {
-    const notesLegend = ensureEl("notesLegend");
+    const notesLegend = document.getElementById("notesLegend")!;
     notesLegend.innerHTML = result;
     if (note) {
       note.legend = result;

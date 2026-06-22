@@ -27,7 +27,7 @@ import {
 import { getFeaturePath } from "../renderers/index";
 import { elSelected, modules, setElSelected } from "../store/editorState";
 import { closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
-import { ensureEl, rn, si, unique } from "../utils";
+import { rn, si, unique } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
 import { getPackPolygon } from "../utils/graphUtils";
 import { layerIsOn } from "../utils/nodeUtils";
@@ -291,7 +291,7 @@ export const coastlineEditorActions = {
   },
 
   changeGroup: (newGroup: string) => {
-    ensureEl(newGroup).appendChild(elSelected!.node()!);
+    document.getElementById(newGroup)!.appendChild(elSelected!.node()!);
     updateCoastlineFeatureData();
   },
 
@@ -321,7 +321,7 @@ export const coastlineEditorActions = {
         .replace(/ /g, "_")
         .replace(/[^\w\s]/gi, "");
 
-      if (ensureEl(group)) {
+      if (document.getElementById(group)) {
         tip("Element with this id already exists. Please provide a unique name", false, "error");
         return;
       }
@@ -340,9 +340,9 @@ export const coastlineEditorActions = {
       }
 
       const newGroup = (elSelected!.node()!.parentNode as Element).cloneNode(false) as SVGGElement;
-      ensureEl("coastline").appendChild(newGroup);
+      viewContext.coastline.node()!.appendChild(newGroup);
       newGroup.id = group;
-      ensureEl(group).appendChild(elSelected!.node()!);
+      document.getElementById(group)!.appendChild(elSelected!.node()!);
       getCoastlineEditorState().setFeatureData({ isNewGroupInputVisible: false, newGroupName: "" });
       updateCoastlineFeatureData();
     });
@@ -364,8 +364,8 @@ export const coastlineEditorActions = {
       width: "26em",
       buttons: {
         Remove: () => {
-          const sea = ensureEl("sea_island");
-          const groupEl = ensureEl(group);
+          const sea = document.getElementById("sea_island")!;
+          const groupEl = document.getElementById(group)!;
           while (groupEl.childNodes.length) {
             sea.appendChild(groupEl.childNodes[0]);
           }

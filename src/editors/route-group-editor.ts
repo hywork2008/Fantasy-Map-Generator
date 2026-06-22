@@ -6,7 +6,7 @@ import { editStyle } from "../controllers/style";
 import { Routes } from "../modules/routes-generator";
 import { modules } from "../store/editorState";
 import { openDialog } from "../ui/dialogs/dialogService";
-import { ensureEl, showPrompt } from "../utils";
+import { showPrompt } from "../utils";
 import { layerIsOn } from "../utils/nodeUtils";
 import { tip } from "../utils/uiHelpers";
 
@@ -25,8 +25,8 @@ export function editRouteGroups(): void {
   if (modules.editRouteGroups) return;
   modules.editRouteGroups = true;
 
-  ensureEl("routeGroupsEditorAdd").addEventListener("click", addGroup);
-  ensureEl("routeGroupsEditorBody").addEventListener("click", (ev: Event) => {
+  document.getElementById("routeGroupsEditorAdd")!.addEventListener("click", addGroup);
+  document.getElementById("routeGroupsEditorBody")!.addEventListener("click", (ev: Event) => {
     const group = (ev.target as Element).closest(".states")?.getAttribute("data-id");
     if (!group) return;
     if ((ev.target as Element).classList.contains("editStyle")) editStyle("routes", group);
@@ -34,7 +34,7 @@ export function editRouteGroups(): void {
   });
 
   function addLines(): void {
-    ensureEl("routeGroupsEditorBody").innerHTML = "";
+    document.getElementById("routeGroupsEditorBody")!.innerHTML = "";
 
     const lines = viewContext.routes
       .selectAll<SVGGElement, unknown>("g")
@@ -50,7 +50,7 @@ export function editRouteGroups(): void {
         </div>`;
       });
 
-    ensureEl("routeGroupsEditorBody").innerHTML = lines.join("");
+    document.getElementById("routeGroupsEditorBody")!.innerHTML = lines.join("");
   }
 
   const DEFAULT_GROUPS = ["roads", "trails", "searoutes"];
