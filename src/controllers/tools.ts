@@ -66,7 +66,7 @@ import { elSelected } from "../store/editorState";
 import { useOptionsState } from "../store/optionsState";
 import type { WorldNote } from "../types/WorldState";
 import { closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
-import { ensureEl, findCell, gauss, generateSeed, getNextId, isCtrlClick, P, rn, showPrompt } from "../utils";
+import { findCell, gauss, generateSeed, getNextId, isCtrlClick, P, rn, showPrompt } from "../utils";
 import { layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, tip } from "../utils/uiHelpers";
 import { overviewBurgs } from "./burgs-overview";
@@ -311,10 +311,12 @@ function regenerateStates(): void {
   if (layerIsOn("toggleBurgIcons")) BurgIconsRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleLabels")) BurgLabelsRenderer.render(worldContext, viewContext, appServices);
 
-  if (ensureEl("burgsOverviewRefresh").offsetParent) ensureEl<HTMLButtonElement>("burgsOverviewRefresh").click();
+  if (document.getElementById("burgsOverviewRefresh")?.offsetParent)
+    (document.getElementById("burgsOverviewRefresh") as HTMLButtonElement).click();
   if (document.getElementById("statesEditorRefresh")?.offsetParent)
     (document.getElementById("statesEditorRefresh") as HTMLButtonElement).click();
-  if (ensureEl("militaryOverviewRefresh").offsetParent) ensureEl<HTMLButtonElement>("militaryOverviewRefresh").click();
+  if (document.getElementById("militaryOverviewRefresh")?.offsetParent)
+    (document.getElementById("militaryOverviewRefresh") as HTMLButtonElement).click();
 }
 
 function recreateStates(): State[] | null {
@@ -457,7 +459,7 @@ function recreateStates(): State[] | null {
       : worldContext.pack.cultures[culture!].type === "Nomadic"
         ? "Generic"
         : worldContext.pack.cultures[culture!].type;
-    const expansionism = rn(Math.random() * +ensureEl<HTMLInputElement>("sizeVariety").value + 1, 1);
+    const expansionism = rn(Math.random() * +(document.getElementById("sizeVariety") as HTMLInputElement).value + 1, 1);
     const cultureType = worldContext.pack.cultures[culture!].type;
     const coa = COA.generate(capital.coa || null, 0.3, null, cultureType ?? "Generic");
     coa.shield = capital.coa?.shield;
@@ -549,7 +551,7 @@ async function regenerateBurgs(): Promise<void> {
     .filter((i: number) => score[i] > 0 && cells.culture[i])
     .sort((a: number, b: number) => score[b] - score[a]);
   const existingStatesCount = states.filter((s: State) => s.i && !s.removed).length;
-  const manorsInputEl = ensureEl<HTMLInputElement>("manorsInput");
+  const manorsInputEl = document.getElementById("manorsInput") as HTMLInputElement;
   const burgsCount =
     (manorsInputEl.value === "1000"
       ? rn(sorted.length / 5 / (worldContext.grid.points.length / 10000) ** 0.8)
@@ -615,7 +617,8 @@ async function regenerateBurgs(): Promise<void> {
   viewContext.emblems.selectAll("use").remove();
   if (layerIsOn("toggleEmblems")) EmblemsRenderer.render(worldContext, viewContext, appServices);
 
-  if (ensureEl("burgsOverviewRefresh").offsetParent) ensureEl<HTMLButtonElement>("burgsOverviewRefresh").click();
+  if (document.getElementById("burgsOverviewRefresh")?.offsetParent)
+    (document.getElementById("burgsOverviewRefresh") as HTMLButtonElement).click();
   if (document.getElementById("statesEditorRefresh")?.offsetParent)
     (document.getElementById("statesEditorRefresh") as HTMLButtonElement).click();
 }
@@ -709,7 +712,8 @@ function regenerateMilitary(): void {
   Military.generate(worldContext, viewContext, appServices, getWorldState());
   if (layerIsOn("toggleMilitary")) MilitaryRenderer.render(worldContext, viewContext, appServices);
   else toggleMilitary();
-  if (ensureEl("militaryOverviewRefresh").offsetParent) ensureEl<HTMLButtonElement>("militaryOverviewRefresh").click();
+  if (document.getElementById("militaryOverviewRefresh")?.offsetParent)
+    (document.getElementById("militaryOverviewRefresh") as HTMLButtonElement).click();
 }
 
 function regenerateIce(): void {
@@ -737,7 +741,8 @@ function regenerateZones(event: MouseEvent | null): void {
 
   function addNumberOfZones(number: number) {
     Zones.generate(worldContext, viewContext, appServices, getWorldState(), number);
-    if (ensureEl("zonesEditorRefresh").offsetParent) ensureEl<HTMLButtonElement>("zonesEditorRefresh").click();
+    if (document.getElementById("zonesEditorRefresh")?.offsetParent)
+      (document.getElementById("zonesEditorRefresh") as HTMLButtonElement).click();
     if (layerIsOn("toggleZones")) ZonesRenderer.render(worldContext, viewContext, appServices);
   }
 }
@@ -756,7 +761,7 @@ function unpressClickToAddButton(): void {
 }
 
 export function toggleAddLabel(): void {
-  const addLabelBtn = ensureEl("addLabel");
+  const addLabelBtn = document.getElementById("addLabel")!;
   if (addLabelBtn.classList.contains("pressed")) {
     unpressClickToAddButton();
     return;
@@ -784,7 +789,7 @@ function addLabelOnClick(this: SVGElement, event: MouseEvent): void {
   const name = Names.getCulture(culture);
   const id = getNextId("label");
 
-  const lastSelected = ensureEl<HTMLSelectElement>("labelGroupSelect").value;
+  const lastSelected = (document.getElementById("labelGroupSelect") as HTMLSelectElement).value;
   const groupId = ["", "states", "burgLabels"].includes(lastSelected) ? "#addedLabels" : `#${lastSelected}`;
 
   let group = viewContext.labels.select<SVGGElement>(groupId);
@@ -831,14 +836,14 @@ function addLabelOnClick(this: SVGElement, event: MouseEvent): void {
 
 export function toggleAddBurg(): void {
   unpressClickToAddButton();
-  ensureEl("addBurgTool").classList.add("pressed");
+  document.getElementById("addBurgTool")!.classList.add("pressed");
   overviewBurgs();
-  ensureEl("addNewBurg").click();
+  document.getElementById("addNewBurg")!.click();
 }
 
 export function toggleAddRiver(): void {
-  const addRiverBtn = ensureEl("addRiver");
-  const addNewRiverEl = ensureEl("addNewRiver");
+  const addRiverBtn = document.getElementById("addRiver")!;
+  const addNewRiverEl = document.getElementById("addNewRiver")!;
 
   if (addRiverBtn.classList.contains("pressed")) {
     unpressClickToAddButton();
@@ -1003,14 +1008,14 @@ function addRiverOnClick(this: SVGElement, event: MouseEvent): void {
   if (!event.shiftKey) {
     Lakes.cleanupLakeData();
     unpressClickToAddButton();
-    ensureEl("addNewRiver").classList.remove("pressed");
+    document.getElementById("addNewRiver")!.classList.remove("pressed");
     const riversOverviewRefreshEl = document.getElementById("riversOverviewRefresh") as HTMLButtonElement | null;
     if (riversOverviewRefreshEl?.offsetParent) riversOverviewRefreshEl.click();
   }
 }
 
 function toggleAddMarker(): void {
-  const addMarkerBtn = ensureEl("addMarker");
+  const addMarkerBtn = document.getElementById("addMarker")!;
   if (addMarkerBtn.classList.contains("pressed")) {
     unpressClickToAddButton();
     return;
@@ -1044,7 +1049,7 @@ function addMarkerOnClick(this: SVGElement, event: MouseEvent): void {
     ? packMarkers.find((marker: Marker) => marker.i === +elSelected!.attr("id").slice(6))
     : null;
 
-  const selectedType = ensureEl<HTMLInputElement>("addedMarkerType").value;
+  const selectedType = (document.getElementById("addedMarkerType") as HTMLInputElement).value;
   const selectedConfig = Markers.getConfig().find(({ type }: MarkerConfig) => type === selectedType);
   const baseMarker = selectedMarker || selectedConfig || { icon: "❓" };
   const marker = Markers.add({ ...baseMarker, x, y, cell } as unknown as Marker);
@@ -1053,7 +1058,7 @@ function addMarkerOnClick(this: SVGElement, event: MouseEvent): void {
     selectedConfig.add(`marker${marker.i}`, cell);
   }
 
-  const markersElement = ensureEl("markers");
+  const markersElement = viewContext.markers.node()!;
   const rescale = +markersElement.getAttribute("rescale")!;
   markersElement.insertAdjacentHTML("beforeend", drawMarker(worldContext, viewContext, appServices, marker, rescale));
 

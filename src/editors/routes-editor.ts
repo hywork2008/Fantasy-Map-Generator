@@ -13,7 +13,7 @@ import { dialogStore } from "../store/dialogState";
 import { elSelected, modules, setElSelected } from "../store/editorState";
 import { getRoutesEditorState, setRoutesEditorState } from "../store/routesEditorState";
 import { closeDialog, closeDialogs, openRichDialog } from "../ui/dialogs/dialogService";
-import { ensureEl, findCell, getSegmentId, rn } from "../utils";
+import { findCell, getSegmentId, rn } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
 import { ERROR } from "../utils/debug";
 import { getPackPolygon } from "../utils/graphUtils";
@@ -40,7 +40,7 @@ export function editRoute(id: string): void {
   closeDialogs(".stable");
 
   if (!layerIsOn("toggleRoutes")) toggleRoutes();
-  ensureEl("toggleCells").dataset.forced = String(+!layerIsOn("toggleCells"));
+  document.getElementById("toggleCells")!.dataset.forced = String(+!layerIsOn("toggleCells"));
   if (!layerIsOn("toggleCells")) toggleCells();
 
   setElSelected(select<SVGPathElement, unknown>(`#${id}`).on("click", addControlPoint) as unknown as typeof elSelected);
@@ -73,7 +73,7 @@ function updateRouteData(route: Route): void {
   route.length = route.length || Routes.getLength(route.i);
 
   const allGroups = Array.from(viewContext.routes.selectAll<SVGGElement, unknown>("g").nodes()).map(n => n.id);
-  const distanceUnitInput = ensureEl<HTMLInputElement>("distanceUnitInput");
+  const distanceUnitInput = document.getElementById("distanceUnitInput") as HTMLInputElement | null;
   const lengthStr = `${rn(route.length * worldContext.distanceScale)} ${distanceUnitInput?.value || "km"}`;
 
   const isWaterRoute = route.points.some(([, , cellId]) => worldContext.pack.cells.h[cellId] < 20);
@@ -91,7 +91,7 @@ function updateRouteData(route: Route): void {
 
 function updateRouteLength(route: Route): void {
   route.length = Routes.getLength(route.i);
-  const distanceUnitInput = ensureEl<HTMLInputElement>("distanceUnitInput");
+  const distanceUnitInput = document.getElementById("distanceUnitInput") as HTMLInputElement | null;
   const lengthStr = `${rn(route.length * worldContext.distanceScale)} ${distanceUnitInput?.value || "km"}`;
   setRoutesEditorState({ routeLength: lengthStr });
 }
@@ -297,7 +297,7 @@ export function createRoute(defaultGroup?: string): void {
   closeDialogs();
   if (!layerIsOn("toggleRoutes")) toggleRoutes();
 
-  ensureEl("toggleCells").dataset.forced = String(+!layerIsOn("toggleCells"));
+  document.getElementById("toggleCells")!.dataset.forced = String(+!layerIsOn("toggleCells"));
   if (!layerIsOn("toggleCells")) toggleCells();
 
   tip("Click to add route point, click again to remove", true);
@@ -374,8 +374,9 @@ export const routesEditorActions = {
     unselect();
     clearMainTip();
 
-    const forced = +ensureEl("toggleCells").dataset.forced!;
-    ensureEl("toggleCells").dataset.forced = "0";
+    const toggleCellsEl = document.getElementById("toggleCells")!;
+    const forced = +toggleCellsEl.dataset.forced!;
+    toggleCellsEl.dataset.forced = "0";
     if (forced && layerIsOn("toggleCells")) toggleCells();
   },
 
@@ -392,7 +393,7 @@ export const routesEditorActions = {
   },
 
   changeGroup(group: string): void {
-    ensureEl(group).appendChild(elSelected!.node()!);
+    document.getElementById(group)!.appendChild(elSelected!.node()!);
     getRoute().group = group;
     setRoutesEditorState({ routeGroup: group });
   },
@@ -431,7 +432,7 @@ export const routesEditorActions = {
     });
 
     if (candidateRoutes.length) {
-      const distanceUnitInput = ensureEl<HTMLInputElement>("distanceUnitInput");
+      const distanceUnitInput = document.getElementById("distanceUnitInput") as HTMLInputElement | null;
       const options = candidateRoutes.map((r: Route) => {
         r.name = r.name || Routes.generateName(r);
         r.length = r.length || Routes.getLength(r.i);
@@ -582,8 +583,9 @@ export const routesEditorActions = {
     restoreDefaultEvents?.();
     clearMainTip();
 
-    const forced = +ensureEl("toggleCells").dataset.forced!;
-    ensureEl("toggleCells").dataset.forced = "0";
+    const toggleCellsEl = document.getElementById("toggleCells")!;
+    const forced = +toggleCellsEl.dataset.forced!;
+    toggleCellsEl.dataset.forced = "0";
     if (forced && layerIsOn("toggleCells")) toggleCells();
   }
 };

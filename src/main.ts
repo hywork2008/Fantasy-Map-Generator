@@ -58,7 +58,6 @@ import {
   calculateVoronoi,
   createTypedArray,
   debounce,
-  ensureEl,
   gauss,
   generateGrid,
   generateSeed,
@@ -548,9 +547,9 @@ function zoomRaf(event: { transform: { k: number; x: number; y: number } }) {
     }
 
     if (viewContext.customization === 1) {
-      const canvas = ensureEl("canvas") as HTMLCanvasElement | null;
+      const canvas = document.getElementById("canvas") as HTMLCanvasElement | null;
       if (canvas && canvas.style.opacity !== "0") {
-        const img = ensureEl("imageToConvert") as HTMLImageElement | null;
+        const img = document.getElementById("imageToConvert") as HTMLImageElement | null;
         if (img) {
           const ctx = canvas.getContext("2d")!;
           ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -1087,18 +1086,18 @@ void (function addDragToUpload() {
   document.addEventListener("dragover", e => {
     e.stopPropagation();
     e.preventDefault();
-    ensureEl("mapOverlay").style.display = "";
+    document.getElementById("mapOverlay")!.style.display = "";
   });
 
   document.addEventListener("dragleave", () => {
-    ensureEl("mapOverlay").style.display = "none";
+    document.getElementById("mapOverlay")!.style.display = "none";
   });
 
   document.addEventListener("drop", e => {
     e.stopPropagation();
     e.preventDefault();
 
-    const overlay = ensureEl("mapOverlay");
+    const overlay = document.getElementById("mapOverlay")!;
     overlay.style.display = "none";
     if (e.dataTransfer?.items?.length !== 1) return;
     const file = e.dataTransfer.items[0].getAsFile();
@@ -1265,7 +1264,7 @@ function setSeed(precreatedSeed?: string) {
 
 export function addLakesInDeepDepressions() {
   TIME && console.time("addLakesInDeepDepressions");
-  const elevationLimit = +ensureEl<HTMLOutputElement>("lakeElevationLimitOutput").value;
+  const elevationLimit = +(document.getElementById("lakeElevationLimitOutput") as HTMLOutputElement).value;
   if (elevationLimit === 80) return;
 
   const { cells: gridCells, features } = worldContext.grid;
@@ -1425,9 +1424,9 @@ function defineMapSize() {
 }
 
 export function calculateMapCoordinates() {
-  const sizeFraction = +ensureEl<HTMLOutputElement>("mapSizeOutput").value / 100;
-  const latShift = +ensureEl<HTMLOutputElement>("latitudeOutput").value / 100;
-  const lonShift = +ensureEl<HTMLOutputElement>("longitudeOutput").value / 100;
+  const sizeFraction = +(document.getElementById("mapSizeOutput") as HTMLOutputElement).value / 100;
+  const latShift = +(document.getElementById("latitudeOutput") as HTMLOutputElement).value / 100;
+  const lonShift = +(document.getElementById("longitudeOutput") as HTMLOutputElement).value / 100;
 
   const latT = rn(sizeFraction * 180, 1);
   const latN = rn(90 - (180 - latT) * latShift, 1);
@@ -1819,12 +1818,13 @@ export function undraw() {
   viewbox
     .selectAll("path, circle, polygon, line, text, use, #texture > image, #zones > g, #armies > g, #ruler > g")
     .remove();
-  ensureEl("deftemp")
+  viewContext.defs
+    .node()!
     .querySelectorAll("path, clipPath, svg")
     .forEach(el => {
       el.remove();
     });
-  ensureEl("coas").innerHTML = "";
+  document.getElementById("coas")!.innerHTML = "";
   worldContext.notes = [];
   unfog();
 }

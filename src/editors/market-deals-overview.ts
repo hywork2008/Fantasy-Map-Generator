@@ -6,7 +6,7 @@ import type { Burg } from "../modules/burgs-generator";
 import { Goods } from "../modules/goods-generator";
 import type { Deal } from "../modules/markets-generator";
 import { Markets } from "../modules/markets-generator";
-import { ensureEl, formatPrice, rn } from "../utils";
+import { formatPrice, rn } from "../utils";
 import { applySorting, tip } from "../utils/uiHelpers";
 
 let isInitialized = false;
@@ -22,15 +22,15 @@ export function open(marketId: number): void {
 
   activeMarketId = marketId;
   activeFilter = "all";
-  (ensureEl("marketDealsFilter") as HTMLSelectElement).value = "all";
+  (document.getElementById("marketDealsFilter") as HTMLSelectElement).value = "all";
   marketDealsAddLines();
 
   // dialog call removed
 
   if (!isInitialized) {
-    ensureEl("marketDealsRefresh").addEventListener("click", marketDealsAddLines);
-    ensureEl("marketDealsExport").addEventListener("click", downloadDealsCsv);
-    ensureEl("marketDealsBody").addEventListener("click", (ev: MouseEvent) => {
+    document.getElementById("marketDealsRefresh")!.addEventListener("click", marketDealsAddLines);
+    document.getElementById("marketDealsExport")!.addEventListener("click", downloadDealsCsv);
+    document.getElementById("marketDealsBody")!.addEventListener("click", (ev: MouseEvent) => {
       const el = ev.target as HTMLElement;
       const dealId = el.closest<HTMLElement>(".marketDealParty")?.parentElement?.dataset.id;
       const deal = worldContext.pack.deals.find(d => d.i === Number(dealId));
@@ -39,7 +39,7 @@ export function open(marketId: number): void {
       const party = getParty(deal);
       if (party) zoomTo(party.x, party.y, 8, 2000);
     });
-    ensureEl("marketDealsFilter").addEventListener("change", (ev: Event) => {
+    document.getElementById("marketDealsFilter")!.addEventListener("change", (ev: Event) => {
       activeFilter = (ev.target as HTMLSelectElement).value as typeof activeFilter;
       marketDealsAddLines();
     });
@@ -68,11 +68,11 @@ function marketDealsAddLines(): void {
     lines += renderDealLine(deal);
   }
 
-  ensureEl("marketDealsBody").innerHTML = lines || "No market deals recorded";
-  ensureEl("marketDealsFooterDeals").innerHTML = String(deals.length);
-  ensureEl("marketDealsFooterNet").innerHTML = formatPrice(netFlow);
+  document.getElementById("marketDealsBody")!.innerHTML = lines || "No market deals recorded";
+  document.getElementById("marketDealsFooterDeals")!.innerHTML = String(deals.length);
+  document.getElementById("marketDealsFooterNet")!.innerHTML = formatPrice(netFlow);
 
-  applySorting(ensureEl("marketDealsHeader"));
+  applySorting(document.getElementById("marketDealsHeader")!);
 }
 
 function getMarketDeals(marketId: number): Deal[] {

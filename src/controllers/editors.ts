@@ -5,7 +5,7 @@ import { worldContext } from "../context/worldContext";
 import { elSelected, setElSelected } from "../store/editorState";
 import { useOptionsState } from "../store/optionsState";
 import { closeDialogs, openConfirm, openDialog } from "../ui/dialogs/dialogService";
-import { ensureEl, parseTransform, rn } from "../utils";
+import { parseTransform, rn } from "../utils";
 import { TIME } from "../utils/debug";
 import { onMouseMove, tip } from "../utils/uiHelpers";
 import { interactionManager } from "./interactionManager";
@@ -97,10 +97,9 @@ export { closeDialogs };
 export function moveCircle(x: number, y: number, r = 20): void {
   const circle = document.getElementById("brushCircle");
   if (!circle) {
-    ensureEl("debug").insertAdjacentHTML(
-      "afterBegin" as InsertPosition,
-      `<circle id="brushCircle" cx=${x} cy=${y} r=${r}></circle>`
-    );
+    viewContext.debug
+      .node()!
+      .insertAdjacentHTML("afterBegin" as InsertPosition, `<circle id="brushCircle" cx=${x} cy=${y} r=${r}></circle>`);
   } else {
     circle.setAttribute("cx", String(x));
     circle.setAttribute("cy", String(y));
@@ -392,7 +391,7 @@ function createPicker(): void {
 }
 
 function updateSelectedRect(fill: string): void {
-  ensureEl("picker").querySelector<Element>("rect.selected")!.classList.remove("selected");
+  document.getElementById("picker")!.querySelector<Element>("rect.selected")!.classList.remove("selected");
   document
     .getElementById("picker")!
     .querySelector<Element>(`rect[fill='${fill.toLowerCase()}']`)!
@@ -460,7 +459,7 @@ const openPicker: OpenPickerFn = (fill: string, callback: (fill: string) => void
   updateSelectedRect(fill);
 
   openPicker.updateFill = () => {
-    const selected = ensureEl("picker").querySelector<Element>("rect.selected");
+    const selected = document.getElementById("picker")?.querySelector<Element>("rect.selected");
     if (!selected) return;
     callback(selected.getAttribute("fill")!);
   };
@@ -646,8 +645,8 @@ export function selectIcon(initial: string, callback: (value: string) => void): 
   if (!callback) return;
   openDialog("iconSelector", { title: "Select Icon", onClose: () => callback(initial) });
 
-  const table = ensureEl<HTMLTableElement>("iconTable");
-  const iconInput = ensureEl<HTMLInputElement>("iconInput");
+  const table = document.getElementById("iconTable") as HTMLTableElement;
+  const iconInput = document.getElementById("iconInput") as HTMLInputElement;
   iconInput.value = initial;
 
   if (!table.innerHTML) {
@@ -877,14 +876,14 @@ export function selectIcon(initial: string, callback: (value: string) => void): 
   };
 
   function addExternalImage(url: string) {
-    const addedIcons = ensureEl("addedIcons");
+    const addedIcons = document.getElementById("addedIcons")!;
     const image = document.createElement("div");
     image.style.cssText = `width: 2.2em; height: 2.2em; background-size: cover; background-image: url(${url})`;
     addedIcons.appendChild(image);
     image.onclick = () => callback(url);
   }
 
-  const addImageBtn = ensureEl<HTMLButtonElement>("addImage");
+  const addImageBtn = document.getElementById("addImage") as HTMLButtonElement;
   addImageBtn.onclick = () => {
     const urlInput = addImageBtn.previousElementSibling as HTMLInputElement;
     const url = urlInput.value;
@@ -895,7 +894,8 @@ export function selectIcon(initial: string, callback: (value: string) => void): 
     urlInput.value = "";
   };
 
-  ensureEl("addedIcons")
+  document
+    .getElementById("addedIcons")!
     .querySelectorAll<HTMLElement>("div")
     .forEach(div => {
       div.onclick = () => callback(div.style.backgroundImage.slice(5, -2));
@@ -949,14 +949,18 @@ export function refreshAllEditors(): void {
   TIME && console.time("refreshAllEditors");
   if (document.getElementById("culturesEditorRefresh")?.offsetParent)
     (document.getElementById("culturesEditorRefresh") as HTMLButtonElement).click();
-  if (ensureEl("biomesEditorRefresh").offsetParent) ensureEl<HTMLButtonElement>("biomesEditorRefresh").click();
-  if (ensureEl("diplomacyEditorRefresh").offsetParent) ensureEl<HTMLButtonElement>("diplomacyEditorRefresh").click();
-  if (ensureEl("provincesEditorRefresh").offsetParent) ensureEl<HTMLButtonElement>("provincesEditorRefresh").click();
+  if (document.getElementById("biomesEditorRefresh")?.offsetParent)
+    (document.getElementById("biomesEditorRefresh") as HTMLButtonElement).click();
+  if (document.getElementById("diplomacyEditorRefresh")?.offsetParent)
+    (document.getElementById("diplomacyEditorRefresh") as HTMLButtonElement).click();
+  if (document.getElementById("provincesEditorRefresh")?.offsetParent)
+    (document.getElementById("provincesEditorRefresh") as HTMLButtonElement).click();
   if (document.getElementById("religionsEditorRefresh")?.offsetParent)
     (document.getElementById("religionsEditorRefresh") as HTMLButtonElement).click();
   if (document.getElementById("statesEditorRefresh")?.offsetParent)
     (document.getElementById("statesEditorRefresh") as HTMLButtonElement).click();
-  if (ensureEl("zonesEditorRefresh").offsetParent) ensureEl<HTMLButtonElement>("zonesEditorRefresh").click();
+  if (document.getElementById("zonesEditorRefresh")?.offsetParent)
+    (document.getElementById("zonesEditorRefresh") as HTMLButtonElement).click();
   TIME && console.timeEnd("refreshAllEditors");
 }
 

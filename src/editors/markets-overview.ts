@@ -16,7 +16,7 @@ import type { Deal, Market } from "../modules/markets-generator";
 import { Markets } from "../modules/markets-generator";
 import { drawMarketsLayer, highlightMarketOff, highlightMarketOn } from "../renderers/draw-markets";
 import { getMarketsOverviewState, type MarketRowData, setMarketsOverviewState } from "../store/marketsOverviewState";
-import { ensureEl, findAllCellsInRadius, findCell, findClosestCell, getIsolines, getVertexPath, rn } from "../utils";
+import { findAllCellsInRadius, findCell, findClosestCell, getIsolines, getVertexPath, rn } from "../utils";
 import { layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, showMainTip, tip } from "../utils/uiHelpers";
 
@@ -127,13 +127,14 @@ function enterMarketsManualAssignment(): void {
   document.querySelectorAll<HTMLElement>("#marketsOverviewBottom > button").forEach(b => {
     b.style.display = "none";
   });
-  ensureEl("marketsManuallyButtons").style.display = "block";
-  ensureEl("marketsBrush").style.display = "inline-block";
-  ensureEl("marketsManually").classList.add("pressed");
-  ensureEl("marketsOverviewFooter").style.display = "none";
+  document.getElementById("marketsManuallyButtons")!.style.display = "block";
+  document.getElementById("marketsBrush")!.style.display = "inline-block";
+  document.getElementById("marketsManually")!.classList.add("pressed");
+  document.getElementById("marketsOverviewFooter")!.style.display = "none";
 
-  ensureEl("marketsOverviewHeader").style.gridTemplateColumns = "1.6em 7.2em 8em 3.5em";
-  ensureEl("marketsOverview")
+  document.getElementById("marketsOverviewHeader")!.style.gridTemplateColumns = "1.6em 7.2em 8em 3.5em";
+  document
+    .getElementById("marketsOverview")!
     .querySelectorAll(".hide")
     .forEach(el => {
       el.classList.add("hidden");
@@ -141,7 +142,9 @@ function enterMarketsManualAssignment(): void {
 
   tip('Click a market row (or "No market") to select it, then drag on the map to repaint territory', true);
 
-  const firstRow = ensureEl("marketsOverviewBody").querySelector<HTMLElement>('.states.market:not([data-id="0"])');
+  const firstRow = document
+    .getElementById("marketsOverviewBody")!
+    .querySelector<HTMLElement>('.states.market:not([data-id="0"])');
   if (firstRow) firstRow.classList.add("selected");
 
   viewbox
@@ -166,20 +169,22 @@ function selectMarketOnMapClick(this: SVGGElement, event: MouseEvent): void {
 
   const marketId = (marketsWorking ?? worldContext.pack.cells.market)[cellId];
 
-  const body = ensureEl("marketsOverviewBody");
+  const body = document.getElementById("marketsOverviewBody")!;
   body.querySelector<HTMLElement>(".states.market.selected")?.classList.remove("selected");
   body.querySelector<HTMLElement>(`.states.market[data-id="${marketId}"]`)?.classList.add("selected");
 }
 
 function startMarketsBrushDrag(this: SVGGElement, event: D3DragEvent<SVGGElement, unknown, unknown>): void {
-  const selectedRow = ensureEl("marketsOverviewBody").querySelector<HTMLElement>(".states.market.selected");
+  const selectedRow = document
+    .getElementById("marketsOverviewBody")!
+    .querySelector<HTMLElement>(".states.market.selected");
   if (!selectedRow) return;
   const marketId = +selectedRow.dataset.id!;
   // marketId 0 = "no market" (erase assignment); any other id must be an existing market.
   if (marketId !== 0 && !Markets.get(marketId)) return;
 
   saveMarketsManualSnapshot();
-  const r = +ensureEl<HTMLInputElement>("marketsBrush").value;
+  const r = +(document.getElementById("marketsBrush") as HTMLInputElement).value;
 
   event.on("drag", (dragEvent: D3DragEvent<SVGGElement, unknown, unknown>) => {
     if (!dragEvent.dx && !dragEvent.dy) return;
@@ -257,7 +262,7 @@ function setMarketTempPath(temp: HTMLElement, marketId: number, d: string): void
 function onMarketsBrushMove(this: SVGGElement, event: MouseEvent): void {
   showMainTip();
   const [x, y] = pointer(event, this);
-  const r = +ensureEl<HTMLInputElement>("marketsBrush").value;
+  const r = +(document.getElementById("marketsBrush") as HTMLInputElement).value;
   moveCircle(x, y, r);
 }
 
@@ -283,19 +288,24 @@ function exitMarketsManualAssignment(apply: boolean): void {
   marketsManualHistory = [];
   document.getElementById("marketsTemp")?.remove();
 
-  ensureEl("marketsOverviewHeader").style.gridTemplateColumns = "1.6em 7.2em 8em 3.5em 4.5em 6.5em 6.4em 6em 6em 1.2em";
-  ensureEl("marketsOverview")
+  document.getElementById("marketsOverviewHeader")!.style.gridTemplateColumns =
+    "1.6em 7.2em 8em 3.5em 4.5em 6.5em 6.4em 6em 6em 1.2em";
+  document
+    .getElementById("marketsOverview")!
     .querySelectorAll(".hide")
     .forEach(el => void el.classList.remove("hidden"));
-  ensureEl("marketsOverviewFooter").style.display = "block";
+  document.getElementById("marketsOverviewFooter")!.style.display = "block";
 
   document.querySelectorAll<HTMLElement>("#marketsOverviewBottom > button").forEach(b => {
     b.style.display = "";
   });
-  ensureEl("marketsManuallyButtons").style.display = "none";
-  ensureEl("marketsBrush").style.display = "none";
-  ensureEl("marketsManually").classList.remove("pressed");
-  ensureEl("marketsOverviewBody").querySelector<HTMLElement>(".states.market.selected")?.classList.remove("selected");
+  document.getElementById("marketsManuallyButtons")!.style.display = "none";
+  document.getElementById("marketsBrush")!.style.display = "none";
+  document.getElementById("marketsManually")!.classList.remove("pressed");
+  document
+    .getElementById("marketsOverviewBody")!
+    .querySelector<HTMLElement>(".states.market.selected")
+    ?.classList.remove("selected");
 
   restoreDefaultEvents();
   clearMainTip();
@@ -311,14 +321,14 @@ function exitMarketsManualAssignment(apply: boolean): void {
 
 function enterAddMarketMode(): void {
   viewContext.customization = 16;
-  ensureEl("marketsAdd").classList.add("pressed");
+  document.getElementById("marketsAdd")!.classList.add("pressed");
   tip("Click on a burg on the map to create a new market there. Hold Shift to add multiple", true);
   viewbox.style("cursor", "crosshair").on("click", addMarketOnClick);
 }
 
 function exitAddMarketMode(): void {
   viewContext.customization = 0;
-  ensureEl("marketsAdd").classList.remove("pressed");
+  document.getElementById("marketsAdd")!.classList.remove("pressed");
   restoreDefaultEvents();
   clearMainTip();
 }
@@ -475,7 +485,8 @@ function regenerateMarkets() {
       </label>`,
     confirm: "Regenerate",
     onConfirm: () => {
-      const regenProduction = ensureEl<HTMLInputElement>("marketsRegenerateProductionToggle").checked;
+      const regenProduction = (document.getElementById("marketsRegenerateProductionToggle") as HTMLInputElement)
+        .checked;
       (() => {})();
       if (regenProduction) (() => {})();
     }

@@ -6,7 +6,7 @@ import type { WorldContext } from "../context/worldContext";
 import { modules } from "../store/editorState";
 import { useOptionsState } from "../store/optionsState";
 import { closeDialogs, openDialog } from "../ui/dialogs/dialogService";
-import { ensureEl, getLatitude, getLongitude, minmax, rn } from "../utils";
+import { getLatitude, getLongitude, minmax, rn } from "../utils";
 import { INFO } from "../utils/debug";
 import { drawLayers } from "./layers";
 import { applyGraphSize, cellsDensityMap, changeCellsDensity, fitMapToScreen, getCellsDensityColor } from "./options";
@@ -39,14 +39,14 @@ export function openSubmapTool(): void {
 
   function resetInputs(): void {
     updateCellsNumber(String(useOptionsState.getState().points));
-    (ensureEl("submapPointsInput") as HTMLInputElement).oninput = (e: Event) =>
+    (document.getElementById("submapPointsInput") as HTMLInputElement).oninput = (e: Event) =>
       updateCellsNumber((e.target as HTMLInputElement).value);
 
     function updateCellsNumber(value: string): void {
-      (ensureEl("submapPointsInput") as HTMLInputElement).value = value;
+      (document.getElementById("submapPointsInput") as HTMLInputElement).value = value;
       const cells = cellsDensityMap[+value];
-      (ensureEl("submapPointsInput") as HTMLInputElement).dataset.cells = String(cells);
-      const output = ensureEl("submapPointsFormatted") as HTMLOutputElement;
+      (document.getElementById("submapPointsInput") as HTMLInputElement).dataset.cells = String(cells);
+      const output = document.getElementById("submapPointsFormatted") as HTMLOutputElement;
       output.value = `${cells / 1000}K`;
       output.style.color = getCellsDensityColor(cells);
     }
@@ -58,7 +58,7 @@ export function openSubmapTool(): void {
     const [x0, y0] = [Math.abs(viewContext.viewX / viewContext.scale), Math.abs(viewContext.viewY / viewContext.scale)];
     recalculateMapSize(x0, y0);
 
-    const submapPointsValue = (ensureEl("submapPointsInput") as HTMLInputElement).value;
+    const submapPointsValue = (document.getElementById("submapPointsInput") as HTMLInputElement).value;
     const globalPointsValue = String(useOptionsState.getState().points);
     if (submapPointsValue !== globalPointsValue) changeCellsDensity(+submapPointsValue);
 
@@ -79,24 +79,27 @@ export function openSubmapTool(): void {
     Resample.init(worldContext, viewContext, appServices);
     Resample.process({ projection, inverse, scale: viewContext.scale });
 
-    if ((ensureEl("submapRescaleBurgStyles") as HTMLInputElement).checked) rescaleBurgStyles(viewContext.scale);
+    if ((document.getElementById("submapRescaleBurgStyles") as HTMLInputElement).checked)
+      rescaleBurgStyles(viewContext.scale);
     drawLayers();
 
     INFO && console.groupEnd();
   }
 
   function recalculateMapSize(x0: number, y0: number): void {
-    const mapSize = +(ensureEl("mapSizeOutput") as HTMLOutputElement).value;
+    const mapSize = +(document.getElementById("mapSizeOutput") as HTMLOutputElement).value;
     const newSize = String(rn(mapSize / viewContext.scale, 2));
-    (ensureEl("mapSizeOutput") as HTMLOutputElement).value = (ensureEl("mapSizeInput") as HTMLInputElement).value =
-      newSize;
+    (document.getElementById("mapSizeOutput") as HTMLOutputElement).value = (
+      document.getElementById("mapSizeInput") as HTMLInputElement
+    ).value = newSize;
 
     const latT = worldContext.mapCoordinates.latT! / viewContext.scale;
     const latN = getLatitude(y0, worldContext.mapCoordinates, worldContext.graphHeight);
     const latShift = (90 - latN) / (180 - latT);
     const newLat = String(rn(latShift * 100, 2));
-    (ensureEl("latitudeOutput") as HTMLOutputElement).value = (ensureEl("latitudeInput") as HTMLInputElement).value =
-      newLat;
+    (document.getElementById("latitudeOutput") as HTMLOutputElement).value = (
+      document.getElementById("latitudeInput") as HTMLInputElement
+    ).value = newLat;
 
     const lotT = worldContext.mapCoordinates.lonT! / viewContext.scale;
     const lonE = getLongitude(
@@ -106,8 +109,9 @@ export function openSubmapTool(): void {
     );
     const lonShift = (180 - lonE) / (360 - lotT);
     const newLon = String(rn(lonShift * 100, 2));
-    (ensureEl("longitudeOutput") as HTMLOutputElement).value = (ensureEl("longitudeInput") as HTMLInputElement).value =
-      newLon;
+    (document.getElementById("longitudeOutput") as HTMLOutputElement).value = (
+      document.getElementById("longitudeInput") as HTMLInputElement
+    ).value = newLon;
 
     worldContext.distanceScale = rn(worldContext.distanceScale / viewContext.scale, 2);
     distanceScaleInput.value = String(worldContext.distanceScale);

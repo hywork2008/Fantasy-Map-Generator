@@ -1,6 +1,6 @@
 import { modules } from "../store/editorState";
 import { openDialog } from "../ui/dialogs/dialogService";
-import { ensureEl, openURL } from "../utils";
+import { openURL } from "../utils";
 import { ERROR } from "../utils/debug";
 import { tip } from "../utils/uiHelpers";
 
@@ -213,7 +213,7 @@ export function generateWithAi(defaultPrompt: string, onApply: (result: string) 
         generate((e as Event).target as HTMLButtonElement);
       },
       Apply: () => {
-        const result = (ensureEl("aiGeneratorResult") as HTMLTextAreaElement).value;
+        const result = (document.getElementById("aiGeneratorResult") as HTMLTextAreaElement).value;
         if (!result) return tip("No result to apply", true, "error", 4000);
         onApply(result);
         /* $(this).dialog("close") removed */
@@ -227,48 +227,50 @@ export function generateWithAi(defaultPrompt: string, onApply: (result: string) 
   if (modules.generateWithAi) return;
   modules.generateWithAi = true;
 
-  ensureEl("aiGeneratorKeyHelp").addEventListener("click", () => {
-    const model = (ensureEl("aiGeneratorModel") as HTMLSelectElement).value;
+  document.getElementById("aiGeneratorKeyHelp")!.addEventListener("click", () => {
+    const model = (document.getElementById("aiGeneratorModel") as HTMLSelectElement).value;
     const provider = MODELS[model];
     openURL(PROVIDERS[provider].keyLink);
   });
 
   function updateValues(): void {
-    (ensureEl("aiGeneratorResult") as HTMLTextAreaElement).value = "";
-    (ensureEl("aiGeneratorPrompt") as HTMLTextAreaElement).value = defaultPrompt;
-    (ensureEl("aiGeneratorTemperature") as HTMLInputElement).value = localStorage.getItem("fmg-ai-temperature") || "1";
+    (document.getElementById("aiGeneratorResult") as HTMLTextAreaElement).value = "";
+    (document.getElementById("aiGeneratorPrompt") as HTMLTextAreaElement).value = defaultPrompt;
+    (document.getElementById("aiGeneratorTemperature") as HTMLInputElement).value =
+      localStorage.getItem("fmg-ai-temperature") || "1";
 
-    const selectEl = ensureEl("aiGeneratorModel") as HTMLSelectElement;
+    const selectEl = document.getElementById("aiGeneratorModel") as HTMLSelectElement;
     selectEl.options.length = 0;
     for (const model of Object.keys(MODELS)) selectEl.options.add(new Option(model, model));
     selectEl.value = localStorage.getItem("fmg-ai-model") || "";
     if (!selectEl.value || !MODELS[selectEl.value]) selectEl.value = DEFAULT_MODEL;
 
     const provider = MODELS[selectEl.value];
-    (ensureEl("aiGeneratorKey") as HTMLInputElement).value = localStorage.getItem(`fmg-ai-kl-${provider}`) || "";
+    (document.getElementById("aiGeneratorKey") as HTMLInputElement).value =
+      localStorage.getItem(`fmg-ai-kl-${provider}`) || "";
   }
 
   async function generate(button: HTMLButtonElement): Promise<void> {
-    const key = (ensureEl("aiGeneratorKey") as HTMLInputElement).value;
+    const key = (document.getElementById("aiGeneratorKey") as HTMLInputElement).value;
     if (!key) return tip("Please enter an API key", true, "error", 4000);
 
-    const model = (ensureEl("aiGeneratorModel") as HTMLSelectElement).value;
+    const model = (document.getElementById("aiGeneratorModel") as HTMLSelectElement).value;
     if (!model) return tip("Please select a model", true, "error", 4000);
     localStorage.setItem("fmg-ai-model", model);
 
     const provider = MODELS[model];
     localStorage.setItem(`fmg-ai-kl-${provider}`, key);
 
-    const prompt = (ensureEl("aiGeneratorPrompt") as HTMLTextAreaElement).value;
+    const prompt = (document.getElementById("aiGeneratorPrompt") as HTMLTextAreaElement).value;
     if (!prompt) return tip("Please enter a prompt", true, "error", 4000);
 
-    const temperature = (ensureEl("aiGeneratorTemperature") as HTMLInputElement).valueAsNumber;
+    const temperature = (document.getElementById("aiGeneratorTemperature") as HTMLInputElement).valueAsNumber;
     if (Number.isNaN(temperature)) return tip("Temperature must be a number", true, "error", 4000);
     localStorage.setItem("fmg-ai-temperature", String(temperature));
 
     try {
       button.disabled = true;
-      const resultArea = ensureEl("aiGeneratorResult") as HTMLTextAreaElement;
+      const resultArea = document.getElementById("aiGeneratorResult") as HTMLTextAreaElement;
       resultArea.disabled = true;
       resultArea.value = "";
       const onContent = (content: string) => (resultArea.value += content);
@@ -279,7 +281,7 @@ export function generateWithAi(defaultPrompt: string, onApply: (result: string) 
       return tip(message, true, "error", 4000);
     } finally {
       button.disabled = false;
-      (ensureEl("aiGeneratorResult") as HTMLTextAreaElement).disabled = false;
+      (document.getElementById("aiGeneratorResult") as HTMLTextAreaElement).disabled = false;
     }
   }
 }

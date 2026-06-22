@@ -52,19 +52,7 @@ import { useOptionsState } from "../store/optionsState";
 import { getStatesEditorState, setStatesEditorState } from "../store/statesEditorState";
 import type { WorldNote } from "../types/WorldState";
 import { closeDialogs, openRichDialog } from "../ui/dialogs/dialogService";
-import {
-  ensureEl,
-  findAll,
-  findCell,
-  getAdjective,
-  getMixedColor,
-  getRandomColor,
-  isLand,
-  P,
-  rand,
-  rn,
-  si
-} from "../utils";
+import { findAll, findCell, getAdjective, getMixedColor, getRandomColor, isLand, P, rand, rn, si } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
 import { getPackPolygon } from "../utils/graphUtils";
 import { layerIsOn } from "../utils/nodeUtils";
@@ -708,7 +696,7 @@ function stateRemove(stateId: number): void {
   });
 
   const coaId = `stateCOA${stateId}`;
-  ensureEl(coaId).remove();
+  document.getElementById(coaId)?.remove();
   viewContext.emblems.select(`#stateEmblems > use[data-i='${stateId}']`).remove();
 
   ((worldContext.pack.states[stateId] as State).provinces ?? []).forEach((p: number) => {
@@ -788,7 +776,7 @@ function showStatesChart(): void {
     .attr("text-anchor", "middle")
     .attr("dominant-baseline", "central");
   const graph = chartSvg.append("g").attr("transform", `translate(-50, 0)`);
-  ensureEl("statesTreeType").addEventListener("change", updateChart);
+  document.getElementById("statesTreeType")!.addEventListener("change", updateChart);
 
   treeLayout(root);
 
@@ -832,7 +820,7 @@ function showStatesChart(): void {
     const rural = rn((d.data.rural ?? 0) * worldContext.populationRate);
     const urban = rn((d.data.urban ?? 0) * worldContext.populationRate * worldContext.urbanization);
 
-    const option = (ensureEl("statesTreeType") as HTMLSelectElement).value;
+    const option = (document.getElementById("statesTreeType") as HTMLSelectElement).value;
     const value =
       option === "area"
         ? `Area: ${area}`
@@ -844,7 +832,7 @@ function showStatesChart(): void {
               ? `Burgs number: ${d.data.burgs}`
               : `Population: ${si(rural + urban)}`;
 
-    ensureEl("statesInfo").innerHTML = `${state}. ${value}`;
+    document.getElementById("statesInfo")!.innerHTML = `${state}. ${value}`;
     stateHighlightOn(ev);
   }
 
@@ -929,7 +917,7 @@ function enterStatesManualAssignent(): void {
   if (!layerIsOn("toggleStates")) toggleStates();
   viewContext.customization = 2;
   viewContext.statesBody.append("g").attr("id", "temp");
-  ensureEl("statesHalo").style.display = "none";
+  viewContext.statesHalo.node()!.style.display = "none";
 
   const firstState = (worldContext.pack.states as State[]).find(s => s.i && !s.removed);
   setStatesEditorState({ customizationMode: 1, manualSelectedStateId: firstState?.i ?? 0 });
@@ -1176,7 +1164,7 @@ function exitStatesManualAssignment(_close: boolean): void {
   removeCircle();
   restoreDefaultEvents?.();
   clearMainTip();
-  ensureEl("statesHalo").style.display = "block";
+  viewContext.statesHalo.node()!.style.display = "block";
   setStatesEditorState({ customizationMode: 0, manualSelectedStateId: 0 });
 }
 
@@ -1316,7 +1304,7 @@ function openStateMergeDialog(): void {
 
 function mergeStates(statesToMerge: number[], rulingStateId: number): void {
   const rulingState = worldContext.pack.states[rulingStateId] as State;
-  const rulingStateArmy = ensureEl(`army${rulingStateId}`);
+  const rulingStateArmy = document.getElementById(`army${rulingStateId}`)!;
 
   statesToMerge.forEach((stateId: number) => {
     const state = worldContext.pack.states[stateId] as State;
@@ -1328,7 +1316,7 @@ function mergeStates(statesToMerge: number[], rulingStateId: number): void {
     viewContext.labels.select(`#stateLabel${stateId}`).remove();
     viewContext.defs.select(`#textPath_stateLabel${stateId}`).remove();
 
-    ensureEl(`stateCOA${stateId}`).remove();
+    document.getElementById(`stateCOA${stateId}`)?.remove();
     viewContext.emblems.select(`#stateEmblems > use[data-i='${stateId}']`).remove();
 
     (state.military ?? []).forEach((regiment: MilitaryRegiment) => {

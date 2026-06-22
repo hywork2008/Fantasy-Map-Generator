@@ -7,7 +7,7 @@ import { TradeAnimation, type TradeBatch } from "../modules/trade-animation";
 import type { Point } from "../modules/voronoi";
 import { clearHighlight, highlight } from "../renderers/draw-trade-animation";
 import { openDialog } from "../ui/dialogs/dialogService";
-import { ensureEl, formatPrice, rn } from "../utils";
+import { formatPrice, rn } from "../utils";
 import { applySorting } from "../utils/uiHelpers";
 
 let isInitialized = false;
@@ -30,7 +30,7 @@ export function open(batch: TradeBatch): void {
   openDialog("tradeDetails");
 
   if (!isInitialized) {
-    ensureEl("tradeDetailsSummary").addEventListener("click", event => {
+    document.getElementById("tradeDetailsSummary")!.addEventListener("click", event => {
       const zoomEl = (event.target as HTMLElement).closest<HTMLElement>("[data-zoom]");
       if (!activeBatch || !zoomEl) return;
       const burgId = activeBatch[zoomEl.dataset.zoom === "start" ? "startBurgId" : "endBurgId"];
@@ -43,8 +43,8 @@ export function open(batch: TradeBatch): void {
 }
 
 export function closeTradeDetails(): void {
-  ensureEl("tradeDetailsBody").innerHTML = "";
-  ensureEl("tradeDetailsSummary").innerHTML = "";
+  document.getElementById("tradeDetailsBody")!.innerHTML = "";
+  document.getElementById("tradeDetailsSummary")!.innerHTML = "";
   clearHighlight();
 }
 
@@ -56,7 +56,7 @@ function tradeDetailsAddLines(points: Point[]): void {
   const fromType = getClientType(activeBatch.deals[0], from, "from");
   const toType = getClientType(activeBatch.deals[0], to, "to");
 
-  ensureEl("tradeDetailsSummary").innerHTML = /* html */ `
+  document.getElementById("tradeDetailsSummary")!.innerHTML = /* html */ `
     <span><b>Seller</b>: ${from?.name} ${fromType} <span class="icon-dot-circled pointer" data-zoom="start" data-tip="Zoom to start"></span></span>
     <span style="margin-left:5px"><b>Buyer</b>: ${to?.name} ${toType} <span class="icon-dot-circled pointer" data-zoom="end" data-tip="Zoom to end"></span></span>`;
 
@@ -97,13 +97,13 @@ function tradeDetailsAddLines(points: Point[]): void {
     }, 0),
     2
   );
-  ensureEl("tradeDetailsBody").innerHTML = html.join("");
-  ensureEl("tradeDetailsFooterDistance").innerHTML =
+  document.getElementById("tradeDetailsBody")!.innerHTML = html.join("");
+  document.getElementById("tradeDetailsFooterDistance")!.innerHTML =
     `${rn(length * worldContext.distanceScale)} ${distanceUnitInput.value}`;
-  ensureEl("tradeDetailsFooterUnits").innerHTML = String(rn(totalUnits, 2));
-  ensureEl("tradeDetailsFooterValue").innerHTML = formatPrice(totalValue);
+  document.getElementById("tradeDetailsFooterUnits")!.innerHTML = String(rn(totalUnits, 2));
+  document.getElementById("tradeDetailsFooterValue")!.innerHTML = formatPrice(totalValue);
 
-  applySorting(ensureEl("tradeDetailsHeader"));
+  applySorting(document.getElementById("tradeDetailsHeader")!);
 }
 
 function getClientType(deal: Deal, burg: Burg, direction: "from" | "to"): string {

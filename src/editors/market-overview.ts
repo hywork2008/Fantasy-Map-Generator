@@ -5,7 +5,7 @@ import type { Burg } from "../modules/burgs-generator";
 import { Goods } from "../modules/goods-generator";
 import type { Market } from "../modules/markets-generator";
 import { Markets } from "../modules/markets-generator";
-import { ensureEl, formatPrice, rn } from "../utils";
+import { formatPrice, rn } from "../utils";
 import { applySorting, tip } from "../utils/uiHelpers";
 import { open as openMarketDealsOverview } from "./market-deals-overview";
 
@@ -26,18 +26,20 @@ export function open(marketId: number): void {
   // dialog call removed
 
   if (!isInitialized) {
-    ensureEl("marketOverviewRefresh").addEventListener("click", marketOverviewAddLines);
-    ensureEl("marketOverviewExport").addEventListener("click", downloadStockCsv);
-    ensureEl("marketOverviewOpenDeals").addEventListener("click", () => openMarketDealsOverview(activeMarketId));
-    ensureEl("marketOverviewName").addEventListener("input", onRenameInput);
-    ensureEl("marketOverviewNameReset").addEventListener("click", resetMarketName);
+    document.getElementById("marketOverviewRefresh")!.addEventListener("click", marketOverviewAddLines);
+    document.getElementById("marketOverviewExport")!.addEventListener("click", downloadStockCsv);
+    document
+      .getElementById("marketOverviewOpenDeals")!
+      .addEventListener("click", () => openMarketDealsOverview(activeMarketId));
+    document.getElementById("marketOverviewName")!.addEventListener("input", onRenameInput);
+    document.getElementById("marketOverviewNameReset")!.addEventListener("click", resetMarketName);
     isInitialized = true;
   }
 }
 
 // The input shows the custom name (empty when using the default); the placeholder shows the default.
 function refreshNameInput(market: Market): void {
-  const input = ensureEl<HTMLInputElement>("marketOverviewName");
+  const input = document.getElementById("marketOverviewName") as HTMLInputElement;
   input.value = market.name || "";
   input.placeholder = worldContext.pack.burgs[market.centerBurgId]?.name || `Market ${market.i}`;
 }
@@ -55,7 +57,7 @@ function resetMarketName(): void {
   const market = Markets.get(activeMarketId);
   if (!market) return;
   market.name = undefined;
-  ensureEl<HTMLInputElement>("marketOverviewName").value = "";
+  (document.getElementById("marketOverviewName") as HTMLInputElement).value = "";
   // Dialog call removed
 }
 
@@ -91,24 +93,24 @@ function marketOverviewAddLines() {
       <div data-tip="Good price" class="marketGoodPrice">${formatPrice(marketGood.price)}</div>
     </div>`;
   }
-  ensureEl("marketOverviewGoodsBody").innerHTML = lines || "No market goods available";
+  document.getElementById("marketOverviewGoodsBody")!.innerHTML = lines || "No market goods available";
 
   const center = worldContext.pack.burgs[market.centerBurgId];
   const state = worldContext.pack.states[center?.state || 0];
   const coaId = `stateCOA${state.i}`;
   if (state && appServices.COArenderer) appServices.COArenderer.trigger(coaId, state.coa);
 
-  ensureEl("marketOverviewInfo").innerHTML =
+  document.getElementById("marketOverviewInfo")!.innerHTML =
     `<svg class="coaIcon" viewBox="0 0 200 200"><use href="#${coaId}"></use></svg><b>Owner:</b> ${state.fullName || state.name}`;
 
   const burgs = worldContext.pack.burgs.filter(b => !b.removed && b.market === market.i);
   const totalUnits = Object.values(market.goods).reduce((sum, mg) => sum + mg.stock, 0);
-  ensureEl("marketOverviewSummary").innerHTML = /*html*/ `
+  document.getElementById("marketOverviewSummary")!.innerHTML = /*html*/ `
     <div style="margin-left:5px">Cells: ${worldContext.pack.cells.market.reduce((count, m) => count + (m === market.i ? 1 : 0), 0)}</div>
     <div style="margin-left:12px">Burgs: ${burgs.length}</div>
     <div style="margin-left:12px">Stock: ${rn(totalUnits, 2)}</div>`;
 
-  applySorting(ensureEl("marketOverviewHeader"));
+  applySorting(document.getElementById("marketOverviewHeader")!);
   // dialog call removed
 }
 

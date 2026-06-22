@@ -7,7 +7,6 @@ import { Burgs } from "../modules/burgs-generator";
 import { BurgIconsRenderer, BurgLabelsRenderer } from "../renderers";
 import { modules } from "../store/editorState";
 import { closeDialog, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
-import { ensureEl } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
 import { layerIsOn } from "../utils/nodeUtils";
 import { fitContent, tip } from "../utils/uiHelpers";
@@ -31,10 +30,12 @@ export function editBurgGroups(): void {
     position: { my: "center", at: "center", of: "svg" },
     buttons: {
       Apply: () => {
-        (ensureEl("burgGroupsForm") as HTMLFormElement).requestSubmit();
+        (document.getElementById("burgGroupsForm") as HTMLFormElement).requestSubmit();
       },
       Add: () => {
-        ensureEl("burgGroupsBody").insertAdjacentHTML("beforeend", createLine({ name: "", active: true, order: 1 }));
+        document
+          .getElementById("burgGroupsBody")!
+          .insertAdjacentHTML("beforeend", createLine({ name: "", active: true, order: 1 }));
       },
       Restore: () => {
         worldContext.options.burgs.groups = Burgs.getDefaultGroups();
@@ -50,10 +51,10 @@ export function editBurgGroups(): void {
   modules.editBurgGroups = true;
 
   // add listeners
-  const formEl = ensureEl("burgGroupsForm");
+  const formEl = document.getElementById("burgGroupsForm")!;
   formEl.addEventListener("change", validateForm);
   formEl.addEventListener("submit", submitForm);
-  ensureEl("burgGroupsBody").addEventListener("click", (ev: Event) => {
+  document.getElementById("burgGroupsBody")!.addEventListener("click", (ev: Event) => {
     const e = ev as MouseEvent;
     const el = e.target as HTMLElement;
     const line = el.closest("tr") as HTMLTableRowElement | null;
@@ -79,7 +80,7 @@ export function editBurgGroups(): void {
 
   function addLines(): void {
     const lines = worldContext.options.burgs.groups.map(createLine);
-    ensureEl("burgGroupsBody").innerHTML = lines.join("");
+    document.getElementById("burgGroupsBody")!.innerHTML = lines.join("");
   }
 
   function createLine(group: BurgGroup): string {
@@ -243,7 +244,7 @@ export function editBurgGroups(): void {
       title: "Limit group by features",
       buttons: {
         Apply: () => {
-          const form = ensureEl("featuresLimitationForm") as HTMLFormElement;
+          const form = document.getElementById("featuresLimitationForm") as HTMLFormElement;
           const values = features.reduce((acc: Record<string, boolean>, { name }) => {
             const value = (form.elements.namedItem(name) as HTMLInputElement | null)?.value;
             if (value !== "undefined") acc[name] = value === "true";
@@ -262,7 +263,7 @@ export function editBurgGroups(): void {
   }
 
   function removeLine(line: HTMLTableRowElement): void {
-    const lines = ensureEl("burgGroupsBody").children;
+    const lines = document.getElementById("burgGroupsBody")!.children;
     if (lines.length < 2) {
       tip("At least one group should be defined", false, "error");
       return;
@@ -281,7 +282,7 @@ export function editBurgGroups(): void {
   }
 
   function validateForm(): boolean {
-    const form = ensureEl("burgGroupsForm") as HTMLFormElement;
+    const form = document.getElementById("burgGroupsForm") as HTMLFormElement;
     const nameInputs = form.querySelectorAll<HTMLInputElement>("[name='name']");
 
     if (nameInputs.length > 1) {
@@ -331,7 +332,7 @@ export function editBurgGroups(): void {
     event.preventDefault();
     if (!validateForm()) return;
 
-    const lines = Array.from(ensureEl("burgGroupsBody").children) as HTMLTableRowElement[];
+    const lines = Array.from(document.getElementById("burgGroupsBody")!.children) as HTMLTableRowElement[];
     if (!lines.length) {
       tip("At least one group should be defined", false, "error");
       return;
