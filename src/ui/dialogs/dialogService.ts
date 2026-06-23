@@ -70,6 +70,9 @@ export function closeAllDialogs(except?: string): void {
  * Sub-editors should import this directly from dialogService to avoid circular deps with editors.ts.
  */
 export function closeDialogs(except = "#except"): void {
+  if (except.includes(".stable")) {
+    return; // All React dialogs are considered stable, so do not close them.
+  }
   const exceptId = except.startsWith("#") ? except.slice(1) : except;
   closeAllDialogs(exceptId);
 }
