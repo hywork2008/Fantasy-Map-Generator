@@ -864,11 +864,12 @@ export function toggleAddBurg(): void {
 
 export function toggleAddRiver(): void {
   const addRiverBtn = document.getElementById("addRiver")!;
-  const addNewRiverEl = document.getElementById("addNewRiver")!;
+  // addNewRiver is a secondary button in the rivers overview dialog; may not exist
+  const addNewRiverEl = document.getElementById("addNewRiver");
 
   if (addRiverBtn.classList.contains("pressed")) {
     unpressClickToAddButton();
-    addNewRiverEl.classList.remove("pressed");
+    addNewRiverEl?.classList.remove("pressed");
     return;
   }
 
@@ -879,7 +880,7 @@ export function toggleAddRiver(): void {
       b.classList.remove("pressed");
     });
   addRiverBtn.classList.add("pressed");
-  addNewRiverEl.classList.add("pressed");
+  addNewRiverEl?.classList.add("pressed");
   closeDialogs(".stable");
   viewContext.viewbox.style("cursor", "crosshair");
   interactionManager.setClickHandler(addRiverOnClick);
@@ -1029,7 +1030,7 @@ function addRiverOnClick(this: SVGElement, event: MouseEvent): void {
   if (!event.shiftKey) {
     Lakes.cleanupLakeData();
     unpressClickToAddButton();
-    document.getElementById("addNewRiver")!.classList.remove("pressed");
+    document.getElementById("addNewRiver")?.classList.remove("pressed");
     const riversOverviewRefreshEl = document.getElementById("riversOverviewRefresh") as HTMLButtonElement | null;
     if (riversOverviewRefreshEl?.offsetParent) riversOverviewRefreshEl.click();
   }

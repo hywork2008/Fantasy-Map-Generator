@@ -596,9 +596,15 @@ class RiverModule {
   }
 
   getBasin(r: number): number {
-    const parent = this.getParent(r);
-    if (parent === r) return r;
-    return this.getBasin(parent);
+    const visited = new Set<number>();
+    let current = r;
+    while (true) {
+      if (visited.has(current)) return current; // cycle detected — treat as root
+      visited.add(current);
+      const parent = this.getParent(current);
+      if (parent === current) return current;
+      current = parent;
+    }
   }
 
   getNextId(rivers: { i: number }[]) {
