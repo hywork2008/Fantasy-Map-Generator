@@ -649,7 +649,7 @@ export function selectIcon(initial: string, callback: (value: string) => void): 
   const iconInput = document.getElementById("iconInput") as HTMLInputElement;
   iconInput.value = initial;
 
-  if (!table.innerHTML) {
+  if (table.rows.length === 0) {
     const icons = [
       "⚔️",
       "🏹",
@@ -843,7 +843,7 @@ export function selectIcon(initial: string, callback: (value: string) => void): 
     let row: HTMLTableRowElement | undefined;
     for (let i = 0; i < icons.length; i++) {
       if (i % 17 === 0) row = table.insertRow((i / 17) | 0);
-      row!.insertCell(i % 17).innerHTML = icons[i];
+      row!.insertCell(i % 17).textContent = icons[i];
     }
 
     const externalResources = new Set<string>();

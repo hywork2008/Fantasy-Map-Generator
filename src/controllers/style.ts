@@ -785,23 +785,31 @@ export function initStyleTab() {
 
   {
     const filters = Array.from(document.getElementById("filters")!.querySelectorAll<SVGFilterElement>("filter"));
-    const emptyOption = '<option value="" selected>None</option>';
-    const options = filters.map(filter => {
-      const id = filter.getAttribute("id")!;
-      const name = filter.getAttribute("name") ?? id;
-      return `<option value="url(#${id})">${name}</option>`;
-    });
-    const allOptions = emptyOption + options.join("");
-    document.getElementById("styleFilterInput")!.innerHTML = allOptions;
-    document.getElementById("styleStatesBodyFilter")!.innerHTML = allOptions;
-    document.getElementById("styleScaleBarBackgroundFilter")!.innerHTML = allOptions;
+    const buildFilterOptions = (): HTMLOptionElement[] => {
+      const noneOpt = new Option("None", "");
+      noneOpt.selected = true;
+      return [
+        noneOpt,
+        ...filters.map(filter => {
+          const id = filter.getAttribute("id")!;
+          const name = filter.getAttribute("name") ?? id;
+          return new Option(name, `url(#${id})`);
+        })
+      ];
+    };
+    const populateFilterSelect = (elId: string): void => {
+      (document.getElementById(elId) as HTMLSelectElement).replaceChildren(...buildFilterOptions());
+    };
+    populateFilterSelect("styleFilterInput");
+    populateFilterSelect("styleStatesBodyFilter");
+    populateFilterSelect("styleScaleBarBackgroundFilter");
   }
 
   // ─── Initialization: heightmap scheme dropdown ────────────────────────────────
 
-  (document.getElementById("styleHeightmapScheme") as HTMLSelectElement).innerHTML = Object.keys(heightmapColorSchemes)
-    .map(scheme => `<option value="${scheme}">${scheme}</option>`)
-    .join("");
+  (document.getElementById("styleHeightmapScheme") as HTMLSelectElement).replaceChildren(
+    ...Object.keys(heightmapColorSchemes).map(scheme => new Option(scheme, scheme))
+  );
 
   // ─── Initialization: vignette preset dropdown ─────────────────────────────────
 
@@ -840,12 +848,13 @@ export function initStyleTab() {
   const customPresetPrefix = "fmgStyle_";
 
   {
-    const systemOptions = systemPresets.map(name => `<option value="${name}">${name}</option>`);
     const storedStyles = Object.keys(localStorage).filter(key => key.startsWith(customPresetPrefix));
-    const customOptions = storedStyles.map(
-      key => `<option value="${key}">${key.replace(customPresetPrefix, "")} [custom]</option>`
+    const systemOptionEls = systemPresets.map(name => new Option(name, name));
+    const customOptionEls = storedStyles.map(key => new Option(`${key.replace(customPresetPrefix, "")} [custom]`, key));
+    (document.getElementById("stylePreset") as HTMLSelectElement).replaceChildren(
+      ...systemOptionEls,
+      ...customOptionEls
     );
-    document.getElementById("stylePreset")!.innerHTML = systemOptions.join("") + customOptions.join("");
   }
 
   // ─── Event listeners ──────────────────────────────────────────────────────────
@@ -1012,51 +1021,68 @@ export function initStyleTab() {
 
       function renderStops(): void {
         const stops = button.dataset.stops!.split(",");
-
-        const colorInput = (color: string) =>
-          `<input type="color" class="stop" value="${color}" data-tip="Click to set the color" style="width: 2.5em; border: none;" />`;
-        const removeStopButton = (index: number) =>
-          `<button class="remove" data-index="${index}" data-tip="Remove color stop" style="margin-top: 0.3em; height: max-content;">x</button>`;
-        const addStopButton = () =>
-          `<button class="add" data-tip="Add color stop in between" style="margin-top: 0.3em; height: max-content;">+</button>`;
-
         const container = document.getElementById("heightmapSchemeStops")!;
-        container.innerHTML = stops
-          .map(
-            (stop, index) => `${colorInput(stop)}${index && index < stops.length - 1 ? removeStopButton(index) : ""}`
-          )
-          .join(addStopButton());
 
-        Array.from(container.querySelectorAll<HTMLInputElement>("input.stop")).forEach((input, index) => {
+        const createColorInput = (color: string, idx: number): HTMLInputElement => {
+          const input = document.createElement("input");
+          input.type = "color";
+          input.className = "stop";
+          input.value = color;
+          input.dataset.tip = "Click to set the color";
+          input.style.width = "2.5em";
+          input.style.border = "none";
           input.oninput = function () {
-            stops[index] = (this as HTMLInputElement).value;
+            stops[idx] = (this as HTMLInputElement).value;
             button.dataset.stops = stops.join(",");
             renderPreview();
             renderGradient();
           };
-        });
+          return input;
+        };
 
-        Array.from(container.querySelectorAll<HTMLButtonElement>("button.remove")).forEach(btn => {
-          btn.onclick = function () {
-            const index = +(this as HTMLButtonElement).dataset.index!;
-            stops.splice(index, 1);
-            button.dataset.stops = stops.join(",");
-            renderPreview();
-            renderStops();
-            renderGradient();
-          };
-        });
-
-        Array.from(container.querySelectorAll<HTMLButtonElement>("button.add")).forEach((btn, index) => {
+        const createRemoveButton = (idx: number): HTMLButtonElement => {
+          const btn = document.createElement("button");
+          btn.className = "remove";
+          btn.dataset.index = String(idx);
+          btn.dataset.tip = "Remove color stop";
+          btn.style.marginTop = "0.3em";
+          btn.style.height = "max-content";
+          btn.textContent = "x";
           btn.onclick = () => {
-            const middleColor = interpolateRgb(stops[index], stops[index + 1])(0.5);
-            stops.splice(index + 1, 0, toHEX(middleColor));
+            stops.splice(idx, 1);
             button.dataset.stops = stops.join(",");
             renderPreview();
             renderStops();
             renderGradient();
           };
+          return btn;
+        };
+
+        const createAddButton = (idx: number): HTMLButtonElement => {
+          const btn = document.createElement("button");
+          btn.className = "add";
+          btn.dataset.tip = "Add color stop in between";
+          btn.style.marginTop = "0.3em";
+          btn.style.height = "max-content";
+          btn.textContent = "+";
+          btn.onclick = () => {
+            const middleColor = interpolateRgb(stops[idx], stops[idx + 1])(0.5);
+            stops.splice(idx + 1, 0, toHEX(middleColor));
+            button.dataset.stops = stops.join(",");
+            renderPreview();
+            renderStops();
+            renderGradient();
+          };
+          return btn;
+        };
+
+        const children: Node[] = [];
+        stops.forEach((stop, idx) => {
+          children.push(createColorInput(stop, idx));
+          if (idx && idx < stops.length - 1) children.push(createRemoveButton(idx));
+          if (idx < stops.length - 1) children.push(createAddButton(idx));
         });
+        container.replaceChildren(...children);
       }
 
       function renderGradient(): void {
@@ -1676,7 +1702,7 @@ export function initStyleTab() {
 
       const isSystem = systemPresets.includes(styleName) || systemPresets.includes(rawName);
       if (isSystem) {
-        document.getElementById("styleSaverTip")!.innerHTML = "default";
+        document.getElementById("styleSaverTip")!.textContent = "default";
         return;
       }
 
@@ -1684,11 +1710,11 @@ export function initStyleTab() {
         option => option.value === styleName
       );
       if (isExisting) {
-        document.getElementById("styleSaverTip")!.innerHTML = "existing";
+        document.getElementById("styleSaverTip")!.textContent = "existing";
         return;
       }
 
-      document.getElementById("styleSaverTip")!.innerHTML = "new";
+      document.getElementById("styleSaverTip")!.textContent = "new";
     }
 
     function saveStyle(): void {
@@ -1707,7 +1733,7 @@ export function initStyleTab() {
         tip("Please provide a preset name", false, "error");
         return;
       }
-      if (document.getElementById("styleSaverTip")!.innerHTML === "default") {
+      if (document.getElementById("styleSaverTip")!.textContent === "default") {
         tip("You cannot overwrite default preset, please change the name", false, "error");
         return;
       }

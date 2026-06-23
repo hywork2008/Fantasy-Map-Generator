@@ -393,7 +393,7 @@ export function showBurgsChart(): void {
         const name = d.data.name;
         const parent = d.parent?.data.name;
         const population = si((d.value ?? 0) * worldContext.populationRate * worldContext.urbanization);
-        (document.getElementById("burgsInfo") as HTMLElement).innerHTML =
+        (document.getElementById("burgsInfo") as HTMLElement).textContent =
           `${name}. ${parent}. Population: ${population}`;
         if (d.data.i != null) burgHighlightOn(d.data.i);
         tip("Click to zoom into view");
@@ -402,7 +402,7 @@ export function showBurgsChart(): void {
       function hideInfo(ev: MouseEvent): void {
         burgHighlightOff();
         const burgsInfoEl = document.getElementById("burgsInfo");
-        if (burgsInfoEl) burgsInfoEl.innerHTML = "&#8205;";
+        if (burgsInfoEl) burgsInfoEl.textContent = "‍";
         const el = ev.target as HTMLElement;
         el.style.transition = "";
         el.removeAttribute("stroke");

@@ -65,13 +65,34 @@ export function createRiver(): void {
     drawCells(riverCells);
 
     const flux = worldContext.pack.cells.fl[cell];
-    const lineHtml = `<div class="editorLine" data-cell="${cell}">
-      <span>Cell ${cell}</span>
-      <span data-tip="Set flux affects river width" style="margin-left: 0.4em">Flux</span>
-      <input type="number" min=0 value="${flux}" class="editFlux" style="width: 5em"/>
-      <span data-tip="Remove the cell" class="icon-trash-empty pointer"></span>
-    </div>`;
-    body.innerHTML += lineHtml;
+    const lineEl = document.createElement("div");
+    lineEl.className = "editorLine";
+    lineEl.dataset.cell = String(cell);
+
+    const cellSpan = document.createElement("span");
+    cellSpan.textContent = `Cell ${cell}`;
+    lineEl.appendChild(cellSpan);
+
+    const fluxSpan = document.createElement("span");
+    fluxSpan.dataset.tip = "Set flux affects river width";
+    fluxSpan.style.marginLeft = "0.4em";
+    fluxSpan.textContent = "Flux";
+    lineEl.appendChild(fluxSpan);
+
+    const fluxInput = document.createElement("input");
+    fluxInput.type = "number";
+    fluxInput.min = "0";
+    fluxInput.value = String(flux);
+    fluxInput.className = "editFlux";
+    fluxInput.style.width = "5em";
+    lineEl.appendChild(fluxInput);
+
+    const trashSpan = document.createElement("span");
+    trashSpan.dataset.tip = "Remove the cell";
+    trashSpan.className = "icon-trash-empty pointer";
+    lineEl.appendChild(trashSpan);
+
+    body.appendChild(lineEl);
   }
 
   function removeCell(cell: number): void {
@@ -155,7 +176,7 @@ export function createRiver(): void {
   }
 
   function closeRiverCreator(): void {
-    body.innerHTML = "";
+    body.replaceChildren();
     viewContext.debug.select("#controlCells").remove();
     restoreDefaultEvents?.();
     clearMainTip();

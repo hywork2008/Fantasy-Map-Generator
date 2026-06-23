@@ -40,7 +40,6 @@ import { resetZoom } from "../actions";
 import { appServices } from "../context/appServices";
 import { Names } from "../modules/names-generator";
 import { viewStateStore } from "../store";
-import { alertMessage } from "../utils/alertMessageEl";
 import { applyOption, clearMainTip, fitContent, lock, locked, stored, tip, unlock } from "../utils/uiHelpers";
 import { cleanupData } from "../versioning";
 import { editWorld } from "./world-configurator";
@@ -449,8 +448,9 @@ function loadGoogleTranslate(): void {
       .getElementById("mapLayers")!
       .querySelectorAll("li")
       .forEach(el => {
-        const text = el.innerHTML.replace(/<u>(.+)<\/u>/g, "$1");
-        el.innerHTML = text;
+        el.querySelectorAll("u").forEach(u => {
+          u.replaceWith(u.textContent ?? "");
+        });
       });
   };
 
@@ -835,18 +835,26 @@ async function showLoadPane(): Promise<void> {
     document.getElementById("loadFromDropboxSelect")!.style.display = "block";
     const loadFromDropboxButtons = document.getElementById("loadFromDropboxButtons")!;
     const fileSelect = document.getElementById("loadFromDropboxSelect") as HTMLSelectElement;
-    fileSelect.innerHTML = `<option value="" disabled selected>Loading...</option>`;
+    const makeStatusOption = (label: string): HTMLOptionElement => {
+      const opt = document.createElement("option");
+      opt.textContent = label;
+      opt.value = "";
+      opt.disabled = true;
+      opt.selected = true;
+      return opt;
+    };
+    fileSelect.replaceChildren(makeStatusOption("Loading..."));
 
     const files = await dropbox.list();
 
     if (!files) {
       loadFromDropboxButtons.style.display = "none";
-      fileSelect.innerHTML = `<option value="" disabled selected>Save files to Dropbox first</option>`;
+      fileSelect.replaceChildren(makeStatusOption("Save files to Dropbox first"));
       return;
     }
 
     loadFromDropboxButtons.style.display = "block";
-    fileSelect.innerHTML = "";
+    fileSelect.replaceChildren();
     files.forEach(({ name, updated, size, path }) => {
       const sizeMB = `${rn(size / 1024 / 1024, 2)} MB`;
       const updatedOn = new Date(updated).toLocaleDateString();
@@ -873,9 +881,8 @@ export function loadURL(): void {
   const inner = `Provide URL to map file:
     <input id="mapURL" type="url" style="width: 24em" placeholder="https://e-cloud.com/test.map">
     <br><i>Please note server should allow CORS for file to be loaded. If CORS is not allowed, save file to Dropbox and provide a direct link</i>`;
-  alertMessage.innerHTML = inner;
   openRichDialog({
-    content: alertMessage.innerHTML,
+    content: inner,
 
     title: "Load map from URL",
     width: "27em",
@@ -899,7 +906,7 @@ export function loadURL(): void {
 // ─── PNG tiles export ─────────────────────────────────────────────────────────
 
 export function openExportToPngTiles(): void {
-  document.getElementById("tileStatus")!.innerHTML = "";
+  document.getElementById("tileStatus")!.textContent = "";
   closeDialogs();
   updateTilesOptions();
 
@@ -945,7 +952,7 @@ function updateTilesOptions(this: HTMLInputElement | void): void {
   const sizeY = graphHeight * scale * tilesY;
   const totalSize = sizeX * sizeY;
 
-  tileSize.innerHTML = `${sizeX} x ${sizeY} px`;
+  tileSize.textContent = `${sizeX} x ${sizeY} px`;
   tileSize.style.color = totalSize > 1e9 ? "#d00b0b" : totalSize > 1e8 ? "#9e6409" : "#1a941a";
 
   const rects: string[] = [];
