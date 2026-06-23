@@ -1,4 +1,5 @@
 import type React from "react";
+import { useEffect } from "react";
 import ReactDOM from "react-dom";
 import { useDraggable } from "./useDraggable";
 import "./dialog.css";
@@ -14,7 +15,13 @@ export interface DialogProps {
 }
 
 export const Dialog: React.FC<DialogProps> = ({ isOpen, title, onClose, children, buttons, className = "", style }) => {
-  const { containerRef } = useDraggable({ handleSelector: ".fmg-dialog-titlebar" });
+  const { containerRef, bringToFront } = useDraggable({ handleSelector: ".fmg-dialog-titlebar" });
+
+  useEffect(() => {
+    if (isOpen) {
+      bringToFront();
+    }
+  }, [isOpen, bringToFront]);
 
   const dialogElement = (
     <div

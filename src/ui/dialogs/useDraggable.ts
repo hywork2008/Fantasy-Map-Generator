@@ -1,7 +1,25 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 export function useDraggable(options?: { handleSelector?: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const bringToFront = useCallback(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    // Bring to front (check visible dialogs to avoid overflow)
+    const allDialogs = document.querySelectorAll(".fmg-dialog, #optionsContainer") as NodeListOf<HTMLElement>;
+    let maxZ = 100;
+    allDialogs.forEach(d => {
+      // Ignore closed dialogs so z-index resets when all are closed
+      if (d.style.display === "none") return;
+      if (d === container) return;
+
+      const z = parseInt(window.getComputedStyle(d).zIndex || "0", 10);
+      if (!Number.isNaN(z) && z > maxZ) maxZ = z;
+    });
+    container.style.zIndex = `${maxZ + 1}`;
+  }, []);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -37,14 +55,7 @@ export function useDraggable(options?: { handleSelector?: string }) {
       initialLeft = rect.left;
       initialTop = rect.top;
 
-      // Bring to front (very basic z-index handling)
-      const allDialogs = document.querySelectorAll(".fmg-dialog, #optionsContainer") as NodeListOf<HTMLElement>;
-      let maxZ = 100;
-      allDialogs.forEach(d => {
-        const z = parseInt(window.getComputedStyle(d).zIndex || "0", 10);
-        if (!Number.isNaN(z) && z > maxZ) maxZ = z;
-      });
-      container.style.zIndex = `${maxZ + 1}`;
+      bringToFront();
 
       document.body.style.userSelect = "none";
     };
@@ -77,7 +88,7 @@ export function useDraggable(options?: { handleSelector?: string }) {
       document.removeEventListener("mouseup", onMouseUp);
       handle.style.cursor = "";
     };
-  }, [options?.handleSelector]);
+  }, [options?.handleSelector, bringToFront]);
 
-  return { containerRef };
+  return { containerRef, bringToFront };
 }

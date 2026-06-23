@@ -1787,13 +1787,13 @@ export function initStyleTab() {
   function updateMapFilter(): void {
     const filter = viewContext.svg.attr("data-filter");
     document
-      .getElementById("mapFilters")!
-      .querySelectorAll<HTMLButtonElement>(".pressed")
+      .getElementById("mapFilters")
+      ?.querySelectorAll<HTMLButtonElement>(".pressed")
       .forEach(button => {
         button.classList.remove("pressed");
       });
     if (!filter) return;
-    document.getElementById("mapFilters")!.querySelector<HTMLButtonElement>(`#${filter}`)?.classList.add("pressed");
+    document.getElementById("mapFilters")?.querySelector<HTMLButtonElement>(`#${filter}`)?.classList.add("pressed");
   }
 
   function setPresetRemoveButtonVisibiliy(): void {

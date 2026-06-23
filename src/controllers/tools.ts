@@ -62,6 +62,7 @@ import {
 } from "../renderers";
 import { COArenderer } from "../renderers/emblem-renderer";
 import { drawMarker } from "../renderers/index";
+import { useBurgsOverviewState } from "../store/burgsOverviewState";
 import { elSelected } from "../store/editorState";
 import { useOptionsState } from "../store/optionsState";
 import type { WorldNote } from "../types/WorldState";
@@ -838,7 +839,7 @@ export function toggleAddBurg(): void {
   unpressClickToAddButton();
   document.getElementById("addBurgTool")!.classList.add("pressed");
   overviewBurgs();
-  document.getElementById("addNewBurg")!.click();
+  useBurgsOverviewState.getState().setAddMode(true);
 }
 
 export function toggleAddRiver(): void {
