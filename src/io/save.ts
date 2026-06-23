@@ -10,6 +10,7 @@ import { alertMessage } from "../utils/alertMessageEl";
 import { ERROR } from "../utils/debug";
 import { tip } from "../utils/uiHelpers";
 import { VERSION } from "../versioning";
+import { Cloud } from "./cloud";
 import { getUsedFonts } from "./export";
 import { ldb } from "./ldb";
 

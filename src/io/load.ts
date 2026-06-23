@@ -25,6 +25,7 @@ import { layerIsOn } from "../utils/nodeUtils";
 import { applyOption, clearMainTip, tip } from "../utils/uiHelpers";
 import { cleanupData, compareVersions, isValidVersion, parseMapVersion, VERSION } from "../versioning";
 import { resolveVersionConflicts } from "./auto-update";
+import { Cloud } from "./cloud";
 import { ldb } from "./ldb";
 
 // ─── Quick load from browser storage ─────────────────────────────────────────

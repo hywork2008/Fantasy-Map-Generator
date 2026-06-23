@@ -477,8 +477,14 @@ class Resampler {
     };
     const riversData = this.saveRiversData(pack.rivers);
 
-    worldContext.grid = generateGrid(seed, graphWidth, graphHeight);
-    worldContext.pack = {} as PackedGraph;
+    const newGrid = generateGrid(seed, graphWidth, graphHeight);
+    for (const k of Object.keys(worldContext.grid)) {
+      delete (worldContext.grid as unknown as Record<string, unknown>)[k];
+    }
+    Object.assign(worldContext.grid, newGrid);
+    for (const k of Object.keys(worldContext.pack)) {
+      delete (worldContext.pack as unknown as Record<string, unknown>)[k];
+    }
     worldContext.notes = parentMap.notes;
 
     this.resamplePrimaryGridData(parentMap, inverse, scale);

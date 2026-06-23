@@ -21,7 +21,11 @@ window.addEventListener("resize", () => {
 });
 
 if (location.hostname !== "localhost" && location.hostname !== "127.0.0.1") {
-  window.onbeforeunload = () => "Are you sure you want to navigate away?";
+  window.addEventListener("beforeunload", e => {
+    e.preventDefault();
+    e.returnValue = "Are you sure you want to navigate away?";
+    return e.returnValue;
+  });
 }
 
 // ─── Tooltips ─────────────────────────────────────────────────────────────────

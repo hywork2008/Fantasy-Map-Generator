@@ -1146,17 +1146,25 @@ export async function generate(opts?: { seed?: string; graph?: Grid | null }) {
 
     if (
       shouldRegenerateGrid(worldContext.grid, +(precreatedSeed ?? 0), worldContext.graphWidth, worldContext.graphHeight)
-    )
-      worldContext.grid =
-        precreatedGraph || generateGrid(worldContext.seed, worldContext.graphWidth, worldContext.graphHeight);
-    else delete (worldContext.grid.cells as { h?: unknown }).h;
+    ) {
+      Object.keys(worldContext.grid).forEach(k => {
+        delete (worldContext.grid as unknown as Record<string, unknown>)[k];
+      });
+      Object.assign(
+        worldContext.grid,
+        precreatedGraph || generateGrid(worldContext.seed, worldContext.graphWidth, worldContext.graphHeight)
+      );
+    } else delete (worldContext.grid.cells as { h?: unknown }).h;
     worldContext.grid.cells.h = await HeightmapGenerator.generate(
       worldContext,
       viewContext,
       appServices,
       worldContext.grid
     );
-    worldContext.pack = {} as typeof worldContext.pack;
+    Object.keys(worldContext.pack).forEach(k => {
+      delete (worldContext.pack as unknown as Record<string, unknown>)[k];
+    });
+    Object.assign(worldContext.pack, {} as typeof worldContext.pack);
 
     Features.markupGrid();
     addLakesInDeepDepressions();

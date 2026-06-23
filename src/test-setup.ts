@@ -1,4 +1,4 @@
-// Make window === globalThis so module side-effects (window.rn = ...) work in Node
+// Make window === globalThis so legacy module side-effects work in Node
 if (typeof window === "undefined") {
   (globalThis as Record<string, unknown>).window = globalThis;
 }
