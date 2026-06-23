@@ -802,8 +802,8 @@ export function toggleAddLabel(): void {
   if (!layerIsOn("toggleLabels")) toggleLabels();
 }
 
-function addLabelOnClick(this: SVGElement, event: MouseEvent): void {
-  const point = pointer(event, this);
+function addLabelOnClick(event: MouseEvent): void {
+  const point = pointer(event, viewContext.viewbox.node()!);
 
   const cell = findCell(point[0], point[1]);
   const culture = worldContext.pack.cells.culture[cell];
@@ -888,9 +888,9 @@ export function toggleAddRiver(): void {
   if (!layerIsOn("toggleRivers")) toggleRivers();
 }
 
-function addRiverOnClick(this: SVGElement, event: MouseEvent): void {
+function addRiverOnClick(event: MouseEvent): void {
   const { cells, rivers: packRivers } = worldContext.pack;
-  const point = pointer(event, this);
+  const point = pointer(event, viewContext.viewbox.node()!);
   let i = findCell(point[0], point[1]);
 
   if (cells.r[i]) {
@@ -919,6 +919,11 @@ function addRiverOnClick(this: SVGElement, event: MouseEvent): void {
 
     const min = cells.c[i].sort((a: number, b: number) => h[a] - h[b])[0];
     if (h[i] <= h[min]) {
+      // Roll back any cells.r assignments made during this aborted attempt
+      // so stale river IDs don't interfere with future clicks.
+      riverCells.forEach(ci => {
+        if (cells.r[ci] === riverId) cells.r[ci] = 0;
+      });
       tip(`Cell ${i} is depressed, river cannot flow further`, false, "error");
       return;
     }
@@ -982,6 +987,9 @@ function addRiverOnClick(this: SVGElement, event: MouseEvent): void {
   const river = packRivers.find((r: River) => r.i === riverId);
   const source = riverCells[0];
   const mouth = riverCells[riverCells.length - 2];
+
+  // Degenerate path: not enough cells to form a valid river segment
+  if (source === undefined || mouth === undefined) return;
 
   const defaultWidthFactor = rn(1 / ((cellsDensityMap[useOptionsState.getState().points] ?? 10000) / 10000) ** 0.25, 2);
   const widthFactor =
@@ -1059,9 +1067,9 @@ function toggleAddMarker(): void {
   if (!layerIsOn("toggleMarkers")) toggleMarkers();
 }
 
-function addMarkerOnClick(this: SVGElement, event: MouseEvent): void {
+function addMarkerOnClick(event: MouseEvent): void {
   const { markers: packMarkers } = worldContext.pack;
-  const point = pointer(event, this);
+  const point = pointer(event, viewContext.viewbox.node()!);
   const x = rn(point[0], 2);
   const y = rn(point[1], 2);
   const cell = findCell(point[0], point[1]);
