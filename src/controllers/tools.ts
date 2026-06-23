@@ -152,9 +152,15 @@ document.addEventListener("react-tool-action", e => {
     const dontAsk = sessionStorage.getItem("regenerateFeatureDontAsk");
     if (dontAsk) return processFeatureRegeneration(null, button);
 
+    const featureName = button
+      .replace(/^regenerate/, "")
+      .replace(/([A-Z])/g, " $1")
+      .trim()
+      .toLowerCase();
+
     openRichDialog({
-      title: "Regenerate element",
-      content: `Regenerate will remove all the custom changes for the element.<br /><br />Are you sure you want to proceed?`,
+      title: `Regenerate ${featureName}`,
+      content: `Regenerate will remove all the custom changes for the ${featureName}.<br /><br />Are you sure you want to proceed?`,
       buttons: [
         {
           label: "Proceed",
@@ -460,7 +466,7 @@ function recreateStates(): State[] | null {
       : worldContext.pack.cultures[culture!].type === "Nomadic"
         ? "Generic"
         : worldContext.pack.cultures[culture!].type;
-    const expansionism = rn(Math.random() * +(document.getElementById("sizeVariety") as HTMLInputElement).value + 1, 1);
+    const expansionism = rn(Math.random() * useOptionsState.getState().sizeVariety + 1, 1);
     const cultureType = worldContext.pack.cultures[culture!].type;
     const coa = COA.generate(capital.coa || null, 0.3, null, cultureType ?? "Generic");
     coa.shield = capital.coa?.shield;
