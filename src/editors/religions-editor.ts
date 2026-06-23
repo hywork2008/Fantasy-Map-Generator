@@ -53,8 +53,8 @@ export function open(): void {
   openDialog("religionsEditor", {
     title: "Religions Editor",
     resizable: false,
-    close: closeReligionsEditor,
-    position: { my: "right top", at: "right-10 top+10", of: "svg" }
+    onClose: closeReligionsEditor,
+    position: { my: "right top", at: "right-10 top+10", of: "svg", collision: "fit" }
   });
 }
 

@@ -60,11 +60,10 @@ export function editReliefIcon(clickedEl?: Element): void {
   setReliefEditorState({ isOpen: true, mode: "individual" });
 
   openDialog("reliefEditor", {
-    title: "Edit Relief Icons",
+    title: "Relief Icons Editor",
     resizable: false,
-    width: "27em",
     position: { my: "left top", at: "left+10 top+10", of: "#map" },
-    close: closeReliefEditor
+    onClose: closeReliefEditor
   });
 
   modules.editReliefIcon = true;

@@ -82,7 +82,7 @@ export function editProvinces(): void {
     title: "Provinces Editor",
     resizable: false,
     width: fitContent(),
-    close: closeProvincesEditor,
+    onClose: closeProvincesEditor,
     position: { my: "right top", at: "right-10 top+10", of: "svg", collision: "fit" }
   });
 }
@@ -695,7 +695,7 @@ function showChart(): void {
     width: fitContent(),
     position: { my: "left bottom", at: "left+10 bottom-10", of: "svg" },
     buttons: {},
-    close: () => {
+    onClose: () => {
       alertMessage.innerHTML = "";
     }
   });
@@ -1083,6 +1083,7 @@ function closeProvincesEditor(): void {
   if (customization === 12) exitAddProvinceMode();
 
   setProvincesEditorState({ isOpen: false });
+  modules.editProvinces = false;
   closeDialog("provincesEditor");
 }
 

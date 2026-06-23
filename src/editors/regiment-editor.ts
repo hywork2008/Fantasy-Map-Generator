@@ -232,7 +232,7 @@ export function editRegiment(selectorOrEl?: string | Element): void {
   openDialog("regimentEditor", {
     title: "Edit Regiment",
     resizable: false,
-    close: closeEditor,
+    onClose: closeEditor,
     position: { my: "left top", at: "left+10 top+10", of: "#map" }
   });
 

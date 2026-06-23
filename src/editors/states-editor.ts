@@ -882,7 +882,7 @@ function showStatesChart(): void {
     width: fitContent(),
     position: { my: "left bottom", at: "left+10 bottom-10", of: "svg" },
     buttons: {},
-    close: () => {
+    onClose: () => {
       alertMessage.innerHTML = "";
     }
   });

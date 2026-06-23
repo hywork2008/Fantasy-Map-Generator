@@ -69,7 +69,7 @@ export function editNotes(id?: string, name?: string): void {
     width: viewContext.svgWidth * 0.8,
     height: viewContext.svgHeight * 0.75,
     position: { my: "center", at: "center", of: "svg" },
-    close: removeEditor
+    onClose: removeEditor
   });
 }
 

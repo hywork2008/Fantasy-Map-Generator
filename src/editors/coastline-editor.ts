@@ -628,7 +628,7 @@ class CoastlineEditorModule {
       title: "Edit Coastline",
       resizable: false,
       position: { my: "center top+20", at: "top", of: event, collision: "fit" },
-      close: closeCoastlineEditor
+      onClose: closeCoastlineEditor
     });
 
     const node = (event?.target ?? document.querySelector(".coastline path")) as SVGElement | null;
@@ -654,7 +654,8 @@ class CoastlineEditorModule {
       title: "Coastline Settings Editor",
       resizable: false,
       width: "auto",
-      position: { my: "right top", at: "right-10 top+10", of: "svg" }
+      position: { my: "right top", at: "right-10 top+10", of: "svg" },
+      onClose: closeCoastlineEditor
     });
   }
 }

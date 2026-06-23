@@ -917,7 +917,7 @@ export function openExportToPngTiles(): void {
         /* $(this).dialog("close") removed */
       }
     },
-    close: () => {
+    onClose: () => {
       inputs.forEach(input => {
         input.removeEventListener("input", updateTilesOptions);
       });
@@ -1048,7 +1048,7 @@ async function enter3dView(type: string): Promise<void> {
 
       position: { my: "left bottom", at: "left+10 bottom-20", of: "svg" },
       resizeStop: resize3d,
-      close: enterStandardView
+      onClose: enterStandardView
     });
   } else {
     optionsContainer.parentNode?.insertBefore(canvas, optionsContainer);

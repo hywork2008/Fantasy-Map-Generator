@@ -81,7 +81,7 @@ export function editLake(event?: MouseEvent): void {
     title: "Edit Lake",
     resizable: false,
     position: { my: "center top+20", at: "top", of: event, collision: "fit" },
-    close: closeLakesEditor
+    onClose: closeLakesEditor
   });
 
   const node = (event?.target ?? document.querySelector(".lakes path")) as SVGElement;

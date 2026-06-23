@@ -16,6 +16,7 @@ import type { Deal, Market } from "../modules/markets-generator";
 import { Markets } from "../modules/markets-generator";
 import { drawMarketsLayer, highlightMarketOff, highlightMarketOn } from "../renderers/draw-markets";
 import { getMarketsOverviewState, type MarketRowData, setMarketsOverviewState } from "../store/marketsOverviewState";
+import { openDialog } from "../ui/dialogs/dialogService";
 import { findAllCellsInRadius, findCell, findClosestCell, getIsolines, getVertexPath, rn } from "../utils";
 import { layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, showMainTip, tip } from "../utils/uiHelpers";
@@ -34,7 +35,17 @@ export function open(): void {
 
   marketsOverviewAddLines();
 
-  // dialog call removed
+  setMarketsOverviewState({ isOpen: true });
+  openDialog("marketsOverview", {
+    title: "Markets Overview",
+    resizable: false,
+    width: "auto",
+    onClose: () => {
+      setMarketsOverviewState({ isOpen: false });
+      closeMarketsOverview();
+    },
+    position: { my: "right top", at: "right-10 top+10", of: "svg", collision: "fit" }
+  });
 
   if (!isInitialized) {
     isInitialized = true;

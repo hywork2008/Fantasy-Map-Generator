@@ -7,6 +7,7 @@ import { capitalize, rn, si } from "../../utils";
 import { getAreaUnit } from "../../utils/uiHelpers";
 import { FillBox } from "../components/FillBox";
 import { Dialog } from "./Dialog";
+import { closeDialog } from "./dialogService";
 
 const cultureTypes = ["Generic", "River", "Lake", "Naval", "Nomadic", "Hunting", "Highland"];
 
@@ -97,7 +98,7 @@ export const CulturesEditorDialog: React.FC = () => {
   );
 
   return (
-    <Dialog isOpen={isOpen} title="Cultures Editor" onClose={culturesEditorActions.exitCultureManualAssignment}>
+    <Dialog isOpen={isOpen} title="Cultures Editor" onClose={() => closeDialog("culturesEditor")}>
       <div id="culturesEditor">
         <div id="culturesHeader" className="header" style={{ gridTemplateColumns: "10em 7em 9em 4em 8em 5em 7em 8em" }}>
           <SortHeader label="Culture" col="name" tip="Click to sort by culture name" />

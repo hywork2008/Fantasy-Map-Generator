@@ -66,7 +66,7 @@ export function open(): void {
   openDialog("culturesEditor", {
     title: "Cultures Editor",
     resizable: false,
-    close: closeCulturesEditor,
+    onClose: closeCulturesEditor,
     position: { my: "right top", at: "right-10 top+10", of: "svg" }
   });
 }

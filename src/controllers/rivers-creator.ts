@@ -36,7 +36,7 @@ export function createRiver(): void {
     title: "Create River",
     resizable: false,
     position: { my: "left top", at: "left+10 top+10", of: "#map" },
-    close: closeRiverCreator
+    onClose: closeRiverCreator
   });
 
   if (modules.createRiver) return;

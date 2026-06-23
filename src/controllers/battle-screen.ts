@@ -81,7 +81,7 @@ class Battle {
     openDialog("battleScreen", {
       title: this.name,
       resizable: false,
-      close: () => Battle.context!.cancelResults()
+      onClose: () => Battle.context!.cancelResults()
     });
   }
 

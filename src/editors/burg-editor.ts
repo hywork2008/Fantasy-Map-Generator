@@ -62,7 +62,7 @@ export function editBurg(id?: number): void {
   openDialog("burgEditor", {
     title: "Edit Burg",
     resizable: false,
-    close: burgEditorInternal.closeBurgEditor,
+    onClose: burgEditorInternal.closeBurgEditor,
     position: { my: "left top", at: "left+10 top+10", of: "svg", collision: "fit" }
   });
 
