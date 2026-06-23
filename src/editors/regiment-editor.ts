@@ -129,9 +129,10 @@ function rotateRegimentDrag(this: SVGCircleElement, event: d3.D3DragEvent<SVGCir
 function dragRegimentStart(this: SVGGElement): void {
   select(this).raise();
   select(this.parentNode as Element).raise();
-  const reg = (worldContext.pack.states[+this.dataset.state!].military as MilitaryRegiment[]).find(
+  const reg = (worldContext.pack.states[+this.dataset.state!].military as MilitaryRegiment[])?.find(
     r => r.i === +this.dataset.id!
-  )!;
+  );
+  if (!reg) return;
   const size = +viewContext.armies.attr("box-size");
   const w = reg.n ? size * 4 : size * 6;
   const h = size * 2;

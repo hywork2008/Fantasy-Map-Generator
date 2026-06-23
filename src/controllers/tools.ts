@@ -66,7 +66,7 @@ import { useBurgsOverviewState } from "../store/burgsOverviewState";
 import { elSelected } from "../store/editorState";
 import { useOptionsState } from "../store/optionsState";
 import type { WorldNote } from "../types/WorldState";
-import { closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
+import { closeDialog, closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { findCell, gauss, generateSeed, getNextId, isCtrlClick, P, rn, showPrompt } from "../utils";
 import { layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, tip } from "../utils/uiHelpers";
@@ -287,6 +287,8 @@ async function recalculatePopulation(): Promise<void> {
   layerIsOn("togglePopulation")
     ? PopulationRenderer.render(worldContext, viewContext, appServices)
     : togglePopulation();
+
+  regenerateMilitary();
 }
 
 function regenerateStates(): void {
@@ -317,6 +319,10 @@ function regenerateStates(): void {
   if (layerIsOn("toggleEmblems")) EmblemsRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleBurgIcons")) BurgIconsRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleLabels")) BurgLabelsRenderer.render(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleMilitary")) MilitaryRenderer.render(worldContext, viewContext, appServices);
+
+  closeDialog("regimentEditor");
+  closeDialog("battleScreen");
 
   if (document.getElementById("burgsOverviewRefresh")?.offsetParent)
     (document.getElementById("burgsOverviewRefresh") as HTMLButtonElement).click();
@@ -624,6 +630,9 @@ async function regenerateBurgs(): Promise<void> {
   viewContext.emblems.selectAll("use").remove();
   if (layerIsOn("toggleEmblems")) EmblemsRenderer.render(worldContext, viewContext, appServices);
 
+  regenerateMilitary();
+  closeDialog("burgEditor");
+
   if (document.getElementById("burgsOverviewRefresh")?.offsetParent)
     (document.getElementById("burgsOverviewRefresh") as HTMLButtonElement).click();
   if (document.getElementById("statesEditorRefresh")?.offsetParent)
@@ -712,6 +721,7 @@ function regenerateCultures(): void {
   });
 
   layerIsOn("toggleCultures") ? CulturesRenderer.render(worldContext, viewContext, appServices) : toggleCultures();
+  regenerateEmblems();
   refreshAllEditors();
 }
 
@@ -719,6 +729,10 @@ function regenerateMilitary(): void {
   Military.generate(worldContext, viewContext, appServices, getWorldState());
   if (layerIsOn("toggleMilitary")) MilitaryRenderer.render(worldContext, viewContext, appServices);
   else toggleMilitary();
+
+  closeDialog("regimentEditor");
+  closeDialog("battleScreen");
+
   if (document.getElementById("militaryOverviewRefresh")?.offsetParent)
     (document.getElementById("militaryOverviewRefresh") as HTMLButtonElement).click();
 }

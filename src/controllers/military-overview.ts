@@ -8,6 +8,7 @@ import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import { toggleStates } from "../controllers/layers";
 import { Military } from "../modules/military-generator";
+import { MilitaryRenderer } from "../renderers/draw-military";
 import { modules } from "../store/editorState";
 import { useMilitaryOverviewState } from "../store/militaryOverviewState";
 import { closeDialogs, openConfirm, openDialog } from "../ui/dialogs/dialogService";
@@ -103,6 +104,7 @@ export function militaryRecalculate(): void {
       confirm: "Recalculate",
       onConfirm: () => {
         Military.generate(worldContext, viewContext, appServices, getWorldState());
+        if (layerIsOn("toggleMilitary")) MilitaryRenderer.render(worldContext, viewContext, appServices);
         useMilitaryOverviewState.getState().refresh();
       }
     }
