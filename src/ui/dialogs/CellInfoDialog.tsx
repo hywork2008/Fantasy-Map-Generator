@@ -8,7 +8,7 @@ export const CellInfoDialog: React.FC = () => {
 
   return (
     <Dialog isOpen={isOpen} title="CellInfo" onClose={() => closeDialog("cellInfo")}>
-      <div id="cellInfoContainer">
+      <div id="cellInfo">
         <div>
           <p>
             <b>Cell:</b> <span id="infoCell" /> <b>X:</b> <span id="infoX" /> <b>Y:</b> <span id="infoY" />
