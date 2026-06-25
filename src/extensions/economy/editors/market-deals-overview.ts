@@ -1,10 +1,8 @@
-import { zoomTo } from "../../../actions";
-
-import { worldContext } from "../../../context/worldContext";
 import { downloadFile, getFileName } from "../../../controllers/editors";
 import type { Burg } from "../../../types/models";
 import { formatPrice, rn } from "../../../utils";
 import { applySorting, tip } from "../../../utils/uiHelpers";
+import { getApi, getWorldContext } from "../economyContext";
 import { Goods } from "../modules/goods-generator";
 import type { Deal } from "../modules/markets-generator";
 import { Markets } from "../modules/markets-generator";
@@ -33,11 +31,11 @@ export function open(marketId: number): void {
     document.getElementById("marketDealsBody")!.addEventListener("click", (ev: MouseEvent) => {
       const el = ev.target as HTMLElement;
       const dealId = el.closest<HTMLElement>(".marketDealParty")?.parentElement?.dataset.id;
-      const deal = worldContext.pack.deals.find(d => d.i === Number(dealId));
+      const deal = getWorldContext().pack.deals.find(d => d.i === Number(dealId));
       if (!deal) return;
 
       const party = getParty(deal);
-      if (party) zoomTo(party.x, party.y, 8, 2000);
+      if (party) getApi().zoomTo(party.x, party.y, 8, 2000);
     });
     document.getElementById("marketDealsFilter")!.addEventListener("change", (ev: Event) => {
       activeFilter = (ev.target as HTMLSelectElement).value as typeof activeFilter;
@@ -76,7 +74,7 @@ function marketDealsAddLines(): void {
 }
 
 function getMarketDeals(marketId: number): Deal[] {
-  return worldContext.pack.deals.filter(
+  return getWorldContext().pack.deals.filter(
     deal =>
       (deal.sellerType === "market" && deal.seller === marketId) ||
       (deal.buyerType === "market" && deal.buyer === marketId)
@@ -126,7 +124,7 @@ function getParty(deal: Deal): Burg | null {
   const counterparty = getCounterparty(deal);
   const burgId = counterparty.type === "burg" ? counterparty.id : Markets.get(counterparty.id)?.centerBurgId;
   if (!burgId) return null;
-  return worldContext.pack.burgs[burgId] || null;
+  return getWorldContext().pack.burgs[burgId] || null;
 }
 
 function getDealNet(deal: Deal): number {

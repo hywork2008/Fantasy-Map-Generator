@@ -13,7 +13,9 @@ import {
   savePreset,
   toggleBurgIcons,
   toggleLabels,
-  toggleLayerById
+  toggleLayerById,
+  turnButtonOff,
+  turnButtonOn
 } from "./controllers/layers";
 import { changeViewMode } from "./controllers/options";
 import { UITour } from "./controllers/ui-tour";
@@ -44,6 +46,7 @@ function buildExtensionAPI(): ExtensionAPI {
     registerDialog: dialog => extState().registerDialog(dialog),
     unregisterExtension: id => extState().unregisterExtension(id),
     toggleExtension: (id, forceState) => extState().toggleExtension(id, forceState),
+    isExtensionEnabled: id => extState().enabledExtensions[id] ?? false,
     subscribeExtensionState: listener =>
       useExtensionState.subscribe((state, prev) =>
         listener({ enabledExtensions: state.enabledExtensions }, { enabledExtensions: prev.enabledExtensions })
@@ -53,12 +56,16 @@ function buildExtensionAPI(): ExtensionAPI {
     removeLayers: ids => layerState().removeLayers(ids),
     toggleLayerById,
     layerIsOn,
+    turnLayerOn: turnButtonOn,
+    turnLayerOff: turnButtonOff,
     registerLayerToggle,
     registerLayerElement,
     registerDrawLayerHook,
 
     openRichDialog,
     closeDialog,
+
+    zoomTo,
 
     tooltipExtensions
   };

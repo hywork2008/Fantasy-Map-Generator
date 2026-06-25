@@ -50,6 +50,8 @@ export interface ExtensionAPI {
   /** Remove all registrations for this extension id (called before cleanup/uninstall). */
   unregisterExtension(id: string): void;
   toggleExtension(id: string, forceState?: boolean): void;
+  /** Returns true if the extension with the given id is currently enabled. */
+  isExtensionEnabled(id: string): boolean;
   /**
    * Subscribe to extension enable/disable events.
    * Returns an unsubscribe function — call it in cleanup().
@@ -61,6 +63,10 @@ export interface ExtensionAPI {
   removeLayers(ids: string[]): void;
   toggleLayerById(id: string, event?: MouseEvent): void;
   layerIsOn(id: string): boolean;
+  /** Mark a layer as active (updates button state and preset). */
+  turnLayerOn(id: string): void;
+  /** Mark a layer as inactive (updates button state and preset). */
+  turnLayerOff(id: string): void;
   /** Register a toggle handler for an extension-owned layer button id. */
   registerLayerToggle(id: string, handler: (event?: MouseEvent) => void): void;
   /** Register a DOM-element getter for an extension-owned layer. */
@@ -74,6 +80,9 @@ export interface ExtensionAPI {
   // ── Dialog service ───────────────────────────────────────────────────────
   openRichDialog(options: RichDialogOptions): void;
   closeDialog(id: string): void;
+
+  // ── View actions ─────────────────────────────────────────────────────────
+  zoomTo(x: number, y: number, scale: number, duration?: number): void;
 
   // ── Tooltip hooks ────────────────────────────────────────────────────────
   /**

@@ -1,9 +1,9 @@
 import { appServices } from "../../../context/appServices";
-import { worldContext } from "../../../context/worldContext";
 import { downloadFile, getFileName } from "../../../controllers/editors";
 import type { Burg } from "../../../types/models";
 import { formatPrice, rn } from "../../../utils";
 import { applySorting, tip } from "../../../utils/uiHelpers";
+import { getWorldContext } from "../economyContext";
 import { Goods } from "../modules/goods-generator";
 import type { Market } from "../modules/markets-generator";
 import { Markets } from "../modules/markets-generator";
@@ -41,7 +41,7 @@ export function open(marketId: number): void {
 function refreshNameInput(market: Market): void {
   const input = document.getElementById("marketOverviewName") as HTMLInputElement;
   input.value = market.name || "";
-  input.placeholder = worldContext.pack.burgs[market.centerBurgId]?.name || `Market ${market.i}`;
+  input.placeholder = getWorldContext().pack.burgs[market.centerBurgId]?.name || `Market ${market.i}`;
 }
 
 function onRenameInput(ev: Event): void {
@@ -68,7 +68,7 @@ function marketOverviewAddLines() {
     return;
   }
 
-  const centerBurg = worldContext.pack.burgs[market.centerBurgId] as Burg | undefined;
+  const centerBurg = getWorldContext().pack.burgs[market.centerBurgId] as Burg | undefined;
   if (!centerBurg || centerBurg.removed) {
     tip("Invalid market. The selected market has no center burg", true, "error", 5000);
     return;
@@ -95,18 +95,18 @@ function marketOverviewAddLines() {
   }
   document.getElementById("marketOverviewGoodsBody")!.innerHTML = lines || "No market goods available";
 
-  const center = worldContext.pack.burgs[market.centerBurgId];
-  const state = worldContext.pack.states[center?.state || 0];
+  const center = getWorldContext().pack.burgs[market.centerBurgId];
+  const state = getWorldContext().pack.states[center?.state || 0];
   const coaId = `stateCOA${state.i}`;
   if (state && appServices.COArenderer) appServices.COArenderer.trigger(coaId, state.coa);
 
   document.getElementById("marketOverviewInfo")!.innerHTML =
     `<svg class="coaIcon" viewBox="0 0 200 200"><use href="#${coaId}"></use></svg><b>Owner:</b> ${state.fullName || state.name}`;
 
-  const burgs = worldContext.pack.burgs.filter(b => !b.removed && b.market === market.i);
+  const burgs = getWorldContext().pack.burgs.filter(b => !b.removed && b.market === market.i);
   const totalUnits = Object.values(market.goods).reduce((sum, mg) => sum + mg.stock, 0);
   document.getElementById("marketOverviewSummary")!.innerHTML = /*html*/ `
-    <div style="margin-left:5px">Cells: ${worldContext.pack.cells.market.reduce((count, m) => count + (m === market.i ? 1 : 0), 0)}</div>
+    <div style="margin-left:5px">Cells: ${getWorldContext().pack.cells.market.reduce((count, m) => count + (m === market.i ? 1 : 0), 0)}</div>
     <div style="margin-left:12px">Burgs: ${burgs.length}</div>
     <div style="margin-left:12px">Stock: ${rn(totalUnits, 2)}</div>`;
 

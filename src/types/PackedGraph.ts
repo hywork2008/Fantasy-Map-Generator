@@ -43,9 +43,6 @@ export interface PackedGraphCells {
   area: TypedArray; // cell area
   province: TypedArray; // cell province id
   routes: Record<number, Record<number, number>>;
-  // Economy extension — optional, persisted in save format (indices 40, 44)
-  good?: TypedArray;
-  market?: TypedArray;
 }
 
 export interface PackedGraphVertices {
@@ -55,28 +52,6 @@ export interface PackedGraphVertices {
   x: TypedArray; // x coordinates
   y: TypedArray; // y coordinates
   p: [number, number][]; // vertex points
-}
-
-/** Minimal shape for an economy market record — managed by the economy extension */
-export interface EconomyMarket {
-  i: number;
-  centerBurgId: number;
-  [key: string]: unknown;
-}
-
-/** Minimal shape for an economy deal record — managed by the economy extension */
-export interface EconomyDeal {
-  tax?: number;
-  seller: number;
-  sellerType: string;
-  [key: string]: unknown;
-}
-
-/** Minimal shape for a goods record — managed by the economy extension */
-export interface EconomyGood {
-  i: number;
-  name: string;
-  [key: string]: unknown;
 }
 
 export interface PackedGraph {
@@ -93,8 +68,4 @@ export interface PackedGraph {
   markers: Marker[];
   ice: IceElement[];
   provinces: Province[];
-  // Economy extension — optional, persisted in save format (indices 41-43)
-  goods?: EconomyGood[];
-  markets?: EconomyMarket[];
-  deals?: EconomyDeal[];
 }

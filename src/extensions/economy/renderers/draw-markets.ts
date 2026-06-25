@@ -1,21 +1,20 @@
 import { color, curveBasisClosed, line, select } from "d3";
-import { viewContext } from "../../../context/viewContext";
-import { worldContext } from "../../../context/worldContext";
 import { rn } from "../../../utils";
 import { TIME } from "../../../utils/debug";
 import { getIsolines } from "../../../utils/pathUtils";
+import { getViewContext, getWorldContext } from "../economyContext";
 
 export function drawMarketsLayer() {
   TIME && console.time("drawMarketsLayer");
-  if (!worldContext.pack.cells.market || !worldContext.pack.markets?.length) return;
+  if (!getWorldContext().pack.cells.market || !getWorldContext().pack.markets?.length) return;
   const linegen = line().curve(curveBasisClosed);
-  const getType = (cellId: number) => worldContext.pack.cells.market[cellId];
-  const isolines = getIsolines(worldContext.pack, getType, { polygons: true });
+  const getType = (cellId: number) => getWorldContext().pack.cells.market[cellId];
+  const isolines = getIsolines(getWorldContext().pack, getType, { polygons: true });
 
   let fillHtml = "";
   let markersHtml = "";
 
-  for (const market of worldContext.pack.markets) {
+  for (const market of getWorldContext().pack.markets) {
     const fillColor = market.color || "#dababf";
     const strokeColor = color(fillColor)?.darker().hex() || "#000";
     const polygons = isolines[market.i]?.polygons;
@@ -37,20 +36,20 @@ export function drawMarketsLayer() {
     }
   }
 
-  viewContext.marketsFill.html(fillHtml);
-  viewContext.markets.html(markersHtml);
+  getViewContext().marketsFill.html(fillHtml);
+  getViewContext().markets.html(markersHtml);
   highlightMarketsOnHover();
-  viewContext.marketsFill.style("display", null);
-  viewContext.markets.style("display", null);
+  getViewContext().marketsFill.style("display", null);
+  getViewContext().markets.style("display", null);
   TIME && console.timeEnd("drawMarketsLayer");
 }
 
 function buildCenterMarker(burgId: number, fillColor: string, strokeColor: string): string {
-  const burg = worldContext.pack.burgs[burgId];
+  const burg = getWorldContext().pack.burgs[burgId];
   if (!burg) return "";
   const { x, y } = burg;
-  const radius = Math.max(rn(3 + 1 / viewContext.scale, 2), 2);
-  const fontSize = Math.max(rn(5 + 1 / viewContext.scale, 2), 2);
+  const radius = Math.max(rn(3 + 1 / getViewContext().scale, 2), 2);
+  const fontSize = Math.max(rn(5 + 1 / getViewContext().scale, 2), 2);
   const strokeWidth = rn(radius / 8, 2);
   return (
     `<circle cx="${x}" cy="${y}" r="${radius}" fill="${fillColor}" fill-opacity="1" stroke="${strokeColor}" stroke-width="${strokeWidth}"/>` +
@@ -59,7 +58,7 @@ function buildCenterMarker(burgId: number, fillColor: string, strokeColor: strin
 }
 
 function highlightMarketsOnHover(): void {
-  select(viewContext.markets.node())
+  select(getViewContext().markets.node())
     .selectAll<SVGGElement, unknown>("g[data-id]")
     .on("mouseover", e => highlightMarketOn((e.currentTarget as SVGGElement).dataset.id!))
     .on("mouseout", e => highlightMarketOff((e.currentTarget as SVGGElement).dataset.id!));

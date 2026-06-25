@@ -1,10 +1,9 @@
-import { zoomTo } from "../../../actions";
-import { worldContext } from "../../../context/worldContext";
 import type { Point } from "../../../modules/voronoi";
 import type { Burg } from "../../../types/models";
 import { openDialog } from "../../../ui/dialogs/dialogService";
 import { formatPrice, rn } from "../../../utils";
 import { applySorting } from "../../../utils/uiHelpers";
+import { getApi, getWorldContext } from "../economyContext";
 import { Goods } from "../modules/goods-generator";
 import type { Deal } from "../modules/markets-generator";
 import { TradeAnimation, type TradeBatch } from "../modules/trade-animation";
@@ -18,7 +17,7 @@ export function open(batch: TradeBatch): void {
 
   activeBatch = batch;
 
-  const { burgs } = worldContext.pack;
+  const { burgs } = getWorldContext().pack;
   const startBurg = burgs[batch.startBurgId];
   const endBurg = burgs[batch.endBurgId];
   if (!startBurg || !endBurg) return;
@@ -34,9 +33,9 @@ export function open(batch: TradeBatch): void {
       const zoomEl = (event.target as HTMLElement).closest<HTMLElement>("[data-zoom]");
       if (!activeBatch || !zoomEl) return;
       const burgId = activeBatch[zoomEl.dataset.zoom === "start" ? "startBurgId" : "endBurgId"];
-      const burg = worldContext.pack.burgs[burgId];
+      const burg = getWorldContext().pack.burgs[burgId];
       if (!burg) return;
-      zoomTo(burg.x, burg.y, 8, 1500);
+      getApi().zoomTo(burg.x, burg.y, 8, 1500);
     });
     isInitialized = true;
   }
@@ -51,8 +50,8 @@ export function closeTradeDetails(): void {
 function tradeDetailsAddLines(points: Point[]): void {
   if (!activeBatch) return;
 
-  const from = worldContext.pack.burgs[activeBatch.startBurgId];
-  const to = worldContext.pack.burgs[activeBatch.endBurgId];
+  const from = getWorldContext().pack.burgs[activeBatch.startBurgId];
+  const to = getWorldContext().pack.burgs[activeBatch.endBurgId];
   const fromType = getClientType(activeBatch.deals[0], from, "from");
   const toType = getClientType(activeBatch.deals[0], to, "to");
 
@@ -99,7 +98,7 @@ function tradeDetailsAddLines(points: Point[]): void {
   );
   document.getElementById("tradeDetailsBody")!.innerHTML = html.join("");
   document.getElementById("tradeDetailsFooterDistance")!.innerHTML =
-    `${rn(length * worldContext.distanceScale)} ${distanceUnitInput.value}`;
+    `${rn(length * getWorldContext().distanceScale)} ${distanceUnitInput.value}`;
   document.getElementById("tradeDetailsFooterUnits")!.innerHTML = String(rn(totalUnits, 2));
   document.getElementById("tradeDetailsFooterValue")!.innerHTML = formatPrice(totalValue);
 

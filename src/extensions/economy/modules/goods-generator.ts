@@ -1,9 +1,9 @@
 import Alea from "alea";
 import { color, shuffler } from "d3";
-import { worldContext } from "../../../context/worldContext";
 import type { CultureType } from "../../../types/models";
 import type { PackedGraph } from "../../../types/PackedGraph";
 import { TIME } from "../../../utils/debug";
+import { getWorldContext } from "../economyContext";
 
 export interface Good {
   i: number;
@@ -955,6 +955,10 @@ const GOODS_DATA: GoodData[] = [
 ];
 
 export class GoodsModule {
+  private get worldContext() {
+    return getWorldContext();
+  }
+
   private cells!: PackedGraph["cells"];
   private cellId: number = 0;
   private goodById: Good[] = [];
@@ -962,12 +966,12 @@ export class GoodsModule {
   // Place a bonus good on every eligible cell based on the current catalogue
   generate(options: { randomSeed?: number } = {}) {
     TIME && console.time("generateGoods");
-    Math.random = Alea(options.randomSeed ?? worldContext.seed);
+    Math.random = Alea(options.randomSeed ?? this.worldContext.seed);
     const shuffle = shuffler(() => Math.random());
 
-    if (!worldContext.pack.goods?.length) this.restoreDefaults();
+    if (!this.worldContext.pack.goods?.length) this.restoreDefaults();
 
-    this.cells = worldContext.pack.cells;
+    this.cells = this.worldContext.pack.cells;
     this.cells.good = new Uint16Array(this.cells.i.length);
 
     const resourceMaxCells = Math.ceil((200 * this.cells.i.length) / 5000);
@@ -975,11 +979,11 @@ export class GoodsModule {
 
     const methods = `{${Object.keys(this.getMethods()).join(", ")}}`;
     const shuffledCells = shuffle(Array.from(this.cells.i));
-    const goods = [...worldContext.pack.goods];
+    const goods = [...this.worldContext.pack.goods];
 
     for (const cellId of shuffledCells) {
       if (!(cellId % 10)) shuffle(goods);
-      if (this.cells.biome[cellId] === 11 && worldContext.biomesData.habitability[11] === 0) continue; // skip glaciers
+      if (this.cells.biome[cellId] === 11 && this.worldContext.biomesData.habitability[11] === 0) continue; // skip glaciers
       this.cellId = cellId;
 
       for (const good of goods) {
@@ -1006,7 +1010,7 @@ export class GoodsModule {
     if (!good) return;
 
     TIME && console.time("regenerateGoodPlacement");
-    this.cells = worldContext.pack.cells;
+    this.cells = this.worldContext.pack.cells;
     if (!this.cells.good || this.cells.good.length !== this.cells.i.length) {
       this.cells.good = new Uint16Array(this.cells.i.length);
     }
@@ -1027,7 +1031,7 @@ export class GoodsModule {
     const spread = new Function(methods, `return ${good.distribution}`);
 
     for (const cellId of shuffledCells) {
-      if (this.cells.biome[cellId] === 11 && worldContext.biomesData.habitability[11] === 0) continue; // skip glaciers
+      if (this.cells.biome[cellId] === 11 && this.worldContext.biomesData.habitability[11] === 0) continue; // skip glaciers
       this.cellId = cellId;
 
       if (this.cells.good[cellId]) continue;
@@ -1044,7 +1048,7 @@ export class GoodsModule {
   }
 
   restoreDefaults() {
-    worldContext.pack.goods = structuredClone(this.defaultGoods);
+    this.worldContext.pack.goods = structuredClone(this.defaultGoods);
     this.sync();
   }
 
@@ -1053,25 +1057,25 @@ export class GoodsModule {
       random: (number: number) => number >= 100 || (number > 0 && number / 100 > Math.random()),
       nth: (number: number) => !(cellId % number),
       minHabitability: (min: number) =>
-        worldContext.biomesData.habitability[worldContext.pack.cells.biome[cellId]] >= min,
-      habitability: () => worldContext.biomesData.habitability[this.cells.biome[cellId]] > Math.random() * 100,
-      elevation: () => worldContext.pack.cells.h[cellId] / 100 > Math.random(),
-      biome: (...biomes: number[]) => biomes.includes(worldContext.pack.cells.biome[cellId]),
-      minHeight: (heigh: number) => worldContext.pack.cells.h[cellId] >= heigh,
-      maxHeight: (heigh: number) => worldContext.pack.cells.h[cellId] <= heigh,
-      minTemp: (temp: number) => worldContext.grid.cells.temp[worldContext.pack.cells.g[cellId]] >= temp,
-      maxTemp: (temp: number) => worldContext.grid.cells.temp[worldContext.pack.cells.g[cellId]] <= temp,
-      shore: (...rings: number[]) => rings.includes(worldContext.pack.cells.t[cellId]),
+        this.worldContext.biomesData.habitability[this.worldContext.pack.cells.biome[cellId]] >= min,
+      habitability: () => this.worldContext.biomesData.habitability[this.cells.biome[cellId]] > Math.random() * 100,
+      elevation: () => this.worldContext.pack.cells.h[cellId] / 100 > Math.random(),
+      biome: (...biomes: number[]) => biomes.includes(this.worldContext.pack.cells.biome[cellId]),
+      minHeight: (heigh: number) => this.worldContext.pack.cells.h[cellId] >= heigh,
+      maxHeight: (heigh: number) => this.worldContext.pack.cells.h[cellId] <= heigh,
+      minTemp: (temp: number) => this.worldContext.grid.cells.temp[this.worldContext.pack.cells.g[cellId]] >= temp,
+      maxTemp: (temp: number) => this.worldContext.grid.cells.temp[this.worldContext.pack.cells.g[cellId]] <= temp,
+      shore: (...rings: number[]) => rings.includes(this.worldContext.pack.cells.t[cellId]),
       type: (...types: string[]) => {
-        const feature = worldContext.pack.features[worldContext.pack.cells.f[cellId]];
+        const feature = this.worldContext.pack.features[this.worldContext.pack.cells.f[cellId]];
         return types.includes(feature.group || feature.type);
       },
-      river: () => worldContext.pack.cells.r[cellId]
+      river: () => this.worldContext.pack.cells.r[cellId]
     };
   }
 
   getBiomesProduction(): Record<number, { goodId: number; production: number }[]> {
-    return (worldContext.pack.goods || []).reduce(
+    return (this.worldContext.pack.goods || []).reduce(
       (acc, good) => {
         if (!good.biomeOutput) return acc;
         for (const [biomeIdStr, production] of Object.entries(good.biomeOutput)) {
@@ -1098,7 +1102,7 @@ export class GoodsModule {
 
   sync() {
     this.goodById = [];
-    for (const good of worldContext.pack.goods) this.goodById[good.i] = good;
+    for (const good of this.worldContext.pack.goods) this.goodById[good.i] = good;
   }
 
   private readonly defaultGoods = GOODS_DATA.map((good, index): Good => {

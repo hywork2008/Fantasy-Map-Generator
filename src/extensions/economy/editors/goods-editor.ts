@@ -1,22 +1,20 @@
 // @ts-nocheck
 
 import { pointer } from "d3";
-import { zoomTo } from "../../../actions";
-import { viewContext } from "../../../context/viewContext";
-import { worldContext } from "../../../context/worldContext";
-import { toggleCells, toggleGoods } from "../../../controllers/layers";
+import { toggleCells } from "../../../controllers/layers";
 import { rn, unique } from "../../../utils";
 import { alertMessage } from "../../../utils/alertMessageEl";
 import { layerIsOn } from "../../../utils/nodeUtils";
 import { clearMainTip, tip } from "../../../utils/uiHelpers";
+import { getApi, getViewContext, getWorldContext } from "../economyContext";
 import { Goods } from "../modules/goods-generator";
 import { Markets } from "../modules/markets-generator";
 import { isDealRecord, isMfgRecord, Production } from "../modules/production-generator";
 import { getCellProduction } from "../modules/production-utils";
 import { drawGoods } from "../renderers/draw-goods";
 
-const viewbox = viewContext.viewbox;
-const _options = worldContext.options;
+const viewbox = () => getViewContext().viewbox;
+const worldContext = () => getWorldContext();
 
 // Mock jQuery and window objects since they're mostly removed
 const _$ = _selector => {
@@ -47,10 +45,10 @@ function refreshEditor() {
 function ensureDisplayedGoodsInitialized() {
   if (displayedGoodsInitialized) return;
   displayedGoodsInitialized = true;
-  if (!worldContext.pack.goods?.length) return;
+  if (!worldContext().pack.goods?.length) return;
 
-  const wood = worldContext.pack.goods.find(g => g.name === "Wood");
-  displayedGoods.add(wood ? wood.i : worldContext.pack.goods[0].i);
+  const wood = worldContext().pack.goods.find(g => g.name === "Wood");
+  displayedGoods.add(wood ? wood.i : worldContext().pack.goods[0].i);
 }
 
 function _getDisplayedGoods(): Set<number> {
@@ -60,11 +58,11 @@ function _getDisplayedGoods(): Set<number> {
 }
 
 export function open() {
-  if (viewContext.customization) return;
+  if (getViewContext().customization) return;
   closeDialogs("#goodsEditor, .stable");
 
   ensureDisplayedGoodsInitialized();
-  if (!layerIsOn("toggleGoods")) toggleGoods();
+  if (!layerIsOn("toggleGoods")) getApi().toggleLayerById("toggleGoods");
   else drawGoods(displayedGoods);
 
   goodsEditorAddLines();
@@ -115,7 +113,7 @@ function goodsEditorAddLines() {
     return `<span style="${commonStyles};background:#f8e7bf;color:#b67a00" data-tip="Manufactured goods are produced in burgs">MFG</span>`;
   };
 
-  for (const good of worldContext.pack.goods || []) {
+  for (const good of worldContext().pack.goods || []) {
     const types = [good.recipes && "MFG", good.distribution && "RAW"].filter(Boolean) as string[];
     const goodProduction = production[good.i] || { burg: 0, cell: 0 };
     const produced = rn(goodProduction.burg + goodProduction.cell);
@@ -151,7 +149,7 @@ function goodsEditorAddLines() {
     .reduce((sum, v) => sum + v, 0);
   const totalStock = Object.values(stockData).reduce((sum, d) => sum + d.total, 0);
   document.getElementById("goodsDisplayed")!.innerHTML = String(displayedGoods.size);
-  document.getElementById("goodsNumber")!.innerHTML = String(worldContext.pack.goods?.length || 0);
+  document.getElementById("goodsNumber")!.innerHTML = String(worldContext().pack.goods?.length || 0);
   document.getElementById("goodsProduced")!.innerHTML = String(rn(totalProduced));
   document.getElementById("goodsStock")!.innerHTML = String(rn(totalStock));
 
@@ -193,8 +191,8 @@ function openProducersDialog(goodId: number) {
   const good = Goods.get(goodId);
   if (!good) return;
 
-  const producers = worldContext.pack.burgs
-    .filter(b => b.i && !b.removed)
+  const producers = worldContext()
+    .pack.burgs.filter(b => b.i && !b.removed)
     .map(b => ({ burg: b, units: Production.getBurgProduction(b)[goodId] ?? 0 }))
     .filter(({ units }) => units > 0)
     .sort((a, b) => b.units - a.units);
@@ -221,7 +219,7 @@ function openProducersDialog(goodId: number) {
     alertMessage.innerHTML = header + rows;
     alertMessage.querySelectorAll<HTMLElement>(".states").forEach(row => {
       row.addEventListener("click", () => {
-        zoomTo(Number(row.dataset.x), Number(row.dataset.y), 8, 2000);
+        getApi().zoomTo(Number(row.dataset.x), Number(row.dataset.y), 8, 2000);
       });
     });
   }
@@ -232,12 +230,12 @@ function openProducersDialog(goodId: number) {
 type StockSource = { name: string; type: "market" | "burg"; x: number; y: number; id: number; stock: number };
 
 function getAllStockData(): Record<number, { total: number; sources: StockSource[] }> {
-  const dealById = new Map((worldContext.pack.deals || []).map(d => [d.i, d]));
+  const dealById = new Map((worldContext().pack.deals || []).map(d => [d.i, d]));
   const result: Record<number, { total: number; sources: StockSource[] }> = {};
-  for (const good of worldContext.pack.goods || []) result[good.i] = { total: 0, sources: [] };
+  for (const good of worldContext().pack.goods || []) result[good.i] = { total: 0, sources: [] };
 
-  for (const market of worldContext.pack.markets || []) {
-    const centerBurg = worldContext.pack.burgs[market.centerBurgId];
+  for (const market of worldContext().pack.markets || []) {
+    const centerBurg = worldContext().pack.burgs[market.centerBurgId];
     if (!centerBurg) continue;
     const x = centerBurg.x ?? 0;
     const y = centerBurg.y ?? 0;
@@ -251,7 +249,7 @@ function getAllStockData(): Record<number, { total: number; sources: StockSource
     }
   }
 
-  for (const burg of worldContext.pack.burgs) {
+  for (const burg of worldContext().pack.burgs) {
     if (!burg?.i || burg.removed || !burg.production) continue;
 
     const netInventory: Record<number, number> = {};
@@ -290,7 +288,7 @@ function getAllStockData(): Record<number, { total: number; sources: StockSource
     }
   }
 
-  for (const good of worldContext.pack.goods || []) result[good.i].total = rn(result[good.i].total, 2);
+  for (const good of worldContext().pack.goods || []) result[good.i].total = rn(result[good.i].total, 2);
 
   return result;
 }
@@ -326,7 +324,7 @@ function openStockDialog(goodId: number) {
     alertMessage.innerHTML = header + rows;
     alertMessage.querySelectorAll<HTMLElement>(".states").forEach(row => {
       row.addEventListener("click", () => {
-        zoomTo(Number(row.dataset.x), Number(row.dataset.y), 8, 2000);
+        getApi().zoomTo(Number(row.dataset.x), Number(row.dataset.y), 8, 2000);
       });
     });
   }
@@ -343,7 +341,7 @@ function getProduction() {
 
   // rural production
   const productionByBiome = Goods.getBiomesProduction();
-  for (const cellId of worldContext.pack.cells.i) {
+  for (const cellId of worldContext().pack.cells.i) {
     const produced = getCellProduction(cellId, productionByBiome);
     for (const goodId in produced) {
       addProduction(Number(goodId), produced[goodId] || 0, "cell");
@@ -351,7 +349,7 @@ function getProduction() {
   }
 
   // burg production
-  for (const burg of worldContext.pack.burgs) {
+  for (const burg of worldContext().pack.burgs) {
     if (!burg || burg.removed || !burg.production) continue;
     const produced = Production.getBurgProduction(burg);
     for (const goodId in produced) {
@@ -363,7 +361,7 @@ function getProduction() {
 }
 
 function openTagsVisibilityDialog() {
-  const tags = unique((worldContext.pack.goods || []).flatMap(good => good.tags));
+  const tags = unique((worldContext().pack.goods || []).flatMap(good => good.tags));
   const renderTag = (tag: string) =>
     `<label style="display: flex; align-items: center;"><input type="checkbox" class="native" value="${tag}" ${visibleTags.has(tag) ? "checked" : ""} /> ${tag}</label>`;
   const tagsMarkup = tags.length ? tags.map(renderTag).join("") : '<div style="color:#666">No tags available</div>';
@@ -434,9 +432,9 @@ function togglePercentageMode() {
 
 function enterResourceAssignMode(this: HTMLElement) {
   if (this.classList.contains("pressed")) return exitResourceAssignMode();
-  viewContext.customization = 14;
+  getViewContext().customization = 14;
   this.classList.add("pressed");
-  if (!layerIsOn("toggleGoods")) toggleGoods();
+  if (!layerIsOn("toggleGoods")) getApi().toggleLayerById("toggleGoods");
   if (!layerIsOn("toggleCells")) {
     (document.getElementById("toggleCells") as HTMLButtonElement).dataset.forced = "true";
     toggleCells();
@@ -453,11 +451,11 @@ function enterResourceAssignMode(this: HTMLElement) {
   // dialog call removed
 
   tip("Select good line in editor, click on cells to remove or add a bonus resource", true);
-  viewbox.on("click", changeResourceOnCellClick);
+  viewbox().on("click", changeResourceOnCellClick);
 }
 
 function selectResourceOnLineClick(this: HTMLElement) {
-  if (viewContext.customization !== 14) return;
+  if (getViewContext().customization !== 14) return;
   const body = document.getElementById("goodsBody")!;
   body.querySelector<HTMLElement>("div.selected")?.classList.remove("selected");
   this.classList.add("selected");
@@ -472,13 +470,13 @@ function changeResourceOnCellClick(this: SVGElement) {
   const selected = body.querySelector<HTMLElement>("div.selected");
   if (!selected) return;
 
-  if (worldContext.pack.cells.good[cellId]) {
-    worldContext.pack.cells.good[cellId] = 0;
+  if (worldContext().pack.cells.good[cellId]) {
+    worldContext().pack.cells.good[cellId] = 0;
   } else {
     const resourceId = +selected.dataset.id!;
     const resource = Goods.get(resourceId);
     if (!resource) return;
-    worldContext.pack.cells.good[cellId] = resourceId;
+    worldContext().pack.cells.good[cellId] = resourceId;
     displayedGoods.add(resourceId);
   }
 
@@ -487,7 +485,7 @@ function changeResourceOnCellClick(this: SVGElement) {
 
 function exitResourceAssignMode(close?: string) {
   const body = document.getElementById("goodsBody")!;
-  viewContext.customization = 0;
+  getViewContext().customization = 0;
   document.getElementById("goodsAssign")!.classList.remove("pressed");
 
   if (layerIsOn("toggleCells")) {
@@ -512,7 +510,7 @@ function exitResourceAssignMode(close?: string) {
 
 function downloadGoodsData() {
   const cellsByGood: Record<number, number> = {};
-  for (const goodId of worldContext.pack.cells.good) {
+  for (const goodId of worldContext().pack.cells.good) {
     if (goodId) cellsByGood[goodId] = (cellsByGood[goodId] || 0) + 1;
   }
 
@@ -521,7 +519,7 @@ function downloadGoodsData() {
 
   let data = "Id,Good,Color,Type,Tags,Value,Demand Coverage,Chance,Model,Cells,Produced,Stock\n";
 
-  for (const good of worldContext.pack.goods || []) {
+  for (const good of worldContext().pack.goods || []) {
     const types = [good.recipes && "MFG", good.distribution && "RAW"].filter(Boolean).join(";");
     const tags = good.tags.join(";");
     const demandCoverage = Object.entries(good.demandCoverage || {})
@@ -548,7 +546,7 @@ function toggleDisplayedGood(good: Good, el: HTMLInputElement) {
 }
 
 function toggleAllDisplayed(this: HTMLInputElement) {
-  if (this.checked) for (const good of worldContext.pack.goods || []) displayedGoods.add(good.i);
+  if (this.checked) for (const good of worldContext().pack.goods || []) displayedGoods.add(good.i);
   else displayedGoods.clear();
 
   document
@@ -564,7 +562,7 @@ function toggleAllDisplayed(this: HTMLInputElement) {
 
 function updateDisplayAllCheckbox() {
   const master = document.getElementById("goodsDisplayAll") as HTMLInputElement;
-  const total = (worldContext.pack.goods || []).length;
+  const total = (worldContext().pack.goods || []).length;
   master.checked = total > 0 && displayedGoods.size === total;
   master.indeterminate = displayedGoods.size > 0 && displayedGoods.size < total;
   document.getElementById("goodsDisplayed")!.innerHTML = String(displayedGoods.size);
@@ -593,17 +591,17 @@ function requestProductionRegeneration() {
 function removeGood(good: Good, line: HTMLElement) {
   const message = "Are you sure you want to remove the resource? <br>This action cannot be reverted";
   const onConfirm = () => {
-    for (const i of worldContext.pack.cells.i) {
-      if (worldContext.pack.cells.good[i] === good.i) {
-        worldContext.pack.cells.good[i] = 0;
+    for (const i of worldContext().pack.cells.i) {
+      if (worldContext().pack.cells.good[i] === good.i) {
+        worldContext().pack.cells.good[i] = 0;
       }
     }
 
-    worldContext.pack.goods = worldContext.pack.goods.filter(g => g.i !== good.i);
+    worldContext().pack.goods = worldContext().pack.goods.filter(g => g.i !== good.i);
     Goods.sync();
     displayedGoods.delete(good.i);
     line.remove();
-    document.getElementById("goodsNumber")!.innerHTML = String(worldContext.pack.goods.length);
+    document.getElementById("goodsNumber")!.innerHTML = String(worldContext().pack.goods.length);
 
     updateDisplayAllCheckbox();
     drawGoods(displayedGoods);
@@ -612,6 +610,6 @@ function removeGood(good: Good, line: HTMLElement) {
 }
 
 function _closeGoodsEditor() {
-  if (viewContext.customization === 14) exitResourceAssignMode("close");
+  if (getViewContext().customization === 14) exitResourceAssignMode("close");
   document.getElementById("goodsBody")!.innerHTML = "";
 }
