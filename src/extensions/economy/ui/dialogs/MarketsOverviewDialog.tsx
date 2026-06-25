@@ -1,15 +1,15 @@
 import React from "react";
+import { useDialogState } from "../../../../store/dialogState";
+import { useMarketsOverviewState } from "../../../../store/marketsOverviewState";
+import { FillBox } from "../../../../ui/components/FillBox";
+import { Dialog } from "../../../../ui/dialogs/Dialog";
+import { closeDialog } from "../../../../ui/dialogs/dialogService";
+import { formatPrice } from "../../../../utils";
 import {
   closeMarketsOverview,
   marketsOverviewActions,
   open as openMarketsOverview
 } from "../../editors/markets-overview";
-import { useDialogState } from "../../store/dialogState";
-import { useMarketsOverviewState } from "../../store/marketsOverviewState";
-import { formatPrice } from "../../utils";
-import { FillBox } from "../components/FillBox";
-import { Dialog } from "./Dialog";
-import { closeDialog } from "./dialogService";
 
 export const MarketsOverviewDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("marketsOverview"));

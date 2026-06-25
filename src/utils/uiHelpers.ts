@@ -1,12 +1,11 @@
 import * as d3 from "d3";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
-
+import { Goods } from "../extensions/economy/modules/goods-generator";
+import { Markets } from "../extensions/economy/modules/markets-generator";
+import { Production } from "../extensions/economy/modules/production-generator";
+import { getCellProduction } from "../extensions/economy/modules/production-utils";
 import type { PackedGraphFeature } from "../modules/features";
-import { Goods } from "../modules/goods-generator";
-import { Markets } from "../modules/markets-generator";
-import { Production } from "../modules/production-generator";
-import { getCellProduction } from "../modules/production-utils";
 import { useOptionsState } from "../store/optionsState";
 import { openRichDialog } from "../ui/dialogs/dialogService";
 import { alertMessage } from "../utils/alertMessageEl";

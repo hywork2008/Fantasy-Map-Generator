@@ -1,12 +1,12 @@
-import { appServices } from "../context/appServices";
-import { worldContext } from "../context/worldContext";
-import { downloadFile, getFileName } from "../controllers/editors";
-import type { Burg } from "../modules/burgs-generator";
+import { appServices } from "../../../context/appServices";
+import { worldContext } from "../../../context/worldContext";
+import { downloadFile, getFileName } from "../../../controllers/editors";
+import type { Burg } from "../../../modules/burgs-generator";
+import { formatPrice, rn } from "../../../utils";
+import { applySorting, tip } from "../../../utils/uiHelpers";
 import { Goods } from "../modules/goods-generator";
 import type { Market } from "../modules/markets-generator";
 import { Markets } from "../modules/markets-generator";
-import { formatPrice, rn } from "../utils";
-import { applySorting, tip } from "../utils/uiHelpers";
 import { open as openMarketDealsOverview } from "./market-deals-overview";
 
 let isInitialized = false;

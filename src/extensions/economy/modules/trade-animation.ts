@@ -1,10 +1,10 @@
 import FlatQueue from "flatqueue";
-import { worldContext } from "../context/worldContext";
-import { ra } from "../utils/probabilityUtils";
-import type { Burg } from "./burgs-generator";
+import { worldContext } from "../../../context/worldContext";
+import type { Burg } from "../../../modules/burgs-generator";
+import type { Point } from "../../../modules/voronoi";
+import { ra } from "../../../utils/probabilityUtils";
 import type { Deal } from "./markets-generator";
 import { Markets } from "./markets-generator";
-import type { Point } from "./voronoi";
 
 type DrawFn = (
   batch: TradeBatch,

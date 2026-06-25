@@ -1,9 +1,9 @@
 import Alea from "alea";
 import { color, shuffler } from "d3";
-import { worldContext } from "../context/worldContext";
-import type { PackedGraph } from "../types/PackedGraph";
-import { TIME } from "../utils/debug";
-import type { CultureType } from "./cultures-generator";
+import { worldContext } from "../../../context/worldContext";
+import type { CultureType } from "../../../modules/cultures-generator";
+import type { PackedGraph } from "../../../types/PackedGraph";
+import { TIME } from "../../../utils/debug";
 
 export interface Good {
   i: number;

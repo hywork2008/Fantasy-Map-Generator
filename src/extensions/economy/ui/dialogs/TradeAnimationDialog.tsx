@@ -1,8 +1,8 @@
 import type React from "react";
-import { useDialogState } from "../../store/dialogState";
-import { SliderInput } from "../components/SliderInput";
-import { Dialog } from "./Dialog";
-import { closeDialog } from "./dialogService";
+import { useDialogState } from "../../../../store/dialogState";
+import { SliderInput } from "../../../../ui/components/SliderInput";
+import { Dialog } from "../../../../ui/dialogs/Dialog";
+import { closeDialog } from "../../../../ui/dialogs/dialogService";
 
 export const TradeAnimationDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("tradeAnimationEditor"));

@@ -1,19 +1,19 @@
 import { worldContext } from "../../context/worldContext";
 import { toggleLayerById } from "../../controllers/layers";
-import { Goods } from "../../modules/goods-generator";
-import { Markets } from "../../modules/markets-generator";
-import { Production } from "../../modules/production-generator";
 import { useExtensionState } from "../../store/extensionState";
 import { type LayerConfig, useLayerState } from "../../store/layerState";
 import { closeDialog, openRichDialog } from "../../ui/dialogs/dialogService";
-import { GoodsEditorDialog } from "../../ui/dialogs/GoodsEditorDialog";
-import { MarketDealsDialog } from "../../ui/dialogs/MarketDealsDialog";
-import { MarketOverviewDialog } from "../../ui/dialogs/MarketOverviewDialog";
-import { MarketsGoodCompareDialog } from "../../ui/dialogs/MarketsGoodCompareDialog";
-import { MarketsOverviewDialog } from "../../ui/dialogs/MarketsOverviewDialog";
-import { ProductionChainsDialog } from "../../ui/dialogs/ProductionChainsDialog";
-import { TradeAnimationDialog } from "../../ui/dialogs/TradeAnimationDialog";
-import { TradeDetailsDialog } from "../../ui/dialogs/TradeDetailsDialog";
+import { Goods } from "./modules/goods-generator";
+import { Markets } from "./modules/markets-generator";
+import { Production } from "./modules/production-generator";
+import { GoodsEditorDialog } from "./ui/dialogs/GoodsEditorDialog";
+import { MarketDealsDialog } from "./ui/dialogs/MarketDealsDialog";
+import { MarketOverviewDialog } from "./ui/dialogs/MarketOverviewDialog";
+import { MarketsGoodCompareDialog } from "./ui/dialogs/MarketsGoodCompareDialog";
+import { MarketsOverviewDialog } from "./ui/dialogs/MarketsOverviewDialog";
+import { ProductionChainsDialog } from "./ui/dialogs/ProductionChainsDialog";
+import { TradeAnimationDialog } from "./ui/dialogs/TradeAnimationDialog";
+import { TradeDetailsDialog } from "./ui/dialogs/TradeDetailsDialog";
 
 function withRegenerateConfirmation(featureName: string, id: string, onConfirm: () => void) {
   const dontAsk = sessionStorage.getItem("regenerateFeatureDontAsk");

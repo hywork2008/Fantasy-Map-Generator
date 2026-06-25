@@ -1,9 +1,9 @@
 import { sum } from "d3";
-import { worldContext } from "../context/worldContext";
-import { rn } from "../utils/numberUtils";
-import { DEFAULT_CULTURE_TYPE } from "./cultures-generator";
+import { worldContext } from "../../../context/worldContext";
+import { DEFAULT_CULTURE_TYPE } from "../../../modules/cultures-generator";
+import type { Zone } from "../../../modules/zones-generator";
+import { rn } from "../../../utils/numberUtils";
 import { type Good, Goods } from "./goods-generator";
-import type { Zone } from "./zones-generator";
 
 export const BONUS_RURAL_PRODUCTION = 0.25;
 export const MAX_BONUS_PRODUCTION = 5;

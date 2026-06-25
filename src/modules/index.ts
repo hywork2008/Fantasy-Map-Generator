@@ -16,12 +16,12 @@ import { Routes } from "./routes-generator";
 import { States } from "./states-generator";
 import { Zones } from "./zones-generator";
 import "./emblem";
+import { Goods } from "../extensions/economy/modules/goods-generator";
+import { Markets } from "../extensions/economy/modules/markets-generator";
+import { Production } from "../extensions/economy/modules/production-generator";
 import { initFonts } from "./fonts";
-import { Goods } from "./goods-generator";
 import { Ice } from "./ice";
 import { Markers } from "./markers-generator";
-import { Markets } from "./markets-generator";
-import { Production } from "./production-generator";
 import "./resample";
 
 export type { BakeParams, ErosionBakeResult } from "./erosion-bake";

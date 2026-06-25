@@ -1,6 +1,6 @@
 import { color, type D3DragEvent, drag, pointer } from "d3";
-import { viewContext } from "../context/viewContext";
-import { worldContext } from "../context/worldContext";
+import { viewContext } from "../../../context/viewContext";
+import { worldContext } from "../../../context/worldContext";
 import {
   closeDialogs,
   confirmationDialog,
@@ -9,17 +9,21 @@ import {
   moveCircle,
   removeCircle,
   restoreDefaultEvents
-} from "../controllers/editors";
-import { toggleMarketsLayer } from "../controllers/layers";
-import type { Burg } from "../modules/burgs-generator";
+} from "../../../controllers/editors";
+import { toggleMarketsLayer } from "../../../controllers/layers";
+import type { Burg } from "../../../modules/burgs-generator";
+import {
+  getMarketsOverviewState,
+  type MarketRowData,
+  setMarketsOverviewState
+} from "../../../store/marketsOverviewState";
+import { openDialog } from "../../../ui/dialogs/dialogService";
+import { findAllCellsInRadius, findCell, findClosestCell, getIsolines, getVertexPath, rn } from "../../../utils";
+import { layerIsOn } from "../../../utils/nodeUtils";
+import { clearMainTip, showMainTip, tip } from "../../../utils/uiHelpers";
 import type { Deal, Market } from "../modules/markets-generator";
 import { Markets } from "../modules/markets-generator";
 import { drawMarketsLayer, highlightMarketOff, highlightMarketOn } from "../renderers/draw-markets";
-import { getMarketsOverviewState, type MarketRowData, setMarketsOverviewState } from "../store/marketsOverviewState";
-import { openDialog } from "../ui/dialogs/dialogService";
-import { findAllCellsInRadius, findCell, findClosestCell, getIsolines, getVertexPath, rn } from "../utils";
-import { layerIsOn } from "../utils/nodeUtils";
-import { clearMainTip, showMainTip, tip } from "../utils/uiHelpers";
 
 const viewbox = viewContext.viewbox;
 

@@ -1,7 +1,7 @@
 import type React from "react";
-import { useDialogState } from "../../store/dialogState";
-import { Dialog } from "./Dialog";
-import { closeDialog } from "./dialogService";
+import { useDialogState } from "../../../../store/dialogState";
+import { Dialog } from "../../../../ui/dialogs/Dialog";
+import { closeDialog } from "../../../../ui/dialogs/dialogService";
 
 export const ProductionChainsDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("productionChainsDialog"));

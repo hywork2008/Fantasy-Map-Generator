@@ -1,15 +1,15 @@
 import Alea from "alea";
 import { quadtree } from "d3-quadtree";
 import FlatQueue from "flatqueue";
-import { worldContext } from "../context/worldContext";
-import { minmax, rn } from "../utils";
-import { getColors, getRandomColor } from "../utils/colorUtils";
-import { TIME } from "../utils/debug";
-import type { Burg } from "./burgs-generator";
+import { worldContext } from "../../../context/worldContext";
+import type { Burg } from "../../../modules/burgs-generator";
+import { States } from "../../../modules/states-generator";
+import { minmax, rn } from "../../../utils";
+import { getColors, getRandomColor } from "../../../utils/colorUtils";
+import { TIME } from "../../../utils/debug";
 import type { DemandCategory, Good } from "./goods-generator";
 import { DEMAND_PRIORITY, DEMAND_TARGET_FACTORS, Goods } from "./goods-generator";
 import { getCellProduction } from "./production-utils";
-import { States } from "./states-generator";
 
 const PRICE_FLOOR_FACTOR = 0.25;
 const PRICE_CEILING_FACTOR = 3.0;

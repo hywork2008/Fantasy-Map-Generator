@@ -1,13 +1,13 @@
-import { createLayerCanvas } from "../canvas/map-canvas";
-import { viewContext } from "../context/viewContext";
-import { worldContext } from "../context/worldContext";
+import { createLayerCanvas } from "../../../canvas/map-canvas";
+import { viewContext } from "../../../context/viewContext";
+import { worldContext } from "../../../context/worldContext";
+import { normalize, rn } from "../../../utils";
+import { TIME } from "../../../utils/debug";
+import { getPackPolygon } from "../../../utils/graphUtils";
 import type { Good } from "../modules/goods-generator";
 import { Goods } from "../modules/goods-generator";
 import { Production } from "../modules/production-generator";
 import { getCellProduction } from "../modules/production-utils";
-import { normalize, rn } from "../utils";
-import { TIME } from "../utils/debug";
-import { getPackPolygon } from "../utils/graphUtils";
 
 const SUBGROUPS = ["goodsCells", "goodsIcons", "goodsBurgs"] as const;
 

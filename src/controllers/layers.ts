@@ -40,10 +40,10 @@ let appServices: AppServices;
 // Layer presets: map preset name → list of toggle button IDs that should be ON
 let presets: Record<string, string[]> = {};
 
-import { TradeAnimation } from "../modules/trade-animation";
-import { drawGoods } from "../renderers/draw-goods";
-import { drawMarketsLayer } from "../renderers/draw-markets";
-import { clear as clearTradeAnim, draw as drawTradeAnim } from "../renderers/draw-trade-animation";
+import { TradeAnimation } from "../extensions/economy/modules/trade-animation";
+import { drawGoods } from "../extensions/economy/renderers/draw-goods";
+import { drawMarketsLayer } from "../extensions/economy/renderers/draw-markets";
+import { clear as clearTradeAnim, draw as drawTradeAnim } from "../extensions/economy/renderers/draw-trade-animation";
 import { ThreeDRenderer } from "../renderers/three-d-renderer";
 import { DEFAULT_LAYERS, useLayerState } from "../store/layerState";
 import { openDialog } from "../ui/dialogs/dialogService";

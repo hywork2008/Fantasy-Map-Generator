@@ -8,10 +8,10 @@ import type {
   Ruler as RulerClass,
   Rulers as RulersClass
 } from "../controllers/measurers";
-import type { GoodsModule } from "../modules/goods-generator";
+import type { GoodsModule } from "../extensions/economy/modules/goods-generator";
+import type { MarketsModule } from "../extensions/economy/modules/markets-generator";
+import type { ProductionModule } from "../extensions/economy/modules/production-generator";
 import type { HeightmapModule } from "../modules/heightmap-generator";
-import type { MarketsModule } from "../modules/markets-generator";
-import type { ProductionModule } from "../modules/production-generator";
 import type { Resampler } from "../modules/resample";
 
 declare global {

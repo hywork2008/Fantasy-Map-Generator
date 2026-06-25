@@ -1,9 +1,9 @@
 // @ts-nocheck
 
-import { viewContext } from "../context/viewContext";
-import { worldContext } from "../context/worldContext";
+import { viewContext } from "../../../context/viewContext";
+import { worldContext } from "../../../context/worldContext";
+import { convertTemperature, list, rn } from "../../../utils";
 import { Goods } from "../modules/goods-generator";
-import { convertTemperature, list, rn } from "../utils";
 
 const pack = worldContext.pack;
 const _viewbox = viewContext.viewbox;

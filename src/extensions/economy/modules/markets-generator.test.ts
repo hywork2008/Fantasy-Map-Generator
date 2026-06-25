@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { worldContext } from "../context/worldContext";
-import type { PackedGraph } from "../types/PackedGraph";
-import type { Burg } from "./burgs-generator";
+import { worldContext } from "../../../context/worldContext";
+import type { Burg } from "../../../modules/burgs-generator";
+import { States } from "../../../modules/states-generator";
+import type { PackedGraph } from "../../../types/PackedGraph";
 import { type Market, MarketsModule } from "./markets-generator";
-import { States } from "./states-generator";
 
 vi.mock("./goods-generator", async importOriginal => {
   const actual = await importOriginal<typeof import("./goods-generator")>();

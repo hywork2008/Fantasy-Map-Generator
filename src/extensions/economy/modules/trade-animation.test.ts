@@ -17,9 +17,9 @@ vi.mock("./markets-generator", () => ({
   }
 }));
 
-import { worldContext } from "../context/worldContext";
+import { worldContext } from "../../../context/worldContext";
+import type { PackedGraph } from "../../../types/PackedGraph";
 import * as drawTrade from "../renderers/draw-trade-animation";
-import type { PackedGraph } from "../types/PackedGraph";
 import { TradeAnimationModule } from "./trade-animation";
 
 // ─── helpers ────────────────────────────────────────────────────────────────

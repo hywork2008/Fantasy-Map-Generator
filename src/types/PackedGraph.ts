@@ -1,11 +1,11 @@
 import type { Quadtree } from "d3";
+import type { Good } from "../extensions/economy/modules/goods-generator";
+import type { Deal, Market } from "../extensions/economy/modules/markets-generator";
 import type { Burg } from "../modules/burgs-generator";
 import type { Culture } from "../modules/cultures-generator";
 import type { PackedGraphFeature } from "../modules/features";
-import type { Good } from "../modules/goods-generator";
 import type { IceElement } from "../modules/ice";
 import type { Marker } from "../modules/markers-generator";
-import type { Deal, Market } from "../modules/markets-generator";
 import type { Province } from "../modules/provinces-generator";
 import type { Religion } from "../modules/religions-generator";
 import type { River } from "../modules/river-generator";

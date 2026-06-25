@@ -1,14 +1,13 @@
-import { worldContext } from "../context/worldContext";
-import { minmax, rn } from "../utils";
-import { DEBUG, ERROR, TIME } from "../utils/debug";
-import type { Burg } from "./burgs-generator";
-
+import { worldContext } from "../../../context/worldContext";
+import type { Burg } from "../../../modules/burgs-generator";
+import { States } from "../../../modules/states-generator";
+import { minmax, rn } from "../../../utils";
+import { DEBUG, ERROR, TIME } from "../../../utils/debug";
 import type { DemandCategory, Good } from "./goods-generator";
 import { DEMAND_PRIORITY, Goods, getDemandTargets } from "./goods-generator";
 import type { Deal, Market } from "./markets-generator";
 import { Markets } from "./markets-generator";
 import { getModifiers, MAX_BONUS_PRODUCTION } from "./production-utils";
-import { States } from "./states-generator";
 
 const BONUS_URBAN_PRODUCTION = 1;
 const MIN_BONUS_PRODUCTION = 1;

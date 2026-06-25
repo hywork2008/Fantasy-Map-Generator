@@ -1,9 +1,9 @@
 import { color, curveBasisClosed, line, select } from "d3";
-import { viewContext } from "../context/viewContext";
-import { worldContext } from "../context/worldContext";
-import { rn } from "../utils";
-import { TIME } from "../utils/debug";
-import { getIsolines } from "../utils/pathUtils";
+import { viewContext } from "../../../context/viewContext";
+import { worldContext } from "../../../context/worldContext";
+import { rn } from "../../../utils";
+import { TIME } from "../../../utils/debug";
+import { getIsolines } from "../../../utils/pathUtils";
 
 export function drawMarketsLayer() {
   TIME && console.time("drawMarketsLayer");

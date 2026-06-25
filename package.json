@@ -16,6 +16,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "build:economy": "vite build -c vite.extension.config.ts",
     "preview": "vite preview",
     "test": "vitest",
     "test:e2e": "playwright test",

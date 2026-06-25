@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { worldContext } from "../context/worldContext";
-import type { PackedGraph } from "../types/PackedGraph";
-import type { BiomesData } from "../types/WorldState";
-import type { Grid } from "../utils/graphUtils";
+import { worldContext } from "../../../context/worldContext";
+import type { PackedGraph } from "../../../types/PackedGraph";
+import type { BiomesData } from "../../../types/WorldState";
+import type { Grid } from "../../../utils/graphUtils";
 import { GoodsModule } from "./goods-generator";
 
 describe("GoodsModule", () => {
