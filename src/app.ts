@@ -33,7 +33,7 @@ async function initApp(): Promise<void> {
   console.log("Initializing utils...");
   initUtils();
   console.log("Initializing extensions...");
-  initExtensions();
+  await initExtensions();
   console.log("Initializing modules...");
   initModules();
   console.log("Initializing renderers...");
