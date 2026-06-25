@@ -15,6 +15,7 @@ import type { River } from "../modules/river-generator";
 import { Routes } from "../modules/routes-generator";
 import { GridRenderer } from "../renderers";
 import { rulers } from "../store/editorState";
+import { useLayerState } from "../store/layerState";
 import { type OptionsState, useOptionsState } from "../store/optionsState";
 import { closeDialogs, openRichDialog } from "../ui/dialogs/dialogService";
 import { calculateVoronoi, findCell, last, link, minmax, parseError, rn } from "../utils";
@@ -464,14 +465,14 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
         selection: d3.Selection<T, unknown, P, unknown>,
         selector: string
       ) => (selection.node() as Element | null)?.querySelector(selector);
-      const turnOn = (el: string) => document.getElementById(el)!.classList.remove("buttonoff");
 
-      document
-        .getElementById("mapLayers")!
-        .querySelectorAll("li")
-        .forEach((el: Element) => {
-          el.classList.add("buttonoff");
-        });
+      const nextActiveLayers: Record<string, boolean> = {};
+      useLayerState.getState().layers.forEach(l => {
+        nextActiveLayers[l.id] = false;
+      });
+      const turnOn = (el: string) => {
+        nextActiveLayers[el] = true;
+      };
 
       if (hasChild(viewContext.texture, "image")) turnOn("toggleTexture");
       if (hasChildren(viewContext.terrs.select("#landHeights"))) turnOn("toggleHeight");
@@ -492,17 +493,18 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
       if (isVisible(viewContext.routes) && hasChild(viewContext.routes, "path")) turnOn("toggleRoutes");
       if (hasChildren(viewContext.temperature)) turnOn("toggleTemperature");
       if (hasChild(viewContext.population, "line")) turnOn("togglePopulation");
-      if (isVisible(viewContext.ice)) turnOn("toggleIce");
+      if (hasChildren(viewContext.ice)) turnOn("toggleIce");
       if (hasChild(viewContext.prec, "circle")) turnOn("togglePrecipitation");
       if (isVisible(viewContext.emblems) && hasChild(viewContext.emblems, "use")) turnOn("toggleEmblems");
-      if (isVisible(viewContext.labels)) turnOn("toggleLabels");
-      if (isVisible(viewContext.icons)) turnOn("toggleBurgIcons");
+      if (hasChild(viewContext.labels, "text")) turnOn("toggleLabels");
+      if (hasChild(viewContext.icons, "use, circle")) turnOn("toggleBurgIcons");
       if (hasChildren(viewContext.armies) && isVisible(viewContext.armies)) turnOn("toggleMilitary");
       if (hasChild(viewContext.markers, "svg")) turnOn("toggleMarkers");
       if (isVisible(viewContext.ruler)) turnOn("toggleRulers");
       if (isVisible(viewContext.scaleBar)) turnOn("toggleScaleBar");
       if (isVisibleNode(document.getElementById("vignette") as HTMLElement)) turnOn("toggleVignette");
 
+      useLayerState.getState().setAllActiveLayers(nextActiveLayers);
       getCurrentPreset();
     }
     viewContext.scaleBar.on("mousemove", () => tip("Click to open Units Editor")).on("click", () => editUnits());

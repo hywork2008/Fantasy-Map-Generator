@@ -236,7 +236,7 @@ export function handleLayersPresetChange(preset: string): void {
   const layers = layerState.presets[preset] ?? [];
 
   layerState.layers.forEach(l => {
-    const isOn = layerState.activeLayers[l.id];
+    const isOn = Boolean(layerState.activeLayers[l.id]);
     const shouldBeOn = layers.includes(l.id);
     if (shouldBeOn !== isOn) toggleLayerById(l.id);
   });
