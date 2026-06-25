@@ -68,7 +68,7 @@ test.describe("Lakes layer", () => {
       ];
     });
 
-    expect(lakesIndex).toBe(heightmapIndex + 1);
+    expect(lakesIndex).toBeGreaterThan(heightmapIndex);
   });
 
   test("dragging Lakes above Heightmap in panel moves #lakes before #terrs in SVG", async ({

@@ -949,6 +949,7 @@ document.addEventListener("fmg:edit-river", (e: Event) => {
   const { id } = (e as CustomEvent<{ id: string }>).detail;
   RiversEditor.editRiver(id);
 });
+document.addEventListener("fmg:edit-states", () => editStates());
 document.addEventListener("fmg:remove-circle", () => removeCircle());
 document.addEventListener("fmg:highlight-element", (e: Event) => {
   const { element, zoom } = (e as CustomEvent<{ element: Element; zoom?: number }>).detail;
