@@ -11,32 +11,6 @@ export interface LayerConfig {
 
 export const DEFAULT_LAYERS: LayerConfig[] = [
   {
-    id: "toggleTexture",
-    name: (
-      <>
-        Te<u>x</u>ture
-      </>
-    ),
-    shortcut: "X",
-    tooltip: "Texture overlay: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
-  },
-  {
-    id: "toggleHeight",
-    name: (
-      <>
-        <u>H</u>eightmap
-      </>
-    ),
-    shortcut: "H",
-    tooltip: "Heightmap: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
-  },
-  {
-    id: "toggleLakes",
-    name: <>Lakes</>,
-    shortcut: "Q",
-    tooltip: "Lakes: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
-  },
-  {
     id: "toggleBiomes",
     name: (
       <>
@@ -45,6 +19,16 @@ export const DEFAULT_LAYERS: LayerConfig[] = [
     ),
     shortcut: "B",
     tooltip: "Biomes: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
+  },
+  {
+    id: "toggleBorders",
+    name: (
+      <>
+        Bor<u>d</u>ers
+      </>
+    ),
+    shortcut: "D",
+    tooltip: "State borders: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
   },
   {
     id: "toggleCells",
@@ -57,16 +41,6 @@ export const DEFAULT_LAYERS: LayerConfig[] = [
     tooltip: "Cells structure: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
   },
   {
-    id: "toggleGrid",
-    name: (
-      <>
-        <u>G</u>rid
-      </>
-    ),
-    shortcut: "G",
-    tooltip: "Grid: click to toggle, drag to raise or lower. Ctrl + click to edit layer style and select type"
-  },
-  {
     id: "toggleCoordinates",
     name: (
       <>
@@ -77,24 +51,139 @@ export const DEFAULT_LAYERS: LayerConfig[] = [
     tooltip: "Coordinate grid: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
   },
   {
-    id: "toggleCompass",
+    id: "toggleCultures",
     name: (
       <>
-        <u>W</u>ind Rose
+        <u>C</u>ultures
       </>
     ),
-    shortcut: "W",
-    tooltip: "Wind (Compass) Rose: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
+    shortcut: "C",
+    tooltip: "Cultures: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
   },
   {
-    id: "toggleRivers",
+    id: "toggleEmblems",
+    name: <>Emblems</>,
+    shortcut: "Y",
+    tooltip: "Emblems: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
+  },
+  {
+    id: "toggleGoods",
     name: (
       <>
-        Ri<u>v</u>ers
+        <u>G</u>oods
       </>
     ),
-    shortcut: "V",
-    tooltip: "Rivers: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
+    shortcut: null,
+    tooltip: "Goods and Production: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
+  },
+  {
+    id: "toggleGrid",
+    name: (
+      <>
+        <u>G</u>rid
+      </>
+    ),
+    shortcut: "G",
+    tooltip: "Grid: click to toggle, drag to raise or lower. Ctrl + click to edit layer style and select type"
+  },
+  {
+    id: "toggleHeight",
+    name: (
+      <>
+        <u>H</u>eightmap
+      </>
+    ),
+    shortcut: "H",
+    tooltip: "Heightmap: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
+  },
+  {
+    id: "toggleIce",
+    name: <>Ice</>,
+    shortcut: "J",
+    tooltip:
+      "Icebergs and glaciers: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
+  },
+  {
+    id: "toggleBurgIcons",
+    name: (
+      <>
+        <u>I</u>cons
+      </>
+    ),
+    shortcut: "I",
+    tooltip: "Burg icons: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
+  },
+  {
+    id: "toggleLabels",
+    name: (
+      <>
+        <u>L</u>abels
+      </>
+    ),
+    shortcut: "L",
+    tooltip: "Labels: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
+  },
+  {
+    id: "toggleLakes",
+    name: <>Lakes</>,
+    shortcut: "Q",
+    tooltip: "Lakes: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
+  },
+  {
+    id: "toggleMarkers",
+    name: (
+      <>
+        Mar<u>k</u>ers
+      </>
+    ),
+    shortcut: "K",
+    tooltip: "Markers: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
+  },
+  {
+    id: "toggleMarketsLayer",
+    name: <>Markets</>,
+    shortcut: null,
+    tooltip: "Markets: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
+  },
+  {
+    id: "toggleMilitary",
+    name: (
+      <>
+        <u>M</u>ilitary
+      </>
+    ),
+    shortcut: "M",
+    tooltip: "Military forces: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
+  },
+  {
+    id: "togglePopulation",
+    name: (
+      <>
+        Populatio<u>n</u>
+      </>
+    ),
+    shortcut: "N",
+    tooltip: "Population map: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
+  },
+  {
+    id: "togglePrecipitation",
+    name: (
+      <>
+        Precipit<u>a</u>tion
+      </>
+    ),
+    shortcut: "A",
+    tooltip: "Precipitation map: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
+  },
+  {
+    id: "toggleProvinces",
+    name: (
+      <>
+        <u>P</u>rovinces
+      </>
+    ),
+    shortcut: "P",
+    tooltip: "Provinces: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
   },
   {
     id: "toggleRelief",
@@ -118,54 +207,14 @@ export const DEFAULT_LAYERS: LayerConfig[] = [
     tooltip: "Religions: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
   },
   {
-    id: "toggleCultures",
+    id: "toggleRivers",
     name: (
       <>
-        <u>C</u>ultures
+        Ri<u>v</u>ers
       </>
     ),
-    shortcut: "C",
-    tooltip: "Cultures: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
-  },
-  {
-    id: "toggleStates",
-    name: (
-      <>
-        <u>S</u>tates
-      </>
-    ),
-    shortcut: "S",
-    tooltip: "States: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
-  },
-  {
-    id: "toggleProvinces",
-    name: (
-      <>
-        <u>P</u>rovinces
-      </>
-    ),
-    shortcut: "P",
-    tooltip: "Provinces: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
-  },
-  {
-    id: "toggleZones",
-    name: (
-      <>
-        <u>Z</u>ones
-      </>
-    ),
-    shortcut: "Z",
-    tooltip: "Zones: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
-  },
-  {
-    id: "toggleBorders",
-    name: (
-      <>
-        Bor<u>d</u>ers
-      </>
-    ),
-    shortcut: "D",
-    tooltip: "State borders: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
+    shortcut: "V",
+    tooltip: "Rivers: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
   },
   {
     id: "toggleRoutes",
@@ -176,112 +225,6 @@ export const DEFAULT_LAYERS: LayerConfig[] = [
     ),
     shortcut: "U",
     tooltip: "Trade routes: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
-  },
-  {
-    id: "toggleTemperature",
-    name: (
-      <>
-        <u>T</u>emperature
-      </>
-    ),
-    shortcut: "T",
-    tooltip: "Temperature map: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
-  },
-  {
-    id: "togglePopulation",
-    name: (
-      <>
-        Populatio<u>n</u>
-      </>
-    ),
-    shortcut: "N",
-    tooltip: "Population map: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
-  },
-  {
-    id: "toggleIce",
-    name: <>Ice</>,
-    shortcut: "J",
-    tooltip:
-      "Icebergs and glaciers: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
-  },
-  {
-    id: "toggleGoods",
-    name: (
-      <>
-        <u>G</u>oods
-      </>
-    ),
-    shortcut: null,
-    tooltip: "Goods and Production: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
-  },
-  {
-    id: "toggleMarketsLayer",
-    name: <>Markets</>,
-    shortcut: null,
-    tooltip: "Markets: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
-  },
-  {
-    id: "toggleTrade",
-    name: <>Trade</>,
-    shortcut: "`",
-    tooltip:
-      "Trade: animated trade deal flows. Click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
-  },
-  {
-    id: "togglePrecipitation",
-    name: (
-      <>
-        Precipit<u>a</u>tion
-      </>
-    ),
-    shortcut: "A",
-    tooltip: "Precipitation map: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
-  },
-  {
-    id: "toggleEmblems",
-    name: <>Emblems</>,
-    shortcut: "Y",
-    tooltip: "Emblems: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
-  },
-  {
-    id: "toggleBurgIcons",
-    name: (
-      <>
-        <u>I</u>cons
-      </>
-    ),
-    shortcut: "I",
-    tooltip: "Burg icons: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
-  },
-  {
-    id: "toggleLabels",
-    name: (
-      <>
-        <u>L</u>abels
-      </>
-    ),
-    shortcut: "L",
-    tooltip: "Labels: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
-  },
-  {
-    id: "toggleMilitary",
-    name: (
-      <>
-        <u>M</u>ilitary
-      </>
-    ),
-    shortcut: "M",
-    tooltip: "Military forces: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
-  },
-  {
-    id: "toggleMarkers",
-    name: (
-      <>
-        Mar<u>k</u>ers
-      </>
-    ),
-    shortcut: "K",
-    tooltip: "Markers: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
   },
   {
     id: "toggleRulers",
@@ -297,11 +240,68 @@ export const DEFAULT_LAYERS: LayerConfig[] = [
     isSolid: true
   },
   {
+    id: "toggleStates",
+    name: (
+      <>
+        <u>S</u>tates
+      </>
+    ),
+    shortcut: "S",
+    tooltip: "States: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
+  },
+  {
+    id: "toggleTemperature",
+    name: (
+      <>
+        <u>T</u>emperature
+      </>
+    ),
+    shortcut: "T",
+    tooltip: "Temperature map: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
+  },
+  {
+    id: "toggleTexture",
+    name: (
+      <>
+        Te<u>x</u>ture
+      </>
+    ),
+    shortcut: "X",
+    tooltip: "Texture overlay: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
+  },
+  {
+    id: "toggleTrade",
+    name: <>Trade</>,
+    shortcut: "`",
+    tooltip:
+      "Trade: animated trade deal flows. Click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
+  },
+  {
     id: "toggleVignette",
     name: <>Vignette</>,
     shortcut: "[",
     tooltip: "Vignette (border fading): click to toggle. Ctrl + click to edit style",
     isSolid: true
+  },
+  {
+    id: "toggleCompass",
+    name: (
+      <>
+        <u>W</u>ind Rose
+      </>
+    ),
+    shortcut: "W",
+    tooltip: "Wind (Compass) Rose: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
+  },
+  {
+    id: "toggleZones",
+    name: (
+      <>
+        <u>Z</u>ones
+      </>
+    ),
+    shortcut: "Z",
+    tooltip: "Zones: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
   }
 ];
 
