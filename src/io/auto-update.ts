@@ -4,9 +4,6 @@ import { appServices } from "../context/appServices";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 
-import { Goods } from "../extensions/economy/modules/goods-generator";
-import { Markets } from "../extensions/economy/modules/markets-generator";
-import { Production } from "../extensions/economy/modules/production-generator";
 import { Burgs } from "../modules/burgs-generator";
 import { Cultures } from "../modules/cultures-generator";
 import type { Emblem } from "../modules/emblem/generator";
@@ -1126,34 +1123,8 @@ export function resolveVersionConflicts(mapVersion: string): void {
   }
 
   if (isOlderThan("1.124.0")) {
-    // v1.124.0 added goods, markets, deals and trade animation SVG layers and data
-    const goodsLayer = viewContext.viewbox
-      .insert("g", "#population")
-      .attr("id", "goods")
-      .style("display", "none")
-      .attr("stroke-width", "0.32")
-      .attr("filter", "url(#dropShadow01)");
-    goodsLayer.append("g").attr("id", "goodsCells");
-    goodsLayer.append("g").attr("id", "goodsIcons").attr("data-circle", "1");
-    goodsLayer.append("g").attr("id", "goodsBurgs");
-
-    const marketsLayerFill = viewContext.viewbox
-      .insert("g", "#icons")
-      .attr("id", "marketsLayerFill")
-      .style("display", "none");
-    const marketsLayer = viewContext.viewbox
-      .insert("g", "#fogging-cont")
-      .attr("id", "marketsLayer")
-      .style("display", "none");
-    const tradeAnimationLayer = viewContext.viewbox.insert("g", "#fogging-cont").attr("id", "tradeAnimation");
-
-    Object.assign(viewContext, {
-      goods: goodsLayer,
-      marketsFill: marketsLayerFill,
-      markets: marketsLayer,
-      tradeAnimation: tradeAnimationLayer
-    });
-
+    // v1.124.0 added economy state tax fields and SVG layers.
+    // SVG layer creation is delegated to the economy extension if installed.
     for (const state of worldContext.pack.states) {
       if (!state) continue;
       if (!state.i || state.removed) {
@@ -1169,18 +1140,14 @@ export function resolveVersionConflicts(mapVersion: string): void {
       state.treasury = 0;
     }
 
-    Goods.generate();
-    Markets.generate();
-    Production.produce();
+    // Signal the economy extension (if installed) to set up SVG layers and generate data
+    document.dispatchEvent(new CustomEvent("fmg:economy:auto-update", { detail: { trigger: "v1.124.0" } }));
   }
 
   if (isOlderThan("1.125.0")) {
-    // v1.125.0 persists economy data in save format (indices 40-44).
-    // Pre-1.125.0 maps load with empty pack.goods/markets/deals; regenerate from world state.
+    // Signal the economy extension to regenerate if data is missing
     if (!worldContext.pack.goods?.length) {
-      Goods.generate();
-      Markets.generate();
-      Production.produce();
+      document.dispatchEvent(new CustomEvent("fmg:economy:auto-update", { detail: { trigger: "v1.125.0" } }));
     }
   }
 }

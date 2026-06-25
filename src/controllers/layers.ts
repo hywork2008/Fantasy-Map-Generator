@@ -40,10 +40,6 @@ let appServices: AppServices;
 // Layer presets: map preset name → list of toggle button IDs that should be ON
 let presets: Record<string, string[]> = {};
 
-import { TradeAnimation } from "../extensions/economy/modules/trade-animation";
-import { drawGoods } from "../extensions/economy/renderers/draw-goods";
-import { drawMarketsLayer } from "../extensions/economy/renderers/draw-markets";
-import { clear as clearTradeAnim, draw as drawTradeAnim } from "../extensions/economy/renderers/draw-trade-animation";
 import { ThreeDRenderer } from "../renderers/three-d-renderer";
 import { DEFAULT_LAYERS, useLayerState } from "../store/layerState";
 import { openDialog } from "../ui/dialogs/dialogService";
@@ -185,17 +181,7 @@ function getDefaultPresets(): Record<string, string[]> {
       "toggleStates",
       "toggleVignette"
     ],
-    landmass: ["toggleScaleBar"],
-    goods: ["toggleBurgIcons", "toggleGoods", "toggleLakes", "toggleRivers", "toggleScaleBar", "toggleVignette"],
-    trade: [
-      "toggleBurgIcons",
-      "toggleLakes",
-      "toggleRivers",
-      "toggleRoutes",
-      "toggleScaleBar",
-      "toggleTrade",
-      "toggleVignette"
-    ]
+    landmass: ["toggleScaleBar"]
   };
 }
 
@@ -332,9 +318,7 @@ export function drawLayers(): void {
   if (layerIsOn("toggleBurgIcons")) BurgIconsRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleMilitary")) MilitaryRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleMarkers")) MarkersRenderer.render(worldContext, viewContext, appServices);
-  if (layerIsOn("toggleGoods")) drawGoods(getDefaultGoodsSet());
-  if (layerIsOn("toggleMarketsLayer")) drawMarketsLayer();
-  if (layerIsOn("toggleTrade")) TradeAnimation.start();
+  for (const hook of _drawLayerHooks) hook();
   if (layerIsOn("toggleRulers")) rulers.draw();
 }
 
@@ -960,57 +944,6 @@ export function toggleVignette(event?: MouseEvent): void {
   }
 }
 
-function getDefaultGoodsSet(): Set<number> {
-  const wood = worldContext.pack.goods?.find(g => g.name === "Wood");
-  return wood ? new Set([wood.i]) : new Set(worldContext.pack.goods?.map(g => g.i) ?? []);
-}
-
-export function toggleGoods(event?: MouseEvent): void {
-  if (!layerIsOn("toggleGoods")) {
-    turnButtonOn("toggleGoods");
-    drawGoods(getDefaultGoodsSet());
-    if (event && isCtrlClick(event)) editStyle("goodsIcons");
-  } else {
-    if (event && isCtrlClick(event)) {
-      editStyle("goodsIcons");
-      return;
-    }
-    viewContext.goods.selectAll("#goodsCells,#goodsIcons,#goodsBurgs").html("");
-    turnButtonOff("toggleGoods");
-  }
-}
-
-export function toggleMarketsLayer(event?: MouseEvent): void {
-  if (!layerIsOn("toggleMarketsLayer")) {
-    turnButtonOn("toggleMarketsLayer");
-    drawMarketsLayer();
-    if (event && isCtrlClick(event)) editStyle("markets");
-  } else {
-    if (event && isCtrlClick(event)) {
-      editStyle("markets");
-      return;
-    }
-    viewContext.marketsFill.html("").style("display", "none");
-    viewContext.markets.html("").style("display", "none");
-    turnButtonOff("toggleMarketsLayer");
-  }
-}
-
-export function toggleTrade(event?: MouseEvent): void {
-  if (!layerIsOn("toggleTrade")) {
-    turnButtonOn("toggleTrade");
-    TradeAnimation.start();
-    if (event && isCtrlClick(event)) editStyle("tradeAnimation");
-  } else {
-    if (event && isCtrlClick(event)) {
-      editStyle("tradeAnimation");
-      return;
-    }
-    TradeAnimation.stop();
-    turnButtonOff("toggleTrade");
-  }
-}
-
 // ─── Layer reordering (jQuery UI sortable) ────────────────────────────────────
 
 export function syncSVGLayersOrder(layers: { id: string }[]): void {
@@ -1048,11 +981,8 @@ function getLayer(id: string): HTMLElement | null {
   if (id === "toggleLabels") return document.getElementById("labels");
   if (id === "toggleBurgIcons") return document.getElementById("icons");
   if (id === "toggleMarkers") return document.getElementById("markers");
-  if (id === "toggleGoods") return document.getElementById("goodsCells");
-  if (id === "toggleMarketsLayer") return document.getElementById("marketsLayer");
-  if (id === "toggleTrade") return document.getElementById("tradeAnimation");
   if (id === "toggleRulers") return document.getElementById("ruler");
-  return null;
+  return _layerElementGetters.get(id)?.() ?? null;
 }
 
 const TOGGLE_REGISTRY: Record<string, (event?: MouseEvent) => void> = {
@@ -1084,10 +1014,7 @@ const TOGGLE_REGISTRY: Record<string, (event?: MouseEvent) => void> = {
   toggleScaleBar,
   toggleZones,
   toggleEmblems,
-  toggleVignette,
-  toggleGoods,
-  toggleMarketsLayer,
-  toggleTrade
+  toggleVignette
 };
 
 let pending3dUpdate = false;
@@ -1104,15 +1031,29 @@ function schedule3dUpdate() {
   }
 }
 
+/** Extension hooks called at the end of drawLayers() */
+const _drawLayerHooks: Array<() => void> = [];
+/** Extension layer element getters registered by extensions */
+const _layerElementGetters = new Map<string, () => HTMLElement | null>();
+
+/** Register a custom layer toggle handler for an extension-owned layer id */
+export function registerLayerToggle(id: string, handler: (event?: MouseEvent) => void): void {
+  TOGGLE_REGISTRY[id] = handler;
+}
+
+/** Register a function that returns the DOM element for an extension-owned layer */
+export function registerLayerElement(id: string, getter: () => HTMLElement | null): void {
+  _layerElementGetters.set(id, getter);
+}
+
+/** Register a hook called at the end of drawLayers() — used by extensions to redraw their layers */
+export function registerDrawLayerHook(fn: () => void): void {
+  _drawLayerHooks.push(fn);
+}
+
 export function toggleLayerById(id: string, event?: MouseEvent): void {
   TOGGLE_REGISTRY[id]?.(event);
 }
-
-TradeAnimation.bind({
-  draw: drawTradeAnim,
-  clear: clearTradeAnim,
-  isLayerOn: () => layerIsOn("toggleTrade")
-});
 
 // CustomEvent Listeners
 document.addEventListener("fmg:toggle-emblems", () => toggleEmblems());

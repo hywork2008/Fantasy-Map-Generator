@@ -1,14 +1,36 @@
+/**
+ * Dynamic extension loader.
+ *
+ * Lifecycle per extension:
+ *   install  → parseExtensionZip → save to IndexedDB → injectExtension
+ *   enable   → injectExtension
+ *   disable  → ejectExtension (calls module.cleanup if available)
+ *   uninstall → ejectExtension → delete from IndexedDB
+ *
+ * Each injected extension module is expected to export:
+ *   export function init(api: ExtensionAPI): void
+ *   export function cleanup(api: ExtensionAPI): void  // optional
+ */
+
 import JSZip from "jszip";
 import { useExtensionState } from "../store/extensionState";
+import type { ExtensionAPI } from "../types/extension-api";
 import { type ExtensionManifest, extensionDB, type InstalledExtensionRecord } from "./extensionDB";
 
-// Track injected DOM elements by extension id so we can eject them later
-const injectedScripts = new Map<string, HTMLScriptElement>();
-const injectedStyles = new Map<string, HTMLStyleElement>();
-// Blob URLs need revocation to avoid memory leaks
-const blobURLs = new Map<string, string>();
+interface LoadedExtensionModule {
+  init?: (api: ExtensionAPI) => void;
+  cleanup?: (api: ExtensionAPI) => void;
+}
 
-/** Inject a previously stored extension record into the page */
+/** Tracks injected <style> tags and loaded module instances by extension id */
+const injectedStyles = new Map<string, HTMLStyleElement>();
+const loadedModules = new Map<string, LoadedExtensionModule>();
+
+function getAPI(): ExtensionAPI {
+  return window.fmg.extensionAPI;
+}
+
+/** Inject CSS and run the module's init() for a given record */
 async function injectExtension(record: InstalledExtensionRecord): Promise<void> {
   const { id, jsCode, cssCode } = record;
 
@@ -20,41 +42,44 @@ async function injectExtension(record: InstalledExtensionRecord): Promise<void> 
     injectedStyles.set(id, style);
   }
 
-  // Use blob URL so the module can use import.meta / relative imports safely
+  // Create a blob URL, dynamic-import the module, then immediately revoke the URL.
+  // Since the extension is a single bundled file (no lazy chunks), revoking after
+  // the import() promise resolves is safe.
   const blob = new Blob([jsCode], { type: "text/javascript" });
   const url = URL.createObjectURL(blob);
-  blobURLs.set(id, url);
-
-  const script = document.createElement("script");
-  script.type = "module";
-  script.src = url;
-  script.setAttribute("data-fmg-extension", id);
-  document.head.appendChild(script);
-  injectedScripts.set(id, script);
+  try {
+    const mod = (await import(/* @vite-ignore */ url)) as LoadedExtensionModule;
+    loadedModules.set(id, mod);
+    mod.init?.(getAPI());
+  } finally {
+    URL.revokeObjectURL(url);
+  }
 }
 
-/** Remove injected DOM elements for an extension */
+/** Call cleanup() and remove CSS for a given extension */
 function ejectExtension(id: string): void {
-  const script = injectedScripts.get(id);
-  if (script) {
-    script.remove();
-    injectedScripts.delete(id);
+  const mod = loadedModules.get(id);
+  if (mod) {
+    try {
+      mod.cleanup?.(getAPI());
+    } catch (err) {
+      console.error(`[fmg] Extension "${id}" cleanup error:`, err);
+    }
+    loadedModules.delete(id);
   }
+
   const style = injectedStyles.get(id);
   if (style) {
     style.remove();
     injectedStyles.delete(id);
   }
-  const url = blobURLs.get(id);
-  if (url) {
-    URL.revokeObjectURL(url);
-    blobURLs.delete(id);
-  }
 }
+
+// ── ZIP parsing ──────────────────────────────────────────────────────────────
 
 /**
  * Parse a ZIP file, validate its manifest.json, and return the data
- * needed to store in IndexedDB.
+ * ready to be stored in IndexedDB.
  */
 export async function parseExtensionZip(file: File): Promise<InstalledExtensionRecord> {
   const zip = await JSZip.loadAsync(await file.arrayBuffer());
@@ -76,62 +101,59 @@ export async function parseExtensionZip(file: File): Promise<InstalledExtensionR
   const cssEntry = Object.keys(zip.files).find(name => !zip.files[name].dir && /\.css$/.test(name));
   const cssCode = cssEntry ? await zip.files[cssEntry].async("string") : undefined;
 
-  return {
-    id: manifest.id,
-    manifest,
-    jsCode,
-    cssCode,
-    installedAt: Date.now()
-  };
+  return { id: manifest.id, manifest, jsCode, cssCode, installedAt: Date.now() };
 }
 
-/** Install an extension from a ZIP File object and inject it immediately */
+// ── Public API ───────────────────────────────────────────────────────────────
+
+/** Install an extension from a ZIP File object and activate it immediately */
 export async function installExtensionFromZip(file: File): Promise<void> {
   const record = await parseExtensionZip(file);
+
   const existing = await extensionDB.get(record.id);
   if (existing) {
-    // Upgrade: eject old version first
     ejectExtension(record.id);
     useExtensionState.getState().unregisterExtension(record.id);
   }
+
   await extensionDB.save(record);
 
   const { enabledExtensions } = useExtensionState.getState();
-  const isEnabled = enabledExtensions[record.id] ?? true;
-  if (isEnabled) {
+  if (enabledExtensions[record.id] ?? true) {
     await injectExtension(record);
   }
 }
 
-/** Enable a dynamically installed extension */
+/** Enable (re-inject) a previously disabled dynamic extension */
 export async function enableDynamicExtension(id: string): Promise<void> {
+  if (loadedModules.has(id)) return; // already active
   const record = await extensionDB.get(id);
-  if (!record || record.builtin) return;
-  if (!injectedScripts.has(id)) {
-    await injectExtension(record);
-  }
+  if (!record) return;
+  await injectExtension(record);
 }
 
-/** Disable a dynamically installed extension */
+/** Disable a dynamic extension without removing it from IndexedDB */
 export function disableDynamicExtension(id: string): void {
   ejectExtension(id);
   useExtensionState.getState().unregisterExtension(id);
 }
 
-/** Uninstall a dynamically installed extension */
+/** Fully remove an extension: eject, unregister, delete from IndexedDB */
 export async function uninstallExtension(id: string): Promise<void> {
   ejectExtension(id);
   useExtensionState.getState().unregisterExtension(id);
   await extensionDB.delete(id);
 }
 
-/** Load all user-installed extensions from IndexedDB on app startup */
+/**
+ * Called at app startup: load all user-installed extensions from IndexedDB.
+ * Must run after window.fmg.extensionAPI has been assembled.
+ */
 export async function loadDynamicExtensions(): Promise<void> {
   const records = await extensionDB.getAll();
   const { enabledExtensions } = useExtensionState.getState();
 
   for (const record of records) {
-    if (record.builtin) continue; // built-ins are handled separately
     const isEnabled = enabledExtensions[record.id] ?? true;
     if (isEnabled) {
       await injectExtension(record);

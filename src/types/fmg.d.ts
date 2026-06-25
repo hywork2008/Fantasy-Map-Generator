@@ -2,6 +2,7 @@ import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import type { UITourModule } from "../controllers/ui-tour";
 import type { Grid } from "../utils/graphUtils";
+import type { ExtensionAPI } from "./extension-api";
 import type { WorldState } from "./WorldState";
 
 /**
@@ -35,6 +36,8 @@ export interface FMGNamespace {
   readonly world: WorldContext;
   readonly view: ViewContext;
   readonly actions: FMGActionsAPI;
+  /** Dependency-injection API for dynamically loaded extensions. */
+  readonly extensionAPI: ExtensionAPI;
 }
 
 declare global {
