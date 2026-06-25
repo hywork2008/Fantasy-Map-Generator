@@ -32,16 +32,16 @@ import type { Burg, BurgGroup } from "./modules/burgs-generator";
 import { Burgs } from "./modules/burgs-generator";
 import { Cultures } from "./modules/cultures-generator";
 import { Features } from "./modules/features";
-import { Goods } from "./modules/goods-generator";
+
 import { HeightmapGenerator } from "./modules/heightmap-generator";
 import { Ice } from "./modules/ice";
 import { Lakes } from "./modules/lakes";
 import { Markers } from "./modules/markers-generator";
-import { Markets } from "./modules/markets-generator";
+
 import { Military } from "./modules/military-generator";
 import { Names } from "./modules/names-generator";
 import { OceanLayers } from "./modules/ocean-layers";
-import { Production } from "./modules/production-generator";
+
 import { Provinces } from "./modules/provinces-generator";
 import { Religions } from "./modules/religions-generator";
 import { Rivers } from "./modules/river-generator";
@@ -53,6 +53,7 @@ import { CoordinatesRenderer, drawScaleBar, fitScaleBar } from "./renderers/inde
 import { ThreeDRenderer } from "./renderers/three-d-renderer";
 import { dialogStore } from "./store/dialogState";
 import { useOptionsState } from "./store/optionsState";
+
 import {
   TYPED_ARRAY_MAX_VALUES as _TMP,
   calculateVoronoi,
@@ -1202,9 +1203,7 @@ export async function generate(opts?: { seed?: string; graph?: Grid | null }) {
     Markers.generate(worldContext, viewContext, appServices, state);
     Zones.generate(worldContext, viewContext, appServices, state);
 
-    Goods.generate();
-    Markets.generate();
-    Production.produce();
+    document.dispatchEvent(new CustomEvent("fmg:generate-post-core"));
 
     drawScaleBar(worldContext, viewContext, appServices, scaleBar, scale);
     Names.getMapName(false);

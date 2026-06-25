@@ -5,6 +5,7 @@ import { useViewState } from "../../store/viewState";
 import { CustomizationMenu } from "./CustomizationMenu";
 import { Sticked } from "./Sticked";
 import { AboutTab } from "./tabs/AboutTab";
+import { ExtensionsTab } from "./tabs/ExtensionsTab";
 import { LayersTab } from "./tabs/LayersTab";
 import { OptionsTab } from "./tabs/OptionsTab";
 import { StyleTab } from "./tabs/StyleTab";
@@ -74,6 +75,7 @@ export const OptionsContainer: React.FC = () => {
             { id: "styleTab", label: "Style", tip: "Click to open style editor" },
             { id: "optionsTab", label: "Options", tip: "Click to change generation and UI options" },
             { id: "toolsTab", label: "Tools", tip: "Click to open tools menu" },
+            { id: "extensionsTab", label: "Exts", tip: "Click to manage extensions" },
             { id: "aboutTab", label: "About", tip: "Click to see Generator info" }
           ].map(tab => (
             <button
@@ -101,6 +103,9 @@ export const OptionsContainer: React.FC = () => {
         </div>
         <div style={{ display: activeMenu === "toolsTab" && !isCustomizationMode ? "block" : "none" }}>
           <ToolsTab />
+        </div>
+        <div style={{ display: activeMenu === "extensionsTab" ? "block" : "none" }}>
+          <ExtensionsTab />
         </div>
         <div style={{ display: activeMenu === "aboutTab" ? "block" : "none" }}>
           <AboutTab />

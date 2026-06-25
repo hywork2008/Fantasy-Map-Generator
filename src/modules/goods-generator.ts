@@ -1071,7 +1071,7 @@ export class GoodsModule {
   }
 
   getBiomesProduction(): Record<number, { goodId: number; production: number }[]> {
-    return worldContext.pack.goods.reduce(
+    return (worldContext.pack.goods || []).reduce(
       (acc, good) => {
         if (!good.biomeOutput) return acc;
         for (const [biomeIdStr, production] of Object.entries(good.biomeOutput)) {

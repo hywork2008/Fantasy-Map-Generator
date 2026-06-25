@@ -1329,9 +1329,11 @@ export function initStyleTab() {
     const [appliedPreset, styleData] = await getStylePreset(desiredPreset);
     applyStyle(styleData);
     updateMapFilter();
-    const presetEl = document.getElementById("stylePreset") as HTMLSelectElement;
-    presetEl.value = appliedPreset;
-    presetEl.dataset.old = appliedPreset;
+    const presetEl = document.getElementById("stylePreset") as HTMLSelectElement | null;
+    if (presetEl) {
+      presetEl.value = appliedPreset;
+      presetEl.dataset.old = appliedPreset;
+    }
     setPresetRemoveButtonVisibiliy();
     selectStyleElement();
   }

@@ -20,7 +20,7 @@ export class ProductionModule {
     Markets.collectRuralProduction();
     Markets.initializeMarketPrices();
 
-    const index = this.buildProductionIndex(worldContext.pack.goods);
+    const index = this.buildProductionIndex(worldContext.pack.goods || []);
     const sortedBurgs = worldContext.pack.burgs
       .filter(burg => burg.i && !burg.removed)
       .sort((a, b) => a.population! - b.population!);

@@ -1,5 +1,12 @@
 import type React from "react";
+import { useExtensionState } from "../../../store/extensionState";
+
 export const ToolsTab: React.FC = () => {
+  const allActions = useExtensionState(state => state.actions);
+  const actions = allActions.filter(a => a.tab === "tools");
+  const editActions = actions.filter(a => a.section === "edit");
+  const regenerateActions = actions.filter(a => a.section === "regenerate");
+
   const triggerEvent = (eventName: string) => {
     document.dispatchEvent(new CustomEvent("react-tool-action", { detail: { action: eventName } }));
   };
@@ -41,14 +48,7 @@ export const ToolsTab: React.FC = () => {
         <button data-tip="Click to open Emblem Editor" type="button" onClick={() => triggerEvent("editEmblemButton")}>
           Emblems
         </button>
-        <button
-          data-tip="Click to open Goods Editor"
-          data-shortcut="Shift + G"
-          type="button"
-          onClick={() => triggerEvent("editGoods")}
-        >
-          Goods
-        </button>
+
         <button
           id="editHeightmapButton"
           data-tip="Click to open Heightmap customization menu"
@@ -64,13 +64,7 @@ export const ToolsTab: React.FC = () => {
         >
           Markers
         </button>
-        <button
-          data-tip="Click to open Markets Overview"
-          type="button"
-          onClick={() => triggerEvent("overviewMarketsButton")}
-        >
-          Markets
-        </button>
+
         <button
           data-tip="Click to open Military Forces Overview"
           type="button"
@@ -120,19 +114,18 @@ export const ToolsTab: React.FC = () => {
         >
           States
         </button>
-        <button
-          data-tip="Click to open Trade Animation Editor"
-          type="button"
-          onClick={() => triggerEvent("editTradeAnimationButton")}
-        >
-          Trade
-        </button>
+
         <button data-tip="Click to open Units Editor" type="button" onClick={() => triggerEvent("editUnitsButton")}>
           Units
         </button>
         <button data-tip="Click to open Zones Editor" type="button" onClick={() => triggerEvent("editZonesButton")}>
           Zones
         </button>
+        {editActions.map(action => (
+          <button key={action.id} data-tip={action.tooltip} type="button" onClick={action.onClick}>
+            {action.label}
+          </button>
+        ))}
       </div>
       <div className="separator">Regenerate</div>
       <div className="grid" id="regenerateFeature">
@@ -150,13 +143,7 @@ export const ToolsTab: React.FC = () => {
         >
           Cultures
         </button>
-        <button
-          data-tip="Rebuild market territories, production, trade deals, and taxes from the current goods and markets"
-          type="button"
-          onClick={() => triggerEvent("regenerateEconomy")}
-        >
-          Economy
-        </button>
+
         <button
           data-tip="Click to regenerate all emblems"
           type="button"
@@ -164,13 +151,7 @@ export const ToolsTab: React.FC = () => {
         >
           Emblems
         </button>
-        <button
-          data-tip="Click to regenerate bonus goods placement"
-          type="button"
-          onClick={() => triggerEvent("regenerateGoods")}
-        >
-          Goods
-        </button>
+
         <button
           data-tip="Click to regenerate icebergs and glaciers"
           type="button"
@@ -193,13 +174,12 @@ export const ToolsTab: React.FC = () => {
             }}
           />
         </button>
-        <button
-          data-tip="Click to regenerate markets and their territories"
-          type="button"
-          onClick={() => triggerEvent("regenerateMarkets")}
-        >
-          Markets
-        </button>
+        {regenerateActions.map(action => (
+          <button key={action.id} data-tip={action.tooltip} type="button" onClick={action.onClick}>
+            {action.label}
+          </button>
+        ))}
+
         <button
           id="regenerateMilitary"
           data-tip="Click to recalculate military forces"
@@ -215,13 +195,7 @@ export const ToolsTab: React.FC = () => {
         >
           Population
         </button>
-        <button
-          data-tip="Click to regenerate production and trade deals"
-          type="button"
-          onClick={() => triggerEvent("regenerateProduction")}
-        >
-          Production
-        </button>
+
         <button
           data-tip="Click to regenerate non-locked provinces"
           type="button"
@@ -234,7 +208,15 @@ export const ToolsTab: React.FC = () => {
           type="button"
           onClick={() => triggerEvent("regenerateReliefIcons")}
         >
-          Relief Icons
+          Relief Icons{" "}
+          <i
+            className="icon-cog"
+            data-tip="Click to open relief icons settings"
+            onClick={e => {
+              e.stopPropagation();
+              triggerEvent("configRegenerateRelief");
+            }}
+          />
         </button>
         <button
           data-tip="Click to regenerate religions"

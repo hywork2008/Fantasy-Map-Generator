@@ -2,6 +2,7 @@ import type React from "react";
 import { useEffect, useState } from "react";
 import { applyStoredOptions } from "../../controllers/options";
 import { useDialogState } from "../../store/dialogState";
+import { type ExtensionDialog, useExtensionState } from "../../store/extensionState";
 import { AiGeneratorDialog } from "./AiGeneratorDialog";
 import { AlertDialog } from "./AlertDialog";
 import { BattleScreenDialog, RegimentSelectorScreenDialog } from "./BattleScreenDialog";
@@ -23,7 +24,7 @@ import { EmblemEditorDialog } from "./EmblemEditorDialog";
 import { ExportMapDialog } from "./ExportMapDialog";
 import { ExportToPngTilesDialog } from "./ExportToPngTilesDialog";
 import { FontDialog } from "./FontDialog";
-import { GoodsEditorDialog } from "./GoodsEditorDialog";
+
 import { HeightmapSelectionDialog } from "./HeightmapSelectionDialog";
 import { HierarchyTreeDialog } from "./HierarchyTreeDialog";
 import { IceEditorDialog } from "./IceEditorDialog";
@@ -34,10 +35,7 @@ import { LakeEditorDialog } from "./LakeEditorDialog";
 import { LoadMapDialog } from "./LoadMapDialog";
 import { MarkerEditorDialog } from "./MarkerEditorDialog";
 import { MarkersOverviewDialog } from "./MarkersOverviewDialog";
-import { MarketDealsDialog } from "./MarketDealsDialog";
-import { MarketOverviewDialog } from "./MarketOverviewDialog";
-import { MarketsGoodCompareDialog } from "./MarketsGoodCompareDialog";
-import { MarketsOverviewDialog } from "./MarketsOverviewDialog";
+
 import { MilitaryOptionsDialog } from "./MilitaryOptionsDialog";
 import { MilitaryOverviewDialog } from "./MilitaryOverviewDialog";
 import { MinimapDialog } from "./MinimapDialog";
@@ -45,7 +43,7 @@ import { NamesbaseEditorDialog } from "./NamesbaseEditorDialog";
 import { NotesEditorDialog } from "./NotesEditorDialog";
 import { Options3dDialog } from "./Options3dDialog";
 import { Preview3dDialog } from "./Preview3dDialog";
-import { ProductionChainsDialog } from "./ProductionChainsDialog";
+
 import { PromptDialog } from "./PromptDialog";
 import { ProvinceMergeDialog } from "./ProvinceMergeDialog";
 import { ProvinceNameEditorDialog } from "./ProvinceNameEditorDialog";
@@ -69,8 +67,7 @@ import { StatesEditorDialog } from "./StatesEditorDialog";
 import { StyleSaverDialog } from "./StyleSaverDialog";
 import { SubmapToolDialog } from "./SubmapToolDialog";
 import { TemplateEditorDialog } from "./TemplateEditorDialog";
-import { TradeAnimationDialog } from "./TradeAnimationDialog";
-import { TradeDetailsDialog } from "./TradeDetailsDialog";
+
 import { TransformToolDialog } from "./TransformToolDialog";
 import { UnitsEditorDialog } from "./UnitsEditorDialog";
 import { WorldConfiguratorDialog } from "./WorldConfiguratorDialog";
@@ -87,6 +84,8 @@ export const DialogsContainer: React.FC = () => {
   useEffect(() => {
     if (mounted) applyStoredOptions();
   }, [mounted]);
+
+  const extensionDialogs = useExtensionState(state => state.dialogs);
 
   return (
     <div id="dialogs-root" style={{ pointerEvents: "none" }}>
@@ -152,20 +151,15 @@ export const DialogsContainer: React.FC = () => {
           <MilitaryOptionsDialog />
           <MarkersOverviewDialog />
           <StyleSaverDialog />
-          <GoodsEditorDialog />
-          <MarketsOverviewDialog />
-          <MarketOverviewDialog />
-          <MarketDealsDialog />
-          <MarketsGoodCompareDialog />
-          <TradeDetailsDialog />
-          <ProductionChainsDialog />
-          <TradeAnimationDialog />
           <CellInfoDialog />
           <MinimapDialog />
           <ChartsOverviewDialog />
           <HeightmapSelectionDialog />
           <Options3dDialog />
           <Preview3dDialog />
+          {extensionDialogs.map((dialog: ExtensionDialog) => (
+            <dialog.component key={dialog.id} />
+          ))}
           {/* 
         Here we will mount the other dialogs such as:
         <WorldConfigurator isOpen={openDialogs.has("worldConfigurator")} />

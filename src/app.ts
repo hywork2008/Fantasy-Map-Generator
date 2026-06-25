@@ -15,6 +15,7 @@ import {
 import { changeViewMode } from "./controllers/options";
 import { UITour } from "./controllers/ui-tour";
 import { editBurg } from "./editors/burg-editor";
+import { initExtensions } from "./extensions/index";
 import { buildGeoJsonZones, saveGeoJsonZones } from "./io/export";
 import { generate, initMain, regenerateMap } from "./main";
 import { initModules } from "./modules/index";
@@ -31,6 +32,8 @@ async function initApp(): Promise<void> {
 
   console.log("Initializing utils...");
   initUtils();
+  console.log("Initializing extensions...");
+  initExtensions();
   console.log("Initializing modules...");
   initModules();
   console.log("Initializing renderers...");

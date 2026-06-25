@@ -205,16 +205,16 @@ export class MarketsModule {
   }
 
   initializeMarketPrices(): void {
-    const consumerDemandFactors = this.collectConsumerDemand(worldContext.pack.goods);
-    const industrialDemandFactors = this.collectIndustrialDemand(worldContext.pack.goods, consumerDemandFactors);
-    const avgIngredientsCostByGood = this.calculateAverageBaseCostByGood(worldContext.pack.goods);
+    const consumerDemandFactors = this.collectConsumerDemand(worldContext.pack.goods || []);
+    const industrialDemandFactors = this.collectIndustrialDemand(worldContext.pack.goods || [], consumerDemandFactors);
+    const avgIngredientsCostByGood = this.calculateAverageBaseCostByGood(worldContext.pack.goods || []);
     const populationByMarket = this.calculatePopulationByMarket();
 
     for (const market of worldContext.pack.markets) {
       const population = populationByMarket[market.i] || 0;
 
       // First pass: raw goods - price from demand/supply ratio
-      for (const good of worldContext.pack.goods) {
+      for (const good of worldContext.pack.goods || []) {
         if (!good.distribution) continue;
         const marketGood = this.getMarketGood(market, good);
         const consumerDemand = consumerDemandFactors[good.i] || 0;
@@ -225,7 +225,7 @@ export class MarketsModule {
       }
 
       // Second pass: manufactured goods - average local ingredient cost + base value-added
-      for (const good of worldContext.pack.goods) {
+      for (const good of worldContext.pack.goods || []) {
         if (!good.recipes?.length) continue;
         const marketGood = this.getMarketGood(market, good);
         let totalMarketCost = 0;
@@ -381,8 +381,8 @@ export class MarketsModule {
   }
 
   runGlobalTrade(): void {
-    const consumerDemandFactors = this.collectConsumerDemand(worldContext.pack.goods);
-    const industrialDemandFactors = this.collectIndustrialDemand(worldContext.pack.goods, consumerDemandFactors);
+    const consumerDemandFactors = this.collectConsumerDemand(worldContext.pack.goods || []);
+    const industrialDemandFactors = this.collectIndustrialDemand(worldContext.pack.goods || [], consumerDemandFactors);
     const populationByMarket = this.calculatePopulationByMarket();
 
     const mapDiagonal = Math.hypot(worldContext.graphWidth, worldContext.graphHeight) || 1;
@@ -408,7 +408,7 @@ export class MarketsModule {
       }
     }
 
-    for (const good of worldContext.pack.goods) {
+    for (const good of worldContext.pack.goods || []) {
       if (!good.distribution && !good.recipes?.length) continue;
 
       const safetyReserves: number[] = [];

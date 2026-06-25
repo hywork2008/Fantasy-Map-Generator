@@ -21,15 +21,15 @@ import { Burgs } from "../modules/burgs-generator";
 import { Cultures } from "../modules/cultures-generator";
 import { COA } from "../modules/emblem/generator";
 import { Features } from "../modules/features";
-import { Goods } from "../modules/goods-generator";
+
 import { Ice } from "../modules/ice";
 import { Lakes } from "../modules/lakes";
 import type { Marker, MarkerConfig } from "../modules/markers-generator";
 import { Markers } from "../modules/markers-generator";
-import { Markets } from "../modules/markets-generator";
+
 import { Military } from "../modules/military-generator";
 import { Names } from "../modules/names-generator";
-import { Production } from "../modules/production-generator";
+
 import type { Province } from "../modules/provinces-generator";
 import { Provinces } from "../modules/provinces-generator";
 import type { Religion } from "../modules/religions-generator";
@@ -216,13 +216,6 @@ function processFeatureRegeneration(event: MouseEvent | null, button: string): v
   else if (button === "regenerateIce") regenerateIce();
   else if (button === "regenerateMarkers") regenerateMarkers();
   else if (button === "regenerateZones") regenerateZones(event);
-  else if (button === "regenerateEconomy") {
-    Goods.generate();
-    Markets.generate(true);
-    Production.produce();
-  } else if (button === "regenerateGoods") Goods.generate();
-  else if (button === "regenerateMarkets") Markets.generate(true);
-  else if (button === "regenerateProduction") Production.produce();
 }
 
 // ─── Emblem editor opener ────────────────────────────────────────────────────

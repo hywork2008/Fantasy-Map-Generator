@@ -34,7 +34,7 @@ const downloadFile = () => {};
 const getFileName = () => "data";
 const confirmationDialog = () => {};
 const closeDialogs = () => {};
-let isInitialized = false;
+let _isInitialized = false;
 const visibleTags = new Set<string>();
 const displayedGoods = new Set<number>();
 let displayedGoodsInitialized = false;
@@ -71,7 +71,9 @@ export function open() {
 
   // dialog call removed
 
-  if (!isInitialized) {
+  const refreshBtn = document.getElementById("goodsEditorRefresh")!;
+  if (!refreshBtn.dataset.initialized) {
+    refreshBtn.dataset.initialized = "true";
     document.getElementById("goodsEditorRefresh")!.addEventListener("click", goodsEditorAddLines);
     document.getElementById("goodsPercentage")!.addEventListener("click", togglePercentageMode);
     document.getElementById("goodsTagsFilter")!.addEventListener("click", openTagsVisibilityDialog);
@@ -95,7 +97,7 @@ export function open() {
       if (cl.contains("icon-trash-empty")) return removeGood(good, line);
     });
 
-    isInitialized = true;
+    _isInitialized = true;
   }
 }
 
@@ -113,7 +115,7 @@ function goodsEditorAddLines() {
     return `<span style="${commonStyles};background:#f8e7bf;color:#b67a00" data-tip="Manufactured goods are produced in burgs">MFG</span>`;
   };
 
-  for (const good of worldContext.pack.goods) {
+  for (const good of worldContext.pack.goods || []) {
     const types = [good.recipes && "MFG", good.distribution && "RAW"].filter(Boolean) as string[];
     const goodProduction = production[good.i] || { burg: 0, cell: 0 };
     const produced = rn(goodProduction.burg + goodProduction.cell);
@@ -149,7 +151,7 @@ function goodsEditorAddLines() {
     .reduce((sum, v) => sum + v, 0);
   const totalStock = Object.values(stockData).reduce((sum, d) => sum + d.total, 0);
   document.getElementById("goodsDisplayed")!.innerHTML = String(displayedGoods.size);
-  document.getElementById("goodsNumber")!.innerHTML = String(worldContext.pack.goods.length);
+  document.getElementById("goodsNumber")!.innerHTML = String(worldContext.pack.goods?.length || 0);
   document.getElementById("goodsProduced")!.innerHTML = String(rn(totalProduced));
   document.getElementById("goodsStock")!.innerHTML = String(rn(totalStock));
 
@@ -232,7 +234,7 @@ type StockSource = { name: string; type: "market" | "burg"; x: number; y: number
 function getAllStockData(): Record<number, { total: number; sources: StockSource[] }> {
   const dealById = new Map((worldContext.pack.deals || []).map(d => [d.i, d]));
   const result: Record<number, { total: number; sources: StockSource[] }> = {};
-  for (const good of worldContext.pack.goods) result[good.i] = { total: 0, sources: [] };
+  for (const good of worldContext.pack.goods || []) result[good.i] = { total: 0, sources: [] };
 
   for (const market of worldContext.pack.markets || []) {
     const centerBurg = worldContext.pack.burgs[market.centerBurgId];
@@ -288,7 +290,7 @@ function getAllStockData(): Record<number, { total: number; sources: StockSource
     }
   }
 
-  for (const good of worldContext.pack.goods) result[good.i].total = rn(result[good.i].total, 2);
+  for (const good of worldContext.pack.goods || []) result[good.i].total = rn(result[good.i].total, 2);
 
   return result;
 }
@@ -361,7 +363,7 @@ function getProduction() {
 }
 
 function openTagsVisibilityDialog() {
-  const tags = unique(worldContext.pack.goods.flatMap(good => good.tags));
+  const tags = unique((worldContext.pack.goods || []).flatMap(good => good.tags));
   const renderTag = (tag: string) =>
     `<label style="display: flex; align-items: center;"><input type="checkbox" class="native" value="${tag}" ${visibleTags.has(tag) ? "checked" : ""} /> ${tag}</label>`;
   const tagsMarkup = tags.length ? tags.map(renderTag).join("") : '<div style="color:#666">No tags available</div>';
@@ -519,7 +521,7 @@ function downloadGoodsData() {
 
   let data = "Id,Good,Color,Type,Tags,Value,Demand Coverage,Chance,Model,Cells,Produced,Stock\n";
 
-  for (const good of worldContext.pack.goods) {
+  for (const good of worldContext.pack.goods || []) {
     const types = [good.recipes && "MFG", good.distribution && "RAW"].filter(Boolean).join(";");
     const tags = good.tags.join(";");
     const demandCoverage = Object.entries(good.demandCoverage || {})
@@ -546,8 +548,8 @@ function toggleDisplayedGood(good: Good, el: HTMLInputElement) {
 }
 
 function toggleAllDisplayed(this: HTMLInputElement) {
-  displayedGoods.clear();
-  if (this.checked) for (const good of worldContext.pack.goods) displayedGoods.add(good.i);
+  if (this.checked) for (const good of worldContext.pack.goods || []) displayedGoods.add(good.i);
+  else displayedGoods.clear();
 
   document
     .getElementById("goodsBody")!
@@ -562,7 +564,7 @@ function toggleAllDisplayed(this: HTMLInputElement) {
 
 function updateDisplayAllCheckbox() {
   const master = document.getElementById("goodsDisplayAll") as HTMLInputElement;
-  const total = worldContext.pack.goods.length;
+  const total = (worldContext.pack.goods || []).length;
   master.checked = total > 0 && displayedGoods.size === total;
   master.indeterminate = displayedGoods.size > 0 && displayedGoods.size < total;
   document.getElementById("goodsDisplayed")!.innerHTML = String(displayedGoods.size);

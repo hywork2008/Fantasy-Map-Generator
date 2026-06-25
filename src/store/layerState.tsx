@@ -67,16 +67,6 @@ export const DEFAULT_LAYERS: LayerConfig[] = [
     tooltip: "Emblems: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
   },
   {
-    id: "toggleGoods",
-    name: (
-      <>
-        <u>G</u>oods
-      </>
-    ),
-    shortcut: null,
-    tooltip: "Goods and Production: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
-  },
-  {
     id: "toggleGrid",
     name: (
       <>
@@ -138,12 +128,6 @@ export const DEFAULT_LAYERS: LayerConfig[] = [
     ),
     shortcut: "K",
     tooltip: "Markers: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
-  },
-  {
-    id: "toggleMarketsLayer",
-    name: <>Markets</>,
-    shortcut: null,
-    tooltip: "Markets: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
   },
   {
     id: "toggleMilitary",
@@ -270,13 +254,6 @@ export const DEFAULT_LAYERS: LayerConfig[] = [
     tooltip: "Texture overlay: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
   },
   {
-    id: "toggleTrade",
-    name: <>Trade</>,
-    shortcut: "`",
-    tooltip:
-      "Trade: animated trade deal flows. Click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
-  },
-  {
     id: "toggleVignette",
     name: <>Vignette</>,
     shortcut: "[",
@@ -318,6 +295,8 @@ interface LayerState {
 
   // Actions
   setLayers: (layers: LayerConfig[]) => void;
+  addLayers: (newLayers: LayerConfig[]) => void;
+  removeLayers: (layerIds: string[]) => void;
   reorderLayers: (startIndex: number, endIndex: number) => void;
   toggleLayer: (id: string, forceState?: boolean) => void;
   setPresets: (presets: Record<string, string[]>) => void;
@@ -325,13 +304,34 @@ interface LayerState {
   setAllActiveLayers: (activeLayers: Record<string, boolean>) => void;
 }
 
+// Helper to sort layers alphabetically by id
+const sortLayers = (layers: LayerConfig[]) => {
+  return [...layers].sort((a, b) => a.id.localeCompare(b.id));
+};
+
 export const useLayerState = create<LayerState>((set, get) => ({
   layers: [],
   activeLayers: {},
   presets: {},
   activePreset: "custom",
 
-  setLayers: layers => set({ layers }),
+  setLayers: layers => set({ layers: sortLayers(layers) }),
+
+  addLayers: newLayers => {
+    set(state => {
+      const existingIds = new Set(state.layers.map(l => l.id));
+      const filtered = newLayers.filter(l => !existingIds.has(l.id));
+      if (filtered.length === 0) return state;
+      return { layers: sortLayers([...state.layers, ...filtered]) };
+    });
+  },
+
+  removeLayers: layerIds => {
+    set(state => {
+      const idSet = new Set(layerIds);
+      return { layers: state.layers.filter(l => !idSet.has(l.id)) };
+    });
+  },
 
   reorderLayers: (startIndex, endIndex) => {
     const layers = [...get().layers];
