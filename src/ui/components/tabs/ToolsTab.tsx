@@ -2,8 +2,8 @@ import type React from "react";
 import { useExtensionState } from "../../../store/extensionState";
 
 export const ToolsTab: React.FC = () => {
-  const allActions = useExtensionState(state => state.actions);
-  const actions = allActions.filter(a => a.tab === "tools");
+  const { actions: allActions, enabledExtensions } = useExtensionState();
+  const actions = allActions.filter(a => a.tab === "tools" && enabledExtensions[a.extensionId]);
   const editActions = actions.filter(a => a.section === "edit");
   const regenerateActions = actions.filter(a => a.section === "regenerate");
 

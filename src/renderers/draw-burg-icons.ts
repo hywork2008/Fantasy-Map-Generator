@@ -144,6 +144,7 @@ function createIconGroups(
         burgGroup.attr(key, value);
       });
       burgGroup.attr("id", name);
+      burgGroup.classed("hidden", true);
     }
 
     if (!existingAnchorIds.has(name)) {
@@ -153,6 +154,7 @@ function createIconGroups(
         anchorGroup.attr(key, value);
       });
       anchorGroup.attr("id", name);
+      anchorGroup.classed("hidden", true);
     }
   }
 }

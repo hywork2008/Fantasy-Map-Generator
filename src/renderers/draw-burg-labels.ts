@@ -117,5 +117,6 @@ function createLabelGroups(
       group.attr(key, value);
     });
     group.attr("id", name);
+    group.classed("hidden", true);
   }
 }

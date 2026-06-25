@@ -229,9 +229,9 @@ let burgLabels = labels.append("g").attr("id", "burgLabels") as Selection<SVGGEl
 population.append("g").attr("id", "rural");
 population.append("g").attr("id", "urban");
 
-emblems.append("g").attr("id", "burgEmblems");
-emblems.append("g").attr("id", "provinceEmblems");
-emblems.append("g").attr("id", "stateEmblems");
+emblems.append("g").attr("id", "burgEmblems").classed("hidden", true);
+emblems.append("g").attr("id", "provinceEmblems").classed("hidden", true);
+emblems.append("g").attr("id", "stateEmblems").classed("hidden", true);
 
 compass.append("use").attr("xlink:href", "#defs-compass-rose");
 

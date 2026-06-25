@@ -70,14 +70,14 @@ export const economyLayers: LayerConfig[] = [
 export function initEconomyExtension() {
   const { registerExtension, registerAction, registerDialog } = useExtensionState.getState();
 
-  // Register the extension (default enabled: true)
+  // Register the extension (default enabled: false)
   registerExtension(
     {
       id: ECONOMY_EXTENSION_ID,
       name: "Economy, Goods & Trade",
       description: "Adds economy system including goods production, markets, and trade routes."
     },
-    true
+    false
   );
 
   // Register Economy Dialogs

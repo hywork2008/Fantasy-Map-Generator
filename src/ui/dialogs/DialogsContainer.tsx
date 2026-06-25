@@ -85,7 +85,8 @@ export const DialogsContainer: React.FC = () => {
     if (mounted) applyStoredOptions();
   }, [mounted]);
 
-  const extensionDialogs = useExtensionState(state => state.dialogs);
+  const { dialogs, enabledExtensions } = useExtensionState();
+  const extensionDialogs = dialogs.filter(d => enabledExtensions[d.extensionId]);
 
   return (
     <div id="dialogs-root" style={{ pointerEvents: "none" }}>

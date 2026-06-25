@@ -233,13 +233,20 @@ export const MilitaryOptionsDialog: React.FC = () => {
                         <button
                           type="button"
                           data-tip="Select allowed biomes"
-                          // biome-ignore lint/suspicious/noExplicitAny: biomes not strictly typed on pack
-                          title={getLimitTip(biomes, (worldContext.pack as any).biomes || [])}
+                          title={getLimitTip(
+                            biomes,
+                            Array.from({ length: worldContext.biomesData.i.length }, (_, idx) => ({
+                              i: idx,
+                              name: worldContext.biomesData.name[idx]
+                            }))
+                          )}
                           onClick={() => {
                             const bData = worldContext.biomesData;
-                            const biomesData = Array(bData.i.length)
-                              .fill(null)
-                              .map((_, idx) => ({ i: idx, name: bData.name[idx], color: bData.color[idx] }));
+                            const biomesData = Array.from({ length: bData.i.length }, (_, idx) => ({
+                              i: idx,
+                              name: bData.name[idx],
+                              color: bData.color[idx]
+                            }));
                             triggerSelectLimitation("biomes", biomes, biomesData, val =>
                               updateUnit(index, "biomes", val)
                             );
