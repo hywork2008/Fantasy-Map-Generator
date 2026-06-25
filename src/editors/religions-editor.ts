@@ -15,11 +15,11 @@ import {
 import { type HierarchyElement, open as openHierarchyTree } from "../controllers/hierarchy-tree";
 import { toggleBiomes, toggleCultures, toggleProvinces, toggleReligions, toggleStates } from "../controllers/layers";
 import { editStyle } from "../controllers/style";
-import type { Religion } from "../modules/religions-generator";
 import { Religions } from "../modules/religions-generator";
 import { PopulationRenderer, ReligionsRenderer } from "../renderers";
 import type { ReligionRowData } from "../store/religionsEditorState";
 import { getReligionsEditorState, setReligionsEditorState } from "../store/religionsEditorState";
+import type { Religion } from "../types/models";
 import { closeDialog, closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { abbreviate, debounce, findAll, findCell, rn, si } from "../utils";
 import { getPackPolygon } from "../utils/graphUtils";

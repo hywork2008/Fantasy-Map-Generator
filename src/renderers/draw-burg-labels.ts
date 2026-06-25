@@ -1,15 +1,9 @@
 import type { AppServices } from "../context/appServices";
 import type { SettlementLayers, ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import type { Burg } from "../modules/burgs-generator";
+import type { Burg, BurgGroup } from "../types/models";
 import { TIME } from "../utils/debug";
-
 import type { IRenderer } from "./core/IRenderer";
-
-interface BurgGroup {
-  name: string;
-  order: number;
-}
 
 export const BurgLabelsRenderer: IRenderer = {
   id: "burgLabels",

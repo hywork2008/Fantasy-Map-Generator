@@ -1,7 +1,7 @@
 import FlatQueue from "flatqueue";
 import { worldContext } from "../../../context/worldContext";
-import type { Burg } from "../../../modules/burgs-generator";
 import type { Point } from "../../../modules/voronoi";
+import type { Burg } from "../../../types/models";
 import { ra } from "../../../utils/probabilityUtils";
 import type { Deal } from "./markets-generator";
 import { Markets } from "./markets-generator";

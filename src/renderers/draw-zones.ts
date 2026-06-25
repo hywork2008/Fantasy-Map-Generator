@@ -1,7 +1,7 @@
 import type { AppServices } from "../context/appServices";
 import type { PoliticalLayers } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import type { Zone } from "../modules/zones-generator";
+import type { Zone } from "../types/models";
 import { getVertexPath } from "../utils";
 import type { IRenderer } from "./core/IRenderer";
 

@@ -7,6 +7,7 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
+import type { GridFeature, PackedGraphFeature } from "../types/models";
 import {
   clipPoly,
   connectVertices,
@@ -20,41 +21,6 @@ import {
 import { TIME } from "../utils/debug";
 import { isLand } from "../utils/graphUtils";
 import { Lakes } from "./lakes";
-
-type FeatureType = "ocean" | "lake" | "island";
-
-export interface PackedGraphFeature {
-  i: number;
-  type: FeatureType;
-  land: boolean;
-  border: boolean;
-  cells: number;
-  firstCell: number;
-  vertices: number[];
-  area: number;
-  shoreline: number[];
-  height: number;
-  group: string;
-  temp: number;
-  flux: number;
-  evaporation: number;
-  name: string;
-
-  // River related
-  inlets?: number[];
-  outlet?: number;
-  river?: number;
-  enteringFlux?: number;
-  closed?: boolean;
-  outCell?: number;
-}
-
-export interface GridFeature {
-  i: number;
-  land: boolean;
-  border: boolean;
-  type: FeatureType;
-}
 
 class FeatureModule {
   worldContext: WorldContext = worldContext;

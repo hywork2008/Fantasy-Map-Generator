@@ -2,7 +2,7 @@ import { zoomTo } from "../../../actions";
 
 import { worldContext } from "../../../context/worldContext";
 import { downloadFile, getFileName } from "../../../controllers/editors";
-import type { Burg } from "../../../modules/burgs-generator";
+import type { Burg } from "../../../types/models";
 import { formatPrice, rn } from "../../../utils";
 import { applySorting, tip } from "../../../utils/uiHelpers";
 import { Goods } from "../modules/goods-generator";

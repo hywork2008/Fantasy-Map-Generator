@@ -11,12 +11,12 @@ import {
   restoreDefaultEvents
 } from "../../../controllers/editors";
 import { toggleMarketsLayer } from "../../../controllers/layers";
-import type { Burg } from "../../../modules/burgs-generator";
 import {
   getMarketsOverviewState,
   type MarketRowData,
   setMarketsOverviewState
 } from "../../../store/marketsOverviewState";
+import type { Burg } from "../../../types/models";
 import { openDialog } from "../../../ui/dialogs/dialogService";
 import { findAllCellsInRadius, findCell, findClosestCell, getIsolines, getVertexPath, rn } from "../../../utils";
 import { layerIsOn } from "../../../utils/nodeUtils";

@@ -1,7 +1,7 @@
 import { zoomTo } from "../../../actions";
 import { worldContext } from "../../../context/worldContext";
-import type { Burg } from "../../../modules/burgs-generator";
 import type { Point } from "../../../modules/voronoi";
+import type { Burg } from "../../../types/models";
 import { openDialog } from "../../../ui/dialogs/dialogService";
 import { formatPrice, rn } from "../../../utils";
 import { applySorting } from "../../../utils/uiHelpers";

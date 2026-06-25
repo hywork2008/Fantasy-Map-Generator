@@ -12,15 +12,6 @@ import { TIME } from "../utils/debug";
 import { Names } from "./names-generator";
 import { Routes } from "./routes-generator";
 
-export interface Zone {
-  i: number;
-  name: string;
-  type: string;
-  cells: number[];
-  color: string;
-  hidden?: boolean;
-}
-
 type ZoneGenerator = (usedCells: Uint8Array) => void;
 
 interface ZoneConfig {

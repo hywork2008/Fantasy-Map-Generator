@@ -7,39 +7,14 @@ import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import { useOptionsState } from "../store/optionsState";
+import type { Culture } from "../types/models";
 import type { PackedGraph } from "../types/PackedGraph";
 import type { WorldState } from "../types/WorldState";
 import { openRichDialog } from "../ui/dialogs/dialogService";
 import { abbreviate, biased, getColors, getRandomColor, minmax, P, rand, rn, rw } from "../utils";
 import { ERROR, TIME, WARN } from "../utils/debug";
-
 import { COA } from "./emblem/generator";
 import { Names } from "./names-generator";
-
-export const CULTURE_TYPES = ["Generic", "Hunting", "Highland", "River", "Lake", "Naval", "Nomadic"] as const;
-export type CultureType = (typeof CULTURE_TYPES)[number];
-export const DEFAULT_CULTURE_TYPE: CultureType = "Generic";
-
-export interface Culture {
-  name: string;
-  i: number;
-  base: number;
-  shield: string;
-  lock?: boolean;
-  code?: string;
-  center?: number;
-  sort?: (i: number) => number;
-  odd?: number;
-  color?: string;
-  type?: CultureType;
-  expansionism?: number;
-  origins?: (number | null)[];
-  removed?: boolean;
-  cells?: number;
-  area?: number;
-  rural?: number;
-  urban?: number;
-}
 
 class CulturesModule {
   worldContext: WorldContext = worldContext;

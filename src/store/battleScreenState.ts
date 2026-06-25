@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { MilitaryUnit } from "../modules/military-generator";
+import type { MilitaryUnit } from "../types/models";
 
 export type BattleSide = "attackers" | "defenders";
 

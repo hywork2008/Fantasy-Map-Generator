@@ -6,11 +6,11 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
+import type { Burg, Route } from "../types/models";
 import type { WorldState } from "../types/WorldState";
 import { distanceSquared, findClosestCell, findPath, getAdjective, ra, rn, round, rw } from "../utils";
 import { TIME } from "../utils/debug";
 import { isLand } from "../utils/graphUtils";
-import type { Burg } from "./burgs-generator";
 import { MIN_NAVIGABLE_FLUX, Rivers } from "./river-generator";
 import type { Point } from "./voronoi";
 
@@ -173,20 +173,6 @@ const suffixes: Record<string, Record<string, number>> = {
   trails: { trail: 4, path: 1, track: 1, pass: 1 },
   searoutes: { "sea route": 5, lane: 2, passage: 1, seaway: 1 }
 };
-
-export interface Route {
-  i: number;
-  group: string;
-  feature: number;
-  points: [number, number, number][];
-  cells?: number[];
-  merged?: boolean;
-  name?: string;
-  /** Runtime: computed by editor */
-  length?: number;
-  /** Runtime: set by user in editor */
-  lock?: boolean;
-}
 
 class RoutesModule {
   worldContext: WorldContext = worldContext;

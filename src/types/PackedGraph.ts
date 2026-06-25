@@ -1,59 +1,62 @@
 import type { Quadtree } from "d3";
-import type { Good } from "../extensions/economy/modules/goods-generator";
-import type { Deal, Market } from "../extensions/economy/modules/markets-generator";
-import type { Burg } from "../modules/burgs-generator";
-import type { Culture } from "../modules/cultures-generator";
-import type { PackedGraphFeature } from "../modules/features";
-import type { IceElement } from "../modules/ice";
-import type { Marker } from "../modules/markers-generator";
-import type { Province } from "../modules/provinces-generator";
-import type { Religion } from "../modules/religions-generator";
-import type { River } from "../modules/river-generator";
-import type { Route } from "../modules/routes-generator";
-import type { State } from "../modules/states-generator";
-import type { Zone } from "../modules/zones-generator";
+
+import type {
+  Burg,
+  Culture,
+  IceElement,
+  Marker,
+  PackedGraphFeature,
+  Province,
+  Religion,
+  River,
+  Route,
+  State,
+  Zone
+} from "./models";
 
 export type TypedArray = Uint8Array | Uint16Array | Uint32Array | Int8Array | Int16Array | Float32Array | Float64Array;
 
+export interface PackedGraphCells {
+  i: TypedArray; // cell indices
+  c: number[][]; // neighboring cells
+  v: number[][]; // neighboring vertices
+  p: [number, number][]; // cell polygon points
+  b: TypedArray; // cell is on border
+  h: TypedArray; // cell heights
+  q: Quadtree<[number, number, number]>; // cell quadtree index
+  /** Terrain type */
+  t: TypedArray; // cell terrain types
+  r: TypedArray; // river id passing through cell
+  f: TypedArray; // feature id occupying cell
+  fl: TypedArray; // flux presence in cell
+  s: TypedArray; // cell suitability
+  pop: TypedArray; // cell population
+  conf: TypedArray; // cell water confidence
+  haven: TypedArray; // cell is a haven
+  g: TypedArray; // cell ground type
+  culture: TypedArray; // cell culture id
+  biome: TypedArray; // cell biome id
+  harbor: TypedArray; // cell harbour presence
+  burg: TypedArray; // cell burg id
+  religion: TypedArray; // cell religion id
+  state: TypedArray; // cell state id
+  area: TypedArray; // cell area
+  province: TypedArray; // cell province id
+  routes: Record<number, Record<number, number>>;
+}
+
+export interface PackedGraphVertices {
+  i: TypedArray; // vertex indices
+  c: [number, number, number][]; // neighboring cells
+  v: number[][]; // neighboring vertices
+  x: TypedArray; // x coordinates
+  y: TypedArray; // y coordinates
+  p: [number, number][]; // vertex points
+}
+
 export interface PackedGraph {
-  cells: {
-    i: TypedArray; // cell indices
-    c: number[][]; // neighboring cells
-    v: number[][]; // neighboring vertices
-    p: [number, number][]; // cell polygon points
-    b: TypedArray; // cell is on border
-    h: TypedArray; // cell heights
-    q: Quadtree<[number, number, number]>; // cell quadtree index
-    /** Terrain type */
-    t: TypedArray; // cell terrain types
-    r: TypedArray; // river id passing through cell
-    f: TypedArray; // feature id occupying cell
-    fl: TypedArray; // flux presence in cell
-    s: TypedArray; // cell suitability
-    pop: TypedArray; // cell population
-    conf: TypedArray; // cell water confidence
-    haven: TypedArray; // cell is a haven
-    g: TypedArray; // cell ground type
-    culture: TypedArray; // cell culture id
-    biome: TypedArray; // cell biome id
-    harbor: TypedArray; // cell harbour presence
-    burg: TypedArray; // cell burg id
-    religion: TypedArray; // cell religion id
-    state: TypedArray; // cell state id
-    area: TypedArray; // cell area
-    province: TypedArray; // cell province id
-    good: Uint16Array; // cell good id
-    market: Uint16Array; // cell market id
-    routes: Record<number, Record<number, number>>;
-  };
-  vertices: {
-    i: TypedArray; // vertex indices
-    c: [number, number, number][]; // neighboring cells
-    v: number[][]; // neighboring vertices
-    x: TypedArray; // x coordinates
-    y: TypedArray; // y coordinates
-    p: [number, number][]; // vertex points
-  };
+  cells: PackedGraphCells;
+  vertices: PackedGraphVertices;
   rivers: River[];
   features: PackedGraphFeature[];
   burgs: Burg[];
@@ -65,7 +68,4 @@ export interface PackedGraph {
   markers: Marker[];
   ice: IceElement[];
   provinces: Province[];
-  goods: Good[];
-  markets: Market[];
-  deals: Deal[];
 }

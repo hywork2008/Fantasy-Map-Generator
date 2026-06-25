@@ -23,14 +23,10 @@ import {
 import { interactionManager } from "../controllers/interactionManager";
 import { toggleBorders, toggleCultures, toggleProvinces, toggleStates, turnButtonOff } from "../controllers/layers";
 import { editStyle } from "../controllers/style";
-import type { Burg } from "../modules/burgs-generator";
 import { Burgs } from "../modules/burgs-generator";
-import type { Culture } from "../modules/cultures-generator";
 import { COA } from "../modules/emblem/generator";
 import { Names } from "../modules/names-generator";
-import type { Province } from "../modules/provinces-generator";
 import { Provinces } from "../modules/provinces-generator";
-import type { State } from "../modules/states-generator";
 import { States } from "../modules/states-generator";
 import {
   BordersRenderer,
@@ -51,6 +47,7 @@ import {
   type StateOption,
   setProvincesEditorState
 } from "../store/provincesEditorState";
+import type { Burg, Culture, Province, State } from "../types/models";
 import { closeDialog, closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { findAll, findCell, getRandomColor, isLand, P, parseTransform, rand, rn, si, unique } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";

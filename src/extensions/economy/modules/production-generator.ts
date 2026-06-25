@@ -1,6 +1,6 @@
 import { worldContext } from "../../../context/worldContext";
-import type { Burg } from "../../../modules/burgs-generator";
 import { States } from "../../../modules/states-generator";
+import type { Burg } from "../../../types/models";
 import { minmax, rn } from "../../../utils";
 import { DEBUG, ERROR, TIME } from "../../../utils/debug";
 import type { DemandCategory, Good } from "./goods-generator";

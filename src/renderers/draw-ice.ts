@@ -1,15 +1,8 @@
 import type { AppServices } from "../context/appServices";
 import type { EnvironmentLayers } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import type { IceElement } from "../types/models";
 import { TIME } from "../utils/debug";
-
-interface IceElement {
-  i: number;
-  points: [number, number][];
-  type: "glacier" | "iceberg";
-  offset?: [number, number];
-}
-
 import type { IRenderer } from "./core/IRenderer";
 
 export const IceRenderer: IRenderer = {

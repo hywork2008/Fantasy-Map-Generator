@@ -1,4 +1,4 @@
-import type { NameBase } from "../modules/names-generator";
+import type { NameBase } from "../types/models";
 import type { PackedGraph } from "../types/PackedGraph";
 import type { BiomesData, MapStyle, WorldNote, WorldOptions } from "../types/WorldState";
 import type { Grid } from "../utils/graphUtils";

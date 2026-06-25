@@ -5,8 +5,8 @@ import { appServices } from "../context/appServices";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { getFeaturePath } from "../renderers/draw-features";
+import type { PackedGraphFeature } from "../types/models";
 import { TIME } from "../utils/debug";
-import type { PackedGraphFeature } from "./features";
 import { Rivers } from "./river-generator";
 
 export type BakeParams = {

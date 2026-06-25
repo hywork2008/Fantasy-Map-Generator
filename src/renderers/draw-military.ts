@@ -2,11 +2,10 @@ import { color, easeSinInOut, transition } from "d3";
 import type { AppServices } from "../context/appServices";
 import type { SettlementLayers } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import type { MilitaryRegiment } from "../modules/military-generator";
 import { Military } from "../modules/military-generator";
+import type { MilitaryRegiment } from "../types/models";
 import { rn } from "../utils";
 import { TIME } from "../utils/debug";
-
 import type { IRenderer } from "./core/IRenderer";
 
 export const MilitaryRenderer: IRenderer = {

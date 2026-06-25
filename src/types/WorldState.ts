@@ -1,7 +1,5 @@
-import type { BurgGroup } from "../modules/burgs-generator";
-import type { MilitaryUnit } from "../modules/military-generator";
-import type { NameBase } from "../modules/names-generator";
 import type { Grid } from "../utils/graphUtils";
+import type { BurgGroup, MilitaryUnit, NameBase } from "./models";
 import type { PackedGraph } from "./PackedGraph";
 
 export interface WorldNote {

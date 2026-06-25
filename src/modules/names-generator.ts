@@ -5,19 +5,10 @@ import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import { useOptionsState } from "../store/optionsState";
+import type { NameBase } from "../types/models";
 import { capitalize, isVowel, last, P, ra, rand } from "../utils";
 import { ERROR, WARN } from "../utils/debug";
 import { locked, tip, unlock } from "../utils/uiHelpers";
-
-export interface NameBase {
-  name: string; // name of the base
-  i: number; // index of the base
-  min: number; // minimum length of generated names
-  max: number; // maximum length of generated names
-  d: string; // letters allowed to duplicate
-  m: number; // multi-word name rate [deprecated]
-  b: string; // base string with names separated by comma
-}
 
 // Markov chain lookup table: key is a letter (or empty string for word start), value is array of possible next syllables
 // Note: Uses array with string keys (sparse array) to match original JS behavior

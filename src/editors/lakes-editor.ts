@@ -9,7 +9,6 @@ import { unselect } from "../controllers/editors";
 import { interactionManager } from "../controllers/interactionManager";
 import { toggleCells } from "../controllers/layers";
 import { editStyle } from "../controllers/style";
-import type { PackedGraphFeature } from "../modules/features";
 import { Lakes } from "../modules/lakes";
 import { Names } from "../modules/names-generator";
 import {
@@ -23,6 +22,7 @@ import {
 import { getFeaturePath } from "../renderers/index";
 import { elSelected, modules, setElSelected } from "../store/editorState";
 import { getLakeEditorState } from "../store/lakeEditorState";
+import type { PackedGraphFeature } from "../types/models";
 import { closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { rand, rn, unique } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";

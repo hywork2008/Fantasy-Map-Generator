@@ -3,9 +3,11 @@ import { toggleLayerById } from "../../controllers/layers";
 import { useExtensionState } from "../../store/extensionState";
 import { type LayerConfig, useLayerState } from "../../store/layerState";
 import { closeDialog, openRichDialog } from "../../ui/dialogs/dialogService";
+import { tooltipExtensions } from "../../utils/uiHelpers";
 import { Goods } from "./modules/goods-generator";
 import { Markets } from "./modules/markets-generator";
 import { Production } from "./modules/production-generator";
+import { showEconomyTooltip, updateEconomyCellInfo } from "./tooltipHandler";
 import { GoodsEditorDialog } from "./ui/dialogs/GoodsEditorDialog";
 import { MarketDealsDialog } from "./ui/dialogs/MarketDealsDialog";
 import { MarketOverviewDialog } from "./ui/dialogs/MarketOverviewDialog";
@@ -15,7 +17,7 @@ import { ProductionChainsDialog } from "./ui/dialogs/ProductionChainsDialog";
 import { TradeAnimationDialog } from "./ui/dialogs/TradeAnimationDialog";
 import { TradeDetailsDialog } from "./ui/dialogs/TradeDetailsDialog";
 
-function withRegenerateConfirmation(featureName: string, id: string, onConfirm: () => void) {
+function withRegenerateConfirmation(featureName: string, _id: string, onConfirm: () => void) {
   const dontAsk = sessionStorage.getItem("regenerateFeatureDontAsk");
   if (dontAsk) return onConfirm();
 
@@ -193,6 +195,8 @@ export function initEconomyExtension() {
 
     if (isEnabled && !wasEnabled) {
       addLayers(economyLayers);
+      tooltipExtensions.showMapTooltip = showEconomyTooltip;
+      tooltipExtensions.updateCellInfo = updateEconomyCellInfo;
       // Generate economy if it's completely missing
       if (!worldContext.pack.goods || worldContext.pack.goods.length === 0) {
         if (
@@ -229,6 +233,8 @@ export function initEconomyExtension() {
       worldContext.pack.goods = [];
       worldContext.pack.markets = [];
       worldContext.pack.deals = [];
+      tooltipExtensions.showMapTooltip = undefined;
+      tooltipExtensions.updateCellInfo = undefined;
       if (worldContext.pack.cells?.i) {
         worldContext.pack.cells.good = new Uint16Array(worldContext.pack.cells.i.length);
         worldContext.pack.cells.market = new Uint16Array(worldContext.pack.cells.i.length);
@@ -240,6 +246,8 @@ export function initEconomyExtension() {
   const initialState = useExtensionState.getState();
   if (initialState.enabledExtensions[ECONOMY_EXTENSION_ID]) {
     useLayerState.getState().addLayers(economyLayers);
+    tooltipExtensions.showMapTooltip = showEconomyTooltip;
+    tooltipExtensions.updateCellInfo = updateEconomyCellInfo;
   }
 
   // Listen for core map generation to generate economy

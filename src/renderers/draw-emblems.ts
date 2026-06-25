@@ -2,18 +2,8 @@ import { forceCollide, forceSimulation, timeout } from "d3";
 import type { AppServices } from "../context/appServices";
 import type { SettlementLayers } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import type { Burg } from "../modules/burgs-generator";
-import type { State } from "../modules/states-generator";
 import { minmax, rn } from "../utils";
 import { TIME } from "../utils/debug";
-
-interface Province {
-  i: number;
-  removed?: boolean;
-  coa?: { size?: number; x?: number; y?: number };
-  pole?: [number, number];
-  center: number;
-}
 
 interface EmblemNode {
   type: "burg" | "province" | "state";
@@ -25,6 +15,7 @@ interface EmblemNode {
   group?: string;
 }
 
+import type { Burg, Province, State } from "../types/models";
 import type { IRenderer } from "./core/IRenderer";
 
 export const EmblemsRenderer: IRenderer = {

@@ -11,26 +11,17 @@ import { regenerateEmblems } from "../controllers/tools";
 import { Goods } from "../extensions/economy/modules/goods-generator";
 import { Markets } from "../extensions/economy/modules/markets-generator";
 import { Production } from "../extensions/economy/modules/production-generator";
-import type { Burg } from "../modules/burgs-generator";
 import { Burgs } from "../modules/burgs-generator";
-import type { Culture } from "../modules/cultures-generator";
 import { Cultures } from "../modules/cultures-generator";
 import type { Emblem } from "../modules/emblem/generator";
 import { Features } from "../modules/features";
-import type { IceGlacier, IceIceberg } from "../modules/ice";
 import { Lakes } from "../modules/lakes";
-import type { Marker } from "../modules/markers-generator";
 import { Markers } from "../modules/markers-generator";
-import type { MilitaryRegiment } from "../modules/military-generator";
 import { Military } from "../modules/military-generator";
 import { Names } from "../modules/names-generator";
-import type { Province } from "../modules/provinces-generator";
 import { Provinces } from "../modules/provinces-generator";
-import type { Religion } from "../modules/religions-generator";
 import { Religions } from "../modules/religions-generator";
-import type { River } from "../modules/river-generator";
 import { Rivers } from "../modules/river-generator";
-import type { State } from "../modules/states-generator";
 import { States } from "../modules/states-generator";
 import { Zones } from "../modules/zones-generator";
 import {
@@ -48,6 +39,18 @@ import {
 import { drawScaleBar, fitScaleBar } from "../renderers/index";
 import { rulers, setRulers } from "../store/editorState";
 import { useOptionsState } from "../store/optionsState";
+import type {
+  Burg,
+  Culture,
+  IceGlacier,
+  IceIceberg,
+  Marker,
+  MilitaryRegiment,
+  Province,
+  Religion,
+  River,
+  State
+} from "../types/models";
 import { findCell, P, rand, rn, unique } from "../utils";
 import { ERROR } from "../utils/debug";
 import { layerIsOn } from "../utils/nodeUtils";

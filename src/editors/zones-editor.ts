@@ -15,9 +15,9 @@ import {
 } from "../controllers/editors";
 import { toggleZones } from "../controllers/layers";
 import { editStyle } from "../controllers/style";
-import type { Zone } from "../modules/zones-generator";
 import { PopulationRenderer, ZonesRenderer } from "../renderers";
 import { getZonesEditorState, setZonesEditorState } from "../store/zonesEditorState";
+import type { Zone } from "../types/models";
 import { closeDialogs, openRichDialog } from "../ui/dialogs/dialogService";
 import { findAll, findCell, rn, unique } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";

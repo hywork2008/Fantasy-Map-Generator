@@ -10,13 +10,12 @@ import { Biomes } from "../modules/biomes";
 import { Burgs } from "../modules/burgs-generator";
 import { Features } from "../modules/features";
 import { declareFont, fonts } from "../modules/fonts";
-import type { NameBase } from "../modules/names-generator";
-import type { River } from "../modules/river-generator";
 import { Routes } from "../modules/routes-generator";
 import { GridRenderer } from "../renderers";
 import { rulers } from "../store/editorState";
 import { useLayerState } from "../store/layerState";
 import { type OptionsState, useOptionsState } from "../store/optionsState";
+import type { NameBase, River } from "../types/models";
 import { closeDialogs, openRichDialog } from "../ui/dialogs/dialogService";
 import { calculateVoronoi, findCell, last, link, minmax, parseError, rn } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
@@ -571,11 +570,11 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
             const arr = pCells[key] as unknown as ResizableArray;
             if (arr.length === n) return;
             if (arr.length > n) {
-              (pCells as Record<string, unknown>)[key] = arr.slice(0, n);
+              (pCells as unknown as Record<string, unknown>)[key] = arr.slice(0, n);
             } else {
               const extended = new arr.constructor(n);
               extended.set(arr);
-              (pCells as Record<string, unknown>)[key] = extended;
+              (pCells as unknown as Record<string, unknown>)[key] = extended;
             }
           });
 

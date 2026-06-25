@@ -28,7 +28,6 @@ import { ldb } from "./io/ldb";
 import { loadMapFromURL, showUploadErrorMessage, uploadMap } from "./io/load";
 import { initiateAutosave } from "./io/save";
 import { Biomes } from "./modules/biomes";
-import type { Burg, BurgGroup } from "./modules/burgs-generator";
 import { Burgs } from "./modules/burgs-generator";
 import { Cultures } from "./modules/cultures-generator";
 import { Features } from "./modules/features";
@@ -53,7 +52,7 @@ import { CoordinatesRenderer, drawScaleBar, fitScaleBar } from "./renderers/inde
 import { ThreeDRenderer } from "./renderers/three-d-renderer";
 import { dialogStore } from "./store/dialogState";
 import { useOptionsState } from "./store/optionsState";
-
+import type { Burg, BurgGroup } from "./types/models";
 import {
   TYPED_ARRAY_MAX_VALUES as _TMP,
   calculateVoronoi,

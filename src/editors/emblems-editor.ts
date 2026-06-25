@@ -3,10 +3,7 @@ import { drag } from "d3";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { downloadFile, getFileName } from "../controllers/editors";
-import type { Burg } from "../modules/burgs-generator";
 import { COA, type Emblem } from "../modules/emblem/generator";
-import type { Province } from "../modules/provinces-generator";
-import type { State } from "../modules/states-generator";
 import { COArenderer } from "../renderers/emblem-renderer";
 import {
   type BurgOptionItem,
@@ -14,6 +11,7 @@ import {
   type OptionItem,
   setEmblemEditorState
 } from "../store/emblemEditorState";
+import type { Burg, Province, State } from "../types/models";
 import { openURL, rn } from "../utils";
 import { clearMainTip, type EmblemEl, highlightEmblemElement, tip } from "../utils/uiHelpers";
 

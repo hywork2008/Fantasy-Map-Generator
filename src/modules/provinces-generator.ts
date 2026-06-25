@@ -8,31 +8,13 @@ import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import { useOptionsState } from "../store/optionsState";
+import type { Province } from "../types/models";
 import type { WorldState } from "../types/WorldState";
 import { gauss, generateSeed, getMixedColor, getPolesOfInaccessibility, P, rand, rw } from "../utils";
 import { TIME } from "../utils/debug";
 import { Burgs } from "./burgs-generator";
 import { COA } from "./emblem/generator";
 import { Names } from "./names-generator";
-
-export interface Province {
-  i: number;
-  removed?: boolean;
-  state: number;
-  lock?: boolean;
-  center: number;
-  burg: number;
-  name: string;
-  formName: string;
-  fullName: string;
-  color: string;
-  coa: import("./emblem/generator").Emblem | null;
-  pole?: [number, number];
-  area?: number;
-  rural?: number;
-  urban?: number;
-  burgs?: number[];
-}
 
 class ProvinceModule {
   worldContext: WorldContext = worldContext;

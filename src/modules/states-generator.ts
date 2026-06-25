@@ -8,6 +8,7 @@ import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import { useOptionsState } from "../store/optionsState";
+import type { State } from "../types/models";
 import type { WorldState } from "../types/WorldState";
 import {
   each,
@@ -26,49 +27,7 @@ import {
 } from "../utils";
 import { TIME } from "../utils/debug";
 import { COA } from "./emblem/generator";
-import type { MilitaryRegiment } from "./military-generator";
 import { Names } from "./names-generator";
-
-export interface Campaign {
-  name: string;
-  start: number;
-  end?: number;
-  attacker: number;
-  defender: number;
-}
-
-export interface State {
-  i: number;
-  name: string;
-  expansionism: number;
-  capital: number;
-  type: string;
-  center: number;
-  culture: number;
-  coa: import("./emblem/generator").Emblem | null;
-  lock?: boolean;
-  removed?: boolean;
-  pole?: [number, number];
-  neighbors?: number[];
-  color?: string;
-  cells?: number;
-  area?: number;
-  burgs?: number;
-  rural?: number;
-  urban?: number;
-  campaigns?: Campaign[];
-  diplomacy?: string[];
-  formName?: string;
-  fullName?: string;
-  form?: string;
-  military?: MilitaryRegiment[];
-  provinces?: number[];
-  temp?: Record<string, number> & { platoons?: import("./military-generator").Platoon[] };
-  alert?: number;
-  salesTax?: number;
-  pollTax?: number;
-  treasury?: number;
-}
 
 class StatesModule {
   worldContext: WorldContext = worldContext;

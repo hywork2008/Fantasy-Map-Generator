@@ -11,16 +11,6 @@ import type { WorldState } from "../types/WorldState";
 import { clipPoly, getIsolines, lerp, minmax, normalize, P, ra, rand, rn } from "../utils";
 import { getGridPolygon } from "../utils/graphUtils";
 import type { Point } from "./voronoi";
-export type IceGlacier = { i: number; points: [number, number][]; type: "glacier"; offset?: [number, number] };
-export type IceIceberg = {
-  i: number;
-  points: [number, number][];
-  type: "iceberg";
-  cellId: number;
-  size: number;
-  offset?: [number, number];
-};
-export type IceElement = IceGlacier | IceIceberg;
 
 class IceModule {
   worldContext: WorldContext = worldContext;

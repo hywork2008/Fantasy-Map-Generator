@@ -1,7 +1,7 @@
 import { sum } from "d3";
 import { worldContext } from "../../../context/worldContext";
-import { DEFAULT_CULTURE_TYPE } from "../../../modules/cultures-generator";
-import type { Zone } from "../../../modules/zones-generator";
+import type { Zone } from "../../../types/models";
+import { DEFAULT_CULTURE_TYPE } from "../../../types/models";
 import { rn } from "../../../utils/numberUtils";
 import { type Good, Goods } from "./goods-generator";
 

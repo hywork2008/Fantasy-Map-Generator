@@ -8,29 +8,13 @@ import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import { useOptionsState } from "../store/optionsState";
+import type { River } from "../types/models";
 import type { WorldState } from "../types/WorldState";
 import { each, rn, round, rw } from "../utils";
 import { TIME, WARN } from "../utils/debug";
 import { Lakes } from "./lakes";
 import { Names } from "./names-generator";
 import type { Point } from "./voronoi";
-
-export interface River {
-  i: number; // river id
-  source: number; // source cell index
-  mouth: number; // mouth cell index
-  parent: number; // parent river id
-  basin: number; // basin river id
-  length: number; // river length
-  discharge: number; // river discharge in m3/s
-  width: number; // mouth width in km
-  widthFactor: number; // width scaling factor
-  sourceWidth: number; // source width in km
-  name: string; // river name
-  type: string; // river type
-  cells: number[]; // cells forming the river path
-  points?: Point[]; // river points (for meandering)
-}
 
 class RiverModule {
   worldContext: WorldContext = worldContext;

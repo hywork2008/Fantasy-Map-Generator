@@ -1,8 +1,8 @@
 import type { AppServices } from "../context/appServices";
 import type { InfrastructureLayers } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import type { Route } from "../modules/routes-generator";
 import { Routes } from "../modules/routes-generator";
+import type { Route } from "../types/models";
 import { TIME } from "../utils/debug";
 import type { IRenderer } from "./core/IRenderer";
 

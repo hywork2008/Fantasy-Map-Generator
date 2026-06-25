@@ -1,6 +1,6 @@
 import { worldContext } from "../context/worldContext";
-import type { PackedGraphFeature } from "../modules/features";
 import { useElevationProfileState } from "../store/elevationProfileState";
+import type { PackedGraphFeature } from "../types/models";
 import { closeDialogs, openDialog } from "../ui/dialogs/dialogService";
 import { getHeight, tip } from "../utils/uiHelpers";
 

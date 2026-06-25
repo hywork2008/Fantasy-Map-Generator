@@ -7,6 +7,7 @@ import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import { useOptionsState } from "../store/optionsState";
+import type { Religion } from "../types/models";
 import type { WorldState } from "../types/WorldState";
 import {
   abbreviate,
@@ -38,18 +39,6 @@ interface NamedReligion extends ReligionBase {
   expansion: string;
   expansionism: number;
   color: string;
-}
-
-export interface Religion extends NamedReligion {
-  i: number;
-  code?: string;
-  origins?: number[] | null;
-  lock?: boolean;
-  removed?: boolean;
-  cells?: number;
-  area?: number;
-  rural?: number;
-  urban?: number;
 }
 
 // name generation approach and relative chance to be selected

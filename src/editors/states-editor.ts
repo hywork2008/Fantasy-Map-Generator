@@ -24,15 +24,10 @@ import {
   toggleStates
 } from "../controllers/layers";
 import { editStyle } from "../controllers/style";
-import type { Burg } from "../modules/burgs-generator";
 import { Burgs } from "../modules/burgs-generator";
-import type { Culture } from "../modules/cultures-generator";
 import { COA } from "../modules/emblem/generator";
-import type { MilitaryRegiment } from "../modules/military-generator";
 import { Names } from "../modules/names-generator";
-import type { Province } from "../modules/provinces-generator";
 import { Provinces } from "../modules/provinces-generator";
-import type { State } from "../modules/states-generator";
 import { States } from "../modules/states-generator";
 import {
   BordersRenderer,
@@ -50,6 +45,7 @@ import type { Emblem as RendererEmblem } from "../renderers/emblem-renderer";
 import { COArenderer } from "../renderers/emblem-renderer";
 import { useOptionsState } from "../store/optionsState";
 import { getStatesEditorState, setStatesEditorState } from "../store/statesEditorState";
+import type { Burg, Culture, MilitaryRegiment, Province, State } from "../types/models";
 import type { WorldNote } from "../types/WorldState";
 import { closeDialogs, openRichDialog } from "../ui/dialogs/dialogService";
 import { findAll, findCell, getAdjective, getMixedColor, getRandomColor, isLand, P, rand, rn, si } from "../utils";

@@ -1,7 +1,7 @@
 import type { AppServices } from "../context/appServices";
 import type { SettlementLayers, ViewState } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import type { Marker } from "../modules/markers-generator";
+import type { Marker } from "../types/models";
 import { rn } from "../utils";
 import { TIME } from "../utils/debug";
 import type { IRenderer } from "./core/IRenderer";

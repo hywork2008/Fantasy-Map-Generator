@@ -1,7 +1,5 @@
 import { create } from "zustand";
-import type { Burg } from "../modules/burgs-generator";
-import type { Province } from "../modules/provinces-generator";
-import type { State } from "../modules/states-generator";
+import type { Burg, Province, State } from "../types/models";
 
 export interface OptionItem {
   i: number;

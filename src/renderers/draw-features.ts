@@ -3,7 +3,7 @@ import _simplify from "simplify-js";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import type { PackedGraphFeature } from "../modules/features";
+import type { PackedGraphFeature } from "../types/models";
 import { clipPoly, round } from "../utils";
 import { ERROR, TIME } from "../utils/debug";
 import { buildCoastlinePath, fractalizeCoastline } from "./coastline-fractal";

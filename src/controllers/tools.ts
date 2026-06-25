@@ -15,8 +15,6 @@ import { editProvinces } from "../editors/provinces-editor";
 import { createRoute } from "../editors/routes-editor";
 import { editUnits } from "../editors/units-editor";
 import { editZones } from "../editors/zones-editor";
-
-import type { Burg } from "../modules/burgs-generator";
 import { Burgs } from "../modules/burgs-generator";
 import { Cultures } from "../modules/cultures-generator";
 import { COA } from "../modules/emblem/generator";
@@ -24,21 +22,14 @@ import { Features } from "../modules/features";
 
 import { Ice } from "../modules/ice";
 import { Lakes } from "../modules/lakes";
-import type { Marker, MarkerConfig } from "../modules/markers-generator";
 import { Markers } from "../modules/markers-generator";
 
 import { Military } from "../modules/military-generator";
 import { Names } from "../modules/names-generator";
-
-import type { Province } from "../modules/provinces-generator";
 import { Provinces } from "../modules/provinces-generator";
-import type { Religion } from "../modules/religions-generator";
 import { Religions } from "../modules/religions-generator";
-import type { River } from "../modules/river-generator";
 import { Rivers } from "../modules/river-generator";
-import type { Route } from "../modules/routes-generator";
 import { Routes } from "../modules/routes-generator";
-import type { State } from "../modules/states-generator";
 import { States } from "../modules/states-generator";
 import { Zones } from "../modules/zones-generator";
 import {
@@ -65,6 +56,7 @@ import { drawMarker } from "../renderers/index";
 import { useBurgsOverviewState } from "../store/burgsOverviewState";
 import { elSelected } from "../store/editorState";
 import { useOptionsState } from "../store/optionsState";
+import type { Burg, Marker, MarkerConfig, Province, Religion, River, Route, State } from "../types/models";
 import type { WorldNote } from "../types/WorldState";
 import { closeDialog, closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { findCell, gauss, generateSeed, getNextId, isCtrlClick, P, rn, showPrompt } from "../utils";

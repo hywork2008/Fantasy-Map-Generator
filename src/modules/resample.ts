@@ -15,6 +15,7 @@ import {
   reGraph,
   showStatistics
 } from "../main";
+import type { River } from "../types/models";
 import type { PackedGraph } from "../types/PackedGraph";
 import type { WorldNote, WorldState } from "../types/WorldState";
 import {
@@ -33,7 +34,6 @@ import { Ice } from "./ice";
 import { Markers } from "./markers-generator";
 import { OceanLayers } from "./ocean-layers";
 import { Provinces } from "./provinces-generator";
-import type { River } from "./river-generator";
 import { Rivers } from "./river-generator";
 import { Routes } from "./routes-generator";
 import { States } from "./states-generator";

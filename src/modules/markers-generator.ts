@@ -6,6 +6,7 @@ import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import { useOptionsState } from "../store/optionsState";
+import type { Marker, MarkerConfig } from "../types/models";
 import type { PackedGraph } from "../types/PackedGraph";
 import type { WorldState } from "../types/WorldState";
 import { capitalize, convertTemperature, gauss, generateDate, getAdjective, last, P, ra, rand, rn, rw } from "../utils";
@@ -14,38 +15,6 @@ import { getFriendlyHeight } from "../utils/uiHelpers";
 import { Names } from "./names-generator";
 import { Routes } from "./routes-generator";
 import { States } from "./states-generator";
-
-export type MarkerConfig = {
-  type: string;
-  icon: string;
-  dx?: number;
-  dy?: number;
-  px?: number;
-  min: number;
-  each: number;
-  multiplier: number;
-  list: (pack: PackedGraph) => Iterable<number> | ArrayLike<number>;
-  add: (id: string, cell: number) => void;
-};
-
-export interface Marker {
-  i: number;
-  type: string;
-  icon: string;
-  dx?: number;
-  dy?: number;
-  px?: number;
-  cell: number;
-  lock?: boolean;
-  x?: number;
-  y?: number;
-  size?: number;
-  pin?: string;
-  fill?: string;
-  stroke?: string;
-  pinned?: boolean;
-  hidden?: boolean;
-}
 
 class MarkersModule {
   worldContext: WorldContext = worldContext;

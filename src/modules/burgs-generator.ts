@@ -5,76 +5,20 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
-import type { ProductionRecord } from "../extensions/economy/modules/production-generator";
 import { removeBurgIcon, removeBurgLabel } from "../renderers";
 import { COArenderer } from "../renderers/emblem-renderer";
 import { useOptionsState } from "../store/optionsState";
+import type { Burg, Route } from "../types/models";
 import type { WorldState } from "../types/WorldState";
 import { each, findCell, gauss, minmax, normalize, P, rn } from "../utils";
 import { ERROR, TIME, WARN } from "../utils/debug";
 import { tip } from "../utils/uiHelpers";
-import type { CultureType } from "./cultures-generator";
 import { COA, type Emblem } from "./emblem/generator";
 import { NON_NAVIGABLE_LAKE_GROUPS } from "./features";
 import { Names } from "./names-generator";
 import { Rivers } from "./river-generator";
-import type { Route } from "./routes-generator";
 import { Routes } from "./routes-generator";
 import type { Point } from "./voronoi";
-
-export interface BurgGroup {
-  name: string;
-  active: boolean;
-  order: number;
-  isDefault?: boolean;
-  features?: {
-    capital?: boolean;
-    citadel?: boolean;
-    walls?: boolean;
-    plaza?: boolean;
-    port?: boolean;
-    temple?: boolean;
-  };
-  preview?: string;
-  percentile?: number;
-  min?: number;
-  max?: number;
-  biomes?: number[];
-  states?: number[];
-  cultures?: number[];
-  religions?: number[];
-}
-
-export interface Burg {
-  cell: number;
-  x: number;
-  y: number;
-  i?: number;
-  state?: number;
-  culture?: number;
-  name?: string;
-  feature?: number;
-  capital?: number;
-  lock?: boolean;
-  port?: number;
-  removed?: boolean;
-  population?: number;
-  type?: CultureType;
-  coa?: Emblem;
-  citadel?: number;
-  plaza?: number;
-  walls?: number;
-  shanty?: number;
-  temple?: number;
-  group?: string;
-  link?: string;
-  MFCG?: number | string;
-  province?: number;
-  production?: ProductionRecord[];
-  product?: number;
-  treasury?: number;
-  market?: number;
-}
 
 type PortCandidate = {
   burg: Burg;

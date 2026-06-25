@@ -7,9 +7,9 @@ import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import { useOptionsState } from "../store/optionsState";
+import type { PackedGraphFeature } from "../types/models";
 import type { WorldState } from "../types/WorldState";
 import { rn } from "../utils";
-import type { PackedGraphFeature } from "./features";
 import { Names } from "./names-generator";
 
 export class LakesModule {

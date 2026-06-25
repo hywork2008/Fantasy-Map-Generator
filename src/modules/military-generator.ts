@@ -5,58 +5,10 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
+import type { MilitaryRegiment, MilitaryUnit, Platoon, State } from "../types/models";
 import type { WorldState } from "../types/WorldState";
 import { findAllInQuadtree, gauss, minmax, nth, ra, rand, rn, si } from "../utils";
 import { TIME } from "../utils/debug";
-import type { State } from "./states-generator";
-
-export interface MilitaryUnit {
-  icon: string;
-  name: string;
-  rural: number;
-  urban: number;
-  crew: number;
-  power: number;
-  type: string;
-  separate: number;
-  biomes?: number[];
-  states?: number[];
-  cultures?: number[];
-  religions?: number[];
-}
-
-export interface MilitaryRegiment {
-  i: number;
-  t: number; // total troops
-  name: string;
-  a: number; // regiment army
-  s: number; // separate flag (for fleets)
-  cell: number;
-  x: number;
-  y: number;
-  bx: number; // base x (for movement)
-  by: number; // base y (for movement)
-  u: Record<string, number>; // units composition
-  n: number; // naval unit flag
-  type: string; // unit type
-  icon?: string;
-  children?: MilitaryRegiment[]; // merged regiments
-  state: number;
-  angle?: number;
-}
-
-export interface Platoon {
-  cell: number;
-  a: number; // platoon army
-  t: number; // total troops in platoon
-  x: number;
-  y: number;
-  u: string; // unit type
-  n: number; // naval unit flag
-  s: number; // separate flag (for fleets)
-  type: string; // unit type
-  children?: Platoon[]; // merged platoons
-}
 
 class MilitaryModule {
   worldContext: WorldContext = worldContext;

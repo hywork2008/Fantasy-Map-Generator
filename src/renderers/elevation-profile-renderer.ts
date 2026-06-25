@@ -16,9 +16,7 @@ import {
 } from "d3";
 import { zoomTo } from "../actions";
 import type { WorldContext } from "../context/worldContext";
-import type { Burg } from "../modules/burgs-generator";
-import type { Province } from "../modules/provinces-generator";
-import type { State } from "../modules/states-generator";
+import type { Burg, Province, State } from "../types/models";
 import { rn } from "../utils";
 import { getColor, getColorScheme } from "../utils/colorUtils";
 import { tip } from "../utils/uiHelpers";

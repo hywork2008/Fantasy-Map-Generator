@@ -1,12 +1,20 @@
 import * as d3 from "d3";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
-import { Goods } from "../extensions/economy/modules/goods-generator";
-import { Markets } from "../extensions/economy/modules/markets-generator";
-import { Production } from "../extensions/economy/modules/production-generator";
-import { getCellProduction } from "../extensions/economy/modules/production-utils";
-import type { PackedGraphFeature } from "../modules/features";
+export const tooltipExtensions: {
+  showMapTooltip?: (
+    point: [number, number],
+    e: MouseEvent,
+    i: number,
+    g: number,
+    group: string,
+    subgroup: string
+  ) => boolean;
+  updateCellInfo?: (point: [number, number], i: number, g: number) => void;
+} = {};
+
 import { useOptionsState } from "../store/optionsState";
+import type { PackedGraphFeature } from "../types/models";
 import { openRichDialog } from "../ui/dialogs/dialogService";
 import { alertMessage } from "../utils/alertMessageEl";
 import { debounce, getLatitude, getLongitude, link } from "./commonUtils";
@@ -228,55 +236,7 @@ function showMapTooltip(point: [number, number], e: MouseEvent, i: number, g: nu
     return;
   }
 
-  if (group === "markets") {
-    const marketEl = (e.target as Element).closest("[data-id]") as HTMLElement | null;
-    if (marketEl) {
-      const market = Markets.get(+marketEl.dataset.id!);
-      const centerBurg = market && worldContext.pack.burgs[market.centerBurgId];
-      if (!centerBurg) return;
-      tip(`${centerBurg.name} market. Click to view`);
-      return;
-    }
-  }
-
-  if (group === "goods") {
-    const el = e.target as Element;
-    const bonusGoodId = worldContext.pack.cells.good[i];
-    const getName = (id: number) => (Goods.get(id)?.name ?? "unknown").toLowerCase();
-    const formatProduct = (produced: Record<number, number>) =>
-      Object.entries(produced).reduce<string[]>((acc, [goodId, amount]) => {
-        acc.push(`${getName(+goodId)} ${amount}${+goodId === bonusGoodId ? " (bonus)" : ""}`);
-        return acc;
-      }, []);
-
-    if (el.closest("#goodsIcons")) {
-      const iconEl = el.closest("[data-i]") as HTMLElement | null;
-      const good = iconEl ? Goods.get(+iconEl.dataset.i!) : undefined;
-      tip(`${good?.name} bonus resource. Click to open Goods Editor and select displayed goods`);
-      return;
-    }
-
-    if (el.closest("#goodsCells")) {
-      const produced = getCellProduction(i, Goods.getBiomesProduction());
-      tip(
-        `Cell rural production: ${formatProduct(produced).join(", ")}. Click to select displayed goods in Goods Editor`
-      );
-      return;
-    }
-
-    if (el.closest("#goodsBurgs")) {
-      const burgEl = el.closest("[data-id]") as HTMLElement | null;
-      const burgId = burgEl ? +burgEl.dataset.id! : 0;
-      const burg = burgId ? worldContext.pack.burgs[burgId] : undefined;
-      if (!burg || burg.removed) return;
-      d3.select(burgEl).raise();
-      const produced = Production.getBurgProduction(burg);
-      tip(`${burg.name} urban production: ${formatProduct(produced).join(", ")}. Click to view`);
-      return;
-    }
-
-    return;
-  }
+  if (tooltipExtensions.showMapTooltip?.(point, e, i, g, group, subgroup)) return;
 
   if (group === "ruler") {
     const tag = (e.target as SVGElement).tagName;
@@ -426,34 +386,7 @@ function updateCellInfo(point: [number, number], i: number, g: number): void {
   infoFeature.innerHTML = f ? `${worldContext.pack.features[f].group} (${f})` : "n/a";
   infoBiome.innerHTML = worldContext.biomesData.name[cells.biome[i]];
 
-  infoGood.innerHTML = cells.good[i] ? `${Goods.get(cells.good[i])?.name ?? "unknown"} (${cells.good[i]})` : "no";
-
-  const marketId = cells.market?.[i];
-  if (marketId) {
-    const market = Markets.get(marketId);
-    const centerBurg = market && worldContext.pack.burgs[market.centerBurgId];
-    infoMarket.innerHTML = centerBurg ? `${centerBurg.name} market (${marketId})` : `market ${marketId}`;
-  } else {
-    infoMarket.innerHTML = "no";
-  }
-
-  const cellProduced = getCellProduction(i, Goods.getBiomesProduction());
-  const cellEntries = Object.entries(cellProduced).filter(([, amt]) => amt > 0);
-  infoCellProduction.innerHTML = cellEntries.length
-    ? cellEntries.map(([id, amt]) => `${Goods.get(+id)?.name ?? id}: ${rn(amt, 2)}`).join(", ")
-    : "none";
-
-  const burgId = cells.burg[i];
-  if (burgId) {
-    const burg = worldContext.pack.burgs[burgId];
-    const burgProduced = Production.getBurgProduction(burg);
-    const burgEntries = Object.entries(burgProduced).filter(([, amt]) => amt > 0);
-    infoBurgProduction.innerHTML = burgEntries.length
-      ? burgEntries.map(([id, amt]) => `${Goods.get(+id)?.name ?? id}: ${rn(amt, 2)}`).join(", ")
-      : "none";
-  } else {
-    infoBurgProduction.innerHTML = "n/a";
-  }
+  tooltipExtensions.updateCellInfo?.(point, i, g);
 }
 
 function getGeozone(latitude: number): string {
