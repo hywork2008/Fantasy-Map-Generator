@@ -1,6 +1,6 @@
-import type { Grid } from "../utils/graphUtils";
+import type { PackedGraph } from "../types/PackedGraph";
+import type { Grid } from "./Grid";
 import type { BurgGroup, MilitaryUnit, NameBase } from "./models";
-import type { PackedGraph } from "./PackedGraph";
 
 export interface WorldNote {
   id: string;

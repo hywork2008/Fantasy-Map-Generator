@@ -15,15 +15,14 @@ import { editProvinces } from "../editors/provinces-editor";
 import { createRoute } from "../editors/routes-editor";
 import { editUnits } from "../editors/units-editor";
 import { editZones } from "../editors/zones-editor";
+import { rankCells } from "../main";
 import { Burgs } from "../modules/burgs-generator";
 import { Cultures } from "../modules/cultures-generator";
 import { COA } from "../modules/emblem/generator";
 import { Features } from "../modules/features";
-
 import { Ice } from "../modules/ice";
 import { Lakes } from "../modules/lakes";
 import { Markers } from "../modules/markers-generator";
-
 import { Military } from "../modules/military-generator";
 import { Names } from "../modules/names-generator";
 import { Provinces } from "../modules/provinces-generator";
@@ -56,24 +55,18 @@ import { drawMarker } from "../renderers/index";
 import { useBurgsOverviewState } from "../store/burgsOverviewState";
 import { elSelected } from "../store/editorState";
 import { useOptionsState } from "../store/optionsState";
-import type { Burg, Marker, MarkerConfig, Province, Religion, River, Route, State } from "../types/models";
+import type { MarkerConfig } from "../types/MarkerConfig";
+import type { Burg, Marker, Province, Religion, River, Route, State } from "../types/models";
 import type { WorldNote } from "../types/WorldState";
+import * as Dialogservice from "../ui/dialogs/dialogService";
 import { closeDialog, closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { findCell, gauss, generateSeed, getNextId, isCtrlClick, P, rn, showPrompt } from "../utils";
+import { EditorBus } from "../utils/editorBus";
 import { layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, tip } from "../utils/uiHelpers";
 import { overviewBurgs } from "./burgs-overview";
 import { openChartsOverview } from "./charts-overview";
-import {
-  editCoastlineSettings,
-  editCultures,
-  editReligions,
-  editStates,
-  refreshAllEditors,
-  restoreDefaultEvents,
-  selectIcon,
-  unfog
-} from "./editors";
+import { editCoastlineSettings, editCultures, editReligions, refreshAllEditors } from "./editors";
 import { interactionManager } from "./interactionManager";
 import {
   toggleBorders,
@@ -92,9 +85,11 @@ import {
   toggleStates,
   turnButtonOn
 } from "./layers";
+import * as MarkersOverview from "./markers-overview";
 import { overviewMilitary } from "./military-overview";
 import { openMinimapDialog } from "./minimap";
 import { cellsDensityMap } from "./options";
+import * as RiversOverview from "./rivers-overview";
 import { overviewRoutes } from "./routes-overview";
 import { openSubmapTool } from "./submap-tool";
 import { openTransformTool } from "./transform-tool";
@@ -113,7 +108,7 @@ document.addEventListener("react-tool-action", e => {
 
   if (button === "editHeightmapButton") editHeightmap();
   else if (button === "editBiomesButton") editBiomes();
-  else if (button === "editStatesButton") editStates();
+  else if (button === "editStatesButton") EditorBus.editStates();
   else if (button === "editProvincesButton") editProvinces?.();
   else if (button === "editDiplomacyButton") editDiplomacy?.();
   else if (button === "editCoastlineSettings") editCoastlineSettings();
@@ -127,17 +122,17 @@ document.addEventListener("react-tool-action", e => {
   else if (button === "overviewChartsButton") overviewCharts();
   else if (button === "overviewBurgsButton") overviewBurgs();
   else if (button === "overviewRoutesButton") overviewRoutes();
-  else if (button === "overviewRiversButton") import("./rivers-overview").then(m => m.overviewRivers());
+  else if (button === "overviewRiversButton") RiversOverview.overviewRivers();
   else if (button === "overviewMilitaryButton") overviewMilitary();
-  else if (button === "overviewMarkersButton") import("./markers-overview").then(m => m.overviewMarkers());
+  else if (button === "overviewMarkersButton") MarkersOverview.overviewMarkers();
   else if (button === "overviewCellsButton") viewCellDetails();
   else if (button === "openMinimapButton") openMinimap?.();
   else if (button === "editGoods") {
-    import("../ui/dialogs/dialogService").then(m => m.openDialog("goodsEditor"));
+    Dialogservice.openDialog("goodsEditor");
   } else if (button === "overviewMarketsButton") {
-    import("../ui/dialogs/dialogService").then(m => m.openDialog("marketsOverview"));
+    Dialogservice.openDialog("marketsOverview");
   } else if (button === "editTradeAnimationButton") {
-    import("../ui/dialogs/dialogService").then(m => m.openDialog("tradeAnimationEditor"));
+    Dialogservice.openDialog("tradeAnimationEditor");
   }
 
   if (button.startsWith("regenerate")) {
@@ -257,7 +252,6 @@ function regenerateRivers(): void {
 }
 
 async function recalculatePopulation(): Promise<void> {
-  const { rankCells } = await import("../main");
   rankCells();
 
   worldContext.pack.burgs.forEach((b: Burg) => {
@@ -373,7 +367,7 @@ function recreateStates(): State[] | null {
     }
   }
 
-  unfog("");
+  EditorBus.unfog("");
 
   const sortedBurgs = validBurgs
     .filter((b: Burg) => !lockedStatesIds.includes(b.state!))
@@ -477,7 +471,7 @@ function recreateStates(): State[] | null {
 }
 
 function regenerateProvinces(): void {
-  unfog("");
+  EditorBus.unfog("");
   const state = getWorldState();
   Provinces.generate(worldContext, viewContext, appServices, state, true, true);
   Provinces.getPoles(state);
@@ -495,7 +489,6 @@ function regenerateProvinces(): void {
 
 async function regenerateBurgs(): Promise<void> {
   const { cells, burgs: packBurgs, states, provinces } = worldContext.pack;
-  const { rankCells } = await import("../main");
 
   rankCells();
 
@@ -762,7 +755,7 @@ function unpressClickToAddButton(): void {
     .forEach(b => {
       b.classList.remove("pressed");
     });
-  restoreDefaultEvents!();
+  EditorBus.restoreDefaultEvents();
   clearMainTip();
 }
 
@@ -1146,7 +1139,7 @@ export function configMarkersGeneration(): void {
             const emoji = this.parentElement!.querySelector<HTMLElement>(".emoji")!;
             const icon = image.getAttribute("src") || emoji.textContent!;
 
-            selectIcon(icon, value => {
+            EditorBus.selectIcon(icon, value => {
               const isExt = value.startsWith("http") || value.startsWith("data:image");
               image.setAttribute("src", isExt ? value : "");
               image.hidden = !isExt;
@@ -1195,3 +1188,6 @@ export function initTools(wc: WorldContext, vc: Readonly<ViewContext>, as: AppSe
   viewContext = vc;
   appServices = as;
 }
+
+// CustomEvent Listeners
+document.addEventListener("fmg:regenerate-emblems", () => regenerateEmblems());

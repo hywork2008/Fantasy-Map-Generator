@@ -11,43 +11,11 @@ import { shields } from "./shields";
 import { createTinctures } from "./tinctures";
 import { typeMapping } from "./typeMapping";
 
-export interface EmblemCharge {
-  charge: string;
-  t: string;
-  p: string;
-  t2?: string;
-  t3?: string;
-  size?: number;
-  sinister?: number;
-  reversed?: number;
-  divided?: string;
-}
+// Emblem types are defined in src/types/emblem.ts to avoid circular dependencies.
+// Re-exported here for backwards-compat with consumers that import from this module.
+export type { Emblem, EmblemCharge, EmblemDivision, EmblemOrdinary } from "../../types/emblem";
 
-export interface EmblemOrdinary {
-  ordinary: string;
-  t: string;
-  line?: string;
-  divided?: string;
-  above?: boolean;
-}
-
-export interface EmblemDivision {
-  division: string;
-  t: string;
-  line?: string;
-}
-
-export interface Emblem {
-  t1: string;
-  shield?: string;
-  division?: EmblemDivision;
-  ordinaries?: EmblemOrdinary[];
-  charges?: EmblemCharge[];
-  custom?: boolean;
-  size?: number;
-  x?: number;
-  y?: number;
-}
+import type { Emblem, EmblemCharge, EmblemOrdinary } from "../../types/emblem";
 
 class EmblemGeneratorModule {
   generate(parent: Emblem | null, kinship: number | null, dominion: number | null, type?: string): Emblem {

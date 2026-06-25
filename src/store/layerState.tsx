@@ -341,8 +341,7 @@ export const useLayerState = create<LayerState>((set, get) => ({
 
     // Defer to the next tick to ensure state is updated before calling legacy d3 drawing
     setTimeout(() => {
-      // Synchronize the actual SVG layer order using the global function from layers.ts
-      import("../controllers/layers").then(m => m.syncSVGLayersOrder(layers));
+      document.dispatchEvent(new CustomEvent("fmg:sync-layers-order", { detail: layers }));
     }, 0);
   },
 

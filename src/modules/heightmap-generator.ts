@@ -9,9 +9,9 @@ import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import { useOptionsState } from "../store/optionsState";
+import type { Grid } from "../types/Grid";
 import { createTypedArray, findGridCell, getNumberInRange, lim, minmax, P, rand } from "../utils";
 import { ERROR, TIME } from "../utils/debug";
-import type { Grid } from "../utils/graphUtils";
 
 type Tool = "Hill" | "Pit" | "Range" | "Trough" | "Strait" | "Mask" | "Invert" | "Add" | "Multiply" | "Smooth";
 

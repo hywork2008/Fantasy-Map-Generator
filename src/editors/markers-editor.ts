@@ -2,7 +2,6 @@ import { type D3DragEvent, drag, type Selection, select } from "d3";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import { confirmationDialog, restoreDefaultEvents, selectIcon, unselect } from "../controllers/editors";
 import { Markers } from "../modules/markers-generator";
 import { getPin } from "../renderers/index";
 import { setElSelected } from "../store/editorState";
@@ -12,6 +11,8 @@ import { useNotesEditorState } from "../store/notesEditorState";
 import type { Marker } from "../types/models";
 import { closeDialog, closeDialogs } from "../ui/dialogs/dialogService";
 import { findCell, rn } from "../utils";
+import { EditorBus } from "../utils/editorBus";
+import { confirmationDialog } from "../utils/editorHelpers";
 import { clearMainTip } from "../utils/uiHelpers";
 import { editNotes } from "./notes-editor";
 
@@ -109,7 +110,7 @@ function changeMarkerType(newType: string): void {
 
 function changeMarkerIcon(): void {
   const { icon } = getMarkersEditorState();
-  selectIcon(icon, value => {
+  EditorBus.selectIcon(icon, value => {
     setMarkersEditorState({ icon: value });
     getSameTypeMarkers().forEach(m => {
       m.icon = value;
@@ -254,8 +255,8 @@ function deleteMarker(): void {
 
 export function closeMarkerEditor(): void {
   setMarkersEditorState({ isOpen: false });
-  unselect();
-  restoreDefaultEvents?.();
+  EditorBus.unselect();
+  EditorBus.restoreDefaultEvents();
   clearMainTip();
   closeDialog("markerEditor");
 }

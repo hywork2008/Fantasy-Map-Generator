@@ -2,7 +2,6 @@ import { type D3DragEvent, drag, pointer, select } from "d3";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import { unselect } from "../controllers/editors";
 import { interactionManager } from "../controllers/interactionManager";
 import { toggleIce } from "../controllers/layers";
 import { editStyle } from "../controllers/style";
@@ -14,6 +13,7 @@ import type { IceIceberg } from "../types/models";
 import { closeDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { findGridCell, parseTransform } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
+import { EditorBus } from "../utils/editorBus";
 import { layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, tip } from "../utils/uiHelpers";
 
@@ -139,7 +139,7 @@ export function closeIceEditor(): void {
     .classed("draggable", false)
     .call(drag<SVGElement, unknown>().on("drag", null));
   clearMainTip();
-  unselect();
+  EditorBus.unselect();
   closeDialog("iceEditor");
 }
 

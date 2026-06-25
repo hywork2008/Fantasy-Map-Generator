@@ -1,12 +1,12 @@
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
-import { confirmationDialog } from "../controllers/editors";
 import { toggleRoutes } from "../controllers/layers";
 import { editStyle } from "../controllers/style";
 import { Routes } from "../modules/routes-generator";
 import { modules } from "../store/editorState";
 import { openDialog } from "../ui/dialogs/dialogService";
 import { showPrompt } from "../utils";
+import { confirmationDialog } from "../utils/editorHelpers";
 import { layerIsOn } from "../utils/nodeUtils";
 import { tip } from "../utils/uiHelpers";
 

@@ -13,9 +13,10 @@ import { quickLoad } from "../io/load";
 import { saveMap, toggleSaveReminder } from "../io/save";
 import { closeDialogs } from "../ui/dialogs/dialogService";
 import { minmax } from "../utils";
+import { EditorBus } from "../utils/editorBus";
 import { showInfo } from "../utils/uiHelpers";
 import { overviewBurgs } from "./burgs-overview";
-import { editCoastlineSettings, editCultures, editReligions, editStates } from "./editors";
+import { editCoastlineSettings, editCultures, editReligions } from "./editors";
 import {
   toggleBiomes,
   toggleBorders,
@@ -110,7 +111,7 @@ function handleKeyup(event: KeyboardEvent): void {
   else if (document.getElementById("canvas3d") !== null && ["!", "@", "#", "$", "%"].includes(key)) return;
   else if ((shift || altShift) && code === "KeyH") editHeightmap();
   else if ((shift || altShift) && code === "KeyB") editBiomes();
-  else if ((shift || altShift) && code === "KeyS") editStates();
+  else if ((shift || altShift) && code === "KeyS") EditorBus.editStates();
   else if ((shift || altShift) && code === "KeyP") editProvinces();
   else if ((shift || altShift) && code === "KeyD") editDiplomacy();
   else if ((shift || altShift) && code === "KeyL") editCoastlineSettings();

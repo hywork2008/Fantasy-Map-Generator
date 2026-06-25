@@ -5,7 +5,6 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
-import { unselect } from "../controllers/editors";
 import { interactionManager } from "../controllers/interactionManager";
 import { toggleCells } from "../controllers/layers";
 import { editStyle } from "../controllers/style";
@@ -26,6 +25,7 @@ import type { PackedGraphFeature } from "../types/models";
 import { closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { rand, rn, unique } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
+import { EditorBus } from "../utils/editorBus";
 import { getPackPolygon } from "../utils/graphUtils";
 import { layerIsOn } from "../utils/nodeUtils";
 import { getArea, tip } from "../utils/uiHelpers";
@@ -165,7 +165,7 @@ function handleVertexDragEnd(): void {
 
 function closeLakesEditor(): void {
   viewContext.debug.select("#vertices").remove();
-  unselect();
+  EditorBus.unselect();
   modules.editLake = false;
   getLakeEditorState().setLakeData(null);
 }

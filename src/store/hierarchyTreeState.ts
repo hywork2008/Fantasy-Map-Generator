@@ -1,5 +1,5 @@
 import { createStore, useStore } from "zustand";
-import type { HierarchyProps } from "../controllers/hierarchy-tree";
+import type { HierarchyProps } from "../types/HierarchyTree";
 
 interface HierarchyTreeState {
   props: HierarchyProps | null;

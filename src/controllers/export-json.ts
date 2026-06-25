@@ -3,9 +3,9 @@ import { worldContext } from "../context/worldContext";
 import { useOptionsState } from "../store/optionsState";
 import { closeDialogs } from "../ui/dialogs/dialogService";
 import { TIME } from "../utils/debug";
+import { getFileName } from "../utils/editorHelpers";
 import { tip } from "../utils/uiHelpers";
 import { VERSION } from "../versioning";
-import { getFileName } from "./editors";
 
 export function exportToJson(type: string): void {
   if (viewContext.customization) {

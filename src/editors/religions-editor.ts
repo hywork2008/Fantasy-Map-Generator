@@ -2,29 +2,22 @@ import * as d3 from "d3";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import {
-  clearLegend,
-  confirmationDialog,
-  downloadFile,
-  drawLegend,
-  getFileName,
-  highlightElement,
-  moveCircle,
-  restoreDefaultEvents
-} from "../controllers/editors";
-import { type HierarchyElement, open as openHierarchyTree } from "../controllers/hierarchy-tree";
+import { open as openHierarchyTree } from "../controllers/hierarchy-tree";
 import { toggleBiomes, toggleCultures, toggleProvinces, toggleReligions, toggleStates } from "../controllers/layers";
 import { editStyle } from "../controllers/style";
 import { Religions } from "../modules/religions-generator";
 import { PopulationRenderer, ReligionsRenderer } from "../renderers";
 import type { ReligionRowData } from "../store/religionsEditorState";
 import { getReligionsEditorState, setReligionsEditorState } from "../store/religionsEditorState";
+import type { HierarchyElement } from "../types/HierarchyTree";
 import type { Religion } from "../types/models";
 import { closeDialog, closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { abbreviate, debounce, findAll, findCell, rn, si } from "../utils";
+import { EditorBus } from "../utils/editorBus";
+import { confirmationDialog, downloadFile, getFileName } from "../utils/editorHelpers";
 import { getPackPolygon } from "../utils/graphUtils";
 import { layerIsOn } from "../utils/nodeUtils";
-import { clearMainTip, getArea, getAreaUnit, removeCircle, tip } from "../utils/uiHelpers";
+import { clearMainTip, getArea, getAreaUnit, tip } from "../utils/uiHelpers";
 
 type HighlightEvent = { id?: string | number | null; target?: EventTarget | null };
 
@@ -180,7 +173,7 @@ export const religionsEditorActions = {
 
   toggleLegend(): void {
     if (viewContext.legend.selectAll("*").size()) {
-      clearLegend();
+      EditorBus.clearLegend();
       return;
     }
 
@@ -188,7 +181,7 @@ export const religionsEditorActions = {
       .filter(r => r.i && !r.removed && r.area)
       .sort((a, b) => (b.area ?? 0) - (a.area ?? 0))
       .map(r => [r.i, r.color, r.name] as [number, string, string]);
-    drawLegend("Religions", data);
+    EditorBus.drawLegend("Religions", data);
   },
 
   showHierarchy(): void {
@@ -448,7 +441,7 @@ export const religionsEditorActions = {
 
   highlightReligion(i: number): void {
     const element = document.getElementById(`religion${i}`);
-    if (element) highlightElement(element, 3);
+    if (element) EditorBus.highlightElement(element, 3);
   },
 
   updateLockStatus(i: number): void {
@@ -582,8 +575,8 @@ function exitReligionsManualAssignment(): void {
   viewContext.customization = 0;
   setReligionsEditorState({ customization: 0 });
   viewContext.relig.select("#temp").remove();
-  removeCircle();
-  restoreDefaultEvents?.();
+  EditorBus.removeCircle();
+  EditorBus.restoreDefaultEvents();
   clearMainTip();
   viewContext.debug.select("#religionCenters").style("display", null);
 
@@ -605,8 +598,8 @@ function exitAddReligionMode(): void {
   viewContext.customization = 0;
   setReligionsEditorState({ customization: 0 });
   viewContext.relig.select("#temp").remove();
-  removeCircle();
-  restoreDefaultEvents?.();
+  EditorBus.removeCircle();
+  EditorBus.restoreDefaultEvents();
   clearMainTip();
 }
 
@@ -652,7 +645,7 @@ function dragReligionBrush(this: SVGElement, event: d3.D3DragEvent<SVGElement, u
   const { brushSize, protectExisting } = getReligionsEditorState();
   const r = brushSize;
   const point = d3.pointer(event, this);
-  moveCircle(point[0], point[1], r);
+  EditorBus.moveCircle(point[0], point[1], r);
 
   const selectedReligion = 0; // Default until UI row selection is hooked up properly
 
@@ -687,7 +680,7 @@ function moveReligionBrush(this: SVGElement, event: MouseEvent | TouchEvent): vo
   } else {
     point = d3.pointer(event as MouseEvent, this);
   }
-  moveCircle(point[0], point[1], brushSize);
+  EditorBus.moveCircle(point[0], point[1], brushSize);
 }
 
 function downloadReligionsCsv(): void {

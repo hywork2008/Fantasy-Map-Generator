@@ -2,17 +2,6 @@ import { type D3DragEvent, drag, pointer, type Selection, sum } from "d3";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import {
-  clearLegend,
-  confirmationDialog,
-  downloadFile,
-  drawLegend,
-  fog,
-  getFileName,
-  moveCircle,
-  restoreDefaultEvents,
-  unfog
-} from "../controllers/editors";
 import { toggleZones } from "../controllers/layers";
 import { editStyle } from "../controllers/style";
 import { PopulationRenderer, ZonesRenderer } from "../renderers";
@@ -21,9 +10,11 @@ import type { Zone } from "../types/models";
 import { closeDialogs, openRichDialog } from "../ui/dialogs/dialogService";
 import { findAll, findCell, rn, unique } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
+import { EditorBus } from "../utils/editorBus";
+import { confirmationDialog, downloadFile, getFileName } from "../utils/editorHelpers";
 import { getPackPolygon } from "../utils/graphUtils";
 import { layerIsOn } from "../utils/nodeUtils";
-import { clearMainTip, getArea, removeCircle, showMainTip, tip } from "../utils/uiHelpers";
+import { clearMainTip, getArea, showMainTip, tip } from "../utils/uiHelpers";
 
 let worldContext: WorldContext;
 let viewContext: ViewContext;
@@ -246,7 +237,7 @@ function dragZoneBrush(this: SVGElement, event: D3DragEvent<SVGElement, unknown,
   const eraseMode = event.sourceEvent.shiftKey;
   const landOnly = st.landOnlyBrush;
   const [x, y] = pointer(event, this);
-  moveCircle(x, y, radius);
+  EditorBus.moveCircle(x, y, radius);
 
   let selection = radius > 5 ? findAll(x, y, radius) : [findCell(x, y)];
   if (landOnly) selection = selection.filter(i => worldContext.pack.cells.h[i] >= 20);
@@ -286,7 +277,7 @@ function moveZoneBrush(event: MouseEvent): void {
   const [px, py] = pointer(event);
   const st = getZonesEditorState();
   const radius = st.brushSize;
-  moveCircle(px, py, radius);
+  EditorBus.moveCircle(px, py, radius);
 }
 
 function applyZonesManualAssignent(): void {
@@ -320,9 +311,9 @@ function cancelZonesManualAssignent(): void {
 function exitZonesManualAssignment(_close?: string): void {
   viewContext.customization = 0;
   setZonesEditorState({ customizationMode: 0 });
-  removeCircle();
+  EditorBus.removeCircle();
 
-  restoreDefaultEvents?.();
+  EditorBus.restoreDefaultEvents();
   clearMainTip();
 }
 
@@ -351,16 +342,16 @@ function toggleFog(zone: Zone): void {
   const inactive = !zRow?.focused;
   if (inactive) {
     const path = viewContext.zones.select(`#zone${zone.i}`).attr("d");
-    fog(`focusZone${zone.i}`, path);
+    EditorBus.fog(`focusZone${zone.i}`, path);
   } else {
-    unfog(`focusZone${zone.i}`);
+    EditorBus.unfog(`focusZone${zone.i}`);
   }
   zonesEditorAddLines();
 }
 
 function toggleLegend(): void {
   if ((viewContext.legend as Selection<SVGGElement, unknown, null, undefined>).selectAll("*").size()) {
-    clearLegend();
+    EditorBus.clearLegend();
     return;
   }
 
@@ -371,7 +362,7 @@ function toggleLegend(): void {
     (zone: Zone) => !zone.hidden && (!isFiltered || zone.type === filterBy)
   );
   const data = visibleZones.map(({ i, name, color }: Zone) => [`zone${i}`, color, name] as [string, string, string]);
-  drawLegend("Zones", data);
+  EditorBus.drawLegend("Zones", data);
 }
 
 function addZonesLayer(): void {
@@ -519,7 +510,7 @@ function zoneRemove(zone: Zone): void {
     onConfirm: () => {
       worldContext.pack.zones = worldContext.pack.zones.filter((z: Zone) => z.i !== zone.i);
       viewContext.zones.select(`#zone${zone.i}`).remove();
-      unfog(`focusZone${zone.i}`);
+      EditorBus.unfog(`focusZone${zone.i}`);
       zonesEditorAddLines();
     }
   });

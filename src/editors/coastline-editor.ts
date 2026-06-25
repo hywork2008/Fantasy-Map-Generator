@@ -3,7 +3,6 @@ import { drag, polygonArea, select } from "d3";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import { unselect } from "../controllers/editors";
 import { interactionManager } from "../controllers/interactionManager";
 import { toggleCells } from "../controllers/layers";
 import { editStyle } from "../controllers/style";
@@ -29,6 +28,7 @@ import { elSelected, modules, setElSelected } from "../store/editorState";
 import { closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { rn, si, unique } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
+import { EditorBus } from "../utils/editorBus";
 import { getPackPolygon } from "../utils/graphUtils";
 import { layerIsOn } from "../utils/nodeUtils";
 import { getArea, getAreaUnit, tip } from "../utils/uiHelpers";
@@ -269,7 +269,7 @@ function handleVertexDragEnd(): void {
 
 function closeCoastlineEditor(): void {
   viewContext.debug.select("#vertices").remove();
-  unselect();
+  EditorBus.unselect();
   modules.editCoastline = false;
 }
 

@@ -2,7 +2,6 @@ import type * as d3 from "d3";
 import { drag, pointer, select } from "d3";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import { confirmationDialog, restoreDefaultEvents, unselect } from "../controllers/editors";
 import { openElevationProfile } from "../controllers/elevation-profile";
 import { interactionManager } from "../controllers/interactionManager";
 import { toggleCells, toggleRoutes } from "../controllers/layers";
@@ -16,6 +15,8 @@ import { closeDialog, closeDialogs, openRichDialog } from "../ui/dialogs/dialogS
 import { findCell, getSegmentId, rn } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
 import { ERROR } from "../utils/debug";
+import { EditorBus } from "../utils/editorBus";
+import { confirmationDialog } from "../utils/editorHelpers";
 import { getPackPolygon } from "../utils/graphUtils";
 import { layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, fitContent, tip } from "../utils/uiHelpers";
@@ -371,7 +372,7 @@ export const routesEditorActions = {
     viewContext.debug.select("#controlCells").remove();
 
     elSelected?.on("click", null);
-    unselect();
+    EditorBus.unselect();
     clearMainTip();
 
     const toggleCellsEl = document.getElementById("toggleCells")!;
@@ -580,7 +581,7 @@ export const routesEditorActions = {
     viewContext.debug.select("#controlPoints").remove();
     viewContext.routes.select("#routeTemp").remove();
 
-    restoreDefaultEvents?.();
+    EditorBus.restoreDefaultEvents();
     clearMainTip();
 
     const toggleCellsEl = document.getElementById("toggleCells")!;

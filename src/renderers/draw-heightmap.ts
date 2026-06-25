@@ -27,10 +27,10 @@ import type { AppServices } from "../context/appServices";
 import type { EnvironmentLayers } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import type { Vertices } from "../modules/voronoi";
+import type { GridCells } from "../types/Grid";
 import { round } from "../utils";
 import { getColor, getColorScheme } from "../utils/colorUtils";
 import { ERROR, TIME } from "../utils/debug";
-import type { GridCells } from "../utils/graphUtils";
 import type { IRenderer } from "./core/IRenderer";
 
 const CURVE_MAP: Record<string, CurveFactory> = {

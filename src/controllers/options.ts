@@ -8,6 +8,7 @@ import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import { Cloud } from "../io/cloud";
 import { exportToPngTiles } from "../io/export";
+import { loadMapFromURL, uploadMap } from "../io/load";
 import { Cultures } from "../modules/cultures-generator";
 import { COA } from "../modules/emblem/generator";
 import { StatesRenderer } from "../renderers";
@@ -27,7 +28,8 @@ import {
   openRichDialog
 } from "../ui/dialogs/dialogService";
 import { gauss, last, minmax, P, rand, rn, rw } from "../utils";
-import { fitLegendBox, unselect } from "./editors";
+import { EditorBus } from "../utils/editorBus";
+
 import { exportToJson as exportToJsonModule } from "./export-json";
 
 // ─── Init jQuery draggable / disable-selection ────────────────────────────────
@@ -192,7 +194,7 @@ export function fitMapToScreen(): void {
     .scaleExtent([zoomMin, zoomMax]);
 
   fitScaleBar(worldContext, viewContext, appServices, viewContext.scaleBar, svgWidth, svgHeight);
-  if (typeof fitLegendBox !== "undefined") fitLegendBox();
+  document.dispatchEvent(new CustomEvent("fmg:fit-legend-box"));
 }
 
 document.addEventListener("fmg:fit-map-to-screen", fitMapToScreen);
@@ -270,8 +272,6 @@ export function copyMapURL(): void {
     .then(() => tip("Map URL is copied to clipboard", false, "success", 3000))
     .catch((err: Error) => tip(`Could not copy URL: ${err}`, false, "error", 5000));
 }
-
-// ─── Cells density ─────────────────────────────────────────────────────────────
 
 export const cellsDensityMap: Record<number, number> = {
   1: 1000,
@@ -890,7 +890,7 @@ export function loadURL(): void {
           tip("Please provide a valid URL", false, "error");
           return;
         }
-        import("../io/load").then(m => m.loadMapFromURL(value, 0));
+        loadMapFromURL(value, 0);
         /* $(this).dialog("close") removed */
       },
       Cancel: function (this: Element) {
@@ -1064,7 +1064,7 @@ async function enter3dView(type: string): Promise<void> {
       mapEl.style.pointerEvents = "none";
     }
 
-    if (typeof unselect === "function") unselect();
+    if (typeof EditorBus.unselect === "function") EditorBus.unselect();
   }
 
   toggle3dOptions();
@@ -1489,7 +1489,7 @@ export function initOptions(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: 
     const fileToLoad = this.files![0];
     this.value = "";
     closeDialogs();
-    import("../io/load").then(m => m.uploadMap(fileToLoad));
+    uploadMap(fileToLoad);
   });
 
   // View mode / 3D handled via React

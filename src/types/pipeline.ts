@@ -1,4 +1,4 @@
-import type { PackedGraph } from "./PackedGraph";
+import type { PackedGraph } from "../types/PackedGraph";
 import type { WorldState } from "./WorldState";
 
 // ─── Generic pipeline primitives ──────────────────────────────────────────────

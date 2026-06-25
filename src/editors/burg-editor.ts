@@ -3,7 +3,6 @@ import { zoomTo } from "../actions";
 import { appServices } from "../context/appServices";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
-import { confirmationDialog, unselect } from "../controllers/editors";
 import { interactionManager } from "../controllers/interactionManager";
 import { toggleBurgIcons, toggleCells, toggleLabels } from "../controllers/layers";
 import { editStyle } from "../controllers/style";
@@ -18,6 +17,8 @@ import type { Burg, Culture, CultureType } from "../types/models";
 import { closeDialog, closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { convertTemperature, findCell, openURL, parseTransform, rand, rn, showPrompt } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
+import { EditorBus } from "../utils/editorBus";
+import { confirmationDialog } from "../utils/editorHelpers";
 import { layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, getHeight, tip } from "../utils/uiHelpers";
 import { editBurgGroups } from "./burg-group-editor";
@@ -207,7 +208,7 @@ const burgEditorInternal = {
         ) => void
       )
       .classed("draggable", false);
-    unselect();
+    EditorBus.unselect();
     modules.editBurg = false;
   }
 };

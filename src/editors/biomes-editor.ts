@@ -4,14 +4,6 @@ import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import {
-  clearLegend,
-  downloadFile,
-  drawLegend,
-  getFileName,
-  moveCircle,
-  restoreDefaultEvents
-} from "../controllers/editors";
-import {
   toggleBiomes,
   toggleCultures,
   toggleProvinces,
@@ -27,9 +19,11 @@ import { useBiomesEditorStore } from "../store/biomesEditorStore";
 import { modules } from "../store/editorState";
 import { closeDialogs, openDialog } from "../ui/dialogs/dialogService";
 import { findAll, findCell, getRandomColor, isLand, openURL, rn, si } from "../utils";
+import { EditorBus } from "../utils/editorBus";
+import { downloadFile, getFileName } from "../utils/editorHelpers";
 import { getPackPolygon } from "../utils/graphUtils";
 import { layerIsOn } from "../utils/nodeUtils";
-import { clearMainTip, fitContent, getArea, getAreaUnit, removeCircle, showMainTip, tip } from "../utils/uiHelpers";
+import { clearMainTip, fitContent, getArea, getAreaUnit, showMainTip, tip } from "../utils/uiHelpers";
 
 let worldContext: WorldContext;
 let viewContext: ViewContext;
@@ -198,7 +192,7 @@ export function biomesOpenWiki(biomeName: string): void {
 
 export function biomesToggleLegend(): void {
   if ((viewContext.legend as Selection<SVGGElement, unknown, null, undefined>).selectAll("*").size()) {
-    clearLegend();
+    EditorBus.clearLegend();
     return;
   }
   const d = worldContext.biomesData;
@@ -206,7 +200,7 @@ export function biomesToggleLegend(): void {
     .filter(i => d.cells![i])
     .sort((a, b) => d.area![b] - d.area![a])
     .map(i => [i, d.color[i], d.name[i]] as [number, string, string]);
-  drawLegend("Biomes", data);
+  EditorBus.drawLegend("Biomes", data);
 }
 
 export function biomesToggleDisplayMode(): void {
@@ -307,7 +301,7 @@ function dragBiomeBrush(this: SVGElement, event: import("d3").D3DragEvent<SVGEle
   if (!event.dx && !event.dy) return;
   const r = +(document.getElementById("biomesBrush") as HTMLInputElement).value;
   const [px, py] = pointer(event, this);
-  moveCircle(px, py, r);
+  EditorBus.moveCircle(px, py, r);
   const found = r > 5 ? findAll(px, py, r) : [findCell(px, py)];
   const selection = found.filter(i => isLand(i, worldContext.pack));
   if (selection.length) changeBiomeForSelection(selection);
@@ -340,7 +334,7 @@ function moveBiomeBrush(event: MouseEvent): void {
   showMainTip();
   const [px, py] = pointer(event);
   const radius = +(document.getElementById("biomesBrush") as HTMLInputElement).value;
-  moveCircle(px, py, radius);
+  EditorBus.moveCircle(px, py, radius);
 }
 
 export function biomesApplyChange(): void {
@@ -364,10 +358,10 @@ export function biomesApplyChange(): void {
 export function biomesExitCustomization(close?: string): void {
   viewContext.customization = 0;
   (viewContext.biomes as Selection<SVGGElement, unknown, null, undefined>).select("#temp").remove();
-  removeCircle();
+  EditorBus.removeCircle();
   useBiomesEditorStore.getState().setCustomizationMode(false);
   useBiomesEditorStore.getState().setSelectedBiomeId(null);
-  restoreDefaultEvents?.();
+  EditorBus.restoreDefaultEvents();
   clearMainTip();
   void close; // consumed by caller when closing the dialog
 }

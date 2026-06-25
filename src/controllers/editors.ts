@@ -3,12 +3,16 @@ import { zoomTo } from "../actions";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { elSelected, setElSelected } from "../store/editorState";
-import { useOptionsState } from "../store/optionsState";
-import { closeDialogs, openConfirm, openDialog } from "../ui/dialogs/dialogService";
+
+import { closeDialogs, openDialog } from "../ui/dialogs/dialogService";
 import { parseTransform, rn } from "../utils";
 import { TIME } from "../utils/debug";
+import { EditorBus } from "../utils/editorBus";
 import { onMouseMove, tip } from "../utils/uiHelpers";
 import { interactionManager } from "./interactionManager";
+
+// Re-export pure helpers so existing callers of controllers/editors still work
+export { confirmationDialog, downloadFile, getFileName, listen, uploadFile } from "../utils/editorHelpers";
 
 // ─── Default viewbox events ────────────────────────────────────────────────
 
@@ -61,28 +65,22 @@ function clicked(this: Element, event: MouseEvent): void {
   const ancestor = great?.parentElement;
   if (!ancestor) return;
 
-  if (grand?.id === "emblems")
-    import("../editors/emblems-editor").then(m => m.editEmblem(undefined, undefined, el ?? undefined));
-  else if (parent?.id === "rivers") import("../editors/rivers-editor").then(m => m.editRiver(el!.id));
-  else if (grand?.id === "routes") import("../editors/routes-editor").then(m => m.editRoute(el!.id));
-  else if (ancestor.id === "labels" && el?.tagName === "tspan")
-    import("../editors/labels-editor").then(m => m.editLabel(el as Element));
-  else if (grand?.id === "burgLabels")
-    import("../editors/burg-editor").then(m => m.editBurg(+(el as SVGElement).dataset.id!));
-  else if (grand?.id === "burgIcons")
-    import("../editors/burg-editor").then(m => m.editBurg(+(el as SVGElement).dataset.id!));
-  else if (parent?.id === "ice") import("../editors/ice-editor").then(m => m.editIce(el as SVGElement));
-  else if (parent?.id === "terrain") import("../editors/relief-editor").then(m => m.editReliefIcon(el as SVGElement));
-  else if (grand?.id === "markers" || great?.id === "markers")
-    import("../editors/markers-editor").then(m => m.editMarker());
-  else if (grand?.id === "coastline") import("../editors/coastline-editor").then(m => m.editCoastline(event));
-  else if (grand?.id === "lakes") import("../editors/lakes-editor").then(m => m.editLake(event));
-  else if (great?.id === "armies")
-    import("../editors/regiment-editor").then(m => m.editRegiment(el?.parentElement ?? undefined));
+  if (grand?.id === "emblems") EmblemsEditor.editEmblem(undefined, undefined, el ?? undefined);
+  else if (parent?.id === "rivers") RiversEditor.editRiver(el!.id);
+  else if (grand?.id === "routes") RoutesEditor.editRoute(el!.id);
+  else if (ancestor.id === "labels" && el?.tagName === "tspan") LabelsEditor.editLabel(el as Element);
+  else if (grand?.id === "burgLabels") BurgEditor.editBurg(+(el as SVGElement).dataset.id!);
+  else if (grand?.id === "burgIcons") BurgEditor.editBurg(+(el as SVGElement).dataset.id!);
+  else if (parent?.id === "ice") IceEditor.editIce(el as SVGElement);
+  else if (parent?.id === "terrain") ReliefEditor.editReliefIcon(el as SVGElement);
+  else if (grand?.id === "markers" || great?.id === "markers") MarkersEditor.editMarker();
+  else if (grand?.id === "coastline") CoastlineEditor.editCoastline(event);
+  else if (grand?.id === "lakes") LakesEditor.editLake(event);
+  else if (great?.id === "armies") RegimentEditor.editRegiment(el?.parentElement ?? undefined);
 }
 
 export function unselect(): void {
-  restoreDefaultEvents();
+  EditorBus.restoreDefaultEvents();
   if (!elSelected) return;
   elSelected!.call(d3.drag<Element, unknown>().on("drag", null)).attr("class", null);
   viewContext.debug.selectAll("*").remove();
@@ -106,6 +104,22 @@ export function moveCircle(x: number, y: number, r = 20): void {
     circle.setAttribute("r", String(r));
   }
 }
+
+import * as BurgEditor from "../editors/burg-editor";
+import * as CoastlineEditor from "../editors/coastline-editor";
+import * as CulturesEditor from "../editors/cultures-editor";
+import * as EmblemsEditor from "../editors/emblems-editor";
+import * as IceEditor from "../editors/ice-editor";
+import * as LabelsEditor from "../editors/labels-editor";
+import * as LakesEditor from "../editors/lakes-editor";
+import * as MarkersEditor from "../editors/markers-editor";
+import * as RegimentEditor from "../editors/regiment-editor";
+import * as ReliefEditor from "../editors/relief-editor";
+import * as ReligionsEditor from "../editors/religions-editor";
+import * as RiversEditor from "../editors/rivers-editor";
+import * as RoutesEditor from "../editors/routes-editor";
+import * as StatesEditor from "../editors/states-editor";
+import { removeCircle } from "../utils/uiHelpers";
 
 export { removeCircle } from "../utils/uiHelpers";
 
@@ -203,7 +217,7 @@ export function redrawLegend(): void {
       .attr("data")
       .split("|")
       .map((l: string) => l.split(",") as [string, string, string]);
-    drawLegend(name, data);
+    EditorBus.drawLegend(name, data);
   }
 }
 
@@ -562,39 +576,7 @@ export function unfog(id?: string): void {
   if (!viewContext.defs.selectAll("#fog path").size()) viewContext.fogging!.style("display", "none");
 }
 
-// ─── File utilities ────────────────────────────────────────────────────────
-
-export function getFileName(dataType?: string): string {
-  const pad = (n: number) => (n < 10 ? `0${n}` : String(n));
-  const name = useOptionsState.getState().mapName;
-  const type = dataType ? `${dataType} ` : "";
-  const date = new Date();
-  const dateString = [
-    date.getFullYear(),
-    pad(date.getMonth() + 1),
-    pad(date.getDate()),
-    pad(date.getHours()),
-    pad(date.getMinutes())
-  ].join("-");
-  return `${name} ${type}${dateString}`;
-}
-
-export function downloadFile(data: string | Blob, name: string, type = "text/plain"): void {
-  const dataBlob = data instanceof Blob ? data : new Blob([data], { type });
-  const url = window.URL.createObjectURL(dataBlob);
-  const link = document.createElement("a");
-  link.download = name;
-  link.href = url;
-  link.click();
-  window.setTimeout(() => window.URL.revokeObjectURL(url), 2000);
-}
-
-export function uploadFile(el: HTMLInputElement, callback: (data: string) => void): void {
-  const fileReader = new FileReader();
-  fileReader.readAsText(el.files![0], "UTF-8");
-  el.value = "";
-  fileReader.onload = loaded => callback((loaded.target as FileReader).result as string);
-}
+// getFileName, downloadFile, uploadFile are re-exported from ../utils/editorHelpers
 
 function getBBox(element: SVGRectElement): { x: number; y: number; width: number; height: number } {
   return {
@@ -908,40 +890,7 @@ export function selectIcon(initial: string, callback: (value: string) => void): 
 
 export { fitContent, getArea, getAreaUnit } from "../utils/uiHelpers";
 
-// ─── Confirmation dialog ───────────────────────────────────────────────────
-
-export function confirmationDialog(opts: {
-  title?: string;
-  message?: string;
-  cancel?: string;
-  confirm?: string;
-  onCancel?: () => void;
-  onConfirm?: () => void;
-}): void {
-  const {
-    title = "Confirm action",
-    message = "Are you sure you want to continue? <br>The action cannot be reverted",
-    cancel = "Cancel",
-    confirm = "Continue",
-    onCancel,
-    onConfirm
-  } = opts;
-
-  openConfirm(message, {
-    title,
-    confirm,
-    cancel,
-    onConfirm,
-    onCancel
-  });
-}
-
-// ─── Event listener helper ─────────────────────────────────────────────────
-
-export function listen(element: EventTarget, event: string, handler: EventListener): () => void {
-  element.addEventListener(event, handler);
-  return () => element.removeEventListener(event, handler);
-}
+// confirmationDialog and listen are re-exported from ../utils/editorHelpers
 
 // ─── Refresh all open editors ─────────────────────────────────────────────
 
@@ -968,20 +917,52 @@ export function refreshAllEditors(): void {
 
 export function editStates(): void {
   if (viewContext.customization) return;
-  import("../editors/states-editor").then(m => m.open());
+  StatesEditor.open();
 }
 
 export function editCultures(): void {
   if (viewContext.customization) return;
-  import("../editors/cultures-editor").then(m => m.open());
+  CulturesEditor.open();
 }
 
 export function editReligions(): void {
   if (viewContext.customization) return;
-  import("../editors/religions-editor").then(m => m.open());
+  ReligionsEditor.open();
 }
 
 export function editCoastlineSettings(): void {
   if (viewContext.customization) return;
-  import("../editors/coastline-editor").then(m => m.coastlineEditor.open());
+  CoastlineEditor.coastlineEditor.open();
 }
+
+// CustomEvent Listeners
+document.addEventListener("fmg:unfog", () => unfog());
+document.addEventListener("fmg:clear-legend", () => clearLegend());
+document.addEventListener("fmg:redraw-legend", () => redrawLegend());
+document.addEventListener("fmg:restore-default-events", () => restoreDefaultEvents());
+document.addEventListener("fmg:unselect", () => unselect());
+document.addEventListener("fmg:move-circle", (e: Event) => {
+  const { x, y, r } = (e as CustomEvent<{ x: number; y: number; r: number }>).detail;
+  moveCircle(x, y, r);
+});
+document.addEventListener("fmg:edit-river", (e: Event) => {
+  const { id } = (e as CustomEvent<{ id: string }>).detail;
+  RiversEditor.editRiver(id);
+});
+document.addEventListener("fmg:remove-circle", () => removeCircle());
+document.addEventListener("fmg:highlight-element", (e: Event) => {
+  const { element, zoom } = (e as CustomEvent<{ element: Element; zoom?: number }>).detail;
+  highlightElement(element, zoom);
+});
+document.addEventListener("fmg:select-icon", (e: Event) => {
+  const { initial } = (e as CustomEvent<{ initial: string }>).detail;
+  const cb = EditorBus._iconCallback;
+  if (cb) EditorBus.selectIcon(initial, cb);
+});
+
+// Register calculate-friendly-grid-size
+
+// Register fit-legend-box event
+document.addEventListener("fmg:fit-legend-box", () => {
+  fitLegendBox();
+});

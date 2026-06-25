@@ -1,7 +1,7 @@
+import type { Grid } from "../types/Grid";
 import type { NameBase } from "../types/models";
 import type { PackedGraph } from "../types/PackedGraph";
 import type { BiomesData, MapStyle, WorldNote, WorldOptions } from "../types/WorldState";
-import type { Grid } from "../utils/graphUtils";
 
 export type MapCoordinates = {
   latT?: number;

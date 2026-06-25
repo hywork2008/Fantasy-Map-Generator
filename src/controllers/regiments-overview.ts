@@ -8,9 +8,9 @@ import { useRegimentsOverviewState } from "../store/regimentsOverviewState";
 import type { MilitaryRegiment, MilitaryUnit } from "../types/models";
 import { closeDialogs, openDialog } from "../ui/dialogs/dialogService";
 import { capitalize, findCell, getLatitude, getLongitude, last } from "../utils";
+import { downloadFile, getFileName } from "../utils/editorHelpers";
 import { layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, tip } from "../utils/uiHelpers";
-import { downloadFile, getFileName } from "./editors";
 import { interactionManager } from "./interactionManager";
 import { toggleMilitary } from "./layers";
 

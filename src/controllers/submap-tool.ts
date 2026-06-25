@@ -2,6 +2,7 @@ import { resetZoom } from "../actions";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import { undraw } from "../main";
 
 import { modules } from "../store/editorState";
 import { useOptionsState } from "../store/optionsState";
@@ -74,7 +75,7 @@ export function openSubmapTool(): void {
     applyGraphSize();
     fitMapToScreen();
     resetZoom(0);
-    const { undraw } = await import("../main");
+
     undraw();
     Resample.init(worldContext, viewContext, appServices);
     Resample.process({ projection, inverse, scale: viewContext.scale });

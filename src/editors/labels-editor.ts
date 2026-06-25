@@ -1,7 +1,6 @@
 import { curveNatural, type D3DragEvent, drag, pointer, select } from "d3";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
-import { unselect } from "../controllers/editors";
 import { interactionManager } from "../controllers/interactionManager";
 import { toggleLabels } from "../controllers/layers";
 import { editStyle } from "../controllers/style";
@@ -11,6 +10,7 @@ import { getLabelsEditorState, type LabelEditorSection, setLabelsEditorState } f
 import { closeDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { findCell, parseTransform, round } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
+import { EditorBus } from "../utils/editorBus";
 import { layerIsOn } from "../utils/nodeUtils";
 import { showMainTip, tip } from "../utils/uiHelpers";
 import { editNotes } from "./notes-editor";
@@ -353,7 +353,7 @@ function removeLabel(): void {
 
 export function closeLabelEditor(): void {
   viewContext.debug.select("#controlPoints").remove();
-  unselect();
+  EditorBus.unselect();
   setLabelsEditorState({ isOpen: false });
   closeDialog("labelEditor");
 }

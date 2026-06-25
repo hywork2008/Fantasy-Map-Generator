@@ -5,7 +5,6 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
-import { downloadFile, getFileName, restoreDefaultEvents } from "../controllers/editors";
 import { interactionManager } from "../controllers/interactionManager";
 import {
   toggleBiomes,
@@ -23,6 +22,8 @@ import { modules } from "../store/editorState";
 import { closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { findCell, getAdjective } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
+import { EditorBus } from "../utils/editorBus";
+import { downloadFile, getFileName } from "../utils/editorHelpers";
 import { layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, tip } from "../utils/uiHelpers";
 
@@ -385,7 +386,7 @@ export function editDiplomacy(): void {
   }
 
   function closeDiplomacyEditorImpl(): void {
-    restoreDefaultEvents?.();
+    EditorBus.restoreDefaultEvents();
     clearMainTip();
     if (layerIsOn("toggleStates")) StatesRenderer.render(worldContext, viewContext, appServices);
     else toggleStates();

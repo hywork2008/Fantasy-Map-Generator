@@ -1,3 +1,5 @@
+export type { Cells, Point, Vertices };
+
 import type Delaunator from "delaunator";
 import type { AppServices } from "../context/appServices";
 import { appServices } from "../context/appServices";
@@ -5,14 +7,7 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
-export type Vertices = { p: Point[]; v: number[][]; c: number[][] };
-export type Cells = {
-  v: number[][];
-  c: number[][];
-  b: Uint8Array;
-  i: Uint32Array<ArrayBufferLike>;
-};
-export type Point = [number, number];
+import type { Cells, Point, Vertices } from "../types/voronoi";
 
 /**
  * Creates a Voronoi diagram from the given Delaunator, a list of points, and the number of points. The Voronoi diagram is constructed using (I think) the {@link https://en.wikipedia.org/wiki/Bowyer%E2%80%93Watson_algorithm |Bowyer-Watson Algorithm}

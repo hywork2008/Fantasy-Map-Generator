@@ -6,8 +6,9 @@ import { MarkersRenderer } from "../renderers";
 import { useMarkersOverviewState } from "../store/markersOverviewState";
 import { closeDialogs, openDialog } from "../ui/dialogs/dialogService";
 import { getLatitude, getLongitude } from "../utils";
+import { EditorBus } from "../utils/editorBus";
+import { downloadFile, getFileName } from "../utils/editorHelpers";
 import { layerIsOn } from "../utils/nodeUtils";
-import { downloadFile, getFileName, highlightElement } from "./editors";
 import { toggleMarkers } from "./layers";
 
 export function overviewMarkers(): void {
@@ -22,7 +23,7 @@ export function overviewMarkers(): void {
 export function markerHighlightById(i: number): void {
   const marker = document.getElementById(`marker${i}`);
   if (!marker) return;
-  highlightElement(marker, 2);
+  EditorBus.highlightElement(marker, 2);
 }
 
 export function markerZoomTo(i: number): void {

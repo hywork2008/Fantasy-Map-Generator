@@ -12,9 +12,10 @@ import { useBurgsOverviewState } from "../store/burgsOverviewState";
 import { useOptionsState } from "../store/optionsState";
 import { closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { convertTemperature, findCell, getLatitude, getLongitude, rn, si } from "../utils";
+import { EditorBus } from "../utils/editorBus";
+import { confirmationDialog, downloadFile, getFileName } from "../utils/editorHelpers";
 import { layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, getHeight, tip } from "../utils/uiHelpers";
-import { confirmationDialog, downloadFile, getFileName, restoreDefaultEvents } from "./editors";
 import { interactionManager } from "./interactionManager";
 import { toggleBurgIcons, toggleLabels } from "./layers";
 
@@ -78,7 +79,7 @@ export function startAddBurgMode(onDone: () => void): void {
 
 export function stopAddBurgMode(): void {
   viewContext.customization = 0;
-  restoreDefaultEvents?.();
+  EditorBus.restoreDefaultEvents();
   clearMainTip();
   document.getElementById("addBurgTool")?.classList.remove("pressed");
 }

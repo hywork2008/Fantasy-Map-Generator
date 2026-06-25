@@ -7,20 +7,11 @@ import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { type Cells, type Point, type Vertices, Voronoi } from "../modules/voronoi";
 import { useOptionsState } from "../store/optionsState";
-import type { GridFeature } from "../types/models";
+import type { Grid, GridCells } from "../types/Grid";
 import type { PackedGraph, TypedArray } from "../types/PackedGraph";
 import { TIME } from "../utils/debug";
 import { createTypedArray } from "./arrayUtils";
 import { rn } from "./numberUtils";
-
-/** Grid-level cells: base voronoi topology plus all properties added by the generation pipeline */
-export type GridCells = Cells & {
-  h: TypedArray;
-  t: TypedArray;
-  f: TypedArray;
-  temp: Int8Array;
-  prec: TypedArray | number[];
-};
 
 /**
  * Get boundary points on a regular square grid
@@ -141,18 +132,6 @@ export const shouldRegenerateGrid = (
   return grid.spacing !== newSpacing || grid.cellsX !== newCellsX || grid.cellsY !== newCellsY;
 };
 
-export interface Grid {
-  spacing: number;
-  cellsDesired: number;
-  boundary: Point[];
-  points: Point[];
-  cellsX: number;
-  cellsY: number;
-  seed: string | number;
-  cells: GridCells;
-  vertices: Vertices;
-  features: GridFeature[];
-}
 /**
  * Generates a Voronoi grid based on jittered grid points
  * @returns {Object} - The generated grid object containing spacing, cellsDesired, boundary, points, cellsX, cellsY, cells, vertices, and seed

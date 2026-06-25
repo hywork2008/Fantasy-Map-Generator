@@ -1,6 +1,5 @@
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
-import { getFileName } from "../controllers/editors";
 import { Names } from "../modules/names-generator";
 import { rulers } from "../store/editorState";
 import { useOptionsState } from "../store/optionsState";
@@ -8,6 +7,7 @@ import { closeDialogs, openRichDialog } from "../ui/dialogs/dialogService";
 import { link, parseError, ra, rn } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
 import { ERROR } from "../utils/debug";
+import { getFileName } from "../utils/editorHelpers";
 import { tip } from "../utils/uiHelpers";
 import { VERSION } from "../versioning";
 import { Cloud } from "./cloud";

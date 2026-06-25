@@ -7,9 +7,9 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
+import type { GridCells } from "../types/Grid";
 import { clipPoly, P, rn, round } from "../utils";
 import { ERROR, TIME } from "../utils/debug";
-import type { GridCells } from "../utils/graphUtils";
 import type { Vertices } from "./voronoi";
 
 class OceanModule {

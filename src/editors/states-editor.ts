@@ -4,16 +4,6 @@ import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { overviewBurgs } from "../controllers/burgs-overview";
-import {
-  clearLegend,
-  confirmationDialog,
-  downloadFile,
-  drawLegend,
-  getFileName,
-  moveCircle,
-  restoreDefaultEvents,
-  unfog
-} from "../controllers/editors";
 import { interactionManager } from "../controllers/interactionManager";
 import {
   toggleBiomes,
@@ -50,9 +40,11 @@ import type { WorldNote } from "../types/WorldState";
 import { closeDialogs, openRichDialog } from "../ui/dialogs/dialogService";
 import { findAll, findCell, getAdjective, getMixedColor, getRandomColor, isLand, P, rand, rn, si } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
+import { EditorBus } from "../utils/editorBus";
+import { confirmationDialog, downloadFile, getFileName } from "../utils/editorHelpers";
 import { getPackPolygon } from "../utils/graphUtils";
 import { layerIsOn } from "../utils/nodeUtils";
-import { clearMainTip, fitContent, getArea, getAreaUnit, removeCircle, showMainTip, tip } from "../utils/uiHelpers";
+import { clearMainTip, fitContent, getArea, getAreaUnit, showMainTip, tip } from "../utils/uiHelpers";
 import { BrushHistoryClass as BrushHistory } from "./BrushHistory";
 
 let worldContext: WorldContext;
@@ -221,14 +213,14 @@ export const statesEditorActions = {
 
   toggleLegend(): void {
     if (viewContext.legend.selectAll("*").size()) {
-      clearLegend();
+      EditorBus.clearLegend();
       return;
     }
     const data = (worldContext.pack.states as State[])
       .filter(s => s.i && !s.removed && s.cells)
       .sort((a, b) => (b.area ?? 0) - (a.area ?? 0))
       .map(s => [s.i, s.color ?? "", s.name] as [number, string, string]);
-    drawLegend("States", data);
+    EditorBus.drawLegend("States", data);
   },
 
   togglePercentageMode(): void {
@@ -673,7 +665,7 @@ function stateRemove(stateId: number): void {
   viewContext.labels.select(`#stateLabel${stateId}`).remove();
   viewContext.defs.select(`#textPath_stateLabel${stateId}`).remove();
 
-  unfog(`focusState${stateId}`);
+  EditorBus.unfog(`focusState${stateId}`);
 
   (worldContext.pack.burgs as Burg[]).forEach(burg => {
     if (burg.state === stateId) {
@@ -946,7 +938,7 @@ function dragStateBrush(this: SVGElement, event: d3.D3DragEvent<SVGElement, unkn
   if (!event.dx && !event.dy) return;
   const r = getStatesEditorState().brushSize;
   const p = d3.pointer(event, this);
-  moveCircle(p[0], p[1], r);
+  EditorBus.moveCircle(p[0], p[1], r);
 
   const found = r > 5 ? findAll(p[0], p[1], r) : [findCell(p[0], p[1])];
   const selection = found.filter(i => isLand(i, worldContext.pack));
@@ -982,7 +974,7 @@ function moveStateBrush(this: SVGElement, event: MouseEvent): void {
   showMainTip();
   const point = d3.pointer(event, this);
   const radius = getStatesEditorState().brushSize;
-  moveCircle(point[0], point[1], radius);
+  EditorBus.moveCircle(point[0], point[1], radius);
 }
 
 function applyStatesManualAssignent(): void {
@@ -1157,8 +1149,8 @@ function exitStatesManualAssignment(_close: boolean): void {
   viewContext.customization = 0;
   statesManualHistory.reset();
   viewContext.statesBody.select("#temp").remove();
-  removeCircle();
-  restoreDefaultEvents?.();
+  EditorBus.removeCircle();
+  EditorBus.restoreDefaultEvents();
   clearMainTip();
   viewContext.statesHalo.node()!.style.display = "block";
   setStatesEditorState({ customizationMode: 0, manualSelectedStateId: 0 });
@@ -1281,7 +1273,7 @@ function addState(this: SVGElement, event: MouseEvent): void {
 
 function exitAddStateMode(): void {
   viewContext.customization = 0;
-  restoreDefaultEvents?.();
+  EditorBus.restoreDefaultEvents();
   clearMainTip();
   setStatesEditorState({ customizationMode: 0 });
 }
@@ -1357,7 +1349,7 @@ function mergeStates(statesToMerge: number[], rulingStateId: number): void {
     if (statesToMerge.includes(s)) worldContext.pack.cells.state[i] = rulingStateId;
   });
 
-  unfog();
+  EditorBus.unfog();
   viewContext.debug.selectAll(".highlight").remove();
 
   States.getPoles(getWorldState());

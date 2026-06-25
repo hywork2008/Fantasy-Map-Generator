@@ -2,10 +2,7 @@ import type * as d3 from "d3";
 import { appServices } from "../context/appServices";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
-import { clearLegend, restoreDefaultEvents } from "../controllers/editors";
-import { getCurrentPreset } from "../controllers/layers";
-import { addCustomColorScheme, updateTextureSelectValue } from "../controllers/style";
-import { editUnits } from "../editors/units-editor";
+
 import { Biomes } from "../modules/biomes";
 import { Burgs } from "../modules/burgs-generator";
 import { Features } from "../modules/features";
@@ -504,27 +501,32 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
       if (isVisibleNode(document.getElementById("vignette") as HTMLElement)) turnOn("toggleVignette");
 
       useLayerState.getState().setAllActiveLayers(nextActiveLayers);
-      getCurrentPreset();
+      document.dispatchEvent(new CustomEvent("fmg:get-current-preset"));
     }
-    viewContext.scaleBar.on("mousemove", () => tip("Click to open Units Editor")).on("click", () => editUnits());
+    viewContext.scaleBar
+      .on("mousemove", () => tip("Click to open Units Editor"))
+      .on("click", () => document.dispatchEvent(new CustomEvent("fmg:edit-units")));
     viewContext.legend
       .on("mousemove", () => tip("Drag to change the position. Click to hide the legend"))
-      .on("click", () => clearLegend());
+      .on("click", () => document.dispatchEvent(new CustomEvent("fmg:clear-legend")));
 
     resolveVersionConflicts(mapVersion);
 
     if (heightmapColorSchemes) {
       const oceanHeights = document.getElementById("oceanHeights");
       const oceanScheme = oceanHeights?.getAttribute("scheme");
-      if (oceanScheme && !(oceanScheme in heightmapColorSchemes)) addCustomColorScheme(oceanScheme);
+      if (oceanScheme && !(oceanScheme in heightmapColorSchemes))
+        document.dispatchEvent(new CustomEvent("fmg:add-custom-color-scheme", { detail: oceanScheme }));
       const landHeights = document.getElementById("landHeights");
       const landScheme = landHeights?.getAttribute("scheme");
-      if (landScheme && !(landScheme in heightmapColorSchemes)) addCustomColorScheme(landScheme);
+      if (landScheme && !(landScheme in heightmapColorSchemes))
+        document.dispatchEvent(new CustomEvent("fmg:add-custom-color-scheme", { detail: landScheme }));
     }
 
     {
       const textureHref = viewContext.texture.attr("data-href");
-      if (textureHref) updateTextureSelectValue(textureHref);
+      if (textureHref)
+        document.dispatchEvent(new CustomEvent("fmg:update-texture-select-value", { detail: textureHref }));
     }
 
     // data integrity checks
@@ -844,7 +846,7 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
     viewContext.emblems.selectAll("use").attr("href", null);
     if (rulers && layerIsOn("toggleRulers")) rulers.draw();
     if (layerIsOn("toggleGrid")) GridRenderer.render(worldContext, viewContext, appServices);
-    restoreDefaultEvents?.();
+    document.dispatchEvent(new CustomEvent("fmg:restore-default-events"));
     document.dispatchEvent(new CustomEvent("fmg:focus-on"));
     document.dispatchEvent(new CustomEvent("fmg:invoke-active-zooming"));
     document.dispatchEvent(new CustomEvent("fmg:fit-map-to-screen"));

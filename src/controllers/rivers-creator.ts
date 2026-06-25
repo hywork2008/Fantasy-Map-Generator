@@ -6,10 +6,10 @@ import { modules } from "../store/editorState";
 import { useOptionsState } from "../store/optionsState";
 import { closeDialog, closeDialogs, openDialog } from "../ui/dialogs/dialogService";
 import { findCell, last, rn } from "../utils";
+import { EditorBus } from "../utils/editorBus";
 import { getPackPolygon } from "../utils/graphUtils";
 import { layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, tip } from "../utils/uiHelpers";
-import { restoreDefaultEvents } from "./editors";
 import { interactionManager } from "./interactionManager";
 import { toggleCells, toggleRivers } from "./layers";
 import { cellsDensityMap } from "./options";
@@ -172,13 +172,13 @@ export function createRiver(): void {
       .attr("id", id)
       .attr("d", Rivers.getRiverPath(meanderedPoints, widthFactor, sourceWidth));
 
-    import("../editors/rivers-editor").then(m => m.editRiver(id));
+    EditorBus.editRiver(id);
   }
 
   function closeRiverCreator(): void {
     body.replaceChildren();
     viewContext.debug.select("#controlCells").remove();
-    restoreDefaultEvents?.();
+    EditorBus.restoreDefaultEvents();
     clearMainTip();
 
     const forced = +document.getElementById("toggleCells")!.dataset.forced!;

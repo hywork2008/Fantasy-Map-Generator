@@ -2,7 +2,6 @@ import type * as d3 from "d3";
 import { drag } from "d3";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
-import { downloadFile, getFileName } from "../controllers/editors";
 import { COA, type Emblem } from "../modules/emblem/generator";
 import { COArenderer } from "../renderers/emblem-renderer";
 import {
@@ -13,6 +12,7 @@ import {
 } from "../store/emblemEditorState";
 import type { Burg, Province, State } from "../types/models";
 import { openURL, rn } from "../utils";
+import { downloadFile, getFileName } from "../utils/editorHelpers";
 import { clearMainTip, type EmblemEl, highlightEmblemElement, tip } from "../utils/uiHelpers";
 
 export function editEmblem(type?: string, id?: string, elInput?: Element | Burg | Province | State): void {

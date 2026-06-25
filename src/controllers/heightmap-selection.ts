@@ -2,9 +2,9 @@ import Alea from "alea";
 import { heightmapTemplates, precreatedHeightmaps } from "../config";
 import { worldContext } from "../context/worldContext";
 import { HeightmapGenerator } from "../modules/heightmap-generator";
+import type { Grid } from "../types/Grid";
 import { openDialog } from "../ui/dialogs/dialogService";
 import { getColorScheme, heightmapColorSchemes } from "../utils/colorUtils";
-import type { Grid } from "../utils/graphUtils";
 import { drawHeights, generateGrid, shouldRegenerateGrid } from "../utils/graphUtils";
 
 // Cached grid to avoid regenerating on every open

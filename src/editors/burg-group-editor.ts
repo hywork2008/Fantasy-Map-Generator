@@ -1,13 +1,13 @@
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import { confirmationDialog } from "../controllers/editors";
 import { Burgs } from "../modules/burgs-generator";
 import { BurgIconsRenderer, BurgLabelsRenderer } from "../renderers";
 import { modules } from "../store/editorState";
 import type { Burg, BurgGroup } from "../types/models";
 import { closeDialog, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { alertMessage } from "../utils/alertMessageEl";
+import { confirmationDialog } from "../utils/editorHelpers";
 import { layerIsOn } from "../utils/nodeUtils";
 import { fitContent, tip } from "../utils/uiHelpers";
 

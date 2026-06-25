@@ -52,7 +52,7 @@ import { tip } from "../utils/uiHelpers";
 
 const editStyle = (element: string, group?: string) =>
   document.dispatchEvent(new CustomEvent("fmg:edit-style", { detail: { element, group } }));
-const calculateFriendlyGridSize = () => import("./style").then(m => m.calculateFriendlyGridSize());
+const calculateFriendlyGridSize = () => document.dispatchEvent(new CustomEvent("fmg:calculate-friendly-grid-size"));
 
 export function initLayers(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices): void {
   worldContext = wc;
@@ -66,6 +66,12 @@ export function initLayers(wc: WorldContext, vc: Readonly<ViewContext>, as: AppS
 
   restoreCustomPresets();
   initLayerClickHandlers();
+
+  // Listen for layers reorder from store
+  document.addEventListener("fmg:sync-layers-order", (e: Event) => {
+    const customEvent = e as CustomEvent<{ id: string }[]>;
+    syncSVGLayersOrder(customEvent.detail);
+  });
   // initSortable is removed as React handles DND
 }
 
@@ -335,7 +341,7 @@ export function drawLayers(): void {
 function drawLabels(): void {
   drawStateLabels(worldContext, viewContext, appServices);
   BurgLabelsRenderer.render(worldContext, viewContext, appServices);
-  import("../main").then(m => m.invokeActiveZooming());
+  document.dispatchEvent(new CustomEvent("fmg:invoke-active-zooming"));
 }
 
 // ─── Button helpers ───────────────────────────────────────────────────────────
@@ -927,7 +933,7 @@ export function toggleEmblems(event?: MouseEvent): void {
     turnButtonOn("toggleEmblems");
     if (!viewContext.emblems.selectAll("use").size()) EmblemsRenderer.render(worldContext, viewContext, appServices);
     d3.select("#emblems").style("display", "block");
-    import("../main").then(m => m.invokeActiveZooming());
+    document.dispatchEvent(new CustomEvent("fmg:invoke-active-zooming"));
     if (event && isCtrlClick(event)) editStyle("emblems");
   } else {
     if (event && isCtrlClick(event)) {
@@ -1107,5 +1113,11 @@ TradeAnimation.bind({
   clear: clearTradeAnim,
   isLayerOn: () => layerIsOn("toggleTrade")
 });
+
+// CustomEvent Listeners
+document.addEventListener("fmg:toggle-emblems", () => toggleEmblems());
+document.addEventListener("fmg:turn-button-on", (e: Event) => turnButtonOn((e as CustomEvent<string>).detail));
+document.addEventListener("fmg:turn-button-off", (e: Event) => turnButtonOff((e as CustomEvent<string>).detail));
+document.addEventListener("fmg:get-current-preset", () => getCurrentPreset());
 
 // d3 is the UMD global exposed by the legacy <script> tag in index.html

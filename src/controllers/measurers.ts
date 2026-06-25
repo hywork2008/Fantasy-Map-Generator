@@ -510,3 +510,6 @@ declare const lineGen: { (points: [number, number][]): string; curve: (curve: un
 declare const parseTransform: (transform: string) => number[];
 declare const getArea: (area: number) => number;
 declare const Routes: { isConnected: (cell: number) => boolean };
+
+// CustomEvent Listeners
+document.addEventListener("fmg:create-default-ruler", () => createDefaultRuler());

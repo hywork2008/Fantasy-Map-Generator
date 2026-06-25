@@ -1,29 +1,10 @@
 import * as d3 from "d3";
 import { dialogStore } from "../store/dialogState";
 import { hierarchyTreeStore } from "../store/hierarchyTreeState";
+import type { HierarchyElement, HierarchyProps } from "../types/HierarchyTree";
 import { closeDialogs } from "../ui/dialogs/dialogService";
 import { minmax } from "../utils";
 import { tip } from "../utils/uiHelpers";
-
-export interface HierarchyElement {
-  i: number;
-  name: string;
-  code?: string;
-  color?: string;
-  cells?: number;
-  origins: (number | null)[];
-  removed?: boolean;
-  [key: string]: unknown;
-}
-
-export interface HierarchyProps {
-  type: string;
-  data: HierarchyElement[];
-  onNodeEnter: (d: d3.HierarchyPointNode<HierarchyElement>) => void;
-  onNodeLeave: (d: d3.HierarchyPointNode<HierarchyElement>) => void;
-  getDescription: (element: HierarchyElement) => string;
-  getShape: (element: HierarchyElement) => string | undefined;
-}
 
 const MARGINS = { top: 10, right: 10, bottom: -5, left: 10 };
 

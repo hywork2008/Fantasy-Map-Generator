@@ -15,6 +15,7 @@ import {
   reGraph,
   showStatistics
 } from "../main";
+import type { Grid } from "../types/Grid";
 import type { River } from "../types/models";
 import type { PackedGraph } from "../types/PackedGraph";
 import type { WorldNote, WorldState } from "../types/WorldState";
@@ -28,7 +29,6 @@ import {
   unique
 } from "../utils";
 import { WARN } from "../utils/debug";
-import type { Grid } from "../utils/graphUtils";
 import { Features } from "./features";
 import { Ice } from "./ice";
 import { Markers } from "./markers-generator";

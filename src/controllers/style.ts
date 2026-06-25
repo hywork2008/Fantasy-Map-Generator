@@ -24,11 +24,13 @@ import { closeDialog, openDialog, openRichDialog } from "../ui/dialogs/dialogSer
 import { drawHeights, parseTransform, rn, toHEX } from "../utils";
 import { heightmapColorSchemes } from "../utils/colorUtils";
 import { ERROR, INFO } from "../utils/debug";
+import { EditorBus } from "../utils/editorBus";
+import { confirmationDialog, downloadFile, uploadFile } from "../utils/editorHelpers";
 import { layerIsOn } from "../utils/nodeUtils";
 import { applyOption, lock, tip } from "../utils/uiHelpers";
 import { VERSION } from "../versioning";
-import { confirmationDialog, downloadFile, redrawLegend, uploadFile } from "./editors";
 import { toggleRelief } from "./layers";
+import { showOptions } from "./options";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -53,7 +55,7 @@ document.addEventListener("fmg:edit-style", (e: Event) => {
 // ─── Style element selection ──────────────────────────────────────────────────
 
 export function editStyle(element: string, group?: string): void {
-  import("./options").then(m => m.showOptions());
+  showOptions();
   (document.getElementById("styleTab") as HTMLButtonElement).click();
   (document.getElementById("styleElementSelect") as HTMLSelectElement).value = element;
   if (group)
@@ -540,7 +542,7 @@ function shiftCompass(sizeOverride?: string): void {
 export function changeFont(): void {
   const family = (document.getElementById("styleSelectFont") as HTMLSelectElement).value;
   getEl().attr("font-family", family);
-  if ((document.getElementById("styleElementSelect") as HTMLSelectElement).value === "legend") redrawLegend();
+  if ((document.getElementById("styleElementSelect") as HTMLSelectElement).value === "legend") EditorBus.redrawLegend();
 }
 
 function changeFontSize(el: AnySelection, size: number): void {
@@ -556,17 +558,17 @@ function changeFontSize(el: AnySelection, size: number): void {
   const scaleSize = getSizeOnScale(styleElement);
   el.attr("data-size", size).attr("font-size", scaleSize);
 
-  if (styleElement === "legend") redrawLegend();
+  if (styleElement === "legend") EditorBus.redrawLegend();
 }
 
 // ─── updateElements ───────────────────────────────────────────────────────────
 
 function updateElements(): void {
   if (layerIsOn("toggleHeight")) HeightmapRenderer.render(worldContext, viewContext, appServices);
-  if (viewContext.legend.selectAll("*").size()) redrawLegend();
+  if (viewContext.legend.selectAll("*").size()) EditorBus.redrawLegend();
   viewContext.oceanLayers.selectAll("path").remove();
   OceanLayers();
-  import("../main").then(m => m.invokeActiveZooming());
+  document.dispatchEvent(new CustomEvent("fmg:invoke-active-zooming"));
 }
 
 // ─── Slider change dispatcher (called from React SliderInput components) ──────
@@ -628,7 +630,7 @@ export function applySliderChange(id: string, value: string): void {
       break;
     case "styleLegendColItems":
       viewContext.legend.select("#legendBox").attr("data-columns", value);
-      redrawLegend();
+      EditorBus.redrawLegend();
       break;
     case "styleLegendOpacity":
       viewContext.legend.select("#legendBox").attr("fill-opacity", value);
@@ -966,14 +968,14 @@ export function initStyleTab() {
 
   document.getElementById("styleRescaleMarkers")!.addEventListener("change", (e: Event) => {
     viewContext.markers.attr("rescale", +(e.target as HTMLInputElement).checked);
-    import("../main").then(m => m.invokeActiveZooming());
+    document.dispatchEvent(new CustomEvent("fmg:invoke-active-zooming"));
   });
 
   document.getElementById("styleCoastlineAuto")!.addEventListener("change", (e: Event) => {
     const checked = (e.target as HTMLInputElement).checked;
     viewContext.coastline.select("#sea_island").attr("auto-filter", +checked);
     (document.getElementById("styleFilter") as HTMLElement).style.display = checked ? "none" : "block";
-    import("../main").then(m => m.invokeActiveZooming());
+    document.dispatchEvent(new CustomEvent("fmg:invoke-active-zooming"));
   });
 
   document.getElementById("styleOceanFill")!.addEventListener("input", (e: Event) => {
@@ -1450,7 +1452,7 @@ export function initStyleTab() {
     updateMapFilter();
     const presetEl = document.getElementById("stylePreset") as HTMLSelectElement;
     presetEl.dataset.old = presetEl.value;
-    import("../main").then(m => m.invokeActiveZooming());
+    document.dispatchEvent(new CustomEvent("fmg:invoke-active-zooming"));
     setPresetRemoveButtonVisibiliy();
     drawScaleBar(worldContext, viewContext, appServices, viewContext.scaleBar, viewContext.scale);
     fitScaleBar(
@@ -1837,3 +1839,16 @@ export function initStyleTab() {
 }
 
 export function initStyle(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: AppServices) {}
+
+// CustomEvent Listeners
+document.addEventListener("fmg:add-custom-color-scheme", (e: Event) =>
+  addCustomColorScheme((e as CustomEvent<string>).detail)
+);
+document.addEventListener("fmg:update-texture-select-value", (e: Event) =>
+  updateTextureSelectValue((e as CustomEvent<string>).detail)
+);
+
+// Register event listeners
+document.addEventListener("fmg:calculate-friendly-grid-size", () => {
+  calculateFriendlyGridSize();
+});

@@ -8,18 +8,6 @@ import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import { overviewBurgs } from "../controllers/burgs-overview";
-import {
-  confirmationDialog,
-  downloadFile,
-  editStates,
-  fog,
-  getFileName,
-  highlightElement,
-  moveCircle,
-  removeCircle,
-  restoreDefaultEvents,
-  unfog
-} from "../controllers/editors";
 import { interactionManager } from "../controllers/interactionManager";
 import { toggleBorders, toggleCultures, toggleProvinces, toggleStates, turnButtonOff } from "../controllers/layers";
 import { editStyle } from "../controllers/style";
@@ -51,6 +39,8 @@ import type { Burg, Culture, Province, State } from "../types/models";
 import { closeDialog, closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { findAll, findCell, getRandomColor, isLand, P, parseTransform, rand, rn, si, unique } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
+import { EditorBus } from "../utils/editorBus";
+import { confirmationDialog, downloadFile, getFileName } from "../utils/editorHelpers";
 import { getPackPolygon } from "../utils/graphUtils";
 import { layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, fitContent, getArea, getAreaUnit, showMainTip, tip } from "../utils/uiHelpers";
@@ -351,9 +341,9 @@ function updateStatesPostRelease(oldStates: number[], newStates: number[]): void
   layerIsOn("toggleStates") ? StatesRenderer.render(worldContext, viewContext, appServices) : toggleStates();
   layerIsOn("toggleBorders") ? BordersRenderer.render(worldContext, viewContext, appServices) : toggleBorders();
 
-  unfog();
+  EditorBus.unfog();
   closeDialogs();
-  editStates();
+  EditorBus.editStates();
 }
 
 function changePopulation(province: number): void {
@@ -443,8 +433,8 @@ function toggleFog(p: number): void {
   const path = viewContext.provs.select(`#province${p}`).attr("d");
   const id = `focusProvince${p}`;
   const isFocused = !viewContext.defs.select(`#fog #${id}`).empty();
-  if (!isFocused) fog(id, path);
-  else unfog(id);
+  if (!isFocused) EditorBus.fog(id, path);
+  else EditorBus.unfog(id);
   refreshProvincesEditor();
 }
 
@@ -463,7 +453,7 @@ function removeProvince(p: number): void {
         const state = (worldContext.pack.states as State[])[s];
         if (state.provinces?.includes(p)) state.provinces.splice(state.provinces.indexOf(p), 1);
 
-        unfog(`focusProvince${p}`);
+        EditorBus.unfog(`focusProvince${p}`);
 
         const coaId = `provinceCOA${p}`;
         const coaEl = document.getElementById(coaId);
@@ -814,7 +804,7 @@ function selectProvince(p: number): void {
 function dragBrush(this: SVGElement, event: d3.D3DragEvent<SVGElement, unknown, unknown>): void {
   if (!event.dx && !event.dy) return;
   const { brushSize } = getProvincesEditorState();
-  moveCircle(event.x, event.y, brushSize);
+  EditorBus.moveCircle(event.x, event.y, brushSize);
 
   const found = brushSize > 5 ? findAll(event.x, event.y, brushSize) : [findCell(event.x, event.y)];
   const selection = found.filter(i => isLand(i, worldContext.pack));
@@ -862,7 +852,7 @@ function moveBrush(this: SVGElement, event: MouseEvent): void {
   showMainTip();
   const [px, py] = pointer(event, this);
   const { brushSize } = getProvincesEditorState();
-  moveCircle(px, py, brushSize);
+  EditorBus.moveCircle(px, py, brushSize);
 }
 
 function applyProvincesManualAssignment(): void {
@@ -887,14 +877,14 @@ function exitProvincesManualAssignment(): void {
   viewContext.customization = 0;
   viewContext.provs.select("#temp").remove();
   viewContext.provs.select("#centers").remove();
-  removeCircle();
+  EditorBus.removeCircle();
 
   viewContext.provinceBorders.select("path").attr("stroke", null).attr("stroke-width", null);
   viewContext.stateBorders.select("path").attr("stroke", null).attr("stroke-width", null);
   viewContext.debug.selectAll("path.selected").remove();
 
   setProvincesEditorState({ customization: 0 });
-  restoreDefaultEvents?.();
+  EditorBus.restoreDefaultEvents();
   clearMainTip();
   selectedProvinceIdForManual = null;
 }
@@ -978,7 +968,7 @@ function addProvince(this: SVGElement, event: MouseEvent): void {
 
 function exitAddProvinceMode(): void {
   viewContext.customization = 0;
-  restoreDefaultEvents?.();
+  EditorBus.restoreDefaultEvents();
   clearMainTip();
   setProvincesEditorState({ customization: 0 });
 }
@@ -1044,7 +1034,7 @@ function removeAllProvinces(): void {
           s.provinces = [];
         });
 
-        unfog();
+        EditorBus.unfog();
         if (layerIsOn("toggleBorders")) BordersRenderer.render(worldContext, viewContext, appServices);
         viewContext.provs.select("#provincesBody").remove();
         turnButtonOff("toggleProvinces");
@@ -1120,7 +1110,7 @@ function openProvinceMergeDialog(): void {
 }
 
 function cleanupMergedProvince(provinceId: number): void {
-  unfog(`focusProvince${provinceId}`);
+  EditorBus.unfog(`focusProvince${provinceId}`);
   const coaEl = document.getElementById(`provinceCOA${provinceId}`);
   if (coaEl) coaEl.remove();
   viewContext.emblems.select(`#provinceEmblems > use[data-i='${provinceId}']`).remove();
@@ -1163,7 +1153,7 @@ function mergeProvinces(ids: number[], primary: number): void {
   if (layerIsOn("toggleProvinces")) ProvincesRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleBorders")) BordersRenderer.render(worldContext, viewContext, appServices);
 
-  unfog();
+  EditorBus.unfog();
   viewContext.debug.selectAll(".highlight").remove();
 
   refreshProvincesEditor();
@@ -1213,7 +1203,8 @@ export const provincesEditorActions = {
   triggerIndependencePrompts,
   overviewBurgs: (stateId: number) => overviewBurgs({ stateId }),
   changePopulation,
-  highlightElement: (id: number) => highlightElement(viewContext.provs.select(`#province${id}`).node() as Element, 8),
+  highlightElement: (id: number) =>
+    EditorBus.highlightElement(viewContext.provs.select(`#province${id}`).node() as Element, 8),
   toggleFog,
   removeProvince,
   updateLockStatus,

@@ -1,12 +1,12 @@
 import { max as d3max, min as d3min, mean, median } from "d3";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
-import { downloadFile, getFileName, uploadFile } from "../controllers/editors";
 import { Names } from "../modules/names-generator";
 import { closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { openURL, rn, unique } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
 import { ERROR } from "../utils/debug";
+import { downloadFile, getFileName, uploadFile } from "../utils/editorHelpers";
 import { speak, tip } from "../utils/uiHelpers";
 
 const unsafe = /[|/]/g;

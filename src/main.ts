@@ -52,6 +52,7 @@ import { CoordinatesRenderer, drawScaleBar, fitScaleBar } from "./renderers/inde
 import { ThreeDRenderer } from "./renderers/three-d-renderer";
 import { dialogStore } from "./store/dialogState";
 import { useOptionsState } from "./store/optionsState";
+import type { Grid } from "./types/Grid";
 import type { Burg, BurgGroup } from "./types/models";
 import {
   TYPED_ARRAY_MAX_VALUES as _TMP,
@@ -72,7 +73,6 @@ import {
   shouldRegenerateGrid
 } from "./utils";
 import { alertMessage } from "./utils/alertMessageEl";
-import type { Grid } from "./utils/graphUtils";
 import { layerIsOn } from "./utils/nodeUtils";
 import { clearMainTip, locked, showDataTip, tip } from "./utils/uiHelpers";
 import { cleanupData } from "./versioning";

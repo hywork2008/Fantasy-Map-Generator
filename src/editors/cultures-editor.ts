@@ -3,17 +3,7 @@ import { getWorldState } from "../actions";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import {
-  clearLegend,
-  confirmationDialog,
-  downloadFile,
-  drawLegend,
-  getFileName,
-  highlightElement,
-  moveCircle,
-  restoreDefaultEvents
-} from "../controllers/editors";
-import { type HierarchyElement, open as openHierarchyTree } from "../controllers/hierarchy-tree";
+import { open as openHierarchyTree } from "../controllers/hierarchy-tree";
 import { interactionManager } from "../controllers/interactionManager";
 import { toggleBiomes, toggleCultures, toggleProvinces, toggleReligions, toggleStates } from "../controllers/layers";
 import { editStyle } from "../controllers/style";
@@ -25,12 +15,15 @@ import { CulturesRenderer, PopulationRenderer } from "../renderers";
 import { COArenderer, type Emblem as RendererEmblem } from "../renderers/emblem-renderer";
 import type { CultureRowData, NameBaseOption } from "../store/culturesEditorState";
 import { getCulturesEditorState, setCulturesEditorState } from "../store/culturesEditorState";
+import type { HierarchyElement } from "../types/HierarchyTree";
 import type { Burg, Culture, CultureType, NameBase, Province, State } from "../types/models";
 import { closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { abbreviate, debounce, findAll, findCell, parseTransform, rn, si } from "../utils";
+import { EditorBus } from "../utils/editorBus";
+import { confirmationDialog, downloadFile, getFileName } from "../utils/editorHelpers";
 import { getPackPolygon } from "../utils/graphUtils";
 import { layerIsOn } from "../utils/nodeUtils";
-import { clearMainTip, getArea, getAreaUnit, removeCircle, showMainTip, tip } from "../utils/uiHelpers";
+import { clearMainTip, getArea, getAreaUnit, showMainTip, tip } from "../utils/uiHelpers";
 import { NamesbaseEditor } from "./namesbase-editor";
 
 const cultureTypes = ["Generic", "River", "Lake", "Naval", "Nomadic", "Hunting", "Highland"];
@@ -176,7 +169,7 @@ export const culturesEditorActions = {
 
   toggleLegend(): void {
     if (viewContext.legend.selectAll("*").size()) {
-      clearLegend();
+      EditorBus.clearLegend();
       return;
     }
 
@@ -184,7 +177,7 @@ export const culturesEditorActions = {
       .filter((c: Culture) => c.i && !c.removed && c.cells)
       .sort((a: Culture, b: Culture) => (b.area ?? 0) - (a.area ?? 0))
       .map((c: Culture) => [c.i, c.color, c.name] as [number, string, string]);
-    drawLegend("Cultures", data);
+    EditorBus.drawLegend("Cultures", data);
   },
 
   showHierarchy(): void {
@@ -407,7 +400,7 @@ export const culturesEditorActions = {
   },
 
   highlightCulture(i: number): void {
-    highlightElement(viewContext.cults.select(`#culture${i}`).node() as Element, 4);
+    EditorBus.highlightElement(viewContext.cults.select(`#culture${i}`).node() as Element, 4);
   },
 
   triggerRemove(i: number): void {
@@ -817,7 +810,7 @@ function dragCultureBrush(this: SVGElement, event: d3.D3DragEvent<SVGElement, un
   if (!event.dx && !event.dy) return;
   const { brushSize, selectedCultureId } = getCulturesEditorState();
   const p = d3.pointer(event, this);
-  moveCircle(p[0], p[1], brushSize);
+  EditorBus.moveCircle(p[0], p[1], brushSize);
 
   const found = brushSize > 5 ? findAll(p[0], p[1], brushSize) : [findCell(p[0], p[1])];
   const selection = found.filter(i => worldContext.pack.cells.h[i] >= 20);
@@ -854,7 +847,7 @@ function moveCultureBrush(this: SVGElement, event: MouseEvent | TouchEvent): voi
   } else {
     point = d3.pointer(event as MouseEvent, this);
   }
-  moveCircle(point[0], point[1], brushSize);
+  EditorBus.moveCircle(point[0], point[1], brushSize);
 }
 
 function exitCulturesManualAssignment(): void {
@@ -862,9 +855,9 @@ function exitCulturesManualAssignment(): void {
   setCulturesEditorState({ customization: 0 });
   culturesManualHistory.reset();
   viewContext.cults.select("#temp").remove();
-  removeCircle();
+  EditorBus.removeCircle();
   viewContext.debug.select("#cultureCenters").style("display", null);
-  restoreDefaultEvents?.();
+  EditorBus.restoreDefaultEvents();
   clearMainTip();
 }
 
@@ -872,7 +865,7 @@ function exitAddCultureMode(): void {
   if (getCulturesEditorState().customization !== 9) return;
   viewContext.customization = 0;
   setCulturesEditorState({ customization: 0 });
-  restoreDefaultEvents?.();
+  EditorBus.restoreDefaultEvents();
   clearMainTip();
 }
 

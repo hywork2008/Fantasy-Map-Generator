@@ -1,7 +1,6 @@
 import { curveCatmullRom, type D3DragEvent, drag, pointer, select } from "d3";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import { unselect } from "../controllers/editors";
 import { openElevationProfile } from "../controllers/elevation-profile";
 import { toggleCells, toggleRivers } from "../controllers/layers";
 import { createRiver } from "../controllers/rivers-creator";
@@ -15,6 +14,7 @@ import type { TypedArray } from "../types/PackedGraph";
 import { closeDialog, closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { findCell, getSegmentId, rand, rn } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
+import { EditorBus } from "../utils/editorBus";
 import { getPackPolygon } from "../utils/graphUtils";
 import { layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, tip } from "../utils/uiHelpers";
@@ -188,7 +188,7 @@ function closeRiverEditor(): void {
   viewContext.debug.select("#controlCells").remove();
 
   elSelected?.on("click", null);
-  unselect();
+  EditorBus.unselect();
   clearMainTip();
 
   const toggleCellsEl = document.getElementById("toggleCells");

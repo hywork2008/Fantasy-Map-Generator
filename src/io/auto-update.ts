@@ -3,11 +3,7 @@ import { getWorldState } from "../actions";
 import { appServices } from "../context/appServices";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
-import { unfog } from "../controllers/editors";
-import { toggleEmblems, turnButtonOff, turnButtonOn } from "../controllers/layers";
-import { createDefaultRuler } from "../controllers/measurers";
-import { cellsDensityMap } from "../controllers/options";
-import { regenerateEmblems } from "../controllers/tools";
+
 import { Goods } from "../extensions/economy/modules/goods-generator";
 import { Markets } from "../extensions/economy/modules/markets-generator";
 import { Production } from "../extensions/economy/modules/production-generator";
@@ -124,7 +120,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
     Zones.generate(worldContext, viewContext, appServices, state);
     if (!viewContext.markers.selectAll("*").size()) {
       Markers.generate(worldContext, viewContext, appServices, state);
-      turnButtonOn("toggleMarkers");
+      document.dispatchEvent(new CustomEvent("fmg:turn-button-on", { detail: "toggleMarkers" }));
     }
 
     // v1.0 add fogging layer (state focus)
@@ -260,7 +256,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
     viewContext.lakes.selectAll("path").remove();
 
     Features.markupPack();
-    createDefaultRuler();
+    document.dispatchEvent(new CustomEvent("fmg:create-default-ruler"));
   }
 
   if (isOlderThan("1.11.0")) {
@@ -281,7 +277,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
     }
 
     // v1.11 had an issue with fogging being displayed on load
-    unfog();
+    document.dispatchEvent(new CustomEvent("fmg:unfog"));
 
     // v1.2 added new terrain attributes
     if (!viewContext.terrain.attr("set")) viewContext.terrain.attr("set", "simple");
@@ -341,7 +337,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
       .attr("box-size", 3)
       .attr("stroke", "#000")
       .attr("stroke-width", 0.3);
-    turnButtonOn("toggleMilitary");
+    document.dispatchEvent(new CustomEvent("fmg:turn-button-on", { detail: "toggleMilitary" }));
     Military.generate(worldContext, viewContext, appServices, getWorldState());
   }
 
@@ -423,8 +419,8 @@ export function resolveVersionConflicts(mapVersion: string): void {
     viewContext.emblems.append("g").attr("id", "burgEmblems");
     viewContext.emblems.append("g").attr("id", "provinceEmblems");
     viewContext.emblems.append("g").attr("id", "stateEmblems");
-    regenerateEmblems();
-    toggleEmblems();
+    document.dispatchEvent(new CustomEvent("fmg:regenerate-emblems"));
+    document.dispatchEvent(new CustomEvent("fmg:toggle-emblems"));
 
     // v1.5 changed relief icons data
     viewContext.terrain.selectAll<SVGUseElement, unknown>("use").each(function () {
@@ -523,9 +519,9 @@ export function resolveVersionConflicts(mapVersion: string): void {
     viewContext.ruler.selectAll("*").remove();
 
     if (rulers.data.length) {
-      turnButtonOn("toggleRulers");
+      document.dispatchEvent(new CustomEvent("fmg:turn-button-on", { detail: "toggleRulers" }));
       rulers.draw();
-    } else turnButtonOff("toggleRulers");
+    } else document.dispatchEvent(new CustomEvent("fmg:turn-button-off", { detail: "toggleRulers" }));
 
     // 1.61 changed oceanicPattern from rect to image
     const pattern = document.getElementById("oceanic")!;
@@ -556,10 +552,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
   if (isOlderThan("1.65.0")) {
     d3.select("#rivers").attr("style", null);
     const { cells, rivers: packRivers } = worldContext.pack;
-    const defaultWidthFactor = rn(
-      1 / ((cellsDensityMap[useOptionsState.getState().points] ?? 10000) / 10000) ** 0.25,
-      2
-    );
+    const defaultWidthFactor = rn(1 / ((useOptionsState.getState().points ?? 10000) / 10000) ** 0.25, 2);
 
     for (const river of packRivers) {
       const node = document.getElementById(`river${river.i}`);

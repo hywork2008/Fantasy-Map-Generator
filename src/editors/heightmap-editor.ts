@@ -10,17 +10,18 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
-import {
-  downloadFile,
-  getFileName,
-  moveCircle,
-  removeCircle,
-  restoreDefaultEvents,
-  uploadFile
-} from "../controllers/editors";
 import { interactionManager } from "../controllers/interactionManager";
 import { getCurrentPreset, turnButtonOff, turnButtonOn } from "../controllers/layers";
 import { changeViewMode, enterStandardView } from "../controllers/options";
+import {
+  addLakesInDeepDepressions,
+  calculateTemperatures,
+  generatePrecipitation,
+  openNearSeaLakes,
+  rankCells,
+  reGraph,
+  undraw
+} from "../main";
 import { Biomes } from "../modules/biomes";
 import { Burgs } from "../modules/burgs-generator";
 import { Cultures } from "../modules/cultures-generator";
@@ -58,6 +59,8 @@ import {
 import { alertMessage } from "../utils/alertMessageEl";
 import { getColorScheme } from "../utils/colorUtils";
 import { ERROR, INFO, TIME } from "../utils/debug";
+import { EditorBus } from "../utils/editorBus";
+import { downloadFile, getFileName, uploadFile } from "../utils/editorHelpers";
 import { layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, locked, showMainTip, tip } from "../utils/uiHelpers";
 import { HeightmapEditorHistoryClass as HeightmapEditorHistory } from "./HeightmapEditorHistory";
@@ -138,7 +141,6 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     });
 
     if (mode === "erase") {
-      const { undraw } = await import("../main");
       undraw();
       (cellTypeFilter as HTMLSelectElement).value = "all";
     } else if (mode === "keep") {
@@ -218,10 +220,10 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       return;
     }
     if (pressed.id === "brushFill") {
-      removeCircle();
+      EditorBus.removeCircle();
       return;
     }
-    moveCircle(x, y, (heightmapBrushRadius as HTMLInputElement).valueAsNumber);
+    EditorBus.moveCircle(x, y, (heightmapBrushRadius as HTMLInputElement).valueAsNumber);
   }
 
   function getHeight(h: number): string {
@@ -257,7 +259,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     document.dispatchEvent(new CustomEvent("react-exit-heightmap-edit"));
     document.dispatchEvent(new CustomEvent("react-hide-exit-customization"));
 
-    restoreDefaultEvents?.();
+    EditorBus.restoreDefaultEvents();
     clearMainTip();
     closeDialogs();
     resetZoom();
@@ -292,15 +294,6 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
   async function regenerateErasedData(): Promise<void> {
     INFO && console.group("Edit Heightmap");
     TIME && console.time("regenerateErasedData");
-    const {
-      addLakesInDeepDepressions,
-      openNearSeaLakes,
-      calculateTemperatures,
-      generatePrecipitation,
-      reGraph,
-      rankCells
-    } = await import("../main");
-
     worldContext.pack.cultures = [];
     worldContext.pack.burgs = [];
     worldContext.pack.states = [];
@@ -368,9 +361,6 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
   async function restoreRiskedData(): Promise<void> {
     INFO && console.group("Edit Heightmap");
     TIME && console.time("restoreRiskedData");
-    const { addLakesInDeepDepressions, calculateTemperatures, generatePrecipitation, reGraph } = await import(
-      "../main"
-    );
     const erosionAllowed = (allowErosion as HTMLInputElement).checked;
 
     const l = worldContext.grid.cells.i.length;
@@ -577,7 +567,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     }
 
     mockHeightmap();
-    updateHistory();
+    updateHeightmap();
   }
 
   function getColor(value: number, scheme?: (t: number) => string): string {
@@ -664,7 +654,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     heightmapHistory = new HeightmapEditorHistory();
     redo!.disabled = templateRedo.disabled = true;
     undo!.disabled = templateUndo.disabled = true;
-    updateHistory();
+    updateHeightmap();
   }
 
   // ─── Brushes panel ───────────────────────────────────────────────────────────
@@ -712,7 +702,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       viewContext.viewbox.style("cursor", "default").on(".drag", null);
       interactionManager.resetClickHandler();
       viewContext.debug.selectAll(".lineCircle").remove();
-      removeCircle();
+      EditorBus.removeCircle();
       document.getElementById("brushesSliders")!.style.display = "none";
       document.getElementById("lineSlider")!.style.display = "none";
     }
@@ -807,7 +797,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
         selection.push(i);
       }
       mockHeightmapSelection(selection);
-      updateHistory();
+      updateHeightmap();
     }
 
     function applyFillBrush(this: SVGElement, event: MouseEvent): void {
@@ -926,7 +916,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     function dragBrushDrag(this: SVGElement, event: d3.D3DragEvent<SVGElement, unknown, unknown>): void {
       const r = (heightmapBrushRadius as HTMLInputElement).valueAsNumber;
       const p = pointer(event, this);
-      moveCircle(p[0], p[1], r);
+      EditorBus.moveCircle(p[0], p[1], r);
       if (~~event.sourceEvent.timeStamp % 5 !== 0) return;
       const inRadius = findGridAll(p[0], p[1], r, worldContext.grid);
       let sel = inRadius;
@@ -1063,7 +1053,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       }
       worldContext.grid.cells.h = new Uint8Array(worldContext.grid.cells.i.length);
       viewContext.viewbox.select("#heights").selectAll("*").remove();
-      updateHistory();
+      updateHeightmap();
     }
   }
 
@@ -1347,7 +1337,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
 
     worldContext.grid.cells.h = new Uint8Array(worldContext.grid.cells.i.length);
     viewContext.viewbox.select("#heights").selectAll("*").remove();
-    updateHistory();
+    updateHeightmap();
 
     if (modules.openImageConverter) return;
     modules.openImageConverter = true;

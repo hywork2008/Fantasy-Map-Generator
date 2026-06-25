@@ -15,10 +15,11 @@ import "tinymce/models/dom/model";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { generateWithAi } from "../controllers/ai-generator";
-import { confirmationDialog, downloadFile, getFileName, highlightElement, uploadFile } from "../controllers/editors";
 import { getNotesEditorState, setNotesEditorState } from "../store/notesEditorState";
 import type { WorldNote } from "../types/WorldState";
 import { closeDialog, openDialog } from "../ui/dialogs/dialogService";
+import { EditorBus } from "../utils/editorBus";
+import { confirmationDialog, downloadFile, getFileName, uploadFile } from "../utils/editorHelpers";
 import { tip } from "../utils/uiHelpers";
 
 export function editNotes(id?: string, name?: string): void {
@@ -168,7 +169,7 @@ function validateHighlightElement(): void {
   const { selectedId } = getNotesEditorState();
   const element = document.getElementById(selectedId);
   if (element) {
-    highlightElement(element, 3);
+    EditorBus.highlightElement(element, 3);
     return;
   }
 

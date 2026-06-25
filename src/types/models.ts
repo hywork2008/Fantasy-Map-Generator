@@ -1,10 +1,10 @@
 import type { Point } from "lineclip";
-import type { PackedGraph } from "./PackedGraph";
+
 export const CULTURE_TYPES = ["Generic", "Hunting", "Highland", "River", "Lake", "Naval", "Nomadic"] as const;
 export const DEFAULT_CULTURE_TYPE: CultureType = "Generic";
 export type CultureType = (typeof CULTURE_TYPES)[number];
 
-import type { Emblem } from "../modules/emblem/generator";
+import type { Emblem } from "./emblem";
 
 export type FeatureType = "ocean" | "lake" | "island";
 
@@ -157,19 +157,6 @@ export interface Marker {
   pinned?: boolean;
   hidden?: boolean;
 }
-
-export type MarkerConfig = {
-  type: string;
-  icon: string;
-  dx?: number;
-  dy?: number;
-  px?: number;
-  min: number;
-  each: number;
-  multiplier: number;
-  list: (pack: PackedGraph) => Iterable<number> | ArrayLike<number>;
-  add: (id: string, cell: number) => void;
-};
 
 export interface Province {
   i: number;

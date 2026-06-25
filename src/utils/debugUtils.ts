@@ -1,8 +1,8 @@
 import type { BaseType, Selection } from "d3";
 import { curveBundle, line, max, min } from "d3";
 import { viewContext } from "../context/viewContext";
+import type { Grid } from "../types/Grid";
 import { C_12, getColorScheme } from "./colorUtils";
-import type { Grid } from "./graphUtils";
 import { getGridPolygon } from "./graphUtils";
 import { normalize } from "./numberUtils";
 import { round } from "./stringUtils";

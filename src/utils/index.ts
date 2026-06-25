@@ -1,3 +1,4 @@
+import type { Grid } from "../types/Grid";
 import { createTypedArray, getTypedArray, last, TYPED_ARRAY_MAX_VALUES, unique } from "./arrayUtils";
 import { abbreviate, getAdjective, isVowel, list, nth, trimVowels } from "./languageUtils";
 import { lerp, lim, minmax, normalize, rn } from "./numberUtils";
@@ -34,7 +35,6 @@ import {
   findClosestCell,
   findGridAll,
   findGridCell,
-  type Grid,
   generateGrid,
   getGridPolygon,
   getPackPolygon,

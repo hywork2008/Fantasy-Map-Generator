@@ -2,7 +2,6 @@ import type { D3DragEvent, Quadtree } from "d3";
 import { drag, pointer, quadtree, range, select } from "d3";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
-import { moveCircle, removeCircle, restoreDefaultEvents, unselect } from "../controllers/editors";
 import { toggleRelief } from "../controllers/layers";
 import { editStyle } from "../controllers/style";
 import { elSelected, modules, setElSelected } from "../store/editorState";
@@ -11,6 +10,7 @@ import { getReliefEditorState, setReliefEditorState } from "../store/reliefEdito
 import { closeDialog, closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { findAllInQuadtree, findCell, rn } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
+import { EditorBus } from "../utils/editorBus";
 import { layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, showMainTip, tip } from "../utils/uiHelpers";
 
@@ -86,7 +86,7 @@ function moveBrush(this: SVGElement, event: MouseEvent): void {
   showMainTip();
   const pt = pointer(event, this) as [number, number];
   const radius = getReliefEditorState().radius;
-  moveCircle(pt[0], pt[1], radius);
+  EditorBus.moveCircle(pt[0], pt[1], radius);
 }
 
 function closeReliefEditor(): void {
@@ -94,8 +94,8 @@ function closeReliefEditor(): void {
     .selectAll<SVGUseElement, unknown>("use")
     .call(drag<SVGUseElement, unknown>().on("drag", null))
     .classed("draggable", false);
-  removeCircle();
-  unselect();
+  EditorBus.removeCircle();
+  EditorBus.unselect();
   clearMainTip();
   setReliefEditorState({ isOpen: false });
 }
@@ -103,9 +103,9 @@ function closeReliefEditor(): void {
 export const reliefEditorActions = {
   enterIndividualMode(): void {
     setReliefEditorState({ mode: "individual" });
-    removeCircle();
+    EditorBus.removeCircle();
     updateReliefSizeInput();
-    restoreDefaultEvents?.();
+    EditorBus.restoreDefaultEvents();
     clearMainTip();
   },
 
@@ -147,7 +147,7 @@ export const reliefEditorActions = {
             if (!d3DragAddState) return;
             const { type, r, spacing, size, tree, positions } = d3DragAddState;
             const p = pointer(event, this) as [number, number];
-            moveCircle(p[0], p[1], r);
+            EditorBus.moveCircle(p[0], p[1], r);
             range(Math.ceil(r / 10)).forEach(() => {
               const a = Math.PI * 2 * Math.random();
               const rad = r * Math.random();
@@ -202,7 +202,7 @@ export const reliefEditorActions = {
             if (!d3DragRemoveState) return;
             const { r, tree } = d3DragRemoveState;
             const p = pointer(event, this) as [number, number];
-            moveCircle(p[0], p[1], r);
+            EditorBus.moveCircle(p[0], p[1], r);
             findAllInQuadtree(p[0], p[1], r, tree).forEach(f => {
               f[2].remove();
             });

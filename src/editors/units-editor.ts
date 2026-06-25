@@ -2,7 +2,6 @@ import { type D3DragEvent, drag, pointer } from "d3";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import { restoreDefaultEvents } from "../controllers/editors";
 import { toggleRulers } from "../controllers/layers";
 import { calculateFriendlyGridSize } from "../controllers/style";
 import { Routes } from "../modules/routes-generator";
@@ -13,6 +12,7 @@ import { getUnitsEditorState, setUnitsEditorState } from "../store/unitsEditorSt
 import { closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { findCell, showPrompt } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
+import { EditorBus } from "../utils/editorBus";
 import { layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, lock, tip, unlock } from "../utils/uiHelpers";
 
@@ -169,7 +169,7 @@ export const unitsEditorActions = {
   toggleOpisometerMode(): void {
     const { rulerMode } = getUnitsEditorState();
     if (rulerMode === "opisometer") {
-      restoreDefaultEvents?.();
+      EditorBus.restoreDefaultEvents();
       clearMainTip();
       setUnitsEditorState({ rulerMode: "none" });
       return;
@@ -189,7 +189,7 @@ export const unitsEditorActions = {
           });
 
           startEvent.on("end", (event: D3DragEvent<SVGGElement, unknown, unknown>) => {
-            restoreDefaultEvents?.();
+            EditorBus.restoreDefaultEvents();
             clearMainTip();
             setUnitsEditorState({ rulerMode: "none" });
             if (opisometer.points.length < 2) rulers.remove(opisometer.id);
@@ -203,7 +203,7 @@ export const unitsEditorActions = {
   toggleRouteOpisometerMode(): void {
     const { rulerMode } = getUnitsEditorState();
     if (rulerMode === "routeOpisometer") {
-      restoreDefaultEvents?.();
+      EditorBus.restoreDefaultEvents();
       clearMainTip();
       setUnitsEditorState({ rulerMode: "none" });
       return;
@@ -236,7 +236,7 @@ export const unitsEditorActions = {
             });
 
             startEvent.on("end", () => {
-              restoreDefaultEvents?.();
+              EditorBus.restoreDefaultEvents();
               clearMainTip();
               setUnitsEditorState({ rulerMode: "none" });
               if (routeOpisometer.points.length < 2) {
@@ -244,7 +244,7 @@ export const unitsEditorActions = {
               }
             });
           } else {
-            restoreDefaultEvents?.();
+            EditorBus.restoreDefaultEvents();
             clearMainTip();
             setUnitsEditorState({ rulerMode: "none" });
             tip("Must start in a cell with a route in it", false, "error");
@@ -257,7 +257,7 @@ export const unitsEditorActions = {
   togglePlanimeterMode(): void {
     const { rulerMode } = getUnitsEditorState();
     if (rulerMode === "planimeter") {
-      restoreDefaultEvents?.();
+      EditorBus.restoreDefaultEvents();
       clearMainTip();
       setUnitsEditorState({ rulerMode: "none" });
       return;
@@ -277,7 +277,7 @@ export const unitsEditorActions = {
           });
 
           startEvent.on("end", (event: D3DragEvent<SVGGElement, unknown, unknown>) => {
-            restoreDefaultEvents?.();
+            EditorBus.restoreDefaultEvents();
             clearMainTip();
             setUnitsEditorState({ rulerMode: "none" });
             if (planimeter.points.length < 3) rulers.remove(planimeter.id);
@@ -312,3 +312,6 @@ export function initUnitsEditor(wc: WorldContext, vc: Readonly<ViewContext>, as:
   viewContext = vc;
   appServices = as;
 }
+
+// CustomEvent Listeners
+document.addEventListener("fmg:edit-units", () => editUnits());

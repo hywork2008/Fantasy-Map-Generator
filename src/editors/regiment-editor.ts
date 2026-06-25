@@ -3,7 +3,6 @@ import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import type { BattleRegiment } from "../controllers/battle-screen";
-import { restoreDefaultEvents, selectIcon } from "../controllers/editors";
 import { interactionManager } from "../controllers/interactionManager";
 import { toggleMilitary } from "../controllers/layers";
 import { Military } from "../modules/military-generator";
@@ -15,6 +14,7 @@ import type { WorldNote } from "../types/WorldState";
 import { closeDialog, closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { findCell, last, rn } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
+import { EditorBus } from "../utils/editorBus";
 import { layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, tip } from "../utils/uiHelpers";
 import { editNotes } from "./notes-editor";
@@ -203,7 +203,7 @@ function closeEditor(): void {
   viewContext.armies.selectAll(":scope > g").classed("draggable", false);
   viewContext.armies.selectAll<SVGGElement, unknown>("g>g").call(drag<SVGGElement, unknown>().on("drag", null));
   setRegimentEditorState({ isOpen: false, mode: "normal" });
-  restoreDefaultEvents?.();
+  EditorBus.restoreDefaultEvents();
   setElSelected(null);
 }
 
@@ -281,7 +281,7 @@ export const regimentEditorActions = {
     if (!regiment) return;
     const regEl = getRegEl();
 
-    selectIcon(regiment.icon ?? "", (value: string) => {
+    EditorBus.selectIcon(regiment.icon ?? "", (value: string) => {
       regiment.icon = value;
       setRegimentEditorState({ icon: value });
       if (!regEl?.isConnected) return;
