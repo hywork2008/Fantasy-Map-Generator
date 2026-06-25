@@ -13,10 +13,16 @@ const MARKER_SYMBOLS = {
 
 let symbolsReady: Promise<void> | null = null;
 
+function getOrCreateDefs(): Element {
+  const existing = viewContext.svg.select<Element>("#trade-markers").node();
+  if (existing) return existing;
+  return viewContext.svg.append<SVGGElement>("g").attr("id", "trade-markers").node()!;
+}
+
 function ensureSymbols(): Promise<void> {
   if (symbolsReady) return symbolsReady;
-  const defs = viewContext.svg.select<Element>("#trade-markers").node()!;
   symbolsReady = (async () => {
+    const defs = getOrCreateDefs();
     await Promise.all(
       Object.values(MARKER_SYMBOLS).map(async ({ id, src }) => {
         if (defs.querySelector(`#${id}`)) return;
@@ -130,6 +136,7 @@ export async function draw(
 
 export function clear(): void {
   viewContext.tradeAnimation.selectAll("g").interrupt().remove();
+  symbolsReady = null;
 }
 
 export function getPath(points: Point[]): string {
