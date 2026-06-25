@@ -10,7 +10,6 @@ export const ToolsTab: React.FC = () => {
         <button data-tip="Click to open Biomes Editor" type="button" onClick={() => triggerEvent("editBiomesButton")}>
           Biomes
         </button>
-
         <button
           data-tip="Click to open Burgs Overview"
           type="button"
@@ -18,7 +17,6 @@ export const ToolsTab: React.FC = () => {
         >
           Burgs
         </button>
-
         <button
           data-tip="Click to open Coastline Settings Editor"
           type="button"
@@ -26,7 +24,6 @@ export const ToolsTab: React.FC = () => {
         >
           Coastlines
         </button>
-
         <button
           data-tip="Click to open Cultures Editor"
           type="button"
@@ -34,7 +31,6 @@ export const ToolsTab: React.FC = () => {
         >
           Cultures
         </button>
-
         <button
           data-tip="Click to open Diplomatical relationships Editor"
           type="button"
@@ -42,11 +38,9 @@ export const ToolsTab: React.FC = () => {
         >
           Diplomacy
         </button>
-
         <button data-tip="Click to open Emblem Editor" type="button" onClick={() => triggerEvent("editEmblemButton")}>
           Emblems
         </button>
-
         <button
           data-tip="Click to open Goods Editor"
           data-shortcut="Shift + G"
@@ -55,7 +49,6 @@ export const ToolsTab: React.FC = () => {
         >
           Goods
         </button>
-
         <button
           id="editHeightmapButton"
           data-tip="Click to open Heightmap customization menu"
@@ -64,7 +57,6 @@ export const ToolsTab: React.FC = () => {
         >
           Heightmap
         </button>
-
         <button
           data-tip="Click to open Markers Overview"
           type="button"
@@ -72,7 +64,6 @@ export const ToolsTab: React.FC = () => {
         >
           Markers
         </button>
-
         <button
           data-tip="Click to open Markets Overview"
           type="button"
@@ -80,7 +71,6 @@ export const ToolsTab: React.FC = () => {
         >
           Markets
         </button>
-
         <button
           data-tip="Click to open Military Forces Overview"
           type="button"
@@ -88,7 +78,6 @@ export const ToolsTab: React.FC = () => {
         >
           Military
         </button>
-
         <button
           data-tip="Click to open Namesbase Editor"
           type="button"
@@ -96,11 +85,9 @@ export const ToolsTab: React.FC = () => {
         >
           Namesbase
         </button>
-
         <button data-tip="Click to open Notes Editor" type="button" onClick={() => triggerEvent("editNotesButton")}>
           Notes
         </button>
-
         <button
           data-tip="Click to open Provinces Editor"
           type="button"
@@ -108,11 +95,9 @@ export const ToolsTab: React.FC = () => {
         >
           Provinces
         </button>
-
         <button data-tip="Click to open Religions Editor" type="button" onClick={() => triggerEvent("editReligions")}>
           Religions
         </button>
-
         <button
           data-tip="Click to open Rivers Overview"
           type="button"
@@ -120,7 +105,6 @@ export const ToolsTab: React.FC = () => {
         >
           Rivers
         </button>
-
         <button
           data-tip="Click to open Routes Overview"
           type="button"
@@ -128,7 +112,6 @@ export const ToolsTab: React.FC = () => {
         >
           Routes
         </button>
-
         <button
           id="editStatesButton"
           data-tip="Click to open States Editor"
@@ -137,7 +120,6 @@ export const ToolsTab: React.FC = () => {
         >
           States
         </button>
-
         <button
           data-tip="Click to open Trade Animation Editor"
           type="button"
@@ -145,11 +127,9 @@ export const ToolsTab: React.FC = () => {
         >
           Trade
         </button>
-
         <button data-tip="Click to open Units Editor" type="button" onClick={() => triggerEvent("editUnitsButton")}>
           Units
         </button>
-
         <button data-tip="Click to open Zones Editor" type="button" onClick={() => triggerEvent("editZonesButton")}>
           Zones
         </button>
@@ -163,7 +143,6 @@ export const ToolsTab: React.FC = () => {
         >
           Burgs
         </button>
-
         <button
           data-tip="Click to regenerate non-locked cultures"
           type="button"
@@ -171,7 +150,6 @@ export const ToolsTab: React.FC = () => {
         >
           Cultures
         </button>
-
         <button
           data-tip="Rebuild market territories, production, trade deals, and taxes from the current goods and markets"
           type="button"
@@ -179,7 +157,6 @@ export const ToolsTab: React.FC = () => {
         >
           Economy
         </button>
-
         <button
           data-tip="Click to regenerate all emblems"
           type="button"
@@ -187,7 +164,6 @@ export const ToolsTab: React.FC = () => {
         >
           Emblems
         </button>
-
         <button
           data-tip="Click to regenerate bonus goods placement"
           type="button"
@@ -195,7 +171,6 @@ export const ToolsTab: React.FC = () => {
         >
           Goods
         </button>
-
         <button
           data-tip="Click to regenerate icebergs and glaciers"
           type="button"
@@ -203,7 +178,6 @@ export const ToolsTab: React.FC = () => {
         >
           Ice
         </button>
-
         <button
           data-tip="Click to regenerate unlocked markers"
           type="button"
@@ -219,7 +193,6 @@ export const ToolsTab: React.FC = () => {
             }}
           />
         </button>
-
         <button
           data-tip="Click to regenerate markets and their territories"
           type="button"
@@ -227,7 +200,6 @@ export const ToolsTab: React.FC = () => {
         >
           Markets
         </button>
-
         <button
           id="regenerateMilitary"
           data-tip="Click to recalculate military forces"
@@ -236,7 +208,6 @@ export const ToolsTab: React.FC = () => {
         >
           Military
         </button>
-
         <button
           data-tip="Click to recalculate rural and urban population"
           type="button"
@@ -244,7 +215,6 @@ export const ToolsTab: React.FC = () => {
         >
           Population
         </button>
-
         <button
           data-tip="Click to regenerate production and trade deals"
           type="button"
@@ -252,7 +222,6 @@ export const ToolsTab: React.FC = () => {
         >
           Production
         </button>
-
         <button
           data-tip="Click to regenerate non-locked provinces"
           type="button"
@@ -260,7 +229,6 @@ export const ToolsTab: React.FC = () => {
         >
           Provinces
         </button>
-
         <button
           data-tip="Click to regenerate all relief icons"
           type="button"
@@ -268,7 +236,6 @@ export const ToolsTab: React.FC = () => {
         >
           Relief Icons
         </button>
-
         <button
           data-tip="Click to regenerate religions"
           type="button"
@@ -276,15 +243,12 @@ export const ToolsTab: React.FC = () => {
         >
           Religions
         </button>
-
         <button data-tip="Click to regenerate rivers" type="button" onClick={() => triggerEvent("regenerateRivers")}>
           Rivers
         </button>
-
         <button data-tip="Click to regenerate routes" type="button" onClick={() => triggerEvent("regenerateRoutes")}>
           Routes
         </button>
-
         <button
           data-tip="Click to update state labels placement"
           type="button"
@@ -292,7 +256,6 @@ export const ToolsTab: React.FC = () => {
         >
           State Labels
         </button>
-
         <button
           data-tip="Click to regenerate non-locked states"
           type="button"
@@ -300,7 +263,6 @@ export const ToolsTab: React.FC = () => {
         >
           States
         </button>
-
         <button data-tip="Click to regenerate zones" type="button" onClick={() => triggerEvent("regenerateZones")}>
           Zones
         </button>
@@ -315,7 +277,6 @@ export const ToolsTab: React.FC = () => {
         >
           Burg
         </button>
-
         <button
           id="addLabel"
           data-tip="Click on map to place label. Hold Shift to add multiple"
@@ -324,7 +285,6 @@ export const ToolsTab: React.FC = () => {
         >
           Label
         </button>
-
         <button
           id="addMarker"
           data-tip="Click on map to place a marker. Hold Shift to add multiple"
@@ -333,7 +293,6 @@ export const ToolsTab: React.FC = () => {
         >
           Marker
         </button>
-
         <button
           id="addRiver"
           data-tip="Click on map to place a river. Hold Shift to add multiple"
@@ -342,7 +301,6 @@ export const ToolsTab: React.FC = () => {
         >
           River
         </button>
-
         <button
           id="addRoute"
           data-tip="Open route creation dialog"
@@ -361,7 +319,6 @@ export const ToolsTab: React.FC = () => {
         >
           Cells
         </button>
-
         <button
           data-tip="Click to open Charts to overview cells data"
           type="button"
@@ -369,7 +326,6 @@ export const ToolsTab: React.FC = () => {
         >
           Charts
         </button>
-
         <button
           data-tip="Click to open minimap overview. Click minimap to center view"
           type="button"
@@ -377,7 +333,6 @@ export const ToolsTab: React.FC = () => {
         >
           Minimap
         </button>
-
         <button
           data-tip="Click to open World Configurator (temperature, precipitation, etc.)"
           type="button"
@@ -395,7 +350,6 @@ export const ToolsTab: React.FC = () => {
         >
           Submap
         </button>
-
         <button data-tip="Click to transform the map" type="button" onClick={() => triggerEvent("openTransformTool")}>
           Transform
         </button>
