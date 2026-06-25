@@ -20,28 +20,7 @@ export const BurgLabelsRenderer: IRenderer = {
     const { burgLabels } = viewContext;
     createLabelGroups(options, style, burgLabels);
 
-    const scale = viewContext.scale || 1;
-    const viewX = viewContext.viewX || 0;
-    const viewY = viewContext.viewY || 0;
-    const svgWidth = viewContext.svgWidth || window.innerWidth;
-    const svgHeight = viewContext.svgHeight || window.innerHeight;
-
-    const minX = -viewX / scale;
-    const maxX = (svgWidth - viewX) / scale;
-    const minY = -viewY / scale;
-    const maxY = (svgHeight - viewY) / scale;
-    const margin = 50 / scale;
-
-    const isVisible = (x: number, y: number) => {
-      return x >= minX - margin && x <= maxX + margin && y >= minY - margin && y <= maxY + margin;
-    };
-
-    const maxOrder = Math.max(...(options.burgs.groups as BurgGroup[]).map(g => g.order), 1);
-    for (const { name, order } of options.burgs.groups as BurgGroup[]) {
-      const invertedOrder = maxOrder - order + 1;
-      const threshold = invertedOrder === 1 ? 1.5 : invertedOrder * 2 - 1.5;
-      if (scale < threshold) continue;
-
+    for (const { name } of options.burgs.groups as BurgGroup[]) {
       const burgsInGroup = pack.burgs.filter(b => b.group === name && !b.removed);
       if (!burgsInGroup.length) continue;
 
@@ -51,8 +30,6 @@ export const BurgLabelsRenderer: IRenderer = {
       const dx = labelGroup.attr("data-dx") || 0;
       const dy = labelGroup.attr("data-dy") || 0;
 
-      const visibleBurgs = burgsInGroup.filter(b => isVisible(b.x, b.y));
-
       // Purge <text> elements from loaded .map files that have no D3 data binding — the key function below crashes on undefined datum.
       labelGroup
         .selectAll<SVGTextElement, Burg | undefined>("text")
@@ -61,7 +38,7 @@ export const BurgLabelsRenderer: IRenderer = {
 
       labelGroup
         .selectAll<SVGTextElement, Burg>("text")
-        .data(visibleBurgs, d => d.i ?? 0)
+        .data(burgsInGroup, d => d.i ?? 0)
         .join("text")
         .attr("text-rendering", "optimizeSpeed")
         .attr("id", d => `burgLabel${d.i}`)

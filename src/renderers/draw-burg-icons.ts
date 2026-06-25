@@ -20,39 +20,16 @@ export const BurgIconsRenderer: IRenderer = {
     const { burgIcons, anchors } = viewContext;
     createIconGroups(options, style, burgIcons, anchors);
 
-    const scale = viewContext.scale || 1;
-    const viewX = viewContext.viewX || 0;
-    const viewY = viewContext.viewY || 0;
-    const svgWidth = viewContext.svgWidth || window.innerWidth;
-    const svgHeight = viewContext.svgHeight || window.innerHeight;
-
-    const minX = -viewX / scale;
-    const maxX = (svgWidth - viewX) / scale;
-    const minY = -viewY / scale;
-    const maxY = (svgHeight - viewY) / scale;
-    const margin = 50 / scale;
-
-    const isVisible = (x: number, y: number) => {
-      return x >= minX - margin && x <= maxX + margin && y >= minY - margin && y <= maxY + margin;
-    };
-
-    const maxOrder = Math.max(...(options.burgs.groups as BurgGroup[]).map(g => g.order), 1);
-    for (const { name, order } of options.burgs.groups as BurgGroup[]) {
-      const invertedOrder = maxOrder - order + 1;
-      const threshold = invertedOrder === 1 ? 1.5 : invertedOrder * 2 - 1.5;
-      if (scale < threshold) continue;
-
+    for (const { name } of options.burgs.groups as BurgGroup[]) {
       const burgsInGroup = pack.burgs.filter(b => b.group === name && !b.removed);
       if (!burgsInGroup.length) continue;
-
-      const visibleBurgs = burgsInGroup.filter(b => isVisible(b.x, b.y));
 
       const iconsGroup = burgIcons.select<SVGGElement>(`g#${name}`);
       if (!iconsGroup.empty()) {
         const icon = iconsGroup.attr("data-icon") || "#icon-circle";
         iconsGroup
           .selectAll<SVGUseElement, Burg>("use")
-          .data(visibleBurgs, d => d?.i ?? 0)
+          .data(burgsInGroup, d => d?.i ?? 0)
           .join("use")
           .attr("id", d => `burg${d.i}`)
           .attr("data-id", d => d.i!)
@@ -61,7 +38,7 @@ export const BurgIconsRenderer: IRenderer = {
           .attr("y", d => d.y);
       }
 
-      const portsInGroup = burgsInGroup.filter(b => b.port && isVisible(b.x, b.y));
+      const portsInGroup = burgsInGroup.filter(b => b.port);
       if (!portsInGroup.length) continue;
 
       const portGroup = anchors.select<SVGGElement>(`g#${name}`);

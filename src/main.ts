@@ -944,10 +944,6 @@ export function invokeActiveZooming() {
       if (hidden) this.classList.add("hidden");
       else this.classList.remove("hidden");
     });
-
-    import("./renderers").then(({ BurgLabelsRenderer }) => {
-      BurgLabelsRenderer.render(worldContext, viewContext, appServices);
-    });
   }
 
   if (layerIsOn("toggleBurgIcons")) {
@@ -964,10 +960,6 @@ export function invokeActiveZooming() {
           this.setAttribute("font-size", String(rn(Math.max(baseSize / scale ** ZOOM_SIZE_EXP, 0.1), 2)));
         }
       }
-    });
-
-    import("./renderers").then(({ BurgIconsRenderer }) => {
-      BurgIconsRenderer.render(worldContext, viewContext, appServices);
     });
   }
 
