@@ -1,6 +1,72 @@
 import type React from "react";
 import { useExtensionState } from "../../../store/extensionState";
 
+interface StaticEditButton {
+  key: string;
+  domId?: string;
+  label: string;
+  tooltip: string;
+  eventName: string;
+}
+
+const STATIC_EDIT_BUTTONS: StaticEditButton[] = [
+  { key: "biomes", label: "Biomes", tooltip: "Click to open Biomes Editor", eventName: "editBiomesButton" },
+  { key: "burgs", label: "Burgs", tooltip: "Click to open Burgs Overview", eventName: "overviewBurgsButton" },
+  {
+    key: "coastlines",
+    label: "Coastlines",
+    tooltip: "Click to open Coastline Settings Editor",
+    eventName: "editCoastlineSettings"
+  },
+  { key: "cultures", label: "Cultures", tooltip: "Click to open Cultures Editor", eventName: "editCulturesButton" },
+  {
+    key: "diplomacy",
+    label: "Diplomacy",
+    tooltip: "Click to open Diplomatical relationships Editor",
+    eventName: "editDiplomacyButton"
+  },
+  { key: "emblems", label: "Emblems", tooltip: "Click to open Emblem Editor", eventName: "editEmblemButton" },
+  {
+    key: "editHeightmapButton",
+    domId: "editHeightmapButton",
+    label: "Heightmap",
+    tooltip: "Click to open Heightmap customization menu",
+    eventName: "editHeightmapButton"
+  },
+  { key: "markers", label: "Markers", tooltip: "Click to open Markers Overview", eventName: "overviewMarkersButton" },
+  {
+    key: "military",
+    label: "Military",
+    tooltip: "Click to open Military Forces Overview",
+    eventName: "overviewMilitaryButton"
+  },
+  {
+    key: "namesbase",
+    label: "Namesbase",
+    tooltip: "Click to open Namesbase Editor",
+    eventName: "editNamesBaseButton"
+  },
+  { key: "notes", label: "Notes", tooltip: "Click to open Notes Editor", eventName: "editNotesButton" },
+  {
+    key: "provinces",
+    label: "Provinces",
+    tooltip: "Click to open Provinces Editor",
+    eventName: "editProvincesButton"
+  },
+  { key: "religions", label: "Religions", tooltip: "Click to open Religions Editor", eventName: "editReligions" },
+  { key: "rivers", label: "Rivers", tooltip: "Click to open Rivers Overview", eventName: "overviewRiversButton" },
+  { key: "routes", label: "Routes", tooltip: "Click to open Routes Overview", eventName: "overviewRoutesButton" },
+  {
+    key: "editStatesButton",
+    domId: "editStatesButton",
+    label: "States",
+    tooltip: "Click to open States Editor",
+    eventName: "editStatesButton"
+  },
+  { key: "units", label: "Units", tooltip: "Click to open Units Editor", eventName: "editUnitsButton" },
+  { key: "zones", label: "Zones", tooltip: "Click to open Zones Editor", eventName: "editZonesButton" }
+];
+
 export const ToolsTab: React.FC = () => {
   const { actions: allActions, enabledExtensions } = useExtensionState();
   const actions = allActions.filter(a => a.tab === "tools" && enabledExtensions[a.extensionId]);
@@ -10,120 +76,31 @@ export const ToolsTab: React.FC = () => {
   const triggerEvent = (eventName: string) => {
     document.dispatchEvent(new CustomEvent("react-tool-action", { detail: { action: eventName } }));
   };
+
+  const allEditButtons = [
+    ...STATIC_EDIT_BUTTONS.map(b => ({
+      key: b.key,
+      domId: b.domId,
+      label: b.label,
+      tooltip: b.tooltip,
+      onClick: () => triggerEvent(b.eventName)
+    })),
+    ...editActions.map(a => ({
+      key: a.id,
+      domId: undefined as string | undefined,
+      label: a.label,
+      tooltip: a.tooltip ?? "",
+      onClick: a.onClick
+    }))
+  ].sort((a, b) => a.label.localeCompare(b.label));
+
   return (
     <div id="toolsContent" className="tabcontent" style={{ display: "block" }}>
       <div className="separator">Edit</div>
       <div className="grid">
-        <button data-tip="Click to open Biomes Editor" type="button" onClick={() => triggerEvent("editBiomesButton")}>
-          Biomes
-        </button>
-        <button
-          data-tip="Click to open Burgs Overview"
-          type="button"
-          onClick={() => triggerEvent("overviewBurgsButton")}
-        >
-          Burgs
-        </button>
-        <button
-          data-tip="Click to open Coastline Settings Editor"
-          type="button"
-          onClick={() => triggerEvent("editCoastlineSettings")}
-        >
-          Coastlines
-        </button>
-        <button
-          data-tip="Click to open Cultures Editor"
-          type="button"
-          onClick={() => triggerEvent("editCulturesButton")}
-        >
-          Cultures
-        </button>
-        <button
-          data-tip="Click to open Diplomatical relationships Editor"
-          type="button"
-          onClick={() => triggerEvent("editDiplomacyButton")}
-        >
-          Diplomacy
-        </button>
-        <button data-tip="Click to open Emblem Editor" type="button" onClick={() => triggerEvent("editEmblemButton")}>
-          Emblems
-        </button>
-
-        <button
-          id="editHeightmapButton"
-          data-tip="Click to open Heightmap customization menu"
-          type="button"
-          onClick={() => triggerEvent("editHeightmapButton")}
-        >
-          Heightmap
-        </button>
-        <button
-          data-tip="Click to open Markers Overview"
-          type="button"
-          onClick={() => triggerEvent("overviewMarkersButton")}
-        >
-          Markers
-        </button>
-
-        <button
-          data-tip="Click to open Military Forces Overview"
-          type="button"
-          onClick={() => triggerEvent("overviewMilitaryButton")}
-        >
-          Military
-        </button>
-        <button
-          data-tip="Click to open Namesbase Editor"
-          type="button"
-          onClick={() => triggerEvent("editNamesBaseButton")}
-        >
-          Namesbase
-        </button>
-        <button data-tip="Click to open Notes Editor" type="button" onClick={() => triggerEvent("editNotesButton")}>
-          Notes
-        </button>
-        <button
-          data-tip="Click to open Provinces Editor"
-          type="button"
-          onClick={() => triggerEvent("editProvincesButton")}
-        >
-          Provinces
-        </button>
-        <button data-tip="Click to open Religions Editor" type="button" onClick={() => triggerEvent("editReligions")}>
-          Religions
-        </button>
-        <button
-          data-tip="Click to open Rivers Overview"
-          type="button"
-          onClick={() => triggerEvent("overviewRiversButton")}
-        >
-          Rivers
-        </button>
-        <button
-          data-tip="Click to open Routes Overview"
-          type="button"
-          onClick={() => triggerEvent("overviewRoutesButton")}
-        >
-          Routes
-        </button>
-        <button
-          id="editStatesButton"
-          data-tip="Click to open States Editor"
-          type="button"
-          onClick={() => triggerEvent("editStatesButton")}
-        >
-          States
-        </button>
-
-        <button data-tip="Click to open Units Editor" type="button" onClick={() => triggerEvent("editUnitsButton")}>
-          Units
-        </button>
-        <button data-tip="Click to open Zones Editor" type="button" onClick={() => triggerEvent("editZonesButton")}>
-          Zones
-        </button>
-        {editActions.map(action => (
-          <button key={action.id} data-tip={action.tooltip} type="button" onClick={action.onClick}>
-            {action.label}
+        {allEditButtons.map(btn => (
+          <button key={btn.key} id={btn.domId} data-tip={btn.tooltip} type="button" onClick={btn.onClick}>
+            {btn.label}
           </button>
         ))}
       </div>
