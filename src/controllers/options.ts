@@ -627,7 +627,7 @@ export function applyStoredOptions(): void {
   const themeColor = stored("themeColor") || "";
   changeDialogsTheme(themeColor, transparency);
 
-  setRendering("auto");
+  setRendering(optionsStore.shapeRendering);
   worldContext.options.stateLabelsMode = optionsStore.stateLabelsMode as "auto" | "short" | "full";
 }
 

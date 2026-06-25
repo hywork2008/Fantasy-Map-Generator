@@ -336,7 +336,7 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
       .getState()
       .setOption(
         "shapeRendering",
-        (viewContext.viewbox.attr("shape-rendering") || "geometricPrecision") as
+        (viewContext.viewbox.attr("shape-rendering") || "optimizeSpeed") as
           | "crispEdges"
           | "optimizeSpeed"
           | "geometricPrecision"

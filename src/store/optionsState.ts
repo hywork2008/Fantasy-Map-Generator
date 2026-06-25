@@ -100,7 +100,7 @@ export const useOptionsState = create<OptionsState>(set => ({
   zoomExtentMin: 1,
   zoomExtentMax: 20,
 
-  shapeRendering: "crispEdges",
+  shapeRendering: "optimizeSpeed",
   rescaleLabels: true,
 
   setOption: (key, value) => set({ [key]: value }),
