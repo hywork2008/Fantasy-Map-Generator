@@ -1,8 +1,11 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { worldContext } from "../../../context/worldContext";
-import type { Burg } from "../../../modules/burgs-generator";
 import { States } from "../../../modules/states-generator";
+import type { ExtensionAPI } from "../../../types/extension-api";
+import type { Burg } from "../../../types/models";
 import type { PackedGraph } from "../../../types/PackedGraph";
+import { clearEconomyContext, initEconomyContext } from "../economyContext";
+import "../types";
 import { type Market, MarketsModule } from "./markets-generator";
 
 vi.mock("./goods-generator", async importOriginal => {
@@ -16,16 +19,19 @@ vi.mock("./goods-generator", async importOriginal => {
   };
 });
 
-vi.mock("./production-generator", () => ({
-  Production: {
-    getCellProduction: vi.fn(() => ({}))
-  }
+vi.mock("./production-utils", () => ({
+  getCellProduction: vi.fn(() => ({}))
 }));
 
 describe("MarketsModule", () => {
   describe("buy logic and budget constraints", () => {
     let marketsModule: MarketsModule;
+    afterEach(() => {
+      clearEconomyContext();
+    });
+
     beforeEach(() => {
+      initEconomyContext({ worldContext } as unknown as ExtensionAPI);
       marketsModule = new MarketsModule();
       worldContext.graphWidth = 1000;
       worldContext.graphHeight = 800;
@@ -183,7 +189,7 @@ describe("MarketsModule", () => {
 
     it("collectRuralProduction() should ignore cells with no market (market 0)", async () => {
       const { Goods } = await import("./goods-generator");
-      const { Production } = await import("./production-generator");
+      const { getCellProduction } = await import("./production-utils");
       const good = worldContext.pack.goods[0];
 
       const market1: Market = { i: 1, centerBurgId: 1, color: "#ff0000", goods: {} };
@@ -200,7 +206,7 @@ describe("MarketsModule", () => {
 
       vi.mocked(Goods.getBiomesProduction).mockReturnValue({} as ReturnType<typeof Goods.getBiomesProduction>);
       vi.mocked(Goods.get).mockImplementation((id: number) => (id === good.i ? good : undefined));
-      vi.mocked(Production.getCellProduction).mockReturnValue({ [good.i]: 5 });
+      vi.mocked(getCellProduction).mockReturnValue({ [good.i]: 5 });
 
       marketsModule.collectRuralProduction();
 

@@ -1,14 +1,22 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { worldContext } from "../../../context/worldContext";
+import type { ExtensionAPI } from "../../../types/extension-api";
+import type { Grid } from "../../../types/Grid";
 import type { PackedGraph } from "../../../types/PackedGraph";
 import type { BiomesData } from "../../../types/WorldState";
-import type { Grid } from "../../../utils/graphUtils";
+import { clearEconomyContext, initEconomyContext } from "../economyContext";
+import "../types";
 import { GoodsModule } from "./goods-generator";
 
 describe("GoodsModule", () => {
   let goodsModule: GoodsModule;
 
+  afterEach(() => {
+    clearEconomyContext();
+  });
+
   beforeEach(async () => {
+    initEconomyContext({ worldContext } as unknown as ExtensionAPI);
     worldContext.grid = { cells: { temp: [20, 20, 20, 20] } } as unknown as Grid;
     worldContext.biomesData = {
       habitability: Array(20).fill(50),

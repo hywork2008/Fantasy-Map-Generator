@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 
 vi.mock("../renderers/draw-trade-animation", () => ({
   draw: vi.fn(),
@@ -18,7 +18,10 @@ vi.mock("./markets-generator", () => ({
 }));
 
 import { worldContext } from "../../../context/worldContext";
+import type { ExtensionAPI } from "../../../types/extension-api";
 import type { PackedGraph } from "../../../types/PackedGraph";
+import { clearEconomyContext, initEconomyContext } from "../economyContext";
+import "../types";
 import * as drawTrade from "../renderers/draw-trade-animation";
 import { TradeAnimationModule } from "./trade-animation";
 
@@ -53,9 +56,14 @@ function makePack(
 // ─── shared setup ───────────────────────────────────────────────────────────
 
 let ta: TradeAnimationModule;
-let layerIsOnMock: ReturnType<typeof vi.fn>;
+let layerIsOnMock: Mock<() => boolean>;
+
+afterEach(() => {
+  clearEconomyContext();
+});
 
 beforeEach(() => {
+  initEconomyContext({ worldContext } as unknown as ExtensionAPI);
   vi.clearAllMocks();
   ta = new TradeAnimationModule();
   layerIsOnMock = vi.fn(() => true);

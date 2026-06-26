@@ -1,0 +1,15 @@
+{
+  "extends": "../../../../tsconfig.json",
+  "compilerOptions": {
+    "noUnusedLocals": false
+  },
+  "exclude": [
+    "../../../../src/e2e",
+    "../../../../src/sw.ts",
+    "../../../../src/test-setup.ts"
+  ],
+  "include": [
+    "../../../../src/types/global.ts",
+    "*.test.ts"
+  ]
+}
