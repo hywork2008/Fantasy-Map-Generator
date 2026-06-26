@@ -1,8 +1,13 @@
-import {test, expect} from "@playwright/test";
-import { waitForMapGeneration } from "./helpers/fmg-helpers";
+import { test, expect } from "@playwright/test";
+import {
+  waitForMapLoad,
+  findFirstRealStateId,
+  countStatesWithNeighbor,
+  getMilitaryRegenerationResult,
+} from "./helpers/fmg-helpers";
 
 test.describe("States", () => {
-  test.beforeEach(async ({context, page}) => {
+  test.beforeEach(async ({ context, page }) => {
     await context.clearCookies();
 
     await page.goto("/");
@@ -11,84 +16,68 @@ test.describe("States", () => {
       sessionStorage.clear();
     });
 
-    // Navigate with seed parameter and wait for full load
     await page.goto("/?seed=test-states&width=1280&height=720");
-
-    // Wait for map generation to complete
-    await waitForMapGeneration(page);
-
-    // Additional wait for any rendering/animations to settle
-    await page.waitForTimeout(500);
+    await waitForMapLoad(page);
   });
 
-  test("removing a state via UI should allow military regeneration without errors", async ({page}) => {
-    // First click the options trigger (►) to open the menu
+  test("removing a state via UI should allow military regeneration without errors", async ({
+    page,
+  }) => {
     await page.click("#optionsTrigger");
-    await page.waitForTimeout(300);
+    await page.waitForSelector("#options", { state: "visible" });
 
-    // Open the Tools tab
     await page.click("#toolsTab");
-    await page.waitForTimeout(200);
+    await page.waitForSelector("#toolsContent", { state: "visible" });
 
-    // Click "States" button to open States Editor
     await page.click("#editStatesButton");
-    await page.waitForSelector("#statesEditor", {state: "visible", timeout: 5000});
-    await page.waitForTimeout(300);
+    await page.waitForSelector("#statesEditor", { state: "visible", timeout: 5000 });
 
-    // Find a real state row (id > 0; id=0 is neutral and has no trash icon)
-    const stateId = await page.evaluate(() => {
-      const rows = Array.from(document.querySelectorAll("#statesBodySection > div[data-id]")) as HTMLElement[];
-      const realState = rows.find(row => parseInt(row.dataset.id!, 10) > 0);
-      return realState ? parseInt(realState.dataset.id!, 10) : null;
-    });
-
+    const stateId = await findFirstRealStateId(page);
     expect(stateId).not.toBeNull();
 
-    // Dispatch a click directly on the trash icon (hidden by default via CSS)
-    // to trigger the state removal prompt via event delegation
-    await page.evaluate((id: number) => {
-      const row = document.querySelector(`#statesBodySection > div[data-id="${id}"]`);
-      const trashIcon = row?.querySelector(".icon-trash-empty");
-      trashIcon?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
-    }, stateId!);
+    // Dispatch a click on the trash icon (hidden by CSS) to trigger state removal.
+    // force:true bypasses the visibility check so we can click the hidden element.
+    await page
+      .locator(`#statesBodySection > div[data-id="${stateId}"] .icon-trash-empty`)
+      .click({ force: true });
 
-    // Wait for the "Remove" button in the confirmation dialog to become visible.
-    // NOTE: waitForSelector checks the FIRST matching element; use locator+expect instead
-    // so it finds any visible ".fmg-dialog-button" containing "Remove".
-    const removeButton = page.locator('.fmg-dialog-button', {hasText: "Remove"});
-    await expect(removeButton).toBeVisible({timeout: 5000});
+    const removeButton = page.locator(".fmg-dialog-button", { hasText: "Remove" });
+    await expect(removeButton).toBeVisible({ timeout: 5000 });
     await removeButton.click();
-    await page.waitForTimeout(500);
 
-    // Verify the state is no longer in neighbors of any other state
-    const neighborsAfter = await page.evaluate((id: number) => {
-      const {states} = window.fmg.world.pack;
-      return states.filter((s: any) => s.i && !s.removed && s.neighbors && s.neighbors.includes(id)).length;
-    }, stateId!);
+    // Wait for the state row to disappear from the editor
+    await page.waitForFunction(
+      (id: number | null) =>
+        !document.querySelector(`#statesBodySection > div[data-id="${id}"]`),
+      stateId,
+      { timeout: 5000 }
+    );
 
+    const neighborsAfter = await countStatesWithNeighbor(page, stateId!);
     expect(neighborsAfter).toBe(0);
 
-    // Close the States Editor - the close button is in the React dialog
     await page.click(".fmg-dialog:has(#statesEditor) .fmg-dialog-close");
-    await page.waitForTimeout(200);
+    await page.waitForSelector("#statesEditor", { state: "hidden" });
 
-    // Now click "Military" regenerate button and verify no errors
     await page.click("#regenerateMilitary");
-    await page.waitForTimeout(1000);
+    // Wait for any confirmation dialog to appear and confirm, or wait for completion
+    const confirmBtn = page.locator(".fmg-dialog-button", { hasText: /yes|confirm/i });
+    const appeared = await confirmBtn.isVisible({ timeout: 1500 }).catch(() => false);
+    if (appeared) await confirmBtn.click();
 
-    // Verify military was regenerated without throwing
-    const militaryResult = await page.evaluate(() => {
-      const {states} = window.fmg.world.pack;
-      const validStates = states.filter((s: any) => s.i && !s.removed);
-      // Check that at least some states have military data
-      return {
-        statesCount: validStates.length,
-        statesWithMilitary: validStates.filter((s: any) => s.military && s.military.length > 0).length
-      };
-    });
+    // Allow military regeneration to process
+    await page.waitForFunction(
+      () => {
+        const { states } = window.fmg.world.pack as {
+          states: Array<{ i: number; removed?: boolean }>;
+        };
+        return states.some((s) => s.i && !s.removed);
+      },
+      { timeout: 5000 }
+    );
 
+    const militaryResult = await getMilitaryRegenerationResult(page);
     expect(militaryResult.statesCount).toBeGreaterThan(0);
-    // At least some states should have military
     expect(militaryResult.statesWithMilitary).toBeGreaterThanOrEqual(0);
   });
 });

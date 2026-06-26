@@ -1,5 +1,11 @@
-import { test, expect, Page } from "@playwright/test";
-import { waitForMapGeneration } from "./helpers/fmg-helpers";
+import { test, expect } from "@playwright/test";
+import {
+  waitForMapLoad,
+  getTourPopoverTitle,
+  tourNextStep,
+  tourPrevStep,
+  tourAdvanceSteps,
+} from "./helpers/fmg-helpers";
 
 // Tour step titles in order — used to verify we're on the right step.
 const STEP_TITLES = [
@@ -27,44 +33,6 @@ const STEP_TITLES = [
   "Save and Load Maps",                // 21
 ];
 
-async function waitForMapLoad(page: Page) {
-  await waitForMapGeneration(page);
-  await page.waitForTimeout(500);
-}
-
-async function popoverTitle(page: Page): Promise<string> {
-  return (await page.locator(".driver-popover-title").innerText()).trim();
-}
-
-/** Click Next and wait for the popover title to become expectedTitle. */
-async function nextStep(page: Page, expectedTitle: string) {
-  await page.locator(".driver-popover-next-btn").click();
-  await page.waitForFunction(
-    (title: string) => document.querySelector(".driver-popover-title")?.textContent?.trim() === title,
-    expectedTitle,
-    { timeout: 5000 },
-  );
-}
-
-/** Click Previous and wait for the popover title to become expectedTitle. */
-async function prevStep(page: Page, expectedTitle: string) {
-  await page.locator(".driver-popover-prev-btn").click();
-  await page.waitForFunction(
-    (title: string) => document.querySelector(".driver-popover-title")?.textContent?.trim() === title,
-    expectedTitle,
-    { timeout: 5000 },
-  );
-}
-
-/** Click Next N times with a fixed delay — used for bulk advancing where we
- *  don't need to assert intermediate titles. */
-async function advanceSteps(page: Page, count: number) {
-  for (let i = 0; i < count; i++) {
-    await page.locator(".driver-popover-next-btn").click();
-    await page.waitForTimeout(400);
-  }
-}
-
 test.describe("UI Tour", () => {
   test.beforeEach(async ({ context, page }) => {
     await context.clearCookies();
@@ -83,7 +51,7 @@ test.describe("UI Tour", () => {
     const ok = await page.evaluate(
       () =>
         typeof window.fmg.actions.UITour === "object" &&
-        typeof window.fmg.actions.UITour.start === "function",
+        typeof window.fmg.actions.UITour.start === "function"
     );
     expect(ok).toBe(true);
   });
@@ -103,20 +71,15 @@ test.describe("UI Tour", () => {
   test("starting the tour closes options panel and shows first step", async ({
     page,
   }) => {
-    // Open options panel first, then verify the tour closes it.
     await page.locator("#optionsTrigger").click();
     await expect(page.locator("#options")).toBeVisible();
 
+    // UITour.start() is a setup action permitted by AGENTS.md §5
     await page.evaluate(() => window.fmg.actions.UITour.start());
     await page.waitForSelector(".driver-popover", { state: "visible" });
 
-    // driver.js marks body with driver-active while tour is running.
     await expect(page.locator("body")).toHaveClass(/driver-active/);
-
-    // First step.
-    expect(await popoverTitle(page)).toBe(STEP_TITLES[0]);
-
-    // Tour start should close the options panel.
+    expect(await getTourPopoverTitle(page)).toBe(STEP_TITLES[0]);
     await expect(page.locator("#options")).toBeHidden();
   });
 
@@ -128,15 +91,13 @@ test.describe("UI Tour", () => {
     await page.evaluate(() => window.fmg.actions.UITour.start());
     await page.waitForSelector(".driver-popover", { state: "visible" });
 
-    await nextStep(page, STEP_TITLES[1]); // → Navigate the Map
-    await nextStep(page, STEP_TITLES[2]); // → Hover Tooltips
+    await tourNextStep(page, STEP_TITLES[1]); // → Navigate the Map
+    await tourNextStep(page, STEP_TITLES[2]); // → Hover Tooltips
 
-    // free-roam class disables driver.js overlay so map hover events fire.
     await expect(page.locator("body")).toHaveClass(/tour-free-roam/);
 
-    await nextStep(page, STEP_TITLES[3]); // → Open the Options Menu
+    await tourNextStep(page, STEP_TITLES[3]); // → Open the Options Menu
 
-    // onHighlightStarted on the options trigger step removes the class synchronously.
     await expect(page.locator("body")).not.toHaveClass(/tour-free-roam/);
   });
 
@@ -148,15 +109,13 @@ test.describe("UI Tour", () => {
     await page.evaluate(() => window.fmg.actions.UITour.start());
     await page.waitForSelector(".driver-popover", { state: "visible" });
 
-    await nextStep(page, STEP_TITLES[1]); // Navigate
-    await nextStep(page, STEP_TITLES[2]); // Tooltip
-    await nextStep(page, STEP_TITLES[3]); // Open the Options Menu
+    await tourNextStep(page, STEP_TITLES[1]); // Navigate
+    await tourNextStep(page, STEP_TITLES[2]); // Tooltip
+    await tourNextStep(page, STEP_TITLES[3]); // Open the Options Menu
 
-    // Panel is still closed while on the trigger step itself.
     await expect(page.locator("#options")).toBeHidden();
 
-    // Clicking Next triggers openOptionsPanel() then moveNext().
-    await nextStep(page, STEP_TITLES[4]); // → Layers Tab
+    await tourNextStep(page, STEP_TITLES[4]); // → Layers Tab
 
     await expect(page.locator("#options")).toBeVisible();
   });
@@ -167,9 +126,8 @@ test.describe("UI Tour", () => {
     await page.evaluate(() => window.fmg.actions.UITour.start());
     await page.waitForSelector(".driver-popover", { state: "visible" });
 
-    // Advance to Layers Tab (step index 4 → 4 clicks).
-    await advanceSteps(page, 4);
-    expect(await popoverTitle(page)).toBe(STEP_TITLES[4]);
+    await tourAdvanceSteps(page, 4);
+    expect(await getTourPopoverTitle(page)).toBe(STEP_TITLES[4]);
 
     await expect(page.locator("#layersContent")).toBeVisible();
   });
@@ -178,9 +136,8 @@ test.describe("UI Tour", () => {
     await page.evaluate(() => window.fmg.actions.UITour.start());
     await page.waitForSelector(".driver-popover", { state: "visible" });
 
-    // Advance to Style Tab (step index 7 → 7 clicks).
-    await advanceSteps(page, 7);
-    expect(await popoverTitle(page)).toBe(STEP_TITLES[7]);
+    await tourAdvanceSteps(page, 7);
+    expect(await getTourPopoverTitle(page)).toBe(STEP_TITLES[7]);
 
     await expect(page.locator("#styleContent")).toBeVisible();
   });
@@ -189,71 +146,79 @@ test.describe("UI Tour", () => {
     await page.evaluate(() => window.fmg.actions.UITour.start());
     await page.waitForSelector(".driver-popover", { state: "visible" });
 
-    // Advance to Options Tab (step index 10 → 10 clicks).
-    await advanceSteps(page, 10);
-    expect(await popoverTitle(page)).toBe(STEP_TITLES[10]);
+    await tourAdvanceSteps(page, 10);
+    expect(await getTourPopoverTitle(page)).toBe(STEP_TITLES[10]);
 
     await expect(page.locator("#optionsTabContent")).toBeVisible();
   });
 
-  test("layers tab remains active on Layer Presets and Toggle Individual Layers steps", async ({ page }) => {
+  test("layers tab remains active on Layer Presets and Toggle Individual Layers steps", async ({
+    page,
+  }) => {
     await page.evaluate(() => window.fmg.actions.UITour.start());
     await page.waitForSelector(".driver-popover", { state: "visible" });
 
-    await advanceSteps(page, 5);
-    expect(await popoverTitle(page)).toBe(STEP_TITLES[5]);
+    await tourAdvanceSteps(page, 5);
+    expect(await getTourPopoverTitle(page)).toBe(STEP_TITLES[5]);
     await expect(page.locator("#layersContent")).toBeVisible();
 
-    await nextStep(page, STEP_TITLES[6]);
+    await tourNextStep(page, STEP_TITLES[6]);
     await expect(page.locator("#layersContent")).toBeVisible();
   });
 
-  test("style tab remains active on Style Presets and Individual Style Settings steps", async ({ page }) => {
+  test("style tab remains active on Style Presets and Individual Style Settings steps", async ({
+    page,
+  }) => {
     await page.evaluate(() => window.fmg.actions.UITour.start());
     await page.waitForSelector(".driver-popover", { state: "visible" });
 
-    await advanceSteps(page, 8);
-    expect(await popoverTitle(page)).toBe(STEP_TITLES[8]);
+    await tourAdvanceSteps(page, 8);
+    expect(await getTourPopoverTitle(page)).toBe(STEP_TITLES[8]);
     await expect(page.locator("#styleContent")).toBeVisible();
 
-    await nextStep(page, STEP_TITLES[9]);
+    await tourNextStep(page, STEP_TITLES[9]);
     await expect(page.locator("#styleContent")).toBeVisible();
   });
 
-  test("options tab remains active on Generation Options and Configure World steps", async ({ page }) => {
+  test("options tab remains active on Generation Options and Configure World steps", async ({
+    page,
+  }) => {
     await page.evaluate(() => window.fmg.actions.UITour.start());
     await page.waitForSelector(".driver-popover", { state: "visible" });
 
-    await advanceSteps(page, 11);
-    expect(await popoverTitle(page)).toBe(STEP_TITLES[11]);
+    await tourAdvanceSteps(page, 11);
+    expect(await getTourPopoverTitle(page)).toBe(STEP_TITLES[11]);
     await expect(page.locator("#optionsTabContent")).toBeVisible();
 
-    await nextStep(page, STEP_TITLES[12]);
+    await tourNextStep(page, STEP_TITLES[12]);
     await expect(page.locator("#optionsTabContent")).toBeVisible();
   });
 
-  test("tools tab content is visible on Tools Tab and Edit the Heightmap steps", async ({ page }) => {
+  test("tools tab content is visible on Tools Tab and Edit the Heightmap steps", async ({
+    page,
+  }) => {
     await page.evaluate(() => window.fmg.actions.UITour.start());
     await page.waitForSelector(".driver-popover", { state: "visible" });
 
-    // advanceSteps(14): click 14 fires World Configurator's onNextClick (closeDialogs + clickTab toolsTab).
-    await advanceSteps(page, 14);
-    expect(await popoverTitle(page)).toBe(STEP_TITLES[14]);
+    await tourAdvanceSteps(page, 14);
+    expect(await getTourPopoverTitle(page)).toBe(STEP_TITLES[14]);
     await expect(page.locator("#toolsContent")).toBeVisible();
 
-    await nextStep(page, STEP_TITLES[15]);
+    await tourNextStep(page, STEP_TITLES[15]);
     await expect(page.locator("#toolsContent")).toBeVisible();
   });
 
-  test("about tab content is visible on About Tab and About & Resources steps", async ({ page }) => {
+  test("about tab content is visible on About Tab and About & Resources steps", async ({
+    page,
+  }) => {
     await page.evaluate(() => window.fmg.actions.UITour.start());
     await page.waitForSelector(".driver-popover", { state: "visible" });
 
-    await advanceSteps(page, 17);
-    expect(await popoverTitle(page)).toBe(STEP_TITLES[17]);
+    await tourAdvanceSteps(page, 17);
+    expect(await getTourPopoverTitle(page)).toBe(STEP_TITLES[17]);
     await expect(page.locator("#aboutContent")).toBeVisible();
 
-    await nextStep(page, STEP_TITLES[18]);
+    await tourNextStep(page, STEP_TITLES[18]);
     await expect(page.locator("#aboutContent")).toBeVisible();
   });
 
@@ -265,17 +230,13 @@ test.describe("UI Tour", () => {
     await page.evaluate(() => window.fmg.actions.UITour.start());
     await page.waitForSelector(".driver-popover", { state: "visible" });
 
-    // Advance to "Configure World" button step (index 12 → 12 clicks).
-    await advanceSteps(page, 12);
-    expect(await popoverTitle(page)).toBe(STEP_TITLES[12]);
+    await tourAdvanceSteps(page, 12);
+    expect(await getTourPopoverTitle(page)).toBe(STEP_TITLES[12]);
 
-    // Dialog not yet open.
     await expect(page.locator("#worldConfiguratorContainer")).toBeHidden();
 
-    // Clicking Next calls editWorld() then moveNext().
-    await nextStep(page, STEP_TITLES[13]);
+    await tourNextStep(page, STEP_TITLES[13]);
 
-    // Dialog must be visible and tour must be on the World Configurator step.
     await expect(page.locator("#worldConfiguratorContainer")).toBeVisible();
   });
 
@@ -285,13 +246,11 @@ test.describe("UI Tour", () => {
     await page.evaluate(() => window.fmg.actions.UITour.start());
     await page.waitForSelector(".driver-popover", { state: "visible" });
 
-    // advanceSteps(13): click 13 fires Configure World's onNextClick (editWorld + moveNext).
-    await advanceSteps(page, 13);
-    expect(await popoverTitle(page)).toBe(STEP_TITLES[13]);
+    await tourAdvanceSteps(page, 13);
+    expect(await getTourPopoverTitle(page)).toBe(STEP_TITLES[13]);
     await expect(page.locator("#worldConfiguratorContainer")).toBeVisible();
 
-    // Clicking Next fires closeDialogs() + clickTab("toolsTab") + moveNext().
-    await nextStep(page, STEP_TITLES[14]);
+    await tourNextStep(page, STEP_TITLES[14]);
 
     await expect(page.locator("#worldConfiguratorContainer")).toBeHidden();
     await expect(page.locator("#toolsContent")).toBeVisible();
@@ -305,18 +264,14 @@ test.describe("UI Tour", () => {
     await page.evaluate(() => window.fmg.actions.UITour.start());
     await page.waitForSelector(".driver-popover", { state: "visible" });
 
-    // Advance to "Edit the Heightmap" button step (index 15 → 15 clicks).
-    await advanceSteps(page, 15);
-    expect(await popoverTitle(page)).toBe(STEP_TITLES[15]);
+    await tourAdvanceSteps(page, 15);
+    expect(await getTourPopoverTitle(page)).toBe(STEP_TITLES[15]);
 
-    // Customization panel is not yet visible.
     await expect(page.locator("#customizationMenu")).toBeHidden();
 
-    // Clicking Next calls showHeightmapCustomizationPanel() then moveNext().
-    await nextStep(page, STEP_TITLES[16]);
+    await tourNextStep(page, STEP_TITLES[16]);
 
     await expect(page.locator("#customizationMenu")).toBeVisible();
-    // toolsContent should be hidden while the heightmap panel is shown.
     await expect(page.locator("#toolsContent")).toBeHidden();
   });
 
@@ -326,18 +281,13 @@ test.describe("UI Tour", () => {
     await page.evaluate(() => window.fmg.actions.UITour.start());
     await page.waitForSelector(".driver-popover", { state: "visible" });
 
-    // Get to Heightmap Editor (index 16 → 16 clicks).
-    await advanceSteps(page, 16);
-    expect(await popoverTitle(page)).toBe(STEP_TITLES[16]);
+    await tourAdvanceSteps(page, 16);
+    expect(await getTourPopoverTitle(page)).toBe(STEP_TITLES[16]);
     await expect(page.locator("#customizationMenu")).toBeVisible();
 
-    // Advance to About Tab — onDeselected hides the customization panel.
-    await nextStep(page, STEP_TITLES[17]);
+    await tourNextStep(page, STEP_TITLES[17]);
 
     await expect(page.locator("#customizationMenu")).toBeHidden();
-    // onHighlightStarted of the About Tab step calls clickTab("aboutTab"),
-    // which hides all tab content including toolsContent, so verify the
-    // about content is now active rather than toolsContent.
     await expect(page.locator("#aboutContent")).toBeVisible();
   });
 
@@ -347,149 +297,146 @@ test.describe("UI Tour", () => {
     await page.evaluate(() => window.fmg.actions.UITour.start());
     await page.waitForSelector(".driver-popover", { state: "visible" });
 
-    // Advance to "Export" button step (index 19 → 19 clicks).
-    await advanceSteps(page, 19);
-    expect(await popoverTitle(page)).toBe(STEP_TITLES[19]);
+    await tourAdvanceSteps(page, 19);
+    expect(await getTourPopoverTitle(page)).toBe(STEP_TITLES[19]);
 
     await expect(page.locator("#exportMapData")).toBeHidden();
 
-    // Clicking Next calls showExportPane() then moveNext().
-    await nextStep(page, STEP_TITLES[20]);
+    await tourNextStep(page, STEP_TITLES[20]);
 
     await expect(page.locator("#exportMapData")).toBeVisible();
   });
 
-  test("export dialog closes when advancing from Export Options step", async ({ page }) => {
+  test("export dialog closes when advancing from Export Options step", async ({
+    page,
+  }) => {
     await page.evaluate(() => window.fmg.actions.UITour.start());
     await page.waitForSelector(".driver-popover", { state: "visible" });
 
-    // advanceSteps(20): click 20 fires Export's onNextClick (showExportPane + moveNext).
-    await advanceSteps(page, 20);
-    expect(await popoverTitle(page)).toBe(STEP_TITLES[20]);
+    await tourAdvanceSteps(page, 20);
+    expect(await getTourPopoverTitle(page)).toBe(STEP_TITLES[20]);
     await expect(page.locator("#exportMapData")).toBeVisible();
 
-    // Clicking Next fires closeDialogs() + moveNext().
-    await nextStep(page, STEP_TITLES[21]);
+    await tourNextStep(page, STEP_TITLES[21]);
 
     await expect(page.locator("#exportMapData")).toBeHidden();
   });
 
   // ── Back navigation ────────────────────────────────────────────────────────
 
-  test("back to Hover Tooltips step restores tour-free-roam class", async ({ page }) => {
+  test("back to Hover Tooltips step restores tour-free-roam class", async ({
+    page,
+  }) => {
     await page.evaluate(() => window.fmg.actions.UITour.start());
     await page.waitForSelector(".driver-popover", { state: "visible" });
 
-    // Advance past Navigate the Map so tour-free-roam is added, then to Open
-    // the Options Menu where onHighlightStarted removes it.
-    await nextStep(page, STEP_TITLES[1]); // → Navigate the Map
-    await nextStep(page, STEP_TITLES[2]); // → Hover Tooltips (free-roam added by onNextClick)
-    await nextStep(page, STEP_TITLES[3]); // → Open the Options Menu (free-roam removed)
+    await tourNextStep(page, STEP_TITLES[1]);
+    await tourNextStep(page, STEP_TITLES[2]);
+    await tourNextStep(page, STEP_TITLES[3]);
     await expect(page.locator("body")).not.toHaveClass(/tour-free-roam/);
 
-    // Go back: onHighlightStarted on Hover Tooltips must re-add the class.
-    await prevStep(page, STEP_TITLES[2]);
+    await tourPrevStep(page, STEP_TITLES[2]);
     await expect(page.locator("body")).toHaveClass(/tour-free-roam/);
   });
 
-  test("back to Open the Options Menu step closes the options panel", async ({ page }) => {
+  test("back to Open the Options Menu step closes the options panel", async ({
+    page,
+  }) => {
     await page.evaluate(() => window.fmg.actions.UITour.start());
     await page.waitForSelector(".driver-popover", { state: "visible" });
 
-    // Advance to Layers Tab so the options panel is open.
-    await advanceSteps(page, 4);
-    expect(await popoverTitle(page)).toBe(STEP_TITLES[4]);
+    await tourAdvanceSteps(page, 4);
+    expect(await getTourPopoverTitle(page)).toBe(STEP_TITLES[4]);
     await expect(page.locator("#options")).toBeVisible();
 
-    // Go back to Open the Options Menu: onHighlightStarted must close the panel.
-    await prevStep(page, STEP_TITLES[3]);
+    await tourPrevStep(page, STEP_TITLES[3]);
     await expect(page.locator("#options")).toBeHidden();
   });
 
-  test("back from World Configurator to Configure World closes the dialog", async ({ page }) => {
+  test("back from World Configurator to Configure World closes the dialog", async ({
+    page,
+  }) => {
     await page.evaluate(() => window.fmg.actions.UITour.start());
     await page.waitForSelector(".driver-popover", { state: "visible" });
 
-    // Advance to World Configurator step — dialog is open.
-    await advanceSteps(page, 13);
-    expect(await popoverTitle(page)).toBe(STEP_TITLES[13]);
+    await tourAdvanceSteps(page, 13);
+    expect(await getTourPopoverTitle(page)).toBe(STEP_TITLES[13]);
     await expect(page.locator("#worldConfiguratorContainer")).toBeVisible();
 
-    // Go back: onHighlightStarted on Configure World must close the dialog.
-    await prevStep(page, STEP_TITLES[12]);
+    await tourPrevStep(page, STEP_TITLES[12]);
     await expect(page.locator("#worldConfiguratorContainer")).toBeHidden();
     await expect(page.locator("#optionsTabContent")).toBeVisible();
   });
 
-  test("back from Tools Tab to World Configurator reopens the dialog", async ({ page }) => {
+  test("back from Tools Tab to World Configurator reopens the dialog", async ({
+    page,
+  }) => {
     await page.evaluate(() => window.fmg.actions.UITour.start());
     await page.waitForSelector(".driver-popover", { state: "visible" });
 
-    // Advance to Tools Tab — World Configurator dialog is closed.
-    await advanceSteps(page, 14);
-    expect(await popoverTitle(page)).toBe(STEP_TITLES[14]);
+    await tourAdvanceSteps(page, 14);
+    expect(await getTourPopoverTitle(page)).toBe(STEP_TITLES[14]);
     await expect(page.locator("#worldConfiguratorContainer")).toBeHidden();
 
-    // Go back: onHighlightStarted on World Configurator must reopen the dialog.
-    await prevStep(page, STEP_TITLES[13]);
+    await tourPrevStep(page, STEP_TITLES[13]);
     await expect(page.locator("#worldConfiguratorContainer")).toBeVisible();
   });
 
-  test("back from About Tab to Heightmap Editor shows the customization panel", async ({ page }) => {
+  test("back from About Tab to Heightmap Editor shows the customization panel", async ({
+    page,
+  }) => {
     await page.evaluate(() => window.fmg.actions.UITour.start());
     await page.waitForSelector(".driver-popover", { state: "visible" });
 
-    // Advance to About Tab — customization panel was hidden when leaving step 16.
-    await advanceSteps(page, 17);
-    expect(await popoverTitle(page)).toBe(STEP_TITLES[17]);
+    await tourAdvanceSteps(page, 17);
+    expect(await getTourPopoverTitle(page)).toBe(STEP_TITLES[17]);
     await expect(page.locator("#customizationMenu")).toBeHidden();
 
-    // Go back: onHighlightStarted on Heightmap Editor must show the panel.
-    await prevStep(page, STEP_TITLES[16]);
+    await tourPrevStep(page, STEP_TITLES[16]);
     await expect(page.locator("#customizationMenu")).toBeVisible();
     await expect(page.locator("#toolsContent")).toBeHidden();
   });
 
-  test("back from Heightmap Editor to Edit the Heightmap hides the customization panel", async ({ page }) => {
+  test("back from Heightmap Editor to Edit the Heightmap hides the customization panel", async ({
+    page,
+  }) => {
     await page.evaluate(() => window.fmg.actions.UITour.start());
     await page.waitForSelector(".driver-popover", { state: "visible" });
 
-    // Arrive at Heightmap Editor from About Tab backward (panel visible).
-    await advanceSteps(page, 17);
-    await prevStep(page, STEP_TITLES[16]);
+    await tourAdvanceSteps(page, 17);
+    await tourPrevStep(page, STEP_TITLES[16]);
     await expect(page.locator("#customizationMenu")).toBeVisible();
 
-    // Go back one more: onDeselected on Heightmap Editor must hide the panel.
-    await prevStep(page, STEP_TITLES[15]);
+    await tourPrevStep(page, STEP_TITLES[15]);
     await expect(page.locator("#customizationMenu")).toBeHidden();
     await expect(page.locator("#toolsContent")).toBeVisible();
   });
 
-  test("back from Export Options to Export closes the export dialog", async ({ page }) => {
+  test("back from Export Options to Export closes the export dialog", async ({
+    page,
+  }) => {
     await page.evaluate(() => window.fmg.actions.UITour.start());
     await page.waitForSelector(".driver-popover", { state: "visible" });
 
-    // Advance to Export Options — export dialog is open.
-    await advanceSteps(page, 20);
-    expect(await popoverTitle(page)).toBe(STEP_TITLES[20]);
+    await tourAdvanceSteps(page, 20);
+    expect(await getTourPopoverTitle(page)).toBe(STEP_TITLES[20]);
     await expect(page.locator("#exportMapData")).toBeVisible();
 
-    // Go back: onHighlightStarted on Export must close the dialog.
-    await prevStep(page, STEP_TITLES[19]);
+    await tourPrevStep(page, STEP_TITLES[19]);
     await expect(page.locator("#exportMapData")).toBeHidden();
   });
 
-  test("back from Save and Load Maps to Export Options reopens the export dialog", async ({ page }) => {
+  test("back from Save and Load Maps to Export Options reopens the export dialog", async ({
+    page,
+  }) => {
     await page.evaluate(() => window.fmg.actions.UITour.start());
     await page.waitForSelector(".driver-popover", { state: "visible" });
 
-    // Advance to the final step — export dialog was closed by step 20's onNextClick.
-    await advanceSteps(page, 21);
-    expect(await popoverTitle(page)).toBe(STEP_TITLES[21]);
+    await tourAdvanceSteps(page, 21);
+    expect(await getTourPopoverTitle(page)).toBe(STEP_TITLES[21]);
     await expect(page.locator("#exportMapData")).toBeHidden();
 
-    // Go back: onHighlightStarted on Export Options must reopen the dialog.
-    await prevStep(page, STEP_TITLES[20]);
+    await tourPrevStep(page, STEP_TITLES[20]);
     await expect(page.locator("#exportMapData")).toBeVisible();
   });
 
@@ -501,18 +448,13 @@ test.describe("UI Tour", () => {
     await page.evaluate(() => window.fmg.actions.UITour.start());
     await page.waitForSelector(".driver-popover", { state: "visible" });
 
-    // Advance far enough that the options panel is open.
-    await advanceSteps(page, 4); // lands on Layers Tab, panel is open
+    await tourAdvanceSteps(page, 4);
     await expect(page.locator("#options")).toBeVisible();
 
-    // Click the driver.js close (×) button to cancel the tour.
     await page.locator(".driver-popover-close-btn").click();
     await page.waitForSelector(".driver-popover", { state: "hidden" });
 
-    // driver-active class should be gone.
     await expect(page.locator("body")).not.toHaveClass(/driver-active/);
-
-    // onDestroyStarted hook must close the options panel.
     await expect(page.locator("#options")).toBeHidden();
   });
 
@@ -522,12 +464,10 @@ test.describe("UI Tour", () => {
     await page.evaluate(() => window.fmg.actions.UITour.start());
     await page.waitForSelector(".driver-popover", { state: "visible" });
 
-    // advanceSteps(21): click 21 fires Export Options' onNextClick (closeDialogs + moveNext).
-    await advanceSteps(page, 21);
-    expect(await popoverTitle(page)).toBe(STEP_TITLES[21]);
+    await tourAdvanceSteps(page, 21);
+    expect(await getTourPopoverTitle(page)).toBe(STEP_TITLES[21]);
     await expect(page.locator("#options")).toBeVisible();
 
-    // Clicking Next on the last step fires tour.destroy() + closeOptionsPanel() with no moveNext.
     await page.locator(".driver-popover-next-btn").click();
     await page.waitForSelector(".driver-popover", { state: "hidden" });
 
@@ -541,14 +481,12 @@ test.describe("UI Tour", () => {
     await page.evaluate(() => window.fmg.actions.UITour.start());
     await page.waitForSelector(".driver-popover", { state: "visible" });
 
-    // Arrive at World Configurator step with dialog open.
-    await advanceSteps(page, 13);
+    await tourAdvanceSteps(page, 13);
     await expect(page.locator("#worldConfiguratorContainer")).toBeVisible();
 
     await page.locator(".driver-popover-close-btn").click();
     await page.waitForSelector(".driver-popover", { state: "hidden" });
 
-    // onDestroyStarted calls closeDialogs() then closeOptionsPanel().
     await expect(page.locator("#worldConfiguratorContainer")).toBeHidden();
     await expect(page.locator("#options")).toBeHidden();
   });
@@ -559,14 +497,12 @@ test.describe("UI Tour", () => {
     await page.evaluate(() => window.fmg.actions.UITour.start());
     await page.waitForSelector(".driver-popover", { state: "visible" });
 
-    // Arrive at Heightmap Editor step with customization panel visible.
-    await advanceSteps(page, 16);
+    await tourAdvanceSteps(page, 16);
     await expect(page.locator("#customizationMenu")).toBeVisible();
 
     await page.locator(".driver-popover-close-btn").click();
     await page.waitForSelector(".driver-popover", { state: "hidden" });
 
-    // onDestroyStarted calls hideHeightmapCustomizationPanel() then closeOptionsPanel().
     await expect(page.locator("#customizationMenu")).toBeHidden();
     await expect(page.locator("#options")).toBeHidden();
   });
@@ -579,18 +515,15 @@ test.describe("UI Tour", () => {
     await page.evaluate(() => window.fmg.actions.UITour.start());
     await page.waitForSelector(".driver-popover", { state: "visible" });
 
-    // Advance to Layers Tab step — options panel is open, Layers tab is active.
-    await advanceSteps(page, 4);
-    expect(await popoverTitle(page)).toBe(STEP_TITLES[4]);
+    await tourAdvanceSteps(page, 4);
+    expect(await getTourPopoverTitle(page)).toBe(STEP_TITLES[4]);
 
     await page.locator(".driver-popover-close-btn").click();
     await page.waitForSelector(".driver-popover", { state: "hidden" });
 
-    // Reopen the options panel.
     await page.locator("#optionsTrigger").click();
     await expect(page.locator("#options")).toBeVisible();
 
-    // Only the Layers tab content should be visible — not toolsContent.
     await expect(page.locator("#layersContent")).toBeVisible();
     await expect(page.locator("#toolsContent")).toBeHidden();
   });
@@ -601,18 +534,15 @@ test.describe("UI Tour", () => {
     await page.evaluate(() => window.fmg.actions.UITour.start());
     await page.waitForSelector(".driver-popover", { state: "visible" });
 
-    // Advance to Style Tab step — options panel is open, Style tab is active.
-    await advanceSteps(page, 7);
-    expect(await popoverTitle(page)).toBe(STEP_TITLES[7]);
+    await tourAdvanceSteps(page, 7);
+    expect(await getTourPopoverTitle(page)).toBe(STEP_TITLES[7]);
 
     await page.locator(".driver-popover-close-btn").click();
     await page.waitForSelector(".driver-popover", { state: "hidden" });
 
-    // Reopen the options panel.
     await page.locator("#optionsTrigger").click();
     await expect(page.locator("#options")).toBeVisible();
 
-    // Only the Style tab content should be visible — not toolsContent.
     await expect(page.locator("#styleContent")).toBeVisible();
     await expect(page.locator("#toolsContent")).toBeHidden();
   });
@@ -623,18 +553,15 @@ test.describe("UI Tour", () => {
     await page.evaluate(() => window.fmg.actions.UITour.start());
     await page.waitForSelector(".driver-popover", { state: "visible" });
 
-    // Advance to Options Tab step — options panel is open, Options tab is active.
-    await advanceSteps(page, 10);
-    expect(await popoverTitle(page)).toBe(STEP_TITLES[10]);
+    await tourAdvanceSteps(page, 10);
+    expect(await getTourPopoverTitle(page)).toBe(STEP_TITLES[10]);
 
     await page.locator(".driver-popover-close-btn").click();
     await page.waitForSelector(".driver-popover", { state: "hidden" });
 
-    // Reopen the options panel.
     await page.locator("#optionsTrigger").click();
     await expect(page.locator("#options")).toBeVisible();
 
-    // Only the Options tab content should be visible — not toolsContent.
     await expect(page.locator("#optionsTabContent")).toBeVisible();
     await expect(page.locator("#toolsContent")).toBeHidden();
   });

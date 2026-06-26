@@ -1,12 +1,7 @@
-import { test, expect, Page } from "@playwright/test";
-import { waitForMapGeneration } from "./helpers/fmg-helpers";
+import { test, expect } from "@playwright/test";
+import { waitForMapLoad } from "./helpers/fmg-helpers";
 
 const STORAGE_KEY = "fmg-tour-prompt-count";
-
-async function waitForMapLoad(page: Page) {
-  await waitForMapGeneration(page);
-  await page.waitForTimeout(500);
-}
 
 test.describe("Tour Prompt Button", () => {
   test.beforeEach(async ({ context, page }) => {
@@ -28,25 +23,23 @@ test.describe("Tour Prompt Button", () => {
   test("button increments the counter on first load", async ({ page }) => {
     const count = await page.evaluate(
       (key: string) => localStorage.getItem(key),
-      STORAGE_KEY,
+      STORAGE_KEY
     );
     expect(count).toBe("1");
   });
 
   test("button is visible on second and third load", async ({ page }) => {
-    // Simulate second load by setting count to 1 then reloading.
     await page.evaluate(
       (key: string) => localStorage.setItem(key, "1"),
-      STORAGE_KEY,
+      STORAGE_KEY
     );
     await page.reload();
     await waitForMapLoad(page);
     await expect(page.locator("#tourPromptButton")).toBeVisible();
 
-    // Simulate third load.
     await page.evaluate(
       (key: string) => localStorage.setItem(key, "2"),
-      STORAGE_KEY,
+      STORAGE_KEY
     );
     await page.reload();
     await waitForMapLoad(page);
@@ -56,14 +49,16 @@ test.describe("Tour Prompt Button", () => {
   test("button is hidden when counter is already at 3 or more", async ({ page }) => {
     await page.evaluate(
       (key: string) => localStorage.setItem(key, "3"),
-      STORAGE_KEY,
+      STORAGE_KEY
     );
     await page.reload();
     await waitForMapLoad(page);
     await expect(page.locator("#tourPromptButton")).toBeHidden();
   });
 
-  test("clicking the button starts the tour (driver-active class on body)", async ({ page }) => {
+  test("clicking the button starts the tour (driver-active class on body)", async ({
+    page,
+  }) => {
     const btn = page.locator("#tourPromptButton");
     await expect(btn).toBeVisible();
     await btn.click();
