@@ -5,7 +5,7 @@ import type { WorldContext } from "../context/worldContext";
 import { PopulationRenderer, ZonesRenderer } from "../renderers";
 import { getZonesEditorState, setZonesEditorState } from "../store/zonesEditorState";
 import type { Zone } from "../types/models";
-import { closeDialogs, openRichDialog } from "../ui/dialogs/dialogService";
+import { isDialogOpen, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { findAll, findCell, rn, unique } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog, downloadFile, getFileName } from "../utils/editorHelpers";
@@ -117,13 +117,14 @@ export const zonesEditorActions = {
 };
 
 export function editZones(): void {
-  closeDialogs("#zonesEditor, .stable");
+  if (isDialogOpen("zonesEditor")) return;
+
   if (!layerIsOn("toggleZones")) toggleZones();
 
   updateFilters();
   zonesEditorAddLines();
-
   setZonesEditorState({ isOpen: true });
+  openDialog("zonesEditor");
 }
 
 function updateFilters(): void {

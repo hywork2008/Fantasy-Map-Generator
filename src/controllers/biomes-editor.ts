@@ -7,14 +7,13 @@ import { Biomes } from "../generators/biomes";
 import { BiomesRenderer, ReliefIconsRenderer } from "../renderers";
 import type { BiomeRow, BiomesFooter } from "../store/biomesEditorStore";
 import { useBiomesEditorStore } from "../store/biomesEditorStore";
-import { modules } from "../store/editorState";
-import { closeDialogs, openDialog } from "../ui/dialogs/dialogService";
+import { isDialogOpen, openDialog } from "../ui/dialogs/dialogService";
 import { findAll, findCell, getRandomColor, isLand, openURL, rn, si } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { downloadFile, getFileName } from "../utils/editorHelpers";
 import { getPackPolygon } from "../utils/graphUtils";
 import { layerIsOn } from "../utils/nodeUtils";
-import { clearMainTip, fitContent, getArea, getAreaUnit, showMainTip, tip } from "../utils/uiHelpers";
+import { clearMainTip, getArea, getAreaUnit, showMainTip, tip } from "../utils/uiHelpers";
 import { toggleBiomes, toggleCultures, toggleProvinces, toggleRelief, toggleReligions, toggleStates } from "./layers";
 import { editStyle } from "./style";
 
@@ -24,7 +23,8 @@ let appServices: AppServices;
 
 export function editBiomes(): void {
   if (viewContext.customization) return;
-  closeDialogs("#biomesEditor, .stable");
+  if (isDialogOpen("biomesEditor")) return;
+
   if (!layerIsOn("toggleBiomes")) toggleBiomes();
   if (layerIsOn("toggleStates")) toggleStates();
   if (layerIsOn("toggleCultures")) toggleCultures();
@@ -33,15 +33,7 @@ export function editBiomes(): void {
 
   biomesRefresh();
 
-  if (modules.editBiomes) return;
-  modules.editBiomes = true;
-
-  openDialog("biomesEditor", {
-    title: "Biomes Editor",
-    resizable: false,
-    width: fitContent(),
-    position: { my: "right top", at: "right-10 top+10", of: "svg" }
-  });
+  openDialog("biomesEditor");
 }
 
 export function biomesRefresh(): void {
@@ -356,7 +348,9 @@ export function biomesExitCustomization(close?: string): void {
   useBiomesEditorStore.getState().setSelectedBiomeId(null);
   EditorBus.restoreDefaultEvents();
   clearMainTip();
-  void close; // consumed by caller when closing the dialog
+  if (close === "close") {
+    // modules flag managed by CommonEditorDialog cleanup
+  }
 }
 
 export function biomesRestoreDefaults(): void {

@@ -111,8 +111,8 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
         Erase: () => enterHeightmapEditMode("erase"),
         Keep: () => enterHeightmapEditMode("keep"),
         Risk: () => enterHeightmapEditMode("risk"),
-        Cancel: function (this: Element) {
-          /* $(this).dialog("close") removed */
+        Cancel: () => {
+          modules.editHeightmap = false;
         }
       }
     });
@@ -253,6 +253,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     undo!.disabled = templateUndo.disabled = true;
 
     viewContext.customization = 0;
+    modules.editHeightmap = false;
     layersPreset.disabled = false;
     // Tell React to exit customization mode (restores normal tabs and hides CustomizationMenu)
     document.dispatchEvent(new CustomEvent("react-exit-heightmap-edit"));

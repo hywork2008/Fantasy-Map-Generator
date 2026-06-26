@@ -97,6 +97,7 @@ function closeReliefEditor(): void {
   EditorBus.unselect();
   clearMainTip();
   setReliefEditorState({ isOpen: false });
+  modules.editReliefIcon = false;
 }
 
 export const reliefEditorActions = {

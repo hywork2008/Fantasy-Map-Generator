@@ -8,8 +8,7 @@ import { worldContext } from "../context/worldContext";
 import { States } from "../generators/states-generator";
 import { StatesRenderer } from "../renderers";
 import { type DiplomacyRowData, getDiplomacyEditorState, setDiplomacyEditorState } from "../store/diplomacyEditorState";
-import { modules } from "../store/editorState";
-import { closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
+import { closeDialogs, isDialogOpen, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { findCell, getAdjective } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
 import { EditorBus } from "../utils/editorBus";
@@ -90,8 +89,7 @@ export function editDiplomacy(): void {
   viewContext.viewbox.style("cursor", "crosshair");
   interactionManager.setClickHandler(selectStateOnMapClick);
 
-  if (modules.editDiplomacy) return;
-  modules.editDiplomacy = true;
+  if (isDialogOpen("diplomacyEditor")) return;
 
   openDialog("diplomacyEditor");
 
@@ -385,6 +383,7 @@ export function editDiplomacy(): void {
     if (layerIsOn("toggleStates")) StatesRenderer.render(worldContext, viewContext, appServices);
     else toggleStates();
     viewContext.debug.selectAll(".highlight").remove();
+    // modules flag managed by CommonEditorDialog cleanup
   }
   diplomacyEditorActions.refreshDiplomacyEditor = refreshDiplomacyEditor;
   diplomacyEditorActions.selectRelation = selectRelation;

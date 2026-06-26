@@ -204,6 +204,7 @@ function closeEditor(): void {
   setRegimentEditorState({ isOpen: false, mode: "normal" });
   EditorBus.restoreDefaultEvents();
   setElSelected(null);
+  modules.editRegiment = false;
 }
 
 export function editRegiment(selectorOrEl?: string | Element): void {

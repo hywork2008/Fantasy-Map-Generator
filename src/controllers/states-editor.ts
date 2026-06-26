@@ -26,7 +26,7 @@ import { useOptionsState } from "../store/optionsState";
 import { getStatesEditorState, setStatesEditorState } from "../store/statesEditorState";
 import type { Burg, Culture, MilitaryRegiment, Province, State } from "../types/models";
 import type { WorldNote } from "../types/WorldState";
-import { closeDialogs, openRichDialog } from "../ui/dialogs/dialogService";
+import { isDialogOpen, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { findAll, findCell, getAdjective, getMixedColor, getRandomColor, isLand, P, rand, rn, si } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
 import { EditorBus } from "../utils/editorBus";
@@ -115,7 +115,8 @@ const FORM_CATEGORIES: Record<string, string> = {
 };
 
 export function open(): void {
-  closeDialogs("#statesEditor, .stable");
+  if (isDialogOpen("statesEditor")) return;
+
   if (!layerIsOn("toggleStates")) toggleStates();
   if (!layerIsOn("toggleBorders")) toggleBorders();
   if (layerIsOn("toggleCultures")) toggleCultures();
@@ -124,6 +125,7 @@ export function open(): void {
 
   setStatesEditorState({ isOpen: true, isRegenerationMenuOpen: false, customizationMode: 0 });
   refreshStatesEditor();
+  openDialog("statesEditor");
 }
 
 export function refreshStatesEditor(): void {

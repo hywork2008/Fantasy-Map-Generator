@@ -2,7 +2,7 @@ import { max as d3max, min as d3min, mean, median } from "d3";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { Names } from "../generators/names-generator";
-import { closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
+import { isDialogOpen, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { openURL, rn, unique } from "../utils";
 import { ERROR } from "../utils/debug";
 import { downloadFile, getFileName, uploadFile } from "../utils/editorHelpers";
@@ -20,82 +20,99 @@ interface ParseError {
 }
 
 class NamesbaseEditorModule {
-  private listenersAdded = false;
+  private abortController: AbortController | null = null;
 
-  init(): void {
-    // Listeners are now added lazily on first open because React might not have rendered the DOM yet.
-  }
+  init(): void {}
 
   open(): void {
     if (viewContext.customization) return;
-    closeDialogs("#namesbaseEditor, .stable");
-
-    if (!this.listenersAdded) {
-      this.addListeners();
-      this.listenersAdded = true;
-    }
-
-    this.createBasesList();
-    this.updateInputs();
+    if (isDialogOpen("namesbaseEditor")) return;
 
     openDialog("namesbaseEditor", {
       title: "Namesbase Editor",
       width: "60vw",
       position: { my: "center", at: "center", of: "svg" }
     });
+    // Content population is handled by NamesbaseEditorContent via useEffect on mount.
   }
 
-  private addListeners(): void {
+  /** Called by NamesbaseEditorContent's useEffect when the component mounts. */
+  onMount(): void {
+    this.abortController = new AbortController();
+    this.addListeners(this.abortController.signal);
+    this.createBasesList();
+    this.updateInputs();
+  }
+
+  /** Called by NamesbaseEditorContent's useEffect cleanup when the component unmounts. */
+  onUnmount(): void {
+    this.abortController?.abort();
+    this.abortController = null;
+  }
+
+  private addListeners(signal: AbortSignal): void {
     const uploader = document.getElementById("namesbaseToLoad") as HTMLInputElement;
 
-    document.getElementById("namesbaseSelect")!.addEventListener("change", () => this.updateInputs());
-    document.getElementById("namesbaseTextarea")!.addEventListener("change", () => this.updateNamesData());
-    document.getElementById("namesbaseUpdateExamples")!.addEventListener("click", () => this.updateExamples());
-    document.getElementById("namesbaseExamples")!.addEventListener("click", () => this.updateExamples());
+    document.getElementById("namesbaseSelect")!.addEventListener("change", () => this.updateInputs(), { signal });
+    document.getElementById("namesbaseTextarea")!.addEventListener("change", () => this.updateNamesData(), { signal });
+    document
+      .getElementById("namesbaseUpdateExamples")!
+      .addEventListener("click", () => this.updateExamples(), { signal });
+    document.getElementById("namesbaseExamples")!.addEventListener("click", () => this.updateExamples(), { signal });
     document
       .getElementById("namesbaseName")!
-      .addEventListener("input", e => this.updateBaseName((e.target as HTMLInputElement).value));
+      .addEventListener("input", e => this.updateBaseName((e.target as HTMLInputElement).value), { signal });
     document
       .getElementById("namesbaseMin")!
-      .addEventListener("input", e => this.updateBaseMin((e.target as HTMLInputElement).value));
+      .addEventListener("input", e => this.updateBaseMin((e.target as HTMLInputElement).value), { signal });
     document
       .getElementById("namesbaseMax")!
-      .addEventListener("input", e => this.updateBaseMax((e.target as HTMLInputElement).value));
+      .addEventListener("input", e => this.updateBaseMax((e.target as HTMLInputElement).value), { signal });
     document
       .getElementById("namesbaseDouble")!
-      .addEventListener("input", e => this.updateBaseDuplication((e.target as HTMLInputElement).value));
-    document.getElementById("namesbaseAdd")!.addEventListener("click", () => this.namesbaseAdd());
-    document.getElementById("namesbaseAnalyze")!.addEventListener("click", () => this.analyzeNamesbase());
-    document.getElementById("namesbaseDefault")!.addEventListener("click", () => this.namesbaseRestoreDefault());
-    document.getElementById("namesbaseDownload")!.addEventListener("click", () => this.namesbaseDownload());
-    document.getElementById("namesbaseUpload")!.addEventListener("click", () => {
-      uploader.addEventListener(
-        "change",
-        e => uploadFile(e.target as HTMLInputElement, d => this.namesbaseUpload(d, true)),
-        {
-          once: true
-        }
-      );
-      uploader.click();
-    });
-    document.getElementById("namesbaseUploadExtend")!.addEventListener("click", () => {
-      uploader.addEventListener(
-        "change",
-        e => uploadFile(e.target as HTMLInputElement, d => this.namesbaseUpload(d, false)),
-        {
-          once: true
-        }
-      );
-      uploader.click();
-    });
+      .addEventListener("input", e => this.updateBaseDuplication((e.target as HTMLInputElement).value), { signal });
+    document.getElementById("namesbaseAdd")!.addEventListener("click", () => this.namesbaseAdd(), { signal });
+    document.getElementById("namesbaseAnalyze")!.addEventListener("click", () => this.analyzeNamesbase(), { signal });
+    document
+      .getElementById("namesbaseDefault")!
+      .addEventListener("click", () => this.namesbaseRestoreDefault(), { signal });
+    document.getElementById("namesbaseDownload")!.addEventListener("click", () => this.namesbaseDownload(), { signal });
+    document.getElementById("namesbaseUpload")!.addEventListener(
+      "click",
+      () => {
+        uploader.addEventListener(
+          "change",
+          e => uploadFile(e.target as HTMLInputElement, d => this.namesbaseUpload(d, true)),
+          { once: true }
+        );
+        uploader.click();
+      },
+      { signal }
+    );
+    document.getElementById("namesbaseUploadExtend")!.addEventListener(
+      "click",
+      () => {
+        uploader.addEventListener(
+          "change",
+          e => uploadFile(e.target as HTMLInputElement, d => this.namesbaseUpload(d, false)),
+          { once: true }
+        );
+        uploader.click();
+      },
+      { signal }
+    );
     document
       .getElementById("namesbaseCA")!
-      .addEventListener("click", () =>
-        openURL("https://cartographyassets.com/asset-category/specific-assets/azgaars-generator/namebases/")
+      .addEventListener(
+        "click",
+        () => openURL("https://cartographyassets.com/asset-category/specific-assets/azgaars-generator/namebases/"),
+        { signal }
       );
     document
       .getElementById("namesbaseSpeak")!
-      .addEventListener("click", () => speak(document.getElementById("namesbaseExamples")!.textContent ?? ""));
+      .addEventListener("click", () => speak(document.getElementById("namesbaseExamples")!.textContent ?? ""), {
+        signal
+      });
   }
 
   private createBasesList(): void {

@@ -368,6 +368,7 @@ function drawRoutePreview(): void {
 export const routesEditorActions = {
   closeRouteEditor(): void {
     setRoutesEditorState({ isOpen: false });
+    modules.editRoute = false;
     viewContext.debug.select("#controlPoints").remove();
     viewContext.debug.select("#controlCells").remove();
 

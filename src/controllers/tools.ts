@@ -43,13 +43,13 @@ import {
 import { COArenderer } from "../renderers/emblem-renderer";
 import { appendMarkerToLayer } from "../renderers/index";
 import { useBurgsOverviewState } from "../store/burgsOverviewState";
-import { elSelected } from "../store/editorState";
+import { elSelected, modules } from "../store/editorState";
 import { useOptionsState } from "../store/optionsState";
 import type { MarkerConfig } from "../types/MarkerConfig";
 import type { Burg, Marker, Province, Religion, River, Route, State } from "../types/models";
 import type { WorldNote } from "../types/WorldState";
 import * as Dialogservice from "../ui/dialogs/dialogService";
-import { closeDialog, closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
+import { closeAlert, closeDialog, closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { findCell, gauss, generateSeed, getNextId, isCtrlClick, P, rn, showPrompt } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { layerIsOn } from "../utils/nodeUtils";
@@ -102,38 +102,68 @@ let appServices: AppServices;
 // ─── Tools panel event dispatcher ────────────────────────────────────────────
 
 document.addEventListener("react-tool-action", e => {
-  if (viewContext.customization) return tip("Please exit the customization mode first", false, "error");
   const button = (e as CustomEvent).detail?.action;
   if (!button) return;
 
-  if (button === "editHeightmapButton") editHeightmap();
-  else if (button === "editBiomesButton") editBiomes();
-  else if (button === "editStatesButton") EditorBus.editStates();
-  else if (button === "editProvincesButton") editProvinces?.();
-  else if (button === "editDiplomacyButton") editDiplomacy?.();
-  else if (button === "editCoastlineSettings") editCoastlineSettings();
-  else if (button === "editCulturesButton") editCultures();
-  else if (button === "editReligions") editReligions();
-  else if (button === "editEmblemButton") openEmblemEditor();
-  else if (button === "editNamesBaseButton") NamesbaseEditor.open();
-  else if (button === "editUnitsButton") editUnits();
-  else if (button === "editNotesButton") editNotes();
-  else if (button === "editZonesButton") editZones?.();
-  else if (button === "overviewChartsButton") overviewCharts();
-  else if (button === "overviewBurgsButton") overviewBurgs();
-  else if (button === "overviewRoutesButton") overviewRoutes();
-  else if (button === "overviewRiversButton") RiversOverview.overviewRivers();
-  else if (button === "overviewMilitaryButton") overviewMilitary();
-  else if (button === "overviewMarkersButton") MarkersOverview.overviewMarkers();
+  const toggleEditor = (dialogId: string, layerId: string | null, openFunc: () => void) => {
+    if (Dialogservice.isDialogOpen(dialogId)) {
+      Dialogservice.closeDialog(dialogId);
+      if (layerId && layerIsOn(layerId)) {
+        document.getElementById(layerId)?.click();
+      }
+    } else {
+      openFunc();
+    }
+  };
+
+  // Heightmap editor can toggle even during its own customization mode (customization === 1)
+  if (button === "editHeightmapButton") {
+    if (viewContext.customization === 1) {
+      // In heightmap edit mode: finalize via the Exit Customization button
+      document.getElementById("finalizeHeightmap")?.click();
+    } else if (viewContext.customization === 0) {
+      if (modules.editHeightmap) {
+        // Mode selection dialog is currently open: close it and reset state
+        modules.editHeightmap = false;
+        closeAlert();
+      } else {
+        editHeightmap();
+      }
+    } else {
+      tip("Please exit the customization mode first", false, "error");
+    }
+    return;
+  }
+
+  if (viewContext.customization) return tip("Please exit the customization mode first", false, "error");
+
+  if (button === "editBiomesButton") toggleEditor("biomesEditor", "toggleBiomes", editBiomes);
+  else if (button === "editStatesButton") toggleEditor("statesEditor", "toggleStates", EditorBus.editStates);
+  else if (button === "editProvincesButton") toggleEditor("provincesEditor", "toggleProvinces", editProvinces!);
+  else if (button === "editDiplomacyButton") toggleEditor("diplomacyEditor", "toggleStates", editDiplomacy!);
+  else if (button === "editCoastlineSettings") toggleEditor("coastlineSettingsDialog", null, editCoastlineSettings);
+  else if (button === "editCulturesButton") toggleEditor("culturesEditor", "toggleCultures", editCultures);
+  else if (button === "editReligions") toggleEditor("religionsEditor", "toggleReligions", editReligions);
+  else if (button === "editEmblemButton") toggleEditor("emblemEditor", "toggleEmblems", openEmblemEditor);
+  else if (button === "editNamesBaseButton") toggleEditor("namesbaseEditor", null, NamesbaseEditor.open);
+  else if (button === "editUnitsButton") toggleEditor("unitsEditor", "toggleMilitary", editUnits);
+  else if (button === "editNotesButton") toggleEditor("notesEditor", null, editNotes);
+  else if (button === "editZonesButton") toggleEditor("zonesEditor", "toggleZones", editZones!);
+  else if (button === "overviewChartsButton") toggleEditor("chartsOverview", null, overviewCharts);
+  else if (button === "overviewBurgsButton") toggleEditor("burgsOverview", "toggleBurgIcons", overviewBurgs);
+  else if (button === "overviewRoutesButton") toggleEditor("routesOverview", "toggleRoutes", overviewRoutes);
+  else if (button === "overviewRiversButton")
+    toggleEditor("riversOverview", "toggleRivers", RiversOverview.overviewRivers);
+  else if (button === "overviewMilitaryButton") toggleEditor("militaryOverview", "toggleMilitary", overviewMilitary);
+  else if (button === "overviewMarkersButton")
+    toggleEditor("markersOverview", "toggleMarkers", MarkersOverview.overviewMarkers);
   else if (button === "overviewCellsButton") viewCellDetails();
   else if (button === "openMinimapButton") openMinimap?.();
-  else if (button === "editGoods") {
-    Dialogservice.openDialog("goodsEditor");
-  } else if (button === "overviewMarketsButton") {
-    Dialogservice.openDialog("marketsOverview");
-  } else if (button === "editTradeAnimationButton") {
-    Dialogservice.openDialog("tradeAnimationEditor");
-  }
+  else if (button === "editGoods") toggleEditor("goodsEditor", null, () => Dialogservice.openDialog("goodsEditor"));
+  else if (button === "overviewMarketsButton")
+    toggleEditor("marketsOverview", null, () => Dialogservice.openDialog("marketsOverview"));
+  else if (button === "editTradeAnimationButton")
+    toggleEditor("tradeAnimationEditor", null, () => Dialogservice.openDialog("tradeAnimationEditor"));
 
   if (button.startsWith("regenerate")) {
     const dontAsk = sessionStorage.getItem("regenerateFeatureDontAsk");
@@ -228,6 +258,7 @@ export async function openEmblemEditor(): Promise<void> {
 
   await COArenderer.trigger(id, el.coa!);
   editEmblem?.(type, id, el);
+  openDialog("emblemEditor");
 }
 
 // ─── Regenerate functions ─────────────────────────────────────────────────────

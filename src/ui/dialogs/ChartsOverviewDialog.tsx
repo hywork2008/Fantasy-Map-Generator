@@ -53,7 +53,6 @@ const ChartFigure: React.FC<ChartFigureProps> = ({ chart, figureNo, onRemove }) 
     if (!el) return;
     el.innerHTML = "";
     el.appendChild(chart.svgElement);
-    el.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }, [chart.svgElement]);
 
   function downloadCsv(): void {
@@ -70,9 +69,17 @@ const ChartFigure: React.FC<ChartFigureProps> = ({ chart, figureNo, onRemove }) 
   }
 
   return (
-    <figure style={{ margin: 0, display: "flex", flexDirection: "column", gap: "0.3em" }}>
-      <div ref={containerRef} />
-      <figcaption style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.9em" }}>
+    <figure style={{ margin: 0, display: "flex", flexDirection: "column", gap: "0.3em", minHeight: 0, height: "100%" }}>
+      <div ref={containerRef} style={{ flex: 1, minHeight: 0, overflow: "auto" }} />
+      <figcaption
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          fontSize: "0.9em",
+          flexShrink: 0
+        }}
+      >
         <div>
           <strong>Figure {figureNo}</strong>. {chart.title}
         </div>
@@ -230,12 +237,13 @@ export const ChartsOverviewDialog: React.FC = () => {
 
         <section
           style={{
-            overflow: "auto",
-            scrollBehavior: "smooth",
+            overflow: "hidden",
             display: "grid",
             gridTemplateColumns: `repeat(${viewColumns}, 1fr)`,
+            gridAutoRows: "minmax(0, 1fr)",
             gap: "1em",
-            padding: "0.5em"
+            padding: "0.5em",
+            minHeight: 0
           }}
         >
           {charts.map((chart, i) => (

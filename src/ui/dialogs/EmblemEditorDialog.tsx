@@ -1,11 +1,8 @@
 import type React from "react";
-import { closeEmblemEditor, emblemEditorActions } from "../../controllers/emblems-editor";
+import { emblemEditorActions } from "../../controllers/emblems-editor";
 import { useEmblemEditorState } from "../../store/emblemEditorState";
-import { Dialog } from "./Dialog";
-
-export const EmblemEditorDialog: React.FC = () => {
+export const EmblemEditorContent: React.FC = () => {
   const {
-    isOpen,
     targetId,
     armigerName,
     shape,
@@ -22,15 +19,8 @@ export const EmblemEditorDialog: React.FC = () => {
     downloadSize
   } = useEmblemEditorState();
 
-  if (!isOpen) return null;
-
   return (
-    <Dialog
-      isOpen={isOpen}
-      title="Edit Emblem"
-      onClose={closeEmblemEditor}
-      style={{ width: "18.2em", height: "auto", resize: "both", overflow: "hidden" }}
-    >
+    <div id="emblemEditor">
       <div id="emblemEditorContainer" style={{ display: "flex", flexDirection: "column", height: "100%" }}>
         <div>
           <svg viewBox="0 0 200 200" aria-hidden="true" style={{ width: "100%", height: "auto" }}>
@@ -383,6 +373,6 @@ export const EmblemEditorDialog: React.FC = () => {
           )}
         </div>
       </div>
-    </Dialog>
+    </div>
   );
 };
