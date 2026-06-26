@@ -137,7 +137,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     // Set the edit mode label after React has rendered the element
     requestAnimationFrame(() => {
       const editModeEl = document.getElementById("heightmapEditMode");
-      if (editModeEl) editModeEl.innerHTML = mode;
+      if (editModeEl) editModeEl.textContent = mode;
     });
 
     if (mode === "erase") {
@@ -206,10 +206,10 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
   function moveCursor(this: SVGElement, event: MouseEvent): void {
     const [x, y] = pointer(event, this);
     const cell = findGridCell(x, y, worldContext.grid);
-    heightmapInfoX.innerHTML = String(rn(x));
-    heightmapInfoY.innerHTML = String(rn(y));
-    heightmapInfoCell.innerHTML = String(cell);
-    heightmapInfoHeight.innerHTML = `${worldContext.grid.cells.h[cell]} (${getHeight(worldContext.grid.cells.h[cell])})`;
+    heightmapInfoX.textContent = String(rn(x));
+    heightmapInfoY.textContent = String(rn(y));
+    heightmapInfoCell.textContent = String(cell);
+    heightmapInfoHeight.textContent = `${worldContext.grid.cells.h[cell]} (${getHeight(worldContext.grid.cells.h[cell])})`;
     if ((tooltip as HTMLElement).dataset.main) showMainTip();
 
     const pressed = document.getElementById("brushesButtons")!.querySelector<HTMLButtonElement>("button.pressed");
@@ -1134,7 +1134,8 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
         }
         if ($elDist.value !== dist) {
           const opt = document.createElement("option");
-          opt.value = opt.innerHTML = dist;
+          opt.value = dist;
+          opt.textContent = dist;
           $elDist.add(opt);
           $elDist.value = dist;
         }
@@ -1174,7 +1175,8 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       showPrompt("Set a height interval. Avoid space, use hyphen as a separator", { default: "17-20" }, value => {
         const v = String(value);
         const opt = document.createElement("option");
-        opt.value = opt.innerHTML = v;
+        opt.value = v;
+        opt.textContent = v;
         target.add(opt);
         target.value = v;
       });
@@ -1372,8 +1374,8 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
 
     function showPalleteHeight(this: HTMLElement): void {
       const height = +this.getAttribute("data-color")!;
-      (colorsSelectValue as HTMLElement).innerHTML = String(height);
-      (colorsSelectFriendly as HTMLElement).innerHTML = getHeight(height);
+      (colorsSelectValue as HTMLElement).textContent = String(height);
+      (colorsSelectFriendly as HTMLElement).textContent = getHeight(height);
       const former = (imageConverterPalette as HTMLElement).querySelector<HTMLElement>(".hoveredColor");
       if (former) former.className = "";
       this.className = "hoveredColor";
@@ -1438,7 +1440,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
         .attr("class", "color-div")
         .on("click", colorClicked);
 
-      document.getElementById("colorsUnassignedNumber")!.innerHTML = String(colors.length);
+      document.getElementById("colorsUnassignedNumber")!.textContent = String(colors.length);
     }
 
     function mapClicked(this: SVGElement): void {
@@ -1454,7 +1456,8 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       if (selectedColor) selectedColor.classList.remove("selectedColor");
       const hoveredColor = (imageConverterPalette as HTMLElement).querySelector<HTMLElement>("div.hoveredColor");
       if (hoveredColor) hoveredColor.classList.remove("hoveredColor");
-      (colorsSelectValue as HTMLElement).innerHTML = (colorsSelectFriendly as HTMLElement).innerHTML = "0";
+      (colorsSelectValue as HTMLElement).textContent = "0";
+      (colorsSelectFriendly as HTMLElement).textContent = "0";
       if (unselect) return;
       this.classList.add("selectedColor");
       if (this.dataset.height) {
@@ -1462,8 +1465,8 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
         (imageConverterPalette as HTMLElement)
           .querySelector<HTMLElement>(`div[data-color="${h}"]`)
           ?.classList.add("hoveredColor");
-        (colorsSelectValue as HTMLElement).innerHTML = String(h);
-        (colorsSelectFriendly as HTMLElement).innerHTML = getHeight(h);
+        (colorsSelectValue as HTMLElement).textContent = String(h);
+        (colorsSelectFriendly as HTMLElement).textContent = getHeight(h);
       }
       const clr = this.getAttribute("data-color");
       viewContext.viewbox.select("#heights").selectAll("polygon.selectedCell").classed("selectedCell", false);
@@ -1489,10 +1492,10 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       if (selectedColor.parentElement?.id === "colorsUnassignedContainer") {
         (colorsAssignedContainer as HTMLElement).appendChild(selectedColor);
         (colorsAssigned as HTMLElement).style.display = "block";
-        document.getElementById("colorsUnassignedNumber")!.innerHTML = String(
+        document.getElementById("colorsUnassignedNumber")!.textContent = String(
           (colorsUnassignedContainer as HTMLElement).childElementCount - 2
         );
-        document.getElementById("colorsAssignedNumber")!.innerHTML = String(
+        document.getElementById("colorsAssignedNumber")!.textContent = String(
           (colorsAssignedContainer as HTMLElement).childElementCount - 2
         );
       }
@@ -1561,7 +1564,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
 
       (colorsAssigned as HTMLElement).style.display = "block";
       (colorsUnassigned as HTMLElement).style.display = "none";
-      document.getElementById("colorsAssignedNumber")!.innerHTML = String(
+      document.getElementById("colorsAssignedNumber")!.textContent = String(
         (colorsAssignedContainer as HTMLElement).childElementCount - 2
       );
     }
@@ -1615,7 +1618,8 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       select("#imageConverter").selectAll("div.color-div").remove();
       (colorsAssigned as HTMLElement).style.display = "none";
       (colorsUnassigned as HTMLElement).style.display = "none";
-      (colorsSelectValue as HTMLElement).innerHTML = (colorsSelectFriendly as HTMLElement).innerHTML = "0";
+      (colorsSelectValue as HTMLElement).textContent = "0";
+      (colorsSelectFriendly as HTMLElement).textContent = "0";
       viewContext.viewbox.style("cursor", "default").on(".drag", null);
       tip('Heightmap edit mode is active. Click on "Exit Customization" to finalize the heightmap', true);
       closeDialog("imageConverter");

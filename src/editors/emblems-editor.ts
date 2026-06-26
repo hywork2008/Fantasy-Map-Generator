@@ -298,8 +298,8 @@ function uploadImage(file: File, uploadType: "image" | "svg"): void {
     if (!el?.coa) return;
 
     const result = (readerEvent.target as FileReader).result as string;
-    const defsEmblems = document.getElementById("defs-emblems")!;
-    const oldEmblem = document.getElementById(targetId);
+    const defsEmblems = viewContext.defs.select<SVGGElement>("#defs-emblems").node()!;
+    const oldEmblem = viewContext.defs.select<SVGElement>(`#${targetId}`).node();
 
     let href = result;
     if (uploadType === "svg") {

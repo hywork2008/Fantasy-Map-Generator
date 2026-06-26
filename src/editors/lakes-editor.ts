@@ -195,7 +195,7 @@ export const lakeEditorActions = {
 
   changeLakeGroup(newGroup: string): void {
     const lake = getLake();
-    const groupEl = document.getElementById(newGroup);
+    const groupEl = viewContext.lakes.select<SVGGElement>(`#${newGroup}`).node();
     if (groupEl && elSelected) {
       groupEl.appendChild(elSelected.node()!);
       lake.group = newGroup;
@@ -236,8 +236,8 @@ export const lakeEditorActions = {
 
     const newGroup = oldGroup.cloneNode(false) as SVGGElement;
     newGroup.id = group;
-    document.getElementById("lakes")?.appendChild(newGroup);
-    document.getElementById(group)?.appendChild(elSelected!.node()!);
+    viewContext.lakes.node()!.appendChild(newGroup);
+    newGroup.appendChild(elSelected!.node()!);
 
     updateLakeGroups();
     getLakeEditorState().updateLakeData({ group });
@@ -260,8 +260,8 @@ export const lakeEditorActions = {
       width: "26em",
       buttons: {
         Remove: () => {
-          const freshwater = document.getElementById("freshwater");
-          const groupEl = document.getElementById(group);
+          const freshwater = viewContext.lakes.select<SVGGElement>("#freshwater").node();
+          const groupEl = viewContext.lakes.select<SVGGElement>(`#${group}`).node();
           if (groupEl && freshwater) {
             while (groupEl.childNodes.length) {
               freshwater.appendChild(groupEl.childNodes[0]);

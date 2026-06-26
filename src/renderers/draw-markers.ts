@@ -72,6 +72,18 @@ export function drawMarker(
     </svg>`;
 }
 
+export function appendMarkerToLayer(
+  markersEl: Element,
+  worldContext: Readonly<WorldContext>,
+  viewContext: Readonly<SettlementLayers & ViewState>,
+  appServices: AppServices,
+  marker: Marker,
+  rescale?: number
+): void {
+  const r = rescale ?? +(markersEl.getAttribute("rescale") ?? "1");
+  markersEl.insertAdjacentHTML("beforeend", drawMarker(worldContext, viewContext, appServices, marker, r));
+}
+
 export const MarkersRenderer: IRenderer = {
   id: "markers",
 

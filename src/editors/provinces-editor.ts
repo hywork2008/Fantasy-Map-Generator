@@ -370,8 +370,8 @@ function changePopulation(province: number): void {
   const update = () => {
     const totalNew = ruralPopEl().valueAsNumber + urbanPopEl().valueAsNumber;
     if (Number.isNaN(totalNew)) return;
-    totalPopEl().innerHTML = l(totalNew);
-    totalPopPercEl().innerHTML = String(rn((totalNew / total) * 100));
+    totalPopEl().textContent = l(totalNew);
+    totalPopPercEl().textContent = String(rn((totalNew / total) * 100));
   };
 
   openRichDialog({
@@ -594,7 +594,7 @@ function showChart(): void {
             : `Population: ${si(rural + urban)}`;
 
     const provinceInfoEl = document.getElementById("provinceInfo");
-    if (provinceInfoEl) provinceInfoEl.innerHTML = `${name}. ${state}. ${value}`;
+    if (provinceInfoEl) provinceInfoEl.textContent = `${name}. ${state}. ${value}`;
     provinceHighlightOn(d.data.i!);
   }
 
@@ -604,7 +604,7 @@ function showChart(): void {
     provinceHighlightOff(provId);
     const provinceInfoEl = document.getElementById("provinceInfo");
     if (!provinceInfoEl) return;
-    provinceInfoEl.innerHTML = "&#8205;";
+    provinceInfoEl.textContent = "​";
     const rect = (ev.target as Element).querySelector("rect");
     if (rect) rect.classList.remove("selected");
   }
@@ -629,16 +629,16 @@ function showChart(): void {
 
   function hideNonfittingLabels(): void {
     node.select<SVGTextElement>("text").each(function (d: HRNode) {
-      this.innerHTML = d.data.name ?? "";
+      this.textContent = d.data.name ?? "";
       let b = this.getBBox();
-      if (b.y + b.height > d.y1 + 1) this.innerHTML = "";
+      if (b.y + b.height > d.y1 + 1) this.textContent = "";
 
       for (let i = 0; i < 15 && b.width > 0 && b.x + b.width > d.x1; i++) {
-        if (this.innerHTML.length < 3) {
-          this.innerHTML = "";
+        if ((this.textContent ?? "").length < 3) {
+          this.textContent = "";
           break;
         }
-        this.innerHTML = `${this.innerHTML.slice(0, -2)}…`;
+        this.textContent = `${this.textContent!.slice(0, -2)}…`;
         b = this.getBBox();
       }
     });

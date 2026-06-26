@@ -138,7 +138,7 @@ function showNotes(e: MouseEvent): void {
     currentNoteId = id;
 
     document.getElementById("notes")!.style.display = "block";
-    document.getElementById("notesHeader")!.innerHTML = note.name;
+    document.getElementById("notesHeader")!.textContent = note.name;
     document.getElementById("notesBody")!.innerHTML = note.legend;
   } else if (
     !worldContext.options.pinNotes &&
@@ -146,7 +146,7 @@ function showNotes(e: MouseEvent): void {
     !(e as KeyboardEvent & MouseEvent).shiftKey
   ) {
     document.getElementById("notes")!.style.display = "none";
-    document.getElementById("notesHeader")!.innerHTML = "";
+    document.getElementById("notesHeader")!.textContent = "";
     document.getElementById("notesBody")!.innerHTML = "";
     currentNoteId = null;
   }
@@ -350,41 +350,41 @@ export function highlightEditorLine(editor: HTMLElement, id: number, timeout = 1
 
 function updateCellInfo(point: [number, number], i: number, g: number): void {
   const cells = worldContext.pack.cells;
-  infoX.innerHTML = String(rn(point[0]));
-  const x = infoX.innerHTML;
-  infoY.innerHTML = String(rn(point[1]));
-  const y = infoY.innerHTML;
+  infoX.textContent = String(rn(point[0]));
+  const x = infoX.textContent!;
+  infoY.textContent = String(rn(point[1]));
+  const y = infoY.textContent!;
   const f = cells.f[i];
-  infoLat.innerHTML = toDMS(getLatitude(+y, worldContext.mapCoordinates, worldContext.graphHeight, 4), "lat");
-  infoLon.innerHTML = toDMS(getLongitude(+x, worldContext.mapCoordinates, worldContext.graphWidth, 4), "lon");
-  infoGeozone.innerHTML = getGeozone(getLatitude(+y, worldContext.mapCoordinates, worldContext.graphHeight, 4));
+  infoLat.textContent = toDMS(getLatitude(+y, worldContext.mapCoordinates, worldContext.graphHeight, 4), "lat");
+  infoLon.textContent = toDMS(getLongitude(+x, worldContext.mapCoordinates, worldContext.graphWidth, 4), "lon");
+  infoGeozone.textContent = getGeozone(getLatitude(+y, worldContext.mapCoordinates, worldContext.graphHeight, 4));
 
-  infoCell.innerHTML = String(i);
-  infoArea.innerHTML = cells.area[i] ? `${si(getArea(cells.area[i]))} ${getAreaUnit()}` : "n/a";
-  infoElevation.innerHTML = getElevation(worldContext.pack.features[f], worldContext.pack.cells.h[i]);
-  infoDepth.innerHTML = getDepth(worldContext.pack.features[f], point);
-  infoTemp.innerHTML = convertTemperature(worldContext.grid.cells.temp[g]);
-  infoPrec.innerHTML = cells.h[i] >= 20 ? getFriendlyPrecipitation(i) : "n/a";
-  infoRiver.innerHTML = cells.h[i] >= 20 && cells.r[i] ? getRiverInfo(cells.r[i]) : "no";
-  infoState.innerHTML =
+  infoCell.textContent = String(i);
+  infoArea.textContent = cells.area[i] ? `${si(getArea(cells.area[i]))} ${getAreaUnit()}` : "n/a";
+  infoElevation.textContent = getElevation(worldContext.pack.features[f], worldContext.pack.cells.h[i]);
+  infoDepth.textContent = getDepth(worldContext.pack.features[f], point);
+  infoTemp.textContent = convertTemperature(worldContext.grid.cells.temp[g]);
+  infoPrec.textContent = cells.h[i] >= 20 ? getFriendlyPrecipitation(i) : "n/a";
+  infoRiver.textContent = cells.h[i] >= 20 && cells.r[i] ? getRiverInfo(cells.r[i]) : "no";
+  infoState.textContent =
     cells.h[i] >= 20
       ? cells.state[i]
         ? `${worldContext.pack.states[cells.state[i]].fullName} (${cells.state[i]})`
         : "neutral lands (0)"
       : "no";
-  infoProvince.innerHTML = cells.province[i]
+  infoProvince.textContent = cells.province[i]
     ? `${worldContext.pack.provinces[cells.province[i]].fullName} (${cells.province[i]})`
     : "no";
-  infoCulture.innerHTML = cells.culture[i]
+  infoCulture.textContent = cells.culture[i]
     ? `${worldContext.pack.cultures[cells.culture[i]].name} (${cells.culture[i]})`
     : "no";
-  infoReligion.innerHTML = cells.religion[i]
+  infoReligion.textContent = cells.religion[i]
     ? `${worldContext.pack.religions[cells.religion[i]].name} (${cells.religion[i]})`
     : "no";
-  infoPopulation.innerHTML = getFriendlyPopulation(i);
-  infoBurg.innerHTML = cells.burg[i] ? `${worldContext.pack.burgs[cells.burg[i]].name} (${cells.burg[i]})` : "no";
-  infoFeature.innerHTML = f ? `${worldContext.pack.features[f].group} (${f})` : "n/a";
-  infoBiome.innerHTML = worldContext.biomesData.name[cells.biome[i]];
+  infoPopulation.textContent = getFriendlyPopulation(i);
+  infoBurg.textContent = cells.burg[i] ? `${worldContext.pack.burgs[cells.burg[i]].name} (${cells.burg[i]})` : "no";
+  infoFeature.textContent = f ? `${worldContext.pack.features[f].group} (${f})` : "n/a";
+  infoBiome.textContent = worldContext.biomesData.name[cells.biome[i]];
 
   tooltipExtensions.updateCellInfo?.(point, i, g);
 }

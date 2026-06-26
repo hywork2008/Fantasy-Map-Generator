@@ -7,7 +7,7 @@ import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import { Military } from "../generators/military-generator";
 import { Names } from "../generators/names-generator";
-import { drawMarker, moveRegiment } from "../renderers/index";
+import { appendMarkerToLayer, moveRegiment } from "../renderers/index";
 import type { BattleRegimentDisplay, BattleSide } from "../store/battleScreenState";
 import { getBattleScreenState } from "../store/battleScreenState";
 import type { MilitaryRegiment } from "../types/models";
@@ -745,8 +745,7 @@ class Battle {
     {
       const marker = { i: markerI, x: this.x, y: this.y, cell: this.cell, icon: "⚔️", type: "battlefields", dy: 52 };
       worldContext.pack.markers.push(marker);
-      const markerHTML = drawMarker(worldContext, viewContext, appServices, marker);
-      (document.getElementById("markers") as HTMLElement).insertAdjacentHTML("beforeend", markerHTML);
+      appendMarkerToLayer(viewContext.markers.node()!, worldContext, viewContext, appServices, marker);
     }
 
     const getSide = (regs: BattleRegiment[], n: number) =>

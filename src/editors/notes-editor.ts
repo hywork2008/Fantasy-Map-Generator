@@ -123,7 +123,7 @@ function updateLegend(): void {
 function updateNotesBox(note: WorldNote): void {
   const header = document.getElementById("notesHeader");
   const body = document.getElementById("notesBody");
-  if (header) header.innerHTML = note.name;
+  if (header) header.textContent = note.name;
   if (body) body.innerHTML = note.legend;
 }
 

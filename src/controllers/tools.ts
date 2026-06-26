@@ -51,7 +51,7 @@ import {
   ZonesRenderer
 } from "../renderers";
 import { COArenderer } from "../renderers/emblem-renderer";
-import { drawMarker } from "../renderers/index";
+import { appendMarkerToLayer } from "../renderers/index";
 import { useBurgsOverviewState } from "../store/burgsOverviewState";
 import { elSelected } from "../store/editorState";
 import { useOptionsState } from "../store/optionsState";
@@ -1068,7 +1068,7 @@ function addMarkerOnClick(event: MouseEvent): void {
 
   const markersElement = viewContext.markers.node()!;
   const rescale = +markersElement.getAttribute("rescale")!;
-  markersElement.insertAdjacentHTML("beforeend", drawMarker(worldContext, viewContext, appServices, marker, rescale));
+  appendMarkerToLayer(markersElement, worldContext, viewContext, appServices, marker, rescale);
 
   if (!event.shiftKey) {
     document.getElementById("markerAdd")?.classList.remove("pressed");

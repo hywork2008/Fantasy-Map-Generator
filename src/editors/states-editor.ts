@@ -577,8 +577,8 @@ function changePopulation(stateId: number): void {
     if (Number.isNaN(totalNew)) return;
     const totalPopEl = document.getElementById("totalPop");
     const totalPopPercEl = document.getElementById("totalPopPerc");
-    if (totalPopEl) totalPopEl.innerHTML = format(totalNew);
-    if (totalPopPercEl) totalPopPercEl.innerHTML = String(rn((totalNew / total) * 100));
+    if (totalPopEl) totalPopEl.textContent = format(totalNew);
+    if (totalPopPercEl) totalPopPercEl.textContent = String(rn((totalNew / total) * 100));
   };
 
   getRuralPop().oninput = () => update();
@@ -820,7 +820,7 @@ function showStatesChart(): void {
               ? `Burgs number: ${d.data.burgs}`
               : `Population: ${si(rural + urban)}`;
 
-    document.getElementById("statesInfo")!.innerHTML = `${state}. ${value}`;
+    document.getElementById("statesInfo")!.textContent = `${state}. ${value}`;
     stateHighlightOn(ev);
   }
 
@@ -828,7 +828,7 @@ function showStatesChart(): void {
     stateHighlightOff();
     const statesInfoEl = document.getElementById("statesInfo");
     if (!statesInfoEl) return;
-    statesInfoEl.innerHTML = "&#8205;";
+    statesInfoEl.textContent = "​";
     const circle = (ev.target as Element).querySelector("circle");
     if (circle) circle.classList.remove("selected");
   }
@@ -1292,7 +1292,7 @@ function openStateMergeDialog(): void {
 
 function mergeStates(statesToMerge: number[], rulingStateId: number): void {
   const rulingState = worldContext.pack.states[rulingStateId] as State;
-  const rulingStateArmy = document.getElementById(`army${rulingStateId}`)!;
+  const rulingStateArmy = viewContext.armies.select<SVGGElement>(`#army${rulingStateId}`).node()!;
 
   statesToMerge.forEach((stateId: number) => {
     const state = worldContext.pack.states[stateId] as State;
@@ -1317,7 +1317,7 @@ function mergeStates(statesToMerge: number[], rulingStateId: number): void {
       const note = (worldContext.notes as WorldNote[]).find(n => n.id === oldId);
       if (note) note.id = newId;
 
-      const element = document.getElementById(oldId);
+      const element = viewContext.armies.select<SVGGElement>(`#${oldId}`).node();
       if (element) {
         element.id = newId;
         element.dataset.state = String(rulingStateId);

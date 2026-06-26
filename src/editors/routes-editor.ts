@@ -394,7 +394,7 @@ export const routesEditorActions = {
   },
 
   changeGroup(group: string): void {
-    document.getElementById(group)!.appendChild(elSelected!.node()!);
+    viewContext.routes.select<SVGGElement>(`#${group}`).node()!.appendChild(elSelected!.node()!);
     getRoute().group = group;
     setRoutesEditorState({ routeGroup: group });
   },

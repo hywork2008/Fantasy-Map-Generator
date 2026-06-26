@@ -444,8 +444,8 @@ function changePopulation(zone: Zone): void {
   const update = () => {
     const totalNew = ruralPopEl.valueAsNumber + urbanPopEl.valueAsNumber;
     if (Number.isNaN(totalNew)) return;
-    totalPopEl.innerHTML = l(totalNew);
-    totalPopPercEl.innerHTML = String(rn((totalNew / total) * 100));
+    totalPopEl.textContent = l(totalNew);
+    totalPopPercEl.textContent = String(rn((totalNew / total) * 100));
   };
 
   ruralPopEl.oninput = () => update();

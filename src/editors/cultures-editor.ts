@@ -358,8 +358,8 @@ export const culturesEditorActions = {
           if (Number.isNaN(totalNew)) return;
           const totalPopEl = document.getElementById("totalPop");
           const totalPopPercEl = document.getElementById("totalPopPerc");
-          if (totalPopEl) totalPopEl.innerHTML = format(totalNew);
-          if (totalPopPercEl) totalPopPercEl.innerHTML = String(rn((totalNew / total) * 100));
+          if (totalPopEl) totalPopEl.textContent = format(totalNew);
+          if (totalPopPercEl) totalPopPercEl.textContent = String(rn((totalNew / total) * 100));
         };
         getRuralPop().oninput = update;
         getUrbanPop().oninput = update;

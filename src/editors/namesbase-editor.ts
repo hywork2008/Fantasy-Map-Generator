@@ -133,7 +133,7 @@ class NamesbaseEditorModule {
       if (i) examples += ", ";
       examples += example;
     }
-    document.getElementById("namesbaseExamples")!.innerHTML = examples;
+    document.getElementById("namesbaseExamples")!.textContent = examples;
   }
 
   private updateNamesData(): void {
@@ -153,7 +153,7 @@ class NamesbaseEditorModule {
     const select = document.getElementById("namesbaseSelect") as HTMLSelectElement;
     const base = +select.value;
     const name = rawName.replace(/[/|]/g, "");
-    select.options[select.selectedIndex].innerHTML = name;
+    select.options[select.selectedIndex].textContent = name;
     worldContext.nameBases[base].name = name;
   }
 

@@ -291,7 +291,7 @@ export const coastlineEditorActions = {
   },
 
   changeGroup: (newGroup: string) => {
-    document.getElementById(newGroup)!.appendChild(elSelected!.node()!);
+    viewContext.coastline.select<SVGGElement>(`#${newGroup}`).node()!.appendChild(elSelected!.node()!);
     updateCoastlineFeatureData();
   },
 
@@ -342,7 +342,7 @@ export const coastlineEditorActions = {
       const newGroup = (elSelected!.node()!.parentNode as Element).cloneNode(false) as SVGGElement;
       viewContext.coastline.node()!.appendChild(newGroup);
       newGroup.id = group;
-      document.getElementById(group)!.appendChild(elSelected!.node()!);
+      newGroup.appendChild(elSelected!.node()!);
       getCoastlineEditorState().setFeatureData({ isNewGroupInputVisible: false, newGroupName: "" });
       updateCoastlineFeatureData();
     });
@@ -364,8 +364,8 @@ export const coastlineEditorActions = {
       width: "26em",
       buttons: {
         Remove: () => {
-          const sea = document.getElementById("sea_island")!;
-          const groupEl = document.getElementById(group)!;
+          const sea = viewContext.coastline.select<SVGGElement>("#sea_island").node()!;
+          const groupEl = viewContext.coastline.select<SVGGElement>(`#${group}`).node()!;
           while (groupEl.childNodes.length) {
             sea.appendChild(groupEl.childNodes[0]);
           }

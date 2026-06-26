@@ -180,7 +180,7 @@ function toggleSection(section: LabelEditorSection): void {
 }
 
 function changeGroup(newGroup: string): void {
-  document.getElementById(newGroup)!.appendChild(elSelected!.node()!);
+  viewContext.labels.select<SVGGElement>(`#${newGroup}`).node()!.appendChild(elSelected!.node()!);
   setLabelsEditorState({ group: newGroup });
 }
 
@@ -225,7 +225,7 @@ function createNewGroup(): void {
     const newGroup = elSelected!.node()!.parentNode!.cloneNode(false) as SVGGElement;
     viewContext.labels.node()!.appendChild(newGroup);
     newGroup.id = groupName;
-    document.getElementById(groupName)!.appendChild(elSelected!.node()!);
+    newGroup.appendChild(elSelected!.node()!);
     groupOptions = [...groupOptions, groupName];
   }
 

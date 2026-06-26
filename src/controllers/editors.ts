@@ -91,6 +91,7 @@ export function unselect(): void {
 export { closeDialogs };
 
 // ─── Brush circle ──────────────────────────────────────────────────────────
+// drag-feedback: direct SVG manipulation intentional for perf — called on every mousemove
 
 export function moveCircle(x: number, y: number, r = 20): void {
   const circle = document.getElementById("brushCircle");

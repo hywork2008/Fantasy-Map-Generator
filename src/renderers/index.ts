@@ -10,7 +10,7 @@ export { FeaturesRenderer, getFeaturePath } from "./draw-features";
 export { GridRenderer } from "./draw-grid";
 export { HeightmapRenderer } from "./draw-heightmap";
 export { IceRenderer, redrawGlacier, redrawIceberg } from "./draw-ice";
-export { drawMarker, getPin, MarkersRenderer } from "./draw-markers";
+export { appendMarkerToLayer, drawMarker, getPin, MarkersRenderer } from "./draw-markers";
 export { drawRegiment, drawRegiments, MilitaryRenderer, moveRegiment } from "./draw-military";
 export { PopulationRenderer } from "./draw-population";
 export { PrecipitationRenderer } from "./draw-precipitation";
