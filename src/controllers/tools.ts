@@ -63,6 +63,7 @@ import { editEmblem } from "./emblems-editor";
 import { editHeightmap } from "./heightmap-editor";
 import { interactionManager } from "./interactionManager";
 import {
+  getToolActionHandler,
   toggleBorders,
   toggleCultures,
   toggleEmblems,
@@ -159,11 +160,7 @@ document.addEventListener("react-tool-action", e => {
     toggleEditor("markersOverview", "toggleMarkers", MarkersOverview.overviewMarkers);
   else if (button === "overviewCellsButton") viewCellDetails();
   else if (button === "openMinimapButton") openMinimap?.();
-  else if (button === "editGoods") toggleEditor("goodsEditor", null, () => Dialogservice.openDialog("goodsEditor"));
-  else if (button === "overviewMarketsButton")
-    toggleEditor("marketsOverview", null, () => Dialogservice.openDialog("marketsOverview"));
-  else if (button === "editTradeAnimationButton")
-    toggleEditor("tradeAnimationEditor", null, () => Dialogservice.openDialog("tradeAnimationEditor"));
+  else getToolActionHandler(button)?.();
 
   if (button.startsWith("regenerate")) {
     const dontAsk = sessionStorage.getItem("regenerateFeatureDontAsk");

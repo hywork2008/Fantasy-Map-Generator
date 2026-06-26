@@ -10,13 +10,15 @@ import {
   registerDrawLayerHook,
   registerLayerElement,
   registerLayerToggle,
+  registerToolAction,
   removePreset,
   savePreset,
   toggleBurgIcons,
   toggleLabels,
   toggleLayerById,
   turnButtonOff,
-  turnButtonOn
+  turnButtonOn,
+  unregisterToolAction
 } from "./controllers/layers";
 import { changeViewMode } from "./controllers/options";
 import { initExtensions } from "./extensions/index";
@@ -28,7 +30,7 @@ import { UITour } from "./services/ui-tour";
 import { useExtensionState } from "./store/extensionState";
 import { useLayerState } from "./store/layerState";
 import type { ExtensionAPI } from "./types/extension-api";
-import { closeDialog, openRichDialog } from "./ui/dialogs/dialogService";
+import { closeDialog, isDialogOpen, openDialog, openRichDialog } from "./ui/dialogs/dialogService";
 import { initUtils } from "./utils/index";
 import { layerIsOn } from "./utils/nodeUtils";
 import { tooltipExtensions } from "./utils/uiHelpers";
@@ -63,7 +65,12 @@ function buildExtensionAPI(): ExtensionAPI {
     registerDrawLayerHook,
 
     openRichDialog,
+    openDialog: id => openDialog(id),
     closeDialog,
+    isDialogOpen,
+
+    registerToolAction,
+    unregisterToolAction,
 
     zoomTo,
 

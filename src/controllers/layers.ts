@@ -1051,6 +1051,25 @@ export function registerDrawLayerHook(fn: () => void): void {
   _drawLayerHooks.push(fn);
 }
 
+// ─── Tool action registry (for extension-owned react-tool-action events) ─────
+
+const _toolActionRegistry = new Map<string, () => void>();
+
+/** Register a handler for a react-tool-action event name — used by extensions. */
+export function registerToolAction(eventName: string, handler: () => void): void {
+  _toolActionRegistry.set(eventName, handler);
+}
+
+/** Unregister a previously registered tool action handler. */
+export function unregisterToolAction(eventName: string): void {
+  _toolActionRegistry.delete(eventName);
+}
+
+/** Look up a registered tool action handler — called by tools.ts as fallback. */
+export function getToolActionHandler(eventName: string): (() => void) | undefined {
+  return _toolActionRegistry.get(eventName);
+}
+
 export function toggleLayerById(id: string, event?: MouseEvent): void {
   TOGGLE_REGISTRY[id]?.(event);
 }

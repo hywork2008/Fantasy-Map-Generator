@@ -211,6 +211,21 @@ export function init(api: ExtensionAPI): void {
     }
   });
 
+  // Register tool action handlers so core tools.ts has no knowledge of extension dialogs.
+  // The handler implements the same open/close + layer toggle pattern used for built-in editors.
+  const toggleEditorDialog = (dialogId: string, layerId: string | null) => {
+    if (api.isDialogOpen(dialogId)) {
+      api.closeDialog(dialogId);
+      if (layerId && api.layerIsOn(layerId)) api.toggleLayerById(layerId);
+    } else {
+      api.openDialog(dialogId);
+    }
+  };
+
+  api.registerToolAction("editGoods", () => toggleEditorDialog("goodsEditor", "toggleGoods"));
+  api.registerToolAction("overviewMarketsButton", () => toggleEditorDialog("marketsOverview", "toggleMarketsLayer"));
+  api.registerToolAction("editTradeAnimationButton", () => toggleEditorDialog("tradeAnimationEditor", "toggleTrade"));
+
   // Subscribe to extension state changes to dynamically add/remove layers
   _unsubscribe = api.subscribeExtensionState((state, prevState) => {
     const isEnabled = state.enabledExtensions[ECONOMY_EXTENSION_ID];
@@ -344,6 +359,11 @@ export function cleanup(api: ExtensionAPI): void {
   api.removeLayers(economyLayers.map(l => l.id));
   api.tooltipExtensions.showMapTooltip = undefined;
   api.tooltipExtensions.updateCellInfo = undefined;
+
+  // Unregister tool action handlers
+  api.unregisterToolAction("editGoods");
+  api.unregisterToolAction("overviewMarketsButton");
+  api.unregisterToolAction("editTradeAnimationButton");
 
   api.unregisterExtension(ECONOMY_EXTENSION_ID);
   clearEconomyContext();

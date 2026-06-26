@@ -79,7 +79,20 @@ export interface ExtensionAPI {
 
   // ── Dialog service ───────────────────────────────────────────────────────
   openRichDialog(options: RichDialogOptions): void;
+  openDialog(id: string): void;
   closeDialog(id: string): void;
+  isDialogOpen(id: string): boolean;
+
+  // ── Tool action registry ─────────────────────────────────────────────────
+  /**
+   * Register a handler for a named react-tool-action event.
+   * tools.ts calls this as a fallback after exhausting built-in handlers,
+   * so extensions can own their own button→dialog toggle logic without
+   * modifying core controller code.
+   */
+  registerToolAction(eventName: string, handler: () => void): void;
+  /** Unregister a previously registered tool action handler (call in cleanup). */
+  unregisterToolAction(eventName: string): void;
 
   // ── View actions ─────────────────────────────────────────────────────────
   zoomTo(x: number, y: number, scale: number, duration?: number): void;
