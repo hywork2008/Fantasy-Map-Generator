@@ -1,11 +1,11 @@
 import { mean, range } from "d3";
-import { BiomeConstants, HeightThreshold, TemperatureThreshold } from "../config/constants";
 import type { AppServices } from "../context/appServices";
 import { appServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
+import { BiomeConstants, HeightThreshold, TemperatureThreshold } from "../data/constants";
 import type { WorldState } from "../types/WorldState";
 import { rn } from "../utils";
 import { TIME } from "../utils/debug";

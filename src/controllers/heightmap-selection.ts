@@ -1,6 +1,6 @@
 import Alea from "alea";
-import { heightmapTemplates, precreatedHeightmaps } from "../config";
 import { worldContext } from "../context/worldContext";
+import { heightmapTemplates, precreatedHeightmaps } from "../data";
 import { HeightmapGenerator } from "../modules/heightmap-generator";
 import type { Grid } from "../types/Grid";
 import { openDialog } from "../ui/dialogs/dialogService";

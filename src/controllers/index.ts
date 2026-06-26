@@ -3,7 +3,7 @@ import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import "../versioning";
 
-import "../config";
+import "../data";
 import { initLayers } from "./layers";
 import { initStyle } from "./style";
 import "./editors";

@@ -3,7 +3,6 @@ import * as d3 from "d3";
 import { hsl, interpolateRound, lab, max, mean, pointer, range, select } from "d3";
 import RgbQuant from "rgbquant";
 import { getWorldState, resetZoom } from "../actions";
-import { heightmapTemplates } from "../config";
 import type { AppServices } from "../context/appServices";
 import { appServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
@@ -13,6 +12,7 @@ import { worldContext } from "../context/worldContext";
 import { interactionManager } from "../controllers/interactionManager";
 import { getCurrentPreset, turnButtonOff, turnButtonOn } from "../controllers/layers";
 import { changeViewMode, enterStandardView } from "../controllers/options";
+import { heightmapTemplates } from "../data";
 import {
   addLakesInDeepDepressions,
   calculateTemperatures,
@@ -30,7 +30,6 @@ import { Ice } from "../modules/ice";
 import { Lakes } from "../modules/lakes";
 import { Markers } from "../modules/markers-generator";
 import { Military } from "../modules/military-generator";
-import { OceanLayers } from "../modules/ocean-layers";
 import { Provinces } from "../modules/provinces-generator";
 import { Religions } from "../modules/religions-generator";
 import { Rivers } from "../modules/river-generator";
@@ -38,6 +37,7 @@ import { Routes } from "../modules/routes-generator";
 import { States } from "../modules/states-generator";
 import { Zones } from "../modules/zones-generator";
 import { FeaturesRenderer } from "../renderers";
+import { OceanLayers } from "../renderers/ocean-layers";
 import { ThreeDRenderer } from "../renderers/three-d-renderer";
 import { modules } from "../store/editorState";
 import { useOptionsState } from "../store/optionsState";

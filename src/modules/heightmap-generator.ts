@@ -1,13 +1,13 @@
 import Alea from "alea";
 import { range as d3Range, leastIndex, mean } from "d3";
-import { heightmapTemplates } from "../config";
-import { HeightmapConstants, HeightThreshold } from "../config/constants";
 import type { AppServices } from "../context/appServices";
 import { appServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
+import { heightmapTemplates } from "../data";
+import { HeightmapConstants, HeightThreshold } from "../data/constants";
 import { useOptionsState } from "../store/optionsState";
 import type { Grid } from "../types/Grid";
 import { createTypedArray, findGridCell, getNumberInRange, lim, minmax, P, rand } from "../utils";

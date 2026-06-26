@@ -1,6 +1,6 @@
 import type React from "react";
 import { showSupporters } from "../../../controllers/options";
-import { UITour } from "../../../controllers/ui-tour";
+import { UITour } from "../../../services/ui-tour";
 
 export const AboutTab: React.FC = () => {
   const startTour = () => {

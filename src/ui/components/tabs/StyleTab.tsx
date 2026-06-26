@@ -8,7 +8,7 @@ import {
   textureProvideURL
 } from "../../../controllers/style";
 import { invokeActiveZooming } from "../../../main";
-import { fonts } from "../../../modules/fonts";
+import { fonts } from "../../../services/fonts";
 import { useStyleState } from "../../../store/styleState";
 import { openDialog } from "../../dialogs/dialogService";
 import { SliderInput } from "../SliderInput";

@@ -1,12 +1,12 @@
 import Alea from "alea";
 import { min } from "d3";
-import { TemperatureThreshold } from "../config/constants";
 import type { AppServices } from "../context/appServices";
 import { appServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
+import { TemperatureThreshold } from "../data/constants";
 import type { WorldState } from "../types/WorldState";
 import { clipPoly, getIsolines, lerp, minmax, normalize, P, ra, rand, rn } from "../utils";
 import { getGridPolygon } from "../utils/graphUtils";

@@ -4,10 +4,10 @@ import * as THREE from "three";
 import { appServices } from "../context/appServices";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
-import { getFeaturePath } from "../renderers/draw-features";
+import { Rivers } from "../modules/river-generator";
 import type { PackedGraphFeature } from "../types/models";
 import { TIME } from "../utils/debug";
-import { Rivers } from "./river-generator";
+import { getFeaturePath } from "./draw-features";
 
 export type BakeParams = {
   strength: number;
@@ -135,7 +135,6 @@ function buildCoastTexture(bakeW: number, bakeH: number) {
   const isLand = (feature: PackedGraphFeature | null | undefined) =>
     feature && feature.type !== "ocean" && feature.type !== "lake";
 
-  // biome-ignore lint/style/noRestrictedGlobals: off-screen canvas for GPU texture baking, never attached to DOM
   const maskCanvas = document.createElement("canvas");
   maskCanvas.width = bakeW;
   maskCanvas.height = bakeH;
@@ -165,7 +164,6 @@ function buildCoastTexture(bakeW: number, bakeH: number) {
   // centerline strokes at the same local width (clamped to ~1 bake texel)
   // keep sub-texel headwaters continuous without inflating the wide
   // downstream course
-  // biome-ignore lint/style/noRestrictedGlobals: off-screen canvas for GPU texture baking, never attached to DOM
   const riverCanvas = document.createElement("canvas");
   riverCanvas.width = bakeW;
   riverCanvas.height = bakeH;
@@ -210,7 +208,6 @@ function buildCoastTexture(bakeW: number, bakeH: number) {
   // surface via the shader's coast flattening. The mask blur below then
   // rounds the notch exactly like the rest of the coastline
   const mouthRadius = taperPx * 2; // <= the 3*taperPx lake-surface dilation
-  // biome-ignore lint/style/noRestrictedGlobals: off-screen canvas for GPU texture baking, never attached to DOM
   const mouthZoneCanvas = document.createElement("canvas");
   mouthZoneCanvas.width = bakeW;
   mouthZoneCanvas.height = bakeH;
@@ -239,7 +236,6 @@ function buildCoastTexture(bakeW: number, bakeH: number) {
 
   // all canvases are opaque black/white, so multiply acts as a luminance
   // AND: rivers ∩ mouth zone, then land ∧ ¬cut via an inverted multiply
-  // biome-ignore lint/style/noRestrictedGlobals: off-screen canvas for GPU texture baking, never attached to DOM
   const mouthCutCanvas = document.createElement("canvas");
   mouthCutCanvas.width = bakeW;
   mouthCutCanvas.height = bakeH;
@@ -257,7 +253,6 @@ function buildCoastTexture(bakeW: number, bakeH: number) {
   // Gaussian blur of a binary edge keeps its 0.5 level set at the original
   // edge location, so blurring the land/water mask turns the coastline into
   // a short, precisely-placed taper instead of moving it
-  // biome-ignore lint/style/noRestrictedGlobals: off-screen canvas for GPU texture baking, never attached to DOM
   const blurCanvas = document.createElement("canvas");
   blurCanvas.width = bakeW;
   blurCanvas.height = bakeH;
@@ -265,7 +260,6 @@ function buildCoastTexture(bakeW: number, bakeH: number) {
   blurCtx.filter = `blur(${taperPx}px)`;
   blurCtx.drawImage(maskCanvas, 0, 0);
 
-  // biome-ignore lint/style/noRestrictedGlobals: off-screen canvas for GPU texture baking, never attached to DOM
   const surfaceCanvas = document.createElement("canvas");
   surfaceCanvas.width = bakeW;
   surfaceCanvas.height = bakeH;
@@ -286,7 +280,6 @@ function buildCoastTexture(bakeW: number, bakeH: number) {
   }
   surfaceCtx.restore();
 
-  // biome-ignore lint/style/noRestrictedGlobals: off-screen canvas for GPU texture baking, never attached to DOM
   const blurSurfaceCanvas = document.createElement("canvas");
   blurSurfaceCanvas.width = bakeW;
   blurSurfaceCanvas.height = bakeH;
@@ -298,7 +291,6 @@ function buildCoastTexture(bakeW: number, bakeH: number) {
   // (freshwater 1 .. frozen 6, 0 = ocean/none). Filled and dilated like the
   // G surface channel so the bilinear blend toward 0 happens on land, where
   // the satellite shader ignores the code; no blur (codes must stay discrete)
-  // biome-ignore lint/style/noRestrictedGlobals: off-screen canvas for GPU texture baking, never attached to DOM
   const groupCanvas = document.createElement("canvas");
   groupCanvas.width = bakeW;
   groupCanvas.height = bakeH;
@@ -360,7 +352,6 @@ function chaikinSmooth(points: RiverPoint[], iterations: number): RiverPoint[] {
 
 // Valley: rivers stroked in widening, dimming passes
 function buildRiverCanvas(bakeW: number, bakeH: number) {
-  // biome-ignore lint/style/noRestrictedGlobals: off-screen canvas for GPU texture baking, never attached to DOM
   const canvas = document.createElement("canvas");
   canvas.width = Math.max(256, Math.round(bakeW / 4));
   canvas.height = Math.max(2, Math.round((canvas.width * bakeH) / bakeW));

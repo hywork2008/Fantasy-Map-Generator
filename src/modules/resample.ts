@@ -15,6 +15,7 @@ import {
   reGraph,
   showStatistics
 } from "../main";
+import { OceanLayers } from "../renderers/ocean-layers";
 import type { Grid } from "../types/Grid";
 import type { River } from "../types/models";
 import type { PackedGraph } from "../types/PackedGraph";
@@ -32,7 +33,6 @@ import { WARN } from "../utils/debug";
 import { Features } from "./features";
 import { Ice } from "./ice";
 import { Markers } from "./markers-generator";
-import { OceanLayers } from "./ocean-layers";
 import { Provinces } from "./provinces-generator";
 import { Rivers } from "./river-generator";
 import { Routes } from "./routes-generator";

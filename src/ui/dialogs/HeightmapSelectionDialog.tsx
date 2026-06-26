@@ -1,6 +1,5 @@
 import type React from "react";
 import { useCallback, useEffect, useState } from "react";
-import { heightmapTemplates, precreatedHeightmaps } from "../../config";
 import { worldContext } from "../../context/worldContext";
 import { confirmationDialog } from "../../controllers/editors";
 import {
@@ -11,6 +10,7 @@ import {
   INITIAL_COLOR_SCHEME
 } from "../../controllers/heightmap-selection";
 import { regeneratePrompt } from "../../controllers/options";
+import { heightmapTemplates, precreatedHeightmaps } from "../../data";
 import { editHeightmap } from "../../editors/heightmap-editor";
 import { useDialogState } from "../../store/dialogState";
 import { useOptionsState } from "../../store/optionsState";

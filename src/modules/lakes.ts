@@ -1,11 +1,11 @@
 import { mean, min } from "d3";
-import { HeightmapConstants } from "../config/constants";
 import type { AppServices } from "../context/appServices";
 import { appServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
+import { HeightmapConstants } from "../data/constants";
 import { useOptionsState } from "../store/optionsState";
 import type { PackedGraphFeature } from "../types/models";
 import type { WorldState } from "../types/WorldState";

@@ -1,6 +1,6 @@
 import type React from "react";
 import { useState } from "react";
-import { addGoogleFont, addLocalFont, addWebFont, fonts } from "../../modules/fonts";
+import { addGoogleFont, addLocalFont, addWebFont, fonts } from "../../services/fonts";
 import { useDialogState } from "../../store/dialogState";
 import { tip } from "../../utils/uiHelpers";
 import { Dialog } from "./Dialog";

@@ -18,13 +18,13 @@ import {
   turnButtonOn
 } from "./controllers/layers";
 import { changeViewMode } from "./controllers/options";
-import { UITour } from "./controllers/ui-tour";
 import { editBurg } from "./editors/burg-editor";
 import { initExtensions } from "./extensions/index";
 import { buildGeoJsonZones, saveGeoJsonZones } from "./io/export";
 import { generate, initMain, regenerateMap } from "./main";
 import { initModules } from "./modules/index";
 import { initRenderers } from "./renderers/index";
+import { UITour } from "./services/ui-tour";
 import { useExtensionState } from "./store/extensionState";
 import { useLayerState } from "./store/layerState";
 import type { ExtensionAPI } from "./types/extension-api";

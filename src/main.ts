@@ -1,5 +1,5 @@
-import { heightmapTemplates } from "./config";
 import { clearLegend, closeDialogs, unfog } from "./controllers/editors";
+import { heightmapTemplates } from "./data";
 import { openRichDialog } from "./ui/dialogs/dialogService";
 import { DEBUG, ERROR, INFO, TIME, WARN } from "./utils/debug";
 
@@ -21,7 +21,6 @@ import { createDefaultRuler } from "./controllers/measurers";
 import { updateMinimap } from "./controllers/minimap";
 import { applyGraphSize, applyStoredOptions, fitMapToScreen, randomizeOptions } from "./controllers/options";
 import { applyStyleOnLoad } from "./controllers/style";
-import { UITour } from "./controllers/ui-tour";
 import { editWorld } from "./controllers/world-configurator";
 import { editUnits } from "./editors/units-editor";
 import { ldb } from "./io/ldb";
@@ -31,16 +30,12 @@ import { Biomes } from "./modules/biomes";
 import { Burgs } from "./modules/burgs-generator";
 import { Cultures } from "./modules/cultures-generator";
 import { Features } from "./modules/features";
-
 import { HeightmapGenerator } from "./modules/heightmap-generator";
 import { Ice } from "./modules/ice";
 import { Lakes } from "./modules/lakes";
 import { Markers } from "./modules/markers-generator";
-
 import { Military } from "./modules/military-generator";
 import { Names } from "./modules/names-generator";
-import { OceanLayers } from "./modules/ocean-layers";
-
 import { Provinces } from "./modules/provinces-generator";
 import { Religions } from "./modules/religions-generator";
 import { Rivers } from "./modules/river-generator";
@@ -49,7 +44,9 @@ import { States } from "./modules/states-generator";
 import { Zones } from "./modules/zones-generator";
 import { renderGroupCOAs } from "./renderers/draw-emblems";
 import { CoordinatesRenderer, drawScaleBar, fitScaleBar } from "./renderers/index";
+import { OceanLayers } from "./renderers/ocean-layers";
 import { ThreeDRenderer } from "./renderers/three-d-renderer";
+import { UITour } from "./services/ui-tour";
 import { dialogStore } from "./store/dialogState";
 import { useOptionsState } from "./store/optionsState";
 import type { Grid } from "./types/Grid";

@@ -1,11 +1,11 @@
 import { hsl } from "d3";
-import { heightmapTemplates, precreatedHeightmaps } from "../config";
-import { THEME_COLOR } from "../config/constants";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
+import { heightmapTemplates, precreatedHeightmaps } from "../data";
+import { THEME_COLOR } from "../data/constants";
 import { Cloud } from "../io/cloud";
 import { exportToPngTiles } from "../io/export";
 import { loadMapFromURL, uploadMap } from "../io/load";

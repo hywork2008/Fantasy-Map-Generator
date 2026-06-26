@@ -6,8 +6,6 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
-import { onFontAdded } from "../modules/fonts";
-import { OceanLayers } from "../modules/ocean-layers";
 import {
   BurgIconsRenderer,
   BurgLabelsRenderer,
@@ -18,6 +16,8 @@ import {
   ReliefIconsRenderer
 } from "../renderers";
 import { drawRegiments, drawScaleBar, fitScaleBar } from "../renderers/index";
+import { OceanLayers } from "../renderers/ocean-layers";
+import { onFontAdded } from "../services/fonts";
 import { modules } from "../store/editorState";
 import { useStyleState } from "../store/styleState";
 import { closeDialog, openDialog, openRichDialog } from "../ui/dialogs/dialogService";

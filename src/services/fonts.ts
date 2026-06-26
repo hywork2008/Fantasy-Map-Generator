@@ -276,7 +276,6 @@ export function declareFont(font: FontDefinition): void {
 
   if (!src) return;
   const fontFace = new FontFace(family, src, { ...rest, display: "block" });
-  // biome-ignore lint/style/noRestrictedGlobals: document.fonts is the browser CSS Font Registry API, not DOM manipulation
   document.fonts.add(fontFace);
 }
 
@@ -352,7 +351,6 @@ export const addGoogleFont = async (family: string) => {
   Promise.all(promises)
     .then(fontFaces => {
       fontFaces.forEach(fontFace => {
-        // biome-ignore lint/style/noRestrictedGlobals: document.fonts is the browser CSS Font Registry API, not DOM manipulation
         document.fonts.add(fontFace);
       });
       fonts.push(...fontRanges);
@@ -371,7 +369,6 @@ export const addLocalFont = (family: string) => {
   const fontFace = new FontFace(family, `local(${family})`, {
     display: "block"
   });
-  // biome-ignore lint/style/noRestrictedGlobals: document.fonts is the browser CSS Font Registry API, not DOM manipulation
   document.fonts.add(fontFace);
   tip(`Local font ${family} is added to the fonts list`, true, "success", 4000);
   notifyFontAdded(family, true);
@@ -382,7 +379,6 @@ export const addWebFont = (family: string, url: string) => {
   fonts.push({ family, src });
 
   const fontFace = new FontFace(family, src, { display: "block" });
-  // biome-ignore lint/style/noRestrictedGlobals: document.fonts is the browser CSS Font Registry API, not DOM manipulation
   document.fonts.add(fontFace);
   tip(`Font ${family} is added to the list`, true, "success", 4000);
   notifyFontAdded(family, true);

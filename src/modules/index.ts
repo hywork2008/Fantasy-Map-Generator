@@ -3,7 +3,7 @@ import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import "./voronoi";
 import { Features } from "./features";
-import "./ocean-layers";
+import "../renderers/ocean-layers";
 import { Biomes } from "./biomes";
 import { Burgs } from "./burgs-generator";
 import { Cultures } from "./cultures-generator";
@@ -16,12 +16,12 @@ import { Routes } from "./routes-generator";
 import { States } from "./states-generator";
 import { Zones } from "./zones-generator";
 import "./emblem";
-import { initFonts } from "./fonts";
+import { initFonts } from "../services/fonts";
 import { Ice } from "./ice";
 import { Markers } from "./markers-generator";
 import "./resample";
 
-export type { BakeParams, ErosionBakeResult } from "./erosion-bake";
+export type { BakeParams, ErosionBakeResult } from "../renderers/erosion-bake";
 
 import type { WorldStateAt } from "../types/pipeline";
 import type { WorldState } from "../types/WorldState";

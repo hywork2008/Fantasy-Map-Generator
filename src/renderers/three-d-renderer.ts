@@ -3,7 +3,6 @@ import { MapControls } from "three/examples/jsm/controls/MapControls.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { OBJExporter } from "three/examples/jsm/exporters/OBJExporter.js";
 import { LoopSubdivision } from "three-subdivide";
-import * as ErosionBake from "../modules/erosion-bake";
 import { layerIsOn } from "../utils/nodeUtils";
 import {
   disposeRiverFlowTexture,
@@ -11,6 +10,7 @@ import {
   generateRiverFlowTexture,
   generateSatelliteTexture
 } from "./draw-satellite-texture";
+import * as ErosionBake from "./erosion-bake";
 
 THREE.ColorManagement.enabled = false;
 

@@ -1,12 +1,12 @@
 import Alea from "alea";
 import { polygonArea } from "d3";
-import { FeatureSizeRatio, HeightmapConstants, HeightThreshold, TemperatureThreshold } from "../config/constants";
 import type { AppServices } from "../context/appServices";
 import { appServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
+import { FeatureSizeRatio, HeightmapConstants, HeightThreshold, TemperatureThreshold } from "../data/constants";
 import type { GridFeature, PackedGraphFeature } from "../types/models";
 import {
   clipPoly,

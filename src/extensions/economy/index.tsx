@@ -291,7 +291,7 @@ export function init(api: ExtensionAPI): void {
   });
 
   // Register layer toggle handlers
-  api.registerLayerToggle("toggleGoods", (event?: MouseEvent) => {
+  api.registerLayerToggle("toggleGoods", (_event?: MouseEvent) => {
     if (!api.layerIsOn("toggleGoods")) {
       api.turnLayerOn("toggleGoods");
       drawGoods(getDefaultGoodsSet());
@@ -301,7 +301,7 @@ export function init(api: ExtensionAPI): void {
     }
   });
 
-  api.registerLayerToggle("toggleMarketsLayer", (event?: MouseEvent) => {
+  api.registerLayerToggle("toggleMarketsLayer", (_event?: MouseEvent) => {
     if (!api.layerIsOn("toggleMarketsLayer")) {
       api.turnLayerOn("toggleMarketsLayer");
       drawMarketsLayer();
@@ -312,7 +312,7 @@ export function init(api: ExtensionAPI): void {
     }
   });
 
-  api.registerLayerToggle("toggleTrade", (event?: MouseEvent) => {
+  api.registerLayerToggle("toggleTrade", (_event?: MouseEvent) => {
     if (!api.layerIsOn("toggleTrade")) {
       api.turnLayerOn("toggleTrade");
       TradeAnimation.start();
