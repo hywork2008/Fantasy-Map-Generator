@@ -366,7 +366,7 @@ class Resampler {
         const { graphWidth, graphHeight } = worldContext;
         const bbox: [number, number, number, number] = [0, 0, graphWidth, graphHeight];
         // @types/lineclip is incorrect - lineclip returns Point[][] (array of line segments), not Point[]
-        const clippedSegments = clipPolyline(points, bbox) as unknown as Point[][];
+        const clippedSegments = clipPolyline(points, bbox) as Point[][];
         if (!clippedSegments[0]?.length) return null;
         const clipped = clippedSegments[0].map(
           ([x, y]) => [rn(x, 2), rn(y, 2), findClosestCell(x, y, Infinity, pack) as number] as [number, number, number]

@@ -202,7 +202,7 @@ const burgEditorInternal = {
     viewContext.burgLabels
       .selectAll("text")
       .call(
-        drag().on("drag", null) as unknown as (
+        drag().on("drag", null) as (
           selection: import("d3").Selection<import("d3").BaseType, unknown, SVGGElement, unknown>
         ) => void
       )

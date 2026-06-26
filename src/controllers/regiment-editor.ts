@@ -360,7 +360,7 @@ export const regimentEditorActions = {
       by: reg.by,
       state,
       icon: reg.icon
-    } as unknown as MilitaryRegiment;
+    } as MilitaryRegiment;
     newReg.name = Military.getName(newReg, military);
     military.push(newReg);
     Military.generateNote(newReg, worldContext.pack.states[state]);

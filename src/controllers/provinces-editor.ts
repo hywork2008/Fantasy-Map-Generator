@@ -570,7 +570,7 @@ function showChart(): void {
   treeLayout(root);
 
   type HRNode = d3.HierarchyRectangularNode<ChartNode>;
-  const leaves = root.leaves() as unknown as HRNode[];
+  const leaves = root.leaves() as HRNode[];
   const node = graph
     .selectAll<SVGGElement, HRNode>("g")
     .data(leaves)
@@ -660,7 +660,7 @@ function showChart(): void {
             : d => (d.rural ?? 0) + (d.urban ?? 0);
 
     root.sum(accessor);
-    node.data(treeLayout(root).leaves() as unknown as HRNode[]);
+    node.data(treeLayout(root).leaves() as HRNode[]);
 
     node
       .select("rect")

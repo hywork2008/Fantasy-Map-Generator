@@ -375,13 +375,13 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
       viewContext.texture = viewContext.viewbox
         .insert("g", "#landmass")
         .attr("id", "texture")
-        .attr("data-href", "./images/textures/plaster.jpg") as unknown as typeof viewContext.texture;
+        .attr("data-href", "./images/textures/plaster.jpg") as typeof viewContext.texture;
     }
     if (!viewContext.emblems.size()) {
       viewContext.emblems = viewContext.viewbox
         .insert("g", "#labels")
         .attr("id", "emblems")
-        .style("display", "none") as unknown as typeof viewContext.emblems;
+        .style("display", "none") as typeof viewContext.emblems;
     }
 
     {
@@ -390,7 +390,7 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
         delete (worldContext.grid as unknown as Record<string, unknown>)[key];
       Object.assign(worldContext.grid, parsedGrid);
       const { cells: gCells, vertices } = calculateVoronoi(worldContext.grid.points, worldContext.grid.boundary);
-      worldContext.grid.cells = gCells as unknown as typeof worldContext.grid.cells;
+      worldContext.grid.cells = gCells as typeof worldContext.grid.cells;
       worldContext.grid.vertices = vertices;
       worldContext.grid.cells.h = Uint8Array.from(data[7].split(","), Number);
       worldContext.grid.cells.prec = Uint8Array.from(data[8].split(","), Number);

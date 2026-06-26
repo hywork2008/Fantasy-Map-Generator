@@ -766,7 +766,7 @@ function showStatesChart(): void {
   treeLayout(root);
 
   type HPNode = d3.HierarchyCircularNode<State>;
-  const leaves = root.leaves() as unknown as HPNode[];
+  const leaves = root.leaves() as HPNode[];
   const node = graph
     .selectAll<SVGGElement, HPNode>("g")
     .data(leaves)
@@ -843,7 +843,7 @@ function showStatesChart(): void {
               : d => (d.rural ?? 0) + (d.urban ?? 0);
 
     root.sum(accessor);
-    node.data(treeLayout(root).leaves() as unknown as HPNode[]);
+    node.data(treeLayout(root).leaves() as HPNode[]);
 
     node
       .transition()

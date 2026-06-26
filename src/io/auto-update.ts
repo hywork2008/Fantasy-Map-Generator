@@ -304,7 +304,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
       const mouth = findCell(e.x, e.y);
       const name = Rivers.getName(mouth);
       const type = length < 25 ? rw({ Creek: 9, River: 3, Brook: 3, Stream: 1 }) : "River";
-      worldContext.pack.rivers.push({ i, parent: 0, length, source, mouth, basin: i, name, type } as unknown as River);
+      worldContext.pack.rivers.push({ i, parent: 0, length, source, mouth, basin: i, name, type } as River);
     });
   }
 
@@ -412,7 +412,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
     viewContext.emblems = viewContext.viewbox
       .insert("g", "#population")
       .attr("id", "emblems")
-      .style("display", "none") as unknown as typeof viewContext.emblems;
+      .style("display", "none") as typeof viewContext.emblems;
     viewContext.emblems.append("g").attr("id", "burgEmblems");
     viewContext.emblems.append("g").attr("id", "provinceEmblems");
     viewContext.emblems.append("g").attr("id", "stateEmblems");

@@ -35,7 +35,7 @@ export function initModules(): void {
 // enforces that stages run in the declared order at compile time.
 // At runtime the cast is a no-op — the same mutable WorldState is passed through.
 //
-// The double-cast (as unknown as WorldStateAt<...>) is intentional: the
+// The double-cast (as WorldStateAt<...>) is intentional: the
 // _stage phantom field exists only in the type system, so we must go through
 // unknown to cross between two WorldStateAt variants.
 
@@ -46,7 +46,7 @@ function runRiversGenerate(
   appServices: AppServices
 ): WorldStateAt<"rivers"> {
   Rivers.generate(worldContext, viewContext, appServices, state);
-  return state as unknown as WorldStateAt<"rivers">;
+  return state as WorldStateAt<"rivers">;
 }
 
 function runBiomesDefine(state: WorldStateAt<"rivers">): WorldStateAt<"biomes"> {

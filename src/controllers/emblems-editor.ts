@@ -335,7 +335,7 @@ function uploadImage(file: File, uploadType: "image" | "svg"): void {
     if (el.coa.size) customCoa.size = el.coa.size;
     if (el.coa.x) customCoa.x = el.coa.x;
     if (el.coa.y) customCoa.y = el.coa.y;
-    el.coa = customCoa as unknown as Emblem;
+    el.coa = customCoa as Emblem;
 
     setEmblemEditorState({ isCustom: true, uploadMode: false });
   };

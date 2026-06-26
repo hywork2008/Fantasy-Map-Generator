@@ -441,9 +441,13 @@ function recreateStates(): State[] | null {
     const basename =
       capitalName.length < 9 && capital.cell % 5 === 0
         ? capitalName
-        : (
-            Names as unknown as { getCulture(c: number, a: number, b: number, s: string, n: number): string }
-          ).getCulture(culture, 3, 6, "", 0);
+        : (Names as { getCulture(c: number, a: number, b: number, s: string, n: number): string }).getCulture(
+            culture,
+            3,
+            6,
+            "",
+            0
+          );
     const name = Names.getState(basename, culture);
     const nomadic = [1, 2, 3, 4].includes(worldContext.pack.cells.biome[capital.cell]);
     const type = nomadic
@@ -1060,7 +1064,7 @@ function addMarkerOnClick(event: MouseEvent): void {
   const selectedType = (document.getElementById("addedMarkerType") as HTMLInputElement).value;
   const selectedConfig = Markers.getConfig().find(({ type }: MarkerConfig) => type === selectedType);
   const baseMarker = selectedMarker || selectedConfig || { icon: "❓" };
-  const marker = Markers.add({ ...baseMarker, x, y, cell } as unknown as Marker);
+  const marker = Markers.add({ ...baseMarker, x, y, cell } as Marker);
 
   if (selectedConfig?.add) {
     selectedConfig.add(`marker${marker.i}`, cell);
