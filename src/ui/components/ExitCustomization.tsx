@@ -34,7 +34,7 @@ export const ExitCustomization: React.FC = () => {
   }, []);
 
   return (
-    <div id="exitCustomization" ref={elRef} style={{ display: "none" }}>
+    <div id="exitCustomization" ref={elRef} style={{ display: "none", pointerEvents: "auto" }}>
       <div data-tip="Drag to move the pane">
         <button type="button" data-tip="Finalize the heightmap and exit the edit mode" id="finalizeHeightmap">
           Exit Customization

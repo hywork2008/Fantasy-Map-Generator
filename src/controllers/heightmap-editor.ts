@@ -660,8 +660,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
   // ─── Brushes panel ───────────────────────────────────────────────────────────
 
   function openBrushesPanel(): void {
-    if (document.getElementById("brushesPanel") !== null) return;
-    // $("#brushesPanel").dialog(...) removed;
+    openDialog("brushesPanel");
 
     if (modules.openBrushesPanel) return;
     modules.openBrushesPanel = true;
