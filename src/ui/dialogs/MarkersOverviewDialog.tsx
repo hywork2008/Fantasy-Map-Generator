@@ -1,6 +1,7 @@
 import type React from "react";
 import { useMemo, useRef } from "react";
 import { worldContext } from "../../context/worldContext";
+import { editMarker } from "../../controllers/markers-editor";
 import {
   exportMarkers,
   markerHighlightById,
@@ -13,7 +14,6 @@ import {
   removeMarkerById
 } from "../../controllers/markers-overview";
 import { configMarkersGeneration } from "../../controllers/tools";
-import { editMarker } from "../../editors/markers-editor";
 import { Markers } from "../../generators/markers-generator";
 import { useDialogState } from "../../store/dialogState";
 import { useMarkersOverviewState } from "../../store/markersOverviewState";

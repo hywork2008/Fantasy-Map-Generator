@@ -1,5 +1,5 @@
 import type React from "react";
-import { closeIceEditor, iceEditorActions } from "../../editors/ice-editor";
+import { closeIceEditor, iceEditorActions } from "../../controllers/ice-editor";
 import { useIceEditorState } from "../../store/iceEditorState";
 import { Dialog } from "./Dialog";
 

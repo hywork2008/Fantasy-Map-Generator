@@ -3,10 +3,6 @@ import { zoomTo } from "../actions";
 import { appServices } from "../context/appServices";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
-import { interactionManager } from "../controllers/interactionManager";
-import { toggleBurgIcons, toggleCells, toggleLabels } from "../controllers/layers";
-import { editStyle } from "../controllers/style";
-import { showBurgTemperatureGraph } from "../controllers/temperature-graph";
 import { Burgs } from "../generators/burgs-generator";
 import { Names } from "../generators/names-generator";
 import { drawBurgIcon, drawBurgLabel } from "../renderers";
@@ -16,14 +12,17 @@ import { elSelected, modules, setElSelected } from "../store/editorState";
 import type { Burg, Culture, CultureType } from "../types/models";
 import { closeDialog, closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { convertTemperature, findCell, openURL, parseTransform, rand, rn, showPrompt } from "../utils";
-import { alertMessage } from "../utils/alertMessageEl";
 import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog } from "../utils/editorHelpers";
 import { layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, getHeight, tip } from "../utils/uiHelpers";
 import { editBurgGroups } from "./burg-group-editor";
 import { editEmblem } from "./emblems-editor";
+import { interactionManager } from "./interactionManager";
+import { toggleBurgIcons, toggleCells, toggleLabels } from "./layers";
 import { editNotes } from "./notes-editor";
+import { editStyle } from "./style";
+import { showBurgTemperatureGraph } from "./temperature-graph";
 
 let _currentBurgId = 0;
 
@@ -138,7 +137,7 @@ const burgEditorInternal = {
 
     if (section) section.style.display = "block";
     if (container) {
-      container.innerHTML = "";
+      container.replaceChildren();
       const object = document.createElement("object");
       object.style.width = "100%";
       object.style.maxWidth = "60vw";
@@ -414,9 +413,9 @@ export const burgEditorActions = {
     const burg = worldContext.pack.burgs[burgId];
 
     if (burg.capital) {
-      alertMessage.innerHTML = /* html */ `You cannot remove the capital. You must change the state capital first`;
+      const alertContent = /* html */ `You cannot remove the capital. You must change the state capital first`;
       openRichDialog({
-        content: alertMessage.innerHTML,
+        content: alertContent,
         resizable: false,
         title: "Remove burg",
         buttons: { Ok: () => {} }

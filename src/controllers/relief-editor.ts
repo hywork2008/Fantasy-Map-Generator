@@ -2,17 +2,16 @@ import type { D3DragEvent, Quadtree } from "d3";
 import { drag, pointer, quadtree, range, select } from "d3";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
-import { toggleRelief } from "../controllers/layers";
-import { editStyle } from "../controllers/style";
 import { elSelected, modules, setElSelected } from "../store/editorState";
 import type { ReliefIconSet } from "../store/reliefEditorState";
 import { getReliefEditorState, setReliefEditorState } from "../store/reliefEditorState";
 import { closeDialog, closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { findAllInQuadtree, findCell, rn } from "../utils";
-import { alertMessage } from "../utils/alertMessageEl";
 import { EditorBus } from "../utils/editorBus";
 import { layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, showMainTip, tip } from "../utils/uiHelpers";
+import { toggleRelief } from "./layers";
+import { editStyle } from "./style";
 
 interface DragAddState {
   type: string;
@@ -276,21 +275,22 @@ export const reliefEditorActions = {
   removeIcon(): void {
     const { mode, selectedIconType } = getReliefEditorState();
     let selection: { remove(): unknown; size(): number } | null = null;
+    let alertContent = "";
     if (mode === "individual") {
-      alertMessage.innerHTML = "Are you sure you want to remove the icon?";
+      alertContent = "Are you sure you want to remove the icon?";
       selection = elSelected;
     } else {
       selection = selectedIconType
         ? viewContext.terrain.selectAll<SVGUseElement, unknown>(`use[href='${selectedIconType}']`)
         : viewContext.terrain.selectAll<SVGUseElement, unknown>("use");
       const size = selection.size();
-      alertMessage.innerHTML = selectedIconType
+      alertContent = selectedIconType
         ? `Are you sure you want to remove all ${selectedIconType} icons (${size})?`
         : `Are you sure you want to remove all icons (${size})?`;
     }
 
     openRichDialog({
-      content: alertMessage.innerHTML,
+      content: alertContent,
       resizable: false,
       title: "Remove relief icons",
       buttons: {

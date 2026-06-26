@@ -1,5 +1,5 @@
 import type React from "react";
-import { burgEditorActions } from "../../editors/burg-editor";
+import { burgEditorActions } from "../../controllers/burg-editor";
 import { useBurgEditorState } from "../../store/burgEditorState";
 import { useDialogState } from "../../store/dialogState";
 import { showElementLockTip } from "../../utils/uiHelpers";

@@ -1,6 +1,6 @@
 import type React from "react";
 import { useMemo } from "react";
-import { provincesEditorActions, selectProvinceOnLineClick } from "../../editors/provinces-editor";
+import { provincesEditorActions, selectProvinceOnLineClick } from "../../controllers/provinces-editor";
 import { useProvincesEditorState } from "../../store/provincesEditorState";
 import { rn, si } from "../../utils";
 import { getAreaUnit } from "../../utils/uiHelpers";

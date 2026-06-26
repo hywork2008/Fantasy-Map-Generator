@@ -1,5 +1,5 @@
 import type React from "react";
-import { unitsEditorActions } from "../../editors/units-editor";
+import { unitsEditorActions } from "../../controllers/units-editor";
 import { useOptionsState } from "../../store/optionsState";
 import { useUnitsEditorState } from "../../store/unitsEditorState";
 import { SliderInput } from "../components/SliderInput";

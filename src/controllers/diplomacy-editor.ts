@@ -5,16 +5,6 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
-import { interactionManager } from "../controllers/interactionManager";
-import {
-  toggleBiomes,
-  toggleBorders,
-  toggleCultures,
-  toggleProvinces,
-  toggleReligions,
-  toggleStates
-} from "../controllers/layers";
-import { editStyle } from "../controllers/style";
 import { States } from "../generators/states-generator";
 import { StatesRenderer } from "../renderers";
 import { type DiplomacyRowData, getDiplomacyEditorState, setDiplomacyEditorState } from "../store/diplomacyEditorState";
@@ -26,6 +16,9 @@ import { EditorBus } from "../utils/editorBus";
 import { downloadFile, getFileName } from "../utils/editorHelpers";
 import { layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, tip } from "../utils/uiHelpers";
+import { interactionManager } from "./interactionManager";
+import { toggleBiomes, toggleBorders, toggleCultures, toggleProvinces, toggleReligions, toggleStates } from "./layers";
+import { editStyle } from "./style";
 
 type RelationKey =
   | "Ally"
@@ -241,7 +234,7 @@ export function editDiplomacy(): void {
     refreshDiplomacyEditor();
     const diplomacyMatrixEl = document.getElementById("diplomacyMatrix");
     if (diplomacyMatrixEl?.offsetParent) {
-      document.getElementById("diplomacyMatrixBody")!.innerHTML = "";
+      document.getElementById("diplomacyMatrixBody")!.replaceChildren();
       showRelationsMatrix();
     }
   }
@@ -284,7 +277,7 @@ export function editDiplomacy(): void {
       message += /* html */ `<div><div contenteditable="true" data-id="0-0">No historical records</div>&#8205;</div>`;
     }
 
-    alertMessage.innerHTML =
+    const alertContent =
       message +
       `</div><div class="info-line">Type to edit. Press Enter to add a new line, empty the element to remove it</div>`;
     alertMessage.querySelectorAll<HTMLElement>("div[contenteditable='true']").forEach(el => {
@@ -292,7 +285,7 @@ export function editDiplomacy(): void {
     });
 
     openRichDialog({
-      content: alertMessage.innerHTML,
+      content: alertContent,
       title: "Relations history",
       position: { my: "center", at: "center", of: "svg" },
       buttons: {
@@ -315,10 +308,10 @@ export function editDiplomacy(): void {
   function changeRelationsHistory(this: HTMLElement): void {
     const parts = this.dataset.id!.split("-");
     const group = (worldContext.pack.states[0].diplomacy as unknown as string[][])[+parts[0]];
-    if (this.innerHTML === "") {
+    if (this.textContent === "") {
       group.splice(+parts[1], 1);
       this.remove();
-    } else group[+parts[1]] = this.innerHTML;
+    } else group[+parts[1]] = this.textContent || "";
   }
 
   function showRelationsMatrix(): void {
@@ -348,7 +341,8 @@ export function editDiplomacy(): void {
     });
 
     table += `</tbody></table>`;
-    diplomacyMatrixBody.innerHTML = table;
+    diplomacyMatrixBody.replaceChildren();
+    diplomacyMatrixBody.insertAdjacentHTML("beforeend", table);
 
     const tableEl = diplomacyMatrixBody.querySelector("table") as HTMLTableElement;
     tableEl.addEventListener("click", event => {

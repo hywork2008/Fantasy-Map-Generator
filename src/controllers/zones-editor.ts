@@ -2,19 +2,18 @@ import { type D3DragEvent, drag, pointer, type Selection, sum } from "d3";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import { toggleZones } from "../controllers/layers";
-import { editStyle } from "../controllers/style";
 import { PopulationRenderer, ZonesRenderer } from "../renderers";
 import { getZonesEditorState, setZonesEditorState } from "../store/zonesEditorState";
 import type { Zone } from "../types/models";
 import { closeDialogs, openRichDialog } from "../ui/dialogs/dialogService";
 import { findAll, findCell, rn, unique } from "../utils";
-import { alertMessage } from "../utils/alertMessageEl";
 import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog, downloadFile, getFileName } from "../utils/editorHelpers";
 import { getPackPolygon } from "../utils/graphUtils";
 import { layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, getArea, showMainTip, tip } from "../utils/uiHelpers";
+import { toggleZones } from "./layers";
+import { editStyle } from "./style";
 
 let worldContext: WorldContext;
 let viewContext: ViewContext;
@@ -428,7 +427,7 @@ function changePopulation(zone: Zone): void {
   const total = rural + urban;
   const l = (n: number) => Number(n).toLocaleString();
 
-  alertMessage.innerHTML = /* html */ `Rural: <input type="number" min="0" step="1" id="ruralPop" value=${rural} style="width:6em" /> Urban:
+  const alertContent = /* html */ `Rural: <input type="number" min="0" step="1" id="ruralPop" value=${rural} style="width:6em" /> Urban:
       <input type="number" min="0" step="1" id="urbanPop" value=${urban} style="width:6em" ${
         burgs.length ? "" : "disabled"
       } />
@@ -452,7 +451,7 @@ function changePopulation(zone: Zone): void {
   urbanPopEl.oninput = () => update();
 
   openRichDialog({
-    content: alertMessage.innerHTML,
+    content: alertContent,
     resizable: false,
     title: "Change zone population",
     width: "24em",

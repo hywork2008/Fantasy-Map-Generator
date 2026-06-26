@@ -1,5 +1,5 @@
 import type React from "react";
-import { closeLabelEditor, labelsEditorActions } from "../../editors/labels-editor";
+import { closeLabelEditor, labelsEditorActions } from "../../controllers/labels-editor";
 import { useLabelsEditorState } from "../../store/labelsEditorState";
 import { Dialog } from "./Dialog";
 

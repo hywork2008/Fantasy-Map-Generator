@@ -2,9 +2,6 @@ import { type D3DragEvent, drag, pointer, select } from "d3";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import { interactionManager } from "../controllers/interactionManager";
-import { toggleIce } from "../controllers/layers";
-import { editStyle } from "../controllers/style";
 import { Ice } from "../generators/ice";
 import { redrawGlacier, redrawIceberg } from "../renderers/index";
 import { elSelected, setElSelected } from "../store/editorState";
@@ -12,10 +9,12 @@ import { getIceEditorState, setIceEditorState } from "../store/iceEditorState";
 import type { IceIceberg } from "../types/models";
 import { closeDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { findGridCell, parseTransform } from "../utils";
-import { alertMessage } from "../utils/alertMessageEl";
 import { EditorBus } from "../utils/editorBus";
 import { layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, tip } from "../utils/uiHelpers";
+import { interactionManager } from "./interactionManager";
+import { toggleIce } from "./layers";
+import { editStyle } from "./style";
 
 let worldContext: WorldContext;
 let viewContext: ViewContext;
@@ -113,9 +112,9 @@ function removeIce(): void {
   const { type, selectedId } = getIceEditorState();
   if (selectedId === null) return;
 
-  alertMessage.innerHTML = /* html */ `Are you sure you want to remove the ${type}?`;
+  const alertContent = /* html */ `Are you sure you want to remove the ${type}?`;
   openRichDialog({
-    content: alertMessage.innerHTML,
+    content: alertContent,
     resizable: false,
     title: `Remove ${type}`,
     buttons: {

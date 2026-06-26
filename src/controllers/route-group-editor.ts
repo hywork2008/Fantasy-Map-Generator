@@ -1,7 +1,5 @@
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
-import { toggleRoutes } from "../controllers/layers";
-import { editStyle } from "../controllers/style";
 import { Routes } from "../generators/routes-generator";
 import { modules } from "../store/editorState";
 import { openDialog } from "../ui/dialogs/dialogService";
@@ -9,6 +7,8 @@ import { showPrompt } from "../utils";
 import { confirmationDialog } from "../utils/editorHelpers";
 import { layerIsOn } from "../utils/nodeUtils";
 import { tip } from "../utils/uiHelpers";
+import { toggleRoutes } from "./layers";
+import { editStyle } from "./style";
 
 export function editRouteGroups(): void {
   if (viewContext.customization) return;
@@ -34,7 +34,7 @@ export function editRouteGroups(): void {
   });
 
   function addLines(): void {
-    document.getElementById("routeGroupsEditorBody")!.innerHTML = "";
+    document.getElementById("routeGroupsEditorBody")!.replaceChildren();
 
     const lines = viewContext.routes
       .selectAll<SVGGElement, unknown>("g")
@@ -50,7 +50,7 @@ export function editRouteGroups(): void {
         </div>`;
       });
 
-    document.getElementById("routeGroupsEditorBody")!.innerHTML = lines.join("");
+    document.getElementById("routeGroupsEditorBody")!.insertAdjacentHTML("beforeend", lines.join(""));
   }
 
   const DEFAULT_GROUPS = ["roads", "trails", "searoutes"];

@@ -5,16 +5,6 @@ import { getWorldState } from "../actions";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import { editBiomes } from "../editors/biomes-editor";
-import { editDiplomacy } from "../editors/diplomacy-editor";
-import { editEmblem } from "../editors/emblems-editor";
-import { editHeightmap } from "../editors/heightmap-editor";
-import { NamesbaseEditor } from "../editors/namesbase-editor";
-import { editNotes } from "../editors/notes-editor";
-import { editProvinces } from "../editors/provinces-editor";
-import { createRoute } from "../editors/routes-editor";
-import { editUnits } from "../editors/units-editor";
-import { editZones } from "../editors/zones-editor";
 import { Burgs } from "../generators/burgs-generator";
 import { Cultures } from "../generators/cultures-generator";
 import { COA } from "../generators/emblem/generator";
@@ -64,9 +54,13 @@ import { findCell, gauss, generateSeed, getNextId, isCtrlClick, P, rn, showPromp
 import { EditorBus } from "../utils/editorBus";
 import { layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, tip } from "../utils/uiHelpers";
+import { editBiomes } from "./biomes-editor";
 import { overviewBurgs } from "./burgs-overview";
 import { openChartsOverview } from "./charts-overview";
+import { editDiplomacy } from "./diplomacy-editor";
 import { editCoastlineSettings, editCultures, editReligions, refreshAllEditors } from "./editors";
+import { editEmblem } from "./emblems-editor";
+import { editHeightmap } from "./heightmap-editor";
 import { interactionManager } from "./interactionManager";
 import {
   toggleBorders,
@@ -88,12 +82,18 @@ import {
 import * as MarkersOverview from "./markers-overview";
 import { overviewMilitary } from "./military-overview";
 import { openMinimapDialog } from "./minimap";
+import { NamesbaseEditor } from "./namesbase-editor";
+import { editNotes } from "./notes-editor";
 import { cellsDensityMap } from "./options";
+import { editProvinces } from "./provinces-editor";
 import * as RiversOverview from "./rivers-overview";
+import { createRoute } from "./routes-editor";
 import { overviewRoutes } from "./routes-overview";
 import { openSubmapTool } from "./submap-tool";
 import { openTransformTool } from "./transform-tool";
+import { editUnits } from "./units-editor";
 import { editWorld } from "./world-configurator";
+import { editZones } from "./zones-editor";
 
 let worldContext: WorldContext;
 let viewContext: ViewContext;

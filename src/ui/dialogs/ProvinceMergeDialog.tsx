@@ -1,6 +1,6 @@
 import type React from "react";
 import { useCallback, useEffect, useState } from "react";
-import { provincesEditorActions } from "../../editors/provinces-editor";
+import { provincesEditorActions } from "../../controllers/provinces-editor";
 import { useProvincesEditorState } from "../../store/provincesEditorState";
 import { FillBox } from "../components/FillBox";
 import { Dialog } from "./Dialog";

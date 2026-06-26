@@ -1,6 +1,6 @@
 import type React from "react";
 import { useCallback } from "react";
-import { statesEditorActions } from "../../editors/states-editor";
+import { statesEditorActions } from "../../controllers/states-editor";
 import { useStatesEditorState } from "../../store/statesEditorState";
 import { Dialog } from "./Dialog";
 

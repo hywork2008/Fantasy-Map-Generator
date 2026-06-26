@@ -3,11 +3,6 @@ import { getWorldState } from "../actions";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import { open as openHierarchyTree } from "../controllers/hierarchy-tree";
-import { interactionManager } from "../controllers/interactionManager";
-import { toggleBiomes, toggleCultures, toggleProvinces, toggleReligions, toggleStates } from "../controllers/layers";
-import { editStyle } from "../controllers/style";
-import { BrushHistoryClass as BrushHistory } from "../editors/BrushHistory";
 import { Cultures } from "../generators/cultures-generator";
 import { COA } from "../generators/emblem/generator";
 import { Names } from "../generators/names-generator";
@@ -24,7 +19,12 @@ import { confirmationDialog, downloadFile, getFileName } from "../utils/editorHe
 import { getPackPolygon } from "../utils/graphUtils";
 import { layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, getArea, getAreaUnit, showMainTip, tip } from "../utils/uiHelpers";
+import { BrushHistoryClass as BrushHistory } from "./BrushHistory";
+import { open as openHierarchyTree } from "./hierarchy-tree";
+import { interactionManager } from "./interactionManager";
+import { toggleBiomes, toggleCultures, toggleProvinces, toggleReligions, toggleStates } from "./layers";
 import { NamesbaseEditor } from "./namesbase-editor";
+import { editStyle } from "./style";
 
 const cultureTypes = ["Generic", "River", "Lake", "Naval", "Nomadic", "Hunting", "Highland"];
 
@@ -460,7 +460,7 @@ export const culturesEditorActions = {
   undoCultureManualAssignment(): void {
     const temp = viewContext.cults.select("#temp").node() as Element | null;
     if (!temp || !culturesManualHistory.canUndo) return;
-    temp.innerHTML = culturesManualHistory.pop() ?? "";
+    /* ignore-legacy-dom */ temp.innerHTML = culturesManualHistory.pop() ?? "";
   },
 
   changeBrushSize(size: number): void {
@@ -894,7 +894,7 @@ function addCulture(this: SVGElement, event: MouseEvent): void {
 function saveCulturesManualSnapshot(): void {
   const temp = viewContext.cults.select("#temp").node() as Element | null;
   if (!temp) return;
-  culturesManualHistory.push(temp.innerHTML);
+  /* ignore-legacy-dom */ culturesManualHistory.push(temp.innerHTML);
 }
 
 declare global {

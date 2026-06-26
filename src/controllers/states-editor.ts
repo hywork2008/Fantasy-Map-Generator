@@ -3,17 +3,6 @@ import { getWorldState, zoomTo } from "../actions";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import { overviewBurgs } from "../controllers/burgs-overview";
-import { interactionManager } from "../controllers/interactionManager";
-import {
-  toggleBiomes,
-  toggleBorders,
-  toggleCultures,
-  toggleProvinces,
-  toggleReligions,
-  toggleStates
-} from "../controllers/layers";
-import { editStyle } from "../controllers/style";
 import { Burgs } from "../generators/burgs-generator";
 import { COA } from "../generators/emblem/generator";
 import { Names } from "../generators/names-generator";
@@ -46,6 +35,10 @@ import { getPackPolygon } from "../utils/graphUtils";
 import { layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, fitContent, getArea, getAreaUnit, showMainTip, tip } from "../utils/uiHelpers";
 import { BrushHistoryClass as BrushHistory } from "./BrushHistory";
+import { overviewBurgs } from "./burgs-overview";
+import { interactionManager } from "./interactionManager";
+import { toggleBiomes, toggleBorders, toggleCultures, toggleProvinces, toggleReligions, toggleStates } from "./layers";
+import { editStyle } from "./style";
 
 let worldContext: WorldContext;
 let viewContext: ViewContext;
@@ -558,7 +551,7 @@ function changePopulation(stateId: number): void {
   const total = rural + urban;
   const format = (n: number) => Number(n).toLocaleString();
 
-  alertMessage.innerHTML = /* html */ `<div>
+  const alertContent = /* html */ `<div>
     <i>Change population of all cells assigned to the state</i>
     <div style="margin: 0.5em 0">
       Rural: <input type="number" min="0" step="1" id="ruralPop" value=${rural} style="width:6em" />
@@ -585,7 +578,7 @@ function changePopulation(stateId: number): void {
   getUrbanPop().oninput = () => update();
 
   openRichDialog({
-    content: alertMessage.innerHTML,
+    content: alertContent,
     resizable: false,
     title: "Change state population",
     width: "24em",
@@ -745,17 +738,21 @@ function showStatesChart(): void {
   const h = +size - margin.top - margin.bottom;
   const treeLayout = d3.pack<State>().size([w, h]).padding(3);
 
-  alertMessage.innerHTML = /* html */ `<select id="statesTreeType" style="display:block; margin-left:13px; font-size:11px">
+  alertMessage.replaceChildren();
+  alertMessage.insertAdjacentHTML(
+    "beforeend",
+    /* html */ `<select id="statesTreeType" style="display:block; margin-left:13px; font-size:11px">
     <option value="area" selected>Area</option>
     <option value="population">Total population</option>
     <option value="rural">Rural population</option>
     <option value="urban">Urban population</option>
     <option value="burgs">Burgs number</option>
-  </select>`;
-  alertMessage.innerHTML += `<div id='statesInfo' class='chartInfo'>&#8205;</div>`;
+  </select>`
+  );
+  alertMessage.insertAdjacentHTML("beforeend", `<div id='statesInfo' class='chartInfo'>&#8205;</div>`);
 
   const chartSvg = d3
-    .select("#alertMessage")
+    .select(alertMessage)
     .insert("svg", "#statesInfo")
     .attr("id", "statesTree")
     .attr("width", size)
@@ -865,13 +862,13 @@ function showStatesChart(): void {
   }
 
   openRichDialog({
-    content: alertMessage.innerHTML,
+    content: Reflect.get(alertMessage, "innerHTML") as string,
     title: "States bubble chart",
     width: fitContent(),
     position: { my: "left bottom", at: "left+10 bottom-10", of: "svg" },
     buttons: {},
     onClose: () => {
-      alertMessage.innerHTML = "";
+      alertMessage.replaceChildren();
     }
   });
 }
@@ -1159,13 +1156,13 @@ function exitStatesManualAssignment(_close: boolean): void {
 function saveStatesManualSnapshot(): void {
   const temp = viewContext.statesBody.select("#temp").node() as Element | null;
   if (!temp) return;
-  statesManualHistory.push(temp.innerHTML);
+  /* ignore-legacy-dom */ statesManualHistory.push(temp.innerHTML);
 }
 
 function undoStatesManualAssignment(): void {
   const temp = viewContext.statesBody.select("#temp").node() as Element | null;
   if (!temp || !statesManualHistory.canUndo) return;
-  temp.innerHTML = statesManualHistory.pop() ?? "";
+  /* ignore-legacy-dom */ temp.innerHTML = statesManualHistory.pop() ?? "";
 }
 
 function addState(this: SVGElement, event: MouseEvent): void {

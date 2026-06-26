@@ -1,5 +1,5 @@
 import type React from "react";
-import { lakeEditorActions } from "../../editors/lakes-editor";
+import { lakeEditorActions } from "../../controllers/lakes-editor";
 import { useDialogState } from "../../store/dialogState";
 import { useLakeEditorState } from "../../store/lakeEditorState";
 import { getAreaUnit } from "../../utils/uiHelpers";

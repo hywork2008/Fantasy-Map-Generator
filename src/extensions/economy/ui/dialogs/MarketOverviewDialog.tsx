@@ -2,7 +2,7 @@ import React from "react";
 import { useDialogState } from "../../../../store/dialogState";
 import { Dialog } from "../../../../ui/dialogs/Dialog";
 import { closeDialog } from "../../../../ui/dialogs/dialogService";
-import { open as openMarketOverview } from "../../editors/market-overview";
+import { open as openMarketOverview } from "../../controllers/market-overview";
 
 export const MarketOverviewDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("marketOverview"));

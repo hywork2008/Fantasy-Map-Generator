@@ -1,6 +1,6 @@
 import type React from "react";
 import { useEffect, useRef } from "react";
-import { COAST_PRESETS, coastlineSettingsActions, SLIDER_DEFS } from "../../editors/coastline-editor";
+import { COAST_PRESETS, coastlineSettingsActions, SLIDER_DEFS } from "../../controllers/coastline-editor";
 import { useCoastlineEditorState } from "../../store/coastlineEditorState";
 import { useDialogState } from "../../store/dialogState";
 import { Dialog } from "./Dialog";

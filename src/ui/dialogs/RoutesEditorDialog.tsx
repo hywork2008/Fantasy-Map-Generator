@@ -1,5 +1,5 @@
 import type React from "react";
-import { routesEditorActions } from "../../editors/routes-editor";
+import { routesEditorActions } from "../../controllers/routes-editor";
 import { useRoutesEditorState } from "../../store/routesEditorState";
 import { Dialog } from "./Dialog";
 

@@ -2,6 +2,7 @@ import { getWorldState, resetZoom, zoomTo } from "./actions";
 import { appServices } from "./context/appServices";
 import { viewContext } from "./context/viewContext";
 import { worldContext } from "./context/worldContext";
+import { editBurg } from "./controllers/burg-editor";
 import { restoreDefaultEvents, unselect } from "./controllers/editors";
 import { initControllers } from "./controllers/index";
 import {
@@ -18,7 +19,6 @@ import {
   turnButtonOn
 } from "./controllers/layers";
 import { changeViewMode } from "./controllers/options";
-import { editBurg } from "./editors/burg-editor";
 import { initExtensions } from "./extensions/index";
 import { initModules } from "./generators/index";
 import { buildGeoJsonZones, saveGeoJsonZones } from "./io/export";

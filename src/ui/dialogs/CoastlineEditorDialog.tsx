@@ -1,5 +1,5 @@
 import type React from "react";
-import { coastlineEditorActions } from "../../editors/coastline-editor";
+import { coastlineEditorActions } from "../../controllers/coastline-editor";
 import { useCoastlineEditorState } from "../../store/coastlineEditorState";
 import { useDialogState } from "../../store/dialogState";
 import { Dialog } from "./Dialog";

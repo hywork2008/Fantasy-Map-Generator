@@ -1,6 +1,6 @@
 import type React from "react";
 import { useState } from "react";
-import { zonesEditorActions } from "../../editors/zones-editor";
+import { zonesEditorActions } from "../../controllers/zones-editor";
 import { setZonesEditorState, useZonesEditorState, type ZoneRowData } from "../../store/zonesEditorState";
 import { FillBox } from "../components/FillBox";
 import { SliderInput } from "../components/SliderInput";

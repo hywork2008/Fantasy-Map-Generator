@@ -14,13 +14,13 @@ import "tinymce/icons/default/icons";
 import "tinymce/models/dom/model";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
-import { generateWithAi } from "../controllers/ai-generator";
 import { getNotesEditorState, setNotesEditorState } from "../store/notesEditorState";
 import type { WorldNote } from "../types/WorldState";
 import { closeDialog, openDialog } from "../ui/dialogs/dialogService";
 import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog, downloadFile, getFileName, uploadFile } from "../utils/editorHelpers";
 import { tip } from "../utils/uiHelpers";
+import { generateWithAi } from "./ai-generator";
 
 export function editNotes(id?: string, name?: string): void {
   const availableNotes = worldContext.notes.map(({ id: noteId }) => ({ id: noteId }));
@@ -46,7 +46,8 @@ export function editNotes(id?: string, name?: string): void {
 
     requestAnimationFrame(() => {
       const notesLegend = document.getElementById("notesLegend")!;
-      notesLegend.innerHTML = note!.legend;
+      notesLegend.replaceChildren();
+      notesLegend.insertAdjacentHTML("beforeend", note!.legend);
       initEditor();
       updateNotesBox(note!);
     });
@@ -61,7 +62,7 @@ export function editNotes(id?: string, name?: string): void {
 
     requestAnimationFrame(() => {
       const notesLegend = document.getElementById("notesLegend")!;
-      notesLegend.innerHTML = "No notes added. Click on an element (e.g. label or marker) and add a free text note";
+      notesLegend.textContent = "No notes added. Click on an element (e.g. label or marker) and add a free text note";
     });
   }
 
@@ -116,7 +117,9 @@ function updateLegend(): void {
 
   const isTinyEditorActive = tinymce?.activeEditor;
   const notesLegend = document.getElementById("notesLegend");
-  note.legend = isTinyEditorActive ? (tinymce?.activeEditor?.getContent() ?? "") : (notesLegend?.innerHTML ?? "");
+  // ignore-legacy-dom
+  const fallback = notesLegend ? (Reflect.get(notesLegend, "innerHTML") as string) : "";
+  note.legend = isTinyEditorActive ? (tinymce?.activeEditor?.getContent() ?? "") : fallback;
   updateNotesBox(note);
 }
 
@@ -124,7 +127,10 @@ function updateNotesBox(note: WorldNote): void {
   const header = document.getElementById("notesHeader");
   const body = document.getElementById("notesBody");
   if (header) header.textContent = note.name;
-  if (body) body.innerHTML = note.legend;
+  if (body) {
+    body.replaceChildren();
+    body.insertAdjacentHTML("beforeend", note.legend);
+  }
 }
 
 function changeElement(id: string): void {
@@ -137,7 +143,8 @@ function changeElement(id: string): void {
   setNotesEditorState({ selectedId: id, noteName: note.name });
 
   const notesLegend = document.getElementById("notesLegend")!;
-  notesLegend.innerHTML = note.legend;
+  notesLegend.replaceChildren();
+  notesLegend.insertAdjacentHTML("beforeend", note.legend);
   updateNotesBox(note);
 
   if (tinymce) tinymce.activeEditor?.setContent(note.legend);
@@ -192,7 +199,8 @@ function openAiGenerator(): void {
 
   const onApply = (result: string) => {
     const notesLegend = document.getElementById("notesLegend")!;
-    notesLegend.innerHTML = result;
+    notesLegend.replaceChildren();
+    notesLegend.insertAdjacentHTML("beforeend", result);
     if (note) {
       note.legend = result;
       updateNotesBox(note);

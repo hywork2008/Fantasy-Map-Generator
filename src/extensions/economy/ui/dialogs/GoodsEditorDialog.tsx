@@ -2,7 +2,7 @@ import React from "react";
 import { useDialogState } from "../../../../store/dialogState";
 import { Dialog } from "../../../../ui/dialogs/Dialog";
 import { closeDialog } from "../../../../ui/dialogs/dialogService";
-import { open as openGoodsEditor } from "../../editors/goods-editor";
+import { open as openGoodsEditor } from "../../controllers/goods-editor";
 
 export const GoodsEditorDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("goodsEditor"));

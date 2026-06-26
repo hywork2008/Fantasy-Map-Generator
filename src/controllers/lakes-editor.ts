@@ -5,9 +5,6 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
-import { interactionManager } from "../controllers/interactionManager";
-import { toggleCells } from "../controllers/layers";
-import { editStyle } from "../controllers/style";
 import { Lakes } from "../generators/lakes";
 import { Names } from "../generators/names-generator";
 import {
@@ -24,12 +21,14 @@ import { getLakeEditorState } from "../store/lakeEditorState";
 import type { PackedGraphFeature } from "../types/models";
 import { closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { rand, rn, unique } from "../utils";
-import { alertMessage } from "../utils/alertMessageEl";
 import { EditorBus } from "../utils/editorBus";
 import { getPackPolygon } from "../utils/graphUtils";
 import { layerIsOn } from "../utils/nodeUtils";
 import { getArea, tip } from "../utils/uiHelpers";
+import { interactionManager } from "./interactionManager";
+import { toggleCells } from "./layers";
 import { editNotes } from "./notes-editor";
+import { editStyle } from "./style";
 
 function getLake(): PackedGraphFeature {
   const lakeId = +elSelected!.attr("data-f");
@@ -252,9 +251,9 @@ export const lakeEditorActions = {
     }
 
     const count = (elSelected!.node()!.parentNode as SVGGElement).childElementCount;
-    alertMessage.innerHTML = /* html */ `Are you sure you want to remove the group? All lakes of the group (${count}) will be turned into Freshwater`;
+    const alertContent = /* html */ `Are you sure you want to remove the group? All lakes of the group (${count}) will be turned into Freshwater`;
     openRichDialog({
-      content: alertMessage.innerHTML,
+      content: alertContent,
       resizable: false,
       title: "Remove lake group",
       width: "26em",

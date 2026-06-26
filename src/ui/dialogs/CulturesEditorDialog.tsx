@@ -1,6 +1,6 @@
 import type React from "react";
 import { useMemo, useRef } from "react";
-import { culturesEditorActions } from "../../editors/cultures-editor";
+import { culturesEditorActions } from "../../controllers/cultures-editor";
 import { COA } from "../../generators/emblem/generator";
 import { useCulturesEditorState } from "../../store/culturesEditorState";
 import { capitalize, rn, si } from "../../utils";

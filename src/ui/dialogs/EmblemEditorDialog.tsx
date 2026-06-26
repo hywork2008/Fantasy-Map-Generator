@@ -1,5 +1,5 @@
 import type React from "react";
-import { closeEmblemEditor, emblemEditorActions } from "../../editors/emblems-editor";
+import { closeEmblemEditor, emblemEditorActions } from "../../controllers/emblems-editor";
 import { useEmblemEditorState } from "../../store/emblemEditorState";
 import { Dialog } from "./Dialog";
 

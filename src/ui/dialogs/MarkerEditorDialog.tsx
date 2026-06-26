@@ -1,5 +1,5 @@
 import type React from "react";
-import { closeMarkerEditor, markersEditorActions } from "../../editors/markers-editor";
+import { closeMarkerEditor, markersEditorActions } from "../../controllers/markers-editor";
 import { useMarkersEditorState } from "../../store/markersEditorState";
 import { showElementLockTip } from "../../utils/uiHelpers";
 import { Dialog } from "./Dialog";

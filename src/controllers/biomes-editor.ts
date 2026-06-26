@@ -3,15 +3,6 @@ import { getWorldState } from "../actions";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import {
-  toggleBiomes,
-  toggleCultures,
-  toggleProvinces,
-  toggleRelief,
-  toggleReligions,
-  toggleStates
-} from "../controllers/layers";
-import { editStyle } from "../controllers/style";
 import { Biomes } from "../generators/biomes";
 import { BiomesRenderer, ReliefIconsRenderer } from "../renderers";
 import type { BiomeRow, BiomesFooter } from "../store/biomesEditorStore";
@@ -24,6 +15,8 @@ import { downloadFile, getFileName } from "../utils/editorHelpers";
 import { getPackPolygon } from "../utils/graphUtils";
 import { layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, fitContent, getArea, getAreaUnit, showMainTip, tip } from "../utils/uiHelpers";
+import { toggleBiomes, toggleCultures, toggleProvinces, toggleRelief, toggleReligions, toggleStates } from "./layers";
+import { editStyle } from "./style";
 
 let worldContext: WorldContext;
 let viewContext: ViewContext;

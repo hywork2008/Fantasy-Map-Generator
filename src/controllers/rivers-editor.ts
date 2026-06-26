@@ -1,10 +1,6 @@
 import { curveCatmullRom, type D3DragEvent, drag, pointer, select } from "d3";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import { openElevationProfile } from "../controllers/elevation-profile";
-import { toggleCells, toggleRivers } from "../controllers/layers";
-import { createRiver } from "../controllers/rivers-creator";
-import { editStyle } from "../controllers/style";
 import { Names } from "../generators/names-generator";
 import { Rivers } from "../generators/river-generator";
 import { dialogStore } from "../store/dialogState";
@@ -13,12 +9,15 @@ import type { River } from "../types/models";
 import type { TypedArray } from "../types/PackedGraph";
 import { closeDialog, closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { findCell, getSegmentId, rand, rn } from "../utils";
-import { alertMessage } from "../utils/alertMessageEl";
 import { EditorBus } from "../utils/editorBus";
 import { getPackPolygon } from "../utils/graphUtils";
 import { layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, tip } from "../utils/uiHelpers";
+import { openElevationProfile } from "./elevation-profile";
+import { toggleCells, toggleRivers } from "./layers";
 import { editNotes } from "./notes-editor";
+import { createRiver } from "./rivers-creator";
+import { editStyle } from "./style";
 
 let worldContext: WorldContext;
 
@@ -277,9 +276,9 @@ export const riverEditorActions = {
   },
 
   removeRiver: (): void => {
-    alertMessage.innerHTML = "Are you sure you want to remove the river and all its tributaries";
+    const alertContent = "Are you sure you want to remove the river and all its tributaries";
     openRichDialog({
-      content: alertMessage.innerHTML,
+      content: alertContent,
       resizable: false,
       width: "22em",
       title: "Remove river and tributaries",

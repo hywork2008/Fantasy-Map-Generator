@@ -1,6 +1,6 @@
 import type React from "react";
 import { useRef } from "react";
-import { closeNotesEditor, notesEditorActions } from "../../editors/notes-editor";
+import { closeNotesEditor, notesEditorActions } from "../../controllers/notes-editor";
 import { useNotesEditorState } from "../../store/notesEditorState";
 import { Dialog } from "./Dialog";
 

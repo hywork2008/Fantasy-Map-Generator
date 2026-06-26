@@ -2,9 +2,6 @@ import { drag, easeSinInOut, pointer, select, sum, transition } from "d3";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import type { BattleRegiment } from "../controllers/battle-screen";
-import { interactionManager } from "../controllers/interactionManager";
-import { toggleMilitary } from "../controllers/layers";
 import { Military } from "../generators/military-generator";
 import { drawRegiment, moveRegiment } from "../renderers/index";
 import { elSelected, modules, setElSelected } from "../store/editorState";
@@ -13,10 +10,12 @@ import type { MilitaryRegiment } from "../types/models";
 import type { WorldNote } from "../types/WorldState";
 import { closeDialog, closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { findCell, last, rn } from "../utils";
-import { alertMessage } from "../utils/alertMessageEl";
 import { EditorBus } from "../utils/editorBus";
 import { layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, tip } from "../utils/uiHelpers";
+import type { BattleRegiment } from "./battle-screen";
+import { interactionManager } from "./interactionManager";
+import { toggleMilitary } from "./layers";
 import { editNotes } from "./notes-editor";
 
 let worldContext: WorldContext;
@@ -273,7 +272,7 @@ export const regimentEditorActions = {
     baseRect.setAttribute("width", String(isNaval ? size * 4 : size * 6));
     iconRect.setAttribute("x", String(x - size * 2));
     icon.setAttribute("x", String(x - size));
-    (getRegEl().querySelector("text") as SVGTextElement).innerHTML = String(Military.getTotal(reg));
+    (getRegEl().querySelector("text") as SVGTextElement).textContent = String(Military.getTotal(reg));
   },
 
   changeEmblem(): void {
@@ -286,7 +285,7 @@ export const regimentEditorActions = {
       setRegimentEditorState({ icon: value });
       if (!regEl?.isConnected) return;
       const isExternal = value.startsWith("http") || value.startsWith("data:image");
-      (regEl.querySelector(".regimentIcon") as SVGElement).innerHTML = isExternal ? "" : value;
+      (regEl.querySelector(".regimentIcon") as SVGElement).textContent = isExternal ? "" : value;
       (regEl.querySelector(".regimentImage") as SVGImageElement).setAttribute("href", isExternal ? value : "");
     });
   },
@@ -296,7 +295,7 @@ export const regimentEditorActions = {
     if (!reg) return;
     reg.u[unitName] = count;
     reg.a = sum(Object.values(reg.u) as number[]);
-    (getRegEl().querySelector("text") as SVGTextElement).innerHTML = String(Military.getTotal(reg));
+    (getRegEl().querySelector("text") as SVGTextElement).textContent = String(Military.getTotal(reg));
 
     const units = getRegimentEditorState().units.map(u => (u.name === unitName ? { ...u, count } : u));
     setRegimentEditorState({ units });
@@ -329,7 +328,7 @@ export const regimentEditorActions = {
       u1[u] = Math.ceil(u1[u] / 2);
     });
     reg.a = sum(Object.values(u1) as number[]);
-    (getRegEl().querySelector("text") as SVGTextElement).innerHTML = String(Military.getTotal(reg));
+    (getRegEl().querySelector("text") as SVGTextElement).textContent = String(Military.getTotal(reg));
 
     // sync updated counts to store
     const unitOptions = worldContext.options.military ?? [];
@@ -434,9 +433,9 @@ export const regimentEditorActions = {
   },
 
   removeRegiment(): void {
-    alertMessage.innerHTML = "Are you sure you want to remove the regiment?";
+    const alertContent = "Are you sure you want to remove the regiment?";
     openRichDialog({
-      content: alertMessage.innerHTML,
+      content: alertContent,
       resizable: false,
       title: "Remove regiment",
       buttons: {
@@ -571,7 +570,7 @@ function attachRegimentOnClick(this: SVGElement, event: MouseEvent): void {
     }
   }
   sel.a = sum(Object.values(sel.u) as number[]);
-  (regSelected.querySelector("text") as SVGTextElement).innerHTML = String(Military.getTotal(sel));
+  (regSelected.querySelector("text") as SVGTextElement).textContent = String(Military.getTotal(sel));
 
   const military = worldContext.pack.states[oldState].military ?? [];
   military.splice(military.indexOf(reg), 1);

@@ -9,7 +9,7 @@ import {
   closeMarketsOverview,
   marketsOverviewActions,
   open as openMarketsOverview
-} from "../../editors/markets-overview";
+} from "../../controllers/markets-overview";
 
 export const MarketsOverviewDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("marketsOverview"));

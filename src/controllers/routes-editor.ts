@@ -2,10 +2,6 @@ import type * as d3 from "d3";
 import { drag, pointer, select } from "d3";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import { openElevationProfile } from "../controllers/elevation-profile";
-import { interactionManager } from "../controllers/interactionManager";
-import { toggleCells, toggleRoutes } from "../controllers/layers";
-import { editStyle } from "../controllers/style";
 import { Routes } from "../generators/routes-generator";
 import { dialogStore } from "../store/dialogState";
 import { elSelected, modules, setElSelected } from "../store/editorState";
@@ -20,8 +16,12 @@ import { confirmationDialog } from "../utils/editorHelpers";
 import { getPackPolygon } from "../utils/graphUtils";
 import { layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, fitContent, tip } from "../utils/uiHelpers";
+import { openElevationProfile } from "./elevation-profile";
+import { interactionManager } from "./interactionManager";
+import { toggleCells, toggleRoutes } from "./layers";
 import { editNotes } from "./notes-editor";
 import { editRouteGroups } from "./route-group-editor";
+import { editStyle } from "./style";
 
 let worldContext: WorldContext;
 
@@ -440,12 +440,12 @@ export const routesEditorActions = {
         const length = `${rn(r.length * worldContext.distanceScale)} ${distanceUnitInput?.value || "km"}`;
         return `<option value="${r.i}">${r.name} (${length})</option>`;
       });
-      alertMessage.innerHTML = /* html */ `<div>Route to join with:
+      const alertContent = /* html */ `<div>Route to join with:
         <select>${options.join("")}</select>
       </div>`;
 
       openRichDialog({
-        content: alertMessage.innerHTML,
+        content: alertContent,
         title: "Join routes",
         width: fitContent(),
         position: { my: "left top", at: "left+10 top+150", of: "#map" },

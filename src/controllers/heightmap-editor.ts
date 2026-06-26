@@ -9,9 +9,6 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
-import { interactionManager } from "../controllers/interactionManager";
-import { getCurrentPreset, turnButtonOff, turnButtonOn } from "../controllers/layers";
-import { changeViewMode, enterStandardView } from "../controllers/options";
 import { heightmapTemplates } from "../data";
 import { Biomes } from "../generators/biomes";
 import { Burgs } from "../generators/burgs-generator";
@@ -56,7 +53,6 @@ import {
   showPrompt,
   unique
 } from "../utils";
-import { alertMessage } from "../utils/alertMessageEl";
 import { getColorScheme } from "../utils/colorUtils";
 import { ERROR, INFO, TIME } from "../utils/debug";
 import { EditorBus } from "../utils/editorBus";
@@ -64,6 +60,9 @@ import { downloadFile, getFileName, uploadFile } from "../utils/editorHelpers";
 import { layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, locked, showMainTip, tip } from "../utils/uiHelpers";
 import { HeightmapEditorHistoryClass as HeightmapEditorHistory } from "./HeightmapEditorHistory";
+import { interactionManager } from "./interactionManager";
+import { getCurrentPreset, turnButtonOff, turnButtonOn } from "./layers";
+import { changeViewMode, enterStandardView } from "./options";
 
 // ─── Module-level state ───────────────────────────────────────────────────────
 
@@ -95,7 +94,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
   document.getElementById("templateRedo")!.addEventListener("click", redoHistory);
 
   function showModeDialog() {
-    alertMessage.innerHTML = `Heightmap is a core element on which all other data (rivers, burgs, states etc) is based. So the best edit approach is to
+    const alertContent = `Heightmap is a core element on which all other data (rivers, burgs, states etc) is based. So the best edit approach is to
     <i>erase</i> the secondary data and let the system automatically regenerate it on edit completion.
     <p><i>Erase</i> mode also allows you Convert an Image into a heightmap or use Template Editor.</p>
     <p>You can <i>keep</i> the data, but you won't be able to change the coastline.</p>
@@ -104,7 +103,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     <p style="margin-bottom: 0">Check out ${link("https://github.com/Azgaar/Fantasy-Map-Generator/wiki/Heightmap-viewContext.customization", "wiki")} for guidance.</p>`;
 
     openRichDialog({
-      content: alertMessage.innerHTML,
+      content: alertContent,
       resizable: false,
       title: "Edit Heightmap",
       width: "28em",
@@ -267,7 +266,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     if (document.getElementById("preview")) document.getElementById("preview")!.remove();
     if (document.getElementById("canvas3d")) enterStandardView();
 
-    const mode = heightmapEditMode.innerHTML;
+    const mode = heightmapEditMode.textContent;
     if (mode === "erase") await regenerateErasedData();
     else if (mode === "keep") restoreKeptData();
     else if (mode === "risk") await restoreRiskedData();
@@ -979,7 +978,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     }
 
     function cellTypeFilterChange(): void {
-      if ((cellTypeFilter as HTMLSelectElement).value === "land" && heightmapEditMode.innerHTML === "keep") {
+      if ((cellTypeFilter as HTMLSelectElement).value === "land" && heightmapEditMode.textContent === "keep") {
         tip("You cannot change the coastline in 'Keep' edit mode", false, "error");
         (cellTypeFilter as HTMLSelectElement).value = "all";
       }
@@ -1192,9 +1191,9 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
         return;
       }
 
-      alertMessage.innerHTML = "Are you sure you want to select a different template? All changes will be lost.";
+      const alertContent = "Are you sure you want to select a different template? All changes will be lost.";
       openRichDialog({
-        content: alertMessage.innerHTML,
+        content: alertContent,
         resizable: false,
         title: "Change Template",
         buttons: {
@@ -1212,7 +1211,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     function changeTemplate(template: string): void {
       const body = document.getElementById("templateBody")!;
       body.setAttribute("data-changed", "0");
-      body.innerHTML = "";
+      body.replaceChildren();
       const templateString = heightmapTemplates[template]?.template as string | undefined;
       if (!templateString) return;
       const steps = templateString.split("\n");
@@ -1298,7 +1297,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
         tip("Cannot parse the template, please check the file", false, "error");
         return;
       }
-      (templateBody as HTMLElement).innerHTML = "";
+      (templateBody as HTMLElement).replaceChildren();
       for (const s of steps) {
         const step = s.split(" ");
         if (step.length !== 5) {
@@ -1629,9 +1628,9 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     function closeImageConverter(event: Event): void {
       event.preventDefault();
       event.stopPropagation();
-      alertMessage.innerHTML = `Are you sure you want to close the Image Converter? Click "Cancel" to keep editing. Click "Complete" to apply the conversion and close the tool. Click "Close" to discard the conversion and restore the previous heightmap.`;
+      const alertContent = `Are you sure you want to close the Image Converter? Click "Cancel" to keep editing. Click "Complete" to apply the conversion and close the tool. Click "Close" to discard the conversion and restore the previous heightmap.`;
       openRichDialog({
-        content: alertMessage.innerHTML,
+        content: alertContent,
         resizable: false,
         title: "Close Image Converter",
         buttons: {

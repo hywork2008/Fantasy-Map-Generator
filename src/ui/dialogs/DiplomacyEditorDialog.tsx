@@ -1,5 +1,5 @@
 import type React from "react";
-import { diplomacyEditorActions } from "../../editors/diplomacy-editor";
+import { diplomacyEditorActions } from "../../controllers/diplomacy-editor";
 import { useDialogState } from "../../store/dialogState";
 import { useDiplomacyEditorState } from "../../store/diplomacyEditorState";
 import { FillBox } from "../components/FillBox";

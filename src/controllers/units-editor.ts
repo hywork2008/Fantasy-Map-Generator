@@ -2,8 +2,6 @@ import { type D3DragEvent, drag, pointer } from "d3";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import { toggleRulers } from "../controllers/layers";
-import { calculateFriendlyGridSize } from "../controllers/style";
 import { Routes } from "../generators/routes-generator";
 import { drawTemperature } from "../renderers";
 import { drawScaleBar, fitScaleBar } from "../renderers/index";
@@ -11,10 +9,11 @@ import { modules, rulers, setRulers } from "../store/editorState";
 import { getUnitsEditorState, setUnitsEditorState } from "../store/unitsEditorState";
 import { closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { findCell, showPrompt } from "../utils";
-import { alertMessage } from "../utils/alertMessageEl";
 import { EditorBus } from "../utils/editorBus";
 import { layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, lock, tip, unlock } from "../utils/uiHelpers";
+import { toggleRulers } from "./layers";
+import { calculateFriendlyGridSize } from "./style";
 
 let worldContext: WorldContext;
 let viewContext: ViewContext;
@@ -290,10 +289,10 @@ export const unitsEditorActions = {
 
   removeAllRulers(): void {
     if (!rulers.data.length) return;
-    alertMessage.innerHTML = /* html */ ` Are you sure you want to remove all placed rulers?
+    const alertContent = /* html */ ` Are you sure you want to remove all placed rulers?
       <br />If you just want to hide rulers, toggle the Rulers layer off in Menu`;
     openRichDialog({
-      content: alertMessage.innerHTML,
+      content: alertContent,
       resizable: false,
       title: "Remove all rulers",
       buttons: {

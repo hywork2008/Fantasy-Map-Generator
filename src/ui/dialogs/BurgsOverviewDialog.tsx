@@ -1,6 +1,8 @@
 import type React from "react";
 import { useEffect, useMemo, useRef } from "react";
 import { worldContext } from "../../context/worldContext";
+import { editBurg } from "../../controllers/burg-editor";
+import { editBurgGroups } from "../../controllers/burg-group-editor";
 import {
   burgHighlightOff,
   burgHighlightOn,
@@ -14,8 +16,6 @@ import {
   zoomIntoBurg
 } from "../../controllers/burgs-overview";
 import { uploadFile } from "../../controllers/editors";
-import { editBurg } from "../../editors/burg-editor";
-import { editBurgGroups } from "../../editors/burg-group-editor";
 import { Burgs } from "../../generators/burgs-generator";
 import { useBurgsOverviewState } from "../../store/burgsOverviewState";
 import { useDialogState } from "../../store/dialogState";

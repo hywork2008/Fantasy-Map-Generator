@@ -4,7 +4,6 @@ import { worldContext } from "../context/worldContext";
 import { Names } from "../generators/names-generator";
 import { closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { openURL, rn, unique } from "../utils";
-import { alertMessage } from "../utils/alertMessageEl";
 import { ERROR } from "../utils/debug";
 import { downloadFile, getFileName, uploadFile } from "../utils/editorHelpers";
 import { speak, tip } from "../utils/uiHelpers";
@@ -101,7 +100,7 @@ class NamesbaseEditorModule {
 
   private createBasesList(): void {
     const select = document.getElementById("namesbaseSelect") as HTMLSelectElement;
-    select.innerHTML = "";
+    select.replaceChildren();
     worldContext.nameBases.forEach((b, i) => {
       select.options.add(new Option(b.name, String(i)));
     });
@@ -231,7 +230,7 @@ class NamesbaseEditorModule {
       return "<span data-tip='Namesbase variety is good' style='color:green'>[good]</span>";
     };
 
-    alertMessage.innerHTML = /* html */ `<div style="line-height: 1.6em; max-width: 20em">
+    const alertContent = /* html */ `<div style="line-height: 1.6em; max-width: 20em">
       <div data-tip="Number of names provided">Namesbase length: ${length} ${getLengthQuality()}</div>
       <div data-tip="Average number of generation variants for each key in the chain">Namesbase variety: ${variety} ${getVarietyLevel()}</div>
       <hr />
@@ -247,7 +246,7 @@ class NamesbaseEditorModule {
     </div>`;
 
     openRichDialog({
-      content: alertMessage.innerHTML,
+      content: alertContent,
       resizable: false,
       title: "Data Analysis",
       width: "auto",
@@ -281,14 +280,14 @@ class NamesbaseEditorModule {
     (document.getElementById("namesbaseMin") as HTMLInputElement).value = "5";
     (document.getElementById("namesbaseMax") as HTMLInputElement).value = "12";
     (document.getElementById("namesbaseDouble") as HTMLInputElement).value = "";
-    document.getElementById("namesbaseExamples")!.innerHTML = "Please provide names data";
+    document.getElementById("namesbaseExamples")!.textContent = "Please provide names data";
   }
 
   private namesbaseRestoreDefault(): void {
-    alertMessage.innerHTML = /* html */ `Are you sure you want to restore default namesbase?`;
+    const alertContent = /* html */ `Are you sure you want to restore default namesbase?`;
 
     openRichDialog({
-      content: alertMessage.innerHTML,
+      content: alertContent,
       resizable: false,
       title: "Restore default data",
       buttons: {
@@ -364,7 +363,7 @@ class NamesbaseEditorModule {
         )
         .join("");
 
-      alertMessage.innerHTML = /* html */ `<div>
+      const alertContent = /* html */ `<div>
         <p style="margin:0.75em;">
           <strong>File parsing error. Only ${lines.length - errors.length} out of ${lines.length} namebases added.</strong>
           Each namebase should be on its own line and follow the format: <code>name|min|max|duplication|m|names</code>. Parameters should be separated with the <code>|</code> character, and this character should not be used within the parameters. Another prohibited character is <code>/</code>. The most common issue is names and other parameters being on two separate lines.
@@ -385,7 +384,7 @@ class NamesbaseEditorModule {
       </div>`;
 
       openRichDialog({
-        content: alertMessage.innerHTML,
+        content: alertContent,
         resizable: false,
         title: "Parsing error",
         width: "min(72vw, 68em)",

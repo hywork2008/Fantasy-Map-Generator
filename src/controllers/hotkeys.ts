@@ -1,22 +1,16 @@
 import { resetZoom } from "../actions";
 import { viewContext } from "../context/viewContext";
-import { editBiomes } from "../editors/biomes-editor";
-import { editDiplomacy } from "../editors/diplomacy-editor";
-import { editHeightmap } from "../editors/heightmap-editor";
-import { NamesbaseEditor } from "../editors/namesbase-editor";
-import { editNotes } from "../editors/notes-editor";
-import { editProvinces } from "../editors/provinces-editor";
-import { createRoute } from "../editors/routes-editor";
-import { editUnits } from "../editors/units-editor";
-import { editZones } from "../editors/zones-editor";
 import { quickLoad } from "../io/load";
 import { saveMap, toggleSaveReminder } from "../io/save";
 import { closeDialogs } from "../ui/dialogs/dialogService";
 import { minmax } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { showInfo } from "../utils/uiHelpers";
+import { editBiomes } from "./biomes-editor";
 import { overviewBurgs } from "./burgs-overview";
+import { editDiplomacy } from "./diplomacy-editor";
 import { editCoastlineSettings, editCultures, editReligions } from "./editors";
+import { editHeightmap } from "./heightmap-editor";
 import {
   toggleBiomes,
   toggleBorders,
@@ -50,8 +44,12 @@ import {
 } from "./layers";
 import { overviewMarkers } from "./markers-overview";
 import { overviewMilitary } from "./military-overview";
+import { NamesbaseEditor } from "./namesbase-editor";
+import { editNotes } from "./notes-editor";
 import { hideOptions, regeneratePrompt, toggle3dOptions, toggleOptions } from "./options";
+import { editProvinces } from "./provinces-editor";
 import { overviewRivers } from "./rivers-overview";
+import { createRoute } from "./routes-editor";
 import { overviewRoutes } from "./routes-overview";
 import {
   openEmblemEditor,
@@ -61,6 +59,8 @@ import {
   toggleAddRiver,
   viewCellDetails
 } from "./tools";
+import { editUnits } from "./units-editor";
+import { editZones } from "./zones-editor";
 
 export function initHotkeys(): void {
   document.addEventListener("keydown", handleKeydown);

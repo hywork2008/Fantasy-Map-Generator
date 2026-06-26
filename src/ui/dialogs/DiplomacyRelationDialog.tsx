@@ -1,6 +1,6 @@
 import type React from "react";
 import { useEffect, useState } from "react";
-import { diplomacyEditorActions, relations } from "../../editors/diplomacy-editor";
+import { diplomacyEditorActions, relations } from "../../controllers/diplomacy-editor";
 import { setDiplomacyEditorState, useDiplomacyEditorState } from "../../store/diplomacyEditorState";
 import { FillBox } from "../components/FillBox";
 import { Dialog } from "./Dialog";

@@ -4,7 +4,6 @@ import { zoomTo } from "../actions";
 import { appServices } from "../context/appServices";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
-import { getTemperatureLikeness } from "../editors/burg-editor";
 import { Burgs } from "../generators/burgs-generator";
 import { Names } from "../generators/names-generator";
 import { drawBurgIcon, drawBurgLabel, drawRoute } from "../renderers";
@@ -16,6 +15,7 @@ import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog, downloadFile, getFileName } from "../utils/editorHelpers";
 import { layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, getHeight, tip } from "../utils/uiHelpers";
+import { getTemperatureLikeness } from "./burg-editor";
 import { interactionManager } from "./interactionManager";
 import { toggleBurgIcons, toggleLabels } from "./layers";
 

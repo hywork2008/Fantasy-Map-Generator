@@ -20,7 +20,7 @@ import {
   biomesSelectOnLine,
   biomesToggleDisplayMode,
   biomesToggleLegend
-} from "../../editors/biomes-editor";
+} from "../../controllers/biomes-editor";
 import { useBiomesEditorStore } from "../../store/biomesEditorStore";
 import { useDialogState } from "../../store/dialogState";
 import { rn, si } from "../../utils";

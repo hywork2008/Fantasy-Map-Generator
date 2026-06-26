@@ -6,7 +6,6 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
-import { toggleStates } from "../controllers/layers";
 import { Military } from "../generators/military-generator";
 import { MilitaryRenderer } from "../renderers/draw-military";
 import { modules } from "../store/editorState";
@@ -15,7 +14,7 @@ import { closeDialogs, openConfirm, openDialog } from "../ui/dialogs/dialogServi
 import { rn } from "../utils";
 import { layerIsOn } from "../utils/nodeUtils";
 import { fitContent } from "../utils/uiHelpers";
-import { toggleBorders, toggleMilitary } from "./layers";
+import { toggleBorders, toggleMilitary, toggleStates } from "./layers";
 
 export function overviewMilitary(): void {
   if (viewContext.customization) return;

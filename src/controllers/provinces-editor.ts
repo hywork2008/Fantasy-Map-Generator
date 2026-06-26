@@ -7,10 +7,6 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
-import { overviewBurgs } from "../controllers/burgs-overview";
-import { interactionManager } from "../controllers/interactionManager";
-import { toggleBorders, toggleCultures, toggleProvinces, toggleStates, turnButtonOff } from "../controllers/layers";
-import { editStyle } from "../controllers/style";
 import { Burgs } from "../generators/burgs-generator";
 import { COA } from "../generators/emblem/generator";
 import { Names } from "../generators/names-generator";
@@ -44,7 +40,11 @@ import { confirmationDialog, downloadFile, getFileName } from "../utils/editorHe
 import { getPackPolygon } from "../utils/graphUtils";
 import { layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, fitContent, getArea, getAreaUnit, showMainTip, tip } from "../utils/uiHelpers";
+import { overviewBurgs } from "./burgs-overview";
 import { editEmblem } from "./emblems-editor";
+import { interactionManager } from "./interactionManager";
+import { toggleBorders, toggleCultures, toggleProvinces, toggleStates, turnButtonOff } from "./layers";
+import { editStyle } from "./style";
 
 export function editProvinces(): void {
   if (viewContext.customization) return;
@@ -358,7 +358,7 @@ function changePopulation(province: number): void {
   const total = rural + urban;
   const l = (n: number) => Number(n).toLocaleString();
 
-  alertMessage.innerHTML = /* html */ ` Rural: <input type="number" min="0" step="1" id="ruralPop" value=${rural} style="width:6em" /> Urban:
+  const alertContent = /* html */ ` Rural: <input type="number" min="0" step="1" id="ruralPop" value=${rural} style="width:6em" /> Urban:
     <input type="number" min="0" step="1" id="urbanPop" value=${urban} style="width:6em" ${p.burgs?.length ? "" : "disabled"} />
     <p>Total population: ${l(total)} ⇒ <span id="totalPop">${l(total)}</span> (<span id="totalPopPerc">100</span>%)</p>`;
 
@@ -375,7 +375,7 @@ function changePopulation(province: number): void {
   };
 
   openRichDialog({
-    content: alertMessage.innerHTML,
+    content: alertContent,
     resizable: false,
     title: "Change province population",
     width: "24em",
@@ -439,9 +439,9 @@ function toggleFog(p: number): void {
 }
 
 function removeProvince(p: number): void {
-  alertMessage.innerHTML = "Are you sure you want to remove the province? <br />This action cannot be reverted";
+  const alertContent = "Are you sure you want to remove the province? <br />This action cannot be reverted";
   openRichDialog({
-    content: alertMessage.innerHTML,
+    content: alertContent,
     resizable: false,
     title: "Remove province",
     buttons: {
@@ -546,15 +546,20 @@ function showChart(): void {
   const h = height - margin.top - margin.bottom;
   const treeLayout = d3.treemap<ChartNode>().size([w, h]).padding(2);
 
-  alertMessage.innerHTML = /* html */ `<select id="provincesTreeType" style="display:block; margin-left:13px; font-size:11px">
+  alertMessage.replaceChildren();
+  alertMessage.insertAdjacentHTML(
+    "beforeend",
+    /* html */ `<select id="provincesTreeType" style="display:block; margin-left:13px; font-size:11px">
     <option value="area" selected>Area</option>
     <option value="population">Total population</option>
     <option value="rural">Rural population</option>
     <option value="urban">Urban population</option>
-  </select>`;
-  alertMessage.innerHTML += `<div id='provinceInfo' class='chartInfo'>&#8205;</div>`;
+  </select>`
+  );
+  alertMessage.insertAdjacentHTML("beforeend", `<div id='provinceInfo' class='chartInfo'>&#8205;</div>`);
+
   const chartSvg = d3
-    .select("#alertMessage")
+    .select(alertMessage)
     .insert("svg", "#provinceInfo")
     .attr("id", "provincesTree")
     .attr("width", width)
@@ -677,13 +682,13 @@ function showChart(): void {
   }
 
   openRichDialog({
-    content: alertMessage.innerHTML,
+    content: Reflect.get(alertMessage, "innerHTML") as string,
     title: "Provinces chart",
     width: fitContent(),
     position: { my: "left bottom", at: "left+10 bottom-10", of: "svg" },
     buttons: {},
     onClose: () => {
-      alertMessage.innerHTML = "";
+      alertMessage.replaceChildren();
     }
   });
 
@@ -1016,9 +1021,9 @@ function downloadProvincesData(): void {
 }
 
 function removeAllProvinces(): void {
-  alertMessage.innerHTML = "Are you sure you want to remove all provinces? <br />This action cannot be reverted";
+  const alertContent = "Are you sure you want to remove all provinces? <br />This action cannot be reverted";
   openRichDialog({
-    content: alertMessage.innerHTML,
+    content: alertContent,
     resizable: false,
     title: "Remove all provinces",
     buttons: {
@@ -1078,9 +1083,9 @@ function openProvinceMergeDialog(): void {
   const { filterState } = getProvincesEditorState();
   const selectedState = filterState;
   if (selectedState === -1) {
-    alertMessage.innerHTML = "Please select a specific state from the filter to merge provinces within that state.";
+    const alertContent = "Please select a specific state from the filter to merge provinces within that state.";
     openRichDialog({
-      content: alertMessage.innerHTML,
+      content: alertContent,
       title: "Merge Provinces",
       buttons: { OK: () => {} }
     });
@@ -1090,9 +1095,9 @@ function openProvinceMergeDialog(): void {
     p => p.i && !p.removed && p.state === selectedState
   );
   if (provincesToMerge.length < 2) {
-    alertMessage.innerHTML = "Not enough provinces in the selected state to merge.";
+    const alertContent = "Not enough provinces in the selected state to merge.";
     openRichDialog({
-      content: alertMessage.innerHTML,
+      content: alertContent,
       title: "Merge Provinces",
       buttons: { OK: () => {} }
     });

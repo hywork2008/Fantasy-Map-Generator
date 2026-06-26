@@ -1,6 +1,6 @@
 import type React from "react";
 import { useMemo } from "react";
-import { religionsEditorActions } from "../../editors/religions-editor";
+import { religionsEditorActions } from "../../controllers/religions-editor";
 import { useReligionsEditorState } from "../../store/religionsEditorState";
 import { rn, si } from "../../utils";
 import { getAreaUnit } from "../../utils/uiHelpers";

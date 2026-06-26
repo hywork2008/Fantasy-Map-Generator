@@ -1,5 +1,5 @@
 import type React from "react";
-import { reliefEditorActions } from "../../editors/relief-editor";
+import { reliefEditorActions } from "../../controllers/relief-editor";
 import type { ReliefIconSet } from "../../store/reliefEditorState";
 import { useReliefEditorState } from "../../store/reliefEditorState";
 import { Dialog } from "./Dialog";

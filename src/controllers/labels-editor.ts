@@ -1,19 +1,18 @@
 import { curveNatural, type D3DragEvent, drag, pointer, select } from "d3";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
-import { interactionManager } from "../controllers/interactionManager";
-import { toggleLabels } from "../controllers/layers";
-import { editStyle } from "../controllers/style";
 import { Names } from "../generators/names-generator";
 import { elSelected, setElSelected } from "../store/editorState";
 import { getLabelsEditorState, type LabelEditorSection, setLabelsEditorState } from "../store/labelsEditorState";
 import { closeDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { findCell, parseTransform, round } from "../utils";
-import { alertMessage } from "../utils/alertMessageEl";
 import { EditorBus } from "../utils/editorBus";
 import { layerIsOn } from "../utils/nodeUtils";
 import { showMainTip, tip } from "../utils/uiHelpers";
+import { interactionManager } from "./interactionManager";
+import { toggleLabels } from "./layers";
 import { editNotes } from "./notes-editor";
+import { editStyle } from "./style";
 
 export function editLabel(tspan?: Element): void {
   if (viewContext.customization) return;
@@ -236,12 +235,12 @@ function removeLabelsGroup(): void {
   const { group, isBasicGroup } = getLabelsEditorState();
   const count = elSelected!.node()!.parentNode ? (elSelected!.node()!.parentNode as SVGGElement).childElementCount : 0;
 
-  alertMessage.innerHTML = /* html */ `Are you sure you want to remove ${
+  const alertContent = /* html */ `Are you sure you want to remove ${
     isBasicGroup ? "all elements in the group" : "the entire label group"
   }? <br /><br />Labels to be removed: ${count}`;
 
   openRichDialog({
-    content: alertMessage.innerHTML,
+    content: alertContent,
     resizable: false,
     title: "Remove route group",
     buttons: {
@@ -269,8 +268,14 @@ function changeText(newText: string): void {
   const lines = newText.split("|");
   if (lines.length > 1) {
     const top = (lines.length - 1) / -2;
-    el.innerHTML = lines.map((line, index) => `<tspan x="0" dy="${index ? 1 : top}em">${line}</tspan>`).join("");
-  } else el.innerHTML = `<tspan x="0">${lines}</tspan>`;
+    /* ignore-legacy-dom */ el.innerHTML = lines
+      .map((line, index) => `<tspan x="0" dy="${index ? 1 : top}em">${line}</tspan>`)
+      .join("");
+  } else {
+    // ignore-legacy-dom
+    el.replaceChildren();
+    el.insertAdjacentHTML("beforeend", `<tspan x="0">${lines}</tspan>`);
+  }
 
   if (elSelected!.attr("id").slice(0, 10) === "stateLabel") {
     tip("Use States Editor to change an actual state name, not just a label", false, "warn");
@@ -333,9 +338,9 @@ function editLabelLegend(): void {
 }
 
 function removeLabel(): void {
-  alertMessage.innerHTML = "Are you sure you want to remove the label?";
+  const alertContent = "Are you sure you want to remove the label?";
   openRichDialog({
-    content: alertMessage.innerHTML,
+    content: alertContent,
     resizable: false,
     title: "Remove label",
     buttons: {

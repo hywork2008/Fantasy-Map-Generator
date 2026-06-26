@@ -3,9 +3,6 @@ import { drag, polygonArea, select } from "d3";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import { interactionManager } from "../controllers/interactionManager";
-import { toggleCells } from "../controllers/layers";
-import { editStyle } from "../controllers/style";
 import {
   BiomesRenderer,
   BordersRenderer,
@@ -27,11 +24,13 @@ import { getFeaturePath } from "../renderers/index";
 import { elSelected, modules, setElSelected } from "../store/editorState";
 import { closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { rn, si, unique } from "../utils";
-import { alertMessage } from "../utils/alertMessageEl";
 import { EditorBus } from "../utils/editorBus";
 import { getPackPolygon } from "../utils/graphUtils";
 import { layerIsOn } from "../utils/nodeUtils";
 import { getArea, getAreaUnit, tip } from "../utils/uiHelpers";
+import { interactionManager } from "./interactionManager";
+import { toggleCells } from "./layers";
+import { editStyle } from "./style";
 
 let worldContext: WorldContext;
 let viewContext: ViewContext;
@@ -356,9 +355,9 @@ export const coastlineEditorActions = {
     }
 
     const count = (elSelected!.node()!.parentNode as Element).childElementCount;
-    alertMessage.innerHTML = `Are you sure you want to remove the group? All coastline elements of the group (${count}) will be moved under <i>sea_island</i> group`;
+    const alertContent = `Are you sure you want to remove the group? All coastline elements of the group (${count}) will be moved under <i>sea_island</i> group`;
     openRichDialog({
-      content: alertMessage.innerHTML,
+      content: alertContent,
       resizable: false,
       title: "Remove coastline group",
       width: "26em",

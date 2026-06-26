@@ -190,7 +190,7 @@ function redrawIcon({ i, hidden, icon, dx = 50, dy = 50, px = 12 }: Marker): voi
 
   const iconText = !hidden ? document.querySelector<SVGTextElement>(`#marker${i} > text`) : null;
   if (iconText) {
-    iconText.innerHTML = isExternal ? "" : icon;
+    iconText.textContent = isExternal ? "" : icon;
     iconText.setAttribute("x", `${dx}%`);
     iconText.setAttribute("y", `${dy}%`);
     iconText.setAttribute("font-size", `${px}px`);
@@ -208,7 +208,10 @@ function redrawIcon({ i, hidden, icon, dx = 50, dy = 50, px = 12 }: Marker): voi
 
 function redrawPin({ i, hidden, pin = "bubble", fill = "#fff", stroke = "#000" }: Marker): void {
   const pinGroup = !hidden ? document.querySelector<SVGGElement>(`#marker${i} > g`) : null;
-  if (pinGroup) pinGroup.innerHTML = getPin(worldContext, viewContext, appServices, pin, fill, stroke);
+  /* ignore-legacy-dom */ if (pinGroup) {
+    pinGroup.replaceChildren();
+    pinGroup.insertAdjacentHTML("beforeend", getPin(worldContext, viewContext, appServices, pin, fill, stroke));
+  }
 }
 
 function editMarkerLegend(): void {

@@ -2,9 +2,6 @@ import * as d3 from "d3";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import { open as openHierarchyTree } from "../controllers/hierarchy-tree";
-import { toggleBiomes, toggleCultures, toggleProvinces, toggleReligions, toggleStates } from "../controllers/layers";
-import { editStyle } from "../controllers/style";
 import { Religions } from "../generators/religions-generator";
 import { PopulationRenderer, ReligionsRenderer } from "../renderers";
 import type { ReligionRowData } from "../store/religionsEditorState";
@@ -18,6 +15,9 @@ import { confirmationDialog, downloadFile, getFileName } from "../utils/editorHe
 import { getPackPolygon } from "../utils/graphUtils";
 import { layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, getArea, getAreaUnit, tip } from "../utils/uiHelpers";
+import { open as openHierarchyTree } from "./hierarchy-tree";
+import { toggleBiomes, toggleCultures, toggleProvinces, toggleReligions, toggleStates } from "./layers";
+import { editStyle } from "./style";
 
 type HighlightEvent = { id?: string | number | null; target?: EventTarget | null };
 

@@ -106,21 +106,21 @@ export function moveCircle(x: number, y: number, r = 20): void {
   }
 }
 
-import * as BurgEditor from "../editors/burg-editor";
-import * as CoastlineEditor from "../editors/coastline-editor";
-import * as CulturesEditor from "../editors/cultures-editor";
-import * as EmblemsEditor from "../editors/emblems-editor";
-import * as IceEditor from "../editors/ice-editor";
-import * as LabelsEditor from "../editors/labels-editor";
-import * as LakesEditor from "../editors/lakes-editor";
-import * as MarkersEditor from "../editors/markers-editor";
-import * as RegimentEditor from "../editors/regiment-editor";
-import * as ReliefEditor from "../editors/relief-editor";
-import * as ReligionsEditor from "../editors/religions-editor";
-import * as RiversEditor from "../editors/rivers-editor";
-import * as RoutesEditor from "../editors/routes-editor";
-import * as StatesEditor from "../editors/states-editor";
 import { removeCircle } from "../utils/uiHelpers";
+import * as BurgEditor from "./burg-editor";
+import * as CoastlineEditor from "./coastline-editor";
+import * as CulturesEditor from "./cultures-editor";
+import * as EmblemsEditor from "./emblems-editor";
+import * as IceEditor from "./ice-editor";
+import * as LabelsEditor from "./labels-editor";
+import * as LakesEditor from "./lakes-editor";
+import * as MarkersEditor from "./markers-editor";
+import * as RegimentEditor from "./regiment-editor";
+import * as ReliefEditor from "./relief-editor";
+import * as ReligionsEditor from "./religions-editor";
+import * as RiversEditor from "./rivers-editor";
+import * as RoutesEditor from "./routes-editor";
+import * as StatesEditor from "./states-editor";
 
 export { removeCircle } from "../utils/uiHelpers";
 

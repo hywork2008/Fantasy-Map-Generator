@@ -80,7 +80,8 @@ export function editBurgGroups(): void {
 
   function addLines(): void {
     const lines = worldContext.options.burgs.groups.map(createLine);
-    document.getElementById("burgGroupsBody")!.innerHTML = lines.join("");
+    document.getElementById("burgGroupsBody")!.replaceChildren();
+    document.getElementById("burgGroupsBody")!.insertAdjacentHTML("beforeend", lines.join(""));
   }
 
   function createLine(group: BurgGroup): string {
@@ -150,7 +151,7 @@ export function editBurgGroups(): void {
         </tr>`
     );
 
-    alertMessage.innerHTML = /* html */ `<b>Limit group by ${el.getAttribute("name")}:</b>
+    const alertContent = /* html */ `<b>Limit group by ${el.getAttribute("name")}:</b>
       <table style="margin-top:.3em">
         <tbody>
           ${lines.join("")}
@@ -158,7 +159,7 @@ export function editBurgGroups(): void {
       </table>`;
 
     openRichDialog({
-      content: alertMessage.innerHTML,
+      content: alertContent,
       width: fitContent(),
       title: "Limit group",
       buttons: {
@@ -178,7 +179,7 @@ export function editBurgGroups(): void {
 
           const allAreSelected = selected.length === inputs.length;
           hiddenInput.value = allAreSelected ? "" : selected.join(",");
-          el.innerHTML = allAreSelected ? "all" : "some";
+          el.textContent = allAreSelected ? "all" : "some";
           /* $(this).dialog("close") removed */
         },
         Cancel: () => {
@@ -223,7 +224,7 @@ export function editBurgGroups(): void {
         </tr>`
     );
 
-    alertMessage.innerHTML = /* html */ `
+    const alertContent = /* html */ `
       <form id="featuresLimitationForm">
         <table>
           <thead style="font-weight:bold">
@@ -239,7 +240,7 @@ export function editBurgGroups(): void {
       </form>`;
 
     openRichDialog({
-      content: alertMessage.innerHTML,
+      content: alertContent,
       width: fitContent(),
       title: "Limit group by features",
       buttons: {
@@ -252,7 +253,7 @@ export function editBurgGroups(): void {
           }, {});
 
           hiddenInput.value = JSON.stringify(values);
-          el.innerHTML = Object.keys(values).length ? "some" : "any";
+          el.textContent = Object.keys(values).length ? "some" : "any";
           /* $(this).dialog("close") removed */
         },
         Cancel: () => {

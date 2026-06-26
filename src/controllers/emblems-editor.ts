@@ -304,7 +304,8 @@ function uploadImage(file: File, uploadType: "image" | "svg"): void {
     let href = result;
     if (uploadType === "svg") {
       const htmlEl = document.createElement("html");
-      htmlEl.innerHTML = result;
+      htmlEl.replaceChildren();
+      htmlEl.insertAdjacentHTML("beforeend", result);
 
       htmlEl.querySelectorAll("*").forEach(elem => {
         if (elem.id === "adobe_illustrator_pgf") elem.remove();
