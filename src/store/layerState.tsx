@@ -291,6 +291,8 @@ interface LayerState {
 
   // Available presets (e.g. presets["political"] = ["toggleBorders", ...])
   presets: Record<string, string[]>;
+  // Human-readable labels for presets (e.g. presetLabels["political"] = "Political map")
+  presetLabels: Record<string, string>;
   activePreset: string;
 
   // Actions
@@ -300,6 +302,8 @@ interface LayerState {
   reorderLayers: (startIndex: number, endIndex: number) => void;
   toggleLayer: (id: string, forceState?: boolean) => void;
   setPresets: (presets: Record<string, string[]>) => void;
+  addPresetLabel: (id: string, label: string) => void;
+  removePresetLabel: (id: string) => void;
   setActivePreset: (preset: string) => void;
   setAllActiveLayers: (activeLayers: Record<string, boolean>) => void;
 }
@@ -313,6 +317,7 @@ export const useLayerState = create<LayerState>((set, get) => ({
   layers: [],
   activeLayers: {},
   presets: {},
+  presetLabels: {},
   activePreset: "custom",
 
   setLayers: layers => set({ layers: sortLayers(layers) }),
@@ -353,6 +358,15 @@ export const useLayerState = create<LayerState>((set, get) => ({
   },
 
   setPresets: presets => set({ presets }),
+
+  addPresetLabel: (id, label) => set(state => ({ presetLabels: { ...state.presetLabels, [id]: label } })),
+
+  removePresetLabel: id =>
+    set(state => {
+      const newLabels = { ...state.presetLabels };
+      delete newLabels[id];
+      return { presetLabels: newLabels };
+    }),
 
   setActivePreset: activePreset => set({ activePreset }),
 

@@ -54,6 +54,39 @@ function withRegenerateConfirmation(featureName: string, _id: string, onConfirm:
 
 export const ECONOMY_EXTENSION_ID = "economy";
 
+const ECONOMY_PRESETS: Record<string, { label: string; layers: string[] }> = {
+  goods: {
+    label: "Goods map",
+    layers: [
+      "toggleBorders",
+      "toggleBurgIcons",
+      "toggleCells",
+      "toggleGoods",
+      "toggleMarketsLayer",
+      "toggleLakes",
+      "toggleRivers",
+      "toggleRoutes",
+      "toggleScaleBar",
+      "toggleTrade",
+      "toggleVignette"
+    ]
+  },
+  trade: {
+    label: "Trade animation",
+    layers: [
+      "toggleBorders",
+      "toggleBurgIcons",
+      "toggleLakes",
+      "toggleRivers",
+      "toggleRoutes",
+      "toggleScaleBar",
+      "toggleStates",
+      "toggleTrade",
+      "toggleVignette"
+    ]
+  }
+};
+
 export const economyLayers: LayerConfig[] = [
   {
     id: "toggleGoods",
@@ -234,6 +267,9 @@ export function init(api: ExtensionAPI): void {
 
     if (isEnabled && !wasEnabled) {
       api.addLayers(economyLayers);
+      for (const [id, { label, layers }] of Object.entries(ECONOMY_PRESETS)) {
+        api.registerPreset(id, label, layers);
+      }
       api.tooltipExtensions.showMapTooltip = showEconomyTooltip;
       api.tooltipExtensions.updateCellInfo = updateEconomyCellInfo;
       // Generate economy if it's completely missing
@@ -257,6 +293,9 @@ export function init(api: ExtensionAPI): void {
         }
       });
       api.removeLayers(economyLayers.map(l => l.id));
+      for (const id of Object.keys(ECONOMY_PRESETS)) {
+        api.unregisterPreset(id);
+      }
 
       // Close all economy-related dialogs
       api.closeDialog("goodsEditor");
@@ -284,6 +323,9 @@ export function init(api: ExtensionAPI): void {
   // If already enabled at load time (e.g. persisted preference), add layers immediately
   if (api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) {
     api.addLayers(economyLayers);
+    for (const [id, { label, layers }] of Object.entries(ECONOMY_PRESETS)) {
+      api.registerPreset(id, label, layers);
+    }
     api.tooltipExtensions.showMapTooltip = showEconomyTooltip;
     api.tooltipExtensions.updateCellInfo = updateEconomyCellInfo;
   }
@@ -355,8 +397,11 @@ export function cleanup(api: ExtensionAPI): void {
     _generatePostCoreHandler = null;
   }
 
-  // Remove layers and clear tooltip hooks
+  // Remove layers, presets and clear tooltip hooks
   api.removeLayers(economyLayers.map(l => l.id));
+  for (const id of Object.keys(ECONOMY_PRESETS)) {
+    api.unregisterPreset(id);
+  }
   api.tooltipExtensions.showMapTooltip = undefined;
   api.tooltipExtensions.updateCellInfo = undefined;
 

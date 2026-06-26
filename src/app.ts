@@ -10,6 +10,7 @@ import {
   registerDrawLayerHook,
   registerLayerElement,
   registerLayerToggle,
+  registerPreset,
   registerToolAction,
   removePreset,
   savePreset,
@@ -18,6 +19,7 @@ import {
   toggleLayerById,
   turnButtonOff,
   turnButtonOn,
+  unregisterPreset,
   unregisterToolAction
 } from "./controllers/layers";
 import { changeViewMode } from "./controllers/options";
@@ -53,6 +55,9 @@ function buildExtensionAPI(): ExtensionAPI {
       useExtensionState.subscribe((state, prev) =>
         listener({ enabledExtensions: state.enabledExtensions }, { enabledExtensions: prev.enabledExtensions })
       ),
+
+    registerPreset,
+    unregisterPreset,
 
     addLayers: layers => layerState().addLayers(layers),
     removeLayers: ids => layerState().removeLayers(ids),

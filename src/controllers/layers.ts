@@ -89,6 +89,21 @@ export function initLayerClickHandlers(): void {
 
 // ─── Preset management ───────────────────────────────────────────────────────
 
+const DEFAULT_PRESET_LABELS: Record<string, string> = {
+  political: "Political map",
+  cultural: "Cultural map",
+  religions: "Religions map",
+  provinces: "Provinces map",
+  biomes: "Biomes map",
+  heightmap: "Heightmap",
+  physical: "Physical map",
+  poi: "Places of interest",
+  military: "Military map",
+  emblems: "Emblems",
+  landmass: "Pure landmass",
+  custom: "Custom (not saved)"
+};
+
 function getDefaultPresets(): Record<string, string[]> {
   return {
     political: [
@@ -189,15 +204,38 @@ function restoreCustomPresets(): void {
   presets = getDefaultPresets();
   const stored = localStorage.getItem("presets");
   const storedPresets: Record<string, string[]> | null = stored ? JSON.parse(stored) : null;
+
   if (!storedPresets) {
     useLayerState.getState().setPresets(presets);
-    return;
+  } else {
+    for (const preset in storedPresets) {
+      if (!presets[preset]) presets[preset] = storedPresets[preset];
+    }
+    useLayerState.getState().setPresets(presets);
   }
 
-  for (const preset in storedPresets) {
-    if (!presets[preset]) presets[preset] = storedPresets[preset];
+  const state = useLayerState.getState();
+  for (const [id, label] of Object.entries(DEFAULT_PRESET_LABELS)) {
+    state.addPresetLabel(id, label);
   }
-  useLayerState.getState().setPresets(presets);
+}
+
+export function registerPreset(id: string, label: string, layers: string[]): void {
+  const state = useLayerState.getState();
+  state.setPresets({ ...state.presets, [id]: layers });
+  state.addPresetLabel(id, label);
+}
+
+export function unregisterPreset(id: string): void {
+  const state = useLayerState.getState();
+  const newPresets = { ...state.presets };
+  delete newPresets[id];
+  state.setPresets(newPresets);
+  state.removePresetLabel(id);
+  if (state.activePreset === id) {
+    state.setActivePreset("political");
+    localStorage.setItem("preset", "political");
+  }
 }
 
 export function applyLayersPreset(): void {

@@ -58,6 +58,12 @@ export interface ExtensionAPI {
    */
   subscribeExtensionState(listener: (state: ExtensionStateSnapshot, prev: ExtensionStateSnapshot) => void): () => void;
 
+  // ── Layer preset management ──────────────────────────────────────────────
+  /** Register a named preset with a human-readable label and a list of layer toggle ids. */
+  registerPreset(id: string, label: string, layers: string[]): void;
+  /** Remove a previously registered preset. Resets the active preset to "political" if it was active. */
+  unregisterPreset(id: string): void;
+
   // ── Layer management ─────────────────────────────────────────────────────
   addLayers(layers: LayerConfig[]): void;
   removeLayers(ids: string[]): void;

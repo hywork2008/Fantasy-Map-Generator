@@ -6,7 +6,7 @@ import { changeViewMode } from "../../../controllers/options";
 import { DEFAULT_LAYERS, type LayerConfig, useLayerState } from "../../../store/layerState";
 
 export const LayersTab: React.FC = () => {
-  const { layers, setLayers, activeLayers, presets, activePreset, reorderLayers } = useLayerState();
+  const { layers, setLayers, activeLayers, presets, presetLabels, activePreset, reorderLayers } = useLayerState();
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
   // Initialize defaults if not set
@@ -61,13 +61,13 @@ export const LayersTab: React.FC = () => {
       >
         {Object.keys(presets).map(preset => (
           <option key={preset} value={preset} hidden={preset === "custom"}>
-            {preset === "custom" ? "Custom (not saved)" : preset}
+            {presetLabels[preset] ?? preset}
           </option>
         ))}
         {/* If custom is active but not in presets, we still show it because it's the current value */}
         {isCustom && !presets.custom && (
           <option hidden value="custom">
-            Custom (not saved)
+            {presetLabels.custom ?? "Custom (not saved)"}
           </option>
         )}
       </select>
