@@ -4,7 +4,7 @@ import * as THREE from "three";
 import { appServices } from "../context/appServices";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
-import { Rivers } from "../modules/river-generator";
+import { Rivers } from "../generators/river-generator";
 import type { PackedGraphFeature } from "../types/models";
 import { TIME } from "../utils/debug";
 import { getFeaturePath } from "./draw-features";

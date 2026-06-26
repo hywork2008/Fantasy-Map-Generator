@@ -2,7 +2,7 @@ import { pointer } from "d3";
 import { appServices } from "../context/appServices";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
-import { Military } from "../modules/military-generator";
+import { Military } from "../generators/military-generator";
 import { drawRegiment } from "../renderers/index";
 import { useRegimentsOverviewState } from "../store/regimentsOverviewState";
 import type { MilitaryRegiment, MilitaryUnit } from "../types/models";

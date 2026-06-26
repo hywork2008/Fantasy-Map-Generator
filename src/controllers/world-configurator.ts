@@ -5,10 +5,10 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
-import { Biomes } from "../modules/biomes";
-import { Features } from "../modules/features";
-import { Lakes } from "../modules/lakes";
-import { Rivers } from "../modules/river-generator";
+import { Biomes } from "../generators/biomes";
+import { Features } from "../generators/features";
+import { Lakes } from "../generators/lakes";
+import { Rivers } from "../generators/river-generator";
 import {
   BiomesRenderer,
   CoordinatesRenderer,

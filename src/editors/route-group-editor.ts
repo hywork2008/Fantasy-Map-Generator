@@ -2,7 +2,7 @@ import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { toggleRoutes } from "../controllers/layers";
 import { editStyle } from "../controllers/style";
-import { Routes } from "../modules/routes-generator";
+import { Routes } from "../generators/routes-generator";
 import { modules } from "../store/editorState";
 import { openDialog } from "../ui/dialogs/dialogService";
 import { showPrompt } from "../utils";

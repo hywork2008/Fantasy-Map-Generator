@@ -1,7 +1,7 @@
 import type { AppServices } from "../context/appServices";
 import type { EnvironmentLayers } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import { Rivers } from "../modules/river-generator";
+import { Rivers } from "../generators/river-generator";
 import { TIME } from "../utils/debug";
 import type { IRenderer } from "./core/IRenderer";
 

@@ -1,7 +1,7 @@
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import { Burgs } from "../modules/burgs-generator";
+import { Burgs } from "../generators/burgs-generator";
 import { BurgIconsRenderer, BurgLabelsRenderer } from "../renderers";
 import { modules } from "../store/editorState";
 import type { Burg, BurgGroup } from "../types/models";

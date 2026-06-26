@@ -1,6 +1,6 @@
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
-import { Names } from "../modules/names-generator";
+import { Names } from "../generators/names-generator";
 import { rulers } from "../store/editorState";
 import { useOptionsState } from "../store/optionsState";
 import { closeDialogs, openRichDialog } from "../ui/dialogs/dialogService";

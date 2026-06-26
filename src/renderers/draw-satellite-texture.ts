@@ -1,8 +1,8 @@
 import { color as parseColor } from "d3";
 import * as THREE from "three";
 import { worldContext } from "../context/worldContext";
-import { Biomes } from "../modules/biomes";
-import { Rivers } from "../modules/river-generator";
+import { Biomes } from "../generators/biomes";
+import { Rivers } from "../generators/river-generator";
 import { type ErosionBakeResult, heightAt } from "./erosion-bake";
 
 let renderTarget: THREE.WebGLRenderTarget | null = null;

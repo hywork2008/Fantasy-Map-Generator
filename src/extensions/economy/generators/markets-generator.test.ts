@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { worldContext } from "../../../context/worldContext";
-import { States } from "../../../modules/states-generator";
+import { States } from "../../../generators/states-generator";
 import type { ExtensionAPI } from "../../../types/extension-api";
 import type { Burg } from "../../../types/models";
 import type { PackedGraph } from "../../../types/PackedGraph";

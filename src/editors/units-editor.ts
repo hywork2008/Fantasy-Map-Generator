@@ -4,7 +4,7 @@ import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { toggleRulers } from "../controllers/layers";
 import { calculateFriendlyGridSize } from "../controllers/style";
-import { Routes } from "../modules/routes-generator";
+import { Routes } from "../generators/routes-generator";
 import { drawTemperature } from "../renderers";
 import { drawScaleBar, fitScaleBar } from "../renderers/index";
 import { modules, rulers, setRulers } from "../store/editorState";

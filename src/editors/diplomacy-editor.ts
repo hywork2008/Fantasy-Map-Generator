@@ -15,7 +15,7 @@ import {
   toggleStates
 } from "../controllers/layers";
 import { editStyle } from "../controllers/style";
-import { States } from "../modules/states-generator";
+import { States } from "../generators/states-generator";
 import { StatesRenderer } from "../renderers";
 import { type DiplomacyRowData, getDiplomacyEditorState, setDiplomacyEditorState } from "../store/diplomacyEditorState";
 import { modules } from "../store/editorState";

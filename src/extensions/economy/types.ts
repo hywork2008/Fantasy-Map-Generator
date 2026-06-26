@@ -1,5 +1,5 @@
-import type { Good } from "./modules/goods-generator";
-import type { Deal, Market } from "./modules/markets-generator";
+import type { Good } from "./generators/goods-generator";
+import type { Deal, Market } from "./generators/markets-generator";
 
 declare module "../../types/PackedGraph" {
   interface PackedGraph {
@@ -16,6 +16,6 @@ declare module "../../types/PackedGraph" {
 
 declare module "../../types/models" {
   interface Burg {
-    production?: import("./modules/production-generator").ProductionRecord[];
+    production?: import("./generators/production-generator").ProductionRecord[];
   }
 }

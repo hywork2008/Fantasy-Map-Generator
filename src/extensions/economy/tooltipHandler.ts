@@ -2,10 +2,10 @@ import * as d3 from "d3";
 import { rn } from "../../utils/numberUtils";
 import { tip } from "../../utils/uiHelpers";
 import { getWorldContext } from "./economyContext";
-import { Goods } from "./modules/goods-generator";
-import { Markets } from "./modules/markets-generator";
-import { Production } from "./modules/production-generator";
-import { getCellProduction } from "./modules/production-utils";
+import { Goods } from "./generators/goods-generator";
+import { Markets } from "./generators/markets-generator";
+import { Production } from "./generators/production-generator";
+import { getCellProduction } from "./generators/production-utils";
 
 export function showEconomyTooltip(
   _point: [number, number],

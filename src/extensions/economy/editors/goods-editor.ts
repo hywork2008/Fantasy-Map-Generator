@@ -7,10 +7,10 @@ import { alertMessage } from "../../../utils/alertMessageEl";
 import { layerIsOn } from "../../../utils/nodeUtils";
 import { clearMainTip, tip } from "../../../utils/uiHelpers";
 import { getApi, getViewContext, getWorldContext } from "../economyContext";
-import { Goods } from "../modules/goods-generator";
-import { Markets } from "../modules/markets-generator";
-import { isDealRecord, isMfgRecord, Production } from "../modules/production-generator";
-import { getCellProduction } from "../modules/production-utils";
+import { Goods } from "../generators/goods-generator";
+import { Markets } from "../generators/markets-generator";
+import { isDealRecord, isMfgRecord, Production } from "../generators/production-generator";
+import { getCellProduction } from "../generators/production-utils";
 import { drawGoods } from "../renderers/draw-goods";
 
 const viewbox = () => getViewContext().viewbox;

@@ -20,9 +20,9 @@ import {
 import { changeViewMode } from "./controllers/options";
 import { editBurg } from "./editors/burg-editor";
 import { initExtensions } from "./extensions/index";
+import { initModules } from "./generators/index";
 import { buildGeoJsonZones, saveGeoJsonZones } from "./io/export";
 import { generate, initMain, regenerateMap } from "./main";
-import { initModules } from "./modules/index";
 import { initRenderers } from "./renderers/index";
 import { UITour } from "./services/ui-tour";
 import { useExtensionState } from "./store/extensionState";

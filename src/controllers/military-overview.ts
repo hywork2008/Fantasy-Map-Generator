@@ -7,7 +7,7 @@ import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import { toggleStates } from "../controllers/layers";
-import { Military } from "../modules/military-generator";
+import { Military } from "../generators/military-generator";
 import { MilitaryRenderer } from "../renderers/draw-military";
 import { modules } from "../store/editorState";
 import { useMilitaryOverviewState } from "../store/militaryOverviewState";

@@ -1,7 +1,7 @@
 import Alea from "alea";
 import { worldContext } from "../context/worldContext";
 import { heightmapTemplates, precreatedHeightmaps } from "../data";
-import { HeightmapGenerator } from "../modules/heightmap-generator";
+import { HeightmapGenerator } from "../generators/heightmap-generator";
 import type { Grid } from "../types/Grid";
 import { openDialog } from "../ui/dialogs/dialogService";
 import { getColorScheme, heightmapColorSchemes } from "../utils/colorUtils";

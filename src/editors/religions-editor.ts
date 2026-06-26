@@ -5,7 +5,7 @@ import type { WorldContext } from "../context/worldContext";
 import { open as openHierarchyTree } from "../controllers/hierarchy-tree";
 import { toggleBiomes, toggleCultures, toggleProvinces, toggleReligions, toggleStates } from "../controllers/layers";
 import { editStyle } from "../controllers/style";
-import { Religions } from "../modules/religions-generator";
+import { Religions } from "../generators/religions-generator";
 import { PopulationRenderer, ReligionsRenderer } from "../renderers";
 import type { ReligionRowData } from "../store/religionsEditorState";
 import { getReligionsEditorState, setReligionsEditorState } from "../store/religionsEditorState";

@@ -8,8 +8,8 @@ import { worldContext } from "../context/worldContext";
 import { interactionManager } from "../controllers/interactionManager";
 import { toggleCells } from "../controllers/layers";
 import { editStyle } from "../controllers/style";
-import { Lakes } from "../modules/lakes";
-import { Names } from "../modules/names-generator";
+import { Lakes } from "../generators/lakes";
+import { Names } from "../generators/names-generator";
 import {
   BiomesRenderer,
   BordersRenderer,

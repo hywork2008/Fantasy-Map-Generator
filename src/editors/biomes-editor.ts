@@ -12,7 +12,7 @@ import {
   toggleStates
 } from "../controllers/layers";
 import { editStyle } from "../controllers/style";
-import { Biomes } from "../modules/biomes";
+import { Biomes } from "../generators/biomes";
 import { BiomesRenderer, ReliefIconsRenderer } from "../renderers";
 import type { BiomeRow, BiomesFooter } from "../store/biomesEditorStore";
 import { useBiomesEditorStore } from "../store/biomesEditorStore";

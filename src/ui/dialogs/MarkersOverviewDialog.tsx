@@ -14,7 +14,7 @@ import {
 } from "../../controllers/markers-overview";
 import { configMarkersGeneration } from "../../controllers/tools";
 import { editMarker } from "../../editors/markers-editor";
-import { Markers } from "../../modules/markers-generator";
+import { Markers } from "../../generators/markers-generator";
 import { useDialogState } from "../../store/dialogState";
 import { useMarkersOverviewState } from "../../store/markersOverviewState";
 import { showElementLockTip } from "../../utils/uiHelpers";

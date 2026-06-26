@@ -15,22 +15,22 @@ import { editProvinces } from "../editors/provinces-editor";
 import { createRoute } from "../editors/routes-editor";
 import { editUnits } from "../editors/units-editor";
 import { editZones } from "../editors/zones-editor";
+import { Burgs } from "../generators/burgs-generator";
+import { Cultures } from "../generators/cultures-generator";
+import { COA } from "../generators/emblem/generator";
+import { Features } from "../generators/features";
+import { Ice } from "../generators/ice";
+import { Lakes } from "../generators/lakes";
+import { Markers } from "../generators/markers-generator";
+import { Military } from "../generators/military-generator";
+import { Names } from "../generators/names-generator";
+import { Provinces } from "../generators/provinces-generator";
+import { Religions } from "../generators/religions-generator";
+import { Rivers } from "../generators/river-generator";
+import { Routes } from "../generators/routes-generator";
+import { States } from "../generators/states-generator";
+import { Zones } from "../generators/zones-generator";
 import { rankCells } from "../main";
-import { Burgs } from "../modules/burgs-generator";
-import { Cultures } from "../modules/cultures-generator";
-import { COA } from "../modules/emblem/generator";
-import { Features } from "../modules/features";
-import { Ice } from "../modules/ice";
-import { Lakes } from "../modules/lakes";
-import { Markers } from "../modules/markers-generator";
-import { Military } from "../modules/military-generator";
-import { Names } from "../modules/names-generator";
-import { Provinces } from "../modules/provinces-generator";
-import { Religions } from "../modules/religions-generator";
-import { Rivers } from "../modules/river-generator";
-import { Routes } from "../modules/routes-generator";
-import { States } from "../modules/states-generator";
-import { Zones } from "../modules/zones-generator";
 import {
   BordersRenderer,
   BurgIconsRenderer,

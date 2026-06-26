@@ -5,7 +5,7 @@ import Delaunator from "delaunator";
 import { appServices } from "../context/appServices";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
-import { type Cells, type Point, type Vertices, Voronoi } from "../modules/voronoi";
+import { type Cells, type Point, type Vertices, Voronoi } from "../generators/voronoi";
 import { useOptionsState } from "../store/optionsState";
 import type { Grid, GridCells } from "../types/Grid";
 import type { PackedGraph, TypedArray } from "../types/PackedGraph";

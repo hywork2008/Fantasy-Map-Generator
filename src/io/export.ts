@@ -4,7 +4,7 @@ import JSZip from "jszip";
 import { appServices } from "../context/appServices";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
-import { Rivers } from "../modules/river-generator";
+import { Rivers } from "../generators/river-generator";
 import { drawScaleBar, fitScaleBar } from "../renderers/index";
 import { fonts, loadFontsAsDataURI } from "../services/fonts";
 import { connectVertices, getBase64, getCoordinates, rn, unique } from "../utils";

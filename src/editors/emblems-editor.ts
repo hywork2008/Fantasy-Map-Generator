@@ -2,7 +2,7 @@ import type * as d3 from "d3";
 import { drag } from "d3";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
-import { COA, type Emblem } from "../modules/emblem/generator";
+import { COA, type Emblem } from "../generators/emblem/generator";
 import { COArenderer } from "../renderers/emblem-renderer";
 import {
   type BurgOptionItem,

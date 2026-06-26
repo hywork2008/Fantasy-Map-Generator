@@ -5,7 +5,7 @@ import { worldContext } from "../../context/worldContext";
 import { confirmationDialog, downloadFile, getFileName, highlightElement } from "../../controllers/editors";
 import { toggleRoutes } from "../../controllers/layers";
 import { createRoute, editRoute } from "../../editors/routes-editor";
-import { Routes } from "../../modules/routes-generator";
+import { Routes } from "../../generators/routes-generator";
 import { useDialogState } from "../../store/dialogState";
 import { useRoutesOverviewState } from "../../store/routesOverviewState";
 import { rn } from "../../utils";

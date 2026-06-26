@@ -19,8 +19,8 @@ import { findAllCellsInRadius, findCell, findClosestCell, getIsolines, getVertex
 import { layerIsOn } from "../../../utils/nodeUtils";
 import { clearMainTip, showMainTip, tip } from "../../../utils/uiHelpers";
 import { getApi, getViewContext, getWorldContext } from "../economyContext";
-import type { Deal, Market } from "../modules/markets-generator";
-import { Markets } from "../modules/markets-generator";
+import type { Deal, Market } from "../generators/markets-generator";
+import { Markets } from "../generators/markets-generator";
 import { drawMarketsLayer, highlightMarketOff, highlightMarketOn } from "../renderers/draw-markets";
 
 let isInitialized = false;

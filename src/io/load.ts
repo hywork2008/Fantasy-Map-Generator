@@ -3,10 +3,10 @@ import { appServices } from "../context/appServices";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 
-import { Biomes } from "../modules/biomes";
-import { Burgs } from "../modules/burgs-generator";
-import { Features } from "../modules/features";
-import { Routes } from "../modules/routes-generator";
+import { Biomes } from "../generators/biomes";
+import { Burgs } from "../generators/burgs-generator";
+import { Features } from "../generators/features";
+import { Routes } from "../generators/routes-generator";
 import { GridRenderer } from "../renderers";
 import { declareFont, fonts } from "../services/fonts";
 import { rulers } from "../store/editorState";

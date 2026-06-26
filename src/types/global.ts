@@ -8,8 +8,8 @@ import type {
   Ruler as RulerClass,
   Rulers as RulersClass
 } from "../controllers/measurers";
-import type { HeightmapModule } from "../modules/heightmap-generator";
-import type { Resampler } from "../modules/resample";
+import type { HeightmapModule } from "../generators/heightmap-generator";
+import type { Resampler } from "../generators/resample";
 
 declare global {
   /** DEV-only: organized access to world data and SVG state for console debugging. */

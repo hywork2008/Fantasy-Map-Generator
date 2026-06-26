@@ -2,7 +2,7 @@
 
 import { convertTemperature, list, rn } from "../../../utils";
 import { getViewContext, getWorldContext } from "../economyContext";
-import { Goods } from "../modules/goods-generator";
+import { Goods } from "../generators/goods-generator";
 
 const pack = getWorldContext().pack;
 const _viewbox = getViewContext().viewbox;

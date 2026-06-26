@@ -1,12 +1,12 @@
-import type { Point } from "../../../modules/voronoi";
+import type { Point } from "../../../generators/voronoi";
 import type { Burg } from "../../../types/models";
 import { openDialog } from "../../../ui/dialogs/dialogService";
 import { formatPrice, rn } from "../../../utils";
 import { applySorting } from "../../../utils/uiHelpers";
 import { getApi, getWorldContext } from "../economyContext";
-import { Goods } from "../modules/goods-generator";
-import type { Deal } from "../modules/markets-generator";
-import { TradeAnimation, type TradeBatch } from "../modules/trade-animation";
+import { Goods } from "../generators/goods-generator";
+import type { Deal } from "../generators/markets-generator";
+import { TradeAnimation, type TradeBatch } from "../generators/trade-animation";
 import { clearHighlight, highlight } from "../renderers/draw-trade-animation";
 
 let isInitialized = false;

@@ -5,7 +5,7 @@ import type { WorldContext } from "../context/worldContext";
 import { interactionManager } from "../controllers/interactionManager";
 import { toggleIce } from "../controllers/layers";
 import { editStyle } from "../controllers/style";
-import { Ice } from "../modules/ice";
+import { Ice } from "../generators/ice";
 import { redrawGlacier, redrawIceberg } from "../renderers/index";
 import { elSelected, setElSelected } from "../store/editorState";
 import { getIceEditorState, setIceEditorState } from "../store/iceEditorState";

@@ -4,19 +4,19 @@ import { appServices } from "../context/appServices";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 
-import { Burgs } from "../modules/burgs-generator";
-import { Cultures } from "../modules/cultures-generator";
-import type { Emblem } from "../modules/emblem/generator";
-import { Features } from "../modules/features";
-import { Lakes } from "../modules/lakes";
-import { Markers } from "../modules/markers-generator";
-import { Military } from "../modules/military-generator";
-import { Names } from "../modules/names-generator";
-import { Provinces } from "../modules/provinces-generator";
-import { Religions } from "../modules/religions-generator";
-import { Rivers } from "../modules/river-generator";
-import { States } from "../modules/states-generator";
-import { Zones } from "../modules/zones-generator";
+import { Burgs } from "../generators/burgs-generator";
+import { Cultures } from "../generators/cultures-generator";
+import type { Emblem } from "../generators/emblem/generator";
+import { Features } from "../generators/features";
+import { Lakes } from "../generators/lakes";
+import { Markers } from "../generators/markers-generator";
+import { Military } from "../generators/military-generator";
+import { Names } from "../generators/names-generator";
+import { Provinces } from "../generators/provinces-generator";
+import { Religions } from "../generators/religions-generator";
+import { Rivers } from "../generators/river-generator";
+import { States } from "../generators/states-generator";
+import { Zones } from "../generators/zones-generator";
 import {
   BurgIconsRenderer,
   BurgLabelsRenderer,

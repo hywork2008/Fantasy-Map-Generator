@@ -26,7 +26,7 @@ import type { AppServices } from "../context/appServices";
 import type { EnvironmentLayers } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { HeightThreshold } from "../data/constants";
-import type { Vertices } from "../modules/voronoi";
+import type { Vertices } from "../generators/voronoi";
 import type { GridCells } from "../types/Grid";
 import { round } from "../utils";
 import { getColor, getColorScheme } from "../utils/colorUtils";

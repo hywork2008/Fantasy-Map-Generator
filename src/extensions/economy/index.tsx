@@ -2,10 +2,10 @@ import "./types"; // activate module augmentation for PackedGraph
 import type { LayerConfig } from "../../store/layerState";
 import type { ExtensionAPI } from "../../types/extension-api";
 import { clearEconomyContext, getApi, getViewContext, getWorldContext, initEconomyContext } from "./economyContext";
-import { Goods } from "./modules/goods-generator";
-import { Markets } from "./modules/markets-generator";
-import { Production } from "./modules/production-generator";
-import { TradeAnimation } from "./modules/trade-animation";
+import { Goods } from "./generators/goods-generator";
+import { Markets } from "./generators/markets-generator";
+import { Production } from "./generators/production-generator";
+import { TradeAnimation } from "./generators/trade-animation";
 import { drawGoods } from "./renderers/draw-goods";
 import { drawMarketsLayer } from "./renderers/draw-markets";
 import { clear as clearTradeAnimation, draw as drawTradeAnimation } from "./renderers/draw-trade-animation";

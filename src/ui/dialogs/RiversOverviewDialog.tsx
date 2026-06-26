@@ -8,7 +8,7 @@ import { toggleRivers } from "../../controllers/layers";
 import { createRiver } from "../../controllers/rivers-creator";
 import { toggleAddRiver } from "../../controllers/tools";
 import { editRiver } from "../../editors/rivers-editor";
-import { Rivers } from "../../modules/river-generator";
+import { Rivers } from "../../generators/river-generator";
 import { useDialogState } from "../../store/dialogState";
 import { useRiversOverviewState } from "../../store/riversOverviewState";
 import { rn } from "../../utils";

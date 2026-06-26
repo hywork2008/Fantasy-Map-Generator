@@ -1,5 +1,5 @@
 import FlatQueue from "flatqueue";
-import type { Point } from "../../../modules/voronoi";
+import type { Point } from "../../../generators/voronoi";
 import type { Burg } from "../../../types/models";
 import { ra } from "../../../utils/probabilityUtils";
 import { getWorldContext } from "../economyContext";

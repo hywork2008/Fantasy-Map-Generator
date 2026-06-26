@@ -3,10 +3,10 @@ import { normalize, rn } from "../../../utils";
 import { TIME } from "../../../utils/debug";
 import { getPackPolygon } from "../../../utils/graphUtils";
 import { getViewContext, getWorldContext } from "../economyContext";
-import type { Good } from "../modules/goods-generator";
-import { Goods } from "../modules/goods-generator";
-import { Production } from "../modules/production-generator";
-import { getCellProduction } from "../modules/production-utils";
+import type { Good } from "../generators/goods-generator";
+import { Goods } from "../generators/goods-generator";
+import { Production } from "../generators/production-generator";
+import { getCellProduction } from "../generators/production-utils";
 
 const SUBGROUPS = ["goodsCells", "goodsIcons", "goodsBurgs"] as const;
 

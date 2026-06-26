@@ -5,7 +5,7 @@ import type { WorldContext } from "../context/worldContext";
 import type { BattleRegiment } from "../controllers/battle-screen";
 import { interactionManager } from "../controllers/interactionManager";
 import { toggleMilitary } from "../controllers/layers";
-import { Military } from "../modules/military-generator";
+import { Military } from "../generators/military-generator";
 import { drawRegiment, moveRegiment } from "../renderers/index";
 import { elSelected, modules, setElSelected } from "../store/editorState";
 import { getRegimentEditorState, setRegimentEditorState } from "../store/regimentEditorState";

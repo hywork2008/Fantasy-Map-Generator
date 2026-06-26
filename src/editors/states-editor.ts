@@ -14,11 +14,11 @@ import {
   toggleStates
 } from "../controllers/layers";
 import { editStyle } from "../controllers/style";
-import { Burgs } from "../modules/burgs-generator";
-import { COA } from "../modules/emblem/generator";
-import { Names } from "../modules/names-generator";
-import { Provinces } from "../modules/provinces-generator";
-import { States } from "../modules/states-generator";
+import { Burgs } from "../generators/burgs-generator";
+import { COA } from "../generators/emblem/generator";
+import { Names } from "../generators/names-generator";
+import { Provinces } from "../generators/provinces-generator";
+import { States } from "../generators/states-generator";
 import {
   BordersRenderer,
   BurgIconsRenderer,

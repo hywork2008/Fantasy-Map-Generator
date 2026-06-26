@@ -13,6 +13,20 @@ import { interactionManager } from "../controllers/interactionManager";
 import { getCurrentPreset, turnButtonOff, turnButtonOn } from "../controllers/layers";
 import { changeViewMode, enterStandardView } from "../controllers/options";
 import { heightmapTemplates } from "../data";
+import { Biomes } from "../generators/biomes";
+import { Burgs } from "../generators/burgs-generator";
+import { Cultures } from "../generators/cultures-generator";
+import { Features } from "../generators/features";
+import { Ice } from "../generators/ice";
+import { Lakes } from "../generators/lakes";
+import { Markers } from "../generators/markers-generator";
+import { Military } from "../generators/military-generator";
+import { Provinces } from "../generators/provinces-generator";
+import { Religions } from "../generators/religions-generator";
+import { Rivers } from "../generators/river-generator";
+import { Routes } from "../generators/routes-generator";
+import { States } from "../generators/states-generator";
+import { Zones } from "../generators/zones-generator";
 import {
   addLakesInDeepDepressions,
   calculateTemperatures,
@@ -22,20 +36,6 @@ import {
   reGraph,
   undraw
 } from "../main";
-import { Biomes } from "../modules/biomes";
-import { Burgs } from "../modules/burgs-generator";
-import { Cultures } from "../modules/cultures-generator";
-import { Features } from "../modules/features";
-import { Ice } from "../modules/ice";
-import { Lakes } from "../modules/lakes";
-import { Markers } from "../modules/markers-generator";
-import { Military } from "../modules/military-generator";
-import { Provinces } from "../modules/provinces-generator";
-import { Religions } from "../modules/religions-generator";
-import { Rivers } from "../modules/river-generator";
-import { Routes } from "../modules/routes-generator";
-import { States } from "../modules/states-generator";
-import { Zones } from "../modules/zones-generator";
 import { FeaturesRenderer } from "../renderers";
 import { OceanLayers } from "../renderers/ocean-layers";
 import { ThreeDRenderer } from "../renderers/three-d-renderer";

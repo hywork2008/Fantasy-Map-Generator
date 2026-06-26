@@ -3,9 +3,9 @@ import type { Burg } from "../../../types/models";
 import { formatPrice, rn } from "../../../utils";
 import { applySorting, tip } from "../../../utils/uiHelpers";
 import { getApi, getWorldContext } from "../economyContext";
-import { Goods } from "../modules/goods-generator";
-import type { Deal } from "../modules/markets-generator";
-import { Markets } from "../modules/markets-generator";
+import { Goods } from "../generators/goods-generator";
+import type { Deal } from "../generators/markets-generator";
+import { Markets } from "../generators/markets-generator";
 
 let isInitialized = false;
 let activeMarketId = 0;

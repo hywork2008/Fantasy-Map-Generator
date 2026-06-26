@@ -5,7 +5,7 @@ import { appServices } from "../../context/appServices";
 import { viewContext } from "../../context/viewContext";
 import { worldContext } from "../../context/worldContext";
 import { selectIcon } from "../../controllers/editors";
-import { Military } from "../../modules/military-generator";
+import { Military } from "../../generators/military-generator";
 import { useDialogState } from "../../store/dialogState";
 import { useMilitaryOverviewState } from "../../store/militaryOverviewState";
 import type { MilitaryUnit } from "../../types/models";

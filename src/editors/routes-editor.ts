@@ -6,7 +6,7 @@ import { openElevationProfile } from "../controllers/elevation-profile";
 import { interactionManager } from "../controllers/interactionManager";
 import { toggleCells, toggleRoutes } from "../controllers/layers";
 import { editStyle } from "../controllers/style";
-import { Routes } from "../modules/routes-generator";
+import { Routes } from "../generators/routes-generator";
 import { dialogStore } from "../store/dialogState";
 import { elSelected, modules, setElSelected } from "../store/editorState";
 import { getRoutesEditorState, setRoutesEditorState } from "../store/routesEditorState";

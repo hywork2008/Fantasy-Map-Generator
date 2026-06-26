@@ -2,7 +2,7 @@ import { type D3DragEvent, drag, type Selection, select } from "d3";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import { Markers } from "../modules/markers-generator";
+import { Markers } from "../generators/markers-generator";
 import { getPin } from "../renderers/index";
 import { setElSelected } from "../store/editorState";
 import { getMarkersEditorState, setMarkersEditorState } from "../store/markersEditorState";

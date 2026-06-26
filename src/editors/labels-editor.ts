@@ -4,7 +4,7 @@ import { worldContext } from "../context/worldContext";
 import { interactionManager } from "../controllers/interactionManager";
 import { toggleLabels } from "../controllers/layers";
 import { editStyle } from "../controllers/style";
-import { Names } from "../modules/names-generator";
+import { Names } from "../generators/names-generator";
 import { elSelected, setElSelected } from "../store/editorState";
 import { getLabelsEditorState, type LabelEditorSection, setLabelsEditorState } from "../store/labelsEditorState";
 import { closeDialog, openRichDialog } from "../ui/dialogs/dialogService";

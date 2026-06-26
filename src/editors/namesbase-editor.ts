@@ -1,7 +1,7 @@
 import { max as d3max, min as d3min, mean, median } from "d3";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
-import { Names } from "../modules/names-generator";
+import { Names } from "../generators/names-generator";
 import { closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { openURL, rn, unique } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";

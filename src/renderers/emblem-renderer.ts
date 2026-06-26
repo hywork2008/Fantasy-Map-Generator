@@ -1,13 +1,13 @@
 import { appServices } from "../context/appServices";
 import { viewContext } from "../context/viewContext";
-import { shieldBox } from "../modules/emblem/box";
-import { colors } from "../modules/emblem/colors";
-import { lines } from "../modules/emblem/lines";
-import { shieldPaths } from "../modules/emblem/paths";
-import { patterns } from "../modules/emblem/patterns";
-import { shieldPositions } from "../modules/emblem/shieldPositions";
-import { shieldSize } from "../modules/emblem/size";
-import { templates } from "../modules/emblem/templates";
+import { shieldBox } from "../generators/emblem/box";
+import { colors } from "../generators/emblem/colors";
+import { lines } from "../generators/emblem/lines";
+import { shieldPaths } from "../generators/emblem/paths";
+import { patterns } from "../generators/emblem/patterns";
+import { shieldPositions } from "../generators/emblem/shieldPositions";
+import { shieldSize } from "../generators/emblem/size";
+import { templates } from "../generators/emblem/templates";
 import { ERROR } from "../utils/debug";
 import { layerIsOn } from "../utils/nodeUtils";
 
