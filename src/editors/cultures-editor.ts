@@ -17,7 +17,7 @@ import type { CultureRowData, NameBaseOption } from "../store/culturesEditorStat
 import { getCulturesEditorState, setCulturesEditorState } from "../store/culturesEditorState";
 import type { HierarchyElement } from "../types/HierarchyTree";
 import type { Burg, Culture, CultureType, NameBase, Province, State } from "../types/models";
-import { closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
+import { closeDialog, closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { abbreviate, debounce, findAll, findCell, parseTransform, rn, si } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog, downloadFile, getFileName } from "../utils/editorHelpers";
@@ -343,10 +343,10 @@ export const culturesEditorActions = {
           const getRuralPop = () => document.getElementById("ruralPop") as HTMLInputElement;
           const getUrbanPop = () => document.getElementById("urbanPop") as HTMLInputElement;
           applyPopulationChange(rural, urban, getRuralPop().value, getUrbanPop().value, i);
-          import("../ui/dialogs/dialogService").then(({ closeDialog }) => closeDialog("richDialog"));
+          closeDialog("richDialog");
         },
         Cancel: () => {
-          import("../ui/dialogs/dialogService").then(({ closeDialog }) => closeDialog("richDialog"));
+          closeDialog("richDialog");
         }
       },
       position: { my: "center", at: "center", of: "svg" },
