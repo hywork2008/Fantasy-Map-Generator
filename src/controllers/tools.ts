@@ -80,6 +80,7 @@ import {
   toggleStates,
   turnButtonOn
 } from "./layers";
+import { editMarker } from "./markers-editor";
 import * as MarkersOverview from "./markers-overview";
 import { overviewMilitary } from "./military-overview";
 import { openMinimapDialog } from "./minimap";
@@ -1106,6 +1107,7 @@ function addMarkerOnClick(event: MouseEvent): void {
     document.getElementById("markerAdd")?.classList.remove("pressed");
     document.getElementById("markersAddFromOverview")?.classList.remove("pressed");
     unpressClickToAddButton();
+    editMarker(marker.i);
   }
 }
 

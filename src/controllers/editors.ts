@@ -73,8 +73,11 @@ function clicked(this: Element, event: MouseEvent): void {
   else if (grand?.id === "burgIcons") BurgEditor.editBurg(+(el as SVGElement).dataset.id!);
   else if (parent?.id === "ice") IceEditor.editIce(el as SVGElement);
   else if (parent?.id === "terrain") ReliefEditor.editReliefIcon(el as SVGElement);
-  else if (grand?.id === "markers" || great?.id === "markers") MarkersEditor.editMarker();
-  else if (grand?.id === "coastline") CoastlineEditor.editCoastline(event);
+  else if (grand?.id === "markers" || great?.id === "markers") {
+    const markerEl = grand?.id === "markers" ? parent : grand;
+    const markerI = markerEl?.id ? +markerEl.id.slice(6) : undefined;
+    MarkersEditor.editMarker(markerI);
+  } else if (grand?.id === "coastline") CoastlineEditor.editCoastline(event);
   else if (grand?.id === "lakes") LakesEditor.editLake(event);
   else if (great?.id === "armies") RegimentEditor.editRegiment(el?.parentElement ?? undefined);
 }
@@ -959,7 +962,7 @@ document.addEventListener("fmg:highlight-element", (e: Event) => {
 document.addEventListener("fmg:select-icon", (e: Event) => {
   const { initial } = (e as CustomEvent<{ initial: string }>).detail;
   const cb = EditorBus._iconCallback;
-  if (cb) EditorBus.selectIcon(initial, cb);
+  if (cb) selectIcon(initial, cb);
 });
 
 // Register calculate-friendly-grid-size
