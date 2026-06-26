@@ -1,0 +1,63 @@
+import { type ReactNode, useEffect, useState } from "react";
+
+interface SliderInputProps {
+  id?: string;
+  min?: string | number;
+  max?: string | number;
+  step?: string | number;
+  value: string | number;
+  onChange?: (value: string) => void;
+  className?: string;
+  children?: ReactNode;
+  "data-stored"?: string;
+}
+
+export const SliderInput = ({
+  id,
+  min = 0,
+  max = 100,
+  step = 1,
+  value: valueProp,
+  onChange,
+  className,
+  children,
+  "data-stored": dataStored
+}: SliderInputProps) => {
+  const [value, setValue] = useState(String(valueProp));
+
+  useEffect(() => {
+    setValue(String(valueProp));
+  }, [valueProp]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setValue(e.target.value);
+    onChange?.(e.target.value);
+  };
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: "0.4em" }} className={className}>
+      {children}
+      <input
+        id={id}
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        data-stored={dataStored}
+        onChange={handleChange}
+        style={{ flex: 1 }}
+      />
+      <input
+        type="number"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        data-stored={dataStored}
+        onChange={handleChange}
+        style={{ width: "4em" }}
+      />
+    </div>
+  );
+};

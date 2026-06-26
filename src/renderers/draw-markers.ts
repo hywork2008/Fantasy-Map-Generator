@@ -1,25 +1,10 @@
+import type { AppServices } from "../context/appServices";
+import type { SettlementLayers, ViewState } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
+import type { Marker } from "../types/models";
 import { rn } from "../utils";
-
-interface Marker {
-  i: number;
-  icon: string;
-  x: number;
-  y: number;
-  dx?: number;
-  dy?: number;
-  px?: number;
-  size?: number;
-  pin?: string;
-  fill?: string;
-  stroke?: string;
-  pinned?: boolean;
-}
-
-declare global {
-  var drawMarkers: () => void;
-  var drawMarker: (marker: Marker, rescale?: number) => string;
-  var getPin: (shape?: string, fill?: string, stroke?: string) => string;
-}
+import { TIME } from "../utils/debug";
+import type { IRenderer } from "./core/IRenderer";
 
 type PinShapeFunction = (fill: string, stroke: string) => string;
 type PinShapes = { [key: string]: PinShapeFunction };
@@ -51,41 +36,65 @@ const pinShapes: PinShapes = {
   no: () => ""
 };
 
-const getPinForShape = (shape = "bubble", fill = "#fff", stroke = "#000"): string => {
+export const getPin = (
+  _worldContext: Readonly<WorldContext>,
+  _viewContext: Readonly<SettlementLayers & ViewState>,
+  _appServices: AppServices,
+  shape = "bubble",
+  fill = "#fff",
+  stroke = "#000"
+): string => {
   const shapeFunction = pinShapes[shape] || pinShapes.bubble;
   return shapeFunction(fill, stroke);
 };
 
-function markerRenderer(marker: Marker, rescale = 1): string {
-  const { i, icon, x, y, dx = 50, dy = 50, px = 12, size = 30, pin, fill, stroke } = marker;
+export function drawMarker(
+  _worldContext: Readonly<WorldContext>,
+  viewContext: Readonly<SettlementLayers & ViewState>,
+  _appServices: AppServices,
+  _marker: Marker,
+  _rescale = 1
+): string {
+  const { scale } = viewContext;
+  const { i, icon, x, y, dx = 50, dy = 50, px = 12, size = 30, pin, fill, stroke } = _marker;
   const id = `marker${i}`;
-  const zoomSize = rescale ? Math.max(rn(size / 5 + 24 / scale, 2), 1) : size;
-  const viewX = rn(x - zoomSize / 2, 1);
-  const viewY = rn(y - zoomSize, 1);
+  const zoomSize = _rescale ? Math.max(rn(size / 5 + 24 / scale, 2), 1) : size;
+  const viewX = rn(x! - zoomSize / 2, 1);
+  const viewY = rn(y! - zoomSize, 1);
 
   const isExternal = icon.startsWith("http") || icon.startsWith("data:image");
 
   return /* html */ `
     <svg id="${id}" viewbox="0 0 30 30" width="${zoomSize}" height="${zoomSize}" x="${viewX}" y="${viewY}">
-      <g>${getPin(pin, fill, stroke)}</g>
+      <g>${getPin(_worldContext, viewContext, _appServices, pin, fill, stroke)}</g>
       <text x="${dx}%" y="${dy}%" font-size="${px}px" >${isExternal ? "" : icon}</text>
       <image x="${dx / 2}%" y="${dy / 2}%" width="${px}px" height="${px}px" href="${isExternal ? icon : ""}" />
     </svg>`;
 }
 
-const markersRenderer = (): void => {
-  TIME && console.time("drawMarkers");
+export const MarkersRenderer: IRenderer = {
+  id: "markers",
 
-  const rescale = +markers.attr("rescale");
-  const pinned = +markers.attr("pinned");
+  render(
+    worldContext: Readonly<WorldContext>,
+    viewContext: Readonly<SettlementLayers & ViewState>,
+    appServices: AppServices
+  ): void {
+    TIME && console.time("MarkersRenderer");
+    const { pack } = worldContext;
+    const { markers } = viewContext;
 
-  const markersData: Marker[] = pinned ? pack.markers.filter((m: Marker) => m.pinned) : pack.markers;
-  const html = markersData.map(marker => markerRenderer(marker, rescale));
-  markers.html(html.join(""));
+    const rescale = +markers.attr("rescale");
+    const pinned = +markers.attr("pinned");
 
-  TIME && console.timeEnd("drawMarkers");
+    const markersData: Marker[] = pinned ? pack.markers.filter((m: Marker) => m.pinned) : pack.markers;
+    const html = markersData.map(marker => drawMarker(worldContext, viewContext, appServices, marker, rescale));
+    markers.html(html.join(""));
+
+    TIME && console.timeEnd("MarkersRenderer");
+  },
+
+  clear(viewContext: Readonly<SettlementLayers & ViewState>): void {
+    viewContext.markers.selectAll("*").remove();
+  }
 };
-
-window.drawMarkers = markersRenderer;
-window.drawMarker = markerRenderer;
-window.getPin = getPinForShape;

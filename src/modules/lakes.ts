@@ -1,21 +1,32 @@
 import { mean, min } from "d3";
-import { ensureEl, rn } from "../utils";
-import type { PackedGraphFeature } from "./features";
-
-declare global {
-  var Lakes: LakesModule;
-}
+import { HeightmapConstants } from "../config/constants";
+import type { AppServices } from "../context/appServices";
+import { appServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import { viewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
+import { worldContext } from "../context/worldContext";
+import { useOptionsState } from "../store/optionsState";
+import type { PackedGraphFeature } from "../types/models";
+import type { WorldState } from "../types/WorldState";
+import { rn } from "../utils";
+import { Names } from "./names-generator";
 
 export class LakesModule {
-  private LAKE_ELEVATION_DELTA = 0.1;
+  worldContext: WorldContext = worldContext;
+  viewContext: Readonly<ViewContext> = viewContext;
+  appServices: AppServices = appServices;
+  private LAKE_ELEVATION_DELTA = HeightmapConstants.LAKE_ELEVATION_DELTA;
 
   getHeight(feature: PackedGraphFeature) {
+    const { pack } = this.worldContext;
     const heights = pack.cells.h;
     const minShoreHeight = min(feature.shoreline.map(cellId => heights[cellId])) || 20;
     return rn(minShoreHeight - this.LAKE_ELEVATION_DELTA, 2);
   }
 
-  defineNames() {
+  defineNames(state: WorldState) {
+    const { pack } = state;
     pack.features.forEach((feature: PackedGraphFeature) => {
       if (feature.type !== "lake") return;
       feature.name = this.getName(feature);
@@ -23,13 +34,14 @@ export class LakesModule {
   }
 
   getName(feature: PackedGraphFeature): string {
+    const { pack } = this.worldContext;
     const landCell = feature.shoreline[0];
     const culture = pack.cells.culture[landCell];
     return Names.getCulture(culture);
   }
 
   cleanupLakeData = () => {
-    for (const feature of pack.features) {
+    for (const feature of worldContext.pack.features) {
       if (feature.type !== "lake") continue;
       delete feature.river;
       delete feature.enteringFlux;
@@ -37,16 +49,17 @@ export class LakesModule {
       delete feature.closed;
       feature.height = rn(feature.height, 3);
 
-      const inlets = feature.inlets?.filter(r => pack.rivers.find(river => river.i === r));
+      const inlets = feature.inlets?.filter(r => worldContext.pack.rivers.find(river => river.i === r));
       if (!inlets?.length) delete feature.inlets;
       else feature.inlets = inlets;
 
-      const outlet = feature.outlet && pack.rivers.find(river => river.i === feature.outlet);
+      const outlet = feature.outlet && worldContext.pack.rivers.find(river => river.i === feature.outlet);
       if (!outlet) delete feature.outlet;
     }
   };
 
   defineClimateData(heights: number[] | Uint8Array) {
+    const { pack, grid } = this.worldContext;
     const { cells, features } = pack;
     const lakeOutCells = new Uint16Array(cells.i.length);
 
@@ -85,8 +98,9 @@ export class LakesModule {
 
   // check if lake can be potentially open (not in deep depression)
   detectCloseLakes(h: number[] | Uint8Array) {
+    const { pack } = this.worldContext;
     const { cells } = pack;
-    const ELEVATION_LIMIT = +(ensureEl("lakeElevationLimitOutput") as HTMLInputElement)?.value;
+    const ELEVATION_LIMIT = useOptionsState.getState().lakeElevationLimit;
 
     pack.features.forEach(feature => {
       if (feature.type !== "lake") return;
@@ -126,4 +140,4 @@ export class LakesModule {
   }
 }
 
-window.Lakes = new LakesModule();
+export const Lakes = new LakesModule();

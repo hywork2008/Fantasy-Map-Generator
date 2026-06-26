@@ -1,33 +1,26 @@
 import { max, quadtree, range } from "d3";
-import { abbreviate, biased, ensureEl, getColors, getRandomColor, minmax, P, rand, rn, rw } from "../utils";
-
-declare global {
-  var Cultures: CulturesModule;
-}
-
-export interface Culture {
-  name: string;
-  i: number;
-  base: number;
-  shield: string;
-  lock?: boolean;
-  code?: string;
-  center?: number;
-  sort?: (i: number) => number;
-  odd?: number;
-  color?: string;
-  type?: string;
-  expansionism?: number;
-  origins?: (number | null)[];
-  removed?: boolean;
-  cells?: number;
-  area?: number;
-  rural?: number;
-  urban?: number;
-}
+import FlatQueue from "flatqueue";
+import type { AppServices } from "../context/appServices";
+import { appServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import { viewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
+import { worldContext } from "../context/worldContext";
+import { useOptionsState } from "../store/optionsState";
+import type { Culture } from "../types/models";
+import type { PackedGraph } from "../types/PackedGraph";
+import type { WorldState } from "../types/WorldState";
+import { openRichDialog } from "../ui/dialogs/dialogService";
+import { abbreviate, biased, getColors, getRandomColor, minmax, P, rand, rn, rw } from "../utils";
+import { ERROR, TIME, WARN } from "../utils/debug";
+import { COA } from "./emblem/generator";
+import { Names } from "./names-generator";
 
 class CulturesModule {
-  cells: any;
+  worldContext: WorldContext = worldContext;
+  viewContext: Readonly<ViewContext> = viewContext;
+  appServices: AppServices = appServices;
+  cells: PackedGraph["cells"] | null = null;
 
   getRandomShield() {
     const type = rw(COA.shields.types);
@@ -35,6 +28,7 @@ class CulturesModule {
   }
 
   getDefault(count: number = 0): Omit<Culture, "i">[] {
+    const { pack, grid, nameBases } = this.worldContext;
     // generic sorting functions
     const cells = pack.cells,
       s = cells.s,
@@ -51,7 +45,7 @@ class CulturesModule {
     const sf = (cell: number, fee = 4) =>
       cells.haven[cell] && pack.features[cells.f[cells.haven[cell]]].type !== "lake" ? 1 : fee; // not on sea coast fee
 
-    if (culturesSet.value === "european") {
+    if (useOptionsState.getState().culturesSet === "european") {
       return [
         {
           name: "Shwazen",
@@ -161,7 +155,7 @@ class CulturesModule {
       ];
     }
 
-    if (culturesSet.value === "oriental") {
+    if (useOptionsState.getState().culturesSet === "oriental") {
       return [
         {
           name: "Koryo",
@@ -257,7 +251,7 @@ class CulturesModule {
       ];
     }
 
-    if (culturesSet.value === "english") {
+    if (useOptionsState.getState().culturesSet === "english") {
       const getName = () => Names.getBase(1, 5, 9, "");
       return [
         { name: getName(), base: 1, odd: 1, shield: "heater" },
@@ -273,7 +267,7 @@ class CulturesModule {
       ];
     }
 
-    if (culturesSet.value === "antique") {
+    if (useOptionsState.getState().culturesSet === "antique") {
       return [
         {
           name: "Roman",
@@ -390,7 +384,7 @@ class CulturesModule {
       ];
     }
 
-    if (culturesSet.value === "highFantasy") {
+    if (useOptionsState.getState().culturesSet === "highFantasy") {
       return [
         // fantasy races
         {
@@ -516,7 +510,7 @@ class CulturesModule {
       ];
     }
 
-    if (culturesSet.value === "darkFantasy") {
+    if (useOptionsState.getState().culturesSet === "darkFantasy") {
       return [
         // common real-world English
         {
@@ -763,7 +757,7 @@ class CulturesModule {
       ];
     }
 
-    if (culturesSet.value === "random") {
+    if (useOptionsState.getState().culturesSet === "random") {
       return range(count).map(() => {
         const rnd = rand(nameBases.length - 1);
         const name = Names.getBaseShort(rnd);
@@ -1007,48 +1001,59 @@ class CulturesModule {
     ];
   }
 
-  generate() {
+  generate(
+    worldContext: WorldContext,
+    viewContext: Readonly<ViewContext>,
+    appServices: AppServices,
+    state: WorldState
+  ) {
+    this.worldContext = worldContext;
+    this.viewContext = viewContext;
+    this.appServices = appServices;
+    const { pack } = state;
+    let { nameBases } = state;
     TIME && console.time("generateCultures");
     this.cells = pack.cells;
-    const cultureIds = new Uint16Array(this.cells.i.length); // cell cultures
+    const cultureIds = new Uint16Array(this.cells!.i.length); // cell cultures
 
-    const culturesInputNumber = +(ensureEl("culturesInput") as HTMLInputElement).value;
-    const culturesInSetNumber = +((ensureEl("culturesSet") as HTMLSelectElement).selectedOptions[0].dataset.max ?? "0");
-    let count = Math.min(culturesInputNumber, culturesInSetNumber);
-    const populated = this.cells.i.filter((i: number) => this.cells.s[i]); // populated cells
+    const culturesInputNumber = useOptionsState.getState().cultures;
+    let count = Math.min(culturesInputNumber, 100);
+    const populated = this.cells!.i.filter((i: number) => this.cells!.s[i]); // populated cells
 
     if (populated.length < count * 25) {
       count = Math.floor(populated.length / 50);
       if (!count) {
         WARN && console.warn(`There are no populated cells. Cannot generate cultures`);
         pack.cultures = [{ name: "Wildlands", i: 0, base: 1, shield: "round" }];
-        this.cells.culture = cultureIds;
+        this.cells!.culture = cultureIds;
 
-        alertMessage.innerHTML = /* html */ `The climate is harsh and people cannot live in this world.<br />
+        const alertContent = /* html */ `The climate is harsh and people cannot live in this world.<br />
           No cultures, states and burgs will be created.<br />
           Please consider changing climate settings in the World Configurator`;
 
-        $("#alert").dialog({
+        openRichDialog({
+          content: alertContent,
           resizable: false,
           title: "Extreme climate warning",
           buttons: {
-            Ok: function () {
-              $(this).dialog("close");
+            Ok: () => {
+              /* $(this).dialog("close") removed */
             }
           }
         });
         return;
       } else {
         WARN && console.warn(`Not enough populated cells (${populated.length}). Will generate only ${count} cultures`);
-        alertMessage.innerHTML = /* html */ ` There are only ${populated.length} populated cells and it's insufficient livable area.<br />
-          Only ${count} out of ${culturesInput.value} requested cultures will be generated.<br />
+        const alertContent = /* html */ ` There are only ${populated.length} populated cells and it's insufficient livable area.<br />
+          Only ${count} out of ${culturesInputNumber} requested cultures will be generated.<br />
           Please consider changing climate settings in the World Configurator`;
-        $("#alert").dialog({
+        openRichDialog({
+          content: alertContent,
           resizable: false,
           title: "Extreme climate warning",
           buttons: {
-            Ok: function () {
-              $(this).dialog("close");
+            Ok: () => {
+              /* $(this).dialog("close") removed */
             }
           }
         });
@@ -1082,14 +1087,14 @@ class CulturesModule {
 
     const cultures = selectCultures(count);
     pack.cultures = cultures;
-    const centers = quadtree<number>();
+    const centers = quadtree<[number, number]>();
     const colors = getColors(count);
-    const emblemShape = (ensureEl("emblemShape") as HTMLInputElement).value;
+    const emblemShape = useOptionsState.getState().emblemShape;
 
     const codes: string[] = [];
 
     const placeCenter = (sortingFn: (i: number) => number) => {
-      let spacing = (graphWidth + graphHeight) / 2 / count;
+      let spacing = (worldContext.graphWidth + worldContext.graphHeight) / 2 / count;
       const MAX_ATTEMPTS = 100;
 
       const sorted = [...populated].sort((a, b) => sortingFn(b) - sortingFn(a));
@@ -1099,7 +1104,7 @@ class CulturesModule {
       for (let i = 0; i < MAX_ATTEMPTS; i++) {
         cellId = sorted[biased(0, max, 5)];
         spacing *= 0.9;
-        if (!cultureIds[cellId] && !centers.find(this.cells.p[cellId][0], this.cells.p[cellId][1], spacing)) break;
+        if (!cultureIds[cellId] && !centers.find(this.cells!.p[cellId][0], this.cells!.p[cellId][1], spacing)) break;
       }
 
       return cellId;
@@ -1107,18 +1112,18 @@ class CulturesModule {
 
     // set culture type based on culture center position
     const defineCultureType = (i: number) => {
-      if (this.cells.h[i] < 70 && [1, 2, 4].includes(this.cells.biome[i])) return "Nomadic"; // high penalty in forest biomes and near coastline
-      if (this.cells.h[i] > 50) return "Highland"; // no penalty for hills and mountains, high for other elevations
-      const f = pack.features[this.cells.f[this.cells.haven[i]]]; // opposite feature
+      if (this.cells!.h[i] < 70 && [1, 2, 4].includes(this.cells!.biome[i])) return "Nomadic"; // high penalty in forest biomes and near coastline
+      if (this.cells!.h[i] > 50) return "Highland"; // no penalty for hills and mountains, high for other elevations
+      const f = pack.features[this.cells!.f[this.cells!.haven[i]]]; // opposite feature
       if (f.type === "lake" && f.cells > 5) return "Lake"; // low water cross penalty and high for growth not along coastline
       if (
-        (this.cells.harbor[i] && f.type !== "lake" && P(0.1)) ||
-        (this.cells.harbor[i] === 1 && P(0.6)) ||
-        (pack.features[this.cells.f[i]].group === "isle" && P(0.4))
+        (this.cells!.harbor[i] && f.type !== "lake" && P(0.1)) ||
+        (this.cells!.harbor[i] === 1 && P(0.6)) ||
+        (pack.features[this.cells!.f[i]].group === "isle" && P(0.4))
       )
         return "Naval"; // low water cross penalty and high for non-along-coastline growth
-      if (this.cells.r[i] && this.cells.fl[i] > 100) return "River"; // no River cross penalty, penalty for non-River growth
-      if (this.cells.t[i] > 2 && [3, 7, 8, 9, 10, 12].includes(this.cells.biome[i])) return "Hunting"; // high penalty in non-native biomes
+      if (this.cells!.r[i] && this.cells!.fl[i] > 100) return "River"; // no River cross penalty, penalty for non-River growth
+      if (this.cells!.t[i] > 2 && [3, 7, 8, 9, 10, 12].includes(this.cells!.biome[i])) return "Hunting"; // high penalty in non-native biomes
       return "Generic";
     };
 
@@ -1130,7 +1135,7 @@ class CulturesModule {
       else if (type === "Nomadic") base = 1.5;
       else if (type === "Hunting") base = 0.7;
       else if (type === "Highland") base = 1.2;
-      return rn(((Math.random() * (ensureEl("sizeVariety") as HTMLInputElement).valueAsNumber) / 2 + 1) * base, 1);
+      return rn(((Math.random() * useOptionsState.getState().sizeVariety) / 2 + 1) * base, 1);
     };
 
     cultures.forEach((c: Culture, i: number) => {
@@ -1138,20 +1143,20 @@ class CulturesModule {
 
       if (c.lock) {
         codes.push(c.code as string);
-        centers.add(c.center as number);
+        if (c.center !== undefined) centers.add(this.cells!.p[c.center]);
 
-        for (const i of this.cells.i) {
-          if (this.cells.culture[i] === c.i) cultureIds[i] = newId;
+        for (const i of this.cells!.i) {
+          if (this.cells!.culture[i] === c.i) cultureIds[i] = newId;
         }
 
         c.i = newId;
         return;
       }
 
-      const sortingFn = c.sort ? c.sort : (i: number) => this.cells.s[i];
+      const sortingFn = c.sort ? c.sort : (i: number) => this.cells!.s[i];
       const center = placeCenter(sortingFn);
 
-      centers.add(this.cells.p[center]);
+      centers.add(this.cells!.p[center]);
       c.center = center;
       c.i = newId;
       delete c.odd;
@@ -1166,7 +1171,7 @@ class CulturesModule {
       if (emblemShape === "random") c.shield = this.getRandomShield();
     });
 
-    this.cells.culture = cultureIds;
+    this.cells!.culture = cultureIds;
 
     // the first culture with id 0 is for wildlands
     cultures.unshift({
@@ -1181,6 +1186,7 @@ class CulturesModule {
     if (!nameBases.length) {
       ERROR && console.error("Name base is empty, default nameBases will be applied");
       nameBases = Names.getNameBases();
+      state.nameBases = nameBases; // sync back to state
     }
 
     cultures.forEach((c: Culture) => {
@@ -1191,6 +1197,7 @@ class CulturesModule {
   }
 
   add(center: number) {
+    const { pack } = this.worldContext;
     const defaultCultures = this.getDefault();
     let culture: number, base: number, name: string;
 
@@ -1211,7 +1218,7 @@ class CulturesModule {
     const color = getRandomColor();
 
     // define emblem shape
-    const emblemShape = (document.getElementById("emblemShape") as HTMLInputElement).value;
+    const emblemShape = useOptionsState.getState().emblemShape;
 
     pack.cultures.push({
       name,
@@ -1231,14 +1238,16 @@ class CulturesModule {
     });
   }
 
-  expand() {
+  expand(state: WorldState) {
+    const { biomesData } = this.worldContext;
+    const { pack } = state;
     TIME && console.time("expandCultures");
     const { cells, cultures } = pack;
 
-    const queue = new FlatQueue();
+    const queue = new FlatQueue<{ cellId: number; cultureId: number; priority: number }>();
     const cost: number[] = [];
 
-    const neutralRate = (document.getElementById("neutralRate") as HTMLInputElement | null)?.valueAsNumber || 1;
+    const neutralRate = useOptionsState.getState().neutralRate;
     const maxExpansionCost = cells.i.length * 0.6 * neutralRate; // limit cost for culture growth
 
     // remove culture from all cells except of locked
@@ -1255,7 +1264,7 @@ class CulturesModule {
 
     for (const culture of cultures) {
       if (!culture.i || culture.removed || culture.lock) continue;
-      queue.push({ cellId: culture.center, cultureId: culture.i, priority: 0 }, 0);
+      queue.push({ cellId: culture.center!, cultureId: culture.i, priority: 0 }, 0);
     }
 
     const getBiomeCost = (c: number, biome: number, type: string) => {
@@ -1294,7 +1303,7 @@ class CulturesModule {
     };
 
     while (queue.length) {
-      const { cellId, priority, cultureId } = queue.pop();
+      const { cellId, priority, cultureId } = queue.pop()!;
       const { type, expansionism } = cultures[cultureId];
       const sourceBiome = cells.biome[cellId];
 
@@ -1327,4 +1336,4 @@ class CulturesModule {
   }
 }
 
-window.Cultures = new CulturesModule();
+export const Cultures = new CulturesModule();

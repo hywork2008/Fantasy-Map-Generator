@@ -1,4 +1,17 @@
-import { color, interpolate, interpolateRainbow, type RGBColor, range, scaleSequential, shuffler } from "d3";
+import {
+  color,
+  interpolate,
+  interpolateGreens,
+  interpolateGreys,
+  interpolateRainbow,
+  interpolateRdYlGn,
+  interpolateRgbBasis,
+  interpolateSpectral,
+  type RGBColor,
+  range,
+  scaleSequential,
+  shuffler
+} from "d3";
 
 /**
  * Convert RGB or RGBA color to HEX
@@ -70,6 +83,32 @@ export const getMixedColor = (colorToMix: string, mix = 0.2, bright = 0.3): stri
   const mixedColor: RGBColor = color(interpolate(c, getRandomColor())(mix)) as RGBColor;
   return mixedColor.brighter(bright).formatHex();
 };
+
+// ── Heightmap color schemes ───────────────────────────────────────────────────
+
+export type ColorSchemeFunc = (t: number) => string;
+
+export const heightmapColorSchemes: Record<string, ColorSchemeFunc> = {
+  bright: scaleSequential(interpolateSpectral),
+  light: scaleSequential(interpolateRdYlGn),
+  natural: scaleSequential(interpolateRgbBasis(["white", "#EEEECC", "tan", "green", "teal"])),
+  green: scaleSequential(interpolateGreens),
+  olive: scaleSequential(interpolateRgbBasis(["#ffffff", "#cea48d", "#d5b085", "#0c2c19", "#151320"])),
+  livid: scaleSequential(interpolateRgbBasis(["#BBBBDD", "#2A3440", "#17343B", "#0A1E24"])),
+  monochrome: scaleSequential(interpolateGreys)
+};
+
+export function getColorScheme(scheme: string | null = "bright"): ColorSchemeFunc {
+  const key = scheme ?? "bright";
+  if (!(key in heightmapColorSchemes)) {
+    heightmapColorSchemes[key] = scaleSequential(interpolateRgbBasis(key.split(",")));
+  }
+  return heightmapColorSchemes[key];
+}
+
+export function getColor(value: number, scheme: ColorSchemeFunc = heightmapColorSchemes.bright): string {
+  return scheme(1 - (value < 20 ? value - 5 : value) / 100);
+}
 
 declare global {
   interface Window {

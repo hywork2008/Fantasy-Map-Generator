@@ -1,4 +1,7 @@
 import Alea from "alea";
+import type { AppServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
 
 export interface CoastlineSettings {
   enabled: boolean; // master toggle — false bypasses all fractalization
@@ -28,9 +31,16 @@ export const PROFILE_SIZE = 256;
 
 // Build a smooth closed roughness envelope via sum-of-cosine harmonics.
 // Intrinsically seam-free; result raised to `contrast` power for calm/rough contrast.
-export function makeRoughnessProfile(rand: () => number, contrast: number, numHarmonics = 4): Float32Array {
+export function makeRoughnessProfile(
+  _worldContext: Readonly<WorldContext>,
+  _viewContext: Readonly<ViewContext>,
+  _appServices: AppServices,
+  rand: () => number,
+  _contrast: number,
+  _numHarmonics = 4
+): Float32Array {
   const profile = new Float32Array(PROFILE_SIZE);
-  for (let k = 1; k <= numHarmonics; k++) {
+  for (let k = 1; k <= _numHarmonics; k++) {
     const amp = rand();
     const phase = rand() * Math.PI * 2;
     for (let i = 0; i < PROFILE_SIZE; i++) {
@@ -45,22 +55,22 @@ export function makeRoughnessProfile(rand: () => number, contrast: number, numHa
   }
   const range = max - min || 1;
   for (let i = 0; i < PROFILE_SIZE; i++) {
-    profile[i] = ((profile[i] - min) / range) ** contrast;
+    profile[i] = ((profile[i] - min) / range) ** _contrast;
   }
   return profile;
 }
 
 /** Linear interpolation into the envelope at normalised perimeter position t ∈ [0, 1). */
-function sampleProfile(profile: Float32Array, t: number): number {
-  const pos = (((t % 1) + 1) % 1) * PROFILE_SIZE;
+function sampleProfile(profile: Float32Array, _t: number): number {
+  const pos = (((_t % 1) + 1) % 1) * PROFILE_SIZE;
   const i = Math.floor(pos) % PROFILE_SIZE;
   const f = pos - Math.floor(pos);
   return profile[i] * (1 - f) + profile[(i + 1) % PROFILE_SIZE] * f;
 }
 
 /** Circular midpoint of two normalised perimeter positions, handling the 0/1 seam. */
-function midT(t0: number, t1: number): number {
-  const diff = t1 - t0;
+function midT(t0: number, _t1: number): number {
+  const diff = _t1 - t0;
   if (Math.abs(diff) <= 0.5) return t0 + diff / 2;
   const t = t0 + (diff - Math.sign(diff)) / 2;
   return ((t % 1) + 1) % 1;
@@ -108,29 +118,42 @@ export interface FractalizedShape {
 }
 
 export function fractalizeCoastline(
+  worldContext: Readonly<WorldContext>,
+  _viewContext: Readonly<ViewContext>,
+  _appServices: AppServices,
   points: [number, number][],
-  featureIndex: number,
-  featureType: "ocean" | "lake" | "island" = "island"
+  _featureIndex: number,
+  _featureType: "ocean" | "lake" | "island" = "island"
 ): FractalizedShape {
   if (points.length < 3) return { points, origIndices: points.map((_, i) => i) };
   if (!defaultCoastSettings.enabled) return { points, origIndices: points.map((_, i) => i) };
-  const rand = Alea(`${seed}_c${featureIndex}`);
+  const rand = Alea(`${worldContext.seed}_c${_featureIndex}`);
   const settings =
-    featureType === "lake" && defaultCoastSettings.lakeSmoothThreshMult !== 1
+    _featureType === "lake" && defaultCoastSettings.lakeSmoothThreshMult !== 1
       ? {
           ...defaultCoastSettings,
           smoothThreshold: Math.min(1, defaultCoastSettings.smoothThreshold * defaultCoastSettings.lakeSmoothThreshMult)
         }
       : defaultCoastSettings;
-  return fractalize(points, rand, settings);
+  return fractalize(worldContext, _viewContext, _appServices, points, rand, settings);
 }
 
 export function fractalize(
+  worldContext: Readonly<WorldContext>,
+  _viewContext: Readonly<ViewContext>,
+  _appServices: AppServices,
   points: [number, number][],
   rand: () => number,
   settings: CoastlineSettings
 ): FractalizedShape {
-  const profile = makeRoughnessProfile(rand, settings.roughnessContrast, settings.profileHarmonics);
+  const profile = makeRoughnessProfile(
+    worldContext,
+    _viewContext,
+    _appServices,
+    rand,
+    settings.roughnessContrast,
+    settings.profileHarmonics
+  );
 
   const n = points.length;
   let total = 0;
@@ -159,7 +182,7 @@ export function fractalize(
   for (let i = 0; i < n; i++) {
     origIndices.push(resultPts.length);
     resultPts.push(points[i]);
-    if (isOnBorder(points[i]) && isOnBorder(points[(i + 1) % n])) continue; // Skip edges running along the map border
+    if (isOnBorder(worldContext, points[i]) && isOnBorder(worldContext, points[(i + 1) % n])) continue; // Skip edges running along the map border
 
     const [x0, y0] = points[i];
     const [x1, y1] = points[(i + 1) % n];
@@ -182,7 +205,8 @@ export function fractalize(
   return { points: resultPts, origIndices };
 }
 
-function isOnBorder([x, y]: [number, number]) {
+function isOnBorder(_worldContext: Readonly<WorldContext>, [x, y]: [number, number]) {
+  const { graphWidth, graphHeight } = _worldContext;
   return x === 0 || x === graphWidth || y === 0 || y === graphHeight;
 }
 
@@ -191,7 +215,12 @@ function isOnBorder([x, y]: [number, number]) {
  * Smooth span: Q midpoint B-spline — identical to curveBasisClosed. Produces flowing arcs that hide Voronoi angularity.
  * Jagged span: centripetal Catmull-Rom (α=0.5) through every fractal sub-point. Rounds sharp kinks into gentle curves.
  */
-export function buildCoastlinePath({ points, origIndices }: FractalizedShape): string {
+export function buildCoastlinePath(
+  _worldContext: Readonly<WorldContext>,
+  _viewContext: Readonly<ViewContext>,
+  _appServices: AppServices,
+  { points, origIndices }: FractalizedShape
+): string {
   const N = points.length;
   const M = origIndices.length;
   if (N < 3 || M < 3) return "";

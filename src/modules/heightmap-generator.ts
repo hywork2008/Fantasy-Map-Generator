@@ -1,15 +1,25 @@
 import Alea from "alea";
 import { range as d3Range, leastIndex, mean } from "d3";
-import { createTypedArray, ensureEl, findGridCell, getNumberInRange, lim, minmax, P, rand } from "../utils";
-
-declare global {
-  var HeightmapGenerator: HeightmapModule;
-}
+import { heightmapTemplates } from "../config";
+import { HeightmapConstants, HeightThreshold } from "../config/constants";
+import type { AppServices } from "../context/appServices";
+import { appServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import { viewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
+import { worldContext } from "../context/worldContext";
+import { useOptionsState } from "../store/optionsState";
+import type { Grid } from "../types/Grid";
+import { createTypedArray, findGridCell, getNumberInRange, lim, minmax, P, rand } from "../utils";
+import { ERROR, TIME } from "../utils/debug";
 
 type Tool = "Hill" | "Pit" | "Range" | "Trough" | "Strait" | "Mask" | "Invert" | "Add" | "Multiply" | "Smooth";
 
 class HeightmapModule {
-  grid: any = null;
+  worldContext: WorldContext = worldContext;
+  viewContext: Readonly<ViewContext> = viewContext;
+  appServices: AppServices = appServices;
+  grid: Grid | null = null;
   heights: Uint8Array | null = null;
   blobPower: number = 0;
   linePower: number = 0;
@@ -60,7 +70,7 @@ class HeightmapModule {
 
   private getPointInRange(range: string, length: number): number | undefined {
     if (typeof range !== "string") {
-      window.ERROR && console.error("Range should be a string");
+      ERROR && console.error("Range should be a string");
       return;
     }
 
@@ -69,7 +79,7 @@ class HeightmapModule {
     return rand(min * length, max * length);
   }
 
-  setGraph(graph: any) {
+  setGraph(graph: Grid) {
     const { cellsDesired, cells, points } = graph;
     this.heights = cells.h
       ? Uint8Array.from(cells.h)
@@ -91,20 +101,25 @@ class HeightmapModule {
       const h = lim(getNumberInRange(height));
 
       do {
-        const x = this.getPointInRange(rangeX, graphWidth);
-        const y = this.getPointInRange(rangeY, graphHeight);
+        const x = this.getPointInRange(rangeX, worldContext.graphWidth);
+        const y = this.getPointInRange(rangeY, worldContext.graphHeight);
         if (x === undefined || y === undefined) return;
         start = findGridCell(x, y, this.grid);
         limit++;
-      } while (this.heights[start] + h > 90 && limit < 50);
+      } while (
+        this.heights[start] + h > HeightThreshold.HILL_MAX_HEIGHT &&
+        limit < HeightmapConstants.PLACEMENT_ITER_LIMIT
+      );
       change[start] = h;
       const queue = [start];
       while (queue.length) {
         const q = queue.shift() as number;
 
-        for (const c of this.grid.cells.c[q]) {
+        for (const c of this.grid!.cells.c[q]) {
           if (change[c]) continue;
-          change[c] = change[q] ** this.blobPower * (Math.random() * 0.2 + 0.9);
+          change[c] =
+            change[q] ** this.blobPower *
+            (Math.random() * HeightmapConstants.JITTER_RANGE + HeightmapConstants.JITTER_MIN);
           if (change[c] > 1) queue.push(c);
         }
       }
@@ -127,22 +142,27 @@ class HeightmapModule {
       let h = lim(getNumberInRange(height));
 
       do {
-        const x = this.getPointInRange(rangeX, graphWidth);
-        const y = this.getPointInRange(rangeY, graphHeight);
+        const x = this.getPointInRange(rangeX, worldContext.graphWidth);
+        const y = this.getPointInRange(rangeY, worldContext.graphHeight);
         if (x === undefined || y === undefined) return;
         start = findGridCell(x, y, this.grid);
         limit++;
-      } while (this.heights[start] < 20 && limit < 50);
+      } while (
+        this.heights[start] < HeightThreshold.WATER_MAX_HEIGHT &&
+        limit < HeightmapConstants.PLACEMENT_ITER_LIMIT
+      );
 
       const queue = [start];
       while (queue.length) {
         const q = queue.shift() as number;
-        h = h ** this.blobPower * (Math.random() * 0.2 + 0.9);
+        h = h ** this.blobPower * (Math.random() * HeightmapConstants.JITTER_RANGE + HeightmapConstants.JITTER_MIN);
         if (h < 1) return;
 
-        this.grid.cells.c[q].forEach((c: number) => {
+        this.grid!.cells.c[q].forEach((c: number) => {
           if (used[c] || this.heights === null) return;
-          this.heights[c] = lim(this.heights[c] - h * (Math.random() * 0.2 + 0.9));
+          this.heights[c] = lim(
+            this.heights[c] - h * (Math.random() * HeightmapConstants.JITTER_RANGE + HeightmapConstants.JITTER_MIN)
+          );
           used[c] = 1;
           queue.push(c);
         });
@@ -171,12 +191,12 @@ class HeightmapModule {
       // get main ridge
       const getRange = (cur: number, end: number) => {
         const range = [cur];
-        const p = this.grid.points;
+        const p = this.grid!.points;
         used[cur] = 1;
 
         while (cur !== end) {
           let min = Infinity;
-          this.grid.cells.c[cur].forEach((e: number) => {
+          this.grid!.cells.c[cur].forEach((e: number) => {
             if (used[e]) return;
             let diff = (p[end][0] - p[e][0]) ** 2 + (p[end][1] - p[e][1]) ** 2;
             if (Math.random() > 0.85) diff = diff / 2;
@@ -198,8 +218,8 @@ class HeightmapModule {
 
       if (rangeX && rangeY) {
         // find start and end points
-        const startX = this.getPointInRange(rangeX, graphWidth) as number;
-        const startY = this.getPointInRange(rangeY, graphHeight) as number;
+        const startX = this.getPointInRange(rangeX, worldContext.graphWidth) as number;
+        const startY = this.getPointInRange(rangeY, worldContext.graphHeight) as number;
 
         let dist = 0;
         let limit = 0;
@@ -207,11 +227,14 @@ class HeightmapModule {
         let endX: number;
 
         do {
-          endX = Math.random() * graphWidth * 0.8 + graphWidth * 0.1;
-          endY = Math.random() * graphHeight * 0.7 + graphHeight * 0.15;
+          endX = Math.random() * worldContext.graphWidth * 0.8 + worldContext.graphWidth * 0.1;
+          endY = Math.random() * worldContext.graphHeight * 0.7 + worldContext.graphHeight * 0.15;
           dist = Math.abs(endY - startY) + Math.abs(endX - startX);
           limit++;
-        } while ((dist < graphWidth / 8 || dist > graphWidth / 3) && limit < 50);
+        } while (
+          (dist < worldContext.graphWidth / 8 || dist > worldContext.graphWidth / 3) &&
+          limit < HeightmapConstants.PLACEMENT_ITER_LIMIT
+        );
 
         startCellId = findGridCell(startX, startY, this.grid);
         endCellId = findGridCell(endX, endY, this.grid);
@@ -233,7 +256,7 @@ class HeightmapModule {
         h = h ** this.linePower - 1;
         if (h < 2) break;
         frontier.forEach((f: number) => {
-          this.grid.cells.c[f].forEach((i: number) => {
+          this.grid!.cells.c[f].forEach((i: number) => {
             if (!used[i]) {
               queue.push(i);
               used[i] = 1;
@@ -244,14 +267,14 @@ class HeightmapModule {
 
       // generate prominences
       range.forEach((cur: number, d: number) => {
-        if (d % 6 !== 0) return;
+        if (d % HeightmapConstants.PROMINENCE_INTERVAL !== 0) return;
         for (const _l of d3Range(i)) {
           const index = leastIndex(
-            this.grid.cells.c[cur],
+            this.grid!.cells.c[cur],
             (a: number, b: number) => this.heights![a] - this.heights![b]
           );
           if (index === undefined) continue;
-          const min = this.grid.cells.c[cur][index]; // downhill cell
+          const min = this.grid!.cells.c[cur][index]; // downhill cell
           this.heights![min] = (this.heights![cur] * 2 + this.heights![min]) / 3;
           cur = min;
         }
@@ -278,12 +301,12 @@ class HeightmapModule {
       // get main ridge
       const getRange = (cur: number, end: number) => {
         const range = [cur];
-        const p = this.grid.points;
+        const p = this.grid!.points;
         used[cur] = 1;
 
         while (cur !== end) {
           let min = Infinity;
-          this.grid.cells.c[cur].forEach((e: number) => {
+          this.grid!.cells.c[cur].forEach((e: number) => {
             if (used[e]) return;
             let diff = (p[end][0] - p[e][0]) ** 2 + (p[end][1] - p[e][1]) ** 2;
             if (Math.random() > 0.8) diff = diff / 2;
@@ -312,19 +335,25 @@ class HeightmapModule {
         let endX: number;
         let endY: number;
         do {
-          startX = this.getPointInRange(rangeX, graphWidth) as number;
-          startY = this.getPointInRange(rangeY, graphHeight) as number;
+          startX = this.getPointInRange(rangeX, worldContext.graphWidth) as number;
+          startY = this.getPointInRange(rangeY, worldContext.graphHeight) as number;
           startCellId = findGridCell(startX, startY, this.grid);
           limit++;
-        } while (this.heights[startCellId] < 20 && limit < 50);
+        } while (
+          this.heights[startCellId] < HeightThreshold.WATER_MAX_HEIGHT &&
+          limit < HeightmapConstants.PLACEMENT_ITER_LIMIT
+        );
 
         limit = 0;
         do {
-          endX = Math.random() * graphWidth * 0.8 + graphWidth * 0.1;
-          endY = Math.random() * graphHeight * 0.7 + graphHeight * 0.15;
+          endX = Math.random() * worldContext.graphWidth * 0.8 + worldContext.graphWidth * 0.1;
+          endY = Math.random() * worldContext.graphHeight * 0.7 + worldContext.graphHeight * 0.15;
           dist = Math.abs(endY - startY) + Math.abs(endX - startX);
           limit++;
-        } while ((dist < graphWidth / 8 || dist > graphWidth / 2) && limit < 50);
+        } while (
+          (dist < worldContext.graphWidth / 8 || dist > worldContext.graphWidth / 2) &&
+          limit < HeightmapConstants.PLACEMENT_ITER_LIMIT
+        );
 
         endCellId = findGridCell(endX, endY, this.grid);
       }
@@ -344,7 +373,7 @@ class HeightmapModule {
         h = h ** this.linePower - 1;
         if (h < 2) break;
         frontier.forEach((f: number) => {
-          this.grid.cells.c[f].forEach((i: number) => {
+          this.grid!.cells.c[f].forEach((i: number) => {
             if (!used[i]) {
               queue.push(i);
               used[i] = 1;
@@ -355,14 +384,14 @@ class HeightmapModule {
 
       // generate prominences
       range.forEach((cur: number, d: number) => {
-        if (d % 6 !== 0) return;
+        if (d % HeightmapConstants.PROMINENCE_INTERVAL !== 0) return;
         for (const _l of d3Range(i)) {
           const index = leastIndex(
-            this.grid.cells.c[cur],
+            this.grid!.cells.c[cur],
             (a: number, b: number) => this.heights![a] - this.heights![b]
           );
           if (index === undefined) continue;
-          const min = this.grid.cells.c[cur][index]; // downhill cell
+          const min = this.grid!.cells.c[cur][index]; // downhill cell
           //debug.append("circle").attr("cx", p[min][0]).attr("cy", p[min][1]).attr("r", 1);
           this.heights![min] = (this.heights![cur] * 2 + this.heights![min]) / 3;
           cur = min;
@@ -378,29 +407,41 @@ class HeightmapModule {
 
   addStrait(width: string, direction = "vertical"): void {
     if (!this.heights || !this.grid) return;
-    const desiredWidth = Math.min(getNumberInRange(width), this.grid.cellsX / 3);
+    const desiredWidth = Math.min(getNumberInRange(width), this.grid!.cellsX / 3);
     if (desiredWidth < 1 && P(desiredWidth)) return;
     const used = new Uint8Array(this.heights.length);
     const vert = direction === "vertical";
-    const startX = vert ? Math.floor(Math.random() * graphWidth * 0.4 + graphWidth * 0.3) : 5;
-    const startY = vert ? 5 : Math.floor(Math.random() * graphHeight * 0.4 + graphHeight * 0.3);
+    const startX = vert ? Math.floor(Math.random() * worldContext.graphWidth * 0.4 + worldContext.graphWidth * 0.3) : 5;
+    const startY = vert
+      ? 5
+      : Math.floor(Math.random() * worldContext.graphHeight * 0.4 + worldContext.graphHeight * 0.3);
     const endX = vert
-      ? Math.floor(graphWidth - startX - graphWidth * 0.1 + Math.random() * graphWidth * 0.2)
-      : graphWidth - 5;
+      ? Math.floor(
+          worldContext.graphWidth -
+            startX -
+            worldContext.graphWidth * 0.1 +
+            Math.random() * worldContext.graphWidth * 0.2
+        )
+      : worldContext.graphWidth - 5;
     const endY = vert
-      ? graphHeight - 5
-      : Math.floor(graphHeight - startY - graphHeight * 0.1 + Math.random() * graphHeight * 0.2);
+      ? worldContext.graphHeight - 5
+      : Math.floor(
+          worldContext.graphHeight -
+            startY -
+            worldContext.graphHeight * 0.1 +
+            Math.random() * worldContext.graphHeight * 0.2
+        );
 
     const start = findGridCell(startX, startY, this.grid);
     const end = findGridCell(endX, endY, this.grid);
 
     const getRange = (cur: number, end: number) => {
       const range = [];
-      const p = this.grid.points;
+      const p = this.grid!.points;
 
       while (cur !== end) {
         let min = Infinity;
-        this.grid.cells.c[cur].forEach((e: number) => {
+        this.grid!.cells.c[cur].forEach((e: number) => {
           let diff = (p[end][0] - p[e][0]) ** 2 + (p[end][1] - p[e][1]) ** 2;
           if (Math.random() > 0.8) diff = diff / 2;
           if (diff < min) {
@@ -422,7 +463,7 @@ class HeightmapModule {
       const remainingWidth = desiredWidth - i;
       const exp = 0.9 - step * remainingWidth;
       range.forEach((r: number) => {
-        this.grid.cells.c[r].forEach((e: number) => {
+        this.grid!.cells.c[r].forEach((e: number) => {
           if (used[e]) return;
           used[e] = 1;
           query.push(e);
@@ -436,9 +477,14 @@ class HeightmapModule {
 
   modify(range: string, add: number, mult: number, power?: number): void {
     if (!this.heights) return;
-    const min = range === "land" ? 20 : range === "all" ? 0 : +range.split("-")[0];
-    const max = range === "land" || range === "all" ? 100 : +range.split("-")[1];
-    const isLand = min === 20;
+    const min =
+      range === "land"
+        ? HeightThreshold.WATER_MAX_HEIGHT
+        : range === "all"
+          ? HeightThreshold.HEIGHT_MIN
+          : +range.split("-")[0];
+    const max = range === "land" || range === "all" ? HeightThreshold.HEIGHT_MAX : +range.split("-")[1];
+    const isLand = min === HeightThreshold.WATER_MAX_HEIGHT;
 
     this.heights = this.heights.map(h => {
       if (h < min || h > max) return h;
@@ -454,7 +500,7 @@ class HeightmapModule {
     if (!this.heights || !this.grid) return;
     this.heights = this.heights.map((h, i) => {
       const a = [h];
-      this.grid.cells.c[i].forEach((c: number) => {
+      this.grid!.cells.c[i].forEach((c: number) => {
         a.push(this.heights![c]);
       });
       if (fr === 1) return (mean(a) as number) + add;
@@ -467,9 +513,9 @@ class HeightmapModule {
     const fr = power ? Math.abs(power) : 1;
 
     this.heights = this.heights.map((h, i) => {
-      const [x, y] = this.grid.points[i];
-      const nx = (2 * x) / graphWidth - 1; // [-1, 1], 0 is center
-      const ny = (2 * y) / graphHeight - 1; // [-1, 1], 0 is center
+      const [x, y] = this.grid!.points[i];
+      const nx = (2 * x) / worldContext.graphWidth - 1; // [-1, 1], 0 is center
+      const ny = (2 * y) / worldContext.graphHeight - 1; // [-1, 1], 0 is center
       let distance = (1 - nx ** 2) * (1 - ny ** 2); // 1 is center, 0 is edge
       if (power < 0) distance = 1 - distance; // inverted, 0 is center, 1 is edge
       const masked = h * distance;
@@ -541,9 +587,18 @@ class HeightmapModule {
     }
   }
 
-  async generate(graph: any): Promise<Uint8Array> {
+  async generate(
+    worldContext: WorldContext,
+    viewContext: Readonly<ViewContext>,
+    appServices: AppServices,
+    graph: Grid
+  ): Promise<Uint8Array> {
+    this.worldContext = worldContext;
+    this.viewContext = viewContext;
+    this.appServices = appServices;
+    const { seed } = this.worldContext;
     TIME && console.time("defineHeightmap");
-    const id = (ensureEl("templateInput")! as HTMLInputElement).value;
+    const id = useOptionsState.getState().template;
     Math.random = Alea(seed);
     const isTemplate = id in heightmapTemplates;
 
@@ -554,7 +609,7 @@ class HeightmapModule {
     return heights as Uint8Array;
   }
 
-  fromTemplate(graph: any, id: string): Uint8Array | null {
+  fromTemplate(graph: Grid, id: string): Uint8Array | null {
     const templateString = heightmapTemplates[id]?.template || "";
     const steps = templateString.split("\n");
 
@@ -574,14 +629,22 @@ class HeightmapModule {
     if (!this.heights) return;
     for (let i = 0; i < this.heights.length; i++) {
       const lightness = imageData[i * 4] / 255;
-      const powered = lightness < 0.2 ? lightness : 0.2 + (lightness - 0.2) ** 0.8;
-      this.heights[i] = minmax(Math.floor(powered * 100), 0, 100);
+      const powered =
+        lightness < HeightmapConstants.IMAGE_WATER_THRESHOLD
+          ? lightness
+          : HeightmapConstants.IMAGE_WATER_THRESHOLD + (lightness - HeightmapConstants.IMAGE_WATER_THRESHOLD) ** 0.8;
+      this.heights[i] = minmax(
+        Math.floor(powered * HeightThreshold.HEIGHT_MAX),
+        HeightThreshold.HEIGHT_MIN,
+        HeightThreshold.HEIGHT_MAX
+      );
     }
   }
 
-  fromPrecreated(graph: any, id: string): Promise<Uint8Array> {
+  fromPrecreated(graph: Grid, id: string): Promise<Uint8Array> {
     return new Promise(resolve => {
       // create canvas where 1px corresponds to a cell
+      // biome-ignore lint/style/noRestrictedGlobals: HTMLCanvasElement is used for off-screen pixel processing, not DOM manipulation
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
       const { cellsX, cellsY } = graph;
@@ -612,4 +675,5 @@ class HeightmapModule {
   }
 }
 
-window.HeightmapGenerator = new HeightmapModule();
+export type { HeightmapModule };
+export const HeightmapGenerator = new HeightmapModule();

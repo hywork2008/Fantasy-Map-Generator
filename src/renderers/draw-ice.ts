@@ -1,71 +1,89 @@
-declare global {
-  var drawIce: () => void;
-  var redrawIceberg: (id: number) => void;
-  var redrawGlacier: (id: number) => void;
-}
+import type { AppServices } from "../context/appServices";
+import type { EnvironmentLayers } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
+import type { IceElement } from "../types/models";
+import { TIME } from "../utils/debug";
+import type { IRenderer } from "./core/IRenderer";
 
-interface IceElement {
-  i: number;
-  points: string | [number, number][];
-  type: "glacier" | "iceberg";
-  offset?: [number, number];
-}
+export const IceRenderer: IRenderer = {
+  id: "ice",
 
-const iceRenderer = (): void => {
-  TIME && console.time("drawIce");
+  render(
+    worldContext: Readonly<WorldContext>,
+    viewContext: Readonly<EnvironmentLayers>,
+    _appServices: AppServices
+  ): void {
+    TIME && console.time("IceRenderer");
+    const { pack } = worldContext;
+    const { ice } = viewContext;
 
-  // Clear existing ice SVG
-  ice.selectAll("*").remove();
+    ice.selectAll("*").remove();
 
-  let html = "";
+    let html = "";
 
-  // Draw all ice elements
-  pack.ice.forEach((iceElement: IceElement) => {
-    if (iceElement.type === "glacier") {
-      html += getGlacierHtml(iceElement);
-    } else if (iceElement.type === "iceberg") {
-      html += getIcebergHtml(iceElement);
-    }
-  });
+    pack.ice.forEach((iceElement: IceElement) => {
+      if (iceElement.type === "glacier") {
+        html += getGlacierHtml(iceElement);
+      } else if (iceElement.type === "iceberg") {
+        html += getIcebergHtml(iceElement);
+      }
+    });
 
-  ice.html(html);
+    ice.html(html);
 
-  TIME && console.timeEnd("drawIce");
+    TIME && console.timeEnd("IceRenderer");
+  },
+
+  clear(viewContext: Readonly<EnvironmentLayers>): void {
+    viewContext.ice.selectAll("*").remove();
+  }
 };
 
-const redrawIcebergRenderer = (id: number): void => {
+export const redrawIceberg = (
+  worldContext: Readonly<WorldContext>,
+  viewContext: Readonly<EnvironmentLayers>,
+  _appServices: AppServices,
+  id: number
+): void => {
   TIME && console.time("redrawIceberg");
+  const { pack } = worldContext;
+  const { ice } = viewContext;
   const iceberg = pack.ice.find((element: IceElement) => element.i === id);
   let el = ice.selectAll<SVGPolygonElement, unknown>(`polygon[data-id="${id}"]:not([type="glacier"])`);
   if (!iceberg && !el.empty()) {
     el.remove();
   } else if (iceberg) {
     if (el.empty()) {
-      // Create new element if it doesn't exist
       const polygon = getIcebergHtml(iceberg);
       (ice.node() as SVGGElement).insertAdjacentHTML("beforeend", polygon);
       el = ice.selectAll<SVGPolygonElement, unknown>(`polygon[data-id="${id}"]:not([type="glacier"])`);
     }
-    el.attr("points", iceberg.points as string);
+    el.attr("points", iceberg.points.join(" "));
     el.attr("transform", iceberg.offset ? `translate(${iceberg.offset[0]},${iceberg.offset[1]})` : null);
   }
   TIME && console.timeEnd("redrawIceberg");
 };
 
-const redrawGlacierRenderer = (id: number): void => {
+export const redrawGlacier = (
+  worldContext: Readonly<WorldContext>,
+  viewContext: Readonly<EnvironmentLayers>,
+  _appServices: AppServices,
+  id: number
+): void => {
   TIME && console.time("redrawGlacier");
+  const { pack } = worldContext;
+  const { ice } = viewContext;
   const glacier = pack.ice.find((element: IceElement) => element.i === id);
   let el = ice.selectAll<SVGPolygonElement, unknown>(`polygon[data-id="${id}"][type="glacier"]`);
   if (!glacier && !el.empty()) {
     el.remove();
   } else if (glacier) {
     if (el.empty()) {
-      // Create new element if it doesn't exist
       const polygon = getGlacierHtml(glacier);
       (ice.node() as SVGGElement).insertAdjacentHTML("beforeend", polygon);
       el = ice.selectAll<SVGPolygonElement, unknown>(`polygon[data-id="${id}"][type="glacier"]`);
     }
-    el.attr("points", glacier.points as string);
+    el.attr("points", glacier.points.join(" "));
     el.attr("transform", glacier.offset ? `translate(${glacier.offset[0]},${glacier.offset[1]})` : null);
   }
   TIME && console.timeEnd("redrawGlacier");
@@ -78,7 +96,3 @@ function getGlacierHtml(glacier: IceElement): string {
 function getIcebergHtml(iceberg: IceElement): string {
   return `<polygon points="${iceberg.points}" data-id="${iceberg.i}" ${iceberg.offset ? `transform="translate(${iceberg.offset[0]},${iceberg.offset[1]})"` : ""}/>`;
 }
-
-window.drawIce = iceRenderer;
-window.redrawIceberg = redrawIcebergRenderer;
-window.redrawGlacier = redrawGlacierRenderer;

@@ -1,12 +1,13 @@
+export type { Cells, Point, Vertices };
+
 import type Delaunator from "delaunator";
-export type Vertices = { p: Point[]; v: number[][]; c: number[][] };
-export type Cells = {
-  v: number[][];
-  c: number[][];
-  b: number[];
-  i: Uint32Array<ArrayBufferLike>;
-};
-export type Point = [number, number];
+import type { AppServices } from "../context/appServices";
+import { appServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import { viewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
+import { worldContext } from "../context/worldContext";
+import type { Cells, Point, Vertices } from "../types/voronoi";
 
 /**
  * Creates a Voronoi diagram from the given Delaunator, a list of points, and the number of points. The Voronoi diagram is constructed using (I think) the {@link https://en.wikipedia.org/wiki/Bowyer%E2%80%93Watson_algorithm |Bowyer-Watson Algorithm}
@@ -16,16 +17,30 @@ export type Point = [number, number];
  * @param {number} pointsN The number of points.
  */
 export class Voronoi {
+  worldContext: WorldContext = worldContext;
+  viewContext: Readonly<ViewContext> = viewContext;
+  appServices: AppServices = appServices;
   delaunay: Delaunator<Float64Array<ArrayBufferLike>>;
   points: Point[];
   pointsN: number;
-  cells: Cells = { v: [], c: [], b: [], i: new Uint32Array() }; // voronoi cells: v = cell vertices, c = adjacent cells, b = near-border cell, i = cell indexes;
+  cells: Cells = { v: [], c: [], b: new Uint8Array(), i: new Uint32Array() }; // voronoi cells: v = cell vertices, c = adjacent cells, b = near-border cell, i = cell indexes;
   vertices: Vertices = { p: [], v: [], c: [] }; // cells vertices: p = vertex coordinates, v = neighboring vertices, c = adjacent cells
 
-  constructor(delaunay: Delaunator<Float64Array<ArrayBufferLike>>, points: Point[], pointsN: number) {
+  constructor(
+    worldContext: WorldContext,
+    viewContext: Readonly<ViewContext>,
+    appServices: AppServices,
+    delaunay: Delaunator<Float64Array<ArrayBufferLike>>,
+    points: Point[],
+    pointsN: number
+  ) {
+    this.worldContext = worldContext;
+    this.viewContext = viewContext;
+    this.appServices = appServices;
     this.delaunay = delaunay;
     this.points = points;
     this.pointsN = pointsN;
+    this.cells.b = new Uint8Array(pointsN);
     this.vertices;
 
     // Half-edges are the indices into the delaunator outputs:

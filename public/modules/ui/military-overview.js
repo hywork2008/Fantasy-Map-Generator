@@ -459,7 +459,7 @@ function overviewMilitary() {
         return unit;
       });
       localStorage.setItem("military", JSON.stringify(options.military));
-      Military.generate();
+      Military.generate(getWorldState());
       updateHeaders();
       addLines();
     }
@@ -474,7 +474,7 @@ function overviewMilitary() {
       buttons: {
         Recalculate: function () {
           $(this).dialog("close");
-          Military.generate();
+          Military.generate(getWorldState());
           addLines();
         },
         Cancel: function () {

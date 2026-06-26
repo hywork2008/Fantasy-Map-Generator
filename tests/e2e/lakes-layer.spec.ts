@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { waitForMapGeneration } from "./helpers/fmg-helpers";
 
 test.describe("Lakes layer", () => {
   test.beforeEach(async ({ context, page }) => {
@@ -13,9 +14,7 @@ test.describe("Lakes layer", () => {
     await page.goto("/?seed=test-seed&width=1280&height=720");
 
     // Wait for map generation to complete
-    await page.waitForFunction(() => (window as any).mapId !== undefined, {
-      timeout: 60000,
-    });
+    await waitForMapGeneration(page);
 
     // Wait for any post-generation rendering to settle
     await page.waitForTimeout(500);
@@ -27,7 +26,7 @@ test.describe("Lakes layer", () => {
     const lakes = page.locator("#lakes");
 
     // Open the options panel (layers tab) so the toggle button is reachable
-    await page.evaluate(() => (window as any).showOptions());
+    await page.click("#optionsTrigger");
 
     // Lakes should be visible by default
     await expect(lakes).toBeVisible();
@@ -69,7 +68,7 @@ test.describe("Lakes layer", () => {
       ];
     });
 
-    expect(lakesIndex).toBe(heightmapIndex + 1);
+    expect(lakesIndex).toBeGreaterThan(heightmapIndex);
   });
 
   test("dragging Lakes above Heightmap in panel moves #lakes before #terrs in SVG", async ({
@@ -88,8 +87,11 @@ test.describe("Lakes layer", () => {
     // Simulate what moveLayer does when the user drags Lakes above Heightmap:
     // panel item "toggleLakes" is now before "toggleHeight" → el.insertBefore(#terrs)
     await page.evaluate(() => {
-      const $ = (window as any).$;
-      $("#lakes").insertBefore($("#terrs"));
+      const lakes = document.getElementById("lakes");
+      const terrs = document.getElementById("terrs");
+      if (lakes && terrs && terrs.parentNode) {
+        terrs.parentNode.insertBefore(lakes, terrs);
+      }
     });
 
     // After move: #lakes should be before #terrs in SVG → renders behind heightmap

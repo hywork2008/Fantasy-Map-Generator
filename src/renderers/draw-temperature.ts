@@ -1,19 +1,43 @@
 import { color, curveBasisClosed, interpolateSpectral, leastIndex, line, max, min, range, scaleSequential } from "d3";
-import { connectVertices, convertTemperature, ensureEl, round } from "../utils";
+import { TemperatureRenderer } from "../config/constants";
+import type { AppServices } from "../context/appServices";
+import type { EnvironmentLayers, ViewState } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
+import { useOptionsState } from "../store/optionsState";
+import { connectVertices, convertTemperature, round } from "../utils";
+import { TIME } from "../utils/debug";
+import type { IRenderer } from "./core/IRenderer";
 
-declare global {
-  var drawTemperature: () => void;
-}
+export const TemperatureLayerRenderer: IRenderer = {
+  id: "temperature",
+  render(
+    worldContext: Readonly<WorldContext>,
+    viewContext: Readonly<EnvironmentLayers & ViewState>,
+    appServices: AppServices
+  ): void {
+    drawTemperature(worldContext, viewContext, appServices);
+  },
+  clear(viewContext: Readonly<EnvironmentLayers>): void {
+    viewContext.temperature.selectAll("*").remove();
+  }
+};
 
-const temperatureRenderer = (): void => {
+export const drawTemperature = (
+  worldContext: Readonly<WorldContext>,
+  viewContext: Readonly<EnvironmentLayers & ViewState>,
+  _appServices: AppServices
+): void => {
   TIME && console.time("drawTemperature");
+  const { grid, graphWidth, graphHeight } = worldContext;
+  const { temperature } = viewContext;
 
   temperature.selectAll("*").remove();
   const lineGen = line<[number, number]>().curve(curveBasisClosed);
   const scheme = scaleSequential(interpolateSpectral);
 
-  const tMax = +(ensureEl("temperatureEquatorOutput") as HTMLInputElement).max;
-  const tMin = +(ensureEl("temperatureEquatorOutput") as HTMLInputElement).min;
+  // Fixed bounds matching the temperatureEquatorOutput range input min/max attributes
+  const tMax = 50;
+  const tMin = -50;
   const delta = tMax - tMin;
 
   const { cells, vertices } = grid;
@@ -47,8 +71,11 @@ const temperatureRenderer = (): void => {
       ofSameType,
       addToChecked
     });
-    const relaxed = chain.filter((v: number, i: number) => i % 4 === 0 || vertices.c[v].some((c: number) => c >= n));
-    if (relaxed.length < 6) continue;
+    const relaxed = chain.filter(
+      (v: number, i: number) =>
+        i % TemperatureRenderer.RELAX_INTERVAL === 0 || vertices.c[v].some((c: number) => c >= n)
+    );
+    if (relaxed.length < TemperatureRenderer.MIN_CHAIN_LENGTH) continue;
 
     const points: [number, number][] = relaxed.map((v: number) => vertices.p[v]);
     chains.push([t, points]);
@@ -73,7 +100,7 @@ const temperatureRenderer = (): void => {
     temperature.append("path").attr("d", path).attr("fill", fill).attr("stroke", stroke.toString());
   }
 
-  const scale = (ensureEl("temperatureScale") as HTMLSelectElement).value as Parameters<typeof convertTemperature>[1];
+  const scale = useOptionsState.getState().temperatureScale as Parameters<typeof convertTemperature>[1];
 
   const tempLabels = temperature.append("g").attr("id", "tempLabels").attr("fill-opacity", 1);
   tempLabels
@@ -92,6 +119,7 @@ const temperatureRenderer = (): void => {
   }
 
   function addLabel(points: [number, number][], t: number): void {
+    const { svgWidth } = viewContext;
     const xCenter = svgWidth / 2;
 
     // add label on isoline top center
@@ -104,7 +132,7 @@ const temperatureRenderer = (): void => {
     pushLabel(tc[0], tc[1], t);
 
     // add label on isoline bottom center
-    if (points.length > 20) {
+    if (points.length > TemperatureRenderer.LABEL_MIN_CHAIN_POINTS) {
       const bcIndex = leastIndex(
         points,
         (a: [number, number], b: [number, number]) =>
@@ -112,17 +140,16 @@ const temperatureRenderer = (): void => {
       );
       const bc = points[bcIndex!];
       const dist2 = (tc[1] - bc[1]) ** 2 + (tc[0] - bc[0]) ** 2; // square distance between this and top point
-      if (dist2 > 100) pushLabel(bc[0], bc[1], t);
+      if (dist2 > TemperatureRenderer.LABEL_MIN_DIST2) pushLabel(bc[0], bc[1], t);
     }
   }
 
   function pushLabel(x: number, y: number, t: number): void {
-    if (x < 20 || x > svgWidth - 20) return;
-    if (y < 20 || y > svgHeight - 20) return;
+    const { svgWidth, svgHeight } = viewContext;
+    if (x < TemperatureRenderer.LABEL_MARGIN || x > svgWidth - TemperatureRenderer.LABEL_MARGIN) return;
+    if (y < TemperatureRenderer.LABEL_MARGIN || y > svgHeight - TemperatureRenderer.LABEL_MARGIN) return;
     labels.push([x, y, t]);
   }
 
   TIME && console.timeEnd("drawTemperature");
 };
-
-window.drawTemperature = temperatureRenderer;

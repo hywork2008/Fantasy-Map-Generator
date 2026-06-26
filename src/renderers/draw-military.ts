@@ -1,29 +1,49 @@
 import { color, easeSinInOut, transition } from "d3";
-import type { MilitaryRegiment } from "../modules/military-generator";
+import type { AppServices } from "../context/appServices";
+import type { SettlementLayers } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
+import { Military } from "../modules/military-generator";
+import type { MilitaryRegiment } from "../types/models";
 import { rn } from "../utils";
+import { TIME } from "../utils/debug";
+import type { IRenderer } from "./core/IRenderer";
 
-declare global {
-  var drawMilitary: () => void;
-  var drawRegiments: (regiments: MilitaryRegiment[], stateId: number) => void;
-  var drawRegiment: (reg: MilitaryRegiment, stateId: number) => void;
-  var moveRegiment: (reg: MilitaryRegiment, x: number, y: number) => void;
-  var armies: import("d3").Selection<SVGGElement, unknown, null, undefined>;
-}
+export const MilitaryRenderer: IRenderer = {
+  id: "military",
 
-const militaryRenderer = (): void => {
-  TIME && console.time("drawMilitary");
+  render(
+    worldContext: Readonly<WorldContext>,
+    viewContext: Readonly<SettlementLayers>,
+    appServices: AppServices
+  ): void {
+    TIME && console.time("MilitaryRenderer");
+    const { pack } = worldContext;
+    const { armies } = viewContext;
 
-  armies.selectAll("g").remove();
-  pack.states
-    .filter(s => s.i && !s.removed)
-    .forEach(s => {
-      drawRegiments(s.military || [], s.i);
-    });
+    armies.selectAll("g").remove();
+    pack.states
+      .filter(s => s.i && !s.removed)
+      .forEach(s => {
+        drawRegiments(worldContext, viewContext, appServices, s.military || [], s.i);
+      });
 
-  TIME && console.timeEnd("drawMilitary");
+    TIME && console.timeEnd("MilitaryRenderer");
+  },
+
+  clear(viewContext: Readonly<SettlementLayers>): void {
+    viewContext.armies.selectAll("g").remove();
+  }
 };
 
-const drawRegimentsRenderer = (regiments: MilitaryRegiment[], s: number): void => {
+export const drawRegiments = (
+  worldContext: Readonly<WorldContext>,
+  viewContext: Readonly<SettlementLayers>,
+  _appServices: AppServices,
+  regiments: MilitaryRegiment[],
+  s: number
+): void => {
+  const { pack } = worldContext;
+  const { armies } = viewContext;
   const size = +armies.attr("box-size");
   const w = (d: MilitaryRegiment) => (d.n ? size * 4 : size * 6);
   const h = size * 2;
@@ -77,7 +97,15 @@ const drawRegimentsRenderer = (regiments: MilitaryRegiment[], s: number): void =
     .attr("href", d => (d.icon!.startsWith("http") || d.icon!.startsWith("data:image") ? d.icon! : ""));
 };
 
-const drawRegimentRenderer = (reg: MilitaryRegiment, stateId: number): void => {
+export const drawRegiment = (
+  worldContext: Readonly<WorldContext>,
+  viewContext: Readonly<SettlementLayers>,
+  _appServices: AppServices,
+  reg: MilitaryRegiment,
+  stateId: number
+): void => {
+  const { pack } = worldContext;
+  const { armies } = viewContext;
   const size = +armies.attr("box-size");
   const w = reg.n ? size * 4 : size * 6;
   const h = size * 2;
@@ -128,7 +156,15 @@ const drawRegimentRenderer = (reg: MilitaryRegiment, stateId: number): void => {
 };
 
 // move one regiment to another
-const moveRegimentRenderer = (reg: MilitaryRegiment, x: number, y: number): void => {
+export const moveRegiment = (
+  _worldContext: Readonly<WorldContext>,
+  viewContext: Readonly<SettlementLayers>,
+  _appServices: AppServices,
+  reg: MilitaryRegiment,
+  x: number,
+  y: number
+): void => {
+  const { armies } = viewContext;
   const el = armies.select(`g#army${reg.state}`).select(`g#regiment${reg.state}-${reg.i}`);
   if (!el.size()) return;
 
@@ -142,33 +178,22 @@ const moveRegimentRenderer = (reg: MilitaryRegiment, x: number, y: number): void
   const y1 = (y: number) => rn(y - size, 2);
 
   const move = transition().duration(duration).ease(easeSinInOut);
-  el.select("rect")
-    .transition(move as any)
-    .attr("x", x1(x))
-    .attr("y", y1(y));
-  el.select("text")
-    .transition(move as any)
-    .attr("x", x)
-    .attr("y", y);
+  el.select("rect").transition(move).attr("x", x1(x)).attr("y", y1(y));
+  el.select("text").transition(move).attr("x", x).attr("y", y);
   el.selectAll("rect:nth-of-type(2)")
-    .transition(move as any)
+    .transition(move)
     .attr("x", x1(x) - h)
     .attr("y", y1(y));
   el.select(".regimentIcon")
-    .transition(move as any)
+    .transition(move)
     .attr("x", x1(x) - size)
     .attr("y", y)
     .attr("height", "6")
     .attr("width", "6");
   el.select(".regimentImage")
-    .transition(move as any)
+    .transition(move)
     .attr("x", x1(x) - h)
     .attr("y", y1(y))
     .attr("height", "6")
     .attr("width", "6");
 };
-
-window.drawMilitary = militaryRenderer;
-window.drawRegiments = drawRegimentsRenderer;
-window.drawRegiment = drawRegimentRenderer;
-window.moveRegiment = moveRegimentRenderer;

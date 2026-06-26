@@ -1,12 +1,20 @@
 import { mean, range } from "d3";
+import { BiomeConstants, HeightThreshold, TemperatureThreshold } from "../config/constants";
+import type { AppServices } from "../context/appServices";
+import { appServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import { viewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
+import { worldContext } from "../context/worldContext";
+import type { WorldState } from "../types/WorldState";
 import { rn } from "../utils";
-
-declare global {
-  var Biomes: BiomesModule;
-}
+import { TIME } from "../utils/debug";
 
 class BiomesModule {
-  private MIN_LAND_HEIGHT = 20;
+  worldContext: WorldContext = worldContext;
+  viewContext: Readonly<ViewContext> = viewContext;
+  appServices: AppServices = appServices;
+  private MIN_LAND_HEIGHT = BiomeConstants.MIN_LAND_HEIGHT;
 
   getDefault() {
     const name: string[] = [
@@ -91,7 +99,8 @@ class BiomesModule {
     };
   }
 
-  define() {
+  define(state: WorldState) {
+    const { pack, grid } = state;
     TIME && console.time("defineBiomes");
 
     const { fl: flux, r: riverIds, h: heights, c: neighbors, g: gridReference } = pack.cells;
@@ -120,9 +129,15 @@ class BiomesModule {
   }
 
   getId(moisture: number, temperature: number, height: number, hasRiver: boolean) {
-    if (height < 20) return 0; // all water cells: marine biome
-    if (temperature < -5) return 11; // too cold: permafrost biome
-    if (temperature >= 25 && !hasRiver && moisture < 8) return 1; // too hot and dry: hot desert biome
+    const { biomesData } = this.worldContext;
+    if (height < HeightThreshold.WATER_MAX_HEIGHT) return 0; // all water cells: marine biome
+    if (temperature < TemperatureThreshold.PERMAFROST_TEMP) return 11; // too cold: permafrost biome
+    if (
+      temperature >= TemperatureThreshold.HOT_DESERT_TEMP &&
+      !hasRiver &&
+      moisture < BiomeConstants.HOT_DESERT_MOISTURE
+    )
+      return 1; // too hot and dry: hot desert biome
     if (this.isWetland(moisture, temperature, height)) return 12; // too wet: wetland biome
 
     // in other cases use biome matrix
@@ -132,11 +147,16 @@ class BiomesModule {
   }
 
   private isWetland(moisture: number, temperature: number, height: number) {
-    if (temperature <= -2) return false; // too cold
-    if (moisture > 40 && height < 25) return true; // near coast
-    if (moisture > 24 && height > 24 && height < 60) return true; // off coast
+    if (temperature <= TemperatureThreshold.WETLAND_COLD_LIMIT) return false; // too cold
+    if (moisture > BiomeConstants.WETLAND_COAST_MOISTURE && height < BiomeConstants.WETLAND_COAST_HEIGHT) return true; // near coast
+    if (
+      moisture > BiomeConstants.WETLAND_INLAND_MOISTURE &&
+      height > BiomeConstants.WETLAND_INLAND_HEIGHT_MIN &&
+      height < BiomeConstants.WETLAND_INLAND_HEIGHT_MAX
+    )
+      return true; // off coast
     return false;
   }
 }
 
-window.Biomes = new BiomesModule();
+export const Biomes = new BiomesModule();

@@ -1,61 +1,77 @@
-import type { Burg } from "../modules/burgs-generator";
+import type { AppServices } from "../context/appServices";
+import type { SettlementLayers, ViewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
+import type { Burg, BurgGroup } from "../types/models";
+import { TIME } from "../utils/debug";
+import type { IRenderer } from "./core/IRenderer";
 
-declare global {
-  var drawBurgLabels: () => void;
-  var drawBurgLabel: (burg: Burg) => void;
-  var removeBurgLabel: (burgId: number) => void;
-}
+export const BurgLabelsRenderer: IRenderer = {
+  id: "burgLabels",
 
-interface BurgGroup {
-  name: string;
-  order: number;
-}
+  render(worldContext: Readonly<WorldContext>, viewContext: Readonly<ViewContext>, _appServices: AppServices): void {
+    TIME && console.time("BurgLabelsRenderer");
+    const { pack, options, style } = worldContext;
+    const { burgLabels } = viewContext;
+    createLabelGroups(options, style, burgLabels);
 
-const burgLabelsRenderer = (): void => {
-  TIME && console.time("drawBurgLabels");
-  createLabelGroups();
+    for (const { name } of options.burgs.groups as BurgGroup[]) {
+      const burgsInGroup = pack.burgs.filter(b => b.group === name && !b.removed);
+      if (!burgsInGroup.length) continue;
 
-  for (const { name } of options.burgs.groups as BurgGroup[]) {
-    const burgsInGroup = pack.burgs.filter(b => b.group === name && !b.removed);
-    if (!burgsInGroup.length) continue;
+      const labelGroup = burgLabels.select<SVGGElement>(`#${name}`);
+      if (labelGroup.empty()) continue;
 
-    const labelGroup = burgLabels.select<SVGGElement>(`#${name}`);
-    if (labelGroup.empty()) continue;
+      const dx = labelGroup.attr("data-dx") || 0;
+      const dy = labelGroup.attr("data-dy") || 0;
 
-    const dx = labelGroup.attr("data-dx") || 0;
-    const dy = labelGroup.attr("data-dy") || 0;
+      // Purge <text> elements from loaded .map files that have no D3 data binding — the key function below crashes on undefined datum.
+      labelGroup
+        .selectAll<SVGTextElement, Burg | undefined>("text")
+        .filter(d => d === undefined)
+        .remove();
 
-    labelGroup
-      .selectAll("text")
-      .data(burgsInGroup)
-      .enter()
-      .append("text")
-      .attr("text-rendering", "optimizeSpeed")
-      .attr("id", d => `burgLabel${d.i}`)
-      .attr("data-id", d => d.i!)
-      .attr("x", d => d.x)
-      .attr("y", d => d.y)
-      .attr("dx", `${dx}em`)
-      .attr("dy", `${dy}em`)
-      .text(d => d.name!);
+      labelGroup
+        .selectAll<SVGTextElement, Burg>("text")
+        .data(burgsInGroup, d => d.i ?? 0)
+        .join("text")
+        .attr("text-rendering", "optimizeSpeed")
+        .attr("id", d => `burgLabel${d.i}`)
+        .attr("data-id", d => d.i!)
+        .attr("x", d => d.x)
+        .attr("y", d => d.y)
+        .attr("dx", `${dx}em`)
+        .attr("dy", `${dy}em`)
+        .text(d => d.name!);
+    }
+
+    TIME && console.timeEnd("BurgLabelsRenderer");
+  },
+
+  clear(viewContext: Readonly<ViewContext>): void {
+    viewContext.burgLabels.selectAll("*").remove();
   }
-
-  TIME && console.timeEnd("drawBurgLabels");
 };
 
-const drawBurgLabelRenderer = (burg: Burg): void => {
+export const drawBurgLabel = (
+  worldContext: Readonly<WorldContext>,
+  viewContext: Readonly<ViewContext>,
+  appServices: AppServices,
+  burg: Burg
+): void => {
+  const { burgLabels } = viewContext;
   const labelGroup = burgLabels.select<SVGGElement>(`#${burg.group}`);
   if (labelGroup.empty()) {
-    drawBurgLabels();
-    return; // redraw all labels if group is missing
+    BurgLabelsRenderer.render(worldContext, viewContext, appServices);
+    return;
   }
 
   const dx = labelGroup.attr("data-dx") || 0;
   const dy = labelGroup.attr("data-dy") || 0;
 
-  removeBurgLabelRenderer(burg.i!);
+  removeBurgLabel(worldContext, viewContext, appServices, burg.i!);
   labelGroup
     .append("text")
+    .datum(burg)
     .attr("text-rendering", "optimizeSpeed")
     .attr("id", `burgLabel${burg.i}`)
     .attr("data-id", burg.i!)
@@ -66,34 +82,41 @@ const drawBurgLabelRenderer = (burg: Burg): void => {
     .text(burg.name!);
 };
 
-const removeBurgLabelRenderer = (burgId: number): void => {
+export const removeBurgLabel = (
+  _worldContext: Readonly<WorldContext>,
+  _viewContext: Readonly<ViewContext>,
+  _appServices: AppServices,
+  burgId: number
+): void => {
   const existingLabel = document.getElementById(`burgLabel${burgId}`);
   if (existingLabel) existingLabel.remove();
 };
 
-function createLabelGroups(): void {
-  // save existing styles and remove all groups
+function createLabelGroups(
+  _options: WorldContext["options"],
+  style: WorldContext["style"],
+  _burgLabels: SettlementLayers["burgLabels"]
+): void {
+  const existingIds = new Set<string>();
   document.querySelectorAll("g#burgLabels > g").forEach(group => {
+    existingIds.add(group.id);
     style.burgLabels[group.id] = Array.from(group.attributes).reduce((acc: { [key: string]: string }, attribute) => {
+      if (attribute.name === "class") return acc;
       acc[attribute.name] = attribute.value;
       return acc;
     }, {});
-    group.remove();
   });
 
-  // create groups for each burg group and apply stored or default style
   const defaultStyle = style.burgLabels.town || Object.values(style.burgLabels)[0] || {};
-  const sortedGroups = [...(options.burgs.groups as BurgGroup[])].sort((a, b) => a.order - b.order);
+  const sortedGroups = [...(_options.burgs.groups as BurgGroup[])].sort((a, b) => a.order - b.order);
   for (const { name } of sortedGroups) {
-    const group = burgLabels.append("g");
+    if (existingIds.has(name)) continue;
+    const group = _burgLabels.append("g");
     const styles = style.burgLabels[name] || defaultStyle;
     Object.entries(styles).forEach(([key, value]) => {
       group.attr(key, value);
     });
     group.attr("id", name);
+    group.classed("hidden", true);
   }
 }
-
-window.drawBurgLabels = burgLabelsRenderer;
-window.drawBurgLabel = drawBurgLabelRenderer;
-window.removeBurgLabel = removeBurgLabelRenderer;

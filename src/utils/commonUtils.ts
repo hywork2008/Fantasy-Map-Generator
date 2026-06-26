@@ -1,4 +1,5 @@
 import { clipPolygon } from "lineclip";
+
 import { last } from "./arrayUtils";
 import { distanceSquared } from "./functionUtils";
 import { rn } from "./numberUtils";
@@ -78,10 +79,10 @@ export const getSegmentId = (points: [number, number][], point: [number, number]
  * @param ms - The number of milliseconds to delay
  * @returns The debounced function
  */
-export const debounce = <T extends (...args: any[]) => any>(func: T, ms: number) => {
+export const debounce = <T extends (...args: never[]) => unknown>(func: T, ms: number) => {
   let isCooldown = false;
 
-  return function (this: any, ...args: Parameters<T>) {
+  return function (this: unknown, ...args: Parameters<T>) {
     if (isCooldown) return;
     func.apply(this, args);
     isCooldown = true;
@@ -97,12 +98,12 @@ export const debounce = <T extends (...args: any[]) => any>(func: T, ms: number)
  * @param ms - The number of milliseconds to throttle invocations to
  * @returns The throttled function
  */
-export const throttle = <T extends (...args: any[]) => any>(func: T, ms: number) => {
+export const throttle = <T extends (...args: never[]) => unknown>(func: T, ms: number) => {
   let isThrottled = false;
-  let savedArgs: any[] | null = null;
-  let savedThis: any = null;
+  let savedArgs: Parameters<T> | null = null;
+  let savedThis: unknown = null;
 
-  function wrapper(this: any, ...args: Parameters<T>) {
+  function wrapper(this: unknown, ...args: Parameters<T>) {
     if (isThrottled) {
       savedArgs = args;
       savedThis = this;
@@ -129,9 +130,10 @@ export const throttle = <T extends (...args: any[]) => any>(func: T, ms: number)
  * @param error - The error object to parse
  * @returns Formatted error string with HTML formatting
  */
-export const parseError = (error: Error): string => {
+export const parseError = (error: unknown): string => {
+  const err = error as Error;
   const isFirefox = navigator.userAgent.toLowerCase().indexOf("firefox") > -1;
-  const errorString = isFirefox ? `${error.toString()} ${error.stack}` : error.stack || "";
+  const errorString = isFirefox ? `${err.toString()} ${err.stack}` : err.stack || "";
   const regex = /(\b(https?|ftp|file):\/\/[-A-Z0-9+&@#/%?=~_|!:,.;]*[-A-Z0-9+&@#/%=~_|])/gi;
   const errorNoURL = errorString.replace(regex, url => `<i>${last(url.split("/"))}</i>`);
   const errorParsed = errorNoURL.replace(/at /gi, "<br>&nbsp;&nbsp;at ");
@@ -215,8 +217,13 @@ export const generateDate = (from: number = 100, to: number = 1000): string => {
  * @param decimals - Number of decimal places (default is 2)
  * @returns Longitude value
  */
-export const getLongitude = (x: number, mapCoordinates: any, graphWidth: number, decimals: number = 2): number => {
-  return rn(mapCoordinates.lonW + (x / graphWidth) * mapCoordinates.lonT, decimals);
+export const getLongitude = (
+  x: number,
+  mapCoordinates: { lonW?: number; lonT?: number },
+  graphWidth: number,
+  decimals: number = 2
+): number => {
+  return rn((mapCoordinates.lonW || 0) + (x / graphWidth) * (mapCoordinates.lonT || 0), decimals);
 };
 
 /**
@@ -227,8 +234,13 @@ export const getLongitude = (x: number, mapCoordinates: any, graphWidth: number,
  * @param decimals - Number of decimal places (default is 2)
  * @returns Latitude value
  */
-export const getLatitude = (y: number, mapCoordinates: any, graphHeight: number, decimals: number = 2): number => {
-  return rn(mapCoordinates.latN - (y / graphHeight) * mapCoordinates.latT, decimals);
+export const getLatitude = (
+  y: number,
+  mapCoordinates: { latN?: number; latT?: number },
+  graphHeight: number,
+  decimals: number = 2
+): number => {
+  return rn((mapCoordinates.latN || 0) - (y / graphHeight) * (mapCoordinates.latT || 0), decimals);
 };
 
 /**
@@ -244,7 +256,7 @@ export const getLatitude = (y: number, mapCoordinates: any, graphHeight: number,
 export const getCoordinates = (
   x: number,
   y: number,
-  mapCoordinates: any,
+  mapCoordinates: { lonW?: number; lonT?: number; latN?: number; latT?: number },
   graphWidth: number,
   graphHeight: number,
   decimals: number = 2
@@ -283,7 +295,7 @@ export const initializePrompt = (): void => {
     required: true
   };
 
-  (window as any).prompt = (
+  customPromptFn = (
     promptText: string = defaultText,
     options: PromptOptions = defaultOptions,
     callback?: (value: number | string) => void
@@ -331,6 +343,18 @@ export const initializePrompt = (): void => {
   }
 };
 
+type CustomPromptFn = (
+  promptText?: string,
+  options?: PromptOptions,
+  callback?: (value: number | string) => void
+) => void;
+
+let customPromptFn: CustomPromptFn | undefined;
+
+export function showPrompt(text: string, options: PromptOptions, callback: (value: number | string) => void): void {
+  customPromptFn?.(text, options, callback);
+}
+
 declare global {
   interface Window {
     ERROR: boolean;
@@ -339,16 +363,16 @@ declare global {
     getSegmentId: typeof getSegmentId;
     debounce: typeof debounce;
     throttle: typeof throttle;
-    parseError: typeof parseError;
+    parseError: (error: unknown) => string;
     getBase64: typeof getBase64;
     openURL: typeof openURL;
     wiki: typeof wiki;
     link: typeof link;
     isCtrlClick: typeof isCtrlClick;
     generateDate: typeof generateDate;
-    getLongitude: typeof getLongitude;
-    getLatitude: typeof getLatitude;
-    getCoordinates: typeof getCoordinates;
+    getLongitude: (x: number, decimals?: number) => number;
+    getLatitude: (y: number, decimals?: number) => number;
+    getCoordinates: (x: number, y: number, decimals?: number) => [number, number];
   }
 
   // Global variables defined in main.js

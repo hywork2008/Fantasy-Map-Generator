@@ -1,25 +1,25 @@
-import type { Selection } from "d3";
 import { range } from "d3";
+import type { AppServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
 import { rn } from "../utils";
 
-declare global {
-  var drawScaleBar: (scaleBar: Selection<SVGGElement, unknown, HTMLElement, unknown>, scaleLevel: number) => void;
-  var fitScaleBar: (
-    scaleBar: Selection<SVGGElement, unknown, HTMLElement, unknown>,
-    fullWidth: number,
-    fullHeight: number
-  ) => void;
-}
+type ScaleBarSelection = d3.Selection<SVGGElement, unknown, null, undefined>;
 
-type ScaleBarSelection = d3.Selection<SVGGElement, unknown, HTMLElement, unknown>;
-
-const scaleBarRenderer = (scaleBar: ScaleBarSelection, scaleLevel: number): void => {
+export const drawScaleBar = (
+  worldContext: Readonly<WorldContext>,
+  _viewContext: Readonly<ViewContext>,
+  _appServices: AppServices,
+  scaleBar: ScaleBarSelection,
+  scaleLevel: number
+): void => {
   if (!scaleBar.size() || scaleBar.style("display") === "none") return;
+  const { distanceScale } = worldContext;
 
   const unit = distanceUnitInput.value;
   const size = +scaleBar.attr("data-bar-size");
 
-  const length = getLength(scaleBar, scaleLevel);
+  const length = getLength(worldContext, scaleBar, scaleLevel);
   scaleBar.select("#scaleBarContent").remove(); // redraw content every time
   const content = scaleBar.append("g").attr("id", "scaleBarContent");
 
@@ -90,10 +90,11 @@ const scaleBarRenderer = (scaleBar: ScaleBarSelection, scaleLevel: number): void
   }
 };
 
-function getLength(scaleBar: ScaleBarSelection, scaleLevel: number): number {
+function getLength(_worldContext: Readonly<WorldContext>, _scaleBar: ScaleBarSelection, scaleLevel: number): number {
   const init = 100;
+  const { distanceScale } = _worldContext;
 
-  const size = +scaleBar.attr("data-bar-size");
+  const size = +_scaleBar.attr("data-bar-size");
   let val = (init * size * distanceScale) / scaleLevel; // bar length in distance unit
   if (val > 900)
     val = rn(val, -3); // round to 1000
@@ -106,7 +107,14 @@ function getLength(scaleBar: ScaleBarSelection, scaleLevel: number): number {
   return length;
 }
 
-const scaleBarResize = (scaleBar: ScaleBarSelection, fullWidth: number, fullHeight: number): void => {
+export const fitScaleBar = (
+  _worldContext: Readonly<WorldContext>,
+  _viewContext: Readonly<ViewContext>,
+  _appServices: AppServices,
+  scaleBar: ScaleBarSelection,
+  fullWidth: number,
+  fullHeight: number
+): void => {
   if (!scaleBar.select("rect").size() || scaleBar.style("display") === "none") return;
 
   const posX = +scaleBar.attr("data-x") || 99;
@@ -117,6 +125,3 @@ const scaleBarResize = (scaleBar: ScaleBarSelection, fullWidth: number, fullHeig
   const y = rn((fullHeight * posY) / 100 - bbox.height + 20);
   scaleBar.attr("transform", `translate(${x},${y})`);
 };
-
-window.drawScaleBar = scaleBarRenderer;
-window.fitScaleBar = scaleBarResize;

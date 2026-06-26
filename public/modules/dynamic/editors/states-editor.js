@@ -1,6 +1,6 @@
 const $body = insertEditorHtml();
 addListeners();
-let statesManualHistory = [];
+let statesManualHistory = new BrushHistory();
 
 export function open() {
   closeDialogs("#statesEditor, .stable");
@@ -152,7 +152,7 @@ function addListeners() {
 }
 
 function refreshStatesEditor() {
-  States.collectStatistics();
+  States.collectStatistics(getWorldState());
   statesEditorAddLines();
 }
 
@@ -855,10 +855,11 @@ function openRegenerationMenu() {
 function recalculateStates(must) {
   if (!must && !statesAutoChange.checked) return;
 
+  const state = getWorldState();
   States.expandStates();
-  Provinces.generate();
-  Provinces.getPoles();
-  States.getPoles();
+  Provinces.generate(state);
+  Provinces.getPoles(state);
+  States.getPoles(state);
 
   if (layerIsOn("toggleStates")) drawStates();
   if (layerIsOn("toggleBorders")) drawBorders();
@@ -912,7 +913,7 @@ function enterStatesManualAssignent() {
     .on("touchmove mousemove", moveStateBrush);
 
   $body.querySelector("div").classList.add("selected");
-  statesManualHistory = [];
+  statesManualHistory.reset();
 }
 
 function selectStateOnLineClick() {
@@ -1004,7 +1005,7 @@ function applyStatesManualAssignent() {
 
   if (affectedStates.length) {
     refreshStatesEditor();
-    States.getPoles();
+    States.getPoles(getWorldState());
     layerIsOn("toggleStates") ? drawStates() : toggleStates();
     if (adjustLabels.checked) drawStateLabels([...new Set(affectedStates)]);
     adjustProvinces([...new Set(affectedProvinces)]);
@@ -1161,7 +1162,7 @@ function adjustProvinces(affectedProvinces) {
 
 function exitStatesManualAssignment(close) {
   customization = 0;
-  statesManualHistory = [];
+  statesManualHistory.reset();
   statesBody.select("#temp").remove();
   removeCircle();
   document.querySelectorAll("#statesBottom > button").forEach(el => (el.style.display = "inline-block"));
@@ -1187,12 +1188,11 @@ function saveStatesManualSnapshot() {
   if (!temp) return;
 
   statesManualHistory.push(temp.innerHTML);
-  if (statesManualHistory.length > 100) statesManualHistory.shift();
 }
 
 function undoStatesManualAssignment() {
   const temp = statesBody.select("#temp").node();
-  if (!temp || !statesManualHistory.length) return;
+  if (!temp || !statesManualHistory.canUndo) return;
 
   temp.innerHTML = statesManualHistory.pop();
 }
@@ -1288,10 +1288,11 @@ function addState() {
     coa
   });
 
-  States.getPoles();
+  const state = getWorldState();
+  States.getPoles(state);
   States.findNeighbors();
-  States.collectStatistics();
-  States.defineStateForms([newState]);
+  States.collectStatistics(state);
+  States.defineStateForms(state, [newState]);
   adjustProvinces([cells.province[center]]);
 
   drawStateLabels([newState]);
@@ -1478,7 +1479,7 @@ function openStateMergeDialog() {
     unfog();
     debug.selectAll(".highlight").remove();
 
-    States.getPoles();
+    States.getPoles(getWorldState());
     layerIsOn("toggleStates") ? drawStates() : toggleStates();
     layerIsOn("toggleBorders") ? drawBorders() : toggleBorders();
     layerIsOn("toggleProvinces") && drawProvinces();

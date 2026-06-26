@@ -1,8 +1,17 @@
 import { quadtree } from "d3";
+import FlatQueue from "flatqueue";
+import type { AppServices } from "../context/appServices";
+import { appServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import { viewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
+import { worldContext } from "../context/worldContext";
+import { useOptionsState } from "../store/optionsState";
+import type { Religion } from "../types/models";
+import type { WorldState } from "../types/WorldState";
 import {
   abbreviate,
   each,
-  ensureEl,
   gauss,
   getAdjective,
   getMixedColor,
@@ -13,10 +22,9 @@ import {
   rw,
   trimVowels
 } from "../utils";
-
-declare global {
-  var Religions: ReligionsModule;
-}
+import { ERROR, TIME, WARN } from "../utils/debug";
+import { Names } from "./names-generator";
+import { Routes } from "./routes-generator";
 
 interface ReligionBase {
   type: "Folk" | "Organized" | "Cult" | "Heresy";
@@ -27,22 +35,10 @@ interface ReligionBase {
 
 interface NamedReligion extends ReligionBase {
   name: string;
-  deity: string | null;
+  deity: string | null | undefined;
   expansion: string;
   expansionism: number;
   color: string;
-}
-
-export interface Religion extends NamedReligion {
-  i: number;
-  code?: string;
-  origins?: number[] | null;
-  lock?: boolean;
-  removed?: boolean;
-  cells?: number;
-  area?: number;
-  rural?: number;
-  urban?: number;
 }
 
 // name generation approach and relative chance to be selected
@@ -615,12 +611,28 @@ const expansionismMap: Record<string, () => number> = {
 };
 
 class ReligionsModule {
-  generate() {
+  worldContext: WorldContext = worldContext;
+  viewContext: Readonly<ViewContext> = viewContext;
+  appServices: AppServices = appServices;
+
+  generate(
+    worldContext: WorldContext,
+    viewContext: Readonly<ViewContext>,
+    appServices: AppServices,
+    state: WorldState
+  ) {
+    this.worldContext = worldContext;
+    this.viewContext = viewContext;
+    this.appServices = appServices;
+    const { pack } = state;
     TIME && console.time("generateReligions");
     const lockedReligions = pack.religions?.filter(r => r.i && r.lock && !r.removed) || [];
 
     const folkReligions = this.generateFolkReligions();
-    const organizedReligions = this.generateOrganizedReligions(+religionsNumber.value, lockedReligions);
+    const organizedReligions = this.generateOrganizedReligions(
+      useOptionsState.getState().religionsNumber,
+      lockedReligions
+    );
 
     const namedReligions = this.specifyReligions([...folkReligions, ...organizedReligions]);
     const indexedReligions = this.combineReligions(namedReligions, lockedReligions);
@@ -636,6 +648,7 @@ class ReligionsModule {
   }
 
   private generateFolkReligions(): ReligionBase[] {
+    const { pack } = this.worldContext;
     return pack.cultures
       .filter(c => c.i && !c.removed)
       .map(culture => ({
@@ -647,6 +660,7 @@ class ReligionsModule {
   }
 
   private generateOrganizedReligions(desiredReligionNumber: number, lockedReligions: Religion[]): ReligionBase[] {
+    const { pack } = this.worldContext;
     const cells = pack.cells;
     const lockedReligionCount = lockedReligions.filter(({ type }) => type !== "Folk").length || 0;
     const requiredReligionsNumber = desiredReligionNumber - lockedReligionCount;
@@ -683,7 +697,7 @@ class ReligionsModule {
       }
 
       // min distance between religion inceptions
-      const spacing = (graphWidth + graphHeight) / 2 / desiredReligionNumber;
+      const spacing = (worldContext.graphWidth + worldContext.graphHeight) / 2 / desiredReligionNumber;
 
       for (const cellId of candidateCells) {
         const [x, y] = cells.p[cellId];
@@ -705,11 +719,12 @@ class ReligionsModule {
 
       if (validBurgs.length >= requiredReligionsNumber)
         return validBurgs.sort((a, b) => b.population! - a.population!).map(burg => burg.cell);
-      return cells.i.filter(i => cells.s[i] > 2).sort((a, b) => cells.s[b] - cells.s[a]);
+      return Array.from(cells.i.filter(i => cells.s[i] > 2).sort((a, b) => cells.s[b] - cells.s[a]));
     }
   }
 
   private specifyReligions(newReligions: ReligionBase[]): NamedReligion[] {
+    const { pack } = this.worldContext;
     const { cells, cultures } = pack;
 
     const rawReligions = newReligions.map(({ type, form, culture: cultureId, center }) => {
@@ -841,6 +856,7 @@ class ReligionsModule {
 
   // finally generate and stores origins trees
   private defineOrigins(religionIds: Uint16Array, indexedReligions: Religion[]): Religion[] {
+    const { pack } = this.worldContext;
     const religionOriginsParamsMap: Record<string, { clusterSize: number; maxReligions: number }> = {
       Organized: { clusterSize: 100, maxReligions: 2 },
       Cult: { clusterSize: 50, maxReligions: 3 },
@@ -899,14 +915,15 @@ class ReligionsModule {
 
   // growth algorithm to assign cells to religions
   private expandReligions(religions: Religion[]): Uint16Array {
+    const { pack, biomesData } = this.worldContext;
     const { cells } = pack;
     const religionIds = this.spreadFolkReligions(religions);
 
-    const queue = new FlatQueue();
+    const queue = new FlatQueue<{ e: number; p: number; r: number; s: number }>();
     const cost: number[] = [];
 
     // limit cost for organized religions growth
-    const maxExpansionCost = (cells.i.length / 20) * (ensureEl("growthRate") as HTMLInputElement).valueAsNumber;
+    const maxExpansionCost = (cells.i.length / 20) * useOptionsState.getState().growthRate;
 
     religions
       .filter(r => r.i && !r.lock && r.type !== "Folk" && !r.removed)
@@ -919,7 +936,7 @@ class ReligionsModule {
     const religionsMap = new Map(religions.map(r => [r.i, r]));
 
     while (queue.length) {
-      const { e: cellId, p, r, s: state } = queue.pop();
+      const { e: cellId, p, r, s: state } = queue.pop()!;
       const religion = religionsMap.get(r)!;
       const { culture, expansion, expansionism } = religion;
 
@@ -964,6 +981,7 @@ class ReligionsModule {
 
   // folk religions initially get all cells of their culture, and locked religions are retained
   private spreadFolkReligions(religions: Religion[]): Uint16Array {
+    const { pack } = this.worldContext;
     const cells = pack.cells;
     const hasPrior = cells.religion && true;
     const religionIds = new Uint16Array(cells.i.length);
@@ -985,6 +1003,7 @@ class ReligionsModule {
   }
 
   private checkCenters() {
+    const { pack } = this.worldContext;
     const cells = pack.cells;
     pack.religions.forEach(r => {
       if (!r.i) return;
@@ -999,6 +1018,7 @@ class ReligionsModule {
   }
 
   recalculate() {
+    const { pack } = this.worldContext;
     const newReligionIds = this.expandReligions(pack.religions);
     pack.cells.religion = newReligionIds;
 
@@ -1006,6 +1026,7 @@ class ReligionsModule {
   }
 
   add(center: number) {
+    const { pack } = this.worldContext;
     const { cells, cultures, religions } = pack;
     const religionId = cells.religion[center];
     const i = religions.length;
@@ -1072,6 +1093,7 @@ class ReligionsModule {
   }
 
   private generateReligionName(variety: string, form: string, deity: string, center: number): [string, string] {
+    const { pack } = this.worldContext;
     const { cells, cultures, burgs, states } = pack;
 
     const random = () => Names.getCulture(cells.culture[center]);
@@ -1128,4 +1150,4 @@ class ReligionsModule {
   }
 }
 
-window.Religions = new ReligionsModule();
+export const Religions = new ReligionsModule();

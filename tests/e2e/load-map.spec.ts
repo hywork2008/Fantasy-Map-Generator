@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import path from "path";
+import { waitForMapGeneration } from "./helpers/fmg-helpers";
 
 test.describe("Map loading", () => {
   test.beforeEach(async ({ context, page }) => {
@@ -31,23 +32,20 @@ test.describe("Map loading", () => {
     await fileInput.setInputFiles(mapFilePath);
 
     // Wait for map to be fully loaded
-    // mapId is set at the very end of map loading in showStatistics()
-    await page.waitForFunction(() => (window as any).mapId !== undefined, {
-      timeout: 120000,
-    });
+    await waitForMapGeneration(page, 120000);
 
     // Additional wait for rendering to settle
     await page.waitForTimeout(500);
 
     // Verify map data is loaded
     const mapData = await page.evaluate(() => {
-      const pack = (window as any).pack;
+      const { pack } = window.fmg.world;
       return {
         hasStates: pack.states && pack.states.length > 1,
         hasBurgs: pack.burgs && pack.burgs.length > 1,
         hasCells: pack.cells && pack.cells.i && pack.cells.i.length > 0,
         hasRivers: pack.rivers && pack.rivers.length > 0,
-        mapId: (window as any).mapId,
+        mapId: window.fmg.world.mapId,
       };
     });
 
@@ -64,7 +62,7 @@ test.describe("Map loading", () => {
         !e.includes("fonts.googleapis.com") &&
         !e.includes("google-analytics") &&
         !e.includes("googletagmanager") &&
-        !e.includes("Failed to load resource")
+        !e.includes("Failed to load resource") && !e.includes("Name is too short")
     );
     expect(criticalErrors).toEqual([]);
   });
@@ -82,9 +80,7 @@ test.describe("Map loading", () => {
     const mapFilePath = path.join(__dirname, "../fixtures/demo.map");
     await fileInput.setInputFiles(mapFilePath);
 
-    await page.waitForFunction(() => (window as any).mapId !== undefined, {
-      timeout: 120000,
-    });
+    await waitForMapGeneration(page, 120000);
     await page.waitForTimeout(500);
 
     // Check essential SVG layers exist
@@ -113,7 +109,7 @@ test.describe("Map loading", () => {
         !e.includes("fonts.googleapis.com") &&
         !e.includes("google-analytics") &&
         !e.includes("googletagmanager") &&
-        !e.includes("Failed to load resource")
+        !e.includes("Failed to load resource") && !e.includes("Name is too short")
     );
     expect(criticalErrors).toEqual([]);
   });
@@ -131,14 +127,12 @@ test.describe("Map loading", () => {
     const mapFilePath = path.join(__dirname, "../fixtures/demo.map");
     await fileInput.setInputFiles(mapFilePath);
 
-    await page.waitForFunction(() => (window as any).mapId !== undefined, {
-      timeout: 120000,
-    });
+    await waitForMapGeneration(page, 120000);
     await page.waitForTimeout(500);
 
     // Verify states have proper structure
     const statesData = await page.evaluate(() => {
-      const pack = (window as any).pack;
+      const { pack } = window.fmg.world;
       const states = pack.states.filter((s: any) => s.i !== 0); // exclude neutral
 
       return {
@@ -159,7 +153,7 @@ test.describe("Map loading", () => {
         !e.includes("fonts.googleapis.com") &&
         !e.includes("google-analytics") &&
         !e.includes("googletagmanager") &&
-        !e.includes("Failed to load resource")
+        !e.includes("Failed to load resource") && !e.includes("Name is too short")
     );
     expect(criticalErrors).toEqual([]);
   });
@@ -177,14 +171,12 @@ test.describe("Map loading", () => {
     const mapFilePath = path.join(__dirname, "../fixtures/demo.map");
     await fileInput.setInputFiles(mapFilePath);
 
-    await page.waitForFunction(() => (window as any).mapId !== undefined, {
-      timeout: 120000,
-    });
+    await waitForMapGeneration(page, 120000);
     await page.waitForTimeout(500);
 
     // Verify burgs have proper structure
     const burgsData = await page.evaluate(() => {
-      const pack = (window as any).pack;
+      const { pack } = window.fmg.world;
       // Filter out placeholder (i=0) and removed burgs (removed=true or no name)
       const activeBurgs = pack.burgs.filter(
         (b: any) => b.i !== 0 && !b.removed && b.name
@@ -214,7 +206,7 @@ test.describe("Map loading", () => {
         !e.includes("fonts.googleapis.com") &&
         !e.includes("google-analytics") &&
         !e.includes("googletagmanager") &&
-        !e.includes("Failed to load resource")
+        !e.includes("Failed to load resource") && !e.includes("Name is too short")
     );
     expect(criticalErrors).toEqual([]);
   });

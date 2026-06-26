@@ -1,23 +1,25 @@
-import { ensureEl } from "../utils";
+import { ERROR } from "../utils/debug";
+import { tip } from "../utils/uiHelpers";
 
-declare global {
-  var declareFont: (font: FontDefinition) => void;
-  var getUsedFonts: (svg: SVGSVGElement) => FontDefinition[];
-  var loadFontsAsDataURI: (fonts: FontDefinition[]) => Promise<FontDefinition[]>;
-  var addGoogleFont: (family: string) => Promise<void>;
-  var addLocalFont: (family: string) => void;
-  var addWebFont: (family: string, src: string) => void;
-  var fonts: FontDefinition[];
-}
-
-type FontDefinition = {
+export type FontDefinition = {
   family: string;
   src?: string;
   unicodeRange?: string;
   variant?: string;
 };
 
-window.fonts = [
+type FontAddedListener = (family: string, shouldSelect: boolean) => void;
+const fontAddedListeners: FontAddedListener[] = [];
+
+export function onFontAdded(listener: FontAddedListener): void {
+  fontAddedListeners.push(listener);
+}
+
+function notifyFontAdded(family: string, shouldSelect: boolean): void {
+  for (const listener of fontAddedListeners) listener(family, shouldSelect);
+}
+
+const fonts: FontDefinition[] = [
   { family: "Arial" },
   { family: "Brush Script MT" },
   { family: "Century Gothic" },
@@ -268,30 +270,20 @@ window.fonts = [
   }
 ];
 
-window.declareFont = (font: FontDefinition) => {
+export function declareFont(font: FontDefinition): void {
   const { family, src, ...rest } = font;
-  addFontOption(family);
+  notifyFontAdded(family, false);
 
   if (!src) return;
   const fontFace = new FontFace(family, src, { ...rest, display: "block" });
+  // biome-ignore lint/style/noRestrictedGlobals: document.fonts is the browser CSS Font Registry API, not DOM manipulation
   document.fonts.add(fontFace);
-};
-
-declareDefaultFonts(); // execute once on load
+}
 
 function declareDefaultFonts() {
   fonts.forEach(font => {
     declareFont(font);
   });
-}
-
-function addFontOption(family: string) {
-  const options = document.getElementById("styleSelectFont")!;
-  const option = document.createElement("option");
-  option.value = family;
-  option.innerText = family;
-  option.style.fontFamily = family;
-  options.append(option);
 }
 
 async function fetchGoogleFont(family: string) {
@@ -329,7 +321,7 @@ function readBlobAsDataURL(blob: Blob) {
   });
 }
 
-window.loadFontsAsDataURI = async (fonts: FontDefinition[]) => {
+export const loadFontsAsDataURI = async (fonts: FontDefinition[]) => {
   const promises = fonts.map(async font => {
     const url = font.src?.match(/url\(['"]?(.+?)['"]?\)/)?.[1];
     if (!url) return font;
@@ -343,27 +335,7 @@ window.loadFontsAsDataURI = async (fonts: FontDefinition[]) => {
   return await Promise.all(promises);
 };
 
-window.getUsedFonts = (svg: SVGSVGElement) => {
-  const usedFontFamilies = new Set();
-
-  const labelGroups = svg.querySelectorAll("#labels g");
-  for (const labelGroup of labelGroups) {
-    const font = labelGroup.getAttribute("font-family");
-    if (font) usedFontFamilies.add(font);
-  }
-
-  const provinceFont = provs.attr("font-family");
-  if (provinceFont) usedFontFamilies.add(provinceFont);
-
-  const legend = svg.querySelector("#legend");
-  const legendFont = legend?.getAttribute("font-family");
-  if (legendFont) usedFontFamilies.add(legendFont);
-
-  const usedFonts = fonts.filter(font => usedFontFamilies.has(font.family));
-  return usedFonts;
-};
-
-window.addGoogleFont = async (family: string) => {
+export const addGoogleFont = async (family: string) => {
   const fontRanges = await fetchGoogleFont(family);
   if (!fontRanges) return tip("Cannot fetch Google font for this value", true, "error", 4000);
   tip(`Google font ${family} is loading...`, true, "warn", 4000);
@@ -380,14 +352,12 @@ window.addGoogleFont = async (family: string) => {
   Promise.all(promises)
     .then(fontFaces => {
       fontFaces.forEach(fontFace => {
+        // biome-ignore lint/style/noRestrictedGlobals: document.fonts is the browser CSS Font Registry API, not DOM manipulation
         document.fonts.add(fontFace);
       });
       fonts.push(...fontRanges);
       tip(`Google font ${family} is added to the list`, true, "success", 4000);
-      addFontOption(family);
-      const select = ensureEl<HTMLSelectElement>("styleSelectFont");
-      if (select) select.value = family;
-      changeFont();
+      notifyFontAdded(family, true);
     })
     .catch(err => {
       tip(`Failed to load Google font ${family}`, true, "error", 4000);
@@ -395,29 +365,31 @@ window.addGoogleFont = async (family: string) => {
     });
 };
 
-window.addLocalFont = (family: string) => {
+export const addLocalFont = (family: string) => {
   fonts.push({ family });
 
   const fontFace = new FontFace(family, `local(${family})`, {
     display: "block"
   });
+  // biome-ignore lint/style/noRestrictedGlobals: document.fonts is the browser CSS Font Registry API, not DOM manipulation
   document.fonts.add(fontFace);
   tip(`Local font ${family} is added to the fonts list`, true, "success", 4000);
-  addFontOption(family);
-  const select = ensureEl<HTMLSelectElement>("styleSelectFont");
-  if (select) select.value = family;
-  changeFont();
+  notifyFontAdded(family, true);
 };
 
-window.addWebFont = (family: string, url: string) => {
+export const addWebFont = (family: string, url: string) => {
   const src = `url('${url}')`;
   fonts.push({ family, src });
 
   const fontFace = new FontFace(family, src, { display: "block" });
+  // biome-ignore lint/style/noRestrictedGlobals: document.fonts is the browser CSS Font Registry API, not DOM manipulation
   document.fonts.add(fontFace);
   tip(`Font ${family} is added to the list`, true, "success", 4000);
-  addFontOption(family);
-  const select = ensureEl<HTMLSelectElement>("styleSelectFont");
-  if (select) select.value = family;
-  changeFont();
+  notifyFontAdded(family, true);
 };
+
+export { fonts };
+
+export function initFonts(): void {
+  declareDefaultFonts();
+}

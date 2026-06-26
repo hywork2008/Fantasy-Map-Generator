@@ -1,0 +1,46 @@
+import { select } from "d3";
+import type { AppServices } from "../context/appServices";
+import type { OverlayLayers } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
+import type { IRenderer } from "./core/IRenderer";
+
+export const GridRenderer: IRenderer = {
+  id: "grid",
+
+  render(worldContext: Readonly<WorldContext>, viewContext: Readonly<OverlayLayers>, _appServices: AppServices): void {
+    const { graphWidth, graphHeight } = worldContext;
+    const { gridOverlay } = viewContext;
+
+    gridOverlay.selectAll("*").remove();
+    const pattern = `#pattern_${gridOverlay.attr("type") || "pointyHex"}`;
+    const stroke = gridOverlay.attr("stroke") || "#808080";
+    const width = gridOverlay.attr("stroke-width") || 0.5;
+    const dasharray = gridOverlay.attr("stroke-dasharray") || null;
+    const linecap = gridOverlay.attr("stroke-linecap") || null;
+    const gridScale = gridOverlay.attr("scale") || 1;
+    const dx = gridOverlay.attr("dx") || 0;
+    const dy = gridOverlay.attr("dy") || 0;
+    const tr = `scale(${gridScale}) translate(${dx} ${dy})`;
+
+    const maxWidth = graphWidth;
+    const maxHeight = graphHeight;
+
+    select(pattern)
+      .attr("stroke", stroke)
+      .attr("stroke-width", width)
+      .attr("stroke-dasharray", dasharray)
+      .attr("stroke-linecap", linecap)
+      .attr("patternTransform", tr);
+
+    gridOverlay
+      .append("rect")
+      .attr("width", maxWidth)
+      .attr("height", maxHeight)
+      .attr("fill", `url(${pattern})`)
+      .attr("stroke", "none");
+  },
+
+  clear(viewContext: Readonly<OverlayLayers>): void {
+    viewContext.gridOverlay.selectAll("*").remove();
+  }
+};

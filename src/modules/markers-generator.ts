@@ -1,36 +1,26 @@
 import { mean } from "d3";
+import type { AppServices } from "../context/appServices";
+import { appServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import { viewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
+import { worldContext } from "../context/worldContext";
+import { useOptionsState } from "../store/optionsState";
+import type { MarkerConfig } from "../types/MarkerConfig";
+import type { Marker } from "../types/models";
 import type { PackedGraph } from "../types/PackedGraph";
+import type { WorldState } from "../types/WorldState";
 import { capitalize, convertTemperature, gauss, generateDate, getAdjective, last, P, ra, rand, rn, rw } from "../utils";
-
-declare global {
-  var Markers: MarkersModule;
-}
-
-type MarkerConfig = {
-  type: string;
-  icon: string;
-  dx?: number;
-  dy?: number;
-  px?: number;
-  min: number;
-  each: number;
-  multiplier: number;
-  list: (pack: PackedGraph) => number[];
-  add: (id: string, cell: number) => void;
-};
-
-interface Marker {
-  i: number;
-  type: string;
-  icon: string;
-  dx?: number;
-  dy?: number;
-  px?: number;
-  cell: number;
-  lock?: boolean;
-}
+import { TIME } from "../utils/debug";
+import { getFriendlyHeight } from "../utils/uiHelpers";
+import { Names } from "./names-generator";
+import { Routes } from "./routes-generator";
+import { States } from "./states-generator";
 
 class MarkersModule {
+  worldContext: WorldContext = worldContext;
+  viewContext: Readonly<ViewContext> = viewContext;
+  appServices: AppServices = appServices;
   private config: MarkerConfig[];
   private occupied: boolean[];
 
@@ -47,20 +37,29 @@ class MarkersModule {
     this.config = newConfig;
   }
 
-  generate() {
+  generate(
+    worldContext: WorldContext,
+    viewContext: Readonly<ViewContext>,
+    appServices: AppServices,
+    state: WorldState
+  ) {
+    this.worldContext = worldContext;
+    this.viewContext = viewContext;
+    this.appServices = appServices;
+    const { pack } = state;
     this.resetConfig();
     pack.markers = [];
     this.generateTypes();
   }
 
   regenerate() {
+    const { pack, notes } = this.worldContext;
     pack.markers = pack.markers.filter(({ i, lock, cell }) => {
       if (lock) {
         this.occupied[cell] = true;
         return true;
       }
       const id = `marker${i}`;
-      document.getElementById(id)?.remove();
       const index = notes.findIndex(note => note.id === id);
       if (index !== -1) notes.splice(index, 1);
       return false;
@@ -70,10 +69,11 @@ class MarkersModule {
   }
 
   add(marker: Marker) {
+    const { pack } = this.worldContext;
     const base = this.config.find(c => c.type === marker.type);
     if (base) {
       const { icon, type, dx, dy, px } = base;
-      marker = this.addMarker({ icon, type, dx, dy, px }, marker);
+      marker = this.addMarker({ icon, type, dx, dy, px }, marker)!;
       base.add(`marker${marker.i}`, marker.cell);
       return marker;
     }
@@ -86,12 +86,12 @@ class MarkersModule {
 
   deleteMarker(markerId: number) {
     const noteId = `marker${markerId}`;
-    notes = notes.filter(note => note.id !== noteId);
-    pack.markers = pack.markers.filter(m => m.i !== markerId);
+    this.worldContext.notes = this.worldContext.notes.filter(note => note.id !== noteId);
+    this.worldContext.pack.markers = this.worldContext.pack.markers.filter(m => m.i !== markerId);
   }
 
   private getDefaultConfig(): MarkerConfig[] {
-    const culturesSet = (document.getElementById("culturesSet") as HTMLSelectElement | null)?.value || "";
+    const culturesSet = useOptionsState.getState().culturesSet;
     const isFantasy = culturesSet.includes("Fantasy");
 
     /*
@@ -453,6 +453,7 @@ class MarkersModule {
   }
 
   private generateTypes() {
+    const { pack } = this.worldContext;
     TIME && console.time("addMarkers");
 
     this.config.forEach(({ type, icon, dx, dy, px, min, each, multiplier, list, add }) => {
@@ -476,28 +477,30 @@ class MarkersModule {
     TIME && console.timeEnd("addMarkers");
   }
 
-  private getQuantity(array: any[], min: number, each: number, multiplier: number) {
+  private getQuantity(array: number[], min: number, each: number, multiplier: number) {
     if (!array.length || array.length < min / multiplier) return 0;
     const requestQty = Math.ceil((array.length / each) * multiplier);
     return array.length < requestQty ? array.length : requestQty;
   }
 
-  private extractAnyElement(array: any[]) {
+  private extractAnyElement(array: number[]) {
     const index = Math.floor(Math.random() * array.length);
     return array.splice(index, 1);
   }
 
-  private addMarker(base: any, marker: any) {
-    if (marker.cell === undefined) return;
+  private addMarker(base: Partial<Marker>, partialMarker: Partial<Marker>): Marker | undefined {
+    const { pack } = this.worldContext;
+    if (partialMarker.cell === undefined) return;
     const i = last(pack.markers)?.i + 1 || 0;
-    const [x, y] = this.getMarkerCoordinates(marker.cell);
-    marker = { ...base, x, y, ...marker, i };
+    const [x, y] = this.getMarkerCoordinates(partialMarker.cell);
+    const marker = { ...base, x, y, ...partialMarker, i } as Marker;
     pack.markers.push(marker);
     this.occupied[marker.cell] = true;
     return marker;
   }
 
   private getMarkerCoordinates(cell: number) {
+    const { pack } = this.worldContext;
     const { cells, burgs } = pack;
     const burgId = cells.burg[cell];
 
@@ -514,6 +517,7 @@ class MarkersModule {
   }
 
   private addVolcano(id: string, cell: number) {
+    const { pack, notes } = this.worldContext;
     const { cells } = pack;
 
     const proper = Names.getCulture(cells.culture[cell]);
@@ -531,6 +535,7 @@ class MarkersModule {
   }
 
   private addHotSpring(id: string, cell: number) {
+    const { pack, notes } = this.worldContext;
     const { cells } = pack;
 
     const proper = Names.getCulture(cells.culture[cell]);
@@ -546,6 +551,7 @@ class MarkersModule {
   }
 
   private addWaterSource(id: string, cell: number) {
+    const { pack, notes } = this.worldContext;
     const { cells } = pack;
 
     const type = rw({
@@ -573,6 +579,7 @@ class MarkersModule {
   }
 
   private addMine(id: string, cell: number) {
+    const { pack, populationRate, urbanization, notes } = this.worldContext;
     const { cells } = pack;
 
     const resources = {
@@ -606,6 +613,7 @@ class MarkersModule {
   }
 
   private addBridge(id: string, cell: number) {
+    const { pack, notes } = this.worldContext;
     const { cells } = pack;
 
     const burg = pack.burgs[cells.burg[cell]];
@@ -894,7 +902,7 @@ class MarkersModule {
     const course = `${ra(methods)} ${meal}`.toLowerCase();
     const drink = `${P(0.5) ? ra(types) : ra(colors)} ${ra(drinks)}`.toLowerCase();
     const legend = `A big and famous roadside ${typeName}. Delicious ${course} with ${drink} is served here.`;
-    notes.push({ id, name: `The ${name}`, legend });
+    worldContext.notes.push({ id, name: `The ${name}`, legend });
   }
 
   private listLighthouses({ cells }: PackedGraph) {
@@ -904,6 +912,7 @@ class MarkersModule {
   }
 
   private addLighthouse(id: string, cell: number) {
+    const { pack, notes } = this.worldContext;
     const { cells } = pack;
 
     const proper = cells.burg[cell] ? pack.burgs[cells.burg[cell]].name! : Names.getCulture(cells.culture[cell]);
@@ -921,6 +930,7 @@ class MarkersModule {
   }
 
   private addWaterfall(id: string, cell: number) {
+    const { pack, notes } = this.worldContext;
     const { cells } = pack;
 
     const descriptions = [
@@ -947,6 +957,7 @@ class MarkersModule {
   }
 
   private addBattlefield(id: string, cell: number) {
+    const { pack, options, notes } = this.worldContext;
     const { cells, states } = pack;
 
     const state = states[cells.state[cell]];
@@ -963,6 +974,7 @@ class MarkersModule {
   }
 
   private addDungeon(id: string, cell: number) {
+    const { seed, notes } = this.worldContext;
     const dungeonSeed = `${seed}${cell}`;
     const name = "Dungeon";
     const legend = `<div>Undiscovered dungeon. See <a href="https://watabou.github.io/one-page-dungeon/?seed=${dungeonSeed}" target="_blank">One page dungeon</a></div><iframe style="pointer-events: none;" src="https://watabou.github.io/one-page-dungeon/?seed=${dungeonSeed}" sandbox="allow-scripts allow-same-origin"></iframe>`;
@@ -976,6 +988,7 @@ class MarkersModule {
   }
 
   private addLakeMonster(id: string, cell: number) {
+    const { pack, notes } = this.worldContext;
     const lake = pack.features[pack.cells.f[cell]];
 
     // Check that the feature is a lake in case the user clicked on a wrong
@@ -1008,10 +1021,10 @@ class MarkersModule {
   }
 
   private addSeaMonster(id: string, _cell: number) {
-    const name = `${Names.getCultureShort(0)} Monster`;
+    const name = `${Names.getCultureShort(this.worldContext, this.viewContext, this.appServices, 0)} Monster`;
     const length = gauss(25, 10, 10, 100);
     const legend = `Old sailors tell stories of a gigantic sea monster inhabiting these dangerous waters. Rumors say it can be ${length} ${heightUnit.value} long.`;
-    notes.push({ id, name, legend });
+    worldContext.notes.push({ id, name, legend });
   }
 
   private listHillMonsters({ cells }: PackedGraph) {
@@ -1019,6 +1032,7 @@ class MarkersModule {
   }
 
   private addHillMonster(id: string, cell: number) {
+    const { pack, notes } = this.worldContext;
     const { cells } = pack;
 
     const adjectives = [
@@ -1102,6 +1116,7 @@ class MarkersModule {
   }
 
   private addSacredMountain(id: string, cell: number) {
+    const { pack, notes } = this.worldContext;
     const { cells, religions } = pack;
 
     const culture = cells.c[cell].map(c => cells.culture[c]).find(c => c)!;
@@ -1120,6 +1135,7 @@ class MarkersModule {
   }
 
   private addSacredForest(id: string, cell: number) {
+    const { pack, notes } = this.worldContext;
     const { cells, religions } = pack;
 
     const culture = cells.culture[cell];
@@ -1135,6 +1151,7 @@ class MarkersModule {
   }
 
   private addSacredPinery(id: string, cell: number) {
+    const { pack, notes } = this.worldContext;
     const { cells, religions } = pack;
 
     const culture = cells.culture[cell];
@@ -1158,6 +1175,7 @@ class MarkersModule {
   }
 
   private addSacredPalmGrove(id: string, cell: number) {
+    const { pack, notes } = this.worldContext;
     const { cells, religions } = pack;
 
     const culture = cells.culture[cell];
@@ -1172,6 +1190,7 @@ class MarkersModule {
   }
 
   private addBrigands(id: string, cell: number) {
+    const { pack, notes } = this.worldContext;
     const { cells } = pack;
 
     const animals = [
@@ -1234,7 +1253,7 @@ class MarkersModule {
   private addPirates(id: string, _cell: number) {
     const name = "Pirates";
     const legend = "Pirate ships have been spotted in these waters.";
-    notes.push({ id, name, legend });
+    worldContext.notes.push({ id, name, legend });
   }
 
   private listStatues({ cells }: PackedGraph) {
@@ -1242,6 +1261,7 @@ class MarkersModule {
   }
 
   private addStatue(id: string, cell: number) {
+    const { pack, notes } = this.worldContext;
     const { cells } = pack;
 
     const variants = [
@@ -1304,7 +1324,7 @@ class MarkersModule {
     const ruinType = ra(types);
     const name = `Ruined ${ruinType}`;
     const legend = `Ruins of an ancient ${ruinType.toLowerCase()}. Untold riches may lie within.`;
-    notes.push({ id, name, legend });
+    worldContext.notes.push({ id, name, legend });
   }
 
   private listLibraries({ cells }: PackedGraph) {
@@ -1312,6 +1332,7 @@ class MarkersModule {
   }
 
   private addLibrary(id: string, cell: number) {
+    const { pack, notes } = this.worldContext;
     const { cells } = pack;
 
     const type = rw({ Library: 3, Archive: 1, Collection: 1 });
@@ -1340,7 +1361,7 @@ class MarkersModule {
     const adjective = ra(adjectives);
     const name = `Travelling ${adjective} Circus`;
     const legend = `Roll up, roll up, this ${adjective.toLowerCase()} circus is here for a limited time only.`;
-    notes.push({ id, name, legend });
+    worldContext.notes.push({ id, name, legend });
   }
 
   private listJousts({ cells, burgs }: PackedGraph) {
@@ -1348,6 +1369,7 @@ class MarkersModule {
   }
 
   private addJoust(id: string, cell: number) {
+    const { pack, notes } = this.worldContext;
     const { cells, burgs } = pack;
     const types = ["Joust", "Competition", "Melee", "Tournament", "Contest"];
     const virtues = ["cunning", "might", "speed", "the greats", "acumen", "brutality"];
@@ -1373,6 +1395,7 @@ class MarkersModule {
   }
 
   private addFair(id: string, cell: number) {
+    const { pack, notes } = this.worldContext;
     const { cells, burgs } = pack;
     if (!cells.burg[cell]) return;
 
@@ -1389,6 +1412,7 @@ class MarkersModule {
   }
 
   private addCanoe(id: string, cell: number) {
+    const { pack, notes } = this.worldContext;
     const river = pack.rivers.find(r => r.i === pack.cells.r[cell]);
 
     const name = `Minor Jetty`;
@@ -1459,7 +1483,7 @@ class MarkersModule {
 
     const name = `${animalChoice} migration`;
     const legend = `A huge group of ${animalChoice.toLowerCase()} are migrating, whether part of their annual routine, or something more extraordinary.`;
-    notes.push({ id, name, legend });
+    worldContext.notes.push({ id, name, legend });
   }
 
   private listDances({ cells, burgs }: PackedGraph) {
@@ -1467,6 +1491,7 @@ class MarkersModule {
   }
 
   private addDances(id: string, cell: number) {
+    const { pack, notes } = this.worldContext;
     const { cells, burgs } = pack;
     const burgName = burgs[cells.burg[cell]].name;
     const socialTypes = [
@@ -1511,7 +1536,7 @@ class MarkersModule {
     const mirageAdjective = ra(adjectives);
     const name = `${mirageAdjective} mirage`;
     const legend = `This ${mirageAdjective.toLowerCase()} mirage has been luring travellers out of their way for eons.`;
-    notes.push({ id, name, legend });
+    worldContext.notes.push({ id, name, legend });
   }
 
   private listCaves({ cells }: PackedGraph) {
@@ -1519,6 +1544,7 @@ class MarkersModule {
   }
 
   private addCave(id: string, cell: number) {
+    const { pack, notes } = this.worldContext;
     const { cells } = pack;
 
     const formations = {
@@ -1559,6 +1585,7 @@ class MarkersModule {
   }
 
   private addPortal(id: string, cell: number) {
+    const { pack, notes } = this.worldContext;
     const { cells, burgs } = pack;
 
     if (!cells.burg[cell]) return;
@@ -1570,6 +1597,7 @@ class MarkersModule {
   }
 
   private listRifts({ cells }: PackedGraph) {
+    const { biomesData } = this.worldContext;
     return cells.i.filter(i => !this.occupied[i] && cells.pop[i] <= 3 && biomesData.habitability[cells.biome[i]]);
   }
 
@@ -1587,7 +1615,7 @@ class MarkersModule {
     const riftType = ra(types);
     const name = `${riftType} Rift`;
     const legend = `A rumoured ${riftType.toLowerCase()} rift in this area is causing ${ra(descriptions)}.`;
-    notes.push({ id, name, legend });
+    worldContext.notes.push({ id, name, legend });
   }
 
   private listDisturbedBurial({ cells }: PackedGraph) {
@@ -1597,7 +1625,7 @@ class MarkersModule {
   private addDisturbedBurial(id: string, _cell: number) {
     const name = "Disturbed Burial";
     const legend = "A burial site has been disturbed in this area, causing the dead to rise and attack the living.";
-    notes.push({ id, name, legend });
+    worldContext.notes.push({ id, name, legend });
   }
 
   private listNecropolis({ cells }: PackedGraph) {
@@ -1605,6 +1633,7 @@ class MarkersModule {
   }
 
   private addNecropolis(id: string, cell: number) {
+    const { pack, notes } = this.worldContext;
     const { cells } = pack;
 
     const toponym = Names.getCulture(cells.culture[cell]);
@@ -1643,8 +1672,8 @@ class MarkersModule {
     const name = "Random encounter";
     const encounterSeed = cell; // use just cell Id to not overwhelm the Vercel KV database
     const legend = `<div>You have encountered a character.</div><iframe src="https://deorum.vercel.app/encounter/${encounterSeed}" width="375" height="600" sandbox="allow-scripts allow-same-origin allow-popups"></iframe>`;
-    notes.push({ id, name, legend });
+    worldContext.notes.push({ id, name, legend });
   }
 }
 
-window.Markers = new MarkersModule();
+export const Markers = new MarkersModule();

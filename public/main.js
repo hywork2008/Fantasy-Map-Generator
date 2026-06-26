@@ -666,34 +666,35 @@ async function generate(options) {
     Features.markupPack();
     createDefaultRuler();
 
-    Rivers.generate();
-    Biomes.define();
+    const state = getWorldState();
+    Rivers.generate(state);
+    Biomes.define(state);
     Features.defineGroups();
 
-    Ice.generate();
+    Ice.generate(state);
 
     rankCells();
-    Cultures.generate();
-    Cultures.expand();
+    Cultures.generate(state);
+    Cultures.expand(state);
 
-    Burgs.generate();
-    States.generate();
-    Routes.generate();
-    Religions.generate();
+    Burgs.generate(state);
+    States.generate(state);
+    Routes.generate(state);
+    Religions.generate(state);
 
-    Burgs.specify();
-    States.collectStatistics();
-    States.defineStateForms();
+    Burgs.specify(state);
+    States.collectStatistics(state);
+    States.defineStateForms(state);
 
-    Provinces.generate();
-    Provinces.getPoles();
+    Provinces.generate(state);
+    Provinces.getPoles(state);
 
-    Rivers.specify();
-    Lakes.defineNames();
+    Rivers.specify(state);
+    Lakes.defineNames(state);
 
-    Military.generate();
-    Markers.generate();
-    Zones.generate();
+    Military.generate(state);
+    Markers.generate(state);
+    Zones.generate(state);
 
     drawScaleBar(scaleBar, scale);
     Names.getMapName();
@@ -725,6 +726,11 @@ async function generate(options) {
       position: {my: "center", at: "center", of: "svg"}
     });
   }
+}
+
+// build a WorldState snapshot from current globals (pack must be initialized before calling)
+function getWorldState() {
+  return { pack, grid, seed, options, nameBases, biomesData, notes, style };
 }
 
 // set map seed (string!)

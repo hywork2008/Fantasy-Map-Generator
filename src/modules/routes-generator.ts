@@ -1,7 +1,17 @@
 import { curveCatmullRom, line } from "d3";
 import Delaunator from "delaunator";
-import { distanceSquared, findClosestCell, findPath, getAdjective, isLand, ra, rn, round, rw } from "../utils";
-import type { Burg } from "./burgs-generator";
+import type { AppServices } from "../context/appServices";
+import { appServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import { viewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
+import { worldContext } from "../context/worldContext";
+import type { Burg, Route } from "../types/models";
+import type { WorldState } from "../types/WorldState";
+import { distanceSquared, findClosestCell, findPath, getAdjective, ra, rn, round, rw } from "../utils";
+import { TIME } from "../utils/debug";
+import { isLand } from "../utils/graphUtils";
+import { MIN_NAVIGABLE_FLUX, Rivers } from "./river-generator";
 import type { Point } from "./voronoi";
 
 const ROUTES_SHARP_ANGLE = 135;
@@ -164,16 +174,143 @@ const suffixes: Record<string, Record<string, number>> = {
   searoutes: { "sea route": 5, lane: 2, passage: 1, seaway: 1 }
 };
 
-export interface Route {
-  i: number;
-  group: "roads" | "trails" | "searoutes";
-  feature: number;
-  points: number[][];
-  cells?: number[];
-  merged?: boolean;
-}
-
 class RoutesModule {
+  worldContext: WorldContext = worldContext;
+  viewContext: Readonly<ViewContext> = viewContext;
+  appServices: AppServices = appServices;
+
+  private riverAdjacency = new Set<string>();
+  private riverPolygons = new Map<number, [number, number, number][]>();
+  private cellPolygonIndex = new Map<number, { riverId: number; polygonIdx: number }>();
+
+  sync(): void {
+    const { pack } = this.worldContext;
+    this.riverAdjacency.clear();
+    this.riverPolygons.clear();
+    this.cellPolygonIndex.clear();
+
+    for (const river of pack.rivers ?? []) {
+      if (!river) continue;
+
+      for (let seqIdx = 0; seqIdx < river.cells.length; seqIdx++) {
+        const cell = river.cells[seqIdx];
+        if (cell < 0) continue;
+        if (seqIdx + 1 < river.cells.length) {
+          const nextCell = river.cells[seqIdx + 1];
+          this.riverAdjacency.add(`${cell}-${nextCell}`);
+          if (nextCell >= 0) this.riverAdjacency.add(`${nextCell}-${cell}`);
+        }
+      }
+
+      const polygon = Rivers.addMeandering(river.cells);
+      this.riverPolygons.set(river.i, polygon);
+
+      let cursor = 0;
+      for (const cell of river.cells) {
+        if (cell < 0) continue;
+        const [cx, cy] = pack.cells.p[cell];
+        while (cursor < polygon.length && (polygon[cursor][0] !== cx || polygon[cursor][1] !== cy)) {
+          cursor++;
+        }
+        if (cursor < polygon.length) {
+          this.cellPolygonIndex.set(cell, { riverId: river.i, polygonIdx: cursor });
+          cursor++;
+        }
+      }
+    }
+  }
+
+  getWaterPathCost(current: number, next: number): number {
+    const { pack } = this.worldContext;
+    const { h, r, fl } = pack.cells;
+    const haven = pack.cells.haven as typeof pack.cells.haven | undefined;
+
+    const currentIsWater = h[current] < 20;
+    const nextIsWater = h[next] < 20;
+
+    if (this.riverAdjacency.has(`${current}-${next}`)) {
+      if (!currentIsWater && !nextIsWater) {
+        if (r[current] && fl[current] >= MIN_NAVIGABLE_FLUX && r[next] && fl[next] >= MIN_NAVIGABLE_FLUX) {
+          return distanceSquared(pack.cells.p[current], pack.cells.p[next]);
+        }
+        return Infinity;
+      }
+      const landCell = currentIsWater ? next : current;
+      if (r[landCell] && fl[landCell] >= MIN_NAVIGABLE_FLUX) {
+        return distanceSquared(pack.cells.p[current], pack.cells.p[next]);
+      }
+      return Infinity;
+    }
+
+    if (currentIsWater && nextIsWater) {
+      return distanceSquared(pack.cells.p[current], pack.cells.p[next]);
+    }
+
+    if (!currentIsWater && nextIsWater && !r[current]) {
+      const havenCell = haven?.[current];
+      if (havenCell) {
+        return havenCell === next ? distanceSquared(pack.cells.p[current], pack.cells.p[next]) : Infinity;
+      }
+      return distanceSquared(pack.cells.p[current], pack.cells.p[next]);
+    }
+
+    return Infinity;
+  }
+
+  addMeandering(cells: number[], anchors: [number, number][]): [number, number, number][] {
+    const result: [number, number, number][] = [];
+    let i = 0;
+
+    while (i < cells.length) {
+      const cell = cells[i];
+      const polyInfo = this.cellPolygonIndex.get(cell);
+
+      if (!polyInfo) {
+        const [ax, ay] = anchors[i];
+        result.push([ax, ay, cell]);
+        i++;
+        continue;
+      }
+
+      const riverId = polyInfo.riverId;
+      let runEnd = i + 1;
+      while (runEnd < cells.length) {
+        const nextInfo = this.cellPolygonIndex.get(cells[runEnd]);
+        if (!nextInfo || nextInfo.riverId !== riverId) break;
+        runEnd++;
+      }
+
+      const polygon = this.riverPolygons.get(riverId)!;
+      const runCells = cells.slice(i, runEnd);
+      const startPolyIdx = this.cellPolygonIndex.get(runCells[0])!.polygonIdx;
+      const endPolyIdx = this.cellPolygonIndex.get(runCells[runCells.length - 1])!.polygonIdx;
+      const isUpstream = startPolyIdx > endPolyIdx;
+
+      const fromIdx = Math.min(startPolyIdx, endPolyIdx);
+      const toIdx = Math.max(startPolyIdx, endPolyIdx);
+      const rawSlice = polygon.slice(fromIdx, toIdx + 1);
+      const orderedSlice = isUpstream ? rawSlice.slice().reverse() : rawSlice;
+
+      const anchorSlicePos = new Map<number, number>();
+      for (let ci = 0; ci < runCells.length; ci++) {
+        const pIdx = this.cellPolygonIndex.get(runCells[ci])!.polygonIdx;
+        const slicePos = isUpstream ? startPolyIdx - pIdx : pIdx - startPolyIdx;
+        anchorSlicePos.set(slicePos, ci);
+      }
+
+      let cellRunIdx = 0;
+      for (let k = 0; k < orderedSlice.length; k++) {
+        const anchor = anchorSlicePos.get(k);
+        if (anchor !== undefined) cellRunIdx = anchor;
+        result.push([orderedSlice[k][0], orderedSlice[k][1], runCells[cellRunIdx]]);
+      }
+
+      i = runEnd;
+    }
+
+    return result;
+  }
+
   buildLinks(routes: Route[]): Record<number, Record<number, number>> {
     const links: Record<number, Record<number, number>> = {};
 
@@ -264,6 +401,7 @@ class RoutesModule {
   }
 
   private createCostEvaluator({ isWater, connections }: { isWater: boolean; connections: Map<string, boolean> }) {
+    const { pack, biomesData, grid } = this.worldContext;
     function getLandPathCost(current: number, next: number) {
       if (pack.cells.h[next] < 20) return Infinity; // ignore water cells
 
@@ -332,6 +470,7 @@ class RoutesModule {
     start: number;
     exit: number;
   }) {
+    const { pack } = this.worldContext;
     const getCost = this.createCostEvaluator({ isWater, connections });
     const pathCells = findPath(start, current => current === exit, getCost, pack);
     if (!pathCells) return [];
@@ -340,6 +479,7 @@ class RoutesModule {
   }
 
   private generateMainRoads(connections: Map<string, boolean>) {
+    const { pack } = this.worldContext;
     TIME && console.time("generateMainRoads");
     const { capitalsByFeature } = this.sortBurgsByFeature(pack.burgs);
     const mainRoads: Route[] = [];
@@ -380,6 +520,7 @@ class RoutesModule {
   }
 
   private generateTrails(connections: Map<string, boolean>) {
+    const { pack } = this.worldContext;
     TIME && console.time("generateTrails");
     const { burgsByFeature } = this.sortBurgsByFeature(pack.burgs);
     const trails: Route[] = [];
@@ -409,6 +550,7 @@ class RoutesModule {
   }
 
   private generateSeaRoutes(connections: Map<string, boolean>) {
+    const { pack } = this.worldContext;
     TIME && console.time("generateSeaRoutes");
     const { portsByFeature } = this.sortBurgsByFeature(pack.burgs);
     const seaRoutes: Route[] = [];
@@ -441,6 +583,7 @@ class RoutesModule {
   }
 
   private preparePointsArray(): Point[] {
+    const { pack } = this.worldContext;
     const { cells, burgs } = pack;
     return cells.p.map(([x, y], cellId) => {
       const burgId = cells.burg[cellId];
@@ -449,8 +592,11 @@ class RoutesModule {
     });
   }
 
-  private getPoints(group: string, cells: number[], points: Point[]) {
-    const data = cells.map(cellId => [...points[cellId], cellId]);
+  private getPoints(group: string, cells: number[], points: Point[]): [number, number, number][] {
+    const { pack } = this.worldContext;
+    const data: [number, number, number][] = cells.map(
+      cellId => [...points[cellId], cellId] as [number, number, number]
+    );
 
     // resolve sharp angles
     if (group !== "searoutes") {
@@ -541,7 +687,17 @@ class RoutesModule {
     return routes;
   }
 
-  generate(lockedRoutes: Route[] = []) {
+  generate(
+    worldContext: WorldContext,
+    viewContext: Readonly<ViewContext>,
+    appServices: AppServices,
+    state: WorldState,
+    lockedRoutes: Route[] = []
+  ) {
+    this.worldContext = worldContext;
+    this.viewContext = viewContext;
+    this.appServices = appServices;
+    const { pack } = state;
     const connections = new Map();
     lockedRoutes.forEach((route: Route) => {
       this.addConnections(
@@ -556,16 +712,19 @@ class RoutesModule {
 
   // utility functions
   isConnected(cellId: number): boolean {
+    const { pack } = this.worldContext;
     const routes = pack.cells.routes;
     return routes[cellId] && Object.keys(routes[cellId]).length > 0;
   }
 
   getNextId() {
+    const { pack } = this.worldContext;
     return pack.routes.length ? Math.max(...pack.routes.map(r => r.i)) + 1 : 0;
   }
 
   // connect cell with routes system by land
   connect(cellId: number): Route | undefined {
+    const { pack } = this.worldContext;
     const getCost = this.createCostEvaluator({
       isWater: false,
       connections: new Map()
@@ -601,11 +760,13 @@ class RoutesModule {
   }
 
   areConnected(from: number, to: number): boolean {
+    const { pack } = this.worldContext;
     const routeId = pack.cells.routes[from]?.[to];
     return routeId !== undefined;
   }
 
   getRoute(from: number, to: number) {
+    const { pack } = this.worldContext;
     const routeId = pack.cells.routes[from]?.[to];
     if (routeId === undefined) return null;
 
@@ -616,6 +777,7 @@ class RoutesModule {
   }
 
   hasRoad(cellId: number): boolean {
+    const { pack } = this.worldContext;
     const connections = pack.cells.routes[cellId];
     if (!connections) return false;
 
@@ -627,6 +789,7 @@ class RoutesModule {
   }
 
   isCrossroad(cellId: number): boolean {
+    const { pack } = this.worldContext;
     const connections = pack.cells.routes[cellId];
     if (!connections) return false;
     if (Object.keys(connections).length > 3) return true;
@@ -638,6 +801,7 @@ class RoutesModule {
   }
 
   remove(route: Route) {
+    const { pack } = this.worldContext;
     const routes = pack.cells.routes;
 
     for (const point of route.points) {
@@ -653,14 +817,15 @@ class RoutesModule {
     }
 
     pack.routes = pack.routes.filter(r => r.i !== route.i);
-    viewbox.select(`#route${route.i}`).remove();
+    viewContext.viewbox.select(`#route${route.i}`).remove();
   }
 
   getConnectivityRate(cellId: number): number {
+    const { pack } = this.worldContext;
     const connections = pack.cells.routes[cellId];
     if (!connections) return 0;
 
-    const connectivityRateMap = {
+    const connectivityRateMap: Record<string, number> = {
       roads: 0.2,
       trails: 0.1,
       searoutes: 0.2,
@@ -670,7 +835,7 @@ class RoutesModule {
     const connectivity = Object.values(connections).reduce((acc, routeId) => {
       const route = pack.routes.find(route => route.i === routeId);
       if (!route) return acc;
-      const rate = connectivityRateMap[route.group] || connectivityRateMap.default;
+      const rate = connectivityRateMap[route.group] ?? connectivityRateMap.default;
       return acc + rate;
     }, 0.8);
 
@@ -678,6 +843,7 @@ class RoutesModule {
   }
 
   generateName({ group, points }: { group: string; points: number[][] }): string {
+    const { pack } = this.worldContext;
     if (points.length < 4) return "Unnamed route segment";
 
     function getBurgName() {
@@ -702,7 +868,7 @@ class RoutesModule {
 
   getPath({ group, points }: { group: string; points: number[][] }): string {
     const lineGen = line();
-    const ROUTE_CURVES: Record<string, any> = {
+    const ROUTE_CURVES: Record<string, import("d3").CurveFactory | import("d3").CurveFactoryLineOnly> = {
       roads: curveCatmullRom.alpha(0.1),
       trails: curveCatmullRom.alpha(0.1),
       searoutes: curveCatmullRom.alpha(0.5),
@@ -714,9 +880,9 @@ class RoutesModule {
   }
 
   getLength(routeId: number): number {
-    const path = routes.select(`#route${routeId}`).node() as SVGPathElement;
+    const path = viewContext.routes.select(`#route${routeId}`).node() as SVGPathElement;
     return path.getTotalLength();
   }
 }
 
-window.Routes = new RoutesModule();
+export const Routes = new RoutesModule();

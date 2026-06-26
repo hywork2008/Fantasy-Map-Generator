@@ -1,4 +1,7 @@
-import { ensureEl, P, rw } from "../../utils";
+import { worldContext } from "../../context/worldContext";
+import { useOptionsState } from "../../store/optionsState";
+import { P, rw } from "../../utils";
+import { ERROR } from "../../utils/debug";
 import { charges } from "./charges";
 import { divisions } from "./divisions";
 import { lineWeights } from "./lineWeights";
@@ -8,44 +11,11 @@ import { shields } from "./shields";
 import { createTinctures } from "./tinctures";
 import { typeMapping } from "./typeMapping";
 
-declare global {
-  var COA: EmblemGeneratorModule;
-}
+// Emblem types are defined in src/types/emblem.ts to avoid circular dependencies.
+// Re-exported here for backwards-compat with consumers that import from this module.
+export type { Emblem, EmblemCharge, EmblemDivision, EmblemOrdinary } from "../../types/emblem";
 
-export interface EmblemCharge {
-  charge: string;
-  t: string;
-  p: string;
-  t2?: string;
-  t3?: string;
-  size?: number;
-  sinister?: number;
-  reversed?: number;
-  divided?: string;
-}
-
-export interface EmblemOrdinary {
-  ordinary: string;
-  t: string;
-  line?: string;
-  divided?: string;
-  above?: boolean;
-}
-
-export interface EmblemDivision {
-  division: string;
-  t: string;
-  line?: string;
-}
-
-export interface Emblem {
-  t1: string;
-  shield?: string;
-  division?: EmblemDivision;
-  ordinaries?: EmblemOrdinary[];
-  charges?: EmblemCharge[];
-  custom?: boolean;
-}
+import type { Emblem, EmblemCharge, EmblemOrdinary } from "../../types/emblem";
 
 class EmblemGeneratorModule {
   generate(parent: Emblem | null, kinship: number | null, dominion: number | null, type?: string): Emblem {
@@ -424,13 +394,15 @@ class EmblemGeneratorModule {
   }
 
   getShield(culture: number, state?: number): string {
-    const emblemShape = ensureEl<HTMLSelectElement>("emblemShape");
-    const shapeGroup = emblemShape.selectedOptions[0]?.parentElement?.getAttribute("label") || "Diversiform";
-    if (shapeGroup !== "Diversiform") return emblemShape.value;
+    const emblemShapeValue = useOptionsState.getState().emblemShape;
+    // "Diversiform" optgroup values delegate to context; all other optgroups are fixed shape names
+    const DIVERSIFORM_VALUES = ["culture", "random", "state"];
+    if (!DIVERSIFORM_VALUES.includes(emblemShapeValue)) return emblemShapeValue;
 
-    if (emblemShape.value === "state" && state && pack.states[state].coa) return pack.states[state].coa!.shield!;
-    if (pack.cultures[culture].shield) return pack.cultures[culture].shield!;
-    ERROR && console.error("Shield shape is not defined on culture level", pack.cultures[culture]);
+    if (emblemShapeValue === "state" && state && worldContext.pack.states[state].coa)
+      return worldContext.pack.states[state].coa!.shield!;
+    if (worldContext.pack.cultures[culture].shield) return worldContext.pack.cultures[culture].shield!;
+    ERROR && console.error("Shield shape is not defined on culture level", worldContext.pack.cultures[culture]);
     return "heater";
   }
 
@@ -449,4 +421,4 @@ class EmblemGeneratorModule {
 
 export default EmblemGeneratorModule;
 
-window.COA = new EmblemGeneratorModule();
+export const COA = new EmblemGeneratorModule();

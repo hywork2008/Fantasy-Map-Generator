@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { waitForMapGeneration } from "./helpers/fmg-helpers";
 
 test.describe("Zone Export", () => {
   test.beforeEach(async ({ context, page }) => {
@@ -14,10 +15,7 @@ test.describe("Zone Export", () => {
     await page.goto("/?seed=test-zones-export&width=1280&height=720");
 
     // Wait for map generation to complete
-    await page.waitForFunction(
-      () => (window as any).mapId !== undefined,
-      { timeout: 60000 }
-    );
+    await waitForMapGeneration(page);
 
     // Additional wait for any rendering/animations to settle
     await page.waitForTimeout(500);
@@ -27,7 +25,7 @@ test.describe("Zone Export", () => {
   // Uses BFS to select a contiguous set of land cells for stable, representative testing
   async function createTestZone(page: any): Promise<number> {
     return await page.evaluate(() => {
-      const { cells, zones } = (window as any).pack;
+      const { cells, zones } = window.fmg.world.pack;
 
       // Find a starting land cell (height >= 20)
       const totalCells = cells.i.length;
@@ -47,13 +45,13 @@ test.describe("Zone Export", () => {
       const zoneCells: number[] = [];
       const visited = new Set<number>();
       const queue: number[] = [];
-      
+
       visited.add(startCell);
       queue.push(startCell);
 
       while (queue.length > 0 && zoneCells.length < 20) {
         const current = queue.shift() as number;
-        
+
         // Only include land cells in the zone
         if (cells.h[current] >= 20) {
           zoneCells.push(current);
@@ -92,26 +90,9 @@ test.describe("Zone Export", () => {
     });
   }
 
-  // Helper function to export zones to GeoJSON without file download
-  // This calls the production code from public/modules/io/export.js
+  // Helper function to build zones GeoJSON without triggering a file download
   async function exportZonesToGeoJson(page: any): Promise<any> {
-    return await page.evaluate(() => {
-      // Mock downloadFile to capture the JSON instead of downloading
-      const originalDownloadFile = (window as any).downloadFile;
-      let capturedJson: any = null;
-
-      (window as any).downloadFile = (data: string) => {
-        capturedJson = JSON.parse(data);
-      };
-
-      // Call the production code
-      (window as any).saveGeoJsonZones();
-
-      // Restore original downloadFile
-      (window as any).downloadFile = originalDownloadFile;
-
-      return capturedJson;
-    });
+    return await page.evaluate(() => window.fmg.actions.getGeoJsonZones());
   }
 
   test("should export zone with valid GeoJSON root structure", async ({ page }) => {
@@ -126,7 +107,7 @@ test.describe("Zone Export", () => {
     expect(geoJson).toBeDefined();
     expect(geoJson).toHaveProperty("type");
     expect(geoJson.type).toBe("FeatureCollection");
-    
+
     expect(geoJson).toHaveProperty("features");
     expect(Array.isArray(geoJson.features)).toBe(true);
     expect(geoJson.features.length).toBeGreaterThan(0);
@@ -159,11 +140,12 @@ test.describe("Zone Export", () => {
     // Task 6.1: Validate zone property mapping
     // Get the test zone from pack.zones in browser context
     const testZone = await page.evaluate((id: number) => {
-      const { zones } = (window as any).pack;
+      const { zones } = window.fmg.world.pack;
       return zones.find((z: any) => z.i === id);
     }, zoneId);
 
     expect(testZone).toBeDefined();
+    if (!testZone) throw new Error("testZone not found");
 
     // Assert feature.properties match zone properties
     expect(testZoneFeature.properties.id).toBe(testZone.i);
@@ -174,41 +156,41 @@ test.describe("Zone Export", () => {
 
     // Task 7.1: Validate coordinate array structure
     const { coordinates } = testZoneFeature.geometry;
-    
+
     // Assert geometry.coordinates is an array
     expect(Array.isArray(coordinates)).toBe(true);
-    
+
     // Assert coordinates array is not empty
     expect(coordinates.length).toBeGreaterThan(0);
-    
+
     // Validate each LinearRing in the coordinates array
     // Note: Zones can have multiple rings (holes) or be MultiPolygon (disconnected components)
     for (const linearRing of coordinates) {
       // Assert LinearRing is an array
       expect(Array.isArray(linearRing)).toBe(true);
-      
+
       // Task 7.2: Validate LinearRing validity
       // Assert LinearRing has at least 4 positions
       expect(linearRing.length).toBeGreaterThanOrEqual(4);
-      
+
       // Assert first position equals last position (closed ring)
       const firstPosition = linearRing[0];
       const lastPosition = linearRing[linearRing.length - 1];
       expect(firstPosition[0]).toBe(lastPosition[0]);
       expect(firstPosition[1]).toBe(lastPosition[1]);
-      
+
       // Assert each position in LinearRing is an array of 2 numbers
       for (const position of linearRing) {
         expect(Array.isArray(position)).toBe(true);
         expect(position.length).toBe(2);
         expect(typeof position[0]).toBe("number");
         expect(typeof position[1]).toBe("number");
-        
+
         // Assert all positions are valid [longitude, latitude] pairs
         // Longitude should be between -180 and 180
         expect(position[0]).toBeGreaterThanOrEqual(-180);
         expect(position[0]).toBeLessThanOrEqual(180);
-        
+
         // Latitude should be between -90 and 90
         expect(position[1]).toBeGreaterThanOrEqual(-90);
         expect(position[1]).toBeLessThanOrEqual(90);
@@ -223,7 +205,7 @@ test.describe("Zone Export", () => {
 
   // Create a hidden zone
   const hiddenZoneId = await page.evaluate(() => {
-    const { cells, zones } = (window as any).pack;
+    const { cells, zones } = window.fmg.world.pack;
 
     // Find a starting land cell that's not already in a zone
     const totalCells = cells.i.length;
@@ -245,13 +227,13 @@ test.describe("Zone Export", () => {
     const zoneCells: number[] = [];
     const visited = new Set<number>();
     const queue: number[] = [];
-    
+
     visited.add(startCell);
     queue.push(startCell);
 
     while (queue.length > 0 && zoneCells.length < 20) {
       const current = queue.shift() as number;
-      
+
       // Only include land cells not already in a zone
       const isLand = cells.h[current] >= 20;
       const notInZone = !zones.some((z: any) => z.cells && z.cells.includes(current));
@@ -313,7 +295,7 @@ test.describe("Zone Export", () => {
 
   // Create a zone with empty cells array
   const emptyZoneId = await page.evaluate(() => {
-    const { zones } = (window as any).pack;
+    const { zones } = window.fmg.world.pack;
 
     // Generate unique zone ID
     const zoneId = zones.length;

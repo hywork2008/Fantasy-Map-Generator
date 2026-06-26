@@ -125,17 +125,18 @@ async function openEmblemEditor() {
 
 function regenerateRoutes() {
   const locked = pack.routes.filter(route => route.lock).map((route, index) => ({...route, i: index}));
-  Routes.generate(locked);
+  Routes.generate(getWorldState(), locked);
 
   routes.selectAll("path").remove();
   if (layerIsOn("toggleRoutes")) drawRoutes();
 }
 
 function regenerateRivers() {
-  Rivers.generate();
-  Rivers.specify();
+  const state = getWorldState();
+  Rivers.generate(state);
+  Rivers.specify(state);
   Features.defineGroups();
-  Lakes.defineNames();
+  Lakes.defineNames(state);
   if (layerIsOn("toggleRivers")) drawRivers();
 }
 
@@ -160,25 +161,26 @@ function regenerateStates() {
   if (!newStates) return;
 
   pack.states = newStates;
+  const state = getWorldState();
   States.expandStates();
   States.normalize();
-  States.getPoles();
+  States.getPoles(state);
   States.findNeighbors();
-  States.collectStatistics();
+  States.collectStatistics(state);
   States.assignColors();
   States.generateCampaigns();
   States.generateDiplomacy();
-  States.defineStateForms();
+  States.defineStateForms(state);
 
-  Provinces.generate(true);
-  Provinces.getPoles();
+  Provinces.generate(state, true);
+  Provinces.getPoles(state);
 
   layerIsOn("toggleStates") ? drawStates() : toggleStates();
   layerIsOn("toggleBorders") ? drawBorders() : toggleBorders();
   if (layerIsOn("toggleProvinces")) drawProvinces();
 
   drawStateLabels();
-  Military.generate();
+  Military.generate(state);
   if (layerIsOn("toggleEmblems")) drawEmblems();
 
   if (ensureEl("burgsOverviewRefresh").offsetParent) burgsOverviewRefresh.click();
@@ -345,9 +347,9 @@ function recreateStates() {
 
 function regenerateProvinces() {
   unfog();
-
-  Provinces.generate(true, true);
-  Provinces.getPoles();
+  const state = getWorldState();
+  Provinces.generate(state, true, true);
+  Provinces.getPoles(state);
 
   if (layerIsOn("toggleBorders")) drawBorders();
   layerIsOn("toggleProvinces") ? drawProvinces() : toggleProvinces();
@@ -450,7 +452,7 @@ function regenerateBurgs() {
       Burgs.changeGroup(burg);
     });
 
-  Burgs.specify();
+  Burgs.specify(getWorldState());
   regenerateRoutes();
 
   drawBurgIcons();
@@ -518,15 +520,16 @@ function regenerateEmblems() {
 }
 
 function regenerateReligions() {
-  Religions.generate();
+  Religions.generate(getWorldState());
 
   layerIsOn("toggleReligions") ? drawReligions() : toggleReligions();
   refreshAllEditors();
 }
 
 function regenerateCultures() {
-  Cultures.generate();
-  Cultures.expand();
+  const state = getWorldState();
+  Cultures.generate(state);
+  Cultures.expand(state);
 
   // update culture for states
   pack.states = pack.states.map(state => {
@@ -551,7 +554,7 @@ function regenerateCultures() {
 }
 
 function regenerateMilitary() {
-  Military.generate();
+  Military.generate(getWorldState());
   if (layerIsOn("toggleMilitary")) drawMilitary();
   else toggleMilitary();
 
@@ -560,7 +563,7 @@ function regenerateMilitary() {
 
 function regenerateIce() {
   if (!layerIsOn("toggleIce")) toggleIce();
-  Ice.generate();
+  Ice.generate(getWorldState());
   drawIce();
 }
 
@@ -579,7 +582,7 @@ function regenerateZones(event) {
   else addNumberOfZones(gauss(1, 0.5, 0.6, 5, 2));
 
   function addNumberOfZones(number) {
-    Zones.generate(number);
+    Zones.generate(getWorldState(), number);
     if (ensureEl("zonesEditorRefresh").offsetParent) zonesEditorRefresh.click();
     if (layerIsOn("toggleZones")) drawZones();
   }

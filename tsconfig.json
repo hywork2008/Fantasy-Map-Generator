@@ -3,10 +3,11 @@
     "useDefineForClassFields": true,
     "module": "ESNext",
     "target": "esnext",
-    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "lib": ["ES2024", "DOM", "DOM.Iterable"],
     "types": ["vite/client"],
     "skipLibCheck": true,
     "isolatedModules": true,
+    "jsx": "react-jsx",
 
     /* Bundler mode */
     "moduleResolution": "bundler",
@@ -18,10 +19,10 @@
     /* Linting */
     "strict": true,
     "noUnusedLocals": true,
-    "noUnusedParameters": true,
+    "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
   "include": ["src"],
-  "exclude": ["src/e2e"]
+  "exclude": ["src/e2e", "src/sw.ts", "src/**/*.test.ts", "src/test-setup.ts"]
 }

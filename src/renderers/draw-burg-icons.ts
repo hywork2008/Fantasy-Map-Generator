@@ -1,54 +1,77 @@
-import type { Burg } from "../modules/burgs-generator";
+import type { AppServices } from "../context/appServices";
+import type { SettlementLayers, ViewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
+import type { Burg, BurgGroup } from "../types/models";
+import { TIME } from "../utils/debug";
+import type { IRenderer } from "./core/IRenderer";
 
-declare global {
-  var drawBurgIcons: () => void;
-  var drawBurgIcon: (burg: Burg) => void;
-  var removeBurgIcon: (burgId: number) => void;
-}
+export const BurgIconsRenderer: IRenderer = {
+  id: "burgIcons",
 
-interface BurgGroup {
-  name: string;
-  order: number;
-}
+  render(worldContext: Readonly<WorldContext>, viewContext: Readonly<ViewContext>, _appServices: AppServices): void {
+    TIME && console.time("drawBurgIcons");
+    const { pack, options, style } = worldContext;
+    const { burgIcons, anchors } = viewContext;
+    createIconGroups(options, style, burgIcons, anchors);
 
-const burgIconsRenderer = (): void => {
-  TIME && console.time("drawBurgIcons");
-  createIconGroups();
+    for (const { name } of options.burgs.groups as BurgGroup[]) {
+      const burgsInGroup = pack.burgs.filter(b => b.group === name && !b.removed);
+      if (!burgsInGroup.length) continue;
 
-  for (const { name } of options.burgs.groups as BurgGroup[]) {
-    const burgsInGroup = pack.burgs.filter(b => b.group === name && !b.removed);
-    if (!burgsInGroup.length) continue;
+      const iconsGroup = burgIcons.select<SVGGElement>(`g#${name}`);
+      if (!iconsGroup.empty()) {
+        const icon = iconsGroup.attr("data-icon") || "#icon-circle";
+        iconsGroup
+          .selectAll<SVGUseElement, Burg>("use")
+          .data(burgsInGroup, d => d?.i ?? 0)
+          .join("use")
+          .attr("id", d => `burg${d.i}`)
+          .attr("data-id", d => d.i!)
+          .attr("href", icon)
+          .attr("x", d => d.x)
+          .attr("y", d => d.y);
+      }
 
-    const iconsGroup = document.querySelector<SVGGElement>(`#burgIcons > g#${name}`);
-    if (!iconsGroup) continue;
+      const portsInGroup = burgsInGroup.filter(b => b.port);
+      if (!portsInGroup.length) continue;
 
-    const icon = iconsGroup.dataset.icon || "#icon-circle";
-    iconsGroup.innerHTML = burgsInGroup
-      .map(b => `<use id="burg${b.i}" data-id="${b.i}" href="${icon}" x="${b.x}" y="${b.y}"></use>`)
-      .join("");
+      const portGroup = anchors.select<SVGGElement>(`g#${name}`);
+      if (!portGroup.empty()) {
+        portGroup
+          .selectAll<SVGUseElement, Burg>("use")
+          .data(portsInGroup, d => d?.i ?? 0)
+          .join("use")
+          .attr("id", d => `anchor${d.i}`)
+          .attr("data-id", d => d.i!)
+          .attr("href", "#icon-anchor")
+          .attr("x", d => d.x)
+          .attr("y", d => d.y);
+      }
+    }
 
-    const portsInGroup = burgsInGroup.filter(b => b.port);
-    if (!portsInGroup.length) continue;
+    TIME && console.timeEnd("drawBurgIcons");
+  },
 
-    const portGroup = document.querySelector<SVGGElement>(`#anchors > g#${name}`);
-    if (!portGroup) continue;
-
-    portGroup.innerHTML = portsInGroup
-      .map(b => `<use id="anchor${b.i}" data-id="${b.i}" href="#icon-anchor" x="${b.x}" y="${b.y}"></use>`)
-      .join("");
+  clear(viewContext: Readonly<ViewContext>): void {
+    viewContext.burgIcons.selectAll("*").remove();
+    viewContext.anchors.selectAll("*").remove();
   }
-
-  TIME && console.timeEnd("drawBurgIcons");
 };
 
-const drawBurgIconRenderer = (burg: Burg): void => {
+export const drawBurgIcon = (
+  worldContext: Readonly<WorldContext>,
+  viewContext: Readonly<ViewContext>,
+  appServices: AppServices,
+  burg: Burg
+): void => {
+  const { burgIcons, anchors } = viewContext;
   const iconGroup = burgIcons.select<SVGGElement>(`#${burg.group}`);
   if (iconGroup.empty()) {
-    drawBurgIcons();
-    return; // redraw all icons if group is missing
+    BurgIconsRenderer.render(worldContext, viewContext, appServices);
+    return;
   }
 
-  removeBurgIconRenderer(burg.i!);
+  removeBurgIcon(worldContext, viewContext, appServices, burg.i!);
   const icon = iconGroup.attr("data-icon") || "#icon-circle";
   burgIcons
     .select(`#${burg.group}`)
@@ -71,7 +94,12 @@ const drawBurgIconRenderer = (burg: Burg): void => {
   }
 };
 
-const removeBurgIconRenderer = (burgId: number): void => {
+export const removeBurgIcon = (
+  _worldContext: Readonly<WorldContext>,
+  _viewContext: Readonly<ViewContext>,
+  _appServices: AppServices,
+  burgId: number
+): void => {
   const existingIcon = document.getElementById(`burg${burgId}`);
   if (existingIcon) existingIcon.remove();
 
@@ -79,45 +107,54 @@ const removeBurgIconRenderer = (burgId: number): void => {
   if (existingAnchor) existingAnchor.remove();
 };
 
-function createIconGroups(): void {
-  // save existing styles and remove all groups
+function createIconGroups(
+  _options: WorldContext["options"],
+  style: WorldContext["style"],
+  _burgIcons: SettlementLayers["burgIcons"],
+  _anchors: SettlementLayers["anchors"]
+): void {
+  const existingIconIds = new Set<string>();
   document.querySelectorAll("g#burgIcons > g").forEach(group => {
+    existingIconIds.add(group.id);
     style.burgIcons[group.id] = Array.from(group.attributes).reduce((acc: { [key: string]: string }, attribute) => {
+      if (attribute.name === "class") return acc;
       acc[attribute.name] = attribute.value;
       return acc;
     }, {});
-    group.remove();
   });
 
+  const existingAnchorIds = new Set<string>();
   document.querySelectorAll("g#anchors > g").forEach(group => {
+    existingAnchorIds.add(group.id);
     style.anchors[group.id] = Array.from(group.attributes).reduce((acc: { [key: string]: string }, attribute) => {
+      if (attribute.name === "class") return acc;
       acc[attribute.name] = attribute.value;
       return acc;
     }, {});
-    group.remove();
   });
 
-  // create groups for each burg group and apply stored or default style
   const defaultIconStyle = style.burgIcons.town || Object.values(style.burgIcons)[0] || {};
   const defaultAnchorStyle = style.anchors.town || Object.values(style.anchors)[0] || {};
-  const sortedGroups = [...(options.burgs.groups as BurgGroup[])].sort((a, b) => a.order - b.order);
+  const sortedGroups = [...(_options.burgs.groups as BurgGroup[])].sort((a, b) => a.order - b.order);
   for (const { name } of sortedGroups) {
-    const burgGroup = burgIcons.append("g");
-    const iconStyles = style.burgIcons[name] || defaultIconStyle;
-    Object.entries(iconStyles).forEach(([key, value]) => {
-      burgGroup.attr(key, value);
-    });
-    burgGroup.attr("id", name);
+    if (!existingIconIds.has(name)) {
+      const burgGroup = _burgIcons.append("g");
+      const iconStyles = style.burgIcons[name] || defaultIconStyle;
+      Object.entries(iconStyles).forEach(([key, value]) => {
+        burgGroup.attr(key, value);
+      });
+      burgGroup.attr("id", name);
+      burgGroup.classed("hidden", true);
+    }
 
-    const anchorGroup = anchors.append("g");
-    const anchorStyles = style.anchors[name] || defaultAnchorStyle;
-    Object.entries(anchorStyles).forEach(([key, value]) => {
-      anchorGroup.attr(key, value);
-    });
-    anchorGroup.attr("id", name);
+    if (!existingAnchorIds.has(name)) {
+      const anchorGroup = _anchors.append("g");
+      const anchorStyles = style.anchors[name] || defaultAnchorStyle;
+      Object.entries(anchorStyles).forEach(([key, value]) => {
+        anchorGroup.attr(key, value);
+      });
+      anchorGroup.attr("id", name);
+      anchorGroup.classed("hidden", true);
+    }
   }
 }
-
-window.drawBurgIcons = burgIconsRenderer;
-window.drawBurgIcon = drawBurgIconRenderer;
-window.removeBurgIcon = removeBurgIconRenderer;

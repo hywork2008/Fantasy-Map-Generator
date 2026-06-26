@@ -6,7 +6,7 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["src/**/*.ts"]
+    "includes": ["src/**/*.ts", "src/**/*.tsx"]
   },
   "formatter": {
     "enabled": true,
@@ -18,7 +18,7 @@
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": true,
+      "preset": "recommended",
       "style": {
         "useTemplate": {
           "level": "warn",
@@ -26,8 +26,16 @@
         },
         "noNonNullAssertion": "off"
       },
+      "a11y": {
+        "noLabelWithoutControl": "warn",
+        "useKeyWithClickEvents": "off",
+        "useKeyWithMouseEvents": "off",
+        "noStaticElementInteractions": "off",
+        "useValidAnchor": "warn",
+        "useAnchorContent": "warn"
+      },
       "suspicious": {
-        "noExplicitAny": "off",
+        "noExplicitAny": "error",
         "noGlobalIsNan": {
           "level": "error",
           "fix": "safe"
@@ -61,5 +69,99 @@
         "organizeImports": "on"
       }
     }
-  }
+  },
+  "overrides": [
+    {
+      "includes": ["src/modules/**/*.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedGlobals": {
+              "level": "warn",
+              "options": {
+                "deniedGlobals": {
+                  "document": "Generator/module files must not access the DOM directly. Pass DOM dependencies via function arguments instead.",
+                  "window": "Generator/module files must not assign to window or use window globals. Use explicit imports or function arguments instead.",
+                  "navigator": "Generator/module files must not access browser APIs. Pass dependencies via function arguments instead.",
+                  "location": "Generator/module files must not access browser location. Pass via function arguments instead.",
+                  "history": "Generator/module files must not access browser history. Pass via function arguments instead."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/renderers/**/*.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedGlobals": {
+              "level": "error",
+              "options": {
+                "deniedGlobals": {
+                  "pack": "Use worldContext.pack from ../context/worldContext instead",
+                  "grid": "Use worldContext.grid from ../context/worldContext instead",
+                  "seed": "Use worldContext.seed from ../context/worldContext instead",
+                  "options": "Use worldContext.options from ../context/worldContext instead",
+                  "biomesData": "Use worldContext.biomesData from ../context/worldContext instead",
+                  "nameBases": "Use worldContext.nameBases from ../context/worldContext instead",
+                  "graphWidth": "Use worldContext.graphWidth from ../context/worldContext instead",
+                  "graphHeight": "Use worldContext.graphHeight from ../context/worldContext instead",
+                  "svgWidth": "Use worldContext.svgWidth from ../context/worldContext instead",
+                  "svgHeight": "Use worldContext.svgHeight from ../context/worldContext instead",
+                  "distanceScale": "Use worldContext.distanceScale from ../context/worldContext instead",
+                  "urbanization": "Use worldContext.urbanization from ../context/worldContext instead",
+                  "populationRate": "Use worldContext.populationRate from ../context/worldContext instead",
+                  "customization": "Use worldContext.customization from ../context/worldContext instead",
+                  "svg": "Use viewState.svg from ../context/viewState instead",
+                  "defs": "Use viewState.defs from ../context/viewState instead",
+                  "viewbox": "Use viewState.viewbox from ../context/viewState instead",
+                  "ocean": "Use viewState.ocean from ../context/viewState instead",
+                  "oceanLayers": "Use viewState.oceanLayers from ../context/viewState instead",
+                  "landmass": "Use viewState.landmass from ../context/viewState instead",
+                  "terrs": "Use viewState.terrs from ../context/viewState instead",
+                  "biomes": "Use viewState.biomes from ../context/viewState instead",
+                  "rivers": "Use viewState.rivers from ../context/viewState instead",
+                  "terrain": "Use viewState.terrain from ../context/viewState instead",
+                  "labels": "Use viewState.labels from ../context/viewState instead",
+                  "burgLabels": "Use viewState.burgLabels from ../context/viewState instead",
+                  "burgIcons": "Use viewState.burgIcons from ../context/viewState instead",
+                  "anchors": "Use viewState.anchors from ../context/viewState instead",
+                  "markers": "Use viewState.markers from ../context/viewState instead",
+                  "emblems": "Use viewState.emblems from ../context/viewState instead",
+                  "armies": "Use viewState.armies from ../context/viewState instead",
+                  "temperature": "Use viewState.temperature from ../context/viewState instead",
+                  "coastline": "Use viewState.coastline from ../context/viewState instead",
+                  "ice": "Use viewState.ice from ../context/viewState instead",
+                  "prec": "Use viewState.prec from ../context/viewState instead",
+                  "population": "Use viewState.population from ../context/viewState instead",
+                  "zones": "Use viewState.zones from ../context/viewState instead",
+                  "routes": "Use viewState.routes from ../context/viewState instead",
+                  "roads": "Use viewState.roads from ../context/viewState instead",
+                  "trails": "Use viewState.trails from ../context/viewState instead",
+                  "TIME": "Import TIME from ../utils/debug instead",
+                  "INFO": "Import INFO from ../utils/debug instead",
+                  "WARN": "Import WARN from ../utils/debug instead",
+                  "ERROR": "Import ERROR from ../utils/debug instead",
+                  "DEBUG": "Import DEBUG from ../utils/debug instead"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["**/*.test.ts", "src/test-setup.ts"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noExplicitAny": "off"
+          }
+        }
+      }
+    }
+  ]
 }

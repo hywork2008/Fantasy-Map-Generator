@@ -1,16 +1,22 @@
+import { useLayerState } from "../store/layerState";
+
 /**
  * @param id - The ID of the element to retrieve
  * @typeParam T - The type of the element to retrieve, extending HTMLElement
  * @returns The element with the specified ID, cast to the specified type
  */
-export const ensureEl = <T extends HTMLElement>(id: string): T => {
+export const ensureEl = <T extends Element = HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
   if (!el) {
     // TODO: throw an error instead of logging it, and handle it properly in the caller
-    ERROR && console.error(`Element with id "${id}" not found.`);
+    console.error(`Element with id "${id}" not found.`);
     // TOBE: throw new Error(`Element with id "${id}" not found.`);
   }
-  return el as T;
+  return el as Element as T;
+};
+
+export const layerIsOn = (layer: string): boolean => {
+  return useLayerState.getState().activeLayers[layer] === true;
 };
 
 /**
@@ -18,11 +24,13 @@ export const ensureEl = <T extends HTMLElement>(id: string): T => {
  * @param {Node | Window} node - The starting node or window
  * @returns {Array<Node>} - The composed path as an array
  */
-export const getComposedPath = (node: any): Array<Node | Window> => {
+type NodeLike = { parentNode?: Node | null; host?: Element; defaultView?: Window | null };
+export const getComposedPath = (node: Node | Window): Array<Node | Window> => {
+  const n = node as NodeLike;
   let parent: Node | Window | undefined;
-  if (node.parentNode) parent = node.parentNode;
-  else if (node.host) parent = node.host;
-  else if (node.defaultView) parent = node.defaultView;
+  if (n.parentNode) parent = n.parentNode;
+  else if (n.host) parent = n.host;
+  else if (n.defaultView) parent = n.defaultView;
   if (parent !== undefined) return [node].concat(getComposedPath(parent));
   return [node];
 };

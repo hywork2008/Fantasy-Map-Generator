@@ -1,7 +1,17 @@
 import { mean, median, sum } from "d3";
+import FlatQueue from "flatqueue";
+import { HeightThreshold } from "../config/constants";
+import type { AppServices } from "../context/appServices";
+import { appServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import { viewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
+import { worldContext } from "../context/worldContext";
+import { useOptionsState } from "../store/optionsState";
+import type { State } from "../types/models";
+import type { WorldState } from "../types/WorldState";
 import {
   each,
-  ensureEl,
   gauss,
   getAdjective,
   getMixedColor,
@@ -15,58 +25,30 @@ import {
   rw,
   trimVowels
 } from "../utils";
-
-declare global {
-  var States: StatesModule;
-}
-
-interface Campaign {
-  name: string;
-  start: number;
-  end?: number;
-}
-
-export interface State {
-  i: number;
-  name: string;
-  expansionism: number;
-  capital: number;
-  type: string;
-  center: number;
-  culture: number;
-  coa: any;
-  lock?: boolean;
-  removed?: boolean;
-  pole?: [number, number];
-  neighbors?: number[];
-  color?: string;
-  cells?: number;
-  area?: number;
-  burgs?: number;
-  rural?: number;
-  urban?: number;
-  campaigns?: Campaign[];
-  diplomacy?: string[];
-  formName?: string;
-  fullName?: string;
-  form?: string;
-  military?: any[];
-  provinces?: number[];
-  temp?: any;
-  alert?: number;
-}
+import { TIME } from "../utils/debug";
+import { COA } from "./emblem/generator";
+import { Names } from "./names-generator";
 
 class StatesModule {
+  worldContext: WorldContext = worldContext;
+  viewContext: Readonly<ViewContext> = viewContext;
+  appServices: AppServices = appServices;
+
   private createStates() {
+    const { pack } = this.worldContext;
     const states: State[] = [{ i: 0, name: "Neutrals" } as State];
+    if (!pack.burgs?.length) return states;
     const each5th = each(5);
-    const sizeVariety = (ensureEl("sizeVariety") as HTMLInputElement).valueAsNumber;
+    const sizeVariety = useOptionsState.getState().sizeVariety;
 
     pack.burgs.forEach(burg => {
       if (!burg.i || !burg.capital) return;
 
       const expansionism = rn(Math.random() * sizeVariety + 1, 1);
-      const basename = burg.name!.length < 9 && each5th(burg.cell) ? burg.name! : Names.getCultureShort(burg.culture!);
+      const basename =
+        burg.name!.length < 9 && each5th(burg.cell)
+          ? burg.name!
+          : Names.getCultureShort(this.worldContext, this.viewContext, this.appServices, burg.culture!);
       const name = Names.getState(basename, burg.culture!);
       const type = pack.cultures[burg.culture!].type;
       const coa = COA.generate(null, null, null, type);
@@ -87,25 +69,27 @@ class StatesModule {
   }
 
   private getBiomeCost(b: number, biome: number, type: string) {
+    const { biomesData } = this.worldContext;
     if (b === biome) return 10; // tiny penalty for native biome
     if (type === "Hunting") return biomesData.cost[biome] * 2; // non-native biome penalty for hunters
     if (type === "Nomadic" && biome > 4 && biome < 10) return biomesData.cost[biome] * 3; // forest biome penalty for nomads
     return biomesData.cost[biome]; // general non-native biome penalty
   }
 
-  private getHeightCost(f: any, h: number, type: string) {
+  private getHeightCost(f: { type: string }, h: number, type: string) {
     if (type === "Lake" && f.type === "lake") return 10; // low lake crossing penalty for Lake cultures
-    if (type === "Naval" && h < 20) return 300; // low sea crossing penalty for Navals
-    if (type === "Nomadic" && h < 20) return 10000; // giant sea crossing penalty for Nomads
-    if (h < 20) return 1000; // general sea crossing penalty
-    if (type === "Highland" && h < 62) return 1100; // penalty for highlanders on lowlands
+    if (type === "Naval" && h < HeightThreshold.WATER_MAX_HEIGHT) return 300; // low sea crossing penalty for Navals
+    if (type === "Nomadic" && h < HeightThreshold.WATER_MAX_HEIGHT) return 10000; // giant sea crossing penalty for Nomads
+    if (h < HeightThreshold.WATER_MAX_HEIGHT) return 1000; // general sea crossing penalty
+    if (type === "Highland" && h < HeightThreshold.HIGHLAND_MIN) return 1100; // penalty for highlanders on lowlands
     if (type === "Highland") return 0; // no penalty for highlanders on highlands
-    if (h >= 67) return 2200; // general mountains crossing penalty
-    if (h >= 44) return 300; // general hills crossing penalty
+    if (h >= HeightThreshold.MOUNTAIN_MIN) return 2200; // general mountains crossing penalty
+    if (h >= HeightThreshold.HILL_MIN) return 300; // general hills crossing penalty
     return 0;
   }
 
-  private getRiverCost(r: any, i: number, type: string) {
+  private getRiverCost(r: number, i: number, type: string) {
+    const { pack } = this.worldContext;
     if (type === "River") return r ? 0 : 100; // penalty for river cultures
     if (!r) return 0; // no penalty for others if there is no river
     return minmax(pack.cells.fl[i] / 10, 20, 100); // river penalty from 20 to 100 based on flux
@@ -118,32 +102,48 @@ class StatesModule {
     return 0;
   }
 
-  generate() {
+  generate(
+    worldContext: WorldContext,
+    viewContext: Readonly<ViewContext>,
+    appServices: AppServices,
+    state: WorldState
+  ) {
+    this.worldContext = worldContext;
+    this.viewContext = viewContext;
+    this.appServices = appServices;
+    const { pack } = state;
     TIME && console.time("generateStates");
+    if (!pack.burgs?.length) {
+      pack.states = [{ i: 0, name: "Neutrals" } as State];
+      pack.cells.state = pack.cells.state || new Uint16Array(pack.cells.i.length);
+      return;
+    }
     pack.states = this.createStates();
-    this.expandStates();
+    this.expandStates(this.worldContext, this.viewContext, this.appServices);
     this.normalize();
-    this.getPoles();
+    this.getPoles(state);
     this.findNeighbors();
-    this.assignColors();
+    this.assignColors(this.worldContext, this.viewContext, this.appServices);
     this.generateCampaigns();
     this.generateDiplomacy();
 
     TIME && console.timeEnd("generateStates");
   }
 
-  expandStates() {
+  expandStates(worldContext: WorldContext, viewContext: Readonly<ViewContext>, appServices: AppServices) {
+    this.worldContext = worldContext;
+    this.viewContext = viewContext;
+    this.appServices = appServices;
+    const { pack } = this.worldContext;
     TIME && console.time("expandStates");
     const { cells, states, cultures, burgs } = pack;
 
     cells.state = cells.state || new Uint16Array(cells.i.length);
 
-    const queue = new FlatQueue();
+    const queue = new FlatQueue<{ e: number; p: number; s: number; b: number }>();
     const cost: number[] = [];
 
-    const globalGrowthRate = (document.getElementById("growthRate") as HTMLInputElement | null)?.valueAsNumber || 1;
-    const statesGrowthRate =
-      (document.getElementById("statesGrowthRate") as HTMLInputElement | null)?.valueAsNumber || 1;
+    const { growthRate: globalGrowthRate, statesGrowthRate } = useOptionsState.getState();
     const growthRate = (cells.i.length / 2) * globalGrowthRate * statesGrowthRate; // limit cost for state growth
 
     // remove state from all cells except of locked
@@ -165,7 +165,7 @@ class StatesModule {
     }
 
     while (queue.length) {
-      const next = queue.pop();
+      const next = queue.pop()!;
 
       const { e, p, s, b } = next;
       const { type, culture } = states[s];
@@ -203,6 +203,7 @@ class StatesModule {
   }
 
   normalize() {
+    const { pack } = this.worldContext;
     TIME && console.time("normalizeStates");
     const { cells, burgs } = pack;
 
@@ -222,7 +223,8 @@ class StatesModule {
   }
 
   // calculate pole of inaccessibility for each state
-  getPoles() {
+  getPoles(state: WorldState) {
+    const { pack } = state;
     const getType = (cellId: number) => pack.cells.state[cellId];
     const poles = getPolesOfInaccessibility(pack, getType);
 
@@ -233,6 +235,7 @@ class StatesModule {
   }
 
   findNeighbors() {
+    const { pack } = this.worldContext;
     const { cells, states } = pack;
 
     const stateNeighbors: Set<number>[] = [];
@@ -261,7 +264,11 @@ class StatesModule {
     });
   }
 
-  assignColors() {
+  assignColors(worldContext: WorldContext, viewContext: Readonly<ViewContext>, appServices: AppServices) {
+    this.worldContext = worldContext;
+    this.viewContext = viewContext;
+    this.appServices = appServices;
+    const { pack } = this.worldContext;
     TIME && console.time("assignColors");
     const colors = ["#66c2a5", "#fc8d62", "#8da0cb", "#e78ac3", "#a6d854", "#ffd92f"]; // d3.schemeSet2;
     const states = pack.states;
@@ -287,7 +294,8 @@ class StatesModule {
   }
 
   // calculate states data like area, population etc.
-  collectStatistics() {
+  collectStatistics(state: WorldState) {
+    const { pack } = state;
     TIME && console.time("collectStatistics");
     const { cells, states } = pack;
 
@@ -314,6 +322,7 @@ class StatesModule {
   }
 
   generateCampaign(state: State) {
+    const { pack, options } = this.worldContext;
     const wars = {
       War: 6,
       Conflict: 2,
@@ -328,15 +337,20 @@ class StatesModule {
     const neighbors = state.neighbors?.length ? state.neighbors : [0];
     return neighbors
       .map((i: number) => {
-        const name = i && P(0.8) ? pack.states[i].name : Names.getCultureShort(state.culture);
-        const start = gauss(options.year - 100, 150, 1, options.year - 6);
-        const end = start + gauss(4, 5, 1, options.year - start - 1);
-        return { name: `${getAdjective(name)} ${rw(wars)}`, start, end };
+        const name =
+          i && P(0.8)
+            ? pack.states[i].name
+            : Names.getCultureShort(this.worldContext, this.viewContext, this.appServices, state.culture);
+        const currentYear = options.year!;
+        const start = gauss(currentYear - 100, 150, 1, currentYear - 6);
+        const end = start + gauss(4, 5, 1, currentYear - start - 1);
+        return { name: `${getAdjective(name)} ${rw(wars)}`, start, end, attacker: state.i!, defender: i };
       })
       .sort((a, b) => a.start - b.start);
   }
 
   generateCampaigns() {
+    const { pack } = this.worldContext;
     pack.states.forEach(s => {
       if (!s.i || s.removed) return;
       s.campaigns = this.generateCampaign(s);
@@ -345,6 +359,7 @@ class StatesModule {
 
   // generate Diplomatic Relationships
   generateDiplomacy() {
+    const { pack, options } = this.worldContext;
     TIME && console.time("generateDiplomacy");
     const { cells, states } = pack;
     states[0].diplomacy = [];
@@ -441,7 +456,7 @@ class StatesModule {
 
       // start an ongoing war
       const name = `${an}-${trimVowels(dn)}ian War`;
-      const start = options.year - gauss(2, 3, 0, 10);
+      const start = options.year! - gauss(2, 3, 0, 10);
       const war = [name, `${an} declared a war on its rival ${dn}`];
       const campaign = { name, start, attacker, defender };
       states[attacker].campaigns!.push(campaign);
@@ -526,13 +541,14 @@ class StatesModule {
         });
       });
       // TODO: record war in chronicle to keep state interface clean
-      chronicle.push(war as any); // add a record to diplomatical history
+      (chronicle as (string | string[])[]).push(war); // mixed chronicle entry: see TODO above
     }
     TIME && console.timeEnd("generateDiplomacy");
   }
 
   // select a forms for listed or all valid states
-  defineStateForms(list: number[] | null = null) {
+  defineStateForms(state: WorldState, list: number[] | null = null) {
+    const { pack } = state;
     TIME && console.time("defineStateForms");
     const states = pack.states.filter(s => s.i && !s.removed && !s.lock);
     if (states.length < 1) return;
@@ -600,7 +616,7 @@ class StatesModule {
       else if (isAnarchy) s.form = "Anarchy";
       else s.form = s.type === "Naval" ? rw(naval) : rw(generic);
 
-      const selectForm = (s: any, tier: number) => {
+      const selectForm = (s: State, tier: number) => {
         const base = pack.cultures[s.culture].base;
 
         if (s.form === "Monarchy") {
@@ -609,6 +625,7 @@ class StatesModule {
           if (s.diplomacy) {
             if (
               form === "Duchy" &&
+              s.neighbors &&
               s.neighbors.length > 1 &&
               rand(6) < s.neighbors.length &&
               s.diplomacy.includes("Vassal")
@@ -636,7 +653,7 @@ class StatesModule {
           // Default name is from weighted array, special case for small states with only 1 burg
           if (tier < 2 && s.burgs === 1) {
             if (trimVowels(s.name) === trimVowels(pack.burgs[s.capital].name!)) {
-              s.name = pack.burgs[s.capital].name;
+              s.name = pack.burgs[s.capital].name!;
               return "Free City";
             }
             if (P(0.3)) return "City-state";
@@ -699,6 +716,39 @@ class StatesModule {
     const adjName = adjForms.includes(state.formName) && !/-| /.test(state.name);
     return adjName ? `${getAdjective(state.name)} ${state.formName}` : `${state.formName} of ${state.name}`;
   }
+
+  collectTaxes(): void {
+    const { pack } = this.worldContext;
+    const { states, burgs, markets = [], deals = [] } = pack;
+
+    for (const deal of deals) {
+      if (!deal.tax) continue;
+
+      let sellerStateId: number | undefined;
+      if (deal.sellerType === "burg") {
+        sellerStateId = (burgs[deal.seller] as { state?: number } | undefined)?.state;
+      } else if (deal.sellerType === "market") {
+        const market = markets.find(m => m?.i === deal.seller);
+        if (market) sellerStateId = (burgs[market.centerBurgId] as { state?: number } | undefined)?.state;
+      }
+
+      if (!sellerStateId) continue;
+      const state = states[sellerStateId];
+      if (!state?.i) continue;
+      state.treasury = rn((state.treasury ?? 0) + deal.tax, 2);
+    }
+
+    for (const state of states) {
+      if (!state?.i || !state.pollTax) continue;
+      state.treasury = rn((state.treasury ?? 0) + state.pollTax * ((state.rural ?? 0) + (state.urban ?? 0)), 2);
+    }
+  }
+
+  getSalesTax(burg: { state?: number }): number {
+    const stateId = burg.state || 0;
+    if (!stateId) return 0;
+    return this.worldContext.pack.states?.[stateId]?.salesTax ?? 0;
+  }
 }
 
-window.States = new StatesModule();
+export const States = new StatesModule();

@@ -7,7 +7,7 @@ export function resolveVersionConflicts(mapVersion) {
   if (isOlderThan("1.0.0")) {
     // v1.0 added a new religions layer
     relig = viewbox.insert("g", "#terrain").attr("id", "relig");
-    Religions.generate();
+    Religions.generate(getWorldState());
 
     // v1.0 added a legend box
     legend = svg.append("g").attr("id", "legend");
@@ -47,12 +47,13 @@ export function resolveVersionConflicts(mapVersion) {
 
     // v1.0 added state relations, provinces, forms and full names
     provs = viewbox.insert("g", "#borders").attr("id", "provs").attr("opacity", 0.6);
-    States.collectStatistics();
+    const state = getWorldState();
+    States.collectStatistics(state);
     States.generateCampaigns();
     States.generateDiplomacy();
-    States.defineStateForms();
-    Provinces.generate();
-    Provinces.getPoles();
+    States.defineStateForms(state);
+    Provinces.generate(state);
+    Provinces.getPoles(state);
     if (!layerIsOn("toggleBorders")) $("#borders").fadeOut();
     if (!layerIsOn("toggleStates")) regions.attr("display", "none").selectAll("path").remove();
 
@@ -64,9 +65,9 @@ export function resolveVersionConflicts(mapVersion) {
       .attr("stroke-width", 0)
       .attr("stroke-dasharray", null)
       .attr("stroke-linecap", "butt");
-    Zones.generate();
+    Zones.generate(state);
     if (!markers.selectAll("*").size()) {
-      Markers.generate();
+      Markers.generate(state);
       turnButtonOn("toggleMarkers");
     }
 
@@ -260,7 +261,7 @@ export function resolveVersionConflicts(mapVersion) {
 
   if (isOlderThan("1.22.0")) {
     // v1.22 changed state neighbors from Set object to array
-    States.collectStatistics();
+    States.collectStatistics(getWorldState());
   }
 
   if (isOlderThan("1.3.0")) {
@@ -285,7 +286,7 @@ export function resolveVersionConflicts(mapVersion) {
       .attr("stroke", "#000")
       .attr("stroke-width", 0.3);
     turnButtonOn("toggleMilitary");
-    Military.generate();
+    Military.generate(getWorldState());
   }
 
   if (isOlderThan("1.4.0")) {
@@ -925,8 +926,9 @@ export function resolveVersionConflicts(mapVersion) {
 
   if (isOlderThan("1.104.0")) {
     // v1.104.00 separated pole of inaccessibility detection from layer rendering
-    States.getPoles();
-    Provinces.getPoles();
+    const state = getWorldState();
+    States.getPoles(state);
+    Provinces.getPoles(state);
   }
 
   if (isOlderThan("1.105.0")) {
@@ -954,8 +956,9 @@ export function resolveVersionConflicts(mapVersion) {
       .attr("stroke", null);
 
     // pole can be missing for some states/provinces
-    States.getPoles();
-    Provinces.getPoles();
+    const state = getWorldState();
+    States.getPoles(state);
+    Provinces.getPoles(state);
   }
 
   if (isOlderThan("1.107.0")) {

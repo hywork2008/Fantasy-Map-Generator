@@ -1,10 +1,11 @@
 import { curveNatural, line, max, select } from "d3";
+import type { AppServices } from "../context/appServices";
+import type { SettlementLayers } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
 import type { TypedArray } from "../types/PackedGraph";
 import { drawPath, drawPoint, findClosestCell, minmax, rn, round, splitInTwo } from "../utils";
-
-declare global {
-  var drawStateLabels: (list?: number[]) => void;
-}
+import { DEBUG, TIME } from "../utils/debug";
+import type { IRenderer } from "./core/IRenderer";
 
 interface Ray {
   angle: number;
@@ -21,9 +22,30 @@ interface AngleData {
 
 type PathPoints = [number, number][];
 
+export const StateLabelsRenderer: IRenderer = {
+  id: "state-labels",
+  render(
+    worldContext: Readonly<WorldContext>,
+    viewContext: Readonly<SettlementLayers>,
+    appServices: AppServices
+  ): void {
+    drawStateLabels(worldContext, viewContext, appServices);
+  },
+  clear(viewContext: Readonly<SettlementLayers>): void {
+    viewContext.labels.select<SVGGElement>("g#states").html("");
+  }
+};
+
 // list - an optional array of stateIds to regenerate
-const stateLabelsRenderer = (list?: number[]): void => {
+export const drawStateLabels = (
+  worldContext: Readonly<WorldContext>,
+  viewContext: Readonly<SettlementLayers>,
+  _appServices: AppServices,
+  list?: number[]
+): void => {
   TIME && console.time("drawStateLabels");
+  const { pack, options, graphWidth, graphHeight } = worldContext;
+  const { labels } = viewContext;
 
   // temporary make the labels visible
   const layerDisplay = labels.style("display");
@@ -371,5 +393,3 @@ const stateLabelsRenderer = (list?: number[]): void => {
 
   TIME && console.timeEnd("drawStateLabels");
 };
-
-window.drawStateLabels = stateLabelsRenderer;

@@ -1,17 +1,16 @@
 import { max, mean } from "d3";
+import FlatQueue from "flatqueue";
+import type { AppServices } from "../context/appServices";
+import { appServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import { viewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
+import { worldContext } from "../context/worldContext";
+import type { WorldState } from "../types/WorldState";
 import { gauss, getAdjective, P, ra, rand, rw } from "../utils";
-
-declare global {
-  var Zones: ZonesModule;
-}
-
-export interface Zone {
-  i: number;
-  name: string;
-  type: string;
-  cells: number[];
-  color: string;
-}
+import { TIME } from "../utils/debug";
+import { Names } from "./names-generator";
+import { Routes } from "./routes-generator";
 
 type ZoneGenerator = (usedCells: Uint8Array) => void;
 
@@ -21,6 +20,9 @@ interface ZoneConfig {
 }
 
 class ZonesModule {
+  worldContext: WorldContext = worldContext;
+  viewContext: Readonly<ViewContext> = viewContext;
+  appServices: AppServices = appServices;
   private config: Record<string, ZoneConfig>;
 
   constructor() {
@@ -39,7 +41,17 @@ class ZonesModule {
     };
   }
 
-  generate(globalModifier = 1) {
+  generate(
+    worldContext: WorldContext,
+    viewContext: Readonly<ViewContext>,
+    appServices: AppServices,
+    state: WorldState,
+    globalModifier = 1
+  ) {
+    this.worldContext = worldContext;
+    this.viewContext = viewContext;
+    this.appServices = appServices;
+    const { pack } = state;
     TIME && console.time("generateZones");
 
     const usedCells = new Uint8Array(pack.cells.i.length);
@@ -55,6 +67,7 @@ class ZonesModule {
   }
 
   private addInvasion(usedCells: Uint8Array) {
+    const { pack } = this.worldContext;
     const { cells, states } = pack;
 
     const ongoingConflicts = states
@@ -63,6 +76,7 @@ class ZonesModule {
       .filter(c => !c.end);
     if (!ongoingConflicts.length) return;
     const { defender, attacker } = ra(ongoingConflicts);
+    if (defender === undefined || attacker === undefined) return;
 
     const borderCells = cells.i.filter(cellId => {
       if (usedCells[cellId]) return false;
@@ -118,6 +132,7 @@ class ZonesModule {
   }
 
   private addRebels(usedCells: Uint8Array) {
+    const { pack } = this.worldContext;
     const { cells, states } = pack;
 
     const state = ra(states.filter(s => s.i && !s.removed && s.neighbors?.some(Boolean)));
@@ -174,6 +189,7 @@ class ZonesModule {
   }
 
   private addProselytism(usedCells: Uint8Array) {
+    const { pack } = this.worldContext;
     const { cells, religions } = pack;
 
     const organizedReligions = religions.filter(r => r.i && !r.removed && r.type === "Organized");
@@ -220,6 +236,7 @@ class ZonesModule {
   }
 
   private addCrusade(usedCells: Uint8Array) {
+    const { pack } = this.worldContext;
     const { cells, religions } = pack;
 
     const heresies = religions.filter(r => !r.removed && r.type === "Heresy");
@@ -243,6 +260,7 @@ class ZonesModule {
   }
 
   private addDisease(usedCells: Uint8Array) {
+    const { pack } = this.worldContext;
     const { cells, burgs } = pack;
 
     const burg = ra(burgs.filter(b => !usedCells[b.cell] && b.i && !b.removed));
@@ -252,11 +270,11 @@ class ZonesModule {
     const cost: number[] = [];
     const maxCells = rand(20, 40);
 
-    const queue = new FlatQueue();
+    const queue = new FlatQueue<{ e: number; p: number }>();
     queue.push({ e: burg.cell, p: 0 }, 0);
 
     while (queue.length) {
-      const next = queue.pop();
+      const next = queue.pop()!;
       if (cells.burg[next.e] || cells.pop[next.e]) cellsArray.push(next.e);
       usedCells[next.e] = 1;
 
@@ -379,6 +397,7 @@ class ZonesModule {
   }
 
   private addDisaster(usedCells: Uint8Array) {
+    const { pack } = this.worldContext;
     const { cells, burgs } = pack;
 
     const burg = ra(burgs.filter(b => !usedCells[b.cell] && b.i && !b.removed));
@@ -389,11 +408,11 @@ class ZonesModule {
     const cost: number[] = [];
     const maxCells = rand(5, 25);
 
-    const queue = new FlatQueue();
+    const queue = new FlatQueue<{ e: number; p: number }>();
     queue.push({ e: burg.cell, p: 0 }, 0);
 
     while (queue.length) {
-      const next = queue.pop();
+      const next = queue.pop()!;
       if (cells.burg[next.e] || cells.pop[next.e]) cellsArray.push(next.e);
       usedCells[next.e] = 1;
 
@@ -430,6 +449,7 @@ class ZonesModule {
   }
 
   private addEruption(usedCells: Uint8Array) {
+    const { pack, notes } = this.worldContext;
     const { cells, markers } = pack;
 
     const volcanoe = markers.find(m => m.type === "volcanoes" && !usedCells[m.cell]);
@@ -466,6 +486,7 @@ class ZonesModule {
   }
 
   private addAvalanche(usedCells: Uint8Array) {
+    const { pack } = this.worldContext;
     const { cells } = pack;
 
     const routeCells = cells.i.filter(i => !usedCells[i] && Routes.isConnected(i) && cells.h[i] >= 70);
@@ -490,7 +511,7 @@ class ZonesModule {
       });
     }
 
-    const name = `${getAdjective(Names.getCultureShort(cells.culture[startCell]))} Avalanche`;
+    const name = `${getAdjective(Names.getCultureShort(this.worldContext, this.viewContext, this.appServices, cells.culture[startCell]))} Avalanche`;
     pack.zones.push({
       i: pack.zones.length,
       name,
@@ -501,6 +522,7 @@ class ZonesModule {
   }
 
   private addFault(usedCells: Uint8Array) {
+    const { pack } = this.worldContext;
     const cells = pack.cells;
 
     const elevatedCells = cells.i.filter(i => !usedCells[i] && cells.h[i] > 50 && cells.h[i] < 70);
@@ -525,7 +547,7 @@ class ZonesModule {
       });
     }
 
-    const name = `${getAdjective(Names.getCultureShort(cells.culture[startCell]))} Fault`;
+    const name = `${getAdjective(Names.getCultureShort(this.worldContext, this.viewContext, this.appServices, cells.culture[startCell]))} Fault`;
     pack.zones.push({
       i: pack.zones.length,
       name,
@@ -536,6 +558,7 @@ class ZonesModule {
   }
 
   private addFlood(usedCells: Uint8Array) {
+    const { pack } = this.worldContext;
     const cells = pack.cells;
 
     const fl = cells.fl.filter(Boolean);
@@ -586,6 +609,7 @@ class ZonesModule {
   }
 
   private addTsunami(usedCells: Uint8Array) {
+    const { pack } = this.worldContext;
     const { cells, features } = pack;
 
     const coastalCells = cells.i.filter(
@@ -614,7 +638,7 @@ class ZonesModule {
       });
     }
 
-    const name = `${getAdjective(Names.getCultureShort(cells.culture[startCell]))} Tsunami`;
+    const name = `${getAdjective(Names.getCultureShort(this.worldContext, this.viewContext, this.appServices, cells.culture[startCell]))} Tsunami`;
     pack.zones.push({
       i: pack.zones.length,
       name,
@@ -625,4 +649,4 @@ class ZonesModule {
   }
 }
 
-window.Zones = new ZonesModule();
+export const Zones = new ZonesModule();

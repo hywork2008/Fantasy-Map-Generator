@@ -1,15 +1,24 @@
 import Alea from "alea";
 import { min } from "d3";
-import { clipPoly, getGridPolygon, getIsolines, lerp, minmax, normalize, P, ra, rand, rn } from "../utils";
+import { TemperatureThreshold } from "../config/constants";
+import type { AppServices } from "../context/appServices";
+import { appServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import { viewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
+import { worldContext } from "../context/worldContext";
+import type { WorldState } from "../types/WorldState";
+import { clipPoly, getIsolines, lerp, minmax, normalize, P, ra, rand, rn } from "../utils";
+import { getGridPolygon } from "../utils/graphUtils";
 import type { Point } from "./voronoi";
 
-declare global {
-  var Ice: IceModule;
-}
-
 class IceModule {
+  worldContext: WorldContext = worldContext;
+  viewContext: Readonly<ViewContext> = viewContext;
+  appServices: AppServices = appServices;
   // Find next available id for new ice element idealy filling gaps
   private getNextId() {
+    const { pack } = this.worldContext;
     if (pack.ice.length === 0) return 0;
     // find gaps in existing ids
     const existingIds = pack.ice.map(e => e.i).sort((a, b) => a - b);
@@ -21,22 +30,33 @@ class IceModule {
 
   // Clear all ice
   private clear() {
+    const { pack } = this.worldContext;
     pack.ice = [];
   }
 
   // Generate glaciers and icebergs based on temperature and height
-  public generate() {
+  public generate(
+    worldContext: WorldContext,
+    viewContext: Readonly<ViewContext>,
+    appServices: AppServices,
+    state: WorldState
+  ) {
+    this.worldContext = worldContext;
+    this.viewContext = viewContext;
+    this.appServices = appServices;
+    const { pack, grid, seed } = state;
     this.clear();
     const { cells, features } = grid;
     const { temp, h } = cells;
     Math.random = Alea(seed);
 
-    const ICEBERG_MAX_TEMP = 0;
-    const GLACIER_MAX_TEMP = -8;
+    const ICEBERG_MAX_TEMP = TemperatureThreshold.ICEBERG_MAX_TEMP;
+    const GLACIER_MAX_TEMP = TemperatureThreshold.GLACIER_MAX_TEMP;
     const minMaxTemp = min<number>(temp)!;
 
     // Generate glaciers on cold land
     {
+      const { graphWidth, graphHeight } = worldContext;
       const type = "iceShield";
       const getType = (cellId: number) => (h[cellId] >= 20 && temp[cellId] <= GLACIER_MAX_TEMP ? type : null);
       const isolines = getIsolines(grid, getType, { polygons: true });
@@ -67,7 +87,7 @@ class IceModule {
       const size = minmax(rn(baseSize * randomFactor, 2), 0.1, 1);
 
       const [cx, cy] = grid.points[cellId];
-      const points = getGridPolygon(cellId, grid).map(([x, y]: Point) => [
+      const points = getGridPolygon(cellId, grid).map(([x, y]: Point): [number, number] => [
         rn(lerp(cx, x, size), 2),
         rn(lerp(cy, y, size), 2)
       ]);
@@ -82,9 +102,10 @@ class IceModule {
     }
   }
 
-  addIceberg(cellId: number, size: number) {
+  addIceberg(cellId: number, size: number): number {
+    const { grid, pack } = this.worldContext;
     const [cx, cy] = grid.points[cellId];
-    const points = getGridPolygon(cellId, grid).map(([x, y]: Point) => [
+    const points = getGridPolygon(cellId, grid).map(([x, y]: Point): [number, number] => [
       rn(lerp(cx, x, size), 2),
       rn(lerp(cy, y, size), 2)
     ]);
@@ -96,56 +117,63 @@ class IceModule {
       cellId,
       size
     });
-    redrawIceberg(id);
+    return id;
   }
 
-  removeIce(id: number) {
+  removeIce(id: number): "glacier" | "iceberg" | undefined {
+    const { pack } = this.worldContext;
     const index = pack.ice.findIndex(element => element.i === id);
-    if (index !== -1) {
-      const type = pack.ice.find(element => element.i === id).type;
-      pack.ice.splice(index, 1);
-      if (type === "glacier") {
-        redrawGlacier(id);
-      } else {
-        redrawIceberg(id);
-      }
-    }
+    if (index === -1) return undefined;
+    const type = pack.ice[index].type;
+    pack.ice.splice(index, 1);
+    return type;
   }
 
   randomizeIcebergShape(id: number) {
+    const { pack, grid } = this.worldContext;
     const iceberg = pack.ice.find(element => element.i === id);
-    if (!iceberg) return;
+    if (iceberg?.type !== "iceberg") return;
 
     const cellId = iceberg.cellId;
     const size = iceberg.size;
     const [cx, cy] = grid.points[cellId];
 
     // Get a different random cell for the polygon template
-    const i = ra(grid.cells.i);
+    const i = ra(Array.from(grid.cells.i));
     const cn = grid.points[i];
-    const poly = getGridPolygon(i, grid).map((p: Point) => [p[0] - cn[0], p[1] - cn[1]]);
-    const points = poly.map((p: Point) => [rn(cx + p[0] * size, 2), rn(cy + p[1] * size, 2)]);
+    const poly = getGridPolygon(i, grid).map((p: Point): [number, number] => [p[0] - cn[0], p[1] - cn[1]]);
+    const points: [number, number][] = poly.map((p: [number, number]): [number, number] => [
+      rn(cx + p[0] * size, 2),
+      rn(cy + p[1] * size, 2)
+    ]);
 
     iceberg.points = points;
   }
 
   changeIcebergSize(id: number, newSize: number) {
+    const { pack, grid } = this.worldContext;
     const iceberg = pack.ice.find(element => element.i === id);
-    if (!iceberg) return;
+    if (iceberg?.type !== "iceberg") return;
 
     const cellId = iceberg.cellId;
     const [cx, cy] = grid.points[cellId];
     const oldSize = iceberg.size;
 
-    const flat = iceberg.points.flat();
-    const pairs = [];
+    const flat = iceberg.points.reduce<number[]>((acc, [x, y]) => {
+      acc.push(x, y);
+      return acc;
+    }, []);
+    const pairs: number[][] = [];
     while (flat.length) pairs.push(flat.splice(0, 2));
-    const poly = pairs.map(p => [(p[0] - cx) / oldSize, (p[1] - cy) / oldSize]);
-    const points = poly.map(p => [rn(cx + p[0] * newSize, 2), rn(cy + p[1] * newSize, 2)]);
+    const poly = pairs.map((p): [number, number] => [(p[0] - cx) / oldSize, (p[1] - cy) / oldSize]);
+    const points: [number, number][] = poly.map((p): [number, number] => [
+      rn(cx + p[0] * newSize, 2),
+      rn(cy + p[1] * newSize, 2)
+    ]);
 
     iceberg.points = points;
     iceberg.size = newSize;
   }
 }
 
-window.Ice = new IceModule();
+export const Ice = new IceModule();

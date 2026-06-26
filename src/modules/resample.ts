@@ -1,6 +1,24 @@
 import { mean, quadtree } from "d3";
 import { clipPolyline } from "lineclip";
+import type { AppServices } from "../context/appServices";
+import { appServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import { viewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
+import { worldContext } from "../context/worldContext";
+import { createDefaultRuler } from "../controllers/measurers";
+import {
+  addLakesInDeepDepressions,
+  calculateMapCoordinates,
+  calculateTemperatures,
+  openNearSeaLakes,
+  reGraph,
+  showStatistics
+} from "../main";
+import type { Grid } from "../types/Grid";
+import type { River } from "../types/models";
 import type { PackedGraph } from "../types/PackedGraph";
+import type { WorldNote, WorldState } from "../types/WorldState";
 import {
   findAllCellsInRadius,
   findClosestCell,
@@ -10,12 +28,16 @@ import {
   rn,
   unique
 } from "../utils";
-import type { River } from "./river-generator";
+import { WARN } from "../utils/debug";
+import { Features } from "./features";
+import { Ice } from "./ice";
+import { Markers } from "./markers-generator";
+import { OceanLayers } from "./ocean-layers";
+import { Provinces } from "./provinces-generator";
+import { Rivers } from "./river-generator";
+import { Routes } from "./routes-generator";
+import { States } from "./states-generator";
 import type { Point } from "./voronoi";
-
-declare global {
-  var Resample: Resampler;
-}
 
 interface ResamplerProcessOptions {
   projection: (x: number, y: number) => [number, number];
@@ -24,12 +46,22 @@ interface ResamplerProcessOptions {
 }
 
 type ParentMapDefinition = {
-  grid: any;
+  grid: Grid;
   pack: PackedGraph;
-  notes: any[];
+  notes: WorldNote[];
 };
 
 class Resampler {
+  worldContext: WorldContext = worldContext;
+  viewContext: Readonly<ViewContext> = viewContext;
+  appServices: AppServices = appServices;
+
+  init(worldContext: WorldContext, viewContext: Readonly<ViewContext>, appServices: AppServices) {
+    this.worldContext = worldContext;
+    this.viewContext = viewContext;
+    this.appServices = appServices;
+  }
+
   private saveRiversData(parentRivers: PackedGraph["rivers"]) {
     return parentRivers.map(river => {
       const meanderedPoints = Rivers.addMeandering(river.cells, river.points);
@@ -38,6 +70,7 @@ class Resampler {
   }
 
   private smoothHeightmap() {
+    const { grid } = worldContext;
     grid.cells.h.forEach((height: number, newGridCell: number) => {
       const heights = [height, ...grid.cells.c[newGridCell].map((c: number) => grid.cells.h[c])];
       const meanHeight = mean(heights) as number;
@@ -50,6 +83,7 @@ class Resampler {
     inverse: (x: number, y: number) => [number, number],
     scale: number
   ) {
+    const { grid } = worldContext;
     grid.cells.h = new Uint8Array(grid.points.length);
     grid.cells.temp = new Int8Array(grid.points.length);
     grid.cells.prec = new Uint8Array(grid.points.length);
@@ -81,6 +115,7 @@ class Resampler {
   }
 
   private isInMap(x: number, y: number) {
+    const { graphWidth, graphHeight } = worldContext;
     return x >= 0 && x <= graphWidth && y >= 0 && y <= graphHeight;
   }
 
@@ -89,6 +124,7 @@ class Resampler {
     inverse: (x: number, y: number) => [number, number],
     scale: number
   ) {
+    const { pack } = worldContext;
     pack.cells.biome = new Uint8Array(pack.cells.i.length);
     pack.cells.fl = new Uint16Array(pack.cells.i.length);
     pack.cells.s = new Int16Array(pack.cells.i.length);
@@ -128,6 +164,7 @@ class Resampler {
     projection: (x: number, y: number) => [number, number],
     scale: number
   ) {
+    const { pack } = worldContext;
     pack.cells.r = new Uint16Array(pack.cells.i.length);
     pack.cells.conf = new Uint8Array(pack.cells.i.length);
 
@@ -173,6 +210,7 @@ class Resampler {
   }
 
   private restoreCultures(parentMap: ParentMapDefinition, projection: (x: number, y: number) => [number, number]) {
+    const { pack } = worldContext;
     const validCultures = new Set(pack.cells.culture);
     const culturePoles = getPolesOfInaccessibility(pack, cellId => pack.cells.culture[cellId]);
     pack.cultures = parentMap.pack.cultures.map(culture => {
@@ -195,6 +233,7 @@ class Resampler {
     xp: number,
     yp: number
   ): Point {
+    const { pack } = worldContext;
     const haven = pack.cells.haven[cell];
     if (burg.port && haven) return this.getCloseToEdgePoint(cell, haven);
 
@@ -203,6 +242,7 @@ class Resampler {
   }
 
   private getCloseToEdgePoint(cell1: number, cell2: number): Point {
+    const { pack } = worldContext;
     const { cells, vertices } = pack;
 
     const [x0, y0] = cells.p[cell1];
@@ -223,6 +263,7 @@ class Resampler {
     projection: (x: number, y: number) => [number, number],
     scale: number
   ) {
+    const { pack } = worldContext;
     const packLandCellsQuadtree = quadtree(this.groupCellsByType(pack).land);
     const findLandCell = (x: number, y: number) => packLandCellsQuadtree.find(x, y, Infinity)?.[2];
 
@@ -248,6 +289,7 @@ class Resampler {
   }
 
   private restoreStates(parentMap: ParentMapDefinition, projection: (x: number, y: number) => [number, number]) {
+    const { pack, grid, seed, nameBases, biomesData, notes, style } = worldContext;
     const validStates = new Set(pack.cells.state);
     pack.states = parentMap.pack.states.map(state => {
       if (!state.i || state.removed) return state;
@@ -255,7 +297,17 @@ class Resampler {
       return { ...state, removed: true, lock: false };
     });
 
-    States.getPoles();
+    const worldState: WorldState = {
+      pack,
+      grid,
+      seed,
+      options: worldContext.options,
+      nameBases,
+      biomesData,
+      notes,
+      style
+    };
+    States.getPoles(worldState);
     const regimentCellsMap: Record<number, number> = {};
     const VERTICAL_GAP = 8;
 
@@ -297,6 +349,7 @@ class Resampler {
   }
 
   private restoreRoutes(parentMap: ParentMapDefinition, projection: (x: number, y: number) => [number, number]) {
+    const { pack } = worldContext;
     pack.routes = parentMap.pack.routes
       .map(route => {
         let wasInMap = true;
@@ -310,6 +363,7 @@ class Resampler {
         });
         if (points.length < 2) return null;
 
+        const { graphWidth, graphHeight } = worldContext;
         const bbox: [number, number, number, number] = [0, 0, graphWidth, graphHeight];
         // @types/lineclip is incorrect - lineclip returns Point[][] (array of line segments), not Point[]
         const clippedSegments = clipPolyline(points, bbox) as unknown as Point[][];
@@ -327,6 +381,7 @@ class Resampler {
   }
 
   private restoreReligions(parentMap: ParentMapDefinition, projection: (x: number, y: number) => [number, number]) {
+    const { pack } = worldContext;
     const validReligions = new Set(pack.cells.religion);
     const religionPoles = getPolesOfInaccessibility(pack, cellId => pack.cells.religion[cellId]);
 
@@ -337,12 +392,13 @@ class Resampler {
       const [xp, yp] = projection(...parentMap.pack.cells.p[religion.center]);
       const [x, y] = [rn(xp, 2), rn(yp, 2)];
       const [centerX, centerY] = this.isInMap(x, y) ? [x, y] : religionPoles[religion.i];
-      const center = findClosestCell(centerX, centerY, Infinity, pack);
+      const center = findClosestCell(centerX, centerY, Infinity, pack)!;
       return { ...religion, center };
     });
   }
 
   private restoreProvinces(parentMap: ParentMapDefinition) {
+    const { pack, grid, seed, nameBases, biomesData, notes, style } = worldContext;
     const validProvinces = new Set(pack.cells.province);
     pack.provinces = parentMap.pack.provinces.map(province => {
       if (!province.i || province.removed) return province;
@@ -351,7 +407,7 @@ class Resampler {
       return province;
     });
 
-    Provinces.getPoles();
+    Provinces.getPoles({ pack, grid, seed, options: worldContext.options, nameBases, biomesData, notes, style });
 
     pack.provinces.forEach(province => {
       if (!province.i || province.removed) return;
@@ -362,6 +418,7 @@ class Resampler {
   }
 
   private restoreFeatureDetails(parentMap: ParentMapDefinition, inverse: (x: number, y: number) => [number, number]) {
+    const { pack } = worldContext;
     const parentPackQ = quadtree(parentMap.pack.cells.p.map(([x, y], i) => [x, y, i]));
     pack.features.forEach(feature => {
       if (!feature) return;
@@ -378,12 +435,13 @@ class Resampler {
   }
 
   private restoreMarkers(parentMap: ParentMapDefinition, projection: (x: number, y: number) => [number, number]) {
+    const { pack } = worldContext;
     pack.markers = parentMap.pack.markers;
     pack.markers.forEach(marker => {
-      const [x, y] = projection(marker.x, marker.y);
+      const [x, y] = projection(marker.x!, marker.y!);
       if (!this.isInMap(x, y)) Markers.deleteMarker(marker.i);
 
-      const cell = findClosestCell(x, y, Infinity, pack);
+      const cell = findClosestCell(x, y, Infinity, pack)!;
       marker.x = rn(x, 2);
       marker.y = rn(y, 2);
       marker.cell = cell;
@@ -395,6 +453,7 @@ class Resampler {
     projection: (x: number, y: number) => [number, number],
     scale: number
   ) {
+    const { pack } = worldContext;
     const getSearchRadius = (cellId: number) => Math.sqrt(parentMap.pack.cells.area[cellId] / Math.PI) * scale;
 
     pack.zones = parentMap.pack.zones.map(zone => {
@@ -408,8 +467,9 @@ class Resampler {
     });
   }
 
-  process(options: ResamplerProcessOptions): void {
-    const { projection, inverse, scale } = options;
+  process(resampleConfig: ResamplerProcessOptions): void {
+    const { projection, inverse, scale } = resampleConfig;
+    const { pack, grid, notes, seed, graphWidth, graphHeight, nameBases, biomesData, style } = worldContext;
     const parentMap = {
       grid: structuredClone(grid),
       pack: structuredClone(pack),
@@ -417,9 +477,15 @@ class Resampler {
     };
     const riversData = this.saveRiversData(pack.rivers);
 
-    grid = generateGrid(seed, graphWidth, graphHeight);
-    pack = {} as PackedGraph;
-    notes = parentMap.notes;
+    const newGrid = generateGrid(seed, graphWidth, graphHeight);
+    for (const k of Object.keys(worldContext.grid)) {
+      delete (worldContext.grid as unknown as Record<string, unknown>)[k];
+    }
+    Object.assign(worldContext.grid, newGrid);
+    for (const k of Object.keys(worldContext.pack)) {
+      delete (worldContext.pack as unknown as Record<string, unknown>)[k];
+    }
+    worldContext.notes = parentMap.notes;
 
     this.resamplePrimaryGridData(parentMap, inverse, scale);
 
@@ -433,7 +499,16 @@ class Resampler {
 
     reGraph();
     Features.markupPack();
-    Ice.generate();
+    Ice.generate(this.worldContext, this.viewContext, this.appServices, {
+      pack: worldContext.pack,
+      grid: worldContext.grid,
+      seed,
+      options: worldContext.options,
+      nameBases,
+      biomesData,
+      notes: worldContext.notes,
+      style
+    });
     createDefaultRuler();
 
     this.restoreCellData(parentMap, inverse, scale);
@@ -452,4 +527,5 @@ class Resampler {
   }
 }
 
-window.Resample = new Resampler();
+export type { Resampler };
+export const Resample = new Resampler();

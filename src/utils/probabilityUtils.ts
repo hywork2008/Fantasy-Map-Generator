@@ -1,4 +1,5 @@
 import { randomNormal } from "d3";
+
 import { minmax, rn } from "./numberUtils";
 
 /**
@@ -65,7 +66,7 @@ export const Pint = (float: number): number => {
  * @param {Array} array - the array to pick from
  * @return {any} a random element from the array
  */
-export const ra = (array: any[]): any => {
+export const ra = <T>(array: ArrayLike<T>): T => {
   return array[Math.floor(Math.random() * array.length)];
 };
 

@@ -1,0 +1,108 @@
+import { create } from "zustand";
+
+export interface OptionsState {
+  // Map settings
+  mapWidth: number;
+  mapHeight: number;
+  seed: string;
+  points: number;
+  mapName: string;
+  year: number;
+  era: string;
+  template: string;
+  cultures: number;
+  culturesSet: string;
+  statesNumber: number;
+  provincesRatio: number;
+  sizeVariety: number;
+  growthRate: number;
+  manors: number;
+  religionsNumber: number;
+  stateLabelsMode: "auto" | "short" | "full";
+  resolveDepressionsSteps: number;
+  lakeElevationLimit: number;
+
+  // Generation growth/expansion rates
+  neutralRate: number;
+  statesGrowthRate: number;
+
+  // World scale settings
+  populationRate: number;
+  distanceScale: number;
+  urbanization: number;
+  urbanDensity: number;
+
+  // Tool settings
+  uiSize: number;
+  tooltipSize: number;
+  themeColor: string;
+  transparency: number;
+  autosaveInterval: number;
+  onloadBehavior: string;
+  azgaarAssistant: "show" | "hide";
+  speakerVoice: string;
+  emblemShape: string;
+  temperatureScale: string;
+
+  // Zoom settings
+  zoomExtentMin: number;
+  zoomExtentMax: number;
+
+  // Rendering settings
+  shapeRendering: "crispEdges" | "optimizeSpeed" | "geometricPrecision";
+  rescaleLabels: boolean;
+
+  // Actions
+  setOption: <K extends keyof Omit<OptionsState, "setOption">>(key: K, value: OptionsState[K]) => void;
+  setOptions: (updates: Partial<Omit<OptionsState, "setOption" | "setOptions">>) => void;
+}
+
+export const useOptionsState = create<OptionsState>(set => ({
+  mapWidth: 960,
+  mapHeight: 540,
+  seed: "",
+  points: 4, // 10K cells
+  mapName: "",
+  year: 100,
+  era: "Era",
+  template: "highIsland",
+  cultures: 12,
+  culturesSet: "world",
+  statesNumber: 15,
+  provincesRatio: 20,
+  sizeVariety: 4,
+  growthRate: 1,
+  manors: 1000,
+  religionsNumber: 6,
+  stateLabelsMode: "auto",
+  resolveDepressionsSteps: 250,
+  lakeElevationLimit: 20,
+
+  neutralRate: 1,
+  statesGrowthRate: 1,
+
+  populationRate: 1000,
+  distanceScale: 3,
+  urbanization: 1,
+  urbanDensity: 10,
+
+  uiSize: 1,
+  tooltipSize: 14,
+  themeColor: "#997787",
+  transparency: 5,
+  autosaveInterval: 15,
+  onloadBehavior: "random",
+  azgaarAssistant: "show",
+  speakerVoice: "",
+  emblemShape: "culture",
+  temperatureScale: localStorage.getItem("temperatureScale") ?? "°C",
+
+  zoomExtentMin: 1,
+  zoomExtentMax: 20,
+
+  shapeRendering: "optimizeSpeed",
+  rescaleLabels: true,
+
+  setOption: (key, value) => set({ [key]: value }),
+  setOptions: updates => set(updates)
+}));

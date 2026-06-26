@@ -20,8 +20,8 @@ function editHeightmap(options) {
   ensureEl("heightmap3DView").on("click", changeViewMode);
   ensureEl("finalizeHeightmap").on("click", finalizeHeightmap);
   ensureEl("renderOcean").on("click", mockHeightmap);
-  ensureEl("templateUndo").on("click", () => restoreHistory(edits.n - 1));
-  ensureEl("templateRedo").on("click", () => restoreHistory(edits.n + 1));
+  ensureEl("templateUndo").on("click", undoHistory);
+  ensureEl("templateRedo").on("click", redoHistory);
 
   function showModeDialog() {
     alertMessage.innerHTML = /* html */ `Heightmap is a core element on which all other data (rivers, burgs, states etc) is based. So the best edit approach is to
@@ -169,7 +169,7 @@ function editHeightmap(options) {
       return tip("Insufficient land area. There should be at least 200 land cells!", null, "error");
     if (ensureEl("imageConverter").offsetParent) return tip("Please exit the Image Conversion mode first", null, "error");
 
-    delete window.edits; // remove global variable
+    delete window.heightmapHistory; // remove temp global
     redo.disabled = templateRedo.disabled = true;
     undo.disabled = templateUndo.disabled = true;
 
@@ -234,7 +234,8 @@ function editHeightmap(options) {
     reGraph();
     Features.markupPack();
 
-    Rivers.generate(erosionAllowed);
+    const state = getWorldState();
+    Rivers.generate(state, erosionAllowed);
 
     if (!erosionAllowed) {
       for (const i of pack.cells.i) {
@@ -244,33 +245,33 @@ function editHeightmap(options) {
       }
     }
 
-    Biomes.define();
+    Biomes.define(state);
     Features.defineGroups();
 
     rankCells();
-    Cultures.generate();
-    Cultures.expand();
+    Cultures.generate(state);
+    Cultures.expand(state);
 
-    Burgs.generate();
-    States.generate();
-    Routes.generate();
-    Religions.generate();
+    Burgs.generate(state);
+    States.generate(state);
+    Routes.generate(state);
+    Religions.generate(state);
 
-    Burgs.specify();
-    States.collectStatistics();
-    States.defineStateForms();
+    Burgs.specify(state);
+    States.collectStatistics(state);
+    States.defineStateForms(state);
 
-    Provinces.generate();
-    Provinces.getPoles();
+    Provinces.generate(state);
+    Provinces.getPoles(state);
 
-    Rivers.specify();
-    Lakes.defineNames();
+    Rivers.specify(state);
+    Lakes.defineNames(state);
 
-    Ice.generate();
+    Ice.generate(state);
 
-    Military.generate();
-    Markers.generate();
-    Zones.generate();
+    Military.generate(state);
+    Markers.generate(state);
+    Zones.generate(state);
     TIME && console.timeEnd("regenerateErasedData");
     INFO && console.groupEnd("Edit Heightmap");
   }
@@ -354,7 +355,8 @@ function editHeightmap(options) {
     Features.markupPack();
 
     if (erosionAllowed) {
-      Rivers.generate(true);
+      const state = getWorldState();
+      Rivers.generate(state, true);
       Features.defineGroups();
     }
 
@@ -448,9 +450,10 @@ function editHeightmap(options) {
       c.center = findCell(c.x, c.y);
     }
 
+    const state = getWorldState();
     if (erosionAllowed) {
-      Rivers.specify();
-      Lakes.defineNames();
+      Rivers.specify(state);
+      Lakes.defineNames(state);
     }
 
     const gridToPackMap = new Map();
@@ -472,7 +475,7 @@ function editHeightmap(options) {
     }
 
     // recalculate ice
-    Ice.generate();
+    Ice.generate(state);
     ice.selectAll("*").remove();
 
     TIME && console.timeEnd("restoreRiskedData");
@@ -547,12 +550,9 @@ function editHeightmap(options) {
   }
 
   function updateHistory(noStat) {
-    const step = edits.n;
-    edits = edits.slice(0, step);
-    edits[step] = grid.cells.h.slice();
-    edits.n = step + 1;
+    heightmapHistory.push(grid.cells.h);
 
-    undo.disabled = templateUndo.disabled = edits.n <= 1;
+    undo.disabled = templateUndo.disabled = !heightmapHistory.canUndo;
     redo.disabled = templateRedo.disabled = true;
     if (!noStat) {
       updateStatistics();
@@ -561,27 +561,40 @@ function editHeightmap(options) {
     }
   }
 
-  // restoreHistory
-  function restoreHistory(step) {
-    edits.n = step;
-    redo.disabled = templateRedo.disabled = edits.n >= edits.length;
-    undo.disabled = templateUndo.disabled = edits.n <= 1;
-    if (edits[edits.n - 1] === undefined) return;
-    grid.cells.h = edits[edits.n - 1].slice();
+  function undoHistory() {
+    const h = heightmapHistory.undo();
+    if (!h) return;
+    grid.cells.h = h;
+
+    undo.disabled = templateUndo.disabled = !heightmapHistory.canUndo;
+    redo.disabled = templateRedo.disabled = !heightmapHistory.canRedo;
+
     mockHeightmap();
     updateStatistics();
+    if (ensureEl("preview")) drawHeightmapPreview(); // update heightmap preview if opened
+    if (ensureEl("canvas3d")) ThreeD.redraw(); // update 3d heightmap preview if opened
+  }
 
+  function redoHistory() {
+    const h = heightmapHistory.redo();
+    if (!h) return;
+    grid.cells.h = h;
+
+    undo.disabled = templateUndo.disabled = !heightmapHistory.canUndo;
+    redo.disabled = templateRedo.disabled = !heightmapHistory.canRedo;
+
+    mockHeightmap();
+    updateStatistics();
     if (ensureEl("preview")) drawHeightmapPreview(); // update heightmap preview if opened
     if (ensureEl("canvas3d")) ThreeD.redraw(); // update 3d heightmap preview if opened
   }
 
   // restart edits from 1st step
   function restartHistory() {
-    window.edits = []; // declare temp global variable
-    window.edits.n = 0;
+    window.heightmapHistory = new HeightmapEditorHistory();
     redo.disabled = templateRedo.disabled = true;
     undo.disabled = templateUndo.disabled = true;
-    updateHistory();
+    updateHistory(); // push initial snapshot
   }
 
   function openBrushesPanel() {
@@ -600,8 +613,8 @@ function editHeightmap(options) {
     // add listeners
     ensureEl("brushesButtons").on("click", e => toggleBrushMode(e));
     ensureEl("cellTypeFilter").on("change", cellTypeFilterChange);
-    ensureEl("undo").on("click", () => restoreHistory(edits.n - 1));
-    ensureEl("redo").on("click", () => restoreHistory(edits.n + 1));
+    ensureEl("undo").on("click", undoHistory);
+    ensureEl("redo").on("click", redoHistory);
     ensureEl("rescaleShow").on("click", () => {
       ensureEl("modifyButtons").style.display = "none";
       ensureEl("rescaleSection").style.display = "block";
@@ -1578,7 +1591,7 @@ function editHeightmap(options) {
     function cancelConversion() {
       restoreImageConverterState();
       viewbox.select("#heights").selectAll("polygon").remove();
-      restoreHistory(edits.n - 1);
+      undoHistory();
     }
 
     function restoreImageConverterState() {
@@ -1619,7 +1632,7 @@ function editHeightmap(options) {
             $(this).dialog("close");
             restoreImageConverterState();
             viewbox.select("#heights").selectAll("polygon").remove();
-            restoreHistory(edits.n - 1);
+            undoHistory();
           }
         }
       });

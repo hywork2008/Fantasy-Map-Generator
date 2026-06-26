@@ -1,24 +1,23 @@
+import type { AppServices } from "../context/appServices";
+import { appServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import { viewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
+import { worldContext } from "../context/worldContext";
+import { useOptionsState } from "../store/optionsState";
+import type { NameBase } from "../types/models";
 import { capitalize, isVowel, last, P, ra, rand } from "../utils";
-
-declare global {
-  var Names: NamesGenerator;
-}
-
-export interface NameBase {
-  name: string; // name of the base
-  i: number; // index of the base
-  min: number; // minimum length of generated names
-  max: number; // maximum length of generated names
-  d: string; // letters allowed to duplicate
-  m: number; // multi-word name rate [deprecated]
-  b: string; // base string with names separated by comma
-}
+import { ERROR, WARN } from "../utils/debug";
+import { locked, tip, unlock } from "../utils/uiHelpers";
 
 // Markov chain lookup table: key is a letter (or empty string for word start), value is array of possible next syllables
 // Note: Uses array with string keys (sparse array) to match original JS behavior
 type MarkovChain = string[][] & Record<string, string[]>;
 
 class NamesGenerator {
+  worldContext: WorldContext = worldContext;
+  viewContext: Readonly<ViewContext> = viewContext;
+  appServices: AppServices = appServices;
   chains: (MarkovChain | null)[] = []; // Markov chains for namebases
 
   calculateChain(namesList: string): MarkovChain {
@@ -66,6 +65,7 @@ class NamesGenerator {
   }
 
   updateChain(index: number): void {
+    const { nameBases } = this.worldContext;
     this.chains[index] = nameBases[index]?.b ? this.calculateChain(nameBases[index].b) : null;
   }
 
@@ -75,6 +75,7 @@ class NamesGenerator {
 
   // generate name using Markov's chain
   getBase(base: number, min?: number, max?: number, dupl?: string): string {
+    const { nameBases } = this.worldContext;
     if (base === undefined) {
       ERROR && console.error("Please define a base");
       return "ERROR";
@@ -158,6 +159,7 @@ class NamesGenerator {
 
   // generate name for culture
   getCulture(culture: number, min?: number, max?: number, dupl?: string): string {
+    const { pack } = this.worldContext;
     if (culture === undefined) {
       ERROR && console.error("Please define a culture");
       return "ERROR";
@@ -167,7 +169,13 @@ class NamesGenerator {
   }
 
   // generate short name for culture
-  getCultureShort(culture: number): string {
+  getCultureShort(
+    _worldContext: WorldContext,
+    _viewContext: Readonly<ViewContext>,
+    _appServices: AppServices,
+    culture: number
+  ): string {
+    const { pack } = this.worldContext;
     if (culture === undefined) {
       ERROR && console.error("Please define a culture");
       return "ERROR";
@@ -177,6 +185,7 @@ class NamesGenerator {
 
   // generate short name for base
   getBaseShort(base: number): string {
+    const { nameBases } = this.worldContext;
     const min = nameBases[base] ? nameBases[base].min - 1 : undefined;
     const max = min ? Math.max(nameBases[base].max - 2, min) : undefined;
     return this.getBase(base, min, max, "");
@@ -201,6 +210,7 @@ class NamesGenerator {
 
   // generate state name based on capital or random name and culture-specific suffix
   getState(name: string, culture: number, base?: number): string {
+    const { pack } = this.worldContext;
     if (name === undefined) {
       ERROR && console.error("Please define a base name");
       return "ERROR";
@@ -279,6 +289,7 @@ class NamesGenerator {
 
   // generato name for the map
   getMapName(force: boolean) {
+    const { nameBases } = this.worldContext;
     if (!force && locked("mapName")) return;
     if (force && locked("mapName")) unlock("mapName");
     const base = P(0.7) ? 2 : P(0.5) ? rand(0, 6) : rand(0, 31);
@@ -290,7 +301,7 @@ class NamesGenerator {
     const max = Math.max(nameBases[base].max - 3, min);
     const baseName = this.getBase(base, min, max, "") as string;
     const name = P(0.7) ? this.addSuffix(baseName) : baseName;
-    mapName.value = name;
+    useOptionsState.getState().setOption("mapName", name);
   }
 
   getNameBases(): NameBase[] {
@@ -691,4 +702,5 @@ class NamesGenerator {
   }
 }
 
-window.Names = new NamesGenerator();
+export type { NamesGenerator };
+export const Names = new NamesGenerator();

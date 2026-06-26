@@ -43,11 +43,11 @@ export const getTypedArray = (maxValue: number) => {
  */
 export const createTypedArray = ({
   maxValue,
-  length,
+  length = 0,
   from
 }: {
   maxValue: number;
-  length: number;
+  length?: number;
   from?: ArrayLike<number>;
 }): Uint8Array | Uint16Array | Uint32Array => {
   const typedArray = getTypedArray(maxValue);

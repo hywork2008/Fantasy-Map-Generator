@@ -1,57 +1,31 @@
 import Alea from "alea";
 import { polygonArea } from "d3";
+import { FeatureSizeRatio, HeightmapConstants, HeightThreshold, TemperatureThreshold } from "../config/constants";
+import type { AppServices } from "../context/appServices";
+import { appServices } from "../context/appServices";
+import type { ViewContext } from "../context/viewContext";
+import { viewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
+import { worldContext } from "../context/worldContext";
+import type { GridFeature, PackedGraphFeature } from "../types/models";
 import {
   clipPoly,
   connectVertices,
   createTypedArray,
   distanceSquared,
-  isLand,
   isWater,
   rn,
   TYPED_ARRAY_MAX_VALUES,
   unique
 } from "../utils";
-
-declare global {
-  var Features: FeatureModule;
-}
-
-type FeatureType = "ocean" | "lake" | "island";
-
-export interface PackedGraphFeature {
-  i: number;
-  type: FeatureType;
-  land: boolean;
-  border: boolean;
-  cells: number;
-  firstCell: number;
-  vertices: number[];
-  area: number;
-  shoreline: number[];
-  height: number;
-  group: string;
-  temp: number;
-  flux: number;
-  evaporation: number;
-  name: string;
-
-  // River related
-  inlets?: number[];
-  outlet?: number;
-  river?: number;
-  enteringFlux?: number;
-  closed?: boolean;
-  outCell?: number;
-}
-
-export interface GridFeature {
-  i: number;
-  land: boolean;
-  border: boolean;
-  type: FeatureType;
-}
+import { TIME } from "../utils/debug";
+import { isLand } from "../utils/graphUtils";
+import { Lakes } from "./lakes";
 
 class FeatureModule {
+  worldContext: WorldContext = worldContext;
+  viewContext: Readonly<ViewContext> = viewContext;
+  appServices: AppServices = appServices;
   private DEEPER_LAND = 3;
   private LANDLOCKED = 2;
   private LAND_COAST = 1;
@@ -94,6 +68,7 @@ class FeatureModule {
    * mark Grid features (ocean, lakes, islands) and calculate distance field
    */
   markupGrid() {
+    const { seed, grid } = this.worldContext;
     TIME && console.time("markupGrid");
     Math.random = Alea(seed); // get the same result on heightmap edit in Erase mode
 
@@ -140,11 +115,11 @@ class FeatureModule {
       neighbors,
       start: this.DEEP_WATER,
       increment: -1,
-      limit: -10
+      limit: HeightmapConstants.DEEP_WATER_LIMIT
     });
     grid.cells.t = distanceField;
     grid.cells.f = featureIds;
-    grid.features = [0, ...features];
+    grid.features = [0 as unknown as GridFeature, ...features];
 
     TIME && console.timeEnd("markupGrid");
   }
@@ -153,6 +128,7 @@ class FeatureModule {
    * mark PackedGraph features (oceans, lakes, islands) and calculate distance field
    */
   markupPack() {
+    const { pack } = this.worldContext;
     const defineHaven = (cellId: number) => {
       const waterCells = neighbors[cellId].filter((index: number) => isWater(index, pack));
       const distances = waterCells.map((neibCellId: number) => distanceSquared(cells.p[cellId], cells.p[neibCellId]));
@@ -175,7 +151,7 @@ class FeatureModule {
       return [startCell, featureVertices];
 
       function findOnBorderCell(firstCell: number) {
-        const isOnBorder = (cellId: number) => borderCells[cellId] || neighbors[cellId].some(ofDifferentType);
+        const isOnBorder = (cellId: number) => Boolean(borderCells[cellId]) || neighbors[cellId].some(ofDifferentType);
         if (isOnBorder(firstCell)) return firstCell;
 
         const startCell = cells.i.filter(ofSameType).find(isOnBorder);
@@ -215,8 +191,8 @@ class FeatureModule {
       const [startCell, featureVertices] = getCellsData(type, firstCell);
       const points = clipPoly(
         featureVertices.map((vertex: number) => vertices.p[vertex]),
-        graphWidth,
-        graphHeight
+        worldContext.graphWidth,
+        worldContext.graphHeight
       );
       const area = polygonArea(points); // feature perimiter area
       const absArea = Math.abs(rn(area));
@@ -315,7 +291,7 @@ class FeatureModule {
       neighbors,
       start: this.DEEP_WATER,
       increment: -1,
-      limit: -10
+      limit: HeightmapConstants.DEEP_WATER_LIMIT
     }); // markup pack water
 
     pack.cells.t = distanceField;
@@ -330,11 +306,12 @@ class FeatureModule {
    * define feature groups (ocean, sea, gulf, continent, island, isle, freshwater lake, salt lake, etc.)
    */
   defineGroups() {
+    const { grid, pack } = this.worldContext;
     const gridCellsNumber = grid.cells.i.length;
-    const OCEAN_MIN_SIZE = gridCellsNumber / 25;
-    const SEA_MIN_SIZE = gridCellsNumber / 1000;
-    const CONTINENT_MIN_SIZE = gridCellsNumber / 10;
-    const ISLAND_MIN_SIZE = gridCellsNumber / 1000;
+    const OCEAN_MIN_SIZE = gridCellsNumber * FeatureSizeRatio.OCEAN_MIN;
+    const SEA_MIN_SIZE = gridCellsNumber * FeatureSizeRatio.SEA_MIN;
+    const CONTINENT_MIN_SIZE = gridCellsNumber * FeatureSizeRatio.CONTINENT_MIN;
+    const ISLAND_MIN_SIZE = gridCellsNumber * FeatureSizeRatio.ISLAND_MIN;
 
     const defineIslandGroup = (feature: PackedGraphFeature) => {
       const prevFeature = pack.features[pack.cells.f[feature.firstCell - 1]];
@@ -351,8 +328,9 @@ class FeatureModule {
     };
 
     const defineLakeGroup = (feature: PackedGraphFeature) => {
-      if (feature.temp < -3) return "frozen";
-      if (feature.height > 60 && feature.cells < 10 && feature.firstCell % 10 === 0) return "lava";
+      if (feature.temp < TemperatureThreshold.FROZEN_LAKE_TEMP) return "frozen";
+      if (feature.height > HeightThreshold.LAVA_LAKE_HEIGHT && feature.cells < 10 && feature.firstCell % 10 === 0)
+        return "lava";
 
       if (!feature.inlets && !feature.outlet) {
         if (feature.evaporation > feature.flux * 4) return "dry";
@@ -380,4 +358,6 @@ class FeatureModule {
   }
 }
 
-window.Features = new FeatureModule();
+export const Features = new FeatureModule();
+
+export const NON_NAVIGABLE_LAKE_GROUPS = new Set(["dry", "frozen", "lava"]);
