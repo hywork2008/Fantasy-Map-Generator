@@ -1,8 +1,7 @@
-import { worldContext } from "../../../context/worldContext";
-import { States } from "../../../modules/states-generator";
 import type { Burg } from "../../../types/models";
 import { minmax, rn } from "../../../utils";
 import { DEBUG, ERROR, TIME } from "../../../utils/debug";
+import { getWorldContext } from "../economyContext";
 import type { DemandCategory, Good } from "./goods-generator";
 import { DEMAND_PRIORITY, Goods, getDemandTargets } from "./goods-generator";
 import type { Deal, Market } from "./markets-generator";
@@ -13,14 +12,24 @@ const BONUS_URBAN_PRODUCTION = 1;
 const MIN_BONUS_PRODUCTION = 1;
 
 export class ProductionModule {
+  private get worldContext() {
+    return getWorldContext();
+  }
+
+  private getSalesTax(burg: { state?: number }): number {
+    const stateId = burg.state || 0;
+    if (!stateId) return 0;
+    return this.worldContext.pack.states?.[stateId]?.salesTax ?? 0;
+  }
+
   produce() {
     TIME && console.time("generateProduction");
 
     Markets.collectRuralProduction();
     Markets.initializeMarketPrices();
 
-    const index = this.buildProductionIndex(worldContext.pack.goods || []);
-    const sortedBurgs = worldContext.pack.burgs
+    const index = this.buildProductionIndex(this.worldContext.pack.goods || []);
+    const sortedBurgs = this.worldContext.pack.burgs
       .filter(burg => burg.i && !burg.removed)
       .sort((a, b) => a.population! - b.population!);
 
@@ -83,7 +92,7 @@ export class ProductionModule {
     const demandCoverage = this.calculateDemandCoverage(inventory, index.demandCoverageByGood);
     const records: ProductionRecord[] = [];
 
-    const good = Goods.get(worldContext.pack.cells.good[burg.cell]);
+    const good = Goods.get(this.worldContext.pack.cells.good[burg.cell]);
     if (good) {
       const modifier = getModifiers(good, burg.cell);
       const bonus = minmax(population * BONUS_URBAN_PRODUCTION, MIN_BONUS_PRODUCTION, MAX_BONUS_PRODUCTION);
@@ -191,7 +200,7 @@ export class ProductionModule {
 
   private sellInventoryToMarket(state: BurgProductionState): number {
     let phaseRevenue = 0;
-    const taxRate = States.getSalesTax(state.burg);
+    const taxRate = this.getSalesTax(state.burg);
 
     for (const goodIdStr in state.inventory) {
       const goodId = +goodIdStr;

@@ -8,9 +8,6 @@ import type {
   Ruler as RulerClass,
   Rulers as RulersClass
 } from "../controllers/measurers";
-import type { GoodsModule } from "../extensions/economy/modules/goods-generator";
-import type { MarketsModule } from "../extensions/economy/modules/markets-generator";
-import type { ProductionModule } from "../extensions/economy/modules/production-generator";
 import type { HeightmapModule } from "../modules/heightmap-generator";
 import type { Resampler } from "../modules/resample";
 
@@ -21,9 +18,6 @@ declare global {
   // Module singletons
   var Resample: Resampler;
   var HeightmapGenerator: HeightmapModule;
-  var Goods: GoodsModule;
-  var Production: ProductionModule;
-  var Markets: MarketsModule;
 
   // Measurer constructors (from measurers.ts)
   var Rulers: typeof RulersClass;

@@ -33,6 +33,8 @@ interface ExtensionState {
   registerAction: (action: ExtensionAction) => void;
   registerDialog: (dialog: ExtensionDialog) => void;
   toggleExtension: (id: string, forceState?: boolean) => void;
+  /** Remove all registrations for a given extension (called before uninstall or re-inject) */
+  unregisterExtension: (id: string) => void;
 }
 
 export const useExtensionState = create<ExtensionState>()(
@@ -72,6 +74,19 @@ export const useExtensionState = create<ExtensionState>()(
           const nextState = forceState !== undefined ? forceState : !currentState;
           return {
             enabledExtensions: { ...state.enabledExtensions, [id]: nextState }
+          };
+        });
+      },
+
+      unregisterExtension: id => {
+        set(state => {
+          const { [id]: _removed, ...remainingExtensions } = state.extensions;
+          const { [id]: _removedEnabled, ...remainingEnabled } = state.enabledExtensions;
+          return {
+            extensions: remainingExtensions,
+            enabledExtensions: remainingEnabled,
+            actions: state.actions.filter(a => a.extensionId !== id),
+            dialogs: state.dialogs.filter(d => d.extensionId !== id)
           };
         });
       }

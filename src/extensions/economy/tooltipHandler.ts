@@ -1,7 +1,7 @@
 import * as d3 from "d3";
-import { worldContext } from "../../context/worldContext";
 import { rn } from "../../utils/numberUtils";
 import { tip } from "../../utils/uiHelpers";
+import { getWorldContext } from "./economyContext";
 import { Goods } from "./modules/goods-generator";
 import { Markets } from "./modules/markets-generator";
 import { Production } from "./modules/production-generator";
@@ -19,7 +19,7 @@ export function showEconomyTooltip(
     const marketEl = (e.target as Element).closest("[data-id]") as HTMLElement | null;
     if (marketEl) {
       const market = Markets.get(+marketEl.dataset.id!);
-      const centerBurg = market && worldContext.pack.burgs[market.centerBurgId];
+      const centerBurg = market && getWorldContext().pack.burgs[market.centerBurgId];
       if (!centerBurg) return true;
       tip(`${centerBurg.name} market. Click to view`);
       return true;
@@ -28,7 +28,7 @@ export function showEconomyTooltip(
 
   if (group === "goods") {
     const el = e.target as Element;
-    const bonusGoodId = worldContext.pack.cells.good[i];
+    const bonusGoodId = getWorldContext().pack.cells.good[i];
     const getName = (id: number) => (Goods.get(id)?.name ?? "unknown").toLowerCase();
     const formatProduct = (produced: Record<number, number>) =>
       Object.entries(produced).reduce<string[]>((acc, [goodId, amount]) => {
@@ -54,7 +54,7 @@ export function showEconomyTooltip(
     if (el.closest("#goodsBurgs")) {
       const burgEl = el.closest("[data-id]") as HTMLElement | null;
       const burgId = burgEl ? +burgEl.dataset.id! : 0;
-      const burg = burgId ? worldContext.pack.burgs[burgId] : undefined;
+      const burg = burgId ? getWorldContext().pack.burgs[burgId] : undefined;
       if (!burg || burg.removed) return true;
       d3.select(burgEl).raise();
       const produced = Production.getBurgProduction(burg);
@@ -69,7 +69,7 @@ export function showEconomyTooltip(
 }
 
 export function updateEconomyCellInfo(_point: [number, number], i: number, _g: number): void {
-  const cells = worldContext.pack.cells;
+  const cells = getWorldContext().pack.cells;
   const infoGood = document.getElementById("infoGood") as HTMLElement;
   const infoMarket = document.getElementById("infoMarket") as HTMLElement;
   const infoCellProduction = document.getElementById("infoCellProduction") as HTMLElement;
@@ -82,7 +82,7 @@ export function updateEconomyCellInfo(_point: [number, number], i: number, _g: n
     const marketId = cells.market?.[i];
     if (marketId) {
       const market = Markets.get(marketId);
-      const centerBurg = market && worldContext.pack.burgs[market.centerBurgId];
+      const centerBurg = market && getWorldContext().pack.burgs[market.centerBurgId];
       infoMarket.innerHTML = centerBurg ? `${centerBurg.name} market (${marketId})` : `market ${marketId}`;
     } else {
       infoMarket.innerHTML = "no";
@@ -100,7 +100,7 @@ export function updateEconomyCellInfo(_point: [number, number], i: number, _g: n
   if (infoBurgProduction) {
     const burgId = cells.burg[i];
     if (burgId) {
-      const burg = worldContext.pack.burgs[burgId];
+      const burg = getWorldContext().pack.burgs[burgId];
       const burgProduced = Production.getBurgProduction(burg);
       const burgEntries = Object.entries(burgProduced).filter(([, amt]) => amt > 0);
       infoBurgProduction.innerHTML = burgEntries.length

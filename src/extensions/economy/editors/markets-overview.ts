@@ -1,6 +1,4 @@
 import { color, type D3DragEvent, drag, pointer } from "d3";
-import { viewContext } from "../../../context/viewContext";
-import { worldContext } from "../../../context/worldContext";
 import {
   closeDialogs,
   confirmationDialog,
@@ -10,7 +8,6 @@ import {
   removeCircle,
   restoreDefaultEvents
 } from "../../../controllers/editors";
-import { toggleMarketsLayer } from "../../../controllers/layers";
 import {
   getMarketsOverviewState,
   type MarketRowData,
@@ -21,21 +18,20 @@ import { openDialog } from "../../../ui/dialogs/dialogService";
 import { findAllCellsInRadius, findCell, findClosestCell, getIsolines, getVertexPath, rn } from "../../../utils";
 import { layerIsOn } from "../../../utils/nodeUtils";
 import { clearMainTip, showMainTip, tip } from "../../../utils/uiHelpers";
+import { getApi, getViewContext, getWorldContext } from "../economyContext";
 import type { Deal, Market } from "../modules/markets-generator";
 import { Markets } from "../modules/markets-generator";
 import { drawMarketsLayer, highlightMarketOff, highlightMarketOn } from "../renderers/draw-markets";
 
-const viewbox = viewContext.viewbox;
-
 let isInitialized = false;
-// Working copy of worldContext.pack.cells.market mutated during manual assignment; applied on commit.
+// Working copy of getWorldContext().pack.cells.market mutated during manual assignment; applied on commit.
 let marketsWorking: Uint16Array | null = null;
 let marketsManualHistory: Uint16Array[] = [];
 
 export function open(): void {
-  if (viewContext.customization) return;
+  if (getViewContext().customization) return;
   closeDialogs("#marketsOverview, .stable");
-  if (!layerIsOn("toggleMarketsLayer")) toggleMarketsLayer();
+  if (!layerIsOn("toggleMarketsLayer")) getApi().toggleLayerById("toggleMarketsLayer");
 
   marketsOverviewAddLines();
 
@@ -57,7 +53,7 @@ export function open(): void {
 }
 
 function marketsOverviewAddLines(): void {
-  const markets = worldContext.pack.markets;
+  const markets = getWorldContext().pack.markets;
 
   if (!markets?.length) {
     setMarketsOverviewState({
@@ -130,13 +126,13 @@ function marketsOverviewAddLines(): void {
 }
 
 function enterMarketsManualAssignment(): void {
-  if (!layerIsOn("toggleMarketsLayer")) toggleMarketsLayer();
-  viewContext.customization = 15;
+  if (!layerIsOn("toggleMarketsLayer")) getApi().toggleLayerById("toggleMarketsLayer");
+  getViewContext().customization = 15;
   marketsManualHistory = [];
 
   document.getElementById("marketsTemp")?.remove();
-  viewContext.markets.append("g").attr("id", "marketsTemp").style("fill-opacity", "0.7");
-  marketsWorking = Uint16Array.from(worldContext.pack.cells.market);
+  getViewContext().markets.append("g").attr("id", "marketsTemp").style("fill-opacity", "0.7");
+  marketsWorking = Uint16Array.from(getWorldContext().pack.cells.market);
   renderMarketsTemp();
 
   document.querySelectorAll<HTMLElement>("#marketsOverviewBottom > button").forEach(b => {
@@ -162,8 +158,8 @@ function enterMarketsManualAssignment(): void {
     .querySelector<HTMLElement>('.states.market:not([data-id="0"])');
   if (firstRow) firstRow.classList.add("selected");
 
-  viewbox
-    .style("cursor", "crosshair")
+  getViewContext()
+    .viewbox.style("cursor", "crosshair")
     .on("click", selectMarketOnMapClick)
     .call(drag<SVGGElement, unknown>().on("start", startMarketsBrushDrag))
     .on("touchmove mousemove", onMarketsBrushMove);
@@ -182,7 +178,7 @@ function selectMarketOnMapClick(this: SVGGElement, event: MouseEvent): void {
   const cellId = findCell(x, y);
   if (cellId === undefined) return;
 
-  const marketId = (marketsWorking ?? worldContext.pack.cells.market)[cellId];
+  const marketId = (marketsWorking ?? getWorldContext().pack.cells.market)[cellId];
 
   const body = document.getElementById("marketsOverviewBody")!;
   body.querySelector<HTMLElement>(".states.market.selected")?.classList.remove("selected");
@@ -207,7 +203,9 @@ function startMarketsBrushDrag(this: SVGGElement, event: D3DragEvent<SVGGElement
     moveCircle(x, y, r);
 
     const found =
-      r > 5 ? findAllCellsInRadius(x, y, r, worldContext.pack) : [findClosestCell(x, y, Infinity, worldContext.pack)];
+      r > 5
+        ? findAllCellsInRadius(x, y, r, getWorldContext().pack)
+        : [findClosestCell(x, y, Infinity, getWorldContext().pack)];
     const selection = found.filter((cellId): cellId is number => cellId !== undefined);
     if (!selection.length) return;
     paintMarketCells(selection, marketId);
@@ -236,9 +234,11 @@ function renderMarketsTemp(): void {
   if (!temp || !marketsWorking) return;
 
   const working = marketsWorking;
-  const isolines = getIsolines(worldContext.pack, cellId => working[cellId] || null, { fill: true });
-  temp.innerHTML = worldContext.pack.markets
-    .map(market => `<path data-market="${market.i}" fill="${market.color}" d="${isolines[market.i]?.fill || ""}"/>`)
+  const isolines = getIsolines(getWorldContext().pack, cellId => working[cellId] || null, { fill: true });
+  temp.innerHTML = getWorldContext()
+    .pack.markets.map(
+      market => `<path data-market="${market.i}" fill="${market.color}" d="${isolines[market.i]?.fill || ""}"/>`
+    )
     .join("");
 }
 
@@ -257,7 +257,7 @@ function updateMarketTempPaths(marketIds: Iterable<number>): void {
 
   for (const [marketId, cells] of cellsByMarket) {
     if (!marketId) continue; // market 0 = "no market": those cells are left unpainted
-    const d = cells.length ? getVertexPath(cells, worldContext.pack) : "";
+    const d = cells.length ? getVertexPath(cells, getWorldContext().pack) : "";
     setMarketTempPath(temp, marketId, d);
   }
 }
@@ -288,14 +288,14 @@ function undoMarketsManualStep(): void {
 }
 
 function exitMarketsManualAssignment(apply: boolean): void {
-  viewContext.customization = 0;
+  getViewContext().customization = 0;
 
   if (apply && marketsWorking) {
     for (let cellId = 0; cellId < marketsWorking.length; cellId++) {
       const marketId = marketsWorking[cellId];
-      worldContext.pack.cells.market[cellId] = marketId;
-      const burgId = worldContext.pack.cells.burg[cellId];
-      if (burgId) (worldContext.pack.burgs as Burg[])[burgId].market = marketId;
+      getWorldContext().pack.cells.market[cellId] = marketId;
+      const burgId = getWorldContext().pack.cells.burg[cellId];
+      if (burgId) (getWorldContext().pack.burgs as Burg[])[burgId].market = marketId;
     }
   }
 
@@ -335,14 +335,14 @@ function exitMarketsManualAssignment(apply: boolean): void {
 }
 
 function enterAddMarketMode(): void {
-  viewContext.customization = 16;
+  getViewContext().customization = 16;
   document.getElementById("marketsAdd")!.classList.add("pressed");
   tip("Click on a burg on the map to create a new market there. Hold Shift to add multiple", true);
-  viewbox.style("cursor", "crosshair").on("click", addMarketOnClick);
+  getViewContext().viewbox.style("cursor", "crosshair").on("click", addMarketOnClick);
 }
 
 function exitAddMarketMode(): void {
-  viewContext.customization = 0;
+  getViewContext().customization = 0;
   document.getElementById("marketsAdd")!.classList.remove("pressed");
   restoreDefaultEvents();
   clearMainTip();
@@ -353,13 +353,13 @@ function addMarketOnClick(this: SVGGElement, event: MouseEvent): void {
   const cellId = findCell(x, y);
   if (cellId === undefined) return;
 
-  const burgId = worldContext.pack.cells.burg[cellId];
+  const burgId = getWorldContext().pack.cells.burg[cellId];
   if (!burgId) {
     tip("Click on a burg to create a new market — no burg found here", false, "error");
     return;
   }
 
-  if (worldContext.pack.markets.some(m => m.centerBurgId === burgId)) {
+  if (getWorldContext().pack.markets.some(m => m.centerBurgId === burgId)) {
     tip("This burg is already a market center", false, "error");
     return;
   }
@@ -426,7 +426,7 @@ function getMarketTotalStock(market: Market): number {
 }
 
 function getMarketCells(marketId: number): number {
-  const marketArr = worldContext.pack.cells.market;
+  const marketArr = getWorldContext().pack.cells.market;
   if (!marketArr) return 0;
   let count = 0;
   for (let i = 0; i < marketArr.length; i++) {
@@ -436,9 +436,10 @@ function getMarketCells(marketId: number): number {
 }
 
 function getMarketBurgs(marketId: number): number {
-  const marketArr = worldContext.pack.cells.market;
+  const marketArr = getWorldContext().pack.cells.market;
   if (!marketArr) return 0;
-  return (worldContext.pack.burgs as Burg[]).filter(b => b.i && !b.removed && marketArr[b.cell] === marketId).length;
+  return (getWorldContext().pack.burgs as Burg[]).filter(b => b.i && !b.removed && marketArr[b.cell] === marketId)
+    .length;
 }
 
 function getMarketFinancials(market: Market): {
@@ -447,7 +448,7 @@ function getMarketFinancials(market: Market): {
   value: number;
 } {
   const marketId = market.i;
-  const deals: Deal[] = (worldContext.pack.deals || []).filter(
+  const deals: Deal[] = (getWorldContext().pack.deals || []).filter(
     (deal: Deal) =>
       (deal.sellerType === "market" && deal.seller === marketId) ||
       (deal.buyerType === "market" && deal.buyer === marketId)
@@ -484,10 +485,10 @@ function togglePercentageMode(): void {
 // updateFooter removed
 
 function getOwnerStateName(market: Market): string {
-  const center = worldContext.pack.burgs[market.centerBurgId];
+  const center = getWorldContext().pack.burgs[market.centerBurgId];
   if (!center) return "Unknown";
   if (!center.state) return "Independent";
-  return worldContext.pack.states[center.state]?.name || `State ${center.state}`;
+  return getWorldContext().pack.states[center.state]?.name || `State ${center.state}`;
 }
 
 function regenerateMarkets() {
@@ -520,7 +521,7 @@ function regenerateProduction() {
 
 function downloadMarketsCsv(): void {
   let csv = "Market,Owner,Cells,Burgs,Total Stock,Sales,Buys,Value\n";
-  for (const market of worldContext.pack.markets) {
+  for (const market of getWorldContext().pack.markets) {
     const { sales, buys, value } = getMarketFinancials(market);
     const cells = getMarketCells(market.i);
     const burgs = getMarketBurgs(market.i);
@@ -531,8 +532,8 @@ function downloadMarketsCsv(): void {
 }
 
 export function closeMarketsOverview(): void {
-  if (viewContext.customization === 15) exitMarketsManualAssignment(false);
-  if (viewContext.customization === 16) exitAddMarketMode();
+  if (getViewContext().customization === 15) exitMarketsManualAssignment(false);
+  if (getViewContext().customization === 16) exitAddMarketMode();
 }
 
 export const marketsOverviewActions = {

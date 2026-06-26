@@ -1,6 +1,8 @@
-import { initEconomyExtension } from "./economy";
+import { loadDynamicExtensions } from "./dynamicLoader";
+import { init as initEconomy } from "./economy/index";
 
-export function initExtensions() {
-  console.log("Initializing extensions...");
-  initEconomyExtension();
+/** Initialize all extensions: load builtin extensions then user-installed packages from IndexedDB */
+export async function initExtensions(): Promise<void> {
+  initEconomy(window.fmg.extensionAPI);
+  await loadDynamicExtensions();
 }

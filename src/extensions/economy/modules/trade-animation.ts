@@ -1,8 +1,8 @@
 import FlatQueue from "flatqueue";
-import { worldContext } from "../../../context/worldContext";
 import type { Point } from "../../../modules/voronoi";
 import type { Burg } from "../../../types/models";
 import { ra } from "../../../utils/probabilityUtils";
+import { getWorldContext } from "../economyContext";
 import type { Deal } from "./markets-generator";
 import { Markets } from "./markets-generator";
 
@@ -72,7 +72,7 @@ export class TradeAnimationModule {
   start(): void {
     if (!this.isLayerOnFn?.()) return;
     this.stop();
-    const batches = this.getDealBatches(worldContext.pack.deals || []);
+    const batches = this.getDealBatches(getWorldContext().pack.deals || []);
     if (!batches.length) return;
     this.cachedBatches = batches;
     this.topUp();
@@ -164,18 +164,18 @@ export class TradeAnimationModule {
     const cached = this.pathCache.get(cacheKey);
     if (cached !== undefined) return cached;
 
-    const startBurg = worldContext.pack.burgs[batch.startBurgId];
-    const endBurg = worldContext.pack.burgs[batch.endBurgId];
+    const startBurg = getWorldContext().pack.burgs[batch.startBurgId];
+    const endBurg = getWorldContext().pack.burgs[batch.endBurgId];
     const path = !startBurg || !endBurg ? null : this.findRoutePath(startBurg.cell, endBurg.cell);
     this.pathCache.set(cacheKey, path);
     return path;
   }
 
   getPathCost(fromCell: number, toCell: number): number {
-    const neighbors = worldContext.pack.cells.routes[fromCell];
+    const neighbors = getWorldContext().pack.cells.routes[fromCell];
     if (!neighbors || !(toCell in neighbors)) return this.LAND_COST;
     const routeId = neighbors[toCell];
-    const route = worldContext.pack.routes.find(r => r.i === routeId);
+    const route = getWorldContext().pack.routes.find(r => r.i === routeId);
     return route?.group === "searoutes" ? this.WATER_COST : this.LAND_COST;
   }
 
@@ -186,17 +186,17 @@ export class TradeAnimationModule {
   findRoutePath(startCell: number, endCell: number) {
     if (startCell === endCell) return null;
 
-    const cellRoutes = worldContext.pack.cells.routes;
+    const cellRoutes = getWorldContext().pack.cells.routes;
     const startNeighbors = cellRoutes[startCell];
     if (!startNeighbors) return null;
 
     const isWaterRoute = new Map<number, boolean>();
-    for (const route of worldContext.pack.routes) {
+    for (const route of getWorldContext().pack.routes) {
       isWaterRoute.set(route.i, route.group === "searoutes");
     }
 
     // State encoding: stateId = cell * 2 + (isWater ? 1 : 0)
-    const maxState = worldContext.pack.cells.h.length * 2;
+    const maxState = getWorldContext().pack.cells.h.length * 2;
     const distArr = new Float64Array(maxState).fill(Infinity);
     const prevCellArr = new Int32Array(maxState).fill(-1);
     const prevStateArr = new Int32Array(maxState).fill(-1); // -1 = came directly from startCell
@@ -276,7 +276,7 @@ export class TradeAnimationModule {
 
     // Build a fast routeId→route lookup to avoid repeated linear scans.
     const routeById = new Map<number, { points: number[][] }>();
-    for (const route of worldContext.pack.routes) routeById.set(route.i, route);
+    for (const route of getWorldContext().pack.routes) routeById.set(route.i, route);
 
     // Process the path edge-by-edge, extracting actual stored route geometry so the
     // animation follows the same adjusted/meandered points that the renderer draws.
@@ -287,7 +287,7 @@ export class TradeAnimationModule {
     const firstEdge = this.extractEdgePoints(
       cells[0],
       cells[1],
-      worldContext.pack.cells.routes[cells[0]]?.[cells[1]],
+      getWorldContext().pack.cells.routes[cells[0]]?.[cells[1]],
       routeById
     );
     let currentPoints: Point[] = firstEdge.map(p => [p[0], p[1]] as Point);
@@ -307,7 +307,7 @@ export class TradeAnimationModule {
       const edgePoints = this.extractEdgePoints(
         fromCell,
         toCell,
-        worldContext.pack.cells.routes[fromCell]?.[toCell],
+        getWorldContext().pack.cells.routes[fromCell]?.[toCell],
         routeById
       );
       // The previous edge already emitted fromCell's entire run of points, so skip every leading
@@ -397,9 +397,9 @@ export class TradeAnimationModule {
   }
 
   private getCellPoint(cellId: number): Point {
-    const burgId = worldContext.pack.cells.burg[cellId];
-    const burg = burgId ? worldContext.pack.burgs[burgId] : null;
-    return burg ? [burg.x, burg.y] : worldContext.pack.cells.p[cellId];
+    const burgId = getWorldContext().pack.cells.burg[cellId];
+    const burg = burgId ? getWorldContext().pack.burgs[burgId] : null;
+    return burg ? [burg.x, burg.y] : getWorldContext().pack.cells.p[cellId];
   }
 
   getDealBatches(deals: Deal[]): TradeBatch[] {
@@ -424,7 +424,7 @@ export class TradeAnimationModule {
   private resolveParty(id: number, type: "burg" | "market"): Burg | null {
     const burgId = type === "burg" ? id : Markets.get(id)?.centerBurgId;
     if (!burgId) return null;
-    return worldContext.pack.burgs[burgId] || null;
+    return getWorldContext().pack.burgs[burgId] || null;
   }
 
   getDefaultOptions() {

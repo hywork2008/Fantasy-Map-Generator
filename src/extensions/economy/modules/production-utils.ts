@@ -1,8 +1,8 @@
 import { sum } from "d3";
-import { worldContext } from "../../../context/worldContext";
 import type { Zone } from "../../../types/models";
 import { DEFAULT_CULTURE_TYPE } from "../../../types/models";
 import { rn } from "../../../utils/numberUtils";
+import { getWorldContext } from "../economyContext";
 import { type Good, Goods } from "./goods-generator";
 
 export const BONUS_RURAL_PRODUCTION = 0.25;
@@ -12,7 +12,7 @@ let zoneCellSets: Map<number, Set<number>> | null = null;
 let zoneCellSetsSource: Zone[] | null = null;
 
 export function getZoneCellSets(): Map<number, Set<number>> {
-  const zones = worldContext.pack.zones || [];
+  const zones = getWorldContext().pack.zones || [];
   if (zoneCellSets && zoneCellSetsSource === zones) return zoneCellSets;
 
   const sets = new Map<number, Set<number>>();
@@ -26,14 +26,14 @@ export function getModifiers(good: Good, cellId: number): number {
   const mult = good.multipliers;
   if (!mult) return 1;
 
-  const biomeId = worldContext.pack.cells.biome[cellId];
-  const cultureId = worldContext.pack.cells.culture[cellId];
-  const stateId = worldContext.pack.cells.state[cellId];
-  const religionId = worldContext.pack.cells.religion[cellId];
+  const biomeId = getWorldContext().pack.cells.biome[cellId];
+  const cultureId = getWorldContext().pack.cells.culture[cellId];
+  const stateId = getWorldContext().pack.cells.state[cellId];
+  const religionId = getWorldContext().pack.cells.religion[cellId];
 
-  const burgId = worldContext.pack.cells.burg[cellId];
+  const burgId = getWorldContext().pack.cells.burg[cellId];
   const cultureType =
-    (burgId ? worldContext.pack.burgs[burgId]?.type : worldContext.pack.cultures[cultureId]?.type) ??
+    (burgId ? getWorldContext().pack.burgs[burgId]?.type : getWorldContext().pack.cultures[cultureId]?.type) ??
     DEFAULT_CULTURE_TYPE;
 
   let modifier =
@@ -66,18 +66,18 @@ export function getCellProduction(
     produced[goodId] = rn((produced[goodId] || 0) + amount, 2);
   };
 
-  const isWater = worldContext.pack.cells.h[cellId] < 20;
+  const isWater = getWorldContext().pack.cells.h[cellId] < 20;
   const pop = isWater
-    ? sum(worldContext.pack.cells.c[cellId].map(c => worldContext.pack.cells.pop[c])) || 0
-    : worldContext.pack.cells.pop[cellId];
+    ? sum(getWorldContext().pack.cells.c[cellId].map(c => getWorldContext().pack.cells.pop[c])) || 0
+    : getWorldContext().pack.cells.pop[cellId];
 
   if (pop > 0) {
-    for (const { goodId, production } of biomeProduction[worldContext.pack.cells.biome[cellId]] || []) {
+    for (const { goodId, production } of biomeProduction[getWorldContext().pack.cells.biome[cellId]] || []) {
       const good = Goods.get(goodId);
       if (good) add(goodId, pop * production * modifier(good));
     }
 
-    const bonusGoodId = worldContext.pack.cells.good[cellId];
+    const bonusGoodId = getWorldContext().pack.cells.good[cellId];
     if (bonusGoodId) {
       const good = Goods.get(bonusGoodId);
       if (good) {

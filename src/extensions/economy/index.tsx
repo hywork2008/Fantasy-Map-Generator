@@ -1,12 +1,14 @@
-import { worldContext } from "../../context/worldContext";
-import { toggleLayerById } from "../../controllers/layers";
-import { useExtensionState } from "../../store/extensionState";
-import { type LayerConfig, useLayerState } from "../../store/layerState";
-import { closeDialog, openRichDialog } from "../../ui/dialogs/dialogService";
-import { tooltipExtensions } from "../../utils/uiHelpers";
+import "./types"; // activate module augmentation for PackedGraph
+import type { LayerConfig } from "../../store/layerState";
+import type { ExtensionAPI } from "../../types/extension-api";
+import { clearEconomyContext, getApi, getViewContext, getWorldContext, initEconomyContext } from "./economyContext";
 import { Goods } from "./modules/goods-generator";
 import { Markets } from "./modules/markets-generator";
 import { Production } from "./modules/production-generator";
+import { TradeAnimation } from "./modules/trade-animation";
+import { drawGoods } from "./renderers/draw-goods";
+import { drawMarketsLayer } from "./renderers/draw-markets";
+import { clear as clearTradeAnimation, draw as drawTradeAnimation } from "./renderers/draw-trade-animation";
 import { showEconomyTooltip, updateEconomyCellInfo } from "./tooltipHandler";
 import { GoodsEditorDialog } from "./ui/dialogs/GoodsEditorDialog";
 import { MarketDealsDialog } from "./ui/dialogs/MarketDealsDialog";
@@ -17,11 +19,18 @@ import { ProductionChainsDialog } from "./ui/dialogs/ProductionChainsDialog";
 import { TradeAnimationDialog } from "./ui/dialogs/TradeAnimationDialog";
 import { TradeDetailsDialog } from "./ui/dialogs/TradeDetailsDialog";
 
+/** Default goods set shown when the goods layer is first toggled on. */
+function getDefaultGoodsSet(): Set<number> {
+  const goods = getWorldContext().pack.goods ?? [];
+  const wood = goods.find(g => g.name === "Wood");
+  return wood ? new Set([wood.i]) : new Set(goods.map(g => g.i));
+}
+
 function withRegenerateConfirmation(featureName: string, _id: string, onConfirm: () => void) {
   const dontAsk = sessionStorage.getItem("regenerateFeatureDontAsk");
   if (dontAsk) return onConfirm();
 
-  openRichDialog({
+  getApi().openRichDialog({
     title: `Regenerate ${featureName}`,
     content: `Regenerate will remove all the custom changes for the ${featureName}.<br /><br />Are you sure you want to proceed?`,
     buttons: [
@@ -67,11 +76,14 @@ export const economyLayers: LayerConfig[] = [
   }
 ];
 
-export function initEconomyExtension() {
-  const { registerExtension, registerAction, registerDialog } = useExtensionState.getState();
+let _unsubscribe: (() => void) | null = null;
+let _generatePostCoreHandler: (() => void) | null = null;
+
+export function init(api: ExtensionAPI): void {
+  initEconomyContext(api);
 
   // Register the extension (default enabled: false)
-  registerExtension(
+  api.registerExtension(
     {
       id: ECONOMY_EXTENSION_ID,
       name: "Economy, Goods & Trade",
@@ -81,25 +93,37 @@ export function initEconomyExtension() {
   );
 
   // Register Economy Dialogs
-  registerDialog({ id: "GoodsEditorDialog", extensionId: ECONOMY_EXTENSION_ID, component: GoodsEditorDialog });
-  registerDialog({ id: "MarketsOverviewDialog", extensionId: ECONOMY_EXTENSION_ID, component: MarketsOverviewDialog });
-  registerDialog({ id: "MarketOverviewDialog", extensionId: ECONOMY_EXTENSION_ID, component: MarketOverviewDialog });
-  registerDialog({ id: "MarketDealsDialog", extensionId: ECONOMY_EXTENSION_ID, component: MarketDealsDialog });
-  registerDialog({
+  api.registerDialog({ id: "GoodsEditorDialog", extensionId: ECONOMY_EXTENSION_ID, component: GoodsEditorDialog });
+  api.registerDialog({
+    id: "MarketsOverviewDialog",
+    extensionId: ECONOMY_EXTENSION_ID,
+    component: MarketsOverviewDialog
+  });
+  api.registerDialog({
+    id: "MarketOverviewDialog",
+    extensionId: ECONOMY_EXTENSION_ID,
+    component: MarketOverviewDialog
+  });
+  api.registerDialog({ id: "MarketDealsDialog", extensionId: ECONOMY_EXTENSION_ID, component: MarketDealsDialog });
+  api.registerDialog({
     id: "MarketsGoodCompareDialog",
     extensionId: ECONOMY_EXTENSION_ID,
     component: MarketsGoodCompareDialog
   });
-  registerDialog({ id: "TradeDetailsDialog", extensionId: ECONOMY_EXTENSION_ID, component: TradeDetailsDialog });
-  registerDialog({
+  api.registerDialog({ id: "TradeDetailsDialog", extensionId: ECONOMY_EXTENSION_ID, component: TradeDetailsDialog });
+  api.registerDialog({
     id: "ProductionChainsDialog",
     extensionId: ECONOMY_EXTENSION_ID,
     component: ProductionChainsDialog
   });
-  registerDialog({ id: "TradeAnimationDialog", extensionId: ECONOMY_EXTENSION_ID, component: TradeAnimationDialog });
+  api.registerDialog({
+    id: "TradeAnimationDialog",
+    extensionId: ECONOMY_EXTENSION_ID,
+    component: TradeAnimationDialog
+  });
 
   // Register Economy Actions for ToolsTab Regenerate section
-  registerAction({
+  api.registerAction({
     id: "economy-regenerate-economy",
     extensionId: ECONOMY_EXTENSION_ID,
     tab: "tools",
@@ -115,7 +139,7 @@ export function initEconomyExtension() {
     }
   });
 
-  registerAction({
+  api.registerAction({
     id: "economy-regenerate-goods",
     extensionId: ECONOMY_EXTENSION_ID,
     tab: "tools",
@@ -127,7 +151,7 @@ export function initEconomyExtension() {
     }
   });
 
-  registerAction({
+  api.registerAction({
     id: "economy-regenerate-markets",
     extensionId: ECONOMY_EXTENSION_ID,
     tab: "tools",
@@ -139,7 +163,7 @@ export function initEconomyExtension() {
     }
   });
 
-  registerAction({
+  api.registerAction({
     id: "economy-regenerate-production",
     extensionId: ECONOMY_EXTENSION_ID,
     tab: "tools",
@@ -151,7 +175,7 @@ export function initEconomyExtension() {
     }
   });
 
-  registerAction({
+  api.registerAction({
     id: "economy-edit-goods",
     extensionId: ECONOMY_EXTENSION_ID,
     tab: "tools",
@@ -163,7 +187,7 @@ export function initEconomyExtension() {
     }
   });
 
-  registerAction({
+  api.registerAction({
     id: "economy-edit-markets",
     extensionId: ECONOMY_EXTENSION_ID,
     tab: "tools",
@@ -175,7 +199,7 @@ export function initEconomyExtension() {
     }
   });
 
-  registerAction({
+  api.registerAction({
     id: "economy-edit-trade",
     extensionId: ECONOMY_EXTENSION_ID,
     tab: "tools",
@@ -188,15 +212,15 @@ export function initEconomyExtension() {
   });
 
   // Subscribe to extension state changes to dynamically add/remove layers
-  useExtensionState.subscribe((state, prevState) => {
+  _unsubscribe = api.subscribeExtensionState((state, prevState) => {
     const isEnabled = state.enabledExtensions[ECONOMY_EXTENSION_ID];
     const wasEnabled = prevState.enabledExtensions[ECONOMY_EXTENSION_ID];
-    const { addLayers, removeLayers } = useLayerState.getState();
+    const worldContext = getWorldContext(); // live reference, same object as host
 
     if (isEnabled && !wasEnabled) {
-      addLayers(economyLayers);
-      tooltipExtensions.showMapTooltip = showEconomyTooltip;
-      tooltipExtensions.updateCellInfo = updateEconomyCellInfo;
+      api.addLayers(economyLayers);
+      api.tooltipExtensions.showMapTooltip = showEconomyTooltip;
+      api.tooltipExtensions.updateCellInfo = updateEconomyCellInfo;
       // Generate economy if it's completely missing
       if (!worldContext.pack.goods || worldContext.pack.goods.length === 0) {
         if (
@@ -213,28 +237,28 @@ export function initEconomyExtension() {
     } else if (!isEnabled && wasEnabled) {
       // Visually turn off layers before removing them
       economyLayers.forEach(l => {
-        if (useLayerState.getState().activeLayers[l.id]) {
-          toggleLayerById(l.id);
+        if (api.layerIsOn(l.id)) {
+          api.toggleLayerById(l.id);
         }
       });
-      removeLayers(economyLayers.map(l => l.id));
+      api.removeLayers(economyLayers.map(l => l.id));
 
       // Close all economy-related dialogs
-      closeDialog("goodsEditor");
-      closeDialog("marketsOverview");
-      closeDialog("marketOverview");
-      closeDialog("marketDeals");
-      closeDialog("marketsGoodCompare");
-      closeDialog("tradeDetails");
-      closeDialog("productionChains");
-      closeDialog("tradeAnimationEditor");
+      api.closeDialog("goodsEditor");
+      api.closeDialog("marketsOverview");
+      api.closeDialog("marketOverview");
+      api.closeDialog("marketDeals");
+      api.closeDialog("marketsGoodCompare");
+      api.closeDialog("tradeDetails");
+      api.closeDialog("productionChains");
+      api.closeDialog("tradeAnimationEditor");
 
-      // Clear the associated data from the worldContext when disabled
+      // Clear economy data from worldContext when disabled
       worldContext.pack.goods = [];
       worldContext.pack.markets = [];
       worldContext.pack.deals = [];
-      tooltipExtensions.showMapTooltip = undefined;
-      tooltipExtensions.updateCellInfo = undefined;
+      api.tooltipExtensions.showMapTooltip = undefined;
+      api.tooltipExtensions.updateCellInfo = undefined;
       if (worldContext.pack.cells?.i) {
         worldContext.pack.cells.good = new Uint16Array(worldContext.pack.cells.i.length);
         worldContext.pack.cells.market = new Uint16Array(worldContext.pack.cells.i.length);
@@ -242,20 +266,85 @@ export function initEconomyExtension() {
     }
   });
 
-  // Initial trigger
-  const initialState = useExtensionState.getState();
-  if (initialState.enabledExtensions[ECONOMY_EXTENSION_ID]) {
-    useLayerState.getState().addLayers(economyLayers);
-    tooltipExtensions.showMapTooltip = showEconomyTooltip;
-    tooltipExtensions.updateCellInfo = updateEconomyCellInfo;
+  // If already enabled at load time (e.g. persisted preference), add layers immediately
+  if (api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) {
+    api.addLayers(economyLayers);
+    api.tooltipExtensions.showMapTooltip = showEconomyTooltip;
+    api.tooltipExtensions.updateCellInfo = updateEconomyCellInfo;
   }
 
   // Listen for core map generation to generate economy
-  document.addEventListener("fmg:generate-post-core", () => {
-    if (useExtensionState.getState().enabledExtensions[ECONOMY_EXTENSION_ID]) {
+  _generatePostCoreHandler = () => {
+    if (api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) {
       Goods.generate();
       Markets.generate();
       Production.produce();
     }
+  };
+  document.addEventListener("fmg:generate-post-core", _generatePostCoreHandler);
+
+  // Bind trade animation renderer (must happen before any toggle)
+  TradeAnimation.bind({
+    draw: drawTradeAnimation,
+    clear: clearTradeAnimation,
+    isLayerOn: () => api.layerIsOn("toggleTrade")
   });
+
+  // Register layer toggle handlers
+  api.registerLayerToggle("toggleGoods", (event?: MouseEvent) => {
+    if (!api.layerIsOn("toggleGoods")) {
+      api.turnLayerOn("toggleGoods");
+      drawGoods(getDefaultGoodsSet());
+    } else {
+      getViewContext().goods.selectAll("#goodsCells,#goodsIcons,#goodsBurgs").html("");
+      api.turnLayerOff("toggleGoods");
+    }
+  });
+
+  api.registerLayerToggle("toggleMarketsLayer", (event?: MouseEvent) => {
+    if (!api.layerIsOn("toggleMarketsLayer")) {
+      api.turnLayerOn("toggleMarketsLayer");
+      drawMarketsLayer();
+    } else {
+      getViewContext().marketsFill.html("").style("display", "none");
+      getViewContext().markets.html("").style("display", "none");
+      api.turnLayerOff("toggleMarketsLayer");
+    }
+  });
+
+  api.registerLayerToggle("toggleTrade", (event?: MouseEvent) => {
+    if (!api.layerIsOn("toggleTrade")) {
+      api.turnLayerOn("toggleTrade");
+      TradeAnimation.start();
+    } else {
+      TradeAnimation.stop();
+      api.turnLayerOff("toggleTrade");
+    }
+  });
+
+  // Redraw economy layers whenever the host calls drawLayers()
+  api.registerDrawLayerHook(() => {
+    if (api.layerIsOn("toggleGoods")) drawGoods(getDefaultGoodsSet());
+    if (api.layerIsOn("toggleMarketsLayer")) drawMarketsLayer();
+    if (api.layerIsOn("toggleTrade")) TradeAnimation.start();
+  });
+}
+
+export function cleanup(api: ExtensionAPI): void {
+  if (_unsubscribe) {
+    _unsubscribe();
+    _unsubscribe = null;
+  }
+  if (_generatePostCoreHandler) {
+    document.removeEventListener("fmg:generate-post-core", _generatePostCoreHandler);
+    _generatePostCoreHandler = null;
+  }
+
+  // Remove layers and clear tooltip hooks
+  api.removeLayers(economyLayers.map(l => l.id));
+  api.tooltipExtensions.showMapTooltip = undefined;
+  api.tooltipExtensions.updateCellInfo = undefined;
+
+  api.unregisterExtension(ECONOMY_EXTENSION_ID);
+  clearEconomyContext();
 }

@@ -1,12 +1,11 @@
 import Alea from "alea";
 import { quadtree } from "d3-quadtree";
 import FlatQueue from "flatqueue";
-import { worldContext } from "../../../context/worldContext";
-import { States } from "../../../modules/states-generator";
 import type { Burg } from "../../../types/models";
 import { minmax, rn } from "../../../utils";
 import { getColors, getRandomColor } from "../../../utils/colorUtils";
 import { TIME } from "../../../utils/debug";
+import { getWorldContext } from "../economyContext";
 import type { DemandCategory, Good } from "./goods-generator";
 import { DEMAND_PRIORITY, DEMAND_TARGET_FACTORS, Goods } from "./goods-generator";
 import { getCellProduction } from "./production-utils";
@@ -38,16 +37,26 @@ export type Deal = {
 };
 
 export class MarketsModule {
+  private get worldContext() {
+    return getWorldContext();
+  }
+
+  private getSalesTax(burg: { state?: number }): number {
+    const stateId = burg.state || 0;
+    if (!stateId) return 0;
+    return this.worldContext.pack.states?.[stateId]?.salesTax ?? 0;
+  }
+
   private marketById: Market[] = [];
 
   generate(regenerate: boolean = false): Market[] {
     TIME && console.time("generateMarkets");
-    if (!regenerate) Math.random = Alea(worldContext.seed);
+    if (!regenerate) Math.random = Alea(this.worldContext.seed);
     const markets = this.createMarkets();
     this.expandMarkets(markets);
 
-    worldContext.pack.markets = markets;
-    worldContext.pack.deals = [];
+    this.worldContext.pack.markets = markets;
+    this.worldContext.pack.deals = [];
 
     TIME && console.timeEnd("generateMarkets");
     return markets;
@@ -55,7 +64,7 @@ export class MarketsModule {
 
   private createMarkets(): Market[] {
     // Score each burg by population; capitals and ports are weighted higher
-    const scored = worldContext.pack.burgs
+    const scored = this.worldContext.pack.burgs
       .map(burg => {
         let score = burg.population || 0;
         if (burg.capital) score *= 2.5;
@@ -67,7 +76,9 @@ export class MarketsModule {
 
     // minSpacing scales with map size relative to burg count
     let minSpacing =
-      (((worldContext.graphWidth + worldContext.graphHeight) * 2) / worldContext.pack.burgs.length ** 0.6) | 0;
+      (((this.worldContext.graphWidth + this.worldContext.graphHeight) * 2) /
+        this.worldContext.pack.burgs.length ** 0.6) |
+      0;
 
     const markets: Market[] = [];
     const tree = quadtree<[number, number, number]>(
@@ -99,12 +110,12 @@ export class MarketsModule {
     return markets;
   }
 
-  expandTerritories(markets: Market[] = worldContext.pack.markets): Uint16Array {
+  expandTerritories(markets: Market[] = this.worldContext.pack.markets): Uint16Array {
     this.indexMarkets(markets);
     return this.expandMarkets(markets);
   }
 
-  private indexMarkets(markets: Market[] = worldContext.pack.markets): void {
+  private indexMarkets(markets: Market[] = this.worldContext.pack.markets): void {
     this.marketById = [];
     for (const market of markets) if (market) this.marketById[market.i] = market;
   }
@@ -114,7 +125,7 @@ export class MarketsModule {
   }
 
   private expandMarkets(markets: Market[]): Uint16Array {
-    const cells = worldContext.pack.cells;
+    const cells = this.worldContext.pack.cells;
     const cellMarket = new Uint16Array(cells.i.length);
     const costs: number[] = [];
     type QueueEntry = { cellId: number; marketId: number; burg: Burg; priority: number };
@@ -129,7 +140,7 @@ export class MarketsModule {
 
     const tradeCenters = {} as Record<number, boolean>;
     for (const market of markets) {
-      const centerBurg = worldContext.pack.burgs[market.centerBurgId];
+      const centerBurg = this.worldContext.pack.burgs[market.centerBurgId];
       if (!centerBurg) continue;
       tradeCenters[centerBurg.i!] = true;
 
@@ -167,9 +178,9 @@ export class MarketsModule {
       }
     }
 
-    worldContext.pack.cells.market = cellMarket;
+    this.worldContext.pack.cells.market = cellMarket;
 
-    for (const burg of worldContext.pack.burgs) {
+    for (const burg of this.worldContext.pack.burgs) {
       if (!burg.i || burg.removed) continue;
       burg.market = cellMarket[burg.cell] || 0;
       burg.plaza = burg.plaza || tradeCenters[burg.i] ? 1 : 0;
@@ -181,8 +192,8 @@ export class MarketsModule {
   collectRuralProduction(): void {
     const biomeProduction = Goods.getBiomesProduction();
 
-    for (const cellId of worldContext.pack.cells.i) {
-      const market = this.marketById[worldContext.pack.cells.market[cellId]];
+    for (const cellId of this.worldContext.pack.cells.i) {
+      const market = this.marketById[this.worldContext.pack.cells.market[cellId]];
       if (!market) continue;
 
       const produced = getCellProduction(cellId, biomeProduction);
@@ -205,16 +216,19 @@ export class MarketsModule {
   }
 
   initializeMarketPrices(): void {
-    const consumerDemandFactors = this.collectConsumerDemand(worldContext.pack.goods || []);
-    const industrialDemandFactors = this.collectIndustrialDemand(worldContext.pack.goods || [], consumerDemandFactors);
-    const avgIngredientsCostByGood = this.calculateAverageBaseCostByGood(worldContext.pack.goods || []);
+    const consumerDemandFactors = this.collectConsumerDemand(this.worldContext.pack.goods || []);
+    const industrialDemandFactors = this.collectIndustrialDemand(
+      this.worldContext.pack.goods || [],
+      consumerDemandFactors
+    );
+    const avgIngredientsCostByGood = this.calculateAverageBaseCostByGood(this.worldContext.pack.goods || []);
     const populationByMarket = this.calculatePopulationByMarket();
 
-    for (const market of worldContext.pack.markets) {
+    for (const market of this.worldContext.pack.markets) {
       const population = populationByMarket[market.i] || 0;
 
       // First pass: raw goods - price from demand/supply ratio
-      for (const good of worldContext.pack.goods || []) {
+      for (const good of this.worldContext.pack.goods || []) {
         if (!good.distribution) continue;
         const marketGood = this.getMarketGood(market, good);
         const consumerDemand = consumerDemandFactors[good.i] || 0;
@@ -225,7 +239,7 @@ export class MarketsModule {
       }
 
       // Second pass: manufactured goods - average local ingredient cost + base value-added
-      for (const good of worldContext.pack.goods || []) {
+      for (const good of this.worldContext.pack.goods || []) {
         if (!good.recipes?.length) continue;
         const marketGood = this.getMarketGood(market, good);
         let totalMarketCost = 0;
@@ -255,25 +269,25 @@ export class MarketsModule {
 
   // Display name: the custom name if set, otherwise derived from the center burg.
   public getName(market: Market): string {
-    return market.name || worldContext.pack.burgs[market.centerBurgId]?.name || `Market ${market.i}`;
+    return market.name || this.worldContext.pack.burgs[market.centerBurgId]?.name || `Market ${market.i}`;
   }
 
   addMarket(burgId: number): Market | null {
-    const burg = (worldContext.pack.burgs as Burg[])[burgId];
+    const burg = (this.worldContext.pack.burgs as Burg[])[burgId];
     if (!burg || burg.removed) return null;
 
-    if (worldContext.pack.markets.some(m => m.centerBurgId === burgId)) {
+    if (this.worldContext.pack.markets.some(m => m.centerBurgId === burgId)) {
       return null;
     }
 
-    const maxId = worldContext.pack.markets.reduce((max, m) => Math.max(max, m.i), 0);
+    const maxId = this.worldContext.pack.markets.reduce((max, m) => Math.max(max, m.i), 0);
     const marketId = maxId + 1;
     const market: Market = { i: marketId, centerBurgId: burgId, color: getRandomColor(), goods: {} };
-    worldContext.pack.markets.push(market);
-    worldContext.pack.deals = [];
+    this.worldContext.pack.markets.push(market);
+    this.worldContext.pack.deals = [];
 
     this.indexMarkets();
-    worldContext.pack.cells.market[burg.cell] = marketId;
+    this.worldContext.pack.cells.market[burg.cell] = marketId;
     burg.market = marketId;
     burg.plaza = 1;
 
@@ -281,21 +295,21 @@ export class MarketsModule {
   }
 
   removeMarket(marketId: number): boolean {
-    const marketIndex = worldContext.pack.markets.findIndex(m => m.i === marketId);
+    const marketIndex = this.worldContext.pack.markets.findIndex(m => m.i === marketId);
     if (marketIndex === -1) return false;
 
-    const market = worldContext.pack.markets[marketIndex];
-    const centerBurg = (worldContext.pack.burgs as Burg[])[market.centerBurgId];
+    const market = this.worldContext.pack.markets[marketIndex];
+    const centerBurg = (this.worldContext.pack.burgs as Burg[])[market.centerBurgId];
     if (centerBurg) centerBurg.plaza = 0;
 
-    worldContext.pack.markets.splice(marketIndex, 1);
-    worldContext.pack.deals = [];
+    this.worldContext.pack.markets.splice(marketIndex, 1);
+    this.worldContext.pack.deals = [];
 
-    if (worldContext.pack.markets.length) {
+    if (this.worldContext.pack.markets.length) {
       this.expandTerritories();
     } else {
-      if (worldContext.pack.cells.market) worldContext.pack.cells.market.fill(0);
-      for (const burg of worldContext.pack.burgs as Burg[]) {
+      if (this.worldContext.pack.cells.market) this.worldContext.pack.cells.market.fill(0);
+      for (const burg of this.worldContext.pack.burgs as Burg[]) {
         if (!burg.i || burg.removed) continue;
         burg.market = 0;
         burg.plaza = 0;
@@ -337,7 +351,7 @@ export class MarketsModule {
     if (actualUnits < 0.01) return null;
 
     const deal: Deal = {
-      i: worldContext.pack.deals.length,
+      i: this.worldContext.pack.deals.length,
       seller: market.i,
       sellerType: "market",
       buyer: burg.i!,
@@ -347,7 +361,7 @@ export class MarketsModule {
       price: unitPrice,
       tax: 0
     };
-    worldContext.pack.deals.push(deal);
+    this.worldContext.pack.deals.push(deal);
 
     marketGood.stock = rn(Math.max(0, marketGood.stock - actualUnits), 2);
     marketGood.price = rn(this.applyMarketPressure(good.value, marketGood.price, actualUnits), 2);
@@ -364,7 +378,7 @@ export class MarketsModule {
     marketGood.stock = rn(marketGood.stock + units, 2);
 
     const deal: Deal = {
-      i: worldContext.pack.deals.length,
+      i: this.worldContext.pack.deals.length,
       seller: burg.i!,
       sellerType: "burg",
       buyer: market.i,
@@ -374,31 +388,34 @@ export class MarketsModule {
       price,
       tax
     };
-    worldContext.pack.deals.push(deal);
+    this.worldContext.pack.deals.push(deal);
 
     marketGood.price = rn(this.applyMarketPressure(good.value, marketGood.price, -units), 2);
     return deal;
   }
 
   runGlobalTrade(): void {
-    const consumerDemandFactors = this.collectConsumerDemand(worldContext.pack.goods || []);
-    const industrialDemandFactors = this.collectIndustrialDemand(worldContext.pack.goods || [], consumerDemandFactors);
+    const consumerDemandFactors = this.collectConsumerDemand(this.worldContext.pack.goods || []);
+    const industrialDemandFactors = this.collectIndustrialDemand(
+      this.worldContext.pack.goods || [],
+      consumerDemandFactors
+    );
     const populationByMarket = this.calculatePopulationByMarket();
 
-    const mapDiagonal = Math.hypot(worldContext.graphWidth, worldContext.graphHeight) || 1;
+    const mapDiagonal = Math.hypot(this.worldContext.graphWidth, this.worldContext.graphHeight) || 1;
     const TRADE_RESERVE_FACTOR = 0.2;
     const MIN_UNIT = 0.1;
     const MIN_PROFIT = 1;
     const DISTANCE_COST_FACTOR = 0.5;
 
     const travelCost: Record<number, Record<number, number>> = {};
-    for (const m1 of worldContext.pack.markets) {
+    for (const m1 of this.worldContext.pack.markets) {
       travelCost[m1.i] = {};
-      const burg1 = worldContext.pack.burgs[m1.centerBurgId];
+      const burg1 = this.worldContext.pack.burgs[m1.centerBurgId];
       if (!burg1) continue;
 
-      for (const m2 of worldContext.pack.markets) {
-        const burg2 = worldContext.pack.burgs[m2.centerBurgId];
+      for (const m2 of this.worldContext.pack.markets) {
+        const burg2 = this.worldContext.pack.burgs[m2.centerBurgId];
         if (!burg2) continue;
 
         const dx = Math.abs(burg1.x - burg2.x);
@@ -408,14 +425,14 @@ export class MarketsModule {
       }
     }
 
-    for (const good of worldContext.pack.goods || []) {
+    for (const good of this.worldContext.pack.goods || []) {
       if (!good.distribution && !good.recipes?.length) continue;
 
       const safetyReserves: number[] = [];
       const exporters: { market: Market; reserve: number }[] = [];
       const importers: { market: Market; reserve: number }[] = [];
 
-      for (const market of worldContext.pack.markets) {
+      for (const market of this.worldContext.pack.markets) {
         const population = populationByMarket[market.i] || 0;
         const demand = population * ((consumerDemandFactors[good.i] || 0) + (industrialDemandFactors[good.i] || 0));
         const reserve = demand * (1 + TRADE_RESERVE_FACTOR);
@@ -451,8 +468,8 @@ export class MarketsModule {
         const available = Math.max(0, exporterGood.stock - exporter.reserve);
         if (available < MIN_UNIT) continue;
 
-        const exporterCenter = worldContext.pack.burgs[exporter.market.centerBurgId];
-        const exporterTaxPerUnit = States.getSalesTax(exporterCenter) * exporterGood.price;
+        const exporterCenter = this.worldContext.pack.burgs[exporter.market.centerBurgId];
+        const exporterTaxPerUnit = this.getSalesTax(exporterCenter) * exporterGood.price;
 
         for (const importer of importers) {
           const importerGood = this.getMarketGood(importer.market, good);
@@ -494,7 +511,7 @@ export class MarketsModule {
         if (totalProfit < MIN_PROFIT) continue;
 
         const deal: Deal = {
-          i: worldContext.pack.deals.length,
+          i: this.worldContext.pack.deals.length,
           seller: opportunity.exporter.i,
           sellerType: "market",
           buyer: opportunity.importer.i,
@@ -504,7 +521,7 @@ export class MarketsModule {
           price: landedCost,
           tax: opportunity.exporterTaxPerUnit * units
         };
-        worldContext.pack.deals.push(deal);
+        this.worldContext.pack.deals.push(deal);
 
         exporterGood.price = rn(this.applyMarketPressure(good.value, exporterGood.price, units), 2);
         importerGood.price = rn(this.applyMarketPressure(good.value, importerGood.price, -units), 2);
@@ -581,7 +598,7 @@ export class MarketsModule {
 
   private calculatePopulationByMarket(): number[] {
     const populationByMarket: number[] = [];
-    for (const burg of worldContext.pack.burgs) {
+    for (const burg of this.worldContext.pack.burgs) {
       if (!burg.i || burg.removed || !burg.market || !burg.population) continue;
       if (!populationByMarket[burg.market]) populationByMarket[burg.market] = 0;
       populationByMarket[burg.market] += burg.population;

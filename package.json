@@ -17,6 +17,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "build:economy": "vite build -c vite.extension.config.ts",
+    "package:economy": "npm run build:economy && tsx scripts/package-extension.ts economy",
     "preview": "vite preview",
     "test": "vitest",
     "test:e2e": "playwright test",

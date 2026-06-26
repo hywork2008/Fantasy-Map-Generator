@@ -1,13 +1,12 @@
 // @ts-nocheck
 
-import { viewContext } from "../../../context/viewContext";
-import { worldContext } from "../../../context/worldContext";
 import { convertTemperature, list, rn } from "../../../utils";
+import { getViewContext, getWorldContext } from "../economyContext";
 import { Goods } from "../modules/goods-generator";
 
-const pack = worldContext.pack;
-const _viewbox = viewContext.viewbox;
-const _options = worldContext.options;
+const pack = getWorldContext().pack;
+const _viewbox = getViewContext().viewbox;
+const _options = getWorldContext().options;
 
 // Mock other missing globals
 const _restoreDefaultEvents = () => {};

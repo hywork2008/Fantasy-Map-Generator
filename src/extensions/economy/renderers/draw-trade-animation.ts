@@ -1,7 +1,7 @@
 import { curveCatmullRom, easeLinear, line } from "d3";
-import { viewContext } from "../../../context/viewContext";
 import type { Point } from "../../../modules/voronoi";
 import { minmax } from "../../../utils";
+import { getViewContext } from "../economyContext";
 import { TradeAnimation, type TradeBatch } from "../modules/trade-animation";
 
 const lineGen = line<Point>().curve(curveCatmullRom.alpha(0.1));
@@ -14,9 +14,9 @@ const MARKER_SYMBOLS = {
 let symbolsReady: Promise<void> | null = null;
 
 function getOrCreateDefs(): Element {
-  const existing = viewContext.svg.select<Element>("#trade-markers").node();
+  const existing = getViewContext().svg.select<Element>("#trade-markers").node();
   if (existing) return existing;
-  return viewContext.svg.append<SVGGElement>("g").attr("id", "trade-markers").node()!;
+  return getViewContext().svg.append<SVGGElement>("g").attr("id", "trade-markers").node()!;
 }
 
 function ensureSymbols(): Promise<void> {
@@ -63,7 +63,7 @@ export async function draw(
     const duration = anim.duration;
     const segDuration = segment.type === "land" ? duration * anim.landDurationModifier : duration;
 
-    const group = viewContext.tradeAnimation.append("g");
+    const group = getViewContext().tradeAnimation.append("g");
     group
       .append("use")
       .attr("href", `#trade-marker-${segment.type}`)
@@ -135,7 +135,7 @@ export async function draw(
 }
 
 export function clear(): void {
-  viewContext.tradeAnimation.selectAll("g").interrupt().remove();
+  getViewContext().tradeAnimation.selectAll("g").interrupt().remove();
   symbolsReady = null;
 }
 
@@ -144,9 +144,9 @@ export function getPath(points: Point[]): string {
 }
 
 export function highlight(points: Point[]): void {
-  viewContext.tradeAnimation.selectAll("path.highlight").remove();
-  viewContext.tradeAnimation
-    .append("path")
+  getViewContext().tradeAnimation.selectAll("path.highlight").remove();
+  getViewContext()
+    .tradeAnimation.append("path")
     .attr("class", "highlight")
     .attr("d", lineGen(points))
     .attr("fill", "none")
@@ -157,5 +157,5 @@ export function highlight(points: Point[]): void {
 }
 
 export function clearHighlight(): void {
-  viewContext.tradeAnimation.selectAll("path.highlight").remove();
+  getViewContext().tradeAnimation.selectAll("path.highlight").remove();
 }

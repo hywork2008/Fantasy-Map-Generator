@@ -1,9 +1,8 @@
 import { createLayerCanvas } from "../../../canvas/map-canvas";
-import { viewContext } from "../../../context/viewContext";
-import { worldContext } from "../../../context/worldContext";
 import { normalize, rn } from "../../../utils";
 import { TIME } from "../../../utils/debug";
 import { getPackPolygon } from "../../../utils/graphUtils";
+import { getViewContext, getWorldContext } from "../economyContext";
 import type { Good } from "../modules/goods-generator";
 import { Goods } from "../modules/goods-generator";
 import { Production } from "../modules/production-generator";
@@ -40,10 +39,10 @@ export function drawGoods(displayedGoods: Set<number>) {
   const burgWeights = computeBurgWeights(displayedGoods);
   const burgMinScales = weightsToMinScales(burgWeights);
 
-  viewContext.goods.select("#goodsIcons").html(buildGoodsIconsContent(displayedGoods, cellMinScales));
-  viewContext.goods.select("#goodsBurgs").html(buildGoodsBurgsContent(displayedGoods, burgMinScales));
+  getViewContext().goods.select("#goodsIcons").html(buildGoodsIconsContent(displayedGoods, cellMinScales));
+  getViewContext().goods.select("#goodsBurgs").html(buildGoodsBurgsContent(displayedGoods, burgMinScales));
 
-  viewContext.goods.style("display", null);
+  getViewContext().goods.style("display", null);
   TIME && console.timeEnd("drawGoods");
 
   document.dispatchEvent(new CustomEvent("fmg:invoke-active-zooming"));
@@ -51,7 +50,7 @@ export function drawGoods(displayedGoods: Set<number>) {
 
 function ensureSubgroups() {
   for (const id of SUBGROUPS) {
-    if (viewContext.goods.select(`#${id}`).empty()) viewContext.goods.append("g").attr("id", id);
+    if (getViewContext().goods.select(`#${id}`).empty()) getViewContext().goods.append("g").attr("id", id);
   }
 }
 
@@ -63,8 +62,8 @@ function drawGoodsCellsCanvas(
   displayedGoods: Set<number>,
   biomeProduction: Record<number, { goodId: number; production: number }[]>
 ): Map<number, number> {
-  const { graphWidth, graphHeight } = worldContext;
-  const node = viewContext.goods.select<SVGGElement>("#goodsCells").node()!;
+  const { graphWidth, graphHeight } = getWorldContext();
+  const node = getViewContext().goods.select<SVGGElement>("#goodsCells").node()!;
   const ctx = createLayerCanvas(node, graphWidth, graphHeight);
 
   const cellBonusWeights = new Map<number, number>();
@@ -74,7 +73,7 @@ function drawGoodsCellsCanvas(
   // First pass: accumulate total production per cell to find the global max
   const cellTotals = new Map<number, { produced: Map<number, number>; total: number }>();
   let maxTotal = 0;
-  for (const cellId of worldContext.pack.cells.i) {
+  for (const cellId of getWorldContext().pack.cells.i) {
     let total = 0;
     const produced = getCellProduction(cellId, biomeProduction);
     const filteredProduced = Object.entries(produced).reduce((map, [goodId, amount]) => {
@@ -95,7 +94,7 @@ function drawGoodsCellsCanvas(
   // Second pass: draw polygons onto canvas with opacity normalized against the global max
   for (const [cellId, { produced, total }] of cellTotals) {
     const opacity = rn(0.1 + 0.9 * normalize(total, 0, maxTotal), 2);
-    const points = getPackPolygon(cellId, worldContext.pack);
+    const points = getPackPolygon(cellId, getWorldContext().pack);
     for (const [goodId, amount] of produced) {
       if (amount <= 0) continue;
       const good = Goods.get(goodId);
@@ -111,7 +110,7 @@ function drawGoodsCellsCanvas(
     }
 
     // Collect bonus-good production weight for icon visibility
-    const bonusGoodId = worldContext.pack.cells.good[cellId];
+    const bonusGoodId = getWorldContext().pack.cells.good[cellId];
     if (bonusGoodId && displayedGoods.has(bonusGoodId)) {
       const bonusAmount = produced.get(bonusGoodId) ?? 0;
       if (bonusAmount > 0) cellBonusWeights.set(cellId, bonusAmount);
@@ -124,7 +123,7 @@ function drawGoodsCellsCanvas(
 /** Returns Map<burgId, totalDisplayedProduction> for burg plate min-scale computation. */
 function computeBurgWeights(displayedGoods: Set<number>): Map<number, number> {
   const result = new Map<number, number>();
-  for (const burg of worldContext.pack.burgs) {
+  for (const burg of getWorldContext().pack.burgs) {
     if (!burg.i || burg.removed || !burg.production) continue;
     const produced = Production.getBurgProduction(burg);
     let total = 0;
@@ -146,17 +145,17 @@ function weightsToMinScales(weights: Map<number, number>): Map<number, number> {
 }
 
 function buildGoodsIconsContent(displayedGoods: Set<number>, cellMinScales: Map<number, number>): string {
-  if (!displayedGoods.size || !worldContext.pack.cells.good) return "";
+  if (!displayedGoods.size || !getWorldContext().pack.cells.good) return "";
 
-  const drawCircle = +viewContext.goods.select("#goodsIcons").attr("data-circle");
+  const drawCircle = +getViewContext().goods.select("#goodsIcons").attr("data-circle");
   let html = "";
-  for (const cellId of worldContext.pack.cells.i) {
-    const goodId = worldContext.pack.cells.good[cellId];
+  for (const cellId of getWorldContext().pack.cells.i) {
+    const goodId = getWorldContext().pack.cells.good[cellId];
     if (!goodId || !displayedGoods.has(goodId)) continue;
     const good = Goods.get(goodId);
     if (!good) continue;
 
-    const [x, y] = worldContext.pack.cells.p[cellId];
+    const [x, y] = getWorldContext().pack.cells.p[cellId];
     const minScale = cellMinScales.get(cellId) ?? MAX_GOODS_SCALE;
     const stroke = Goods.getStroke(good.color);
     html += `<g data-i="${good.i}" data-x="${rn(x, 1)}" data-y="${rn(y, 1)}" data-min-scale="${minScale}">${
@@ -170,13 +169,13 @@ function buildGoodsBurgsContent(displayedGoods: Set<number>, burgMinScales: Map<
   if (!displayedGoods.size) return "";
 
   let html = "";
-  for (const burg of worldContext.pack.burgs) {
+  for (const burg of getWorldContext().pack.burgs) {
     if (!burg.i || burg.removed || !burg.production) continue;
 
     const produced = Production.getBurgProduction(burg);
     const entries: { good: Good; value: number; width: number }[] = [];
 
-    for (const good of worldContext.pack.goods) {
+    for (const good of getWorldContext().pack.goods) {
       if (!displayedGoods.has(good.i)) continue;
       const raw = produced[good.i];
       if (!raw || raw <= 0) continue;
