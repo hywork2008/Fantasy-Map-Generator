@@ -28,7 +28,10 @@
     "convert-global": "tsx scripts/convert-global.ts"
   },
   "simple-git-hooks": {
-    "pre-commit": "npm run lint"
+    "pre-commit": "npx lint-staged && npm run lint:legacy"
+  },
+  "lint-staged": {
+    "src/**/*.{ts,tsx}": ["biome check --write"]
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.0",
@@ -46,6 +49,7 @@
     "@vitest/browser": "^4.1.9",
     "@vitest/browser-playwright": "^4.1.9",
     "jsdom": "^29.1.1",
+    "lint-staged": "^17.0.8",
     "playwright": "^1.61.0",
     "simple-git-hooks": "^2.13.1",
     "ts-morph": "^28.0.0",
