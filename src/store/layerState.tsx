@@ -25,6 +25,8 @@ export interface LayerConfig {
   isSolid?: boolean;
   /** SVG <g> elements the extension system should create/re-acquire for this toggle. */
   svgLayers?: SvgLayerSpec[];
+  /** Plain-text sort key; defaults to id with "toggle" prefix stripped. */
+  sortKey?: string;
 }
 
 export const DEFAULT_LAYERS: LayerConfig[] = [
@@ -119,7 +121,8 @@ export const DEFAULT_LAYERS: LayerConfig[] = [
       </>
     ),
     shortcut: "I",
-    tooltip: "Burg icons: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
+    tooltip: "Burg icons: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style",
+    sortKey: "Icons"
   },
   {
     id: "toggleLabels",
@@ -286,7 +289,8 @@ export const DEFAULT_LAYERS: LayerConfig[] = [
       </>
     ),
     shortcut: "W",
-    tooltip: "Wind (Compass) Rose: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
+    tooltip: "Wind (Compass) Rose: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style",
+    sortKey: "Wind Rose"
   },
   {
     id: "toggleZones",
@@ -326,9 +330,10 @@ interface LayerState {
   setAllActiveLayers: (activeLayers: Record<string, boolean>) => void;
 }
 
-// Helper to sort layers alphabetically by id
+const toSortKey = (l: LayerConfig) => l.sortKey ?? l.id.replace(/^toggle/, "");
+
 const sortLayers = (layers: LayerConfig[]) => {
-  return [...layers].sort((a, b) => a.id.localeCompare(b.id));
+  return [...layers].sort((a, b) => toSortKey(a).localeCompare(toSortKey(b)));
 };
 
 export const useLayerState = create<LayerState>((set, get) => ({
