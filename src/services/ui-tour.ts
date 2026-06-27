@@ -51,7 +51,7 @@ class UITourModule {
             title: "Welcome to Fantasy Map Generator",
             description:
               "This quick tour covers the essential controls. Use Next/Previous to navigate, or press Esc to exit at any time.",
-            side: "over",
+            side: "top",
             align: "center"
           }
         },
