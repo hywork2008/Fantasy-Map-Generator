@@ -30,16 +30,6 @@
     />
     <meta name="twitter:image" content="images/preview.png" />
 
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-VJL3J26W7R"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag() {
-        dataLayer.push(arguments);
-      }
-      gtag("js", new Date());
-      gtag("config", "G-VJL3J26W7R");
-    </script>
-
     <link rel="icon" type="image/png" href="images/icons/favicon-32x32.png" sizes="32x32" />
     <link rel="icon" type="image/png" href="images/icons/favicon-16x16.png" sizes="16x16" />
     <link rel="apple-touch-icon" href="images/icons/maskable_icon_x192.png" />
@@ -156,18 +146,6 @@
         this.rel = 'stylesheet';
       "
     />
-    <!-- jquery-ui.css is now imported via npm in src/main.ts -->
-    <!--
-    <link
-      rel="preload"
-      href="libs/jquery-ui.css?v=1.106.5"
-      as="style"
-      onload="
-        this.onload = null;
-        this.rel = 'stylesheet';
-      "
-    />
-    -->
   </head>
   <body>
     <svg
@@ -3064,71 +3042,8 @@
       </defs>
     </svg>
 
-
-
-    <!-- jQuery and jQuery UI are now loaded via npm in src/main.ts -->
-    <!-- <script src="libs/jquery-3.1.1.min.js"></script> -->
-    <!-- <script src="libs/jquery-ui.min.js"></script> -->
-    <!-- versioning.js migrated to src/versioning.ts -->
-    <!-- flatqueue is now imported via npm -->
-    <!-- delaunator is now imported via npm in src/utils/graphUtils.ts etc. -->
-    <!-- indexedDB.js migrated to src/io/ldb.ts -->
-
-    <!-- polylabel is now imported via npm in src/controllers/measurers.ts and src/utils/pathUtils.ts -->
-    <!-- simplify-js is now imported via npm in src/renderers/draw-features.ts -->
-
     <script type="module" src="app.ts"></script>
 
-    <!-- heightmap-templates.js migrated to src/config/heightmap-templates.ts -->
-    <!-- precreated-heightmaps.js migrated to src/config/precreated-heightmaps.ts -->
-    <!-- measurers.js migrated to src/controllers/measurers.ts -->
-    <!-- general.js migrated to src/utils/uiHelpers.ts -->
-    <!-- options.js migrated to src/controllers/options.ts -->
-    <!-- main.js migrated to src/main.ts (imported via src/controllers/index.ts) -->
-
-    <!-- style-presets.js and style.js migrated to src/controllers/style.ts -->
-    <!-- editors.js migrated to src/controllers/editors.ts -->
-    <!-- tools.js migrated to src/controllers/tools.ts -->
-    <!-- world-configurator.js migrated to src/controllers/world-configurator.ts -->
-    <!-- heightmap-editor.js migrated to src/controllers/heightmap-editor.ts -->
-    <!-- provinces-editor.js migrated to src/controllers/provinces-editor.ts -->
-    <!-- biomes-editor migrated to src/controllers/biomes-editor.ts -->
-    <!-- namesbase-editor migrated to src/controllers/namesbase-editor.ts -->
-    <!-- elevation-profile migrated to src/controllers/elevation-profile.ts -->
-    <!-- temperature-graph.js migrated to src/controllers/temperature-graph.ts -->
-    <!-- routes-editor + routes-creator migrated to src/controllers/routes-editor.ts -->
-    <!-- route-group-editor.js migrated to src/controllers/route-group-editor.ts -->
-    <!-- ice-editor.js migrated to src/controllers/ice-editor.ts -->
-    <!-- lakes-editor migrated to src/controllers/lakes-editor.ts -->
-    <!-- coastline-editor migrated to src/controllers/coastline-editor.ts -->
-    <!-- labels-editor migrated to src/controllers/labels-editor.ts -->
-    <!-- rivers-editor migrated to src/controllers/rivers-editor.ts -->
-    <!-- rivers-creator.js migrated to src/controllers/rivers-creator.ts -->
-    <!-- relief-editor migrated to src/controllers/relief-editor.ts -->
-    <!-- burg-group-editor migrated to src/controllers/burg-group-editor.ts -->
-    <!-- burg-editor migrated to src/controllers/burg-editor.ts -->
-    <!-- units-editor migrated to src/controllers/units-editor.ts -->
-    <!-- notes-editor migrated to src/controllers/notes-editor.ts -->
-    <!-- ai-generator.js migrated to src/controllers/ai-generator.ts -->
-    <!-- diplomacy-editor migrated to src/controllers/diplomacy-editor.ts -->
-    <!-- zones-editor migrated to src/controllers/zones-editor.ts -->
-    <!-- burgs-overview migrated to src/controllers/burgs-overview.ts -->
-    <!-- routes-overview.js migrated to src/controllers/routes-overview.ts -->
-    <!-- rivers-overview.js migrated to src/controllers/rivers-overview.ts -->
-    <!-- military-overview migrated to src/controllers/military-overview.ts -->
-    <!-- regiments-overview.js migrated to src/controllers/regiments-overview.ts -->
-    <!-- markers-overview.js migrated to src/controllers/markers-overview.ts -->
-    <!-- regiment-editor migrated to src/controllers/regiment-editor.ts -->
-    <!-- battle-screen migrated to src/controllers/battle-screen.ts -->
-    <!-- emblems-editor migrated to src/controllers/emblems-editor.ts -->
-    <!-- markers-editor migrated to src/controllers/markers-editor.ts -->
-    <!-- 3d migrated to src/controllers/3d.ts -->
-    <!-- submap-tool.js migrated to src/controllers/submap-tool.ts -->
-    <!-- transform-tool.js migrated to src/controllers/transform-tool.ts -->
-    <!-- hotkeys.js migrated to src/controllers/hotkeys.ts -->
-    <!-- rgbquant is now imported via npm in src/editors/heightmap-editor.ts -->
-    <!-- jquery-ui-touch-punch is now loaded via npm in src/main.ts -->
-    <!-- <script defer src="libs/jquery.ui.touch-punch.min.js"></script> -->
     <div id="tourPromptButton" style="display: none" data-tip="Take an interactive tour of the map generator">
       <button type="button" aria-label="Launch UI Tour">
         <svg preserveAspectRatio="xMidYMid" viewBox="0 0 58 52" height="30px" width="30px">
