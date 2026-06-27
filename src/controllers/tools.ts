@@ -43,7 +43,9 @@ import {
 import { COArenderer } from "../renderers/emblem-renderer";
 import { appendMarkerToLayer } from "../renderers/index";
 import { useBurgsOverviewState } from "../store/burgsOverviewState";
+import { dialogStore } from "../store/dialogState";
 import { elSelected, modules } from "../store/editorState";
+import { useLayerState } from "../store/layerState";
 import { useOptionsState } from "../store/optionsState";
 import type { MarkerConfig } from "../types/MarkerConfig";
 import type { Burg, Marker, Province, Religion, River, Route, State } from "../types/models";
@@ -101,20 +103,55 @@ let worldContext: WorldContext;
 let viewContext: ViewContext;
 let appServices: AppServices;
 
+// ─── Layer state restoration when dialogs close ───────────────────────────────
+// For each dialog opened via toggleEditor, stores the before-open state of every
+// layer that changed when openFunc() ran (diff of activeLayers before vs after).
+// When any dialog closes (including via closeAllDialogs), only those diff layers
+// are restored — unrelated manual layer changes during the dialog session are
+// left untouched.
+const dialogLayerChanges = new Map<string, Map<string, boolean>>();
+
+dialogStore.subscribe((state, prevState) => {
+  for (const dialogId of prevState.openDialogs) {
+    if (!state.openDialogs.has(dialogId)) {
+      const changes = dialogLayerChanges.get(dialogId);
+      if (changes) {
+        const currentLayers = useLayerState.getState().activeLayers;
+        for (const [layerId, wasOn] of changes) {
+          const isOn = currentLayers[layerId] ?? false;
+          if (wasOn !== isOn) {
+            document.getElementById(layerId)?.click();
+          }
+        }
+        dialogLayerChanges.delete(dialogId);
+      }
+    }
+  }
+});
+
 // ─── Tools panel event dispatcher ────────────────────────────────────────────
 
 document.addEventListener("react-tool-action", e => {
   const button = (e as CustomEvent).detail?.action;
   if (!button) return;
 
-  const toggleEditor = (dialogId: string, layerId: string | null, openFunc: () => void) => {
+  const toggleEditor = (dialogId: string, _layerId: string | null, openFunc: () => void) => {
     if (Dialogservice.isDialogOpen(dialogId)) {
       Dialogservice.closeDialog(dialogId);
-      if (layerId && layerIsOn(layerId)) {
-        document.getElementById(layerId)?.click();
-      }
+      // Layer restoration is handled by the dialogStore subscriber above.
     } else {
+      // Snapshot layers before openFunc runs, diff after to capture every layer
+      // the editor toggles internally (e.g. editProvinces also touches toggleStates).
+      const before = { ...useLayerState.getState().activeLayers };
       openFunc();
+      const after = useLayerState.getState().activeLayers;
+      const changes = new Map<string, boolean>();
+      for (const id of new Set([...Object.keys(before), ...Object.keys(after)])) {
+        const wasBefore = before[id] ?? false;
+        const isAfter = after[id] ?? false;
+        if (wasBefore !== isAfter) changes.set(id, wasBefore);
+      }
+      if (changes.size > 0) dialogLayerChanges.set(dialogId, changes);
     }
   };
 
