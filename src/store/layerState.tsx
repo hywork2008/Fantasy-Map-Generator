@@ -1,12 +1,30 @@
 import type React from "react";
 import { create } from "zustand";
 
+/**
+ * Describes an SVG <g> element that an extension wants to create and manage.
+ * The extension system reads these specs when `addLayers()` is called and
+ * inserts elements at the specified position within #viewbox.
+ */
+export interface SvgLayerSpec {
+  /** DOM element ID for the SVG <g> (e.g. "marketsLayerFill") */
+  id: string;
+  /** Insert this element before the element with this DOM ID */
+  insertBefore?: string;
+  /** Insert this element after the element with this DOM ID */
+  insertAfter?: string;
+  /** Initial CSS display value — omit for visible-by-default */
+  display?: "none";
+}
+
 export interface LayerConfig {
   id: string;
   name: React.ReactNode;
   shortcut: string | null;
   tooltip: string;
   isSolid?: boolean;
+  /** SVG <g> elements the extension system should create/re-acquire for this toggle. */
+  svgLayers?: SvgLayerSpec[];
 }
 
 export const DEFAULT_LAYERS: LayerConfig[] = [

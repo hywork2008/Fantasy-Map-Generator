@@ -93,7 +93,6 @@ export function StyleTab() {
         <option value="landmass">Landmass</option>
         <option value="legend">Legend</option>
         <option value="markers">Markers</option>
-        <option value="markets">Markets</option>
         <option value="armies">Military</option>
         <option value="ocean">Ocean</option>
         <option value="population">Population</option>
@@ -742,13 +741,6 @@ export function StyleTab() {
                 Show circle
               </label>
             </td>
-          </tr>
-        </tbody>
-
-        <tbody id="styleMarketsLayer" style={{ display: visibility.styleMarketsLayer ? "block" : "none" }}>
-          <tr data-tip="Set market territory zone fill transparency. Defaults to transparent">
-            <td>Fill opacity</td>
-            <td>{slider("styleMarketsLayerFillOpacity", "0", "1", ".01")}</td>
           </tr>
         </tbody>
 

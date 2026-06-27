@@ -42,7 +42,6 @@ let presets: Record<string, string[]> = {};
 
 import { ThreeDRenderer } from "../renderers/three-d-renderer";
 import { DEFAULT_LAYERS, useLayerState } from "../store/layerState";
-import { openDialog } from "../ui/dialogs/dialogService";
 import { layerIsOn } from "../utils/nodeUtils";
 import { tip } from "../utils/uiHelpers";
 
@@ -61,7 +60,6 @@ export function initLayers(wc: WorldContext, vc: Readonly<ViewContext>, as: AppS
   }
 
   restoreCustomPresets();
-  initLayerClickHandlers();
 
   // Listen for layers reorder from store
   document.addEventListener("fmg:sync-layers-order", (e: Event) => {
@@ -69,22 +67,6 @@ export function initLayers(wc: WorldContext, vc: Readonly<ViewContext>, as: AppS
     syncSVGLayersOrder(customEvent.detail);
   });
   // initSortable is removed as React handles DND
-}
-
-export function initLayerClickHandlers(): void {
-  viewContext.goods.on("click.openEditor", (event: MouseEvent) => {
-    const target = event.target as SVGElement;
-    if (target.closest("#goodsIcons, #goodsBurgs")) {
-      openDialog("goodsEditor");
-    }
-  });
-
-  viewContext.markets.on("click.openMarket", (event: MouseEvent) => {
-    const target = event.target as SVGElement;
-    const g = target.closest<SVGGElement>("g[data-id]");
-    if (!g?.dataset.id) return;
-    openDialog("marketOverview", { marketId: +g.dataset.id });
-  });
 }
 
 // ─── Preset management ───────────────────────────────────────────────────────

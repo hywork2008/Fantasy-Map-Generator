@@ -2,7 +2,7 @@ import { createLayerCanvas } from "../../../canvas/map-canvas";
 import { normalize, rn } from "../../../utils";
 import { TIME } from "../../../utils/debug";
 import { getPackPolygon } from "../../../utils/graphUtils";
-import { getViewContext, getWorldContext } from "../economyContext";
+import { getGoodsLayer, getWorldContext } from "../economyContext";
 import type { Good } from "../generators/goods-generator";
 import { Goods } from "../generators/goods-generator";
 import { Production } from "../generators/production-generator";
@@ -39,18 +39,20 @@ export function drawGoods(displayedGoods: Set<number>) {
   const burgWeights = computeBurgWeights(displayedGoods);
   const burgMinScales = weightsToMinScales(burgWeights);
 
-  getViewContext().goods.select("#goodsIcons").html(buildGoodsIconsContent(displayedGoods, cellMinScales));
-  getViewContext().goods.select("#goodsBurgs").html(buildGoodsBurgsContent(displayedGoods, burgMinScales));
+  getGoodsLayer()?.select("#goodsIcons").html(buildGoodsIconsContent(displayedGoods, cellMinScales));
+  getGoodsLayer()?.select("#goodsBurgs").html(buildGoodsBurgsContent(displayedGoods, burgMinScales));
 
-  getViewContext().goods.style("display", null);
+  getGoodsLayer()?.style("display", null);
   TIME && console.timeEnd("drawGoods");
 
   document.dispatchEvent(new CustomEvent("fmg:invoke-active-zooming"));
 }
 
 function ensureSubgroups() {
+  const goods = getGoodsLayer();
+  if (!goods) return;
   for (const id of SUBGROUPS) {
-    if (getViewContext().goods.select(`#${id}`).empty()) getViewContext().goods.append("g").attr("id", id);
+    if (goods.select(`#${id}`).empty()) goods.append("g").attr("id", id);
   }
 }
 
@@ -63,7 +65,8 @@ function drawGoodsCellsCanvas(
   biomeProduction: Record<number, { goodId: number; production: number }[]>
 ): Map<number, number> {
   const { graphWidth, graphHeight } = getWorldContext();
-  const node = getViewContext().goods.select<SVGGElement>("#goodsCells").node()!;
+  const node = getGoodsLayer()?.select<SVGGElement>("#goodsCells").node();
+  if (!node) return new Map();
   const ctx = createLayerCanvas(node, graphWidth, graphHeight);
 
   const cellBonusWeights = new Map<number, number>();
@@ -147,7 +150,7 @@ function weightsToMinScales(weights: Map<number, number>): Map<number, number> {
 function buildGoodsIconsContent(displayedGoods: Set<number>, cellMinScales: Map<number, number>): string {
   if (!displayedGoods.size || !getWorldContext().pack.cells.good) return "";
 
-  const drawCircle = +getViewContext().goods.select("#goodsIcons").attr("data-circle");
+  const drawCircle = +(getGoodsLayer()?.select("#goodsIcons").attr("data-circle") ?? 0);
   let html = "";
   for (const cellId of getWorldContext().pack.cells.i) {
     const goodId = getWorldContext().pack.cells.good[cellId];

@@ -1,7 +1,7 @@
 import "./types"; // activate module augmentation for PackedGraph
 import type { LayerConfig } from "../../store/layerState";
 import type { ExtensionAPI } from "../../types/extension-api";
-import { clearEconomyContext, getApi, getViewContext, getWorldContext, initEconomyContext } from "./economyContext";
+import { clearEconomyContext, getApi, getWorldContext, initEconomyContext } from "./economyContext";
 import { Goods } from "./generators/goods-generator";
 import { Markets } from "./generators/markets-generator";
 import { Production } from "./generators/production-generator";
@@ -92,20 +92,29 @@ export const economyLayers: LayerConfig[] = [
     id: "toggleGoods",
     name: "Goods",
     shortcut: null,
-    tooltip: "Goods and Production: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
+    tooltip:
+      "Goods and Production: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style",
+    svgLayers: [{ id: "goods", insertBefore: "icons", display: "none" }]
   },
   {
     id: "toggleMarketsLayer",
     name: "Markets",
     shortcut: null,
-    tooltip: "Markets: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
+    tooltip: "Markets: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style",
+    svgLayers: [
+      // Fill polygons rendered below Icons so burg icons remain visible on top.
+      { id: "marketsLayerFill", insertBefore: "icons", display: "none" },
+      // Border paths, center circles and labels — also below Icons layer.
+      { id: "marketsLayer", insertBefore: "icons", display: "none" }
+    ]
   },
   {
     id: "toggleTrade",
     name: "Trade",
     shortcut: "`",
     tooltip:
-      "Trade: animated trade deal flows. Click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
+      "Trade: animated trade deal flows. Click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style",
+    svgLayers: [{ id: "tradeAnimation", insertAfter: "marketsLayer" }]
   }
 ];
 
@@ -267,6 +276,7 @@ export function init(api: ExtensionAPI): void {
 
     if (isEnabled && !wasEnabled) {
       api.addLayers(economyLayers);
+      attachSvgClickHandlers();
       for (const [id, { label, layers }] of Object.entries(ECONOMY_PRESETS)) {
         api.registerPreset(id, label, layers);
       }
@@ -323,6 +333,7 @@ export function init(api: ExtensionAPI): void {
   // If already enabled at load time (e.g. persisted preference), add layers immediately
   if (api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) {
     api.addLayers(economyLayers);
+    attachSvgClickHandlers();
     for (const [id, { label, layers }] of Object.entries(ECONOMY_PRESETS)) {
       api.registerPreset(id, label, layers);
     }
@@ -347,13 +358,40 @@ export function init(api: ExtensionAPI): void {
     isLayerOn: () => api.layerIsOn("toggleTrade")
   });
 
+  // Register DOM-element getters so the layer panel can reorder economy SVG groups.
+  api.registerLayerElement("toggleGoods", () => document.getElementById("goods"));
+  api.registerLayerElement("toggleMarketsLayer", () => document.getElementById("marketsLayer"));
+  api.registerLayerElement("toggleTrade", () => document.getElementById("tradeAnimation"));
+
+  // Attach click handlers to economy SVG groups. Called after SVG elements are created
+  // (on first addLayers) and again after every map load (via registerMapReinitHook).
+  function attachSvgClickHandlers() {
+    api.getSvgLayer("goods")?.on("click.openEditor", (event: MouseEvent) => {
+      const target = event.target as SVGElement;
+      if (target.closest("#goodsIcons, #goodsBurgs")) {
+        api.openDialog("goodsEditor");
+      }
+    });
+
+    api.getSvgLayer("marketsLayer")?.on("click.openMarket", (event: MouseEvent) => {
+      const target = event.target as SVGElement;
+      const g = target.closest<SVGGElement>("g[data-id]");
+      if (!g?.dataset.id) return;
+      api.openDialog("marketOverview", { marketId: +g.dataset.id });
+    });
+  }
+
+  api.registerMapReinitHook(() => {
+    if (api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) attachSvgClickHandlers();
+  });
+
   // Register layer toggle handlers
   api.registerLayerToggle("toggleGoods", (_event?: MouseEvent) => {
     if (!api.layerIsOn("toggleGoods")) {
       api.turnLayerOn("toggleGoods");
       drawGoods(getDefaultGoodsSet());
     } else {
-      getViewContext().goods.selectAll("#goodsCells,#goodsIcons,#goodsBurgs").html("");
+      api.getSvgLayer("goods")?.selectAll("#goodsCells,#goodsIcons,#goodsBurgs").html("");
       api.turnLayerOff("toggleGoods");
     }
   });
@@ -363,8 +401,8 @@ export function init(api: ExtensionAPI): void {
       api.turnLayerOn("toggleMarketsLayer");
       drawMarketsLayer();
     } else {
-      getViewContext().marketsFill.html("").style("display", "none");
-      getViewContext().markets.html("").style("display", "none");
+      api.getSvgLayer("marketsLayerFill")?.html("").style("display", "none");
+      api.getSvgLayer("marketsLayer")?.html("").style("display", "none");
       api.turnLayerOff("toggleMarketsLayer");
     }
   });

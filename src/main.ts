@@ -16,7 +16,7 @@ import { appServices } from "./context/appServices";
 import { viewContext } from "./context/viewContext";
 import { worldContext } from "./context/worldContext";
 import { restoreDefaultEvents } from "./controllers/editors";
-import { applyLayersPreset, drawLayers, initLayerClickHandlers } from "./controllers/layers";
+import { applyLayersPreset, drawLayers } from "./controllers/layers";
 import { createDefaultRuler } from "./controllers/measurers";
 import { updateMinimap } from "./controllers/minimap";
 import { applyGraphSize, applyStoredOptions, fitMapToScreen, randomizeOptions } from "./controllers/options";
@@ -161,36 +161,12 @@ let emblems = viewbox.append("g").attr("id", "emblems").style("display", "none")
   null,
   undefined
 >;
-let marketsLayerFill = viewbox.append("g").attr("id", "marketsLayerFill").style("display", "none") as Selection<
-  SVGGElement,
-  unknown,
-  null,
-  undefined
->;
 let icons = viewbox.append("g").attr("id", "icons") as Selection<SVGGElement, unknown, null, undefined>;
 let labels = viewbox.append("g").attr("id", "labels") as Selection<SVGGElement, unknown, null, undefined>;
 let burgIcons = icons.append("g").attr("id", "burgIcons") as Selection<SVGGElement, unknown, null, undefined>;
 let anchors = icons.append("g").attr("id", "anchors") as Selection<SVGGElement, unknown, null, undefined>;
 let armies = viewbox.append("g").attr("id", "armies") as Selection<SVGGElement, unknown, null, undefined>;
 let markers = viewbox.append("g").attr("id", "markers") as Selection<SVGGElement, unknown, null, undefined>;
-let goods = viewbox.append("g").attr("id", "goods").style("display", "none") as Selection<
-  SVGGElement,
-  unknown,
-  null,
-  undefined
->;
-let marketsLayer = viewbox.append("g").attr("id", "marketsLayer").style("display", "none") as Selection<
-  SVGGElement,
-  unknown,
-  null,
-  undefined
->;
-let tradeAnimation = viewbox.append("g").attr("id", "tradeAnimation") as Selection<
-  SVGGElement,
-  unknown,
-  null,
-  undefined
->;
 let fogging = viewbox
   .append("g")
   .attr("id", "fogging-cont")
@@ -296,10 +272,6 @@ Object.assign(viewContext, {
   anchors,
   armies,
   markers,
-  goods,
-  marketsFill: marketsLayerFill,
-  markets: marketsLayer,
-  tradeAnimation,
   fogging,
   ruler,
   debug,
@@ -355,20 +327,11 @@ export function reinitializeMapLayers(): void {
   anchors = icons.select("#anchors") as Selection<SVGGElement, unknown, null, undefined>;
   armies = viewbox.select("#armies") as Selection<SVGGElement, unknown, null, undefined>;
   markers = viewbox.select("#markers") as Selection<SVGGElement, unknown, null, undefined>;
-  goods = viewbox.select("#goods") as Selection<SVGGElement, unknown, null, undefined>;
-  marketsLayer = viewbox.select<SVGGElement>("#marketsLayer");
-  if (!marketsLayer.size()) {
-    // Pre-1.125.x saves used #markets; rename in-place so subsequent saves use the new id
-    marketsLayer = viewbox.select<SVGGElement>("#markets").attr("id", "marketsLayer");
+  // Pre-1.125.x saves used #markets; rename in-place so subsequent saves use the new id.
+  // The economy extension's reinit hook will re-acquire #marketsLayer after this rename.
+  if (!viewbox.select("#marketsLayer").size()) {
+    viewbox.select<SVGGElement>("#markets").attr("id", "marketsLayer");
   }
-  marketsLayerFill = viewbox.select<SVGGElement>("#marketsLayerFill");
-  if (!marketsLayerFill.size()) {
-    const anchor = marketsLayer.node();
-    marketsLayerFill = (anchor ? viewbox.insert<SVGGElement>("g", () => anchor) : viewbox.append<SVGGElement>("g"))
-      .attr("id", "marketsLayerFill")
-      .style("display", "none");
-  }
-  tradeAnimation = viewbox.select("#tradeAnimation") as Selection<SVGGElement, unknown, null, undefined>;
   ruler = viewbox.select("#ruler") as Selection<SVGGElement, unknown, null, undefined>;
   fogging = viewbox.select("#fogging") as Selection<SVGGElement, unknown, null, undefined>;
   debug = viewbox.select("#debug") as Selection<SVGGElement, unknown, null, undefined>;
@@ -421,16 +384,13 @@ export function reinitializeMapLayers(): void {
     anchors,
     armies,
     markers,
-    goods,
-    marketsFill: marketsLayerFill,
-    markets: marketsLayer,
-    tradeAnimation,
     fogging,
     ruler,
     debug
   });
 
-  initLayerClickHandlers();
+  // Notify extension system so it can re-acquire extension-owned SVG layers.
+  document.dispatchEvent(new CustomEvent("fmg:map-layers-reinitialized"));
 }
 
 // ─── Fit loaded map to screen (called after reinitializeMapLayers + fitMapToScreen) ─
@@ -1031,17 +991,19 @@ export function invokeActiveZooming() {
     const vRight = (svgWidth - viewX) / scale + GOODS_MARGIN;
     const vBottom = (svgHeight - viewY) / scale + GOODS_MARGIN;
 
-    goods.selectAll<SVGGElement, unknown>("#goodsIcons > g, #goodsBurgs > g").each(function () {
-      const x = +this.getAttribute("data-x")!;
-      const y = +this.getAttribute("data-y")!;
-      const minScale = +this.getAttribute("data-min-scale")! || 0;
+    d3.select<SVGGElement, unknown>("#goods")
+      .selectAll<SVGGElement, unknown>("#goodsIcons > g, #goodsBurgs > g")
+      .each(function () {
+        const x = +this.getAttribute("data-x")!;
+        const y = +this.getAttribute("data-y")!;
+        const minScale = +this.getAttribute("data-min-scale")! || 0;
 
-      const inViewport = x > vLeft && x < vRight && y > vTop && y < vBottom;
-      const aboveThreshold = scale >= minScale;
+        const inViewport = x > vLeft && x < vRight && y > vTop && y < vBottom;
+        const aboveThreshold = scale >= minScale;
 
-      if (inViewport && aboveThreshold) this.classList.remove("hidden");
-      else this.classList.add("hidden");
-    });
+        if (inViewport && aboveThreshold) this.classList.remove("hidden");
+        else this.classList.add("hidden");
+      });
   }
 
   if (!viewContext.customization && !isOptimized) {

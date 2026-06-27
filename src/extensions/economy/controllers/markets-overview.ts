@@ -18,7 +18,7 @@ import { openDialog } from "../../../ui/dialogs/dialogService";
 import { findAllCellsInRadius, findCell, findClosestCell, getIsolines, getVertexPath, rn } from "../../../utils";
 import { layerIsOn } from "../../../utils/nodeUtils";
 import { clearMainTip, showMainTip, tip } from "../../../utils/uiHelpers";
-import { getApi, getViewContext, getWorldContext } from "../economyContext";
+import { getApi, getMarketsLayer, getViewContext, getWorldContext } from "../economyContext";
 import type { Deal, Market } from "../generators/markets-generator";
 import { Markets } from "../generators/markets-generator";
 import { drawMarketsLayer, highlightMarketOff, highlightMarketOn } from "../renderers/draw-markets";
@@ -131,7 +131,7 @@ function enterMarketsManualAssignment(): void {
   marketsManualHistory = [];
 
   document.getElementById("marketsTemp")?.remove();
-  getViewContext().markets.append("g").attr("id", "marketsTemp").style("fill-opacity", "0.7");
+  getMarketsLayer()?.append("g").attr("id", "marketsTemp").style("fill-opacity", "0.7");
   marketsWorking = Uint16Array.from(getWorldContext().pack.cells.market);
   renderMarketsTemp();
 

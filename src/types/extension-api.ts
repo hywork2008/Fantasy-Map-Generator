@@ -14,11 +14,11 @@
  *   export function cleanup(api: ExtensionAPI): void   // optional
  */
 
-import type { ViewContext } from "../context/viewContext";
+import type { SvgGroup, ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import type { ExtensionAction, ExtensionConfig, ExtensionDialog } from "../store/extensionState";
 import type { LayerConfig } from "../store/layerState";
-import type { RichDialogOptions } from "../ui/dialogs/dialogService";
+import type { OpenDialogConfig, RichDialogOptions } from "../ui/dialogs/dialogService";
 
 export interface TooltipExtensionHooks {
   showMapTooltip?: (
@@ -82,10 +82,21 @@ export interface ExtensionAPI {
    * Use this to redraw extension layers after the host redraws everything.
    */
   registerDrawLayerHook(fn: () => void): void;
+  /**
+   * Get the D3 selection for an extension-owned SVG <g> element by its DOM id.
+   * Returns null if the layer has not been created yet (extension disabled or not yet initialised).
+   */
+  getSvgLayer(id: string): SvgGroup | null;
+  /**
+   * Register a hook called after the host reinitialises its SVG layer references
+   * (i.e. after `fmg:reinitialize-map-layers` completes).
+   * Use this to re-attach event handlers to extension-owned SVG elements after a map load.
+   */
+  registerMapReinitHook(fn: () => void): void;
 
   // ── Dialog service ───────────────────────────────────────────────────────
   openRichDialog(options: RichDialogOptions): void;
-  openDialog(id: string): void;
+  openDialog(id: string, config?: OpenDialogConfig): void;
   closeDialog(id: string): void;
   isDialogOpen(id: string): boolean;
 
