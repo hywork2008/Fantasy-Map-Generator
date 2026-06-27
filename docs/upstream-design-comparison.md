@@ -101,9 +101,9 @@ Generator 層が `src/modules/` と命名されており、4層モデルとの�
 - **Tools**: インタラクティブなマップツールとワークフロー
 - **Overviews**: 状態を読み取り専用で表示するダイアログ・パネル（`market-overview.ts` など）
 
-### 本プロジェクトの現状
+### 本プロジェクトの現状（実施済み 2026-06-26）
 
-`src/editors/` を独立ディレクトリとして分離している。AGENTS.md の層定義では Editor 層は `src/controllers/` とされているため、ディレクトリ構造との乖離が生じている。
+`src/editors/` を廃止し、すべてのエディタモジュールを `src/controllers/` に統合しました（Economy 拡張の `editors` 含む）。これにより、AGENTS.md の層定義とディレクトリ構造が完全に一致するようになりました。
 
 Upstream の論拠：
 > "editors should not directly own rendering. Instead: User action → Editor mutates world state → Renderer reacts."
@@ -141,7 +141,7 @@ Upstream のみに存在するファイル群。`feature/import-economy` ブラ�
 
 ### Upstream の設計
 
-`docs/domain/generation_pipeline.md` に `generate()` の全 16 フェーズを表形式で定義。
+`docs/upstream/domain/generation_pipeline.md` に `generate()` の全 16 フェーズを表形式で定義。
 
 | フェーズ | 内容 |
 |---|---|
@@ -158,6 +158,21 @@ Upstream のみに存在するファイル群。`feature/import-economy` ブラ�
 ### 本プロジェクトの現状
 
 相当するドキュメントがなく、新ジェネレータ追加時にどの replication site を更新すべきかが暗黙知になっている。
+
+Upstreamの
+
+| フェーズ | 内容 |
+|---|---|
+| 8 | 財カタログ（Economy 前提） |
+| 9–13 | 文化・集落・政治・省・命名 |
+| 14 | Economy（市場・生産・税収） |
+
+economy拡張機能が8 & 14だとすると基本機能の9-13を挟んでいるのは設計的に良くない。
+地形など地図生成の為の要素と、15,16の軍事など、地図の描画に直接使われないであろう要素が、地図生成のソースコードとどのレベルで結合しているか確認し、描画の順序や拡張機能への分離について検討する必要がある。
+
+One Hour One Lifeのような原始的な文明から、都市国家までの文明を考えると、StatesやProvincesのような政治区分は必ずしも必要ではない。
+
+一番大事な事は地図の生成と、その地図上での遊戯を完全に分けて、地図の生成機能の肥大化を防ぐ。
 
 ---
 
@@ -182,5 +197,5 @@ Upstream のみに存在するファイル群。`feature/import-economy` ブラ�
 | ~~★★★~~ | ~~`lazy-loaders.ts` パターン導入~~ | **不要**: `public/` legacy JS が存在しないため bridge が要らない |
 | ★★☆ | `src/modules/` → `src/generators/` リネーム | 4層モデルとフォルダ名の 1:1 対応 |
 | ~~★★☆~~ | ~~`src/services/` ディレクトリ新設・分離~~ | **実施済み**: fonts/ui-tour を services へ、config→data・ocean-layers/erosion-bake を renderers へ移動 |
-| ★☆☆ | `src/editors/` を `src/controllers/` へ統合 | AGENTS.md の層定義との整合 |
+| ~~★☆☆~~ | ~~`src/editors/` を `src/controllers/` へ統合~~ | **実施済み**: AGENTS.md の層定義に合わせてファイルを移動・統合 |
 | ★☆☆ | Generation Pipeline ドキュメント整備 | 新 generator 追加時のチェックリスト |
