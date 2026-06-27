@@ -3,7 +3,7 @@ import { worldContext } from "../context/worldContext";
 import { Names } from "../generators/names-generator";
 import { rulers } from "../store/editorState";
 import { useOptionsState } from "../store/optionsState";
-import { closeDialogs, openRichDialog } from "../ui/dialogs/dialogService";
+import { closeDialogs, openConfirm } from "../ui/dialogs/dialogService";
 import { link, parseError, ra, rn } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
 import { ERROR } from "../utils/debug";
@@ -210,21 +210,11 @@ export async function saveMap(method: string): Promise<void> {
       "GitHub"
     )}. <p id="errorBox">${parseError(error)}</p>`;
 
-    openRichDialog({
-      content: alertMessage.innerHTML,
-      resizable: false,
+    openConfirm(alertMessage.innerHTML, {
       title: "Saving error",
-      width: "28em",
-      buttons: {
-        Retry: () => {
-          /* $(this).dialog("close") removed */
-          saveMap(method);
-        },
-        Close: () => {
-          /* $(this).dialog("close") removed */
-        }
-      },
-      position: { my: "center", at: "center", of: "svg" }
+      confirm: "Retry",
+      cancel: "Close",
+      onConfirm: () => saveMap(method)
     });
   }
 }

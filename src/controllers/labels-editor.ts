@@ -4,7 +4,7 @@ import { worldContext } from "../context/worldContext";
 import { Names } from "../generators/names-generator";
 import { elSelected, setElSelected } from "../store/editorState";
 import { getLabelsEditorState, type LabelEditorSection, setLabelsEditorState } from "../store/labelsEditorState";
-import { closeDialog, openRichDialog } from "../ui/dialogs/dialogService";
+import { closeDialog, openConfirm } from "../ui/dialogs/dialogService";
 import { findCell, parseTransform, round } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { layerIsOn } from "../utils/nodeUtils";
@@ -239,25 +239,19 @@ function removeLabelsGroup(): void {
     isBasicGroup ? "all elements in the group" : "the entire label group"
   }? <br /><br />Labels to be removed: ${count}`;
 
-  openRichDialog({
-    content: alertContent,
-    resizable: false,
+  openConfirm(alertContent, {
     title: "Remove route group",
-    buttons: {
-      Remove: () => {
-        closeLabelEditor();
-        viewContext.labels
-          .select(`#${group}`)
-          .selectAll<SVGTextElement, unknown>("text")
-          .each(function (this: SVGTextElement) {
-            document.getElementById(`textPath_${this.id}`)?.remove();
-            this.remove();
-          });
-        if (!isBasicGroup) viewContext.labels.select(`#${group}`).remove();
-      },
-      Cancel: () => {
-        /* Cancel */
-      }
+    confirm: "Remove",
+    onConfirm: () => {
+      closeLabelEditor();
+      viewContext.labels
+        .select(`#${group}`)
+        .selectAll<SVGTextElement, unknown>("text")
+        .each(function (this: SVGTextElement) {
+          document.getElementById(`textPath_${this.id}`)?.remove();
+          this.remove();
+        });
+      if (!isBasicGroup) viewContext.labels.select(`#${group}`).remove();
     }
   });
 }
@@ -339,19 +333,13 @@ function editLabelLegend(): void {
 
 function removeLabel(): void {
   const alertContent = "Are you sure you want to remove the label?";
-  openRichDialog({
-    content: alertContent,
-    resizable: false,
+  openConfirm(alertContent, {
     title: "Remove label",
-    buttons: {
-      Remove: () => {
-        viewContext.defs.select(`#textPath_${elSelected!.attr("id")}`).remove();
-        elSelected!.remove();
-        closeLabelEditor();
-      },
-      Cancel: () => {
-        /* Cancel */
-      }
+    confirm: "Remove",
+    onConfirm: () => {
+      viewContext.defs.select(`#textPath_${elSelected!.attr("id")}`).remove();
+      elSelected!.remove();
+      closeLabelEditor();
     }
   });
 }

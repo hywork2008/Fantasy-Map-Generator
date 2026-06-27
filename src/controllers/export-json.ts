@@ -104,13 +104,15 @@ function getMapInfo() {
 }
 
 function getSettings() {
+  const getVal = (id: string, fallback = "") =>
+    (document.getElementById(id) as HTMLInputElement | HTMLSelectElement | null)?.value ?? fallback;
   return {
-    distanceUnit: distanceUnitInput.value,
+    distanceUnit: getVal("distanceUnitInput", localStorage.getItem("distanceUnit") ?? "km"),
     distanceScale: worldContext.distanceScale,
-    areaUnit: areaUnit.value,
-    heightUnit: heightUnit.value,
-    heightExponent: heightExponentInput.value,
-    temperatureScale: temperatureScale.value,
+    areaUnit: getVal("areaUnit"),
+    heightUnit: getVal("heightUnit", localStorage.getItem("heightUnit") ?? "m"),
+    heightExponent: getVal("heightExponentInput"),
+    temperatureScale: getVal("temperatureScale"),
     populationRate: worldContext.populationRate,
     urbanization: worldContext.urbanization,
     mapSize: mapSizeOutput.value,

@@ -2,7 +2,7 @@ import { max as d3max, min as d3min, mean, median } from "d3";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { Names } from "../generators/names-generator";
-import { isDialogOpen, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
+import { isDialogOpen, openAlert, openConfirm, openDialog } from "../ui/dialogs/dialogService";
 import { openURL, rn, unique } from "../utils";
 import { ERROR } from "../utils/debug";
 import { downloadFile, getFileName, uploadFile } from "../utils/editorHelpers";
@@ -262,18 +262,7 @@ class NamesbaseEditorModule {
       <div data-tip="Percentage of names containing space character">Multi-word names: ${rn(multiwordRate * 100, 2)}%</div>
     </div>`;
 
-    openRichDialog({
-      content: alertContent,
-      resizable: false,
-      title: "Data Analysis",
-      width: "auto",
-      position: { my: "left top-30", at: "right+10 top", of: "#namesbaseEditor" },
-      buttons: {
-        OK: () => {
-          /* $(this).dialog("close") removed */
-        }
-      }
-    });
+    openAlert(alertContent, { title: "Data Analysis" });
   }
 
   private namesbaseAdd(): void {
@@ -303,21 +292,14 @@ class NamesbaseEditorModule {
   private namesbaseRestoreDefault(): void {
     const alertContent = /* html */ `Are you sure you want to restore default namesbase?`;
 
-    openRichDialog({
-      content: alertContent,
-      resizable: false,
+    openConfirm(alertContent, {
       title: "Restore default data",
-      buttons: {
-        Restore: () => {
-          /* $(this).dialog("close") removed */
-          Names.clearChains();
-          worldContext.nameBases = Names.getNameBases();
-          this.createBasesList();
-          this.updateInputs();
-        },
-        Cancel: () => {
-          /* $(this).dialog("close") removed */
-        }
+      confirm: "Restore",
+      onConfirm: () => {
+        Names.clearChains();
+        worldContext.nameBases = Names.getNameBases();
+        this.createBasesList();
+        this.updateInputs();
       }
     });
   }
@@ -400,18 +382,7 @@ class NamesbaseEditorModule {
         </div>
       </div>`;
 
-      openRichDialog({
-        content: alertContent,
-        resizable: false,
-        title: "Parsing error",
-        width: "min(72vw, 68em)",
-        position: { my: "center center-4em", at: "center", of: "svg" },
-        buttons: {
-          Continue: () => {
-            /* $(this).dialog("close") removed */
-          }
-        }
-      });
+      openAlert(alertContent, { title: "Parsing error" });
     }
 
     this.createBasesList();

@@ -13,7 +13,7 @@ import { rulers } from "../store/editorState";
 import { useLayerState } from "../store/layerState";
 import { type OptionsState, useOptionsState } from "../store/optionsState";
 import type { NameBase, River } from "../types/models";
-import { closeDialogs, openRichDialog } from "../ui/dialogs/dialogService";
+import { closeDialogs, openConfirm, openRichDialog } from "../ui/dialogs/dialogService";
 import { calculateVoronoi, findCell, last, link, minmax, parseError, rn } from "../utils";
 import { alertMessage } from "../utils/alertMessageEl";
 import { heightmapColorSchemes } from "../utils/colorUtils";
@@ -75,19 +75,10 @@ export function loadMapPrompt(blob: Blob): void {
 
   alertMessage.innerHTML = /* html */ `Are you sure you want to load saved map?<br />
     All unsaved changes made to the current map will be lost`;
-  openRichDialog({
-    content: alertMessage.innerHTML,
-    resizable: false,
+  openConfirm(alertMessage.innerHTML, {
     title: "Load saved map",
-    buttons: {
-      Cancel: () => {
-        /* $(this).dialog("close") removed */
-      },
-      Load: () => {
-        loadLastSavedMap();
-        /* $(this).dialog("close") removed */
-      }
-    }
+    confirm: "Load",
+    onConfirm: () => loadLastSavedMap()
   });
 
   function loadLastSavedMap() {
@@ -131,16 +122,11 @@ export function showUploadErrorMessage(error: string, maplink: string, random: n
   alertMessage.innerHTML = /* html */ `Cannot load map from the ${link(maplink, "link provided")}. ${
     random ? `A new random map is generated. ` : ""
   } Please ensure the linked file is reachable and CORS is allowed on server side`;
-  openRichDialog({
-    content: alertMessage.innerHTML,
+  openConfirm(alertMessage.innerHTML, {
     title: "Loading error",
-    width: "32em",
-    buttons: {
-      "Clear cache": () => cleanupData(),
-      OK: () => {
-        /* $(this).dialog("close") removed */
-      }
-    }
+    confirm: "Clear cache",
+    cancel: "OK",
+    onConfirm: () => cleanupData()
   });
 }
 
@@ -245,15 +231,11 @@ function showUploadMessage(type: string, mapData: string[] | null, mapVersion: s
   }
 
   alertMessage.innerHTML = message;
-  openRichDialog({
-    content: alertMessage.innerHTML,
+  openConfirm(alertMessage.innerHTML, {
     title,
-    buttons: {
-      "Clear cache": () => cleanupData(),
-      OK: () => {
-        /* $(this).dialog("close") removed */
-      }
-    }
+    confirm: "Clear cache",
+    cancel: "OK",
+    onConfirm: () => cleanupData()
   });
 }
 

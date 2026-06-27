@@ -39,7 +39,14 @@ import { ThreeDRenderer } from "../renderers/three-d-renderer";
 import { modules } from "../store/editorState";
 import { useOptionsState } from "../store/optionsState";
 import type { Burg, Culture, Province, Zone } from "../types/models";
-import { closeDialog, closeDialogs, isDialogOpen, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
+import {
+  closeDialog,
+  closeDialogs,
+  isDialogOpen,
+  openConfirm,
+  openDialog,
+  openRichDialog
+} from "../ui/dialogs/dialogService";
 import {
   createTypedArray,
   findCell,
@@ -1192,19 +1199,10 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       }
 
       const alertContent = "Are you sure you want to select a different template? All changes will be lost.";
-      openRichDialog({
-        content: alertContent,
-        resizable: false,
+      openConfirm(alertContent, {
         title: "Change Template",
-        buttons: {
-          Change: function (this: Element) {
-            changeTemplate(template);
-            /* $(this).dialog("close") removed */
-          },
-          Cancel: function (this: Element) {
-            /* $(this).dialog("close") removed */
-          }
-        }
+        confirm: "Change",
+        onConfirm: () => changeTemplate(template)
       });
     }
 

@@ -22,7 +22,7 @@ import {
 } from "../renderers/coastline-fractal";
 import { getFeaturePath } from "../renderers/index";
 import { elSelected, modules, setElSelected } from "../store/editorState";
-import { closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
+import { closeDialogs, openConfirm, openDialog } from "../ui/dialogs/dialogService";
 import { rn, si, unique } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { getPackPolygon } from "../utils/graphUtils";
@@ -356,25 +356,20 @@ export const coastlineEditorActions = {
 
     const count = (elSelected!.node()!.parentNode as Element).childElementCount;
     const alertContent = `Are you sure you want to remove the group? All coastline elements of the group (${count}) will be moved under <i>sea_island</i> group`;
-    openRichDialog({
-      content: alertContent,
-      resizable: false,
+    openConfirm(alertContent, {
       title: "Remove coastline group",
-      width: "26em",
-      buttons: {
-        Remove: () => {
-          const sea = viewContext.coastline.select<SVGGElement>("#sea_island").node()!;
-          const groupEl = viewContext.coastline.select<SVGGElement>(`#${group}`).node()!;
-          while (groupEl.childNodes.length) {
-            sea.appendChild(groupEl.childNodes[0]);
-          }
-          groupEl.remove();
-          updateCoastlineFeatureData();
-          import("../store/coastlineEditorState").then(({ getCoastlineEditorState }) => {
-            getCoastlineEditorState().setFeatureData({ group: "sea_island" });
-          });
-        },
-        Cancel: () => {}
+      confirm: "Remove",
+      onConfirm: () => {
+        const sea = viewContext.coastline.select<SVGGElement>("#sea_island").node()!;
+        const groupEl = viewContext.coastline.select<SVGGElement>(`#${group}`).node()!;
+        while (groupEl.childNodes.length) {
+          sea.appendChild(groupEl.childNodes[0]);
+        }
+        groupEl.remove();
+        updateCoastlineFeatureData();
+        import("../store/coastlineEditorState").then(({ getCoastlineEditorState }) => {
+          getCoastlineEditorState().setFeatureData({ group: "sea_island" });
+        });
       }
     });
   },

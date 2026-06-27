@@ -51,7 +51,8 @@ import type { MarkerConfig } from "../types/MarkerConfig";
 import type { Burg, Marker, Province, Religion, River, Route, State } from "../types/models";
 import type { WorldNote } from "../types/WorldState";
 import * as Dialogservice from "../ui/dialogs/dialogService";
-import { closeAlert, closeDialog, closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
+import { closeAlert, closeDialog, closeDialogs, openDialog } from "../ui/dialogs/dialogService";
+import type { RegenerateConfirmConfig } from "../ui/dialogs/RegenerateConfirmDialog";
 import { findCell, gauss, generateSeed, getNextId, isCtrlClick, P, rn, showPrompt } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { layerIsOn } from "../utils/nodeUtils";
@@ -210,26 +211,14 @@ document.addEventListener("react-tool-action", e => {
       .trim()
       .toLowerCase();
 
-    openRichDialog({
-      title: `Regenerate ${featureName}`,
-      content: `Regenerate will remove all the custom changes for the ${featureName}.<br /><br />Are you sure you want to proceed?`,
-      buttons: [
-        {
-          label: "Proceed",
-          onClick: () => {
-            const dontAskBox = document.getElementById("dontAsk") as HTMLInputElement;
-            if (dontAskBox?.checked) sessionStorage.setItem("regenerateFeatureDontAsk", "true");
-            processFeatureRegeneration(null, button);
-          }
-        },
-        { label: "Cancel", onClick: () => {} }
-      ],
-      onOpen: container => {
-        const checkbox =
-          '<div style="margin-top: 1em;"><span><input id="dontAsk" class="checkbox" type="checkbox"><label for="dontAsk" class="checkbox-label dontAsk"><i>do not ask again</i></label><span></div>';
-        container.insertAdjacentHTML("beforeend", checkbox);
+    const regenerateConfig: RegenerateConfirmConfig = {
+      featureName,
+      onProceed: dontAskAgain => {
+        if (dontAskAgain) sessionStorage.setItem("regenerateFeatureDontAsk", "true");
+        processFeatureRegeneration(null, button);
       }
-    });
+    };
+    openDialog("regenerateConfirm", regenerateConfig);
   }
 
   if (button === "configRegenerateMarkers") configMarkersGeneration();
@@ -791,7 +780,7 @@ function regenerateIce(): void {
   IceRenderer.render(worldContext, viewContext, appServices);
 }
 
-function regenerateMarkers(): void {
+export function regenerateMarkers(): void {
   Markers.regenerate();
   turnButtonOn("toggleMarkers");
   MarkersRenderer.render(worldContext, viewContext, appServices);
@@ -1151,88 +1140,7 @@ function addMarkerOnClick(event: MouseEvent): void {
 // ─── Markers config ───────────────────────────────────────────────────────────
 
 export function configMarkersGeneration(): void {
-  drawConfigTable();
-
-  function drawConfigTable() {
-    const config = Markers.getConfig();
-
-    const headers = `<thead style='font-weight:bold'><tr>
-      <td data-tip="Marker type name">Type</td>
-      <td data-tip="Marker icon">Icon</td>
-      <td data-tip="Marker number multiplier">Multiplier</td>
-      <td data-tip="Number of markers of that type on the current map">Number</td>
-    </tr></thead>`;
-
-    const lines = config.map(({ type, icon, multiplier }: MarkerConfig) => {
-      const isExternal = icon.startsWith("http") || icon.startsWith("data:image");
-      return `<tr>
-        <td><input class="type" value="${type}" /></td>
-        <td style="position: relative">
-          <img class="image" src="${isExternal ? icon : ""}" ${isExternal ? "" : "hidden"} style="width:1.2em; height:1.2em; vertical-align: middle;">
-          <span class="emoji" style="font-size:1.2em">${isExternal ? "" : icon}</span>
-          <button class="changeIcon icon-pencil"></button>
-        </td>
-        <td><input class="multiplier" type="number" min="0" max="100" step="0.1" value="${multiplier}" /></td>
-        <td style="text-align:center">${worldContext.pack.markers.filter((marker: Marker) => marker.type === type).length}</td>
-      </tr>`;
-    });
-
-    const table = `<table class="table">${headers}<tbody>${lines.join("")}</tbody></table>`;
-
-    const applyChanges = () => {
-      const container = document.getElementById("alert");
-      if (!container) return;
-      const rows = container.querySelectorAll<HTMLTableRowElement>("tbody > tr");
-      const rowsData = Array.from(rows).map(row => {
-        const type = row.querySelector<HTMLInputElement>(".type")!.value;
-        const image = row.querySelector<HTMLImageElement>(".image")!;
-        const emoji = row.querySelector<HTMLElement>(".emoji")!;
-        const icon = image.getAttribute("src") || emoji.textContent!;
-        const multiplier = parseFloat(row.querySelector<HTMLInputElement>(".multiplier")!.value);
-        return { type, icon, multiplier };
-      });
-
-      const config = Markers.getConfig();
-      const newConfig = config.map((markerType: MarkerConfig, index: number) => {
-        const { type, icon, multiplier } = rowsData[index];
-        return { ...markerType, type, icon, multiplier };
-      });
-      Markers.setConfig(newConfig);
-    };
-
-    openRichDialog({
-      title: "Markers generation settings",
-      content: table,
-      onOpen: container => {
-        container.querySelectorAll<HTMLButtonElement>("button.changeIcon").forEach(selectIconButton => {
-          selectIconButton.addEventListener("click", function () {
-            const image = this.parentElement!.querySelector<HTMLImageElement>(".image")!;
-            const emoji = this.parentElement!.querySelector<HTMLElement>(".emoji")!;
-            const icon = image.getAttribute("src") || emoji.textContent!;
-
-            EditorBus.selectIcon(icon, value => {
-              const isExt = value.startsWith("http") || value.startsWith("data:image");
-              image.setAttribute("src", isExt ? value : "");
-              image.hidden = !isExt;
-              emoji.textContent = isExt ? "" : value;
-            });
-          });
-        });
-      },
-      buttons: [
-        {
-          label: "Regenerate",
-          keepOpen: true,
-          onClick: () => {
-            applyChanges();
-            regenerateMarkers();
-            drawConfigTable();
-          }
-        },
-        { label: "Close", onClick: () => {} }
-      ]
-    });
-  }
+  openDialog("markerConfig");
 }
 
 // ─── Cell details & overview dialogs ─────────────────────────────────────────

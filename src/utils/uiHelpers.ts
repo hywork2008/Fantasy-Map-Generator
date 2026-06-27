@@ -15,7 +15,7 @@ export const tooltipExtensions: {
 
 import { useOptionsState } from "../store/optionsState";
 import type { PackedGraphFeature } from "../types/models";
-import { openRichDialog } from "../ui/dialogs/dialogService";
+import { openAlert } from "../ui/dialogs/dialogService";
 import { alertMessage } from "../utils/alertMessageEl";
 import { debounce, getLatitude, getLongitude, link } from "./commonUtils";
 import { findCell, findGridCell } from "./graphUtils";
@@ -675,18 +675,7 @@ export function showInfo(): void {
 
     <p>Chinese localization: <a href="https://www.8desk.top" target="_blank">8desk.top</a></p>`;
 
-  openRichDialog({
-    content: alertMessage.innerHTML,
-    resizable: false,
-    title: document.title,
-    width: "28em",
-    buttons: {
-      OK: function (this: HTMLElement) {
-        /* $(this).dialog("close") removed */
-      }
-    },
-    position: { my: "center", at: "center", of: "svg" }
-  });
+  openAlert(alertMessage.innerHTML, { title: document.title });
 }
 
 // ─── Table sorting ────────────────────────────────────────────────────────────

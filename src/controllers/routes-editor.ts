@@ -9,7 +9,6 @@ import { getRoutesEditorState, setRoutesEditorState } from "../store/routesEdito
 import type { Route } from "../types/models";
 import { closeDialog, closeDialogs, openRichDialog } from "../ui/dialogs/dialogService";
 import { findCell, getSegmentId, rn } from "../utils";
-import { alertMessage } from "../utils/alertMessageEl";
 import { ERROR } from "../utils/debug";
 import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog } from "../utils/editorHelpers";
@@ -445,17 +444,21 @@ export const routesEditorActions = {
         <select>${options.join("")}</select>
       </div>`;
 
+      let container: HTMLElement | null = null;
       openRichDialog({
         content: alertContent,
         title: "Join routes",
         width: fitContent(),
         position: { my: "left top", at: "left+10 top+150", of: "#map" },
+        onOpen: c => {
+          container = c;
+        },
         buttons: {
           Cancel: () => {
             closeDialog("alert");
           },
           Join: () => {
-            const selectedRouteId = +(alertMessage.querySelector("select") as HTMLSelectElement).value;
+            const selectedRouteId = +(container?.querySelector("select") as HTMLSelectElement).value;
             const selectedRoute = worldContext.pack.routes.find((r: Route) => r.i === selectedRouteId)!;
 
             if (route.points.at(-1)![2] === selectedRoute.points.at(0)![2]) {

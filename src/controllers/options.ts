@@ -19,10 +19,12 @@ import { ThreeDRenderer } from "../renderers/three-d-renderer";
 import { modules } from "../store/editorState";
 import { type OptionsState, useOptionsState } from "../store/optionsState";
 import {
+  closeAlert,
   closeAllDialogs,
   closeDialog,
   closeDialogs,
   isDialogOpen,
+  openAlert,
   openConfirm,
   openDialog,
   openRichDialog
@@ -81,10 +83,10 @@ export async function showSupporters(): Promise<void> {
   const list = mod.supporters.split("\n").sort();
   const columns = window.innerWidth < 800 ? 2 : 5;
 
-  openRichDialog({
-    title: "Patreon Supporters",
-    content: `<ul style='column-count: ${columns}; column-gap: 2em'>${list.map((n: string) => `<li>${n}</li>`).join("")}</ul>`
-  });
+  openAlert(
+    `<ul style='column-count: ${columns}; column-gap: 2em'>${list.map((n: string) => `<li>${n}</li>`).join("")}</ul>`,
+    { title: "Patreon Supporters" }
+  );
 }
 
 // ─── Generic option change helpers ────────────────────────────────────────────
@@ -248,10 +250,7 @@ export function showSeedHistoryDialog(): void {
     const button = `<i data-tip="Click to generate a map with this seed" onclick="restoreSeed(${i})" class="icon-history optionsSeedRestore"></i>`;
     return `<li>Seed: ${h.seed} ${button}. Size: ${h.width}x${h.height}. Template: ${h.template}. Created: ${created}</li>`;
   });
-  openRichDialog({
-    title: "Seed history",
-    content: `<ol style="margin: 0; padding-left: 1.5em">${lines.join("")}</ol>`
-  });
+  openAlert(`<ol style="margin: 0; padding-left: 1.5em">${lines.join("")}</ol>`, { title: "Seed history" });
 }
 
 export function restoreSeed(id: number): void {
@@ -531,8 +530,10 @@ export function applyStoredOptions(): void {
     optionsStore.setOption("template", heightmapId);
   }
 
-  if (stored("distanceUnit")) applyOption(distanceUnitInput, stored("distanceUnit")!);
-  if (stored("heightUnit")) applyOption(heightUnit, stored("heightUnit")!);
+  const distanceUnitEl = document.getElementById("distanceUnitInput") as HTMLSelectElement | null;
+  if (stored("distanceUnit") && distanceUnitEl) applyOption(distanceUnitEl, stored("distanceUnit")!);
+  const heightUnitEl = document.getElementById("heightUnit") as HTMLSelectElement | null;
+  if (stored("heightUnit") && heightUnitEl) applyOption(heightUnitEl, stored("heightUnit")!);
 
   const loadedOptions: Partial<Omit<OptionsState, "setOption" | "setOptions">> = {};
 
@@ -665,8 +666,10 @@ export function randomizeOptions(): void {
     useOptionsState.getState().setOption("distanceScale", dsv);
     worldContext.distanceScale = dsv;
   }
-  if (!stored("distanceUnit") && distanceUnitInput) distanceUnitInput.value = US ? "mi" : "km";
-  if (!stored("heightUnit") && heightUnit) heightUnit.value = US ? "ft" : "m";
+  const distanceUnitElInit = document.getElementById("distanceUnitInput") as HTMLSelectElement | null;
+  if (!stored("distanceUnit") && distanceUnitElInit) distanceUnitElInit.value = US ? "mi" : "km";
+  const heightUnitElInit = document.getElementById("heightUnit") as HTMLSelectElement | null;
+  if (!stored("heightUnit") && heightUnitElInit) heightUnitElInit.value = US ? "ft" : "m";
   if (!stored("temperatureScale") && temperatureScale) temperatureScale.value = US ? "°F" : "°C";
 
   generateEra();
@@ -880,23 +883,24 @@ export function loadURL(): void {
     <br><i>Please note server should allow CORS for file to be loaded. If CORS is not allowed, save file to Dropbox and provide a direct link</i>`;
   openRichDialog({
     content: inner,
-
     title: "Load map from URL",
     width: "27em",
-    buttons: {
-      Load: function (this: Element) {
-        const value = (document.getElementById("mapURL") as HTMLInputElement).value;
-        if (!pattern.test(value)) {
-          tip("Please provide a valid URL", false, "error");
-          return;
+    buttons: [
+      {
+        label: "Load",
+        keepOpen: true,
+        onClick: () => {
+          const value = (document.getElementById("mapURL") as HTMLInputElement).value;
+          if (!pattern.test(value)) {
+            tip("Please provide a valid URL", false, "error");
+            return;
+          }
+          loadMapFromURL(value, 0);
+          closeAlert();
         }
-        loadMapFromURL(value, 0);
-        /* $(this).dialog("close") removed */
       },
-      Cancel: function (this: Element) {
-        /* $(this).dialog("close") removed */
-      }
-    }
+      { label: "Cancel", onClick: () => {} }
+    ]
   });
 }
 

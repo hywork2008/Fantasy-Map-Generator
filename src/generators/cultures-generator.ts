@@ -10,7 +10,7 @@ import { useOptionsState } from "../store/optionsState";
 import type { Culture } from "../types/models";
 import type { PackedGraph } from "../types/PackedGraph";
 import type { WorldState } from "../types/WorldState";
-import { openRichDialog } from "../ui/dialogs/dialogService";
+import { openAlert } from "../ui/dialogs/dialogService";
 import { abbreviate, biased, getColors, getRandomColor, minmax, P, rand, rn, rw } from "../utils";
 import { ERROR, TIME, WARN } from "../utils/debug";
 import { COA } from "./emblem/generator";
@@ -1031,32 +1031,14 @@ class CulturesModule {
           No cultures, states and burgs will be created.<br />
           Please consider changing climate settings in the World Configurator`;
 
-        openRichDialog({
-          content: alertContent,
-          resizable: false,
-          title: "Extreme climate warning",
-          buttons: {
-            Ok: () => {
-              /* $(this).dialog("close") removed */
-            }
-          }
-        });
+        openAlert(alertContent, { title: "Extreme climate warning" });
         return;
       } else {
         WARN && console.warn(`Not enough populated cells (${populated.length}). Will generate only ${count} cultures`);
         const alertContent = /* html */ ` There are only ${populated.length} populated cells and it's insufficient livable area.<br />
           Only ${count} out of ${culturesInputNumber} requested cultures will be generated.<br />
           Please consider changing climate settings in the World Configurator`;
-        openRichDialog({
-          content: alertContent,
-          resizable: false,
-          title: "Extreme climate warning",
-          buttons: {
-            Ok: () => {
-              /* $(this).dialog("close") removed */
-            }
-          }
-        });
+        openAlert(alertContent, { title: "Extreme climate warning" });
       }
     }
 

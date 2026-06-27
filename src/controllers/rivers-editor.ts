@@ -7,7 +7,7 @@ import { dialogStore } from "../store/dialogState";
 import { elSelected, setElSelected } from "../store/editorState";
 import type { River } from "../types/models";
 import type { TypedArray } from "../types/PackedGraph";
-import { closeDialog, closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
+import { closeDialog, closeDialogs, openConfirm, openDialog } from "../ui/dialogs/dialogService";
 import { findCell, getSegmentId, rand, rn } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { getPackPolygon } from "../utils/graphUtils";
@@ -277,19 +277,14 @@ export const riverEditorActions = {
 
   removeRiver: (): void => {
     const alertContent = "Are you sure you want to remove the river and all its tributaries";
-    openRichDialog({
-      content: alertContent,
-      resizable: false,
-      width: "22em",
+    openConfirm(alertContent, {
       title: "Remove river and tributaries",
-      buttons: {
-        Remove: () => {
-          const r = getRiver();
-          if (r) Rivers.remove(r.i);
-          elSelected!.remove();
-          closeDialog("riverEditor");
-        },
-        Cancel: () => {}
+      confirm: "Remove",
+      onConfirm: () => {
+        const r = getRiver();
+        if (r) Rivers.remove(r.i);
+        elSelected!.remove();
+        closeDialog("riverEditor");
       }
     });
   }

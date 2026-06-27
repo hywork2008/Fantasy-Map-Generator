@@ -9,6 +9,7 @@ import { BattleScreenDialog, RegimentSelectorScreenDialog } from "./BattleScreen
 import { BrushesPanelDialog } from "./BrushesPanelDialog";
 import { BurgEditorDialog } from "./BurgEditorDialog";
 import { BurgGroupsEditorDialog } from "./BurgGroupsEditorDialog";
+import { BurgsBubbleChartDialog } from "./BurgsBubbleChartDialog";
 import { BurgsOverviewDialog } from "./BurgsOverviewDialog";
 import { CellInfoDialog } from "./CellInfoDialog";
 import { ChartsOverviewDialog } from "./ChartsOverviewDialog";
@@ -21,6 +22,7 @@ import { ExportMapDialog } from "./ExportMapDialog";
 import { ExportToPngTilesDialog } from "./ExportToPngTilesDialog";
 import { EDITOR_REGISTRY } from "./editorRegistry";
 import { FontDialog } from "./FontDialog";
+import { HeightmapSchemeDialog } from "./HeightmapSchemeDialog";
 import { HierarchyTreeDialog } from "./HierarchyTreeDialog";
 import { IceEditorDialog } from "./IceEditorDialog";
 import { IconSelectorDialog } from "./IconSelectorDialog";
@@ -28,19 +30,21 @@ import { ImageConverterDialog } from "./ImageConverterDialog";
 import { LabelEditorDialog } from "./LabelEditorDialog";
 import { LakeEditorDialog } from "./LakeEditorDialog";
 import { LoadMapDialog } from "./LoadMapDialog";
+import { MarkerConfigDialog } from "./MarkerConfigDialog";
 import { MarkerEditorDialog } from "./MarkerEditorDialog";
 import { MarkersOverviewDialog } from "./MarkersOverviewDialog";
-
 import { MilitaryOptionsDialog } from "./MilitaryOptionsDialog";
 import { MilitaryOverviewDialog } from "./MilitaryOverviewDialog";
 import { MinimapDialog } from "./MinimapDialog";
 import { Options3dDialog } from "./Options3dDialog";
+import { PopulationChangeDialog } from "./PopulationChangeDialog";
 import { Preview3dDialog } from "./Preview3dDialog";
-
 import { PromptDialog } from "./PromptDialog";
 import { ProvinceMergeDialog } from "./ProvinceMergeDialog";
 import { ProvinceNameEditorDialog } from "./ProvinceNameEditorDialog";
+import { ProvincesChartDialog } from "./ProvincesChartDialog";
 import { ProvincesEditorDialog } from "./ProvincesEditorDialog";
+import { RegenerateConfirmDialog } from "./RegenerateConfirmDialog";
 import { RegimentEditorDialog } from "./RegimentEditorDialog";
 import { RegimentsOverviewDialog } from "./RegimentsOverviewDialog";
 import { ReliefEditorDialog } from "./ReliefEditorDialog";
@@ -56,8 +60,10 @@ import { RoutesOverviewDialog } from "./RoutesOverviewDialog";
 import { SaveMapDialog } from "./SaveMapDialog";
 import { StateMergeDialog } from "./StateMergeDialog";
 import { StateNameEditorDialog } from "./StateNameEditorDialog";
+import { StatesChartDialog } from "./StatesChartDialog";
 import { StyleSaverDialog } from "./StyleSaverDialog";
 import { SubmapToolDialog } from "./SubmapToolDialog";
+import { TemperatureGraphDialog } from "./TemperatureGraphDialog";
 import { TemplateEditorDialog } from "./TemplateEditorDialog";
 
 import { TransformToolDialog } from "./TransformToolDialog";
@@ -134,6 +140,14 @@ export const DialogsContainer: React.FC = () => {
           <RegimentsOverviewDialog />
           <MilitaryOptionsDialog />
           <MarkersOverviewDialog />
+          <BurgsBubbleChartDialog />
+          <HeightmapSchemeDialog />
+          <MarkerConfigDialog />
+          <RegenerateConfirmDialog />
+          <PopulationChangeDialog />
+          <ProvincesChartDialog />
+          <StatesChartDialog />
+          <TemperatureGraphDialog />
           <StyleSaverDialog />
           <CellInfoDialog />
           <MinimapDialog />

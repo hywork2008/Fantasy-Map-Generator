@@ -196,7 +196,11 @@ class Ruler extends Measurer {
 
   updateLabel(): void {
     const length = this.getLength();
-    const text = `${rn(length * worldContext.distanceScale)} ${distanceUnitInput.value}`;
+    const distUnit =
+      (document.getElementById("distanceUnitInput") as HTMLSelectElement | null)?.value ??
+      localStorage.getItem("distanceUnit") ??
+      "km";
+    const text = `${rn(length * worldContext.distanceScale)} ${distUnit}`;
     const [x, y] = last(this.points);
     MeasurersRenderer.updateLabel(this.el, text, x, y);
   }
@@ -295,7 +299,11 @@ class Opisometer extends Measurer {
 
   updateLabel(): void {
     const length = this.el.select<SVGPathElement>("path").node()!.getTotalLength();
-    const text = `${rn(length * worldContext.distanceScale)} ${distanceUnitInput.value}`;
+    const distUnit =
+      (document.getElementById("distanceUnitInput") as HTMLSelectElement | null)?.value ??
+      localStorage.getItem("distanceUnit") ??
+      "km";
+    const text = `${rn(length * worldContext.distanceScale)} ${distUnit}`;
     const [x, y] = last(this.points);
     MeasurersRenderer.updateLabel(this.el, text, x, y);
   }
@@ -413,7 +421,11 @@ class RouteOpisometer extends Measurer {
 
   updateLabel(): void {
     const length = this.el.select<SVGPathElement>("path").node()!.getTotalLength();
-    const text = `${rn(length * worldContext.distanceScale)} ${distanceUnitInput.value}`;
+    const distUnit =
+      (document.getElementById("distanceUnitInput") as HTMLSelectElement | null)?.value ??
+      localStorage.getItem("distanceUnit") ??
+      "km";
+    const text = `${rn(length * worldContext.distanceScale)} ${distUnit}`;
     const [x, y] = last(this.points);
     MeasurersRenderer.updateLabel(this.el, text, x, y);
   }

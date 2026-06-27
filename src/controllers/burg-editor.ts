@@ -10,7 +10,7 @@ import { COArenderer } from "../renderers/emblem-renderer";
 import { getBurgEditorState } from "../store/burgEditorState";
 import { elSelected, modules, setElSelected } from "../store/editorState";
 import type { Burg, Culture, CultureType } from "../types/models";
-import { closeDialog, closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
+import { closeDialog, closeDialogs, openAlert, openDialog } from "../ui/dialogs/dialogService";
 import { convertTemperature, findCell, openURL, parseTransform, rand, rn, showPrompt } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog } from "../utils/editorHelpers";
@@ -414,12 +414,7 @@ export const burgEditorActions = {
 
     if (burg.capital) {
       const alertContent = /* html */ `You cannot remove the capital. You must change the state capital first`;
-      openRichDialog({
-        content: alertContent,
-        resizable: false,
-        title: "Remove burg",
-        buttons: { Ok: () => {} }
-      });
+      openAlert(alertContent, { title: "Remove burg" });
     } else {
       confirmationDialog({
         title: "Remove burg",

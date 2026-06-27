@@ -5,7 +5,7 @@ import { worldContext } from "../context/worldContext";
 import { elSelected, modules, setElSelected } from "../store/editorState";
 import type { ReliefIconSet } from "../store/reliefEditorState";
 import { getReliefEditorState, setReliefEditorState } from "../store/reliefEditorState";
-import { closeDialog, closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
+import { closeDialog, closeDialogs, openConfirm, openDialog } from "../ui/dialogs/dialogService";
 import { findAllInQuadtree, findCell, rn } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { layerIsOn } from "../utils/nodeUtils";
@@ -290,16 +290,12 @@ export const reliefEditorActions = {
         : `Are you sure you want to remove all icons (${size})?`;
     }
 
-    openRichDialog({
-      content: alertContent,
-      resizable: false,
+    openConfirm(alertContent, {
       title: "Remove relief icons",
-      buttons: {
-        Remove: () => {
-          if (selection) selection.remove();
-          closeDialog("reliefEditor");
-        },
-        Cancel: () => {}
+      confirm: "Remove",
+      onConfirm: () => {
+        if (selection) selection.remove();
+        closeDialog("reliefEditor");
       }
     });
   }

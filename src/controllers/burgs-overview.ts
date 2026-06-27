@@ -1,4 +1,3 @@
-import * as d3 from "d3";
 import { pointer } from "d3";
 import { zoomTo } from "../actions";
 import { appServices } from "../context/appServices";
@@ -8,9 +7,9 @@ import { Burgs } from "../generators/burgs-generator";
 import { Names } from "../generators/names-generator";
 import { drawBurgIcon, drawBurgLabel, drawRoute } from "../renderers";
 import { useBurgsOverviewState } from "../store/burgsOverviewState";
-import { useOptionsState } from "../store/optionsState";
+import type { BurgsBubbleChartConfig } from "../ui/dialogs/BurgsBubbleChartDialog";
 import { closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
-import { convertTemperature, findCell, getLatitude, getLongitude, rn, si } from "../utils";
+import { convertTemperature, findCell, getLatitude, getLongitude, rn } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog, downloadFile, getFileName } from "../utils/editorHelpers";
 import { layerIsOn } from "../utils/nodeUtils";
@@ -28,15 +27,6 @@ export function overviewBurgs(settings: { stateId?: number | null; cultureId?: n
   useBurgsOverviewState.getState().open(settings.stateId ?? null, settings.cultureId ?? null);
   useBurgsOverviewState.getState().refresh();
   openDialog("burgsOverview");
-}
-
-export function burgHighlightOn(burgId: number): void {
-  const label = viewContext.burgLabels.select(`[data-id='${burgId}']`);
-  if (label.size()) label.classed("drag", true);
-}
-
-export function burgHighlightOff(): void {
-  viewContext.burgLabels.selectAll("text.drag").classed("drag", false);
 }
 
 export function zoomIntoBurg(burgId: number): void {
@@ -257,158 +247,9 @@ export function showBurgsChart(): void {
     return;
   }
 
-  const root = d3
-    .stratify<ChartDatum>()
-    .id(d => String(d.id))
-    .parentId(d => (d.state != null ? String(d.state) : null))(data)
-    .sum(d => d.population ?? 0)
-    .sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
-
-  const width = 150 + 200 * useOptionsState.getState().uiSize;
-  const height = 150 + 200 * useOptionsState.getState().uiSize;
-  const margin = { top: 0, right: -50, bottom: -10, left: -50 };
-  const w = width - margin.left - margin.right;
-  const h = height - margin.top - margin.bottom;
-  const treeLayout = d3.pack<ChartDatum>().size([w, h]).padding(3);
-
-  const content = /* html */ `<select id="burgsTreeType" style="display:block; margin-left:13px; font-size:11px">
-    <option value="states" selected>Group by state</option>
-    <option value="cultures">Group by culture</option>
-    <option value="parent">Group by province and state</option>
-    <option value="provinces">Group by province</option>
-  </select>
-  <div id='burgsInfo' class='chartInfo'>&#8205;</div>`;
-
-  openRichDialog({
-    title: "Burgs bubble chart",
-    content,
-    onOpen: container => {
-      const svg = d3
-        .select(container)
-        .insert("svg", "#burgsInfo")
-        .attr("id", "burgsTree")
-        .attr("width", width)
-        .attr("height", height - 10)
-        .attr("stroke-width", 2);
-      const graph = svg.append("g").attr("transform", `translate(-50, -10)`);
-      document.getElementById("burgsTreeType")!.addEventListener("change", updateChart);
-
-      treeLayout(root);
-
-      type PackNode = d3.HierarchyCircularNode<ChartDatum>;
-
-      const node = graph
-        .selectAll<SVGCircleElement, PackNode>("circle")
-        .data(root.leaves() as PackNode[])
-        .join("circle")
-        .attr("data-id", d => d.data.i ?? "")
-        .attr("r", d => d.r)
-        .attr("fill", d => d.parent?.data.color ?? "#ccc")
-        .attr("cx", d => d.x)
-        .attr("cy", d => d.y)
-        .on("mouseenter", (event: MouseEvent, d) => showInfo(event, d))
-        .on("mouseleave", (ev: MouseEvent) => hideInfo(ev))
-        .on("click", (_event, d) => zoomTo(d.data.x ?? 0, d.data.y ?? 0, 8, 2000));
-
-      function updateChart(this: HTMLSelectElement): void {
-        const getStatesData = () =>
-          worldContext.pack.states.map(s => ({
-            id: s.i,
-            state: s.i ? 0 : null,
-            color: s.color ?? "#ccc",
-            name: s.fullName ?? s.name
-          }));
-        const getCulturesData = () =>
-          worldContext.pack.cultures.map(c => ({
-            id: c.i,
-            culture: c.i ? 0 : null,
-            color: c.color ?? "#ccc",
-            name: c.name
-          }));
-        const getParentData = () => {
-          const statesData = worldContext.pack.states.map(s => ({
-            id: s.i,
-            parent: s.i ? 0 : null,
-            color: s.color ?? "#ccc",
-            name: s.fullName ?? s.name
-          }));
-          const provinces = worldContext.pack
-            .provinces!.filter(p => p.i && !p.removed)
-            .map(p => ({
-              id: p.i + statesData.length - 1,
-              parent: p.state,
-              color: p.color,
-              name: p.fullName
-            }));
-          return [...statesData, ...provinces] as ChartDatum[];
-        };
-        const getProvincesData = (): ChartDatum[] =>
-          worldContext.pack.provinces!.map(p => ({
-            id: p.i ? p.i : 0,
-            province: p.i ? 0 : null,
-            color: p.color ?? "#ccc",
-            name: p.fullName ?? p.name
-          }));
-
-        const value = (d: ChartDatum): number | null | undefined => {
-          if (this.value === "states") return d.state;
-          if (this.value === "cultures") return d.culture;
-          if (this.value === "parent") return d.parent;
-          if (this.value === "provinces") return d.province;
-        };
-
-        const mapping: Record<string, () => ChartDatum[]> = {
-          states: getStatesData,
-          cultures: getCulturesData,
-          parent: getParentData,
-          provinces: getProvincesData
-        };
-        const base = mapping[this.value]();
-        burgs.forEach(b => {
-          b.id = b.i! + base.length - 1;
-        });
-
-        const chartData: ChartDatum[] = [...base, ...burgs];
-        const newRoot = d3
-          .stratify<ChartDatum>()
-          .id(d => String(d.id))
-          .parentId(d => (value(d) != null ? String(value(d)) : null))(chartData)
-          .sum(d => d.population ?? 0)
-          .sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
-
-        node
-          .data(treeLayout(newRoot).leaves() as PackNode[])
-          .transition()
-          .duration(2000)
-          .attr("data-id", d => d.data.i ?? "")
-          .attr("fill", d => d.parent?.data.color ?? "#ccc")
-          .attr("cx", d => d.x)
-          .attr("cy", d => d.y)
-          .attr("r", d => d.r);
-      }
-
-      function showInfo(ev: MouseEvent, d: PackNode): void {
-        const el = ev.target as HTMLElement;
-        el.style.transition = "stroke 1.5s";
-        el.setAttribute("stroke", "#c13119");
-        const name = d.data.name;
-        const parent = d.parent?.data.name;
-        const population = si((d.value ?? 0) * worldContext.populationRate * worldContext.urbanization);
-        (document.getElementById("burgsInfo") as HTMLElement).textContent =
-          `${name}. ${parent}. Population: ${population}`;
-        if (d.data.i != null) burgHighlightOn(d.data.i);
-        tip("Click to zoom into view");
-      }
-
-      function hideInfo(ev: MouseEvent): void {
-        burgHighlightOff();
-        const burgsInfoEl = document.getElementById("burgsInfo");
-        if (burgsInfoEl) burgsInfoEl.textContent = "‍";
-        const el = ev.target as HTMLElement;
-        el.style.transition = "";
-        el.removeAttribute("stroke");
-        tip("");
-      }
-    }
-  });
+  const config: BurgsBubbleChartConfig = {
+    burgs,
+    statesCount: states.length
+  };
+  openDialog("burgsBubbleChart", config);
 }

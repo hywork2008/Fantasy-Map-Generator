@@ -8,7 +8,7 @@ import { elSelected, modules, setElSelected } from "../store/editorState";
 import { getRegimentEditorState, setRegimentEditorState } from "../store/regimentEditorState";
 import type { MilitaryRegiment } from "../types/models";
 import type { WorldNote } from "../types/WorldState";
-import { closeDialog, closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
+import { closeDialog, closeDialogs, openConfirm, openDialog } from "../ui/dialogs/dialogService";
 import { findCell, last, rn } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { layerIsOn } from "../utils/nodeUtils";
@@ -435,30 +435,26 @@ export const regimentEditorActions = {
 
   removeRegiment(): void {
     const alertContent = "Are you sure you want to remove the regiment?";
-    openRichDialog({
-      content: alertContent,
-      resizable: false,
+    openConfirm(alertContent, {
       title: "Remove regiment",
-      buttons: {
-        Remove: () => {
-          const military = worldContext.pack.states[+getRegEl().dataset.state!].military ?? [];
-          const reg = getRegiment();
-          if (!reg) return;
-          const regIndex = military.indexOf(reg);
-          if (regIndex === -1) return;
-          military.splice(regIndex, 1);
+      confirm: "Remove",
+      onConfirm: () => {
+        const military = worldContext.pack.states[+getRegEl().dataset.state!].military ?? [];
+        const reg = getRegiment();
+        if (!reg) return;
+        const regIndex = military.indexOf(reg);
+        if (regIndex === -1) return;
+        military.splice(regIndex, 1);
 
-          const index = worldContext.notes.findIndex((n: WorldNote) => n.id === getRegEl().id);
-          if (index !== -1) worldContext.notes.splice(index, 1);
-          getRegEl().remove();
+        const index = worldContext.notes.findIndex((n: WorldNote) => n.id === getRegEl().id);
+        if (index !== -1) worldContext.notes.splice(index, 1);
+        getRegEl().remove();
 
-          const militaryOverviewRefresh = document.getElementById("militaryOverviewRefresh");
-          const regimentsOverviewRefresh = document.getElementById("regimentsOverviewRefresh");
-          if (militaryOverviewRefresh?.offsetParent) militaryOverviewRefresh.click();
-          if (regimentsOverviewRefresh?.offsetParent) regimentsOverviewRefresh.click();
-          closeDialog("regimentEditor");
-        },
-        Cancel: () => {}
+        const militaryOverviewRefresh = document.getElementById("militaryOverviewRefresh");
+        const regimentsOverviewRefresh = document.getElementById("regimentsOverviewRefresh");
+        if (militaryOverviewRefresh?.offsetParent) militaryOverviewRefresh.click();
+        if (regimentsOverviewRefresh?.offsetParent) regimentsOverviewRefresh.click();
+        closeDialog("regimentEditor");
       }
     });
   }

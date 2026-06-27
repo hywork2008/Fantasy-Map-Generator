@@ -1,6 +1,6 @@
 import { clearLegend, closeDialogs, unfog } from "./controllers/editors";
 import { heightmapTemplates } from "./data";
-import { openRichDialog } from "./ui/dialogs/dialogService";
+import { openAlert, openRichDialog } from "./ui/dialogs/dialogService";
 import { DEBUG, ERROR, INFO, TIME, WARN } from "./utils/debug";
 
 // Azgaar (azgaar.fmg@yandex.com). Minsk, 2017-2023. MIT License
@@ -586,7 +586,7 @@ export async function initMain(): Promise<void> {
   if (!location.hostname) {
     alertMessage.innerHTML = /* html */ `Fantasy Map Generator cannot run serverless. Follow the <a href="https://github.com/Azgaar/Fantasy-Map-Generator/wiki/Run-FMG-locally" target="_blank">instructions</a> on how you can easily run a local web-server`;
 
-    openRichDialog({ content: alertMessage.innerHTML, title: "Loading error" });
+    openAlert(alertMessage.innerHTML, { title: "Loading error" });
   } else {
     hideLoading();
     await checkLoadParameters();
@@ -1057,17 +1057,7 @@ void (function addDragToUpload() {
     if (!file.name.endsWith(".map") && !file.name.endsWith(".gz")) {
       alertMessage.innerHTML =
         "Please upload a map file (<i>.map</i> or <i>.gz</i> formats) you have previously downloaded";
-      openRichDialog({
-        content: alertMessage.innerHTML,
-        resizable: false,
-        title: "Invalid file format",
-        position: { my: "center", at: "center", of: "svg" },
-        buttons: {
-          Close: () => {
-            /* $(this).dialog("close") removed */
-          }
-        }
-      });
+      openAlert(alertMessage.innerHTML, { title: "Invalid file format" });
       return;
     }
 

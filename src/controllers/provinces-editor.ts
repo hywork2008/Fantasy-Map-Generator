@@ -24,7 +24,6 @@ import {
 import type { Emblem as RendererEmblem } from "../renderers/emblem-renderer";
 import { COArenderer } from "../renderers/emblem-renderer";
 import { modules } from "../store/editorState";
-import { useOptionsState } from "../store/optionsState";
 import {
   getProvincesEditorState,
   type ProvinceRowData,
@@ -32,9 +31,9 @@ import {
   setProvincesEditorState
 } from "../store/provincesEditorState";
 import type { Burg, Culture, Province, State } from "../types/models";
-import { closeDialog, closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
-import { findAll, findCell, getRandomColor, isLand, P, parseTransform, rand, rn, si, unique } from "../utils";
-import { alertMessage } from "../utils/alertMessageEl";
+import { closeDialog, closeDialogs, openAlert, openConfirm, openDialog } from "../ui/dialogs/dialogService";
+import type { PopulationChangeConfig } from "../ui/dialogs/PopulationChangeDialog";
+import { findAll, findCell, getRandomColor, isLand, P, parseTransform, rand, rn, unique } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog, downloadFile, getFileName } from "../utils/editorHelpers";
 import { getPackPolygon } from "../utils/graphUtils";
@@ -358,75 +357,50 @@ function changePopulation(province: number): void {
   const total = rural + urban;
   const l = (n: number) => Number(n).toLocaleString();
 
-  const alertContent = /* html */ ` Rural: <input type="number" min="0" step="1" id="ruralPop" value=${rural} style="width:6em" /> Urban:
-    <input type="number" min="0" step="1" id="urbanPop" value=${urban} style="width:6em" ${p.burgs?.length ? "" : "disabled"} />
-    <p>Total population: ${l(total)} ⇒ <span id="totalPop">${l(total)}</span> (<span id="totalPopPerc">100</span>%)</p>`;
-
-  const ruralPopEl = () => document.getElementById("ruralPop") as HTMLInputElement;
-  const urbanPopEl = () => document.getElementById("urbanPop") as HTMLInputElement;
-  const totalPopEl = () => document.getElementById("totalPop")!;
-  const totalPopPercEl = () => document.getElementById("totalPopPerc")!;
-
-  const update = () => {
-    const totalNew = ruralPopEl().valueAsNumber + urbanPopEl().valueAsNumber;
-    if (Number.isNaN(totalNew)) return;
-    totalPopEl().textContent = l(totalNew);
-    totalPopPercEl().textContent = String(rn((totalNew / total) * 100));
-  };
-
-  openRichDialog({
-    content: alertContent,
-    resizable: false,
+  const config: PopulationChangeConfig = {
     title: "Change province population",
-    width: "24em",
-    open: () => {
-      ruralPopEl().oninput = () => update();
-      urbanPopEl().oninput = () => update();
-    },
-    buttons: {
-      Apply: function (this: Element) {
-        applyPopulationChange();
-      },
-      Cancel: function (this: Element) {}
-    },
-    position: { my: "center", at: "center", of: "svg" }
-  });
+    description: `Total: ${l(total)}`,
+    initialRural: rural,
+    initialUrban: urban,
+    urbanDisabled: !p.burgs?.length,
+    onApply: (newRural, newUrban) => {
+      const ruralChange = newRural / rural;
+      if (Number.isFinite(ruralChange) && ruralChange !== 1) {
+        cells.forEach(i => {
+          worldContext.pack.cells.pop[i] *= ruralChange;
+        });
+      }
+      if (!Number.isFinite(ruralChange) && newRural > 0) {
+        const pop = rn(newRural / worldContext.populationRate / cells.length);
+        cells.forEach(i => {
+          worldContext.pack.cells.pop[i] = pop;
+        });
+      }
 
-  function applyPopulationChange(): void {
-    const ruralChange = ruralPopEl().valueAsNumber / rural;
-    if (Number.isFinite(ruralChange) && ruralChange !== 1) {
-      cells.forEach(i => {
-        worldContext.pack.cells.pop[i] *= ruralChange;
-      });
-    }
-    if (!Number.isFinite(ruralChange) && ruralPopEl().valueAsNumber > 0) {
-      const points = ruralPopEl().valueAsNumber / worldContext.populationRate;
-      const pop = rn(points / cells.length);
-      cells.forEach(i => {
-        worldContext.pack.cells.pop[i] = pop;
-      });
-    }
-
-    const urbanChange = urbanPopEl().valueAsNumber / urban;
-    if (Number.isFinite(urbanChange) && urbanChange !== 1) {
-      p.burgs?.forEach((b: number) => {
-        (worldContext.pack.burgs as Burg[])[b].population = rn(
-          ((worldContext.pack.burgs as Burg[])[b].population ?? 0) * urbanChange,
+      const urbanChange = newUrban / urban;
+      if (Number.isFinite(urbanChange) && urbanChange !== 1) {
+        p.burgs?.forEach((b: number) => {
+          (worldContext.pack.burgs as Burg[])[b].population = rn(
+            ((worldContext.pack.burgs as Burg[])[b].population ?? 0) * urbanChange,
+            4
+          );
+        });
+      }
+      if (!Number.isFinite(urbanChange) && newUrban > 0) {
+        const population = rn(
+          newUrban / worldContext.populationRate / worldContext.urbanization / (p.burgs?.length ?? 1),
           4
         );
-      });
-    }
-    if (!Number.isFinite(urbanChange) && urbanPopEl().valueAsNumber > 0) {
-      const points = urbanPopEl().valueAsNumber / worldContext.populationRate / worldContext.urbanization;
-      const population = rn(points / (p.burgs?.length ?? 1), 4);
-      p.burgs?.forEach((b: number) => {
-        (worldContext.pack.burgs as Burg[])[b].population = population;
-      });
-    }
+        p.burgs?.forEach((b: number) => {
+          (worldContext.pack.burgs as Burg[])[b].population = population;
+        });
+      }
 
-    if (layerIsOn("togglePopulation")) PopulationRenderer.render(worldContext, viewContext, appServices);
-    refreshProvincesEditor();
-  }
+      if (layerIsOn("togglePopulation")) PopulationRenderer.render(worldContext, viewContext, appServices);
+      refreshProvincesEditor();
+    }
+  };
+  openDialog("populationChangeDialog", config);
 }
 
 function toggleFog(p: number): void {
@@ -440,35 +414,31 @@ function toggleFog(p: number): void {
 
 function removeProvince(p: number): void {
   const alertContent = "Are you sure you want to remove the province? <br />This action cannot be reverted";
-  openRichDialog({
-    content: alertContent,
-    resizable: false,
+  openConfirm(alertContent, {
     title: "Remove province",
-    buttons: {
-      Remove: function (this: Element) {
-        worldContext.pack.cells.province.forEach((province: number, i: number) => {
-          if (province === p) worldContext.pack.cells.province[i] = 0;
-        });
-        const s = (worldContext.pack.provinces as Province[])[p].state;
-        const state = (worldContext.pack.states as State[])[s];
-        if (state.provinces?.includes(p)) state.provinces.splice(state.provinces.indexOf(p), 1);
+    confirm: "Remove",
+    onConfirm: () => {
+      worldContext.pack.cells.province.forEach((province: number, i: number) => {
+        if (province === p) worldContext.pack.cells.province[i] = 0;
+      });
+      const s = (worldContext.pack.provinces as Province[])[p].state;
+      const state = (worldContext.pack.states as State[])[s];
+      if (state.provinces?.includes(p)) state.provinces.splice(state.provinces.indexOf(p), 1);
 
-        EditorBus.unfog(`focusProvince${p}`);
+      EditorBus.unfog(`focusProvince${p}`);
 
-        const coaId = `provinceCOA${p}`;
-        const coaEl = document.getElementById(coaId);
-        if (coaEl) coaEl.remove();
-        viewContext.emblems.select(`#provinceEmblems > use[data-i='${p}']`).remove();
+      const coaId = `provinceCOA${p}`;
+      const coaEl = document.getElementById(coaId);
+      if (coaEl) coaEl.remove();
+      viewContext.emblems.select(`#provinceEmblems > use[data-i='${p}']`).remove();
 
-        (worldContext.pack.provinces as Province[])[p] = { i: p, removed: true } as Province;
+      (worldContext.pack.provinces as Province[])[p] = { i: p, removed: true } as Province;
 
-        const g = viewContext.provs.select("#provincesBody");
-        g.select(`#province${p}`).remove();
-        g.select(`#province-gap${p}`).remove();
-        if (layerIsOn("toggleBorders")) BordersRenderer.render(worldContext, viewContext, appServices);
-        refreshProvincesEditor();
-      },
-      Cancel: function (this: Element) {}
+      const g = viewContext.provs.select("#provincesBody");
+      g.select(`#province${p}`).remove();
+      g.select(`#province-gap${p}`).remove();
+      if (layerIsOn("toggleBorders")) BordersRenderer.render(worldContext, viewContext, appServices);
+      refreshProvincesEditor();
     }
   });
 }
@@ -498,202 +468,8 @@ function changeCapital(p: number, value: string): void {
   refreshProvincesEditor();
 }
 
-type ChartNode = {
-  id: number;
-  state: number | null;
-  color: unknown;
-  i?: number;
-  name?: string;
-  fullName?: string;
-  area?: number;
-  urban?: number;
-  rural?: number;
-};
-
 function showChart(): void {
-  const getClr = (s: State) =>
-    !s.i || s.removed || !s.color || s.color[0] !== "#" ? "#666" : color(s.color)?.darker();
-  const states = (worldContext.pack.states as State[]).map(
-    s => ({ id: s.i, state: s.i ? 0 : null, color: getClr(s) }) as ChartNode
-  );
-  const provinces = (worldContext.pack.provinces as Province[])
-    .filter(p => p.i && !p.removed)
-    .map(
-      p =>
-        ({
-          id: p.i + states.length - 1,
-          i: p.i,
-          state: p.state,
-          color: p.color,
-          name: p.name,
-          fullName: p.fullName,
-          area: p.area,
-          urban: p.urban,
-          rural: p.rural
-        }) as ChartNode
-    );
-  const data: ChartNode[] = [...states, ...provinces];
-  const root = d3
-    .stratify<ChartNode>()
-    .id(d => String(d.id))
-    .parentId(d => (d.state !== null && d.state !== undefined ? String(d.state) : null))(data)
-    .sum(d => d.area ?? 0);
-
-  const width = 300 + 300 * useOptionsState.getState().uiSize;
-  const height = 90 + 90 * useOptionsState.getState().uiSize;
-  const margin = { top: 10, right: 10, bottom: 0, left: 10 };
-  const w = width - margin.left - margin.right;
-  const h = height - margin.top - margin.bottom;
-  const treeLayout = d3.treemap<ChartNode>().size([w, h]).padding(2);
-
-  alertMessage.replaceChildren();
-  alertMessage.insertAdjacentHTML(
-    "beforeend",
-    /* html */ `<select id="provincesTreeType" style="display:block; margin-left:13px; font-size:11px">
-    <option value="area" selected>Area</option>
-    <option value="population">Total population</option>
-    <option value="rural">Rural population</option>
-    <option value="urban">Urban population</option>
-  </select>`
-  );
-  alertMessage.insertAdjacentHTML("beforeend", `<div id='provinceInfo' class='chartInfo'>&#8205;</div>`);
-
-  const chartSvg = d3
-    .select(alertMessage)
-    .insert("svg", "#provinceInfo")
-    .attr("id", "provincesTree")
-    .attr("width", width)
-    .attr("height", height)
-    .attr("font-size", "10px");
-  const graph = chartSvg.append("g").attr("transform", "translate(10, 0)");
-
-  treeLayout(root);
-
-  type HRNode = d3.HierarchyRectangularNode<ChartNode>;
-  const leaves = root.leaves() as HRNode[];
-  const node = graph
-    .selectAll<SVGGElement, HRNode>("g")
-    .data(leaves)
-    .enter()
-    .append("g")
-    .attr("data-id", (d: HRNode) => d.data.i ?? null)
-    .on("mouseenter", (event: MouseEvent, d: HRNode) => showInfo(event, d))
-    .on("mouseleave", (event: MouseEvent) => hideInfo(event));
-
-  function showInfo(ev: MouseEvent, d: HRNode): void {
-    const rect = (ev.target as Element).querySelector("rect");
-    if (rect) rect.classList.add("selected");
-    const name = d.data.fullName;
-    const state = (worldContext.pack.states as State[])[d.data.state!].fullName;
-    const area = `${getArea(d.data.area ?? 0)} ${getAreaUnit()}`;
-    const rural = rn((d.data.rural ?? 0) * worldContext.populationRate);
-    const urban = rn((d.data.urban ?? 0) * worldContext.populationRate * worldContext.urbanization);
-    const treeTypeEl = document.getElementById("provincesTreeType") as HTMLSelectElement;
-    const value =
-      treeTypeEl?.value === "area"
-        ? `Area: ${area}`
-        : treeTypeEl?.value === "rural"
-          ? `Rural population: ${si(rural)}`
-          : treeTypeEl?.value === "urban"
-            ? `Urban population: ${si(urban)}`
-            : `Population: ${si(rural + urban)}`;
-
-    const provinceInfoEl = document.getElementById("provinceInfo");
-    if (provinceInfoEl) provinceInfoEl.textContent = `${name}. ${state}. ${value}`;
-    provinceHighlightOn(d.data.i!);
-  }
-
-  function hideInfo(ev: MouseEvent): void {
-    const el = ev.currentTarget as SVGElement;
-    const provId = +(el.dataset.id || 0);
-    provinceHighlightOff(provId);
-    const provinceInfoEl = document.getElementById("provinceInfo");
-    if (!provinceInfoEl) return;
-    provinceInfoEl.textContent = "​";
-    const rect = (ev.target as Element).querySelector("rect");
-    if (rect) rect.classList.remove("selected");
-  }
-
-  node
-    .append("rect")
-    .attr("stroke", (d: HRNode) => String(d.parent?.data.color ?? ""))
-    .attr("stroke-width", 1)
-    .attr("fill", (d: HRNode) => String(d.data.color ?? ""))
-    .attr("x", (d: HRNode) => d.x0)
-    .attr("y", (d: HRNode) => d.y0)
-    .attr("width", (d: HRNode) => d.x1 - d.x0)
-    .attr("height", (d: HRNode) => d.y1 - d.y0);
-
-  node
-    .append("text")
-    .attr("text-rendering", "optimizeSpeed")
-    .attr("dx", ".2em")
-    .attr("dy", "1em")
-    .attr("x", (d: HRNode) => d.x0)
-    .attr("y", (d: HRNode) => d.y0);
-
-  function hideNonfittingLabels(): void {
-    node.select<SVGTextElement>("text").each(function (d: HRNode) {
-      this.textContent = d.data.name ?? "";
-      let b = this.getBBox();
-      if (b.y + b.height > d.y1 + 1) this.textContent = "";
-
-      for (let i = 0; i < 15 && b.width > 0 && b.x + b.width > d.x1; i++) {
-        if ((this.textContent ?? "").length < 3) {
-          this.textContent = "";
-          break;
-        }
-        this.textContent = `${this.textContent!.slice(0, -2)}…`;
-        b = this.getBBox();
-      }
-    });
-  }
-
-  function updateChart(this: HTMLSelectElement): void {
-    const accessor: (d: ChartNode) => number =
-      this.value === "area"
-        ? d => d.area ?? 0
-        : this.value === "rural"
-          ? d => d.rural ?? 0
-          : this.value === "urban"
-            ? d => d.urban ?? 0
-            : d => (d.rural ?? 0) + (d.urban ?? 0);
-
-    root.sum(accessor);
-    node.data(treeLayout(root).leaves() as HRNode[]);
-
-    node
-      .select("rect")
-      .transition()
-      .duration(1500)
-      .attr("x", (d: HRNode) => d.x0)
-      .attr("y", (d: HRNode) => d.y0)
-      .attr("width", (d: HRNode) => d.x1 - d.x0)
-      .attr("height", (d: HRNode) => d.y1 - d.y0);
-
-    node
-      .select("text")
-      .transition()
-      .duration(1500)
-      .attr("x", (d: HRNode) => d.x0)
-      .attr("y", (d: HRNode) => d.y0);
-
-    setTimeout(hideNonfittingLabels, 2000);
-  }
-
-  openRichDialog({
-    content: Reflect.get(alertMessage, "innerHTML") as string,
-    title: "Provinces chart",
-    width: fitContent(),
-    position: { my: "left bottom", at: "left+10 bottom-10", of: "svg" },
-    buttons: {},
-    onClose: () => {
-      alertMessage.replaceChildren();
-    }
-  });
-
-  document.getElementById("provincesTreeType")!.addEventListener("change", updateChart);
-  hideNonfittingLabels();
+  openDialog("provincesChart");
 }
 
 function toggleLabels(): void {
@@ -1022,31 +798,27 @@ function downloadProvincesData(): void {
 
 function removeAllProvinces(): void {
   const alertContent = "Are you sure you want to remove all provinces? <br />This action cannot be reverted";
-  openRichDialog({
-    content: alertContent,
-    resizable: false,
+  openConfirm(alertContent, {
     title: "Remove all provinces",
-    buttons: {
-      Remove: function (this: Element) {
-        document.querySelectorAll("[id^='provinceCOA']").forEach(el => {
-          el.remove();
-        });
-        viewContext.emblems.select("#provinceEmblems").selectAll("*").remove();
+    confirm: "Remove",
+    onConfirm: () => {
+      document.querySelectorAll("[id^='provinceCOA']").forEach(el => {
+        el.remove();
+      });
+      viewContext.emblems.select("#provinceEmblems").selectAll("*").remove();
 
-        worldContext.pack.provinces = [0 as unknown as Province];
-        worldContext.pack.cells.province = new Uint16Array(worldContext.pack.cells.i.length);
-        (worldContext.pack.states as State[]).forEach(s => {
-          s.provinces = [];
-        });
+      worldContext.pack.provinces = [0 as unknown as Province];
+      worldContext.pack.cells.province = new Uint16Array(worldContext.pack.cells.i.length);
+      (worldContext.pack.states as State[]).forEach(s => {
+        s.provinces = [];
+      });
 
-        EditorBus.unfog();
-        if (layerIsOn("toggleBorders")) BordersRenderer.render(worldContext, viewContext, appServices);
-        viewContext.provs.select("#provincesBody").remove();
-        turnButtonOff("toggleProvinces");
+      EditorBus.unfog();
+      if (layerIsOn("toggleBorders")) BordersRenderer.render(worldContext, viewContext, appServices);
+      viewContext.provs.select("#provincesBody").remove();
+      turnButtonOff("toggleProvinces");
 
-        refreshProvincesEditor();
-      },
-      Cancel: function (this: Element) {}
+      refreshProvincesEditor();
     }
   });
 }
@@ -1083,11 +855,8 @@ function openProvinceMergeDialog(): void {
   const { filterState } = getProvincesEditorState();
   const selectedState = filterState;
   if (selectedState === -1) {
-    const alertContent = "Please select a specific state from the filter to merge provinces within that state.";
-    openRichDialog({
-      content: alertContent,
-      title: "Merge Provinces",
-      buttons: { OK: () => {} }
+    openAlert("Please select a specific state from the filter to merge provinces within that state.", {
+      title: "Merge Provinces"
     });
     return;
   }
@@ -1095,12 +864,7 @@ function openProvinceMergeDialog(): void {
     p => p.i && !p.removed && p.state === selectedState
   );
   if (provincesToMerge.length < 2) {
-    const alertContent = "Not enough provinces in the selected state to merge.";
-    openRichDialog({
-      content: alertContent,
-      title: "Merge Provinces",
-      buttons: { OK: () => {} }
-    });
+    openAlert("Not enough provinces in the selected state to merge.", { title: "Merge Provinces" });
     return;
   }
 

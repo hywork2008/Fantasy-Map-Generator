@@ -7,7 +7,7 @@ import { redrawGlacier, redrawIceberg } from "../renderers/index";
 import { elSelected, setElSelected } from "../store/editorState";
 import { getIceEditorState, setIceEditorState } from "../store/iceEditorState";
 import type { IceIceberg } from "../types/models";
-import { closeDialog, openRichDialog } from "../ui/dialogs/dialogService";
+import { closeDialog, openConfirm } from "../ui/dialogs/dialogService";
 import { findGridCell, parseTransform } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { layerIsOn } from "../utils/nodeUtils";
@@ -113,20 +113,14 @@ function removeIce(): void {
   if (selectedId === null) return;
 
   const alertContent = /* html */ `Are you sure you want to remove the ${type}?`;
-  openRichDialog({
-    content: alertContent,
-    resizable: false,
+  openConfirm(alertContent, {
     title: `Remove ${type}`,
-    buttons: {
-      Remove: () => {
-        const removedType = Ice.removeIce(selectedId);
-        if (removedType === "glacier") redrawGlacier(worldContext, viewContext, appServices, selectedId);
-        else if (removedType === "iceberg") redrawIceberg(worldContext, viewContext, appServices, selectedId);
-        closeIceEditor();
-      },
-      Cancel: () => {
-        /* Cancel */
-      }
+    confirm: "Remove",
+    onConfirm: () => {
+      const removedType = Ice.removeIce(selectedId);
+      if (removedType === "glacier") redrawGlacier(worldContext, viewContext, appServices, selectedId);
+      else if (removedType === "iceberg") redrawIceberg(worldContext, viewContext, appServices, selectedId);
+      closeIceEditor();
     }
   });
 }

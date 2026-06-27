@@ -1,5 +1,5 @@
 import type { Selection } from "d3";
-import { interpolateRgb, interpolateRgbBasis, scaleSequential } from "d3";
+import { interpolateRgbBasis, scaleSequential } from "d3";
 import type { AppServices } from "../context/appServices";
 import { appServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
@@ -21,7 +21,8 @@ import { onFontAdded } from "../services/fonts";
 import { modules } from "../store/editorState";
 import { useStyleState } from "../store/styleState";
 import { closeDialog, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
-import { drawHeights, parseTransform, rn, toHEX } from "../utils";
+import type { HeightmapSchemeConfig } from "../ui/dialogs/HeightmapSchemeDialog";
+import { parseTransform, rn, toHEX } from "../utils";
 import { heightmapColorSchemes } from "../utils/colorUtils";
 import { ERROR, INFO } from "../utils/debug";
 import { EditorBus } from "../utils/editorBus";
@@ -712,8 +713,12 @@ export function textureProvideURL(): void {
   openRichDialog({
     title: "Load custom texture",
     content: /* html */ `Provide a texture image URL:
-    <input id="textureURL" type="url" style="width: 100%" placeholder="http://www.example.com/image.jpg" oninput="fetchTextureURL(this.value)" />
+    <input id="textureURL" type="url" style="width: 100%" placeholder="http://www.example.com/image.jpg" />
     <canvas id="texturePreview" width="256px" height="144px"></canvas>`,
+    onOpen: container => {
+      const input = container.querySelector<HTMLInputElement>("#textureURL");
+      if (input) input.addEventListener("input", () => fetchTextureURL(input.value));
+    },
     buttons: [
       {
         label: "Apply",
@@ -1002,126 +1007,24 @@ export function initStyleTab() {
   document
     .getElementById("openCreateHeightmapSchemeButton")!
     .addEventListener("click", function (this: HTMLButtonElement) {
-      const button = this;
       const scheme = getEl().attr("scheme") ?? "bright";
-      button.dataset.stops = scheme.startsWith("#")
+      this.dataset.stops = scheme.startsWith("#")
         ? scheme
         : [0, 0.25, 0.5, 0.75, 1].map(heightmapColorSchemes[scheme]).map(toHEX).join(",");
 
-      function renderPreview(): void {
-        const stops = button.dataset.stops!.split(",");
-        const previewScheme = scaleSequential(interpolateRgbBasis(stops));
-        const preview = drawHeights({
-          heights: Array.from(worldContext.grid.cells.h),
-          width: worldContext.grid.cellsX,
-          height: worldContext.grid.cellsY,
-          scheme: previewScheme,
-          renderOcean: false
-        });
-        (document.getElementById("heightmapSchemePreview") as HTMLImageElement).src = preview;
-      }
-
-      function renderStops(): void {
-        const stops = button.dataset.stops!.split(",");
-        const container = document.getElementById("heightmapSchemeStops")!;
-
-        const createColorInput = (color: string, idx: number): HTMLInputElement => {
-          const input = document.createElement("input");
-          input.type = "color";
-          input.className = "stop";
-          input.value = color;
-          input.dataset.tip = "Click to set the color";
-          input.style.width = "2.5em";
-          input.style.border = "none";
-          input.oninput = function () {
-            stops[idx] = (this as HTMLInputElement).value;
-            button.dataset.stops = stops.join(",");
-            renderPreview();
-            renderGradient();
-          };
-          return input;
-        };
-
-        const createRemoveButton = (idx: number): HTMLButtonElement => {
-          const btn = document.createElement("button");
-          btn.className = "remove";
-          btn.dataset.index = String(idx);
-          btn.dataset.tip = "Remove color stop";
-          btn.style.marginTop = "0.3em";
-          btn.style.height = "max-content";
-          btn.textContent = "x";
-          btn.onclick = () => {
-            stops.splice(idx, 1);
-            button.dataset.stops = stops.join(",");
-            renderPreview();
-            renderStops();
-            renderGradient();
-          };
-          return btn;
-        };
-
-        const createAddButton = (idx: number): HTMLButtonElement => {
-          const btn = document.createElement("button");
-          btn.className = "add";
-          btn.dataset.tip = "Add color stop in between";
-          btn.style.marginTop = "0.3em";
-          btn.style.height = "max-content";
-          btn.textContent = "+";
-          btn.onclick = () => {
-            const middleColor = interpolateRgb(stops[idx], stops[idx + 1])(0.5);
-            stops.splice(idx + 1, 0, toHEX(middleColor));
-            button.dataset.stops = stops.join(",");
-            renderPreview();
-            renderStops();
-            renderGradient();
-          };
-          return btn;
-        };
-
-        const children: Node[] = [];
-        stops.forEach((stop, idx) => {
-          children.push(createColorInput(stop, idx));
-          if (idx && idx < stops.length - 1) children.push(createRemoveButton(idx));
-          if (idx < stops.length - 1) children.push(createAddButton(idx));
-        });
-        container.replaceChildren(...children);
-      }
-
-      function renderGradient(): void {
-        const stops = button.dataset.stops!;
-        (document.getElementById("heightmapSchemeGradient") as HTMLElement).style.background =
-          `linear-gradient(to right, ${stops})`;
-      }
-
-      function handleCreate(): void {
-        const stops = button.dataset.stops!;
-        if (stops in heightmapColorSchemes) {
-          tip("This scheme already exists", false, "error");
-          return;
+      const schemeConfig: HeightmapSchemeConfig = {
+        initialStops: this.dataset.stops!.split(","),
+        onConfirm: (stopsStr: string) => {
+          if (stopsStr in heightmapColorSchemes) {
+            tip("This scheme already exists", false, "error");
+            return;
+          }
+          addCustomColorScheme(stopsStr);
+          getEl().attr("scheme", stopsStr);
+          HeightmapRenderer.render(worldContext, viewContext, appServices);
         }
-        addCustomColorScheme(stops);
-        getEl().attr("scheme", stops);
-        HeightmapRenderer.render(worldContext, viewContext, appServices);
-      }
-
-      openRichDialog({
-        title: "Create heightmap color scheme",
-        content: /* html */ `<div>
-        <i>Define heightmap gradient colors from high to low altitude</i>
-        <img id="heightmapSchemePreview" alt="heightmap preview" style="margin-top: 0.5em; width: 100%;" />
-        <div id="heightmapSchemeStops" style="margin-block: 0.5em; display: flex; flex-wrap: wrap;"></div>
-        <div id="heightmapSchemeGradient" style="height: 1.9em; border: 1px solid #767676;"></div>
-      </div>`,
-        onOpen: () => {
-          renderPreview();
-          renderStops();
-          renderGradient();
-        },
-        buttons: [
-          { label: "Create", onClick: handleCreate },
-          { label: "Cancel", onClick: () => {} }
-        ]
-      });
+      };
+      openDialog("heightmapScheme", schemeConfig);
     });
 
   document.getElementById("styleHeightmapRenderOcean")!.addEventListener("change", (e: Event) => {

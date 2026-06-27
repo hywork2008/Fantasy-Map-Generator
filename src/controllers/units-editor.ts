@@ -7,7 +7,7 @@ import { drawTemperature } from "../renderers";
 import { drawScaleBar, fitScaleBar } from "../renderers/index";
 import { modules, rulers, setRulers } from "../store/editorState";
 import { getUnitsEditorState, setUnitsEditorState } from "../store/unitsEditorState";
-import { closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
+import { closeDialogs, openConfirm, openDialog } from "../ui/dialogs/dialogService";
 import { findCell, showPrompt } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { layerIsOn } from "../utils/nodeUtils";
@@ -294,16 +294,12 @@ export const unitsEditorActions = {
     if (!rulers.data.length) return;
     const alertContent = /* html */ ` Are you sure you want to remove all placed rulers?
       <br />If you just want to hide rulers, toggle the Rulers layer off in Menu`;
-    openRichDialog({
-      content: alertContent,
-      resizable: false,
+    openConfirm(alertContent, {
       title: "Remove all rulers",
-      buttons: {
-        Remove: () => {
-          rulers.undraw();
-          setRulers(new Rulers());
-        },
-        Cancel: () => {}
+      confirm: "Remove",
+      onConfirm: () => {
+        rulers.undraw();
+        setRulers(new Rulers());
       }
     });
   }

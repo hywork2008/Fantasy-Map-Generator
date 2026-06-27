@@ -10,7 +10,6 @@ import { StatesRenderer } from "../renderers";
 import { type DiplomacyRowData, getDiplomacyEditorState, setDiplomacyEditorState } from "../store/diplomacyEditorState";
 import { closeDialogs, isDialogOpen, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
 import { findCell, getAdjective } from "../utils";
-import { alertMessage } from "../utils/alertMessageEl";
 import { EditorBus } from "../utils/editorBus";
 import { downloadFile, getFileName } from "../utils/editorHelpers";
 import { layerIsOn } from "../utils/nodeUtils";
@@ -278,27 +277,27 @@ export function editDiplomacy(): void {
     const alertContent =
       message +
       `</div><div class="info-line">Type to edit. Press Enter to add a new line, empty the element to remove it</div>`;
-    alertMessage.querySelectorAll<HTMLElement>("div[contenteditable='true']").forEach(el => {
-      el.addEventListener("input", changeRelationsHistory);
-    });
-
+    let container: HTMLElement | null = null;
     openRichDialog({
       content: alertContent,
       title: "Relations history",
       position: { my: "center", at: "center", of: "svg" },
+      onOpen: c => {
+        container = c;
+        c.querySelectorAll<HTMLElement>("div[contenteditable='true']").forEach(el => {
+          el.addEventListener("input", changeRelationsHistory);
+        });
+      },
       buttons: {
-        Save: function () {
-          const data = (this as unknown as HTMLElement).querySelector("div")!.innerText.split("\n").join("\r\n");
+        Save: () => {
+          const data = container!.querySelector("div")!.innerText.split("\n").join("\r\n");
           const name = `${getFileName("Relations history")}.txt`;
           downloadFile(data, name);
         },
         Clear: () => {
           worldContext.pack.states[0].diplomacy = [];
-          /* $(this).dialog("close") removed */
         },
-        Close: () => {
-          /* $(this).dialog("close") removed */
-        }
+        Close: () => {}
       }
     });
   }

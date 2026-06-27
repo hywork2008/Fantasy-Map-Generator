@@ -19,7 +19,7 @@ import { getFeaturePath } from "../renderers/index";
 import { elSelected, modules, setElSelected } from "../store/editorState";
 import { getLakeEditorState } from "../store/lakeEditorState";
 import type { PackedGraphFeature } from "../types/models";
-import { closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
+import { closeDialogs, openConfirm, openDialog } from "../ui/dialogs/dialogService";
 import { rand, rn, unique } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { getPackPolygon } from "../utils/graphUtils";
@@ -252,26 +252,21 @@ export const lakeEditorActions = {
 
     const count = (elSelected!.node()!.parentNode as SVGGElement).childElementCount;
     const alertContent = /* html */ `Are you sure you want to remove the group? All lakes of the group (${count}) will be turned into Freshwater`;
-    openRichDialog({
-      content: alertContent,
-      resizable: false,
+    openConfirm(alertContent, {
       title: "Remove lake group",
-      width: "26em",
-      buttons: {
-        Remove: () => {
-          const freshwater = viewContext.lakes.select<SVGGElement>("#freshwater").node();
-          const groupEl = viewContext.lakes.select<SVGGElement>(`#${group}`).node();
-          if (groupEl && freshwater) {
-            while (groupEl.childNodes.length) {
-              freshwater.appendChild(groupEl.childNodes[0]);
-            }
-            groupEl.remove();
-
-            updateLakeGroups();
-            lakeEditorActions.changeLakeGroup("freshwater");
+      confirm: "Remove",
+      onConfirm: () => {
+        const freshwater = viewContext.lakes.select<SVGGElement>("#freshwater").node();
+        const groupEl = viewContext.lakes.select<SVGGElement>(`#${group}`).node();
+        if (groupEl && freshwater) {
+          while (groupEl.childNodes.length) {
+            freshwater.appendChild(groupEl.childNodes[0]);
           }
-        },
-        Cancel: () => {}
+          groupEl.remove();
+
+          updateLakeGroups();
+          lakeEditorActions.changeLakeGroup("freshwater");
+        }
       }
     });
   },

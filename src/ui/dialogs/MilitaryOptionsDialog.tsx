@@ -61,6 +61,7 @@ function triggerSelectLimitation(
       </tr>`
   );
 
+  let container: HTMLElement | null = null;
   openRichDialog({
     title: "Limit unit",
     content: /* html */ `<b>Limit unit by ${type}:</b>
@@ -69,26 +70,25 @@ function triggerSelectLimitation(
           ${lines.join("")}
         </tbody>
       </table>`,
+    onOpen: c => {
+      container = c;
+    },
     buttons: [
       {
         label: "Invert",
         keepOpen: true,
         onClick: () => {
-          const alertMsg = document.getElementById("alert");
-          if (alertMsg) {
-            alertMsg.querySelectorAll("input").forEach(el => {
-              const input = el as HTMLInputElement;
-              input.checked = !input.checked;
-            });
-          }
+          container?.querySelectorAll("input").forEach(el => {
+            const input = el as HTMLInputElement;
+            input.checked = !input.checked;
+          });
         }
       },
       {
         label: "Apply",
         onClick: () => {
-          const alertMsg = document.getElementById("alert");
-          if (!alertMsg) return;
-          const inputs = Array.from(alertMsg.querySelectorAll<HTMLInputElement>("input"));
+          if (!container) return;
+          const inputs = Array.from(container.querySelectorAll<HTMLInputElement>("input"));
           const selected = inputs.reduce<number[]>((acc, input) => {
             if (input.checked) acc.push(Number(input.dataset.i!));
             return acc;

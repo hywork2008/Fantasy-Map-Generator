@@ -12,7 +12,8 @@ import type { CultureRowData, NameBaseOption } from "../store/culturesEditorStat
 import { getCulturesEditorState, setCulturesEditorState } from "../store/culturesEditorState";
 import type { HierarchyElement } from "../types/HierarchyTree";
 import type { Burg, Culture, CultureType, NameBase, Province, State } from "../types/models";
-import { closeDialog, closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
+import { closeDialogs, openDialog } from "../ui/dialogs/dialogService";
+import type { PopulationChangeConfig } from "../ui/dialogs/PopulationChangeDialog";
 import { abbreviate, debounce, findAll, findCell, parseTransform, rn, si } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog, downloadFile, getFileName } from "../utils/editorHelpers";
@@ -317,54 +318,17 @@ export const culturesEditorActions = {
 
     const rural = rn((culture.rural ?? 0) * worldContext.populationRate);
     const urban = rn((culture.urban ?? 0) * worldContext.populationRate * worldContext.urbanization);
-    const total = rural + urban;
-    const format = (n: number) => Number(n).toLocaleString();
     const burgList = (worldContext.pack.burgs as Burg[]).filter((b: Burg) => !b.removed && b.culture === i);
 
-    const content = /* html */ `<div>
-      <i>Change population of all cells assigned to the culture</i>
-      <div style="margin: 0.5em 0">
-        Rural: <input type="number" min="0" step="1" id="ruralPop" value=${rural} style="width:6em" />
-        Urban: <input type="number" min="0" step="1" id="urbanPop" value=${urban} style="width:6em"
-          ${burgList.length ? "" : "disabled"} />
-      </div>
-      <div>Total population: ${format(total)} ⇒ <span id="totalPop">${format(total)}</span>
-        (<span id="totalPopPerc">100</span>%)
-      </div>
-    </div>`;
-
-    openRichDialog({
-      content,
-      resizable: false,
+    const config: PopulationChangeConfig = {
       title: "Change culture population",
-      width: "24em",
-      buttons: {
-        Apply: () => {
-          const getRuralPop = () => document.getElementById("ruralPop") as HTMLInputElement;
-          const getUrbanPop = () => document.getElementById("urbanPop") as HTMLInputElement;
-          applyPopulationChange(rural, urban, getRuralPop().value, getUrbanPop().value, i);
-          closeDialog("richDialog");
-        },
-        Cancel: () => {
-          closeDialog("richDialog");
-        }
-      },
-      position: { my: "center", at: "center", of: "svg" },
-      onOpen: () => {
-        const getRuralPop = () => document.getElementById("ruralPop") as HTMLInputElement;
-        const getUrbanPop = () => document.getElementById("urbanPop") as HTMLInputElement;
-        const update = () => {
-          const totalNew = getRuralPop().valueAsNumber + getUrbanPop().valueAsNumber;
-          if (Number.isNaN(totalNew)) return;
-          const totalPopEl = document.getElementById("totalPop");
-          const totalPopPercEl = document.getElementById("totalPopPerc");
-          if (totalPopEl) totalPopEl.textContent = format(totalNew);
-          if (totalPopPercEl) totalPopPercEl.textContent = String(rn((totalNew / total) * 100));
-        };
-        getRuralPop().oninput = update;
-        getUrbanPop().oninput = update;
-      }
-    });
+      description: "Change population of all cells assigned to the culture",
+      initialRural: rural,
+      initialUrban: urban,
+      urbanDisabled: burgList.length === 0,
+      onApply: (newRural, newUrban) => applyPopulationChange(rural, urban, newRural, newUrban, i)
+    };
+    openDialog("populationChangeDialog", config);
   },
 
   regenerateBurgs(i: number): void {

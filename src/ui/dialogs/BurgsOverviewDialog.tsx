@@ -3,9 +3,8 @@ import { useEffect, useMemo, useRef } from "react";
 import { worldContext } from "../../context/worldContext";
 import { editBurg } from "../../controllers/burg-editor";
 import { editBurgGroups } from "../../controllers/burg-group-editor";
+import { burgHighlightOff, burgHighlightOn } from "../../controllers/burg-highlight";
 import {
-  burgHighlightOff,
-  burgHighlightOn,
   downloadBurgsData,
   importBurgNames,
   regenerateBurgNames,

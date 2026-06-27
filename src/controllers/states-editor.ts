@@ -22,18 +22,17 @@ import {
 } from "../renderers";
 import type { Emblem as RendererEmblem } from "../renderers/emblem-renderer";
 import { COArenderer } from "../renderers/emblem-renderer";
-import { useOptionsState } from "../store/optionsState";
 import { getStatesEditorState, setStatesEditorState } from "../store/statesEditorState";
 import type { Burg, Culture, MilitaryRegiment, Province, State } from "../types/models";
 import type { WorldNote } from "../types/WorldState";
-import { isDialogOpen, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
-import { findAll, findCell, getAdjective, getMixedColor, getRandomColor, isLand, P, rand, rn, si } from "../utils";
-import { alertMessage } from "../utils/alertMessageEl";
+import { isDialogOpen, openDialog } from "../ui/dialogs/dialogService";
+import type { PopulationChangeConfig } from "../ui/dialogs/PopulationChangeDialog";
+import { findAll, findCell, getAdjective, getMixedColor, getRandomColor, isLand, P, rand, rn } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog, downloadFile, getFileName } from "../utils/editorHelpers";
 import { getPackPolygon } from "../utils/graphUtils";
 import { layerIsOn } from "../utils/nodeUtils";
-import { clearMainTip, fitContent, getArea, getAreaUnit, showMainTip, tip } from "../utils/uiHelpers";
+import { clearMainTip, getArea, getAreaUnit, showMainTip, tip } from "../utils/uiHelpers";
 import { BrushHistoryClass as BrushHistory } from "./BrushHistory";
 import { overviewBurgs } from "./burgs-overview";
 import { interactionManager } from "./interactionManager";
@@ -487,16 +486,7 @@ export const statesEditorActions = {
   }
 };
 
-function stateHighlightOn(event: Event): void {
-  if (!layerIsOn("toggleStates")) return;
-  if (viewContext.defs.select("#fog path").size()) return;
-
-  const state = +((event.target as HTMLElement).dataset.id ?? 0);
-  if (viewContext.customization || !state) return;
-  stateHighlightById(state);
-}
-
-function stateHighlightById(stateId: number): void {
+export function stateHighlightById(stateId: number): void {
   const d = viewContext.regions.select(`#state${stateId}`).attr("d");
   if (!d) return;
 
@@ -519,7 +509,7 @@ function stateHighlightById(stateId: number): void {
     .attrTween("stroke-dasharray", () => interpolate);
 }
 
-function stateHighlightOff(): void {
+export function stateHighlightOff(): void {
   viewContext.debug.selectAll<SVGElement, unknown>(".highlight").each(function () {
     d3.select(this).transition().duration(1000).attr("opacity", 0).remove();
   });
@@ -550,88 +540,50 @@ function changePopulation(stateId: number): void {
 
   const rural = rn((state.rural ?? 0) * worldContext.populationRate);
   const urban = rn((state.urban ?? 0) * worldContext.populationRate * worldContext.urbanization);
-  const total = rural + urban;
-  const format = (n: number) => Number(n).toLocaleString();
 
-  const alertContent = /* html */ `<div>
-    <i>Change population of all cells assigned to the state</i>
-    <div style="margin: 0.5em 0">
-      Rural: <input type="number" min="0" step="1" id="ruralPop" value=${rural} style="width:6em" />
-      Urban: <input type="number" min="0" step="1" id="urbanPop" value=${urban} style="width:6em" />
-    </div>
-    <div>Total population: ${format(total)} ⇒ <span id="totalPop">${format(total)}</span>
-      (<span id="totalPopPerc">100</span>%)
-    </div>
-  </div>`;
-
-  const getRuralPop = () => document.getElementById("ruralPop") as HTMLInputElement;
-  const getUrbanPop = () => document.getElementById("urbanPop") as HTMLInputElement;
-
-  const update = () => {
-    const totalNew = getRuralPop().valueAsNumber + getUrbanPop().valueAsNumber;
-    if (Number.isNaN(totalNew)) return;
-    const totalPopEl = document.getElementById("totalPop");
-    const totalPopPercEl = document.getElementById("totalPopPerc");
-    if (totalPopEl) totalPopEl.textContent = format(totalNew);
-    if (totalPopPercEl) totalPopPercEl.textContent = String(rn((totalNew / total) * 100));
-  };
-
-  getRuralPop().oninput = () => update();
-  getUrbanPop().oninput = () => update();
-
-  openRichDialog({
-    content: alertContent,
-    resizable: false,
+  const config: PopulationChangeConfig = {
     title: "Change state population",
-    width: "24em",
-    buttons: {
-      Apply: () => {
-        applyPopulationChange();
-        /* $(this).dialog("close") removed */
-      },
-      Cancel: () => {
-        /* $(this).dialog("close") removed */
+    description: "Change population of all cells assigned to the state",
+    initialRural: rural,
+    initialUrban: urban,
+    onApply: (newRural, newUrban) => {
+      const ruralChange = newRural / rural;
+      if (Number.isFinite(ruralChange) && ruralChange !== 1) {
+        const cells = worldContext.pack.cells.i.filter((i: number) => worldContext.pack.cells.state[i] === stateId);
+        cells.forEach((i: number) => {
+          worldContext.pack.cells.pop[i] *= ruralChange;
+        });
       }
-    },
-    position: { my: "center", at: "center", of: "svg" }
-  });
+      if (!Number.isFinite(ruralChange) && newRural > 0) {
+        const points = newRural / worldContext.populationRate;
+        const cells = worldContext.pack.cells.i.filter((i: number) => worldContext.pack.cells.state[i] === stateId);
+        const pop = points / cells.length;
+        cells.forEach((i: number) => {
+          worldContext.pack.cells.pop[i] = pop;
+        });
+      }
 
-  function applyPopulationChange(): void {
-    const ruralChange = +getRuralPop().value / rural;
-    if (Number.isFinite(ruralChange) && ruralChange !== 1) {
-      const cells = worldContext.pack.cells.i.filter((i: number) => worldContext.pack.cells.state[i] === stateId);
-      cells.forEach((i: number) => {
-        worldContext.pack.cells.pop[i] *= ruralChange;
-      });
-    }
-    if (!Number.isFinite(ruralChange) && +getRuralPop().value > 0) {
-      const points = +getRuralPop().value / worldContext.populationRate;
-      const cells = worldContext.pack.cells.i.filter((i: number) => worldContext.pack.cells.state[i] === stateId);
-      const pop = points / cells.length;
-      cells.forEach((i: number) => {
-        worldContext.pack.cells.pop[i] = pop;
-      });
-    }
+      const urbanChange = newUrban / urban;
+      if (Number.isFinite(urbanChange) && urbanChange !== 1) {
+        const burgs = (worldContext.pack.burgs as Burg[]).filter(b => !b.removed && b.state === stateId);
+        burgs.forEach(b => {
+          b.population = rn((b.population ?? 0) * urbanChange, 4);
+        });
+      }
+      if (!Number.isFinite(urbanChange) && newUrban > 0) {
+        const points = newUrban / worldContext.populationRate / worldContext.urbanization;
+        const burgs = (worldContext.pack.burgs as Burg[]).filter(b => !b.removed && b.state === stateId);
+        const population = rn(points / burgs.length, 4);
+        burgs.forEach(b => {
+          b.population = population;
+        });
+      }
 
-    const urbanChange = +getUrbanPop().value / urban;
-    if (Number.isFinite(urbanChange) && urbanChange !== 1) {
-      const burgs = (worldContext.pack.burgs as Burg[]).filter(b => !b.removed && b.state === stateId);
-      burgs.forEach(b => {
-        b.population = rn((b.population ?? 0) * urbanChange, 4);
-      });
+      if (layerIsOn("togglePopulation")) PopulationRenderer.render(worldContext, viewContext, appServices);
+      refreshStatesEditor();
     }
-    if (!Number.isFinite(urbanChange) && +getUrbanPop().value > 0) {
-      const points = +getUrbanPop().value / worldContext.populationRate / worldContext.urbanization;
-      const burgs = (worldContext.pack.burgs as Burg[]).filter(b => !b.removed && b.state === stateId);
-      const population = rn(points / burgs.length, 4);
-      burgs.forEach(b => {
-        b.population = population;
-      });
-    }
-
-    if (layerIsOn("togglePopulation")) PopulationRenderer.render(worldContext, viewContext, appServices);
-    refreshStatesEditor();
-  }
+  };
+  openDialog("populationChangeDialog", config);
 }
 
 function stateCapitalZoomIn(state: number): void {
@@ -727,152 +679,7 @@ function showStatesChart(): void {
     return;
   }
 
-  const root = d3
-    .stratify<State>()
-    .id(d => String(d.i))
-    .parentId(d => (d.i ? "0" : null))(statesData)
-    .sum(d => d.area ?? 0)
-    .sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
-
-  const size = 150 + 200 * useOptionsState.getState().uiSize;
-  const margin = { top: 0, right: -50, bottom: 0, left: -50 };
-  const w = +size - margin.left - margin.right;
-  const h = +size - margin.top - margin.bottom;
-  const treeLayout = d3.pack<State>().size([w, h]).padding(3);
-
-  alertMessage.replaceChildren();
-  alertMessage.insertAdjacentHTML(
-    "beforeend",
-    /* html */ `<select id="statesTreeType" style="display:block; margin-left:13px; font-size:11px">
-    <option value="area" selected>Area</option>
-    <option value="population">Total population</option>
-    <option value="rural">Rural population</option>
-    <option value="urban">Urban population</option>
-    <option value="burgs">Burgs number</option>
-  </select>`
-  );
-  alertMessage.insertAdjacentHTML("beforeend", `<div id='statesInfo' class='chartInfo'>&#8205;</div>`);
-
-  const chartSvg = d3
-    .select(alertMessage)
-    .insert("svg", "#statesInfo")
-    .attr("id", "statesTree")
-    .attr("width", size)
-    .attr("height", size)
-    .style("font-family", "Almendra SC")
-    .attr("text-anchor", "middle")
-    .attr("dominant-baseline", "central");
-  const graph = chartSvg.append("g").attr("transform", `translate(-50, 0)`);
-  document.getElementById("statesTreeType")!.addEventListener("change", updateChart);
-
-  treeLayout(root);
-
-  type HPNode = d3.HierarchyCircularNode<State>;
-  const leaves = root.leaves() as HPNode[];
-  const node = graph
-    .selectAll<SVGGElement, HPNode>("g")
-    .data(leaves)
-    .enter()
-    .append("g")
-    .attr("transform", (d: HPNode) => `translate(${d.x},${d.y})`)
-    .attr("data-id", (d: HPNode) => d.data.i)
-    .on("mouseenter", (event: MouseEvent, d: HPNode) => showInfo(event, d))
-    .on("mouseleave", (event: MouseEvent) => hideInfo(event));
-
-  node
-    .append("circle")
-    .attr("fill", (d: HPNode) => d.data.color ?? "")
-    .attr("r", (d: HPNode) => d.r);
-
-  const exp = /(?=[A-Z][^A-Z])/g;
-  const lp = (n: string) => d3.max(n.split(exp).map(p => p.length))! + 1;
-
-  node
-    .append("text")
-    .attr("text-rendering", "optimizeSpeed")
-    .style("font-size", (d: HPNode) => `${rn((d.r ** 0.97 * 4) / lp(d.data.name), 2)}px`)
-    .selectAll<SVGTSpanElement, string>("tspan")
-    .data((d: HPNode) => d.data.name.split(exp))
-    .join("tspan")
-    .attr("x", 0)
-    .text((d: string) => d)
-    .attr("dy", (_d: string, i: number, n: ArrayLike<SVGTSpanElement>) => `${i ? 1 : (n.length - 1) / -2}em`);
-
-  function showInfo(ev: MouseEvent, d: HPNode): void {
-    const circle = (ev.target as Element).querySelector("circle");
-    if (circle) circle.classList.add("selected");
-    const state = d.data.fullName;
-
-    const area = `${getArea(d.data.area ?? 0)} ${getAreaUnit()}`;
-    const rural = rn((d.data.rural ?? 0) * worldContext.populationRate);
-    const urban = rn((d.data.urban ?? 0) * worldContext.populationRate * worldContext.urbanization);
-
-    const option = (document.getElementById("statesTreeType") as HTMLSelectElement).value;
-    const value =
-      option === "area"
-        ? `Area: ${area}`
-        : option === "rural"
-          ? `Rural population: ${si(rural)}`
-          : option === "urban"
-            ? `Urban population: ${si(urban)}`
-            : option === "burgs"
-              ? `Burgs number: ${d.data.burgs}`
-              : `Population: ${si(rural + urban)}`;
-
-    document.getElementById("statesInfo")!.textContent = `${state}. ${value}`;
-    stateHighlightOn(ev);
-  }
-
-  function hideInfo(ev: MouseEvent): void {
-    stateHighlightOff();
-    const statesInfoEl = document.getElementById("statesInfo");
-    if (!statesInfoEl) return;
-    statesInfoEl.textContent = "​";
-    const circle = (ev.target as Element).querySelector("circle");
-    if (circle) circle.classList.remove("selected");
-  }
-
-  function updateChart(this: HTMLSelectElement): void {
-    const accessor: (d: State) => number =
-      this.value === "area"
-        ? d => d.area ?? 0
-        : this.value === "rural"
-          ? d => d.rural ?? 0
-          : this.value === "urban"
-            ? d => d.urban ?? 0
-            : this.value === "burgs"
-              ? d => d.burgs ?? 0
-              : d => (d.rural ?? 0) + (d.urban ?? 0);
-
-    root.sum(accessor);
-    node.data(treeLayout(root).leaves() as HPNode[]);
-
-    node
-      .transition()
-      .duration(1500)
-      .attr("transform", (d: HPNode) => `translate(${d.x},${d.y})`);
-    node
-      .select("circle")
-      .transition()
-      .duration(1500)
-      .attr("r", (d: HPNode) => d.r);
-    node
-      .select("text")
-      .transition()
-      .duration(1500)
-      .style("font-size", (d: HPNode) => `${rn((d.r ** 0.97 * 4) / lp(d.data.name), 2)}px`);
-  }
-
-  openRichDialog({
-    content: Reflect.get(alertMessage, "innerHTML") as string,
-    title: "States bubble chart",
-    width: fitContent(),
-    position: { my: "left bottom", at: "left+10 bottom-10", of: "svg" },
-    buttons: {},
-    onClose: () => {
-      alertMessage.replaceChildren();
-    }
-  });
+  openDialog("statesChart");
 }
 
 function recalculateStates(must?: boolean): void {

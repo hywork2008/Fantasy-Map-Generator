@@ -6,7 +6,6 @@ import { BurgIconsRenderer, BurgLabelsRenderer } from "../renderers";
 import { modules } from "../store/editorState";
 import type { Burg, BurgGroup } from "../types/models";
 import { closeDialog, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
-import { alertMessage } from "../utils/alertMessageEl";
 import { confirmationDialog } from "../utils/editorHelpers";
 import { layerIsOn } from "../utils/nodeUtils";
 import { fitContent, tip } from "../utils/uiHelpers";
@@ -158,18 +157,22 @@ export function editBurgGroups(): void {
         </tbody>
       </table>`;
 
+    let container: HTMLElement | null = null;
     openRichDialog({
       content: alertContent,
       width: fitContent(),
       title: "Limit group",
+      onOpen: c => {
+        container = c;
+      },
       buttons: {
         Invert: () => {
-          alertMessage.querySelectorAll("input").forEach(inp => {
+          container?.querySelectorAll("input").forEach(inp => {
             (inp as HTMLInputElement).checked = !(inp as HTMLInputElement).checked;
           });
         },
         Apply: () => {
-          const inputs = Array.from(alertMessage.querySelectorAll("input")) as HTMLInputElement[];
+          const inputs = Array.from(container?.querySelectorAll("input") ?? []) as HTMLInputElement[];
           const selected = inputs.reduce((acc: string[], input) => {
             if (input.checked) acc.push(input.dataset.i!);
             return acc;
@@ -180,11 +183,8 @@ export function editBurgGroups(): void {
           const allAreSelected = selected.length === inputs.length;
           hiddenInput.value = allAreSelected ? "" : selected.join(",");
           el.textContent = allAreSelected ? "all" : "some";
-          /* $(this).dialog("close") removed */
         },
-        Cancel: () => {
-          /* $(this).dialog("close") removed */
-        }
+        Cancel: () => {}
       }
     });
   }
@@ -254,11 +254,8 @@ export function editBurgGroups(): void {
 
           hiddenInput.value = JSON.stringify(values);
           el.textContent = Object.keys(values).length ? "some" : "any";
-          /* $(this).dialog("close") removed */
         },
-        Cancel: () => {
-          /* $(this).dialog("close") removed */
-        }
+        Cancel: () => {}
       }
     });
   }

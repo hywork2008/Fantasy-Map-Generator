@@ -5,7 +5,8 @@ import type { WorldContext } from "../context/worldContext";
 import { PopulationRenderer, ZonesRenderer } from "../renderers";
 import { getZonesEditorState, setZonesEditorState } from "../store/zonesEditorState";
 import type { Zone } from "../types/models";
-import { isDialogOpen, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
+import { isDialogOpen, openDialog } from "../ui/dialogs/dialogService";
+import type { PopulationChangeConfig } from "../ui/dialogs/PopulationChangeDialog";
 import { findAll, findCell, rn, unique } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog, downloadFile, getFileName } from "../utils/editorHelpers";
@@ -428,78 +429,44 @@ function changePopulation(zone: Zone): void {
   const total = rural + urban;
   const l = (n: number) => Number(n).toLocaleString();
 
-  const alertContent = /* html */ `Rural: <input type="number" min="0" step="1" id="ruralPop" value=${rural} style="width:6em" /> Urban:
-      <input type="number" min="0" step="1" id="urbanPop" value=${urban} style="width:6em" ${
-        burgs.length ? "" : "disabled"
-      } />
-      <p>Total population: ${l(total)} ⇒ <span id="totalPop">${l(
-        total
-      )}</span> (<span id="totalPopPerc">100</span>%)</p>`;
-
-  const ruralPopEl = document.getElementById("ruralPop") as HTMLInputElement;
-  const urbanPopEl = document.getElementById("urbanPop") as HTMLInputElement;
-  const totalPopEl = document.getElementById("totalPop") as HTMLElement;
-  const totalPopPercEl = document.getElementById("totalPopPerc") as HTMLElement;
-
-  const update = () => {
-    const totalNew = ruralPopEl.valueAsNumber + urbanPopEl.valueAsNumber;
-    if (Number.isNaN(totalNew)) return;
-    totalPopEl.textContent = l(totalNew);
-    totalPopPercEl.textContent = String(rn((totalNew / total) * 100));
-  };
-
-  ruralPopEl.oninput = () => update();
-  urbanPopEl.oninput = () => update();
-
-  openRichDialog({
-    content: alertContent,
-    resizable: false,
+  const config: PopulationChangeConfig = {
     title: "Change zone population",
-    width: "24em",
-    buttons: {
-      Apply: () => {
-        applyPopulationChange();
-        /* $(this).dialog("close") removed */
-      },
-      Cancel: () => {
-        /* $(this).dialog("close") removed */
+    description: `Total: ${l(total)}`,
+    initialRural: rural,
+    initialUrban: urban,
+    urbanDisabled: !burgs.length,
+    onApply: (newRural, newUrban) => {
+      const ruralChange = newRural / rural;
+      if (Number.isFinite(ruralChange) && ruralChange !== 1) {
+        landCells.forEach(i => {
+          worldContext.pack.cells.pop[i] *= ruralChange;
+        });
       }
-    },
-    position: { my: "center", at: "center", of: "svg" }
-  });
+      if (!Number.isFinite(ruralChange) && newRural > 0) {
+        const pop = rn(newRural / worldContext.populationRate / landCells.length);
+        landCells.forEach(i => {
+          worldContext.pack.cells.pop[i] = pop;
+        });
+      }
 
-  function applyPopulationChange(): void {
-    const ruralChange = ruralPopEl.valueAsNumber / rural;
-    if (Number.isFinite(ruralChange) && ruralChange !== 1) {
-      landCells.forEach(i => {
-        worldContext.pack.cells.pop[i] *= ruralChange;
-      });
-    }
-    if (!Number.isFinite(ruralChange) && +ruralPopEl.value > 0) {
-      const points = ruralPopEl.valueAsNumber / worldContext.populationRate;
-      const pop = rn(points / landCells.length);
-      landCells.forEach(i => {
-        worldContext.pack.cells.pop[i] = pop;
-      });
-    }
+      const urbanChange = newUrban / urban;
+      if (Number.isFinite(urbanChange) && urbanChange !== 1) {
+        burgs.forEach(b => {
+          b.population = rn((b.population ?? 0) * urbanChange, 4);
+        });
+      }
+      if (!Number.isFinite(urbanChange) && newUrban > 0) {
+        const population = rn(newUrban / worldContext.populationRate / worldContext.urbanization / burgs.length, 4);
+        burgs.forEach(b => {
+          b.population = population;
+        });
+      }
 
-    const urbanChange = urbanPopEl.valueAsNumber / urban;
-    if (Number.isFinite(urbanChange) && urbanChange !== 1) {
-      burgs.forEach(b => {
-        b.population = rn((b.population ?? 0) * urbanChange, 4);
-      });
+      if (layerIsOn("togglePopulation")) PopulationRenderer.render(worldContext, viewContext, appServices);
+      zonesEditorAddLines();
     }
-    if (!Number.isFinite(urbanChange) && +urbanPopEl.value > 0) {
-      const points = urbanPopEl.valueAsNumber / worldContext.populationRate / worldContext.urbanization;
-      const population = rn(points / burgs.length, 4);
-      burgs.forEach(b => {
-        b.population = population;
-      });
-    }
-
-    if (layerIsOn("togglePopulation")) PopulationRenderer.render(worldContext, viewContext, appServices);
-    zonesEditorAddLines();
-  }
+  };
+  openDialog("populationChangeDialog", config);
 }
 
 function zoneRemove(zone: Zone): void {
