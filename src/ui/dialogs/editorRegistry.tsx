@@ -23,6 +23,11 @@ export interface EditorConfig {
   layerId?: string | null;
   moduleFlag?: string;
   onClose?: () => void;
+  /** Apply fmg-dialog--overflow-hidden layout (fixed header/footer, scrollable body).
+   *  Height defaults to the CSS value (75vh). Use dialogHeight only to override. */
+  tableLayout?: boolean;
+  /** Override the default CSS height (75vh) with a specific value, e.g. "400px". */
+  dialogHeight?: string;
 }
 
 export const EDITOR_REGISTRY: Record<string, EditorConfig> = {
@@ -31,14 +36,16 @@ export const EDITOR_REGISTRY: Record<string, EditorConfig> = {
     component: BiomesEditorContent,
     layerId: "toggleBiomes",
     moduleFlag: "editBiomes",
-    onClose: () => biomesExitCustomization("close")
+    onClose: () => biomesExitCustomization("close"),
+    tableLayout: true
   },
   diplomacyEditor: {
     title: "Diplomacy Editor",
     component: DiplomacyEditorContent,
     layerId: "toggleStates",
     moduleFlag: "editDiplomacy",
-    onClose: () => diplomacyEditorActions.closeDiplomacyEditor()
+    onClose: () => diplomacyEditorActions.closeDiplomacyEditor(),
+    tableLayout: true
   },
   coastlineSettingsDialog: {
     title: "Coastline Settings Editor",
@@ -62,19 +69,22 @@ export const EDITOR_REGISTRY: Record<string, EditorConfig> = {
     component: StatesEditorContent,
     layerId: "toggleStates",
     moduleFlag: "editStates",
-    onClose: () => statesEditorActions.closeStatesEditor()
+    onClose: () => statesEditorActions.closeStatesEditor(),
+    tableLayout: true
   },
   zonesEditor: {
     title: "Zones Editor",
     component: ZonesEditorContent,
     layerId: "toggleZones",
     moduleFlag: "editZones",
-    onClose: () => zonesEditorActions.closeZonesEditor()
+    onClose: () => zonesEditorActions.closeZonesEditor(),
+    tableLayout: true
   },
   namesbaseEditor: {
     title: "Namesbase Editor",
     component: NamesbaseEditorContent,
-    moduleFlag: "editNamesbase"
+    moduleFlag: "editNamesbase",
+    tableLayout: true
   },
   notesEditor: {
     title: "Notes Editor",

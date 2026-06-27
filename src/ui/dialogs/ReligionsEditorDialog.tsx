@@ -68,7 +68,12 @@ export const ReligionsEditorDialog: React.FC = () => {
   const isBrushMode = customization === 7;
 
   return (
-    <Dialog isOpen={isOpen} title="Religions Editor" onClose={() => closeDialog("religionsEditor")}>
+    <Dialog
+      isOpen={isOpen}
+      title="Religions Editor"
+      onClose={() => closeDialog("religionsEditor")}
+      className="fmg-dialog--overflow-hidden"
+    >
       <div id="religionsEditor">
         <div
           id="religionsHeader"
@@ -342,7 +347,7 @@ export const ReligionsEditorDialog: React.FC = () => {
           </div>
         </div>
 
-        <div id="religionsFooter">
+        <div id="religionsFooter" className="fmg-dialog-footer">
           {isBrushMode ? null : (
             <>
               <button

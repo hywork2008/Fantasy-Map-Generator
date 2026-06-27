@@ -318,7 +318,7 @@ export const StatesEditorContent: React.FC = () => {
         </div>
       </div>
 
-      <div id="statesFooter">
+      <div id="statesFooter" className="fmg-dialog-footer">
         <button
           type="button"
           id="statesEditorRefresh"

@@ -167,7 +167,7 @@ export const ZonesEditorContent: React.FC = () => {
         </div>
       )}
 
-      <div className="footer">
+      <div className="footer fmg-dialog-footer">
         {state.customizationMode === 0 ? (
           <>
             <select

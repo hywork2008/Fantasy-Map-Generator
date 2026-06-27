@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from "react";
 
 export function useDraggable(options?: { handleSelector?: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const resizeHandleRef = useRef<HTMLDivElement>(null);
 
   const bringToFront = useCallback(() => {
     const container = containerRef.current;
@@ -55,6 +56,12 @@ export function useDraggable(options?: { handleSelector?: string }) {
       initialLeft = rect.left;
       initialTop = rect.top;
 
+      // Lock the current rendered width so viewport-relative max-width can't
+      // cause the dialog to expand when transform is cleared during drag.
+      if (!container.style.width) {
+        container.style.width = `${container.offsetWidth}px`;
+      }
+
       bringToFront();
 
       document.body.style.userSelect = "none";
@@ -90,5 +97,58 @@ export function useDraggable(options?: { handleSelector?: string }) {
     };
   }, [options?.handleSelector, bringToFront]);
 
-  return { containerRef, bringToFront };
+  useEffect(() => {
+    const container = containerRef.current;
+    const resizeHandle = resizeHandleRef.current;
+    if (!container || !resizeHandle) return;
+
+    let isResizing = false;
+    let startX = 0;
+    let startY = 0;
+    let initialWidth = 0;
+    let initialHeight = 0;
+
+    const onMouseDown = (e: MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      isResizing = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      initialWidth = container.offsetWidth;
+      initialHeight = container.offsetHeight;
+      bringToFront();
+      document.body.style.userSelect = "none";
+      document.body.style.cursor = "se-resize";
+    };
+
+    const onMouseMove = (e: MouseEvent) => {
+      if (!isResizing) return;
+      const newWidth = Math.max(280, initialWidth + (e.clientX - startX));
+      const newHeight = Math.max(200, initialHeight + (e.clientY - startY));
+      container.style.width = `${newWidth}px`;
+      container.style.height = `${newHeight}px`;
+      // Release CSS max constraints so the user can freely resize
+      container.style.maxWidth = "none";
+      container.style.maxHeight = "none";
+    };
+
+    const onMouseUp = () => {
+      if (!isResizing) return;
+      isResizing = false;
+      document.body.style.userSelect = "";
+      document.body.style.cursor = "";
+    };
+
+    resizeHandle.addEventListener("mousedown", onMouseDown);
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+
+    return () => {
+      resizeHandle.removeEventListener("mousedown", onMouseDown);
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+    };
+  }, [bringToFront]);
+
+  return { containerRef, resizeHandleRef, bringToFront };
 }

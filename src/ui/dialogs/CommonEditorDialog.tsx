@@ -12,7 +12,7 @@ function layerIsOn(el: string): boolean {
 }
 
 export const CommonEditorDialog: React.FC<{ id: string; config: EditorConfig }> = ({ id, config }) => {
-  const { title, component: Component, moduleFlag, layerId, onClose } = config;
+  const { title, component: Component, moduleFlag, layerId, onClose, tableLayout, dialogHeight } = config;
 
   // Cleanup when dialog is closed (either via X button or programmatic toggle)
   useEffect(() => {
@@ -33,7 +33,13 @@ export const CommonEditorDialog: React.FC<{ id: string; config: EditorConfig }> 
   };
 
   return (
-    <Dialog isOpen={true} title={title} onClose={handleClose}>
+    <Dialog
+      isOpen={true}
+      title={title}
+      onClose={handleClose}
+      className={tableLayout ? "fmg-dialog--overflow-hidden" : undefined}
+      style={dialogHeight ? { height: dialogHeight } : undefined}
+    >
       <Component />
     </Dialog>
   );

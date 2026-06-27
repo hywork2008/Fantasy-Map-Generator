@@ -207,182 +207,180 @@ export const BurgsOverviewDialog: React.FC = () => {
   }
 
   return (
-    <Dialog isOpen={isOpen} title="Burgs Overview" onClose={() => closeDialog("burgsOverview")}>
+    <Dialog
+      isOpen={isOpen}
+      title="Burgs Overview"
+      onClose={() => closeDialog("burgsOverview")}
+      className="fmg-dialog--overflow-hidden"
+    >
       <div id="burgsOverviewContainer">
-        <div>
-          <div id="burgsHeader" className="header" style={{ gridTemplateColumns: "9em 7em 7.5em 7.2em 6.5em 7em 6em" }}>
-            <SortHeader field="name" label="Burg" />
-            <SortHeader field="province" label="Province" />
-            <SortHeader field="state" label="State" />
-            <SortHeader field="culture" label="Culture" />
-            <SortHeader field="group" label="Group" />
-            <SortHeader field="population" label="Population" numeric />
-            <SortHeader field="features" label="Features" />
-          </div>
+        <div id="burgsHeader" className="header" style={{ gridTemplateColumns: "9em 7em 7.5em 7.2em 6.5em 7em 6em" }}>
+          <SortHeader field="name" label="Burg" />
+          <SortHeader field="province" label="Province" />
+          <SortHeader field="state" label="State" />
+          <SortHeader field="culture" label="Culture" />
+          <SortHeader field="group" label="Group" />
+          <SortHeader field="population" label="Population" numeric />
+          <SortHeader field="features" label="Features" />
+        </div>
 
-          <div id="burgsBody" className="table">
-            {filteredBurgs.length === 0 ? (
-              <div style={{ paddingBlock: "0.3em" }}>No burgs found</div>
-            ) : (
-              filteredBurgs.map(({ b, population, province, stateName, cultureName }) => (
-                <div
-                  key={b.i}
-                  className="states"
-                  data-id={b.i}
-                  data-name={b.name}
-                  data-state={stateName}
-                  data-province={province}
-                  data-culture={cultureName}
-                  data-group={b.group}
-                  data-population={population}
-                  onMouseEnter={() => burgHighlightOn(b.i!)}
-                  onMouseLeave={() => burgHighlightOff()}
-                >
+        <div id="burgsBody" className="table">
+          {filteredBurgs.length === 0 ? (
+            <div style={{ paddingBlock: "0.3em" }}>No burgs found</div>
+          ) : (
+            filteredBurgs.map(({ b, population, province, stateName, cultureName }) => (
+              <div
+                key={b.i}
+                className="states"
+                data-id={b.i}
+                data-name={b.name}
+                data-state={stateName}
+                data-province={province}
+                data-culture={cultureName}
+                data-group={b.group}
+                data-population={population}
+                onMouseEnter={() => burgHighlightOn(b.i!)}
+                onMouseLeave={() => burgHighlightOff()}
+              >
+                <span
+                  data-tip="Click to zoom into view"
+                  className="icon-dot-circled pointer"
+                  onClick={() => zoomIntoBurg(b.i!)}
+                />
+                <input data-tip="Burg name" className="burgName" value={b.name ?? ""} disabled readOnly />
+                <input data-tip="Burg province" value={province} disabled readOnly />
+                <input data-tip="Burg state" value={stateName} disabled readOnly />
+                <input data-tip="Dominant culture" value={cultureName} disabled readOnly />
+                <input data-tip="Burg group" value={b.group ?? ""} disabled readOnly />
+                <span data-tip="Burg population" className="icon-male" />
+                <input data-tip="Burg population" value={si(population)} style={{ width: "5em" }} disabled readOnly />
+                <div style={{ width: "3em" }}>
                   <span
-                    data-tip="Click to zoom into view"
-                    className="icon-dot-circled pointer"
-                    onClick={() => zoomIntoBurg(b.i!)}
-                  />
-                  <input data-tip="Burg name" className="burgName" value={b.name ?? ""} disabled readOnly />
-                  <input data-tip="Burg province" value={province} disabled readOnly />
-                  <input data-tip="Burg state" value={stateName} disabled readOnly />
-                  <input data-tip="Dominant culture" value={cultureName} disabled readOnly />
-                  <input data-tip="Burg group" value={b.group ?? ""} disabled readOnly />
-                  <span data-tip="Burg population" className="icon-male" />
-                  <input data-tip="Burg population" value={si(population)} style={{ width: "5em" }} disabled readOnly />
-                  <div style={{ width: "3em" }}>
-                    <span
-                      data-tip={b.capital ? "This burg is a state capital" : "This burg is NOT a state capital"}
-                      className={`icon-star-empty${b.capital ? "" : " inactive"}`}
-                      style={{ padding: "0 1px" }}
-                    />
-                    <span
-                      data-tip={b.port ? "This burg is a port" : "This burg is NOT a port"}
-                      className={`icon-anchor${b.port ? "" : " inactive"}`}
-                      style={{ fontSize: ".9em", padding: "0 1px" }}
-                    />
-                  </div>
-                  <span data-tip="Edit burg" className="icon-pencil pointer" onClick={() => editBurg(b.i!)} />
-                  <span
-                    className={`locks pointer${b.lock ? " icon-lock" : " icon-lock-open inactive"}`}
-                    onMouseOver={e => showElementLockTip(e.nativeEvent)}
-                    onClick={() => {
-                      b.lock = !b.lock;
-                      refresh();
-                    }}
+                    data-tip={b.capital ? "This burg is a state capital" : "This burg is NOT a state capital"}
+                    className={`icon-star-empty${b.capital ? "" : " inactive"}`}
+                    style={{ padding: "0 1px" }}
                   />
                   <span
-                    data-tip="Remove burg"
-                    className="icon-trash-empty pointer"
-                    onClick={() => handleRemoveBurg(b.i!)}
+                    data-tip={b.port ? "This burg is a port" : "This burg is NOT a port"}
+                    className={`icon-anchor${b.port ? "" : " inactive"}`}
+                    style={{ fontSize: ".9em", padding: "0 1px" }}
                   />
                 </div>
-              ))
-            )}
-          </div>
+                <span data-tip="Edit burg" className="icon-pencil pointer" onClick={() => editBurg(b.i!)} />
+                <span
+                  className={`locks pointer${b.lock ? " icon-lock" : " icon-lock-open inactive"}`}
+                  onMouseOver={e => showElementLockTip(e.nativeEvent)}
+                  onClick={() => {
+                    b.lock = !b.lock;
+                    refresh();
+                  }}
+                />
+                <span
+                  data-tip="Remove burg"
+                  className="icon-trash-empty pointer"
+                  onClick={() => handleRemoveBurg(b.i!)}
+                />
+              </div>
+            ))
+          )}
+        </div>
 
-          <div
-            id="burgsFilters"
-            data-tip="Apply a filter"
-            style={{ paddingBlock: "0.1em", display: "flex", gap: "0.5em", width: "100%" }}
-          >
-            <label htmlFor="burgsSearch" data-tip="Filter by name, province, state, culture, or group">
-              Search:{" "}
-              <input id="burgsSearch" type="search" value={searchText} onChange={e => setSearchText(e.target.value)} />
-            </label>
-            <label htmlFor="burgsFilterState">
-              State:
-              <select id="burgsFilterState" value={filterStateId} onChange={e => setFilterStateId(+e.target.value)}>
-                <option value="-1">all</option>
-                <option value="0">{worldContext.pack?.states?.[0]?.name ?? "Neutral"}</option>
-                {sortedStates
-                  .filter(s => s.i)
-                  .map(s => (
-                    <option key={s.i} value={s.i}>
-                      {s.name}
-                    </option>
-                  ))}
-              </select>
-            </label>
-            <label htmlFor="burgsFilterCulture">
-              Culture:
-              <select
-                id="burgsFilterCulture"
-                value={filterCultureId}
-                onChange={e => setFilterCultureId(+e.target.value)}
-              >
-                <option value="-1">all</option>
-                <option value="0">{worldContext.pack?.cultures?.[0]?.name ?? "Wildlands"}</option>
-                {sortedCultures.map(c => (
-                  <option key={c.i} value={c.i}>
-                    {c.name}
+        <div
+          id="burgsFilters"
+          data-tip="Apply a filter"
+          style={{ paddingBlock: "0.1em", display: "flex", gap: "0.5em", width: "100%" }}
+        >
+          <label htmlFor="burgsSearch" data-tip="Filter by name, province, state, culture, or group">
+            Search:{" "}
+            <input id="burgsSearch" type="search" value={searchText} onChange={e => setSearchText(e.target.value)} />
+          </label>
+          <label htmlFor="burgsFilterState">
+            State:
+            <select id="burgsFilterState" value={filterStateId} onChange={e => setFilterStateId(+e.target.value)}>
+              <option value="-1">all</option>
+              <option value="0">{worldContext.pack?.states?.[0]?.name ?? "Neutral"}</option>
+              {sortedStates
+                .filter(s => s.i)
+                .map(s => (
+                  <option key={s.i} value={s.i}>
+                    {s.name}
                   </option>
                 ))}
-              </select>
-            </label>
-          </div>
+            </select>
+          </label>
+          <label htmlFor="burgsFilterCulture">
+            Culture:
+            <select id="burgsFilterCulture" value={filterCultureId} onChange={e => setFilterCultureId(+e.target.value)}>
+              <option value="-1">all</option>
+              <option value="0">{worldContext.pack?.cultures?.[0]?.name ?? "Wildlands"}</option>
+              {sortedCultures.map(c => (
+                <option key={c.i} value={c.i}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
 
-          <div id="burgsTotal" className="totalLine">
-            <div data-tip="Burgs displayed" style={{ marginLeft: 4 }}>
-              Burgs:&nbsp;{filteredBurgs.length} of {validCount}
-            </div>
-            <div data-tip="Average population" style={{ marginLeft: 14 }}>
-              Average population:&nbsp;
-              {filteredBurgs.length ? si(totalPopulation / filteredBurgs.length) : "0"}
-            </div>
+        <div id="burgsTotal" className="totalLine">
+          <div data-tip="Burgs displayed" style={{ marginLeft: 4 }}>
+            Burgs:&nbsp;{filteredBurgs.length} of {validCount}
           </div>
+          <div data-tip="Average population" style={{ marginLeft: 14 }}>
+            Average population:&nbsp;
+            {filteredBurgs.length ? si(totalPopulation / filteredBurgs.length) : "0"}
+          </div>
+        </div>
 
-          <div id="burgsFooter">
-            <button type="button" data-tip="Refresh the Editor" className="icon-cw" onClick={refresh} />
-            <button type="button" data-tip="Edit burg groups" className="icon-cog" onClick={() => editBurgGroups()} />
-            <button
-              type="button"
-              data-tip="Show burgs bubble chart"
-              className="icon-chart-area"
-              onClick={showBurgsChart}
-            />
-            <button
-              type="button"
-              data-tip="Regenerate burg names based on assigned culture"
-              className="icon-retweet"
-              onClick={() => regenerateBurgNames(refresh)}
-            />
-            <button
-              type="button"
-              data-tip="Add a new burg. Hold Shift to add multiple"
-              className={`icon-plus${addMode ? " pressed" : ""}`}
-              onClick={() => setAddMode(!addMode)}
-            />
-            <button
-              type="button"
-              data-tip="Save burgs-related data as a text file (.csv)"
-              className="icon-download"
-              onClick={downloadBurgsData}
-            />
-            <button type="button" data-tip="Rename burgs in bulk" className="icon-upload" onClick={renameBurgsInBulk} />
-            <button
-              type="button"
-              data-tip="Lock or unlock all burgs"
-              className={allLocked ? "icon-lock-open" : "icon-lock"}
-              onClick={handleToggleLockAll}
-            />
-            <button
-              type="button"
-              data-tip="Remove all unlocked burgs except for capitals. To remove a capital remove its state first"
-              className="icon-trash"
-              onClick={handleRemoveAll}
-            />
-            <input
-              ref={fileInputRef}
-              type="file"
-              id="burgsListToLoad"
-              style={{ display: "none" }}
-              onChange={e => {
-                if (e.target.files?.[0])
-                  uploadFile(e.target as HTMLInputElement, data => importBurgNames(data, refresh));
-              }}
-            />
-          </div>
+        <div id="burgsFooter" className="fmg-dialog-footer">
+          <button type="button" data-tip="Refresh the Editor" className="icon-cw" onClick={refresh} />
+          <button type="button" data-tip="Edit burg groups" className="icon-cog" onClick={() => editBurgGroups()} />
+          <button
+            type="button"
+            data-tip="Show burgs bubble chart"
+            className="icon-chart-area"
+            onClick={showBurgsChart}
+          />
+          <button
+            type="button"
+            data-tip="Regenerate burg names based on assigned culture"
+            className="icon-retweet"
+            onClick={() => regenerateBurgNames(refresh)}
+          />
+          <button
+            type="button"
+            data-tip="Add a new burg. Hold Shift to add multiple"
+            className={`icon-plus${addMode ? " pressed" : ""}`}
+            onClick={() => setAddMode(!addMode)}
+          />
+          <button
+            type="button"
+            data-tip="Save burgs-related data as a text file (.csv)"
+            className="icon-download"
+            onClick={downloadBurgsData}
+          />
+          <button type="button" data-tip="Rename burgs in bulk" className="icon-upload" onClick={renameBurgsInBulk} />
+          <button
+            type="button"
+            data-tip="Lock or unlock all burgs"
+            className={allLocked ? "icon-lock-open" : "icon-lock"}
+            onClick={handleToggleLockAll}
+          />
+          <button
+            type="button"
+            data-tip="Remove all unlocked burgs except for capitals. To remove a capital remove its state first"
+            className="icon-trash"
+            onClick={handleRemoveAll}
+          />
+          <input
+            ref={fileInputRef}
+            type="file"
+            id="burgsListToLoad"
+            style={{ display: "none" }}
+            onChange={e => {
+              if (e.target.files?.[0]) uploadFile(e.target as HTMLInputElement, data => importBurgNames(data, refresh));
+            }}
+          />
         </div>
       </div>
     </Dialog>

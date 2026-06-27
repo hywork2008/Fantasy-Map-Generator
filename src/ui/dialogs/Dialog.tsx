@@ -15,7 +15,7 @@ export interface DialogProps {
 }
 
 export const Dialog: React.FC<DialogProps> = ({ isOpen, title, onClose, children, buttons, className = "", style }) => {
-  const { containerRef, bringToFront } = useDraggable({ handleSelector: ".fmg-dialog-titlebar" });
+  const { containerRef, resizeHandleRef, bringToFront } = useDraggable({ handleSelector: ".fmg-dialog-titlebar" });
 
   useEffect(() => {
     if (isOpen) {
@@ -47,6 +47,7 @@ export const Dialog: React.FC<DialogProps> = ({ isOpen, title, onClose, children
           ))}
         </div>
       )}
+      <div className="fmg-dialog-resize" ref={resizeHandleRef} aria-hidden="true" />
     </div>
   );
 
