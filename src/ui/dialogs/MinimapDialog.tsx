@@ -5,6 +5,7 @@ import { viewContext } from "../../context/viewContext";
 import { worldContext } from "../../context/worldContext";
 import { updateMinimap } from "../../controllers/minimap";
 import { useDialogState } from "../../store/dialogState";
+import { useMinimapState } from "../../store/minimapState";
 import { minmax } from "../../utils";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
@@ -36,6 +37,7 @@ const localStyle = `
 
 export const MinimapDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("minimap"));
+  const { viewBox, transform, viewportX, viewportY, viewportWidth, viewportHeight } = useMinimapState();
   const svgRef = useRef<SVGSVGElement>(null);
 
   useEffect(() => {
@@ -66,12 +68,13 @@ export const MinimapDialog: React.FC = () => {
         <svg
           id="minimapSurface"
           ref={svgRef}
+          viewBox={viewBox}
           preserveAspectRatio="xMidYMid meet"
           aria-label="Map minimap"
           onClick={handleClick}
         >
-          <use id="minimapMapUse" href="#viewbox" />
-          <rect id="minimapViewport" />
+          <use id="minimapMapUse" href="#viewbox" transform={transform} />
+          <rect id="minimapViewport" x={viewportX} y={viewportY} width={viewportWidth} height={viewportHeight} />
         </svg>
       </div>
     </Dialog>
