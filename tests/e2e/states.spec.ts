@@ -56,7 +56,7 @@ test.describe("States", () => {
     const neighborsAfter = await countStatesWithNeighbor(page, stateId!);
     expect(neighborsAfter).toBe(0);
 
-    await page.click(".fmg-dialog:has(#statesEditor) .fmg-dialog-close");
+    await page.click('.fmg-dialog:has(#statesEditor) [aria-label="Close"]');
     await page.waitForSelector("#statesEditor", { state: "hidden" });
 
     await page.click("#regenerateMilitary");
