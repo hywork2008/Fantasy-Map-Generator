@@ -30,7 +30,8 @@ import { SliderInput } from "../components/SliderInput";
 type SortKey = "name" | "habitability" | "cells" | "area" | "population";
 
 export const BiomesEditorContent: React.FC = () => {
-  const { rows, footer, displayMode, selectedBiomeId, isCustomizationMode, refreshCount } = useBiomesEditorStore();
+  const { rows, footer, displayMode, selectedBiomeId, isCustomizationMode, refreshCount, brushSize, setBrushSize } =
+    useBiomesEditorStore();
 
   const [sortBy, setSortBy] = useState<SortKey>("cells");
   const [sortDesc, setSortDesc] = useState(true);
@@ -253,7 +254,13 @@ export const BiomesEditorContent: React.FC = () => {
         <div id="biomesManuallyButtons" style={{ display: isCustomizationMode ? undefined : "none" }}>
           <div data-tip="Change brush size. Shortcut: + to increase; – to decrease" style={{ marginBlock: "0.3em" }}>
             Brush size:
-            <SliderInput id="biomesBrush" min={1} max={100} value={15} />
+            <SliderInput
+              id="biomesBrush"
+              min={1}
+              max={100}
+              value={brushSize}
+              onChange={val => setBrushSize(Number(val))}
+            />
           </div>
           <button
             type="button"

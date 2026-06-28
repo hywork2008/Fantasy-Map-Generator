@@ -28,6 +28,7 @@ interface BiomesEditorStore {
   selectedBiomeId: number | null;
   isCustomizationMode: boolean;
   refreshCount: number;
+  brushSize: number;
   setData: (rows: BiomeRow[], footer: BiomesFooter) => void;
   toggleDisplayMode: () => void;
   updateRowColor: (biomeId: number, color: string) => void;
@@ -36,6 +37,7 @@ interface BiomesEditorStore {
   removeRow: (biomeId: number) => void;
   setSelectedBiomeId: (id: number | null) => void;
   setCustomizationMode: (active: boolean) => void;
+  setBrushSize: (size: number) => void;
 }
 
 export const useBiomesEditorStore = create<BiomesEditorStore>(set => ({
@@ -45,6 +47,7 @@ export const useBiomesEditorStore = create<BiomesEditorStore>(set => ({
   selectedBiomeId: null,
   isCustomizationMode: false,
   refreshCount: 0,
+  brushSize: 15,
 
   setData: (rows, footer) =>
     set(state => ({ rows, footer, displayMode: "absolute", refreshCount: state.refreshCount + 1 })),
@@ -71,5 +74,6 @@ export const useBiomesEditorStore = create<BiomesEditorStore>(set => ({
     })),
 
   setSelectedBiomeId: id => set({ selectedBiomeId: id }),
-  setCustomizationMode: active => set({ isCustomizationMode: active })
+  setCustomizationMode: active => set({ isCustomizationMode: active }),
+  setBrushSize: size => set({ brushSize: size })
 }));

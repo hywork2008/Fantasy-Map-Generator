@@ -284,7 +284,7 @@ function selectBiomeOnMapClick(event: MouseEvent): void {
 
 function dragBiomeBrush(this: SVGElement, event: import("d3").D3DragEvent<SVGElement, unknown, unknown>): void {
   if (!event.dx && !event.dy) return;
-  const r = +(document.getElementById("biomesBrush") as HTMLInputElement).value;
+  const r = useBiomesEditorStore.getState().brushSize;
   const [px, py] = pointer(event, this);
   EditorBus.moveCircle(px, py, r);
   const found = r > 5 ? findAll(px, py, r) : [findCell(px, py)];
@@ -318,7 +318,7 @@ function changeBiomeForSelection(selection: number[]): void {
 function moveBiomeBrush(event: MouseEvent): void {
   showMainTip();
   const [px, py] = pointer(event);
-  const radius = +(document.getElementById("biomesBrush") as HTMLInputElement).value;
+  const radius = useBiomesEditorStore.getState().brushSize;
   EditorBus.moveCircle(px, py, radius);
 }
 
