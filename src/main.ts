@@ -525,7 +525,7 @@ function zoomRaf(event: { transform: { k: number; x: number; y: number } }) {
 
     if (didScaleChange) {
       drawScaleBar(worldContext, viewContext, appServices, scaleBar, scale);
-      fitScaleBar(worldContext, viewContext, appServices, scaleBar, svgWidth, svgHeight);
+      fitScaleBar(worldContext, viewContext, appServices, scaleBar, viewContext.svgWidth, viewContext.svgHeight);
     }
 
     if (didPositionChange || didScaleChange) {
@@ -971,8 +971,8 @@ export function invokeActiveZooming() {
     const EMBLEM_VIEWPORT_MARGIN = 100;
     const vLeft = -viewX / scale - EMBLEM_VIEWPORT_MARGIN;
     const vTop = -viewY / scale - EMBLEM_VIEWPORT_MARGIN;
-    const vRight = (svgWidth - viewX) / scale + EMBLEM_VIEWPORT_MARGIN;
-    const vBottom = (svgHeight - viewY) / scale + EMBLEM_VIEWPORT_MARGIN;
+    const vRight = (viewContext.svgWidth - viewX) / scale + EMBLEM_VIEWPORT_MARGIN;
+    const vBottom = (viewContext.svgHeight - viewY) / scale + EMBLEM_VIEWPORT_MARGIN;
 
     emblems.selectAll<SVGUseElement, unknown>("use").each(function () {
       const x = +this.getAttribute("x")!;
@@ -989,8 +989,8 @@ export function invokeActiveZooming() {
     const GOODS_MARGIN = 20;
     const vLeft = -viewX / scale - GOODS_MARGIN;
     const vTop = -viewY / scale - GOODS_MARGIN;
-    const vRight = (svgWidth - viewX) / scale + GOODS_MARGIN;
-    const vBottom = (svgHeight - viewY) / scale + GOODS_MARGIN;
+    const vRight = (viewContext.svgWidth - viewX) / scale + GOODS_MARGIN;
+    const vBottom = (viewContext.svgHeight - viewY) / scale + GOODS_MARGIN;
 
     d3.select<SVGGElement, unknown>("#goods")
       .selectAll<SVGGElement, unknown>("#goodsIcons > g, #goodsBurgs > g")
