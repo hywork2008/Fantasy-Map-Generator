@@ -14,6 +14,7 @@ import { Biomes } from "../generators/biomes";
 import { Burgs } from "../generators/burgs-generator";
 import { Cultures } from "../generators/cultures-generator";
 import { Features } from "../generators/features";
+import { HeightmapGenerator } from "../generators/heightmap-generator";
 import { Ice } from "../generators/ice";
 import { Lakes } from "../generators/lakes";
 import { Markers } from "../generators/markers-generator";
@@ -38,6 +39,8 @@ import { OceanLayers } from "../renderers/ocean-layers";
 import { ThreeDRenderer } from "../renderers/three-d-renderer";
 import { modules } from "../store/editorState";
 import { heightmapEditModeStore, imageConverterCloseStore } from "../store/heightmapDialogState";
+import { type BrushMode, setHeightmapEditorState, useHeightmapEditorState } from "../store/heightmapEditorState";
+import { useLayerState } from "../store/layerState";
 import { useOptionsState } from "../store/optionsState";
 import type { Burg, Culture, Province, Zone } from "../types/models";
 import { closeDialog, closeDialogs, isDialogOpen, openConfirm, openDialog } from "../ui/dialogs/dialogService";
@@ -61,13 +64,43 @@ import { layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, locked, showMainTip, tip } from "../utils/uiHelpers";
 import { HeightmapEditorHistoryClass as HeightmapEditorHistory } from "./HeightmapEditorHistory";
 import { interactionManager } from "./interactionManager";
-import { getCurrentPreset, turnButtonOff, turnButtonOn } from "./layers";
+import { getCurrentPreset, toggleLayerById, turnButtonOff, turnButtonOn } from "./layers";
 import { changeViewMode, enterStandardView } from "./options";
 
 // ─── Module-level state ───────────────────────────────────────────────────────
 
 let editHeightmapLayers: string[] = [];
 let heightmapHistory: InstanceType<typeof HeightmapEditorHistory> | undefined;
+
+export const HeightmapEditorActions = {
+  toggleBrushMode: (_mode: string) => {},
+  undoHistory: () => {},
+  redoHistory: () => {},
+  rescale: (_v: number) => {},
+  rescaleWithCondition: () => {},
+  smoothAllHeights: () => {},
+  disruptAllHeights: () => {},
+  startFromScratch: () => {},
+  executeTemplate: () => {},
+  downloadTemplate: () => {},
+  uploadTemplate: (_input: HTMLInputElement) => {},
+  changeTemplate: (_template: string) => {},
+  imageConverterAutoAssign: (_type: string) => {},
+  imageConverterSetColorsNumber: () => {},
+  imageConverterCancel: () => {},
+  imageConverterApply: () => {},
+  imageConverterSelectColor: (_color: string) => {},
+  imageConverterAssignHeight: (_height: number) => {},
+  imageConverterSetOverlayOpacity: (_val: number) => {},
+  imageConverterUploadImage: (_input: HTMLInputElement) => {},
+  openBrushesPanel: () => {},
+  openTemplateEditor: () => {},
+  openImageConverter: () => {},
+  toggleHeightmapPreview: () => {},
+  changeViewMode: (_e?: unknown) => {},
+  finalizeHeightmap: () => {},
+  mockHeightmap: () => {}
+};
 
 // ─── Main entry point ─────────────────────────────────────────────────────────
 
@@ -83,15 +116,15 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
   if (modules.editHeightmap) return;
   modules.editHeightmap = true;
 
-  document.getElementById("paintBrushes")!.addEventListener("click", openBrushesPanel);
-  document.getElementById("applyTemplate")!.addEventListener("click", openTemplateEditor);
-  document.getElementById("convertImage")!.addEventListener("click", openImageConverter);
-  document.getElementById("heightmapPreview")!.addEventListener("click", toggleHeightmapPreview);
-  document.getElementById("heightmap3DView")!.addEventListener("click", changeViewMode);
-  document.getElementById("finalizeHeightmap")!.addEventListener("click", finalizeHeightmap);
-  document.getElementById("renderOcean")!.addEventListener("click", mockHeightmap);
-  document.getElementById("templateUndo")!.addEventListener("click", undoHistory);
-  document.getElementById("templateRedo")!.addEventListener("click", redoHistory);
+  HeightmapEditorActions.openBrushesPanel = openBrushesPanel;
+  HeightmapEditorActions.openTemplateEditor = openTemplateEditor;
+  HeightmapEditorActions.openImageConverter = openImageConverter;
+  HeightmapEditorActions.toggleHeightmapPreview = toggleHeightmapPreview;
+  HeightmapEditorActions.changeViewMode = changeViewMode as unknown as (_e?: unknown) => void;
+  HeightmapEditorActions.finalizeHeightmap = finalizeHeightmap;
+  HeightmapEditorActions.mockHeightmap = mockHeightmap;
+  HeightmapEditorActions.undoHistory = undoHistory;
+  HeightmapEditorActions.redoHistory = redoHistory;
 
   function showModeDialog() {
     heightmapEditModeStore.getState().open({
@@ -127,15 +160,15 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
 
     if (mode === "erase") {
       undraw();
-      (cellTypeFilter as HTMLSelectElement).value = "all";
+      setHeightmapEditorState({ cellTypeFilter: "all" });
     } else if (mode === "keep") {
       viewContext.viewbox.selectAll("#landmass, #lakes").style("display", "none");
-      (cellTypeFilter as HTMLSelectElement).value = "land";
+      setHeightmapEditorState({ cellTypeFilter: "land" });
     } else if (mode === "risk") {
       viewContext.defs.selectAll("#land, #water").selectAll("path").remove();
       viewContext.defs.select("#featurePaths").selectAll("path").remove();
       viewContext.viewbox.selectAll("#coastline use, #lakes path, #oceanLayers path").remove();
-      (cellTypeFilter as HTMLSelectElement).value = "all";
+      setHeightmapEditorState({ cellTypeFilter: "all" });
     }
 
     // These elements live inside CustomizationMenu; set their styles after React renders
@@ -176,8 +209,8 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     }
 
     turnButtonOn("toggleHeight");
-    (layersPreset as HTMLSelectElement).value = "heightmap";
-    layersPreset.disabled = true;
+    useLayerState.getState().setActivePreset("heightmap");
+    useLayerState.getState().setPresetDisabled(true);
     mockHeightmap();
 
     interactionManager.setMouseMoveHandler(moveCursor);
@@ -197,18 +230,18 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     heightmapInfoHeight.textContent = `${worldContext.grid.cells.h[cell]} (${getHeight(worldContext.grid.cells.h[cell])})`;
     if ((tooltip as HTMLElement).dataset.main) showMainTip();
 
-    const pressed = document.getElementById("brushesButtons")!.querySelector<HTMLButtonElement>("button.pressed");
-    if (!pressed) return;
+    const brushMode = useHeightmapEditorState.getState().brushMode;
+    if (!brushMode) return;
 
-    if (pressed.id === "brushLine") {
+    if (brushMode === "brushLine") {
       viewContext.debug.select("line").attr("x2", x).attr("y2", y);
       return;
     }
-    if (pressed.id === "brushFill") {
+    if (brushMode === "brushFill") {
       EditorBus.removeCircle();
       return;
     }
-    EditorBus.moveCircle(x, y, (heightmapBrushRadius as HTMLInputElement).valueAsNumber);
+    EditorBus.moveCircle(x, y, useHeightmapEditorState.getState().brushRadius);
   }
 
   function getHeight(h: number): string {
@@ -235,12 +268,11 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     }
 
     heightmapHistory = undefined;
-    redo!.disabled = templateRedo.disabled = true;
-    undo!.disabled = templateUndo.disabled = true;
+    setHeightmapEditorState({ canUndo: false, canRedo: false });
 
     viewContext.customization = 0;
     modules.editHeightmap = false;
-    layersPreset.disabled = false;
+    useLayerState.getState().setPresetDisabled(false);
     // Tell React to exit customization mode (restores normal tabs and hides CustomizationMenu)
     document.dispatchEvent(new CustomEvent("react-exit-heightmap-edit"));
     document.dispatchEvent(new CustomEvent("react-hide-exit-customization"));
@@ -262,14 +294,12 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     viewContext.viewbox.selectAll("#heights").remove();
 
     turnButtonOff("toggleHeight");
-    document
-      .getElementById("mapLayers")!
-      .querySelectorAll("li")
-      .forEach(e => {
-        const wasOn = editHeightmapLayers.includes((e as HTMLElement).id);
-        if ((wasOn && !layerIsOn((e as HTMLElement).id)) || (!wasOn && layerIsOn((e as HTMLElement).id)))
-          (e as HTMLElement).click();
-      });
+    useLayerState.getState().layers.forEach(layer => {
+      const wasOn = editHeightmapLayers.includes(layer.id);
+      if ((wasOn && !layerIsOn(layer.id)) || (!wasOn && layerIsOn(layer.id))) {
+        toggleLayerById(layer.id);
+      }
+    });
     if (!layerIsOn("toggleBorders")) viewContext.borders.selectAll("path").remove();
     if (!layerIsOn("toggleStates")) viewContext.regions.selectAll("path").remove();
     if (!layerIsOn("toggleRivers")) viewContext.rivers.selectAll("*").remove();
@@ -541,19 +571,21 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     tip(`Cells changed: ${changed}`);
     if (!changed) return;
 
-    if (prev && (cellTypeFilter as HTMLSelectElement).value === "land") {
+    const filter = useHeightmapEditorState.getState().cellTypeFilter;
+
+    if (prev && filter === "land") {
       for (const i of worldContext.grid.cells.i) {
         if (prev[i] < 20 || worldContext.grid.cells.h[i] < 20) worldContext.grid.cells.h[i] = prev[i];
       }
     }
-    if (prev && (cellTypeFilter as HTMLSelectElement).value === "water") {
+    if (prev && filter === "water") {
       for (const i of worldContext.grid.cells.i) {
         if (prev[i] >= 20 || worldContext.grid.cells.h[i] >= 20) worldContext.grid.cells.h[i] = prev[i];
       }
     }
 
     mockHeightmap();
-    updateHeightmap();
+    updateHistory();
   }
 
   function getColor(value: number, scheme?: (t: number) => string): string {
@@ -563,7 +595,9 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
 
   function mockHeightmap(): void {
     const all = Array.from(worldContext.grid.cells.i) as number[];
-    const data = (renderOcean as HTMLInputElement).checked ? all : all.filter(i => worldContext.grid.cells.h[i] >= 20);
+    const data = (document.getElementById("renderOcean") as HTMLInputElement).checked
+      ? all
+      : all.filter(i => worldContext.grid.cells.h[i] >= 20);
     viewContext.viewbox
       .select<SVGGElement>("#heights")
       .selectAll<SVGPolygonElement, number>("polygon")
@@ -575,7 +609,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
   }
 
   function mockHeightmapSelection(selection: number[]): void {
-    const ocean = (renderOcean as HTMLInputElement).checked;
+    const ocean = (document.getElementById("renderOcean") as HTMLInputElement).checked;
     const heights = viewContext.viewbox.select<SVGGElement>("#heights");
     selection.forEach(i => {
       let cell = heights.select<SVGPolygonElement>(`#cell${i}`);
@@ -603,8 +637,10 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
 
   function updateHistory(noStat?: string): void {
     heightmapHistory!.push(worldContext.grid.cells.h);
-    undo!.disabled = templateUndo.disabled = !heightmapHistory!.canUndo;
-    redo!.disabled = templateRedo.disabled = true;
+    setHeightmapEditorState({
+      canUndo: heightmapHistory!.canUndo,
+      canRedo: heightmapHistory!.canRedo
+    });
     if (!noStat) {
       updateStatistics();
       if (document.getElementById("preview")) drawHeightmapPreview();
@@ -616,8 +652,10 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     const h = heightmapHistory!.undo();
     if (!h) return;
     worldContext.grid.cells.h = h;
-    undo!.disabled = templateUndo.disabled = !heightmapHistory!.canUndo;
-    redo!.disabled = templateRedo.disabled = !heightmapHistory!.canRedo;
+    setHeightmapEditorState({
+      canUndo: heightmapHistory!.canUndo,
+      canRedo: heightmapHistory!.canRedo
+    });
     mockHeightmap();
     updateStatistics();
     if (document.getElementById("preview")) drawHeightmapPreview();
@@ -628,8 +666,10 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     const h = heightmapHistory!.redo();
     if (!h) return;
     worldContext.grid.cells.h = h;
-    undo!.disabled = templateUndo.disabled = !heightmapHistory!.canUndo;
-    redo!.disabled = templateRedo.disabled = !heightmapHistory!.canRedo;
+    setHeightmapEditorState({
+      canUndo: heightmapHistory!.canUndo,
+      canRedo: heightmapHistory!.canRedo
+    });
     mockHeightmap();
     updateStatistics();
     if (document.getElementById("preview")) drawHeightmapPreview();
@@ -638,9 +678,8 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
 
   function restartHistory(): void {
     heightmapHistory = new HeightmapEditorHistory();
-    redo!.disabled = templateRedo.disabled = true;
-    undo!.disabled = templateUndo.disabled = true;
-    updateHeightmap();
+    setHeightmapEditorState({ canUndo: false, canRedo: false });
+    updateHistory(); // push initial snapshot
   }
 
   // ─── Brushes panel ───────────────────────────────────────────────────────────
@@ -651,68 +690,30 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     if (modules.openBrushesPanel) return;
     modules.openBrushesPanel = true;
 
-    document
-      .getElementById("brushesButtons")!
-      .addEventListener("click", (e: Event) => toggleBrushMode(e as MouseEvent));
-    document.getElementById("cellTypeFilter")!.addEventListener("change", cellTypeFilterChange);
-    document.getElementById("undo")!.addEventListener("click", undoHistory);
-    document.getElementById("redo")!.addEventListener("click", redoHistory);
-    document.getElementById("rescaleShow")!.addEventListener("click", () => {
-      document.getElementById("modifyButtons")!.style.display = "none";
-      document.getElementById("rescaleSection")!.style.display = "block";
-    });
-    document.getElementById("rescaleHide")!.addEventListener("click", () => {
-      document.getElementById("modifyButtons")!.style.display = "block";
-      document.getElementById("rescaleSection")!.style.display = "none";
-    });
-    document
-      .getElementById("rescaler")!
-      .addEventListener("change", (e: Event) => rescale((e.target as HTMLInputElement).valueAsNumber));
-    document.getElementById("rescaleCondShow")!.addEventListener("click", () => {
-      document.getElementById("modifyButtons")!.style.display = "none";
-      document.getElementById("rescaleCondSection")!.style.display = "block";
-    });
-    document.getElementById("rescaleCondHide")!.addEventListener("click", () => {
-      document.getElementById("modifyButtons")!.style.display = "block";
-      document.getElementById("rescaleCondSection")!.style.display = "none";
-    });
-    document.getElementById("rescaleExecute")!.addEventListener("click", rescaleWithCondition);
-    document.getElementById("smoothHeights")!.addEventListener("click", smoothAllHeights);
-    document.getElementById("disruptHeights")!.addEventListener("click", disruptAllHeights);
-    document.getElementById("brushClear")!.addEventListener("click", startFromScratch);
-
     function exitBrushMode(): void {
-      const pressed = document.querySelector<HTMLElement>("#brushesButtons > button.pressed");
-      if (pressed) pressed.classList.remove("pressed");
       viewContext.viewbox.style("cursor", "default").on(".drag", null);
       interactionManager.resetClickHandler();
       viewContext.debug.selectAll(".lineCircle").remove();
       EditorBus.removeCircle();
-      document.getElementById("brushesSliders")!.style.display = "none";
-      document.getElementById("lineSlider")!.style.display = "none";
     }
 
-    function toggleBrushMode(event: MouseEvent): void {
-      const button = (event.target as HTMLElement).closest<HTMLElement>("#brushesButtons > button");
-      if (!button) return;
-      if (button.classList.contains("pressed")) {
+    HeightmapEditorActions.toggleBrushMode = (mode: string): void => {
+      const currentMode = useHeightmapEditorState.getState().brushMode;
+      if (currentMode === mode) {
         exitBrushMode();
+        setHeightmapEditorState({ brushMode: null });
         return;
       }
       exitBrushMode();
-      button.classList.add("pressed");
-      toggleFillBrushUi(button.id === "brushFill");
+      setHeightmapEditorState({ brushMode: mode as BrushMode });
 
-      if (button.id === "brushLine") {
-        document.getElementById("lineSlider")!.style.display = "block";
+      if (mode === "brushLine") {
         viewContext.viewbox.style("cursor", "crosshair");
         interactionManager.setClickHandler(placeLinearFeature);
-      } else if (button.id === "brushFill") {
-        document.getElementById("brushesSliders")!.style.display = "block";
+      } else if (mode === "brushFill") {
         viewContext.viewbox.style("cursor", "crosshair");
         interactionManager.setClickHandler(applyFillBrush);
       } else {
-        document.getElementById("brushesSliders")!.style.display = "block";
         viewContext.viewbox
           .style("cursor", "crosshair")
           .call(
@@ -723,12 +724,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
               .on("end", updateHeightmap)
           );
       }
-    }
-
-    function toggleFillBrushUi(isFillBrush: boolean): void {
-      const radiusRow = document.getElementById("heightmapBrushRadius")?.parentElement;
-      if (radiusRow) radiusRow.style.display = isFillBrush ? "none" : "";
-    }
+    };
 
     function placeLinearFeature(this: SVGElement, event: MouseEvent): void {
       const [x, y] = pointer(event, this);
@@ -758,7 +754,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
 
       const fromCell = +lineCircle.attr("data-cell");
       viewContext.debug.selectAll("*").remove();
-      const power = (heightmapLinePower as HTMLInputElement).valueAsNumber;
+      const power = useHeightmapEditorState.getState().linePower;
       if (power === 0) {
         tip("Power should not be zero", false, "error");
         return;
@@ -774,10 +770,11 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       const changedHeights = HeightmapGenerator.getHeights() as Uint8Array;
 
       const selection: number[] = [];
+      const filter = useHeightmapEditorState.getState().cellTypeFilter;
       for (let i = 0; i < heights.length; i++) {
         if (changedHeights[i] === heights[i]) continue;
-        if ((cellTypeFilter as HTMLSelectElement).value === "land" && heights[i] < 20) continue;
-        if ((cellTypeFilter as HTMLSelectElement).value === "water" && heights[i] >= 20) continue;
+        if (filter === "land" && heights[i] < 20) continue;
+        if (filter === "water" && heights[i] >= 20) continue;
         heights[i] = changedHeights[i];
         selection.push(i);
       }
@@ -791,12 +788,13 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       const startHeight = worldContext.grid.cells.h[start];
       const isWaterFill = startHeight < 20;
       const MIN_FILL_CELLS = 3;
+      const filter = useHeightmapEditorState.getState().cellTypeFilter;
 
-      if ((cellTypeFilter as HTMLSelectElement).value === "water") {
+      if (filter === "water") {
         tip("Fill brush is not available with 'only water cells' filter", false, "error");
         return;
       }
-      if ((cellTypeFilter as HTMLSelectElement).value === "land" && isWaterFill) {
+      if (filter === "land" && isWaterFill) {
         tip("Land filter is active, water areas cannot be filled", false, "error");
         return;
       }
@@ -847,7 +845,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     }
 
     function applyConeToSelection(selection: number[], isWaterFill: boolean, targetHeight: number): number[] {
-      const power = (heightmapBrushPower as HTMLInputElement).valueAsNumber * 10;
+      const power = useHeightmapEditorState.getState().brushPower * 10;
       const { h: heights, c: neighbors, i: cells } = worldContext.grid.cells;
       const inSelection = new Uint8Array(cells.length);
       const edgeDistance = new Uint16Array(cells.length);
@@ -899,27 +897,27 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     }
 
     function dragBrushDrag(this: SVGElement, event: d3.D3DragEvent<SVGElement, unknown, unknown>): void {
-      const r = (heightmapBrushRadius as HTMLInputElement).valueAsNumber;
+      const state = useHeightmapEditorState.getState();
+      const r = state.brushRadius;
       const p = pointer(event, this);
       EditorBus.moveCircle(p[0], p[1], r);
       if (~~event.sourceEvent.timeStamp % 5 !== 0) return;
       const inRadius = findGridAll(p[0], p[1], r, worldContext.grid);
       let sel = inRadius;
-      if ((cellTypeFilter as HTMLSelectElement).value === "land")
-        sel = inRadius.filter(i => worldContext.grid.cells.h[i] >= 20);
-      else if ((cellTypeFilter as HTMLSelectElement).value === "water")
-        sel = inRadius.filter(i => worldContext.grid.cells.h[i] < 20);
+      if (state.cellTypeFilter === "land") sel = inRadius.filter(i => worldContext.grid.cells.h[i] >= 20);
+      else if (state.cellTypeFilter === "water") sel = inRadius.filter(i => worldContext.grid.cells.h[i] < 20);
       if (sel?.length) changeHeightForSelection(sel, _hbStart);
     }
 
     function changeHeightForSelection(selection: number[], start: number): void {
-      const power = (heightmapBrushPower as HTMLInputElement).valueAsNumber;
+      const state = useHeightmapEditorState.getState();
+      const power = state.brushPower;
       const interp = interpolateRound(power, 1);
-      const land = (cellTypeFilter as HTMLSelectElement).value === "land";
-      const ocean = (cellTypeFilter as HTMLSelectElement).value === "water";
+      const land = state.cellTypeFilter === "land";
+      const ocean = state.cellTypeFilter === "water";
       const lim = (v: number) => minmax(v, land ? 20 : 0, ocean ? 19 : 100);
       const heights = worldContext.grid.cells.h as Uint8Array;
-      const brush = document.querySelector<HTMLElement>("#brushesButtons > button.pressed")!.id;
+      const brush = state.brushMode;
 
       if (brush === "brushRaise")
         selection.forEach(i => {
@@ -963,16 +961,10 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       mockHeightmapSelection(selection);
     }
 
-    function cellTypeFilterChange(): void {
-      if ((cellTypeFilter as HTMLSelectElement).value === "land" && heightmapEditMode.textContent === "keep") {
-        tip("You cannot change the coastline in 'Keep' edit mode", false, "error");
-        (cellTypeFilter as HTMLSelectElement).value = "all";
-      }
-    }
-
-    function rescale(v: number): void {
-      const land = (cellTypeFilter as HTMLSelectElement).value === "land";
-      const ocean = (cellTypeFilter as HTMLSelectElement).value === "water";
+    HeightmapEditorActions.rescale = (v: number): void => {
+      const state = useHeightmapEditorState.getState();
+      const land = state.cellTypeFilter === "land";
+      const ocean = state.cellTypeFilter === "water";
       const lim = (val: number) => minmax(val, 0, 100);
       worldContext.grid.cells.h = (worldContext.grid.cells.h as Uint8Array).map(h => {
         if (land && (h < 20 || h + v < 20)) return h;
@@ -981,13 +973,14 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
         return ocean ? Math.min(newH, 19) : newH;
       });
       updateHeightmap();
-      (document.getElementById("rescaler") as HTMLInputElement).value = "0";
-    }
+      setHeightmapEditorState({ rescaleValue: 0 });
+    };
 
-    function rescaleWithCondition(): void {
-      const range_ = `${(rescaleLower as HTMLInputElement).value}-${(rescaleHigher as HTMLInputElement).value}`;
-      const operator = (conditionSign as HTMLSelectElement).value;
-      const operand = (rescaleModifier as HTMLInputElement).valueAsNumber;
+    HeightmapEditorActions.rescaleWithCondition = (): void => {
+      const state = useHeightmapEditorState.getState();
+      const range_ = `${state.rescaleLower}-${state.rescaleHigher}`;
+      const operator = state.rescaleSign;
+      const operand = state.rescaleModifier;
       if (Number.isNaN(operand)) {
         tip("Operand should be a number", false, "error");
         return;
@@ -1006,28 +999,29 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
 
       worldContext.grid.cells.h = HeightmapGenerator.getHeights()!;
       updateHeightmap();
-    }
+    };
 
-    function smoothAllHeights(): void {
+    HeightmapEditorActions.smoothAllHeights = (): void => {
       HeightmapGenerator.setGraph(worldContext.grid);
       HeightmapGenerator.smooth(4, 1.5);
       worldContext.grid.cells.h = HeightmapGenerator.getHeights()!;
       updateHeightmap();
-    }
+    };
 
-    function disruptAllHeights(): void {
+    HeightmapEditorActions.disruptAllHeights = (): void => {
       worldContext.grid.cells.h = (worldContext.grid.cells.h as Uint8Array).map(h =>
         h < 15 ? h : minmax(h + 2.5 - Math.random() * 4, 0, 100)
       );
       updateHeightmap();
-    }
+    };
 
-    function startFromScratch(): void {
-      if ((cellTypeFilter as HTMLSelectElement).value === "land") {
+    HeightmapEditorActions.startFromScratch = (): void => {
+      const state = useHeightmapEditorState.getState();
+      if (state.cellTypeFilter === "land") {
         tip("Not allowed when 'only land cells' filter is set", false, "error");
         return;
       }
-      if ((cellTypeFilter as HTMLSelectElement).value === "water") {
+      if (state.cellTypeFilter === "water") {
         tip("Not allowed when 'only water cells' filter is set", false, "error");
         return;
       }
@@ -1039,7 +1033,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       worldContext.grid.cells.h = new Uint8Array(worldContext.grid.cells.i.length);
       viewContext.viewbox.select("#heights").selectAll("*").remove();
       updateHeightmap();
-    }
+    };
   }
 
   // ─── Template editor ──────────────────────────────────────────────────────────

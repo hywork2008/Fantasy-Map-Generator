@@ -7,12 +7,9 @@
 | ファイル名 | 主な役割 | 残存している非Reactパターンの例 |
 | :--- | :--- | :--- |
 | **地理・地形エディタ系** | | |
-| `heightmap-editor.ts` | 標高マップの編集 | `document.getElementById`, `.addEventListener` による直接イベントバインド |
-| `biomes-editor.ts` | バイオームの編集 | `document.getElementById` によるカラーピッカーや入力値の取得 |
 | `coastline-editor.ts` | 海岸線の編集 | `document.getElementById` によるUI要素の取得 |
 | `lakes-editor.ts` | 湖の編集 | 同上 |
 | `rivers-editor.ts` | 川の編集 | 同上 |
-| `rivers-creator.ts` | 川の生成ツール | `.addEventListener` によるUIバインド |
 | **政治・文化・宗教系** | | |
 | `states-editor.ts` | 国家エディタ | `document.getElementById` による直接の要素参照と更新 |
 | `provinces-editor.ts` | 州エディタ | 一部React化されているが、内部で `document.getElementById` が残存 |
@@ -36,7 +33,6 @@
 | `notes-editor.ts` | ノート（メモ）機能 | `document.getElementById` の使用 |
 | **インフラ系** | | |
 | `routes-editor.ts` | 経路エディタ | `document.getElementById` の使用 |
-| `route-group-editor.ts`| 経路グループエディタ | `document.getElementById`, `.addEventListener` の使用 |
 | **全般・ツール系** | | |
 | `tools.ts` | ツールメニュー | `document.getElementById`, `.addEventListener` の使用 |
 | `options.ts` | 設定画面 | `document.getElementById`, `.addEventListener` の使用 |
@@ -46,7 +42,6 @@
 | `ai-generator.ts` | AIテキスト生成連携 | `document.getElementById`, `.addEventListener` の使用 |
 | `transform-tool.ts` | 変形ツール | `document.getElementById`, `.addEventListener` の使用 |
 | `submap-tool.ts` | サブマップツール | `document.getElementById` の使用 |
-| `minimap.ts` | ミニマップUI | `document.getElementById` の使用 |
 | `hotkeys.ts` | ホットキー管理 | `.addEventListener` を用いた直接のキーバインド（グローバルなイベント登録） |
 | `editors.ts` | エディタ基盤処理 | `.addEventListener` を用いた共通ダイアログ処理など |
 
@@ -60,10 +55,3 @@
    `document.getElementById` などの命令的クエリを削除し、Reactのコンポーネント（例: `src/ui/dialogs/...`）が宣言的に描画するように書き換える。
 3. **ロジックの純粋化**: 
    `src/controllers/...` 内の関数は、引数としてデータを受け取り、DOMに依存せずデータを加工・更新する純粋な関数（あるいは `worldContext` を直接変更するピュアなミューテーター）として再定義する。
-
-## 移行済みファイル
-
-- biomes-editor.ts
-- rivers-creator.ts
-- route-group-editor.ts
-- minimap.ts

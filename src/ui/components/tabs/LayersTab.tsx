@@ -6,7 +6,8 @@ import { changeViewMode } from "../../../controllers/options";
 import { DEFAULT_LAYERS, type LayerConfig, useLayerState } from "../../../store/layerState";
 
 export const LayersTab: React.FC = () => {
-  const { layers, setLayers, activeLayers, presets, presetLabels, activePreset, reorderLayers } = useLayerState();
+  const { layers, setLayers, activeLayers, presets, presetLabels, activePreset, presetDisabled, reorderLayers } =
+    useLayerState();
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
   // Initialize defaults if not set
@@ -56,6 +57,7 @@ export const LayersTab: React.FC = () => {
         data-tip="Select a map layers preset"
         id="layersPreset"
         value={activePreset}
+        disabled={presetDisabled}
         onChange={handlePresetChange}
         style={{ width: "45%" }}
       >

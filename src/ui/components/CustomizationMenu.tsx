@@ -1,4 +1,5 @@
 import type React from "react";
+import { HeightmapEditorActions } from "../../controllers/heightmap-editor";
 import { useViewState } from "../../store/viewState";
 
 export const CustomizationMenu: React.FC = () => {
@@ -9,19 +10,46 @@ export const CustomizationMenu: React.FC = () => {
     <div id="customizationMenu" className="tabcontent" style={{ display: isVisible ? "block" : "none" }}>
       <p>Heightmap customization tools:</p>
       <div id="customizeTools">
-        <button type="button" data-tip="Display brushes panel" id="paintBrushes">
+        <button
+          type="button"
+          data-tip="Display brushes panel"
+          id="paintBrushes"
+          onClick={() => HeightmapEditorActions.openBrushesPanel()}
+        >
           Paint Brushes
         </button>
-        <button type="button" data-tip="Open template editor" id="applyTemplate" style={{ display: "none" }}>
+        <button
+          type="button"
+          data-tip="Open template editor"
+          id="applyTemplate"
+          style={{ display: "none" }}
+          onClick={() => HeightmapEditorActions.openTemplateEditor()}
+        >
           Template Editor
         </button>
-        <button type="button" data-tip="Open Image Converter" id="convertImage" style={{ display: "none" }}>
+        <button
+          type="button"
+          data-tip="Open Image Converter"
+          id="convertImage"
+          style={{ display: "none" }}
+          onClick={() => HeightmapEditorActions.openImageConverter()}
+        >
           Image Converter
         </button>
-        <button type="button" data-tip="Render heightmap data as a small monochrome image" id="heightmapPreview">
+        <button
+          type="button"
+          data-tip="Render heightmap data as a small monochrome image"
+          id="heightmapPreview"
+          onClick={() => HeightmapEditorActions.toggleHeightmapPreview()}
+        >
           Preview
         </button>
-        <button type="button" data-tip="Preview heightmap in 3D scene" id="heightmap3DView">
+        <button
+          type="button"
+          data-tip="Preview heightmap in 3D scene"
+          id="heightmap3DView"
+          onClick={e => HeightmapEditorActions.changeViewMode(e)}
+        >
           3D scene
         </button>
       </div>
@@ -32,7 +60,12 @@ export const CustomizationMenu: React.FC = () => {
           Edit mode: <span id="heightmapEditMode"></span>
         </div>
         <div data-tip="Render cells below the sea level (with height less than 20)">
-          <input id="renderOcean" className="checkbox" type="checkbox" />
+          <input
+            id="renderOcean"
+            className="checkbox"
+            type="checkbox"
+            onChange={HeightmapEditorActions.mockHeightmap}
+          />
           <label htmlFor="renderOcean" className="checkbox-label">
             Render ocean cells
           </label>

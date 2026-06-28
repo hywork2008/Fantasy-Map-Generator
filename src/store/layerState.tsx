@@ -316,8 +316,10 @@ interface LayerState {
   // Human-readable labels for presets (e.g. presetLabels["political"] = "Political map")
   presetLabels: Record<string, string>;
   activePreset: string;
+  presetDisabled: boolean;
 
   // Actions
+  setPresetDisabled: (disabled: boolean) => void;
   setLayers: (layers: LayerConfig[]) => void;
   addLayers: (newLayers: LayerConfig[]) => void;
   removeLayers: (layerIds: string[]) => void;
@@ -342,7 +344,9 @@ export const useLayerState = create<LayerState>((set, get) => ({
   presets: {},
   presetLabels: {},
   activePreset: "custom",
+  presetDisabled: false,
 
+  setPresetDisabled: disabled => set({ presetDisabled: disabled }),
   setLayers: layers => set({ layers: sortLayers(layers) }),
 
   addLayers: newLayers => {
