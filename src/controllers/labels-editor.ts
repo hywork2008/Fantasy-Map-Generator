@@ -235,25 +235,26 @@ function removeLabelsGroup(): void {
   const { group, isBasicGroup } = getLabelsEditorState();
   const count = elSelected!.node()!.parentNode ? (elSelected!.node()!.parentNode as SVGGElement).childElementCount : 0;
 
-  const alertContent = /* html */ `Are you sure you want to remove ${
-    isBasicGroup ? "all elements in the group" : "the entire label group"
-  }? <br /><br />Labels to be removed: ${count}`;
-
-  openConfirm(alertContent, {
-    title: "Remove route group",
-    confirm: "Remove",
-    onConfirm: () => {
-      closeLabelEditor();
-      viewContext.labels
-        .select(`#${group}`)
-        .selectAll<SVGTextElement, unknown>("text")
-        .each(function (this: SVGTextElement) {
-          document.getElementById(`textPath_${this.id}`)?.remove();
-          this.remove();
-        });
-      if (!isBasicGroup) viewContext.labels.select(`#${group}`).remove();
+  openConfirm(
+    `Are you sure you want to remove ${
+      isBasicGroup ? "all elements in the group" : "the entire label group"
+    }? <br /><br />Labels to be removed: ${count}`,
+    {
+      title: "Remove route group",
+      confirm: "Remove",
+      onConfirm: () => {
+        closeLabelEditor();
+        viewContext.labels
+          .select(`#${group}`)
+          .selectAll<SVGTextElement, unknown>("text")
+          .each(function (this: SVGTextElement) {
+            document.getElementById(`textPath_${this.id}`)?.remove();
+            this.remove();
+          });
+        if (!isBasicGroup) viewContext.labels.select(`#${group}`).remove();
+      }
     }
-  });
+  );
 }
 
 function changeText(newText: string): void {
@@ -332,8 +333,7 @@ function editLabelLegend(): void {
 }
 
 function removeLabel(): void {
-  const alertContent = "Are you sure you want to remove the label?";
-  openConfirm(alertContent, {
+  openConfirm("Are you sure you want to remove the label?", {
     title: "Remove label",
     confirm: "Remove",
     onConfirm: () => {

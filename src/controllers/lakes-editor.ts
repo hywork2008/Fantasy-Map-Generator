@@ -251,24 +251,26 @@ export const lakeEditorActions = {
     }
 
     const count = (elSelected!.node()!.parentNode as SVGGElement).childElementCount;
-    const alertContent = /* html */ `Are you sure you want to remove the group? All lakes of the group (${count}) will be turned into Freshwater`;
-    openConfirm(alertContent, {
-      title: "Remove lake group",
-      confirm: "Remove",
-      onConfirm: () => {
-        const freshwater = viewContext.lakes.select<SVGGElement>("#freshwater").node();
-        const groupEl = viewContext.lakes.select<SVGGElement>(`#${group}`).node();
-        if (groupEl && freshwater) {
-          while (groupEl.childNodes.length) {
-            freshwater.appendChild(groupEl.childNodes[0]);
-          }
-          groupEl.remove();
+    openConfirm(
+      `Are you sure you want to remove the group? All lakes of the group (${count}) will be turned into Freshwater`,
+      {
+        title: "Remove lake group",
+        confirm: "Remove",
+        onConfirm: () => {
+          const freshwater = viewContext.lakes.select<SVGGElement>("#freshwater").node();
+          const groupEl = viewContext.lakes.select<SVGGElement>(`#${group}`).node();
+          if (groupEl && freshwater) {
+            while (groupEl.childNodes.length) {
+              freshwater.appendChild(groupEl.childNodes[0]);
+            }
+            groupEl.remove();
 
-          updateLakeGroups();
-          lakeEditorActions.changeLakeGroup("freshwater");
+            updateLakeGroups();
+            lakeEditorActions.changeLakeGroup("freshwater");
+          }
         }
       }
-    });
+    );
   },
 
   editGroupStyle(): void {

@@ -16,7 +16,6 @@ export const tooltipExtensions: {
 import { useOptionsState } from "../store/optionsState";
 import type { PackedGraphFeature } from "../types/models";
 import { openAlert } from "../ui/dialogs/dialogService";
-import { alertMessage } from "../utils/alertMessageEl";
 import { debounce, getLatitude, getLongitude, link } from "./commonUtils";
 import { findCell, findGridCell } from "./graphUtils";
 import { getComposedPath, layerIsOn } from "./nodeUtils";
@@ -644,7 +643,8 @@ export function showInfo(): void {
   const QAA = link("https://github.com/Azgaar/Fantasy-Map-Generator/wiki/Q&A", "Q&A page");
   const VideoTutorial = link("https://youtube.com/playlist?list=PLtgiuDC8iVR2gIG8zMTRn7T_L0arl9h1C", "Video tutorial");
 
-  alertMessage.innerHTML = /* html */ `<b>Fantasy Map Generator</b> (FMG) is a free open-source application. It means that you own all created maps and can use them as
+  openAlert(
+    `<b>Fantasy Map Generator</b> (FMG) is a free open-source application. It means that you own all created maps and can use them as
     you wish.
 
     <p>
@@ -673,9 +673,9 @@ export function showInfo(): void {
       </ul>
     </p>
 
-    <p>Chinese localization: <a href="https://www.8desk.top" target="_blank">8desk.top</a></p>`;
-
-  openAlert(alertMessage.innerHTML, { title: document.title });
+    <p>Chinese localization: <a href="https://www.8desk.top" target="_blank">8desk.top</a></p>`,
+    { title: document.title }
+  );
 }
 
 // ─── Table sorting ────────────────────────────────────────────────────────────

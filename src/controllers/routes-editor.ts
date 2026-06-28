@@ -5,16 +5,17 @@ import type { WorldContext } from "../context/worldContext";
 import { Routes } from "../generators/routes-generator";
 import { dialogStore } from "../store/dialogState";
 import { elSelected, modules, setElSelected } from "../store/editorState";
+import { routeJoinDialogStore } from "../store/routeJoinDialogState";
 import { getRoutesEditorState, setRoutesEditorState } from "../store/routesEditorState";
 import type { Route } from "../types/models";
-import { closeDialog, closeDialogs, openRichDialog } from "../ui/dialogs/dialogService";
+import { closeDialogs } from "../ui/dialogs/dialogService";
 import { findCell, getSegmentId, rn } from "../utils";
 import { ERROR } from "../utils/debug";
 import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog } from "../utils/editorHelpers";
 import { getPackPolygon } from "../utils/graphUtils";
 import { layerIsOn } from "../utils/nodeUtils";
-import { clearMainTip, fitContent, tip } from "../utils/uiHelpers";
+import { clearMainTip, tip } from "../utils/uiHelpers";
 import { openElevationProfile } from "./elevation-profile";
 import { interactionManager } from "./interactionManager";
 import { toggleCells, toggleRoutes } from "./layers";
@@ -438,54 +439,37 @@ export const routesEditorActions = {
         r.name = r.name || Routes.generateName(r);
         r.length = r.length || Routes.getLength(r.i);
         const length = `${rn(r.length * worldContext.distanceScale)} ${distanceUnitInput?.value || "km"}`;
-        return `<option value="${r.i}">${r.name} (${length})</option>`;
+        return { id: r.i, name: r.name!, length };
       });
-      const alertContent = /* html */ `<div>Route to join with:
-        <select>${options.join("")}</select>
-      </div>`;
 
-      let container: HTMLElement | null = null;
-      openRichDialog({
-        content: alertContent,
-        title: "Join routes",
-        width: fitContent(),
-        position: { my: "left top", at: "left+10 top+150", of: "#map" },
-        onOpen: c => {
-          container = c;
-        },
-        buttons: {
-          Cancel: () => {
-            closeDialog("alert");
-          },
-          Join: () => {
-            const selectedRouteId = +(container?.querySelector("select") as HTMLSelectElement).value;
-            const selectedRoute = worldContext.pack.routes.find((r: Route) => r.i === selectedRouteId)!;
+      routeJoinDialogStore.getState().open({
+        options,
+        onJoin: (selectedRouteId: number) => {
+          const selectedRoute = worldContext.pack.routes.find((r: Route) => r.i === selectedRouteId)!;
 
-            if (route.points.at(-1)![2] === selectedRoute.points.at(0)![2]) {
-              route.points = [...route.points, ...selectedRoute.points.slice(1)];
-            } else if (route.points.at(0)![2] === selectedRoute.points.at(-1)![2]) {
-              route.points = [...selectedRoute.points, ...route.points.slice(1)];
-            } else if (route.points.at(0)![2] === selectedRoute.points.at(0)![2]) {
-              route.points = [...route.points.reverse(), ...selectedRoute.points.slice(1)];
-            } else if (route.points.at(-1)![2] === selectedRoute.points.at(-1)![2]) {
-              route.points = [...route.points, ...selectedRoute.points.reverse().slice(1)];
-            }
-
-            for (let i = 0; i < route.points.length; i++) {
-              const pt = route.points[i];
-              const nextPoint = route.points[i + 1];
-              if (nextPoint) addConnection(pt[2], nextPoint[2], route.i);
-            }
-
-            Routes.remove(selectedRoute);
-            drawControlPoints(route.points);
-            redrawRoute(route);
-            drawRouteCells(route.points);
-            updateRouteData(route);
-
-            tip("Routes joined", false, "success", 5000);
-            closeDialog("alert");
+          if (route.points.at(-1)![2] === selectedRoute.points.at(0)![2]) {
+            route.points = [...route.points, ...selectedRoute.points.slice(1)];
+          } else if (route.points.at(0)![2] === selectedRoute.points.at(-1)![2]) {
+            route.points = [...selectedRoute.points, ...route.points.slice(1)];
+          } else if (route.points.at(0)![2] === selectedRoute.points.at(0)![2]) {
+            route.points = [...route.points.reverse(), ...selectedRoute.points.slice(1)];
+          } else if (route.points.at(-1)![2] === selectedRoute.points.at(-1)![2]) {
+            route.points = [...route.points, ...selectedRoute.points.reverse().slice(1)];
           }
+
+          for (let i = 0; i < route.points.length; i++) {
+            const pt = route.points[i];
+            const nextPoint = route.points[i + 1];
+            if (nextPoint) addConnection(pt[2], nextPoint[2], route.i);
+          }
+
+          Routes.remove(selectedRoute);
+          drawControlPoints(route.points);
+          redrawRoute(route);
+          drawRouteCells(route.points);
+          updateRouteData(route);
+
+          tip("Routes joined", false, "success", 5000);
         }
       });
     } else {

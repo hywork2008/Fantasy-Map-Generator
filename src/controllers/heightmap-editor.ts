@@ -37,16 +37,10 @@ import { FeaturesRenderer } from "../renderers";
 import { OceanLayers } from "../renderers/ocean-layers";
 import { ThreeDRenderer } from "../renderers/three-d-renderer";
 import { modules } from "../store/editorState";
+import { heightmapEditModeStore, imageConverterCloseStore } from "../store/heightmapDialogState";
 import { useOptionsState } from "../store/optionsState";
 import type { Burg, Culture, Province, Zone } from "../types/models";
-import {
-  closeDialog,
-  closeDialogs,
-  isDialogOpen,
-  openConfirm,
-  openDialog,
-  openRichDialog
-} from "../ui/dialogs/dialogService";
+import { closeDialog, closeDialogs, isDialogOpen, openConfirm, openDialog } from "../ui/dialogs/dialogService";
 import {
   createTypedArray,
   findCell,
@@ -54,7 +48,6 @@ import {
   findGridCell,
   generateSeed,
   getGridPolygon,
-  link,
   minmax,
   rn,
   showPrompt,
@@ -101,26 +94,12 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
   document.getElementById("templateRedo")!.addEventListener("click", redoHistory);
 
   function showModeDialog() {
-    const alertContent = `Heightmap is a core element on which all other data (rivers, burgs, states etc) is based. So the best edit approach is to
-    <i>erase</i> the secondary data and let the system automatically regenerate it on edit completion.
-    <p><i>Erase</i> mode also allows you Convert an Image into a heightmap or use Template Editor.</p>
-    <p>You can <i>keep</i> the data, but you won't be able to change the coastline.</p>
-    <p>Try <i>risk</i> mode to change the coastline and keep the data. The data will be restored as much as possible, but it can cause unpredictable errors.</p>
-    <p>Please <span class="pseudoLink" onclick="saveMap('machine')">save the map</span> before editing the heightmap!</p>
-    <p style="margin-bottom: 0">Check out ${link("https://github.com/Azgaar/Fantasy-Map-Generator/wiki/Heightmap-viewContext.customization", "wiki")} for guidance.</p>`;
-
-    openRichDialog({
-      content: alertContent,
-      resizable: false,
-      title: "Edit Heightmap",
-      width: "28em",
-      buttons: {
-        Erase: () => enterHeightmapEditMode("erase"),
-        Keep: () => enterHeightmapEditMode("keep"),
-        Risk: () => enterHeightmapEditMode("risk"),
-        Cancel: () => {
-          modules.editHeightmap = false;
-        }
+    heightmapEditModeStore.getState().open({
+      onErase: () => enterHeightmapEditMode("erase"),
+      onKeep: () => enterHeightmapEditMode("keep"),
+      onRisk: () => enterHeightmapEditMode("risk"),
+      onCancel: () => {
+        modules.editHeightmap = false;
       }
     });
   }
@@ -1198,8 +1177,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
         return;
       }
 
-      const alertContent = "Are you sure you want to select a different template? All changes will be lost.";
-      openConfirm(alertContent, {
+      openConfirm("Are you sure you want to select a different template? All changes will be lost.", {
         title: "Change Template",
         confirm: "Change",
         onConfirm: () => changeTemplate(template)
@@ -1626,25 +1604,12 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     function closeImageConverter(event: Event): void {
       event.preventDefault();
       event.stopPropagation();
-      const alertContent = `Are you sure you want to close the Image Converter? Click "Cancel" to keep editing. Click "Complete" to apply the conversion and close the tool. Click "Close" to discard the conversion and restore the previous heightmap.`;
-      openRichDialog({
-        content: alertContent,
-        resizable: false,
-        title: "Close Image Converter",
-        buttons: {
-          Cancel: function (this: Element) {
-            /* $(this).dialog("close") removed */
-          },
-          Complete: function (this: Element) {
-            /* $(this).dialog("close") removed */
-            applyConversion();
-          },
-          Close: function (this: Element) {
-            /* $(this).dialog("close") removed */
-            restoreImageConverterState();
-            viewContext.viewbox.select("#heights").selectAll("polygon").remove();
-            undoHistory();
-          }
+      imageConverterCloseStore.getState().open({
+        onComplete: () => applyConversion(),
+        onClose: () => {
+          restoreImageConverterState();
+          viewContext.viewbox.select("#heights").selectAll("polygon").remove();
+          undoHistory();
         }
       });
     }

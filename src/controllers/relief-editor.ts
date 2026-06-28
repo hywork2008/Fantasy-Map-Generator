@@ -276,21 +276,21 @@ export const reliefEditorActions = {
   removeIcon(): void {
     const { mode, selectedIconType } = getReliefEditorState();
     let selection: { remove(): unknown; size(): number } | null = null;
-    let alertContent = "";
+    let message = "";
     if (mode === "individual") {
-      alertContent = "Are you sure you want to remove the icon?";
+      message = "Are you sure you want to remove the icon?";
       selection = elSelected;
     } else {
       selection = selectedIconType
         ? viewContext.terrain.selectAll<SVGUseElement, unknown>(`use[href='${selectedIconType}']`)
         : viewContext.terrain.selectAll<SVGUseElement, unknown>("use");
       const size = selection.size();
-      alertContent = selectedIconType
+      message = selectedIconType
         ? `Are you sure you want to remove all ${selectedIconType} icons (${size})?`
         : `Are you sure you want to remove all icons (${size})?`;
     }
 
-    openConfirm(alertContent, {
+    openConfirm(message, {
       title: "Remove relief icons",
       confirm: "Remove",
       onConfirm: () => {

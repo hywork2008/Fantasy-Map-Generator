@@ -17,17 +17,16 @@ import { COArenderer } from "../renderers/emblem-renderer";
 import { fitScaleBar } from "../renderers/index";
 import { ThreeDRenderer } from "../renderers/three-d-renderer";
 import { modules } from "../store/editorState";
+import { loadMapUrlDialogStore } from "../store/loadMapUrlDialogState";
 import { type OptionsState, useOptionsState } from "../store/optionsState";
 import {
-  closeAlert,
   closeAllDialogs,
   closeDialog,
   closeDialogs,
   isDialogOpen,
   openAlert,
   openConfirm,
-  openDialog,
-  openRichDialog
+  openDialog
 } from "../ui/dialogs/dialogService";
 import { gauss, last, minmax, P, rand, rn, rw } from "../utils";
 import { EditorBus } from "../utils/editorBus";
@@ -877,30 +876,10 @@ export async function connectToDropbox(): Promise<void> {
 }
 
 export function loadURL(): void {
-  const pattern = /(ftp|http|https):\/\/(\w+:{0,1}\w*@)?(\S+)(:[0-9]+)?(\/|\/([\w#!:.?+=&%@!\-/]))?/;
-  const inner = `Provide URL to map file:
-    <input id="mapURL" type="url" style="width: 24em" placeholder="https://e-cloud.com/test.map">
-    <br><i>Please note server should allow CORS for file to be loaded. If CORS is not allowed, save file to Dropbox and provide a direct link</i>`;
-  openRichDialog({
-    content: inner,
-    title: "Load map from URL",
-    width: "27em",
-    buttons: [
-      {
-        label: "Load",
-        keepOpen: true,
-        onClick: () => {
-          const value = (document.getElementById("mapURL") as HTMLInputElement).value;
-          if (!pattern.test(value)) {
-            tip("Please provide a valid URL", false, "error");
-            return;
-          }
-          loadMapFromURL(value, 0);
-          closeAlert();
-        }
-      },
-      { label: "Cancel", onClick: () => {} }
-    ]
+  loadMapUrlDialogStore.getState().open({
+    onLoad: (url: string) => {
+      loadMapFromURL(url, 0);
+    }
   });
 }
 

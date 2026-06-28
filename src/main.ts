@@ -1,6 +1,7 @@
 import { clearLegend, closeDialogs, unfog } from "./controllers/editors";
 import { heightmapTemplates } from "./data";
-import { openAlert, openRichDialog } from "./ui/dialogs/dialogService";
+import { generationErrorDialogStore } from "./store/generationErrorDialogState";
+import { openAlert } from "./ui/dialogs/dialogService";
 import { DEBUG, ERROR, INFO, TIME, WARN } from "./utils/debug";
 
 // Azgaar (azgaar.fmg@yandex.com). Minsk, 2017-2023. MIT License
@@ -69,7 +70,6 @@ import {
   safeParseJSON,
   shouldRegenerateGrid
 } from "./utils";
-import { alertMessage } from "./utils/alertMessageEl";
 import { layerIsOn } from "./utils/nodeUtils";
 import { clearMainTip, locked, showDataTip, tip } from "./utils/uiHelpers";
 import { cleanupData } from "./versioning";
@@ -584,9 +584,10 @@ oceanLayers
 
 export async function initMain(): Promise<void> {
   if (!location.hostname) {
-    alertMessage.innerHTML = /* html */ `Fantasy Map Generator cannot run serverless. Follow the <a href="https://github.com/Azgaar/Fantasy-Map-Generator/wiki/Run-FMG-locally" target="_blank">instructions</a> on how you can easily run a local web-server`;
-
-    openAlert(alertMessage.innerHTML, { title: "Loading error" });
+    openAlert(
+      `Fantasy Map Generator cannot run serverless. Follow the <a href="https://github.com/Azgaar/Fantasy-Map-Generator/wiki/Run-FMG-locally" target="_blank">instructions</a> on how you can easily run a local web-server`,
+      { title: "Loading error" }
+    );
   } else {
     hideLoading();
     await checkLoadParameters();
@@ -1055,9 +1056,9 @@ void (function addDragToUpload() {
     if (!file) return;
 
     if (!file.name.endsWith(".map") && !file.name.endsWith(".gz")) {
-      alertMessage.innerHTML =
-        "Please upload a map file (<i>.map</i> or <i>.gz</i> formats) you have previously downloaded";
-      openAlert(alertMessage.innerHTML, { title: "Invalid file format" });
+      openAlert("Please upload a map file (<i>.map</i> or <i>.gz</i> formats) you have previously downloaded", {
+        title: "Invalid file format"
+      });
       return;
     }
 
@@ -1164,24 +1165,10 @@ export async function generate(opts?: { seed?: string; graph?: Grid | null }) {
     const parsedError = parseError(error);
     clearMainTip();
 
-    alertMessage.innerHTML = /* html */ `An error has occurred on map generation. Please retry. <br />If error is critical, clear the stored data and try again.
-      <p id="errorBox">${parsedError}</p>`;
-    openRichDialog({
-      content: alertMessage.innerHTML,
-      resizable: false,
-      title: "Generation error",
-      width: "32em",
-      buttons: {
-        "Cleanup data": () => cleanupData(),
-        Regenerate: () => {
-          regenerateMap("generation error");
-          /* $(this).dialog("close") removed */
-        },
-        Ignore: () => {
-          /* $(this).dialog("close") removed */
-        }
-      },
-      position: { my: "center", at: "center", of: "svg" }
+    generationErrorDialogStore.getState().open({
+      errorText: parsedError,
+      onCleanup: () => cleanupData(),
+      onRegenerate: () => regenerateMap("generation error")
     });
   }
 }

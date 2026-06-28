@@ -292,16 +292,18 @@ export const unitsEditorActions = {
 
   removeAllRulers(): void {
     if (!rulers.data.length) return;
-    const alertContent = /* html */ ` Are you sure you want to remove all placed rulers?
-      <br />If you just want to hide rulers, toggle the Rulers layer off in Menu`;
-    openConfirm(alertContent, {
-      title: "Remove all rulers",
-      confirm: "Remove",
-      onConfirm: () => {
-        rulers.undraw();
-        setRulers(new Rulers());
+    openConfirm(
+      `Are you sure you want to remove all placed rulers?
+      <br />If you just want to hide rulers, toggle the Rulers layer off in Menu`,
+      {
+        title: "Remove all rulers",
+        confirm: "Remove",
+        onConfirm: () => {
+          rulers.undraw();
+          setRulers(new Rulers());
+        }
       }
-    });
+    );
   }
 };
 

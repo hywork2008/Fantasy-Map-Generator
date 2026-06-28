@@ -5,7 +5,6 @@ import { rulers } from "../store/editorState";
 import { useOptionsState } from "../store/optionsState";
 import { closeDialogs, openConfirm } from "../ui/dialogs/dialogService";
 import { link, parseError, ra, rn } from "../utils";
-import { alertMessage } from "../utils/alertMessageEl";
 import { ERROR } from "../utils/debug";
 import { getFileName } from "../utils/editorHelpers";
 import { tip } from "../utils/uiHelpers";
@@ -205,17 +204,18 @@ export async function saveMap(method: string): Promise<void> {
     if (method === "dropbox") await saveToDropbox(mapData, filename);
   } catch (error) {
     ERROR && console.error(error);
-    alertMessage.innerHTML = /* html */ `An error occurred while saving the map. If the issue persists, please copy the message below and report it on ${link(
-      "https://github.com/Azgaar/Fantasy-Map-Generator/issues",
-      "GitHub"
-    )}. <p id="errorBox">${parseError(error)}</p>`;
-
-    openConfirm(alertMessage.innerHTML, {
-      title: "Saving error",
-      confirm: "Retry",
-      cancel: "Close",
-      onConfirm: () => saveMap(method)
-    });
+    openConfirm(
+      `An error occurred while saving the map. If the issue persists, please copy the message below and report it on ${link(
+        "https://github.com/Azgaar/Fantasy-Map-Generator/issues",
+        "GitHub"
+      )}. <p id="errorBox">${parseError(error)}</p>`,
+      {
+        title: "Saving error",
+        confirm: "Retry",
+        cancel: "Close",
+        onConfirm: () => saveMap(method)
+      }
+    );
   }
 }
 

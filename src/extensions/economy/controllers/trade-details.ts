@@ -1,7 +1,8 @@
 import type { Point } from "../../../generators/voronoi";
+import { setTradeDetailsState } from "../../../store/tradeDetailsState";
 import type { Burg } from "../../../types/models";
 import { openDialog } from "../../../ui/dialogs/dialogService";
-import { formatPrice, rn } from "../../../utils";
+import { rn } from "../../../utils";
 import { applySorting } from "../../../utils/uiHelpers";
 import { getApi, getWorldContext } from "../economyContext";
 import { Goods } from "../generators/goods-generator";
@@ -9,7 +10,6 @@ import type { Deal } from "../generators/markets-generator";
 import { TradeAnimation, type TradeBatch } from "../generators/trade-animation";
 import { clearHighlight, highlight } from "../renderers/draw-trade-animation";
 
-let isInitialized = false;
 let activeBatch: TradeBatch | undefined;
 
 export function open(batch: TradeBatch): void {
@@ -27,42 +27,27 @@ export function open(batch: TradeBatch): void {
   tradeDetailsAddLines(path.points);
   highlight(path.points);
   openDialog("tradeDetails");
-
-  if (!isInitialized) {
-    document.getElementById("tradeDetailsSummary")!.addEventListener("click", event => {
-      const zoomEl = (event.target as HTMLElement).closest<HTMLElement>("[data-zoom]");
-      if (!activeBatch || !zoomEl) return;
-      const burgId = activeBatch[zoomEl.dataset.zoom === "start" ? "startBurgId" : "endBurgId"];
-      const burg = getWorldContext().pack.burgs[burgId];
-      if (!burg) return;
-      getApi().zoomTo(burg.x, burg.y, 8, 1500);
-    });
-    isInitialized = true;
-  }
 }
 
 export function closeTradeDetails(): void {
-  document.getElementById("tradeDetailsBody")!.innerHTML = "";
-  document.getElementById("tradeDetailsSummary")!.innerHTML = "";
+  setTradeDetailsState({ summary: null, rows: [], distance: "", totalUnits: 0, totalValue: 0 });
   clearHighlight();
 }
 
 function tradeDetailsAddLines(points: Point[]): void {
   if (!activeBatch) return;
 
-  const from = getWorldContext().pack.burgs[activeBatch.startBurgId];
-  const to = getWorldContext().pack.burgs[activeBatch.endBurgId];
-  const fromType = getClientType(activeBatch.deals[0], from, "from");
-  const toType = getClientType(activeBatch.deals[0], to, "to");
-
-  document.getElementById("tradeDetailsSummary")!.innerHTML = /* html */ `
-    <span><b>Seller</b>: ${from?.name} ${fromType} <span class="icon-dot-circled pointer" data-zoom="start" data-tip="Zoom to start"></span></span>
-    <span style="margin-left:5px"><b>Buyer</b>: ${to?.name} ${toType} <span class="icon-dot-circled pointer" data-zoom="end" data-tip="Zoom to end"></span></span>`;
+  const batch = activeBatch;
+  const { burgs } = getWorldContext().pack;
+  const from = burgs[batch.startBurgId];
+  const to = burgs[batch.endBurgId];
+  const fromType = getClientType(batch.deals[0], from, "from");
+  const toType = getClientType(batch.deals[0], to, "to");
 
   let totalUnits = 0;
   let totalValue = 0;
   const combined = new Map<number, { units: number; value: number }>();
-  for (const deal of activeBatch.deals) {
+  for (const deal of batch.deals) {
     const entry = combined.get(deal.good) ?? { units: 0, value: 0 };
     entry.units += deal.units;
     entry.value += deal.units * deal.price;
@@ -71,22 +56,21 @@ function tradeDetailsAddLines(points: Point[]): void {
     totalValue += deal.units * deal.price;
   }
 
-  const html = Array.from(combined, ([goodId, { units, value }]) => {
+  const rows = Array.from(combined, ([goodId, { units, value }]) => {
     const good = Goods.get(goodId);
-    if (!good) return "";
+    if (!good) return null;
     const price = units ? value / units : 0;
-
-    return /* html */ `<div class="states tradeDeal" data-good="${good.name}" data-units="${rn(units, 2)}" data-price="${price}" data-value="${rn(value, 2)}">
-    <svg data-tip="Good icon" width="2em" height="2em" class="goodIcon">
-      <circle cx="50%" cy="50%" r="42%" fill="${good.color}" stroke="${Goods.getStroke(good.color)}"/>
-      <use href="#${good.icon}" x="10%" y="10%" width="80%" height="80%"></use>
-    </svg>
-    <div data-tip="Good name" class="goodName">${good.name}</div>
-    <div class="goodUnits">${rn(units, 2)}</div>
-    <div class="goodPrice">${formatPrice(rn(price, 2))}</div>
-    <div class="goodValue">${formatPrice(rn(value, 2))}</div>
-  </div>`;
-  });
+    return {
+      goodId,
+      goodName: good.name,
+      goodColor: good.color,
+      goodStroke: Goods.getStroke(good.color),
+      goodIcon: good.icon,
+      units: rn(units, 2),
+      price: rn(price, 2),
+      value: rn(value, 2)
+    };
+  }).filter((r): r is NonNullable<typeof r> => r !== null);
 
   const length = rn(
     points.reduce((sum, p, i) => {
@@ -96,13 +80,35 @@ function tradeDetailsAddLines(points: Point[]): void {
     }, 0),
     2
   );
-  document.getElementById("tradeDetailsBody")!.innerHTML = html.join("");
-  document.getElementById("tradeDetailsFooterDistance")!.innerHTML =
-    `${rn(length * getWorldContext().distanceScale)} ${distanceUnitInput.value}`;
-  document.getElementById("tradeDetailsFooterUnits")!.innerHTML = String(rn(totalUnits, 2));
-  document.getElementById("tradeDetailsFooterValue")!.innerHTML = formatPrice(totalValue);
 
-  applySorting(document.getElementById("tradeDetailsHeader")!);
+  const distanceUnitEl = document.getElementById("distanceUnitInput") as HTMLSelectElement | null;
+  const distUnit = distanceUnitEl?.value ?? "km";
+
+  setTradeDetailsState({
+    summary: {
+      sellerName: from?.name ?? "",
+      sellerType: fromType,
+      buyerName: to?.name ?? "",
+      buyerType: toType,
+      onZoomSeller: () => {
+        const burg = getWorldContext().pack.burgs[batch.startBurgId];
+        if (burg) getApi().zoomTo(burg.x, burg.y, 8, 1500);
+      },
+      onZoomBuyer: () => {
+        const burg = getWorldContext().pack.burgs[batch.endBurgId];
+        if (burg) getApi().zoomTo(burg.x, burg.y, 8, 1500);
+      }
+    },
+    rows,
+    distance: `${rn(length * getWorldContext().distanceScale)} ${distUnit}`,
+    totalUnits: rn(totalUnits, 2),
+    totalValue
+  });
+
+  setTimeout(() => {
+    const header = document.getElementById("tradeDetailsHeader");
+    if (header) applySorting(header);
+  }, 0);
 }
 
 function getClientType(deal: Deal, burg: Burg, direction: "from" | "to"): string {

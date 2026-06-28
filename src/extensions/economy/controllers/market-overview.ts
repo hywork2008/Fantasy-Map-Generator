@@ -105,7 +105,7 @@ function marketOverviewAddLines() {
 
   const burgs = getWorldContext().pack.burgs.filter(b => !b.removed && b.market === market.i);
   const totalUnits = Object.values(market.goods).reduce((sum, mg) => sum + mg.stock, 0);
-  document.getElementById("marketOverviewSummary")!.innerHTML = /*html*/ `
+  document.getElementById("marketOverviewSummary")!.innerHTML = `
     <div style="margin-left:5px">Cells: ${getWorldContext().pack.cells.market.reduce((count, m) => count + (m === market.i ? 1 : 0), 0)}</div>
     <div style="margin-left:12px">Burgs: ${burgs.length}</div>
     <div style="margin-left:12px">Stock: ${rn(totalUnits, 2)}</div>`;

@@ -20,7 +20,8 @@ import { OceanLayers } from "../renderers/ocean-layers";
 import { onFontAdded } from "../services/fonts";
 import { modules } from "../store/editorState";
 import { useStyleState } from "../store/styleState";
-import { closeDialog, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
+import { textureUrlDialogStore } from "../store/textureUrlDialogState";
+import { closeDialog, openDialog } from "../ui/dialogs/dialogService";
 import type { HeightmapSchemeConfig } from "../ui/dialogs/HeightmapSchemeDialog";
 import { parseTransform, rn, toHEX } from "../utils";
 import { heightmapColorSchemes } from "../utils/colorUtils";
@@ -710,27 +711,11 @@ function applyMapFilter(event: Event): void {
 // ─── Texture URL dialog ───────────────────────────────────────────────────────
 
 export function textureProvideURL(): void {
-  openRichDialog({
-    title: "Load custom texture",
-    content: /* html */ `Provide a texture image URL:
-    <input id="textureURL" type="url" style="width: 100%" placeholder="http://www.example.com/image.jpg" />
-    <canvas id="texturePreview" width="256px" height="144px"></canvas>`,
-    onOpen: container => {
-      const input = container.querySelector<HTMLInputElement>("#textureURL");
-      if (input) input.addEventListener("input", () => fetchTextureURL(input.value));
-    },
-    buttons: [
-      {
-        label: "Apply",
-        onClick: () => {
-          const url = (document.getElementById("textureURL") as HTMLInputElement).value;
-          if (!url) return tip("Please provide a valid URL", false, "error");
-          changeTexture(url);
-          updateTextureSelectValue(url);
-        }
-      },
-      { label: "Cancel", onClick: () => {} }
-    ]
+  textureUrlDialogStore.getState().open({
+    onApply: (url: string) => {
+      changeTexture(url);
+      updateTextureSelectValue(url);
+    }
   });
 }
 

@@ -355,23 +355,25 @@ export const coastlineEditorActions = {
     }
 
     const count = (elSelected!.node()!.parentNode as Element).childElementCount;
-    const alertContent = `Are you sure you want to remove the group? All coastline elements of the group (${count}) will be moved under <i>sea_island</i> group`;
-    openConfirm(alertContent, {
-      title: "Remove coastline group",
-      confirm: "Remove",
-      onConfirm: () => {
-        const sea = viewContext.coastline.select<SVGGElement>("#sea_island").node()!;
-        const groupEl = viewContext.coastline.select<SVGGElement>(`#${group}`).node()!;
-        while (groupEl.childNodes.length) {
-          sea.appendChild(groupEl.childNodes[0]);
+    openConfirm(
+      `Are you sure you want to remove the group? All coastline elements of the group (${count}) will be moved under <i>sea_island</i> group`,
+      {
+        title: "Remove coastline group",
+        confirm: "Remove",
+        onConfirm: () => {
+          const sea = viewContext.coastline.select<SVGGElement>("#sea_island").node()!;
+          const groupEl = viewContext.coastline.select<SVGGElement>(`#${group}`).node()!;
+          while (groupEl.childNodes.length) {
+            sea.appendChild(groupEl.childNodes[0]);
+          }
+          groupEl.remove();
+          updateCoastlineFeatureData();
+          import("../store/coastlineEditorState").then(({ getCoastlineEditorState }) => {
+            getCoastlineEditorState().setFeatureData({ group: "sea_island" });
+          });
         }
-        groupEl.remove();
-        updateCoastlineFeatureData();
-        import("../store/coastlineEditorState").then(({ getCoastlineEditorState }) => {
-          getCoastlineEditorState().setFeatureData({ group: "sea_island" });
-        });
       }
-    });
+    );
   },
 
   editStyle: () => {

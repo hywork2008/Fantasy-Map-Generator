@@ -276,8 +276,7 @@ export const riverEditorActions = {
   },
 
   removeRiver: (): void => {
-    const alertContent = "Are you sure you want to remove the river and all its tributaries";
-    openConfirm(alertContent, {
+    openConfirm("Are you sure you want to remove the river and all its tributaries", {
       title: "Remove river and tributaries",
       confirm: "Remove",
       onConfirm: () => {

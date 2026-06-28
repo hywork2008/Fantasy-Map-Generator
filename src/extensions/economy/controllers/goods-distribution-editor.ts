@@ -643,7 +643,7 @@ function open(onApply: (distribution: string) => void, initialExpression = "") {
             : def.paramType === "featureType"
               ? '"type", ...'
               : "value";
-    return /*html*/ `
+    return `
       <div class="ded-ref-card">
         <code class="ded-ref-code">${def.id}(${paramSig})</code>
         <div class="ded-ref-desc">${def.description}</div>
@@ -651,7 +651,7 @@ function open(onApply: (distribution: string) => void, initialExpression = "") {
       </div>`;
   }).join("");
 
-  popupEl.innerHTML = /*html*/ `
+  popupEl.innerHTML = `
     <style>
       .ded-wrap            { display:flex; flex-direction:column; gap:8px; height: 60vh; }
       .ded-info            { border:1px solid var(--dark-solid); padding:6px 10px; border-radius:3px; }

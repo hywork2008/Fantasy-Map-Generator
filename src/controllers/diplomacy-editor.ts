@@ -8,7 +8,8 @@ import { worldContext } from "../context/worldContext";
 import { States } from "../generators/states-generator";
 import { StatesRenderer } from "../renderers";
 import { type DiplomacyRowData, getDiplomacyEditorState, setDiplomacyEditorState } from "../store/diplomacyEditorState";
-import { closeDialogs, isDialogOpen, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
+import { diplomacyHistoryDialogStore } from "../store/diplomacyHistoryDialogState";
+import { closeDialogs, isDialogOpen, openDialog } from "../ui/dialogs/dialogService";
 import { findCell, getAdjective } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { downloadFile, getFileName } from "../utils/editorHelpers";
@@ -258,57 +259,28 @@ export function editDiplomacy(): void {
 
   function showRelationsHistory(): void {
     const chronicle = worldContext.pack.states[0].diplomacy as unknown as string[][];
-
-    let message = /* html */ `<div autocorrect="off" spellcheck="false">`;
-    chronicle.forEach((entry: string[], index: number) => {
-      message += `<div>`;
-      entry.forEach((l, entryIndex) => {
-        message += /* html */ `<div contenteditable="true" data-id="${index}-${entryIndex}"
-          ${entryIndex ? "" : "worldContext.style='font-weight:bold'"}>${l}</div>`;
-      });
-      message += `&#8205;</div>`;
-    });
-
     if (!chronicle.length) {
       (worldContext.pack.states[0].diplomacy as unknown as string[][]) = [[]];
-      message += /* html */ `<div><div contenteditable="true" data-id="0-0">No historical records</div>&#8205;</div>`;
     }
 
-    const alertContent =
-      message +
-      `</div><div class="info-line">Type to edit. Press Enter to add a new line, empty the element to remove it</div>`;
-    let container: HTMLElement | null = null;
-    openRichDialog({
-      content: alertContent,
-      title: "Relations history",
-      position: { my: "center", at: "center", of: "svg" },
-      onOpen: c => {
-        container = c;
-        c.querySelectorAll<HTMLElement>("div[contenteditable='true']").forEach(el => {
-          el.addEventListener("input", changeRelationsHistory);
-        });
+    diplomacyHistoryDialogStore.getState().open({
+      chronicle: worldContext.pack.states[0].diplomacy as unknown as string[][],
+      onSave: (data: string) => {
+        const name = `${getFileName("Relations history")}.txt`;
+        downloadFile(data, name);
       },
-      buttons: {
-        Save: () => {
-          const data = container!.querySelector("div")!.innerText.split("\n").join("\r\n");
-          const name = `${getFileName("Relations history")}.txt`;
-          downloadFile(data, name);
-        },
-        Clear: () => {
-          worldContext.pack.states[0].diplomacy = [];
-        },
-        Close: () => {}
+      onClear: () => {
+        worldContext.pack.states[0].diplomacy = [];
+      },
+      onChange: (groupIdx: number, entryIdx: number, value: string) => {
+        const group = (worldContext.pack.states[0].diplomacy as unknown as string[][])[groupIdx];
+        if (value === "") {
+          group.splice(entryIdx, 1);
+        } else {
+          group[entryIdx] = value;
+        }
       }
     });
-  }
-
-  function changeRelationsHistory(this: HTMLElement): void {
-    const parts = this.dataset.id!.split("-");
-    const group = (worldContext.pack.states[0].diplomacy as unknown as string[][])[+parts[0]];
-    if (this.textContent === "") {
-      group.splice(+parts[1], 1);
-      this.remove();
-    } else group[+parts[1]] = this.textContent || "";
   }
 
   function showRelationsMatrix(): void {

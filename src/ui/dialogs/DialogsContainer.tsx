@@ -11,10 +11,12 @@ import { BurgEditorDialog } from "./BurgEditorDialog";
 import { BurgGroupsEditorDialog } from "./BurgGroupsEditorDialog";
 import { BurgsBubbleChartDialog } from "./BurgsBubbleChartDialog";
 import { BurgsOverviewDialog } from "./BurgsOverviewDialog";
+import { BurgsRenamingDialog } from "./BurgsRenamingDialog";
 import { CellInfoDialog } from "./CellInfoDialog";
 import { ChartsOverviewDialog } from "./ChartsOverviewDialog";
 import { CommonEditorDialog } from "./CommonEditorDialog";
 import { CulturesEditorDialog } from "./CulturesEditorDialog";
+import { DiplomacyHistoryDialog } from "./DiplomacyHistoryDialog";
 import { DiplomacyMatrixDialog } from "./DiplomacyMatrixDialog";
 import { DiplomacyRelationDialog } from "./DiplomacyRelationDialog";
 import { ElevationProfileDialog } from "./ElevationProfileDialog";
@@ -22,14 +24,19 @@ import { ExportMapDialog } from "./ExportMapDialog";
 import { ExportToPngTilesDialog } from "./ExportToPngTilesDialog";
 import { EDITOR_REGISTRY } from "./editorRegistry";
 import { FontDialog } from "./FontDialog";
+import { GenerationErrorDialog } from "./GenerationErrorDialog";
+import { HeightmapEditModeDialog } from "./HeightmapEditModeDialog";
 import { HeightmapSchemeDialog } from "./HeightmapSchemeDialog";
 import { HierarchyTreeDialog } from "./HierarchyTreeDialog";
 import { IceEditorDialog } from "./IceEditorDialog";
 import { IconSelectorDialog } from "./IconSelectorDialog";
+import { ImageConverterCloseDialog } from "./ImageConverterCloseDialog";
 import { ImageConverterDialog } from "./ImageConverterDialog";
 import { LabelEditorDialog } from "./LabelEditorDialog";
 import { LakeEditorDialog } from "./LakeEditorDialog";
+import { LoadErrorDialog } from "./LoadErrorDialog";
 import { LoadMapDialog } from "./LoadMapDialog";
+import { LoadMapFromUrlDialog } from "./LoadMapFromUrlDialog";
 import { MarkerConfigDialog } from "./MarkerConfigDialog";
 import { MarkerEditorDialog } from "./MarkerEditorDialog";
 import { MarkersOverviewDialog } from "./MarkersOverviewDialog";
@@ -45,6 +52,7 @@ import { ProvinceNameEditorDialog } from "./ProvinceNameEditorDialog";
 import { ProvincesChartDialog } from "./ProvincesChartDialog";
 import { ProvincesEditorDialog } from "./ProvincesEditorDialog";
 import { RegenerateConfirmDialog } from "./RegenerateConfirmDialog";
+import { RegenerateFeatureDialog } from "./RegenerateFeatureDialog";
 import { RegimentEditorDialog } from "./RegimentEditorDialog";
 import { RegimentsOverviewDialog } from "./RegimentsOverviewDialog";
 import { ReliefEditorDialog } from "./ReliefEditorDialog";
@@ -55,6 +63,7 @@ import { RiversOverviewDialog } from "./RiversOverviewDialog";
 import { RouteCreatorDialog } from "./RouteCreatorDialog";
 import { RouteEditorDialog } from "./RouteEditorDialog";
 import { RouteGroupsEditorDialog } from "./RouteGroupsEditorDialog";
+import { RouteJoinDialog } from "./RouteJoinDialog";
 import { RoutesEditorDialog } from "./RoutesEditorDialog";
 import { RoutesOverviewDialog } from "./RoutesOverviewDialog";
 import { SaveMapDialog } from "./SaveMapDialog";
@@ -65,6 +74,7 @@ import { StyleSaverDialog } from "./StyleSaverDialog";
 import { SubmapToolDialog } from "./SubmapToolDialog";
 import { TemperatureGraphDialog } from "./TemperatureGraphDialog";
 import { TemplateEditorDialog } from "./TemplateEditorDialog";
+import { TextureUrlDialog } from "./TextureUrlDialog";
 
 import { TransformToolDialog } from "./TransformToolDialog";
 import { UnitsEditorDialog } from "./UnitsEditorDialog";
@@ -149,6 +159,16 @@ export const DialogsContainer: React.FC = () => {
           <StatesChartDialog />
           <TemperatureGraphDialog />
           <StyleSaverDialog />
+          <TextureUrlDialog />
+          <HeightmapEditModeDialog />
+          <ImageConverterCloseDialog />
+          <GenerationErrorDialog />
+          <LoadErrorDialog />
+          <RouteJoinDialog />
+          <DiplomacyHistoryDialog />
+          <BurgsRenamingDialog />
+          <LoadMapFromUrlDialog />
+          <RegenerateFeatureDialog />
           <CellInfoDialog />
           <MinimapDialog />
           <ChartsOverviewDialog />

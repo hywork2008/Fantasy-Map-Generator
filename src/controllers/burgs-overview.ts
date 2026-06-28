@@ -7,8 +7,9 @@ import { Burgs } from "../generators/burgs-generator";
 import { Names } from "../generators/names-generator";
 import { drawBurgIcon, drawBurgLabel, drawRoute } from "../renderers";
 import { useBurgsOverviewState } from "../store/burgsOverviewState";
+import { burgsRenamingDialogStore } from "../store/burgsRenamingDialogState";
 import type { BurgsBubbleChartConfig } from "../ui/dialogs/BurgsBubbleChartDialog";
-import { closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
+import { closeDialogs, openDialog } from "../ui/dialogs/dialogService";
 import { convertTemperature, findCell, getLatitude, getLongitude, rn } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog, downloadFile, getFileName } from "../utils/editorHelpers";
@@ -128,29 +129,16 @@ export function downloadBurgsData(): void {
 }
 
 export function renameBurgsInBulk(): void {
-  openRichDialog({
-    title: "Burgs bulk renaming",
-    content: `Download burgs list as a text file, make changes and re-upload the file. Make sure the file is a plain text document with each name on its own line (the dilimiter is CRLF). If you do not want to change the name, just leave it as is`,
-    buttons: [
-      {
-        label: "Download",
-        keepOpen: true,
-        onClick: () => {
-          const data = worldContext.pack.burgs
-            .filter(b => b.i && !b.removed)
-            .map(b => b.name)
-            .join("\r\n");
-          const name = `${getFileName("Burg names")}.txt`;
-          downloadFile(data, name);
-        }
-      },
-      {
-        label: "Upload",
-        keepOpen: true,
-        onClick: () => (document.getElementById("burgsListToLoad") as HTMLInputElement | null)?.click()
-      },
-      { label: "Cancel", onClick: () => {} }
-    ]
+  burgsRenamingDialogStore.getState().open({
+    onDownload: () => {
+      const data = worldContext.pack.burgs
+        .filter(b => b.i && !b.removed)
+        .map(b => b.name)
+        .join("\r\n");
+      const name = `${getFileName("Burg names")}.txt`;
+      downloadFile(data, name);
+    },
+    onUpload: () => (document.getElementById("burgsListToLoad") as HTMLInputElement | null)?.click()
   });
 }
 

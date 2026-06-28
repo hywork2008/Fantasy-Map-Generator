@@ -494,7 +494,7 @@ function getOwnerStateName(market: Market): string {
 function regenerateMarkets() {
   confirmationDialog({
     title: "Regenerate markets",
-    message: /* html */ `Are you sure you want to regenerate markets and their territories?
+    message: `Are you sure you want to regenerate markets and their territories?
       <label style="display:flex; align-items:center; gap:.4em; margin-top:.6em;">
         <input id="marketsRegenerateProductionToggle" type="checkbox" class="native" checked />
         Regenerate production and trade

@@ -247,7 +247,8 @@ class NamesbaseEditorModule {
       return "<span data-tip='Namesbase variety is good' style='color:green'>[good]</span>";
     };
 
-    const alertContent = /* html */ `<div style="line-height: 1.6em; max-width: 20em">
+    openAlert(
+      `<div style="line-height: 1.6em; max-width: 20em">
       <div data-tip="Number of names provided">Namesbase length: ${length} ${getLengthQuality()}</div>
       <div data-tip="Average number of generation variants for each key in the chain">Namesbase variety: ${variety} ${getVarietyLevel()}</div>
       <hr />
@@ -260,9 +261,9 @@ class NamesbaseEditorModule {
       <div data-tip="Characters that are frequently (more than 3 times) doubled">Doubled chars: ${doubledStr}</div>
       <div data-tip="Names used more than one time">Duplicates: ${duplicates}</div>
       <div data-tip="Percentage of names containing space character">Multi-word names: ${rn(multiwordRate * 100, 2)}%</div>
-    </div>`;
-
-    openAlert(alertContent, { title: "Data Analysis" });
+    </div>`,
+      { title: "Data Analysis" }
+    );
   }
 
   private namesbaseAdd(): void {
@@ -290,9 +291,7 @@ class NamesbaseEditorModule {
   }
 
   private namesbaseRestoreDefault(): void {
-    const alertContent = /* html */ `Are you sure you want to restore default namesbase?`;
-
-    openConfirm(alertContent, {
+    openConfirm(`Are you sure you want to restore default namesbase?`, {
       title: "Restore default data",
       confirm: "Restore",
       onConfirm: () => {
@@ -350,7 +349,8 @@ class NamesbaseEditorModule {
       ERROR && console.error("Namesbase upload errors", errors);
       const errorItems = errors
         .map(
-          ({ id, line, error }) => /* html */ `<li style="padding:0.6em 0;border-top:1px solid #ddd;">
+          ({ id, line, error }) =>
+            `<li style="padding:0.6em 0;border-top:1px solid #ddd;">
             <div>
               Line ${id}:
               <span style="color:#8b0000">${escapeHtml(error)}.</span> Data:
@@ -362,7 +362,8 @@ class NamesbaseEditorModule {
         )
         .join("");
 
-      const alertContent = /* html */ `<div>
+      openAlert(
+        `<div>
         <p style="margin:0.75em;">
           <strong>File parsing error. Only ${lines.length - errors.length} out of ${lines.length} namebases added.</strong>
           Each namebase should be on its own line and follow the format: <code>name|min|max|duplication|m|names</code>. Parameters should be separated with the <code>|</code> character, and this character should not be used within the parameters. Another prohibited character is <code>/</code>. The most common issue is names and other parameters being on two separate lines.
@@ -380,9 +381,9 @@ class NamesbaseEditorModule {
             ${errorItems}
           </ul>
         </div>
-      </div>`;
-
-      openAlert(alertContent, { title: "Parsing error" });
+      </div>`,
+        { title: "Parsing error" }
+      );
     }
 
     this.createBasesList();

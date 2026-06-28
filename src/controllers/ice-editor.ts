@@ -112,8 +112,7 @@ function removeIce(): void {
   const { type, selectedId } = getIceEditorState();
   if (selectedId === null) return;
 
-  const alertContent = /* html */ `Are you sure you want to remove the ${type}?`;
-  openConfirm(alertContent, {
+  openConfirm(`Are you sure you want to remove the ${type}?`, {
     title: `Remove ${type}`,
     confirm: "Remove",
     onConfirm: () => {

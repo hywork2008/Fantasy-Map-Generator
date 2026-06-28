@@ -413,8 +413,7 @@ export const burgEditorActions = {
     const burg = worldContext.pack.burgs[burgId];
 
     if (burg.capital) {
-      const alertContent = /* html */ `You cannot remove the capital. You must change the state capital first`;
-      openAlert(alertContent, { title: "Remove burg" });
+      openAlert("You cannot remove the capital. You must change the state capital first", { title: "Remove burg" });
     } else {
       confirmationDialog({
         title: "Remove burg",

@@ -64,7 +64,7 @@ export function drawMarker(
 
   const isExternal = icon.startsWith("http") || icon.startsWith("data:image");
 
-  return /* html */ `
+  return `
     <svg id="${id}" viewbox="0 0 30 30" width="${zoomSize}" height="${zoomSize}" x="${viewX}" y="${viewY}">
       <g>${getPin(_worldContext, viewContext, _appServices, pin, fill, stroke)}</g>
       <text x="${dx}%" y="${dy}%" font-size="${px}px" >${isExternal ? "" : icon}</text>

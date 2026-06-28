@@ -1027,18 +1027,21 @@ class CulturesModule {
         pack.cultures = [{ name: "Wildlands", i: 0, base: 1, shield: "round" }];
         this.cells!.culture = cultureIds;
 
-        const alertContent = /* html */ `The climate is harsh and people cannot live in this world.<br />
+        openAlert(
+          `The climate is harsh and people cannot live in this world.<br />
           No cultures, states and burgs will be created.<br />
-          Please consider changing climate settings in the World Configurator`;
-
-        openAlert(alertContent, { title: "Extreme climate warning" });
+          Please consider changing climate settings in the World Configurator`,
+          { title: "Extreme climate warning" }
+        );
         return;
       } else {
         WARN && console.warn(`Not enough populated cells (${populated.length}). Will generate only ${count} cultures`);
-        const alertContent = /* html */ ` There are only ${populated.length} populated cells and it's insufficient livable area.<br />
+        openAlert(
+          `There are only ${populated.length} populated cells and it's insufficient livable area.<br />
           Only ${count} out of ${culturesInputNumber} requested cultures will be generated.<br />
-          Please consider changing climate settings in the World Configurator`;
-        openAlert(alertContent, { title: "Extreme climate warning" });
+          Please consider changing climate settings in the World Configurator`,
+          { title: "Extreme climate warning" }
+        );
       }
     }
 

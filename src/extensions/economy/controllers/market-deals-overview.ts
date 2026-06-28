@@ -1,6 +1,7 @@
 import { downloadFile, getFileName } from "../../../controllers/editors";
+import { type MarketDealRow, setMarketDealsState } from "../../../store/marketDealsState";
 import type { Burg } from "../../../types/models";
-import { formatPrice, rn } from "../../../utils";
+import { rn } from "../../../utils";
 import { applySorting, tip } from "../../../utils/uiHelpers";
 import { getApi, getWorldContext } from "../economyContext";
 import { Goods } from "../generators/goods-generator";
@@ -23,17 +24,15 @@ export function open(marketId: number): void {
   (document.getElementById("marketDealsFilter") as HTMLSelectElement).value = "all";
   marketDealsAddLines();
 
-  // dialog call removed
-
   if (!isInitialized) {
     document.getElementById("marketDealsRefresh")!.addEventListener("click", marketDealsAddLines);
     document.getElementById("marketDealsExport")!.addEventListener("click", downloadDealsCsv);
     document.getElementById("marketDealsBody")!.addEventListener("click", (ev: MouseEvent) => {
       const el = ev.target as HTMLElement;
-      const dealId = el.closest<HTMLElement>(".marketDealParty")?.parentElement?.dataset.id;
-      const deal = getWorldContext().pack.deals.find(d => d.i === Number(dealId));
+      const row = el.closest<HTMLElement>(".marketDealParty")?.parentElement;
+      if (!row) return;
+      const deal = getWorldContext().pack.deals.find(d => d.i === Number(row.dataset.id));
       if (!deal) return;
-
       const party = getParty(deal);
       if (party) getApi().zoomTo(party.x, party.y, 8, 2000);
     });
@@ -58,19 +57,34 @@ function marketDealsAddLines(): void {
     const counterparty = getCounterparty(deal);
     return activeFilter === "local" ? counterparty.type === "burg" : counterparty.type === "market";
   });
-  let netFlow = 0;
 
-  let lines = "";
+  let netFlow = 0;
+  const rows: MarketDealRow[] = [];
+
   for (const deal of deals) {
-    netFlow += getDealNet(deal);
-    lines += renderDealLine(deal);
+    const row = buildDealRow(deal);
+    if (row) {
+      netFlow += row.income;
+      rows.push(row);
+    }
   }
 
-  document.getElementById("marketDealsBody")!.innerHTML = lines || "No market deals recorded";
-  document.getElementById("marketDealsFooterDeals")!.innerHTML = String(deals.length);
-  document.getElementById("marketDealsFooterNet")!.innerHTML = formatPrice(netFlow);
+  setMarketDealsState({
+    rows,
+    dealsCount: deals.length,
+    netFlow: rn(netFlow, 2),
+    onRowClick: (row: MarketDealRow) => {
+      const deal = getWorldContext().pack.deals.find(d => d.i === row.id);
+      if (!deal) return;
+      const party = getParty(deal);
+      if (party) getApi().zoomTo(party.x, party.y, 8, 2000);
+    }
+  });
 
-  applySorting(document.getElementById("marketDealsHeader")!);
+  setTimeout(() => {
+    const header = document.getElementById("marketDealsHeader");
+    if (header) applySorting(header);
+  }, 0);
 }
 
 function getMarketDeals(marketId: number): Deal[] {
@@ -93,9 +107,9 @@ function getCounterparty(deal: Deal): { id: number; type: "burg" | "market" } {
   return isMarketSeller(deal) ? { id: deal.buyer, type: deal.buyerType } : { id: deal.seller, type: deal.sellerType };
 }
 
-function renderDealLine(deal: Deal): string {
+function buildDealRow(deal: Deal): MarketDealRow | null {
   const good = Goods.get(deal.good);
-  if (!good) return "";
+  if (!good) return null;
 
   const dealNet = getDealNet(deal);
   const party = getParty(deal);
@@ -104,20 +118,21 @@ function renderDealLine(deal: Deal): string {
   const incomeColor = dealNet >= 0 ? "#2a6" : "#c44";
   const backColor = dealNet >= 0 ? "#dff0d8" : "#f2dede";
 
-  return /* html */ `<div class="states marketDeal" data-id="${deal.i}" data-good="${good.name}" data-direction="${direction}" data-units="${rn(deal.units, 2)}" data-counterparty="${counterparty.type}_${party?.name}" data-income="${dealNet}">
-      <svg data-tip="Good icon" width="1.3em" height="1.3em" class="goodIcon">
-        <circle cx="50%" cy="50%" r="42%" fill="${good.color}" stroke="${Goods.getStroke(good.color)}"/>
-        <use href="#${good.icon}" x="10%" y="10%" width="80%" height="80%"/>
-      </svg>
-      <div data-tip="Good name" class="goodName">${good.name}</div>
-      <div><span class="marketBadge" style="background:${backColor}; color:${incomeColor}">${direction.toUpperCase()}</span></div>
-      <div class="marketDealParty pointer" data-tip="Click to zoom">
-        <div class="${counterparty.type === "burg" ? "icon-dot-circled" : "icon-store"}" style="display:inline-block; width: 0.8em; ${counterparty.type === "market" ? "font-size: 0.85em;" : ""}"></div>
-        <div style="display:inline-block; width: 6.8em;">${party?.name}</div>
-      </div>
-      <div class="marketDealUnits">${rn(deal.units, 2)}</div>
-      <div class="marketDealIncome" style="color:${incomeColor}">${formatPrice(dealNet)}</div>
-    </div>`;
+  return {
+    id: deal.i,
+    goodId: good.i,
+    goodName: good.name,
+    goodColor: good.color,
+    goodStroke: Goods.getStroke(good.color),
+    goodIcon: good.icon,
+    direction,
+    counterpartyType: counterparty.type,
+    partyName: party?.name ?? "",
+    units: rn(deal.units, 2),
+    income: rn(dealNet, 2),
+    incomeColor,
+    backColor
+  };
 }
 
 function getParty(deal: Deal): Burg | null {

@@ -413,8 +413,7 @@ function toggleFog(p: number): void {
 }
 
 function removeProvince(p: number): void {
-  const alertContent = "Are you sure you want to remove the province? <br />This action cannot be reverted";
-  openConfirm(alertContent, {
+  openConfirm("Are you sure you want to remove the province? <br />This action cannot be reverted", {
     title: "Remove province",
     confirm: "Remove",
     onConfirm: () => {
@@ -797,8 +796,7 @@ function downloadProvincesData(): void {
 }
 
 function removeAllProvinces(): void {
-  const alertContent = "Are you sure you want to remove all provinces? <br />This action cannot be reverted";
-  openConfirm(alertContent, {
+  openConfirm("Are you sure you want to remove all provinces? <br />This action cannot be reverted", {
     title: "Remove all provinces",
     confirm: "Remove",
     onConfirm: () => {

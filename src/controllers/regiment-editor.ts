@@ -434,8 +434,7 @@ export const regimentEditorActions = {
   },
 
   removeRegiment(): void {
-    const alertContent = "Are you sure you want to remove the regiment?";
-    openConfirm(alertContent, {
+    openConfirm("Are you sure you want to remove the regiment?", {
       title: "Remove regiment",
       confirm: "Remove",
       onConfirm: () => {

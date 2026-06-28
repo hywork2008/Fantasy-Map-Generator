@@ -162,6 +162,16 @@
           }
         }
       }
+    },
+    {
+      "includes": ["src/ui/dialogs/DiplomacyHistoryDialog.tsx"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noArrayIndexKey": "off"
+          }
+        }
+      }
     }
   ]
 }

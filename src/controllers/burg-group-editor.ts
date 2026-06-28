@@ -3,12 +3,13 @@ import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { Burgs } from "../generators/burgs-generator";
 import { BurgIconsRenderer, BurgLabelsRenderer } from "../renderers";
+import { burgGroupSelectionStore } from "../store/burgGroupSelectionState";
 import { modules } from "../store/editorState";
 import type { Burg, BurgGroup } from "../types/models";
-import { closeDialog, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
+import { closeDialog, openDialog } from "../ui/dialogs/dialogService";
 import { confirmationDialog } from "../utils/editorHelpers";
 import { layerIsOn } from "../utils/nodeUtils";
-import { fitContent, tip } from "../utils/uiHelpers";
+import { tip } from "../utils/uiHelpers";
 
 let worldContext: WorldContext;
 let viewContext: ViewContext;
@@ -86,7 +87,7 @@ export function editBurgGroups(): void {
   function createLine(group: BurgGroup): string {
     const count = worldContext.pack.burgs.filter((burg: Burg) => !burg.removed && burg.group === group.name).length;
     // prettier-ignore
-    return /* html */ `<tr name="${group.name}">
+    return `<tr name="${group.name}">
       <td data-tip="Rendering order: higher values are rendered on top"><input type="number" name="order" min="1" max="999" step="1" required value="${group.order || ""}" /></td>
       <td data-tip="Type group name. Must start with a letter or underscore, followed by letters, digits, underscores, or dashes. Spaces are not allowed"><input type="text" name="name" value="${group.name}" required /></td>
       <td data-tip="Burg preview generator">
@@ -133,58 +134,18 @@ export function editBurgGroups(): void {
     const hiddenInput = el.previousElementSibling as HTMLInputElement;
     const value = hiddenInput.value;
     const initial = value ? value.split(",").map(v => +v) : [];
+    const byLabel = el.getAttribute("name") ?? "";
 
-    const filtered = data.filter(datum => datum.i && !datum.removed);
-    const lines = filtered.map(
-      ({ i, name, fullName, color }) => /* html */ `
-        <tr data-tip="${name}">
-          <td>
-            <span style="color:${color}">⬤</span>
-          </td>
-          <td>
-            <input data-i="${i}" id="el${i}" type="checkbox" class="checkbox" ${
-              !initial.length || (i !== undefined && initial.includes(i)) ? "checked" : ""
-            } >
-            <label for="el${i}" class="checkbox-label">${fullName || name}</label>
-          </td>
-        </tr>`
-    );
-
-    const alertContent = /* html */ `<b>Limit group by ${el.getAttribute("name")}:</b>
-      <table style="margin-top:.3em">
-        <tbody>
-          ${lines.join("")}
-        </tbody>
-      </table>`;
-
-    let container: HTMLElement | null = null;
-    openRichDialog({
-      content: alertContent,
-      width: fitContent(),
+    burgGroupSelectionStore.getState().open({
+      kind: "items",
       title: "Limit group",
-      onOpen: c => {
-        container = c;
-      },
-      buttons: {
-        Invert: () => {
-          container?.querySelectorAll("input").forEach(inp => {
-            (inp as HTMLInputElement).checked = !(inp as HTMLInputElement).checked;
-          });
-        },
-        Apply: () => {
-          const inputs = Array.from(container?.querySelectorAll("input") ?? []) as HTMLInputElement[];
-          const selected = inputs.reduce((acc: string[], input) => {
-            if (input.checked) acc.push(input.dataset.i!);
-            return acc;
-          }, []);
-
-          if (!selected.length) return tip("Select at least one element", false, "error");
-
-          const allAreSelected = selected.length === inputs.length;
-          hiddenInput.value = allAreSelected ? "" : selected.join(",");
-          el.textContent = allAreSelected ? "all" : "some";
-        },
-        Cancel: () => {}
+      byLabel,
+      items: data,
+      initial: initial.length ? initial : undefined,
+      onApply: selected => {
+        const allSelected = !selected?.length;
+        hiddenInput.value = allSelected ? "" : selected.join(",");
+        el.textContent = allSelected ? "all" : "some";
       }
     });
   }
@@ -194,68 +155,12 @@ export function editBurgGroups(): void {
     const value = hiddenInput.value;
     const initial: Record<string, boolean> = value ? JSON.parse(value) : {};
 
-    const features = [
-      { name: "capital", icon: "icon-star" },
-      { name: "port", icon: "icon-anchor" },
-      { name: "citadel", icon: "icon-chess-rook" },
-      { name: "walls", icon: "icon-fort-awesome" },
-      { name: "plaza", icon: "icon-store" },
-      { name: "temple", icon: "icon-chess-bishop" },
-      { name: "shanty", icon: "icon-campground" }
-    ];
-
-    const lines = features.map(
-      // prettier-ignore
-      ({ name, icon }) => /* html */ `
-        <tr data-tip="Select limitation for burg feature: ${name}">
-          <td>
-            <span class="${icon}"></span>
-            <span style="margin-left:.2em">${name}</span>
-          </td>
-          <td>
-            <input type="radio" name="${name}" value="true" ${initial[name] === true ? "checked" : ""} style="margin:0" >
-          </td>
-          <td>
-            <input type="radio" name="${name}" value="false" ${initial[name] === false ? "checked" : ""} style="margin:0">
-          </td>
-          <td>
-            <input type="radio" name="${name}" value="undefined" ${initial[name] === undefined ? "checked" : ""} style="margin:0">
-          </td>
-        </tr>`
-    );
-
-    const alertContent = /* html */ `
-      <form id="featuresLimitationForm">
-        <table>
-          <thead style="font-weight:bold">
-            <td style="width:6em">Features</td>
-            <td style="width:3em">True</td>
-            <td style="width:3em">False</td>
-            <td style="width:3em">Any</td>
-          </thead>
-          <tbody>
-            ${lines.join("")}
-          </tbody>
-        </table>
-      </form>`;
-
-    openRichDialog({
-      content: alertContent,
-      width: fitContent(),
-      title: "Limit group by features",
-      buttons: {
-        Apply: () => {
-          const form = document.getElementById("featuresLimitationForm") as HTMLFormElement;
-          const values = features.reduce((acc: Record<string, boolean>, { name }) => {
-            const value = (form.elements.namedItem(name) as HTMLInputElement | null)?.value;
-            if (value !== "undefined") acc[name] = value === "true";
-            return acc;
-          }, {});
-
-          hiddenInput.value = JSON.stringify(values);
-          el.textContent = Object.keys(values).length ? "some" : "any";
-        },
-        Cancel: () => {}
+    burgGroupSelectionStore.getState().open({
+      kind: "features",
+      initial,
+      onApply: values => {
+        hiddenInput.value = JSON.stringify(values);
+        el.textContent = Object.keys(values).length ? "some" : "any";
       }
     });
   }

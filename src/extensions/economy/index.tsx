@@ -1,7 +1,8 @@
 import "./types"; // activate module augmentation for PackedGraph
 import type { LayerConfig } from "../../store/layerState";
+import { regenerateFeatureDialogStore } from "../../store/regenerateFeatureDialogState";
 import type { ExtensionAPI } from "../../types/extension-api";
-import { clearEconomyContext, getApi, getWorldContext, initEconomyContext } from "./economyContext";
+import { clearEconomyContext, getWorldContext, initEconomyContext } from "./economyContext";
 import { Goods } from "./generators/goods-generator";
 import { Markets } from "./generators/markets-generator";
 import { Production } from "./generators/production-generator";
@@ -11,6 +12,9 @@ import { drawMarketsLayer } from "./renderers/draw-markets";
 import { clear as clearTradeAnimation, draw as drawTradeAnimation } from "./renderers/draw-trade-animation";
 import { showEconomyTooltip, updateEconomyCellInfo } from "./tooltipHandler";
 import { GoodsEditorDialog } from "./ui/dialogs/GoodsEditorDialog";
+import { GoodsProducersDialog } from "./ui/dialogs/GoodsProducersDialog";
+import { GoodsStockDialog } from "./ui/dialogs/GoodsStockDialog";
+import { GoodsTagsFilterDialog } from "./ui/dialogs/GoodsTagsFilterDialog";
 import { MarketDealsDialog } from "./ui/dialogs/MarketDealsDialog";
 import { MarketOverviewDialog } from "./ui/dialogs/MarketOverviewDialog";
 import { MarketsGoodCompareDialog } from "./ui/dialogs/MarketsGoodCompareDialog";
@@ -30,26 +34,7 @@ function withRegenerateConfirmation(featureName: string, _id: string, onConfirm:
   const dontAsk = sessionStorage.getItem("regenerateFeatureDontAsk");
   if (dontAsk) return onConfirm();
 
-  getApi().openRichDialog({
-    title: `Regenerate ${featureName}`,
-    content: `Regenerate will remove all the custom changes for the ${featureName}.<br /><br />Are you sure you want to proceed?`,
-    buttons: [
-      {
-        label: "Proceed",
-        onClick: () => {
-          const dontAskBox = document.getElementById("dontAsk") as HTMLInputElement;
-          if (dontAskBox?.checked) sessionStorage.setItem("regenerateFeatureDontAsk", "true");
-          onConfirm();
-        }
-      },
-      { label: "Cancel", onClick: () => {} }
-    ],
-    onOpen: container => {
-      const checkbox =
-        '<div style="margin-top: 1em;"><span><input id="dontAsk" class="checkbox" type="checkbox"><label for="dontAsk" class="checkbox-label dontAsk"><i>do not ask again</i></label><span></div>';
-      container.insertAdjacentHTML("beforeend", checkbox);
-    }
-  });
+  regenerateFeatureDialogStore.getState().open({ featureName, onConfirm });
 }
 
 export const ECONOMY_EXTENSION_ID = "economy";
@@ -136,6 +121,17 @@ export function init(api: ExtensionAPI): void {
 
   // Register Economy Dialogs
   api.registerDialog({ id: "GoodsEditorDialog", extensionId: ECONOMY_EXTENSION_ID, component: GoodsEditorDialog });
+  api.registerDialog({
+    id: "GoodsProducersDialog",
+    extensionId: ECONOMY_EXTENSION_ID,
+    component: GoodsProducersDialog
+  });
+  api.registerDialog({ id: "GoodsStockDialog", extensionId: ECONOMY_EXTENSION_ID, component: GoodsStockDialog });
+  api.registerDialog({
+    id: "GoodsTagsFilterDialog",
+    extensionId: ECONOMY_EXTENSION_ID,
+    component: GoodsTagsFilterDialog
+  });
   api.registerDialog({
     id: "MarketsOverviewDialog",
     extensionId: ECONOMY_EXTENSION_ID,

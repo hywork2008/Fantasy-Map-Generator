@@ -11,11 +11,11 @@ import { GridRenderer } from "../renderers";
 import { declareFont, fonts } from "../services/fonts";
 import { rulers } from "../store/editorState";
 import { useLayerState } from "../store/layerState";
+import { loadErrorDialogStore } from "../store/loadErrorDialogState";
 import { type OptionsState, useOptionsState } from "../store/optionsState";
 import type { NameBase, River } from "../types/models";
-import { closeDialogs, openConfirm, openRichDialog } from "../ui/dialogs/dialogService";
+import { closeDialogs, openConfirm } from "../ui/dialogs/dialogService";
 import { calculateVoronoi, findCell, last, link, minmax, parseError, rn } from "../utils";
-import { alertMessage } from "../utils/alertMessageEl";
 import { heightmapColorSchemes } from "../utils/colorUtils";
 import { ERROR, INFO, WARN } from "../utils/debug";
 import { layerIsOn } from "../utils/nodeUtils";
@@ -73,13 +73,14 @@ export function loadMapPrompt(blob: Blob): void {
     return;
   }
 
-  alertMessage.innerHTML = /* html */ `Are you sure you want to load saved map?<br />
-    All unsaved changes made to the current map will be lost`;
-  openConfirm(alertMessage.innerHTML, {
-    title: "Load saved map",
-    confirm: "Load",
-    onConfirm: () => loadLastSavedMap()
-  });
+  openConfirm(
+    `Are you sure you want to load saved map?<br />All unsaved changes made to the current map will be lost`,
+    {
+      title: "Load saved map",
+      confirm: "Load",
+      onConfirm: () => loadLastSavedMap()
+    }
+  );
 
   function loadLastSavedMap() {
     WARN && console.warn("Load last saved map");
@@ -119,15 +120,17 @@ export async function loadMapFromURL(maplink: string, random: number): Promise<v
 
 export function showUploadErrorMessage(error: string, maplink: string, random: number): void {
   ERROR && console.error(error);
-  alertMessage.innerHTML = /* html */ `Cannot load map from the ${link(maplink, "link provided")}. ${
-    random ? `A new random map is generated. ` : ""
-  } Please ensure the linked file is reachable and CORS is allowed on server side`;
-  openConfirm(alertMessage.innerHTML, {
-    title: "Loading error",
-    confirm: "Clear cache",
-    cancel: "OK",
-    onConfirm: () => cleanupData()
-  });
+  openConfirm(
+    `Cannot load map from the ${link(maplink, "link provided")}. ${
+      random ? `A new random map is generated. ` : ""
+    } Please ensure the linked file is reachable and CORS is allowed on server side`,
+    {
+      title: "Loading error",
+      confirm: "Clear cache",
+      cancel: "OK",
+      onConfirm: () => cleanupData()
+    }
+  );
 }
 
 // ─── Upload & parse ───────────────────────────────────────────────────────────
@@ -230,8 +233,7 @@ function showUploadMessage(type: string, mapData: string[] | null, mapVersion: s
     title = "Error";
   }
 
-  alertMessage.innerHTML = message;
-  openConfirm(alertMessage.innerHTML, {
+  openConfirm(message, {
     title,
     confirm: "Clear cache",
     cancel: "OK",
@@ -845,29 +847,12 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
     ERROR && console.error(error);
     clearMainTip();
 
-    alertMessage.innerHTML = /* html */ `An error occurred while loading the map. Select a different file to load, <br>generate a new random map or cancel the loading.<br>Map version: ${mapVersion}. Generator version: ${VERSION}.
-      <p id="errorBox">${parseError(error as Error)}</p>`;
-
-    openRichDialog({
-      content: alertMessage.innerHTML,
-      resizable: false,
-      title: "Loading error",
-      maxWidth: "40em" as unknown as number,
-      buttons: {
-        "Clear cache": () => cleanupData(),
-        "Select file": () => {
-          /* $(this).dialog("close") removed */
-          mapToLoad.click();
-        },
-        "New map": () => {
-          /* $(this).dialog("close") removed */
-          document.dispatchEvent(new CustomEvent("fmg:regenerate-map", { detail: "loading error" }));
-        },
-        Cancel: () => {
-          /* $(this).dialog("close") removed */
-        }
-      },
-      position: { my: "center", at: "center", of: "svg" }
+    loadErrorDialogStore.getState().open({
+      errorText: parseError(error as Error),
+      mapVersion,
+      onClearCache: () => cleanupData(),
+      onSelectFile: () => mapToLoad.click(),
+      onNewMap: () => document.dispatchEvent(new CustomEvent("fmg:regenerate-map", { detail: "loading error" }))
     });
   }
 }

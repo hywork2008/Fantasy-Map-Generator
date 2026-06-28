@@ -308,7 +308,7 @@ function createPicker(): void {
 
   (spaces.node() as Element).insertAdjacentHTML(
     "beforeend",
-    /* html */ `<label style="margin-right: 6px">HSL:
+    `<label style="margin-right: 6px">HSL:
       <input type="number" id="pickerHSL_H" data-space="hsl" min="0" max="360" value="231" />,
       <input type="number" id="pickerHSL_S" data-space="hsl" min="0" max="100" value="70" />,
       <input type="number" id="pickerHSL_L" data-space="hsl" min="0" max="100" value="70" />
