@@ -91,6 +91,7 @@ function buildExtensionAPI(): ExtensionAPI {
     registerExtension: (config, defaultEnabled) => extState().registerExtension(config, defaultEnabled),
     registerAction: action => extState().registerAction(action),
     registerDialog: dialog => extState().registerDialog(dialog),
+    registerStyleConfig: config => extState().registerStyleConfig(config),
     unregisterExtension: id => extState().unregisterExtension(id),
     toggleExtension: (id, forceState) => extState().toggleExtension(id, forceState),
     isExtensionEnabled: id => extState().enabledExtensions[id] ?? false,

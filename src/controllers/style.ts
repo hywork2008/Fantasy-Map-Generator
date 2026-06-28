@@ -19,6 +19,7 @@ import { drawRegiments, drawScaleBar, fitScaleBar } from "../renderers/index";
 import { OceanLayers } from "../renderers/ocean-layers";
 import { onFontAdded } from "../services/fonts";
 import { modules } from "../store/editorState";
+import { useExtensionState } from "../store/extensionState";
 import { useStyleState } from "../store/styleState";
 import { textureUrlDialogStore } from "../store/textureUrlDialogState";
 import { closeDialog, openDialog } from "../ui/dialogs/dialogService";
@@ -76,7 +77,9 @@ export function editStyle(element: string, group?: string): void {
 }
 
 function selectStyleElement(): void {
-  const styleElement = (document.getElementById("styleElementSelect") as HTMLSelectElement).value;
+  const selectEl = document.getElementById("styleElementSelect") as HTMLSelectElement | null;
+  if (!selectEl) return;
+  const styleElement = selectEl.value;
   let el: AnySelection = viewContext.svg.select<SVGGElement>(`#${styleElement}`);
 
   const visibility: Record<string, boolean> = {};
@@ -479,6 +482,15 @@ function selectStyleElement(): void {
       (document.getElementById("styleVignetteRx") as HTMLInputElement).value = digit(maskRect.getAttribute("rx"));
       (document.getElementById("styleVignetteRy") as HTMLInputElement).value = digit(maskRect.getAttribute("ry"));
       sliderValues.styleVignetteBlur = digit(maskRect.getAttribute("filter"));
+    }
+  }
+
+  // Allow extensions to hook into style selection and override visibility/values
+  const state = useExtensionState.getState();
+  const styleConfigs = state.styleConfigs.filter(c => state.enabledExtensions[c.extensionId]);
+  for (const config of styleConfigs) {
+    if (config.onSelect) {
+      config.onSelect(styleElement, sliderValues, visibility, el);
     }
   }
 
@@ -1715,8 +1727,13 @@ export function initStyleTab() {
   }
 
   function setPresetRemoveButtonVisibiliy(): void {
-    const isDefault = systemPresets.includes((document.getElementById("stylePreset") as HTMLSelectElement).value);
-    (document.getElementById("removeStyleButton") as HTMLElement).style.display = isDefault ? "none" : "inline-block";
+    const presetSelect = document.getElementById("stylePreset") as HTMLSelectElement | null;
+    if (!presetSelect) return;
+    const isDefault = systemPresets.includes(presetSelect.value);
+    const removeBtn = document.getElementById("removeStyleButton");
+    if (removeBtn) {
+      removeBtn.style.display = isDefault ? "none" : "inline-block";
+    }
   }
 
   // Wire up module-level forwarding refs

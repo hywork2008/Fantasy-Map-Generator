@@ -41,7 +41,10 @@ export const FeaturesRenderer: IRenderer = {
       lakes: {}
     };
 
-    for (const feature of pack.features) {
+    const featuresList = (
+      Array.isArray(pack.features) ? pack.features : Object.values(pack.features || {})
+    ) as PackedGraphFeature[];
+    for (const feature of featuresList) {
       if (!feature || feature.type === "ocean") continue;
 
       html.paths.push(

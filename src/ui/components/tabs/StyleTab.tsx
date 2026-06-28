@@ -9,13 +9,59 @@ import {
 } from "../../../controllers/style";
 import { invokeActiveZooming } from "../../../main";
 import { fonts } from "../../../services/fonts";
+import { useExtensionState } from "../../../store/extensionState";
 import { useStyleState } from "../../../store/styleState";
 import { openDialog } from "../../dialogs/dialogService";
 import { SliderInput } from "../SliderInput";
 
+const CORE_STYLE_OPTIONS = [
+  { value: "anchors", label: "Anchor Icons" },
+  { value: "biomes", label: "Biomes" },
+  { value: "borders", label: "Borders" },
+  { value: "burgIcons", label: "Burg Icons" },
+  { value: "cells", label: "Cells" },
+  { value: "coastline", label: "Coastline" },
+  { value: "coordinates", label: "Coordinates" },
+  { value: "cults", label: "Cultures" },
+  { value: "emblems", label: "Emblems" },
+  { value: "fogging", label: "Fogging" },
+  { value: "gridOverlay", label: "Grid" },
+  { value: "terrs", label: "Heightmap" },
+  { value: "ice", label: "Ice" },
+  { value: "labels", label: "Labels" },
+  { value: "lakes", label: "Lakes" },
+  { value: "landmass", label: "Landmass" },
+  { value: "legend", label: "Legend" },
+  { value: "markers", label: "Markers" },
+  { value: "armies", label: "Military" },
+  { value: "ocean", label: "Ocean" },
+  { value: "population", label: "Population" },
+  { value: "prec", label: "Precipitation" },
+  { value: "provs", label: "Provinces" },
+  { value: "terrain", label: "Relief Icons" },
+  { value: "relig", label: "Religions" },
+  { value: "rivers", label: "Rivers" },
+  { value: "routes", label: "Routes" },
+  { value: "ruler", label: "Rulers" },
+  { value: "scaleBar", label: "Scale Bar" },
+  { value: "regions", label: "States" },
+  { value: "temperature", label: "Temperature" },
+  { value: "texture", label: "Texture" },
+  { value: "vignette", label: "Vignette" },
+  { value: "compass", label: "Wind Rose" },
+  { value: "zones", label: "Zones" }
+];
+
 export function StyleTab() {
   const visibility = useStyleState(state => state.visibility);
   const values = useStyleState(state => state.values);
+  const styleConfigs = useExtensionState(state => state.styleConfigs);
+  const enabledExtensions = useExtensionState(state => state.enabledExtensions);
+  const extensionConfigs = styleConfigs.filter(c => enabledExtensions[c.extensionId]);
+
+  const styleOptions = [...CORE_STYLE_OPTIONS, ...extensionConfigs.flatMap(config => config.elements)].sort((a, b) =>
+    a.label.localeCompare(b.label)
+  );
 
   useEffect(() => {
     initStyleTab();
@@ -72,45 +118,11 @@ export function StyleTab() {
         style={{ width: "42%" }}
         defaultValue="ocean"
       >
-        <option value="anchors">Anchor Icons</option>
-        <option value="biomes">Biomes</option>
-        <option value="borders">Borders</option>
-        <option value="burgIcons">Burg Icons</option>
-        <option value="cells">Cells</option>
-        <option value="coastline">Coastline</option>
-        <option value="coordinates">Coordinates</option>
-        <option value="cults">Cultures</option>
-        <option value="emblems">Emblems</option>
-        <option value="fogging">Fogging</option>
-        <option value="goodsCells">Goods: production</option>
-        <option value="goodsIcons">Goods: resources</option>
-        <option value="goodsBurgs">Goods: burg plates</option>
-        <option value="gridOverlay">Grid</option>
-        <option value="terrs">Heightmap</option>
-        <option value="ice">Ice</option>
-        <option value="labels">Labels</option>
-        <option value="lakes">Lakes</option>
-        <option value="landmass">Landmass</option>
-        <option value="legend">Legend</option>
-        <option value="markers">Markers</option>
-        <option value="armies">Military</option>
-        <option value="ocean">Ocean</option>
-        <option value="population">Population</option>
-        <option value="prec">Precipitation</option>
-        <option value="provs">Provinces</option>
-        <option value="terrain">Relief Icons</option>
-        <option value="relig">Religions</option>
-        <option value="rivers">Rivers</option>
-        <option value="routes">Routes</option>
-        <option value="ruler">Rulers</option>
-        <option value="scaleBar">Scale Bar</option>
-        <option value="regions">States</option>
-        <option value="temperature">Temperature</option>
-        <option value="texture">Texture</option>
-        <option value="tradeAnimation">Trade Animation</option>
-        <option value="vignette">Vignette</option>
-        <option value="compass">Wind Rose</option>
-        <option value="zones">Zones</option>
+        {styleOptions.map(opt => (
+          <option key={opt.value} value={opt.value}>
+            {opt.label}
+          </option>
+        ))}
       </select>
 
       <table id="styleElements">
@@ -733,17 +745,6 @@ export function StyleTab() {
           </tr>
         </tbody>
 
-        <tbody id="styleGoods" style={{ display: visibility.styleGoods ? "block" : "none" }}>
-          <tr data-tip="Show or hide circle around good icons">
-            <td colSpan={2}>
-              <input id="styleGoodsCircle" className="checkbox" type="checkbox" />
-              <label htmlFor="styleGoodsCircle" className="checkbox-label">
-                Show circle
-              </label>
-            </td>
-          </tr>
-        </tbody>
-
         <tbody id="styleFilter" style={{ display: visibility.styleFilter ? "block" : "none" }}>
           <tr data-tip="Select filter for element. Please note filters may cause performance issues!">
             <td>Filter</td>
@@ -894,6 +895,14 @@ export function StyleTab() {
             </td>
           </tr>
         </tbody>
+
+        {extensionConfigs.map(config => {
+          if (!config.component) return null;
+          const Component = config.component;
+          return (
+            <Component key={config.id} visibility={visibility} values={values} applySliderChange={applySliderChange} />
+          );
+        })}
       </table>
 
       <div id="mapFilters" data-tip="Set a filter to be applied to the map in general">

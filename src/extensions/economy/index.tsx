@@ -2,6 +2,7 @@ import "./types"; // activate module augmentation for PackedGraph
 import type { LayerConfig } from "../../store/layerState";
 import { regenerateFeatureDialogStore } from "../../store/regenerateFeatureDialogState";
 import type { ExtensionAPI } from "../../types/extension-api";
+import { economyStyleConfig } from "./EconomyStyleConfig";
 import { clearEconomyContext, getWorldContext, initEconomyContext } from "./economyContext";
 import { Goods } from "./generators/goods-generator";
 import { Markets } from "./generators/markets-generator";
@@ -159,6 +160,9 @@ export function init(api: ExtensionAPI): void {
     extensionId: ECONOMY_EXTENSION_ID,
     component: TradeAnimationDialog
   });
+
+  // Register Economy Style Config
+  api.registerStyleConfig(economyStyleConfig);
 
   // Register Economy Actions for ToolsTab Regenerate section
   api.registerAction({

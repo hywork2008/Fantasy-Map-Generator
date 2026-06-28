@@ -657,6 +657,7 @@ export function randomizeOptions(): void {
     worldContext.options.temperatureNorthPole = gauss(-25, 7, -40, 10, 0);
   if (randomize || !locked("temperatureSouthPole"))
     worldContext.options.temperatureSouthPole = gauss(-15, 7, -40, 10, 0);
+  const precInput = document.getElementById("precInput") as HTMLInputElement | null;
   if ((randomize || !locked("prec")) && precInput) precInput.value = String(gauss(100, 40, 5, 500));
 
   const US = navigator.language === "en-US";
