@@ -21,7 +21,7 @@ import { initRiversEditor } from "./rivers-editor";
 import { initRoutesEditor } from "./routes-editor";
 import { initZonesEditor } from "./zones-editor";
 import "./notes-editor";
-import { initHeightmapEditor } from "./heightmap-editor";
+import { initHeightmapEditor } from "./heightmapEditor";
 import { initOptions } from "./options";
 import { initProvincesEditor } from "./provinces-editor";
 import { initTools } from "./tools";

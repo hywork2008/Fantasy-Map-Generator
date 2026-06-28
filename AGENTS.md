@@ -56,11 +56,15 @@ The legacy practice of attaching objects and functions directly to the global `w
 
 ---
 
-## 3. TypeScript & Static Analysis Standards
+## 3. TypeScript & Naming Standards
 
 - **Strict Type Safety**: The use of the `any` keyword is forbidden. If a type cannot be strictly inferred or resolved immediately, declare it as `unknown` and apply explicit type guards.
 - **Explicit D3 Selection Types**: Avoid vague typings for SVG layers. Explicitly type all D3 selections, for example: `d3.Selection<SVGGElement, unknown, HTMLElement, any>`.
 - **Non-null Assertions**: Use non-null assertions (`!`) only where execution pipelines guarantee that the value is populated beforehand. Document the safety rationale with inline comments.
+- **File Naming Conventions (React Migration)**: The project is actively migrating away from legacy `kebab-case` filenames. All new and refactored files MUST follow the modern React/TypeScript standard:
+  - **React Components (`.tsx`)**: Use `PascalCase` (e.g., `TemplateEditorDialog.tsx`).
+  - **Classes/Models (`.ts`)**: Use `PascalCase` (e.g., `HeightmapEditorHistory.ts`).
+  - **Utility/Controller Functions (`.ts`)**: Use `camelCase` (e.g., `heightmapEditor.ts`, `interactionManager.ts`). Do NOT use `kebab-case` for new files. If modifying an existing `kebab-case` file heavily, rename it to `camelCase` and update all imports.
 
 ---
 

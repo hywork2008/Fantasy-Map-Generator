@@ -1,5 +1,5 @@
 import type React from "react";
-import { HeightmapEditorActions } from "../../controllers/heightmap-editor";
+import { HeightmapEditorActions } from "../../controllers/heightmapEditor";
 import { useDialogState } from "../../store/dialogState";
 import { setHeightmapEditorState, useHeightmapEditorState } from "../../store/heightmapEditorState";
 import { Dialog } from "./Dialog";

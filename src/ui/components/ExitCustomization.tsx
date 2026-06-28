@@ -1,6 +1,6 @@
 import type React from "react";
 import { useEffect, useRef } from "react";
-import { HeightmapEditorActions } from "../../controllers/heightmap-editor";
+import { HeightmapEditorActions } from "../../controllers/heightmapEditor";
 
 export const ExitCustomization: React.FC = () => {
   const elRef = useRef<HTMLDivElement>(null);

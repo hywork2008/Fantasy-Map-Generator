@@ -1,6 +1,6 @@
 import type React from "react";
-// Need to import actions from heightmap-editor
-import { HeightmapEditorActions } from "../../controllers/heightmap-editor";
+// Need to import actions from heightmapEditor
+import { HeightmapEditorActions } from "../../controllers/heightmapEditor";
 import { useDialogState } from "../../store/dialogState";
 import { setHeightmapEditorState, useHeightmapEditorState } from "../../store/heightmapEditorState";
 import { SliderInput } from "../components/SliderInput";

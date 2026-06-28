@@ -10,7 +10,7 @@ import { editBiomes } from "./biomes-editor";
 import { overviewBurgs } from "./burgs-overview";
 import { editDiplomacy } from "./diplomacy-editor";
 import { editCoastlineSettings, editCultures, editReligions } from "./editors";
-import { editHeightmap } from "./heightmap-editor";
+import { editHeightmap } from "./heightmapEditor";
 import {
   toggleBiomes,
   toggleBorders,

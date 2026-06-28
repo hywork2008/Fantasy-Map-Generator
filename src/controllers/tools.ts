@@ -64,7 +64,7 @@ import { openChartsOverview } from "./charts-overview";
 import { editDiplomacy } from "./diplomacy-editor";
 import { editCoastlineSettings, editCultures, editReligions, refreshAllEditors } from "./editors";
 import { editEmblem } from "./emblems-editor";
-import { editHeightmap } from "./heightmap-editor";
+import { editHeightmap } from "./heightmapEditor";
 import { interactionManager } from "./interactionManager";
 import {
   getToolActionHandler,

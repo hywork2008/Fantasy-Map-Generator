@@ -1,5 +1,5 @@
 import type React from "react";
-import { HeightmapEditorActions } from "../../controllers/heightmap-editor";
+import { HeightmapEditorActions } from "../../controllers/heightmapEditor";
 import { useViewState } from "../../store/viewState";
 
 export const CustomizationMenu: React.FC = () => {
