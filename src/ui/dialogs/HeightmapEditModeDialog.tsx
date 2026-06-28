@@ -1,4 +1,6 @@
 import type React from "react";
+import { useEffect } from "react";
+import { dialogStore } from "../../store/dialogState";
 import { heightmapEditModeStore, useHeightmapEditModeState } from "../../store/heightmapDialogState";
 import { Dialog } from "./Dialog";
 
@@ -7,6 +9,20 @@ export const HeightmapEditModeDialog: React.FC = () => {
   const { onErase, onKeep, onRisk, onCancel } = heightmapEditModeStore.getState();
 
   const close = () => heightmapEditModeStore.getState().close();
+
+  useEffect(() => {
+    if (!isOpen) return;
+    dialogStore.getState().openDialog("heightmapEditMode", {
+      onClose: () => {
+        const { onCancel: cancel } = heightmapEditModeStore.getState();
+        heightmapEditModeStore.getState().close();
+        cancel();
+      }
+    });
+    return () => {
+      dialogStore.getState().closeDialog("heightmapEditMode");
+    };
+  }, [isOpen]);
 
   const handle = (action: () => void) => {
     close();

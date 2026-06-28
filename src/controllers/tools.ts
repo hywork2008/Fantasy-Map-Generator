@@ -45,13 +45,14 @@ import { appendMarkerToLayer } from "../renderers/index";
 import { useBurgsOverviewState } from "../store/burgsOverviewState";
 import { dialogStore } from "../store/dialogState";
 import { elSelected, modules } from "../store/editorState";
+import { heightmapEditModeStore } from "../store/heightmapDialogState";
 import { useLayerState } from "../store/layerState";
 import { useOptionsState } from "../store/optionsState";
 import type { MarkerConfig } from "../types/MarkerConfig";
 import type { Burg, Marker, Province, Religion, River, Route, State } from "../types/models";
 import type { WorldNote } from "../types/WorldState";
 import * as Dialogservice from "../ui/dialogs/dialogService";
-import { closeAlert, closeDialog, closeDialogs, openDialog } from "../ui/dialogs/dialogService";
+import { closeDialog, closeDialogs, openDialog } from "../ui/dialogs/dialogService";
 import type { RegenerateConfirmConfig } from "../ui/dialogs/RegenerateConfirmDialog";
 import { findCell, gauss, generateSeed, getNextId, isCtrlClick, P, rn, showPrompt } from "../utils";
 import { EditorBus } from "../utils/editorBus";
@@ -165,7 +166,7 @@ document.addEventListener("react-tool-action", e => {
       if (modules.editHeightmap) {
         // Mode selection dialog is currently open: close it and reset state
         modules.editHeightmap = false;
-        closeAlert();
+        heightmapEditModeStore.getState().close();
       } else {
         editHeightmap();
       }
