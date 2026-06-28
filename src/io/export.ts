@@ -44,8 +44,9 @@ export async function exportToPng(): Promise<void> {
     const link = document.createElement("a");
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d")!;
-    canvas.width = viewContext.svgWidth * pngResolutionInput.valueAsNumber;
-    canvas.height = viewContext.svgHeight * pngResolutionInput.valueAsNumber;
+    const resolution = +(document.getElementById("pngResolutionInput") as HTMLInputElement)?.value || 1;
+    canvas.width = viewContext.svgWidth * resolution;
+    canvas.height = viewContext.svgHeight * resolution;
 
     const blob = await new Promise<Blob>((resolve, reject) => {
       const img = new Image();
@@ -88,10 +89,11 @@ export async function exportToJpeg(): Promise<void> {
     const url = await getMapURL("png");
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d")!;
-    canvas.width = viewContext.svgWidth * pngResolutionInput.valueAsNumber;
-    canvas.height = viewContext.svgHeight * pngResolutionInput.valueAsNumber;
+    const resolution = +(document.getElementById("pngResolutionInput") as HTMLInputElement)?.value || 1;
+    canvas.width = viewContext.svgWidth * resolution;
+    canvas.height = viewContext.svgHeight * resolution;
 
-    const quality = Math.min(rn(1 - pngResolutionInput.valueAsNumber / 20, 2), 0.92);
+    const quality = Math.min(rn(1 - resolution / 20, 2), 0.92);
     const blob = await new Promise<Blob>((resolve, reject) => {
       const img = new Image();
       img.onload = () => {
