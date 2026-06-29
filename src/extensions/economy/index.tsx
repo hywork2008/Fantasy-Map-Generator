@@ -12,6 +12,7 @@ import { drawGoods } from "./renderers/draw-goods";
 import { drawMarketsLayer } from "./renderers/draw-markets";
 import { clear as clearTradeAnimation, draw as drawTradeAnimation } from "./renderers/draw-trade-animation";
 import { showEconomyTooltip, updateEconomyCellInfo } from "./tooltipHandler";
+import { GoodsDistributionEditorDialog } from "./ui/dialogs/GoodsDistributionEditorDialog";
 import { GoodsEditorDialog } from "./ui/dialogs/GoodsEditorDialog";
 import { GoodsProducersDialog } from "./ui/dialogs/GoodsProducersDialog";
 import { GoodsStockDialog } from "./ui/dialogs/GoodsStockDialog";
@@ -122,6 +123,11 @@ export function init(api: ExtensionAPI): void {
 
   // Register Economy Dialogs
   api.registerDialog({ id: "GoodsEditorDialog", extensionId: ECONOMY_EXTENSION_ID, component: GoodsEditorDialog });
+  api.registerDialog({
+    id: "GoodsDistributionEditorDialog",
+    extensionId: ECONOMY_EXTENSION_ID,
+    component: GoodsDistributionEditorDialog
+  });
   api.registerDialog({
     id: "GoodsProducersDialog",
     extensionId: ECONOMY_EXTENSION_ID,
@@ -309,6 +315,7 @@ export function init(api: ExtensionAPI): void {
 
       // Close all economy-related dialogs
       api.closeDialog("goodsEditor");
+      api.closeDialog("goodsDistributionEditor");
       api.closeDialog("marketsOverview");
       api.closeDialog("marketOverview");
       api.closeDialog("marketDeals");

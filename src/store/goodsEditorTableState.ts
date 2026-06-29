@@ -26,6 +26,8 @@ interface GoodsEditorTableState {
   displayedCount: number;
   isPercentageMode: boolean;
   hasTagFilter: boolean;
+  isAssignMode: boolean;
+  selectedAssignGoodId: number | null;
 }
 
 export const useGoodsEditorTableState = create<GoodsEditorTableState>(() => ({
@@ -34,7 +36,9 @@ export const useGoodsEditorTableState = create<GoodsEditorTableState>(() => ({
   totalStock: 0,
   displayedCount: 0,
   isPercentageMode: false,
-  hasTagFilter: false
+  hasTagFilter: false,
+  isAssignMode: false,
+  selectedAssignGoodId: null
 }));
 
 export const getGoodsEditorTableState = useGoodsEditorTableState.getState;

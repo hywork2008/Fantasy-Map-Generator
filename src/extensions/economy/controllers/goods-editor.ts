@@ -15,6 +15,7 @@ import { Markets } from "../generators/markets-generator";
 import { isDealRecord, isMfgRecord, Production } from "../generators/production-generator";
 import { getCellProduction } from "../generators/production-utils";
 import { drawGoods } from "../renderers/draw-goods";
+import { DistributionEditor } from "./goods-distribution-editor";
 
 const viewbox = () => getViewContext().viewbox;
 const worldContext = () => getWorldContext();
@@ -26,6 +27,13 @@ let displayedGoodsInitialized = false;
 function refreshEditor(): void {
   goodsEditorAddLines();
   drawGoods(displayedGoods);
+}
+
+function regenerateEconomyForGood(goodId: number): void {
+  Goods.regeneratePlacement(goodId);
+  Markets.generate(true);
+  Production.produce();
+  refreshEditor();
 }
 
 function ensureDisplayedGoodsInitialized(): void {
@@ -48,6 +56,7 @@ export function open(): void {
 }
 
 export function goodsEditorAddLines(): void {
+  const { isAssignMode, selectedAssignGoodId } = getGoodsEditorTableState();
   const production = getProduction();
   const stockData = getAllStockData();
 
@@ -93,7 +102,9 @@ export function goodsEditorAddLines(): void {
     totalStock,
     displayedCount: displayedGoods.size,
     isPercentageMode: false,
-    hasTagFilter: visibleTags.size > 0
+    hasTagFilter: visibleTags.size > 0,
+    isAssignMode,
+    selectedAssignGoodId
   });
 
   setTimeout(() => {
@@ -273,26 +284,19 @@ export function togglePercentageMode(): void {
   }
 }
 
-export function enterResourceAssignMode(this: HTMLElement): void {
-  if (this.classList.contains("pressed")) {
+export function enterResourceAssignMode(): void {
+  const { isAssignMode } = getGoodsEditorTableState();
+  if (isAssignMode) {
     exitResourceAssignMode();
     return;
   }
   getViewContext().customization = 14;
-  this.classList.add("pressed");
+  setGoodsEditorTableState({ isAssignMode: true, selectedAssignGoodId: null });
   if (!layerIsOn("toggleGoods")) getApi().toggleLayerById("toggleGoods");
   if (!layerIsOn("toggleCells")) {
     (document.getElementById("toggleCells") as HTMLButtonElement).dataset.forced = "true";
     toggleCells();
   }
-
-  document
-    .getElementById("goodsEditor")!
-    .querySelectorAll(".hide")
-    .forEach(el => {
-      el.classList.add("hidden");
-    });
-  document.getElementById("goodsHeader")!.style.cssText = "grid-template-columns: 7.5em 6em; margin-left: 22px;";
 
   tip("Select good line in editor, click on cells to remove or add a bonus resource", true);
   viewbox().on("click.goodsAssign", (event: MouseEvent) => {
@@ -300,35 +304,30 @@ export function enterResourceAssignMode(this: HTMLElement): void {
     const cellId = findCell(point[0], point[1]);
     if (cellId === undefined) return;
 
-    const body = document.getElementById("goodsBody")!;
-    const selected = body.querySelector<HTMLElement>("div.selected");
-    if (!selected) return;
+    const selectedGoodId = getGoodsEditorTableState().selectedAssignGoodId;
+    if (!selectedGoodId) return;
 
     if (worldContext().pack.cells.good[cellId]) {
       worldContext().pack.cells.good[cellId] = 0;
     } else {
-      const resourceId = +selected.dataset.id!;
-      const resource = Goods.get(resourceId);
+      const resource = Goods.get(selectedGoodId);
       if (!resource) return;
-      worldContext().pack.cells.good[cellId] = resourceId;
-      displayedGoods.add(resourceId);
+      worldContext().pack.cells.good[cellId] = selectedGoodId;
+      displayedGoods.add(selectedGoodId);
     }
 
     drawGoods(displayedGoods);
   });
 }
 
-export function handleGoodRowClick(el: HTMLElement): void {
+export function handleGoodRowClick(goodId: number): void {
   if (getViewContext().customization !== 14) return;
-  const body = document.getElementById("goodsBody")!;
-  body.querySelector<HTMLElement>("div.selected")?.classList.remove("selected");
-  el.classList.add("selected");
+  setGoodsEditorTableState({ selectedAssignGoodId: goodId });
 }
 
 function exitResourceAssignMode(close?: string): void {
-  const body = document.getElementById("goodsBody")!;
   getViewContext().customization = 0;
-  document.getElementById("goodsAssign")!.classList.remove("pressed");
+  setGoodsEditorTableState({ isAssignMode: false, selectedAssignGoodId: null });
 
   if (layerIsOn("toggleCells")) {
     const toggler = document.getElementById("toggleCells") as HTMLButtonElement;
@@ -336,22 +335,12 @@ function exitResourceAssignMode(close?: string): void {
     delete toggler.dataset.forced;
   }
 
-  document
-    .getElementById("goodsEditor")!
-    .querySelectorAll(".hide")
-    .forEach(el => {
-      el.classList.remove("hidden");
-    });
-  document.getElementById("goodsHeader")!.style.cssText = "grid-template-columns: 4em 7.4em 7em 6.8em 6em 4.6em 1.6em;";
-
   viewbox().on("click.goodsAssign", null);
 
   if (!close) goodsEditorAddLines();
 
   restoreDefaultEvents();
   clearMainTip();
-  const selected = body.querySelector("div.selected");
-  if (selected) selected.classList.remove("selected");
 }
 
 export function downloadGoodsData(): void {
@@ -426,6 +415,69 @@ export function requestProductionRegeneration(): void {
       Production.produce();
       refreshEditor();
     }
+  });
+}
+
+export function editGoodDistribution(goodId: number): void {
+  const good = Goods.get(goodId);
+  if (!good) return;
+
+  DistributionEditor.open(
+    draft => {
+      const normalizedDistribution = draft.distribution.trim();
+      good.name = draft.name;
+      good.color = draft.color;
+      good.icon = draft.icon;
+      good.value = Math.max(0, draft.value);
+      good.unit = draft.unit;
+      good.tags = draft.tagsText
+        .split(",")
+        .map(tag => tag.trim())
+        .filter(Boolean);
+      good.distribution = normalizedDistribution || undefined;
+      good.chance = good.distribution ? Math.max(0, Math.min(100, draft.chance)) : undefined;
+
+      Goods.sync();
+      regenerateEconomyForGood(good.i);
+    },
+    {
+      dialogTitle: `Edit ${good.name}`,
+      name: good.name,
+      color: good.color,
+      icon: good.icon,
+      value: good.value,
+      unit: good.unit,
+      tagsText: (good.tags || []).join(", "),
+      chance: good.chance ?? 4,
+      distribution: good.distribution ?? ""
+    }
+  );
+}
+
+export function addGood(): void {
+  DistributionEditor.open(draft => {
+    const goods = worldContext().pack.goods || [];
+    const nextId = goods.reduce((maxId, existingGood) => Math.max(maxId, existingGood.i), 0) + 1;
+    const normalizedDistribution = draft.distribution.trim();
+
+    worldContext().pack.goods.push({
+      i: nextId,
+      name: draft.name,
+      tags: draft.tagsText
+        .split(",")
+        .map(tag => tag.trim())
+        .filter(Boolean),
+      value: Math.max(0, draft.value),
+      unit: draft.unit.trim() || "unit",
+      icon: draft.icon.trim() || "good-wood",
+      color: draft.color,
+      chance: normalizedDistribution ? Math.max(0, Math.min(100, draft.chance)) : undefined,
+      distribution: normalizedDistribution || undefined
+    });
+
+    Goods.sync();
+    displayedGoods.add(nextId);
+    regenerateEconomyForGood(nextId);
   });
 }
 

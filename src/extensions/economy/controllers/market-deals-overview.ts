@@ -1,16 +1,16 @@
 import { downloadFile, getFileName } from "../../../controllers/editors";
-import { type MarketDealRow, setMarketDealsState } from "../../../store/marketDealsState";
+import { type MarketDealRow, type MarketDealsFilter, setMarketDealsState } from "../../../store/marketDealsState";
 import type { Burg } from "../../../types/models";
+import { openDialog } from "../../../ui/dialogs/dialogService";
 import { rn } from "../../../utils";
-import { applySorting, tip } from "../../../utils/uiHelpers";
+import { tip } from "../../../utils/uiHelpers";
 import { getApi, getWorldContext } from "../economyContext";
 import { Goods } from "../generators/goods-generator";
 import type { Deal } from "../generators/markets-generator";
 import { Markets } from "../generators/markets-generator";
 
-let isInitialized = false;
 let activeMarketId = 0;
-let activeFilter: "all" | "local" | "global" = "all";
+let activeFilter: MarketDealsFilter = "all";
 
 export function open(marketId: number): void {
   const market = Markets.get(marketId);
@@ -20,31 +20,11 @@ export function open(marketId: number): void {
   }
 
   activeMarketId = marketId;
-  activeFilter = "all";
-  (document.getElementById("marketDealsFilter") as HTMLSelectElement).value = "all";
-  marketDealsAddLines();
-
-  if (!isInitialized) {
-    document.getElementById("marketDealsRefresh")!.addEventListener("click", marketDealsAddLines);
-    document.getElementById("marketDealsExport")!.addEventListener("click", downloadDealsCsv);
-    document.getElementById("marketDealsBody")!.addEventListener("click", (ev: MouseEvent) => {
-      const el = ev.target as HTMLElement;
-      const row = el.closest<HTMLElement>(".marketDealParty")?.parentElement;
-      if (!row) return;
-      const deal = getWorldContext().pack.deals.find(d => d.i === Number(row.dataset.id));
-      if (!deal) return;
-      const party = getParty(deal);
-      if (party) getApi().zoomTo(party.x, party.y, 8, 2000);
-    });
-    document.getElementById("marketDealsFilter")!.addEventListener("change", (ev: Event) => {
-      activeFilter = (ev.target as HTMLSelectElement).value as typeof activeFilter;
-      marketDealsAddLines();
-    });
-    isInitialized = true;
-  }
+  setActiveMarketDealsFilter("all");
+  openDialog("marketDeals");
 }
 
-function marketDealsAddLines(): void {
+export function refreshMarketDeals(): void {
   const market = Markets.get(activeMarketId);
   if (!market) {
     tip("Invalid market. The selected market does not exist", true, "error", 5000);
@@ -73,6 +53,7 @@ function marketDealsAddLines(): void {
     rows,
     dealsCount: deals.length,
     netFlow: rn(netFlow, 2),
+    activeFilter,
     onRowClick: (row: MarketDealRow) => {
       const deal = getWorldContext().pack.deals.find(d => d.i === row.id);
       if (!deal) return;
@@ -80,11 +61,12 @@ function marketDealsAddLines(): void {
       if (party) getApi().zoomTo(party.x, party.y, 8, 2000);
     }
   });
+}
 
-  setTimeout(() => {
-    const header = document.getElementById("marketDealsHeader");
-    if (header) applySorting(header);
-  }, 0);
+export function setActiveMarketDealsFilter(filter: MarketDealsFilter): void {
+  activeFilter = filter;
+  setMarketDealsState({ activeFilter });
+  if (activeMarketId) refreshMarketDeals();
 }
 
 function getMarketDeals(marketId: number): Deal[] {
@@ -146,7 +128,7 @@ function getDealNet(deal: Deal): number {
   return rn(deal.units * deal.price * (isMarketSeller(deal) ? 1 : -1), 2);
 }
 
-function downloadDealsCsv(): void {
+export function downloadDealsCsv(): void {
   const market = Markets.get(activeMarketId);
   if (!market) return;
 

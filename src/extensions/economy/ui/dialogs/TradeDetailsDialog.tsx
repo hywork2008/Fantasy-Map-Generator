@@ -1,4 +1,4 @@
-import type React from "react";
+import React from "react";
 import { useDialogState } from "../../../../store/dialogState";
 import { useTradeDetailsState } from "../../../../store/tradeDetailsState";
 import { Dialog } from "../../../../ui/dialogs/Dialog";
@@ -13,6 +13,33 @@ export const TradeDetailsDialog: React.FC = () => {
   const distance = useTradeDetailsState(state => state.distance);
   const totalUnits = useTradeDetailsState(state => state.totalUnits);
   const totalValue = useTradeDetailsState(state => state.totalValue);
+  const sortBy = useTradeDetailsState(state => state.sortBy);
+  const sortDirection = useTradeDetailsState(state => state.sortDirection);
+
+  const setSorting = (nextSortBy: "good" | "units" | "price" | "value") => {
+    useTradeDetailsState.setState(state => ({
+      sortBy: nextSortBy,
+      sortDirection: state.sortBy === nextSortBy ? state.sortDirection * -1 : nextSortBy === "good" ? 1 : -1
+    }));
+  };
+
+  const sortedRows = React.useMemo(() => {
+    const nextRows = [...rows];
+    nextRows.sort((left, right) => {
+      const leftValue = sortBy === "good" ? left.goodName.toLowerCase() : left[sortBy];
+      const rightValue = sortBy === "good" ? right.goodName.toLowerCase() : right[sortBy];
+      if (leftValue < rightValue) return -1 * sortDirection;
+      if (leftValue > rightValue) return 1 * sortDirection;
+      return 0;
+    });
+    return nextRows;
+  }, [rows, sortBy, sortDirection]);
+
+  const getSortIcon = (field: "good" | "units" | "price" | "value", alphabetical = false) => {
+    if (sortBy !== field) return "";
+    if (alphabetical) return sortDirection === 1 ? "icon-sort-name-up" : "icon-sort-name-down";
+    return sortDirection === 1 ? "icon-sort-number-up" : "icon-sort-number-down";
+  };
 
   return (
     <Dialog
@@ -43,25 +70,37 @@ export const TradeDetailsDialog: React.FC = () => {
           <div />
           <div
             data-tip="Click to sort by good"
-            className="sortable alphabetically"
-            data-sortby="good"
+            className={`sortable alphabetically ${getSortIcon("good", true)}`}
             style={{ marginLeft: 0 }}
+            onClick={() => setSorting("good")}
           >
             Good&nbsp;
           </div>
-          <div data-tip="Click to sort by units" className="sortable icon-sort-number-down" data-sortby="units">
+          <div
+            data-tip="Click to sort by units"
+            className={`sortable ${getSortIcon("units")}`}
+            onClick={() => setSorting("units")}
+          >
             Units&nbsp;
           </div>
-          <div data-tip="Click to sort by unit price" className="sortable" data-sortby="price">
+          <div
+            data-tip="Click to sort by unit price"
+            className={`sortable ${getSortIcon("price")}`}
+            onClick={() => setSorting("price")}
+          >
             Price&nbsp;
           </div>
-          <div data-tip="Click to sort by value" className="sortable" data-sortby="value">
+          <div
+            data-tip="Click to sort by value"
+            className={`sortable ${getSortIcon("value")}`}
+            onClick={() => setSorting("value")}
+          >
             Value&nbsp;
           </div>
         </div>
 
         <div id="tradeDetailsBody" className="table" style={{ maxHeight: "30em" }}>
-          {rows.map(row => (
+          {sortedRows.map(row => (
             <div
               key={row.goodId}
               className="states tradeDeal"

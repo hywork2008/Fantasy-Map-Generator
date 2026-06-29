@@ -19,6 +19,9 @@ export interface MarketsOverviewState {
   sortBy: string;
   sortDirection: number;
   isPercentageMode: boolean;
+  mode: "default" | "manual" | "add";
+  selectedMarketId: number | null;
+  brushSize: number;
   markets: MarketRowData[];
   totalMarkets: number;
   avgSales: number;
@@ -31,6 +34,9 @@ export const useMarketsOverviewState = create<MarketsOverviewState>(() => ({
   sortBy: "market",
   sortDirection: 1,
   isPercentageMode: false,
+  mode: "default",
+  selectedMarketId: null,
+  brushSize: 20,
   markets: [],
   totalMarkets: 0,
   avgSales: 0,

@@ -1,9 +1,9 @@
 import type { Point } from "../../../generators/voronoi";
+import { useOptionsState } from "../../../store/optionsState";
 import { setTradeDetailsState } from "../../../store/tradeDetailsState";
 import type { Burg } from "../../../types/models";
 import { openDialog } from "../../../ui/dialogs/dialogService";
 import { rn } from "../../../utils";
-import { applySorting } from "../../../utils/uiHelpers";
 import { getApi, getWorldContext } from "../economyContext";
 import { Goods } from "../generators/goods-generator";
 import type { Deal } from "../generators/markets-generator";
@@ -81,8 +81,7 @@ function tradeDetailsAddLines(points: Point[]): void {
     2
   );
 
-  const distanceUnitEl = document.getElementById("distanceUnitInput") as HTMLSelectElement | null;
-  const distUnit = distanceUnitEl?.value ?? "km";
+  const distUnit = useOptionsState.getState().distanceUnit || "km";
 
   setTradeDetailsState({
     summary: {
@@ -104,11 +103,6 @@ function tradeDetailsAddLines(points: Point[]): void {
     totalUnits: rn(totalUnits, 2),
     totalValue
   });
-
-  setTimeout(() => {
-    const header = document.getElementById("tradeDetailsHeader");
-    if (header) applySorting(header);
-  }, 0);
 }
 
 function getClientType(deal: Deal, burg: Burg, direction: "from" | "to"): string {

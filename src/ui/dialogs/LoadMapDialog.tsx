@@ -130,7 +130,6 @@ export const LoadMapDialog: React.FC = () => {
 
         <div style={{ marginTop: "0.3em" }}>
           <div id="sharableLinkContainer" style={{ display: isSharableLinkVisible ? "block" : "none" }}>
-            {/* biome-ignore lint/a11y/useValidAnchor: href is set dynamically by legacy JS before the link is displayed */}
             <a id="sharableLink" href={sharableLinkUrl || "#"} target="_blank" rel="noreferrer">
               {sharableLinkLabel || " "}
             </a>

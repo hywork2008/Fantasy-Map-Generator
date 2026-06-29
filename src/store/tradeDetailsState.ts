@@ -26,6 +26,8 @@ interface TradeDetailsState {
   distance: string;
   totalUnits: number;
   totalValue: number;
+  sortBy: "good" | "units" | "price" | "value";
+  sortDirection: number;
 }
 
 export const useTradeDetailsState = create<TradeDetailsState>(() => ({
@@ -33,7 +35,9 @@ export const useTradeDetailsState = create<TradeDetailsState>(() => ({
   rows: [],
   distance: "",
   totalUnits: 0,
-  totalValue: 0
+  totalValue: 0,
+  sortBy: "units",
+  sortDirection: -1
 }));
 
 export const getTradeDetailsState = useTradeDetailsState.getState;

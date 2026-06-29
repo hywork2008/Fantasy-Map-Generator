@@ -5,8 +5,10 @@ import { Dialog } from "../../../../ui/dialogs/Dialog";
 import { closeDialog } from "../../../../ui/dialogs/dialogService";
 import { rn } from "../../../../utils";
 import {
+  addGood,
   closeGoodsEditor,
   downloadGoodsData,
+  editGoodDistribution,
   enterResourceAssignMode,
   goodsEditorAddLines,
   goodsRestoreDefaults,
@@ -45,8 +47,16 @@ const TypeBadge: React.FC<{ type: string }> = ({ type }) => {
 
 export const GoodsEditorDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("goodsEditor"));
-  const { goods, totalProduced, totalStock, displayedCount, isPercentageMode, hasTagFilter } =
-    useGoodsEditorTableState();
+  const {
+    goods,
+    totalProduced,
+    totalStock,
+    displayedCount,
+    isPercentageMode,
+    hasTagFilter,
+    isAssignMode,
+    selectedAssignGoodId
+  } = useGoodsEditorTableState();
 
   React.useEffect(() => {
     if (isOpen) openGoodsEditor();
@@ -60,11 +70,18 @@ export const GoodsEditorDialog: React.FC = () => {
   return (
     <Dialog isOpen={isOpen} title="Goods Editor" onClose={handleClose}>
       <div id="goodsEditorContainer">
-        <div id="goodsHeader" className="header" style={{ gridTemplateColumns: "4em 7.4em 7em 6.8em 6em 4.6em 1.6em" }}>
+        <div
+          id="goodsHeader"
+          className="header"
+          style={{
+            gridTemplateColumns: isAssignMode ? "7.5em 6em" : "4em 7.4em 7em 6.8em 6em 4.6em 1.6em",
+            marginLeft: isAssignMode ? 22 : undefined
+          }}
+        >
           <input
             type="checkbox"
             data-tip="Show or hide all goods on the Goods map"
-            className="native hide"
+            className={`native hide${isAssignMode ? " hidden" : ""}`}
             id="goodsDisplayAll"
             style={{ margin: "0 .3em", verticalAlign: "middle", width: "1.2em" }}
             checked={goods.length > 0 && displayedCount === goods.length}
@@ -81,19 +98,23 @@ export const GoodsEditorDialog: React.FC = () => {
           </div>
           <div
             data-tip="Total production units aggregated from cells and burgs. Click to sort"
-            className="sortable icon-sort-number-down hide"
+            className={`sortable icon-sort-number-down hide${isAssignMode ? " hidden" : ""}`}
             data-sortby="produced"
           >
             Produced&nbsp;
           </div>
           <div
             data-tip="Total units in stock across all markets and burg inventories. Click to sort"
-            className="sortable hide"
+            className={`sortable hide${isAssignMode ? " hidden" : ""}`}
             data-sortby="stock"
           >
             Stock&nbsp;
           </div>
-          <div data-tip="Base (initial) price. Click to sort" className="sortable hide" data-sortby="baseprice">
+          <div
+            data-tip="Base (initial) price. Click to sort"
+            className={`sortable hide${isAssignMode ? " hidden" : ""}`}
+            data-sortby="baseprice"
+          >
             Price&nbsp;
           </div>
         </div>
@@ -115,7 +136,7 @@ export const GoodsEditorDialog: React.FC = () => {
             return (
               <div
                 key={good.i}
-                className={`states goods${good.isTagVisible ? "" : " hidden"}`}
+                className={`states goods${good.isTagVisible ? "" : " hidden"}${isAssignMode && selectedAssignGoodId === good.i ? " selected" : ""}`}
                 data-id={good.i}
                 data-name={good.name}
                 data-color={good.color}
@@ -124,12 +145,12 @@ export const GoodsEditorDialog: React.FC = () => {
                 data-stock={good.stock}
                 data-type={good.types.join(",")}
                 data-tags={good.tags.join(",")}
-                onClick={e => handleGoodRowClick(e.currentTarget as HTMLElement)}
+                onClick={() => handleGoodRowClick(good.i)}
               >
                 <input
                   type="checkbox"
                   data-tip="Toggle this good on the Goods map"
-                  className="native goodDisplayed hide"
+                  className={`native goodDisplayed hide${isAssignMode ? " hidden" : ""}`}
                   style={{ padding: 0, margin: 0, verticalAlign: "middle", width: "1.2em" }}
                   checked={good.isDisplayed}
                   onChange={e => {
@@ -151,7 +172,7 @@ export const GoodsEditorDialog: React.FC = () => {
                 </div>
                 <div
                   data-tip={`${good.producedTip}. Click to see burgs producing this good`}
-                  className="goodProduced pointer hide"
+                  className={`goodProduced pointer hide${isAssignMode ? " hidden" : ""}`}
                   style={{ verticalAlign: "middle" }}
                   onClick={e => {
                     e.stopPropagation();
@@ -163,7 +184,7 @@ export const GoodsEditorDialog: React.FC = () => {
                 </div>
                 <div
                   data-tip={`${good.stockTip}. Click to see breakdown by location`}
-                  className="goodStock pointer hide"
+                  className={`goodStock pointer hide${isAssignMode ? " hidden" : ""}`}
                   style={{ verticalAlign: "middle" }}
                   onClick={e => {
                     e.stopPropagation();
@@ -175,15 +196,22 @@ export const GoodsEditorDialog: React.FC = () => {
                 </div>
                 <div
                   data-tip="Base (initial) price. Click to compare prices across markets"
-                  className="goodBasePrice pointer hide"
+                  className={`goodBasePrice pointer hide${isAssignMode ? " hidden" : ""}`}
                   onClick={e => e.stopPropagation()}
                 >
                   🟡 {good.basePrice}
                 </div>
-                <span data-tip="Edit good" className="icon-pencil goodEdit hide" onClick={e => e.stopPropagation()} />
+                <span
+                  data-tip="Edit good distribution"
+                  className={`icon-pencil goodEdit hide${isAssignMode ? " hidden" : ""}`}
+                  onClick={e => {
+                    e.stopPropagation();
+                    editGoodDistribution(good.i);
+                  }}
+                />
                 <span
                   data-tip="Remove good"
-                  className="icon-trash-empty hide goodRemove"
+                  className={`icon-trash-empty hide goodRemove${isAssignMode ? " hidden" : ""}`}
                   onClick={e => {
                     e.stopPropagation();
                     removeGood(good.i);
@@ -194,7 +222,7 @@ export const GoodsEditorDialog: React.FC = () => {
           })}
         </div>
 
-        <div id="goodsFooter" className="totalLine hide">
+        <div id="goodsFooter" className={`totalLine hide${isAssignMode ? " hidden" : ""}`}>
           <div data-tip="Number of goods (displayed / total)" style={{ marginLeft: 5 }}>
             Goods:&nbsp;<span id="goodsDisplayed">{displayedCount}</span> of{" "}
             <span id="goodsNumber">{goods.length}</span>
@@ -233,44 +261,48 @@ export const GoodsEditorDialog: React.FC = () => {
             type="button"
             id="goodsAssign"
             data-tip="Manually assign goods to cells"
-            className="icon-brush"
-            onClick={function (this: HTMLElement) {
-              enterResourceAssignMode.call(this);
-            }}
+            className={`icon-brush${isAssignMode ? " pressed" : ""}`}
+            onClick={enterResourceAssignMode}
           />
-          <button type="button" id="goodsAdd" data-tip="Add a new good" className="icon-plus hide" />
+          <button
+            type="button"
+            id="goodsAdd"
+            data-tip="Add a new good"
+            className={`icon-plus hide${isAssignMode ? " hidden" : ""}`}
+            onClick={addGood}
+          />
           <button
             type="button"
             id="goodsRegenerateGoods"
             data-tip="Regenerate bonus goods placement"
-            className="icon-arrows-cw hide"
+            className={`icon-arrows-cw hide${isAssignMode ? " hidden" : ""}`}
             onClick={requestGoodsRegeneration}
           />
           <button
             type="button"
             id="goodsRegenerateProduction"
             data-tip="Regenerate production and trade deals"
-            className="icon-retweet hide"
+            className={`icon-retweet hide${isAssignMode ? " hidden" : ""}`}
             onClick={requestProductionRegeneration}
           />
           <button
             type="button"
             id="goodsChains"
             data-tip="Show production chains graph"
-            className="icon-chart-line hide"
+            className={`icon-chart-line hide${isAssignMode ? " hidden" : ""}`}
           />
           <button
             type="button"
             id="goodsRestore"
             data-tip="Restore default list and regenerate goods"
-            className="icon-history hide"
+            className={`icon-history hide${isAssignMode ? " hidden" : ""}`}
             onClick={goodsRestoreDefaults}
           />
           <button
             type="button"
             id="goodsExport"
             data-tip="Download goods-related data"
-            className="icon-download hide"
+            className={`icon-download hide${isAssignMode ? " hidden" : ""}`}
             onClick={downloadGoodsData}
           />
         </div>

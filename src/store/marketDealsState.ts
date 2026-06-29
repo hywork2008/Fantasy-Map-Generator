@@ -1,5 +1,7 @@
 import { create } from "zustand";
 
+export type MarketDealsFilter = "all" | "local" | "global";
+
 export interface MarketDealRow {
   id: number;
   goodId: number;
@@ -20,6 +22,7 @@ interface MarketDealsState {
   rows: MarketDealRow[];
   dealsCount: number;
   netFlow: number;
+  activeFilter: MarketDealsFilter;
   onRowClick: (row: MarketDealRow) => void;
 }
 
@@ -27,6 +30,7 @@ export const useMarketDealsState = create<MarketDealsState>(() => ({
   rows: [],
   dealsCount: 0,
   netFlow: 0,
+  activeFilter: "all",
   onRowClick: () => {}
 }));
 

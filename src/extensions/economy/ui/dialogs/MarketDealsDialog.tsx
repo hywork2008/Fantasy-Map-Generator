@@ -1,21 +1,38 @@
-import type React from "react";
+import React from "react";
 import { useDialogState } from "../../../../store/dialogState";
 import { type MarketDealRow, useMarketDealsState } from "../../../../store/marketDealsState";
 import { Dialog } from "../../../../ui/dialogs/Dialog";
 import { closeDialog } from "../../../../ui/dialogs/dialogService";
 import { formatPrice } from "../../../../utils";
+import { applySorting } from "../../../../utils/uiHelpers";
+import {
+  downloadDealsCsv,
+  refreshMarketDeals,
+  setActiveMarketDealsFilter
+} from "../../controllers/market-deals-overview";
 
 export const MarketDealsDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("marketDeals"));
   const rows = useMarketDealsState(state => state.rows);
   const dealsCount = useMarketDealsState(state => state.dealsCount);
   const netFlow = useMarketDealsState(state => state.netFlow);
+  const activeFilter = useMarketDealsState(state => state.activeFilter);
   const onRowClick = useMarketDealsState(state => state.onRowClick);
+  const headerRef = React.useRef<HTMLDivElement | null>(null);
+
+  React.useEffect(() => {
+    if (isOpen && headerRef.current) applySorting(headerRef.current);
+  }, [isOpen]);
 
   return (
     <Dialog isOpen={isOpen} title="Market Deals" onClose={() => closeDialog("marketDeals")}>
       <div id="marketDealsContainer">
-        <div id="marketDealsHeader" className="header" style={{ gridTemplateColumns: "2em 6.8em 4em 10em 4em 4em" }}>
+        <div
+          id="marketDealsHeader"
+          ref={headerRef}
+          className="header"
+          style={{ gridTemplateColumns: "2em 6.8em 4em 10em 4em 4em" }}
+        >
           <div />
           <div
             data-tip="Click to sort by good"
@@ -57,14 +74,27 @@ export const MarketDealsDialog: React.FC = () => {
         </div>
 
         <div id="marketDealsBottom">
-          <button type="button" id="marketDealsRefresh" data-tip="Refresh the Deals screen" className="icon-cw" />
+          <button
+            type="button"
+            id="marketDealsRefresh"
+            data-tip="Refresh the Deals screen"
+            className="icon-cw"
+            onClick={refreshMarketDeals}
+          />
           <button
             type="button"
             id="marketDealsExport"
             data-tip="Save market deals data as a text file (.csv)"
             className="icon-download"
+            onClick={downloadDealsCsv}
           />
-          <select id="marketDealsFilter" data-tip="Filter deals by scope" style={{ marginLeft: 8 }}>
+          <select
+            id="marketDealsFilter"
+            data-tip="Filter deals by scope"
+            style={{ marginLeft: 8 }}
+            value={activeFilter}
+            onChange={e => setActiveMarketDealsFilter(e.target.value as "all" | "local" | "global")}
+          >
             <option value="all">All</option>
             <option value="local">Local</option>
             <option value="global">Global</option>

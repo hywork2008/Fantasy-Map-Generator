@@ -1,7 +1,6 @@
 import { color, type D3DragEvent, drag, pointer } from "d3";
 import {
   closeDialogs,
-  confirmationDialog,
   downloadFile,
   getFileName,
   moveCircle,
@@ -21,7 +20,9 @@ import { clearMainTip, showMainTip, tip } from "../../../utils/uiHelpers";
 import { getApi, getMarketsLayer, getViewContext, getWorldContext } from "../economyContext";
 import type { Deal, Market } from "../generators/markets-generator";
 import { Markets } from "../generators/markets-generator";
+import { Production } from "../generators/production-generator";
 import { drawMarketsLayer, highlightMarketOff, highlightMarketOn } from "../renderers/draw-markets";
+import { open as openMarketsGoodCompare } from "./marketsGoodCompare";
 
 let isInitialized = false;
 // Working copy of getWorldContext().pack.cells.market mutated during manual assignment; applied on commit.
@@ -35,7 +36,7 @@ export function open(): void {
 
   marketsOverviewAddLines();
 
-  setMarketsOverviewState({ isOpen: true });
+  setMarketsOverviewState({ isOpen: true, mode: "default" });
   openDialog("marketsOverview", {
     title: "Markets Overview",
     resizable: false,
@@ -61,7 +62,8 @@ function marketsOverviewAddLines(): void {
       totalMarkets: 0,
       avgSales: 0,
       avgBuys: 0,
-      avgValue: 0
+      avgValue: 0,
+      selectedMarketId: null
     });
     return;
   }
@@ -114,12 +116,19 @@ function marketsOverviewAddLines(): void {
   });
 
   const count = markets.length;
+  const prevSelectedMarketId = getMarketsOverviewState().selectedMarketId;
+  const nextSelectedMarketId =
+    prevSelectedMarketId !== null && rowData.some(row => row.i === prevSelectedMarketId)
+      ? prevSelectedMarketId
+      : (rowData.find(row => !row.isNoMarket)?.i ?? rowData[0]?.i ?? null);
+
   setMarketsOverviewState({
     markets: rowData,
     totalMarkets: count,
     avgSales: count ? rn(totalSales / count, 2) : 0,
     avgBuys: count ? rn(totalBuys / count, 2) : 0,
-    avgValue: count ? rn(totalValue / count, 2) : 0
+    avgValue: count ? rn(totalValue / count, 2) : 0,
+    selectedMarketId: nextSelectedMarketId
   });
 
   // delay sorting apply to after react render if possible, but leaving out for now.
@@ -135,28 +144,10 @@ function enterMarketsManualAssignment(): void {
   marketsWorking = Uint16Array.from(getWorldContext().pack.cells.market);
   renderMarketsTemp();
 
-  document.querySelectorAll<HTMLElement>("#marketsOverviewBottom > button").forEach(b => {
-    b.style.display = "none";
-  });
-  document.getElementById("marketsManuallyButtons")!.style.display = "block";
-  document.getElementById("marketsBrush")!.style.display = "inline-block";
-  document.getElementById("marketsManually")!.classList.add("pressed");
-  document.getElementById("marketsOverviewFooter")!.style.display = "none";
-
-  document.getElementById("marketsOverviewHeader")!.style.gridTemplateColumns = "1.6em 7.2em 8em 3.5em";
-  document
-    .getElementById("marketsOverview")!
-    .querySelectorAll(".hide")
-    .forEach(el => {
-      el.classList.add("hidden");
-    });
+  const firstMarketId = getMarketsOverviewState().markets.find(row => !row.isNoMarket)?.i ?? 0;
+  setMarketsOverviewState({ mode: "manual", selectedMarketId: firstMarketId });
 
   tip('Click a market row (or "No market") to select it, then drag on the map to repaint territory', true);
-
-  const firstRow = document
-    .getElementById("marketsOverviewBody")!
-    .querySelector<HTMLElement>('.states.market:not([data-id="0"])');
-  if (firstRow) firstRow.classList.add("selected");
 
   getViewContext()
     .viewbox.style("cursor", "crosshair")
@@ -180,22 +171,17 @@ function selectMarketOnMapClick(this: SVGGElement, event: MouseEvent): void {
 
   const marketId = (marketsWorking ?? getWorldContext().pack.cells.market)[cellId];
 
-  const body = document.getElementById("marketsOverviewBody")!;
-  body.querySelector<HTMLElement>(".states.market.selected")?.classList.remove("selected");
-  body.querySelector<HTMLElement>(`.states.market[data-id="${marketId}"]`)?.classList.add("selected");
+  setMarketsOverviewState({ selectedMarketId: marketId });
 }
 
 function startMarketsBrushDrag(this: SVGGElement, event: D3DragEvent<SVGGElement, unknown, unknown>): void {
-  const selectedRow = document
-    .getElementById("marketsOverviewBody")!
-    .querySelector<HTMLElement>(".states.market.selected");
-  if (!selectedRow) return;
-  const marketId = +selectedRow.dataset.id!;
+  const marketId = getMarketsOverviewState().selectedMarketId;
+  if (marketId === null) return;
   // marketId 0 = "no market" (erase assignment); any other id must be an existing market.
   if (marketId !== 0 && !Markets.get(marketId)) return;
 
   saveMarketsManualSnapshot();
-  const r = +(document.getElementById("marketsBrush") as HTMLInputElement).value;
+  const r = getMarketsOverviewState().brushSize;
 
   event.on("drag", (dragEvent: D3DragEvent<SVGGElement, unknown, unknown>) => {
     if (!dragEvent.dx && !dragEvent.dy) return;
@@ -277,7 +263,7 @@ function setMarketTempPath(temp: HTMLElement, marketId: number, d: string): void
 function onMarketsBrushMove(this: SVGGElement, event: MouseEvent): void {
   showMainTip();
   const [x, y] = pointer(event, this);
-  const r = +(document.getElementById("marketsBrush") as HTMLInputElement).value;
+  const r = getMarketsOverviewState().brushSize;
   moveCircle(x, y, r);
 }
 
@@ -302,25 +288,7 @@ function exitMarketsManualAssignment(apply: boolean): void {
   marketsWorking = null;
   marketsManualHistory = [];
   document.getElementById("marketsTemp")?.remove();
-
-  document.getElementById("marketsOverviewHeader")!.style.gridTemplateColumns =
-    "1.6em 7.2em 8em 3.5em 4.5em 6.5em 6.4em 6em 6em 1.2em";
-  document
-    .getElementById("marketsOverview")!
-    .querySelectorAll(".hide")
-    .forEach(el => void el.classList.remove("hidden"));
-  document.getElementById("marketsOverviewFooter")!.style.display = "block";
-
-  document.querySelectorAll<HTMLElement>("#marketsOverviewBottom > button").forEach(b => {
-    b.style.display = "";
-  });
-  document.getElementById("marketsManuallyButtons")!.style.display = "none";
-  document.getElementById("marketsBrush")!.style.display = "none";
-  document.getElementById("marketsManually")!.classList.remove("pressed");
-  document
-    .getElementById("marketsOverviewBody")!
-    .querySelector<HTMLElement>(".states.market.selected")
-    ?.classList.remove("selected");
+  setMarketsOverviewState({ mode: "default" });
 
   restoreDefaultEvents();
   clearMainTip();
@@ -336,14 +304,14 @@ function exitMarketsManualAssignment(apply: boolean): void {
 
 function enterAddMarketMode(): void {
   getViewContext().customization = 16;
-  document.getElementById("marketsAdd")!.classList.add("pressed");
+  setMarketsOverviewState({ mode: "add" });
   tip("Click on a burg on the map to create a new market there. Hold Shift to add multiple", true);
   getViewContext().viewbox.style("cursor", "crosshair").on("click", addMarketOnClick);
 }
 
 function exitAddMarketMode(): void {
   getViewContext().customization = 0;
-  document.getElementById("marketsAdd")!.classList.remove("pressed");
+  setMarketsOverviewState({ mode: "default" });
   restoreDefaultEvents();
   clearMainTip();
 }
@@ -373,34 +341,20 @@ function addMarketOnClick(this: SVGGElement, event: MouseEvent): void {
   marketsOverviewAddLines();
 }
 
-function confirmRemoveMarket(marketId: number): void {
+export function updateMarketColor(marketId: number, newFill: string): void {
   const market = Markets.get(marketId);
   if (!market) return;
-  const name = Markets.getName(market);
-
-  confirmationDialog({
-    title: "Remove Market",
-    message: `Are you sure you want to remove the market "${name}"?<br>This action cannot be reverted`,
-    confirm: "Remove",
-    onConfirm: () => {
-      Markets.removeMarket(marketId);
-      if (layerIsOn("toggleMarketsLayer")) drawMarketsLayer();
-      marketsOverviewAddLines();
-    }
+  market.color = newFill;
+  applyMarketColor(marketId, newFill);
+  setMarketsOverviewState({
+    markets: getMarketsOverviewState().markets.map(row => (row.i === marketId ? { ...row, color: newFill } : row))
   });
 }
 
-function marketChangeFill(fillBox: HTMLElement, marketId: number): void {
-  const market = Markets.get(marketId);
-  if (!market) return;
-
-  const callback = (newFill: string) => {
-    (fillBox as unknown as { fill: string }).fill = newFill;
-    market.color = newFill;
-    applyMarketColor(marketId, newFill);
-  };
-
-  openPicker(market.color, callback);
+export function removeMarket(marketId: number): void {
+  Markets.removeMarket(marketId);
+  if (layerIsOn("toggleMarketsLayer")) drawMarketsLayer();
+  marketsOverviewAddLines();
 }
 
 // Recolor a single market's rendered shapes in place, matching draw-markets output.
@@ -491,32 +445,17 @@ function getOwnerStateName(market: Market): string {
   return getWorldContext().pack.states[center.state]?.name || `State ${center.state}`;
 }
 
-function regenerateMarkets() {
-  confirmationDialog({
-    title: "Regenerate markets",
-    message: `Are you sure you want to regenerate markets and their territories?
-      <label style="display:flex; align-items:center; gap:.4em; margin-top:.6em;">
-        <input id="marketsRegenerateProductionToggle" type="checkbox" class="native" checked />
-        Regenerate production and trade
-      </label>`,
-    confirm: "Regenerate",
-    onConfirm: () => {
-      const regenProduction = (document.getElementById("marketsRegenerateProductionToggle") as HTMLInputElement)
-        .checked;
-      (() => {})();
-      if (regenProduction) (() => {})();
-    }
-  });
+function regenerateMarkets(regenerateTrade = true): void {
+  Markets.generate(true);
+  if (regenerateTrade) Production.produce();
+  if (layerIsOn("toggleMarketsLayer")) drawMarketsLayer();
+  marketsOverviewAddLines();
 }
 
-function regenerateProduction() {
-  confirmationDialog({
-    title: "Regenerate production",
-    message:
-      "Are you sure you want to regenerate production and trade for all goods? Generation will be based on the current Goods settings and bonus goods placement",
-    confirm: "Regenerate",
-    onConfirm: () => {}
-  });
+function regenerateProduction(): void {
+  Production.produce();
+  if (layerIsOn("toggleMarketsLayer")) drawMarketsLayer();
+  marketsOverviewAddLines();
 }
 
 function downloadMarketsCsv(): void {
@@ -534,6 +473,7 @@ function downloadMarketsCsv(): void {
 export function closeMarketsOverview(): void {
   if (getViewContext().customization === 15) exitMarketsManualAssignment(false);
   if (getViewContext().customization === 16) exitAddMarketMode();
+  setMarketsOverviewState({ isOpen: false, mode: "default" });
 }
 
 export const marketsOverviewActions = {
@@ -546,8 +486,36 @@ export const marketsOverviewActions = {
   undoMarketsManualStep,
   exitMarketsManualAssignment,
   enterAddMarketMode,
-  confirmRemoveMarket,
-  marketChangeFill,
   highlightMarketOn,
-  highlightMarketOff
+  highlightMarketOff,
+  removeMarket,
+  updateMarketColor,
+  selectMarket(marketId: number) {
+    setMarketsOverviewState({ selectedMarketId: marketId });
+  },
+  toggleManualAssignment() {
+    if (getViewContext().customization === 15) exitMarketsManualAssignment(false);
+    else enterMarketsManualAssignment();
+  },
+  toggleAddMarketMode() {
+    if (getViewContext().customization === 16) exitAddMarketMode();
+    else enterAddMarketMode();
+  },
+  setBrushSize(brushSize: number) {
+    setMarketsOverviewState({ brushSize });
+  },
+  openMarketOverview(marketId: number) {
+    const market = Markets.get(marketId);
+    if (!market) return;
+    getApi().openDialog("marketOverview", { marketId });
+  },
+  openMarketCompare() {
+    openMarketsGoodCompare();
+  },
+  setSorting(sortBy: string) {
+    const { sortBy: currentSortBy, sortDirection } = getMarketsOverviewState();
+    const nextDirection =
+      currentSortBy === sortBy ? sortDirection * -1 : sortBy === "market" || sortBy === "owner" ? 1 : -1;
+    setMarketsOverviewState({ sortBy, sortDirection: nextDirection });
+  }
 };
