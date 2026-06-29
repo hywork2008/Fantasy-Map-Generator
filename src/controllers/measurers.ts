@@ -4,6 +4,7 @@ import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { type DragEv, type MeasurerSel, MeasurersRenderer } from "../renderers/measurers-renderer";
 import { rulers, setRulers } from "../store/editorState";
+import { useOptionsState } from "../store/optionsState";
 import { findCell, getSegmentId, last, rn, round, si } from "../utils";
 import { TIME } from "../utils/debug";
 import { getAreaUnit } from "../utils/uiHelpers";
@@ -196,10 +197,7 @@ class Ruler extends Measurer {
 
   updateLabel(): void {
     const length = this.getLength();
-    const distUnit =
-      (document.getElementById("distanceUnitInput") as HTMLSelectElement | null)?.value ??
-      localStorage.getItem("distanceUnit") ??
-      "km";
+    const distUnit = useOptionsState.getState().distanceUnit;
     const text = `${rn(length * worldContext.distanceScale)} ${distUnit}`;
     const [x, y] = last(this.points);
     MeasurersRenderer.updateLabel(this.el, text, x, y);
@@ -299,10 +297,7 @@ class Opisometer extends Measurer {
 
   updateLabel(): void {
     const length = this.el.select<SVGPathElement>("path").node()!.getTotalLength();
-    const distUnit =
-      (document.getElementById("distanceUnitInput") as HTMLSelectElement | null)?.value ??
-      localStorage.getItem("distanceUnit") ??
-      "km";
+    const distUnit = useOptionsState.getState().distanceUnit;
     const text = `${rn(length * worldContext.distanceScale)} ${distUnit}`;
     const [x, y] = last(this.points);
     MeasurersRenderer.updateLabel(this.el, text, x, y);
@@ -421,10 +416,7 @@ class RouteOpisometer extends Measurer {
 
   updateLabel(): void {
     const length = this.el.select<SVGPathElement>("path").node()!.getTotalLength();
-    const distUnit =
-      (document.getElementById("distanceUnitInput") as HTMLSelectElement | null)?.value ??
-      localStorage.getItem("distanceUnit") ??
-      "km";
+    const distUnit = useOptionsState.getState().distanceUnit;
     const text = `${rn(length * worldContext.distanceScale)} ${distUnit}`;
     const [x, y] = last(this.points);
     MeasurersRenderer.updateLabel(this.el, text, x, y);

@@ -22,6 +22,15 @@ export interface OptionsState {
   resolveDepressionsSteps: number;
   lakeElevationLimit: number;
 
+  // World Configurator settings
+  mapSize: number;
+  latitude: number;
+  longitude: number;
+  prec: number;
+
+  // Style
+  stylePreset: string;
+
   // Generation growth/expansion rates
   neutralRate: number;
   statesGrowthRate: number;
@@ -83,6 +92,13 @@ export const useOptionsState = create<OptionsState>(set => ({
   stateLabelsMode: "auto",
   resolveDepressionsSteps: 250,
   lakeElevationLimit: 20,
+
+  mapSize: 100,
+  latitude: 50,
+  longitude: 50,
+  prec: 100,
+
+  stylePreset: "default",
 
   neutralRate: 1,
   statesGrowthRate: 1,

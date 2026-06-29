@@ -1,8 +1,5 @@
-import { modules } from "../store/editorState";
 import { openDialog } from "../ui/dialogs/dialogService";
-import { openURL } from "../utils";
 import { ERROR } from "../utils/debug";
-import { tip } from "../utils/uiHelpers";
 
 interface AiProviderConfig {
   keyLink: string;
@@ -15,7 +12,7 @@ interface AiProviderConfig {
   }) => Promise<void>;
 }
 
-const PROVIDERS: Record<string, AiProviderConfig> = {
+export const AI_PROVIDERS: Record<string, AiProviderConfig> = {
   openai: {
     keyLink: "https://platform.openai.com/account/api-keys",
     generate: generateWithOpenAI
@@ -30,9 +27,7 @@ const PROVIDERS: Record<string, AiProviderConfig> = {
   }
 };
 
-const DEFAULT_MODEL = "gpt-4o-mini";
-
-const MODELS: Record<string, string> = {
+export const AI_MODELS: Record<string, string> = {
   "gpt-4o-mini": "openai",
   "chatgpt-4o-latest": "openai",
   "gpt-4o": "openai",
@@ -201,87 +196,9 @@ async function handleStream(response: Response, getContent: (json: unknown) => v
   }
 }
 
+import { useAiGeneratorState } from "../store/aiGeneratorState";
+
 export function generateWithAi(defaultPrompt: string, onApply: (result: string) => void): void {
-  updateValues();
-
-  openDialog("aiGenerator", {
-    title: "AI Text Generator",
-    position: { my: "center", at: "center", of: "svg" },
-    resizable: false,
-    buttons: {
-      Generate: (e?: Event) => {
-        generate((e as Event).target as HTMLButtonElement);
-      },
-      Apply: () => {
-        const result = (document.getElementById("aiGeneratorResult") as HTMLTextAreaElement).value;
-        if (!result) return tip("No result to apply", true, "error", 4000);
-        onApply(result);
-        /* $(this).dialog("close") removed */
-      },
-      Close: () => {
-        /* $(this).dialog("close") removed */
-      }
-    }
-  });
-
-  if (modules.generateWithAi) return;
-  modules.generateWithAi = true;
-
-  document.getElementById("aiGeneratorKeyHelp")!.addEventListener("click", () => {
-    const model = (document.getElementById("aiGeneratorModel") as HTMLSelectElement).value;
-    const provider = MODELS[model];
-    openURL(PROVIDERS[provider].keyLink);
-  });
-
-  function updateValues(): void {
-    (document.getElementById("aiGeneratorResult") as HTMLTextAreaElement).value = "";
-    (document.getElementById("aiGeneratorPrompt") as HTMLTextAreaElement).value = defaultPrompt;
-    (document.getElementById("aiGeneratorTemperature") as HTMLInputElement).value =
-      localStorage.getItem("fmg-ai-temperature") || "1";
-
-    const selectEl = document.getElementById("aiGeneratorModel") as HTMLSelectElement;
-    selectEl.options.length = 0;
-    for (const model of Object.keys(MODELS)) selectEl.options.add(new Option(model, model));
-    selectEl.value = localStorage.getItem("fmg-ai-model") || "";
-    if (!selectEl.value || !MODELS[selectEl.value]) selectEl.value = DEFAULT_MODEL;
-
-    const provider = MODELS[selectEl.value];
-    (document.getElementById("aiGeneratorKey") as HTMLInputElement).value =
-      localStorage.getItem(`fmg-ai-kl-${provider}`) || "";
-  }
-
-  async function generate(button: HTMLButtonElement): Promise<void> {
-    const key = (document.getElementById("aiGeneratorKey") as HTMLInputElement).value;
-    if (!key) return tip("Please enter an API key", true, "error", 4000);
-
-    const model = (document.getElementById("aiGeneratorModel") as HTMLSelectElement).value;
-    if (!model) return tip("Please select a model", true, "error", 4000);
-    localStorage.setItem("fmg-ai-model", model);
-
-    const provider = MODELS[model];
-    localStorage.setItem(`fmg-ai-kl-${provider}`, key);
-
-    const prompt = (document.getElementById("aiGeneratorPrompt") as HTMLTextAreaElement).value;
-    if (!prompt) return tip("Please enter a prompt", true, "error", 4000);
-
-    const temperature = (document.getElementById("aiGeneratorTemperature") as HTMLInputElement).valueAsNumber;
-    if (Number.isNaN(temperature)) return tip("Temperature must be a number", true, "error", 4000);
-    localStorage.setItem("fmg-ai-temperature", String(temperature));
-
-    try {
-      button.disabled = true;
-      const resultArea = document.getElementById("aiGeneratorResult") as HTMLTextAreaElement;
-      resultArea.disabled = true;
-      resultArea.value = "";
-      const onContent = (content: string) => (resultArea.value += content);
-
-      await PROVIDERS[provider].generate({ key, model, prompt, temperature, onContent });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error) || "Failed to generate text";
-      return tip(message, true, "error", 4000);
-    } finally {
-      button.disabled = false;
-      (document.getElementById("aiGeneratorResult") as HTMLTextAreaElement).disabled = false;
-    }
-  }
+  useAiGeneratorState.getState().open(defaultPrompt, onApply);
+  openDialog("aiGenerator");
 }

@@ -104,26 +104,27 @@ function getMapInfo() {
 }
 
 function getSettings() {
-  const getVal = (id: string, fallback = "") =>
-    (document.getElementById(id) as HTMLInputElement | HTMLSelectElement | null)?.value ?? fallback;
+  const options = useOptionsState.getState();
   return {
-    distanceUnit: getVal("distanceUnitInput", localStorage.getItem("distanceUnit") ?? "km"),
+    distanceUnit: options.distanceUnit,
     distanceScale: worldContext.distanceScale,
-    areaUnit: getVal("areaUnit"),
-    heightUnit: getVal("heightUnit", localStorage.getItem("heightUnit") ?? "m"),
-    heightExponent: getVal("heightExponentInput"),
-    temperatureScale: getVal("temperatureScale"),
+    areaUnit: options.areaUnit,
+    heightUnit: options.heightUnit,
+    heightExponent: options.heightExponent,
+    temperatureScale: options.temperatureScale,
     populationRate: worldContext.populationRate,
     urbanization: worldContext.urbanization,
-    mapSize: mapSizeOutput.value,
-    latitude: latitudeOutput.value,
-    longitude: longitudeOutput.value,
-    prec: precOutput.value,
+    mapSize: options.mapSize,
+    latitude: options.latitude,
+    longitude: options.longitude,
+    prec: options.prec,
     options: worldContext.options,
-    mapName: useOptionsState.getState().mapName,
-    hideLabels: hideLabels.checked,
-    stylePreset: stylePreset.value,
-    rescaleLabels: rescaleLabels.checked,
+    mapName: options.mapName,
+    hideLabels: document.getElementById("hideLabels")
+      ? (document.getElementById("hideLabels") as HTMLInputElement).checked
+      : false, // TODO: move to store
+    stylePreset: options.stylePreset,
+    rescaleLabels: options.rescaleLabels,
     urbanDensity: worldContext.urbanDensity
   };
 }

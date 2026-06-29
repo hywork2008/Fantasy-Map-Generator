@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { worldContext } from "../../context/worldContext";
 import { updateWorld } from "../../controllers/world-configurator";
 import { useDialogState } from "../../store/dialogState";
+import { useOptionsState } from "../../store/optionsState";
 import { convertTemperature, debounce, parseTransform, rn, round } from "../../utils";
 import { lock } from "../../utils/uiHelpers";
 import { Dialog } from "./Dialog";
@@ -150,7 +151,9 @@ export const WorldConfiguratorDialog: React.FC = () => {
     return getEl<HTMLInputElement>("wcAutoChange")?.checked ?? true;
   }
 
-  function handleControlsChange(event: React.FormEvent<HTMLFieldSetElement>): void {
+  function handleControlsChange(
+    event: React.ChangeEvent<HTMLInputElement> | React.FormEvent<HTMLFieldSetElement>
+  ): void {
     const target = event.target as HTMLInputElement;
     const stored = target.dataset.stored;
     if (!stored) return;
@@ -177,8 +180,9 @@ export const WorldConfiguratorDialog: React.FC = () => {
       const spF = getEl("temperatureSouthPoleF");
       if (spF) spF.innerText = convertTemperature(val, "°F");
       updateGlobeTemperature();
-    } else if (stored === "mapSize" || stored === "latitude" || stored === "longitude") {
-      updateGlobePosition();
+    } else if (stored === "mapSize" || stored === "latitude" || stored === "longitude" || stored === "prec") {
+      useOptionsState.getState().setOption(stored, val);
+      if (stored !== "prec") updateGlobePosition();
     }
 
     if (isAutoChange()) debouncedUpdateWorld();
@@ -219,6 +223,8 @@ export const WorldConfiguratorDialog: React.FC = () => {
     if (mapSizeOutput) mapSizeOutput.value = String(size);
     if (latInput) latInput.value = String(latShift);
     if (latOutput) latOutput.value = String(latShift);
+    useOptionsState.getState().setOption("mapSize", size);
+    useOptionsState.getState().setOption("latitude", latShift);
     lock("mapSize");
     lock("latitude");
     if (isAutoChange()) updateWorld();
@@ -307,15 +313,43 @@ export const WorldConfiguratorDialog: React.FC = () => {
                 <i data-locked={0} id="lock_mapSize" className="icon-lock-open" />
                 <label data-tip="Set map size relative to the world size">
                   <i>Map size:</i>
-                  <input id="mapSizeInput" data-stored="mapSize" type="number" min={1} max={100} step="0.1" />%
-                  <input id="mapSizeOutput" data-stored="mapSize" type="range" min={1} max={100} step="0.1" />
+                  <input
+                    id="mapSizeInput"
+                    data-stored="mapSize"
+                    type="number"
+                    min={1}
+                    max={100}
+                    step="0.1"
+                    value={useOptionsState(s => s.mapSize)}
+                    onChange={handleControlsChange}
+                  />
+                  %
+                  <input
+                    id="mapSizeOutput"
+                    data-stored="mapSize"
+                    type="range"
+                    min={1}
+                    max={100}
+                    step="0.1"
+                    value={useOptionsState(s => s.mapSize)}
+                    onChange={handleControlsChange}
+                  />
                 </label>
               </div>
               <div>
                 <i data-locked={0} id="lock_latitude" className="icon-lock-open" />
                 <label data-tip="Set a North-South map shift, set to 50 to make map center lie on Equator">
                   <i>Latitudes:</i>
-                  <input id="latitudeInput" data-stored="latitude" type="number" min={0} max={100} step="0.1" />
+                  <input
+                    id="latitudeInput"
+                    data-stored="latitude"
+                    type="number"
+                    min={0}
+                    max={100}
+                    step="0.1"
+                    value={useOptionsState(s => s.latitude)}
+                    onChange={handleControlsChange}
+                  />
                   <br />
                   <i>N</i>
                   <input
@@ -326,6 +360,8 @@ export const WorldConfiguratorDialog: React.FC = () => {
                     max={100}
                     step="0.1"
                     style={{ width: "10.3em" }}
+                    value={useOptionsState(s => s.latitude)}
+                    onChange={handleControlsChange}
                   />
                   <i>S</i>
                 </label>
@@ -340,8 +376,9 @@ export const WorldConfiguratorDialog: React.FC = () => {
                     type="number"
                     min={0}
                     max={100}
-                    defaultValue={50}
                     step="0.1"
+                    value={useOptionsState(s => s.longitude)}
+                    onChange={handleControlsChange}
                   />
                   <br />
                   <i>W</i>
@@ -353,6 +390,8 @@ export const WorldConfiguratorDialog: React.FC = () => {
                     max={100}
                     step="0.1"
                     style={{ width: "10.3em" }}
+                    value={useOptionsState(s => s.longitude)}
+                    onChange={handleControlsChange}
                   />
                   <i>E</i>
                 </label>
@@ -361,8 +400,23 @@ export const WorldConfiguratorDialog: React.FC = () => {
                 <label data-tip="Set precipitation - water amount clouds can bring. Defines rivers and biomes generation. Keep around 100% for default generation">
                   <i data-locked={0} id="lock_prec" className="icon-lock-open" />
                   <i>Precipitation:</i>
-                  <input id="precInput" data-stored="prec" type="number" defaultValue={100} />%
-                  <input id="precOutput" data-stored="prec" type="range" min={0} max={500} defaultValue={100} />
+                  <input
+                    id="precInput"
+                    data-stored="prec"
+                    type="number"
+                    value={useOptionsState(s => s.prec)}
+                    onChange={handleControlsChange}
+                  />
+                  %
+                  <input
+                    id="precOutput"
+                    data-stored="prec"
+                    type="range"
+                    min={0}
+                    max={500}
+                    value={useOptionsState(s => s.prec)}
+                    onChange={handleControlsChange}
+                  />
                 </label>
               </div>
               <div data-tip="Canvas size. Can be changed in general options on new map generation">
