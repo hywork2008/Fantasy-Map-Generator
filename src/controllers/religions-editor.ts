@@ -14,7 +14,7 @@ import { abbreviate, debounce, findAll, findCell, rn, si } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog, downloadFile, getFileName } from "../utils/editorHelpers";
 import { getPackPolygon } from "../utils/graphUtils";
-import { layerIsOn } from "../utils/nodeUtils";
+import { getElementById, layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, getArea, getAreaUnit, tip } from "../utils/uiHelpers";
 import { open as openHierarchyTree } from "./hierarchy-tree";
 import { toggleBiomes, toggleCultures, toggleProvinces, toggleReligions, toggleStates } from "./layers";
@@ -407,7 +407,7 @@ export const religionsEditorActions = {
   },
 
   highlightReligion(i: number): void {
-    const element = document.getElementById(`religion${i}`);
+    const element = getElementById(`religion${i}`);
     if (element) EditorBus.highlightElement(element, 3);
   },
 

@@ -11,7 +11,7 @@ import type { WorldNote } from "../types/WorldState";
 import { closeDialog, closeDialogs, openConfirm, openDialog } from "../ui/dialogs/dialogService";
 import { findCell, last, rn } from "../utils";
 import { EditorBus } from "../utils/editorBus";
-import { layerIsOn } from "../utils/nodeUtils";
+import { getElementBySelector, layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, tip } from "../utils/uiHelpers";
 import type { BattleRegiment } from "./battle-screen";
 import { interactionManager } from "./interactionManager";
@@ -217,7 +217,7 @@ export function editRegiment(selectorOrEl?: string | Element): void {
     .selectAll<SVGGElement, unknown>(":scope > g > g")
     .call(drag<SVGGElement, unknown>().on("start", dragRegimentStart).on("drag", dragRegimentDrag));
 
-  const rawEl = typeof selectorOrEl === "string" ? document.querySelector(selectorOrEl) : (selectorOrEl ?? null);
+  const rawEl = typeof selectorOrEl === "string" ? getElementBySelector(selectorOrEl) : (selectorOrEl ?? null);
   setElSelected(select(rawEl as Element));
 
   if (!worldContext.pack.states[+getRegEl().dataset.state!]) return;

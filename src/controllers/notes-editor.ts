@@ -21,6 +21,7 @@ import type { WorldNote } from "../types/WorldState";
 import { closeDialog, openDialog } from "../ui/dialogs/dialogService";
 import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog, downloadFile, getFileName, uploadFile } from "../utils/editorHelpers";
+import { getElementById } from "../utils/nodeUtils";
 import { tip } from "../utils/uiHelpers";
 import { generateWithAi } from "./ai-generator";
 
@@ -159,7 +160,7 @@ function removeLegend(): void {
 
 function validateHighlightElement(): void {
   const { selectedId } = getNotesEditorState();
-  const element = document.getElementById(selectedId);
+  const element = getElementById(selectedId);
   if (element) {
     EditorBus.highlightElement(element, 3);
     return;

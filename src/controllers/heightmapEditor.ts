@@ -45,7 +45,7 @@ import { getColorScheme } from "../utils/colorUtils";
 import { INFO, TIME } from "../utils/debug";
 import { EditorBus } from "../utils/editorBus";
 import { getFileName } from "../utils/editorHelpers";
-import { layerIsOn } from "../utils/nodeUtils";
+import { getElementById, layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, showMainTip, tip } from "../utils/uiHelpers";
 import { HeightmapEditorHistoryClass as HeightmapEditorHistory } from "./HeightmapEditorHistory";
 import {
@@ -140,10 +140,10 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       updateStatistics,
       mockHeightmap,
       drawHeightmapPreview: () => {
-        if (document.getElementById("preview")) drawHeightmapPreview();
+        if (getElementById("preview")) drawHeightmapPreview();
       },
       redraw3d: () => {
-        if (document.getElementById("canvas3d")) ThreeDRenderer.redraw();
+        if (getElementById("canvas3d")) ThreeDRenderer.redraw();
       }
     });
   HeightmapEditorActions.downloadTemplate = downloadTemplate;
@@ -187,7 +187,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       node => (node as HTMLElement).id
     );
     editHeightmapLayers.forEach(l => {
-      document.getElementById(l)!.click();
+      getElementById(l)!.click();
     });
 
     viewContext.customization = 1;
@@ -199,7 +199,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
 
     // Set the edit mode label after React has rendered the element
     requestAnimationFrame(() => {
-      const editModeEl = document.getElementById("heightmapEditMode");
+      const editModeEl = getElementById("heightmapEditMode");
       if (editModeEl) editModeEl.textContent = mode;
     });
 
@@ -218,9 +218,9 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
 
     // These elements live inside CustomizationMenu; set their styles after React renders
     requestAnimationFrame(() => {
-      const applyTemplateEl = document.getElementById("applyTemplate");
-      const convertImageEl = document.getElementById("convertImage");
-      const allowErosionBoxEl = document.getElementById("allowErosionBox");
+      const applyTemplateEl = getElementById("applyTemplate");
+      const convertImageEl = getElementById("convertImage");
+      const allowErosionBoxEl = getElementById("allowErosionBox");
       if (applyTemplateEl) applyTemplateEl.style.display = mode === "erase" ? "inline-block" : "none";
       if (convertImageEl) convertImageEl.style.display = mode === "erase" ? "inline-block" : "none";
       if (allowErosionBoxEl) allowErosionBoxEl.style.display = mode === "keep" ? "none" : "inline-block";
@@ -307,7 +307,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       tip("Insufficient land area. There should be at least 200 land cells!", false, "error");
       return;
     }
-    if (document.getElementById("imageConverter")?.offsetParent) {
+    if (getElementById("imageConverter")?.offsetParent) {
       tip("Please exit the Image Conversion mode first", false, "error");
       return;
     }
@@ -327,8 +327,8 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     closeDialogs();
     resetZoom();
 
-    if (document.getElementById("preview")) document.getElementById("preview")!.remove();
-    if (document.getElementById("canvas3d")) enterStandardView();
+    if (getElementById("preview")) getElementById("preview")!.remove();
+    if (getElementById("canvas3d")) enterStandardView();
 
     const mode = heightmapEditMode.textContent;
     if (mode === "erase") await regenerateErasedData();
@@ -640,7 +640,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
 
   function mockHeightmap(): void {
     const all = Array.from(worldContext.grid.cells.i) as number[];
-    const data = (document.getElementById("renderOcean") as HTMLInputElement).checked
+    const data = (getElementById("renderOcean") as HTMLInputElement).checked
       ? all
       : all.filter(i => worldContext.grid.cells.h[i] >= 20);
     viewContext.viewbox
@@ -654,7 +654,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
   }
 
   function mockHeightmapSelection(selection: number[]): void {
-    const ocean = (document.getElementById("renderOcean") as HTMLInputElement).checked;
+    const ocean = (getElementById("renderOcean") as HTMLInputElement).checked;
     const heights = viewContext.viewbox.select<SVGGElement>("#heights");
     selection.forEach(i => {
       let cell = heights.select<SVGPolygonElement>(`#cell${i}`);
@@ -673,11 +673,9 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
 
   function updateStatistics(): void {
     const landCells = (worldContext.grid.cells.h as Uint8Array).reduce((s, h) => (h >= 20 ? s + 1 : s), 0);
-    document.getElementById("landmassCounter")!.innerText =
+    getElementById("landmassCounter")!.innerText =
       `${landCells} (${rn((landCells / worldContext.grid.cells.i.length) * 100)}%)`;
-    document.getElementById("landmassAverage")!.innerText = String(
-      rn(mean(Array.from(worldContext.grid.cells.h)) ?? 0)
-    );
+    getElementById("landmassAverage")!.innerText = String(rn(mean(Array.from(worldContext.grid.cells.h)) ?? 0));
   }
 
   function updateHistory(noStat?: string): void {
@@ -688,8 +686,8 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     });
     if (!noStat) {
       updateStatistics();
-      if (document.getElementById("preview")) drawHeightmapPreview();
-      if (document.getElementById("canvas3d")) ThreeDRenderer.redraw();
+      if (getElementById("preview")) drawHeightmapPreview();
+      if (getElementById("canvas3d")) ThreeDRenderer.redraw();
     }
   }
 
@@ -704,8 +702,8 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     });
     mockHeightmap();
     updateStatistics();
-    if (document.getElementById("preview")) drawHeightmapPreview();
-    if (document.getElementById("canvas3d")) ThreeDRenderer.redraw();
+    if (getElementById("preview")) drawHeightmapPreview();
+    if (getElementById("canvas3d")) ThreeDRenderer.redraw();
   }
 
   function redoHistory(): void {
@@ -719,8 +717,8 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     });
     mockHeightmap();
     updateStatistics();
-    if (document.getElementById("preview")) drawHeightmapPreview();
-    if (document.getElementById("canvas3d")) ThreeDRenderer.redraw();
+    if (getElementById("preview")) drawHeightmapPreview();
+    if (getElementById("canvas3d")) ThreeDRenderer.redraw();
   }
 
   function restartHistory(): void {
@@ -753,7 +751,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
 
   function openImageConverter(): void {
     if (isDialogOpen("imageConverter")) return;
-    (document.getElementById("imageToLoad") as HTMLInputElement)?.click();
+    (getElementById("imageToLoad") as HTMLInputElement)?.click();
     closeDialogs("#imageConverter");
 
     openDialog("imageConverter", {
@@ -787,7 +785,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
   // ─── Heightmap preview ────────────────────────────────────────────────────────
 
   function toggleHeightmapPreview(): void {
-    const existing = document.getElementById("preview");
+    const existing = getElementById("preview");
     if (existing) {
       existing.remove();
       return;
@@ -803,7 +801,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
   }
 
   function drawHeightmapPreview(): void {
-    const canvas = document.getElementById("preview") as HTMLCanvasElement;
+    const canvas = getElementById("preview") as HTMLCanvasElement;
     if (!canvas) return;
     const ctx = canvas.getContext("2d")!;
     const imageData = ctx.createImageData(worldContext.grid.cellsX, worldContext.grid.cellsY);
@@ -821,7 +819,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
   }
 
   function downloadPreview(): void {
-    const preview = document.getElementById("preview") as HTMLCanvasElement;
+    const preview = getElementById("preview") as HTMLCanvasElement;
     if (!preview) return;
     const dataURL = preview.toDataURL("image/png");
     const img = new Image();

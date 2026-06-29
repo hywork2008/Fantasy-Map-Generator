@@ -59,7 +59,7 @@ import { closeDialog, closeDialogs, openDialog } from "../ui/dialogs/dialogServi
 import type { RegenerateConfirmConfig } from "../ui/dialogs/RegenerateConfirmDialog";
 import { findCell, gauss, generateSeed, getNextId, isCtrlClick, P, rn, showPrompt } from "../utils";
 import { EditorBus } from "../utils/editorBus";
-import { layerIsOn } from "../utils/nodeUtils";
+import { getElementById, getElementBySelector, getElementsBySelector, layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, tip } from "../utils/uiHelpers";
 import { editBiomes } from "./biomes-editor";
 import { overviewBurgs } from "./burgs-overview";
@@ -125,7 +125,7 @@ dialogStore.subscribe((state, prevState) => {
         for (const [layerId, wasOn] of changes) {
           const isOn = currentLayers[layerId] ?? false;
           if (wasOn !== isOn) {
-            document.getElementById(layerId)?.click();
+            getElementById(layerId)?.click();
           }
         }
         dialogLayerChanges.delete(dialogId);
@@ -164,7 +164,7 @@ document.addEventListener("react-tool-action", e => {
   if (button === "editHeightmapButton") {
     if (viewContext.customization === 1) {
       // In heightmap edit mode: finalize via the Exit Customization button
-      document.getElementById("finalizeHeightmap")?.click();
+      getElementById("finalizeHeightmap")?.click();
     } else if (viewContext.customization === 0) {
       if (modules.editHeightmap) {
         // Mode selection dialog is currently open: close it and reset state
@@ -412,14 +412,14 @@ function recreateStates(): State[] | null {
 
   for (const state of worldContext.pack.states as State[]) {
     if (!state.i || state.removed || state.lock) continue;
-    document.getElementById(`stateLabel${state.i}`)?.remove();
-    document.getElementById(`textPath_stateLabel${state.i}`)?.remove();
-    document.getElementById(`stateCOA${state.i}`)?.remove();
-    document.querySelector(`#stateEmblems > use[data-i="${state.i}"]`)?.remove();
+    getElementById(`stateLabel${state.i}`)?.remove();
+    getElementById(`textPath_stateLabel${state.i}`)?.remove();
+    getElementById(`stateCOA${state.i}`)?.remove();
+    getElementBySelector<SVGUseElement>(`#stateEmblems > use[data-i="${state.i}"]`)?.remove();
 
     for (const provinceId of state.provinces ?? []) {
-      document.getElementById(`provinceCOA${provinceId}`)?.remove();
-      document.querySelector(`#provinceEmblems > use[data-i="${provinceId}"]`)?.remove();
+      getElementById(`provinceCOA${provinceId}`)?.remove();
+      getElementBySelector<SVGUseElement>(`#provinceEmblems > use[data-i="${provinceId}"]`)?.remove();
       worldContext.pack.provinces[provinceId].removed = true;
     }
   }
@@ -447,8 +447,8 @@ function recreateStates(): State[] | null {
     const { x, y } = worldContext.pack.burgs[state.capital];
     capitalsTree.add([x, y]);
 
-    document.getElementById(`textPath_stateLabel${state.i}`)?.setAttribute("id", `textPath_stateLabel${newId}`);
-    const $label = document.getElementById(`stateLabel${state.i}`);
+    getElementById(`textPath_stateLabel${state.i}`)?.setAttribute("id", `textPath_stateLabel${newId}`);
+    const $label = getElementById(`stateLabel${state.i}`);
     if ($label) {
       $label.setAttribute("id", `stateLabel${newId}`);
       const $textPath = $label.querySelector("textPath");
@@ -458,8 +458,11 @@ function recreateStates(): State[] | null {
       }
     }
 
-    document.getElementById(`stateCOA${state.i}`)?.setAttribute("id", `stateCOA${newId}`);
-    document.querySelector(`#stateEmblems > use[data-i="${state.i}"]`)?.setAttribute("data-i", String(newId));
+    getElementById(`stateCOA${state.i}`)?.setAttribute("id", `stateCOA${newId}`);
+    getElementBySelector<SVGUseElement>(`#stateEmblems > use[data-i="${state.i}"]`)?.setAttribute(
+      "data-i",
+      String(newId)
+    );
 
     (state.provinces ?? []).forEach((provinceId: number) => {
       if (!worldContext.pack.provinces[provinceId]) return;
@@ -540,7 +543,7 @@ function regenerateProvinces(): void {
   if (layerIsOn("toggleBorders")) BordersRenderer.render(worldContext, viewContext, appServices);
   layerIsOn("toggleProvinces") ? ProvincesRenderer.render(worldContext, viewContext, appServices) : toggleProvinces();
 
-  document.querySelectorAll("[id^=provinceCOA]").forEach(el => {
+  getElementsBySelector<HTMLElement>("[id^=provinceCOA]").forEach(el => {
     el.remove();
   });
   viewContext.emblems.selectAll("use").remove();
@@ -603,7 +606,7 @@ async function regenerateBurgs(): Promise<void> {
     .filter((i: number) => score[i] > 0 && cells.culture[i])
     .sort((a: number, b: number) => score[b] - score[a]);
   const existingStatesCount = states.filter((s: State) => s.i && !s.removed).length;
-  const manorsInputEl = document.getElementById("manorsInput") as HTMLInputElement;
+  const manorsInputEl = getElementById("manorsInput") as HTMLInputElement;
   const burgsCount =
     (manorsInputEl.value === "1000"
       ? rn(sorted.length / 5 / (worldContext.grid.points.length / 10000) ** 0.8)
@@ -663,7 +666,7 @@ async function regenerateBurgs(): Promise<void> {
   BurgIconsRenderer.render(worldContext, viewContext, appServices);
   BurgLabelsRenderer.render(worldContext, viewContext, appServices);
 
-  document.querySelectorAll("[id^=burgCOA]").forEach(el => {
+  getElementsBySelector<HTMLElement>("[id^=burgCOA]").forEach(el => {
     el.remove();
   });
   viewContext.emblems.selectAll("use").remove();
@@ -678,13 +681,13 @@ async function regenerateBurgs(): Promise<void> {
 }
 
 export function regenerateEmblems(): void {
-  document.querySelectorAll("[id^=stateCOA]").forEach(el => {
+  getElementsBySelector<HTMLElement>("[id^=stateCOA]").forEach(el => {
     el.remove();
   });
-  document.querySelectorAll("[id^=provinceCOA]").forEach(el => {
+  getElementsBySelector<HTMLElement>("[id^=provinceCOA]").forEach(el => {
     el.remove();
   });
-  document.querySelectorAll("[id^=burgCOA]").forEach(el => {
+  getElementsBySelector<HTMLElement>("[id^=burgCOA]").forEach(el => {
     el.remove();
   });
   viewContext.emblems.selectAll("use").remove();
@@ -817,7 +820,7 @@ function unpressClickToAddButton(): void {
 }
 
 export function toggleAddLabel(): void {
-  const addLabelBtn = document.getElementById("addLabel")!;
+  const addLabelBtn = getElementById("addLabel")!;
   if (addLabelBtn.classList.contains("pressed")) {
     unpressClickToAddButton();
     return;
@@ -845,7 +848,7 @@ function addLabelOnClick(event: MouseEvent): void {
   const name = Names.getCulture(culture);
   const id = getNextId("label");
 
-  const lastSelected = (document.getElementById("labelGroupSelect") as HTMLSelectElement).value;
+  const lastSelected = (getElementById("labelGroupSelect") as HTMLSelectElement).value;
   const groupId = ["", "states", "burgLabels"].includes(lastSelected) ? "#addedLabels" : `#${lastSelected}`;
 
   let group = viewContext.labels.select<SVGGElement>(groupId);
@@ -892,15 +895,15 @@ function addLabelOnClick(event: MouseEvent): void {
 
 export function toggleAddBurg(): void {
   unpressClickToAddButton();
-  document.getElementById("addBurgTool")!.classList.add("pressed");
+  getElementById("addBurgTool")!.classList.add("pressed");
   overviewBurgs();
   useBurgsOverviewState.getState().setAddMode(true);
 }
 
 export function toggleAddRiver(): void {
-  const addRiverBtn = document.getElementById("addRiver")!;
+  const addRiverBtn = getElementById("addRiver")!;
   // addNewRiver is a secondary button in the rivers overview dialog; may not exist
-  const addNewRiverEl = document.getElementById("addNewRiver");
+  const addNewRiverEl = getElementById("addNewRiver");
 
   if (addRiverBtn.classList.contains("pressed")) {
     unpressClickToAddButton();
@@ -1002,7 +1005,7 @@ function addRiverOnClick(event: MouseEvent): void {
       break;
     }
 
-    document.getElementById(`river${oldRiverId}`)?.remove();
+    getElementById(`river${oldRiverId}`)?.remove();
     riverCells.forEach((ci: number) => {
       cells.r[ci] = oldRiverId;
     });
@@ -1073,13 +1076,13 @@ function addRiverOnClick(event: MouseEvent): void {
   if (!event.shiftKey) {
     Lakes.cleanupLakeData();
     unpressClickToAddButton();
-    document.getElementById("addNewRiver")?.classList.remove("pressed");
+    getElementById("addNewRiver")?.classList.remove("pressed");
     if (dialogStore.getState().openDialogs.has("riversOverview")) useRiversOverviewState.getState().refresh();
   }
 }
 
 export function toggleAddMarker(): void {
-  const addMarkerBtn = document.getElementById("addMarker")!;
+  const addMarkerBtn = getElementById("addMarker")!;
   if (addMarkerBtn.classList.contains("pressed")) {
     unpressClickToAddButton();
     return;
@@ -1092,7 +1095,7 @@ export function toggleAddMarker(): void {
       b.classList.remove("pressed");
     });
   addMarkerBtn.classList.add("pressed");
-  const markersAddFromOverviewEl = document.getElementById("markersAddFromOverview");
+  const markersAddFromOverviewEl = getElementById("markersAddFromOverview");
   if (markersAddFromOverviewEl) markersAddFromOverviewEl.classList.add("pressed");
 
   viewContext.viewbox.style("cursor", "crosshair");
@@ -1113,7 +1116,7 @@ function addMarkerOnClick(event: MouseEvent): void {
     ? packMarkers.find((marker: Marker) => marker.i === +elSelected!.attr("id").slice(6))
     : null;
 
-  const selectedType = (document.getElementById("addedMarkerType") as HTMLInputElement).value;
+  const selectedType = (getElementById("addedMarkerType") as HTMLInputElement).value;
   const selectedConfig = Markers.getConfig().find(({ type }: MarkerConfig) => type === selectedType);
   const baseMarker = selectedMarker || selectedConfig || { icon: "❓" };
   const marker = Markers.add({ ...baseMarker, x, y, cell } as Marker);
@@ -1127,8 +1130,8 @@ function addMarkerOnClick(event: MouseEvent): void {
   appendMarkerToLayer(markersElement, worldContext, viewContext, appServices, marker, rescale);
 
   if (!event.shiftKey) {
-    document.getElementById("markerAdd")?.classList.remove("pressed");
-    document.getElementById("markersAddFromOverview")?.classList.remove("pressed");
+    getElementById("markerAdd")?.classList.remove("pressed");
+    getElementById("markersAddFromOverview")?.classList.remove("pressed");
     unpressClickToAddButton();
     editMarker(marker.i);
   }

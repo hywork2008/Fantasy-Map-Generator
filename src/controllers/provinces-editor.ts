@@ -44,7 +44,7 @@ import { findAll, findCell, getRandomColor, isLand, P, parseTransform, rand, rn,
 import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog, downloadFile, getFileName } from "../utils/editorHelpers";
 import { getPackPolygon } from "../utils/graphUtils";
-import { layerIsOn } from "../utils/nodeUtils";
+import { getElementsBySelector, layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, fitContent, getArea, getAreaUnit, showMainTip, tip } from "../utils/uiHelpers";
 import { overviewBurgs } from "./burgs-overview";
 import { editEmblem } from "./emblems-editor";
@@ -805,7 +805,7 @@ function removeAllProvinces(): void {
     title: "Remove all provinces",
     confirm: "Remove",
     onConfirm: () => {
-      document.querySelectorAll("[id^='provinceCOA']").forEach(el => {
+      getElementsBySelector("[id^='provinceCOA']").forEach(el => {
         el.remove();
       });
       viewContext.emblems.select("#provinceEmblems").selectAll("*").remove();

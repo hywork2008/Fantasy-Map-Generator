@@ -13,7 +13,7 @@ import { closeDialogs, openDialog } from "../ui/dialogs/dialogService";
 import { convertTemperature, findCell, getLatitude, getLongitude, rn } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog, downloadFile, getFileName } from "../utils/editorHelpers";
-import { layerIsOn } from "../utils/nodeUtils";
+import { getElementById, layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, getHeight, tip } from "../utils/uiHelpers";
 import { getTemperatureLikeness } from "./burg-editor";
 import { interactionManager } from "./interactionManager";
@@ -136,7 +136,7 @@ export function renameBurgsInBulk(onUpload?: () => void): void {
       const name = `${getFileName("Burg names")}.txt`;
       downloadFile(data, name);
     },
-    onUpload: onUpload ?? (() => (document.getElementById("burgsListToLoad") as HTMLInputElement | null)?.click())
+    onUpload: onUpload ?? (() => getElementById<HTMLInputElement>("burgsListToLoad")?.click())
   });
 }
 

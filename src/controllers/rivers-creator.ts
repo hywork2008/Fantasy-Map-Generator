@@ -9,7 +9,7 @@ import { closeDialog, closeDialogs, openDialog } from "../ui/dialogs/dialogServi
 import { findCell, last, rn } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { getPackPolygon } from "../utils/graphUtils";
-import { layerIsOn } from "../utils/nodeUtils";
+import { getElementById, layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, tip } from "../utils/uiHelpers";
 import { interactionManager } from "./interactionManager";
 import { toggleCells, toggleRivers } from "./layers";
@@ -22,7 +22,7 @@ export function createRiver(): void {
   closeDialogs();
   if (!layerIsOn("toggleRivers")) toggleRivers();
 
-  document.getElementById("toggleCells")!.dataset.forced = String(+!layerIsOn("toggleCells"));
+  getElementById("toggleCells")!.dataset.forced = String(+!layerIsOn("toggleCells"));
   if (!layerIsOn("toggleCells")) toggleCells();
 
   tip("Click to add river point, click again to remove", true);
@@ -136,8 +136,8 @@ export function closeRiverCreator(): void {
   EditorBus.restoreDefaultEvents();
   clearMainTip();
 
-  const forced = +document.getElementById("toggleCells")!.dataset.forced!;
-  document.getElementById("toggleCells")!.dataset.forced = "0";
+  const forced = +getElementById("toggleCells")!.dataset.forced!;
+  getElementById("toggleCells")!.dataset.forced = "0";
   if (forced && layerIsOn("toggleCells")) toggleCells();
   closeDialog("riverCreator");
   modules.createRiver = false;

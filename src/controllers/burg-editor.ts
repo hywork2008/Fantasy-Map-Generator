@@ -14,7 +14,7 @@ import { closeDialog, closeDialogs, openAlert, openDialog } from "../ui/dialogs/
 import { convertTemperature, findCell, openURL, parseTransform, rand, rn, showPrompt } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog } from "../utils/editorHelpers";
-import { layerIsOn } from "../utils/nodeUtils";
+import { getElementById, getElementBySelector, layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, getHeight, tip } from "../utils/uiHelpers";
 import { editBurgGroups } from "./burg-group-editor";
 import { editEmblem } from "./emblems-editor";
@@ -262,7 +262,7 @@ export const burgEditorActions = {
     if (feature === "port") {
       if (burg.port) {
         burg.port = 0;
-        const anchor = document.querySelector(`#anchors [data-id='${burgId}']`);
+        const anchor = getElementBySelector<SVGUseElement>(`#anchors [data-id='${burgId}']`);
         if (anchor) anchor.remove();
       } else {
         const haven = worldContext.pack.cells.haven[burg.cell];
@@ -360,7 +360,7 @@ export const burgEditorActions = {
     const isRelocating = !getBurgEditorState().isRelocateMode;
     getBurgEditorState().setIsRelocateMode(isRelocating);
 
-    const toggler = document.getElementById("toggleCells") as HTMLElement | null;
+    const toggler = getElementById<HTMLElement>("toggleCells");
     if (isRelocating) {
       viewContext.viewbox.style("cursor", "crosshair");
       interactionManager.setClickHandler(burgEditorInternal.relocateBurgOnClick);

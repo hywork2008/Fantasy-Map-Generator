@@ -26,7 +26,7 @@ import { closeDialogs, openConfirm, openDialog } from "../ui/dialogs/dialogServi
 import { rn, si, unique } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { getPackPolygon } from "../utils/graphUtils";
-import { layerIsOn } from "../utils/nodeUtils";
+import { getElementById, getElementBySelector, layerIsOn } from "../utils/nodeUtils";
 import { getArea, getAreaUnit, tip } from "../utils/uiHelpers";
 import { interactionManager } from "./interactionManager";
 import { toggleCells } from "./layers";
@@ -320,7 +320,7 @@ export const coastlineEditorActions = {
         .replace(/ /g, "_")
         .replace(/[^\w\s]/gi, "");
 
-      if (document.getElementById(group)) {
+      if (getElementById(group)) {
         tip("Element with this id already exists. Please provide a unique name", false, "error");
         return;
       }
@@ -627,7 +627,7 @@ class CoastlineEditorModule {
       onClose: closeCoastlineEditor
     });
 
-    const node = (event?.target ?? document.querySelector(".coastline path")) as SVGElement | null;
+    const node = (event?.target ?? getElementBySelector<SVGElement>(".coastline path")) as SVGElement | null;
     viewContext.debug.append("g").attr("id", "vertices");
     setElSelected(node ? select(node as Element) : null);
     if (node) {

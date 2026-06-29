@@ -15,7 +15,7 @@ import { ERROR } from "../utils/debug";
 import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog } from "../utils/editorHelpers";
 import { getPackPolygon } from "../utils/graphUtils";
-import { layerIsOn } from "../utils/nodeUtils";
+import { getElementById, layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, tip } from "../utils/uiHelpers";
 import { openElevationProfile } from "./elevation-profile";
 import { interactionManager } from "./interactionManager";
@@ -42,7 +42,7 @@ export function editRoute(id: string): void {
   closeDialogs(".stable");
 
   if (!layerIsOn("toggleRoutes")) toggleRoutes();
-  document.getElementById("toggleCells")!.dataset.forced = String(+!layerIsOn("toggleCells"));
+  getElementById("toggleCells")!.dataset.forced = String(+!layerIsOn("toggleCells"));
   if (!layerIsOn("toggleCells")) toggleCells();
 
   setElSelected(select<SVGPathElement, unknown>(`#${id}`).on("click", addControlPoint) as typeof elSelected);
@@ -299,7 +299,7 @@ export function createRoute(defaultGroup?: string): void {
   closeDialogs();
   if (!layerIsOn("toggleRoutes")) toggleRoutes();
 
-  document.getElementById("toggleCells")!.dataset.forced = String(+!layerIsOn("toggleCells"));
+  getElementById("toggleCells")!.dataset.forced = String(+!layerIsOn("toggleCells"));
   if (!layerIsOn("toggleCells")) toggleCells();
 
   tip("Click to add route point, click again to remove", true);
@@ -377,7 +377,7 @@ export const routesEditorActions = {
     EditorBus.unselect();
     clearMainTip();
 
-    const toggleCellsEl = document.getElementById("toggleCells")!;
+    const toggleCellsEl = getElementById("toggleCells")!;
     const forced = +toggleCellsEl.dataset.forced!;
     toggleCellsEl.dataset.forced = "0";
     if (forced && layerIsOn("toggleCells")) toggleCells();
@@ -573,7 +573,7 @@ export const routesEditorActions = {
     EditorBus.restoreDefaultEvents();
     clearMainTip();
 
-    const toggleCellsEl = document.getElementById("toggleCells")!;
+    const toggleCellsEl = getElementById("toggleCells")!;
     const forced = +toggleCellsEl.dataset.forced!;
     toggleCellsEl.dataset.forced = "0";
     if (forced && layerIsOn("toggleCells")) toggleCells();

@@ -31,7 +31,7 @@ import { findAll, findCell, getAdjective, getMixedColor, getRandomColor, isLand,
 import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog, downloadFile, getFileName } from "../utils/editorHelpers";
 import { getPackPolygon } from "../utils/graphUtils";
-import { layerIsOn } from "../utils/nodeUtils";
+import { getElementBySelector, layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, getArea, getAreaUnit, showMainTip, tip } from "../utils/uiHelpers";
 import { BrushHistoryClass as BrushHistory } from "./BrushHistory";
 import { overviewBurgs } from "./burgs-overview";
@@ -382,7 +382,8 @@ export const statesEditorActions = {
     const capital = (worldContext.pack.states[stateId] as State).capital;
     if (!capital) return;
     (worldContext.pack.burgs as Burg[])[capital].name = val;
-    (document.querySelector(`#burgLabel${capital}`) as Element).textContent = val;
+    const labelEl = getElementBySelector<Element>(`#burgLabel${capital}`);
+    if (labelEl) labelEl.textContent = val;
     refreshStatesEditor();
   },
 

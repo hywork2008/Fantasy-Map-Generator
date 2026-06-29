@@ -8,6 +8,7 @@ import { closeDialogs, openDialog } from "../ui/dialogs/dialogService";
 import { parseTransform, rn } from "../utils";
 import { TIME } from "../utils/debug";
 import { EditorBus } from "../utils/editorBus";
+import { getElementById } from "../utils/nodeUtils";
 import { onMouseMove, tip } from "../utils/uiHelpers";
 import { interactionManager } from "./interactionManager";
 
@@ -97,7 +98,7 @@ export { closeDialogs };
 // drag-feedback: direct SVG manipulation intentional for perf — called on every mousemove
 
 export function moveCircle(x: number, y: number, r = 20): void {
-  const circle = document.getElementById("brushCircle");
+  const circle = getElementById("brushCircle");
   if (!circle) {
     viewContext.debug
       .node()!
@@ -135,10 +136,10 @@ export function drawLegend(name: string, data: Array<[string | number, string, s
   viewContext.legend.selectAll("*").remove();
   viewContext.legend.attr("data", data.join("|"));
 
-  const itemsInCol = +(document.getElementById("styleLegendColItems") as HTMLInputElement).value;
+  const itemsInCol = +getRequiredInputElement("styleLegendColItems").value;
   const fontSize = +viewContext.legend.attr("font-size");
-  const backClr = (document.getElementById("styleLegendBack") as HTMLInputElement).value;
-  const opacity = +(document.getElementById("styleLegendOpacity") as HTMLInputElement).value;
+  const backClr = getRequiredInputElement("styleLegendBack").value;
+  const opacity = +getRequiredInputElement("styleLegendOpacity").value;
 
   const lineHeight = Math.round(fontSize * 1.7);
   const colorBoxSize = Math.round(fontSize / 1.7);
@@ -232,6 +233,44 @@ export function clearLegend(): void {
 
 // ─── Color picker ─────────────────────────────────────────────────────────
 
+function getPickerGroupSelection(): d3.Selection<SVGGElement, unknown, null, undefined> | null {
+  const pickerEl = getElementById<SVGGElement>("picker");
+  return pickerEl ? d3.select<SVGGElement, unknown>(pickerEl) : null;
+}
+
+function getPickerContainerSelection(): d3.Selection<SVGSVGElement, unknown, null, undefined> | null {
+  const containerEl = getElementById<SVGSVGElement>("pickerContainer");
+  return containerEl ? d3.select<SVGSVGElement, unknown>(containerEl) : null;
+}
+
+function getHatchingPatternsSelection(): d3.Selection<SVGPatternElement, unknown, SVGGElement, unknown> {
+  return viewContext.defs.select<SVGGElement>("#defs-hatching").selectAll<SVGPatternElement, unknown>("pattern");
+}
+
+function getPickerColorRectsSelection(): d3.Selection<SVGRectElement, unknown, SVGGElement, unknown> | null {
+  const picker = getPickerGroupSelection();
+  if (!picker) return null;
+  return picker.select<SVGGElement>("#pickerColors").selectAll<SVGRectElement, unknown>("rect");
+}
+
+function getPickerElementById<T extends Element>(id: string): T | null {
+  return getElementById<T>(id);
+}
+
+function getRequiredElementById<T extends Element>(id: string, kind = "Element"): T {
+  const element = getElementById<T>(id);
+  if (!element) throw new Error(`${kind} #${id} is not found`);
+  return element;
+}
+
+function getRequiredInputElement(id: string): HTMLInputElement {
+  return getRequiredElementById<HTMLInputElement>(id, "Input element");
+}
+
+function getRequiredPickerElement<T extends Element>(id: string): T {
+  return getRequiredElementById<T>(id, "Picker element");
+}
+
 function createPicker(): void {
   const pos = () => tip("Drag to change the picker position");
   const cl = () => tip("Click to close the picker");
@@ -324,7 +363,7 @@ function createPicker(): void {
 
   const colors = picker.append("g").attr("id", "pickerColors").attr("stroke", "#333333");
   const hatches = picker.append("g").attr("id", "pickerHatches").attr("stroke", "#333333");
-  const hatching = d3.selectAll<Element, unknown>("g#defs-hatching > pattern");
+  const hatching = getHatchingPatternsSelection();
   const number = hatching.size();
 
   const clr = d3.range(number).map(i => d3.hsl((i / number) * 360, 0.7, 0.7).formatHex());
@@ -409,40 +448,42 @@ function createPicker(): void {
 }
 
 function updateSelectedRect(fill: string): void {
-  document.getElementById("picker")!.querySelector<Element>("rect.selected")!.classList.remove("selected");
-  document
-    .getElementById("picker")!
-    .querySelector<Element>(`rect[fill='${fill.toLowerCase()}']`)!
-    .classList.add("selected");
+  const picker = getRequiredPickerElement<SVGGElement>("picker");
+  const selected = picker.querySelector<Element>("rect.selected");
+  const target = picker.querySelector<Element>(`rect[fill='${fill.toLowerCase()}']`);
+  if (!selected || !target) return;
+  selected.classList.remove("selected");
+  target.classList.add("selected");
 }
 
 function updateSpaces(): void {
-  const pickerH = document.getElementById("pickerH")!;
-  const pickerS = document.getElementById("pickerS")!;
-  const pickerL = document.getElementById("pickerL")!;
+  const pickerH = getRequiredPickerElement<Element>("pickerH");
+  const pickerS = getRequiredPickerElement<Element>("pickerS");
+  const pickerL = getRequiredPickerElement<Element>("pickerL");
 
   const h = getPickerControl(pickerH, 360);
   const s = getPickerControl(pickerS, 1);
   const l = getPickerControl(pickerL, 1);
 
-  (document.getElementById("pickerHSL_H") as HTMLInputElement).value = String(rn(h));
-  (document.getElementById("pickerHSL_S") as HTMLInputElement).value = String(rn(s * 100));
-  (document.getElementById("pickerHSL_L") as HTMLInputElement).value = String(rn(l * 100));
+  getRequiredPickerElement<HTMLInputElement>("pickerHSL_H").value = String(rn(h));
+  getRequiredPickerElement<HTMLInputElement>("pickerHSL_S").value = String(rn(s * 100));
+  getRequiredPickerElement<HTMLInputElement>("pickerHSL_L").value = String(rn(l * 100));
 
   const clr = d3.rgb(d3.hsl(h, s, l));
-  (document.getElementById("pickerRGB_R") as HTMLInputElement).value = String(clr.r);
-  (document.getElementById("pickerRGB_G") as HTMLInputElement).value = String(clr.g);
-  (document.getElementById("pickerRGB_B") as HTMLInputElement).value = String(clr.b);
-  (document.getElementById("pickerHEX") as HTMLInputElement).value = clr.formatHex();
+  getRequiredPickerElement<HTMLInputElement>("pickerRGB_R").value = String(clr.r);
+  getRequiredPickerElement<HTMLInputElement>("pickerRGB_G").value = String(clr.g);
+  getRequiredPickerElement<HTMLInputElement>("pickerRGB_B").value = String(clr.b);
+  getRequiredPickerElement<HTMLInputElement>("pickerHEX").value = clr.formatHex();
 }
 
 function updatePickerColors(): void {
-  const colors = d3.select<SVGGElement, unknown>("#picker > #pickerColors").selectAll<SVGRectElement, unknown>("rect");
+  const colors = getPickerColorRectsSelection();
+  if (!colors) return;
   const number = colors.size();
 
-  const h = getPickerControl(document.getElementById("pickerH")!, 360);
-  const s = getPickerControl(document.getElementById("pickerS")!, 1);
-  const l = getPickerControl(document.getElementById("pickerL")!, 1);
+  const h = getPickerControl(getRequiredPickerElement<Element>("pickerH"), 360);
+  const s = getPickerControl(getRequiredPickerElement<Element>("pickerS"), 1);
+  const l = getPickerControl(getRequiredPickerElement<Element>("pickerL"), 1);
 
   colors.each(function (this: SVGRectElement, _d, i) {
     const c = d3.hsl((i / number) * 180 + h, s, l).formatHex();
@@ -458,15 +499,15 @@ interface OpenPickerFn {
 }
 
 const openPicker: OpenPickerFn = (fill: string, callback: (fill: string) => void): void => {
-  const picker = d3.select("#picker");
-  if (!picker.size()) createPicker();
-  d3.select("#pickerContainer").style("display", "block");
+  const picker = getPickerGroupSelection();
+  if (!picker?.size()) createPicker();
+  getPickerContainerSelection()?.style("display", "block");
 
   if (fill[0] === "#") {
     const clr = d3.hsl(fill);
-    const pickerH = document.getElementById("pickerH")!;
-    const pickerS = document.getElementById("pickerS")!;
-    const pickerL = document.getElementById("pickerL")!;
+    const pickerH = getRequiredPickerElement<Element>("pickerH");
+    const pickerS = getRequiredPickerElement<Element>("pickerS");
+    const pickerL = getRequiredPickerElement<Element>("pickerL");
     if (!Number.isNaN(clr.h)) setPickerControl(pickerH, clr.h, 360);
     if (!Number.isNaN(clr.s)) setPickerControl(pickerS, clr.s, 1);
     if (!Number.isNaN(clr.l)) setPickerControl(pickerL, clr.l, 1);
@@ -477,7 +518,7 @@ const openPicker: OpenPickerFn = (fill: string, callback: (fill: string) => void
   updateSelectedRect(fill);
 
   openPicker.updateFill = () => {
-    const selected = document.getElementById("picker")?.querySelector<Element>("rect.selected");
+    const selected = getPickerElementById<SVGGElement>("picker")?.querySelector<Element>("rect.selected");
     if (!selected) return;
     callback(selected.getAttribute("fill")!);
   };
@@ -505,7 +546,7 @@ function pickerFillClicked(this: Element): void {
 
   const clr = d3.hsl(fill);
   if (Number.isNaN(clr.h)) return;
-  setPickerControl(document.getElementById("pickerH")!, clr.h, 360);
+  setPickerControl(getRequiredPickerElement<Element>("pickerH"), clr.h, 360);
   updateSpaces();
 }
 
@@ -538,10 +579,10 @@ function changePickerSpace(this: HTMLInputElement): void {
     return;
   }
 
-  const pickerH = document.getElementById("pickerH")!;
-  const pickerS = document.getElementById("pickerS")!;
-  const pickerL = document.getElementById("pickerL")!;
-  if (!Number.isNaN(clr.h)) setPickerControl(pickerH, clr.h, 360);
+  const pickerS = getRequiredPickerElement<Element>("pickerS");
+  const pickerL = getRequiredPickerElement<Element>("pickerL");
+  const pickerHEl = getRequiredPickerElement<Element>("pickerH");
+  if (!Number.isNaN(clr.h)) setPickerControl(pickerHEl, clr.h, 360);
   if (!Number.isNaN(clr.s)) setPickerControl(pickerS, clr.s, 1);
   if (!Number.isNaN(clr.l)) setPickerControl(pickerL, clr.l, 1);
 
@@ -631,8 +672,8 @@ export function selectIcon(initial: string, callback: (value: string) => void): 
   if (!callback) return;
   openDialog("iconSelector", { title: "Select Icon", onClose: () => callback(initial) });
 
-  const table = document.getElementById("iconTable") as HTMLTableElement;
-  const iconInput = document.getElementById("iconInput") as HTMLInputElement;
+  const table = getRequiredElementById<HTMLTableElement>("iconTable");
+  const iconInput = getRequiredElementById<HTMLInputElement>("iconInput");
   iconInput.value = initial;
 
   if (table.rows.length === 0) {
@@ -862,14 +903,14 @@ export function selectIcon(initial: string, callback: (value: string) => void): 
   };
 
   function addExternalImage(url: string) {
-    const addedIcons = document.getElementById("addedIcons")!;
+    const addedIcons = getRequiredElementById<HTMLElement>("addedIcons");
     const image = document.createElement("div");
     image.style.cssText = `width: 2.2em; height: 2.2em; background-size: cover; background-image: url(${url})`;
     addedIcons.appendChild(image);
     image.onclick = () => callback(url);
   }
 
-  const addImageBtn = document.getElementById("addImage") as HTMLButtonElement;
+  const addImageBtn = getRequiredElementById<HTMLButtonElement>("addImage");
   addImageBtn.onclick = () => {
     const urlInput = addImageBtn.previousElementSibling as HTMLInputElement;
     const url = urlInput.value;
@@ -880,8 +921,7 @@ export function selectIcon(initial: string, callback: (value: string) => void): 
     urlInput.value = "";
   };
 
-  document
-    .getElementById("addedIcons")!
+  getRequiredElementById<HTMLElement>("addedIcons")
     .querySelectorAll<HTMLElement>("div")
     .forEach(div => {
       div.onclick = () => callback(div.style.backgroundImage.slice(5, -2));

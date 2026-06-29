@@ -1,18 +1,15 @@
 import { useLayerState } from "../store/layerState";
 
-/**
- * @param id - The ID of the element to retrieve
- * @typeParam T - The type of the element to retrieve, extending HTMLElement
- * @returns The element with the specified ID, cast to the specified type
- */
-export const ensureEl = <T extends Element = HTMLElement>(id: string): T => {
-  const el = document.getElementById(id);
-  if (!el) {
-    // TODO: throw an error instead of logging it, and handle it properly in the caller
-    console.error(`Element with id "${id}" not found.`);
-    // TOBE: throw new Error(`Element with id "${id}" not found.`);
-  }
-  return el as Element as T;
+export const getElementById = <T extends Element = HTMLElement>(id: string): T | null => {
+  return document.getElementById(id) as T | null;
+};
+
+export const getElementBySelector = <T extends Element = Element>(selector: string): T | null => {
+  return document.querySelector(selector) as T | null;
+};
+
+export const getElementsBySelector = <T extends Element = Element>(selector: string): NodeListOf<T> => {
+  return document.querySelectorAll(selector) as NodeListOf<T>;
 };
 
 export const layerIsOn = (layer: string): boolean => {
@@ -42,7 +39,7 @@ export const getComposedPath = (node: Node | Window): Array<Node | Window> => {
  * @returns {string} - The unique ID
  */
 export const getNextId = (core: string, i: number = 1): string => {
-  while (document.getElementById(core + i)) i++;
+  while (getElementById(core + i)) i++;
   return core + i;
 };
 
@@ -50,6 +47,5 @@ declare global {
   interface Window {
     getComposedPath: typeof getComposedPath;
     getNextId: typeof getNextId;
-    ensureEl: typeof ensureEl;
   }
 }

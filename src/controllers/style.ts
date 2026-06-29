@@ -29,7 +29,7 @@ import { heightmapColorSchemes } from "../utils/colorUtils";
 import { ERROR, INFO } from "../utils/debug";
 import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog, downloadFile, uploadFile } from "../utils/editorHelpers";
-import { layerIsOn } from "../utils/nodeUtils";
+import { getElementById, layerIsOn, getElementBySelector as queryElementBySelector } from "../utils/nodeUtils";
 import { tip } from "../utils/uiHelpers";
 import { VERSION } from "../versioning";
 import { toggleRelief } from "./layers";
@@ -39,6 +39,16 @@ import { showOptions } from "./options";
 
 type StyleJSON = Record<string, Record<string, string | number | null>>;
 type AnySelection = Selection<SVGGElement, unknown, null, undefined>;
+
+function getRequiredElementById<T extends Element>(id: string): T {
+  const element = getElementById<T>(id);
+  if (!element) throw new Error(`Element #${id} is not found`);
+  return element;
+}
+
+function getElementBySelector<T extends Element>(selector: string): T | null {
+  return queryElementBySelector<T>(selector);
+}
 
 // ─── Module-scope constants ───────────────────────────────────────────────────
 
@@ -90,7 +100,7 @@ document.addEventListener("fmg:edit-style", (e: Event) => {
 
 export function editStyle(element: string, group?: string): void {
   showOptions();
-  (document.getElementById("styleTab") as HTMLButtonElement).click();
+  getRequiredElementById<HTMLButtonElement>("styleTab").click();
   useStyleState.getState().setActiveElement(element);
   if (group) {
     const currentOptions = useStyleState.getState().options.styleGroupSelect ?? [];
@@ -102,13 +112,13 @@ export function editStyle(element: string, group?: string): void {
   selectStyleElement();
 
   // Temporary glow effect on the element select
-  const elementSelectEl = document.getElementById("styleElementSelect");
+  const elementSelectEl = getElementById<HTMLElement>("styleElementSelect");
   if (elementSelectEl) {
     elementSelectEl.classList.add("glow");
-    if (group) document.getElementById("styleGroupSelect")?.classList.add("glow");
+    if (group) getElementById<HTMLElement>("styleGroupSelect")?.classList.add("glow");
     setTimeout(() => {
       elementSelectEl.classList.remove("glow");
-      if (group) document.getElementById("styleGroupSelect")?.classList.remove("glow");
+      if (group) getElementById<HTMLElement>("styleGroupSelect")?.classList.remove("glow");
     }, 1500);
   }
 }
@@ -366,9 +376,10 @@ export function selectStyleElement(): void {
   if (styleElement === "ocean") {
     visibility.styleOcean = true;
     const oceanBase = viewContext.oceanLayers.select<SVGRectElement>("#oceanBase");
+    const oceanPattern = getElementById<SVGImageElement>("oceanicPattern");
     storeValues.styleOceanFill = oceanBase.attr("fill") ?? "";
-    storeValues.styleOceanPattern = document.getElementById("oceanicPattern")?.getAttribute("href") ?? "";
-    storeValues.styleOceanPatternOpacity = document.getElementById("oceanicPattern")?.getAttribute("opacity") ?? "1";
+    storeValues.styleOceanPattern = oceanPattern?.getAttribute("href") ?? "";
+    storeValues.styleOceanPatternOpacity = oceanPattern?.getAttribute("opacity") ?? "1";
     storeValues.outlineLayers = viewContext.oceanLayers.attr("layers") ?? "";
   }
 
@@ -406,7 +417,7 @@ export function selectStyleElement(): void {
   let groupOptions: SelectOption[] = [];
   let selectedGroup = "";
   if (GROUPED_ELEMENTS.includes(styleElement)) {
-    const svgEl = document.getElementById(styleElement);
+    const svgEl = getElementById<Element>(styleElement);
     if (svgEl) {
       svgEl.querySelectorAll<SVGGElement>("g").forEach(g => {
         if (g.id === "burgLabels") return;
@@ -456,7 +467,7 @@ export function selectStyleElement(): void {
 
   if (styleElement === "vignette") {
     visibility.styleVignette = true;
-    const maskRect = document.getElementById("vignette-rect");
+    const maskRect = getElementById<SVGRectElement>("vignette-rect");
     if (maskRect) {
       const digit = (str: string | null) => (str ?? "").replace(/[^\d.]/g, "");
       storeValues.styleVignetteX = digit(maskRect.getAttribute("x"));
@@ -529,7 +540,7 @@ export function updateTextureSelectValue(href: string): void {
 export function calculateFriendlyGridSize(): void {
   const scale = +(useStyleState.getState().values.styleGridScale ?? 1);
   const size = scale * 25;
-  const unit = (document.getElementById("distanceUnitInput") as HTMLSelectElement | null)?.value ?? "km";
+  const unit = getElementById<HTMLSelectElement>("distanceUnitInput")?.value ?? "km";
   const friendly = `${rn(size * worldContext.distanceScale, 2)} ${unit}`;
   useStyleState.getState().updateValue("styleGridSizeFriendly", friendly);
 }
@@ -609,10 +620,10 @@ export function applySliderChange(id: string, value: string): void {
       HeightmapRenderer.render(worldContext, viewContext, appServices);
       break;
     case "styleOceanPatternOpacity":
-      document.getElementById("oceanicPattern")?.setAttribute("opacity", value);
+      getElementById<SVGImageElement>("oceanicPattern")?.setAttribute("opacity", value);
       break;
     case "styleVignetteBlur":
-      document.getElementById("vignette-rect")?.setAttribute("filter", `blur(${value}px)`);
+      getElementById<SVGRectElement>("vignette-rect")?.setAttribute("filter", `blur(${value}px)`);
       break;
     case "styleBurgIconsIconSize":
       getEl().attr("font-size", value);
@@ -814,7 +825,7 @@ export function applyOceanFill(value: string): void {
 
 export function applyOceanPattern(href: string): void {
   useStyleState.getState().updateValue("styleOceanPattern", href);
-  document.getElementById("oceanicPattern")!.setAttribute("href", href);
+  getRequiredElementById<SVGImageElement>("oceanicPattern").setAttribute("href", href);
 }
 
 export function applyOutlineLayers(value: string): void {
@@ -947,7 +958,7 @@ export function applyStatesBodyFilter(value: string): void {
 export function applyVignettePreset(presetName: string): void {
   const attributes = JSON.parse(VIGNETTE_PRESETS[presetName]) as Record<string, Record<string, string | null>>;
   for (const selector in attributes) {
-    const el = document.querySelector(selector);
+    const el = getElementBySelector<Element>(selector);
     if (!el) continue;
     for (const attr in attributes[selector]) {
       const value = attributes[selector][attr];
@@ -956,8 +967,8 @@ export function applyVignettePreset(presetName: string): void {
     }
   }
 
-  const vignette = document.getElementById("vignette");
-  const maskRect = document.getElementById("vignette-rect");
+  const vignette = getElementById<SVGGElement>("vignette");
+  const maskRect = getElementById<SVGRectElement>("vignette-rect");
   const digit = (str: string | null) => (str ?? "").replace(/[^\d.]/g, "");
 
   const updates: Record<string, string> = {};
@@ -981,32 +992,32 @@ export function applyVignettePreset(presetName: string): void {
 
 export function applyVignetteX(value: string): void {
   useStyleState.getState().updateValue("styleVignetteX", value);
-  document.getElementById("vignette-rect")!.setAttribute("x", `${value}%`);
+  getRequiredElementById<SVGRectElement>("vignette-rect").setAttribute("x", `${value}%`);
 }
 
 export function applyVignetteY(value: string): void {
   useStyleState.getState().updateValue("styleVignetteY", value);
-  document.getElementById("vignette-rect")!.setAttribute("y", `${value}%`);
+  getRequiredElementById<SVGRectElement>("vignette-rect").setAttribute("y", `${value}%`);
 }
 
 export function applyVignetteWidth(value: string): void {
   useStyleState.getState().updateValue("styleVignetteWidth", value);
-  document.getElementById("vignette-rect")!.setAttribute("width", `${value}%`);
+  getRequiredElementById<SVGRectElement>("vignette-rect").setAttribute("width", `${value}%`);
 }
 
 export function applyVignetteHeight(value: string): void {
   useStyleState.getState().updateValue("styleVignetteHeight", value);
-  document.getElementById("vignette-rect")!.setAttribute("height", `${value}%`);
+  getRequiredElementById<SVGRectElement>("vignette-rect").setAttribute("height", `${value}%`);
 }
 
 export function applyVignetteRx(value: string): void {
   useStyleState.getState().updateValue("styleVignetteRx", value);
-  document.getElementById("vignette-rect")!.setAttribute("rx", `${value}%`);
+  getRequiredElementById<SVGRectElement>("vignette-rect").setAttribute("rx", `${value}%`);
 }
 
 export function applyVignetteRy(value: string): void {
   useStyleState.getState().updateValue("styleVignetteRy", value);
-  document.getElementById("vignette-rect")!.setAttribute("ry", `${value}%`);
+  getRequiredElementById<SVGRectElement>("vignette-rect").setAttribute("ry", `${value}%`);
 }
 
 export function applyScaleBarInput(id: string, value: string): void {
@@ -1080,7 +1091,8 @@ export function fetchTextureURL(url: string): void {
   INFO && console.info("Provided URL is", url);
   const img = new Image();
   img.onload = () => {
-    const canvas = document.getElementById("texturePreview") as HTMLCanvasElement;
+    const canvas = getElementById<HTMLCanvasElement>("texturePreview");
+    if (!canvas) return;
     const ctx = canvas.getContext("2d")!;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
@@ -1134,7 +1146,7 @@ function applyStyle(styleJSON: StyleJSON): void {
       worldContext.style.anchors[group] = styleJSON[selector] as Record<string, string>;
     }
 
-    const el = document.querySelector(selector);
+    const el = getElementBySelector<Element>(selector);
     if (!el) continue;
 
     for (const attribute in styleJSON[selector]) {
@@ -1148,7 +1160,7 @@ function applyStyle(styleJSON: StyleJSON): void {
       el.setAttribute(attribute, String(value));
 
       if (selector === "#texture") {
-        const image = document.querySelector("#texture > image");
+        const image = getElementBySelector<SVGImageElement>("#texture > image");
         if (image) {
           if (attribute === "data-x") image.setAttribute("x", String(value));
           if (attribute === "data-y") image.setAttribute("y", String(value));
@@ -1249,8 +1261,8 @@ export function addStylePreset(): void {
   const styleName = activePreset.replace(CUSTOM_PRESET_PREFIX, "");
 
   // Pre-fill the dialog with current style data
-  const nameInput = document.getElementById("styleSaverName") as HTMLInputElement | null;
-  const jsonArea = document.getElementById("styleSaverJSON") as HTMLTextAreaElement | null;
+  const nameInput = getElementById<HTMLInputElement>("styleSaverName");
+  const jsonArea = getElementById<HTMLTextAreaElement>("styleSaverJSON");
   if (nameInput) nameInput.value = styleName;
   if (jsonArea) jsonArea.value = JSON.stringify(collectStyleData(), null, 2);
   checkStyleName();
@@ -1469,7 +1481,7 @@ function collectStyleData(): StyleJSON {
   });
 
   for (const selector in attributes) {
-    const el = document.querySelector<HTMLElement>(selector);
+    const el = getElementBySelector<HTMLElement>(selector);
     if (!el) continue;
 
     result[selector] = {};
@@ -1491,8 +1503,8 @@ function collectStyleData(): StyleJSON {
 }
 
 export function checkStyleName(): void {
-  const nameInput = document.getElementById("styleSaverName") as HTMLInputElement | null;
-  const tipEl = document.getElementById("styleSaverTip");
+  const nameInput = getElementById<HTMLInputElement>("styleSaverName");
+  const tipEl = getElementById<HTMLElement>("styleSaverTip");
   if (!nameInput || !tipEl) return;
 
   const rawName = nameInput.value;
@@ -1514,9 +1526,9 @@ export function checkStyleName(): void {
 }
 
 export function saveStylePreset(): void {
-  const jsonArea = document.getElementById("styleSaverJSON") as HTMLTextAreaElement | null;
-  const nameInput = document.getElementById("styleSaverName") as HTMLInputElement | null;
-  const tipEl = document.getElementById("styleSaverTip");
+  const jsonArea = getElementById<HTMLTextAreaElement>("styleSaverJSON");
+  const nameInput = getElementById<HTMLInputElement>("styleSaverName");
+  const tipEl = getElementById<HTMLElement>("styleSaverTip");
   if (!jsonArea || !nameInput) return;
 
   const styleJSON = jsonArea.value;
@@ -1554,8 +1566,8 @@ export function saveStylePreset(): void {
 }
 
 export function downloadStylePreset(): void {
-  const jsonArea = document.getElementById("styleSaverJSON") as HTMLTextAreaElement | null;
-  const nameInput = document.getElementById("styleSaverName") as HTMLInputElement | null;
+  const jsonArea = getElementById<HTMLTextAreaElement>("styleSaverJSON");
+  const nameInput = getElementById<HTMLInputElement>("styleSaverName");
   if (!jsonArea || !nameInput) return;
 
   const styleJSON = jsonArea.value;
@@ -1584,8 +1596,8 @@ export function handleStyleFileLoad(this: HTMLInputElement): void {
     const isValid = JSON.isValid(dataLoaded);
     if (!isValid) return tip("Loaded data is not a valid JSON, please check the format", false, "error");
 
-    const jsonArea = document.getElementById("styleSaverJSON") as HTMLTextAreaElement | null;
-    const nameInput = document.getElementById("styleSaverName") as HTMLInputElement | null;
+    const jsonArea = getElementById<HTMLTextAreaElement>("styleSaverJSON");
+    const nameInput = getElementById<HTMLInputElement>("styleSaverName");
     if (jsonArea) jsonArea.value = JSON.stringify(JSON.parse(dataLoaded), null, 2);
     if (nameInput) nameInput.value = fileName;
     checkStyleName();
@@ -1610,7 +1622,9 @@ export function initStyleTab(): void {
 
   // Initialize filter select options from SVG <defs>
   const buildFilterOptions = (): SelectOption[] => {
-    const filters = Array.from(document.getElementById("filters")?.querySelectorAll<SVGFilterElement>("filter") ?? []);
+    const filters = Array.from(
+      getElementById<SVGDefsElement>("filters")?.querySelectorAll<SVGFilterElement>("filter") ?? []
+    );
     return [
       { value: "", label: "None" },
       ...filters.map(filter => {

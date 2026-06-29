@@ -13,6 +13,7 @@ type LoadMapDialogState = {
   isDropboxLoading: boolean;
   dropboxFiles: LoadMapDropboxFile[];
   dropboxStatus: string | null;
+  selectedDropboxPath: string;
   sharableLinkUrl: string;
   sharableLinkLabel: string;
   isSharableLinkVisible: boolean;
@@ -20,6 +21,7 @@ type LoadMapDialogState = {
   setDropboxLoading: () => void;
   setDropboxNoFiles: (status: string) => void;
   setDropboxFiles: (files: LoadMapDropboxFile[]) => void;
+  setSelectedDropboxPath: (path: string) => void;
   setSharableLink: (url: string, label: string) => void;
   hideSharableLink: () => void;
 };
@@ -29,6 +31,7 @@ export const loadMapDialogStore = createStore<LoadMapDialogState>(set => ({
   isDropboxLoading: false,
   dropboxFiles: [],
   dropboxStatus: null,
+  selectedDropboxPath: "",
   sharableLinkUrl: "",
   sharableLinkLabel: "",
   isSharableLinkVisible: false,
@@ -38,6 +41,7 @@ export const loadMapDialogStore = createStore<LoadMapDialogState>(set => ({
       isDropboxLoading: false,
       dropboxFiles: [],
       dropboxStatus: null,
+      selectedDropboxPath: "",
       sharableLinkUrl: "",
       sharableLinkLabel: "",
       isSharableLinkVisible: false
@@ -48,6 +52,7 @@ export const loadMapDialogStore = createStore<LoadMapDialogState>(set => ({
       isDropboxLoading: true,
       dropboxFiles: [],
       dropboxStatus: "Loading...",
+      selectedDropboxPath: "",
       sharableLinkUrl: "",
       sharableLinkLabel: "",
       isSharableLinkVisible: false
@@ -58,6 +63,7 @@ export const loadMapDialogStore = createStore<LoadMapDialogState>(set => ({
       isDropboxLoading: false,
       dropboxFiles: [],
       dropboxStatus: status,
+      selectedDropboxPath: "",
       sharableLinkUrl: "",
       sharableLinkLabel: "",
       isSharableLinkVisible: false
@@ -68,10 +74,12 @@ export const loadMapDialogStore = createStore<LoadMapDialogState>(set => ({
       isDropboxLoading: false,
       dropboxFiles: files,
       dropboxStatus: null,
+      selectedDropboxPath: files[0]?.path ?? "",
       sharableLinkUrl: "",
       sharableLinkLabel: "",
       isSharableLinkVisible: false
     }),
+  setSelectedDropboxPath: path => set({ selectedDropboxPath: path }),
   setSharableLink: (url, label) =>
     set({
       sharableLinkUrl: url,

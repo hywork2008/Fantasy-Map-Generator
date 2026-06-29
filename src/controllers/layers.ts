@@ -42,7 +42,7 @@ let presets: Record<string, string[]> = {};
 
 import { ThreeDRenderer } from "../renderers/three-d-renderer";
 import { DEFAULT_LAYERS, useLayerState } from "../store/layerState";
-import { layerIsOn } from "../utils/nodeUtils";
+import { getElementById, layerIsOn } from "../utils/nodeUtils";
 import { tip } from "../utils/uiHelpers";
 
 const editStyle = (element: string, group?: string) =>
@@ -59,7 +59,7 @@ function getLayerElementByToggleId(id: string): Element | null {
   if (id === "toggleLabels") return viewContext.labels.node();
   if (id === "toggleScaleBar") return viewContext.scaleBar.node();
   if (id === "toggleEmblems") return viewContext.emblems.node();
-  if (id === "toggleVignette") return document.getElementById("vignette");
+  if (id === "toggleVignette") return getElementById("vignette");
   return null;
 }
 

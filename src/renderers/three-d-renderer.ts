@@ -137,6 +137,17 @@ class ThreeDModule {
   private erosionBakeData: ErosionBake.ErosionBakeResult | null = null;
   private waterAnimationFrame: number | null = null;
   private waterTime = { value: 0 };
+  private labelBuildToken = 0;
+  private labelsBuildFrame: number | null = null;
+  private lastLabelVisibilityCamera = {
+    x: Number.NaN,
+    y: Number.NaN,
+    z: Number.NaN,
+    qx: Number.NaN,
+    qy: Number.NaN,
+    qz: Number.NaN,
+    qw: Number.NaN
+  };
   private readonly context2d = document.createElement("canvas").getContext("2d") as CanvasRenderingContext2D;
   private renderThrottled: () => void;
 
@@ -269,12 +280,30 @@ class ThreeDModule {
     this.options.labels3d = this.options.labels3d ? 0 : 1;
 
     if (this.options.labels3d) {
-      this.createLabels();
-      this.update();
+      this.invalidateLabelVisibilityCache();
+      if (!this.labels.length && !this.icons.length && !this.lines.length) {
+        this.createLabels();
+      } else {
+        this.setLabelsVisibility(true);
+        this.doWorkOnRender();
+      }
     } else {
-      this.deleteLabels();
+      this.setLabelsVisibility(false);
+    }
+
+    // Make label toggle feel immediate; texture refresh can happen afterward if required.
+    this.render();
+
+    if (this.shouldRefreshTextureAfterLabelsToggle()) {
       this.update();
     }
+  }
+
+  private shouldRefreshTextureAfterLabelsToggle(): boolean {
+    if (this.options.isGlobe) return false;
+    if (this.options.satellite) return false;
+    // No need to regenerate texture if 2D labels layer is hidden.
+    return layerIsOn("toggleLabels");
   }
 
   toggle3dSubdivision(): void {
@@ -468,6 +497,13 @@ class ThreeDModule {
   }
 
   private createLabels(): void {
+    this.labelBuildToken += 1;
+    const buildToken = this.labelBuildToken;
+    if (this.labelsBuildFrame !== null) {
+      cancelAnimationFrame(this.labelsBuildFrame);
+      this.labelsBuildFrame = null;
+    }
+
     this.raycaster = new THREE.Raycaster();
     this.raycaster.set(new THREE.Vector3(0, 1000, 0), new THREE.Vector3(0, -1, 0));
 
@@ -484,6 +520,8 @@ class ThreeDModule {
     const iconMaterials: Record<string, THREE.Material> = {};
     const iconGeometries: Record<string, THREE.BufferGeometry> = {};
     const lineMaterials: Record<string, THREE.Material> = {};
+    const labelsLayerOn = layerIsOn("toggleLabels");
+    const burgIconsLayerOn = layerIsOn("toggleBurgIcons");
 
     const getBurgLabelOptions = (burg: {
       group?: string;
@@ -537,45 +575,26 @@ class ThreeDModule {
       return lineMaterials[groupName];
     };
 
-    for (let i = 1; i < worldContext.pack.burgs.length; i++) {
-      const burg = worldContext.pack.burgs[i];
-      if (burg.removed) continue;
+    let burgIndex = 1;
+    let stateIndex = 1;
+    const LABELS_FRAME_BUDGET_MS = 6;
 
-      const burgOptions = getBurgLabelOptions(burg);
-      if (!burgOptions) continue;
+    const flushFrame = (): void => {
+      this.setLabelsVisibility(Boolean(this.options.labels3d));
+      this.doWorkOnRender();
+      this.render();
+    };
 
-      const [x, y, z] = this.get3dCoords(burg.x, burg.y);
-
-      if (layerIsOn("toggleLabels")) {
-        const burgSprite = this.createTextLabel({ text: burg.name ?? "", ...burgOptions }) as LabelSprite;
-        burgSprite.position.set(x, y + burgOptions.elevation, z);
-        burgSprite.size = burgOptions.size;
-        this.labels.push(burgSprite);
-        this.scene!.add(burgSprite);
+    const processStatesChunk = (): void => {
+      if (buildToken !== this.labelBuildToken || !this.options.labels3d || !this.scene) {
+        this.labelsBuildFrame = null;
+        return;
       }
 
-      if (layerIsOn("toggleBurgIcons")) {
-        const geo = getIconGeometry(burg.group ?? "", burgOptions.iconSize);
-        const mat = getIconMaterial(burg.group ?? "", burgOptions.iconColor);
-        const iconMesh = new THREE.Mesh(geo, mat);
-        iconMesh.position.set(x, y, z);
-        this.icons.push(iconMesh);
-        this.scene!.add(iconMesh);
-
-        const lineMat = getLineMaterial(burg.group ?? "", burgOptions.iconColor);
-        const lineStart = y + burgOptions.iconSize / 2;
-        const lineEnd = y + burgOptions.elevation - burgOptions.size * 0.5;
-        const points = [new THREE.Vector3(x, lineStart, z), new THREE.Vector3(x, lineEnd, z)];
-        const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
-        const line = new THREE.Line(lineGeo, lineMat);
-        this.lines.push(line);
-        this.scene!.add(line);
-      }
-    }
-
-    if (layerIsOn("toggleLabels")) {
-      for (let i = 1; i < worldContext.pack.states.length; i++) {
-        const state = worldContext.pack.states[i];
+      const deadline = performance.now() + LABELS_FRAME_BUDGET_MS;
+      let processed = false;
+      while (stateIndex < worldContext.pack.states.length && (!processed || performance.now() < deadline)) {
+        const state = worldContext.pack.states[stateIndex++];
         if (state.removed) continue;
 
         const [x, y, z] = this.get3dCoords(state.pole![0], state.pole![1]);
@@ -585,35 +604,142 @@ class ThreeDModule {
         stateSprite.position.set(x, y + stateOptions.elevation, z);
         stateSprite.size = stateOptions.size;
         this.labels.push(stateSprite);
-        this.scene!.add(stateSprite);
+        this.scene.add(stateSprite);
+        processed = true;
       }
-    }
 
-    this.doWorkOnRender();
+      flushFrame();
+
+      if (stateIndex < worldContext.pack.states.length) {
+        this.labelsBuildFrame = requestAnimationFrame(processStatesChunk);
+      } else {
+        this.labelsBuildFrame = null;
+      }
+    };
+
+    const processBurgsChunk = (): void => {
+      if (buildToken !== this.labelBuildToken || !this.options.labels3d || !this.scene) {
+        this.labelsBuildFrame = null;
+        return;
+      }
+
+      const deadline = performance.now() + LABELS_FRAME_BUDGET_MS;
+      let processed = false;
+      while (burgIndex < worldContext.pack.burgs.length && (!processed || performance.now() < deadline)) {
+        const burg = worldContext.pack.burgs[burgIndex++];
+        if (burg.removed) continue;
+
+        const burgOptions = getBurgLabelOptions(burg);
+        if (!burgOptions) continue;
+
+        const [x, y, z] = this.get3dCoords(burg.x, burg.y);
+
+        if (labelsLayerOn) {
+          const burgSprite = this.createTextLabel({ text: burg.name ?? "", ...burgOptions }) as LabelSprite;
+          burgSprite.position.set(x, y + burgOptions.elevation, z);
+          burgSprite.size = burgOptions.size;
+          this.labels.push(burgSprite);
+          this.scene.add(burgSprite);
+        }
+
+        if (burgIconsLayerOn) {
+          const geo = getIconGeometry(burg.group ?? "", burgOptions.iconSize);
+          const mat = getIconMaterial(burg.group ?? "", burgOptions.iconColor);
+          const iconMesh = new THREE.Mesh(geo, mat);
+          iconMesh.position.set(x, y, z);
+          this.icons.push(iconMesh);
+          this.scene.add(iconMesh);
+
+          const lineMat = getLineMaterial(burg.group ?? "", burgOptions.iconColor);
+          const lineStart = y + burgOptions.iconSize / 2;
+          const lineEnd = y + burgOptions.elevation - burgOptions.size * 0.5;
+          const points = [new THREE.Vector3(x, lineStart, z), new THREE.Vector3(x, lineEnd, z)];
+          const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
+          const line = new THREE.Line(lineGeo, lineMat);
+          this.lines.push(line);
+          this.scene.add(line);
+        }
+
+        processed = true;
+      }
+
+      flushFrame();
+
+      if (burgIndex < worldContext.pack.burgs.length) {
+        this.labelsBuildFrame = requestAnimationFrame(processBurgsChunk);
+        return;
+      }
+
+      if (labelsLayerOn) {
+        this.labelsBuildFrame = requestAnimationFrame(processStatesChunk);
+      } else {
+        this.labelsBuildFrame = null;
+      }
+    };
+
+    flushFrame();
+    this.labelsBuildFrame = requestAnimationFrame(processBurgsChunk);
+  }
+
+  private setLabelsVisibility(visible: boolean): void {
+    for (const label of this.labels) label.visible = visible;
+    for (const icon of this.icons) icon.visible = visible;
+    for (const line of this.lines) line.visible = visible;
+  }
+
+  private invalidateLabelVisibilityCache(): void {
+    this.lastLabelVisibilityCamera = {
+      x: Number.NaN,
+      y: Number.NaN,
+      z: Number.NaN,
+      qx: Number.NaN,
+      qy: Number.NaN,
+      qz: Number.NaN,
+      qw: Number.NaN
+    };
   }
 
   private deleteLabels(): void {
+    this.labelBuildToken += 1;
+    if (this.labelsBuildFrame !== null) {
+      cancelAnimationFrame(this.labelsBuildFrame);
+      this.labelsBuildFrame = null;
+    }
+
     this.raycaster = undefined;
+
+    const disposedMaterials = new Set<THREE.Material>();
+    const disposedGeometries = new Set<THREE.BufferGeometry>();
+    const disposeMaterial = (material: THREE.Material): void => {
+      if (disposedMaterials.has(material)) return;
+      disposedMaterials.add(material);
+      material.dispose();
+    };
+    const disposeGeometry = (geometry: THREE.BufferGeometry): void => {
+      if (disposedGeometries.has(geometry)) return;
+      disposedGeometries.add(geometry);
+      geometry.dispose();
+    };
 
     for (const m of this.labels) {
       this.scene!.remove(m);
       (m.material as THREE.SpriteMaterial).map?.dispose();
-      m.material.dispose();
-      m.geometry.dispose();
+      disposeMaterial(m.material as THREE.Material);
+      disposeGeometry(m.geometry as THREE.BufferGeometry);
     }
     this.labels = [];
 
     for (const m of this.icons) {
       this.scene!.remove(m);
-      (m.material as THREE.Material).dispose();
-      m.geometry.dispose();
+      disposeMaterial(m.material as THREE.Material);
+      disposeGeometry(m.geometry as THREE.BufferGeometry);
     }
     this.icons = [];
 
     for (const line of this.lines) {
       this.scene!.remove(line);
-      (line.material as THREE.Material).dispose();
-      line.geometry.dispose();
+      disposeMaterial(line.material as THREE.Material);
+      disposeGeometry(line.geometry as THREE.BufferGeometry);
     }
     this.lines = [];
   }
@@ -962,10 +1088,42 @@ class ThreeDModule {
   }
 
   private doWorkOnRender(): void {
+    if (!this.options.labels3d) return;
+    if (!this.camera) return;
+
+    const cameraPos = this.camera.position;
+    const cameraQuat = this.camera.quaternion;
+    const prev = this.lastLabelVisibilityCamera;
+
+    const dx = cameraPos.x - prev.x;
+    const dy = cameraPos.y - prev.y;
+    const dz = cameraPos.z - prev.z;
+    const dPosSq = dx * dx + dy * dy + dz * dz;
+
+    const dqx = cameraQuat.x - prev.qx;
+    const dqy = cameraQuat.y - prev.qy;
+    const dqz = cameraQuat.z - prev.qz;
+    const dqw = cameraQuat.w - prev.qw;
+    const dQuatSq = dqx * dqx + dqy * dqy + dqz * dqz + dqw * dqw;
+
+    const firstRun = Number.isNaN(prev.x);
+    const movedEnough = dPosSq > 4 || dQuatSq > 0.00001;
+    if (!firstRun && !movedEnough) return;
+
+    prev.x = cameraPos.x;
+    prev.y = cameraPos.y;
+    prev.z = cameraPos.z;
+    prev.qx = cameraQuat.x;
+    prev.qy = cameraQuat.y;
+    prev.qz = cameraQuat.z;
+    prev.qw = cameraQuat.w;
+
     for (let i = 0; i < this.labels.length; i++) {
       const label = this.labels[i];
-      const dist = label.position.distanceTo(this.camera!.position);
-      const isVisible = dist < 100 * label.size && dist > label.size * 6;
+      const distSq = label.position.distanceToSquared(cameraPos);
+      const maxDist = 100 * label.size;
+      const minDist = label.size * 6;
+      const isVisible = distSq < maxDist * maxDist && distSq > minDist * minDist;
       label.visible = isVisible;
       if (this.lines[i]) this.lines[i].visible = isVisible;
     }

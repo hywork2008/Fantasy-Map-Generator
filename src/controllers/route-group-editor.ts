@@ -6,7 +6,7 @@ import { useRouteGroupsEditorStore } from "../store/routeGroupsEditorStore";
 import { openDialog } from "../ui/dialogs/dialogService";
 import { showPrompt } from "../utils";
 import { confirmationDialog } from "../utils/editorHelpers";
-import { layerIsOn } from "../utils/nodeUtils";
+import { getElementById, layerIsOn } from "../utils/nodeUtils";
 import { tip } from "../utils/uiHelpers";
 import { toggleRoutes } from "./layers";
 
@@ -48,7 +48,7 @@ export function routeGroupsAddGroup(): void {
 
     if (!group) return tip("Invalid group name", false, "error");
     if (!group.startsWith("route-")) group = `route-${group}`;
-    if (document.getElementById(group))
+    if (getElementById(group))
       return tip("Element with this name already exists. Provide a unique name", false, "error");
     if (Number.isFinite(+group.charAt(0))) return tip("Group name should start with a letter", false, "error");
 
@@ -60,10 +60,10 @@ export function routeGroupsAddGroup(): void {
       .attr("stroke-dasharray", "1 0.5")
       .attr("stroke-linecap", "butt");
 
-    const routeGroupEl = document.getElementById("routeGroup") as HTMLSelectElement | null;
+    const routeGroupEl = getElementById<HTMLSelectElement>("routeGroup");
     if (routeGroupEl) routeGroupEl.options.add(new Option(group, group));
 
-    const routeCreatorGroupSelectEl = document.getElementById("routeCreatorGroupSelect") as HTMLSelectElement | null;
+    const routeCreatorGroupSelectEl = getElementById<HTMLSelectElement>("routeCreatorGroupSelect");
     if (routeCreatorGroupSelectEl) routeCreatorGroupSelectEl.options.add(new Option(group, group));
 
     refreshRouteGroups();

@@ -11,7 +11,7 @@ import { getUnitsEditorState, setUnitsEditorState } from "../store/unitsEditorSt
 import { closeDialogs, openConfirm, openDialog } from "../ui/dialogs/dialogService";
 import { findCell } from "../utils";
 import { EditorBus } from "../utils/editorBus";
-import { layerIsOn } from "../utils/nodeUtils";
+import { getElementById, layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, tip } from "../utils/uiHelpers";
 import { toggleRulers } from "./layers";
 import { calculateFriendlyGridSize } from "./style";
@@ -126,7 +126,9 @@ export const unitsEditorActions = {
 
     const width = Math.min(worldContext.graphWidth, viewContext.svgWidth);
     const height = Math.min(worldContext.graphHeight, viewContext.svgHeight);
-    const pt = (document.getElementById("map") as Element as SVGSVGElement).createSVGPoint();
+    const mapSvg = getElementById<SVGSVGElement>("map");
+    if (!mapSvg) return;
+    const pt = mapSvg.createSVGPoint();
     pt.x = width / 2;
     pt.y = height / 4;
     const p = pt.matrixTransform((viewContext.viewbox.node() as SVGGraphicsElement).getScreenCTM()!.inverse());

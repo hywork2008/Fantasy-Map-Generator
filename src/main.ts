@@ -70,7 +70,7 @@ import {
   safeParseJSON,
   shouldRegenerateGrid
 } from "./utils";
-import { layerIsOn } from "./utils/nodeUtils";
+import { getElementById, layerIsOn } from "./utils/nodeUtils";
 import { clearMainTip, locked, showDataTip, tip } from "./utils/uiHelpers";
 import { cleanupData } from "./versioning";
 
@@ -102,7 +102,9 @@ if (PRODUCTION && "serviceWorker" in navigator) {
 
 // ─── SVG layers (appended in default render order) ───────────────────────────
 
-let svg = d3.select("#map") as unknown as Selection<SVGSVGElement, unknown, null, undefined>;
+const mapSvgEl = getElementById<SVGSVGElement>("map");
+if (!mapSvgEl) throw new Error("Map SVG root #map is not found");
+let svg = d3.select<SVGSVGElement, unknown>(mapSvgEl) as Selection<SVGSVGElement, unknown, null, undefined>;
 let defs = svg.select("#deftemp") as Selection<SVGDefsElement, unknown, null, undefined>;
 let viewbox = svg.select("#viewbox") as Selection<SVGGElement, unknown, null, undefined>;
 let scaleBar = svg.select("#scaleBar") as Selection<SVGGElement, unknown, null, undefined>;
@@ -504,9 +506,9 @@ function zoomRaf(event: { transform: { k: number; x: number; y: number } }) {
     }
 
     if (viewContext.customization === 1) {
-      const canvas = document.getElementById("canvas") as HTMLCanvasElement | null;
+      const canvas = getElementById<HTMLCanvasElement>("canvas");
       if (canvas && canvas.style.opacity !== "0") {
-        const img = document.getElementById("imageToConvert") as HTMLImageElement | null;
+        const img = getElementById<HTMLImageElement>("imageToConvert");
         if (img) {
           const ctx = canvas.getContext("2d")!;
           ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -614,7 +616,7 @@ export async function initMain(): Promise<void> {
 }
 
 function applyTransition(id: string, duration: number, opacity: number) {
-  const el = document.getElementById(id);
+  const el = getElementById<HTMLElement>(id);
   if (!el) return;
   el.style.transition = `opacity ${duration}ms`;
   el.style.opacity = String(opacity);
@@ -729,17 +731,23 @@ export function focusOn() {
 }
 
 let isAssistantLoaded = false;
+
+function setElementDisplayById(id: string, display: string): void {
+  const element = getElementById<HTMLElement>(id);
+  if (!element) return;
+  element.style.display = display;
+}
+
 function toggleAssistant() {
   const showAssistant = useOptionsState.getState().azgaarAssistant === "show";
   if (showAssistant) {
     if (isAssistantLoaded) {
-      const assistantContainer = document.getElementById("chat-widget-container");
-      if (assistantContainer) assistantContainer.style.display = "block";
+      setElementDisplayById("chat-widget-container", "block");
     } else {
       import(/* @vite-ignore */ `${import.meta.env.BASE_URL}libs/openwidget.min.js`).then(() => {
         isAssistantLoaded = true;
         setTimeout(() => {
-          const bubble = document.getElementById("chat-widget-minimized");
+          const bubble = getElementById<HTMLElement>("chat-widget-minimized");
           if (bubble) {
             bubble.dataset.tip = "Click to open the Assistant";
             bubble.addEventListener("mouseover", showDataTip as EventListener);
@@ -748,22 +756,21 @@ function toggleAssistant() {
       });
     }
   } else if (isAssistantLoaded) {
-    const assistantContainer = document.getElementById("chat-widget-container");
-    if (assistantContainer) assistantContainer.style.display = "none";
+    setElementDisplayById("chat-widget-container", "none");
   }
 }
 
 function initTourPromptButton() {
   const MAX_SHOWS = 3;
   const STORAGE_KEY = "fmg-tour-prompt-count";
-  const btn = document.getElementById("tourPromptButton");
+  const btn = getElementById<HTMLElement>("tourPromptButton");
   if (!btn) return;
 
   const count = parseInt(localStorage.getItem(STORAGE_KEY) || "0", 10);
   if (count >= MAX_SHOWS) return;
 
   localStorage.setItem(STORAGE_KEY, String(count + 1));
-  (btn as HTMLElement).style.display = "flex";
+  setElementDisplayById("tourPromptButton", "flex");
   btn.addEventListener("click", () => {
     UITour.start();
   });
@@ -1016,7 +1023,7 @@ export function invokeActiveZooming() {
   +markers.attr("rescale") &&
     worldContext.pack.markers?.forEach(marker => {
       const { i, x = 0, y = 0, size = 30, hidden } = marker;
-      const el = !hidden && document.getElementById(`marker${i}`);
+      const el = !hidden ? getElementById<SVGUseElement>(`marker${i}`) : null;
       if (!el) return;
 
       const zoomedSize = Math.max(rn(size / 5 + 24 / scale, 2), 1);
@@ -1034,23 +1041,38 @@ export function invokeActiveZooming() {
 
 // ─── Drag-to-upload ───────────────────────────────────────────────────────────
 
+function getMapOverlayElement(): HTMLElement | null {
+  return getElementById<HTMLElement>("mapOverlay");
+}
+
+function setMapOverlayVisible(visible: boolean): void {
+  const overlay = getMapOverlayElement();
+  if (!overlay) return;
+  overlay.style.display = visible ? "" : "none";
+}
+
+function setMapOverlayContent(content: string): void {
+  const overlay = getMapOverlayElement();
+  if (!overlay) return;
+  overlay.innerHTML = content;
+}
+
 void (function addDragToUpload() {
   document.addEventListener("dragover", e => {
     e.stopPropagation();
     e.preventDefault();
-    document.getElementById("mapOverlay")!.style.display = "";
+    setMapOverlayVisible(true);
   });
 
   document.addEventListener("dragleave", () => {
-    document.getElementById("mapOverlay")!.style.display = "none";
+    setMapOverlayVisible(false);
   });
 
   document.addEventListener("drop", e => {
     e.stopPropagation();
     e.preventDefault();
 
-    const overlay = document.getElementById("mapOverlay")!;
-    overlay.style.display = "none";
+    setMapOverlayVisible(false);
     if (e.dataTransfer?.items?.length !== 1) return;
     const file = e.dataTransfer.items[0].getAsFile();
     if (!file) return;
@@ -1062,12 +1084,12 @@ void (function addDragToUpload() {
       return;
     }
 
-    overlay.style.display = "";
-    overlay.innerHTML = "Uploading<span>.</span><span>.</span><span>.</span>";
+    setMapOverlayVisible(true);
+    setMapOverlayContent("Uploading<span>.</span><span>.</span><span>.</span>");
     if (closeDialogs) closeDialogs();
     uploadMap(file, () => {
-      overlay.style.display = "none";
-      overlay.innerHTML = "Drop a map file to open";
+      setMapOverlayVisible(false);
+      setMapOverlayContent("Drop a map file to open");
     });
   });
 })();
@@ -1189,7 +1211,7 @@ function setSeed(precreatedSeed?: string) {
   }
 
   useOptionsState.getState().setOption("seed", worldContext.seed);
-  const seedInput = document.getElementById("optionsSeed") as HTMLInputElement | null;
+  const seedInput = getElementById<HTMLInputElement>("optionsSeed");
   if (seedInput) seedInput.value = worldContext.seed;
   Math.random = Alea(worldContext.seed);
 }
@@ -1198,7 +1220,7 @@ function setSeed(precreatedSeed?: string) {
 
 export function addLakesInDeepDepressions() {
   TIME && console.time("addLakesInDeepDepressions");
-  const elevationLimit = +(document.getElementById("lakeElevationLimitOutput") as HTMLOutputElement).value;
+  const elevationLimit = +(getElementById<HTMLOutputElement>("lakeElevationLimitOutput")?.value ?? "80");
   if (elevationLimit === 80) return;
 
   const { cells: gridCells, features } = worldContext.grid;
@@ -1759,7 +1781,8 @@ export function undraw() {
     .forEach(el => {
       el.remove();
     });
-  document.getElementById("coas")!.innerHTML = "";
+  const coasEl = getElementById<HTMLElement>("coas");
+  if (coasEl) coasEl.innerHTML = "";
   worldContext.notes = [];
   unfog();
 }

@@ -6,6 +6,7 @@ import { worldContext } from "../context/worldContext";
 import { setHeightmapEditorState, useHeightmapEditorState } from "../store/heightmapEditorState";
 import { getGridPolygon, showPrompt } from "../utils";
 import { getColorScheme } from "../utils/colorUtils";
+import { getElementById } from "../utils/nodeUtils";
 import { tip } from "../utils/uiHelpers";
 
 export interface HeightmapImageCallbacks {
@@ -23,7 +24,7 @@ export function openImageConverter(callbacks: HeightmapImageCallbacks): void {
   canvas.id = "canvas";
   canvas.width = worldContext.graphWidth;
   canvas.height = worldContext.graphHeight;
-  const optionsContainer = document.getElementById("optionsContainer");
+  const optionsContainer = getElementById("optionsContainer");
   optionsContainer?.parentNode?.insertBefore(canvas, optionsContainer);
 
   setOverlayOpacity(0);
@@ -35,7 +36,7 @@ export function openImageConverter(callbacks: HeightmapImageCallbacks): void {
 
 export function setOverlayOpacity(v: number): void {
   setHeightmapEditorState({ imageConverterOverlay: v });
-  const cnv = document.getElementById("canvas") as HTMLCanvasElement;
+  const cnv = getElementById("canvas") as HTMLCanvasElement;
   if (cnv) cnv.style.opacity = String(v);
 }
 
@@ -49,7 +50,7 @@ export function uploadImage(input: HTMLInputElement): void {
   img.style.display = "none";
   document.body.appendChild(img);
   img.onload = () => {
-    const ctx = (document.getElementById("canvas") as HTMLCanvasElement).getContext("2d")!;
+    const ctx = (getElementById("canvas") as HTMLCanvasElement).getContext("2d")!;
     ctx.drawImage(img, 0, 0, worldContext.graphWidth, worldContext.graphHeight);
     const count = useHeightmapEditorState.getState().imageConverterColorsMax;
     heightsFromImage(count);
@@ -60,7 +61,7 @@ export function uploadImage(input: HTMLInputElement): void {
 }
 
 function heightsFromImage(count: number): void {
-  const sourceImage = document.getElementById("canvas") as HTMLCanvasElement;
+  const sourceImage = getElementById("canvas") as HTMLCanvasElement;
   const sampleCanvas = document.createElement("canvas");
   sampleCanvas.width = worldContext.grid.cellsX;
   sampleCanvas.height = worldContext.grid.cellsY;
@@ -254,9 +255,9 @@ export function cancelConversion(): void {
 }
 
 export function restoreImageConverterState(): void {
-  const cnv = document.getElementById("canvas");
+  const cnv = getElementById("canvas");
   if (cnv) cnv.remove();
-  const img = document.getElementById("imageToConvert");
+  const img = getElementById("imageToConvert");
   if (img) img.remove();
 
   setHeightmapEditorState({

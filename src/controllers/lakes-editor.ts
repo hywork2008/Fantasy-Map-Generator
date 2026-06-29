@@ -23,7 +23,7 @@ import { closeDialogs, openConfirm, openDialog } from "../ui/dialogs/dialogServi
 import { rand, rn, unique } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { getPackPolygon } from "../utils/graphUtils";
-import { layerIsOn } from "../utils/nodeUtils";
+import { getElementBySelector, layerIsOn } from "../utils/nodeUtils";
 import { getArea, tip } from "../utils/uiHelpers";
 import { interactionManager } from "./interactionManager";
 import { toggleCells } from "./layers";
@@ -83,7 +83,7 @@ export function editLake(event?: MouseEvent): void {
     onClose: closeLakesEditor
   });
 
-  const node = (event?.target ?? document.querySelector(".lakes path")) as SVGElement;
+  const node = (event?.target ?? getElementBySelector<SVGElement>(".lakes path")) as SVGElement;
   viewContext.debug.append("g").attr("id", "vertices");
   setElSelected(select(node as Element));
 

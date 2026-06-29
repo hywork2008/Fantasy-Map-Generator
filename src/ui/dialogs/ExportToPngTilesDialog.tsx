@@ -1,13 +1,32 @@
 import type React from "react";
+import { useMemo, useState } from "react";
+import { worldContext } from "../../context/worldContext";
 import { exportToPngTiles } from "../../io/export";
 import { useDialogState } from "../../store/dialogState";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 export const ExportToPngTilesDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("exportToPngTilesScreen"));
+  const [tileCols, setTileCols] = useState(8);
+  const [tileRows, setTileRows] = useState(8);
+  const [tileScale, setTileScale] = useState(1);
+  const [status, setStatus] = useState("");
+
+  const [sizeLabel, sizeColor] = useMemo(() => {
+    const sizeX = worldContext.graphWidth * tileScale * tileCols;
+    const sizeY = worldContext.graphHeight * tileScale * tileRows;
+    const totalSize = sizeX * sizeY;
+    const color = totalSize > 1e9 ? "#d00b0b" : totalSize > 1e8 ? "#9e6409" : "#1a941a";
+    return [`${sizeX} x ${sizeY} px`, color];
+  }, [tileCols, tileRows, tileScale]);
 
   const handleExport = () => {
-    exportToPngTiles();
+    void exportToPngTiles({
+      tilesX: tileCols,
+      tilesY: tileRows,
+      scale: tileScale,
+      onStatus: setStatus
+    });
   };
 
   return (
@@ -36,23 +55,17 @@ export const ExportToPngTilesDialog: React.FC = () => {
           type="range"
           min="2"
           max="26"
-          defaultValue="8"
+          value={tileCols}
           style={{ width: "10em" }}
-          onInput={e => {
-            const out = document.getElementById("tileColsOutput") as HTMLInputElement;
-            if (out) out.value = e.currentTarget.value;
-          }}
+          onChange={e => setTileCols(Number(e.currentTarget.value))}
         />
         <input
           id="tileColsOutput"
           data-stored="tileCols"
           type="number"
           min="2"
-          defaultValue="8"
-          onInput={e => {
-            const inp = document.getElementById("tileColsInput") as HTMLInputElement;
-            if (inp) inp.value = e.currentTarget.value;
-          }}
+          value={tileCols}
+          onChange={e => setTileCols(Number(e.currentTarget.value) || 2)}
         />
       </div>
 
@@ -64,25 +77,53 @@ export const ExportToPngTilesDialog: React.FC = () => {
           type="range"
           min="2"
           max="26"
-          defaultValue="8"
+          value={tileRows}
           style={{ width: "10em" }}
-          onInput={e => {
-            const out = document.getElementById("tileRowsOutput") as HTMLInputElement;
-            if (out) out.value = e.currentTarget.value;
-          }}
+          onChange={e => setTileRows(Number(e.currentTarget.value))}
         />
         <input
           id="tileRowsOutput"
           data-stored="tileRows"
           type="number"
           min="2"
-          defaultValue="8"
-          onInput={e => {
-            const inp = document.getElementById("tileRowsInput") as HTMLInputElement;
-            if (inp) inp.value = e.currentTarget.value;
-          }}
+          value={tileRows}
+          onChange={e => setTileRows(Number(e.currentTarget.value) || 2)}
         />
       </div>
+
+      <div data-tip="Tile output scale" style={{ marginBottom: "0.3em" }}>
+        <div className="label">Scale:</div>
+        <input
+          id="tileScaleInput"
+          data-stored="tileScale"
+          type="range"
+          min="1"
+          max="4"
+          step="1"
+          value={tileScale}
+          style={{ width: "10em" }}
+          onChange={e => setTileScale(Number(e.currentTarget.value))}
+        />
+        <input
+          id="tileScaleOutput"
+          data-stored="tileScale"
+          type="number"
+          min="1"
+          max="4"
+          value={tileScale}
+          onChange={e => setTileScale(Number(e.currentTarget.value) || 1)}
+        />
+      </div>
+
+      <p style={{ margin: "0.4em 0" }}>
+        Total image size:{" "}
+        <span id="tileSize" style={{ color: sizeColor }}>
+          {sizeLabel}
+        </span>
+      </p>
+      <p id="tileStatus" style={{ marginTop: "0.4em", minHeight: "1.2em" }}>
+        {status}
+      </p>
     </Dialog>
   );
 };

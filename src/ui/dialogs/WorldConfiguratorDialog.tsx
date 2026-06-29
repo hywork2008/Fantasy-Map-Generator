@@ -6,13 +6,12 @@ import { updateWorld } from "../../controllers/world-configurator";
 import { useDialogState } from "../../store/dialogState";
 import { useOptionsState } from "../../store/optionsState";
 import { convertTemperature, debounce, parseTransform, rn, round } from "../../utils";
+import { getElementById } from "../../utils/nodeUtils";
 import { lock } from "../../utils/uiHelpers";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
-function getEl<T extends HTMLElement>(id: string): T | null {
-  return document.getElementById(id) as T | null;
-}
+const getEl = getElementById;
 
 const debouncedUpdateWorld = debounce(updateWorld, 300);
 

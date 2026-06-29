@@ -44,21 +44,23 @@ export const ExportMapDialog: React.FC = () => {
           </button>
           <button
             type="button"
-            onClick={exportToPng}
+            onClick={() => exportToPng({ resolution: pngResolution })}
             data-tip="Download visible part of the map as .png (lossless compressed)"
           >
             .png
           </button>
           <button
             type="button"
-            onClick={exportToJpeg}
+            onClick={() => exportToJpeg({ resolution: pngResolution })}
             data-tip="Download visible part of the map as .jpeg (lossy compressed) image"
           >
             .jpeg
           </button>
           <button
             type="button"
-            onClick={exportToPngTiles}
+            onClick={() => {
+              void exportToPngTiles();
+            }}
             data-tip="Split map into smaller png tiles and download as zip archive"
           >
             tiles

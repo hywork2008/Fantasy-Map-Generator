@@ -17,6 +17,23 @@ import { getCellPopulation, getFriendlyHeight, tip } from "../utils/uiHelpers";
 
 type AnySelection = Selection<SVGSVGElement, unknown, null, undefined>;
 
+interface ImageExportOptions {
+  resolution?: number;
+}
+
+interface PngTilesExportOptions {
+  tilesX?: number;
+  tilesY?: number;
+  scale?: number;
+  onStatus?: (message: string) => void;
+}
+
+function getResolutionValue(explicitResolution?: number): number {
+  if (explicitResolution && explicitResolution > 0) return explicitResolution;
+  const resolutionInput = document.getElementById("pngResolutionInput") as HTMLInputElement | null;
+  return +(resolutionInput?.value ?? "") || 1;
+}
+
 // ─── Image exports ────────────────────────────────────────────────────────────
 
 export async function exportToSvg(): Promise<void> {
@@ -37,14 +54,14 @@ export async function exportToSvg(): Promise<void> {
   }
 }
 
-export async function exportToPng(): Promise<void> {
+export async function exportToPng(options: ImageExportOptions = {}): Promise<void> {
   TIME && console.time("exportToPng");
   try {
     const url = await getMapURL("png");
     const link = document.createElement("a");
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d")!;
-    const resolution = +(document.getElementById("pngResolutionInput") as HTMLInputElement)?.value || 1;
+    const resolution = getResolutionValue(options.resolution);
     canvas.width = viewContext.svgWidth * resolution;
     canvas.height = viewContext.svgHeight * resolution;
 
@@ -83,13 +100,13 @@ export async function exportToPng(): Promise<void> {
   }
 }
 
-export async function exportToJpeg(): Promise<void> {
+export async function exportToJpeg(options: ImageExportOptions = {}): Promise<void> {
   TIME && console.time("exportToJpeg");
   try {
     const url = await getMapURL("png");
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d")!;
-    const resolution = +(document.getElementById("pngResolutionInput") as HTMLInputElement)?.value || 1;
+    const resolution = getResolutionValue(options.resolution);
     canvas.width = viewContext.svgWidth * resolution;
     canvas.height = viewContext.svgHeight * resolution;
 
@@ -127,9 +144,13 @@ export async function exportToJpeg(): Promise<void> {
 
 // ─── PNG tile export ──────────────────────────────────────────────────────────
 
-export async function exportToPngTiles(): Promise<void> {
-  const status = document.getElementById("tileStatus")!;
-  status.innerHTML = "Preparing files...";
+export async function exportToPngTiles(options: PngTilesExportOptions = {}): Promise<void> {
+  const statusEl = document.getElementById("tileStatus");
+  const setStatus = (message: string) => {
+    if (statusEl) statusEl.textContent = message;
+    options.onStatus?.(message);
+  };
+  setStatus("Preparing files...");
 
   const urlSchema = await getMapURL("tiles", { debug: true, fullMap: true });
   const zip = new JSZip();
@@ -143,16 +164,16 @@ export async function exportToPngTiles(): Promise<void> {
   imgSchema.src = urlSchema;
   await loadImage(imgSchema);
 
-  status.innerHTML = "Rendering schema...";
+  setStatus("Rendering schema...");
   ctx.drawImage(imgSchema, 0, 0, canvas.width, canvas.height);
   const blob = await canvasToBlob(canvas, "image/png");
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   zip.file("schema.png", blob);
 
   const url = await getMapURL("tiles", { fullMap: true });
-  const tilesX = +(document.getElementById("tileColsOutput") as HTMLInputElement)?.value || 2;
-  const tilesY = +(document.getElementById("tileRowsOutput") as HTMLInputElement)?.value || 2;
-  const scale = +(document.getElementById("tileScaleOutput") as HTMLInputElement)?.value || 1;
+  const tilesX = options.tilesX || +(document.getElementById("tileColsOutput") as HTMLInputElement)?.value || 2;
+  const tilesY = options.tilesY || +(document.getElementById("tileRowsOutput") as HTMLInputElement)?.value || 2;
+  const scale = options.scale || +(document.getElementById("tileScaleOutput") as HTMLInputElement)?.value || 1;
   const tolesTotal = tilesX * tilesY;
 
   const tileW = (worldContext.graphWidth / tilesX) | 0;
@@ -177,7 +198,7 @@ export async function exportToPngTiles(): Promise<void> {
   for (let y = 0, row = 0, id = 1; y + tileH <= worldContext.graphHeight; y += tileH, row++) {
     const rowName = getRowLabel(row);
     for (let x = 0, cell = 1; x + tileW <= worldContext.graphWidth; x += tileW, cell++, id++) {
-      status.innerHTML = `Rendering tile ${rowName}${cell} (${id} of ${tolesTotal})...`;
+      setStatus(`Rendering tile ${rowName}${cell} (${id} of ${tolesTotal})...`);
       ctx.drawImage(img, x, y, tileW, tileH, 0, 0, width, height);
       const tileBlob = await canvasToBlob(canvas, "image/png");
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -185,22 +206,22 @@ export async function exportToPngTiles(): Promise<void> {
     }
   }
 
-  status.innerHTML = "Zipping files...";
+  setStatus("Zipping files...");
   zip
     .generateAsync({ type: "blob" })
     .then((zipBlob: Blob) => {
-      status.innerHTML = "Downloading the archive...";
+      setStatus("Downloading the archive...");
       const link = document.createElement("a");
       link.href = URL.createObjectURL(zipBlob);
       link.download = `${getFileName()}.zip`;
       link.click();
       link.remove();
-      status.innerHTML = 'Done. Check .zip file in "Downloads" (CTRL + J)';
+      setStatus('Done. Check .zip file in "Downloads" (CTRL + J)');
       setTimeout(() => URL.revokeObjectURL(link.href), 5000);
     })
     .catch((error: Error) => {
       ERROR && console.error(error);
-      status.innerHTML = "Tiles export failed";
+      setStatus("Tiles export failed");
       tip(`PNG tiles export failed: ${error?.message || "Unknown error"}`, true, "error", 5000);
     });
 }

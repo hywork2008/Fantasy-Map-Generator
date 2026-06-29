@@ -40,17 +40,25 @@ export async function quickLoad(): Promise<void> {
 // ─── Dropbox load ─────────────────────────────────────────────────────────────
 
 export async function loadFromDropbox(): Promise<void> {
-  const mapPath = (document.getElementById("loadFromDropboxSelect") as HTMLSelectElement).value;
+  const mapPath = loadMapDialogStore.getState().selectedDropboxPath;
+  if (!mapPath) {
+    tip("Please select a map file first", true, "error", 2000);
+    return;
+  }
   console.info("Loading map from Dropbox:", mapPath);
   const blob = await Cloud.providers.dropbox.load(mapPath);
   uploadMap(blob);
 }
 
 export async function createSharableDropboxLink(): Promise<void> {
-  const mapFile = document.querySelector("#loadFromDropbox select") as HTMLSelectElement | null;
+  const mapPath = loadMapDialogStore.getState().selectedDropboxPath;
+  if (!mapPath) {
+    tip("Please select a map file first", true, "error", 2000);
+    return;
+  }
 
   try {
-    const previewLink = await Cloud.providers.dropbox.getLink(mapFile?.value ?? "");
+    const previewLink = await Cloud.providers.dropbox.getLink(mapPath);
     const directLink = previewLink.replace("www.dropbox.com", "dl.dropboxusercontent.com");
     const finalLink = `${location.origin}${location.pathname}?maplink=${directLink}`;
 

@@ -11,7 +11,7 @@ import { closeDialog, closeDialogs, openConfirm, openDialog } from "../ui/dialog
 import { findCell, getSegmentId, rand, rn } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { getPackPolygon } from "../utils/graphUtils";
-import { layerIsOn } from "../utils/nodeUtils";
+import { getElementById, layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, tip } from "../utils/uiHelpers";
 import { openElevationProfile } from "./elevation-profile";
 import { toggleCells, toggleRivers } from "./layers";
@@ -47,9 +47,7 @@ function updateRiverData(): void {
 
   const basinName = worldContext.pack.rivers.find((river: River) => river.i === r.basin)?.name ?? "";
   const distanceUnit =
-    (document.getElementById("distanceUnitInput") as HTMLSelectElement | null)?.value ??
-    localStorage.getItem("distanceUnit") ??
-    "km";
+    getElementById<HTMLSelectElement>("distanceUnitInput")?.value ?? localStorage.getItem("distanceUnit") ?? "km";
 
   r.length = rn((elSelected!.node() as SVGPathElement).getTotalLength() / 2, 2);
   const lengthUI = `${rn(r.length * worldContext.distanceScale)} ${distanceUnit}`;
@@ -193,7 +191,7 @@ function closeRiverEditor(): void {
   EditorBus.unselect();
   clearMainTip();
 
-  const toggleCellsEl = document.getElementById("toggleCells");
+  const toggleCellsEl = getElementById("toggleCells");
   if (toggleCellsEl) {
     const forced = +(toggleCellsEl.dataset.forced || "0");
     toggleCellsEl.dataset.forced = "0";
@@ -298,7 +296,7 @@ export function editRiver(id: string): void {
   closeDialogs(".stable");
   if (!layerIsOn("toggleRivers")) toggleRivers();
 
-  const toggleCellsEl = document.getElementById("toggleCells");
+  const toggleCellsEl = getElementById("toggleCells");
   if (toggleCellsEl) toggleCellsEl.dataset.forced = String(+!layerIsOn("toggleCells"));
   if (!layerIsOn("toggleCells")) toggleCells();
 

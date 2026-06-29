@@ -8,7 +8,7 @@ import { getReliefEditorState, setReliefEditorState } from "../store/reliefEdito
 import { closeDialog, closeDialogs, openConfirm, openDialog } from "../ui/dialogs/dialogService";
 import { findAllInQuadtree, findCell, rn } from "../utils";
 import { EditorBus } from "../utils/editorBus";
-import { layerIsOn } from "../utils/nodeUtils";
+import { getElementBySelector, layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, showMainTip, tip } from "../utils/uiHelpers";
 import { toggleRelief } from "./layers";
 import { editStyle } from "./style";
@@ -51,7 +51,7 @@ export function editReliefIcon(clickedEl?: Element): void {
         })
     )
     .classed("draggable", true);
-  setElSelected(select(clickedEl ?? (document.querySelector("#terrain use") as Element)));
+  setElSelected(select(clickedEl ?? (getElementBySelector<Element>("#terrain use") as Element)));
 
   updateReliefIconSelected();
   updateReliefSizeInput();
@@ -70,7 +70,7 @@ export function editReliefIcon(clickedEl?: Element): void {
 
 function updateReliefIconSelected(): void {
   const type = elSelected!.attr("href") || elSelected!.attr("data-type");
-  const button = document.querySelector(`#reliefIconsDiv svg[data-type='${type}']`) as SVGElement | null;
+  const button = getElementBySelector<SVGElement>(`#reliefIconsDiv svg[data-type='${type}']`);
   if (!button) return;
   const iconSet = (button.parentNode as HTMLElement).dataset.type as ReliefIconSet;
   setReliefEditorState({ selectedIconType: type, iconSet });
@@ -114,11 +114,8 @@ export const reliefEditorActions = {
     // If "any" icon was selected (only valid in bulkRemove), switch to first icon in current set
     const newSelectedType =
       state.selectedIconType === null
-        ? ((
-            document.querySelector(
-              `#reliefIconsDiv div[data-type='${state.iconSet}'] svg:first-child`
-            ) as SVGElement | null
-          )?.dataset.type ?? null)
+        ? (getElementBySelector<SVGElement>(`#reliefIconsDiv div[data-type='${state.iconSet}'] svg:first-child`)
+            ?.dataset.type ?? null)
         : state.selectedIconType;
     setReliefEditorState({ mode: "bulkAdd", selectedIconType: newSelectedType });
 

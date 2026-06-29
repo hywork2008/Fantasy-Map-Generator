@@ -9,7 +9,6 @@ import { THEME_COLOR } from "../data/constants";
 import { Cultures } from "../generators/cultures-generator";
 import { COA } from "../generators/emblem/generator";
 import { Cloud } from "../io/cloud";
-import { exportToPngTiles } from "../io/export";
 import { loadMapFromURL } from "../io/load";
 import { StatesRenderer } from "../renderers";
 import type { Emblem as RendererEmblem } from "../renderers/emblem-renderer";
@@ -31,6 +30,7 @@ import {
 } from "../ui/dialogs/dialogService";
 import { gauss, last, minmax, P, rand, rn, rw } from "../utils";
 import { EditorBus } from "../utils/editorBus";
+import { getElementById, getElementBySelector, getElementsBySelector } from "../utils/nodeUtils";
 
 import { exportToJson as exportToJsonModule } from "./export-json";
 
@@ -96,12 +96,18 @@ function updateOutputToFollowInput(ev: Event): void {
   }
 
   if (id.slice(-5) === "Input") {
-    const output = document.getElementById(`${id.slice(0, -5)}Output`) as HTMLInputElement | HTMLSelectElement | null;
+    const output = getElementById<HTMLInputElement | HTMLSelectElement>(`${id.slice(0, -5)}Output`);
     if (output) output.value = value;
   } else if (id.slice(-6) === "Output") {
-    const input = document.getElementById(`${id.slice(0, -6)}Input`) as HTMLInputElement | HTMLSelectElement | null;
+    const input = getElementById<HTMLInputElement | HTMLSelectElement>(`${id.slice(0, -6)}Input`);
     if (input) input.value = value;
   }
+}
+
+function getRequiredElementById<T extends Element>(id: string): T {
+  const element = getElementById<T>(id);
+  if (!element) throw new Error(`Element #${id} is not found`);
+  return element;
 }
 
 // ─── Options content listeners ────────────────────────────────────────────────
@@ -166,7 +172,7 @@ export function fitMapToScreen(): void {
   const svgHeight = Math.min(options.mapHeight, window.innerHeight);
   Object.assign(viewContext, { svgWidth, svgHeight });
 
-  const mapEl = document.getElementById("map");
+  const mapEl = getElementById<SVGSVGElement>("map");
   if (mapEl) {
     mapEl.setAttribute("width", String(svgWidth));
     mapEl.setAttribute("height", String(svgHeight));
@@ -252,7 +258,7 @@ export function restoreSeed(id: number): void {
 }
 
 export function copyMapURL(): void {
-  const lockedCount = document.querySelectorAll("i.icon-lock").length;
+  const lockedCount = getElementsBySelector<HTMLElement>("i.icon-lock").length;
   const { graphWidth, graphHeight } = worldContext;
   const search = `?seed=${useOptionsState.getState().seed}&width=${graphWidth}&height=${graphHeight}${lockedCount ? "" : "&options=default"}`;
   navigator.clipboard
@@ -297,7 +303,7 @@ function changeCultureSet(): void {
 }
 
 function changeEmblemShape(emblemShape: string): void {
-  const image = document.getElementById("emblemShapeImage") as SVGPathElement | null;
+  const image = getElementById<SVGPathElement>("emblemShapeImage");
   const shapePath = COArenderer && (COArenderer.shieldPaths as Record<string, string>)[emblemShape];
   if (image) shapePath ? image.setAttribute("d", shapePath) : image.removeAttribute("d");
 
@@ -310,7 +316,7 @@ function changeEmblemShape(emblemShape: string): void {
       });
 
   const rerenderCOA = (id: string, coa: RendererEmblem) => {
-    const coaEl = document.getElementById(id);
+    const coaEl = getElementById<SVGGElement>(id);
     if (!coaEl) return;
     coaEl.remove();
     COArenderer.trigger(id, coa);
@@ -355,8 +361,8 @@ function changeUiSize(value: number): void {
   if (value > max) value = max;
 
   useOptionsState.getState().setOptions({ uiSize: value });
-  document.getElementsByTagName("body")[0].style.fontSize = `${rn(value * 10, 2)}px`;
-  const optionsEl = document.getElementById("options");
+  getElementBySelector<HTMLElement>("body")!.style.fontSize = `${rn(value * 10, 2)}px`;
+  const optionsEl = getElementById<HTMLElement>("options");
   if (optionsEl) optionsEl.style.width = `${value * 300}px`;
 }
 
@@ -427,11 +433,10 @@ function loadGoogleTranslate(): void {
   const script = document.createElement("script");
   script.src = "https://translate.google.com/translate_a/element.js?cb=initGoogleTranslate";
   script.onload = () => {
-    document.getElementById("loadGoogleTranslateButton")!.remove();
+    getElementById<HTMLElement>("loadGoogleTranslateButton")?.remove();
 
-    document
-      .getElementById("mapLayers")!
-      .querySelectorAll("li")
+    getElementById<HTMLElement>("mapLayers")
+      ?.querySelectorAll("li")
       .forEach(el => {
         el.querySelectorAll("u").forEach(u => {
           u.replaceWith(u.textContent ?? "");
@@ -464,7 +469,7 @@ export function initGoogleTranslate(): void {
 }
 
 function resetLanguage(): void {
-  const languageSelect = document.querySelector<HTMLSelectElement>("#google_translate_element select");
+  const languageSelect = getElementBySelector<HTMLSelectElement>("#google_translate_element select");
   if (!languageSelect?.value) return;
 
   languageSelect.value = "en";
@@ -524,11 +529,9 @@ export function applyStoredOptions(): void {
 
     const value = stored(key)!;
 
-    const input = (document.getElementById(`${key}Input`) || document.getElementById(key)) as
-      | HTMLInputElement
-      | HTMLSelectElement
-      | null;
-    const output = document.getElementById(`${key}Output`) as HTMLInputElement | HTMLSelectElement | null;
+    const input = (getElementById<HTMLInputElement | HTMLSelectElement>(`${key}Input`) ||
+      getElementById<HTMLInputElement | HTMLSelectElement>(key)) as HTMLInputElement | HTMLSelectElement | null;
+    const output = getElementById<HTMLInputElement | HTMLSelectElement>(`${key}Output`);
     if (input) input.value = value;
     if (output) output.value = value;
     lock(key);
@@ -639,7 +642,7 @@ export function randomizeOptions(): void {
     worldContext.options.temperatureNorthPole = gauss(-25, 7, -40, 10, 0);
   if (randomize || !locked("temperatureSouthPole"))
     worldContext.options.temperatureSouthPole = gauss(-15, 7, -40, 10, 0);
-  const precInput = document.getElementById("precInput") as HTMLInputElement | null;
+  const precInput = getElementById<HTMLInputElement>("precInput");
   if ((randomize || !locked("prec")) && precInput) precInput.value = String(gauss(100, 40, 5, 500));
 
   const US = navigator.language === "en-US";
@@ -776,7 +779,7 @@ export function showSavePane(): void {
 
 export function copyLinkToClickboard(): void {
   const stateLink = loadMapDialogStore.getState().sharableLinkUrl;
-  const domLink = (document.getElementById("sharableLink") as HTMLAnchorElement | null)?.getAttribute("href") ?? "";
+  const domLink = getElementById<HTMLAnchorElement>("sharableLink")?.getAttribute("href") ?? "";
   const link = stateLink || (domLink && domLink !== "#" ? domLink : "");
 
   if (!link) {
@@ -836,78 +839,12 @@ export function loadURL(): void {
 // ─── PNG tiles export ─────────────────────────────────────────────────────────
 
 export function openExportToPngTiles(): void {
-  document.getElementById("tileStatus")!.textContent = "";
   closeDialogs();
-  updateTilesOptions();
-
-  const inputs = document.getElementById("exportToPngTilesScreen")!.querySelectorAll<HTMLInputElement>("input");
-  inputs.forEach(input => {
-    input.addEventListener("input", updateTilesOptions);
-  });
 
   openDialog("exportToPngTilesScreen", {
     title: "Download tiles",
-    width: "23em",
-    buttons: {
-      Download: () => exportToPngTiles(),
-      Cancel: function (this: Element) {
-        /* $(this).dialog("close") removed */
-      }
-    },
-    onClose: () => {
-      inputs.forEach(input => {
-        input.removeEventListener("input", updateTilesOptions);
-      });
-      viewContext.debug.selectAll("*").remove();
-    }
+    width: "23em"
   });
-}
-
-// biome-ignore lint/suspicious/noConfusingVoidType: this parameter needs void union for optional event handler context
-function updateTilesOptions(this: HTMLInputElement | void): void {
-  if (this && (this as HTMLInputElement).tagName === "INPUT") {
-    const el = this as HTMLInputElement;
-    const { nextElementSibling: next, previousElementSibling: prev } = el;
-    if (next && (next as HTMLInputElement).tagName === "INPUT") (next as HTMLInputElement).value = el.value;
-    if (prev && (prev as HTMLInputElement).tagName === "INPUT") (prev as HTMLInputElement).value = el.value;
-  }
-
-  const tileSize = document.getElementById("tileSize")!;
-  const tilesX = +(document.getElementById("tileColsOutput") as HTMLInputElement).value || 2;
-  const tilesY = +(document.getElementById("tileRowsOutput") as HTMLInputElement).value || 2;
-  const scale = +(document.getElementById("tileScaleOutput") as HTMLInputElement).value || 1;
-
-  const { graphWidth, graphHeight } = worldContext;
-  const sizeX = graphWidth * scale * tilesX;
-  const sizeY = graphHeight * scale * tilesY;
-  const totalSize = sizeX * sizeY;
-
-  tileSize.textContent = `${sizeX} x ${sizeY} px`;
-  tileSize.style.color = totalSize > 1e9 ? "#d00b0b" : totalSize > 1e8 ? "#9e6409" : "#1a941a";
-
-  const rects: string[] = [];
-  const labelItems: string[] = [];
-  const tileW = (graphWidth / tilesX) | 0;
-  const tileH = (graphHeight / tilesY) | 0;
-
-  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-  function getRowLabel(row: number): string {
-    const first = row >= alphabet.length ? alphabet[Math.floor(row / alphabet.length) - 1] : "";
-    const last = alphabet[row % alphabet.length];
-    return first + last;
-  }
-
-  for (let y = 0, row = 0; y + tileH <= graphHeight; y += tileH, row++) {
-    for (let x = 0, column = 1; x + tileW <= graphWidth; x += tileW, column++) {
-      rects.push(`<rect x=${x} y=${y} width=${tileW} height=${tileH} />`);
-      labelItems.push(`<text x=${x + tileW / 2} y=${y + tileH / 2}>${getRowLabel(row)}${column}</text>`);
-    }
-  }
-
-  viewContext.debug.html(
-    `<g fill='none' stroke='#000'>${rects.join("")}</g>` +
-      `<g fill='#000' stroke='none' text-anchor='middle' dominant-baseline='central' font-size='18px'>${labelItems.join("")}</g>`
-  );
 }
 
 // ─── View mode / 3D ───────────────────────────────────────────────────────────
@@ -918,7 +855,7 @@ export function changeViewMode(event: MouseEvent): void {
   const pressed = button.classList.contains("pressed");
   enterStandardView();
 
-  const viewStandardEl = document.getElementById("viewStandard");
+  const viewStandardEl = getElementById<HTMLElement>("viewStandard");
   if (!pressed && button.id !== "viewStandard") {
     viewStandardEl?.classList.remove("pressed");
     button.classList.add("pressed");
@@ -927,9 +864,9 @@ export function changeViewMode(event: MouseEvent): void {
 }
 
 export function enterStandardView(): void {
-  const viewModeEl = document.getElementById("viewMode");
-  const heightmap3DViewEl = document.getElementById("heightmap3DView");
-  const viewStandardEl = document.getElementById("viewStandard");
+  const viewModeEl = getElementById<HTMLElement>("viewMode");
+  const heightmap3DViewEl = getElementById<HTMLElement>("heightmap3DView");
+  const viewStandardEl = getElementById<HTMLElement>("viewStandard");
 
   viewModeEl?.querySelectorAll(".pressed").forEach(button => {
     button.classList.remove("pressed");
@@ -937,11 +874,12 @@ export function enterStandardView(): void {
   heightmap3DViewEl?.classList.remove("pressed");
   viewStandardEl?.classList.add("pressed");
 
-  if (!document.getElementById("canvas3d")) return;
+  const canvas3d = getElementById<HTMLCanvasElement>("canvas3d");
+  if (!canvas3d) return;
   ThreeDRenderer.stop();
-  document.getElementById("canvas3d")!.remove();
+  canvas3d.remove();
 
-  const mapEl = document.getElementById("map");
+  const mapEl = getElementById<SVGSVGElement>("map");
   if (mapEl) {
     mapEl.style.visibility = "visible";
     mapEl.style.pointerEvents = "auto";
@@ -979,7 +917,7 @@ async function enter3dView(type: string): Promise<void> {
   };
 
   if (type === "heightmap3DView") {
-    document.getElementById("preview3d")!.appendChild(canvas);
+    getRequiredElementById<HTMLElement>("preview3d").appendChild(canvas);
     openDialog("preview3d", {
       title: "3D Preview",
 
@@ -991,7 +929,7 @@ async function enter3dView(type: string): Promise<void> {
     optionsContainer.parentNode?.insertBefore(canvas, optionsContainer);
 
     // Hide SVG
-    const mapEl = document.getElementById("map");
+    const mapEl = getElementById<SVGSVGElement>("map");
     if (mapEl) {
       mapEl.style.visibility = "hidden";
       mapEl.style.pointerEvents = "none";
@@ -1004,7 +942,8 @@ async function enter3dView(type: string): Promise<void> {
 }
 
 function resize3d(): void {
-  const canvas = document.getElementById("canvas3d") as HTMLCanvasElement;
+  const canvas = getElementById<HTMLCanvasElement>("canvas3d");
+  if (!canvas) return;
   canvas.width = parseFloat(preview3d.style.width);
   canvas.height = parseFloat(preview3d.style.height) - 2;
   ThreeDRenderer.redraw();
@@ -1023,49 +962,53 @@ export function toggle3dOptions(): void {
   });
 
   setTimeout(() => {
+    const addOptions3dListener = (id: string, eventName: string, handler: EventListenerOrEventListenerObject): void => {
+      getRequiredElementById<HTMLElement>(id).addEventListener(eventName, handler);
+    };
+
     updateValues();
 
     if (modules.options3d) return;
     modules.options3d = true;
 
-    document.getElementById("options3dUpdate")!.addEventListener("click", () => ThreeDRenderer.update());
-    document.getElementById("options3dSave")!.addEventListener("click", ThreeDRenderer.saveScreenshot);
-    document.getElementById("options3dOBJSave")!.addEventListener("click", ThreeDRenderer.saveOBJ);
+    addOptions3dListener("options3dUpdate", "click", () => ThreeDRenderer.update());
+    addOptions3dListener("options3dSave", "click", ThreeDRenderer.saveScreenshot);
+    addOptions3dListener("options3dOBJSave", "click", ThreeDRenderer.saveOBJ);
 
-    document.getElementById("options3dScaleRange")!.addEventListener("input", changeHeightScale);
-    document.getElementById("options3dScaleNumber")!.addEventListener("change", changeHeightScale);
-    document.getElementById("options3dLightnessRange")!.addEventListener("input", changeLightness);
-    document.getElementById("options3dLightnessNumber")!.addEventListener("change", changeLightness);
-    document.getElementById("options3dSunX")!.addEventListener("change", changeSunPosition);
-    document.getElementById("options3dSunY")!.addEventListener("change", changeSunPosition);
-    document.getElementById("options3dMeshSkinResolution")!.addEventListener("change", changeResolutionScale);
-    document.getElementById("options3dMeshRotationRange")!.addEventListener("input", changeRotation);
-    document.getElementById("options3dMeshRotationNumber")!.addEventListener("change", changeRotation);
-    document.getElementById("options3dGlobeRotationRange")!.addEventListener("input", changeRotation);
-    document.getElementById("options3dGlobeRotationNumber")!.addEventListener("change", changeRotation);
-    document.getElementById("options3dMeshLabels3d")!.addEventListener("change", toggleLabels3d);
-    document.getElementById("options3dMeshSkyMode")!.addEventListener("change", toggleSkyMode);
-    document.getElementById("options3dMeshSky")!.addEventListener("input", changeColors);
-    document.getElementById("options3dMeshWater")!.addEventListener("input", changeColors);
-    document.getElementById("options3dGlobeResolution")!.addEventListener("change", changeResolution);
-    document.getElementById("options3dMeshWireframeMode")!.addEventListener("change", toggleWireframe3d);
-    document.getElementById("options3dSunColor")!.addEventListener("input", changeSunColor);
-    document.getElementById("options3dSubdivide")!.addEventListener("change", toggle3dSubdivision);
-    document.getElementById("options3dTimeOfDay")!.addEventListener("change", changeTimeOfDay);
+    addOptions3dListener("options3dScaleRange", "input", changeHeightScale);
+    addOptions3dListener("options3dScaleNumber", "change", changeHeightScale);
+    addOptions3dListener("options3dLightnessRange", "input", changeLightness);
+    addOptions3dListener("options3dLightnessNumber", "change", changeLightness);
+    addOptions3dListener("options3dSunX", "change", changeSunPosition);
+    addOptions3dListener("options3dSunY", "change", changeSunPosition);
+    addOptions3dListener("options3dMeshSkinResolution", "change", changeResolutionScale);
+    addOptions3dListener("options3dMeshRotationRange", "input", changeRotation);
+    addOptions3dListener("options3dMeshRotationNumber", "change", changeRotation);
+    addOptions3dListener("options3dGlobeRotationRange", "input", changeRotation);
+    addOptions3dListener("options3dGlobeRotationNumber", "change", changeRotation);
+    addOptions3dListener("options3dMeshLabels3d", "change", toggleLabels3d);
+    addOptions3dListener("options3dMeshSkyMode", "change", toggleSkyMode);
+    addOptions3dListener("options3dMeshSky", "input", changeColors);
+    addOptions3dListener("options3dMeshWater", "input", changeColors);
+    addOptions3dListener("options3dGlobeResolution", "change", changeResolution);
+    addOptions3dListener("options3dMeshWireframeMode", "change", toggleWireframe3d);
+    addOptions3dListener("options3dSunColor", "input", changeSunColor);
+    addOptions3dListener("options3dSubdivide", "change", toggle3dSubdivision);
+    addOptions3dListener("options3dTimeOfDay", "change", changeTimeOfDay);
 
-    document.getElementById("options3dSatellite")!.addEventListener("change", toggleSatellite);
-    document.getElementById("options3dErosion")!.addEventListener("change", toggleErosion);
-    document.getElementById("options3dErosionDetail")!.addEventListener("change", changeErosionDetail);
-    document.getElementById("options3dErosionStrengthRange")!.addEventListener("input", changeErosionStrength);
-    document.getElementById("options3dErosionStrengthNumber")!.addEventListener("change", changeErosionStrength);
-    document.getElementById("options3dErosionRiverDepthRange")!.addEventListener("input", changeErosionRiverDepth);
-    document.getElementById("options3dErosionRiverDepthNumber")!.addEventListener("change", changeErosionRiverDepth);
-    document.getElementById("options3dErosionOctaves")!.addEventListener("change", changeErosionOctaves);
+    addOptions3dListener("options3dSatellite", "change", toggleSatellite);
+    addOptions3dListener("options3dErosion", "change", toggleErosion);
+    addOptions3dListener("options3dErosionDetail", "change", changeErosionDetail);
+    addOptions3dListener("options3dErosionStrengthRange", "input", changeErosionStrength);
+    addOptions3dListener("options3dErosionStrengthNumber", "change", changeErosionStrength);
+    addOptions3dListener("options3dErosionRiverDepthRange", "input", changeErosionRiverDepth);
+    addOptions3dListener("options3dErosionRiverDepthNumber", "change", changeErosionRiverDepth);
+    addOptions3dListener("options3dErosionOctaves", "change", changeErosionOctaves);
 
     document.addEventListener("fmg:sync-erosion-ui", syncErosionUI);
 
     function updateValues(): void {
-      const globe = document.getElementById("canvas3d")!.dataset.type === "viewGlobe";
+      const globe = getRequiredElementById<HTMLCanvasElement>("canvas3d").dataset.type === "viewGlobe";
       options3dMesh.style.display = globe ? "none" : "block";
       options3dGlobe.style.display = globe ? "block" : "none";
       options3dOBJSave.style.display = globe ? "none" : "inline-block";
@@ -1090,18 +1033,20 @@ export function toggle3dOptions(): void {
       (options3dGlobeResolution as HTMLInputElement).value = String(ThreeDRenderer.options.resolution);
       (options3dSunColor as HTMLInputElement).value = ThreeDRenderer.options.sunColor;
       (options3dSubdivide as HTMLInputElement).value = String(ThreeDRenderer.options.subdivide);
-      (document.getElementById("options3dSatellite") as HTMLInputElement).checked = ThreeDRenderer.options.satellite;
-      (document.getElementById("options3dErosion") as HTMLInputElement).checked = ThreeDRenderer.options.erosion;
-      (document.getElementById("options3dErosionDetail") as HTMLSelectElement).value = String(
+      getRequiredElementById<HTMLInputElement>("options3dSatellite").checked = ThreeDRenderer.options.satellite;
+      getRequiredElementById<HTMLInputElement>("options3dErosion").checked = ThreeDRenderer.options.erosion;
+      getRequiredElementById<HTMLSelectElement>("options3dErosionDetail").value = String(
         ThreeDRenderer.options.erosionDetail
       );
-      (document.getElementById("options3dErosionStrengthRange") as HTMLInputElement).value = (
-        document.getElementById("options3dErosionStrengthNumber") as HTMLInputElement
-      ).value = String(ThreeDRenderer.options.erosionStrength);
-      (document.getElementById("options3dErosionRiverDepthRange") as HTMLInputElement).value = (
-        document.getElementById("options3dErosionRiverDepthNumber") as HTMLInputElement
-      ).value = String(ThreeDRenderer.options.erosionRiverDepth);
-      (document.getElementById("options3dErosionOctaves") as HTMLSelectElement).value = String(
+      getRequiredElementById<HTMLInputElement>("options3dErosionStrengthRange").value =
+        getRequiredElementById<HTMLInputElement>("options3dErosionStrengthNumber").value = String(
+          ThreeDRenderer.options.erosionStrength
+        );
+      getRequiredElementById<HTMLInputElement>("options3dErosionRiverDepthRange").value =
+        getRequiredElementById<HTMLInputElement>("options3dErosionRiverDepthNumber").value = String(
+          ThreeDRenderer.options.erosionRiverDepth
+        );
+      getRequiredElementById<HTMLSelectElement>("options3dErosionOctaves").value = String(
         ThreeDRenderer.options.erosionOctaves
       );
       syncErosionUI();
@@ -1109,7 +1054,7 @@ export function toggle3dOptions(): void {
     }
 
     function updateTimeOfDayPreset(): void {
-      const presetSelect = document.getElementById("options3dTimeOfDay") as HTMLSelectElement;
+      const presetSelect = getElementById<HTMLSelectElement>("options3dTimeOfDay");
       if (!presetSelect) return;
 
       const { sun, sunColor, lightness } = ThreeDRenderer.options;
@@ -1152,22 +1097,22 @@ export function toggle3dOptions(): void {
       (options3dLightnessRange as HTMLInputElement).value = (options3dLightnessNumber as HTMLInputElement).value =
         this.value;
       ThreeDRenderer.setLightness(+this.value / 100);
-      const presetSelect = document.getElementById("options3dTimeOfDay") as HTMLSelectElement;
-      if (presetSelect?.value !== "custom") presetSelect.value = "custom";
+      const presetSelect = getElementById<HTMLSelectElement>("options3dTimeOfDay");
+      if (presetSelect && presetSelect.value !== "custom") presetSelect.value = "custom";
     }
 
     function changeSunColor(this: HTMLInputElement): void {
       ThreeDRenderer.setSunColor((options3dSunColor as HTMLInputElement).value);
-      const presetSelect = document.getElementById("options3dTimeOfDay") as HTMLSelectElement;
-      if (presetSelect?.value !== "custom") presetSelect.value = "custom";
+      const presetSelect = getElementById<HTMLSelectElement>("options3dTimeOfDay");
+      if (presetSelect && presetSelect.value !== "custom") presetSelect.value = "custom";
     }
 
     function changeSunPosition(this: HTMLInputElement): void {
       const x = +(options3dSunX as HTMLInputElement).value;
       const y = +(options3dSunY as HTMLInputElement).value;
       ThreeDRenderer.setSun(x, y, ThreeDRenderer.options.sun.z);
-      const presetSelect = document.getElementById("options3dTimeOfDay") as HTMLSelectElement;
-      if (presetSelect?.value !== "custom") presetSelect.value = "custom";
+      const presetSelect = getElementById<HTMLSelectElement>("options3dTimeOfDay");
+      if (presetSelect && presetSelect.value !== "custom") presetSelect.value = "custom";
     }
 
     function changeRotation(this: HTMLInputElement): void {
@@ -1218,16 +1163,14 @@ export function toggle3dOptions(): void {
     }
 
     function changeErosionStrength(this: HTMLInputElement): void {
-      (document.getElementById("options3dErosionStrengthRange") as HTMLInputElement).value = (
-        document.getElementById("options3dErosionStrengthNumber") as HTMLInputElement
-      ).value = this.value;
+      getRequiredElementById<HTMLInputElement>("options3dErosionStrengthRange").value =
+        getRequiredElementById<HTMLInputElement>("options3dErosionStrengthNumber").value = this.value;
       ThreeDRenderer.setErosionStrength(+this.value);
     }
 
     function changeErosionRiverDepth(this: HTMLInputElement): void {
-      (document.getElementById("options3dErosionRiverDepthRange") as HTMLInputElement).value = (
-        document.getElementById("options3dErosionRiverDepthNumber") as HTMLInputElement
-      ).value = this.value;
+      getRequiredElementById<HTMLInputElement>("options3dErosionRiverDepthRange").value =
+        getRequiredElementById<HTMLInputElement>("options3dErosionRiverDepthNumber").value = this.value;
       ThreeDRenderer.setErosionRiverDepth(+this.value);
     }
 
@@ -1236,11 +1179,11 @@ export function toggle3dOptions(): void {
     }
 
     function syncErosionUI(): void {
-      const erosionChecked = (document.getElementById("options3dErosion") as HTMLInputElement).checked;
-      document.getElementById("options3dErosionSection")!.style.display = erosionChecked ? "block" : "none";
+      const erosionChecked = getRequiredElementById<HTMLInputElement>("options3dErosion").checked;
+      getRequiredElementById<HTMLElement>("options3dErosionSection").style.display = erosionChecked ? "block" : "none";
 
       const useSubdivide = !erosionChecked;
-      const subdivideCheck = document.getElementById("options3dSubdivide") as HTMLInputElement;
+      const subdivideCheck = getRequiredElementById<HTMLInputElement>("options3dSubdivide");
       subdivideCheck.disabled = !useSubdivide;
       if (!useSubdivide) {
         subdivideCheck.checked = false;
@@ -1255,12 +1198,12 @@ export function toggle3dOptions(): void {
 
 export function initOptions(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: AppServices): void {
   // Generic option change helpers
-  const optionsEl = document.getElementById("options");
+  const optionsEl = getElementById<HTMLElement>("options");
   if (optionsEl) {
     optionsEl.addEventListener("change", storeValueIfRequired);
     optionsEl.addEventListener("input", updateOutputToFollowInput);
   }
-  const dialogsEl = document.getElementById("dialogs");
+  const dialogsEl = getElementById<HTMLElement>("dialogs");
   if (dialogsEl) {
     dialogsEl.addEventListener("change", storeValueIfRequired);
     dialogsEl.addEventListener("input", updateOutputToFollowInput);

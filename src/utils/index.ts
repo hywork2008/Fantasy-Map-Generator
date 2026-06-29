@@ -43,7 +43,7 @@ import {
   poissonDiscSampler,
   shouldRegenerateGrid
 } from "./graphUtils";
-import { ensureEl, getComposedPath, getNextId } from "./nodeUtils";
+import { getComposedPath, getElementById, getElementBySelector, getElementsBySelector, getNextId } from "./nodeUtils";
 import {
   connectVertices,
   findPath,
@@ -107,7 +107,6 @@ export {
   drawPolygons,
   drawRouteConnections,
   each,
-  ensureEl,
   findAll,
   findAllCellsInRadius,
   findAllInQuadtree,
@@ -126,6 +125,9 @@ export {
   getColors,
   getComposedPath,
   getCoordinates,
+  getElementById,
+  getElementBySelector,
+  getElementsBySelector,
   getGappedFillPaths,
   getGridPolygon,
   getIntegerFromSI,

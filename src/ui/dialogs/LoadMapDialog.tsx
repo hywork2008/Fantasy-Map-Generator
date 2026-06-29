@@ -13,6 +13,8 @@ export const LoadMapDialog: React.FC = () => {
   const isDropboxLoading = useLoadMapDialogState(state => state.isDropboxLoading);
   const dropboxStatus = useLoadMapDialogState(state => state.dropboxStatus);
   const dropboxFiles = useLoadMapDialogState(state => state.dropboxFiles);
+  const selectedDropboxPath = useLoadMapDialogState(state => state.selectedDropboxPath);
+  const setSelectedDropboxPath = useLoadMapDialogState(state => state.setSelectedDropboxPath);
   const sharableLinkUrl = useLoadMapDialogState(state => state.sharableLinkUrl);
   const sharableLinkLabel = useLoadMapDialogState(state => state.sharableLinkLabel);
   const isSharableLinkVisible = useLoadMapDialogState(state => state.isSharableLinkVisible);
@@ -86,7 +88,8 @@ export const LoadMapDialog: React.FC = () => {
           <select
             id="loadFromDropboxSelect"
             style={{ width: "22em" }}
-            defaultValue={hasDropboxFiles ? dropboxFiles[0].path : ""}
+            value={selectedDropboxPath}
+            onChange={event => setSelectedDropboxPath(event.target.value)}
           >
             {hasDropboxFiles
               ? dropboxFiles.map(({ name, updated, size, path }) => {
