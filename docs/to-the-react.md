@@ -1,18 +1,10 @@
 # レガシーDOM操作が残存しているコントローラーファイル一覧
 
-`namesbase-editor.ts` と同様に、`src/controllers/` 配下で `document.getElementById` や `.addEventListener` といった命令的なDOM操作が行われており、純粋なReactコンポーネント（または純粋なロジック層）に移行しきれていないファイルの一覧です。
-
-これらのファイルは将来的に、状態管理をReact（Zustand等）に委譲し、DOM操作を排除するリファクタリングの対象となります。
-
-| ファイル名 | 主な役割 | 残存している非Reactパターンの例 |
-| :--- | :--- | :--- |
-| **全般・ツール系** | | |
-| `layers.ts` | レイヤー制御 | `document.getElementById`, `.addEventListener` の使用 |
-| `hotkeys.ts` | ホットキー管理 | `.addEventListener` を用いた直接のキーバインド（グローバルなイベント登録） |
+`namesbase-editor.ts` と同様に、`src/controllers/` 配下で `document.getElementById` や `.addEventListener` といった命令的なDOM操作が行われており、純粋なReactコンポーネント（または純粋なロジック層）に移行しきれていないファイルの改修を進める。
 
 ## リファクタリングのアプローチ（AGENTS.md準拠）
 
-これらのファイルを改修する際は、今回実施した `namesbase-editor.ts` と同様の以下のステップを踏むことが推奨されます。
+これらのファイルを改修する際は、以下のステップを踏むことが推奨されます。
 
 1. **State管理の分離**: 
    React側で管理すべきUIの状態（開閉状態、入力値、選択中のインデックス等）を `useState` や Zustand のストア（例: `src/store/...`）に移行する。

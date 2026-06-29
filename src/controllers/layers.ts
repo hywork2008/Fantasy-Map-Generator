@@ -67,6 +67,11 @@ export function initLayers(wc: WorldContext, vc: Readonly<ViewContext>, as: AppS
     syncSVGLayersOrder(customEvent.detail);
   });
   // initSortable is removed as React handles DND
+
+  document.addEventListener("fmg:toggle-emblems", () => toggleEmblems());
+  document.addEventListener("fmg:turn-button-on", (e: Event) => turnButtonOn((e as CustomEvent<string>).detail));
+  document.addEventListener("fmg:turn-button-off", (e: Event) => turnButtonOff((e as CustomEvent<string>).detail));
+  document.addEventListener("fmg:get-current-preset", () => getCurrentPreset());
 }
 
 // ─── Preset management ───────────────────────────────────────────────────────
@@ -976,32 +981,32 @@ export function syncSVGLayersOrder(layers: { id: string }[]): void {
   }
 }
 
-function getLayer(id: string): HTMLElement | null {
-  if (id === "toggleLakes") return document.getElementById("lakes");
-  if (id === "toggleHeight") return document.getElementById("terrs");
-  if (id === "toggleBiomes") return document.getElementById("biomes");
-  if (id === "toggleCells") return document.getElementById("cells");
-  if (id === "toggleGrid") return document.getElementById("gridOverlay");
-  if (id === "toggleCoordinates") return document.getElementById("coordinates");
-  if (id === "toggleCompass") return document.getElementById("compass");
-  if (id === "toggleRivers") return document.getElementById("rivers");
-  if (id === "toggleRelief") return document.getElementById("terrain");
-  if (id === "toggleReligions") return document.getElementById("relig");
-  if (id === "toggleCultures") return document.getElementById("cults");
-  if (id === "toggleStates") return document.getElementById("regions");
-  if (id === "toggleProvinces") return document.getElementById("provs");
-  if (id === "toggleBorders") return document.getElementById("borders");
-  if (id === "toggleRoutes") return document.getElementById("routes");
-  if (id === "toggleTemperature") return document.getElementById("temperature");
-  if (id === "togglePrecipitation") return document.getElementById("prec");
-  if (id === "togglePopulation") return document.getElementById("population");
-  if (id === "toggleIce") return document.getElementById("ice");
-  if (id === "toggleTexture") return document.getElementById("texture");
-  if (id === "toggleEmblems") return document.getElementById("emblems");
-  if (id === "toggleLabels") return document.getElementById("labels");
-  if (id === "toggleBurgIcons") return document.getElementById("icons");
-  if (id === "toggleMarkers") return document.getElementById("markers");
-  if (id === "toggleRulers") return document.getElementById("ruler");
+function getLayer(id: string): SVGGElement | HTMLElement | null {
+  if (id === "toggleLakes") return viewContext.lakes.node();
+  if (id === "toggleHeight") return viewContext.terrs.node();
+  if (id === "toggleBiomes") return viewContext.biomes.node();
+  if (id === "toggleCells") return viewContext.cells.node();
+  if (id === "toggleGrid") return viewContext.gridOverlay.node();
+  if (id === "toggleCoordinates") return viewContext.coordinates.node();
+  if (id === "toggleCompass") return viewContext.compass.node();
+  if (id === "toggleRivers") return viewContext.rivers.node();
+  if (id === "toggleRelief") return viewContext.terrain.node();
+  if (id === "toggleReligions") return viewContext.relig.node();
+  if (id === "toggleCultures") return viewContext.cults.node();
+  if (id === "toggleStates") return viewContext.regions.node();
+  if (id === "toggleProvinces") return viewContext.provs.node();
+  if (id === "toggleBorders") return viewContext.borders.node();
+  if (id === "toggleRoutes") return viewContext.routes.node();
+  if (id === "toggleTemperature") return viewContext.temperature.node();
+  if (id === "togglePrecipitation") return viewContext.prec.node();
+  if (id === "togglePopulation") return viewContext.population.node();
+  if (id === "toggleIce") return viewContext.ice.node();
+  if (id === "toggleTexture") return viewContext.texture.node();
+  if (id === "toggleEmblems") return viewContext.emblems.node();
+  if (id === "toggleLabels") return viewContext.labels.node();
+  if (id === "toggleBurgIcons") return viewContext.icons.node();
+  if (id === "toggleMarkers") return viewContext.markers.node();
+  if (id === "toggleRulers") return viewContext.ruler.node();
   return _layerElementGetters.get(id)?.() ?? null;
 }
 
@@ -1093,11 +1098,5 @@ export function getToolActionHandler(eventName: string): (() => void) | undefine
 export function toggleLayerById(id: string, event?: MouseEvent): void {
   TOGGLE_REGISTRY[id]?.(event);
 }
-
-// CustomEvent Listeners
-document.addEventListener("fmg:toggle-emblems", () => toggleEmblems());
-document.addEventListener("fmg:turn-button-on", (e: Event) => turnButtonOn((e as CustomEvent<string>).detail));
-document.addEventListener("fmg:turn-button-off", (e: Event) => turnButtonOff((e as CustomEvent<string>).detail));
-document.addEventListener("fmg:get-current-preset", () => getCurrentPreset());
 
 // d3 is the UMD global exposed by the legacy <script> tag in index.html

@@ -1078,7 +1078,7 @@ function addRiverOnClick(event: MouseEvent): void {
   }
 }
 
-function toggleAddMarker(): void {
+export function toggleAddMarker(): void {
   const addMarkerBtn = document.getElementById("addMarker")!;
   if (addMarkerBtn.classList.contains("pressed")) {
     unpressClickToAddButton();

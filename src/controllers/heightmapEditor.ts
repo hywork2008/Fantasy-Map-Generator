@@ -694,12 +694,13 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
   }
 
   function undoHistory(): void {
-    const h = heightmapHistory!.undo();
+    if (!heightmapHistory) return;
+    const h = heightmapHistory.undo();
     if (!h) return;
     worldContext.grid.cells.h = h;
     setHeightmapEditorState({
-      canUndo: heightmapHistory!.canUndo,
-      canRedo: heightmapHistory!.canRedo
+      canUndo: heightmapHistory.canUndo,
+      canRedo: heightmapHistory.canRedo
     });
     mockHeightmap();
     updateStatistics();
@@ -708,12 +709,13 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
   }
 
   function redoHistory(): void {
-    const h = heightmapHistory!.redo();
+    if (!heightmapHistory) return;
+    const h = heightmapHistory.redo();
     if (!h) return;
     worldContext.grid.cells.h = h;
     setHeightmapEditorState({
-      canUndo: heightmapHistory!.canUndo,
-      canRedo: heightmapHistory!.canRedo
+      canUndo: heightmapHistory.canUndo,
+      canRedo: heightmapHistory.canRedo
     });
     mockHeightmap();
     updateStatistics();

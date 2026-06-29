@@ -2,6 +2,7 @@ import { resetZoom } from "../actions";
 import { viewContext } from "../context/viewContext";
 import { quickLoad } from "../io/load";
 import { saveMap, toggleSaveReminder } from "../io/save";
+import { ThreeDRenderer } from "../renderers/three-d-renderer";
 import { closeDialogs } from "../ui/dialogs/dialogService";
 import { minmax } from "../utils";
 import { EditorBus } from "../utils/editorBus";
@@ -10,7 +11,7 @@ import { editBiomes } from "./biomes-editor";
 import { overviewBurgs } from "./burgs-overview";
 import { editDiplomacy } from "./diplomacy-editor";
 import { editCoastlineSettings, editCultures, editReligions } from "./editors";
-import { editHeightmap } from "./heightmapEditor";
+import { editHeightmap, HeightmapEditorActions } from "./heightmapEditor";
 import {
   toggleBiomes,
   toggleBorders,
@@ -56,6 +57,7 @@ import {
   overviewCharts,
   toggleAddBurg,
   toggleAddLabel,
+  toggleAddMarker,
   toggleAddRiver,
   viewCellDetails
 } from "./tools";
@@ -93,22 +95,22 @@ function handleKeyup(event: KeyboardEvent): void {
   else if (code === "Tab") toggleOptions(event);
   else if (code === "Escape") closeAllDialogs();
   else if (code === "Delete") removeElementOnKey();
-  else if (code === "KeyO" && document.getElementById("canvas3d")) toggle3dOptions();
+  else if (code === "KeyO" && ThreeDRenderer.options.isOn) toggle3dOptions();
   else if (ctrl && code === "KeyQ") toggleSaveReminder();
   else if (ctrl && code === "KeyS") saveMap("machine");
   else if (ctrl && code === "KeyC") saveMap("dropbox");
-  else if (ctrl && code === "KeyZ") (document.getElementById("undo") as HTMLButtonElement | null)?.click();
-  else if (ctrl && code === "KeyY") (document.getElementById("redo") as HTMLButtonElement | null)?.click();
+  else if (ctrl && code === "KeyZ") HeightmapEditorActions.undoHistory();
+  else if (ctrl && code === "KeyY") HeightmapEditorActions.redoHistory();
   // Block editing shortcuts in 3D mode
   else if (
-    document.getElementById("canvas3d") !== null &&
+    ThreeDRenderer.options.isOn &&
     (shift || altShift) &&
     ["KeyH", "KeyB", "KeyS", "KeyP", "KeyD", "KeyL", "KeyC", "KeyN", "KeyZ", "KeyR", "KeyY", "KeyQ", "KeyO"].includes(
       code
     )
   )
     return;
-  else if (document.getElementById("canvas3d") !== null && ["!", "@", "#", "$", "%"].includes(key)) return;
+  else if (ThreeDRenderer.options.isOn && ["!", "@", "#", "$", "%"].includes(key)) return;
   else if ((shift || altShift) && code === "KeyH") editHeightmap();
   else if ((shift || altShift) && code === "KeyB") editBiomes();
   else if ((shift || altShift) && code === "KeyS") EditorBus.editStates();
@@ -133,7 +135,7 @@ function handleKeyup(event: KeyboardEvent): void {
   else if (key === "@") toggleAddLabel();
   else if (key === "#") toggleAddRiver();
   else if (key === "$") createRoute();
-  else if (key === "%") (document.getElementById("addMarker") as HTMLButtonElement | null)?.click();
+  else if (key === "%") toggleAddMarker();
   else if (code === "KeyX") toggleTexture();
   else if (code === "KeyH") toggleHeight();
   else if (code === "KeyQ") toggleLakes();
