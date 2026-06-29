@@ -16,7 +16,6 @@
 | `routes-editor.ts` | 経路エディタ | `document.getElementById` の使用 |
 | **全般・ツール系** | | |
 | `tools.ts` | ツールメニュー | `document.getElementById`, `.addEventListener` の使用 |
-| `options.ts` | 設定画面 | `document.getElementById`, `.addEventListener` の使用 |
 | `layers.ts` | レイヤー制御 | `document.getElementById`, `.addEventListener` の使用 |
 | `measurers.ts` | 距離・面積測定ツール | `document.getElementById`, `.addEventListener` の使用 |
 | `export-json.ts` | JSONエクスポート | `document.getElementById` の使用 |

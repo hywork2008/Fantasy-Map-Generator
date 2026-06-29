@@ -4,13 +4,13 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
-import { heightmapTemplates, precreatedHeightmaps } from "../data";
+import { heightmapTemplates } from "../data";
 import { THEME_COLOR } from "../data/constants";
 import { Cultures } from "../generators/cultures-generator";
 import { COA } from "../generators/emblem/generator";
 import { Cloud } from "../io/cloud";
 import { exportToPngTiles } from "../io/export";
-import { loadMapFromURL, uploadMap } from "../io/load";
+import { loadMapFromURL } from "../io/load";
 import { StatesRenderer } from "../renderers";
 import type { Emblem as RendererEmblem } from "../renderers/emblem-renderer";
 import { COArenderer } from "../renderers/emblem-renderer";
@@ -35,29 +35,18 @@ import { exportToJson as exportToJsonModule } from "./export-json";
 
 // ─── Init jQuery draggable / disable-selection ────────────────────────────────
 
-import { resetZoom } from "../actions";
 import { appServices } from "../context/appServices";
 import { Names } from "../generators/names-generator";
 import { viewStateStore } from "../store";
 import type { Burg, Culture, Province, State } from "../types/models";
-import { applyOption, clearMainTip, fitContent, lock, locked, stored, tip, unlock } from "../utils/uiHelpers";
+import { applyOption, fitContent, lock, locked, stored, tip, unlock } from "../utils/uiHelpers";
 import { cleanupData } from "../versioning";
 import { editWorld } from "./world-configurator";
 
 // ─── Options pane show/hide ───────────────────────────────────────────────────
 
 export function showOptions(event?: Event): void {
-  if (!stored("disable_click_arrow_tooltip")) {
-    clearMainTip();
-    localStorage.setItem("disable_click_arrow_tooltip", "true");
-    const trigger = document.getElementById("optionsTrigger");
-    if (trigger) trigger.classList.remove("glow");
-  }
-
-  const regen = document.getElementById("regenerate");
-  if (regen) regen.style.display = "none";
   viewStateStore.getState().setMenuOpen(true);
-
   if (event) event.stopPropagation();
 }
 
@@ -523,16 +512,8 @@ export function applyStoredOptions(): void {
 
   const heightmapId = stored("template");
   if (heightmapId) {
-    const name = heightmapTemplates[heightmapId]?.name || precreatedHeightmaps[heightmapId]?.name || heightmapId;
-    const templateInput = document.getElementById("templateInput") as HTMLInputElement | HTMLSelectElement | null;
-    if (templateInput) applyOption(templateInput, heightmapId, name);
     optionsStore.setOption("template", heightmapId);
   }
-
-  const distanceUnitEl = document.getElementById("distanceUnitInput") as HTMLSelectElement | null;
-  if (stored("distanceUnit") && distanceUnitEl) applyOption(distanceUnitEl, stored("distanceUnit")!);
-  const heightUnitEl = document.getElementById("heightUnit") as HTMLSelectElement | null;
-  if (stored("heightUnit") && heightUnitEl) applyOption(heightUnitEl, stored("heightUnit")!);
 
   const loadedOptions: Partial<Omit<OptionsState, "setOption" | "setOptions">> = {};
 
@@ -666,11 +647,9 @@ export function randomizeOptions(): void {
     useOptionsState.getState().setOption("distanceScale", dsv);
     worldContext.distanceScale = dsv;
   }
-  const distanceUnitElInit = document.getElementById("distanceUnitInput") as HTMLSelectElement | null;
-  if (!stored("distanceUnit") && distanceUnitElInit) distanceUnitElInit.value = US ? "mi" : "km";
-  const heightUnitElInit = document.getElementById("heightUnit") as HTMLSelectElement | null;
-  if (!stored("heightUnit") && heightUnitElInit) heightUnitElInit.value = US ? "ft" : "m";
-  if (!stored("temperatureScale") && temperatureScale) temperatureScale.value = US ? "°F" : "°C";
+  if (!stored("distanceUnit")) useOptionsState.getState().setOption("distanceUnit", US ? "mi" : "km");
+  if (!stored("heightUnit")) useOptionsState.getState().setOption("heightUnit", US ? "ft" : "m");
+  if (!stored("temperatureScale")) useOptionsState.getState().setOption("temperatureScale", US ? "°F" : "°C");
 
   generateEra();
 }
@@ -681,10 +660,7 @@ function randomizeHeightmapTemplate(): void {
     templates[key] = (heightmapTemplates[key].probability as number) || 0;
   }
   const template = rw(templates);
-  const name = heightmapTemplates[template].name;
   useOptionsState.getState().setOption("template", template);
-  const templateInput = document.getElementById("templateInput") as HTMLInputElement | HTMLSelectElement | null;
-  if (templateInput) applyOption(templateInput, template, name);
 }
 
 function randomizeCultureSet(): void {
@@ -793,10 +769,7 @@ export function regeneratePrompt(opts?: { seed?: string }): void {
 
 // ─── Save / export / load panes ───────────────────────────────────────────────
 
-function showSavePane(): void {
-  const sharableLinkContainer = document.getElementById("sharableLinkContainer")!;
-  sharableLinkContainer.style.display = "none";
-
+export function showSavePane(): void {
   openDialog("saveMapData", { title: "Save map" });
 }
 
@@ -807,8 +780,6 @@ export function copyLinkToClickboard(): void {
 }
 
 export function showExportPane(): void {
-  (document.getElementById("showLabels") as HTMLInputElement).checked = !hideLabels.checked;
-
   openDialog("exportMapData", { title: "Export map data" });
 }
 
@@ -816,18 +787,8 @@ export function exportToJson(type: string): void {
   exportToJsonModule(type);
 }
 
-async function showLoadPane(): Promise<void> {
-  openDialog("loadMapData", {
-    title: "Load map",
-
-    width: "auto",
-    position: { my: "center", at: "center", of: "svg" },
-    buttons: {
-      Close: function (this: Element) {
-        /* $(this).dialog("close") removed */
-      }
-    }
-  });
+export async function showLoadPane(): Promise<void> {
+  openDialog("loadMapData", { title: "Load map" });
 
   const dropbox = Cloud.providers.dropbox;
   if (dropbox.api) {
@@ -1305,36 +1266,6 @@ export function toggle3dOptions(): void {
 }
 
 export function initOptions(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: AppServices): void {
-  // draggable/sortable/disableSelection
-  // $("#optionsContainer").draggable({ handle: ".drag-trigger", snap: "svg", snapMode: "both" });
-  // $("#exitCustomization").draggable({ handle: "div" });
-
-  if (stored("disable_click_arrow_tooltip")) {
-    clearMainTip();
-    const trigger = document.getElementById("optionsTrigger");
-    if (trigger) trigger.classList.remove("glow");
-  }
-
-  // Options pane show/hide
-  const trigger2 = document.getElementById("optionsTrigger");
-  if (trigger2) {
-    trigger2.addEventListener("mouseenter", () => {
-      if (trigger2.classList.contains("glow")) return;
-      const optsEl = document.getElementById("options");
-      const regen = document.getElementById("regenerate");
-      if (optsEl && optsEl.style.display === "none" && regen) regen.style.display = "block";
-    });
-  }
-
-  const collap = document.getElementById("collapsible");
-  if (collap) {
-    collap.addEventListener("mouseleave", () => {
-      const regen = document.getElementById("regenerate");
-      if (regen) regen.style.display = "none";
-    });
-  }
-
-  // Generic option change helpers
   // Generic option change helpers
   const optionsEl = document.getElementById("options");
   if (optionsEl) {
@@ -1457,24 +1388,6 @@ export function initOptions(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: 
   // Note: For other sliders (points, cultures, etc.), their changes are applied on map generation.
   // If immediate change is needed, add specific react- events for them and call the corresponding functions
   // like changeCellsDensity(), changeStatesNumber(), etc.
-
-  // Sticked menu
-  document.getElementById("sticked")?.addEventListener("click", (event: MouseEvent) => {
-    const id = (event.target as HTMLElement).id;
-    if (id === "newMapButton") regeneratePrompt();
-    else if (id === "saveButton") showSavePane();
-    else if (id === "exportButton") showExportPane();
-    else if (id === "loadButton") showLoadPane();
-    else if (id === "zoomReset") resetZoom(1000);
-  });
-
-  // Load map file
-  document.getElementById("mapToLoad")?.addEventListener("change", function (this: HTMLInputElement) {
-    const fileToLoad = this.files![0];
-    this.value = "";
-    closeDialogs();
-    uploadMap(fileToLoad);
-  });
 
   // View mode / 3D handled via React
 }

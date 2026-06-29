@@ -1,12 +1,28 @@
 import type React from "react";
+import { useEffect } from "react";
 import { connectToDropbox, loadURL } from "../../controllers/options";
-import { createSharableDropboxLink, loadFromDropbox, quickLoad } from "../../io/load";
+import { createSharableDropboxLink, loadFromDropbox, quickLoad, uploadMap } from "../../io/load";
 import { useDialogState } from "../../store/dialogState";
 import { Dialog } from "./Dialog";
-import { closeDialog } from "./dialogService";
+import { closeDialog, closeDialogs } from "./dialogService";
 
 export const LoadMapDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("loadMapData"));
+
+  useEffect(() => {
+    const mapToLoad = document.getElementById("mapToLoad") as HTMLInputElement | null;
+    if (!mapToLoad) return;
+
+    const handleChange = function (this: HTMLInputElement) {
+      const fileToLoad = this.files![0];
+      this.value = "";
+      closeDialogs();
+      uploadMap(fileToLoad);
+    };
+
+    mapToLoad.addEventListener("change", handleChange);
+    return () => mapToLoad.removeEventListener("change", handleChange);
+  }, []);
 
   const handleLoadFromMachine = () => {
     document.getElementById("mapToLoad")?.click();
