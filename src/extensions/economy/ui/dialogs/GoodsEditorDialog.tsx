@@ -1,6 +1,5 @@
 import React from "react";
 import { useDialogState } from "../../../../store/dialogState";
-import { useGoodsEditorTableState } from "../../../../store/goodsEditorTableState";
 import { Dialog } from "../../../../ui/dialogs/Dialog";
 import { closeDialog } from "../../../../ui/dialogs/dialogService";
 import { rn } from "../../../../utils";
@@ -24,6 +23,7 @@ import {
   toggleDisplayedGood,
   togglePercentageMode
 } from "../../controllers/goods-editor";
+import { useGoodsEditorTableState } from "../../store/goodsEditorTableState";
 
 const TYPE_BADGE_STYLES = {
   common: "display:inline-block;border-radius:3px;padding:0 .4em;font-size:0.8em;font-weight:bold;line-height:1.35",

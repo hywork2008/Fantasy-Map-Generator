@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { DistCondition } from "../extensions/economy/controllers/goodsDistributionExpression";
+import type { DistCondition } from "../controllers/goodsDistributionExpression";
 
 export type DistributionPickerType = "biomes" | "shore" | "featureType";
 

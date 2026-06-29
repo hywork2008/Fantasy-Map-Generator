@@ -4,7 +4,7 @@ import type { SvgGroup } from "./context/viewContext";
 import { viewContext } from "./context/viewContext";
 import { worldContext } from "./context/worldContext";
 import { editBurg } from "./controllers/burg-editor";
-import { restoreDefaultEvents, unselect } from "./controllers/editors";
+import { moveCircle, restoreDefaultEvents, unselect } from "./controllers/editors";
 import { initControllers } from "./controllers/index";
 import {
   handleLayersPresetChange,
@@ -37,7 +37,7 @@ import type { ExtensionAPI } from "./types/extension-api";
 import { closeDialog, isDialogOpen, openDialog, openRichDialog } from "./ui/dialogs/dialogService";
 import { initUtils } from "./utils/index";
 import { layerIsOn } from "./utils/nodeUtils";
-import { tooltipExtensions } from "./utils/uiHelpers";
+import { removeCircle, tooltipExtensions } from "./utils/uiHelpers";
 
 function buildExtensionAPI(): ExtensionAPI {
   const extState = useExtensionState.getState;
@@ -87,6 +87,7 @@ function buildExtensionAPI(): ExtensionAPI {
   return {
     worldContext,
     viewContext,
+    appServices,
 
     registerExtension: (config, defaultEnabled) => extState().registerExtension(config, defaultEnabled),
     registerAction: action => extState().registerAction(action),
@@ -137,6 +138,9 @@ function buildExtensionAPI(): ExtensionAPI {
     unregisterToolAction,
 
     zoomTo,
+    restoreDefaultEvents,
+    moveCircle,
+    removeCircle,
 
     tooltipExtensions
   };

@@ -1,6 +1,5 @@
 import type { Point } from "../../../generators/voronoi";
 import { useOptionsState } from "../../../store/optionsState";
-import { setTradeDetailsState } from "../../../store/tradeDetailsState";
 import type { Burg } from "../../../types/models";
 import { openDialog } from "../../../ui/dialogs/dialogService";
 import { rn } from "../../../utils";
@@ -9,6 +8,7 @@ import { Goods } from "../generators/goods-generator";
 import type { Deal } from "../generators/markets-generator";
 import { TradeAnimation, type TradeBatch } from "../generators/trade-animation";
 import { clearHighlight, highlight } from "../renderers/draw-trade-animation";
+import { setTradeDetailsState } from "../store/tradeDetailsState";
 
 let activeBatch: TradeBatch | undefined;
 

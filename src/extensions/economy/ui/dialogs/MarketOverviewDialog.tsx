@@ -1,6 +1,5 @@
 import React from "react";
 import { useDialogState } from "../../../../store/dialogState";
-import { useMarketOverviewState } from "../../../../store/marketOverviewState";
 import { Dialog } from "../../../../ui/dialogs/Dialog";
 import { closeDialog } from "../../../../ui/dialogs/dialogService";
 import { formatPrice } from "../../../../utils";
@@ -13,6 +12,7 @@ import {
   renameActiveMarket,
   resetActiveMarketName
 } from "../../controllers/market-overview";
+import { useMarketOverviewState } from "../../store/marketOverviewState";
 
 export const MarketOverviewDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("marketOverview"));

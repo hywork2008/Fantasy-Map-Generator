@@ -1,6 +1,5 @@
 import React from "react";
 import { useDialogState } from "../../../../store/dialogState";
-import { useMarketsGoodCompareState } from "../../../../store/marketsGoodCompareState";
 import { FillBox } from "../../../../ui/components/FillBox";
 import { Dialog } from "../../../../ui/dialogs/Dialog";
 import { closeDialog } from "../../../../ui/dialogs/dialogService";
@@ -14,6 +13,7 @@ import {
   setSorting,
   togglePercentageMode
 } from "../../controllers/marketsGoodCompare";
+import { useMarketsGoodCompareState } from "../../store/marketsGoodCompareState";
 
 export const MarketsGoodCompareDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("marketsGoodCompare"));

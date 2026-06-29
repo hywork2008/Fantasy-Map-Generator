@@ -14,6 +14,7 @@
  *   export function cleanup(api: ExtensionAPI): void   // optional
  */
 
+import type { AppServices } from "../context/appServices";
 import type { SvgGroup, ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import type { ExtensionAction, ExtensionConfig, ExtensionDialog, ExtensionStyleConfig } from "../store/extensionState";
@@ -42,6 +43,8 @@ export interface ExtensionAPI {
   readonly worldContext: WorldContext;
   /** Readonly reference to the host app's view context — same object, shared state. */
   readonly viewContext: ViewContext;
+  /** Readonly reference to the host app's shared services (RNG, storage, COA renderer). */
+  readonly appServices: AppServices;
 
   // ── Extension registry ───────────────────────────────────────────────────
   registerExtension(config: ExtensionConfig, defaultEnabled?: boolean): void;
@@ -115,6 +118,12 @@ export interface ExtensionAPI {
 
   // ── View actions ─────────────────────────────────────────────────────────
   zoomTo(x: number, y: number, scale: number, duration?: number): void;
+  /** Restore the default SVG pan/zoom/click handlers after an editing mode exits. */
+  restoreDefaultEvents(): void;
+  /** Show a brush circle at SVG coordinates (x, y) with radius r. */
+  moveCircle(x: number, y: number, r?: number): void;
+  /** Remove the brush circle from the SVG. */
+  removeCircle(): void;
 
   // ── Tooltip hooks ────────────────────────────────────────────────────────
   /**

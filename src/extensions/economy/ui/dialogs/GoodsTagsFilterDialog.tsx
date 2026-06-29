@@ -1,7 +1,7 @@
 import type React from "react";
 import { useEffect, useState } from "react";
-import { setGoodsTagsDialogState, useGoodsTagsDialogState } from "../../../../store/goodsTagsDialogState";
 import { Dialog } from "../../../../ui/dialogs/Dialog";
+import { setGoodsTagsDialogState, useGoodsTagsDialogState } from "../../store/goodsTagsDialogState";
 
 export const GoodsTagsFilterDialog: React.FC = () => {
   const isOpen = useGoodsTagsDialogState(s => s.isOpen);

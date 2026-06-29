@@ -1,6 +1,5 @@
 import React from "react";
 import { useDialogState } from "../../../../store/dialogState";
-import { type MarketDealRow, useMarketDealsState } from "../../../../store/marketDealsState";
 import { Dialog } from "../../../../ui/dialogs/Dialog";
 import { closeDialog } from "../../../../ui/dialogs/dialogService";
 import { formatPrice } from "../../../../utils";
@@ -10,6 +9,7 @@ import {
   refreshMarketDeals,
   setActiveMarketDealsFilter
 } from "../../controllers/market-deals-overview";
+import { type MarketDealRow, useMarketDealsState } from "../../store/marketDealsState";
 
 export const MarketDealsDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("marketDeals"));

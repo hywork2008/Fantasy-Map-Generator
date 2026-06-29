@@ -1,13 +1,13 @@
-import { downloadFile, getFileName } from "../../../controllers/editors";
-import { type MarketDealRow, type MarketDealsFilter, setMarketDealsState } from "../../../store/marketDealsState";
 import type { Burg } from "../../../types/models";
 import { openDialog } from "../../../ui/dialogs/dialogService";
 import { rn } from "../../../utils";
+import { downloadFile, getFileName } from "../../../utils/editorHelpers";
 import { tip } from "../../../utils/uiHelpers";
 import { getApi, getWorldContext } from "../economyContext";
 import { Goods } from "../generators/goods-generator";
 import type { Deal } from "../generators/markets-generator";
 import { Markets } from "../generators/markets-generator";
+import { type MarketDealRow, type MarketDealsFilter, setMarketDealsState } from "../store/marketDealsState";
 
 let activeMarketId = 0;
 let activeFilter: MarketDealsFilter = "all";

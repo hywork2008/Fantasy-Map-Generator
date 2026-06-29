@@ -1,27 +1,16 @@
 import { color, type D3DragEvent, drag, pointer } from "d3";
-import {
-  closeDialogs,
-  downloadFile,
-  getFileName,
-  moveCircle,
-  removeCircle,
-  restoreDefaultEvents
-} from "../../../controllers/editors";
-import {
-  getMarketsOverviewState,
-  type MarketRowData,
-  setMarketsOverviewState
-} from "../../../store/marketsOverviewState";
 import type { Burg } from "../../../types/models";
-import { openDialog } from "../../../ui/dialogs/dialogService";
+import { closeDialogs, openDialog } from "../../../ui/dialogs/dialogService";
 import { findAllCellsInRadius, findCell, findClosestCell, getIsolines, getVertexPath, rn } from "../../../utils";
+import { downloadFile, getFileName } from "../../../utils/editorHelpers";
 import { layerIsOn } from "../../../utils/nodeUtils";
-import { clearMainTip, showMainTip, tip } from "../../../utils/uiHelpers";
+import { clearMainTip, removeCircle, showMainTip, tip } from "../../../utils/uiHelpers";
 import { getApi, getMarketsLayer, getViewContext, getWorldContext } from "../economyContext";
 import type { Deal, Market } from "../generators/markets-generator";
 import { Markets } from "../generators/markets-generator";
 import { Production } from "../generators/production-generator";
 import { drawMarketsLayer, highlightMarketOff, highlightMarketOn } from "../renderers/draw-markets";
+import { getMarketsOverviewState, type MarketRowData, setMarketsOverviewState } from "../store/marketsOverviewState";
 import { open as openMarketsGoodCompare } from "./marketsGoodCompare";
 
 let isInitialized = false;
@@ -186,7 +175,7 @@ function startMarketsBrushDrag(this: SVGGElement, event: D3DragEvent<SVGGElement
   event.on("drag", (dragEvent: D3DragEvent<SVGGElement, unknown, unknown>) => {
     if (!dragEvent.dx && !dragEvent.dy) return;
     const [x, y] = pointer(dragEvent.sourceEvent, this);
-    moveCircle(x, y, r);
+    getApi().moveCircle(x, y, r);
 
     const found =
       r > 5
@@ -264,7 +253,7 @@ function onMarketsBrushMove(this: SVGGElement, event: MouseEvent): void {
   showMainTip();
   const [x, y] = pointer(event, this);
   const r = getMarketsOverviewState().brushSize;
-  moveCircle(x, y, r);
+  getApi().moveCircle(x, y, r);
 }
 
 function undoMarketsManualStep(): void {
@@ -290,7 +279,7 @@ function exitMarketsManualAssignment(apply: boolean): void {
   document.getElementById("marketsTemp")?.remove();
   setMarketsOverviewState({ mode: "default" });
 
-  restoreDefaultEvents();
+  getApi().restoreDefaultEvents();
   clearMainTip();
   removeCircle();
 
@@ -312,7 +301,7 @@ function enterAddMarketMode(): void {
 function exitAddMarketMode(): void {
   getViewContext().customization = 0;
   setMarketsOverviewState({ mode: "default" });
-  restoreDefaultEvents();
+  getApi().restoreDefaultEvents();
   clearMainTip();
 }
 

@@ -1,12 +1,12 @@
 // @ts-nocheck
 
-import {
-  getGoodsDistributionEditorState,
-  setGoodsDistributionEditorState
-} from "../../../store/goodsDistributionEditorState";
 import { openDialog } from "../../../ui/dialogs/dialogService";
 import { getWorldContext } from "../economyContext";
 import { Goods } from "../generators/goods-generator";
+import {
+  getGoodsDistributionEditorState,
+  setGoodsDistributionEditorState
+} from "../store/goodsDistributionEditorState";
 import {
   countMatchingCells,
   createDefaultCondition,

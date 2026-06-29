@@ -1,15 +1,15 @@
-import { downloadFile, getFileName } from "../../../controllers/editors";
+import { openDialog } from "../../../ui/dialogs/dialogService";
+import { formatPrice, rn } from "../../../utils";
+import { downloadFile, getFileName } from "../../../utils/editorHelpers";
+import { getApi, getWorldContext } from "../economyContext";
+import { Goods } from "../generators/goods-generator";
+import { Markets } from "../generators/markets-generator";
 import {
   getMarketsGoodCompareState,
   type MarketsGoodCompareOption,
   type MarketsGoodCompareRow,
   setMarketsGoodCompareState
-} from "../../../store/marketsGoodCompareState";
-import { openDialog } from "../../../ui/dialogs/dialogService";
-import { formatPrice, rn } from "../../../utils";
-import { getApi, getWorldContext } from "../economyContext";
-import { Goods } from "../generators/goods-generator";
-import { Markets } from "../generators/markets-generator";
+} from "../store/marketsGoodCompareState";
 
 export function open(): void {
   const goods = getWorldContext().pack.goods || [];

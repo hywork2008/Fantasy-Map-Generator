@@ -1,6 +1,5 @@
 import React from "react";
 import { useDialogState } from "../../../../store/dialogState";
-import { useGoodsDistributionEditorState } from "../../../../store/goodsDistributionEditorState";
 import { Dialog } from "../../../../ui/dialogs/Dialog";
 import { closeDialog } from "../../../../ui/dialogs/dialogService";
 import {
@@ -31,6 +30,7 @@ import {
   SHORE_OPTIONS
 } from "../../controllers/goodsDistributionExpression";
 import { getWorldContext } from "../../economyContext";
+import { useGoodsDistributionEditorState } from "../../store/goodsDistributionEditorState";
 
 function getSelectedValues(event: React.ChangeEvent<HTMLSelectElement>): string[] {
   return Array.from(event.target.selectedOptions).map(option => option.value);

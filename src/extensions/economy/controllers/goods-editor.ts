@@ -1,11 +1,6 @@
 import { pointer } from "d3";
-import { confirmationDialog, downloadFile, getFileName, restoreDefaultEvents } from "../../../controllers/editors";
-import { toggleCells } from "../../../controllers/layers";
-import { getGoodsEditorTableState, setGoodsEditorTableState } from "../../../store/goodsEditorTableState";
-import { setGoodsProducersDialogState } from "../../../store/goodsProducersDialogState";
-import { setGoodsStockDialogState } from "../../../store/goodsStockDialogState";
-import { setGoodsTagsDialogState } from "../../../store/goodsTagsDialogState";
 import { rn, unique } from "../../../utils";
+import { confirmationDialog, downloadFile, getFileName } from "../../../utils/editorHelpers";
 import { findCell } from "../../../utils/graphUtils";
 import { layerIsOn } from "../../../utils/nodeUtils";
 import { applySorting, clearMainTip, tip } from "../../../utils/uiHelpers";
@@ -15,6 +10,10 @@ import { Markets } from "../generators/markets-generator";
 import { isDealRecord, isMfgRecord, Production } from "../generators/production-generator";
 import { getCellProduction } from "../generators/production-utils";
 import { drawGoods } from "../renderers/draw-goods";
+import { getGoodsEditorTableState, setGoodsEditorTableState } from "../store/goodsEditorTableState";
+import { setGoodsProducersDialogState } from "../store/goodsProducersDialogState";
+import { setGoodsStockDialogState } from "../store/goodsStockDialogState";
+import { setGoodsTagsDialogState } from "../store/goodsTagsDialogState";
 import { DistributionEditor } from "./goods-distribution-editor";
 
 const viewbox = () => getViewContext().viewbox;
@@ -295,7 +294,7 @@ export function enterResourceAssignMode(): void {
   if (!layerIsOn("toggleGoods")) getApi().toggleLayerById("toggleGoods");
   if (!layerIsOn("toggleCells")) {
     (document.getElementById("toggleCells") as HTMLButtonElement).dataset.forced = "true";
-    toggleCells();
+    getApi().toggleLayerById("toggleCells");
   }
 
   tip("Select good line in editor, click on cells to remove or add a bonus resource", true);
@@ -331,7 +330,7 @@ function exitResourceAssignMode(close?: string): void {
 
   if (layerIsOn("toggleCells")) {
     const toggler = document.getElementById("toggleCells") as HTMLButtonElement;
-    if (toggler.dataset.forced) toggleCells();
+    if (toggler.dataset.forced) getApi().toggleLayerById("toggleCells");
     delete toggler.dataset.forced;
   }
 
@@ -339,7 +338,7 @@ function exitResourceAssignMode(close?: string): void {
 
   if (!close) goodsEditorAddLines();
 
-  restoreDefaultEvents();
+  getApi().restoreDefaultEvents();
   clearMainTip();
 }
 

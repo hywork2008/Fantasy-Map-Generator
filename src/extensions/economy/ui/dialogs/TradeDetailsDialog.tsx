@@ -1,10 +1,10 @@
 import React from "react";
 import { useDialogState } from "../../../../store/dialogState";
-import { useTradeDetailsState } from "../../../../store/tradeDetailsState";
 import { Dialog } from "../../../../ui/dialogs/Dialog";
 import { closeDialog } from "../../../../ui/dialogs/dialogService";
 import { formatPrice, rn } from "../../../../utils";
 import { closeTradeDetails } from "../../controllers/trade-details";
+import { useTradeDetailsState } from "../../store/tradeDetailsState";
 
 export const TradeDetailsDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("tradeDetails"));

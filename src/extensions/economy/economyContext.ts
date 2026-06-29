@@ -31,6 +31,10 @@ export function getViewContext() {
   return getApi().viewContext;
 }
 
+export function getAppServices() {
+  return getApi().appServices;
+}
+
 export function getGoodsLayer() {
   return getApi().getSvgLayer("goods");
 }

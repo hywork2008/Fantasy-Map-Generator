@@ -1,13 +1,12 @@
-import { appServices } from "../../../context/appServices";
-import { downloadFile, getFileName } from "../../../controllers/editors";
-import { type MarketOverviewRow, setMarketOverviewState } from "../../../store/marketOverviewState";
 import type { Burg } from "../../../types/models";
 import { openDialog } from "../../../ui/dialogs/dialogService";
 import { rn } from "../../../utils";
+import { downloadFile, getFileName } from "../../../utils/editorHelpers";
 import { tip } from "../../../utils/uiHelpers";
-import { getWorldContext } from "../economyContext";
+import { getAppServices, getWorldContext } from "../economyContext";
 import { Goods } from "../generators/goods-generator";
 import { Markets } from "../generators/markets-generator";
+import { type MarketOverviewRow, setMarketOverviewState } from "../store/marketOverviewState";
 import { open as openMarketDealsOverview } from "./market-deals-overview";
 
 let activeMarketId = 0;
@@ -76,7 +75,8 @@ export function refreshMarketOverview(): void {
   const center = getWorldContext().pack.burgs[market.centerBurgId];
   const state = getWorldContext().pack.states[center?.state || 0];
   const coaId = `stateCOA${state.i}`;
-  if (state && appServices.COArenderer) appServices.COArenderer.trigger(coaId, state.coa);
+  const COArenderer = getAppServices().COArenderer;
+  if (state && COArenderer) COArenderer.trigger(coaId, state.coa);
 
   const burgs = getWorldContext().pack.burgs.filter(b => !b.removed && b.market === market.i);
   const totalUnits = Object.values(market.goods).reduce((sum, mg) => sum + mg.stock, 0);
