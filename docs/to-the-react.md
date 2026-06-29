@@ -7,7 +7,6 @@
 | ファイル名 | 主な役割 | 残存している非Reactパターンの例 |
 | :--- | :--- | :--- |
 | **装飾・メタデータ系** | | |
-| `style.ts` | スタイルエディタ | `.addEventListener`, `document.getElementById` の広範な使用 |
 | `emblems-editor.ts` | 紋章エディタ | `document.getElementById` の使用 |
 | `labels-editor.ts` | ラベルエディタ | `document.getElementById` の使用 |
 | `markers-editor.ts` | マーカーエディタ | `document.getElementById` の使用 |

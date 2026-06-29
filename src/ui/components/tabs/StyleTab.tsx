@@ -1,11 +1,62 @@
 import { useEffect } from "react";
 import {
   addStylePreset,
+  applyBurgIconsIcon,
+  applyBurgIconsLinejoin,
+  applyClipping,
+  applyCoastlineAuto,
+  applyCompassShiftX,
+  applyCompassShiftY,
+  applyFillColor,
+  applyFontShiftX,
+  applyFontShiftY,
+  applyFontSize,
+  applyFontSizeMinus,
+  applyFontSizePlus,
+  applyGridScale,
+  applyGridShiftX,
+  applyGridShiftY,
+  applyGridType,
+  applyHeightmapCurve,
+  applyHeightmapRenderOcean,
+  applyHeightmapScheme,
+  applyLabelsHideGroup,
+  applyLegendBack,
+  applyMapFilterButton,
+  applyOceanFill,
+  applyOceanPattern,
+  applyOutlineLayers,
+  applyPopulationRuralStroke,
+  applyPopulationUrbanStroke,
+  applyReliefSet,
+  applyRescaleMarkers,
+  applyScaleBarInput,
+  applyShadow,
   applySliderChange,
+  applyStatesBodyFilter,
+  applyStrokeColor,
+  applyStrokeDasharray,
+  applyStrokeLinecap,
+  applyStyleFilter,
+  applyTemperatureFill,
+  applyTextureSelect,
+  applyTextureShiftX,
+  applyTextureShiftY,
+  applyVignetteHeight,
+  applyVignettePreset,
+  applyVignetteRx,
+  applyVignetteRy,
+  applyVignetteWidth,
+  applyVignetteX,
+  applyVignetteY,
+  changeFont,
   initStyleTab,
+  openHeightmapSchemeDialog,
   requestRemoveStylePreset,
   requestStylePresetChange,
-  textureProvideURL
+  selectStyleElement,
+  textureProvideURL,
+  VIGNETTE_PRESETS
 } from "../../../controllers/style";
 import { invokeActiveZooming } from "../../../main";
 import { fonts } from "../../../services/fonts";
@@ -13,6 +64,8 @@ import { useExtensionState } from "../../../store/extensionState";
 import { useStyleState } from "../../../store/styleState";
 import { openDialog } from "../../dialogs/dialogService";
 import { SliderInput } from "../SliderInput";
+
+const CUSTOM_PRESET_PREFIX = "fmgStyle_";
 
 const CORE_STYLE_OPTIONS = [
   { value: "anchors", label: "Anchor Icons" },
@@ -55,17 +108,31 @@ const CORE_STYLE_OPTIONS = [
 export function StyleTab() {
   const visibility = useStyleState(state => state.visibility);
   const values = useStyleState(state => state.values);
+  const options = useStyleState(state => state.options);
+  const activeElement = useStyleState(state => state.activeElement);
+  const activeGroup = useStyleState(state => state.activeGroup);
+  const activePreset = useStyleState(state => state.activePreset);
+  const systemPresets = useStyleState(state => state.systemPresets);
+  const customPresets = useStyleState(state => state.customPresets);
+  const activeMapFilter = useStyleState(state => state.activeMapFilter);
+
   const styleConfigs = useExtensionState(state => state.styleConfigs);
   const enabledExtensions = useExtensionState(state => state.enabledExtensions);
   const extensionConfigs = styleConfigs.filter(c => enabledExtensions[c.extensionId]);
 
-  const styleOptions = [...CORE_STYLE_OPTIONS, ...extensionConfigs.flatMap(config => config.elements)].sort((a, b) =>
-    a.label.localeCompare(b.label)
+  const isSystemPreset = systemPresets.includes(activePreset);
+
+  const styleOptions = [...CORE_STYLE_OPTIONS, ...extensionConfigs.flatMap(config => config.elements ?? [])].sort(
+    (a, b) => a.label.localeCompare(b.label)
   );
 
   useEffect(() => {
     initStyleTab();
   }, []);
+
+  const str = (key: string, fallback = "") => String(values[key] ?? fallback);
+  const num = (key: string, fallback = "0") => String(values[key] ?? fallback);
+  const bool = (key: string) => values[key] === "1" || values[key] === 1;
 
   const slider = (id: string, min: string, max: string, step: string) => (
     <SliderInput
@@ -78,6 +145,13 @@ export function StyleTab() {
     />
   );
 
+  const filterOptions = options.styleFilterInput ?? [];
+  const scaleBarFilterOptions = options.styleScaleBarBackgroundFilter ?? [];
+  const statesBodyFilterOptions = options.styleStatesBodyFilter ?? [];
+  const heightmapSchemeOptions = options.styleHeightmapScheme ?? [];
+  const groupOptions = options.styleGroupSelect ?? [];
+  const textureCustomOptions = options.styleTextureCustom ?? [];
+
   return (
     <div id="styleContent" className="tabcontent" style={{ display: "block" }}>
       <p
@@ -89,9 +163,21 @@ export function StyleTab() {
       <select
         data-tip="Select a style preset"
         id="stylePreset"
+        value={activePreset}
         onChange={e => requestStylePresetChange(e.target.value)}
         style={{ width: "45%", textTransform: "capitalize" }}
-      ></select>
+      >
+        {systemPresets.map(name => (
+          <option key={name} value={name}>
+            {name}
+          </option>
+        ))}
+        {customPresets.map(name => (
+          <option key={CUSTOM_PRESET_PREFIX + name} value={CUSTOM_PRESET_PREFIX + name}>
+            {name} [custom]
+          </option>
+        ))}
+      </select>
       <button
         id="addStyleButton"
         data-tip="Click to save current style as a new preset"
@@ -104,7 +190,7 @@ export function StyleTab() {
         id="removeStyleButton"
         data-tip="Click to remove current custom style preset"
         className="icon-minus sideButton"
-        style={{ display: "none" }}
+        style={{ display: isSystemPreset ? "none" : "inline-block" }}
         onClick={() => requestRemoveStylePreset()}
         type="button"
       ></button>
@@ -116,7 +202,11 @@ export function StyleTab() {
         data-tip="Select an element to edit its style (list is ordered alphabetically)"
         id="styleElementSelect"
         style={{ width: "42%" }}
-        defaultValue="ocean"
+        value={activeElement}
+        onChange={e => {
+          useStyleState.getState().setActiveElement(e.target.value);
+          selectStyleElement();
+        }}
       >
         {styleOptions.map(opt => (
           <option key={opt.value} value={opt.value}>
@@ -136,15 +226,38 @@ export function StyleTab() {
               <b>Group</b>
             </td>
             <td>
-              <select id="styleGroupSelect"></select>
+              <select
+                id="styleGroupSelect"
+                value={activeGroup}
+                onChange={e => {
+                  useStyleState.getState().setActiveGroup(e.target.value);
+                  selectStyleElement();
+                }}
+              >
+                {groupOptions.map(opt => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
             </td>
           </tr>
         </tbody>
 
         <tbody id="styleHeightmap" style={{ display: visibility.styleHeightmap ? "block" : "none" }}>
-          <tr id="styleHeightmapRenderOceanOption" data-tip="Check to render ocean heights">
+          <tr
+            id="styleHeightmapRenderOceanOption"
+            data-tip="Check to render ocean heights"
+            style={{ display: str("styleHeightmapRenderOceanOptionVisible") === "1" ? "block" : "none" }}
+          >
             <td colSpan={2}>
-              <input id="styleHeightmapRenderOcean" className="checkbox" type="checkbox" />
+              <input
+                id="styleHeightmapRenderOcean"
+                className="checkbox"
+                type="checkbox"
+                checked={bool("styleHeightmapRenderOcean")}
+                onChange={e => applyHeightmapRenderOcean(e.target.checked)}
+              />
               <label htmlFor="styleHeightmapRenderOcean" className="checkbox-label">
                 Render ocean heights
               </label>
@@ -169,7 +282,11 @@ export function StyleTab() {
           <tr data-tip="Select line interpolation type">
             <td>Line style</td>
             <td>
-              <select id="styleHeightmapCurve">
+              <select
+                id="styleHeightmapCurve"
+                value={str("styleHeightmapCurve")}
+                onChange={e => applyHeightmapCurve(e.target.value)}
+              >
                 <option value="curveBasisClosed">Curved</option>
                 <option value="curveLinear">Linear</option>
                 <option value="curveStep">Rectangular</option>
@@ -180,13 +297,24 @@ export function StyleTab() {
           <tr data-tip="Select color scheme for the element">
             <td>Color scheme</td>
             <td>
-              <select id="styleHeightmapScheme" style={{ width: "86%" }}></select>
+              <select
+                id="styleHeightmapScheme"
+                style={{ width: "86%" }}
+                value={str("styleHeightmapScheme")}
+                onChange={e => applyHeightmapScheme(e.target.value)}
+              >
+                {heightmapSchemeOptions.map(opt => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
               <button
                 id="openCreateHeightmapSchemeButton"
                 data-tip="Click to add a custom heightmap color scheme"
-                data-stops="#ffffff,#EEEECC,#D2B48C,#008000,#008080"
                 className="icon-plus sideButton"
                 type="button"
+                onClick={openHeightmapSchemeDialog}
               ></button>
             </td>
           </tr>
@@ -208,8 +336,13 @@ export function StyleTab() {
           <tr data-tip="Set background color">
             <td>Background</td>
             <td>
-              <input id="styleLegendBack" type="color" defaultValue="#ffffff" />
-              <output id="styleLegendBackOutput">#ffffff</output>
+              <input
+                id="styleLegendBack"
+                type="color"
+                value={str("styleLegendBack", "#ffffff")}
+                onChange={e => applyLegendBack(e.target.value)}
+              />
+              <output id="styleLegendBackOutput">{str("styleLegendBack", "#ffffff")}</output>
             </td>
           </tr>
 
@@ -223,16 +356,26 @@ export function StyleTab() {
           <tr data-tip="Set bar color for rural population">
             <td>Rural color</td>
             <td>
-              <input id="stylePopulationRuralStrokeInput" type="color" defaultValue="#0000ff" />
-              <output id="stylePopulationRuralStrokeOutput">#0000ff</output>
+              <input
+                id="stylePopulationRuralStrokeInput"
+                type="color"
+                value={str("stylePopulationRuralStrokeInput", "#0000ff")}
+                onChange={e => applyPopulationRuralStroke(e.target.value)}
+              />
+              <output id="stylePopulationRuralStrokeOutput">{str("stylePopulationRuralStrokeInput", "#0000ff")}</output>
             </td>
           </tr>
 
           <tr data-tip="Set bar color for urban population">
             <td>Urban color</td>
             <td>
-              <input id="stylePopulationUrbanStrokeInput" type="color" defaultValue="#ff0000" />
-              <output id="stylePopulationUrbanStrokeOutput">#ff0000</output>
+              <input
+                id="stylePopulationUrbanStrokeInput"
+                type="color"
+                value={str("stylePopulationUrbanStrokeInput", "#ff0000")}
+                onChange={e => applyPopulationUrbanStroke(e.target.value)}
+              />
+              <output id="stylePopulationUrbanStrokeOutput">{str("stylePopulationUrbanStrokeInput", "#ff0000")}</output>
             </td>
           </tr>
         </tbody>
@@ -241,7 +384,12 @@ export function StyleTab() {
           <tr data-tip="Select texture image. Big textures can highly affect performance">
             <td>Image</td>
             <td>
-              <select id="styleTextureInput" style={{ width: "86%" }}>
+              <select
+                id="styleTextureInput"
+                style={{ width: "86%" }}
+                value={str("styleTextureInput")}
+                onChange={e => applyTextureSelect(e.target.value)}
+              >
                 <option value="">No texture</option>
                 <option value="./images/textures/folded-paper-big.jpg">Folded paper big</option>
                 <option value="./images/textures/folded-paper-small.jpg">Folded paper small</option>
@@ -268,6 +416,11 @@ export function StyleTab() {
                 <option value="./images/textures/mauritania-small.jpg">Mauritania small</option>
                 <option value="./images/textures/iran-small.jpg">Iran small</option>
                 <option value="./images/textures/spain-small.jpg">Spain small</option>
+                {textureCustomOptions.map(opt => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
               </select>
               <button
                 data-tip="Click and provide a URL to image to be set as a texture"
@@ -284,14 +437,16 @@ export function StyleTab() {
               <input
                 id="styleTextureShiftX"
                 type="number"
-                defaultValue="0"
+                value={num("styleTextureShiftX", "0")}
                 data-tip="Shift texture by x axis in pixels"
+                onChange={e => applyTextureShiftX(e.target.value)}
               />
               <input
                 id="styleTextureShiftY"
                 type="number"
-                defaultValue="0"
+                value={num("styleTextureShiftY", "0")}
                 data-tip="Shift texture by y axis in pixels"
+                onChange={e => applyTextureShiftY(e.target.value)}
               />
             </td>
           </tr>
@@ -301,7 +456,13 @@ export function StyleTab() {
           <tr data-tip="Select precreated vignette">
             <td>Preset</td>
             <td>
-              <select id="styleVignettePreset"></select>
+              <select id="styleVignettePreset" onChange={e => applyVignettePreset(e.target.value)}>
+                {Object.keys(VIGNETTE_PRESETS).map(preset => (
+                  <option key={preset} value={preset}>
+                    {preset}
+                  </option>
+                ))}
+              </select>
             </td>
           </tr>
 
@@ -310,15 +471,51 @@ export function StyleTab() {
             <td style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
               <div>
                 <span>x </span>
-                <input id="styleVignetteX" type="number" min="0" max="100" step="0.1" style={{ width: "5em" }} />
+                <input
+                  id="styleVignetteX"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  style={{ width: "5em" }}
+                  value={num("styleVignetteX")}
+                  onChange={e => applyVignetteX(e.target.value)}
+                />
                 <span>width&nbsp; </span>
-                <input id="styleVignetteWidth" type="number" min="0" max="100" step="0.1" style={{ width: "5em" }} />
+                <input
+                  id="styleVignetteWidth"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  style={{ width: "5em" }}
+                  value={num("styleVignetteWidth")}
+                  onChange={e => applyVignetteWidth(e.target.value)}
+                />
               </div>
               <div>
                 <span>y </span>
-                <input id="styleVignetteY" type="number" min="0" max="100" step="0.1" style={{ width: "5em" }} />
+                <input
+                  id="styleVignetteY"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  style={{ width: "5em" }}
+                  value={num("styleVignetteY")}
+                  onChange={e => applyVignetteY(e.target.value)}
+                />
                 <span>height </span>
-                <input id="styleVignetteHeight" type="number" min="0" max="100" step="0.1" style={{ width: "5em" }} />
+                <input
+                  id="styleVignetteHeight"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  style={{ width: "5em" }}
+                  value={num("styleVignetteHeight")}
+                  onChange={e => applyVignetteHeight(e.target.value)}
+                />
               </div>
             </td>
           </tr>
@@ -327,9 +524,25 @@ export function StyleTab() {
             <td>Radius</td>
             <td>
               <span>x </span>
-              <input id="styleVignetteRx" type="number" min="0" max="50" style={{ width: "5em" }} />
+              <input
+                id="styleVignetteRx"
+                type="number"
+                min="0"
+                max="50"
+                style={{ width: "5em" }}
+                value={num("styleVignetteRx")}
+                onChange={e => applyVignetteRx(e.target.value)}
+              />
               <span>y </span>
-              <input id="styleVignetteRy" type="number" min="0" max="50" style={{ width: "5em" }} />
+              <input
+                id="styleVignetteRy"
+                type="number"
+                min="0"
+                max="50"
+                style={{ width: "5em" }}
+                value={num("styleVignetteRy")}
+                onChange={e => applyVignetteRy(e.target.value)}
+              />
             </td>
           </tr>
 
@@ -343,7 +556,11 @@ export function StyleTab() {
           <tr data-tip="Select ocean pattern">
             <td>Pattern</td>
             <td>
-              <select id="styleOceanPattern">
+              <select
+                id="styleOceanPattern"
+                value={str("styleOceanPattern")}
+                onChange={e => applyOceanPattern(e.target.value)}
+              >
                 <option value="">No pattern</option>
                 <option value="./images/pattern1.png">Pattern 1</option>
                 <option value="./images/pattern2.png">Pattern 2</option>
@@ -364,7 +581,11 @@ export function StyleTab() {
           <tr data-tip="Define the coast outline contours scheme">
             <td>Ocean layers</td>
             <td>
-              <select id="outlineLayers">
+              <select
+                id="outlineLayers"
+                value={str("outlineLayers")}
+                onChange={e => applyOutlineLayers(e.target.value)}
+              >
                 <option value="none">No outline</option>
                 <option value="random">Random</option>
                 <option value="-6,-3,-1">Standard 3</option>
@@ -379,8 +600,13 @@ export function StyleTab() {
           <tr data-tip="Set ocean color">
             <td>Color</td>
             <td>
-              <input id="styleOceanFill" type="color" defaultValue="#466eab" />
-              <output id="styleOceanFillOutput">#466eab</output>
+              <input
+                id="styleOceanFill"
+                type="color"
+                value={str("styleOceanFill", "#466eab")}
+                onChange={e => applyOceanFill(e.target.value)}
+              />
+              <output id="styleOceanFillOutput">{str("styleOceanFill", "#466eab")}</output>
             </td>
           </tr>
         </tbody>
@@ -389,7 +615,11 @@ export function StyleTab() {
           <tr data-tip="Select group icon">
             <td>Icon</td>
             <td>
-              <select id="styleBurgIconsIcon">
+              <select
+                id="styleBurgIconsIcon"
+                value={str("styleBurgIconsIcon")}
+                onChange={e => applyBurgIconsIcon(e.target.value)}
+              >
                 <option value="#icon-circle">Circle</option>
                 <option value="#icon-square">Square</option>
                 <option value="#icon-triangle">Triangle</option>
@@ -421,7 +651,11 @@ export function StyleTab() {
           <tr data-tip="Set icon stroke linejoin">
             <td>Stroke linejoin</td>
             <td>
-              <select id="styleBurgIconsStrokeLinejoin">
+              <select
+                id="styleBurgIconsStrokeLinejoin"
+                value={str("styleBurgIconsStrokeLinejoin")}
+                onChange={e => applyBurgIconsLinejoin(e.target.value)}
+              >
                 <option value="inherit">Inherit</option>
                 <option value="butt">Butt</option>
                 <option value="round">Round</option>
@@ -440,7 +674,7 @@ export function StyleTab() {
           <tr data-tip="Select grid overlay type">
             <td>Type</td>
             <td>
-              <select id="styleGridType">
+              <select id="styleGridType" value={str("styleGridType")} onChange={e => applyGridType(e.target.value)}>
                 <option value="pointyHex">Hex grid (pointy)</option>
                 <option value="flatHex">Hex grid (flat)</option>
                 <option value="square">Square grid</option>
@@ -458,8 +692,18 @@ export function StyleTab() {
           <tr data-tip="Set grid cells scale multiplier">
             <td>Scale</td>
             <td>
-              <input id="styleGridScale" type="number" min=".1" max="10" step=".01" />
-              <output id="styleGridSizeFriendly" data-tip="Distance between grid cell centers (in map scale)"></output>
+              <input
+                id="styleGridScale"
+                type="number"
+                min=".1"
+                max="10"
+                step=".01"
+                value={num("styleGridScale", "1")}
+                onChange={e => applyGridScale(e.target.value)}
+              />
+              <output id="styleGridSizeFriendly" data-tip="Distance between grid cell centers (in map scale)">
+                {str("styleGridSizeFriendly")}
+              </output>
               <a
                 href="https://github.com/Azgaar/Fantasy-Map-Generator/wiki/Scale-and-distance#grids"
                 target="_blank"
@@ -476,8 +720,20 @@ export function StyleTab() {
           <tr data-tip="Shift the element by axes">
             <td>Shift by axes</td>
             <td>
-              <input id="styleGridShiftX" type="number" data-tip="Shift by x axis in pixels" />
-              <input id="styleGridShiftY" type="number" data-tip="Shift by y axis in pixels" />
+              <input
+                id="styleGridShiftX"
+                type="number"
+                data-tip="Shift by x axis in pixels"
+                value={num("styleGridShiftX")}
+                onChange={e => applyGridShiftX(e.target.value)}
+              />
+              <input
+                id="styleGridShiftY"
+                type="number"
+                data-tip="Shift by y axis in pixels"
+                value={num("styleGridShiftY")}
+                onChange={e => applyGridShiftY(e.target.value)}
+              />
             </td>
           </tr>
         </tbody>
@@ -491,8 +747,19 @@ export function StyleTab() {
           <tr data-tip="Shift wind (compass) rose by axes">
             <td>Shift by axes</td>
             <td>
-              <input id="styleCompassShiftX" type="number" defaultValue="80" data-tip="Shift by x axis in pixels" />
-              <input id="styleCompassShiftY" type="number" defaultValue="80" data-tip="Shift by y axis in pixels" />
+              <input
+                id="styleCompassShiftX"
+                type="number"
+                value={num("styleCompassShiftX", "80")}
+                data-tip="Shift by x axis in pixels"
+                onChange={e => applyCompassShiftX(e.target.value)}
+              />
+              <input
+                id="styleCompassShiftY"
+                type="number"
+                value={num("styleCompassShiftY", "80")}
+                onChange={e => applyCompassShiftY(e.target.value)}
+              />
             </td>
           </tr>
         </tbody>
@@ -501,7 +768,7 @@ export function StyleTab() {
           <tr data-tip="Select set of relief icons. All relief icons will be regenerated">
             <td>Style</td>
             <td>
-              <select id="styleReliefSet">
+              <select id="styleReliefSet" value={str("styleReliefSet")} onChange={e => applyReliefSet(e.target.value)}>
                 <option value="simple">Simple</option>
                 <option value="gray">Gray</option>
                 <option value="colored">Colored</option>
@@ -524,8 +791,13 @@ export function StyleTab() {
           <tr data-tip="Set fill color">
             <td>Fill color</td>
             <td>
-              <input id="styleFillInput" type="color" defaultValue="#5E4FA2" />
-              <output id="styleFillOutput">#5E4FA2</output>
+              <input
+                id="styleFillInput"
+                type="color"
+                value={str("styleFillInput", "#5E4FA2")}
+                onChange={e => applyFillColor(e.target.value)}
+              />
+              <output id="styleFillOutput">{str("styleFillInput", "#5E4FA2")}</output>
             </td>
           </tr>
         </tbody>
@@ -534,8 +806,13 @@ export function StyleTab() {
           <tr data-tip="Set stroke color">
             <td>Stroke color</td>
             <td>
-              <input id="styleStrokeInput" type="color" defaultValue="#5E4FA2" />
-              <output id="styleStrokeOutput">#5E4FA2</output>
+              <input
+                id="styleStrokeInput"
+                type="color"
+                value={str("styleStrokeInput", "#5E4FA2")}
+                onChange={e => applyStrokeColor(e.target.value)}
+              />
+              <output id="styleStrokeOutput">{str("styleStrokeInput", "#5E4FA2")}</output>
             </td>
           </tr>
         </tbody>
@@ -558,8 +835,19 @@ export function StyleTab() {
           <tr data-tip="Set stroke dash array (e.g. 5 2) and linecap">
             <td>Stroke dash</td>
             <td>
-              <input id="styleStrokeDasharrayInput" type="text" defaultValue="1 2" style={{ width: "26%" }} />
-              <select id="styleStrokeLinecapInput" style={{ width: "32%" }}>
+              <input
+                id="styleStrokeDasharrayInput"
+                type="text"
+                style={{ width: "26%" }}
+                value={str("styleStrokeDasharrayInput", "1 2")}
+                onChange={e => applyStrokeDasharray(e.target.value)}
+              />
+              <select
+                id="styleStrokeLinecapInput"
+                style={{ width: "32%" }}
+                value={str("styleStrokeLinecapInput", "inherit")}
+                onChange={e => applyStrokeLinecap(e.target.value)}
+              >
                 <option value="inherit">Inherit</option>
                 <option value="butt">Butt</option>
                 <option value="round">Round</option>
@@ -573,7 +861,12 @@ export function StyleTab() {
           <tr data-tip="Set text shadow">
             <td>Text shadow</td>
             <td>
-              <input id="styleShadowInput" type="text" />
+              <input
+                id="styleShadowInput"
+                type="text"
+                value={str("styleShadowInput")}
+                onChange={e => applyShadow(e.target.value)}
+              />
             </td>
           </tr>
         </tbody>
@@ -582,10 +875,23 @@ export function StyleTab() {
           <tr data-tip="Select font">
             <td>Font</td>
             <td>
-              <select id="styleSelectFont" style={{ width: "85%" }}>
+              <select
+                id="styleSelectFont"
+                style={{ width: "85%" }}
+                value={str("styleSelectFont")}
+                onChange={e => {
+                  useStyleState.getState().updateValue("styleSelectFont", e.target.value);
+                  changeFont();
+                }}
+              >
                 {fonts.map(f => (
                   <option key={f.family} value={f.family} style={{ fontFamily: f.family }}>
                     {f.family}
+                  </option>
+                ))}
+                {(options.styleSelectFont ?? []).map(f => (
+                  <option key={f.value} value={f.value} style={{ fontFamily: f.value }}>
+                    {f.label}
                   </option>
                 ))}
               </select>
@@ -604,13 +910,33 @@ export function StyleTab() {
           <tr data-tip="Set font size">
             <td>Font size</td>
             <td>
-              <button type="button" id="styleFontPlus" data-tip="Increase font" className="whiteButton">
+              <button
+                type="button"
+                id="styleFontPlus"
+                data-tip="Increase font"
+                className="whiteButton"
+                onClick={applyFontSizePlus}
+              >
                 +
               </button>
-              <button type="button" id="styleFontMinus" data-tip="Descrease font" className="whiteButton">
+              <button
+                type="button"
+                id="styleFontMinus"
+                data-tip="Descrease font"
+                className="whiteButton"
+                onClick={applyFontSizeMinus}
+              >
                 -
               </button>
-              <input id="styleFontSize" type="number" min=".5" max="100" step=".1" />
+              <input
+                id="styleFontSize"
+                type="number"
+                min=".5"
+                max="100"
+                step=".1"
+                value={num("styleFontSize")}
+                onChange={e => applyFontSize(e.target.value)}
+              />
             </td>
           </tr>
         </tbody>
@@ -626,6 +952,8 @@ export function StyleTab() {
                 min="-5"
                 max="5"
                 step=".01"
+                value={num("styleFontShiftX")}
+                onChange={e => applyFontShiftX(e.target.value)}
               />
               <input
                 id="styleFontShiftY"
@@ -634,6 +962,8 @@ export function StyleTab() {
                 min="-5"
                 max="5"
                 step=".01"
+                value={num("styleFontShiftY")}
+                onChange={e => applyFontShiftY(e.target.value)}
               />
             </td>
           </tr>
@@ -642,7 +972,13 @@ export function StyleTab() {
         <tbody id="styleCoastline" style={{ display: visibility.styleCoastline ? "block" : "none" }}>
           <tr data-tip="Allow system to apply filter automatically based on zoom level">
             <td colSpan={2}>
-              <input id="styleCoastlineAuto" className="checkbox" type="checkbox" />
+              <input
+                id="styleCoastlineAuto"
+                className="checkbox"
+                type="checkbox"
+                checked={bool("styleCoastlineAuto")}
+                onChange={e => applyCoastlineAuto(e.target.checked)}
+              />
               <label htmlFor="styleCoastlineAuto" className="checkbox-label">
                 Automatically change filter on zoom
               </label>
@@ -664,8 +1000,13 @@ export function StyleTab() {
           <tr data-tip="Set labels color">
             <td>Labels color</td>
             <td>
-              <input id="styleTemperatureFillInput" type="color" />
-              <output id="styleTemperatureFillOutput">#000</output>
+              <input
+                id="styleTemperatureFillInput"
+                type="color"
+                value={str("styleTemperatureFillInput", "#000000")}
+                onChange={e => applyTemperatureFill(e.target.value)}
+              />
+              <output id="styleTemperatureFillOutput">{str("styleTemperatureFillInput", "#000000")}</output>
             </td>
           </tr>
         </tbody>
@@ -679,7 +1020,17 @@ export function StyleTab() {
           <tr data-tip="Select filter for states fill. Please note filters may cause performance issues!">
             <td>Body filter</td>
             <td>
-              <select id="styleStatesBodyFilter"></select>
+              <select
+                id="styleStatesBodyFilter"
+                value={str("styleStatesBodyFilter")}
+                onChange={e => applyStatesBodyFilter(e.target.value)}
+              >
+                {statesBodyFilterOptions.map(opt => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
             </td>
           </tr>
 
@@ -749,7 +1100,17 @@ export function StyleTab() {
           <tr data-tip="Select filter for element. Please note filters may cause performance issues!">
             <td>Filter</td>
             <td>
-              <select id="styleFilterInput"></select>
+              <select
+                id="styleFilterInput"
+                value={str("styleFilterInput")}
+                onChange={e => applyStyleFilter(e.target.value)}
+              >
+                {filterOptions.map(opt => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
             </td>
           </tr>
         </tbody>
@@ -758,7 +1119,11 @@ export function StyleTab() {
           <tr data-tip="Set clipping. Only non-clipped part will be visible">
             <td>Clipping</td>
             <td>
-              <select id="styleClippingInput">
+              <select
+                id="styleClippingInput"
+                value={str("styleClippingInput")}
+                onChange={e => applyClipping(e.target.value)}
+              >
                 <option value="">No clipping</option>
                 <option value="url(#land)">Clip water</option>
                 <option value="url(#water)">Clip land</option>
@@ -770,7 +1135,13 @@ export function StyleTab() {
         <tbody id="styleMarkers" style={{ display: visibility.styleMarkers ? "block" : "none" }}>
           <tr data-tip="Try to keep the same size on any map scale, turn off to get size change depending on scale">
             <td colSpan={2}>
-              <input id="styleRescaleMarkers" className="checkbox" type="checkbox" />
+              <input
+                id="styleRescaleMarkers"
+                className="checkbox"
+                type="checkbox"
+                checked={bool("styleRescaleMarkers")}
+                onChange={e => applyRescaleMarkers(e.target.checked)}
+              />
               <label htmlFor="styleRescaleMarkers" className="checkbox-label">
                 Keep initial size on zoom change
               </label>
@@ -781,7 +1152,13 @@ export function StyleTab() {
         <tbody id="styleVisibility" style={{ display: visibility.styleVisibility ? "block" : "none" }}>
           <tr data-tip="Completely hide the selected labels group using display:none">
             <td colSpan={2}>
-              <input id="styleLabelsHideGroup" className="checkbox" type="checkbox" />
+              <input
+                id="styleLabelsHideGroup"
+                className="checkbox"
+                type="checkbox"
+                checked={bool("styleLabelsHideGroup")}
+                onChange={e => applyLabelsHideGroup(e.target.checked)}
+              />
               <label htmlFor="styleLabelsHideGroup" className="checkbox-label">
                 Hide selected group
               </label>
@@ -812,9 +1189,25 @@ export function StyleTab() {
             <td>Size</td>
             <td>
               <span>Bar </span>
-              <input id="styleScaleBarSize" type="number" min=".5" max="5" step=".1" />
+              <input
+                id="styleScaleBarSize"
+                type="number"
+                min=".5"
+                max="5"
+                step=".1"
+                value={num("styleScaleBarSize")}
+                onChange={e => applyScaleBarInput("styleScaleBarSize", e.target.value)}
+              />
               <span>Font </span>
-              <input id="styleScaleBarFontSize" type="number" min="1" max="100" step=".1" />
+              <input
+                id="styleScaleBarFontSize"
+                type="number"
+                min="1"
+                max="100"
+                step=".1"
+                value={num("styleScaleBarFontSize")}
+                onChange={e => applyScaleBarInput("styleScaleBarFontSize", e.target.value)}
+              />
             </td>
           </tr>
 
@@ -822,16 +1215,39 @@ export function StyleTab() {
             <td>Position</td>
             <td>
               <span>x </span>
-              <input id="styleScaleBarPositionX" type="number" min="0" max="100" step="0.1" style={{ width: "5em" }} />
+              <input
+                id="styleScaleBarPositionX"
+                type="number"
+                min="0"
+                max="100"
+                step="0.1"
+                style={{ width: "5em" }}
+                value={num("styleScaleBarPositionX")}
+                onChange={e => applyScaleBarInput("styleScaleBarPositionX", e.target.value)}
+              />
               <span>y </span>
-              <input id="styleScaleBarPositionY" type="number" min="0" max="100" step="0.1" style={{ width: "5em" }} />
+              <input
+                id="styleScaleBarPositionY"
+                type="number"
+                min="0"
+                max="100"
+                step="0.1"
+                style={{ width: "5em" }}
+                value={num("styleScaleBarPositionY")}
+                onChange={e => applyScaleBarInput("styleScaleBarPositionY", e.target.value)}
+              />
             </td>
           </tr>
 
           <tr data-tip="Type scale bar label, leave blank to hide label">
             <td>Label</td>
             <td>
-              <input id="styleScaleBarLabel" type="text" />
+              <input
+                id="styleScaleBarLabel"
+                type="text"
+                value={str("styleScaleBarLabel")}
+                onChange={e => applyScaleBarInput("styleScaleBarLabel", e.target.value)}
+              />
             </td>
           </tr>
 
@@ -843,16 +1259,26 @@ export function StyleTab() {
           <tr data-tip="Set background fill color">
             <td>Back fill</td>
             <td>
-              <input id="styleScaleBarBackgroundFill" type="color" />
-              <output id="styleScaleBarBackgroundFillOutput"></output>
+              <input
+                id="styleScaleBarBackgroundFill"
+                type="color"
+                value={str("styleScaleBarBackgroundFill", "#ffffff")}
+                onChange={e => applyScaleBarInput("styleScaleBarBackgroundFill", e.target.value)}
+              />
+              <output id="styleScaleBarBackgroundFillOutput">{str("styleScaleBarBackgroundFill")}</output>
             </td>
           </tr>
 
           <tr data-tip="Set background stroke color and width">
             <td>Back stroke</td>
             <td>
-              <input id="styleScaleBarBackgroundStroke" type="color" />
-              <output id="styleScaleBarBackgroundStrokeOutput"></output>
+              <input
+                id="styleScaleBarBackgroundStroke"
+                type="color"
+                value={str("styleScaleBarBackgroundStroke", "#000000")}
+                onChange={e => applyScaleBarInput("styleScaleBarBackgroundStroke", e.target.value)}
+              />
+              <output id="styleScaleBarBackgroundStrokeOutput">{str("styleScaleBarBackgroundStroke")}</output>
 
               <span>Width </span>
               <input
@@ -862,6 +1288,8 @@ export function StyleTab() {
                 max="10"
                 step="0.1"
                 style={{ width: "5em" }}
+                value={num("styleScaleBarBackgroundStrokeWidth")}
+                onChange={e => applyScaleBarInput("styleScaleBarBackgroundStrokeWidth", e.target.value)}
               />
             </td>
           </tr>
@@ -869,13 +1297,23 @@ export function StyleTab() {
           <tr data-tip="Set background element padding: top, right, bottom, left (in pixels)">
             <td>Back padding</td>
             <td style={{ display: "flex", gap: "4px" }}>
-              <input id="styleScaleBarBackgroundPaddingTop" type="number" min="0" max="100" style={{ width: "5em" }} />
+              <input
+                id="styleScaleBarBackgroundPaddingTop"
+                type="number"
+                min="0"
+                max="100"
+                style={{ width: "5em" }}
+                value={num("styleScaleBarBackgroundPaddingTop")}
+                onChange={e => applyScaleBarInput("styleScaleBarBackgroundPaddingTop", e.target.value)}
+              />
               <input
                 id="styleScaleBarBackgroundPaddingRight"
                 type="number"
                 min="0"
                 max="100"
                 style={{ width: "5em" }}
+                value={num("styleScaleBarBackgroundPaddingRight")}
+                onChange={e => applyScaleBarInput("styleScaleBarBackgroundPaddingRight", e.target.value)}
               />
               <input
                 id="styleScaleBarBackgroundPaddingBottom"
@@ -883,15 +1321,35 @@ export function StyleTab() {
                 min="0"
                 max="100"
                 style={{ width: "5em" }}
+                value={num("styleScaleBarBackgroundPaddingBottom")}
+                onChange={e => applyScaleBarInput("styleScaleBarBackgroundPaddingBottom", e.target.value)}
               />
-              <input id="styleScaleBarBackgroundPaddingLeft" type="number" min="0" max="100" style={{ width: "5em" }} />
+              <input
+                id="styleScaleBarBackgroundPaddingLeft"
+                type="number"
+                min="0"
+                max="100"
+                style={{ width: "5em" }}
+                value={num("styleScaleBarBackgroundPaddingLeft")}
+                onChange={e => applyScaleBarInput("styleScaleBarBackgroundPaddingLeft", e.target.value)}
+              />
             </td>
           </tr>
 
           <tr data-tip="Select background filter">
             <td>Back filter</td>
             <td>
-              <select id="styleScaleBarBackgroundFilter"></select>
+              <select
+                id="styleScaleBarBackgroundFilter"
+                value={str("styleScaleBarBackgroundFilter")}
+                onChange={e => applyScaleBarInput("styleScaleBarBackgroundFilter", e.target.value)}
+              >
+                {scaleBarFilterOptions.map(opt => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
             </td>
           </tr>
         </tbody>
@@ -905,18 +1363,26 @@ export function StyleTab() {
         })}
       </table>
 
-      <div id="mapFilters" data-tip="Set a filter to be applied to the map in general">
+      <div
+        id="mapFilters"
+        data-tip="Set a filter to be applied to the map in general"
+        onClick={e => {
+          const btn = (e.target as HTMLElement).closest("button");
+          if (!btn) return;
+          applyMapFilterButton(btn.id);
+        }}
+      >
         <p>Toggle global filters:</p>
-        <button type="button" id="grayscale" className="radio">
+        <button type="button" id="grayscale" className={activeMapFilter === "grayscale" ? "radio pressed" : "radio"}>
           Grayscale
         </button>
-        <button type="button" id="sepia" className="radio">
+        <button type="button" id="sepia" className={activeMapFilter === "sepia" ? "radio pressed" : "radio"}>
           Sepia
         </button>
-        <button type="button" id="dingy" className="radio">
+        <button type="button" id="dingy" className={activeMapFilter === "dingy" ? "radio pressed" : "radio"}>
           Dingy
         </button>
-        <button type="button" id="tint" className="radio">
+        <button type="button" id="tint" className={activeMapFilter === "tint" ? "radio pressed" : "radio"}>
           Tint
         </button>
       </div>

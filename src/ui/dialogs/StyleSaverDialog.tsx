@@ -1,10 +1,13 @@
 import type React from "react";
+import { useRef } from "react";
+import { checkStyleName, downloadStylePreset, handleStyleFileLoad, saveStylePreset } from "../../controllers/style";
 import { useDialogState } from "../../store/dialogState";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
 export const StyleSaverDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("styleSaver"));
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   return (
     <Dialog isOpen={isOpen} title="StyleSaver" onClose={() => closeDialog("styleSaver")}>
@@ -18,6 +21,7 @@ export const StyleSaverDialog: React.FC = () => {
               placeholder="Preset name"
               style={{ width: "12em" }}
               required
+              onInput={checkStyleName}
             />
             <span
               id="styleSaverTip"
@@ -33,7 +37,7 @@ export const StyleSaverDialog: React.FC = () => {
               data-tip="Style JSON is getting formed based the current settings, but can be entered manually"
               placeholder="Paste any valid style data in JSON format"
               autoCorrect="off"
-              spellCheck="false"
+              spellCheck={false}
               defaultValue={""}
             />
           </div>
@@ -43,18 +47,29 @@ export const StyleSaverDialog: React.FC = () => {
               id="styleSaverSave"
               data-tip="Save current JSON as a new style preset"
               className="icon-check"
+              onClick={saveStylePreset}
             />
             <button
               type="button"
               id="styleSaverDownload"
               data-tip="Download the style as a .json file (can be opened in any text editor)"
               className="icon-download"
+              onClick={downloadStylePreset}
             />
             <button
               type="button"
               id="styleSaverLoad"
               data-tip="Open previously downloaded style file"
               className="icon-upload"
+              onClick={() => fileInputRef.current?.click()}
+            />
+            <input
+              ref={fileInputRef}
+              id="styleToLoad"
+              type="file"
+              accept=".json"
+              style={{ display: "none" }}
+              onChange={handleStyleFileLoad}
             />
             <button
               type="button"
