@@ -112,6 +112,7 @@ const burgEditorInternal = {
       temperature: tempStr,
       temperatureLikeIn: tempLikeIn,
       elevation: elevationStr,
+      previewUrl: null,
       capital: !!b.capital,
       port: !!b.port,
       citadel: !!b.citadel,
@@ -126,25 +127,8 @@ const burgEditorInternal = {
   },
 
   updateBurgPreview(burg: Burg): void {
-    const preview = Burgs.getPreview(burg).preview;
-    const container = document.getElementById("burgPreviewObject");
-    const section = document.getElementById("burgPreviewSection");
-
-    if (!preview) {
-      if (section) section.style.display = "none";
-      return;
-    }
-
-    if (section) section.style.display = "block";
-    if (container) {
-      container.replaceChildren();
-      const object = document.createElement("object");
-      object.style.width = "100%";
-      object.style.maxWidth = "60vw";
-      object.style.maxHeight = "60vh";
-      object.data = preview;
-      container.insertBefore(object, null);
-    }
+    const previewUrl = Burgs.getPreview(burg).preview || null;
+    getBurgEditorState().updateBurgData({ previewUrl });
   },
 
   relocateBurgOnClick(this: SVGElement, event: MouseEvent): void {

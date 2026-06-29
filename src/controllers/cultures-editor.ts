@@ -10,6 +10,7 @@ import { CulturesRenderer, PopulationRenderer } from "../renderers";
 import { COArenderer, type Emblem as RendererEmblem } from "../renderers/emblem-renderer";
 import type { CultureRowData, NameBaseOption } from "../store/culturesEditorState";
 import { getCulturesEditorState, setCulturesEditorState } from "../store/culturesEditorState";
+import { useOptionsState } from "../store/optionsState";
 import type { HierarchyElement } from "../types/HierarchyTree";
 import type { Burg, Culture, CultureType, NameBase, Province, State } from "../types/models";
 import { closeDialogs, openDialog } from "../ui/dialogs/dialogService";
@@ -131,9 +132,8 @@ export const culturesEditorActions = {
         };
       });
 
-    const emblemShapeGroup = document.getElementById("emblemShape") as HTMLSelectElement | null;
-    const selectedGroup = emblemShapeGroup?.selectedOptions[0]?.parentNode as HTMLOptGroupElement | null;
-    const selectShape = selectedGroup?.label === "Diversiform";
+    const emblemShape = useOptionsState.getState().emblemShape;
+    const selectShape = ["culture", "random", "state"].includes(emblemShape);
 
     const nameBases: NameBaseOption[] = (worldContext.nameBases as NameBase[]).map((n, i) => ({ i, name: n.name }));
 
@@ -272,8 +272,8 @@ export const culturesEditorActions = {
     (worldContext.pack.cultures[i] as Culture).shield = shape;
 
     const rerenderCOA = (id: string, coa: unknown) => {
-      const $coa = document.getElementById(id);
-      if (!$coa) return;
+      const $coa = d3.select(`#${id}`);
+      if ($coa.empty()) return;
       $coa.remove();
       COArenderer.trigger(id, coa as RendererEmblem);
     };

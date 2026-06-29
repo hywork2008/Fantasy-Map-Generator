@@ -631,7 +631,7 @@ function stateRemove(stateId: number): void {
   });
 
   const coaId = `stateCOA${stateId}`;
-  document.getElementById(coaId)?.remove();
+  d3.select(`#${coaId}`).remove();
   viewContext.emblems.select(`#stateEmblems > use[data-i='${stateId}']`).remove();
 
   ((worldContext.pack.states[stateId] as State).provinces ?? []).forEach((p: number) => {
@@ -641,8 +641,7 @@ function stateRemove(stateId: number): void {
     });
 
     const provCoaId = `provinceCOA${p}`;
-    const provCoaEl = document.getElementById(provCoaId);
-    if (provCoaEl) provCoaEl.remove();
+    d3.select(`#${provCoaId}`).remove();
     viewContext.emblems.select(`#provinceEmblems > use[data-i='${p}']`).remove();
     const g = viewContext.provs.select("#provincesBody");
     g.select(`#province${p}`).remove();
@@ -1110,7 +1109,7 @@ function mergeStates(statesToMerge: number[], rulingStateId: number): void {
     viewContext.labels.select(`#stateLabel${stateId}`).remove();
     viewContext.defs.select(`#textPath_stateLabel${stateId}`).remove();
 
-    document.getElementById(`stateCOA${stateId}`)?.remove();
+    d3.select(`#stateCOA${stateId}`).remove();
     viewContext.emblems.select(`#stateEmblems > use[data-i='${stateId}']`).remove();
 
     (state.military ?? []).forEach((regiment: MilitaryRegiment) => {

@@ -152,6 +152,7 @@ export const ReligionsEditorDialog: React.FC = () => {
             return (
               <div
                 key={r.i}
+                id={`religion${r.i}`}
                 className="states"
                 data-id={r.i}
                 onClick={() => religionsEditorActions.selectReligionOnLineClick(r.i)}

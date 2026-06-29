@@ -135,7 +135,7 @@ export const DiplomacyEditorContent: React.FC = () => {
           id="diplomacyShowMatrix"
           data-tip="Show relations matrix"
           className="icon-list-bullet"
-          onClick={diplomacyEditorActions.showRelationsMatrix}
+          onClick={diplomacyEditorActions.openMatrix}
         />
         <button
           type="button"

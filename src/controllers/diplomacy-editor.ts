@@ -19,7 +19,7 @@ import { interactionManager } from "./interactionManager";
 import { toggleBiomes, toggleBorders, toggleCultures, toggleProvinces, toggleReligions, toggleStates } from "./layers";
 import { editStyle } from "./style";
 
-type RelationKey =
+export type RelationKey =
   | "Ally"
   | "Friendly"
   | "Neutral"
@@ -131,8 +131,17 @@ export function editDiplomacy(): void {
       });
     }
 
+    const validStates = worldContext.pack.states.filter(s => s.i && !s.removed);
+    const matrix = validStates.map(state => ({
+      i: state.i,
+      name: state.name,
+      fullName: state.fullName,
+      diplomacy: state.diplomacy as string[]
+    }));
+
     setDiplomacyEditorState({
       states: rowData,
+      matrix,
       selectedStateId: selectedId
     });
   }
@@ -230,11 +239,6 @@ export function editDiplomacy(): void {
     else chronicle.push(change());
 
     refreshDiplomacyEditor();
-    const diplomacyMatrixEl = document.getElementById("diplomacyMatrix");
-    if (diplomacyMatrixEl?.offsetParent) {
-      document.getElementById("diplomacyMatrixBody")!.replaceChildren();
-      showRelationsMatrix();
-    }
   }
 
   function regenerateRelations(): void {
@@ -283,50 +287,12 @@ export function editDiplomacy(): void {
     });
   }
 
-  function showRelationsMatrix(): void {
-    const states = worldContext.pack.states.filter(s => s.i && !s.removed);
-    const valid = states.map(state => state.i);
-    const diplomacyMatrixBody = document.getElementById("diplomacyMatrixBody") as HTMLElement;
+  function openMatrix(): void {
+    if (layerIsOn("toggleStates")) toggleStates();
+    if (!layerIsOn("toggleProvinces")) toggleProvinces();
+    if (!layerIsOn("toggleBiomes")) toggleBiomes();
 
-    let table = `<table><thead><tr><th data-tip='&#8205;'></th>`;
-    table += `${states.map(state => `<th data-tip='Relations to ${state.fullName}'>${state.name}</th>`).join("")}</tr>`;
-    table += `<tbody>`;
-
-    states.forEach(state => {
-      table +=
-        `<tr data-id=${state.i}><th data-tip='Relations of ${state.fullName}'>${state.name}</th>` +
-        (state.diplomacy as string[])
-          .filter((_v, i) => valid.includes(i))
-          .map((relation, index) => {
-            const relationObj = relations[relation as RelationKey];
-            if (!relationObj) return `<td class='${relation}'>${relation}</td>`;
-
-            const objectState = worldContext.pack.states[valid[index]];
-            const tipText = `${state.fullName} ${relationObj.inText} ${objectState.fullName}`;
-            return `<td data-id=${objectState.i} data-tip='${tipText}' class='${relation}'>${relation}</td>`;
-          })
-          .join("") +
-        "</tr>";
-    });
-
-    table += `</tbody></table>`;
-    diplomacyMatrixBody.replaceChildren();
-    diplomacyMatrixBody.insertAdjacentHTML("beforeend", table);
-
-    const tableEl = diplomacyMatrixBody.querySelector("table") as HTMLTableElement;
-    tableEl.addEventListener("click", event => {
-      const el = event.target as HTMLElement;
-      if (el.tagName !== "TD") return;
-
-      const currentRelation = el.innerText;
-      if (!relations[currentRelation as RelationKey]) return;
-
-      const subjectId = +((el.closest("tr") as HTMLElement).dataset.id ?? "0");
-      const objectId = +(el as HTMLElement).dataset.id!;
-
-      selectRelation(subjectId, objectId, currentRelation);
-    });
-
+    refreshDiplomacyEditor();
     openDialog("diplomacyMatrix", {
       title: "Relations matrix",
       position: { my: "center", at: "center", of: "svg" },
@@ -362,7 +328,7 @@ export function editDiplomacy(): void {
   diplomacyEditorActions.regenerateRelations = regenerateRelations;
   diplomacyEditorActions.resetRelations = resetRelations;
   diplomacyEditorActions.showRelationsHistory = showRelationsHistory;
-  diplomacyEditorActions.showRelationsMatrix = showRelationsMatrix;
+  diplomacyEditorActions.openMatrix = openMatrix;
   diplomacyEditorActions.downloadDiplomacyData = downloadDiplomacyData;
   diplomacyEditorActions.closeDiplomacyEditor = closeDiplomacyEditorImpl;
 }
@@ -409,7 +375,7 @@ export const diplomacyEditorActions = {
   regenerateRelations: () => {},
   resetRelations: () => {},
   showRelationsHistory: () => {},
-  showRelationsMatrix: () => {},
+  openMatrix: () => {},
   downloadDiplomacyData: () => {},
   editStyle,
   closeDiplomacyEditor: () => {}

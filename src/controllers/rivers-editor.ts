@@ -46,10 +46,13 @@ function updateRiverData(): void {
   }));
 
   const basinName = worldContext.pack.rivers.find((river: River) => river.i === r.basin)?.name ?? "";
-  const distanceUnitInput = document.getElementById("distanceUnitInput") as HTMLSelectElement | null;
+  const distanceUnit =
+    (document.getElementById("distanceUnitInput") as HTMLSelectElement | null)?.value ??
+    localStorage.getItem("distanceUnit") ??
+    "km";
 
   r.length = rn((elSelected!.node() as SVGPathElement).getTotalLength() / 2, 2);
-  const lengthUI = `${rn(r.length * worldContext.distanceScale)} ${distanceUnitInput?.value ?? "km"}`;
+  const lengthUI = `${rn(r.length * worldContext.distanceScale)} ${distanceUnit}`;
 
   const { cells: riverCells, discharge, widthFactor, sourceWidth } = r;
   const meanderedPoints = Rivers.addMeandering(riverCells);
@@ -61,7 +64,7 @@ function updateRiverData(): void {
       startingWidth: sourceWidth
     })
   );
-  const widthUI = `${rn(r.width * worldContext.distanceScale, 3)} ${distanceUnitInput?.value ?? "km"}`;
+  const widthUI = `${rn(r.width * worldContext.distanceScale, 3)} ${distanceUnit}`;
 
   import("../store/riverEditorState").then(({ getRiverEditorState }) => {
     getRiverEditorState().setRiverData({

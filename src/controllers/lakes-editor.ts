@@ -212,7 +212,7 @@ export const lakeEditorActions = {
       .replace(/ /g, "_")
       .replace(/[^\w\s]/gi, "");
 
-    if (document.getElementById(group)) {
+    if (viewContext.lakes.select(`#${group}`).node()) {
       tip("Element with this id already exists. Please provide a unique name", false, "error");
       return;
     }

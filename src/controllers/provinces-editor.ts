@@ -265,8 +265,7 @@ function declareProvinceIndependence(provinceId: number): [number, number] | und
   const { cell: center, culture } = (burgs as Burg[])[burgId];
   const newColor = getRandomColor();
   const coa = province.coa;
-  const coaEl = document.getElementById(`provinceCOA${provinceId}`);
-  if (coaEl) coaEl.id = `stateCOA${newStateId}`;
+  d3.select(`#provinceCOA${provinceId}`).attr("id", `stateCOA${newStateId}`);
   viewContext.emblems.select(`#provinceEmblems > use[data-i='${provinceId}']`).remove();
 
   Array.from(cells.i)
@@ -427,8 +426,7 @@ function removeProvince(p: number): void {
       EditorBus.unfog(`focusProvince${p}`);
 
       const coaId = `provinceCOA${p}`;
-      const coaEl = document.getElementById(coaId);
-      if (coaEl) coaEl.remove();
+      d3.select(`#${coaId}`).remove();
       viewContext.emblems.select(`#provinceEmblems > use[data-i='${p}']`).remove();
 
       (worldContext.pack.provinces as Province[])[p] = { i: p, removed: true } as Province;
@@ -878,8 +876,7 @@ function openProvinceMergeDialog(): void {
 
 function cleanupMergedProvince(provinceId: number): void {
   EditorBus.unfog(`focusProvince${provinceId}`);
-  const coaEl = document.getElementById(`provinceCOA${provinceId}`);
-  if (coaEl) coaEl.remove();
+  d3.select(`#provinceCOA${provinceId}`).remove();
   viewContext.emblems.select(`#provinceEmblems > use[data-i='${provinceId}']`).remove();
 }
 
