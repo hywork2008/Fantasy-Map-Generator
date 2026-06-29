@@ -61,6 +61,7 @@ import {
 import { invokeActiveZooming } from "../../../main";
 import { fonts } from "../../../services/fonts";
 import { useExtensionState } from "../../../store/extensionState";
+import { useOptionsState } from "../../../store/optionsState";
 import { useStyleState } from "../../../store/styleState";
 import { openDialog } from "../../dialogs/dialogService";
 import { SliderInput } from "../SliderInput";
@@ -115,6 +116,10 @@ export function StyleTab() {
   const systemPresets = useStyleState(state => state.systemPresets);
   const customPresets = useStyleState(state => state.customPresets);
   const activeMapFilter = useStyleState(state => state.activeMapFilter);
+
+  const hideLabels = useOptionsState(state => state.hideLabels);
+  const rescaleLabels = useOptionsState(state => state.rescaleLabels);
+  const setOption = useOptionsState(state => state.setOption);
 
   const styleConfigs = useExtensionState(state => state.styleConfigs);
   const enabledExtensions = useExtensionState(state => state.enabledExtensions);
@@ -1167,7 +1172,16 @@ export function StyleTab() {
 
           <tr data-tip="Allow system to hide labels if their size in too small or too big on that scale">
             <td colSpan={2}>
-              <input id="hideLabels" className="checkbox" type="checkbox" onChange={() => invokeActiveZooming()} />
+              <input
+                id="hideLabels"
+                className="checkbox"
+                type="checkbox"
+                checked={hideLabels}
+                onChange={e => {
+                  setOption("hideLabels", e.target.checked);
+                  invokeActiveZooming();
+                }}
+              />
               <label htmlFor="hideLabels" className="checkbox-label">
                 Toggle visibility automatically
               </label>
@@ -1176,7 +1190,16 @@ export function StyleTab() {
 
           <tr data-tip="Allow system to rescale labels on zoom">
             <td colSpan={2}>
-              <input id="rescaleLabels" className="checkbox" type="checkbox" onChange={() => invokeActiveZooming()} />
+              <input
+                id="rescaleLabels"
+                className="checkbox"
+                type="checkbox"
+                checked={rescaleLabels}
+                onChange={e => {
+                  setOption("rescaleLabels", e.target.checked);
+                  invokeActiveZooming();
+                }}
+              />
               <label htmlFor="rescaleLabels" className="checkbox-label">
                 Rescale on zoom
               </label>

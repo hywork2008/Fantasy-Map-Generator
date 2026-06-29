@@ -80,10 +80,8 @@ declare global {
   var heightmapInfoY: HTMLElement;
   var heightmapLinePower: HTMLInputElement;
   var hideEmblems: HTMLInputElement;
-  var hideLabels: HTMLInputElement;
   var undo: HTMLButtonElement;
   var redo: HTMLButtonElement;
-  var rescaleLabels: HTMLInputElement;
   var iceNew: HTMLElement;
   var imageConverter: HTMLInputElement;
   var imageConverterPalette: HTMLInputElement;

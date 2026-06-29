@@ -50,9 +50,9 @@ export function prepareMapData(): string {
     precOutput.value,
     JSON.stringify(worldContext.options),
     useOptionsState.getState().mapName,
-    +hideLabels.checked,
+    +useOptionsState.getState().hideLabels,
     stylePreset.value,
-    +rescaleLabels.checked,
+    +useOptionsState.getState().rescaleLabels,
     worldContext.urbanDensity,
     longitudeOutput.value,
     useOptionsState.getState().growthRate

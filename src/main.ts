@@ -898,7 +898,7 @@ export function invokeActiveZooming() {
       const relative = Math.max(rn((desired + desired / scale) / 2, 2), 1);
       if (useOptionsState.getState().rescaleLabels) this.setAttribute("font-size", String(relative));
 
-      const hidden = hideLabels.checked && (relative * scale < 6 || relative * scale > 60);
+      const hidden = useOptionsState.getState().hideLabels && (relative * scale < 6 || relative * scale > 60);
       if (hidden) this.classList.add("hidden");
       else this.classList.remove("hidden");
     });

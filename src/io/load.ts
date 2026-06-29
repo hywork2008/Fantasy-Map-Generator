@@ -292,9 +292,7 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
       if (settings[17])
         worldContext.options.temperatureNorthPole = worldContext.options.temperatureSouthPole = +settings[17];
 
-      if (settings[21]) hideLabels.checked = !!+settings[21];
       if (settings[22]) stylePreset.value = settings[22];
-      if (settings[23]) rescaleLabels.checked = !!+settings[23];
       if (settings[24]) {
         urbanDensityInput.value = settings[24];
         worldContext.urbanDensity = +settings[24];
@@ -307,6 +305,8 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
       const settings = (data[1] || "").split("|");
       const zustandUpdates: Partial<Omit<OptionsState, "setOption" | "setOptions">> = {};
       if (settings[20]) zustandUpdates.mapName = settings[20];
+      if (settings[21]) zustandUpdates.hideLabels = !!+settings[21];
+      if (settings[23]) zustandUpdates.rescaleLabels = !!+settings[23];
       if (settings[26]) zustandUpdates.growthRate = +settings[26];
       if (worldContext.options.stateLabelsMode) zustandUpdates.stateLabelsMode = worldContext.options.stateLabelsMode;
       if (worldContext.options.year != null) zustandUpdates.year = worldContext.options.year;

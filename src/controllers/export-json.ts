@@ -120,9 +120,7 @@ function getSettings() {
     prec: options.prec,
     options: worldContext.options,
     mapName: options.mapName,
-    hideLabels: document.getElementById("hideLabels")
-      ? (document.getElementById("hideLabels") as HTMLInputElement).checked
-      : false, // TODO: move to store
+    hideLabels: useOptionsState.getState().hideLabels,
     stylePreset: options.stylePreset,
     rescaleLabels: options.rescaleLabels,
     urbanDensity: worldContext.urbanDensity

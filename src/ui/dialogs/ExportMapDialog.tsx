@@ -1,5 +1,5 @@
 import type React from "react";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { exportToJson } from "../../controllers/export-json";
 import {
   exportToJpeg,
@@ -12,23 +12,17 @@ import {
   saveGeoJsonRoutes,
   saveGeoJsonZones
 } from "../../io/export";
+import { invokeActiveZooming } from "../../main";
 import { useDialogState } from "../../store/dialogState";
+import { useOptionsState } from "../../store/optionsState";
 import { Dialog } from "./Dialog";
 
 export const ExportMapDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("exportMapData"));
   const closeDialog = useDialogState(state => state.closeDialog);
-  const showLabelsRef = useRef<HTMLInputElement>(null);
+  const hideLabels = useOptionsState(state => state.hideLabels);
+  const setOption = useOptionsState(state => state.setOption);
   const [pngResolution, setPngResolution] = useState(1);
-
-  useEffect(() => {
-    if (isOpen && showLabelsRef.current) {
-      const hideLabels = document.getElementById("hideLabels") as HTMLInputElement | null;
-      if (hideLabels) {
-        showLabelsRef.current.checked = !hideLabels.checked;
-      }
-    }
-  }, [isOpen]);
 
   return (
     <Dialog
@@ -72,14 +66,12 @@ export const ExportMapDialog: React.FC = () => {
           <span data-tip="Check to not allow system to automatically hide labels">
             <input
               id="showLabels"
-              ref={showLabelsRef}
               className="checkbox"
               type="checkbox"
+              checked={!hideLabels}
               onChange={e => {
-                const hideLabels = document.getElementById("hideLabels") as HTMLInputElement | null;
-                if (hideLabels) {
-                  hideLabels.checked = !e.target.checked;
-                }
+                setOption("hideLabels", !e.target.checked);
+                invokeActiveZooming();
               }}
             />
             <label htmlFor="showLabels" className="checkbox-label" style={{ marginLeft: "1.2em" }}>
