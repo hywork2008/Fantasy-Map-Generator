@@ -42,12 +42,16 @@ import type {
   Province,
   Religion,
   River,
+  Route,
   State
 } from "../types/models";
 import { findCell, P, rand, rn, unique } from "../utils";
 import { ERROR } from "../utils/debug";
 import { layerIsOn } from "../utils/nodeUtils";
 import { compareVersions } from "../versioning";
+
+const ANCHOR_SYMBOL_PATH =
+  "m 1.003,-9.873 c 0,-0.547 -0.453,-1 -1,-1 -0.547,0 -1,0.453 -1,1 0,0.547 0.453,1 1,1 0.547,0 1,-0.453 1,-1 z m 13,14.5 v 5.5 c 0,0.203 -0.125,0.391 -0.313,0.469 -0.063,0.016 -0.125,0.031 -0.187,0.031 -0.125,0 -0.25,-0.047 -0.359,-0.141 L 11.691,9.033 c -2.453,2.953 -6.859,4.844 -11.688,4.844 -4.829,0 -9.234,-1.891 -11.688,-4.844 l -1.453,1.453 c -0.094,0.094 -0.234,0.141 -0.359,0.141 -0.063,0 -0.125,-0.016 -0.187,-0.031 -0.187,-0.078 -0.313,-0.266 -0.313,-0.469 v -5.5 c 0,-0.281 0.219,-0.5 0.5,-0.5 h 5.5 c 0.203,0 0.391,0.125 0.469,0.313 0.078,0.188 0.031,0.391 -0.109,0.547 L -9.2,6.55 c 1.406,1.891 4.109,3.266 7.203,3.687 V 0.128 h -3 c -0.547,0 -1,-0.453 -1,-1 v -2 c 0,-0.547 0.453,-1 1,-1 h 3 v -2.547 c -1.188,-0.688 -2,-1.969 -2,-3.453 0,-2.203 1.797,-4 4,-4 2.203,0 4,1.797 4,4 0,1.484 -0.812,2.766 -2,3.453 v 2.547 h 3 c 0.547,0 1,0.453 1,1 v 2 c 0,0.547 -0.453,1 -1,1 h -3 V 10.237 C 5.097,9.815 7.8,8.44 9.206,6.55 L 7.643,4.987 C 7.502,4.831 7.456,4.628 7.534,4.44 7.612,4.252 7.8,4.127 8.003,4.127 h 5.5 c 0.281,0 0.5,0.219 0.5,0.5 z";
 
 // update old map file to the current version
 export function resolveVersionConflicts(mapVersion: string): void {
@@ -103,7 +107,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
     States.defineStateForms(state);
     Provinces.generate(worldContext, viewContext, appServices, state);
     Provinces.getPoles(state);
-    if (!layerIsOn("toggleBorders")) d3.select("#borders").style("display", "none");
+    if (!layerIsOn("toggleBorders")) viewContext.borders.style("display", "none");
     if (!layerIsOn("toggleStates")) viewContext.regions.attr("display", "none").selectAll("path").remove();
 
     // v1.0 added zones layer
@@ -117,7 +121,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
     Zones.generate(worldContext, viewContext, appServices, state);
     if (!viewContext.markers.selectAll("*").size()) {
       Markers.generate(worldContext, viewContext, appServices, state);
-      document.dispatchEvent(new CustomEvent("fmg:turn-button-on", { detail: "toggleMarkers" }));
+      turnButtonOn("toggleMarkers");
     }
 
     // v1.0 add fogging layer (state focus)
@@ -149,7 +153,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
     viewContext.labels.selectAll<SVGTextPathElement, unknown>("textPath").each(function () {
       const text = this.textContent ?? "";
       const shift = this.getComputedTextLength() / -1.5;
-      this.innerHTML = `<tspan x="${shift}">${text}</tspan>`;
+      replaceTextPathContent(this, text, shift);
     });
 
     // v1.0 added new biome - Wetland
@@ -181,7 +185,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
         });
     }
 
-    if (!document.getElementById("freshwater")) {
+    if (!viewContext.lakes.select("#freshwater").size()) {
       viewContext.lakes.append("g").attr("id", "freshwater");
       viewContext.lakes
         .select("#freshwater")
@@ -192,7 +196,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
         .attr("filter", null);
     }
 
-    if (!document.getElementById("salt")) {
+    if (!viewContext.lakes.select("#salt").size()) {
       viewContext.lakes.append("g").attr("id", "salt");
       viewContext.lakes
         .select("#salt")
@@ -204,7 +208,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
     }
 
     // v1.1 added new lake and coast groups
-    if (!document.getElementById("sinkhole")) {
+    if (!viewContext.lakes.select("#sinkhole").size()) {
       viewContext.lakes.append("g").attr("id", "sinkhole");
       viewContext.lakes.append("g").attr("id", "frozen");
       viewContext.lakes.append("g").attr("id", "lava");
@@ -253,7 +257,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
     viewContext.lakes.selectAll("path").remove();
 
     Features.markupPack();
-    document.dispatchEvent(new CustomEvent("fmg:create-default-ruler"));
+    emitEvent("fmg:create-default-ruler");
   }
 
   if (isOlderThan("1.11.0")) {
@@ -274,7 +278,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
     }
 
     // v1.11 had an issue with fogging being displayed on load
-    document.dispatchEvent(new CustomEvent("fmg:unfog"));
+    emitEvent("fmg:unfog");
 
     // v1.2 added new terrain attributes
     if (!viewContext.terrain.attr("set")) viewContext.terrain.attr("set", "simple");
@@ -284,12 +288,14 @@ export function resolveVersionConflicts(mapVersion: string): void {
 
   if (isOlderThan("1.21.0")) {
     // v1.11 replaced "display" attribute by "display" style
+    const hiddenLayers: SVGGElement[] = [];
     viewContext.viewbox.selectAll<SVGGElement, unknown>("g").each(function () {
       if (this.hasAttribute("display")) {
         this.removeAttribute("display");
-        this.style.display = "none";
+        hiddenLayers.push(this);
       }
     });
+    d3.selectAll(hiddenLayers).style("display", "none");
 
     // v1.21 added rivers data to pack
     worldContext.pack.rivers = [];
@@ -334,7 +340,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
       .attr("box-size", 3)
       .attr("stroke", "#000")
       .attr("stroke-width", 0.3);
-    document.dispatchEvent(new CustomEvent("fmg:turn-button-on", { detail: "toggleMilitary" }));
+    turnButtonOn("toggleMilitary");
     Military.generate(worldContext, viewContext, appServices, getWorldState());
   }
 
@@ -416,8 +422,8 @@ export function resolveVersionConflicts(mapVersion: string): void {
     viewContext.emblems.append("g").attr("id", "burgEmblems");
     viewContext.emblems.append("g").attr("id", "provinceEmblems");
     viewContext.emblems.append("g").attr("id", "stateEmblems");
-    document.dispatchEvent(new CustomEvent("fmg:regenerate-emblems"));
-    document.dispatchEvent(new CustomEvent("fmg:toggle-emblems"));
+    emitEvent("fmg:regenerate-emblems");
+    emitEvent("fmg:toggle-emblems");
 
     // v1.5 changed relief icons data
     viewContext.terrain.selectAll<SVGUseElement, unknown>("use").each(function () {
@@ -432,7 +438,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
   if (isOlderThan("1.6.0")) {
     // v1.6 changed rivers data
     for (const river of worldContext.pack.rivers) {
-      const el = document.getElementById(`river${river.i}`);
+      const el = viewContext.rivers.select<SVGPathElement>(`#river${river.i}`).node();
       if (el) {
         river.widthFactor = +el.getAttribute("data-width")!;
         el.removeAttribute("data-width");
@@ -516,15 +522,25 @@ export function resolveVersionConflicts(mapVersion: string): void {
     viewContext.ruler.selectAll("*").remove();
 
     if (rulers.data.length) {
-      document.dispatchEvent(new CustomEvent("fmg:turn-button-on", { detail: "toggleRulers" }));
+      turnButtonOn("toggleRulers");
       rulers.draw();
-    } else document.dispatchEvent(new CustomEvent("fmg:turn-button-off", { detail: "toggleRulers" }));
+    } else turnButtonOff("toggleRulers");
 
     // 1.61 changed oceanicPattern from rect to image
-    const pattern = document.getElementById("oceanic")!;
-    const filter = pattern.firstElementChild?.getAttribute("filter");
-    const href = filter ? `./images/${filter.replace("url(#", "").replace(")", "")}.png` : "";
-    pattern.innerHTML = `<image id="oceanicPattern" href=${href} width="100" height="100" opacity="0.2"></image>`;
+    const oceanicPatternContainer = viewContext.svg.select<SVGElement>("#oceanic");
+    const pattern = oceanicPatternContainer.node();
+    if (pattern) {
+      const filter = pattern.firstElementChild?.getAttribute("filter");
+      const href = filter ? `./images/${filter.replace("url(#", "").replace(")", "")}.png` : "";
+      oceanicPatternContainer.selectAll("*").remove();
+      oceanicPatternContainer
+        .append("image")
+        .attr("id", "oceanicPattern")
+        .attr("href", href)
+        .attr("width", 100)
+        .attr("height", 100)
+        .attr("opacity", 0.2);
+    }
   }
 
   if (isOlderThan("1.62.0")) {
@@ -532,27 +548,26 @@ export function resolveVersionConflicts(mapVersion: string): void {
   }
 
   if (isOlderThan("1.63.0")) {
-    const oceanPattern = document.getElementById("oceanPattern");
-    if (oceanPattern) oceanPattern.removeAttribute("opacity");
-    const oceanicPattern = document.getElementById("oceanicPattern");
-    if (oceanicPattern && !oceanicPattern.getAttribute("opacity")) oceanicPattern.setAttribute("opacity", "0.2");
+    viewContext.oceanPattern.attr("opacity", null);
+    const oceanicPattern = viewContext.svg.select<SVGImageElement>("#oceanicPattern");
+    if (oceanicPattern.size() && !oceanicPattern.attr("opacity")) oceanicPattern.attr("opacity", "0.2");
   }
 
   if (isOlderThan("1.64.0")) {
     const opacity = viewContext.regions.attr("opacity");
     const filter = viewContext.regions.attr("filter");
     viewContext.statesBody.attr("opacity", opacity).attr("filter", filter);
-    statesHalo.attr("opacity", opacity).attr("filter", "blur(5px)");
+    viewContext.statesHalo.attr("opacity", opacity).attr("filter", "blur(5px)");
     viewContext.regions.attr("opacity", null).attr("filter", null);
   }
 
   if (isOlderThan("1.65.0")) {
-    d3.select("#rivers").attr("style", null);
+    viewContext.rivers.attr("style", null);
     const { cells, rivers: packRivers } = worldContext.pack;
     const defaultWidthFactor = rn(1 / ((useOptionsState.getState().points ?? 10000) / 10000) ** 0.25, 2);
 
     for (const river of packRivers) {
-      const node = document.getElementById(`river${river.i}`);
+      const node = viewContext.rivers.select<SVGPathElement>(`#river${river.i}`).node();
       if (node && !river.cells) {
         const riverCells: number[] = [];
         const riverPoints: [number, number][] = [];
@@ -593,56 +608,14 @@ export function resolveVersionConflicts(mapVersion: string): void {
   }
 
   if (isOlderThan("1.7.0")) {
-    const defsMarkers = document.getElementById("defs-markers");
-    const markersGroup = document.getElementById("markers");
+    const defsMarkers = viewContext.defs.select<SVGGElement>("#defs-markers").node();
+    const markersGroup = viewContext.markers.node();
 
     if (defsMarkers && markersGroup) {
-      const markerElements = markersGroup.querySelectorAll("use");
-      const rescale = +markersGroup.getAttribute("rescale")!;
+      const markerElements = markersGroup.querySelectorAll<SVGUseElement>("use");
+      worldContext.pack.markers = migrateLegacyMarkers(defsMarkers, markerElements);
 
-      worldContext.pack.markers = Array.from(markerElements).map((el, i) => {
-        const id = el.getAttribute("id")!;
-        const note = worldContext.notes.find(note => note.id === id);
-        if (note) note.id = `marker${i}`;
-
-        let x = +el.dataset.x!;
-        let y = +el.dataset.y!;
-
-        const transform = el.getAttribute("transform");
-        if (transform) {
-          const [dx, dy] = parseTransform(transform);
-          if (dx) x += +dx;
-          if (dy) y += +dy;
-        }
-        const cell = findCell(x, y);
-        const size = rn(rescale ? +el.dataset.size! * 30 : +(el.getAttribute("width") ?? 0), 1);
-
-        const href = el.href.baseVal;
-        const type = href.replace("#marker_", "");
-        const symbol = defsMarkers?.querySelector(`symbol${href}`);
-        const text = symbol?.querySelector("text");
-        const circle = symbol?.querySelector("circle");
-
-        const icon = text?.innerHTML;
-        const px = text ? Number(text.getAttribute("font-size")?.replace("px", "")) : undefined;
-        const dx = text ? Number(text.getAttribute("x")?.replace("%", "")) : undefined;
-        const dy = text ? Number(text.getAttribute("y")?.replace("%", "")) : undefined;
-        const fill = circle?.getAttribute("fill");
-        const stroke = circle?.getAttribute("stroke");
-
-        const marker: Marker = { i, icon: icon ?? "", type, x, y, size, cell };
-        if (size && size !== 30) marker.size = size;
-        if (px !== undefined && !Number.isNaN(px) && px !== 12) marker.px = px;
-        if (dx !== undefined && !Number.isNaN(dx) && dx !== 50) marker.dx = dx;
-        if (dy !== undefined && !Number.isNaN(dy) && dy !== 50) marker.dy = dy;
-        if (fill && fill !== "#ffffff") marker.fill = fill;
-        if (stroke && stroke !== "#000000") marker.stroke = stroke;
-        if (circle?.getAttribute("opacity") === "0") marker.pin = "no";
-
-        return marker;
-      });
-
-      markersGroup.style.display = "";
+      viewContext.markers.style("display", null);
       defsMarkers?.remove();
       markerElements.forEach(el => {
         el.remove();
@@ -662,8 +635,8 @@ export function resolveVersionConflicts(mapVersion: string): void {
   }
 
   if (isOlderThan("1.73.0")) {
-    document.getElementById("hatching")?.remove();
-    const zoneLayers = Array.from(document.querySelectorAll<HTMLElement>("#zones > g"));
+    viewContext.defs.select("#hatching").remove();
+    const zoneLayers = viewContext.zones.selectAll<SVGGElement, unknown>("g").nodes();
     zoneLayers.forEach(zone => {
       if (!zone.dataset.type) zone.dataset.type = "Unknown";
     });
@@ -831,7 +804,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
 
     if (layerIsOn("toggleHeight")) HeightmapRenderer.render(worldContext, viewContext, appServices);
 
-    d3.select("#scaleBar").remove();
+    viewContext.scaleBar.remove();
     viewContext.scaleBar = viewContext.svg
       .insert("g", "#viewbox + *")
       .attr("id", "scaleBar")
@@ -866,13 +839,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
     if (!layerIsOn("toggleScaleBar")) viewContext.scaleBar.style("display", "none");
 
     viewContext.armies.selectAll<SVGGElement, unknown>(":scope > g").each(function () {
-      const fill = this.getAttribute("fill");
-      if (!fill) return;
-      const darkerColor = (d3.color(fill) as d3.RGBColor).darker().formatHex();
-      this.setAttribute("color", darkerColor);
-      this.querySelectorAll("g > rect:nth-child(2)").forEach((rect: Element) => {
-        rect.setAttribute("fill", "currentColor");
-      });
+      applyLegacyArmyColor(this);
     });
   }
 
@@ -895,55 +862,14 @@ export function resolveVersionConflicts(mapVersion: string): void {
     worldContext.pack.routes = [];
     const POINT_DISTANCE = worldContext.grid.spacing * 0.75;
 
-    for (const g of document.querySelectorAll<SVGGElement>("#viewbox > #routes > g")) {
-      const group = g.id;
-      if (!group) continue;
-
-      for (const node of g.querySelectorAll("path")) {
-        const totalLength = (node as SVGPathElement).getTotalLength();
-        if (!totalLength) {
-          ERROR && console.error("Route path has zero length", node);
-          continue;
-        }
-
-        const increment = totalLength / Math.ceil(totalLength / POINT_DISTANCE);
-        const points: [number, number, number][] = [];
-
-        for (let i = 0; i <= totalLength + 0.1; i += increment) {
-          const point = (node as SVGPathElement).getPointAtLength(i);
-          const x = rn(point.x, 2);
-          const y = rn(point.y, 2);
-          const cellId = findCell(x, y);
-          points.push([x, y, cellId]);
-        }
-
-        if (points.length < 2) {
-          ERROR && console.error("Route path has less than 2 points", node);
-          continue;
-        }
-
-        const secondCellId = points[1][2];
-        const feature = worldContext.pack.cells.f[secondCellId];
-        worldContext.pack.routes.push({ i: worldContext.pack.routes.length, group, feature, points });
-      }
+    for (const g of viewContext.routes.selectAll<SVGGElement, unknown>(":scope > g").nodes()) {
+      const legacyRoutes = extractLegacyRoutesFromGroup(g, POINT_DISTANCE, worldContext.pack.routes.length);
+      worldContext.pack.routes.push(...legacyRoutes);
     }
     viewContext.routes.selectAll("path").remove();
     if (layerIsOn("toggleRoutes")) RoutesRenderer.render(worldContext, viewContext, appServices);
 
-    worldContext.pack.cells.routes = {};
-    const links: Record<number, Record<number, number>> = worldContext.pack.cells.routes;
-    for (const route of worldContext.pack.routes) {
-      for (let i = 0; i < route.points.length - 1; i++) {
-        const cellId = route.points[i][2];
-        const nextCellId = route.points[i + 1][2];
-        if (cellId !== nextCellId) {
-          if (!links[cellId]) links[cellId] = {};
-          links[cellId][nextCellId] = route.i;
-          if (!links[nextCellId]) links[nextCellId] = {};
-          links[nextCellId][cellId] = route.i;
-        }
-      }
-    }
+    worldContext.pack.cells.routes = rebuildRouteLinks(worldContext.pack.routes);
   }
 
   if (isOlderThan("1.100.0")) {
@@ -1047,7 +973,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
 
     const anchorSymbol = viewContext.defs.select<Element>("#icon-anchor").node();
     if (anchorSymbol) {
-      anchorSymbol.outerHTML = `<symbol id="icon-anchor" viewBox="0 0 30 30" width="1em" height="1em" overflow="visible"><path d="m 1.003,-9.873 c 0,-0.547 -0.453,-1 -1,-1 -0.547,0 -1,0.453 -1,1 0,0.547 0.453,1 1,1 0.547,0 1,-0.453 1,-1 z m 13,14.5 v 5.5 c 0,0.203 -0.125,0.391 -0.313,0.469 -0.063,0.016 -0.125,0.031 -0.187,0.031 -0.125,0 -0.25,-0.047 -0.359,-0.141 L 11.691,9.033 c -2.453,2.953 -6.859,4.844 -11.688,4.844 -4.829,0 -9.234,-1.891 -11.688,-4.844 l -1.453,1.453 c -0.094,0.094 -0.234,0.141 -0.359,0.141 -0.063,0 -0.125,-0.016 -0.187,-0.031 -0.187,-0.078 -0.313,-0.266 -0.313,-0.469 v -5.5 c 0,-0.281 0.219,-0.5 0.5,-0.5 h 5.5 c 0.203,0 0.391,0.125 0.469,0.313 0.078,0.188 0.031,0.391 -0.109,0.547 L -9.2,6.55 c 1.406,1.891 4.109,3.266 7.203,3.687 V 0.128 h -3 c -0.547,0 -1,-0.453 -1,-1 v -2 c 0,-0.547 0.453,-1 1,-1 h 3 v -2.547 c -1.188,-0.688 -2,-1.969 -2,-3.453 0,-2.203 1.797,-4 4,-4 2.203,0 4,1.797 4,4 0,1.484 -0.812,2.766 -2,3.453 v 2.547 h 3 c 0.547,0 1,0.453 1,1 v 2 c 0,0.547 -0.453,1 -1,1 h -3 V 10.237 C 5.097,9.815 7.8,8.44 9.206,6.55 L 7.643,4.987 C 7.502,4.831 7.456,4.628 7.534,4.44 7.612,4.252 7.8,4.127 8.003,4.127 h 5.5 c 0.281,0 0.5,0.219 0.5,0.5 z"/></symbol>`;
+      replaceAnchorSymbol(anchorSymbol);
     }
 
     const validBurgs = (worldContext.pack.burgs as (Burg & { group?: string; MFCG?: unknown })[]).filter(
@@ -1074,34 +1000,10 @@ export function resolveVersionConflicts(mapVersion: string): void {
   if (isOlderThan("1.111.0")) {
     if (!worldContext.pack.ice.length) {
       worldContext.pack.ice = [];
-      let iceId = 0;
-
-      const iceLayer = document.getElementById("ice");
+      const iceLayer = viewContext.ice.node();
       if (iceLayer) {
-        iceLayer.querySelectorAll("polygon[type='iceShield']").forEach((polygon: Element) => {
-          const svgPolygon = polygon as SVGPolygonElement;
-          const points = [...svgPolygon.points].map(svgPoint => [svgPoint.x, svgPoint.y] as [number, number]);
-          const transform = polygon.getAttribute("transform");
-          const iceElement: IceGlacier = { i: iceId++, points, type: "glacier" };
-          if (transform) iceElement.offset = parseTransform(transform) as [number, number];
-          worldContext.pack.ice.push(iceElement);
-        });
-
-        iceLayer.querySelectorAll("polygon:not([type])").forEach((polygon: Element) => {
-          const svgPolygon = polygon as SVGPolygonElement;
-          const cellId = +polygon.getAttribute("cell")!;
-          const size = +polygon.getAttribute("size")!;
-          if (polygon.getAttribute("cell") === null || !size) return;
-          const points = [...svgPolygon.points].map(svgPoint => [svgPoint.x, svgPoint.y] as [number, number]);
-          const transform = polygon.getAttribute("transform");
-          const iceElement: IceIceberg = { i: iceId++, points, type: "iceberg", cellId, size };
-          if (transform) iceElement.offset = parseTransform(transform) as [number, number];
-          worldContext.pack.ice.push(iceElement);
-        });
-
-        iceLayer.querySelectorAll("*").forEach(el => {
-          el.remove();
-        });
+        worldContext.pack.ice = migrateLegacyIce(iceLayer);
+        clearElementChildren(iceLayer);
       } else {
         viewContext.ice = viewContext.viewbox.insert("g", "#coastline").attr("id", "ice");
         viewContext.ice
@@ -1141,15 +1043,201 @@ export function resolveVersionConflicts(mapVersion: string): void {
     }
 
     // Signal the economy extension (if installed) to set up SVG layers and generate data
-    document.dispatchEvent(new CustomEvent("fmg:economy:auto-update", { detail: { trigger: "v1.124.0" } }));
+    emitEconomyAutoUpdate("v1.124.0");
   }
 
   if (isOlderThan("1.125.0")) {
     // Signal the economy extension to regenerate if data is missing
     if (!worldContext.pack.goods?.length) {
-      document.dispatchEvent(new CustomEvent("fmg:economy:auto-update", { detail: { trigger: "v1.125.0" } }));
+      emitEconomyAutoUpdate("v1.125.0");
     }
   }
+}
+
+function emitEvent<TDetail = undefined>(eventName: string, detail?: TDetail): void {
+  if (detail === undefined) {
+    document.dispatchEvent(new CustomEvent(eventName));
+    return;
+  }
+  document.dispatchEvent(new CustomEvent(eventName, { detail }));
+}
+
+function turnButtonOn(layerId: string): void {
+  emitEvent("fmg:turn-button-on", layerId);
+}
+
+function turnButtonOff(layerId: string): void {
+  emitEvent("fmg:turn-button-off", layerId);
+}
+
+function emitEconomyAutoUpdate(trigger: "v1.124.0" | "v1.125.0"): void {
+  emitEvent("fmg:economy:auto-update", { trigger });
+}
+
+function replaceTextPathContent(textPath: SVGTextPathElement, text: string, shift: number): void {
+  while (textPath.firstChild) textPath.removeChild(textPath.firstChild);
+  const tspan = textPath.ownerDocument.createElementNS("http://www.w3.org/2000/svg", "tspan");
+  tspan.setAttribute("x", String(shift));
+  tspan.textContent = text;
+  textPath.appendChild(tspan);
+}
+
+function applyLegacyArmyColor(armyGroup: SVGGElement): void {
+  const fill = armyGroup.getAttribute("fill");
+  if (!fill) return;
+  const darkerColor = (d3.color(fill) as d3.RGBColor).darker().formatHex();
+  armyGroup.setAttribute("color", darkerColor);
+  armyGroup.querySelectorAll("g > rect:nth-child(2)").forEach((rect: Element) => {
+    rect.setAttribute("fill", "currentColor");
+  });
+}
+
+function extractLegacyRoutesFromGroup(routeGroup: SVGGElement, pointDistance: number, startIndex: number): Route[] {
+  const group = routeGroup.id;
+  if (!group) return [];
+  const routes: Route[] = [];
+
+  for (const node of routeGroup.querySelectorAll<SVGPathElement>("path")) {
+    const totalLength = node.getTotalLength();
+    if (!totalLength) {
+      ERROR && console.error("Route path has zero length", node);
+      continue;
+    }
+
+    const increment = totalLength / Math.ceil(totalLength / pointDistance);
+    const points: [number, number, number][] = [];
+
+    for (let i = 0; i <= totalLength + 0.1; i += increment) {
+      const point = node.getPointAtLength(i);
+      const x = rn(point.x, 2);
+      const y = rn(point.y, 2);
+      const cellId = findCell(x, y);
+      points.push([x, y, cellId]);
+    }
+
+    if (points.length < 2) {
+      ERROR && console.error("Route path has less than 2 points", node);
+      continue;
+    }
+
+    const secondCellId = points[1][2];
+    const feature = worldContext.pack.cells.f[secondCellId];
+    routes.push({ i: startIndex + routes.length, group, feature, points });
+  }
+
+  return routes;
+}
+
+function rebuildRouteLinks(routes: Route[]): Record<number, Record<number, number>> {
+  const links: Record<number, Record<number, number>> = {};
+  for (const route of routes) {
+    for (let i = 0; i < route.points.length - 1; i++) {
+      const cellId = route.points[i][2];
+      const nextCellId = route.points[i + 1][2];
+      if (cellId === nextCellId) continue;
+
+      if (!links[cellId]) links[cellId] = {};
+      links[cellId][nextCellId] = route.i;
+
+      if (!links[nextCellId]) links[nextCellId] = {};
+      links[nextCellId][cellId] = route.i;
+    }
+  }
+  return links;
+}
+
+function replaceAnchorSymbol(anchorSymbol: Element): void {
+  const defs = anchorSymbol.parentNode;
+  if (!defs) return;
+  const symbol = anchorSymbol.ownerDocument.createElementNS("http://www.w3.org/2000/svg", "symbol");
+  symbol.setAttribute("id", "icon-anchor");
+  symbol.setAttribute("viewBox", "0 0 30 30");
+  symbol.setAttribute("width", "1em");
+  symbol.setAttribute("height", "1em");
+  symbol.setAttribute("overflow", "visible");
+
+  const path = anchorSymbol.ownerDocument.createElementNS("http://www.w3.org/2000/svg", "path");
+  path.setAttribute("d", ANCHOR_SYMBOL_PATH);
+  symbol.appendChild(path);
+
+  defs.replaceChild(symbol, anchorSymbol);
+}
+
+function clearElementChildren(element: Element): void {
+  while (element.firstChild) element.removeChild(element.firstChild);
+}
+
+function migrateLegacyMarkers(defsMarkers: SVGGElement, markerElements: NodeListOf<SVGUseElement>): Marker[] {
+  const rescale = +viewContext.markers.attr("rescale")!;
+
+  return Array.from(markerElements).map((el, i) => {
+    const id = el.getAttribute("id")!;
+    const note = worldContext.notes.find(note => note.id === id);
+    if (note) note.id = `marker${i}`;
+
+    let x = +el.dataset.x!;
+    let y = +el.dataset.y!;
+
+    const transform = el.getAttribute("transform");
+    if (transform) {
+      const [dx, dy] = parseTransform(transform);
+      if (dx) x += +dx;
+      if (dy) y += +dy;
+    }
+    const cell = findCell(x, y);
+    const size = rn(rescale ? +el.dataset.size! * 30 : +(el.getAttribute("width") ?? 0), 1);
+
+    const href = el.href.baseVal;
+    const type = href.replace("#marker_", "");
+    const symbol = defsMarkers.querySelector(`symbol${href}`);
+    const text = symbol?.querySelector("text");
+    const circle = symbol?.querySelector("circle");
+
+    const icon = text?.textContent ?? "";
+    const px = text ? Number(text.getAttribute("font-size")?.replace("px", "")) : undefined;
+    const dx = text ? Number(text.getAttribute("x")?.replace("%", "")) : undefined;
+    const dy = text ? Number(text.getAttribute("y")?.replace("%", "")) : undefined;
+    const fill = circle?.getAttribute("fill");
+    const stroke = circle?.getAttribute("stroke");
+
+    const marker: Marker = { i, icon, type, x, y, size, cell };
+    if (size && size !== 30) marker.size = size;
+    if (px !== undefined && !Number.isNaN(px) && px !== 12) marker.px = px;
+    if (dx !== undefined && !Number.isNaN(dx) && dx !== 50) marker.dx = dx;
+    if (dy !== undefined && !Number.isNaN(dy) && dy !== 50) marker.dy = dy;
+    if (fill && fill !== "#ffffff") marker.fill = fill;
+    if (stroke && stroke !== "#000000") marker.stroke = stroke;
+    if (circle?.getAttribute("opacity") === "0") marker.pin = "no";
+
+    return marker;
+  });
+}
+
+function migrateLegacyIce(iceLayer: SVGGElement): (IceGlacier | IceIceberg)[] {
+  const ice: (IceGlacier | IceIceberg)[] = [];
+  let iceId = 0;
+
+  iceLayer.querySelectorAll<SVGPolygonElement>("polygon[type='iceShield']").forEach(polygon => {
+    const points = Array.from(polygon.points).map(svgPoint => [svgPoint.x, svgPoint.y] as [number, number]);
+    const transform = polygon.getAttribute("transform");
+    const iceElement: IceGlacier = { i: iceId++, points, type: "glacier" };
+    if (transform) iceElement.offset = parseTransform(transform) as [number, number];
+    ice.push(iceElement);
+  });
+
+  iceLayer.querySelectorAll<SVGPolygonElement>("polygon:not([type])").forEach(polygon => {
+    const cell = polygon.getAttribute("cell");
+    const size = Number(polygon.getAttribute("size"));
+    if (!cell || !size) return;
+
+    const points = Array.from(polygon.points).map(svgPoint => [svgPoint.x, svgPoint.y] as [number, number]);
+    const transform = polygon.getAttribute("transform");
+    const iceElement: IceIceberg = { i: iceId++, points, type: "iceberg", cellId: +cell, size };
+    if (transform) iceElement.offset = parseTransform(transform) as [number, number];
+    ice.push(iceElement);
+  });
+
+  return ice;
 }
 
 declare global {
@@ -1157,5 +1245,4 @@ declare global {
   var shiftCompass: () => void;
   var customPresetPrefix: string;
   var parseTransform: (string: string) => (string | number)[];
-  var statesHalo: import("d3").Selection<SVGGElement, unknown, null, undefined>;
 }
