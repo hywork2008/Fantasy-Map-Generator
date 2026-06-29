@@ -11,7 +11,6 @@
 | `layers.ts` | レイヤー制御 | `document.getElementById`, `.addEventListener` の使用 |
 | `measurers.ts` | 距離・面積測定ツール | `document.getElementById`, `.addEventListener` の使用 |
 | `transform-tool.ts` | 変形ツール | `document.getElementById`, `.addEventListener` の使用 |
-| `submap-tool.ts` | サブマップツール | `document.getElementById` の使用 |
 | `hotkeys.ts` | ホットキー管理 | `.addEventListener` を用いた直接のキーバインド（グローバルなイベント登録） |
 | `editors.ts` | エディタ基盤処理 | `.addEventListener` を用いた共通ダイアログ処理など |
 

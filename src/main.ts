@@ -1358,9 +1358,10 @@ function defineMapSize() {
 }
 
 export function calculateMapCoordinates() {
-  const sizeFraction = +(document.getElementById("mapSizeOutput") as HTMLOutputElement).value / 100;
-  const latShift = +(document.getElementById("latitudeOutput") as HTMLOutputElement).value / 100;
-  const lonShift = +(document.getElementById("longitudeOutput") as HTMLOutputElement).value / 100;
+  const options = useOptionsState.getState();
+  const sizeFraction = options.mapSize / 100;
+  const latShift = options.latitude / 100;
+  const lonShift = options.longitude / 100;
 
   const latT = rn(sizeFraction * 180, 1);
   const latN = rn(90 - (180 - latT) * latShift, 1);
