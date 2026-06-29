@@ -1,11 +1,31 @@
 import type React from "react";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { notesEditorActions } from "../../controllers/notes-editor";
 import { useNotesEditorState } from "../../store/notesEditorState";
 
+// ignore-legacy-dom
+// biome-ignore lint/suspicious/noExplicitAny: globally loaded legacy script
+declare const tinymce: any;
+
 export const NotesEditorContent: React.FC = () => {
-  const { selectedId, noteName, availableNotes, isPinned } = useNotesEditorState();
+  const { selectedId, noteName, legend, availableNotes, isPinned } = useNotesEditorState();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const legendRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // If TinyMCE is active, it handles its own content. We should update it if the state changes.
+    // However, TinyMCE also triggers state changes via the onBlur handler, so we only update
+    // if the state differs from the current editor content.
+    if (tinymce?.activeEditor) {
+      if (tinymce.activeEditor.getContent() !== legend) {
+        tinymce.activeEditor.setContent(legend);
+      }
+    } else if (legendRef.current) {
+      // TinyMCE is not initialized or active, safely set the HTML manually.
+      // ignore-legacy-dom
+      legendRef.current.innerHTML = legend;
+    }
+  }, [legend]);
 
   return (
     <div id="notesEditorContainer">
@@ -41,7 +61,7 @@ export const NotesEditorContent: React.FC = () => {
         </div>
 
         {/* Note: This div is mutated by TinyMCE. React must not update its children! */}
-        <div id="notesLegend" contentEditable="true" onBlur={notesEditorActions.updateLegend} />
+        <div id="notesLegend" ref={legendRef} contentEditable="true" onBlur={notesEditorActions.updateLegend} />
 
         <div style={{ marginTop: "0.3em" }}>
           <button

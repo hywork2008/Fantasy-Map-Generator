@@ -1,3 +1,4 @@
+import type React from "react";
 import tinymce from "tinymce";
 import "tinymce/themes/silver";
 import "tinymce/plugins/autolink";
@@ -14,6 +15,7 @@ import "tinymce/icons/default/icons";
 import "tinymce/models/dom/model";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
+import { setHoverNotesState } from "../store/hoverNotesState";
 import { getNotesEditorState, setNotesEditorState } from "../store/notesEditorState";
 import type { WorldNote } from "../types/WorldState";
 import { closeDialog, openDialog } from "../ui/dialogs/dialogService";
@@ -40,29 +42,23 @@ export function editNotes(id?: string, name?: string): void {
       isOpen: true,
       selectedId: id,
       noteName: note.name,
+      legend: note.legend,
       availableNotes,
       isPinned
     });
 
+    setHoverNotesState({ isVisible: true, name: note.name, legend: note.legend });
     requestAnimationFrame(() => {
-      const notesLegend = document.getElementById("notesLegend")!;
-      notesLegend.replaceChildren();
-      notesLegend.insertAdjacentHTML("beforeend", note!.legend);
       initEditor();
-      updateNotesBox(note!);
     });
   } else {
     setNotesEditorState({
       isOpen: true,
       selectedId: "",
       noteName: "",
+      legend: "No notes added. Click on an element (e.g. label or marker) and add a free text note",
       availableNotes,
       isPinned
-    });
-
-    requestAnimationFrame(() => {
-      const notesLegend = document.getElementById("notesLegend")!;
-      notesLegend.textContent = "No notes added. Click on an element (e.g. label or marker) and add a free text note";
     });
   }
 
@@ -104,33 +100,28 @@ async function initEditor(): Promise<void> {
       browser_spellcheck: true,
       contextmenu: false,
       setup: (editor: import("tinymce").Editor) => {
-        editor.on("Change", updateLegend);
+        editor.on("Change", () => updateLegend());
       }
     });
   }
 }
 
-function updateLegend(): void {
+export function updateLegend(e?: React.FocusEvent<HTMLDivElement> | Event): void {
   const { selectedId } = getNotesEditorState();
   const note = worldContext.notes.find(note => note.id === selectedId);
   if (!note) return;
 
   const isTinyEditorActive = tinymce?.activeEditor;
-  const notesLegend = document.getElementById("notesLegend");
-  // ignore-legacy-dom
-  const fallback = notesLegend ? (Reflect.get(notesLegend, "innerHTML") as string) : "";
-  note.legend = isTinyEditorActive ? (tinymce?.activeEditor?.getContent() ?? "") : fallback;
-  updateNotesBox(note);
-}
 
-function updateNotesBox(note: WorldNote): void {
-  const header = document.getElementById("notesHeader");
-  const body = document.getElementById("notesBody");
-  if (header) header.textContent = note.name;
-  if (body) {
-    body.replaceChildren();
-    body.insertAdjacentHTML("beforeend", note.legend);
+  if (isTinyEditorActive) {
+    note.legend = tinymce!.activeEditor!.getContent() ?? "";
+  } else if (e && "currentTarget" in e && e.currentTarget) {
+    // ignore-legacy-dom
+    note.legend = (e.currentTarget as HTMLDivElement).innerHTML;
   }
+
+  setNotesEditorState({ legend: note.legend });
+  setHoverNotesState({ isVisible: true, name: note.name, legend: note.legend });
 }
 
 function changeElement(id: string): void {
@@ -140,14 +131,8 @@ function changeElement(id: string): void {
     return;
   }
 
-  setNotesEditorState({ selectedId: id, noteName: note.name });
-
-  const notesLegend = document.getElementById("notesLegend")!;
-  notesLegend.replaceChildren();
-  notesLegend.insertAdjacentHTML("beforeend", note.legend);
-  updateNotesBox(note);
-
-  if (tinymce) tinymce.activeEditor?.setContent(note.legend);
+  setNotesEditorState({ selectedId: id, noteName: note.name, legend: note.legend });
+  setHoverNotesState({ isVisible: true, name: note.name, legend: note.legend });
 }
 
 function changeName(newName: string): void {
@@ -156,7 +141,7 @@ function changeName(newName: string): void {
   const note = worldContext.notes.find(note => note.id === selectedId);
   if (!note) return;
   note.name = newName;
-  updateNotesBox(note);
+  setHoverNotesState({ isVisible: true, name: note.name, legend: note.legend });
 }
 
 function removeLegend(): void {
@@ -198,13 +183,10 @@ function openAiGenerator(): void {
   if (note?.legend) prompt += ` Data: ${note.legend}`;
 
   const onApply = (result: string) => {
-    const notesLegend = document.getElementById("notesLegend")!;
-    notesLegend.replaceChildren();
-    notesLegend.insertAdjacentHTML("beforeend", result);
     if (note) {
       note.legend = result;
-      updateNotesBox(note);
-      if (tinymce) tinymce.activeEditor?.setContent(note.legend);
+      setNotesEditorState({ legend: note.legend });
+      setHoverNotesState({ isVisible: true, name: note.name, legend: note.legend });
     }
   };
 

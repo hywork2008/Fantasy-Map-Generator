@@ -13,6 +13,7 @@ export const tooltipExtensions: {
   updateCellInfo?: (point: [number, number], i: number, g: number) => void;
 } = {};
 
+import { setHoverNotesState } from "../store/hoverNotesState";
 import { useOptionsState } from "../store/optionsState";
 import type { PackedGraphFeature } from "../types/models";
 import { openAlert } from "../ui/dialogs/dialogService";
@@ -136,17 +137,13 @@ function showNotes(e: MouseEvent): void {
     if (currentNoteId === id) return;
     currentNoteId = id;
 
-    document.getElementById("notes")!.style.display = "block";
-    document.getElementById("notesHeader")!.textContent = note.name;
-    document.getElementById("notesBody")!.innerHTML = note.legend;
+    setHoverNotesState({ isVisible: true, name: note.name, legend: note.legend });
   } else if (
     !worldContext.options.pinNotes &&
     !window.markerEditor?.offsetParent &&
     !(e as KeyboardEvent & MouseEvent).shiftKey
   ) {
-    document.getElementById("notes")!.style.display = "none";
-    document.getElementById("notesHeader")!.textContent = "";
-    document.getElementById("notesBody")!.innerHTML = "";
+    setHoverNotesState({ isVisible: false, name: "", legend: "" });
     currentNoteId = null;
   }
 }

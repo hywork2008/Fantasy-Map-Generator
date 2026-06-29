@@ -11,7 +11,6 @@
 | `labels-editor.ts` | ラベルエディタ | `document.getElementById` の使用 |
 | `markers-editor.ts` | マーカーエディタ | `document.getElementById` の使用 |
 | `markers-overview.ts` | マーカー一覧概要 | `document.getElementById` の使用 |
-| `notes-editor.ts` | ノート（メモ）機能 | `document.getElementById` の使用 |
 | **インフラ系** | | |
 | `routes-editor.ts` | 経路エディタ | `document.getElementById` の使用 |
 | **全般・ツール系** | | |

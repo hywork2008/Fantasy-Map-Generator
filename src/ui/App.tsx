@@ -1,5 +1,6 @@
 import { useViewState } from "../store";
 import { ExitCustomization } from "./components/ExitCustomization";
+import { NotesBox } from "./components/NotesBox";
 import { OptionsContainer } from "./components/OptionsContainer";
 import { DialogsContainer } from "./dialogs/DialogsContainer";
 
@@ -25,6 +26,9 @@ export const App = () => {
 
       {/* Heightmap exit button - absolutely positioned, managed via custom events */}
       <ExitCustomization />
+
+      {/* Floating UI */}
+      <NotesBox />
 
       {/* Development Overlay */}
       {import.meta.env.DEV && (
