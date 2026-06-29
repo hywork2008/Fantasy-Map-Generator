@@ -8,7 +8,7 @@ import type { ReligionRowData } from "../store/religionsEditorState";
 import { getReligionsEditorState, setReligionsEditorState } from "../store/religionsEditorState";
 import type { HierarchyElement } from "../types/HierarchyTree";
 import type { Religion } from "../types/models";
-import { closeDialogs, openDialog } from "../ui/dialogs/dialogService";
+import { closeDialogs, isDialogOpen, openDialog } from "../ui/dialogs/dialogService";
 import type { PopulationChangeConfig } from "../ui/dialogs/PopulationChangeDialog";
 import { abbreviate, debounce, findAll, findCell, rn, si } from "../utils";
 import { EditorBus } from "../utils/editorBus";
@@ -672,3 +672,7 @@ function downloadReligionsCsv(): void {
 
   downloadFile(csv, `${getFileName("Religions")}.csv`);
 }
+
+document.addEventListener("fmg:refresh-editors", () => {
+  if (isDialogOpen("religionsEditor")) religionsEditorActions.refresh();
+});

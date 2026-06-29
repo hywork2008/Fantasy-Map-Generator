@@ -1201,3 +1201,7 @@ export function initStatesEditor(wc: WorldContext, vc: Readonly<ViewContext>, as
   viewContext = vc;
   appServices = as;
 }
+
+document.addEventListener("fmg:refresh-editors", () => {
+  if (isDialogOpen("statesEditor")) refreshStatesEditor();
+});

@@ -13,7 +13,7 @@ import { getCulturesEditorState, setCulturesEditorState } from "../store/culture
 import { useOptionsState } from "../store/optionsState";
 import type { HierarchyElement } from "../types/HierarchyTree";
 import type { Burg, Culture, CultureType, NameBase, Province, State } from "../types/models";
-import { closeDialogs, openDialog } from "../ui/dialogs/dialogService";
+import { closeDialogs, isDialogOpen, openDialog } from "../ui/dialogs/dialogService";
 import type { PopulationChangeConfig } from "../ui/dialogs/PopulationChangeDialog";
 import { abbreviate, debounce, findAll, findCell, parseTransform, rn, si } from "../utils";
 import { EditorBus } from "../utils/editorBus";
@@ -864,3 +864,7 @@ function saveCulturesManualSnapshot(): void {
 declare global {
   var ra: <T>(arr: T[]) => T;
 }
+
+document.addEventListener("fmg:refresh-editors", () => {
+  if (isDialogOpen("culturesEditor")) culturesEditorActions.refresh();
+});

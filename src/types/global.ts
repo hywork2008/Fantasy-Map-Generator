@@ -53,7 +53,6 @@ declare global {
   var allowErosion: HTMLInputElement;
   var areaUnit: HTMLSelectElement;
   var burgBody: HTMLElement;
-  var burgsOverviewRefresh: HTMLElement;
   var cellTypeFilter: HTMLSelectElement;
   // cellsDensityMap is exported from controllers/options.ts — not a global, use imports
   var colorsAssigned: HTMLElement;
@@ -101,7 +100,6 @@ declare global {
   var mapToLoad: HTMLInputElement;
   var markerAdd: HTMLElement;
   var markersFooterTotal: HTMLElement;
-  var militaryOverviewRefresh: HTMLElement;
   var openPicker: (fill: string, callback: (fill: string) => void) => void;
   var optionsContainer: HTMLElement;
   var optionsSeed: HTMLInputElement;

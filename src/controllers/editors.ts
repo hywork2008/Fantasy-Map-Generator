@@ -900,20 +900,7 @@ export { fitContent, getArea, getAreaUnit } from "../utils/uiHelpers";
 
 export function refreshAllEditors(): void {
   TIME && console.time("refreshAllEditors");
-  if (document.getElementById("culturesEditorRefresh")?.offsetParent)
-    (document.getElementById("culturesEditorRefresh") as HTMLButtonElement).click();
-  if (document.getElementById("biomesEditorRefresh")?.offsetParent)
-    (document.getElementById("biomesEditorRefresh") as HTMLButtonElement).click();
-  if (document.getElementById("diplomacyEditorRefresh")?.offsetParent)
-    (document.getElementById("diplomacyEditorRefresh") as HTMLButtonElement).click();
-  if (document.getElementById("provincesEditorRefresh")?.offsetParent)
-    (document.getElementById("provincesEditorRefresh") as HTMLButtonElement).click();
-  if (document.getElementById("religionsEditorRefresh")?.offsetParent)
-    (document.getElementById("religionsEditorRefresh") as HTMLButtonElement).click();
-  if (document.getElementById("statesEditorRefresh")?.offsetParent)
-    (document.getElementById("statesEditorRefresh") as HTMLButtonElement).click();
-  if (document.getElementById("zonesEditorRefresh")?.offsetParent)
-    (document.getElementById("zonesEditorRefresh") as HTMLButtonElement).click();
+  document.dispatchEvent(new CustomEvent("fmg:refresh-editors"));
   TIME && console.timeEnd("refreshAllEditors");
 }
 

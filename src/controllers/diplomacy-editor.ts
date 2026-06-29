@@ -388,3 +388,7 @@ declare global {
 }
 
 export function initDiplomacyEditor(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: AppServices) {}
+
+document.addEventListener("fmg:refresh-editors", () => {
+  if (isDialogOpen("diplomacyEditor")) diplomacyEditorActions.refreshDiplomacyEditor();
+});

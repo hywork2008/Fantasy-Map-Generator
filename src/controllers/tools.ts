@@ -47,7 +47,10 @@ import { dialogStore } from "../store/dialogState";
 import { elSelected, modules } from "../store/editorState";
 import { heightmapEditModeStore } from "../store/heightmapDialogState";
 import { useLayerState } from "../store/layerState";
+import { useMarkersOverviewState } from "../store/markersOverviewState";
+import { useMilitaryOverviewState } from "../store/militaryOverviewState";
 import { useOptionsState } from "../store/optionsState";
+import { useRiversOverviewState } from "../store/riversOverviewState";
 import type { MarkerConfig } from "../types/MarkerConfig";
 import type { Burg, Marker, Province, Religion, River, Route, State } from "../types/models";
 import type { WorldNote } from "../types/WorldState";
@@ -359,12 +362,10 @@ function regenerateStates(): void {
   closeDialog("regimentEditor");
   closeDialog("battleScreen");
 
-  if (document.getElementById("burgsOverviewRefresh")?.offsetParent)
-    (document.getElementById("burgsOverviewRefresh") as HTMLButtonElement).click();
-  if (document.getElementById("statesEditorRefresh")?.offsetParent)
-    (document.getElementById("statesEditorRefresh") as HTMLButtonElement).click();
-  if (document.getElementById("militaryOverviewRefresh")?.offsetParent)
-    (document.getElementById("militaryOverviewRefresh") as HTMLButtonElement).click();
+  const openDialogs = dialogStore.getState().openDialogs;
+  if (openDialogs.has("burgsOverview")) useBurgsOverviewState.getState().refresh();
+  if (openDialogs.has("militaryOverview")) useMilitaryOverviewState.getState().refresh();
+  document.dispatchEvent(new CustomEvent("fmg:refresh-editors"));
 }
 
 function recreateStates(): State[] | null {
@@ -671,10 +672,9 @@ async function regenerateBurgs(): Promise<void> {
   regenerateMilitary();
   closeDialog("burgEditor");
 
-  if (document.getElementById("burgsOverviewRefresh")?.offsetParent)
-    (document.getElementById("burgsOverviewRefresh") as HTMLButtonElement).click();
-  if (document.getElementById("statesEditorRefresh")?.offsetParent)
-    (document.getElementById("statesEditorRefresh") as HTMLButtonElement).click();
+  const openDialogs = dialogStore.getState().openDialogs;
+  if (openDialogs.has("burgsOverview")) useBurgsOverviewState.getState().refresh();
+  document.dispatchEvent(new CustomEvent("fmg:refresh-editors"));
 }
 
 export function regenerateEmblems(): void {
@@ -771,8 +771,7 @@ function regenerateMilitary(): void {
   closeDialog("regimentEditor");
   closeDialog("battleScreen");
 
-  if (document.getElementById("militaryOverviewRefresh")?.offsetParent)
-    (document.getElementById("militaryOverviewRefresh") as HTMLButtonElement).click();
+  if (dialogStore.getState().openDialogs.has("militaryOverview")) useMilitaryOverviewState.getState().refresh();
 }
 
 function regenerateIce(): void {
@@ -785,8 +784,7 @@ export function regenerateMarkers(): void {
   Markers.regenerate();
   turnButtonOn("toggleMarkers");
   MarkersRenderer.render(worldContext, viewContext, appServices);
-  const markersOverviewRefreshEl = document.getElementById("markersOverviewRefresh") as HTMLButtonElement | null;
-  if (markersOverviewRefreshEl?.offsetParent) markersOverviewRefreshEl.click();
+  if (dialogStore.getState().openDialogs.has("markersOverview")) useMarkersOverviewState.getState().refresh();
 }
 
 function regenerateZones(event: MouseEvent | null): void {
@@ -800,8 +798,7 @@ function regenerateZones(event: MouseEvent | null): void {
 
   function addNumberOfZones(number: number) {
     Zones.generate(worldContext, viewContext, appServices, getWorldState(), number);
-    if (document.getElementById("zonesEditorRefresh")?.offsetParent)
-      (document.getElementById("zonesEditorRefresh") as HTMLButtonElement).click();
+    document.dispatchEvent(new CustomEvent("fmg:refresh-editors"));
     if (layerIsOn("toggleZones")) ZonesRenderer.render(worldContext, viewContext, appServices);
   }
 }
@@ -1077,8 +1074,7 @@ function addRiverOnClick(event: MouseEvent): void {
     Lakes.cleanupLakeData();
     unpressClickToAddButton();
     document.getElementById("addNewRiver")?.classList.remove("pressed");
-    const riversOverviewRefreshEl = document.getElementById("riversOverviewRefresh") as HTMLButtonElement | null;
-    if (riversOverviewRefreshEl?.offsetParent) riversOverviewRefreshEl.click();
+    if (dialogStore.getState().openDialogs.has("riversOverview")) useRiversOverviewState.getState().refresh();
   }
 }
 

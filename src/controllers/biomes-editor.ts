@@ -366,3 +366,7 @@ export function initBiomesEditor(wc: WorldContext, vc: Readonly<ViewContext>, as
   viewContext = vc as ViewContext;
   appServices = as;
 }
+
+document.addEventListener("fmg:refresh-editors", () => {
+  if (isDialogOpen("biomesEditor")) biomesRefresh();
+});

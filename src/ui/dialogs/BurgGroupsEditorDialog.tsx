@@ -6,7 +6,8 @@ import { worldContext } from "../../context/worldContext";
 import { Burgs } from "../../generators/burgs-generator";
 import { BurgIconsRenderer, BurgLabelsRenderer } from "../../renderers";
 import { burgGroupSelectionStore, useBurgGroupSelectionState } from "../../store/burgGroupSelectionState";
-import { useDialogState } from "../../store/dialogState";
+import { useBurgsOverviewState } from "../../store/burgsOverviewState";
+import { dialogStore, useDialogState } from "../../store/dialogState";
 import type { Burg, BurgGroup } from "../../types/models";
 import { layerIsOn } from "../../utils/nodeUtils";
 import { tip } from "../../utils/uiHelpers";
@@ -97,8 +98,7 @@ export const BurgGroupsEditorDialog: React.FC = () => {
     if (layerIsOn("toggleBurgIcons")) BurgIconsRenderer.render(worldContext, viewContext, appServices);
     if (layerIsOn("toggleLabels")) BurgLabelsRenderer.render(worldContext, viewContext, appServices);
 
-    // Refresh burgs overview if open
-    document.getElementById("burgsOverviewRefresh")?.click();
+    if (dialogStore.getState().openDialogs.has("burgsOverview")) useBurgsOverviewState.getState().refresh();
 
     closeDialog("burgGroupsEditor");
   };

@@ -31,7 +31,14 @@ import {
   setProvincesEditorState
 } from "../store/provincesEditorState";
 import type { Burg, Culture, Province, State } from "../types/models";
-import { closeDialog, closeDialogs, openAlert, openConfirm, openDialog } from "../ui/dialogs/dialogService";
+import {
+  closeDialog,
+  closeDialogs,
+  isDialogOpen,
+  openAlert,
+  openConfirm,
+  openDialog
+} from "../ui/dialogs/dialogService";
 import type { PopulationChangeConfig } from "../ui/dialogs/PopulationChangeDialog";
 import { findAll, findCell, getRandomColor, isLand, P, parseTransform, rand, rn, unique } from "../utils";
 import { EditorBus } from "../utils/editorBus";
@@ -1069,3 +1076,7 @@ export const provincesEditorActions = {
 };
 
 export function initProvincesEditor(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: AppServices) {}
+
+document.addEventListener("fmg:refresh-editors", () => {
+  if (isDialogOpen("provincesEditor")) refreshProvincesEditor();
+});
