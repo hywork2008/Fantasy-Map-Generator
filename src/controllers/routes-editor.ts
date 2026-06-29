@@ -5,6 +5,7 @@ import type { WorldContext } from "../context/worldContext";
 import { Routes } from "../generators/routes-generator";
 import { dialogStore } from "../store/dialogState";
 import { elSelected, modules, setElSelected } from "../store/editorState";
+import { useOptionsState } from "../store/optionsState";
 import { routeJoinDialogStore } from "../store/routeJoinDialogState";
 import { getRoutesEditorState, setRoutesEditorState } from "../store/routesEditorState";
 import type { Route } from "../types/models";
@@ -74,8 +75,8 @@ function updateRouteData(route: Route): void {
   route.length = route.length || Routes.getLength(route.i);
 
   const allGroups = Array.from(viewContext.routes.selectAll<SVGGElement, unknown>("g").nodes()).map(n => n.id);
-  const distanceUnitInput = document.getElementById("distanceUnitInput") as HTMLInputElement | null;
-  const lengthStr = `${rn(route.length * worldContext.distanceScale)} ${distanceUnitInput?.value || "km"}`;
+  const distanceUnit = useOptionsState.getState().distanceUnit || "km";
+  const lengthStr = `${rn(route.length * worldContext.distanceScale)} ${distanceUnit}`;
 
   const isWaterRoute = route.points.some(([, , cellId]) => worldContext.pack.cells.h[cellId] < 20);
 
@@ -92,8 +93,8 @@ function updateRouteData(route: Route): void {
 
 function updateRouteLength(route: Route): void {
   route.length = Routes.getLength(route.i);
-  const distanceUnitInput = document.getElementById("distanceUnitInput") as HTMLInputElement | null;
-  const lengthStr = `${rn(route.length * worldContext.distanceScale)} ${distanceUnitInput?.value || "km"}`;
+  const distanceUnit = useOptionsState.getState().distanceUnit || "km";
+  const lengthStr = `${rn(route.length * worldContext.distanceScale)} ${distanceUnit}`;
   setRoutesEditorState({ routeLength: lengthStr });
 }
 
@@ -434,11 +435,11 @@ export const routesEditorActions = {
     });
 
     if (candidateRoutes.length) {
-      const distanceUnitInput = document.getElementById("distanceUnitInput") as HTMLInputElement | null;
+      const distanceUnit = useOptionsState.getState().distanceUnit || "km";
       const options = candidateRoutes.map((r: Route) => {
         r.name = r.name || Routes.generateName(r);
         r.length = r.length || Routes.getLength(r.i);
-        const length = `${rn(r.length * worldContext.distanceScale)} ${distanceUnitInput?.value || "km"}`;
+        const length = `${rn(r.length * worldContext.distanceScale)} ${distanceUnit}`;
         return { id: r.i, name: r.name!, length };
       });
 

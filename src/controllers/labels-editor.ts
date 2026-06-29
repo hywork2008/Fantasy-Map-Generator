@@ -203,7 +203,7 @@ function createNewGroup(): void {
     .replace(/ /g, "_")
     .replace(/[^\w\s]/gi, "");
 
-  if (document.getElementById(groupName)) {
+  if (viewContext.labels.select(`#${groupName}`).node()) {
     tip("Element with this id already exists. Please provide a unique name", false, "error");
     return;
   }
@@ -248,7 +248,7 @@ function removeLabelsGroup(): void {
           .select(`#${group}`)
           .selectAll<SVGTextElement, unknown>("text")
           .each(function (this: SVGTextElement) {
-            document.getElementById(`textPath_${this.id}`)?.remove();
+            viewContext.defs.select(`#textPath_${this.id}`).remove();
             this.remove();
           });
         if (!isBasicGroup) viewContext.labels.select(`#${group}`).remove();

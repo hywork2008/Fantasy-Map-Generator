@@ -6,13 +6,6 @@
 
 | ファイル名 | 主な役割 | 残存している非Reactパターンの例 |
 | :--- | :--- | :--- |
-| **装飾・メタデータ系** | | |
-| `emblems-editor.ts` | 紋章エディタ | `document.getElementById` の使用 |
-| `labels-editor.ts` | ラベルエディタ | `document.getElementById` の使用 |
-| `markers-editor.ts` | マーカーエディタ | `document.getElementById` の使用 |
-| `markers-overview.ts` | マーカー一覧概要 | `document.getElementById` の使用 |
-| **インフラ系** | | |
-| `routes-editor.ts` | 経路エディタ | `document.getElementById` の使用 |
 | **全般・ツール系** | | |
 | `tools.ts` | ツールメニュー | `document.getElementById`, `.addEventListener` の使用 |
 | `layers.ts` | レイヤー制御 | `document.getElementById`, `.addEventListener` の使用 |

@@ -21,7 +21,7 @@ export function overviewMarkers(): void {
 }
 
 export function markerHighlightById(i: number): void {
-  const marker = document.getElementById(`marker${i}`);
+  const marker = viewContext.markers.select<SVGElement>(`#marker${i}`).node();
   if (!marker) return;
   EditorBus.highlightElement(marker, 2);
 }
@@ -36,7 +36,7 @@ export function markerTogglePin(i: number): void {
   const marker = worldContext.pack.markers.find(m => m.i === i);
   if (!marker) return;
 
-  const markerGroup = document.getElementById("markers");
+  const markerGroup = viewContext.markers.node();
   if (marker.pinned) {
     delete marker.pinned;
     const anyPinned = worldContext.pack.markers.some(m => m.pinned);
@@ -63,7 +63,7 @@ export function markerInvertPin(): void {
       anyPinned = true;
     } else delete marker.pinned;
   });
-  const markerGroup = document.getElementById("markers");
+  const markerGroup = viewContext.markers.node();
   if (markerGroup) {
     if (anyPinned) markerGroup.setAttribute("pinned", "1");
     else markerGroup.removeAttribute("pinned");
@@ -78,14 +78,14 @@ export function markerInvertLock(): void {
 export function removeMarkerById(i: number): void {
   worldContext.notes = worldContext.notes.filter(note => note.id !== `marker${i}`);
   worldContext.pack.markers = worldContext.pack.markers.filter(m => m.i !== i);
-  document.getElementById(`marker${i}`)?.remove();
+  viewContext.markers.select(`#marker${i}`).remove();
 }
 
 export function removeAllUnlockedMarkers(): void {
   worldContext.pack.markers = worldContext.pack.markers.filter(({ i, lock }) => {
     if (lock) return true;
     const id = `marker${i}`;
-    document.getElementById(id)?.remove();
+    viewContext.markers.select(`#${id}`).remove();
     worldContext.notes = worldContext.notes.filter(note => note.id !== id);
     return false;
   });

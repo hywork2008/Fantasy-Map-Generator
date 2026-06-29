@@ -56,7 +56,7 @@ export function editMarker(markerI?: number): void {
 }
 
 function getElement(idx: number): { element: SVGElement; marker: Marker } | null {
-  const el = document.getElementById(`marker${idx}`) as SVGElement | null;
+  const el = viewContext.markers.select<SVGElement>(`#marker${idx}`).node();
   const m = worldContext.pack.markers.find(({ i }) => i === idx);
   if (!el || !m) return null;
   return { element: el, marker: m };
@@ -150,7 +150,7 @@ function changeMarkerSize(size: number): void {
   getSameTypeMarkers().forEach(m => {
     m.size = size;
     const { i, x, y, hidden } = m;
-    const el = !hidden ? document.getElementById(`marker${i}`) : null;
+    const el = !hidden ? viewContext.markers.select<SVGElement>(`#marker${i}`).node() : null;
     if (!el) return;
 
     const zoomedSize = rescale ? Math.max(rn(size / 5 + 24 / viewContext.scale, 2), 1) : size;
@@ -188,7 +188,7 @@ function changePinStroke(stroke: string): void {
 function redrawIcon({ i, hidden, icon, dx = 50, dy = 50, px = 12 }: Marker): void {
   const isExternal = icon.startsWith("http") || icon.startsWith("data:image");
 
-  const iconText = !hidden ? document.querySelector<SVGTextElement>(`#marker${i} > text`) : null;
+  const iconText = !hidden ? viewContext.markers.select<SVGTextElement>(`#marker${i} > text`).node() : null;
   if (iconText) {
     iconText.textContent = isExternal ? "" : icon;
     iconText.setAttribute("x", `${dx}%`);
@@ -196,7 +196,7 @@ function redrawIcon({ i, hidden, icon, dx = 50, dy = 50, px = 12 }: Marker): voi
     iconText.setAttribute("font-size", `${px}px`);
   }
 
-  const iconImage = !hidden ? document.querySelector<SVGImageElement>(`#marker${i} > image`) : null;
+  const iconImage = !hidden ? viewContext.markers.select<SVGImageElement>(`#marker${i} > image`).node() : null;
   if (iconImage) {
     iconImage.setAttribute("x", `${dx / 2}%`);
     iconImage.setAttribute("y", `${dy / 2}%`);
@@ -207,7 +207,7 @@ function redrawIcon({ i, hidden, icon, dx = 50, dy = 50, px = 12 }: Marker): voi
 }
 
 function redrawPin({ i, hidden, pin = "bubble", fill = "#fff", stroke = "#000" }: Marker): void {
-  const pinGroup = !hidden ? document.querySelector<SVGGElement>(`#marker${i} > g`) : null;
+  const pinGroup = !hidden ? viewContext.markers.select<SVGGElement>(`#marker${i} > g`).node() : null;
   /* ignore-legacy-dom */ if (pinGroup) {
     pinGroup.replaceChildren();
     pinGroup.insertAdjacentHTML("beforeend", getPin(worldContext, viewContext, appServices, pin, fill, stroke));
@@ -233,8 +233,7 @@ function toggleMarkerLock(): void {
 function toggleAddMarker(): void {
   const { isAdding } = getMarkersEditorState();
   setMarkersEditorState({ isAdding: !isAdding });
-  const addMarkerEl = document.getElementById("addMarker");
-  if (addMarkerEl) addMarkerEl.click();
+  document.dispatchEvent(new CustomEvent("react-tool-action", { detail: { action: "addMarker" } }));
 }
 
 function confirmMarkerDeletion(): void {
@@ -250,8 +249,7 @@ function deleteMarker(): void {
   const { selectedId } = getMarkersEditorState();
   if (selectedId === null) return;
   Markers.deleteMarker(selectedId);
-  const element = document.getElementById(`marker${selectedId}`);
-  if (element) element.remove();
+  viewContext.markers.select<Element>(`#marker${selectedId}`).node()?.remove();
   closeMarkerEditor();
   useMarkersOverviewState.getState().refresh();
 }
