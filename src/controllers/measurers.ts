@@ -2,12 +2,15 @@ import * as d3 from "d3";
 import polylabel from "polylabel";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
+import { Routes } from "../generators/routes-generator";
 import { type DragEv, type MeasurerSel, MeasurersRenderer } from "../renderers/measurers-renderer";
 import { rulers, setRulers } from "../store/editorState";
 import { useOptionsState } from "../store/optionsState";
-import { findCell, getSegmentId, last, rn, round, si } from "../utils";
+import { findCell, getSegmentId, last, parseTransform, rn, round, si } from "../utils";
 import { TIME } from "../utils/debug";
-import { getAreaUnit } from "../utils/uiHelpers";
+import { getArea, getAreaUnit } from "../utils/uiHelpers";
+
+const lineGen = d3.line<[number, number]>();
 
 // ─── Rulers container ─────────────────────────────────────────────────────────
 
@@ -289,7 +292,7 @@ class Opisometer extends Measurer {
 
   updateCurve(): void {
     lineGen.curve(d3.curveCatmullRom.alpha(0.5));
-    const path = round(lineGen(this.points));
+    const path = round(lineGen(this.points) ?? undefined);
     const left = this.points[0];
     const right = last(this.points);
     MeasurersRenderer.updateOpisometerCurve(this.el, path, left, right);
@@ -408,7 +411,7 @@ class RouteOpisometer extends Measurer {
 
   updateCurve(): void {
     lineGen.curve(d3.curveCatmullRom.alpha(0.5));
-    const path = round(lineGen(this.points));
+    const path = round(lineGen(this.points) ?? undefined);
     const left = this.points[0];
     const right = last(this.points);
     MeasurersRenderer.updateOpisometerCurve(this.el, path, left, right);
@@ -460,7 +463,7 @@ class Planimeter extends Measurer {
 
   updateCurve(): void {
     lineGen.curve(d3.curveCatmullRomClosed.alpha(0.5));
-    const path = round(lineGen(this.points));
+    const path = round(lineGen(this.points) ?? undefined);
     MeasurersRenderer.updatePlanimeterCurve(this.el, path);
   }
 
@@ -507,13 +510,6 @@ export function createDefaultRuler(): void {
 
 export type { Opisometer, Planimeter, RouteOpisometer, Ruler };
 export { Rulers };
-
-// ─── Legacy globals (from non-migrated JS files) ──────────────────────────────
-
-declare const lineGen: { (points: [number, number][]): string; curve: (curve: unknown) => typeof lineGen };
-declare const parseTransform: (transform: string) => number[];
-declare const getArea: (area: number) => number;
-declare const Routes: { isConnected: (cell: number) => boolean };
 
 // CustomEvent Listeners
 document.addEventListener("fmg:create-default-ruler", () => createDefaultRuler());
