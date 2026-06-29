@@ -1,9 +1,13 @@
 /* src/ui/dialogs/dialog.css */
 .fmg-dialog {
+  --dialog-left: 50%;
+  --dialog-top: 50%;
+  --dialog-offset-x: 0px;
+  --dialog-offset-y: 0px;
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  top: var(--dialog-top);
+  left: var(--dialog-left);
+  transform: translate(-50%, -50%) translate(var(--dialog-offset-x), var(--dialog-offset-y));
   pointer-events: auto;
   background: var(--bg-dialogs);
   border: 1px solid var(--dark-solid);
@@ -33,6 +37,10 @@
   user-select: none;
   color: white;
   flex-shrink: 0;
+}
+
+.fmg-dialog.fmg-dialog--dragging {
+  cursor: move;
 }
 
 .fmg-dialog-title {

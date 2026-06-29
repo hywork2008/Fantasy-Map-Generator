@@ -48,6 +48,27 @@ import { tip } from "../utils/uiHelpers";
 const editStyle = (element: string, group?: string) =>
   document.dispatchEvent(new CustomEvent("fmg:edit-style", { detail: { element, group } }));
 const calculateFriendlyGridSize = () => document.dispatchEvent(new CustomEvent("fmg:calculate-friendly-grid-size"));
+const HIDDEN_LAYER_CLASS = "fmg-layer-hidden";
+
+function getLayerElementByToggleId(id: string): Element | null {
+  if (id === "toggleLakes") return viewContext.lakes.node();
+  if (id === "toggleIce") return viewContext.ice.node();
+  if (id === "toggleCompass") return viewContext.compass.node();
+  if (id === "toggleRulers") return viewContext.ruler.node();
+  if (id === "toggleRelief") return viewContext.terrain.node();
+  if (id === "toggleLabels") return viewContext.labels.node();
+  if (id === "toggleScaleBar") return viewContext.scaleBar.node();
+  if (id === "toggleEmblems") return viewContext.emblems.node();
+  if (id === "toggleVignette") return document.getElementById("vignette");
+  return null;
+}
+
+function setLayerVisibility(id: string, visible: boolean): void {
+  const layer = getLayerElementByToggleId(id);
+  if (!layer) return;
+  layer.classList.toggle(HIDDEN_LAYER_CLASS, !visible);
+  if (visible && (layer instanceof SVGElement || layer instanceof HTMLElement)) layer.style.removeProperty("display");
+}
 
 export function initLayers(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices): void {
   worldContext = wc;
@@ -313,7 +334,7 @@ export function drawLayers(): void {
   FeaturesRenderer.render(worldContext, viewContext, appServices);
   // FeaturesRenderer always renders lake paths (needed for masks), so explicitly
   // sync the #lakes display state with the toggle after rendering.
-  if (!layerIsOn("toggleLakes")) d3.select("#lakes").style("display", "none");
+  if (!layerIsOn("toggleLakes")) setLayerVisibility("toggleLakes", false);
   if (layerIsOn("toggleTexture")) TextureRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleHeight")) HeightmapRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleBiomes")) BiomesRenderer.render(worldContext, viewContext, appServices);
@@ -323,7 +344,7 @@ export function drawLayers(): void {
   if (layerIsOn("toggleCompass")) {
     if (!viewContext.compass.select("use").size())
       viewContext.compass.append("use").attr("xlink:href", "#defs-compass-rose");
-    viewContext.compass.style("display", "block");
+    setLayerVisibility("toggleCompass", true);
   }
   if (layerIsOn("toggleRivers")) RiversRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleRelief")) ReliefIconsRenderer.render(worldContext, viewContext, appServices);
@@ -614,7 +635,7 @@ export function toggleCells(event?: MouseEvent): void {
 export function toggleIce(event?: MouseEvent): void {
   if (!layerIsOn("toggleIce")) {
     turnButtonOn("toggleIce");
-    d3.select("#ice").style("display", "block");
+    setLayerVisibility("toggleIce", true);
     if (!viewContext.ice.selectAll("*").size()) IceRenderer.render(worldContext, viewContext, appServices);
     if (event && isCtrlClick(event)) editStyle("ice");
   } else {
@@ -622,7 +643,7 @@ export function toggleIce(event?: MouseEvent): void {
       editStyle("ice");
       return;
     }
-    d3.select("#ice").style("display", "none");
+    setLayerVisibility("toggleIce", false);
     turnButtonOff("toggleIce");
   }
 }
@@ -741,14 +762,14 @@ export function toggleCompass(event?: MouseEvent): void {
     turnButtonOn("toggleCompass");
     if (!viewContext.compass.select("use").size())
       viewContext.compass.append("use").attr("xlink:href", "#defs-compass-rose");
-    d3.select("#compass").style("display", "block");
+    setLayerVisibility("toggleCompass", true);
     if (event && isCtrlClick(event)) editStyle("compass");
   } else {
     if (event && isCtrlClick(event)) {
       editStyle("compass");
       return;
     }
-    d3.select("#compass").style("display", "none");
+    setLayerVisibility("toggleCompass", false);
     turnButtonOff("toggleCompass");
   }
 }
@@ -757,14 +778,14 @@ export function toggleRelief(event?: MouseEvent): void {
   if (!layerIsOn("toggleRelief")) {
     turnButtonOn("toggleRelief");
     if (!viewContext.terrain.selectAll("*").size()) ReliefIconsRenderer.render(worldContext, viewContext, appServices);
-    d3.select("#terrain").style("display", "block");
+    setLayerVisibility("toggleRelief", true);
     if (event && isCtrlClick(event)) editStyle("terrain");
   } else {
     if (event && isCtrlClick(event)) {
       editStyle("terrain");
       return;
     }
-    d3.select("#terrain").style("display", "none");
+    setLayerVisibility("toggleRelief", false);
     turnButtonOff("toggleRelief");
   }
 }
@@ -772,14 +793,14 @@ export function toggleRelief(event?: MouseEvent): void {
 export function toggleLakes(event?: MouseEvent): void {
   if (!layerIsOn("toggleLakes")) {
     turnButtonOn("toggleLakes");
-    d3.select("#lakes").style("display", "block");
+    setLayerVisibility("toggleLakes", true);
     if (event && isCtrlClick(event)) editStyle("lakes");
   } else {
     if (event && isCtrlClick(event)) {
       editStyle("lakes");
       return;
     }
-    d3.select("#lakes").style("display", "none");
+    setLayerVisibility("toggleLakes", false);
     turnButtonOff("toggleLakes");
   }
 }
@@ -862,7 +883,7 @@ export function toggleMarkers(event?: MouseEvent): void {
 export function toggleLabels(event?: MouseEvent): void {
   if (!layerIsOn("toggleLabels")) {
     turnButtonOn("toggleLabels");
-    d3.select("#labels").style("display", "block");
+    setLayerVisibility("toggleLabels", true);
     if (viewContext.labels.selectAll("text").size() === 0) drawLabels();
     if (event && isCtrlClick(event)) editStyle("labels");
   } else {
@@ -871,7 +892,7 @@ export function toggleLabels(event?: MouseEvent): void {
       return;
     }
     turnButtonOff("toggleLabels");
-    d3.select("#labels").style("display", "none");
+    setLayerVisibility("toggleLabels", false);
   }
 }
 
@@ -895,7 +916,7 @@ export function toggleRulers(event?: MouseEvent): void {
     turnButtonOn("toggleRulers");
     if (event && isCtrlClick(event)) editStyle("ruler");
     rulers.draw();
-    viewContext.ruler.style("display", null);
+    setLayerVisibility("toggleRulers", true);
   } else {
     if (event && isCtrlClick(event)) {
       editStyle("ruler");
@@ -903,21 +924,21 @@ export function toggleRulers(event?: MouseEvent): void {
     }
     turnButtonOff("toggleRulers");
     viewContext.ruler.selectAll("*").remove();
-    viewContext.ruler.style("display", "none");
+    setLayerVisibility("toggleRulers", false);
   }
 }
 
 export function toggleScaleBar(event?: MouseEvent): void {
   if (!layerIsOn("toggleScaleBar")) {
     turnButtonOn("toggleScaleBar");
-    d3.select("#scaleBar").style("display", "block");
+    setLayerVisibility("toggleScaleBar", true);
     if (event && isCtrlClick(event)) editStyle("scaleBar");
   } else {
     if (event && isCtrlClick(event)) {
       editStyle("scaleBar");
       return;
     }
-    d3.select("#scaleBar").style("display", "none");
+    setLayerVisibility("toggleScaleBar", false);
     turnButtonOff("toggleScaleBar");
   }
 }
@@ -941,7 +962,7 @@ export function toggleEmblems(event?: MouseEvent): void {
   if (!layerIsOn("toggleEmblems")) {
     turnButtonOn("toggleEmblems");
     if (!viewContext.emblems.selectAll("use").size()) EmblemsRenderer.render(worldContext, viewContext, appServices);
-    d3.select("#emblems").style("display", "block");
+    setLayerVisibility("toggleEmblems", true);
     document.dispatchEvent(new CustomEvent("fmg:invoke-active-zooming"));
     if (event && isCtrlClick(event)) editStyle("emblems");
   } else {
@@ -949,7 +970,7 @@ export function toggleEmblems(event?: MouseEvent): void {
       editStyle("emblems");
       return;
     }
-    d3.select("#emblems").style("display", "none");
+    setLayerVisibility("toggleEmblems", false);
     turnButtonOff("toggleEmblems");
   }
 }
@@ -957,14 +978,14 @@ export function toggleEmblems(event?: MouseEvent): void {
 export function toggleVignette(event?: MouseEvent): void {
   if (!layerIsOn("toggleVignette")) {
     turnButtonOn("toggleVignette");
-    d3.select("#vignette").style("display", "block");
+    setLayerVisibility("toggleVignette", true);
     if (event && isCtrlClick(event)) editStyle("vignette");
   } else {
     if (event && isCtrlClick(event)) {
       editStyle("vignette");
       return;
     }
-    d3.select("#vignette").style("display", "none");
+    setLayerVisibility("toggleVignette", false);
     turnButtonOff("toggleVignette");
   }
 }

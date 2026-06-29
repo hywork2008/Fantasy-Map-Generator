@@ -33,12 +33,11 @@ export const Dialog: React.FC<DialogProps> = ({ isOpen, title, onClose, children
       // the titlebar doesn't jump. Without this, the CSS transform / % values
       // recompute against the collapsed (titlebar-only) size and shift the dialog.
       const rect = container.getBoundingClientRect();
-      container.style.left = `${rect.left}px`;
-      container.style.top = `${rect.top}px`;
+      container.style.setProperty("--dialog-left", `${rect.left}px`);
+      container.style.setProperty("--dialog-top", `${rect.top}px`);
+      container.style.setProperty("--dialog-offset-x", "0px");
+      container.style.setProperty("--dialog-offset-y", "0px");
       container.style.width = `${rect.width}px`;
-      container.style.transform = "none";
-      container.style.right = "auto";
-      container.style.bottom = "auto";
     }
     setMinimized(m => !m);
   }, [minimized, containerRef]);

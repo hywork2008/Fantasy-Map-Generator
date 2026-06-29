@@ -115,6 +115,10 @@ a {
   cursor: pointer !important;
 }
 
+.fmg-layer-hidden {
+  display: none !important;
+}
+
 #prec text {
   font-size: 32px;
   stroke: none;

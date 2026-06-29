@@ -12,6 +12,7 @@ import { declareFont, fonts } from "../services/fonts";
 import { rulers } from "../store/editorState";
 import { useLayerState } from "../store/layerState";
 import { loadErrorDialogStore } from "../store/loadErrorDialogState";
+import { loadMapDialogStore } from "../store/loadMapDialogState";
 import { type OptionsState, useOptionsState } from "../store/optionsState";
 import type { NameBase, River } from "../types/models";
 import { closeDialogs, openConfirm } from "../ui/dialogs/dialogService";
@@ -47,19 +48,16 @@ export async function loadFromDropbox(): Promise<void> {
 
 export async function createSharableDropboxLink(): Promise<void> {
   const mapFile = document.querySelector("#loadFromDropbox select") as HTMLSelectElement | null;
-  const sharableLink = document.getElementById("sharableLink") as HTMLAnchorElement;
-  const sharableLinkContainer = document.getElementById("sharableLinkContainer")!;
 
   try {
     const previewLink = await Cloud.providers.dropbox.getLink(mapFile?.value ?? "");
     const directLink = previewLink.replace("www.dropbox.com", "dl.dropboxusercontent.com");
     const finalLink = `${location.origin}${location.pathname}?maplink=${directLink}`;
 
-    sharableLink.innerText = `${finalLink.slice(0, 45)}...`;
-    sharableLink.setAttribute("href", finalLink);
-    sharableLinkContainer.style.display = "block";
+    loadMapDialogStore.getState().setSharableLink(finalLink, `${finalLink.slice(0, 45)}...`);
   } catch (error) {
     ERROR && console.error(error);
+    loadMapDialogStore.getState().hideSharableLink();
     tip("Dropbox API error. Can not create link.", true, "error", 2000);
   }
 }

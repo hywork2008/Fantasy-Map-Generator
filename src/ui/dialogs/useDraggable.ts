@@ -1,5 +1,14 @@
 import { useCallback, useEffect, useRef } from "react";
 
+const DIALOG_OFFSET_X = "--dialog-offset-x";
+const DIALOG_OFFSET_Y = "--dialog-offset-y";
+
+function readPxVar(el: HTMLElement, name: string): number {
+  const raw = window.getComputedStyle(el).getPropertyValue(name).trim();
+  const value = parseFloat(raw.replace("px", ""));
+  return Number.isFinite(value) ? value : 0;
+}
+
 export function useDraggable(options?: { handleSelector?: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const resizeHandleRef = useRef<HTMLDivElement>(null);
@@ -29,17 +38,14 @@ export function useDraggable(options?: { handleSelector?: string }) {
     let isDragging = false;
     let startX = 0;
     let startY = 0;
-    let initialLeft = 0;
-    let initialTop = 0;
+    let startOffsetX = 0;
+    let startOffsetY = 0;
 
     const handle = options?.handleSelector
       ? (container.querySelector(options.handleSelector) as HTMLElement)
       : container;
 
     if (!handle) return;
-
-    // Apply cursor style to handle
-    handle.style.cursor = "move";
 
     const onMouseDown = (e: MouseEvent) => {
       if (e.button !== 0) return; // Only left click
@@ -52,9 +58,8 @@ export function useDraggable(options?: { handleSelector?: string }) {
       startX = e.clientX;
       startY = e.clientY;
 
-      const rect = container.getBoundingClientRect();
-      initialLeft = rect.left;
-      initialTop = rect.top;
+      startOffsetX = readPxVar(container, DIALOG_OFFSET_X);
+      startOffsetY = readPxVar(container, DIALOG_OFFSET_Y);
 
       // Lock the current rendered width so viewport-relative max-width can't
       // cause the dialog to expand when transform is cleared during drag.
@@ -65,6 +70,7 @@ export function useDraggable(options?: { handleSelector?: string }) {
       bringToFront();
 
       document.body.style.userSelect = "none";
+      container.classList.add("fmg-dialog--dragging");
     };
 
     const onMouseMove = (e: MouseEvent) => {
@@ -73,16 +79,14 @@ export function useDraggable(options?: { handleSelector?: string }) {
       const dx = e.clientX - startX;
       const dy = e.clientY - startY;
 
-      container.style.left = `${initialLeft + dx}px`;
-      container.style.top = `${initialTop + dy}px`;
-      container.style.right = "auto";
-      container.style.bottom = "auto";
-      container.style.transform = "none";
+      container.style.setProperty(DIALOG_OFFSET_X, `${startOffsetX + dx}px`);
+      container.style.setProperty(DIALOG_OFFSET_Y, `${startOffsetY + dy}px`);
     };
 
     const onMouseUp = () => {
       isDragging = false;
       document.body.style.userSelect = "";
+      container.classList.remove("fmg-dialog--dragging");
     };
 
     handle.addEventListener("mousedown", onMouseDown);
@@ -93,7 +97,7 @@ export function useDraggable(options?: { handleSelector?: string }) {
       handle.removeEventListener("mousedown", onMouseDown);
       document.removeEventListener("mousemove", onMouseMove);
       document.removeEventListener("mouseup", onMouseUp);
-      handle.style.cursor = "";
+      container.classList.remove("fmg-dialog--dragging");
     };
   }, [options?.handleSelector, bringToFront]);
 

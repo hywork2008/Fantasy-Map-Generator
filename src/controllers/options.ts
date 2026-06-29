@@ -17,6 +17,7 @@ import { COArenderer } from "../renderers/emblem-renderer";
 import { fitScaleBar } from "../renderers/index";
 import { ThreeDRenderer } from "../renderers/three-d-renderer";
 import { modules } from "../store/editorState";
+import { loadMapDialogStore } from "../store/loadMapDialogState";
 import { loadMapUrlDialogStore } from "../store/loadMapUrlDialogState";
 import { type OptionsState, useOptionsState } from "../store/optionsState";
 import {
@@ -774,9 +775,19 @@ export function showSavePane(): void {
 }
 
 export function copyLinkToClickboard(): void {
-  const shrableLink = document.getElementById("sharableLink")!;
-  const link = shrableLink.getAttribute("href")!;
-  navigator.clipboard.writeText(link).then(() => tip("Link is copied to the clipboard", true, "success", 8000));
+  const stateLink = loadMapDialogStore.getState().sharableLinkUrl;
+  const domLink = (document.getElementById("sharableLink") as HTMLAnchorElement | null)?.getAttribute("href") ?? "";
+  const link = stateLink || (domLink && domLink !== "#" ? domLink : "");
+
+  if (!link) {
+    tip("Generate a sharable Dropbox link first", true, "warn", 3000);
+    return;
+  }
+
+  navigator.clipboard
+    .writeText(link)
+    .then(() => tip("Link is copied to the clipboard", true, "success", 8000))
+    .catch(() => tip("Failed to copy the link", true, "error", 3000));
 }
 
 export function showExportPane(): void {
@@ -792,44 +803,21 @@ export async function showLoadPane(): Promise<void> {
 
   const dropbox = Cloud.providers.dropbox;
   if (dropbox.api) {
-    document.getElementById("dropboxConnectButton")!.style.display = "none";
-    document.getElementById("loadFromDropboxSelect")!.style.display = "block";
-    const loadFromDropboxButtons = document.getElementById("loadFromDropboxButtons")!;
-    const fileSelect = document.getElementById("loadFromDropboxSelect") as HTMLSelectElement;
-    const makeStatusOption = (label: string): HTMLOptionElement => {
-      const opt = document.createElement("option");
-      opt.textContent = label;
-      opt.value = "";
-      opt.disabled = true;
-      opt.selected = true;
-      return opt;
-    };
-    fileSelect.replaceChildren(makeStatusOption("Loading..."));
+    loadMapDialogStore.getState().setDropboxLoading();
 
     const files = await dropbox.list();
 
     if (!files) {
-      loadFromDropboxButtons.style.display = "none";
-      fileSelect.replaceChildren(makeStatusOption("Save files to Dropbox first"));
+      loadMapDialogStore.getState().setDropboxNoFiles("Save files to Dropbox first");
       return;
     }
 
-    loadFromDropboxButtons.style.display = "block";
-    fileSelect.replaceChildren();
-    files.forEach(({ name, updated, size, path }) => {
-      const sizeMB = `${rn(size / 1024 / 1024, 2)} MB`;
-      const updatedOn = new Date(updated).toLocaleDateString();
-      const nameFormatted = `${updatedOn}: ${name} [${sizeMB}]`;
-      const option = new Option(nameFormatted, path);
-      fileSelect.options.add(option);
-    });
+    loadMapDialogStore.getState().setDropboxFiles(files);
 
     return;
   }
 
-  document.getElementById("dropboxConnectButton")!.style.display = "inline-block";
-  document.getElementById("loadFromDropboxButtons")!.style.display = "none";
-  document.getElementById("loadFromDropboxSelect")!.style.display = "none";
+  loadMapDialogStore.getState().setDropboxDisconnected();
 }
 
 export async function connectToDropbox(): Promise<void> {

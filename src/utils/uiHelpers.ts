@@ -13,6 +13,7 @@ export const tooltipExtensions: {
   updateCellInfo?: (point: [number, number], i: number, g: number) => void;
 } = {};
 
+import { dialogStore } from "../store/dialogState";
 import { setHoverNotesState } from "../store/hoverNotesState";
 import { useOptionsState } from "../store/optionsState";
 import type { PackedGraphFeature } from "../types/models";
@@ -43,6 +44,19 @@ if (location.hostname !== "localhost" && location.hostname !== "127.0.0.1") {
 
 const tooltip = document.getElementById("tooltip")!;
 const onDataTipMove = debounce(showDataTip, 50);
+
+function isDialogVisible(id: string): boolean {
+  const isOpen = dialogStore.getState().openDialogs.has(id);
+  if (isOpen) return true;
+  const el = document.getElementById(id) as HTMLElement | null;
+  return Boolean(el?.offsetParent);
+}
+
+function getVisibleDialogElement(id: string): HTMLElement | null {
+  const el = document.getElementById(id) as HTMLElement | null;
+  if (!el) return null;
+  return isDialogVisible(id) ? el : null;
+}
 
 // Use document-level delegation so React-rendered containers (which don't
 // exist at module load time) are covered without re-binding after mount.
@@ -126,7 +140,7 @@ function handleMouseMove(this: Element, event: MouseEvent): void {
 let currentNoteId: string | null = null;
 
 function showNotes(e: MouseEvent): void {
-  if (window.notesEditor?.offsetParent) return;
+  if (isDialogVisible("notesEditor")) return;
   const target = e.target as HTMLElement;
   let id = target.id || (target.parentNode as HTMLElement)?.id || (target.parentNode?.parentNode as HTMLElement)?.id;
   if ((target.parentNode?.parentNode as HTMLElement)?.id === "burgLabels") id = `burg${target.dataset.id}`;
@@ -140,7 +154,7 @@ function showNotes(e: MouseEvent): void {
     setHoverNotesState({ isVisible: true, name: note.name, legend: note.legend });
   } else if (
     !worldContext.options.pinNotes &&
-    !window.markerEditor?.offsetParent &&
+    !isDialogVisible("markerEditor") &&
     !(e as KeyboardEvent & MouseEvent).shiftKey
   ) {
     setHoverNotesState({ isVisible: false, name: "", legend: "" });
@@ -218,7 +232,8 @@ function showMapTooltip(point: [number, number], e: MouseEvent, i: number, g: nu
       const burg = worldContext.pack.burgs[burgId];
       const population = si((burg.population ?? 0) * worldContext.populationRate * worldContext.urbanization);
       tip(`${burg.name} ${burg.group}. Population: ${population}. Click to edit`);
-      if (window.burgsOverview?.offsetParent) highlightEditorLine(window.burgsOverview, burgId, 5000);
+      const burgsOverviewEl = getVisibleDialogElement("burgsOverview");
+      if (burgsOverviewEl) highlightEditorLine(burgsOverviewEl, burgId, 5000);
       return;
     }
   }
@@ -289,7 +304,8 @@ function showMapTooltip(point: [number, number], e: MouseEvent, i: number, g: nu
     const zoneId = +zoneEl.dataset.id!;
     const zone = worldContext.pack.zones.find(zone => zone.i === zoneId);
     if (zone) tip(zone.name);
-    if (window.zonesEditor?.offsetParent) highlightEditorLine(window.zonesEditor, zoneId, 5000);
+    const zonesEditorEl = getVisibleDialogElement("zonesEditor");
+    if (zonesEditorEl) highlightEditorLine(zonesEditorEl, zoneId, 5000);
     return;
   }
 
@@ -304,31 +320,36 @@ function showMapTooltip(point: [number, number], e: MouseEvent, i: number, g: nu
   else if (layerIsOn("toggleBiomes") && worldContext.pack.cells.biome[i]) {
     const biome = worldContext.pack.cells.biome[i];
     tip(`Biome: ${worldContext.biomesData.name[biome]}`);
-    if (window.biomesEditor?.offsetParent) highlightEditorLine(window.biomesEditor!, biome);
+    const biomesEditorEl = getVisibleDialogElement("biomesEditor");
+    if (biomesEditorEl) highlightEditorLine(biomesEditorEl, biome);
   } else if (layerIsOn("toggleReligions") && worldContext.pack.cells.religion[i]) {
     const religion = worldContext.pack.cells.religion[i];
     const r = worldContext.pack.religions[religion];
     const type = r.type === "Cult" || r.type === "Heresy" ? r.type : `${r.type} religion`;
     tip(`${type}: ${r.name}`);
-    if (document.getElementById("religionsEditor")?.offsetParent)
-      highlightEditorLine(window.religionsEditor!, religion);
+    const religionsEditorEl = getVisibleDialogElement("religionsEditor");
+    if (religionsEditorEl) highlightEditorLine(religionsEditorEl, religion);
   } else if (worldContext.pack.cells.state[i] && (layerIsOn("toggleProvinces") || layerIsOn("toggleStates"))) {
     const state = worldContext.pack.cells.state[i];
     const stateName = worldContext.pack.states[state].fullName;
     const province = worldContext.pack.cells.province[i];
     const prov = province ? `${worldContext.pack.provinces[province].fullName}, ` : "";
     tip(prov + stateName);
-    if (document.getElementById("statesEditor")?.offsetParent) highlightEditorLine(window.statesEditor!, state);
-    if (document.getElementById("diplomacyEditor")?.offsetParent) highlightEditorLine(window.diplomacyEditor!, state);
-    if (document.getElementById("militaryOverview")?.offsetParent) highlightEditorLine(window.militaryOverview!, state);
-    if (document.getElementById("provincesEditor")?.offsetParent)
-      highlightEditorLine(window.provincesEditor!, province);
+    const statesEditorEl = getVisibleDialogElement("statesEditor");
+    if (statesEditorEl) highlightEditorLine(statesEditorEl, state);
+    const diplomacyEditorEl = getVisibleDialogElement("diplomacyEditor");
+    if (diplomacyEditorEl) highlightEditorLine(diplomacyEditorEl, state);
+    const militaryOverviewEl = getVisibleDialogElement("militaryOverview");
+    if (militaryOverviewEl) highlightEditorLine(militaryOverviewEl, state);
+    const provincesEditorEl = getVisibleDialogElement("provincesEditor");
+    if (provincesEditorEl) highlightEditorLine(provincesEditorEl, province);
     const mergeStatesForm = document.getElementById("mergeStatesForm");
     if (mergeStatesForm?.offsetParent) highlightEditorLine(mergeStatesForm, state);
   } else if (layerIsOn("toggleCultures") && worldContext.pack.cells.culture[i]) {
     const culture = worldContext.pack.cells.culture[i];
     tip(`Culture: ${worldContext.pack.cultures[culture].name}`);
-    if (document.getElementById("culturesEditor")?.offsetParent) highlightEditorLine(window.culturesEditor!, culture);
+    const culturesEditorEl = getVisibleDialogElement("culturesEditor");
+    if (culturesEditorEl) highlightEditorLine(culturesEditorEl, culture);
   } else if (layerIsOn("toggleHeight")) tip(`Height: ${getFriendlyHeight(point)}`);
 }
 
