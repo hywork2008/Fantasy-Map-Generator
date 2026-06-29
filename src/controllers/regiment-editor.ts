@@ -301,10 +301,7 @@ export const regimentEditorActions = {
     const units = getRegimentEditorState().units.map(u => (u.name === unitName ? { ...u, count } : u));
     setRegimentEditorState({ units });
 
-    const militaryOverviewRefresh = document.getElementById("militaryOverviewRefresh");
-    const regimentsOverviewRefresh = document.getElementById("regimentsOverviewRefresh");
-    if (militaryOverviewRefresh?.offsetParent) militaryOverviewRefresh.click();
-    if (regimentsOverviewRefresh?.offsetParent) regimentsOverviewRefresh.click();
+    document.dispatchEvent(new CustomEvent("fmg:refresh-military"));
   },
 
   splitRegiment(): void {
@@ -367,8 +364,7 @@ export const regimentEditorActions = {
     Military.generateNote(newReg, worldContext.pack.states[state]);
     drawRegiment(worldContext, viewContext, appServices, newReg, state);
 
-    const regimentsOverviewRefresh = document.getElementById("regimentsOverviewRefresh");
-    if (regimentsOverviewRefresh?.offsetParent) regimentsOverviewRefresh.click();
+    document.dispatchEvent(new CustomEvent("fmg:refresh-military"));
   },
 
   toggleAdd(): void {
@@ -449,10 +445,7 @@ export const regimentEditorActions = {
         if (index !== -1) worldContext.notes.splice(index, 1);
         getRegEl().remove();
 
-        const militaryOverviewRefresh = document.getElementById("militaryOverviewRefresh");
-        const regimentsOverviewRefresh = document.getElementById("regimentsOverviewRefresh");
-        if (militaryOverviewRefresh?.offsetParent) militaryOverviewRefresh.click();
-        if (regimentsOverviewRefresh?.offsetParent) regimentsOverviewRefresh.click();
+        document.dispatchEvent(new CustomEvent("fmg:refresh-military"));
         closeDialog("regimentEditor");
       }
     });
@@ -472,8 +465,7 @@ function addRegimentOnClick(this: SVGElement, event: MouseEvent): void {
   military.push(reg);
   Military.generateNote(reg, worldContext.pack.states[state]);
   drawRegiment(worldContext, viewContext, appServices, reg, state);
-  const regimentsOverviewRefresh = document.getElementById("regimentsOverviewRefresh");
-  if (regimentsOverviewRefresh?.offsetParent) regimentsOverviewRefresh.click();
+  document.dispatchEvent(new CustomEvent("fmg:refresh-military"));
   regimentEditorActions.toggleAdd();
 }
 
@@ -574,8 +566,7 @@ function attachRegimentOnClick(this: SVGElement, event: MouseEvent): void {
   if (index !== -1) worldContext.notes.splice(index, 1);
   getRegEl().remove();
 
-  const regimentsOverviewRefresh = document.getElementById("regimentsOverviewRefresh");
-  if (regimentsOverviewRefresh?.offsetParent) regimentsOverviewRefresh.click();
+  document.dispatchEvent(new CustomEvent("fmg:refresh-military"));
   closeDialog("regimentEditor");
   editRegiment(`#${regSelected.id}`);
 }

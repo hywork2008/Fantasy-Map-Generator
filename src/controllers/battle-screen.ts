@@ -10,6 +10,7 @@ import { Names } from "../generators/names-generator";
 import { appendMarkerToLayer, moveRegiment } from "../renderers/index";
 import type { BattleRegimentDisplay, BattleSide } from "../store/battleScreenState";
 import { getBattleScreenState } from "../store/battleScreenState";
+import { useOptionsState } from "../store/optionsState";
 import type { MilitaryRegiment } from "../types/models";
 import { closeDialog, closeDialogs, openDialog } from "../ui/dialogs/dialogService";
 import { findCell, getAdjective, last, list, minmax, P, Pint, rand, rn, wiki } from "../utils";
@@ -150,7 +151,7 @@ class Battle {
 
     const state = worldContext.pack.states[regiment.state];
     const distance = (Math.hypot(this.y - regiment.by, this.x - regiment.bx) * worldContext.distanceScale) | 0;
-    const distanceUnit = (document.getElementById("distanceUnitInput") as HTMLSelectElement | null)?.value ?? "km";
+    const distanceUnit = useOptionsState.getState().distanceUnit ?? "km";
     const color = (state.color ?? "#999")[0] === "#" ? (state.color ?? "#999") : "#999";
 
     const display: BattleRegimentDisplay = {

@@ -6,10 +6,6 @@
 
 | ファイル名 | 主な役割 | 残存している非Reactパターンの例 |
 | :--- | :--- | :--- |
-| **軍事・部隊系** | | |
-| `units-editor.ts` | 軍事ユニットエディタ | `document.getElementById`, `.addEventListener` の使用 |
-| `regiment-editor.ts` | 連隊エディタ | `document.getElementById` によるUI取得 |
-| `battle-screen.ts` | 戦闘画面UI | `document.getElementById` による直接書き換え |
 | **装飾・メタデータ系** | | |
 | `style.ts` | スタイルエディタ | `.addEventListener`, `document.getElementById` の広範な使用 |
 | `emblems-editor.ts` | 紋章エディタ | `document.getElementById` の使用 |

@@ -1,5 +1,5 @@
 import type React from "react";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { worldContext } from "../../context/worldContext";
 import { downloadFile, getFileName } from "../../controllers/editors";
 import {
@@ -20,6 +20,12 @@ export const MilitaryOverviewDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("militaryOverview"));
   const { sortBy, sortOrder, percentageMode, refreshCounter, toggleSortBy, togglePercentageMode, refresh } =
     useMilitaryOverviewState();
+
+  useEffect(() => {
+    const handleRefresh = () => refresh();
+    document.addEventListener("fmg:refresh-military", handleRefresh);
+    return () => document.removeEventListener("fmg:refresh-military", handleRefresh);
+  }, [refresh]);
 
   const { militaryOptions, lines, totals } = useMemo(() => {
     void refreshCounter;

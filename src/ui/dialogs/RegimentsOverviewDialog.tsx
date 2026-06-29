@@ -111,6 +111,12 @@ export const RegimentsOverviewDialog: React.FC = () => {
     return () => clearAddRegimentClickHandler();
   }, [addMode, isOpen, filterStateId, setAddMode, refresh]);
 
+  useEffect(() => {
+    const handleRefresh = () => refresh();
+    document.addEventListener("fmg:refresh-military", handleRefresh);
+    return () => document.removeEventListener("fmg:refresh-military", handleRefresh);
+  }, [refresh]);
+
   // Clean up add mode when dialog closes
   useEffect(() => {
     if (!isOpen && addMode) {

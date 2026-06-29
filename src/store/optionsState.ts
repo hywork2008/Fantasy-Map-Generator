@@ -44,6 +44,12 @@ export interface OptionsState {
   emblemShape: string;
   temperatureScale: string;
 
+  // Units settings
+  distanceUnit: string;
+  heightUnit: string;
+  areaUnit: string;
+  heightExponent: number;
+
   // Zoom settings
   zoomExtentMin: number;
   zoomExtentMax: number;
@@ -96,6 +102,11 @@ export const useOptionsState = create<OptionsState>(set => ({
   speakerVoice: "",
   emblemShape: "culture",
   temperatureScale: localStorage.getItem("temperatureScale") ?? "°C",
+
+  distanceUnit: localStorage.getItem("distanceUnit") ?? "km",
+  heightUnit: localStorage.getItem("heightUnit") ?? "m",
+  areaUnit: localStorage.getItem("areaUnit") ?? "square",
+  heightExponent: Number(localStorage.getItem("heightExponent") ?? 1.8),
 
   zoomExtentMin: 1,
   zoomExtentMax: 20,

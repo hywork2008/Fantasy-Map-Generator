@@ -6,12 +6,13 @@ import { Routes } from "../generators/routes-generator";
 import { drawTemperature } from "../renderers";
 import { drawScaleBar, fitScaleBar } from "../renderers/index";
 import { modules, rulers, setRulers } from "../store/editorState";
+import { useOptionsState } from "../store/optionsState";
 import { getUnitsEditorState, setUnitsEditorState } from "../store/unitsEditorState";
 import { closeDialogs, openConfirm, openDialog } from "../ui/dialogs/dialogService";
-import { findCell, showPrompt } from "../utils";
+import { findCell } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { layerIsOn } from "../utils/nodeUtils";
-import { clearMainTip, lock, tip, unlock } from "../utils/uiHelpers";
+import { clearMainTip, tip } from "../utils/uiHelpers";
 import { toggleRulers } from "./layers";
 import { calculateFriendlyGridSize } from "./style";
 
@@ -48,18 +49,7 @@ const renderScaleBar = () => {
 };
 
 export const unitsEditorActions = {
-  changeDistanceUnit(value: string): void {
-    if (value === "custom_name") {
-      const select = document.getElementById("distanceUnitInput") as HTMLSelectElement;
-      showPrompt("Provide a custom name for a distance unit", { default: "" }, customValue => {
-        const custom = String(customValue);
-        select.options.add(new Option(custom, custom, false, true));
-        lock("distanceUnit");
-        renderScaleBar();
-        calculateFriendlyGridSize();
-      });
-      return;
-    }
+  changeDistanceUnit(_value: string): void {
     renderScaleBar();
     calculateFriendlyGridSize();
   },
@@ -70,14 +60,8 @@ export const unitsEditorActions = {
     calculateFriendlyGridSize();
   },
 
-  changeHeightUnit(value: string): void {
-    if (value !== "custom_name") return;
-    const select = document.getElementById("heightUnit") as HTMLSelectElement;
-    showPrompt("Provide a custom name for a height unit", { default: "" }, customValue => {
-      const custom = String(customValue);
-      select.options.add(new Option(custom, custom, false, true));
-      lock("heightUnit");
-    });
+  changeHeightUnit(_value: string): void {
+    // React UI handles custom name prompts and state sync
   },
 
   changeHeightExponent(): void {
@@ -102,53 +86,39 @@ export const unitsEditorActions = {
   },
 
   restoreDefaultUnits(): void {
+    const options = useOptionsState.getState();
     worldContext.distanceScale = 3;
-    const distanceScaleInput = document.getElementById("distanceScaleInput") as HTMLInputElement | null;
-    if (distanceScaleInput) distanceScaleInput.value = String(worldContext.distanceScale);
-    unlock("distanceScale");
-
     const US = navigator.language === "en-US";
     const UK = navigator.language === "en-GB";
-    const distanceUnitInput = document.getElementById("distanceUnitInput") as HTMLSelectElement | null;
-    const heightUnit = document.getElementById("heightUnit") as HTMLSelectElement | null;
-    const temperatureScale = document.getElementById("temperatureScale") as HTMLSelectElement | null;
-    const areaUnit = document.getElementById("areaUnit") as HTMLInputElement | null;
 
-    if (distanceUnitInput) distanceUnitInput.value = US || UK ? "mi" : "km";
-    if (heightUnit) heightUnit.value = US || UK ? "ft" : "m";
-    if (temperatureScale) temperatureScale.value = US ? "°F" : "°C";
-    if (areaUnit) areaUnit.value = "square";
+    options.setOptions({
+      distanceScale: 3,
+      distanceUnit: US || UK ? "mi" : "km",
+      heightUnit: US || UK ? "ft" : "m",
+      temperatureScale: US ? "°F" : "°C",
+      areaUnit: "square",
+      heightExponent: 1.8,
+      populationRate: 1000,
+      urbanization: 1,
+      urbanDensity: 10
+    });
+
+    worldContext.populationRate = 1000;
+    worldContext.urbanization = 1;
+    worldContext.urbanDensity = 10;
+
     localStorage.removeItem("distanceUnit");
     localStorage.removeItem("heightUnit");
     localStorage.removeItem("temperatureScale");
     localStorage.removeItem("areaUnit");
-    calculateFriendlyGridSize();
-
-    const heightExponentInput = document.getElementById("heightExponentInput") as HTMLInputElement | null;
-    if (heightExponentInput) heightExponentInput.value = "1.8";
     localStorage.removeItem("heightExponent");
-    document.dispatchEvent(new CustomEvent("fmg:world-recalculate", { detail: { temps: true } }));
-
-    renderScaleBar();
-
-    const populationRateInput = document.getElementById("populationRateInput") as HTMLInputElement | null;
-    const urbanizationInput = document.getElementById("urbanizationInput") as HTMLInputElement | null;
-    const urbanDensityInput = document.getElementById("urbanDensityInput") as HTMLInputElement | null;
-    if (populationRateInput) {
-      populationRateInput.value = "1000";
-      worldContext.populationRate = 1000;
-    }
-    if (urbanizationInput) {
-      urbanizationInput.value = "1";
-      worldContext.urbanization = 1;
-    }
-    if (urbanDensityInput) {
-      urbanDensityInput.value = "10";
-      worldContext.urbanDensity = 10;
-    }
     localStorage.removeItem("populationRate");
     localStorage.removeItem("urbanization");
     localStorage.removeItem("urbanDensity");
+
+    calculateFriendlyGridSize();
+    document.dispatchEvent(new CustomEvent("fmg:world-recalculate", { detail: { temps: true } }));
+    renderScaleBar();
   },
 
   addRuler(): void {
