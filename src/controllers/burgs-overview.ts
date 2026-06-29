@@ -31,7 +31,7 @@ export function overviewBurgs(settings: { stateId?: number | null; cultureId?: n
 }
 
 export function zoomIntoBurg(burgId: number): void {
-  const label = document.querySelector(`#burgLabels [data-id='${burgId}']`) as SVGTextElement | null;
+  const label = viewContext.burgLabels.select(`[data-id='${burgId}']`).node() as SVGTextElement | null;
   if (!label) return;
   const x = +label.getAttribute("x")!;
   const y = +label.getAttribute("y")!;
@@ -72,7 +72,6 @@ export function stopAddBurgMode(): void {
   viewContext.customization = 0;
   EditorBus.restoreDefaultEvents();
   clearMainTip();
-  document.getElementById("addBurgTool")?.classList.remove("pressed");
 }
 
 export function regenerateBurgNames(refresh: () => void): void {
@@ -86,8 +85,7 @@ export function regenerateBurgNames(refresh: () => void): void {
 }
 
 export function downloadBurgsData(): void {
-  const heightUnitEl = document.getElementById("heightUnit") as HTMLSelectElement | null;
-  const heightUnitVal = heightUnitEl?.value ?? "m";
+  const heightUnitVal = localStorage.getItem("heightUnit") ?? "m";
 
   let data = `Id,Burg,Province,Province Full Name,State,State Full Name,Culture,Religion,Group,Population,X,Y,Latitude,Longitude,Elevation (${heightUnitVal}),Temperature,Temperature likeness,Capital,Port,Citadel,Walls,Plaza,Temple,Shanty Town,Emblem,Preview link\n`;
   const valid = worldContext.pack.burgs.filter(b => b.i && !b.removed);
@@ -128,7 +126,7 @@ export function downloadBurgsData(): void {
   downloadFile(data, name);
 }
 
-export function renameBurgsInBulk(): void {
+export function renameBurgsInBulk(onUpload?: () => void): void {
   burgsRenamingDialogStore.getState().open({
     onDownload: () => {
       const data = worldContext.pack.burgs
@@ -138,7 +136,7 @@ export function renameBurgsInBulk(): void {
       const name = `${getFileName("Burg names")}.txt`;
       downloadFile(data, name);
     },
-    onUpload: () => (document.getElementById("burgsListToLoad") as HTMLInputElement | null)?.click()
+    onUpload: onUpload ?? (() => (document.getElementById("burgsListToLoad") as HTMLInputElement | null)?.click())
   });
 }
 

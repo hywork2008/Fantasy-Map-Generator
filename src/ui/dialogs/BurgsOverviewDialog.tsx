@@ -358,7 +358,12 @@ export const BurgsOverviewDialog: React.FC = () => {
             className="icon-download"
             onClick={downloadBurgsData}
           />
-          <button type="button" data-tip="Rename burgs in bulk" className="icon-upload" onClick={renameBurgsInBulk} />
+          <button
+            type="button"
+            data-tip="Rename burgs in bulk"
+            className="icon-upload"
+            onClick={() => renameBurgsInBulk(() => fileInputRef.current?.click())}
+          />
           <button
             type="button"
             data-tip="Lock or unlock all burgs"

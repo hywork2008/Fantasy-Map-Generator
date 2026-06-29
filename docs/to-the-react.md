@@ -6,9 +6,6 @@
 
 | ファイル名 | 主な役割 | 残存している非Reactパターンの例 |
 | :--- | :--- | :--- |
-| **都市・拠点系** | | |
-| `burgs-overview.ts` | 都市一覧概要 | `document.getElementById` による要素取得 |
-| `burg-group-editor.ts` | 都市グループエディタ | `.addEventListener` によるイベント登録 |
 | **軍事・部隊系** | | |
 | `units-editor.ts` | 軍事ユニットエディタ | `document.getElementById`, `.addEventListener` の使用 |
 | `regiment-editor.ts` | 連隊エディタ | `document.getElementById` によるUI取得 |
