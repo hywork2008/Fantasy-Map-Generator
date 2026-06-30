@@ -2,6 +2,7 @@ import { useViewState } from "../store";
 import { ExitCustomization } from "./components/ExitCustomization";
 import { NotesBox } from "./components/NotesBox";
 import { OptionsContainer } from "./components/OptionsContainer";
+import { ToastContainer } from "./components/Toast";
 import { DialogsContainer } from "./dialogs/DialogsContainer";
 
 export const App = () => {
@@ -20,6 +21,8 @@ export const App = () => {
         zIndex: 1000
       }}
     >
+      <ToastContainer />
+
       <DialogsContainer />
       {/* The Options Menu */}
       <OptionsContainer />

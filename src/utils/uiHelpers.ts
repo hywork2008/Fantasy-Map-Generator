@@ -16,6 +16,7 @@ export const tooltipExtensions: {
 import { dialogStore } from "../store/dialogState";
 import { setHoverNotesState } from "../store/hoverNotesState";
 import { useOptionsState } from "../store/optionsState";
+import { useToastStore } from "../store/toastStore";
 import type { PackedGraphFeature } from "../types/models";
 import { openAlert } from "../ui/dialogs/dialogService";
 import { debounce, getLatitude, getLongitude, link } from "./commonUtils";
@@ -42,7 +43,6 @@ if (location.hostname !== "localhost" && location.hostname !== "127.0.0.1") {
 
 // ─── Tooltips ─────────────────────────────────────────────────────────────────
 
-const tooltip = document.getElementById("tooltip")!;
 const onDataTipMove = debounce(showDataTip, 50);
 
 function isDialogVisible(id: string): boolean {
@@ -75,25 +75,36 @@ export function tip(
   type: "info" | "warn" | "error" | "success" = "info",
   time = 0
 ): void {
-  tooltip.innerHTML = message;
-  tooltip.style.background = tipBackgroundMap[type];
+  const store = useToastStore.getState();
 
   if (main) {
-    tooltip.dataset.main = message;
-    tooltip.dataset.color = tooltip.style.background;
+    store.setMainToast(message, tipBackgroundMap[type]);
+    if (time) setTimeout(clearMainTip, time);
+  } else {
+    store.addToast(message, type, false, time);
   }
-  if (time) setTimeout(clearMainTip, time);
 }
 
 export function showMainTip(): void {
-  tooltip.style.background = tooltip.dataset.color ?? "";
-  tooltip.innerHTML = tooltip.dataset.main ?? "";
+  const store = useToastStore.getState();
+  const main = store.getMainToast();
+  if (main) {
+    const tooltip = document.getElementById("tooltip");
+    if (tooltip) {
+      tooltip.style.background = main.color;
+      tooltip.innerHTML = main.message;
+    }
+  }
 }
 
 export function clearMainTip(): void {
-  tooltip.dataset.color = "";
-  tooltip.dataset.main = "";
-  tooltip.innerHTML = "";
+  const store = useToastStore.getState();
+  store.clearMainToast();
+  const tooltip = document.getElementById("tooltip");
+  if (tooltip) {
+    tooltip.innerHTML = "";
+    tooltip.style.background = "";
+  }
 }
 
 export function showDataTip(event: MouseEvent): void {
@@ -131,8 +142,12 @@ function handleMouseMove(this: Element, event: MouseEvent): void {
 
   showNotes(event);
   const gridCell = findGridCell(point[0], point[1], worldContext.grid);
-  if (tooltip.dataset.main) showMainTip();
+  const store = useToastStore.getState();
+  const hasMainToast = store.getMainToast() !== null;
+
+  if (hasMainToast) showMainTip();
   else showMapTooltip(point, event, i, gridCell);
+
   const cellInfoEl = document.getElementById("cellInfo") as HTMLElement | null;
   if (cellInfoEl?.offsetParent) updateCellInfo(point, i, gridCell);
 }
