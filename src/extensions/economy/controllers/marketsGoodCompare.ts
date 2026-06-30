@@ -1,6 +1,5 @@
-import { openDialog } from "../../../ui/dialogs/dialogService";
-import { formatPrice, rn } from "../../../utils";
-import { downloadFile, getFileName } from "../../../utils/editorHelpers";
+import { openDialog } from "../../hostUi";
+import { downloadFile, formatPrice, getFileName, rn } from "../../hostUtils";
 import { getApi, getWorldContext } from "../economyContext";
 import { Goods } from "../generators/goods-generator";
 import { Markets } from "../generators/markets-generator";

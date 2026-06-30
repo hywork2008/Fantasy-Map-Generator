@@ -1,7 +1,5 @@
-import { createLayerCanvas } from "../../../canvas/map-canvas";
-import { normalize, rn } from "../../../utils";
-import { TIME } from "../../../utils/debug";
-import { getPackPolygon } from "../../../utils/graphUtils";
+import { createLayerCanvas } from "../../hostCore";
+import { getPackPolygon, normalize, rn, TIME } from "../../hostUtils";
 import { getGoodsLayer, getWorldContext } from "../economyContext";
 import type { Good } from "../generators/goods-generator";
 import { Goods } from "../generators/goods-generator";

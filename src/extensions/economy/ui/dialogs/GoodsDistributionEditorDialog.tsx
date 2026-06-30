@@ -1,7 +1,6 @@
 import React from "react";
-import { useDialogState } from "../../../../store/dialogState";
-import { Dialog } from "../../../../ui/dialogs/Dialog";
-import { closeDialog } from "../../../../ui/dialogs/dialogService";
+import { closeDialog, Dialog, useDialogState } from "../../../hostUi";
+
 import {
   addCondition,
   addGroup,

@@ -1,7 +1,5 @@
 import { color, curveBasisClosed, line, select } from "d3";
-import { rn } from "../../../utils";
-import { TIME } from "../../../utils/debug";
-import { getIsolines } from "../../../utils/pathUtils";
+import { getIsolines, rn, TIME } from "../../hostUtils";
 import { getMarketsFillLayer, getMarketsLayer, getViewContext, getWorldContext } from "../economyContext";
 
 export function drawMarketsLayer() {

@@ -1,8 +1,8 @@
 import React from "react";
-import { useDialogState } from "../../../../store/dialogState";
-import { Dialog } from "../../../../ui/dialogs/Dialog";
-import { closeDialog } from "../../../../ui/dialogs/dialogService";
-import { rn } from "../../../../utils";
+
+import { closeDialog, Dialog, useDialogState } from "../../../hostUi";
+import { rn } from "../../../hostUtils";
+
 import {
   addGood,
   closeGoodsEditor,

@@ -1,9 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { worldContext } from "../../../context/worldContext";
-import type { ExtensionAPI } from "../../../types/extension-api";
-import type { Grid } from "../../../types/Grid";
-import type { PackedGraph } from "../../../types/PackedGraph";
-import type { BiomesData } from "../../../types/WorldState";
+import { worldContext } from "../../hostCore";
+import type { BiomesData, ExtensionAPI, Grid, PackedGraph } from "../../hostTypes";
 import { clearEconomyContext, initEconomyContext } from "../economyContext";
 import "../types";
 import { GoodsModule } from "./goods-generator";

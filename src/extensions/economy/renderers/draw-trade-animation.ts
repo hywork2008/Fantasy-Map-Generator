@@ -1,6 +1,6 @@
 import { curveCatmullRom, easeLinear, line } from "d3";
-import type { Point } from "../../../generators/voronoi";
-import { minmax } from "../../../utils";
+import type { Point } from "../../hostCore";
+import { minmax } from "../../hostUtils";
 import { getTradeAnimLayer, getViewContext } from "../economyContext";
 import { TradeAnimation, type TradeBatch } from "../generators/trade-animation";
 

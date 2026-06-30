@@ -1,5 +1,6 @@
 import type React from "react";
-import { Dialog } from "../../../../ui/dialogs/Dialog";
+import { Dialog } from "../../../hostUi";
+
 import { setGoodsStockDialogState, useGoodsStockDialogState } from "../../store/goodsStockDialogState";
 
 export const GoodsStockDialog: React.FC = () => {

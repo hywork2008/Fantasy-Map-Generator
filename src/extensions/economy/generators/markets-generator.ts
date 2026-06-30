@@ -1,10 +1,8 @@
 import Alea from "alea";
 import { quadtree } from "d3-quadtree";
 import FlatQueue from "flatqueue";
-import type { Burg } from "../../../types/models";
-import { minmax, rn } from "../../../utils";
-import { getColors, getRandomColor } from "../../../utils/colorUtils";
-import { TIME } from "../../../utils/debug";
+import type { Burg } from "../../hostTypes";
+import { getColors, getRandomColor, minmax, rn, TIME } from "../../hostUtils";
 import { getWorldContext } from "../economyContext";
 import type { DemandCategory, Good } from "./goods-generator";
 import { DEMAND_PRIORITY, DEMAND_TARGET_FACTORS, Goods } from "./goods-generator";

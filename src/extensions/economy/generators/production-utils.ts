@@ -1,7 +1,6 @@
 import { sum } from "d3";
-import type { Zone } from "../../../types/models";
-import { DEFAULT_CULTURE_TYPE } from "../../../types/models";
-import { rn } from "../../../utils/numberUtils";
+import { DEFAULT_CULTURE_TYPE, type Zone } from "../../hostTypes";
+import { rn } from "../../hostUtils";
 import { getWorldContext } from "../economyContext";
 import { type Good, Goods } from "./goods-generator";
 

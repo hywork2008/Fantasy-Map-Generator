@@ -1,9 +1,8 @@
 import React from "react";
-import { useDialogState } from "../../../../store/dialogState";
-import { FillBox } from "../../../../ui/components/FillBox";
-import { Dialog } from "../../../../ui/dialogs/Dialog";
-import { closeDialog, openConfirm } from "../../../../ui/dialogs/dialogService";
-import { formatPrice } from "../../../../utils";
+
+import { closeDialog, Dialog, FillBox, openConfirm, useDialogState } from "../../../hostUi";
+import { formatPrice } from "../../../hostUtils";
+
 import {
   closeMarketsOverview,
   marketsOverviewActions,

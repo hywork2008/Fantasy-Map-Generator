@@ -1,6 +1,7 @@
 import type React from "react";
 import { useEffect, useState } from "react";
-import { Dialog } from "../../../../ui/dialogs/Dialog";
+import { Dialog } from "../../../hostUi";
+
 import { setGoodsTagsDialogState, useGoodsTagsDialogState } from "../../store/goodsTagsDialogState";
 
 export const GoodsTagsFilterDialog: React.FC = () => {

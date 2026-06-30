@@ -1,6 +1,6 @@
-import type { WorldContext } from "../../../context/worldContext";
-import { getHeight } from "../../../services/cellInfoService";
-import { convertTemperature, list, rn } from "../../../utils";
+import type { WorldContext } from "../../hostCore";
+import { getHeight } from "../../hostServices";
+import { convertTemperature, list, rn } from "../../hostUtils";
 
 export type ParamType = "none" | "number" | "biomes" | "shore" | "featureType";
 

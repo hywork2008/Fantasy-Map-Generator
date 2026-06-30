@@ -1,9 +1,8 @@
 import React from "react";
-import { useDialogState } from "../../../../store/dialogState";
-import { Dialog } from "../../../../ui/dialogs/Dialog";
-import { closeDialog } from "../../../../ui/dialogs/dialogService";
-import { formatPrice } from "../../../../utils";
-import { applySorting } from "../../../../utils/domUtils";
+
+import { closeDialog, Dialog, useDialogState } from "../../../hostUi";
+import { applySorting, formatPrice } from "../../../hostUtils";
+
 import {
   downloadDealsCsv,
   refreshMarketDeals,

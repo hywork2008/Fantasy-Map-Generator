@@ -1,6 +1,6 @@
 // @ts-nocheck
 
-import { openDialog } from "../../../ui/dialogs/dialogService";
+import { openDialog } from "../../hostUi";
 import { getWorldContext } from "../economyContext";
 import { Goods } from "../generators/goods-generator";
 import {

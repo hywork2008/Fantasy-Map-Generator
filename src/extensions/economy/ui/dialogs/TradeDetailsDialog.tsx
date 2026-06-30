@@ -1,8 +1,8 @@
 import React from "react";
-import { useDialogState } from "../../../../store/dialogState";
-import { Dialog } from "../../../../ui/dialogs/Dialog";
-import { closeDialog } from "../../../../ui/dialogs/dialogService";
-import { formatPrice, rn } from "../../../../utils";
+
+import { closeDialog, Dialog, useDialogState } from "../../../hostUi";
+import { formatPrice, rn } from "../../../hostUtils";
+
 import { closeTradeDetails } from "../../controllers/trade-details";
 import { useTradeDetailsState } from "../../store/tradeDetailsState";
 

@@ -1,9 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { worldContext } from "../../../context/worldContext";
-import { States } from "../../../generators/states-generator";
-import type { ExtensionAPI } from "../../../types/extension-api";
-import type { Burg } from "../../../types/models";
-import type { PackedGraph } from "../../../types/PackedGraph";
+import { States, worldContext } from "../../hostCore";
+import type { Burg, ExtensionAPI, PackedGraph } from "../../hostTypes";
 import { clearEconomyContext, initEconomyContext } from "../economyContext";
 import "../types";
 import { type Market, MarketsModule } from "./markets-generator";

@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
+import { worldContext } from "../../hostCore";
+import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
 
 vi.mock("../renderers/draw-trade-animation", () => ({
   draw: vi.fn(),
@@ -17,9 +19,6 @@ vi.mock("./markets-generator", () => ({
   }
 }));
 
-import { worldContext } from "../../../context/worldContext";
-import type { ExtensionAPI } from "../../../types/extension-api";
-import type { PackedGraph } from "../../../types/PackedGraph";
 import { clearEconomyContext, initEconomyContext } from "../economyContext";
 import "../types";
 import * as drawTrade from "../renderers/draw-trade-animation";

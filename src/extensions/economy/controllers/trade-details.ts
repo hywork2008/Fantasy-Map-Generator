@@ -1,8 +1,8 @@
-import type { Point } from "../../../generators/voronoi";
-import { useOptionsState } from "../../../store/optionsState";
-import type { Burg } from "../../../types/models";
-import { openDialog } from "../../../ui/dialogs/dialogService";
-import { rn } from "../../../utils";
+import { type Point, useOptionsState } from "../../hostCore";
+import type { Burg } from "../../hostTypes";
+import { openDialog } from "../../hostUi";
+import { rn } from "../../hostUtils";
+
 import { getApi, getWorldContext } from "../economyContext";
 import { Goods } from "../generators/goods-generator";
 import type { Deal } from "../generators/markets-generator";

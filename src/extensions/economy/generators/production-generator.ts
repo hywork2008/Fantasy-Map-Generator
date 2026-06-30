@@ -1,6 +1,5 @@
-import type { Burg } from "../../../types/models";
-import { minmax, rn } from "../../../utils";
-import { DEBUG, ERROR, TIME } from "../../../utils/debug";
+import type { Burg } from "../../hostTypes";
+import { DEBUG, ERROR, minmax, rn, TIME } from "../../hostUtils";
 import { getWorldContext } from "../economyContext";
 import type { DemandCategory, Good } from "./goods-generator";
 import { DEMAND_PRIORITY, Goods, getDemandTargets } from "./goods-generator";
