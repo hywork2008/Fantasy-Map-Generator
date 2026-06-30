@@ -1,5 +1,5 @@
 import type React from "react";
-import { useEffect } from "react";
+import { useRef } from "react";
 import { connectToDropbox, loadURL } from "../../controllers/options";
 import { createSharableDropboxLink, loadFromDropbox, quickLoad, uploadMap } from "../../io/load";
 import { useDialogState } from "../../store/dialogState";
@@ -19,31 +19,34 @@ export const LoadMapDialog: React.FC = () => {
   const sharableLinkLabel = useLoadMapDialogState(state => state.sharableLinkLabel);
   const isSharableLinkVisible = useLoadMapDialogState(state => state.isSharableLinkVisible);
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const hasDropboxFiles = dropboxFiles.length > 0;
   const showDropboxSelect = isDropboxConnected;
   const showDropboxButtons = isDropboxConnected && hasDropboxFiles;
 
-  useEffect(() => {
-    const mapToLoad = document.getElementById("mapToLoad") as HTMLInputElement | null;
-    if (!mapToLoad) return;
-
-    const handleChange = function (this: HTMLInputElement) {
-      const fileToLoad = this.files![0];
-      this.value = "";
-      closeDialogs();
-      uploadMap(fileToLoad);
-    };
-
-    mapToLoad.addEventListener("change", handleChange);
-    return () => mapToLoad.removeEventListener("change", handleChange);
-  }, []);
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fileToLoad = e.currentTarget.files?.[0];
+    if (!fileToLoad) return;
+    e.currentTarget.value = "";
+    closeDialogs();
+    uploadMap(fileToLoad);
+  };
 
   const handleLoadFromMachine = () => {
-    document.getElementById("mapToLoad")?.click();
+    fileInputRef.current?.click();
   };
 
   return (
     <Dialog isOpen={isOpen} title="Load Map" onClose={() => closeDialog("loadMapData")}>
+      <input
+        ref={fileInputRef}
+        id="mapToLoad"
+        type="file"
+        accept=".map,.gz"
+        style={{ display: "none" }}
+        onChange={handleFileChange}
+      />
       <div>
         <strong>Load map from</strong>{" "}
         <button

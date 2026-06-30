@@ -1,4 +1,5 @@
 import type React from "react";
+import { useRef } from "react";
 import { HeightmapEditorActions } from "../../controllers/heightmapEditor";
 import { useDialogState } from "../../store/dialogState";
 import { setHeightmapEditorState, useHeightmapEditorState } from "../../store/heightmapEditorState";
@@ -14,6 +15,8 @@ export const ImageConverterDialog: React.FC = () => {
     imageConverterSelectedColor,
     imageConverterHoveredHeight
   } = useHeightmapEditorState();
+
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   const handleColorClick = (color: string) => {
     HeightmapEditorActions.imageConverterSelectColor?.(color);
@@ -42,6 +45,7 @@ export const ImageConverterDialog: React.FC = () => {
         <div>
           <div id="convertImageButtons">
             <input
+              ref={imageInputRef}
               type="file"
               id="imageConverterFileInput"
               style={{ display: "none" }}
@@ -53,7 +57,7 @@ export const ImageConverterDialog: React.FC = () => {
               id="convertImageLoad"
               data-tip="Load image to convert"
               className="icon-upload"
-              onClick={() => document.getElementById("imageConverterFileInput")?.click()}
+              onClick={() => imageInputRef.current?.click()}
             />
             <button
               type="button"

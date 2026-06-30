@@ -7,6 +7,7 @@ import { toggleRoutes } from "../../controllers/layers";
 import { createRoute, editRoute } from "../../controllers/routes-editor";
 import { Routes } from "../../generators/routes-generator";
 import { useDialogState } from "../../store/dialogState";
+import { useOptionsState } from "../../store/optionsState";
 import { useRoutesOverviewState } from "../../store/routesOverviewState";
 import { rn } from "../../utils";
 import { layerIsOn } from "../../utils/nodeUtils";
@@ -17,8 +18,9 @@ import { closeDialog, openConfirm } from "./dialogService";
 export const RoutesOverviewDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("routesOverview"));
   const { search, sortBy, sortOrder, refreshCounter, setSearch, toggleSortBy, refresh } = useRoutesOverviewState();
+  const distanceUnit = useOptionsState(s => s.distanceUnit);
 
-  const { filteredRoutes, averageLength, distanceUnit } = useMemo(() => {
+  const { filteredRoutes, averageLength } = useMemo(() => {
     void refreshCounter;
     let routes = worldContext.pack?.routes || [];
 
@@ -58,10 +60,7 @@ export const RoutesOverviewDialog: React.FC = () => {
     const averageLength =
       rn(routes.length > 0 ? routes.map(r => r.length || 0).reduce((a, b) => a + b, 0) / routes.length : 0) || 0;
 
-    const distanceUnitEl = document.getElementById("distanceUnitInput") as HTMLInputElement;
-    const distanceUnit = distanceUnitEl ? distanceUnitEl.value : "km";
-
-    return { filteredRoutes: routes, averageLength, distanceUnit };
+    return { filteredRoutes: routes, averageLength };
   }, [search, sortBy, sortOrder, refreshCounter]);
 
   const handleCreateNew = () => createRoute();

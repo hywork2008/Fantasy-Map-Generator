@@ -1,4 +1,5 @@
 import type React from "react";
+import { useRef } from "react";
 import { emblemEditorActions } from "../../controllers/emblems-editor";
 import { useEmblemEditorState } from "../../store/emblemEditorState";
 export const EmblemEditorContent: React.FC = () => {
@@ -18,6 +19,9 @@ export const EmblemEditorContent: React.FC = () => {
     downloadMode,
     downloadSize
   } = useEmblemEditorState();
+
+  const emblemImageInputRef = useRef<HTMLInputElement>(null);
+  const emblemSvgInputRef = useRef<HTMLInputElement>(null);
 
   return (
     <div id="emblemEditor">
@@ -262,6 +266,7 @@ export const EmblemEditorContent: React.FC = () => {
             >
               <div style={{ display: "flex", gap: "0.5em" }}>
                 <input
+                  ref={emblemImageInputRef}
                   type="file"
                   id="emblemImageToLoad"
                   accept=".png, .jpg, .jpeg"
@@ -274,13 +279,14 @@ export const EmblemEditorContent: React.FC = () => {
                   type="button"
                   id="emblemsUploadImage"
                   data-tip="Upload SVG or PNG image from any source. Make sure background is transparent"
-                  onClick={() => document.getElementById("emblemImageToLoad")?.click()}
+                  onClick={() => emblemImageInputRef.current?.click()}
                   style={{ flexGrow: 1 }}
                 >
                   Any image
                 </button>
 
                 <input
+                  ref={emblemSvgInputRef}
                   type="file"
                   id="emblemSVGToLoad"
                   accept=".svg"
@@ -293,7 +299,7 @@ export const EmblemEditorContent: React.FC = () => {
                   type="button"
                   id="emblemsUploadSVG"
                   data-tip="Upload prepared SVG image (SVG from Armoria or SVG processed with 'Optimize vector' tool)"
-                  onClick={() => document.getElementById("emblemSVGToLoad")?.click()}
+                  onClick={() => emblemSvgInputRef.current?.click()}
                   style={{ flexGrow: 1 }}
                 >
                   Prepared SVG

@@ -78,7 +78,8 @@ export const WorldConfiguratorDialog: React.FC = () => {
 
     document.dispatchEvent(new CustomEvent("fmg:world-recalculate", { detail: { coords: true } }));
     const mc = worldContext.mapCoordinates;
-    const unit = (document.getElementById("distanceUnitInput") as HTMLSelectElement | null)?.value ?? "km";
+    const options = useOptionsState.getState();
+    const unit = options.distanceUnit;
 
     const eqD2 = eqD * 2;
     const meridianInUnit = eqD2 * worldContext.distanceScale;

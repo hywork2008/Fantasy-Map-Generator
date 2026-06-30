@@ -1,4 +1,5 @@
 import type React from "react";
+import { useRef } from "react";
 import { HeightmapEditorActions } from "../../controllers/heightmapEditor";
 import { useDialogState } from "../../store/dialogState";
 import { setHeightmapEditorState, type TemplateStep, useHeightmapEditorState } from "../../store/heightmapEditorState";
@@ -11,6 +12,7 @@ export const TemplateEditorDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("templateEditor"));
   const { templateSteps, templateSelected, templateSeed, templateSeedLocked, canUndo, canRedo } =
     useHeightmapEditorState();
+  const templateInputRef = useRef<HTMLInputElement>(null);
 
   const handleAddStep = (type: string) => {
     const step: TemplateStep = { id: generateId(), type };
@@ -419,9 +421,10 @@ export const TemplateEditorDialog: React.FC = () => {
               id="templateLoad"
               data-tip="Open previously downloaded template"
               className="icon-upload"
-              onClick={() => document.getElementById("templateToLoad")?.click()}
+              onClick={() => templateInputRef.current?.click()}
             />
             <input
+              ref={templateInputRef}
               type="file"
               id="templateToLoad"
               style={{ display: "none" }}

@@ -1,6 +1,6 @@
 import { mean } from "d3";
 import type React from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { viewContext } from "../../context/viewContext";
 import { worldContext } from "../../context/worldContext";
 import { getFileName, highlightElement } from "../../controllers/editors";
@@ -10,6 +10,7 @@ import { editRiver } from "../../controllers/rivers-editor";
 import { toggleAddRiver } from "../../controllers/tools";
 import { Rivers } from "../../generators/river-generator";
 import { useDialogState } from "../../store/dialogState";
+import { useOptionsState } from "../../store/optionsState";
 import { useRiversOverviewState } from "../../store/riversOverviewState";
 import { rn } from "../../utils";
 import { layerIsOn } from "../../utils/nodeUtils";
@@ -88,14 +89,7 @@ function toggleBasinsHightlight(): void {
 export const RiversOverviewDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("riversOverview"));
   const { search, sortBy, sortOrder, refreshCounter, setSearch, toggleSortBy, refresh } = useRiversOverviewState();
-  const [unit, setUnit] = useState("km");
-
-  useEffect(() => {
-    if (isOpen) {
-      const el = document.getElementById("distanceUnitInput") as HTMLInputElement;
-      if (el) setUnit(el.value);
-    }
-  }, [isOpen]); // refreshCounter removed as it's not needed for unit fetch if unit doesn't change on refresh
+  const unit = useOptionsState(s => s.distanceUnit);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: We explicitly depend on refreshCounter to force a re-calculation when data mutates externally
   const { filteredRivers, riversById } = useMemo(() => {

@@ -630,7 +630,7 @@ export function speak(text: string): void {
   const speaker = new SpeechSynthesisUtterance(text);
   const voices = speechSynthesis.getVoices();
   if (voices.length) {
-    const voiceId = +(document.getElementById("speakerVoice") as HTMLSelectElement).value;
+    const voiceId = +useOptionsState.getState().speakerVoice;
     speaker.voice = voices[voiceId];
   }
   speechSynthesis.speak(speaker);
@@ -767,14 +767,11 @@ export function removeCircle(): void {
 }
 
 export function getAreaUnit(squareMark = "²"): string {
-  const areaUnitEl = document.getElementById("areaUnit") as HTMLSelectElement | null;
-  const areaUnitValue = areaUnitEl ? areaUnitEl.value : localStorage.getItem("areaUnit") || "square";
-  if (areaUnitValue === "square") {
-    const distUnitEl = document.getElementById("distanceUnitInput") as HTMLInputElement | null;
-    const distUnitValue = distUnitEl ? distUnitEl.value : localStorage.getItem("distanceUnit") || "km";
-    return distUnitValue + squareMark;
+  const { areaUnit, distanceUnit } = useOptionsState.getState();
+  if (areaUnit === "square") {
+    return distanceUnit + squareMark;
   }
-  return areaUnitValue;
+  return areaUnit;
 }
 
 // Info DOM elements
