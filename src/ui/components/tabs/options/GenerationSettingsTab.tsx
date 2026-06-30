@@ -1,10 +1,19 @@
 import type React from "react";
 import { useOptionsState } from "../../../../store/optionsState";
+import { lock } from "../../../../utils/uiHelpers";
 import { SliderInput } from "../../SliderInput";
 
 export const GenerationSettingsTab: React.FC = () => {
   const options = useOptionsState();
   const updateOption = options.setOption;
+
+  const updateOptionAndLock = <K extends keyof Omit<typeof options, "setOption" | "setOptions">>(
+    key: K,
+    value: (typeof options)[K]
+  ) => {
+    updateOption(key, value);
+    lock(key as string);
+  };
 
   const handleMapSizeChange = () => {
     document.dispatchEvent(new CustomEvent("react-map-size-change"));
@@ -102,7 +111,7 @@ export const GenerationSettingsTab: React.FC = () => {
                 min="1"
                 max="13"
                 value={options.points}
-                onChange={e => updateOption("points", Number(e.target.value))}
+                onChange={e => updateOptionAndLock("points", Number(e.target.value))}
               />
             </td>
             <td>
@@ -124,7 +133,7 @@ export const GenerationSettingsTab: React.FC = () => {
                 spellCheck="false"
                 type="text"
                 value={options.mapName}
-                onChange={e => updateOption("mapName", e.target.value)}
+                onChange={e => updateOptionAndLock("mapName", e.target.value)}
               />
             </td>
             <td>
@@ -149,7 +158,7 @@ export const GenerationSettingsTab: React.FC = () => {
                 style={{ width: "24%", float: "left", fontSize: "smaller" }}
                 value={options.year}
                 onChange={e => {
-                  updateOption("year", Number(e.target.value));
+                  updateOptionAndLock("year", Number(e.target.value));
                   document.dispatchEvent(
                     new CustomEvent("react-change-year", { detail: { year: Number(e.target.value) } })
                   );
@@ -163,7 +172,7 @@ export const GenerationSettingsTab: React.FC = () => {
                 className="long"
                 value={options.era}
                 onChange={e => {
-                  updateOption("era", e.target.value);
+                  updateOptionAndLock("era", e.target.value);
                   document.dispatchEvent(new CustomEvent("react-change-era", { detail: { era: e.target.value } }));
                 }}
               />
@@ -206,7 +215,7 @@ export const GenerationSettingsTab: React.FC = () => {
                 min="1"
                 max="100"
                 value={options.cultures}
-                onChange={e => updateOption("cultures", Number(e.target.value))}
+                onChange={e => updateOptionAndLock("cultures", Number(e.target.value))}
               />
             </td>
             <td>
@@ -215,7 +224,7 @@ export const GenerationSettingsTab: React.FC = () => {
                 min="1"
                 max="100"
                 value={options.cultures}
-                onChange={e => updateOption("cultures", Number(e.target.value))}
+                onChange={e => updateOptionAndLock("cultures", Number(e.target.value))}
               />
             </td>
           </tr>
@@ -230,7 +239,7 @@ export const GenerationSettingsTab: React.FC = () => {
                 id="culturesSet"
                 value={options.culturesSet}
                 onChange={e => {
-                  updateOption("culturesSet", e.target.value);
+                  updateOptionAndLock("culturesSet", e.target.value);
                   document.dispatchEvent(new CustomEvent("react-change-cultures-set"));
                 }}
               >
@@ -273,7 +282,7 @@ export const GenerationSettingsTab: React.FC = () => {
                 min="0"
                 max="100"
                 value={options.statesNumber}
-                onChange={v => updateOption("statesNumber", Number(v))}
+                onChange={v => updateOptionAndLock("statesNumber", Number(v))}
               />
             </td>
           </tr>
@@ -288,7 +297,7 @@ export const GenerationSettingsTab: React.FC = () => {
                 min="0"
                 max="100"
                 value={options.provincesRatio}
-                onChange={v => updateOption("provincesRatio", Number(v))}
+                onChange={v => updateOptionAndLock("provincesRatio", Number(v))}
               />
             </td>
           </tr>
@@ -304,7 +313,7 @@ export const GenerationSettingsTab: React.FC = () => {
                 max="10"
                 step="0.1"
                 value={options.sizeVariety}
-                onChange={v => updateOption("sizeVariety", Number(v))}
+                onChange={v => updateOptionAndLock("sizeVariety", Number(v))}
               />
             </td>
           </tr>
@@ -320,7 +329,7 @@ export const GenerationSettingsTab: React.FC = () => {
                 max="2"
                 step="0.1"
                 value={options.growthRate}
-                onChange={v => updateOption("growthRate", Number(v))}
+                onChange={v => updateOptionAndLock("growthRate", Number(v))}
               />
             </td>
           </tr>
@@ -338,7 +347,7 @@ export const GenerationSettingsTab: React.FC = () => {
                 max="1000"
                 step="1"
                 value={options.manors}
-                onChange={e => updateOption("manors", Number(e.target.value))}
+                onChange={e => updateOptionAndLock("manors", Number(e.target.value))}
               />
             </td>
             <td>
@@ -357,7 +366,7 @@ export const GenerationSettingsTab: React.FC = () => {
                 min="0"
                 max="50"
                 value={options.religionsNumber}
-                onChange={v => updateOption("religionsNumber", Number(v))}
+                onChange={v => updateOptionAndLock("religionsNumber", Number(v))}
               />
             </td>
           </tr>
@@ -371,7 +380,7 @@ export const GenerationSettingsTab: React.FC = () => {
               <select
                 value={options.stateLabelsMode}
                 onChange={e => {
-                  updateOption("stateLabelsMode", e.target.value as "auto" | "short" | "full");
+                  updateOptionAndLock("stateLabelsMode", e.target.value as "auto" | "short" | "full");
                   document.dispatchEvent(
                     new CustomEvent("react-change-state-labels-mode", { detail: { mode: e.target.value } })
                   );

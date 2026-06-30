@@ -1,5 +1,6 @@
 import type React from "react";
 import { useEffect, useState } from "react";
+import { COArenderer } from "../../../../renderers/emblem-renderer";
 import { useOptionsState } from "../../../../store/optionsState";
 import { SliderInput } from "../../SliderInput";
 
@@ -264,7 +265,7 @@ export const UiSettingsTab: React.FC = () => {
             </td>
             <td>
               <svg className="emblemShapePreview" viewBox="0 0 200 210" aria-hidden="true">
-                <path id="emblemShapeImage" />
+                <path d={(COArenderer?.shieldPaths as Record<string, string>)?.[options.emblemShape] || ""} />
               </svg>
             </td>
           </tr>

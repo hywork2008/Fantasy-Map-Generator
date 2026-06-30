@@ -66,30 +66,6 @@ export async function showSupporters(): Promise<void> {
 
 // ─── Generic option change helpers ────────────────────────────────────────────
 
-function storeValueIfRequired(ev: Event): void {
-  const target = ev.target as HTMLElement;
-  if ((target as HTMLInputElement).dataset?.stored) lock((target as HTMLInputElement).dataset.stored!);
-}
-
-function updateOutputToFollowInput(ev: Event): void {
-  const target = ev.target as HTMLInputElement;
-  const id = target.id;
-  const value = target.value;
-
-  if (id === "manorsInput") {
-    useOptionsState.getState().setOptions({ manors: value === "1000" ? 1000 : +value });
-    return;
-  }
-
-  if (id.slice(-5) === "Input") {
-    const output = getElementById<HTMLInputElement | HTMLSelectElement>(`${id.slice(0, -5)}Output`);
-    if (output) output.value = value;
-  } else if (id.slice(-6) === "Output") {
-    const input = getElementById<HTMLInputElement | HTMLSelectElement>(`${id.slice(0, -6)}Input`);
-    if (input) input.value = value;
-  }
-}
-
 // ─── Options content listeners ────────────────────────────────────────────────
 
 // ─── Canvas size ───────────────────────────────────────────────────────────────
@@ -142,11 +118,7 @@ export function fitMapToScreen(): void {
   const svgHeight = Math.min(options.mapHeight, view.svgHeight);
   Object.assign(viewContext, { svgWidth, svgHeight });
 
-  const mapEl = getElementById<SVGSVGElement>("map");
-  if (mapEl) {
-    mapEl.setAttribute("width", String(svgWidth));
-    mapEl.setAttribute("height", String(svgHeight));
-  }
+  view.svg.attr("width", String(svgWidth)).attr("height", String(svgHeight));
 
   const { graphWidth, graphHeight } = worldContext;
   const zoomMin = rn(Math.max(svgWidth / graphWidth, svgHeight / graphHeight), 3);
@@ -273,10 +245,6 @@ function changeCultureSet(): void {
 }
 
 function changeEmblemShape(emblemShape: string): void {
-  const image = getElementById<SVGPathElement>("emblemShapeImage");
-  const shapePath = COArenderer && (COArenderer.shieldPaths as Record<string, string>)[emblemShape];
-  if (image) shapePath ? image.setAttribute("d", shapePath) : image.removeAttribute("d");
-
   const specificShape = ["culture", "state", "random"].includes(emblemShape) ? null : emblemShape;
   if (emblemShape === "random")
     (worldContext.pack.cultures as Culture[])
@@ -332,8 +300,6 @@ function changeUiSize(value: number): void {
 
   useOptionsState.getState().setOptions({ uiSize: value });
   getElementBySelector<HTMLElement>("body")!.style.fontSize = `${rn(value * 10, 2)}px`;
-  const optionsEl = getElementById<HTMLElement>("options");
-  if (optionsEl) optionsEl.style.width = `${value * 300}px`;
 }
 
 function getUImaxSize(): number {
@@ -499,11 +465,6 @@ export function applyStoredOptions(): void {
 
     const value = stored(key)!;
 
-    const input = (getElementById<HTMLInputElement | HTMLSelectElement>(`${key}Input`) ||
-      getElementById<HTMLInputElement | HTMLSelectElement>(key)) as HTMLInputElement | HTMLSelectElement | null;
-    const output = getElementById<HTMLInputElement | HTMLSelectElement>(`${key}Output`);
-    if (input) input.value = value;
-    if (output) output.value = value;
     lock(key);
 
     if (key === "points") changeCellsDensity(+value);
@@ -818,18 +779,6 @@ export function openExportToPngTiles(): void {
 }
 
 export function initOptions(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: AppServices): void {
-  // Generic option change helpers
-  const optionsEl = getElementById<HTMLElement>("options");
-  if (optionsEl) {
-    optionsEl.addEventListener("change", storeValueIfRequired);
-    optionsEl.addEventListener("input", updateOutputToFollowInput);
-  }
-  const dialogsEl = getElementById<HTMLElement>("dialogs");
-  if (dialogsEl) {
-    dialogsEl.addEventListener("change", storeValueIfRequired);
-    dialogsEl.addEventListener("input", updateOutputToFollowInput);
-  }
-
   // React options listeners
   document.addEventListener("react-map-size-change", mapSizeInputChange);
 
