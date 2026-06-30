@@ -3,7 +3,7 @@ import { viewContext } from "../context/viewContext";
 import { quickLoad } from "../io/load";
 import { saveMap, toggleSaveReminder } from "../io/save";
 import { ThreeDRenderer } from "../renderers/three-d-renderer";
-import { closeDialogs } from "../ui/dialogs/dialogService";
+import { closeDialogs, isDialogOpen } from "../ui/dialogs/dialogService";
 import { minmax } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { getElementById, getElementsBySelector } from "../utils/nodeUtils";
@@ -197,24 +197,17 @@ function allowHotkeys(): boolean {
 function handleSizeChange(key: string): void {
   let brush: HTMLInputElement | null = null;
 
-  if ((getElementById<HTMLElement>("heightmapBrushRadius") as HTMLElement)?.offsetParent)
-    brush = getElementById<HTMLInputElement>("heightmapBrushRadius");
-  else if ((getElementById<HTMLElement>("heightmapBrushPower") as HTMLElement)?.offsetParent)
-    brush = getElementById<HTMLInputElement>("heightmapBrushPower");
-  else if ((getElementById<HTMLElement>("heightmapLinePower") as HTMLElement)?.offsetParent)
-    brush = getElementById<HTMLInputElement>("heightmapLinePower");
-  else if ((getElementById<HTMLElement>("biomesBrush") as HTMLElement)?.offsetParent)
-    brush = getElementById<HTMLInputElement>("biomesBrush");
-  else if (getElementById<HTMLElement>("culturesBrush")?.offsetParent)
-    brush = getElementById<HTMLInputElement>("culturesBrush");
-  else if (getElementById<HTMLElement>("statesBrush")?.offsetParent)
-    brush = getElementById<HTMLInputElement>("statesBrush");
-  else if ((getElementById<HTMLElement>("provincesBrush") as HTMLElement)?.offsetParent)
-    brush = getElementById<HTMLInputElement>("provincesBrush");
-  else if (getElementById<HTMLElement>("religionsBrush")?.offsetParent)
-    brush = getElementById<HTMLInputElement>("religionsBrush");
-  else if ((getElementById<HTMLElement>("zonesBrush") as HTMLElement)?.offsetParent)
-    brush = getElementById<HTMLInputElement>("zonesBrush");
+  if (isDialogOpen("heightmapEditor"))
+    brush =
+      getElementById<HTMLInputElement>("heightmapBrushRadius") ||
+      getElementById<HTMLInputElement>("heightmapBrushPower") ||
+      getElementById<HTMLInputElement>("heightmapLinePower");
+  else if (isDialogOpen("biomesEditor")) brush = getElementById<HTMLInputElement>("biomesBrush");
+  else if (isDialogOpen("culturesEditor")) brush = getElementById<HTMLInputElement>("culturesBrush");
+  else if (isDialogOpen("statesEditor")) brush = getElementById<HTMLInputElement>("statesBrush");
+  else if (isDialogOpen("provincesEditor")) brush = getElementById<HTMLInputElement>("provincesBrush");
+  else if (isDialogOpen("religionsEditor")) brush = getElementById<HTMLInputElement>("religionsBrush");
+  else if (isDialogOpen("zonesEditor")) brush = getElementById<HTMLInputElement>("zonesBrush");
 
   if (brush) {
     const change = key === "-" ? -5 : 5;
@@ -235,15 +228,13 @@ function handleBracketSizeChange(code: string): boolean {
   );
   const hasActiveBrush =
     isHeightmapBrushPressed ||
-    getElementById<HTMLElement>("heightmapBrushRadius")?.offsetParent ||
-    getElementById<HTMLElement>("heightmapBrushPower")?.offsetParent ||
-    getElementById<HTMLElement>("heightmapLinePower")?.offsetParent ||
-    getElementById<HTMLElement>("biomesBrush")?.offsetParent ||
-    getElementById<HTMLElement>("culturesBrush")?.offsetParent ||
-    getElementById<HTMLElement>("statesBrush")?.offsetParent ||
-    getElementById<HTMLElement>("provincesBrush")?.offsetParent ||
-    getElementById<HTMLElement>("religionsBrush")?.offsetParent ||
-    getElementById<HTMLElement>("zonesBrush")?.offsetParent;
+    isDialogOpen("heightmapEditor") ||
+    isDialogOpen("biomesEditor") ||
+    isDialogOpen("culturesEditor") ||
+    isDialogOpen("statesEditor") ||
+    isDialogOpen("provincesEditor") ||
+    isDialogOpen("religionsEditor") ||
+    isDialogOpen("zonesEditor");
 
   if (!hasActiveBrush) return false;
 
@@ -252,11 +243,9 @@ function handleBracketSizeChange(code: string): boolean {
 }
 
 function toggleMode(): void {
-  const zonesRemove = getElementById<HTMLElement>("zonesRemove");
-  if (zonesRemove?.offsetParent) {
-    zonesRemove.classList.contains("pressed")
-      ? zonesRemove.classList.remove("pressed")
-      : zonesRemove.classList.add("pressed");
+  if (isDialogOpen("zonesEditor")) {
+    const zonesRemove = getElementById<HTMLElement>("zonesRemove");
+    zonesRemove?.classList.toggle("pressed");
   }
 }
 

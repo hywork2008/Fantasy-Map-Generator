@@ -5,6 +5,7 @@ import { worldContext } from "../../context/worldContext";
 import { updateWorld } from "../../controllers/world-configurator";
 import { useDialogState } from "../../store/dialogState";
 import { useOptionsState } from "../../store/optionsState";
+import { useWorldConfiguratorFormStore } from "../../store/worldConfiguratorFormStore";
 import { convertTemperature, debounce, parseTransform, rn, round } from "../../utils";
 import { getElementById } from "../../utils/nodeUtils";
 import { lock } from "../../utils/uiHelpers";
@@ -25,6 +26,9 @@ export const WorldConfiguratorDialog: React.FC = () => {
   }, []);
 
   const updateInputValues = useCallback(() => {
+    const opts = useWorldConfiguratorFormStore.getState();
+
+    // Temperature
     const eq = worldContext.options.temperatureEquator;
     getEl("temperatureEquatorInput")?.setAttribute("value", String(eq));
     const eqOut = getEl<HTMLOutputElement>("temperatureEquatorOutput");
@@ -45,6 +49,37 @@ export const WorldConfiguratorDialog: React.FC = () => {
     if (spOut) spOut.value = String(sp);
     const spF = getEl("temperatureSouthPoleF");
     if (spF) spF.innerText = convertTemperature(sp, "°F");
+
+    // Map Size
+    const mapSizeVal = useOptionsState.getState().mapSize ?? 100;
+    const mapSizeInput = getEl<HTMLInputElement>("mapSizeInput");
+    const mapSizeOutput = getEl<HTMLOutputElement>("mapSizeOutput");
+    if (mapSizeInput) mapSizeInput.value = String(mapSizeVal);
+    if (mapSizeOutput) mapSizeOutput.value = String(mapSizeVal);
+
+    // Latitude
+    const latVal = useOptionsState.getState().latitude ?? 0;
+    const latInput = getEl<HTMLInputElement>("latitudeInput");
+    const latOutput = getEl<HTMLOutputElement>("latitudeOutput");
+    if (latInput) latInput.value = String(latVal);
+    if (latOutput) latOutput.value = String(latVal);
+
+    // Longitude
+    const lonVal = useOptionsState.getState().longitude ?? 0;
+    const lonInput = getEl<HTMLInputElement>("longitudeInput");
+    const lonOutput = getEl<HTMLOutputElement>("longitudeOutput");
+    if (lonInput) lonInput.value = String(lonVal);
+    if (lonOutput) lonOutput.value = String(lonVal);
+
+    // Precipitation
+    const precVal = useOptionsState.getState().prec ?? 0.5;
+    const precInput = getEl<HTMLInputElement>("precInput");
+    const precOutput = getEl<HTMLOutputElement>("precOutput");
+    if (precInput) precInput.value = String(precVal);
+    if (precOutput) precOutput.value = String(precVal);
+
+    // Sync store with worldContext and optionsState
+    opts.syncFromWorldContext(eq, np, sp, mapSizeVal, latVal, lonVal, precVal);
   }, []);
 
   const updateGlobeTemperature = useCallback(() => {
@@ -165,23 +200,34 @@ export const WorldConfiguratorDialog: React.FC = () => {
     lock(stored);
 
     const val = Number(target.value);
+    const formStore = useWorldConfiguratorFormStore.getState();
+
     if (stored === "temperatureEquator") {
       worldContext.options.temperatureEquator = val;
+      formStore.setTemperatureEquator(val);
       const eqF = getEl("temperatureEquatorF");
       if (eqF) eqF.innerText = convertTemperature(val, "°F");
       updateGlobeTemperature();
     } else if (stored === "temperatureNorthPole") {
       worldContext.options.temperatureNorthPole = val;
+      formStore.setTemperatureNorthPole(val);
       const npF = getEl("temperatureNorthPoleF");
       if (npF) npF.innerText = convertTemperature(val, "°F");
       updateGlobeTemperature();
     } else if (stored === "temperatureSouthPole") {
       worldContext.options.temperatureSouthPole = val;
+      formStore.setTemperatureSouthPole(val);
       const spF = getEl("temperatureSouthPoleF");
       if (spF) spF.innerText = convertTemperature(val, "°F");
       updateGlobeTemperature();
     } else if (stored === "mapSize" || stored === "latitude" || stored === "longitude" || stored === "prec") {
       useOptionsState.getState().setOption(stored, val);
+      // Also sync to form store
+      if (stored === "mapSize") formStore.setMapSize(val);
+      else if (stored === "latitude") formStore.setLatitude(val);
+      else if (stored === "longitude") formStore.setLongitude(val);
+      else if (stored === "prec") formStore.setPrec(val);
+
       if (stored !== "prec") updateGlobePosition();
     }
 
@@ -225,6 +271,8 @@ export const WorldConfiguratorDialog: React.FC = () => {
     if (latOutput) latOutput.value = String(latShift);
     useOptionsState.getState().setOption("mapSize", size);
     useOptionsState.getState().setOption("latitude", latShift);
+    useWorldConfiguratorFormStore.getState().setMapSize(size);
+    useWorldConfiguratorFormStore.getState().setLatitude(latShift);
     lock("mapSize");
     lock("latitude");
     if (isAutoChange()) updateWorld();

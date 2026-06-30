@@ -307,7 +307,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       tip("Insufficient land area. There should be at least 200 land cells!", false, "error");
       return;
     }
-    if (getElementById("imageConverter")?.offsetParent) {
+    if (isDialogOpen("imageConverter")) {
       tip("Please exit the Image Conversion mode first", false, "error");
       return;
     }

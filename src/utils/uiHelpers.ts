@@ -46,16 +46,13 @@ if (location.hostname !== "localhost" && location.hostname !== "127.0.0.1") {
 const onDataTipMove = debounce(showDataTip, 50);
 
 function isDialogVisible(id: string): boolean {
-  const isOpen = dialogStore.getState().openDialogs.has(id);
-  if (isOpen) return true;
-  const el = document.getElementById(id) as HTMLElement | null;
-  return Boolean(el?.offsetParent);
+  return dialogStore.getState().openDialogs.has(id);
 }
 
 function getVisibleDialogElement(id: string): HTMLElement | null {
+  if (!isDialogVisible(id)) return null;
   const el = document.getElementById(id) as HTMLElement | null;
-  if (!el) return null;
-  return isDialogVisible(id) ? el : null;
+  return el;
 }
 
 // Use document-level delegation so React-rendered containers (which don't
@@ -148,8 +145,10 @@ function handleMouseMove(this: Element, event: MouseEvent): void {
   if (hasMainToast) showMainTip();
   else showMapTooltip(point, event, i, gridCell);
 
-  const cellInfoEl = document.getElementById("cellInfo") as HTMLElement | null;
-  if (cellInfoEl?.offsetParent) updateCellInfo(point, i, gridCell);
+  if (isDialogVisible("cellInfo")) {
+    const cellInfoEl = document.getElementById("cellInfo") as HTMLElement | null;
+    if (cellInfoEl) updateCellInfo(point, i, gridCell);
+  }
 }
 
 let currentNoteId: string | null = null;
@@ -218,8 +217,8 @@ function showMapTooltip(point: [number, number], e: MouseEvent, i: number, g: nu
     const r = worldContext.pack.rivers.find(r => r.i === river);
     const name = r ? `${r.name} ${r.type}` : "";
     tip(`${name}. Click to edit`);
-    const riversOverviewEl = document.getElementById("riversOverview");
-    if (riversOverviewEl?.offsetParent) highlightEditorLine(riversOverviewEl, river, 5000);
+    const riversOverviewEl = getVisibleDialogElement("riversOverview");
+    if (riversOverviewEl) highlightEditorLine(riversOverviewEl, river, 5000);
     return;
   }
 
@@ -358,8 +357,8 @@ function showMapTooltip(point: [number, number], e: MouseEvent, i: number, g: nu
     if (militaryOverviewEl) highlightEditorLine(militaryOverviewEl, state);
     const provincesEditorEl = getVisibleDialogElement("provincesEditor");
     if (provincesEditorEl) highlightEditorLine(provincesEditorEl, province);
-    const mergeStatesForm = document.getElementById("mergeStatesForm");
-    if (mergeStatesForm?.offsetParent) highlightEditorLine(mergeStatesForm, state);
+    const mergeStatesForm = getVisibleDialogElement("mergeStatesForm");
+    if (mergeStatesForm) highlightEditorLine(mergeStatesForm, state);
   } else if (layerIsOn("toggleCultures") && worldContext.pack.cells.culture[i]) {
     const culture = worldContext.pack.cells.culture[i];
     tip(`Culture: ${worldContext.pack.cultures[culture].name}`);

@@ -18,6 +18,7 @@ import { ThreeDRenderer } from "../renderers/three-d-renderer";
 import { modules } from "../store/editorState";
 import { loadMapDialogStore } from "../store/loadMapDialogState";
 import { loadMapUrlDialogStore } from "../store/loadMapUrlDialogState";
+import { use3DOptionsStore } from "../store/options3dStore";
 import { type OptionsState, useOptionsState } from "../store/optionsState";
 import {
   closeAllDialogs,
@@ -1051,6 +1052,9 @@ export function toggle3dOptions(): void {
       );
       syncErosionUI();
       updateTimeOfDayPreset();
+
+      // Sync to Zustand store
+      use3DOptionsStore.getState().syncFromThreeDRenderer(ThreeDRenderer.options);
     }
 
     function updateTimeOfDayPreset(): void {
@@ -1086,23 +1090,28 @@ export function toggle3dOptions(): void {
     function changeHeightScale(this: HTMLInputElement): void {
       (options3dScaleRange as HTMLInputElement).value = (options3dScaleNumber as HTMLInputElement).value = this.value;
       ThreeDRenderer.setScale(+this.value);
+      use3DOptionsStore.getState().updateValue("scale", +this.value);
     }
 
     function changeResolutionScale(this: HTMLInputElement): void {
       (options3dMeshSkinResolution as HTMLInputElement).value = this.value;
       ThreeDRenderer.setResolutionScale(+this.value);
+      use3DOptionsStore.getState().updateValue("resolutionScale", +this.value);
     }
 
     function changeLightness(this: HTMLInputElement): void {
       (options3dLightnessRange as HTMLInputElement).value = (options3dLightnessNumber as HTMLInputElement).value =
         this.value;
       ThreeDRenderer.setLightness(+this.value / 100);
+      use3DOptionsStore.getState().updateValue("lightness", +this.value);
       const presetSelect = getElementById<HTMLSelectElement>("options3dTimeOfDay");
       if (presetSelect && presetSelect.value !== "custom") presetSelect.value = "custom";
     }
 
     function changeSunColor(this: HTMLInputElement): void {
-      ThreeDRenderer.setSunColor((options3dSunColor as HTMLInputElement).value);
+      const sunColor = (options3dSunColor as HTMLInputElement).value;
+      ThreeDRenderer.setSunColor(sunColor);
+      use3DOptionsStore.getState().updateValue("sunColor", sunColor);
       const presetSelect = getElementById<HTMLSelectElement>("options3dTimeOfDay");
       if (presetSelect && presetSelect.value !== "custom") presetSelect.value = "custom";
     }
@@ -1111,6 +1120,8 @@ export function toggle3dOptions(): void {
       const x = +(options3dSunX as HTMLInputElement).value;
       const y = +(options3dSunY as HTMLInputElement).value;
       ThreeDRenderer.setSun(x, y, ThreeDRenderer.options.sun.z);
+      use3DOptionsStore.getState().updateValue("sunX", x);
+      use3DOptionsStore.getState().updateValue("sunY", y);
       const presetSelect = getElementById<HTMLSelectElement>("options3dTimeOfDay");
       if (presetSelect && presetSelect.value !== "custom") presetSelect.value = "custom";
     }
@@ -1119,14 +1130,25 @@ export function toggle3dOptions(): void {
       const sibling = (this.nextElementSibling || this.previousElementSibling) as HTMLInputElement;
       sibling.value = this.value;
       ThreeDRenderer.setRotation(+this.value);
+      // Determine which rotation was changed based on id
+      const id = this.id;
+      if (id.includes("Mesh")) {
+        use3DOptionsStore.getState().updateValue("rotateMesh", +this.value);
+      } else if (id.includes("Globe")) {
+        use3DOptionsStore.getState().updateValue("rotateGlobe", +this.value);
+      }
     }
 
     function toggleLabels3d(): void {
       ThreeDRenderer.toggleLabels();
+      use3DOptionsStore.getState().updateValue("labels3d", ThreeDRenderer.options.labels3d);
     }
+
     function toggle3dSubdivision(): void {
       ThreeDRenderer.toggle3dSubdivision();
+      use3DOptionsStore.getState().updateValue("subdivide", ThreeDRenderer.options.subdivide);
     }
+
     function toggleWireframe3d(): void {
       ThreeDRenderer.toggleWireframe();
     }
@@ -1135,47 +1157,56 @@ export function toggle3dOptions(): void {
       const hide = ThreeDRenderer.options.extendedWater;
       options3dColorSection.style.display = hide ? "none" : "block";
       ThreeDRenderer.toggleSky();
+      use3DOptionsStore.getState().updateValue("extendedWater", Boolean(ThreeDRenderer.options.extendedWater));
     }
 
     function changeColors(): void {
-      ThreeDRenderer.setColors(
-        (options3dMeshSky as HTMLInputElement).value,
-        (options3dMeshWater as HTMLInputElement).value
-      );
+      const skyColor = (options3dMeshSky as HTMLInputElement).value;
+      const waterColor = (options3dMeshWater as HTMLInputElement).value;
+      ThreeDRenderer.setColors(skyColor, waterColor);
+      use3DOptionsStore.getState().updateValue("skyColor", skyColor);
+      use3DOptionsStore.getState().updateValue("waterColor", waterColor);
     }
 
     function changeResolution(this: HTMLInputElement): void {
       ThreeDRenderer.setResolution(+this.value);
+      use3DOptionsStore.getState().updateValue("resolution", +this.value);
     }
 
     function toggleSatellite(this: HTMLInputElement): void {
       ThreeDRenderer.toggleSatellite();
+      use3DOptionsStore.getState().updateValue("satellite", ThreeDRenderer.options.satellite);
       syncErosionUI();
     }
 
     function toggleErosion(this: HTMLInputElement): void {
       ThreeDRenderer.toggleErosion();
+      use3DOptionsStore.getState().updateValue("erosion", ThreeDRenderer.options.erosion);
       syncErosionUI();
     }
 
     function changeErosionDetail(this: HTMLSelectElement): void {
       ThreeDRenderer.setErosionDetail(+this.value);
+      use3DOptionsStore.getState().updateValue("erosionDetail", +this.value);
     }
 
     function changeErosionStrength(this: HTMLInputElement): void {
       getRequiredElementById<HTMLInputElement>("options3dErosionStrengthRange").value =
         getRequiredElementById<HTMLInputElement>("options3dErosionStrengthNumber").value = this.value;
       ThreeDRenderer.setErosionStrength(+this.value);
+      use3DOptionsStore.getState().updateValue("erosionStrength", +this.value);
     }
 
     function changeErosionRiverDepth(this: HTMLInputElement): void {
       getRequiredElementById<HTMLInputElement>("options3dErosionRiverDepthRange").value =
         getRequiredElementById<HTMLInputElement>("options3dErosionRiverDepthNumber").value = this.value;
       ThreeDRenderer.setErosionRiverDepth(+this.value);
+      use3DOptionsStore.getState().updateValue("erosionRiverDepth", +this.value);
     }
 
     function changeErosionOctaves(this: HTMLSelectElement): void {
       ThreeDRenderer.setErosionOctaves(+this.value);
+      use3DOptionsStore.getState().updateValue("erosionOctaves", +this.value);
     }
 
     function syncErosionUI(): void {
