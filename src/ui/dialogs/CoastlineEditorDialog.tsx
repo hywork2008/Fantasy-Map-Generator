@@ -1,17 +1,13 @@
 import type React from "react";
-import { coastlineEditorActions } from "../../editors/coastline-editor";
+import { coastlineEditorActions } from "../../controllers/coastline-editor";
 import { useCoastlineEditorState } from "../../store/coastlineEditorState";
-import { useDialogState } from "../../store/dialogState";
-import { Dialog } from "./Dialog";
-import { closeDialog } from "./dialogService";
 
-export const CoastlineEditorDialog: React.FC = () => {
-  const isOpen = useDialogState(state => state.openDialogs.has("coastlineEditor"));
+export const CoastlineEditorContent: React.FC = () => {
   const { isGroupSectionVisible, isNewGroupInputVisible, group, groupOptions, newGroupName, areaUI } =
     useCoastlineEditorState();
 
   return (
-    <Dialog isOpen={isOpen} title="Coastline Editor" onClose={() => closeDialog("coastlineEditor")}>
+    <>
       <button
         type="button"
         id="coastlineGroupsShow"
@@ -83,6 +79,6 @@ export const CoastlineEditorDialog: React.FC = () => {
       >
         {areaUI}
       </button>
-    </Dialog>
+    </>
   );
 };

@@ -1,19 +1,30 @@
 import React from "react";
-import { useDialogState } from "../../../../store/dialogState";
-import { useMarketsOverviewState } from "../../../../store/marketsOverviewState";
-import { FillBox } from "../../../../ui/components/FillBox";
-import { Dialog } from "../../../../ui/dialogs/Dialog";
-import { closeDialog } from "../../../../ui/dialogs/dialogService";
-import { formatPrice } from "../../../../utils";
+
+import { closeDialog, Dialog, FillBox, openConfirm, useDialogState } from "../../../hostUi";
+import { formatPrice } from "../../../hostUtils";
+
 import {
   closeMarketsOverview,
   marketsOverviewActions,
   open as openMarketsOverview
-} from "../../editors/markets-overview";
+} from "../../controllers/markets-overview";
+import { useMarketsOverviewState } from "../../store/marketsOverviewState";
 
 export const MarketsOverviewDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("marketsOverview"));
-  const { markets, totalMarkets, avgSales, avgBuys, avgValue, isPercentageMode } = useMarketsOverviewState();
+  const {
+    markets,
+    totalMarkets,
+    avgSales,
+    avgBuys,
+    avgValue,
+    isPercentageMode,
+    mode,
+    selectedMarketId,
+    brushSize,
+    sortBy,
+    sortDirection
+  } = useMarketsOverviewState();
 
   React.useEffect(() => {
     if (isOpen) {
@@ -26,10 +37,65 @@ export const MarketsOverviewDialog: React.FC = () => {
     };
   }, [isOpen]);
 
+  const isManualMode = mode === "manual";
+  const isAddMode = mode === "add";
+  const colorInputRefs = React.useRef<Record<number, HTMLInputElement | null>>({});
+  const [isRegenerateMarketsDialogOpen, setIsRegenerateMarketsDialogOpen] = React.useState(false);
+  const [isRegenerateProductionDialogOpen, setIsRegenerateProductionDialogOpen] = React.useState(false);
+  const [regenerateTradeAlongsideMarkets, setRegenerateTradeAlongsideMarkets] = React.useState(true);
+
+  React.useEffect(() => {
+    if (!isOpen) {
+      setIsRegenerateMarketsDialogOpen(false);
+      setIsRegenerateProductionDialogOpen(false);
+      setRegenerateTradeAlongsideMarkets(true);
+    }
+  }, [isOpen]);
+
+  const totals = React.useMemo(
+    () => ({
+      cells: markets.reduce((sum, row) => sum + row.cells, 0),
+      burgs: markets.reduce((sum, row) => sum + row.burgs, 0),
+      stock: markets.reduce((sum, row) => sum + row.stock, 0),
+      sales: markets.reduce((sum, row) => sum + row.sales, 0),
+      buys: markets.reduce((sum, row) => sum + row.buys, 0),
+      value: markets.reduce((sum, row) => sum + row.value, 0)
+    }),
+    [markets]
+  );
+
+  const sortedMarkets = React.useMemo(() => {
+    const rows = [...markets];
+    rows.sort((left, right) => {
+      const leftValue =
+        sortBy === "market"
+          ? left.centerName.toLowerCase()
+          : sortBy === "owner"
+            ? left.ownerName.toLowerCase()
+            : left[sortBy as keyof typeof left];
+      const rightValue =
+        sortBy === "market"
+          ? right.centerName.toLowerCase()
+          : sortBy === "owner"
+            ? right.ownerName.toLowerCase()
+            : right[sortBy as keyof typeof right];
+
+      if (leftValue < rightValue) return -1 * sortDirection;
+      if (leftValue > rightValue) return 1 * sortDirection;
+      return 0;
+    });
+    return rows;
+  }, [markets, sortBy, sortDirection]);
+
+  const getSortIcon = (field: string, alphabetical = false) => {
+    if (sortBy !== field) return "";
+    if (alphabetical) return sortDirection === 1 ? "icon-sort-name-up" : "icon-sort-name-down";
+    return sortDirection === 1 ? "icon-sort-number-up" : "icon-sort-number-down";
+  };
+
   const handleRowClick = (marketId: number) => {
-    if (marketId === 0) return; // 'No market' row
-    // In legacy, clicking row didn't do much immediately besides select in custom mode, but we leave the hook here
-    // as legacy code handles some of this manually during customization=15.
+    marketsOverviewActions.selectMarket(marketId);
+    if (!isManualMode && marketId !== 0) marketsOverviewActions.openMarketOverview(marketId);
   };
 
   const handleMouseEnter = (marketId: number) => {
@@ -42,12 +108,26 @@ export const MarketsOverviewDialog: React.FC = () => {
 
   const handleColorClick = (e: React.MouseEvent, marketId: number) => {
     e.stopPropagation();
-    if (marketId !== 0) marketsOverviewActions.marketChangeFill(e.target as HTMLElement, marketId);
+    if (marketId !== 0) colorInputRefs.current[marketId]?.click();
+  };
+
+  const handleColorChange = (marketId: number, color: string) => {
+    marketsOverviewActions.updateMarketColor(marketId, color);
   };
 
   const handleRemoveClick = (e: React.MouseEvent, marketId: number) => {
     e.stopPropagation();
-    marketsOverviewActions.confirmRemoveMarket(marketId);
+    const market = markets.find(row => row.i === marketId);
+    if (!market) return;
+    openConfirm(
+      `Are you sure you want to remove the market "${market.centerName}"?<br>This action cannot be reverted`,
+      {
+        title: "Remove Market",
+        confirm: "Remove",
+        cancel: "Cancel",
+        onConfirm: () => marketsOverviewActions.removeMarket(marketId)
+      }
+    );
   };
 
   return (
@@ -56,43 +136,67 @@ export const MarketsOverviewDialog: React.FC = () => {
         <div
           id="marketsOverviewHeader"
           className="header"
-          style={{ gridTemplateColumns: "1.6em 7.2em 8em 3.5em 4.5em 6.5em 6.4em 6em 6em 1.2em" }}
+          style={{
+            gridTemplateColumns: isManualMode
+              ? "1.6em 7.2em 8em 3.5em"
+              : "1.6em 7.2em 8em 3.5em 4.5em 6.5em 6.4em 6em 6em 1.2em"
+          }}
         >
           <div />
           <div
             data-tip="Market center burg name. Click to sort"
-            className="sortable alphabetically"
-            data-sortby="market"
+            className={`sortable alphabetically ${getSortIcon("market", true)}`}
             style={{ marginLeft: 0 }}
+            onClick={() => marketsOverviewActions.setSorting("market")}
           >
             Market&nbsp;
           </div>
-          <div data-tip="Owning state. Click to sort" className="sortable alphabetically" data-sortby="owner">
+          <div
+            data-tip="Owning state. Click to sort"
+            className={`sortable alphabetically ${getSortIcon("owner", true)}`}
+            onClick={() => marketsOverviewActions.setSorting("owner")}
+          >
             Owner&nbsp;
           </div>
-          <div data-tip="Number of cells in market territory. Click to sort" className="sortable" data-sortby="cells">
+          <div
+            data-tip="Number of cells in market territory. Click to sort"
+            className={`sortable ${getSortIcon("cells")}`}
+            onClick={() => marketsOverviewActions.setSorting("cells")}
+          >
             Cells&nbsp;
           </div>
           <div
             data-tip="Number of burgs in market territory. Click to sort"
-            className="sortable hide"
-            data-sortby="burgs"
+            className={`sortable hide${isManualMode ? " hidden" : ""} ${getSortIcon("burgs")}`}
+            onClick={() => marketsOverviewActions.setSorting("burgs")}
           >
             Burgs&nbsp;
           </div>
-          <div data-tip="Total stock of all goods. Click to sort" className="sortable hide" data-sortby="stock">
+          <div
+            data-tip="Total stock of all goods. Click to sort"
+            className={`sortable hide${isManualMode ? " hidden" : ""} ${getSortIcon("stock")}`}
+            onClick={() => marketsOverviewActions.setSorting("stock")}
+          >
             Stock&nbsp;
           </div>
-          <div data-tip="Total gross sales revenue. Click to sort" className="sortable hide" data-sortby="sales">
+          <div
+            data-tip="Total gross sales revenue. Click to sort"
+            className={`sortable hide${isManualMode ? " hidden" : ""} ${getSortIcon("sales")}`}
+            onClick={() => marketsOverviewActions.setSorting("sales")}
+          >
             Sales&nbsp;
           </div>
-          <div data-tip="Total purchase spending. Click to sort" className="sortable hide" data-sortby="buys">
+          <div
+            data-tip="Total purchase spending. Click to sort"
+            className={`sortable hide${isManualMode ? " hidden" : ""} ${getSortIcon("buys")}`}
+            onClick={() => marketsOverviewActions.setSorting("buys")}
+          >
             Buys&nbsp;
           </div>
           <div
             data-tip="Market value: net trading flow plus unsold inventory value minus tax. Click to sort"
-            className="sortable hide icon-sort-number-down"
-            data-sortby="value"
+            className={`sortable hide${isManualMode ? " hidden" : ""} ${getSortIcon("value")}`}
+            onClick={() => marketsOverviewActions.setSorting("value")}
           >
             Value&nbsp;
           </div>
@@ -107,7 +211,7 @@ export const MarketsOverviewDialog: React.FC = () => {
         >
           {markets.length === 0
             ? "No markets available"
-            : markets.map(m => {
+            : sortedMarkets.map(m => {
                 // Handle Percentage Display if needed
                 const displayVal = (val: number, total: number) => {
                   if (!isPercentageMode) {
@@ -122,18 +226,11 @@ export const MarketsOverviewDialog: React.FC = () => {
                   return total ? `${((val / total) * 100).toFixed(2)}%` : "0%";
                 };
 
-                const totCells = markets.reduce((s, row) => s + row.cells, 0);
-                const totBurgs = markets.reduce((s, row) => s + row.burgs, 0);
-                const totStock = markets.reduce((s, row) => s + row.stock, 0);
-                const totSales = markets.reduce((s, row) => s + row.sales, 0);
-                const totBuys = markets.reduce((s, row) => s + row.buys, 0);
-                const totValue = markets.reduce((s, row) => s + row.value, 0);
-
                 if (m.isNoMarket) {
                   return (
                     <div
                       key={m.i}
-                      className="states market"
+                      className={`states market${selectedMarketId === m.i ? " selected" : ""}`}
                       data-id={m.i}
                       data-market={m.centerName}
                       data-owner={m.ownerName}
@@ -164,29 +261,45 @@ export const MarketsOverviewDialog: React.FC = () => {
                         className="marketCells"
                         style={{ width: "3.5em" }}
                       >
-                        {displayVal(m.cells, totCells)}
+                        {displayVal(m.cells, totals.cells)}
                       </div>
                       <div
                         data-tip="Number of burgs with no market"
                         data-type="burgs"
-                        className="marketBurgs hide"
+                        className={`marketBurgs hide${isManualMode ? " hidden" : ""}`}
                         style={{ width: "3.5em" }}
                       >
-                        {displayVal(m.burgs, totBurgs)}
+                        {displayVal(m.burgs, totals.burgs)}
                       </div>
-                      <div data-type="stock" className="marketStock hide" style={{ width: "5em" }}>
+                      <div
+                        data-type="stock"
+                        className={`marketStock hide${isManualMode ? " hidden" : ""}`}
+                        style={{ width: "5em" }}
+                      >
                         —
                       </div>
-                      <div data-type="sales" className="marketSales hide" style={{ width: "6em" }}>
+                      <div
+                        data-type="sales"
+                        className={`marketSales hide${isManualMode ? " hidden" : ""}`}
+                        style={{ width: "6em" }}
+                      >
                         —
                       </div>
-                      <div data-type="buys" className="marketBuysCol hide" style={{ width: "6em" }}>
+                      <div
+                        data-type="buys"
+                        className={`marketBuysCol hide${isManualMode ? " hidden" : ""}`}
+                        style={{ width: "6em" }}
+                      >
                         —
                       </div>
-                      <div data-type="value" className="marketValue hide" style={{ width: "6em" }}>
+                      <div
+                        data-type="value"
+                        className={`marketValue hide${isManualMode ? " hidden" : ""}`}
+                        style={{ width: "6em" }}
+                      >
                         —
                       </div>
-                      <span className="hide" style={{ width: "1.2em" }} />
+                      <span className={`hide${isManualMode ? " hidden" : ""}`} style={{ width: "1.2em" }} />
                     </div>
                   );
                 }
@@ -194,7 +307,7 @@ export const MarketsOverviewDialog: React.FC = () => {
                 return (
                   <div
                     key={m.i}
-                    className="states market"
+                    className={`states market${selectedMarketId === m.i ? " selected" : ""}`}
                     data-id={m.i}
                     data-market={m.centerName}
                     data-owner={m.ownerName}
@@ -210,6 +323,18 @@ export const MarketsOverviewDialog: React.FC = () => {
                   >
                     <div onClick={e => handleColorClick(e, m.i)}>
                       <FillBox fill={m.color} />
+                      <input
+                        ref={el => {
+                          colorInputRefs.current[m.i] = el;
+                        }}
+                        type="color"
+                        value={m.color}
+                        tabIndex={-1}
+                        aria-hidden="true"
+                        style={{ display: "none" }}
+                        onClick={event => event.stopPropagation()}
+                        onChange={event => handleColorChange(m.i, event.target.value)}
+                      />
                     </div>
                     <div data-tip="Market name. Click to view details" className="marketName" style={{ width: "7em" }}>
                       {m.centerName}
@@ -223,51 +348,51 @@ export const MarketsOverviewDialog: React.FC = () => {
                       className="marketCells"
                       style={{ width: "3.5em" }}
                     >
-                      {displayVal(m.cells, totCells)}
+                      {displayVal(m.cells, totals.cells)}
                     </div>
                     <div
                       data-tip="Number of burgs in market territory"
                       data-type="burgs"
-                      className="marketBurgs hide"
+                      className={`marketBurgs hide${isManualMode ? " hidden" : ""}`}
                       style={{ width: "3.5em" }}
                     >
-                      {displayVal(m.burgs, totBurgs)}
+                      {displayVal(m.burgs, totals.burgs)}
                     </div>
                     <div
                       data-tip="Total stock of all goods in this market"
                       data-type="stock"
-                      className="marketStock hide"
+                      className={`marketStock hide${isManualMode ? " hidden" : ""}`}
                       style={{ width: "5em" }}
                     >
-                      {displayVal(m.stock, totStock)}
+                      {displayVal(m.stock, totals.stock)}
                     </div>
                     <div
                       data-tip="Total gross sales revenue"
                       data-type="sales"
-                      className="marketSales hide"
+                      className={`marketSales hide${isManualMode ? " hidden" : ""}`}
                       style={{ width: "6em" }}
                     >
-                      {displayPrice(m.sales, totSales)}
+                      {displayPrice(m.sales, totals.sales)}
                     </div>
                     <div
                       data-tip="Total purchase spending"
                       data-type="buys"
-                      className="marketBuysCol hide"
+                      className={`marketBuysCol hide${isManualMode ? " hidden" : ""}`}
                       style={{ width: "6em" }}
                     >
-                      {displayPrice(m.buys, totBuys)}
+                      {displayPrice(m.buys, totals.buys)}
                     </div>
                     <div
                       data-tip="Market value: net trading flow plus unsold inventory value minus tax"
                       data-type="value"
-                      className="marketValue hide"
+                      className={`marketValue hide${isManualMode ? " hidden" : ""}`}
                       style={{ width: "6em" }}
                     >
-                      {displayPrice(m.value, totValue)}
+                      {displayPrice(m.value, totals.value)}
                     </div>
                     <span
                       data-tip="Remove this market"
-                      className="icon-trash-empty hiddenIcon hide"
+                      className={`icon-trash-empty hiddenIcon hide${isManualMode ? " hidden" : ""}`}
                       style={{ visibility: "hidden" }}
                       onClick={e => handleRemoveClick(e, m.i)}
                     />
@@ -276,7 +401,7 @@ export const MarketsOverviewDialog: React.FC = () => {
               })}
         </div>
 
-        <div id="marketsOverviewFooter" className="totalLine">
+        <div id="marketsOverviewFooter" className="totalLine" style={{ display: isManualMode ? "none" : "block" }}>
           <div data-tip="Total number of markets" style={{ marginLeft: 5 }}>
             Markets:&nbsp;<span id="marketsOverviewFooterMarkets">{totalMarkets}</span>
           </div>
@@ -292,45 +417,57 @@ export const MarketsOverviewDialog: React.FC = () => {
         </div>
 
         <div id="marketsOverviewBottom">
-          <button
-            type="button"
-            id="marketsOverviewRefresh"
-            data-tip="Refresh the overview"
-            className="icon-cw"
-            onClick={marketsOverviewActions.marketsOverviewAddLines}
-          />
-          <button
-            type="button"
-            id="marketsOverviewPercentage"
-            data-tip="Toggle percentage / absolute values views"
-            className="icon-percent"
-            onClick={marketsOverviewActions.togglePercentageMode}
-          />
-          <button
-            type="button"
-            id="marketsOverviewCompare"
-            data-tip="Compare good stock across markets"
-            className="icon-chart-bar"
-          />
-          <button
-            type="button"
-            id="marketsOverviewExport"
-            data-tip="Save markets data as a CSV file"
-            className="icon-download"
-            onClick={marketsOverviewActions.downloadMarketsCsv}
-          />
+          {!isManualMode && (
+            <>
+              <button
+                type="button"
+                id="marketsOverviewRefresh"
+                data-tip="Refresh the overview"
+                className="icon-cw"
+                onClick={marketsOverviewActions.marketsOverviewAddLines}
+              />
+              <button
+                type="button"
+                id="marketsOverviewPercentage"
+                data-tip="Toggle percentage / absolute values views"
+                className="icon-percent"
+                onClick={marketsOverviewActions.togglePercentageMode}
+              />
+              <button
+                type="button"
+                id="marketsOverviewCompare"
+                data-tip="Compare good stock across markets"
+                className="icon-chart-bar"
+                onClick={marketsOverviewActions.openMarketCompare}
+              />
+              <button
+                type="button"
+                id="marketsOverviewExport"
+                data-tip="Save markets data as a CSV file"
+                className="icon-download"
+                onClick={marketsOverviewActions.downloadMarketsCsv}
+              />
+            </>
+          )}
           <button
             type="button"
             id="marketsManually"
             data-tip="Manually re-assign market territories"
-            className="icon-brush"
-            onClick={() => {
-              // Note: actual toggle handles state from within TS, but button calls it here.
-              // In the original, it did if customization===15 exit else enter.
-              marketsOverviewActions.enterMarketsManualAssignment();
-            }}
+            className={`icon-brush${isManualMode ? " pressed" : ""}`}
+            onClick={marketsOverviewActions.toggleManualAssignment}
           />
-          <div id="marketsManuallyButtons" style={{ display: "none" }}>
+          <div id="marketsManuallyButtons" style={{ display: isManualMode ? "inline-block" : "none" }}>
+            <input
+              type="range"
+              id="marketsBrush"
+              min="5"
+              max="100"
+              step="1"
+              value={brushSize}
+              data-tip="Brush size"
+              style={{ display: "inline-block", width: "6em", verticalAlign: "middle" }}
+              onChange={e => marketsOverviewActions.setBrushSize(parseInt(e.target.value, 10))}
+            />
             <button
               type="button"
               id="marketsManuallyUndo"
@@ -357,26 +494,75 @@ export const MarketsOverviewDialog: React.FC = () => {
             type="button"
             id="marketsAdd"
             data-tip="Add a new market. Click on a burg on the map. Hold Shift to add multiple"
-            className="icon-plus"
-            onClick={() => {
-              marketsOverviewActions.enterAddMarketMode();
-            }}
+            className={`icon-plus${isAddMode ? " pressed" : ""}`}
+            onClick={marketsOverviewActions.toggleAddMarketMode}
           />
           <button
             type="button"
             id="marketsRegenerate"
             data-tip="Regenerate markets and their territories"
             className="icon-arrows-cw"
-            onClick={marketsOverviewActions.regenerateMarkets}
+            onClick={() => setIsRegenerateMarketsDialogOpen(true)}
           />
           <button
             type="button"
             id="marketsRegenerateProduction"
             data-tip="Regenerate production and trade deals"
             className="icon-retweet"
-            onClick={marketsOverviewActions.regenerateProduction}
+            onClick={() => setIsRegenerateProductionDialogOpen(true)}
           />
         </div>
+
+        <Dialog
+          isOpen={isRegenerateMarketsDialogOpen}
+          title="Regenerate markets"
+          onClose={() => setIsRegenerateMarketsDialogOpen(false)}
+          buttons={[
+            { label: "Cancel", onClick: () => setIsRegenerateMarketsDialogOpen(false) },
+            {
+              label: "Regenerate",
+              onClick: () => {
+                marketsOverviewActions.regenerateMarkets(regenerateTradeAlongsideMarkets);
+                setIsRegenerateMarketsDialogOpen(false);
+                setRegenerateTradeAlongsideMarkets(true);
+              }
+            }
+          ]}
+        >
+          <div style={{ display: "grid", gap: "0.8em" }}>
+            <div>Are you sure you want to regenerate markets and their territories?</div>
+            <label style={{ display: "flex", alignItems: "center", gap: ".4em" }}>
+              <input
+                type="checkbox"
+                className="native"
+                checked={regenerateTradeAlongsideMarkets}
+                onChange={e => setRegenerateTradeAlongsideMarkets(e.target.checked)}
+              />
+              Regenerate production and trade
+            </label>
+          </div>
+        </Dialog>
+
+        <Dialog
+          isOpen={isRegenerateProductionDialogOpen}
+          title="Regenerate production"
+          onClose={() => setIsRegenerateProductionDialogOpen(false)}
+          buttons={[
+            { label: "Cancel", onClick: () => setIsRegenerateProductionDialogOpen(false) },
+            {
+              label: "Regenerate",
+              onClick: () => {
+                marketsOverviewActions.regenerateProduction();
+                setIsRegenerateProductionDialogOpen(false);
+              }
+            }
+          ]}
+        >
+          <div>
+            Are you sure you want to regenerate production and trade for all goods? Generation will be based on the
+            current Goods settings and bonus goods placement.
+          </div>
+        </Dialog>
       </div>
     </Dialog>
   );

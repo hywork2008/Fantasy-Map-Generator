@@ -1,12 +1,32 @@
 import type React from "react";
 import { create } from "zustand";
 
+/**
+ * Describes an SVG <g> element that an extension wants to create and manage.
+ * The extension system reads these specs when `addLayers()` is called and
+ * inserts elements at the specified position within #viewbox.
+ */
+export interface SvgLayerSpec {
+  /** DOM element ID for the SVG <g> (e.g. "marketsLayerFill") */
+  id: string;
+  /** Insert this element before the element with this DOM ID */
+  insertBefore?: string;
+  /** Insert this element after the element with this DOM ID */
+  insertAfter?: string;
+  /** Initial CSS display value — omit for visible-by-default */
+  display?: "none";
+}
+
 export interface LayerConfig {
   id: string;
   name: React.ReactNode;
   shortcut: string | null;
   tooltip: string;
   isSolid?: boolean;
+  /** SVG <g> elements the extension system should create/re-acquire for this toggle. */
+  svgLayers?: SvgLayerSpec[];
+  /** Plain-text sort key; defaults to id with "toggle" prefix stripped. */
+  sortKey?: string;
 }
 
 export const DEFAULT_LAYERS: LayerConfig[] = [
@@ -101,7 +121,8 @@ export const DEFAULT_LAYERS: LayerConfig[] = [
       </>
     ),
     shortcut: "I",
-    tooltip: "Burg icons: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
+    tooltip: "Burg icons: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style",
+    sortKey: "Icons"
   },
   {
     id: "toggleLabels",
@@ -268,7 +289,8 @@ export const DEFAULT_LAYERS: LayerConfig[] = [
       </>
     ),
     shortcut: "W",
-    tooltip: "Wind (Compass) Rose: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
+    tooltip: "Wind (Compass) Rose: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style",
+    sortKey: "Wind Rose"
   },
   {
     id: "toggleZones",
@@ -291,30 +313,40 @@ interface LayerState {
 
   // Available presets (e.g. presets["political"] = ["toggleBorders", ...])
   presets: Record<string, string[]>;
+  // Human-readable labels for presets (e.g. presetLabels["political"] = "Political map")
+  presetLabels: Record<string, string>;
   activePreset: string;
+  presetDisabled: boolean;
 
   // Actions
+  setPresetDisabled: (disabled: boolean) => void;
   setLayers: (layers: LayerConfig[]) => void;
   addLayers: (newLayers: LayerConfig[]) => void;
   removeLayers: (layerIds: string[]) => void;
   reorderLayers: (startIndex: number, endIndex: number) => void;
   toggleLayer: (id: string, forceState?: boolean) => void;
   setPresets: (presets: Record<string, string[]>) => void;
+  addPresetLabel: (id: string, label: string) => void;
+  removePresetLabel: (id: string) => void;
   setActivePreset: (preset: string) => void;
   setAllActiveLayers: (activeLayers: Record<string, boolean>) => void;
 }
 
-// Helper to sort layers alphabetically by id
+const toSortKey = (l: LayerConfig) => l.sortKey ?? l.id.replace(/^toggle/, "");
+
 const sortLayers = (layers: LayerConfig[]) => {
-  return [...layers].sort((a, b) => a.id.localeCompare(b.id));
+  return [...layers].sort((a, b) => toSortKey(a).localeCompare(toSortKey(b)));
 };
 
 export const useLayerState = create<LayerState>((set, get) => ({
   layers: [],
   activeLayers: {},
   presets: {},
+  presetLabels: {},
   activePreset: "custom",
+  presetDisabled: false,
 
+  setPresetDisabled: disabled => set({ presetDisabled: disabled }),
   setLayers: layers => set({ layers: sortLayers(layers) }),
 
   addLayers: newLayers => {
@@ -353,6 +385,15 @@ export const useLayerState = create<LayerState>((set, get) => ({
   },
 
   setPresets: presets => set({ presets }),
+
+  addPresetLabel: (id, label) => set(state => ({ presetLabels: { ...state.presetLabels, [id]: label } })),
+
+  removePresetLabel: id =>
+    set(state => {
+      const newLabels = { ...state.presetLabels };
+      delete newLabels[id];
+      return { presetLabels: newLabels };
+    }),
 
   setActivePreset: activePreset => set({ activePreset }),
 

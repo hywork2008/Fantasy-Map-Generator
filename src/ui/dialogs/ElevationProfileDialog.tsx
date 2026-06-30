@@ -3,11 +3,13 @@ import { useEffect, useRef, useState } from "react";
 import { worldContext } from "../../context/worldContext";
 import { downloadFile, getFileName } from "../../controllers/editors";
 import { ElevationProfileRenderer } from "../../renderers/elevation-profile-renderer";
+import { getHeight } from "../../services/cellInfoService";
+import { viewLayerService as view } from "../../services/viewLayerService";
 import { useDialogState } from "../../store/dialogState";
 import { useElevationProfileState } from "../../store/elevationProfileState";
+import { useOptionsState } from "../../store/optionsState";
 import type { Burg, Province, State } from "../../types/models";
 import { getLatitude, getLongitude, rn } from "../../utils";
-import { getHeight } from "../../utils/uiHelpers";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
@@ -19,6 +21,8 @@ const BIOMES_HEIGHT = 10;
 export const ElevationProfileDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("elevationProfile"));
   const { chartData, cells, routeLen, totalAscent, totalDescent, reset } = useElevationProfileState();
+  const heightUnit = useOptionsState(s => s.heightUnit);
+  const distanceUnit = useOptionsState(s => s.distanceUnit);
 
   const [curveIndex, setCurveIndex] = useState(3); // Monotone X default
   const graphRef = useRef<HTMLDivElement>(null);
@@ -26,26 +30,24 @@ export const ElevationProfileDialog: React.FC = () => {
   // Render chart whenever dialog opens or curve changes
   useEffect(() => {
     if (!isOpen || !chartData) return;
-    const heightUnitEl = document.getElementById("heightUnit") as HTMLSelectElement | null;
-    const distanceUnitEl = document.getElementById("distanceUnitInput") as HTMLSelectElement | null;
 
     ElevationProfileRenderer.render("elevationGraph", {
       chartData,
       cellsLength: cells.length,
       routeLen,
-      chartWidth: window.innerWidth - 400,
+      chartWidth: view.svgWidth - 400,
       chartHeight: CHART_HEIGHT,
       xOffset: X_OFFSET,
       yOffset: Y_OFFSET,
       biomesHeight: BIOMES_HEIGHT,
       worldContext,
-      heightUnit: heightUnitEl?.value ?? "m",
-      distanceUnit: distanceUnitEl?.value ?? "km",
+      heightUnit,
+      distanceUnit,
       curveIndex,
       totalAscent,
       totalDescent
     });
-  }, [isOpen, chartData, cells.length, routeLen, curveIndex, totalAscent, totalDescent]);
+  }, [isOpen, chartData, cells.length, routeLen, heightUnit, distanceUnit, curveIndex, totalAscent, totalDescent]);
 
   function handleClose(): void {
     reset();

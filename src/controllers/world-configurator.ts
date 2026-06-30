@@ -5,10 +5,7 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
-import { Biomes } from "../modules/biomes";
-import { Features } from "../modules/features";
-import { Lakes } from "../modules/lakes";
-import { Rivers } from "../modules/river-generator";
+
 import {
   BiomesRenderer,
   CoordinatesRenderer,
@@ -17,11 +14,13 @@ import {
   RiversRenderer
 } from "../renderers";
 import { ThreeDRenderer } from "../renderers/three-d-renderer";
+import { GenerationPipeline } from "../services/generationPipeline";
+import { viewLayerService as view } from "../services/viewLayerService";
 import { openDialog } from "../ui/dialogs/dialogService";
 import { layerIsOn } from "../utils/nodeUtils";
 
 export function editWorld(): void {
-  if (viewContext.customization) return;
+  if (view.customization) return;
   openDialog("worldConfigurator");
   // Notify the dialog to refresh its displayed values (fires even when already open)
   document.dispatchEvent(new CustomEvent("fmg:world-configurator-refresh"));
@@ -31,12 +30,12 @@ export function updateWorld(): void {
   document.dispatchEvent(new CustomEvent("fmg:world-recalculate", { detail: { temps: true, prec: true } }));
   const state = getWorldState();
   const heights = new Uint8Array(worldContext.pack.cells.h);
-  Rivers.generate(worldContext, viewContext, appServices, state);
-  Rivers.specify(worldContext, viewContext, appServices, state);
+  GenerationPipeline.Rivers.generate(worldContext, viewContext, appServices, state);
+  GenerationPipeline.Rivers.specify(worldContext, viewContext, appServices, state);
   worldContext.pack.cells.h = new Float32Array(heights);
-  Biomes.define(state);
-  Features.defineGroups();
-  Lakes.defineNames(state);
+  GenerationPipeline.Biomes.define(state);
+  GenerationPipeline.Features.defineGroups();
+  GenerationPipeline.Lakes.defineNames(state);
 
   if (layerIsOn("toggleTemperature")) drawTemperature(worldContext, viewContext, appServices);
   if (layerIsOn("togglePrecipitation")) PrecipitationRenderer.render(worldContext, viewContext, appServices);

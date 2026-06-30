@@ -1,16 +1,22 @@
 import "./types"; // activate module augmentation for PackedGraph
 import type { LayerConfig } from "../../store/layerState";
+import { regenerateFeatureDialogStore } from "../../store/regenerateFeatureDialogState";
 import type { ExtensionAPI } from "../../types/extension-api";
-import { clearEconomyContext, getApi, getViewContext, getWorldContext, initEconomyContext } from "./economyContext";
-import { Goods } from "./modules/goods-generator";
-import { Markets } from "./modules/markets-generator";
-import { Production } from "./modules/production-generator";
-import { TradeAnimation } from "./modules/trade-animation";
+import { economyStyleConfig } from "./EconomyStyleConfig";
+import { clearEconomyContext, getWorldContext, initEconomyContext } from "./economyContext";
+import { Goods } from "./generators/goods-generator";
+import { Markets } from "./generators/markets-generator";
+import { Production } from "./generators/production-generator";
+import { TradeAnimation } from "./generators/trade-animation";
 import { drawGoods } from "./renderers/draw-goods";
 import { drawMarketsLayer } from "./renderers/draw-markets";
 import { clear as clearTradeAnimation, draw as drawTradeAnimation } from "./renderers/draw-trade-animation";
 import { showEconomyTooltip, updateEconomyCellInfo } from "./tooltipHandler";
+import { GoodsDistributionEditorDialog } from "./ui/dialogs/GoodsDistributionEditorDialog";
 import { GoodsEditorDialog } from "./ui/dialogs/GoodsEditorDialog";
+import { GoodsProducersDialog } from "./ui/dialogs/GoodsProducersDialog";
+import { GoodsStockDialog } from "./ui/dialogs/GoodsStockDialog";
+import { GoodsTagsFilterDialog } from "./ui/dialogs/GoodsTagsFilterDialog";
 import { MarketDealsDialog } from "./ui/dialogs/MarketDealsDialog";
 import { MarketOverviewDialog } from "./ui/dialogs/MarketOverviewDialog";
 import { MarketsGoodCompareDialog } from "./ui/dialogs/MarketsGoodCompareDialog";
@@ -30,49 +36,72 @@ function withRegenerateConfirmation(featureName: string, _id: string, onConfirm:
   const dontAsk = sessionStorage.getItem("regenerateFeatureDontAsk");
   if (dontAsk) return onConfirm();
 
-  getApi().openRichDialog({
-    title: `Regenerate ${featureName}`,
-    content: `Regenerate will remove all the custom changes for the ${featureName}.<br /><br />Are you sure you want to proceed?`,
-    buttons: [
-      {
-        label: "Proceed",
-        onClick: () => {
-          const dontAskBox = document.getElementById("dontAsk") as HTMLInputElement;
-          if (dontAskBox?.checked) sessionStorage.setItem("regenerateFeatureDontAsk", "true");
-          onConfirm();
-        }
-      },
-      { label: "Cancel", onClick: () => {} }
-    ],
-    onOpen: container => {
-      const checkbox =
-        '<div style="margin-top: 1em;"><span><input id="dontAsk" class="checkbox" type="checkbox"><label for="dontAsk" class="checkbox-label dontAsk"><i>do not ask again</i></label><span></div>';
-      container.insertAdjacentHTML("beforeend", checkbox);
-    }
-  });
+  regenerateFeatureDialogStore.getState().open({ featureName, onConfirm });
 }
 
 export const ECONOMY_EXTENSION_ID = "economy";
+
+const ECONOMY_PRESETS: Record<string, { label: string; layers: string[] }> = {
+  goods: {
+    label: "Goods map",
+    layers: [
+      "toggleBorders",
+      "toggleBurgIcons",
+      "toggleCells",
+      "toggleGoods",
+      "toggleMarketsLayer",
+      "toggleLakes",
+      "toggleRivers",
+      "toggleRoutes",
+      "toggleScaleBar",
+      "toggleTrade",
+      "toggleVignette"
+    ]
+  },
+  trade: {
+    label: "Trade animation",
+    layers: [
+      "toggleBorders",
+      "toggleBurgIcons",
+      "toggleLakes",
+      "toggleRivers",
+      "toggleRoutes",
+      "toggleScaleBar",
+      "toggleStates",
+      "toggleTrade",
+      "toggleVignette"
+    ]
+  }
+};
 
 export const economyLayers: LayerConfig[] = [
   {
     id: "toggleGoods",
     name: "Goods",
     shortcut: null,
-    tooltip: "Goods and Production: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
+    tooltip:
+      "Goods and Production: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style",
+    svgLayers: [{ id: "goods", insertBefore: "icons", display: "none" }]
   },
   {
     id: "toggleMarketsLayer",
     name: "Markets",
     shortcut: null,
-    tooltip: "Markets: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
+    tooltip: "Markets: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style",
+    svgLayers: [
+      // Fill polygons rendered below Icons so burg icons remain visible on top.
+      { id: "marketsLayerFill", insertBefore: "icons", display: "none" },
+      // Border paths, center circles and labels — also below Icons layer.
+      { id: "marketsLayer", insertBefore: "icons", display: "none" }
+    ]
   },
   {
     id: "toggleTrade",
     name: "Trade",
     shortcut: "`",
     tooltip:
-      "Trade: animated trade deal flows. Click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
+      "Trade: animated trade deal flows. Click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style",
+    svgLayers: [{ id: "tradeAnimation", insertAfter: "marketsLayer" }]
   }
 ];
 
@@ -94,6 +123,22 @@ export function init(api: ExtensionAPI): void {
 
   // Register Economy Dialogs
   api.registerDialog({ id: "GoodsEditorDialog", extensionId: ECONOMY_EXTENSION_ID, component: GoodsEditorDialog });
+  api.registerDialog({
+    id: "GoodsDistributionEditorDialog",
+    extensionId: ECONOMY_EXTENSION_ID,
+    component: GoodsDistributionEditorDialog
+  });
+  api.registerDialog({
+    id: "GoodsProducersDialog",
+    extensionId: ECONOMY_EXTENSION_ID,
+    component: GoodsProducersDialog
+  });
+  api.registerDialog({ id: "GoodsStockDialog", extensionId: ECONOMY_EXTENSION_ID, component: GoodsStockDialog });
+  api.registerDialog({
+    id: "GoodsTagsFilterDialog",
+    extensionId: ECONOMY_EXTENSION_ID,
+    component: GoodsTagsFilterDialog
+  });
   api.registerDialog({
     id: "MarketsOverviewDialog",
     extensionId: ECONOMY_EXTENSION_ID,
@@ -121,6 +166,9 @@ export function init(api: ExtensionAPI): void {
     extensionId: ECONOMY_EXTENSION_ID,
     component: TradeAnimationDialog
   });
+
+  // Register Economy Style Config
+  api.registerStyleConfig(economyStyleConfig);
 
   // Register Economy Actions for ToolsTab Regenerate section
   api.registerAction({
@@ -211,6 +259,21 @@ export function init(api: ExtensionAPI): void {
     }
   });
 
+  // Register tool action handlers so core tools.ts has no knowledge of extension dialogs.
+  // The handler implements the same open/close + layer toggle pattern used for built-in editors.
+  const toggleEditorDialog = (dialogId: string, layerId: string | null) => {
+    if (api.isDialogOpen(dialogId)) {
+      api.closeDialog(dialogId);
+      if (layerId && api.layerIsOn(layerId)) api.toggleLayerById(layerId);
+    } else {
+      api.openDialog(dialogId);
+    }
+  };
+
+  api.registerToolAction("editGoods", () => toggleEditorDialog("goodsEditor", "toggleGoods"));
+  api.registerToolAction("overviewMarketsButton", () => toggleEditorDialog("marketsOverview", "toggleMarketsLayer"));
+  api.registerToolAction("editTradeAnimationButton", () => toggleEditorDialog("tradeAnimationEditor", "toggleTrade"));
+
   // Subscribe to extension state changes to dynamically add/remove layers
   _unsubscribe = api.subscribeExtensionState((state, prevState) => {
     const isEnabled = state.enabledExtensions[ECONOMY_EXTENSION_ID];
@@ -219,6 +282,10 @@ export function init(api: ExtensionAPI): void {
 
     if (isEnabled && !wasEnabled) {
       api.addLayers(economyLayers);
+      attachSvgClickHandlers();
+      for (const [id, { label, layers }] of Object.entries(ECONOMY_PRESETS)) {
+        api.registerPreset(id, label, layers);
+      }
       api.tooltipExtensions.showMapTooltip = showEconomyTooltip;
       api.tooltipExtensions.updateCellInfo = updateEconomyCellInfo;
       // Generate economy if it's completely missing
@@ -242,9 +309,13 @@ export function init(api: ExtensionAPI): void {
         }
       });
       api.removeLayers(economyLayers.map(l => l.id));
+      for (const id of Object.keys(ECONOMY_PRESETS)) {
+        api.unregisterPreset(id);
+      }
 
       // Close all economy-related dialogs
       api.closeDialog("goodsEditor");
+      api.closeDialog("goodsDistributionEditor");
       api.closeDialog("marketsOverview");
       api.closeDialog("marketOverview");
       api.closeDialog("marketDeals");
@@ -269,6 +340,10 @@ export function init(api: ExtensionAPI): void {
   // If already enabled at load time (e.g. persisted preference), add layers immediately
   if (api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) {
     api.addLayers(economyLayers);
+    attachSvgClickHandlers();
+    for (const [id, { label, layers }] of Object.entries(ECONOMY_PRESETS)) {
+      api.registerPreset(id, label, layers);
+    }
     api.tooltipExtensions.showMapTooltip = showEconomyTooltip;
     api.tooltipExtensions.updateCellInfo = updateEconomyCellInfo;
   }
@@ -290,29 +365,56 @@ export function init(api: ExtensionAPI): void {
     isLayerOn: () => api.layerIsOn("toggleTrade")
   });
 
+  // Register DOM-element getters so the layer panel can reorder economy SVG groups.
+  api.registerLayerElement("toggleGoods", () => document.getElementById("goods"));
+  api.registerLayerElement("toggleMarketsLayer", () => document.getElementById("marketsLayer"));
+  api.registerLayerElement("toggleTrade", () => document.getElementById("tradeAnimation"));
+
+  // Attach click handlers to economy SVG groups. Called after SVG elements are created
+  // (on first addLayers) and again after every map load (via registerMapReinitHook).
+  function attachSvgClickHandlers() {
+    api.getSvgLayer("goods")?.on("click.openEditor", (event: MouseEvent) => {
+      const target = event.target as SVGElement;
+      if (target.closest("#goodsIcons, #goodsBurgs")) {
+        api.openDialog("goodsEditor");
+      }
+    });
+
+    api.getSvgLayer("marketsLayer")?.on("click.openMarket", (event: MouseEvent) => {
+      const target = event.target as SVGElement;
+      const g = target.closest<SVGGElement>("g[data-id]");
+      if (!g?.dataset.id) return;
+      api.openDialog("marketOverview", { marketId: +g.dataset.id });
+    });
+  }
+
+  api.registerMapReinitHook(() => {
+    if (api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) attachSvgClickHandlers();
+  });
+
   // Register layer toggle handlers
-  api.registerLayerToggle("toggleGoods", (event?: MouseEvent) => {
+  api.registerLayerToggle("toggleGoods", (_event?: MouseEvent) => {
     if (!api.layerIsOn("toggleGoods")) {
       api.turnLayerOn("toggleGoods");
       drawGoods(getDefaultGoodsSet());
     } else {
-      getViewContext().goods.selectAll("#goodsCells,#goodsIcons,#goodsBurgs").html("");
+      api.getSvgLayer("goods")?.selectAll("#goodsCells,#goodsIcons,#goodsBurgs").html("");
       api.turnLayerOff("toggleGoods");
     }
   });
 
-  api.registerLayerToggle("toggleMarketsLayer", (event?: MouseEvent) => {
+  api.registerLayerToggle("toggleMarketsLayer", (_event?: MouseEvent) => {
     if (!api.layerIsOn("toggleMarketsLayer")) {
       api.turnLayerOn("toggleMarketsLayer");
       drawMarketsLayer();
     } else {
-      getViewContext().marketsFill.html("").style("display", "none");
-      getViewContext().markets.html("").style("display", "none");
+      api.getSvgLayer("marketsLayerFill")?.html("").style("display", "none");
+      api.getSvgLayer("marketsLayer")?.html("").style("display", "none");
       api.turnLayerOff("toggleMarketsLayer");
     }
   });
 
-  api.registerLayerToggle("toggleTrade", (event?: MouseEvent) => {
+  api.registerLayerToggle("toggleTrade", (_event?: MouseEvent) => {
     if (!api.layerIsOn("toggleTrade")) {
       api.turnLayerOn("toggleTrade");
       TradeAnimation.start();
@@ -340,10 +442,18 @@ export function cleanup(api: ExtensionAPI): void {
     _generatePostCoreHandler = null;
   }
 
-  // Remove layers and clear tooltip hooks
+  // Remove layers, presets and clear tooltip hooks
   api.removeLayers(economyLayers.map(l => l.id));
+  for (const id of Object.keys(ECONOMY_PRESETS)) {
+    api.unregisterPreset(id);
+  }
   api.tooltipExtensions.showMapTooltip = undefined;
   api.tooltipExtensions.updateCellInfo = undefined;
+
+  // Unregister tool action handlers
+  api.unregisterToolAction("editGoods");
+  api.unregisterToolAction("overviewMarketsButton");
+  api.unregisterToolAction("editTradeAnimationButton");
 
   api.unregisterExtension(ECONOMY_EXTENSION_ID);
   clearEconomyContext();

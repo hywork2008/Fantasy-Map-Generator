@@ -1,6 +1,7 @@
-import { heightmapTemplates } from "./config";
 import { clearLegend, closeDialogs, unfog } from "./controllers/editors";
-import { openRichDialog } from "./ui/dialogs/dialogService";
+import { heightmapTemplates } from "./data";
+import { generationErrorDialogStore } from "./store/generationErrorDialogState";
+import { openAlert } from "./ui/dialogs/dialogService";
 import { DEBUG, ERROR, INFO, TIME, WARN } from "./utils/debug";
 
 // Azgaar (azgaar.fmg@yandex.com). Minsk, 2017-2023. MIT License
@@ -16,40 +17,38 @@ import { appServices } from "./context/appServices";
 import { viewContext } from "./context/viewContext";
 import { worldContext } from "./context/worldContext";
 import { restoreDefaultEvents } from "./controllers/editors";
-import { applyLayersPreset, drawLayers, initLayerClickHandlers } from "./controllers/layers";
+import { applyLayersPreset, drawLayers } from "./controllers/layers";
 import { createDefaultRuler } from "./controllers/measurers";
 import { updateMinimap } from "./controllers/minimap";
 import { applyGraphSize, applyStoredOptions, fitMapToScreen, randomizeOptions } from "./controllers/options";
 import { applyStyleOnLoad } from "./controllers/style";
-import { UITour } from "./controllers/ui-tour";
+import { editUnits } from "./controllers/units-editor";
 import { editWorld } from "./controllers/world-configurator";
-import { editUnits } from "./editors/units-editor";
+import { Biomes } from "./generators/biomes";
+import { Burgs } from "./generators/burgs-generator";
+import { Cultures } from "./generators/cultures-generator";
+import { Features } from "./generators/features";
+import { HeightmapGenerator } from "./generators/heightmap-generator";
+import { Ice } from "./generators/ice";
+import { Lakes } from "./generators/lakes";
+import { Markers } from "./generators/markers-generator";
+import { Military } from "./generators/military-generator";
+import { Names } from "./generators/names-generator";
+import { Provinces } from "./generators/provinces-generator";
+import { Religions } from "./generators/religions-generator";
+import { Rivers } from "./generators/river-generator";
+import { Routes } from "./generators/routes-generator";
+import { States } from "./generators/states-generator";
+import { Zones } from "./generators/zones-generator";
 import { ldb } from "./io/ldb";
 import { loadMapFromURL, showUploadErrorMessage, uploadMap } from "./io/load";
 import { initiateAutosave } from "./io/save";
-import { Biomes } from "./modules/biomes";
-import { Burgs } from "./modules/burgs-generator";
-import { Cultures } from "./modules/cultures-generator";
-import { Features } from "./modules/features";
-
-import { HeightmapGenerator } from "./modules/heightmap-generator";
-import { Ice } from "./modules/ice";
-import { Lakes } from "./modules/lakes";
-import { Markers } from "./modules/markers-generator";
-
-import { Military } from "./modules/military-generator";
-import { Names } from "./modules/names-generator";
-import { OceanLayers } from "./modules/ocean-layers";
-
-import { Provinces } from "./modules/provinces-generator";
-import { Religions } from "./modules/religions-generator";
-import { Rivers } from "./modules/river-generator";
-import { Routes } from "./modules/routes-generator";
-import { States } from "./modules/states-generator";
-import { Zones } from "./modules/zones-generator";
 import { renderGroupCOAs } from "./renderers/draw-emblems";
 import { CoordinatesRenderer, drawScaleBar, fitScaleBar } from "./renderers/index";
+import { OceanLayers } from "./renderers/ocean-layers";
 import { ThreeDRenderer } from "./renderers/three-d-renderer";
+import { clearMainTip, showDataTip, tip } from "./services/tooltipService";
+import { UITour } from "./services/ui-tour";
 import { dialogStore } from "./store/dialogState";
 import { useOptionsState } from "./store/optionsState";
 import type { Grid } from "./types/Grid";
@@ -72,9 +71,8 @@ import {
   safeParseJSON,
   shouldRegenerateGrid
 } from "./utils";
-import { alertMessage } from "./utils/alertMessageEl";
-import { layerIsOn } from "./utils/nodeUtils";
-import { clearMainTip, locked, showDataTip, tip } from "./utils/uiHelpers";
+import { locked } from "./utils/domUtils";
+import { getElementById, layerIsOn } from "./utils/nodeUtils";
 import { cleanupData } from "./versioning";
 
 const UINT16_MAX = _TMP.UINT16_MAX;
@@ -105,7 +103,9 @@ if (PRODUCTION && "serviceWorker" in navigator) {
 
 // ─── SVG layers (appended in default render order) ───────────────────────────
 
-let svg = d3.select("#map") as unknown as Selection<SVGSVGElement, unknown, null, undefined>;
+const mapSvgEl = getElementById<SVGSVGElement>("map");
+if (!mapSvgEl) throw new Error("Map SVG root #map is not found");
+let svg = d3.select<SVGSVGElement, unknown>(mapSvgEl) as Selection<SVGSVGElement, unknown, null, undefined>;
 let defs = svg.select("#deftemp") as Selection<SVGDefsElement, unknown, null, undefined>;
 let viewbox = svg.select("#viewbox") as Selection<SVGGElement, unknown, null, undefined>;
 let scaleBar = svg.select("#scaleBar") as Selection<SVGGElement, unknown, null, undefined>;
@@ -164,36 +164,12 @@ let emblems = viewbox.append("g").attr("id", "emblems").style("display", "none")
   null,
   undefined
 >;
-let marketsLayerFill = viewbox.append("g").attr("id", "marketsLayerFill").style("display", "none") as Selection<
-  SVGGElement,
-  unknown,
-  null,
-  undefined
->;
 let icons = viewbox.append("g").attr("id", "icons") as Selection<SVGGElement, unknown, null, undefined>;
 let labels = viewbox.append("g").attr("id", "labels") as Selection<SVGGElement, unknown, null, undefined>;
 let burgIcons = icons.append("g").attr("id", "burgIcons") as Selection<SVGGElement, unknown, null, undefined>;
 let anchors = icons.append("g").attr("id", "anchors") as Selection<SVGGElement, unknown, null, undefined>;
 let armies = viewbox.append("g").attr("id", "armies") as Selection<SVGGElement, unknown, null, undefined>;
 let markers = viewbox.append("g").attr("id", "markers") as Selection<SVGGElement, unknown, null, undefined>;
-let goods = viewbox.append("g").attr("id", "goods").style("display", "none") as Selection<
-  SVGGElement,
-  unknown,
-  null,
-  undefined
->;
-let marketsLayer = viewbox.append("g").attr("id", "marketsLayer").style("display", "none") as Selection<
-  SVGGElement,
-  unknown,
-  null,
-  undefined
->;
-let tradeAnimation = viewbox.append("g").attr("id", "tradeAnimation") as Selection<
-  SVGGElement,
-  unknown,
-  null,
-  undefined
->;
 let fogging = viewbox
   .append("g")
   .attr("id", "fogging-cont")
@@ -299,10 +275,6 @@ Object.assign(viewContext, {
   anchors,
   armies,
   markers,
-  goods,
-  marketsFill: marketsLayerFill,
-  markets: marketsLayer,
-  tradeAnimation,
   fogging,
   ruler,
   debug,
@@ -358,20 +330,11 @@ export function reinitializeMapLayers(): void {
   anchors = icons.select("#anchors") as Selection<SVGGElement, unknown, null, undefined>;
   armies = viewbox.select("#armies") as Selection<SVGGElement, unknown, null, undefined>;
   markers = viewbox.select("#markers") as Selection<SVGGElement, unknown, null, undefined>;
-  goods = viewbox.select("#goods") as Selection<SVGGElement, unknown, null, undefined>;
-  marketsLayer = viewbox.select<SVGGElement>("#marketsLayer");
-  if (!marketsLayer.size()) {
-    // Pre-1.125.x saves used #markets; rename in-place so subsequent saves use the new id
-    marketsLayer = viewbox.select<SVGGElement>("#markets").attr("id", "marketsLayer");
+  // Pre-1.125.x saves used #markets; rename in-place so subsequent saves use the new id.
+  // The economy extension's reinit hook will re-acquire #marketsLayer after this rename.
+  if (!viewbox.select("#marketsLayer").size()) {
+    viewbox.select<SVGGElement>("#markets").attr("id", "marketsLayer");
   }
-  marketsLayerFill = viewbox.select<SVGGElement>("#marketsLayerFill");
-  if (!marketsLayerFill.size()) {
-    const anchor = marketsLayer.node();
-    marketsLayerFill = (anchor ? viewbox.insert<SVGGElement>("g", () => anchor) : viewbox.append<SVGGElement>("g"))
-      .attr("id", "marketsLayerFill")
-      .style("display", "none");
-  }
-  tradeAnimation = viewbox.select("#tradeAnimation") as Selection<SVGGElement, unknown, null, undefined>;
   ruler = viewbox.select("#ruler") as Selection<SVGGElement, unknown, null, undefined>;
   fogging = viewbox.select("#fogging") as Selection<SVGGElement, unknown, null, undefined>;
   debug = viewbox.select("#debug") as Selection<SVGGElement, unknown, null, undefined>;
@@ -424,16 +387,13 @@ export function reinitializeMapLayers(): void {
     anchors,
     armies,
     markers,
-    goods,
-    marketsFill: marketsLayerFill,
-    markets: marketsLayer,
-    tradeAnimation,
     fogging,
     ruler,
     debug
   });
 
-  initLayerClickHandlers();
+  // Notify extension system so it can re-acquire extension-owned SVG layers.
+  document.dispatchEvent(new CustomEvent("fmg:map-layers-reinitialized"));
 }
 
 // ─── Fit loaded map to screen (called after reinitializeMapLayers + fitMapToScreen) ─
@@ -547,9 +507,9 @@ function zoomRaf(event: { transform: { k: number; x: number; y: number } }) {
     }
 
     if (viewContext.customization === 1) {
-      const canvas = document.getElementById("canvas") as HTMLCanvasElement | null;
+      const canvas = getElementById<HTMLCanvasElement>("canvas");
       if (canvas && canvas.style.opacity !== "0") {
-        const img = document.getElementById("imageToConvert") as HTMLImageElement | null;
+        const img = getElementById<HTMLImageElement>("imageToConvert");
         if (img) {
           const ctx = canvas.getContext("2d")!;
           ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -568,7 +528,7 @@ function zoomRaf(event: { transform: { k: number; x: number; y: number } }) {
 
     if (didScaleChange) {
       drawScaleBar(worldContext, viewContext, appServices, scaleBar, scale);
-      fitScaleBar(worldContext, viewContext, appServices, scaleBar, svgWidth, svgHeight);
+      fitScaleBar(worldContext, viewContext, appServices, scaleBar, viewContext.svgWidth, viewContext.svgHeight);
     }
 
     if (didPositionChange || didScaleChange) {
@@ -627,9 +587,10 @@ oceanLayers
 
 export async function initMain(): Promise<void> {
   if (!location.hostname) {
-    alertMessage.innerHTML = /* html */ `Fantasy Map Generator cannot run serverless. Follow the <a href="https://github.com/Azgaar/Fantasy-Map-Generator/wiki/Run-FMG-locally" target="_blank">instructions</a> on how you can easily run a local web-server`;
-
-    openRichDialog({ content: alertMessage.innerHTML, title: "Loading error" });
+    openAlert(
+      `Fantasy Map Generator cannot run serverless. Follow the <a href="https://github.com/Azgaar/Fantasy-Map-Generator/wiki/Run-FMG-locally" target="_blank">instructions</a> on how you can easily run a local web-server`,
+      { title: "Loading error" }
+    );
   } else {
     hideLoading();
     await checkLoadParameters();
@@ -656,7 +617,7 @@ export async function initMain(): Promise<void> {
 }
 
 function applyTransition(id: string, duration: number, opacity: number) {
-  const el = document.getElementById(id);
+  const el = getElementById<HTMLElement>(id);
   if (!el) return;
   el.style.transition = `opacity ${duration}ms`;
   el.style.opacity = String(opacity);
@@ -771,17 +732,23 @@ export function focusOn() {
 }
 
 let isAssistantLoaded = false;
+
+function setElementDisplayById(id: string, display: string): void {
+  const element = getElementById<HTMLElement>(id);
+  if (!element) return;
+  element.style.display = display;
+}
+
 function toggleAssistant() {
   const showAssistant = useOptionsState.getState().azgaarAssistant === "show";
   if (showAssistant) {
     if (isAssistantLoaded) {
-      const assistantContainer = document.getElementById("chat-widget-container");
-      if (assistantContainer) assistantContainer.style.display = "block";
+      setElementDisplayById("chat-widget-container", "block");
     } else {
       import(/* @vite-ignore */ `${import.meta.env.BASE_URL}libs/openwidget.min.js`).then(() => {
         isAssistantLoaded = true;
         setTimeout(() => {
-          const bubble = document.getElementById("chat-widget-minimized");
+          const bubble = getElementById<HTMLElement>("chat-widget-minimized");
           if (bubble) {
             bubble.dataset.tip = "Click to open the Assistant";
             bubble.addEventListener("mouseover", showDataTip as EventListener);
@@ -790,22 +757,21 @@ function toggleAssistant() {
       });
     }
   } else if (isAssistantLoaded) {
-    const assistantContainer = document.getElementById("chat-widget-container");
-    if (assistantContainer) assistantContainer.style.display = "none";
+    setElementDisplayById("chat-widget-container", "none");
   }
 }
 
 function initTourPromptButton() {
   const MAX_SHOWS = 3;
   const STORAGE_KEY = "fmg-tour-prompt-count";
-  const btn = document.getElementById("tourPromptButton");
+  const btn = getElementById<HTMLElement>("tourPromptButton");
   if (!btn) return;
 
   const count = parseInt(localStorage.getItem(STORAGE_KEY) || "0", 10);
   if (count >= MAX_SHOWS) return;
 
   localStorage.setItem(STORAGE_KEY, String(count + 1));
-  (btn as HTMLElement).style.display = "flex";
+  setElementDisplayById("tourPromptButton", "flex");
   btn.addEventListener("click", () => {
     UITour.start();
   });
@@ -940,7 +906,7 @@ export function invokeActiveZooming() {
       const relative = Math.max(rn((desired + desired / scale) / 2, 2), 1);
       if (useOptionsState.getState().rescaleLabels) this.setAttribute("font-size", String(relative));
 
-      const hidden = hideLabels.checked && (relative * scale < 6 || relative * scale > 60);
+      const hidden = useOptionsState.getState().hideLabels && (relative * scale < 6 || relative * scale > 60);
       if (hidden) this.classList.add("hidden");
       else this.classList.remove("hidden");
     });
@@ -1013,8 +979,8 @@ export function invokeActiveZooming() {
     const EMBLEM_VIEWPORT_MARGIN = 100;
     const vLeft = -viewX / scale - EMBLEM_VIEWPORT_MARGIN;
     const vTop = -viewY / scale - EMBLEM_VIEWPORT_MARGIN;
-    const vRight = (svgWidth - viewX) / scale + EMBLEM_VIEWPORT_MARGIN;
-    const vBottom = (svgHeight - viewY) / scale + EMBLEM_VIEWPORT_MARGIN;
+    const vRight = (viewContext.svgWidth - viewX) / scale + EMBLEM_VIEWPORT_MARGIN;
+    const vBottom = (viewContext.svgHeight - viewY) / scale + EMBLEM_VIEWPORT_MARGIN;
 
     emblems.selectAll<SVGUseElement, unknown>("use").each(function () {
       const x = +this.getAttribute("x")!;
@@ -1031,20 +997,22 @@ export function invokeActiveZooming() {
     const GOODS_MARGIN = 20;
     const vLeft = -viewX / scale - GOODS_MARGIN;
     const vTop = -viewY / scale - GOODS_MARGIN;
-    const vRight = (svgWidth - viewX) / scale + GOODS_MARGIN;
-    const vBottom = (svgHeight - viewY) / scale + GOODS_MARGIN;
+    const vRight = (viewContext.svgWidth - viewX) / scale + GOODS_MARGIN;
+    const vBottom = (viewContext.svgHeight - viewY) / scale + GOODS_MARGIN;
 
-    goods.selectAll<SVGGElement, unknown>("#goodsIcons > g, #goodsBurgs > g").each(function () {
-      const x = +this.getAttribute("data-x")!;
-      const y = +this.getAttribute("data-y")!;
-      const minScale = +this.getAttribute("data-min-scale")! || 0;
+    d3.select<SVGGElement, unknown>("#goods")
+      .selectAll<SVGGElement, unknown>("#goodsIcons > g, #goodsBurgs > g")
+      .each(function () {
+        const x = +this.getAttribute("data-x")!;
+        const y = +this.getAttribute("data-y")!;
+        const minScale = +this.getAttribute("data-min-scale")! || 0;
 
-      const inViewport = x > vLeft && x < vRight && y > vTop && y < vBottom;
-      const aboveThreshold = scale >= minScale;
+        const inViewport = x > vLeft && x < vRight && y > vTop && y < vBottom;
+        const aboveThreshold = scale >= minScale;
 
-      if (inViewport && aboveThreshold) this.classList.remove("hidden");
-      else this.classList.add("hidden");
-    });
+        if (inViewport && aboveThreshold) this.classList.remove("hidden");
+        else this.classList.add("hidden");
+      });
   }
 
   if (!viewContext.customization && !isOptimized) {
@@ -1056,7 +1024,7 @@ export function invokeActiveZooming() {
   +markers.attr("rescale") &&
     worldContext.pack.markers?.forEach(marker => {
       const { i, x = 0, y = 0, size = 30, hidden } = marker;
-      const el = !hidden && document.getElementById(`marker${i}`);
+      const el = !hidden ? getElementById<SVGUseElement>(`marker${i}`) : null;
       if (!el) return;
 
       const zoomedSize = Math.max(rn(size / 5 + 24 / scale, 2), 1);
@@ -1074,50 +1042,55 @@ export function invokeActiveZooming() {
 
 // ─── Drag-to-upload ───────────────────────────────────────────────────────────
 
+function getMapOverlayElement(): HTMLElement | null {
+  return getElementById<HTMLElement>("mapOverlay");
+}
+
+function setMapOverlayVisible(visible: boolean): void {
+  const overlay = getMapOverlayElement();
+  if (!overlay) return;
+  overlay.style.display = visible ? "" : "none";
+}
+
+function setMapOverlayContent(content: string): void {
+  const overlay = getMapOverlayElement();
+  if (!overlay) return;
+  overlay.innerHTML = content;
+}
+
 void (function addDragToUpload() {
   document.addEventListener("dragover", e => {
     e.stopPropagation();
     e.preventDefault();
-    document.getElementById("mapOverlay")!.style.display = "";
+    setMapOverlayVisible(true);
   });
 
   document.addEventListener("dragleave", () => {
-    document.getElementById("mapOverlay")!.style.display = "none";
+    setMapOverlayVisible(false);
   });
 
   document.addEventListener("drop", e => {
     e.stopPropagation();
     e.preventDefault();
 
-    const overlay = document.getElementById("mapOverlay")!;
-    overlay.style.display = "none";
+    setMapOverlayVisible(false);
     if (e.dataTransfer?.items?.length !== 1) return;
     const file = e.dataTransfer.items[0].getAsFile();
     if (!file) return;
 
     if (!file.name.endsWith(".map") && !file.name.endsWith(".gz")) {
-      alertMessage.innerHTML =
-        "Please upload a map file (<i>.map</i> or <i>.gz</i> formats) you have previously downloaded";
-      openRichDialog({
-        content: alertMessage.innerHTML,
-        resizable: false,
-        title: "Invalid file format",
-        position: { my: "center", at: "center", of: "svg" },
-        buttons: {
-          Close: () => {
-            /* $(this).dialog("close") removed */
-          }
-        }
+      openAlert("Please upload a map file (<i>.map</i> or <i>.gz</i> formats) you have previously downloaded", {
+        title: "Invalid file format"
       });
       return;
     }
 
-    overlay.style.display = "";
-    overlay.innerHTML = "Uploading<span>.</span><span>.</span><span>.</span>";
+    setMapOverlayVisible(true);
+    setMapOverlayContent("Uploading<span>.</span><span>.</span><span>.</span>");
     if (closeDialogs) closeDialogs();
     uploadMap(file, () => {
-      overlay.style.display = "none";
-      overlay.innerHTML = "Drop a map file to open";
+      setMapOverlayVisible(false);
+      setMapOverlayContent("Drop a map file to open");
     });
   });
 })();
@@ -1215,24 +1188,10 @@ export async function generate(opts?: { seed?: string; graph?: Grid | null }) {
     const parsedError = parseError(error);
     clearMainTip();
 
-    alertMessage.innerHTML = /* html */ `An error has occurred on map generation. Please retry. <br />If error is critical, clear the stored data and try again.
-      <p id="errorBox">${parsedError}</p>`;
-    openRichDialog({
-      content: alertMessage.innerHTML,
-      resizable: false,
-      title: "Generation error",
-      width: "32em",
-      buttons: {
-        "Cleanup data": () => cleanupData(),
-        Regenerate: () => {
-          regenerateMap("generation error");
-          /* $(this).dialog("close") removed */
-        },
-        Ignore: () => {
-          /* $(this).dialog("close") removed */
-        }
-      },
-      position: { my: "center", at: "center", of: "svg" }
+    generationErrorDialogStore.getState().open({
+      errorText: parsedError,
+      onCleanup: () => cleanupData(),
+      onRegenerate: () => regenerateMap("generation error")
     });
   }
 }
@@ -1253,7 +1212,7 @@ function setSeed(precreatedSeed?: string) {
   }
 
   useOptionsState.getState().setOption("seed", worldContext.seed);
-  const seedInput = document.getElementById("optionsSeed") as HTMLInputElement | null;
+  const seedInput = getElementById<HTMLInputElement>("optionsSeed");
   if (seedInput) seedInput.value = worldContext.seed;
   Math.random = Alea(worldContext.seed);
 }
@@ -1262,7 +1221,7 @@ function setSeed(precreatedSeed?: string) {
 
 export function addLakesInDeepDepressions() {
   TIME && console.time("addLakesInDeepDepressions");
-  const elevationLimit = +(document.getElementById("lakeElevationLimitOutput") as HTMLOutputElement).value;
+  const elevationLimit = +(getElementById<HTMLOutputElement>("lakeElevationLimitOutput")?.value ?? "80");
   if (elevationLimit === 80) return;
 
   const { cells: gridCells, features } = worldContext.grid;
@@ -1422,9 +1381,10 @@ function defineMapSize() {
 }
 
 export function calculateMapCoordinates() {
-  const sizeFraction = +(document.getElementById("mapSizeOutput") as HTMLOutputElement).value / 100;
-  const latShift = +(document.getElementById("latitudeOutput") as HTMLOutputElement).value / 100;
-  const lonShift = +(document.getElementById("longitudeOutput") as HTMLOutputElement).value / 100;
+  const options = useOptionsState.getState();
+  const sizeFraction = options.mapSize / 100;
+  const latShift = options.latitude / 100;
+  const lonShift = options.longitude / 100;
 
   const latT = rn(sizeFraction * 180, 1);
   const latN = rn(90 - (180 - latT) * latShift, 1);
@@ -1822,7 +1782,8 @@ export function undraw() {
     .forEach(el => {
       el.remove();
     });
-  document.getElementById("coas")!.innerHTML = "";
+  const coasEl = getElementById<HTMLElement>("coas");
+  if (coasEl) coasEl.innerHTML = "";
   worldContext.notes = [];
   unfog();
 }

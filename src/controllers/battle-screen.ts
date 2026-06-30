@@ -5,15 +5,17 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
-import { Military } from "../modules/military-generator";
-import { Names } from "../modules/names-generator";
-import { drawMarker, moveRegiment } from "../renderers/index";
+
+import { appendMarkerToLayer, moveRegiment } from "../renderers/index";
+import { GenerationPipeline } from "../services/generationPipeline";
+import { tip } from "../services/tooltipService";
+import { viewLayerService as view } from "../services/viewLayerService";
 import type { BattleRegimentDisplay, BattleSide } from "../store/battleScreenState";
 import { getBattleScreenState } from "../store/battleScreenState";
+import { useOptionsState } from "../store/optionsState";
 import type { MilitaryRegiment } from "../types/models";
 import { closeDialog, closeDialogs, openDialog } from "../ui/dialogs/dialogService";
 import { findCell, getAdjective, last, list, minmax, P, Pint, rand, rn, wiki } from "../utils";
-import { tip } from "../utils/uiHelpers";
 
 interface BattleRegiment extends MilitaryRegiment {
   casualties: Record<string, number>;
@@ -46,9 +48,9 @@ class Battle {
   name!: string;
 
   constructor(attacker: BattleRegiment, defender: BattleRegiment) {
-    if (viewContext.customization) return;
+    if (view.customization) return;
     closeDialogs(".stable");
-    viewContext.customization = 13;
+    view.setCustomization(13);
 
     Battle.context = this;
     this.iteration = 0;
@@ -117,7 +119,7 @@ class Battle {
       return `${river!.name} ${river!.type}`;
     };
     const river = !burg && cells.r![i] ? getRiver(cells.r![i]) : null;
-    const proper = burg || river ? null : Names.getCulture(cells.culture![this.cell]);
+    const proper = burg || river ? null : GenerationPipeline.Names.getCulture(cells.culture![this.cell]);
     return (burg ? burg : river ? river : proper) as string;
   }
 
@@ -150,7 +152,7 @@ class Battle {
 
     const state = worldContext.pack.states[regiment.state];
     const distance = (Math.hypot(this.y - regiment.by, this.x - regiment.bx) * worldContext.distanceScale) | 0;
-    const distanceUnit = (document.getElementById("distanceUnitInput") as HTMLSelectElement | null)?.value ?? "km";
+    const distanceUnit = useOptionsState.getState().distanceUnit ?? "km";
     const color = (state.color ?? "#999")[0] === "#" ? (state.color ?? "#999") : "#999";
 
     const display: BattleRegimentDisplay = {
@@ -201,8 +203,8 @@ class Battle {
   generateName(type: string): void {
     const place =
       type === "culture"
-        ? Names.getCulture(worldContext.pack.cells.culture![this.cell], undefined, undefined, "")
-        : Names.getBase(rand(worldContext.nameBases.length - 1));
+        ? GenerationPipeline.Names.getCulture(worldContext.pack.cells.culture![this.cell], undefined, undefined, "")
+        : GenerationPipeline.Names.getBase(rand(worldContext.nameBases.length - 1));
     this.place = place;
     this.name = this.defineName();
     getBattleScreenState().setBattleState({ place: this.place, name: this.name });
@@ -736,7 +738,7 @@ class Battle {
 
       r.u = Object.assign({}, r.survivors);
       r.a = sum(Object.values(r.u) as number[]);
-      viewContext.armies.select(`g#${id} > text`).text(Military.getTotal(r));
+      view.armies.select(`g#${id} > text`).text(GenerationPipeline.Military.getTotal(r));
 
       moveRegiment(worldContext, viewContext, appServices, r, r.px as number, r.py as number);
     }
@@ -745,8 +747,7 @@ class Battle {
     {
       const marker = { i: markerI, x: this.x, y: this.y, cell: this.cell, icon: "⚔️", type: "battlefields", dy: 52 };
       worldContext.pack.markers.push(marker);
-      const markerHTML = drawMarker(worldContext, viewContext, appServices, marker);
-      (document.getElementById("markers") as HTMLElement).insertAdjacentHTML("beforeend", markerHTML);
+      appendMarkerToLayer(view.markers.node()!, worldContext, viewContext, appServices, marker);
     }
 
     const getSide = (regs: BattleRegiment[], n: number) =>
@@ -783,7 +784,7 @@ class Battle {
   }
 
   cleanData(): void {
-    viewContext.customization = 0;
+    view.setCustomization(0);
 
     this.attackers.regiments.concat(this.defenders.regiments).forEach(r => {
       delete r.px;

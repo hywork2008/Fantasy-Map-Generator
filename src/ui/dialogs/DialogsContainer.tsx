@@ -6,48 +6,53 @@ import { type ExtensionDialog, useExtensionState } from "../../store/extensionSt
 import { AiGeneratorDialog } from "./AiGeneratorDialog";
 import { AlertDialog } from "./AlertDialog";
 import { BattleScreenDialog, RegimentSelectorScreenDialog } from "./BattleScreenDialog";
-import { BiomesEditorDialog } from "./BiomesEditorDialog";
 import { BrushesPanelDialog } from "./BrushesPanelDialog";
 import { BurgEditorDialog } from "./BurgEditorDialog";
 import { BurgGroupsEditorDialog } from "./BurgGroupsEditorDialog";
+import { BurgsBubbleChartDialog } from "./BurgsBubbleChartDialog";
 import { BurgsOverviewDialog } from "./BurgsOverviewDialog";
+import { BurgsRenamingDialog } from "./BurgsRenamingDialog";
 import { CellInfoDialog } from "./CellInfoDialog";
 import { ChartsOverviewDialog } from "./ChartsOverviewDialog";
-import { CoastlineEditorDialog } from "./CoastlineEditorDialog";
-import { CoastlineSettingsEditorDialog } from "./CoastlineSettingsEditorDialog";
+import { CommonEditorDialog } from "./CommonEditorDialog";
 import { CulturesEditorDialog } from "./CulturesEditorDialog";
-import { DiplomacyEditorDialog } from "./DiplomacyEditorDialog";
+import { DiplomacyHistoryDialog } from "./DiplomacyHistoryDialog";
 import { DiplomacyMatrixDialog } from "./DiplomacyMatrixDialog";
 import { DiplomacyRelationDialog } from "./DiplomacyRelationDialog";
 import { ElevationProfileDialog } from "./ElevationProfileDialog";
-import { EmblemEditorDialog } from "./EmblemEditorDialog";
 import { ExportMapDialog } from "./ExportMapDialog";
 import { ExportToPngTilesDialog } from "./ExportToPngTilesDialog";
+import { EDITOR_REGISTRY } from "./editorRegistry";
 import { FontDialog } from "./FontDialog";
-
-import { HeightmapSelectionDialog } from "./HeightmapSelectionDialog";
+import { GenerationErrorDialog } from "./GenerationErrorDialog";
+import { HeightmapEditModeDialog } from "./HeightmapEditModeDialog";
+import { HeightmapSchemeDialog } from "./HeightmapSchemeDialog";
 import { HierarchyTreeDialog } from "./HierarchyTreeDialog";
 import { IceEditorDialog } from "./IceEditorDialog";
 import { IconSelectorDialog } from "./IconSelectorDialog";
+import { ImageConverterCloseDialog } from "./ImageConverterCloseDialog";
 import { ImageConverterDialog } from "./ImageConverterDialog";
 import { LabelEditorDialog } from "./LabelEditorDialog";
 import { LakeEditorDialog } from "./LakeEditorDialog";
+import { LoadErrorDialog } from "./LoadErrorDialog";
 import { LoadMapDialog } from "./LoadMapDialog";
+import { LoadMapFromUrlDialog } from "./LoadMapFromUrlDialog";
+import { MarkerConfigDialog } from "./MarkerConfigDialog";
 import { MarkerEditorDialog } from "./MarkerEditorDialog";
 import { MarkersOverviewDialog } from "./MarkersOverviewDialog";
-
 import { MilitaryOptionsDialog } from "./MilitaryOptionsDialog";
 import { MilitaryOverviewDialog } from "./MilitaryOverviewDialog";
 import { MinimapDialog } from "./MinimapDialog";
-import { NamesbaseEditorDialog } from "./NamesbaseEditorDialog";
-import { NotesEditorDialog } from "./NotesEditorDialog";
 import { Options3dDialog } from "./Options3dDialog";
+import { PopulationChangeDialog } from "./PopulationChangeDialog";
 import { Preview3dDialog } from "./Preview3dDialog";
-
 import { PromptDialog } from "./PromptDialog";
 import { ProvinceMergeDialog } from "./ProvinceMergeDialog";
 import { ProvinceNameEditorDialog } from "./ProvinceNameEditorDialog";
+import { ProvincesChartDialog } from "./ProvincesChartDialog";
 import { ProvincesEditorDialog } from "./ProvincesEditorDialog";
+import { RegenerateConfirmDialog } from "./RegenerateConfirmDialog";
+import { RegenerateFeatureDialog } from "./RegenerateFeatureDialog";
 import { RegimentEditorDialog } from "./RegimentEditorDialog";
 import { RegimentsOverviewDialog } from "./RegimentsOverviewDialog";
 import { ReliefEditorDialog } from "./ReliefEditorDialog";
@@ -58,20 +63,22 @@ import { RiversOverviewDialog } from "./RiversOverviewDialog";
 import { RouteCreatorDialog } from "./RouteCreatorDialog";
 import { RouteEditorDialog } from "./RouteEditorDialog";
 import { RouteGroupsEditorDialog } from "./RouteGroupsEditorDialog";
+import { RouteJoinDialog } from "./RouteJoinDialog";
 import { RoutesEditorDialog } from "./RoutesEditorDialog";
 import { RoutesOverviewDialog } from "./RoutesOverviewDialog";
 import { SaveMapDialog } from "./SaveMapDialog";
 import { StateMergeDialog } from "./StateMergeDialog";
 import { StateNameEditorDialog } from "./StateNameEditorDialog";
-import { StatesEditorDialog } from "./StatesEditorDialog";
+import { StatesChartDialog } from "./StatesChartDialog";
 import { StyleSaverDialog } from "./StyleSaverDialog";
 import { SubmapToolDialog } from "./SubmapToolDialog";
+import { TemperatureGraphDialog } from "./TemperatureGraphDialog";
 import { TemplateEditorDialog } from "./TemplateEditorDialog";
+import { TextureUrlDialog } from "./TextureUrlDialog";
 
 import { TransformToolDialog } from "./TransformToolDialog";
 import { UnitsEditorDialog } from "./UnitsEditorDialog";
 import { WorldConfiguratorDialog } from "./WorldConfiguratorDialog";
-import { ZonesEditorDialog } from "./ZonesEditorDialog";
 
 export const DialogsContainer: React.FC = () => {
   const alertConfig = useDialogState(state => state.alertConfig);
@@ -87,6 +94,7 @@ export const DialogsContainer: React.FC = () => {
 
   const { dialogs, enabledExtensions } = useExtensionState();
   const extensionDialogs = dialogs.filter(d => enabledExtensions[d.extensionId]);
+  const openDialogs = useDialogState(state => state.openDialogs);
 
   return (
     <div id="dialogs-root" style={{ pointerEvents: "none" }}>
@@ -109,9 +117,6 @@ export const DialogsContainer: React.FC = () => {
           <RouteCreatorDialog />
           <RouteGroupsEditorDialog />
           <IceEditorDialog />
-          <CoastlineEditorDialog />
-          <CoastlineSettingsEditorDialog />
-          <StatesEditorDialog />
           <StateMergeDialog />
           <CulturesEditorDialog />
           <ReligionsEditorDialog />
@@ -132,16 +137,10 @@ export const DialogsContainer: React.FC = () => {
           <BrushesPanelDialog />
           <TemplateEditorDialog />
           <ImageConverterDialog />
-          <BiomesEditorDialog />
           <ProvincesEditorDialog />
-          <DiplomacyEditorDialog />
           <DiplomacyRelationDialog />
-          <NamesbaseEditorDialog />
-          <ZonesEditorDialog />
-          <NotesEditorDialog />
-          <AiGeneratorDialog />
-          <EmblemEditorDialog />
           <UnitsEditorDialog />
+          <AiGeneratorDialog />
           <BurgsOverviewDialog />
           <BurgGroupsEditorDialog />
           <RoutesOverviewDialog />
@@ -151,20 +150,38 @@ export const DialogsContainer: React.FC = () => {
           <RegimentsOverviewDialog />
           <MilitaryOptionsDialog />
           <MarkersOverviewDialog />
+          <BurgsBubbleChartDialog />
+          <HeightmapSchemeDialog />
+          <MarkerConfigDialog />
+          <RegenerateConfirmDialog />
+          <PopulationChangeDialog />
+          <ProvincesChartDialog />
+          <StatesChartDialog />
+          <TemperatureGraphDialog />
           <StyleSaverDialog />
+          <TextureUrlDialog />
+          <HeightmapEditModeDialog />
+          <ImageConverterCloseDialog />
+          <GenerationErrorDialog />
+          <LoadErrorDialog />
+          <RouteJoinDialog />
+          <DiplomacyHistoryDialog />
+          <BurgsRenamingDialog />
+          <LoadMapFromUrlDialog />
+          <RegenerateFeatureDialog />
           <CellInfoDialog />
           <MinimapDialog />
           <ChartsOverviewDialog />
-          <HeightmapSelectionDialog />
           <Options3dDialog />
           <Preview3dDialog />
           {extensionDialogs.map((dialog: ExtensionDialog) => (
             <dialog.component key={dialog.id} />
           ))}
-          {/* 
-        Here we will mount the other dialogs such as:
-        <WorldConfigurator isOpen={openDialogs.has("worldConfigurator")} />
-      */}
+          {Array.from(openDialogs).map(id => {
+            const config = EDITOR_REGISTRY[id];
+            if (config) return <CommonEditorDialog key={id} id={id} config={config} />;
+            return null;
+          })}
         </>
       )}
     </div>

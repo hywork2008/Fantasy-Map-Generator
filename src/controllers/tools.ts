@@ -4,33 +4,10 @@ import { pointer, quadtree } from "d3";
 import { getWorldState } from "../actions";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
+import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import { editBiomes } from "../editors/biomes-editor";
-import { editDiplomacy } from "../editors/diplomacy-editor";
-import { editEmblem } from "../editors/emblems-editor";
-import { editHeightmap } from "../editors/heightmap-editor";
-import { NamesbaseEditor } from "../editors/namesbase-editor";
-import { editNotes } from "../editors/notes-editor";
-import { editProvinces } from "../editors/provinces-editor";
-import { createRoute } from "../editors/routes-editor";
-import { editUnits } from "../editors/units-editor";
-import { editZones } from "../editors/zones-editor";
+
 import { rankCells } from "../main";
-import { Burgs } from "../modules/burgs-generator";
-import { Cultures } from "../modules/cultures-generator";
-import { COA } from "../modules/emblem/generator";
-import { Features } from "../modules/features";
-import { Ice } from "../modules/ice";
-import { Lakes } from "../modules/lakes";
-import { Markers } from "../modules/markers-generator";
-import { Military } from "../modules/military-generator";
-import { Names } from "../modules/names-generator";
-import { Provinces } from "../modules/provinces-generator";
-import { Religions } from "../modules/religions-generator";
-import { Rivers } from "../modules/river-generator";
-import { Routes } from "../modules/routes-generator";
-import { States } from "../modules/states-generator";
-import { Zones } from "../modules/zones-generator";
 import {
   BordersRenderer,
   BurgIconsRenderer,
@@ -51,24 +28,38 @@ import {
   ZonesRenderer
 } from "../renderers";
 import { COArenderer } from "../renderers/emblem-renderer";
-import { drawMarker } from "../renderers/index";
+import { appendMarkerToLayer } from "../renderers/index";
+import { GenerationPipeline } from "../services/generationPipeline";
+import { clearMainTip, tip } from "../services/tooltipService";
+import { viewLayerService as view } from "../services/viewLayerService";
 import { useBurgsOverviewState } from "../store/burgsOverviewState";
-import { elSelected } from "../store/editorState";
+import { dialogStore } from "../store/dialogState";
+import { elSelected, modules } from "../store/editorState";
+import { heightmapEditModeStore } from "../store/heightmapDialogState";
+import { useLayerState } from "../store/layerState";
+import { useMarkersOverviewState } from "../store/markersOverviewState";
+import { useMilitaryOverviewState } from "../store/militaryOverviewState";
 import { useOptionsState } from "../store/optionsState";
+import { useRiversOverviewState } from "../store/riversOverviewState";
 import type { MarkerConfig } from "../types/MarkerConfig";
 import type { Burg, Marker, Province, Religion, River, Route, State } from "../types/models";
 import type { WorldNote } from "../types/WorldState";
 import * as Dialogservice from "../ui/dialogs/dialogService";
-import { closeDialog, closeDialogs, openDialog, openRichDialog } from "../ui/dialogs/dialogService";
+import { closeDialog, closeDialogs, openDialog } from "../ui/dialogs/dialogService";
+import type { RegenerateConfirmConfig } from "../ui/dialogs/RegenerateConfirmDialog";
 import { findCell, gauss, generateSeed, getNextId, isCtrlClick, P, rn, showPrompt } from "../utils";
 import { EditorBus } from "../utils/editorBus";
-import { layerIsOn } from "../utils/nodeUtils";
-import { clearMainTip, tip } from "../utils/uiHelpers";
+import { getElementById, getElementBySelector, getElementsBySelector, layerIsOn } from "../utils/nodeUtils";
+import { editBiomes } from "./biomes-editor";
 import { overviewBurgs } from "./burgs-overview";
 import { openChartsOverview } from "./charts-overview";
+import { editDiplomacy } from "./diplomacy-editor";
 import { editCoastlineSettings, editCultures, editReligions, refreshAllEditors } from "./editors";
+import { editEmblem } from "./emblems-editor";
+import { editHeightmap } from "./heightmapEditor";
 import { interactionManager } from "./interactionManager";
 import {
+  getToolActionHandler,
   toggleBorders,
   toggleCultures,
   toggleEmblems,
@@ -85,55 +76,122 @@ import {
   toggleStates,
   turnButtonOn
 } from "./layers";
+import { editMarker } from "./markers-editor";
 import * as MarkersOverview from "./markers-overview";
 import { overviewMilitary } from "./military-overview";
 import { openMinimapDialog } from "./minimap";
+import { NamesbaseEditor } from "./namesbase-editor";
+import { editNotes } from "./notes-editor";
 import { cellsDensityMap } from "./options";
+import { editProvinces } from "./provinces-editor";
 import * as RiversOverview from "./rivers-overview";
+import { createRoute } from "./routes-editor";
 import { overviewRoutes } from "./routes-overview";
 import { openSubmapTool } from "./submap-tool";
 import { openTransformTool } from "./transform-tool";
+import { editUnits } from "./units-editor";
 import { editWorld } from "./world-configurator";
+import { editZones } from "./zones-editor";
 
 let worldContext: WorldContext;
-let viewContext: ViewContext;
 let appServices: AppServices;
+
+// ─── Layer state restoration when dialogs close ───────────────────────────────
+// For each dialog opened via toggleEditor, stores the before-open state of every
+// layer that changed when openFunc() ran (diff of activeLayers before vs after).
+// When any dialog closes (including via closeAllDialogs), only those diff layers
+// are restored — unrelated manual layer changes during the dialog session are
+// left untouched.
+const dialogLayerChanges = new Map<string, Map<string, boolean>>();
+
+dialogStore.subscribe((state, prevState) => {
+  for (const dialogId of prevState.openDialogs) {
+    if (!state.openDialogs.has(dialogId)) {
+      const changes = dialogLayerChanges.get(dialogId);
+      if (changes) {
+        const currentLayers = useLayerState.getState().activeLayers;
+        for (const [layerId, wasOn] of changes) {
+          const isOn = currentLayers[layerId] ?? false;
+          if (wasOn !== isOn) {
+            getElementById(layerId)?.click();
+          }
+        }
+        dialogLayerChanges.delete(dialogId);
+      }
+    }
+  }
+});
 
 // ─── Tools panel event dispatcher ────────────────────────────────────────────
 
 document.addEventListener("react-tool-action", e => {
-  if (viewContext.customization) return tip("Please exit the customization mode first", false, "error");
   const button = (e as CustomEvent).detail?.action;
   if (!button) return;
 
-  if (button === "editHeightmapButton") editHeightmap();
-  else if (button === "editBiomesButton") editBiomes();
-  else if (button === "editStatesButton") EditorBus.editStates();
-  else if (button === "editProvincesButton") editProvinces?.();
-  else if (button === "editDiplomacyButton") editDiplomacy?.();
-  else if (button === "editCoastlineSettings") editCoastlineSettings();
-  else if (button === "editCulturesButton") editCultures();
-  else if (button === "editReligions") editReligions();
-  else if (button === "editEmblemButton") openEmblemEditor();
-  else if (button === "editNamesBaseButton") NamesbaseEditor.open();
-  else if (button === "editUnitsButton") editUnits();
-  else if (button === "editNotesButton") editNotes();
-  else if (button === "editZonesButton") editZones?.();
-  else if (button === "overviewChartsButton") overviewCharts();
-  else if (button === "overviewBurgsButton") overviewBurgs();
-  else if (button === "overviewRoutesButton") overviewRoutes();
-  else if (button === "overviewRiversButton") RiversOverview.overviewRivers();
-  else if (button === "overviewMilitaryButton") overviewMilitary();
-  else if (button === "overviewMarkersButton") MarkersOverview.overviewMarkers();
+  const toggleEditor = (dialogId: string, _layerId: string | null, openFunc: () => void) => {
+    if (Dialogservice.isDialogOpen(dialogId)) {
+      Dialogservice.closeDialog(dialogId);
+      // Layer restoration is handled by the dialogStore subscriber above.
+    } else {
+      // Snapshot layers before openFunc runs, diff after to capture every layer
+      // the editor toggles internally (e.g. editProvinces also touches toggleStates).
+      const before = { ...useLayerState.getState().activeLayers };
+      openFunc();
+      const after = useLayerState.getState().activeLayers;
+      const changes = new Map<string, boolean>();
+      for (const id of new Set([...Object.keys(before), ...Object.keys(after)])) {
+        const wasBefore = before[id] ?? false;
+        const isAfter = after[id] ?? false;
+        if (wasBefore !== isAfter) changes.set(id, wasBefore);
+      }
+      if (changes.size > 0) dialogLayerChanges.set(dialogId, changes);
+    }
+  };
+
+  // Heightmap editor can toggle even during its own customization mode (customization === 1)
+  if (button === "editHeightmapButton") {
+    if (view.customization === 1) {
+      // In heightmap edit mode: finalize via the Exit Customization button
+      getElementById("finalizeHeightmap")?.click();
+    } else if (view.customization === 0) {
+      if (modules.editHeightmap) {
+        // Mode selection dialog is currently open: close it and reset state
+        modules.editHeightmap = false;
+        heightmapEditModeStore.getState().close();
+      } else {
+        editHeightmap();
+      }
+    } else {
+      tip("Please exit the customization mode first", false, "error");
+    }
+    return;
+  }
+
+  if (view.customization) return tip("Please exit the customization mode first", false, "error");
+
+  if (button === "editBiomesButton") toggleEditor("biomesEditor", "toggleBiomes", editBiomes);
+  else if (button === "editStatesButton") toggleEditor("statesEditor", "toggleStates", EditorBus.editStates);
+  else if (button === "editProvincesButton") toggleEditor("provincesEditor", "toggleProvinces", editProvinces!);
+  else if (button === "editDiplomacyButton") toggleEditor("diplomacyEditor", "toggleStates", editDiplomacy!);
+  else if (button === "editCoastlineSettings") toggleEditor("coastlineSettingsDialog", null, editCoastlineSettings);
+  else if (button === "editCulturesButton") toggleEditor("culturesEditor", "toggleCultures", editCultures);
+  else if (button === "editReligions") toggleEditor("religionsEditor", "toggleReligions", editReligions);
+  else if (button === "editEmblemButton") toggleEditor("emblemEditor", "toggleEmblems", openEmblemEditor);
+  else if (button === "editNamesBaseButton") toggleEditor("namesbaseEditor", null, NamesbaseEditor.open);
+  else if (button === "editUnitsButton") toggleEditor("unitsEditor", "toggleMilitary", editUnits);
+  else if (button === "editNotesButton") toggleEditor("notesEditor", null, editNotes);
+  else if (button === "editZonesButton") toggleEditor("zonesEditor", "toggleZones", editZones!);
+  else if (button === "overviewChartsButton") toggleEditor("chartsOverview", null, overviewCharts);
+  else if (button === "overviewBurgsButton") toggleEditor("burgsOverview", "toggleBurgIcons", overviewBurgs);
+  else if (button === "overviewRoutesButton") toggleEditor("routesOverview", "toggleRoutes", overviewRoutes);
+  else if (button === "overviewRiversButton")
+    toggleEditor("riversOverview", "toggleRivers", RiversOverview.overviewRivers);
+  else if (button === "overviewMilitaryButton") toggleEditor("militaryOverview", "toggleMilitary", overviewMilitary);
+  else if (button === "overviewMarkersButton")
+    toggleEditor("markersOverview", "toggleMarkers", MarkersOverview.overviewMarkers);
   else if (button === "overviewCellsButton") viewCellDetails();
   else if (button === "openMinimapButton") openMinimap?.();
-  else if (button === "editGoods") {
-    Dialogservice.openDialog("goodsEditor");
-  } else if (button === "overviewMarketsButton") {
-    Dialogservice.openDialog("marketsOverview");
-  } else if (button === "editTradeAnimationButton") {
-    Dialogservice.openDialog("tradeAnimationEditor");
-  }
+  else getToolActionHandler(button)?.();
 
   if (button.startsWith("regenerate")) {
     const dontAsk = sessionStorage.getItem("regenerateFeatureDontAsk");
@@ -145,26 +203,14 @@ document.addEventListener("react-tool-action", e => {
       .trim()
       .toLowerCase();
 
-    openRichDialog({
-      title: `Regenerate ${featureName}`,
-      content: `Regenerate will remove all the custom changes for the ${featureName}.<br /><br />Are you sure you want to proceed?`,
-      buttons: [
-        {
-          label: "Proceed",
-          onClick: () => {
-            const dontAskBox = document.getElementById("dontAsk") as HTMLInputElement;
-            if (dontAskBox?.checked) sessionStorage.setItem("regenerateFeatureDontAsk", "true");
-            processFeatureRegeneration(null, button);
-          }
-        },
-        { label: "Cancel", onClick: () => {} }
-      ],
-      onOpen: container => {
-        const checkbox =
-          '<div style="margin-top: 1em;"><span><input id="dontAsk" class="checkbox" type="checkbox"><label for="dontAsk" class="checkbox-label dontAsk"><i>do not ask again</i></label><span></div>';
-        container.insertAdjacentHTML("beforeend", checkbox);
+    const regenerateConfig: RegenerateConfirmConfig = {
+      featureName,
+      onProceed: dontAskAgain => {
+        if (dontAskAgain) sessionStorage.setItem("regenerateFeatureDontAsk", "true");
+        processFeatureRegeneration(null, button);
       }
-    });
+    };
+    openDialog("regenerateConfirm", regenerateConfig);
   }
 
   if (button === "configRegenerateMarkers") configMarkersGeneration();
@@ -228,6 +274,7 @@ export async function openEmblemEditor(): Promise<void> {
 
   await COArenderer.trigger(id, el.coa!);
   editEmblem?.(type, id, el);
+  openDialog("emblemEditor");
 }
 
 // ─── Regenerate functions ─────────────────────────────────────────────────────
@@ -236,18 +283,18 @@ function regenerateRoutes(): void {
   const locked = worldContext.pack.routes
     .filter((route: Route) => route.lock)
     .map((route: Route, index: number) => ({ ...route, i: index }));
-  Routes.generate(worldContext, viewContext, appServices, getWorldState(), locked);
+  GenerationPipeline.Routes.generate(worldContext, viewContext, appServices, getWorldState(), locked);
 
-  viewContext.routes.selectAll("path").remove();
+  view.routes.selectAll("path").remove();
   if (layerIsOn("toggleRoutes")) RoutesRenderer.render(worldContext, viewContext, appServices);
 }
 
 function regenerateRivers(): void {
   const state = getWorldState();
-  Rivers.generate(worldContext, viewContext, appServices, state);
-  Rivers.specify(worldContext, viewContext, appServices, state);
-  Features.defineGroups();
-  Lakes.defineNames(state);
+  GenerationPipeline.Rivers.generate(worldContext, viewContext, appServices, state);
+  GenerationPipeline.Rivers.specify(worldContext, viewContext, appServices, state);
+  GenerationPipeline.Features.defineGroups();
+  GenerationPipeline.Lakes.defineNames(state);
   if (layerIsOn("toggleRivers")) RiversRenderer.render(worldContext, viewContext, appServices);
 }
 
@@ -276,25 +323,25 @@ function regenerateStates(): void {
 
   worldContext.pack.states = newStates;
   const state = getWorldState();
-  States.expandStates(worldContext, viewContext, appServices);
-  States.normalize();
-  States.getPoles(state);
-  States.findNeighbors();
-  States.collectStatistics(state);
-  States.assignColors(worldContext, viewContext, appServices);
-  States.generateCampaigns();
-  States.generateDiplomacy();
-  States.defineStateForms(state);
+  GenerationPipeline.States.expandStates(worldContext, viewContext, appServices);
+  GenerationPipeline.States.normalize();
+  GenerationPipeline.States.getPoles(state);
+  GenerationPipeline.States.findNeighbors();
+  GenerationPipeline.States.collectStatistics(state);
+  GenerationPipeline.States.assignColors(worldContext, viewContext, appServices);
+  GenerationPipeline.States.generateCampaigns();
+  GenerationPipeline.States.generateDiplomacy();
+  GenerationPipeline.States.defineStateForms(state);
 
-  Provinces.generate(worldContext, viewContext, appServices, state, true);
-  Provinces.getPoles(state);
+  GenerationPipeline.Provinces.generate(worldContext, viewContext, appServices, state, true);
+  GenerationPipeline.Provinces.getPoles(state);
 
   layerIsOn("toggleStates") ? StatesRenderer.render(worldContext, viewContext, appServices) : toggleStates();
   layerIsOn("toggleBorders") ? BordersRenderer.render(worldContext, viewContext, appServices) : toggleBorders();
   if (layerIsOn("toggleProvinces")) ProvincesRenderer.render(worldContext, viewContext, appServices);
 
   drawStateLabels(worldContext, viewContext, appServices);
-  Military.generate(worldContext, viewContext, appServices, state);
+  GenerationPipeline.Military.generate(worldContext, viewContext, appServices, state);
   if (layerIsOn("toggleEmblems")) EmblemsRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleBurgIcons")) BurgIconsRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleLabels")) BurgLabelsRenderer.render(worldContext, viewContext, appServices);
@@ -303,12 +350,10 @@ function regenerateStates(): void {
   closeDialog("regimentEditor");
   closeDialog("battleScreen");
 
-  if (document.getElementById("burgsOverviewRefresh")?.offsetParent)
-    (document.getElementById("burgsOverviewRefresh") as HTMLButtonElement).click();
-  if (document.getElementById("statesEditorRefresh")?.offsetParent)
-    (document.getElementById("statesEditorRefresh") as HTMLButtonElement).click();
-  if (document.getElementById("militaryOverviewRefresh")?.offsetParent)
-    (document.getElementById("militaryOverviewRefresh") as HTMLButtonElement).click();
+  const openDialogs = dialogStore.getState().openDialogs;
+  if (openDialogs.has("burgsOverview")) useBurgsOverviewState.getState().refresh();
+  if (openDialogs.has("militaryOverview")) useMilitaryOverviewState.getState().refresh();
+  document.dispatchEvent(new CustomEvent("fmg:refresh-editors"));
 }
 
 function recreateStates(): State[] | null {
@@ -317,7 +362,7 @@ function recreateStates(): State[] | null {
 
   const statesCount = useOptionsState.getState().statesNumber;
   if (!statesCount) {
-    tip(`<i>States Number</i> option value is zero. No counties are generated`, false, "error");
+    tip(`<i>GenerationPipeline.States Number</i> option value is zero. No counties are generated`, false, "error");
     return null;
   }
 
@@ -349,20 +394,20 @@ function recreateStates(): State[] | null {
     if (burg.capital) {
       if (lockedStatesCapitals.includes(burg.i!)) continue;
       burg.capital = 0;
-      Burgs.changeGroup(burg);
+      GenerationPipeline.Burgs.changeGroup(burg);
     }
   }
 
   for (const state of worldContext.pack.states as State[]) {
     if (!state.i || state.removed || state.lock) continue;
-    document.getElementById(`stateLabel${state.i}`)?.remove();
-    document.getElementById(`textPath_stateLabel${state.i}`)?.remove();
-    document.getElementById(`stateCOA${state.i}`)?.remove();
-    document.querySelector(`#stateEmblems > use[data-i="${state.i}"]`)?.remove();
+    getElementById(`stateLabel${state.i}`)?.remove();
+    getElementById(`textPath_stateLabel${state.i}`)?.remove();
+    getElementById(`stateCOA${state.i}`)?.remove();
+    getElementBySelector<SVGUseElement>(`#stateEmblems > use[data-i="${state.i}"]`)?.remove();
 
     for (const provinceId of state.provinces ?? []) {
-      document.getElementById(`provinceCOA${provinceId}`)?.remove();
-      document.querySelector(`#provinceEmblems > use[data-i="${provinceId}"]`)?.remove();
+      getElementById(`provinceCOA${provinceId}`)?.remove();
+      getElementBySelector<SVGUseElement>(`#provinceEmblems > use[data-i="${provinceId}"]`)?.remove();
       worldContext.pack.provinces[provinceId].removed = true;
     }
   }
@@ -390,8 +435,8 @@ function recreateStates(): State[] | null {
     const { x, y } = worldContext.pack.burgs[state.capital];
     capitalsTree.add([x, y]);
 
-    document.getElementById(`textPath_stateLabel${state.i}`)?.setAttribute("id", `textPath_stateLabel${newId}`);
-    const $label = document.getElementById(`stateLabel${state.i}`);
+    getElementById(`textPath_stateLabel${state.i}`)?.setAttribute("id", `textPath_stateLabel${newId}`);
+    const $label = getElementById(`stateLabel${state.i}`);
     if ($label) {
       $label.setAttribute("id", `stateLabel${newId}`);
       const $textPath = $label.querySelector("textPath");
@@ -401,8 +446,11 @@ function recreateStates(): State[] | null {
       }
     }
 
-    document.getElementById(`stateCOA${state.i}`)?.setAttribute("id", `stateCOA${newId}`);
-    document.querySelector(`#stateEmblems > use[data-i="${state.i}"]`)?.setAttribute("data-i", String(newId));
+    getElementById(`stateCOA${state.i}`)?.setAttribute("id", `stateCOA${newId}`);
+    getElementBySelector<SVGUseElement>(`#stateEmblems > use[data-i="${state.i}"]`)?.setAttribute(
+      "data-i",
+      String(newId)
+    );
 
     (state.provinces ?? []).forEach((provinceId: number) => {
       if (!worldContext.pack.provinces[provinceId]) return;
@@ -428,7 +476,7 @@ function recreateStates(): State[] | null {
         burg.capital = 1;
         capital = burg;
         capitalsTree.add([x, y]);
-        Burgs.changeGroup(capital);
+        GenerationPipeline.Burgs.changeGroup(capital);
         break;
       }
       spacing = Math.max(spacing - 1, 1);
@@ -442,9 +490,9 @@ function recreateStates(): State[] | null {
       capitalName.length < 9 && capital.cell % 5 === 0
         ? capitalName
         : (
-            Names as unknown as { getCulture(c: number, a: number, b: number, s: string, n: number): string }
+            GenerationPipeline.Names as { getCulture(c: number, a: number, b: number, s: string, n: number): string }
           ).getCulture(culture, 3, 6, "", 0);
-    const name = Names.getState(basename, culture);
+    const name = GenerationPipeline.Names.getState(basename, culture);
     const nomadic = [1, 2, 3, 4].includes(worldContext.pack.cells.biome[capital.cell]);
     const type = nomadic
       ? "Nomadic"
@@ -453,7 +501,7 @@ function recreateStates(): State[] | null {
         : worldContext.pack.cultures[culture!].type;
     const expansionism = rn(Math.random() * useOptionsState.getState().sizeVariety + 1, 1);
     const cultureType = worldContext.pack.cultures[culture!].type;
-    const coa = COA.generate(capital.coa || null, 0.3, null, cultureType ?? "Generic");
+    const coa = GenerationPipeline.COA.generate(capital.coa || null, 0.3, null, cultureType ?? "Generic");
     coa.shield = capital.coa?.shield;
     newStates.push({
       i,
@@ -473,16 +521,16 @@ function recreateStates(): State[] | null {
 function regenerateProvinces(): void {
   EditorBus.unfog("");
   const state = getWorldState();
-  Provinces.generate(worldContext, viewContext, appServices, state, true, true);
-  Provinces.getPoles(state);
+  GenerationPipeline.Provinces.generate(worldContext, viewContext, appServices, state, true, true);
+  GenerationPipeline.Provinces.getPoles(state);
 
   if (layerIsOn("toggleBorders")) BordersRenderer.render(worldContext, viewContext, appServices);
   layerIsOn("toggleProvinces") ? ProvincesRenderer.render(worldContext, viewContext, appServices) : toggleProvinces();
 
-  document.querySelectorAll("[id^=provinceCOA]").forEach(el => {
+  getElementsBySelector<HTMLElement>("[id^=provinceCOA]").forEach(el => {
     el.remove();
   });
-  viewContext.emblems.selectAll("use").remove();
+  view.emblems.selectAll("use").remove();
   if (layerIsOn("toggleEmblems")) EmblemsRenderer.render(worldContext, viewContext, appServices);
   refreshAllEditors();
 }
@@ -542,7 +590,7 @@ async function regenerateBurgs(): Promise<void> {
     .filter((i: number) => score[i] > 0 && cells.culture[i])
     .sort((a: number, b: number) => score[b] - score[a]);
   const existingStatesCount = states.filter((s: State) => s.i && !s.removed).length;
-  const manorsInputEl = document.getElementById("manorsInput") as HTMLInputElement;
+  const manorsInputEl = getElementById("manorsInput") as HTMLInputElement;
   const burgsCount =
     (manorsInputEl.value === "1000"
       ? rn(sorted.length / 5 / (worldContext.grid.points.length / 10000) ** 0.8)
@@ -565,7 +613,7 @@ async function regenerateBurgs(): Promise<void> {
     }
 
     const culture = cells.culture[cell];
-    const name = Names.getCulture(culture);
+    const name = GenerationPipeline.Names.getCulture(culture);
     newBurgs.push({
       cell,
       x,
@@ -582,58 +630,57 @@ async function regenerateBurgs(): Promise<void> {
   }
 
   worldContext.pack.burgs = newBurgs;
-  Burgs.shift();
+  GenerationPipeline.Burgs.shift();
 
   states
     .filter((s: State) => s.i && !s.removed && !s.capital)
     .forEach((s: State) => {
       const [x, y] = cells.p[s.center!] as [number, number];
-      const { burgId } = Burgs.add([x, y]);
+      const { burgId } = GenerationPipeline.Burgs.add([x, y]);
       s.capital = burgId;
       s.center = worldContext.pack.burgs[burgId].cell;
       const burg = worldContext.pack.burgs[burgId];
       burg.state = s.i;
       burg.capital = 1;
-      Burgs.changeGroup(burg);
+      GenerationPipeline.Burgs.changeGroup(burg);
     });
 
-  Burgs.specify(worldContext, viewContext, appServices, getWorldState());
+  GenerationPipeline.Burgs.specify(worldContext, viewContext, appServices, getWorldState());
   regenerateRoutes();
   BurgIconsRenderer.render(worldContext, viewContext, appServices);
   BurgLabelsRenderer.render(worldContext, viewContext, appServices);
 
-  document.querySelectorAll("[id^=burgCOA]").forEach(el => {
+  getElementsBySelector<HTMLElement>("[id^=burgCOA]").forEach(el => {
     el.remove();
   });
-  viewContext.emblems.selectAll("use").remove();
+  view.emblems.selectAll("use").remove();
   if (layerIsOn("toggleEmblems")) EmblemsRenderer.render(worldContext, viewContext, appServices);
 
   regenerateMilitary();
   closeDialog("burgEditor");
 
-  if (document.getElementById("burgsOverviewRefresh")?.offsetParent)
-    (document.getElementById("burgsOverviewRefresh") as HTMLButtonElement).click();
-  if (document.getElementById("statesEditorRefresh")?.offsetParent)
-    (document.getElementById("statesEditorRefresh") as HTMLButtonElement).click();
+  const openDialogs = dialogStore.getState().openDialogs;
+  if (openDialogs.has("burgsOverview")) useBurgsOverviewState.getState().refresh();
+  document.dispatchEvent(new CustomEvent("fmg:refresh-editors"));
 }
 
 export function regenerateEmblems(): void {
-  document.querySelectorAll("[id^=stateCOA]").forEach(el => {
+  getElementsBySelector<HTMLElement>("[id^=stateCOA]").forEach(el => {
     el.remove();
   });
-  document.querySelectorAll("[id^=provinceCOA]").forEach(el => {
+  getElementsBySelector<HTMLElement>("[id^=provinceCOA]").forEach(el => {
     el.remove();
   });
-  document.querySelectorAll("[id^=burgCOA]").forEach(el => {
+  getElementsBySelector<HTMLElement>("[id^=burgCOA]").forEach(el => {
     el.remove();
   });
-  viewContext.emblems.selectAll("use").remove();
+  view.emblems.selectAll("use").remove();
 
   worldContext.pack.states.forEach((state: State) => {
     if (!state.i || state.removed) return;
     const cultureType = worldContext.pack.cultures[state.culture!].type;
-    state.coa = COA.generate(null, 0, null, cultureType ?? "Generic");
-    state.coa.shield = COA.getShield(state.culture!);
+    state.coa = GenerationPipeline.COA.generate(null, 0, null, cultureType ?? "Generic");
+    state.coa.shield = GenerationPipeline.COA.getShield(state.culture!);
   });
 
   worldContext.pack.burgs.forEach((burg: Burg) => {
@@ -643,8 +690,8 @@ export function regenerateEmblems(): void {
     if (burg.capital) kinship += 0.1;
     else if (burg.port) kinship -= 0.1;
     if (state && burg.culture !== state.culture) kinship -= 0.25;
-    burg.coa = COA.generate(state ? state.coa : null, kinship, null, burg.type);
-    burg.coa.shield = COA.getShield(burg.culture!, state ? burg.state! : 0);
+    burg.coa = GenerationPipeline.COA.generate(state ? state.coa : null, kinship, null, burg.type);
+    burg.coa.shield = GenerationPipeline.COA.getShield(burg.culture!, state ? burg.state! : 0);
   });
 
   worldContext.pack.provinces.forEach((province: Province) => {
@@ -664,24 +711,24 @@ export function regenerateEmblems(): void {
     const nameByBurg = province.burg && province.name.slice(0, 3) === (parent as Burg | State).name?.slice(0, 3);
     const kinship = dominion ? 0 : nameByBurg ? 0.8 : 0.4;
     const culture = worldContext.pack.cells.culture[province.center!];
-    const type = Burgs.getType(province.center!, (parent as Burg).port);
-    province.coa = COA.generate((parent as State).coa, kinship, dominion ? 1 : 0, type);
-    province.coa.shield = COA.getShield(culture, province.state!);
+    const type = GenerationPipeline.Burgs.getType(province.center!, (parent as Burg).port);
+    province.coa = GenerationPipeline.COA.generate((parent as State).coa, kinship, dominion ? 1 : 0, type);
+    province.coa.shield = GenerationPipeline.COA.getShield(culture, province.state!);
   });
 
   layerIsOn("toggleEmblems") ? EmblemsRenderer.render(worldContext, viewContext, appServices) : toggleEmblems();
 }
 
 function regenerateReligions(): void {
-  Religions.generate(worldContext, viewContext, appServices, getWorldState());
+  GenerationPipeline.Religions.generate(worldContext, viewContext, appServices, getWorldState());
   layerIsOn("toggleReligions") ? ReligionsRenderer.render(worldContext, viewContext, appServices) : toggleReligions();
   refreshAllEditors();
 }
 
 function regenerateCultures(): void {
   const state = getWorldState();
-  Cultures.generate(worldContext, viewContext, appServices, state);
-  Cultures.expand(state);
+  GenerationPipeline.Cultures.generate(worldContext, viewContext, appServices, state);
+  GenerationPipeline.Cultures.expand(state);
 
   worldContext.pack.states = worldContext.pack.states.map((st: State) => {
     if (!st.i || st.removed) return st;
@@ -704,29 +751,27 @@ function regenerateCultures(): void {
 }
 
 function regenerateMilitary(): void {
-  Military.generate(worldContext, viewContext, appServices, getWorldState());
+  GenerationPipeline.Military.generate(worldContext, viewContext, appServices, getWorldState());
   if (layerIsOn("toggleMilitary")) MilitaryRenderer.render(worldContext, viewContext, appServices);
   else toggleMilitary();
 
   closeDialog("regimentEditor");
   closeDialog("battleScreen");
 
-  if (document.getElementById("militaryOverviewRefresh")?.offsetParent)
-    (document.getElementById("militaryOverviewRefresh") as HTMLButtonElement).click();
+  if (dialogStore.getState().openDialogs.has("militaryOverview")) useMilitaryOverviewState.getState().refresh();
 }
 
 function regenerateIce(): void {
   if (!layerIsOn("toggleIce")) toggleIce();
-  Ice.generate(worldContext, viewContext, appServices, getWorldState());
+  GenerationPipeline.Ice.generate(worldContext, viewContext, appServices, getWorldState());
   IceRenderer.render(worldContext, viewContext, appServices);
 }
 
-function regenerateMarkers(): void {
-  Markers.regenerate();
+export function regenerateMarkers(): void {
+  GenerationPipeline.Markers.regenerate();
   turnButtonOn("toggleMarkers");
   MarkersRenderer.render(worldContext, viewContext, appServices);
-  const markersOverviewRefreshEl = document.getElementById("markersOverviewRefresh") as HTMLButtonElement | null;
-  if (markersOverviewRefreshEl?.offsetParent) markersOverviewRefreshEl.click();
+  if (dialogStore.getState().openDialogs.has("markersOverview")) useMarkersOverviewState.getState().refresh();
 }
 
 function regenerateZones(event: MouseEvent | null): void {
@@ -739,9 +784,8 @@ function regenerateZones(event: MouseEvent | null): void {
   }
 
   function addNumberOfZones(number: number) {
-    Zones.generate(worldContext, viewContext, appServices, getWorldState(), number);
-    if (document.getElementById("zonesEditorRefresh")?.offsetParent)
-      (document.getElementById("zonesEditorRefresh") as HTMLButtonElement).click();
+    GenerationPipeline.Zones.generate(worldContext, viewContext, appServices, getWorldState(), number);
+    document.dispatchEvent(new CustomEvent("fmg:refresh-editors"));
     if (layerIsOn("toggleZones")) ZonesRenderer.render(worldContext, viewContext, appServices);
   }
 }
@@ -760,7 +804,7 @@ function unpressClickToAddButton(): void {
 }
 
 export function toggleAddLabel(): void {
-  const addLabelBtn = document.getElementById("addLabel")!;
+  const addLabelBtn = getElementById("addLabel")!;
   if (addLabelBtn.classList.contains("pressed")) {
     unpressClickToAddButton();
     return;
@@ -774,26 +818,26 @@ export function toggleAddLabel(): void {
     });
   addLabelBtn.classList.add("pressed");
   closeDialogs(".stable");
-  viewContext.viewbox.style("cursor", "crosshair");
+  view.viewbox.style("cursor", "crosshair");
   interactionManager.setClickHandler(addLabelOnClick);
   tip("Click on map to place label. Hold Shift to add multiple", true);
   if (!layerIsOn("toggleLabels")) toggleLabels();
 }
 
 function addLabelOnClick(event: MouseEvent): void {
-  const point = pointer(event, viewContext.viewbox.node()!);
+  const point = pointer(event, view.viewbox.node()!);
 
   const cell = findCell(point[0], point[1]);
   const culture = worldContext.pack.cells.culture[cell];
-  const name = Names.getCulture(culture);
+  const name = GenerationPipeline.Names.getCulture(culture);
   const id = getNextId("label");
 
-  const lastSelected = (document.getElementById("labelGroupSelect") as HTMLSelectElement).value;
+  const lastSelected = (getElementById("labelGroupSelect") as HTMLSelectElement).value;
   const groupId = ["", "states", "burgLabels"].includes(lastSelected) ? "#addedLabels" : `#${lastSelected}`;
 
-  let group = viewContext.labels.select<SVGGElement>(groupId);
+  let group = view.labels.select<SVGGElement>(groupId);
   if (!group.size()) {
-    group = viewContext.labels
+    group = view.labels
       .append("g")
       .attr("id", "addedLabels")
       .attr("fill", "#3e3e4b")
@@ -824,7 +868,7 @@ function addLabelOnClick(event: MouseEvent): void {
     .attr("x", 0)
     .text(name);
 
-  viewContext.defs
+  view.defs
     .select("#textPaths")
     .append("path")
     .attr("id", `textPath_${id}`)
@@ -835,15 +879,15 @@ function addLabelOnClick(event: MouseEvent): void {
 
 export function toggleAddBurg(): void {
   unpressClickToAddButton();
-  document.getElementById("addBurgTool")!.classList.add("pressed");
+  getElementById("addBurgTool")!.classList.add("pressed");
   overviewBurgs();
   useBurgsOverviewState.getState().setAddMode(true);
 }
 
 export function toggleAddRiver(): void {
-  const addRiverBtn = document.getElementById("addRiver")!;
+  const addRiverBtn = getElementById("addRiver")!;
   // addNewRiver is a secondary button in the rivers overview dialog; may not exist
-  const addNewRiverEl = document.getElementById("addNewRiver");
+  const addNewRiverEl = getElementById("addNewRiver");
 
   if (addRiverBtn.classList.contains("pressed")) {
     unpressClickToAddButton();
@@ -860,7 +904,7 @@ export function toggleAddRiver(): void {
   addRiverBtn.classList.add("pressed");
   addNewRiverEl?.classList.add("pressed");
   closeDialogs(".stable");
-  viewContext.viewbox.style("cursor", "crosshair");
+  view.viewbox.style("cursor", "crosshair");
   interactionManager.setClickHandler(addRiverOnClick);
   tip("Click on map to place new river or extend an existing one. Hold Shift to place multiple rivers", true, "warn");
   if (!layerIsOn("toggleRivers")) toggleRivers();
@@ -868,7 +912,7 @@ export function toggleAddRiver(): void {
 
 function addRiverOnClick(event: MouseEvent): void {
   const { cells, rivers: packRivers } = worldContext.pack;
-  const point = pointer(event, viewContext.viewbox.node()!);
+  const point = pointer(event, view.viewbox.node()!);
   let i = findCell(point[0], point[1]);
 
   if (cells.r[i]) {
@@ -882,14 +926,14 @@ function addRiverOnClick(event: MouseEvent): void {
   if (cells.b[i]) return;
 
   const riverCells: number[] = [];
-  let riverId = Rivers.getNextId(packRivers);
+  let riverId = GenerationPipeline.Rivers.getNextId(packRivers);
   let parent = riverId;
 
   const initialFlux = worldContext.grid.cells.prec[cells.g[i]];
   cells.fl[i] = initialFlux;
 
-  const h = Rivers.alterHeights();
-  Rivers.resolveDepressions(h);
+  const h = GenerationPipeline.Rivers.alterHeights();
+  GenerationPipeline.Rivers.resolveDepressions(h);
 
   while (i) {
     cells.r[i] = riverId;
@@ -945,7 +989,7 @@ function addRiverOnClick(event: MouseEvent): void {
       break;
     }
 
-    document.getElementById(`river${oldRiverId}`)?.remove();
+    getElementById(`river${oldRiverId}`)?.remove();
     riverCells.forEach((ci: number) => {
       cells.r[ci] = oldRiverId;
     });
@@ -972,13 +1016,20 @@ function addRiverOnClick(event: MouseEvent): void {
   const defaultWidthFactor = rn(1 / ((cellsDensityMap[useOptionsState.getState().points] ?? 10000) / 10000) ** 0.25, 2);
   const widthFactor =
     river?.widthFactor || (!parent || parent === riverId ? defaultWidthFactor * 1.2 : defaultWidthFactor);
-  const sourceWidth = river?.sourceWidth || Rivers.getSourceWidth(cells.fl[source]);
-  const meanderedPoints = Rivers.addMeandering(riverCells);
+  const sourceWidth = river?.sourceWidth || GenerationPipeline.Rivers.getSourceWidth(cells.fl[source]);
+  const meanderedPoints = GenerationPipeline.Rivers.addMeandering(riverCells);
 
   const discharge = cells.fl[mouth];
-  const length = Rivers.getApproximateLength(meanderedPoints.map(([x, y]) => [x, y] as [number, number]));
-  const width = Rivers.getWidth(
-    Rivers.getOffset({ flux: discharge, pointIndex: meanderedPoints.length, widthFactor, startingWidth: sourceWidth })
+  const length = GenerationPipeline.Rivers.getApproximateLength(
+    meanderedPoints.map(([x, y]) => [x, y] as [number, number])
+  );
+  const width = GenerationPipeline.Rivers.getWidth(
+    GenerationPipeline.Rivers.getOffset({
+      flux: discharge,
+      pointIndex: meanderedPoints.length,
+      widthFactor,
+      startingWidth: sourceWidth
+    })
   );
 
   if (river) {
@@ -988,9 +1039,9 @@ function addRiverOnClick(event: MouseEvent): void {
     river.width = width;
     river.cells = riverCells;
   } else {
-    const basin = Rivers.getBasin(parent);
-    const name = Rivers.getName(mouth);
-    const type = Rivers.getType({ i: riverId, length, parent });
+    const basin = GenerationPipeline.Rivers.getBasin(parent);
+    const name = GenerationPipeline.Rivers.getName(mouth);
+    const type = GenerationPipeline.Rivers.getType({ i: riverId, length, parent });
     packRivers.push({
       i: riverId,
       source,
@@ -1008,22 +1059,21 @@ function addRiverOnClick(event: MouseEvent): void {
     });
   }
 
-  const path = Rivers.getRiverPath(meanderedPoints, widthFactor, sourceWidth);
+  const path = GenerationPipeline.Rivers.getRiverPath(meanderedPoints, widthFactor, sourceWidth);
   const id = `river${riverId}`;
-  const riversG = viewContext.viewbox.select("#rivers");
+  const riversG = view.viewbox.select("#rivers");
   riversG.append("path").attr("id", id).attr("d", path);
 
   if (!event.shiftKey) {
-    Lakes.cleanupLakeData();
+    GenerationPipeline.Lakes.cleanupLakeData();
     unpressClickToAddButton();
-    document.getElementById("addNewRiver")?.classList.remove("pressed");
-    const riversOverviewRefreshEl = document.getElementById("riversOverviewRefresh") as HTMLButtonElement | null;
-    if (riversOverviewRefreshEl?.offsetParent) riversOverviewRefreshEl.click();
+    getElementById("addNewRiver")?.classList.remove("pressed");
+    if (dialogStore.getState().openDialogs.has("riversOverview")) useRiversOverviewState.getState().refresh();
   }
 }
 
-function toggleAddMarker(): void {
-  const addMarkerBtn = document.getElementById("addMarker")!;
+export function toggleAddMarker(): void {
+  const addMarkerBtn = getElementById("addMarker")!;
   if (addMarkerBtn.classList.contains("pressed")) {
     unpressClickToAddButton();
     return;
@@ -1036,10 +1086,10 @@ function toggleAddMarker(): void {
       b.classList.remove("pressed");
     });
   addMarkerBtn.classList.add("pressed");
-  const markersAddFromOverviewEl = document.getElementById("markersAddFromOverview");
+  const markersAddFromOverviewEl = getElementById("markersAddFromOverview");
   if (markersAddFromOverviewEl) markersAddFromOverviewEl.classList.add("pressed");
 
-  viewContext.viewbox.style("cursor", "crosshair");
+  view.viewbox.style("cursor", "crosshair");
   interactionManager.setClickHandler(addMarkerOnClick);
   tip("Click on map to add a marker. Hold Shift to add multiple", true);
   if (!layerIsOn("toggleMarkers")) toggleMarkers();
@@ -1047,7 +1097,7 @@ function toggleAddMarker(): void {
 
 function addMarkerOnClick(event: MouseEvent): void {
   const { markers: packMarkers } = worldContext.pack;
-  const point = pointer(event, viewContext.viewbox.node()!);
+  const point = pointer(event, view.viewbox.node()!);
   const x = rn(point[0], 2);
   const y = rn(point[1], 2);
   const cell = findCell(point[0], point[1]);
@@ -1057,111 +1107,31 @@ function addMarkerOnClick(event: MouseEvent): void {
     ? packMarkers.find((marker: Marker) => marker.i === +elSelected!.attr("id").slice(6))
     : null;
 
-  const selectedType = (document.getElementById("addedMarkerType") as HTMLInputElement).value;
-  const selectedConfig = Markers.getConfig().find(({ type }: MarkerConfig) => type === selectedType);
+  const selectedType = (getElementById("addedMarkerType") as HTMLInputElement).value;
+  const selectedConfig = GenerationPipeline.Markers.getConfig().find(({ type }: MarkerConfig) => type === selectedType);
   const baseMarker = selectedMarker || selectedConfig || { icon: "❓" };
-  const marker = Markers.add({ ...baseMarker, x, y, cell } as unknown as Marker);
+  const marker = GenerationPipeline.Markers.add({ ...baseMarker, x, y, cell } as Marker);
 
   if (selectedConfig?.add) {
     selectedConfig.add(`marker${marker.i}`, cell);
   }
 
-  const markersElement = viewContext.markers.node()!;
+  const markersElement = view.markers.node()!;
   const rescale = +markersElement.getAttribute("rescale")!;
-  markersElement.insertAdjacentHTML("beforeend", drawMarker(worldContext, viewContext, appServices, marker, rescale));
+  appendMarkerToLayer(markersElement, worldContext, viewContext, appServices, marker, rescale);
 
   if (!event.shiftKey) {
-    document.getElementById("markerAdd")?.classList.remove("pressed");
-    document.getElementById("markersAddFromOverview")?.classList.remove("pressed");
+    getElementById("markerAdd")?.classList.remove("pressed");
+    getElementById("markersAddFromOverview")?.classList.remove("pressed");
     unpressClickToAddButton();
+    editMarker(marker.i);
   }
 }
 
-// ─── Markers config ───────────────────────────────────────────────────────────
+// ─── GenerationPipeline.Markers config ───────────────────────────────────────────────────────────
 
 export function configMarkersGeneration(): void {
-  drawConfigTable();
-
-  function drawConfigTable() {
-    const config = Markers.getConfig();
-
-    const headers = `<thead style='font-weight:bold'><tr>
-      <td data-tip="Marker type name">Type</td>
-      <td data-tip="Marker icon">Icon</td>
-      <td data-tip="Marker number multiplier">Multiplier</td>
-      <td data-tip="Number of markers of that type on the current map">Number</td>
-    </tr></thead>`;
-
-    const lines = config.map(({ type, icon, multiplier }: MarkerConfig) => {
-      const isExternal = icon.startsWith("http") || icon.startsWith("data:image");
-      return `<tr>
-        <td><input class="type" value="${type}" /></td>
-        <td style="position: relative">
-          <img class="image" src="${isExternal ? icon : ""}" ${isExternal ? "" : "hidden"} style="width:1.2em; height:1.2em; vertical-align: middle;">
-          <span class="emoji" style="font-size:1.2em">${isExternal ? "" : icon}</span>
-          <button class="changeIcon icon-pencil"></button>
-        </td>
-        <td><input class="multiplier" type="number" min="0" max="100" step="0.1" value="${multiplier}" /></td>
-        <td style="text-align:center">${worldContext.pack.markers.filter((marker: Marker) => marker.type === type).length}</td>
-      </tr>`;
-    });
-
-    const table = `<table class="table">${headers}<tbody>${lines.join("")}</tbody></table>`;
-
-    const applyChanges = () => {
-      const container = document.getElementById("alert");
-      if (!container) return;
-      const rows = container.querySelectorAll<HTMLTableRowElement>("tbody > tr");
-      const rowsData = Array.from(rows).map(row => {
-        const type = row.querySelector<HTMLInputElement>(".type")!.value;
-        const image = row.querySelector<HTMLImageElement>(".image")!;
-        const emoji = row.querySelector<HTMLElement>(".emoji")!;
-        const icon = image.getAttribute("src") || emoji.textContent!;
-        const multiplier = parseFloat(row.querySelector<HTMLInputElement>(".multiplier")!.value);
-        return { type, icon, multiplier };
-      });
-
-      const config = Markers.getConfig();
-      const newConfig = config.map((markerType: MarkerConfig, index: number) => {
-        const { type, icon, multiplier } = rowsData[index];
-        return { ...markerType, type, icon, multiplier };
-      });
-      Markers.setConfig(newConfig);
-    };
-
-    openRichDialog({
-      title: "Markers generation settings",
-      content: table,
-      onOpen: container => {
-        container.querySelectorAll<HTMLButtonElement>("button.changeIcon").forEach(selectIconButton => {
-          selectIconButton.addEventListener("click", function () {
-            const image = this.parentElement!.querySelector<HTMLImageElement>(".image")!;
-            const emoji = this.parentElement!.querySelector<HTMLElement>(".emoji")!;
-            const icon = image.getAttribute("src") || emoji.textContent!;
-
-            EditorBus.selectIcon(icon, value => {
-              const isExt = value.startsWith("http") || value.startsWith("data:image");
-              image.setAttribute("src", isExt ? value : "");
-              image.hidden = !isExt;
-              emoji.textContent = isExt ? "" : value;
-            });
-          });
-        });
-      },
-      buttons: [
-        {
-          label: "Regenerate",
-          keepOpen: true,
-          onClick: () => {
-            applyChanges();
-            regenerateMarkers();
-            drawConfigTable();
-          }
-        },
-        { label: "Close", onClick: () => {} }
-      ]
-    });
-  }
+  openDialog("markerConfig");
 }
 
 // ─── Cell details & overview dialogs ─────────────────────────────────────────
@@ -1183,9 +1153,8 @@ function openMinimap(): void {
   openMinimapDialog();
 }
 
-export function initTools(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {
+export function initTools(wc: WorldContext, _vc: Readonly<ViewContext>, as: AppServices) {
   worldContext = wc;
-  viewContext = vc;
   appServices = as;
 }
 

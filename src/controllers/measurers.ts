@@ -1,12 +1,17 @@
 import * as d3 from "d3";
 import polylabel from "polylabel";
-import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
+
 import { type DragEv, type MeasurerSel, MeasurersRenderer } from "../renderers/measurers-renderer";
+import { GenerationPipeline } from "../services/generationPipeline";
+import { viewLayerService as view } from "../services/viewLayerService";
 import { rulers, setRulers } from "../store/editorState";
-import { findCell, getSegmentId, last, rn, round, si } from "../utils";
+import { useOptionsState } from "../store/optionsState";
+import { findCell, getSegmentId, last, parseTransform, rn, round, si } from "../utils";
 import { TIME } from "../utils/debug";
-import { getAreaUnit } from "../utils/uiHelpers";
+import { getArea, getAreaUnit } from "../utils/domUtils";
+
+const lineGen = d3.line<[number, number]>();
 
 // ─── Rulers container ─────────────────────────────────────────────────────────
 
@@ -83,7 +88,7 @@ abstract class Measurer {
   }
 
   getSize(): number {
-    return rn((1 / viewContext.scale ** 0.3) * 2, 2);
+    return rn((1 / view.scale ** 0.3) * 2, 2);
   }
 
   getDash(): number {
@@ -176,15 +181,7 @@ class Ruler extends Measurer {
     const size = this.getSize();
     const dash = this.getDash();
 
-    this.el = MeasurersRenderer.drawRuler(
-      viewContext.ruler,
-      this.id,
-      pointsStr,
-      this.points,
-      size,
-      dash,
-      this.getCallbacks()
-    );
+    this.el = MeasurersRenderer.drawRuler(view.ruler, this.id, pointsStr, this.points, size, dash, this.getCallbacks());
 
     this.updateLabel();
     return this;
@@ -196,7 +193,8 @@ class Ruler extends Measurer {
 
   updateLabel(): void {
     const length = this.getLength();
-    const text = `${rn(length * worldContext.distanceScale)} ${distanceUnitInput.value}`;
+    const distUnit = useOptionsState.getState().distanceUnit;
+    const text = `${rn(length * worldContext.distanceScale)} ${distUnit}`;
     const [x, y] = last(this.points);
     MeasurersRenderer.updateLabel(this.el, text, x, y);
   }
@@ -278,7 +276,7 @@ class Opisometer extends Measurer {
     const size = this.getSize();
     const dash = this.getDash();
 
-    this.el = MeasurersRenderer.drawOpisometer(viewContext.ruler, this.id, size, dash, this.getCallbacks());
+    this.el = MeasurersRenderer.drawOpisometer(view.ruler, this.id, size, dash, this.getCallbacks());
 
     this.updateCurve();
     this.updateLabel();
@@ -287,7 +285,7 @@ class Opisometer extends Measurer {
 
   updateCurve(): void {
     lineGen.curve(d3.curveCatmullRom.alpha(0.5));
-    const path = round(lineGen(this.points));
+    const path = round(lineGen(this.points) ?? undefined);
     const left = this.points[0];
     const right = last(this.points);
     MeasurersRenderer.updateOpisometerCurve(this.el, path, left, right);
@@ -295,7 +293,8 @@ class Opisometer extends Measurer {
 
   updateLabel(): void {
     const length = this.el.select<SVGPathElement>("path").node()!.getTotalLength();
-    const text = `${rn(length * worldContext.distanceScale)} ${distanceUnitInput.value}`;
+    const distUnit = useOptionsState.getState().distanceUnit;
+    const text = `${rn(length * worldContext.distanceScale)} ${distUnit}`;
     const [x, y] = last(this.points);
     MeasurersRenderer.updateLabel(this.el, text, x, y);
   }
@@ -396,7 +395,7 @@ class RouteOpisometer extends Measurer {
     const size = this.getSize();
     const dash = this.getDash();
 
-    this.el = MeasurersRenderer.drawOpisometer(viewContext.ruler, this.id, size, dash, this.getCallbacks());
+    this.el = MeasurersRenderer.drawOpisometer(view.ruler, this.id, size, dash, this.getCallbacks());
 
     this.updateCurve();
     this.updateLabel();
@@ -405,7 +404,7 @@ class RouteOpisometer extends Measurer {
 
   updateCurve(): void {
     lineGen.curve(d3.curveCatmullRom.alpha(0.5));
-    const path = round(lineGen(this.points));
+    const path = round(lineGen(this.points) ?? undefined);
     const left = this.points[0];
     const right = last(this.points);
     MeasurersRenderer.updateOpisometerCurve(this.el, path, left, right);
@@ -413,7 +412,8 @@ class RouteOpisometer extends Measurer {
 
   updateLabel(): void {
     const length = this.el.select<SVGPathElement>("path").node()!.getTotalLength();
-    const text = `${rn(length * worldContext.distanceScale)} ${distanceUnitInput.value}`;
+    const distUnit = useOptionsState.getState().distanceUnit;
+    const text = `${rn(length * worldContext.distanceScale)} ${distUnit}`;
     const [x, y] = last(this.points);
     MeasurersRenderer.updateLabel(this.el, text, x, y);
   }
@@ -423,7 +423,7 @@ class RouteOpisometer extends Measurer {
       const mousePoint: [number, number] = [dragEvent.x | 0, dragEvent.y | 0];
 
       const c = findCell(mousePoint[0], mousePoint[1]);
-      if (!Routes.isConnected(c) && !dragEvent.sourceEvent.shiftKey) return;
+      if (!GenerationPipeline.Routes.isConnected(c) && !dragEvent.sourceEvent.shiftKey) return;
 
       context.trackCell(c, right);
     });
@@ -447,7 +447,7 @@ class Planimeter extends Measurer {
     if (this.el) this.el.selectAll("*").remove();
     const size = this.getSize();
 
-    this.el = MeasurersRenderer.drawPlanimeter(viewContext.ruler, this.id, size, this.getCallbacks());
+    this.el = MeasurersRenderer.drawPlanimeter(view.ruler, this.id, size, this.getCallbacks());
 
     this.updateCurve();
     this.updateLabel();
@@ -456,7 +456,7 @@ class Planimeter extends Measurer {
 
   updateCurve(): void {
     lineGen.curve(d3.curveCatmullRomClosed.alpha(0.5));
-    const path = round(lineGen(this.points));
+    const path = round(lineGen(this.points) ?? undefined);
     MeasurersRenderer.updatePlanimeterCurve(this.el, path);
   }
 
@@ -503,13 +503,6 @@ export function createDefaultRuler(): void {
 
 export type { Opisometer, Planimeter, RouteOpisometer, Ruler };
 export { Rulers };
-
-// ─── Legacy globals (from non-migrated JS files) ──────────────────────────────
-
-declare const lineGen: { (points: [number, number][]): string; curve: (curve: unknown) => typeof lineGen };
-declare const parseTransform: (transform: string) => number[];
-declare const getArea: (area: number) => number;
-declare const Routes: { isConnected: (cell: number) => boolean };
 
 // CustomEvent Listeners
 document.addEventListener("fmg:create-default-ruler", () => createDefaultRuler());

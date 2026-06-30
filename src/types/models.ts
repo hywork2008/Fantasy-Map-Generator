@@ -6,6 +6,16 @@ export type CultureType = (typeof CULTURE_TYPES)[number];
 
 import type { Emblem } from "./emblem";
 
+export interface EmblemEl {
+  i: number;
+  name?: string;
+  fullName?: string;
+  center?: number;
+  pole?: [number, number];
+  x?: number;
+  y?: number;
+}
+
 export type FeatureType = "ocean" | "lake" | "island";
 
 export interface ReligionBase {

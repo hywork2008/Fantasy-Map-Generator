@@ -18,6 +18,7 @@ export interface BurgData {
   temperature: string;
   temperatureLikeIn: string;
   elevation: string;
+  previewUrl: string | null;
 
   // Features
   capital: boolean;

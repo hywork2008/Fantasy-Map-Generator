@@ -1,5 +1,7 @@
-.vscode
+.vscode/*
+!.vscode/launch.json
 .idea
+.env
 /node_modules
 */node_modules
 /dist

@@ -1,6 +1,5 @@
 import type React from "react";
 import { useCallback, useEffect, useState } from "react";
-import { heightmapTemplates, precreatedHeightmaps } from "../../config";
 import { worldContext } from "../../context/worldContext";
 import { confirmationDialog } from "../../controllers/editors";
 import {
@@ -10,13 +9,12 @@ import {
   getOrComputeGraph,
   INITIAL_COLOR_SCHEME
 } from "../../controllers/heightmap-selection";
+import { editHeightmap } from "../../controllers/heightmapEditor";
 import { regeneratePrompt } from "../../controllers/options";
-import { editHeightmap } from "../../editors/heightmap-editor";
-import { useDialogState } from "../../store/dialogState";
+import { heightmapTemplates, precreatedHeightmaps } from "../../data";
 import { useOptionsState } from "../../store/optionsState";
 import { generateSeed } from "../../utils";
 import { heightmapColorSchemes } from "../../utils/colorUtils";
-import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
 interface HeightmapItem {
@@ -83,9 +81,7 @@ const localStyle = `
   }
 `;
 
-export const HeightmapSelectionDialog: React.FC = () => {
-  const isOpen = useDialogState(state => state.openDialogs.has("heightmapSelection"));
-
+export const HeightmapSelectionContent: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
   const [items, setItems] = useState<HeightmapItem[]>([]);
   const [selectedId, setSelectedId] = useState<string>("");
   const [colorScheme, setColorScheme] = useState<string>(INITIAL_COLOR_SCHEME);
@@ -104,10 +100,7 @@ export const HeightmapSelectionDialog: React.FC = () => {
   // Initialize items when dialog opens — colorScheme/renderOcean are intentionally
   // excluded: initial render uses their values at open time; subsequent changes go
   // through handleRedrawAll which has direct access to the latest values.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: fires only on dialog open with current option snapshot
   useEffect(() => {
-    if (!isOpen) return;
-
     const initialTemplate =
       (useOptionsState.getState() as { options?: { template?: string } }).options?.template ??
       Object.keys(heightmapTemplates)[0] ??
@@ -132,7 +125,7 @@ export const HeightmapSelectionDialog: React.FC = () => {
     const allItems = [...templateItems, ...precreatedItems];
     setItems(allItems);
     loadPrecreated(allItems, colorScheme, renderOcean);
-  }, [isOpen]);
+  }, [loadPrecreated, colorScheme, renderOcean]);
 
   // Redraw all when options change (but not on first open)
   function handleRedrawAll(scheme: string, ocean: boolean): void {
@@ -200,12 +193,7 @@ export const HeightmapSelectionDialog: React.FC = () => {
   const precreatedItems = items.filter(i => !i.isTemplate);
 
   return (
-    <Dialog
-      isOpen={isOpen}
-      title="Select Heightmap"
-      onClose={() => closeDialog("heightmapSelection")}
-      style={{ width: "70vw", maxHeight: "80vh" }}
-    >
+    <div className="heightmap-selection" id="heightmapSelectionDialog">
       <style>{localStyle}</style>
       <div className="heightmap-selection">
         <section data-tip="Select heightmap template – template provides unique, but similar-looking maps on generation">
@@ -307,7 +295,7 @@ export const HeightmapSelectionDialog: React.FC = () => {
         </section>
 
         <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5em", paddingTop: "0.5em" }}>
-          <button type="button" onClick={() => closeDialog("heightmapSelection")}>
+          <button type="button" onClick={onClose || (() => closeDialog("heightmapSelection"))}>
             Cancel
           </button>
           <button type="button" onClick={handleSelect} disabled={!selectedId}>
@@ -318,6 +306,6 @@ export const HeightmapSelectionDialog: React.FC = () => {
           </button>
         </div>
       </div>
-    </Dialog>
+    </div>
   );
 };

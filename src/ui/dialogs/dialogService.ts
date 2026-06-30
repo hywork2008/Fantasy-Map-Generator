@@ -40,6 +40,11 @@ export function openRichDialog(options: RichDialogOptions): void {
   dialogStore.getState().setAlertConfig({ id: "__alert__", type: "rich", ...options });
 }
 
+/** アラートダイアログを閉じる */
+export function closeAlert(): void {
+  dialogStore.getState().setAlertConfig(null);
+}
+
 /** プロンプトダイアログ（入力欄付き）*/
 export function openPrompt(config: PromptConfig): void {
   dialogStore.getState().setPromptConfig(config);

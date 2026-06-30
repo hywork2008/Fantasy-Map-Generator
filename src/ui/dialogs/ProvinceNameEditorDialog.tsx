@@ -1,5 +1,5 @@
 import type React from "react";
-import { provincesEditorActions } from "../../editors/provinces-editor";
+import { provincesEditorActions } from "../../controllers/provinces-editor";
 import { useProvincesEditorState } from "../../store/provincesEditorState";
 import { Dialog } from "./Dialog";
 

@@ -30,3 +30,23 @@ export function getWorldContext() {
 export function getViewContext() {
   return getApi().viewContext;
 }
+
+export function getAppServices() {
+  return getApi().appServices;
+}
+
+export function getGoodsLayer() {
+  return getApi().getSvgLayer("goods");
+}
+
+export function getMarketsLayer() {
+  return getApi().getSvgLayer("marketsLayer");
+}
+
+export function getMarketsFillLayer() {
+  return getApi().getSvgLayer("marketsLayerFill");
+}
+
+export function getTradeAnimLayer() {
+  return getApi().getSvgLayer("tradeAnimation");
+}

@@ -8,8 +8,8 @@ import type {
   Ruler as RulerClass,
   Rulers as RulersClass
 } from "../controllers/measurers";
-import type { HeightmapModule } from "../modules/heightmap-generator";
-import type { Resampler } from "../modules/resample";
+import type { HeightmapModule } from "../generators/heightmap-generator";
+import type { Resampler } from "../generators/resample";
 
 declare global {
   /** DEV-only: organized access to world data and SVG state for console debugging. */
@@ -53,7 +53,6 @@ declare global {
   var allowErosion: HTMLInputElement;
   var areaUnit: HTMLSelectElement;
   var burgBody: HTMLElement;
-  var burgsOverviewRefresh: HTMLElement;
   var cellTypeFilter: HTMLSelectElement;
   // cellsDensityMap is exported from controllers/options.ts — not a global, use imports
   var colorsAssigned: HTMLElement;
@@ -81,10 +80,8 @@ declare global {
   var heightmapInfoY: HTMLElement;
   var heightmapLinePower: HTMLInputElement;
   var hideEmblems: HTMLInputElement;
-  var hideLabels: HTMLInputElement;
   var undo: HTMLButtonElement;
   var redo: HTMLButtonElement;
-  var rescaleLabels: HTMLInputElement;
   var iceNew: HTMLElement;
   var imageConverter: HTMLInputElement;
   var imageConverterPalette: HTMLInputElement;
@@ -101,7 +98,6 @@ declare global {
   var mapToLoad: HTMLInputElement;
   var markerAdd: HTMLElement;
   var markersFooterTotal: HTMLElement;
-  var militaryOverviewRefresh: HTMLElement;
   var openPicker: (fill: string, callback: (fill: string) => void) => void;
   var optionsContainer: HTMLElement;
   var optionsSeed: HTMLInputElement;

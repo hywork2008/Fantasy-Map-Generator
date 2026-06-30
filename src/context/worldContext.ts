@@ -44,7 +44,7 @@ export interface WorldContext {
  * Single mutable container for all world-level data.
  * Populated by src/main.ts before any renderer or controller runs.
  * TypeScript source code should import from here rather than reading window.pack etc.
- * Legacy generators in src/modules/ still use the bare globals for now.
+ * Legacy generators in src/generators/ still use the bare globals for now.
  */
 export const worldContext: WorldContext = {
   pack: {} as PackedGraph,

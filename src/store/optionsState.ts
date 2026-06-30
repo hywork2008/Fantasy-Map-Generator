@@ -22,6 +22,15 @@ export interface OptionsState {
   resolveDepressionsSteps: number;
   lakeElevationLimit: number;
 
+  // World Configurator settings
+  mapSize: number;
+  latitude: number;
+  longitude: number;
+  prec: number;
+
+  // Style
+  stylePreset: string;
+
   // Generation growth/expansion rates
   neutralRate: number;
   statesGrowthRate: number;
@@ -44,6 +53,12 @@ export interface OptionsState {
   emblemShape: string;
   temperatureScale: string;
 
+  // Units settings
+  distanceUnit: string;
+  heightUnit: string;
+  areaUnit: string;
+  heightExponent: number;
+
   // Zoom settings
   zoomExtentMin: number;
   zoomExtentMax: number;
@@ -51,6 +66,7 @@ export interface OptionsState {
   // Rendering settings
   shapeRendering: "crispEdges" | "optimizeSpeed" | "geometricPrecision";
   rescaleLabels: boolean;
+  hideLabels: boolean;
 
   // Actions
   setOption: <K extends keyof Omit<OptionsState, "setOption">>(key: K, value: OptionsState[K]) => void;
@@ -78,6 +94,13 @@ export const useOptionsState = create<OptionsState>(set => ({
   resolveDepressionsSteps: 250,
   lakeElevationLimit: 20,
 
+  mapSize: 100,
+  latitude: 50,
+  longitude: 50,
+  prec: 100,
+
+  stylePreset: "default",
+
   neutralRate: 1,
   statesGrowthRate: 1,
 
@@ -97,11 +120,17 @@ export const useOptionsState = create<OptionsState>(set => ({
   emblemShape: "culture",
   temperatureScale: localStorage.getItem("temperatureScale") ?? "°C",
 
+  distanceUnit: localStorage.getItem("distanceUnit") ?? "km",
+  heightUnit: localStorage.getItem("heightUnit") ?? "m",
+  areaUnit: localStorage.getItem("areaUnit") ?? "square",
+  heightExponent: Number(localStorage.getItem("heightExponent") ?? 1.8),
+
   zoomExtentMin: 1,
   zoomExtentMax: 20,
 
   shapeRendering: "optimizeSpeed",
   rescaleLabels: true,
+  hideLabels: false,
 
   setOption: (key, value) => set({ [key]: value }),
   setOptions: updates => set(updates)

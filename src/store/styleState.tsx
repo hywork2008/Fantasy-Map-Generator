@@ -20,6 +20,8 @@ interface StyleState {
   systemPresets: string[];
   customPresets: string[];
 
+  activeMapFilter: string | null;
+
   setActiveElement: (element: string) => void;
   setActiveGroup: (group: string) => void;
 
@@ -30,6 +32,8 @@ interface StyleState {
 
   setActivePreset: (preset: string) => void;
   setPresets: (systemPresets: string[], customPresets: string[]) => void;
+
+  setActiveMapFilter: (filter: string | null) => void;
 }
 
 export const useStyleState = create<StyleState>(set => ({
@@ -44,6 +48,8 @@ export const useStyleState = create<StyleState>(set => ({
   systemPresets: [],
   customPresets: [],
 
+  activeMapFilter: null,
+
   setActiveElement: activeElement => set({ activeElement }),
   setActiveGroup: activeGroup => set({ activeGroup }),
 
@@ -53,5 +59,7 @@ export const useStyleState = create<StyleState>(set => ({
   setOptions: (key, optionsList) => set(state => ({ options: { ...state.options, [key]: optionsList } })),
 
   setActivePreset: activePreset => set({ activePreset }),
-  setPresets: (systemPresets, customPresets) => set({ systemPresets, customPresets })
+  setPresets: (systemPresets, customPresets) => set({ systemPresets, customPresets }),
+
+  setActiveMapFilter: activeMapFilter => set({ activeMapFilter })
 }));

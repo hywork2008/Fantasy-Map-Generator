@@ -1,7 +1,7 @@
 import type { AppServices } from "../context/appServices";
 import type { InfrastructureLayers } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import { Routes } from "../modules/routes-generator";
+import { Routes } from "../generators/routes-generator";
 import type { Route } from "../types/models";
 import { TIME } from "../utils/debug";
 import type { IRenderer } from "./core/IRenderer";
@@ -47,4 +47,8 @@ export const drawRoute = (
 ): void => {
   const { routes } = viewContext;
   routes.select(`#${route.group}`).append("path").attr("d", Routes.getPath(route)).attr("id", `route${route.i}`);
+};
+
+export const removeRoute = (viewContext: Readonly<InfrastructureLayers>, routeId: number): void => {
+  viewContext.routes.select(`#route${routeId}`).remove();
 };

@@ -1,10 +1,10 @@
 import type React from "react";
 import { useMemo, useRef } from "react";
-import { culturesEditorActions } from "../../editors/cultures-editor";
-import { COA } from "../../modules/emblem/generator";
+import { culturesEditorActions } from "../../controllers/cultures-editor";
+import { COA } from "../../generators/emblem/generator";
 import { useCulturesEditorState } from "../../store/culturesEditorState";
 import { capitalize, rn, si } from "../../utils";
-import { getAreaUnit } from "../../utils/uiHelpers";
+import { getAreaUnit } from "../../utils/domUtils";
 import { FillBox } from "../components/FillBox";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
@@ -98,7 +98,12 @@ export const CulturesEditorDialog: React.FC = () => {
   );
 
   return (
-    <Dialog isOpen={isOpen} title="Cultures Editor" onClose={() => closeDialog("culturesEditor")}>
+    <Dialog
+      isOpen={isOpen}
+      title="Cultures Editor"
+      onClose={() => closeDialog("culturesEditor")}
+      className="fmg-dialog--overflow-hidden"
+    >
       <div id="culturesEditor">
         <div id="culturesHeader" className="header" style={{ gridTemplateColumns: "10em 7em 9em 4em 8em 5em 7em 8em" }}>
           <SortHeader label="Culture" col="name" tip="Click to sort by culture name" />
@@ -300,7 +305,7 @@ export const CulturesEditorDialog: React.FC = () => {
           </div>
         </div>
 
-        <div id="culturesFooter">
+        <div id="culturesFooter" className="fmg-dialog-footer">
           {isBrushMode ? null : (
             <>
               <button

@@ -1,13 +1,9 @@
 import type React from "react";
 import { useEffect, useRef } from "react";
-import { COAST_PRESETS, coastlineSettingsActions, SLIDER_DEFS } from "../../editors/coastline-editor";
+import { COAST_PRESETS, coastlineSettingsActions, SLIDER_DEFS } from "../../controllers/coastline-editor";
 import { useCoastlineEditorState } from "../../store/coastlineEditorState";
-import { useDialogState } from "../../store/dialogState";
-import { Dialog } from "./Dialog";
-import { closeDialog } from "./dialogService";
 
-export const CoastlineSettingsEditorDialog: React.FC = () => {
-  const isOpen = useDialogState(state => state.openDialogs.has("coastlineSettingsDialog"));
+export const CoastlineSettingsEditorContent: React.FC = () => {
   const { enabled, settings } = useCoastlineEditorState();
 
   const roughnessCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -15,18 +11,13 @@ export const CoastlineSettingsEditorDialog: React.FC = () => {
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: trigger preview updates when settings change
   useEffect(() => {
-    if (isOpen && roughnessCanvasRef.current && shapePreviewCanvasRef.current) {
+    if (roughnessCanvasRef.current && shapePreviewCanvasRef.current) {
       coastlineSettingsActions.updatePreviews(roughnessCanvasRef.current, shapePreviewCanvasRef.current);
     }
-  }, [isOpen, enabled, settings]);
+  }, [enabled, settings]);
 
   return (
-    <Dialog
-      isOpen={isOpen}
-      title="Coastline Settings Editor"
-      onClose={() => closeDialog("coastlineSettingsDialog")}
-      style={{ width: "auto" }}
-    >
+    <>
       <div
         style={{
           display: "flex",
@@ -136,6 +127,6 @@ export const CoastlineSettingsEditorDialog: React.FC = () => {
           <canvas ref={shapePreviewCanvasRef} width="100" height="100" style={{ display: "block" }}></canvas>
         </div>
       </div>
-    </Dialog>
+    </>
   );
 };

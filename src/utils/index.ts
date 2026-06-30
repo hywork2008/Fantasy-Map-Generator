@@ -43,7 +43,7 @@ import {
   poissonDiscSampler,
   shouldRegenerateGrid
 } from "./graphUtils";
-import { ensureEl, getComposedPath, getNextId } from "./nodeUtils";
+import { getComposedPath, getElementById, getElementBySelector, getElementsBySelector, getNextId } from "./nodeUtils";
 import {
   connectVertices,
   findPath,
@@ -56,6 +56,7 @@ import { biased, each, gauss, generateSeed, getNumberInRange, P, Pint, ra, rand,
 import { capitalize, isValidJSON, parseTransform, round, safeParseJSON, sanitizeId, splitInTwo } from "./stringUtils";
 
 import { convertTemperature, formatPrice, getIntegerFromSI, si } from "./unitUtils";
+import { createObjectURL, revokeObjectURL } from "./urlUtils";
 
 JSON.isValid = isValidJSON;
 JSON.safeParse = safeParseJSON;
@@ -97,6 +98,7 @@ export {
   clipPoly,
   connectVertices,
   convertTemperature,
+  createObjectURL,
   createTypedArray,
   debounce,
   distanceSquared,
@@ -107,7 +109,6 @@ export {
   drawPolygons,
   drawRouteConnections,
   each,
-  ensureEl,
   findAll,
   findAllCellsInRadius,
   findAllInQuadtree,
@@ -126,6 +127,9 @@ export {
   getColors,
   getComposedPath,
   getCoordinates,
+  getElementById,
+  getElementBySelector,
+  getElementsBySelector,
   getGappedFillPaths,
   getGridPolygon,
   getIntegerFromSI,
@@ -163,6 +167,7 @@ export {
   poissonDiscSampler,
   ra,
   rand,
+  revokeObjectURL,
   rn,
   rollups,
   round,

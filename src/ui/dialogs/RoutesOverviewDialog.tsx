@@ -1,24 +1,26 @@
 import type React from "react";
 import { useMemo } from "react";
-import { viewContext } from "../../context/viewContext";
 import { worldContext } from "../../context/worldContext";
 import { confirmationDialog, downloadFile, getFileName, highlightElement } from "../../controllers/editors";
 import { toggleRoutes } from "../../controllers/layers";
-import { createRoute, editRoute } from "../../editors/routes-editor";
-import { Routes } from "../../modules/routes-generator";
+import { createRoute, editRoute } from "../../controllers/routes-editor";
+import { Routes } from "../../generators/routes-generator";
+import { tip } from "../../services/tooltipService";
+import { viewLayerService as view } from "../../services/viewLayerService";
 import { useDialogState } from "../../store/dialogState";
+import { useOptionsState } from "../../store/optionsState";
 import { useRoutesOverviewState } from "../../store/routesOverviewState";
 import { rn } from "../../utils";
 import { layerIsOn } from "../../utils/nodeUtils";
-import { tip } from "../../utils/uiHelpers";
 import { Dialog } from "./Dialog";
 import { closeDialog, openConfirm } from "./dialogService";
 
 export const RoutesOverviewDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("routesOverview"));
   const { search, sortBy, sortOrder, refreshCounter, setSearch, toggleSortBy, refresh } = useRoutesOverviewState();
+  const distanceUnit = useOptionsState(s => s.distanceUnit);
 
-  const { filteredRoutes, averageLength, distanceUnit } = useMemo(() => {
+  const { filteredRoutes, averageLength } = useMemo(() => {
     void refreshCounter;
     let routes = worldContext.pack?.routes || [];
 
@@ -58,10 +60,7 @@ export const RoutesOverviewDialog: React.FC = () => {
     const averageLength =
       rn(routes.length > 0 ? routes.map(r => r.length || 0).reduce((a, b) => a + b, 0) / routes.length : 0) || 0;
 
-    const distanceUnitEl = document.getElementById("distanceUnitInput") as HTMLInputElement;
-    const distanceUnit = distanceUnitEl ? distanceUnitEl.value : "km";
-
-    return { filteredRoutes: routes, averageLength, distanceUnit };
+    return { filteredRoutes: routes, averageLength };
   }, [search, sortBy, sortOrder, refreshCounter]);
 
   const handleCreateNew = () => createRoute();
@@ -124,7 +123,7 @@ export const RoutesOverviewDialog: React.FC = () => {
 
   const routeHighlightOn = (routeId: number) => {
     if (!layerIsOn("toggleRoutes")) toggleRoutes();
-    viewContext.routes
+    view.routes
       .select(`#route${routeId}`)
       .attr("stroke", "red")
       .attr("stroke-width", 2)
@@ -132,7 +131,7 @@ export const RoutesOverviewDialog: React.FC = () => {
   };
 
   const routeHighlightOff = (routeId: number) => {
-    viewContext.routes
+    view.routes
       .select(`#route${routeId}`)
       .attr("stroke", null)
       .attr("stroke-width", null)
@@ -140,7 +139,7 @@ export const RoutesOverviewDialog: React.FC = () => {
   };
 
   const handleZoomToRoute = (routeId: number) => {
-    const route = viewContext.routes.select(`#route${routeId}`).node() as Element;
+    const route = view.routes.select(`#route${routeId}`).node() as Element;
     highlightElement(route, 3);
   };
 
@@ -174,123 +173,118 @@ export const RoutesOverviewDialog: React.FC = () => {
   const allLocked = worldContext.pack?.routes?.length > 0 && worldContext.pack.routes.every(r => r.lock);
 
   return (
-    <Dialog isOpen={isOpen} title="Routes Overview" onClose={() => closeDialog("routesOverview")}>
+    <Dialog
+      isOpen={isOpen}
+      title="Routes Overview"
+      onClose={() => closeDialog("routesOverview")}
+      className="fmg-dialog--overflow-hidden"
+    >
       <div id="routesOverviewContainer">
-        <div>
-          <div id="routesHeader" className="header" style={{ gridTemplateColumns: "17em 8em 8em" }}>
-            <div
-              data-tip="Click to sort by route name"
-              className={`sortable alphabetically ${sortBy === "name" ? (sortOrder === "asc" ? "icon-sort-name-up" : "icon-sort-name-down") : ""}`}
-              onClick={() => toggleSortBy("name")}
-            >
-              Route&nbsp;
-            </div>
-            <div
-              data-tip="Click to sort by route group"
-              className={`sortable alphabetically ${sortBy === "group" ? (sortOrder === "asc" ? "icon-sort-name-up" : "icon-sort-name-down") : ""}`}
-              onClick={() => toggleSortBy("group")}
-            >
-              Group&nbsp;
-            </div>
-            <div
-              data-tip="Click to sort by route length"
-              className={`sortable ${sortBy === "length" ? (sortOrder === "asc" ? "icon-sort-number-up" : "icon-sort-number-down") : "icon-sort-number-down"}`}
-              onClick={() => toggleSortBy("length")}
-            >
-              Length&nbsp;
-            </div>
+        <div id="routesHeader" className="header" style={{ gridTemplateColumns: "17em 8em 8em" }}>
+          <div
+            data-tip="Click to sort by route name"
+            className={`sortable alphabetically ${sortBy === "name" ? (sortOrder === "asc" ? "icon-sort-name-up" : "icon-sort-name-down") : ""}`}
+            onClick={() => toggleSortBy("name")}
+          >
+            Route&nbsp;
           </div>
-          <div id="routesBody" className="table">
-            {filteredRoutes.map(route => {
-              if (!route.points || route.points.length < 2) return null;
-              const lengthStr = `${rn((route.length || 0) * worldContext.distanceScale)} ${distanceUnit}`;
-              return (
-                <div
-                  key={route.i}
-                  className="states"
-                  data-id={route.i}
-                  onMouseEnter={() => routeHighlightOn(route.i)}
-                  onMouseLeave={() => routeHighlightOff(route.i)}
-                >
-                  <span
-                    data-tip="Locate the route"
-                    className="icon-target"
-                    onClick={() => handleZoomToRoute(route.i)}
-                  />
-                  <div data-tip="Route name" style={{ width: "15em", marginLeft: "0.4em" }}>
-                    {route.name}
-                  </div>
-                  <div data-tip="Route group" style={{ width: "8em" }}>
-                    {route.group}
-                  </div>
-                  <div data-tip="Route length" style={{ width: "6em" }}>
-                    {lengthStr}
-                  </div>
-                  <span data-tip="Edit route" className="icon-pencil" onClick={() => handleOpenEditor(route.i)} />
-                  <span
-                    className={`locks pointer ${route.lock ? "icon-lock" : "icon-lock-open inactive"}`}
-                    data-tip="Toggle lock status"
-                    onClick={() => handleToggleLock(route.i)}
-                  />
-                  <span
-                    data-tip="Remove route"
-                    className="icon-trash-empty"
-                    onClick={() => handleRemoveRoute(route.i)}
-                  />
+          <div
+            data-tip="Click to sort by route group"
+            className={`sortable alphabetically ${sortBy === "group" ? (sortOrder === "asc" ? "icon-sort-name-up" : "icon-sort-name-down") : ""}`}
+            onClick={() => toggleSortBy("group")}
+          >
+            Group&nbsp;
+          </div>
+          <div
+            data-tip="Click to sort by route length"
+            className={`sortable ${sortBy === "length" ? (sortOrder === "asc" ? "icon-sort-number-up" : "icon-sort-number-down") : "icon-sort-number-down"}`}
+            onClick={() => toggleSortBy("length")}
+          >
+            Length&nbsp;
+          </div>
+        </div>
+        <div id="routesBody" className="table">
+          {filteredRoutes.map(route => {
+            if (!route.points || route.points.length < 2) return null;
+            const lengthStr = `${rn((route.length || 0) * worldContext.distanceScale)} ${distanceUnit}`;
+            return (
+              <div
+                key={route.i}
+                className="states"
+                data-id={route.i}
+                onMouseEnter={() => routeHighlightOn(route.i)}
+                onMouseLeave={() => routeHighlightOff(route.i)}
+              >
+                <span data-tip="Locate the route" className="icon-target" onClick={() => handleZoomToRoute(route.i)} />
+                <div data-tip="Route name" style={{ width: "15em", marginLeft: "0.4em" }}>
+                  {route.name}
                 </div>
-              );
-            })}
+                <div data-tip="Route group" style={{ width: "8em" }}>
+                  {route.group}
+                </div>
+                <div data-tip="Route length" style={{ width: "6em" }}>
+                  {lengthStr}
+                </div>
+                <span data-tip="Edit route" className="icon-pencil" onClick={() => handleOpenEditor(route.i)} />
+                <span
+                  className={`locks pointer ${route.lock ? "icon-lock" : "icon-lock-open inactive"}`}
+                  data-tip="Toggle lock status"
+                  onClick={() => handleToggleLock(route.i)}
+                />
+                <span data-tip="Remove route" className="icon-trash-empty" onClick={() => handleRemoveRoute(route.i)} />
+              </div>
+            );
+          })}
+        </div>
+        <div id="routesTotal" className="totalLine">
+          <div data-tip="Routes number" style={{ marginLeft: 4 }}>
+            Routes:&nbsp;
+            <span id="routesFooterNumber">{`${filteredRoutes.length} of ${worldContext.pack?.routes?.length || 0}`}</span>
           </div>
-          <div id="routesTotal" className="totalLine">
-            <div data-tip="Routes number" style={{ marginLeft: 4 }}>
-              Routes:&nbsp;
-              <span id="routesFooterNumber">{`${filteredRoutes.length} of ${worldContext.pack?.routes?.length || 0}`}</span>
-            </div>
-            <div data-tip="Average length" style={{ marginLeft: 12 }}>
-              Average length:&nbsp;
-              <span id="routesFooterLength">{`${averageLength * worldContext.distanceScale} ${distanceUnit}`}</span>
-            </div>
+          <div data-tip="Average length" style={{ marginLeft: 12 }}>
+            Average length:&nbsp;
+            <span id="routesFooterLength">{`${averageLength * worldContext.distanceScale} ${distanceUnit}`}</span>
           </div>
-          <div id="routesFooter">
-            <button
-              type="button"
-              id="routesOverviewRefresh"
-              data-tip="Refresh the Editor"
-              className="icon-cw"
-              onClick={refresh}
-            />
-            <button
-              type="button"
-              id="routesCreateNew"
-              data-tip="Create a new route selecting route cells"
-              className="icon-map-pin"
-              onClick={handleCreateNew}
-            />
-            <button
-              type="button"
-              id="routesExport"
-              data-tip="Save routes-related data as a text file (.csv)"
-              className="icon-download"
-              onClick={handleExport}
-            />
-            <button
-              type="button"
-              id="routesLockAll"
-              data-tip="Lock or unlock all routes"
-              className={allLocked ? "icon-lock" : "icon-lock-open"}
-              onClick={handleLockAll}
-            />
-            <button
-              type="button"
-              id="routesRemoveAll"
-              data-tip="Remove all unlocked routes (locked routes are kept)"
-              className="icon-trash"
-              onClick={handleRemoveAll}
-            />
-            <label htmlFor="routesSearch" data-tip="Filter by name or group" style={{ marginLeft: "0.2em" }}>
-              Search: <input id="routesSearch" type="search" value={search} onChange={e => setSearch(e.target.value)} />
-            </label>
-          </div>
+        </div>
+        <div id="routesFooter" className="fmg-dialog-footer">
+          <button
+            type="button"
+            id="routesOverviewRefresh"
+            data-tip="Refresh the Editor"
+            className="icon-cw"
+            onClick={refresh}
+          />
+          <button
+            type="button"
+            id="routesCreateNew"
+            data-tip="Create a new route selecting route cells"
+            className="icon-map-pin"
+            onClick={handleCreateNew}
+          />
+          <button
+            type="button"
+            id="routesExport"
+            data-tip="Save routes-related data as a text file (.csv)"
+            className="icon-download"
+            onClick={handleExport}
+          />
+          <button
+            type="button"
+            id="routesLockAll"
+            data-tip="Lock or unlock all routes"
+            className={allLocked ? "icon-lock" : "icon-lock-open"}
+            onClick={handleLockAll}
+          />
+          <button
+            type="button"
+            id="routesRemoveAll"
+            data-tip="Remove all unlocked routes (locked routes are kept)"
+            className="icon-trash"
+            onClick={handleRemoveAll}
+          />
+          <label htmlFor="routesSearch" data-tip="Filter by name or group" style={{ marginLeft: "0.2em" }}>
+            Search: <input id="routesSearch" type="search" value={search} onChange={e => setSearch(e.target.value)} />
+          </label>
         </div>
       </div>
     </Dialog>

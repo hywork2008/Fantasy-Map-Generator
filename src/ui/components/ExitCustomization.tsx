@@ -1,5 +1,6 @@
 import type React from "react";
 import { useEffect, useRef } from "react";
+import { HeightmapEditorActions } from "../../controllers/heightmapEditor";
 
 export const ExitCustomization: React.FC = () => {
   const elRef = useRef<HTMLDivElement>(null);
@@ -34,9 +35,14 @@ export const ExitCustomization: React.FC = () => {
   }, []);
 
   return (
-    <div id="exitCustomization" ref={elRef} style={{ display: "none" }}>
+    <div id="exitCustomization" ref={elRef} style={{ display: "none", pointerEvents: "auto" }}>
       <div data-tip="Drag to move the pane">
-        <button type="button" data-tip="Finalize the heightmap and exit the edit mode" id="finalizeHeightmap">
+        <button
+          type="button"
+          data-tip="Finalize the heightmap and exit the edit mode"
+          id="finalizeHeightmap"
+          onClick={() => HeightmapEditorActions.finalizeHeightmap()}
+        >
           Exit Customization
         </button>
       </div>

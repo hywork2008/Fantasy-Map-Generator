@@ -1,5 +1,5 @@
 import type React from "react";
-import { riverEditorActions } from "../../editors/rivers-editor";
+import { riverEditorActions } from "../../controllers/rivers-editor";
 import { useDialogState } from "../../store/dialogState";
 import { useRiverEditorState } from "../../store/riverEditorState";
 import { Dialog } from "./Dialog";

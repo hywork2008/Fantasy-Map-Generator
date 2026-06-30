@@ -1,50 +1,34 @@
 import { geoGraticule, geoOrthographic, geoPath, interpolateSpectral, range, scaleSequential, select } from "d3";
 import type React from "react";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { worldContext } from "../../context/worldContext";
 import { updateWorld } from "../../controllers/world-configurator";
 import { useDialogState } from "../../store/dialogState";
+import { useOptionsState } from "../../store/optionsState";
+import { useWorldConfiguratorFormStore } from "../../store/worldConfiguratorFormStore";
 import { convertTemperature, debounce, parseTransform, rn, round } from "../../utils";
-import { lock } from "../../utils/uiHelpers";
+import { lock } from "../../utils/domUtils";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
-
-function getEl<T extends HTMLElement>(id: string): T | null {
-  return document.getElementById(id) as T | null;
-}
 
 const debouncedUpdateWorld = debounce(updateWorld, 300);
 
 export const WorldConfiguratorDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("worldConfigurator"));
   const globeRef = useRef<SVGSVGElement>(null);
+  const [autoChange, setAutoChange] = useState(true);
+
+  // Read Zustand state for globe stats calculation
+  const mapSize = useOptionsState(s => s.mapSize);
+
+  // Compute temperature conversions for display
+  const tempEqF = convertTemperature(worldContext.options.temperatureEquator, "°F");
+  const tempNpF = convertTemperature(worldContext.options.temperatureNorthPole, "°F");
+  const tempSpF = convertTemperature(worldContext.options.temperatureSouthPole, "°F");
 
   const getProjectionPath = useCallback(() => {
     const projection = geoOrthographic().translate([100, 100]).scale(100);
     return geoPath(projection);
-  }, []);
-
-  const updateInputValues = useCallback(() => {
-    const eq = worldContext.options.temperatureEquator;
-    getEl("temperatureEquatorInput")?.setAttribute("value", String(eq));
-    const eqOut = getEl<HTMLOutputElement>("temperatureEquatorOutput");
-    if (eqOut) eqOut.value = String(eq);
-    const eqF = getEl("temperatureEquatorF");
-    if (eqF) eqF.innerText = convertTemperature(eq, "°F");
-
-    const np = worldContext.options.temperatureNorthPole;
-    getEl("temperatureNorthPoleInput")?.setAttribute("value", String(np));
-    const npOut = getEl<HTMLOutputElement>("temperatureNorthPoleOutput");
-    if (npOut) npOut.value = String(np);
-    const npF = getEl("temperatureNorthPoleF");
-    if (npF) npF.innerText = convertTemperature(np, "°F");
-
-    const sp = worldContext.options.temperatureSouthPole;
-    getEl("temperatureSouthPoleInput")?.setAttribute("value", String(sp));
-    const spOut = getEl<HTMLOutputElement>("temperatureSouthPoleOutput");
-    if (spOut) spOut.value = String(sp);
-    const spF = getEl("temperatureSouthPoleF");
-    if (spF) spF.innerText = convertTemperature(sp, "°F");
   }, []);
 
   const updateGlobeTemperature = useCallback(() => {
@@ -68,37 +52,33 @@ export const WorldConfiguratorDialog: React.FC = () => {
     globe.select("#grad-90").attr("stop-color", getColor((tSP - tMin) / tDelta));
   }, []);
 
+  // Compute display values for globe statistics
+  const globeStats = useMemo(() => {
+    const size = mapSize;
+    const eqD = ((worldContext.graphHeight / 2) * 100) / size;
+    const unit = useOptionsState.getState().distanceUnit;
+    const eqD2 = eqD * 2;
+    const meridianInUnit = eqD2 * worldContext.distanceScale;
+    const meridian = toKilometer(meridianInUnit, unit);
+
+    return {
+      mapSizeText: `${worldContext.graphWidth}x${worldContext.graphHeight}`,
+      mapSizeFriendly: `${rn(worldContext.graphWidth * worldContext.distanceScale)}x${rn(worldContext.graphHeight * worldContext.distanceScale)} ${unit}`,
+      meridianLength: rn(eqD2),
+      meridianLengthFriendly: `${rn(meridianInUnit)} ${unit}`,
+      meridianLengthEarth: meridian ? ` = ${rn(meridian / 200)}%🌏` : "",
+      mapCoordinates: `${lat(worldContext.mapCoordinates.latN!)} ${Math.abs(rn(worldContext.mapCoordinates.lonW!))}°W; ${lat(worldContext.mapCoordinates.latS!)} ${rn(worldContext.mapCoordinates.lonE!)}°E`
+    };
+  }, [mapSize]);
+
   const updateGlobePosition = useCallback(() => {
     if (!globeRef.current) return;
     const globe = select(globeRef.current);
     const path = getProjectionPath();
 
-    const size = +(getEl<HTMLOutputElement>("mapSizeOutput")?.value ?? "100");
-    const eqD = ((worldContext.graphHeight / 2) * 100) / size;
-
     document.dispatchEvent(new CustomEvent("fmg:world-recalculate", { detail: { coords: true } }));
+
     const mc = worldContext.mapCoordinates;
-    const unit = (document.getElementById("distanceUnitInput") as HTMLSelectElement | null)?.value ?? "km";
-
-    const eqD2 = eqD * 2;
-    const meridianInUnit = eqD2 * worldContext.distanceScale;
-    const meridian = toKilometer(meridianInUnit, unit);
-
-    const mapSizeEl = getEl("mapSize");
-    if (mapSizeEl) mapSizeEl.innerHTML = `${worldContext.graphWidth}x${worldContext.graphHeight}`;
-    const mapSizeFriendlyEl = getEl("mapSizeFriendly");
-    if (mapSizeFriendlyEl)
-      mapSizeFriendlyEl.innerHTML = `${rn(worldContext.graphWidth * worldContext.distanceScale)}x${rn(worldContext.graphHeight * worldContext.distanceScale)} ${unit}`;
-    const meridianLengthEl = getEl("meridianLength");
-    if (meridianLengthEl) meridianLengthEl.innerHTML = String(rn(eqD2));
-    const meridianLengthFriendlyEl = getEl("meridianLengthFriendly");
-    if (meridianLengthFriendlyEl) meridianLengthFriendlyEl.innerHTML = `${rn(meridianInUnit)} ${unit}`;
-    const meridianLengthEarthEl = getEl("meridianLengthEarth");
-    if (meridianLengthEarthEl) meridianLengthEarthEl.innerHTML = meridian ? ` = ${rn(meridian / 200)}%🌏` : "";
-    const mapCoordsEl = getEl("mapCoordinates");
-    if (mapCoordsEl)
-      mapCoordsEl.innerHTML = `${lat(mc.latN!)} ${Math.abs(rn(mc.lonW!))}°W; ${lat(mc.latS!)} ${rn(mc.lonE!)}°E`;
-
     const area = geoGraticule().extent([
       [mc.lonW!, mc.latN!],
       [mc.lonE!, mc.latS!]
@@ -120,7 +100,6 @@ export const WorldConfiguratorDialog: React.FC = () => {
   }, []);
 
   const refreshGlobe = useCallback(() => {
-    updateInputValues();
     updateGlobeTemperature();
     updateGlobePosition();
     if (!globeRef.current) return;
@@ -129,7 +108,7 @@ export const WorldConfiguratorDialog: React.FC = () => {
     const graticule = geoGraticule();
     globe.select("#globeGraticule").attr("d", round(path(graticule()) ?? "", 1));
     updateWindDirections();
-  }, [getProjectionPath, updateGlobePosition, updateGlobeTemperature, updateInputValues, updateWindDirections]);
+  }, [getProjectionPath, updateGlobePosition, updateGlobeTemperature, updateWindDirections]);
 
   // Initialize on open
   useEffect(() => {
@@ -146,42 +125,41 @@ export const WorldConfiguratorDialog: React.FC = () => {
     return () => document.removeEventListener("fmg:world-configurator-refresh", handler);
   }, [isOpen, refreshGlobe]);
 
-  function isAutoChange(): boolean {
-    return getEl<HTMLInputElement>("wcAutoChange")?.checked ?? true;
-  }
-
-  function handleControlsChange(event: React.FormEvent<HTMLFieldSetElement>): void {
+  function handleControlsChange(
+    event: React.ChangeEvent<HTMLInputElement> | React.FormEvent<HTMLFieldSetElement>
+  ): void {
     const target = event.target as HTMLInputElement;
     const stored = target.dataset.stored;
     if (!stored) return;
 
-    const inputEl = getEl<HTMLInputElement>(`${stored}Input`);
-    const outputEl = getEl<HTMLOutputElement>(`${stored}Output`);
-    if (inputEl) inputEl.value = target.value;
-    if (outputEl) outputEl.value = target.value;
     lock(stored);
-
     const val = Number(target.value);
+    const formStore = useWorldConfiguratorFormStore.getState();
+
     if (stored === "temperatureEquator") {
       worldContext.options.temperatureEquator = val;
-      const eqF = getEl("temperatureEquatorF");
-      if (eqF) eqF.innerText = convertTemperature(val, "°F");
+      formStore.setTemperatureEquator(val);
       updateGlobeTemperature();
     } else if (stored === "temperatureNorthPole") {
       worldContext.options.temperatureNorthPole = val;
-      const npF = getEl("temperatureNorthPoleF");
-      if (npF) npF.innerText = convertTemperature(val, "°F");
+      formStore.setTemperatureNorthPole(val);
       updateGlobeTemperature();
     } else if (stored === "temperatureSouthPole") {
       worldContext.options.temperatureSouthPole = val;
-      const spF = getEl("temperatureSouthPoleF");
-      if (spF) spF.innerText = convertTemperature(val, "°F");
+      formStore.setTemperatureSouthPole(val);
       updateGlobeTemperature();
-    } else if (stored === "mapSize" || stored === "latitude" || stored === "longitude") {
-      updateGlobePosition();
+    } else if (stored === "mapSize" || stored === "latitude" || stored === "longitude" || stored === "prec") {
+      useOptionsState.getState().setOption(stored, val);
+      // Also sync to form store
+      if (stored === "mapSize") formStore.setMapSize(val);
+      else if (stored === "latitude") formStore.setLatitude(val);
+      else if (stored === "longitude") formStore.setLongitude(val);
+      else if (stored === "prec") formStore.setPrec(val);
+
+      if (stored !== "prec") updateGlobePosition();
     }
 
-    if (isAutoChange()) debouncedUpdateWorld();
+    if (autoChange) debouncedUpdateWorld();
   }
 
   function handleWindChange(event: React.MouseEvent<SVGGElement>): void {
@@ -196,7 +174,7 @@ export const WorldConfiguratorDialog: React.FC = () => {
     const mapTiers = range(worldContext.mapCoordinates.latN!, worldContext.mapCoordinates.latS!, -30).map(
       c => ((90 - c) / 30) | 0
     );
-    if (isAutoChange() && mapTiers.includes(tier)) updateWorld();
+    if (autoChange && mapTiers.includes(tier)) updateWorld();
   }
 
   function restoreDefaultWinds(): void {
@@ -204,24 +182,20 @@ export const WorldConfiguratorDialog: React.FC = () => {
     const mapTiers = range(worldContext.mapCoordinates.latN!, worldContext.mapCoordinates.latS!, -30).map(
       c => ((90 - c) / 30) | 0
     );
-    const needsUpdate = isAutoChange() && mapTiers.some(t => worldContext.options.winds[t] !== defaultWinds[t]);
+    const needsUpdate = autoChange && mapTiers.some(t => worldContext.options.winds[t] !== defaultWinds[t]);
     worldContext.options.winds = defaultWinds;
     updateWindDirections();
     if (needsUpdate) updateWorld();
   }
 
   function applyWorldPreset(size: number, latShift: number): void {
-    const mapSizeInput = getEl<HTMLInputElement>("mapSizeInput");
-    const mapSizeOutput = getEl<HTMLOutputElement>("mapSizeOutput");
-    const latInput = getEl<HTMLInputElement>("latitudeInput");
-    const latOutput = getEl<HTMLOutputElement>("latitudeOutput");
-    if (mapSizeInput) mapSizeInput.value = String(size);
-    if (mapSizeOutput) mapSizeOutput.value = String(size);
-    if (latInput) latInput.value = String(latShift);
-    if (latOutput) latOutput.value = String(latShift);
+    useOptionsState.getState().setOption("mapSize", size);
+    useOptionsState.getState().setOption("latitude", latShift);
+    useWorldConfiguratorFormStore.getState().setMapSize(size);
+    useWorldConfiguratorFormStore.getState().setLatitude(latShift);
     lock("mapSize");
     lock("latitude");
-    if (isAutoChange()) updateWorld();
+    if (autoChange) updateWorld();
   }
 
   return (
@@ -244,9 +218,11 @@ export const WorldConfiguratorDialog: React.FC = () => {
                     type="number"
                     min={-50}
                     max={50}
+                    value={worldContext.options.temperatureEquator}
+                    onChange={handleControlsChange}
                   />
                   <span>
-                    °C = <span id="temperatureEquatorF" />
+                    °C = <span id="temperatureEquatorF">{tempEqF}</span>
                   </span>
                   <input
                     id="temperatureEquatorOutput"
@@ -254,6 +230,8 @@ export const WorldConfiguratorDialog: React.FC = () => {
                     type="range"
                     min={-50}
                     max={50}
+                    value={worldContext.options.temperatureEquator}
+                    onChange={handleControlsChange}
                   />
                 </label>
               </div>
@@ -267,9 +245,11 @@ export const WorldConfiguratorDialog: React.FC = () => {
                     type="number"
                     min={-50}
                     max={50}
+                    value={worldContext.options.temperatureNorthPole}
+                    onChange={handleControlsChange}
                   />
                   <span>
-                    °C = <span id="temperatureNorthPoleF" />
+                    °C = <span id="temperatureNorthPoleF">{tempNpF}</span>
                   </span>
                   <input
                     id="temperatureNorthPoleOutput"
@@ -277,6 +257,8 @@ export const WorldConfiguratorDialog: React.FC = () => {
                     type="range"
                     min={-50}
                     max={50}
+                    value={worldContext.options.temperatureNorthPole}
+                    onChange={handleControlsChange}
                   />
                 </label>
               </div>
@@ -290,9 +272,11 @@ export const WorldConfiguratorDialog: React.FC = () => {
                     type="number"
                     min={-50}
                     max={50}
+                    value={worldContext.options.temperatureSouthPole}
+                    onChange={handleControlsChange}
                   />
                   <span>
-                    °C = <span id="temperatureSouthPoleF" />
+                    °C = <span id="temperatureSouthPoleF">{tempSpF}</span>
                   </span>
                   <input
                     id="temperatureSouthPoleOutput"
@@ -300,6 +284,8 @@ export const WorldConfiguratorDialog: React.FC = () => {
                     type="range"
                     min={-50}
                     max={50}
+                    value={worldContext.options.temperatureSouthPole}
+                    onChange={handleControlsChange}
                   />
                 </label>
               </div>
@@ -307,15 +293,43 @@ export const WorldConfiguratorDialog: React.FC = () => {
                 <i data-locked={0} id="lock_mapSize" className="icon-lock-open" />
                 <label data-tip="Set map size relative to the world size">
                   <i>Map size:</i>
-                  <input id="mapSizeInput" data-stored="mapSize" type="number" min={1} max={100} step="0.1" />%
-                  <input id="mapSizeOutput" data-stored="mapSize" type="range" min={1} max={100} step="0.1" />
+                  <input
+                    id="mapSizeInput"
+                    data-stored="mapSize"
+                    type="number"
+                    min={1}
+                    max={100}
+                    step="0.1"
+                    value={useOptionsState(s => s.mapSize)}
+                    onChange={handleControlsChange}
+                  />
+                  %
+                  <input
+                    id="mapSizeOutput"
+                    data-stored="mapSize"
+                    type="range"
+                    min={1}
+                    max={100}
+                    step="0.1"
+                    value={useOptionsState(s => s.mapSize)}
+                    onChange={handleControlsChange}
+                  />
                 </label>
               </div>
               <div>
                 <i data-locked={0} id="lock_latitude" className="icon-lock-open" />
                 <label data-tip="Set a North-South map shift, set to 50 to make map center lie on Equator">
                   <i>Latitudes:</i>
-                  <input id="latitudeInput" data-stored="latitude" type="number" min={0} max={100} step="0.1" />
+                  <input
+                    id="latitudeInput"
+                    data-stored="latitude"
+                    type="number"
+                    min={0}
+                    max={100}
+                    step="0.1"
+                    value={useOptionsState(s => s.latitude)}
+                    onChange={handleControlsChange}
+                  />
                   <br />
                   <i>N</i>
                   <input
@@ -326,6 +340,8 @@ export const WorldConfiguratorDialog: React.FC = () => {
                     max={100}
                     step="0.1"
                     style={{ width: "10.3em" }}
+                    value={useOptionsState(s => s.latitude)}
+                    onChange={handleControlsChange}
                   />
                   <i>S</i>
                 </label>
@@ -340,8 +356,9 @@ export const WorldConfiguratorDialog: React.FC = () => {
                     type="number"
                     min={0}
                     max={100}
-                    defaultValue={50}
                     step="0.1"
+                    value={useOptionsState(s => s.longitude)}
+                    onChange={handleControlsChange}
                   />
                   <br />
                   <i>W</i>
@@ -353,6 +370,8 @@ export const WorldConfiguratorDialog: React.FC = () => {
                     max={100}
                     step="0.1"
                     style={{ width: "10.3em" }}
+                    value={useOptionsState(s => s.longitude)}
+                    onChange={handleControlsChange}
                   />
                   <i>E</i>
                 </label>
@@ -361,30 +380,53 @@ export const WorldConfiguratorDialog: React.FC = () => {
                 <label data-tip="Set precipitation - water amount clouds can bring. Defines rivers and biomes generation. Keep around 100% for default generation">
                   <i data-locked={0} id="lock_prec" className="icon-lock-open" />
                   <i>Precipitation:</i>
-                  <input id="precInput" data-stored="prec" type="number" defaultValue={100} />%
-                  <input id="precOutput" data-stored="prec" type="range" min={0} max={500} defaultValue={100} />
+                  <input
+                    id="precInput"
+                    data-stored="prec"
+                    type="number"
+                    value={useOptionsState(s => s.prec)}
+                    onChange={handleControlsChange}
+                  />
+                  %
+                  <input
+                    id="precOutput"
+                    data-stored="prec"
+                    type="range"
+                    min={0}
+                    max={500}
+                    value={useOptionsState(s => s.prec)}
+                    onChange={handleControlsChange}
+                  />
                 </label>
               </div>
               <div data-tip="Canvas size. Can be changed in general options on new map generation">
                 <i>Canvas size:</i>
                 <br />
-                <span id="mapSize" /> px = <span id="mapSizeFriendly" />
+                <span id="mapSize">{globeStats.mapSizeText}</span> px ={" "}
+                <span id="mapSizeFriendly">{globeStats.mapSizeFriendly}</span>
               </div>
               <div>
                 <i data-tip="Length of Meridian. Almost half of the equator length">Meridian length:</i>
                 <br />
-                <span id="meridianLength" data-tip="Length of Meridian in pixels" /> px =
+                <span id="meridianLength" data-tip="Length of Meridian in pixels">
+                  {globeStats.meridianLength}
+                </span>{" "}
+                px =
                 <span
                   id="meridianLengthFriendly"
                   data-tip="Length of Meridian is friendly units (depends on user configuration)"
-                />
+                >
+                  {globeStats.meridianLengthFriendly}
+                </span>
                 <span
                   id="meridianLengthEarth"
                   data-tip="Fantasy world Meridian length relative to real-world Earth (20k km)"
-                />
+                >
+                  {globeStats.meridianLengthEarth}
+                </span>
               </div>
               <div data-tip="Map coordinates on globe">
-                <i>Coords:</i> <span id="mapCoordinates" />
+                <i>Coords:</i> <span id="mapCoordinates">{globeStats.mapCoordinates}</span>
               </div>
             </fieldset>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
@@ -518,7 +560,13 @@ export const WorldConfiguratorDialog: React.FC = () => {
           style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}
         >
           <div className="dontAsk" data-tip="Automatically update world on input changes and button clicks">
-            <input id="wcAutoChange" className="checkbox" type="checkbox" defaultChecked />
+            <input
+              id="wcAutoChange"
+              className="checkbox"
+              type="checkbox"
+              checked={autoChange}
+              onChange={e => setAutoChange(e.target.checked)}
+            />
             <label htmlFor="wcAutoChange" className="checkbox-label">
               <i>auto-apply changes</i>
             </label>

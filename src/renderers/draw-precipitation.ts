@@ -1,6 +1,6 @@
 import { easeSinIn, transition } from "d3";
 import type { AppServices } from "../context/appServices";
-import type { EnvironmentLayers } from "../context/viewContext";
+import type { EnvironmentLayers, ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { useOptionsState } from "../store/optionsState";
 import { rn } from "../utils";
@@ -47,3 +47,45 @@ export const PrecipitationRenderer: IRenderer = {
     viewContext.prec.selectAll("circle").remove();
   }
 };
+
+export function animatePrecipitationTurnOn(
+  worldContext: Readonly<WorldContext>,
+  viewContext: Readonly<ViewContext>,
+  appServices: AppServices,
+  onEnd: () => void
+): void {
+  const { prec } = viewContext;
+  const priorR = new Map<string, number>();
+  prec.selectAll<SVGCircleElement, unknown>("circle").each(function () {
+    priorR.set(`${this.getAttribute("cx")}_${this.getAttribute("cy")}`, parseFloat(this.getAttribute("r") ?? "0"));
+  });
+
+  prec.interrupt();
+  prec.selectAll("*").interrupt();
+  prec.style("display", "block");
+
+  PrecipitationRenderer.render(worldContext, viewContext, appServices);
+
+  import("d3").then(d3 => {
+    prec.selectAll<SVGCircleElement, unknown>("circle").each(function () {
+      const finalR = parseFloat(this.getAttribute("r") ?? "0");
+      const startR = priorR.get(`${this.getAttribute("cx")}_${this.getAttribute("cy")}`) ?? 0;
+      d3.select(this).attr("r", startR).transition().duration(800).ease(d3.easeSinIn).attr("r", finalR);
+    });
+
+    prec.transition().duration(800).on("end.prec-state", onEnd);
+  });
+}
+
+export function animatePrecipitationTurnOff(viewContext: Readonly<EnvironmentLayers>, onEnd: () => void): void {
+  const { prec } = viewContext;
+  prec.selectAll("*").interrupt();
+  prec.interrupt();
+
+  import("d3").then(d3 => {
+    const hide = d3.transition().duration(1000).ease(d3.easeSinIn);
+    prec.selectAll("text").attr("opacity", 1).transition(hide).attr("opacity", 0);
+    prec.selectAll("circle").transition(hide).attr("r", 0).remove();
+    prec.transition().delay(1000).style("display", "none").on("end.prec-state", onEnd);
+  });
+}

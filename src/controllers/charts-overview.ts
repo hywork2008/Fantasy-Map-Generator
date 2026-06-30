@@ -1,9 +1,11 @@
 import * as d3 from "d3";
 import { worldContext } from "../context/worldContext";
+import { getHeight } from "../services/cellInfoService";
+import { tip } from "../services/tooltipService";
 import { openDialog } from "../ui/dialogs/dialogService";
 import { capitalize, convertTemperature, rn, si } from "../utils";
+import { getArea, getAreaUnit } from "../utils/domUtils";
 import { isWater } from "../utils/graphUtils";
-import { getArea, getAreaUnit, getHeight, tip } from "../utils/uiHelpers";
 
 export interface ChartDataPoint {
   name: string;

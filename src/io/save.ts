@@ -1,14 +1,13 @@
-import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
-import { Names } from "../modules/names-generator";
+import { Names } from "../generators/names-generator";
+import { tip } from "../services/tooltipService";
+import { viewLayerService as view } from "../services/viewLayerService";
 import { rulers } from "../store/editorState";
 import { useOptionsState } from "../store/optionsState";
-import { closeDialogs, openRichDialog } from "../ui/dialogs/dialogService";
-import { link, parseError, ra, rn } from "../utils";
-import { alertMessage } from "../utils/alertMessageEl";
+import { closeDialogs, openConfirm } from "../ui/dialogs/dialogService";
+import { createObjectURL, link, parseError, ra, revokeObjectURL, rn } from "../utils";
 import { ERROR } from "../utils/debug";
 import { getFileName } from "../utils/editorHelpers";
-import { tip } from "../utils/uiHelpers";
 import { VERSION } from "../versioning";
 import { Cloud } from "./cloud";
 import { getUsedFonts } from "./export";
@@ -51,9 +50,9 @@ export function prepareMapData(): string {
     precOutput.value,
     JSON.stringify(worldContext.options),
     useOptionsState.getState().mapName,
-    +hideLabels.checked,
+    +useOptionsState.getState().hideLabels,
     stylePreset.value,
-    +rescaleLabels.checked,
+    +useOptionsState.getState().rescaleLabels,
     worldContext.urbanDensity,
     longitudeOutput.value,
     useOptionsState.getState().growthRate
@@ -66,7 +65,7 @@ export function prepareMapData(): string {
   ].join("|");
   const notesData = JSON.stringify(worldContext.notes);
   const rulersString = rulers.toString();
-  const fonts = JSON.stringify(getUsedFonts(viewContext.svg.node()!));
+  const fonts = JSON.stringify(getUsedFonts(view.svg.node()!));
 
   // clone SVG and reset transform to defaults
   const cloneEl = document.getElementById("map")!.cloneNode(true) as SVGSVGElement;
@@ -175,13 +174,13 @@ export async function saveToStorage(mapData: string, showTip = false): Promise<v
 
 export function saveToMachine(mapData: string, filename: string): void {
   const blob = new Blob([mapData], { type: "text/plain" });
-  const URL = window.URL.createObjectURL(blob);
+  const URL = createObjectURL(blob);
   const a = document.createElement("a");
   a.download = filename;
   a.href = URL;
   a.click();
   tip('Map is saved to the "Downloads" folder (CTRL + J to open)', true, "success", 8000);
-  setTimeout(() => window.URL.revokeObjectURL(URL), 5000);
+  revokeObjectURL(URL, 5000);
 }
 
 async function saveToDropbox(mapData: string, filename: string): Promise<void> {
@@ -192,7 +191,7 @@ async function saveToDropbox(mapData: string, filename: string): Promise<void> {
 // ─── Main save entry point ────────────────────────────────────────────────────
 
 export async function saveMap(method: string): Promise<void> {
-  if (viewContext.customization)
+  if (view.customization)
     return tip("Map cannot be saved in EDIT mode, please complete the edit and retry", false, "error");
   closeDialogs("#alert");
 
@@ -205,27 +204,18 @@ export async function saveMap(method: string): Promise<void> {
     if (method === "dropbox") await saveToDropbox(mapData, filename);
   } catch (error) {
     ERROR && console.error(error);
-    alertMessage.innerHTML = /* html */ `An error occurred while saving the map. If the issue persists, please copy the message below and report it on ${link(
-      "https://github.com/Azgaar/Fantasy-Map-Generator/issues",
-      "GitHub"
-    )}. <p id="errorBox">${parseError(error)}</p>`;
-
-    openRichDialog({
-      content: alertMessage.innerHTML,
-      resizable: false,
-      title: "Saving error",
-      width: "28em",
-      buttons: {
-        Retry: () => {
-          /* $(this).dialog("close") removed */
-          saveMap(method);
-        },
-        Close: () => {
-          /* $(this).dialog("close") removed */
-        }
-      },
-      position: { my: "center", at: "center", of: "svg" }
-    });
+    openConfirm(
+      `An error occurred while saving the map. If the issue persists, please copy the message below and report it on ${link(
+        "https://github.com/Azgaar/Fantasy-Map-Generator/issues",
+        "GitHub"
+      )}. <p id="errorBox">${parseError(error)}</p>`,
+      {
+        title: "Saving error",
+        confirm: "Retry",
+        cancel: "Close",
+        onConfirm: () => saveMap(method)
+      }
+    );
   }
 }
 
@@ -241,8 +231,7 @@ export async function initiateAutosave(): Promise<void> {
 
     const diffInMinutes = (Date.now() - lastSavedAt) / MINUTE;
     if (diffInMinutes < timeoutMinutes) return;
-    if (viewContext.customization)
-      return tip("Autosave: map cannot be saved in edit mode", false, "warning" as never, 2000);
+    if (view.customization) return tip("Autosave: map cannot be saved in edit mode", false, "warning" as never, 2000);
 
     try {
       tip("Autosave: saving map...", false, "warning" as never, 3000);
@@ -277,7 +266,7 @@ const saveReminder = (() => {
   const interval = 15 * 60 * 1000;
 
   const reminderId = setInterval(() => {
-    if (viewContext.customization) return;
+    if (view.customization) return;
     tip(ra(message), true, "warn" as never, 2500);
   }, interval);
 
@@ -298,7 +287,7 @@ export function toggleSaveReminder(): void {
     saveReminderState.status = 1;
     saveReminderState.reminderId = setInterval(
       () => {
-        if (viewContext.customization) return;
+        if (view.customization) return;
         tip(ra(["Please remember to save the map to your desktop"]), true, "warn" as never, 2500);
       },
       15 * 60 * 1000

@@ -6,19 +6,20 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
-import { toggleStates } from "../controllers/layers";
-import { Military } from "../modules/military-generator";
+
 import { MilitaryRenderer } from "../renderers/draw-military";
+import { GenerationPipeline } from "../services/generationPipeline";
+import { viewLayerService as view } from "../services/viewLayerService";
 import { modules } from "../store/editorState";
 import { useMilitaryOverviewState } from "../store/militaryOverviewState";
 import { closeDialogs, openConfirm, openDialog } from "../ui/dialogs/dialogService";
 import { rn } from "../utils";
+import { fitContent } from "../utils/domUtils";
 import { layerIsOn } from "../utils/nodeUtils";
-import { fitContent } from "../utils/uiHelpers";
-import { toggleBorders, toggleMilitary } from "./layers";
+import { toggleBorders, toggleMilitary, toggleStates } from "./layers";
 
 export function overviewMilitary(): void {
-  if (viewContext.customization) return;
+  if (view.customization) return;
   closeDialogs("#militaryOverview, .stable");
   if (!layerIsOn("toggleStates")) toggleStates();
   if (!layerIsOn("toggleBorders")) toggleBorders();
@@ -31,7 +32,7 @@ export function overviewMilitary(): void {
   modules.overviewMilitary = true;
 
   openDialog("militaryOverview", {
-    title: "Military Overview",
+    title: "GenerationPipeline.Military Overview",
     resizable: false,
     width: fitContent(),
     position: { my: "right top", at: "right-10 top+10", of: "svg", collision: "fit" }
@@ -39,13 +40,13 @@ export function overviewMilitary(): void {
 }
 
 export function militaryStateHighlightOn(stateId: number): void {
-  if (viewContext.customization || !stateId) return;
-  viewContext.armies.select(`#army${stateId}`).transition().duration(2000).style("fill", "#ff0000");
+  if (view.customization || !stateId) return;
+  view.armies.select(`#army${stateId}`).transition().duration(2000).style("fill", "#ff0000");
 
   if (!layerIsOn("toggleStates")) return;
-  const d = viewContext.regions.select(`#state${stateId}`).attr("d");
+  const d = view.regions.select(`#state${stateId}`).attr("d");
 
-  const path = viewContext.debug
+  const path = view.debug
     .append("path")
     .attr("class", "highlight")
     .attr("d", d)
@@ -65,18 +66,13 @@ export function militaryStateHighlightOn(stateId: number): void {
 }
 
 export function militaryStateHighlightOff(stateId: number): void {
-  viewContext.debug.selectAll(".highlight").each(function () {
+  view.debug.selectAll(".highlight").each(function () {
     (this as Element & { __transition?: { end?: () => void } }).__transition?.end?.();
   });
-  viewContext.debug
-    .selectAll<SVGElement, unknown>(".highlight")
-    .transition()
-    .duration(1000)
-    .attr("opacity", 0)
-    .remove();
+  view.debug.selectAll<SVGElement, unknown>(".highlight").transition().duration(1000).attr("opacity", 0).remove();
 
   if (stateId) {
-    viewContext.armies.select(`#army${stateId}`).transition().duration(1000).style("fill", null);
+    view.armies.select(`#army${stateId}`).transition().duration(1000).style("fill", null);
   }
 }
 
@@ -91,7 +87,7 @@ export function updateStateWarAlert(stateId: number, alert: number): void {
       r.u[u] = rn(r.u[u] * dif);
     });
     r.a = sum(Object.values(r.u) as number[]);
-    viewContext.armies.select(`g>g#regiment${s.i}-${r.i}>text`).text(Military.getTotal(r));
+    view.armies.select(`g>g#regiment${s.i}-${r.i}>text`).text(GenerationPipeline.Military.getTotal(r));
   });
   useMilitaryOverviewState.getState().refresh();
 }
@@ -103,7 +99,7 @@ export function militaryRecalculate(): void {
       title: "Recalculate military",
       confirm: "Recalculate",
       onConfirm: () => {
-        Military.generate(worldContext, viewContext, appServices, getWorldState());
+        GenerationPipeline.Military.generate(worldContext, viewContext, appServices, getWorldState());
         if (layerIsOn("toggleMilitary")) MilitaryRenderer.render(worldContext, viewContext, appServices);
         useMilitaryOverviewState.getState().refresh();
       }

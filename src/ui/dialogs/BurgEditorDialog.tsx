@@ -1,8 +1,8 @@
 import type React from "react";
-import { burgEditorActions } from "../../editors/burg-editor";
+import { burgEditorActions } from "../../controllers/burg-editor";
+import { showElementLockTip } from "../../services/tooltipService";
 import { useBurgEditorState } from "../../store/burgEditorState";
 import { useDialogState } from "../../store/dialogState";
-import { showElementLockTip } from "../../utils/uiHelpers";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
@@ -227,20 +227,28 @@ export const BurgEditorDialog: React.FC = () => {
           </div>
         </div>
 
-        <div id="burgPreviewSection" data-tip="Burg map preview" style={{ display: "flex", flexDirection: "column" }}>
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <span>Burg preview:</span>
-            <div style={{ display: "flex", gap: "0.5em" }}>
-              <i
-                id="burgLinkOpen"
-                data-tip="Open burg map in a new tab"
-                className="icon-link-ext pointer"
-                onClick={() => burgEditorActions.openBurgLink()}
-              ></i>
+        {burgData.previewUrl && (
+          <div id="burgPreviewSection" data-tip="Burg map preview" style={{ display: "flex", flexDirection: "column" }}>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span>Burg preview:</span>
+              <div style={{ display: "flex", gap: "0.5em" }}>
+                <i
+                  id="burgLinkOpen"
+                  data-tip="Open burg map in a new tab"
+                  className="icon-link-ext pointer"
+                  onClick={() => burgEditorActions.openBurgLink()}
+                ></i>
+              </div>
+            </div>
+            <div id="burgPreviewObject" style={{ pointerEvents: "none" }}>
+              <object
+                data={burgData.previewUrl}
+                style={{ width: "100%", maxWidth: "60vw", maxHeight: "60vh" }}
+                aria-label="Burg Map Preview"
+              />
             </div>
           </div>
-          <div id="burgPreviewObject" style={{ pointerEvents: "none" }}></div>
-        </div>
+        )}
       </div>
 
       <div id="burgFooter">

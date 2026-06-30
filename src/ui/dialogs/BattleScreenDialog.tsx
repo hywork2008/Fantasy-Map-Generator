@@ -18,10 +18,12 @@ import {
   battleAction_showNameSection,
   battleAction_wiki
 } from "../../controllers/battle-screen";
+import { tip } from "../../services/tooltipService";
 import type { BattleRegimentDisplay, BattleSide } from "../../store/battleScreenState";
 import { useBattleScreenState } from "../../store/battleScreenState";
 import { useDialogState } from "../../store/dialogState";
-import { applySorting, tip } from "../../utils/uiHelpers";
+import { useOptionsState } from "../../store/optionsState";
+import { applySorting } from "../../utils/domUtils";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
@@ -291,7 +293,7 @@ export const RegimentSelectorScreenDialog: React.FC = () => {
   const defenders = useBattleScreenState(s => s.defenders.regiments);
   const addedKeys = new Set([...attackers, ...defenders].map(r => r.key));
 
-  const distanceUnit = (document.getElementById("distanceUnitInput") as HTMLSelectElement | null)?.value ?? "km";
+  const distanceUnit = useOptionsState(s => s.distanceUnit);
 
   const toggleSelect = (key: string, isAdded: boolean) => {
     if (isAdded) {

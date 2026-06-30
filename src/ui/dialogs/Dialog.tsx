@@ -1,6 +1,7 @@
 import type React from "react";
-import { useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import ReactDOM from "react-dom";
+import { closeAllDialogs } from "./dialogService";
 import { useDraggable } from "./useDraggable";
 import "./dialog.css";
 
@@ -15,37 +16,86 @@ export interface DialogProps {
 }
 
 export const Dialog: React.FC<DialogProps> = ({ isOpen, title, onClose, children, buttons, className = "", style }) => {
-  const { containerRef, bringToFront } = useDraggable({ handleSelector: ".fmg-dialog-titlebar" });
+  const { containerRef, resizeHandleRef, bringToFront } = useDraggable({ handleSelector: ".fmg-dialog-titlebar" });
+  const [minimized, setMinimized] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       bringToFront();
+      setMinimized(false);
     }
   }, [isOpen, bringToFront]);
+
+  const handleMinimize = useCallback(() => {
+    const container = containerRef.current;
+    if (container && !minimized) {
+      // Lock the current rendered position and width before hiding content so
+      // the titlebar doesn't jump. Without this, the CSS transform / % values
+      // recompute against the collapsed (titlebar-only) size and shift the dialog.
+      const rect = container.getBoundingClientRect();
+      container.style.setProperty("--dialog-left", `${rect.left}px`);
+      container.style.setProperty("--dialog-top", `${rect.top}px`);
+      container.style.setProperty("--dialog-offset-x", "0px");
+      container.style.setProperty("--dialog-offset-y", "0px");
+      container.style.width = `${rect.width}px`;
+    }
+    setMinimized(m => !m);
+  }, [minimized, containerRef]);
 
   const dialogElement = (
     <div
       ref={containerRef}
-      className={`fmg-dialog ${className}`}
+      className={`fmg-dialog ${className}${minimized ? " fmg-dialog--minimized" : ""}`}
       style={{ ...style, display: isOpen ? undefined : "none" }}
     >
       <div className="fmg-dialog-titlebar">
         <div className="fmg-dialog-title">{title}</div>
-        {onClose && (
-          <button type="button" className="fmg-dialog-close" aria-label="Close" onClick={onClose}>
-            ✕
+        <div className="fmg-dialog-titlebar-actions">
+          <button
+            type="button"
+            className="fmg-dialog-titlebar-btn"
+            aria-label="Close all dialogs"
+            title="Close all dialogs"
+            onClick={() => closeAllDialogs()}
+          >
+            ✕✕
           </button>
-        )}
-      </div>
-      <div className="fmg-dialog-content">{children}</div>
-      {buttons && buttons.length > 0 && (
-        <div className="fmg-dialog-buttonpane">
-          {buttons.map(btn => (
-            <button type="button" key={btn.label} className="fmg-dialog-button" onClick={btn.onClick}>
-              {btn.label}
+          <button
+            type="button"
+            className="fmg-dialog-titlebar-btn"
+            aria-label={minimized ? "Restore" : "Minimize"}
+            title={minimized ? "Restore" : "Minimize"}
+            onClick={handleMinimize}
+          >
+            {minimized ? "▲" : "▼"}
+          </button>
+          {onClose && (
+            <button
+              type="button"
+              className="fmg-dialog-titlebar-btn"
+              aria-label="Close"
+              title="Close"
+              onClick={onClose}
+            >
+              ✕
             </button>
-          ))}
+          )}
         </div>
+      </div>
+      {!minimized && (
+        <>
+          <div className="fmg-dialog-content">{children}</div>
+          {buttons && buttons.length > 0 && (
+            <div className="fmg-dialog-buttonpane">
+              {buttons.map(btn => (
+                <button type="button" key={btn.label} className="fmg-dialog-button" onClick={btn.onClick}>
+                  {btn.label}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="fmg-dialog-resize" ref={resizeHandleRef} aria-hidden="true" />
+        </>
       )}
     </div>
   );

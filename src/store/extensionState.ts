@@ -1,3 +1,4 @@
+import type { Selection } from "d3";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
@@ -23,15 +24,36 @@ export interface ExtensionDialog {
   component: React.ComponentType;
 }
 
+export interface ExtensionStyleProps {
+  visibility: Record<string, boolean>;
+  values: Record<string, string | number>;
+  applySliderChange: (id: string, value: string) => void;
+}
+
+export interface ExtensionStyleConfig {
+  id: string;
+  extensionId: string;
+  elements: { value: string; label: string }[];
+  component?: React.ComponentType<ExtensionStyleProps>;
+  onSelect?: (
+    elementId: string,
+    sliderValues: Record<string, string>,
+    visibility: Record<string, boolean>,
+    el: Selection<SVGGElement, unknown, null, undefined>
+  ) => void;
+}
+
 interface ExtensionState {
   extensions: Record<string, ExtensionConfig>;
   enabledExtensions: Record<string, boolean>;
   actions: ExtensionAction[];
   dialogs: ExtensionDialog[];
+  styleConfigs: ExtensionStyleConfig[];
 
   registerExtension: (config: ExtensionConfig, defaultEnabled?: boolean) => void;
   registerAction: (action: ExtensionAction) => void;
   registerDialog: (dialog: ExtensionDialog) => void;
+  registerStyleConfig: (config: ExtensionStyleConfig) => void;
   toggleExtension: (id: string, forceState?: boolean) => void;
   /** Remove all registrations for a given extension (called before uninstall or re-inject) */
   unregisterExtension: (id: string) => void;
@@ -44,6 +66,7 @@ export const useExtensionState = create<ExtensionState>()(
       enabledExtensions: {},
       actions: [],
       dialogs: [],
+      styleConfigs: [],
 
       registerExtension: (config, defaultEnabled = true) => {
         set(state => {
@@ -68,6 +91,12 @@ export const useExtensionState = create<ExtensionState>()(
         }));
       },
 
+      registerStyleConfig: config => {
+        set(state => ({
+          styleConfigs: [...state.styleConfigs.filter(c => c.id !== config.id), config]
+        }));
+      },
+
       toggleExtension: (id, forceState) => {
         set(state => {
           const currentState = state.enabledExtensions[id] ?? false;
@@ -86,7 +115,8 @@ export const useExtensionState = create<ExtensionState>()(
             extensions: remainingExtensions,
             enabledExtensions: remainingEnabled,
             actions: state.actions.filter(a => a.extensionId !== id),
-            dialogs: state.dialogs.filter(d => d.extensionId !== id)
+            dialogs: state.dialogs.filter(d => d.extensionId !== id),
+            styleConfigs: state.styleConfigs.filter(c => c.extensionId !== id)
           };
         });
       }

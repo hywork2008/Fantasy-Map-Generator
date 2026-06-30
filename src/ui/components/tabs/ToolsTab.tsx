@@ -1,4 +1,5 @@
 import type React from "react";
+import { useDialogState } from "../../../store/dialogState";
 import { useExtensionState } from "../../../store/extensionState";
 
 interface StaticEditButton {
@@ -7,25 +8,52 @@ interface StaticEditButton {
   label: string;
   tooltip: string;
   eventName: string;
+  dialogId?: string;
 }
 
 const STATIC_EDIT_BUTTONS: StaticEditButton[] = [
-  { key: "biomes", label: "Biomes", tooltip: "Click to open Biomes Editor", eventName: "editBiomesButton" },
-  { key: "burgs", label: "Burgs", tooltip: "Click to open Burgs Overview", eventName: "overviewBurgsButton" },
+  {
+    key: "biomes",
+    label: "Biomes",
+    tooltip: "Click to open Biomes Editor",
+    eventName: "editBiomesButton",
+    dialogId: "biomesEditor"
+  },
+  {
+    key: "burgs",
+    label: "Burgs",
+    tooltip: "Click to open Burgs Overview",
+    eventName: "overviewBurgsButton",
+    dialogId: "burgsOverview"
+  },
   {
     key: "coastlines",
     label: "Coastlines",
     tooltip: "Click to open Coastline Settings Editor",
-    eventName: "editCoastlineSettings"
+    eventName: "editCoastlineSettings",
+    dialogId: "coastlineSettingsDialog"
   },
-  { key: "cultures", label: "Cultures", tooltip: "Click to open Cultures Editor", eventName: "editCulturesButton" },
+  {
+    key: "cultures",
+    label: "Cultures",
+    tooltip: "Click to open Cultures Editor",
+    eventName: "editCulturesButton",
+    dialogId: "culturesEditor"
+  },
   {
     key: "diplomacy",
     label: "Diplomacy",
     tooltip: "Click to open Diplomatical relationships Editor",
-    eventName: "editDiplomacyButton"
+    eventName: "editDiplomacyButton",
+    dialogId: "diplomacyEditor"
   },
-  { key: "emblems", label: "Emblems", tooltip: "Click to open Emblem Editor", eventName: "editEmblemButton" },
+  {
+    key: "emblems",
+    label: "Emblems",
+    tooltip: "Click to open Emblem Editor",
+    eventName: "editEmblemButton",
+    dialogId: "emblemEditor"
+  },
   {
     key: "editHeightmapButton",
     domId: "editHeightmapButton",
@@ -33,42 +61,89 @@ const STATIC_EDIT_BUTTONS: StaticEditButton[] = [
     tooltip: "Click to open Heightmap customization menu",
     eventName: "editHeightmapButton"
   },
-  { key: "markers", label: "Markers", tooltip: "Click to open Markers Overview", eventName: "overviewMarkersButton" },
+  {
+    key: "markers",
+    label: "Markers",
+    tooltip: "Click to open Markers Overview",
+    eventName: "overviewMarkersButton",
+    dialogId: "markersOverview"
+  },
   {
     key: "military",
     label: "Military",
     tooltip: "Click to open Military Forces Overview",
-    eventName: "overviewMilitaryButton"
+    eventName: "overviewMilitaryButton",
+    dialogId: "militaryOverview"
   },
   {
     key: "namesbase",
     label: "Namesbase",
     tooltip: "Click to open Namesbase Editor",
-    eventName: "editNamesBaseButton"
+    eventName: "editNamesBaseButton",
+    dialogId: "namesbaseEditor"
   },
-  { key: "notes", label: "Notes", tooltip: "Click to open Notes Editor", eventName: "editNotesButton" },
+  {
+    key: "notes",
+    label: "Notes",
+    tooltip: "Click to open Notes Editor",
+    eventName: "editNotesButton",
+    dialogId: "notesEditor"
+  },
   {
     key: "provinces",
     label: "Provinces",
     tooltip: "Click to open Provinces Editor",
-    eventName: "editProvincesButton"
+    eventName: "editProvincesButton",
+    dialogId: "provincesEditor"
   },
-  { key: "religions", label: "Religions", tooltip: "Click to open Religions Editor", eventName: "editReligions" },
-  { key: "rivers", label: "Rivers", tooltip: "Click to open Rivers Overview", eventName: "overviewRiversButton" },
-  { key: "routes", label: "Routes", tooltip: "Click to open Routes Overview", eventName: "overviewRoutesButton" },
+  {
+    key: "religions",
+    label: "Religions",
+    tooltip: "Click to open Religions Editor",
+    eventName: "editReligions",
+    dialogId: "religionsEditor"
+  },
+  {
+    key: "rivers",
+    label: "Rivers",
+    tooltip: "Click to open Rivers Overview",
+    eventName: "overviewRiversButton",
+    dialogId: "riversOverview"
+  },
+  {
+    key: "routes",
+    label: "Routes",
+    tooltip: "Click to open Routes Overview",
+    eventName: "overviewRoutesButton",
+    dialogId: "routesOverview"
+  },
   {
     key: "editStatesButton",
     domId: "editStatesButton",
     label: "States",
     tooltip: "Click to open States Editor",
-    eventName: "editStatesButton"
+    eventName: "editStatesButton",
+    dialogId: "statesEditor"
   },
-  { key: "units", label: "Units", tooltip: "Click to open Units Editor", eventName: "editUnitsButton" },
-  { key: "zones", label: "Zones", tooltip: "Click to open Zones Editor", eventName: "editZonesButton" }
+  {
+    key: "units",
+    label: "Units",
+    tooltip: "Click to open Units Editor",
+    eventName: "editUnitsButton",
+    dialogId: "unitsEditor"
+  },
+  {
+    key: "zones",
+    label: "Zones",
+    tooltip: "Click to open Zones Editor",
+    eventName: "editZonesButton",
+    dialogId: "zonesEditor"
+  }
 ];
 
 export const ToolsTab: React.FC = () => {
   const { actions: allActions, enabledExtensions } = useExtensionState();
+  const openDialogs = useDialogState(state => state.openDialogs);
   const actions = allActions.filter(a => a.tab === "tools" && enabledExtensions[a.extensionId]);
   const editActions = actions.filter(a => a.section === "edit");
   const regenerateActions = actions.filter(a => a.section === "regenerate");
@@ -83,6 +158,7 @@ export const ToolsTab: React.FC = () => {
       domId: b.domId,
       label: b.label,
       tooltip: b.tooltip,
+      dialogId: b.dialogId,
       onClick: () => triggerEvent(b.eventName)
     })),
     ...editActions.map(a => ({
@@ -90,6 +166,7 @@ export const ToolsTab: React.FC = () => {
       domId: undefined as string | undefined,
       label: a.label,
       tooltip: a.tooltip ?? "",
+      dialogId: undefined as string | undefined,
       onClick: a.onClick
     }))
   ].sort((a, b) => a.label.localeCompare(b.label));
@@ -99,7 +176,14 @@ export const ToolsTab: React.FC = () => {
       <div className="separator">Edit</div>
       <div className="grid">
         {allEditButtons.map(btn => (
-          <button key={btn.key} id={btn.domId} data-tip={btn.tooltip} type="button" onClick={btn.onClick}>
+          <button
+            key={btn.key}
+            id={btn.domId}
+            data-tip={btn.tooltip}
+            type="button"
+            className={btn.dialogId && openDialogs.has(btn.dialogId) ? "pressed" : undefined}
+            onClick={btn.onClick}
+          >
             {btn.label}
           </button>
         ))}
@@ -274,6 +358,7 @@ export const ToolsTab: React.FC = () => {
         <button
           data-tip="Click to open Cell details view"
           type="button"
+          className={openDialogs.has("cellInfo") ? "pressed" : undefined}
           onClick={() => triggerEvent("overviewCellsButton")}
         >
           Cells
@@ -281,6 +366,7 @@ export const ToolsTab: React.FC = () => {
         <button
           data-tip="Click to open Charts to overview cells data"
           type="button"
+          className={openDialogs.has("chartsOverview") ? "pressed" : undefined}
           onClick={() => triggerEvent("overviewChartsButton")}
         >
           Charts
@@ -288,6 +374,7 @@ export const ToolsTab: React.FC = () => {
         <button
           data-tip="Click to open minimap overview. Click minimap to center view"
           type="button"
+          className={openDialogs.has("minimap") ? "pressed" : undefined}
           onClick={() => triggerEvent("openMinimapButton")}
         >
           Minimap
@@ -295,6 +382,7 @@ export const ToolsTab: React.FC = () => {
         <button
           data-tip="Click to open World Configurator (temperature, precipitation, etc.)"
           type="button"
+          className={openDialogs.has("worldConfigurator") ? "pressed" : undefined}
           onClick={() => triggerEvent("openWorldConfigurator")}
         >
           World
@@ -305,11 +393,17 @@ export const ToolsTab: React.FC = () => {
         <button
           data-tip="Click to generate a submap from the current viewport"
           type="button"
+          className={openDialogs.has("submapTool") ? "pressed" : undefined}
           onClick={() => triggerEvent("openSubmapTool")}
         >
           Submap
         </button>
-        <button data-tip="Click to transform the map" type="button" onClick={() => triggerEvent("openTransformTool")}>
+        <button
+          data-tip="Click to transform the map"
+          type="button"
+          className={openDialogs.has("transformTool") ? "pressed" : undefined}
+          onClick={() => triggerEvent("openTransformTool")}
+        >
           Transform
         </button>
       </div>

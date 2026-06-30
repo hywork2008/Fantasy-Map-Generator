@@ -1,11 +1,9 @@
 import type React from "react";
-import { closeEmblemEditor, emblemEditorActions } from "../../editors/emblems-editor";
+import { useRef } from "react";
+import { emblemEditorActions } from "../../controllers/emblems-editor";
 import { useEmblemEditorState } from "../../store/emblemEditorState";
-import { Dialog } from "./Dialog";
-
-export const EmblemEditorDialog: React.FC = () => {
+export const EmblemEditorContent: React.FC = () => {
   const {
-    isOpen,
     targetId,
     armigerName,
     shape,
@@ -22,15 +20,11 @@ export const EmblemEditorDialog: React.FC = () => {
     downloadSize
   } = useEmblemEditorState();
 
-  if (!isOpen) return null;
+  const emblemImageInputRef = useRef<HTMLInputElement>(null);
+  const emblemSvgInputRef = useRef<HTMLInputElement>(null);
 
   return (
-    <Dialog
-      isOpen={isOpen}
-      title="Edit Emblem"
-      onClose={closeEmblemEditor}
-      style={{ width: "18.2em", height: "auto", resize: "both", overflow: "hidden" }}
-    >
+    <div id="emblemEditor">
       <div id="emblemEditorContainer" style={{ display: "flex", flexDirection: "column", height: "100%" }}>
         <div>
           <svg viewBox="0 0 200 200" aria-hidden="true" style={{ width: "100%", height: "auto" }}>
@@ -272,6 +266,7 @@ export const EmblemEditorDialog: React.FC = () => {
             >
               <div style={{ display: "flex", gap: "0.5em" }}>
                 <input
+                  ref={emblemImageInputRef}
                   type="file"
                   id="emblemImageToLoad"
                   accept=".png, .jpg, .jpeg"
@@ -284,13 +279,14 @@ export const EmblemEditorDialog: React.FC = () => {
                   type="button"
                   id="emblemsUploadImage"
                   data-tip="Upload SVG or PNG image from any source. Make sure background is transparent"
-                  onClick={() => document.getElementById("emblemImageToLoad")?.click()}
+                  onClick={() => emblemImageInputRef.current?.click()}
                   style={{ flexGrow: 1 }}
                 >
                   Any image
                 </button>
 
                 <input
+                  ref={emblemSvgInputRef}
                   type="file"
                   id="emblemSVGToLoad"
                   accept=".svg"
@@ -303,7 +299,7 @@ export const EmblemEditorDialog: React.FC = () => {
                   type="button"
                   id="emblemsUploadSVG"
                   data-tip="Upload prepared SVG image (SVG from Armoria or SVG processed with 'Optimize vector' tool)"
-                  onClick={() => document.getElementById("emblemSVGToLoad")?.click()}
+                  onClick={() => emblemSvgInputRef.current?.click()}
                   style={{ flexGrow: 1 }}
                 >
                   Prepared SVG
@@ -383,6 +379,6 @@ export const EmblemEditorDialog: React.FC = () => {
           )}
         </div>
       </div>
-    </Dialog>
+    </div>
   );
 };

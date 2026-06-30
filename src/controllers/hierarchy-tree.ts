@@ -1,10 +1,10 @@
 import * as d3 from "d3";
+import { tip } from "../services/tooltipService";
 import { dialogStore } from "../store/dialogState";
 import { hierarchyTreeStore } from "../store/hierarchyTreeState";
 import type { HierarchyElement, HierarchyProps } from "../types/HierarchyTree";
 import { closeDialogs } from "../ui/dialogs/dialogService";
 import { minmax } from "../utils";
-import { tip } from "../utils/uiHelpers";
 
 const MARGINS = { top: 10, right: 10, bottom: -5, left: 10 };
 

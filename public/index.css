@@ -115,6 +115,10 @@ a {
   cursor: pointer !important;
 }
 
+.fmg-layer-hidden {
+  display: none !important;
+}
+
 #prec text {
   font-size: 32px;
   stroke: none;
@@ -1001,7 +1005,11 @@ fieldset {
   background-image: linear-gradient(to right, #ffffff 0%, #fafafa 51%, #ebebeb 100%);
   margin: 1px 1px;
   padding: 0.1em 0.2em;
-  height: 1.2em;
+  min-height: 1.2em;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2em;
 }
 
 #templateBody > div:hover {
@@ -1014,12 +1022,11 @@ fieldset {
 }
 
 #templateBody > div > span {
-  float: right;
   margin-inline: 1px;
 }
 
 #templateBody > div > i {
-  float: right;
+  cursor: pointer;
 }
 
 #templateBody input,

@@ -64,12 +64,24 @@ export function drawMarker(
 
   const isExternal = icon.startsWith("http") || icon.startsWith("data:image");
 
-  return /* html */ `
+  return `
     <svg id="${id}" viewbox="0 0 30 30" width="${zoomSize}" height="${zoomSize}" x="${viewX}" y="${viewY}">
       <g>${getPin(_worldContext, viewContext, _appServices, pin, fill, stroke)}</g>
       <text x="${dx}%" y="${dy}%" font-size="${px}px" >${isExternal ? "" : icon}</text>
       <image x="${dx / 2}%" y="${dy / 2}%" width="${px}px" height="${px}px" href="${isExternal ? icon : ""}" />
     </svg>`;
+}
+
+export function appendMarkerToLayer(
+  markersEl: Element,
+  worldContext: Readonly<WorldContext>,
+  viewContext: Readonly<SettlementLayers & ViewState>,
+  appServices: AppServices,
+  marker: Marker,
+  rescale?: number
+): void {
+  const r = rescale ?? +(markersEl.getAttribute("rescale") ?? "1");
+  markersEl.insertAdjacentHTML("beforeend", drawMarker(worldContext, viewContext, appServices, marker, r));
 }
 
 export const MarkersRenderer: IRenderer = {

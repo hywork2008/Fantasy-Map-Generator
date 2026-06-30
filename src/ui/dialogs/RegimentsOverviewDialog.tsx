@@ -111,6 +111,12 @@ export const RegimentsOverviewDialog: React.FC = () => {
     return () => clearAddRegimentClickHandler();
   }, [addMode, isOpen, filterStateId, setAddMode, refresh]);
 
+  useEffect(() => {
+    const handleRefresh = () => refresh();
+    document.addEventListener("fmg:refresh-military", handleRefresh);
+    return () => document.removeEventListener("fmg:refresh-military", handleRefresh);
+  }, [refresh]);
+
   // Clean up add mode when dialog closes
   useEffect(() => {
     if (!isOpen && addMode) {
@@ -177,7 +183,7 @@ export const RegimentsOverviewDialog: React.FC = () => {
                 onMouseEnter={() => regimentHighlightOn(stateId, r.i)}
                 onMouseLeave={() => regimentHighlightOff(stateId, r.i)}
                 onClick={() =>
-                  import("../../editors/regiment-editor").then(m => m.editRegiment(`#regiment${stateId}-${r.i}`))
+                  import("../../controllers/regiment-editor").then(m => m.editRegiment(`#regiment${stateId}-${r.i}`))
                 }
                 style={{ cursor: "pointer" }}
               >

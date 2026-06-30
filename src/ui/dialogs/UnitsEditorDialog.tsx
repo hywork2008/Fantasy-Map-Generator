@@ -1,13 +1,44 @@
 import type React from "react";
-import { unitsEditorActions } from "../../editors/units-editor";
+import { unitsEditorActions } from "../../controllers/units-editor";
 import { useOptionsState } from "../../store/optionsState";
 import { useUnitsEditorState } from "../../store/unitsEditorState";
+import { showPrompt } from "../../utils";
 import { SliderInput } from "../components/SliderInput";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
 export const UnitsEditorDialog: React.FC = () => {
   const { isOpen, rulerMode } = useUnitsEditorState();
+  const options = useOptionsState();
+
+  const handleDistanceUnitChange = (value: string) => {
+    if (value === "custom_name") {
+      showPrompt("Provide a custom name for a distance unit", { default: "" }, customValue => {
+        const custom = String(customValue);
+        options.setOption("distanceUnit", custom);
+        unitsEditorActions.changeDistanceUnit(custom);
+      });
+      return;
+    }
+    options.setOption("distanceUnit", value);
+    unitsEditorActions.changeDistanceUnit(value);
+  };
+
+  const handleHeightUnitChange = (value: string) => {
+    if (value === "custom_name") {
+      showPrompt("Provide a custom name for a height unit", { default: "" }, customValue => {
+        const custom = String(customValue);
+        options.setOption("heightUnit", custom);
+        unitsEditorActions.changeHeightUnit(custom);
+      });
+      return;
+    }
+    options.setOption("heightUnit", value);
+    unitsEditorActions.changeHeightUnit(value);
+  };
+
+  const isCustomDistance = !["mi", "km", "lg", "vr", "nmi", "nlg"].includes(options.distanceUnit);
+  const isCustomHeight = !["ft", "m", "f"].includes(options.heightUnit);
 
   return (
     <Dialog isOpen={isOpen} title="Units Editor" onClose={() => closeDialog("unitsEditor")}>
@@ -22,9 +53,8 @@ export const UnitsEditorDialog: React.FC = () => {
               <label htmlFor="distanceUnitInput">Distance unit:</label>
               <select
                 id="distanceUnitInput"
-                data-stored="distanceUnit"
-                defaultValue="mi"
-                onChange={e => unitsEditorActions.changeDistanceUnit(e.currentTarget.value)}
+                value={options.distanceUnit}
+                onChange={e => handleDistanceUnitChange(e.currentTarget.value)}
               >
                 <option value="mi">Mile (mi)</option>
                 <option value="km">Kilometer (km)</option>
@@ -32,6 +62,7 @@ export const UnitsEditorDialog: React.FC = () => {
                 <option value="vr">Versta (vr)</option>
                 <option value="nmi">Nautical mile (nmi)</option>
                 <option value="nlg">Nautical league (nlg)</option>
+                {isCustomDistance && <option value={options.distanceUnit}>{options.distanceUnit}</option>}
                 <option value="custom_name">Custom name</option>
               </select>
             </div>
@@ -39,19 +70,29 @@ export const UnitsEditorDialog: React.FC = () => {
               <i data-locked={0} id="lock_distanceScale" className="icon-lock-open" />
               <SliderInput
                 id="distanceScaleInput"
-                data-stored="distanceScale"
                 min=".01"
                 max={20}
                 step=".1"
-                value={3}
-                onChange={value => unitsEditorActions.changeDistanceScale(Number(value))}
+                value={options.distanceScale}
+                onChange={value => {
+                  const val = Number(value);
+                  options.setOption("distanceScale", val);
+                  unitsEditorActions.changeDistanceScale(val);
+                }}
               >
                 <span>1 map pixel:</span>
               </SliderInput>
             </div>
             <div data-tip="Area unit name, type &quot;square&quot; to add ² to the distance unit">
               <label htmlFor="areaUnit">Area unit:</label>
-              <input id="areaUnit" data-stored="areaUnit" type="text" defaultValue="square" />
+              <input
+                id="areaUnit"
+                type="text"
+                value={options.areaUnit}
+                onChange={e => {
+                  options.setOption("areaUnit", e.target.value);
+                }}
+              />
             </div>
             <div className="unitsHeader">
               <span className="icon-signal" />
@@ -61,25 +102,27 @@ export const UnitsEditorDialog: React.FC = () => {
               <label htmlFor="heightUnit">Height unit:</label>
               <select
                 id="heightUnit"
-                data-stored="heightUnit"
-                defaultValue="ft"
-                onChange={e => unitsEditorActions.changeHeightUnit(e.currentTarget.value)}
+                value={options.heightUnit}
+                onChange={e => handleHeightUnitChange(e.currentTarget.value)}
               >
                 <option value="ft">Feet (ft)</option>
                 <option value="m">Meters (m)</option>
                 <option value="f">Fathoms (f)</option>
+                {isCustomHeight && <option value={options.heightUnit}>{options.heightUnit}</option>}
                 <option value="custom_name">Custom name</option>
               </select>
             </div>
             <div data-tip="Set height exponent, i.e. a value for altitude change sharpness. Altitude affects temperature and hence biomes">
               <SliderInput
                 id="heightExponentInput"
-                data-stored="heightExponent"
                 min="1.5"
                 max="2.2"
                 step=".01"
-                value={2}
-                onChange={() => unitsEditorActions.changeHeightExponent()}
+                value={options.heightExponent}
+                onChange={value => {
+                  options.setOption("heightExponent", Number(value));
+                  unitsEditorActions.changeHeightExponent();
+                }}
               >
                 <span>Exponent:</span>
               </SliderInput>
@@ -92,10 +135,9 @@ export const UnitsEditorDialog: React.FC = () => {
               <label htmlFor="temperatureScale">Temperature scale:</label>
               <select
                 id="temperatureScale"
-                data-stored="temperatureScale"
-                defaultValue="°C"
+                value={options.temperatureScale}
                 onChange={e => {
-                  useOptionsState.getState().setOption("temperatureScale", e.currentTarget.value);
+                  options.setOption("temperatureScale", e.currentTarget.value);
                   unitsEditorActions.changeTemperatureScale();
                 }}
               >
@@ -116,12 +158,15 @@ export const UnitsEditorDialog: React.FC = () => {
             <div data-tip="Set how many people are in one population point">
               <SliderInput
                 id="populationRateInput"
-                data-stored="populationRate"
                 min={10}
                 max={10000}
                 step={10}
-                value={1000}
-                onChange={value => unitsEditorActions.changePopulationRate(Number(value))}
+                value={options.populationRate}
+                onChange={value => {
+                  const val = Number(value);
+                  options.setOption("populationRate", val);
+                  unitsEditorActions.changePopulationRate(val);
+                }}
               >
                 <span>1 population point:</span>
               </SliderInput>
@@ -129,12 +174,15 @@ export const UnitsEditorDialog: React.FC = () => {
             <div data-tip="Set urban population modifier. Change to increase or descrese burgs population">
               <SliderInput
                 id="urbanizationInput"
-                data-stored="urbanization"
                 min=".01"
                 max={5}
                 step=".01"
-                value={1}
-                onChange={value => unitsEditorActions.changeUrbanizationRate(Number(value))}
+                value={options.urbanization}
+                onChange={value => {
+                  const val = Number(value);
+                  options.setOption("urbanization", val);
+                  unitsEditorActions.changeUrbanizationRate(val);
+                }}
               >
                 <span>Urbanization rate:</span>
               </SliderInput>
@@ -142,12 +190,15 @@ export const UnitsEditorDialog: React.FC = () => {
             <div data-tip="Set urban density: average population per building in Medieval Fantasy City Generator">
               <SliderInput
                 id="urbanDensityInput"
-                data-stored="urbanDensity"
                 min={1}
                 max={200}
                 step={1}
-                value={10}
-                onChange={value => unitsEditorActions.changeUrbanDensity(Number(value))}
+                value={options.urbanDensity}
+                onChange={value => {
+                  const val = Number(value);
+                  options.setOption("urbanDensity", val);
+                  unitsEditorActions.changeUrbanDensity(val);
+                }}
               >
                 <span>Urban density:</span>
               </SliderInput>

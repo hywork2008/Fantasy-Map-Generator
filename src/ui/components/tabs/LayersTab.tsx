@@ -1,12 +1,13 @@
 import type React from "react";
 import { useEffect, useState } from "react";
-import { viewContext } from "../../../context/viewContext";
 import { handleLayersPresetChange, removePreset, savePreset, toggleLayerById } from "../../../controllers/layers";
-import { changeViewMode } from "../../../controllers/options";
+import { changeViewMode } from "../../../controllers/viewMode";
+import { viewLayerService as view } from "../../../services/viewLayerService";
 import { DEFAULT_LAYERS, type LayerConfig, useLayerState } from "../../../store/layerState";
 
 export const LayersTab: React.FC = () => {
-  const { layers, setLayers, activeLayers, presets, activePreset, reorderLayers } = useLayerState();
+  const { layers, setLayers, activeLayers, presets, presetLabels, activePreset, presetDisabled, reorderLayers } =
+    useLayerState();
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
   // Initialize defaults if not set
@@ -56,18 +57,19 @@ export const LayersTab: React.FC = () => {
         data-tip="Select a map layers preset"
         id="layersPreset"
         value={activePreset}
+        disabled={presetDisabled}
         onChange={handlePresetChange}
         style={{ width: "45%" }}
       >
         {Object.keys(presets).map(preset => (
           <option key={preset} value={preset} hidden={preset === "custom"}>
-            {preset === "custom" ? "Custom (not saved)" : preset}
+            {presetLabels[preset] ?? preset}
           </option>
         ))}
         {/* If custom is active but not in presets, we still show it because it's the current value */}
         {isCustom && !presets.custom && (
           <option hidden value="custom">
-            Custom (not saved)
+            {presetLabels.custom ?? "Custom (not saved)"}
           </option>
         )}
       </select>
@@ -122,7 +124,7 @@ export const LayersTab: React.FC = () => {
         <button
           data-tip="Standard view mode that allows to edit the map"
           id="viewStandard"
-          className={viewContext.customization !== 1 ? "pressed" : ""}
+          className={view.customization !== 1 ? "pressed" : ""}
           onClick={handleViewMode}
           type="button"
         >

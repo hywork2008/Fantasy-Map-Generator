@@ -1,5 +1,4 @@
-import { openRichDialog } from "./ui/dialogs/dialogService";
-import { alertMessage } from "./utils/alertMessageEl";
+import { openConfirm } from "./ui/dialogs/dialogService";
 /**
  * Version Control Guidelines
  * --------------------------
@@ -118,7 +117,7 @@ function showUpdateWindow() {
     "Routes overview tool"
   ];
 
-  alertMessage.innerHTML = /* html */ `The Fantasy Map Generator is updated up to version <strong>${VERSION}</strong>. This version is compatible with <a href="${changelog}" target="_blank">previous versions</a>, loaded save files will be auto-updated.
+  const message = `The Fantasy Map Generator is updated up to version <strong>${VERSION}</strong>. This version is compatible with <a href="${changelog}" target="_blank">previous versions</a>, loaded save files will be auto-updated.
     ${storedVersion ? "<span>In case of errors reload the page to update the code.</span>" : ""}
 
     <ul>
@@ -129,18 +128,11 @@ function showUpdateWindow() {
     <p>Join our <a href="${discord}" target="_blank">Discord server</a> and <a href="${reddit}" target="_blank">Reddit community</a> to ask questions, share maps, discuss the Generator and Worldbuilding, report bugs and propose new features.</p>
     <span><i>Thanks for all supporters on <a href="${patreon}" target="_blank">Patreon</a>!</i></span>`;
 
-  openRichDialog({
-    content: alertMessage.innerHTML,
-    resizable: false,
+  openConfirm(message, {
     title: "Fantasy Map Generator update",
-    width: "28em",
-    position: { my: "center center-4em", at: "center", of: "svg" },
-    buttons: {
-      "Clear cache": () => cleanupData(),
-      "Don't show again": function (this: HTMLElement) {
-        /* $(this).dialog("close") removed */
-        localStorage.setItem("version", VERSION);
-      }
-    }
+    confirm: "Clear cache",
+    cancel: "Don't show again",
+    onConfirm: () => cleanupData(),
+    onCancel: () => localStorage.setItem("version", VERSION)
   });
 }

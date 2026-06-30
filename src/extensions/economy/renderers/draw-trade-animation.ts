@@ -1,8 +1,8 @@
 import { curveCatmullRom, easeLinear, line } from "d3";
-import type { Point } from "../../../modules/voronoi";
-import { minmax } from "../../../utils";
-import { getViewContext } from "../economyContext";
-import { TradeAnimation, type TradeBatch } from "../modules/trade-animation";
+import type { Point } from "../../hostCore";
+import { minmax } from "../../hostUtils";
+import { getTradeAnimLayer, getViewContext } from "../economyContext";
+import { TradeAnimation, type TradeBatch } from "../generators/trade-animation";
 
 const lineGen = line<Point>().curve(curveCatmullRom.alpha(0.1));
 
@@ -63,7 +63,7 @@ export async function draw(
     const duration = anim.duration;
     const segDuration = segment.type === "land" ? duration * anim.landDurationModifier : duration;
 
-    const group = getViewContext().tradeAnimation.append("g");
+    const group = getTradeAnimLayer()!.append("g");
     group
       .append("use")
       .attr("href", `#trade-marker-${segment.type}`)
@@ -135,7 +135,7 @@ export async function draw(
 }
 
 export function clear(): void {
-  getViewContext().tradeAnimation.selectAll("g").interrupt().remove();
+  getTradeAnimLayer()?.selectAll("g").interrupt().remove();
   symbolsReady = null;
 }
 
@@ -144,9 +144,11 @@ export function getPath(points: Point[]): string {
 }
 
 export function highlight(points: Point[]): void {
-  getViewContext().tradeAnimation.selectAll("path.highlight").remove();
-  getViewContext()
-    .tradeAnimation.append("path")
+  const anim = getTradeAnimLayer();
+  if (!anim) return;
+  anim.selectAll("path.highlight").remove();
+  anim
+    .append("path")
     .attr("class", "highlight")
     .attr("d", lineGen(points))
     .attr("fill", "none")
@@ -157,5 +159,5 @@ export function highlight(points: Point[]): void {
 }
 
 export function clearHighlight(): void {
-  getViewContext().tradeAnimation.selectAll("path.highlight").remove();
+  getTradeAnimLayer()?.selectAll("path.highlight").remove();
 }

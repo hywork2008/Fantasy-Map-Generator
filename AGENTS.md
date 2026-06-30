@@ -28,6 +28,7 @@ Editor (src/controllers/)  → Handles UI/User operations, mutates State, trigge
 | **Editor** | ✅ Allowed (Strictly via events, no direct SVG drawing) | ✅ Allowed | User input handling, controlling state mutations, and triggering re-renders. |
 
 ### Renderer Encapsulation Rule
+
 Direct DOM / SVG manipulation using `d3.select("...").append(...)` or similar methods is **strictly prohibited outside of the `src/renderers/` directory**. Non-Renderer layers (such as `src/controllers/` or `src/editors/`) must delegate all drawing operations to the appropriate Renderer (e.g., `BiomesRenderer.render()`).
 
 ## 2. Global State Elimination & Context Isolation
@@ -37,18 +38,33 @@ The legacy practice of attaching objects and functions directly to the global `w
 - **Zero Individual Global Pollution**: Do NOT assign any variable, function, or module to `window.*` individually. All internal module dependencies must be resolved via standard ES `import`/`export` syntax. The `window.*` registration blocks historically present at the end of controller files (e.g. `window.editStates = editStates;`) are dead code and must be deleted on sight.
 - **One Allowed Exception — `window.fmg`**: The single permitted global exposure is the typed `window.fmg` namespace, assembled in `app.ts` after all modules have been initialized (see Section 6). No other `window.*` assignment is ever acceptable.
 - **Context Injection (DI)**: State must be explicitly managed through the three major contexts or injected via function arguments:
-  - `WorldContext`: Pure world data store (`pack`, `grid`, `seed`, `mapId`, `options`, `graphWidth`, `graphHeight`, `mapCoordinates`, etc.). No SVG or UI logic. `graphWidth`/`graphHeight` are equivalent to `options.mapWidth/Height` — they define the logical coordinate space of the generated world and do not change on browser resize, so they belong here.
-  - `ViewContext`: Pure view infrastructure store (`svg`, `viewbox`, all SVG layer `Selection` references, `zoom`, `svgWidth`, `svgHeight`, `lineGen`, etc.). `svgWidth`/`svgHeight` are `Math.min(graphWidth, window.innerWidth/Height)` — they depend on the browser window and change on resize, so they belong here, not in `WorldContext`. D3 rendering utilities (`lineGen`) are likewise view concerns.
-  - `AppServices`: Shared utility services (`rng`, `storage`, `COArenderer`).
+  - `WorldContext` (`src/context/worldContext.ts`): Pure world data store — `pack`, `grid`, `seed`, `mapId`, `mapHistory`, `notes`, `options`, `biomesData`, `nameBases`, `style`, `graphWidth`, `graphHeight`, `mapCoordinates`, `urbanization`, `urbanDensity`, `populationRate`, `distanceScale`. No SVG or UI logic. `graphWidth`/`graphHeight` are equivalent to `options.mapWidth/Height` — they define the logical coordinate space of the generated world and do not change on browser resize, so they belong here.
+  - `ViewContext` (`src/context/viewContext.ts`): Pure view infrastructure store. Implemented as a composition of six domain-grouped interfaces plus view state:
+    - `RootLayers` — `svg`, `defs`, `viewbox`, `scaleBar`, `legend`, `ruler`, `debug`, `fogging`
+    - `EnvironmentLayers` — `ocean`, `oceanLayers`, `oceanPattern`, `landmass`, `texture`, `terrs`, `lakes`, `biomes`, `rivers`, `terrain`, `coastline`, `ice`, `prec`, `temperature`
+    - `PoliticalLayers` — `relig`, `cults`, `regions`, `statesBody`, `statesHalo`, `provs`, `zones`, `borders`, `stateBorders`, `provinceBorders`
+    - `InfrastructureLayers` — `routes`, `roads`, `trails`, `searoutes`
+    - `SettlementLayers` — `icons`, `labels`, `burgLabels`, `burgIcons`, `anchors`, `armies`, `markers`, `emblems`, `population`
+    - `OverlayLayers` — `cells`, `gridOverlay`, `coordinates`, `compass`
+    - `ViewState` — `zoom`, `viewX`, `viewY`, `scale`, `customization`, `svgWidth`, `svgHeight`, `lineGen`
+
+    Extension-owned SVG layers (e.g. `goods`, `marketsLayer`, `tradeAnimation`) are **not** part of `ViewContext`. They are created dynamically by the extension system via `addLayers()` and tracked inside `buildExtensionAPI()` in `app.ts`. Access them via `api.getSvgLayer(id)`, not via `viewContext`.
+
+    `svgWidth`/`svgHeight` are `Math.min(graphWidth, window.innerWidth/Height)` — they depend on the browser window and change on resize, so they belong here, not in `WorldContext`. D3 rendering utilities (`lineGen`) are likewise view concerns. SVG layer selections are populated by `main.ts` during the synchronous SVG setup phase (via `Object.assign()`) before any renderer runs. Renderers should declare only the group interface(s) they need rather than the full `ViewContext` type. When a renderer needs fields from multiple groups, declare them with an intersection type (e.g., `Readonly<RootLayers & PoliticalLayers>`). **String-based layer lookups via `viewContext.svg.select("#layerName")` are forbidden** when a typed `ViewContext` field exists for that layer — always use the field directly (e.g., `viewContext.statesBody` instead of `viewContext.svg.select("#statesBody")`).
+  - `AppServices` (`src/context/appServices.ts`): Shared utility services — `rng` (pseudo-random number generator), `storage` (IndexedDB wrapper), `COArenderer` (coat-of-arms SVG renderer, nullable).
 - **Object In-place Mutation Constraint**: Never replace `grid` or `pack` object references directly (e.g., `grid = newObject`). Use `Object.assign()` to perform in-place mutations so that shared references across module boundaries remain synchronized.
 
 ---
 
-## 3. TypeScript & Static Analysis Standards
+## 3. TypeScript & Naming Standards
 
 - **Strict Type Safety**: The use of the `any` keyword is forbidden. If a type cannot be strictly inferred or resolved immediately, declare it as `unknown` and apply explicit type guards.
 - **Explicit D3 Selection Types**: Avoid vague typings for SVG layers. Explicitly type all D3 selections, for example: `d3.Selection<SVGGElement, unknown, HTMLElement, any>`.
 - **Non-null Assertions**: Use non-null assertions (`!`) only where execution pipelines guarantee that the value is populated beforehand. Document the safety rationale with inline comments.
+- **File Naming Conventions (React Migration)**: The project is actively migrating away from legacy `kebab-case` filenames. All new and refactored files MUST follow the modern React/TypeScript standard:
+  - **React Components (`.tsx`)**: Use `PascalCase` (e.g., `TemplateEditorDialog.tsx`).
+  - **Classes/Models (`.ts`)**: Use `PascalCase` (e.g., `HeightmapEditorHistory.ts`).
+  - **Utility/Controller Functions (`.ts`)**: Use `camelCase` (e.g., `heightmapEditor.ts`, `interactionManager.ts`). Do NOT use `kebab-case` for new files. If modifying an existing `kebab-case` file heavily, rename it to `camelCase` and update all imports.
 
 ---
 
@@ -82,36 +98,35 @@ User interactions must be driven through DOM clicks and events (Playwright locat
 
 ```typescript
 // src/types/fmg.d.ts  ← sole source of truth for global types
-interface FMGWorldAPI {
-  readonly pack: PackedGraph;
-  readonly grid: Grid;
-  readonly seed: string;
-  readonly mapId: number;
-  readonly notes: WorldNote[];
-  readonly mapCoordinates: MapCoordinates;
-  readonly options: WorldOptions;
-}
-
-interface FMGViewAPI {
-  readonly svg: d3.Selection<SVGSVGElement, unknown, null, undefined>;
-  readonly viewbox: d3.Selection<SVGGElement, unknown, null, undefined>;
-  /** Browser-window-constrained display dimensions (Math.min(graphWidth, window.innerWidth)) */
-  readonly svgWidth: number;
-  readonly svgHeight: number;
-  // All other SVG layer selections are also accessible here (ViewContext)
-  // graphWidth/graphHeight belong to FMGWorldAPI (WorldContext), not here
-}
-
-interface FMGActionsAPI {
+// world/view reuse the full context types directly — no separate FMGWorldAPI/FMGViewAPI wrappers.
+export interface FMGActionsAPI {
   generate(options?: { seed?: string; graph?: Grid | null }): Promise<void>;
+  regenerateMap(opts?: { seed?: string } | string): void;
   zoomTo(x: number, y: number, scale: number, duration?: number): void;
+  resetZoom(duration?: number): void;
+  toggleLayer(id: string, event?: MouseEvent): void;
+  handleLayersPresetChange(preset: string): void;
+  savePreset(): void;
+  removePreset(): void;
+  changeViewMode(event: MouseEvent): void;
+  restoreDefaultEvents(): void;
+  unselect(): void;
   getWorldState(): WorldState;
+  UITour: UITourModule;
+  layerIsOn(el: string): boolean;
+  toggleLabels(event?: MouseEvent): void;
+  toggleBurgIcons(event?: MouseEvent): void;
+  saveGeoJsonZones(): void;
+  getGeoJsonZones(): object;
+  editBurg(id?: number): void;
 }
 
-interface FMGNamespace {
-  readonly world: FMGWorldAPI;
-  readonly view: FMGViewAPI;
+export interface FMGNamespace {
+  readonly world: WorldContext;
+  readonly view: ViewContext;
   readonly actions: FMGActionsAPI;
+  /** Dependency-injection API for dynamically loaded extensions. */
+  readonly extensionAPI: ExtensionAPI;
 }
 
 declare global {
@@ -123,15 +138,44 @@ declare global {
 
 ### 6.2 Assembly Rule
 
-`window.fmg` is created exactly once, at the end of `initApp()` in `src/app.ts`, and immediately frozen:
+`window.fmg` is created exactly once in `src/app.ts`, assembled **after** all modules are initialized but **before** extensions are loaded. Both the namespace and the `actions` object are frozen:
 
 ```typescript
-// src/app.ts — final step of initApp()
+// src/app.ts — initApp() execution order:
+// 1. initReactUI()    — React UI must be ready before controllers mount
+// 2. initUtils()      — register utility functions
+// 3. initModules()    — load/register module singletons
+// 4. initRenderers()  — export renderer functions
+// 5. initControllers(worldContext, viewContext, appServices)
+// 6. initMain()       — setup SVG layers, event listeners, autosave
+// 7. ↓ assemble window.fmg ↓
 window.fmg = Object.freeze({
-  world: worldContext,      // C3 Object.defineProperty ensures always-current refs
+  world: worldContext,
   view: viewContext,
-  actions: { generate, zoomTo, getWorldState },
+  actions: Object.freeze({
+    generate,
+    regenerateMap,
+    zoomTo,
+    resetZoom,
+    toggleLayer: toggleLayerById,
+    handleLayersPresetChange,
+    savePreset,
+    removePreset,
+    changeViewMode,
+    restoreDefaultEvents,
+    unselect,
+    getWorldState,
+    UITour,
+    layerIsOn,
+    toggleLabels,
+    toggleBurgIcons,
+    saveGeoJsonZones,
+    getGeoJsonZones: buildGeoJsonZones,
+    editBurg
+  }),
+  extensionAPI: buildExtensionAPI()
 });
+// 8. initExtensions() — dynamic modules can now call window.fmg.extensionAPI
 ```
 
 **No controller, editor, renderer, or module file may assign to `window.fmg` or any sub-property of it.**
@@ -139,7 +183,7 @@ window.fmg = Object.freeze({
 ### 6.3 Type Authority
 
 - `src/types/fmg.d.ts` is the **sole** file that declares types for `window.fmg`. All sub-interface types must be defined or re-exported from there.
-- `src/types/global.ts` must be kept minimal — it must not duplicate declarations that belong in `fmg.d.ts`. The goal is to eventually reduce `global.ts` to zero declarations.
+- `src/types/global.ts` currently contains active declarations for legacy module singletons and DOM element auto-globals. Do not duplicate in `fmg.d.ts` any declaration that belongs in `global.ts`. The long-term goal is to migrate these away, but they are live code — do not delete them without migrating call sites.
 - The `[key: string]: unknown` index signature in `src/types/window.d.ts` must be removed once all individual `window.*` registrations have been eliminated.
 
 ### 6.4 What Does NOT Belong in `window.fmg`
@@ -148,9 +192,190 @@ window.fmg = Object.freeze({
 - Editor lifecycle functions (`initLayers`, `initStyle`, `initTools`, etc.) — these are called once during initialization and have no meaningful post-init callers outside the module.
 - Debug flags (`DEBUG`, `INFO`, `WARN`, `ERROR`) — use the module-level exports directly.
 
+### 6.5 Extension System (`window.fmg.extensionAPI`)
+
+Extensions are dynamically loaded modules that receive the `ExtensionAPI` object as their sole dependency-injection contract. An extension must **never** import directly from host app modules, because dynamic loading creates separate module instances that do not share state with the host.
+
+**Extension entry-point signature:**
+
+```typescript
+export function init(api: ExtensionAPI): void;
+export function cleanup(api: ExtensionAPI): void; // optional
+```
+
+**`ExtensionAPI` (`src/types/extension-api.ts`) groups:**
+
+| Group | Methods |
+| :--- | :--- |
+| Core contexts | `worldContext` (readonly), `viewContext` (readonly) |
+| Extension registry | `registerExtension`, `registerAction`, `registerDialog`, `unregisterExtension`, `toggleExtension`, `isExtensionEnabled`, `subscribeExtensionState` |
+| Layer preset management | `registerPreset`, `unregisterPreset` |
+| Layer management | `addLayers`, `removeLayers`, `toggleLayerById`, `layerIsOn`, `turnLayerOn`, `turnLayerOff`, `registerLayerToggle`, `registerLayerElement`, `registerDrawLayerHook`, `getSvgLayer`, `registerMapReinitHook` |
+| Dialog service | `openRichDialog`, `openDialog`, `closeDialog`, `isDialogOpen` |
+| Tool action registry | `registerToolAction`, `unregisterToolAction` |
+| View actions | `zoomTo` |
+| Tooltip hooks | `tooltipExtensions` (mutable object — assign in `init()`, clear in `cleanup()`) |
+
+Extension-owned layers are first-class citizens: extensions can add SVG layers via `addLayers()` and hook into the host's `drawLayers()` cycle via `registerDrawLayerHook()`.
+
 ---
 
-## 7. Development Pipeline and Git Discipline
+## 7. Extension System — Architecture & Conventions
+
+This section describes how extensions plug into the host app and how the economy extension (`src/extensions/economy/`) serves as the canonical implementation example.
+
+### 7.1 Two Kinds of Extensions
+
+| Kind | Source | Loaded by |
+| :--- | :--- | :--- |
+| **Built-in** | `src/extensions/<name>/index.ts(x)` — bundled at build time | `src/extensions/index.ts` calls `init(window.fmg.extensionAPI)` directly |
+| **Dynamic** | ZIP package uploaded by the user, stored in IndexedDB | `src/extensions/dynamicLoader.ts` — blob URL + `import()` at runtime |
+
+Built-in extensions are ES-module imports resolved at build time and share the same module graph as the host. Dynamic extensions are completely isolated module instances loaded via a revoked blob URL; they **must not** import from any host module file.
+
+### 7.2 Extension Entry Points
+
+Every extension (built-in or dynamic) must export these functions:
+
+```typescript
+export function init(api: ExtensionAPI): void;
+export function cleanup(api: ExtensionAPI): void; // optional
+```
+
+`init()` is called once after `window.fmg` is assembled. `cleanup()` is called when the extension is disabled or uninstalled; it must undo every side effect of `init()` (event listeners, layer registrations, tooltip hooks, tool actions).
+
+### 7.3 Sub-module Context Pattern (`economyContext.ts`)
+
+Because dynamic extensions cannot `import` from host files, a built-in extension that spans multiple sub-modules (generators, renderers, UI dialogs) also avoids direct cross-module host imports. Instead it stores the `ExtensionAPI` reference in a single module-level holder and exposes getters:
+
+```typescript
+// src/extensions/economy/economyContext.ts
+let _api: ExtensionAPI | null = null;
+
+export function initEconomyContext(api: ExtensionAPI): void { _api = api; }
+export function clearEconomyContext(): void { _api = null; }
+export function getApi(): ExtensionAPI { /* throws if not initialized */ }
+export function getWorldContext() { return getApi().worldContext; }
+export function getSvgLayer(id: string) { return getApi().getSvgLayer(id); }
+```
+
+Sub-modules call `getWorldContext()` or `getApi().getSvgLayer(...)` instead of importing from `src/context/`. This pattern is required for all future extensions with multiple sub-modules.
+
+### 7.4 SVG Layer Ownership
+
+Extensions declare their layers via `LayerConfig` + `SvgLayerSpec`:
+
+```typescript
+// src/store/layerState.tsx
+export interface SvgLayerSpec {
+  id: string;               // DOM element ID for the SVG <g>
+  insertBefore?: string;    // insert before this element's DOM id
+  insertAfter?: string;     // insert after this element's DOM id
+  display?: "none";         // initial CSS display — omit for visible-by-default
+}
+
+export interface LayerConfig {
+  id: string;               // toggle button id (e.g. "toggleGoods")
+  name: React.ReactNode;    // display label in layer panel
+  shortcut: string | null;
+  tooltip: string;
+  svgLayers?: SvgLayerSpec[];
+  sortKey?: string;         // plain-text sort key for layer panel ordering
+}
+```
+
+When `api.addLayers(layers)` is called, `buildExtensionAPI()` in `app.ts` creates or re-acquires each `SvgLayerSpec` element inside `#viewbox` and caches it in a `Map<string, SvgGroup>`. Retrieve the selection later with `api.getSvgLayer(id)`.
+
+Economy example:
+
+```typescript
+export const economyLayers: LayerConfig[] = [
+  { id: "toggleGoods",        svgLayers: [{ id: "goods",            insertBefore: "icons", display: "none" }], ... },
+  { id: "toggleMarketsLayer", svgLayers: [{ id: "marketsLayerFill", insertBefore: "icons", display: "none" },
+                                          { id: "marketsLayer",     insertBefore: "icons", display: "none" }], ... },
+  { id: "toggleTrade",        svgLayers: [{ id: "tradeAnimation",   insertAfter:  "marketsLayer" }], ... }
+];
+```
+
+### 7.5 Host Events
+
+The host dispatches `CustomEvent`s on `document` that extensions can listen to:
+
+| Event | Dispatched from | When |
+| :--- | :--- | :--- |
+| `fmg:generate-post-core` | `src/main.ts` | After core map generation completes — extensions generate their data here |
+| `fmg:reinitialize-map-layers` | `src/io/load.ts` | When a saved map is loaded — triggers host SVG layer rebuild |
+| `fmg:map-layers-reinitialized` | `src/main.ts` | After host SVG layer rebuild completes — `buildExtensionAPI` re-acquires extension `<g>` elements and fires `registerMapReinitHook` callbacks |
+
+Extensions listen to `fmg:generate-post-core` directly via `document.addEventListener`. They should **not** listen to `fmg:map-layers-reinitialized` directly; use `api.registerMapReinitHook()` instead — the API layer re-acquires SVG elements automatically before calling the hooks.
+
+Economy example:
+
+```typescript
+// Listen for core map generation to generate economy data
+_generatePostCoreHandler = () => {
+  if (api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) {
+    Goods.generate();
+    Markets.generate();
+    Production.produce();
+  }
+};
+document.addEventListener("fmg:generate-post-core", _generatePostCoreHandler);
+
+// Re-attach SVG click handlers after every map load
+api.registerMapReinitHook(() => {
+  if (api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) attachSvgClickHandlers();
+});
+```
+
+### 7.6 Enable / Disable Lifecycle
+
+Extension enable/disable state is persisted via the Zustand store `useExtensionState` (key `"fmg-extensions"` in `localStorage`). Extensions subscribe to state changes with `api.subscribeExtensionState()` to add/remove their layers and data reactively:
+
+```typescript
+_unsubscribe = api.subscribeExtensionState((state, prevState) => {
+  const isEnabled  = state.enabledExtensions[ECONOMY_EXTENSION_ID];
+  const wasEnabled = prevState.enabledExtensions[ECONOMY_EXTENSION_ID];
+
+  if (isEnabled && !wasEnabled) {
+    api.addLayers(economyLayers);
+    // register presets, tooltip hooks, generate data if missing…
+  } else if (!isEnabled && wasEnabled) {
+    api.removeLayers(economyLayers.map(l => l.id));
+    // close dialogs, clear worldContext data, remove tooltip hooks…
+  }
+});
+```
+
+`cleanup()` must call the returned unsubscribe function and `document.removeEventListener` for any events registered in `init()`.
+
+### 7.7 UI Integration Points
+
+| Mechanism | How extension registers | Host render location |
+| :--- | :--- | :--- |
+| **Toolbar button → dialog** | `api.registerAction({ tab: "tools", section: "edit" \| "regenerate", … })` | ToolsTab buttons |
+| **Dialog component** | `api.registerDialog({ id, extensionId, component })` | React dialog portal |
+| **Tool action handler** | `api.registerToolAction(eventName, handler)` | Called by `tools.ts` fallback when `react-tool-action` CustomEvent fires |
+| **Layer preset** | `api.registerPreset(id, label, layers)` | Layer-preset dropdown |
+| **Tooltip / cell info** | `api.tooltipExtensions.showMapTooltip = …` | Tooltip pipeline in `uiHelpers.ts` |
+
+The tool action pattern decouples core `tools.ts` from extension dialogs: extension actions dispatch `new CustomEvent("react-tool-action", { detail: { action: "editGoods" } })`, and the extension registers a handler via `api.registerToolAction("editGoods", handler)` that `tools.ts` calls as a fallback.
+
+### 7.8 Dynamic Extension Packaging
+
+Dynamic extensions are distributed as ZIP files containing:
+
+```
+manifest.json   ← { id, name, version } — required
+index.js        ← single bundled ESM file (may also be .mjs)
+styles.css      ← optional
+```
+
+The loader (`dynamicLoader.ts`) validates the manifest, stores the record in IndexedDB (`extensionDB`), then creates a blob URL and calls `import(url)` to isolate the module. The URL is revoked immediately after the `import()` resolves. The module's `init(api)` is called with `window.fmg.extensionAPI`.
+
+---
+
+## 8. Development Pipeline and Git Discipline
 
 - **Pre-commit Quality Gate**: Prior to crafting any commit, you must execute the compilation validation (`npm run build` or `npx tsc --noEmit`) and structural verification linting scripts to ensure zero errors are introduced.
 - **Commit Format**: All Git commit messages must be explicitly written in English following structural conventions (e.g., `refactor: migrate module-name to TypeScript`). Do not commit automatically if an error occurs during building.

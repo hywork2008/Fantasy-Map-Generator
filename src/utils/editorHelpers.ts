@@ -6,6 +6,7 @@
 
 import { useOptionsState } from "../store/optionsState";
 import { openConfirm } from "../ui/dialogs/dialogService";
+import { createObjectURL, revokeObjectURL } from "./urlUtils";
 
 // ─── File utilities ────────────────────────────────────────────────────────
 
@@ -26,12 +27,12 @@ export function getFileName(dataType?: string): string {
 
 export function downloadFile(data: string | Blob, name: string, type = "text/plain"): void {
   const dataBlob = data instanceof Blob ? data : new Blob([data], { type });
-  const url = window.URL.createObjectURL(dataBlob);
+  const url = createObjectURL(dataBlob);
   const link = document.createElement("a");
   link.download = name;
   link.href = url;
   link.click();
-  window.setTimeout(() => window.URL.revokeObjectURL(url), 2000);
+  revokeObjectURL(url, 2000);
 }
 
 export function uploadFile(el: HTMLInputElement, callback: (data: string) => void): void {

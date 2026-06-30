@@ -1,5 +1,7 @@
 import type React from "react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { regeneratePrompt } from "../../controllers/options";
+import { clearMainTip } from "../../services/tooltipService";
 import { useOptionsState } from "../../store/optionsState";
 import { useViewState } from "../../store/viewState";
 import { CustomizationMenu } from "./CustomizationMenu";
@@ -15,6 +17,9 @@ export const OptionsContainer: React.FC = () => {
   const { isMenuOpen, setMenuOpen, activeMenu, setActiveMenu, isCustomizationMode, setCustomizationMode } =
     useViewState();
   const uiSize = useOptionsState(state => state.uiSize);
+
+  const [showGlow, setShowGlow] = useState(() => !localStorage.getItem("disable_click_arrow_tooltip"));
+  const [showRegenerate, setShowRegenerate] = useState(false);
 
   useEffect(() => {
     const handleEnter = () => {
@@ -34,14 +39,30 @@ export const OptionsContainer: React.FC = () => {
     };
   }, [setCustomizationMode, setActiveMenu]);
 
+  const handleTriggerClick = () => {
+    if (showGlow) {
+      setShowGlow(false);
+      clearMainTip();
+      localStorage.setItem("disable_click_arrow_tooltip", "true");
+    }
+    setMenuOpen(true);
+  };
+
   return (
     <div id="optionsContainer" style={{ opacity: 1, pointerEvents: "auto" }}>
-      <div id="collapsible" style={{ display: isMenuOpen ? "none" : "block" }}>
+      <div
+        id="collapsible"
+        style={{ display: isMenuOpen ? "none" : "block" }}
+        onMouseLeave={() => setShowRegenerate(false)}
+      >
         <button
           id="optionsTrigger"
           data-tip="Click to show the Menu"
-          className="options glow"
-          onClick={() => setMenuOpen(true)}
+          className={`options${showGlow ? " glow" : ""}`}
+          onClick={handleTriggerClick}
+          onMouseEnter={() => {
+            if (!showGlow) setShowRegenerate(true);
+          }}
           type="button"
         >
           ►
@@ -50,7 +71,8 @@ export const OptionsContainer: React.FC = () => {
           id="regenerate"
           data-tip="Click to generate a new map"
           className="options"
-          style={{ display: "none" }}
+          style={{ display: showRegenerate ? "block" : "none" }}
+          onClick={() => regeneratePrompt()}
           type="button"
         >
           New Map!

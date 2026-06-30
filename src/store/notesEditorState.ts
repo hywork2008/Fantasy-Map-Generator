@@ -8,6 +8,7 @@ export interface NotesEditorState {
   isOpen: boolean;
   selectedId: string;
   noteName: string;
+  legend: string;
   availableNotes: NoteItem[];
   isPinned: boolean;
 }
@@ -16,6 +17,7 @@ export const useNotesEditorState = create<NotesEditorState>(() => ({
   isOpen: false,
   selectedId: "",
   noteName: "",
+  legend: "",
   availableNotes: [],
   isPinned: false
 }));

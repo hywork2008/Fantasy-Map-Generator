@@ -4,18 +4,37 @@ import JSZip from "jszip";
 import { appServices } from "../context/appServices";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
-import { fonts, loadFontsAsDataURI } from "../modules/fonts";
-import { Rivers } from "../modules/river-generator";
+import { Rivers } from "../generators/river-generator";
 import { drawScaleBar, fitScaleBar } from "../renderers/index";
-import { connectVertices, getBase64, getCoordinates, rn, unique } from "../utils";
+import { getCellPopulation, getFriendlyHeight } from "../services/cellInfoService";
+import { fonts, loadFontsAsDataURI } from "../services/fonts";
+import { tip } from "../services/tooltipService";
+import { viewLayerService as view } from "../services/viewLayerService";
+import { connectVertices, createObjectURL, getBase64, getCoordinates, revokeObjectURL, rn, unique } from "../utils";
 import { getColor, getColorScheme } from "../utils/colorUtils";
 import { ERROR, TIME } from "../utils/debug";
 import { downloadFile, getFileName } from "../utils/editorHelpers";
 import { getGridPolygon } from "../utils/graphUtils";
 import { layerIsOn } from "../utils/nodeUtils";
-import { getCellPopulation, getFriendlyHeight, tip } from "../utils/uiHelpers";
 
 type AnySelection = Selection<SVGSVGElement, unknown, null, undefined>;
+
+interface ImageExportOptions {
+  resolution?: number;
+}
+
+interface PngTilesExportOptions {
+  tilesX?: number;
+  tilesY?: number;
+  scale?: number;
+  onStatus?: (message: string) => void;
+}
+
+function getResolutionValue(explicitResolution?: number): number {
+  if (explicitResolution && explicitResolution > 0) return explicitResolution;
+  const resolutionInput = document.getElementById("pngResolutionInput") as HTMLInputElement | null;
+  return +(resolutionInput?.value ?? "") || 1;
+}
 
 // ─── Image exports ────────────────────────────────────────────────────────────
 
@@ -37,15 +56,16 @@ export async function exportToSvg(): Promise<void> {
   }
 }
 
-export async function exportToPng(): Promise<void> {
+export async function exportToPng(options: ImageExportOptions = {}): Promise<void> {
   TIME && console.time("exportToPng");
   try {
     const url = await getMapURL("png");
     const link = document.createElement("a");
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d")!;
-    canvas.width = viewContext.svgWidth * pngResolutionInput.valueAsNumber;
-    canvas.height = viewContext.svgHeight * pngResolutionInput.valueAsNumber;
+    const resolution = getResolutionValue(options.resolution);
+    canvas.width = view.svgWidth * resolution;
+    canvas.height = view.svgHeight * resolution;
 
     const blob = await new Promise<Blob>((resolve, reject) => {
       const img = new Image();
@@ -61,11 +81,11 @@ export async function exportToPng(): Promise<void> {
     });
 
     link.download = `${getFileName()}.png`;
-    link.href = window.URL.createObjectURL(blob);
+    link.href = createObjectURL(blob);
     link.click();
     window.setTimeout(() => {
       canvas.remove();
-      window.URL.revokeObjectURL(link.href);
+      revokeObjectURL(link.href);
     }, 1000);
 
     tip(
@@ -82,16 +102,17 @@ export async function exportToPng(): Promise<void> {
   }
 }
 
-export async function exportToJpeg(): Promise<void> {
+export async function exportToJpeg(options: ImageExportOptions = {}): Promise<void> {
   TIME && console.time("exportToJpeg");
   try {
     const url = await getMapURL("png");
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d")!;
-    canvas.width = viewContext.svgWidth * pngResolutionInput.valueAsNumber;
-    canvas.height = viewContext.svgHeight * pngResolutionInput.valueAsNumber;
+    const resolution = getResolutionValue(options.resolution);
+    canvas.width = view.svgWidth * resolution;
+    canvas.height = view.svgHeight * resolution;
 
-    const quality = Math.min(rn(1 - pngResolutionInput.valueAsNumber / 20, 2), 0.92);
+    const quality = Math.min(rn(1 - resolution / 20, 2), 0.92);
     const blob = await new Promise<Blob>((resolve, reject) => {
       const img = new Image();
       img.onload = () => {
@@ -111,10 +132,10 @@ export async function exportToJpeg(): Promise<void> {
 
     const link = document.createElement("a");
     link.download = `${getFileName()}.jpeg`;
-    link.href = window.URL.createObjectURL(blob);
+    link.href = createObjectURL(blob);
     link.click();
     tip(`${link.download} is saved. Open "Downloads" screen (CTRL + J) to check`, true, "success", 7000);
-    window.setTimeout(() => window.URL.revokeObjectURL(link.href), 5000);
+    revokeObjectURL(link.href, 5000);
   } catch (error) {
     ERROR && console.error(error);
     tip(`JPEG export failed: ${(error as Error)?.message || "Unknown error"}`, true, "error", 5000);
@@ -125,9 +146,13 @@ export async function exportToJpeg(): Promise<void> {
 
 // ─── PNG tile export ──────────────────────────────────────────────────────────
 
-export async function exportToPngTiles(): Promise<void> {
-  const status = document.getElementById("tileStatus")!;
-  status.innerHTML = "Preparing files...";
+export async function exportToPngTiles(options: PngTilesExportOptions = {}): Promise<void> {
+  const statusEl = document.getElementById("tileStatus");
+  const setStatus = (message: string) => {
+    if (statusEl) statusEl.textContent = message;
+    options.onStatus?.(message);
+  };
+  setStatus("Preparing files...");
 
   const urlSchema = await getMapURL("tiles", { debug: true, fullMap: true });
   const zip = new JSZip();
@@ -141,16 +166,16 @@ export async function exportToPngTiles(): Promise<void> {
   imgSchema.src = urlSchema;
   await loadImage(imgSchema);
 
-  status.innerHTML = "Rendering schema...";
+  setStatus("Rendering schema...");
   ctx.drawImage(imgSchema, 0, 0, canvas.width, canvas.height);
   const blob = await canvasToBlob(canvas, "image/png");
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   zip.file("schema.png", blob);
 
   const url = await getMapURL("tiles", { fullMap: true });
-  const tilesX = +(document.getElementById("tileColsOutput") as HTMLInputElement)?.value || 2;
-  const tilesY = +(document.getElementById("tileRowsOutput") as HTMLInputElement)?.value || 2;
-  const scale = +(document.getElementById("tileScaleOutput") as HTMLInputElement)?.value || 1;
+  const tilesX = options.tilesX || +(document.getElementById("tileColsOutput") as HTMLInputElement)?.value || 2;
+  const tilesY = options.tilesY || +(document.getElementById("tileRowsOutput") as HTMLInputElement)?.value || 2;
+  const scale = options.scale || +(document.getElementById("tileScaleOutput") as HTMLInputElement)?.value || 1;
   const tolesTotal = tilesX * tilesY;
 
   const tileW = (worldContext.graphWidth / tilesX) | 0;
@@ -175,7 +200,7 @@ export async function exportToPngTiles(): Promise<void> {
   for (let y = 0, row = 0, id = 1; y + tileH <= worldContext.graphHeight; y += tileH, row++) {
     const rowName = getRowLabel(row);
     for (let x = 0, cell = 1; x + tileW <= worldContext.graphWidth; x += tileW, cell++, id++) {
-      status.innerHTML = `Rendering tile ${rowName}${cell} (${id} of ${tolesTotal})...`;
+      setStatus(`Rendering tile ${rowName}${cell} (${id} of ${tolesTotal})...`);
       ctx.drawImage(img, x, y, tileW, tileH, 0, 0, width, height);
       const tileBlob = await canvasToBlob(canvas, "image/png");
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -183,22 +208,22 @@ export async function exportToPngTiles(): Promise<void> {
     }
   }
 
-  status.innerHTML = "Zipping files...";
+  setStatus("Zipping files...");
   zip
     .generateAsync({ type: "blob" })
     .then((zipBlob: Blob) => {
-      status.innerHTML = "Downloading the archive...";
+      setStatus("Downloading the archive...");
       const link = document.createElement("a");
       link.href = URL.createObjectURL(zipBlob);
       link.download = `${getFileName()}.zip`;
       link.click();
       link.remove();
-      status.innerHTML = 'Done. Check .zip file in "Downloads" (CTRL + J)';
+      setStatus('Done. Check .zip file in "Downloads" (CTRL + J)');
       setTimeout(() => URL.revokeObjectURL(link.href), 5000);
     })
     .catch((error: Error) => {
       ERROR && console.error(error);
-      status.innerHTML = "Tiles export failed";
+      setStatus("Tiles export failed");
       tip(`PNG tiles export failed: ${error?.message || "Unknown error"}`, true, "error", 5000);
     });
 }
@@ -246,7 +271,7 @@ export async function getMapURL(type: string, options: GetMapURLOptions = {}): P
     fullMap = false
   } = options;
 
-  const cloneEl = viewContext.svg.node()!.cloneNode(true) as SVGSVGElement;
+  const cloneEl = view.svg.node()!.cloneNode(true) as SVGSVGElement;
   cloneEl.id = "fantasyMap";
   cloneEl.style.visibility = "visible";
   cloneEl.style.pointerEvents = "auto";
@@ -309,7 +334,7 @@ export async function getMapURL(type: string, options: GetMapURLOptions = {}): P
   if (noScaleBar) clone.select("#scaleBar")?.remove();
 
   if (type === "svg") removeUnusedElements(clone);
-  if (viewContext.customization && type === "mesh") updateMeshCells(clone);
+  if (view.customization && type === "mesh") updateMeshCells(clone);
   inlineStyle(clone);
 
   // remove unused filters
@@ -338,7 +363,7 @@ export async function getMapURL(type: string, options: GetMapURLOptions = {}): P
   }
 
   // add displayed emblems
-  if (layerIsOn("toggleEmblems") && viewContext.emblems.selectAll("use").size()) {
+  if (layerIsOn("toggleEmblems") && view.emblems.selectAll("use").size()) {
     cloneEl
       .getElementById("emblems")
       ?.querySelectorAll("use")
@@ -499,8 +524,8 @@ export async function getMapURL(type: string, options: GetMapURLOptions = {}): P
 
   const serialized = `<?xml version="1.0" encoding="UTF-8" standalone="no"?>${new XMLSerializer().serializeToString(cloneEl)}`;
   const svgBlob = new Blob([serialized], { type: "image/svg+xml;charset=utf-8" });
-  const url = window.URL.createObjectURL(svgBlob);
-  window.setTimeout(() => window.URL.revokeObjectURL(url), 5000);
+  const url = createObjectURL(svgBlob);
+  revokeObjectURL(url, 5000);
   return url;
 }
 
@@ -515,7 +540,7 @@ export const getUsedFonts = (svg: SVGSVGElement) => {
     if (font) usedFontFamilies.add(font);
   }
 
-  const provinceFont = viewContext.provs.attr("font-family");
+  const provinceFont = view.provs.attr("font-family");
   if (provinceFont) usedFontFamilies.add(provinceFont);
 
   const legend = svg.querySelector("#legend");
@@ -527,7 +552,7 @@ export const getUsedFonts = (svg: SVGSVGElement) => {
 };
 
 export function removeUnusedElements(clone: AnySelection): void {
-  if (!viewContext.terrain.selectAll("use").size()) clone.select("#defs-relief")?.remove();
+  if (!view.terrain.selectAll("use").size()) clone.select("#defs-relief")?.remove();
 
   for (let empty = 1; empty; ) {
     empty = 0;
@@ -546,7 +571,7 @@ function updateMeshCells(clone: AnySelection): void {
   const data = renderOcean.checked
     ? worldContext.grid.cells.i
     : worldContext.grid.cells.i.filter((i: number) => worldContext.grid.cells.h[i] >= 20);
-  const scheme = getColorScheme(viewContext.terrs.select("#landHeights").attr("scheme"));
+  const scheme = getColorScheme(view.terrs.select("#landHeights").attr("scheme"));
   clone.select("#heights").attr("filter", "url(#blur1)");
   clone
     .select("#heights")

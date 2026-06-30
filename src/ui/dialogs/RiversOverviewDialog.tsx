@@ -1,15 +1,16 @@
 import { mean } from "d3";
 import type React from "react";
-import { useEffect, useMemo, useState } from "react";
-import { viewContext } from "../../context/viewContext";
+import { useMemo } from "react";
 import { worldContext } from "../../context/worldContext";
 import { getFileName, highlightElement } from "../../controllers/editors";
 import { toggleRivers } from "../../controllers/layers";
 import { createRiver } from "../../controllers/rivers-creator";
+import { editRiver } from "../../controllers/rivers-editor";
 import { toggleAddRiver } from "../../controllers/tools";
-import { editRiver } from "../../editors/rivers-editor";
-import { Rivers } from "../../modules/river-generator";
+import { Rivers } from "../../generators/river-generator";
+import { viewLayerService as view } from "../../services/viewLayerService";
 import { useDialogState } from "../../store/dialogState";
+import { useOptionsState } from "../../store/optionsState";
 import { useRiversOverviewState } from "../../store/riversOverviewState";
 import { rn } from "../../utils";
 import { layerIsOn } from "../../utils/nodeUtils";
@@ -18,15 +19,15 @@ import { closeDialog, openConfirm } from "./dialogService";
 
 function riverHighlightOn(id: number): void {
   if (!layerIsOn("toggleRivers")) toggleRivers();
-  viewContext.rivers.select(`#river${id}`).attr("stroke", "red").attr("stroke-width", 1);
+  view.rivers.select(`#river${id}`).attr("stroke", "red").attr("stroke-width", 1);
 }
 
 function riverHighlightOff(id: number): void {
-  viewContext.rivers.select(`#river${id}`).attr("stroke", null).attr("stroke-width", null);
+  view.rivers.select(`#river${id}`).attr("stroke", null).attr("stroke-width", null);
 }
 
 function zoomToRiver(id: number): void {
-  const river = viewContext.rivers.select(`#river${id}`).node() as Element;
+  const river = view.rivers.select(`#river${id}`).node() as Element;
   highlightElement(river, 3);
 }
 
@@ -48,18 +49,18 @@ function triggerAllRiversRemove(refresh: () => void): void {
     onConfirm: () => {
       worldContext.pack.rivers = [];
       worldContext.pack.cells.r = new Uint16Array(worldContext.pack.cells.i.length);
-      viewContext.rivers.selectAll("*").remove();
+      view.rivers.selectAll("*").remove();
       refresh();
     }
   });
 }
 
 function toggleBasinsHightlight(): void {
-  if (viewContext.rivers.attr("data-basin") === "hightlighted") {
-    viewContext.rivers.selectAll("*").attr("fill", null);
-    viewContext.rivers.attr("data-basin", null);
+  if (view.rivers.attr("data-basin") === "hightlighted") {
+    view.rivers.selectAll("*").attr("fill", null);
+    view.rivers.attr("data-basin", null);
   } else {
-    viewContext.rivers.attr("data-basin", "hightlighted");
+    view.rivers.attr("data-basin", "hightlighted");
     const basins = [...new Set(worldContext.pack.rivers.map(r => r.basin))];
     const colors = [
       "#1f77b4",
@@ -79,7 +80,7 @@ function toggleBasinsHightlight(): void {
       worldContext.pack.rivers
         .filter(r => r.basin === b)
         .forEach(r => {
-          viewContext.rivers.select(`#river${r.i}`).attr("fill", color);
+          view.rivers.select(`#river${r.i}`).attr("fill", color);
         });
     });
   }
@@ -88,14 +89,7 @@ function toggleBasinsHightlight(): void {
 export const RiversOverviewDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("riversOverview"));
   const { search, sortBy, sortOrder, refreshCounter, setSearch, toggleSortBy, refresh } = useRiversOverviewState();
-  const [unit, setUnit] = useState("km");
-
-  useEffect(() => {
-    if (isOpen) {
-      const el = document.getElementById("distanceUnitInput") as HTMLInputElement;
-      if (el) setUnit(el.value);
-    }
-  }, [isOpen]); // refreshCounter removed as it's not needed for unit fetch if unit doesn't change on refresh
+  const unit = useOptionsState(s => s.distanceUnit);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: We explicitly depend on refreshCounter to force a re-calculation when data mutates externally
   const { filteredRivers, riversById } = useMemo(() => {
@@ -167,143 +161,146 @@ export const RiversOverviewDialog: React.FC = () => {
   }
 
   return (
-    <Dialog isOpen={isOpen} title="Rivers Overview" onClose={() => closeDialog("riversOverview")}>
+    <Dialog
+      isOpen={isOpen}
+      title="Rivers Overview"
+      onClose={() => closeDialog("riversOverview")}
+      className="fmg-dialog--overflow-hidden"
+    >
       <div id="riversOverviewContainer">
-        <div>
-          <div id="riversHeader" className="header" style={{ gridTemplateColumns: "9em 4em 7em 5em 5em 9em" }}>
-            <div
-              data-tip="Click to sort by river name"
-              className={`sortable alphabetically ${sortBy === "name" ? (sortOrder === "asc" ? "icon-sort-name-up" : "icon-sort-name-down") : ""}`}
-              onClick={() => toggleSortBy("name")}
-            >
-              River&nbsp;
-            </div>
-            <div
-              data-tip="Click to sort by river type name"
-              className={`sortable alphabetically ${sortBy === "type" ? (sortOrder === "asc" ? "icon-sort-name-up" : "icon-sort-name-down") : ""}`}
-              onClick={() => toggleSortBy("type")}
-            >
-              Type&nbsp;
-            </div>
-            <div
-              data-tip="Click to sort by discharge (flux in m3/s)"
-              className={`sortable ${sortBy === "discharge" ? (sortOrder === "asc" ? "icon-sort-number-up" : "icon-sort-number-down") : ""}`}
-              onClick={() => toggleSortBy("discharge")}
-            >
-              Discharge&nbsp;
-            </div>
-            <div
-              data-tip="Click to sort by river length"
-              className={`sortable ${sortBy === "length" ? (sortOrder === "asc" ? "icon-sort-number-up" : "icon-sort-number-down") : ""}`}
-              onClick={() => toggleSortBy("length")}
-            >
-              Length&nbsp;
-            </div>
-            <div
-              data-tip="Click to sort by river mouth width"
-              className={`sortable ${sortBy === "width" ? (sortOrder === "asc" ? "icon-sort-number-up" : "icon-sort-number-down") : ""}`}
-              onClick={() => toggleSortBy("width")}
-            >
-              Width&nbsp;
-            </div>
-            <div
-              data-tip="Click to sort by river basin"
-              className={`sortable alphabetically ${sortBy === "basin" ? (sortOrder === "asc" ? "icon-sort-name-up" : "icon-sort-name-down") : ""}`}
-              onClick={() => toggleSortBy("basin")}
-            >
-              Basin&nbsp;
-            </div>
+        <div id="riversHeader" className="header" style={{ gridTemplateColumns: "9em 4em 7em 5em 5em 9em" }}>
+          <div
+            data-tip="Click to sort by river name"
+            className={`sortable alphabetically ${sortBy === "name" ? (sortOrder === "asc" ? "icon-sort-name-up" : "icon-sort-name-down") : ""}`}
+            onClick={() => toggleSortBy("name")}
+          >
+            River&nbsp;
           </div>
-          <div id="riversBody" className="table">
-            {filteredRivers.map(r => {
-              const basin = riversById.get(r.basin)?.name || "";
-              return (
-                <div
-                  key={r.i}
-                  className="states"
-                  onMouseEnter={() => riverHighlightOn(r.i)}
-                  onMouseLeave={() => riverHighlightOff(r.i)}
-                >
-                  <span data-tip="Locate the river" className="icon-target" onClick={() => zoomToRiver(r.i)} />
-                  <div data-tip="River name" style={{ marginLeft: "0.4em" }} className="riverName">
-                    {r.name}
-                  </div>
-                  <div data-tip="River type name" className="riverType">
-                    {r.type}
-                  </div>
-                  <div data-tip="River discharge (flux power)" className="biomeArea">
-                    {`${r.discharge} m³/s`}
-                  </div>
-                  <div data-tip="River length from source to mouth" className="biomeArea">
-                    {`${rn(r.length * worldContext.distanceScale)} ${unit}`}
-                  </div>
-                  <div data-tip="River mouth width" className="biomeArea">
-                    {`${rn(r.width * worldContext.distanceScale, 3)} ${unit}`}
-                  </div>
-                  <input data-tip="River basin (name of the main stem)" className="stateName" value={basin} disabled />
-                  <span data-tip="Edit river" className="icon-pencil" onClick={() => editRiver(`river${r.i}`)} />
-                  <span
-                    data-tip="Remove river"
-                    className="icon-trash-empty"
-                    onClick={() => triggerRiverRemove(r.i, refresh)}
-                  />
+          <div
+            data-tip="Click to sort by river type name"
+            className={`sortable alphabetically ${sortBy === "type" ? (sortOrder === "asc" ? "icon-sort-name-up" : "icon-sort-name-down") : ""}`}
+            onClick={() => toggleSortBy("type")}
+          >
+            Type&nbsp;
+          </div>
+          <div
+            data-tip="Click to sort by discharge (flux in m3/s)"
+            className={`sortable ${sortBy === "discharge" ? (sortOrder === "asc" ? "icon-sort-number-up" : "icon-sort-number-down") : ""}`}
+            onClick={() => toggleSortBy("discharge")}
+          >
+            Discharge&nbsp;
+          </div>
+          <div
+            data-tip="Click to sort by river length"
+            className={`sortable ${sortBy === "length" ? (sortOrder === "asc" ? "icon-sort-number-up" : "icon-sort-number-down") : ""}`}
+            onClick={() => toggleSortBy("length")}
+          >
+            Length&nbsp;
+          </div>
+          <div
+            data-tip="Click to sort by river mouth width"
+            className={`sortable ${sortBy === "width" ? (sortOrder === "asc" ? "icon-sort-number-up" : "icon-sort-number-down") : ""}`}
+            onClick={() => toggleSortBy("width")}
+          >
+            Width&nbsp;
+          </div>
+          <div
+            data-tip="Click to sort by river basin"
+            className={`sortable alphabetically ${sortBy === "basin" ? (sortOrder === "asc" ? "icon-sort-name-up" : "icon-sort-name-down") : ""}`}
+            onClick={() => toggleSortBy("basin")}
+          >
+            Basin&nbsp;
+          </div>
+        </div>
+        <div id="riversBody" className="table">
+          {filteredRivers.map(r => {
+            const basin = riversById.get(r.basin)?.name || "";
+            return (
+              <div
+                key={r.i}
+                className="states"
+                onMouseEnter={() => riverHighlightOn(r.i)}
+                onMouseLeave={() => riverHighlightOff(r.i)}
+              >
+                <span data-tip="Locate the river" className="icon-target" onClick={() => zoomToRiver(r.i)} />
+                <div data-tip="River name" style={{ marginLeft: "0.4em" }} className="riverName">
+                  {r.name}
                 </div>
-              );
-            })}
+                <div data-tip="River type name" className="riverType">
+                  {r.type}
+                </div>
+                <div data-tip="River discharge (flux power)" className="biomeArea">
+                  {`${r.discharge} m³/s`}
+                </div>
+                <div data-tip="River length from source to mouth" className="biomeArea">
+                  {`${rn(r.length * worldContext.distanceScale)} ${unit}`}
+                </div>
+                <div data-tip="River mouth width" className="biomeArea">
+                  {`${rn(r.width * worldContext.distanceScale, 3)} ${unit}`}
+                </div>
+                <input data-tip="River basin (name of the main stem)" className="stateName" value={basin} disabled />
+                <span data-tip="Edit river" className="icon-pencil" onClick={() => editRiver(`river${r.i}`)} />
+                <span
+                  data-tip="Remove river"
+                  className="icon-trash-empty"
+                  onClick={() => triggerRiverRemove(r.i, refresh)}
+                />
+              </div>
+            );
+          })}
+        </div>
+        <div id="riversTotal" className="totalLine">
+          <div data-tip="Rivers number" style={{ marginLeft: 4 }}>
+            Rivers:&nbsp;
+            <span id="riversFooterNumber">{`${filteredRivers.length} of ${worldContext.pack?.rivers?.length || 0}`}</span>
           </div>
-          <div id="riversTotal" className="totalLine">
-            <div data-tip="Rivers number" style={{ marginLeft: 4 }}>
-              Rivers:&nbsp;
-              <span id="riversFooterNumber">{`${filteredRivers.length} of ${worldContext.pack?.rivers?.length || 0}`}</span>
-            </div>
-            <div data-tip="Average discharge" style={{ marginLeft: 12 }}>
-              Average discharge:&nbsp;<span id="riversFooterDischarge">{`${averageDischarge} m³/s`}</span>
-            </div>
-            <div data-tip="Average length" style={{ marginLeft: 12 }}>
-              Length:&nbsp;
-              <span id="riversFooterLength">{`${averageLength * worldContext.distanceScale} ${unit}`}</span>
-            </div>
-            <div data-tip="Average mouth width" style={{ marginLeft: 12 }}>
-              Width:&nbsp;
-              <span id="riversFooterWidth">{`${rn(averageWidth * worldContext.distanceScale, 3)} ${unit}`}</span>
-            </div>
+          <div data-tip="Average discharge" style={{ marginLeft: 12 }}>
+            Average discharge:&nbsp;<span id="riversFooterDischarge">{`${averageDischarge} m³/s`}</span>
           </div>
-          <div id="riversFooter">
-            <button type="button" data-tip="Refresh the Editor" className="icon-cw" onClick={refresh} />
-            <button
-              type="button"
-              data-tip="Automatically add river starting from clicked cell. Hold Shift to add multiple"
-              className="icon-plus"
-              onClick={toggleAddRiver}
-            />
-            <button
-              type="button"
-              data-tip="Create a new river selecting river cells"
-              className="icon-map-pin"
-              onClick={createRiver}
-            />
-            <button
-              type="button"
-              data-tip="Toggle basin highlight mode"
-              className="icon-sitemap"
-              onClick={toggleBasinsHightlight}
-            />
-            <button
-              type="button"
-              data-tip="Save rivers-related data as a text file (.csv)"
-              className="icon-download"
-              onClick={downloadRiversData}
-            />
-            <button
-              type="button"
-              data-tip="Remove all rivers"
-              className="icon-trash"
-              onClick={() => triggerAllRiversRemove(refresh)}
-            />
-            <label htmlFor="riversSearch" data-tip="Filter by name, type or basin" style={{ marginLeft: "0.2em" }}>
-              Search: <input id="riversSearch" type="search" value={search} onChange={e => setSearch(e.target.value)} />
-            </label>
+          <div data-tip="Average length" style={{ marginLeft: 12 }}>
+            Length:&nbsp;
+            <span id="riversFooterLength">{`${averageLength * worldContext.distanceScale} ${unit}`}</span>
           </div>
+          <div data-tip="Average mouth width" style={{ marginLeft: 12 }}>
+            Width:&nbsp;
+            <span id="riversFooterWidth">{`${rn(averageWidth * worldContext.distanceScale, 3)} ${unit}`}</span>
+          </div>
+        </div>
+        <div id="riversFooter" className="fmg-dialog-footer">
+          <button type="button" data-tip="Refresh the Editor" className="icon-cw" onClick={refresh} />
+          <button
+            type="button"
+            data-tip="Automatically add river starting from clicked cell. Hold Shift to add multiple"
+            className="icon-plus"
+            onClick={toggleAddRiver}
+          />
+          <button
+            type="button"
+            data-tip="Create a new river selecting river cells"
+            className="icon-map-pin"
+            onClick={createRiver}
+          />
+          <button
+            type="button"
+            data-tip="Toggle basin highlight mode"
+            className="icon-sitemap"
+            onClick={toggleBasinsHightlight}
+          />
+          <button
+            type="button"
+            data-tip="Save rivers-related data as a text file (.csv)"
+            className="icon-download"
+            onClick={downloadRiversData}
+          />
+          <button
+            type="button"
+            data-tip="Remove all rivers"
+            className="icon-trash"
+            onClick={() => triggerAllRiversRemove(refresh)}
+          />
+          <label htmlFor="riversSearch" data-tip="Filter by name, type or basin" style={{ marginLeft: "0.2em" }}>
+            Search: <input id="riversSearch" type="search" value={search} onChange={e => setSearch(e.target.value)} />
+          </label>
         </div>
       </div>
     </Dialog>

@@ -1,14 +1,14 @@
 import * as d3 from "d3";
 import { zoomTo } from "../actions";
-import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
+import { viewLayerService as view } from "../services/viewLayerService";
 import { elSelected, setElSelected } from "../store/editorState";
 
 import { closeDialogs, openDialog } from "../ui/dialogs/dialogService";
 import { parseTransform, rn } from "../utils";
 import { TIME } from "../utils/debug";
 import { EditorBus } from "../utils/editorBus";
-import { onMouseMove, tip } from "../utils/uiHelpers";
+import { getElementById } from "../utils/nodeUtils";
 import { interactionManager } from "./interactionManager";
 
 // Re-export pure helpers so existing callers of controllers/editors still work
@@ -32,8 +32,8 @@ function makePanDrag(filter?: (ev: Event) => boolean): d3.DragBehavior<SVGGEleme
       bh = bbox.height;
     })
     .on("drag", function (this: SVGGElement, event: d3.D3DragEvent<SVGGElement, unknown, unknown>) {
-      const px = rn(((ox + event.x + bw) / viewContext.svgWidth) * 100, 2);
-      const py = rn(((oy + event.y + bh) / viewContext.svgHeight) * 100, 2);
+      const px = rn(((ox + event.x + bw) / view.svgWidth) * 100, 2);
+      const py = rn(((oy + event.y + bh) / view.svgHeight) * 100, 2);
       d3.select(this)
         .attr("transform", `translate(${ox + event.x},${oy + event.y})`)
         .attr("data-x", px)
@@ -44,17 +44,17 @@ function makePanDrag(filter?: (ev: Event) => boolean): d3.DragBehavior<SVGGEleme
 }
 
 export function restoreDefaultEvents(): void {
-  viewContext.svg.call(viewContext.zoom);
-  viewContext.viewbox.style("cursor", "default").on(".drag", null);
+  view.svg.call(view.zoom);
+  view.viewbox.style("cursor", "default").on(".drag", null);
   interactionManager.init(
-    viewContext.viewbox.node() as Element,
+    view.viewbox.node() as Element,
     clicked as (event: MouseEvent) => void,
     onMouseMove as (event: MouseEvent) => void
   );
   interactionManager.resetClickHandler();
   interactionManager.resetMouseMoveHandler();
-  viewContext.legend.call(makePanDrag());
-  viewContext.svg.call(viewContext.zoom);
+  view.legend.call(makePanDrag());
+  view.svg.call(view.zoom);
 }
 
 function clicked(this: Element, event: MouseEvent): void {
@@ -73,8 +73,11 @@ function clicked(this: Element, event: MouseEvent): void {
   else if (grand?.id === "burgIcons") BurgEditor.editBurg(+(el as SVGElement).dataset.id!);
   else if (parent?.id === "ice") IceEditor.editIce(el as SVGElement);
   else if (parent?.id === "terrain") ReliefEditor.editReliefIcon(el as SVGElement);
-  else if (grand?.id === "markers" || great?.id === "markers") MarkersEditor.editMarker();
-  else if (grand?.id === "coastline") CoastlineEditor.editCoastline(event);
+  else if (grand?.id === "markers" || great?.id === "markers") {
+    const markerEl = grand?.id === "markers" ? parent : grand;
+    const markerI = markerEl?.id ? +markerEl.id.slice(6) : undefined;
+    MarkersEditor.editMarker(markerI);
+  } else if (grand?.id === "coastline") CoastlineEditor.editCoastline(event);
   else if (grand?.id === "lakes") LakesEditor.editLake(event);
   else if (great?.id === "armies") RegimentEditor.editRegiment(el?.parentElement ?? undefined);
 }
@@ -83,19 +86,20 @@ export function unselect(): void {
   EditorBus.restoreDefaultEvents();
   if (!elSelected) return;
   elSelected!.call(d3.drag<Element, unknown>().on("drag", null)).attr("class", null);
-  viewContext.debug.selectAll("*").remove();
-  viewContext.viewbox.style("cursor", "default");
+  view.debug.selectAll("*").remove();
+  view.viewbox.style("cursor", "default");
   setElSelected(null);
 }
 
 export { closeDialogs };
 
 // ─── Brush circle ──────────────────────────────────────────────────────────
+// drag-feedback: direct SVG manipulation intentional for perf — called on every mousemove
 
 export function moveCircle(x: number, y: number, r = 20): void {
-  const circle = document.getElementById("brushCircle");
+  const circle = getElementById("brushCircle");
   if (!circle) {
-    viewContext.debug
+    view.debug
       .node()!
       .insertAdjacentHTML("afterBegin" as InsertPosition, `<circle id="brushCircle" cx=${x} cy=${y} r=${r}></circle>`);
   } else {
@@ -105,53 +109,55 @@ export function moveCircle(x: number, y: number, r = 20): void {
   }
 }
 
-import * as BurgEditor from "../editors/burg-editor";
-import * as CoastlineEditor from "../editors/coastline-editor";
-import * as CulturesEditor from "../editors/cultures-editor";
-import * as EmblemsEditor from "../editors/emblems-editor";
-import * as IceEditor from "../editors/ice-editor";
-import * as LabelsEditor from "../editors/labels-editor";
-import * as LakesEditor from "../editors/lakes-editor";
-import * as MarkersEditor from "../editors/markers-editor";
-import * as RegimentEditor from "../editors/regiment-editor";
-import * as ReliefEditor from "../editors/relief-editor";
-import * as ReligionsEditor from "../editors/religions-editor";
-import * as RiversEditor from "../editors/rivers-editor";
-import * as RoutesEditor from "../editors/routes-editor";
-import * as StatesEditor from "../editors/states-editor";
-import { removeCircle } from "../utils/uiHelpers";
+import { onMouseMove } from "../services/mapInteraction";
+import { tip } from "../services/tooltipService";
+import { removeCircle } from "../utils/domUtils";
+import * as BurgEditor from "./burg-editor";
+import * as CoastlineEditor from "./coastline-editor";
+import * as CulturesEditor from "./cultures-editor";
+import * as EmblemsEditor from "./emblems-editor";
+import * as IceEditor from "./ice-editor";
+import * as LabelsEditor from "./labels-editor";
+import * as LakesEditor from "./lakes-editor";
+import * as MarkersEditor from "./markers-editor";
+import * as RegimentEditor from "./regiment-editor";
+import * as ReliefEditor from "./relief-editor";
+import * as ReligionsEditor from "./religions-editor";
+import * as RiversEditor from "./rivers-editor";
+import * as RoutesEditor from "./routes-editor";
+import * as StatesEditor from "./states-editor";
 
-export { removeCircle } from "../utils/uiHelpers";
+export { removeCircle } from "../utils/domUtils";
 
 // ─── Misc editor utilities ────────────────────────────────────────────────
 
 // ─── Legend ────────────────────────────────────────────────────────────────
 
 export function drawLegend(name: string, data: Array<[string | number, string, string]>): void {
-  viewContext.legend.selectAll("*").remove();
-  viewContext.legend.attr("data", data.join("|"));
+  view.legend.selectAll("*").remove();
+  view.legend.attr("data", data.join("|"));
 
-  const itemsInCol = +(document.getElementById("styleLegendColItems") as HTMLInputElement).value;
-  const fontSize = +viewContext.legend.attr("font-size");
-  const backClr = (document.getElementById("styleLegendBack") as HTMLInputElement).value;
-  const opacity = +(document.getElementById("styleLegendOpacity") as HTMLInputElement).value;
+  const itemsInCol = +getRequiredInputElement("styleLegendColItems").value;
+  const fontSize = +view.legend.attr("font-size");
+  const backClr = getRequiredInputElement("styleLegendBack").value;
+  const opacity = +getRequiredInputElement("styleLegendOpacity").value;
 
   const lineHeight = Math.round(fontSize * 1.7);
   const colorBoxSize = Math.round(fontSize / 1.7);
   const colOffset = fontSize;
   const vOffset = fontSize / 2;
 
-  const boxes = viewContext.legend
+  const boxes = view.legend
     .append("g")
     .attr("stroke-width", 0.5)
     .attr("stroke", "#111111")
     .attr("stroke-dasharray", "none");
-  const labels = viewContext.legend.append("g").attr("fill", "#000000").attr("stroke", "none");
+  const labels = view.legend.append("g").attr("fill", "#000000").attr("stroke", "none");
 
   const columns = Math.ceil(data.length / itemsInCol);
   for (let column = 0, i = 0; column < columns; column++) {
     const linesInColumn = Math.ceil(data.length / columns);
-    const offset = column ? colOffset * 2 + (viewContext.legend.node() as SVGGElement).getBBox().width : colOffset;
+    const offset = column ? colOffset * 2 + (view.legend.node() as SVGGElement).getBBox().width : colOffset;
 
     for (let l = 0; l < linesInColumn && data[i]; l++, i++) {
       boxes
@@ -171,7 +177,7 @@ export function drawLegend(name: string, data: Array<[string | number, string, s
     }
   }
 
-  const labelOffset = colOffset + (viewContext.legend.node() as SVGGElement).getBBox().width / 2;
+  const labelOffset = colOffset + (view.legend.node() as SVGGElement).getBBox().width / 2;
   labels
     .append("text")
     .attr("text-rendering", "optimizeSpeed")
@@ -183,11 +189,11 @@ export function drawLegend(name: string, data: Array<[string | number, string, s
     .attr("x", labelOffset)
     .attr("y", fontSize * 1.1 + vOffset / 2);
 
-  const bbox = (viewContext.legend.node() as SVGGElement).getBBox();
+  const bbox = (view.legend.node() as SVGGElement).getBBox();
   const width = bbox.width + colOffset * 2;
   const height = bbox.height + colOffset / 2 + vOffset;
 
-  viewContext.legend
+  view.legend
     .insert("rect", ":first-child")
     .attr("id", "legendBox")
     .attr("x", 0)
@@ -201,19 +207,19 @@ export function drawLegend(name: string, data: Array<[string | number, string, s
 }
 
 export function fitLegendBox(): void {
-  if (!viewContext.legend.selectAll("*").size()) return;
-  const px = Number.isNaN(+viewContext.legend.attr("data-x")) ? 99 : +viewContext.legend.attr("data-x") / 100;
-  const py = Number.isNaN(+viewContext.legend.attr("data-y")) ? 93 : +viewContext.legend.attr("data-y") / 100;
-  const bbox = (viewContext.legend.node() as SVGGElement).getBBox();
-  const x = rn(viewContext.svgWidth * px - bbox.width);
-  const y = rn(viewContext.svgHeight * py - bbox.height);
-  viewContext.legend.attr("transform", `translate(${x},${y})`);
+  if (!view.legend.selectAll("*").size()) return;
+  const px = Number.isNaN(+view.legend.attr("data-x")) ? 99 : +view.legend.attr("data-x") / 100;
+  const py = Number.isNaN(+view.legend.attr("data-y")) ? 93 : +view.legend.attr("data-y") / 100;
+  const bbox = (view.legend.node() as SVGGElement).getBBox();
+  const x = rn(view.svgWidth * px - bbox.width);
+  const y = rn(view.svgHeight * py - bbox.height);
+  view.legend.attr("transform", `translate(${x},${y})`);
 }
 
 export function redrawLegend(): void {
-  if (viewContext.legend.select("rect").size()) {
-    const name = viewContext.legend.select("#legendLabel").text();
-    const data = viewContext.legend
+  if (view.legend.select("rect").size()) {
+    const name = view.legend.select("#legendLabel").text();
+    const data = view.legend
       .attr("data")
       .split("|")
       .map((l: string) => l.split(",") as [string, string, string]);
@@ -222,11 +228,49 @@ export function redrawLegend(): void {
 }
 
 export function clearLegend(): void {
-  viewContext.legend.selectAll("*").remove();
-  viewContext.legend.attr("data", null);
+  view.legend.selectAll("*").remove();
+  view.legend.attr("data", null);
 }
 
 // ─── Color picker ─────────────────────────────────────────────────────────
+
+function getPickerGroupSelection(): d3.Selection<SVGGElement, unknown, null, undefined> | null {
+  const pickerEl = getElementById<SVGGElement>("picker");
+  return pickerEl ? d3.select<SVGGElement, unknown>(pickerEl) : null;
+}
+
+function getPickerContainerSelection(): d3.Selection<SVGSVGElement, unknown, null, undefined> | null {
+  const containerEl = getElementById<SVGSVGElement>("pickerContainer");
+  return containerEl ? d3.select<SVGSVGElement, unknown>(containerEl) : null;
+}
+
+function getHatchingPatternsSelection(): d3.Selection<SVGPatternElement, unknown, SVGGElement, unknown> {
+  return view.defs.select<SVGGElement>("#defs-hatching").selectAll<SVGPatternElement, unknown>("pattern");
+}
+
+function getPickerColorRectsSelection(): d3.Selection<SVGRectElement, unknown, SVGGElement, unknown> | null {
+  const picker = getPickerGroupSelection();
+  if (!picker) return null;
+  return picker.select<SVGGElement>("#pickerColors").selectAll<SVGRectElement, unknown>("rect");
+}
+
+function getPickerElementById<T extends Element>(id: string): T | null {
+  return getElementById<T>(id);
+}
+
+function getRequiredElementById<T extends Element>(id: string, kind = "Element"): T {
+  const element = getElementById<T>(id);
+  if (!element) throw new Error(`${kind} #${id} is not found`);
+  return element;
+}
+
+function getRequiredInputElement(id: string): HTMLInputElement {
+  return getRequiredElementById<HTMLInputElement>(id, "Input element");
+}
+
+function getRequiredPickerElement<T extends Element>(id: string): T {
+  return getRequiredElementById<T>(id, "Picker element");
+}
 
 function createPicker(): void {
   const pos = () => tip("Drag to change the picker position");
@@ -304,7 +348,7 @@ function createPicker(): void {
 
   (spaces.node() as Element).insertAdjacentHTML(
     "beforeend",
-    /* html */ `<label style="margin-right: 6px">HSL:
+    `<label style="margin-right: 6px">HSL:
       <input type="number" id="pickerHSL_H" data-space="hsl" min="0" max="360" value="231" />,
       <input type="number" id="pickerHSL_S" data-space="hsl" min="0" max="100" value="70" />,
       <input type="number" id="pickerHSL_L" data-space="hsl" min="0" max="100" value="70" />
@@ -320,7 +364,7 @@ function createPicker(): void {
 
   const colors = picker.append("g").attr("id", "pickerColors").attr("stroke", "#333333");
   const hatches = picker.append("g").attr("id", "pickerHatches").attr("stroke", "#333333");
-  const hatching = d3.selectAll<Element, unknown>("g#defs-hatching > pattern");
+  const hatching = getHatchingPatternsSelection();
   const number = hatching.size();
 
   const clr = d3.range(number).map(i => d3.hsl((i / number) * 360, 0.7, 0.7).formatHex());
@@ -401,44 +445,46 @@ function createPicker(): void {
     .attr("height", 30)
     .attr("id", "pickerHeader")
     .on("mousemove", pos);
-  picker.attr("transform", `translate(${(viewContext.svgWidth - width) / 2},${(viewContext.svgHeight - height) / 2})`);
+  picker.attr("transform", `translate(${(view.svgWidth - width) / 2},${(view.svgHeight - height) / 2})`);
 }
 
 function updateSelectedRect(fill: string): void {
-  document.getElementById("picker")!.querySelector<Element>("rect.selected")!.classList.remove("selected");
-  document
-    .getElementById("picker")!
-    .querySelector<Element>(`rect[fill='${fill.toLowerCase()}']`)!
-    .classList.add("selected");
+  const picker = getRequiredPickerElement<SVGGElement>("picker");
+  const selected = picker.querySelector<Element>("rect.selected");
+  const target = picker.querySelector<Element>(`rect[fill='${fill.toLowerCase()}']`);
+  if (!selected || !target) return;
+  selected.classList.remove("selected");
+  target.classList.add("selected");
 }
 
 function updateSpaces(): void {
-  const pickerH = document.getElementById("pickerH")!;
-  const pickerS = document.getElementById("pickerS")!;
-  const pickerL = document.getElementById("pickerL")!;
+  const pickerH = getRequiredPickerElement<Element>("pickerH");
+  const pickerS = getRequiredPickerElement<Element>("pickerS");
+  const pickerL = getRequiredPickerElement<Element>("pickerL");
 
   const h = getPickerControl(pickerH, 360);
   const s = getPickerControl(pickerS, 1);
   const l = getPickerControl(pickerL, 1);
 
-  (document.getElementById("pickerHSL_H") as HTMLInputElement).value = String(rn(h));
-  (document.getElementById("pickerHSL_S") as HTMLInputElement).value = String(rn(s * 100));
-  (document.getElementById("pickerHSL_L") as HTMLInputElement).value = String(rn(l * 100));
+  getRequiredPickerElement<HTMLInputElement>("pickerHSL_H").value = String(rn(h));
+  getRequiredPickerElement<HTMLInputElement>("pickerHSL_S").value = String(rn(s * 100));
+  getRequiredPickerElement<HTMLInputElement>("pickerHSL_L").value = String(rn(l * 100));
 
   const clr = d3.rgb(d3.hsl(h, s, l));
-  (document.getElementById("pickerRGB_R") as HTMLInputElement).value = String(clr.r);
-  (document.getElementById("pickerRGB_G") as HTMLInputElement).value = String(clr.g);
-  (document.getElementById("pickerRGB_B") as HTMLInputElement).value = String(clr.b);
-  (document.getElementById("pickerHEX") as HTMLInputElement).value = clr.formatHex();
+  getRequiredPickerElement<HTMLInputElement>("pickerRGB_R").value = String(clr.r);
+  getRequiredPickerElement<HTMLInputElement>("pickerRGB_G").value = String(clr.g);
+  getRequiredPickerElement<HTMLInputElement>("pickerRGB_B").value = String(clr.b);
+  getRequiredPickerElement<HTMLInputElement>("pickerHEX").value = clr.formatHex();
 }
 
 function updatePickerColors(): void {
-  const colors = d3.select<SVGGElement, unknown>("#picker > #pickerColors").selectAll<SVGRectElement, unknown>("rect");
+  const colors = getPickerColorRectsSelection();
+  if (!colors) return;
   const number = colors.size();
 
-  const h = getPickerControl(document.getElementById("pickerH")!, 360);
-  const s = getPickerControl(document.getElementById("pickerS")!, 1);
-  const l = getPickerControl(document.getElementById("pickerL")!, 1);
+  const h = getPickerControl(getRequiredPickerElement<Element>("pickerH"), 360);
+  const s = getPickerControl(getRequiredPickerElement<Element>("pickerS"), 1);
+  const l = getPickerControl(getRequiredPickerElement<Element>("pickerL"), 1);
 
   colors.each(function (this: SVGRectElement, _d, i) {
     const c = d3.hsl((i / number) * 180 + h, s, l).formatHex();
@@ -454,15 +500,15 @@ interface OpenPickerFn {
 }
 
 const openPicker: OpenPickerFn = (fill: string, callback: (fill: string) => void): void => {
-  const picker = d3.select("#picker");
-  if (!picker.size()) createPicker();
-  d3.select("#pickerContainer").style("display", "block");
+  const picker = getPickerGroupSelection();
+  if (!picker?.size()) createPicker();
+  getPickerContainerSelection()?.style("display", "block");
 
   if (fill[0] === "#") {
     const clr = d3.hsl(fill);
-    const pickerH = document.getElementById("pickerH")!;
-    const pickerS = document.getElementById("pickerS")!;
-    const pickerL = document.getElementById("pickerL")!;
+    const pickerH = getRequiredPickerElement<Element>("pickerH");
+    const pickerS = getRequiredPickerElement<Element>("pickerS");
+    const pickerL = getRequiredPickerElement<Element>("pickerL");
     if (!Number.isNaN(clr.h)) setPickerControl(pickerH, clr.h, 360);
     if (!Number.isNaN(clr.s)) setPickerControl(pickerS, clr.s, 1);
     if (!Number.isNaN(clr.l)) setPickerControl(pickerL, clr.l, 1);
@@ -473,7 +519,7 @@ const openPicker: OpenPickerFn = (fill: string, callback: (fill: string) => void
   updateSelectedRect(fill);
 
   openPicker.updateFill = () => {
-    const selected = document.getElementById("picker")?.querySelector<Element>("rect.selected");
+    const selected = getPickerElementById<SVGGElement>("picker")?.querySelector<Element>("rect.selected");
     if (!selected) return;
     callback(selected.getAttribute("fill")!);
   };
@@ -501,7 +547,7 @@ function pickerFillClicked(this: Element): void {
 
   const clr = d3.hsl(fill);
   if (Number.isNaN(clr.h)) return;
-  setPickerControl(document.getElementById("pickerH")!, clr.h, 360);
+  setPickerControl(getRequiredPickerElement<Element>("pickerH"), clr.h, 360);
   updateSpaces();
 }
 
@@ -534,10 +580,10 @@ function changePickerSpace(this: HTMLInputElement): void {
     return;
   }
 
-  const pickerH = document.getElementById("pickerH")!;
-  const pickerS = document.getElementById("pickerS")!;
-  const pickerL = document.getElementById("pickerL")!;
-  if (!Number.isNaN(clr.h)) setPickerControl(pickerH, clr.h, 360);
+  const pickerS = getRequiredPickerElement<Element>("pickerS");
+  const pickerL = getRequiredPickerElement<Element>("pickerL");
+  const pickerHEl = getRequiredPickerElement<Element>("pickerH");
+  if (!Number.isNaN(clr.h)) setPickerControl(pickerHEl, clr.h, 360);
   if (!Number.isNaN(clr.s)) setPickerControl(pickerS, clr.s, 1);
   if (!Number.isNaN(clr.l)) setPickerControl(pickerL, clr.l, 1);
 
@@ -549,10 +595,10 @@ function changePickerSpace(this: HTMLInputElement): void {
 // ─── Fogging ───────────────────────────────────────────────────────────────
 
 export function fog(id: string, path: string): void {
-  if (viewContext.defs.select(`#fog #${id}`).size()) return;
+  if (view.defs.select(`#fog #${id}`).size()) return;
   const fadeIn = d3.transition().duration(2000).ease(d3.easeSinInOut);
-  if (viewContext.defs.select("#fog path").size()) {
-    viewContext.defs
+  if (view.defs.select("#fog path").size()) {
+    view.defs
       .select("#fog")
       .append("path")
       .attr("d", path)
@@ -561,19 +607,17 @@ export function fog(id: string, path: string): void {
       .transition(fadeIn)
       .attr("opacity", 1);
   } else {
-    viewContext.defs.select("#fog").append("path").attr("d", path).attr("id", id).attr("opacity", 1);
-    const opacity = viewContext.fogging!.attr("opacity");
-    viewContext.fogging!.style("display", "block").attr("opacity", 0).transition(fadeIn).attr("opacity", opacity);
+    view.defs.select("#fog").append("path").attr("d", path).attr("id", id).attr("opacity", 1);
+    const opacity = view.fogging!.attr("opacity");
+    view.fogging!.style("display", "block").attr("opacity", 0).transition(fadeIn).attr("opacity", opacity);
   }
 }
 
 export function unfog(id?: string): void {
-  let el = id
-    ? viewContext.defs.select(`#fog #${id}`)
-    : (viewContext.defs.select(null) as ReturnType<typeof viewContext.defs.select>);
-  if (!id || !el.size()) el = viewContext.defs.select("#fog").selectAll("path") as typeof el;
+  let el = id ? view.defs.select(`#fog #${id}`) : (view.defs.select(null) as ReturnType<typeof view.defs.select>);
+  if (!id || !el.size()) el = view.defs.select("#fog").selectAll("path") as typeof el;
   el.remove();
-  if (!viewContext.defs.selectAll("#fog path").size()) viewContext.fogging!.style("display", "none");
+  if (!view.defs.selectAll("#fog path").size()) view.fogging!.style("display", "none");
 }
 
 // getFileName, downloadFile, uploadFile are re-exported from ../utils/editorHelpers
@@ -588,13 +632,13 @@ function getBBox(element: SVGRectElement): { x: number; y: number; width: number
 }
 
 export function highlightElement(element: Element, zoom?: number): void {
-  if (viewContext.debug.select(".highlighted").size()) return;
+  if (view.debug.select(".highlighted").size()) return;
   const box =
     element.tagName === "svg" ? getBBox(element as SVGRectElement) : (element as SVGGraphicsElement).getBBox();
   const transform = element.getAttribute("transform") ?? null;
   const enter = d3.transition().duration(1000).ease(d3.easeBounceOut);
 
-  const highlight = viewContext.debug
+  const highlight = view.debug
     .append("rect")
     .attr("x", box.x)
     .attr("y", box.y)
@@ -617,7 +661,7 @@ export function highlightElement(element: Element, zoom?: number): void {
     if (tr[0]) x += +tr[0];
     let y = box.y + box.height / 2;
     if (tr[1]) y += +tr[1];
-    zoomTo(x, y, viewContext.scale > 2 ? viewContext.scale : zoom, 1600);
+    zoomTo(x, y, view.scale > 2 ? view.scale : zoom, 1600);
   }
 }
 
@@ -627,8 +671,8 @@ export function selectIcon(initial: string, callback: (value: string) => void): 
   if (!callback) return;
   openDialog("iconSelector", { title: "Select Icon", onClose: () => callback(initial) });
 
-  const table = document.getElementById("iconTable") as HTMLTableElement;
-  const iconInput = document.getElementById("iconInput") as HTMLInputElement;
+  const table = getRequiredElementById<HTMLTableElement>("iconTable");
+  const iconInput = getRequiredElementById<HTMLInputElement>("iconInput");
   iconInput.value = initial;
 
   if (table.rows.length === 0) {
@@ -858,14 +902,14 @@ export function selectIcon(initial: string, callback: (value: string) => void): 
   };
 
   function addExternalImage(url: string) {
-    const addedIcons = document.getElementById("addedIcons")!;
+    const addedIcons = getRequiredElementById<HTMLElement>("addedIcons");
     const image = document.createElement("div");
     image.style.cssText = `width: 2.2em; height: 2.2em; background-size: cover; background-image: url(${url})`;
     addedIcons.appendChild(image);
     image.onclick = () => callback(url);
   }
 
-  const addImageBtn = document.getElementById("addImage") as HTMLButtonElement;
+  const addImageBtn = getRequiredElementById<HTMLButtonElement>("addImage");
   addImageBtn.onclick = () => {
     const urlInput = addImageBtn.previousElementSibling as HTMLInputElement;
     const url = urlInput.value;
@@ -876,8 +920,7 @@ export function selectIcon(initial: string, callback: (value: string) => void): 
     urlInput.value = "";
   };
 
-  document
-    .getElementById("addedIcons")!
+  getRequiredElementById<HTMLElement>("addedIcons")
     .querySelectorAll<HTMLElement>("div")
     .forEach(div => {
       div.onclick = () => callback(div.style.backgroundImage.slice(5, -2));
@@ -888,7 +931,7 @@ export function selectIcon(initial: string, callback: (value: string) => void): 
 
 // ─── Area / units ──────────────────────────────────────────────────────────
 
-export { fitContent, getArea, getAreaUnit } from "../utils/uiHelpers";
+export { fitContent, getArea, getAreaUnit } from "../utils/domUtils";
 
 // confirmationDialog and listen are re-exported from ../utils/editorHelpers
 
@@ -896,42 +939,29 @@ export { fitContent, getArea, getAreaUnit } from "../utils/uiHelpers";
 
 export function refreshAllEditors(): void {
   TIME && console.time("refreshAllEditors");
-  if (document.getElementById("culturesEditorRefresh")?.offsetParent)
-    (document.getElementById("culturesEditorRefresh") as HTMLButtonElement).click();
-  if (document.getElementById("biomesEditorRefresh")?.offsetParent)
-    (document.getElementById("biomesEditorRefresh") as HTMLButtonElement).click();
-  if (document.getElementById("diplomacyEditorRefresh")?.offsetParent)
-    (document.getElementById("diplomacyEditorRefresh") as HTMLButtonElement).click();
-  if (document.getElementById("provincesEditorRefresh")?.offsetParent)
-    (document.getElementById("provincesEditorRefresh") as HTMLButtonElement).click();
-  if (document.getElementById("religionsEditorRefresh")?.offsetParent)
-    (document.getElementById("religionsEditorRefresh") as HTMLButtonElement).click();
-  if (document.getElementById("statesEditorRefresh")?.offsetParent)
-    (document.getElementById("statesEditorRefresh") as HTMLButtonElement).click();
-  if (document.getElementById("zonesEditorRefresh")?.offsetParent)
-    (document.getElementById("zonesEditorRefresh") as HTMLButtonElement).click();
+  document.dispatchEvent(new CustomEvent("fmg:refresh-editors"));
   TIME && console.timeEnd("refreshAllEditors");
 }
 
 // ─── Dynamic editor launchers ─────────────────────────────────────────────
 
 export function editStates(): void {
-  if (viewContext.customization) return;
+  if (view.customization) return;
   StatesEditor.open();
 }
 
 export function editCultures(): void {
-  if (viewContext.customization) return;
+  if (view.customization) return;
   CulturesEditor.open();
 }
 
 export function editReligions(): void {
-  if (viewContext.customization) return;
+  if (view.customization) return;
   ReligionsEditor.open();
 }
 
 export function editCoastlineSettings(): void {
-  if (viewContext.customization) return;
+  if (view.customization) return;
   CoastlineEditor.coastlineEditor.open();
 }
 
@@ -958,7 +988,7 @@ document.addEventListener("fmg:highlight-element", (e: Event) => {
 document.addEventListener("fmg:select-icon", (e: Event) => {
   const { initial } = (e as CustomEvent<{ initial: string }>).detail;
   const cb = EditorBus._iconCallback;
-  if (cb) EditorBus.selectIcon(initial, cb);
+  if (cb) selectIcon(initial, cb);
 });
 
 // Register calculate-friendly-grid-size

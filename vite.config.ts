@@ -4,6 +4,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig({
     root: './src',
+    envDir: '../',
     base: process.env.NETLIFY ? '/' : '/Fantasy-Map-Generator/',
     build: {
         outDir: '../dist',

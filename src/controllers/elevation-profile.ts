@@ -1,8 +1,9 @@
 import { worldContext } from "../context/worldContext";
+import { getHeight } from "../services/cellInfoService";
+import { tip } from "../services/tooltipService";
 import { useElevationProfileState } from "../store/elevationProfileState";
 import type { PackedGraphFeature } from "../types/models";
 import { closeDialogs, openDialog } from "../ui/dialogs/dialogService";
-import { getHeight, tip } from "../utils/uiHelpers";
 
 export function openElevationProfile(cells: number[], routeLen: number, isRiver: boolean): void {
   const firstCell = cells[0];

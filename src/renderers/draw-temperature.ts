@@ -1,8 +1,8 @@
 import { color, curveBasisClosed, interpolateSpectral, leastIndex, line, max, min, range, scaleSequential } from "d3";
-import { TemperatureRenderer } from "../config/constants";
 import type { AppServices } from "../context/appServices";
 import type { EnvironmentLayers, ViewState } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import { TemperatureRenderer } from "../data/constants";
 import { useOptionsState } from "../store/optionsState";
 import { connectVertices, convertTemperature, round } from "../utils";
 import { TIME } from "../utils/debug";

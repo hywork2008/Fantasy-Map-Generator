@@ -1,5 +1,5 @@
 import type React from "react";
-import { regimentEditorActions } from "../../editors/regiment-editor";
+import { regimentEditorActions } from "../../controllers/regiment-editor";
 import { useRegimentEditorState } from "../../store/regimentEditorState";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";

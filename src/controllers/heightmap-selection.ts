@@ -1,7 +1,7 @@
 import Alea from "alea";
-import { heightmapTemplates, precreatedHeightmaps } from "../config";
 import { worldContext } from "../context/worldContext";
-import { HeightmapGenerator } from "../modules/heightmap-generator";
+import { heightmapTemplates, precreatedHeightmaps } from "../data";
+import { GenerationPipeline } from "../services/generationPipeline";
 import type { Grid } from "../types/Grid";
 import { openDialog } from "../ui/dialogs/dialogService";
 import { getColorScheme, heightmapColorSchemes } from "../utils/colorUtils";
@@ -40,13 +40,13 @@ export function getOrComputeGraph(): Grid {
 export function buildTemplatePreview(id: string, seed: string, scheme: string, renderOcean: boolean): string {
   const graph = getOrComputeGraph();
   Math.random = Alea(seed);
-  const heights = HeightmapGenerator.fromTemplate(graph, id);
+  const heights = GenerationPipeline.HeightmapGenerator.fromTemplate(graph, id);
   return renderHeightmapToDataUrl(heights, graph, scheme, renderOcean);
 }
 
 export async function buildPrecreatedPreview(id: string, scheme: string, renderOcean: boolean): Promise<string> {
   const graph = getOrComputeGraph();
-  const heights = await HeightmapGenerator.fromPrecreated(graph, id);
+  const heights = await GenerationPipeline.HeightmapGenerator.fromPrecreated(graph, id);
   return renderHeightmapToDataUrl(heights, graph, scheme, renderOcean);
 }
 

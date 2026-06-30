@@ -1,6 +1,6 @@
 import { forceCollide, forceSimulation, timeout } from "d3";
 import type { AppServices } from "../context/appServices";
-import type { SettlementLayers } from "../context/viewContext";
+import type { RootLayers, SettlementLayers } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { minmax, rn } from "../utils";
 import { TIME } from "../utils/debug";
@@ -18,7 +18,7 @@ interface EmblemNode {
 import type { Burg, Province, State } from "../types/models";
 import type { IRenderer } from "./core/IRenderer";
 
-export const EmblemsRenderer: IRenderer = {
+export const EmblemsRenderer = {
   id: "emblems",
 
   render(
@@ -180,7 +180,27 @@ export const EmblemsRenderer: IRenderer = {
 
   clear(viewContext: Readonly<SettlementLayers>): void {
     viewContext.emblems.selectAll("use").remove();
+  },
+
+  removeStateEmblems(viewContext: Readonly<SettlementLayers>, stateId: number): void {
+    viewContext.emblems.select(`#stateEmblems > use[data-i='${stateId}']`).remove();
+  },
+
+  removeProvinceEmblems(viewContext: Readonly<SettlementLayers>, provinceId: number): void {
+    viewContext.emblems.select(`#provinceEmblems > use[data-i='${provinceId}']`).remove();
+  },
+
+  clearProvinceEmblems(viewContext: Readonly<SettlementLayers>): void {
+    viewContext.emblems.select("#provinceEmblems").selectAll("*").remove();
   }
+} satisfies IRenderer;
+
+export const removeBurgCOA = (
+  viewContext: Readonly<Pick<RootLayers, "defs"> & Pick<SettlementLayers, "emblems">>,
+  burgId: number
+): void => {
+  viewContext.defs.select(`#burgCOA${burgId}`).remove();
+  viewContext.emblems.select(`#burgEmblems > use[data-i='${burgId}']`).remove();
 };
 
 const getDataAndType = (worldContext: Readonly<WorldContext>, id: string): [Burg[] | Province[] | State[], string] => {

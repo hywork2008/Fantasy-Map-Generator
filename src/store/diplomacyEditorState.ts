@@ -16,10 +16,18 @@ export interface DiplomacyRelationDialogData {
   currentRelation: string;
 }
 
+export interface DiplomacyMatrixData {
+  i: number;
+  name: string;
+  fullName: string | undefined;
+  diplomacy: string[];
+}
+
 export interface DiplomacyEditorState {
   isOpen: boolean;
   selectedStateId: number;
   states: DiplomacyRowData[];
+  matrix: DiplomacyMatrixData[];
   sortBy: string;
   sortDirection: number;
   relationDialog: DiplomacyRelationDialogData;
@@ -29,6 +37,7 @@ export const useDiplomacyEditorState = create<DiplomacyEditorState>(() => ({
   isOpen: false,
   selectedStateId: 0,
   states: [],
+  matrix: [],
   sortBy: "name",
   sortDirection: 1,
   relationDialog: {

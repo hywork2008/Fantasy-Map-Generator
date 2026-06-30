@@ -1,9 +1,9 @@
 import type React from "react";
 import { useMemo } from "react";
-import { religionsEditorActions } from "../../editors/religions-editor";
+import { religionsEditorActions } from "../../controllers/religions-editor";
 import { useReligionsEditorState } from "../../store/religionsEditorState";
 import { rn, si } from "../../utils";
-import { getAreaUnit } from "../../utils/uiHelpers";
+import { getAreaUnit } from "../../utils/domUtils";
 import { FillBox } from "../components/FillBox";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
@@ -68,7 +68,12 @@ export const ReligionsEditorDialog: React.FC = () => {
   const isBrushMode = customization === 7;
 
   return (
-    <Dialog isOpen={isOpen} title="Religions Editor" onClose={() => closeDialog("religionsEditor")}>
+    <Dialog
+      isOpen={isOpen}
+      title="Religions Editor"
+      onClose={() => closeDialog("religionsEditor")}
+      className="fmg-dialog--overflow-hidden"
+    >
       <div id="religionsEditor">
         <div
           id="religionsHeader"
@@ -147,6 +152,7 @@ export const ReligionsEditorDialog: React.FC = () => {
             return (
               <div
                 key={r.i}
+                id={`religion${r.i}`}
                 className="states"
                 data-id={r.i}
                 onClick={() => religionsEditorActions.selectReligionOnLineClick(r.i)}
@@ -342,7 +348,7 @@ export const ReligionsEditorDialog: React.FC = () => {
           </div>
         </div>
 
-        <div id="religionsFooter">
+        <div id="religionsFooter" className="fmg-dialog-footer">
           {isBrushMode ? null : (
             <>
               <button

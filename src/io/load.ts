@@ -2,24 +2,26 @@ import type * as d3 from "d3";
 import { appServices } from "../context/appServices";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
-
-import { Biomes } from "../modules/biomes";
-import { Burgs } from "../modules/burgs-generator";
-import { Features } from "../modules/features";
-import { declareFont, fonts } from "../modules/fonts";
-import { Routes } from "../modules/routes-generator";
+import { Biomes } from "../generators/biomes";
+import { Burgs } from "../generators/burgs-generator";
+import { Features } from "../generators/features";
+import { Routes } from "../generators/routes-generator";
 import { GridRenderer } from "../renderers";
+import { declareFont, fonts } from "../services/fonts";
+import { clearMainTip, tip } from "../services/tooltipService";
+import { viewLayerService as view } from "../services/viewLayerService";
 import { rulers } from "../store/editorState";
 import { useLayerState } from "../store/layerState";
+import { loadErrorDialogStore } from "../store/loadErrorDialogState";
+import { loadMapDialogStore } from "../store/loadMapDialogState";
 import { type OptionsState, useOptionsState } from "../store/optionsState";
 import type { NameBase, River } from "../types/models";
-import { closeDialogs, openRichDialog } from "../ui/dialogs/dialogService";
+import { closeDialogs, openConfirm } from "../ui/dialogs/dialogService";
 import { calculateVoronoi, findCell, last, link, minmax, parseError, rn } from "../utils";
-import { alertMessage } from "../utils/alertMessageEl";
 import { heightmapColorSchemes } from "../utils/colorUtils";
 import { ERROR, INFO, WARN } from "../utils/debug";
+import { applyOption } from "../utils/domUtils";
 import { layerIsOn } from "../utils/nodeUtils";
-import { applyOption, clearMainTip, tip } from "../utils/uiHelpers";
 import { cleanupData, compareVersions, isValidVersion, parseMapVersion, VERSION } from "../versioning";
 import { resolveVersionConflicts } from "./auto-update";
 import { Cloud } from "./cloud";
@@ -39,27 +41,32 @@ export async function quickLoad(): Promise<void> {
 // ─── Dropbox load ─────────────────────────────────────────────────────────────
 
 export async function loadFromDropbox(): Promise<void> {
-  const mapPath = (document.getElementById("loadFromDropboxSelect") as HTMLSelectElement).value;
+  const mapPath = loadMapDialogStore.getState().selectedDropboxPath;
+  if (!mapPath) {
+    tip("Please select a map file first", true, "error", 2000);
+    return;
+  }
   console.info("Loading map from Dropbox:", mapPath);
   const blob = await Cloud.providers.dropbox.load(mapPath);
   uploadMap(blob);
 }
 
 export async function createSharableDropboxLink(): Promise<void> {
-  const mapFile = document.querySelector("#loadFromDropbox select") as HTMLSelectElement | null;
-  const sharableLink = document.getElementById("sharableLink") as HTMLAnchorElement;
-  const sharableLinkContainer = document.getElementById("sharableLinkContainer")!;
+  const mapPath = loadMapDialogStore.getState().selectedDropboxPath;
+  if (!mapPath) {
+    tip("Please select a map file first", true, "error", 2000);
+    return;
+  }
 
   try {
-    const previewLink = await Cloud.providers.dropbox.getLink(mapFile?.value ?? "");
+    const previewLink = await Cloud.providers.dropbox.getLink(mapPath);
     const directLink = previewLink.replace("www.dropbox.com", "dl.dropboxusercontent.com");
     const finalLink = `${location.origin}${location.pathname}?maplink=${directLink}`;
 
-    sharableLink.innerText = `${finalLink.slice(0, 45)}...`;
-    sharableLink.setAttribute("href", finalLink);
-    sharableLinkContainer.style.display = "block";
+    loadMapDialogStore.getState().setSharableLink(finalLink, `${finalLink.slice(0, 45)}...`);
   } catch (error) {
     ERROR && console.error(error);
+    loadMapDialogStore.getState().hideSharableLink();
     tip("Dropbox API error. Can not create link.", true, "error", 2000);
   }
 }
@@ -73,22 +80,14 @@ export function loadMapPrompt(blob: Blob): void {
     return;
   }
 
-  alertMessage.innerHTML = /* html */ `Are you sure you want to load saved map?<br />
-    All unsaved changes made to the current map will be lost`;
-  openRichDialog({
-    content: alertMessage.innerHTML,
-    resizable: false,
-    title: "Load saved map",
-    buttons: {
-      Cancel: () => {
-        /* $(this).dialog("close") removed */
-      },
-      Load: () => {
-        loadLastSavedMap();
-        /* $(this).dialog("close") removed */
-      }
+  openConfirm(
+    `Are you sure you want to load saved map?<br />All unsaved changes made to the current map will be lost`,
+    {
+      title: "Load saved map",
+      confirm: "Load",
+      onConfirm: () => loadLastSavedMap()
     }
-  });
+  );
 
   function loadLastSavedMap() {
     WARN && console.warn("Load last saved map");
@@ -128,20 +127,17 @@ export async function loadMapFromURL(maplink: string, random: number): Promise<v
 
 export function showUploadErrorMessage(error: string, maplink: string, random: number): void {
   ERROR && console.error(error);
-  alertMessage.innerHTML = /* html */ `Cannot load map from the ${link(maplink, "link provided")}. ${
-    random ? `A new random map is generated. ` : ""
-  } Please ensure the linked file is reachable and CORS is allowed on server side`;
-  openRichDialog({
-    content: alertMessage.innerHTML,
-    title: "Loading error",
-    width: "32em",
-    buttons: {
-      "Clear cache": () => cleanupData(),
-      OK: () => {
-        /* $(this).dialog("close") removed */
-      }
+  openConfirm(
+    `Cannot load map from the ${link(maplink, "link provided")}. ${
+      random ? `A new random map is generated. ` : ""
+    } Please ensure the linked file is reachable and CORS is allowed on server side`,
+    {
+      title: "Loading error",
+      confirm: "Clear cache",
+      cancel: "OK",
+      onConfirm: () => cleanupData()
     }
-  });
+  );
 }
 
 // ─── Upload & parse ───────────────────────────────────────────────────────────
@@ -244,16 +240,11 @@ function showUploadMessage(type: string, mapData: string[] | null, mapVersion: s
     title = "Error";
   }
 
-  alertMessage.innerHTML = message;
-  openRichDialog({
-    content: alertMessage.innerHTML,
+  openConfirm(message, {
     title,
-    buttons: {
-      "Clear cache": () => cleanupData(),
-      OK: () => {
-        /* $(this).dialog("close") removed */
-      }
-    }
+    confirm: "Clear cache",
+    cancel: "OK",
+    onConfirm: () => cleanupData()
   });
 }
 
@@ -262,7 +253,7 @@ function showUploadMessage(type: string, mapData: string[] | null, mapVersion: s
 export async function parseLoadedData(data: string[], mapVersion: string): Promise<void> {
   try {
     closeDialogs?.();
-    viewContext.customization = 0;
+    view.setCustomization(0);
     document.dispatchEvent(new CustomEvent("react-exit-heightmap-edit"));
     document.dispatchEvent(new CustomEvent("react-hide-exit-customization"));
 
@@ -308,9 +299,7 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
       if (settings[17])
         worldContext.options.temperatureNorthPole = worldContext.options.temperatureSouthPole = +settings[17];
 
-      if (settings[21]) hideLabels.checked = !!+settings[21];
       if (settings[22]) stylePreset.value = settings[22];
-      if (settings[23]) rescaleLabels.checked = !!+settings[23];
       if (settings[24]) {
         urbanDensityInput.value = settings[24];
         worldContext.urbanDensity = +settings[24];
@@ -323,6 +312,8 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
       const settings = (data[1] || "").split("|");
       const zustandUpdates: Partial<Omit<OptionsState, "setOption" | "setOptions">> = {};
       if (settings[20]) zustandUpdates.mapName = settings[20];
+      if (settings[21]) zustandUpdates.hideLabels = !!+settings[21];
+      if (settings[23]) zustandUpdates.rescaleLabels = !!+settings[23];
       if (settings[26]) zustandUpdates.growthRate = +settings[26];
       if (worldContext.options.stateLabelsMode) zustandUpdates.stateLabelsMode = worldContext.options.stateLabelsMode;
       if (worldContext.options.year != null) zustandUpdates.year = worldContext.options.year;
@@ -333,7 +324,7 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
       .getState()
       .setOption(
         "shapeRendering",
-        (viewContext.viewbox.attr("shape-rendering") || "optimizeSpeed") as
+        (view.viewbox.attr("shape-rendering") || "optimizeSpeed") as
           | "crispEdges"
           | "optimizeSpeed"
           | "geometricPrecision"
@@ -367,21 +358,21 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
         worldContext.biomesData.cost.push(50);
       }
     }
-    viewContext.svg.remove();
+    view.svg.remove();
     document.body.insertAdjacentHTML("afterbegin", data[5]);
     document.dispatchEvent(new CustomEvent("fmg:reinitialize-map-layers"));
 
-    if (!viewContext.texture.size()) {
-      viewContext.texture = viewContext.viewbox
+    if (!view.texture.size()) {
+      viewContext.texture = view.viewbox
         .insert("g", "#landmass")
         .attr("id", "texture")
-        .attr("data-href", "./images/textures/plaster.jpg") as unknown as typeof viewContext.texture;
+        .attr("data-href", "./images/textures/plaster.jpg") as typeof view.texture;
     }
-    if (!viewContext.emblems.size()) {
-      viewContext.emblems = viewContext.viewbox
+    if (!view.emblems.size()) {
+      viewContext.emblems = view.viewbox
         .insert("g", "#labels")
         .attr("id", "emblems")
-        .style("display", "none") as unknown as typeof viewContext.emblems;
+        .style("display", "none") as typeof view.emblems;
     }
 
     {
@@ -390,7 +381,7 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
         delete (worldContext.grid as unknown as Record<string, unknown>)[key];
       Object.assign(worldContext.grid, parsedGrid);
       const { cells: gCells, vertices } = calculateVoronoi(worldContext.grid.points, worldContext.grid.boundary);
-      worldContext.grid.cells = gCells as unknown as typeof worldContext.grid.cells;
+      worldContext.grid.cells = gCells as typeof worldContext.grid.cells;
       worldContext.grid.vertices = vertices;
       worldContext.grid.cells.h = Uint8Array.from(data[7].split(","), Number);
       worldContext.grid.cells.prec = Uint8Array.from(data[8].split(","), Number);
@@ -470,43 +461,43 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
         nextActiveLayers[el] = true;
       };
 
-      if (hasChild(viewContext.texture, "image")) turnOn("toggleTexture");
-      if (hasChildren(viewContext.terrs.select("#landHeights"))) turnOn("toggleHeight");
-      if (isVisible(viewContext.lakes)) turnOn("toggleLakes");
-      if (hasChildren(viewContext.biomes)) turnOn("toggleBiomes");
-      if (hasChildren(viewContext.cells)) turnOn("toggleCells");
-      if (hasChildren(viewContext.gridOverlay)) turnOn("toggleGrid");
-      if (hasChildren(viewContext.coordinates)) turnOn("toggleCoordinates");
-      if (isVisible(viewContext.compass) && hasChild(viewContext.compass, "use")) turnOn("toggleCompass");
-      if (hasChildren(viewContext.rivers)) turnOn("toggleRivers");
-      if (isVisible(viewContext.terrain) && hasChildren(viewContext.terrain)) turnOn("toggleRelief");
-      if (hasChildren(viewContext.relig)) turnOn("toggleReligions");
-      if (hasChildren(viewContext.cults)) turnOn("toggleCultures");
-      if (hasChildren(viewContext.statesBody)) turnOn("toggleStates");
-      if (hasChildren(viewContext.provs)) turnOn("toggleProvinces");
-      if (hasChildren(viewContext.zones) && isVisible(viewContext.zones)) turnOn("toggleZones");
-      if (isVisible(viewContext.borders) && hasChild(viewContext.borders, "path")) turnOn("toggleBorders");
-      if (isVisible(viewContext.routes) && hasChild(viewContext.routes, "path")) turnOn("toggleRoutes");
-      if (hasChildren(viewContext.temperature)) turnOn("toggleTemperature");
-      if (hasChild(viewContext.population, "line")) turnOn("togglePopulation");
-      if (hasChildren(viewContext.ice)) turnOn("toggleIce");
-      if (hasChild(viewContext.prec, "circle")) turnOn("togglePrecipitation");
-      if (isVisible(viewContext.emblems) && hasChild(viewContext.emblems, "use")) turnOn("toggleEmblems");
-      if (hasChild(viewContext.labels, "text")) turnOn("toggleLabels");
-      if (hasChild(viewContext.icons, "use, circle")) turnOn("toggleBurgIcons");
-      if (hasChildren(viewContext.armies) && isVisible(viewContext.armies)) turnOn("toggleMilitary");
-      if (hasChild(viewContext.markers, "svg")) turnOn("toggleMarkers");
-      if (isVisible(viewContext.ruler)) turnOn("toggleRulers");
-      if (isVisible(viewContext.scaleBar)) turnOn("toggleScaleBar");
+      if (hasChild(view.texture, "image")) turnOn("toggleTexture");
+      if (hasChildren(view.terrs.select("#landHeights"))) turnOn("toggleHeight");
+      if (isVisible(view.lakes)) turnOn("toggleLakes");
+      if (hasChildren(view.biomes)) turnOn("toggleBiomes");
+      if (hasChildren(view.cells)) turnOn("toggleCells");
+      if (hasChildren(view.gridOverlay)) turnOn("toggleGrid");
+      if (hasChildren(view.coordinates)) turnOn("toggleCoordinates");
+      if (isVisible(view.compass) && hasChild(view.compass, "use")) turnOn("toggleCompass");
+      if (hasChildren(view.rivers)) turnOn("toggleRivers");
+      if (isVisible(view.terrain) && hasChildren(view.terrain)) turnOn("toggleRelief");
+      if (hasChildren(view.relig)) turnOn("toggleReligions");
+      if (hasChildren(view.cults)) turnOn("toggleCultures");
+      if (hasChildren(view.statesBody)) turnOn("toggleStates");
+      if (hasChildren(view.provs)) turnOn("toggleProvinces");
+      if (hasChildren(view.zones) && isVisible(view.zones)) turnOn("toggleZones");
+      if (isVisible(view.borders) && hasChild(view.borders, "path")) turnOn("toggleBorders");
+      if (isVisible(view.routes) && hasChild(view.routes, "path")) turnOn("toggleRoutes");
+      if (hasChildren(view.temperature)) turnOn("toggleTemperature");
+      if (hasChild(view.population, "line")) turnOn("togglePopulation");
+      if (hasChildren(view.ice)) turnOn("toggleIce");
+      if (hasChild(view.prec, "circle")) turnOn("togglePrecipitation");
+      if (isVisible(view.emblems) && hasChild(view.emblems, "use")) turnOn("toggleEmblems");
+      if (hasChild(view.labels, "text")) turnOn("toggleLabels");
+      if (hasChild(view.icons, "use, circle")) turnOn("toggleBurgIcons");
+      if (hasChildren(view.armies) && isVisible(view.armies)) turnOn("toggleMilitary");
+      if (hasChild(view.markers, "svg")) turnOn("toggleMarkers");
+      if (isVisible(view.ruler)) turnOn("toggleRulers");
+      if (isVisible(view.scaleBar)) turnOn("toggleScaleBar");
       if (isVisibleNode(document.getElementById("vignette") as HTMLElement)) turnOn("toggleVignette");
 
       useLayerState.getState().setAllActiveLayers(nextActiveLayers);
       document.dispatchEvent(new CustomEvent("fmg:get-current-preset"));
     }
-    viewContext.scaleBar
+    view.scaleBar
       .on("mousemove", () => tip("Click to open Units Editor"))
       .on("click", () => document.dispatchEvent(new CustomEvent("fmg:edit-units")));
-    viewContext.legend
+    view.legend
       .on("mousemove", () => tip("Drag to change the position. Click to hide the legend"))
       .on("click", () => document.dispatchEvent(new CustomEvent("fmg:clear-legend")));
 
@@ -524,7 +515,7 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
     }
 
     {
-      const textureHref = viewContext.texture.attr("data-href");
+      const textureHref = view.texture.attr("data-href");
       if (textureHref)
         document.dispatchEvent(new CustomEvent("fmg:update-texture-select-value", { detail: textureHref }));
     }
@@ -681,7 +672,7 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
         invalidCells.forEach(i => {
           pCells.r[i] = 0;
         });
-        viewContext.rivers.select(`river${r}`).remove();
+        view.rivers.select(`river${r}`).remove();
         ERROR && console.error("[Data integrity] Invalid river", r, "is assigned to cells", invalidCells);
       });
 
@@ -843,7 +834,7 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
         worldContext.pack.markers.sort((a: { i: number }, b: { i: number }) => a.i - b.i);
       }
     }
-    viewContext.emblems.selectAll("use").attr("href", null);
+    view.emblems.selectAll("use").attr("href", null);
     if (rulers && layerIsOn("toggleRulers")) rulers.draw();
     if (layerIsOn("toggleGrid")) GridRenderer.render(worldContext, viewContext, appServices);
     document.dispatchEvent(new CustomEvent("fmg:restore-default-events"));
@@ -863,29 +854,12 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
     ERROR && console.error(error);
     clearMainTip();
 
-    alertMessage.innerHTML = /* html */ `An error occurred while loading the map. Select a different file to load, <br>generate a new random map or cancel the loading.<br>Map version: ${mapVersion}. Generator version: ${VERSION}.
-      <p id="errorBox">${parseError(error as Error)}</p>`;
-
-    openRichDialog({
-      content: alertMessage.innerHTML,
-      resizable: false,
-      title: "Loading error",
-      maxWidth: "40em" as unknown as number,
-      buttons: {
-        "Clear cache": () => cleanupData(),
-        "Select file": () => {
-          /* $(this).dialog("close") removed */
-          mapToLoad.click();
-        },
-        "New map": () => {
-          /* $(this).dialog("close") removed */
-          document.dispatchEvent(new CustomEvent("fmg:regenerate-map", { detail: "loading error" }));
-        },
-        Cancel: () => {
-          /* $(this).dialog("close") removed */
-        }
-      },
-      position: { my: "center", at: "center", of: "svg" }
+    loadErrorDialogStore.getState().open({
+      errorText: parseError(error as Error),
+      mapVersion,
+      onClearCache: () => cleanupData(),
+      onSelectFile: () => mapToLoad.click(),
+      onNewMap: () => document.dispatchEvent(new CustomEvent("fmg:regenerate-map", { detail: "loading error" }))
     });
   }
 }

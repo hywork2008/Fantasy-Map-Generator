@@ -1,8 +1,6 @@
 import { color, curveBasisClosed, line, select } from "d3";
-import { rn } from "../../../utils";
-import { TIME } from "../../../utils/debug";
-import { getIsolines } from "../../../utils/pathUtils";
-import { getViewContext, getWorldContext } from "../economyContext";
+import { getIsolines, rn, TIME } from "../../hostUtils";
+import { getMarketsFillLayer, getMarketsLayer, getViewContext, getWorldContext } from "../economyContext";
 
 export function drawMarketsLayer() {
   TIME && console.time("drawMarketsLayer");
@@ -36,11 +34,11 @@ export function drawMarketsLayer() {
     }
   }
 
-  getViewContext().marketsFill.html(fillHtml);
-  getViewContext().markets.html(markersHtml);
+  getMarketsFillLayer()?.html(fillHtml);
+  getMarketsLayer()?.html(markersHtml);
   highlightMarketsOnHover();
-  getViewContext().marketsFill.style("display", null);
-  getViewContext().markets.style("display", null);
+  getMarketsFillLayer()?.style("display", null);
+  getMarketsLayer()?.style("display", null);
   TIME && console.timeEnd("drawMarketsLayer");
 }
 
@@ -58,7 +56,9 @@ function buildCenterMarker(burgId: number, fillColor: string, strokeColor: strin
 }
 
 function highlightMarketsOnHover(): void {
-  select(getViewContext().markets.node())
+  const marketsEl = getMarketsLayer();
+  if (!marketsEl) return;
+  select(marketsEl.node())
     .selectAll<SVGGElement, unknown>("g[data-id]")
     .on("mouseover", e => highlightMarketOn((e.currentTarget as SVGGElement).dataset.id!))
     .on("mouseout", e => highlightMarketOff((e.currentTarget as SVGGElement).dataset.id!));
