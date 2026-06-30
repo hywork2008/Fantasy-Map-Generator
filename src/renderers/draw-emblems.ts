@@ -18,7 +18,7 @@ interface EmblemNode {
 import type { Burg, Province, State } from "../types/models";
 import type { IRenderer } from "./core/IRenderer";
 
-export const EmblemsRenderer: IRenderer = {
+export const EmblemsRenderer = {
   id: "emblems",
 
   render(
@@ -180,8 +180,20 @@ export const EmblemsRenderer: IRenderer = {
 
   clear(viewContext: Readonly<SettlementLayers>): void {
     viewContext.emblems.selectAll("use").remove();
+  },
+
+  removeStateEmblems(viewContext: Readonly<SettlementLayers>, stateId: number): void {
+    viewContext.emblems.select(`#stateEmblems > use[data-i='${stateId}']`).remove();
+  },
+
+  removeProvinceEmblems(viewContext: Readonly<SettlementLayers>, provinceId: number): void {
+    viewContext.emblems.select(`#provinceEmblems > use[data-i='${provinceId}']`).remove();
+  },
+
+  clearProvinceEmblems(viewContext: Readonly<SettlementLayers>): void {
+    viewContext.emblems.select("#provinceEmblems").selectAll("*").remove();
   }
-};
+} satisfies IRenderer;
 
 export const removeBurgCOA = (
   viewContext: Readonly<Pick<RootLayers, "defs"> & Pick<SettlementLayers, "emblems">>,

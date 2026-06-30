@@ -8,7 +8,7 @@ import { rn } from "../utils";
 import { TIME } from "../utils/debug";
 import type { IRenderer } from "./core/IRenderer";
 
-export const MilitaryRenderer: IRenderer = {
+export const MilitaryRenderer = {
   id: "military",
 
   render(
@@ -32,8 +32,24 @@ export const MilitaryRenderer: IRenderer = {
 
   clear(viewContext: Readonly<SettlementLayers>): void {
     viewContext.armies.selectAll("g").remove();
+  },
+
+  updateArmyColor(
+    viewContext: Readonly<SettlementLayers>,
+    stateId: number,
+    solidColor: string,
+    darkerColor: string
+  ): void {
+    const army = viewContext.armies.select(`#army${stateId}`);
+    if (army.empty()) return;
+    army.attr("fill", solidColor);
+    army.selectAll("g > rect:nth-of-type(2)").attr("fill", darkerColor);
+  },
+
+  removeStateArmy(viewContext: Readonly<SettlementLayers>, stateId: number): void {
+    viewContext.armies.select(`#army${stateId}`).remove();
   }
-};
+} satisfies IRenderer;
 
 export const drawRegiments = (
   worldContext: Readonly<WorldContext>,

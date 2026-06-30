@@ -17,8 +17,11 @@ import {
   drawBurgLabel,
   drawRoute,
   drawStateLabels,
+  EmblemsRenderer,
+  MilitaryRenderer,
   PopulationRenderer,
   ProvincesRenderer,
+  StateLabelsRenderer,
   StatesRenderer
 } from "../renderers";
 import type { Emblem as RendererEmblem } from "../renderers/emblem-renderer";
@@ -195,7 +198,7 @@ export const statesEditorActions = {
     setStatesEditorState({ isOpen: false });
     if (view.customization === 2) exitStatesManualAssignment(true);
     if (view.customization === 3) exitAddStateMode();
-    view.debug.selectAll(".highlight").remove();
+    StatesRenderer.clearHighlight(viewContext);
   },
 
   refresh(): void {
@@ -357,15 +360,12 @@ export const statesEditorActions = {
     const currentFill = worldContext.pack.states[stateId].color;
     const callback = (newFill: string) => {
       worldContext.pack.states[stateId].color = newFill;
-      view.statesBody.select(`#state${stateId}`).attr("fill", newFill);
-      view.statesBody.select(`#state-gap${stateId}`).attr("stroke", newFill);
       const halo = d3.color(newFill)?.darker()?.formatHex() ?? "#666666";
-      view.statesHalo.select(`#state-border${stateId}`).attr("stroke", halo);
+      StatesRenderer.updateStateColor(viewContext, stateId, newFill, halo);
 
       const solidColor = newFill[0] === "#" ? newFill : "#999";
       const darkerColor = d3.color(solidColor)!.darker().formatHex();
-      view.armies.select(`#army${stateId}`).attr("fill", solidColor);
-      view.armies.select(`#army${stateId}`).selectAll("g > rect:nth-of-type(2)").attr("fill", darkerColor);
+      MilitaryRenderer.updateArmyColor(viewContext, stateId, solidColor, darkerColor);
       refreshStatesEditor();
     };
     window.openPicker(currentFill ?? "", callback);
@@ -489,32 +489,11 @@ export const statesEditorActions = {
 };
 
 export function stateHighlightById(stateId: number): void {
-  const d = view.regions.select(`#state${stateId}`).attr("d");
-  if (!d) return;
-
-  const path = view.debug
-    .append("path")
-    .attr("class", "highlight")
-    .attr("d", d)
-    .attr("fill", "none")
-    .attr("stroke", "red")
-    .attr("stroke-width", 1)
-    .attr("opacity", 1)
-    .attr("filter", "url(#blur1)");
-
-  const totalLength = (path.node() as SVGPathElement).getTotalLength();
-  const duration = (totalLength + 5000) / 2;
-  const interpolate = d3.interpolateString(`0, ${totalLength}`, `${totalLength}, ${totalLength}`);
-  path
-    .transition()
-    .duration(duration)
-    .attrTween("stroke-dasharray", () => interpolate);
+  StatesRenderer.highlightState(viewContext, stateId);
 }
 
 export function stateHighlightOff(): void {
-  view.debug.selectAll<SVGElement, unknown>(".highlight").each(function () {
-    d3.select(this).transition().duration(1000).attr("opacity", 0).remove();
-  });
+  StatesRenderer.clearHighlight(viewContext);
 }
 
 function editStateName(stateId: number): void {
@@ -608,11 +587,8 @@ function stateRemovePrompt(state: number): void {
 }
 
 function stateRemove(stateId: number): void {
-  view.statesBody.select(`#state${stateId}`).remove();
-  view.statesBody.select(`#state-gap${stateId}`).remove();
-  view.statesHalo.select(`#state-border${stateId}`).remove();
-  view.labels.select(`#stateLabel${stateId}`).remove();
-  view.defs.select(`#textPath_stateLabel${stateId}`).remove();
+  StatesRenderer.removeStateDOM(viewContext, stateId);
+  StateLabelsRenderer.removeStateLabel(viewContext, stateId);
 
   EditorBus.unfog(`focusState${stateId}`);
 
@@ -634,7 +610,7 @@ function stateRemove(stateId: number): void {
 
   const coaId = `stateCOA${stateId}`;
   d3.select(`#${coaId}`).remove();
-  view.emblems.select(`#stateEmblems > use[data-i='${stateId}']`).remove();
+  EmblemsRenderer.removeStateEmblems(viewContext, stateId);
 
   ((worldContext.pack.states[stateId] as State).provinces ?? []).forEach((p: number) => {
     (worldContext.pack.provinces as Province[])[p] = { i: p, removed: true } as Province;
@@ -644,7 +620,7 @@ function stateRemove(stateId: number): void {
 
     const provCoaId = `provinceCOA${p}`;
     d3.select(`#${provCoaId}`).remove();
-    view.emblems.select(`#provinceEmblems > use[data-i='${p}']`).remove();
+    EmblemsRenderer.removeProvinceEmblems(viewContext, p);
     const g = view.provs.select("#provincesBody");
     g.select(`#province${p}`).remove();
     g.select(`#province-gap${p}`).remove();
@@ -655,7 +631,7 @@ function stateRemove(stateId: number): void {
     const index = (worldContext.notes as WorldNote[]).findIndex(n => n.id === id);
     if (index !== -1) worldContext.notes.splice(index, 1);
   });
-  view.armies.select(`g#army${stateId}`).remove();
+  MilitaryRenderer.removeStateArmy(viewContext, stateId);
 
   (worldContext.pack.states as State[]).forEach(state => {
     if (!state.i || state.removed || !state.neighbors) return;
@@ -664,7 +640,7 @@ function stateRemove(stateId: number): void {
 
   (worldContext.pack.states as State[])[stateId] = { i: stateId, removed: true } as State;
 
-  view.debug.selectAll(".highlight").remove();
+  StatesRenderer.clearHighlight(viewContext);
 
   if (layerIsOn("toggleStates")) StatesRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleBorders")) BordersRenderer.render(worldContext, viewContext, appServices);
@@ -711,8 +687,7 @@ function randomizeStatesExpansion(): void {
 function enterStatesManualAssignent(): void {
   if (!layerIsOn("toggleStates")) toggleStates();
   view.setCustomization(2);
-  view.statesBody.append("g").attr("id", "temp");
-  view.statesHalo.node()!.style.display = "none";
+  StatesRenderer.setupTempGroup(viewContext);
 
   const firstState = (worldContext.pack.states as State[]).find(s => s.i && !s.removed);
   setStatesEditorState({ customizationMode: 1, manualSelectedStateId: firstState?.i ?? 0 });
@@ -732,7 +707,7 @@ function selectStateOnMapClick(this: SVGElement, event: MouseEvent): void {
   const i = findCell(point[0], point[1]);
   if (worldContext.pack.cells.h[i] < 20) return;
 
-  const assigned = view.statesBody.select("#temp").select(`polygon[data-cell='${i}']`);
+  const assigned = viewContext.statesBody.select("#temp").select(`polygon[data-cell='${i}']`);
   const state = assigned.size() ? +assigned.attr("data-state") : worldContext.pack.cells.state[i];
   setStatesEditorState({ manualSelectedStateId: state });
 }
@@ -753,7 +728,7 @@ function dragStateBrush(this: SVGElement, event: d3.D3DragEvent<SVGElement, unkn
 }
 
 function changeStateForSelection(selection: number[]): void {
-  const temp = view.statesBody.select("#temp");
+  const temp = viewContext.statesBody.select("#temp");
 
   const { manualSelectedStateId: stateNew, protectExisting: preventOverwrite } = getStatesEditorState();
   const color = (worldContext.pack.states[stateNew] as State).color || "#ffffff";
@@ -955,11 +930,11 @@ function adjustProvinces(affectedProvinces: number[]): void {
 function exitStatesManualAssignment(_close: boolean): void {
   view.setCustomization(0);
   statesManualHistory.reset();
-  view.statesBody.select("#temp").remove();
+  StatesRenderer.cleanupTempGroup(viewContext);
   EditorBus.removeCircle();
   EditorBus.restoreDefaultEvents();
   clearMainTip();
-  view.statesHalo.node()!.style.display = "block";
+  // cleanupTempGroup already restores halo display
   setStatesEditorState({ customizationMode: 0, manualSelectedStateId: 0 });
 }
 
@@ -1105,14 +1080,11 @@ function mergeStates(statesToMerge: number[], rulingStateId: number): void {
     const state = worldContext.pack.states[stateId] as State;
     state.removed = true;
 
-    view.statesBody.select(`#state${stateId}`).remove();
-    view.statesBody.select(`#state-gap${stateId}`).remove();
-    view.statesHalo.select(`#state-border${stateId}`).remove();
-    view.labels.select(`#stateLabel${stateId}`).remove();
-    view.defs.select(`#textPath_stateLabel${stateId}`).remove();
+    StatesRenderer.removeStateDOM?.(viewContext, stateId);
+    StateLabelsRenderer.removeStateLabel?.(viewContext, stateId);
 
     d3.select(`#stateCOA${stateId}`).remove();
-    view.emblems.select(`#stateEmblems > use[data-i='${stateId}']`).remove();
+    EmblemsRenderer.removeStateEmblems(viewContext, stateId);
 
     (state.military ?? []).forEach((regiment: MilitaryRegiment) => {
       const oldId = `regiment${stateId}-${regiment.i}`;
@@ -1133,7 +1105,7 @@ function mergeStates(statesToMerge: number[], rulingStateId: number): void {
       }
     });
 
-    view.armies.select(`g#army${stateId}`).remove();
+    MilitaryRenderer.removeStateArmy(viewContext, stateId);
   });
 
   (worldContext.pack.burgs as Burg[]).forEach(burg => {
@@ -1157,7 +1129,7 @@ function mergeStates(statesToMerge: number[], rulingStateId: number): void {
   });
 
   EditorBus.unfog();
-  view.debug.selectAll(".highlight").remove();
+  StatesRenderer.clearHighlight(viewContext);
 
   States.getPoles(getWorldState());
   layerIsOn("toggleStates") ? StatesRenderer.render(worldContext, viewContext, appServices) : toggleStates();

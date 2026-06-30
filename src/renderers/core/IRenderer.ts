@@ -24,4 +24,5 @@ export interface IRenderer {
    * 描画のクリア処理（Canvas等で再描画時に使用、SVGでは通常コンテナのinnerHTML消去で行う）
    */
   clear?(viewContext: Readonly<ViewContext>): void;
+  [key: string]: unknown;
 }

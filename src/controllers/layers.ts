@@ -1,9 +1,12 @@
-import * as d3 from "d3";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import {
+  animatePopulationTurnOff,
+  animatePopulationTurnOn,
+  animatePrecipitationTurnOff,
+  animatePrecipitationTurnOn,
   BiomesRenderer,
   BordersRenderer,
   BurgIconsRenderer,
@@ -11,8 +14,6 @@ import {
   CellsRenderer,
   CoordinatesRenderer,
   CulturesRenderer,
-  drawStateLabels,
-  drawTemperature,
   EmblemsRenderer,
   FeaturesRenderer,
   GridRenderer,
@@ -27,7 +28,9 @@ import {
   ReligionsRenderer,
   RiversRenderer,
   RoutesRenderer,
+  StateLabelsRenderer,
   StatesRenderer,
+  TemperatureLayerRenderer,
   TextureRenderer,
   ZonesRenderer
 } from "../renderers";
@@ -350,7 +353,7 @@ export function drawLayers(): void {
   if (layerIsOn("toggleZones")) ZonesRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleBorders")) BordersRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleRoutes")) RoutesRenderer.render(worldContext, viewContext, appServices);
-  if (layerIsOn("toggleTemperature")) drawTemperature(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleTemperature")) TemperatureLayerRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("togglePopulation")) PopulationRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleIce")) IceRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("togglePrecipitation")) PrecipitationRenderer.render(worldContext, viewContext, appServices);
@@ -364,7 +367,7 @@ export function drawLayers(): void {
 }
 
 function drawLabels(): void {
-  drawStateLabels(worldContext, viewContext, appServices);
+  StateLabelsRenderer.render(worldContext, viewContext, appServices);
   BurgLabelsRenderer.render(worldContext, viewContext, appServices);
   document.dispatchEvent(new CustomEvent("fmg:invoke-active-zooming"));
 }
@@ -402,14 +405,14 @@ export function toggleHeight(event?: MouseEvent): void {
       return;
     }
     turnButtonOff("toggleHeight");
-    children.remove();
+    HeightmapRenderer.clear?.(viewContext);
   }
 }
 
 export function toggleTemperature(event?: MouseEvent): void {
   if (!view.temperature.selectAll("*").size()) {
     turnButtonOn("toggleTemperature");
-    drawTemperature(worldContext, viewContext, appServices);
+    TemperatureLayerRenderer.render(worldContext, viewContext, appServices);
     if (event && isCtrlClick(event)) editStyle("temperature");
   } else {
     if (event && isCtrlClick(event)) {
@@ -417,7 +420,7 @@ export function toggleTemperature(event?: MouseEvent): void {
       return;
     }
     turnButtonOff("toggleTemperature");
-    view.temperature.selectAll("*").remove();
+    TemperatureLayerRenderer.clear?.(viewContext);
   }
 }
 
@@ -431,7 +434,7 @@ export function toggleBiomes(event?: MouseEvent): void {
       editStyle("biomes");
       return;
     }
-    view.biomes.selectAll("path").remove();
+    BiomesRenderer.clear?.(viewContext);
     turnButtonOff("toggleBiomes");
   }
 }
@@ -474,7 +477,7 @@ export function toggleCells(event?: MouseEvent): void {
       editStyle("cells");
       return;
     }
-    view.cells.selectAll("path").remove();
+    CellsRenderer.clear?.(viewContext);
     turnButtonOff("toggleCells");
   }
 }
@@ -507,7 +510,7 @@ export function toggleCultures(event?: MouseEvent): void {
       editStyle("cults");
       return;
     }
-    view.cults.selectAll("path").remove();
+    CulturesRenderer.clear?.(viewContext);
     turnButtonOff("toggleCultures");
   }
 }
@@ -523,7 +526,7 @@ export function toggleReligions(event?: MouseEvent): void {
       editStyle("relig");
       return;
     }
-    view.relig.selectAll("path").remove();
+    ReligionsRenderer.clear?.(viewContext);
     turnButtonOff("toggleReligions");
   }
 }
@@ -538,7 +541,7 @@ export function toggleStates(event?: MouseEvent): void {
       editStyle("regions");
       return;
     }
-    view.regions.selectAll("path").remove();
+    StatesRenderer.clear?.(viewContext);
     turnButtonOff("toggleStates");
   }
 }
@@ -554,7 +557,7 @@ export function toggleBorders(event?: MouseEvent): void {
       return;
     }
     turnButtonOff("toggleBorders");
-    view.borders.selectAll("path").remove();
+    BordersRenderer.clear?.(viewContext);
   }
 }
 
@@ -568,7 +571,7 @@ export function toggleProvinces(event?: MouseEvent): void {
       editStyle("provs");
       return;
     }
-    view.provs.selectAll("*").remove();
+    ProvincesRenderer.clear?.(viewContext);
     turnButtonOff("toggleProvinces");
   }
 }
@@ -585,7 +588,7 @@ export function toggleGrid(event?: MouseEvent): void {
       return;
     }
     turnButtonOff("toggleGrid");
-    view.gridOverlay.selectAll("*").remove();
+    GridRenderer.clear?.(viewContext);
   }
 }
 
@@ -600,7 +603,7 @@ export function toggleCoordinates(event?: MouseEvent): void {
       return;
     }
     turnButtonOff("toggleCoordinates");
-    view.coordinates.selectAll("*").remove();
+    CoordinatesRenderer.clear?.(viewContext);
   }
 }
 
@@ -662,7 +665,7 @@ export function toggleTexture(event?: MouseEvent): void {
       return;
     }
     turnButtonOff("toggleTexture");
-    view.texture.select("image").remove();
+    TextureRenderer.clear?.(viewContext);
   }
 }
 
@@ -676,7 +679,7 @@ export function toggleRivers(event?: MouseEvent): void {
       editStyle("rivers");
       return;
     }
-    view.rivers.selectAll("*").remove();
+    RiversRenderer.clear?.(viewContext);
     turnButtonOff("toggleRivers");
   }
 }
@@ -691,7 +694,7 @@ export function toggleRoutes(event?: MouseEvent): void {
       editStyle("routes");
       return;
     }
-    view.routes.selectAll("path").remove();
+    RoutesRenderer.clear?.(viewContext);
     turnButtonOff("toggleRoutes");
   }
 }
@@ -706,7 +709,7 @@ export function toggleMilitary(event?: MouseEvent): void {
       editStyle("armies");
       return;
     }
-    view.armies.selectAll("g").remove();
+    MilitaryRenderer.clear?.(viewContext);
     turnButtonOff("toggleMilitary");
   }
 }
@@ -721,7 +724,7 @@ export function toggleMarkers(event?: MouseEvent): void {
       editStyle("markers");
       return;
     }
-    view.markers.html("");
+    MarkersRenderer.clear?.(viewContext);
     turnButtonOff("toggleMarkers");
   }
 }
@@ -753,7 +756,7 @@ export function toggleBurgIcons(event?: MouseEvent): void {
       return;
     }
     turnButtonOff("toggleBurgIcons");
-    view.icons.selectAll("circle, use").remove();
+    BurgIconsRenderer.clear?.(viewContext);
   }
 }
 
@@ -769,7 +772,7 @@ export function toggleRulers(event?: MouseEvent): void {
       return;
     }
     turnButtonOff("toggleRulers");
-    view.ruler.selectAll("*").remove();
+    viewContext.ruler.selectAll("*").remove();
     setLayerVisibility("toggleRulers", false);
   }
 }
@@ -800,7 +803,7 @@ export function toggleZones(event?: MouseEvent): void {
       return;
     }
     turnButtonOff("toggleZones");
-    view.zones.selectAll("*").remove();
+    ZonesRenderer.clear?.(viewContext);
   }
 }
 
@@ -922,36 +925,17 @@ function startPrecipitationTurnOn(): void {
     precipitationAnimRafId = null;
   }
 
-  const priorR = new Map<string, number>();
-  view.prec.selectAll<SVGCircleElement, unknown>("circle").each(function () {
-    priorR.set(`${this.getAttribute("cx")}_${this.getAttribute("cy")}`, parseFloat(this.getAttribute("r") ?? "0"));
-  });
-
-  view.prec.interrupt();
-  view.prec.selectAll("*").interrupt();
-  view.prec.style("display", "block");
-
   if (!layerIsOn("togglePrecipitation")) turnButtonOn("togglePrecipitation");
-  PrecipitationRenderer.render(worldContext, viewContext, appServices);
 
   precipitationAnimRafId = requestAnimationFrame(() => {
     precipitationAnimRafId = null;
     if (transitionToken !== precipitationTransitionToken) return;
 
-    view.prec.selectAll<SVGCircleElement, unknown>("circle").each(function () {
-      const finalR = parseFloat(this.getAttribute("r") ?? "0");
-      const startR = priorR.get(`${this.getAttribute("cx")}_${this.getAttribute("cy")}`) ?? 0;
-      d3.select(this).attr("r", startR).transition().duration(800).ease(d3.easeSinIn).attr("r", finalR);
+    animatePrecipitationTurnOn(worldContext, viewContext, appServices, () => {
+      if (transitionToken !== precipitationTransitionToken) return;
+      precipitationTransitionState = "on";
+      processPrecipitationTransition();
     });
-
-    view.prec
-      .transition()
-      .duration(800)
-      .on("end.prec-state", () => {
-        if (transitionToken !== precipitationTransitionToken) return;
-        precipitationTransitionState = "on";
-        processPrecipitationTransition();
-      });
   });
 }
 
@@ -964,23 +948,14 @@ function startPrecipitationTurnOff(): void {
     precipitationAnimRafId = null;
   }
 
-  view.prec.selectAll("*").interrupt();
-  view.prec.interrupt();
-
   if (layerIsOn("togglePrecipitation")) turnButtonOff("togglePrecipitation");
-  const hide = d3.transition().duration(1000).ease(d3.easeSinIn);
-  view.prec.selectAll("text").attr("opacity", 1).transition(hide).attr("opacity", 0);
-  view.prec.selectAll("circle").transition(hide).attr("r", 0).remove();
-  view.prec
-    .transition()
-    .delay(1000)
-    .style("display", "none")
-    .on("end.prec-state", () => {
-      if (transitionToken !== precipitationTransitionToken) return;
-      precipitationTransitionState = "off";
-      if (ThreeDRenderer.options.isOn) ThreeDRenderer.update();
-      processPrecipitationTransition();
-    });
+
+  animatePrecipitationTurnOff(viewContext, () => {
+    if (transitionToken !== precipitationTransitionToken) return;
+    precipitationTransitionState = "off";
+    if (ThreeDRenderer.options.isOn) ThreeDRenderer.update();
+    processPrecipitationTransition();
+  });
 }
 
 function syncPopulationTransitionState(): void {
@@ -1009,72 +984,17 @@ function startPopulationTurnOn(): void {
     populationAnimRafId = null;
   }
 
-  const priorRuralY2 = new Map<string, number>();
-  const priorUrbanY2 = new Map<string, number>();
-  view.population
-    .select("#rural")
-    .selectAll<SVGLineElement, unknown>("line")
-    .each(function () {
-      priorRuralY2.set(
-        `${this.getAttribute("x1")}_${this.getAttribute("y1")}`,
-        parseFloat(this.getAttribute("y2") ?? "0")
-      );
-    });
-  view.population
-    .select("#urban")
-    .selectAll<SVGLineElement, unknown>("line")
-    .each(function () {
-      priorUrbanY2.set(
-        `${this.getAttribute("x1")}_${this.getAttribute("y1")}`,
-        parseFloat(this.getAttribute("y2") ?? "0")
-      );
-    });
-
-  view.population.interrupt();
-  view.population.selectAll("*").interrupt();
-
   if (!layerIsOn("togglePopulation")) turnButtonOn("togglePopulation");
-  PopulationRenderer.render(worldContext, viewContext, appServices);
 
   populationAnimRafId = requestAnimationFrame(() => {
     populationAnimRafId = null;
     if (transitionToken !== populationTransitionToken) return;
 
-    view.population
-      .select("#rural")
-      .selectAll<SVGLineElement, unknown>("line")
-      .each(function () {
-        const finalY2 = parseFloat(this.getAttribute("y2") ?? "0");
-        const startY2 =
-          priorRuralY2.get(`${this.getAttribute("x1")}_${this.getAttribute("y1")}`) ??
-          parseFloat(this.getAttribute("y1") ?? "0");
-        d3.select(this).attr("y2", startY2).transition().duration(2000).ease(d3.easeSinIn).attr("y2", finalY2);
-      });
-    view.population
-      .select("#urban")
-      .selectAll<SVGLineElement, unknown>("line")
-      .each(function () {
-        const finalY2 = parseFloat(this.getAttribute("y2") ?? "0");
-        const startY2 =
-          priorUrbanY2.get(`${this.getAttribute("x1")}_${this.getAttribute("y1")}`) ??
-          parseFloat(this.getAttribute("y1") ?? "0");
-        d3.select(this)
-          .attr("y2", startY2)
-          .transition()
-          .delay(500)
-          .duration(2000)
-          .ease(d3.easeSinIn)
-          .attr("y2", finalY2);
-      });
-
-    view.population
-      .transition()
-      .delay(2500)
-      .on("end.pop-state", () => {
-        if (transitionToken !== populationTransitionToken) return;
-        populationTransitionState = "on";
-        processPopulationTransition();
-      });
+    animatePopulationTurnOn(worldContext, viewContext, appServices, () => {
+      if (transitionToken !== populationTransitionToken) return;
+      populationTransitionState = "on";
+      processPopulationTransition();
+    });
   });
 }
 
@@ -1087,42 +1007,14 @@ function startPopulationTurnOff(): void {
     populationAnimRafId = null;
   }
 
-  view.population.interrupt();
-  view.population.selectAll("*").interrupt();
-
   if (layerIsOn("togglePopulation")) turnButtonOff("togglePopulation");
 
-  const isD3data = view.population.select("line").datum();
-  if (!isD3data) {
-    view.population.selectAll("line").remove();
+  animatePopulationTurnOff(viewContext, () => {
+    if (transitionToken !== populationTransitionToken) return;
     populationTransitionState = "off";
+    if (ThreeDRenderer.options.isOn) ThreeDRenderer.update();
     processPopulationTransition();
-    return;
-  }
-
-  const hide = d3.transition().duration(1000).ease(d3.easeSinIn);
-  view.population
-    .select("#rural")
-    .selectAll("line")
-    .transition(hide)
-    .attr("y2", (d: unknown) => (d as [number, number])[1])
-    .remove();
-  view.population
-    .select("#urban")
-    .selectAll("line")
-    .transition(hide)
-    .delay(1000)
-    .attr("y2", (d: unknown) => (d as [number, number])[1])
-    .remove();
-  view.population
-    .transition()
-    .delay(2000)
-    .on("end.pop-state", () => {
-      if (transitionToken !== populationTransitionToken) return;
-      populationTransitionState = "off";
-      if (ThreeDRenderer.options.isOn) ThreeDRenderer.update();
-      processPopulationTransition();
-    });
+  });
 }
 
 function schedule3dUpdate() {
