@@ -72,7 +72,7 @@ import {
 import { changeTemplate, downloadTemplate, executeTemplate, uploadTemplate } from "./heightmapTemplate";
 import { interactionManager } from "./interactionManager";
 import { getCurrentPreset, toggleLayerById, turnButtonOff, turnButtonOn } from "./layers";
-import { changeViewMode, enterStandardView } from "./options";
+import { changeViewMode, enterStandardView } from "./viewMode";
 
 // ─── Module-level state ───────────────────────────────────────────────────────
 

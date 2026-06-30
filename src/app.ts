@@ -23,7 +23,7 @@ import {
   unregisterPreset,
   unregisterToolAction
 } from "./controllers/layers";
-import { changeViewMode } from "./controllers/options";
+import { changeViewMode } from "./controllers/viewMode";
 import { initExtensions } from "./extensions/index";
 import { initModules } from "./generators/index";
 import { buildGeoJsonZones, saveGeoJsonZones } from "./io/export";

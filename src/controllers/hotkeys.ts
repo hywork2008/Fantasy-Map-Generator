@@ -48,7 +48,7 @@ import { overviewMarkers } from "./markers-overview";
 import { overviewMilitary } from "./military-overview";
 import { NamesbaseEditor } from "./namesbase-editor";
 import { editNotes } from "./notes-editor";
-import { hideOptions, regeneratePrompt, toggle3dOptions, toggleOptions } from "./options";
+import { hideOptions, regeneratePrompt, toggleOptions } from "./options";
 import { editProvinces } from "./provinces-editor";
 import { overviewRivers } from "./rivers-overview";
 import { createRoute } from "./routes-editor";
@@ -63,6 +63,7 @@ import {
   viewCellDetails
 } from "./tools";
 import { editUnits } from "./units-editor";
+import { toggle3dOptions } from "./viewMode";
 import { editZones } from "./zones-editor";
 
 export function initHotkeys(): void {

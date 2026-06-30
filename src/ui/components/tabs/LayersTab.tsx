@@ -2,7 +2,7 @@ import type React from "react";
 import { useEffect, useState } from "react";
 import { viewContext } from "../../../context/viewContext";
 import { handleLayersPresetChange, removePreset, savePreset, toggleLayerById } from "../../../controllers/layers";
-import { changeViewMode } from "../../../controllers/options";
+import { changeViewMode } from "../../../controllers/viewMode";
 import { DEFAULT_LAYERS, type LayerConfig, useLayerState } from "../../../store/layerState";
 
 export const LayersTab: React.FC = () => {
