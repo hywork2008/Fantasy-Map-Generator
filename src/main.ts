@@ -1,5 +1,6 @@
 import { clearLegend, closeDialogs, unfog } from "./controllers/editors";
 import { heightmapTemplates } from "./data";
+import { createViewLayers, populateSizeRects, reinitializeMapLayers } from "./initViewLayers";
 import { generationErrorDialogStore } from "./store/generationErrorDialogState";
 import { openAlert } from "./ui/dialogs/dialogService";
 import { DEBUG, ERROR, INFO, TIME, WARN } from "./utils/debug";
@@ -10,7 +11,6 @@ import { DEBUG, ERROR, INFO, TIME, WARN } from "./utils/debug";
 // jQuery setup: globals must be in a separate module so they are evaluated
 
 import Alea from "alea";
-import type { Selection } from "d3";
 import * as d3 from "d3";
 import { getWorldState, resetZoom, zoomTo } from "./actions";
 import { appServices } from "./context/appServices";
@@ -103,298 +103,16 @@ if (PRODUCTION && "serviceWorker" in navigator) {
 
 // ─── SVG layers (appended in default render order) ───────────────────────────
 
-const mapSvgEl = getElementById<SVGSVGElement>("map");
-if (!mapSvgEl) throw new Error("Map SVG root #map is not found");
-let svg = d3.select<SVGSVGElement, unknown>(mapSvgEl) as Selection<SVGSVGElement, unknown, null, undefined>;
-let defs = svg.select("#deftemp") as Selection<SVGDefsElement, unknown, null, undefined>;
-let viewbox = svg.select("#viewbox") as Selection<SVGGElement, unknown, null, undefined>;
-let scaleBar = svg.select("#scaleBar") as Selection<SVGGElement, unknown, null, undefined>;
-let legend = svg.append("g").attr("id", "legend") as Selection<SVGGElement, unknown, null, undefined>;
-let ocean = viewbox.append("g").attr("id", "ocean") as Selection<SVGGElement, unknown, null, undefined>;
-let oceanLayers = ocean.append("g").attr("id", "oceanLayers") as Selection<SVGGElement, unknown, null, undefined>;
-let oceanPattern = ocean.append("g").attr("id", "oceanPattern") as Selection<SVGGElement, unknown, null, undefined>;
-let landmass = viewbox.append("g").attr("id", "landmass") as Selection<SVGGElement, unknown, null, undefined>;
-let texture = viewbox.append("g").attr("id", "texture") as Selection<SVGGElement, unknown, null, undefined>;
-let terrs = viewbox.append("g").attr("id", "terrs") as Selection<SVGGElement, unknown, null, undefined>;
-let lakes = viewbox.append("g").attr("id", "lakes") as Selection<SVGGElement, unknown, null, undefined>;
-let biomes = viewbox.append("g").attr("id", "biomes") as Selection<SVGGElement, unknown, null, undefined>;
-let cells = viewbox.append("g").attr("id", "cells") as Selection<SVGGElement, unknown, null, undefined>;
-let gridOverlay = viewbox.append("g").attr("id", "gridOverlay") as Selection<SVGGElement, unknown, null, undefined>;
-let coordinates = viewbox.append("g").attr("id", "coordinates") as Selection<SVGGElement, unknown, null, undefined>;
-let compass = viewbox.append("g").attr("id", "compass").style("display", "none") as Selection<
-  SVGGElement,
-  unknown,
-  null,
-  undefined
->;
-let rivers = viewbox.append("g").attr("id", "rivers") as Selection<SVGGElement, unknown, null, undefined>;
-let terrain = viewbox.append("g").attr("id", "terrain") as Selection<SVGGElement, unknown, null, undefined>;
-let relig = viewbox.append("g").attr("id", "relig") as Selection<SVGGElement, unknown, null, undefined>;
-let cults = viewbox.append("g").attr("id", "cults") as Selection<SVGGElement, unknown, null, undefined>;
-let regions = viewbox.append("g").attr("id", "regions") as Selection<SVGGElement, unknown, null, undefined>;
-let statesBody = regions.append("g").attr("id", "statesBody") as Selection<SVGGElement, unknown, null, undefined>;
-let statesHalo = regions.append("g").attr("id", "statesHalo") as Selection<SVGGElement, unknown, null, undefined>;
-let provs = viewbox.append("g").attr("id", "provs") as Selection<SVGGElement, unknown, null, undefined>;
-let zones = viewbox.append("g").attr("id", "zones") as Selection<SVGGElement, unknown, null, undefined>;
-let borders = viewbox.append("g").attr("id", "borders") as Selection<SVGGElement, unknown, null, undefined>;
-let stateBorders = borders.append("g").attr("id", "stateBorders") as Selection<SVGGElement, unknown, null, undefined>;
-let provinceBorders = borders.append("g").attr("id", "provinceBorders") as Selection<
-  SVGGElement,
-  unknown,
-  null,
-  undefined
->;
-let routes = viewbox.append("g").attr("id", "routes") as Selection<SVGGElement, unknown, null, undefined>;
-let roads = routes.append("g").attr("id", "roads") as Selection<SVGGElement, unknown, null, undefined>;
-let trails = routes.append("g").attr("id", "trails") as Selection<SVGGElement, unknown, null, undefined>;
-let searoutes = routes.append("g").attr("id", "searoutes") as Selection<SVGGElement, unknown, null, undefined>;
-let temperature = viewbox.append("g").attr("id", "temperature") as Selection<SVGGElement, unknown, null, undefined>;
-let coastline = viewbox.append("g").attr("id", "coastline") as Selection<SVGGElement, unknown, null, undefined>;
-let ice = viewbox.append("g").attr("id", "ice") as Selection<SVGGElement, unknown, null, undefined>;
-let prec = viewbox.append("g").attr("id", "prec").style("display", "none") as Selection<
-  SVGGElement,
-  unknown,
-  null,
-  undefined
->;
-let population = viewbox.append("g").attr("id", "population") as Selection<SVGGElement, unknown, null, undefined>;
-let emblems = viewbox.append("g").attr("id", "emblems").style("display", "none") as Selection<
-  SVGGElement,
-  unknown,
-  null,
-  undefined
->;
-let icons = viewbox.append("g").attr("id", "icons") as Selection<SVGGElement, unknown, null, undefined>;
-let labels = viewbox.append("g").attr("id", "labels") as Selection<SVGGElement, unknown, null, undefined>;
-let burgIcons = icons.append("g").attr("id", "burgIcons") as Selection<SVGGElement, unknown, null, undefined>;
-let anchors = icons.append("g").attr("id", "anchors") as Selection<SVGGElement, unknown, null, undefined>;
-let armies = viewbox.append("g").attr("id", "armies") as Selection<SVGGElement, unknown, null, undefined>;
-let markers = viewbox.append("g").attr("id", "markers") as Selection<SVGGElement, unknown, null, undefined>;
-let fogging = viewbox
-  .append("g")
-  .attr("id", "fogging-cont")
-  .attr("mask", "url(#fog)")
-  .append("g")
-  .attr("id", "fogging")
-  .style("display", "none") as Selection<SVGGElement, unknown, null, undefined>;
-let ruler = viewbox.append("g").attr("id", "ruler").style("display", "none") as Selection<
-  SVGGElement,
-  unknown,
-  null,
-  undefined
->;
-let debug = viewbox.append("g").attr("id", "debug") as Selection<SVGGElement, unknown, null, undefined>;
+createViewLayers();
 
-lakes.append("g").attr("id", "freshwater");
-lakes.append("g").attr("id", "salt");
-lakes.append("g").attr("id", "sinkhole");
-lakes.append("g").attr("id", "frozen");
-lakes.append("g").attr("id", "lava");
-lakes.append("g").attr("id", "dry");
-
-coastline.append("g").attr("id", "sea_island");
-coastline.append("g").attr("id", "lake_island");
-
-terrs.append("g").attr("id", "oceanHeights");
-terrs.append("g").attr("id", "landHeights");
-
-labels.append("g").attr("id", "states");
-labels.append("g").attr("id", "addedLabels");
-let burgLabels = labels.append("g").attr("id", "burgLabels") as Selection<SVGGElement, unknown, null, undefined>;
-
-population.append("g").attr("id", "rural");
-population.append("g").attr("id", "urban");
-
-emblems.append("g").attr("id", "burgEmblems").classed("hidden", true);
-emblems.append("g").attr("id", "provinceEmblems").classed("hidden", true);
-emblems.append("g").attr("id", "stateEmblems").classed("hidden", true);
-
-compass.append("use").attr("xlink:href", "#defs-compass-rose");
-
-fogging.append("rect").attr("x", 0).attr("y", 0).attr("width", "100%").attr("height", "100%");
-fogging
-  .append("rect")
-  .attr("x", 0)
-  .attr("y", 0)
-  .attr("width", "100%")
-  .attr("height", "100%")
-  .attr("fill", "#e8f0f6")
-  .attr("filter", "url(#splotch)");
-
-scaleBar.node()?.addEventListener("mousemove", () => tip("Click to open Units Editor"));
-scaleBar.node()?.addEventListener("click", () => editUnits());
-legend.node()?.addEventListener("mousemove", () => tip("Drag to change the position. Click to hide the legend"));
-legend.node()?.addEventListener("click", () => clearLegend());
-
-// ─── Populate viewContext singleton ────────────────────────────────────────────
-
-Object.assign(viewContext, {
-  svg,
-  defs,
-  viewbox,
-  scaleBar,
-  legend,
-  ocean,
-  oceanLayers,
-  oceanPattern,
-  landmass,
-  texture,
-  terrs,
-  lakes,
-  biomes,
-  cells,
-  gridOverlay,
-  coordinates,
-  compass,
-  rivers,
-  terrain,
-  relig,
-  cults,
-  regions,
-  statesBody,
-  statesHalo,
-  provs,
-  zones,
-  borders,
-  stateBorders,
-  provinceBorders,
-  routes,
-  roads,
-  trails,
-  searoutes,
-  temperature,
-  coastline,
-  ice,
-  prec,
-  population,
-  emblems,
-  icons,
-  labels,
-  burgLabels,
-  burgIcons,
-  anchors,
-  armies,
-  markers,
-  fogging,
-  ruler,
-  debug,
-  viewX: 0,
-  viewY: 0
-});
+viewContext.scaleBar.node()?.addEventListener("mousemove", () => tip("Click to open Units Editor"));
+viewContext.scaleBar.node()?.addEventListener("click", () => editUnits());
+viewContext.legend
+  .node()
+  ?.addEventListener("mousemove", () => tip("Drag to change the position. Click to hide the legend"));
+viewContext.legend.node()?.addEventListener("click", () => clearLegend());
 
 // ─── SVG layer reinitialization (called after a new map SVG is loaded) ────────
-
-export function reinitializeMapLayers(): void {
-  svg = d3.select<SVGSVGElement, unknown>("#map") as unknown as Selection<SVGSVGElement, unknown, null, undefined>;
-  defs = svg.select("#deftemp") as Selection<SVGDefsElement, unknown, null, undefined>;
-  viewbox = svg.select("#viewbox") as Selection<SVGGElement, unknown, null, undefined>;
-  scaleBar = svg.select("#scaleBar") as Selection<SVGGElement, unknown, null, undefined>;
-  legend = svg.select("#legend") as Selection<SVGGElement, unknown, null, undefined>;
-  ocean = viewbox.select("#ocean") as Selection<SVGGElement, unknown, null, undefined>;
-  oceanLayers = ocean.select("#oceanLayers") as Selection<SVGGElement, unknown, null, undefined>;
-  oceanPattern = ocean.select("#oceanPattern") as Selection<SVGGElement, unknown, null, undefined>;
-  lakes = viewbox.select("#lakes") as Selection<SVGGElement, unknown, null, undefined>;
-  landmass = viewbox.select("#landmass") as Selection<SVGGElement, unknown, null, undefined>;
-  texture = viewbox.select("#texture") as Selection<SVGGElement, unknown, null, undefined>;
-  terrs = viewbox.select("#terrs") as Selection<SVGGElement, unknown, null, undefined>;
-  biomes = viewbox.select("#biomes") as Selection<SVGGElement, unknown, null, undefined>;
-  ice = viewbox.select("#ice") as Selection<SVGGElement, unknown, null, undefined>;
-  cells = viewbox.select("#cells") as Selection<SVGGElement, unknown, null, undefined>;
-  gridOverlay = viewbox.select("#gridOverlay") as Selection<SVGGElement, unknown, null, undefined>;
-  coordinates = viewbox.select("#coordinates") as Selection<SVGGElement, unknown, null, undefined>;
-  compass = viewbox.select("#compass") as Selection<SVGGElement, unknown, null, undefined>;
-  rivers = viewbox.select("#rivers") as Selection<SVGGElement, unknown, null, undefined>;
-  terrain = viewbox.select("#terrain") as Selection<SVGGElement, unknown, null, undefined>;
-  relig = viewbox.select("#relig") as Selection<SVGGElement, unknown, null, undefined>;
-  cults = viewbox.select("#cults") as Selection<SVGGElement, unknown, null, undefined>;
-  regions = viewbox.select("#regions") as Selection<SVGGElement, unknown, null, undefined>;
-  statesBody = regions.select("#statesBody") as Selection<SVGGElement, unknown, null, undefined>;
-  statesHalo = regions.select("#statesHalo") as Selection<SVGGElement, unknown, null, undefined>;
-  provs = viewbox.select("#provs") as Selection<SVGGElement, unknown, null, undefined>;
-  zones = viewbox.select("#zones") as Selection<SVGGElement, unknown, null, undefined>;
-  borders = viewbox.select("#borders") as Selection<SVGGElement, unknown, null, undefined>;
-  stateBorders = borders.select("#stateBorders") as Selection<SVGGElement, unknown, null, undefined>;
-  provinceBorders = borders.select("#provinceBorders") as Selection<SVGGElement, unknown, null, undefined>;
-  routes = viewbox.select("#routes") as Selection<SVGGElement, unknown, null, undefined>;
-  roads = routes.select("#roads") as Selection<SVGGElement, unknown, null, undefined>;
-  trails = routes.select("#trails") as Selection<SVGGElement, unknown, null, undefined>;
-  searoutes = routes.select("#searoutes") as Selection<SVGGElement, unknown, null, undefined>;
-  temperature = viewbox.select("#temperature") as Selection<SVGGElement, unknown, null, undefined>;
-  coastline = viewbox.select("#coastline") as Selection<SVGGElement, unknown, null, undefined>;
-  prec = viewbox.select("#prec") as Selection<SVGGElement, unknown, null, undefined>;
-  population = viewbox.select("#population") as Selection<SVGGElement, unknown, null, undefined>;
-  emblems = viewbox.select("#emblems") as Selection<SVGGElement, unknown, null, undefined>;
-  labels = viewbox.select("#labels") as Selection<SVGGElement, unknown, null, undefined>;
-  icons = viewbox.select("#icons") as Selection<SVGGElement, unknown, null, undefined>;
-  burgIcons = icons.select("#burgIcons") as Selection<SVGGElement, unknown, null, undefined>;
-  anchors = icons.select("#anchors") as Selection<SVGGElement, unknown, null, undefined>;
-  armies = viewbox.select("#armies") as Selection<SVGGElement, unknown, null, undefined>;
-  markers = viewbox.select("#markers") as Selection<SVGGElement, unknown, null, undefined>;
-  // Pre-1.125.x saves used #markets; rename in-place so subsequent saves use the new id.
-  // The economy extension's reinit hook will re-acquire #marketsLayer after this rename.
-  if (!viewbox.select("#marketsLayer").size()) {
-    viewbox.select<SVGGElement>("#markets").attr("id", "marketsLayer");
-  }
-  ruler = viewbox.select("#ruler") as Selection<SVGGElement, unknown, null, undefined>;
-  fogging = viewbox.select("#fogging") as Selection<SVGGElement, unknown, null, undefined>;
-  debug = viewbox.select("#debug") as Selection<SVGGElement, unknown, null, undefined>;
-  burgLabels = labels.select("#burgLabels") as Selection<SVGGElement, unknown, null, undefined>;
-
-  Object.assign(viewContext, {
-    svg,
-    defs,
-    viewbox,
-    scaleBar,
-    legend,
-    ocean,
-    oceanLayers,
-    oceanPattern,
-    landmass,
-    texture,
-    terrs,
-    lakes,
-    biomes,
-    cells,
-    gridOverlay,
-    coordinates,
-    compass,
-    rivers,
-    terrain,
-    relig,
-    cults,
-    regions,
-    statesBody,
-    statesHalo,
-    provs,
-    zones,
-    borders,
-    stateBorders,
-    provinceBorders,
-    routes,
-    roads,
-    trails,
-    searoutes,
-    temperature,
-    coastline,
-    ice,
-    prec,
-    population,
-    emblems,
-    icons,
-    labels,
-    burgLabels,
-    burgIcons,
-    anchors,
-    armies,
-    markers,
-    fogging,
-    ruler,
-    debug
-  });
-
-  // Notify extension system so it can re-acquire extension-owned SVG layers.
-  document.dispatchEvent(new CustomEvent("fmg:map-layers-reinitialized"));
-}
 
 // ─── Fit loaded map to screen (called after reinitializeMapLayers + fitMapToScreen) ─
 
@@ -418,10 +136,10 @@ export function fitMapView(): void {
   viewContext.viewY = viewY;
 
   // Set viewbox transform synchronously to avoid a one-frame flash at identity.
-  viewbox.attr("transform", `translate(${tx} ${ty}) scale(${z})`);
+  viewContext.viewbox.attr("transform", `translate(${tx} ${ty}) scale(${z})`);
 
   // Sync D3 zoom internal state so subsequent wheel/drag events compute correctly.
-  svg.call(zoom.transform, transform);
+  viewContext.svg.call(zoom.transform, transform);
 }
 
 // ─── Main data variables ──────────────────────────────────────────────────────
@@ -500,7 +218,7 @@ function zoomRaf(event: { transform: { k: number; x: number; y: number } }) {
     pendingScaleChange = false;
     pendingPositionChange = false;
 
-    viewbox.attr("transform", `translate(${viewX} ${viewY}) scale(${scale})`);
+    viewContext.viewbox.attr("transform", `translate(${viewX} ${viewY}) scale(${scale})`);
 
     if (didPositionChange) {
       if (layerIsOn("toggleCoordinates")) CoordinatesRenderer.render(worldContext, viewContext, appServices);
@@ -527,8 +245,15 @@ function zoomRaf(event: { transform: { k: number; x: number; y: number } }) {
     }
 
     if (didScaleChange) {
-      drawScaleBar(worldContext, viewContext, appServices, scaleBar, scale);
-      fitScaleBar(worldContext, viewContext, appServices, scaleBar, viewContext.svgWidth, viewContext.svgHeight);
+      drawScaleBar(worldContext, viewContext, appServices, viewContext.scaleBar, scale);
+      fitScaleBar(
+        worldContext,
+        viewContext,
+        appServices,
+        viewContext.scaleBar,
+        viewContext.svgWidth,
+        viewContext.svgHeight
+      );
     }
 
     if (didPositionChange || didScaleChange) {
@@ -567,21 +292,7 @@ Object.assign(viewContext, {
   svgHeight
 });
 
-landmass.append("rect").attr("x", 0).attr("y", 0).attr("width", graphWidth).attr("height", graphHeight);
-oceanPattern
-  .append("rect")
-  .attr("fill", "url(#oceanic)")
-  .attr("x", 0)
-  .attr("y", 0)
-  .attr("width", graphWidth)
-  .attr("height", graphHeight);
-oceanLayers
-  .append("rect")
-  .attr("id", "oceanBase")
-  .attr("x", 0)
-  .attr("y", 0)
-  .attr("width", graphWidth)
-  .attr("height", graphHeight);
+populateSizeRects();
 
 // ─── App initialization ───────────────────────────────────────────────────────
 
@@ -828,7 +539,7 @@ function findBurgForMFCG(params: URLSearchParams) {
   }
   if (params.get("name") && params.get("name") !== "null") b.name = params.get("name") ?? undefined;
 
-  const label = burgLabels.select(`[data-id='${burgId}']`);
+  const label = viewContext.burgLabels.select(`[data-id='${burgId}']`);
   if (label.size()) {
     label
       .text(b.name ?? "")
@@ -857,9 +568,12 @@ const STATE_HIDE_SCALE = 7;
 export function invokeActiveZooming() {
   const isOptimized = useOptionsState.getState().shapeRendering === "optimizeSpeed";
 
-  if (coastline.select("#sea_island").size() && +coastline.select("#sea_island").attr("auto-filter")) {
+  if (
+    viewContext.coastline.select("#sea_island").size() &&
+    +viewContext.coastline.select("#sea_island").attr("auto-filter")
+  ) {
     const filter = scale > 1.5 && scale <= 2.6 ? null : scale > 2.6 ? "url(#blurFilter)" : "url(#dropShadow)";
-    coastline.select("#sea_island").attr("filter", filter);
+    viewContext.coastline.select("#sea_island").attr("filter", filter);
   }
 
   const burgGroups = worldContext.options.burgs?.groups || [];
@@ -876,7 +590,7 @@ export function invokeActiveZooming() {
   const isBurgGroupHidden = (groupId: string) => scale < getScaleThreshold(groupId);
 
   if (layerIsOn("toggleLabels")) {
-    labels.selectAll<SVGGElement, unknown>("g").each(function () {
+    viewContext.labels.selectAll<SVGGElement, unknown>("g").each(function () {
       if (this.id === "burgLabels") return;
 
       const parent = this.parentElement;
@@ -913,7 +627,7 @@ export function invokeActiveZooming() {
   }
 
   if (layerIsOn("toggleBurgIcons")) {
-    icons.selectAll<SVGGElement, unknown>("g#burgIcons > g").each(function () {
+    viewContext.icons.selectAll<SVGGElement, unknown>("g#burgIcons > g").each(function () {
       const hidden = isBurgGroupHidden(this.id);
       if (hidden) {
         this.classList.add("hidden");
@@ -930,7 +644,7 @@ export function invokeActiveZooming() {
   }
 
   if (layerIsOn("toggleEmblems")) {
-    emblems.selectAll<SVGGElement, unknown>("g").each(function () {
+    viewContext.emblems.selectAll<SVGGElement, unknown>("g").each(function () {
       // burgEmblems container: reduce font-size at high zoom (COA <use> elements use width/height in em units)
       if (this.id === "burgEmblems") {
         const baseSize = +(this.getAttribute("data-zoom-size") || this.getAttribute("font-size") || 0);
@@ -967,7 +681,7 @@ export function invokeActiveZooming() {
         renderGroupCOAs(worldContext, viewContext, appServices, this);
     });
 
-    emblems.selectAll<SVGGElement, unknown>("g#burgEmblems > g").each(function () {
+    viewContext.emblems.selectAll<SVGGElement, unknown>("g#burgEmblems > g").each(function () {
       const hidden = this.classList.contains("hidden");
       if (!hidden && appServices.COArenderer && this.children.length && !this.children[0].getAttribute("href")) {
         renderGroupCOAs(worldContext, viewContext, appServices, this.parentElement as unknown as SVGGElement);
@@ -982,7 +696,7 @@ export function invokeActiveZooming() {
     const vRight = (viewContext.svgWidth - viewX) / scale + EMBLEM_VIEWPORT_MARGIN;
     const vBottom = (viewContext.svgHeight - viewY) / scale + EMBLEM_VIEWPORT_MARGIN;
 
-    emblems.selectAll<SVGUseElement, unknown>("use").each(function () {
+    viewContext.emblems.selectAll<SVGUseElement, unknown>("use").each(function () {
       const x = +this.getAttribute("x")!;
       const y = +this.getAttribute("y")!;
       if (x > vLeft && x < vRight && y > vTop && y < vBottom) this.classList.remove("hidden");
@@ -1016,12 +730,12 @@ export function invokeActiveZooming() {
   }
 
   if (!viewContext.customization && !isOptimized) {
-    const desired = +statesHalo.attr("data-width");
+    const desired = +viewContext.statesHalo.attr("data-width");
     const haloSize = rn(desired / scale ** 0.8, 2);
-    statesHalo.attr("stroke-width", haloSize).style("display", haloSize > 0.1 ? "block" : "none");
+    viewContext.statesHalo.attr("stroke-width", haloSize).style("display", haloSize > 0.1 ? "block" : "none");
   }
 
-  +markers.attr("rescale") &&
+  +viewContext.markers.attr("rescale") &&
     worldContext.pack.markers?.forEach(marker => {
       const { i, x = 0, y = 0, size = 30, hidden } = marker;
       const el = !hidden ? getElementById<SVGUseElement>(`marker${i}`) : null;
@@ -1036,7 +750,7 @@ export function invokeActiveZooming() {
 
   if (layerIsOn("toggleRulers")) {
     const size = rn((10 / scale ** 0.3) * 2, 2);
-    ruler.selectAll("text").attr("font-size", size);
+    viewContext.ruler.selectAll("text").attr("font-size", size);
   }
 }
 
@@ -1177,7 +891,7 @@ export async function generate(opts?: { seed?: string; graph?: Grid | null }) {
 
     document.dispatchEvent(new CustomEvent("fmg:generate-post-core"));
 
-    drawScaleBar(worldContext, viewContext, appServices, scaleBar, scale);
+    drawScaleBar(worldContext, viewContext, appServices, viewContext.scaleBar, scale);
     Names.getMapName(false);
 
     WARN && console.warn(`TOTAL: ${rn((performance.now() - timeStart) / 1000, 2)}s`);
@@ -1450,7 +1164,7 @@ export function calculateTemperatures() {
 
 export function generatePrecipitation() {
   TIME && console.time("generatePrecipitation");
-  prec.selectAll("*").remove();
+  viewContext.prec.selectAll("*").remove();
   const { cells: gridCells, cellsX, cellsY } = worldContext.grid;
   gridCells.prec = new Uint8Array(gridCells.i.length);
 
@@ -1552,7 +1266,7 @@ export function generatePrecipitation() {
   }
 
   void (function drawWindDirection() {
-    const wind = prec.append("g").attr("id", "wind");
+    const wind = viewContext.prec.append("g").attr("id", "wind");
 
     d3.range(0, 6).forEach((t: number) => {
       if (westerly.length > 1) {
@@ -1773,7 +1487,7 @@ export const regenerateMap = debounce(async (opts?: { seed?: string } | string) 
 }, 250);
 
 export function undraw() {
-  viewbox
+  viewContext.viewbox
     .selectAll("path, circle, polygon, line, text, use, #texture > image, #zones > g, #armies > g, #ruler > g")
     .remove();
   viewContext.defs

@@ -114,7 +114,7 @@ export interface ViewContext
 /**
  * Single mutable container for all SVG layer references and zoom state.
  * Cast as ViewContext immediately — properties are guaranteed to be assigned by
- * main.ts during the synchronous SVG setup phase before any renderer runs.
+ * initViewLayers.createViewLayers() during the synchronous SVG setup phase before any renderer runs.
  */
 export const viewContext = {
   fogging: null,

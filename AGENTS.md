@@ -29,7 +29,19 @@ Editor (src/controllers/)  → Handles UI/User operations, mutates State, trigge
 
 ### Renderer Encapsulation Rule
 
-Direct DOM / SVG manipulation using `d3.select("...").append(...)` or similar methods is **strictly prohibited outside of the `src/renderers/` directory**. Non-Renderer layers (such as `src/controllers/` or `src/editors/`) must delegate all drawing operations to the appropriate Renderer (e.g., `BiomesRenderer.render()`).
+Direct DOM / SVG manipulation using `d3.select("...").append(...)` or similar methods is **strictly prohibited outside of the `src/renderers/` directory**, with one explicit exception: `src/initViewLayers.ts`. Non-Renderer layers (such as `src/controllers/` or `src/editors/`) must delegate all drawing operations to the appropriate Renderer (e.g., `BiomesRenderer.render()`).
+
+### SVG Layer Initialization (`src/initViewLayers.ts`)
+
+`src/initViewLayers.ts` is the single designated location for creating and re-acquiring the host SVG `<g>` layers. It exports three functions:
+
+| Function | When called | What it does |
+| :--- | :--- | :--- |
+| `createViewLayers()` | Once at startup (from `main.ts`) | Creates all `<g>` layers in DOM render order, populates `viewContext` via `Object.assign()` |
+| `populateSizeRects()` | Immediately after `worldContext.graphWidth/Height` are set | Appends the size-dependent background `<rect>` elements to `landmass`, `oceanPattern`, `oceanLayers` |
+| `reinitializeMapLayers()` | On `fmg:reinitialize-map-layers` event (when a saved map SVG is loaded) | Re-selects all layers from the new DOM, updates `viewContext` in-place, dispatches `fmg:map-layers-reinitialized` |
+
+No other file may create or manage host SVG layers. Extension-owned layers are managed exclusively through `api.addLayers()` / `api.removeLayers()` in the extension system.
 
 ## 2. Global State Elimination & Context Isolation
 
@@ -50,7 +62,7 @@ The legacy practice of attaching objects and functions directly to the global `w
 
     Extension-owned SVG layers (e.g. `goods`, `marketsLayer`, `tradeAnimation`) are **not** part of `ViewContext`. They are created dynamically by the extension system via `addLayers()` and tracked inside `buildExtensionAPI()` in `app.ts`. Access them via `api.getSvgLayer(id)`, not via `viewContext`.
 
-    `svgWidth`/`svgHeight` are `Math.min(graphWidth, window.innerWidth/Height)` — they depend on the browser window and change on resize, so they belong here, not in `WorldContext`. D3 rendering utilities (`lineGen`) are likewise view concerns. SVG layer selections are populated by `main.ts` during the synchronous SVG setup phase (via `Object.assign()`) before any renderer runs. Renderers should declare only the group interface(s) they need rather than the full `ViewContext` type. When a renderer needs fields from multiple groups, declare them with an intersection type (e.g., `Readonly<RootLayers & PoliticalLayers>`). **String-based layer lookups via `viewContext.svg.select("#layerName")` are forbidden** when a typed `ViewContext` field exists for that layer — always use the field directly (e.g., `viewContext.statesBody` instead of `viewContext.svg.select("#statesBody")`).
+    `svgWidth`/`svgHeight` are `Math.min(graphWidth, window.innerWidth/Height)` — they depend on the browser window and change on resize, so they belong here, not in `WorldContext`. D3 rendering utilities (`lineGen`) are likewise view concerns. SVG layer selections are populated by `src/initViewLayers.ts` (`createViewLayers()` on startup, `reinitializeMapLayers()` on map load) via `Object.assign()` before any renderer runs. Renderers should declare only the group interface(s) they need rather than the full `ViewContext` type. When a renderer needs fields from multiple groups, declare them with an intersection type (e.g., `Readonly<RootLayers & PoliticalLayers>`). **String-based layer lookups via `viewContext.svg.select("#layerName")` are forbidden** when a typed `ViewContext` field exists for that layer — always use the field directly (e.g., `viewContext.statesBody` instead of `viewContext.svg.select("#statesBody")`).
   - `AppServices` (`src/context/appServices.ts`): Shared utility services — `rng` (pseudo-random number generator), `storage` (IndexedDB wrapper), `COArenderer` (coat-of-arms SVG renderer, nullable).
 - **Object In-place Mutation Constraint**: Never replace `grid` or `pack` object references directly (e.g., `grid = newObject`). Use `Object.assign()` to perform in-place mutations so that shared references across module boundaries remain synchronized.
 
