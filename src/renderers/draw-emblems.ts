@@ -1,6 +1,6 @@
 import { forceCollide, forceSimulation, timeout } from "d3";
 import type { AppServices } from "../context/appServices";
-import type { SettlementLayers } from "../context/viewContext";
+import type { RootLayers, SettlementLayers } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { minmax, rn } from "../utils";
 import { TIME } from "../utils/debug";
@@ -181,6 +181,14 @@ export const EmblemsRenderer: IRenderer = {
   clear(viewContext: Readonly<SettlementLayers>): void {
     viewContext.emblems.selectAll("use").remove();
   }
+};
+
+export const removeBurgCOA = (
+  viewContext: Readonly<Pick<RootLayers, "defs"> & Pick<SettlementLayers, "emblems">>,
+  burgId: number
+): void => {
+  viewContext.defs.select(`#burgCOA${burgId}`).remove();
+  viewContext.emblems.select(`#burgEmblems > use[data-i='${burgId}']`).remove();
 };
 
 const getDataAndType = (worldContext: Readonly<WorldContext>, id: string): [Burg[] | Province[] | State[], string] => {

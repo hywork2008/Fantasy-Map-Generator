@@ -3,6 +3,7 @@ import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { Names } from "../generators/names-generator";
 import { Rivers } from "../generators/river-generator";
+import { removeRivers } from "../renderers/draw-rivers";
 import { dialogStore } from "../store/dialogState";
 import { elSelected, setElSelected } from "../store/editorState";
 import type { River } from "../types/models";
@@ -279,8 +280,7 @@ export const riverEditorActions = {
       confirm: "Remove",
       onConfirm: () => {
         const r = getRiver();
-        if (r) Rivers.remove(r.i);
-        elSelected!.remove();
+        if (r) removeRivers(viewContext, Rivers.remove(r.i));
         closeDialog("riverEditor");
       }
     });

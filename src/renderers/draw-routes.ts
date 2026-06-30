@@ -48,3 +48,7 @@ export const drawRoute = (
   const { routes } = viewContext;
   routes.select(`#${route.group}`).append("path").attr("d", Routes.getPath(route)).attr("id", `route${route.i}`);
 };
+
+export const removeRoute = (viewContext: Readonly<InfrastructureLayers>, routeId: number): void => {
+  viewContext.routes.select(`#route${routeId}`).remove();
+};

@@ -554,14 +554,11 @@ class RiverModule {
     return rn((offset / 1.5) ** 1.8, 2); // mouth width in km
   }
 
-  // remove river and all its tributaries
-  remove(id: number) {
+  // remove river and all its tributaries; returns IDs of removed rivers for SVG cleanup
+  remove(id: number): number[] {
     const { pack, grid } = this.worldContext;
     const cells = pack.cells;
     const riversToRemove = pack.rivers.filter(r => r.i === id || r.parent === id || r.basin === id).map(r => r.i);
-    riversToRemove.forEach(r => {
-      viewContext.rivers.select(`#river${r}`).remove();
-    });
     cells.r.forEach((r, i) => {
       if (!r || !riversToRemove.includes(r)) return;
       cells.r[i] = 0;
@@ -569,6 +566,7 @@ class RiverModule {
       cells.conf[i] = 0;
     });
     pack.rivers = pack.rivers.filter(r => !riversToRemove.includes(r.i));
+    return riversToRemove;
   }
 
   getParent(r: number): number {

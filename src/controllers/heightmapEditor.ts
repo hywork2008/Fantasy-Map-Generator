@@ -30,7 +30,7 @@ import {
   reGraph,
   undraw
 } from "../main";
-import { FeaturesRenderer } from "../renderers";
+import { FeaturesRenderer, removeBurgCOA } from "../renderers";
 import { OceanLayers } from "../renderers/ocean-layers";
 import { ThreeDRenderer } from "../renderers/three-d-renderer";
 import { modules } from "../store/editorState";
@@ -552,7 +552,11 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       b.cell = findBurgCell(b.x!, b.y!);
       b.feature = worldContext.pack.cells.f[b.cell];
       worldContext.pack.cells.burg[b.cell] = b.i!;
-      if (!b.capital && worldContext.pack.cells.h[b.cell] < 20) Burgs.remove(b.i);
+      if (!b.capital && worldContext.pack.cells.h[b.cell] < 20) {
+        const hasCOA = !!b.coa;
+        Burgs.remove(b.i);
+        if (hasCOA) removeBurgCOA(viewContext, b.i!);
+      }
       if (b.capital) worldContext.pack.states[b.state!].center = b.cell;
     }
 

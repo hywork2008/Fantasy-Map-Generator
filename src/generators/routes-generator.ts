@@ -817,7 +817,6 @@ class RoutesModule {
     }
 
     pack.routes = pack.routes.filter(r => r.i !== route.i);
-    viewContext.viewbox.select(`#route${route.i}`).remove();
   }
 
   getConnectivityRate(cellId: number): number {

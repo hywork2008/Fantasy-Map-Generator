@@ -46,3 +46,9 @@ export const RiversRenderer: IRenderer = {
     viewContext.rivers.selectAll("*").remove();
   }
 };
+
+export const removeRivers = (viewContext: Readonly<EnvironmentLayers>, riverIds: number[]): void => {
+  for (const id of riverIds) {
+    viewContext.rivers.select(`#river${id}`).remove();
+  }
+};

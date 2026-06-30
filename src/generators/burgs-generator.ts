@@ -775,8 +775,6 @@ class BurgModule {
     if (noteId !== -1) notes.splice(noteId, 1);
 
     if (burg.coa) {
-      viewContext.defs.select(`#burgCOA${burgId}`).remove();
-      viewContext.emblems.select(`#burgEmblems > use[data-i='${burgId}']`).remove();
       delete burg.coa;
     }
 

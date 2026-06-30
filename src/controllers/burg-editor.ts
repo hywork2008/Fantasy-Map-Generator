@@ -5,7 +5,7 @@ import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { Burgs } from "../generators/burgs-generator";
 import { Names } from "../generators/names-generator";
-import { drawBurgIcon, drawBurgLabel } from "../renderers";
+import { drawBurgIcon, drawBurgLabel, removeBurgCOA } from "../renderers";
 import { COArenderer } from "../renderers/emblem-renderer";
 import { getBurgEditorState } from "../store/burgEditorState";
 import { elSelected, modules, setElSelected } from "../store/editorState";
@@ -402,7 +402,9 @@ export const burgEditorActions = {
         message: "Are you sure you want to remove the burg? <br>This action cannot be reverted",
         confirm: "Remove",
         onConfirm: () => {
+          const hasCOA = !!worldContext.pack.burgs[burgId]?.coa;
           Burgs.remove(burgId);
+          if (hasCOA) removeBurgCOA(viewContext, burgId);
           closeDialog("burgEditor");
         }
       });

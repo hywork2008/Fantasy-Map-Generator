@@ -3,6 +3,7 @@ import { drag, pointer, select } from "d3";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { Routes } from "../generators/routes-generator";
+import { removeRoute } from "../renderers/draw-routes";
 import { dialogStore } from "../store/dialogState";
 import { elSelected, modules, setElSelected } from "../store/editorState";
 import { useOptionsState } from "../store/optionsState";
@@ -465,6 +466,7 @@ export const routesEditorActions = {
           }
 
           Routes.remove(selectedRoute);
+          removeRoute(viewContext, selectedRoute.i);
           drawControlPoints(route.points);
           redrawRoute(route);
           drawRouteCells(route.points);
@@ -509,7 +511,9 @@ export const routesEditorActions = {
       message: "Are you sure you want to remove the route? <br>This action cannot be reverted",
       confirm: "Remove",
       onConfirm: () => {
-        Routes.remove(getRoute());
+        const route = getRoute();
+        Routes.remove(route);
+        removeRoute(viewContext, route.i);
         routesEditorActions.closeRouteEditor();
       }
     });

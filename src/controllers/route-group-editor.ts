@@ -1,6 +1,7 @@
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { Routes } from "../generators/routes-generator";
+import { removeRoute } from "../renderers/draw-routes";
 import { modules } from "../store/editorState";
 import { useRouteGroupsEditorStore } from "../store/routeGroupsEditorStore";
 import { openDialog } from "../ui/dialogs/dialogService";
@@ -77,7 +78,12 @@ export function routeGroupsRemoveGroup(group: string): void {
       "Are you sure you want to remove the entire route group? All routes in this group will be removed.<br>This action can't be reverted",
     confirm: "Remove",
     onConfirm: () => {
-      worldContext.pack.routes.filter(r => r.group === group).forEach(Routes.remove);
+      worldContext.pack.routes
+        .filter(r => r.group === group)
+        .forEach(route => {
+          Routes.remove(route);
+          removeRoute(viewContext, route.i);
+        });
       if (!DEFAULT_ROUTE_GROUPS.includes(group)) viewContext.routes.select(`#${group}`).remove();
       refreshRouteGroups();
     }
