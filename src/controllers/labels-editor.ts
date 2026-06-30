@@ -1,7 +1,7 @@
 import { curveNatural, type D3DragEvent, drag, pointer, select } from "d3";
-import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { Names } from "../generators/names-generator";
+import { viewLayerService as view } from "../services/viewLayerService";
 import { elSelected, setElSelected } from "../store/editorState";
 import { getLabelsEditorState, type LabelEditorSection, setLabelsEditorState } from "../store/labelsEditorState";
 import { closeDialog, openConfirm } from "../ui/dialogs/dialogService";
@@ -15,7 +15,7 @@ import { editNotes } from "./notes-editor";
 import { editStyle } from "./style";
 
 export function editLabel(tspan?: Element): void {
-  if (viewContext.customization) return;
+  if (view.customization) return;
   if (!layerIsOn("toggleLabels")) toggleLabels();
 
   const textPath = tspan?.parentNode as SVGTextPathElement | undefined;
@@ -34,7 +34,7 @@ export function editLabel(tspan?: Element): void {
         .on("drag", (event: D3DragEvent<Element, unknown, unknown>) => {
           const transform = `translate(${_ldx + event.x},${_ldy + event.y})`;
           elSelected!.attr("transform", transform);
-          viewContext.debug.select("#controlPoints").attr("transform", transform);
+          view.debug.select("#controlPoints").attr("transform", transform);
         })
     )
     .classed("draggable", true);
@@ -48,7 +48,7 @@ export function editLabel(tspan?: Element): void {
   const isBasicGroup = group === "states" || group === "burgLabels";
   const groupOptions: string[] = [];
 
-  viewContext.labels.selectAll<SVGGElement, unknown>(":scope > g").each(function (this: SVGGElement) {
+  view.labels.selectAll<SVGGElement, unknown>(":scope > g").each(function (this: SVGGElement) {
     if (this.id === "states" || this.id === "burgLabels") return;
     groupOptions.push(this.id);
   });
@@ -83,10 +83,10 @@ function showEditorTips(this: SVGElement, event: MouseEvent): void {
 }
 
 function drawControlPointsAndLine(): void {
-  viewContext.debug.select("#controlPoints").remove();
-  viewContext.debug.append("g").attr("id", "controlPoints").attr("transform", elSelected!.attr("transform"));
-  const path = viewContext.svg.select<SVGPathElement>(`#textPath_${elSelected!.attr("id")}`).node()!;
-  viewContext.debug
+  view.debug.select("#controlPoints").remove();
+  view.debug.append("g").attr("id", "controlPoints").attr("transform", elSelected!.attr("transform"));
+  const path = view.svg.select<SVGPathElement>(`#textPath_${elSelected!.attr("id")}`).node()!;
+  view.debug
     .select("#controlPoints")
     .append("path")
     .attr("d", path.getAttribute("d"))
@@ -106,7 +106,7 @@ function dragControlPoint(this: SVGCircleElement, event: D3DragEvent<SVGCircleEl
 }
 
 function addControlPoint(pt: SVGPoint): void {
-  viewContext.debug
+  view.debug
     .select("#controlPoints")
     .append("circle")
     .attr("cx", pt.x)
@@ -118,18 +118,18 @@ function addControlPoint(pt: SVGPoint): void {
 }
 
 function redrawLabelPath(): void {
-  const path = viewContext.svg.select<SVGPathElement>(`#textPath_${elSelected!.attr("id")}`).node()!;
-  viewContext.lineGen.curve(curveNatural);
+  const path = view.svg.select<SVGPathElement>(`#textPath_${elSelected!.attr("id")}`).node()!;
+  view.lineGen.curve(curveNatural);
   const points: [number, number][] = [];
-  viewContext.debug
+  view.debug
     .select("#controlPoints")
     .selectAll<SVGCircleElement, unknown>("circle")
     .each(function (this: SVGCircleElement) {
       points.push([+this.getAttribute("cx")!, +this.getAttribute("cy")!]);
     });
-  const d = round(viewContext.lineGen(points) ?? "");
+  const d = round(view.lineGen(points) ?? "");
   path.setAttribute("d", d);
-  viewContext.debug.select("#controlPoints > path").attr("d", d);
+  view.debug.select("#controlPoints > path").attr("d", d);
 }
 
 function clickControlPoint(this: SVGCircleElement): void {
@@ -141,7 +141,7 @@ function addInterimControlPoint(this: SVGPathElement, event: MouseEvent): void {
   const pt = pointer(event, this) as [number, number];
 
   const dists: number[] = [];
-  viewContext.debug
+  view.debug
     .select("#controlPoints")
     .selectAll<SVGCircleElement, unknown>("circle")
     .each(function (this: SVGCircleElement) {
@@ -160,7 +160,7 @@ function addInterimControlPoint(this: SVGPathElement, event: MouseEvent): void {
   }
 
   const before = `:nth-child(${index + 2})`;
-  viewContext.debug
+  view.debug
     .select("#controlPoints")
     .insert("circle", before)
     .attr("cx", pt[0])
@@ -179,7 +179,7 @@ function toggleSection(section: LabelEditorSection): void {
 }
 
 function changeGroup(newGroup: string): void {
-  viewContext.labels.select<SVGGElement>(`#${newGroup}`).node()!.appendChild(elSelected!.node()!);
+  view.labels.select<SVGGElement>(`#${newGroup}`).node()!.appendChild(elSelected!.node()!);
   setLabelsEditorState({ group: newGroup });
 }
 
@@ -203,7 +203,7 @@ function createNewGroup(): void {
     .replace(/ /g, "_")
     .replace(/[^\w\s]/gi, "");
 
-  if (viewContext.labels.select(`#${groupName}`).node()) {
+  if (view.labels.select(`#${groupName}`).node()) {
     tip("Element with this id already exists. Please provide a unique name", false, "error");
     return;
   }
@@ -222,7 +222,7 @@ function createNewGroup(): void {
     groupOptions = groupOptions.filter(g => g !== oldGroup.id).concat(groupName);
   } else {
     const newGroup = elSelected!.node()!.parentNode!.cloneNode(false) as SVGGElement;
-    viewContext.labels.node()!.appendChild(newGroup);
+    view.labels.node()!.appendChild(newGroup);
     newGroup.id = groupName;
     newGroup.appendChild(elSelected!.node()!);
     groupOptions = [...groupOptions, groupName];
@@ -244,14 +244,14 @@ function removeLabelsGroup(): void {
       confirm: "Remove",
       onConfirm: () => {
         closeLabelEditor();
-        viewContext.labels
+        view.labels
           .select(`#${group}`)
           .selectAll<SVGTextElement, unknown>("text")
           .each(function (this: SVGTextElement) {
-            viewContext.defs.select(`#textPath_${this.id}`).remove();
+            view.defs.select(`#textPath_${this.id}`).remove();
             this.remove();
           });
-        if (!isBasicGroup) viewContext.labels.select(`#${group}`).remove();
+        if (!isBasicGroup) view.labels.select(`#${group}`).remove();
       }
     }
   );
@@ -321,7 +321,7 @@ function changeLetterSpacingSize(value: number): void {
 function editLabelAlign(): void {
   const bbox = (elSelected!.node() as SVGGraphicsElement).getBBox();
   const c = [bbox.x + bbox.width / 2, bbox.y + bbox.height / 2];
-  const path = viewContext.defs.select(`#textPath_${elSelected!.attr("id")}`);
+  const path = view.defs.select(`#textPath_${elSelected!.attr("id")}`);
   path.attr("d", `M${c[0] - bbox.width},${c[1]}h${bbox.width * 2}`);
   drawControlPointsAndLine();
 }
@@ -337,7 +337,7 @@ function removeLabel(): void {
     title: "Remove label",
     confirm: "Remove",
     onConfirm: () => {
-      viewContext.defs.select(`#textPath_${elSelected!.attr("id")}`).remove();
+      view.defs.select(`#textPath_${elSelected!.attr("id")}`).remove();
       elSelected!.remove();
       closeLabelEditor();
     }
@@ -345,7 +345,7 @@ function removeLabel(): void {
 }
 
 export function closeLabelEditor(): void {
-  viewContext.debug.select("#controlPoints").remove();
+  view.debug.select("#controlPoints").remove();
   EditorBus.unselect();
   setLabelsEditorState({ isOpen: false });
   closeDialog("labelEditor");

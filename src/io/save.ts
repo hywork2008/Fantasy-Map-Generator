@@ -1,6 +1,6 @@
-import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { Names } from "../generators/names-generator";
+import { viewLayerService as view } from "../services/viewLayerService";
 import { rulers } from "../store/editorState";
 import { useOptionsState } from "../store/optionsState";
 import { closeDialogs, openConfirm } from "../ui/dialogs/dialogService";
@@ -65,7 +65,7 @@ export function prepareMapData(): string {
   ].join("|");
   const notesData = JSON.stringify(worldContext.notes);
   const rulersString = rulers.toString();
-  const fonts = JSON.stringify(getUsedFonts(viewContext.svg.node()!));
+  const fonts = JSON.stringify(getUsedFonts(view.svg.node()!));
 
   // clone SVG and reset transform to defaults
   const cloneEl = document.getElementById("map")!.cloneNode(true) as SVGSVGElement;
@@ -191,7 +191,7 @@ async function saveToDropbox(mapData: string, filename: string): Promise<void> {
 // ─── Main save entry point ────────────────────────────────────────────────────
 
 export async function saveMap(method: string): Promise<void> {
-  if (viewContext.customization)
+  if (view.customization)
     return tip("Map cannot be saved in EDIT mode, please complete the edit and retry", false, "error");
   closeDialogs("#alert");
 
@@ -231,8 +231,7 @@ export async function initiateAutosave(): Promise<void> {
 
     const diffInMinutes = (Date.now() - lastSavedAt) / MINUTE;
     if (diffInMinutes < timeoutMinutes) return;
-    if (viewContext.customization)
-      return tip("Autosave: map cannot be saved in edit mode", false, "warning" as never, 2000);
+    if (view.customization) return tip("Autosave: map cannot be saved in edit mode", false, "warning" as never, 2000);
 
     try {
       tip("Autosave: saving map...", false, "warning" as never, 3000);
@@ -267,7 +266,7 @@ const saveReminder = (() => {
   const interval = 15 * 60 * 1000;
 
   const reminderId = setInterval(() => {
-    if (viewContext.customization) return;
+    if (view.customization) return;
     tip(ra(message), true, "warn" as never, 2500);
   }, interval);
 
@@ -288,7 +287,7 @@ export function toggleSaveReminder(): void {
     saveReminderState.status = 1;
     saveReminderState.reminderId = setInterval(
       () => {
-        if (viewContext.customization) return;
+        if (view.customization) return;
         tip(ra(["Please remember to save the map to your desktop"]), true, "warn" as never, 2500);
       },
       15 * 60 * 1000

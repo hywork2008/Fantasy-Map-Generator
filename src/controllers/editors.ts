@@ -1,7 +1,7 @@
 import * as d3 from "d3";
 import { zoomTo } from "../actions";
-import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
+import { viewLayerService as view } from "../services/viewLayerService";
 import { elSelected, setElSelected } from "../store/editorState";
 
 import { closeDialogs, openDialog } from "../ui/dialogs/dialogService";
@@ -33,8 +33,8 @@ function makePanDrag(filter?: (ev: Event) => boolean): d3.DragBehavior<SVGGEleme
       bh = bbox.height;
     })
     .on("drag", function (this: SVGGElement, event: d3.D3DragEvent<SVGGElement, unknown, unknown>) {
-      const px = rn(((ox + event.x + bw) / viewContext.svgWidth) * 100, 2);
-      const py = rn(((oy + event.y + bh) / viewContext.svgHeight) * 100, 2);
+      const px = rn(((ox + event.x + bw) / view.svgWidth) * 100, 2);
+      const py = rn(((oy + event.y + bh) / view.svgHeight) * 100, 2);
       d3.select(this)
         .attr("transform", `translate(${ox + event.x},${oy + event.y})`)
         .attr("data-x", px)
@@ -45,17 +45,17 @@ function makePanDrag(filter?: (ev: Event) => boolean): d3.DragBehavior<SVGGEleme
 }
 
 export function restoreDefaultEvents(): void {
-  viewContext.svg.call(viewContext.zoom);
-  viewContext.viewbox.style("cursor", "default").on(".drag", null);
+  view.svg.call(view.zoom);
+  view.viewbox.style("cursor", "default").on(".drag", null);
   interactionManager.init(
-    viewContext.viewbox.node() as Element,
+    view.viewbox.node() as Element,
     clicked as (event: MouseEvent) => void,
     onMouseMove as (event: MouseEvent) => void
   );
   interactionManager.resetClickHandler();
   interactionManager.resetMouseMoveHandler();
-  viewContext.legend.call(makePanDrag());
-  viewContext.svg.call(viewContext.zoom);
+  view.legend.call(makePanDrag());
+  view.svg.call(view.zoom);
 }
 
 function clicked(this: Element, event: MouseEvent): void {
@@ -87,8 +87,8 @@ export function unselect(): void {
   EditorBus.restoreDefaultEvents();
   if (!elSelected) return;
   elSelected!.call(d3.drag<Element, unknown>().on("drag", null)).attr("class", null);
-  viewContext.debug.selectAll("*").remove();
-  viewContext.viewbox.style("cursor", "default");
+  view.debug.selectAll("*").remove();
+  view.viewbox.style("cursor", "default");
   setElSelected(null);
 }
 
@@ -100,7 +100,7 @@ export { closeDialogs };
 export function moveCircle(x: number, y: number, r = 20): void {
   const circle = getElementById("brushCircle");
   if (!circle) {
-    viewContext.debug
+    view.debug
       .node()!
       .insertAdjacentHTML("afterBegin" as InsertPosition, `<circle id="brushCircle" cx=${x} cy=${y} r=${r}></circle>`);
   } else {
@@ -133,11 +133,11 @@ export { removeCircle } from "../utils/uiHelpers";
 // ─── Legend ────────────────────────────────────────────────────────────────
 
 export function drawLegend(name: string, data: Array<[string | number, string, string]>): void {
-  viewContext.legend.selectAll("*").remove();
-  viewContext.legend.attr("data", data.join("|"));
+  view.legend.selectAll("*").remove();
+  view.legend.attr("data", data.join("|"));
 
   const itemsInCol = +getRequiredInputElement("styleLegendColItems").value;
-  const fontSize = +viewContext.legend.attr("font-size");
+  const fontSize = +view.legend.attr("font-size");
   const backClr = getRequiredInputElement("styleLegendBack").value;
   const opacity = +getRequiredInputElement("styleLegendOpacity").value;
 
@@ -146,17 +146,17 @@ export function drawLegend(name: string, data: Array<[string | number, string, s
   const colOffset = fontSize;
   const vOffset = fontSize / 2;
 
-  const boxes = viewContext.legend
+  const boxes = view.legend
     .append("g")
     .attr("stroke-width", 0.5)
     .attr("stroke", "#111111")
     .attr("stroke-dasharray", "none");
-  const labels = viewContext.legend.append("g").attr("fill", "#000000").attr("stroke", "none");
+  const labels = view.legend.append("g").attr("fill", "#000000").attr("stroke", "none");
 
   const columns = Math.ceil(data.length / itemsInCol);
   for (let column = 0, i = 0; column < columns; column++) {
     const linesInColumn = Math.ceil(data.length / columns);
-    const offset = column ? colOffset * 2 + (viewContext.legend.node() as SVGGElement).getBBox().width : colOffset;
+    const offset = column ? colOffset * 2 + (view.legend.node() as SVGGElement).getBBox().width : colOffset;
 
     for (let l = 0; l < linesInColumn && data[i]; l++, i++) {
       boxes
@@ -176,7 +176,7 @@ export function drawLegend(name: string, data: Array<[string | number, string, s
     }
   }
 
-  const labelOffset = colOffset + (viewContext.legend.node() as SVGGElement).getBBox().width / 2;
+  const labelOffset = colOffset + (view.legend.node() as SVGGElement).getBBox().width / 2;
   labels
     .append("text")
     .attr("text-rendering", "optimizeSpeed")
@@ -188,11 +188,11 @@ export function drawLegend(name: string, data: Array<[string | number, string, s
     .attr("x", labelOffset)
     .attr("y", fontSize * 1.1 + vOffset / 2);
 
-  const bbox = (viewContext.legend.node() as SVGGElement).getBBox();
+  const bbox = (view.legend.node() as SVGGElement).getBBox();
   const width = bbox.width + colOffset * 2;
   const height = bbox.height + colOffset / 2 + vOffset;
 
-  viewContext.legend
+  view.legend
     .insert("rect", ":first-child")
     .attr("id", "legendBox")
     .attr("x", 0)
@@ -206,19 +206,19 @@ export function drawLegend(name: string, data: Array<[string | number, string, s
 }
 
 export function fitLegendBox(): void {
-  if (!viewContext.legend.selectAll("*").size()) return;
-  const px = Number.isNaN(+viewContext.legend.attr("data-x")) ? 99 : +viewContext.legend.attr("data-x") / 100;
-  const py = Number.isNaN(+viewContext.legend.attr("data-y")) ? 93 : +viewContext.legend.attr("data-y") / 100;
-  const bbox = (viewContext.legend.node() as SVGGElement).getBBox();
-  const x = rn(viewContext.svgWidth * px - bbox.width);
-  const y = rn(viewContext.svgHeight * py - bbox.height);
-  viewContext.legend.attr("transform", `translate(${x},${y})`);
+  if (!view.legend.selectAll("*").size()) return;
+  const px = Number.isNaN(+view.legend.attr("data-x")) ? 99 : +view.legend.attr("data-x") / 100;
+  const py = Number.isNaN(+view.legend.attr("data-y")) ? 93 : +view.legend.attr("data-y") / 100;
+  const bbox = (view.legend.node() as SVGGElement).getBBox();
+  const x = rn(view.svgWidth * px - bbox.width);
+  const y = rn(view.svgHeight * py - bbox.height);
+  view.legend.attr("transform", `translate(${x},${y})`);
 }
 
 export function redrawLegend(): void {
-  if (viewContext.legend.select("rect").size()) {
-    const name = viewContext.legend.select("#legendLabel").text();
-    const data = viewContext.legend
+  if (view.legend.select("rect").size()) {
+    const name = view.legend.select("#legendLabel").text();
+    const data = view.legend
       .attr("data")
       .split("|")
       .map((l: string) => l.split(",") as [string, string, string]);
@@ -227,8 +227,8 @@ export function redrawLegend(): void {
 }
 
 export function clearLegend(): void {
-  viewContext.legend.selectAll("*").remove();
-  viewContext.legend.attr("data", null);
+  view.legend.selectAll("*").remove();
+  view.legend.attr("data", null);
 }
 
 // ─── Color picker ─────────────────────────────────────────────────────────
@@ -244,7 +244,7 @@ function getPickerContainerSelection(): d3.Selection<SVGSVGElement, unknown, nul
 }
 
 function getHatchingPatternsSelection(): d3.Selection<SVGPatternElement, unknown, SVGGElement, unknown> {
-  return viewContext.defs.select<SVGGElement>("#defs-hatching").selectAll<SVGPatternElement, unknown>("pattern");
+  return view.defs.select<SVGGElement>("#defs-hatching").selectAll<SVGPatternElement, unknown>("pattern");
 }
 
 function getPickerColorRectsSelection(): d3.Selection<SVGRectElement, unknown, SVGGElement, unknown> | null {
@@ -444,7 +444,7 @@ function createPicker(): void {
     .attr("height", 30)
     .attr("id", "pickerHeader")
     .on("mousemove", pos);
-  picker.attr("transform", `translate(${(viewContext.svgWidth - width) / 2},${(viewContext.svgHeight - height) / 2})`);
+  picker.attr("transform", `translate(${(view.svgWidth - width) / 2},${(view.svgHeight - height) / 2})`);
 }
 
 function updateSelectedRect(fill: string): void {
@@ -594,10 +594,10 @@ function changePickerSpace(this: HTMLInputElement): void {
 // ─── Fogging ───────────────────────────────────────────────────────────────
 
 export function fog(id: string, path: string): void {
-  if (viewContext.defs.select(`#fog #${id}`).size()) return;
+  if (view.defs.select(`#fog #${id}`).size()) return;
   const fadeIn = d3.transition().duration(2000).ease(d3.easeSinInOut);
-  if (viewContext.defs.select("#fog path").size()) {
-    viewContext.defs
+  if (view.defs.select("#fog path").size()) {
+    view.defs
       .select("#fog")
       .append("path")
       .attr("d", path)
@@ -606,19 +606,17 @@ export function fog(id: string, path: string): void {
       .transition(fadeIn)
       .attr("opacity", 1);
   } else {
-    viewContext.defs.select("#fog").append("path").attr("d", path).attr("id", id).attr("opacity", 1);
-    const opacity = viewContext.fogging!.attr("opacity");
-    viewContext.fogging!.style("display", "block").attr("opacity", 0).transition(fadeIn).attr("opacity", opacity);
+    view.defs.select("#fog").append("path").attr("d", path).attr("id", id).attr("opacity", 1);
+    const opacity = view.fogging!.attr("opacity");
+    view.fogging!.style("display", "block").attr("opacity", 0).transition(fadeIn).attr("opacity", opacity);
   }
 }
 
 export function unfog(id?: string): void {
-  let el = id
-    ? viewContext.defs.select(`#fog #${id}`)
-    : (viewContext.defs.select(null) as ReturnType<typeof viewContext.defs.select>);
-  if (!id || !el.size()) el = viewContext.defs.select("#fog").selectAll("path") as typeof el;
+  let el = id ? view.defs.select(`#fog #${id}`) : (view.defs.select(null) as ReturnType<typeof view.defs.select>);
+  if (!id || !el.size()) el = view.defs.select("#fog").selectAll("path") as typeof el;
   el.remove();
-  if (!viewContext.defs.selectAll("#fog path").size()) viewContext.fogging!.style("display", "none");
+  if (!view.defs.selectAll("#fog path").size()) view.fogging!.style("display", "none");
 }
 
 // getFileName, downloadFile, uploadFile are re-exported from ../utils/editorHelpers
@@ -633,13 +631,13 @@ function getBBox(element: SVGRectElement): { x: number; y: number; width: number
 }
 
 export function highlightElement(element: Element, zoom?: number): void {
-  if (viewContext.debug.select(".highlighted").size()) return;
+  if (view.debug.select(".highlighted").size()) return;
   const box =
     element.tagName === "svg" ? getBBox(element as SVGRectElement) : (element as SVGGraphicsElement).getBBox();
   const transform = element.getAttribute("transform") ?? null;
   const enter = d3.transition().duration(1000).ease(d3.easeBounceOut);
 
-  const highlight = viewContext.debug
+  const highlight = view.debug
     .append("rect")
     .attr("x", box.x)
     .attr("y", box.y)
@@ -662,7 +660,7 @@ export function highlightElement(element: Element, zoom?: number): void {
     if (tr[0]) x += +tr[0];
     let y = box.y + box.height / 2;
     if (tr[1]) y += +tr[1];
-    zoomTo(x, y, viewContext.scale > 2 ? viewContext.scale : zoom, 1600);
+    zoomTo(x, y, view.scale > 2 ? view.scale : zoom, 1600);
   }
 }
 
@@ -947,22 +945,22 @@ export function refreshAllEditors(): void {
 // ─── Dynamic editor launchers ─────────────────────────────────────────────
 
 export function editStates(): void {
-  if (viewContext.customization) return;
+  if (view.customization) return;
   StatesEditor.open();
 }
 
 export function editCultures(): void {
-  if (viewContext.customization) return;
+  if (view.customization) return;
   CulturesEditor.open();
 }
 
 export function editReligions(): void {
-  if (viewContext.customization) return;
+  if (view.customization) return;
   ReligionsEditor.open();
 }
 
 export function editCoastlineSettings(): void {
-  if (viewContext.customization) return;
+  if (view.customization) return;
   CoastlineEditor.coastlineEditor.open();
 }
 

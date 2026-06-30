@@ -2,13 +2,13 @@ import type * as d3 from "d3";
 import { appServices } from "../context/appServices";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
-
 import { Biomes } from "../generators/biomes";
 import { Burgs } from "../generators/burgs-generator";
 import { Features } from "../generators/features";
 import { Routes } from "../generators/routes-generator";
 import { GridRenderer } from "../renderers";
 import { declareFont, fonts } from "../services/fonts";
+import { viewLayerService as view } from "../services/viewLayerService";
 import { rulers } from "../store/editorState";
 import { useLayerState } from "../store/layerState";
 import { loadErrorDialogStore } from "../store/loadErrorDialogState";
@@ -252,7 +252,7 @@ function showUploadMessage(type: string, mapData: string[] | null, mapVersion: s
 export async function parseLoadedData(data: string[], mapVersion: string): Promise<void> {
   try {
     closeDialogs?.();
-    viewContext.customization = 0;
+    view.setCustomization(0);
     document.dispatchEvent(new CustomEvent("react-exit-heightmap-edit"));
     document.dispatchEvent(new CustomEvent("react-hide-exit-customization"));
 
@@ -323,7 +323,7 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
       .getState()
       .setOption(
         "shapeRendering",
-        (viewContext.viewbox.attr("shape-rendering") || "optimizeSpeed") as
+        (view.viewbox.attr("shape-rendering") || "optimizeSpeed") as
           | "crispEdges"
           | "optimizeSpeed"
           | "geometricPrecision"
@@ -357,21 +357,21 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
         worldContext.biomesData.cost.push(50);
       }
     }
-    viewContext.svg.remove();
+    view.svg.remove();
     document.body.insertAdjacentHTML("afterbegin", data[5]);
     document.dispatchEvent(new CustomEvent("fmg:reinitialize-map-layers"));
 
-    if (!viewContext.texture.size()) {
-      viewContext.texture = viewContext.viewbox
+    if (!view.texture.size()) {
+      viewContext.texture = view.viewbox
         .insert("g", "#landmass")
         .attr("id", "texture")
-        .attr("data-href", "./images/textures/plaster.jpg") as typeof viewContext.texture;
+        .attr("data-href", "./images/textures/plaster.jpg") as typeof view.texture;
     }
-    if (!viewContext.emblems.size()) {
-      viewContext.emblems = viewContext.viewbox
+    if (!view.emblems.size()) {
+      viewContext.emblems = view.viewbox
         .insert("g", "#labels")
         .attr("id", "emblems")
-        .style("display", "none") as typeof viewContext.emblems;
+        .style("display", "none") as typeof view.emblems;
     }
 
     {
@@ -460,43 +460,43 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
         nextActiveLayers[el] = true;
       };
 
-      if (hasChild(viewContext.texture, "image")) turnOn("toggleTexture");
-      if (hasChildren(viewContext.terrs.select("#landHeights"))) turnOn("toggleHeight");
-      if (isVisible(viewContext.lakes)) turnOn("toggleLakes");
-      if (hasChildren(viewContext.biomes)) turnOn("toggleBiomes");
-      if (hasChildren(viewContext.cells)) turnOn("toggleCells");
-      if (hasChildren(viewContext.gridOverlay)) turnOn("toggleGrid");
-      if (hasChildren(viewContext.coordinates)) turnOn("toggleCoordinates");
-      if (isVisible(viewContext.compass) && hasChild(viewContext.compass, "use")) turnOn("toggleCompass");
-      if (hasChildren(viewContext.rivers)) turnOn("toggleRivers");
-      if (isVisible(viewContext.terrain) && hasChildren(viewContext.terrain)) turnOn("toggleRelief");
-      if (hasChildren(viewContext.relig)) turnOn("toggleReligions");
-      if (hasChildren(viewContext.cults)) turnOn("toggleCultures");
-      if (hasChildren(viewContext.statesBody)) turnOn("toggleStates");
-      if (hasChildren(viewContext.provs)) turnOn("toggleProvinces");
-      if (hasChildren(viewContext.zones) && isVisible(viewContext.zones)) turnOn("toggleZones");
-      if (isVisible(viewContext.borders) && hasChild(viewContext.borders, "path")) turnOn("toggleBorders");
-      if (isVisible(viewContext.routes) && hasChild(viewContext.routes, "path")) turnOn("toggleRoutes");
-      if (hasChildren(viewContext.temperature)) turnOn("toggleTemperature");
-      if (hasChild(viewContext.population, "line")) turnOn("togglePopulation");
-      if (hasChildren(viewContext.ice)) turnOn("toggleIce");
-      if (hasChild(viewContext.prec, "circle")) turnOn("togglePrecipitation");
-      if (isVisible(viewContext.emblems) && hasChild(viewContext.emblems, "use")) turnOn("toggleEmblems");
-      if (hasChild(viewContext.labels, "text")) turnOn("toggleLabels");
-      if (hasChild(viewContext.icons, "use, circle")) turnOn("toggleBurgIcons");
-      if (hasChildren(viewContext.armies) && isVisible(viewContext.armies)) turnOn("toggleMilitary");
-      if (hasChild(viewContext.markers, "svg")) turnOn("toggleMarkers");
-      if (isVisible(viewContext.ruler)) turnOn("toggleRulers");
-      if (isVisible(viewContext.scaleBar)) turnOn("toggleScaleBar");
+      if (hasChild(view.texture, "image")) turnOn("toggleTexture");
+      if (hasChildren(view.terrs.select("#landHeights"))) turnOn("toggleHeight");
+      if (isVisible(view.lakes)) turnOn("toggleLakes");
+      if (hasChildren(view.biomes)) turnOn("toggleBiomes");
+      if (hasChildren(view.cells)) turnOn("toggleCells");
+      if (hasChildren(view.gridOverlay)) turnOn("toggleGrid");
+      if (hasChildren(view.coordinates)) turnOn("toggleCoordinates");
+      if (isVisible(view.compass) && hasChild(view.compass, "use")) turnOn("toggleCompass");
+      if (hasChildren(view.rivers)) turnOn("toggleRivers");
+      if (isVisible(view.terrain) && hasChildren(view.terrain)) turnOn("toggleRelief");
+      if (hasChildren(view.relig)) turnOn("toggleReligions");
+      if (hasChildren(view.cults)) turnOn("toggleCultures");
+      if (hasChildren(view.statesBody)) turnOn("toggleStates");
+      if (hasChildren(view.provs)) turnOn("toggleProvinces");
+      if (hasChildren(view.zones) && isVisible(view.zones)) turnOn("toggleZones");
+      if (isVisible(view.borders) && hasChild(view.borders, "path")) turnOn("toggleBorders");
+      if (isVisible(view.routes) && hasChild(view.routes, "path")) turnOn("toggleRoutes");
+      if (hasChildren(view.temperature)) turnOn("toggleTemperature");
+      if (hasChild(view.population, "line")) turnOn("togglePopulation");
+      if (hasChildren(view.ice)) turnOn("toggleIce");
+      if (hasChild(view.prec, "circle")) turnOn("togglePrecipitation");
+      if (isVisible(view.emblems) && hasChild(view.emblems, "use")) turnOn("toggleEmblems");
+      if (hasChild(view.labels, "text")) turnOn("toggleLabels");
+      if (hasChild(view.icons, "use, circle")) turnOn("toggleBurgIcons");
+      if (hasChildren(view.armies) && isVisible(view.armies)) turnOn("toggleMilitary");
+      if (hasChild(view.markers, "svg")) turnOn("toggleMarkers");
+      if (isVisible(view.ruler)) turnOn("toggleRulers");
+      if (isVisible(view.scaleBar)) turnOn("toggleScaleBar");
       if (isVisibleNode(document.getElementById("vignette") as HTMLElement)) turnOn("toggleVignette");
 
       useLayerState.getState().setAllActiveLayers(nextActiveLayers);
       document.dispatchEvent(new CustomEvent("fmg:get-current-preset"));
     }
-    viewContext.scaleBar
+    view.scaleBar
       .on("mousemove", () => tip("Click to open Units Editor"))
       .on("click", () => document.dispatchEvent(new CustomEvent("fmg:edit-units")));
-    viewContext.legend
+    view.legend
       .on("mousemove", () => tip("Drag to change the position. Click to hide the legend"))
       .on("click", () => document.dispatchEvent(new CustomEvent("fmg:clear-legend")));
 
@@ -514,7 +514,7 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
     }
 
     {
-      const textureHref = viewContext.texture.attr("data-href");
+      const textureHref = view.texture.attr("data-href");
       if (textureHref)
         document.dispatchEvent(new CustomEvent("fmg:update-texture-select-value", { detail: textureHref }));
     }
@@ -671,7 +671,7 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
         invalidCells.forEach(i => {
           pCells.r[i] = 0;
         });
-        viewContext.rivers.select(`river${r}`).remove();
+        view.rivers.select(`river${r}`).remove();
         ERROR && console.error("[Data integrity] Invalid river", r, "is assigned to cells", invalidCells);
       });
 
@@ -833,7 +833,7 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
         worldContext.pack.markers.sort((a: { i: number }, b: { i: number }) => a.i - b.i);
       }
     }
-    viewContext.emblems.selectAll("use").attr("href", null);
+    view.emblems.selectAll("use").attr("href", null);
     if (rulers && layerIsOn("toggleRulers")) rulers.draw();
     if (layerIsOn("toggleGrid")) GridRenderer.render(worldContext, viewContext, appServices);
     document.dispatchEvent(new CustomEvent("fmg:restore-default-events"));

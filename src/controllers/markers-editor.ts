@@ -1,9 +1,11 @@
 import { type D3DragEvent, drag, type Selection, select } from "d3";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
+import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { Markers } from "../generators/markers-generator";
 import { getPin } from "../renderers/index";
+import { viewLayerService as view } from "../services/viewLayerService";
 import { setElSelected } from "../store/editorState";
 import { getMarkersEditorState, setMarkersEditorState } from "../store/markersEditorState";
 import { useMarkersOverviewState } from "../store/markersOverviewState";
@@ -17,14 +19,13 @@ import { clearMainTip } from "../utils/uiHelpers";
 import { editNotes } from "./notes-editor";
 
 let worldContext: WorldContext;
-let viewContext: ViewContext;
 let appServices: AppServices;
 
 let _mdx = 0;
 let _mdy = 0;
 
 export function editMarker(markerI?: number): void {
-  if (viewContext.customization) return;
+  if (view.customization) return;
   closeDialogs(".stable");
 
   const result = getElement(markerI!);
@@ -56,7 +57,7 @@ export function editMarker(markerI?: number): void {
 }
 
 function getElement(idx: number): { element: SVGElement; marker: Marker } | null {
-  const el = viewContext.markers.select<SVGElement>(`#marker${idx}`).node();
+  const el = view.markers.select<SVGElement>(`#marker${idx}`).node();
   const m = worldContext.pack.markers.find(({ i }) => i === idx);
   if (!el || !m) return null;
   return { element: el, marker: m };
@@ -93,7 +94,7 @@ function dragMarkerEnd(this: Element, event: D3DragEvent<Element, unknown, unkno
   this.setAttribute("x", String(rn(_mdx + x, 2)));
   this.setAttribute("y", String(rn(_mdy + y, 2)));
   const size = marker.size || 30;
-  const zoomSize = Math.max(rn(size / 5 + 24 / viewContext.scale, 2), 1);
+  const zoomSize = Math.max(rn(size / 5 + 24 / view.scale, 2), 1);
   marker.x = rn(x + _mdx + zoomSize / 2, 1);
   marker.y = rn(y + _mdy + zoomSize, 1);
   marker.cell = findCell(marker.x, marker.y);
@@ -145,15 +146,15 @@ function changeIconShiftY(dy: number): void {
 
 function changeMarkerSize(size: number): void {
   setMarkersEditorState({ size });
-  const rescale = +(viewContext.markers as Selection<SVGGElement, unknown, null, undefined>).attr("rescale");
+  const rescale = +(view.markers as Selection<SVGGElement, unknown, null, undefined>).attr("rescale");
 
   getSameTypeMarkers().forEach(m => {
     m.size = size;
     const { i, x, y, hidden } = m;
-    const el = !hidden ? viewContext.markers.select<SVGElement>(`#marker${i}`).node() : null;
+    const el = !hidden ? view.markers.select<SVGElement>(`#marker${i}`).node() : null;
     if (!el) return;
 
-    const zoomedSize = rescale ? Math.max(rn(size / 5 + 24 / viewContext.scale, 2), 1) : size;
+    const zoomedSize = rescale ? Math.max(rn(size / 5 + 24 / view.scale, 2), 1) : size;
     el.setAttribute("width", String(zoomedSize));
     el.setAttribute("height", String(zoomedSize));
     el.setAttribute("x", String(rn((x ?? 0) - zoomedSize / 2, 1)));
@@ -188,7 +189,7 @@ function changePinStroke(stroke: string): void {
 function redrawIcon({ i, hidden, icon, dx = 50, dy = 50, px = 12 }: Marker): void {
   const isExternal = icon.startsWith("http") || icon.startsWith("data:image");
 
-  const iconText = !hidden ? viewContext.markers.select<SVGTextElement>(`#marker${i} > text`).node() : null;
+  const iconText = !hidden ? view.markers.select<SVGTextElement>(`#marker${i} > text`).node() : null;
   if (iconText) {
     iconText.textContent = isExternal ? "" : icon;
     iconText.setAttribute("x", `${dx}%`);
@@ -196,7 +197,7 @@ function redrawIcon({ i, hidden, icon, dx = 50, dy = 50, px = 12 }: Marker): voi
     iconText.setAttribute("font-size", `${px}px`);
   }
 
-  const iconImage = !hidden ? viewContext.markers.select<SVGImageElement>(`#marker${i} > image`).node() : null;
+  const iconImage = !hidden ? view.markers.select<SVGImageElement>(`#marker${i} > image`).node() : null;
   if (iconImage) {
     iconImage.setAttribute("x", `${dx / 2}%`);
     iconImage.setAttribute("y", `${dy / 2}%`);
@@ -207,7 +208,7 @@ function redrawIcon({ i, hidden, icon, dx = 50, dy = 50, px = 12 }: Marker): voi
 }
 
 function redrawPin({ i, hidden, pin = "bubble", fill = "#fff", stroke = "#000" }: Marker): void {
-  const pinGroup = !hidden ? viewContext.markers.select<SVGGElement>(`#marker${i} > g`).node() : null;
+  const pinGroup = !hidden ? view.markers.select<SVGGElement>(`#marker${i} > g`).node() : null;
   /* ignore-legacy-dom */ if (pinGroup) {
     pinGroup.replaceChildren();
     pinGroup.insertAdjacentHTML("beforeend", getPin(worldContext, viewContext, appServices, pin, fill, stroke));
@@ -249,7 +250,7 @@ function deleteMarker(): void {
   const { selectedId } = getMarkersEditorState();
   if (selectedId === null) return;
   Markers.deleteMarker(selectedId);
-  viewContext.markers.select<Element>(`#marker${selectedId}`).node()?.remove();
+  view.markers.select<Element>(`#marker${selectedId}`).node()?.remove();
   closeMarkerEditor();
   useMarkersOverviewState.getState().refresh();
 }
@@ -278,8 +279,7 @@ export const markersEditorActions = {
   confirmMarkerDeletion
 };
 
-export function initMarkersEditor(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {
+export function initMarkersEditor(wc: WorldContext, _vc: Readonly<ViewContext>, as: AppServices) {
   worldContext = wc;
-  viewContext = vc;
   appServices = as;
 }

@@ -2,6 +2,7 @@ import * as d3 from "d3";
 import { getWorldState, zoomTo } from "../actions";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
+import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { Burgs } from "../generators/burgs-generator";
 import { COA } from "../generators/emblem/generator";
@@ -22,6 +23,7 @@ import {
 } from "../renderers";
 import type { Emblem as RendererEmblem } from "../renderers/emblem-renderer";
 import { COArenderer } from "../renderers/emblem-renderer";
+import { viewLayerService as view } from "../services/viewLayerService";
 import { getStatesEditorState, setStatesEditorState } from "../store/statesEditorState";
 import type { Burg, Culture, MilitaryRegiment, Province, State } from "../types/models";
 import type { WorldNote } from "../types/WorldState";
@@ -40,7 +42,6 @@ import { toggleBiomes, toggleBorders, toggleCultures, toggleProvinces, toggleRel
 import { editStyle } from "./style";
 
 let worldContext: WorldContext;
-let viewContext: ViewContext;
 let appServices: AppServices;
 
 const statesManualHistory = new BrushHistory();
@@ -192,9 +193,9 @@ export function refreshStatesEditor(): void {
 export const statesEditorActions = {
   closeStatesEditor(): void {
     setStatesEditorState({ isOpen: false });
-    if (viewContext.customization === 2) exitStatesManualAssignment(true);
-    if (viewContext.customization === 3) exitAddStateMode();
-    viewContext.debug.selectAll(".highlight").remove();
+    if (view.customization === 2) exitStatesManualAssignment(true);
+    if (view.customization === 3) exitAddStateMode();
+    view.debug.selectAll(".highlight").remove();
   },
 
   refresh(): void {
@@ -206,7 +207,7 @@ export const statesEditorActions = {
   },
 
   toggleLegend(): void {
-    if (viewContext.legend.selectAll("*").size()) {
+    if (view.legend.selectAll("*").size()) {
       EditorBus.clearLegend();
       return;
     }
@@ -286,10 +287,10 @@ export const statesEditorActions = {
     if (st.customizationMode === 2) {
       exitAddStateMode();
     } else {
-      viewContext.customization = 3;
+      view.setCustomization(3);
       setStatesEditorState({ customizationMode: 2 });
       tip("Click on the map to create a new capital or promote an existing burg", true);
-      viewContext.viewbox.style("cursor", "crosshair");
+      view.viewbox.style("cursor", "crosshair");
       interactionManager.setClickHandler(addState);
     }
   },
@@ -356,15 +357,15 @@ export const statesEditorActions = {
     const currentFill = worldContext.pack.states[stateId].color;
     const callback = (newFill: string) => {
       worldContext.pack.states[stateId].color = newFill;
-      viewContext.statesBody.select(`#state${stateId}`).attr("fill", newFill);
-      viewContext.statesBody.select(`#state-gap${stateId}`).attr("stroke", newFill);
+      view.statesBody.select(`#state${stateId}`).attr("fill", newFill);
+      view.statesBody.select(`#state-gap${stateId}`).attr("stroke", newFill);
       const halo = d3.color(newFill)?.darker()?.formatHex() ?? "#666666";
-      viewContext.statesHalo.select(`#state-border${stateId}`).attr("stroke", halo);
+      view.statesHalo.select(`#state-border${stateId}`).attr("stroke", halo);
 
       const solidColor = newFill[0] === "#" ? newFill : "#999";
       const darkerColor = d3.color(solidColor)!.darker().formatHex();
-      viewContext.armies.select(`#army${stateId}`).attr("fill", solidColor);
-      viewContext.armies.select(`#army${stateId}`).selectAll("g > rect:nth-of-type(2)").attr("fill", darkerColor);
+      view.armies.select(`#army${stateId}`).attr("fill", solidColor);
+      view.armies.select(`#army${stateId}`).selectAll("g > rect:nth-of-type(2)").attr("fill", darkerColor);
       refreshStatesEditor();
     };
     window.openPicker(currentFill ?? "", callback);
@@ -421,7 +422,7 @@ export const statesEditorActions = {
   },
 
   removeState(stateId: number): void {
-    if (viewContext.customization) return;
+    if (view.customization) return;
     stateRemovePrompt(stateId);
   },
 
@@ -488,10 +489,10 @@ export const statesEditorActions = {
 };
 
 export function stateHighlightById(stateId: number): void {
-  const d = viewContext.regions.select(`#state${stateId}`).attr("d");
+  const d = view.regions.select(`#state${stateId}`).attr("d");
   if (!d) return;
 
-  const path = viewContext.debug
+  const path = view.debug
     .append("path")
     .attr("class", "highlight")
     .attr("d", d)
@@ -511,7 +512,7 @@ export function stateHighlightById(stateId: number): void {
 }
 
 export function stateHighlightOff(): void {
-  viewContext.debug.selectAll<SVGElement, unknown>(".highlight").each(function () {
+  view.debug.selectAll<SVGElement, unknown>(".highlight").each(function () {
     d3.select(this).transition().duration(1000).attr("opacity", 0).remove();
   });
 }
@@ -589,14 +590,14 @@ function changePopulation(stateId: number): void {
 
 function stateCapitalZoomIn(state: number): void {
   const capital = (worldContext.pack.states[state] as State).capital;
-  const l = viewContext.burgLabels.select(`[data-id='${capital}']`);
+  const l = view.burgLabels.select(`[data-id='${capital}']`);
   const x = +l.attr("x");
   const y = +l.attr("y");
   zoomTo(x, y, 8, 2000);
 }
 
 function stateRemovePrompt(state: number): void {
-  if (viewContext.customization) return;
+  if (view.customization) return;
 
   confirmationDialog({
     title: "Remove state",
@@ -607,11 +608,11 @@ function stateRemovePrompt(state: number): void {
 }
 
 function stateRemove(stateId: number): void {
-  viewContext.statesBody.select(`#state${stateId}`).remove();
-  viewContext.statesBody.select(`#state-gap${stateId}`).remove();
-  viewContext.statesHalo.select(`#state-border${stateId}`).remove();
-  viewContext.labels.select(`#stateLabel${stateId}`).remove();
-  viewContext.defs.select(`#textPath_stateLabel${stateId}`).remove();
+  view.statesBody.select(`#state${stateId}`).remove();
+  view.statesBody.select(`#state-gap${stateId}`).remove();
+  view.statesHalo.select(`#state-border${stateId}`).remove();
+  view.labels.select(`#stateLabel${stateId}`).remove();
+  view.defs.select(`#textPath_stateLabel${stateId}`).remove();
 
   EditorBus.unfog(`focusState${stateId}`);
 
@@ -633,7 +634,7 @@ function stateRemove(stateId: number): void {
 
   const coaId = `stateCOA${stateId}`;
   d3.select(`#${coaId}`).remove();
-  viewContext.emblems.select(`#stateEmblems > use[data-i='${stateId}']`).remove();
+  view.emblems.select(`#stateEmblems > use[data-i='${stateId}']`).remove();
 
   ((worldContext.pack.states[stateId] as State).provinces ?? []).forEach((p: number) => {
     (worldContext.pack.provinces as Province[])[p] = { i: p, removed: true } as Province;
@@ -643,8 +644,8 @@ function stateRemove(stateId: number): void {
 
     const provCoaId = `provinceCOA${p}`;
     d3.select(`#${provCoaId}`).remove();
-    viewContext.emblems.select(`#provinceEmblems > use[data-i='${p}']`).remove();
-    const g = viewContext.provs.select("#provincesBody");
+    view.emblems.select(`#provinceEmblems > use[data-i='${p}']`).remove();
+    const g = view.provs.select("#provincesBody");
     g.select(`#province${p}`).remove();
     g.select(`#province-gap${p}`).remove();
   });
@@ -654,7 +655,7 @@ function stateRemove(stateId: number): void {
     const index = (worldContext.notes as WorldNote[]).findIndex(n => n.id === id);
     if (index !== -1) worldContext.notes.splice(index, 1);
   });
-  viewContext.armies.select(`g#army${stateId}`).remove();
+  view.armies.select(`g#army${stateId}`).remove();
 
   (worldContext.pack.states as State[]).forEach(state => {
     if (!state.i || state.removed || !state.neighbors) return;
@@ -663,7 +664,7 @@ function stateRemove(stateId: number): void {
 
   (worldContext.pack.states as State[])[stateId] = { i: stateId, removed: true } as State;
 
-  viewContext.debug.selectAll(".highlight").remove();
+  view.debug.selectAll(".highlight").remove();
 
   if (layerIsOn("toggleStates")) StatesRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleBorders")) BordersRenderer.render(worldContext, viewContext, appServices);
@@ -709,15 +710,15 @@ function randomizeStatesExpansion(): void {
 
 function enterStatesManualAssignent(): void {
   if (!layerIsOn("toggleStates")) toggleStates();
-  viewContext.customization = 2;
-  viewContext.statesBody.append("g").attr("id", "temp");
-  viewContext.statesHalo.node()!.style.display = "none";
+  view.setCustomization(2);
+  view.statesBody.append("g").attr("id", "temp");
+  view.statesHalo.node()!.style.display = "none";
 
   const firstState = (worldContext.pack.states as State[]).find(s => s.i && !s.removed);
   setStatesEditorState({ customizationMode: 1, manualSelectedStateId: firstState?.i ?? 0 });
 
   tip("Click on state to select, drag the circle to change state", true);
-  viewContext.viewbox
+  view.viewbox
     .style("cursor", "crosshair")
     .on("click", selectStateOnMapClick)
     .call(d3.drag<SVGGElement, unknown>().on("start", dragStateBrushStart).on("drag", dragStateBrush))
@@ -731,7 +732,7 @@ function selectStateOnMapClick(this: SVGElement, event: MouseEvent): void {
   const i = findCell(point[0], point[1]);
   if (worldContext.pack.cells.h[i] < 20) return;
 
-  const assigned = viewContext.statesBody.select("#temp").select(`polygon[data-cell='${i}']`);
+  const assigned = view.statesBody.select("#temp").select(`polygon[data-cell='${i}']`);
   const state = assigned.size() ? +assigned.attr("data-state") : worldContext.pack.cells.state[i];
   setStatesEditorState({ manualSelectedStateId: state });
 }
@@ -752,7 +753,7 @@ function dragStateBrush(this: SVGElement, event: d3.D3DragEvent<SVGElement, unkn
 }
 
 function changeStateForSelection(selection: number[]): void {
-  const temp = viewContext.statesBody.select("#temp");
+  const temp = view.statesBody.select("#temp");
 
   const { manualSelectedStateId: stateNew, protectExisting: preventOverwrite } = getStatesEditorState();
   const color = (worldContext.pack.states[stateNew] as State).color || "#ffffff";
@@ -788,7 +789,7 @@ function applyStatesManualAssignent(): void {
   const affectedStates: number[] = [];
   const affectedProvinces: number[] = [];
 
-  viewContext.statesBody
+  view.statesBody
     .select("#temp")
     .selectAll<SVGPolygonElement, unknown>("polygon")
     .each(function () {
@@ -952,24 +953,24 @@ function adjustProvinces(affectedProvinces: number[]): void {
 }
 
 function exitStatesManualAssignment(_close: boolean): void {
-  viewContext.customization = 0;
+  view.setCustomization(0);
   statesManualHistory.reset();
-  viewContext.statesBody.select("#temp").remove();
+  view.statesBody.select("#temp").remove();
   EditorBus.removeCircle();
   EditorBus.restoreDefaultEvents();
   clearMainTip();
-  viewContext.statesHalo.node()!.style.display = "block";
+  view.statesHalo.node()!.style.display = "block";
   setStatesEditorState({ customizationMode: 0, manualSelectedStateId: 0 });
 }
 
 function saveStatesManualSnapshot(): void {
-  const temp = viewContext.statesBody.select("#temp").node() as Element | null;
+  const temp = view.statesBody.select("#temp").node() as Element | null;
   if (!temp) return;
   /* ignore-legacy-dom */ statesManualHistory.push(temp.innerHTML);
 }
 
 function undoStatesManualAssignment(): void {
-  const temp = viewContext.statesBody.select("#temp").node() as Element | null;
+  const temp = view.statesBody.select("#temp").node() as Element | null;
   if (!temp || !statesManualHistory.canUndo) return;
   /* ignore-legacy-dom */ temp.innerHTML = statesManualHistory.pop() ?? "";
 }
@@ -1078,7 +1079,7 @@ function addState(this: SVGElement, event: MouseEvent): void {
 }
 
 function exitAddStateMode(): void {
-  viewContext.customization = 0;
+  view.setCustomization(0);
   EditorBus.restoreDefaultEvents();
   clearMainTip();
   setStatesEditorState({ customizationMode: 0 });
@@ -1098,20 +1099,20 @@ function openStateMergeDialog(): void {
 
 function mergeStates(statesToMerge: number[], rulingStateId: number): void {
   const rulingState = worldContext.pack.states[rulingStateId] as State;
-  const rulingStateArmy = viewContext.armies.select<SVGGElement>(`#army${rulingStateId}`).node()!;
+  const rulingStateArmy = view.armies.select<SVGGElement>(`#army${rulingStateId}`).node()!;
 
   statesToMerge.forEach((stateId: number) => {
     const state = worldContext.pack.states[stateId] as State;
     state.removed = true;
 
-    viewContext.statesBody.select(`#state${stateId}`).remove();
-    viewContext.statesBody.select(`#state-gap${stateId}`).remove();
-    viewContext.statesHalo.select(`#state-border${stateId}`).remove();
-    viewContext.labels.select(`#stateLabel${stateId}`).remove();
-    viewContext.defs.select(`#textPath_stateLabel${stateId}`).remove();
+    view.statesBody.select(`#state${stateId}`).remove();
+    view.statesBody.select(`#state-gap${stateId}`).remove();
+    view.statesHalo.select(`#state-border${stateId}`).remove();
+    view.labels.select(`#stateLabel${stateId}`).remove();
+    view.defs.select(`#textPath_stateLabel${stateId}`).remove();
 
     d3.select(`#stateCOA${stateId}`).remove();
-    viewContext.emblems.select(`#stateEmblems > use[data-i='${stateId}']`).remove();
+    view.emblems.select(`#stateEmblems > use[data-i='${stateId}']`).remove();
 
     (state.military ?? []).forEach((regiment: MilitaryRegiment) => {
       const oldId = `regiment${stateId}-${regiment.i}`;
@@ -1123,7 +1124,7 @@ function mergeStates(statesToMerge: number[], rulingStateId: number): void {
       const note = (worldContext.notes as WorldNote[]).find(n => n.id === oldId);
       if (note) note.id = newId;
 
-      const element = viewContext.armies.select<SVGGElement>(`#${oldId}`).node();
+      const element = view.armies.select<SVGGElement>(`#${oldId}`).node();
       if (element) {
         element.id = newId;
         element.dataset.state = String(rulingStateId);
@@ -1132,7 +1133,7 @@ function mergeStates(statesToMerge: number[], rulingStateId: number): void {
       }
     });
 
-    viewContext.armies.select(`g#army${stateId}`).remove();
+    view.armies.select(`g#army${stateId}`).remove();
   });
 
   (worldContext.pack.burgs as Burg[]).forEach(burg => {
@@ -1156,7 +1157,7 @@ function mergeStates(statesToMerge: number[], rulingStateId: number): void {
   });
 
   EditorBus.unfog();
-  viewContext.debug.selectAll(".highlight").remove();
+  view.debug.selectAll(".highlight").remove();
 
   States.getPoles(getWorldState());
   layerIsOn("toggleStates") ? StatesRenderer.render(worldContext, viewContext, appServices) : toggleStates();
@@ -1197,9 +1198,8 @@ function downloadStatesCsv(): void {
   downloadFile(csvData, name);
 }
 
-export function initStatesEditor(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {
+export function initStatesEditor(wc: WorldContext, _vc: Readonly<ViewContext>, as: AppServices) {
   worldContext = wc;
-  viewContext = vc;
   appServices = as;
 }
 

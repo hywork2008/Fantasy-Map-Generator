@@ -1,7 +1,7 @@
 import { pointer } from "d3";
-import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { Rivers } from "../generators/river-generator";
+import { viewLayerService as view } from "../services/viewLayerService";
 import { modules } from "../store/editorState";
 import { useOptionsState } from "../store/optionsState";
 import { useRiverCreatorStore } from "../store/riverCreatorStore";
@@ -19,7 +19,7 @@ let worldContext: WorldContext;
 let cellsWasForced = false;
 
 export function createRiver(): void {
-  if (viewContext.customization) return;
+  if (view.customization) return;
   closeDialogs();
   if (!layerIsOn("toggleRivers")) toggleRivers();
 
@@ -27,8 +27,8 @@ export function createRiver(): void {
   if (cellsWasForced) toggleCells();
 
   tip("Click to add river point, click again to remove", true);
-  viewContext.debug.append("g").attr("id", "controlCells");
-  viewContext.viewbox.style("cursor", "crosshair");
+  view.debug.append("g").attr("id", "controlCells");
+  view.viewbox.style("cursor", "crosshair");
   interactionManager.setClickHandler(onCellClick);
 
   const { setRiverCells } = useRiverCreatorStore.getState();
@@ -59,7 +59,7 @@ export function createRiver(): void {
   }
 
   function drawCells(cells: number[]): void {
-    viewContext.debug
+    view.debug
       .select("#controlCells")
       .selectAll("polygon")
       .data(cells)
@@ -122,7 +122,7 @@ export function addRiver(): void {
   });
   const id = `river${riverId}`;
 
-  viewContext.viewbox
+  view.viewbox
     .select("#rivers")
     .append("path")
     .attr("id", id)
@@ -133,7 +133,7 @@ export function addRiver(): void {
 }
 
 export function closeRiverCreator(): void {
-  viewContext.debug.select("#controlCells").remove();
+  view.debug.select("#controlCells").remove();
   EditorBus.restoreDefaultEvents();
   clearMainTip();
 

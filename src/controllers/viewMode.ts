@@ -1,6 +1,6 @@
-import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { ThreeDRenderer } from "../renderers/three-d-renderer";
+import { viewLayerService as view } from "../services/viewLayerService";
 import { modules } from "../store/editorState";
 import { use3DOptionsStore } from "../store/options3dStore";
 import { closeDialog, isDialogOpen, openDialog } from "../ui/dialogs/dialogService";
@@ -66,8 +66,8 @@ async function enter3dView(type: string): Promise<void> {
     canvas.height = canvas.width / (worldContext.graphWidth / worldContext.graphHeight);
     canvas.style.display = "block";
   } else {
-    canvas.width = viewContext.svgWidth;
-    canvas.height = viewContext.svgHeight;
+    canvas.width = view.svgWidth;
+    canvas.height = view.svgHeight;
     canvas.style.position = "absolute";
     canvas.style.display = "none";
     canvas.style.pointerEvents = "auto";

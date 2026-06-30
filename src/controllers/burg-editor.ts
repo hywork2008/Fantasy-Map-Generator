@@ -7,6 +7,7 @@ import { Burgs } from "../generators/burgs-generator";
 import { Names } from "../generators/names-generator";
 import { drawBurgIcon, drawBurgLabel, removeBurgCOA } from "../renderers";
 import { COArenderer } from "../renderers/emblem-renderer";
+import { viewLayerService as view } from "../services/viewLayerService";
 import { getBurgEditorState } from "../store/burgEditorState";
 import { elSelected, modules, setElSelected } from "../store/editorState";
 import type { Burg, Culture, CultureType } from "../types/models";
@@ -28,16 +29,16 @@ let _currentBurgId = 0;
 let cellsWasForced = false;
 
 export function editBurg(id?: number): void {
-  if (viewContext.customization) return;
+  if (view.customization) return;
   closeDialogs(".stable");
   if (!layerIsOn("toggleBurgIcons")) toggleBurgIcons();
   if (!layerIsOn("toggleLabels")) toggleLabels();
 
   _currentBurgId = id ?? 0;
-  setElSelected(viewContext.burgLabels.select(`[data-id='${_currentBurgId}']`));
+  setElSelected(view.burgLabels.select(`[data-id='${_currentBurgId}']`));
   let _bdx = 0,
     _bdy = 0;
-  viewContext.burgLabels
+  view.burgLabels
     .selectAll<SVGTextElement, unknown>("text")
     .call(
       drag<SVGTextElement, unknown>()
@@ -159,10 +160,10 @@ const burgEditorInternal = {
     const x = rn(pt[0], 2);
     const y = rn(pt[1], 2);
 
-    viewContext.burgIcons.select(`#burg${burgId}`).attr("x", x).attr("y", y);
-    viewContext.burgLabels.select(`#burgLabel${burgId}`).attr("transform", null).attr("x", x).attr("y", y);
+    view.burgIcons.select(`#burg${burgId}`).attr("x", x).attr("y", y);
+    view.burgLabels.select(`#burgLabel${burgId}`).attr("transform", null).attr("x", x).attr("y", y);
 
-    const anchor = viewContext.anchors.select(`use[data-id='${burgId}']`);
+    const anchor = view.anchors.select(`use[data-id='${burgId}']`);
     if (anchor.size()) {
       const size = anchor.attr("width");
       const xa = rn(x - +size * 0.47, 2);
@@ -184,7 +185,7 @@ const burgEditorInternal = {
 
   closeBurgEditor(): void {
     getBurgEditorState().setIsRelocateMode(false);
-    viewContext.burgLabels
+    view.burgLabels
       .selectAll("text")
       .call(
         drag().on("drag", null) as (
@@ -271,7 +272,7 @@ export const burgEditorActions = {
         const portFeature = haven ? worldContext.pack.cells.f[haven] : -1;
         burg.port = portFeature;
 
-        viewContext.anchors
+        view.anchors
           .select(`#${burg.group}`)
           .append("use")
           .attr("href", "#icon-anchor")
@@ -362,7 +363,7 @@ export const burgEditorActions = {
     getBurgEditorState().setIsRelocateMode(isRelocating);
 
     if (isRelocating) {
-      viewContext.viewbox.style("cursor", "crosshair");
+      view.viewbox.style("cursor", "crosshair");
       interactionManager.setClickHandler(burgEditorInternal.relocateBurgOnClick);
       tip("Click on map to relocate burg. Hold Shift for continuous move", true);
       if (!layerIsOn("toggleCells")) {
@@ -372,7 +373,7 @@ export const burgEditorActions = {
     } else {
       clearMainTip();
       interactionManager.resetClickHandler();
-      viewContext.viewbox.style("cursor", "default");
+      view.viewbox.style("cursor", "default");
       if (cellsWasForced && layerIsOn("toggleCells")) toggleCells();
       cellsWasForced = false;
     }

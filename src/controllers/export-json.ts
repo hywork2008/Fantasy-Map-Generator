@@ -1,5 +1,5 @@
-import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
+import { viewLayerService as view } from "../services/viewLayerService";
 import { useOptionsState } from "../store/optionsState";
 import { closeDialogs } from "../ui/dialogs/dialogService";
 import { createObjectURL, revokeObjectURL } from "../utils";
@@ -9,7 +9,7 @@ import { tip } from "../utils/uiHelpers";
 import { VERSION } from "../versioning";
 
 export function exportToJson(type: string): void {
-  if (viewContext.customization) {
+  if (view.customization) {
     tip("Data cannot be exported when edit mode is active, please exit the mode and retry", false, "error");
     return;
   }

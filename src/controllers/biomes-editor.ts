@@ -2,9 +2,11 @@ import { drag, easeSinIn, pointer, type Selection, sum } from "d3";
 import { getWorldState } from "../actions";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
+import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { Biomes } from "../generators/biomes";
 import { BiomesRenderer, ReliefIconsRenderer } from "../renderers";
+import { viewLayerService as view } from "../services/viewLayerService";
 import type { BiomeRow, BiomesFooter } from "../store/biomesEditorStore";
 import { useBiomesEditorStore } from "../store/biomesEditorStore";
 import { isDialogOpen, openDialog } from "../ui/dialogs/dialogService";
@@ -18,11 +20,10 @@ import { toggleBiomes, toggleCultures, toggleProvinces, toggleRelief, toggleReli
 import { editStyle } from "./style";
 
 let worldContext: WorldContext;
-let viewContext: ViewContext;
 let appServices: AppServices;
 
 export function editBiomes(): void {
-  if (viewContext.customization) return;
+  if (view.customization) return;
   if (isDialogOpen("biomesEditor")) return;
 
   if (!layerIsOn("toggleBiomes")) toggleBiomes();
@@ -103,8 +104,8 @@ function buildRows(): void {
 }
 
 export function biomesHighlightOn(biomeId: number): void {
-  if (viewContext.customization === 6) return;
-  (viewContext.biomes as Selection<SVGGElement, unknown, null, undefined>)
+  if (view.customization === 6) return;
+  (view.biomes as Selection<SVGGElement, unknown, null, undefined>)
     .select(`#biome${biomeId}`)
     .raise()
     .transition()
@@ -115,9 +116,9 @@ export function biomesHighlightOn(biomeId: number): void {
 }
 
 export function biomesHighlightOff(biomeId: number): void {
-  if (viewContext.customization === 6) return;
+  if (view.customization === 6) return;
   const color = worldContext.biomesData.color[biomeId];
-  (viewContext.biomes as Selection<SVGGElement, unknown, null, undefined>)
+  (view.biomes as Selection<SVGGElement, unknown, null, undefined>)
     .select(`#biome${biomeId}`)
     .transition()
     .attr("stroke-width", 0.7)
@@ -127,7 +128,7 @@ export function biomesHighlightOff(biomeId: number): void {
 export function biomesChangeColor(biomeId: number, currentColor: string): void {
   const callback = (newFill: string) => {
     worldContext.biomesData.color[biomeId] = newFill;
-    (viewContext.biomes as Selection<SVGGElement, unknown, null, undefined>)
+    (view.biomes as Selection<SVGGElement, unknown, null, undefined>)
       .select(`#biome${biomeId}`)
       .attr("fill", newFill)
       .attr("stroke", newFill);
@@ -176,7 +177,7 @@ export function biomesOpenWiki(biomeName: string): void {
 }
 
 export function biomesToggleLegend(): void {
-  if ((viewContext.legend as Selection<SVGGElement, unknown, null, undefined>).selectAll("*").size()) {
+  if ((view.legend as Selection<SVGGElement, unknown, null, undefined>).selectAll("*").size()) {
     EditorBus.clearLegend();
     return;
   }
@@ -249,15 +250,15 @@ export function biomesEditStyle(): void {
 
 export function biomesEnterCustomization(): void {
   if (!layerIsOn("toggleBiomes")) toggleBiomes();
-  viewContext.customization = 6;
-  (viewContext.biomes as Selection<SVGGElement, unknown, null, undefined>).append("g").attr("id", "temp");
+  view.setCustomization(6);
+  (view.biomes as Selection<SVGGElement, unknown, null, undefined>).append("g").attr("id", "temp");
 
   const { rows } = useBiomesEditorStore.getState();
   useBiomesEditorStore.getState().setCustomizationMode(true);
   useBiomesEditorStore.getState().setSelectedBiomeId(rows[0]?.i ?? null);
 
   tip("Click on biome to select, drag the circle to change biome", true);
-  viewContext.viewbox
+  view.viewbox
     .style("cursor", "crosshair")
     .on("click", selectBiomeOnMapClick)
     .call(drag<SVGGElement, unknown>().on("drag", dragBiomeBrush))
@@ -275,7 +276,7 @@ function selectBiomeOnMapClick(event: MouseEvent): void {
     tip("You cannot reassign water via biomes. Please edit the Heightmap to change water", false, "error");
     return;
   }
-  const assigned = (viewContext.biomes as Selection<SVGGElement, unknown, null, undefined>)
+  const assigned = (view.biomes as Selection<SVGGElement, unknown, null, undefined>)
     .select("#temp")
     .select(`polygon[data-cell='${i}']`);
   const biome = assigned.size() ? +assigned.attr("data-biome") : worldContext.pack.cells.biome[i];
@@ -293,7 +294,7 @@ function dragBiomeBrush(this: SVGElement, event: import("d3").D3DragEvent<SVGEle
 }
 
 function changeBiomeForSelection(selection: number[]): void {
-  const temp = (viewContext.biomes as Selection<SVGGElement, unknown, null, undefined>).select("#temp");
+  const temp = (view.biomes as Selection<SVGGElement, unknown, null, undefined>).select("#temp");
   const { selectedBiomeId } = useBiomesEditorStore.getState();
   const biomeNew = String(selectedBiomeId ?? 0);
   const color = worldContext.biomesData.color[selectedBiomeId ?? 0];
@@ -323,7 +324,7 @@ function moveBiomeBrush(event: MouseEvent): void {
 }
 
 export function biomesApplyChange(): void {
-  const changed = (viewContext.biomes as Selection<SVGGElement, unknown, null, undefined>)
+  const changed = (view.biomes as Selection<SVGGElement, unknown, null, undefined>)
     .select("#temp")
     .selectAll("polygon");
   changed.each(function () {
@@ -341,8 +342,8 @@ export function biomesApplyChange(): void {
 }
 
 export function biomesExitCustomization(close?: string): void {
-  viewContext.customization = 0;
-  (viewContext.biomes as Selection<SVGGElement, unknown, null, undefined>).select("#temp").remove();
+  view.setCustomization(0);
+  (view.biomes as Selection<SVGGElement, unknown, null, undefined>).select("#temp").remove();
   EditorBus.removeCircle();
   useBiomesEditorStore.getState().setCustomizationMode(false);
   useBiomesEditorStore.getState().setSelectedBiomeId(null);
@@ -361,9 +362,8 @@ export function biomesRestoreDefaults(): void {
   biomesRefresh();
 }
 
-export function initBiomesEditor(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices): void {
+export function initBiomesEditor(wc: WorldContext, _vc: Readonly<ViewContext>, as: AppServices): void {
   worldContext = wc;
-  viewContext = vc as ViewContext;
   appServices = as;
 }
 

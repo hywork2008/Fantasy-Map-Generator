@@ -7,6 +7,7 @@ import { worldContext } from "../context/worldContext";
 import { Rivers } from "../generators/river-generator";
 import { drawScaleBar, fitScaleBar } from "../renderers/index";
 import { fonts, loadFontsAsDataURI } from "../services/fonts";
+import { viewLayerService as view } from "../services/viewLayerService";
 import { connectVertices, createObjectURL, getBase64, getCoordinates, revokeObjectURL, rn, unique } from "../utils";
 import { getColor, getColorScheme } from "../utils/colorUtils";
 import { ERROR, TIME } from "../utils/debug";
@@ -62,8 +63,8 @@ export async function exportToPng(options: ImageExportOptions = {}): Promise<voi
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d")!;
     const resolution = getResolutionValue(options.resolution);
-    canvas.width = viewContext.svgWidth * resolution;
-    canvas.height = viewContext.svgHeight * resolution;
+    canvas.width = view.svgWidth * resolution;
+    canvas.height = view.svgHeight * resolution;
 
     const blob = await new Promise<Blob>((resolve, reject) => {
       const img = new Image();
@@ -107,8 +108,8 @@ export async function exportToJpeg(options: ImageExportOptions = {}): Promise<vo
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d")!;
     const resolution = getResolutionValue(options.resolution);
-    canvas.width = viewContext.svgWidth * resolution;
-    canvas.height = viewContext.svgHeight * resolution;
+    canvas.width = view.svgWidth * resolution;
+    canvas.height = view.svgHeight * resolution;
 
     const quality = Math.min(rn(1 - resolution / 20, 2), 0.92);
     const blob = await new Promise<Blob>((resolve, reject) => {
@@ -269,7 +270,7 @@ export async function getMapURL(type: string, options: GetMapURLOptions = {}): P
     fullMap = false
   } = options;
 
-  const cloneEl = viewContext.svg.node()!.cloneNode(true) as SVGSVGElement;
+  const cloneEl = view.svg.node()!.cloneNode(true) as SVGSVGElement;
   cloneEl.id = "fantasyMap";
   cloneEl.style.visibility = "visible";
   cloneEl.style.pointerEvents = "auto";
@@ -332,7 +333,7 @@ export async function getMapURL(type: string, options: GetMapURLOptions = {}): P
   if (noScaleBar) clone.select("#scaleBar")?.remove();
 
   if (type === "svg") removeUnusedElements(clone);
-  if (viewContext.customization && type === "mesh") updateMeshCells(clone);
+  if (view.customization && type === "mesh") updateMeshCells(clone);
   inlineStyle(clone);
 
   // remove unused filters
@@ -361,7 +362,7 @@ export async function getMapURL(type: string, options: GetMapURLOptions = {}): P
   }
 
   // add displayed emblems
-  if (layerIsOn("toggleEmblems") && viewContext.emblems.selectAll("use").size()) {
+  if (layerIsOn("toggleEmblems") && view.emblems.selectAll("use").size()) {
     cloneEl
       .getElementById("emblems")
       ?.querySelectorAll("use")
@@ -538,7 +539,7 @@ export const getUsedFonts = (svg: SVGSVGElement) => {
     if (font) usedFontFamilies.add(font);
   }
 
-  const provinceFont = viewContext.provs.attr("font-family");
+  const provinceFont = view.provs.attr("font-family");
   if (provinceFont) usedFontFamilies.add(provinceFont);
 
   const legend = svg.querySelector("#legend");
@@ -550,7 +551,7 @@ export const getUsedFonts = (svg: SVGSVGElement) => {
 };
 
 export function removeUnusedElements(clone: AnySelection): void {
-  if (!viewContext.terrain.selectAll("use").size()) clone.select("#defs-relief")?.remove();
+  if (!view.terrain.selectAll("use").size()) clone.select("#defs-relief")?.remove();
 
   for (let empty = 1; empty; ) {
     empty = 0;
@@ -569,7 +570,7 @@ function updateMeshCells(clone: AnySelection): void {
   const data = renderOcean.checked
     ? worldContext.grid.cells.i
     : worldContext.grid.cells.i.filter((i: number) => worldContext.grid.cells.h[i] >= 20);
-  const scheme = getColorScheme(viewContext.terrs.select("#landHeights").attr("scheme"));
+  const scheme = getColorScheme(view.terrs.select("#landHeights").attr("scheme"));
   clone.select("#heights").attr("filter", "url(#blur1)");
   clone
     .select("#heights")

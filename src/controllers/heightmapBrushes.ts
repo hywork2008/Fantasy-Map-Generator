@@ -1,7 +1,7 @@
 import * as d3 from "d3";
-import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { HeightmapGenerator } from "../generators/heightmap-generator";
+import { viewLayerService as view } from "../services/viewLayerService";
 import { type BrushMode, setHeightmapEditorState, useHeightmapEditorState } from "../store/heightmapEditorState";
 import { findGridAll, findGridCell, minmax, rn } from "../utils";
 import { EditorBus } from "../utils/editorBus";
@@ -20,9 +20,9 @@ export function setupBrushes(callbacks: HeightmapBrushesCallbacks): void {
 }
 
 export function exitBrushMode(): void {
-  viewContext.viewbox.style("cursor", "default").on(".drag", null);
+  view.viewbox.style("cursor", "default").on(".drag", null);
   interactionManager.resetClickHandler();
-  viewContext.debug.selectAll(".lineCircle").remove();
+  view.debug.selectAll(".lineCircle").remove();
   EditorBus.removeCircle();
 }
 
@@ -37,13 +37,13 @@ export function toggleBrushMode(mode: string): void {
   setHeightmapEditorState({ brushMode: mode as BrushMode });
 
   if (mode === "brushLine") {
-    viewContext.viewbox.style("cursor", "crosshair");
+    view.viewbox.style("cursor", "crosshair");
     interactionManager.setClickHandler(placeLinearFeature);
   } else if (mode === "brushFill") {
-    viewContext.viewbox.style("cursor", "crosshair");
+    view.viewbox.style("cursor", "crosshair");
     interactionManager.setClickHandler(applyFillBrush);
   } else {
-    viewContext.viewbox.style("cursor", "crosshair").call(
+    view.viewbox.style("cursor", "crosshair").call(
       d3
         .drag<SVGGElement, unknown>()
         .on("start", dragBrushStart)
@@ -57,10 +57,10 @@ function placeLinearFeature(this: SVGElement, event: MouseEvent): void {
   const [x, y] = d3.pointer(event, this);
   const toCell = findGridCell(x, y, worldContext.grid);
 
-  const lineCircle = viewContext.debug.selectAll(".lineCircle");
+  const lineCircle = view.debug.selectAll(".lineCircle");
   if (!lineCircle.size()) {
-    viewContext.debug.append("line").attr("id", "brushCircle").attr("x1", x).attr("y1", y).attr("x2", x).attr("y2", y);
-    viewContext.debug
+    view.debug.append("line").attr("id", "brushCircle").attr("x1", x).attr("y1", y).attr("x2", x).attr("y2", y);
+    view.debug
       .append("circle")
       .attr("data-cell", toCell)
       .attr("class", "lineCircle")
@@ -74,7 +74,7 @@ function placeLinearFeature(this: SVGElement, event: MouseEvent): void {
   }
 
   const fromCell = +lineCircle.attr("data-cell");
-  viewContext.debug.selectAll("*").remove();
+  view.debug.selectAll("*").remove();
   const power = useHeightmapEditorState.getState().linePower;
   if (power === 0) {
     tip("Power should not be zero", false, "error");
@@ -352,6 +352,6 @@ export function startFromScratch(): void {
     return;
   }
   worldContext.grid.cells.h = new Uint8Array(worldContext.grid.cells.i.length);
-  viewContext.viewbox.select("#heights").selectAll("*").remove();
+  view.viewbox.select("#heights").selectAll("*").remove();
   localCallbacks.updateHeightmap();
 }

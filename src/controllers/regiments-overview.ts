@@ -4,6 +4,7 @@ import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { Military } from "../generators/military-generator";
 import { drawRegiment } from "../renderers/index";
+import { viewLayerService as view } from "../services/viewLayerService";
 import { useRegimentsOverviewState } from "../store/regimentsOverviewState";
 import type { MilitaryRegiment, MilitaryUnit } from "../types/models";
 import { closeDialogs, openDialog } from "../ui/dialogs/dialogService";
@@ -15,7 +16,7 @@ import { interactionManager } from "./interactionManager";
 import { toggleMilitary } from "./layers";
 
 export function overviewRegiments(stateId = -1): void {
-  if (viewContext.customization) return;
+  if (view.customization) return;
   closeDialogs(".stable");
   if (!layerIsOn("toggleMilitary")) toggleMilitary();
 
@@ -25,16 +26,12 @@ export function overviewRegiments(stateId = -1): void {
 }
 
 export function regimentHighlightOn(stateId: number, regimentId: number): void {
-  if (viewContext.customization) return;
-  viewContext.armies
-    .select(`g > g#regiment${stateId}-${regimentId}`)
-    .transition()
-    .duration(2000)
-    .style("fill", "#ff0000");
+  if (view.customization) return;
+  view.armies.select(`g > g#regiment${stateId}-${regimentId}`).transition().duration(2000).style("fill", "#ff0000");
 }
 
 export function regimentHighlightOff(stateId: number, regimentId: number): void {
-  viewContext.armies.select(`g > g#regiment${stateId}-${regimentId}`).transition().duration(1000).style("fill", null);
+  view.armies.select(`g > g#regiment${stateId}-${regimentId}`).transition().duration(1000).style("fill", null);
 }
 
 export function addRegimentOnMap(filterStateId: number, onDone: () => void): void {
@@ -43,7 +40,7 @@ export function addRegimentOnMap(filterStateId: number, onDone: () => void): voi
     return;
   }
 
-  viewContext.viewbox.style("cursor", "crosshair");
+  view.viewbox.style("cursor", "crosshair");
   interactionManager.setClickHandler(function (this: SVGElement, event: MouseEvent) {
     const [px, py] = pointer(event, this);
     const cell = findCell(px, py);
@@ -78,7 +75,7 @@ export function addRegimentOnMap(filterStateId: number, onDone: () => void): voi
 export function clearAddRegimentClickHandler(): void {
   clearMainTip();
   interactionManager.resetClickHandler();
-  viewContext.viewbox.style("cursor", "default");
+  view.viewbox.style("cursor", "default");
 }
 
 export function downloadRegimentsData(): void {

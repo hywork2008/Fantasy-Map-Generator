@@ -33,6 +33,7 @@ import {
 import { FeaturesRenderer, removeBurgCOA } from "../renderers";
 import { OceanLayers } from "../renderers/ocean-layers";
 import { ThreeDRenderer } from "../renderers/three-d-renderer";
+import { viewLayerService as view } from "../services/viewLayerService";
 import { modules } from "../store/editorState";
 import { heightmapEditModeStore, imageConverterCloseStore } from "../store/heightmapDialogState";
 import { setHeightmapEditorState, useHeightmapEditorState } from "../store/heightmapEditorState";
@@ -114,8 +115,8 @@ export const HeightmapEditorActions = {
 export function editHeightmap(options?: { mode?: string; tool?: string }): void {
   const { mode, tool } = options || {};
   restartHistory();
-  viewContext.viewbox.selectAll("#heights").remove();
-  viewContext.viewbox.insert("g", "#terrs").attr("id", "heights");
+  view.viewbox.selectAll("#heights").remove();
+  view.viewbox.insert("g", "#terrs").attr("id", "heights");
 
   if (!mode) showModeDialog();
   else enterHeightmapEditMode(mode);
@@ -190,7 +191,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       getElementById(l)!.click();
     });
 
-    viewContext.customization = 1;
+    view.setCustomization(1);
     closeDialogs();
     tip('Heightmap edit mode is active. Click on "Exit Customization" to finalize the heightmap', true);
 
@@ -207,12 +208,12 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       undraw();
       setHeightmapEditorState({ cellTypeFilter: "all" });
     } else if (mode === "keep") {
-      viewContext.viewbox.selectAll("#landmass, #lakes").style("display", "none");
+      view.viewbox.selectAll("#landmass, #lakes").style("display", "none");
       setHeightmapEditorState({ cellTypeFilter: "land" });
     } else if (mode === "risk") {
-      viewContext.defs.selectAll("#land, #water").selectAll("path").remove();
-      viewContext.defs.select("#featurePaths").selectAll("path").remove();
-      viewContext.viewbox.selectAll("#coastline use, #lakes path, #oceanLayers path").remove();
+      view.defs.selectAll("#land, #water").selectAll("path").remove();
+      view.defs.select("#featurePaths").selectAll("path").remove();
+      view.viewbox.selectAll("#coastline use, #lakes path, #oceanLayers path").remove();
       setHeightmapEditorState({ cellTypeFilter: "all" });
     }
 
@@ -233,8 +234,8 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
         new CustomEvent("react-show-exit-customization", {
           detail: {
             opacity: "0",
-            right: `${(viewContext.svgWidth - width) / 2}px`,
-            bottom: `${viewContext.svgHeight / 2}px`,
+            right: `${(view.svgWidth - width) / 2}px`,
+            bottom: `${view.svgHeight / 2}px`,
             transform: "scale(2)"
           }
         })
@@ -259,7 +260,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     mockHeightmap();
 
     interactionManager.setMouseMoveHandler(moveCursor);
-    viewContext.svg.on("dblclick.zoom", null);
+    view.svg.on("dblclick.zoom", null);
 
     if (tool === "templateEditor") openTemplateEditor();
     else if (tool === "imageConverter") openImageConverter();
@@ -279,7 +280,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     if (!brushMode) return;
 
     if (brushMode === "brushLine") {
-      viewContext.debug.select("line").attr("x2", x).attr("y2", y);
+      view.debug.select("line").attr("x2", x).attr("y2", y);
       return;
     }
     if (brushMode === "brushFill") {
@@ -303,7 +304,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
   }
 
   async function finalizeHeightmap(): Promise<void> {
-    if (viewContext.viewbox.select("#heights").selectAll("*").size() < 200) {
+    if (view.viewbox.select("#heights").selectAll("*").size() < 200) {
       tip("Insufficient land area. There should be at least 200 land cells!", false, "error");
       return;
     }
@@ -315,7 +316,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     heightmapHistory = undefined;
     setHeightmapEditorState({ canUndo: false, canRedo: false });
 
-    viewContext.customization = 0;
+    view.setCustomization(0);
     modules.editHeightmap = false;
     useLayerState.getState().setPresetDisabled(false);
     // Tell React to exit customization mode (restores normal tabs and hides CustomizationMenu)
@@ -336,7 +337,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     else if (mode === "risk") await restoreRiskedData();
 
     FeaturesRenderer.render(worldContext, viewContext, appServices);
-    viewContext.viewbox.selectAll("#heights").remove();
+    view.viewbox.selectAll("#heights").remove();
 
     turnButtonOff("toggleHeight");
     useLayerState.getState().layers.forEach(layer => {
@@ -345,9 +346,9 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
         toggleLayerById(layer.id);
       }
     });
-    if (!layerIsOn("toggleBorders")) viewContext.borders.selectAll("path").remove();
-    if (!layerIsOn("toggleStates")) viewContext.regions.selectAll("path").remove();
-    if (!layerIsOn("toggleRivers")) viewContext.rivers.selectAll("*").remove();
+    if (!layerIsOn("toggleBorders")) view.borders.selectAll("path").remove();
+    if (!layerIsOn("toggleStates")) view.regions.selectAll("path").remove();
+    if (!layerIsOn("toggleRivers")) view.rivers.selectAll("*").remove();
 
     getCurrentPreset();
   }
@@ -413,7 +414,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
   }
 
   function restoreKeptData(): void {
-    viewContext.viewbox.selectAll("#landmass, #lakes").style("display", null);
+    view.viewbox.selectAll("#landmass, #lakes").style("display", null);
     for (const i of worldContext.pack.cells.i) {
       worldContext.pack.cells.h[i] = worldContext.grid.cells.h[worldContext.pack.cells.g[i]];
     }
@@ -606,7 +607,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     }
 
     Ice.generate(worldContext, viewContext, appServices, worldState);
-    viewContext.ice.selectAll("*").remove();
+    view.ice.selectAll("*").remove();
 
     TIME && console.timeEnd("restoreRiskedData");
     INFO && console.groupEnd();
@@ -647,7 +648,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     const data = (getElementById("renderOcean") as HTMLInputElement).checked
       ? all
       : all.filter(i => worldContext.grid.cells.h[i] >= 20);
-    viewContext.viewbox
+    view.viewbox
       .select<SVGGElement>("#heights")
       .selectAll<SVGPolygonElement, number>("polygon")
       .data(data)
@@ -659,7 +660,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
 
   function mockHeightmapSelection(selection: number[]): void {
     const ocean = (getElementById("renderOcean") as HTMLInputElement).checked;
-    const heights = viewContext.viewbox.select<SVGGElement>("#heights");
+    const heights = view.viewbox.select<SVGGElement>("#heights");
     selection.forEach(i => {
       let cell = heights.select<SVGPolygonElement>(`#cell${i}`);
       if (!ocean && worldContext.grid.cells.h[i] < 20) {
@@ -779,7 +780,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
         onComplete: () => applyConversion(),
         onClose: () => {
           restoreImageConverterState();
-          viewContext.viewbox.select("#heights").selectAll("polygon").remove();
+          view.viewbox.select("#heights").selectAll("polygon").remove();
           undoHistory();
         }
       });

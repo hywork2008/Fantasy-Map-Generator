@@ -1,10 +1,12 @@
 import { resetZoom } from "../actions";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
+import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { Resample } from "../generators/resample";
 import { getMapURL } from "../io/export";
 import { undraw } from "../main";
+import { viewLayerService as view } from "../services/viewLayerService";
 import { useOptionsState } from "../store/optionsState";
 import { openDialog } from "../ui/dialogs/dialogService";
 import { INFO } from "../utils/debug";
@@ -12,7 +14,6 @@ import { drawLayers } from "./layers";
 import { applyGraphSize, changeCellsDensity, fitMapToScreen } from "./options";
 
 let worldContext: WorldContext;
-let viewContext: ViewContext;
 let appServices: AppServices;
 
 export interface TransformParams {
@@ -28,14 +29,13 @@ export function openTransformTool(): void {
   openDialog("transformTool");
 }
 
-export function initTransformTool(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {
+export function initTransformTool(wc: WorldContext, _vc: Readonly<ViewContext>, as: AppServices) {
   worldContext = wc;
-  viewContext = vc;
   appServices = as;
 }
 
 export function getTransformPreviewDims(): { previewWidth: number; previewHeight: number; previewScale: number } {
-  const previewWidth = Math.min(400, viewContext.svgWidth * 0.5);
+  const previewWidth = Math.min(400, view.svgWidth * 0.5);
   const previewScale = previewWidth / worldContext.graphWidth;
   const previewHeight = worldContext.graphHeight * previewScale;
   return { previewWidth, previewHeight, previewScale };

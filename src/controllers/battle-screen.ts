@@ -8,6 +8,7 @@ import { worldContext } from "../context/worldContext";
 import { Military } from "../generators/military-generator";
 import { Names } from "../generators/names-generator";
 import { appendMarkerToLayer, moveRegiment } from "../renderers/index";
+import { viewLayerService as view } from "../services/viewLayerService";
 import type { BattleRegimentDisplay, BattleSide } from "../store/battleScreenState";
 import { getBattleScreenState } from "../store/battleScreenState";
 import { useOptionsState } from "../store/optionsState";
@@ -47,9 +48,9 @@ class Battle {
   name!: string;
 
   constructor(attacker: BattleRegiment, defender: BattleRegiment) {
-    if (viewContext.customization) return;
+    if (view.customization) return;
     closeDialogs(".stable");
-    viewContext.customization = 13;
+    view.setCustomization(13);
 
     Battle.context = this;
     this.iteration = 0;
@@ -737,7 +738,7 @@ class Battle {
 
       r.u = Object.assign({}, r.survivors);
       r.a = sum(Object.values(r.u) as number[]);
-      viewContext.armies.select(`g#${id} > text`).text(Military.getTotal(r));
+      view.armies.select(`g#${id} > text`).text(Military.getTotal(r));
 
       moveRegiment(worldContext, viewContext, appServices, r, r.px as number, r.py as number);
     }
@@ -746,7 +747,7 @@ class Battle {
     {
       const marker = { i: markerI, x: this.x, y: this.y, cell: this.cell, icon: "⚔️", type: "battlefields", dy: 52 };
       worldContext.pack.markers.push(marker);
-      appendMarkerToLayer(viewContext.markers.node()!, worldContext, viewContext, appServices, marker);
+      appendMarkerToLayer(view.markers.node()!, worldContext, viewContext, appServices, marker);
     }
 
     const getSide = (regs: BattleRegiment[], n: number) =>
@@ -783,7 +784,7 @@ class Battle {
   }
 
   cleanData(): void {
-    viewContext.customization = 0;
+    view.setCustomization(0);
 
     this.attackers.regiments.concat(this.defenders.regiments).forEach(r => {
       delete r.px;

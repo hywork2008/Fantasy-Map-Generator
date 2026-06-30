@@ -1,7 +1,7 @@
 import { max as d3max, min as d3min, mean, median } from "d3";
-import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { Names } from "../generators/names-generator";
+import { viewLayerService as view } from "../services/viewLayerService";
 import { openConfirm, openDialog } from "../ui/dialogs/dialogService";
 import { rn, unique } from "../utils";
 import { ERROR } from "../utils/debug";
@@ -32,7 +32,7 @@ class NamesbaseEditorModule {
   init(): void {}
 
   open(): void {
-    if (viewContext.customization) return;
+    if (view.customization) return;
     openDialog("namesbaseEditor");
   }
 

@@ -4,6 +4,7 @@ import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { Routes } from "../generators/routes-generator";
 import { removeRoute } from "../renderers/draw-routes";
+import { viewLayerService as view } from "../services/viewLayerService";
 import { dialogStore } from "../store/dialogState";
 import { elSelected, modules, setElSelected } from "../store/editorState";
 import { useOptionsState } from "../store/optionsState";
@@ -40,7 +41,7 @@ export function initRoutesEditor(wc: WorldContext) {
 }
 
 export function editRoute(id: string): void {
-  if (viewContext.customization) return;
+  if (view.customization) return;
   if (elSelected && id === elSelected.attr("id")) return;
   closeDialogs(".stable");
 
@@ -54,8 +55,8 @@ export function editRoute(id: string): void {
     "Drag control points to change the route. Click on point to remove it. Click on the route to add additional control point. For major changes please create a new route instead",
     true
   );
-  viewContext.debug.append("g").attr("id", "controlCells");
-  viewContext.debug.append("g").attr("id", "controlPoints");
+  view.debug.append("g").attr("id", "controlCells");
+  view.debug.append("g").attr("id", "controlPoints");
 
   const route = getRoute();
   drawControlPoints(route.points);
@@ -77,7 +78,7 @@ function updateRouteData(route: Route): void {
   route.name = route.name || Routes.generateName(route);
   route.length = route.length || Routes.getLength(route.i);
 
-  const allGroups = Array.from(viewContext.routes.selectAll<SVGGElement, unknown>("g").nodes()).map(n => n.id);
+  const allGroups = Array.from(view.routes.selectAll<SVGGElement, unknown>("g").nodes()).map(n => n.id);
   const distanceUnit = useOptionsState.getState().distanceUnit || "km";
   const lengthStr = `${rn(route.length * worldContext.distanceScale)} ${distanceUnit}`;
 
@@ -102,7 +103,7 @@ function updateRouteLength(route: Route): void {
 }
 
 function drawControlPoints(pts: [number, number, number][]): void {
-  viewContext.debug
+  view.debug
     .select("#controlPoints")
     .selectAll<SVGCircleElement, [number, number, number]>("circle")
     .data(pts)
@@ -120,7 +121,7 @@ function drawControlPoints(pts: [number, number, number][]): void {
 }
 
 function drawRouteCells(pts: [number, number, number][]): void {
-  viewContext.debug
+  view.debug
     .select("#controlCells")
     .selectAll("polygon")
     .data(pts)
@@ -254,7 +255,7 @@ function handleControlPointClick(this: SVGCircleElement, _event: MouseEvent): vo
       if (nextPoint) addConnection(cellId, nextPoint[2], newRoute.i);
     }
 
-    viewContext.routes
+    view.routes
       .select(`#${newRoute.group}`)
       .append("path")
       .attr("d", Routes.getPath(newRoute))
@@ -298,7 +299,7 @@ function addConnection(from: number, to: number, routeId: number): void {
 }
 
 export function createRoute(defaultGroup?: string): void {
-  if (viewContext.customization) return;
+  if (view.customization) return;
   closeDialogs();
   if (!layerIsOn("toggleRoutes")) toggleRoutes();
 
@@ -306,13 +307,13 @@ export function createRoute(defaultGroup?: string): void {
   if (routeCreatorCellsForced) toggleCells();
 
   tip("Click to add route point, click again to remove", true);
-  viewContext.debug.append("g").attr("id", "controlCells");
-  viewContext.debug.append("g").attr("id", "controlPoints");
-  viewContext.viewbox.style("cursor", "crosshair");
+  view.debug.append("g").attr("id", "controlCells");
+  view.debug.append("g").attr("id", "controlPoints");
+  view.viewbox.style("cursor", "crosshair");
   interactionManager.setClickHandler(onCreatorClick);
 
   _createRoutePoints = [];
-  const allGroups = Array.from(viewContext.routes.selectAll<SVGGElement, unknown>("g").nodes()).map(n => n.id);
+  const allGroups = Array.from(view.routes.selectAll<SVGGElement, unknown>("g").nodes()).map(n => n.id);
 
   setRoutesEditorState({
     isOpen: false,
@@ -338,7 +339,7 @@ function onCreatorClick(event: MouseEvent): void {
 function drawRoutePreview(): void {
   const pts = _createRoutePoints.map(p => [p.x, p.y, p.cellId] as [number, number, number]);
 
-  viewContext.debug
+  view.debug
     .select("#controlCells")
     .selectAll("polygon")
     .data(pts)
@@ -350,7 +351,7 @@ function drawRoutePreview(): void {
     )
     .attr("class", "current");
 
-  viewContext.debug
+  view.debug
     .select("#controlPoints")
     .selectAll("circle")
     .data(pts)
@@ -361,8 +362,8 @@ function drawRoutePreview(): void {
 
   const group = getRoutesEditorState().creatorGroup;
 
-  viewContext.routes.select("#routeTemp").remove();
-  viewContext.routes
+  view.routes.select("#routeTemp").remove();
+  view.routes
     .select(`#${group}`)
     .append("path")
     .attr("d", Routes.getPath({ group, points: pts, i: -1, feature: 0 } as Route))
@@ -373,8 +374,8 @@ export const routesEditorActions = {
   closeRouteEditor(): void {
     setRoutesEditorState({ isOpen: false });
     modules.editRoute = false;
-    viewContext.debug.select("#controlPoints").remove();
-    viewContext.debug.select("#controlCells").remove();
+    view.debug.select("#controlPoints").remove();
+    view.debug.select("#controlCells").remove();
 
     elSelected?.on("click", null);
     EditorBus.unselect();
@@ -397,7 +398,7 @@ export const routesEditorActions = {
   },
 
   changeGroup(group: string): void {
-    viewContext.routes.select<SVGGElement>(`#${group}`).node()!.appendChild(elSelected!.node()!);
+    view.routes.select<SVGGElement>(`#${group}`).node()!.appendChild(elSelected!.node()!);
     getRoute().group = group;
     setRoutesEditorState({ routeGroup: group });
   },
@@ -561,7 +562,7 @@ export const routesEditorActions = {
       }
     }
 
-    viewContext.routes.select("#routeTemp").attr("id", `route${routeId}`);
+    view.routes.select("#routeTemp").attr("id", `route${routeId}`);
 
     // Auto switch to edit mode
     routesEditorActions.closeRouteCreator();
@@ -570,9 +571,9 @@ export const routesEditorActions = {
 
   closeRouteCreator(): void {
     setRoutesEditorState({ isCreatorOpen: false });
-    viewContext.debug.select("#controlCells").remove();
-    viewContext.debug.select("#controlPoints").remove();
-    viewContext.routes.select("#routeTemp").remove();
+    view.debug.select("#controlCells").remove();
+    view.debug.select("#controlPoints").remove();
+    view.routes.select("#routeTemp").remove();
 
     EditorBus.restoreDefaultEvents();
     clearMainTip();

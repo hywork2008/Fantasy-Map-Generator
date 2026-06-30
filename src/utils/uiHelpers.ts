@@ -1,6 +1,6 @@
 import * as d3 from "d3";
-import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
+import { viewLayerService as view } from "../services/viewLayerService";
 export const tooltipExtensions: {
   showMapTooltip?: (
     point: [number, number],
@@ -533,7 +533,7 @@ export function highlightEmblemElement(type: string, el: EmblemEl): void {
 
   if (type === "burg") {
     const { x = 0, y = 0 } = el;
-    viewContext.debug
+    view.debug
       .append("circle")
       .attr("cx", x)
       .attr("cy", y)
@@ -560,7 +560,7 @@ export function highlightEmblemElement(type: string, el: EmblemEl): void {
     .map((cellId: number) => cells.p[cellId])
     .map((pt: [number, number]) => [pt[0], pt[1], Math.hypot(pt[0] - x, pt[1] - y)]);
 
-  viewContext.debug
+  view.debug
     .selectAll("line")
     .data(data)
     .enter()

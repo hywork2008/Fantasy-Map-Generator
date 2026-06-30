@@ -3,7 +3,6 @@ import { getWorldState } from "../actions";
 import { appServices } from "../context/appServices";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
-
 import { Burgs } from "../generators/burgs-generator";
 import { Cultures } from "../generators/cultures-generator";
 import type { Emblem } from "../generators/emblem/generator";
@@ -30,6 +29,7 @@ import {
   ZonesRenderer
 } from "../renderers";
 import { drawScaleBar, fitScaleBar } from "../renderers/index";
+import { viewLayerService as view } from "../services/viewLayerService";
 import { rulers, setRulers } from "../store/editorState";
 import { useOptionsState } from "../store/optionsState";
 import type {
@@ -59,12 +59,12 @@ export function resolveVersionConflicts(mapVersion: string): void {
 
   if (isOlderThan("1.0.0")) {
     // v1.0 added a new religions layer
-    viewContext.relig = viewContext.viewbox.insert("g", "#terrain").attr("id", "relig");
+    viewContext.relig = view.viewbox.insert("g", "#terrain").attr("id", "relig");
     Religions.generate(worldContext, viewContext, appServices, getWorldState());
 
     // v1.0 added a legend box
-    viewContext.legend = viewContext.svg.append("g").attr("id", "legend");
-    viewContext.legend
+    viewContext.legend = view.svg.append("g").attr("id", "legend");
+    view.legend
       .attr("font-family", "Almendra SC")
       .attr("font-size", 13)
       .attr("data-size", 13)
@@ -76,22 +76,22 @@ export function resolveVersionConflicts(mapVersion: string): void {
       .attr("stroke-linecap", "round");
 
     // v1.0 separated BordersRenderer from StatesRenderer()
-    viewContext.stateBorders = viewContext.borders.append("g").attr("id", "stateBorders");
-    viewContext.provinceBorders = viewContext.borders.append("g").attr("id", "provinceBorders");
-    viewContext.borders
+    viewContext.stateBorders = view.borders.append("g").attr("id", "stateBorders");
+    viewContext.provinceBorders = view.borders.append("g").attr("id", "provinceBorders");
+    view.borders
       .attr("opacity", null)
       .attr("stroke", null)
       .attr("stroke-width", null)
       .attr("stroke-dasharray", null)
       .attr("stroke-linecap", null)
       .attr("filter", null);
-    viewContext.stateBorders
+    view.stateBorders
       .attr("opacity", 0.8)
       .attr("stroke", "#56566d")
       .attr("stroke-width", 1)
       .attr("stroke-dasharray", "2")
       .attr("stroke-linecap", "butt");
-    viewContext.provinceBorders
+    view.provinceBorders
       .attr("opacity", 0.8)
       .attr("stroke", "#56566d")
       .attr("stroke-width", 0.5)
@@ -99,7 +99,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
       .attr("stroke-linecap", "butt");
 
     // v1.0 added state relations, provinces, forms and full names
-    viewContext.provs = viewContext.viewbox.insert("g", "#borders").attr("id", "provs").attr("opacity", 0.6);
+    viewContext.provs = view.viewbox.insert("g", "#borders").attr("id", "provs").attr("opacity", 0.6);
     const state = getWorldState();
     States.collectStatistics(state);
     States.generateCampaigns();
@@ -107,33 +107,33 @@ export function resolveVersionConflicts(mapVersion: string): void {
     States.defineStateForms(state);
     Provinces.generate(worldContext, viewContext, appServices, state);
     Provinces.getPoles(state);
-    if (!layerIsOn("toggleBorders")) viewContext.borders.style("display", "none");
-    if (!layerIsOn("toggleStates")) viewContext.regions.attr("display", "none").selectAll("path").remove();
+    if (!layerIsOn("toggleBorders")) view.borders.style("display", "none");
+    if (!layerIsOn("toggleStates")) view.regions.attr("display", "none").selectAll("path").remove();
 
     // v1.0 added zones layer
-    viewContext.zones = viewContext.viewbox.insert("g", "#borders").attr("id", "zones").attr("display", "none");
-    viewContext.zones
+    viewContext.zones = view.viewbox.insert("g", "#borders").attr("id", "zones").attr("display", "none");
+    view.zones
       .attr("opacity", 0.6)
       .attr("stroke", null)
       .attr("stroke-width", 0)
       .attr("stroke-dasharray", null)
       .attr("stroke-linecap", "butt");
     Zones.generate(worldContext, viewContext, appServices, state);
-    if (!viewContext.markers.selectAll("*").size()) {
+    if (!view.markers.selectAll("*").size()) {
       Markers.generate(worldContext, viewContext, appServices, state);
       turnButtonOn("toggleMarkers");
     }
 
     // v1.0 add fogging layer (state focus)
-    viewContext.fogging = viewContext.viewbox
+    viewContext.fogging = view.viewbox
       .insert("g", "#ruler")
       .attr("id", "fogging-cont")
       .attr("mask", "url(#fog)")
       .append("g")
       .attr("id", "fogging")
       .style("display", "none");
-    viewContext.fogging!.append("rect").attr("x", 0).attr("y", 0).attr("width", "100%").attr("height", "100%");
-    viewContext.defs
+    view.fogging!.append("rect").attr("x", 0).attr("y", 0).attr("width", "100%").attr("height", "100%");
+    view.defs
       .append("mask")
       .attr("id", "fog")
       .append("rect")
@@ -144,13 +144,13 @@ export function resolveVersionConflicts(mapVersion: string): void {
       .attr("fill", "white");
 
     // v1.0 changes states opacity back to regions level
-    if (viewContext.statesBody.attr("opacity")) {
-      viewContext.regions.attr("opacity", viewContext.statesBody.attr("opacity"));
-      viewContext.statesBody.attr("opacity", null);
+    if (view.statesBody.attr("opacity")) {
+      view.regions.attr("opacity", view.statesBody.attr("opacity"));
+      view.statesBody.attr("opacity", null);
     }
 
     // v1.0 changed labels to multi-lined
-    viewContext.labels.selectAll<SVGTextPathElement, unknown>("textPath").each(function () {
+    view.labels.selectAll<SVGTextPathElement, unknown>("textPath").each(function () {
       const text = this.textContent ?? "";
       const shift = this.getComputedTextLength() / -1.5;
       replaceTextPathContent(this, text, shift);
@@ -164,7 +164,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
 
   if (isOlderThan("1.1.0")) {
     // v1.0 code had a bug with religion layer id
-    if (!viewContext.relig.size()) viewContext.relig = viewContext.viewbox.insert("g", "#terrain").attr("id", "relig");
+    if (!view.relig.size()) viewContext.relig = view.viewbox.insert("g", "#terrain").attr("id", "relig");
 
     // v1.0 had Sympathy status then replaced with Friendly
     for (const s of worldContext.pack.states) {
@@ -173,7 +173,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
     }
 
     // labels should be toggled via style attribute, so remove display attribute
-    viewContext.labels.attr("display", null);
+    view.labels.attr("display", null);
 
     // v1.0 added religions hierarchy tree
     if (worldContext.pack.religions[1] && !(worldContext.pack.religions[1] as Religion).code) {
@@ -185,9 +185,9 @@ export function resolveVersionConflicts(mapVersion: string): void {
         });
     }
 
-    if (!viewContext.lakes.select("#freshwater").size()) {
-      viewContext.lakes.append("g").attr("id", "freshwater");
-      viewContext.lakes
+    if (!view.lakes.select("#freshwater").size()) {
+      view.lakes.append("g").attr("id", "freshwater");
+      view.lakes
         .select("#freshwater")
         .attr("opacity", 0.5)
         .attr("fill", "#a6c1fd")
@@ -196,9 +196,9 @@ export function resolveVersionConflicts(mapVersion: string): void {
         .attr("filter", null);
     }
 
-    if (!viewContext.lakes.select("#salt").size()) {
-      viewContext.lakes.append("g").attr("id", "salt");
-      viewContext.lakes
+    if (!view.lakes.select("#salt").size()) {
+      view.lakes.append("g").attr("id", "salt");
+      view.lakes
         .select("#salt")
         .attr("opacity", 0.5)
         .attr("fill", "#409b8a")
@@ -208,25 +208,25 @@ export function resolveVersionConflicts(mapVersion: string): void {
     }
 
     // v1.1 added new lake and coast groups
-    if (!viewContext.lakes.select("#sinkhole").size()) {
-      viewContext.lakes.append("g").attr("id", "sinkhole");
-      viewContext.lakes.append("g").attr("id", "frozen");
-      viewContext.lakes.append("g").attr("id", "lava");
-      viewContext.lakes
+    if (!view.lakes.select("#sinkhole").size()) {
+      view.lakes.append("g").attr("id", "sinkhole");
+      view.lakes.append("g").attr("id", "frozen");
+      view.lakes.append("g").attr("id", "lava");
+      view.lakes
         .select("#sinkhole")
         .attr("opacity", 1)
         .attr("fill", "#5bc9fd")
         .attr("stroke", "#53a3b0")
         .attr("stroke-width", 0.7)
         .attr("filter", null);
-      viewContext.lakes
+      view.lakes
         .select("#frozen")
         .attr("opacity", 0.95)
         .attr("fill", "#cdd4e7")
         .attr("stroke", "#cfe0eb")
         .attr("stroke-width", 0)
         .attr("filter", null);
-      viewContext.lakes
+      view.lakes
         .select("#lava")
         .attr("opacity", 0.7)
         .attr("fill", "#90270d")
@@ -234,15 +234,15 @@ export function resolveVersionConflicts(mapVersion: string): void {
         .attr("stroke-width", 2)
         .attr("filter", "url(#crumpled)");
 
-      viewContext.coastline.append("g").attr("id", "sea_island");
-      viewContext.coastline.append("g").attr("id", "lake_island");
-      viewContext.coastline
+      view.coastline.append("g").attr("id", "sea_island");
+      view.coastline.append("g").attr("id", "lake_island");
+      view.coastline
         .select("#sea_island")
         .attr("opacity", 0.5)
         .attr("stroke", "#1f3846")
         .attr("stroke-width", 0.7)
         .attr("filter", "url(#dropShadow)");
-      viewContext.coastline
+      view.coastline
         .select("#lake_island")
         .attr("opacity", 1)
         .attr("stroke", "#7c8eaf")
@@ -251,10 +251,10 @@ export function resolveVersionConflicts(mapVersion: string): void {
     }
 
     // v1.1 features stores more data
-    viewContext.defs.select("#land").selectAll("path").remove();
-    viewContext.defs.select("#water").selectAll("path").remove();
-    viewContext.coastline.selectAll("path").remove();
-    viewContext.lakes.selectAll("path").remove();
+    view.defs.select("#land").selectAll("path").remove();
+    view.defs.select("#water").selectAll("path").remove();
+    view.coastline.selectAll("path").remove();
+    view.lakes.selectAll("path").remove();
 
     Features.markupPack();
     emitEvent("fmg:create-default-ruler");
@@ -262,10 +262,10 @@ export function resolveVersionConflicts(mapVersion: string): void {
 
   if (isOlderThan("1.11.0")) {
     // v1.11 added new attributes
-    viewContext.terrs.attr("scheme", "bright").attr("terracing", 0).attr("skip", 5).attr("relax", 0).attr("curve", 0);
-    viewContext.svg.select("#oceanic > *").attr("id", "oceanicPattern");
-    viewContext.oceanLayers.attr("layers", "-6,-3,-1");
-    viewContext.gridOverlay.attr("type", "pointyHex").attr("size", 10);
+    view.terrs.attr("scheme", "bright").attr("terracing", 0).attr("skip", 5).attr("relax", 0).attr("curve", 0);
+    view.svg.select("#oceanic > *").attr("id", "oceanicPattern");
+    view.oceanLayers.attr("layers", "-6,-3,-1");
+    view.gridOverlay.attr("type", "pointyHex").attr("size", 10);
 
     // v1.11 added cultures hierarchy tree
     if (worldContext.pack.cultures[1] && !(worldContext.pack.cultures[1] as Culture).code) {
@@ -281,15 +281,15 @@ export function resolveVersionConflicts(mapVersion: string): void {
     emitEvent("fmg:unfog");
 
     // v1.2 added new terrain attributes
-    if (!viewContext.terrain.attr("set")) viewContext.terrain.attr("set", "simple");
-    if (!viewContext.terrain.attr("size")) viewContext.terrain.attr("size", 1);
-    if (!viewContext.terrain.attr("density")) viewContext.terrain.attr("density", 0.4);
+    if (!view.terrain.attr("set")) view.terrain.attr("set", "simple");
+    if (!view.terrain.attr("size")) view.terrain.attr("size", 1);
+    if (!view.terrain.attr("density")) view.terrain.attr("density", 0.4);
   }
 
   if (isOlderThan("1.21.0")) {
     // v1.11 replaced "display" attribute by "display" style
     const hiddenLayers: SVGGElement[] = [];
-    viewContext.viewbox.selectAll<SVGGElement, unknown>("g").each(function () {
+    view.viewbox.selectAll<SVGGElement, unknown>("g").each(function () {
       if (this.hasAttribute("display")) {
         this.removeAttribute("display");
         hiddenLayers.push(this);
@@ -299,7 +299,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
 
     // v1.21 added rivers data to pack
     worldContext.pack.rivers = [];
-    viewContext.rivers.selectAll<SVGPathElement, unknown>("path").each(function () {
+    view.rivers.selectAll<SVGPathElement, unknown>("path").each(function () {
       const i = +this.id.slice(5);
       const length = this.getTotalLength() / 2;
       if (!length) return;
@@ -332,8 +332,8 @@ export function resolveVersionConflicts(mapVersion: string): void {
     States.generateCampaigns();
 
     // v1.3 added military layer
-    viewContext.armies = viewContext.viewbox.insert("g", "#icons").attr("id", "armies");
-    viewContext.armies
+    viewContext.armies = view.viewbox.insert("g", "#icons").attr("id", "armies");
+    view.armies
       .attr("opacity", 1)
       .attr("fill-opacity", 1)
       .attr("font-size", 6)
@@ -346,9 +346,9 @@ export function resolveVersionConflicts(mapVersion: string): void {
 
   if (isOlderThan("1.4.0")) {
     // v1.35 added dry lakes
-    if (!viewContext.lakes.select("#dry").size()) {
-      viewContext.lakes.append("g").attr("id", "dry");
-      viewContext.lakes
+    if (!view.lakes.select("#dry").size()) {
+      view.lakes.append("g").attr("id", "dry");
+      view.lakes
         .select("#dry")
         .attr("opacity", 1)
         .attr("fill", "#c9bfa7")
@@ -358,8 +358,8 @@ export function resolveVersionConflicts(mapVersion: string): void {
     }
 
     // v1.4 added ice layer
-    viewContext.ice = viewContext.viewbox.insert("g", "#coastline").attr("id", "ice").style("display", "none");
-    viewContext.ice
+    viewContext.ice = view.viewbox.insert("g", "#coastline").attr("id", "ice").style("display", "none");
+    view.ice
       .attr("opacity", null)
       .attr("fill", "#e8f0f6")
       .attr("stroke", "#e8f0f6")
@@ -414,19 +414,19 @@ export function resolveVersionConflicts(mapVersion: string): void {
     });
 
     // v1.5 added emblems
-    viewContext.defs.append("g").attr("id", "defs-emblems");
-    viewContext.emblems = viewContext.viewbox
+    view.defs.append("g").attr("id", "defs-emblems");
+    viewContext.emblems = view.viewbox
       .insert("g", "#population")
       .attr("id", "emblems")
-      .style("display", "none") as typeof viewContext.emblems;
-    viewContext.emblems.append("g").attr("id", "burgEmblems");
-    viewContext.emblems.append("g").attr("id", "provinceEmblems");
-    viewContext.emblems.append("g").attr("id", "stateEmblems");
+      .style("display", "none") as typeof view.emblems;
+    view.emblems.append("g").attr("id", "burgEmblems");
+    view.emblems.append("g").attr("id", "provinceEmblems");
+    view.emblems.append("g").attr("id", "stateEmblems");
     emitEvent("fmg:regenerate-emblems");
     emitEvent("fmg:toggle-emblems");
 
     // v1.5 changed relief icons data
-    viewContext.terrain.selectAll<SVGUseElement, unknown>("use").each(function () {
+    view.terrain.selectAll<SVGUseElement, unknown>("use").each(function () {
       const type = this.getAttribute("data-type") || this.getAttribute("xlink:href");
       this.removeAttribute("xlink:href");
       this.removeAttribute("data-type");
@@ -438,7 +438,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
   if (isOlderThan("1.6.0")) {
     // v1.6 changed rivers data
     for (const river of worldContext.pack.rivers) {
-      const el = viewContext.rivers.select<SVGPathElement>(`#river${river.i}`).node();
+      const el = view.rivers.select<SVGPathElement>(`#river${river.i}`).node();
       if (el) {
         river.widthFactor = +el.getAttribute("data-width")!;
         el.removeAttribute("data-width");
@@ -483,10 +483,10 @@ export function resolveVersionConflicts(mapVersion: string): void {
 
   if (isOlderThan("1.61.0")) {
     // v1.61 changed rulers data
-    viewContext.ruler.style("display", null);
+    view.ruler.style("display", null);
     setRulers(new Rulers());
 
-    viewContext.ruler.selectAll<SVGLineElement, unknown>(".ruler > .white").each(function () {
+    view.ruler.selectAll<SVGLineElement, unknown>(".ruler > .white").each(function () {
       const x1 = +this.getAttribute("x1")!;
       const y1 = +this.getAttribute("y1")!;
       const x2 = +this.getAttribute("x2")!;
@@ -498,14 +498,14 @@ export function resolveVersionConflicts(mapVersion: string): void {
       ]);
     });
 
-    viewContext.ruler.selectAll<SVGGElement, unknown>("g.opisometer").each(function () {
+    view.ruler.selectAll<SVGGElement, unknown>("g.opisometer").each(function () {
       const pointsString = this.dataset.points;
       if (!pointsString) return;
       const points = JSON.parse(pointsString);
       rulers.create(Opisometer, points);
     });
 
-    viewContext.ruler.selectAll<SVGPathElement, unknown>("path.planimeter").each(function () {
+    view.ruler.selectAll<SVGPathElement, unknown>("path.planimeter").each(function () {
       const length = this.getTotalLength();
       if (length < 30) return;
 
@@ -519,7 +519,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
       rulers.create(Planimeter, points);
     });
 
-    viewContext.ruler.selectAll("*").remove();
+    view.ruler.selectAll("*").remove();
 
     if (rulers.data.length) {
       turnButtonOn("toggleRulers");
@@ -527,7 +527,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
     } else turnButtonOff("toggleRulers");
 
     // 1.61 changed oceanicPattern from rect to image
-    const oceanicPatternContainer = viewContext.svg.select<SVGElement>("#oceanic");
+    const oceanicPatternContainer = view.svg.select<SVGElement>("#oceanic");
     const pattern = oceanicPatternContainer.node();
     if (pattern) {
       const filter = pattern.firstElementChild?.getAttribute("filter");
@@ -544,30 +544,30 @@ export function resolveVersionConflicts(mapVersion: string): void {
   }
 
   if (isOlderThan("1.62.0")) {
-    viewContext.gridOverlay.attr("size", null);
+    view.gridOverlay.attr("size", null);
   }
 
   if (isOlderThan("1.63.0")) {
-    viewContext.oceanPattern.attr("opacity", null);
-    const oceanicPattern = viewContext.svg.select<SVGImageElement>("#oceanicPattern");
+    view.oceanPattern.attr("opacity", null);
+    const oceanicPattern = view.svg.select<SVGImageElement>("#oceanicPattern");
     if (oceanicPattern.size() && !oceanicPattern.attr("opacity")) oceanicPattern.attr("opacity", "0.2");
   }
 
   if (isOlderThan("1.64.0")) {
-    const opacity = viewContext.regions.attr("opacity");
-    const filter = viewContext.regions.attr("filter");
-    viewContext.statesBody.attr("opacity", opacity).attr("filter", filter);
-    viewContext.statesHalo.attr("opacity", opacity).attr("filter", "blur(5px)");
-    viewContext.regions.attr("opacity", null).attr("filter", null);
+    const opacity = view.regions.attr("opacity");
+    const filter = view.regions.attr("filter");
+    view.statesBody.attr("opacity", opacity).attr("filter", filter);
+    view.statesHalo.attr("opacity", opacity).attr("filter", "blur(5px)");
+    view.regions.attr("opacity", null).attr("filter", null);
   }
 
   if (isOlderThan("1.65.0")) {
-    viewContext.rivers.attr("style", null);
+    view.rivers.attr("style", null);
     const { cells, rivers: packRivers } = worldContext.pack;
     const defaultWidthFactor = rn(1 / ((useOptionsState.getState().points ?? 10000) / 10000) ** 0.25, 2);
 
     for (const river of packRivers) {
-      const node = viewContext.rivers.select<SVGPathElement>(`#river${river.i}`).node();
+      const node = view.rivers.select<SVGPathElement>(`#river${river.i}`).node();
       if (node && !river.cells) {
         const riverCells: number[] = [];
         const riverPoints: [number, number][] = [];
@@ -603,19 +603,19 @@ export function resolveVersionConflicts(mapVersion: string): void {
   }
 
   if (isOlderThan("1.652.0")) {
-    viewContext.rivers.attr("style", null);
-    viewContext.borders.attr("style", null);
+    view.rivers.attr("style", null);
+    view.borders.attr("style", null);
   }
 
   if (isOlderThan("1.7.0")) {
-    const defsMarkers = viewContext.defs.select<SVGGElement>("#defs-markers").node();
-    const markersGroup = viewContext.markers.node();
+    const defsMarkers = view.defs.select<SVGGElement>("#defs-markers").node();
+    const markersGroup = view.markers.node();
 
     if (defsMarkers && markersGroup) {
       const markerElements = markersGroup.querySelectorAll<SVGUseElement>("use");
       worldContext.pack.markers = migrateLegacyMarkers(defsMarkers, markerElements);
 
-      viewContext.markers.style("display", null);
+      view.markers.style("display", null);
       defsMarkers?.remove();
       markerElements.forEach(el => {
         el.remove();
@@ -635,8 +635,8 @@ export function resolveVersionConflicts(mapVersion: string): void {
   }
 
   if (isOlderThan("1.73.0")) {
-    viewContext.defs.select("#hatching").remove();
-    const zoneLayers = viewContext.zones.selectAll<SVGGElement, unknown>("g").nodes();
+    view.defs.select("#hatching").remove();
+    const zoneLayers = view.zones.selectAll<SVGGElement, unknown>("g").nodes();
     zoneLayers.forEach(zone => {
       if (!zone.dataset.type) zone.dataset.type = "Unknown";
     });
@@ -651,7 +651,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
   }
 
   if (isOlderThan("1.85.0")) {
-    viewContext.svg.select("#initial").remove();
+    view.svg.select("#initial").remove();
   }
 
   if (isOlderThan("1.86.0")) {
@@ -682,7 +682,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
       if ((burg.coa as unknown as string) === "custom") burg.coa = { custom: true } as Emblem;
     });
 
-    viewContext.emblems.selectAll<SVGUseElement, unknown>("use").each(function () {
+    view.emblems.selectAll<SVGUseElement, unknown>("use").each(function () {
       const transform = this.getAttribute("transform");
       if (!transform) return;
       const [dx, dy] = parseTransform(transform);
@@ -715,26 +715,26 @@ export function resolveVersionConflicts(mapVersion: string): void {
   }
 
   if (isOlderThan("1.92.0")) {
-    viewContext.labels.selectAll<SVGTSpanElement, unknown>("tspan").each(function () {
+    view.labels.selectAll<SVGTSpanElement, unknown>("tspan").each(function () {
       this.setAttribute("x", "0");
     });
   }
 
   if (isOlderThan("1.94.0")) {
-    viewContext.texture.style("display", null);
-    const textureImage = viewContext.texture.select("image");
+    view.texture.style("display", null);
+    const textureImage = view.texture.select("image");
     if (textureImage.size()) {
       const x = Number(textureImage.attr("x") || 0);
       const y = Number(textureImage.attr("y") || 0);
       const href = textureImage.attr("xlink:href") || textureImage.attr("href") || textureImage.attr("src");
-      viewContext.texture.attr("data-href", href).attr("data-x", x).attr("data-y", y);
+      view.texture.attr("data-href", href).attr("data-x", x).attr("data-y", y);
       textureImage.remove();
       TextureRenderer.render(worldContext, viewContext, appServices);
     }
   }
 
   if (isOlderThan("1.95.0")) {
-    const mask = viewContext.defs.append("mask").attr("id", "vignette-mask");
+    const mask = view.defs.append("mask").attr("id", "vignette-mask");
     mask.append("rect").attr("fill", "white").attr("x", 0).attr("y", 0).attr("width", "100%").attr("height", "100%");
     mask
       .append("rect")
@@ -748,7 +748,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
       .attr("ry", "5%")
       .attr("filter", "blur(20px)");
 
-    const vignette = viewContext.svg
+    const vignette = view.svg
       .append("g")
       .attr("id", "vignette")
       .attr("mask", "url(#vignette-mask)")
@@ -759,17 +759,17 @@ export function resolveVersionConflicts(mapVersion: string): void {
   }
 
   if (isOlderThan("1.96.0")) {
-    viewContext.terrs.selectAll("*").remove();
-    const opacity = viewContext.terrs.attr("opacity");
-    const filter = viewContext.terrs.attr("filter");
-    const scheme = viewContext.terrs.attr("scheme") || "bright";
-    const terracing = viewContext.terrs.attr("terracing");
-    const skip = viewContext.terrs.attr("skip");
-    const relax = viewContext.terrs.attr("relax");
+    view.terrs.selectAll("*").remove();
+    const opacity = view.terrs.attr("opacity");
+    const filter = view.terrs.attr("filter");
+    const scheme = view.terrs.attr("scheme") || "bright";
+    const terracing = view.terrs.attr("terracing");
+    const skip = view.terrs.attr("skip");
+    const relax = view.terrs.attr("relax");
     const curveTypes: Record<string, string> = { 0: "curveBasisClosed", 1: "curveLinear", 2: "curveStep" };
-    const curve = curveTypes[viewContext.terrs.attr("curve") ?? "0"] || "curveBasisClosed";
+    const curve = curveTypes[view.terrs.attr("curve") ?? "0"] || "curveBasisClosed";
 
-    viewContext.terrs
+    view.terrs
       .attr("opacity", null)
       .attr("filter", null)
       .attr("mask", null)
@@ -779,7 +779,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
       .attr("relax", null)
       .attr("curve", null);
 
-    viewContext.terrs
+    view.terrs
       .append("g")
       .attr("id", "oceanHeights")
       .attr("data-render", 0)
@@ -790,7 +790,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
       .attr("skip", 0)
       .attr("relax", 1)
       .attr("curve", curve);
-    viewContext.terrs
+    view.terrs
       .append("g")
       .attr("id", "landHeights")
       .attr("opacity", opacity)
@@ -804,8 +804,8 @@ export function resolveVersionConflicts(mapVersion: string): void {
 
     if (layerIsOn("toggleHeight")) HeightmapRenderer.render(worldContext, viewContext, appServices);
 
-    viewContext.scaleBar.remove();
-    viewContext.scaleBar = viewContext.svg
+    view.scaleBar.remove();
+    viewContext.scaleBar = view.svg
       .insert("g", "#viewbox + *")
       .attr("id", "scaleBar")
       .attr("opacity", 1)
@@ -815,7 +815,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
       .attr("data-x", 99)
       .attr("data-y", 99)
       .attr("data-label", "");
-    viewContext.scaleBar
+    view.scaleBar
       .append("rect")
       .attr("id", "scaleBarBack")
       .attr("opacity", 0.2)
@@ -827,34 +827,27 @@ export function resolveVersionConflicts(mapVersion: string): void {
       .attr("data-right", 15)
       .attr("data-bottom", 15)
       .attr("data-left", 10);
-    drawScaleBar(worldContext, viewContext, appServices, viewContext.scaleBar, viewContext.scale);
-    fitScaleBar(
-      worldContext,
-      viewContext,
-      appServices,
-      viewContext.scaleBar,
-      viewContext.svgWidth,
-      viewContext.svgHeight
-    );
-    if (!layerIsOn("toggleScaleBar")) viewContext.scaleBar.style("display", "none");
+    drawScaleBar(worldContext, viewContext, appServices, view.scaleBar, view.scale);
+    fitScaleBar(worldContext, viewContext, appServices, view.scaleBar, view.svgWidth, view.svgHeight);
+    if (!layerIsOn("toggleScaleBar")) view.scaleBar.style("display", "none");
 
-    viewContext.armies.selectAll<SVGGElement, unknown>(":scope > g").each(function () {
+    view.armies.selectAll<SVGGElement, unknown>(":scope > g").each(function () {
       applyLegacyArmyColor(this);
     });
   }
 
   if (isOlderThan("1.98.0")) {
-    const rose = viewContext.compass.select("use");
+    const rose = view.compass.select("use");
     rose.attr("xlink:href", "#defs-compass-rose");
-    if (!viewContext.compass.selectAll("*").size()) {
-      viewContext.compass.style("display", "none");
-      viewContext.compass.append("use").attr("xlink:href", "#defs-compass-rose");
+    if (!view.compass.selectAll("*").size()) {
+      view.compass.style("display", "none");
+      view.compass.append("use").attr("xlink:href", "#defs-compass-rose");
       shiftCompass();
     }
   }
 
   if (isOlderThan("1.99.0")) {
-    viewContext.routes.attr("display", null).attr("style", null);
+    view.routes.attr("display", null).attr("style", null);
     const legacyCells = worldContext.pack.cells as unknown as Record<string, unknown>;
     delete legacyCells.road;
     delete legacyCells.crossroad;
@@ -862,11 +855,11 @@ export function resolveVersionConflicts(mapVersion: string): void {
     worldContext.pack.routes = [];
     const POINT_DISTANCE = worldContext.grid.spacing * 0.75;
 
-    for (const g of viewContext.routes.selectAll<SVGGElement, unknown>(":scope > g").nodes()) {
+    for (const g of view.routes.selectAll<SVGGElement, unknown>(":scope > g").nodes()) {
       const legacyRoutes = extractLegacyRoutesFromGroup(g, POINT_DISTANCE, worldContext.pack.routes.length);
       worldContext.pack.routes.push(...legacyRoutes);
     }
-    viewContext.routes.selectAll("path").remove();
+    view.routes.selectAll("path").remove();
     if (layerIsOn("toggleRoutes")) RoutesRenderer.render(worldContext, viewContext, appServices);
 
     worldContext.pack.cells.routes = rebuildRouteLinks(worldContext.pack.routes);
@@ -874,7 +867,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
 
   if (isOlderThan("1.100.0")) {
     worldContext.pack.zones = [];
-    viewContext.zones.selectAll<SVGGElement, unknown>("g").each(function () {
+    view.zones.selectAll<SVGGElement, unknown>("g").each(function () {
       const i = worldContext.pack.zones.length;
       const name = this.dataset.description ?? "";
       const type = this.dataset.type ?? "";
@@ -882,7 +875,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
       const cells = this.dataset.cells?.split(",").map(Number) ?? [];
       worldContext.pack.zones.push({ i, name, type, cells, color });
     });
-    viewContext.zones.style("display", null).selectAll("*").remove();
+    view.zones.style("display", null).selectAll("*").remove();
     if (layerIsOn("toggleZones")) ZonesRenderer.render(worldContext, viewContext, appServices);
   }
 
@@ -893,19 +886,19 @@ export function resolveVersionConflicts(mapVersion: string): void {
   }
 
   if (isOlderThan("1.105.0")) {
-    viewContext.viewbox.select("#icons").style("display", null);
-    viewContext.viewbox.select("#ice").style("display", null);
-    viewContext.viewbox.select("#regions").style("display", null);
-    viewContext.viewbox.select("#armies").style("display", null);
+    view.viewbox.select("#icons").style("display", null);
+    view.viewbox.select("#ice").style("display", null);
+    view.viewbox.select("#regions").style("display", null);
+    view.viewbox.select("#armies").style("display", null);
   }
 
   if (isOlderThan("1.106.0")) {
-    viewContext.defs.select("#featurePaths").remove();
-    viewContext.defs.append("g").attr("id", "featurePaths");
-    viewContext.defs.select("#land").selectAll("path, use").remove();
-    viewContext.defs.select("#water").selectAll("path, use").remove();
-    viewContext.viewbox.select("#coastline").selectAll("path, use").remove();
-    viewContext.regions
+    view.defs.select("#featurePaths").remove();
+    view.defs.append("g").attr("id", "featurePaths");
+    view.defs.select("#land").selectAll("path, use").remove();
+    view.defs.select("#water").selectAll("path, use").remove();
+    view.viewbox.select("#coastline").selectAll("path, use").remove();
+    view.regions
       .attr("opacity", null)
       .attr("stroke-width", null)
       .attr("letter-spacing", null)
@@ -926,20 +919,20 @@ export function resolveVersionConflicts(mapVersion: string): void {
       if (f?.type === "lake" && !f.group) f.group = "freshwater";
     });
     FeaturesRenderer.render(worldContext, viewContext, appServices);
-    viewContext.viewbox.selectAll("#heights").remove();
+    view.viewbox.selectAll("#heights").remove();
   }
 
   if (isOlderThan("1.109.0")) {
     worldContext.options.burgs = { groups: [] };
 
-    viewContext.burgIcons.selectAll<SVGElement, unknown>("circle, use").each(function () {
+    view.burgIcons.selectAll<SVGElement, unknown>("circle, use").each(function () {
       const group = (this.parentNode as SVGGElement).id;
       const id = this.id.replace(/^burg/, "");
       const burg = worldContext.pack.burgs[+id] as Burg & { group?: string };
       if (group && burg) burg.group = group;
     });
 
-    viewContext.burgIcons.selectAll<SVGGElement, unknown>("g").each(function (_el, index) {
+    view.burgIcons.selectAll<SVGGElement, unknown>("g").each(function (_el, index) {
       const name = this.id;
       const isDefault = name === "towns";
       worldContext.options.burgs!.groups.push({
@@ -961,17 +954,17 @@ export function resolveVersionConflicts(mapVersion: string): void {
       worldContext.options.burgs!.groups[0].isDefault = true;
     }
 
-    viewContext.anchors.selectAll<SVGGElement, unknown>("g").each(function () {
+    view.anchors.selectAll<SVGGElement, unknown>("g").each(function () {
       const size = Number(this.getAttribute("size") || 1);
       this.removeAttribute("size");
       this.setAttribute("font-size", String(size));
     });
 
-    viewContext.burgLabels.selectAll<SVGGElement, unknown>("g").each(function () {
+    view.burgLabels.selectAll<SVGGElement, unknown>("g").each(function () {
       if (!this.dataset.dy) this.dataset.dy = "-0.4";
     });
 
-    const anchorSymbol = viewContext.defs.select<Element>("#icon-anchor").node();
+    const anchorSymbol = view.defs.select<Element>("#icon-anchor").node();
     if (anchorSymbol) {
       replaceAnchorSymbol(anchorSymbol);
     }
@@ -1000,13 +993,13 @@ export function resolveVersionConflicts(mapVersion: string): void {
   if (isOlderThan("1.111.0")) {
     if (!worldContext.pack.ice.length) {
       worldContext.pack.ice = [];
-      const iceLayer = viewContext.ice.node();
+      const iceLayer = view.ice.node();
       if (iceLayer) {
         worldContext.pack.ice = migrateLegacyIce(iceLayer);
         clearElementChildren(iceLayer);
       } else {
-        viewContext.ice = viewContext.viewbox.insert("g", "#coastline").attr("id", "ice");
-        viewContext.ice
+        viewContext.ice = view.viewbox.insert("g", "#coastline").attr("id", "ice");
+        view.ice
           .attr("opacity", null)
           .attr("fill", "#e8f0f6")
           .attr("stroke", "#e8f0f6")
@@ -1168,7 +1161,7 @@ function clearElementChildren(element: Element): void {
 }
 
 function migrateLegacyMarkers(defsMarkers: SVGGElement, markerElements: NodeListOf<SVGUseElement>): Marker[] {
-  const rescale = +viewContext.markers.attr("rescale")!;
+  const rescale = +view.markers.attr("rescale")!;
 
   return Array.from(markerElements).map((el, i) => {
     const id = el.getAttribute("id")!;

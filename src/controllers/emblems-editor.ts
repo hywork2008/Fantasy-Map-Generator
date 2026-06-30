@@ -1,9 +1,9 @@
 import type * as d3 from "d3";
 import { drag } from "d3";
-import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { COA, type Emblem } from "../generators/emblem/generator";
 import { COArenderer } from "../renderers/emblem-renderer";
+import { viewLayerService as view } from "../services/viewLayerService";
 import {
   type BurgOptionItem,
   getEmblemEditorState,
@@ -17,7 +17,7 @@ import { downloadFile, getFileName } from "../utils/editorHelpers";
 import { clearMainTip, type EmblemEl, highlightEmblemElement, tip } from "../utils/uiHelpers";
 
 export function editEmblem(type?: string, id?: string, elInput?: Element | Burg | Province | State): void {
-  if (viewContext.customization) return;
+  if (view.customization) return;
   let el: Burg | Province | State | undefined = elInput instanceof Element ? undefined : elInput;
   if (!id && elInput instanceof Element) {
     const parent = elInput.parentNode as Element;
@@ -35,7 +35,7 @@ export function editEmblem(type?: string, id?: string, elInput?: Element | Burg 
 
   let _ex = 0,
     _ey = 0;
-  viewContext.emblems
+  view.emblems
     .selectAll<SVGUseElement, unknown>("use")
     .call(
       drag<SVGUseElement, unknown>()
@@ -66,7 +66,7 @@ export function editEmblem(type?: string, id?: string, elInput?: Element | Burg 
 
 export function closeEmblemEditor(): void {
   setEmblemEditorState({ isOpen: false });
-  viewContext.emblems
+  view.emblems
     .selectAll<SVGUseElement, unknown>("use")
     .call(drag<SVGUseElement, unknown>().on("drag", null))
     .attr("class", null);
@@ -194,7 +194,7 @@ function changeShape(newShape: string): void {
   const { targetElement, targetId } = getEmblemEditorState();
   if (!targetElement?.coa) return;
   targetElement.coa.shield = newShape;
-  const coaEl = viewContext.defs.select<Element>(`#${targetId}`).node();
+  const coaEl = view.defs.select<Element>(`#${targetId}`).node();
   if (coaEl) coaEl.remove();
   COArenderer.trigger(targetId, targetElement.coa);
   setEmblemEditorState({ shape: newShape });
@@ -212,7 +212,7 @@ function changeSize(size: number): void {
   targetElement.coa.size = size;
   setEmblemEditorState({ size });
 
-  const g = viewContext.emblems.select(`#${targetType}Emblems`);
+  const g = view.emblems.select(`#${targetType}Emblems`);
   g.select(`[data-i='${targetElement.i}']`).remove();
   if (!size) return;
 
@@ -258,7 +258,7 @@ function regenerate(): void {
   el.coa = COA.generate(parent ? parent.coa : null, 0.3, 0.1, undefined);
   el.coa.shield = shield;
 
-  const coaEl = viewContext.defs.select<Element>(`#${targetId}`).node();
+  const coaEl = view.defs.select<Element>(`#${targetId}`).node();
   if (coaEl) coaEl.remove();
   COArenderer.trigger(targetId, el.coa);
 
@@ -299,8 +299,8 @@ function uploadImage(file: File, uploadType: "image" | "svg"): void {
     if (!el?.coa) return;
 
     const result = (readerEvent.target as FileReader).result as string;
-    const defsEmblems = viewContext.defs.select<SVGGElement>("#defs-emblems").node()!;
-    const oldEmblem = viewContext.defs.select<SVGElement>(`#${targetId}`).node();
+    const defsEmblems = view.defs.select<SVGGElement>("#defs-emblems").node()!;
+    const oldEmblem = view.defs.select<SVGElement>(`#${targetId}`).node();
 
     let href = result;
     if (uploadType === "svg") {
@@ -348,7 +348,7 @@ function uploadImage(file: File, uploadType: "image" | "svg"): void {
 async function download(format: string): Promise<void> {
   const { targetId, targetElement, downloadSize } = getEmblemEditorState();
   const el = targetElement;
-  const coa = viewContext.defs.select<SVGElement>(`#${targetId}`).node();
+  const coa = view.defs.select<SVGElement>(`#${targetId}`).node();
   if (!coa) return;
   const url = await getURL(coa, downloadSize);
   const link = document.createElement("a");
@@ -418,7 +418,7 @@ async function downloadGallery(): Promise<void> {
     `<div><h2>States</h2>` +
     validStates
       .map(state => {
-        const stateEl = viewContext.defs.select<SVGElement>(`#stateCOA${state.i}`).node();
+        const stateEl = view.defs.select<SVGElement>(`#stateCOA${state.i}`).node();
         return `<figure id="state_${state.i}"><a href="#provinces_${state.i}"><figcaption>${
           state.fullName
         }</figcaption>${stateEl ? getSVG(stateEl, 200) : ""}</a></figure>`;
@@ -431,7 +431,7 @@ async function downloadGallery(): Promise<void> {
       const stateProvinces = validProvinces.filter(p => p.state === state.i);
       const figures = stateProvinces
         .map(province => {
-          const provEl = viewContext.defs.select<SVGElement>(`#provinceCOA${province.i}`).node();
+          const provEl = view.defs.select<SVGElement>(`#provinceCOA${province.i}`).node();
           return `<figure id="province_${province.i}"><a href="#burgs_${province.i}"><figcaption>${
             province.fullName
           }</figcaption>${provEl ? getSVG(provEl, 200) : ""}</a></figure>`;
@@ -452,7 +452,7 @@ async function downloadGallery(): Promise<void> {
           const provinceBurgs = stateBurgs.filter(b => worldContext.pack.cells.province[b.cell] === province.i);
           const provinceBurgFigures = provinceBurgs
             .map(burg => {
-              const burgEl = viewContext.defs.select<SVGElement>(`#burgCOA${burg.i}`).node();
+              const burgEl = view.defs.select<SVGElement>(`#burgCOA${burg.i}`).node();
               return `<figure id="burg_${burg.i}"><figcaption>${burg.name}</figcaption>${
                 burgEl ? getSVG(burgEl, 200) : ""
               }</figure>`;
@@ -467,7 +467,7 @@ async function downloadGallery(): Promise<void> {
       const stateBurgOutOfProvinces = stateBurgs.filter(b => !worldContext.pack.cells.province[b.cell]);
       const stateBurgOutOfProvincesFigures = stateBurgOutOfProvinces
         .map(burg => {
-          const burgEl = viewContext.defs.select<SVGElement>(`#burgCOA${burg.i}`).node();
+          const burgEl = view.defs.select<SVGElement>(`#burgCOA${burg.i}`).node();
           return `<figure id="burg_${burg.i}"><figcaption>${burg.name}</figcaption>${
             burgEl ? getSVG(burgEl, 200) : ""
           }</figure>`;
@@ -484,7 +484,7 @@ async function downloadGallery(): Promise<void> {
     ? "<div><h2>Independent burgs</h2>" +
       neutralBurgs
         .map(burg => {
-          const burgEl = viewContext.defs.select<SVGElement>(`#burgCOA${burg.i}`).node();
+          const burgEl = view.defs.select<SVGElement>(`#burgCOA${burg.i}`).node();
           return `<figure id="burg_${burg.i}"><figcaption>${burg.name}</figcaption>${
             burgEl ? getSVG(burgEl, 200) : ""
           }</figure>`;

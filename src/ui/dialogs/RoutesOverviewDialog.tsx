@@ -1,11 +1,11 @@
 import type React from "react";
 import { useMemo } from "react";
-import { viewContext } from "../../context/viewContext";
 import { worldContext } from "../../context/worldContext";
 import { confirmationDialog, downloadFile, getFileName, highlightElement } from "../../controllers/editors";
 import { toggleRoutes } from "../../controllers/layers";
 import { createRoute, editRoute } from "../../controllers/routes-editor";
 import { Routes } from "../../generators/routes-generator";
+import { viewLayerService as view } from "../../services/viewLayerService";
 import { useDialogState } from "../../store/dialogState";
 import { useOptionsState } from "../../store/optionsState";
 import { useRoutesOverviewState } from "../../store/routesOverviewState";
@@ -123,7 +123,7 @@ export const RoutesOverviewDialog: React.FC = () => {
 
   const routeHighlightOn = (routeId: number) => {
     if (!layerIsOn("toggleRoutes")) toggleRoutes();
-    viewContext.routes
+    view.routes
       .select(`#route${routeId}`)
       .attr("stroke", "red")
       .attr("stroke-width", 2)
@@ -131,7 +131,7 @@ export const RoutesOverviewDialog: React.FC = () => {
   };
 
   const routeHighlightOff = (routeId: number) => {
-    viewContext.routes
+    view.routes
       .select(`#route${routeId}`)
       .attr("stroke", null)
       .attr("stroke-width", null)
@@ -139,7 +139,7 @@ export const RoutesOverviewDialog: React.FC = () => {
   };
 
   const handleZoomToRoute = (routeId: number) => {
-    const route = viewContext.routes.select(`#route${routeId}`).node() as Element;
+    const route = view.routes.select(`#route${routeId}`).node() as Element;
     highlightElement(route, 3);
   };
 

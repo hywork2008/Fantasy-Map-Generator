@@ -2,12 +2,14 @@ import * as d3 from "d3";
 import { getWorldState } from "../actions";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
+import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { Cultures } from "../generators/cultures-generator";
 import { COA } from "../generators/emblem/generator";
 import { Names } from "../generators/names-generator";
 import { CulturesRenderer, PopulationRenderer } from "../renderers";
 import { COArenderer, type Emblem as RendererEmblem } from "../renderers/emblem-renderer";
+import { viewLayerService as view } from "../services/viewLayerService";
 import type { CultureRowData, NameBaseOption } from "../store/culturesEditorState";
 import { getCulturesEditorState, setCulturesEditorState } from "../store/culturesEditorState";
 import { useOptionsState } from "../store/optionsState";
@@ -31,14 +33,12 @@ import { editStyle } from "./style";
 const cultureTypes = ["Generic", "River", "Lake", "Naval", "Nomadic", "Hunting", "Highland"];
 
 let worldContext: WorldContext;
-let viewContext: ViewContext;
 let appServices: AppServices;
 
 const culturesManualHistory = new BrushHistory();
 
-export function initCulturesEditor(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {
+export function initCulturesEditor(wc: WorldContext, _vc: Readonly<ViewContext>, as: AppServices) {
   worldContext = wc;
-  viewContext = vc;
   appServices = as;
 }
 
@@ -64,7 +64,7 @@ export function open(): void {
 
 function closeCulturesEditor(): void {
   setCulturesEditorState({ isOpen: false });
-  viewContext.debug.select("#cultureCenters").remove();
+  view.debug.select("#cultureCenters").remove();
   exitCulturesManualAssignment();
   exitAddCultureMode();
 }
@@ -169,7 +169,7 @@ export const culturesEditorActions = {
   },
 
   toggleLegend(): void {
-    if (viewContext.legend.selectAll("*").size()) {
+    if (view.legend.selectAll("*").size()) {
       EditorBus.clearLegend();
       return;
     }
@@ -182,7 +182,7 @@ export const culturesEditorActions = {
   },
 
   showHierarchy(): void {
-    if (viewContext.customization) return;
+    if (view.customization) return;
 
     const getDescription = (culture: HierarchyElement) => {
       const { name, type, rural, urban } = culture as HierarchyElement & {
@@ -247,8 +247,8 @@ export const culturesEditorActions = {
     const c = worldContext.pack.cultures[i] as Culture;
     openPicker(c.color ?? "#ffffff", (newFill: string) => {
       c.color = newFill;
-      viewContext.cults.select(`#culture${i}`).attr("fill", newFill);
-      viewContext.debug.select(`#cultureCenter${i}`).attr("fill", newFill);
+      view.cults.select(`#culture${i}`).attr("fill", newFill);
+      view.debug.select(`#cultureCenter${i}`).attr("fill", newFill);
       culturesEditorActions.refresh();
     });
   },
@@ -332,7 +332,7 @@ export const culturesEditorActions = {
   },
 
   regenerateBurgs(i: number): void {
-    if (viewContext.customization === 4) return;
+    if (view.customization === 4) return;
 
     const base = (worldContext.pack.cultures[i] as Culture).base;
     if (!worldContext.nameBases[base]) {
@@ -345,7 +345,7 @@ export const culturesEditorActions = {
     );
     cultureBurgs.forEach((b: Burg) => {
       b.name = Names.getCulture(i);
-      viewContext.labels.select(`[data-id='${b.i}']`).text(b.name);
+      view.labels.select(`[data-id='${b.i}']`).text(b.name);
     });
     tip(`Names for ${cultureBurgs.length} burgs are regenerated`, false, "success");
   },
@@ -359,16 +359,16 @@ export const culturesEditorActions = {
   },
 
   selectCultureOnLineClick(i: number): void {
-    if (viewContext.customization !== 4) return;
+    if (view.customization !== 4) return;
     setCulturesEditorState({ selectedCultureId: i });
   },
 
   highlightCulture(i: number): void {
-    EditorBus.highlightElement(viewContext.cults.select(`#culture${i}`).node() as Element, 4);
+    EditorBus.highlightElement(view.cults.select(`#culture${i}`).node() as Element, 4);
   },
 
   triggerRemove(i: number): void {
-    if (viewContext.customization) return;
+    if (view.customization) return;
     confirmationDialog({
       title: "Remove culture",
       message: "Are you sure you want to remove the culture? <br>This action cannot be reverted",
@@ -385,14 +385,14 @@ export const culturesEditorActions = {
 
   enterCultureManualAssignment(): void {
     if (!layerIsOn("toggleCultures")) toggleCultures();
-    viewContext.customization = 4;
+    view.setCustomization(4);
     setCulturesEditorState({ customization: 4, selectedCultureId: 0 });
 
-    viewContext.cults.append("g").attr("id", "temp");
-    viewContext.debug.select("#cultureCenters").style("display", "none");
+    view.cults.append("g").attr("id", "temp");
+    view.debug.select("#cultureCenters").style("display", "none");
 
     tip("Click on culture to select, drag the circle to change culture", true);
-    viewContext.viewbox
+    view.viewbox
       .style("cursor", "crosshair")
       .on("click", selectCultureOnMapClick)
       .call(d3.drag<SVGGElement, unknown>().on("start", dragCultureBrushStart).on("drag", dragCultureBrush))
@@ -406,7 +406,7 @@ export const culturesEditorActions = {
   },
 
   applyCultureManualAssignment(): void {
-    const changed = viewContext.cults.select("#temp").selectAll<SVGPolygonElement, unknown>("polygon");
+    const changed = view.cults.select("#temp").selectAll<SVGPolygonElement, unknown>("polygon");
     changed.each(function (this: SVGPolygonElement) {
       const i = +this.dataset.cell!;
       const c = +this.dataset.culture!;
@@ -422,7 +422,7 @@ export const culturesEditorActions = {
   },
 
   undoCultureManualAssignment(): void {
-    const temp = viewContext.cults.select("#temp").node() as Element | null;
+    const temp = view.cults.select("#temp").node() as Element | null;
     if (!temp || !culturesManualHistory.canUndo) return;
     /* ignore-legacy-dom */ temp.innerHTML = culturesManualHistory.pop() ?? "";
   },
@@ -436,10 +436,10 @@ export const culturesEditorActions = {
       exitAddCultureMode();
       return;
     }
-    viewContext.customization = 9;
+    view.setCustomization(9);
     setCulturesEditorState({ customization: 9 });
     tip("Click on the map to add a new culture", true);
-    viewContext.viewbox.style("cursor", "crosshair");
+    view.viewbox.style("cursor", "crosshair");
     interactionManager.setClickHandler(addCulture);
   },
 
@@ -583,28 +583,23 @@ type HighlightEvent = { id?: string | number | null };
 const cultureHighlightOn = debounce((event: HighlightEvent) => {
   const cultureId = Number(event.id);
   if (!layerIsOn("toggleCultures")) return;
-  if (viewContext.customization) return;
+  if (view.customization) return;
 
   const animate = d3.transition().duration(2000).ease(d3.easeSinIn);
-  viewContext.cults
+  view.cults
     .select(`#culture${cultureId}`)
     .raise()
     .transition(animate)
     .attr("stroke-width", 2.5)
     .attr("stroke", "#d0240f");
-  viewContext.debug
-    .select(`#cultureCenter${cultureId}`)
-    .raise()
-    .transition(animate)
-    .attr("r", 3)
-    .attr("stroke", "#d0240f");
+  view.debug.select(`#cultureCenter${cultureId}`).raise().transition(animate).attr("r", 3).attr("stroke", "#d0240f");
 }, 200);
 
 function cultureHighlightOff(event: HighlightEvent): void {
   const cultureId = Number(event.id);
   if (!layerIsOn("toggleCultures")) return;
-  viewContext.cults.select(`#culture${cultureId}`).transition().attr("stroke-width", null).attr("stroke", null);
-  viewContext.debug.select(`#cultureCenter${cultureId}`).transition().attr("r", 2).attr("stroke", null);
+  view.cults.select(`#culture${cultureId}`).transition().attr("stroke-width", null).attr("stroke", null);
+  view.debug.select(`#cultureCenter${cultureId}`).transition().attr("r", 2).attr("stroke", null);
 }
 
 function applyPopulationChange(
@@ -650,8 +645,8 @@ function applyPopulationChange(
 }
 
 function removeCulture(cultureId: number): void {
-  viewContext.cults.select(`#culture${cultureId}`).remove();
-  viewContext.debug.select(`#cultureCenter${cultureId}`).remove();
+  view.cults.select(`#culture${cultureId}`).remove();
+  view.debug.select(`#cultureCenter${cultureId}`).remove();
 
   const { burgs, states, cells, cultures } = worldContext.pack;
 
@@ -679,8 +674,8 @@ function removeCulture(cultureId: number): void {
 
 function drawCultureCenters(): void {
   const tooltip = "Drag to move the culture center (ancestral home)";
-  viewContext.debug.select("#cultureCenters").remove();
-  const cultureCenters = viewContext.debug
+  view.debug.select("#cultureCenters").remove();
+  const cultureCenters = view.debug
     .append("g")
     .attr("id", "cultureCenters")
     .attr("stroke-width", 0.8)
@@ -761,7 +756,7 @@ function selectCultureOnMapClick(this: SVGElement, event: MouseEvent): void {
   const i = findCell(point[0], point[1]);
   if (worldContext.pack.cells.h[i] < 20) return;
 
-  const assigned = viewContext.cults.select("#temp").select(`polygon[data-cell='${i}']`);
+  const assigned = view.cults.select("#temp").select(`polygon[data-cell='${i}']`);
   const culture = assigned.size() ? +assigned.attr("data-culture") : worldContext.pack.cells.culture[i];
   setCulturesEditorState({ selectedCultureId: culture });
 }
@@ -782,7 +777,7 @@ function dragCultureBrush(this: SVGElement, event: d3.D3DragEvent<SVGElement, un
 }
 
 function changeCultureForSelection(selection: number[], cultureNew: number): void {
-  const temp = viewContext.cults.select("#temp");
+  const temp = view.cults.select("#temp");
   const color = (worldContext.pack.cultures[cultureNew] as Culture)?.color ?? "#ffffff";
 
   selection.forEach((i: number) => {
@@ -815,19 +810,19 @@ function moveCultureBrush(this: SVGElement, event: MouseEvent | TouchEvent): voi
 }
 
 function exitCulturesManualAssignment(): void {
-  viewContext.customization = 0;
+  view.setCustomization(0);
   setCulturesEditorState({ customization: 0 });
   culturesManualHistory.reset();
-  viewContext.cults.select("#temp").remove();
+  view.cults.select("#temp").remove();
   EditorBus.removeCircle();
-  viewContext.debug.select("#cultureCenters").style("display", null);
+  view.debug.select("#cultureCenters").style("display", null);
   EditorBus.restoreDefaultEvents();
   clearMainTip();
 }
 
 function exitAddCultureMode(): void {
   if (getCulturesEditorState().customization !== 9) return;
-  viewContext.customization = 0;
+  view.setCustomization(0);
   setCulturesEditorState({ customization: 0 });
   EditorBus.restoreDefaultEvents();
   clearMainTip();
@@ -856,7 +851,7 @@ function addCulture(this: SVGElement, event: MouseEvent): void {
 }
 
 function saveCulturesManualSnapshot(): void {
-  const temp = viewContext.cults.select("#temp").node() as Element | null;
+  const temp = view.cults.select("#temp").node() as Element | null;
   if (!temp) return;
   /* ignore-legacy-dom */ culturesManualHistory.push(temp.innerHTML);
 }

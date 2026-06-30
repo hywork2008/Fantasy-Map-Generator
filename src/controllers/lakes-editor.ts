@@ -16,6 +16,7 @@ import {
   StatesRenderer
 } from "../renderers";
 import { getFeaturePath } from "../renderers/index";
+import { viewLayerService as view } from "../services/viewLayerService";
 import { elSelected, modules, setElSelected } from "../store/editorState";
 import { getLakeEditorState } from "../store/lakeEditorState";
 import type { PackedGraphFeature } from "../types/models";
@@ -65,14 +66,14 @@ function updateLakeValues(): void {
 
 function updateLakeGroups(): void {
   const groups: string[] = [];
-  (viewContext.lakes as Selection<SVGGElement, unknown, null, undefined>).selectAll("g").each(function () {
+  (view.lakes as Selection<SVGGElement, unknown, null, undefined>).selectAll("g").each(function () {
     groups.push((this as SVGGElement).id);
   });
   getLakeEditorState().setGroups(groups);
 }
 
 export function editLake(event?: MouseEvent): void {
-  if (viewContext.customization) return;
+  if (view.customization) return;
   closeDialogs(".stable");
   if (layerIsOn("toggleCells")) toggleCells();
 
@@ -84,7 +85,7 @@ export function editLake(event?: MouseEvent): void {
   });
 
   const node = (event?.target ?? getElementBySelector<SVGElement>(".lakes path")) as SVGElement;
-  viewContext.debug.append("g").attr("id", "vertices");
+  view.debug.append("g").attr("id", "vertices");
   setElSelected(select(node as Element));
 
   updateLakeValues();
@@ -102,7 +103,7 @@ function drawLakeVertices(): void {
   const verts = feature.vertices!;
 
   const neibCells = unique(verts.flatMap((v: number) => worldContext.pack.vertices.c[v]));
-  viewContext.debug
+  view.debug
     .select("#vertices")
     .selectAll("polygon")
     .data(neibCells)
@@ -111,7 +112,7 @@ function drawLakeVertices(): void {
     .attr("points", (d: number) => getPackPolygon(d, worldContext.pack).join(" "))
     .attr("data-c", (d: number) => d);
 
-  viewContext.debug
+  view.debug
     .select("#vertices")
     .selectAll("circle")
     .data(verts)
@@ -137,7 +138,7 @@ function handleVertexDrag(this: SVGCircleElement, event: D3DragEvent<SVGCircleEl
   worldContext.pack.vertices.p[vertexId] = [x, y];
 
   const feature = getLake();
-  viewContext.defs
+  view.defs
     .select(`#featurePaths > path#feature_${feature.i}`)
     .attr("d", getFeaturePath(worldContext, viewContext, appServices, feature));
 
@@ -147,7 +148,7 @@ function handleVertexDrag(this: SVGCircleElement, event: D3DragEvent<SVGCircleEl
   // Update Zustand state
   getLakeEditorState().updateLakeData({ area: getArea(feature.area!) });
 
-  viewContext.debug
+  view.debug
     .select("#vertices")
     .selectAll("polygon")
     .attr("points", (d: unknown) => getPackPolygon(d as number, worldContext.pack).join(" "));
@@ -163,7 +164,7 @@ function handleVertexDragEnd(): void {
 }
 
 function closeLakesEditor(): void {
-  viewContext.debug.select("#vertices").remove();
+  view.debug.select("#vertices").remove();
   EditorBus.unselect();
   modules.editLake = false;
   getLakeEditorState().setLakeData(null);
@@ -194,7 +195,7 @@ export const lakeEditorActions = {
 
   changeLakeGroup(newGroup: string): void {
     const lake = getLake();
-    const groupEl = viewContext.lakes.select<SVGGElement>(`#${newGroup}`).node();
+    const groupEl = view.lakes.select<SVGGElement>(`#${newGroup}`).node();
     if (groupEl && elSelected) {
       groupEl.appendChild(elSelected.node()!);
       lake.group = newGroup;
@@ -212,7 +213,7 @@ export const lakeEditorActions = {
       .replace(/ /g, "_")
       .replace(/[^\w\s]/gi, "");
 
-    if (viewContext.lakes.select(`#${group}`).node()) {
+    if (view.lakes.select(`#${group}`).node()) {
       tip("Element with this id already exists. Please provide a unique name", false, "error");
       return;
     }
@@ -235,7 +236,7 @@ export const lakeEditorActions = {
 
     const newGroup = oldGroup.cloneNode(false) as SVGGElement;
     newGroup.id = group;
-    viewContext.lakes.node()!.appendChild(newGroup);
+    view.lakes.node()!.appendChild(newGroup);
     newGroup.appendChild(elSelected!.node()!);
 
     updateLakeGroups();
@@ -257,8 +258,8 @@ export const lakeEditorActions = {
         title: "Remove lake group",
         confirm: "Remove",
         onConfirm: () => {
-          const freshwater = viewContext.lakes.select<SVGGElement>("#freshwater").node();
-          const groupEl = viewContext.lakes.select<SVGGElement>(`#${group}`).node();
+          const freshwater = view.lakes.select<SVGGElement>("#freshwater").node();
+          const groupEl = view.lakes.select<SVGGElement>(`#${group}`).node();
           if (groupEl && freshwater) {
             while (groupEl.childNodes.length) {
               freshwater.appendChild(groupEl.childNodes[0]);

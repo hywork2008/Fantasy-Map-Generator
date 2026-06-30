@@ -1,9 +1,9 @@
 import * as d3 from "d3";
 import polylabel from "polylabel";
-import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { Routes } from "../generators/routes-generator";
 import { type DragEv, type MeasurerSel, MeasurersRenderer } from "../renderers/measurers-renderer";
+import { viewLayerService as view } from "../services/viewLayerService";
 import { rulers, setRulers } from "../store/editorState";
 import { useOptionsState } from "../store/optionsState";
 import { findCell, getSegmentId, last, parseTransform, rn, round, si } from "../utils";
@@ -87,7 +87,7 @@ abstract class Measurer {
   }
 
   getSize(): number {
-    return rn((1 / viewContext.scale ** 0.3) * 2, 2);
+    return rn((1 / view.scale ** 0.3) * 2, 2);
   }
 
   getDash(): number {
@@ -180,15 +180,7 @@ class Ruler extends Measurer {
     const size = this.getSize();
     const dash = this.getDash();
 
-    this.el = MeasurersRenderer.drawRuler(
-      viewContext.ruler,
-      this.id,
-      pointsStr,
-      this.points,
-      size,
-      dash,
-      this.getCallbacks()
-    );
+    this.el = MeasurersRenderer.drawRuler(view.ruler, this.id, pointsStr, this.points, size, dash, this.getCallbacks());
 
     this.updateLabel();
     return this;
@@ -283,7 +275,7 @@ class Opisometer extends Measurer {
     const size = this.getSize();
     const dash = this.getDash();
 
-    this.el = MeasurersRenderer.drawOpisometer(viewContext.ruler, this.id, size, dash, this.getCallbacks());
+    this.el = MeasurersRenderer.drawOpisometer(view.ruler, this.id, size, dash, this.getCallbacks());
 
     this.updateCurve();
     this.updateLabel();
@@ -402,7 +394,7 @@ class RouteOpisometer extends Measurer {
     const size = this.getSize();
     const dash = this.getDash();
 
-    this.el = MeasurersRenderer.drawOpisometer(viewContext.ruler, this.id, size, dash, this.getCallbacks());
+    this.el = MeasurersRenderer.drawOpisometer(view.ruler, this.id, size, dash, this.getCallbacks());
 
     this.updateCurve();
     this.updateLabel();
@@ -454,7 +446,7 @@ class Planimeter extends Measurer {
     if (this.el) this.el.selectAll("*").remove();
     const size = this.getSize();
 
-    this.el = MeasurersRenderer.drawPlanimeter(viewContext.ruler, this.id, size, this.getCallbacks());
+    this.el = MeasurersRenderer.drawPlanimeter(view.ruler, this.id, size, this.getCallbacks());
 
     this.updateCurve();
     this.updateLabel();

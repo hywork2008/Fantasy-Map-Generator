@@ -17,11 +17,12 @@ import {
   RiversRenderer
 } from "../renderers";
 import { ThreeDRenderer } from "../renderers/three-d-renderer";
+import { viewLayerService as view } from "../services/viewLayerService";
 import { openDialog } from "../ui/dialogs/dialogService";
 import { layerIsOn } from "../utils/nodeUtils";
 
 export function editWorld(): void {
-  if (viewContext.customization) return;
+  if (view.customization) return;
   openDialog("worldConfigurator");
   // Notify the dialog to refresh its displayed values (fires even when already open)
   document.dispatchEvent(new CustomEvent("fmg:world-configurator-refresh"));

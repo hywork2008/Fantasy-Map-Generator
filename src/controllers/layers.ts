@@ -1,6 +1,7 @@
 import * as d3 from "d3";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
+import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import {
   BiomesRenderer,
@@ -30,11 +31,11 @@ import {
   TextureRenderer,
   ZonesRenderer
 } from "../renderers";
+import { viewLayerService as view } from "../services/viewLayerService";
 import { rulers } from "../store/editorState";
 import { isCtrlClick, showPrompt } from "../utils";
 
 let worldContext: WorldContext;
-let viewContext: ViewContext;
 let appServices: AppServices;
 
 // Layer presets: map preset name → list of toggle button IDs that should be ON
@@ -51,16 +52,8 @@ const calculateFriendlyGridSize = () => document.dispatchEvent(new CustomEvent("
 const HIDDEN_LAYER_CLASS = "fmg-layer-hidden";
 
 function getLayerElementByToggleId(id: string): Element | null {
-  if (id === "toggleLakes") return viewContext.lakes.node();
-  if (id === "toggleIce") return viewContext.ice.node();
-  if (id === "toggleCompass") return viewContext.compass.node();
-  if (id === "toggleRulers") return viewContext.ruler.node();
-  if (id === "toggleRelief") return viewContext.terrain.node();
-  if (id === "toggleLabels") return viewContext.labels.node();
-  if (id === "toggleScaleBar") return viewContext.scaleBar.node();
-  if (id === "toggleEmblems") return viewContext.emblems.node();
   if (id === "toggleVignette") return getElementById("vignette");
-  return null;
+  return view.getLayerNodeByToggleId(id);
 }
 
 function setLayerVisibility(id: string, visible: boolean): void {
@@ -70,9 +63,8 @@ function setLayerVisibility(id: string, visible: boolean): void {
   if (visible && (layer instanceof SVGElement || layer instanceof HTMLElement)) layer.style.removeProperty("display");
 }
 
-export function initLayers(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices): void {
+export function initLayers(wc: WorldContext, _vc: Readonly<ViewContext>, as: AppServices): void {
   worldContext = wc;
-  viewContext = vc;
   appServices = as;
   precipitationTransitionState = layerIsOn("togglePrecipitation") ? "on" : "off";
   precipitationTargetState = precipitationTransitionState;
@@ -346,8 +338,7 @@ export function drawLayers(): void {
   if (layerIsOn("toggleGrid")) GridRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleCoordinates")) CoordinatesRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleCompass")) {
-    if (!viewContext.compass.select("use").size())
-      viewContext.compass.append("use").attr("xlink:href", "#defs-compass-rose");
+    if (!view.compass.select("use").size()) view.compass.append("use").attr("xlink:href", "#defs-compass-rose");
     setLayerVisibility("toggleCompass", true);
   }
   if (layerIsOn("toggleRivers")) RiversRenderer.render(worldContext, viewContext, appServices);
@@ -395,12 +386,12 @@ export function turnButtonOn(el: string): void {
 // ─── Toggle functions ─────────────────────────────────────────────────────────
 
 export function toggleHeight(event?: MouseEvent): void {
-  if (viewContext.customization === 1) {
+  if (view.customization === 1) {
     tip("You cannot turn off the layer when heightmap is in edit mode", false, "error");
     return;
   }
 
-  const children = viewContext.terrs.selectAll("#oceanHeights > *, #landHeights > *");
+  const children = view.terrs.selectAll("#oceanHeights > *, #landHeights > *");
   if (!children.size()) {
     turnButtonOn("toggleHeight");
     HeightmapRenderer.render(worldContext, viewContext, appServices);
@@ -416,7 +407,7 @@ export function toggleHeight(event?: MouseEvent): void {
 }
 
 export function toggleTemperature(event?: MouseEvent): void {
-  if (!viewContext.temperature.selectAll("*").size()) {
+  if (!view.temperature.selectAll("*").size()) {
     turnButtonOn("toggleTemperature");
     drawTemperature(worldContext, viewContext, appServices);
     if (event && isCtrlClick(event)) editStyle("temperature");
@@ -426,12 +417,12 @@ export function toggleTemperature(event?: MouseEvent): void {
       return;
     }
     turnButtonOff("toggleTemperature");
-    viewContext.temperature.selectAll("*").remove();
+    view.temperature.selectAll("*").remove();
   }
 }
 
 export function toggleBiomes(event?: MouseEvent): void {
-  if (!viewContext.biomes.selectAll("path").size()) {
+  if (!view.biomes.selectAll("path").size()) {
     turnButtonOn("toggleBiomes");
     BiomesRenderer.render(worldContext, viewContext, appServices);
     if (event && isCtrlClick(event)) editStyle("biomes");
@@ -440,7 +431,7 @@ export function toggleBiomes(event?: MouseEvent): void {
       editStyle("biomes");
       return;
     }
-    viewContext.biomes.selectAll("path").remove();
+    view.biomes.selectAll("path").remove();
     turnButtonOff("toggleBiomes");
   }
 }
@@ -474,7 +465,7 @@ export function togglePopulation(event?: MouseEvent): void {
 }
 
 export function toggleCells(event?: MouseEvent): void {
-  if (!viewContext.cells.selectAll("path").size()) {
+  if (!view.cells.selectAll("path").size()) {
     turnButtonOn("toggleCells");
     CellsRenderer.render(worldContext, viewContext, appServices);
     if (event && isCtrlClick(event)) editStyle("cells");
@@ -483,7 +474,7 @@ export function toggleCells(event?: MouseEvent): void {
       editStyle("cells");
       return;
     }
-    viewContext.cells.selectAll("path").remove();
+    view.cells.selectAll("path").remove();
     turnButtonOff("toggleCells");
   }
 }
@@ -492,7 +483,7 @@ export function toggleIce(event?: MouseEvent): void {
   if (!layerIsOn("toggleIce")) {
     turnButtonOn("toggleIce");
     setLayerVisibility("toggleIce", true);
-    if (!viewContext.ice.selectAll("*").size()) IceRenderer.render(worldContext, viewContext, appServices);
+    if (!view.ice.selectAll("*").size()) IceRenderer.render(worldContext, viewContext, appServices);
     if (event && isCtrlClick(event)) editStyle("ice");
   } else {
     if (event && isCtrlClick(event)) {
@@ -506,7 +497,7 @@ export function toggleIce(event?: MouseEvent): void {
 
 export function toggleCultures(event?: MouseEvent): void {
   const activeCultures = worldContext.pack.cultures.filter(c => c.i && !c.removed);
-  const empty = !viewContext.cults.selectAll("path").size();
+  const empty = !view.cults.selectAll("path").size();
   if (empty && activeCultures.length) {
     turnButtonOn("toggleCultures");
     CulturesRenderer.render(worldContext, viewContext, appServices);
@@ -516,14 +507,14 @@ export function toggleCultures(event?: MouseEvent): void {
       editStyle("cults");
       return;
     }
-    viewContext.cults.selectAll("path").remove();
+    view.cults.selectAll("path").remove();
     turnButtonOff("toggleCultures");
   }
 }
 
 export function toggleReligions(event?: MouseEvent): void {
   const activeReligions = worldContext.pack.religions.filter(r => r.i && !r.removed);
-  if (!viewContext.relig.selectAll("path").size() && activeReligions.length) {
+  if (!view.relig.selectAll("path").size() && activeReligions.length) {
     turnButtonOn("toggleReligions");
     ReligionsRenderer.render(worldContext, viewContext, appServices);
     if (event && isCtrlClick(event)) editStyle("relig");
@@ -532,7 +523,7 @@ export function toggleReligions(event?: MouseEvent): void {
       editStyle("relig");
       return;
     }
-    viewContext.relig.selectAll("path").remove();
+    view.relig.selectAll("path").remove();
     turnButtonOff("toggleReligions");
   }
 }
@@ -547,7 +538,7 @@ export function toggleStates(event?: MouseEvent): void {
       editStyle("regions");
       return;
     }
-    viewContext.regions.selectAll("path").remove();
+    view.regions.selectAll("path").remove();
     turnButtonOff("toggleStates");
   }
 }
@@ -563,7 +554,7 @@ export function toggleBorders(event?: MouseEvent): void {
       return;
     }
     turnButtonOff("toggleBorders");
-    viewContext.borders.selectAll("path").remove();
+    view.borders.selectAll("path").remove();
   }
 }
 
@@ -577,13 +568,13 @@ export function toggleProvinces(event?: MouseEvent): void {
       editStyle("provs");
       return;
     }
-    viewContext.provs.selectAll("*").remove();
+    view.provs.selectAll("*").remove();
     turnButtonOff("toggleProvinces");
   }
 }
 
 export function toggleGrid(event?: MouseEvent): void {
-  if (!viewContext.gridOverlay.selectAll("*").size()) {
+  if (!view.gridOverlay.selectAll("*").size()) {
     turnButtonOn("toggleGrid");
     GridRenderer.render(worldContext, viewContext, appServices);
     calculateFriendlyGridSize();
@@ -594,12 +585,12 @@ export function toggleGrid(event?: MouseEvent): void {
       return;
     }
     turnButtonOff("toggleGrid");
-    viewContext.gridOverlay.selectAll("*").remove();
+    view.gridOverlay.selectAll("*").remove();
   }
 }
 
 export function toggleCoordinates(event?: MouseEvent): void {
-  if (!viewContext.coordinates.selectAll("*").size()) {
+  if (!view.coordinates.selectAll("*").size()) {
     turnButtonOn("toggleCoordinates");
     CoordinatesRenderer.render(worldContext, viewContext, appServices);
     if (event && isCtrlClick(event)) editStyle("coordinates");
@@ -609,15 +600,14 @@ export function toggleCoordinates(event?: MouseEvent): void {
       return;
     }
     turnButtonOff("toggleCoordinates");
-    viewContext.coordinates.selectAll("*").remove();
+    view.coordinates.selectAll("*").remove();
   }
 }
 
 export function toggleCompass(event?: MouseEvent): void {
   if (!layerIsOn("toggleCompass")) {
     turnButtonOn("toggleCompass");
-    if (!viewContext.compass.select("use").size())
-      viewContext.compass.append("use").attr("xlink:href", "#defs-compass-rose");
+    if (!view.compass.select("use").size()) view.compass.append("use").attr("xlink:href", "#defs-compass-rose");
     setLayerVisibility("toggleCompass", true);
     if (event && isCtrlClick(event)) editStyle("compass");
   } else {
@@ -633,7 +623,7 @@ export function toggleCompass(event?: MouseEvent): void {
 export function toggleRelief(event?: MouseEvent): void {
   if (!layerIsOn("toggleRelief")) {
     turnButtonOn("toggleRelief");
-    if (!viewContext.terrain.selectAll("*").size()) ReliefIconsRenderer.render(worldContext, viewContext, appServices);
+    if (!view.terrain.selectAll("*").size()) ReliefIconsRenderer.render(worldContext, viewContext, appServices);
     setLayerVisibility("toggleRelief", true);
     if (event && isCtrlClick(event)) editStyle("terrain");
   } else {
@@ -672,7 +662,7 @@ export function toggleTexture(event?: MouseEvent): void {
       return;
     }
     turnButtonOff("toggleTexture");
-    viewContext.texture.select("image").remove();
+    view.texture.select("image").remove();
   }
 }
 
@@ -686,7 +676,7 @@ export function toggleRivers(event?: MouseEvent): void {
       editStyle("rivers");
       return;
     }
-    viewContext.rivers.selectAll("*").remove();
+    view.rivers.selectAll("*").remove();
     turnButtonOff("toggleRivers");
   }
 }
@@ -701,7 +691,7 @@ export function toggleRoutes(event?: MouseEvent): void {
       editStyle("routes");
       return;
     }
-    viewContext.routes.selectAll("path").remove();
+    view.routes.selectAll("path").remove();
     turnButtonOff("toggleRoutes");
   }
 }
@@ -716,7 +706,7 @@ export function toggleMilitary(event?: MouseEvent): void {
       editStyle("armies");
       return;
     }
-    viewContext.armies.selectAll("g").remove();
+    view.armies.selectAll("g").remove();
     turnButtonOff("toggleMilitary");
   }
 }
@@ -731,7 +721,7 @@ export function toggleMarkers(event?: MouseEvent): void {
       editStyle("markers");
       return;
     }
-    viewContext.markers.html("");
+    view.markers.html("");
     turnButtonOff("toggleMarkers");
   }
 }
@@ -740,7 +730,7 @@ export function toggleLabels(event?: MouseEvent): void {
   if (!layerIsOn("toggleLabels")) {
     turnButtonOn("toggleLabels");
     setLayerVisibility("toggleLabels", true);
-    if (viewContext.labels.selectAll("text").size() === 0) drawLabels();
+    if (view.labels.selectAll("text").size() === 0) drawLabels();
     if (event && isCtrlClick(event)) editStyle("labels");
   } else {
     if (event && isCtrlClick(event)) {
@@ -763,7 +753,7 @@ export function toggleBurgIcons(event?: MouseEvent): void {
       return;
     }
     turnButtonOff("toggleBurgIcons");
-    viewContext.icons.selectAll("circle, use").remove();
+    view.icons.selectAll("circle, use").remove();
   }
 }
 
@@ -779,7 +769,7 @@ export function toggleRulers(event?: MouseEvent): void {
       return;
     }
     turnButtonOff("toggleRulers");
-    viewContext.ruler.selectAll("*").remove();
+    view.ruler.selectAll("*").remove();
     setLayerVisibility("toggleRulers", false);
   }
 }
@@ -810,14 +800,14 @@ export function toggleZones(event?: MouseEvent): void {
       return;
     }
     turnButtonOff("toggleZones");
-    viewContext.zones.selectAll("*").remove();
+    view.zones.selectAll("*").remove();
   }
 }
 
 export function toggleEmblems(event?: MouseEvent): void {
   if (!layerIsOn("toggleEmblems")) {
     turnButtonOn("toggleEmblems");
-    if (!viewContext.emblems.selectAll("use").size()) EmblemsRenderer.render(worldContext, viewContext, appServices);
+    if (!view.emblems.selectAll("use").size()) EmblemsRenderer.render(worldContext, viewContext, appServices);
     setLayerVisibility("toggleEmblems", true);
     document.dispatchEvent(new CustomEvent("fmg:invoke-active-zooming"));
     if (event && isCtrlClick(event)) editStyle("emblems");
@@ -859,32 +849,7 @@ export function syncSVGLayersOrder(layers: { id: string }[]): void {
 }
 
 function getLayer(id: string): SVGGElement | HTMLElement | null {
-  if (id === "toggleLakes") return viewContext.lakes.node();
-  if (id === "toggleHeight") return viewContext.terrs.node();
-  if (id === "toggleBiomes") return viewContext.biomes.node();
-  if (id === "toggleCells") return viewContext.cells.node();
-  if (id === "toggleGrid") return viewContext.gridOverlay.node();
-  if (id === "toggleCoordinates") return viewContext.coordinates.node();
-  if (id === "toggleCompass") return viewContext.compass.node();
-  if (id === "toggleRivers") return viewContext.rivers.node();
-  if (id === "toggleRelief") return viewContext.terrain.node();
-  if (id === "toggleReligions") return viewContext.relig.node();
-  if (id === "toggleCultures") return viewContext.cults.node();
-  if (id === "toggleStates") return viewContext.regions.node();
-  if (id === "toggleProvinces") return viewContext.provs.node();
-  if (id === "toggleBorders") return viewContext.borders.node();
-  if (id === "toggleRoutes") return viewContext.routes.node();
-  if (id === "toggleTemperature") return viewContext.temperature.node();
-  if (id === "togglePrecipitation") return viewContext.prec.node();
-  if (id === "togglePopulation") return viewContext.population.node();
-  if (id === "toggleIce") return viewContext.ice.node();
-  if (id === "toggleTexture") return viewContext.texture.node();
-  if (id === "toggleEmblems") return viewContext.emblems.node();
-  if (id === "toggleLabels") return viewContext.labels.node();
-  if (id === "toggleBurgIcons") return viewContext.icons.node();
-  if (id === "toggleMarkers") return viewContext.markers.node();
-  if (id === "toggleRulers") return viewContext.ruler.node();
-  return _layerElementGetters.get(id)?.() ?? null;
+  return view.getLayerNodeByToggleId(id) ?? _layerElementGetters.get(id)?.() ?? null;
 }
 
 const TOGGLE_REGISTRY: Record<string, (event?: MouseEvent) => void> = {
@@ -958,13 +923,13 @@ function startPrecipitationTurnOn(): void {
   }
 
   const priorR = new Map<string, number>();
-  viewContext.prec.selectAll<SVGCircleElement, unknown>("circle").each(function () {
+  view.prec.selectAll<SVGCircleElement, unknown>("circle").each(function () {
     priorR.set(`${this.getAttribute("cx")}_${this.getAttribute("cy")}`, parseFloat(this.getAttribute("r") ?? "0"));
   });
 
-  viewContext.prec.interrupt();
-  viewContext.prec.selectAll("*").interrupt();
-  viewContext.prec.style("display", "block");
+  view.prec.interrupt();
+  view.prec.selectAll("*").interrupt();
+  view.prec.style("display", "block");
 
   if (!layerIsOn("togglePrecipitation")) turnButtonOn("togglePrecipitation");
   PrecipitationRenderer.render(worldContext, viewContext, appServices);
@@ -973,13 +938,13 @@ function startPrecipitationTurnOn(): void {
     precipitationAnimRafId = null;
     if (transitionToken !== precipitationTransitionToken) return;
 
-    viewContext.prec.selectAll<SVGCircleElement, unknown>("circle").each(function () {
+    view.prec.selectAll<SVGCircleElement, unknown>("circle").each(function () {
       const finalR = parseFloat(this.getAttribute("r") ?? "0");
       const startR = priorR.get(`${this.getAttribute("cx")}_${this.getAttribute("cy")}`) ?? 0;
       d3.select(this).attr("r", startR).transition().duration(800).ease(d3.easeSinIn).attr("r", finalR);
     });
 
-    viewContext.prec
+    view.prec
       .transition()
       .duration(800)
       .on("end.prec-state", () => {
@@ -999,14 +964,14 @@ function startPrecipitationTurnOff(): void {
     precipitationAnimRafId = null;
   }
 
-  viewContext.prec.selectAll("*").interrupt();
-  viewContext.prec.interrupt();
+  view.prec.selectAll("*").interrupt();
+  view.prec.interrupt();
 
   if (layerIsOn("togglePrecipitation")) turnButtonOff("togglePrecipitation");
   const hide = d3.transition().duration(1000).ease(d3.easeSinIn);
-  viewContext.prec.selectAll("text").attr("opacity", 1).transition(hide).attr("opacity", 0);
-  viewContext.prec.selectAll("circle").transition(hide).attr("r", 0).remove();
-  viewContext.prec
+  view.prec.selectAll("text").attr("opacity", 1).transition(hide).attr("opacity", 0);
+  view.prec.selectAll("circle").transition(hide).attr("r", 0).remove();
+  view.prec
     .transition()
     .delay(1000)
     .style("display", "none")
@@ -1046,7 +1011,7 @@ function startPopulationTurnOn(): void {
 
   const priorRuralY2 = new Map<string, number>();
   const priorUrbanY2 = new Map<string, number>();
-  viewContext.population
+  view.population
     .select("#rural")
     .selectAll<SVGLineElement, unknown>("line")
     .each(function () {
@@ -1055,7 +1020,7 @@ function startPopulationTurnOn(): void {
         parseFloat(this.getAttribute("y2") ?? "0")
       );
     });
-  viewContext.population
+  view.population
     .select("#urban")
     .selectAll<SVGLineElement, unknown>("line")
     .each(function () {
@@ -1065,8 +1030,8 @@ function startPopulationTurnOn(): void {
       );
     });
 
-  viewContext.population.interrupt();
-  viewContext.population.selectAll("*").interrupt();
+  view.population.interrupt();
+  view.population.selectAll("*").interrupt();
 
   if (!layerIsOn("togglePopulation")) turnButtonOn("togglePopulation");
   PopulationRenderer.render(worldContext, viewContext, appServices);
@@ -1075,7 +1040,7 @@ function startPopulationTurnOn(): void {
     populationAnimRafId = null;
     if (transitionToken !== populationTransitionToken) return;
 
-    viewContext.population
+    view.population
       .select("#rural")
       .selectAll<SVGLineElement, unknown>("line")
       .each(function () {
@@ -1085,7 +1050,7 @@ function startPopulationTurnOn(): void {
           parseFloat(this.getAttribute("y1") ?? "0");
         d3.select(this).attr("y2", startY2).transition().duration(2000).ease(d3.easeSinIn).attr("y2", finalY2);
       });
-    viewContext.population
+    view.population
       .select("#urban")
       .selectAll<SVGLineElement, unknown>("line")
       .each(function () {
@@ -1102,7 +1067,7 @@ function startPopulationTurnOn(): void {
           .attr("y2", finalY2);
       });
 
-    viewContext.population
+    view.population
       .transition()
       .delay(2500)
       .on("end.pop-state", () => {
@@ -1122,34 +1087,34 @@ function startPopulationTurnOff(): void {
     populationAnimRafId = null;
   }
 
-  viewContext.population.interrupt();
-  viewContext.population.selectAll("*").interrupt();
+  view.population.interrupt();
+  view.population.selectAll("*").interrupt();
 
   if (layerIsOn("togglePopulation")) turnButtonOff("togglePopulation");
 
-  const isD3data = viewContext.population.select("line").datum();
+  const isD3data = view.population.select("line").datum();
   if (!isD3data) {
-    viewContext.population.selectAll("line").remove();
+    view.population.selectAll("line").remove();
     populationTransitionState = "off";
     processPopulationTransition();
     return;
   }
 
   const hide = d3.transition().duration(1000).ease(d3.easeSinIn);
-  viewContext.population
+  view.population
     .select("#rural")
     .selectAll("line")
     .transition(hide)
     .attr("y2", (d: unknown) => (d as [number, number])[1])
     .remove();
-  viewContext.population
+  view.population
     .select("#urban")
     .selectAll("line")
     .transition(hide)
     .delay(1000)
     .attr("y2", (d: unknown) => (d as [number, number])[1])
     .remove();
-  viewContext.population
+  view.population
     .transition()
     .delay(2000)
     .on("end.pop-state", () => {

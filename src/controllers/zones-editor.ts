@@ -1,8 +1,10 @@
 import { type D3DragEvent, drag, pointer, type Selection, sum } from "d3";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
+import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { PopulationRenderer, ZonesRenderer } from "../renderers";
+import { viewLayerService as view } from "../services/viewLayerService";
 import { getZonesEditorState, setZonesEditorState } from "../store/zonesEditorState";
 import type { Zone } from "../types/models";
 import { isDialogOpen, openDialog } from "../ui/dialogs/dialogService";
@@ -17,7 +19,6 @@ import { toggleZones } from "./layers";
 import { editStyle } from "./style";
 
 let worldContext: WorldContext;
-let viewContext: ViewContext;
 let appServices: AppServices;
 
 type ZoneCellDatum = { cell: number; zoneId: number; fill: string };
@@ -109,11 +110,11 @@ export const zonesEditorActions = {
   },
 
   highlightOn(zoneId: number): void {
-    viewContext.zones.select(`#zone${zoneId}`).style("outline", "1px solid red");
+    view.zones.select(`#zone${zoneId}`).style("outline", "1px solid red");
   },
 
   highlightOff(zoneId: number): void {
-    viewContext.zones.select(`#zone${zoneId}`).style("outline", null);
+    view.zones.select(`#zone${zoneId}`).style("outline", null);
   }
 };
 
@@ -156,7 +157,7 @@ function zonesEditorAddLines(): void {
       worldContext.populationRate *
       worldContext.urbanization;
     const population = rn(rural + urban);
-    const focused = viewContext.defs.select(`#fog #focusZone${i}`).size();
+    const focused = view.defs.select(`#fog #focusZone${i}`).size();
 
     return {
       i,
@@ -191,17 +192,17 @@ function zonesEditorAddLines(): void {
 
 function enterZonesManualAssignent(): void {
   if (!layerIsOn("toggleZones")) toggleZones();
-  viewContext.customization = 10;
+  view.setCustomization(10);
   setZonesEditorState({ customizationMode: 10 });
 
   tip("Click to select a zone, drag to paint a zone", true);
-  viewContext.viewbox
+  view.viewbox
     .style("cursor", "crosshair")
     .on("click", selectZoneOnMapClick)
     .call(drag<SVGGElement, unknown>().on("drag", dragZoneBrush))
     .on("touchmove mousemove", moveZoneBrush);
 
-  viewContext.zones.selectAll("*").remove();
+  view.zones.selectAll("*").remove();
 
   const st = getZonesEditorState();
   const filterBy = st.filterBy;
@@ -212,7 +213,7 @@ function enterZonesManualAssignent(): void {
   const data = visibleZones.flatMap(({ i, cells, color }: Zone) =>
     cells.map((cell: number) => ({ cell, zoneId: i, fill: color }))
   );
-  viewContext.zones
+  view.zones
     .selectAll<SVGPolygonElement, ZoneCellDatum>("polygon")
     .data(data, d => `${d.zoneId}-${d.cell}`)
     .enter()
@@ -250,18 +251,18 @@ function dragZoneBrush(this: SVGElement, event: D3DragEvent<SVGElement, unknown,
   if (!zone && !eraseMode) return;
 
   if (eraseMode) {
-    const data = viewContext.zones
+    const data = view.zones
       .selectAll<SVGPolygonElement, ZoneCellDatum>("polygon")
       .data()
       .filter(d => !(d.zoneId === zoneId && selection.includes(d.cell)));
-    viewContext.zones
+    view.zones
       .selectAll<SVGPolygonElement, ZoneCellDatum>("polygon")
       .data(data, d => `${d.zoneId}-${d.cell}`)
       .exit()
       .remove();
   } else {
     const data = selection.map(cell => ({ cell, zoneId, fill: zone!.color }));
-    viewContext.zones
+    view.zones
       .selectAll<SVGPolygonElement, ZoneCellDatum>("polygon")
       .data(data, d => `${d.zoneId}-${d.cell}`)
       .enter()
@@ -282,7 +283,7 @@ function moveZoneBrush(event: MouseEvent): void {
 }
 
 function applyZonesManualAssignent(): void {
-  const data = viewContext.zones.selectAll<SVGPolygonElement, ZoneCellDatum>("polygon").data();
+  const data = view.zones.selectAll<SVGPolygonElement, ZoneCellDatum>("polygon").data();
   const zoneCells: Record<number, number[]> = data.reduce((acc: Record<number, number[]>, d) => {
     if (!acc[d.zoneId]) acc[d.zoneId] = [];
     acc[d.zoneId].push(d.cell);
@@ -310,7 +311,7 @@ function cancelZonesManualAssignent(): void {
 }
 
 function exitZonesManualAssignment(_close?: string): void {
-  viewContext.customization = 0;
+  view.setCustomization(0);
   setZonesEditorState({ customizationMode: 0 });
   EditorBus.removeCircle();
 
@@ -342,7 +343,7 @@ function toggleFog(zone: Zone): void {
   const zRow = st.zones.find(z => z.i === zone.i);
   const inactive = !zRow?.focused;
   if (inactive) {
-    const path = viewContext.zones.select(`#zone${zone.i}`).attr("d");
+    const path = view.zones.select(`#zone${zone.i}`).attr("d");
     EditorBus.fog(`focusZone${zone.i}`, path);
   } else {
     EditorBus.unfog(`focusZone${zone.i}`);
@@ -351,7 +352,7 @@ function toggleFog(zone: Zone): void {
 }
 
 function toggleLegend(): void {
-  if ((viewContext.legend as Selection<SVGGElement, unknown, null, undefined>).selectAll("*").size()) {
+  if ((view.legend as Selection<SVGGElement, unknown, null, undefined>).selectAll("*").size()) {
     EditorBus.clearLegend();
     return;
   }
@@ -398,12 +399,12 @@ function downloadZonesData(): void {
 
 function changeDescription(zone: Zone, value: string): void {
   zone.name = value;
-  viewContext.zones.select(`#zone${zone.i}`).attr("data-description", value);
+  view.zones.select(`#zone${zone.i}`).attr("data-description", value);
 }
 
 function changeType(zone: Zone, value: string): void {
   zone.type = value;
-  viewContext.zones.select(`#zone${zone.i}`).attr("data-type", value);
+  view.zones.select(`#zone${zone.i}`).attr("data-type", value);
 }
 
 function changePopulation(zone: Zone): void {
@@ -476,16 +477,15 @@ function zoneRemove(zone: Zone): void {
     confirm: "Remove",
     onConfirm: () => {
       worldContext.pack.zones = worldContext.pack.zones.filter((z: Zone) => z.i !== zone.i);
-      viewContext.zones.select(`#zone${zone.i}`).remove();
+      view.zones.select(`#zone${zone.i}`).remove();
       EditorBus.unfog(`focusZone${zone.i}`);
       zonesEditorAddLines();
     }
   });
 }
 
-export function initZonesEditor(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {
+export function initZonesEditor(wc: WorldContext, _vc: Readonly<ViewContext>, as: AppServices) {
   worldContext = wc;
-  viewContext = vc;
   appServices = as;
 }
 

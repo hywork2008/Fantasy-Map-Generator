@@ -16,6 +16,7 @@ import { StatesRenderer } from "../renderers";
 import type { Emblem as RendererEmblem } from "../renderers/emblem-renderer";
 import { COArenderer } from "../renderers/emblem-renderer";
 import { fitScaleBar } from "../renderers/index";
+import { viewLayerService as view } from "../services/viewLayerService";
 import { viewStateStore } from "../store";
 import { loadMapDialogStore } from "../store/loadMapDialogState";
 import { loadMapUrlDialogStore } from "../store/loadMapUrlDialogState";
@@ -55,7 +56,7 @@ export async function showSupporters(): Promise<void> {
   const url = `${import.meta.env.BASE_URL}modules/dynamic/supporters.js`;
   const mod = (await import(/* @vite-ignore */ url)) as { supporters: string };
   const list = mod.supporters.split("\n").sort();
-  const columns = viewContext.svgWidth < 800 ? 2 : 5;
+  const columns = view.svgWidth < 800 ? 2 : 5;
 
   openAlert(
     `<ul style='column-count: ${columns}; column-gap: 2em'>${list.map((n: string) => `<li>${n}</li>`).join("")}</ul>`,
@@ -99,11 +100,11 @@ function mapSizeInputChange(): void {
   localStorage.setItem("mapWidth", String(options.mapWidth));
   localStorage.setItem("mapHeight", String(options.mapHeight));
 
-  const tooWide = options.mapWidth > viewContext.svgWidth;
-  const tooHigh = options.mapHeight > viewContext.svgHeight;
+  const tooWide = options.mapWidth > view.svgWidth;
+  const tooHigh = options.mapHeight > view.svgHeight;
 
   if (tooWide || tooHigh) {
-    const message = `Canvas size is larger than window size (${viewContext.svgWidth} x ${viewContext.svgHeight}). It can affect performance`;
+    const message = `Canvas size is larger than window size (${view.svgWidth} x ${view.svgHeight}). It can affect performance`;
     tip(message, false, "warn", 4000);
   }
 }
@@ -122,33 +123,23 @@ export function applyGraphSize(): void {
   worldContext.graphHeight = options.mapHeight;
   const { graphWidth, graphHeight } = worldContext;
 
-  viewContext.landmass.select("rect").attr("x", 0).attr("y", 0).attr("width", graphWidth).attr("height", graphHeight);
-  viewContext.oceanPattern
-    .select("rect")
-    .attr("x", 0)
-    .attr("y", 0)
-    .attr("width", graphWidth)
-    .attr("height", graphHeight);
-  viewContext.oceanLayers
-    .select("rect")
-    .attr("x", 0)
-    .attr("y", 0)
-    .attr("width", graphWidth)
-    .attr("height", graphHeight);
+  view.landmass.select("rect").attr("x", 0).attr("y", 0).attr("width", graphWidth).attr("height", graphHeight);
+  view.oceanPattern.select("rect").attr("x", 0).attr("y", 0).attr("width", graphWidth).attr("height", graphHeight);
+  view.oceanLayers.select("rect").attr("x", 0).attr("y", 0).attr("width", graphWidth).attr("height", graphHeight);
   viewContext
     .fogging!.selectAll("rect")
     .attr("x", 0)
     .attr("y", 0)
     .attr("width", graphWidth)
     .attr("height", graphHeight);
-  viewContext.defs.select("mask#fog > rect").attr("width", graphWidth).attr("height", graphHeight);
-  viewContext.defs.select("mask#water > rect").attr("width", graphWidth).attr("height", graphHeight);
+  view.defs.select("mask#fog > rect").attr("width", graphWidth).attr("height", graphHeight);
+  view.defs.select("mask#water > rect").attr("width", graphWidth).attr("height", graphHeight);
 }
 
 export function fitMapToScreen(): void {
   const options = useOptionsState.getState();
-  const svgWidth = Math.min(options.mapWidth, viewContext.svgWidth);
-  const svgHeight = Math.min(options.mapHeight, viewContext.svgHeight);
+  const svgWidth = Math.min(options.mapWidth, view.svgWidth);
+  const svgHeight = Math.min(options.mapHeight, view.svgHeight);
   Object.assign(viewContext, { svgWidth, svgHeight });
 
   const mapEl = getElementById<SVGSVGElement>("map");
@@ -162,14 +153,14 @@ export function fitMapToScreen(): void {
   useOptionsState.getState().setOption("zoomExtentMin", zoomMin);
   const zoomMax = useOptionsState.getState().zoomExtentMax;
 
-  viewContext.zoom
+  view.zoom
     .translateExtent([
       [0, 0],
       [graphWidth, graphHeight]
     ])
     .scaleExtent([zoomMin, zoomMax]);
 
-  fitScaleBar(worldContext, viewContext, appServices, viewContext.scaleBar, svgWidth, svgHeight);
+  fitScaleBar(worldContext, viewContext, appServices, view.scaleBar, svgWidth, svgHeight);
   document.dispatchEvent(new CustomEvent("fmg:fit-legend-box"));
 }
 
@@ -180,12 +171,12 @@ function toggleTranslateExtent(el: HTMLElement): void {
   const on = el.dataset.on;
   const { graphWidth, graphHeight } = worldContext;
   if (+on) {
-    viewContext.zoom.translateExtent([
+    view.zoom.translateExtent([
       [-graphWidth / 2, -graphHeight / 2],
       [graphWidth * 1.5, graphHeight * 1.5]
     ]);
   } else {
-    viewContext.zoom.translateExtent([
+    view.zoom.translateExtent([
       [0, 0],
       [graphWidth, graphHeight]
     ]);
@@ -329,8 +320,8 @@ function changeEmblemShape(emblemShape: string): void {
 
 function changeStatesNumber(value: string): void {
   /* statesNumber style removed */
-  viewContext.burgLabels.select("#capital").attr("data-size", Math.max(rn(6 - +value / 20), 3));
-  viewContext.labels.select("#countries").attr("data-size", Math.max(rn(18 - +value / 6), 4));
+  view.burgLabels.select("#capital").attr("data-size", Math.max(rn(6 - +value / 20), 3));
+  view.labels.select("#countries").attr("data-size", Math.max(rn(18 - +value / 6), 4));
 }
 
 function changeUiSize(value: number): void {
@@ -346,7 +337,7 @@ function changeUiSize(value: number): void {
 }
 
 function getUImaxSize(): number {
-  return rn(Math.min(viewContext.svgHeight / 465, viewContext.svgWidth / 302), 1);
+  return rn(Math.min(view.svgHeight / 465, view.svgWidth / 302), 1);
 }
 
 function changeTooltipSize(value: string): void {
@@ -468,14 +459,14 @@ function changeZoomExtent(value: string): void {
   const min = Math.max(curMin, 0.01);
   const max = Math.min(curMax, 200);
   store.setOptions({ zoomExtentMin: min, zoomExtentMax: max });
-  viewContext.zoom.scaleExtent([min, max]);
+  view.zoom.scaleExtent([min, max]);
   const scale = minmax(+value, 0.01, 200);
-  viewContext.zoom.scaleTo(viewContext.svg, scale);
+  view.zoom.scaleTo(view.svg, scale);
 }
 
 function restoreDefaultZoomExtent(): void {
   useOptionsState.getState().setOptions({ zoomExtentMin: 1, zoomExtentMax: 20 });
-  viewContext.zoom.scaleExtent([1, 20]).scaleTo(viewContext.svg, 1);
+  view.zoom.scaleExtent([1, 20]).scaleTo(view.svg, 1);
 }
 
 // ─── Apply stored options ─────────────────────────────────────────────────────
@@ -726,7 +717,7 @@ function openTemplateSelectionDialog(): void {
 // ─── Sticked menu ─────────────────────────────────────────────────────────────
 
 export function regeneratePrompt(opts?: { seed?: string }): void {
-  if (viewContext.customization) {
+  if (view.customization) {
     tip("New map cannot be generated when edit mode is active, please exit the mode and retry", false, "error");
     return;
   }
@@ -921,12 +912,12 @@ export function initOptions(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: 
     const { on } = (e as CustomEvent<{ on: boolean }>).detail;
     const { graphWidth, graphHeight } = worldContext;
     if (on) {
-      viewContext.zoom.translateExtent([
+      view.zoom.translateExtent([
         [-graphWidth / 2, -graphHeight / 2],
         [graphWidth * 1.5, graphHeight * 1.5]
       ]);
     } else {
-      viewContext.zoom.translateExtent([
+      view.zoom.translateExtent([
         [0, 0],
         [graphWidth, graphHeight]
       ]);

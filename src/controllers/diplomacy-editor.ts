@@ -7,6 +7,7 @@ import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import { States } from "../generators/states-generator";
 import { StatesRenderer } from "../renderers";
+import { viewLayerService as view } from "../services/viewLayerService";
 import { type DiplomacyRowData, getDiplomacyEditorState, setDiplomacyEditorState } from "../store/diplomacyEditorState";
 import { diplomacyHistoryDialogStore } from "../store/diplomacyHistoryDialogState";
 import { closeDialogs, isDialogOpen, openDialog } from "../ui/dialogs/dialogService";
@@ -71,7 +72,7 @@ export const relations: Record<RelationKey, { inText: string; color: string; tip
 };
 
 export function editDiplomacy(): void {
-  if (viewContext.customization) return;
+  if (view.customization) return;
   if (worldContext.pack.states.filter(s => s.i && !s.removed).length < 2) {
     tip("There should be at least 2 states to edit the diplomacy", false, "error");
     return;
@@ -86,7 +87,7 @@ export function editDiplomacy(): void {
   if (layerIsOn("toggleReligions")) toggleReligions();
 
   refreshDiplomacyEditor();
-  viewContext.viewbox.style("cursor", "crosshair");
+  view.viewbox.style("cursor", "crosshair");
   interactionManager.setClickHandler(selectStateOnMapClick);
 
   if (isDialogOpen("diplomacyEditor")) return;
@@ -151,7 +152,7 @@ export function editDiplomacy(): void {
     if (!sel) return;
     if (!layerIsOn("toggleStates")) toggleStates();
 
-    viewContext.statesBody.selectAll("path").each(function () {
+    view.statesBody.selectAll("path").each(function () {
       const el = this as SVGPathElement;
       if (el.id.slice(0, 9) === "state-gap") return;
       const id = +el.id.slice(5);
@@ -160,8 +161,8 @@ export function editDiplomacy(): void {
       const c = relations[relation]?.color || "#4682b4";
 
       el.setAttribute("fill", c);
-      viewContext.statesBody.select(`#state-gap${id}`).attr("stroke", c);
-      viewContext.statesHalo.select(`#state-border${id}`).attr("stroke", color(c)?.darker().formatHex() ?? c);
+      view.statesBody.select(`#state-gap${id}`).attr("stroke", c);
+      view.statesHalo.select(`#state-border${id}`).attr("stroke", color(c)?.darker().formatHex() ?? c);
     });
   }
 
@@ -319,7 +320,7 @@ export function editDiplomacy(): void {
     clearMainTip();
     if (layerIsOn("toggleStates")) StatesRenderer.render(worldContext, viewContext, appServices);
     else toggleStates();
-    viewContext.debug.selectAll(".highlight").remove();
+    view.debug.selectAll(".highlight").remove();
     // modules flag managed by CommonEditorDialog cleanup
   }
   diplomacyEditorActions.refreshDiplomacyEditor = refreshDiplomacyEditor;
@@ -337,10 +338,10 @@ export const diplomacyEditorActions = {
   refreshDiplomacyEditor: () => {},
   stateHighlightOn: (stateId: number) => {
     if (!layerIsOn("toggleStates")) return;
-    if (viewContext.customization || !stateId) return;
-    const d = viewContext.regions.select(`#state${stateId}`).attr("d");
+    if (view.customization || !stateId) return;
+    const d = view.regions.select(`#state${stateId}`).attr("d");
 
-    const path = viewContext.debug
+    const path = view.debug
       .append("path")
       .attr("class", "highlight")
       .attr("d", d)
@@ -359,12 +360,7 @@ export const diplomacyEditorActions = {
       .attrTween("stroke-dasharray", () => (t: number) => interp(t));
   },
   stateHighlightOff: () => {
-    viewContext.debug
-      .selectAll<SVGElement, unknown>(".highlight")
-      .transition()
-      .duration(1000)
-      .attr("opacity", 0)
-      .remove();
+    view.debug.selectAll<SVGElement, unknown>(".highlight").transition().duration(1000).attr("opacity", 0).remove();
   },
   selectState: (stateId: number) => {
     setDiplomacyEditorState({ selectedStateId: stateId });

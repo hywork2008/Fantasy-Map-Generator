@@ -1,10 +1,12 @@
 import { type D3DragEvent, drag, pointer } from "d3";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
+import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { Routes } from "../generators/routes-generator";
 import { drawTemperature } from "../renderers";
 import { drawScaleBar, fitScaleBar } from "../renderers/index";
+import { viewLayerService as view } from "../services/viewLayerService";
 import { modules, rulers, setRulers } from "../store/editorState";
 import { useOptionsState } from "../store/optionsState";
 import { getUnitsEditorState, setUnitsEditorState } from "../store/unitsEditorState";
@@ -17,7 +19,6 @@ import { toggleRulers } from "./layers";
 import { calculateFriendlyGridSize } from "./style";
 
 let worldContext: WorldContext;
-let viewContext: ViewContext;
 let appServices: AppServices;
 
 export function editUnits(): void {
@@ -37,15 +38,8 @@ export function editUnits(): void {
 }
 
 const renderScaleBar = () => {
-  drawScaleBar(worldContext, viewContext, appServices, viewContext.scaleBar, viewContext.scale);
-  fitScaleBar(
-    worldContext,
-    viewContext,
-    appServices,
-    viewContext.scaleBar,
-    viewContext.svgWidth,
-    viewContext.svgHeight
-  );
+  drawScaleBar(worldContext, viewContext, appServices, view.scaleBar, view.scale);
+  fitScaleBar(worldContext, viewContext, appServices, view.scaleBar, view.svgWidth, view.svgHeight);
 };
 
 export const unitsEditorActions = {
@@ -124,16 +118,16 @@ export const unitsEditorActions = {
   addRuler(): void {
     if (!layerIsOn("toggleRulers")) toggleRulers();
 
-    const width = Math.min(worldContext.graphWidth, viewContext.svgWidth);
-    const height = Math.min(worldContext.graphHeight, viewContext.svgHeight);
+    const width = Math.min(worldContext.graphWidth, view.svgWidth);
+    const height = Math.min(worldContext.graphHeight, view.svgHeight);
     const mapSvg = getElementById<SVGSVGElement>("map");
     if (!mapSvg) return;
     const pt = mapSvg.createSVGPoint();
     pt.x = width / 2;
     pt.y = height / 4;
-    const p = pt.matrixTransform((viewContext.viewbox.node() as SVGGraphicsElement).getScreenCTM()!.inverse());
+    const p = pt.matrixTransform((view.viewbox.node() as SVGGraphicsElement).getScreenCTM()!.inverse());
 
-    const dx = width / 4 / viewContext.scale;
+    const dx = width / 4 / view.scale;
     const dy = (rulers.data.length * 40) % (height / 2);
     const from: [number, number] = [(p.x - dx) | 0, (p.y + dy) | 0];
     const to: [number, number] = [(p.x + dx) | 0, (p.y + dy) | 0];
@@ -151,7 +145,7 @@ export const unitsEditorActions = {
     if (!layerIsOn("toggleRulers")) toggleRulers();
     tip("Draw a curve to measure length. Hold Shift to disallow path optimization", true);
     setUnitsEditorState({ rulerMode: "opisometer" });
-    viewContext.viewbox.style("cursor", "crosshair").call(
+    view.viewbox.style("cursor", "crosshair").call(
       drag<SVGGElement, unknown>().on(
         "start",
         function (this: SVGGElement, startEvent: D3DragEvent<SVGGElement, unknown, unknown>) {
@@ -186,7 +180,7 @@ export const unitsEditorActions = {
     tip("Draw a curve along routes to measure length. Hold Shift to measure away from roads.", true);
     setUnitsEditorState({ rulerMode: "routeOpisometer" });
 
-    viewContext.viewbox.style("cursor", "crosshair").call(
+    view.viewbox.style("cursor", "crosshair").call(
       drag<SVGGElement, unknown>().on(
         "start",
         function (this: SVGGElement, startEvent: D3DragEvent<SVGGElement, unknown, unknown>) {
@@ -239,7 +233,7 @@ export const unitsEditorActions = {
     if (!layerIsOn("toggleRulers")) toggleRulers();
     tip("Draw a curve to measure its area. Hold Shift to disallow path optimization", true);
     setUnitsEditorState({ rulerMode: "planimeter" });
-    viewContext.viewbox.style("cursor", "crosshair").call(
+    view.viewbox.style("cursor", "crosshair").call(
       drag<SVGGElement, unknown>().on(
         "start",
         function (this: SVGGElement, startEvent: D3DragEvent<SVGGElement, unknown, unknown>) {
@@ -279,9 +273,8 @@ export const unitsEditorActions = {
   }
 };
 
-export function initUnitsEditor(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {
+export function initUnitsEditor(wc: WorldContext, _vc: Readonly<ViewContext>, as: AppServices) {
   worldContext = wc;
-  viewContext = vc;
   appServices = as;
 }
 

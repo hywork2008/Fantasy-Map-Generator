@@ -1,6 +1,6 @@
 import type { BaseType, Selection } from "d3";
 import { curveBundle, line, max, min } from "d3";
-import { viewContext } from "../context/viewContext";
+import { viewLayerService as view } from "../services/viewLayerService";
 import type { Grid } from "../types/Grid";
 import { C_12, getColorScheme } from "./colorUtils";
 import { getGridPolygon } from "./graphUtils";
@@ -13,8 +13,8 @@ import { round } from "./stringUtils";
  * @param {{ cells: { p: number[][] } }} packedGraph - The packed graph object containing cell positions
  */
 export const drawCellsValue = (data: unknown[], packedGraph: { cells: { p: number[][] } }): void => {
-  viewContext.debug.selectAll("text").remove();
-  viewContext.debug
+  view.debug.selectAll("text").remove();
+  view.debug
     .selectAll("text")
     .data(data)
     .enter()
@@ -36,11 +36,11 @@ export const drawPolygons = (
 ): void => {
   const maximum: number = max(data) as number;
   const minimum: number = min(data) as number;
-  const scheme = getColorScheme(viewContext.terrs.select("#landHeights").attr("scheme"));
+  const scheme = getColorScheme(view.terrs.select("#landHeights").attr("scheme"));
 
   data = data.map(d => 1 - normalize(d, minimum, maximum));
-  viewContext.debug.selectAll("polygon").remove();
-  viewContext.debug
+  view.debug.selectAll("polygon").remove();
+  view.debug
     .selectAll("polygon")
     .data(data)
     .enter()
@@ -57,8 +57,8 @@ export const drawPolygons = (
 export const drawRouteConnections = (packedGraph: {
   cells: { p: number[][]; routes: Record<number, Record<number, number>> };
 }): void => {
-  viewContext.debug.select("#connections").remove();
-  const routes = viewContext.debug.append("g").attr("id", "connections").attr("stroke-width", 0.8);
+  view.debug.select("#connections").remove();
+  const routes = view.debug.append("g").attr("id", "connections").attr("stroke-width", 0.8);
 
   const points = packedGraph.cells.p;
   const links = packedGraph.cells.routes;
@@ -90,7 +90,7 @@ export const drawRouteConnections = (packedGraph: {
  * @param {number} options.radius - Radius of the point
  */
 export const drawPoint = ([x, y]: [number, number], { color = "red", radius = 0.5 }): void => {
-  viewContext.debug.append("circle").attr("cx", x).attr("cy", y).attr("r", radius).attr("fill", color);
+  view.debug.append("circle").attr("cx", x).attr("cy", y).attr("r", radius).attr("fill", color);
 };
 
 /**
@@ -102,7 +102,7 @@ export const drawPoint = ([x, y]: [number, number], { color = "red", radius = 0.
  */
 export const drawPath = (points: [number, number][], { color = "red", width = 0.5 }): void => {
   const lineGen = line().curve(curveBundle);
-  viewContext.debug
+  view.debug
     .append("path")
     .attr("d", round(lineGen(points) as string))
     .attr("stroke", color)

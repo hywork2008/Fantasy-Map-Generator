@@ -1,4 +1,4 @@
-import { viewContext } from "../context/viewContext";
+import { viewLayerService as view } from "../services/viewLayerService";
 import { useRiversOverviewState } from "../store/riversOverviewState";
 import { closeDialogs, openDialog } from "../ui/dialogs/dialogService";
 import { layerIsOn } from "../utils/nodeUtils";
@@ -6,7 +6,7 @@ import { fitContent } from "../utils/uiHelpers";
 import { toggleRivers } from "./layers";
 
 export function overviewRivers(): void {
-  if (viewContext.customization) return;
+  if (view.customization) return;
   closeDialogs("#riversOverview, .stable");
   if (!layerIsOn("toggleRivers")) toggleRivers();
 

@@ -1,8 +1,8 @@
 import type React from "react";
 import { useEffect, useState } from "react";
-import { viewContext } from "../../../context/viewContext";
 import { handleLayersPresetChange, removePreset, savePreset, toggleLayerById } from "../../../controllers/layers";
 import { changeViewMode } from "../../../controllers/viewMode";
+import { viewLayerService as view } from "../../../services/viewLayerService";
 import { DEFAULT_LAYERS, type LayerConfig, useLayerState } from "../../../store/layerState";
 
 export const LayersTab: React.FC = () => {
@@ -124,7 +124,7 @@ export const LayersTab: React.FC = () => {
         <button
           data-tip="Standard view mode that allows to edit the map"
           id="viewStandard"
-          className={viewContext.customization !== 1 ? "pressed" : ""}
+          className={view.customization !== 1 ? "pressed" : ""}
           onClick={handleViewMode}
           type="button"
         >

@@ -1,9 +1,11 @@
 import { type D3DragEvent, drag, pointer, select } from "d3";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
+import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { Ice } from "../generators/ice";
 import { redrawGlacier, redrawIceberg } from "../renderers/index";
+import { viewLayerService as view } from "../services/viewLayerService";
 import { elSelected, setElSelected } from "../store/editorState";
 import { getIceEditorState, setIceEditorState } from "../store/iceEditorState";
 import type { IceIceberg } from "../types/models";
@@ -17,11 +19,10 @@ import { toggleIce } from "./layers";
 import { editStyle } from "./style";
 
 let worldContext: WorldContext;
-let viewContext: ViewContext;
 let appServices: AppServices;
 
 export function editIce(element: SVGElement): void {
-  if (viewContext.customization) return;
+  if (view.customization) return;
   if (elSelected && element === elSelected.node()) return;
 
   if (!layerIsOn("toggleIce")) toggleIce();
@@ -52,7 +53,7 @@ export function editIce(element: SVGElement): void {
     if (iceData) iceData.offset = [_idx + x, _idy + y];
   }
 
-  viewContext.ice
+  view.ice
     .selectAll<SVGElement, unknown>("*")
     .classed("draggable", true)
     .call(drag<SVGElement, unknown>().on("start", dragElementStart).on("drag", dragElementDrag));
@@ -98,13 +99,13 @@ function toggleAdd(): void {
   setIceEditorState({ isAdding: nextIsAdding });
 
   if (nextIsAdding) {
-    viewContext.viewbox.style("cursor", "crosshair");
+    view.viewbox.style("cursor", "crosshair");
     interactionManager.setClickHandler(addIcebergOnClick);
     tip("Click on map to create an iceberg. Hold Shift to add multiple", true);
   } else {
     clearMainTip();
     interactionManager.resetClickHandler();
-    viewContext.viewbox.style("cursor", "default");
+    view.viewbox.style("cursor", "default");
   }
 }
 
@@ -126,7 +127,7 @@ function removeIce(): void {
 
 export function closeIceEditor(): void {
   setIceEditorState({ isOpen: false, isAdding: false });
-  viewContext.ice
+  view.ice
     .selectAll<SVGElement, unknown>("*")
     .classed("draggable", false)
     .call(drag<SVGElement, unknown>().on("drag", null));
@@ -143,8 +144,7 @@ export const iceEditorActions = {
   openStyleEditor: () => editStyle("ice")
 };
 
-export function initIceEditor(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {
+export function initIceEditor(wc: WorldContext, _vc: Readonly<ViewContext>, as: AppServices) {
   worldContext = wc;
-  viewContext = vc;
   appServices = as;
 }

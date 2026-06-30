@@ -6,6 +6,7 @@ import { worldContext } from "../context/worldContext";
 import { Burgs } from "../generators/burgs-generator";
 import { Names } from "../generators/names-generator";
 import { drawBurgIcon, drawBurgLabel, drawRoute } from "../renderers";
+import { viewLayerService as view } from "../services/viewLayerService";
 import { useBurgsOverviewState } from "../store/burgsOverviewState";
 import { burgsRenamingDialogStore } from "../store/burgsRenamingDialogState";
 import type { BurgsBubbleChartConfig } from "../ui/dialogs/BurgsBubbleChartDialog";
@@ -20,7 +21,7 @@ import { interactionManager } from "./interactionManager";
 import { toggleBurgIcons, toggleLabels } from "./layers";
 
 export function overviewBurgs(settings: { stateId?: number | null; cultureId?: number | null } = {}): void {
-  if (viewContext.customization) return;
+  if (view.customization) return;
   closeDialogs("#burgsOverview, .stable");
   if (!layerIsOn("toggleBurgIcons")) toggleBurgIcons();
   if (!layerIsOn("toggleLabels")) toggleLabels();
@@ -31,7 +32,7 @@ export function overviewBurgs(settings: { stateId?: number | null; cultureId?: n
 }
 
 export function zoomIntoBurg(burgId: number): void {
-  const label = viewContext.burgLabels.select(`[data-id='${burgId}']`).node() as SVGTextElement | null;
+  const label = view.burgLabels.select(`[data-id='${burgId}']`).node() as SVGTextElement | null;
   if (!label) return;
   const x = +label.getAttribute("x")!;
   const y = +label.getAttribute("y")!;
@@ -39,8 +40,8 @@ export function zoomIntoBurg(burgId: number): void {
 }
 
 export function startAddBurgMode(onDone: () => void): void {
-  viewContext.customization = 3;
-  viewContext.viewbox.style("cursor", "crosshair");
+  view.setCustomization(3);
+  view.viewbox.style("cursor", "crosshair");
   tip("Click on the map to create a new burg. Hold Shift to add multiple", true, "warn");
   interactionManager.setClickHandler(function (this: SVGElement, event: MouseEvent) {
     const point = pointer(event, this) as [number, number];
@@ -69,7 +70,7 @@ export function startAddBurgMode(onDone: () => void): void {
 }
 
 export function stopAddBurgMode(): void {
-  viewContext.customization = 0;
+  view.setCustomization(0);
   EditorBus.restoreDefaultEvents();
   clearMainTip();
 }
@@ -79,7 +80,7 @@ export function regenerateBurgNames(refresh: () => void): void {
   for (const burg of validBurgs) {
     const name = Names.getCulture(burg.culture!);
     burg.name = name;
-    viewContext.burgLabels.select(`[data-id='${burg.i}']`).text(name);
+    view.burgLabels.select(`[data-id='${burg.i}']`).text(name);
   }
   refresh();
 }
@@ -176,7 +177,7 @@ export function importBurgNames(dataLoaded: string, refresh: () => void): void {
     onConfirm: () => {
       for (const { id, name } of change) {
         worldContext.pack.burgs[id].name = name;
-        viewContext.burgLabels.select(`[data-id='${id}']`).text(name);
+        view.burgLabels.select(`[data-id='${id}']`).text(name);
       }
       refresh();
     }

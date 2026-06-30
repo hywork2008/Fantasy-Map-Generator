@@ -1,9 +1,9 @@
 import type React from "react";
 import { useEffect, useRef } from "react";
 import { zoomTo } from "../../actions";
-import { viewContext } from "../../context/viewContext";
 import { worldContext } from "../../context/worldContext";
 import { updateMinimap } from "../../controllers/minimap";
+import { viewLayerService as view } from "../../services/viewLayerService";
 import { useDialogState } from "../../store/dialogState";
 import { useMinimapState } from "../../store/minimapState";
 import { minmax } from "../../utils";
@@ -58,7 +58,7 @@ export const MinimapDialog: React.FC = () => {
     const svgPoint = point.matrixTransform(ctm.inverse());
     const x = minmax(svgPoint.x, 0, worldContext.graphWidth);
     const y = minmax(svgPoint.y, 0, worldContext.graphHeight);
-    zoomTo(x, y, viewContext.scale, 450);
+    zoomTo(x, y, view.scale, 450);
   }
 
   return (

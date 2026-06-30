@@ -4,6 +4,7 @@ import type { WorldContext } from "../context/worldContext";
 import { Names } from "../generators/names-generator";
 import { Rivers } from "../generators/river-generator";
 import { removeRivers } from "../renderers/draw-rivers";
+import { viewLayerService as view } from "../services/viewLayerService";
 import { dialogStore } from "../store/dialogState";
 import { elSelected, setElSelected } from "../store/editorState";
 import type { River } from "../types/models";
@@ -83,7 +84,7 @@ function updateRiverData(): void {
 }
 
 function drawControlPoints(pts: [number, number][]): void {
-  viewContext.debug
+  view.debug
     .select<SVGGElement>("#controlPoints")
     .selectAll<SVGCircleElement, [number, number]>("circle")
     .data(pts)
@@ -102,7 +103,7 @@ function drawControlPoints(pts: [number, number][]): void {
 
 function drawRiverCells(cellList: number[]): void {
   const validCells = [...new Set(cellList)].filter(i => worldContext.pack.cells.i[i]);
-  viewContext.debug
+  view.debug
     .select("#controlCells")
     .selectAll("polygon")
     .data(validCells)
@@ -149,10 +150,10 @@ function dragControlPointEnd(this: SVGCircleElement): void {
 function redrawRiver(): void {
   const river = getRiver();
   if (!river) return;
-  river.points = viewContext.debug.selectAll("#controlPoints > *").data() as [number, number][];
+  river.points = view.debug.selectAll("#controlPoints > *").data() as [number, number][];
   river.cells = river.points.map(([x, y]) => findCell(x, y));
 
-  viewContext.lineGen.curve(curveCatmullRom.alpha(0.1));
+  view.lineGen.curve(curveCatmullRom.alpha(0.1));
   const meanderedPoints = Rivers.addMeandering(river.cells, river.points);
   const path = Rivers.getRiverPath(meanderedPoints, river.widthFactor, river.sourceWidth);
   elSelected!.attr("d", path);
@@ -169,7 +170,7 @@ function addControlPoint(this: SVGPathElement, event: MouseEvent): void {
 
   const river = getRiver();
   if (!river) return;
-  if (!river.points) river.points = viewContext.debug.selectAll("#controlPoints > *").data() as [number, number][];
+  if (!river.points) river.points = view.debug.selectAll("#controlPoints > *").data() as [number, number][];
 
   const index = getSegmentId(river.points, point, 2);
   river.points.splice(index, 0, point);
@@ -186,8 +187,8 @@ function removeControlPoint(this: SVGCircleElement): void {
 }
 
 function closeRiverEditor(): void {
-  viewContext.debug.select("#controlPoints").remove();
-  viewContext.debug.select("#controlCells").remove();
+  view.debug.select("#controlPoints").remove();
+  view.debug.select("#controlCells").remove();
 
   elSelected?.on("click", null);
   EditorBus.unselect();
@@ -257,7 +258,7 @@ export const riverEditorActions = {
   },
 
   showRiverElevationProfile: (): void => {
-    const pts = viewContext.debug
+    const pts = view.debug
       .selectAll<Element, [number, number]>("#controlPoints > *")
       .data()
       .map(([x, y]) => findCell(x, y));
@@ -288,7 +289,7 @@ export const riverEditorActions = {
 };
 
 export function editRiver(id: string): void {
-  if (viewContext.customization) return;
+  if (view.customization) return;
   if (elSelected && id === elSelected.attr("id")) return;
   closeDialogs(".stable");
   if (!layerIsOn("toggleRivers")) toggleRivers();
@@ -302,8 +303,8 @@ export function editRiver(id: string): void {
     "Drag control points to change the river course. Click on point to remove it. Click on river to add additional control point. For major changes please create a new river instead",
     true
   );
-  viewContext.debug.append("g").attr("id", "controlCells");
-  viewContext.debug.append("g").attr("id", "controlPoints");
+  view.debug.append("g").attr("id", "controlCells");
+  view.debug.append("g").attr("id", "controlPoints");
 
   updateRiverData();
 

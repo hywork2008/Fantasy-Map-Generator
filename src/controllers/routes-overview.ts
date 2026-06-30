@@ -1,4 +1,4 @@
-import { viewContext } from "../context/viewContext";
+import { viewLayerService as view } from "../services/viewLayerService";
 import { modules } from "../store/editorState";
 import { useRoutesOverviewState } from "../store/routesOverviewState";
 import { closeDialogs, openDialog } from "../ui/dialogs/dialogService";
@@ -7,7 +7,7 @@ import { fitContent } from "../utils/uiHelpers";
 import { toggleRoutes } from "./layers";
 
 export function overviewRoutes(): void {
-  if (viewContext.customization) return;
+  if (view.customization) return;
   closeDialogs("#routesOverview, .stable");
   if (!layerIsOn("toggleRoutes")) toggleRoutes();
 

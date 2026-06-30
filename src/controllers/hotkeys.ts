@@ -1,8 +1,8 @@
 import { resetZoom } from "../actions";
-import { viewContext } from "../context/viewContext";
 import { quickLoad } from "../io/load";
 import { saveMap, toggleSaveReminder } from "../io/save";
 import { ThreeDRenderer } from "../renderers/three-d-renderer";
+import { viewLayerService as view } from "../services/viewLayerService";
 import { closeDialogs, isDialogOpen } from "../ui/dialogs/dialogService";
 import { minmax } from "../utils";
 import { EditorBus } from "../utils/editorBus";
@@ -164,25 +164,25 @@ function handleKeyup(event: KeyboardEvent): void {
   else if (code === "KeyI") toggleBurgIcons();
   else if (code === "KeyM") toggleMilitary();
   else if (code === "KeyK") toggleMarkers();
-  else if (code === "Equal" && !viewContext.customization) toggleRulers();
+  else if (code === "Equal" && !view.customization) toggleRulers();
   else if (code === "Slash") toggleScaleBar();
   else if (code === "BracketLeft" && !handleBracketSizeChange(code)) toggleVignette();
   else if (code === "BracketRight") handleBracketSizeChange(code);
-  else if (code === "ArrowLeft") viewContext.zoom.translateBy(viewContext.svg, 10, 0);
-  else if (code === "ArrowRight") viewContext.zoom.translateBy(viewContext.svg, -10, 0);
-  else if (code === "ArrowUp") viewContext.zoom.translateBy(viewContext.svg, 0, 10);
-  else if (code === "ArrowDown") viewContext.zoom.translateBy(viewContext.svg, 0, -10);
+  else if (code === "ArrowLeft") view.zoom.translateBy(view.svg, 10, 0);
+  else if (code === "ArrowRight") view.zoom.translateBy(view.svg, -10, 0);
+  else if (code === "ArrowUp") view.zoom.translateBy(view.svg, 0, 10);
+  else if (code === "ArrowDown") view.zoom.translateBy(view.svg, 0, -10);
   else if (key === "+" || key === "-" || key === "=") handleSizeChange(key);
   else if (key === "0") resetZoom(1000);
-  else if (key === "1") viewContext.zoom.scaleTo(viewContext.svg, 1);
-  else if (key === "2") viewContext.zoom.scaleTo(viewContext.svg, 2);
-  else if (key === "3") viewContext.zoom.scaleTo(viewContext.svg, 3);
-  else if (key === "4") viewContext.zoom.scaleTo(viewContext.svg, 4);
-  else if (key === "5") viewContext.zoom.scaleTo(viewContext.svg, 5);
-  else if (key === "6") viewContext.zoom.scaleTo(viewContext.svg, 6);
-  else if (key === "7") viewContext.zoom.scaleTo(viewContext.svg, 7);
-  else if (key === "8") viewContext.zoom.scaleTo(viewContext.svg, 8);
-  else if (key === "9") viewContext.zoom.scaleTo(viewContext.svg, 9);
+  else if (key === "1") view.zoom.scaleTo(view.svg, 1);
+  else if (key === "2") view.zoom.scaleTo(view.svg, 2);
+  else if (key === "3") view.zoom.scaleTo(view.svg, 3);
+  else if (key === "4") view.zoom.scaleTo(view.svg, 4);
+  else if (key === "5") view.zoom.scaleTo(view.svg, 5);
+  else if (key === "6") view.zoom.scaleTo(view.svg, 6);
+  else if (key === "7") view.zoom.scaleTo(view.svg, 7);
+  else if (key === "8") view.zoom.scaleTo(view.svg, 8);
+  else if (key === "9") view.zoom.scaleTo(view.svg, 9);
   else if (ctrl) toggleMode();
 }
 
@@ -220,7 +220,7 @@ function handleSizeChange(key: string): void {
   }
 
   const scaleBy = key === "+" ? 1.2 : 0.8;
-  viewContext.zoom.scaleBy(viewContext.svg, scaleBy);
+  view.zoom.scaleBy(view.svg, scaleBy);
 }
 
 function handleBracketSizeChange(code: string): boolean {

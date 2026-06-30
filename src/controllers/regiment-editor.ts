@@ -1,9 +1,11 @@
 import { drag, easeSinInOut, pointer, select, sum, transition } from "d3";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
+import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { Military } from "../generators/military-generator";
 import { drawRegiment, moveRegiment } from "../renderers/index";
+import { viewLayerService as view } from "../services/viewLayerService";
 import { elSelected, modules, setElSelected } from "../store/editorState";
 import { getRegimentEditorState, setRegimentEditorState } from "../store/regimentEditorState";
 import type { MilitaryRegiment } from "../types/models";
@@ -19,7 +21,6 @@ import { toggleMilitary } from "./layers";
 import { editNotes } from "./notes-editor";
 
 let worldContext: WorldContext;
-let viewContext: ViewContext;
 let appServices: AppServices;
 
 let _regDragState: {
@@ -68,7 +69,7 @@ function syncRegimentState(regiment: MilitaryRegiment): void {
 function drawBase(): void {
   const reg = getRegiment()!;
   const clr = worldContext.pack.states[+getRegEl().dataset.state!].color ?? "";
-  const base = viewContext.viewbox
+  const base = view.viewbox
     .insert("g", "g#armies")
     .attr("id", "regimentBase")
     .attr("stroke-width", 0.3)
@@ -98,7 +99,7 @@ function drawRotationControl(): void {
   const reg = getRegiment()!;
   const bbox = getRegEl().getBBox();
 
-  viewContext.debug
+  view.debug
     .append("circle")
     .attr("id", "rotationControl")
     .attr("cx", bbox.x + bbox.width)
@@ -132,7 +133,7 @@ function dragRegimentStart(this: SVGGElement): void {
     r => r.i === +this.dataset.id!
   );
   if (!reg) return;
-  const size = +viewContext.armies.attr("box-size");
+  const size = +view.armies.attr("box-size");
   const w = reg.n ? size * 4 : size * 6;
   const h = size * 2;
   _regDragState = {
@@ -146,8 +147,8 @@ function dragRegimentStart(this: SVGGElement): void {
     iconRect: this.querySelectorAll("rect")[1],
     icon: this.querySelector(".regimentIcon") as SVGElement,
     image: this.querySelector(".regimentImage") as SVGImageElement,
-    baseLine: viewContext.viewbox.select("g#regimentBase > line"),
-    rotationControl: viewContext.debug.select("#rotationControl")
+    baseLine: view.viewbox.select("g#regimentBase > line"),
+    rotationControl: view.debug.select("#rotationControl")
   };
 }
 
@@ -186,7 +187,7 @@ function dragBaseStart(): void {
 function dragBaseDrag(this: SVGCircleElement, event: d3.D3DragEvent<SVGCircleElement, unknown, unknown>): void {
   this.setAttribute("cx", String(event.x));
   this.setAttribute("cy", String(event.y));
-  viewContext.viewbox.select("g#regimentBase > line").attr("x1", event.x).attr("y1", event.y);
+  view.viewbox.select("g#regimentBase > line").attr("x1", event.x).attr("y1", event.y);
 }
 
 function dragBaseEnd(this: SVGCircleElement, event: d3.D3DragEvent<SVGCircleElement, unknown, unknown>): void {
@@ -197,10 +198,10 @@ function dragBaseEnd(this: SVGCircleElement, event: d3.D3DragEvent<SVGCircleElem
 }
 
 function closeEditor(): void {
-  viewContext.debug.selectAll("*").remove();
-  viewContext.viewbox.selectAll("g#regimentBase").remove();
-  viewContext.armies.selectAll(":scope > g").classed("draggable", false);
-  viewContext.armies.selectAll<SVGGElement, unknown>("g>g").call(drag<SVGGElement, unknown>().on("drag", null));
+  view.debug.selectAll("*").remove();
+  view.viewbox.selectAll("g#regimentBase").remove();
+  view.armies.selectAll(":scope > g").classed("draggable", false);
+  view.armies.selectAll<SVGGElement, unknown>("g>g").call(drag<SVGGElement, unknown>().on("drag", null));
   setRegimentEditorState({ isOpen: false, mode: "normal" });
   EditorBus.restoreDefaultEvents();
   setElSelected(null);
@@ -208,12 +209,12 @@ function closeEditor(): void {
 }
 
 export function editRegiment(selectorOrEl?: string | Element): void {
-  if (viewContext.customization) return;
+  if (view.customization) return;
   closeDialogs(".stable");
   if (!layerIsOn("toggleMilitary")) toggleMilitary();
 
-  viewContext.armies.selectAll(":scope > g").classed("draggable", true);
-  viewContext.armies
+  view.armies.selectAll(":scope > g").classed("draggable", true);
+  view.armies
     .selectAll<SVGGElement, unknown>(":scope > g > g")
     .call(drag<SVGGElement, unknown>().on("start", dragRegimentStart).on("drag", dragRegimentDrag));
 
@@ -264,7 +265,7 @@ export const regimentEditorActions = {
     const isNaval = !!reg.n;
     setRegimentEditorState({ isNaval });
 
-    const size = +viewContext.armies.attr("box-size");
+    const size = +view.armies.attr("box-size");
     const baseRect = getRegEl().querySelectorAll("rect")[0];
     const iconRect = getRegEl().querySelectorAll("rect")[1];
     const icon = getRegEl().querySelector(".regimentIcon") as SVGElement;
@@ -338,7 +339,7 @@ export const regimentEditorActions = {
       }))
     });
 
-    const shift = +viewContext.armies.attr("box-size") * 2;
+    const shift = +view.armies.attr("box-size") * 2;
     const findY = (x: number, startY: number) => {
       let yVal = startY;
       do {
@@ -372,11 +373,11 @@ export const regimentEditorActions = {
     if (mode === "adding") {
       clearMainTip();
       interactionManager.resetClickHandler();
-      viewContext.viewbox.style("cursor", "default");
+      view.viewbox.style("cursor", "default");
       setRegimentEditorState({ mode: "normal" });
     } else {
       setRegimentEditorState({ mode: "adding" });
-      viewContext.viewbox.style("cursor", "crosshair");
+      view.viewbox.style("cursor", "crosshair");
       interactionManager.setClickHandler(addRegimentOnClick);
       tip("Click on map to create new regiment or fleet", true);
     }
@@ -386,16 +387,16 @@ export const regimentEditorActions = {
     const { mode } = getRegimentEditorState();
     if (mode === "attacking") {
       clearMainTip();
-      viewContext.armies.selectAll(":scope > g").classed("draggable", true);
+      view.armies.selectAll(":scope > g").classed("draggable", true);
       interactionManager.resetClickHandler();
-      viewContext.viewbox.style("cursor", "default");
+      view.viewbox.style("cursor", "default");
       setRegimentEditorState({ mode: "normal" });
     } else {
       setRegimentEditorState({ mode: "attacking" });
-      viewContext.viewbox.style("cursor", "crosshair");
+      view.viewbox.style("cursor", "crosshair");
       interactionManager.setClickHandler(attackRegimentOnClick);
       tip("Click on another regiment to initiate battle", true);
-      viewContext.armies.selectAll(":scope > g").classed("draggable", false);
+      view.armies.selectAll(":scope > g").classed("draggable", false);
     }
   },
 
@@ -403,16 +404,16 @@ export const regimentEditorActions = {
     const { mode } = getRegimentEditorState();
     if (mode === "attaching") {
       clearMainTip();
-      viewContext.armies.selectAll(":scope > g").classed("draggable", true);
+      view.armies.selectAll(":scope > g").classed("draggable", true);
       interactionManager.resetClickHandler();
-      viewContext.viewbox.style("cursor", "default");
+      view.viewbox.style("cursor", "default");
       setRegimentEditorState({ mode: "normal" });
     } else {
       setRegimentEditorState({ mode: "attaching" });
-      viewContext.viewbox.style("cursor", "crosshair");
+      view.viewbox.style("cursor", "crosshair");
       interactionManager.setClickHandler(attachRegimentOnClick);
       tip("Click on another regiment to unite both regiments. The current regiment will be removed", true);
-      viewContext.armies.selectAll(":scope > g").classed("draggable", false);
+      view.armies.selectAll(":scope > g").classed("draggable", false);
     }
   },
 
@@ -510,11 +511,11 @@ function attackRegimentOnClick(this: SVGElement, event: MouseEvent): void {
     .duration(700)
     .ease(easeSinInOut)
     .on("end", () => new Battle(attacker, defender));
-  viewContext.svg
+  view.svg
     .append("text")
     .attr("text-rendering", "optimizeSpeed")
-    .attr("x", viewContext.svgWidth / 2)
-    .attr("y", viewContext.svgHeight / 2)
+    .attr("x", view.svgWidth / 2)
+    .attr("y", view.svgHeight / 2)
     .text("⚔️")
     .attr("font-size", 0)
     .attr("opacity", 1)
@@ -571,8 +572,7 @@ function attachRegimentOnClick(this: SVGElement, event: MouseEvent): void {
   editRegiment(`#${regSelected.id}`);
 }
 
-export function initRegimentEditor(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {
+export function initRegimentEditor(wc: WorldContext, _vc: Readonly<ViewContext>, as: AppServices) {
   worldContext = wc;
-  viewContext = vc;
   appServices = as;
 }

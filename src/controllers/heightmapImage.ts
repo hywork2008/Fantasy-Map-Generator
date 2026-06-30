@@ -1,8 +1,8 @@
 import * as d3 from "d3";
 import RgbQuant from "rgbquant";
 import { resetZoom } from "../actions";
-import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
+import { viewLayerService as view } from "../services/viewLayerService";
 import { setHeightmapEditorState, useHeightmapEditorState } from "../store/heightmapEditorState";
 import { getGridPolygon, showPrompt } from "../utils";
 import { getColorScheme } from "../utils/colorUtils";
@@ -30,7 +30,7 @@ export function openImageConverter(callbacks: HeightmapImageCallbacks): void {
   setOverlayOpacity(0);
 
   worldContext.grid.cells.h = new Uint8Array(worldContext.grid.cells.i.length);
-  viewContext.viewbox.select("#heights").selectAll("*").remove();
+  view.viewbox.select("#heights").selectAll("*").remove();
   localCallbacks.updateHeightmap();
 }
 
@@ -72,10 +72,10 @@ function heightsFromImage(count: number): void {
   const data = q.reduce(sampleCanvas);
   const pallete = q.palette(true);
 
-  viewContext.viewbox.select("#heights").selectAll("*").remove();
+  view.viewbox.select("#heights").selectAll("*").remove();
   sampleCanvas.remove();
 
-  viewContext.viewbox
+  view.viewbox
     .select<SVGGElement>("#heights")
     .selectAll<SVGPolygonElement, number>("polygon")
     .data(Array.from(worldContext.grid.cells.i))
@@ -103,7 +103,7 @@ export function selectColor(color: string): void {
   const state = useHeightmapEditorState.getState();
   const isSelected = state.imageConverterSelectedColor === color;
 
-  viewContext.viewbox.select("#heights").selectAll(".selectedCell").attr("class", null);
+  view.viewbox.select("#heights").selectAll(".selectedCell").attr("class", null);
 
   if (isSelected) {
     setHeightmapEditorState({ imageConverterSelectedColor: null, imageConverterHoveredHeight: null });
@@ -119,7 +119,7 @@ export function selectColor(color: string): void {
     setHeightmapEditorState({ imageConverterHoveredHeight: null });
   }
 
-  viewContext.viewbox.select("#heights").selectAll(`polygon[fill='${color}']`).classed("selectedCell", true);
+  view.viewbox.select("#heights").selectAll(`polygon[fill='${color}']`).classed("selectedCell", true);
 }
 
 export function assignHeight(height: number): void {
@@ -130,7 +130,7 @@ export function assignHeight(height: number): void {
   const colorScheme = getColorScheme(null);
   const targetRgb = colorScheme(1 - (height < 20 ? height - 5 : height) / 100);
 
-  viewContext.viewbox
+  view.viewbox
     .select("#heights")
     .selectAll<SVGElement, unknown>(".selectedCell")
     .each(function () {
@@ -195,11 +195,7 @@ export function autoAssign(type: string): void {
     const h = type === "hue" ? getHeightByHue(clr) : type === "lum" ? getHeightByLum(clr) : getHeightByScheme(clr);
     const colorTo = colorScheme(1 - (h < 20 ? (h - 5) / 100 : h / 100));
 
-    viewContext.viewbox
-      .select("#heights")
-      .selectAll(`polygon[fill='${clr}']`)
-      .attr("fill", colorTo)
-      .attr("data-height", h);
+    view.viewbox.select("#heights").selectAll(`polygon[fill='${clr}']`).attr("fill", colorTo).attr("data-height", h);
 
     if (!assignedMap[h]) {
       newAssigned[colorTo] = h;
@@ -234,7 +230,7 @@ export function applyConversion(): void {
     return;
   }
 
-  viewContext.viewbox
+  view.viewbox
     .select("#heights")
     .selectAll<SVGElement, unknown>("polygon")
     .each(function () {
@@ -243,14 +239,14 @@ export function applyConversion(): void {
       worldContext.grid.cells.h[i] = h;
     });
 
-  viewContext.viewbox.select("#heights").selectAll("polygon").remove();
+  view.viewbox.select("#heights").selectAll("polygon").remove();
   localCallbacks.updateHeightmap();
   restoreImageConverterState();
 }
 
 export function cancelConversion(): void {
   restoreImageConverterState();
-  viewContext.viewbox.select("#heights").selectAll("polygon").remove();
+  view.viewbox.select("#heights").selectAll("polygon").remove();
   localCallbacks.undoHistory();
 }
 
@@ -267,7 +263,7 @@ export function restoreImageConverterState(): void {
     imageConverterHoveredHeight: null
   });
 
-  viewContext.viewbox.style("cursor", "default").on(".drag", null);
+  view.viewbox.style("cursor", "default").on(".drag", null);
   tip('Heightmap edit mode is active. Click on "Exit Customization" to finalize the heightmap', true);
   localCallbacks.openBrushesPanel();
 }

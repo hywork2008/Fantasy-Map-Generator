@@ -1,9 +1,11 @@
 import * as d3 from "d3";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
+import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { Religions } from "../generators/religions-generator";
 import { PopulationRenderer, ReligionsRenderer } from "../renderers";
+import { viewLayerService as view } from "../services/viewLayerService";
 import type { ReligionRowData } from "../store/religionsEditorState";
 import { getReligionsEditorState, setReligionsEditorState } from "../store/religionsEditorState";
 import type { HierarchyElement } from "../types/HierarchyTree";
@@ -23,12 +25,10 @@ import { editStyle } from "./style";
 type HighlightEvent = { id?: string | number | null; target?: EventTarget | null };
 
 let worldContext: WorldContext;
-let viewContext: ViewContext;
 let appServices: AppServices;
 
-export function initReligionsEditor(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {
+export function initReligionsEditor(wc: WorldContext, _vc: Readonly<ViewContext>, as: AppServices) {
   worldContext = wc;
-  viewContext = vc;
   appServices = as;
 }
 
@@ -55,9 +55,9 @@ export function open(): void {
 function closeReligionsEditor(): void {
   setReligionsEditorState({ isOpen: false });
   exitReligionsManualAssignment();
-  viewContext.relig.selectAll("path").attr("stroke-width", null).attr("stroke", null);
-  viewContext.debug.selectAll("circle").attr("r", 2).attr("stroke", null);
-  viewContext.debug.select("#religionCenters").remove();
+  view.relig.selectAll("path").attr("stroke-width", null).attr("stroke", null);
+  view.debug.selectAll("circle").attr("r", 2).attr("stroke", null);
+  view.debug.select("#religionCenters").remove();
 }
 
 function recalculateReligions(mustUpdate = false): void {
@@ -173,7 +173,7 @@ export const religionsEditorActions = {
   },
 
   toggleLegend(): void {
-    if (viewContext.legend.selectAll("*").size()) {
+    if (view.legend.selectAll("*").size()) {
       EditorBus.clearLegend();
       return;
     }
@@ -186,7 +186,7 @@ export const religionsEditorActions = {
   },
 
   showHierarchy(): void {
-    if (viewContext.customization) return;
+    if (view.customization) return;
 
     const getDescription = (element: HierarchyElement) => {
       const r = element as unknown as Religion;
@@ -230,14 +230,14 @@ export const religionsEditorActions = {
 
   enterReligionsManualAssignent(): void {
     if (!layerIsOn("toggleReligions")) toggleReligions();
-    viewContext.customization = 7;
+    view.setCustomization(7);
     setReligionsEditorState({ customization: 7 });
 
-    viewContext.relig.append("g").attr("id", "temp");
-    viewContext.debug.select("#religionCenters").style("display", "none");
+    view.relig.append("g").attr("id", "temp");
+    view.debug.select("#religionCenters").style("display", "none");
 
     tip("Click on religion to select, drag the circle to change religion", true);
-    viewContext.viewbox
+    view.viewbox
       .style("cursor", "crosshair")
       .on("click", selectReligionOnMapClick)
       .call(d3.drag<SVGGElement, unknown>().on("drag", dragReligionBrush))
@@ -254,7 +254,7 @@ export const religionsEditorActions = {
 
   changeBrushSize(size: number): void {
     setReligionsEditorState({ brushSize: size });
-    viewContext.debug.select("#brush").attr("r", size);
+    view.debug.select("#brush").attr("r", size);
   },
 
   toggleProtectExisting(protect: boolean): void {
@@ -289,8 +289,8 @@ export const religionsEditorActions = {
     const r = worldContext.pack.religions[i];
     openPicker(r.color || "", (newFill: string) => {
       r.color = newFill;
-      viewContext.relig.select(`#religion${i}`).attr("fill", newFill);
-      viewContext.debug.select(`#religionsCenter${i}`).attr("fill", newFill);
+      view.relig.select(`#religion${i}`).attr("fill", newFill);
+      view.debug.select(`#religionsCenter${i}`).attr("fill", newFill);
       religionsEditorActions.refresh();
     });
   },
@@ -397,7 +397,7 @@ export const religionsEditorActions = {
   },
 
   triggerRemove(i: number): void {
-    if (viewContext.customization) return;
+    if (view.customization) return;
     confirmationDialog({
       title: "Remove religion",
       message: "Are you sure you want to remove the religion? <br>This action cannot be reverted",
@@ -422,33 +422,28 @@ const religionHighlightOn = debounce((event: HighlightEvent) => {
   const religionId = Number(event.id || (event.target as HTMLElement | null)?.dataset?.id);
 
   if (!layerIsOn("toggleReligions")) return;
-  if (viewContext.customization) return;
+  if (view.customization) return;
 
   const animate = d3.transition().duration(2000).ease(d3.easeSinIn);
-  viewContext.relig
+  view.relig
     .select(`#religion${religionId}`)
     .raise()
     .transition(animate)
     .attr("stroke-width", 2.5)
     .attr("stroke", "#d0240f");
-  viewContext.debug
-    .select(`#religionsCenter${religionId}`)
-    .raise()
-    .transition(animate)
-    .attr("r", 3)
-    .attr("stroke", "#d0240f");
+  view.debug.select(`#religionsCenter${religionId}`).raise().transition(animate).attr("r", 3).attr("stroke", "#d0240f");
 }, 200);
 
 function religionHighlightOff(event: HighlightEvent): void {
   const religionId = Number(event.id || (event.target as HTMLElement | null)?.dataset?.id);
-  viewContext.relig.select(`#religion${religionId}`).transition().attr("stroke-width", null).attr("stroke", null);
-  viewContext.debug.select(`#religionsCenter${religionId}`).transition().attr("r", 2).attr("stroke", null);
+  view.relig.select(`#religion${religionId}`).transition().attr("stroke-width", null).attr("stroke", null);
+  view.debug.select(`#religionsCenter${religionId}`).transition().attr("r", 2).attr("stroke", null);
 }
 
 function removeReligion(religionId: number): void {
-  viewContext.relig.select(`#religion${religionId}`).remove();
-  viewContext.relig.select(`#religion-gap${religionId}`).remove();
-  viewContext.debug.select(`#religionsCenter${religionId}`).remove();
+  view.relig.select(`#religion${religionId}`).remove();
+  view.relig.select(`#religion-gap${religionId}`).remove();
+  view.debug.select(`#religionsCenter${religionId}`).remove();
 
   Array.from(worldContext.pack.cells.religion).forEach((r: number, i: number) => {
     if (r === religionId) worldContext.pack.cells.religion[i] = 0;
@@ -466,8 +461,8 @@ function removeReligion(religionId: number): void {
 }
 
 function drawReligionCenters(): void {
-  viewContext.debug.select("#religionCenters").remove();
-  const religionCenters = viewContext.debug
+  view.debug.select("#religionCenters").remove();
+  const religionCenters = view.debug
     .append("g")
     .attr("id", "religionCenters")
     .attr("stroke-width", 0.8)
@@ -539,13 +534,13 @@ function religionCenterDragInner(
 const religionCenterDragDebounced = debounce(religionCenterDragInner, 50);
 
 function exitReligionsManualAssignment(): void {
-  viewContext.customization = 0;
+  view.setCustomization(0);
   setReligionsEditorState({ customization: 0 });
-  viewContext.relig.select("#temp").remove();
+  view.relig.select("#temp").remove();
   EditorBus.removeCircle();
   EditorBus.restoreDefaultEvents();
   clearMainTip();
-  viewContext.debug.select("#religionCenters").style("display", null);
+  view.debug.select("#religionCenters").style("display", null);
 
   const cells = worldContext.pack.cells;
   cells.religion.forEach((r, i) => {
@@ -562,20 +557,20 @@ function applyReligionsManualAssignent(): void {
 }
 
 function exitAddReligionMode(): void {
-  viewContext.customization = 0;
+  view.setCustomization(0);
   setReligionsEditorState({ customization: 0 });
-  viewContext.relig.select("#temp").remove();
+  view.relig.select("#temp").remove();
   EditorBus.removeCircle();
   EditorBus.restoreDefaultEvents();
   clearMainTip();
 }
 
 function enterAddReligionMode(): void {
-  if (viewContext.customization !== 7) religionsEditorActions.enterReligionsManualAssignent();
-  viewContext.customization = 8;
-  viewContext.relig.append("g").attr("id", "temp");
+  if (view.customization !== 7) religionsEditorActions.enterReligionsManualAssignent();
+  view.setCustomization(8);
+  view.relig.append("g").attr("id", "temp");
   tip("Click on the map to add a new religion or spread an existing one", true);
-  viewContext.viewbox.style("cursor", "crosshair").on("click", addReligionClick);
+  view.viewbox.style("cursor", "crosshair").on("click", addReligionClick);
 }
 
 function addReligionClick(this: SVGElement, event: MouseEvent): void {
@@ -617,7 +612,7 @@ function dragReligionBrush(this: SVGElement, event: d3.D3DragEvent<SVGElement, u
   const selectedReligion = 0; // Default until UI row selection is hooked up properly
 
   const found = findAll(point[0], point[1], r);
-  const temp = viewContext.relig.select("#temp");
+  const temp = view.relig.select("#temp");
   if (found) {
     found.forEach((i: number) => {
       if (worldContext.pack.cells.h[i] < 20) return;

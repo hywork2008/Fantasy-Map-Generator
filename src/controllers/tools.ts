@@ -4,6 +4,7 @@ import { pointer, quadtree } from "d3";
 import { getWorldState } from "../actions";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
+import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { Burgs } from "../generators/burgs-generator";
 import { Cultures } from "../generators/cultures-generator";
@@ -42,6 +43,7 @@ import {
 } from "../renderers";
 import { COArenderer } from "../renderers/emblem-renderer";
 import { appendMarkerToLayer } from "../renderers/index";
+import { viewLayerService as view } from "../services/viewLayerService";
 import { useBurgsOverviewState } from "../store/burgsOverviewState";
 import { dialogStore } from "../store/dialogState";
 import { elSelected, modules } from "../store/editorState";
@@ -105,7 +107,6 @@ import { editWorld } from "./world-configurator";
 import { editZones } from "./zones-editor";
 
 let worldContext: WorldContext;
-let viewContext: ViewContext;
 let appServices: AppServices;
 
 // ─── Layer state restoration when dialogs close ───────────────────────────────
@@ -162,10 +163,10 @@ document.addEventListener("react-tool-action", e => {
 
   // Heightmap editor can toggle even during its own customization mode (customization === 1)
   if (button === "editHeightmapButton") {
-    if (viewContext.customization === 1) {
+    if (view.customization === 1) {
       // In heightmap edit mode: finalize via the Exit Customization button
       getElementById("finalizeHeightmap")?.click();
-    } else if (viewContext.customization === 0) {
+    } else if (view.customization === 0) {
       if (modules.editHeightmap) {
         // Mode selection dialog is currently open: close it and reset state
         modules.editHeightmap = false;
@@ -179,7 +180,7 @@ document.addEventListener("react-tool-action", e => {
     return;
   }
 
-  if (viewContext.customization) return tip("Please exit the customization mode first", false, "error");
+  if (view.customization) return tip("Please exit the customization mode first", false, "error");
 
   if (button === "editBiomesButton") toggleEditor("biomesEditor", "toggleBiomes", editBiomes);
   else if (button === "editStatesButton") toggleEditor("statesEditor", "toggleStates", EditorBus.editStates);
@@ -297,7 +298,7 @@ function regenerateRoutes(): void {
     .map((route: Route, index: number) => ({ ...route, i: index }));
   Routes.generate(worldContext, viewContext, appServices, getWorldState(), locked);
 
-  viewContext.routes.selectAll("path").remove();
+  view.routes.selectAll("path").remove();
   if (layerIsOn("toggleRoutes")) RoutesRenderer.render(worldContext, viewContext, appServices);
 }
 
@@ -546,7 +547,7 @@ function regenerateProvinces(): void {
   getElementsBySelector<HTMLElement>("[id^=provinceCOA]").forEach(el => {
     el.remove();
   });
-  viewContext.emblems.selectAll("use").remove();
+  view.emblems.selectAll("use").remove();
   if (layerIsOn("toggleEmblems")) EmblemsRenderer.render(worldContext, viewContext, appServices);
   refreshAllEditors();
 }
@@ -669,7 +670,7 @@ async function regenerateBurgs(): Promise<void> {
   getElementsBySelector<HTMLElement>("[id^=burgCOA]").forEach(el => {
     el.remove();
   });
-  viewContext.emblems.selectAll("use").remove();
+  view.emblems.selectAll("use").remove();
   if (layerIsOn("toggleEmblems")) EmblemsRenderer.render(worldContext, viewContext, appServices);
 
   regenerateMilitary();
@@ -690,7 +691,7 @@ export function regenerateEmblems(): void {
   getElementsBySelector<HTMLElement>("[id^=burgCOA]").forEach(el => {
     el.remove();
   });
-  viewContext.emblems.selectAll("use").remove();
+  view.emblems.selectAll("use").remove();
 
   worldContext.pack.states.forEach((state: State) => {
     if (!state.i || state.removed) return;
@@ -834,14 +835,14 @@ export function toggleAddLabel(): void {
     });
   addLabelBtn.classList.add("pressed");
   closeDialogs(".stable");
-  viewContext.viewbox.style("cursor", "crosshair");
+  view.viewbox.style("cursor", "crosshair");
   interactionManager.setClickHandler(addLabelOnClick);
   tip("Click on map to place label. Hold Shift to add multiple", true);
   if (!layerIsOn("toggleLabels")) toggleLabels();
 }
 
 function addLabelOnClick(event: MouseEvent): void {
-  const point = pointer(event, viewContext.viewbox.node()!);
+  const point = pointer(event, view.viewbox.node()!);
 
   const cell = findCell(point[0], point[1]);
   const culture = worldContext.pack.cells.culture[cell];
@@ -851,9 +852,9 @@ function addLabelOnClick(event: MouseEvent): void {
   const lastSelected = (getElementById("labelGroupSelect") as HTMLSelectElement).value;
   const groupId = ["", "states", "burgLabels"].includes(lastSelected) ? "#addedLabels" : `#${lastSelected}`;
 
-  let group = viewContext.labels.select<SVGGElement>(groupId);
+  let group = view.labels.select<SVGGElement>(groupId);
   if (!group.size()) {
-    group = viewContext.labels
+    group = view.labels
       .append("g")
       .attr("id", "addedLabels")
       .attr("fill", "#3e3e4b")
@@ -884,7 +885,7 @@ function addLabelOnClick(event: MouseEvent): void {
     .attr("x", 0)
     .text(name);
 
-  viewContext.defs
+  view.defs
     .select("#textPaths")
     .append("path")
     .attr("id", `textPath_${id}`)
@@ -920,7 +921,7 @@ export function toggleAddRiver(): void {
   addRiverBtn.classList.add("pressed");
   addNewRiverEl?.classList.add("pressed");
   closeDialogs(".stable");
-  viewContext.viewbox.style("cursor", "crosshair");
+  view.viewbox.style("cursor", "crosshair");
   interactionManager.setClickHandler(addRiverOnClick);
   tip("Click on map to place new river or extend an existing one. Hold Shift to place multiple rivers", true, "warn");
   if (!layerIsOn("toggleRivers")) toggleRivers();
@@ -928,7 +929,7 @@ export function toggleAddRiver(): void {
 
 function addRiverOnClick(event: MouseEvent): void {
   const { cells, rivers: packRivers } = worldContext.pack;
-  const point = pointer(event, viewContext.viewbox.node()!);
+  const point = pointer(event, view.viewbox.node()!);
   let i = findCell(point[0], point[1]);
 
   if (cells.r[i]) {
@@ -1070,7 +1071,7 @@ function addRiverOnClick(event: MouseEvent): void {
 
   const path = Rivers.getRiverPath(meanderedPoints, widthFactor, sourceWidth);
   const id = `river${riverId}`;
-  const riversG = viewContext.viewbox.select("#rivers");
+  const riversG = view.viewbox.select("#rivers");
   riversG.append("path").attr("id", id).attr("d", path);
 
   if (!event.shiftKey) {
@@ -1098,7 +1099,7 @@ export function toggleAddMarker(): void {
   const markersAddFromOverviewEl = getElementById("markersAddFromOverview");
   if (markersAddFromOverviewEl) markersAddFromOverviewEl.classList.add("pressed");
 
-  viewContext.viewbox.style("cursor", "crosshair");
+  view.viewbox.style("cursor", "crosshair");
   interactionManager.setClickHandler(addMarkerOnClick);
   tip("Click on map to add a marker. Hold Shift to add multiple", true);
   if (!layerIsOn("toggleMarkers")) toggleMarkers();
@@ -1106,7 +1107,7 @@ export function toggleAddMarker(): void {
 
 function addMarkerOnClick(event: MouseEvent): void {
   const { markers: packMarkers } = worldContext.pack;
-  const point = pointer(event, viewContext.viewbox.node()!);
+  const point = pointer(event, view.viewbox.node()!);
   const x = rn(point[0], 2);
   const y = rn(point[1], 2);
   const cell = findCell(point[0], point[1]);
@@ -1125,7 +1126,7 @@ function addMarkerOnClick(event: MouseEvent): void {
     selectedConfig.add(`marker${marker.i}`, cell);
   }
 
-  const markersElement = viewContext.markers.node()!;
+  const markersElement = view.markers.node()!;
   const rescale = +markersElement.getAttribute("rescale")!;
   appendMarkerToLayer(markersElement, worldContext, viewContext, appServices, marker, rescale);
 
@@ -1162,9 +1163,8 @@ function openMinimap(): void {
   openMinimapDialog();
 }
 
-export function initTools(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {
+export function initTools(wc: WorldContext, _vc: Readonly<ViewContext>, as: AppServices) {
   worldContext = wc;
-  viewContext = vc;
   appServices = as;
 }
 

@@ -1,7 +1,7 @@
 import type { D3DragEvent, Quadtree } from "d3";
 import { drag, pointer, quadtree, range, select } from "d3";
-import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
+import { viewLayerService as view } from "../services/viewLayerService";
 import { elSelected, modules, setElSelected } from "../store/editorState";
 import type { ReliefIconSet } from "../store/reliefEditorState";
 import { getReliefEditorState, setReliefEditorState } from "../store/reliefEditorState";
@@ -31,13 +31,13 @@ let d3DragAddState: DragAddState | null = null;
 let d3DragRemoveState: DragRemoveState | null = null;
 
 export function editReliefIcon(clickedEl?: Element): void {
-  if (viewContext.customization) return;
+  if (view.customization) return;
   closeDialogs(".stable");
   if (!layerIsOn("toggleRelief")) toggleRelief();
 
   let _rdx = 0,
     _rdy = 0;
-  viewContext.terrain
+  view.terrain
     .selectAll<SVGUseElement, unknown>("use")
     .call(
       drag<SVGUseElement, unknown>()
@@ -89,7 +89,7 @@ function moveBrush(this: SVGElement, event: MouseEvent): void {
 }
 
 function closeReliefEditor(): void {
-  viewContext.terrain
+  view.terrain
     .selectAll<SVGUseElement, unknown>("use")
     .call(drag<SVGUseElement, unknown>().on("drag", null))
     .classed("draggable", false);
@@ -119,7 +119,7 @@ export const reliefEditorActions = {
         : state.selectedIconType;
     setReliefEditorState({ mode: "bulkAdd", selectedIconType: newSelectedType });
 
-    viewContext.viewbox
+    view.viewbox
       .style("cursor", "crosshair")
       .call(
         drag<SVGGElement, unknown>()
@@ -131,7 +131,7 @@ export const reliefEditorActions = {
             }
             const tree = quadtree<number[]>();
             const positions: number[] = [];
-            viewContext.terrain.selectAll<SVGUseElement, unknown>("use").each(function (this: SVGUseElement) {
+            view.terrain.selectAll<SVGUseElement, unknown>("use").each(function (this: SVGUseElement) {
               const x = +this.getAttribute("x")! + +this.getAttribute("width")! / 2;
               const y = +this.getAttribute("y")! + +this.getAttribute("height")! / 2;
               tree.add([x, y, x]);
@@ -161,7 +161,7 @@ export const reliefEditorActions = {
               while (positions[nth] && z > positions[nth]) nth++;
               tree.add([cx, cy]);
               positions.push(z);
-              viewContext.terrain
+              view.terrain
                 .insert("use", `:nth-child(${nth})`)
                 .attr("href", type)
                 .attr("x", x)
@@ -178,15 +178,15 @@ export const reliefEditorActions = {
   enterBulkRemoveMode(): void {
     setReliefEditorState({ mode: "bulkRemove" });
 
-    viewContext.viewbox
+    view.viewbox
       .style("cursor", "crosshair")
       .call(
         drag<SVGGElement, unknown>()
           .on("start", function (this: SVGElement) {
             const { selectedIconType, radius } = getReliefEditorState();
             const icons = selectedIconType
-              ? viewContext.terrain.selectAll<SVGUseElement, unknown>(`use[href='${selectedIconType}']`)
-              : viewContext.terrain.selectAll<SVGUseElement, unknown>("use");
+              ? view.terrain.selectAll<SVGUseElement, unknown>(`use[href='${selectedIconType}']`)
+              : view.terrain.selectAll<SVGUseElement, unknown>("use");
             const tree = quadtree<[number, number, SVGUseElement]>();
             icons.each(function (this: SVGUseElement) {
               const x = +this.getAttribute("x")! + +this.getAttribute("width")! / 2;
@@ -279,8 +279,8 @@ export const reliefEditorActions = {
       selection = elSelected;
     } else {
       selection = selectedIconType
-        ? viewContext.terrain.selectAll<SVGUseElement, unknown>(`use[href='${selectedIconType}']`)
-        : viewContext.terrain.selectAll<SVGUseElement, unknown>("use");
+        ? view.terrain.selectAll<SVGUseElement, unknown>(`use[href='${selectedIconType}']`)
+        : view.terrain.selectAll<SVGUseElement, unknown>("use");
       const size = selection.size();
       message = selectedIconType
         ? `Are you sure you want to remove all ${selectedIconType} icons (${size})?`

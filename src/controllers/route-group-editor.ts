@@ -2,6 +2,7 @@ import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { Routes } from "../generators/routes-generator";
 import { removeRoute } from "../renderers/draw-routes";
+import { viewLayerService as view } from "../services/viewLayerService";
 import { modules } from "../store/editorState";
 import { useRouteGroupsEditorStore } from "../store/routeGroupsEditorStore";
 import { openDialog } from "../ui/dialogs/dialogService";
@@ -12,7 +13,7 @@ import { tip } from "../utils/uiHelpers";
 import { toggleRoutes } from "./layers";
 
 export function refreshRouteGroups(): void {
-  const groups = viewContext.routes
+  const groups = view.routes
     .selectAll<SVGGElement, unknown>("g")
     .nodes()
     .map(el => ({
@@ -23,7 +24,7 @@ export function refreshRouteGroups(): void {
 }
 
 export function editRouteGroups(): void {
-  if (viewContext.customization) return;
+  if (view.customization) return;
   if (!layerIsOn("toggleRoutes")) toggleRoutes();
 
   refreshRouteGroups();
@@ -53,7 +54,7 @@ export function routeGroupsAddGroup(): void {
       return tip("Element with this name already exists. Provide a unique name", false, "error");
     if (Number.isFinite(+group.charAt(0))) return tip("Group name should start with a letter", false, "error");
 
-    viewContext.routes
+    view.routes
       .append("g")
       .attr("id", group)
       .attr("stroke", "#000000")
@@ -84,7 +85,7 @@ export function routeGroupsRemoveGroup(group: string): void {
           Routes.remove(route);
           removeRoute(viewContext, route.i);
         });
-      if (!DEFAULT_ROUTE_GROUPS.includes(group)) viewContext.routes.select(`#${group}`).remove();
+      if (!DEFAULT_ROUTE_GROUPS.includes(group)) view.routes.select(`#${group}`).remove();
       refreshRouteGroups();
     }
   });

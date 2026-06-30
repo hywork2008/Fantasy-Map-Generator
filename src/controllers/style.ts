@@ -18,6 +18,7 @@ import {
 import { drawRegiments, drawScaleBar, fitScaleBar } from "../renderers/index";
 import { OceanLayers } from "../renderers/ocean-layers";
 import { onFontAdded } from "../services/fonts";
+import { viewLayerService as view } from "../services/viewLayerService";
 import { useExtensionState } from "../store/extensionState";
 import type { SelectOption } from "../store/styleState";
 import { useStyleState } from "../store/styleState";
@@ -125,7 +126,7 @@ export function editStyle(element: string, group?: string): void {
 
 export function selectStyleElement(): void {
   const { activeElement: styleElement, activeGroup: currentGroup } = useStyleState.getState();
-  let el: AnySelection = viewContext.svg.select<SVGGElement>(`#${styleElement}`);
+  let el: AnySelection = view.svg.select<SVGGElement>(`#${styleElement}`);
 
   const visibility: Record<string, boolean> = {};
   const storeValues: Record<string, string> = {};
@@ -143,7 +144,7 @@ export function selectStyleElement(): void {
 
   // Prevent D3 v7 `.attr()` getter from throwing if the selection is empty.
   if (el.empty()) {
-    el = viewContext.svg.select<SVGGElement>(() => document.createElementNS("http://www.w3.org/2000/svg", "g"));
+    el = view.svg.select<SVGGElement>(() => document.createElementNS("http://www.w3.org/2000/svg", "g"));
   }
 
   if (!["landmass", "legend", "ocean", "regions"].includes(styleElement)) {
@@ -248,7 +249,7 @@ export function selectStyleElement(): void {
 
   if (styleElement === "markers") {
     visibility.styleMarkers = true;
-    storeValues.styleRescaleMarkers = String(+(viewContext.markers.attr("rescale") ?? 0));
+    storeValues.styleRescaleMarkers = String(+(view.markers.attr("rescale") ?? 0));
   }
 
   if (styleElement === "gridOverlay") {
@@ -261,7 +262,7 @@ export function selectStyleElement(): void {
 
   if (styleElement === "compass") {
     visibility.styleCompass = true;
-    const tr = parseTransform(viewContext.compass.select("use").attr("transform"));
+    const tr = parseTransform(view.compass.select("use").attr("transform"));
     storeValues.styleCompassShiftX = String(tr[0]);
     storeValues.styleCompassShiftY = String(tr[1]);
     storeValues.styleCompassSizeInput = String(tr[2]);
@@ -269,26 +270,26 @@ export function selectStyleElement(): void {
 
   if (styleElement === "terrain") {
     visibility.styleRelief = true;
-    storeValues.styleReliefSize = String(viewContext.terrain.attr("size") ?? 1);
-    storeValues.styleReliefDensity = String(viewContext.terrain.attr("density") ?? 0.4);
-    storeValues.styleReliefSet = viewContext.terrain.attr("set") ?? "";
+    storeValues.styleReliefSize = String(view.terrain.attr("size") ?? 1);
+    storeValues.styleReliefDensity = String(view.terrain.attr("density") ?? 0.4);
+    storeValues.styleReliefSet = view.terrain.attr("set") ?? "";
   }
 
   if (styleElement === "population") {
     visibility.stylePopulation = true;
-    storeValues.stylePopulationRuralStrokeInput = viewContext.population.select("#rural").attr("stroke") ?? "";
-    storeValues.stylePopulationUrbanStrokeInput = viewContext.population.select("#urban").attr("stroke") ?? "";
+    storeValues.stylePopulationRuralStrokeInput = view.population.select("#rural").attr("stroke") ?? "";
+    storeValues.stylePopulationUrbanStrokeInput = view.population.select("#urban").attr("stroke") ?? "";
     visibility.styleStrokeWidth = true;
     storeValues.styleStrokeWidthInput = String(el.attr("stroke-width") ?? 0);
   }
 
   if (styleElement === "regions") {
     visibility.styleStates = true;
-    storeValues.styleStatesBodyOpacity = String(viewContext.statesBody.attr("opacity") ?? 1);
-    storeValues.styleStatesBodyFilter = viewContext.statesBody.attr("filter") ?? "";
-    storeValues.styleStatesHaloWidth = String(viewContext.statesHalo.attr("data-width") ?? 10);
-    storeValues.styleStatesHaloOpacity = String(viewContext.statesHalo.attr("opacity") ?? 1);
-    const blurMatch = viewContext.statesHalo.attr("filter")?.match(/blur\(([^)]+)\)/);
+    storeValues.styleStatesBodyOpacity = String(view.statesBody.attr("opacity") ?? 1);
+    storeValues.styleStatesBodyFilter = view.statesBody.attr("filter") ?? "";
+    storeValues.styleStatesHaloWidth = String(view.statesHalo.attr("data-width") ?? 10);
+    storeValues.styleStatesHaloOpacity = String(view.statesHalo.attr("opacity") ?? 1);
+    const blurMatch = view.statesHalo.attr("filter")?.match(/blur\(([^)]+)\)/);
     storeValues.styleStatesHaloBlur = String(blurMatch ? parseFloat(blurMatch[1]) : 0);
   }
 
@@ -375,12 +376,12 @@ export function selectStyleElement(): void {
 
   if (styleElement === "ocean") {
     visibility.styleOcean = true;
-    const oceanBase = viewContext.oceanLayers.select<SVGRectElement>("#oceanBase");
+    const oceanBase = view.oceanLayers.select<SVGRectElement>("#oceanBase");
     const oceanPattern = getElementById<SVGImageElement>("oceanicPattern");
     storeValues.styleOceanFill = oceanBase.attr("fill") ?? "";
     storeValues.styleOceanPattern = oceanPattern?.getAttribute("href") ?? "";
     storeValues.styleOceanPatternOpacity = oceanPattern?.getAttribute("opacity") ?? "1";
-    storeValues.outlineLayers = viewContext.oceanLayers.attr("layers") ?? "";
+    storeValues.outlineLayers = view.oceanLayers.attr("layers") ?? "";
   }
 
   if (styleElement === "temperature") {
@@ -407,9 +408,9 @@ export function selectStyleElement(): void {
     visibility.styleEmblems = true;
     visibility.styleStrokeWidth = true;
     storeValues.styleStrokeWidthInput = String(el.attr("stroke-width") ?? 1);
-    storeValues.emblemsStateSizeInput = viewContext.emblems.select("#stateEmblems").attr("data-size") ?? "1";
-    storeValues.emblemsProvinceSizeInput = viewContext.emblems.select("#provinceEmblems").attr("data-size") ?? "1";
-    storeValues.emblemsBurgSizeInput = viewContext.emblems.select("#burgEmblems").attr("data-size") ?? "1";
+    storeValues.emblemsStateSizeInput = view.emblems.select("#stateEmblems").attr("data-size") ?? "1";
+    storeValues.emblemsProvinceSizeInput = view.emblems.select("#provinceEmblems").attr("data-size") ?? "1";
+    storeValues.emblemsBurgSizeInput = view.emblems.select("#burgEmblems").attr("data-size") ?? "1";
   }
 
   // Update group options
@@ -437,14 +438,14 @@ export function selectStyleElement(): void {
     (currentGroup === "sea_island" || (!currentGroup && groupOptions[0]?.value === "sea_island"))
   ) {
     visibility.styleCoastline = true;
-    const auto = Boolean(viewContext.coastline.select("#sea_island").attr("auto-filter"));
+    const auto = Boolean(view.coastline.select("#sea_island").attr("auto-filter"));
     storeValues.styleCoastlineAuto = auto ? "1" : "0";
     if (auto) visibility.styleFilter = false;
   }
 
   if (styleElement === "scaleBar") {
     visibility.styleScaleBar = true;
-    const scaleBarEl = viewContext.scaleBar;
+    const scaleBarEl = view.scaleBar;
     storeValues.styleScaleBarSize = scaleBarEl.attr("data-bar-size") ?? "";
     storeValues.styleScaleBarFontSize = scaleBarEl.attr("font-size") ?? "";
     storeValues.styleScaleBarPositionX = scaleBarEl.attr("data-x") ?? "99";
@@ -505,14 +506,14 @@ export function selectStyleElement(): void {
 function getEl(): AnySelection {
   const { activeElement: el, activeGroup: g } = useStyleState.getState();
 
-  let selection = viewContext.svg.select<SVGGElement>(`#${el}`);
+  let selection = view.svg.select<SVGGElement>(`#${el}`);
   if (g !== el && g !== "") {
     selection = selection.select<SVGGElement>(`#${g}`);
   }
 
   // Prevent D3 v7 `.attr()` getter from throwing if the selection is empty.
   if (selection.empty()) {
-    return viewContext.svg.select<SVGGElement>(() => document.createElementNS("http://www.w3.org/2000/svg", "g"));
+    return view.svg.select<SVGGElement>(() => document.createElementNS("http://www.w3.org/2000/svg", "g"));
   }
 
   return selection;
@@ -521,8 +522,8 @@ function getEl(): AnySelection {
 // ─── Texture helpers ──────────────────────────────────────────────────────────
 
 function changeTexture(href: string): void {
-  viewContext.texture.attr("data-href", href);
-  viewContext.texture.select("image").attr("href", href);
+  view.texture.attr("data-href", href);
+  view.texture.select("image").attr("href", href);
 }
 
 export function updateTextureSelectValue(href: string): void {
@@ -552,7 +553,7 @@ function shiftCompass(sizeOverride?: string): void {
   const x = values.styleCompassShiftX ?? "80";
   const y = values.styleCompassShiftY ?? "80";
   const size = sizeOverride ?? values.styleCompassSizeInput ?? "0.3";
-  viewContext.compass.select("use").attr("transform", `translate(${x} ${y}) scale(${size})`);
+  view.compass.select("use").attr("transform", `translate(${x} ${y}) scale(${size})`);
 }
 
 // ─── Font helpers ─────────────────────────────────────────────────────────────
@@ -569,8 +570,8 @@ function changeFontSize(el: AnySelection, size: number): void {
   const { activeElement: styleElement } = useStyleState.getState();
 
   const getSizeOnScale = (element: string): number => {
-    if (element === "labels") return Math.max(rn((size + size / viewContext.scale) / 2, 2), 1);
-    if (element === "coordinates") return rn(size / viewContext.scale ** 0.8, 2);
+    if (element === "labels") return Math.max(rn((size + size / view.scale) / 2, 2), 1);
+    if (element === "coordinates") return rn(size / view.scale ** 0.8, 2);
     return size;
   };
 
@@ -584,8 +585,8 @@ function changeFontSize(el: AnySelection, size: number): void {
 
 function updateElements(): void {
   if (layerIsOn("toggleHeight")) HeightmapRenderer.render(worldContext, viewContext, appServices);
-  if (viewContext.legend.selectAll("*").size()) EditorBus.redrawLegend();
-  viewContext.oceanLayers.selectAll("path").remove();
+  if (view.legend.selectAll("*").size()) EditorBus.redrawLegend();
+  view.oceanLayers.selectAll("path").remove();
   OceanLayers();
   document.dispatchEvent(new CustomEvent("fmg:invoke-active-zooming"));
 }
@@ -635,49 +636,49 @@ export function applySliderChange(id: string, value: string): void {
       shiftCompass(value);
       break;
     case "styleReliefSize":
-      viewContext.terrain.attr("size", value);
+      view.terrain.attr("size", value);
       ReliefIconsRenderer.render(worldContext, viewContext, appServices);
       if (!layerIsOn("toggleRelief")) toggleRelief();
       break;
     case "styleReliefDensity":
-      viewContext.terrain.attr("density", value);
+      view.terrain.attr("density", value);
       ReliefIconsRenderer.render(worldContext, viewContext, appServices);
       if (!layerIsOn("toggleRelief")) toggleRelief();
       break;
     case "styleLegendColItems":
-      viewContext.legend.select("#legendBox").attr("data-columns", value);
+      view.legend.select("#legendBox").attr("data-columns", value);
       EditorBus.redrawLegend();
       break;
     case "styleLegendOpacity":
-      viewContext.legend.select("#legendBox").attr("fill-opacity", value);
+      view.legend.select("#legendBox").attr("fill-opacity", value);
       break;
     case "styleTemperatureFillOpacityInput":
-      viewContext.temperature.attr("fill-opacity", value);
+      view.temperature.attr("fill-opacity", value);
       break;
     case "styleTemperatureFontSizeInput":
-      viewContext.temperature.attr("font-size", `${value}px`);
+      view.temperature.attr("font-size", `${value}px`);
       break;
     case "styleStatesBodyOpacity":
-      viewContext.statesBody.attr("opacity", value);
+      view.statesBody.attr("opacity", value);
       break;
     case "styleStatesHaloWidth":
-      viewContext.statesHalo.attr("data-width", value).attr("stroke-width", value);
+      view.statesHalo.attr("data-width", value).attr("stroke-width", value);
       break;
     case "styleStatesHaloOpacity":
-      viewContext.statesHalo.attr("opacity", value);
+      view.statesHalo.attr("opacity", value);
       break;
     case "styleStatesHaloBlur": {
       const blur = Number(value) > 0 ? `blur(${value}px)` : null;
-      viewContext.statesHalo.attr("filter", blur);
+      view.statesHalo.attr("filter", blur);
       break;
     }
     case "styleArmiesFillOpacity":
-      viewContext.armies.attr("fill-opacity", value);
+      view.armies.attr("fill-opacity", value);
       break;
     case "styleArmiesSize": {
       const numVal = Number(value);
-      viewContext.armies.attr("box-size", numVal).attr("font-size", numVal * 2);
-      viewContext.armies.selectAll("g").remove();
+      view.armies.attr("box-size", numVal).attr("font-size", numVal * 2);
+      view.armies.selectAll("g").remove();
       worldContext.pack.states.forEach(s => {
         if (!s.i || s.removed || !s.military?.length) return;
         drawRegiments(worldContext, viewContext, appServices, s.military, s.i);
@@ -685,19 +686,19 @@ export function applySliderChange(id: string, value: string): void {
       break;
     }
     case "emblemsStateSizeInput":
-      viewContext.emblems.select("#stateEmblems").attr("data-size", value);
+      view.emblems.select("#stateEmblems").attr("data-size", value);
       EmblemsRenderer.render(worldContext, viewContext, appServices);
       break;
     case "emblemsProvinceSizeInput":
-      viewContext.emblems.select("#provinceEmblems").attr("data-size", value);
+      view.emblems.select("#provinceEmblems").attr("data-size", value);
       EmblemsRenderer.render(worldContext, viewContext, appServices);
       break;
     case "emblemsBurgSizeInput":
-      viewContext.emblems.select("#burgEmblems").attr("data-size", value);
+      view.emblems.select("#burgEmblems").attr("data-size", value);
       EmblemsRenderer.render(worldContext, viewContext, appServices);
       break;
     case "styleScaleBarBackgroundOpacity":
-      viewContext.scaleBar.select<SVGRectElement>("#scaleBarBack").attr("opacity", value);
+      view.scaleBar.select<SVGRectElement>("#scaleBarBack").attr("opacity", value);
       break;
   }
 }
@@ -739,7 +740,7 @@ export function applyLabelsHideGroup(checked: boolean): void {
 export function applyStyleFilter(value: string): void {
   useStyleState.getState().updateValue("styleFilterInput", value);
   if (useStyleState.getState().activeGroup === "ocean") {
-    viewContext.oceanLayers.attr("filter", value);
+    view.oceanLayers.attr("filter", value);
   } else {
     getEl().attr("filter", value);
   }
@@ -753,8 +754,8 @@ export function applyTextureSelect(href: string): void {
 export function applyTextureShiftX(value: string): void {
   useStyleState.getState().updateValue("styleTextureShiftX", value);
   const numVal = +value;
-  viewContext.texture.attr("data-x", value);
-  viewContext.texture
+  view.texture.attr("data-x", value);
+  view.texture
     .select("image")
     .attr("x", value)
     .attr("width", worldContext.graphWidth - numVal);
@@ -763,8 +764,8 @@ export function applyTextureShiftX(value: string): void {
 export function applyTextureShiftY(value: string): void {
   useStyleState.getState().updateValue("styleTextureShiftY", value);
   const numVal = +value;
-  viewContext.texture.attr("data-y", value);
-  viewContext.texture
+  view.texture.attr("data-y", value);
+  view.texture
     .select("image")
     .attr("y", value)
     .attr("height", worldContext.graphHeight - numVal);
@@ -803,13 +804,13 @@ export function applyGridShiftY(value: string): void {
 
 export function applyRescaleMarkers(checked: boolean): void {
   useStyleState.getState().updateValue("styleRescaleMarkers", checked ? "1" : "0");
-  viewContext.markers.attr("rescale", +checked);
+  view.markers.attr("rescale", +checked);
   document.dispatchEvent(new CustomEvent("fmg:invoke-active-zooming"));
 }
 
 export function applyCoastlineAuto(checked: boolean): void {
   useStyleState.getState().updateValue("styleCoastlineAuto", checked ? "1" : "0");
-  viewContext.coastline.select("#sea_island").attr("auto-filter", +checked);
+  view.coastline.select("#sea_island").attr("auto-filter", +checked);
   // Filter section visibility is controlled via the store; toggle it here:
   useStyleState.getState().setVisibility({
     ...useStyleState.getState().visibility,
@@ -820,7 +821,7 @@ export function applyCoastlineAuto(checked: boolean): void {
 
 export function applyOceanFill(value: string): void {
   useStyleState.getState().updateValue("styleOceanFill", value);
-  viewContext.oceanLayers.select("rect").attr("fill", value);
+  view.oceanLayers.select("rect").attr("fill", value);
 }
 
 export function applyOceanPattern(href: string): void {
@@ -830,8 +831,8 @@ export function applyOceanPattern(href: string): void {
 
 export function applyOutlineLayers(value: string): void {
   useStyleState.getState().updateValue("outlineLayers", value);
-  viewContext.oceanLayers.selectAll("path").remove();
-  viewContext.oceanLayers.attr("layers", value);
+  view.oceanLayers.selectAll("path").remove();
+  view.oceanLayers.attr("layers", value);
   OceanLayers();
 }
 
@@ -876,24 +877,24 @@ export function applyHeightmapCurve(value: string): void {
 
 export function applyReliefSet(value: string): void {
   useStyleState.getState().updateValue("styleReliefSet", value);
-  viewContext.terrain.attr("set", value);
+  view.terrain.attr("set", value);
   ReliefIconsRenderer.render(worldContext, viewContext, appServices);
   if (!layerIsOn("toggleRelief")) toggleRelief();
 }
 
 export function applyTemperatureFill(value: string): void {
   useStyleState.getState().updateValue("styleTemperatureFillInput", value);
-  viewContext.temperature.attr("fill", value);
+  view.temperature.attr("fill", value);
 }
 
 export function applyPopulationRuralStroke(value: string): void {
   useStyleState.getState().updateValue("stylePopulationRuralStrokeInput", value);
-  viewContext.population.select("#rural").attr("stroke", value);
+  view.population.select("#rural").attr("stroke", value);
 }
 
 export function applyPopulationUrbanStroke(value: string): void {
   useStyleState.getState().updateValue("stylePopulationUrbanStrokeInput", value);
-  viewContext.population.select("#urban").attr("stroke", value);
+  view.population.select("#urban").attr("stroke", value);
 }
 
 export function applyBurgIconsIcon(value: string): void {
@@ -918,7 +919,7 @@ export function applyCompassShiftY(value: string): void {
 
 export function applyLegendBack(value: string): void {
   useStyleState.getState().updateValue("styleLegendBack", value);
-  viewContext.legend.select("#legendBox").attr("fill", value);
+  view.legend.select("#legendBox").attr("fill", value);
 }
 
 export function applyShadow(value: string): void {
@@ -952,7 +953,7 @@ export function applyFontShiftY(value: string): void {
 
 export function applyStatesBodyFilter(value: string): void {
   useStyleState.getState().updateValue("styleStatesBodyFilter", value);
-  viewContext.statesBody.attr("filter", value);
+  view.statesBody.attr("filter", value);
 }
 
 export function applyVignettePreset(presetName: string): void {
@@ -1022,14 +1023,14 @@ export function applyVignetteRy(value: string): void {
 
 export function applyScaleBarInput(id: string, value: string): void {
   useStyleState.getState().updateValue(id, value);
-  const scaleBarBack = viewContext.scaleBar.select<SVGGElement>("#scaleBarBack");
+  const scaleBarBack = view.scaleBar.select<SVGGElement>("#scaleBarBack");
   if (!scaleBarBack.size()) return;
 
-  if (id === "styleScaleBarSize") viewContext.scaleBar.attr("data-bar-size", value);
-  else if (id === "styleScaleBarFontSize") viewContext.scaleBar.attr("font-size", value);
-  else if (id === "styleScaleBarPositionX") viewContext.scaleBar.attr("data-x", value);
-  else if (id === "styleScaleBarPositionY") viewContext.scaleBar.attr("data-y", value);
-  else if (id === "styleScaleBarLabel") viewContext.scaleBar.attr("data-label", value);
+  if (id === "styleScaleBarSize") view.scaleBar.attr("data-bar-size", value);
+  else if (id === "styleScaleBarFontSize") view.scaleBar.attr("font-size", value);
+  else if (id === "styleScaleBarPositionX") view.scaleBar.attr("data-x", value);
+  else if (id === "styleScaleBarPositionY") view.scaleBar.attr("data-y", value);
+  else if (id === "styleScaleBarLabel") view.scaleBar.attr("data-label", value);
   else if (id === "styleScaleBarBackgroundFill") scaleBarBack.attr("fill", value);
   else if (id === "styleScaleBarBackgroundStroke") scaleBarBack.attr("stroke", value);
   else if (id === "styleScaleBarBackgroundStrokeWidth") scaleBarBack.attr("stroke-width", value);
@@ -1051,15 +1052,8 @@ export function applyScaleBarInput(id: string, value: string): void {
       "styleScaleBarBackgroundPaddingBottom"
     ].includes(id)
   ) {
-    drawScaleBar(worldContext, viewContext, appServices, viewContext.scaleBar, viewContext.scale);
-    fitScaleBar(
-      worldContext,
-      viewContext,
-      appServices,
-      viewContext.scaleBar,
-      viewContext.svgWidth,
-      viewContext.svgHeight
-    );
+    drawScaleBar(worldContext, viewContext, appServices, view.scaleBar, view.scale);
+    fitScaleBar(worldContext, viewContext, appServices, view.scaleBar, view.svgWidth, view.svgHeight);
   }
 }
 
@@ -1067,13 +1061,13 @@ export function applyScaleBarInput(id: string, value: string): void {
 
 export function applyMapFilterButton(buttonId: string): void {
   const { activeMapFilter } = useStyleState.getState();
-  viewContext.svg.attr("data-filter", null).attr("filter", null);
+  view.svg.attr("data-filter", null).attr("filter", null);
   if (activeMapFilter === buttonId) {
     useStyleState.getState().setActiveMapFilter(null);
     return;
   }
   useStyleState.getState().setActiveMapFilter(buttonId);
-  viewContext.svg.attr("data-filter", buttonId).attr("filter", `url(#filter-${buttonId})`);
+  view.svg.attr("data-filter", buttonId).attr("filter", `url(#filter-${buttonId})`);
 }
 
 // ─── Texture URL dialog ───────────────────────────────────────────────────────
@@ -1205,19 +1199,12 @@ function applyStyleWithUiRefresh(styleJSON: StyleJSON, presetName?: string): voi
   }
 
   document.dispatchEvent(new CustomEvent("fmg:invoke-active-zooming"));
-  drawScaleBar(worldContext, viewContext, appServices, viewContext.scaleBar, viewContext.scale);
-  fitScaleBar(
-    worldContext,
-    viewContext,
-    appServices,
-    viewContext.scaleBar,
-    viewContext.svgWidth,
-    viewContext.svgHeight
-  );
+  drawScaleBar(worldContext, viewContext, appServices, view.scaleBar, view.scale);
+  fitScaleBar(worldContext, viewContext, appServices, view.scaleBar, view.svgWidth, view.svgHeight);
 }
 
 function updateMapFilter(): void {
-  const filter = viewContext.svg.attr("data-filter");
+  const filter = view.svg.attr("data-filter");
   useStyleState.getState().setActiveMapFilter(filter);
 }
 

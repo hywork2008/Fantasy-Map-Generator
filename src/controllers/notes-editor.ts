@@ -13,8 +13,8 @@ import "tinymce/plugins/image";
 import "tinymce/plugins/wordcount";
 import "tinymce/icons/default/icons";
 import "tinymce/models/dom/model";
-import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
+import { viewLayerService as view } from "../services/viewLayerService";
 import { setHoverNotesState } from "../store/hoverNotesState";
 import { getNotesEditorState, setNotesEditorState } from "../store/notesEditorState";
 import type { WorldNote } from "../types/WorldState";
@@ -65,8 +65,8 @@ export function editNotes(id?: string, name?: string): void {
 
   openDialog("notesEditor", {
     title: "Notes Editor",
-    width: viewContext.svgWidth * 0.8,
-    height: viewContext.svgHeight * 0.75,
+    width: view.svgWidth * 0.8,
+    height: view.svgHeight * 0.75,
     position: { my: "center", at: "center", of: "svg" },
     onClose: removeEditor
   });

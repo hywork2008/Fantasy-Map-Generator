@@ -23,6 +23,7 @@ import {
 } from "../renderers";
 import type { Emblem as RendererEmblem } from "../renderers/emblem-renderer";
 import { COArenderer } from "../renderers/emblem-renderer";
+import { viewLayerService as view } from "../services/viewLayerService";
 import { modules } from "../store/editorState";
 import {
   getProvincesEditorState,
@@ -53,14 +54,14 @@ import { toggleBorders, toggleCultures, toggleProvinces, toggleStates, turnButto
 import { editStyle } from "./style";
 
 export function editProvinces(): void {
-  if (viewContext.customization) return;
+  if (view.customization) return;
   closeDialogs("#provincesEditor, .stable");
   if (!layerIsOn("toggleProvinces")) toggleProvinces();
   if (!layerIsOn("toggleBorders")) toggleBorders();
   if (layerIsOn("toggleStates")) toggleStates();
   if (layerIsOn("toggleCultures")) toggleCultures();
 
-  viewContext.provs
+  view.provs
     .selectAll<SVGTextElement, unknown>("text")
     .call(d3.drag<SVGTextElement, unknown>().on("start", dragLabelStart).on("drag", dragLabel))
     .classed("draggable", true);
@@ -113,7 +114,7 @@ function refreshProvincesEditor(): void {
     const stateName = (worldContext.pack.states as State[])[p.state].name;
     const capitalName = p.burg ? ((worldContext.pack.burgs as Burg[])[p.burg].name ?? "") : "";
     const isSeparable = !!(p.burg && p.burg !== (worldContext.pack.states as State[])[p.state].capital);
-    const isFocused = !viewContext.defs.select(`#fog #focusProvince${p.i}`).empty();
+    const isFocused = !view.defs.select(`#fog #focusProvince${p.i}`).empty();
 
     COArenderer.trigger(`provinceCOA${p.i}`, p.coa as RendererEmblem);
 
@@ -179,9 +180,9 @@ function collectStatistics(): void {
 
 function provinceHighlightOn(province: number): void {
   if (!layerIsOn("toggleProvinces")) return;
-  if (viewContext.customization) return;
+  if (view.customization) return;
   const animate = d3.transition().duration(2000).ease(d3.easeSinIn);
-  viewContext.provs
+  view.provs
     .select(`#province${province}`)
     .raise()
     .transition(animate)
@@ -191,11 +192,11 @@ function provinceHighlightOn(province: number): void {
 
 function provinceHighlightOff(province: number | null): void {
   if (!layerIsOn("toggleProvinces") || !province) {
-    viewContext.debug.selectAll(".highlight").remove();
+    view.debug.selectAll(".highlight").remove();
     return;
   }
-  viewContext.provs.select(`#province${province}`).transition().attr("stroke-width", null).attr("stroke", null);
-  viewContext.debug.selectAll(".highlight").remove();
+  view.provs.select(`#province${province}`).transition().attr("stroke-width", null).attr("stroke", null);
+  view.debug.selectAll(".highlight").remove();
 }
 
 function changeFill(provinceId: number): void {
@@ -212,7 +213,7 @@ function changeFill(provinceId: number): void {
   input.oninput = e => {
     const newFill = (e.target as HTMLInputElement).value;
     p.color = newFill;
-    const g = viewContext.provs.select("#provincesBody");
+    const g = view.provs.select("#provincesBody");
     g.select(`#province${provinceId}`).attr("fill", newFill);
     g.select(`#province-gap${provinceId}`).attr("stroke", newFill);
     refreshProvincesEditor();
@@ -222,7 +223,7 @@ function changeFill(provinceId: number): void {
 
 function capitalZoomIn(p: number): void {
   const capital = (worldContext.pack.provinces as Province[])[p].burg;
-  const l = viewContext.burgLabels.select(`[data-id='${capital}']`);
+  const l = view.burgLabels.select(`[data-id='${capital}']`);
   const x = +l.attr("x");
   const y = +l.attr("y");
   zoomTo(x, y, 8, 2000);
@@ -273,7 +274,7 @@ function declareProvinceIndependence(provinceId: number): [number, number] | und
   const newColor = getRandomColor();
   const coa = province.coa;
   d3.select(`#provinceCOA${provinceId}`).attr("id", `stateCOA${newStateId}`);
-  viewContext.emblems.select(`#provinceEmblems > use[data-i='${provinceId}']`).remove();
+  view.emblems.select(`#provinceEmblems > use[data-i='${provinceId}']`).remove();
 
   Array.from(cells.i)
     .filter((i: number) => cells.province[i] === provinceId)
@@ -337,7 +338,7 @@ function updateStatesPostRelease(oldStates: number[], newStates: number[]): void
   drawStateLabels(worldContext, viewContext, appServices, allStates);
 
   allStates.forEach(stateId => {
-    viewContext.emblems.select(`#stateEmblems > use[data-i='${stateId}']`)?.remove();
+    view.emblems.select(`#stateEmblems > use[data-i='${stateId}']`)?.remove();
     const { coa, pole } = (worldContext.pack.states as State[])[stateId];
     COArenderer.add("state", stateId, coa as RendererEmblem, pole![0], pole![1]);
   });
@@ -410,9 +411,9 @@ function changePopulation(province: number): void {
 }
 
 function toggleFog(p: number): void {
-  const path = viewContext.provs.select(`#province${p}`).attr("d");
+  const path = view.provs.select(`#province${p}`).attr("d");
   const id = `focusProvince${p}`;
-  const isFocused = !viewContext.defs.select(`#fog #${id}`).empty();
+  const isFocused = !view.defs.select(`#fog #${id}`).empty();
   if (!isFocused) EditorBus.fog(id, path);
   else EditorBus.unfog(id);
   refreshProvincesEditor();
@@ -434,11 +435,11 @@ function removeProvince(p: number): void {
 
       const coaId = `provinceCOA${p}`;
       d3.select(`#${coaId}`).remove();
-      viewContext.emblems.select(`#provinceEmblems > use[data-i='${p}']`).remove();
+      view.emblems.select(`#provinceEmblems > use[data-i='${p}']`).remove();
 
       (worldContext.pack.provinces as Province[])[p] = { i: p, removed: true } as Province;
 
-      const g = viewContext.provs.select("#provincesBody");
+      const g = view.provs.select("#provincesBody");
       g.select(`#province${p}`).remove();
       g.select(`#province-gap${p}`).remove();
       if (layerIsOn("toggleBorders")) BordersRenderer.render(worldContext, viewContext, appServices);
@@ -477,10 +478,10 @@ function showChart(): void {
 }
 
 function toggleLabels(): void {
-  const hidden = viewContext.provs.select("#provinceLabels").style("display") === "none";
-  viewContext.provs.select("#provinceLabels").style("display", `${hidden ? "block" : "none"}`);
-  viewContext.provs.attr("data-labels", +hidden);
-  viewContext.provs
+  const hidden = view.provs.select("#provinceLabels").style("display") === "none";
+  view.provs.select("#provinceLabels").style("display", `${hidden ? "block" : "none"}`);
+  view.provs.attr("data-labels", +hidden);
+  view.provs
     .selectAll<SVGTextElement, unknown>("text")
     .call(d3.drag<SVGTextElement, unknown>().on("start", dragLabelStart).on("drag", dragLabel))
     .classed("draggable", true);
@@ -525,12 +526,12 @@ function enterProvincesManualAssignment(): void {
   if (!layerIsOn("toggleProvinces")) toggleProvinces();
   if (!layerIsOn("toggleBorders")) toggleBorders();
 
-  viewContext.provinceBorders.select("path").attr("stroke", "#000").attr("stroke-width", 0.5);
-  viewContext.stateBorders.select("path").attr("stroke", "#000").attr("stroke-width", 1.2);
+  view.provinceBorders.select("path").attr("stroke", "#000").attr("stroke-width", 0.5);
+  view.stateBorders.select("path").attr("stroke", "#000").attr("stroke-width", 1.2);
 
-  viewContext.customization = 11;
-  viewContext.provs.select("g#provincesBody").append("g").attr("id", "temp").attr("stroke-width", 0.3);
-  viewContext.provs
+  view.setCustomization(11);
+  view.provs.select("g#provincesBody").append("g").attr("id", "temp").attr("stroke-width", 0.3);
+  view.provs
     .select("g#provincesBody")
     .append("g")
     .attr("id", "centers")
@@ -541,7 +542,7 @@ function enterProvincesManualAssignment(): void {
   setProvincesEditorState({ customization: 11 });
 
   tip("Click on a province to select, drag the circle to change province", true);
-  viewContext.viewbox
+  view.viewbox
     .style("cursor", "crosshair")
     .on("click", selectProvinceOnMapClick)
     .call(d3.drag<SVGGElement, unknown>().on("drag", dragBrush))
@@ -556,7 +557,7 @@ function enterProvincesManualAssignment(): void {
 }
 
 export function selectProvinceOnLineClick(id: number): void {
-  if (viewContext.customization === 11) {
+  if (view.customization === 11) {
     selectedProvinceIdForManual = id;
     selectProvince(id);
   }
@@ -567,7 +568,7 @@ function selectProvinceOnMapClick(this: SVGElement, event: MouseEvent): void {
   const i = findCell(px, py);
   if (worldContext.pack.cells.h[i] < 20 || !worldContext.pack.cells.state[i]) return;
 
-  const assigned = viewContext.provs.select("g#temp").select(`polygon[data-cell='${i}']`);
+  const assigned = view.provs.select("g#temp").select(`polygon[data-cell='${i}']`);
   const province = assigned.size() ? +assigned.attr("data-province") : worldContext.pack.cells.province[i];
 
   const { provinces } = getProvincesEditorState();
@@ -581,9 +582,9 @@ function selectProvinceOnMapClick(this: SVGElement, event: MouseEvent): void {
 }
 
 function selectProvince(p: number): void {
-  viewContext.debug.selectAll("path.selected").remove();
-  const path = viewContext.provs.select(`#province${p}`).attr("d");
-  viewContext.debug.append("path").attr("class", "selected").attr("d", path);
+  view.debug.selectAll("path.selected").remove();
+  const path = view.provs.select(`#province${p}`).attr("d");
+  view.debug.append("path").attr("class", "selected").attr("d", path);
 }
 
 function dragBrush(this: SVGElement, event: d3.D3DragEvent<SVGElement, unknown, unknown>): void {
@@ -597,8 +598,8 @@ function dragBrush(this: SVGElement, event: d3.D3DragEvent<SVGElement, unknown, 
 }
 
 function changeForSelection(selection: number[]): void {
-  const temp = viewContext.provs.select("#temp");
-  const centers = viewContext.provs.select("#centers");
+  const temp = view.provs.select("#temp");
+  const centers = view.provs.select("#centers");
   if (selectedProvinceIdForManual === null) return;
 
   const provinceNew = selectedProvinceIdForManual;
@@ -641,7 +642,7 @@ function moveBrush(this: SVGElement, event: MouseEvent): void {
 }
 
 function applyProvincesManualAssignment(): void {
-  viewContext.provs
+  view.provs
     .select("#temp")
     .selectAll("polygon")
     .each(function () {
@@ -659,14 +660,14 @@ function applyProvincesManualAssignment(): void {
 }
 
 function exitProvincesManualAssignment(): void {
-  viewContext.customization = 0;
-  viewContext.provs.select("#temp").remove();
-  viewContext.provs.select("#centers").remove();
+  view.setCustomization(0);
+  view.provs.select("#temp").remove();
+  view.provs.select("#centers").remove();
   EditorBus.removeCircle();
 
-  viewContext.provinceBorders.select("path").attr("stroke", null).attr("stroke-width", null);
-  viewContext.stateBorders.select("path").attr("stroke", null).attr("stroke-width", null);
-  viewContext.debug.selectAll("path.selected").remove();
+  view.provinceBorders.select("path").attr("stroke", null).attr("stroke-width", null);
+  view.stateBorders.select("path").attr("stroke", null).attr("stroke-width", null);
+  view.debug.selectAll("path.selected").remove();
 
   setProvincesEditorState({ customization: 0 });
   EditorBus.restoreDefaultEvents();
@@ -681,10 +682,10 @@ function enterAddProvinceMode(): void {
     return;
   }
 
-  viewContext.customization = 12;
+  view.setCustomization(12);
   setProvincesEditorState({ customization: 12 });
   tip("Click on the map to place a new province center", true);
-  viewContext.viewbox.style("cursor", "crosshair");
+  view.viewbox.style("cursor", "crosshair");
   interactionManager.setClickHandler(addProvince);
 }
 
@@ -752,7 +753,7 @@ function addProvince(this: SVGElement, event: MouseEvent): void {
 }
 
 function exitAddProvinceMode(): void {
-  viewContext.customization = 0;
+  view.setCustomization(0);
   EditorBus.restoreDefaultEvents();
   clearMainTip();
   setProvincesEditorState({ customization: 0 });
@@ -808,7 +809,7 @@ function removeAllProvinces(): void {
       getElementsBySelector("[id^='provinceCOA']").forEach(el => {
         el.remove();
       });
-      viewContext.emblems.select("#provinceEmblems").selectAll("*").remove();
+      view.emblems.select("#provinceEmblems").selectAll("*").remove();
 
       worldContext.pack.provinces = [0 as unknown as Province];
       worldContext.pack.cells.province = new Uint16Array(worldContext.pack.cells.i.length);
@@ -818,7 +819,7 @@ function removeAllProvinces(): void {
 
       EditorBus.unfog();
       if (layerIsOn("toggleBorders")) BordersRenderer.render(worldContext, viewContext, appServices);
-      viewContext.provs.select("#provincesBody").remove();
+      view.provs.select("#provincesBody").remove();
       turnButtonOff("toggleProvinces");
 
       refreshProvincesEditor();
@@ -840,7 +841,7 @@ function dragLabel(this: SVGTextElement, event: d3.D3DragEvent<SVGTextElement, u
 }
 
 function closeProvincesEditor(): void {
-  viewContext.provs
+  view.provs
     .selectAll<SVGTextElement, unknown>("text")
     .call(d3.drag<SVGTextElement, unknown>().on("drag", null))
     .attr("class", null);
@@ -884,7 +885,7 @@ function openProvinceMergeDialog(): void {
 function cleanupMergedProvince(provinceId: number): void {
   EditorBus.unfog(`focusProvince${provinceId}`);
   d3.select(`#provinceCOA${provinceId}`).remove();
-  viewContext.emblems.select(`#provinceEmblems > use[data-i='${provinceId}']`).remove();
+  view.emblems.select(`#provinceEmblems > use[data-i='${provinceId}']`).remove();
 }
 
 function mergeProvinces(ids: number[], primary: number): void {
@@ -925,7 +926,7 @@ function mergeProvinces(ids: number[], primary: number): void {
   if (layerIsOn("toggleBorders")) BordersRenderer.render(worldContext, viewContext, appServices);
 
   EditorBus.unfog();
-  viewContext.debug.selectAll(".highlight").remove();
+  view.debug.selectAll(".highlight").remove();
 
   refreshProvincesEditor();
 }
@@ -975,7 +976,7 @@ export const provincesEditorActions = {
   overviewBurgs: (stateId: number) => overviewBurgs({ stateId }),
   changePopulation,
   highlightElement: (id: number) =>
-    EditorBus.highlightElement(viewContext.provs.select(`#province${id}`).node() as Element, 8),
+    EditorBus.highlightElement(view.provs.select(`#province${id}`).node() as Element, 8),
   toggleFog,
   removeProvince,
   updateLockStatus,
@@ -1033,7 +1034,7 @@ export const provincesEditorActions = {
     p.name = ne.shortName;
     p.formName = ne.formName;
     p.fullName = ne.fullName;
-    viewContext.provs.select(`#provinceLabel${p.i}`).text(p.name);
+    view.provs.select(`#provinceLabel${p.i}`).text(p.name);
     setProvincesEditorState({ nameEditor: null });
     refreshProvincesEditor();
   },

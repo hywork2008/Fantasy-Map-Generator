@@ -1,7 +1,6 @@
 import { mean } from "d3";
 import type React from "react";
 import { useMemo } from "react";
-import { viewContext } from "../../context/viewContext";
 import { worldContext } from "../../context/worldContext";
 import { getFileName, highlightElement } from "../../controllers/editors";
 import { toggleRivers } from "../../controllers/layers";
@@ -9,6 +8,7 @@ import { createRiver } from "../../controllers/rivers-creator";
 import { editRiver } from "../../controllers/rivers-editor";
 import { toggleAddRiver } from "../../controllers/tools";
 import { Rivers } from "../../generators/river-generator";
+import { viewLayerService as view } from "../../services/viewLayerService";
 import { useDialogState } from "../../store/dialogState";
 import { useOptionsState } from "../../store/optionsState";
 import { useRiversOverviewState } from "../../store/riversOverviewState";
@@ -19,15 +19,15 @@ import { closeDialog, openConfirm } from "./dialogService";
 
 function riverHighlightOn(id: number): void {
   if (!layerIsOn("toggleRivers")) toggleRivers();
-  viewContext.rivers.select(`#river${id}`).attr("stroke", "red").attr("stroke-width", 1);
+  view.rivers.select(`#river${id}`).attr("stroke", "red").attr("stroke-width", 1);
 }
 
 function riverHighlightOff(id: number): void {
-  viewContext.rivers.select(`#river${id}`).attr("stroke", null).attr("stroke-width", null);
+  view.rivers.select(`#river${id}`).attr("stroke", null).attr("stroke-width", null);
 }
 
 function zoomToRiver(id: number): void {
-  const river = viewContext.rivers.select(`#river${id}`).node() as Element;
+  const river = view.rivers.select(`#river${id}`).node() as Element;
   highlightElement(river, 3);
 }
 
@@ -49,18 +49,18 @@ function triggerAllRiversRemove(refresh: () => void): void {
     onConfirm: () => {
       worldContext.pack.rivers = [];
       worldContext.pack.cells.r = new Uint16Array(worldContext.pack.cells.i.length);
-      viewContext.rivers.selectAll("*").remove();
+      view.rivers.selectAll("*").remove();
       refresh();
     }
   });
 }
 
 function toggleBasinsHightlight(): void {
-  if (viewContext.rivers.attr("data-basin") === "hightlighted") {
-    viewContext.rivers.selectAll("*").attr("fill", null);
-    viewContext.rivers.attr("data-basin", null);
+  if (view.rivers.attr("data-basin") === "hightlighted") {
+    view.rivers.selectAll("*").attr("fill", null);
+    view.rivers.attr("data-basin", null);
   } else {
-    viewContext.rivers.attr("data-basin", "hightlighted");
+    view.rivers.attr("data-basin", "hightlighted");
     const basins = [...new Set(worldContext.pack.rivers.map(r => r.basin))];
     const colors = [
       "#1f77b4",
@@ -80,7 +80,7 @@ function toggleBasinsHightlight(): void {
       worldContext.pack.rivers
         .filter(r => r.basin === b)
         .forEach(r => {
-          viewContext.rivers.select(`#river${r.i}`).attr("fill", color);
+          view.rivers.select(`#river${r.i}`).attr("fill", color);
         });
     });
   }

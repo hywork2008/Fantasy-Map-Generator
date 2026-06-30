@@ -2,6 +2,7 @@ import Alea from "alea";
 import { drag, polygonArea, select } from "d3";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
+import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import {
   BiomesRenderer,
@@ -21,6 +22,7 @@ import {
   PROFILE_SIZE
 } from "../renderers/coastline-fractal";
 import { getFeaturePath } from "../renderers/index";
+import { viewLayerService as view } from "../services/viewLayerService";
 import { elSelected, modules, setElSelected } from "../store/editorState";
 import { closeDialogs, openConfirm, openDialog } from "../ui/dialogs/dialogService";
 import { rn, si, unique } from "../utils";
@@ -33,7 +35,6 @@ import { toggleCells } from "./layers";
 import { editStyle } from "./style";
 
 let worldContext: WorldContext;
-let viewContext: ViewContext;
 let appServices: AppServices;
 
 export interface SliderDef {
@@ -174,7 +175,7 @@ function updateCoastlineFeatureData(): void {
 
   const group = (elSelected.node()!.parentNode as SVGGElement).id;
   const groupOptions: { value: string; label: string }[] = [];
-  viewContext.coastline.selectAll("g").each(function () {
+  view.coastline.selectAll("g").each(function () {
     const g = this as SVGGElement;
     groupOptions.push({ value: g.id, label: g.id });
   });
@@ -201,7 +202,7 @@ function drawCoastlineVertices(): void {
     (vertices as number[]).flatMap((v: number) => worldContext.pack.vertices.c[v]) as number[]
   ).filter((cellId: number) => cellId < cellsNumber);
 
-  viewContext.debug
+  view.debug
     .select("#vertices")
     .selectAll("polygon")
     .data(neibCells)
@@ -210,7 +211,7 @@ function drawCoastlineVertices(): void {
     .attr("points", (d: number) => getPackPolygon(d, worldContext.pack).join(" "))
     .attr("data-c", (d: number) => d);
 
-  viewContext.debug
+  view.debug
     .select("#vertices")
     .selectAll("circle")
     .data(vertices as number[])
@@ -243,7 +244,7 @@ function handleVertexDrag(
 
   const featureId = +elSelected!.attr("data-f");
   const feature = features[featureId];
-  viewContext.defs
+  view.defs
     .select(`#featurePaths > path#feature_${featureId}`)
     .attr("d", getFeaturePath(worldContext, viewContext, appServices, feature));
 
@@ -251,7 +252,7 @@ function handleVertexDrag(
   feature.area = Math.abs(polygonArea(points as [number, number][]));
   updateCoastlineFeatureData();
 
-  viewContext.debug
+  view.debug
     .select("#vertices")
     .selectAll("polygon")
     .attr("points", (d: unknown) => getPackPolygon(d as number, worldContext.pack).join(" "));
@@ -267,7 +268,7 @@ function handleVertexDragEnd(): void {
 }
 
 function closeCoastlineEditor(): void {
-  viewContext.debug.select("#vertices").remove();
+  view.debug.select("#vertices").remove();
   EditorBus.unselect();
   modules.editCoastline = false;
 }
@@ -290,7 +291,7 @@ export const coastlineEditorActions = {
   },
 
   changeGroup: (newGroup: string) => {
-    viewContext.coastline.select<SVGGElement>(`#${newGroup}`).node()!.appendChild(elSelected!.node()!);
+    view.coastline.select<SVGGElement>(`#${newGroup}`).node()!.appendChild(elSelected!.node()!);
     updateCoastlineFeatureData();
   },
 
@@ -339,7 +340,7 @@ export const coastlineEditorActions = {
       }
 
       const newGroup = (elSelected!.node()!.parentNode as Element).cloneNode(false) as SVGGElement;
-      viewContext.coastline.node()!.appendChild(newGroup);
+      view.coastline.node()!.appendChild(newGroup);
       newGroup.id = group;
       newGroup.appendChild(elSelected!.node()!);
       getCoastlineEditorState().setFeatureData({ isNewGroupInputVisible: false, newGroupName: "" });
@@ -361,8 +362,8 @@ export const coastlineEditorActions = {
         title: "Remove coastline group",
         confirm: "Remove",
         onConfirm: () => {
-          const sea = viewContext.coastline.select<SVGGElement>("#sea_island").node()!;
-          const groupEl = viewContext.coastline.select<SVGGElement>(`#${group}`).node()!;
+          const sea = view.coastline.select<SVGGElement>("#sea_island").node()!;
+          const groupEl = view.coastline.select<SVGGElement>(`#${group}`).node()!;
           while (groupEl.childNodes.length) {
             sea.appendChild(groupEl.childNodes[0]);
           }
@@ -616,7 +617,7 @@ function drawShapePreview(canvas: HTMLCanvasElement): void {
 
 class CoastlineEditorModule {
   editCoastline(event?: MouseEvent): void {
-    if (viewContext.customization) return;
+    if (view.customization) return;
     closeDialogs(".stable");
     if (layerIsOn("toggleCells")) toggleCells();
 
@@ -628,7 +629,7 @@ class CoastlineEditorModule {
     });
 
     const node = (event?.target ?? getElementBySelector<SVGElement>(".coastline path")) as SVGElement | null;
-    viewContext.debug.append("g").attr("id", "vertices");
+    view.debug.append("g").attr("id", "vertices");
     setElSelected(node ? select(node as Element) : null);
     if (node) {
       drawCoastlineVertices();
@@ -659,8 +660,7 @@ class CoastlineEditorModule {
 export const coastlineEditor = new CoastlineEditorModule();
 export const editCoastline = (event?: MouseEvent) => coastlineEditor.editCoastline(event);
 
-export function initCoastlineEditor(wc: WorldContext, vc: Readonly<ViewContext>, as: AppServices) {
+export function initCoastlineEditor(wc: WorldContext, _vc: Readonly<ViewContext>, as: AppServices) {
   worldContext = wc;
-  viewContext = vc;
   appServices = as;
 }
