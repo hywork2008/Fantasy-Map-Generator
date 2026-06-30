@@ -466,7 +466,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
               .filter((h: number) => h >= 20)
           )) ??
         f.height;
-      const height = (f.height - 18) ** +heightExponentInput.value;
+      const height = (f.height - 18) ** useOptionsState.getState().heightExponent;
       const evaporation = ((700 * (f.temp + 0.006 * height)) / 50 + 75) / (80 - f.temp);
       f.evaporation = rn(evaporation * f.cells);
       if (!f.shoreline) {

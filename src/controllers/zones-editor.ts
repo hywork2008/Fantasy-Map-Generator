@@ -16,6 +16,7 @@ import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog, downloadFile, getFileName } from "../utils/editorHelpers";
 import { getPackPolygon } from "../utils/graphUtils";
 import { layerIsOn } from "../utils/nodeUtils";
+import { openPicker } from "./editors";
 import { toggleZones } from "./layers";
 import { editStyle } from "./style";
 

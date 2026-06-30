@@ -307,7 +307,8 @@ function getUImaxSize(): number {
 }
 
 function changeTooltipSize(value: string): void {
-  tooltip.style.fontSize = `calc(${value}px + 0.5vw)`;
+  const tooltip = getElementById("tooltip");
+  if (tooltip) tooltip.style.fontSize = `calc(${value}px + 0.5vw)`;
 }
 
 // ─── Theme / color ─────────────────────────────────────────────────────────────
@@ -470,7 +471,7 @@ export function applyStoredOptions(): void {
     if (key === "points") changeCellsDensity(+value);
     if (key === "distanceScale") worldContext.distanceScale = +value;
 
-    if (key.slice(0, 5) === "style") applyOption(stylePreset, key, key.slice(5));
+    if (key.slice(0, 5) === "style") applyOption(getElementById<HTMLSelectElement>("stylePreset")!, key, key.slice(5));
 
     // Map valid keys to the Zustand store
     const validKeys = [
@@ -573,8 +574,7 @@ export function randomizeOptions(): void {
     worldContext.options.temperatureNorthPole = gauss(-25, 7, -40, 10, 0);
   if (randomize || !locked("temperatureSouthPole"))
     worldContext.options.temperatureSouthPole = gauss(-15, 7, -40, 10, 0);
-  const precInput = getElementById<HTMLInputElement>("precInput");
-  if ((randomize || !locked("prec")) && precInput) precInput.value = String(gauss(100, 40, 5, 500));
+  if (randomize || !locked("prec")) useOptionsState.getState().setOption("prec", Math.round(gauss(100, 40, 5, 500)));
 
   const US = navigator.language === "en-US";
   if (randomize || !locked("distanceScale")) {

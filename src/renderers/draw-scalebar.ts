@@ -2,6 +2,7 @@ import { range } from "d3";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import { useOptionsState } from "../store/optionsState";
 import { rn } from "../utils";
 
 type ScaleBarSelection = d3.Selection<SVGGElement, unknown, null, undefined>;
@@ -16,7 +17,7 @@ export const drawScaleBar = (
   if (!scaleBar.size() || scaleBar.style("display") === "none") return;
   const { distanceScale } = worldContext;
 
-  const unit = distanceUnitInput.value;
+  const unit = useOptionsState.getState().distanceUnit;
   const size = +scaleBar.attr("data-bar-size");
 
   const length = getLength(worldContext, scaleBar, scaleLevel);

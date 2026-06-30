@@ -1,9 +1,13 @@
 import type React from "react";
 import { HeightmapEditorActions } from "../../controllers/heightmapEditor";
+import { setHeightmapEditorState, useHeightmapEditorState } from "../../store/heightmapEditorState";
+import { useOptionsState } from "../../store/optionsState";
 import { useViewState } from "../../store/viewState";
-
+import { SliderInput } from "./SliderInput";
 export const CustomizationMenu: React.FC = () => {
   const { isCustomizationMode, activeMenu } = useViewState();
+  const options = useOptionsState();
+  const editor = useHeightmapEditorState();
   const isVisible = isCustomizationMode && activeMenu === "toolsTab";
 
   return (
@@ -64,7 +68,11 @@ export const CustomizationMenu: React.FC = () => {
             id="renderOcean"
             className="checkbox"
             type="checkbox"
-            onChange={HeightmapEditorActions.mockHeightmap}
+            checked={editor.renderOcean}
+            onChange={e => {
+              setHeightmapEditorState({ renderOcean: e.target.checked });
+              HeightmapEditorActions.mockHeightmap();
+            }}
           />
           <label htmlFor="renderOcean" className="checkbox-label">
             Render ocean cells
@@ -74,48 +82,40 @@ export const CustomizationMenu: React.FC = () => {
           id="allowErosionBox"
           data-tip="Regenerate rivers and allow water flow to change heights and form new lakes. Better to keep checked"
         >
-          <input id="allowErosion" className="checkbox" type="checkbox" defaultChecked />
+          <input
+            id="allowErosion"
+            className="checkbox"
+            type="checkbox"
+            checked={editor.allowErosion}
+            onChange={e => setHeightmapEditorState({ allowErosion: e.target.checked })}
+          />
           <label htmlFor="allowErosion" className="checkbox-label">
             Allow water erosion
           </label>
         </div>
         <div data-tip="Maximum number of iterations taken to resolve depressions. Increase if you have rivers ending nowhere">
-          <div>Depressions filling max iterations:</div>
-          <input
+          <SliderInput
             id="resolveDepressionsStepsInput"
             data-stored="resolveDepressionsSteps"
-            type="range"
-            min="0"
-            max="500"
-            defaultValue="250"
-          />
-          <input
-            id="resolveDepressionsStepsOutput"
-            data-stored="resolveDepressionsSteps"
-            type="number"
-            min="0"
-            max="1000"
-            defaultValue="250"
-          />
+            min={0}
+            max={500}
+            value={options.resolveDepressionsSteps}
+            onChange={val => options.setOption("resolveDepressionsSteps", Number(val))}
+          >
+            <div>Depressions filling max iterations:</div>
+          </SliderInput>
         </div>
         <div data-tip="Depression depth to form a new lake. Increase to reduce number of lakes added by system">
-          <div>Depression depth threshold:</div>
-          <input
+          <SliderInput
             id="lakeElevationLimitInput"
             data-stored="lakeElevationLimit"
-            type="range"
-            min="0"
-            max="80"
-            defaultValue="20"
-          />
-          <input
-            id="lakeElevationLimitOutput"
-            data-stored="lakeElevationLimit"
-            type="number"
-            min="0"
-            max="80"
-            defaultValue="20"
-          />
+            min={0}
+            max={80}
+            value={options.lakeElevationLimit}
+            onChange={val => options.setOption("lakeElevationLimit", Number(val))}
+          >
+            <div>Depression depth threshold:</div>
+          </SliderInput>
         </div>
       </div>
 

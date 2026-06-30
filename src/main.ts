@@ -50,7 +50,7 @@ import { ThreeDRenderer } from "./renderers/three-d-renderer";
 import { clearMainTip, showDataTip, tip } from "./services/tooltipService";
 import { UITour } from "./services/ui-tour";
 import { dialogStore } from "./store/dialogState";
-import { useOptionsState } from "./store/optionsState";
+import { type OptionsState, useOptionsState } from "./store/optionsState";
 import type { Grid } from "./types/Grid";
 import type { Burg, BurgGroup } from "./types/models";
 import {
@@ -674,7 +674,7 @@ export function invokeActiveZooming() {
       const hidden =
         scale < minScale ||
         (isStateEmblem && scale >= STATE_HIDE_SCALE) ||
-        (hideEmblems.checked && (scaledSize < 25 || scaledSize > 300));
+        ((getElementById("hideEmblems") as HTMLInputElement)?.checked && (scaledSize < 25 || scaledSize > 300));
       if (hidden) this.classList.add("hidden");
       else this.classList.remove("hidden");
       if (!hidden && appServices.COArenderer && this.children.length && !this.children[0].getAttribute("href"))
@@ -1039,9 +1039,11 @@ export function openNearSeaLakes() {
 function defineMapSize() {
   const [size, latitude, longitude] = getSizeAndLatitude();
   const randomize = new URL(window.location.href).searchParams.get("options") === "default";
-  if (randomize || !locked("mapSize")) mapSizeOutput.value = mapSizeInput.value = String(size);
-  if (randomize || !locked("latitude")) latitudeOutput.value = latitudeInput.value = String(latitude);
-  if (randomize || !locked("longitude")) longitudeOutput.value = longitudeInput.value = String(longitude);
+  const updates: Partial<OptionsState> = {};
+  if (randomize || !locked("mapSize")) updates.mapSize = size;
+  if (randomize || !locked("latitude")) updates.latitude = latitude;
+  if (randomize || !locked("longitude")) updates.longitude = longitude;
+  if (Object.keys(updates).length > 0) useOptionsState.getState().setOptions(updates);
 
   function getSizeAndLatitude(): [number, number, number] {
     const template = useOptionsState.getState().template;
@@ -1127,7 +1129,7 @@ export function calculateTemperatures() {
   const tempSouthTropic = temperatureEquator + tropics[1] * tropicalGradient;
   const southernGradient = (tempSouthTropic - temperatureSouthPole) / (90 + tropics[1]);
 
-  const rawExp = +(heightExponentInput?.value ?? "2");
+  const rawExp = useOptionsState.getState().heightExponent;
   const exponent = Number.isFinite(rawExp) && rawExp >= 1 && rawExp <= 5 ? rawExp : 1.8;
 
   for (let rowCellId = 0; rowCellId < gridCells.i.length; rowCellId += worldContext.grid.cellsX) {
@@ -1170,7 +1172,7 @@ export function generatePrecipitation() {
 
   const { points: pointsOpt } = useOptionsState.getState();
   const cellsNumberModifier = ((pointsOpt === 4 ? 10000 : pointsOpt * 2500) / 10000) ** 0.25;
-  const precInputModifier = +(precInput?.value || "100") / 100;
+  const precInputModifier = useOptionsState.getState().prec / 100;
   const modifier = cellsNumberModifier * precInputModifier;
 
   const westerly: [number, number, number][] = [];
@@ -1440,7 +1442,7 @@ export function showStatistics() {
     Template: ${isRandomTemplate}${heightmapType}
     Points: ${worldContext.grid.points.length}
     Cells: ${worldContext.pack.cells.i.length}
-    Map size: ${mapSizeOutput.value}%
+    Map size: ${useOptionsState.getState().mapSize}%
     States: ${worldContext.pack.states.length - 1}
     Provinces: ${worldContext.pack.provinces.length - 1}
     Burgs: ${worldContext.pack.burgs.length - 1}

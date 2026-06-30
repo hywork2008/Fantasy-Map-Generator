@@ -1008,7 +1008,7 @@ class MarkersModule {
       "Journeying folk",
       "Tales"
     ];
-    const legend = `${ra(subjects)} say a relic monster of ${length} ${heightUnit.value} long inhabits ${
+    const legend = `${ra(subjects)} say a relic monster of ${length} ${useOptionsState.getState().heightUnit} long inhabits ${
       lake.name
     } Lake. Truth or lie, folks are afraid to fish in the lake.`;
     notes.push({ id, name, legend });
@@ -1023,7 +1023,7 @@ class MarkersModule {
   private addSeaMonster(id: string, _cell: number) {
     const name = `${Names.getCultureShort(this.worldContext, this.viewContext, this.appServices, 0)} Monster`;
     const length = gauss(25, 10, 10, 100);
-    const legend = `Old sailors tell stories of a gigantic sea monster inhabiting these dangerous waters. Rumors say it can be ${length} ${heightUnit.value} long.`;
+    const legend = `Old sailors tell stories of a gigantic sea monster inhabiting these dangerous waters. Rumors say it can be ${length} ${useOptionsState.getState().heightUnit} long.`;
     worldContext.notes.push({ id, name, legend });
   }
 

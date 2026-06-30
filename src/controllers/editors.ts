@@ -499,7 +499,7 @@ interface OpenPickerFn {
   updateFill?: () => void;
 }
 
-const openPicker: OpenPickerFn = (fill: string, callback: (fill: string) => void): void => {
+export const openPicker: OpenPickerFn = (fill: string, callback: (fill: string) => void): void => {
   const picker = getPickerGroupSelection();
   if (!picker?.size()) createPicker();
   getPickerContainerSelection()?.style("display", "block");

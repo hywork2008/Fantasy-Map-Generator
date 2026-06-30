@@ -20,7 +20,7 @@ import { closeDialogs, openConfirm } from "../ui/dialogs/dialogService";
 import { calculateVoronoi, findCell, last, link, minmax, parseError, rn } from "../utils";
 import { heightmapColorSchemes } from "../utils/colorUtils";
 import { ERROR, INFO, WARN } from "../utils/debug";
-import { applyOption } from "../utils/domUtils";
+
 import { layerIsOn } from "../utils/nodeUtils";
 import { cleanupData, compareVersions, isValidVersion, parseMapVersion, VERSION } from "../versioning";
 import { resolveVersionConflicts } from "./auto-update";
@@ -261,7 +261,7 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
       const params = data[0].split("|");
       if (params[3]) {
         worldContext.seed = params[3];
-        optionsSeed.value = worldContext.seed;
+        useOptionsState.getState().setOption("seed", worldContext.seed);
         INFO && console.group(`Loaded Map ${worldContext.seed}`);
       } else INFO && console.group("Loaded Map");
       if (params[4]) worldContext.graphWidth = +params[4];
@@ -271,40 +271,35 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
 
     {
       const settings = data[1].split("|");
-      if (settings[0]) applyOption(distanceUnitInput, settings[0]);
+      const updates: Partial<OptionsState> = {};
+
+      if (settings[0]) updates.distanceUnit = settings[0];
       if (settings[1]) {
-        distanceScaleInput.value = settings[1];
+        updates.distanceScale = +settings[1];
         worldContext.distanceScale = +settings[1];
       }
-      if (settings[2]) areaUnit.value = settings[2];
-      if (settings[3]) applyOption(heightUnit, settings[3]);
-      if (settings[4]) heightExponentInput.value = settings[4];
-      if (settings[5]) {
-        temperatureScale.value = settings[5];
-        useOptionsState.getState().setOption("temperatureScale", settings[5]);
-      }
+      if (settings[2]) updates.areaUnit = settings[2];
+      if (settings[3]) updates.heightUnit = settings[3];
+      if (settings[4]) updates.heightExponent = +settings[4];
+      if (settings[5]) updates.temperatureScale = settings[5];
+
       if (settings[12]) {
-        populationRateInput.value = settings[12];
+        updates.populationRate = +settings[12];
         worldContext.populationRate = +settings[12];
       }
       if (settings[13]) {
-        urbanizationInput.value = settings[13];
+        updates.urbanization = +settings[13];
         worldContext.urbanization = +settings[13];
       }
-      if (settings[14]) mapSizeInput.value = mapSizeOutput.value = String(minmax(+settings[14], 1, 100));
-      if (settings[15]) latitudeInput.value = latitudeOutput.value = String(minmax(+settings[15], 0, 100));
-      if (settings[18]) precInput.value = precOutput.value = settings[18];
+      if (settings[14]) updates.mapSize = minmax(+settings[14], 1, 100);
+      if (settings[15]) updates.latitude = minmax(+settings[15], 0, 100);
+      if (settings[18]) updates.prec = +settings[18];
+
+      useOptionsState.getState().setOptions(updates);
       if (settings[19]) worldContext.options = JSON.parse(settings[19]);
       if (settings[16]) worldContext.options.temperatureEquator = +settings[16];
       if (settings[17])
         worldContext.options.temperatureNorthPole = worldContext.options.temperatureSouthPole = +settings[17];
-
-      if (settings[22]) stylePreset.value = settings[22];
-      if (settings[24]) {
-        urbanDensityInput.value = settings[24];
-        worldContext.urbanDensity = +settings[24];
-      }
-      if (settings[25]) longitudeInput.value = longitudeOutput.value = String(minmax(+(settings[25] || "50"), 0, 100));
     }
 
     // Sync loaded values into Zustand store so React UI reflects the loaded map
@@ -313,7 +308,13 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
       const zustandUpdates: Partial<Omit<OptionsState, "setOption" | "setOptions">> = {};
       if (settings[20]) zustandUpdates.mapName = settings[20];
       if (settings[21]) zustandUpdates.hideLabels = !!+settings[21];
+      if (settings[22]) zustandUpdates.stylePreset = settings[22];
       if (settings[23]) zustandUpdates.rescaleLabels = !!+settings[23];
+      if (settings[24]) {
+        zustandUpdates.urbanDensity = +settings[24];
+        worldContext.urbanDensity = +settings[24];
+      }
+      if (settings[25]) zustandUpdates.longitude = minmax(+(settings[25] || "50"), 0, 100);
       if (settings[26]) zustandUpdates.growthRate = +settings[26];
       if (worldContext.options.stateLabelsMode) zustandUpdates.stateLabelsMode = worldContext.options.stateLabelsMode;
       if (worldContext.options.year != null) zustandUpdates.year = worldContext.options.year;
@@ -858,7 +859,7 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
       errorText: parseError(error as Error),
       mapVersion,
       onClearCache: () => cleanupData(),
-      onSelectFile: () => mapToLoad.click(),
+      onSelectFile: () => document.getElementById("mapToLoad")?.click(),
       onNewMap: () => document.dispatchEvent(new CustomEvent("fmg:regenerate-map", { detail: "loading error" }))
     });
   }

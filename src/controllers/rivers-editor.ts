@@ -1,20 +1,20 @@
 import { curveCatmullRom, type D3DragEvent, drag, pointer, select } from "d3";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-
 import { removeRivers } from "../renderers/draw-rivers";
 import { GenerationPipeline } from "../services/generationPipeline";
 import { clearMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { dialogStore } from "../store/dialogState";
 import { elSelected, setElSelected } from "../store/editorState";
+import { useOptionsState } from "../store/optionsState";
 import type { River } from "../types/models";
 import type { TypedArray } from "../types/PackedGraph";
 import { closeDialog, closeDialogs, openConfirm, openDialog } from "../ui/dialogs/dialogService";
 import { findCell, getSegmentId, rand, rn } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { getPackPolygon } from "../utils/graphUtils";
-import { getElementById, layerIsOn } from "../utils/nodeUtils";
+import { layerIsOn } from "../utils/nodeUtils";
 import { openElevationProfile } from "./elevation-profile";
 import { toggleCells, toggleRivers } from "./layers";
 import { editNotes } from "./notes-editor";
@@ -49,11 +49,11 @@ function updateRiverData(): void {
   }));
 
   const basinName = worldContext.pack.rivers.find((river: River) => river.i === r.basin)?.name ?? "";
-  const distanceUnit =
-    getElementById<HTMLSelectElement>("distanceUnitInput")?.value ?? localStorage.getItem("distanceUnit") ?? "km";
+  const { distanceUnit } = useOptionsState.getState();
+  const unit = distanceUnit || "km";
 
   r.length = rn((elSelected!.node() as SVGPathElement).getTotalLength() / 2, 2);
-  const lengthUI = `${rn(r.length * worldContext.distanceScale)} ${distanceUnit}`;
+  const lengthUI = `${rn(r.length * worldContext.distanceScale)} ${unit}`;
 
   const { cells: riverCells, discharge, widthFactor, sourceWidth } = r;
   const meanderedPoints = GenerationPipeline.Rivers.addMeandering(riverCells);

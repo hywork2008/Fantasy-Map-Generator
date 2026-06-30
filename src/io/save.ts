@@ -28,13 +28,14 @@ export function prepareMapData(): string {
     worldContext.graphHeight,
     worldContext.mapId
   ].join("|");
+  const options = useOptionsState.getState();
   const settings = [
-    distanceUnitInput.value,
+    options.distanceUnit,
     worldContext.distanceScale,
-    areaUnit.value,
-    heightUnit.value,
-    heightExponentInput.value,
-    temperatureScale.value,
+    options.areaUnit,
+    options.heightUnit,
+    options.heightExponent,
+    options.temperatureScale,
     "", // previously used for barSize.value
     "", // previously used for barLabel.value
     "", // previously used for barBackColor.value
@@ -43,19 +44,19 @@ export function prepareMapData(): string {
     "", // previously used for barPosY.value
     worldContext.populationRate,
     worldContext.urbanization,
-    mapSizeOutput.value,
-    latitudeOutput.value,
+    options.mapSize,
+    options.latitude,
     "", // previously used for temperatureEquatorOutput.value
     "", // previously used for tempNorthOutput.value
-    precOutput.value,
+    options.prec,
     JSON.stringify(worldContext.options),
-    useOptionsState.getState().mapName,
-    +useOptionsState.getState().hideLabels,
-    stylePreset.value,
-    +useOptionsState.getState().rescaleLabels,
+    options.mapName,
+    +options.hideLabels,
+    options.stylePreset,
+    +options.rescaleLabels,
     worldContext.urbanDensity,
-    longitudeOutput.value,
-    useOptionsState.getState().growthRate
+    options.longitude,
+    options.growthRate
   ].join("|");
   const coords = JSON.stringify(worldContext.mapCoordinates);
   const biomes = [

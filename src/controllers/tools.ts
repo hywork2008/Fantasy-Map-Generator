@@ -298,7 +298,7 @@ function regenerateRivers(): void {
   if (layerIsOn("toggleRivers")) RiversRenderer.render(worldContext, viewContext, appServices);
 }
 
-async function recalculatePopulation(): Promise<void> {
+export async function recalculatePopulation(): Promise<void> {
   rankCells();
 
   worldContext.pack.burgs.forEach((b: Burg) => {

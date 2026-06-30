@@ -73,7 +73,7 @@ export class LakesModule {
     };
 
     const getLakeEvaporation = (lake: PackedGraphFeature) => {
-      const height = (lake.height - 18) ** Number(heightExponentInput.value); // height in meters
+      const height = (lake.height - 18) ** Number(useOptionsState.getState().heightExponent); // height in meters
       const evaporation = ((700 * (lake.temp + 0.006 * height)) / 50 + 75) / (80 - lake.temp); // based on Penman formula, [1-11]
       return rn(evaporation * lake.cells);
     };

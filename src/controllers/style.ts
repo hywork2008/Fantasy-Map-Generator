@@ -21,6 +21,7 @@ import { onFontAdded } from "../services/fonts";
 import { tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { useExtensionState } from "../store/extensionState";
+import { useOptionsState } from "../store/optionsState";
 import type { SelectOption } from "../store/styleState";
 import { useStyleState } from "../store/styleState";
 import { textureUrlDialogStore } from "../store/textureUrlDialogState";
@@ -541,7 +542,7 @@ export function updateTextureSelectValue(href: string): void {
 export function calculateFriendlyGridSize(): void {
   const scale = +(useStyleState.getState().values.styleGridScale ?? 1);
   const size = scale * 25;
-  const unit = getElementById<HTMLSelectElement>("distanceUnitInput")?.value ?? "km";
+  const unit = useOptionsState.getState().distanceUnit || "km";
   const friendly = `${rn(size * worldContext.distanceScale, 2)} ${unit}`;
   useStyleState.getState().updateValue("styleGridSizeFriendly", friendly);
 }

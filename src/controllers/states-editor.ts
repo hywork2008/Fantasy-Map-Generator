@@ -4,7 +4,6 @@ import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-
 import {
   BordersRenderer,
   BurgIconsRenderer,
@@ -38,6 +37,7 @@ import { getPackPolygon } from "../utils/graphUtils";
 import { getElementBySelector, layerIsOn } from "../utils/nodeUtils";
 import { BrushHistoryClass as BrushHistory } from "./BrushHistory";
 import { overviewBurgs } from "./burgs-overview";
+import { openPicker } from "./editors";
 import { interactionManager } from "./interactionManager";
 import { toggleBiomes, toggleBorders, toggleCultures, toggleProvinces, toggleReligions, toggleStates } from "./layers";
 import { editStyle } from "./style";
@@ -366,7 +366,7 @@ export const statesEditorActions = {
       MilitaryRenderer.updateArmyColor(viewContext, stateId, solidColor, darkerColor);
       refreshStatesEditor();
     };
-    window.openPicker(currentFill ?? "", callback);
+    openPicker(currentFill ?? "", callback);
   },
 
   editStateName(stateId: number): void {

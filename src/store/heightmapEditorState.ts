@@ -44,6 +44,8 @@ export interface HeightmapEditorState {
   rescaleHigher: number;
   rescaleSign: ConditionSign;
   rescaleModifier: number;
+  allowErosion: boolean;
+  renderOcean: boolean;
 
   // Template Editor
   templateSelected: string;
@@ -77,6 +79,8 @@ export const useHeightmapEditorState = create<HeightmapEditorState>(() => ({
   rescaleHigher: 100,
   rescaleSign: "multiply",
   rescaleModifier: 0.9,
+  allowErosion: true,
+  renderOcean: false,
 
   templateSelected: "custom",
   templateSteps: [],

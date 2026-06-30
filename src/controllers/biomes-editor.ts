@@ -4,7 +4,6 @@ import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-
 import { BiomesRenderer, ReliefIconsRenderer } from "../renderers";
 import { GenerationPipeline } from "../services/generationPipeline";
 import { clearMainTip, showMainTip, tip } from "../services/tooltipService";
@@ -18,8 +17,10 @@ import { EditorBus } from "../utils/editorBus";
 import { downloadFile, getFileName } from "../utils/editorHelpers";
 import { getPackPolygon } from "../utils/graphUtils";
 import { layerIsOn } from "../utils/nodeUtils";
+import { openPicker } from "./editors";
 import { toggleBiomes, toggleCultures, toggleProvinces, toggleRelief, toggleReligions, toggleStates } from "./layers";
 import { editStyle } from "./style";
+import { recalculatePopulation } from "./tools";
 
 let worldContext: WorldContext;
 let appServices: AppServices;

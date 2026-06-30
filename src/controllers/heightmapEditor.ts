@@ -172,6 +172,8 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
   }
 
   async function enterHeightmapEditMode(mode: string) {
+    const mapLayers = getElementById("mapLayers");
+    if (!mapLayers) return;
     editHeightmapLayers = Array.from(mapLayers.querySelectorAll("li:not(.buttonoff)")).map(
       node => (node as HTMLElement).id
     );
@@ -258,11 +260,17 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
   function moveCursor(this: SVGElement, event: MouseEvent): void {
     const [x, y] = pointer(event, this);
     const cell = findGridCell(x, y, worldContext.grid);
-    heightmapInfoX.textContent = String(rn(x));
-    heightmapInfoY.textContent = String(rn(y));
-    heightmapInfoCell.textContent = String(cell);
-    heightmapInfoHeight.textContent = `${worldContext.grid.cells.h[cell]} (${getHeight(worldContext.grid.cells.h[cell])})`;
-    if ((tooltip as HTMLElement).dataset.main) showMainTip();
+    const heightmapInfoX = getElementById("heightmapInfoX");
+    if (heightmapInfoX) heightmapInfoX.textContent = String(rn(x));
+    const heightmapInfoY = getElementById("heightmapInfoY");
+    if (heightmapInfoY) heightmapInfoY.textContent = String(rn(y));
+    const heightmapInfoCell = getElementById("heightmapInfoCell");
+    if (heightmapInfoCell) heightmapInfoCell.textContent = String(cell);
+    const heightmapInfoHeight = getElementById("heightmapInfoHeight");
+    if (heightmapInfoHeight)
+      heightmapInfoHeight.textContent = `${worldContext.grid.cells.h[cell]} (${getHeight(worldContext.grid.cells.h[cell])})`;
+    const tooltip = getElementById("tooltip");
+    if (tooltip?.dataset.main) showMainTip();
 
     const brushMode = useHeightmapEditorState.getState().brushMode;
     if (!brushMode) return;
@@ -279,13 +287,13 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
   }
 
   function getHeight(h: number): string {
-    const unit = (heightUnit as HTMLSelectElement).value;
+    const unit = useOptionsState.getState().heightUnit;
     let unitRatio = 3.281;
     if (unit === "m") unitRatio = 1;
     else if (unit === "f") unitRatio = 0.5468;
 
     let height = -990;
-    if (h >= 20) height = (h - 18) ** +(heightExponentInput as HTMLInputElement).value;
+    if (h >= 20) height = (h - 18) ** useOptionsState.getState().heightExponent;
     else if (h < 20 && h > 0) height = ((h - 20) / h) * 50;
 
     return `${rn(height * unitRatio)} ${unit}`;
@@ -319,7 +327,8 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     if (getElementById("preview")) getElementById("preview")!.remove();
     if (getElementById("canvas3d")) enterStandardView();
 
-    const mode = heightmapEditMode.textContent;
+    const heightmapEditMode = getElementById("heightmapEditMode");
+    const mode = heightmapEditMode ? heightmapEditMode.textContent : null;
     if (mode === "erase") await regenerateErasedData();
     else if (mode === "keep") restoreKeptData();
     else if (mode === "risk") await restoreRiskedData();
@@ -350,7 +359,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     worldContext.pack.provinces = [];
     worldContext.pack.religions = [];
 
-    const erosionAllowed = (allowErosion as HTMLInputElement).checked;
+    const erosionAllowed = useHeightmapEditorState.getState().allowErosion;
     GenerationPipeline.Features.markupGrid();
     if (erosionAllowed) {
       addLakesInDeepDepressions();
@@ -411,7 +420,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
   async function restoreRiskedData(): Promise<void> {
     INFO && console.group("Edit Heightmap");
     TIME && console.time("restoreRiskedData");
-    const erosionAllowed = (allowErosion as HTMLInputElement).checked;
+    const erosionAllowed = useHeightmapEditorState.getState().allowErosion;
 
     const l = worldContext.grid.cells.i.length;
     const biome = new Uint8Array(l);
@@ -633,7 +642,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
 
   function mockHeightmap(): void {
     const all = Array.from(worldContext.grid.cells.i) as number[];
-    const data = (getElementById("renderOcean") as HTMLInputElement).checked
+    const data = useHeightmapEditorState.getState().renderOcean
       ? all
       : all.filter(i => worldContext.grid.cells.h[i] >= 20);
     view.viewbox
@@ -647,7 +656,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
   }
 
   function mockHeightmapSelection(selection: number[]): void {
-    const ocean = (getElementById("renderOcean") as HTMLInputElement).checked;
+    const ocean = useHeightmapEditorState.getState().renderOcean;
     const heights = view.viewbox.select<SVGGElement>("#heights");
     selection.forEach(i => {
       let cell = heights.select<SVGPolygonElement>(`#cell${i}`);
@@ -787,7 +796,8 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     preview.id = "preview";
     preview.width = worldContext.grid.cellsX;
     preview.height = worldContext.grid.cellsY;
-    optionsContainer.parentNode?.insertBefore(preview, optionsContainer);
+    const optionsContainer = getElementById("optionsContainer");
+    if (optionsContainer) optionsContainer.parentNode?.insertBefore(preview, optionsContainer);
     preview.addEventListener("mouseover", () => tip("Heightmap preview. Click to download a screen-sized image"));
     preview.addEventListener("click", downloadPreview);
     drawHeightmapPreview();
@@ -822,7 +832,8 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       const ctx = canvas.getContext("2d")!;
       canvas.width = worldContext.graphWidth;
       canvas.height = worldContext.graphHeight;
-      optionsContainer.parentNode?.insertBefore(canvas, optionsContainer);
+      const optionsContainer = getElementById("optionsContainer");
+      if (optionsContainer) optionsContainer.parentNode?.insertBefore(canvas, optionsContainer);
       ctx.drawImage(img, 0, 0, worldContext.graphWidth, worldContext.graphHeight);
       const imgBig = canvas.toDataURL("image/png");
       const link = document.createElement("a");

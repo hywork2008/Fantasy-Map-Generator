@@ -1,5 +1,6 @@
 import { worldContext } from "../context/worldContext";
 import { useCellInfoState } from "../store/cellInfoState";
+import { useOptionsState } from "../store/optionsState";
 import type { PackedGraphFeature } from "../types/models";
 import { getLatitude, getLongitude } from "../utils/commonUtils";
 import { getArea, getAreaUnit } from "../utils/domUtils";
@@ -70,12 +71,12 @@ export function toDMS(coord: number, c: "lat" | "lon"): string {
 }
 export function getElevation(f: PackedGraphFeature, h: number): string {
   if (f.land) return `${getHeight(h)} (${h})`;
-  if (f.border) return `0 ${heightUnit.value}`;
+  if (f.border) return `0 ${useOptionsState.getState().heightUnit}`;
   if (f.type === "lake") return `${getHeight(f.height)} (${f.height})`;
   return "";
 }
 export function getDepth(f: PackedGraphFeature, p: [number, number]): string {
-  if (f.land) return `0 ${heightUnit.value}`;
+  if (f.land) return `0 ${useOptionsState.getState().heightUnit}`;
 
   const gridH = worldContext.grid.cells.h[findGridCell(p[0], p[1], worldContext.grid)];
   if (f.type === "lake") {
@@ -92,13 +93,13 @@ export function getFriendlyHeight([x, y]: [number, number]): string {
   return getHeight(h);
 }
 export function getHeight(h: number, abs?: string): string {
-  const unit = heightUnit.value;
+  const unit = useOptionsState.getState().heightUnit;
   let unitRatio = 3.281;
   if (unit === "m") unitRatio = 1;
   else if (unit === "f") unitRatio = 0.5468;
 
   let height = -990;
-  if (h >= 20) height = (h - 18) ** +heightExponentInput.value;
+  if (h >= 20) height = (h - 18) ** useOptionsState.getState().heightExponent;
   else if (h < 20 && h > 0) height = ((h - 20) / h) * 50;
 
   if (abs) height = Math.abs(height);

@@ -3,7 +3,6 @@ import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-
 import { PopulationRenderer, ReligionsRenderer } from "../renderers";
 import { GenerationPipeline } from "../services/generationPipeline";
 import { clearMainTip, tip } from "../services/tooltipService";
@@ -20,6 +19,7 @@ import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog, downloadFile, getFileName } from "../utils/editorHelpers";
 import { getPackPolygon } from "../utils/graphUtils";
 import { getElementById, layerIsOn } from "../utils/nodeUtils";
+import { openPicker } from "./editors";
 import { open as openHierarchyTree } from "./hierarchy-tree";
 import { toggleBiomes, toggleCultures, toggleProvinces, toggleReligions, toggleStates } from "./layers";
 import { editStyle } from "./style";

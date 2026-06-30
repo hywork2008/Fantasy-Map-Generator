@@ -15,7 +15,7 @@ import { getColor, getColorScheme } from "../utils/colorUtils";
 import { ERROR, TIME } from "../utils/debug";
 import { downloadFile, getFileName } from "../utils/editorHelpers";
 import { getGridPolygon } from "../utils/graphUtils";
-import { layerIsOn } from "../utils/nodeUtils";
+import { getElementById, layerIsOn } from "../utils/nodeUtils";
 
 type AnySelection = Selection<SVGSVGElement, unknown, null, undefined>;
 
@@ -568,7 +568,8 @@ export function removeUnusedElements(clone: AnySelection): void {
 }
 
 function updateMeshCells(clone: AnySelection): void {
-  const data = renderOcean.checked
+  const renderOcean = getElementById("renderOcean") as HTMLInputElement | null;
+  const data = renderOcean?.checked
     ? worldContext.grid.cells.i
     : worldContext.grid.cells.i.filter((i: number) => worldContext.grid.cells.h[i] >= 20);
   const scheme = getColorScheme(view.terrs.select("#landHeights").attr("scheme"));

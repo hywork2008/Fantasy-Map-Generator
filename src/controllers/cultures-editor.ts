@@ -4,7 +4,6 @@ import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-
 import { CulturesRenderer, PopulationRenderer } from "../renderers";
 import { COArenderer, type Emblem as RendererEmblem } from "../renderers/emblem-renderer";
 import { GenerationPipeline } from "../services/generationPipeline";
@@ -24,6 +23,7 @@ import { confirmationDialog, downloadFile, getFileName } from "../utils/editorHe
 import { getPackPolygon } from "../utils/graphUtils";
 import { layerIsOn } from "../utils/nodeUtils";
 import { BrushHistoryClass as BrushHistory } from "./BrushHistory";
+import { openPicker } from "./editors";
 import { open as openHierarchyTree } from "./hierarchy-tree";
 import { interactionManager } from "./interactionManager";
 import { toggleBiomes, toggleCultures, toggleProvinces, toggleReligions, toggleStates } from "./layers";
