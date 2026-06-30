@@ -14,7 +14,7 @@ import { closeDialog, closeDialogs, openAlert, openDialog } from "../ui/dialogs/
 import { convertTemperature, findCell, openURL, parseTransform, rand, rn, showPrompt } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog } from "../utils/editorHelpers";
-import { getElementById, getElementBySelector, layerIsOn } from "../utils/nodeUtils";
+import { getElementBySelector, layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, getHeight, tip } from "../utils/uiHelpers";
 import { editBurgGroups } from "./burg-group-editor";
 import { editEmblem } from "./emblems-editor";
@@ -25,6 +25,7 @@ import { editStyle } from "./style";
 import { showBurgTemperatureGraph } from "./temperature-graph";
 
 let _currentBurgId = 0;
+let cellsWasForced = false;
 
 export function editBurg(id?: number): void {
   if (viewContext.customization) return;
@@ -360,23 +361,20 @@ export const burgEditorActions = {
     const isRelocating = !getBurgEditorState().isRelocateMode;
     getBurgEditorState().setIsRelocateMode(isRelocating);
 
-    const toggler = getElementById<HTMLElement>("toggleCells");
     if (isRelocating) {
       viewContext.viewbox.style("cursor", "crosshair");
       interactionManager.setClickHandler(burgEditorInternal.relocateBurgOnClick);
       tip("Click on map to relocate burg. Hold Shift for continuous move", true);
       if (!layerIsOn("toggleCells")) {
         toggleCells();
-        if (toggler) toggler.dataset.forced = "true";
+        cellsWasForced = true;
       }
     } else {
       clearMainTip();
       interactionManager.resetClickHandler();
       viewContext.viewbox.style("cursor", "default");
-      if (layerIsOn("toggleCells") && toggler?.dataset.forced) {
-        toggleCells();
-        toggler.dataset.forced = "false";
-      }
+      if (cellsWasForced && layerIsOn("toggleCells")) toggleCells();
+      cellsWasForced = false;
     }
   },
 

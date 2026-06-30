@@ -13,26 +13,6 @@
 3. **ロジックの純粋化**: 
    `src/controllers/...` 内の関数は、引数としてデータを受け取り、DOMに依存せずデータを加工・更新する純粋な関数（あるいは `worldContext` を直接変更するピュアなミューテーター）として再定義する。
 
-## 変更してはいけないパターン（既知の例外）
-
-以下のパターンはアプリ全体で広く共有されており、**個別ファイルの React 化スコープでは変更しない**こと。
-変更した場合、他のコントローラーとの整合性が崩れる。
-
-### `toggleCells.dataset.forced` パターン
-
-```ts
-// 例: rivers-editor.ts / routes-editor.ts / rivers-creator.ts / burg-editor.ts 等
-const toggleCellsEl = document.getElementById("toggleCells");
-if (toggleCellsEl) toggleCellsEl.dataset.forced = String(+!layerIsOn("toggleCells"));
-```
-
-このパターンは複数のエディタが「セルレイヤーを一時的に強制表示してから、エディタ終了時に元に戻す」という協調動作を実現するために、`dataset.forced` フラグを共有シグナルとして利用している。
-`rivers-editor.ts` の `document.getElementById("toggleCells")` はこの仕組みの一部であり、個別に置き換えると他のエディタとの協調が壊れる。
-
-このパターンを完全に廃止するには、専用の Zustand ストアに「強制表示カウンター」を持たせる等のアプリ横断的なリファクタリングが必要であり、個別ファイルの改修と切り離して計画すること。
-
----
-
 ## 二周目洗い出し結果（2026-06-29 スキャン）
 
 以下は `src/` フォルダ全体を再スキャンして特定した残存レガシーパターン一覧。

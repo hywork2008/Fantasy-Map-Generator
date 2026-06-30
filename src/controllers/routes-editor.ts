@@ -15,7 +15,7 @@ import { ERROR } from "../utils/debug";
 import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog } from "../utils/editorHelpers";
 import { getPackPolygon } from "../utils/graphUtils";
-import { getElementById, layerIsOn } from "../utils/nodeUtils";
+import { layerIsOn } from "../utils/nodeUtils";
 import { clearMainTip, tip } from "../utils/uiHelpers";
 import { openElevationProfile } from "./elevation-profile";
 import { interactionManager } from "./interactionManager";
@@ -25,6 +25,8 @@ import { editRouteGroups } from "./route-group-editor";
 import { editStyle } from "./style";
 
 let worldContext: WorldContext;
+let routeEditorCellsForced = false;
+let routeCreatorCellsForced = false;
 
 let _rcRoute: Route | null = null;
 let _rcInitCell = 0;
@@ -42,8 +44,8 @@ export function editRoute(id: string): void {
   closeDialogs(".stable");
 
   if (!layerIsOn("toggleRoutes")) toggleRoutes();
-  getElementById("toggleCells")!.dataset.forced = String(+!layerIsOn("toggleCells"));
-  if (!layerIsOn("toggleCells")) toggleCells();
+  routeEditorCellsForced = !layerIsOn("toggleCells");
+  if (routeEditorCellsForced) toggleCells();
 
   setElSelected(select<SVGPathElement, unknown>(`#${id}`).on("click", addControlPoint) as typeof elSelected);
 
@@ -299,8 +301,8 @@ export function createRoute(defaultGroup?: string): void {
   closeDialogs();
   if (!layerIsOn("toggleRoutes")) toggleRoutes();
 
-  getElementById("toggleCells")!.dataset.forced = String(+!layerIsOn("toggleCells"));
-  if (!layerIsOn("toggleCells")) toggleCells();
+  routeCreatorCellsForced = !layerIsOn("toggleCells");
+  if (routeCreatorCellsForced) toggleCells();
 
   tip("Click to add route point, click again to remove", true);
   viewContext.debug.append("g").attr("id", "controlCells");
@@ -377,10 +379,8 @@ export const routesEditorActions = {
     EditorBus.unselect();
     clearMainTip();
 
-    const toggleCellsEl = getElementById("toggleCells")!;
-    const forced = +toggleCellsEl.dataset.forced!;
-    toggleCellsEl.dataset.forced = "0";
-    if (forced && layerIsOn("toggleCells")) toggleCells();
+    if (routeEditorCellsForced && layerIsOn("toggleCells")) toggleCells();
+    routeEditorCellsForced = false;
   },
 
   changeName(name: string): void {
@@ -573,9 +573,7 @@ export const routesEditorActions = {
     EditorBus.restoreDefaultEvents();
     clearMainTip();
 
-    const toggleCellsEl = getElementById("toggleCells")!;
-    const forced = +toggleCellsEl.dataset.forced!;
-    toggleCellsEl.dataset.forced = "0";
-    if (forced && layerIsOn("toggleCells")) toggleCells();
+    if (routeCreatorCellsForced && layerIsOn("toggleCells")) toggleCells();
+    routeCreatorCellsForced = false;
   }
 };

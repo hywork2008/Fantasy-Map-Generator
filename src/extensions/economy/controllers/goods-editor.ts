@@ -22,6 +22,7 @@ const worldContext = () => getWorldContext();
 const visibleTags = new Set<string>();
 const displayedGoods = new Set<number>();
 let displayedGoodsInitialized = false;
+let cellsWasForced = false;
 
 function refreshEditor(): void {
   goodsEditorAddLines();
@@ -293,7 +294,7 @@ export function enterResourceAssignMode(): void {
   setGoodsEditorTableState({ isAssignMode: true, selectedAssignGoodId: null });
   if (!layerIsOn("toggleGoods")) getApi().toggleLayerById("toggleGoods");
   if (!layerIsOn("toggleCells")) {
-    (document.getElementById("toggleCells") as HTMLButtonElement).dataset.forced = "true";
+    cellsWasForced = true;
     getApi().toggleLayerById("toggleCells");
   }
 
@@ -328,11 +329,8 @@ function exitResourceAssignMode(close?: string): void {
   getViewContext().customization = 0;
   setGoodsEditorTableState({ isAssignMode: false, selectedAssignGoodId: null });
 
-  if (layerIsOn("toggleCells")) {
-    const toggler = document.getElementById("toggleCells") as HTMLButtonElement;
-    if (toggler.dataset.forced) getApi().toggleLayerById("toggleCells");
-    delete toggler.dataset.forced;
-  }
+  if (cellsWasForced && layerIsOn("toggleCells")) getApi().toggleLayerById("toggleCells");
+  cellsWasForced = false;
 
   viewbox().on("click.goodsAssign", null);
 

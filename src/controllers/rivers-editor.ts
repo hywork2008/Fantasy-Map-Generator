@@ -20,6 +20,7 @@ import { createRiver } from "./rivers-creator";
 import { editStyle } from "./style";
 
 let worldContext: WorldContext;
+let cellsWasForced = false;
 
 let _rInitCell = 0;
 let _rMovedToCell: number | null = null;
@@ -191,12 +192,8 @@ function closeRiverEditor(): void {
   EditorBus.unselect();
   clearMainTip();
 
-  const toggleCellsEl = getElementById("toggleCells");
-  if (toggleCellsEl) {
-    const forced = +(toggleCellsEl.dataset.forced || "0");
-    toggleCellsEl.dataset.forced = "0";
-    if (forced && layerIsOn("toggleCells")) toggleCells();
-  }
+  if (cellsWasForced && layerIsOn("toggleCells")) toggleCells();
+  cellsWasForced = false;
 }
 
 export const riverEditorActions = {
@@ -296,9 +293,8 @@ export function editRiver(id: string): void {
   closeDialogs(".stable");
   if (!layerIsOn("toggleRivers")) toggleRivers();
 
-  const toggleCellsEl = getElementById("toggleCells");
-  if (toggleCellsEl) toggleCellsEl.dataset.forced = String(+!layerIsOn("toggleCells"));
-  if (!layerIsOn("toggleCells")) toggleCells();
+  cellsWasForced = !layerIsOn("toggleCells");
+  if (cellsWasForced) toggleCells();
 
   setElSelected(select<SVGPathElement, unknown>(`#${id}`).on("click", addControlPoint) as typeof elSelected);
 
