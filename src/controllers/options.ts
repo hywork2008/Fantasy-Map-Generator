@@ -70,7 +70,7 @@ export async function showSupporters(): Promise<void> {
   const url = `${import.meta.env.BASE_URL}modules/dynamic/supporters.js`;
   const mod = (await import(/* @vite-ignore */ url)) as { supporters: string };
   const list = mod.supporters.split("\n").sort();
-  const columns = window.innerWidth < 800 ? 2 : 5;
+  const columns = viewContext.svgWidth < 800 ? 2 : 5;
 
   openAlert(
     `<ul style='column-count: ${columns}; column-gap: 2em'>${list.map((n: string) => `<li>${n}</li>`).join("")}</ul>`,
@@ -120,11 +120,11 @@ function mapSizeInputChange(): void {
   localStorage.setItem("mapWidth", String(options.mapWidth));
   localStorage.setItem("mapHeight", String(options.mapHeight));
 
-  const tooWide = options.mapWidth > window.innerWidth;
-  const tooHigh = options.mapHeight > window.innerHeight;
+  const tooWide = options.mapWidth > viewContext.svgWidth;
+  const tooHigh = options.mapHeight > viewContext.svgHeight;
 
   if (tooWide || tooHigh) {
-    const message = `Canvas size is larger than window size (${window.innerWidth} x ${window.innerHeight}). It can affect performance`;
+    const message = `Canvas size is larger than window size (${viewContext.svgWidth} x ${viewContext.svgHeight}). It can affect performance`;
     tip(message, false, "warn", 4000);
   }
 }
@@ -168,8 +168,8 @@ export function applyGraphSize(): void {
 
 export function fitMapToScreen(): void {
   const options = useOptionsState.getState();
-  const svgWidth = Math.min(options.mapWidth, window.innerWidth);
-  const svgHeight = Math.min(options.mapHeight, window.innerHeight);
+  const svgWidth = Math.min(options.mapWidth, viewContext.svgWidth);
+  const svgHeight = Math.min(options.mapHeight, viewContext.svgHeight);
   Object.assign(viewContext, { svgWidth, svgHeight });
 
   const mapEl = getElementById<SVGSVGElement>("map");
@@ -367,7 +367,7 @@ function changeUiSize(value: number): void {
 }
 
 function getUImaxSize(): number {
-  return rn(Math.min(window.innerHeight / 465, window.innerWidth / 302), 1);
+  return rn(Math.min(viewContext.svgHeight / 465, viewContext.svgWidth / 302), 1);
 }
 
 function changeTooltipSize(value: string): void {

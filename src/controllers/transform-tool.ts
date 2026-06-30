@@ -35,7 +35,7 @@ export function initTransformTool(wc: WorldContext, vc: Readonly<ViewContext>, a
 }
 
 export function getTransformPreviewDims(): { previewWidth: number; previewHeight: number; previewScale: number } {
-  const previewWidth = Math.min(400, window.innerWidth * 0.5);
+  const previewWidth = Math.min(400, viewContext.svgWidth * 0.5);
   const previewScale = previewWidth / worldContext.graphWidth;
   const previewHeight = worldContext.graphHeight * previewScale;
   return { previewWidth, previewHeight, previewScale };

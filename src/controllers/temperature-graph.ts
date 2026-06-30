@@ -1,4 +1,5 @@
 import { scaleLinear } from "d3";
+import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { openDialog } from "../ui/dialogs/dialogService";
 import type { TemperatureGraphConfig } from "../ui/dialogs/TemperatureGraphDialog";
@@ -94,7 +95,7 @@ export function showBurgTemperatureGraph(id: number): void {
   const minT = burgTemp - Math.max(yearSig + delT, 15);
   const maxT = burgTemp + (burgTemp - minT);
 
-  const chartWidth = Math.max(window.innerWidth / 2, 520);
+  const chartWidth = Math.max(viewContext.svgWidth / 2, 520);
   const chartHeight = 300;
   const xOffset = 60;
   const yOffset = 10;

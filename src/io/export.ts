@@ -7,7 +7,7 @@ import { worldContext } from "../context/worldContext";
 import { Rivers } from "../generators/river-generator";
 import { drawScaleBar, fitScaleBar } from "../renderers/index";
 import { fonts, loadFontsAsDataURI } from "../services/fonts";
-import { connectVertices, getBase64, getCoordinates, rn, unique } from "../utils";
+import { connectVertices, createObjectURL, getBase64, getCoordinates, revokeObjectURL, rn, unique } from "../utils";
 import { getColor, getColorScheme } from "../utils/colorUtils";
 import { ERROR, TIME } from "../utils/debug";
 import { downloadFile, getFileName } from "../utils/editorHelpers";
@@ -79,11 +79,11 @@ export async function exportToPng(options: ImageExportOptions = {}): Promise<voi
     });
 
     link.download = `${getFileName()}.png`;
-    link.href = window.URL.createObjectURL(blob);
+    link.href = createObjectURL(blob);
     link.click();
     window.setTimeout(() => {
       canvas.remove();
-      window.URL.revokeObjectURL(link.href);
+      revokeObjectURL(link.href);
     }, 1000);
 
     tip(
@@ -130,10 +130,10 @@ export async function exportToJpeg(options: ImageExportOptions = {}): Promise<vo
 
     const link = document.createElement("a");
     link.download = `${getFileName()}.jpeg`;
-    link.href = window.URL.createObjectURL(blob);
+    link.href = createObjectURL(blob);
     link.click();
     tip(`${link.download} is saved. Open "Downloads" screen (CTRL + J) to check`, true, "success", 7000);
-    window.setTimeout(() => window.URL.revokeObjectURL(link.href), 5000);
+    revokeObjectURL(link.href, 5000);
   } catch (error) {
     ERROR && console.error(error);
     tip(`JPEG export failed: ${(error as Error)?.message || "Unknown error"}`, true, "error", 5000);
@@ -522,8 +522,8 @@ export async function getMapURL(type: string, options: GetMapURLOptions = {}): P
 
   const serialized = `<?xml version="1.0" encoding="UTF-8" standalone="no"?>${new XMLSerializer().serializeToString(cloneEl)}`;
   const svgBlob = new Blob([serialized], { type: "image/svg+xml;charset=utf-8" });
-  const url = window.URL.createObjectURL(svgBlob);
-  window.setTimeout(() => window.URL.revokeObjectURL(url), 5000);
+  const url = createObjectURL(svgBlob);
+  revokeObjectURL(url, 5000);
   return url;
 }
 

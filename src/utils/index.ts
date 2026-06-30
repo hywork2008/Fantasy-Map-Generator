@@ -56,6 +56,7 @@ import { biased, each, gauss, generateSeed, getNumberInRange, P, Pint, ra, rand,
 import { capitalize, isValidJSON, parseTransform, round, safeParseJSON, sanitizeId, splitInTwo } from "./stringUtils";
 
 import { convertTemperature, formatPrice, getIntegerFromSI, si } from "./unitUtils";
+import { createObjectURL, revokeObjectURL } from "./urlUtils";
 
 JSON.isValid = isValidJSON;
 JSON.safeParse = safeParseJSON;
@@ -97,6 +98,7 @@ export {
   clipPoly,
   connectVertices,
   convertTemperature,
+  createObjectURL,
   createTypedArray,
   debounce,
   distanceSquared,
@@ -165,6 +167,7 @@ export {
   poissonDiscSampler,
   ra,
   rand,
+  revokeObjectURL,
   rn,
   rollups,
   round,

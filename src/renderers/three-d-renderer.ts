@@ -18,7 +18,7 @@ import { cloudImage } from "../assets/cloud-image";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { getMapURL } from "../io/export";
-import { rn, throttle } from "../utils";
+import { createObjectURL, revokeObjectURL, rn, throttle } from "../utils";
 import { downloadFile, getFileName } from "../utils/editorHelpers";
 import { tip } from "../utils/uiHelpers";
 
@@ -376,7 +376,7 @@ class ThreeDModule {
     link.href = URL;
     link.click();
     tip(`Screenshot is saved. Open "Downloads" screen (CTRL + J) to check`, true, "success", 7000);
-    window.setTimeout(() => window.URL.revokeObjectURL(URL), 5000);
+    revokeObjectURL(URL, 5000);
   }
 
   saveOBJ(): void {
@@ -761,10 +761,10 @@ class ThreeDModule {
       img.onload = () => {
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         canvas.toBlob(blob => {
-          const blobObj = window.URL.createObjectURL(blob!);
+          const blobObj = createObjectURL(blob!);
           window.setTimeout(() => {
             canvas.remove();
-            window.URL.revokeObjectURL(blobObj);
+            revokeObjectURL(blobObj);
           }, 100);
           resolve(blobObj);
         });
@@ -983,7 +983,7 @@ class ThreeDModule {
 
     if (this.texture) this.texture.dispose();
     const url = await this.createMeshTextureUrl();
-    window.setTimeout(() => window.URL.revokeObjectURL(url), 4000);
+    revokeObjectURL(url, 4000);
     this.texture = new THREE.TextureLoader().load(url, () => this.render());
     this.material.map = this.texture ?? null;
   }

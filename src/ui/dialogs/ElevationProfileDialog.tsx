@@ -1,5 +1,6 @@
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
+import { viewContext } from "../../context/viewContext";
 import { worldContext } from "../../context/worldContext";
 import { downloadFile, getFileName } from "../../controllers/editors";
 import { ElevationProfileRenderer } from "../../renderers/elevation-profile-renderer";
@@ -33,7 +34,7 @@ export const ElevationProfileDialog: React.FC = () => {
       chartData,
       cellsLength: cells.length,
       routeLen,
-      chartWidth: window.innerWidth - 400,
+      chartWidth: viewContext.svgWidth - 400,
       chartHeight: CHART_HEIGHT,
       xOffset: X_OFFSET,
       yOffset: Y_OFFSET,

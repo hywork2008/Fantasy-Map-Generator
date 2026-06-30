@@ -513,8 +513,8 @@ function attackRegimentOnClick(this: SVGElement, event: MouseEvent): void {
   viewContext.svg
     .append("text")
     .attr("text-rendering", "optimizeSpeed")
-    .attr("x", window.innerWidth / 2)
-    .attr("y", window.innerHeight / 2)
+    .attr("x", viewContext.svgWidth / 2)
+    .attr("y", viewContext.svgHeight / 2)
     .text("⚔️")
     .attr("font-size", 0)
     .attr("opacity", 1)

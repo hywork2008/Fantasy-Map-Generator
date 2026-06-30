@@ -2,6 +2,7 @@ import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { useOptionsState } from "../store/optionsState";
 import { closeDialogs } from "../ui/dialogs/dialogService";
+import { createObjectURL, revokeObjectURL } from "../utils";
 import { TIME } from "../utils/debug";
 import { getFileName } from "../utils/editorHelpers";
 import { tip } from "../utils/uiHelpers";
@@ -24,13 +25,13 @@ export function exportToJson(type: string): void {
 
   const mapData = typeMap[type]();
   const blob = new Blob([mapData], { type: "application/json" });
-  const URL = window.URL.createObjectURL(blob);
+  const URL = createObjectURL(blob);
   const link = document.createElement("a");
   link.download = `${getFileName(type)}.json`;
   link.href = URL;
   link.click();
   tip(`${link.download} is saved. Open "Downloads" screen (CTRL + J) to check`, true, "success", 7000);
-  window.URL.revokeObjectURL(URL);
+  revokeObjectURL(URL);
   TIME && console.timeEnd("exportToJson");
 }
 

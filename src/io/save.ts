@@ -4,7 +4,7 @@ import { Names } from "../generators/names-generator";
 import { rulers } from "../store/editorState";
 import { useOptionsState } from "../store/optionsState";
 import { closeDialogs, openConfirm } from "../ui/dialogs/dialogService";
-import { link, parseError, ra, rn } from "../utils";
+import { createObjectURL, link, parseError, ra, revokeObjectURL, rn } from "../utils";
 import { ERROR } from "../utils/debug";
 import { getFileName } from "../utils/editorHelpers";
 import { tip } from "../utils/uiHelpers";
@@ -174,13 +174,13 @@ export async function saveToStorage(mapData: string, showTip = false): Promise<v
 
 export function saveToMachine(mapData: string, filename: string): void {
   const blob = new Blob([mapData], { type: "text/plain" });
-  const URL = window.URL.createObjectURL(blob);
+  const URL = createObjectURL(blob);
   const a = document.createElement("a");
   a.download = filename;
   a.href = URL;
   a.click();
   tip('Map is saved to the "Downloads" folder (CTRL + J to open)', true, "success", 8000);
-  setTimeout(() => window.URL.revokeObjectURL(URL), 5000);
+  revokeObjectURL(URL, 5000);
 }
 
 async function saveToDropbox(mapData: string, filename: string): Promise<void> {

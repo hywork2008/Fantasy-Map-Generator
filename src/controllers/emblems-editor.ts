@@ -12,7 +12,7 @@ import {
 } from "../store/emblemEditorState";
 import { useOptionsState } from "../store/optionsState";
 import type { Burg, Province, State } from "../types/models";
-import { openURL, rn } from "../utils";
+import { createObjectURL, openURL, revokeObjectURL, rn } from "../utils";
 import { downloadFile, getFileName } from "../utils/editorHelpers";
 import { clearMainTip, type EmblemEl, highlightEmblemElement, tip } from "../utils/uiHelpers";
 
@@ -375,7 +375,6 @@ async function download(format: string): Promise<void> {
       const dataURL = canvas.toDataURL(`image/${format}`, 0.92);
       link.href = dataURL;
       link.click();
-      window.setTimeout(() => window.URL.revokeObjectURL(dataURL), 6000);
     };
   }
   setEmblemEditorState({ downloadMode: false });
@@ -384,8 +383,8 @@ async function download(format: string): Promise<void> {
 async function getURL(svgEl: SVGElement, size: number): Promise<string> {
   const serialized = getSVG(svgEl, size);
   const blob = new Blob([serialized], { type: "image/svg+xml;charset=utf-8" });
-  const url = window.URL.createObjectURL(blob);
-  window.setTimeout(() => window.URL.revokeObjectURL(url), 6000);
+  const url = createObjectURL(blob);
+  revokeObjectURL(url, 6000);
   return url;
 }
 
