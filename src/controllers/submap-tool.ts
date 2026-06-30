@@ -3,8 +3,9 @@ import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import { Resample } from "../generators/resample";
+
 import { undraw } from "../main";
+import { GenerationPipeline } from "../services/generationPipeline";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { modules } from "../store/editorState";
 import { useOptionsState } from "../store/optionsState";
@@ -44,8 +45,8 @@ export const submapToolActions = {
     resetZoom(0);
 
     undraw();
-    Resample.init(worldContext, viewContext, appServices);
-    Resample.process({ projection, inverse, scale: view.scale });
+    GenerationPipeline.Resample.init(worldContext, viewContext, appServices);
+    GenerationPipeline.Resample.process({ projection, inverse, scale: view.scale });
 
     if (shouldRescaleBurgStyles) {
       rescaleBurgStyles(view.scale);

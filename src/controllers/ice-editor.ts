@@ -3,8 +3,10 @@ import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import { Ice } from "../generators/ice";
+
 import { redrawGlacier, redrawIceberg } from "../renderers/index";
+import { GenerationPipeline } from "../services/generationPipeline";
+import { clearMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { elSelected, setElSelected } from "../store/editorState";
 import { getIceEditorState, setIceEditorState } from "../store/iceEditorState";
@@ -13,7 +15,6 @@ import { closeDialog, openConfirm } from "../ui/dialogs/dialogService";
 import { findGridCell, parseTransform } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { layerIsOn } from "../utils/nodeUtils";
-import { clearMainTip, tip } from "../utils/uiHelpers";
 import { interactionManager } from "./interactionManager";
 import { toggleIce } from "./layers";
 import { editStyle } from "./style";
@@ -70,7 +71,7 @@ export function editIce(element: SVGElement): void {
 function randomizeShape(): void {
   const { selectedId } = getIceEditorState();
   if (selectedId === null) return;
-  Ice.randomizeIcebergShape(selectedId);
+  GenerationPipeline.Ice.randomizeIcebergShape(selectedId);
   redrawIceberg(worldContext, viewContext, appServices, selectedId);
 }
 
@@ -78,7 +79,7 @@ function changeSize(newSize: number): void {
   const { selectedId } = getIceEditorState();
   if (selectedId === null) return;
   setIceEditorState({ size: newSize });
-  Ice.changeIcebergSize(selectedId, newSize);
+  GenerationPipeline.Ice.changeIcebergSize(selectedId, newSize);
   redrawIceberg(worldContext, viewContext, appServices, selectedId);
 }
 
@@ -87,7 +88,7 @@ function addIcebergOnClick(this: SVGElement, event: MouseEvent): void {
   const i = findGridCell(x, y, worldContext.grid);
   const { size } = getIceEditorState();
 
-  const id = Ice.addIceberg(i, size);
+  const id = GenerationPipeline.Ice.addIceberg(i, size);
   redrawIceberg(worldContext, viewContext, appServices, id);
 
   if (event.shiftKey === false) toggleAdd();
@@ -117,7 +118,7 @@ function removeIce(): void {
     title: `Remove ${type}`,
     confirm: "Remove",
     onConfirm: () => {
-      const removedType = Ice.removeIce(selectedId);
+      const removedType = GenerationPipeline.Ice.removeIce(selectedId);
       if (removedType === "glacier") redrawGlacier(worldContext, viewContext, appServices, selectedId);
       else if (removedType === "iceberg") redrawIceberg(worldContext, viewContext, appServices, selectedId);
       closeIceEditor();

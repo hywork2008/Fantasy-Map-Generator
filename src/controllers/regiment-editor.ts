@@ -3,8 +3,10 @@ import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import { Military } from "../generators/military-generator";
+
 import { drawRegiment, moveRegiment } from "../renderers/index";
+import { GenerationPipeline } from "../services/generationPipeline";
+import { clearMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { elSelected, modules, setElSelected } from "../store/editorState";
 import { getRegimentEditorState, setRegimentEditorState } from "../store/regimentEditorState";
@@ -14,7 +16,6 @@ import { closeDialog, closeDialogs, openConfirm, openDialog } from "../ui/dialog
 import { findCell, last, rn } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { getElementBySelector, layerIsOn } from "../utils/nodeUtils";
-import { clearMainTip, tip } from "../utils/uiHelpers";
 import type { BattleRegiment } from "./battle-screen";
 import { interactionManager } from "./interactionManager";
 import { toggleMilitary } from "./layers";
@@ -253,7 +254,7 @@ export const regimentEditorActions = {
     const reg = getRegiment();
     if (!reg) return;
     const regs = worldContext.pack.states[+getRegEl().dataset.state!].military ?? [];
-    const name = Military.getName(reg, regs);
+    const name = GenerationPipeline.Military.getName(reg, regs);
     getRegEl().dataset.name = reg.name = name;
     setRegimentEditorState({ name });
   },
@@ -274,7 +275,9 @@ export const regimentEditorActions = {
     baseRect.setAttribute("width", String(isNaval ? size * 4 : size * 6));
     iconRect.setAttribute("x", String(x - size * 2));
     icon.setAttribute("x", String(x - size));
-    (getRegEl().querySelector("text") as SVGTextElement).textContent = String(Military.getTotal(reg));
+    (getRegEl().querySelector("text") as SVGTextElement).textContent = String(
+      GenerationPipeline.Military.getTotal(reg)
+    );
   },
 
   changeEmblem(): void {
@@ -297,7 +300,9 @@ export const regimentEditorActions = {
     if (!reg) return;
     reg.u[unitName] = count;
     reg.a = sum(Object.values(reg.u) as number[]);
-    (getRegEl().querySelector("text") as SVGTextElement).textContent = String(Military.getTotal(reg));
+    (getRegEl().querySelector("text") as SVGTextElement).textContent = String(
+      GenerationPipeline.Military.getTotal(reg)
+    );
 
     const units = getRegimentEditorState().units.map(u => (u.name === unitName ? { ...u, count } : u));
     setRegimentEditorState({ units });
@@ -327,7 +332,9 @@ export const regimentEditorActions = {
       u1[u] = Math.ceil(u1[u] / 2);
     });
     reg.a = sum(Object.values(u1) as number[]);
-    (getRegEl().querySelector("text") as SVGTextElement).textContent = String(Military.getTotal(reg));
+    (getRegEl().querySelector("text") as SVGTextElement).textContent = String(
+      GenerationPipeline.Military.getTotal(reg)
+    );
 
     // sync updated counts to store
     const unitOptions = worldContext.options.military ?? [];
@@ -360,9 +367,9 @@ export const regimentEditorActions = {
       state,
       icon: reg.icon
     } as MilitaryRegiment;
-    newReg.name = Military.getName(newReg, military);
+    newReg.name = GenerationPipeline.Military.getName(newReg, military);
     military.push(newReg);
-    Military.generateNote(newReg, worldContext.pack.states[state]);
+    GenerationPipeline.Military.generateNote(newReg, worldContext.pack.states[state]);
     drawRegiment(worldContext, viewContext, appServices, newReg, state);
 
     document.dispatchEvent(new CustomEvent("fmg:refresh-military"));
@@ -421,7 +428,7 @@ export const regimentEditorActions = {
     const index = worldContext.notes.findIndex((n: WorldNote) => n.id === getRegEl().id);
     if (index !== -1) worldContext.notes.splice(index, 1);
     const s = worldContext.pack.states[+getRegEl().dataset.state!];
-    Military.generateNote(getRegiment()!, s);
+    GenerationPipeline.Military.generateNote(getRegiment()!, s);
   },
 
   editLegend(): void {
@@ -462,9 +469,9 @@ function addRegimentOnClick(this: SVGElement, event: MouseEvent): void {
   const i = military.length ? last(military).i + 1 : 0;
   const n = +(worldContext.pack.cells.h[cell] < 20);
   const reg = { a: 0, cell, i, n, u: {}, x, y, bx: x, by: y, state, icon: "🛡️" } as MilitaryRegiment;
-  reg.name = Military.getName(reg, military);
+  reg.name = GenerationPipeline.Military.getName(reg, military);
   military.push(reg);
-  Military.generateNote(reg, worldContext.pack.states[state]);
+  GenerationPipeline.Military.generateNote(reg, worldContext.pack.states[state]);
   drawRegiment(worldContext, viewContext, appServices, reg, state);
   document.dispatchEvent(new CustomEvent("fmg:refresh-military"));
   regimentEditorActions.toggleAdd();
@@ -559,7 +566,7 @@ function attachRegimentOnClick(this: SVGElement, event: MouseEvent): void {
     }
   }
   sel.a = sum(Object.values(sel.u) as number[]);
-  (regSelected.querySelector("text") as SVGTextElement).textContent = String(Military.getTotal(sel));
+  (regSelected.querySelector("text") as SVGTextElement).textContent = String(GenerationPipeline.Military.getTotal(sel));
 
   const military = worldContext.pack.states[oldState].military ?? [];
   military.splice(military.indexOf(reg), 1);

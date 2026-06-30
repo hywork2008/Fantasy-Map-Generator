@@ -1,11 +1,11 @@
 import * as d3 from "d3";
 import { worldContext } from "../context/worldContext";
-import { HeightmapGenerator } from "../generators/heightmap-generator";
+import { GenerationPipeline } from "../services/generationPipeline";
+import { tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { type BrushMode, setHeightmapEditorState, useHeightmapEditorState } from "../store/heightmapEditorState";
 import { findGridAll, findGridCell, minmax, rn } from "../utils";
 import { EditorBus } from "../utils/editorBus";
-import { tip } from "../utils/uiHelpers";
 import { interactionManager } from "./interactionManager";
 
 export interface HeightmapBrushesCallbacks {
@@ -84,11 +84,11 @@ function placeLinearFeature(this: SVGElement, event: MouseEvent): void {
   const heights = worldContext.grid.cells.h as Uint8Array;
   const operation =
     power > 0
-      ? HeightmapGenerator.addRange.bind(HeightmapGenerator)
-      : HeightmapGenerator.addTrough.bind(HeightmapGenerator);
-  HeightmapGenerator.setGraph(worldContext.grid);
+      ? GenerationPipeline.HeightmapGenerator.addRange.bind(GenerationPipeline.HeightmapGenerator)
+      : GenerationPipeline.HeightmapGenerator.addTrough.bind(GenerationPipeline.HeightmapGenerator);
+  GenerationPipeline.HeightmapGenerator.setGraph(worldContext.grid);
   operation("1", String(Math.abs(power)), "", "", fromCell, toCell);
-  const changedHeights = HeightmapGenerator.getHeights() as Uint8Array;
+  const changedHeights = GenerationPipeline.HeightmapGenerator.getHeights() as Uint8Array;
 
   const selection: number[] = [];
   const filter = useHeightmapEditorState.getState().cellTypeFilter;
@@ -311,21 +311,21 @@ export function rescaleWithCondition(): void {
     return;
   }
 
-  HeightmapGenerator.setGraph(worldContext.grid);
-  if (operator === "multiply") HeightmapGenerator.modify(range_, 0, operand, 0);
-  else if (operator === "divide") HeightmapGenerator.modify(range_, 0, 1 / operand, 0);
-  else if (operator === "add") HeightmapGenerator.modify(range_, operand, 1, 0);
-  else if (operator === "subtract") HeightmapGenerator.modify(range_, -1 * operand, 1, 0);
-  else if (operator === "exponent") HeightmapGenerator.modify(range_, 0, 1, operand);
+  GenerationPipeline.HeightmapGenerator.setGraph(worldContext.grid);
+  if (operator === "multiply") GenerationPipeline.HeightmapGenerator.modify(range_, 0, operand, 0);
+  else if (operator === "divide") GenerationPipeline.HeightmapGenerator.modify(range_, 0, 1 / operand, 0);
+  else if (operator === "add") GenerationPipeline.HeightmapGenerator.modify(range_, operand, 1, 0);
+  else if (operator === "subtract") GenerationPipeline.HeightmapGenerator.modify(range_, -1 * operand, 1, 0);
+  else if (operator === "exponent") GenerationPipeline.HeightmapGenerator.modify(range_, 0, 1, operand);
 
-  worldContext.grid.cells.h = HeightmapGenerator.getHeights()!;
+  worldContext.grid.cells.h = GenerationPipeline.HeightmapGenerator.getHeights()!;
   localCallbacks.updateHeightmap();
 }
 
 export function smoothAllHeights(): void {
-  HeightmapGenerator.setGraph(worldContext.grid);
-  HeightmapGenerator.smooth(4, 1.5);
-  worldContext.grid.cells.h = HeightmapGenerator.getHeights()!;
+  GenerationPipeline.HeightmapGenerator.setGraph(worldContext.grid);
+  GenerationPipeline.HeightmapGenerator.smooth(4, 1.5);
+  worldContext.grid.cells.h = GenerationPipeline.HeightmapGenerator.getHeights()!;
   localCallbacks.updateHeightmap();
 }
 

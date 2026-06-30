@@ -3,7 +3,7 @@ import { useMemo } from "react";
 import { provincesEditorActions, selectProvinceOnLineClick } from "../../controllers/provinces-editor";
 import { useProvincesEditorState } from "../../store/provincesEditorState";
 import { rn, si } from "../../utils";
-import { getAreaUnit } from "../../utils/uiHelpers";
+import { getAreaUnit } from "../../utils/domUtils";
 import { FillBox } from "../components/FillBox";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";

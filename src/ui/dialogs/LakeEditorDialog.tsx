@@ -2,7 +2,7 @@ import type React from "react";
 import { lakeEditorActions } from "../../controllers/lakes-editor";
 import { useDialogState } from "../../store/dialogState";
 import { useLakeEditorState } from "../../store/lakeEditorState";
-import { getAreaUnit } from "../../utils/uiHelpers";
+import { getAreaUnit } from "../../utils/domUtils";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 

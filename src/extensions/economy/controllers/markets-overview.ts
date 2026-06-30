@@ -1,10 +1,11 @@
 import { color, type D3DragEvent, drag, pointer } from "d3";
+import { clearMainTip, showMainTip, tip } from "../../../services/tooltipService";
 import type { Burg } from "../../../types/models";
 import { closeDialogs, openDialog } from "../../../ui/dialogs/dialogService";
 import { findAllCellsInRadius, findCell, findClosestCell, getIsolines, getVertexPath, rn } from "../../../utils";
+import { removeCircle } from "../../../utils/domUtils";
 import { downloadFile, getFileName } from "../../../utils/editorHelpers";
 import { layerIsOn } from "../../../utils/nodeUtils";
-import { clearMainTip, removeCircle, showMainTip, tip } from "../../../utils/uiHelpers";
 import { getApi, getMarketsLayer, getViewContext, getWorldContext } from "../economyContext";
 import type { Deal, Market } from "../generators/markets-generator";
 import { Markets } from "../generators/markets-generator";

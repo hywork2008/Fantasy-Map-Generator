@@ -3,8 +3,10 @@ import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import { Markers } from "../generators/markers-generator";
+
 import { getPin } from "../renderers/index";
+import { GenerationPipeline } from "../services/generationPipeline";
+import { clearMainTip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { setElSelected } from "../store/editorState";
 import { getMarkersEditorState, setMarkersEditorState } from "../store/markersEditorState";
@@ -15,7 +17,6 @@ import { closeDialog, closeDialogs } from "../ui/dialogs/dialogService";
 import { findCell, rn } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog } from "../utils/editorHelpers";
-import { clearMainTip } from "../utils/uiHelpers";
 import { editNotes } from "./notes-editor";
 
 let worldContext: WorldContext;
@@ -249,7 +250,7 @@ function confirmMarkerDeletion(): void {
 function deleteMarker(): void {
   const { selectedId } = getMarkersEditorState();
   if (selectedId === null) return;
-  Markers.deleteMarker(selectedId);
+  GenerationPipeline.Markers.deleteMarker(selectedId);
   view.markers.select<Element>(`#marker${selectedId}`).node()?.remove();
   closeMarkerEditor();
   useMarkersOverviewState.getState().refresh();

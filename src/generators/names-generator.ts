@@ -4,11 +4,12 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
+import { tip } from "../services/tooltipService";
 import { useOptionsState } from "../store/optionsState";
 import type { NameBase } from "../types/models";
 import { capitalize, isVowel, last, P, ra, rand } from "../utils";
 import { ERROR, WARN } from "../utils/debug";
-import { locked, tip, unlock } from "../utils/uiHelpers";
+import { locked, unlock } from "../utils/domUtils";
 
 // Markov chain lookup table: key is a letter (or empty string for word start), value is array of possible next syllables
 // Note: Uses array with string keys (sparse array) to match original JS behavior

@@ -1,12 +1,13 @@
 import { worldContext } from "../context/worldContext";
 import { ThreeDRenderer } from "../renderers/three-d-renderer";
+import { tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { modules } from "../store/editorState";
 import { use3DOptionsStore } from "../store/options3dStore";
 import { closeDialog, isDialogOpen, openDialog } from "../ui/dialogs/dialogService";
+import { fitContent } from "../utils/domUtils";
 import { EditorBus } from "../utils/editorBus";
 import { getElementById } from "../utils/nodeUtils";
-import { fitContent, tip } from "../utils/uiHelpers";
 
 function getRequiredElementById<T extends Element>(id: string): T {
   const element = getElementById<T>(id);

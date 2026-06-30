@@ -1,6 +1,7 @@
 import { pointer } from "d3";
 import type { WorldContext } from "../context/worldContext";
-import { Rivers } from "../generators/river-generator";
+import { GenerationPipeline } from "../services/generationPipeline";
+import { clearMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { modules } from "../store/editorState";
 import { useOptionsState } from "../store/optionsState";
@@ -10,7 +11,6 @@ import { findCell, last, rn } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { getPackPolygon } from "../utils/graphUtils";
 import { layerIsOn } from "../utils/nodeUtils";
-import { clearMainTip, tip } from "../utils/uiHelpers";
 import { interactionManager } from "./interactionManager";
 import { toggleCells, toggleRivers } from "./layers";
 import { cellsDensityMap } from "./options";
@@ -77,7 +77,7 @@ export function addRiver(): void {
     return;
   }
 
-  const riverId = Rivers.getNextId(rivers);
+  const riverId = GenerationPipeline.Rivers.getNextId(rivers);
   const parent = cells.r[last(riverCells)] || riverId;
 
   riverCells.forEach(cell => {
@@ -86,24 +86,26 @@ export function addRiver(): void {
 
   const source = riverCells[0];
   const mouth = parent === riverId ? last(riverCells) : riverCells[riverCells.length - 2];
-  const sourceWidth = Rivers.getSourceWidth(cells.fl[source]);
+  const sourceWidth = GenerationPipeline.Rivers.getSourceWidth(cells.fl[source]);
   const defaultWidthFactor = rn(1 / ((cellsDensityMap[useOptionsState.getState().points] ?? 10000) / 10000) ** 0.25, 2);
   const widthFactor = 1.2 * defaultWidthFactor;
 
-  const meanderedPoints = Rivers.addMeandering(riverCells);
+  const meanderedPoints = GenerationPipeline.Rivers.addMeandering(riverCells);
 
   const discharge = cells.fl[mouth];
-  const length = Rivers.getApproximateLength(meanderedPoints.map(([x, y]): [number, number] => [x, y]));
-  const width = Rivers.getWidth(
-    Rivers.getOffset({
+  const length = GenerationPipeline.Rivers.getApproximateLength(
+    meanderedPoints.map(([x, y]): [number, number] => [x, y])
+  );
+  const width = GenerationPipeline.Rivers.getWidth(
+    GenerationPipeline.Rivers.getOffset({
       flux: discharge,
       pointIndex: meanderedPoints.length,
       widthFactor,
       startingWidth: sourceWidth
     })
   );
-  const name = Rivers.getName(mouth);
-  const basin = Rivers.getBasin(parent);
+  const name = GenerationPipeline.Rivers.getName(mouth);
+  const basin = GenerationPipeline.Rivers.getBasin(parent);
 
   rivers.push({
     i: riverId,
@@ -126,7 +128,7 @@ export function addRiver(): void {
     .select("#rivers")
     .append("path")
     .attr("id", id)
-    .attr("d", Rivers.getRiverPath(meanderedPoints, widthFactor, sourceWidth));
+    .attr("d", GenerationPipeline.Rivers.getRiverPath(meanderedPoints, widthFactor, sourceWidth));
 
   EditorBus.editRiver(id);
   closeRiverCreator();

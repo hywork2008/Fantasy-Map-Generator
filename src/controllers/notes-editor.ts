@@ -14,6 +14,7 @@ import "tinymce/plugins/wordcount";
 import "tinymce/icons/default/icons";
 import "tinymce/models/dom/model";
 import { worldContext } from "../context/worldContext";
+import { tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { setHoverNotesState } from "../store/hoverNotesState";
 import { getNotesEditorState, setNotesEditorState } from "../store/notesEditorState";
@@ -22,7 +23,6 @@ import { closeDialog, openDialog } from "../ui/dialogs/dialogService";
 import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog, downloadFile, getFileName, uploadFile } from "../utils/editorHelpers";
 import { getElementById } from "../utils/nodeUtils";
-import { tip } from "../utils/uiHelpers";
 import { generateWithAi } from "./ai-generator";
 
 export function editNotes(id?: string, name?: string): void {

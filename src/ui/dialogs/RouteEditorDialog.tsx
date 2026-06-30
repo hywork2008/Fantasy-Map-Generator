@@ -1,6 +1,6 @@
 import type React from "react";
+import { showElementLockTip } from "../../services/tooltipService";
 import { useDialogState } from "../../store/dialogState";
-import { showElementLockTip } from "../../utils/uiHelpers";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 

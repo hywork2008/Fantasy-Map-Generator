@@ -12,10 +12,10 @@ import {
 } from "d3";
 import type React from "react";
 import { useEffect, useRef } from "react";
+import { tip } from "../../services/tooltipService";
 import { useDialogState } from "../../store/dialogState";
 import { convertTemperature, round } from "../../utils";
 import { rn } from "../../utils/numberUtils";
-import { tip } from "../../utils/uiHelpers";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 

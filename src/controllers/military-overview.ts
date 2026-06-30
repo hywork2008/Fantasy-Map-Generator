@@ -6,15 +6,16 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
-import { Military } from "../generators/military-generator";
+
 import { MilitaryRenderer } from "../renderers/draw-military";
+import { GenerationPipeline } from "../services/generationPipeline";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { modules } from "../store/editorState";
 import { useMilitaryOverviewState } from "../store/militaryOverviewState";
 import { closeDialogs, openConfirm, openDialog } from "../ui/dialogs/dialogService";
 import { rn } from "../utils";
+import { fitContent } from "../utils/domUtils";
 import { layerIsOn } from "../utils/nodeUtils";
-import { fitContent } from "../utils/uiHelpers";
 import { toggleBorders, toggleMilitary, toggleStates } from "./layers";
 
 export function overviewMilitary(): void {
@@ -31,7 +32,7 @@ export function overviewMilitary(): void {
   modules.overviewMilitary = true;
 
   openDialog("militaryOverview", {
-    title: "Military Overview",
+    title: "GenerationPipeline.Military Overview",
     resizable: false,
     width: fitContent(),
     position: { my: "right top", at: "right-10 top+10", of: "svg", collision: "fit" }
@@ -86,7 +87,7 @@ export function updateStateWarAlert(stateId: number, alert: number): void {
       r.u[u] = rn(r.u[u] * dif);
     });
     r.a = sum(Object.values(r.u) as number[]);
-    view.armies.select(`g>g#regiment${s.i}-${r.i}>text`).text(Military.getTotal(r));
+    view.armies.select(`g>g#regiment${s.i}-${r.i}>text`).text(GenerationPipeline.Military.getTotal(r));
   });
   useMilitaryOverviewState.getState().refresh();
 }
@@ -98,7 +99,7 @@ export function militaryRecalculate(): void {
       title: "Recalculate military",
       confirm: "Recalculate",
       onConfirm: () => {
-        Military.generate(worldContext, viewContext, appServices, getWorldState());
+        GenerationPipeline.Military.generate(worldContext, viewContext, appServices, getWorldState());
         if (layerIsOn("toggleMilitary")) MilitaryRenderer.render(worldContext, viewContext, appServices);
         useMilitaryOverviewState.getState().refresh();
       }

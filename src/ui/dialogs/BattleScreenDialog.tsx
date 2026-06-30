@@ -18,11 +18,12 @@ import {
   battleAction_showNameSection,
   battleAction_wiki
 } from "../../controllers/battle-screen";
+import { tip } from "../../services/tooltipService";
 import type { BattleRegimentDisplay, BattleSide } from "../../store/battleScreenState";
 import { useBattleScreenState } from "../../store/battleScreenState";
 import { useDialogState } from "../../store/dialogState";
 import { useOptionsState } from "../../store/optionsState";
-import { applySorting, tip } from "../../utils/uiHelpers";
+import { applySorting } from "../../utils/domUtils";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 

@@ -4,7 +4,7 @@ import { culturesEditorActions } from "../../controllers/cultures-editor";
 import { COA } from "../../generators/emblem/generator";
 import { useCulturesEditorState } from "../../store/culturesEditorState";
 import { capitalize, rn, si } from "../../utils";
-import { getAreaUnit } from "../../utils/uiHelpers";
+import { getAreaUnit } from "../../utils/domUtils";
 import { FillBox } from "../components/FillBox";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";

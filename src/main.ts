@@ -47,6 +47,7 @@ import { renderGroupCOAs } from "./renderers/draw-emblems";
 import { CoordinatesRenderer, drawScaleBar, fitScaleBar } from "./renderers/index";
 import { OceanLayers } from "./renderers/ocean-layers";
 import { ThreeDRenderer } from "./renderers/three-d-renderer";
+import { clearMainTip, showDataTip, tip } from "./services/tooltipService";
 import { UITour } from "./services/ui-tour";
 import { dialogStore } from "./store/dialogState";
 import { useOptionsState } from "./store/optionsState";
@@ -70,8 +71,8 @@ import {
   safeParseJSON,
   shouldRegenerateGrid
 } from "./utils";
+import { locked } from "./utils/domUtils";
 import { getElementById, layerIsOn } from "./utils/nodeUtils";
-import { clearMainTip, locked, showDataTip, tip } from "./utils/uiHelpers";
 import { cleanupData } from "./versioning";
 
 const UINT16_MAX = _TMP.UINT16_MAX;

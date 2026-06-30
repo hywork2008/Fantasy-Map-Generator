@@ -16,10 +16,10 @@ import {
 } from "d3";
 import { zoomTo } from "../actions";
 import type { WorldContext } from "../context/worldContext";
+import { tip } from "../services/tooltipService";
 import type { Burg, Province, State } from "../types/models";
 import { rn } from "../utils";
 import { getColor, getColorScheme } from "../utils/colorUtils";
-import { tip } from "../utils/uiHelpers";
 
 export interface ChartData {
   biome: number[];

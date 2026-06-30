@@ -1,14 +1,14 @@
 import { curveNatural, type D3DragEvent, drag, pointer, select } from "d3";
 import { worldContext } from "../context/worldContext";
-import { Names } from "../generators/names-generator";
+import { GenerationPipeline } from "../services/generationPipeline";
+import { showMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { elSelected, setElSelected } from "../store/editorState";
 import { getLabelsEditorState, type LabelEditorSection, setLabelsEditorState } from "../store/labelsEditorState";
-import { closeDialog, openConfirm } from "../ui/dialogs/dialogService";
+import { closeDialog, openConfirm, openDialog } from "../ui/dialogs/dialogService";
 import { findCell, parseTransform, round } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { layerIsOn } from "../utils/nodeUtils";
-import { showMainTip, tip } from "../utils/uiHelpers";
 import { interactionManager } from "./interactionManager";
 import { toggleLabels } from "./layers";
 import { editNotes } from "./notes-editor";
@@ -71,6 +71,8 @@ export function editLabel(tspan?: Element): void {
     startOffset,
     letterSpacing
   });
+
+  openDialog("labelEditor", { onClose: closeLabelEditor });
 }
 
 function showEditorTips(this: SVGElement, event: MouseEvent): void {
@@ -282,12 +284,12 @@ function generateRandomName(): void {
   if (elSelected!.attr("id").slice(0, 10) === "stateLabel") {
     const id = +elSelected!.attr("id").slice(10);
     const culture = worldContext.pack.states[id].culture;
-    name = Names.getState(Names.getCulture(culture, 4, 7, ""), culture);
+    name = GenerationPipeline.Names.getState(GenerationPipeline.Names.getCulture(culture, 4, 7, ""), culture);
   } else {
     const box = (elSelected!.node() as SVGGraphicsElement).getBBox();
     const cell = findCell((box.x + box.width) / 2, (box.y + box.height) / 2);
     const culture = worldContext.pack.cells.culture[cell];
-    name = Names.getCulture(culture);
+    name = GenerationPipeline.Names.getCulture(culture);
   }
   changeText(name);
 }
@@ -345,6 +347,7 @@ function removeLabel(): void {
 }
 
 export function closeLabelEditor(): void {
+  if (!getLabelsEditorState().isOpen) return;
   view.debug.select("#controlPoints").remove();
   EditorBus.unselect();
   setLabelsEditorState({ isOpen: false });

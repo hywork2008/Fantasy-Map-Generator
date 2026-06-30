@@ -1,9 +1,9 @@
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import { initHierarchyTree, updateTree } from "../../controllers/hierarchy-tree";
+import { tip } from "../../services/tooltipService";
 import { useDialogState } from "../../store/dialogState";
 import { useHierarchyTreeState } from "../../store/hierarchyTreeState";
-import { tip } from "../../utils/uiHelpers";
 import { FillBox } from "../components/FillBox";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";

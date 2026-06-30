@@ -4,11 +4,7 @@ import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import { Burgs } from "../generators/burgs-generator";
-import { COA } from "../generators/emblem/generator";
-import { Names } from "../generators/names-generator";
-import { Provinces } from "../generators/provinces-generator";
-import { States } from "../generators/states-generator";
+
 import {
   BordersRenderer,
   BurgIconsRenderer,
@@ -26,6 +22,8 @@ import {
 } from "../renderers";
 import type { Emblem as RendererEmblem } from "../renderers/emblem-renderer";
 import { COArenderer } from "../renderers/emblem-renderer";
+import { GenerationPipeline } from "../services/generationPipeline";
+import { clearMainTip, showMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { getStatesEditorState, setStatesEditorState } from "../store/statesEditorState";
 import type { Burg, Culture, MilitaryRegiment, Province, State } from "../types/models";
@@ -33,11 +31,11 @@ import type { WorldNote } from "../types/WorldState";
 import { isDialogOpen, openDialog } from "../ui/dialogs/dialogService";
 import type { PopulationChangeConfig } from "../ui/dialogs/PopulationChangeDialog";
 import { findAll, findCell, getAdjective, getMixedColor, getRandomColor, isLand, P, rand, rn } from "../utils";
+import { getArea, getAreaUnit } from "../utils/domUtils";
 import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog, downloadFile, getFileName } from "../utils/editorHelpers";
 import { getPackPolygon } from "../utils/graphUtils";
 import { getElementBySelector, layerIsOn } from "../utils/nodeUtils";
-import { clearMainTip, getArea, getAreaUnit, showMainTip, tip } from "../utils/uiHelpers";
 import { BrushHistoryClass as BrushHistory } from "./BrushHistory";
 import { overviewBurgs } from "./burgs-overview";
 import { interactionManager } from "./interactionManager";
@@ -91,9 +89,9 @@ const FORM_CATEGORIES: Record<string, string> = {
   Union: "Union",
   "United Hordes": "Union",
   "United Kingdom": "Union",
-  "United Provinces": "Union",
+  "United GenerationPipeline.Provinces": "Union",
   "United Republic": "Union",
-  "United States": "Union",
+  "United GenerationPipeline.States": "Union",
   "United Tribes": "Union",
   Bishopric: "Theocracy",
   Brotherhood: "Theocracy",
@@ -132,7 +130,7 @@ export function open(): void {
 }
 
 export function refreshStatesEditor(): void {
-  States.collectStatistics(getWorldState());
+  GenerationPipeline.States.collectStatistics(getWorldState());
 
   let totalArea = 0;
   let totalPopulation = 0;
@@ -218,7 +216,7 @@ export const statesEditorActions = {
       .filter(s => s.i && !s.removed && s.cells)
       .sort((a, b) => (b.area ?? 0) - (a.area ?? 0))
       .map(s => [s.i, s.color ?? "", s.name] as [number, string, string]);
-    EditorBus.drawLegend("States", data);
+    EditorBus.drawLegend("GenerationPipeline.States", data);
   },
 
   togglePercentageMode(): void {
@@ -436,7 +434,10 @@ export const statesEditorActions = {
     const ne = getStatesEditorState().nameEditor;
     if (!ne) return;
     const culture = (worldContext.pack.states[ne.stateId] as State).culture;
-    const name = Names.getState(Names.getCultureShort(worldContext, viewContext, appServices, culture), culture);
+    const name = GenerationPipeline.Names.getState(
+      GenerationPipeline.Names.getCultureShort(worldContext, viewContext, appServices, culture),
+      culture
+    );
     setStatesEditorState({ nameEditor: { ...ne, shortName: name } });
   },
 
@@ -444,7 +445,7 @@ export const statesEditorActions = {
     const ne = getStatesEditorState().nameEditor;
     if (!ne) return;
     const base = rand(worldContext.nameBases.length - 1);
-    const name = Names.getState(Names.getBase(base), 0, base);
+    const name = GenerationPipeline.Names.getState(GenerationPipeline.Names.getBase(base), 0, base);
     setStatesEditorState({ nameEditor: { ...ne, shortName: name } });
   },
 
@@ -597,7 +598,7 @@ function stateRemove(stateId: number): void {
       burg.state = 0;
       if (burg.capital) {
         burg.capital = 0;
-        Burgs.changeGroup(burg);
+        GenerationPipeline.Burgs.changeGroup(burg);
       }
     }
   });
@@ -663,10 +664,10 @@ function recalculateStates(must?: boolean): void {
   if (!must && !getStatesEditorState().autoChange) return;
 
   const state = getWorldState();
-  States.expandStates(worldContext, viewContext, appServices);
-  Provinces.generate(worldContext, viewContext, appServices, state);
-  Provinces.getPoles(state);
-  States.getPoles(state);
+  GenerationPipeline.States.expandStates(worldContext, viewContext, appServices);
+  GenerationPipeline.Provinces.generate(worldContext, viewContext, appServices, state);
+  GenerationPipeline.Provinces.getPoles(state);
+  GenerationPipeline.States.getPoles(state);
 
   if (layerIsOn("toggleStates")) StatesRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleBorders")) BordersRenderer.render(worldContext, viewContext, appServices);
@@ -778,7 +779,7 @@ function applyStatesManualAssignent(): void {
 
   if (affectedStates.length) {
     refreshStatesEditor();
-    States.getPoles(getWorldState());
+    GenerationPipeline.States.getPoles(getWorldState());
     layerIsOn("toggleStates") ? StatesRenderer.render(worldContext, viewContext, appServices) : toggleStates();
     if (getStatesEditorState().adjustLabels)
       drawStateLabels(worldContext, viewContext, appServices, [...new Set(affectedStates)]);
@@ -883,7 +884,10 @@ function adjustProvinces(affectedProvinces: number[]): void {
     const name = nameByBurg
       ? (burg?.name ?? "")
       : oldProvince.name ||
-        Names.getState(Names.getCultureShort(worldContext, viewContext, appServices, culture), culture);
+        GenerationPipeline.Names.getState(
+          GenerationPipeline.Names.getCultureShort(worldContext, viewContext, appServices, culture),
+          culture
+        );
 
     const formOptions = ["Zone", "Area", "Territory", "Province"];
     const formName = burgCell && oldProvince.formName ? oldProvince.formName : ra(formOptions);
@@ -891,9 +895,14 @@ function adjustProvinces(affectedProvinces: number[]): void {
     const color = getMixedColor((states as State[])[stateId].color ?? "");
 
     const kinship = nameByBurg ? 0.8 : 0.4;
-    const type = Burgs.getType(center, burg?.port);
-    const coa = COA.generate(burg?.coa || (states as State[])[stateId].coa, kinship, burg ? null : 0.9, type);
-    coa.shield = COA.getShield(culture, stateId);
+    const type = GenerationPipeline.Burgs.getType(center, burg?.port);
+    const coa = GenerationPipeline.COA.generate(
+      burg?.coa || (states as State[])[stateId].coa,
+      kinship,
+      burg ? null : 0.9,
+      type
+    );
+    coa.shield = GenerationPipeline.COA.getShield(culture, stateId);
 
     (provinces as Province[]).push({
       i: newProvinceId,
@@ -966,7 +975,7 @@ function addState(this: SVGElement, event: MouseEvent): void {
   }
 
   if (!burgId) {
-    const { burgId: addedId, newRoute } = Burgs.add(point);
+    const { burgId: addedId, newRoute } = GenerationPipeline.Burgs.add(point);
     burgId = addedId;
     const addedBurg = (burgs as Burg[])[burgId];
     drawBurgIcon(worldContext, viewContext, appServices, addedBurg);
@@ -979,20 +988,21 @@ function addState(this: SVGElement, event: MouseEvent): void {
 
   (burgs as Burg[])[burgId].capital = 1;
   (burgs as Burg[])[burgId].state = newState;
-  Burgs.changeGroup((burgs as Burg[])[burgId]);
+  GenerationPipeline.Burgs.changeGroup((burgs as Burg[])[burgId]);
   drawBurgIcon(worldContext, viewContext, appServices, (burgs as Burg[])[burgId]);
   drawBurgLabel(worldContext, viewContext, appServices, (burgs as Burg[])[burgId]);
 
   if (event.shiftKey === false) exitAddStateMode();
 
   const culture = cells.culture[center];
-  const basename = center % 5 === 0 ? ((burgs as Burg[])[burgId].name ?? "") : Names.getCulture(culture);
-  const name = Names.getState(basename, culture);
+  const basename =
+    center % 5 === 0 ? ((burgs as Burg[])[burgId].name ?? "") : GenerationPipeline.Names.getCulture(culture);
+  const name = GenerationPipeline.Names.getState(basename, culture);
   const color = getRandomColor();
 
   const cultureType = (worldContext.pack.cultures as Culture[])[culture].type;
-  const coa = COA.generate((burgs as Burg[])[burgId].coa ?? null, 0.4, null, cultureType);
-  coa.shield = COA.getShield(culture);
+  const coa = GenerationPipeline.COA.generate((burgs as Burg[])[burgId].coa ?? null, 0.4, null, cultureType);
+  coa.shield = GenerationPipeline.COA.getShield(culture);
 
   const statesArr = states as State[];
   const diplomacy = statesArr.map(s => {
@@ -1037,10 +1047,10 @@ function addState(this: SVGElement, event: MouseEvent): void {
   } as State);
 
   const state = getWorldState();
-  States.getPoles(state);
-  States.findNeighbors();
-  States.collectStatistics(state);
-  States.defineStateForms(state, [newState]);
+  GenerationPipeline.States.getPoles(state);
+  GenerationPipeline.States.findNeighbors();
+  GenerationPipeline.States.collectStatistics(state);
+  GenerationPipeline.States.defineStateForms(state, [newState]);
   adjustProvinces([cells.province[center]]);
 
   drawStateLabels(worldContext, viewContext, appServices, [newState]);
@@ -1112,7 +1122,7 @@ function mergeStates(statesToMerge: number[], rulingStateId: number): void {
     if (statesToMerge.includes(burg.state ?? -1)) {
       if (burg.capital) {
         burg.capital = 0;
-        Burgs.changeGroup(burg);
+        GenerationPipeline.Burgs.changeGroup(burg);
       }
       burg.state = rulingStateId;
     }
@@ -1131,7 +1141,7 @@ function mergeStates(statesToMerge: number[], rulingStateId: number): void {
   EditorBus.unfog();
   StatesRenderer.clearHighlight(viewContext);
 
-  States.getPoles(getWorldState());
+  GenerationPipeline.States.getPoles(getWorldState());
   layerIsOn("toggleStates") ? StatesRenderer.render(worldContext, viewContext, appServices) : toggleStates();
   layerIsOn("toggleBorders") ? BordersRenderer.render(worldContext, viewContext, appServices) : toggleBorders();
   layerIsOn("toggleProvinces") && ProvincesRenderer.render(worldContext, viewContext, appServices);
@@ -1142,7 +1152,7 @@ function mergeStates(statesToMerge: number[], rulingStateId: number): void {
 
 function downloadStatesCsv(): void {
   const unit = getAreaUnit("2");
-  const headers = `Id,State,Full Name,Form,Color,Capital,Culture,Type,Expansionism,Cells,Burgs,Area ${unit},Total Population,Rural Population,Urban Population`;
+  const headers = `Id,State,Full Name,Form,Color,Capital,Culture,Type,Expansionism,Cells,GenerationPipeline.Burgs,Area ${unit},Total Population,Rural Population,Urban Population`;
   const { states } = getStatesEditorState();
   const data = states.map(s => {
     const packState = worldContext.pack.states[s.i] as State;
@@ -1166,7 +1176,7 @@ function downloadStatesCsv(): void {
   });
   const csvData = [headers].concat(data).join("\n");
 
-  const name = `${getFileName("States")}.csv`;
+  const name = `${getFileName("GenerationPipeline.States")}.csv`;
   downloadFile(csvData, name);
 }
 

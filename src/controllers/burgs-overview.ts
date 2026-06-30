@@ -3,9 +3,11 @@ import { zoomTo } from "../actions";
 import { appServices } from "../context/appServices";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
-import { Burgs } from "../generators/burgs-generator";
-import { Names } from "../generators/names-generator";
+
 import { drawBurgIcon, drawBurgLabel, drawRoute } from "../renderers";
+import { getHeight } from "../services/cellInfoService";
+import { GenerationPipeline } from "../services/generationPipeline";
+import { clearMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { useBurgsOverviewState } from "../store/burgsOverviewState";
 import { burgsRenamingDialogStore } from "../store/burgsRenamingDialogState";
@@ -15,7 +17,6 @@ import { convertTemperature, findCell, getLatitude, getLongitude, rn } from "../
 import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog, downloadFile, getFileName } from "../utils/editorHelpers";
 import { getElementById, layerIsOn } from "../utils/nodeUtils";
-import { clearMainTip, getHeight, tip } from "../utils/uiHelpers";
 import { getTemperatureLikeness } from "./burg-editor";
 import { interactionManager } from "./interactionManager";
 import { toggleBurgIcons, toggleLabels } from "./layers";
@@ -56,7 +57,7 @@ export function startAddBurgMode(onDone: () => void): void {
       return;
     }
 
-    const { burgId, newRoute } = Burgs.add(point);
+    const { burgId, newRoute } = GenerationPipeline.Burgs.add(point);
     const burg = worldContext.pack.burgs[burgId];
     drawBurgIcon(worldContext, viewContext, appServices, burg);
     drawBurgLabel(worldContext, viewContext, appServices, burg);
@@ -78,7 +79,7 @@ export function stopAddBurgMode(): void {
 export function regenerateBurgNames(refresh: () => void): void {
   const validBurgs = worldContext.pack.burgs.filter(b => b.i && !b.removed && !b.lock);
   for (const burg of validBurgs) {
-    const name = Names.getCulture(burg.culture!);
+    const name = GenerationPipeline.Names.getCulture(burg.culture!);
     burg.name = name;
     view.burgLabels.select(`[data-id='${burg.i}']`).text(name);
   }
@@ -119,11 +120,11 @@ export function downloadBurgsData(): void {
     data += b.temple ? "temple," : ",";
     data += b.shanty ? "shanty town," : ",";
     data += b.coa ? `${JSON.stringify(b.coa).replace(/"/g, "").replace(/,/g, ";")},` : ",";
-    data += Burgs.getPreview(b).link;
+    data += GenerationPipeline.Burgs.getPreview(b).link;
     data += "\n";
   });
 
-  const name = `${getFileName("Burgs")}.csv`;
+  const name = `${getFileName("GenerationPipeline.Burgs")}.csv`;
   downloadFile(data, name);
 }
 
@@ -156,7 +157,7 @@ export function importBurgNames(dataLoaded: string, refresh: () => void): void {
   }
 
   const change: { id: number; name: string }[] = [];
-  let message = `Burgs to be renamed as below:`;
+  let message = `GenerationPipeline.Burgs to be renamed as below:`;
   message += `<table class="overflow-table"><tr><th>Id</th><th>Current name</th><th>New Name</th></tr>`;
 
   const validBurgs = worldContext.pack.burgs.filter(b => b.i && !b.removed);
@@ -171,7 +172,7 @@ export function importBurgNames(dataLoaded: string, refresh: () => void): void {
   if (!change.length) message = "No changes found in the file. Please change some names to get a result";
 
   confirmationDialog({
-    title: "Burgs bulk renaming",
+    title: "GenerationPipeline.Burgs bulk renaming",
     message,
     confirm: "Rename",
     onConfirm: () => {

@@ -1,80 +1,82 @@
 import type React from "react";
+import { useCellInfoState } from "../../store/cellInfoState";
 import { useDialogState } from "../../store/dialogState";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
 export const CellInfoDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("cellInfo"));
+  const info = useCellInfoState();
 
   return (
     <Dialog isOpen={isOpen} title="CellInfo" onClose={() => closeDialog("cellInfo")}>
       <div id="cellInfo">
         <div>
           <p>
-            <b>Cell:</b> <span id="infoCell" /> <b>X:</b> <span id="infoX" /> <b>Y:</b> <span id="infoY" />
+            <b>Cell:</b> <span>{info.cell}</span> <b>X:</b> <span>{info.x}</span> <b>Y:</b> <span>{info.y}</span>
           </p>
           <p>
-            <b>Latitude:</b> <span id="infoLat" />
+            <b>Latitude:</b> <span>{info.lat}</span>
           </p>
           <p>
-            <b>Longitude:</b> <span id="infoLon" />
+            <b>Longitude:</b> <span>{info.lon}</span>
           </p>
           <p>
-            <b>Geozone:</b> <span id="infoGeozone" />
+            <b>Geozone:</b> <span>{info.geozone}</span>
           </p>
           <p>
-            <b>Area:</b> <span id="infoArea">0</span>
+            <b>Area:</b> <span>{info.area}</span>
           </p>
           <p>
-            <b>Type:</b> <span id="infoFeature">n/a</span>
+            <b>Type:</b> <span>{info.feature}</span>
           </p>
           <p>
-            <b>Precipitation:</b> <span id="infoPrec">0</span>
+            <b>Precipitation:</b> <span>{info.prec}</span>
           </p>
           <p>
-            <b>River:</b> <span id="infoRiver">no</span>
+            <b>River:</b> <span>{info.river}</span>
           </p>
           <p>
-            <b>Population:</b> <span id="infoPopulation">0</span>
+            <b>Population:</b> <span>{info.population}</span>
           </p>
           <p>
-            <b>Elevation:</b> <span id="infoElevation">0</span>
+            <b>Elevation:</b> <span>{info.elevation}</span>
           </p>
           <p>
-            <b>Depth:</b> <span id="infoDepth">0</span>
+            <b>Depth:</b> <span>{info.depth}</span>
           </p>
           <p>
-            <b>Temperature:</b> <span id="infoTemp">0</span>
+            <b>Temperature:</b> <span>{info.temp}</span>
           </p>
           <p>
-            <b>Biome:</b> <span id="infoBiome">n/a</span>
+            <b>Biome:</b> <span>{info.biome}</span>
           </p>
           <p>
-            <b>State:</b> <span id="infoState">n/a</span>
+            <b>State:</b> <span>{info.state}</span>
           </p>
           <p>
-            <b>Province:</b> <span id="infoProvince">n/a</span>
+            <b>Province:</b> <span>{info.province}</span>
           </p>
           <p>
-            <b>Culture:</b> <span id="infoCulture">n/a</span>
+            <b>Culture:</b> <span>{info.culture}</span>
           </p>
           <p>
-            <b>Religion:</b> <span id="infoReligion">n/a</span>
+            <b>Religion:</b> <span>{info.religion}</span>
           </p>
           <p>
-            <b>Burg:</b> <span id="infoBurg">n/a</span>
+            <b>Burg:</b> <span>{info.burg}</span>
           </p>
           <p>
-            <b>Good:</b> <span id="infoGood">n/a</span>
+            <b>Good:</b> <span>{info.good}</span>
           </p>
           <p>
-            <b>Market:</b> <span id="infoMarket">n/a</span>
+            <b>Market:</b> <span>{info.market}</span>
           </p>
           <p>
-            <b>Cell Production:</b> <span id="infoCellProduction">n/a</span>
+            <b>Cell Production:</b> <span>{info.cellProduction}</span>
           </p>
           <p>
-            <b>Burg Production:</b> <span id="infoBurgProduction">n/a</span>
+            <b>Burg Production:</b> <span>{info.burgProduction}</span>
           </p>
         </div>
       </div>

@@ -1,6 +1,6 @@
 import type React from "react";
 import { useOptionsState } from "../../../../store/optionsState";
-import { lock } from "../../../../utils/uiHelpers";
+import { lock } from "../../../../utils/domUtils";
 import { SliderInput } from "../../SliderInput";
 
 export const GenerationSettingsTab: React.FC = () => {

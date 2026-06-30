@@ -4,11 +4,11 @@ import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import { Cultures } from "../generators/cultures-generator";
-import { COA } from "../generators/emblem/generator";
-import { Names } from "../generators/names-generator";
+
 import { CulturesRenderer, PopulationRenderer } from "../renderers";
 import { COArenderer, type Emblem as RendererEmblem } from "../renderers/emblem-renderer";
+import { GenerationPipeline } from "../services/generationPipeline";
+import { clearMainTip, showMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import type { CultureRowData, NameBaseOption } from "../store/culturesEditorState";
 import { getCulturesEditorState, setCulturesEditorState } from "../store/culturesEditorState";
@@ -18,11 +18,11 @@ import type { Burg, Culture, CultureType, NameBase, Province, State } from "../t
 import { closeDialogs, isDialogOpen, openDialog } from "../ui/dialogs/dialogService";
 import type { PopulationChangeConfig } from "../ui/dialogs/PopulationChangeDialog";
 import { abbreviate, debounce, findAll, findCell, parseTransform, rn, si } from "../utils";
+import { getArea, getAreaUnit } from "../utils/domUtils";
 import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog, downloadFile, getFileName } from "../utils/editorHelpers";
 import { getPackPolygon } from "../utils/graphUtils";
 import { layerIsOn } from "../utils/nodeUtils";
-import { clearMainTip, getArea, getAreaUnit, showMainTip, tip } from "../utils/uiHelpers";
 import { BrushHistoryClass as BrushHistory } from "./BrushHistory";
 import { open as openHierarchyTree } from "./hierarchy-tree";
 import { interactionManager } from "./interactionManager";
@@ -55,7 +55,7 @@ export function open(): void {
   drawCultureCenters();
 
   openDialog("culturesEditor", {
-    title: "Cultures Editor",
+    title: "GenerationPipeline.Cultures Editor",
     resizable: false,
     onClose: closeCulturesEditor,
     position: { my: "right top", at: "right-10 top+10", of: "svg" }
@@ -73,7 +73,7 @@ function recalculateCultures(force?: boolean): void {
   const { autoChange } = getCulturesEditorState();
   if (!force && !autoChange) return;
 
-  Cultures.expand(getWorldState());
+  GenerationPipeline.Cultures.expand(getWorldState());
   CulturesRenderer.render(worldContext, viewContext, appServices);
   worldContext.pack.burgs.forEach((b: Burg) => {
     b.culture = worldContext.pack.cells.culture[b.cell];
@@ -178,7 +178,7 @@ export const culturesEditorActions = {
       .filter((c: Culture) => c.i && !c.removed && c.cells)
       .sort((a: Culture, b: Culture) => (b.area ?? 0) - (a.area ?? 0))
       .map((c: Culture) => [c.i, c.color, c.name] as [number, string, string]);
-    EditorBus.drawLegend("Cultures", data);
+    EditorBus.drawLegend("GenerationPipeline.Cultures", data);
   },
 
   showHierarchy(): void {
@@ -238,7 +238,7 @@ export const culturesEditorActions = {
       tip("Namesbase is not defined, please select a valid namesbase", false, "error", 5000);
       return;
     }
-    const name = Names.getCultureShort(worldContext, viewContext, appServices, i);
+    const name = GenerationPipeline.Names.getCultureShort(worldContext, viewContext, appServices, i);
     (worldContext.pack.cultures[i] as Culture).name = name;
     culturesEditorActions.refresh();
   },
@@ -344,10 +344,10 @@ export const culturesEditorActions = {
       (b: Burg) => b.culture === i && !b.removed && !b.lock
     );
     cultureBurgs.forEach((b: Burg) => {
-      b.name = Names.getCulture(i);
+      b.name = GenerationPipeline.Names.getCulture(i);
       view.labels.select(`[data-id='${b.i}']`).text(b.name);
     });
-    tip(`Names for ${cultureBurgs.length} burgs are regenerated`, false, "success");
+    tip(`GenerationPipeline.Names for ${cultureBurgs.length} burgs are regenerated`, false, "success");
   },
 
   cultureHighlightOn(i: number): void {
@@ -473,7 +473,7 @@ export const culturesEditorActions = {
       });
 
     const csvData = [headers].concat(lines).join("\n");
-    downloadFile(csvData, `${getFileName("Cultures")}.csv`);
+    downloadFile(csvData, `${getFileName("GenerationPipeline.Cultures")}.csv`);
   },
 
   async uploadCulturesData(file: File): Promise<void> {
@@ -491,7 +491,9 @@ export const culturesEditorActions = {
     }));
 
     const { cultures, cells } = worldContext.pack;
-    const shapes = Object.keys(COA.shields.types).flatMap((type: string) => Object.keys(COA.shields[type]));
+    const shapes = Object.keys(GenerationPipeline.COA.shields.types).flatMap((type: string) =>
+      Object.keys(GenerationPipeline.COA.shields[type])
+    );
 
     const populated = Array.from(cells.pop)
       .map((c: number, i: number) => (c ? i : null))
@@ -844,7 +846,7 @@ function addCulture(this: SVGElement, event: MouseEvent): void {
   }
 
   if (event.shiftKey === false) exitAddCultureMode();
-  Cultures.add(center);
+  GenerationPipeline.Cultures.add(center);
 
   drawCultureCenters();
   culturesEditorActions.refresh();

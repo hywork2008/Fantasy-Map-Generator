@@ -1,9 +1,10 @@
 import { curveCatmullRom, type D3DragEvent, drag, pointer, select } from "d3";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import { Names } from "../generators/names-generator";
-import { Rivers } from "../generators/river-generator";
+
 import { removeRivers } from "../renderers/draw-rivers";
+import { GenerationPipeline } from "../services/generationPipeline";
+import { clearMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { dialogStore } from "../store/dialogState";
 import { elSelected, setElSelected } from "../store/editorState";
@@ -14,7 +15,6 @@ import { findCell, getSegmentId, rand, rn } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { getPackPolygon } from "../utils/graphUtils";
 import { getElementById, layerIsOn } from "../utils/nodeUtils";
-import { clearMainTip, tip } from "../utils/uiHelpers";
 import { openElevationProfile } from "./elevation-profile";
 import { toggleCells, toggleRivers } from "./layers";
 import { editNotes } from "./notes-editor";
@@ -56,9 +56,9 @@ function updateRiverData(): void {
   const lengthUI = `${rn(r.length * worldContext.distanceScale)} ${distanceUnit}`;
 
   const { cells: riverCells, discharge, widthFactor, sourceWidth } = r;
-  const meanderedPoints = Rivers.addMeandering(riverCells);
-  r.width = Rivers.getWidth(
-    Rivers.getOffset({
+  const meanderedPoints = GenerationPipeline.Rivers.addMeandering(riverCells);
+  r.width = GenerationPipeline.Rivers.getWidth(
+    GenerationPipeline.Rivers.getOffset({
       flux: discharge,
       pointIndex: meanderedPoints.length,
       widthFactor,
@@ -154,8 +154,8 @@ function redrawRiver(): void {
   river.cells = river.points.map(([x, y]) => findCell(x, y));
 
   view.lineGen.curve(curveCatmullRom.alpha(0.1));
-  const meanderedPoints = Rivers.addMeandering(river.cells, river.points);
-  const path = Rivers.getRiverPath(meanderedPoints, river.widthFactor, river.sourceWidth);
+  const meanderedPoints = GenerationPipeline.Rivers.addMeandering(river.cells, river.points);
+  const path = GenerationPipeline.Rivers.getRiverPath(meanderedPoints, river.widthFactor, river.sourceWidth);
   elSelected!.attr("d", path);
 
   updateRiverData();
@@ -216,14 +216,14 @@ export const riverEditorActions = {
   generateNameCulture: (): void => {
     const r = getRiver();
     if (!r) return;
-    r.name = Rivers.getName(r.mouth);
+    r.name = GenerationPipeline.Rivers.getName(r.mouth);
     updateRiverData();
   },
 
   generateNameRandom: (): void => {
     const r = getRiver();
     if (!r) return;
-    r.name = Names.getBase(rand(worldContext.nameBases.length - 1));
+    r.name = GenerationPipeline.Names.getBase(rand(worldContext.nameBases.length - 1));
     updateRiverData();
   },
 
@@ -281,7 +281,7 @@ export const riverEditorActions = {
       confirm: "Remove",
       onConfirm: () => {
         const r = getRiver();
-        if (r) removeRivers(viewContext, Rivers.remove(r.i));
+        if (r) removeRivers(viewContext, GenerationPipeline.Rivers.remove(r.i));
         closeDialog("riverEditor");
       }
     });
@@ -311,7 +311,7 @@ export function editRiver(id: string): void {
   const river = getRiver();
   if (river) {
     const { cells: riverCells, points } = river;
-    const riverPoints = Rivers.getRiverPoints(riverCells, points ?? null) as [number, number][];
+    const riverPoints = GenerationPipeline.Rivers.getRiverPoints(riverCells, points ?? null) as [number, number][];
     drawControlPoints(riverPoints);
     drawRiverCells(riverCells);
   }

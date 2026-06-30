@@ -3,8 +3,10 @@ import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import { Religions } from "../generators/religions-generator";
+
 import { PopulationRenderer, ReligionsRenderer } from "../renderers";
+import { GenerationPipeline } from "../services/generationPipeline";
+import { clearMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import type { ReligionRowData } from "../store/religionsEditorState";
 import { getReligionsEditorState, setReligionsEditorState } from "../store/religionsEditorState";
@@ -13,11 +15,11 @@ import type { Religion } from "../types/models";
 import { closeDialogs, isDialogOpen, openDialog } from "../ui/dialogs/dialogService";
 import type { PopulationChangeConfig } from "../ui/dialogs/PopulationChangeDialog";
 import { abbreviate, debounce, findAll, findCell, rn, si } from "../utils";
+import { getArea, getAreaUnit } from "../utils/domUtils";
 import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog, downloadFile, getFileName } from "../utils/editorHelpers";
 import { getPackPolygon } from "../utils/graphUtils";
 import { getElementById, layerIsOn } from "../utils/nodeUtils";
-import { clearMainTip, getArea, getAreaUnit, tip } from "../utils/uiHelpers";
 import { open as openHierarchyTree } from "./hierarchy-tree";
 import { toggleBiomes, toggleCultures, toggleProvinces, toggleReligions, toggleStates } from "./layers";
 import { editStyle } from "./style";
@@ -45,7 +47,7 @@ export function open(): void {
   drawReligionCenters();
 
   openDialog("religionsEditor", {
-    title: "Religions Editor",
+    title: "GenerationPipeline.Religions Editor",
     resizable: false,
     onClose: closeReligionsEditor,
     position: { my: "right top", at: "right-10 top+10", of: "svg", collision: "fit" }
@@ -64,7 +66,7 @@ function recalculateReligions(mustUpdate = false): void {
   const { autoChange } = getReligionsEditorState();
   if (!autoChange && !mustUpdate) return;
 
-  Religions.recalculate();
+  GenerationPipeline.Religions.recalculate();
   ReligionsRenderer.render(worldContext, viewContext, appServices);
   religionsEditorActions.refresh();
 }
@@ -182,7 +184,7 @@ export const religionsEditorActions = {
       .filter(r => r.i && !r.removed && r.area)
       .sort((a, b) => (b.area ?? 0) - (a.area ?? 0))
       .map(r => [r.i, r.color, r.name] as [number, string, string]);
-    EditorBus.drawLegend("Religions", data);
+    EditorBus.drawLegend("GenerationPipeline.Religions", data);
   },
 
   showHierarchy(): void {
@@ -320,7 +322,7 @@ export const religionsEditorActions = {
 
   regenerateDeity(i: number): void {
     const rel = worldContext.pack.religions[i] as Religion;
-    const deity = Religions.getDeityName(rel.culture);
+    const deity = GenerationPipeline.Religions.getDeityName(rel.culture);
     rel.deity = deity;
     religionsEditorActions.refresh();
   },
@@ -588,7 +590,7 @@ function addReligionClick(this: SVGElement, event: MouseEvent): void {
   }
 
   if (event.shiftKey === false) exitAddReligionMode();
-  Religions.add(center);
+  GenerationPipeline.Religions.add(center);
 
   ReligionsRenderer.render(worldContext, viewContext, appServices);
   religionsEditorActions.refresh();
@@ -665,7 +667,7 @@ function downloadReligionsCsv(): void {
     csv += `${r.i},${name},${r.color},${r.cells},${area} ${unit},${population},${type},${form},${deity},${expansion},${expansionism}\n`;
   }
 
-  downloadFile(csv, `${getFileName("Religions")}.csv`);
+  downloadFile(csv, `${getFileName("GenerationPipeline.Religions")}.csv`);
 }
 
 document.addEventListener("fmg:refresh-editors", () => {

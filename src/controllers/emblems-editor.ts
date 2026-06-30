@@ -1,8 +1,10 @@
 import type * as d3 from "d3";
 import { drag } from "d3";
 import { worldContext } from "../context/worldContext";
-import { COA, type Emblem } from "../generators/emblem/generator";
+import type { Emblem } from "../generators/emblem/generator";
 import { COArenderer } from "../renderers/emblem-renderer";
+import { GenerationPipeline } from "../services/generationPipeline";
+import { clearMainTip, highlightEmblemElement, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import {
   type BurgOptionItem,
@@ -11,10 +13,9 @@ import {
   setEmblemEditorState
 } from "../store/emblemEditorState";
 import { useOptionsState } from "../store/optionsState";
-import type { Burg, Province, State } from "../types/models";
+import type { Burg, EmblemEl, Province, State } from "../types/models";
 import { createObjectURL, openURL, revokeObjectURL, rn } from "../utils";
 import { downloadFile, getFileName } from "../utils/editorHelpers";
-import { clearMainTip, type EmblemEl, highlightEmblemElement, tip } from "../utils/uiHelpers";
 
 export function editEmblem(type?: string, id?: string, elInput?: Element | Burg | Province | State): void {
   if (view.customization) return;
@@ -29,7 +30,7 @@ export function editEmblem(type?: string, id?: string, elInput?: Element | Burg 
           : [worldContext.pack.states, "state"];
     const i = +(elInput as SVGElement).dataset.i!;
     type = t;
-    id = `${type}COA${i}`;
+    id = `${type}GenerationPipeline.COA${i}`;
     el = (g as (Burg | Province | State)[])[i];
   }
 
@@ -253,9 +254,9 @@ function regenerate(): void {
   const parentCulture = parent && "culture" in parent ? (parent as State).culture : 0;
   const elCulture = "culture" in el ? ((el as Burg | State).culture ?? 0) : 0;
   const elState = "state" in el ? (el as Province | Burg).state : undefined;
-  const shield = el.coa.shield || COA.getShield(elCulture || parentCulture, elState);
+  const shield = el.coa.shield || GenerationPipeline.COA.getShield(elCulture || parentCulture, elState);
 
-  el.coa = COA.generate(parent ? parent.coa : null, 0.3, 0.1, undefined);
+  el.coa = GenerationPipeline.COA.generate(parent ? parent.coa : null, 0.3, 0.1, undefined);
   el.coa.shield = shield;
 
   const coaEl = view.defs.select<Element>(`#${targetId}`).node();

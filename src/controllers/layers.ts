@@ -45,9 +45,9 @@ let appServices: AppServices;
 let presets: Record<string, string[]> = {};
 
 import { ThreeDRenderer } from "../renderers/three-d-renderer";
+import { tip } from "../services/tooltipService";
 import { DEFAULT_LAYERS, useLayerState } from "../store/layerState";
 import { getElementById, layerIsOn } from "../utils/nodeUtils";
-import { tip } from "../utils/uiHelpers";
 
 const editStyle = (element: string, group?: string) =>
   document.dispatchEvent(new CustomEvent("fmg:edit-style", { detail: { element, group } }));

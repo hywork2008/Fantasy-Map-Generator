@@ -7,11 +7,7 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
-import { Burgs } from "../generators/burgs-generator";
-import { COA } from "../generators/emblem/generator";
-import { Names } from "../generators/names-generator";
-import { Provinces } from "../generators/provinces-generator";
-import { States } from "../generators/states-generator";
+
 import {
   BordersRenderer,
   drawBurgIcon,
@@ -24,6 +20,8 @@ import {
 } from "../renderers";
 import type { Emblem as RendererEmblem } from "../renderers/emblem-renderer";
 import { COArenderer } from "../renderers/emblem-renderer";
+import { GenerationPipeline } from "../services/generationPipeline";
+import { clearMainTip, showMainTip, tip } from "../services/tooltipService";
 import { modules } from "../store/editorState";
 import {
   getProvincesEditorState,
@@ -42,11 +40,11 @@ import {
 } from "../ui/dialogs/dialogService";
 import type { PopulationChangeConfig } from "../ui/dialogs/PopulationChangeDialog";
 import { findAll, findCell, getRandomColor, isLand, P, parseTransform, rand, rn, unique } from "../utils";
+import { fitContent, getArea, getAreaUnit } from "../utils/domUtils";
 import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog, downloadFile, getFileName } from "../utils/editorHelpers";
 import { getPackPolygon } from "../utils/graphUtils";
 import { getElementsBySelector, layerIsOn } from "../utils/nodeUtils";
-import { clearMainTip, fitContent, getArea, getAreaUnit, showMainTip, tip } from "../utils/uiHelpers";
 import { overviewBurgs } from "./burgs-overview";
 import { editEmblem } from "./emblems-editor";
 import { interactionManager } from "./interactionManager";
@@ -73,7 +71,7 @@ export function editProvinces(): void {
   modules.editProvinces = true;
 
   openDialog("provincesEditor", {
-    title: "Provinces Editor",
+    title: "GenerationPipeline.Provinces Editor",
     resizable: false,
     width: fitContent(),
     onClose: closeProvincesEditor,
@@ -250,7 +248,7 @@ function declareProvinceIndependence(provinceId: number): [number, number] | und
 
   const capital = (burgs as Burg[])[burgId];
   capital.capital = 1;
-  Burgs.changeGroup(capital);
+  GenerationPipeline.Burgs.changeGroup(capital);
   drawBurgIcon(worldContext, viewContext, appServices, capital);
   drawBurgLabel(worldContext, viewContext, appServices, capital);
 
@@ -319,10 +317,10 @@ function updateStatesPostRelease(oldStates: number[], newStates: number[]): void
   layerIsOn("toggleBorders") ? BordersRenderer.render(worldContext, viewContext, appServices) : toggleBorders();
 
   const state = getWorldState();
-  States.getPoles(state);
-  States.findNeighbors();
-  States.collectStatistics(state);
-  States.defineStateForms(state, newStates);
+  GenerationPipeline.States.getPoles(state);
+  GenerationPipeline.States.findNeighbors();
+  GenerationPipeline.States.collectStatistics(state);
+  GenerationPipeline.States.defineStateForms(state, newStates);
   drawStateLabels(worldContext, viewContext, appServices, allStates);
 
   allStates.forEach(stateId => {
@@ -628,7 +626,7 @@ function applyProvincesManualAssignment(): void {
       worldContext.pack.cells.province[i] = +el.dataset.province!;
     });
 
-  Provinces.getPoles(getWorldState());
+  GenerationPipeline.Provinces.getPoles(getWorldState());
   if (layerIsOn("toggleBorders")) BordersRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleProvinces")) ProvincesRenderer.render(worldContext, viewContext, appServices);
 
@@ -696,7 +694,10 @@ function addProvince(this: SVGElement, event: MouseEvent): void {
   const c = cells.culture[center];
   const name = burg
     ? ((worldContext.pack.burgs as Burg[])[burg].name ?? "")
-    : Names.getState(Names.getCultureShort(worldContext, viewContext, appServices, c), c);
+    : GenerationPipeline.Names.getState(
+        GenerationPipeline.Names.getCultureShort(worldContext, viewContext, appServices, c),
+        c
+      );
   const formName = oldProvince ? provincesArr[oldProvince].formName : "Province";
   const fullName = `${name} ${formName}`;
   const stateColor = (worldContext.pack.states as State[])[state].color ?? "";
@@ -705,10 +706,10 @@ function addProvince(this: SVGElement, event: MouseEvent): void {
 
   const kinship = burg ? 0.8 : 0.4;
   const parentBurg = burg ? (worldContext.pack.burgs as Burg[])[burg] : null;
-  const type = Burgs.getType(center, parentBurg?.port);
+  const type = GenerationPipeline.Burgs.getType(center, parentBurg?.port);
   const parentCOA = parentBurg ? parentBurg.coa : (worldContext.pack.states as State[])[state].coa;
-  const coa = COA.generate(parentCOA ?? null, kinship, P(0.1) as unknown as number, type);
-  coa.shield = COA.getShield(c, state) ?? "";
+  const coa = GenerationPipeline.COA.generate(parentCOA ?? null, kinship, P(0.1) as unknown as number, type);
+  coa.shield = GenerationPipeline.COA.getShield(c, state) ?? "";
   COArenderer.add("province", province, coa as RendererEmblem, px, py);
 
   provincesArr.push({ i: province, state, center, burg, name, formName, fullName, color: newColor, coa } as Province);
@@ -754,7 +755,7 @@ function recolorProvinces(): void {
 
 function downloadProvincesData(): void {
   const unit = getAreaUnit();
-  let data = `Id,Province,Full Name,Form,State,Color,Capital,Area ${unit},Total Population,Rural Population,Urban Population,Burgs\n`;
+  let data = `Id,Province,Full Name,Form,State,Color,Capital,Area ${unit},Total Population,Rural Population,Urban Population,GenerationPipeline.Burgs\n`;
 
   const { provinces } = getProvincesEditorState();
   provinces.forEach(p => {
@@ -772,7 +773,7 @@ function downloadProvincesData(): void {
     data += `${p.burgCount}\n`;
   });
 
-  downloadFile(data, `${getFileName("Provinces")}.csv`);
+  downloadFile(data, `${getFileName("GenerationPipeline.Provinces")}.csv`);
 }
 
 function removeAllProvinces(): void {
@@ -834,7 +835,7 @@ function openProvinceMergeDialog(): void {
   const selectedState = filterState;
   if (selectedState === -1) {
     openAlert("Please select a specific state from the filter to merge provinces within that state.", {
-      title: "Merge Provinces"
+      title: "Merge GenerationPipeline.Provinces"
     });
     return;
   }
@@ -842,7 +843,7 @@ function openProvinceMergeDialog(): void {
     p => p.i && !p.removed && p.state === selectedState
   );
   if (provincesToMerge.length < 2) {
-    openAlert("Not enough provinces in the selected state to merge.", { title: "Merge Provinces" });
+    openAlert("Not enough provinces in the selected state to merge.", { title: "Merge GenerationPipeline.Provinces" });
     return;
   }
 
@@ -894,7 +895,7 @@ function mergeProvinces(ids: number[], primary: number): void {
   );
 
   collectStatistics();
-  Provinces.getPoles(getWorldState());
+  GenerationPipeline.Provinces.getPoles(getWorldState());
 
   if (layerIsOn("toggleProvinces")) ProvincesRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleBorders")) BordersRenderer.render(worldContext, viewContext, appServices);
@@ -978,7 +979,10 @@ export const provincesEditorActions = {
     if (!ne) return;
     const province = (worldContext.pack.provinces as Province[])[ne.provinceId];
     const culture = worldContext.pack.cells.culture[province.center];
-    const name = Names.getState(Names.getCultureShort(worldContext, viewContext, appServices, culture), culture);
+    const name = GenerationPipeline.Names.getState(
+      GenerationPipeline.Names.getCultureShort(worldContext, viewContext, appServices, culture),
+      culture
+    );
     setProvincesEditorState({ nameEditor: { ...ne, shortName: name } });
   },
 
@@ -986,7 +990,7 @@ export const provincesEditorActions = {
     const ne = getProvincesEditorState().nameEditor;
     if (!ne) return;
     const base = rand(worldContext.nameBases.length - 1);
-    const name = Names.getState(Names.getBase(base), 0, base);
+    const name = GenerationPipeline.Names.getState(GenerationPipeline.Names.getBase(base), 0, base);
     setProvincesEditorState({ nameEditor: { ...ne, shortName: name } });
   },
 

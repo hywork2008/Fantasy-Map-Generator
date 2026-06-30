@@ -3,9 +3,11 @@ import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import { Routes } from "../generators/routes-generator";
+
 import { drawTemperature } from "../renderers";
 import { drawScaleBar, fitScaleBar } from "../renderers/index";
+import { GenerationPipeline } from "../services/generationPipeline";
+import { clearMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { modules, rulers, setRulers } from "../store/editorState";
 import { useOptionsState } from "../store/optionsState";
@@ -14,7 +16,6 @@ import { closeDialogs, openConfirm, openDialog } from "../ui/dialogs/dialogServi
 import { findCell } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { getElementById, layerIsOn } from "../utils/nodeUtils";
-import { clearMainTip, tip } from "../utils/uiHelpers";
 import { toggleRulers } from "./layers";
 import { calculateFriendlyGridSize } from "./style";
 
@@ -189,7 +190,7 @@ export const unitsEditorActions = {
           const point = pointer(startEvent, this) as [number, number];
           const c = findCell(point[0], point[1]);
 
-          if (Routes.isConnected(c) || startEvent.sourceEvent.shiftKey) {
+          if (GenerationPipeline.Routes.isConnected(c) || startEvent.sourceEvent.shiftKey) {
             const b = cells.burg[c];
             const x = b ? burgs[b].x : cells.p[c][0];
             const y = b ? burgs[b].y : cells.p[c][1];
@@ -198,7 +199,7 @@ export const unitsEditorActions = {
             startEvent.on("drag", (event: D3DragEvent<SVGGElement, unknown, unknown>) => {
               const pt = pointer(event, this) as [number, number];
               const ci = findCell(pt[0], pt[1]);
-              if (Routes.isConnected(ci) || event.sourceEvent.shiftKey) {
+              if (GenerationPipeline.Routes.isConnected(ci) || event.sourceEvent.shiftKey) {
                 routeOpisometer.trackCell(ci, true);
               }
             });

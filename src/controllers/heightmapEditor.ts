@@ -7,20 +7,7 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
-import { Biomes } from "../generators/biomes";
-import { Burgs } from "../generators/burgs-generator";
-import { Cultures } from "../generators/cultures-generator";
-import { Features } from "../generators/features";
-import { Ice } from "../generators/ice";
-import { Lakes } from "../generators/lakes";
-import { Markers } from "../generators/markers-generator";
-import { Military } from "../generators/military-generator";
-import { Provinces } from "../generators/provinces-generator";
-import { Religions } from "../generators/religions-generator";
-import { Rivers } from "../generators/river-generator";
-import { Routes } from "../generators/routes-generator";
-import { States } from "../generators/states-generator";
-import { Zones } from "../generators/zones-generator";
+
 import {
   addLakesInDeepDepressions,
   calculateTemperatures,
@@ -33,6 +20,8 @@ import {
 import { FeaturesRenderer, removeBurgCOA } from "../renderers";
 import { OceanLayers } from "../renderers/ocean-layers";
 import { ThreeDRenderer } from "../renderers/three-d-renderer";
+import { GenerationPipeline } from "../services/generationPipeline";
+import { clearMainTip, showMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { modules } from "../store/editorState";
 import { heightmapEditModeStore, imageConverterCloseStore } from "../store/heightmapDialogState";
@@ -47,7 +36,6 @@ import { INFO, TIME } from "../utils/debug";
 import { EditorBus } from "../utils/editorBus";
 import { getFileName } from "../utils/editorHelpers";
 import { getElementById, layerIsOn } from "../utils/nodeUtils";
-import { clearMainTip, showMainTip, tip } from "../utils/uiHelpers";
 import { HeightmapEditorHistoryClass as HeightmapEditorHistory } from "./HeightmapEditorHistory";
 import {
   disruptAllHeights,
@@ -363,7 +351,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     worldContext.pack.religions = [];
 
     const erosionAllowed = (allowErosion as HTMLInputElement).checked;
-    Features.markupGrid();
+    GenerationPipeline.Features.markupGrid();
     if (erosionAllowed) {
       addLakesInDeepDepressions();
       openNearSeaLakes();
@@ -372,10 +360,10 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     calculateTemperatures();
     generatePrecipitation();
     reGraph();
-    Features.markupPack();
+    GenerationPipeline.Features.markupPack();
 
     const state = getWorldState();
-    Rivers.generate(worldContext, viewContext, appServices, state, erosionAllowed);
+    GenerationPipeline.Rivers.generate(worldContext, viewContext, appServices, state, erosionAllowed);
 
     if (!erosionAllowed) {
       for (const i of worldContext.pack.cells.i) {
@@ -388,26 +376,26 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       }
     }
 
-    Biomes.define(state);
-    Features.defineGroups();
+    GenerationPipeline.Biomes.define(state);
+    GenerationPipeline.Features.defineGroups();
     rankCells();
-    Cultures.generate(worldContext, viewContext, appServices, state);
-    Cultures.expand(state);
-    Burgs.generate(worldContext, viewContext, appServices, state);
-    States.generate(worldContext, viewContext, appServices, state);
-    Routes.generate(worldContext, viewContext, appServices, state);
-    Religions.generate(worldContext, viewContext, appServices, state);
-    Burgs.specify(worldContext, viewContext, appServices, state);
-    States.collectStatistics(state);
-    States.defineStateForms(state);
-    Provinces.generate(worldContext, viewContext, appServices, state);
-    Provinces.getPoles(state);
-    Rivers.specify(worldContext, viewContext, appServices, state);
-    Lakes.defineNames(state);
-    Ice.generate(worldContext, viewContext, appServices, state);
-    Military.generate(worldContext, viewContext, appServices, state);
-    Markers.generate(worldContext, viewContext, appServices, state);
-    Zones.generate(worldContext, viewContext, appServices, state);
+    GenerationPipeline.Cultures.generate(worldContext, viewContext, appServices, state);
+    GenerationPipeline.Cultures.expand(state);
+    GenerationPipeline.Burgs.generate(worldContext, viewContext, appServices, state);
+    GenerationPipeline.States.generate(worldContext, viewContext, appServices, state);
+    GenerationPipeline.Routes.generate(worldContext, viewContext, appServices, state);
+    GenerationPipeline.Religions.generate(worldContext, viewContext, appServices, state);
+    GenerationPipeline.Burgs.specify(worldContext, viewContext, appServices, state);
+    GenerationPipeline.States.collectStatistics(state);
+    GenerationPipeline.States.defineStateForms(state);
+    GenerationPipeline.Provinces.generate(worldContext, viewContext, appServices, state);
+    GenerationPipeline.Provinces.getPoles(state);
+    GenerationPipeline.Rivers.specify(worldContext, viewContext, appServices, state);
+    GenerationPipeline.Lakes.defineNames(state);
+    GenerationPipeline.Ice.generate(worldContext, viewContext, appServices, state);
+    GenerationPipeline.Military.generate(worldContext, viewContext, appServices, state);
+    GenerationPipeline.Markers.generate(worldContext, viewContext, appServices, state);
+    GenerationPipeline.Zones.generate(worldContext, viewContext, appServices, state);
 
     TIME && console.timeEnd("regenerateErasedData");
     INFO && console.groupEnd();
@@ -476,18 +464,18 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       zoneGridCellsMap.set(zone.i, unique(zoneGridCells));
     }
 
-    Features.markupGrid();
+    GenerationPipeline.Features.markupGrid();
     if (erosionAllowed) addLakesInDeepDepressions();
     OceanLayers();
     calculateTemperatures();
     generatePrecipitation();
     reGraph();
-    Features.markupPack();
+    GenerationPipeline.Features.markupPack();
 
     if (erosionAllowed) {
       const worldState = getWorldState();
-      Rivers.generate(worldContext, viewContext, appServices, worldState, true);
-      Features.defineGroups();
+      GenerationPipeline.Rivers.generate(worldContext, viewContext, appServices, worldState, true);
+      GenerationPipeline.Features.defineGroups();
     }
 
     const n = worldContext.pack.cells.i.length;
@@ -520,7 +508,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       worldContext.pack.cells.biome[i] =
         isLand && biome[g]
           ? biome[g]
-          : Biomes.getId(
+          : GenerationPipeline.Biomes.getId(
               worldContext.grid.cells.prec[g],
               worldContext.grid.cells.temp[g],
               worldContext.pack.cells.h[i],
@@ -555,7 +543,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       worldContext.pack.cells.burg[b.cell] = b.i!;
       if (!b.capital && worldContext.pack.cells.h[b.cell] < 20) {
         const hasCOA = !!b.coa;
-        Burgs.remove(b.i);
+        GenerationPipeline.Burgs.remove(b.i);
         if (hasCOA) removeBurgCOA(viewContext, b.i!);
       }
       if (b.capital) worldContext.pack.states[b.state!].center = b.cell;
@@ -585,8 +573,8 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
 
     const worldState = getWorldState();
     if (erosionAllowed) {
-      Rivers.specify(worldContext, viewContext, appServices, worldState);
-      Lakes.defineNames(worldState);
+      GenerationPipeline.Rivers.specify(worldContext, viewContext, appServices, worldState);
+      GenerationPipeline.Lakes.defineNames(worldState);
     }
 
     const gridToPackMap = new Map<number, number[]>();
@@ -606,7 +594,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       }
     }
 
-    Ice.generate(worldContext, viewContext, appServices, worldState);
+    GenerationPipeline.Ice.generate(worldContext, viewContext, appServices, worldState);
     view.ice.selectAll("*").remove();
 
     TIME && console.timeEnd("restoreRiskedData");

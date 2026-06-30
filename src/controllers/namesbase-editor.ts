@@ -1,6 +1,6 @@
 import { max as d3max, min as d3min, mean, median } from "d3";
 import { worldContext } from "../context/worldContext";
-import { Names } from "../generators/names-generator";
+import { GenerationPipeline } from "../services/generationPipeline";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { openConfirm, openDialog } from "../ui/dialogs/dialogService";
 import { rn, unique } from "../utils";
@@ -47,7 +47,7 @@ class NamesbaseEditorModule {
       return null;
     }
 
-    const chain = Names.calculateChain(namesSourceString);
+    const chain = GenerationPipeline.Names.calculateChain(namesSourceString);
     const chainValues = Object.values(chain) as string[][];
     const variety = rn(mean(chainValues.map(kv => kv.length)) ?? 0);
 
@@ -106,8 +106,8 @@ class NamesbaseEditorModule {
       title: "Restore default data",
       confirm: "Restore",
       onConfirm: () => {
-        Names.clearChains();
-        worldContext.nameBases = Names.getNameBases();
+        GenerationPipeline.Names.clearChains();
+        worldContext.nameBases = GenerationPipeline.Names.getNameBases();
         onConfirm();
       }
     });
@@ -132,7 +132,7 @@ class NamesbaseEditorModule {
       };
     }
 
-    Names.clearChains();
+    GenerationPipeline.Names.clearChains();
     if (override) worldContext.nameBases = [];
 
     const errors: ParseError[] = [];

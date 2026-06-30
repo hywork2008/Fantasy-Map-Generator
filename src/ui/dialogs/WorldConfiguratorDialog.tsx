@@ -7,7 +7,7 @@ import { useDialogState } from "../../store/dialogState";
 import { useOptionsState } from "../../store/optionsState";
 import { useWorldConfiguratorFormStore } from "../../store/worldConfiguratorFormStore";
 import { convertTemperature, debounce, parseTransform, rn, round } from "../../utils";
-import { lock } from "../../utils/uiHelpers";
+import { lock } from "../../utils/domUtils";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 

@@ -2,7 +2,7 @@ import { DEBUG } from "../utils/debug";
 // Cloud provider implementations (Dropbox only)
 
 import { DropboxAuth, Dropbox as DropboxClient } from "dropbox";
-import { tip } from "../utils/uiHelpers";
+import { tip } from "../services/tooltipService";
 
 interface DropboxResponse<T> {
   result: T;

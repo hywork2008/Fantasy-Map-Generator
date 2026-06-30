@@ -1,9 +1,9 @@
 import type React from "react";
 import { useEffect, useState } from "react";
 import { regeneratePrompt } from "../../controllers/options";
+import { clearMainTip } from "../../services/tooltipService";
 import { useOptionsState } from "../../store/optionsState";
 import { useViewState } from "../../store/viewState";
-import { clearMainTip } from "../../utils/uiHelpers";
 import { CustomizationMenu } from "./CustomizationMenu";
 import { Sticked } from "./Sticked";
 import { AboutTab } from "./tabs/AboutTab";

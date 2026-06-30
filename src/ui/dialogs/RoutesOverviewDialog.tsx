@@ -5,13 +5,13 @@ import { confirmationDialog, downloadFile, getFileName, highlightElement } from 
 import { toggleRoutes } from "../../controllers/layers";
 import { createRoute, editRoute } from "../../controllers/routes-editor";
 import { Routes } from "../../generators/routes-generator";
+import { tip } from "../../services/tooltipService";
 import { viewLayerService as view } from "../../services/viewLayerService";
 import { useDialogState } from "../../store/dialogState";
 import { useOptionsState } from "../../store/optionsState";
 import { useRoutesOverviewState } from "../../store/routesOverviewState";
 import { rn } from "../../utils";
 import { layerIsOn } from "../../utils/nodeUtils";
-import { tip } from "../../utils/uiHelpers";
 import { Dialog } from "./Dialog";
 import { closeDialog, openConfirm } from "./dialogService";
 

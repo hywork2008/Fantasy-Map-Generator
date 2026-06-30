@@ -1,6 +1,7 @@
 import type { D3DragEvent, Quadtree } from "d3";
 import { drag, pointer, quadtree, range, select } from "d3";
 import { worldContext } from "../context/worldContext";
+import { clearMainTip, showMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { elSelected, modules, setElSelected } from "../store/editorState";
 import type { ReliefIconSet } from "../store/reliefEditorState";
@@ -9,7 +10,6 @@ import { closeDialog, closeDialogs, openConfirm, openDialog } from "../ui/dialog
 import { findAllInQuadtree, findCell, rn } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { getElementBySelector, layerIsOn } from "../utils/nodeUtils";
-import { clearMainTip, showMainTip, tip } from "../utils/uiHelpers";
 import { toggleRelief } from "./layers";
 import { editStyle } from "./style";
 

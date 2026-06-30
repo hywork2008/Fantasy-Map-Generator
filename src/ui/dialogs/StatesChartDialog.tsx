@@ -7,7 +7,7 @@ import { useDialogState } from "../../store/dialogState";
 import { useOptionsState } from "../../store/optionsState";
 import type { State } from "../../types/models";
 import { rn, si } from "../../utils";
-import { getArea, getAreaUnit } from "../../utils/uiHelpers";
+import { getArea, getAreaUnit } from "../../utils/domUtils";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 

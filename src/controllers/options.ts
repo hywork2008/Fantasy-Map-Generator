@@ -7,15 +7,15 @@ import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import { heightmapTemplates } from "../data";
 import { THEME_COLOR } from "../data/constants";
-import { Cultures } from "../generators/cultures-generator";
-import { COA } from "../generators/emblem/generator";
-import { Names } from "../generators/names-generator";
+
 import { Cloud } from "../io/cloud";
 import { loadMapFromURL } from "../io/load";
 import { StatesRenderer } from "../renderers";
 import type { Emblem as RendererEmblem } from "../renderers/emblem-renderer";
 import { COArenderer } from "../renderers/emblem-renderer";
 import { fitScaleBar } from "../renderers/index";
+import { GenerationPipeline } from "../services/generationPipeline";
+import { tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { viewStateStore } from "../store";
 import { loadMapDialogStore } from "../store/loadMapDialogState";
@@ -24,8 +24,8 @@ import { type OptionsState, useOptionsState } from "../store/optionsState";
 import type { Burg, Culture, Province, State } from "../types/models";
 import { closeAllDialogs, closeDialogs, openAlert, openConfirm, openDialog } from "../ui/dialogs/dialogService";
 import { gauss, last, minmax, P, rand, rn, rw } from "../utils";
+import { applyOption, lock, locked, stored, unlock } from "../utils/domUtils";
 import { getElementById, getElementBySelector, getElementsBySelector } from "../utils/nodeUtils";
-import { applyOption, lock, locked, stored, tip, unlock } from "../utils/uiHelpers";
 import { cleanupData } from "../versioning";
 import { exportToJson as exportToJsonModule } from "./export-json";
 import { editWorld } from "./world-configurator";
@@ -250,7 +250,7 @@ function changeEmblemShape(emblemShape: string): void {
     (worldContext.pack.cultures as Culture[])
       .filter(c => !c.removed)
       .forEach(c => {
-        c.shield = Cultures.getRandomShield();
+        c.shield = GenerationPipeline.Cultures.getRandomShield();
       });
 
   const rerenderCOA = (id: string, coa: RendererEmblem) => {
@@ -262,7 +262,7 @@ function changeEmblemShape(emblemShape: string): void {
 
   (worldContext.pack.states as State[]).forEach(state => {
     if (!state.i || state.removed || !state.coa || state.coa.custom) return;
-    const newShield = specificShape || COA.getShield(state.culture);
+    const newShield = specificShape || GenerationPipeline.COA.getShield(state.culture);
     if (newShield === state.coa.shield) return;
     state.coa.shield = newShield;
     rerenderCOA(`stateCOA${state.i}`, state.coa);
@@ -271,7 +271,7 @@ function changeEmblemShape(emblemShape: string): void {
   (worldContext.pack.provinces as Province[]).forEach(province => {
     if (!province.i || province.removed || !province.coa || province.coa.custom) return;
     const culture = worldContext.pack.cells.culture[province.center];
-    const newShield = specificShape || COA.getShield(culture, province.state);
+    const newShield = specificShape || GenerationPipeline.COA.getShield(culture, province.state);
     if (newShield === province.coa.shield) return;
     province.coa.shield = newShield;
     rerenderCOA(`provinceCOA${province.i}`, province.coa);
@@ -279,7 +279,7 @@ function changeEmblemShape(emblemShape: string): void {
 
   worldContext.pack.burgs.forEach((burg: Burg) => {
     if (!burg.i || burg.removed || !burg.coa || burg.coa.custom) return;
-    const newShield = specificShape || COA.getShield(burg.culture ?? 0, burg.state);
+    const newShield = specificShape || GenerationPipeline.COA.getShield(burg.culture ?? 0, burg.state);
     if (newShield === burg.coa.shield) return;
     burg.coa.shield = newShield;
     rerenderCOA(`burgCOA${burg.i}`, burg.coa);
@@ -639,7 +639,9 @@ function generateEra(): void {
   const store = useOptionsState.getState();
   if (!stored("year")) store.setOptions({ year: rand(100, 2000) });
   if (!stored("era"))
-    store.setOptions({ era: `${Names.getBaseShort(P(0.7) ? 1 : rand(worldContext.nameBases.length))} Era` });
+    store.setOptions({
+      era: `${GenerationPipeline.Names.getBaseShort(P(0.7) ? 1 : rand(worldContext.nameBases.length))} Era`
+    });
 
   worldContext.options.year = store.year;
   worldContext.options.era = store.era;
@@ -651,7 +653,7 @@ function generateEra(): void {
 
 function regenerateEra(): void {
   unlock("era");
-  const era = `${Names.getBaseShort(P(0.7) ? 1 : rand(worldContext.nameBases.length))} Era`;
+  const era = `${GenerationPipeline.Names.getBaseShort(P(0.7) ? 1 : rand(worldContext.nameBases.length))} Era`;
   useOptionsState.getState().setOptions({ era });
   worldContext.options.era = era;
   worldContext.options.eraShort = worldContext.options.era
@@ -815,7 +817,7 @@ export function initOptions(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: 
   document.addEventListener("react-test-speaker", testSpeaker);
 
   document.addEventListener("react-regenerate-map-name", () => {
-    Names.getMapName(true);
+    GenerationPipeline.Names.getMapName(true);
   });
 
   document.addEventListener("react-change-year", (e: Event) => {

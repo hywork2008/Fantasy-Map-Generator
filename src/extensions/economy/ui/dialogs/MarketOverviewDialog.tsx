@@ -3,7 +3,7 @@ import { useDialogState } from "../../../../store/dialogState";
 import { Dialog } from "../../../../ui/dialogs/Dialog";
 import { closeDialog } from "../../../../ui/dialogs/dialogService";
 import { formatPrice } from "../../../../utils";
-import { applySorting } from "../../../../utils/uiHelpers";
+import { applySorting } from "../../../../utils/domUtils";
 import {
   downloadStockCsv,
   openActiveMarketDeals,

@@ -4,18 +4,20 @@ import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import { Biomes } from "../generators/biomes";
+
 import { BiomesRenderer, ReliefIconsRenderer } from "../renderers";
+import { GenerationPipeline } from "../services/generationPipeline";
+import { clearMainTip, showMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import type { BiomeRow, BiomesFooter } from "../store/biomesEditorStore";
 import { useBiomesEditorStore } from "../store/biomesEditorStore";
 import { isDialogOpen, openDialog } from "../ui/dialogs/dialogService";
 import { findAll, findCell, getRandomColor, isLand, openURL, rn, si } from "../utils";
+import { getArea, getAreaUnit } from "../utils/domUtils";
 import { EditorBus } from "../utils/editorBus";
 import { downloadFile, getFileName } from "../utils/editorHelpers";
 import { getPackPolygon } from "../utils/graphUtils";
 import { layerIsOn } from "../utils/nodeUtils";
-import { clearMainTip, getArea, getAreaUnit, showMainTip, tip } from "../utils/uiHelpers";
 import { toggleBiomes, toggleCultures, toggleProvinces, toggleRelief, toggleReligions, toggleStates } from "./layers";
 import { editStyle } from "./style";
 
@@ -186,7 +188,7 @@ export function biomesToggleLegend(): void {
     .filter(i => d.cells![i])
     .sort((a, b) => d.area![b] - d.area![a])
     .map(i => [i, d.color[i], d.name[i]] as [number, string, string]);
-  EditorBus.drawLegend("Biomes", data);
+  EditorBus.drawLegend("GenerationPipeline.Biomes", data);
 }
 
 export function biomesToggleDisplayMode(): void {
@@ -241,7 +243,7 @@ export function biomesDownloadData(rows: BiomeRow[]): void {
   rows.forEach(row => {
     data += `${row.i},${row.name},${row.color},${row.habitability}%,${row.cells},${row.area},${row.population}\n`;
   });
-  downloadFile(data, `${getFileName("Biomes")}.csv`);
+  downloadFile(data, `${getFileName("GenerationPipeline.Biomes")}.csv`);
 }
 
 export function biomesEditStyle(): void {
@@ -355,8 +357,8 @@ export function biomesExitCustomization(close?: string): void {
 }
 
 export function biomesRestoreDefaults(): void {
-  worldContext.biomesData = Biomes.getDefault();
-  Biomes.define(getWorldState());
+  worldContext.biomesData = GenerationPipeline.Biomes.getDefault();
+  GenerationPipeline.Biomes.define(getWorldState());
   BiomesRenderer.render(worldContext, viewContext, appServices);
   recalculatePopulation();
   biomesRefresh();

@@ -1,6 +1,7 @@
 import * as d3 from "d3";
+import { tip } from "../../services/tooltipService";
+import { type CellInfoData, useCellInfoState } from "../../store/cellInfoState";
 import { rn } from "../../utils/numberUtils";
-import { tip } from "../../utils/uiHelpers";
 import { getWorldContext } from "./economyContext";
 import { Goods } from "./generators/goods-generator";
 import { Markets } from "./generators/markets-generator";
@@ -70,44 +71,36 @@ export function showEconomyTooltip(
 
 export function updateEconomyCellInfo(_point: [number, number], i: number, _g: number): void {
   const cells = getWorldContext().pack.cells;
-  const infoGood = document.getElementById("infoGood") as HTMLElement;
-  const infoMarket = document.getElementById("infoMarket") as HTMLElement;
-  const infoCellProduction = document.getElementById("infoCellProduction") as HTMLElement;
-  const infoBurgProduction = document.getElementById("infoBurgProduction") as HTMLElement;
+  const updateData: Partial<CellInfoData> = {};
 
-  if (infoGood)
-    infoGood.innerHTML = cells.good[i] ? `${Goods.get(cells.good[i])?.name ?? "unknown"} (${cells.good[i]})` : "no";
+  updateData.good = cells.good[i] ? `${Goods.get(cells.good[i])?.name ?? "unknown"} (${cells.good[i]})` : "no";
 
-  if (infoMarket) {
-    const marketId = cells.market?.[i];
-    if (marketId) {
-      const market = Markets.get(marketId);
-      const centerBurg = market && getWorldContext().pack.burgs[market.centerBurgId];
-      infoMarket.innerHTML = centerBurg ? `${centerBurg.name} market (${marketId})` : `market ${marketId}`;
-    } else {
-      infoMarket.innerHTML = "no";
-    }
+  const marketId = cells.market?.[i];
+  if (marketId) {
+    const market = Markets.get(marketId);
+    const centerBurg = market && getWorldContext().pack.burgs[market.centerBurgId];
+    updateData.market = centerBurg ? `${centerBurg.name} market (${marketId})` : `market ${marketId}`;
+  } else {
+    updateData.market = "no";
   }
 
-  if (infoCellProduction) {
-    const cellProduced = getCellProduction(i, Goods.getBiomesProduction());
-    const cellEntries = Object.entries(cellProduced).filter(([, amt]) => amt > 0);
-    infoCellProduction.innerHTML = cellEntries.length
-      ? cellEntries.map(([id, amt]) => `${Goods.get(+id)?.name ?? id}: ${rn(amt, 2)}`).join(", ")
+  const cellProduced = getCellProduction(i, Goods.getBiomesProduction());
+  const cellEntries = Object.entries(cellProduced).filter(([, amt]) => amt > 0);
+  updateData.cellProduction = cellEntries.length
+    ? cellEntries.map(([id, amt]) => `${Goods.get(+id)?.name ?? id}: ${rn(amt, 2)}`).join(", ")
+    : "none";
+
+  const burgId = cells.burg[i];
+  if (burgId) {
+    const burg = getWorldContext().pack.burgs[burgId];
+    const burgProduced = Production.getBurgProduction(burg);
+    const burgEntries = Object.entries(burgProduced).filter(([, amt]) => amt > 0);
+    updateData.burgProduction = burgEntries.length
+      ? burgEntries.map(([id, amt]) => `${Goods.get(+id)?.name ?? id}: ${rn(amt, 2)}`).join(", ")
       : "none";
+  } else {
+    updateData.burgProduction = "n/a";
   }
 
-  if (infoBurgProduction) {
-    const burgId = cells.burg[i];
-    if (burgId) {
-      const burg = getWorldContext().pack.burgs[burgId];
-      const burgProduced = Production.getBurgProduction(burg);
-      const burgEntries = Object.entries(burgProduced).filter(([, amt]) => amt > 0);
-      infoBurgProduction.innerHTML = burgEntries.length
-        ? burgEntries.map(([id, amt]) => `${Goods.get(+id)?.name ?? id}: ${rn(amt, 2)}`).join(", ")
-        : "none";
-    } else {
-      infoBurgProduction.innerHTML = "n/a";
-    }
-  }
+  useCellInfoState.getState().updateInfo(updateData);
 }

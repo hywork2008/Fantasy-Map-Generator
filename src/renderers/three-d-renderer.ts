@@ -18,9 +18,9 @@ import { cloudImage } from "../assets/cloud-image";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { getMapURL } from "../io/export";
+import { tip } from "../services/tooltipService";
 import { createObjectURL, revokeObjectURL, rn, throttle } from "../utils";
 import { downloadFile, getFileName } from "../utils/editorHelpers";
-import { tip } from "../utils/uiHelpers";
 
 interface ThreeDOptions {
   scale: number;

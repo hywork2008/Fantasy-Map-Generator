@@ -1,9 +1,10 @@
 import { pointer } from "d3";
+import { clearMainTip, tip } from "../../../services/tooltipService";
 import { rn, unique } from "../../../utils";
+import { applySorting } from "../../../utils/domUtils";
 import { confirmationDialog, downloadFile, getFileName } from "../../../utils/editorHelpers";
 import { findCell } from "../../../utils/graphUtils";
 import { layerIsOn } from "../../../utils/nodeUtils";
-import { applySorting, clearMainTip, tip } from "../../../utils/uiHelpers";
 import { getApi, getViewContext, getWorldContext } from "../economyContext";
 import { Goods } from "../generators/goods-generator";
 import { Markets } from "../generators/markets-generator";

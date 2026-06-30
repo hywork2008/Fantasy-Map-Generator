@@ -1,5 +1,5 @@
 import { ERROR } from "../utils/debug";
-import { tip } from "../utils/uiHelpers";
+import { tip } from "./tooltipService";
 
 export type FontDefinition = {
   family: string;

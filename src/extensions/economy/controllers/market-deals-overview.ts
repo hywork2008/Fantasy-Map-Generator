@@ -1,8 +1,8 @@
+import { tip } from "../../../services/tooltipService";
 import type { Burg } from "../../../types/models";
 import { openDialog } from "../../../ui/dialogs/dialogService";
 import { rn } from "../../../utils";
 import { downloadFile, getFileName } from "../../../utils/editorHelpers";
-import { tip } from "../../../utils/uiHelpers";
 import { getApi, getWorldContext } from "../economyContext";
 import { Goods } from "../generators/goods-generator";
 import type { Deal } from "../generators/markets-generator";

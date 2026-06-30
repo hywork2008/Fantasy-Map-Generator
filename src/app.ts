@@ -29,15 +29,16 @@ import { initModules } from "./generators/index";
 import { buildGeoJsonZones, saveGeoJsonZones } from "./io/export";
 import { generate, initMain, regenerateMap } from "./main";
 import { initRenderers } from "./renderers/index";
+import { tooltipExtensions } from "./services/tooltipService";
 import { UITour } from "./services/ui-tour";
 import { useExtensionState } from "./store/extensionState";
 import type { SvgLayerSpec } from "./store/layerState";
 import { useLayerState } from "./store/layerState";
 import type { ExtensionAPI } from "./types/extension-api";
 import { closeDialog, isDialogOpen, openDialog, openRichDialog } from "./ui/dialogs/dialogService";
+import { removeCircle } from "./utils/domUtils";
 import { initUtils } from "./utils/index";
 import { layerIsOn } from "./utils/nodeUtils";
-import { removeCircle, tooltipExtensions } from "./utils/uiHelpers";
 
 function buildExtensionAPI(): ExtensionAPI {
   const extState = useExtensionState.getState;

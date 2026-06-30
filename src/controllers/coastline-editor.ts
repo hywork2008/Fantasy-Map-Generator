@@ -22,14 +22,15 @@ import {
   PROFILE_SIZE
 } from "../renderers/coastline-fractal";
 import { getFeaturePath } from "../renderers/index";
+import { tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { elSelected, modules, setElSelected } from "../store/editorState";
 import { closeDialogs, openConfirm, openDialog } from "../ui/dialogs/dialogService";
 import { rn, si, unique } from "../utils";
+import { getArea, getAreaUnit } from "../utils/domUtils";
 import { EditorBus } from "../utils/editorBus";
 import { getPackPolygon } from "../utils/graphUtils";
 import { getElementById, getElementBySelector, layerIsOn } from "../utils/nodeUtils";
-import { getArea, getAreaUnit, tip } from "../utils/uiHelpers";
 import { interactionManager } from "./interactionManager";
 import { toggleCells } from "./layers";
 import { editStyle } from "./style";

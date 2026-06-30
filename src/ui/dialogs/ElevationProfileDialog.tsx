@@ -3,13 +3,13 @@ import { useEffect, useRef, useState } from "react";
 import { worldContext } from "../../context/worldContext";
 import { downloadFile, getFileName } from "../../controllers/editors";
 import { ElevationProfileRenderer } from "../../renderers/elevation-profile-renderer";
+import { getHeight } from "../../services/cellInfoService";
 import { viewLayerService as view } from "../../services/viewLayerService";
 import { useDialogState } from "../../store/dialogState";
 import { useElevationProfileState } from "../../store/elevationProfileState";
 import { useOptionsState } from "../../store/optionsState";
 import type { Burg, Province, State } from "../../types/models";
 import { getLatitude, getLongitude, rn } from "../../utils";
-import { getHeight } from "../../utils/uiHelpers";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 

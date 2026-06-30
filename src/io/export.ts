@@ -6,7 +6,9 @@ import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { Rivers } from "../generators/river-generator";
 import { drawScaleBar, fitScaleBar } from "../renderers/index";
+import { getCellPopulation, getFriendlyHeight } from "../services/cellInfoService";
 import { fonts, loadFontsAsDataURI } from "../services/fonts";
+import { tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { connectVertices, createObjectURL, getBase64, getCoordinates, revokeObjectURL, rn, unique } from "../utils";
 import { getColor, getColorScheme } from "../utils/colorUtils";
@@ -14,7 +16,6 @@ import { ERROR, TIME } from "../utils/debug";
 import { downloadFile, getFileName } from "../utils/editorHelpers";
 import { getGridPolygon } from "../utils/graphUtils";
 import { layerIsOn } from "../utils/nodeUtils";
-import { getCellPopulation, getFriendlyHeight, tip } from "../utils/uiHelpers";
 
 type AnySelection = Selection<SVGSVGElement, unknown, null, undefined>;
 

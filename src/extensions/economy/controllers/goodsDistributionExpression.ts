@@ -1,6 +1,6 @@
 import type { WorldContext } from "../../../context/worldContext";
+import { getHeight } from "../../../services/cellInfoService";
 import { convertTemperature, list, rn } from "../../../utils";
-import { getHeight } from "../../../utils/uiHelpers";
 
 export type ParamType = "none" | "number" | "biomes" | "shore" | "featureType";
 

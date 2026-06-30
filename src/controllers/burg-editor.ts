@@ -3,10 +3,12 @@ import { zoomTo } from "../actions";
 import { appServices } from "../context/appServices";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
-import { Burgs } from "../generators/burgs-generator";
-import { Names } from "../generators/names-generator";
+
 import { drawBurgIcon, drawBurgLabel, removeBurgCOA } from "../renderers";
 import { COArenderer } from "../renderers/emblem-renderer";
+import { getHeight } from "../services/cellInfoService";
+import { GenerationPipeline } from "../services/generationPipeline";
+import { clearMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { getBurgEditorState } from "../store/burgEditorState";
 import { elSelected, modules, setElSelected } from "../store/editorState";
@@ -16,7 +18,6 @@ import { convertTemperature, findCell, openURL, parseTransform, rand, rn, showPr
 import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog } from "../utils/editorHelpers";
 import { getElementBySelector, layerIsOn } from "../utils/nodeUtils";
-import { clearMainTip, getHeight, tip } from "../utils/uiHelpers";
 import { editBurgGroups } from "./burg-group-editor";
 import { editEmblem } from "./emblems-editor";
 import { interactionManager } from "./interactionManager";
@@ -129,7 +130,7 @@ const burgEditorInternal = {
   },
 
   updateBurgPreview(burg: Burg): void {
-    const previewUrl = Burgs.getPreview(burg).preview || null;
+    const previewUrl = GenerationPipeline.Burgs.getPreview(burg).preview || null;
     getBurgEditorState().updateBurgData({ previewUrl });
   },
 
@@ -208,14 +209,14 @@ export const burgEditorActions = {
 
   generateNameRandom(): void {
     const base = rand(worldContext.nameBases.length - 1);
-    const newName = Names.getBase(base);
+    const newName = GenerationPipeline.Names.getBase(base);
     burgEditorActions.changeName(newName);
   },
 
   changeGroup(newGroup: string): void {
     const burgId = burgEditorInternal.getBurgId();
     const burg = worldContext.pack.burgs[burgId];
-    Burgs.changeGroup(burg, newGroup);
+    GenerationPipeline.Burgs.changeGroup(burg, newGroup);
     drawBurgIcon(worldContext, viewContext, appServices, burg);
     drawBurgLabel(worldContext, viewContext, appServices, burg);
     getBurgEditorState().updateBurgData({ group: newGroup });
@@ -240,7 +241,7 @@ export const burgEditorActions = {
   generateNameCulture(): void {
     const burgId = burgEditorInternal.getBurgId();
     const culture = worldContext.pack.burgs[burgId].culture;
-    const newName = Names.getCulture(culture ?? 0);
+    const newName = GenerationPipeline.Names.getCulture(culture ?? 0);
     burgEditorActions.changeName(newName);
   },
 
@@ -297,13 +298,13 @@ export const burgEditorActions = {
       worldContext.pack.states[stateId].center = burg.cell;
 
       burg.capital = 1;
-      Burgs.changeGroup(burg);
+      GenerationPipeline.Burgs.changeGroup(burg);
       drawBurgIcon(worldContext, viewContext, appServices, burg);
       drawBurgLabel(worldContext, viewContext, appServices, burg);
 
       const oldCapital = worldContext.pack.burgs[oldCapitalId];
       oldCapital.capital = 0;
-      Burgs.changeGroup(oldCapital);
+      GenerationPipeline.Burgs.changeGroup(oldCapital);
       drawBurgIcon(worldContext, viewContext, appServices, oldCapital);
       drawBurgLabel(worldContext, viewContext, appServices, oldCapital);
     } else {
@@ -326,7 +327,7 @@ export const burgEditorActions = {
   openBurgLink(): void {
     const burgId = burgEditorInternal.getBurgId();
     const burg = worldContext.pack.burgs[burgId];
-    const link = Burgs.getPreview(burg).link;
+    const link = GenerationPipeline.Burgs.getPreview(burg).link;
     if (link) openURL(link);
   },
 
@@ -336,7 +337,7 @@ export const burgEditorActions = {
 
     showPrompt(
       "Provide custom URL to the burg map. It can be a link to a generator or just an image. Leave empty to use the default map preview",
-      { default: Burgs.getPreview(burg).link ?? "", required: false },
+      { default: GenerationPipeline.Burgs.getPreview(burg).link ?? "", required: false },
       link => {
         const url = String(link);
         if (url) burg.link = url;
@@ -404,7 +405,7 @@ export const burgEditorActions = {
         confirm: "Remove",
         onConfirm: () => {
           const hasCOA = !!worldContext.pack.burgs[burgId]?.coa;
-          Burgs.remove(burgId);
+          GenerationPipeline.Burgs.remove(burgId);
           if (hasCOA) removeBurgCOA(viewContext, burgId);
           closeDialog("burgEditor");
         }

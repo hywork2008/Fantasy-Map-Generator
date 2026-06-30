@@ -2,8 +2,10 @@ import type * as d3 from "d3";
 import { drag, pointer, select } from "d3";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import { Routes } from "../generators/routes-generator";
+
 import { removeRoute } from "../renderers/draw-routes";
+import { GenerationPipeline } from "../services/generationPipeline";
+import { clearMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { dialogStore } from "../store/dialogState";
 import { elSelected, modules, setElSelected } from "../store/editorState";
@@ -18,7 +20,6 @@ import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog } from "../utils/editorHelpers";
 import { getPackPolygon } from "../utils/graphUtils";
 import { layerIsOn } from "../utils/nodeUtils";
-import { clearMainTip, tip } from "../utils/uiHelpers";
 import { openElevationProfile } from "./elevation-profile";
 import { interactionManager } from "./interactionManager";
 import { toggleCells, toggleRoutes } from "./layers";
@@ -75,8 +76,8 @@ function getRoute(): Route {
 }
 
 function updateRouteData(route: Route): void {
-  route.name = route.name || Routes.generateName(route);
-  route.length = route.length || Routes.getLength(route.i);
+  route.name = route.name || GenerationPipeline.Routes.generateName(route);
+  route.length = route.length || GenerationPipeline.Routes.getLength(route.i);
 
   const allGroups = Array.from(view.routes.selectAll<SVGGElement, unknown>("g").nodes()).map(n => n.id);
   const distanceUnit = useOptionsState.getState().distanceUnit || "km";
@@ -96,7 +97,7 @@ function updateRouteData(route: Route): void {
 }
 
 function updateRouteLength(route: Route): void {
-  route.length = Routes.getLength(route.i);
+  route.length = GenerationPipeline.Routes.getLength(route.i);
   const distanceUnit = useOptionsState.getState().distanceUnit || "km";
   const lengthStr = `${rn(route.length * worldContext.distanceScale)} ${distanceUnit}`;
   setRoutesEditorState({ routeLength: lengthStr });
@@ -182,7 +183,7 @@ function dragControlPointEnd(
 }
 
 function redrawRoute(route: Route): void {
-  elSelected!.attr("d", Routes.getPath(route));
+  elSelected!.attr("d", GenerationPipeline.Routes.getPath(route));
   updateRouteLength(route);
   if (dialogStore.getState().openDialogs.has("elevationProfile")) routesEditorActions.showRouteElevationProfile();
 }
@@ -241,7 +242,7 @@ function handleControlPointClick(this: SVGCircleElement, _event: MouseEvent): vo
     redrawRoute(route);
 
     const newRoute: Route = {
-      i: Routes.getNextId(),
+      i: GenerationPipeline.Routes.getNextId(),
       group: route.group,
       feature: route.feature,
       name: route.name,
@@ -258,7 +259,7 @@ function handleControlPointClick(this: SVGCircleElement, _event: MouseEvent): vo
     view.routes
       .select(`#${newRoute.group}`)
       .append("path")
-      .attr("d", Routes.getPath(newRoute))
+      .attr("d", GenerationPipeline.Routes.getPath(newRoute))
       .attr("id", `route${newRoute.i}`);
 
     _isSplitMode = false;
@@ -366,7 +367,7 @@ function drawRoutePreview(): void {
   view.routes
     .select(`#${group}`)
     .append("path")
-    .attr("d", Routes.getPath({ group, points: pts, i: -1, feature: 0 } as Route))
+    .attr("d", GenerationPipeline.Routes.getPath({ group, points: pts, i: -1, feature: 0 } as Route))
     .attr("id", "routeTemp");
 }
 
@@ -392,7 +393,7 @@ export const routesEditorActions = {
 
   generateName(): void {
     const route = getRoute();
-    const name = Routes.generateName(route);
+    const name = GenerationPipeline.Routes.generateName(route);
     route.name = name;
     setRoutesEditorState({ routeName: name });
   },
@@ -439,8 +440,8 @@ export const routesEditorActions = {
     if (candidateRoutes.length) {
       const distanceUnit = useOptionsState.getState().distanceUnit || "km";
       const options = candidateRoutes.map((r: Route) => {
-        r.name = r.name || Routes.generateName(r);
-        r.length = r.length || Routes.getLength(r.i);
+        r.name = r.name || GenerationPipeline.Routes.generateName(r);
+        r.length = r.length || GenerationPipeline.Routes.getLength(r.i);
         const length = `${rn(r.length * worldContext.distanceScale)} ${distanceUnit}`;
         return { id: r.i, name: r.name!, length };
       });
@@ -466,14 +467,14 @@ export const routesEditorActions = {
             if (nextPoint) addConnection(pt[2], nextPoint[2], route.i);
           }
 
-          Routes.remove(selectedRoute);
+          GenerationPipeline.Routes.remove(selectedRoute);
           removeRoute(viewContext, selectedRoute.i);
           drawControlPoints(route.points);
           redrawRoute(route);
           drawRouteCells(route.points);
           updateRouteData(route);
 
-          tip("Routes joined", false, "success", 5000);
+          tip("GenerationPipeline.Routes joined", false, "success", 5000);
         }
       });
     } else {
@@ -513,7 +514,7 @@ export const routesEditorActions = {
       confirm: "Remove",
       onConfirm: () => {
         const route = getRoute();
-        Routes.remove(route);
+        GenerationPipeline.Routes.remove(route);
         removeRoute(viewContext, route.i);
         routesEditorActions.closeRouteEditor();
       }
@@ -539,7 +540,7 @@ export const routesEditorActions = {
       return;
     }
 
-    const routeId = Routes.getNextId();
+    const routeId = GenerationPipeline.Routes.getNextId();
     const group = getRoutesEditorState().creatorGroup;
     const feature = worldContext.pack.cells.f[pts[0][2]];
     const route: Route = { points: pts, group, feature, i: routeId };

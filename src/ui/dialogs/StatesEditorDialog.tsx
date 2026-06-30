@@ -3,9 +3,10 @@ import { useMemo } from "react";
 import { statesEditorActions } from "../../controllers/states-editor";
 import { useStatesEditorState } from "../../store/statesEditorState";
 import { rn, si } from "../../utils";
-import { getAreaUnit } from "../../utils/uiHelpers";
+import { getAreaUnit } from "../../utils/domUtils";
 import { FillBox } from "../components/FillBox";
 import { SliderInput } from "../components/SliderInput";
+
 export const StatesEditorContent: React.FC = () => {
   const {
     isPercentageMode,

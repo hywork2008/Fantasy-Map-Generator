@@ -1,6 +1,6 @@
 import type React from "react";
 import { useState } from "react";
-import { tip } from "../../utils/uiHelpers";
+import { tip } from "../../services/tooltipService";
 import { Dialog } from "./Dialog";
 
 export type SelectionItem = {

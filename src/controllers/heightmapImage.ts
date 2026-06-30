@@ -2,12 +2,12 @@ import * as d3 from "d3";
 import RgbQuant from "rgbquant";
 import { resetZoom } from "../actions";
 import { worldContext } from "../context/worldContext";
+import { tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { setHeightmapEditorState, useHeightmapEditorState } from "../store/heightmapEditorState";
 import { getGridPolygon, showPrompt } from "../utils";
 import { getColorScheme } from "../utils/colorUtils";
 import { getElementById } from "../utils/nodeUtils";
-import { tip } from "../utils/uiHelpers";
 
 export interface HeightmapImageCallbacks {
   updateHeightmap: () => void;

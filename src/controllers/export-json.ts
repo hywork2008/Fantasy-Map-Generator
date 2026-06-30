@@ -1,11 +1,11 @@
 import { worldContext } from "../context/worldContext";
+import { tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { useOptionsState } from "../store/optionsState";
 import { closeDialogs } from "../ui/dialogs/dialogService";
 import { createObjectURL, revokeObjectURL } from "../utils";
 import { TIME } from "../utils/debug";
 import { getFileName } from "../utils/editorHelpers";
-import { tip } from "../utils/uiHelpers";
 import { VERSION } from "../versioning";
 
 export function exportToJson(type: string): void {

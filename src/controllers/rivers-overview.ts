@@ -1,8 +1,8 @@
 import { viewLayerService as view } from "../services/viewLayerService";
 import { useRiversOverviewState } from "../store/riversOverviewState";
 import { closeDialogs, openDialog } from "../ui/dialogs/dialogService";
+import { fitContent } from "../utils/domUtils";
 import { layerIsOn } from "../utils/nodeUtils";
-import { fitContent } from "../utils/uiHelpers";
 import { toggleRivers } from "./layers";
 
 export function overviewRivers(): void {

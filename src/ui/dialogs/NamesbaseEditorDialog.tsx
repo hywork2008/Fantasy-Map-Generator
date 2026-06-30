@@ -3,9 +3,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { worldContext } from "../../context/worldContext";
 import { type NamesbaseAnalysisData, NamesbaseEditor, type ParseError } from "../../controllers/namesbase-editor";
 import { Names } from "../../generators/names-generator";
+import { speak } from "../../services/speechService";
+import { tip } from "../../services/tooltipService";
 import { openURL } from "../../utils";
 import { uploadFile } from "../../utils/editorHelpers";
-import { speak, tip } from "../../utils/uiHelpers";
 import { Dialog } from "./Dialog";
 
 const NamesbaseAnalysisDialog: React.FC<{ data: NamesbaseAnalysisData; onClose: () => void }> = ({ data, onClose }) => {

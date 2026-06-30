@@ -11,7 +11,6 @@ import { initCoastlineEditor } from "./coastline-editor";
 import "./elevation-profile";
 import { initNamesbaseEditor } from "./namesbase-editor";
 import "../io";
-import "../utils/uiHelpers";
 import { initHotkeys } from "./hotkeys";
 import "./measurers";
 import { initBiomesEditor } from "./biomes-editor";

@@ -3,9 +3,10 @@ import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import { Resample } from "../generators/resample";
+
 import { getMapURL } from "../io/export";
 import { undraw } from "../main";
+import { GenerationPipeline } from "../services/generationPipeline";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { useOptionsState } from "../store/optionsState";
 import { openDialog } from "../ui/dialogs/dialogService";
@@ -59,8 +60,8 @@ export function applyTransformMap(params: TransformParams, pointsInput: number):
   resetZoom(0);
 
   undraw();
-  Resample.init(worldContext, viewContext, appServices);
-  Resample.process({ projection, inverse, scale: 1 });
+  GenerationPipeline.Resample.init(worldContext, viewContext, appServices);
+  GenerationPipeline.Resample.process({ projection, inverse, scale: 1 });
 
   drawLayers();
 

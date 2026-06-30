@@ -5,8 +5,7 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
-import { Lakes } from "../generators/lakes";
-import { Names } from "../generators/names-generator";
+
 import {
   BiomesRenderer,
   BordersRenderer,
@@ -16,16 +15,18 @@ import {
   StatesRenderer
 } from "../renderers";
 import { getFeaturePath } from "../renderers/index";
+import { GenerationPipeline } from "../services/generationPipeline";
+import { tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { elSelected, modules, setElSelected } from "../store/editorState";
 import { getLakeEditorState } from "../store/lakeEditorState";
 import type { PackedGraphFeature } from "../types/models";
 import { closeDialogs, openConfirm, openDialog } from "../ui/dialogs/dialogService";
 import { rand, rn, unique } from "../utils";
+import { getArea } from "../utils/domUtils";
 import { EditorBus } from "../utils/editorBus";
 import { getPackPolygon } from "../utils/graphUtils";
 import { getElementBySelector, layerIsOn } from "../utils/nodeUtils";
-import { getArea, tip } from "../utils/uiHelpers";
 import { interactionManager } from "./interactionManager";
 import { toggleCells } from "./layers";
 import { editNotes } from "./notes-editor";
@@ -181,14 +182,14 @@ export const lakeEditorActions = {
 
   generateNameCulture(): void {
     const lake = getLake();
-    const newName = Lakes.getName(lake);
+    const newName = GenerationPipeline.Lakes.getName(lake);
     lake.name = newName;
     getLakeEditorState().updateLakeData({ name: newName });
   },
 
   generateNameRandom(): void {
     const lake = getLake();
-    const newName = Names.getBase(rand(worldContext.nameBases.length - 1));
+    const newName = GenerationPipeline.Names.getBase(rand(worldContext.nameBases.length - 1));
     lake.name = newName;
     getLakeEditorState().updateLakeData({ name: newName });
   },

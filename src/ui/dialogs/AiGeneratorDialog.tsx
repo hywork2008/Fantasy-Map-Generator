@@ -1,10 +1,10 @@
 import type React from "react";
 import { useEffect, useState } from "react";
 import { AI_MODELS, AI_PROVIDERS } from "../../controllers/ai-generator";
+import { tip } from "../../services/tooltipService";
 import { useAiGeneratorState } from "../../store/aiGeneratorState";
 import { useDialogState } from "../../store/dialogState";
 import { openURL } from "../../utils";
-import { tip } from "../../utils/uiHelpers";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 

@@ -9,7 +9,6 @@ import { parseTransform, rn } from "../utils";
 import { TIME } from "../utils/debug";
 import { EditorBus } from "../utils/editorBus";
 import { getElementById } from "../utils/nodeUtils";
-import { onMouseMove, tip } from "../utils/uiHelpers";
 import { interactionManager } from "./interactionManager";
 
 // Re-export pure helpers so existing callers of controllers/editors still work
@@ -110,7 +109,9 @@ export function moveCircle(x: number, y: number, r = 20): void {
   }
 }
 
-import { removeCircle } from "../utils/uiHelpers";
+import { onMouseMove } from "../services/mapInteraction";
+import { tip } from "../services/tooltipService";
+import { removeCircle } from "../utils/domUtils";
 import * as BurgEditor from "./burg-editor";
 import * as CoastlineEditor from "./coastline-editor";
 import * as CulturesEditor from "./cultures-editor";
@@ -126,7 +127,7 @@ import * as RiversEditor from "./rivers-editor";
 import * as RoutesEditor from "./routes-editor";
 import * as StatesEditor from "./states-editor";
 
-export { removeCircle } from "../utils/uiHelpers";
+export { removeCircle } from "../utils/domUtils";
 
 // ─── Misc editor utilities ────────────────────────────────────────────────
 
@@ -930,7 +931,7 @@ export function selectIcon(initial: string, callback: (value: string) => void): 
 
 // ─── Area / units ──────────────────────────────────────────────────────────
 
-export { fitContent, getArea, getAreaUnit } from "../utils/uiHelpers";
+export { fitContent, getArea, getAreaUnit } from "../utils/domUtils";
 
 // confirmationDialog and listen are re-exported from ../utils/editorHelpers
 

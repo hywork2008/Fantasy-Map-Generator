@@ -3,7 +3,7 @@ import { useMemo } from "react";
 import { religionsEditorActions } from "../../controllers/religions-editor";
 import { useReligionsEditorState } from "../../store/religionsEditorState";
 import { rn, si } from "../../utils";
-import { getAreaUnit } from "../../utils/uiHelpers";
+import { getAreaUnit } from "../../utils/domUtils";
 import { FillBox } from "../components/FillBox";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";

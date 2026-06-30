@@ -5,8 +5,10 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
-import { States } from "../generators/states-generator";
+
 import { StatesRenderer } from "../renderers";
+import { GenerationPipeline } from "../services/generationPipeline";
+import { clearMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { type DiplomacyRowData, getDiplomacyEditorState, setDiplomacyEditorState } from "../store/diplomacyEditorState";
 import { diplomacyHistoryDialogStore } from "../store/diplomacyHistoryDialogState";
@@ -15,7 +17,6 @@ import { findCell, getAdjective } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { downloadFile, getFileName } from "../utils/editorHelpers";
 import { layerIsOn } from "../utils/nodeUtils";
-import { clearMainTip, tip } from "../utils/uiHelpers";
 import { interactionManager } from "./interactionManager";
 import { toggleBiomes, toggleBorders, toggleCultures, toggleProvinces, toggleReligions, toggleStates } from "./layers";
 import { editStyle } from "./style";
@@ -243,7 +244,7 @@ export function editDiplomacy(): void {
   }
 
   function regenerateRelations(): void {
-    States.generateDiplomacy();
+    GenerationPipeline.States.generateDiplomacy();
     refreshDiplomacyEditor();
   }
 

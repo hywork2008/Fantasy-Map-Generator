@@ -1,7 +1,7 @@
 import type React from "react";
 import { useRef, useState } from "react";
+import { tip } from "../../services/tooltipService";
 import { textureUrlDialogStore, useTextureUrlDialogState } from "../../store/textureUrlDialogState";
-import { tip } from "../../utils/uiHelpers";
 import { Dialog } from "./Dialog";
 
 export const TextureUrlDialog: React.FC = () => {

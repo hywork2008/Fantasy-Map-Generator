@@ -1,7 +1,7 @@
 import type React from "react";
 import { closeMarkerEditor, markersEditorActions } from "../../controllers/markers-editor";
+import { showElementLockTip } from "../../services/tooltipService";
 import { useMarkersEditorState } from "../../store/markersEditorState";
-import { showElementLockTip } from "../../utils/uiHelpers";
 import { Dialog } from "./Dialog";
 
 export const MarkerEditorDialog: React.FC = () => {

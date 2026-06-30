@@ -6,21 +6,7 @@ import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import { Burgs } from "../generators/burgs-generator";
-import { Cultures } from "../generators/cultures-generator";
-import { COA } from "../generators/emblem/generator";
-import { Features } from "../generators/features";
-import { Ice } from "../generators/ice";
-import { Lakes } from "../generators/lakes";
-import { Markers } from "../generators/markers-generator";
-import { Military } from "../generators/military-generator";
-import { Names } from "../generators/names-generator";
-import { Provinces } from "../generators/provinces-generator";
-import { Religions } from "../generators/religions-generator";
-import { Rivers } from "../generators/river-generator";
-import { Routes } from "../generators/routes-generator";
-import { States } from "../generators/states-generator";
-import { Zones } from "../generators/zones-generator";
+
 import { rankCells } from "../main";
 import {
   BordersRenderer,
@@ -43,6 +29,8 @@ import {
 } from "../renderers";
 import { COArenderer } from "../renderers/emblem-renderer";
 import { appendMarkerToLayer } from "../renderers/index";
+import { GenerationPipeline } from "../services/generationPipeline";
+import { clearMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { useBurgsOverviewState } from "../store/burgsOverviewState";
 import { dialogStore } from "../store/dialogState";
@@ -62,7 +50,6 @@ import type { RegenerateConfirmConfig } from "../ui/dialogs/RegenerateConfirmDia
 import { findCell, gauss, generateSeed, getNextId, isCtrlClick, P, rn, showPrompt } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { getElementById, getElementBySelector, getElementsBySelector, layerIsOn } from "../utils/nodeUtils";
-import { clearMainTip, tip } from "../utils/uiHelpers";
 import { editBiomes } from "./biomes-editor";
 import { overviewBurgs } from "./burgs-overview";
 import { openChartsOverview } from "./charts-overview";
@@ -296,7 +283,7 @@ function regenerateRoutes(): void {
   const locked = worldContext.pack.routes
     .filter((route: Route) => route.lock)
     .map((route: Route, index: number) => ({ ...route, i: index }));
-  Routes.generate(worldContext, viewContext, appServices, getWorldState(), locked);
+  GenerationPipeline.Routes.generate(worldContext, viewContext, appServices, getWorldState(), locked);
 
   view.routes.selectAll("path").remove();
   if (layerIsOn("toggleRoutes")) RoutesRenderer.render(worldContext, viewContext, appServices);
@@ -304,10 +291,10 @@ function regenerateRoutes(): void {
 
 function regenerateRivers(): void {
   const state = getWorldState();
-  Rivers.generate(worldContext, viewContext, appServices, state);
-  Rivers.specify(worldContext, viewContext, appServices, state);
-  Features.defineGroups();
-  Lakes.defineNames(state);
+  GenerationPipeline.Rivers.generate(worldContext, viewContext, appServices, state);
+  GenerationPipeline.Rivers.specify(worldContext, viewContext, appServices, state);
+  GenerationPipeline.Features.defineGroups();
+  GenerationPipeline.Lakes.defineNames(state);
   if (layerIsOn("toggleRivers")) RiversRenderer.render(worldContext, viewContext, appServices);
 }
 
@@ -336,25 +323,25 @@ function regenerateStates(): void {
 
   worldContext.pack.states = newStates;
   const state = getWorldState();
-  States.expandStates(worldContext, viewContext, appServices);
-  States.normalize();
-  States.getPoles(state);
-  States.findNeighbors();
-  States.collectStatistics(state);
-  States.assignColors(worldContext, viewContext, appServices);
-  States.generateCampaigns();
-  States.generateDiplomacy();
-  States.defineStateForms(state);
+  GenerationPipeline.States.expandStates(worldContext, viewContext, appServices);
+  GenerationPipeline.States.normalize();
+  GenerationPipeline.States.getPoles(state);
+  GenerationPipeline.States.findNeighbors();
+  GenerationPipeline.States.collectStatistics(state);
+  GenerationPipeline.States.assignColors(worldContext, viewContext, appServices);
+  GenerationPipeline.States.generateCampaigns();
+  GenerationPipeline.States.generateDiplomacy();
+  GenerationPipeline.States.defineStateForms(state);
 
-  Provinces.generate(worldContext, viewContext, appServices, state, true);
-  Provinces.getPoles(state);
+  GenerationPipeline.Provinces.generate(worldContext, viewContext, appServices, state, true);
+  GenerationPipeline.Provinces.getPoles(state);
 
   layerIsOn("toggleStates") ? StatesRenderer.render(worldContext, viewContext, appServices) : toggleStates();
   layerIsOn("toggleBorders") ? BordersRenderer.render(worldContext, viewContext, appServices) : toggleBorders();
   if (layerIsOn("toggleProvinces")) ProvincesRenderer.render(worldContext, viewContext, appServices);
 
   drawStateLabels(worldContext, viewContext, appServices);
-  Military.generate(worldContext, viewContext, appServices, state);
+  GenerationPipeline.Military.generate(worldContext, viewContext, appServices, state);
   if (layerIsOn("toggleEmblems")) EmblemsRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleBurgIcons")) BurgIconsRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleLabels")) BurgLabelsRenderer.render(worldContext, viewContext, appServices);
@@ -375,7 +362,7 @@ function recreateStates(): State[] | null {
 
   const statesCount = useOptionsState.getState().statesNumber;
   if (!statesCount) {
-    tip(`<i>States Number</i> option value is zero. No counties are generated`, false, "error");
+    tip(`<i>GenerationPipeline.States Number</i> option value is zero. No counties are generated`, false, "error");
     return null;
   }
 
@@ -407,7 +394,7 @@ function recreateStates(): State[] | null {
     if (burg.capital) {
       if (lockedStatesCapitals.includes(burg.i!)) continue;
       burg.capital = 0;
-      Burgs.changeGroup(burg);
+      GenerationPipeline.Burgs.changeGroup(burg);
     }
   }
 
@@ -489,7 +476,7 @@ function recreateStates(): State[] | null {
         burg.capital = 1;
         capital = burg;
         capitalsTree.add([x, y]);
-        Burgs.changeGroup(capital);
+        GenerationPipeline.Burgs.changeGroup(capital);
         break;
       }
       spacing = Math.max(spacing - 1, 1);
@@ -502,14 +489,10 @@ function recreateStates(): State[] | null {
     const basename =
       capitalName.length < 9 && capital.cell % 5 === 0
         ? capitalName
-        : (Names as { getCulture(c: number, a: number, b: number, s: string, n: number): string }).getCulture(
-            culture,
-            3,
-            6,
-            "",
-            0
-          );
-    const name = Names.getState(basename, culture);
+        : (
+            GenerationPipeline.Names as { getCulture(c: number, a: number, b: number, s: string, n: number): string }
+          ).getCulture(culture, 3, 6, "", 0);
+    const name = GenerationPipeline.Names.getState(basename, culture);
     const nomadic = [1, 2, 3, 4].includes(worldContext.pack.cells.biome[capital.cell]);
     const type = nomadic
       ? "Nomadic"
@@ -518,7 +501,7 @@ function recreateStates(): State[] | null {
         : worldContext.pack.cultures[culture!].type;
     const expansionism = rn(Math.random() * useOptionsState.getState().sizeVariety + 1, 1);
     const cultureType = worldContext.pack.cultures[culture!].type;
-    const coa = COA.generate(capital.coa || null, 0.3, null, cultureType ?? "Generic");
+    const coa = GenerationPipeline.COA.generate(capital.coa || null, 0.3, null, cultureType ?? "Generic");
     coa.shield = capital.coa?.shield;
     newStates.push({
       i,
@@ -538,8 +521,8 @@ function recreateStates(): State[] | null {
 function regenerateProvinces(): void {
   EditorBus.unfog("");
   const state = getWorldState();
-  Provinces.generate(worldContext, viewContext, appServices, state, true, true);
-  Provinces.getPoles(state);
+  GenerationPipeline.Provinces.generate(worldContext, viewContext, appServices, state, true, true);
+  GenerationPipeline.Provinces.getPoles(state);
 
   if (layerIsOn("toggleBorders")) BordersRenderer.render(worldContext, viewContext, appServices);
   layerIsOn("toggleProvinces") ? ProvincesRenderer.render(worldContext, viewContext, appServices) : toggleProvinces();
@@ -630,7 +613,7 @@ async function regenerateBurgs(): Promise<void> {
     }
 
     const culture = cells.culture[cell];
-    const name = Names.getCulture(culture);
+    const name = GenerationPipeline.Names.getCulture(culture);
     newBurgs.push({
       cell,
       x,
@@ -647,22 +630,22 @@ async function regenerateBurgs(): Promise<void> {
   }
 
   worldContext.pack.burgs = newBurgs;
-  Burgs.shift();
+  GenerationPipeline.Burgs.shift();
 
   states
     .filter((s: State) => s.i && !s.removed && !s.capital)
     .forEach((s: State) => {
       const [x, y] = cells.p[s.center!] as [number, number];
-      const { burgId } = Burgs.add([x, y]);
+      const { burgId } = GenerationPipeline.Burgs.add([x, y]);
       s.capital = burgId;
       s.center = worldContext.pack.burgs[burgId].cell;
       const burg = worldContext.pack.burgs[burgId];
       burg.state = s.i;
       burg.capital = 1;
-      Burgs.changeGroup(burg);
+      GenerationPipeline.Burgs.changeGroup(burg);
     });
 
-  Burgs.specify(worldContext, viewContext, appServices, getWorldState());
+  GenerationPipeline.Burgs.specify(worldContext, viewContext, appServices, getWorldState());
   regenerateRoutes();
   BurgIconsRenderer.render(worldContext, viewContext, appServices);
   BurgLabelsRenderer.render(worldContext, viewContext, appServices);
@@ -696,8 +679,8 @@ export function regenerateEmblems(): void {
   worldContext.pack.states.forEach((state: State) => {
     if (!state.i || state.removed) return;
     const cultureType = worldContext.pack.cultures[state.culture!].type;
-    state.coa = COA.generate(null, 0, null, cultureType ?? "Generic");
-    state.coa.shield = COA.getShield(state.culture!);
+    state.coa = GenerationPipeline.COA.generate(null, 0, null, cultureType ?? "Generic");
+    state.coa.shield = GenerationPipeline.COA.getShield(state.culture!);
   });
 
   worldContext.pack.burgs.forEach((burg: Burg) => {
@@ -707,8 +690,8 @@ export function regenerateEmblems(): void {
     if (burg.capital) kinship += 0.1;
     else if (burg.port) kinship -= 0.1;
     if (state && burg.culture !== state.culture) kinship -= 0.25;
-    burg.coa = COA.generate(state ? state.coa : null, kinship, null, burg.type);
-    burg.coa.shield = COA.getShield(burg.culture!, state ? burg.state! : 0);
+    burg.coa = GenerationPipeline.COA.generate(state ? state.coa : null, kinship, null, burg.type);
+    burg.coa.shield = GenerationPipeline.COA.getShield(burg.culture!, state ? burg.state! : 0);
   });
 
   worldContext.pack.provinces.forEach((province: Province) => {
@@ -728,24 +711,24 @@ export function regenerateEmblems(): void {
     const nameByBurg = province.burg && province.name.slice(0, 3) === (parent as Burg | State).name?.slice(0, 3);
     const kinship = dominion ? 0 : nameByBurg ? 0.8 : 0.4;
     const culture = worldContext.pack.cells.culture[province.center!];
-    const type = Burgs.getType(province.center!, (parent as Burg).port);
-    province.coa = COA.generate((parent as State).coa, kinship, dominion ? 1 : 0, type);
-    province.coa.shield = COA.getShield(culture, province.state!);
+    const type = GenerationPipeline.Burgs.getType(province.center!, (parent as Burg).port);
+    province.coa = GenerationPipeline.COA.generate((parent as State).coa, kinship, dominion ? 1 : 0, type);
+    province.coa.shield = GenerationPipeline.COA.getShield(culture, province.state!);
   });
 
   layerIsOn("toggleEmblems") ? EmblemsRenderer.render(worldContext, viewContext, appServices) : toggleEmblems();
 }
 
 function regenerateReligions(): void {
-  Religions.generate(worldContext, viewContext, appServices, getWorldState());
+  GenerationPipeline.Religions.generate(worldContext, viewContext, appServices, getWorldState());
   layerIsOn("toggleReligions") ? ReligionsRenderer.render(worldContext, viewContext, appServices) : toggleReligions();
   refreshAllEditors();
 }
 
 function regenerateCultures(): void {
   const state = getWorldState();
-  Cultures.generate(worldContext, viewContext, appServices, state);
-  Cultures.expand(state);
+  GenerationPipeline.Cultures.generate(worldContext, viewContext, appServices, state);
+  GenerationPipeline.Cultures.expand(state);
 
   worldContext.pack.states = worldContext.pack.states.map((st: State) => {
     if (!st.i || st.removed) return st;
@@ -768,7 +751,7 @@ function regenerateCultures(): void {
 }
 
 function regenerateMilitary(): void {
-  Military.generate(worldContext, viewContext, appServices, getWorldState());
+  GenerationPipeline.Military.generate(worldContext, viewContext, appServices, getWorldState());
   if (layerIsOn("toggleMilitary")) MilitaryRenderer.render(worldContext, viewContext, appServices);
   else toggleMilitary();
 
@@ -780,12 +763,12 @@ function regenerateMilitary(): void {
 
 function regenerateIce(): void {
   if (!layerIsOn("toggleIce")) toggleIce();
-  Ice.generate(worldContext, viewContext, appServices, getWorldState());
+  GenerationPipeline.Ice.generate(worldContext, viewContext, appServices, getWorldState());
   IceRenderer.render(worldContext, viewContext, appServices);
 }
 
 export function regenerateMarkers(): void {
-  Markers.regenerate();
+  GenerationPipeline.Markers.regenerate();
   turnButtonOn("toggleMarkers");
   MarkersRenderer.render(worldContext, viewContext, appServices);
   if (dialogStore.getState().openDialogs.has("markersOverview")) useMarkersOverviewState.getState().refresh();
@@ -801,7 +784,7 @@ function regenerateZones(event: MouseEvent | null): void {
   }
 
   function addNumberOfZones(number: number) {
-    Zones.generate(worldContext, viewContext, appServices, getWorldState(), number);
+    GenerationPipeline.Zones.generate(worldContext, viewContext, appServices, getWorldState(), number);
     document.dispatchEvent(new CustomEvent("fmg:refresh-editors"));
     if (layerIsOn("toggleZones")) ZonesRenderer.render(worldContext, viewContext, appServices);
   }
@@ -846,7 +829,7 @@ function addLabelOnClick(event: MouseEvent): void {
 
   const cell = findCell(point[0], point[1]);
   const culture = worldContext.pack.cells.culture[cell];
-  const name = Names.getCulture(culture);
+  const name = GenerationPipeline.Names.getCulture(culture);
   const id = getNextId("label");
 
   const lastSelected = (getElementById("labelGroupSelect") as HTMLSelectElement).value;
@@ -943,14 +926,14 @@ function addRiverOnClick(event: MouseEvent): void {
   if (cells.b[i]) return;
 
   const riverCells: number[] = [];
-  let riverId = Rivers.getNextId(packRivers);
+  let riverId = GenerationPipeline.Rivers.getNextId(packRivers);
   let parent = riverId;
 
   const initialFlux = worldContext.grid.cells.prec[cells.g[i]];
   cells.fl[i] = initialFlux;
 
-  const h = Rivers.alterHeights();
-  Rivers.resolveDepressions(h);
+  const h = GenerationPipeline.Rivers.alterHeights();
+  GenerationPipeline.Rivers.resolveDepressions(h);
 
   while (i) {
     cells.r[i] = riverId;
@@ -1033,13 +1016,20 @@ function addRiverOnClick(event: MouseEvent): void {
   const defaultWidthFactor = rn(1 / ((cellsDensityMap[useOptionsState.getState().points] ?? 10000) / 10000) ** 0.25, 2);
   const widthFactor =
     river?.widthFactor || (!parent || parent === riverId ? defaultWidthFactor * 1.2 : defaultWidthFactor);
-  const sourceWidth = river?.sourceWidth || Rivers.getSourceWidth(cells.fl[source]);
-  const meanderedPoints = Rivers.addMeandering(riverCells);
+  const sourceWidth = river?.sourceWidth || GenerationPipeline.Rivers.getSourceWidth(cells.fl[source]);
+  const meanderedPoints = GenerationPipeline.Rivers.addMeandering(riverCells);
 
   const discharge = cells.fl[mouth];
-  const length = Rivers.getApproximateLength(meanderedPoints.map(([x, y]) => [x, y] as [number, number]));
-  const width = Rivers.getWidth(
-    Rivers.getOffset({ flux: discharge, pointIndex: meanderedPoints.length, widthFactor, startingWidth: sourceWidth })
+  const length = GenerationPipeline.Rivers.getApproximateLength(
+    meanderedPoints.map(([x, y]) => [x, y] as [number, number])
+  );
+  const width = GenerationPipeline.Rivers.getWidth(
+    GenerationPipeline.Rivers.getOffset({
+      flux: discharge,
+      pointIndex: meanderedPoints.length,
+      widthFactor,
+      startingWidth: sourceWidth
+    })
   );
 
   if (river) {
@@ -1049,9 +1039,9 @@ function addRiverOnClick(event: MouseEvent): void {
     river.width = width;
     river.cells = riverCells;
   } else {
-    const basin = Rivers.getBasin(parent);
-    const name = Rivers.getName(mouth);
-    const type = Rivers.getType({ i: riverId, length, parent });
+    const basin = GenerationPipeline.Rivers.getBasin(parent);
+    const name = GenerationPipeline.Rivers.getName(mouth);
+    const type = GenerationPipeline.Rivers.getType({ i: riverId, length, parent });
     packRivers.push({
       i: riverId,
       source,
@@ -1069,13 +1059,13 @@ function addRiverOnClick(event: MouseEvent): void {
     });
   }
 
-  const path = Rivers.getRiverPath(meanderedPoints, widthFactor, sourceWidth);
+  const path = GenerationPipeline.Rivers.getRiverPath(meanderedPoints, widthFactor, sourceWidth);
   const id = `river${riverId}`;
   const riversG = view.viewbox.select("#rivers");
   riversG.append("path").attr("id", id).attr("d", path);
 
   if (!event.shiftKey) {
-    Lakes.cleanupLakeData();
+    GenerationPipeline.Lakes.cleanupLakeData();
     unpressClickToAddButton();
     getElementById("addNewRiver")?.classList.remove("pressed");
     if (dialogStore.getState().openDialogs.has("riversOverview")) useRiversOverviewState.getState().refresh();
@@ -1118,9 +1108,9 @@ function addMarkerOnClick(event: MouseEvent): void {
     : null;
 
   const selectedType = (getElementById("addedMarkerType") as HTMLInputElement).value;
-  const selectedConfig = Markers.getConfig().find(({ type }: MarkerConfig) => type === selectedType);
+  const selectedConfig = GenerationPipeline.Markers.getConfig().find(({ type }: MarkerConfig) => type === selectedType);
   const baseMarker = selectedMarker || selectedConfig || { icon: "❓" };
-  const marker = Markers.add({ ...baseMarker, x, y, cell } as Marker);
+  const marker = GenerationPipeline.Markers.add({ ...baseMarker, x, y, cell } as Marker);
 
   if (selectedConfig?.add) {
     selectedConfig.add(`marker${marker.i}`, cell);
@@ -1138,7 +1128,7 @@ function addMarkerOnClick(event: MouseEvent): void {
   }
 }
 
-// ─── Markers config ───────────────────────────────────────────────────────────
+// ─── GenerationPipeline.Markers config ───────────────────────────────────────────────────────────
 
 export function configMarkersGeneration(): void {
   openDialog("markerConfig");

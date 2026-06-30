@@ -1,7 +1,9 @@
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
-import { Routes } from "../generators/routes-generator";
+
 import { removeRoute } from "../renderers/draw-routes";
+import { GenerationPipeline } from "../services/generationPipeline";
+import { tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { modules } from "../store/editorState";
 import { useRouteGroupsEditorStore } from "../store/routeGroupsEditorStore";
@@ -9,7 +11,6 @@ import { openDialog } from "../ui/dialogs/dialogService";
 import { showPrompt } from "../utils";
 import { confirmationDialog } from "../utils/editorHelpers";
 import { getElementById, layerIsOn } from "../utils/nodeUtils";
-import { tip } from "../utils/uiHelpers";
 import { toggleRoutes } from "./layers";
 
 export function refreshRouteGroups(): void {
@@ -82,7 +83,7 @@ export function routeGroupsRemoveGroup(group: string): void {
       worldContext.pack.routes
         .filter(r => r.group === group)
         .forEach(route => {
-          Routes.remove(route);
+          GenerationPipeline.Routes.remove(route);
           removeRoute(viewContext, route.i);
         });
       if (!DEFAULT_ROUTE_GROUPS.includes(group)) view.routes.select(`#${group}`).remove();

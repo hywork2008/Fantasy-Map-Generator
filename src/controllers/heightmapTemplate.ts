@@ -1,11 +1,10 @@
 import Alea from "alea";
 import { worldContext } from "../context/worldContext";
-import { HeightmapGenerator } from "../generators/heightmap-generator";
+
 import { setHeightmapEditorState, type TemplateStep, useHeightmapEditorState } from "../store/heightmapEditorState";
 import { createTypedArray, generateSeed } from "../utils";
 import { ERROR } from "../utils/debug";
 import { downloadFile, uploadFile } from "../utils/editorHelpers";
-import { tip } from "../utils/uiHelpers";
 
 export interface HeightmapTemplateCallbacks {
   restartHistory: () => void;
@@ -29,7 +28,7 @@ export function executeTemplate(callbacks: HeightmapTemplateCallbacks): void {
   }
 
   worldContext.grid.cells.h = createTypedArray({ maxValue: 100, length: worldContext.grid.points.length });
-  HeightmapGenerator.setGraph(worldContext.grid);
+  GenerationPipeline.HeightmapGenerator.setGraph(worldContext.grid);
   callbacks.restartHistory();
 
   for (const step of steps) {
@@ -42,22 +41,22 @@ export function executeTemplate(callbacks: HeightmapTemplateCallbacks): void {
     const y = step.y || "";
     const type = step.type;
 
-    if (type === "Hill") HeightmapGenerator.addHill(count, height, x, y);
-    else if (type === "Pit") HeightmapGenerator.addPit(count, height, x, y);
-    else if (type === "Range") HeightmapGenerator.addRange(count, height, x, y);
-    else if (type === "Trough") HeightmapGenerator.addTrough(count, height, x, y);
-    else if (type === "Strait") HeightmapGenerator.addStrait(count, dist);
-    else if (type === "Mask") HeightmapGenerator.mask(+count!);
-    else if (type === "Invert") HeightmapGenerator.invert(+count!, dist);
-    else if (type === "Add") HeightmapGenerator.modify(dist, +count!, 1);
-    else if (type === "Multiply") HeightmapGenerator.modify(dist, 0, +count!);
-    else if (type === "Smooth") HeightmapGenerator.smooth(+count!);
+    if (type === "Hill") GenerationPipeline.HeightmapGenerator.addHill(count, height, x, y);
+    else if (type === "Pit") GenerationPipeline.HeightmapGenerator.addPit(count, height, x, y);
+    else if (type === "Range") GenerationPipeline.HeightmapGenerator.addRange(count, height, x, y);
+    else if (type === "Trough") GenerationPipeline.HeightmapGenerator.addTrough(count, height, x, y);
+    else if (type === "Strait") GenerationPipeline.HeightmapGenerator.addStrait(count, dist);
+    else if (type === "Mask") GenerationPipeline.HeightmapGenerator.mask(+count!);
+    else if (type === "Invert") GenerationPipeline.HeightmapGenerator.invert(+count!, dist);
+    else if (type === "Add") GenerationPipeline.HeightmapGenerator.modify(dist, +count!, 1);
+    else if (type === "Multiply") GenerationPipeline.HeightmapGenerator.modify(dist, 0, +count!);
+    else if (type === "Smooth") GenerationPipeline.HeightmapGenerator.smooth(+count!);
 
-    worldContext.grid.cells.h = HeightmapGenerator.getHeights()!;
+    worldContext.grid.cells.h = GenerationPipeline.HeightmapGenerator.getHeights()!;
     callbacks.updateHistory("noStat");
   }
 
-  worldContext.grid.cells.h = HeightmapGenerator.getHeights()!;
+  worldContext.grid.cells.h = GenerationPipeline.HeightmapGenerator.getHeights()!;
   callbacks.updateStatistics();
   callbacks.mockHeightmap();
   callbacks.drawHeightmapPreview();
@@ -133,6 +132,8 @@ export function uploadTemplate(input: HTMLInputElement): void {
 }
 
 import { heightmapTemplates } from "../data";
+import { GenerationPipeline } from "../services/generationPipeline";
+import { tip } from "../services/tooltipService";
 
 export function changeTemplate(template: string): void {
   const templateString = heightmapTemplates[template]?.template as string | undefined;

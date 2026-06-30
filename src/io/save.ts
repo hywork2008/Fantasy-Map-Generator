@@ -1,5 +1,6 @@
 import { worldContext } from "../context/worldContext";
 import { Names } from "../generators/names-generator";
+import { tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { rulers } from "../store/editorState";
 import { useOptionsState } from "../store/optionsState";
@@ -7,7 +8,6 @@ import { closeDialogs, openConfirm } from "../ui/dialogs/dialogService";
 import { createObjectURL, link, parseError, ra, revokeObjectURL, rn } from "../utils";
 import { ERROR } from "../utils/debug";
 import { getFileName } from "../utils/editorHelpers";
-import { tip } from "../utils/uiHelpers";
 import { VERSION } from "../versioning";
 import { Cloud } from "./cloud";
 import { getUsedFonts } from "./export";

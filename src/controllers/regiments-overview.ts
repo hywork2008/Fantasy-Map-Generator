@@ -2,8 +2,10 @@ import { pointer } from "d3";
 import { appServices } from "../context/appServices";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
-import { Military } from "../generators/military-generator";
+
 import { drawRegiment } from "../renderers/index";
+import { GenerationPipeline } from "../services/generationPipeline";
+import { clearMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { useRegimentsOverviewState } from "../store/regimentsOverviewState";
 import type { MilitaryRegiment, MilitaryUnit } from "../types/models";
@@ -11,7 +13,6 @@ import { closeDialogs, openDialog } from "../ui/dialogs/dialogService";
 import { capitalize, findCell, getLatitude, getLongitude, last } from "../utils";
 import { downloadFile, getFileName } from "../utils/editorHelpers";
 import { layerIsOn } from "../utils/nodeUtils";
-import { clearMainTip, tip } from "../utils/uiHelpers";
 import { interactionManager } from "./interactionManager";
 import { toggleMilitary } from "./layers";
 
@@ -62,9 +63,9 @@ export function addRegimentOnMap(filterStateId: number, onDone: () => void): voi
       state: filterStateId,
       icon: "🛡️"
     } as MilitaryRegiment;
-    reg.name = Military.getName(reg, military);
+    reg.name = GenerationPipeline.Military.getName(reg, military);
     military.push(reg);
-    Military.generateNote(reg, worldContext.pack.states[filterStateId]);
+    GenerationPipeline.Military.generateNote(reg, worldContext.pack.states[filterStateId]);
     drawRegiment(worldContext, viewContext, appServices, reg, filterStateId);
     clearAddRegimentClickHandler();
     onDone();

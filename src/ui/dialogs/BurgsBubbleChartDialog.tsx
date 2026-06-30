@@ -4,10 +4,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { zoomTo } from "../../actions";
 import { worldContext } from "../../context/worldContext";
 import { burgHighlightOff, burgHighlightOn } from "../../controllers/burg-highlight";
+import { tip } from "../../services/tooltipService";
 import { useDialogState } from "../../store/dialogState";
 import { useOptionsState } from "../../store/optionsState";
 import { si } from "../../utils";
-import { tip } from "../../utils/uiHelpers";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 

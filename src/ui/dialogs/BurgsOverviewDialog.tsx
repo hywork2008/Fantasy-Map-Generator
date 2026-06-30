@@ -16,10 +16,10 @@ import {
 } from "../../controllers/burgs-overview";
 import { uploadFile } from "../../controllers/editors";
 import { Burgs } from "../../generators/burgs-generator";
+import { showElementLockTip, tip } from "../../services/tooltipService";
 import { useBurgsOverviewState } from "../../store/burgsOverviewState";
 import { useDialogState } from "../../store/dialogState";
 import { si } from "../../utils";
-import { showElementLockTip, tip } from "../../utils/uiHelpers";
 import { Dialog } from "./Dialog";
 import { closeDialog, openConfirm } from "./dialogService";
 

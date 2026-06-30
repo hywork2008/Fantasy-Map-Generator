@@ -18,6 +18,7 @@ import {
 import { drawRegiments, drawScaleBar, fitScaleBar } from "../renderers/index";
 import { OceanLayers } from "../renderers/ocean-layers";
 import { onFontAdded } from "../services/fonts";
+import { tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { useExtensionState } from "../store/extensionState";
 import type { SelectOption } from "../store/styleState";
@@ -31,7 +32,6 @@ import { ERROR, INFO } from "../utils/debug";
 import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog, downloadFile, uploadFile } from "../utils/editorHelpers";
 import { getElementById, layerIsOn, getElementBySelector as queryElementBySelector } from "../utils/nodeUtils";
-import { tip } from "../utils/uiHelpers";
 import { VERSION } from "../versioning";
 import { toggleRelief } from "./layers";
 import { showOptions } from "./options";
