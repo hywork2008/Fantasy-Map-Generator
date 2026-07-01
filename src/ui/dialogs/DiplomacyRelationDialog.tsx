@@ -60,8 +60,8 @@ export const DiplomacyRelationDialog: React.FC = () => {
 
   return (
     <Dialog isOpen={isOpen} title="Change relations" onClose={closeRelationDialog}>
-      <div style={{ display: "flex", flexDirection: "column", gap: ".3em", padding: "0.1em 0", minWidth: "250px" }}>
-        <header style={{ display: "flex", alignItems: "center", gap: "0.5em" }}>
+      <div className="-diplomacy-relation-dialog__display-flex--flex-direction-column--gap-3em--padding-0-1em-0--min-width-250px">
+        <header className="-diplomacy-relation-dialog__display-flex--align-items-center--gap-0-5em">
           <svg className="coaIcon" viewBox="0 0 200 200">
             <title>Coat of Arms for {subject.fullName || subject.name}</title>
             <use href={`#stateCOA${subject.i}`} />
@@ -69,13 +69,13 @@ export const DiplomacyRelationDialog: React.FC = () => {
           <b>{subject.fullName || subject.name}</b>
         </header>
 
-        <main style={{ display: "flex", gap: "1em", marginTop: "0.5em" }}>
-          <section style={{ display: "flex", flexDirection: "column", gap: ".3em" }}>
+        <main className="-diplomacy-relation-dialog__display-flex--gap-1em--margin-top-0-5em">
+          <section className="-diplomacy-relation-dialog__display-flex--flex-direction-column--gap-3em">
             {Object.entries(relations).map(([relation, data]) => {
               const { color, inText, tip } = data as { color: string; inText: string; tip: string };
               return (
                 <div key={relation} data-tip={tip}>
-                  <label className="pointer" style={{ display: "flex", alignItems: "center", gap: "0.5em" }}>
+                  <label className="pointer -diplomacy-relation-dialog__display-flex--align-items-center--gap-0-5em">
                     <input
                       type="radio"
                       name="relationSelect"
@@ -91,26 +91,22 @@ export const DiplomacyRelationDialog: React.FC = () => {
             })}
           </section>
 
-          <section style={{ display: "flex", flexDirection: "column", gap: ".3em", minWidth: "150px" }}>
-            <div
-              style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.3em" }}
-            >
-              <span style={{ fontWeight: 500, fontSize: "0.95em" }}>States:</span>
+          <section className="-diplomacy-relation-dialog__display-flex--flex-direction-column--gap-3em--min-width-150px">
+            <div className="-diplomacy-relation-dialog__display-flex--justify-content-space-between--align-items-center--margin-bottom-0">
+              <span className="-diplomacy-relation-dialog__font-weight-500--font-size-0-95em">States:</span>
               <button
                 type="button"
-                style={{ padding: "0.3em 0.8em", cursor: "pointer", fontSize: "0.9em" }}
+                className="-diplomacy-relation-dialog__padding-0-3em-0-8em--cursor-pointer--font-size-0-9em"
                 data-tip="Toggle selection of all states"
                 onClick={toggleAll}
               >
                 Select All / None
               </button>
             </div>
-            <div
-              style={{ display: "flex", flexDirection: "column", gap: ".3em", maxHeight: "300px", overflowY: "auto" }}
-            >
+            <div className="-diplomacy-relation-dialog__display-flex--flex-direction-column--gap-3em--max-height-300px--overflow-y-auto">
               {objectStates.map(s => (
                 <div key={s.i} data-tip={s.fullName || s.name}>
-                  <label className="checkbox-label" style={{ display: "flex", alignItems: "center", gap: "0.5em" }}>
+                  <label className="checkbox-label -diplomacy-relation-dialog__display-flex--align-items-center--gap-0-5em">
                     <input
                       className="checkbox"
                       type="checkbox"

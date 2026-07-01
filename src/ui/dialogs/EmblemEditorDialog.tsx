@@ -34,11 +34,14 @@ export const EmblemEditorContent: React.FC = () => {
             {targetId && <use id="emblemImage" href={`#${targetId}`} />}
           </svg>
           <div id="emblemBody" className="-emblem-editor-dialog__margin-top-1em">
-            <div style={{ textAlign: "center", marginBottom: "0.5em" }}>
+            <div className="-emblem-editor-dialog__text-align-center--margin-bottom-0-5em">
               <b id="emblemArmiger">{armigerName}</b>
             </div>
-            <hr style={{ margin: "0.5em 0" }} />
-            <div data-tip="Select state" style={{ display: "flex", alignItems: "center", marginBottom: "0.2em" }}>
+            <hr className="-emblem-editor-dialog__margin-0-5em-0" />
+            <div
+              data-tip="Select state"
+              className="-emblem-editor-dialog__display-flex--align-items-center--margin-bottom-0-2em"
+            >
               <div className="label -emblem-editor-dialog__width-4em">State:</div>
               <select
                 id="emblemStates"
@@ -55,7 +58,7 @@ export const EmblemEditorContent: React.FC = () => {
             </div>
             <div
               data-tip="Select province in state"
-              style={{ display: "flex", alignItems: "center", marginBottom: "0.2em" }}
+              className="-emblem-editor-dialog__display-flex--align-items-center--margin-bottom-0-2em"
             >
               <div className="label -emblem-editor-dialog__width-4em">Province:</div>
               <select
@@ -73,7 +76,7 @@ export const EmblemEditorContent: React.FC = () => {
             </div>
             <div
               data-tip="Select burg in province or state"
-              style={{ display: "flex", alignItems: "center", marginBottom: "0.2em" }}
+              className="-emblem-editor-dialog__display-flex--align-items-center--margin-bottom-0-2em"
             >
               <div className="label -emblem-editor-dialog__width-4em">Burg:</div>
               <select
@@ -89,10 +92,10 @@ export const EmblemEditorContent: React.FC = () => {
                 ))}
               </select>
             </div>
-            <hr style={{ margin: "0.5em 0" }} />
+            <hr className="-emblem-editor-dialog__margin-0-5em-0" />
             <div
               data-tip="Select shape of the emblem"
-              style={{ display: "flex", alignItems: "center", marginBottom: "0.2em" }}
+              className="-emblem-editor-dialog__display-flex--align-items-center--margin-bottom-0-2em"
             >
               <div className="label -emblem-editor-dialog__width-4em">Shape:</div>
               <select
@@ -164,7 +167,7 @@ export const EmblemEditorContent: React.FC = () => {
             </div>
             <div
               data-tip="Set size of particular Emblem. To hide set to 0. To change the entire category go to Menu ⭢ Style ⭢ Emblems"
-              style={{ display: "flex", alignItems: "center", marginBottom: "0.2em" }}
+              className="-emblem-editor-dialog__display-flex--align-items-center--margin-bottom-0-2em"
             >
               <div className="label -emblem-editor-dialog__width-4em">Size:</div>
               <input
@@ -175,7 +178,7 @@ export const EmblemEditorContent: React.FC = () => {
                 step=".1"
                 value={size}
                 onChange={e => emblemEditorActions.changeSize(Number(e.target.value))}
-                style={{ width: "7em", marginRight: "0.5em" }}
+                className="-emblem-editor-dialog__width-7em--margin-right-0-5em"
               />
               <input
                 id="emblemSizeNumber"
@@ -192,13 +195,7 @@ export const EmblemEditorContent: React.FC = () => {
 
           <div
             id="emblemsFooter"
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginTop: "1em",
-              padding: "0.5em 0",
-              borderTop: "1px solid #ddd"
-            }}
+            className="-emblem-editor-dialog__display-flex--justify-content-space-between--margin-top-1em--padding-0-5em-0--bo"
           >
             <button
               type="button"
@@ -247,17 +244,9 @@ export const EmblemEditorContent: React.FC = () => {
           {uploadMode && (
             <div
               id="emblemUploadControl"
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: "0.5em",
-                marginTop: "0.5em",
-                padding: "0.5em",
-                background: "#f0f0f0",
-                borderRadius: "4px"
-              }}
+              className="-emblem-editor-dialog__display-flex--flex-direction-column--gap-0-5em--margin-top-0-5em--padding-0-5em-"
             >
-              <div style={{ display: "flex", gap: "0.5em" }}>
+              <div className="-emblem-editor-dialog__display-flex--gap-0-5em">
                 <input
                   ref={emblemImageInputRef}
                   type="file"
@@ -298,7 +287,7 @@ export const EmblemEditorContent: React.FC = () => {
                   Prepared SVG
                 </button>
               </div>
-              <div style={{ fontSize: "0.85em", textAlign: "center" }}>
+              <div className="-emblem-editor-dialog__font-size-0-85em--text-align-center">
                 <a
                   href="https://www.iloveimg.com/compress-image"
                   target="_blank"
@@ -323,15 +312,7 @@ export const EmblemEditorContent: React.FC = () => {
           {downloadMode && (
             <div
               id="emblemDownloadControl"
-              style={{
-                display: "flex",
-                gap: "0.5em",
-                marginTop: "0.5em",
-                padding: "0.5em",
-                background: "#f0f0f0",
-                borderRadius: "4px",
-                alignItems: "center"
-              }}
+              className="-emblem-editor-dialog__display-flex--gap-0-5em--margin-top-0-5em--padding-0-5em--background-f0f0f0--bor"
             >
               <input
                 id="emblemsDownloadSize"

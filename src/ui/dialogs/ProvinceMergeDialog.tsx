@@ -51,12 +51,12 @@ export const ProvinceMergeDialog: React.FC = () => {
           Check the <b>checkbox</b> next to each province you want to merge. Use the <b>radio button</b> to pick the{" "}
           <em>primary province</em> that will absorb all others. Hover over a row to highlight the province on the map.
         </p>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.3em" }}>
+        <div className="-province-merge-dialog__display-grid--grid-template-columns-1fr-1fr--gap-0-3em">
           {mergeDialog.map(p => (
             <div
               key={p.i}
               data-tip={p.fullName || p.name}
-              style={{ display: "flex", alignItems: "center", gap: "0.3em", cursor: "default" }}
+              className="-province-merge-dialog__display-flex--align-items-center--gap-0-3em--cursor-default"
               onMouseEnter={() => provincesEditorActions.provinceHighlightOn(p.i)}
               onMouseLeave={() => provincesEditorActions.provinceHighlightOff(null)}
             >
@@ -76,8 +76,7 @@ export const ProvinceMergeDialog: React.FC = () => {
               />
               <label
                 htmlFor={`selectProvince${p.i}`}
-                className="checkbox-label"
-                style={{ display: "flex", alignItems: "center", gap: "0.3em", cursor: "pointer" }}
+                className="checkbox-label -province-merge-dialog__display-flex--align-items-center--gap-0-3em--cursor-pointer"
               >
                 {/* @ts-ignore */}
                 <FillBox fill={p.color} disabled />

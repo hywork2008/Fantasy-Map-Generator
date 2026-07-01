@@ -43,10 +43,10 @@ export const LoadMapFromUrlDialog: React.FC = () => {
             value={url}
             onChange={e => setUrl(e.target.value)}
             placeholder="https://e-cloud.com/test.map"
-            style={{ width: "24em", marginLeft: "0.5em" }}
+            className="-load-map-from-url-dialog__width-24em--margin-left-0-5em"
           />
         </label>
-        {error && <div style={{ color: "red", marginTop: "0.5em" }}>{error}</div>}
+        {error && <div className="-load-map-from-url-dialog__color-red--margin-top-0-5em">{error}</div>}
         <p>
           <i>
             Please note server should allow CORS for file to be loaded. If CORS is not allowed, save file to Dropbox and

@@ -97,7 +97,7 @@ const OriginSelector: React.FC<OriginSelectorProps> = ({ selectedNode, elements,
         >
           Select
         </button>
-        <button type="button" onClick={onCancel} style={{ marginLeft: "0.5em" }}>
+        <button type="button" onClick={onCancel} className="-hierarchy-tree-dialog__margin-left-0-5em">
           Cancel
         </button>
       </div>

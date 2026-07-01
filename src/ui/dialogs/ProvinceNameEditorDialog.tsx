@@ -62,7 +62,7 @@ export const ProvinceNameEditorDialog: React.FC = () => {
             />
           ) : (
             <select
-              style={{ display: "inline-block", width: "11em", height: "1.645em" }}
+              className="-province-name-editor-dialog__display-inline-block--width-11em--height-1-645em"
               value={formName}
               onChange={e => provincesEditorActions.nameEditorUpdate({ formName: e.target.value })}
             >
@@ -143,7 +143,7 @@ export const ProvinceNameEditorDialog: React.FC = () => {
 
         <div
           data-tip="Dominant culture in the province. This defines culture-based naming. Can be changed via the Cultures Editor"
-          style={{ marginTop: "0.2em" }}
+          className="-province-name-editor-dialog__margin-top-0-2em"
         >
           Dominant culture:&nbsp;<span>{cultureName}</span>
         </div>

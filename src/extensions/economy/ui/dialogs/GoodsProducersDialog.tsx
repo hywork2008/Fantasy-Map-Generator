@@ -18,7 +18,7 @@ export const GoodsProducersDialog: React.FC = () => {
           <i className="-goods-producers-dialog__color-888">No burgs produced {goodName}.</i>
         ) : (
           <>
-            <div className="header" style={{ gridTemplateColumns: "1.6em 7em 4em" }}>
+            <div className="header -goods-producers-dialog__grid-template-columns-1-6em-7em-4em">
               <div />
               <div>Burg</div>
               <div>Units</div>

@@ -396,7 +396,7 @@ export const ReligionsEditorDialog: React.FC = () => {
           <div id="religionsManuallyButtons" style={{ display: isBrushMode ? "inline-block" : "none" }}>
             <div
               data-tip="Change brush size. Shortcuts: + or ] to increase; - or [ to decrease"
-              style={{ marginBlock: "0.3em", display: "inline-block" }}
+              className="-religions-editor-dialog__margin-block-0-3em--display-inline-block"
             >
               Brush size:
               <input

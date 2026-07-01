@@ -36,7 +36,10 @@ export const GenerationErrorDialog: React.FC = () => {
       <div>
         <p>An error has occurred on map generation. Please retry.</p>
         <p>If error is critical, clear the stored data and try again.</p>
-        <p id="errorBox" style={{ fontFamily: "monospace", fontSize: "0.85em", wordBreak: "break-all" }}>
+        <p
+          id="errorBox"
+          className="-generation-error-dialog__font-family-monospace--font-size-0-85em--word-break-break-all"
+        >
           {errorText}
         </p>
       </div>

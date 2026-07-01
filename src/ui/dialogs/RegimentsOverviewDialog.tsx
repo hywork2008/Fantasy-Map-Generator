@@ -195,7 +195,7 @@ export const RegimentsOverviewDialog: React.FC = () => {
                   <img
                     src={r.icon}
                     data-tip="Regiment's emblem"
-                    style={{ width: "1.2em", height: "1.2em", verticalAlign: "middle" }}
+                    className="-regiments-overview-dialog__width-1-2em--height-1-2em--vertical-align-middle"
                     alt="emblem"
                   />
                 ) : (

@@ -9,7 +9,7 @@ export const RouteCreatorDialog: React.FC = () => {
   return (
     <Dialog isOpen={isOpen} title="Route Creator" onClose={() => closeDialog("routeCreator")}>
       <div>Click on map to add/remove route points</div>
-      <div id="routeCreatorBody" className="table" style={{ margin: "0.3em 0" }}></div>
+      <div id="routeCreatorBody" className="table -route-creator-dialog__margin-0-3em-0"></div>
       <div id="routeCreatorFooter">
         <button
           type="button"

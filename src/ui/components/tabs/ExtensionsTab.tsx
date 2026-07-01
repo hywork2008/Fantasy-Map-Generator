@@ -112,24 +112,14 @@ export const ExtensionsTab: React.FC = () => {
       </div>
 
       {error && (
-        <div
-          style={{
-            background: "#ffeaea",
-            border: "1px solid #e88",
-            borderRadius: "4px",
-            padding: "6px 10px",
-            marginBottom: "10px",
-            fontSize: "0.85em",
-            color: "#a00"
-          }}
-        >
+        <div className="-extensions-tab__background-ffeaea--border-1px-solid-e88--border-radius-4px--padding-6px-10px--ma">
           {error}
         </div>
       )}
 
       {/* Extension list */}
       {installedMeta.length === 0 ? (
-        <p style={{ color: "#888", textAlign: "center", marginTop: "1.5em" }}>No extensions installed yet.</p>
+        <p className="-extensions-tab__color-888--text-align-center--margin-top-1-5em">No extensions installed yet.</p>
       ) : (
         <div className="-extensions-tab__display-flex--flex-direction-column--gap-8px">
           {installedMeta.map(meta => {
@@ -185,7 +175,7 @@ export const ExtensionsTab: React.FC = () => {
 
                   {/* Name + version */}
                   <div className="-extensions-tab__flex-1--min-width-0">
-                    <strong style={{ fontSize: "0.95em" }}>{meta.name}</strong>
+                    <strong className="-extensions-tab__font-size-0-95em">{meta.name}</strong>
                     <span
                       style={{
                         marginLeft: "6px",
@@ -204,15 +194,7 @@ export const ExtensionsTab: React.FC = () => {
                   {!meta.builtin && (
                     <button
                       type="button"
-                      className="options"
-                      style={{
-                        margin: 0,
-                        padding: "2px 8px",
-                        fontSize: "0.8em",
-                        background: "none",
-                        border: "1px solid #c88",
-                        color: "#c00"
-                      }}
+                      className="options -extensions-tab__margin-0--padding-2px-8px--font-size-0-8em--background-none--border-1px-solid-c8"
                       title="Uninstall this extension"
                       onClick={() => handleUninstall(meta.id)}
                     >
@@ -221,7 +203,7 @@ export const ExtensionsTab: React.FC = () => {
                   )}
                 </div>
 
-                {desc && <p style={{ margin: "5px 0 0 44px", fontSize: "0.82em", color: "#666" }}>{desc}</p>}
+                {desc && <p className="-extensions-tab__margin-5px-0-0-44px--font-size-0-82em--color-666">{desc}</p>}
               </div>
             );
           })}

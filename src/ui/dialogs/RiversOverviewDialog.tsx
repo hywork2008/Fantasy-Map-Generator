@@ -226,7 +226,7 @@ export const RiversOverviewDialog: React.FC = () => {
                 onMouseLeave={() => riverHighlightOff(r.i)}
               >
                 <span data-tip="Locate the river" className="icon-target" onClick={() => zoomToRiver(r.i)} />
-                <div data-tip="River name" style={{ marginLeft: "0.4em" }} className="riverName">
+                <div data-tip="River name" className="-rivers-overview-dialog__margin-left-0-4em riverName">
                   {r.name}
                 </div>
                 <div data-tip="River type name" className="riverType">
@@ -301,7 +301,11 @@ export const RiversOverviewDialog: React.FC = () => {
             className="icon-trash"
             onClick={() => triggerAllRiversRemove(refresh)}
           />
-          <label htmlFor="riversSearch" data-tip="Filter by name, type or basin" style={{ marginLeft: "0.2em" }}>
+          <label
+            htmlFor="riversSearch"
+            data-tip="Filter by name, type or basin"
+            className="-rivers-overview-dialog__margin-left-0-2em"
+          >
             Search: <input id="riversSearch" type="search" value={search} onChange={e => setSearch(e.target.value)} />
           </label>
         </div>

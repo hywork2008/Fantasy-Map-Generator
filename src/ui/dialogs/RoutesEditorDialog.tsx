@@ -74,7 +74,7 @@ export const RoutesEditorDialog: React.FC = () => {
             <span id="routeLength">{routeLength}</span>
           </div>
 
-          <div className="editor-row" style={{ marginTop: "1em", gap: "0.5em", display: "flex" }}>
+          <div className="editor-row -routes-editor-dialog__margin-top-1em--gap-0-5em--display-flex">
             <button
               type="button"
               id="routeCreateSelectingCells"

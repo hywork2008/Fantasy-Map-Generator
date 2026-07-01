@@ -246,7 +246,7 @@ export const MilitaryOverviewDialog: React.FC = () => {
               </div>
               <input
                 data-tip="War Alert. Editable modifier to military forces number, depends of political situation"
-                style={{ width: "4.1em" }}
+                className="-military-overview-dialog__width-4-1em"
                 type="number"
                 min="0"
                 step=".01"

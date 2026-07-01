@@ -131,11 +131,14 @@ export const Options3dDialog: React.FC = () => {
                 <option value={8192}>8192x8192px</option>
               </select>
             </div>
-            <div data-tip="Quick preset lighting for different times of day" style={{ marginTop: "0.4em" }}>
+            <div
+              data-tip="Quick preset lighting for different times of day"
+              className="-options3d-dialog__margin-top-0-4em"
+            >
               <label htmlFor="timeOfDay">Time of day:</label>
               <select
                 id="timeOfDay"
-                style={{ width: "10em", marginBottom: "0.3em" }}
+                className="-options3d-dialog__width-10em--margin-bottom-0-3em"
                 value={timeOfDay}
                 onChange={e => {
                   const presetName = e.target.value;
@@ -153,15 +156,15 @@ export const Options3dDialog: React.FC = () => {
                 <option value="night">Night</option>
               </select>
             </div>
-            <div data-tip="Set sun position (x, y) and color" style={{ marginTop: "0.4em" }}>
+            <div data-tip="Set sun position (x, y) and color" className="-options3d-dialog__margin-top-0-4em">
               <span>Sun position and color:</span>
-              <div style={{ display: "flex", gap: "0.2em" }}>
+              <div className="-options3d-dialog__display-flex--gap-0-2em">
                 <input
                   type="number"
                   min={-2500}
                   max={2500}
                   step={100}
-                  style={{ width: "4.7em" }}
+                  className="-options3d-dialog__width-4-7em"
                   value={options.sunX}
                   onChange={e =>
                     handleChange("sunX", +e.target.value, () =>
@@ -174,7 +177,7 @@ export const Options3dDialog: React.FC = () => {
                   min={0}
                   max={5000}
                   step={100}
-                  style={{ width: "4.7em" }}
+                  className="-options3d-dialog__width-4-7em"
                   value={options.sunY}
                   onChange={e =>
                     handleChange("sunY", +e.target.value, () =>
@@ -184,7 +187,7 @@ export const Options3dDialog: React.FC = () => {
                 />
                 <input
                   type="color"
-                  style={{ padding: 0, height: "1.5em", border: "none" }}
+                  className="-options3d-dialog__padding-0--height-1-5em--border-none"
                   value={options.sunColor}
                   onChange={e =>
                     handleChange("sunColor", e.target.value, () => ThreeDRenderer.setSunColor(e.target.value))
@@ -192,7 +195,7 @@ export const Options3dDialog: React.FC = () => {
                 />
               </div>
             </div>
-            <div data-tip="Toggle 3d labels" style={{ margin: "0.6em 0 0.3em -0.2em" }}>
+            <div data-tip="Toggle 3d labels" className="-options3d-dialog__margin-0-6em-0-0-3em-0-2em">
               <input
                 id="options3dMeshLabels3d"
                 className="checkbox"
@@ -204,7 +207,7 @@ export const Options3dDialog: React.FC = () => {
                 <i>Show 3D labels</i>
               </label>
             </div>
-            <div data-tip="Toggle sky mode" style={{ margin: "0.6em 0 0.3em -0.2em" }}>
+            <div data-tip="Toggle sky mode" className="-options3d-dialog__margin-0-6em-0-0-3em-0-2em">
               <input
                 id="options3dMeshSkyMode"
                 className="checkbox"
@@ -238,7 +241,7 @@ export const Options3dDialog: React.FC = () => {
             </div>
             <div
               data-tip="Texture the terrain as a satellite image. Replaces the standard map texture"
-              style={{ margin: "0.6em 0 0.3em -0.2em" }}
+              className="-options3d-dialog__margin-0-6em-0-0-3em-0-2em"
             >
               <input
                 id="options3dSatellite"
@@ -253,7 +256,7 @@ export const Options3dDialog: React.FC = () => {
             </div>
             <div
               data-tip="Bake procedural erosion detail into the 3D terrain. Visual only, the map data is not changed"
-              style={{ margin: "0.6em 0 0.3em -0.2em" }}
+              className="-options3d-dialog__margin-0-6em-0-0-3em-0-2em"
             >
               <input
                 id="options3dErosion"
@@ -358,7 +361,7 @@ export const Options3dDialog: React.FC = () => {
                 </select>
               </div>
             </div>
-            <div data-tip="Toggle wireframe mode" style={{ margin: "0.6em 0 0.3em -0.2em" }}>
+            <div data-tip="Toggle wireframe mode" className="-options3d-dialog__margin-0-6em-0-0-3em-0-2em">
               <input
                 id="options3dMeshWireframeMode"
                 className="checkbox"
@@ -373,7 +376,7 @@ export const Options3dDialog: React.FC = () => {
               <span>Sky:</span>
               <input
                 type="color"
-                style={{ width: "4.4em", height: "1em", border: 0, padding: 0, margin: "0 0.2em" }}
+                className="-options3d-dialog__width-4-4em--height-1em--border-0--padding-0--margin-0-0-2em"
                 value={options.skyColor}
                 onChange={e =>
                   handleChange("skyColor", e.target.value, () =>
@@ -384,7 +387,7 @@ export const Options3dDialog: React.FC = () => {
               <span>Water:</span>
               <input
                 type="color"
-                style={{ width: "4.4em", height: "1em", border: 0, padding: 0, margin: "0 0.2em" }}
+                className="-options3d-dialog__width-4-4em--height-1em--border-0--padding-0--margin-0-0-2em"
                 value={options.waterColor}
                 onChange={e =>
                   handleChange("waterColor", e.target.value, () =>
@@ -437,12 +440,12 @@ export const Options3dDialog: React.FC = () => {
             </div>
             <div
               data-tip="Equirectangular projection is used: distortion is maximum on poles. Use map with aspect ratio 2:1 for best result"
-              style={{ fontStyle: "italic", margin: "0.2em 0" }}
+              className="-options3d-dialog__font-style-italic--margin-0-2em-0"
             >
               Equirectangular projection is used
             </div>
           </div>
-          <div id="options3dFooter" style={{ marginTop: "0.2em" }}>
+          <div id="options3dFooter" className="-options3d-dialog__margin-top-0-2em">
             <button
               type="button"
               data-tip="Update the scene"

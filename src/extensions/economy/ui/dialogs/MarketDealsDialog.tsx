@@ -29,8 +29,7 @@ export const MarketDealsDialog: React.FC = () => {
         <div
           id="marketDealsHeader"
           ref={headerRef}
-          className="header"
-          style={{ gridTemplateColumns: "2em 6.8em 4em 10em 4em 4em" }}
+          className="header -market-deals-dialog__grid-template-columns-2em-6-8em-4em-10em-4em-4em"
         >
           <div />
           <div
@@ -134,7 +133,7 @@ const DealRow: React.FC<{ row: MarketDealRow; onRowClick: (row: MarketDealRow) =
           ...(row.counterpartyType === "market" ? { fontSize: "0.85em" } : {})
         }}
       />
-      <div style={{ display: "inline-block", width: "6.8em" }}>{row.partyName}</div>
+      <div className="-market-deals-dialog__display-inline-block--width-6-8em">{row.partyName}</div>
     </div>
     <div className="marketDealUnits">{row.units}</div>
     <div className="marketDealIncome" style={{ color: row.incomeColor }}>

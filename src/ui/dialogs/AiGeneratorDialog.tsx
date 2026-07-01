@@ -94,7 +94,7 @@ export const AiGeneratorDialog: React.FC = () => {
     >
       <div id="aiGeneratorContainer">
         <div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.3em", width: "100%" }}>
+          <div className="-ai-generator-dialog__display-flex--flex-direction-column--gap-0-3em--width-100">
             <textarea
               id="aiGeneratorResult"
               placeholder="Generated text will appear here"

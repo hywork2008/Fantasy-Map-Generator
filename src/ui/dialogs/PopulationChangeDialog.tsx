@@ -66,7 +66,7 @@ export const PopulationChangeDialog: React.FC = () => {
     >
       <div>
         <i>{config.description}</i>
-        <div style={{ margin: "0.5em 0" }}>
+        <div className="-population-change-dialog__margin-0-5em-0">
           Rural:{" "}
           <input
             type="number"

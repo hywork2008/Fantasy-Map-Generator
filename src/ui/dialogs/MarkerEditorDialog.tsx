@@ -14,12 +14,12 @@ export const MarkerEditorDialog: React.FC = () => {
 
   return (
     <Dialog isOpen={isOpen} title="Marker Editor" onClose={closeMarkerEditor}>
-      <div id="markerBody" style={{ paddingBottom: "0.3em" }}>
+      <div id="markerBody" className="-marker-editor-dialog__padding-bottom-0-3em">
         <div data-tip="Marker type. Style changes will apply to all markers of the same type. Leave blank if the marker is unique">
           <div className="label">Type:</div>
           <input
             id="markerType"
-            style={{ width: "10.3em" }}
+            className="-marker-editor-dialog__width-10-3em"
             value={type}
             onChange={e => markersEditorActions.changeMarkerType(e.target.value)}
           />
@@ -27,7 +27,7 @@ export const MarkerEditorDialog: React.FC = () => {
 
         <div data-tip="Marker icon" className="-marker-editor-dialog__display-flex--align-items-center">
           <div className="label">Icon:</div>
-          <div id="markerIcon" style={{ fontSize: "1.5em", width: "3.7em" }}>
+          <div id="markerIcon" className="-marker-editor-dialog__font-size-1-5em--width-3-7em">
             {isExternal ? (
               <img src={icon} alt="marker icon" className="-marker-editor-dialog__width-1em--height-1em" />
             ) : (
@@ -97,7 +97,7 @@ export const MarkerEditorDialog: React.FC = () => {
           <div className="label">Pin shape:</div>
           <select
             id="markerPin"
-            style={{ width: "10.3em" }}
+            className="-marker-editor-dialog__width-10-3em"
             value={pin}
             onChange={e => markersEditorActions.changeMarkerPin(e.target.value)}
           >
@@ -122,14 +122,14 @@ export const MarkerEditorDialog: React.FC = () => {
           <input
             id="markerFill"
             type="color"
-            style={{ width: "5em", height: "1.6em" }}
+            className="-marker-editor-dialog__width-5em--height-1-6em"
             value={fill}
             onChange={e => markersEditorActions.changePinFill(e.target.value)}
           />
           <input
             id="markerStroke"
             type="color"
-            style={{ width: "5em", height: "1.6em" }}
+            className="-marker-editor-dialog__width-5em--height-1-6em"
             value={stroke}
             onChange={e => markersEditorActions.changePinStroke(e.target.value)}
           />

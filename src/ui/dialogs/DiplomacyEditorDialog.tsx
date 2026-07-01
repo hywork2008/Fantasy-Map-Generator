@@ -93,7 +93,7 @@ export const DiplomacyEditorContent: React.FC = () => {
         <br />
         Click on relations name to change it
       </div>
-      <div id="diplomacyFooter" className="fmg-dialog-footer" style={{ marginTop: "0.1em" }}>
+      <div id="diplomacyFooter" className="fmg-dialog-footer -diplomacy-editor-dialog__margin-top-0-1em">
         <button
           type="button"
           id="diplomacyEditorRefresh"

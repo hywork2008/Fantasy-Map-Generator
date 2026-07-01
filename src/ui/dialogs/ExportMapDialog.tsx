@@ -33,7 +33,7 @@ export const ExportMapDialog: React.FC = () => {
       className="-export-map-dialog__width-26em"
     >
       <div id="exportMapData">
-        <div style={{ marginBottom: "0.3em", fontWeight: "bold" }}>Download image</div>
+        <div className="-export-map-dialog__margin-bottom-0-3em--font-weight-bold">Download image</div>
         <div>
           <button
             type="button"
@@ -76,14 +76,14 @@ export const ExportMapDialog: React.FC = () => {
                 invokeActiveZooming();
               }}
             />
-            <label htmlFor="showLabels" className="checkbox-label" style={{ marginLeft: "1.2em" }}>
+            <label htmlFor="showLabels" className="checkbox-label -export-map-dialog__margin-left-1-2em">
               <i>show labels</i>
             </label>
           </span>
         </div>
         <div
           data-tip="Define scale of a saved png/jpeg image (e.g. 5x). Saving big images is slow and may cause a browser crash!"
-          style={{ marginBottom: "0.3em" }}
+          className="-export-map-dialog__margin-bottom-0-3em"
         >
           PNG / JPEG scale:
           <input
@@ -107,7 +107,7 @@ export const ExportMapDialog: React.FC = () => {
           />
         </div>
         <p>Generator uses pop-up window to download files. Please ensure your browser does not block popups.</p>
-        <div style={{ margin: "1em 0 0.3em", fontWeight: "bold" }}>Export to GeoJSON</div>
+        <div className="-export-map-dialog__margin-1em-0-0-3em--font-weight-bold">Export to GeoJSON</div>
         <div>
           <button type="button" onClick={saveGeoJsonCells} data-tip="Download cells data in GeoJSON format">
             cells
@@ -136,7 +136,7 @@ export const ExportMapDialog: React.FC = () => {
           </a>{" "}
           for guidance.
         </p>
-        <div style={{ margin: "1em 0 0.3em", fontWeight: "bold" }}>Export To JSON</div>
+        <div className="-export-map-dialog__margin-1em-0-0-3em--font-weight-bold">Export To JSON</div>
         <div>
           <button type="button" onClick={() => exportToJson("Full")} data-tip="Download full data in JSON">
             full

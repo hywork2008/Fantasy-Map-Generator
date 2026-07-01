@@ -82,7 +82,7 @@ export const FontDialog: React.FC = () => {
         <code>woff2</code> of desired variant. To add another variant (e.g. Cyrillic), add the font one more time under
         the same name, but with another URL
       </p>
-      <div style={{ marginTop: "0.3em" }} data-tip="Select font adding method">
+      <div className="-font-dialog__margin-top-0-3em" data-tip="Select font adding method">
         <select id="addFontMethod" value={method} onChange={e => setMethod(e.target.value)}>
           <option value="googleFont">Google font</option>
           <option value="localFont">Local font</option>

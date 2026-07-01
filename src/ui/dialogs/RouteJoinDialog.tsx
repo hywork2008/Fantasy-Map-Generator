@@ -34,7 +34,7 @@ export const RouteJoinDialog: React.FC = () => {
         <select
           value={currentId ?? ""}
           onChange={e => setSelectedId(Number(e.target.value))}
-          style={{ marginLeft: "0.5em" }}
+          className="-route-join-dialog__margin-left-0-5em"
         >
           {options.map(opt => (
             <option key={opt.id} value={opt.id}>

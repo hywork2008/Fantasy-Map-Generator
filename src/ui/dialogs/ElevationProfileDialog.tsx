@@ -176,7 +176,7 @@ export const ElevationProfileDialog: React.FC = () => {
               PNG
             </button>
           </span>
-          <span id="epstats" style={{ marginLeft: "1em", color: "#555", fontSize: "0.85em" }} />
+          <span id="epstats" className="-elevation-profile-dialog__margin-left-1em--color-555--font-size-0-85em" />
         </div>
       </div>
     </Dialog>

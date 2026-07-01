@@ -73,7 +73,7 @@ export const LoadMapDialog: React.FC = () => {
       </p>
 
       <div id="loadFromDropbox">
-        <p style={{ marginBottom: "0.3em" }}>
+        <p className="-load-map-dialog__margin-bottom-0-3em">
           Or load from your Dropbox account{" "}
           {!isDropboxConnected && (
             <button
@@ -113,7 +113,7 @@ export const LoadMapDialog: React.FC = () => {
           </select>
         )}
         {showDropboxButtons && (
-          <div id="loadFromDropboxButtons" style={{ marginBottom: "0.6em" }}>
+          <div id="loadFromDropboxButtons" className="-load-map-dialog__margin-bottom-0-6em">
             <button
               type="button"
               data-tip="Load map file (.map or .gz) from your Dropbox"
@@ -131,7 +131,7 @@ export const LoadMapDialog: React.FC = () => {
           </div>
         )}
 
-        <div style={{ marginTop: "0.3em" }}>
+        <div className="-load-map-dialog__margin-top-0-3em">
           <div id="sharableLinkContainer" style={{ display: isSharableLinkVisible ? "block" : "none" }}>
             <a id="sharableLink" href={sharableLinkUrl || "#"} target="_blank" rel="noreferrer">
               {sharableLinkLabel || " "}

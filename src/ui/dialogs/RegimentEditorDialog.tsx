@@ -19,8 +19,8 @@ export const RegimentEditorDialog: React.FC = () => {
 
   return (
     <Dialog isOpen={isOpen} title="Regiment Editor" onClose={() => closeDialog("regimentEditor")}>
-      <div id="regimentBody" style={{ paddingBottom: "0.3em" }}>
-        <div style={{ paddingBottom: "0.2em" }}>
+      <div id="regimentBody" className="-regiment-editor-dialog__padding-bottom-0-3em">
+        <div className="-regiment-editor-dialog__padding-bottom-0-2em">
           <button
             type="button"
             className={isNaval ? "icon-anchor" : "icon-users"}
@@ -48,10 +48,14 @@ export const RegimentEditorDialog: React.FC = () => {
 
         <div data-tip="Regiment emblem" className="-regiment-editor-dialog__display-flex--align-items-center">
           <div className="label">Emblem:</div>
-          <div id="regimentEmblem" style={{ fontSize: "1.5em", width: "3.7em" }}>
+          <div id="regimentEmblem" className="-regiment-editor-dialog__font-size-1-5em--width-3-7em">
             {emblemContent}
           </div>
-          <button type="button" style={{ padding: 0, width: "4.5em" }} onClick={regimentEditorActions.changeEmblem}>
+          <button
+            type="button"
+            className="-regiment-editor-dialog__padding-0--width-4-5em"
+            onClick={regimentEditorActions.changeEmblem}
+          >
             change
           </button>
         </div>

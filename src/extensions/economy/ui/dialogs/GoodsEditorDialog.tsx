@@ -81,9 +81,8 @@ export const GoodsEditorDialog: React.FC = () => {
           <input
             type="checkbox"
             data-tip="Show or hide all goods on the Goods map"
-            className={`native hide${isAssignMode ? " hidden" : ""}`}
+            className={`native hide${isAssignMode ? " hidden" : ""} -goods-editor-dialog__margin-0-3em--vertical-align-middle--width-1-2em`}
             id="goodsDisplayAll"
-            style={{ margin: "0 .3em", verticalAlign: "middle", width: "1.2em" }}
             checked={goods.length > 0 && displayedCount === goods.length}
             ref={el => {
               if (el) el.indeterminate = displayedCount > 0 && displayedCount < goods.length;
@@ -149,8 +148,7 @@ export const GoodsEditorDialog: React.FC = () => {
                 <input
                   type="checkbox"
                   data-tip="Toggle this good on the Goods map"
-                  className={`native goodDisplayed hide${isAssignMode ? " hidden" : ""}`}
-                  style={{ padding: 0, margin: 0, verticalAlign: "middle", width: "1.2em" }}
+                  className={`native goodDisplayed hide${isAssignMode ? " hidden" : ""} -goods-editor-dialog__padding-0--margin-0--vertical-align-middle--width-1-2em`}
                   checked={good.isDisplayed}
                   onChange={e => {
                     e.stopPropagation();
@@ -178,7 +176,7 @@ export const GoodsEditorDialog: React.FC = () => {
                   }}
                 >
                   <div className="-goods-editor-dialog__display-inline-block">{displayedProduced}</div>
-                  <div style={{ display: "inline-block", width: "0.4em", fontSize: "1.5em" }}>⚒</div>
+                  <div className="-goods-editor-dialog__display-inline-block--width-0-4em--font-size-1-5em">⚒</div>
                 </div>
                 <div
                   data-tip={`${good.stockTip}. Click to see breakdown by location`}
@@ -189,7 +187,7 @@ export const GoodsEditorDialog: React.FC = () => {
                   }}
                 >
                   <div className="-goods-editor-dialog__display-inline-block">{displayedStock}</div>
-                  <div style={{ display: "inline-block", width: "0.4em", fontSize: "1.2em" }}>⛁</div>
+                  <div className="-goods-editor-dialog__display-inline-block--width-0-4em--font-size-1-2em">⛁</div>
                 </div>
                 <div
                   data-tip="Base (initial) price. Click to compare prices across markets"

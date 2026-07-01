@@ -20,7 +20,7 @@ export const GoodsStockDialog: React.FC = () => {
           </i>
         ) : (
           <>
-            <div className="header" style={{ gridTemplateColumns: "1.6em 7em 4em" }}>
+            <div className="header -goods-stock-dialog__grid-template-columns-1-6em-7em-4em">
               <div />
               <div>Location</div>
               <div>Units</div>

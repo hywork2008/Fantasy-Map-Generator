@@ -61,7 +61,7 @@ export const MarketsGoodCompareDialog: React.FC = () => {
       }}
     >
       <div id="marketsGoodCompareContainer">
-        <div style={{ display: "flex", alignItems: "center", gap: ".5em", padding: ".2em 0 .4em", fontSize: ".9em" }}>
+        <div className="-markets-good-compare-dialog__display-flex--align-items-center--gap-5em--padding-2em-0-4em--font-size-9em">
           <label htmlFor="marketsGoodCompareSelect" data-tip="Select good to compare stock across markets">
             Good:
           </label>
@@ -79,7 +79,10 @@ export const MarketsGoodCompareDialog: React.FC = () => {
           </select>
         </div>
 
-        <div id="marketsGoodCompareHeader" className="header" style={{ gridTemplateColumns: "1.6em 9em 6em 7em" }}>
+        <div
+          id="marketsGoodCompareHeader"
+          className="header -markets-good-compare-dialog__grid-template-columns-1-6em-9em-6em-7em"
+        >
           <div />
           <div
             data-tip="Market center burg name. Click to sort"

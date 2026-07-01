@@ -252,7 +252,10 @@ export const BiomesEditorContent: React.FC = () => {
           onClick={biomesEnterCustomization}
         />
         <div id="biomesManuallyButtons" style={{ display: isCustomizationMode ? undefined : "none" }}>
-          <div data-tip="Change brush size. Shortcut: + to increase; – to decrease" style={{ marginBlock: "0.3em" }}>
+          <div
+            data-tip="Change brush size. Shortcut: + to increase; – to decrease"
+            className="-biomes-editor-dialog__margin-block-0-3em"
+          >
             Brush size:
             <SliderInput
               id="biomesBrush"

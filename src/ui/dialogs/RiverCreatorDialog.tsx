@@ -21,7 +21,7 @@ export const RiverCreatorDialog: React.FC = () => {
         {riverCells.map(cell => (
           <div key={cell} className="editorLine" data-cell={cell}>
             <span>Cell {cell}</span>
-            <span data-tip="Set flux affects river width" style={{ marginLeft: "0.4em" }}>
+            <span data-tip="Set flux affects river width" className="-river-creator-dialog__margin-left-0-4em">
               Flux
             </span>
             <input

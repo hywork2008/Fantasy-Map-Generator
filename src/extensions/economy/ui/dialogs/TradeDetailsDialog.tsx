@@ -66,7 +66,10 @@ export const TradeDetailsDialog: React.FC = () => {
           )}
         </div>
 
-        <div id="tradeDetailsHeader" className="header" style={{ gridTemplateColumns: "2.5em 10em 5em 5.5em 3.6em" }}>
+        <div
+          id="tradeDetailsHeader"
+          className="header -trade-details-dialog__grid-template-columns-2-5em-10em-5em-5-5em-3-6em"
+        >
           <div />
           <div
             data-tip="Click to sort by good"

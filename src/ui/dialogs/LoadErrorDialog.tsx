@@ -50,7 +50,7 @@ export const LoadErrorDialog: React.FC = () => {
         <p>
           Map version: {mapVersion}. Generator version: {VERSION}.
         </p>
-        <p id="errorBox" style={{ fontFamily: "monospace", fontSize: "0.85em", wordBreak: "break-all" }}>
+        <p id="errorBox" className="-load-error-dialog__font-family-monospace--font-size-0-85em--word-break-break-all">
           {errorText}
         </p>
       </div>

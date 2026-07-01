@@ -166,7 +166,7 @@ export const MilitaryOptionsDialog: React.FC = () => {
                             {icon?.startsWith("http") || icon?.startsWith("data:image") ? (
                               <img
                                 src={icon}
-                                style={{ width: "1.2em", height: "1.2em", pointerEvents: "none" }}
+                                className="-military-options-dialog__width-1-2em--height-1-2em--pointer-events-none"
                                 alt=""
                               />
                             ) : (
@@ -337,13 +337,25 @@ export const MilitaryOptionsDialog: React.FC = () => {
               </table>
             </div>
             <div className="-military-options-dialog__margin-top-1em">
-              <button type="button" onClick={applyMilitaryOptions} style={{ width: "6em", marginRight: "0.5em" }}>
+              <button
+                type="button"
+                onClick={applyMilitaryOptions}
+                className="-military-options-dialog__width-6em--margin-right-0-5em"
+              >
                 Apply
               </button>
-              <button type="button" onClick={addUnit} style={{ width: "6em", marginRight: "0.5em" }}>
+              <button
+                type="button"
+                onClick={addUnit}
+                className="-military-options-dialog__width-6em--margin-right-0-5em"
+              >
                 Add
               </button>
-              <button type="button" onClick={restoreDefaults} style={{ width: "8em", marginRight: "0.5em" }}>
+              <button
+                type="button"
+                onClick={restoreDefaults}
+                className="-military-options-dialog__width-8em--margin-right-0-5em"
+              >
                 Restore defaults
               </button>
               <button

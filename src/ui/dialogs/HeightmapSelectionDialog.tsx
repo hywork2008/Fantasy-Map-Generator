@@ -293,7 +293,7 @@ export const HeightmapSelectionContent: React.FC<{ onClose?: () => void }> = ({ 
           </div>
         </section>
 
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5em", paddingTop: "0.5em" }}>
+        <div className="-heightmap-selection-dialog__display-flex--justify-content-flex-end--gap-0-5em--padding-top-0-5em">
           <button type="button" onClick={onClose || (() => closeDialog("heightmapSelection"))}>
             Cancel
           </button>

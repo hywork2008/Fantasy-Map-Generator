@@ -12,7 +12,7 @@ export const IconSelectorDialog: React.FC = () => {
         <b>Unicode emojis</b>
         <div className="-icon-selector-dialog__font-style-italic">
           <span>Select from the list or paste a Unicode character here: </span>
-          <input id="iconInput" style={{ width: "2.5em" }} />
+          <input id="iconInput" className="-icon-selector-dialog__width-2-5em" />
           <span>
             . See{" "}
             <a href="https://emojidb.org" target="_blank" rel="noreferrer">
@@ -27,7 +27,7 @@ export const IconSelectorDialog: React.FC = () => {
         ></table>
       </div>
 
-      <div style={{ marginTop: "0.5em" }}>
+      <div className="-icon-selector-dialog__margin-top-0-5em">
         <b>External images</b>
         <div className="-icon-selector-dialog__font-style-italic">
           <span>Paste link to the image here: </span>

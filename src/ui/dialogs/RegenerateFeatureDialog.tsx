@@ -40,7 +40,7 @@ export const RegenerateFeatureDialog: React.FC = () => {
       </p>
       <div className="-regenerate-feature-dialog__margin-top-1em">
         <input id="dontAskAgain" type="checkbox" checked={dontAsk} onChange={e => setDontAsk(e.target.checked)} />
-        <label htmlFor="dontAskAgain" style={{ marginLeft: "0.4em" }}>
+        <label htmlFor="dontAskAgain" className="-regenerate-feature-dialog__margin-left-0-4em">
           <i>do not ask again</i>
         </label>
       </div>

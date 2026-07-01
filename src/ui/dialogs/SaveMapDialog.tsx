@@ -15,7 +15,7 @@ export const SaveMapDialog: React.FC = () => {
       buttons={[{ label: "Close", onClick: () => closeDialog("saveMapData") }]}
       className="-save-map-dialog__width-25em"
     >
-      <div style={{ marginTop: "0.3em" }}>
+      <div className="-save-map-dialog__margin-top-0-3em">
         <strong>Save map to</strong>
         <button
           data-tip="Download map file to your local disk"

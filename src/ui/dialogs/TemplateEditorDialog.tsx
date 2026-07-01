@@ -181,9 +181,8 @@ export const TemplateEditorDialog: React.FC = () => {
           <span>
             by:
             <select
-              className="templateDist"
+              className="templateDist -template-editor-dialog__width-7-8em"
               data-tip="Mirror heightmap along axis"
-              style={{ width: "7.8em" }}
               value={step.dist || "x"}
               onChange={e => handleUpdateStep(step.id, "dist", e.target.value)}
             >

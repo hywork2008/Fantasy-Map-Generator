@@ -253,16 +253,14 @@ export const MarketsOverviewDialog: React.FC = () => {
                       <div
                         data-tip="Number of cells with no market"
                         data-type="cells"
-                        className="marketCells"
-                        style={{ width: "3.5em" }}
+                        className="marketCells -markets-overview-dialog__width-3-5em"
                       >
                         {displayVal(m.cells, totals.cells)}
                       </div>
                       <div
                         data-tip="Number of burgs with no market"
                         data-type="burgs"
-                        className={`marketBurgs hide${isManualMode ? " hidden" : ""}`}
-                        style={{ width: "3.5em" }}
+                        className={`marketBurgs hide${isManualMode ? " hidden" : ""} -markets-overview-dialog__width-3-5em`}
                       >
                         {displayVal(m.burgs, totals.burgs)}
                       </div>
@@ -290,7 +288,7 @@ export const MarketsOverviewDialog: React.FC = () => {
                       >
                         —
                       </div>
-                      <span className={`hide${isManualMode ? " hidden" : ""}`} style={{ width: "1.2em" }} />
+                      <span className={`hide${isManualMode ? " hidden" : ""} -markets-overview-dialog__width-1-2em`} />
                     </div>
                   );
                 }
@@ -339,16 +337,14 @@ export const MarketsOverviewDialog: React.FC = () => {
                     <div
                       data-tip="Number of cells in market territory"
                       data-type="cells"
-                      className="marketCells"
-                      style={{ width: "3.5em" }}
+                      className="marketCells -markets-overview-dialog__width-3-5em"
                     >
                       {displayVal(m.cells, totals.cells)}
                     </div>
                     <div
                       data-tip="Number of burgs in market territory"
                       data-type="burgs"
-                      className={`marketBurgs hide${isManualMode ? " hidden" : ""}`}
-                      style={{ width: "3.5em" }}
+                      className={`marketBurgs hide${isManualMode ? " hidden" : ""} -markets-overview-dialog__width-3-5em`}
                     >
                       {displayVal(m.burgs, totals.burgs)}
                     </div>
@@ -518,9 +514,9 @@ export const MarketsOverviewDialog: React.FC = () => {
             }
           ]}
         >
-          <div style={{ display: "grid", gap: "0.8em" }}>
+          <div className="-markets-overview-dialog__display-grid--gap-0-8em">
             <div>Are you sure you want to regenerate markets and their territories?</div>
-            <label style={{ display: "flex", alignItems: "center", gap: ".4em" }}>
+            <label className="-markets-overview-dialog__display-flex--align-items-center--gap-4em">
               <input
                 type="checkbox"
                 className="native"

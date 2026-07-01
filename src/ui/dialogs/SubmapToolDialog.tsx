@@ -45,7 +45,7 @@ export const SubmapToolDialog: React.FC = () => {
         Don't forget to save the .map file to your machine first!
       </p>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: "0.5em" }}>
+      <div className="-submap-tool-dialog__display-flex--flex-direction-column--gap-0-5em">
         <div data-tip="Set points (cells) number of the submap" className="-submap-tool-dialog__display-flex--gap-1em">
           <div>Points number</div>
           <div>

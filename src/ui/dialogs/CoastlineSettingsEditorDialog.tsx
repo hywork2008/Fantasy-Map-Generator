@@ -56,13 +56,13 @@ export const CoastlineSettingsEditorContent: React.FC = () => {
           </span>
         </label>
         <div className="-coastline-settings-editor-dialog__display-flex--align-items-center--gap-4px">
-          <span style={{ color: "#999", fontSize: ".85em" }}>Preset</span>
+          <span className="-coastline-settings-editor-dialog__color-999--font-size-85em">Preset</span>
           {Object.keys(COAST_PRESETS).map(name => (
             <button
               type="button"
               key={name}
               disabled={!enabled}
-              style={{ fontSize: ".78em", padding: "2px 8px" }}
+              className="-coastline-settings-editor-dialog__font-size-78em--padding-2px-8px"
               onClick={() => coastlineSettingsActions.applyPreset(name)}
             >
               {name}
@@ -90,13 +90,15 @@ export const CoastlineSettingsEditorContent: React.FC = () => {
                     />
                   </td>
                   <td className="-coastline-settings-editor-dialog__padding-2px-6px--min-width-2em--text-align-right">
-                    <span style={{ fontFamily: "monospace", fontSize: ".85em" }}>{value}</span>
+                    <span className="-coastline-settings-editor-dialog__font-family-monospace--font-size-85em">
+                      {value}
+                    </span>
                   </td>
                   <td className="-coastline-settings-editor-dialog__padding-2px-0">
                     <button
                       type="button"
                       title="Reset to default"
-                      style={{ fontSize: ".75em", padding: "1px 5px", cursor: "pointer" }}
+                      className="-coastline-settings-editor-dialog__font-size-75em--padding-1px-5px--cursor-pointer"
                       onClick={() => coastlineSettingsActions.resetSetting(key)}
                     >
                       ↺
@@ -110,7 +112,9 @@ export const CoastlineSettingsEditorContent: React.FC = () => {
       </div>
       <div className="-coastline-settings-editor-dialog__display-flex--gap-6px--margin-top-10px--align-item">
         <div className="-coastline-settings-editor-dialog__flex-1--min-width-0">
-          <div style={{ color: "#999", fontSize: ".85em", marginBottom: "3px" }}>Roughness profile</div>
+          <div className="-coastline-settings-editor-dialog__color-999--font-size-85em--margin-bottom-3px">
+            Roughness profile
+          </div>
           <canvas
             ref={roughnessCanvasRef}
             width="auto"
@@ -119,7 +123,9 @@ export const CoastlineSettingsEditorContent: React.FC = () => {
           ></canvas>
         </div>
         <div>
-          <div style={{ color: "#999", fontSize: ".85em", marginBottom: "3px" }}>Shape preview</div>
+          <div className="-coastline-settings-editor-dialog__color-999--font-size-85em--margin-bottom-3px">
+            Shape preview
+          </div>
           <canvas
             ref={shapePreviewCanvasRef}
             width="100"

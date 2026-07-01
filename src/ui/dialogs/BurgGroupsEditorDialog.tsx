@@ -206,7 +206,7 @@ export const BurgGroupsEditorDialog: React.FC = () => {
           id="burgGroupsEditorContainer"
           className="-burg-groups-editor-dialog__overflow-y-auto--overflow-x-hidden--max-height-60v"
         >
-          {errorMsg && <div style={{ color: "#d22", marginBottom: "0.5em" }}>{errorMsg}</div>}
+          {errorMsg && <div className="-burg-groups-editor-dialog__color-d22--margin-bottom-0-5em">{errorMsg}</div>}
           <table id="burgGroupsTable" className="table">
             <thead>
               <tr>

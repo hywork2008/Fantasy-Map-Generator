@@ -339,7 +339,7 @@ export const WorldConfiguratorDialog: React.FC = () => {
                     min={0}
                     max={100}
                     step="0.1"
-                    style={{ width: "10.3em" }}
+                    className="-world-configurator-dialog__width-10-3em"
                     value={useOptionsState(s => s.latitude)}
                     onChange={handleControlsChange}
                   />
@@ -369,7 +369,7 @@ export const WorldConfiguratorDialog: React.FC = () => {
                     min={0}
                     max={100}
                     step="0.1"
-                    style={{ width: "10.3em" }}
+                    className="-world-configurator-dialog__width-10-3em"
                     value={useOptionsState(s => s.longitude)}
                     onChange={handleControlsChange}
                   />
@@ -519,7 +519,7 @@ export const WorldConfiguratorDialog: React.FC = () => {
               </button>
             </div>
           </div>
-          <div style={{ marginTop: "0.3em" }}>
+          <div className="-world-configurator-dialog__margin-top-0-3em">
             <i>Presets:</i>
             <button
               type="button"

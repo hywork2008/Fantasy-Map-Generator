@@ -35,7 +35,7 @@ export const SliderInput = ({
   };
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: "0.4em" }} className={className}>
+    <div className={`-slider-input__display-flex--align-items-center--gap-0-4em ${className}`}>
       {children}
       <input
         id={id}

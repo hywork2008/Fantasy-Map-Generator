@@ -212,7 +212,10 @@ export const BurgsOverviewDialog: React.FC = () => {
       className="fmg-dialog--overflow-hidden"
     >
       <div id="burgsOverviewContainer">
-        <div id="burgsHeader" className="header" style={{ gridTemplateColumns: "9em 7em 7.5em 7.2em 6.5em 7em 6em" }}>
+        <div
+          id="burgsHeader"
+          className="header -burgs-overview-dialog__grid-template-columns-9em-7em-7-5em-7-2em-6-5em-7em-6em"
+        >
           <SortHeader field="name" label="Burg" />
           <SortHeader field="province" label="Province" />
           <SortHeader field="state" label="State" />
@@ -224,7 +227,7 @@ export const BurgsOverviewDialog: React.FC = () => {
 
         <div id="burgsBody" className="table">
           {filteredBurgs.length === 0 ? (
-            <div style={{ paddingBlock: "0.3em" }}>No burgs found</div>
+            <div className="-burgs-overview-dialog__padding-block-0-3em">No burgs found</div>
           ) : (
             filteredBurgs.map(({ b, population, province, stateName, cultureName }) => (
               <div
@@ -265,8 +268,7 @@ export const BurgsOverviewDialog: React.FC = () => {
                   />
                   <span
                     data-tip={b.port ? "This burg is a port" : "This burg is NOT a port"}
-                    className={`icon-anchor${b.port ? "" : " inactive"}`}
-                    style={{ fontSize: ".9em", padding: "0 1px" }}
+                    className={`icon-anchor${b.port ? "" : " inactive"} -burgs-overview-dialog__font-size-9em--padding-0-1px`}
                   />
                 </div>
                 <span data-tip="Edit burg" className="icon-pencil pointer" onClick={() => editBurg(b.i!)} />
@@ -291,7 +293,7 @@ export const BurgsOverviewDialog: React.FC = () => {
         <div
           id="burgsFilters"
           data-tip="Apply a filter"
-          style={{ paddingBlock: "0.1em", display: "flex", gap: "0.5em", width: "100%" }}
+          className="-burgs-overview-dialog__padding-block-0-1em--display-flex--gap-0-5em--width-100"
         >
           <label htmlFor="burgsSearch" data-tip="Filter by name, province, state, culture, or group">
             Search:{" "}

@@ -47,7 +47,7 @@ export const ExportToPngTilesDialog: React.FC = () => {
     >
       <p>Map will be split into tiles and downloaded as a single zip file. Avoid saving too large images</p>
 
-      <div data-tip="Number of columns" style={{ marginBottom: "0.3em" }}>
+      <div data-tip="Number of columns" className="-export-to-png-tiles-dialog__margin-bottom-0-3em">
         <div className="label">Columns:</div>
         <input
           id="tileColsInput"
@@ -69,7 +69,7 @@ export const ExportToPngTilesDialog: React.FC = () => {
         />
       </div>
 
-      <div data-tip="Number of rows" style={{ marginBottom: "0.3em" }}>
+      <div data-tip="Number of rows" className="-export-to-png-tiles-dialog__margin-bottom-0-3em">
         <div className="label">Rows:</div>
         <input
           id="tileRowsInput"
@@ -91,7 +91,7 @@ export const ExportToPngTilesDialog: React.FC = () => {
         />
       </div>
 
-      <div data-tip="Tile output scale" style={{ marginBottom: "0.3em" }}>
+      <div data-tip="Tile output scale" className="-export-to-png-tiles-dialog__margin-bottom-0-3em">
         <div className="label">Scale:</div>
         <input
           id="tileScaleInput"
@@ -115,13 +115,13 @@ export const ExportToPngTilesDialog: React.FC = () => {
         />
       </div>
 
-      <p style={{ margin: "0.4em 0" }}>
+      <p className="-export-to-png-tiles-dialog__margin-0-4em-0">
         Total image size:{" "}
         <span id="tileSize" style={{ color: sizeColor }}>
           {sizeLabel}
         </span>
       </p>
-      <p id="tileStatus" style={{ marginTop: "0.4em", minHeight: "1.2em" }}>
+      <p id="tileStatus" className="-export-to-png-tiles-dialog__margin-top-0-4em--min-height-1-2em">
         {status}
       </p>
     </Dialog>

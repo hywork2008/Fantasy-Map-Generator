@@ -129,11 +129,11 @@ export const MarkersOverviewDialog: React.FC = () => {
                 <img
                   src={icon}
                   data-tip="Marker icon"
-                  style={{ width: "1.2em", height: "1.2em", verticalAlign: "middle" }}
+                  className="-markers-overview-dialog__width-1-2em--height-1-2em--vertical-align-middle"
                   alt="marker icon"
                 />
               ) : (
-                <span data-tip="Marker icon" style={{ width: "1.2em" }}>
+                <span data-tip="Marker icon" className="-markers-overview-dialog__width-1-2em">
                   {icon}
                 </span>
               )}
@@ -141,29 +141,25 @@ export const MarkersOverviewDialog: React.FC = () => {
                 {type}
               </div>
               <span
-                style={{ paddingRight: ".1em" }}
+                className="-markers-overview-dialog__padding-right-1em icon-pencil pointer"
                 data-tip="Edit marker"
-                className="icon-pencil pointer"
                 onClick={() => {
                   markerZoomTo(i);
                   editMarker(i);
                 }}
               />
               <span
-                style={{ paddingRight: ".1em" }}
+                className="-markers-overview-dialog__padding-right-1em icon-target pointer"
                 data-tip="Locate the marker"
-                className="icon-target pointer"
                 onClick={() => markerHighlightById(i)}
               />
               <span
-                style={{ paddingRight: ".1em" }}
+                className={`-markers-overview-dialog__padding-right-1em icon-pin pointer${pinned ? "" : " inactive"}`}
                 data-tip="Pin marker (display only pinned markers)"
-                className={`icon-pin pointer${pinned ? "" : " inactive"}`}
                 onClick={() => handlePinClick(i)}
               />
               <span
-                style={{ paddingRight: ".1em" }}
-                className={`locks pointer${lock ? " icon-lock" : " icon-lock-open inactive"}`}
+                className={`-markers-overview-dialog__padding-right-1em locks pointer${lock ? " icon-lock" : " icon-lock-open inactive"}`}
                 onMouseOver={e => showElementLockTip(e.nativeEvent)}
                 onClick={() => handleLockClick(i)}
               />

@@ -76,7 +76,7 @@ const NamesbaseAnalysisDialog: React.FC<{ data: NamesbaseAnalysisData; onClose: 
 
   return (
     <Dialog isOpen={true} onClose={onClose} title="Data Analysis">
-      <div style={{ lineHeight: "1.6em", maxWidth: "20em" }}>
+      <div className="-namesbase-editor-dialog__line-height-1-6em--max-width-20em">
         <div data-tip="Number of names provided">
           Namesbase length: {data.length} {getLengthQuality()}
         </div>
@@ -110,7 +110,7 @@ const NamesbaseUploadErrorDialog: React.FC<{ errors: ParseError[]; totalCount: n
   return (
     <Dialog isOpen={true} onClose={onClose} title="Parsing error">
       <div>
-        <p style={{ margin: "0.75em" }}>
+        <p className="-namesbase-editor-dialog__margin-0-75em">
           <strong>
             File parsing error. Only {totalCount - errors.length} out of {totalCount} namebases added.
           </strong>
@@ -120,7 +120,7 @@ const NamesbaseUploadErrorDialog: React.FC<{ errors: ParseError[]; totalCount: n
           the parameters. Another prohibited character is <code>/</code>. The most common issue is names and other
           parameters being on two separate lines.
         </p>
-        <ul style={{ margin: "0.5em" }}>
+        <ul className="-namesbase-editor-dialog__margin-0-5em">
           <li>
             <code>name</code>: name of the base.
           </li>
@@ -143,9 +143,9 @@ const NamesbaseUploadErrorDialog: React.FC<{ errors: ParseError[]; totalCount: n
           </li>
         </ul>
         <div>
-          <ul style={{ margin: 0, paddingLeft: "1.5em" }}>
+          <ul className="-namesbase-editor-dialog__margin-0--padding-left-1-5em">
             {errors.map(err => (
-              <li key={err.id} style={{ padding: "0.6em 0", borderTop: "1px solid #ddd" }}>
+              <li key={err.id} className="-namesbase-editor-dialog__padding-0-6em-0--border-top-1px-solid-ddd">
                 <div>
                   Line {err.id}: <span className="-namesbase-editor-dialog__color-8b0000">{err.error}.</span> Data:
                 </div>

@@ -69,15 +69,7 @@ export const UpstreamAboutContent: React.FC = () => {
         .
       </p>
 
-      <div
-        style={{
-          backgroundColor: "#e85b46",
-          padding: "0.4em",
-          width: "max-content",
-          margin: "0.6em auto 0 auto",
-          border: "1px solid #943838"
-        }}
-      >
+      <div className="-upstream-about-content__background-color-e85b46--padding-0-4em--width-max-content--margin-0-6em-auto-0-a">
         <a
           href="https://www.patreon.com/azgaar"
           target="_blank"
@@ -85,7 +77,7 @@ export const UpstreamAboutContent: React.FC = () => {
           className="-upstream-about-content__color-white--text-decoration-none--font-family-san"
         >
           <div>
-            <div style={{ width: "0.8em", display: "inline-block", padding: "0 0.2em", fill: "white" }}>
+            <div className="-upstream-about-content__width-0-8em--display-inline-block--padding-0-0-2em--fill-white">
               <svg viewBox="0 0 569 546" aria-hidden="true">
                 <circle cx="362.589996" cy="204.589996" data-fill="1" id="Oval" r="204.589996" />
                 <rect data-fill="2" height="545.799988" id="Rectangle" width="100" x="0" y="0" />
@@ -109,7 +101,7 @@ export const UpstreamAboutContent: React.FC = () => {
         on Patreon!
       </p>
 
-      <div style={{ display: "flex", justifyContent: "center", padding: "0.8em 0.4em 0.4em", fontFamily: "cursive" }}>
+      <div className="-upstream-about-content__display-flex--justify-content-center--padding-0-8em-0-4em-0-4em--font-family-cur">
         <a
           href="https://u24.gov.ua/"
           className="-upstream-about-content__width-80"
@@ -153,7 +145,7 @@ export const UpstreamAboutContent: React.FC = () => {
         </div>
       </div>
 
-      <div style={{ textAlign: "left", marginTop: "0.5em" }}>
+      <div className="-upstream-about-content__text-align-left--margin-top-0-5em">
         Chinese localization:{" "}
         <a href="https://www.8desk.top" target="_blank" rel="noreferrer">
           8desk.top

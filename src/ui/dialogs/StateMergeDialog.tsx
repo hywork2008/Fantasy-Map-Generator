@@ -52,12 +52,12 @@ export const StateMergeDialog: React.FC = () => {
           <em>ruling state</em> that will absorb all others (its name, color, and capital will be kept). Hover over a
           row to highlight the state on the map.
         </p>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.3em" }}>
+        <div className="-state-merge-dialog__display-grid--grid-template-columns-1fr-1fr--gap-0-3em">
           {mergeDialog.map(s => (
             <div
               key={s.i}
               data-tip={s.fullName}
-              style={{ display: "flex", alignItems: "center", gap: "0.3em", cursor: "default" }}
+              className="-state-merge-dialog__display-flex--align-items-center--gap-0-3em--cursor-default"
               onMouseEnter={() => statesEditorActions.highlightStateOnMap(s.i)}
               onMouseLeave={statesEditorActions.clearStateHighlight}
             >
@@ -77,8 +77,7 @@ export const StateMergeDialog: React.FC = () => {
               />
               <label
                 htmlFor={`selectState${s.i}`}
-                className="checkbox-label"
-                style={{ display: "flex", alignItems: "center", gap: "0.3em", cursor: "pointer" }}
+                className="checkbox-label -state-merge-dialog__display-flex--align-items-center--gap-0-3em--cursor-pointer"
               >
                 {/* @ts-ignore */}
                 <FillBox fill={s.color} disabled />

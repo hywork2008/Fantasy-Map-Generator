@@ -164,7 +164,7 @@ export const LabelEditorDialog: React.FC = () => {
             min="30"
             max="300"
             step="1"
-            style={{ width: "4.5em" }}
+            className="-label-editor-dialog__width-4-5em"
             value={size}
             onChange={e => labelsEditorActions.changeRelativeSize(Number(e.target.value))}
           />
@@ -205,7 +205,7 @@ export const LabelEditorDialog: React.FC = () => {
             min="20"
             max="80"
             step="1"
-            style={{ width: "3.5em" }}
+            className="-label-editor-dialog__width-3-5em"
             data-tip="Set starting offset numerically"
             value={startOffset}
             onChange={e => labelsEditorActions.changeStartOffset(Number(e.target.value))}

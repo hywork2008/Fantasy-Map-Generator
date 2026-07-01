@@ -67,7 +67,7 @@ export const FeaturesSelectionDialog: React.FC<FeaturesSelectionDialogProps> = (
             <tr key={f.name} title={`Select limitation for burg feature: ${f.name}`}>
               <td>
                 <span className={f.icon} />
-                <span style={{ marginLeft: "0.2em" }}>{f.name}</span>
+                <span className="-features-selection-dialog__margin-left-0-2em">{f.name}</span>
               </td>
               <td>
                 <input

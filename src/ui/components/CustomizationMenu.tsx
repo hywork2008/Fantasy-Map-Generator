@@ -123,7 +123,7 @@ export const CustomizationMenu: React.FC = () => {
       <div>
         <span>Land cells: </span>
         <span id="landmassCounter">0</span>
-        <span style={{ marginLeft: "0.9em" }}>Mean height: </span>
+        <span className="-customization-menu__margin-left-0-9em">Mean height: </span>
         <span id="landmassAverage">0</span>
       </div>
 

@@ -113,15 +113,12 @@ export const MarkerConfigDialog: React.FC = () => {
               <td className="-marker-config-dialog__position-relative">
                 {row.isExternal ? (
                   <img
-                    className="image"
+                    className="image -marker-config-dialog__width-1-2em--height-1-2em--vertical-align-middle"
                     src={row.icon}
-                    style={{ width: "1.2em", height: "1.2em", verticalAlign: "middle" }}
                     alt=""
                   />
                 ) : (
-                  <span className="emoji" style={{ fontSize: "1.2em" }}>
-                    {row.icon}
-                  </span>
+                  <span className="emoji -marker-config-dialog__font-size-1-2em">{row.icon}</span>
                 )}
                 <button type="button" className="changeIcon icon-pencil" onClick={() => handleIconChange(index)} />
               </td>

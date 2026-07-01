@@ -136,8 +136,7 @@ const PhasePicker: React.FC<PhasePickerProps> = ({ side, battleType, currentPhas
     <div className="-battle-screen-dialog__display-inline-block">
       <button
         type="button"
-        className={`icon-button-${currentPhase || "skirmish"}`}
-        style={{ width: "3.2em" }}
+        className={`icon-button-${currentPhase || "skirmish"} -battle-screen-dialog__width-3-2em`}
         data-tip={options.find(o => o.phase === currentPhase)?.tip ?? ""}
         onClick={handleToggle}
       />
@@ -170,9 +169,9 @@ interface SideHeaderProps {
 }
 
 const SideHeader: React.FC<SideHeaderProps> = ({ label, side, morale, power, phase, die, battleType }) => (
-  <div style={{ fontSize: "1.2em", fontWeight: "bold", width: "unset" }}>
+  <div className="-battle-screen-dialog__font-size-1-2em--font-weight-bold--width-unset">
     <span>{label}</span>
-    <div style={{ float: "right", fontSize: "0.7em" }}>
+    <div className="-battle-screen-dialog__float-right--font-size-0-7em">
       <meter data-tip={`${label} morale: ${morale}`} min={0} max={100} low={33} high={66} optimum={80} value={morale} />
       <div
         data-tip={`${label} strength during this phase. Strength defines dealt damage`}
@@ -184,8 +183,7 @@ const SideHeader: React.FC<SideHeaderProps> = ({ label, side, morale, power, pha
       <button
         type="button"
         data-tip={`Random factor for ${label.toLowerCase()}. Click to re-roll`}
-        style={{ padding: "0.1em 0.2em", width: "3.2em" }}
-        className="icon-button-die"
+        className="-battle-screen-dialog__padding-0-1em-0-2em--width-3-2em icon-button-die"
         onClick={() => battleAction_rollDie(side)}
       >
         {die}
@@ -237,11 +235,15 @@ const RegimentTable: React.FC<RegimentTableProps> = ({ regiments, militaryUnitNa
                 {r.regimentName.slice(0, 24)}
               </td>
               {militaryUnitNames.map(u => (
-                <td key={u.name} data-tip="Initial forces" style={{ width: "2.5em", textAlign: "center" }}>
+                <td
+                  key={u.name}
+                  data-tip="Initial forces"
+                  className="-battle-screen-dialog__width-2-5em--text-align-center"
+                >
                   {r.initialUnits[u.name] || 0}
                 </td>
               ))}
-              <td data-tip="Initial forces" style={{ width: "2.5em", textAlign: "center" }}>
+              <td data-tip="Initial forces" className="-battle-screen-dialog__width-2-5em--text-align-center">
                 {r.initialTotal}
               </td>
             </tr>
@@ -249,11 +251,15 @@ const RegimentTable: React.FC<RegimentTableProps> = ({ regiments, militaryUnitNa
               <td />
               <td data-tip={r.stateFullName}>{r.stateFullName.slice(0, 26)}</td>
               {militaryUnitNames.map(u => (
-                <td key={u.name} data-tip="Casualties" style={{ width: "2.5em", textAlign: "center", color: "red" }}>
+                <td
+                  key={u.name}
+                  data-tip="Casualties"
+                  className="-battle-screen-dialog__width-2-5em--text-align-center--color-red"
+                >
                   {r.casualties[u.name] || 0}
                 </td>
               ))}
-              <td data-tip="Casualties" style={{ width: "2.5em", textAlign: "center", color: "red" }}>
+              <td data-tip="Casualties" className="-battle-screen-dialog__width-2-5em--text-align-center--color-red">
                 {totalCasualties}
               </td>
             </tr>
@@ -261,11 +267,15 @@ const RegimentTable: React.FC<RegimentTableProps> = ({ regiments, militaryUnitNa
               <td />
               <td data-tip="Supply line length, affects morale">Distance to base: {r.distanceLabel}</td>
               {militaryUnitNames.map(u => (
-                <td key={u.name} data-tip="Survivors" style={{ width: "2.5em", textAlign: "center", color: "green" }}>
+                <td
+                  key={u.name}
+                  data-tip="Survivors"
+                  className="-battle-screen-dialog__width-2-5em--text-align-center--color-green"
+                >
                   {r.survivors[u.name] || 0}
                 </td>
               ))}
-              <td data-tip="Survivors" style={{ width: "2.5em", textAlign: "center", color: "green" }}>
+              <td data-tip="Survivors" className="-battle-screen-dialog__width-2-5em--text-align-center--color-green">
                 {totalSurvivors}
               </td>
             </tr>
@@ -391,7 +401,7 @@ export const RegimentSelectorScreenDialog: React.FC = () => {
                 <rect x="0" y="0" width="100%" height="100%" fill={s.color ?? "#999"} />
               </svg>
               <div className="-battle-screen-dialog__width-6em">{(s.name ?? "").slice(0, 11)}</div>
-              <div style={{ width: "1.2em" }}>{r.icon}</div>
+              <div className="-battle-screen-dialog__width-1-2em">{r.icon}</div>
               <div className="-battle-screen-dialog__width-13em">{r.name.slice(0, 24)}</div>
               <div className="-battle-screen-dialog__width-4em">{r.a}</div>
               <div className="-battle-screen-dialog__width-4em">

@@ -38,14 +38,17 @@ export const MarketOverviewDialog: React.FC = () => {
   return (
     <Dialog isOpen={isOpen} title="Market Overview" onClose={() => closeDialog("marketOverview")}>
       <div id="marketOverviewContainer">
-        <div id="marketOverviewNameLine" style={{ display: "flex", alignItems: "center", marginBottom: "0.4em" }}>
+        <div
+          id="marketOverviewNameLine"
+          className="-market-overview-dialog__display-flex--align-items-center--margin-bottom-0-4em"
+        >
           <div className="label">Name:</div>
           <input
             id="marketOverviewName"
             data-tip="Type to rename the market. Clear the field to reset to the default name"
             autoCorrect="off"
             spellCheck={false}
-            style={{ width: "11em", marginLeft: "0.3em" }}
+            className="-market-overview-dialog__width-11em--margin-left-0-3em"
             value={name}
             placeholder={defaultName}
             onChange={e => renameActiveMarket(e.target.value)}
@@ -53,8 +56,7 @@ export const MarketOverviewDialog: React.FC = () => {
           <span
             id="marketOverviewNameReset"
             data-tip="Reset to the default name (center burg name)"
-            className="icon-ccw pointer"
-            style={{ marginLeft: "0.3em" }}
+            className="icon-ccw pointer -market-overview-dialog__margin-left-0-3em"
             onClick={resetActiveMarketName}
           />
         </div>
@@ -62,8 +64,7 @@ export const MarketOverviewDialog: React.FC = () => {
         <div
           id="marketOverviewHeader"
           ref={headerRef}
-          className="header"
-          style={{ gridTemplateColumns: "2.5em 9em 5.5em 3.2em" }}
+          className="header -market-overview-dialog__grid-template-columns-2-5em-9em-5-5em-3-2em"
         >
           <div />
           <div
@@ -115,7 +116,7 @@ export const MarketOverviewDialog: React.FC = () => {
           <div className="-market-overview-dialog__margin-left-12">Burgs: {burgsCount}</div>
           <div className="-market-overview-dialog__margin-left-12">Stock: {totalStock}</div>
         </div>
-        <div id="marketOverviewInfo" style={{ marginBottom: "0.3em" }}>
+        <div id="marketOverviewInfo" className="-market-overview-dialog__margin-bottom-0-3em">
           {owner && (
             <>
               <svg className="coaIcon" viewBox="0 0 200 200">

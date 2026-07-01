@@ -95,7 +95,7 @@ export const ImageConverterDialog: React.FC = () => {
               onClick={HeightmapEditorActions.imageConverterCancel}
             />
           </div>
-          <div data-tip="Set opacity of the loaded image" style={{ paddingTop: "0.4em" }}>
+          <div data-tip="Set opacity of the loaded image" className="-image-converter-dialog__padding-top-0-4em">
             <i>Overlay opacity:</i>
             <br />
             <input
@@ -106,7 +106,7 @@ export const ImageConverterDialog: React.FC = () => {
               step=".01"
               value={imageConverterOverlay}
               onChange={e => HeightmapEditorActions.imageConverterSetOverlayOpacity?.(+e.target.value)}
-              style={{ width: "12.6em" }}
+              className="-image-converter-dialog__width-12-6em"
             />
             <input
               id="convertOverlayNumber"
@@ -116,7 +116,7 @@ export const ImageConverterDialog: React.FC = () => {
               step=".01"
               value={imageConverterOverlay}
               onChange={e => HeightmapEditorActions.imageConverterSetOverlayOpacity?.(+e.target.value)}
-              style={{ width: "4.2em" }}
+              className="-image-converter-dialog__width-4-2em"
             />
           </div>
 
@@ -196,8 +196,7 @@ export const ImageConverterDialog: React.FC = () => {
             type="button"
             id="convertComplete"
             data-tip="Complete the conversion. All unassigned colors will be considered as ocean"
-            style={{ margin: "0.4em 0" }}
-            className="glow"
+            className="-image-converter-dialog__margin-0-4em-0 glow"
             onClick={HeightmapEditorActions.imageConverterApply}
           >
             Complete the conversion

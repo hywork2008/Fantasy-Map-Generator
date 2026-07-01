@@ -216,7 +216,7 @@ export const RoutesOverviewDialog: React.FC = () => {
                 onMouseLeave={() => routeHighlightOff(route.i)}
               >
                 <span data-tip="Locate the route" className="icon-target" onClick={() => handleZoomToRoute(route.i)} />
-                <div data-tip="Route name" style={{ width: "15em", marginLeft: "0.4em" }}>
+                <div data-tip="Route name" className="-routes-overview-dialog__width-15em--margin-left-0-4em">
                   {route.name}
                 </div>
                 <div data-tip="Route group" className="-routes-overview-dialog__width-8em">
@@ -282,7 +282,11 @@ export const RoutesOverviewDialog: React.FC = () => {
             className="icon-trash"
             onClick={handleRemoveAll}
           />
-          <label htmlFor="routesSearch" data-tip="Filter by name or group" style={{ marginLeft: "0.2em" }}>
+          <label
+            htmlFor="routesSearch"
+            data-tip="Filter by name or group"
+            className="-routes-overview-dialog__margin-left-0-2em"
+          >
             Search: <input id="routesSearch" type="search" value={search} onChange={e => setSearch(e.target.value)} />
           </label>
         </div>

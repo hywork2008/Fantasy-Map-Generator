@@ -43,7 +43,7 @@ export const GoodsTagsFilterDialog: React.FC = () => {
         ) : (
           <div
             data-tip="Only goods with at least one selected tag remain visible in the editor list"
-            style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", columnGap: "0.3em" }}
+            className="-goods-tags-filter-dialog__display-grid--grid-template-columns-1fr-1fr-1fr--column-gap-0-3em"
           >
             {tags.map(tag => (
               <label key={tag} className="-goods-tags-filter-dialog__display-flex--align-items-center">

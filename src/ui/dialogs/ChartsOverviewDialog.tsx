@@ -69,21 +69,13 @@ const ChartFigure: React.FC<ChartFigureProps> = ({ chart, figureNo, onRemove }) 
   }
 
   return (
-    <figure style={{ margin: 0, display: "flex", flexDirection: "column", gap: "0.3em", minHeight: 0, height: "100%" }}>
+    <figure className="-charts-overview-dialog__margin-0--display-flex--flex-direction-column--gap-0-3em--min-height-0--height-1">
       <div ref={containerRef} className="-charts-overview-dialog__flex-1--min-height-0--overflow-auto" />
-      <figcaption
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          fontSize: "0.9em",
-          flexShrink: 0
-        }}
-      >
+      <figcaption className="-charts-overview-dialog__display-flex--justify-content-space-between--align-items-center--font-size-0-9em">
         <div>
           <strong>Figure {figureNo}</strong>. {chart.title}
         </div>
-        <div style={{ display: "flex", gap: "0.2em" }}>
+        <div className="-charts-overview-dialog__display-flex--gap-0-2em">
           <button
             type="button"
             data-tip="Download chart data as a text file (.csv)"
@@ -155,23 +147,15 @@ export const ChartsOverviewDialog: React.FC = () => {
       className="fmg-dialog--overflow-hidden"
       style={{ width: "min(90vw, 900px)", maxHeight: "90vh", display: "flex", flexDirection: "column" }}
     >
-      <div style={{ display: "grid", gridTemplateRows: "auto 1fr", overflow: "hidden", flex: 1, padding: "0.5em" }}>
+      <div className="-charts-overview-dialog__display-grid--grid-template-rows-auto-1fr--overflow-hidden--flex-1--padding-0-5e">
         <form
           onSubmit={e => {
             e.preventDefault();
             handleAddChart();
           }}
-          style={{
-            fontSize: "1.1em",
-            margin: "0.3em 0",
-            display: "grid",
-            gridTemplateColumns: "auto auto",
-            gap: "0.3em",
-            alignItems: "start",
-            justifyItems: "end"
-          }}
+          className="-charts-overview-dialog__font-size-1-1em--margin-0-3em-0--display-grid--grid-template-columns-auto-auto--"
         >
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4em", alignItems: "center" }}>
+          <div className="-charts-overview-dialog__display-flex--flex-wrap-wrap--gap-0-4em--align-items-center">
             <button data-tip="Add a chart" type="submit">
               Plot
             </button>
@@ -182,7 +166,7 @@ export const ChartsOverviewDialog: React.FC = () => {
                 </option>
               ))}
             </select>
-            <label style={{ display: "flex", alignItems: "center", gap: "0.3em" }}>
+            <label className="-charts-overview-dialog__display-flex--align-items-center--gap-0-3em">
               by
               <select
                 data-tip="Select value to plot by (x axis)"
@@ -196,7 +180,7 @@ export const ChartsOverviewDialog: React.FC = () => {
                 ))}
               </select>
             </label>
-            <label style={{ display: "flex", alignItems: "center", gap: "0.3em" }}>
+            <label className="-charts-overview-dialog__display-flex--align-items-center--gap-0-3em">
               grouped by
               <select
                 data-tip="Select entity to group by. If you don't need grouping, set it the same as the entity"
@@ -210,7 +194,10 @@ export const ChartsOverviewDialog: React.FC = () => {
                 ))}
               </select>
             </label>
-            <label data-tip="Sorting type" style={{ display: "flex", alignItems: "center", gap: "0.3em" }}>
+            <label
+              data-tip="Sorting type"
+              className="-charts-overview-dialog__display-flex--align-items-center--gap-0-3em"
+            >
               sorted
               <select value={sorting} onChange={e => setSorting(e.target.value)}>
                 <option value="value">by value</option>
@@ -219,7 +206,7 @@ export const ChartsOverviewDialog: React.FC = () => {
               </select>
             </label>
           </div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4em", alignItems: "center" }}>
+          <div className="-charts-overview-dialog__display-flex--flex-wrap-wrap--gap-0-4em--align-items-center">
             <span data-tip="Chart type">Type</span>
             <select value={chartType} onChange={e => setChartType(e.target.value)}>
               <option value="stackedBar">Stacked Bar</option>

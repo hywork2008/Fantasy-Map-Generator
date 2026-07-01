@@ -189,7 +189,10 @@ export const StateNameEditorDialog: React.FC = () => {
           />
         </div>
 
-        <div data-tip="Uncheck to not update state label on name change" style={{ paddingBlock: "0.2em" }}>
+        <div
+          data-tip="Uncheck to not update state label on name change"
+          className="-state-name-editor-dialog__padding-block-0-2em"
+        >
           <input
             id="stateNameEditorUpdateLabel"
             className="checkbox"
