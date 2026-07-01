@@ -113,9 +113,8 @@ export function applyGraphSize(): void {
 }
 
 export function fitMapToScreen(): void {
-  const options = useOptionsState.getState();
-  const svgWidth = Math.min(options.mapWidth, view.svgWidth);
-  const svgHeight = Math.min(options.mapHeight, view.svgHeight);
+  const svgWidth = window.innerWidth;
+  const svgHeight = window.innerHeight;
   Object.assign(viewContext, { svgWidth, svgHeight });
 
   view.svg.attr("width", String(svgWidth)).attr("height", String(svgHeight));
@@ -299,11 +298,13 @@ function changeUiSize(value: number): void {
   if (value > max) value = max;
 
   useOptionsState.getState().setOptions({ uiSize: value });
-  getElementBySelector<HTMLElement>("body")!.style.fontSize = `${rn(value * 10, 2)}px`;
+  const newSize = `${rn(value * 10, 2)}px`;
+  getElementBySelector<HTMLElement>("body")!.style.fontSize = newSize;
+  document.documentElement.style.fontSize = newSize;
 }
 
 function getUImaxSize(): number {
-  return rn(Math.min(view.svgHeight / 465, view.svgWidth / 302), 1);
+  return rn(Math.min(window.innerHeight / 465, window.innerWidth / 302), 1);
 }
 
 function changeTooltipSize(value: string): void {

@@ -21,7 +21,7 @@
   z-index: 100;
   color: var(--dark-solid);
   font-family: var(--monospace);
-  font-size: 12px;
+  font-size: 1.2em;
   backdrop-filter: blur(4px);
 }
 
@@ -45,7 +45,7 @@
 
 .fmg-dialog-title {
   font-weight: bold;
-  font-size: 12px;
+  font-size: 1em;
   margin: 0;
   padding: 0;
 }
@@ -62,7 +62,7 @@
   border: none;
   color: rgba(255, 255, 255, 0.7);
   cursor: pointer;
-  font-size: 13px;
+  font-size: 1.1em;
   line-height: 1;
   padding: 0 2px;
   margin: 0;
@@ -76,7 +76,7 @@
   padding: 16px;
   overflow-y: auto;
   flex: 1;
-  font-size: 12px;
+  font-size: 1em;
   min-height: 0;
 }
 
@@ -99,7 +99,7 @@
   border-radius: 3px;
   cursor: pointer;
   font-family: var(--monospace);
-  font-size: 12px;
+  font-size: 1em;
   transition: background-color 0.2s;
 }
 

@@ -325,6 +325,11 @@ export async function initMain(): Promise<void> {
   document.addEventListener("fmg:reinitialize-map-layers", reinitializeMapLayers);
   document.addEventListener("fmg:show-statistics", showStatistics);
   document.addEventListener("fmg:generate-map-on-load", () => generateMapOnLoad());
+
+  window.addEventListener("resize", () => {
+    fitMapToScreen();
+    fitMapView();
+  });
 }
 
 function applyTransition(id: string, duration: number, opacity: number) {
