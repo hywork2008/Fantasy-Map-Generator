@@ -1,4 +1,8 @@
+import type React from "react";
+import { useMemo } from "react";
+import { showDataTip } from "../services/tooltipService";
 import { useViewState } from "../store";
+import { debounce } from "../utils";
 import { ExitCustomization } from "./components/ExitCustomization";
 import { NotesBox } from "./components/NotesBox";
 import { OptionsContainer } from "./components/OptionsContainer";
@@ -8,8 +12,20 @@ import { DialogsContainer } from "./dialogs/DialogsContainer";
 export const App = () => {
   const openDialogs = useViewState(state => state.openDialogs);
 
+  const handleMouseMove = useMemo(
+    () =>
+      debounce((e: React.MouseEvent) => {
+        showDataTip(e.nativeEvent as MouseEvent);
+      }, 50),
+    []
+  );
+
   return (
-    <div id="react-ui-container" className="-app__pointer-events-none--position-absolute--top-0--lef">
+    <div
+      id="react-ui-container"
+      className="-app__pointer-events-none--position-absolute--top-0--lef"
+      onMouseMove={handleMouseMove}
+    >
       <ToastContainer />
 
       <DialogsContainer />
