@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { dialogStore } from "./dialogState";
 
 export interface BurgsOverviewState {
   sortBy: string;
@@ -58,3 +59,9 @@ export const useBurgsOverviewState = create<BurgsOverviewState>(set => ({
     }),
   refresh: () => set(state => ({ refreshCounter: state.refreshCounter + 1 }))
 }));
+
+document.addEventListener("fmg:refresh-editors", () => {
+  if (dialogStore.getState().openDialogs.has("burgsOverview")) {
+    useBurgsOverviewState.getState().refresh();
+  }
+});

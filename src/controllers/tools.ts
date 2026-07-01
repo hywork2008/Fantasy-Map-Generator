@@ -314,6 +314,7 @@ export async function recalculatePopulation(): Promise<void> {
     : togglePopulation();
 
   regenerateMilitary();
+  refreshAllEditors();
 }
 
 function regenerateStates(): void {
