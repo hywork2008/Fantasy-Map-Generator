@@ -231,3 +231,32 @@
   min-height: 0;
   overflow: auto;
 }
+
+/* ── Native Table Styles ───────────────────────────────────────────────────── */
+.fmg-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.fmg-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background-color: var(--bg-dialogs);
+}
+
+.fmg-table th {
+  padding: 4px 12px;
+  font-weight: normal;
+  border-bottom: 1px solid var(--dark-solid);
+}
+
+.fmg-table td {
+  padding: 2px 12px;
+  white-space: nowrap;
+}
+
+.fmg-table tbody tr:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}

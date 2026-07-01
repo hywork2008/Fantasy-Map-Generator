@@ -151,16 +151,27 @@ export const BurgsOverviewDialog: React.FC = () => {
     return active.length > 0 && active.every(b => b.lock);
   }, [refreshCounter]);
 
-  function SortHeader({ field, label, numeric }: { field: string; label: string; numeric?: boolean }) {
+  function SortHeader({
+    field,
+    label,
+    numeric,
+    width
+  }: {
+    field: string;
+    label: string;
+    numeric?: boolean;
+    width?: string;
+  }) {
     return (
-      <div
+      <th
         data-tip={`Click to sort by ${label.toLowerCase()}`}
         className={`sortable ${numeric ? "icon-sort-number-down" : "alphabetically"} -burgs-overview-dialog__cursor-pointer`}
         data-sortby={field}
         onClick={() => toggleSortBy(field)}
+        style={{ width }}
       >
         {label}
-      </div>
+      </th>
     );
   }
 
@@ -212,82 +223,125 @@ export const BurgsOverviewDialog: React.FC = () => {
       className="fmg-dialog--overflow-hidden"
     >
       <div id="burgsOverviewContainer">
-        <div
-          id="burgsHeader"
-          className="header -burgs-overview-dialog__grid-template-columns-9em-7em-7-5em-7-2em-6-5em-7em-6em"
-        >
-          <SortHeader field="name" label="Burg" />
-          <SortHeader field="province" label="Province" />
-          <SortHeader field="state" label="State" />
-          <SortHeader field="culture" label="Culture" />
-          <SortHeader field="group" label="Group" />
-          <SortHeader field="population" label="Population" numeric />
-          <SortHeader field="features" label="Features" />
-        </div>
-
         <div id="burgsBody" className="table">
-          {filteredBurgs.length === 0 ? (
-            <div className="-burgs-overview-dialog__padding-block-0-3em">No burgs found</div>
-          ) : (
-            filteredBurgs.map(({ b, population, province, stateName, cultureName }) => (
-              <div
-                key={b.i}
-                className="states"
-                data-id={b.i}
-                data-name={b.name}
-                data-state={stateName}
-                data-province={province}
-                data-culture={cultureName}
-                data-group={b.group}
-                data-population={population}
-                onMouseEnter={() => burgHighlightOn(b.i!)}
-                onMouseLeave={() => burgHighlightOff()}
-              >
-                <span
-                  data-tip="Click to zoom into view"
-                  className="icon-dot-circled pointer"
-                  onClick={() => zoomIntoBurg(b.i!)}
-                />
-                <input data-tip="Burg name" className="burgName" value={b.name ?? ""} disabled readOnly />
-                <input data-tip="Burg province" value={province} disabled readOnly />
-                <input data-tip="Burg state" value={stateName} disabled readOnly />
-                <input data-tip="Dominant culture" value={cultureName} disabled readOnly />
-                <input data-tip="Burg group" value={b.group ?? ""} disabled readOnly />
-                <span data-tip="Burg population" className="icon-male" />
-                <input
-                  data-tip="Burg population"
-                  value={si(population)}
-                  className="-burgs-overview-dialog__width-5em"
-                  disabled
-                  readOnly
-                />
-                <div className="-burgs-overview-dialog__width-3em">
-                  <span
-                    data-tip={b.capital ? "This burg is a state capital" : "This burg is NOT a state capital"}
-                    className={`icon-star-empty${b.capital ? "" : " inactive"} -burgs-overview-dialog__padding-0-1px`}
-                  />
-                  <span
-                    data-tip={b.port ? "This burg is a port" : "This burg is NOT a port"}
-                    className={`icon-anchor${b.port ? "" : " inactive"} -burgs-overview-dialog__font-size-9em--padding-0-1px`}
-                  />
-                </div>
-                <span data-tip="Edit burg" className="icon-pencil pointer" onClick={() => editBurg(b.i!)} />
-                <span
-                  className={`locks pointer${b.lock ? " icon-lock" : " icon-lock-open inactive"}`}
-                  onMouseOver={e => showElementLockTip(e.nativeEvent)}
-                  onClick={() => {
-                    b.lock = !b.lock;
-                    refresh();
-                  }}
-                />
-                <span
-                  data-tip="Remove burg"
-                  className="icon-trash-empty pointer"
-                  onClick={() => handleRemoveBurg(b.i!)}
-                />
-              </div>
-            ))
-          )}
+          <table className="fmg-table">
+            <thead>
+              <tr id="burgsHeader">
+                <SortHeader field="name" label="Burg" width="9em" />
+                <SortHeader field="province" label="Province" width="7em" />
+                <SortHeader field="state" label="State" width="7.5em" />
+                <SortHeader field="culture" label="Culture" width="7.2em" />
+                <SortHeader field="group" label="Group" width="6.5em" />
+                <SortHeader field="population" label="Population" numeric width="7em" />
+                <SortHeader field="features" label="Features" width="6em" />
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredBurgs.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="-burgs-overview-dialog__padding-block-0-3em">
+                    No burgs found
+                  </td>
+                </tr>
+              ) : (
+                filteredBurgs.map(({ b, population, province, stateName, cultureName }) => (
+                  <tr
+                    key={b.i}
+                    className="states"
+                    data-id={b.i}
+                    data-name={b.name}
+                    data-state={stateName}
+                    data-province={province}
+                    data-culture={cultureName}
+                    data-group={b.group}
+                    data-population={population}
+                    onMouseEnter={() => burgHighlightOn(b.i!)}
+                    onMouseLeave={() => burgHighlightOff()}
+                  >
+                    <td>
+                      <span
+                        data-tip="Click to zoom into view"
+                        className="icon-dot-circled pointer"
+                        onClick={() => zoomIntoBurg(b.i!)}
+                        style={{ marginRight: "4px" }}
+                      />
+                      <input
+                        data-tip="Burg name"
+                        className="burgName"
+                        value={b.name ?? ""}
+                        disabled
+                        readOnly
+                        style={{ width: "calc(100% - 20px)" }}
+                      />
+                    </td>
+                    <td>
+                      <input data-tip="Burg province" value={province} disabled readOnly style={{ width: "100%" }} />
+                    </td>
+                    <td>
+                      <input data-tip="Burg state" value={stateName} disabled readOnly style={{ width: "100%" }} />
+                    </td>
+                    <td>
+                      <input
+                        data-tip="Dominant culture"
+                        value={cultureName}
+                        disabled
+                        readOnly
+                        style={{ width: "100%" }}
+                      />
+                    </td>
+                    <td>
+                      <input data-tip="Burg group" value={b.group ?? ""} disabled readOnly style={{ width: "100%" }} />
+                    </td>
+                    <td>
+                      <span data-tip="Burg population" className="icon-male" style={{ marginRight: "4px" }} />
+                      <input
+                        data-tip="Burg population"
+                        value={si(population)}
+                        className="-burgs-overview-dialog__width-5em"
+                        disabled
+                        readOnly
+                      />
+                    </td>
+                    <td>
+                      <div className="-burgs-overview-dialog__width-3em" style={{ display: "inline-block" }}>
+                        <span
+                          data-tip={b.capital ? "This burg is a state capital" : "This burg is NOT a state capital"}
+                          className={`icon-star-empty${b.capital ? "" : " inactive"} -burgs-overview-dialog__padding-0-1px`}
+                        />
+                        <span
+                          data-tip={b.port ? "This burg is a port" : "This burg is NOT a port"}
+                          className={`icon-anchor${b.port ? "" : " inactive"} -burgs-overview-dialog__font-size-9em--padding-0-1px`}
+                        />
+                      </div>
+                    </td>
+                    <td>
+                      <span
+                        data-tip="Edit burg"
+                        className="icon-pencil pointer"
+                        onClick={() => editBurg(b.i!)}
+                        style={{ marginRight: "4px" }}
+                      />
+                      <span
+                        className={`locks pointer${b.lock ? " icon-lock" : " icon-lock-open inactive"}`}
+                        onMouseOver={e => showElementLockTip(e.nativeEvent)}
+                        onClick={() => {
+                          b.lock = !b.lock;
+                          refresh();
+                        }}
+                        style={{ marginRight: "4px" }}
+                      />
+                      <span
+                        data-tip="Remove burg"
+                        className="icon-trash-empty pointer"
+                        onClick={() => handleRemoveBurg(b.i!)}
+                      />
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
 
         <div

@@ -19,9 +19,9 @@ const SortableHeader: React.FC<{
     icon = sortDirection === 1 ? " icon-sort-down" : " icon-sort-up";
   }
   return (
-    <div className={`sortable ${hide ? "hide" : ""} ${icon}`} style={{ width }} onClick={() => onSort(field)}>
+    <th className={`sortable ${hide ? "hide" : ""} ${icon}`} style={{ width }} onClick={() => onSort(field)}>
       {label}
-    </div>
+    </th>
   );
 };
 
@@ -64,89 +64,128 @@ export const ZonesEditorContent: React.FC = () => {
 
   return (
     <div id="zonesEditor" className="stable">
-      <div className="header -zones-editor-dialog__grid-template-columns-11em-8em-6em-7em-6em-6em">
-        <SortableHeader label="Zone" field="name" sortBy={sortBy} sortDirection={sortDirection} onSort={handleSort} />
-        <SortableHeader label="Type" field="type" sortBy={sortBy} sortDirection={sortDirection} onSort={handleSort} />
-        <SortableHeader
-          label="Cells"
-          field="cells"
-          sortBy={sortBy}
-          sortDirection={sortDirection}
-          hide
-          onSort={handleSort}
-        />
-        <SortableHeader
-          label="Area"
-          field="area"
-          sortBy={sortBy}
-          sortDirection={sortDirection}
-          hide
-          onSort={handleSort}
-        />
-        <SortableHeader
-          label="Population"
-          field="population"
-          sortBy={sortBy}
-          sortDirection={sortDirection}
-          hide
-          onSort={handleSort}
-        />
-      </div>
-
       <div className="table" data-type={state.isPercentageMode ? "percentage" : "absolute"}>
-        {sortedZones.map(z => (
-          <div
-            key={z.i}
-            className={`states ${z.focused ? "focused" : ""}`}
-            data-id={z.i}
-            style={{ opacity: z.hidden ? 0.5 : 1 }}
-            onMouseEnter={() => zonesEditorActions.highlightOn(z.i)}
-            onMouseLeave={() => zonesEditorActions.highlightOff(z.i)}
-            onClick={_e => {
-              if (state.customizationMode) {
-                zonesEditorActions.selectZone(z.i);
-              }
-            }}
-          >
-            {/* @ts-ignore */}
-            <FillBox fill={z.color} onClick={() => zonesEditorActions.changeColor(z.i)} />
-            <input
-              className="zoneName -zones-editor-dialog__width-11em"
-              value={z.name}
-              onChange={e => zonesEditorActions.changeName(z.i, e.target.value)}
-              autoCorrect="off"
-              spellCheck="false"
-            />
-            <input
-              className="zoneType"
-              value={z.type}
-              onChange={e => zonesEditorActions.changeType(z.i, e.target.value)}
-            />
-            <span className="icon-check-empty hide"></span>
-            <div className="stateCells hide">{state.isPercentageMode ? pct(z.cells, state.totalCells) : z.cells}</div>
-            <span className="icon-map-o hide -zones-editor-dialog__padding-right-4"></span>
-            <div className="biomeArea hide">
-              {state.isPercentageMode ? pct(z.area, state.totalArea) : `${si(z.area)} sq`}
-            </div>
-            <span className="icon-male hide"></span>
-            <div className="zonePopulation hide pointer" onClick={() => zonesEditorActions.changePopulation(z.i)}>
-              {state.isPercentageMode ? pct(z.population, state.totalPopulation) : si(z.population)}
-            </div>
-            <span className="icon-resize-vertical hide"></span>
-            <span
-              className={`zoneFog icon-pin ${z.focused ? "" : "inactive"} hide ${z.cells ? "" : "placeholder"}`}
-              onClick={() => zonesEditorActions.toggleFog(z.i)}
-            ></span>
-            <span
-              className={`zoneHide icon-eye hide ${z.cells ? "" : " placeholder"}`}
-              onClick={() => zonesEditorActions.toggleVisibility(z.i)}
-            ></span>
-            <span
-              className="zoneRemove icon-trash-empty hide"
-              onClick={() => zonesEditorActions.removeZone(z.i)}
-            ></span>
-          </div>
-        ))}
+        <table className="fmg-table">
+          <thead>
+            <tr>
+              <SortableHeader
+                label="Zone"
+                field="name"
+                sortBy={sortBy}
+                sortDirection={sortDirection}
+                onSort={handleSort}
+                width="11em"
+              />
+              <SortableHeader
+                label="Type"
+                field="type"
+                sortBy={sortBy}
+                sortDirection={sortDirection}
+                onSort={handleSort}
+                width="8em"
+              />
+              <SortableHeader
+                label="Cells"
+                field="cells"
+                sortBy={sortBy}
+                sortDirection={sortDirection}
+                hide
+                onSort={handleSort}
+                width="6em"
+              />
+              <SortableHeader
+                label="Area"
+                field="area"
+                sortBy={sortBy}
+                sortDirection={sortDirection}
+                hide
+                onSort={handleSort}
+                width="7em"
+              />
+              <SortableHeader
+                label="Population"
+                field="population"
+                sortBy={sortBy}
+                sortDirection={sortDirection}
+                hide
+                onSort={handleSort}
+                width="6em"
+              />
+              <th style={{ width: "6em" }}></th>
+            </tr>
+          </thead>
+          <tbody>
+            {sortedZones.map(z => (
+              <tr
+                key={z.i}
+                className={`states ${z.focused ? "focused" : ""}`}
+                data-id={z.i}
+                style={{ opacity: z.hidden ? 0.5 : 1 }}
+                onMouseEnter={() => zonesEditorActions.highlightOn(z.i)}
+                onMouseLeave={() => zonesEditorActions.highlightOff(z.i)}
+                onClick={_e => {
+                  if (state.customizationMode) {
+                    zonesEditorActions.selectZone(z.i);
+                  }
+                }}
+              >
+                <td style={{ display: "flex", gap: "4px", alignItems: "center" }}>
+                  {/* @ts-ignore */}
+                  <FillBox fill={z.color} onClick={() => zonesEditorActions.changeColor(z.i)} />
+                  <input
+                    className="zoneName"
+                    style={{ flex: 1, minWidth: 0 }}
+                    value={z.name}
+                    onChange={e => zonesEditorActions.changeName(z.i, e.target.value)}
+                    autoCorrect="off"
+                    spellCheck="false"
+                  />
+                </td>
+                <td>
+                  <input
+                    className="zoneType"
+                    style={{ width: "100%" }}
+                    value={z.type}
+                    onChange={e => zonesEditorActions.changeType(z.i, e.target.value)}
+                  />
+                </td>
+                <td className="hide">
+                  <span className="icon-check-empty"></span>
+                  <div className="stateCells" style={{ display: "inline-block", marginLeft: "4px" }}>
+                    {state.isPercentageMode ? pct(z.cells, state.totalCells) : z.cells}
+                  </div>
+                </td>
+                <td className="hide">
+                  <span className="icon-map-o" style={{ marginRight: "4px" }}></span>
+                  <div className="biomeArea" style={{ display: "inline-block" }}>
+                    {state.isPercentageMode ? pct(z.area, state.totalArea) : `${si(z.area)} sq`}
+                  </div>
+                </td>
+                <td className="hide pointer" onClick={() => zonesEditorActions.changePopulation(z.i)}>
+                  <span className="icon-male"></span>
+                  <div className="zonePopulation" style={{ display: "inline-block", marginLeft: "4px" }}>
+                    {state.isPercentageMode ? pct(z.population, state.totalPopulation) : si(z.population)}
+                  </div>
+                </td>
+                <td className="hide">
+                  <span className="icon-resize-vertical"></span>
+                  <span
+                    className={`zoneFog icon-pin ${z.focused ? "" : "inactive"} ${z.cells ? "" : "placeholder"}`}
+                    onClick={() => zonesEditorActions.toggleFog(z.i)}
+                  ></span>
+                  <span
+                    className={`zoneHide icon-eye ${z.cells ? "" : " placeholder"}`}
+                    onClick={() => zonesEditorActions.toggleVisibility(z.i)}
+                  ></span>
+                  <span
+                    className="zoneRemove icon-trash-empty"
+                    onClick={() => zonesEditorActions.removeZone(z.i)}
+                  ></span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
 
       {state.customizationMode === 0 && (

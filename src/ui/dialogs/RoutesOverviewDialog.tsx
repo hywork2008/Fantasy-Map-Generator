@@ -180,61 +180,91 @@ export const RoutesOverviewDialog: React.FC = () => {
       className="fmg-dialog--overflow-hidden"
     >
       <div id="routesOverviewContainer">
-        <div id="routesHeader" className="header -routes-overview-dialog__grid-template-columns-17em-8em-8em">
-          <div
-            data-tip="Click to sort by route name"
-            className={`sortable alphabetically ${sortBy === "name" ? (sortOrder === "asc" ? "icon-sort-name-up" : "icon-sort-name-down") : ""}`}
-            onClick={() => toggleSortBy("name")}
-          >
-            Route&nbsp;
-          </div>
-          <div
-            data-tip="Click to sort by route group"
-            className={`sortable alphabetically ${sortBy === "group" ? (sortOrder === "asc" ? "icon-sort-name-up" : "icon-sort-name-down") : ""}`}
-            onClick={() => toggleSortBy("group")}
-          >
-            Group&nbsp;
-          </div>
-          <div
-            data-tip="Click to sort by route length"
-            className={`sortable ${sortBy === "length" ? (sortOrder === "asc" ? "icon-sort-number-up" : "icon-sort-number-down") : "icon-sort-number-down"}`}
-            onClick={() => toggleSortBy("length")}
-          >
-            Length&nbsp;
-          </div>
-        </div>
         <div id="routesBody" className="table">
-          {filteredRoutes.map(route => {
-            if (!route.points || route.points.length < 2) return null;
-            const lengthStr = `${rn((route.length || 0) * worldContext.distanceScale)} ${distanceUnit}`;
-            return (
-              <div
-                key={route.i}
-                className="states"
-                data-id={route.i}
-                onMouseEnter={() => routeHighlightOn(route.i)}
-                onMouseLeave={() => routeHighlightOff(route.i)}
-              >
-                <span data-tip="Locate the route" className="icon-target" onClick={() => handleZoomToRoute(route.i)} />
-                <div data-tip="Route name" className="-routes-overview-dialog__width-15em--margin-left-0-4em">
-                  {route.name}
-                </div>
-                <div data-tip="Route group" className="-routes-overview-dialog__width-8em">
-                  {route.group}
-                </div>
-                <div data-tip="Route length" className="-routes-overview-dialog__width-6em">
-                  {lengthStr}
-                </div>
-                <span data-tip="Edit route" className="icon-pencil" onClick={() => handleOpenEditor(route.i)} />
-                <span
-                  className={`locks pointer ${route.lock ? "icon-lock" : "icon-lock-open inactive"}`}
-                  data-tip="Toggle lock status"
-                  onClick={() => handleToggleLock(route.i)}
-                />
-                <span data-tip="Remove route" className="icon-trash-empty" onClick={() => handleRemoveRoute(route.i)} />
-              </div>
-            );
-          })}
+          <table className="fmg-table">
+            <thead>
+              <tr id="routesHeader">
+                <th
+                  data-tip="Click to sort by route name"
+                  className={`sortable alphabetically ${sortBy === "name" ? (sortOrder === "asc" ? "icon-sort-name-up" : "icon-sort-name-down") : ""}`}
+                  onClick={() => toggleSortBy("name")}
+                  style={{ width: "17em" }}
+                >
+                  Route&nbsp;
+                </th>
+                <th
+                  data-tip="Click to sort by route group"
+                  className={`sortable alphabetically ${sortBy === "group" ? (sortOrder === "asc" ? "icon-sort-name-up" : "icon-sort-name-down") : ""}`}
+                  onClick={() => toggleSortBy("group")}
+                  style={{ width: "8em" }}
+                >
+                  Group&nbsp;
+                </th>
+                <th
+                  data-tip="Click to sort by route length"
+                  className={`sortable ${sortBy === "length" ? (sortOrder === "asc" ? "icon-sort-number-up" : "icon-sort-number-down") : "icon-sort-number-down"}`}
+                  onClick={() => toggleSortBy("length")}
+                  style={{ width: "8em" }}
+                >
+                  Length&nbsp;
+                </th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredRoutes.map(route => {
+                if (!route.points || route.points.length < 2) return null;
+                const lengthStr = `${rn((route.length || 0) * worldContext.distanceScale)} ${distanceUnit}`;
+                return (
+                  <tr
+                    key={route.i}
+                    className="states"
+                    data-id={route.i}
+                    onMouseEnter={() => routeHighlightOn(route.i)}
+                    onMouseLeave={() => routeHighlightOff(route.i)}
+                  >
+                    <td>
+                      <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                        <span
+                          data-tip="Locate the route"
+                          className="icon-target pointer"
+                          onClick={() => handleZoomToRoute(route.i)}
+                        />
+                        <div data-tip="Route name" style={{ flex: 1, minWidth: 0 }}>
+                          {route.name}
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <div data-tip="Route group">{route.group}</div>
+                    </td>
+                    <td>
+                      <div data-tip="Route length">{lengthStr}</div>
+                    </td>
+                    <td>
+                      <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                        <span
+                          data-tip="Edit route"
+                          className="icon-pencil pointer"
+                          onClick={() => handleOpenEditor(route.i)}
+                        />
+                        <span
+                          className={`locks pointer ${route.lock ? "icon-lock" : "icon-lock-open inactive"}`}
+                          data-tip="Toggle lock status"
+                          onClick={() => handleToggleLock(route.i)}
+                        />
+                        <span
+                          data-tip="Remove route"
+                          className="icon-trash-empty pointer"
+                          onClick={() => handleRemoveRoute(route.i)}
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
         <div id="routesTotal" className="totalLine">
           <div data-tip="Routes number" className="-routes-overview-dialog__margin-left-4">

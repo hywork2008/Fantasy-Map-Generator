@@ -56,244 +56,272 @@ export const StatesEditorContent: React.FC = () => {
   return (
     <div id="statesEditor">
       <div
-        id="statesHeader"
-        className="header -states-editor-dialog__grid-template-columns-11em-8em-7em-7em-6em-6em-8em"
-      >
-        <div
-          data-tip="Click to sort by state name"
-          className="sortable alphabetically"
-          onClick={() => statesEditorActions.changeSort("name")}
-        >
-          State&nbsp;
-          <span className={renderSortIcon("name") || ""} />
-        </div>
-        <div
-          data-tip="Click to sort by state form name"
-          className="sortable alphabetically"
-          onClick={() => statesEditorActions.changeSort("formName")}
-        >
-          Form&nbsp;
-          <span className={renderSortIcon("formName") || ""} />
-        </div>
-        <div
-          data-tip="Click to sort by capital name"
-          className="sortable alphabetically"
-          onClick={() => statesEditorActions.changeSort("capitalName")}
-        >
-          Capital&nbsp;
-          <span className={renderSortIcon("capitalName") || ""} />
-        </div>
-        <div
-          data-tip="Click to sort by state dominant culture"
-          className="sortable alphabetically hide"
-          onClick={() => statesEditorActions.changeSort("cultureName")}
-        >
-          Culture&nbsp;
-          <span className={renderSortIcon("cultureName") || ""} />
-        </div>
-        <div
-          data-tip="Click to sort by state burgs count"
-          className="sortable hide"
-          onClick={() => statesEditorActions.changeSort("burgs")}
-        >
-          Burgs&nbsp;
-          <span className={getSortIconNumber("burgs") || ""} />
-        </div>
-        <div
-          data-tip="Click to sort by state area"
-          className="sortable hide"
-          onClick={() => statesEditorActions.changeSort("area")}
-        >
-          Area&nbsp;
-          <span className={getSortIconNumber("area") || ""} />
-        </div>
-        <div
-          data-tip="Click to sort by state population"
-          className="sortable hide"
-          onClick={() => statesEditorActions.changeSort("population")}
-        >
-          Population&nbsp;
-          <span className={getSortIconNumber("population") || ""} />
-        </div>
-        <div
-          data-tip="Click to sort by state type"
-          className="sortable alphabetically hidden show hide"
-          onClick={() => statesEditorActions.changeSort("type")}
-        >
-          Type&nbsp;
-          <span className={renderSortIcon("type") || ""} />
-        </div>
-        <div
-          data-tip="Click to sort by state expansion value"
-          className="sortable hidden show hide"
-          onClick={() => statesEditorActions.changeSort("expansionism")}
-        >
-          Expansion&nbsp;
-          <span className={getSortIconNumber("expansionism") || ""} />
-        </div>
-        <div
-          data-tip="Click to sort by state cells count"
-          className="sortable hidden show hide"
-          onClick={() => statesEditorActions.changeSort("cells")}
-        >
-          Cells&nbsp;
-          <span className={getSortIconNumber("cells") || ""} />
-        </div>
-      </div>
-
-      <div
         id="statesBodySection"
         className="table -states-editor-dialog__max-height-400px--overflow-y-auto"
         data-type="absolute"
       >
-        {sortedStates.map(s => {
-          const isNeutral = !s.i;
-          const areaText =
-            isPercentageMode && !isNeutral && totalArea
-              ? `${rn((s.area / totalArea) * 100)}%`
-              : `${si(s.area)} ${areaUnit}`;
-          const populationText =
-            isPercentageMode && !isNeutral && totalPopulation
-              ? `${rn((s.population / totalPopulation) * 100)}%`
-              : si(s.population);
-
-          return (
-            <div
-              key={s.i}
-              className={`states${customizationMode === 1 && s.i === manualSelectedStateId ? " selected" : ""}`}
-              data-id={s.i}
-              style={{
-                display: "grid",
-                gridTemplateColumns: "11em 8em 7em 7em 6em 6em 8em 6em 7em 6em",
-                pointerEvents: customizationMode === 1 ? "none" : "all"
-              }}
-            >
-              {/* @ts-ignore */}
-              <FillBox fill={s.color} onClick={isNeutral ? undefined : () => statesEditorActions.changeColor(s.i)} />
-              <input
-                type="text"
-                data-tip="State name. Click to change"
-                className="stateName name pointer"
-                value={s.name}
-                readOnly
-                onClick={() => (isNeutral ? null : statesEditorActions.editStateName(s.i))}
-              />
-              {isNeutral ? (
-                <>
-                  <span />
-                  <span />
-                </>
-              ) : (
-                <>
-                  <input
-                    data-tip="State form name. Click to change"
-                    className="stateForm name pointer"
-                    value={s.formName}
-                    readOnly
-                    onClick={() => statesEditorActions.editStateName(s.i)}
-                  />
-                  <span
-                    data-tip="Capital name. Click to zoom"
-                    className="icon-star-empty pointer"
-                    onClick={() => statesEditorActions.zoomCapital(s.i)}
-                  />
-                  <input
-                    data-tip="Capital name. Click and type to rename"
-                    className="stateCapital"
-                    value={s.capitalName}
-                    onChange={e => statesEditorActions.changeCapitalName(s.i, e.target.value)}
-                  />
-                </>
-              )}
-              <select
-                data-tip="State dominant culture. Click to change"
-                className="stateCulture hide"
-                value={s.culture}
-                onChange={e => statesEditorActions.changeCulture(s.i, parseInt(e.target.value, 10))}
+        <table className="fmg-table">
+          <thead>
+            <tr id="statesHeader">
+              <th
+                data-tip="Click to sort by state name"
+                className="sortable alphabetically"
+                onClick={() => statesEditorActions.changeSort("name")}
+                style={{ width: "11em" }}
               >
-                {statesEditorActions.getCultureOptions(s.culture).map(c => (
-                  <option key={c.i} value={c.i}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-              <span
-                data-tip="Click to overview state burgs"
-                className="icon-dot-circled pointer hide"
-                onClick={() => (isNeutral ? null : statesEditorActions.overviewBurgs(s.i))}
-              />
-              <span data-tip="Burgs count" className="stateBurgs hide">
-                {s.burgs}
-              </span>
-              <span data-tip="State area" className="stateArea hide">
-                {areaText}
-              </span>
-              <span
-                data-tip="State population"
-                className="statePopulation pointer hide"
-                onClick={() => (isNeutral ? null : statesEditorActions.changePopulation(s.i))}
+                State&nbsp;
+                <span className={renderSortIcon("name") || ""} />
+              </th>
+              <th
+                data-tip="Click to sort by state form name"
+                className="sortable alphabetically"
+                onClick={() => statesEditorActions.changeSort("formName")}
+                style={{ width: "8em" }}
               >
-                {populationText}
-              </span>
+                Form&nbsp;
+                <span className={renderSortIcon("formName") || ""} />
+              </th>
+              <th
+                data-tip="Click to sort by capital name"
+                className="sortable alphabetically"
+                onClick={() => statesEditorActions.changeSort("capitalName")}
+                style={{ width: "7em" }}
+              >
+                Capital&nbsp;
+                <span className={renderSortIcon("capitalName") || ""} />
+              </th>
+              <th
+                data-tip="Click to sort by state dominant culture"
+                className="sortable alphabetically hide"
+                onClick={() => statesEditorActions.changeSort("cultureName")}
+                style={{ width: "7em" }}
+              >
+                Culture&nbsp;
+                <span className={renderSortIcon("cultureName") || ""} />
+              </th>
+              <th
+                data-tip="Click to sort by state burgs count"
+                className="sortable hide"
+                onClick={() => statesEditorActions.changeSort("burgs")}
+                style={{ width: "6em" }}
+              >
+                Burgs&nbsp;
+                <span className={getSortIconNumber("burgs") || ""} />
+              </th>
+              <th
+                data-tip="Click to sort by state area"
+                className="sortable hide"
+                onClick={() => statesEditorActions.changeSort("area")}
+                style={{ width: "6em" }}
+              >
+                Area&nbsp;
+                <span className={getSortIconNumber("area") || ""} />
+              </th>
+              <th
+                data-tip="Click to sort by state population"
+                className="sortable hide"
+                onClick={() => statesEditorActions.changeSort("population")}
+                style={{ width: "8em" }}
+              >
+                Population&nbsp;
+                <span className={getSortIconNumber("population") || ""} />
+              </th>
+              <th
+                data-tip="Click to sort by state type"
+                className="sortable alphabetically hidden show hide"
+                onClick={() => statesEditorActions.changeSort("type")}
+                style={{ width: "6em" }}
+              >
+                Type&nbsp;
+                <span className={renderSortIcon("type") || ""} />
+              </th>
+              <th
+                data-tip="Click to sort by state expansion value"
+                className="sortable hidden show hide"
+                onClick={() => statesEditorActions.changeSort("expansionism")}
+                style={{ width: "7em" }}
+              >
+                Expansion&nbsp;
+                <span className={getSortIconNumber("expansionism") || ""} />
+              </th>
+              <th
+                data-tip="Click to sort by state cells count"
+                className="sortable hidden show hide"
+                onClick={() => statesEditorActions.changeSort("cells")}
+                style={{ width: "6em" }}
+              >
+                Cells&nbsp;
+                <span className={getSortIconNumber("cells") || ""} />
+              </th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {sortedStates.map(s => {
+              const isNeutral = !s.i;
+              const areaText =
+                isPercentageMode && !isNeutral && totalArea
+                  ? `${rn((s.area / totalArea) * 100)}%`
+                  : `${si(s.area)} ${areaUnit}`;
+              const populationText =
+                isPercentageMode && !isNeutral && totalPopulation
+                  ? `${rn((s.population / totalPopulation) * 100)}%`
+                  : si(s.population);
 
-              {isNeutral ? (
-                <>
-                  <span className="hidden show hide" />
-                  <span className="hidden show hide" />
-                </>
-              ) : (
-                <>
-                  <select
-                    data-tip="State type. Click to change"
-                    className="stateType pointer hidden show hide"
-                    value={s.type}
-                    onChange={e => statesEditorActions.changeType(s.i, e.target.value)}
+              return (
+                <tr
+                  key={s.i}
+                  className={`states${customizationMode === 1 && s.i === manualSelectedStateId ? " selected" : ""}`}
+                  data-id={s.i}
+                  style={{ pointerEvents: customizationMode === 1 ? "none" : "all" }}
+                >
+                  <td>
+                    <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                      {/* @ts-ignore */}
+                      <FillBox
+                        fill={s.color}
+                        onClick={isNeutral ? undefined : () => statesEditorActions.changeColor(s.i)}
+                      />
+                      <input
+                        type="text"
+                        data-tip="State name. Click to change"
+                        className="stateName name pointer"
+                        style={{ flex: 1, minWidth: 0 }}
+                        value={s.name}
+                        readOnly
+                        onClick={() => (isNeutral ? null : statesEditorActions.editStateName(s.i))}
+                      />
+                    </div>
+                  </td>
+                  <td>
+                    {isNeutral ? null : (
+                      <input
+                        data-tip="State form name. Click to change"
+                        className="stateForm name pointer"
+                        style={{ width: "100%" }}
+                        value={s.formName}
+                        readOnly
+                        onClick={() => statesEditorActions.editStateName(s.i)}
+                      />
+                    )}
+                  </td>
+                  <td>
+                    {isNeutral ? null : (
+                      <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                        <span
+                          data-tip="Capital name. Click to zoom"
+                          className="icon-star-empty pointer"
+                          onClick={() => statesEditorActions.zoomCapital(s.i)}
+                        />
+                        <input
+                          data-tip="Capital name. Click and type to rename"
+                          className="stateCapital"
+                          style={{ flex: 1, minWidth: 0 }}
+                          value={s.capitalName}
+                          onChange={e => statesEditorActions.changeCapitalName(s.i, e.target.value)}
+                        />
+                      </div>
+                    )}
+                  </td>
+                  <td className="hide">
+                    <select
+                      data-tip="State dominant culture. Click to change"
+                      className="stateCulture hide"
+                      style={{ width: "100%" }}
+                      value={s.culture}
+                      onChange={e => statesEditorActions.changeCulture(s.i, parseInt(e.target.value, 10))}
+                    >
+                      {statesEditorActions.getCultureOptions(s.culture).map(c => (
+                        <option key={c.i} value={c.i}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className="hide">
+                    <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                      <span
+                        data-tip="Click to overview state burgs"
+                        className="icon-dot-circled pointer hide"
+                        onClick={() => (isNeutral ? null : statesEditorActions.overviewBurgs(s.i))}
+                      />
+                      <span data-tip="Burgs count" className="stateBurgs hide" style={{ flex: 1, minWidth: 0 }}>
+                        {s.burgs}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="hide">
+                    <span data-tip="State area" className="stateArea hide">
+                      {areaText}
+                    </span>
+                  </td>
+                  <td
+                    className="hide pointer"
+                    onClick={() => (isNeutral ? null : statesEditorActions.changePopulation(s.i))}
                   >
-                    <option value="Generic">Generic</option>
-                    <option value="River">River</option>
-                    <option value="Lake">Lake</option>
-                    <option value="Naval">Naval</option>
-                    <option value="Nomadic">Nomadic</option>
-                    <option value="Highland">Highland</option>
-                  </select>
-                  <input
-                    type="number"
-                    min="0"
-                    max="99"
-                    step=".1"
-                    data-tip="Expansionism (base rate of country growth). Change to re-calculate borders"
-                    className="stateExpansionism hidden show hide"
-                    value={s.expansionism}
-                    onChange={e => statesEditorActions.changeExpansionism(s.i, parseFloat(e.target.value))}
-                  />
-                </>
-              )}
-
-              <span data-tip="Cells count" className="stateCells hidden show hide">
-                {s.cells}
-              </span>
-
-              {isNeutral ? (
-                <span />
-              ) : (
-                <span
-                  data-tip="Lock the state"
-                  className={`stateLock ${s.isLocked ? "icon-pin" : "icon-pin-outline"}`}
-                  onClick={() => statesEditorActions.toggleLock(s.i)}
-                />
-              )}
-              {isNeutral ? (
-                <span />
-              ) : (
-                <span
-                  data-tip="Remove the state"
-                  className="stateRemove icon-trash-empty"
-                  onClick={() => statesEditorActions.removeState(s.i)}
-                />
-              )}
-            </div>
-          );
-        })}
+                    <span data-tip="State population" className="statePopulation pointer hide">
+                      {populationText}
+                    </span>
+                  </td>
+                  <td className="hidden show hide">
+                    {isNeutral ? null : (
+                      <select
+                        data-tip="State type. Click to change"
+                        className="stateType pointer hidden show hide"
+                        style={{ width: "100%" }}
+                        value={s.type}
+                        onChange={e => statesEditorActions.changeType(s.i, e.target.value)}
+                      >
+                        <option value="Generic">Generic</option>
+                        <option value="River">River</option>
+                        <option value="Lake">Lake</option>
+                        <option value="Naval">Naval</option>
+                        <option value="Nomadic">Nomadic</option>
+                        <option value="Highland">Highland</option>
+                      </select>
+                    )}
+                  </td>
+                  <td className="hidden show hide">
+                    {isNeutral ? null : (
+                      <input
+                        type="number"
+                        min="0"
+                        max="99"
+                        step=".1"
+                        data-tip="Expansionism (base rate of country growth). Change to re-calculate borders"
+                        className="stateExpansionism hidden show hide"
+                        style={{ width: "100%" }}
+                        value={s.expansionism}
+                        onChange={e => statesEditorActions.changeExpansionism(s.i, parseFloat(e.target.value))}
+                      />
+                    )}
+                  </td>
+                  <td className="hidden show hide">
+                    <span data-tip="Cells count" className="stateCells hidden show hide">
+                      {s.cells}
+                    </span>
+                  </td>
+                  <td>
+                    {isNeutral ? null : (
+                      <div style={{ display: "flex", gap: "4px", alignItems: "center" }}>
+                        <span
+                          data-tip="Lock the state"
+                          className={`stateLock ${s.isLocked ? "icon-pin" : "icon-pin-outline"} pointer`}
+                          onClick={() => statesEditorActions.toggleLock(s.i)}
+                        />
+                        <span
+                          data-tip="Remove the state"
+                          className="stateRemove icon-trash-empty pointer"
+                          onClick={() => statesEditorActions.removeState(s.i)}
+                        />
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
 
       <div id="statesTotal" className="totalLine">

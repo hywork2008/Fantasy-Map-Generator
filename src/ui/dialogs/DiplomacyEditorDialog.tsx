@@ -24,69 +24,93 @@ export const DiplomacyEditorContent: React.FC = () => {
 
   return (
     <div id="diplomacyEditorContainer">
-      <div id="diplomacyHeader" className="header -diplomacy-editor-dialog__grid-template-columns-15em-6em">
-        <div data-tip="Click to sort by state name" className="sortable alphabetically" data-sortby="name">
-          State&nbsp;
-        </div>
-        <div
-          data-tip="Click to sort by diplomatical relations"
-          className="sortable alphabetically"
-          data-sortby="relations"
-        >
-          Relations&nbsp;
-        </div>
-      </div>
       <div id="diplomacyBodySection" className="table">
-        {states.map(s => {
-          const isSelf = s.i === selectedStateId;
-          if (isSelf) {
-            return (
-              <div key={s.i} className="states Self" data-id={s.i} data-tip={`List below shows relations to ${s.name}`}>
-                <div className="-diplomacy-editor-dialog__width-max-content">{s.fullName}</div>
-                <svg className="coaIcon" viewBox="0 0 200 200">
-                  <title>Coat of Arms for {s.fullName || s.name}</title>
-                  <use href={`#stateCOA${s.i}`} />
-                </svg>
-              </div>
-            );
-          }
-
-          const tipText = `${s.name} ${s.inText} ${states.find(st => st.i === selectedStateId)?.name}`;
-          const tipSelect = `${tipText}. Click to see relations to ${s.name}`;
-          const tipChange = `Click to change relations. ${tipText}`;
-
-          return (
-            <div
-              key={s.i}
-              className="states"
-              data-id={s.i}
-              data-name={s.name}
-              data-relations={s.relation}
-              onClick={() => handleStateClick(s.i)}
-              onMouseEnter={() => handleMouseEnter(s.i)}
-              onMouseLeave={handleMouseLeave}
-            >
-              <svg data-tip={tipSelect} className="coaIcon" viewBox="0 0 200 200">
-                <title>Coat of Arms for {s.fullName || s.name}</title>
-                <use href={`#stateCOA${s.i}`} />
-              </svg>
-              <div data-tip={tipSelect} className="-diplomacy-editor-dialog__width-12em">
-                {s.name}
-              </div>
-              <div
-                data-tip={tipChange}
-                className="changeRelations -diplomacy-editor-dialog__width-6em"
-                onClick={e => {
-                  e.stopPropagation();
-                  handleRelationClick(s.i, selectedStateId, s.relation);
-                }}
+        <table className="fmg-table">
+          <thead>
+            <tr id="diplomacyHeader">
+              <th
+                data-tip="Click to sort by state name"
+                className="sortable alphabetically"
+                data-sortby="name"
+                style={{ width: "15em" }}
               >
-                <FillBox fill={s.color} size=".9em" />
-                {s.relation}
-              </div>
-            </div>
-          );
-        })}
+                State&nbsp;
+              </th>
+              <th
+                data-tip="Click to sort by diplomatical relations"
+                className="sortable alphabetically"
+                data-sortby="relations"
+                style={{ width: "6em" }}
+              >
+                Relations&nbsp;
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {states.map(s => {
+              const isSelf = s.i === selectedStateId;
+              if (isSelf) {
+                return (
+                  <tr
+                    key={s.i}
+                    className="states Self"
+                    data-id={s.i}
+                    data-tip={`List below shows relations to ${s.name}`}
+                  >
+                    <td colSpan={2} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <div className="-diplomacy-editor-dialog__width-max-content">{s.fullName}</div>
+                      <svg className="coaIcon" viewBox="0 0 200 200">
+                        <title>Coat of Arms for {s.fullName || s.name}</title>
+                        <use href={`#stateCOA${s.i}`} />
+                      </svg>
+                    </td>
+                  </tr>
+                );
+              }
+
+              const tipText = `${s.name} ${s.inText} ${states.find(st => st.i === selectedStateId)?.name}`;
+              const tipSelect = `${tipText}. Click to see relations to ${s.name}`;
+              const tipChange = `Click to change relations. ${tipText}`;
+
+              return (
+                <tr
+                  key={s.i}
+                  className="states"
+                  data-id={s.i}
+                  data-name={s.name}
+                  data-relations={s.relation}
+                  onClick={() => handleStateClick(s.i)}
+                  onMouseEnter={() => handleMouseEnter(s.i)}
+                  onMouseLeave={handleMouseLeave}
+                >
+                  <td style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <svg data-tip={tipSelect} className="coaIcon" viewBox="0 0 200 200">
+                      <title>Coat of Arms for {s.fullName || s.name}</title>
+                      <use href={`#stateCOA${s.i}`} />
+                    </svg>
+                    <div data-tip={tipSelect} style={{ flex: 1, minWidth: 0 }}>
+                      {s.name}
+                    </div>
+                  </td>
+                  <td>
+                    <div
+                      data-tip={tipChange}
+                      className="changeRelations"
+                      style={{ width: "100%", display: "flex", gap: "4px", alignItems: "center" }}
+                      onClick={e => {
+                        e.stopPropagation();
+                        handleRelationClick(s.i, selectedStateId, s.relation);
+                      }}
+                    >
+                      <FillBox fill={s.color} size=".9em" />
+                      {s.relation}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
       <div className="info-line">
         Click on state name to see relations.

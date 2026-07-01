@@ -106,66 +106,91 @@ export const MarkersOverviewDialog: React.FC = () => {
       className="fmg-dialog--overflow-hidden"
     >
       <div id="markersOverviewContainer">
-        <div id="markersHeader" className="header -markers-overview-dialog__grid-template-columns-15em-1em-3em">
-          <div data-tip="Click to sort by marker type" className="sortable alphabetically" data-sortby="type">
-            Type&nbsp;
-          </div>
-          <div
-            className="-markers-overview-dialog__color-6e5e66 icon-pin pointer"
-            data-tip="Click to invert pin state for all markers"
-            onClick={handleInvertPin}
-          />
-          <div
-            className="-markers-overview-dialog__color-6e5e66 icon-lock pointer"
-            data-tip="Click to invert lock state for all markers"
-            onClick={handleInvertLock}
-          />
-        </div>
-
         <div id="markersBody" className="table">
-          {filteredMarkers.map(({ i, type, icon, pinned, lock }) => (
-            <div key={i} className="states" data-i={i} data-type={type}>
-              {icon.startsWith("http") || icon.startsWith("data:image") ? (
-                <img
-                  src={icon}
-                  data-tip="Marker icon"
-                  className="-markers-overview-dialog__width-1-2em--height-1-2em--vertical-align-middle"
-                  alt="marker icon"
+          <table className="fmg-table">
+            <thead>
+              <tr id="markersHeader">
+                <th
+                  data-tip="Click to sort by marker type"
+                  className="sortable alphabetically"
+                  data-sortby="type"
+                  style={{ width: "15em" }}
+                >
+                  Type&nbsp;
+                </th>
+                <th
+                  className="-markers-overview-dialog__color-6e5e66 icon-pin pointer"
+                  data-tip="Click to invert pin state for all markers"
+                  onClick={handleInvertPin}
+                  style={{ width: "2em" }}
                 />
-              ) : (
-                <span data-tip="Marker icon" className="-markers-overview-dialog__width-1-2em">
-                  {icon}
-                </span>
-              )}
-              <div data-tip="Marker type" className="-markers-overview-dialog__width-10em">
-                {type}
-              </div>
-              <span
-                className="-markers-overview-dialog__padding-right-1em icon-pencil pointer"
-                data-tip="Edit marker"
-                onClick={() => {
-                  markerZoomTo(i);
-                  editMarker(i);
-                }}
-              />
-              <span
-                className="-markers-overview-dialog__padding-right-1em icon-target pointer"
-                data-tip="Locate the marker"
-                onClick={() => markerHighlightById(i)}
-              />
-              <span
-                className={`-markers-overview-dialog__padding-right-1em icon-pin pointer${pinned ? "" : " inactive"}`}
-                data-tip="Pin marker (display only pinned markers)"
-                onClick={() => handlePinClick(i)}
-              />
-              <span
-                className={`-markers-overview-dialog__padding-right-1em locks pointer${lock ? " icon-lock" : " icon-lock-open inactive"}`}
-                onMouseOver={e => showElementLockTip(e.nativeEvent)}
-                onClick={() => handleLockClick(i)}
-              />
-              <span data-tip="Remove marker" className="icon-trash-empty pointer" onClick={() => handleRemove(i)} />
-            </div>
-          ))}
+                <th
+                  className="-markers-overview-dialog__color-6e5e66 icon-lock pointer"
+                  data-tip="Click to invert lock state for all markers"
+                  onClick={handleInvertLock}
+                  style={{ width: "2em" }}
+                />
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredMarkers.map(({ i, type, icon, pinned, lock }) => (
+                <tr key={i} className="states" data-i={i} data-type={type}>
+                  <td style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    {icon.startsWith("http") || icon.startsWith("data:image") ? (
+                      <img
+                        src={icon}
+                        data-tip="Marker icon"
+                        className="-markers-overview-dialog__width-1-2em--height-1-2em--vertical-align-middle"
+                        alt="marker icon"
+                      />
+                    ) : (
+                      <span data-tip="Marker icon" className="-markers-overview-dialog__width-1-2em">
+                        {icon}
+                      </span>
+                    )}
+                    <div data-tip="Marker type" className="-markers-overview-dialog__width-10em">
+                      {type}
+                    </div>
+                  </td>
+                  <td>
+                    <span
+                      className={`-markers-overview-dialog__padding-right-1em icon-pin pointer${pinned ? "" : " inactive"}`}
+                      data-tip="Pin marker (display only pinned markers)"
+                      onClick={() => handlePinClick(i)}
+                    />
+                  </td>
+                  <td>
+                    <span
+                      className={`-markers-overview-dialog__padding-right-1em locks pointer${lock ? " icon-lock" : " icon-lock-open inactive"}`}
+                      onMouseOver={e => showElementLockTip(e.nativeEvent)}
+                      onClick={() => handleLockClick(i)}
+                    />
+                  </td>
+                  <td>
+                    <span
+                      className="-markers-overview-dialog__padding-right-1em icon-pencil pointer"
+                      data-tip="Edit marker"
+                      onClick={() => {
+                        markerZoomTo(i);
+                        editMarker(i);
+                      }}
+                    />
+                    <span
+                      className="-markers-overview-dialog__padding-right-1em icon-target pointer"
+                      data-tip="Locate the marker"
+                      onClick={() => markerHighlightById(i)}
+                    />
+                    <span
+                      data-tip="Remove marker"
+                      className="icon-trash-empty pointer"
+                      onClick={() => handleRemove(i)}
+                    />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
 
         <div id="markersSearchRow">
