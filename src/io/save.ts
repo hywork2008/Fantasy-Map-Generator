@@ -1,5 +1,6 @@
 import { worldContext } from "../context/worldContext";
 import { Names } from "../generators/names-generator";
+import { appendOceanPathsToSaveSVG } from "../renderers/ocean-layers";
 import { tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { rulers } from "../store/editorState";
@@ -74,6 +75,8 @@ export function prepareMapData(): string {
   cloneEl.setAttribute("height", String(worldContext.graphHeight));
   cloneEl.querySelector("#viewbox")!.removeAttribute("transform");
   cloneEl.querySelector("#ruler")!.innerHTML = "";
+
+  appendOceanPathsToSaveSVG(cloneEl.querySelector("#oceanLayers"));
 
   cloneEl.querySelectorAll("#routes > #roads path, #routes > #trails path, #routes > #searoutes path").forEach(path => {
     path.setAttribute("fill", "none");

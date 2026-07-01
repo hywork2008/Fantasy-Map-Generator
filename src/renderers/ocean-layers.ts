@@ -12,6 +12,8 @@ import type { GridCells } from "../types/Grid";
 import { clipPoly, P, rn, round } from "../utils";
 import { ERROR, TIME } from "../utils/debug";
 
+let cachedOceanPaths: { pathStr: string; opacity: number }[] = [];
+
 class OceanModule {
   worldContext: WorldContext = worldContext;
   viewContext: Readonly<ViewContext> = viewContext;
@@ -112,10 +114,7 @@ class OceanModule {
       chains.push([t, points]);
     }
 
-    // Render depth paths to canvas inside foreignObject.
-    // The canvas sits after #oceanBase inside #oceanLayers so it renders on top
-    // of the base ocean color. SVG opacity, filters, and masks on ancestor groups
-    // are applied automatically by the browser's SVG compositor.
+    cachedOceanPaths = [];
     const ctx = createLayerCanvas(
       this.oceanLayers.node()!,
       this.worldContext.graphWidth,
@@ -126,7 +125,10 @@ class OceanModule {
     for (const t of limits) {
       const layer = chains.filter(c => c[0] === t);
       const pathStr = layer.map(c => round(this.lineGen(c[1]) || "")).join("");
-      if (pathStr) ctx.fill(new Path2D(pathStr), "evenodd");
+      if (pathStr) {
+        ctx.fill(new Path2D(pathStr), "evenodd");
+        cachedOceanPaths.push({ pathStr, opacity });
+      }
     }
     ctx.globalAlpha = 1;
 
@@ -135,3 +137,14 @@ class OceanModule {
 }
 
 export const OceanLayers = () => new OceanModule(viewContext.oceanLayers).draw();
+
+export function appendOceanPathsToSaveSVG(oceanLayersNode: Element | null) {
+  if (!oceanLayersNode) return;
+  for (const { pathStr, opacity } of cachedOceanPaths) {
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", pathStr);
+    path.setAttribute("fill", "#ecf2f9");
+    path.setAttribute("opacity", String(opacity));
+    oceanLayersNode.appendChild(path);
+  }
+}
