@@ -1,3 +1,4 @@
+import { useVirtualizer } from "@tanstack/react-virtual";
 import type React from "react";
 import { useEffect, useMemo, useRef } from "react";
 import { worldContext } from "../../context/worldContext";
@@ -31,12 +32,16 @@ export const BurgsOverviewDialog: React.FC = () => {
     searchText,
     filterStateId,
     filterCultureId,
+    filterProvinceId,
+    filterGroup,
     addMode,
     refreshCounter,
     toggleSortBy,
     setSearchText,
     setFilterStateId,
     setFilterCultureId,
+    setFilterProvinceId,
+    setFilterGroup,
     setAddMode,
     refresh
   } = useBurgsOverviewState();
@@ -77,6 +82,22 @@ export const BurgsOverviewDialog: React.FC = () => {
       .sort((a, b) => (a.name > b.name ? 1 : -1));
   }, [refreshCounter]);
 
+  const sortedProvinces = useMemo(() => {
+    void refreshCounter;
+    return (worldContext.pack?.provinces ?? [])
+      .filter(p => p.i && !p.removed)
+      .sort((a, b) => (a.name > b.name ? 1 : -1));
+  }, [refreshCounter]);
+
+  const uniqueGroups = useMemo(() => {
+    void refreshCounter;
+    const groups = new Set<string>();
+    (worldContext.pack?.burgs ?? []).forEach(b => {
+      if (b.i && !b.removed && b.group) groups.add(b.group);
+    });
+    return Array.from(groups).sort();
+  }, [refreshCounter]);
+
   const { filteredBurgs, totalPopulation, validCount } = useMemo(() => {
     void refreshCounter;
     const validBurgs = (worldContext.pack?.burgs ?? []).filter(b => b.i && !b.removed);
@@ -100,6 +121,13 @@ export const BurgsOverviewDialog: React.FC = () => {
     }
     if (filterStateId !== -1) filtered = filtered.filter(b => b.state === filterStateId);
     if (filterCultureId !== -1) filtered = filtered.filter(b => b.culture === filterCultureId);
+    if (filterProvinceId !== -1) {
+      filtered = filtered.filter(b => {
+        const prov = worldContext.pack.cells.province![b.cell];
+        return prov === filterProvinceId;
+      });
+    }
+    if (filterGroup !== "") filtered = filtered.filter(b => b.group === filterGroup);
 
     const rows = filtered.map(b => {
       const population = (b.population ?? 0) * worldContext.populationRate * worldContext.urbanization;
@@ -143,7 +171,7 @@ export const BurgsOverviewDialog: React.FC = () => {
 
     const total = sorted.reduce((acc, { population }) => acc + population, 0);
     return { filteredBurgs: sorted, totalPopulation: total, validCount: validBurgs.length };
-  }, [refreshCounter, searchText, filterStateId, filterCultureId, sortBy, sortOrder]);
+  }, [refreshCounter, searchText, filterStateId, filterCultureId, filterProvinceId, filterGroup, sortBy, sortOrder]);
 
   const allLocked = useMemo(() => {
     void refreshCounter;
@@ -215,6 +243,19 @@ export const BurgsOverviewDialog: React.FC = () => {
     );
   }
 
+  const parentRef = useRef<HTMLDivElement>(null);
+  const rowVirtualizer = useVirtualizer({
+    count: filteredBurgs.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 28,
+    overscan: 5
+  });
+
+  const virtualItems = rowVirtualizer.getVirtualItems();
+  const paddingTop = virtualItems.length > 0 ? virtualItems[0].start : 0;
+  const paddingBottom =
+    virtualItems.length > 0 ? rowVirtualizer.getTotalSize() - virtualItems[virtualItems.length - 1].end : 0;
+
   return (
     <Dialog
       isOpen={isOpen}
@@ -223,9 +264,9 @@ export const BurgsOverviewDialog: React.FC = () => {
       className="fmg-dialog--overflow-hidden"
     >
       <div id="burgsOverviewContainer">
-        <div id="burgsBody" className="table">
+        <div id="burgsBody" className="table" ref={parentRef} style={{ overflowY: "auto", maxHeight: "60vh" }}>
           <table className="fmg-table">
-            <thead>
+            <thead style={{ position: "sticky", top: 0, zIndex: 1, backgroundColor: "var(--bg-color)" }}>
               <tr id="burgsHeader">
                 <SortHeader field="name" label="Burg" width="9em" />
                 <SortHeader field="province" label="Province" width="7em" />
@@ -245,100 +286,127 @@ export const BurgsOverviewDialog: React.FC = () => {
                   </td>
                 </tr>
               ) : (
-                filteredBurgs.map(({ b, population, province, stateName, cultureName }) => (
-                  <tr
-                    key={b.i}
-                    className="states"
-                    data-id={b.i}
-                    data-name={b.name}
-                    data-state={stateName}
-                    data-province={province}
-                    data-culture={cultureName}
-                    data-group={b.group}
-                    data-population={population}
-                    onMouseEnter={() => burgHighlightOn(b.i!)}
-                    onMouseLeave={() => burgHighlightOff()}
-                  >
-                    <td>
-                      <span
-                        data-tip="Click to zoom into view"
-                        className="icon-dot-circled pointer"
-                        onClick={() => zoomIntoBurg(b.i!)}
-                        style={{ marginRight: "4px" }}
-                      />
-                      <input
-                        data-tip="Burg name"
-                        className="burgName"
-                        value={b.name ?? ""}
-                        disabled
-                        readOnly
-                        style={{ width: "calc(100% - 20px)" }}
-                      />
-                    </td>
-                    <td>
-                      <input data-tip="Burg province" value={province} disabled readOnly style={{ width: "100%" }} />
-                    </td>
-                    <td>
-                      <input data-tip="Burg state" value={stateName} disabled readOnly style={{ width: "100%" }} />
-                    </td>
-                    <td>
-                      <input
-                        data-tip="Dominant culture"
-                        value={cultureName}
-                        disabled
-                        readOnly
-                        style={{ width: "100%" }}
-                      />
-                    </td>
-                    <td>
-                      <input data-tip="Burg group" value={b.group ?? ""} disabled readOnly style={{ width: "100%" }} />
-                    </td>
-                    <td>
-                      <span data-tip="Burg population" className="icon-male" style={{ marginRight: "4px" }} />
-                      <input
-                        data-tip="Burg population"
-                        value={si(population)}
-                        className="-burgs-overview-dialog__width-5em"
-                        disabled
-                        readOnly
-                      />
-                    </td>
-                    <td>
-                      <div className="-burgs-overview-dialog__width-3em" style={{ display: "inline-block" }}>
-                        <span
-                          data-tip={b.capital ? "This burg is a state capital" : "This burg is NOT a state capital"}
-                          className={`icon-star-empty${b.capital ? "" : " inactive"} -burgs-overview-dialog__padding-0-1px`}
-                        />
-                        <span
-                          data-tip={b.port ? "This burg is a port" : "This burg is NOT a port"}
-                          className={`icon-anchor${b.port ? "" : " inactive"} -burgs-overview-dialog__font-size-9em--padding-0-1px`}
-                        />
-                      </div>
-                    </td>
-                    <td>
-                      <span
-                        data-tip="Edit burg"
-                        className="icon-pencil pointer"
-                        onClick={() => editBurg(b.i!)}
-                        style={{ marginRight: "4px" }}
-                      />
-                      <span
-                        className={`locks pointer${b.lock ? " icon-lock" : " icon-lock-open inactive"}`}
-                        onMouseOver={e => showElementLockTip(e.nativeEvent)}
-                        onClick={() => {
-                          b.lock = !b.lock;
-                          refresh();
-                        }}
-                        style={{ marginRight: "4px" }}
-                      />
-                      <span
-                        data-tip="Remove burg"
-                        className="icon-trash-empty pointer"
-                        onClick={() => handleRemoveBurg(b.i!)}
-                      />
-                    </td>
-                  </tr>
-                ))
+                <>
+                  {paddingTop > 0 && (
+                    <tr>
+                      <td colSpan={8} style={{ height: `${paddingTop}px`, padding: 0 }} />
+                    </tr>
+                  )}
+                  {virtualItems.map(virtualRow => {
+                    const { b, population, province, stateName, cultureName } = filteredBurgs[virtualRow.index];
+                    return (
+                      <tr
+                        key={b.i}
+                        className="states"
+                        data-id={b.i}
+                        data-name={b.name}
+                        data-state={stateName}
+                        data-province={province}
+                        data-culture={cultureName}
+                        data-group={b.group}
+                        data-population={population}
+                        onMouseEnter={() => burgHighlightOn(b.i!)}
+                        onMouseLeave={() => burgHighlightOff()}
+                      >
+                        <td>
+                          <span
+                            data-tip="Click to zoom into view"
+                            className="icon-dot-circled pointer"
+                            onClick={() => zoomIntoBurg(b.i!)}
+                            style={{ marginRight: "4px" }}
+                          />
+                          <input
+                            data-tip="Burg name"
+                            className="burgName"
+                            value={b.name ?? ""}
+                            disabled
+                            readOnly
+                            style={{ width: "calc(100% - 20px)" }}
+                          />
+                        </td>
+                        <td>
+                          <input
+                            data-tip="Burg province"
+                            value={province}
+                            disabled
+                            readOnly
+                            style={{ width: "100%" }}
+                          />
+                        </td>
+                        <td>
+                          <input data-tip="Burg state" value={stateName} disabled readOnly style={{ width: "100%" }} />
+                        </td>
+                        <td>
+                          <input
+                            data-tip="Dominant culture"
+                            value={cultureName}
+                            disabled
+                            readOnly
+                            style={{ width: "100%" }}
+                          />
+                        </td>
+                        <td>
+                          <input
+                            data-tip="Burg group"
+                            value={b.group ?? ""}
+                            disabled
+                            readOnly
+                            style={{ width: "100%" }}
+                          />
+                        </td>
+                        <td>
+                          <span data-tip="Burg population" className="icon-male" style={{ marginRight: "4px" }} />
+                          <input
+                            data-tip="Burg population"
+                            value={si(population)}
+                            className="-burgs-overview-dialog__width-5em"
+                            disabled
+                            readOnly
+                          />
+                        </td>
+                        <td>
+                          <div className="-burgs-overview-dialog__width-3em" style={{ display: "inline-block" }}>
+                            <span
+                              data-tip={b.capital ? "This burg is a state capital" : "This burg is NOT a state capital"}
+                              className={`icon-star-empty${b.capital ? "" : " inactive"} -burgs-overview-dialog__padding-0-1px`}
+                            />
+                            <span
+                              data-tip={b.port ? "This burg is a port" : "This burg is NOT a port"}
+                              className={`icon-anchor${b.port ? "" : " inactive"} -burgs-overview-dialog__font-size-9em--padding-0-1px`}
+                            />
+                          </div>
+                        </td>
+                        <td>
+                          <span
+                            data-tip="Edit burg"
+                            className="icon-pencil pointer"
+                            onClick={() => editBurg(b.i!)}
+                            style={{ marginRight: "4px" }}
+                          />
+                          <span
+                            className={`locks pointer${b.lock ? " icon-lock" : " icon-lock-open inactive"}`}
+                            onMouseOver={e => showElementLockTip(e.nativeEvent)}
+                            onClick={() => {
+                              b.lock = !b.lock;
+                              refresh();
+                            }}
+                            style={{ marginRight: "4px" }}
+                          />
+                          <span
+                            data-tip="Remove burg"
+                            className="icon-trash-empty pointer"
+                            onClick={() => handleRemoveBurg(b.i!)}
+                          />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {paddingBottom > 0 && (
+                    <tr>
+                      <td colSpan={8} style={{ height: `${paddingBottom}px`, padding: 0 }} />
+                    </tr>
+                  )}
+                </>
               )}
             </tbody>
           </table>
@@ -348,6 +416,7 @@ export const BurgsOverviewDialog: React.FC = () => {
           id="burgsFilters"
           data-tip="Apply a filter"
           className="-burgs-overview-dialog__padding-block-0-1em--display-flex--gap-0-5em--width-100"
+          style={{ flexWrap: "wrap" }}
         >
           <label htmlFor="burgsSearch" data-tip="Filter by name, province, state, culture, or group">
             Search:{" "}
@@ -375,6 +444,32 @@ export const BurgsOverviewDialog: React.FC = () => {
               {sortedCultures.map(c => (
                 <option key={c.i} value={c.i}>
                   {c.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label htmlFor="burgsFilterProvince">
+            Province:
+            <select
+              id="burgsFilterProvince"
+              value={filterProvinceId}
+              onChange={e => setFilterProvinceId(+e.target.value)}
+            >
+              <option value="-1">all</option>
+              {sortedProvinces.map(p => (
+                <option key={p.i} value={p.i}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label htmlFor="burgsFilterGroup">
+            Group:
+            <select id="burgsFilterGroup" value={filterGroup} onChange={e => setFilterGroup(e.target.value)}>
+              <option value="">all</option>
+              {uniqueGroups.map(g => (
+                <option key={g} value={g}>
+                  {g}
                 </option>
               ))}
             </select>
