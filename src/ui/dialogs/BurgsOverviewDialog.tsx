@@ -1,6 +1,7 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type React from "react";
 import { useEffect, useMemo, useRef } from "react";
+import { zoomIntoBurg } from "../../actions";
 import { worldContext } from "../../context/worldContext";
 import { editBurg } from "../../controllers/burg-editor";
 import { editBurgGroups } from "../../controllers/burg-group-editor";
@@ -12,8 +13,7 @@ import {
   renameBurgsInBulk,
   showBurgsChart,
   startAddBurgMode,
-  stopAddBurgMode,
-  zoomIntoBurg
+  stopAddBurgMode
 } from "../../controllers/burgs-overview";
 import { uploadFile } from "../../controllers/editors";
 import { Burgs } from "../../generators/burgs-generator";

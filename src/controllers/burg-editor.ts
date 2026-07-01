@@ -1,5 +1,5 @@
 import { drag, pointer } from "d3";
-import { zoomTo } from "../actions";
+import { zoomIntoBurg as zoomIntoBurgAction } from "../actions";
 import { appServices } from "../context/appServices";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
@@ -355,8 +355,7 @@ export const burgEditorActions = {
 
   zoomIntoBurg(): void {
     const burgId = burgEditorInternal.getBurgId();
-    const burg = worldContext.pack.burgs[burgId];
-    zoomTo(burg.x, burg.y, 8, 2000);
+    zoomIntoBurgAction(burgId);
   },
 
   toggleRelocateBurg(): void {

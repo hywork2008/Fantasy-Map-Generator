@@ -1,5 +1,5 @@
 import { pointer } from "d3";
-import { zoomTo } from "../actions";
+
 import { appServices } from "../context/appServices";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
@@ -11,6 +11,7 @@ import { clearMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { useBurgsOverviewState } from "../store/burgsOverviewState";
 import { burgsRenamingDialogStore } from "../store/burgsRenamingDialogState";
+
 import type { BurgsBubbleChartConfig } from "../ui/dialogs/BurgsBubbleChartDialog";
 import { closeDialogs, openDialog } from "../ui/dialogs/dialogService";
 import { convertTemperature, findCell, getLatitude, getLongitude, rn } from "../utils";
@@ -30,14 +31,6 @@ export function overviewBurgs(settings: { stateId?: number | null; cultureId?: n
   useBurgsOverviewState.getState().open(settings.stateId ?? null, settings.cultureId ?? null);
   useBurgsOverviewState.getState().refresh();
   openDialog("burgsOverview");
-}
-
-export function zoomIntoBurg(burgId: number): void {
-  const label = view.burgLabels.select(`[data-id='${burgId}']`).node() as SVGTextElement | null;
-  if (!label) return;
-  const x = +label.getAttribute("x")!;
-  const y = +label.getAttribute("y")!;
-  zoomTo(x, y, 8, 2000);
 }
 
 export function startAddBurgMode(onDone: () => void): void {
