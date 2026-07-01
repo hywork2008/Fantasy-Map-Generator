@@ -9,13 +9,13 @@ export const OverlaysStylePanel: React.FC = () => {
 
   return (
     <div>
-      <p data-tip="Select an element to edit its style" style={{ display: "inline-block" }}>
+      <p data-tip="Select an element to edit its style" className="-overlays-style-panel__display-inline-block">
         Select element:
       </p>
       <select
         data-tip="Select an element to edit its style"
         id="styleElementSelect"
-        style={{ width: "42%" }}
+        className="-overlays-style-panel__width-42"
         value={OVERLAYS_ELEMENTS.some(e => e.value === activeElement) ? activeElement : OVERLAYS_ELEMENTS[0].value}
         onChange={e => {
           useStyleState.getState().setActiveElement(e.target.value);

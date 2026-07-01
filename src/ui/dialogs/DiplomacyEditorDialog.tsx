@@ -24,7 +24,7 @@ export const DiplomacyEditorContent: React.FC = () => {
 
   return (
     <div id="diplomacyEditorContainer">
-      <div id="diplomacyHeader" className="header" style={{ gridTemplateColumns: "15em 6em" }}>
+      <div id="diplomacyHeader" className="header -diplomacy-editor-dialog__grid-template-columns-15em-6em">
         <div data-tip="Click to sort by state name" className="sortable alphabetically" data-sortby="name">
           State&nbsp;
         </div>
@@ -42,7 +42,7 @@ export const DiplomacyEditorContent: React.FC = () => {
           if (isSelf) {
             return (
               <div key={s.i} className="states Self" data-id={s.i} data-tip={`List below shows relations to ${s.name}`}>
-                <div style={{ width: "max-content" }}>{s.fullName}</div>
+                <div className="-diplomacy-editor-dialog__width-max-content">{s.fullName}</div>
                 <svg className="coaIcon" viewBox="0 0 200 200">
                   <title>Coat of Arms for {s.fullName || s.name}</title>
                   <use href={`#stateCOA${s.i}`} />
@@ -70,13 +70,12 @@ export const DiplomacyEditorContent: React.FC = () => {
                 <title>Coat of Arms for {s.fullName || s.name}</title>
                 <use href={`#stateCOA${s.i}`} />
               </svg>
-              <div data-tip={tipSelect} style={{ width: "12em" }}>
+              <div data-tip={tipSelect} className="-diplomacy-editor-dialog__width-12em">
                 {s.name}
               </div>
               <div
                 data-tip={tipChange}
-                className="changeRelations"
-                style={{ width: "6em" }}
+                className="changeRelations -diplomacy-editor-dialog__width-6em"
                 onClick={e => {
                   e.stopPropagation();
                   handleRelationClick(s.i, selectedStateId, s.relation);

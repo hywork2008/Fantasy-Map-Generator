@@ -13,13 +13,13 @@ export const SaveMapDialog: React.FC = () => {
       title="Save map"
       onClose={() => closeDialog("saveMapData")}
       buttons={[{ label: "Close", onClick: () => closeDialog("saveMapData") }]}
-      style={{ width: "25em" }}
+      className="-save-map-dialog__width-25em"
     >
       <div style={{ marginTop: "0.3em" }}>
         <strong>Save map to</strong>
         <button
           data-tip="Download map file to your local disk"
-          style={{ fontWeight: 600 }}
+          className="-save-map-dialog__font-weight-600"
           type="button"
           onClick={() => saveMap("machine")}
         >

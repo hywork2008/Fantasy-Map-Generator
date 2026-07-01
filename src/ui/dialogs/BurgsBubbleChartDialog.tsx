@@ -220,7 +220,7 @@ export const BurgsBubbleChartDialog: React.FC = () => {
         <select
           value={grouping}
           onChange={e => setGrouping(e.target.value as GroupingType)}
-          style={{ display: "block", marginLeft: 13, fontSize: 11 }}
+          className="-burgs-bubble-chart-dialog__display-block--margin-left-13--font-size-11"
         >
           <option value="states">Group by state</option>
           <option value="cultures">Group by culture</option>

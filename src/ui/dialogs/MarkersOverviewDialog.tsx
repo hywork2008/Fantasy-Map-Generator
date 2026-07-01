@@ -106,20 +106,18 @@ export const MarkersOverviewDialog: React.FC = () => {
       className="fmg-dialog--overflow-hidden"
     >
       <div id="markersOverviewContainer">
-        <div id="markersHeader" className="header" style={{ gridTemplateColumns: "15em 1em 3em" }}>
+        <div id="markersHeader" className="header -markers-overview-dialog__grid-template-columns-15em-1em-3em">
           <div data-tip="Click to sort by marker type" className="sortable alphabetically" data-sortby="type">
             Type&nbsp;
           </div>
           <div
-            style={{ color: "#6e5e66" }}
+            className="-markers-overview-dialog__color-6e5e66 icon-pin pointer"
             data-tip="Click to invert pin state for all markers"
-            className="icon-pin pointer"
             onClick={handleInvertPin}
           />
           <div
-            style={{ color: "#6e5e66" }}
+            className="-markers-overview-dialog__color-6e5e66 icon-lock pointer"
             data-tip="Click to invert lock state for all markers"
-            className="icon-lock pointer"
             onClick={handleInvertLock}
           />
         </div>
@@ -139,7 +137,7 @@ export const MarkersOverviewDialog: React.FC = () => {
                   {icon}
                 </span>
               )}
-              <div data-tip="Marker type" style={{ width: "10em" }}>
+              <div data-tip="Marker type" className="-markers-overview-dialog__width-10em">
                 {type}
               </div>
               <span
@@ -190,7 +188,10 @@ export const MarkersOverviewDialog: React.FC = () => {
         <div id="markersFooter" className="fmg-dialog-footer">
           <button type="button" data-tip="Refresh the Overview screen" className="icon-cw" onClick={refresh} />
           <input type="hidden" id="addedMarkerType" name="addedMarkerType" defaultValue={addedMarkerType} />
-          <span id="markerTypeSelectorWrapper" style={{ position: "relative", display: "inline-block" }}>
+          <span
+            id="markerTypeSelectorWrapper"
+            className="-markers-overview-dialog__position-relative--display-inline-block"
+          >
             <button
               type="button"
               data-tip="Select marker type for newly added markers."
@@ -202,20 +203,13 @@ export const MarkersOverviewDialog: React.FC = () => {
               <div
                 ref={menuRef}
                 id="markerTypeSelectMenu"
-                className="visible"
-                style={{
-                  position: "absolute",
-                  zIndex: 10,
-                  background: "#fff",
-                  border: "1px solid #ccc",
-                  padding: "4px"
-                }}
+                className="visible -markers-overview-dialog__position-absolute--z-index-10--background-fff--bor"
               >
                 {markerTypes.map(({ icon, type }) => (
                   <button
                     key={type}
                     type="button"
-                    style={{ display: "block", width: "100%", textAlign: "left" }}
+                    className="-markers-overview-dialog__display-block--width-100--text-align-left"
                     onClick={() => setAddedMarkerType(type, icon)}
                   >
                     {icon} {type}

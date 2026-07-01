@@ -145,8 +145,7 @@ export const MarketsOverviewDialog: React.FC = () => {
           <div />
           <div
             data-tip="Market center burg name. Click to sort"
-            className={`sortable alphabetically ${getSortIcon("market", true)}`}
-            style={{ marginLeft: 0 }}
+            className={`sortable alphabetically ${getSortIcon("market", true)} -markets-overview-dialog__margin-left-0`}
             onClick={() => marketsOverviewActions.setSorting("market")}
           >
             Market&nbsp;
@@ -205,9 +204,8 @@ export const MarketsOverviewDialog: React.FC = () => {
 
         <div
           id="marketsOverviewBody"
-          className="table"
+          className="table -markets-overview-dialog__max-height-40em--cursor-pointer"
           data-type={isPercentageMode ? "percentage" : "absolute"}
-          style={{ maxHeight: "40em", cursor: "pointer" }}
         >
           {markets.length === 0
             ? "No markets available"
@@ -247,14 +245,11 @@ export const MarketsOverviewDialog: React.FC = () => {
                       </div>
                       <div
                         data-tip="Cells with no market; their burgs are excluded from production"
-                        className="marketName"
-                        style={{ width: "7em" }}
+                        className="marketName -markets-overview-dialog__width-7em"
                       >
                         {m.centerName}
                       </div>
-                      <div className="marketOwner" style={{ width: "8em" }}>
-                        {m.ownerName}
-                      </div>
+                      <div className="marketOwner -markets-overview-dialog__width-8em">{m.ownerName}</div>
                       <div
                         data-tip="Number of cells with no market"
                         data-type="cells"
@@ -273,29 +268,25 @@ export const MarketsOverviewDialog: React.FC = () => {
                       </div>
                       <div
                         data-type="stock"
-                        className={`marketStock hide${isManualMode ? " hidden" : ""}`}
-                        style={{ width: "5em" }}
+                        className={`marketStock hide${isManualMode ? " hidden" : ""} -markets-overview-dialog__width-5em`}
                       >
                         —
                       </div>
                       <div
                         data-type="sales"
-                        className={`marketSales hide${isManualMode ? " hidden" : ""}`}
-                        style={{ width: "6em" }}
+                        className={`marketSales hide${isManualMode ? " hidden" : ""} -markets-overview-dialog__width-6em`}
                       >
                         —
                       </div>
                       <div
                         data-type="buys"
-                        className={`marketBuysCol hide${isManualMode ? " hidden" : ""}`}
-                        style={{ width: "6em" }}
+                        className={`marketBuysCol hide${isManualMode ? " hidden" : ""} -markets-overview-dialog__width-6em`}
                       >
                         —
                       </div>
                       <div
                         data-type="value"
-                        className={`marketValue hide${isManualMode ? " hidden" : ""}`}
-                        style={{ width: "6em" }}
+                        className={`marketValue hide${isManualMode ? " hidden" : ""} -markets-overview-dialog__width-6em`}
                       >
                         —
                       </div>
@@ -331,15 +322,18 @@ export const MarketsOverviewDialog: React.FC = () => {
                         value={m.color}
                         tabIndex={-1}
                         aria-hidden="true"
-                        style={{ display: "none" }}
+                        className="-markets-overview-dialog__display-none"
                         onClick={event => event.stopPropagation()}
                         onChange={event => handleColorChange(m.i, event.target.value)}
                       />
                     </div>
-                    <div data-tip="Market name. Click to view details" className="marketName" style={{ width: "7em" }}>
+                    <div
+                      data-tip="Market name. Click to view details"
+                      className="marketName -markets-overview-dialog__width-7em"
+                    >
                       {m.centerName}
                     </div>
-                    <div data-tip="Owning state" className="marketOwner" style={{ width: "8em" }}>
+                    <div data-tip="Owning state" className="marketOwner -markets-overview-dialog__width-8em">
                       {m.ownerName}
                     </div>
                     <div
@@ -361,39 +355,34 @@ export const MarketsOverviewDialog: React.FC = () => {
                     <div
                       data-tip="Total stock of all goods in this market"
                       data-type="stock"
-                      className={`marketStock hide${isManualMode ? " hidden" : ""}`}
-                      style={{ width: "5em" }}
+                      className={`marketStock hide${isManualMode ? " hidden" : ""} -markets-overview-dialog__width-5em`}
                     >
                       {displayVal(m.stock, totals.stock)}
                     </div>
                     <div
                       data-tip="Total gross sales revenue"
                       data-type="sales"
-                      className={`marketSales hide${isManualMode ? " hidden" : ""}`}
-                      style={{ width: "6em" }}
+                      className={`marketSales hide${isManualMode ? " hidden" : ""} -markets-overview-dialog__width-6em`}
                     >
                       {displayPrice(m.sales, totals.sales)}
                     </div>
                     <div
                       data-tip="Total purchase spending"
                       data-type="buys"
-                      className={`marketBuysCol hide${isManualMode ? " hidden" : ""}`}
-                      style={{ width: "6em" }}
+                      className={`marketBuysCol hide${isManualMode ? " hidden" : ""} -markets-overview-dialog__width-6em`}
                     >
                       {displayPrice(m.buys, totals.buys)}
                     </div>
                     <div
                       data-tip="Market value: net trading flow plus unsold inventory value minus tax"
                       data-type="value"
-                      className={`marketValue hide${isManualMode ? " hidden" : ""}`}
-                      style={{ width: "6em" }}
+                      className={`marketValue hide${isManualMode ? " hidden" : ""} -markets-overview-dialog__width-6em`}
                     >
                       {displayPrice(m.value, totals.value)}
                     </div>
                     <span
                       data-tip="Remove this market"
-                      className={`icon-trash-empty hiddenIcon hide${isManualMode ? " hidden" : ""}`}
-                      style={{ visibility: "hidden" }}
+                      className={`icon-trash-empty hiddenIcon hide${isManualMode ? " hidden" : ""} -markets-overview-dialog__visibility-hidden`}
                       onClick={e => handleRemoveClick(e, m.i)}
                     />
                   </div>
@@ -402,16 +391,16 @@ export const MarketsOverviewDialog: React.FC = () => {
         </div>
 
         <div id="marketsOverviewFooter" className="totalLine" style={{ display: isManualMode ? "none" : "block" }}>
-          <div data-tip="Total number of markets" style={{ marginLeft: 5 }}>
+          <div data-tip="Total number of markets" className="-markets-overview-dialog__margin-left-5">
             Markets:&nbsp;<span id="marketsOverviewFooterMarkets">{totalMarkets}</span>
           </div>
-          <div data-tip="Average gross sales revenue per market" style={{ marginLeft: 12 }}>
+          <div data-tip="Average gross sales revenue per market" className="-markets-overview-dialog__margin-left-12">
             Avg Sales:&nbsp;<span id="marketsOverviewFooterSales">{formatPrice(avgSales)}</span>
           </div>
-          <div data-tip="Average purchase spending per market" style={{ marginLeft: 12 }}>
+          <div data-tip="Average purchase spending per market" className="-markets-overview-dialog__margin-left-12">
             Avg Buys:&nbsp;<span id="marketsOverviewFooterBuys">{formatPrice(avgBuys)}</span>
           </div>
-          <div data-tip="Average market value per market" style={{ marginLeft: 12 }}>
+          <div data-tip="Average market value per market" className="-markets-overview-dialog__margin-left-12">
             Avg Value:&nbsp;<span id="marketsOverviewFooterValue">{formatPrice(avgValue)}</span>
           </div>
         </div>
@@ -465,7 +454,7 @@ export const MarketsOverviewDialog: React.FC = () => {
               step="1"
               value={brushSize}
               data-tip="Brush size"
-              style={{ display: "inline-block", width: "6em", verticalAlign: "middle" }}
+              className="-markets-overview-dialog__display-inline-block--width-6em--vertical-align-mi"
               onChange={e => marketsOverviewActions.setBrushSize(parseInt(e.target.value, 10))}
             />
             <button

@@ -77,8 +77,7 @@ export const ReligionsEditorDialog: React.FC = () => {
       <div id="religionsEditor">
         <div
           id="religionsHeader"
-          className="header"
-          style={{ gridTemplateColumns: "13em 6em 7em 18em 6em 7em 6em 7em" }}
+          className="header -religions-editor-dialog__grid-template-columns-13em-6em-7em-18em-6em-7em-6e"
         >
           <div
             data-tip="Click to sort by religion name"
@@ -170,8 +169,7 @@ export const ReligionsEditorDialog: React.FC = () => {
 
                 <input
                   data-tip="Religion name. Click and type to change"
-                  className={r.i ? "religionName" : "religionName italic"}
-                  style={{ width: "11em" }}
+                  className={`\${r.i ? "religionName" : "religionName italic"} -religions-editor-dialog__width-11em`}
                   value={r.name}
                   autoCorrect="off"
                   spellCheck={false}
@@ -180,8 +178,7 @@ export const ReligionsEditorDialog: React.FC = () => {
 
                 <select
                   data-tip="Religion type"
-                  className={r.i ? "religionType" : "religionType placeholder"}
-                  style={{ width: "5em" }}
+                  className={`\${r.i ? "religionType" : "religionType placeholder"} -religions-editor-dialog__width-5em`}
                   value={r.type}
                   onChange={e => religionsEditorActions.changeType(r.i, e.target.value)}
                 >
@@ -193,8 +190,7 @@ export const ReligionsEditorDialog: React.FC = () => {
 
                 <input
                   data-tip="Religion form"
-                  className={r.i ? "religionForm" : "religionForm placeholder"}
-                  style={{ width: "6em" }}
+                  className={`\${r.i ? "religionForm" : "religionForm placeholder"} -religions-editor-dialog__width-6em`}
                   value={r.form}
                   autoCorrect="off"
                   spellCheck={false}
@@ -209,8 +205,7 @@ export const ReligionsEditorDialog: React.FC = () => {
 
                 <input
                   data-tip="Religion supreme deity"
-                  className={`religionDeity ${isBrushMode ? "hidden" : "hide"} ${r.i ? "" : "placeholder"}`}
-                  style={{ width: "17em" }}
+                  className={`religionDeity ${isBrushMode ? "hidden" : "hide"} ${r.i ? "" : "placeholder"} -religions-editor-dialog__width-17em`}
                   value={r.deity}
                   autoCorrect="off"
                   spellCheck={false}
@@ -219,13 +214,11 @@ export const ReligionsEditorDialog: React.FC = () => {
 
                 <span
                   data-tip="Religion area"
-                  style={{ paddingRight: "4px" }}
-                  className={`icon-map-o ${isBrushMode ? "hidden" : "hide"}`}
+                  className={`-religions-editor-dialog__padding-right-4px icon-map-o ${isBrushMode ? "hidden" : "hide"}`}
                 />
                 <div
                   data-tip="Religion area"
-                  className={`religionArea ${isBrushMode ? "hidden" : "hide"}`}
-                  style={{ width: "6em" }}
+                  className={`-religions-editor-dialog__width-6em religionArea ${isBrushMode ? "hidden" : "hide"}`}
                 >
                   {areaText}
                 </div>
@@ -233,8 +226,7 @@ export const ReligionsEditorDialog: React.FC = () => {
                 <span data-tip={populationTip} className={`icon-male ${isBrushMode ? "hidden" : "hide"}`} />
                 <div
                   data-tip={populationTip}
-                  className={`religionPopulation pointer ${isBrushMode ? "hidden" : "hide"}`}
-                  style={{ width: "5em" }}
+                  className={`religionPopulation pointer ${isBrushMode ? "hidden" : "hide"} -religions-editor-dialog__width-5em`}
                   onClick={() => religionsEditorActions.changePopulation(r.i)}
                 >
                   {popText}
@@ -245,13 +237,11 @@ export const ReligionsEditorDialog: React.FC = () => {
                     <>
                       <span
                         data-tip="Folk religions do not expand"
-                        className={`icon-resize-full-alt ${isBrushMode ? "hidden" : "hide"}`}
-                        style={{ paddingRight: "2px" }}
+                        className={`icon-resize-full-alt ${isBrushMode ? "hidden" : "hide"} -religions-editor-dialog__padding-right-2px`}
                       />
                       <span
                         data-tip="Folk religions do not expand"
-                        className={`religionExtent ${isBrushMode ? "hidden" : "hide"}`}
-                        style={{ width: "5em" }}
+                        className={`religionExtent ${isBrushMode ? "hidden" : "hide"} -religions-editor-dialog__width-5em`}
                       >
                         culture
                       </span>
@@ -271,13 +261,11 @@ export const ReligionsEditorDialog: React.FC = () => {
                     <>
                       <span
                         data-tip="Potential religion extent"
-                        className={`icon-resize-full-alt ${isBrushMode ? "hidden" : "hide"}`}
-                        style={{ paddingRight: "2px" }}
+                        className={`icon-resize-full-alt ${isBrushMode ? "hidden" : "hide"} -religions-editor-dialog__padding-right-2px`}
                       />
                       <select
                         data-tip="Potential religion extent"
-                        className={`religionExtent ${isBrushMode ? "hidden" : "hide"}`}
-                        style={{ width: "5em" }}
+                        className={`religionExtent ${isBrushMode ? "hidden" : "hide"} -religions-editor-dialog__width-5em`}
                         value={r.expansion}
                         onChange={e => religionsEditorActions.changeExtent(r.i, e.target.value)}
                       >
@@ -328,22 +316,22 @@ export const ReligionsEditorDialog: React.FC = () => {
         </div>
 
         <div id="religionsTotal" className="totalLine" style={{ display: isBrushMode ? "none" : "block" }}>
-          <div data-tip="Total number of organized religions" style={{ marginLeft: 12 }}>
+          <div data-tip="Total number of organized religions" className="-religions-editor-dialog__margin-left-12">
             Organized:&nbsp;<span id="religionsOrganized">{totalOrganized}</span>
           </div>
-          <div data-tip="Total number of heresies" style={{ marginLeft: 12 }}>
+          <div data-tip="Total number of heresies" className="-religions-editor-dialog__margin-left-12">
             Heresies:&nbsp;<span id="religionsHeresies">{totalHeresies}</span>
           </div>
-          <div data-tip="Total number of cults" style={{ marginLeft: 12 }}>
+          <div data-tip="Total number of cults" className="-religions-editor-dialog__margin-left-12">
             Cults:&nbsp;<span id="religionsCults">{totalCults}</span>
           </div>
-          <div data-tip="Total number of folk religions" style={{ marginLeft: 12 }}>
+          <div data-tip="Total number of folk religions" className="-religions-editor-dialog__margin-left-12">
             Folk:&nbsp;<span id="religionsFolk">{totalFolk}</span>
           </div>
-          <div data-tip="Total land area" style={{ marginLeft: 12 }}>
+          <div data-tip="Total land area" className="-religions-editor-dialog__margin-left-12">
             Land Area:&nbsp;<span id="religionsFooterArea">{si(totalArea) + unit}</span>
           </div>
-          <div data-tip="Total number of believers (population)" style={{ marginLeft: 12 }}>
+          <div data-tip="Total number of believers (population)" className="-religions-editor-dialog__margin-left-12">
             Believers:&nbsp;<span id="religionsFooterPopulation">{si(totalPopulation)}</span>
           </div>
         </div>
@@ -436,7 +424,7 @@ export const ReligionsEditorDialog: React.FC = () => {
             />
             <div
               data-tip="When enabled, only cells without religion can be painted"
-              style={{ display: "inline-block" }}
+              className="-religions-editor-dialog__display-inline-block"
             >
               <input
                 id="religionsManuallyProtect"

@@ -29,7 +29,7 @@ export const ProvinceNameEditorDialog: React.FC = () => {
             data-tip="Type to change the short name"
             autoCorrect="off"
             spellCheck={false}
-            style={{ width: "11em" }}
+            className="-province-name-editor-dialog__width-11em"
             value={shortName}
             onChange={e => provincesEditorActions.nameEditorUpdate({ shortName: e.target.value })}
           />
@@ -56,7 +56,7 @@ export const ProvinceNameEditorDialog: React.FC = () => {
             <input
               placeholder="type form name"
               data-tip="Enter custom form name"
-              style={{ width: "11em" }}
+              className="-province-name-editor-dialog__width-11em"
               value={customFormInput}
               onChange={e => provincesEditorActions.nameEditorUpdate({ customFormInput: e.target.value })}
             />
@@ -127,7 +127,7 @@ export const ProvinceNameEditorDialog: React.FC = () => {
             data-tip="Type to change the full name"
             autoCorrect="off"
             spellCheck={false}
-            style={{ width: "11em" }}
+            className="-province-name-editor-dialog__width-11em"
             value={fullName}
             onChange={e => provincesEditorActions.nameEditorUpdate({ fullName: e.target.value })}
           />

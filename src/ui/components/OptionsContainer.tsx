@@ -49,7 +49,7 @@ export const OptionsContainer: React.FC = () => {
   };
 
   return (
-    <div id="optionsContainer" style={{ opacity: 1, pointerEvents: "auto" }}>
+    <div id="optionsContainer" className="-options-container__opacity-1--pointer-events-auto">
       <div
         id="collapsible"
         style={{ display: isMenuOpen ? "none" : "block" }}

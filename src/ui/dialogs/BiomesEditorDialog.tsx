@@ -79,7 +79,7 @@ export const BiomesEditorContent: React.FC = () => {
 
   return (
     <div id="biomesEditor">
-      <div id="biomesHeader" className="header" style={{ gridTemplateColumns: "13em 7em 5em 5em 7em" }}>
+      <div id="biomesHeader" className="header -biomes-editor-dialog__grid-template-columns-13em-7em-5em-5em-7em">
         <div
           data-tip="Click to sort by biome name"
           className={`sortable alphabetically${sortIcon("name", true)}`}
@@ -196,16 +196,16 @@ export const BiomesEditorContent: React.FC = () => {
       </div>
 
       <div id="biomesTotal" className="totalLine" style={{ display: isCustomizationMode ? "none" : undefined }}>
-        <div data-tip="Number of land biomes" style={{ marginLeft: 12 }}>
+        <div data-tip="Number of land biomes" className="-biomes-editor-dialog__margin-left-12">
           Biomes:&nbsp;<span id="biomesFooterBiomes">{footer.biomes}</span>
         </div>
-        <div data-tip="Total land cells number" style={{ marginLeft: 12 }}>
+        <div data-tip="Total land cells number" className="-biomes-editor-dialog__margin-left-12">
           Cells:&nbsp;<span id="biomesFooterCells">{footer.cells}</span>
         </div>
-        <div data-tip="Total land area" style={{ marginLeft: 12 }}>
+        <div data-tip="Total land area" className="-biomes-editor-dialog__margin-left-12">
           Land Area:&nbsp;<span id="biomesFooterArea">{footerArea}</span>
         </div>
-        <div data-tip="Total population" style={{ marginLeft: 12 }}>
+        <div data-tip="Total population" className="-biomes-editor-dialog__margin-left-12">
           Population:&nbsp;<span id="biomesFooterPopulation">{si(footer.totalPopulation)}</span>
         </div>
       </div>

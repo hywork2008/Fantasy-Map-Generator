@@ -16,7 +16,7 @@ export const LoadErrorDialog: React.FC = () => {
       isOpen={isOpen}
       title="Loading error"
       onClose={close}
-      style={{ maxWidth: "40em" }}
+      className="-load-error-dialog__max-width-40em"
       buttons={[
         {
           label: "Clear cache",

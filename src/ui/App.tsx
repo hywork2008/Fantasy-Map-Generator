@@ -9,18 +9,7 @@ export const App = () => {
   const openDialogs = useViewState(state => state.openDialogs);
 
   return (
-    <div
-      id="react-ui-container"
-      style={{
-        pointerEvents: "none",
-        position: "absolute",
-        top: 0,
-        left: 0,
-        width: "100%",
-        height: "100%",
-        zIndex: 1000
-      }}
-    >
+    <div id="react-ui-container" className="-app__pointer-events-none--position-absolute--top-0--lef">
       <ToastContainer />
 
       <DialogsContainer />
@@ -35,16 +24,7 @@ export const App = () => {
 
       {/* Development Overlay */}
       {import.meta.env.DEV && (
-        <div
-          style={{
-            position: "absolute",
-            bottom: 10,
-            right: 10,
-            padding: "5px 10px",
-            borderRadius: "4px",
-            fontSize: "10px"
-          }}
-        >
+        <div className="-app__position-absolute--bottom-10--right-10--padding-5p">
           {openDialogs.length > 0 && ` | Open Dialogs: ${openDialogs.join(", ")}`}
         </div>
       )}

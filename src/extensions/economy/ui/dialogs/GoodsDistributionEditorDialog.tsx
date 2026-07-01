@@ -100,7 +100,11 @@ const ConditionParams: React.FC<{
   if (!def) return null;
 
   if (def.paramType === "none") {
-    return <div style={{ color: "#888", fontStyle: "italic", paddingTop: "6px" }}>no parameters</div>;
+    return (
+      <div className="-goods-distribution-editor-dialog__color-888--font-style-italic--padding-top-6px">
+        no parameters
+      </div>
+    );
   }
 
   if (def.paramType === "number") {
@@ -112,7 +116,7 @@ const ConditionParams: React.FC<{
           placeholder={def.paramLabel || "value"}
           onChange={event => setConditionNumberValue(groupIndex, conditionIndex, event.target.value)}
         />
-        {def.paramLabel && <div style={{ color: "#666" }}>{def.paramLabel}</div>}
+        {def.paramLabel && <div className="-goods-distribution-editor-dialog__color-666">{def.paramLabel}</div>}
       </div>
     );
   }
@@ -233,7 +237,7 @@ export const GoodsDistributionEditorDialog: React.FC = () => {
         { label: "Cancel", onClick: handleClose },
         { label: "Apply", onClick: handleApply }
       ]}
-      style={{ minWidth: "62em" }}
+      className="-goods-distribution-editor-dialog__min-width-62em"
     >
       <div style={styles.wrap}>
         <div style={styles.info}>
@@ -283,7 +287,7 @@ export const GoodsDistributionEditorDialog: React.FC = () => {
               ))}
             </datalist>
           </label>
-          <label style={{ gridColumn: "span 2" }}>
+          <label className="-goods-distribution-editor-dialog__grid-column-span-2">
             <div>Tags</div>
             <input
               value={tagsText}
@@ -311,10 +315,12 @@ export const GoodsDistributionEditorDialog: React.FC = () => {
                         return (
                           <div key={conditionKey}>
                             {conditionIndex > 0 && (
-                              <div style={{ color: "#666", fontWeight: "bold", padding: "4px 0" }}>AND</div>
+                              <div className="-goods-distribution-editor-dialog__color-666--font-weight-bold--padding-4px-0">
+                                AND
+                              </div>
                             )}
                             <div style={styles.condRow}>
-                              <label style={{ display: "flex", alignItems: "center", gap: "4px", cursor: "pointer" }}>
+                              <label className="-goods-distribution-editor-dialog__display-flex--align-items-center--gap-4px--cursor-">
                                 <input
                                   type="checkbox"
                                   className="native"
@@ -342,7 +348,11 @@ export const GoodsDistributionEditorDialog: React.FC = () => {
                                   conditionIndex={conditionIndex}
                                   biomes={biomes}
                                 />
-                                {def?.note && <div style={{ color: "#666", fontStyle: "italic" }}>{def.note}</div>}
+                                {def?.note && (
+                                  <div className="-goods-distribution-editor-dialog__color-666--font-style-italic">
+                                    {def.note}
+                                  </div>
+                                )}
                               </div>
                               <button
                                 type="button"
@@ -366,16 +376,26 @@ export const GoodsDistributionEditorDialog: React.FC = () => {
                 );
               });
             })()}
-            <button type="button" onClick={addGroup} style={{ alignSelf: "flex-start" }}>
+            <button
+              type="button"
+              onClick={addGroup}
+              className="-goods-distribution-editor-dialog__align-self-flex-start"
+            >
               + Add OR group
             </button>
             <div style={styles.output}>
-              <div style={{ fontWeight: "bold", color: "#555" }}>Distribution</div>
-              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                <input readOnly value={expression} style={{ flex: 1, fontFamily: "monospace" }} />
-                <span style={{ color: "#555", minWidth: "9em", textAlign: "right" }}>{cellCountText}</span>
+              <div className="-goods-distribution-editor-dialog__font-weight-bold--color-555">Distribution</div>
+              <div className="-goods-distribution-editor-dialog__display-flex--gap-8px--align-items-center">
+                <input
+                  readOnly
+                  value={expression}
+                  className="-goods-distribution-editor-dialog__flex-1--font-family-monospace"
+                />
+                <span className="-goods-distribution-editor-dialog__color-555--min-width-9em--text-align-right">
+                  {cellCountText}
+                </span>
               </div>
-              <div style={{ color: "#555" }}>{previewText}</div>
+              <div className="-goods-distribution-editor-dialog__color-555">{previewText}</div>
             </div>
           </div>
           <div style={styles.ref}>
@@ -396,16 +416,25 @@ export const GoodsDistributionEditorDialog: React.FC = () => {
               return (
                 <div key={def.id} style={styles.refCard}>
                   <code style={{ color: "var(--dark-solid)", fontWeight: "bold" }}>{`${def.id}(${paramSig})`}</code>
-                  <div style={{ color: "#555", marginTop: "2px" }}>{def.description}</div>
-                  {def.note && <div style={{ color: "#555", marginTop: "2px", fontStyle: "italic" }}>{def.note}</div>}
+                  <div className="-goods-distribution-editor-dialog__color-555--margin-top-2px">{def.description}</div>
+                  {def.note && (
+                    <div className="-goods-distribution-editor-dialog__color-555--margin-top-2px--font-style-italic">
+                      {def.note}
+                    </div>
+                  )}
                 </div>
               );
             })}
             <div style={{ ...styles.refCard, marginTop: "10px" }}>
-              <div style={{ fontWeight: "bold", marginBottom: "4px" }}>Biome options</div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "3px" }}>
+              <div className="-goods-distribution-editor-dialog__font-weight-bold--margin-bottom-4px">
+                Biome options
+              </div>
+              <div className="-goods-distribution-editor-dialog__display-grid--grid-template-columns-1fr--gap-3px">
                 {biomes.map(biome => (
-                  <div key={biome.id} style={{ display: "flex", alignItems: "center", gap: "6px", color: "#555" }}>
+                  <div
+                    key={biome.id}
+                    className="-goods-distribution-editor-dialog__display-flex--align-items-center--gap-6px--color-5"
+                  >
                     <span
                       style={{
                         display: "inline-block",

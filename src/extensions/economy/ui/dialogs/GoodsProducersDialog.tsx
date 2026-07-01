@@ -15,7 +15,7 @@ export const GoodsProducersDialog: React.FC = () => {
     <Dialog isOpen={isOpen} title={`${goodName} — Producers`} onClose={close}>
       <div id="goodsProducersContainer">
         {producers.length === 0 ? (
-          <i style={{ color: "#888" }}>No burgs produced {goodName}.</i>
+          <i className="-goods-producers-dialog__color-888">No burgs produced {goodName}.</i>
         ) : (
           <>
             <div className="header" style={{ gridTemplateColumns: "1.6em 7em 4em" }}>
@@ -23,7 +23,7 @@ export const GoodsProducersDialog: React.FC = () => {
               <div>Burg</div>
               <div>Units</div>
             </div>
-            <div className="table" style={{ maxHeight: "30em" }}>
+            <div className="table -goods-producers-dialog__max-height-30em">
               {producers.map(p => (
                 <div
                   key={p.id}
@@ -31,9 +31,9 @@ export const GoodsProducersDialog: React.FC = () => {
                   className="states pointer"
                   onClick={() => onZoom(p.x, p.y)}
                 >
-                  <div className="icon-dot-circled" style={{ width: "1em" }} />
-                  <div style={{ width: "7em" }}>{p.name}</div>
-                  <div style={{ width: "4em" }}>{p.units}</div>
+                  <div className="icon-dot-circled -goods-producers-dialog__width-1em" />
+                  <div className="-goods-producers-dialog__width-7em">{p.name}</div>
+                  <div className="-goods-producers-dialog__width-4em">{p.units}</div>
                 </div>
               ))}
             </div>

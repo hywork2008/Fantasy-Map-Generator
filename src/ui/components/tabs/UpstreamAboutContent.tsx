@@ -82,7 +82,7 @@ export const UpstreamAboutContent: React.FC = () => {
           href="https://www.patreon.com/azgaar"
           target="_blank"
           rel="noreferrer"
-          style={{ color: "white", textDecoration: "none", fontFamily: "sans-serif" }}
+          className="-upstream-about-content__color-white--text-decoration-none--font-family-san"
         >
           <div>
             <div style={{ width: "0.8em", display: "inline-block", padding: "0 0.2em", fill: "white" }}>
@@ -102,14 +102,7 @@ export const UpstreamAboutContent: React.FC = () => {
           type="button"
           data-tip="Click to see list of supporters"
           onClick={showSupporters}
-          style={{
-            cursor: "pointer",
-            background: "none",
-            border: "none",
-            padding: 0,
-            color: "inherit",
-            textDecoration: "underline"
-          }}
+          className="-upstream-about-content__cursor-pointer--background-none--border-none--padd"
         >
           all supporters
         </button>{" "}
@@ -119,7 +112,7 @@ export const UpstreamAboutContent: React.FC = () => {
       <div style={{ display: "flex", justifyContent: "center", padding: "0.8em 0.4em 0.4em", fontFamily: "cursive" }}>
         <a
           href="https://u24.gov.ua/"
-          style={{ width: "80%" }}
+          className="-upstream-about-content__width-80"
           data-tip="Support Ukraine"
           target="_blank"
           rel="noreferrer"
@@ -142,7 +135,7 @@ export const UpstreamAboutContent: React.FC = () => {
         </a>
       </div>
 
-      <div style={{ textAlign: "left" }}>
+      <div className="-upstream-about-content__text-align-left">
         <p>Check out our other projects:</p>
         <div>
           •{" "}

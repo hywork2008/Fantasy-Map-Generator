@@ -18,25 +18,16 @@ export const CoastlineSettingsEditorContent: React.FC = () => {
 
   return (
     <>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          gap: "10px",
-          marginBottom: "8px",
-          paddingBottom: "8px",
-          borderBottom: "1px solid #ddd"
-        }}
-      >
+      <div className="-coastline-settings-editor-dialog__display-flex--justify-content-space-between--gap-1">
         <label
-          style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", userSelect: "none" }}
+          className="-coastline-settings-editor-dialog__display-flex--align-items-center--gap-8px--cursor-"
           data-tip="Enable or disable coastline fractalization. When disabled, coastlines are simple arcs between feature vertices. Enabling adds naturalistic roughness but can increase rendering time, especially at high detail levels."
         >
           <input
             type="checkbox"
             checked={enabled}
             onChange={e => coastlineSettingsActions.toggleEnabled(e.target.checked)}
-            style={{ position: "absolute", opacity: 0, pointerEvents: "none", width: 0, height: 0 }}
+            className="-coastline-settings-editor-dialog__position-absolute--opacity-0--pointer-events-none-"
           />
           <span
             style={{
@@ -64,7 +55,7 @@ export const CoastlineSettingsEditorContent: React.FC = () => {
             ></span>
           </span>
         </label>
-        <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+        <div className="-coastline-settings-editor-dialog__display-flex--align-items-center--gap-4px">
           <span style={{ color: "#999", fontSize: ".85em" }}>Preset</span>
           {Object.keys(COAST_PRESETS).map(name => (
             <button
@@ -80,28 +71,28 @@ export const CoastlineSettingsEditorContent: React.FC = () => {
         </div>
       </div>
       <div style={{ opacity: enabled ? 1 : 0.4, pointerEvents: enabled ? "auto" : "none" }}>
-        <table style={{ borderCollapse: "collapse", width: "100%" }}>
+        <table className="-coastline-settings-editor-dialog__border-collapse-collapse--width-100">
           <tbody>
             {SLIDER_DEFS.map(({ id, label, tip, min, max, step, key }) => {
               const value = settings[key];
               return (
                 <tr key={id} data-tip={tip}>
-                  <td style={{ padding: "2px 0", whiteSpace: "nowrap" }}>{label}</td>
-                  <td style={{ padding: "2px 4px" }}>
+                  <td className="-coastline-settings-editor-dialog__padding-2px-0--white-space-nowrap">{label}</td>
+                  <td className="-coastline-settings-editor-dialog__padding-2px-4px">
                     <input
                       type="range"
                       min={min}
                       max={max}
                       step={step}
                       value={value}
-                      style={{ width: "160px", verticalAlign: "middle" }}
+                      className="-coastline-settings-editor-dialog__width-160px--vertical-align-middle"
                       onChange={e => coastlineSettingsActions.changeSetting(key, Number(e.target.value))}
                     />
                   </td>
-                  <td style={{ padding: "2px 6px", minWidth: "2em", textAlign: "right" }}>
+                  <td className="-coastline-settings-editor-dialog__padding-2px-6px--min-width-2em--text-align-right">
                     <span style={{ fontFamily: "monospace", fontSize: ".85em" }}>{value}</span>
                   </td>
-                  <td style={{ padding: "2px 0" }}>
+                  <td className="-coastline-settings-editor-dialog__padding-2px-0">
                     <button
                       type="button"
                       title="Reset to default"
@@ -117,14 +108,24 @@ export const CoastlineSettingsEditorContent: React.FC = () => {
           </tbody>
         </table>
       </div>
-      <div style={{ display: "flex", gap: "6px", marginTop: "10px", alignItems: "flex-start" }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="-coastline-settings-editor-dialog__display-flex--gap-6px--margin-top-10px--align-item">
+        <div className="-coastline-settings-editor-dialog__flex-1--min-width-0">
           <div style={{ color: "#999", fontSize: ".85em", marginBottom: "3px" }}>Roughness profile</div>
-          <canvas ref={roughnessCanvasRef} width="auto" height="100" style={{ display: "block" }}></canvas>
+          <canvas
+            ref={roughnessCanvasRef}
+            width="auto"
+            height="100"
+            className="-coastline-settings-editor-dialog__display-block"
+          ></canvas>
         </div>
         <div>
           <div style={{ color: "#999", fontSize: ".85em", marginBottom: "3px" }}>Shape preview</div>
-          <canvas ref={shapePreviewCanvasRef} width="100" height="100" style={{ display: "block" }}></canvas>
+          <canvas
+            ref={shapePreviewCanvasRef}
+            width="100"
+            height="100"
+            className="-coastline-settings-editor-dialog__display-block"
+          ></canvas>
         </div>
       </div>
     </>

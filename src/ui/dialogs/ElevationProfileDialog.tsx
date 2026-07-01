@@ -146,7 +146,7 @@ export const ElevationProfileDialog: React.FC = () => {
   return (
     <Dialog isOpen={isOpen} title="Elevation Profile" onClose={handleClose}>
       <div id="elevationGraph" ref={graphRef} data-tip="Elevation profile" />
-      <div style={{ textAlign: "center" }}>
+      <div className="-elevation-profile-dialog__text-align-center">
         <div id="epControls">
           <span data-tip="Set curve profile">
             Curve:{" "}

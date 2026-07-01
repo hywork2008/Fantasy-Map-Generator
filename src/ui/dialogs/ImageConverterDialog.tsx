@@ -48,7 +48,7 @@ export const ImageConverterDialog: React.FC = () => {
               ref={imageInputRef}
               type="file"
               id="imageConverterFileInput"
-              style={{ display: "none" }}
+              className="-image-converter-dialog__display-none"
               accept="image/*"
               onChange={e => HeightmapEditorActions.imageConverterUploadImage?.(e.target as HTMLInputElement)}
             />

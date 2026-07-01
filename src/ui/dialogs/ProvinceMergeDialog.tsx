@@ -46,8 +46,8 @@ export const ProvinceMergeDialog: React.FC = () => {
         { label: "Cancel", onClick: handleClose }
       ]}
     >
-      <div style={{ width: "36em" }}>
-        <p style={{ margin: "0 0 1em 0" }}>
+      <div className="-province-merge-dialog__width-36em">
+        <p className="-province-merge-dialog__margin-0-0-1em-0">
           Check the <b>checkbox</b> next to each province you want to merge. Use the <b>radio button</b> to pick the{" "}
           <em>primary province</em> that will absorb all others. Hover over a row to highlight the province on the map.
         </p>

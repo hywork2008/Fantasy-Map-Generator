@@ -70,7 +70,7 @@ const ChartFigure: React.FC<ChartFigureProps> = ({ chart, figureNo, onRemove }) 
 
   return (
     <figure style={{ margin: 0, display: "flex", flexDirection: "column", gap: "0.3em", minHeight: 0, height: "100%" }}>
-      <div ref={containerRef} style={{ flex: 1, minHeight: 0, overflow: "auto" }} />
+      <div ref={containerRef} className="-charts-overview-dialog__flex-1--min-height-0--overflow-auto" />
       <figcaption
         style={{
           display: "flex",

@@ -18,7 +18,7 @@ export const RouteCreatorDialog: React.FC = () => {
           className="icon-check"
         ></button>
         <button type="button" id="routeCreatorCancel" data-tip="Cancel the creation" className="icon-cancel"></button>
-        <div style={{ display: "inline-block" }}>
+        <div className="-route-creator-dialog__display-inline-block">
           Group:
           <select id="routeCreatorGroupSelect"></select>
           <span id="routeCreatorGroupEdit" data-tip="Edit route groups" className="icon-pencil pointer"></span>

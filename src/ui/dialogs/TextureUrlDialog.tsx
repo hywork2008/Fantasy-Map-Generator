@@ -51,7 +51,7 @@ export const TextureUrlDialog: React.FC = () => {
         <p style={{ margin: "0 0 0.4em" }}>Provide a texture image URL:</p>
         <input
           type="url"
-          style={{ width: "100%" }}
+          className="-texture-url-dialog__width-100"
           placeholder="http://www.example.com/image.jpg"
           value={url}
           onChange={e => onUrlChange(e.target.value)}

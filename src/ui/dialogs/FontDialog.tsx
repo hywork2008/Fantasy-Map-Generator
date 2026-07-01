@@ -91,7 +91,7 @@ export const FontDialog: React.FC = () => {
         <input
           id="addFontNameInput"
           placeholder="font family"
-          style={{ width: "15em" }}
+          className="-font-dialog__width-15em"
           value={family}
           onChange={e => setFamily(e.target.value)}
         />

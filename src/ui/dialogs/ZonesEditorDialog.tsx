@@ -64,7 +64,7 @@ export const ZonesEditorContent: React.FC = () => {
 
   return (
     <div id="zonesEditor" className="stable">
-      <div className="header" style={{ gridTemplateColumns: "11em 8em 6em 7em 6em 6em" }}>
+      <div className="header -zones-editor-dialog__grid-template-columns-11em-8em-6em-7em-6em-6em">
         <SortableHeader label="Zone" field="name" sortBy={sortBy} sortDirection={sortDirection} onSort={handleSort} />
         <SortableHeader label="Type" field="type" sortBy={sortBy} sortDirection={sortDirection} onSort={handleSort} />
         <SortableHeader
@@ -111,8 +111,7 @@ export const ZonesEditorContent: React.FC = () => {
             {/* @ts-ignore */}
             <FillBox fill={z.color} onClick={() => zonesEditorActions.changeColor(z.i)} />
             <input
-              className="zoneName"
-              style={{ width: "11em" }}
+              className="zoneName -zones-editor-dialog__width-11em"
               value={z.name}
               onChange={e => zonesEditorActions.changeName(z.i, e.target.value)}
               autoCorrect="off"
@@ -125,7 +124,7 @@ export const ZonesEditorContent: React.FC = () => {
             />
             <span className="icon-check-empty hide"></span>
             <div className="stateCells hide">{state.isPercentageMode ? pct(z.cells, state.totalCells) : z.cells}</div>
-            <span className="icon-map-o hide" style={{ paddingRight: 4 }}></span>
+            <span className="icon-map-o hide -zones-editor-dialog__padding-right-4"></span>
             <div className="biomeArea hide">
               {state.isPercentageMode ? pct(z.area, state.totalArea) : `${si(z.area)} sq`}
             </div>
@@ -152,16 +151,16 @@ export const ZonesEditorContent: React.FC = () => {
 
       {state.customizationMode === 0 && (
         <div className="totalLine">
-          <div style={{ marginLeft: 5 }}>
+          <div className="-zones-editor-dialog__margin-left-5">
             Zones: <span>{state.totalZones}</span>
           </div>
-          <div style={{ marginLeft: 12 }}>
+          <div className="-zones-editor-dialog__margin-left-12">
             Cells: <span>{state.totalCells}</span>
           </div>
-          <div style={{ marginLeft: 12 }}>
+          <div className="-zones-editor-dialog__margin-left-12">
             Land Area: <span>{si(state.totalArea)}</span>
           </div>
-          <div style={{ marginLeft: 12 }}>
+          <div className="-zones-editor-dialog__margin-left-12">
             Population: <span>{si(state.totalPopulation)}</span>
           </div>
         </div>
@@ -173,7 +172,7 @@ export const ZonesEditorContent: React.FC = () => {
             <select
               value={state.filterBy}
               onChange={e => setZonesEditorState({ filterBy: e.target.value })}
-              style={{ width: "auto" }}
+              className="-zones-editor-dialog__width-auto"
             >
               <option value="all">All</option>
               {state.types.map(t => (
@@ -228,9 +227,9 @@ export const ZonesEditorContent: React.FC = () => {
             ></button>
           </>
         ) : (
-          <div style={{ display: "inline-flex", alignItems: "center" }}>
-            <div style={{ marginRight: 8, marginTop: -4 }}>
-              <span style={{ fontSize: "11px", marginRight: "4px" }}>Brush size:</span>
+          <div className="-zones-editor-dialog__display-inline-flex--align-items-center">
+            <div className="-zones-editor-dialog__margin-right-8--margin-top-4">
+              <span className="-zones-editor-dialog__font-size-11px--margin-right-4px">Brush size:</span>
               <SliderInput
                 min={1}
                 max={100}
@@ -250,7 +249,7 @@ export const ZonesEditorContent: React.FC = () => {
               type="button"
               onClick={() => zonesEditorActions.cancelManualAssignment()}
             ></button>
-            <div style={{ display: "inline-block", marginLeft: 8 }}>
+            <div className="-zones-editor-dialog__display-inline-block--margin-left-8">
               <label>
                 <input
                   type="checkbox"

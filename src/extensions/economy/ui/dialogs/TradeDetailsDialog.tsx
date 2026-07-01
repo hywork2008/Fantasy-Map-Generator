@@ -58,7 +58,7 @@ export const TradeDetailsDialog: React.FC = () => {
                 <b>Seller</b>: {summary.sellerName} {summary.sellerType}{" "}
                 <span className="icon-dot-circled pointer" data-tip="Zoom to seller" onClick={summary.onZoomSeller} />
               </span>
-              <span style={{ marginLeft: 5 }}>
+              <span className="-trade-details-dialog__margin-left-5">
                 <b>Buyer</b>: {summary.buyerName} {summary.buyerType}{" "}
                 <span className="icon-dot-circled pointer" data-tip="Zoom to buyer" onClick={summary.onZoomBuyer} />
               </span>
@@ -70,8 +70,7 @@ export const TradeDetailsDialog: React.FC = () => {
           <div />
           <div
             data-tip="Click to sort by good"
-            className={`sortable alphabetically ${getSortIcon("good", true)}`}
-            style={{ marginLeft: 0 }}
+            className={`sortable alphabetically ${getSortIcon("good", true)} -trade-details-dialog__margin-left-0`}
             onClick={() => setSorting("good")}
           >
             Good&nbsp;
@@ -99,7 +98,7 @@ export const TradeDetailsDialog: React.FC = () => {
           </div>
         </div>
 
-        <div id="tradeDetailsBody" className="table" style={{ maxHeight: "30em" }}>
+        <div id="tradeDetailsBody" className="table -trade-details-dialog__max-height-30em">
           {sortedRows.map(row => (
             <div
               key={row.goodId}
@@ -124,13 +123,13 @@ export const TradeDetailsDialog: React.FC = () => {
         </div>
 
         <div id="tradeDetailsFooter" className="totalLine">
-          <div style={{ marginLeft: 5 }}>
+          <div className="-trade-details-dialog__margin-left-5">
             Distance: <span id="tradeDetailsFooterDistance">{distance}</span>
           </div>
-          <div style={{ marginLeft: 12 }} data-tip="Total traded units">
+          <div className="-trade-details-dialog__margin-left-12" data-tip="Total traded units">
             Units: <span id="tradeDetailsFooterUnits">{rn(totalUnits, 2)}</span>
           </div>
-          <div style={{ marginLeft: 12 }} data-tip="Total deal value">
+          <div className="-trade-details-dialog__margin-left-12" data-tip="Total deal value">
             Value: <span id="tradeDetailsFooterValue">{formatPrice(totalValue)}</span>
           </div>
         </div>

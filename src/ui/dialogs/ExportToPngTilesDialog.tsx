@@ -56,7 +56,7 @@ export const ExportToPngTilesDialog: React.FC = () => {
           min="2"
           max="26"
           value={tileCols}
-          style={{ width: "10em" }}
+          className="-export-to-png-tiles-dialog__width-10em"
           onChange={e => setTileCols(Number(e.currentTarget.value))}
         />
         <input
@@ -78,7 +78,7 @@ export const ExportToPngTilesDialog: React.FC = () => {
           min="2"
           max="26"
           value={tileRows}
-          style={{ width: "10em" }}
+          className="-export-to-png-tiles-dialog__width-10em"
           onChange={e => setTileRows(Number(e.currentTarget.value))}
         />
         <input
@@ -101,7 +101,7 @@ export const ExportToPngTilesDialog: React.FC = () => {
           max="4"
           step="1"
           value={tileScale}
-          style={{ width: "10em" }}
+          className="-export-to-png-tiles-dialog__width-10em"
           onChange={e => setTileScale(Number(e.currentTarget.value))}
         />
         <input

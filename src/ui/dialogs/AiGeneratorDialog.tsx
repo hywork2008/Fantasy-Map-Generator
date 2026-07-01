@@ -112,7 +112,7 @@ export const AiGeneratorDialog: React.FC = () => {
               value={prompt}
               onChange={e => setPrompt(e.target.value)}
             />
-            <div style={{ display: "flex", alignItems: "center", gap: "1em" }}>
+            <div className="-ai-generator-dialog__display-flex--align-items-center--gap-1em">
               <label htmlFor="aiGeneratorModel">
                 Model:
                 <select id="aiGeneratorModel" value={model} onChange={handleModelChange}>

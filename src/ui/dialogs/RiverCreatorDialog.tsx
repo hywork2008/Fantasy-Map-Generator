@@ -28,8 +28,7 @@ export const RiverCreatorDialog: React.FC = () => {
               type="number"
               min="0"
               defaultValue={window.fmg?.world?.pack?.cells?.fl[cell] ?? 0}
-              className="editFlux"
-              style={{ width: "5em" }}
+              className="editFlux -river-creator-dialog__width-5em"
               onChange={e => handleFluxChange(cell, e.target.value)}
             />
             <span

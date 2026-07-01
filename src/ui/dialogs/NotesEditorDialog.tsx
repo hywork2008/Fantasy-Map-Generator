@@ -35,7 +35,7 @@ export const NotesEditorContent: React.FC = () => {
           <select
             id="notesSelect"
             data-tip="Select element id"
-            style={{ width: "12em" }}
+            className="-notes-editor-dialog__width-12em"
             value={selectedId}
             onChange={e => notesEditorActions.changeElement(e.target.value)}
           >
@@ -51,7 +51,7 @@ export const NotesEditorContent: React.FC = () => {
             data-tip="Set element name"
             autoCorrect="off"
             spellCheck="false"
-            style={{ width: "16em" }}
+            className="-notes-editor-dialog__width-16em"
             value={noteName}
             onChange={e => notesEditorActions.changeName(e.target.value)}
           />
@@ -102,7 +102,7 @@ export const NotesEditorContent: React.FC = () => {
           <input
             type="file"
             id="legendsToLoad"
-            style={{ display: "none" }}
+            className="-notes-editor-dialog__display-none"
             ref={fileInputRef}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => notesEditorActions.handleUploadFile(e.nativeEvent)}
           />

@@ -46,7 +46,7 @@ export const SliderInput = ({
         value={value}
         data-stored={dataStored}
         onChange={handleChange}
-        style={{ flex: 1 }}
+        className="-slider-input__flex-1"
       />
       <input
         type="number"
@@ -56,7 +56,7 @@ export const SliderInput = ({
         value={value}
         data-stored={dataStored}
         onChange={handleChange}
-        style={{ width: "4em" }}
+        className="-slider-input__width-4em"
       />
     </div>
   );

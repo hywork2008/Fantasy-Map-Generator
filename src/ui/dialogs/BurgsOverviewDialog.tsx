@@ -155,10 +155,9 @@ export const BurgsOverviewDialog: React.FC = () => {
     return (
       <div
         data-tip={`Click to sort by ${label.toLowerCase()}`}
-        className={`sortable ${numeric ? "icon-sort-number-down" : "alphabetically"}`}
+        className={`sortable ${numeric ? "icon-sort-number-down" : "alphabetically"} -burgs-overview-dialog__cursor-pointer`}
         data-sortby={field}
         onClick={() => toggleSortBy(field)}
-        style={{ cursor: "pointer" }}
       >
         {label}
       </div>
@@ -252,12 +251,17 @@ export const BurgsOverviewDialog: React.FC = () => {
                 <input data-tip="Dominant culture" value={cultureName} disabled readOnly />
                 <input data-tip="Burg group" value={b.group ?? ""} disabled readOnly />
                 <span data-tip="Burg population" className="icon-male" />
-                <input data-tip="Burg population" value={si(population)} style={{ width: "5em" }} disabled readOnly />
-                <div style={{ width: "3em" }}>
+                <input
+                  data-tip="Burg population"
+                  value={si(population)}
+                  className="-burgs-overview-dialog__width-5em"
+                  disabled
+                  readOnly
+                />
+                <div className="-burgs-overview-dialog__width-3em">
                   <span
                     data-tip={b.capital ? "This burg is a state capital" : "This burg is NOT a state capital"}
-                    className={`icon-star-empty${b.capital ? "" : " inactive"}`}
-                    style={{ padding: "0 1px" }}
+                    className={`icon-star-empty${b.capital ? "" : " inactive"} -burgs-overview-dialog__padding-0-1px`}
                   />
                   <span
                     data-tip={b.port ? "This burg is a port" : "This burg is NOT a port"}
@@ -322,10 +326,10 @@ export const BurgsOverviewDialog: React.FC = () => {
         </div>
 
         <div id="burgsTotal" className="totalLine">
-          <div data-tip="Burgs displayed" style={{ marginLeft: 4 }}>
+          <div data-tip="Burgs displayed" className="-burgs-overview-dialog__margin-left-4">
             Burgs:&nbsp;{filteredBurgs.length} of {validCount}
           </div>
-          <div data-tip="Average population" style={{ marginLeft: 14 }}>
+          <div data-tip="Average population" className="-burgs-overview-dialog__margin-left-14">
             Average population:&nbsp;
             {filteredBurgs.length ? si(totalPopulation / filteredBurgs.length) : "0"}
           </div>
@@ -380,7 +384,7 @@ export const BurgsOverviewDialog: React.FC = () => {
             ref={fileInputRef}
             type="file"
             id="burgsListToLoad"
-            style={{ display: "none" }}
+            className="-burgs-overview-dialog__display-none"
             onChange={e => {
               if (e.target.files?.[0]) uploadFile(e.target as HTMLInputElement, data => importBurgNames(data, refresh));
             }}

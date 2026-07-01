@@ -25,8 +25,7 @@ export const RouteGroupsEditorDialog: React.FC = () => {
           <div
             key={group.id}
             data-id={group.id}
-            className="states editorLine"
-            style={{ display: "flex", justifyContent: "space-between", marginBlock: "2px" }}
+            className="states editorLine -route-groups-editor-dialog__display-flex--justify-content-space-between--margi"
           >
             <span>
               {group.id} ({group.count})
@@ -34,8 +33,7 @@ export const RouteGroupsEditorDialog: React.FC = () => {
             <div style={{ width: "auto", display: "flex", gap: "0.4em" }}>
               <span
                 data-tip="Edit style"
-                className="editStyle icon-brush pointer"
-                style={{ fontSize: "smaller" }}
+                className="editStyle icon-brush pointer -route-groups-editor-dialog__font-size-smaller"
                 onClick={() => editStyle("routes", group.id)}
               ></span>
               <span

@@ -129,7 +129,7 @@ export const DiplomacyRelationDialog: React.FC = () => {
           </section>
         </main>
 
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: "1em", marginTop: "1em" }}>
+        <div className="-diplomacy-relation-dialog__display-flex--justify-content-flex-end--gap-1em--m">
           <button type="button" className="button" onClick={closeRelationDialog}>
             Cancel
           </button>

@@ -67,7 +67,7 @@ export const MarketsGoodCompareDialog: React.FC = () => {
           </label>
           <select
             id="marketsGoodCompareSelect"
-            style={{ flex: 1, minWidth: "8em" }}
+            className="-markets-good-compare-dialog__flex-1--min-width-8em"
             value={selectedGoodId ?? ""}
             onChange={e => setSelectedGoodId(parseInt(e.target.value, 10))}
           >
@@ -83,8 +83,7 @@ export const MarketsGoodCompareDialog: React.FC = () => {
           <div />
           <div
             data-tip="Market center burg name. Click to sort"
-            className={`sortable alphabetically ${getSortIcon("market", true)}`}
-            style={{ marginLeft: 0 }}
+            className={`sortable alphabetically ${getSortIcon("market", true)} -markets-good-compare-dialog__margin-left-0`}
             onClick={() => setSorting("market")}
           >
             Market&nbsp;
@@ -107,9 +106,8 @@ export const MarketsGoodCompareDialog: React.FC = () => {
 
         <div
           id="marketsGoodCompareBody"
-          className="table"
+          className="table -markets-good-compare-dialog__max-height-40em"
           data-type={isPercentageMode ? "percentage" : "absolute"}
-          style={{ maxHeight: "40em" }}
         >
           {sortedRows.length === 0 ? (
             <span>No market carries the selected good</span>
@@ -124,19 +122,25 @@ export const MarketsGoodCompareDialog: React.FC = () => {
                 onClick={() => openMarketOverview(row.marketId)}
               >
                 <FillBox fill={row.marketColor} data-tip="Market color" />
-                <div style={{ width: "9em" }}>{row.marketName}</div>
-                <div style={{ width: "6em" }}>{displayValue(row.stock, totalStock)}</div>
-                <div style={{ width: "7em" }}>{displayPrice(row.price)}</div>
+                <div className="-markets-good-compare-dialog__width-9em">{row.marketName}</div>
+                <div className="-markets-good-compare-dialog__width-6em">{displayValue(row.stock, totalStock)}</div>
+                <div className="-markets-good-compare-dialog__width-7em">{displayPrice(row.price)}</div>
               </div>
             ))
           )}
         </div>
 
         <div id="marketsGoodCompareFooter" className="totalLine">
-          <div data-tip="Total stock of this good across all markets" style={{ marginLeft: 5 }}>
+          <div
+            data-tip="Total stock of this good across all markets"
+            className="-markets-good-compare-dialog__margin-left-5"
+          >
             Total Stock:&nbsp;<span id="marketsGoodCompareFooterStock">{totalStock}</span>
           </div>
-          <div data-tip="Average price of this good across markets" style={{ marginLeft: 12 }}>
+          <div
+            data-tip="Average price of this good across markets"
+            className="-markets-good-compare-dialog__margin-left-12"
+          >
             Avg Price:&nbsp;<span id="marketsGoodCompareFooterPrice">{formatPrice(avgPrice)}</span>
           </div>
         </div>

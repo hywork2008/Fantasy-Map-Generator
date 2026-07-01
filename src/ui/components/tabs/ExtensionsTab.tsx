@@ -90,9 +90,9 @@ export const ExtensionsTab: React.FC = () => {
   };
 
   return (
-    <div id="extensionsTabContent" className="tabcontent" style={{ display: "block" }}>
+    <div id="extensionsTabContent" className="tabcontent -extensions-tab__display-block">
       {/* Install bar */}
-      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
+      <div className="-extensions-tab__display-flex--align-items-center--gap-8px--margin-">
         <button
           type="button"
           className="options"
@@ -102,7 +102,13 @@ export const ExtensionsTab: React.FC = () => {
         >
           {installing ? "Installing…" : "⊕ Install Extension (.zip)"}
         </button>
-        <input ref={fileInputRef} type="file" accept=".zip" style={{ display: "none" }} onChange={handleFileChange} />
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".zip"
+          className="-extensions-tab__display-none"
+          onChange={handleFileChange}
+        />
       </div>
 
       {error && (
@@ -125,7 +131,7 @@ export const ExtensionsTab: React.FC = () => {
       {installedMeta.length === 0 ? (
         <p style={{ color: "#888", textAlign: "center", marginTop: "1.5em" }}>No extensions installed yet.</p>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+        <div className="-extensions-tab__display-flex--flex-direction-column--gap-8px">
           {installedMeta.map(meta => {
             const isEnabled = enabledExtensions[meta.id] ?? false;
             const desc = extensions[meta.id]?.description;
@@ -140,23 +146,17 @@ export const ExtensionsTab: React.FC = () => {
                   background: isEnabled ? "var(--tab-bg-active, #f5f5f5)" : "transparent"
                 }}
               >
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <div className="-extensions-tab__display-flex--align-items-center--gap-8px">
                   {/* Toggle switch */}
                   <label
-                    style={{
-                      position: "relative",
-                      display: "inline-block",
-                      width: "36px",
-                      height: "20px",
-                      flexShrink: 0
-                    }}
+                    className="-extensions-tab__position-relative--display-inline-block--width-36p"
                     title={isEnabled ? "Disable extension" : "Enable extension"}
                   >
                     <input
                       type="checkbox"
                       checked={isEnabled}
                       onChange={() => handleToggle(meta.id, isEnabled, meta.builtin)}
-                      style={{ opacity: 0, width: 0, height: 0 }}
+                      className="-extensions-tab__opacity-0--width-0--height-0"
                     />
                     <span
                       style={{
@@ -184,7 +184,7 @@ export const ExtensionsTab: React.FC = () => {
                   </label>
 
                   {/* Name + version */}
-                  <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="-extensions-tab__flex-1--min-width-0">
                     <strong style={{ fontSize: "0.95em" }}>{meta.name}</strong>
                     <span
                       style={{

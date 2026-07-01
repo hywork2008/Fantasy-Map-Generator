@@ -14,7 +14,7 @@ export const GenerationErrorDialog: React.FC = () => {
       isOpen={isOpen}
       title="Generation error"
       onClose={close}
-      style={{ maxWidth: "32em" }}
+      className="-generation-error-dialog__max-width-32em"
       buttons={[
         {
           label: "Cleanup data",

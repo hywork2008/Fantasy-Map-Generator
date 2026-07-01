@@ -11,7 +11,7 @@ export const RegimentEditorDialog: React.FC = () => {
 
   const isExternal = icon.startsWith("http") || icon.startsWith("data:image");
   const emblemContent = isExternal ? (
-    <img src={icon} style={{ width: "1em", height: "1em" }} alt="emblem" />
+    <img src={icon} className="-regiment-editor-dialog__width-1em--height-1em" alt="emblem" />
   ) : (
     // biome-ignore lint/security/noDangerouslySetInnerHtml: Trusted SVG content for regiment emblem
     <span dangerouslySetInnerHTML={{ __html: icon }} />
@@ -33,7 +33,7 @@ export const RegimentEditorDialog: React.FC = () => {
             data-tip="Type to rename the regiment"
             autoCorrect="off"
             spellCheck={false}
-            style={{ width: "13em" }}
+            className="-regiment-editor-dialog__width-13em"
             onChange={e => regimentEditorActions.changeName(e.currentTarget.value)}
           />
           <span data-tip="Speak the name. You can change voice and language in options" className="speaker">
@@ -46,7 +46,7 @@ export const RegimentEditorDialog: React.FC = () => {
           />
         </div>
 
-        <div data-tip="Regiment emblem" style={{ display: "flex", alignItems: "center" }}>
+        <div data-tip="Regiment emblem" className="-regiment-editor-dialog__display-flex--align-items-center">
           <div className="label">Emblem:</div>
           <div id="regimentEmblem" style={{ fontSize: "1.5em", width: "3.7em" }}>
             {emblemContent}

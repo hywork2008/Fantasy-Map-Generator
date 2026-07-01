@@ -55,11 +55,11 @@ export const FeaturesSelectionDialog: React.FC<FeaturesSelectionDialogProps> = (
     >
       <table>
         <thead>
-          <tr style={{ fontWeight: "bold" }}>
-            <td style={{ width: "6em" }}>Features</td>
-            <td style={{ width: "3em" }}>True</td>
-            <td style={{ width: "3em" }}>False</td>
-            <td style={{ width: "3em" }}>Any</td>
+          <tr className="-features-selection-dialog__font-weight-bold">
+            <td className="-features-selection-dialog__width-6em">Features</td>
+            <td className="-features-selection-dialog__width-3em">True</td>
+            <td className="-features-selection-dialog__width-3em">False</td>
+            <td className="-features-selection-dialog__width-3em">Any</td>
           </tr>
         </thead>
         <tbody>
@@ -73,7 +73,7 @@ export const FeaturesSelectionDialog: React.FC<FeaturesSelectionDialogProps> = (
                 <input
                   type="radio"
                   name={f.name}
-                  style={{ margin: 0 }}
+                  className="-features-selection-dialog__margin-0"
                   checked={values[f.name] === true}
                   onChange={() => set(f.name, true)}
                 />
@@ -82,7 +82,7 @@ export const FeaturesSelectionDialog: React.FC<FeaturesSelectionDialogProps> = (
                 <input
                   type="radio"
                   name={f.name}
-                  style={{ margin: 0 }}
+                  className="-features-selection-dialog__margin-0"
                   checked={values[f.name] === false}
                   onChange={() => set(f.name, false)}
                 />
@@ -91,7 +91,7 @@ export const FeaturesSelectionDialog: React.FC<FeaturesSelectionDialogProps> = (
                 <input
                   type="radio"
                   name={f.name}
-                  style={{ margin: 0 }}
+                  className="-features-selection-dialog__margin-0"
                   checked={values[f.name] === undefined}
                   onChange={() => set(f.name, undefined)}
                 />

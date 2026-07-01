@@ -30,7 +30,7 @@ export const ExportMapDialog: React.FC = () => {
       title="Export map data"
       onClose={() => closeDialog("exportMapData")}
       buttons={[{ label: "Close", onClick: () => closeDialog("exportMapData") }]}
-      style={{ width: "26em" }}
+      className="-export-map-dialog__width-26em"
     >
       <div id="exportMapData">
         <div style={{ marginBottom: "0.3em", fontWeight: "bold" }}>Download image</div>
@@ -94,7 +94,7 @@ export const ExportMapDialog: React.FC = () => {
             max="8"
             value={pngResolution}
             onChange={e => setPngResolution(Number(e.target.value))}
-            style={{ width: "10em" }}
+            className="-export-map-dialog__width-10em"
           />
           <input
             id="pngResolutionOutput"

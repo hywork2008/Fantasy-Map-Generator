@@ -9,7 +9,7 @@ export const OptionsTab: React.FC = () => {
   const [activeSubTab, setActiveSubTab] = useState<OptionsSubTab>("generation");
 
   return (
-    <div id="optionsTabContent" className="tabcontent" style={{ display: "block" }}>
+    <div id="optionsTabContent" className="tabcontent -options-tab__display-block">
       <div className="tab">
         <button
           className={`options${activeSubTab === "generation" ? " active" : ""}`}

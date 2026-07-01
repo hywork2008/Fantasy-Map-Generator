@@ -44,7 +44,7 @@ export const LoadMapDialog: React.FC = () => {
         id="mapToLoad"
         type="file"
         accept=".map,.gz"
-        style={{ display: "none" }}
+        className="-load-map-dialog__display-none"
         onChange={handleFileChange}
       />
       <div>
@@ -90,7 +90,7 @@ export const LoadMapDialog: React.FC = () => {
         {showDropboxSelect && (
           <select
             id="loadFromDropboxSelect"
-            style={{ width: "22em" }}
+            className="-load-map-dialog__width-22em"
             value={selectedDropboxPath}
             onChange={event => setSelectedDropboxPath(event.target.value)}
           >

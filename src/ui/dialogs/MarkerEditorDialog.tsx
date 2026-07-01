@@ -25,15 +25,19 @@ export const MarkerEditorDialog: React.FC = () => {
           />
         </div>
 
-        <div data-tip="Marker icon" style={{ display: "flex", alignItems: "center" }}>
+        <div data-tip="Marker icon" className="-marker-editor-dialog__display-flex--align-items-center">
           <div className="label">Icon:</div>
           <div id="markerIcon" style={{ fontSize: "1.5em", width: "3.7em" }}>
-            {isExternal ? <img src={icon} alt="marker icon" style={{ width: "1em", height: "1em" }} /> : icon}
+            {isExternal ? (
+              <img src={icon} alt="marker icon" className="-marker-editor-dialog__width-1em--height-1em" />
+            ) : (
+              icon
+            )}
           </div>
           <button
             type="button"
             id="markerIconSelect"
-            style={{ width: "5em" }}
+            className="-marker-editor-dialog__width-5em"
             onClick={markersEditorActions.changeMarkerIcon}
           >
             select
@@ -48,7 +52,7 @@ export const MarkerEditorDialog: React.FC = () => {
             type="number"
             min="2"
             max="500"
-            style={{ width: "5em" }}
+            className="-marker-editor-dialog__width-5em"
             value={size}
             onChange={e => markersEditorActions.changeMarkerSize(Number(e.target.value))}
           />
@@ -59,7 +63,7 @@ export const MarkerEditorDialog: React.FC = () => {
             min="2"
             max="20"
             step="0.5"
-            style={{ width: "5em" }}
+            className="-marker-editor-dialog__width-5em"
             value={iconSize}
             onChange={e => markersEditorActions.changeIconSize(Number(e.target.value))}
           />
@@ -73,7 +77,7 @@ export const MarkerEditorDialog: React.FC = () => {
             min="0"
             max="100"
             step="1"
-            style={{ width: "5em" }}
+            className="-marker-editor-dialog__width-5em"
             value={iconShiftX}
             onChange={e => markersEditorActions.changeIconShiftX(Number(e.target.value))}
           />
@@ -83,7 +87,7 @@ export const MarkerEditorDialog: React.FC = () => {
             min="0"
             max="100"
             step="1"
-            style={{ width: "5em" }}
+            className="-marker-editor-dialog__width-5em"
             value={iconShiftY}
             onChange={e => markersEditorActions.changeIconShiftY(Number(e.target.value))}
           />

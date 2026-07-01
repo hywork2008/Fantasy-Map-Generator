@@ -180,7 +180,7 @@ export const RoutesOverviewDialog: React.FC = () => {
       className="fmg-dialog--overflow-hidden"
     >
       <div id="routesOverviewContainer">
-        <div id="routesHeader" className="header" style={{ gridTemplateColumns: "17em 8em 8em" }}>
+        <div id="routesHeader" className="header -routes-overview-dialog__grid-template-columns-17em-8em-8em">
           <div
             data-tip="Click to sort by route name"
             className={`sortable alphabetically ${sortBy === "name" ? (sortOrder === "asc" ? "icon-sort-name-up" : "icon-sort-name-down") : ""}`}
@@ -219,10 +219,10 @@ export const RoutesOverviewDialog: React.FC = () => {
                 <div data-tip="Route name" style={{ width: "15em", marginLeft: "0.4em" }}>
                   {route.name}
                 </div>
-                <div data-tip="Route group" style={{ width: "8em" }}>
+                <div data-tip="Route group" className="-routes-overview-dialog__width-8em">
                   {route.group}
                 </div>
-                <div data-tip="Route length" style={{ width: "6em" }}>
+                <div data-tip="Route length" className="-routes-overview-dialog__width-6em">
                   {lengthStr}
                 </div>
                 <span data-tip="Edit route" className="icon-pencil" onClick={() => handleOpenEditor(route.i)} />
@@ -237,11 +237,11 @@ export const RoutesOverviewDialog: React.FC = () => {
           })}
         </div>
         <div id="routesTotal" className="totalLine">
-          <div data-tip="Routes number" style={{ marginLeft: 4 }}>
+          <div data-tip="Routes number" className="-routes-overview-dialog__margin-left-4">
             Routes:&nbsp;
             <span id="routesFooterNumber">{`${filteredRoutes.length} of ${worldContext.pack?.routes?.length || 0}`}</span>
           </div>
-          <div data-tip="Average length" style={{ marginLeft: 12 }}>
+          <div data-tip="Average length" className="-routes-overview-dialog__margin-left-12">
             Average length:&nbsp;
             <span id="routesFooterLength">{`${averageLength * worldContext.distanceScale} ${distanceUnit}`}</span>
           </div>

@@ -14,7 +14,7 @@ const NamesbaseAnalysisDialog: React.FC<{ data: NamesbaseAnalysisData; onClose: 
     if (data.length < 30)
       return (
         <span
-          style={{ color: "red" }}
+          className="-namesbase-editor-dialog__color-red"
           data-tip="Namesbase contains < 30 names - not enough to generate reasonable data"
         >
           [not enough]
@@ -23,7 +23,7 @@ const NamesbaseAnalysisDialog: React.FC<{ data: NamesbaseAnalysisData; onClose: 
     if (data.length < 100)
       return (
         <span
-          style={{ color: "darkred" }}
+          className="-namesbase-editor-dialog__color-darkred"
           data-tip="Namesbase contains < 100 names - not enough to generate good names"
         >
           [low]
@@ -31,13 +31,16 @@ const NamesbaseAnalysisDialog: React.FC<{ data: NamesbaseAnalysisData; onClose: 
       );
     if (data.length <= 400)
       return (
-        <span style={{ color: "green" }} data-tip="Namesbase contains a reasonable number of samples">
+        <span
+          className="-namesbase-editor-dialog__color-green"
+          data-tip="Namesbase contains a reasonable number of samples"
+        >
           [good]
         </span>
       );
     return (
       <span
-        style={{ color: "darkred" }}
+        className="-namesbase-editor-dialog__color-darkred"
         data-tip="Namesbase contains > 400 names. That is too much, try to reduce it to ~300 names"
       >
         [overmuch]
@@ -49,7 +52,7 @@ const NamesbaseAnalysisDialog: React.FC<{ data: NamesbaseAnalysisData; onClose: 
     if (data.variety < 15)
       return (
         <span
-          style={{ color: "red" }}
+          className="-namesbase-editor-dialog__color-red"
           data-tip="Namesbase average variety < 15 - generated names will be too repetitive"
         >
           [low]
@@ -57,12 +60,15 @@ const NamesbaseAnalysisDialog: React.FC<{ data: NamesbaseAnalysisData; onClose: 
       );
     if (data.variety < 30)
       return (
-        <span style={{ color: "orange" }} data-tip="Namesbase average variety < 30 - names can be too repetitive">
+        <span
+          className="-namesbase-editor-dialog__color-orange"
+          data-tip="Namesbase average variety < 30 - names can be too repetitive"
+        >
           [mean]
         </span>
       );
     return (
-      <span style={{ color: "green" }} data-tip="Namesbase variety is good">
+      <span className="-namesbase-editor-dialog__color-green" data-tip="Namesbase variety is good">
         [good]
       </span>
     );
@@ -141,7 +147,7 @@ const NamesbaseUploadErrorDialog: React.FC<{ errors: ParseError[]; totalCount: n
             {errors.map(err => (
               <li key={err.id} style={{ padding: "0.6em 0", borderTop: "1px solid #ddd" }}>
                 <div>
-                  Line {err.id}: <span style={{ color: "#8b0000" }}>{err.error}.</span> Data:
+                  Line {err.id}: <span className="-namesbase-editor-dialog__color-8b0000">{err.error}.</span> Data:
                 </div>
                 <div
                   style={{
@@ -314,7 +320,7 @@ export const NamesbaseEditorContent: React.FC = () => {
         <select
           id="namesbaseSelect"
           data-tip="Select base to edit"
-          style={{ width: "12em" }}
+          className="-namesbase-editor-dialog__width-12em"
           value={activeBaseIndex}
           onChange={e => setActiveBaseIndex(+e.target.value)}
         >
@@ -324,9 +330,9 @@ export const NamesbaseEditorContent: React.FC = () => {
             </option>
           ))}
         </select>
-        <span style={{ marginLeft: 2 }}>Names data: </span>
+        <span className="-namesbase-editor-dialog__margin-left-2">Names data: </span>
       </div>
-      <div id="namesbaseBody" style={{ marginBlock: 2, width: "auto" }}>
+      <div id="namesbaseBody" className="-namesbase-editor-dialog__margin-block-2--width-auto">
         <textarea
           id="namesbaseTextarea"
           rows={13}
@@ -334,7 +340,7 @@ export const NamesbaseEditorContent: React.FC = () => {
           placeholder="Provide a names data: a comma separated list of source names"
           autoCorrect="off"
           spellCheck="false"
-          style={{ resize: "none" }}
+          className="-namesbase-editor-dialog__resize-none"
           value={namesData}
           onChange={e => handleNamesDataChange(e.target.value)}
         />
@@ -346,7 +352,7 @@ export const NamesbaseEditorContent: React.FC = () => {
             placeholder="Base name"
             autoCorrect="off"
             spellCheck="false"
-            style={{ width: "12em" }}
+            className="-namesbase-editor-dialog__width-12em"
             value={baseName}
             onChange={e => handleBaseNameChange(e.target.value)}
           />
@@ -374,7 +380,7 @@ export const NamesbaseEditorContent: React.FC = () => {
             data-tip="Populate with letters that can be used twice in a row (geminates)"
             autoCorrect="off"
             spellCheck="false"
-            style={{ width: "10em" }}
+            className="-namesbase-editor-dialog__width-10em"
             value={doubleStr}
             onChange={e => handleDoubleChange(e.target.value)}
           />
@@ -386,7 +392,7 @@ export const NamesbaseEditorContent: React.FC = () => {
             id="namesbaseExamples"
             data-tip="Examples. Click to re-generate"
             onClick={generateExamples}
-            style={{ all: "unset", width: "100%", display: "block", textAlign: "left", cursor: "pointer" }}
+            className="-namesbase-editor-dialog__all-unset--width-100--display-block--text-align-le"
           >
             {examples}
           </button>
@@ -459,7 +465,13 @@ export const NamesbaseEditorContent: React.FC = () => {
           onClick={() => speak(examples)}
         />
       </div>
-      <input type="file" style={{ display: "none" }} ref={uploaderRef} onChange={handleUpload} accept=".txt" />
+      <input
+        type="file"
+        className="-namesbase-editor-dialog__display-none"
+        ref={uploaderRef}
+        onChange={handleUpload}
+        accept=".txt"
+      />
 
       {analysisData && <NamesbaseAnalysisDialog data={analysisData} onClose={() => setAnalysisData(null)} />}
       {uploadErrors && (

@@ -97,7 +97,7 @@ export const DialogsContainer: React.FC = () => {
   const openDialogs = useDialogState(state => state.openDialogs);
 
   return (
-    <div id="dialogs-root" style={{ pointerEvents: "none" }}>
+    <div id="dialogs-root" className="-dialogs-container__pointer-events-none">
       {mounted && (
         <>
           <AlertDialog config={alertConfig} />

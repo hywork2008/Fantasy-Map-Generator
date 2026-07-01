@@ -49,8 +49,8 @@ export const LayersTab: React.FC = () => {
   const isCustom = activePreset === "custom";
 
   return (
-    <div id="layersContent" className="tabcontent" style={{ display: "block" }}>
-      <p data-tip="Select a map layers preset" style={{ display: "inline-block", marginRight: "8px" }}>
+    <div id="layersContent" className="tabcontent -layers-tab__display-block">
+      <p data-tip="Select a map layers preset" className="-layers-tab__display-inline-block--margin-right-8px">
         Layers preset:
       </p>
       <select
@@ -59,7 +59,7 @@ export const LayersTab: React.FC = () => {
         value={activePreset}
         disabled={presetDisabled}
         onChange={handlePresetChange}
-        style={{ width: "45%" }}
+        className="-layers-tab__width-45"
       >
         {Object.keys(presets).map(preset => (
           <option key={preset} value={preset} hidden={preset === "custom"}>

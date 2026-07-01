@@ -105,7 +105,10 @@ export const CulturesEditorDialog: React.FC = () => {
       className="fmg-dialog--overflow-hidden"
     >
       <div id="culturesEditor">
-        <div id="culturesHeader" className="header" style={{ gridTemplateColumns: "10em 7em 9em 4em 8em 5em 7em 8em" }}>
+        <div
+          id="culturesHeader"
+          className="header -cultures-editor-dialog__grid-template-columns-10em-7em-9em-4em-8em-5em-7em"
+        >
           <SortHeader label="Culture" col="name" tip="Click to sort by culture name" />
           <SortHeader label="Type" col="type" tip="Click to sort by type" />
           <SortHeader label="Namesbase" col="base" tip="Click to sort by culture namesbase" />
@@ -159,8 +162,7 @@ export const CulturesEditorDialog: React.FC = () => {
                       ? "Neutral culture name. Click and type to change"
                       : "Culture name. Click and type to change"
                   }
-                  className={`cultureName${isNeutral ? " italic" : ""}`}
-                  style={{ width: "7em" }}
+                  className={`cultureName${isNeutral ? " italic" : ""} -cultures-editor-dialog__width-7em`}
                   value={c.name}
                   autoCorrect="off"
                   spellCheck={false}
@@ -172,8 +174,7 @@ export const CulturesEditorDialog: React.FC = () => {
                 ) : (
                   <span
                     data-tip="Regenerate culture name"
-                    className="icon-cw hiddenIcon"
-                    style={{ visibility: "hidden" }}
+                    className="icon-cw hiddenIcon -cultures-editor-dialog__visibility-hidden"
                     onClick={() => culturesEditorActions.regenerateName(c.i)}
                   />
                 )}
@@ -213,7 +214,7 @@ export const CulturesEditorDialog: React.FC = () => {
                 </select>
 
                 <span data-tip="Cells count" className="icon-check-empty hide" />
-                <div data-tip="Cells count" className="cultureCells hide" style={{ width: "4em" }}>
+                <div data-tip="Cells count" className="cultureCells hide -cultures-editor-dialog__width-4em">
                   {cellsText}
                 </div>
 
@@ -233,16 +234,15 @@ export const CulturesEditorDialog: React.FC = () => {
                   onChange={e => culturesEditorActions.changeExpansionism(c.i, e.target.valueAsNumber)}
                 />
 
-                <span data-tip="Culture area" style={{ paddingRight: "4px" }} className="icon-map-o hide" />
-                <div data-tip="Culture area" className="cultureArea hide" style={{ width: "6em" }}>
+                <span data-tip="Culture area" className="-cultures-editor-dialog__padding-right-4px icon-map-o hide" />
+                <div data-tip="Culture area" className="cultureArea hide -cultures-editor-dialog__width-6em">
                   {areaText}
                 </div>
 
                 <span data-tip={populationTip} className="icon-male hide" />
                 <div
                   data-tip={populationTip}
-                  className="culturePopulation hide pointer"
-                  style={{ width: "4em" }}
+                  className="culturePopulation hide pointer -cultures-editor-dialog__width-4em"
                   onClick={() => culturesEditorActions.changePopulation(c.i)}
                 >
                   {popText}
@@ -288,19 +288,19 @@ export const CulturesEditorDialog: React.FC = () => {
         </div>
 
         <div id="culturesTotal" className="totalLine" style={{ display: isBrushMode ? "none" : undefined }}>
-          <div data-tip="Cultures number" style={{ marginLeft: 12 }}>
+          <div data-tip="Cultures number" className="-cultures-editor-dialog__margin-left-12">
             Cultures:&nbsp;<span>{cultures.filter(c => c.i).length}</span>
           </div>
-          <div data-tip="Total land cells number" style={{ marginLeft: 12 }}>
+          <div data-tip="Total land cells number" className="-cultures-editor-dialog__margin-left-12">
             Cells:&nbsp;<span>{totalCells}</span>
           </div>
-          <div data-tip="Total land area" style={{ marginLeft: 12 }}>
+          <div data-tip="Total land area" className="-cultures-editor-dialog__margin-left-12">
             Land Area:&nbsp;
             <span>
               {si(totalArea)} {unit}
             </span>
           </div>
-          <div data-tip="Total population" style={{ marginLeft: 12 }}>
+          <div data-tip="Total population" className="-cultures-editor-dialog__margin-left-12">
             Population:&nbsp;<span>{si(totalPopulation)}</span>
           </div>
         </div>
@@ -414,7 +414,7 @@ export const CulturesEditorDialog: React.FC = () => {
                 ref={fileInputRef}
                 id="culturesCSVToLoad"
                 type="file"
-                style={{ display: "none" }}
+                className="-cultures-editor-dialog__display-none"
                 accept=".csv"
                 onChange={e => {
                   const file = e.target.files?.[0];
@@ -432,7 +432,7 @@ export const CulturesEditorDialog: React.FC = () => {
               />
               <span
                 data-tip="Allow culture centers, expansion and type changes to take an immediate effect"
-                style={{ display: "inline-flex" }}
+                className="-cultures-editor-dialog__display-inline-flex"
               >
                 <input
                   id="culturesAutoChange"

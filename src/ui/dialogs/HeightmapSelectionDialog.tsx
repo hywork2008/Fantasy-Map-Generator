@@ -250,8 +250,7 @@ export const HeightmapSelectionContent: React.FC<{ onClose?: () => void }> = ({ 
               <button
                 type="button"
                 data-tip="Rerender all preview images"
-                className="checkbox-label"
-                style={{ cursor: "pointer", background: "none", border: "none", padding: 0 }}
+                className="checkbox-label -heightmap-selection-dialog__cursor-pointer--background-none--border-none--padd"
                 onClick={() => handleRedrawAll(colorScheme, renderOcean)}
               >
                 <i className="icon-cw" /> Redraw preview

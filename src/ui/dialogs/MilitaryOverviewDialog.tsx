@@ -228,13 +228,16 @@ export const MilitaryOverviewDialog: React.FC = () => {
               onMouseLeave={() => militaryStateHighlightOff(l.id)}
             >
               <FillBox data-tip={l.fullName} fill={l.color} disabled />
-              <input data-tip={l.fullName} style={{ width: "6em" }} value={l.name} readOnly />
+              <input data-tip={l.fullName} className="-military-overview-dialog__width-6em" value={l.name} readOnly />
               {militaryOptions.map(u => (
                 <div key={u.name} data-tip={`State ${u.name} units number`}>
                   {getDisplayValue(l.unitsData[u.name], totals.sumUnits[u.name])}
                 </div>
               ))}
-              <div data-tip="Total state military personnel (considering crew)" style={{ fontWeight: "bold" }}>
+              <div
+                data-tip="Total state military personnel (considering crew)"
+                className="-military-overview-dialog__font-weight-bold"
+              >
                 {getDisplayValueSi(l.total, totals.total)}
               </div>
               <div data-tip="State population">{getDisplayValueSi(l.population, totals.sumPopulation)}</div>
@@ -259,19 +262,19 @@ export const MilitaryOverviewDialog: React.FC = () => {
           ))}
         </div>
         <div id="militaryTotal" className="totalLine">
-          <div data-tip="States number" style={{ marginLeft: 4 }}>
+          <div data-tip="States number" className="-military-overview-dialog__margin-left-4">
             States:&nbsp;<span>{totals.statesNumber}</span>
           </div>
-          <div data-tip="Total military forces" style={{ marginLeft: 14 }}>
+          <div data-tip="Total military forces" className="-military-overview-dialog__margin-left-14">
             Total forces:&nbsp;<span>{si(totals.total)}</span>
           </div>
-          <div data-tip="Average military forces per state" style={{ marginLeft: 14 }}>
+          <div data-tip="Average military forces per state" className="-military-overview-dialog__margin-left-14">
             Average forces:&nbsp;<span>{si(totals.averageForces)}</span>
           </div>
-          <div data-tip="Average forces rate per state" style={{ marginLeft: 14 }}>
+          <div data-tip="Average forces rate per state" className="-military-overview-dialog__margin-left-14">
             Average rate:&nbsp;<span>{rn(totals.averageRate, 2)}%</span>
           </div>
-          <div data-tip="Average War Alert" style={{ marginLeft: 14 }}>
+          <div data-tip="Average War Alert" className="-military-overview-dialog__margin-left-14">
             Average alert:&nbsp;<span>{rn(totals.averageAlert, 2)}</span>
           </div>
         </div>

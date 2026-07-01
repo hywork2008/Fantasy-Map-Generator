@@ -112,16 +112,16 @@ export const MilitaryOptionsDialog: React.FC = () => {
                     <th data-tip="Unit name. If name is changed for existing unit, old unit will be replaced">
                       Unit name
                     </th>
-                    <th style={{ width: "5em" }} data-tip="Select allowed biomes">
+                    <th className="-military-options-dialog__width-5em" data-tip="Select allowed biomes">
                       Biomes
                     </th>
-                    <th style={{ width: "5em" }} data-tip="Select allowed states">
+                    <th className="-military-options-dialog__width-5em" data-tip="Select allowed states">
                       States
                     </th>
-                    <th style={{ width: "5em" }} data-tip="Select allowed cultures">
+                    <th className="-military-options-dialog__width-5em" data-tip="Select allowed cultures">
                       Cultures
                     </th>
-                    <th style={{ width: "5em" }} data-tip="Select allowed religions">
+                    <th className="-military-options-dialog__width-5em" data-tip="Select allowed religions">
                       Religions
                     </th>
                     <th data-tip="Conscription percentage for rural population">Rural</th>
@@ -336,7 +336,7 @@ export const MilitaryOptionsDialog: React.FC = () => {
                 </tbody>
               </table>
             </div>
-            <div style={{ marginTop: "1em" }}>
+            <div className="-military-options-dialog__margin-top-1em">
               <button type="button" onClick={applyMilitaryOptions} style={{ width: "6em", marginRight: "0.5em" }}>
                 Apply
               </button>
@@ -346,7 +346,11 @@ export const MilitaryOptionsDialog: React.FC = () => {
               <button type="button" onClick={restoreDefaults} style={{ width: "8em", marginRight: "0.5em" }}>
                 Restore defaults
               </button>
-              <button type="button" onClick={() => closeDialog("militaryOptions")} style={{ width: "6em" }}>
+              <button
+                type="button"
+                onClick={() => closeDialog("militaryOptions")}
+                className="-military-options-dialog__width-6em"
+              >
                 Cancel
               </button>
             </div>

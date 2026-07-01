@@ -57,8 +57,7 @@ export const StatesEditorContent: React.FC = () => {
     <div id="statesEditor">
       <div
         id="statesHeader"
-        className="header"
-        style={{ gridTemplateColumns: "11em 8em 7em 7em 6em 6em 8em 6em 7em 6em", paddingRight: "16px" }}
+        className="header -states-editor-dialog__grid-template-columns-11em-8em-7em-7em-6em-6em-8em"
       >
         <div
           data-tip="Click to sort by state name"
@@ -144,9 +143,8 @@ export const StatesEditorContent: React.FC = () => {
 
       <div
         id="statesBodySection"
-        className="table"
+        className="table -states-editor-dialog__max-height-400px--overflow-y-auto"
         data-type="absolute"
-        style={{ maxHeight: "400px", overflowY: "auto" }}
       >
         {sortedStates.map(s => {
           const isNeutral = !s.i;
@@ -299,22 +297,22 @@ export const StatesEditorContent: React.FC = () => {
       </div>
 
       <div id="statesTotal" className="totalLine">
-        <div data-tip="States number" style={{ marginLeft: "5px" }}>
+        <div data-tip="States number" className="-states-editor-dialog__margin-left-5px">
           States:&nbsp;<span>{totalStates}</span>
         </div>
-        <div data-tip="Total land cells number" style={{ marginLeft: "12px" }}>
+        <div data-tip="Total land cells number" className="-states-editor-dialog__margin-left-12px">
           Cells:&nbsp;<span>{totalCells}</span>
         </div>
-        <div data-tip="Total burgs number" style={{ marginLeft: "12px" }}>
+        <div data-tip="Total burgs number" className="-states-editor-dialog__margin-left-12px">
           Burgs:&nbsp;<span>{totalBurgs}</span>
         </div>
-        <div data-tip="Total land area" style={{ marginLeft: "12px" }}>
+        <div data-tip="Total land area" className="-states-editor-dialog__margin-left-12px">
           Land Area:&nbsp;
           <span>
             {si(totalArea)} {areaUnit}
           </span>
         </div>
-        <div data-tip="Total population" style={{ marginLeft: "12px" }}>
+        <div data-tip="Total population" className="-states-editor-dialog__margin-left-12px">
           Population:&nbsp;<span>{si(totalPopulation)}</span>
         </div>
       </div>
@@ -382,7 +380,7 @@ export const StatesEditorContent: React.FC = () => {
           />
           <div
             data-tip="Additional growth rate. Defines how many land cells remain neutral"
-            style={{ display: "inline-block" }}
+            className="-states-editor-dialog__display-inline-block"
           >
             <SliderInput
               id="statesGrowthRate"
@@ -404,7 +402,7 @@ export const StatesEditorContent: React.FC = () => {
           />
           <div
             data-tip="Allow states neutral distance, expansion and type changes to take an immediate effect"
-            style={{ display: "inline-block" }}
+            className="-states-editor-dialog__display-inline-block"
           >
             <input
               id="statesAutoChange"
@@ -419,7 +417,7 @@ export const StatesEditorContent: React.FC = () => {
           </div>
           <div
             data-tip="Allow system to change state labels when states data is change"
-            style={{ display: "inline-block" }}
+            className="-states-editor-dialog__display-inline-block"
           >
             <input
               id="adjustLabels"
@@ -446,7 +444,7 @@ export const StatesEditorContent: React.FC = () => {
         <div id="statesManuallyButtons" style={{ display: customizationMode === 1 ? "inline-block" : "none" }}>
           <div
             data-tip="Change brush size. Shortcuts: + / ] to increase; - / [ to decrease"
-            style={{ display: "inline-block" }}
+            className="-states-editor-dialog__display-inline-block"
           >
             <SliderInput
               id="statesBrush"
@@ -479,7 +477,10 @@ export const StatesEditorContent: React.FC = () => {
             className="icon-cancel"
             onClick={statesEditorActions.cancelManualAssignment}
           />
-          <div data-tip="When enabled, only neutral cells can be painted" style={{ display: "inline-block" }}>
+          <div
+            data-tip="When enabled, only neutral cells can be painted"
+            className="-states-editor-dialog__display-inline-block"
+          >
             <input
               id="statesManuallyProtect"
               className="checkbox"

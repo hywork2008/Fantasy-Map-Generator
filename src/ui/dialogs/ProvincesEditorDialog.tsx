@@ -197,8 +197,7 @@ export const ProvincesEditorDialog: React.FC = () => {
                 <input data-tip="Province owner" className="provinceOwner" value={p.stateName} disabled />
                 <span
                   data-tip="Click to overview province burgs"
-                  style={{ paddingRight: "1px" }}
-                  className={`icon-dot-circled pointer ${customization === 11 ? "hidden" : "hide"}`}
+                  className={`-provinces-editor-dialog__padding-right-1px icon-dot-circled pointer ${customization === 11 ? "hidden" : "hide"}`}
                   onClick={() => provincesEditorActions.overviewBurgs(p.stateId)}
                 />
                 <div data-tip="Burgs count" className={`provinceBurgs ${customization === 11 ? "hidden" : "hide"}`}>
@@ -206,8 +205,7 @@ export const ProvincesEditorDialog: React.FC = () => {
                 </div>
                 <span
                   data-tip="Province area"
-                  style={{ paddingRight: "4px" }}
-                  className={`icon-map-o ${customization === 11 ? "hidden" : "hide"}`}
+                  className={`-provinces-editor-dialog__padding-right-4px icon-map-o ${customization === 11 ? "hidden" : "hide"}`}
                 />
                 <div data-tip="Province area" className={`biomeArea ${customization === 11 ? "hidden" : "hide"}`}>
                   {areaText}
@@ -251,17 +249,17 @@ export const ProvincesEditorDialog: React.FC = () => {
         </div>
 
         <div id="provincesTotal" className="totalLine" style={{ display: customization === 11 ? "none" : "block" }}>
-          <div data-tip="Provinces displayed" style={{ marginLeft: 4 }}>
+          <div data-tip="Provinces displayed" className="-provinces-editor-dialog__margin-left-4">
             Provinces:&nbsp;<span id="provincesFooterNumber">{totalProvinces}</span>
           </div>
-          <div data-tip="Total burgs number" style={{ marginLeft: 12 }}>
+          <div data-tip="Total burgs number" className="-provinces-editor-dialog__margin-left-12">
             Burgs:&nbsp;<span id="provincesFooterBurgs">{totalBurgs}</span>
           </div>
-          <div data-tip="Average area" style={{ marginLeft: 14 }}>
+          <div data-tip="Average area" className="-provinces-editor-dialog__margin-left-14">
             Mean area:&nbsp;
             <span id="provincesFooterArea">{totalProvinces ? si(totalArea / totalProvinces) + unit : `0${unit}`}</span>
           </div>
-          <div data-tip="Average population" style={{ marginLeft: 14 }}>
+          <div data-tip="Average population" className="-provinces-editor-dialog__margin-left-14">
             Mean population:&nbsp;
             <span id="provincesFooterPopulation">{totalProvinces ? si(totalPopulation / totalProvinces) : 0}</span>
           </div>

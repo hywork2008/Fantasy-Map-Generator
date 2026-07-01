@@ -10,7 +10,7 @@ export const IconSelectorDialog: React.FC = () => {
     <Dialog isOpen={isOpen} title="Select icon" onClose={() => closeDialog("iconSelector")}>
       <div>
         <b>Unicode emojis</b>
-        <div style={{ fontStyle: "italic" }}>
+        <div className="-icon-selector-dialog__font-style-italic">
           <span>Select from the list or paste a Unicode character here: </span>
           <input id="iconInput" style={{ width: "2.5em" }} />
           <span>
@@ -23,21 +23,23 @@ export const IconSelectorDialog: React.FC = () => {
         </div>
         <table
           id="iconTable"
-          className="table pointer"
-          style={{ fontSize: "2em", textAlign: "center", width: "100%" }}
+          className="table pointer -icon-selector-dialog__font-size-2em--text-align-center--width-100"
         ></table>
       </div>
 
       <div style={{ marginTop: "0.5em" }}>
         <b>External images</b>
-        <div style={{ fontStyle: "italic" }}>
+        <div className="-icon-selector-dialog__font-style-italic">
           <span>Paste link to the image here: </span>
-          <input id="imageInput" style={{ width: "20em" }} />
+          <input id="imageInput" className="-icon-selector-dialog__width-20em" />
           <button id="addImage" type="button">
             Add
           </button>
         </div>
-        <div id="addedIcons" className="pointer" style={{ display: "flex", flexWrap: "wrap", maxWidth: "420px" }}></div>
+        <div
+          id="addedIcons"
+          className="pointer -icon-selector-dialog__display-flex--flex-wrap-wrap--max-width-420px"
+        ></div>
       </div>
     </Dialog>
   );

@@ -11,8 +11,8 @@ export const AboutTab: React.FC = () => {
   const useCustomAbout = import.meta.env.VITE_USE_CUSTOM_ABOUT === "true";
 
   return (
-    <div id="aboutContent" className="tabcontent" style={{ display: "block" }}>
-      <p style={{ textAlign: "center", marginTop: "1em" }}>
+    <div id="aboutContent" className="tabcontent -about-tab__display-block">
+      <p className="-about-tab__text-align-center--margin-top-1em">
         <button
           id="startTourButton"
           onClick={startTour}

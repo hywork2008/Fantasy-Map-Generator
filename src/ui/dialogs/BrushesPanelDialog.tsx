@@ -33,7 +33,7 @@ export const BrushesPanelDialog: React.FC = () => {
     <Dialog isOpen={isOpen} title="Brushes Panel" onClose={() => closeDialog("brushesPanel")}>
       <div id="brushesPanelContainer">
         <div>
-          <div id="brushesButtons" style={{ display: "inline-block" }}>
+          <div id="brushesButtons" className="-brushes-panel-dialog__display-inline-block">
             <button
               type="button"
               className={brushMode === "brushRaise" ? "pressed" : ""}

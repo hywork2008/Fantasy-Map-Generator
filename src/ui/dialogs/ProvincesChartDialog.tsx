@@ -188,7 +188,7 @@ export const ProvincesChartDialog: React.FC = () => {
         <select
           value={chartType}
           onChange={e => setChartType(e.target.value as ChartType)}
-          style={{ display: "block", marginLeft: 13, fontSize: 11 }}
+          className="-provinces-chart-dialog__display-block--margin-left-13--font-size-11"
         >
           <option value="area">Area</option>
           <option value="population">Total population</option>

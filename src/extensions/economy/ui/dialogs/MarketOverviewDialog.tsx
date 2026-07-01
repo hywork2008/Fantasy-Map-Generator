@@ -68,9 +68,8 @@ export const MarketOverviewDialog: React.FC = () => {
           <div />
           <div
             data-tip="Click to sort by good"
-            className="sortable alphabetically"
+            className="sortable alphabetically -market-overview-dialog__margin-left-0"
             data-sortby="good"
-            style={{ marginLeft: 0 }}
           >
             Good&nbsp;
           </div>
@@ -82,7 +81,7 @@ export const MarketOverviewDialog: React.FC = () => {
           </div>
         </div>
 
-        <div id="marketOverviewGoodsBody" className="table" style={{ maxHeight: "40em" }}>
+        <div id="marketOverviewGoodsBody" className="table -market-overview-dialog__max-height-40em">
           {rows.length === 0 ? (
             <span>No market goods available</span>
           ) : (
@@ -112,9 +111,9 @@ export const MarketOverviewDialog: React.FC = () => {
           )}
         </div>
         <div id="marketOverviewSummary" className="totalLine">
-          <div style={{ marginLeft: 5 }}>Cells: {cellsCount}</div>
-          <div style={{ marginLeft: 12 }}>Burgs: {burgsCount}</div>
-          <div style={{ marginLeft: 12 }}>Stock: {totalStock}</div>
+          <div className="-market-overview-dialog__margin-left-5">Cells: {cellsCount}</div>
+          <div className="-market-overview-dialog__margin-left-12">Burgs: {burgsCount}</div>
+          <div className="-market-overview-dialog__margin-left-12">Stock: {totalStock}</div>
         </div>
         <div id="marketOverviewInfo" style={{ marginBottom: "0.3em" }}>
           {owner && (

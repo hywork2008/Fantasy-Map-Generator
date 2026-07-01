@@ -24,7 +24,12 @@ export const FillBox = ({
       data-tip={tip}
       className={className}
     >
-      <svg width={size} height={size} aria-hidden="true" style={{ verticalAlign: "middle", pointerEvents: "none" }}>
+      <svg
+        width={size}
+        height={size}
+        aria-hidden="true"
+        className="-fill-box__vertical-align-middle--pointer-events-none"
+      >
         <rect x={0} y={0} width="100%" height="100%" fill={fill} stroke="#666666" strokeWidth={2} />
       </svg>
     </span>

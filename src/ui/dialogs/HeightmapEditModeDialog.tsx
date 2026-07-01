@@ -40,7 +40,7 @@ export const HeightmapEditModeDialog: React.FC = () => {
         { label: "Risk", onClick: () => handle(onRisk) },
         { label: "Cancel", onClick: () => handle(onCancel) }
       ]}
-      style={{ maxWidth: "28em" }}
+      className="-heightmap-edit-mode-dialog__max-width-28em"
     >
       <div>
         Heightmap is a core element on which all other data (rivers, burgs, states etc) is based. So the best edit
@@ -66,7 +66,7 @@ export const HeightmapEditModeDialog: React.FC = () => {
           </span>{" "}
           before editing the heightmap!
         </p>
-        <p style={{ marginBottom: 0 }}>
+        <p className="-heightmap-edit-mode-dialog__margin-bottom-0">
           Check out{" "}
           <a
             href="https://github.com/Azgaar/Fantasy-Map-Generator/wiki/Heightmap-viewContext.customization"

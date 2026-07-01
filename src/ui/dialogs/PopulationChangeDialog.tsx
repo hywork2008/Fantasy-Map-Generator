@@ -62,7 +62,7 @@ export const PopulationChangeDialog: React.FC = () => {
         { label: "Apply", onClick: handleApply },
         { label: "Cancel", onClick: handleClose }
       ]}
-      style={{ width: "24em" }}
+      className="-population-change-dialog__width-24em"
     >
       <div>
         <i>{config.description}</i>
@@ -73,7 +73,7 @@ export const PopulationChangeDialog: React.FC = () => {
             min={0}
             step={1}
             value={rural}
-            style={{ width: "6em" }}
+            className="-population-change-dialog__width-6em"
             onChange={e => setRural(e.target.valueAsNumber)}
           />{" "}
           Urban:{" "}
@@ -82,7 +82,7 @@ export const PopulationChangeDialog: React.FC = () => {
             min={0}
             step={1}
             value={urban}
-            style={{ width: "6em" }}
+            className="-population-change-dialog__width-6em"
             disabled={config.urbanDisabled}
             onChange={e => setUrban(e.target.valueAsNumber)}
           />

@@ -134,10 +134,9 @@ export const RegimentsOverviewDialog: React.FC = () => {
   const SortHeader: React.FC<{ field: string; label: string; numeric?: boolean }> = ({ field, label, numeric }) => (
     <div
       data-tip={`${label}. Click to sort`}
-      className={`sortable ${numeric ? "icon-sort-number-down" : "alphabetically"}`}
-      data-sortby={field}
+      className={`sortable ${numeric ? "icon-sort-number-down" : "alphabetically"} -regiments-overview-dialog__cursor-pointer`}
       onClick={() => toggleSortBy(field)}
-      style={{ cursor: "pointer" }}
+      data-sortby={field}
     >
       {label}&nbsp;
     </div>
@@ -162,10 +161,9 @@ export const RegimentsOverviewDialog: React.FC = () => {
             <div
               data-tip="Total military personnel (not considering crew). Click to sort"
               id="regimentsTotal"
-              className="sortable icon-sort-number-down"
+              className="sortable icon-sort-number-down -regiments-overview-dialog__cursor-pointer"
               data-sortby="total"
               onClick={() => toggleSortBy("total")}
-              style={{ cursor: "pointer" }}
             >
               Total&nbsp;
             </div>
@@ -174,7 +172,7 @@ export const RegimentsOverviewDialog: React.FC = () => {
             {rows.map(({ stateId, stateName, stateFullName, stateColor, regiment: r }) => (
               <div
                 key={`${stateId}-${r.i}`}
-                className="states"
+                className="states -regiments-overview-dialog__cursor-pointer"
                 data-id={r.i}
                 data-s={stateId}
                 data-state={stateName}
@@ -185,10 +183,14 @@ export const RegimentsOverviewDialog: React.FC = () => {
                 onClick={() =>
                   import("../../controllers/regiment-editor").then(m => m.editRegiment(`#regiment${stateId}-${r.i}`))
                 }
-                style={{ cursor: "pointer" }}
               >
                 <FillBox data-tip={stateFullName} fill={stateColor} disabled />
-                <input data-tip={stateFullName} style={{ width: "6em" }} value={stateName} readOnly />
+                <input
+                  data-tip={stateFullName}
+                  className="-regiments-overview-dialog__width-6em"
+                  value={stateName}
+                  readOnly
+                />
                 {r.icon && (r.icon.startsWith("http") || r.icon.startsWith("data:image")) ? (
                   <img
                     src={r.icon}
@@ -197,11 +199,16 @@ export const RegimentsOverviewDialog: React.FC = () => {
                     alt="emblem"
                   />
                 ) : (
-                  <span data-tip="Regiment's emblem" style={{ width: "1em" }}>
+                  <span data-tip="Regiment's emblem" className="-regiments-overview-dialog__width-1em">
                     {r.icon ?? ""}
                   </span>
                 )}
-                <input data-tip="Regiment's name" style={{ width: "13em" }} value={r.name} readOnly />
+                <input
+                  data-tip="Regiment's name"
+                  className="-regiments-overview-dialog__width-13em"
+                  value={r.name}
+                  readOnly
+                />
                 {unitTypes.map(u => (
                   <div key={u.name} data-type={u.name} data-tip={`${capitalize(u.name)} units number`}>
                     {displayValue(r.u[u.name] ?? 0, u.name)}
@@ -210,20 +217,20 @@ export const RegimentsOverviewDialog: React.FC = () => {
                 <div
                   data-type="total"
                   data-tip="Total military personnel (not considering crew)"
-                  style={{ fontWeight: "bold" }}
+                  className="-regiments-overview-dialog__font-weight-bold"
                 >
                   {displayValue(r.a, "total")}
                 </div>
               </div>
             ))}
             <div id="regimentsTotalLine" className="totalLine" data-tip="Total of all displayed regiments">
-              <div style={{ width: "21em", marginLeft: "1em" }}>Regiments: {rows.length}</div>
+              <div className="-regiments-overview-dialog__width-21em--margin-left-1em">Regiments: {rows.length}</div>
               {unitTypes.map(u => (
-                <div key={u.name} style={{ width: "5em" }}>
+                <div key={u.name} className="-regiments-overview-dialog__width-5em">
                   {si(sum(rows.map(({ regiment: r }) => r.u[u.name] ?? 0)))}
                 </div>
               ))}
-              <div style={{ width: "5em" }}>{si(totals.total)}</div>
+              <div className="-regiments-overview-dialog__width-5em">{si(totals.total)}</div>
             </div>
           </div>
           <div id="regimentsFooter">
@@ -240,7 +247,7 @@ export const RegimentsOverviewDialog: React.FC = () => {
               className={`icon-user-plus${addMode ? " pressed" : ""}`}
               onClick={() => setAddMode(!addMode)}
             />
-            <div data-tip="Select state" style={{ display: "inline-block" }}>
+            <div data-tip="Select state" className="-regiments-overview-dialog__display-inline-block">
               <span>State: </span>
               <select value={filterStateId} onChange={e => setFilterStateId(+e.target.value)}>
                 <option value="-1">all</option>

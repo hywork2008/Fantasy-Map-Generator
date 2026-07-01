@@ -8,7 +8,7 @@ export const Preview3dDialog: React.FC = () => {
 
   return (
     <Dialog isOpen={isOpen} title="Preview3d" onClose={() => closeDialog("preview3d")}>
-      <div id="preview3d" style={{ padding: 0 }}></div>
+      <div id="preview3d" className="-preview3d-dialog__padding-0"></div>
     </Dialog>
   );
 };

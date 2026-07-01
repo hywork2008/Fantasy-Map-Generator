@@ -15,7 +15,9 @@ export const GoodsStockDialog: React.FC = () => {
     <Dialog isOpen={isOpen} title={`${goodName} — Stock`} onClose={close}>
       <div id="goodsStockContainer">
         {sources.length === 0 ? (
-          <i style={{ color: "#888" }}>No stock of {goodName} found in any market or burg inventory.</i>
+          <i className="-goods-stock-dialog__color-888">
+            No stock of {goodName} found in any market or burg inventory.
+          </i>
         ) : (
           <>
             <div className="header" style={{ gridTemplateColumns: "1.6em 7em 4em" }}>
@@ -23,7 +25,7 @@ export const GoodsStockDialog: React.FC = () => {
               <div>Location</div>
               <div>Units</div>
             </div>
-            <div className="table" style={{ maxHeight: "30em" }}>
+            <div className="table -goods-stock-dialog__max-height-30em">
               {sources.map((s, _idx) => (
                 <div
                   key={`${s.type}-${s.id}`}
@@ -31,9 +33,11 @@ export const GoodsStockDialog: React.FC = () => {
                   className="states pointer"
                   onClick={() => onZoom(s.x, s.y)}
                 >
-                  <div className={s.type === "market" ? "icon-store" : "icon-dot-circled"} style={{ width: "1em" }} />
-                  <div style={{ width: "7em" }}>{s.name}</div>
-                  <div style={{ width: "4em" }}>{s.stock}</div>
+                  <div
+                    className={`\${s.type === "market" ? "icon-store" : "icon-dot-circled"} -goods-stock-dialog__width-1em`}
+                  />
+                  <div className="-goods-stock-dialog__width-7em">{s.name}</div>
+                  <div className="-goods-stock-dialog__width-4em">{s.stock}</div>
                 </div>
               ))}
             </div>

@@ -36,11 +36,11 @@ export function StyleTab() {
   const CUSTOM_PRESET_PREFIX = "fmgStyle_";
 
   return (
-    <div id="styleContent" className="tabcontent" style={{ display: "block" }}>
+    <div id="styleContent" className="tabcontent -style-tab__display-block">
       {/* ─── Preset selector ─── */}
       <p
         data-tip="Select a style preset. State labels may required regeneration if font is changed"
-        style={{ display: "inline-block" }}
+        className="-style-tab__display-inline-block"
       >
         Style preset:
       </p>
@@ -49,7 +49,7 @@ export function StyleTab() {
         id="stylePreset"
         value={activePreset}
         onChange={e => requestStylePresetChange(e.target.value)}
-        style={{ width: "45%", textTransform: "capitalize" }}
+        className="-style-tab__width-45--text-transform-capitalize"
       >
         {systemPresets.map(name => (
           <option key={name} value={name}>
@@ -65,8 +65,7 @@ export function StyleTab() {
       <button
         id="addStyleButton"
         data-tip="Click to save current style as a new preset"
-        className="icon-plus sideButton"
-        style={{ display: "inline-block" }}
+        className="icon-plus sideButton -style-tab__display-inline-block"
         onClick={() => addStylePreset()}
         type="button"
       />
@@ -85,9 +84,8 @@ export function StyleTab() {
           <button
             key={tab}
             type="button"
-            className={`options${activeSubTab === tab ? " active" : ""}`}
+            className={`options${activeSubTab === tab ? " active" : ""} -style-tab__text-transform-capitalize`}
             onClick={() => handleSubTabChange(tab)}
-            style={{ textTransform: "capitalize" }}
           >
             {tab}
           </button>

@@ -46,8 +46,8 @@ export const StateMergeDialog: React.FC = () => {
         { label: "Cancel", onClick: handleClose }
       ]}
     >
-      <div style={{ width: "36em" }}>
-        <p style={{ margin: "0 0 1em 0" }}>
+      <div className="-state-merge-dialog__width-36em">
+        <p className="-state-merge-dialog__margin-0-0-1em-0">
           Check the <b>checkbox</b> next to each state you want to merge. Use the <b>radio button</b> to pick the{" "}
           <em>ruling state</em> that will absorb all others (its name, color, and capital will be kept). Hover over a
           row to highlight the state on the map.

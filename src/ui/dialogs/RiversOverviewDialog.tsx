@@ -168,7 +168,10 @@ export const RiversOverviewDialog: React.FC = () => {
       className="fmg-dialog--overflow-hidden"
     >
       <div id="riversOverviewContainer">
-        <div id="riversHeader" className="header" style={{ gridTemplateColumns: "9em 4em 7em 5em 5em 9em" }}>
+        <div
+          id="riversHeader"
+          className="header -rivers-overview-dialog__grid-template-columns-9em-4em-7em-5em-5em-9em"
+        >
           <div
             data-tip="Click to sort by river name"
             className={`sortable alphabetically ${sortBy === "name" ? (sortOrder === "asc" ? "icon-sort-name-up" : "icon-sort-name-down") : ""}`}
@@ -250,18 +253,18 @@ export const RiversOverviewDialog: React.FC = () => {
           })}
         </div>
         <div id="riversTotal" className="totalLine">
-          <div data-tip="Rivers number" style={{ marginLeft: 4 }}>
+          <div data-tip="Rivers number" className="-rivers-overview-dialog__margin-left-4">
             Rivers:&nbsp;
             <span id="riversFooterNumber">{`${filteredRivers.length} of ${worldContext.pack?.rivers?.length || 0}`}</span>
           </div>
-          <div data-tip="Average discharge" style={{ marginLeft: 12 }}>
+          <div data-tip="Average discharge" className="-rivers-overview-dialog__margin-left-12">
             Average discharge:&nbsp;<span id="riversFooterDischarge">{`${averageDischarge} m³/s`}</span>
           </div>
-          <div data-tip="Average length" style={{ marginLeft: 12 }}>
+          <div data-tip="Average length" className="-rivers-overview-dialog__margin-left-12">
             Length:&nbsp;
             <span id="riversFooterLength">{`${averageLength * worldContext.distanceScale} ${unit}`}</span>
           </div>
-          <div data-tip="Average mouth width" style={{ marginLeft: 12 }}>
+          <div data-tip="Average mouth width" className="-rivers-overview-dialog__margin-left-12">
             Width:&nbsp;
             <span id="riversFooterWidth">{`${rn(averageWidth * worldContext.distanceScale, 3)} ${unit}`}</span>
           </div>

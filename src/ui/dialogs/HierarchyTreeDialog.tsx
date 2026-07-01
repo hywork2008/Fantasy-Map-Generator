@@ -54,7 +54,7 @@ const OriginSelector: React.FC<OriginSelectorProps> = ({ selectedNode, elements,
       }}
     >
       <h4>Select origins</h4>
-      <form style={{ maxHeight: "35vh", overflowY: "auto" }}>
+      <form className="-hierarchy-tree-dialog__max-height-35vh--overflow-y-auto">
         {selectableElements.map(({ i, name, code, color }) => {
           const isPrimary = primary === i;
           const isChecked = isPrimary || secondary.includes(i);
@@ -88,7 +88,7 @@ const OriginSelector: React.FC<OriginSelectorProps> = ({ selectedNode, elements,
           );
         })}
       </form>
-      <div style={{ marginTop: "1em" }}>
+      <div className="-hierarchy-tree-dialog__margin-top-1em">
         <button
           type="button"
           onClick={() => {
@@ -135,13 +135,16 @@ export const HierarchyTreeDialog: React.FC = () => {
       isOpen={isOpen}
       title={`${props.type.charAt(0).toUpperCase() + props.type.slice(1)} tree`}
       onClose={() => closeDialog("hierarchyTree")}
-      style={{ width: 700 }}
+      className="-hierarchy-tree-dialog__width-700"
     >
       <style>{localStyle}</style>
-      <div className="hierarchyTree_container" style={{ minHeight: "400px" }}>
+      <div className="hierarchyTree_container -hierarchy-tree-dialog__min-height-400px">
         <svg ref={svgRef}>
           <title>{props.type} tree</title>
-          <g id="hierarchyTree_viewbox" style={{ textAnchor: "middle", dominantBaseline: "central" }}>
+          <g
+            id="hierarchyTree_viewbox"
+            className="-hierarchy-tree-dialog__text-anchor-middle--dominant-baseline-central"
+          >
             <g transform="translate(10, -45)">
               <g id="hierarchyTree_links" fill="none" stroke="#aaa">
                 <g id="hierarchyTree_linksPrimary"></g>
@@ -155,7 +158,7 @@ export const HierarchyTreeDialog: React.FC = () => {
 
         <div id="hierarchyTree_details" className="chartInfo">
           {!selectedNode ? (
-            <div id="hierarchyTree_infoLine" style={{ display: "block" }}>
+            <div id="hierarchyTree_infoLine" className="-hierarchy-tree-dialog__display-block">
               {infoLine}
             </div>
           ) : (

@@ -35,9 +35,8 @@ export const MarketDealsDialog: React.FC = () => {
           <div />
           <div
             data-tip="Click to sort by good"
-            className="sortable alphabetically"
+            className="sortable alphabetically -market-deals-dialog__margin-left-0"
             data-sortby="good"
-            style={{ marginLeft: 0 }}
           >
             Good&nbsp;
           </div>
@@ -55,7 +54,7 @@ export const MarketDealsDialog: React.FC = () => {
           </div>
         </div>
 
-        <div id="marketDealsBody" className="table" style={{ maxHeight: "30em" }}>
+        <div id="marketDealsBody" className="table -market-deals-dialog__max-height-30em">
           {rows.length === 0 ? (
             <span>No market deals recorded</span>
           ) : (
@@ -64,10 +63,10 @@ export const MarketDealsDialog: React.FC = () => {
         </div>
 
         <div id="marketDealsFooter" className="totalLine">
-          <div style={{ marginLeft: 5 }} data-tip="Deals count">
+          <div className="-market-deals-dialog__margin-left-5" data-tip="Deals count">
             Deals: <span id="marketDealsFooterDeals">{dealsCount}</span>
           </div>
-          <div style={{ marginLeft: 12 }} data-tip="Net flow for this market">
+          <div className="-market-deals-dialog__margin-left-12" data-tip="Net flow for this market">
             Net Flow: <span id="marketDealsFooterNet">{formatPrice(netFlow)}</span>
           </div>
         </div>
@@ -90,7 +89,7 @@ export const MarketDealsDialog: React.FC = () => {
           <select
             id="marketDealsFilter"
             data-tip="Filter deals by scope"
-            style={{ marginLeft: 8 }}
+            className="-market-deals-dialog__margin-left-8"
             value={activeFilter}
             onChange={e => setActiveMarketDealsFilter(e.target.value as "all" | "local" | "global")}
           >

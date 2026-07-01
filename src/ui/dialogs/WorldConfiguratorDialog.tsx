@@ -202,11 +202,11 @@ export const WorldConfiguratorDialog: React.FC = () => {
     <Dialog isOpen={isOpen} title="WorldConfigurator" onClose={() => closeDialog("worldConfigurator")}>
       <div id="worldConfiguratorContainer">
         <div>
-          <div style={{ display: "flex" }}>
+          <div className="-world-configurator-dialog__display-flex">
             <fieldset
               id="worldControls"
               onInput={handleControlsChange}
-              style={{ border: "none", padding: 0, margin: 0 }}
+              className="-world-configurator-dialog__border-none--padding-0--margin-0"
             >
               <div>
                 <i data-locked={0} id="lock_temperatureEquator" className="icon-lock-open" />
@@ -429,7 +429,7 @@ export const WorldConfiguratorDialog: React.FC = () => {
                 <i>Coords:</i> <span id="mapCoordinates">{globeStats.mapCoordinates}</span>
               </div>
             </fieldset>
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+            <div className="-world-configurator-dialog__display-flex--flex-direction-column--align-items-f">
               <svg ref={globeRef} id="globe" width="22em" viewBox="-20 -25 240 240" aria-hidden="true">
                 <defs>
                   <linearGradient id="temperatureGradient" x1={0} x2={0} y1={0} y2={1}>
@@ -456,7 +456,7 @@ export const WorldConfiguratorDialog: React.FC = () => {
                   data-tip="Click to change wind direction"
                   strokeLinejoin="round"
                   onClick={handleWindChange}
-                  style={{ cursor: "pointer" }}
+                  className="-world-configurator-dialog__cursor-pointer"
                 >
                   <circle cx={210} cy={6} r={12} />
                   <path data-tier={0} d="M210,11 v-10 l-3,3 m6,0 l-3,-3" transform="rotate(225 210 6)" />
@@ -555,10 +555,7 @@ export const WorldConfiguratorDialog: React.FC = () => {
             </button>
           </div>
         </div>
-        <div
-          className="fmg-dialog-buttonpane"
-          style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}
-        >
+        <div className="fmg-dialog-buttonpane -world-configurator-dialog__display-flex--align-items-center--justify-content-">
           <div className="dontAsk" data-tip="Automatically update world on input changes and button clicks">
             <input
               id="wcAutoChange"

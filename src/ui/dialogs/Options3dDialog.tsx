@@ -66,7 +66,7 @@ export const Options3dDialog: React.FC = () => {
                 min={0}
                 max={10}
                 step=".1"
-                style={{ width: "4em" }}
+                className="-options3d-dialog__width-4em"
                 value={options.rotateMesh}
                 onChange={e =>
                   handleChange("rotateMesh", +e.target.value, () => ThreeDRenderer.setRotation(+e.target.value))
@@ -86,7 +86,7 @@ export const Options3dDialog: React.FC = () => {
                 type="number"
                 min={0}
                 max={1000}
-                style={{ width: "4em" }}
+                className="-options3d-dialog__width-4em"
                 value={options.scale}
                 onChange={e => handleChange("scale", +e.target.value, () => ThreeDRenderer.setScale(+e.target.value))}
               />
@@ -106,7 +106,7 @@ export const Options3dDialog: React.FC = () => {
                 type="number"
                 min={0}
                 max={500}
-                style={{ width: "4em" }}
+                className="-options3d-dialog__width-4em"
                 value={options.lightness}
                 onChange={e =>
                   handleChange("lightness", +e.target.value, () => ThreeDRenderer.setLightness(+e.target.value / 100))
@@ -116,7 +116,7 @@ export const Options3dDialog: React.FC = () => {
             <div data-tip="Set mesh texture resolution">
               <div>Texture resolution:</div>
               <select
-                style={{ width: "10em" }}
+                className="-options3d-dialog__width-10em"
                 value={options.resolutionScale}
                 onChange={e =>
                   handleChange("resolutionScale", +e.target.value, () =>
@@ -232,7 +232,7 @@ export const Options3dDialog: React.FC = () => {
               />
               <label htmlFor="options3dSubdivide" className="checkbox-label">
                 <i>
-                  Smooth geometry <small style={{ color: "darkred" }}>[slow]</small>
+                  Smooth geometry <small className="-options3d-dialog__color-darkred">[slow]</small>
                 </i>
               </label>
             </div>
@@ -271,7 +271,7 @@ export const Options3dDialog: React.FC = () => {
               <div data-tip="Set eroded mesh detail level (vertices on the long side)">
                 <div>Mesh detail:</div>
                 <select
-                  style={{ width: "10em" }}
+                  className="-options3d-dialog__width-10em"
                   value={options.erosionDetail}
                   onChange={e =>
                     handleChange("erosionDetail", +e.target.value, () =>
@@ -303,7 +303,7 @@ export const Options3dDialog: React.FC = () => {
                   type="number"
                   min={0}
                   max={100}
-                  style={{ width: "4em" }}
+                  className="-options3d-dialog__width-4em"
                   value={options.erosionStrength}
                   onChange={e =>
                     handleChange("erosionStrength", +e.target.value, () =>
@@ -330,7 +330,7 @@ export const Options3dDialog: React.FC = () => {
                   type="number"
                   min={0}
                   max={100}
-                  style={{ width: "4em" }}
+                  className="-options3d-dialog__width-4em"
                   value={options.erosionRiverDepth}
                   onChange={e =>
                     handleChange("erosionRiverDepth", +e.target.value, () =>
@@ -343,7 +343,7 @@ export const Options3dDialog: React.FC = () => {
               <div data-tip="Set the number of erosion detail layers. More octaves add finer gullies">
                 <div>Detail octaves:</div>
                 <select
-                  style={{ width: "6em" }}
+                  className="-options3d-dialog__width-6em"
                   value={options.erosionOctaves}
                   onChange={e =>
                     handleChange("erosionOctaves", +e.target.value, () =>
@@ -412,7 +412,7 @@ export const Options3dDialog: React.FC = () => {
                 min={0}
                 max={10}
                 step=".1"
-                style={{ width: "4em" }}
+                className="-options3d-dialog__width-4em"
                 value={options.rotateGlobe}
                 onChange={e =>
                   handleChange("rotateGlobe", +e.target.value, () => ThreeDRenderer.setRotation(+e.target.value))
@@ -422,7 +422,7 @@ export const Options3dDialog: React.FC = () => {
             <div data-tip="Set globe texture resolution">
               <div>Texture resolution:</div>
               <select
-                style={{ width: "5em" }}
+                className="-options3d-dialog__width-5em"
                 value={options.resolution}
                 onChange={e =>
                   handleChange("resolution", +e.target.value, () => ThreeDRenderer.setResolution(+e.target.value))

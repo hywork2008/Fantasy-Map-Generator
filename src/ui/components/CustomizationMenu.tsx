@@ -26,7 +26,7 @@ export const CustomizationMenu: React.FC = () => {
           type="button"
           data-tip="Open template editor"
           id="applyTemplate"
-          style={{ display: "none" }}
+          className="-customization-menu__display-none"
           onClick={() => HeightmapEditorActions.openTemplateEditor()}
         >
           Template Editor
@@ -35,7 +35,7 @@ export const CustomizationMenu: React.FC = () => {
           type="button"
           data-tip="Open Image Converter"
           id="convertImage"
-          style={{ display: "none" }}
+          className="-customization-menu__display-none"
           onClick={() => HeightmapEditorActions.openImageConverter()}
         >
           Image Converter

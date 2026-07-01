@@ -133,7 +133,7 @@ const PhasePicker: React.FC<PhasePickerProps> = ({ side, battleType, currentPhas
   };
 
   return (
-    <div style={{ display: "inline-block" }}>
+    <div className="-battle-screen-dialog__display-inline-block">
       <button
         type="button"
         className={`icon-button-${currentPhase || "skirmish"}`}
@@ -142,7 +142,7 @@ const PhasePicker: React.FC<PhasePickerProps> = ({ side, battleType, currentPhas
         onClick={handleToggle}
       />
       {open && (
-        <div className="battlePhases" style={{ display: "block" }}>
+        <div className="battlePhases -battle-screen-dialog__display-block">
           {options.map(opt => (
             <button
               key={opt.phase}
@@ -176,8 +176,7 @@ const SideHeader: React.FC<SideHeaderProps> = ({ label, side, morale, power, pha
       <meter data-tip={`${label} morale: ${morale}`} min={0} max={100} low={33} high={66} optimum={80} value={morale} />
       <div
         data-tip={`${label} strength during this phase. Strength defines dealt damage`}
-        style={{ display: "inline-block", textAlign: "center" }}
-        className="icon-button-power"
+        className="-battle-screen-dialog__display-inline-block--text-align-center icon-button-power"
       >
         {power}
       </div>
@@ -343,8 +342,7 @@ export const RegimentSelectorScreenDialog: React.FC = () => {
     >
       <div
         id="regimentSelectorHeader"
-        className="header"
-        style={{ gridTemplateColumns: "9em 13em 4em 6em" }}
+        className="header -battle-screen-dialog__grid-template-columns-9em-13em-4em-6em"
         ref={el => {
           if (el) applySorting(el);
         }}
@@ -387,16 +385,18 @@ export const RegimentSelectorScreenDialog: React.FC = () => {
               <svg
                 width=".9em"
                 height=".9em"
-                style={{ marginBottom: "-1px", stroke: "#333" }}
+                className="-battle-screen-dialog__margin-bottom-1px--stroke-333"
                 aria-label={s.name ?? ""}
               >
                 <rect x="0" y="0" width="100%" height="100%" fill={s.color ?? "#999"} />
               </svg>
-              <div style={{ width: "6em" }}>{(s.name ?? "").slice(0, 11)}</div>
+              <div className="-battle-screen-dialog__width-6em">{(s.name ?? "").slice(0, 11)}</div>
               <div style={{ width: "1.2em" }}>{r.icon}</div>
-              <div style={{ width: "13em" }}>{r.name.slice(0, 24)}</div>
-              <div style={{ width: "4em" }}>{r.a}</div>
-              <div style={{ width: "4em" }}>{isAdded ? `0 ${distanceUnit}` : `? ${distanceUnit}`}</div>
+              <div className="-battle-screen-dialog__width-13em">{r.name.slice(0, 24)}</div>
+              <div className="-battle-screen-dialog__width-4em">{r.a}</div>
+              <div className="-battle-screen-dialog__width-4em">
+                {isAdded ? `0 ${distanceUnit}` : `? ${distanceUnit}`}
+              </div>
             </div>
           );
         })}
@@ -464,13 +464,13 @@ export const BattleScreenDialog: React.FC = () => {
                 />
                 <input
                   data-tip="Type place name"
-                  style={{ width: "30%" }}
+                  className="-battle-screen-dialog__width-30"
                   value={place}
                   onChange={e => battleAction_changePlace(e.target.value)}
                 />
                 <input
                   data-tip="Type full battle name"
-                  style={{ width: "46%" }}
+                  className="-battle-screen-dialog__width-46"
                   value={name}
                   onChange={e => battleAction_changeName(e.target.value)}
                 />

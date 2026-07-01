@@ -28,7 +28,7 @@ export const RoutesEditorDialog: React.FC = () => {
               type="text"
               value={routeName}
               onChange={e => routesEditorActions.changeName(e.target.value)}
-              style={{ width: "12em" }}
+              className="-routes-editor-dialog__width-12em"
             />
             <button
               type="button"
@@ -45,7 +45,7 @@ export const RoutesEditorDialog: React.FC = () => {
               id="routeGroup"
               value={routeGroup}
               onChange={e => routesEditorActions.changeGroup(e.target.value)}
-              style={{ width: "12em" }}
+              className="-routes-editor-dialog__width-12em"
             >
               {allGroups.map(group => (
                 <option key={group} value={group}>
@@ -158,7 +158,7 @@ export const RoutesEditorDialog: React.FC = () => {
               id="routeCreatorGroupSelect"
               value={creatorGroup}
               onChange={e => routesEditorActions.changeCreatorGroup(e.target.value)}
-              style={{ width: "12em" }}
+              className="-routes-editor-dialog__width-12em"
             >
               {allGroups.map(group => (
                 <option key={group} value={group}>
@@ -175,14 +175,13 @@ export const RoutesEditorDialog: React.FC = () => {
             />
           </div>
 
-          <div id="routeCreatorBody" style={{ maxHeight: "400px", overflowY: "auto", margin: "1em 0" }}>
+          <div id="routeCreatorBody" className="-routes-editor-dialog__max-height-400px--overflow-y-auto--margin-1em-0">
             {creatorPoints.map(pt => {
               const ptStr = `${pt.x}-${pt.y}-${pt.cellId}`;
               return (
                 <div
                   key={ptStr}
-                  className="editorLine"
-                  style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr auto", gap: "1em" }}
+                  className="editorLine -routes-editor-dialog__display-grid--grid-template-columns-1fr-1fr-1fr-au"
                 >
                   <span>
                     <b>Cell</b>: {pt.cellId}
@@ -203,7 +202,7 @@ export const RoutesEditorDialog: React.FC = () => {
             })}
           </div>
 
-          <div className="editor-row" style={{ display: "flex", justifyContent: "flex-end", gap: "1em" }}>
+          <div className="editor-row -routes-editor-dialog__display-flex--justify-content-flex-end--gap-1em">
             <button type="button" id="routeCreatorCancel" onClick={routesEditorActions.closeRouteCreator}>
               Cancel
             </button>
