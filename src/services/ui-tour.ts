@@ -1,8 +1,8 @@
 import { driver } from "driver.js";
 import { closeDialogs } from "../ui/dialogs/dialogService";
 import "driver.js/dist/driver.css";
-import { showExportPane } from "../controllers/options";
 import { editWorld } from "../controllers/world-configurator";
+import { EditorBus } from "../utils/editorBus";
 
 const byId = (id: string) => document.getElementById(id);
 
@@ -324,7 +324,7 @@ class UITourModule {
           element: "#exportMapData",
           disableActiveInteraction: false,
           onHighlightStarted: () => {
-            showExportPane();
+            EditorBus.showExportPane();
           },
           popover: {
             title: "Export Options",

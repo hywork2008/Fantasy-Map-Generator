@@ -1,8 +1,7 @@
-import { clearLegend, closeDialogs, unfog } from "./controllers/editors";
 import { heightmapTemplates } from "./data";
 import { createViewLayers, populateSizeRects, reinitializeMapLayers } from "./initViewLayers";
 import { generationErrorDialogStore } from "./store/generationErrorDialogState";
-import { openAlert } from "./ui/dialogs/dialogService";
+import { closeDialogs, openAlert } from "./ui/dialogs/dialogService";
 import { DEBUG, ERROR, INFO, TIME, WARN } from "./utils/debug";
 
 // Azgaar (azgaar.fmg@yandex.com). Minsk, 2017-2023. MIT License
@@ -16,14 +15,11 @@ import { getWorldState, resetZoom, zoomTo } from "./actions";
 import { appServices } from "./context/appServices";
 import { viewContext } from "./context/viewContext";
 import { worldContext } from "./context/worldContext";
-import { restoreDefaultEvents } from "./controllers/editors";
 import { applyLayersPreset, drawLayers } from "./controllers/layers";
 import { createDefaultRuler } from "./controllers/measurers";
 import { updateMinimap } from "./controllers/minimap";
 import { applyGraphSize, applyStoredOptions, fitMapToScreen, randomizeOptions } from "./controllers/options";
 import { applyStyleOnLoad } from "./controllers/style";
-import { editUnits } from "./controllers/units-editor";
-import { editWorld } from "./controllers/world-configurator";
 import { Biomes } from "./generators/biomes";
 import { Burgs } from "./generators/burgs-generator";
 import { Cultures } from "./generators/cultures-generator";
@@ -72,6 +68,7 @@ import {
   shouldRegenerateGrid
 } from "./utils";
 import { locked } from "./utils/domUtils";
+import { EditorBus } from "./utils/editorBus";
 import { getElementById, layerIsOn } from "./utils/nodeUtils";
 import { cleanupData } from "./versioning";
 
@@ -106,11 +103,11 @@ if (PRODUCTION && "serviceWorker" in navigator) {
 createViewLayers();
 
 viewContext.scaleBar.node()?.addEventListener("mousemove", () => tip("Click to open Units Editor"));
-viewContext.scaleBar.node()?.addEventListener("click", () => editUnits());
+viewContext.scaleBar.node()?.addEventListener("click", () => EditorBus.editUnits());
 viewContext.legend
   .node()
   ?.addEventListener("mousemove", () => tip("Drag to change the position. Click to hide the legend"));
-viewContext.legend.node()?.addEventListener("click", () => clearLegend());
+viewContext.legend.node()?.addEventListener("click", () => EditorBus.clearLegend());
 
 // ─── SVG layer reinitialization (called after a new map SVG is loaded) ────────
 
@@ -306,7 +303,7 @@ export async function initMain(): Promise<void> {
     hideLoading();
     await checkLoadParameters();
   }
-  restoreDefaultEvents?.();
+  EditorBus.restoreDefaultEvents?.();
   initiateAutosave();
   initTourPromptButton();
   document.addEventListener("fmg:regenerate-map", (e: Event) => {
@@ -1489,7 +1486,7 @@ export const regenerateMap = debounce(async (opts?: { seed?: string } | string) 
   await generate(typeof opts === "string" ? { seed: opts } : opts);
   drawLayers();
   if (ThreeDRenderer.options.isOn) ThreeDRenderer.redraw();
-  if (dialogStore.getState().openDialogs.has("worldConfigurator")) editWorld();
+  if (dialogStore.getState().openDialogs.has("worldConfigurator")) EditorBus.editWorld();
 
   fitMapToScreen();
   shouldShowLoading && hideLoading();
@@ -1509,5 +1506,5 @@ export function undraw() {
   const coasEl = getElementById<HTMLElement>("coas");
   if (coasEl) coasEl.innerHTML = "";
   worldContext.notes = [];
-  unfog();
+  EditorBus.unfog();
 }

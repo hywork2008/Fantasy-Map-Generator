@@ -80,5 +80,34 @@ export const EditorBus = {
   },
 
   /** @internal icon callback; set by selectIcon, consumed by the listener in controllers/editors.ts */
-  _iconCallback: null as ((value: string) => void) | null
+  _iconCallback: null as ((value: string) => void) | null,
+
+  /** Open the Color Picker. */
+  openPicker(fill: string, callback: (fill: string) => void): void {
+    EditorBus._pickerCallback = callback;
+    document.dispatchEvent(new CustomEvent("fmg:open-picker", { detail: { fill } }));
+  },
+
+  /** @internal picker callback; set by openPicker, consumed by the listener in controllers/editors.ts */
+  _pickerCallback: null as ((value: string) => void) | null,
+
+  /** Open the Biomes editor. */
+  editBiomes(): void {
+    document.dispatchEvent(new CustomEvent("fmg:edit-biomes"));
+  },
+
+  /** Open the Units editor. */
+  editUnits(): void {
+    document.dispatchEvent(new CustomEvent("fmg:edit-units"));
+  },
+
+  /** Open the World Configurator. */
+  editWorld(): void {
+    document.dispatchEvent(new CustomEvent("fmg:edit-world"));
+  },
+
+  /** Show Export pane in Options. */
+  showExportPane(): void {
+    document.dispatchEvent(new CustomEvent("fmg:show-export-pane"));
+  }
 };

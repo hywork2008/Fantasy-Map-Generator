@@ -9,17 +9,9 @@ import { getComposedPath, layerIsOn } from "../utils/nodeUtils";
 import { convertTemperature, si } from "../utils/unitUtils";
 import { getFriendlyHeight, getFriendlyPrecipitation, getPopulationTip } from "./cellInfoService";
 
-export const tooltipExtensions: {
-  showMapTooltip?: (
-    point: [number, number],
-    e: MouseEvent,
-    i: number,
-    g: number,
-    group: string,
-    subgroup: string
-  ) => boolean;
-  updateCellInfo?: (point: [number, number], i: number, g: number) => void;
-} = {};
+import { tooltipExtensions } from "./tooltipExtensions";
+
+export { tooltipExtensions };
 export function tip(
   message: string,
   main = false,

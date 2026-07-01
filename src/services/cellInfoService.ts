@@ -7,7 +7,7 @@ import { getArea, getAreaUnit } from "../utils/domUtils";
 import { findCell, findGridCell } from "../utils/graphUtils";
 import { rn } from "../utils/numberUtils";
 import { convertTemperature, si } from "../utils/unitUtils";
-import { tooltipExtensions } from "./tooltipService";
+import { tooltipExtensions } from "./tooltipExtensions";
 
 export function updateCellInfo(point: [number, number], i: number, g: number): void {
   const cells = worldContext.pack.cells;

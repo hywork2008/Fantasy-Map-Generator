@@ -19,7 +19,6 @@ import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog, downloadFile, getFileName } from "../utils/editorHelpers";
 import { getPackPolygon } from "../utils/graphUtils";
 import { getElementById, layerIsOn } from "../utils/nodeUtils";
-import { openPicker } from "./editors";
 import { open as openHierarchyTree } from "./hierarchy-tree";
 import { toggleBiomes, toggleCultures, toggleProvinces, toggleReligions, toggleStates } from "./layers";
 import { editStyle } from "./style";
@@ -289,7 +288,7 @@ export const religionsEditorActions = {
 
   changeFill(i: number): void {
     const r = worldContext.pack.religions[i];
-    openPicker(r.color || "", (newFill: string) => {
+    EditorBus.openPicker(r.color || "", (newFill: string) => {
       r.color = newFill;
       view.relig.select(`#religion${i}`).attr("fill", newFill);
       view.debug.select(`#religionsCenter${i}`).attr("fill", newFill);

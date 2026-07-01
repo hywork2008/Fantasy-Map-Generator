@@ -50,7 +50,6 @@ import type { RegenerateConfirmConfig } from "../ui/dialogs/RegenerateConfirmDia
 import { findCell, gauss, generateSeed, getNextId, isCtrlClick, P, rn, showPrompt } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { getElementById, getElementBySelector, getElementsBySelector, layerIsOn } from "../utils/nodeUtils";
-import { editBiomes } from "./biomes-editor";
 import { overviewBurgs } from "./burgs-overview";
 import { openChartsOverview } from "./charts-overview";
 import { editDiplomacy } from "./diplomacy-editor";
@@ -169,7 +168,7 @@ document.addEventListener("react-tool-action", e => {
 
   if (view.customization) return tip("Please exit the customization mode first", false, "error");
 
-  if (button === "editBiomesButton") toggleEditor("biomesEditor", "toggleBiomes", editBiomes);
+  if (button === "editBiomesButton") toggleEditor("biomesEditor", "toggleBiomes", EditorBus.editBiomes);
   else if (button === "editStatesButton") toggleEditor("statesEditor", "toggleStates", EditorBus.editStates);
   else if (button === "editProvincesButton") toggleEditor("provincesEditor", "toggleProvinces", editProvinces!);
   else if (button === "editDiplomacyButton") toggleEditor("diplomacyEditor", "toggleStates", editDiplomacy!);

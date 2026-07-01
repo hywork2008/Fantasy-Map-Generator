@@ -17,7 +17,6 @@ import { EditorBus } from "../utils/editorBus";
 import { downloadFile, getFileName } from "../utils/editorHelpers";
 import { getPackPolygon } from "../utils/graphUtils";
 import { layerIsOn } from "../utils/nodeUtils";
-import { openPicker } from "./editors";
 import { toggleBiomes, toggleCultures, toggleProvinces, toggleRelief, toggleReligions, toggleStates } from "./layers";
 import { editStyle } from "./style";
 import { recalculatePopulation } from "./tools";
@@ -137,7 +136,7 @@ export function biomesChangeColor(biomeId: number, currentColor: string): void {
       .attr("stroke", newFill);
     useBiomesEditorStore.getState().updateRowColor(biomeId, newFill);
   };
-  openPicker(currentColor, callback);
+  EditorBus.openPicker(currentColor, callback);
 }
 
 export function biomesChangeName(biomeId: number, name: string): void {
@@ -373,3 +372,4 @@ export function initBiomesEditor(wc: WorldContext, _vc: Readonly<ViewContext>, a
 document.addEventListener("fmg:refresh-editors", () => {
   if (isDialogOpen("biomesEditor")) biomesRefresh();
 });
+document.addEventListener("fmg:edit-biomes", () => editBiomes());

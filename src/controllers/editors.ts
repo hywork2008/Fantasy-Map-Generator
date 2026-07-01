@@ -499,7 +499,7 @@ interface OpenPickerFn {
   updateFill?: () => void;
 }
 
-export const openPicker: OpenPickerFn = (fill: string, callback: (fill: string) => void): void => {
+const openPicker: OpenPickerFn = (fill: string, callback: (fill: string) => void): void => {
   const picker = getPickerGroupSelection();
   if (!picker?.size()) createPicker();
   getPickerContainerSelection()?.style("display", "block");
@@ -619,6 +619,11 @@ export function unfog(id?: string): void {
   el.remove();
   if (!view.defs.selectAll("#fog path").size()) view.fogging!.style("display", "none");
 }
+
+document.addEventListener("fmg:open-picker", (e: Event) => {
+  const detail = (e as CustomEvent).detail;
+  openPicker(detail.fill, EditorBus._pickerCallback!);
+});
 
 // getFileName, downloadFile, uploadFile are re-exported from ../utils/editorHelpers
 

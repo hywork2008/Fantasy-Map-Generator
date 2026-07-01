@@ -37,7 +37,6 @@ import { getPackPolygon } from "../utils/graphUtils";
 import { getElementBySelector, layerIsOn } from "../utils/nodeUtils";
 import { BrushHistoryClass as BrushHistory } from "./BrushHistory";
 import { overviewBurgs } from "./burgs-overview";
-import { openPicker } from "./editors";
 import { interactionManager } from "./interactionManager";
 import { toggleBiomes, toggleBorders, toggleCultures, toggleProvinces, toggleReligions, toggleStates } from "./layers";
 import { editStyle } from "./style";
@@ -366,7 +365,7 @@ export const statesEditorActions = {
       MilitaryRenderer.updateArmyColor(viewContext, stateId, solidColor, darkerColor);
       refreshStatesEditor();
     };
-    openPicker(currentFill ?? "", callback);
+    EditorBus.openPicker(currentFill ?? "", callback);
   },
 
   editStateName(stateId: number): void {

@@ -23,7 +23,6 @@ import { confirmationDialog, downloadFile, getFileName } from "../utils/editorHe
 import { getPackPolygon } from "../utils/graphUtils";
 import { layerIsOn } from "../utils/nodeUtils";
 import { BrushHistoryClass as BrushHistory } from "./BrushHistory";
-import { openPicker } from "./editors";
 import { open as openHierarchyTree } from "./hierarchy-tree";
 import { interactionManager } from "./interactionManager";
 import { toggleBiomes, toggleCultures, toggleProvinces, toggleReligions, toggleStates } from "./layers";
@@ -245,7 +244,7 @@ export const culturesEditorActions = {
 
   changeFill(i: number): void {
     const c = worldContext.pack.cultures[i] as Culture;
-    openPicker(c.color ?? "#ffffff", (newFill: string) => {
+    EditorBus.openPicker(c.color ?? "#ffffff", (newFill: string) => {
       c.color = newFill;
       view.cults.select(`#culture${i}`).attr("fill", newFill);
       view.debug.select(`#cultureCenter${i}`).attr("fill", newFill);
