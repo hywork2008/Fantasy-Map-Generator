@@ -196,7 +196,7 @@ export const BurgsOverviewDialog: React.FC = () => {
         className={`sortable ${numeric ? "icon-sort-number-down" : "alphabetically"} -burgs-overview-dialog__cursor-pointer`}
         data-sortby={field}
         onClick={() => toggleSortBy(field)}
-        style={{ width }}
+        style={{ width, minWidth: width }}
       >
         {label}
       </th>
@@ -264,17 +264,17 @@ export const BurgsOverviewDialog: React.FC = () => {
       className="fmg-dialog--overflow-hidden"
     >
       <div id="burgsOverviewContainer">
-        <div id="burgsBody" className="table" ref={parentRef} style={{ overflowY: "auto", maxHeight: "60vh" }}>
-          <table className="fmg-table">
-            <thead style={{ position: "sticky", top: 0, zIndex: 1, backgroundColor: "var(--bg-color)" }}>
+        <div id="burgsBody" className="table" ref={parentRef} style={{ overflow: "auto", maxHeight: "60vh" }}>
+          <table className="fmg-table" style={{ borderCollapse: "separate", borderSpacing: 0 }}>
+            <thead style={{ zIndex: 3 }}>
               <tr id="burgsHeader">
-                <SortHeader field="name" label="Burg" width="9em" />
+                <SortHeader field="name" label="Burg" width="14em" />
                 <SortHeader field="province" label="Province" width="7em" />
                 <SortHeader field="state" label="State" width="7.5em" />
                 <SortHeader field="culture" label="Culture" width="7.2em" />
                 <SortHeader field="group" label="Group" width="6.5em" />
                 <SortHeader field="population" label="Population" numeric width="7em" />
-                <SortHeader field="features" label="Features" width="6em" />
+                <SortHeader field="features" label="Feat." width="3.5em" />
                 <th></th>
               </tr>
             </thead>
@@ -321,7 +321,7 @@ export const BurgsOverviewDialog: React.FC = () => {
                             value={b.name ?? ""}
                             disabled
                             readOnly
-                            style={{ width: "calc(100% - 20px)" }}
+                            style={{ width: "calc(100% - 20px)", minWidth: "5em" }}
                           />
                         </td>
                         <td>
@@ -330,11 +330,17 @@ export const BurgsOverviewDialog: React.FC = () => {
                             value={province}
                             disabled
                             readOnly
-                            style={{ width: "100%" }}
+                            style={{ width: "100%", minWidth: "4em" }}
                           />
                         </td>
                         <td>
-                          <input data-tip="Burg state" value={stateName} disabled readOnly style={{ width: "100%" }} />
+                          <input
+                            data-tip="Burg state"
+                            value={stateName}
+                            disabled
+                            readOnly
+                            style={{ width: "100%", minWidth: "4em" }}
+                          />
                         </td>
                         <td>
                           <input
@@ -342,7 +348,7 @@ export const BurgsOverviewDialog: React.FC = () => {
                             value={cultureName}
                             disabled
                             readOnly
-                            style={{ width: "100%" }}
+                            style={{ width: "100%", minWidth: "4em" }}
                           />
                         </td>
                         <td>
@@ -351,7 +357,7 @@ export const BurgsOverviewDialog: React.FC = () => {
                             value={b.group ?? ""}
                             disabled
                             readOnly
-                            style={{ width: "100%" }}
+                            style={{ width: "100%", minWidth: "4em" }}
                           />
                         </td>
                         <td>
