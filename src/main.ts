@@ -321,7 +321,10 @@ export async function initMain(): Promise<void> {
   document.addEventListener("fmg:invoke-active-zooming", invokeActiveZooming);
   document.addEventListener("fmg:fit-map-view", fitMapView);
   document.addEventListener("fmg:focus-on", focusOn);
-  document.addEventListener("fmg:re-graph", reGraph);
+  document.addEventListener("fmg:re-graph", () => {
+    reGraph();
+    OceanLayers();
+  });
   document.addEventListener("fmg:reinitialize-map-layers", reinitializeMapLayers);
   document.addEventListener("fmg:show-statistics", showStatistics);
   document.addEventListener("fmg:generate-map-on-load", () => generateMapOnLoad());
