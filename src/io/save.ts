@@ -76,6 +76,39 @@ export function prepareMapData(): string {
   cloneEl.querySelector("#viewbox")!.removeAttribute("transform");
   cloneEl.querySelector("#ruler")!.innerHTML = "";
 
+  // Remove zoom/viewport culling classes so the serialized SVG has all elements visible
+  // CSSでhiddenクラスを設定していないので無意味。style="display:none"があれば、Inkscape等で要素が非表示になる。
+  cloneEl.querySelectorAll(".hidden").forEach(el => {
+    el.classList.remove("hidden");
+  });
+
+  // Inject required icon definitions into the cloned SVG so extracted SVGs are self-contained
+  const cloneDefs = cloneEl.querySelector("defs");
+  const svgDefs = document.getElementById("defElements");
+  if (cloneDefs && svgDefs) {
+    if (cloneEl.getElementById("burgIcons")) {
+      const groups = cloneEl.getElementById("burgIcons")!.querySelectorAll("g");
+      for (const group of Array.from(groups)) {
+        const icon = svgDefs.querySelector((group as SVGGElement).dataset.icon ?? "");
+        if (icon && !cloneDefs.querySelector(`#${icon.id}`)) {
+          const clonedIcon = icon.cloneNode(true) as Element;
+          clonedIcon.setAttribute("width", "1");
+          clonedIcon.setAttribute("height", "1");
+          cloneDefs.appendChild(clonedIcon);
+        }
+      }
+    }
+    if (cloneEl.getElementById("anchors")) {
+      const anchor = svgDefs.querySelector("#icon-anchor");
+      if (anchor && !cloneDefs.querySelector("#icon-anchor")) {
+        const clonedAnchor = anchor.cloneNode(true) as Element;
+        clonedAnchor.setAttribute("width", "1");
+        clonedAnchor.setAttribute("height", "1");
+        cloneDefs.appendChild(clonedAnchor);
+      }
+    }
+  }
+
   appendOceanPathsToSaveSVG(cloneEl.querySelector("#oceanLayers"));
 
   cloneEl.querySelectorAll("#routes > #roads path, #routes > #trails path, #routes > #searoutes path").forEach(path => {
