@@ -47,6 +47,7 @@ export const Dialog: React.FC<DialogProps> = ({ isOpen, title, onClose, children
       ref={containerRef}
       className={`fmg-dialog ${className}${minimized ? " fmg-dialog--minimized" : ""}`}
       style={{ ...style, display: isOpen ? undefined : "none" }}
+      onMouseDownCapture={bringToFront}
     >
       <div className="fmg-dialog-titlebar">
         <div className="fmg-dialog-title">{title}</div>
