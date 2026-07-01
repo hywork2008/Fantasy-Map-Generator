@@ -10,15 +10,15 @@ import { viewLayerService as view } from "../services/viewLayerService";
 import type { ReligionRowData } from "../store/religionsEditorState";
 import { getReligionsEditorState, setReligionsEditorState } from "../store/religionsEditorState";
 import type { HierarchyElement } from "../types/HierarchyTree";
-import type { Religion } from "../types/models";
+import type { Burg, Religion } from "../types/models";
 import { closeDialogs, isDialogOpen, openDialog } from "../ui/dialogs/dialogService";
-import type { PopulationChangeConfig } from "../ui/dialogs/PopulationChangeDialog";
 import { abbreviate, debounce, findAll, findCell, rn, si } from "../utils";
 import { getArea, getAreaUnit } from "../utils/domUtils";
 import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog, downloadFile, getFileName } from "../utils/editorHelpers";
 import { getPackPolygon } from "../utils/graphUtils";
 import { getElementById, layerIsOn } from "../utils/nodeUtils";
+import { openPopulationChangeDialog } from "../utils/populationHelpers";
 import { open as openHierarchyTree } from "./hierarchy-tree";
 import { toggleBiomes, toggleCultures, toggleProvinces, toggleReligions, toggleStates } from "./layers";
 import { editStyle } from "./style";
@@ -340,51 +340,22 @@ export const religionsEditorActions = {
 
     const rural = rn((religion.rural ?? 0) * worldContext.populationRate);
     const urban = rn((religion.urban ?? 0) * worldContext.populationRate * worldContext.urbanization);
+    const cells = worldContext.pack.cells.i.filter((c: number) => worldContext.pack.cells.religion[c] === i);
     const burgs = worldContext.pack.burgs.filter(b => !b.removed && worldContext.pack.cells.religion[b.cell!] === i);
 
-    const config: PopulationChangeConfig = {
+    openPopulationChangeDialog({
       title: "Change believers number",
       description:
         "All population of religion territory is considered believers of this religion. It means believers number change will directly affect population",
-      initialRural: rural,
-      initialUrban: urban,
-      urbanDisabled: burgs.length === 0,
-      onApply: (newRural, newUrban) => {
-        const ruralChange = newRural / rural;
-        if (Number.isFinite(ruralChange) && ruralChange !== 1) {
-          const cells = worldContext.pack.cells.i.filter((c: number) => worldContext.pack.cells.religion[c] === i);
-          cells.forEach((c: number) => {
-            worldContext.pack.cells.pop[c] *= ruralChange;
-          });
-        }
-        if (!Number.isFinite(ruralChange) && newRural > 0) {
-          const points = newRural / worldContext.populationRate;
-          const cells = worldContext.pack.cells.i.filter((c: number) => worldContext.pack.cells.religion[c] === i);
-          const pop = rn(points / cells.length);
-          cells.forEach((c: number) => {
-            worldContext.pack.cells.pop[c] = pop;
-          });
-        }
-
-        const urbanChange = newUrban / urban;
-        if (Number.isFinite(urbanChange) && urbanChange !== 1) {
-          burgs.forEach(b => {
-            b.population = rn((b.population ?? 0) * urbanChange, 4);
-          });
-        }
-        if (!Number.isFinite(urbanChange) && newUrban > 0) {
-          const points = newUrban / worldContext.populationRate / worldContext.urbanization;
-          const population = rn(points / burgs.length, 4);
-          burgs.forEach(b => {
-            b.population = population;
-          });
-        }
-
+      oldRural: rural,
+      oldUrban: urban,
+      cells,
+      burgs: burgs as Burg[],
+      onSuccess: () => {
         if (layerIsOn("togglePopulation")) PopulationRenderer.render(worldContext, viewContext, appServices);
         religionsEditorActions.refresh();
       }
-    };
-    openDialog("populationChangeDialog", config);
+    });
   },
 
   changeExtent(i: number, extent: string): void {

@@ -38,13 +38,16 @@ import {
   openConfirm,
   openDialog
 } from "../ui/dialogs/dialogService";
-import type { PopulationChangeConfig } from "../ui/dialogs/PopulationChangeDialog";
 import { findAll, findCell, getRandomColor, isLand, P, parseTransform, rand, rn, unique } from "../utils";
 import { fitContent, getArea, getAreaUnit } from "../utils/domUtils";
 import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog, downloadFile, getFileName } from "../utils/editorHelpers";
 import { getPackPolygon } from "../utils/graphUtils";
+import { confirmMergeDialog } from "../utils/mergeHelpers";
+import { generateShortCultureName, regenerateFullName } from "../utils/nameEditorHelpers";
+import { generateRandomName } from "../utils/nameGenerator";
 import { getElementsBySelector, layerIsOn } from "../utils/nodeUtils";
+import { openPopulationChangeDialog } from "../utils/populationHelpers";
 import { overviewBurgs } from "./burgs-overview";
 import { editEmblem } from "./emblems-editor";
 import { interactionManager } from "./interactionManager";
@@ -349,51 +352,20 @@ function changePopulation(province: number): void {
   const urban = rn((p.urban ?? 0) * worldContext.populationRate * worldContext.urbanization);
   const total = rural + urban;
   const l = (n: number) => Number(n).toLocaleString();
+  const burgs = (p.burgs || []).map(b => (worldContext.pack.burgs as Burg[])[b]).filter(b => b && !b.removed);
 
-  const config: PopulationChangeConfig = {
+  openPopulationChangeDialog({
     title: "Change province population",
     description: `Total: ${l(total)}`,
-    initialRural: rural,
-    initialUrban: urban,
-    urbanDisabled: !p.burgs?.length,
-    onApply: (newRural, newUrban) => {
-      const ruralChange = newRural / rural;
-      if (Number.isFinite(ruralChange) && ruralChange !== 1) {
-        cells.forEach(i => {
-          worldContext.pack.cells.pop[i] *= ruralChange;
-        });
-      }
-      if (!Number.isFinite(ruralChange) && newRural > 0) {
-        const pop = rn(newRural / worldContext.populationRate / cells.length);
-        cells.forEach(i => {
-          worldContext.pack.cells.pop[i] = pop;
-        });
-      }
-
-      const urbanChange = newUrban / urban;
-      if (Number.isFinite(urbanChange) && urbanChange !== 1) {
-        p.burgs?.forEach((b: number) => {
-          (worldContext.pack.burgs as Burg[])[b].population = rn(
-            ((worldContext.pack.burgs as Burg[])[b].population ?? 0) * urbanChange,
-            4
-          );
-        });
-      }
-      if (!Number.isFinite(urbanChange) && newUrban > 0) {
-        const population = rn(
-          newUrban / worldContext.populationRate / worldContext.urbanization / (p.burgs?.length ?? 1),
-          4
-        );
-        p.burgs?.forEach((b: number) => {
-          (worldContext.pack.burgs as Burg[])[b].population = population;
-        });
-      }
-
+    oldRural: rural,
+    oldUrban: urban,
+    cells,
+    burgs,
+    onSuccess: () => {
       if (layerIsOn("togglePopulation")) PopulationRenderer.render(worldContext, viewContext, appServices);
       refreshProvincesEditor();
     }
-  };
-  openDialog("populationChangeDialog", config);
+  });
 }
 
 function toggleFog(p: number): void {
@@ -979,18 +951,14 @@ export const provincesEditorActions = {
     if (!ne) return;
     const province = (worldContext.pack.provinces as Province[])[ne.provinceId];
     const culture = worldContext.pack.cells.culture[province.center];
-    const name = GenerationPipeline.Names.getState(
-      GenerationPipeline.Names.getCultureShort(worldContext, viewContext, appServices, culture),
-      culture
-    );
+    const name = generateShortCultureName(culture);
     setProvincesEditorState({ nameEditor: { ...ne, shortName: name } });
   },
 
   nameEditorGenerateShortRandom(): void {
     const ne = getProvincesEditorState().nameEditor;
     if (!ne) return;
-    const base = rand(worldContext.nameBases.length - 1);
-    const name = GenerationPipeline.Names.getState(GenerationPipeline.Names.getBase(base), 0, base);
+    const name = GenerationPipeline.Names.getState(generateRandomName(), 0, rand(worldContext.nameBases.length - 1));
     setProvincesEditorState({ nameEditor: { ...ne, shortName: name } });
   },
 
@@ -998,10 +966,7 @@ export const provincesEditorActions = {
     const ne = getProvincesEditorState().nameEditor;
     if (!ne) return;
     const { shortName, formName } = ne;
-    let fullName: string;
-    if (!formName) fullName = shortName;
-    else if (!shortName) fullName = `The ${formName}`;
-    else fullName = `${shortName} ${formName}`;
+    const fullName = regenerateFullName(shortName, formName, false);
     setProvincesEditorState({ nameEditor: { ...ne, fullName } });
   },
 
@@ -1027,27 +992,13 @@ export const provincesEditorActions = {
   },
 
   confirmMerge(rulingProvinceId: number | null, provincesToMerge: number[]): void {
-    if (!rulingProvinceId) {
-      tip("Please select a province to merge into", false, "error");
-      return;
-    }
-    const mergeList = provincesToMerge.filter(id => id !== rulingProvinceId);
-    if (!mergeList.length) {
-      tip("Please select several provinces to merge", false, "error");
-      return;
-    }
-    const rulingProvince = (worldContext.pack.provinces as Province[])[rulingProvinceId];
-    const emblem = (i: number) =>
-      `<svg class="coaIcon" viewBox="0 0 200 200"><use href="#provinceCOA${i}"></use></svg>`;
-    confirmationDialog({
-      title: "Merge provinces",
-      message: `
-        <p>The following provinces will be <strong>removed</strong>: ${mergeList.map(id => `${emblem(id)}${(worldContext.pack.provinces as Province[])[id].name}`).join(", ")}.</p>
-        <p>Removed provinces data (burgs and cells) will be assigned to ${emblem(rulingProvince.i)}${rulingProvince.name}.</p>
-        <p>Are you sure you want to merge provinces? This action cannot be reverted.</p>`,
-      confirm: "Merge",
-      onConfirm: () => {
-        mergeProvinces(mergeList, rulingProvinceId);
+    confirmMergeDialog({
+      entityType: "province",
+      rulingId: rulingProvinceId,
+      selectedIds: provincesToMerge,
+      getEntityName: (id: number) => (worldContext.pack.provinces as Province[])[id].name,
+      onConfirm: (mergeList: number[], rulingId: number) => {
+        mergeProvinces(mergeList, rulingId);
         setProvincesEditorState({ mergeDialog: null });
       }
     });

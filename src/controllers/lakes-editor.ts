@@ -22,10 +22,11 @@ import { elSelected, modules, setElSelected } from "../store/editorState";
 import { getLakeEditorState } from "../store/lakeEditorState";
 import type { PackedGraphFeature } from "../types/models";
 import { closeDialogs, openConfirm, openDialog } from "../ui/dialogs/dialogService";
-import { rand, rn, unique } from "../utils";
+import { rn, unique } from "../utils";
 import { getArea } from "../utils/domUtils";
 import { EditorBus } from "../utils/editorBus";
 import { getPackPolygon } from "../utils/graphUtils";
+import { generateRandomName } from "../utils/nameGenerator";
 import { getElementBySelector, layerIsOn } from "../utils/nodeUtils";
 import { interactionManager } from "./interactionManager";
 import { toggleCells } from "./layers";
@@ -189,7 +190,7 @@ export const lakeEditorActions = {
 
   generateNameRandom(): void {
     const lake = getLake();
-    const newName = GenerationPipeline.Names.getBase(rand(worldContext.nameBases.length - 1));
+    const newName = generateRandomName();
     lake.name = newName;
     getLakeEditorState().updateLakeData({ name: newName });
   },

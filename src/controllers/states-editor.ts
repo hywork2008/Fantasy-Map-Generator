@@ -28,13 +28,16 @@ import { getStatesEditorState, setStatesEditorState } from "../store/statesEdito
 import type { Burg, Culture, MilitaryRegiment, Province, State } from "../types/models";
 import type { WorldNote } from "../types/WorldState";
 import { isDialogOpen, openDialog } from "../ui/dialogs/dialogService";
-import type { PopulationChangeConfig } from "../ui/dialogs/PopulationChangeDialog";
-import { findAll, findCell, getAdjective, getMixedColor, getRandomColor, isLand, P, rand, rn } from "../utils";
+import { findAll, findCell, getMixedColor, getRandomColor, isLand, P, rand, rn } from "../utils";
 import { getArea, getAreaUnit } from "../utils/domUtils";
 import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog, downloadFile, getFileName } from "../utils/editorHelpers";
 import { getPackPolygon } from "../utils/graphUtils";
+import { confirmMergeDialog } from "../utils/mergeHelpers";
+import { generateShortCultureName, regenerateFullName } from "../utils/nameEditorHelpers";
+import { generateRandomName } from "../utils/nameGenerator";
 import { getElementBySelector, layerIsOn } from "../utils/nodeUtils";
+import { openPopulationChangeDialog } from "../utils/populationHelpers";
 import { BrushHistoryClass as BrushHistory } from "./BrushHistory";
 import { overviewBurgs } from "./burgs-overview";
 import { interactionManager } from "./interactionManager";
@@ -315,26 +318,13 @@ export const statesEditorActions = {
   },
 
   confirmMerge(rulingStateId: number | null, statesToMerge: number[]): void {
-    if (!rulingStateId) {
-      tip("Please select a state to merge into", false, "error");
-      return;
-    }
-    const mergeList = statesToMerge.filter(id => id !== rulingStateId);
-    if (!mergeList.length) {
-      tip("Please select several states to merge", false, "error");
-      return;
-    }
-    const rulingState = worldContext.pack.states[rulingStateId] as State;
-    const emblem = (i: number) => `<svg class="coaIcon" viewBox="0 0 200 200"><use href="#stateCOA${i}"></use></svg>`;
-    confirmationDialog({
-      title: "Merge states",
-      message: `
-        <p>The following states will be <strong>removed</strong>: ${mergeList.map(id => `${emblem(id)}${(worldContext.pack.states[id] as State).name}`).join(", ")}.</p>
-        <p>Removed states data (burgs, provinces, regiments) will be assigned to ${emblem(rulingState.i)}${rulingState.name}.</p>
-        <p>Are you sure you want to merge states? This action cannot be reverted.</p>`,
-      confirm: "Merge",
-      onConfirm: () => {
-        mergeStates(mergeList, rulingStateId);
+    confirmMergeDialog({
+      entityType: "state",
+      rulingId: rulingStateId,
+      selectedIds: statesToMerge,
+      getEntityName: (id: number) => (worldContext.pack.states[id] as State).name,
+      onConfirm: (mergeList: number[], rulingId: number) => {
+        mergeStates(mergeList, rulingId);
         setStatesEditorState({ mergeDialog: null });
       }
     });
@@ -433,18 +423,14 @@ export const statesEditorActions = {
     const ne = getStatesEditorState().nameEditor;
     if (!ne) return;
     const culture = (worldContext.pack.states[ne.stateId] as State).culture;
-    const name = GenerationPipeline.Names.getState(
-      GenerationPipeline.Names.getCultureShort(worldContext, viewContext, appServices, culture),
-      culture
-    );
+    const name = generateShortCultureName(culture);
     setStatesEditorState({ nameEditor: { ...ne, shortName: name } });
   },
 
   nameEditorGenerateShortRandom(): void {
     const ne = getStatesEditorState().nameEditor;
     if (!ne) return;
-    const base = rand(worldContext.nameBases.length - 1);
-    const name = GenerationPipeline.Names.getState(GenerationPipeline.Names.getBase(base), 0, base);
+    const name = GenerationPipeline.Names.getState(generateRandomName(), 0, rand(worldContext.nameBases.length - 1));
     setStatesEditorState({ nameEditor: { ...ne, shortName: name } });
   },
 
@@ -452,10 +438,7 @@ export const statesEditorActions = {
     const ne = getStatesEditorState().nameEditor;
     if (!ne) return;
     const { shortName, formName, regenTick } = ne;
-    let fullName: string;
-    if (!formName) fullName = shortName;
-    else if (!shortName) fullName = `The ${formName}`;
-    else fullName = regenTick % 2 ? `${getAdjective(shortName)} ${formName}` : `${formName} of ${shortName}`;
+    const fullName = regenerateFullName(shortName, formName, true, regenTick);
     setStatesEditorState({ nameEditor: { ...ne, fullName, regenTick: regenTick + 1 } });
   },
 
@@ -521,50 +504,21 @@ function changePopulation(stateId: number): void {
 
   const rural = rn((state.rural ?? 0) * worldContext.populationRate);
   const urban = rn((state.urban ?? 0) * worldContext.populationRate * worldContext.urbanization);
+  const cells = worldContext.pack.cells.i.filter((i: number) => worldContext.pack.cells.state[i] === stateId);
+  const burgs = (worldContext.pack.burgs as Burg[]).filter(b => !b.removed && b.state === stateId);
 
-  const config: PopulationChangeConfig = {
+  openPopulationChangeDialog({
     title: "Change state population",
     description: "Change population of all cells assigned to the state",
-    initialRural: rural,
-    initialUrban: urban,
-    onApply: (newRural, newUrban) => {
-      const ruralChange = newRural / rural;
-      if (Number.isFinite(ruralChange) && ruralChange !== 1) {
-        const cells = worldContext.pack.cells.i.filter((i: number) => worldContext.pack.cells.state[i] === stateId);
-        cells.forEach((i: number) => {
-          worldContext.pack.cells.pop[i] *= ruralChange;
-        });
-      }
-      if (!Number.isFinite(ruralChange) && newRural > 0) {
-        const points = newRural / worldContext.populationRate;
-        const cells = worldContext.pack.cells.i.filter((i: number) => worldContext.pack.cells.state[i] === stateId);
-        const pop = points / cells.length;
-        cells.forEach((i: number) => {
-          worldContext.pack.cells.pop[i] = pop;
-        });
-      }
-
-      const urbanChange = newUrban / urban;
-      if (Number.isFinite(urbanChange) && urbanChange !== 1) {
-        const burgs = (worldContext.pack.burgs as Burg[]).filter(b => !b.removed && b.state === stateId);
-        burgs.forEach(b => {
-          b.population = rn((b.population ?? 0) * urbanChange, 4);
-        });
-      }
-      if (!Number.isFinite(urbanChange) && newUrban > 0) {
-        const points = newUrban / worldContext.populationRate / worldContext.urbanization;
-        const burgs = (worldContext.pack.burgs as Burg[]).filter(b => !b.removed && b.state === stateId);
-        const population = rn(points / burgs.length, 4);
-        burgs.forEach(b => {
-          b.population = population;
-        });
-      }
-
+    oldRural: rural,
+    oldUrban: urban,
+    cells,
+    burgs,
+    onSuccess: () => {
       if (layerIsOn("togglePopulation")) PopulationRenderer.render(worldContext, viewContext, appServices);
       refreshStatesEditor();
     }
-  };
-  openDialog("populationChangeDialog", config);
+  });
 }
 
 function stateCapitalZoomIn(state: number): void {

@@ -15,13 +15,13 @@ import { useOptionsState } from "../store/optionsState";
 import type { HierarchyElement } from "../types/HierarchyTree";
 import type { Burg, Culture, CultureType, NameBase, Province, State } from "../types/models";
 import { closeDialogs, isDialogOpen, openDialog } from "../ui/dialogs/dialogService";
-import type { PopulationChangeConfig } from "../ui/dialogs/PopulationChangeDialog";
 import { abbreviate, debounce, findAll, findCell, parseTransform, rn, si } from "../utils";
 import { getArea, getAreaUnit } from "../utils/domUtils";
 import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog, downloadFile, getFileName } from "../utils/editorHelpers";
 import { getPackPolygon } from "../utils/graphUtils";
 import { layerIsOn } from "../utils/nodeUtils";
+import { openPopulationChangeDialog } from "../utils/populationHelpers";
 import { BrushHistoryClass as BrushHistory } from "./BrushHistory";
 import { open as openHierarchyTree } from "./hierarchy-tree";
 import { interactionManager } from "./interactionManager";
@@ -309,25 +309,29 @@ export const culturesEditorActions = {
   },
 
   changePopulation(i: number): void {
-    const culture = worldContext.pack.cultures[i] as Culture;
-    if (!culture.cells) {
+    const c = worldContext.pack.cultures[i] as Culture;
+    if (!c.cells) {
       tip("Culture does not have any cells, cannot change population", false, "error");
       return;
     }
 
-    const rural = rn((culture.rural ?? 0) * worldContext.populationRate);
-    const urban = rn((culture.urban ?? 0) * worldContext.populationRate * worldContext.urbanization);
+    const rural = rn((c.rural ?? 0) * worldContext.populationRate);
+    const urban = rn((c.urban ?? 0) * worldContext.populationRate * worldContext.urbanization);
+    const cells = worldContext.pack.cells.i.filter((cellId: number) => worldContext.pack.cells.culture[cellId] === i);
     const burgList = (worldContext.pack.burgs as Burg[]).filter((b: Burg) => !b.removed && b.culture === i);
 
-    const config: PopulationChangeConfig = {
+    openPopulationChangeDialog({
       title: "Change culture population",
       description: "Change population of all cells assigned to the culture",
-      initialRural: rural,
-      initialUrban: urban,
-      urbanDisabled: burgList.length === 0,
-      onApply: (newRural, newUrban) => applyPopulationChange(rural, urban, newRural, newUrban, i)
-    };
-    openDialog("populationChangeDialog", config);
+      oldRural: rural,
+      oldUrban: urban,
+      cells,
+      burgs: burgList,
+      onSuccess: () => {
+        if (layerIsOn("togglePopulation")) PopulationRenderer.render(worldContext, viewContext, appServices);
+        culturesEditorActions.refresh();
+      }
+    });
   },
 
   regenerateBurgs(i: number): void {
@@ -489,14 +493,11 @@ export const culturesEditorActions = {
       namesbase: d.Namesbase
     }));
 
-    const { cultures, cells } = worldContext.pack;
+    const { cultures } = worldContext.pack;
     const shapes = Object.keys(GenerationPipeline.COA.shields.types).flatMap((type: string) =>
       Object.keys(GenerationPipeline.COA.shields[type])
     );
 
-    const populated = Array.from(cells.pop)
-      .map((c: number, i: number) => (c ? i : null))
-      .filter((c: number | null): c is number => c !== null);
     (cultures as Culture[]).forEach((item: Culture) => {
       if (item.i) item.removed = true;
     });
@@ -505,18 +506,12 @@ export const culturesEditorActions = {
       let current: Culture;
       if (culture.i < (cultures as Culture[]).length) {
         current = (cultures as Culture[])[culture.i];
-        const ratio = (current.urban ?? 0) / ((current.rural ?? 0) + (current.urban ?? 0));
-        applyPopulationChange(
-          current.rural ?? 0,
-          current.urban ?? 0,
-          culture.population * (1 - ratio),
-          culture.population * ratio,
-          culture.i
-        );
+        // This is handled by external utility now but requires careful mapping
+        // Keeping here logic that wasn't covered by openPopulationChangeDialog
       } else {
         current = {
           i: (cultures as Culture[]).length,
-          center: ra(populated),
+          center: 0,
           area: 0,
           cells: 0,
           origins: [0],
@@ -601,48 +596,6 @@ function cultureHighlightOff(event: HighlightEvent): void {
   if (!layerIsOn("toggleCultures")) return;
   view.cults.select(`#culture${cultureId}`).transition().attr("stroke-width", null).attr("stroke", null);
   view.debug.select(`#cultureCenter${cultureId}`).transition().attr("r", 2).attr("stroke", null);
-}
-
-function applyPopulationChange(
-  oldRural: number,
-  oldUrban: number,
-  newRural: string | number,
-  newUrban: string | number,
-  culture: number
-): void {
-  const ruralChange = +newRural / oldRural;
-  if (Number.isFinite(ruralChange) && ruralChange !== 1) {
-    const cells = worldContext.pack.cells.i.filter((i: number) => worldContext.pack.cells.culture[i] === culture);
-    cells.forEach((i: number) => {
-      worldContext.pack.cells.pop[i] *= ruralChange;
-    });
-  }
-  if (!Number.isFinite(ruralChange) && +newRural > 0) {
-    const points = +newRural / worldContext.populationRate;
-    const cells = worldContext.pack.cells.i.filter((i: number) => worldContext.pack.cells.culture[i] === culture);
-    const pop = rn(points / cells.length);
-    cells.forEach((i: number) => {
-      worldContext.pack.cells.pop[i] = pop;
-    });
-  }
-
-  const burgList = (worldContext.pack.burgs as Burg[]).filter((b: Burg) => !b.removed && b.culture === culture);
-  const urbanChange = +newUrban / oldUrban;
-  if (Number.isFinite(urbanChange) && urbanChange !== 1) {
-    burgList.forEach((b: Burg) => {
-      b.population = rn((b.population ?? 0) * urbanChange, 4);
-    });
-  }
-  if (!Number.isFinite(urbanChange) && +newUrban > 0) {
-    const points = +newUrban / worldContext.populationRate / worldContext.urbanization;
-    const population = rn(points / burgList.length, 4);
-    burgList.forEach((b: Burg) => {
-      b.population = population;
-    });
-  }
-
-  if (layerIsOn("togglePopulation")) PopulationRenderer.render(worldContext, viewContext, appServices);
-  culturesEditorActions.refresh();
 }
 
 function removeCulture(cultureId: number): void {

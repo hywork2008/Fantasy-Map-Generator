@@ -14,9 +14,10 @@ import { getBurgEditorState } from "../store/burgEditorState";
 import { elSelected, modules, setElSelected } from "../store/editorState";
 import type { Burg, Culture, CultureType } from "../types/models";
 import { closeDialog, closeDialogs, openAlert, openDialog } from "../ui/dialogs/dialogService";
-import { convertTemperature, findCell, openURL, parseTransform, rand, rn, showPrompt } from "../utils";
+import { convertTemperature, findCell, openURL, parseTransform, rn, showPrompt } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog } from "../utils/editorHelpers";
+import { generateRandomName } from "../utils/nameGenerator";
 import { getElementBySelector, layerIsOn } from "../utils/nodeUtils";
 import { editBurgGroups } from "./burg-group-editor";
 import { editEmblem } from "./emblems-editor";
@@ -208,8 +209,7 @@ export const burgEditorActions = {
   },
 
   generateNameRandom(): void {
-    const base = rand(worldContext.nameBases.length - 1);
-    const newName = GenerationPipeline.Names.getBase(base);
+    const newName = generateRandomName();
     burgEditorActions.changeName(newName);
   },
 

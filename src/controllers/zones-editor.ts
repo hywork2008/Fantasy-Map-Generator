@@ -7,15 +7,15 @@ import { PopulationRenderer, ZonesRenderer } from "../renderers";
 import { clearMainTip, showMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { getZonesEditorState, setZonesEditorState } from "../store/zonesEditorState";
-import type { Zone } from "../types/models";
+import type { Burg, Zone } from "../types/models";
 import { isDialogOpen, openDialog } from "../ui/dialogs/dialogService";
-import type { PopulationChangeConfig } from "../ui/dialogs/PopulationChangeDialog";
 import { findAll, findCell, rn, unique } from "../utils";
 import { getArea } from "../utils/domUtils";
 import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog, downloadFile, getFileName } from "../utils/editorHelpers";
 import { getPackPolygon } from "../utils/graphUtils";
 import { layerIsOn } from "../utils/nodeUtils";
+import { openPopulationChangeDialog } from "../utils/populationHelpers";
 import { toggleZones } from "./layers";
 import { editStyle } from "./style";
 
@@ -431,44 +431,18 @@ function changePopulation(zone: Zone): void {
   const total = rural + urban;
   const l = (n: number) => Number(n).toLocaleString();
 
-  const config: PopulationChangeConfig = {
+  openPopulationChangeDialog({
     title: "Change zone population",
     description: `Total: ${l(total)}`,
-    initialRural: rural,
-    initialUrban: urban,
-    urbanDisabled: !burgs.length,
-    onApply: (newRural, newUrban) => {
-      const ruralChange = newRural / rural;
-      if (Number.isFinite(ruralChange) && ruralChange !== 1) {
-        landCells.forEach(i => {
-          worldContext.pack.cells.pop[i] *= ruralChange;
-        });
-      }
-      if (!Number.isFinite(ruralChange) && newRural > 0) {
-        const pop = rn(newRural / worldContext.populationRate / landCells.length);
-        landCells.forEach(i => {
-          worldContext.pack.cells.pop[i] = pop;
-        });
-      }
-
-      const urbanChange = newUrban / urban;
-      if (Number.isFinite(urbanChange) && urbanChange !== 1) {
-        burgs.forEach(b => {
-          b.population = rn((b.population ?? 0) * urbanChange, 4);
-        });
-      }
-      if (!Number.isFinite(urbanChange) && newUrban > 0) {
-        const population = rn(newUrban / worldContext.populationRate / worldContext.urbanization / burgs.length, 4);
-        burgs.forEach(b => {
-          b.population = population;
-        });
-      }
-
+    oldRural: rural,
+    oldUrban: urban,
+    cells: landCells,
+    burgs: burgs as Burg[],
+    onSuccess: () => {
       if (layerIsOn("togglePopulation")) PopulationRenderer.render(worldContext, viewContext, appServices);
-      zonesEditorAddLines();
+      zonesEditorActions.refresh();
     }
-  };
-  openDialog("populationChangeDialog", config);
+  });
 }
 
 function zoneRemove(zone: Zone): void {
