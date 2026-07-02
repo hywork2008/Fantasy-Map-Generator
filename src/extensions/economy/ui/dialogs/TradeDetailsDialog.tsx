@@ -66,63 +66,74 @@ export const TradeDetailsDialog: React.FC = () => {
           )}
         </div>
 
-        <div
-          id="tradeDetailsHeader"
-          className="header -trade-details-dialog__grid-template-columns-2-5em-10em-5em-5-5em-3-6em"
-        >
-          <div />
-          <div
-            data-tip="Click to sort by good"
-            className={`sortable alphabetically ${getSortIcon("good", true)} -trade-details-dialog__margin-left-0`}
-            onClick={() => setSorting("good")}
-          >
-            Good&nbsp;
-          </div>
-          <div
-            data-tip="Click to sort by units"
-            className={`sortable ${getSortIcon("units")}`}
-            onClick={() => setSorting("units")}
-          >
-            Units&nbsp;
-          </div>
-          <div
-            data-tip="Click to sort by unit price"
-            className={`sortable ${getSortIcon("price")}`}
-            onClick={() => setSorting("price")}
-          >
-            Price&nbsp;
-          </div>
-          <div
-            data-tip="Click to sort by value"
-            className={`sortable ${getSortIcon("value")}`}
-            onClick={() => setSorting("value")}
-          >
-            Value&nbsp;
-          </div>
-        </div>
-
         <div id="tradeDetailsBody" className="table -trade-details-dialog__max-height-30em">
-          {sortedRows.map(row => (
-            <div
-              key={row.goodId}
-              className="states tradeDeal"
-              data-good={row.goodName}
-              data-units={row.units}
-              data-price={row.price}
-              data-value={row.value}
-            >
-              <svg aria-label={row.goodName} data-tip="Good icon" width="2em" height="2em" className="goodIcon">
-                <circle cx="50%" cy="50%" r="42%" fill={row.goodColor} stroke={row.goodStroke} />
-                <use href={`#${row.goodIcon}`} x="10%" y="10%" width="80%" height="80%" />
-              </svg>
-              <div data-tip="Good name" className="goodName">
-                {row.goodName}
-              </div>
-              <div className="goodUnits">{rn(row.units, 2)}</div>
-              <div className="goodPrice">{formatPrice(rn(row.price, 2))}</div>
-              <div className="goodValue">{formatPrice(rn(row.value, 2))}</div>
-            </div>
-          ))}
+          <table className="states-table">
+            <colgroup>
+              <col style={{ width: "2.5em" }} />
+              <col style={{ width: "10em" }} />
+              <col style={{ width: "5em" }} />
+              <col style={{ width: "5.5em" }} />
+              <col style={{ width: "3.6em" }} />
+            </colgroup>
+            <thead>
+              <tr className="header">
+                <th />
+                <th
+                  data-tip="Click to sort by good"
+                  className={`sortable alphabetically ${getSortIcon("good", true)} -trade-details-dialog__margin-left-0`}
+                  onClick={() => setSorting("good")}
+                >
+                  Good&nbsp;
+                </th>
+                <th
+                  data-tip="Click to sort by units"
+                  className={`sortable ${getSortIcon("units")}`}
+                  onClick={() => setSorting("units")}
+                >
+                  Units&nbsp;
+                </th>
+                <th
+                  data-tip="Click to sort by unit price"
+                  className={`sortable ${getSortIcon("price")}`}
+                  onClick={() => setSorting("price")}
+                >
+                  Price&nbsp;
+                </th>
+                <th
+                  data-tip="Click to sort by value"
+                  className={`sortable ${getSortIcon("value")}`}
+                  onClick={() => setSorting("value")}
+                >
+                  Value&nbsp;
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {sortedRows.map(row => (
+                <tr
+                  key={row.goodId}
+                  className="states tradeDeal"
+                  data-good={row.goodName}
+                  data-units={row.units}
+                  data-price={row.price}
+                  data-value={row.value}
+                >
+                  <td>
+                    <svg aria-label={row.goodName} data-tip="Good icon" width="2em" height="2em" className="goodIcon">
+                      <circle cx="50%" cy="50%" r="42%" fill={row.goodColor} stroke={row.goodStroke} />
+                      <use href={`#${row.goodIcon}`} x="10%" y="10%" width="80%" height="80%" />
+                    </svg>
+                  </td>
+                  <td data-tip="Good name" className="goodName">
+                    {row.goodName}
+                  </td>
+                  <td className="goodUnits">{rn(row.units, 2)}</td>
+                  <td className="goodPrice">{formatPrice(rn(row.price, 2))}</td>
+                  <td className="goodValue">{formatPrice(rn(row.value, 2))}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
 
         <div id="tradeDetailsFooter" className="totalLine">

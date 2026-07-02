@@ -23,7 +23,7 @@ export const MarketOverviewDialog: React.FC = () => {
   const cellsCount = useMarketOverviewState(state => state.cellsCount);
   const burgsCount = useMarketOverviewState(state => state.burgsCount);
   const totalStock = useMarketOverviewState(state => state.totalStock);
-  const headerRef = React.useRef<HTMLDivElement | null>(null);
+  const headerRef = React.useRef<HTMLTableSectionElement | null>(null);
 
   React.useEffect(() => {
     if (isOpen && marketId != null) {
@@ -61,56 +61,70 @@ export const MarketOverviewDialog: React.FC = () => {
           />
         </div>
 
-        <div
-          id="marketOverviewHeader"
-          ref={headerRef}
-          className="header -market-overview-dialog__grid-template-columns-2-5em-9em-5-5em-3-2em"
-        >
-          <div />
-          <div
-            data-tip="Click to sort by good"
-            className="sortable alphabetically -market-overview-dialog__margin-left-0"
-            data-sortby="good"
-          >
-            Good&nbsp;
-          </div>
-          <div data-tip="Click to sort by stock" className="sortable icon-sort-number-down" data-sortby="stock">
-            Stock&nbsp;
-          </div>
-          <div data-tip="Click to sort by price" className="sortable" data-sortby="price">
-            Price&nbsp;
-          </div>
+        <div id="marketOverviewGoodsBody" className="table -market-overview-dialog__max-height-40em">
+          <table className="states-table">
+            <colgroup>
+              <col style={{ width: "2.5em" }} />
+              <col style={{ width: "9em" }} />
+              <col style={{ width: "5.5em" }} />
+              <col style={{ width: "3.2em" }} />
+            </colgroup>
+            <thead id="marketOverviewHeader" ref={headerRef}>
+              <tr className="header">
+                <th />
+                <th
+                  data-tip="Click to sort by good"
+                  className="sortable alphabetically -market-overview-dialog__margin-left-0"
+                  data-sortby="good"
+                >
+                  Good&nbsp;
+                </th>
+                <th data-tip="Click to sort by stock" className="sortable icon-sort-number-down" data-sortby="stock">
+                  Stock&nbsp;
+                </th>
+                <th data-tip="Click to sort by price" className="sortable" data-sortby="price">
+                  Price&nbsp;
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.length === 0 ? (
+                <tr>
+                  <td colSpan={4}>
+                    <span>No market goods available</span>
+                  </td>
+                </tr>
+              ) : (
+                rows.map(row => (
+                  <tr
+                    key={row.goodId}
+                    className="states marketGood"
+                    data-good={row.goodName}
+                    data-stock={row.stock}
+                    data-price={row.price}
+                  >
+                    <td>
+                      <svg aria-label={row.goodName} data-tip="Good icon" width="2em" height="2em" className="goodIcon">
+                        <circle cx="50%" cy="50%" r="42%" fill={row.goodColor} stroke={row.goodStroke} />
+                        <use href={`#${row.goodIcon}`} x="10%" y="10%" width="80%" height="80%" />
+                      </svg>
+                    </td>
+                    <td data-tip="Good name" className="goodName">
+                      {row.goodName}
+                    </td>
+                    <td data-tip="Good stock" className="marketGoodStock">
+                      {row.stock}
+                    </td>
+                    <td data-tip="Good price" className="marketGoodPrice">
+                      {formatPrice(row.price)}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
 
-        <div id="marketOverviewGoodsBody" className="table -market-overview-dialog__max-height-40em">
-          {rows.length === 0 ? (
-            <span>No market goods available</span>
-          ) : (
-            rows.map(row => (
-              <div
-                key={row.goodId}
-                className="states marketGood"
-                data-good={row.goodName}
-                data-stock={row.stock}
-                data-price={row.price}
-              >
-                <svg aria-label={row.goodName} data-tip="Good icon" width="2em" height="2em" className="goodIcon">
-                  <circle cx="50%" cy="50%" r="42%" fill={row.goodColor} stroke={row.goodStroke} />
-                  <use href={`#${row.goodIcon}`} x="10%" y="10%" width="80%" height="80%" />
-                </svg>
-                <div data-tip="Good name" className="goodName">
-                  {row.goodName}
-                </div>
-                <div data-tip="Good stock" className="marketGoodStock">
-                  {row.stock}
-                </div>
-                <div data-tip="Good price" className="marketGoodPrice">
-                  {formatPrice(row.price)}
-                </div>
-              </div>
-            ))
-          )}
-        </div>
         <div id="marketOverviewSummary" className="totalLine">
           <div className="-market-overview-dialog__margin-left-5">Cells: {cellsCount}</div>
           <div className="-market-overview-dialog__margin-left-12">Burgs: {burgsCount}</div>

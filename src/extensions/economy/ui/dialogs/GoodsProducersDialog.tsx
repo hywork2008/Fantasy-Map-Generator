@@ -17,27 +17,38 @@ export const GoodsProducersDialog: React.FC = () => {
         {producers.length === 0 ? (
           <i className="-goods-producers-dialog__color-888">No burgs produced {goodName}.</i>
         ) : (
-          <>
-            <div className="header -goods-producers-dialog__grid-template-columns-1-6em-7em-4em">
-              <div />
-              <div>Burg</div>
-              <div>Units</div>
-            </div>
-            <div className="table -goods-producers-dialog__max-height-30em">
-              {producers.map(p => (
-                <div
-                  key={p.id}
-                  data-tip="Click to zoom to burg"
-                  className="states pointer"
-                  onClick={() => onZoom(p.x, p.y)}
-                >
-                  <div className="icon-dot-circled -goods-producers-dialog__width-1em" />
-                  <div className="-goods-producers-dialog__width-7em">{p.name}</div>
-                  <div className="-goods-producers-dialog__width-4em">{p.units}</div>
-                </div>
-              ))}
-            </div>
-          </>
+          <div className="table -goods-producers-dialog__max-height-30em">
+            <table className="states-table">
+              <colgroup>
+                <col style={{ width: "1.6em" }} />
+                <col style={{ width: "7em" }} />
+                <col style={{ width: "4em" }} />
+              </colgroup>
+              <thead>
+                <tr className="header">
+                  <th />
+                  <th>Burg</th>
+                  <th>Units</th>
+                </tr>
+              </thead>
+              <tbody>
+                {producers.map(p => (
+                  <tr
+                    key={p.id}
+                    data-tip="Click to zoom to burg"
+                    className="states pointer"
+                    onClick={() => onZoom(p.x, p.y)}
+                  >
+                    <td>
+                      <span className="icon-dot-circled" />
+                    </td>
+                    <td>{p.name}</td>
+                    <td>{p.units}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </Dialog>

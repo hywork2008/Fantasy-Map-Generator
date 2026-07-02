@@ -80,57 +80,71 @@ export const MarketsGoodCompareDialog: React.FC = () => {
         </div>
 
         <div
-          id="marketsGoodCompareHeader"
-          className="header -markets-good-compare-dialog__grid-template-columns-1-6em-9em-6em-7em"
-        >
-          <div />
-          <div
-            data-tip="Market center burg name. Click to sort"
-            className={`sortable alphabetically ${getSortIcon("market", true)} -markets-good-compare-dialog__margin-left-0`}
-            onClick={() => setSorting("market")}
-          >
-            Market&nbsp;
-          </div>
-          <div
-            data-tip="Good stock in this market. Click to sort"
-            className={`sortable ${getSortIcon("stock")}`}
-            onClick={() => setSorting("stock")}
-          >
-            Stock&nbsp;
-          </div>
-          <div
-            data-tip="Price for this good. Click to sort"
-            className={`sortable ${getSortIcon("price")}`}
-            onClick={() => setSorting("price")}
-          >
-            Price&nbsp;
-          </div>
-        </div>
-
-        <div
           id="marketsGoodCompareBody"
           className="table -markets-good-compare-dialog__max-height-40em"
           data-type={isPercentageMode ? "percentage" : "absolute"}
         >
-          {sortedRows.length === 0 ? (
-            <span>No market carries the selected good</span>
-          ) : (
-            sortedRows.map(row => (
-              <div
-                key={row.marketId}
-                className="states pointer"
-                data-market={row.marketName}
-                data-stock={row.stock}
-                data-price={row.price}
-                onClick={() => openMarketOverview(row.marketId)}
-              >
-                <FillBox fill={row.marketColor} data-tip="Market color" />
-                <div className="-markets-good-compare-dialog__width-9em">{row.marketName}</div>
-                <div className="-markets-good-compare-dialog__width-6em">{displayValue(row.stock, totalStock)}</div>
-                <div className="-markets-good-compare-dialog__width-7em">{displayPrice(row.price)}</div>
-              </div>
-            ))
-          )}
+          <table className="states-table">
+            <colgroup>
+              <col style={{ width: "1.6em" }} />
+              <col style={{ width: "9em" }} />
+              <col style={{ width: "6em" }} />
+              <col style={{ width: "7em" }} />
+            </colgroup>
+            <thead>
+              <tr className="header">
+                <th />
+                <th
+                  data-tip="Market center burg name. Click to sort"
+                  className={`sortable alphabetically ${getSortIcon("market", true)} -markets-good-compare-dialog__margin-left-0`}
+                  onClick={() => setSorting("market")}
+                >
+                  Market&nbsp;
+                </th>
+                <th
+                  data-tip="Good stock in this market. Click to sort"
+                  className={`sortable ${getSortIcon("stock")}`}
+                  onClick={() => setSorting("stock")}
+                >
+                  Stock&nbsp;
+                </th>
+                <th
+                  data-tip="Price for this good. Click to sort"
+                  className={`sortable ${getSortIcon("price")}`}
+                  onClick={() => setSorting("price")}
+                >
+                  Price&nbsp;
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {sortedRows.length === 0 ? (
+                <tr>
+                  <td colSpan={4}>
+                    <span>No market carries the selected good</span>
+                  </td>
+                </tr>
+              ) : (
+                sortedRows.map(row => (
+                  <tr
+                    key={row.marketId}
+                    className="states pointer"
+                    data-market={row.marketName}
+                    data-stock={row.stock}
+                    data-price={row.price}
+                    onClick={() => openMarketOverview(row.marketId)}
+                  >
+                    <td>
+                      <FillBox fill={row.marketColor} data-tip="Market color" />
+                    </td>
+                    <td>{row.marketName}</td>
+                    <td>{displayValue(row.stock, totalStock)}</td>
+                    <td>{displayPrice(row.price)}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
 
         <div id="marketsGoodCompareFooter" className="totalLine">

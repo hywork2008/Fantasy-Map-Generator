@@ -71,150 +71,201 @@ export const GoodsEditorDialog: React.FC = () => {
     <Dialog isOpen={isOpen} title="Goods Editor" onClose={handleClose}>
       <div id="goodsEditorContainer">
         <div
-          id="goodsHeader"
-          className="header"
-          style={{
-            gridTemplateColumns: isAssignMode ? "7.5em 6em" : "4em 7.4em 7em 6.8em 6em 4.6em 1.6em",
-            marginLeft: isAssignMode ? 22 : undefined
-          }}
-        >
-          <input
-            type="checkbox"
-            data-tip="Show or hide all goods on the Goods map"
-            className={`native hide${isAssignMode ? " hidden" : ""} -goods-editor-dialog__margin-0-3em--vertical-align-middle--width-1-2em`}
-            id="goodsDisplayAll"
-            checked={goods.length > 0 && displayedCount === goods.length}
-            ref={el => {
-              if (el) el.indeterminate = displayedCount > 0 && displayedCount < goods.length;
-            }}
-            onChange={e => toggleAllDisplayed(e.target.checked)}
-          />
-          <div data-tip="Click to sort by good name" className="sortable alphabetically" data-sortby="name">
-            Name&nbsp;
-          </div>
-          <div data-tip="Click to sort by type" className="sortable alphabetically" data-sortby="type">
-            Type&nbsp;
-          </div>
-          <div
-            data-tip="Total production units aggregated from cells and burgs. Click to sort"
-            className={`sortable icon-sort-number-down hide${isAssignMode ? " hidden" : ""}`}
-            data-sortby="produced"
-          >
-            Produced&nbsp;
-          </div>
-          <div
-            data-tip="Total units in stock across all markets and burg inventories. Click to sort"
-            className={`sortable hide${isAssignMode ? " hidden" : ""}`}
-            data-sortby="stock"
-          >
-            Stock&nbsp;
-          </div>
-          <div
-            data-tip="Base (initial) price. Click to sort"
-            className={`sortable hide${isAssignMode ? " hidden" : ""}`}
-            data-sortby="baseprice"
-          >
-            Price&nbsp;
-          </div>
-        </div>
-
-        <div
           id="goodsBody"
           className="table -goods-editor-dialog__max-height-50vh"
           data-type={isPercentageMode ? "percentage" : "absolute"}
         >
-          {goods.map(good => {
-            const displayedProduced = isPercentageMode
-              ? `${rn(totalProduced ? (good.produced / totalProduced) * 100 : 0, 2)}%`
-              : String(good.produced);
-            const displayedStock = isPercentageMode
-              ? `${rn(totalStock ? (good.stock / totalStock) * 100 : 0, 2)}%`
-              : String(good.stock);
+          <table className="states-table">
+            <colgroup>
+              {isAssignMode ? (
+                <>
+                  <col style={{ width: "2em" }} />
+                  <col style={{ width: "7.5em" }} />
+                  <col style={{ width: "6em" }} />
+                </>
+              ) : (
+                <>
+                  <col style={{ width: "4em" }} />
+                  <col style={{ width: "7.4em" }} />
+                  <col style={{ width: "7em" }} />
+                  <col style={{ width: "6.8em" }} />
+                  <col style={{ width: "6em" }} />
+                  <col style={{ width: "4.6em" }} />
+                  <col style={{ width: "1.6em" }} />
+                </>
+              )}
+            </colgroup>
+            <thead id="goodsHeader">
+              <tr className="header">
+                {isAssignMode ? (
+                  <>
+                    <th />
+                    <th data-tip="Click to sort by good name" className="sortable alphabetically" data-sortby="name">
+                      Name&nbsp;
+                    </th>
+                    <th data-tip="Click to sort by type" className="sortable alphabetically" data-sortby="type">
+                      Type&nbsp;
+                    </th>
+                  </>
+                ) : (
+                  <>
+                    <th>
+                      <input
+                        type="checkbox"
+                        data-tip="Show or hide all goods on the Goods map"
+                        className="native -goods-editor-dialog__margin-0-3em--vertical-align-middle--width-1-2em"
+                        id="goodsDisplayAll"
+                        checked={goods.length > 0 && displayedCount === goods.length}
+                        ref={el => {
+                          if (el) el.indeterminate = displayedCount > 0 && displayedCount < goods.length;
+                        }}
+                        onChange={e => toggleAllDisplayed(e.target.checked)}
+                      />
+                    </th>
+                    <th data-tip="Click to sort by good name" className="sortable alphabetically" data-sortby="name">
+                      Name&nbsp;
+                    </th>
+                    <th data-tip="Click to sort by type" className="sortable alphabetically" data-sortby="type">
+                      Type&nbsp;
+                    </th>
+                    <th
+                      data-tip="Total production units aggregated from cells and burgs. Click to sort"
+                      className="sortable icon-sort-number-down"
+                      data-sortby="produced"
+                    >
+                      Produced&nbsp;
+                    </th>
+                    <th
+                      data-tip="Total units in stock across all markets and burg inventories. Click to sort"
+                      className="sortable"
+                      data-sortby="stock"
+                    >
+                      Stock&nbsp;
+                    </th>
+                    <th data-tip="Base (initial) price. Click to sort" className="sortable" data-sortby="baseprice">
+                      Price&nbsp;
+                    </th>
+                    <th />
+                  </>
+                )}
+              </tr>
+            </thead>
+            <tbody>
+              {goods.map(good => {
+                const displayedProduced = isPercentageMode
+                  ? `${rn(totalProduced ? (good.produced / totalProduced) * 100 : 0, 2)}%`
+                  : String(good.produced);
+                const displayedStock = isPercentageMode
+                  ? `${rn(totalStock ? (good.stock / totalStock) * 100 : 0, 2)}%`
+                  : String(good.stock);
 
-            return (
-              <div
-                key={good.i}
-                className={`states goods${good.isTagVisible ? "" : " hidden"}${isAssignMode && selectedAssignGoodId === good.i ? " selected" : ""}`}
-                data-id={good.i}
-                data-name={good.name}
-                data-color={good.color}
-                data-baseprice={good.basePrice}
-                data-produced={good.produced}
-                data-stock={good.stock}
-                data-type={good.types.join(",")}
-                data-tags={good.tags.join(",")}
-                onClick={() => handleGoodRowClick(good.i)}
-              >
-                <input
-                  type="checkbox"
-                  data-tip="Toggle this good on the Goods map"
-                  className={`native goodDisplayed hide${isAssignMode ? " hidden" : ""} -goods-editor-dialog__padding-0--margin-0--vertical-align-middle--width-1-2em`}
-                  checked={good.isDisplayed}
-                  onChange={e => {
-                    e.stopPropagation();
-                    toggleDisplayedGood(good.i, e.target.checked);
-                  }}
-                />
-                <svg aria-label={good.name} data-tip="Good icon" width="2em" height="2em" className="goodIcon">
-                  <circle cx="50%" cy="50%" r="42%" fill={good.color} stroke={good.strokeColor} />
-                  <use href={`#${good.icon}`} x="10%" y="10%" width="80%" height="80%" />
-                </svg>
-                <div data-tip="Good name" className="goodName">
-                  {good.name}
-                </div>
-                <div data-tip="Good types" className="goodType -goods-editor-dialog__width-6em">
-                  {good.types.map(t => (
-                    <TypeBadge key={t} type={t} />
-                  ))}
-                </div>
-                <div
-                  data-tip={`${good.producedTip}. Click to see burgs producing this good`}
-                  className={`goodProduced pointer hide${isAssignMode ? " hidden" : ""} -goods-editor-dialog__vertical-align-middle`}
-                  onClick={e => {
-                    e.stopPropagation();
-                    openProducersDialog(good.i);
-                  }}
-                >
-                  <div className="-goods-editor-dialog__display-inline-block">{displayedProduced}</div>
-                  <div className="-goods-editor-dialog__display-inline-block--width-0-4em--font-size-1-5em">⚒</div>
-                </div>
-                <div
-                  data-tip={`${good.stockTip}. Click to see breakdown by location`}
-                  className={`goodStock pointer hide${isAssignMode ? " hidden" : ""} -goods-editor-dialog__vertical-align-middle`}
-                  onClick={e => {
-                    e.stopPropagation();
-                    openStockDialog(good.i);
-                  }}
-                >
-                  <div className="-goods-editor-dialog__display-inline-block">{displayedStock}</div>
-                  <div className="-goods-editor-dialog__display-inline-block--width-0-4em--font-size-1-2em">⛁</div>
-                </div>
-                <div
-                  data-tip="Base (initial) price. Click to compare prices across markets"
-                  className={`goodBasePrice pointer hide${isAssignMode ? " hidden" : ""}`}
-                  onClick={e => e.stopPropagation()}
-                >
-                  🟡 {good.basePrice}
-                </div>
-                <span
-                  data-tip="Edit good distribution"
-                  className={`icon-pencil goodEdit hide${isAssignMode ? " hidden" : ""}`}
-                  onClick={e => {
-                    e.stopPropagation();
-                    editGoodDistribution(good.i);
-                  }}
-                />
-                <span
-                  data-tip="Remove good"
-                  className={`icon-trash-empty hide goodRemove${isAssignMode ? " hidden" : ""}`}
-                  onClick={e => {
-                    e.stopPropagation();
-                    removeGood(good.i);
-                  }}
-                />
-              </div>
-            );
-          })}
+                return (
+                  <tr
+                    key={good.i}
+                    className={`states goods${good.isTagVisible ? "" : " hidden"}${isAssignMode && selectedAssignGoodId === good.i ? " selected" : ""}`}
+                    data-id={good.i}
+                    data-name={good.name}
+                    data-color={good.color}
+                    data-baseprice={good.basePrice}
+                    data-produced={good.produced}
+                    data-stock={good.stock}
+                    data-type={good.types.join(",")}
+                    data-tags={good.tags.join(",")}
+                    onClick={() => handleGoodRowClick(good.i)}
+                  >
+                    {isAssignMode ? (
+                      <td>
+                        <svg aria-label={good.name} data-tip="Good icon" width="2em" height="2em" className="goodIcon">
+                          <circle cx="50%" cy="50%" r="42%" fill={good.color} stroke={good.strokeColor} />
+                          <use href={`#${good.icon}`} x="10%" y="10%" width="80%" height="80%" />
+                        </svg>
+                      </td>
+                    ) : (
+                      <td>
+                        <input
+                          type="checkbox"
+                          data-tip="Toggle this good on the Goods map"
+                          className="native goodDisplayed -goods-editor-dialog__padding-0--margin-0--vertical-align-middle--width-1-2em"
+                          checked={good.isDisplayed}
+                          onChange={e => {
+                            e.stopPropagation();
+                            toggleDisplayedGood(good.i, e.target.checked);
+                          }}
+                        />
+                        <svg aria-label={good.name} data-tip="Good icon" width="2em" height="2em" className="goodIcon">
+                          <circle cx="50%" cy="50%" r="42%" fill={good.color} stroke={good.strokeColor} />
+                          <use href={`#${good.icon}`} x="10%" y="10%" width="80%" height="80%" />
+                        </svg>
+                      </td>
+                    )}
+                    <td data-tip="Good name" className="goodName">
+                      {good.name}
+                    </td>
+                    <td data-tip="Good types" className="goodType">
+                      {good.types.map(t => (
+                        <TypeBadge key={t} type={t} />
+                      ))}
+                    </td>
+                    {!isAssignMode && (
+                      <>
+                        <td
+                          data-tip={`${good.producedTip}. Click to see burgs producing this good`}
+                          className="goodProduced pointer -goods-editor-dialog__vertical-align-middle"
+                          onClick={e => {
+                            e.stopPropagation();
+                            openProducersDialog(good.i);
+                          }}
+                        >
+                          <div className="-goods-editor-dialog__display-inline-block">{displayedProduced}</div>
+                          <div className="-goods-editor-dialog__display-inline-block--width-0-4em--font-size-1-5em">
+                            ⚒
+                          </div>
+                        </td>
+                        <td
+                          data-tip={`${good.stockTip}. Click to see breakdown by location`}
+                          className="goodStock pointer -goods-editor-dialog__vertical-align-middle"
+                          onClick={e => {
+                            e.stopPropagation();
+                            openStockDialog(good.i);
+                          }}
+                        >
+                          <div className="-goods-editor-dialog__display-inline-block">{displayedStock}</div>
+                          <div className="-goods-editor-dialog__display-inline-block--width-0-4em--font-size-1-2em">
+                            ⛁
+                          </div>
+                        </td>
+                        <td
+                          data-tip="Base (initial) price. Click to compare prices across markets"
+                          className="goodBasePrice pointer"
+                          onClick={e => e.stopPropagation()}
+                        >
+                          🟡 {good.basePrice}
+                        </td>
+                        <td>
+                          <span
+                            data-tip="Edit good distribution"
+                            className="icon-pencil goodEdit"
+                            onClick={e => {
+                              e.stopPropagation();
+                              editGoodDistribution(good.i);
+                            }}
+                          />
+                          <span
+                            data-tip="Remove good"
+                            className="icon-trash-empty goodRemove"
+                            onClick={e => {
+                              e.stopPropagation();
+                              removeGood(good.i);
+                            }}
+                          />
+                        </td>
+                      </>
+                    )}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
 
         <div id="goodsFooter" className={`totalLine hide${isAssignMode ? " hidden" : ""}`}>

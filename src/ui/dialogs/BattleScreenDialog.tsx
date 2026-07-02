@@ -350,66 +350,78 @@ export const RegimentSelectorScreenDialog: React.FC = () => {
         }
       ]}
     >
-      <div
-        id="regimentSelectorHeader"
-        className="header -battle-screen-dialog__grid-template-columns-9em-13em-4em-6em"
-        ref={el => {
-          if (el) applySorting(el);
-        }}
-      >
-        <div data-tip="Click to sort by state name" className="sortable alphabetically" data-sortby="state">
-          State&nbsp;
-        </div>
-        <div data-tip="Click to sort by regiment name" className="sortable alphabetically" data-sortby="regiment">
-          Regiment&nbsp;
-        </div>
-        <div data-tip="Click to sort by total military forces" className="sortable" data-sortby="total">
-          Total&nbsp;
-        </div>
-        <div
-          data-tip="Click to sort by distance to the battlefield"
-          className="sortable icon-sort-number-up"
-          data-sortby="distance"
-        >
-          Distance&nbsp;
-        </div>
-      </div>
       <div id="regimentSelectorBody" className="table">
-        {regiments.map(({ state: s, regiment: r }) => {
-          const key = `${s.i}-${r.i}`;
-          const isAdded = addedKeys.has(key);
-          const isSelected = selected.has(key);
-          return (
-            <div
-              key={key}
-              className={isAdded ? "inactive" : isSelected ? "selected" : ""}
-              data-s={s.i}
-              data-i={r.i}
-              data-state={s.name}
-              data-regiment={r.name}
-              data-total={r.a}
-              data-tip="Click to select regiment"
-              onClick={() => toggleSelect(key, isAdded)}
-              style={{ cursor: isAdded ? "default" : "pointer" }}
-            >
-              <svg
-                width=".9em"
-                height=".9em"
-                className="-battle-screen-dialog__margin-bottom-1px--stroke-333"
-                aria-label={s.name ?? ""}
+        <table className="states-table">
+          <colgroup>
+            <col style={{ width: "9em" }} />
+            <col style={{ width: "13em" }} />
+            <col style={{ width: "4em" }} />
+            <col style={{ width: "6em" }} />
+          </colgroup>
+          <thead
+            id="regimentSelectorHeader"
+            ref={el => {
+              if (el) applySorting(el);
+            }}
+          >
+            <tr className="header">
+              <th data-tip="Click to sort by state name" className="sortable alphabetically" data-sortby="state">
+                State&nbsp;
+              </th>
+              <th data-tip="Click to sort by regiment name" className="sortable alphabetically" data-sortby="regiment">
+                Regiment&nbsp;
+              </th>
+              <th data-tip="Click to sort by total military forces" className="sortable" data-sortby="total">
+                Total&nbsp;
+              </th>
+              <th
+                data-tip="Click to sort by distance to the battlefield"
+                className="sortable icon-sort-number-up"
+                data-sortby="distance"
               >
-                <rect x="0" y="0" width="100%" height="100%" fill={s.color ?? "#999"} />
-              </svg>
-              <div className="-battle-screen-dialog__width-6em">{(s.name ?? "").slice(0, 11)}</div>
-              <div className="-battle-screen-dialog__width-1-2em">{r.icon}</div>
-              <div className="-battle-screen-dialog__width-13em">{r.name.slice(0, 24)}</div>
-              <div className="-battle-screen-dialog__width-4em">{r.a}</div>
-              <div className="-battle-screen-dialog__width-4em">
-                {isAdded ? `0 ${distanceUnit}` : `? ${distanceUnit}`}
-              </div>
-            </div>
-          );
-        })}
+                Distance&nbsp;
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {regiments.map(({ state: s, regiment: r }) => {
+              const key = `${s.i}-${r.i}`;
+              const isAdded = addedKeys.has(key);
+              const isSelected = selected.has(key);
+              return (
+                <tr
+                  key={key}
+                  className={isAdded ? "inactive" : isSelected ? "selected" : ""}
+                  data-s={s.i}
+                  data-i={r.i}
+                  data-state={s.name}
+                  data-regiment={r.name}
+                  data-total={r.a}
+                  data-tip="Click to select regiment"
+                  onClick={() => toggleSelect(key, isAdded)}
+                  style={{ cursor: isAdded ? "default" : "pointer" }}
+                >
+                  <td>
+                    <svg
+                      width=".9em"
+                      height=".9em"
+                      className="-battle-screen-dialog__margin-bottom-1px--stroke-333"
+                      aria-label={s.name ?? ""}
+                    >
+                      <rect x="0" y="0" width="100%" height="100%" fill={s.color ?? "#999"} />
+                    </svg>
+                    {(s.name ?? "").slice(0, 11)}
+                  </td>
+                  <td>
+                    {r.icon} {r.name.slice(0, 24)}
+                  </td>
+                  <td>{r.a}</td>
+                  <td>{isAdded ? `0 ${distanceUnit}` : `? ${distanceUnit}`}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     </Dialog>
   );

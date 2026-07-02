@@ -132,14 +132,14 @@ export const RegimentsOverviewDialog: React.FC = () => {
   };
 
   const SortHeader: React.FC<{ field: string; label: string; numeric?: boolean }> = ({ field, label, numeric }) => (
-    <div
+    <th
       data-tip={`${label}. Click to sort`}
       className={`sortable ${numeric ? "icon-sort-number-down" : "alphabetically"} -regiments-overview-dialog__cursor-pointer`}
       onClick={() => toggleSortBy(field)}
       data-sortby={field}
     >
       {label}&nbsp;
-    </div>
+    </th>
   );
 
   const sortedStates = useMemo(() => [...states].sort((a, b) => (a.name > b.name ? 1 : -1)), [states]);
@@ -147,124 +147,138 @@ export const RegimentsOverviewDialog: React.FC = () => {
   return (
     <Dialog isOpen={isOpen} title="Regiments Overview" onClose={() => closeDialog("regimentsOverview")}>
       <div id="regimentsOverviewContainer">
-        <div>
-          <div
-            id="regimentsHeader"
-            className="header"
-            style={{ gridTemplateColumns: `9em 13em repeat(${unitTypes.length}, 5.2em) 7em` }}
-          >
-            <SortHeader field="state" label="State" />
-            <SortHeader field="name" label="Name" />
-            {unitTypes.map(u => (
-              <SortHeader key={u.name} field={u.name} label={capitalize(u.name.replace(/_/g, " "))} numeric />
-            ))}
-            <div
-              data-tip="Total military personnel (not considering crew). Click to sort"
-              id="regimentsTotal"
-              className="sortable icon-sort-number-down -regiments-overview-dialog__cursor-pointer"
-              data-sortby="total"
-              onClick={() => toggleSortBy("total")}
-            >
-              Total&nbsp;
-            </div>
-          </div>
-          <div id="regimentsBody" className="table" data-type={percentageMode ? "percentage" : "absolute"}>
-            {rows.map(({ stateId, stateName, stateFullName, stateColor, regiment: r }) => (
-              <div
-                key={`${stateId}-${r.i}`}
-                className="states -regiments-overview-dialog__cursor-pointer"
-                data-id={r.i}
-                data-s={stateId}
-                data-state={stateName}
-                data-name={r.name}
-                data-total={r.a}
-                onMouseEnter={() => regimentHighlightOn(stateId, r.i)}
-                onMouseLeave={() => regimentHighlightOff(stateId, r.i)}
-                onClick={() =>
-                  import("../../controllers/regiment-editor").then(m => m.editRegiment(`#regiment${stateId}-${r.i}`))
-                }
-              >
-                <FillBox data-tip={stateFullName} fill={stateColor} disabled />
-                <input
-                  data-tip={stateFullName}
-                  className="-regiments-overview-dialog__width-6em"
-                  value={stateName}
-                  readOnly
-                />
-                {r.icon && (r.icon.startsWith("http") || r.icon.startsWith("data:image")) ? (
-                  <img
-                    src={r.icon}
-                    data-tip="Regiment's emblem"
-                    className="-regiments-overview-dialog__width-1-2em--height-1-2em--vertical-align-middle"
-                    alt="emblem"
-                  />
-                ) : (
-                  <span data-tip="Regiment's emblem" className="-regiments-overview-dialog__width-1em">
-                    {r.icon ?? ""}
-                  </span>
-                )}
-                <input
-                  data-tip="Regiment's name"
-                  className="-regiments-overview-dialog__width-13em"
-                  value={r.name}
-                  readOnly
-                />
-                {unitTypes.map(u => (
-                  <div key={u.name} data-type={u.name} data-tip={`${capitalize(u.name)} units number`}>
-                    {displayValue(r.u[u.name] ?? 0, u.name)}
-                  </div>
-                ))}
-                <div
-                  data-type="total"
-                  data-tip="Total military personnel (not considering crew)"
-                  className="-regiments-overview-dialog__font-weight-bold"
-                >
-                  {displayValue(r.a, "total")}
-                </div>
-              </div>
-            ))}
-            <div id="regimentsTotalLine" className="totalLine" data-tip="Total of all displayed regiments">
-              <div className="-regiments-overview-dialog__width-21em--margin-left-1em">Regiments: {rows.length}</div>
+        <div id="regimentsBody" className="table" data-type={percentageMode ? "percentage" : "absolute"}>
+          <table className="states-table">
+            <colgroup>
+              <col style={{ width: "9em" }} />
+              <col style={{ width: "14.5em" }} />
               {unitTypes.map(u => (
-                <div key={u.name} className="-regiments-overview-dialog__width-5em">
-                  {si(sum(rows.map(({ regiment: r }) => r.u[u.name] ?? 0)))}
-                </div>
+                <col key={u.name} style={{ width: "5.2em" }} />
               ))}
-              <div className="-regiments-overview-dialog__width-5em">{si(totals.total)}</div>
-            </div>
-          </div>
-          <div id="regimentsFooter">
-            <button type="button" data-tip="Refresh the overview screen" className="icon-cw" onClick={refresh} />
-            <button
-              type="button"
-              data-tip="Toggle percentage / absolute values views"
-              className={`icon-percent${percentageMode ? " pressed" : ""}`}
-              onClick={togglePercentageMode}
-            />
-            <button
-              type="button"
-              data-tip="Add new Regiment"
-              className={`icon-user-plus${addMode ? " pressed" : ""}`}
-              onClick={() => setAddMode(!addMode)}
-            />
-            <div data-tip="Select state" className="-regiments-overview-dialog__display-inline-block">
-              <span>State: </span>
-              <select value={filterStateId} onChange={e => setFilterStateId(+e.target.value)}>
-                <option value="-1">all</option>
-                {sortedStates.map(s => (
-                  <option key={s.i} value={s.i}>
-                    {s.name}
-                  </option>
+              <col style={{ width: "7em" }} />
+            </colgroup>
+            <thead id="regimentsHeader">
+              <tr className="header">
+                <SortHeader field="state" label="State" />
+                <SortHeader field="name" label="Name" />
+                {unitTypes.map(u => (
+                  <SortHeader key={u.name} field={u.name} label={capitalize(u.name.replace(/_/g, " "))} numeric />
                 ))}
-              </select>
-            </div>
-            <button
-              type="button"
-              data-tip="Save military-related data as a text file (.csv)"
-              className="icon-download"
-              onClick={downloadRegimentsData}
-            />
+                <th
+                  id="regimentsTotal"
+                  data-tip="Total military personnel (not considering crew). Click to sort"
+                  className="sortable icon-sort-number-down -regiments-overview-dialog__cursor-pointer"
+                  data-sortby="total"
+                  onClick={() => toggleSortBy("total")}
+                >
+                  Total&nbsp;
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map(({ stateId, stateName, stateFullName, stateColor, regiment: r }) => (
+                <tr
+                  key={`${stateId}-${r.i}`}
+                  className="states -regiments-overview-dialog__cursor-pointer"
+                  data-id={r.i}
+                  data-s={stateId}
+                  data-state={stateName}
+                  data-name={r.name}
+                  data-total={r.a}
+                  onMouseEnter={() => regimentHighlightOn(stateId, r.i)}
+                  onMouseLeave={() => regimentHighlightOff(stateId, r.i)}
+                  onClick={() =>
+                    import("../../controllers/regiment-editor").then(m => m.editRegiment(`#regiment${stateId}-${r.i}`))
+                  }
+                >
+                  <td>
+                    <FillBox data-tip={stateFullName} fill={stateColor} disabled />
+                    <input
+                      data-tip={stateFullName}
+                      className="-regiments-overview-dialog__width-6em"
+                      value={stateName}
+                      readOnly
+                    />
+                  </td>
+                  <td>
+                    {r.icon && (r.icon.startsWith("http") || r.icon.startsWith("data:image")) ? (
+                      <img
+                        src={r.icon}
+                        data-tip="Regiment's emblem"
+                        className="-regiments-overview-dialog__width-1-2em--height-1-2em--vertical-align-middle"
+                        alt="emblem"
+                      />
+                    ) : (
+                      <span data-tip="Regiment's emblem" className="-regiments-overview-dialog__width-1em">
+                        {r.icon ?? ""}
+                      </span>
+                    )}
+                    <input
+                      data-tip="Regiment's name"
+                      className="-regiments-overview-dialog__width-13em"
+                      value={r.name}
+                      readOnly
+                    />
+                  </td>
+                  {unitTypes.map(u => (
+                    <td key={u.name} data-type={u.name} data-tip={`${capitalize(u.name)} units number`}>
+                      {displayValue(r.u[u.name] ?? 0, u.name)}
+                    </td>
+                  ))}
+                  <td
+                    data-type="total"
+                    data-tip="Total military personnel (not considering crew)"
+                    className="-regiments-overview-dialog__font-weight-bold"
+                  >
+                    {displayValue(r.a, "total")}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr id="regimentsTotalLine" className="totalLine" data-tip="Total of all displayed regiments">
+                <td colSpan={2} className="-regiments-overview-dialog__padding-left-1em">
+                  Regiments: {rows.length}
+                </td>
+                {unitTypes.map(u => (
+                  <td key={u.name}>{si(sum(rows.map(({ regiment: r }) => r.u[u.name] ?? 0)))}</td>
+                ))}
+                <td>{si(totals.total)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        <div id="regimentsFooter">
+          <button type="button" data-tip="Refresh the overview screen" className="icon-cw" onClick={refresh} />
+          <button
+            type="button"
+            data-tip="Toggle percentage / absolute values views"
+            className={`icon-percent${percentageMode ? " pressed" : ""}`}
+            onClick={togglePercentageMode}
+          />
+          <button
+            type="button"
+            data-tip="Add new Regiment"
+            className={`icon-user-plus${addMode ? " pressed" : ""}`}
+            onClick={() => setAddMode(!addMode)}
+          />
+          <div data-tip="Select state" className="-regiments-overview-dialog__display-inline-block">
+            <span>State: </span>
+            <select value={filterStateId} onChange={e => setFilterStateId(+e.target.value)}>
+              <option value="-1">all</option>
+              {sortedStates.map(s => (
+                <option key={s.i} value={s.i}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
           </div>
+          <button
+            type="button"
+            data-tip="Save military-related data as a text file (.csv)"
+            className="icon-download"
+            onClick={downloadRegimentsData}
+          />
         </div>
       </div>
     </Dialog>

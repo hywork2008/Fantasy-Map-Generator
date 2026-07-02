@@ -55,7 +55,7 @@ export function sortLines(headerElement: HTMLElement): void {
   if (!headerElement.className.includes("icon-sort") && type === "name") order = "-up";
 
   const headers = headerElement.parentNode as Element;
-  headers.querySelectorAll<HTMLElement>("div.sortable").forEach(e => {
+  headers.querySelectorAll<HTMLElement>(".sortable").forEach(e => {
     e.classList.forEach(c => {
       if (c.includes("icon-sort")) e.classList.remove(c);
     });
@@ -64,7 +64,7 @@ export function sortLines(headerElement: HTMLElement): void {
   applySorting(headers as HTMLElement);
 }
 export function applySorting(headers: HTMLElement): void {
-  const header = headers.querySelector<HTMLElement>("div[class*='icon-sort']");
+  const header = headers.querySelector<HTMLElement>("[class*='icon-sort']");
   if (!header) return;
   const sortby = header.dataset.sortby!;
   const name = header.classList.contains("alphabetically");

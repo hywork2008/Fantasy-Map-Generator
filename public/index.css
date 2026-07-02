@@ -1407,15 +1407,20 @@ div.slider .ui-slider-handle {
   width: max-content;
 }
 
-div.header {
-  display: grid;
-  width: 0;
+
+tr.header th {
   font-weight: bold;
   font-size: 0.9em;
+  text-align: left;
+  padding: 0 0.2em;
+  white-space: nowrap;
 }
 
-div.header > div:first-child {
-  margin-left: 1.8em;
+table.states-table {
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0 0.1em;
+  width: 100%;
 }
 
 .sortable {
@@ -1445,6 +1450,32 @@ div.states {
 div.states:hover,
 div.states.hovered {
   border: 1px solid #c4c4c4;
+  background-image: linear-gradient(to right, #dedede 100%, #f2f2f2 50%, #fcfcfc 0%);
+}
+
+tr.states {
+  font-size: 0.9em;
+  line-height: 1.5em;
+}
+
+tr.states td {
+  border-top: 1px solid #d4d4d4;
+  border-bottom: 1px solid #d4d4d4;
+  background-image: linear-gradient(to right, #fafafa80 0%, #f0f0f080 50%, #c8c8c880 100%);
+  padding: 0 0.2em;
+}
+
+tr.states td:first-child {
+  border-left: 1px solid #d4d4d4;
+}
+
+tr.states td:last-child {
+  border-right: 1px solid #d4d4d4;
+}
+
+tr.states:hover td,
+tr.states.hovered td {
+  border-color: #c4c4c4;
   background-image: linear-gradient(to right, #dedede 100%, #f2f2f2 50%, #fcfcfc 0%);
 }
 
@@ -1591,12 +1622,21 @@ div.states > .riverType {
   line-height: 1.4em;
 }
 
-#burgBody div.label {
-  display: inline-block;
+#burgBody table th {
+  font-weight: normal;
+  text-align: left;
+  white-space: nowrap;
   width: 6em;
+  vertical-align: middle;
+  padding: 0.1em 0.3em 0.1em 0;
 }
 
-#burgBody > div > div,
+#burgBody table td {
+  vertical-align: middle;
+  padding: 0.1em 0;
+}
+
+#burgBody > div > table,
 #riverBody > div,
 #routeBody > div,
 #lakeBody > div {
@@ -2683,9 +2723,6 @@ body.tour-free-roam * {
   max-height: 50vh;
 }
 
-.-goods-editor-dialog__width-6em {
-  width: 6em;
-}
 
 .-goods-editor-dialog__vertical-align-middle {
   vertical-align: middle;
@@ -2711,36 +2748,12 @@ body.tour-free-roam * {
   max-height: 30em;
 }
 
-.-goods-producers-dialog__width-1em {
-  width: 1em;
-}
-
-.-goods-producers-dialog__width-7em {
-  width: 7em;
-}
-
-.-goods-producers-dialog__width-4em {
-  width: 4em;
-}
-
 .-goods-stock-dialog__color-888 {
   color: #888;
 }
 
 .-goods-stock-dialog__max-height-30em {
   max-height: 30em;
-}
-
-.-goods-stock-dialog__width-1em {
-  width: 1em;
-}
-
-.-goods-stock-dialog__width-7em {
-  width: 7em;
-}
-
-.-goods-stock-dialog__width-4em {
-  width: 4em;
 }
 
 .-goods-tags-filter-dialog__color-666 {
@@ -2801,17 +2814,6 @@ body.tour-free-roam * {
   max-height: 40em;
 }
 
-.-markets-good-compare-dialog__width-9em {
-  width: 9em;
-}
-
-.-markets-good-compare-dialog__width-6em {
-  width: 6em;
-}
-
-.-markets-good-compare-dialog__width-7em {
-  width: 7em;
-}
 
 .-markets-good-compare-dialog__margin-left-5 {
   margin-left: 5;
@@ -2830,21 +2832,6 @@ body.tour-free-roam * {
   cursor: pointer;
 }
 
-.-markets-overview-dialog__width-7em {
-  width: 7em;
-}
-
-.-markets-overview-dialog__width-8em {
-  width: 8em;
-}
-
-.-markets-overview-dialog__width-5em {
-  width: 5em;
-}
-
-.-markets-overview-dialog__width-6em {
-  width: 6em;
-}
 
 .-markets-overview-dialog__display-none {
   display: none;
@@ -3135,25 +3122,9 @@ body.tour-free-roam * {
   text-align: center;
 }
 
-.-battle-screen-dialog__grid-template-columns-9em-13em-4em-6em {
-  grid-template-columns: 9em 13em 4em 6em;
-}
-
 .-battle-screen-dialog__margin-bottom-1px--stroke-333 {
   margin-bottom: -1px;
   stroke: #333;
-}
-
-.-battle-screen-dialog__width-6em {
-  width: 6em;
-}
-
-.-battle-screen-dialog__width-13em {
-  width: 13em;
-}
-
-.-battle-screen-dialog__width-4em {
-  width: 4em;
 }
 
 .-battle-screen-dialog__width-30 {
@@ -3832,13 +3803,8 @@ body.tour-free-roam * {
   font-weight: bold;
 }
 
-.-regiments-overview-dialog__width-21em--margin-left-1em {
-  width: 21em;
-  margin-left: 1em;
-}
-
-.-regiments-overview-dialog__width-5em {
-  width: 5em;
+.-regiments-overview-dialog__padding-left-1em {
+  padding-left: 1em;
 }
 
 .-regiments-overview-dialog__display-inline-block {
@@ -4126,27 +4092,10 @@ body.tour-free-roam * {
   font-size: 1.2em;
 }
 
-.-goods-producers-dialog__grid-template-columns-1-6em-7em-4em {
-  grid-template-columns: 1.6em 7em 4em;
-}
-
-.-goods-stock-dialog__grid-template-columns-1-6em-7em-4em {
-  grid-template-columns: 1.6em 7em 4em;
-}
-
 .-goods-tags-filter-dialog__display-grid--grid-template-columns-1fr-1fr-1fr--column-gap-0-3em {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
   column-gap: 0.3em;
-}
-
-.-market-deals-dialog__grid-template-columns-2em-6-8em-4em-10em-4em-4em {
-  grid-template-columns: 2em 6.8em 4em 10em 4em 4em;
-}
-
-.-market-deals-dialog__display-inline-block--width-6-8em {
-  display: inline-block;
-  width: 6.8em;
 }
 
 .-market-overview-dialog__display-flex--align-items-center--margin-bottom-0-4em {
@@ -4164,10 +4113,6 @@ body.tour-free-roam * {
   margin-left: 0.3em;
 }
 
-.-market-overview-dialog__grid-template-columns-2-5em-9em-5-5em-3-2em {
-  grid-template-columns: 2.5em 9em 5.5em 3.2em;
-}
-
 .-market-overview-dialog__margin-bottom-0-3em {
   margin-bottom: 0.3em;
 }
@@ -4180,17 +4125,7 @@ body.tour-free-roam * {
   font-size: .9em;
 }
 
-.-markets-good-compare-dialog__grid-template-columns-1-6em-9em-6em-7em {
-  grid-template-columns: 1.6em 9em 6em 7em;
-}
 
-.-markets-overview-dialog__width-3-5em {
-  width: 3.5em;
-}
-
-.-markets-overview-dialog__width-1-2em {
-  width: 1.2em;
-}
 
 .-markets-overview-dialog__display-grid--gap-0-8em {
   display: grid;
@@ -4224,9 +4159,6 @@ body.tour-free-roam * {
   margin-left: 0.3em;
 }
 
-.-trade-details-dialog__grid-template-columns-2-5em-10em-5em-5-5em-3-6em {
-  grid-template-columns: 2.5em 10em 5em 5.5em 3.6em;
-}
 
 .-customization-menu__margin-left-0-9em {
   margin-left: 0.9em;

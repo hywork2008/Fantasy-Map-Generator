@@ -134,256 +134,236 @@ export const MarketsOverviewDialog: React.FC = () => {
     <Dialog isOpen={isOpen} title="Markets Overview" onClose={() => closeDialog("marketsOverview")}>
       <div id="marketsOverviewContainer">
         <div
-          id="marketsOverviewHeader"
-          className="header"
-          style={{
-            gridTemplateColumns: isManualMode
-              ? "1.6em 7.2em 8em 3.5em"
-              : "1.6em 7.2em 8em 3.5em 4.5em 6.5em 6.4em 6em 6em 1.2em"
-          }}
-        >
-          <div />
-          <div
-            data-tip="Market center burg name. Click to sort"
-            className={`sortable alphabetically ${getSortIcon("market", true)} -markets-overview-dialog__margin-left-0`}
-            onClick={() => marketsOverviewActions.setSorting("market")}
-          >
-            Market&nbsp;
-          </div>
-          <div
-            data-tip="Owning state. Click to sort"
-            className={`sortable alphabetically ${getSortIcon("owner", true)}`}
-            onClick={() => marketsOverviewActions.setSorting("owner")}
-          >
-            Owner&nbsp;
-          </div>
-          <div
-            data-tip="Number of cells in market territory. Click to sort"
-            className={`sortable ${getSortIcon("cells")}`}
-            onClick={() => marketsOverviewActions.setSorting("cells")}
-          >
-            Cells&nbsp;
-          </div>
-          <div
-            data-tip="Number of burgs in market territory. Click to sort"
-            className={`sortable hide${isManualMode ? " hidden" : ""} ${getSortIcon("burgs")}`}
-            onClick={() => marketsOverviewActions.setSorting("burgs")}
-          >
-            Burgs&nbsp;
-          </div>
-          <div
-            data-tip="Total stock of all goods. Click to sort"
-            className={`sortable hide${isManualMode ? " hidden" : ""} ${getSortIcon("stock")}`}
-            onClick={() => marketsOverviewActions.setSorting("stock")}
-          >
-            Stock&nbsp;
-          </div>
-          <div
-            data-tip="Total gross sales revenue. Click to sort"
-            className={`sortable hide${isManualMode ? " hidden" : ""} ${getSortIcon("sales")}`}
-            onClick={() => marketsOverviewActions.setSorting("sales")}
-          >
-            Sales&nbsp;
-          </div>
-          <div
-            data-tip="Total purchase spending. Click to sort"
-            className={`sortable hide${isManualMode ? " hidden" : ""} ${getSortIcon("buys")}`}
-            onClick={() => marketsOverviewActions.setSorting("buys")}
-          >
-            Buys&nbsp;
-          </div>
-          <div
-            data-tip="Market value: net trading flow plus unsold inventory value minus tax. Click to sort"
-            className={`sortable hide${isManualMode ? " hidden" : ""} ${getSortIcon("value")}`}
-            onClick={() => marketsOverviewActions.setSorting("value")}
-          >
-            Value&nbsp;
-          </div>
-          <div />
-        </div>
-
-        <div
           id="marketsOverviewBody"
           className="table -markets-overview-dialog__max-height-40em--cursor-pointer"
           data-type={isPercentageMode ? "percentage" : "absolute"}
         >
-          {markets.length === 0
-            ? "No markets available"
-            : sortedMarkets.map(m => {
-                // Handle Percentage Display if needed
-                const displayVal = (val: number, total: number) => {
-                  if (!isPercentageMode) {
-                    return val;
-                  }
-                  return total ? `${((val / total) * 100).toFixed(2)}%` : "0%";
-                };
-                const displayPrice = (val: number, total: number) => {
-                  if (!isPercentageMode) {
-                    return formatPrice(val);
-                  }
-                  return total ? `${((val / total) * 100).toFixed(2)}%` : "0%";
-                };
+          <table className="states-table">
+            <colgroup>
+              <col style={{ width: "1.6em" }} />
+              <col style={{ width: "7.2em" }} />
+              <col style={{ width: "8em" }} />
+              <col style={{ width: "3.5em" }} />
+              {!isManualMode && (
+                <>
+                  <col style={{ width: "4.5em" }} />
+                  <col style={{ width: "6.5em" }} />
+                  <col style={{ width: "6.4em" }} />
+                  <col style={{ width: "6em" }} />
+                  <col style={{ width: "6em" }} />
+                  <col style={{ width: "1.2em" }} />
+                </>
+              )}
+            </colgroup>
+            <thead id="marketsOverviewHeader">
+              <tr className="header">
+                <th />
+                <th
+                  data-tip="Market center burg name. Click to sort"
+                  className={`sortable alphabetically ${getSortIcon("market", true)} -markets-overview-dialog__margin-left-0`}
+                  onClick={() => marketsOverviewActions.setSorting("market")}
+                >
+                  Market&nbsp;
+                </th>
+                <th
+                  data-tip="Owning state. Click to sort"
+                  className={`sortable alphabetically ${getSortIcon("owner", true)}`}
+                  onClick={() => marketsOverviewActions.setSorting("owner")}
+                >
+                  Owner&nbsp;
+                </th>
+                <th
+                  data-tip="Number of cells in market territory. Click to sort"
+                  className={`sortable ${getSortIcon("cells")}`}
+                  onClick={() => marketsOverviewActions.setSorting("cells")}
+                >
+                  Cells&nbsp;
+                </th>
+                {!isManualMode && (
+                  <>
+                    <th
+                      data-tip="Number of burgs in market territory. Click to sort"
+                      className={`sortable ${getSortIcon("burgs")}`}
+                      onClick={() => marketsOverviewActions.setSorting("burgs")}
+                    >
+                      Burgs&nbsp;
+                    </th>
+                    <th
+                      data-tip="Total stock of all goods. Click to sort"
+                      className={`sortable ${getSortIcon("stock")}`}
+                      onClick={() => marketsOverviewActions.setSorting("stock")}
+                    >
+                      Stock&nbsp;
+                    </th>
+                    <th
+                      data-tip="Total gross sales revenue. Click to sort"
+                      className={`sortable ${getSortIcon("sales")}`}
+                      onClick={() => marketsOverviewActions.setSorting("sales")}
+                    >
+                      Sales&nbsp;
+                    </th>
+                    <th
+                      data-tip="Total purchase spending. Click to sort"
+                      className={`sortable ${getSortIcon("buys")}`}
+                      onClick={() => marketsOverviewActions.setSorting("buys")}
+                    >
+                      Buys&nbsp;
+                    </th>
+                    <th
+                      data-tip="Market value: net trading flow plus unsold inventory value minus tax. Click to sort"
+                      className={`sortable ${getSortIcon("value")}`}
+                      onClick={() => marketsOverviewActions.setSorting("value")}
+                    >
+                      Value&nbsp;
+                    </th>
+                    <th />
+                  </>
+                )}
+              </tr>
+            </thead>
+            <tbody>
+              {markets.length === 0 ? (
+                <tr>
+                  <td colSpan={isManualMode ? 4 : 10}>
+                    <span>No markets available</span>
+                  </td>
+                </tr>
+              ) : (
+                sortedMarkets.map(m => {
+                  const displayVal = (val: number, total: number) => {
+                    if (!isPercentageMode) return val;
+                    return total ? `${((val / total) * 100).toFixed(2)}%` : "0%";
+                  };
+                  const displayPrice = (val: number, total: number) => {
+                    if (!isPercentageMode) return formatPrice(val);
+                    return total ? `${((val / total) * 100).toFixed(2)}%` : "0%";
+                  };
 
-                if (m.isNoMarket) {
+                  const commonRowProps = {
+                    className: `states market${selectedMarketId === m.i ? " selected" : ""}`,
+                    "data-id": m.i,
+                    "data-market": m.centerName,
+                    "data-owner": m.ownerName,
+                    "data-cells": m.cells,
+                    "data-burgs": m.burgs,
+                    "data-stock": m.stock,
+                    "data-sales": m.sales,
+                    "data-buys": m.buys,
+                    "data-value": m.value
+                  };
+
+                  if (m.isNoMarket) {
+                    return (
+                      <tr key={m.i} {...commonRowProps} onClick={() => handleRowClick(m.i)}>
+                        <td data-tip="Cells assigned to no market">
+                          <FillBox fill="none" />
+                        </td>
+                        <td
+                          className="marketName"
+                          data-tip="Cells with no market; their burgs are excluded from production"
+                        >
+                          {m.centerName}
+                        </td>
+                        <td className="marketOwner">{m.ownerName}</td>
+                        <td className="marketCells" data-tip="Number of cells with no market" data-type="cells">
+                          {displayVal(m.cells, totals.cells)}
+                        </td>
+                        {!isManualMode && (
+                          <>
+                            <td className="marketBurgs" data-tip="Number of burgs with no market" data-type="burgs">
+                              {displayVal(m.burgs, totals.burgs)}
+                            </td>
+                            <td className="marketStock" data-type="stock">
+                              —
+                            </td>
+                            <td className="marketSales" data-type="sales">
+                              —
+                            </td>
+                            <td className="marketBuysCol" data-type="buys">
+                              —
+                            </td>
+                            <td className="marketValue" data-type="value">
+                              —
+                            </td>
+                            <td />
+                          </>
+                        )}
+                      </tr>
+                    );
+                  }
+
                   return (
-                    <div
+                    <tr
                       key={m.i}
-                      className={`states market${selectedMarketId === m.i ? " selected" : ""}`}
-                      data-id={m.i}
-                      data-market={m.centerName}
-                      data-owner={m.ownerName}
-                      data-cells={m.cells}
-                      data-burgs={m.burgs}
-                      data-stock={m.stock}
-                      data-sales={m.sales}
-                      data-buys={m.buys}
-                      data-value={m.value}
+                      {...commonRowProps}
                       onClick={() => handleRowClick(m.i)}
+                      onMouseEnter={() => handleMouseEnter(m.i)}
+                      onMouseLeave={() => handleMouseLeave(m.i)}
                     >
-                      <div data-tip="Cells assigned to no market">
-                        <FillBox fill="none" />
-                      </div>
-                      <div
-                        data-tip="Cells with no market; their burgs are excluded from production"
-                        className="marketName -markets-overview-dialog__width-7em"
-                      >
+                      <td onClick={e => handleColorClick(e, m.i)}>
+                        <FillBox fill={m.color} />
+                        <input
+                          ref={el => {
+                            colorInputRefs.current[m.i] = el;
+                          }}
+                          type="color"
+                          value={m.color}
+                          tabIndex={-1}
+                          aria-hidden="true"
+                          className="-markets-overview-dialog__display-none"
+                          onClick={event => event.stopPropagation()}
+                          onChange={event => handleColorChange(m.i, event.target.value)}
+                        />
+                      </td>
+                      <td className="marketName" data-tip="Market name. Click to view details">
                         {m.centerName}
-                      </div>
-                      <div className="marketOwner -markets-overview-dialog__width-8em">{m.ownerName}</div>
-                      <div
-                        data-tip="Number of cells with no market"
-                        data-type="cells"
-                        className="marketCells -markets-overview-dialog__width-3-5em"
-                      >
+                      </td>
+                      <td className="marketOwner" data-tip="Owning state">
+                        {m.ownerName}
+                      </td>
+                      <td className="marketCells" data-tip="Number of cells in market territory" data-type="cells">
                         {displayVal(m.cells, totals.cells)}
-                      </div>
-                      <div
-                        data-tip="Number of burgs with no market"
-                        data-type="burgs"
-                        className={`marketBurgs hide${isManualMode ? " hidden" : ""} -markets-overview-dialog__width-3-5em`}
-                      >
-                        {displayVal(m.burgs, totals.burgs)}
-                      </div>
-                      <div
-                        data-type="stock"
-                        className={`marketStock hide${isManualMode ? " hidden" : ""} -markets-overview-dialog__width-5em`}
-                      >
-                        —
-                      </div>
-                      <div
-                        data-type="sales"
-                        className={`marketSales hide${isManualMode ? " hidden" : ""} -markets-overview-dialog__width-6em`}
-                      >
-                        —
-                      </div>
-                      <div
-                        data-type="buys"
-                        className={`marketBuysCol hide${isManualMode ? " hidden" : ""} -markets-overview-dialog__width-6em`}
-                      >
-                        —
-                      </div>
-                      <div
-                        data-type="value"
-                        className={`marketValue hide${isManualMode ? " hidden" : ""} -markets-overview-dialog__width-6em`}
-                      >
-                        —
-                      </div>
-                      <span className={`hide${isManualMode ? " hidden" : ""} -markets-overview-dialog__width-1-2em`} />
-                    </div>
+                      </td>
+                      {!isManualMode && (
+                        <>
+                          <td className="marketBurgs" data-tip="Number of burgs in market territory" data-type="burgs">
+                            {displayVal(m.burgs, totals.burgs)}
+                          </td>
+                          <td
+                            className="marketStock"
+                            data-tip="Total stock of all goods in this market"
+                            data-type="stock"
+                          >
+                            {displayVal(m.stock, totals.stock)}
+                          </td>
+                          <td className="marketSales" data-tip="Total gross sales revenue" data-type="sales">
+                            {displayPrice(m.sales, totals.sales)}
+                          </td>
+                          <td className="marketBuysCol" data-tip="Total purchase spending" data-type="buys">
+                            {displayPrice(m.buys, totals.buys)}
+                          </td>
+                          <td
+                            className="marketValue"
+                            data-tip="Market value: net trading flow plus unsold inventory value minus tax"
+                            data-type="value"
+                          >
+                            {displayPrice(m.value, totals.value)}
+                          </td>
+                          <td>
+                            <span
+                              data-tip="Remove this market"
+                              className="icon-trash-empty hiddenIcon -markets-overview-dialog__visibility-hidden"
+                              onClick={e => handleRemoveClick(e, m.i)}
+                            />
+                          </td>
+                        </>
+                      )}
+                    </tr>
                   );
-                }
-
-                return (
-                  <div
-                    key={m.i}
-                    className={`states market${selectedMarketId === m.i ? " selected" : ""}`}
-                    data-id={m.i}
-                    data-market={m.centerName}
-                    data-owner={m.ownerName}
-                    data-cells={m.cells}
-                    data-burgs={m.burgs}
-                    data-stock={m.stock}
-                    data-sales={m.sales}
-                    data-buys={m.buys}
-                    data-value={m.value}
-                    onClick={() => handleRowClick(m.i)}
-                    onMouseEnter={() => handleMouseEnter(m.i)}
-                    onMouseLeave={() => handleMouseLeave(m.i)}
-                  >
-                    <div onClick={e => handleColorClick(e, m.i)}>
-                      <FillBox fill={m.color} />
-                      <input
-                        ref={el => {
-                          colorInputRefs.current[m.i] = el;
-                        }}
-                        type="color"
-                        value={m.color}
-                        tabIndex={-1}
-                        aria-hidden="true"
-                        className="-markets-overview-dialog__display-none"
-                        onClick={event => event.stopPropagation()}
-                        onChange={event => handleColorChange(m.i, event.target.value)}
-                      />
-                    </div>
-                    <div
-                      data-tip="Market name. Click to view details"
-                      className="marketName -markets-overview-dialog__width-7em"
-                    >
-                      {m.centerName}
-                    </div>
-                    <div data-tip="Owning state" className="marketOwner -markets-overview-dialog__width-8em">
-                      {m.ownerName}
-                    </div>
-                    <div
-                      data-tip="Number of cells in market territory"
-                      data-type="cells"
-                      className="marketCells -markets-overview-dialog__width-3-5em"
-                    >
-                      {displayVal(m.cells, totals.cells)}
-                    </div>
-                    <div
-                      data-tip="Number of burgs in market territory"
-                      data-type="burgs"
-                      className={`marketBurgs hide${isManualMode ? " hidden" : ""} -markets-overview-dialog__width-3-5em`}
-                    >
-                      {displayVal(m.burgs, totals.burgs)}
-                    </div>
-                    <div
-                      data-tip="Total stock of all goods in this market"
-                      data-type="stock"
-                      className={`marketStock hide${isManualMode ? " hidden" : ""} -markets-overview-dialog__width-5em`}
-                    >
-                      {displayVal(m.stock, totals.stock)}
-                    </div>
-                    <div
-                      data-tip="Total gross sales revenue"
-                      data-type="sales"
-                      className={`marketSales hide${isManualMode ? " hidden" : ""} -markets-overview-dialog__width-6em`}
-                    >
-                      {displayPrice(m.sales, totals.sales)}
-                    </div>
-                    <div
-                      data-tip="Total purchase spending"
-                      data-type="buys"
-                      className={`marketBuysCol hide${isManualMode ? " hidden" : ""} -markets-overview-dialog__width-6em`}
-                    >
-                      {displayPrice(m.buys, totals.buys)}
-                    </div>
-                    <div
-                      data-tip="Market value: net trading flow plus unsold inventory value minus tax"
-                      data-type="value"
-                      className={`marketValue hide${isManualMode ? " hidden" : ""} -markets-overview-dialog__width-6em`}
-                    >
-                      {displayPrice(m.value, totals.value)}
-                    </div>
-                    <span
-                      data-tip="Remove this market"
-                      className={`icon-trash-empty hiddenIcon hide${isManualMode ? " hidden" : ""} -markets-overview-dialog__visibility-hidden`}
-                      onClick={e => handleRemoveClick(e, m.i)}
-                    />
-                  </div>
-                );
-              })}
+                })
+              )}
+            </tbody>
+          </table>
         </div>
 
         <div id="marketsOverviewFooter" className="totalLine" style={{ display: isManualMode ? "none" : "block" }}>
