@@ -67,6 +67,7 @@ import { changeViewMode, enterStandardView } from "./viewMode";
 
 let editHeightmapLayers: string[] = [];
 let heightmapHistory: InstanceType<typeof HeightmapEditorHistory> | undefined;
+let exitButtonAnimationShown = false;
 
 export const HeightmapEditorActions = {
   toggleBrushMode: (_mode: string) => {},
@@ -217,8 +218,8 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       if (allowErosionBoxEl) allowErosionBoxEl.style.display = mode === "keep" ? "none" : "inline-block";
     });
 
-    if (!sessionStorage.getItem("noExitButtonAnimation")) {
-      sessionStorage.setItem("noExitButtonAnimation", "true");
+    if (!exitButtonAnimationShown) {
+      exitButtonAnimationShown = true;
       const width = 12 * useOptionsState.getState().uiSize * 11;
       document.dispatchEvent(
         new CustomEvent("react-show-exit-customization", {

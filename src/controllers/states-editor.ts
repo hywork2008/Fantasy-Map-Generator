@@ -28,7 +28,7 @@ import { getStatesEditorState, setStatesEditorState } from "../store/statesEdito
 import type { Burg, Culture, MilitaryRegiment, Province, State } from "../types/models";
 import type { WorldNote } from "../types/WorldState";
 import { isDialogOpen, openDialog } from "../ui/dialogs/dialogService";
-import { findAll, findCell, getMixedColor, getRandomColor, isLand, P, rand, rn } from "../utils";
+import { findAll, findCell, getMixedColor, getRandomColor, isLand, P, ra, rand, rn } from "../utils";
 import { getArea, getAreaUnit } from "../utils/domUtils";
 import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog, downloadFile, getFileName } from "../utils/editorHelpers";

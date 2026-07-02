@@ -54,6 +54,8 @@ function getElementBySelector<T extends Element>(selector: string): T | null {
 
 // ─── Module-scope constants ───────────────────────────────────────────────────
 
+let styleChangeConfirmed = false;
+
 const SYSTEM_PRESETS = [
   "default",
   "ancient",
@@ -1221,15 +1223,14 @@ export async function applyStyleOnLoad(): Promise<void> {
 }
 
 export function requestStylePresetChange(preset: string): void {
-  const isConfirmed = sessionStorage.getItem("styleChangeConfirmed");
-  if (isConfirmed) return void changeStyle(preset);
+  if (styleChangeConfirmed) return void changeStyle(preset);
 
   confirmationDialog({
     title: "Change style preset",
     message: "Are you sure you want to change the style preset? All unsaved style changes will be lost",
     confirm: "Change",
     onConfirm: () => {
-      sessionStorage.setItem("styleChangeConfirmed", "true");
+      styleChangeConfirmed = true;
       changeStyle(preset);
     },
     onCancel: () => {

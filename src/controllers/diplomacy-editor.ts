@@ -378,12 +378,6 @@ export const diplomacyEditorActions = {
   closeDiplomacyEditor: () => {}
 };
 
-declare global {
-  interface Window {
-    editDiplomacy: () => void;
-  }
-}
-
 export function initDiplomacyEditor(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: AppServices) {}
 
 document.addEventListener("fmg:refresh-editors", () => {

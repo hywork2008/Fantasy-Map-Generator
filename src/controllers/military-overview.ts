@@ -107,8 +107,4 @@ export function militaryRecalculate(): void {
   );
 }
 
-declare global {
-  var overviewMilitaryCustomize: boolean | undefined;
-}
-
 export function initMilitaryOverview(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: AppServices) {}

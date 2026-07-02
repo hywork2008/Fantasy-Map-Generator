@@ -37,9 +37,6 @@ declare global {
   var statesEditor: HTMLElement | undefined;
   var zonesEditor: HTMLElement | undefined;
 
-  // Provinces editor callback (set dynamically, read in ProvinceNameEditorDialog.tsx)
-  var applyProvinceNameChange: (() => void) | undefined;
-
   // Legacy global path helper used by erosion-bake (set at runtime)
   var getFeaturePath: ((feature: unknown) => string) | undefined;
 }

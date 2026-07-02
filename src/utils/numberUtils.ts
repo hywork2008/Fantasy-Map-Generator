@@ -50,13 +50,3 @@ export const normalize = (val: number, min: number, max: number) => {
 export const lerp = (a: number, b: number, t: number) => {
   return a + (b - a) * t;
 };
-
-declare global {
-  interface Window {
-    rn: typeof rn;
-    minmax: typeof minmax;
-    lim: typeof lim;
-    normalize: typeof normalize;
-    lerp: typeof lerp;
-  }
-}

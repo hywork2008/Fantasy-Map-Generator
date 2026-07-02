@@ -1,3 +1,4 @@
+import * as d3 from "d3";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import { initHierarchyTree, updateTree } from "../../controllers/hierarchy-tree";
@@ -180,7 +181,6 @@ export const HierarchyTreeDialog: React.FC = () => {
                     updateElementCode(selectedNode.i, e.target.value);
                     // Force text update in D3 node immediately
                     if (svgRef.current) {
-                      const d3 = window.d3;
                       d3.select(svgRef.current).select(`g[data-id="${selectedNode.i}"] text`).text(e.target.value);
                     }
                   }}
@@ -228,11 +228,7 @@ export const HierarchyTreeDialog: React.FC = () => {
                 onClick={() => {
                   setSelectedElementId(null);
                   if (svgRef.current) {
-                    window.d3
-                      .select(svgRef.current)
-                      .select("g#hierarchyTree_nodes")
-                      .selectAll("g")
-                      .style("outline", "none");
+                    d3.select(svgRef.current).select("g#hierarchyTree_nodes").selectAll("g").style("outline", "none");
                   }
                 }}
               >

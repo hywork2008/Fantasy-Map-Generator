@@ -65,9 +65,3 @@ const nest = <T>(
 export const distanceSquared = ([x1, y1]: [number, number], [x2, y2]: [number, number]) => {
   return (x1 - x2) ** 2 + (y1 - y2) ** 2;
 };
-declare global {
-  interface Window {
-    rollups: typeof rollups;
-    dist2: typeof distanceSquared;
-  }
-}

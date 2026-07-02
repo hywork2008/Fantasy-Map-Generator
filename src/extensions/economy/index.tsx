@@ -1,6 +1,7 @@
 import "./types"; // activate module augmentation for PackedGraph
 import type { LayerConfig } from "../../store/layerState";
 import { regenerateFeatureDialogStore } from "../../store/regenerateFeatureDialogState";
+import { useUiPreferencesState } from "../../store/uiPreferencesState";
 import type { ExtensionAPI } from "../../types/extension-api";
 import { economyStyleConfig } from "./EconomyStyleConfig";
 import { clearEconomyContext, getWorldContext, initEconomyContext } from "./economyContext";
@@ -33,8 +34,7 @@ function getDefaultGoodsSet(): Set<number> {
 }
 
 function withRegenerateConfirmation(featureName: string, _id: string, onConfirm: () => void) {
-  const dontAsk = sessionStorage.getItem("regenerateFeatureDontAsk");
-  if (dontAsk) return onConfirm();
+  if (useUiPreferencesState.getState().dontAskRegenerateFeature) return onConfirm();
 
   regenerateFeatureDialogStore.getState().open({ featureName, onConfirm });
 }

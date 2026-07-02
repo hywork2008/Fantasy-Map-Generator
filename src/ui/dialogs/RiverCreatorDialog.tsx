@@ -1,5 +1,5 @@
 import type React from "react";
-import { addRiver, closeRiverCreator } from "../../controllers/rivers-creator";
+import { addRiver, closeRiverCreator, getCellFlux, setCellFlux } from "../../controllers/rivers-creator";
 import { useDialogState } from "../../store/dialogState";
 import { useRiverCreatorStore } from "../../store/riverCreatorStore";
 import { Dialog } from "./Dialog";
@@ -10,9 +10,7 @@ export const RiverCreatorDialog: React.FC = () => {
   const removeCell = useRiverCreatorStore(state => state.removeCell);
 
   const handleFluxChange = (cell: number, value: string) => {
-    if (window.fmg?.world) {
-      window.fmg.world.pack.cells.fl[cell] = Number(value);
-    }
+    setCellFlux(cell, Number(value));
   };
 
   return (
@@ -27,7 +25,7 @@ export const RiverCreatorDialog: React.FC = () => {
             <input
               type="number"
               min="0"
-              defaultValue={window.fmg?.world?.pack?.cells?.fl[cell] ?? 0}
+              defaultValue={getCellFlux(cell)}
               className="editFlux -river-creator-dialog__width-5em"
               onChange={e => handleFluxChange(cell, e.target.value)}
             />

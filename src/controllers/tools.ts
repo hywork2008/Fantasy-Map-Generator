@@ -41,6 +41,7 @@ import { useMarkersOverviewState } from "../store/markersOverviewState";
 import { useMilitaryOverviewState } from "../store/militaryOverviewState";
 import { useOptionsState } from "../store/optionsState";
 import { useRiversOverviewState } from "../store/riversOverviewState";
+import { useUiPreferencesState } from "../store/uiPreferencesState";
 import type { MarkerConfig } from "../types/MarkerConfig";
 import type { Burg, Marker, Province, Religion, River, Route, State } from "../types/models";
 import type { WorldNote } from "../types/WorldState";
@@ -193,8 +194,8 @@ document.addEventListener("react-tool-action", e => {
   else getToolActionHandler(button)?.();
 
   if (button.startsWith("regenerate")) {
-    const dontAsk = sessionStorage.getItem("regenerateFeatureDontAsk");
-    if (dontAsk) return processFeatureRegeneration(null, button);
+    const { dontAskRegenerateFeature, setDontAskRegenerateFeature } = useUiPreferencesState.getState();
+    if (dontAskRegenerateFeature) return processFeatureRegeneration(null, button);
 
     const featureName = button
       .replace(/^regenerate/, "")
@@ -205,7 +206,7 @@ document.addEventListener("react-tool-action", e => {
     const regenerateConfig: RegenerateConfirmConfig = {
       featureName,
       onProceed: dontAskAgain => {
-        if (dontAskAgain) sessionStorage.setItem("regenerateFeatureDontAsk", "true");
+        if (dontAskAgain) setDontAskRegenerateFeature(true);
         processFeatureRegeneration(null, button);
       }
     };

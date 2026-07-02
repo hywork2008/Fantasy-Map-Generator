@@ -810,10 +810,6 @@ function saveCulturesManualSnapshot(): void {
   /* ignore-legacy-dom */ culturesManualHistory.push(temp.innerHTML);
 }
 
-declare global {
-  var ra: <T>(arr: T[]) => T;
-}
-
 document.addEventListener("fmg:refresh-editors", () => {
   if (isDialogOpen("culturesEditor")) culturesEditorActions.refresh();
 });

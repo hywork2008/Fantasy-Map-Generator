@@ -1,6 +1,6 @@
 import * as d3 from "d3";
 import { worldContext } from "../context/worldContext";
-import { getHeight } from "../services/cellInfoService";
+import { getHeight, getPrecipitation } from "../services/cellInfoService";
 import { tip } from "../services/tooltipService";
 import { openDialog } from "../ui/dialogs/dialogService";
 import { capitalize, convertTemperature, rn, si } from "../utils";
@@ -574,8 +574,4 @@ function sortData(data: ChartDataPoint[], sorting: string): ChartDataPoint[] {
   }
 
   return data;
-}
-
-declare global {
-  var getPrecipitation: (prec: number) => string;
 }

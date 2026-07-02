@@ -1,6 +1,7 @@
 import { clipPolygon } from "lineclip";
 
 import { last } from "./arrayUtils";
+import { ERROR } from "./debug";
 import { distanceSquared } from "./functionUtils";
 import { rn } from "./numberUtils";
 import { rand } from "./probabilityUtils";
@@ -17,7 +18,7 @@ import { rand } from "./probabilityUtils";
 export const clipPoly = (points: [number, number][], graphWidth: number, graphHeight: number, secure?: number) => {
   if (points.length < 2) return points;
   if (points.some(point => point === undefined)) {
-    window.ERROR && console.error("Undefined point in clipPoly", points);
+    ERROR && console.error("Undefined point in clipPoly", points);
     return points;
   }
 
@@ -301,7 +302,7 @@ export const initializePrompt = (): void => {
     callback?: (value: number | string) => void
   ) => {
     if (options.default === undefined)
-      return window.ERROR && console.error("Prompt: options object does not have default value defined");
+      return ERROR && console.error("Prompt: options object does not have default value defined");
 
     const input = prompt.querySelector("#promptInput") as HTMLInputElement;
     const promptTextElement = prompt.querySelector("#promptText") as HTMLElement;

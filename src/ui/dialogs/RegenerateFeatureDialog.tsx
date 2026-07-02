@@ -4,6 +4,7 @@ import {
   regenerateFeatureDialogStore,
   useRegenerateFeatureDialogState
 } from "../../store/regenerateFeatureDialogState";
+import { useUiPreferencesState } from "../../store/uiPreferencesState";
 import { Dialog } from "./Dialog";
 
 export const RegenerateFeatureDialog: React.FC = () => {
@@ -17,7 +18,7 @@ export const RegenerateFeatureDialog: React.FC = () => {
   };
 
   const proceed = () => {
-    if (dontAsk) sessionStorage.setItem("regenerateFeatureDontAsk", "true");
+    if (dontAsk) useUiPreferencesState.getState().setDontAskRegenerateFeature(true);
     regenerateFeatureDialogStore.getState().onConfirm();
     close();
   };

@@ -48,14 +48,6 @@ export const getIntegerFromSI = (value: string): number => {
   return parseInt(value, 10);
 };
 
-declare global {
-  interface Window {
-    convertTemperature: typeof convertTemperature;
-    si: typeof si;
-    getInteger: typeof getIntegerFromSI;
-  }
-}
-
 export function formatPrice(value: number): string {
   return `🟡 ${rn(value, 2)}`;
 }
