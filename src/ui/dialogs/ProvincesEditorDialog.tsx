@@ -243,8 +243,10 @@ export const ProvincesEditorDialog: React.FC = () => {
                                   value={p.capitalId}
                                   onChange={e => provincesEditorActions.changeCapital(p.i, e.target.value)}
                                 >
-                                  {p.burgs.map(b => (
-                                    <option key={b} value={b}></option>
+                                  {p.burgsData.map(b => (
+                                    <option key={b.id} value={b.id}>
+                                      {b.name}
+                                    </option>
                                   ))}
                                 </select>
                               </div>

@@ -134,6 +134,10 @@ function refreshProvincesEditor(): void {
       rural,
       urban,
       burgs: p.burgs || [],
+      burgsData: (p.burgs || []).map(bId => ({
+        id: bId,
+        name: (worldContext.pack.burgs as Burg[])[bId]?.name || "Unknown"
+      })),
       burgCount,
       isSeparable,
       isFocused,
