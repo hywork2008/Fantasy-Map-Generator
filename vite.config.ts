@@ -9,6 +9,7 @@ export default defineConfig({
     build: {
         outDir: '../dist',
         assetsDir: './',
+        emptyOutDir: false,
     },
     publicDir: '../public',
     plugins: [
