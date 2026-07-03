@@ -16,7 +16,6 @@ import "tinymce/models/dom/model";
 import { worldContext } from "../context/worldContext";
 import { tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
-import { setHoverNotesState } from "../store/hoverNotesState";
 import { getNotesEditorState, setNotesEditorState } from "../store/notesEditorState";
 import type { WorldNote } from "../types/WorldState";
 import { closeDialog, openDialog } from "../ui/dialogs/dialogService";
@@ -48,7 +47,6 @@ export function editNotes(id?: string, name?: string): void {
       isPinned
     });
 
-    setHoverNotesState({ isVisible: true, name: note.name, legend: note.legend });
     requestAnimationFrame(() => {
       initEditor();
     });
@@ -122,7 +120,6 @@ export function updateLegend(e?: React.FocusEvent<HTMLDivElement> | Event): void
   }
 
   setNotesEditorState({ legend: note.legend });
-  setHoverNotesState({ isVisible: true, name: note.name, legend: note.legend });
 }
 
 function changeElement(id: string): void {
@@ -133,7 +130,6 @@ function changeElement(id: string): void {
   }
 
   setNotesEditorState({ selectedId: id, noteName: note.name, legend: note.legend });
-  setHoverNotesState({ isVisible: true, name: note.name, legend: note.legend });
 }
 
 function changeName(newName: string): void {
@@ -142,7 +138,6 @@ function changeName(newName: string): void {
   const note = worldContext.notes.find(note => note.id === selectedId);
   if (!note) return;
   note.name = newName;
-  setHoverNotesState({ isVisible: true, name: note.name, legend: note.legend });
 }
 
 function removeLegend(): void {
@@ -187,7 +182,6 @@ function openAiGenerator(): void {
     if (note) {
       note.legend = result;
       setNotesEditorState({ legend: note.legend });
-      setHoverNotesState({ isVisible: true, name: note.name, legend: note.legend });
     }
   };
 

@@ -343,7 +343,7 @@ input[type="color"] {
     }
   }
 
-  li {
+  button {
     cursor: pointer;
     overflow: hidden;
 
