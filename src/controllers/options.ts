@@ -184,7 +184,7 @@ function generateMapWithSeed(): void {
 export function showSeedHistoryDialog(): void {
   const lines = worldContext.mapHistory.map((h, i) => {
     const created = new Date(h.created).toLocaleTimeString();
-    const button = `<i data-tip="Click to generate a map with this seed" onclick="restoreSeed(${i})" class="icon-history optionsSeedRestore"></i>`;
+    const button = `<button type="button" aria-label="Restore seed" data-tip="Click to generate a map with this seed" onclick="restoreSeed(${i})" class="icon-btn icon-history optionsSeedRestore"></button>`;
     return `<li>Seed: ${h.seed} ${button}. Size: ${h.width}x${h.height}. Template: ${h.template}. Created: ${created}</li>`;
   });
   openAlert(`<ol>${lines.join("")}</ol>`, { title: "Seed history" });

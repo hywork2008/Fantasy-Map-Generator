@@ -1,8 +1,8 @@
 import type React from "react";
 import { useOptionsState } from "../../../../store/optionsState";
 import { lock } from "../../../../utils/domUtils";
+import { IconButton } from "../../IconButton";
 import { SliderInput } from "../../SliderInput";
-
 export const GenerationSettingsTab: React.FC = () => {
   const options = useOptionsState();
   const updateOption = options.setOption;
@@ -33,7 +33,7 @@ export const GenerationSettingsTab: React.FC = () => {
         <tbody>
           <tr data-tip="Set original map size on generation. It cannot be changed later. Always keep canvas size equal to your screen size or less.">
             <td>
-              <i data-tip="Restore default canvas size" className="icon-ccw" onClick={handleRestoreDefaultSize}></i>
+              <IconButton data-tip="Restore default canvas size" icon="icon-ccw" onClick={handleRestoreDefaultSize} />
             </td>
             <td>Canvas size</td>
             <td>

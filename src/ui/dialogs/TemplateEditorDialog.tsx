@@ -96,9 +96,13 @@ export const TemplateEditorDialog: React.FC = () => {
           onClick={() => handleToggleSkip(step.id)}
         />
         <div>{step.type}</div>
-        <i className="icon-trash-empty pointer" data-tip="Remove the step" onClick={() => handleRemoveStep(step.id)} />
-        <i className="icon-up-dir pointer" data-tip="Move up" onClick={() => handleMoveUp(index)} />
-        <i className="icon-down-dir pointer" data-tip="Move down" onClick={() => handleMoveDown(index)} />
+        <IconButton
+          className="icon-trash-empty pointer"
+          data-tip="Remove the step"
+          onClick={() => handleRemoveStep(step.id)}
+        />
+        <IconButton className="icon-up-dir pointer" data-tip="Move up" onClick={() => handleMoveUp(index)} />
+        <IconButton className="icon-down-dir pointer" data-tip="Move down" onClick={() => handleMoveDown(index)} />
       </>
     );
 
