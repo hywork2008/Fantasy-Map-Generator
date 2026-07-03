@@ -18,6 +18,81 @@
   /* Keeps the content area scrollable instead of overflowing the viewport */
   max-height: 90vh;
   z-index: 100;
+
+  &.fmg-dialog--dragging {
+    cursor: move;
+  }
+
+  &.fmg-dialog--minimized {
+    /* Container is pass-through so clicks reach elements behind the dialog.
+       The titlebar re-enables pointer events for itself below. */
+    pointer-events: none;
+
+    .fmg-dialog-titlebar {
+      pointer-events: auto;
+    }
+  }
+
+  /* ── Table-layout dialogs (fmg-dialog--overflow-hidden modifier) ─────────────
+     For dialogs with a fixed-header / scrollable-body / fixed-footer structure
+     (Markers Overview, Burgs Overview, States Editor, Religions Editor, etc.).
+  
+     Usage:
+       <Dialog className="fmg-dialog--overflow-hidden" style={{ height: "460px" }}>
+         <div id="...Container">        ← direct child; becomes flex column
+           <div className="header">    ← fixed height column header
+           <div className="table">     ← scrollable body (flex: 1)
+           <div className="totalLine"> ← fixed height summary row
+           <div className="fmg-dialog-footer"> ← fixed height action buttons
+         </div>
+       </Dialog>
+  */
+  &.fmg-dialog--overflow-hidden {
+    /* Default height for table-layout dialogs: 75% of viewport, capped by the
+       base max-height: 90vh. Overridable per-dialog with an inline style prop.
+       The flex children need a bounded height for the inner scroll to engage. */
+    height: 75vh;
+
+    /* Disable content-area scroll; let child manage its own regions. */
+    > .fmg-dialog-content {
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+
+      /* The direct child (container div) fills the available height as a flex column. */
+      > * {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+      }
+    }
+
+    /* Column header row — always visible, never scrolls. */
+    .header {
+      flex-shrink: 0;
+    }
+
+    /* Scrollable data rows — takes all remaining height. */
+    .table {
+      flex: 1;
+      min-height: 0;
+      max-height: none !important;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+
+    /* Summary / totals row — always visible, never scrolls. */
+    .totalLine {
+      flex-shrink: 0;
+    }
+
+    /* Footer button row — always visible at the bottom, never scrolls.
+       Add class="fmg-dialog-footer" to the footer div in each dialog. */
+    .fmg-dialog-footer {
+      flex-shrink: 0;
+    }
+  }
 }
 
 .fmg-dialog-titlebar {
@@ -28,10 +103,6 @@
   user-select: none;
   flex-shrink: 0;
   background-color: gray;
-}
-
-.fmg-dialog.fmg-dialog--dragging {
-  cursor: move;
 }
 
 .fmg-dialog-titlebar-actions {
@@ -72,79 +143,6 @@
   cursor: se-resize;
 }
 
-/* ── Minimized state ───────────────────────────────────────────────────────── */
-.fmg-dialog.fmg-dialog--minimized {
-  /* Container is pass-through so clicks reach elements behind the dialog.
-     The titlebar re-enables pointer events for itself below. */
-  pointer-events: none;
-}
-
-.fmg-dialog.fmg-dialog--minimized .fmg-dialog-titlebar {
-  pointer-events: auto;
-}
-
-/* ── Table-layout dialogs (fmg-dialog--overflow-hidden modifier) ─────────────
-   For dialogs with a fixed-header / scrollable-body / fixed-footer structure
-   (Markers Overview, Burgs Overview, States Editor, Religions Editor, etc.).
-
-   Usage:
-     <Dialog className="fmg-dialog--overflow-hidden" style={{ height: "460px" }}>
-       <div id="...Container">        ← direct child; becomes flex column
-         <div className="header">    ← fixed height column header
-         <div className="table">     ← scrollable body (flex: 1)
-         <div className="totalLine"> ← fixed height summary row
-         <div className="fmg-dialog-footer"> ← fixed height action buttons
-       </div>
-     </Dialog>
-*/
-
-/* Default height for table-layout dialogs: 75% of viewport, capped by the
-   base max-height: 90vh. Overridable per-dialog with an inline style prop.
-   The flex children need a bounded height for the inner scroll to engage. */
-.fmg-dialog.fmg-dialog--overflow-hidden {
-  height: 75vh;
-}
-
-/* Disable content-area scroll; let child manage its own regions. */
-.fmg-dialog.fmg-dialog--overflow-hidden > .fmg-dialog-content {
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-/* The direct child (container div) fills the available height as a flex column. */
-.fmg-dialog.fmg-dialog--overflow-hidden > .fmg-dialog-content > * {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-
-/* Column header row — always visible, never scrolls. */
-.fmg-dialog.fmg-dialog--overflow-hidden .header {
-  flex-shrink: 0;
-}
-
-/* Scrollable data rows — takes all remaining height. */
-.fmg-dialog.fmg-dialog--overflow-hidden .table {
-  flex: 1;
-  min-height: 0;
-  max-height: none !important;
-  overflow-y: auto;
-  overflow-x: hidden;
-}
-
-/* Summary / totals row — always visible, never scrolls. */
-.fmg-dialog.fmg-dialog--overflow-hidden .totalLine {
-  flex-shrink: 0;
-}
-
-/* Footer button row — always visible at the bottom, never scrolls.
-   Add class="fmg-dialog-footer" to the footer div in each dialog. */
-.fmg-dialog.fmg-dialog--overflow-hidden .fmg-dialog-footer {
-  flex-shrink: 0;
-}
-
 /* ── Dialog-specific overrides ─────────────────────────────────────────────── */
 
 /* Markers Overview: filter input row between .table and .totalLine */
@@ -164,10 +162,14 @@
 .fmg-table {
   width: 100%;
   border-collapse: collapse;
+
+  thead {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+  }
 }
 
-.fmg-table thead {
-  position: sticky;
-  top: 0;
-  z-index: 2;
+.alert-dialog {
+  z-index: 1000;
 }

@@ -6,11 +6,11 @@
 /* hide Google translate header */
 body > .skiptranslate {
   display: none;
-}
 
-/* hide Google translate in-progress widget */
-body > .skiptranslate + div {
-  display: none;
+  /* hide Google translate in-progress widget */
+  + div {
+    display: none;
+  }
 }
 
 /* make translated text wrapper non-blocking */
@@ -129,19 +129,23 @@ t,
   pointer-events: none;
 }
 
-#armies text {
-  pointer-events: none;
-  user-select: none;
-  stroke: none;
-  fill: #fff;
-  text-shadow: 0 0 4px #000;
-  dominant-baseline: central;
-  text-anchor: middle;
-  fill-opacity: 1;
-}
+#armies {
+  cursor: pointer;
 
-#armies text.regimentIcon {
-  font-size: 0.8em;
+  text {
+    pointer-events: none;
+    user-select: none;
+    stroke: none;
+    fill: #fff;
+    text-shadow: 0 0 4px #000;
+    dominant-baseline: central;
+    text-anchor: middle;
+    fill-opacity: 1;
+
+    &.regimentIcon {
+      font-size: 0.8em;
+    }
+  }
 }
 
 #statesHalo {
@@ -264,15 +268,43 @@ text.drag {
 
 #options {
   position: absolute;
+
+  i {
+    cursor: pointer;
+  }
+
+  button {
+    i.icon-cog {
+      position: absolute;
+      visibility: hidden;
+      opacity: 0;
+    }
+
+    &:hover i.icon-cog {
+      visibility: visible;
+    }
+  }
+
+  select {
+    cursor: pointer;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    cursor: pointer;
+  }
+
+  input[type="range"]::-moz-range-thumb {
+    cursor: pointer;
+  }
 }
 
 .tab {
   display: flex;
   cursor: move;
-}
 
-.tab button {
-  cursor: pointer;
+  button {
+    cursor: pointer;
+  }
 }
 
 button.active {
@@ -280,33 +312,7 @@ button.active {
   color: white;
 }
 
-#options i {
-  cursor: pointer;
-}
-
-#options button i.icon-cog {
-  position: absolute;
-  visibility: hidden;
-  opacity: 0;
-}
-
-#options button:hover i.icon-cog {
-  visibility: visible;
-}
-
 input[type="color"] {
-  cursor: pointer;
-}
-
-#options select {
-  cursor: pointer;
-}
-
-#options input[type="range"]::-webkit-slider-thumb {
-  cursor: pointer;
-}
-
-#options input[type="range"]::-moz-range-thumb {
   cursor: pointer;
 }
 
@@ -328,14 +334,24 @@ input[type="color"] {
 .tabcontent {
   /* display: none; */
   background-color: white;
-}
 
-.tabcontent button {
-  overflow: hidden;
-}
+  button {
+    overflow: hidden;
 
-.tabcontent button.pressed {
-  background-color: var(--header);
+    &.pressed {
+      background-color: var(--header);
+    }
+  }
+
+  li {
+    cursor: pointer;
+    overflow: hidden;
+
+    &.buttonoff {
+      background-color: var(--bg-disabled);
+      color: #444444aa;
+    }
+  }
 }
 
 #toolsContent > .grid {
@@ -348,17 +364,6 @@ input[type="color"] {
 
 #mapLayers {
   display: inline-block;
-}
-
-.tabcontent li {
-  cursor: pointer;
-
-  overflow: hidden;
-}
-
-.tabcontent li.buttonoff {
-  background-color: var(--bg-disabled);
-  color: #444444aa;
 }
 
 #optionsContainer span {
@@ -390,65 +395,61 @@ input[type="color"] {
   display: table;
 }
 
-#styleElements tbody,
-#styleElements caption {
-  display: none;
+#styleElements {
+  tbody,
+  caption {
+    display: none;
+  }
 }
 
 .matrix-table {
   overflow: auto;
-}
 
-.matrix-table > table th,
-.matrix-table > table td {
-  position: relative;
-}
+  > table {
+    th,
+    td {
+      position: relative;
+    }
 
-.matrix-table > table td:hover {
-  z-index: 1;
-  cursor: pointer;
-}
-
-.matrix-table > table td.Ally {
-  background-color: #73ec73;
-  color: #000000;
-}
-
-.matrix-table > table td.Friendly {
-  background-color: #d4f8aa;
-}
-
-.matrix-table > table td.Neutral {
-  background-color: #d8d9d3;
-}
-
-.matrix-table > table td.Suspicion {
-  background-color: #eeafaa;
-}
-
-.matrix-table > table td.Enemy {
-  background-color: #ffa39c;
-  color: #af0d23;
-}
-
-.matrix-table > table td.Unknown {
-  background-color: #c1bfbf;
-}
-
-.matrix-table > table td.Rival {
-  background-color: #bd845c;
-}
-
-.matrix-table > table td.Vassal {
-  background-color: #87cefa;
-}
-
-.matrix-table > table td.Suzerain {
-  background-color: #8f8fe1;
-}
-
-.matrix-table > table td.x {
-  cursor: initial;
+    td {
+      &:hover {
+        z-index: 1;
+        cursor: pointer;
+      }
+      &.Ally {
+        background-color: #73ec73;
+        color: #000000;
+      }
+      &.Friendly {
+        background-color: #d4f8aa;
+      }
+      &.Neutral {
+        background-color: #d8d9d3;
+      }
+      &.Suspicion {
+        background-color: #eeafaa;
+      }
+      &.Enemy {
+        background-color: #ffa39c;
+        color: #af0d23;
+      }
+      &.Unknown {
+        background-color: #c1bfbf;
+      }
+      &.Rival {
+        background-color: #bd845c;
+      }
+      &.Vassal {
+        background-color: #87cefa;
+      }
+      &.Suzerain {
+        background-color: #8f8fe1;
+      }
+      &.x {
+        cursor: initial;
+      }
+    }
+  }
 }
 
 #brushesButtons svg {
@@ -459,29 +460,31 @@ input[type="color"] {
   display: inline-block;
 }
 
-#templateBody > div {
-  display: flex;
-}
+#templateBody {
+  > div {
+    display: flex;
 
-#templateBody > div > div {
-  display: inline-block;
-}
+    > div {
+      display: inline-block;
+    }
 
-#templateBody > div > i {
-  cursor: pointer;
-}
+    > i {
+      cursor: pointer;
+    }
+  }
 
-#templateBody select {
-  cursor: pointer;
-}
+  select {
+    cursor: pointer;
+  }
 
-#templateBody .icon-resize-vertical {
-  cursor: row-resize;
-}
+  .icon-resize-vertical {
+    cursor: row-resize;
+  }
 
-#templateBody .icon-check-empty,
-#templateBody .icon-check {
-  cursor: pointer;
+  .icon-check-empty,
+  .icon-check {
+    cursor: pointer;
+  }
 }
 
 #controlPoints {
@@ -490,14 +493,18 @@ input[type="color"] {
   stroke-width: 0.25;
   cursor: move;
   opacity: 0.8;
-}
 
-#controlPoints > path {
-  fill: none;
-  stroke: #0a0909;
-  stroke-width: 2;
-  opacity: 0.4;
-  cursor: pointer;
+  > path {
+    fill: none;
+    stroke: #0a0909;
+    stroke-width: 2;
+    opacity: 0.4;
+    cursor: pointer;
+  }
+
+  > circle:hover {
+    stroke: #2c0808;
+  }
 }
 
 #controlCells {
@@ -506,23 +513,24 @@ input[type="color"] {
   stroke: none;
 }
 
-#vertices > circle {
-  fill: #ff0000;
-  stroke: #841f1f;
-  stroke-width: 0.1;
-  cursor: move;
-  opacity: 0.8;
-}
+#vertices {
+  > circle {
+    fill: #ff0000;
+    stroke: #841f1f;
+    stroke-width: 0.1;
+    cursor: move;
+    opacity: 0.8;
 
-#vertices > polygon {
-  fill: none;
-  stroke: #808080;
-  stroke-width: 0.1;
-}
+    &:hover {
+      stroke: #2c0808;
+    }
+  }
 
-#controlPoints > circle:hover,
-#vertices > circle:hover {
-  stroke: #2c0808;
+  > polygon {
+    fill: none;
+    stroke: #808080;
+    stroke-width: 0.1;
+  }
 }
 
 #battleBody > table {
@@ -598,57 +606,64 @@ i.resetButton {
   display: inline-block;
 }
 
-div.states:hover,
-div.states.hovered {
-  background-image: linear-gradient(to right, #dedede 100%, #f2f2f2 50%, #fcfcfc 0%);
+div.states {
+  &:hover,
+  &.hovered {
+    background-image: linear-gradient(to right, #dedede 100%, #f2f2f2 50%, #fcfcfc 0%);
+  }
+
+  > *,
+  sup {
+    display: inline-block;
+  }
+
+  &:hover > .hiddenIcon {
+    visibility: visible !important;
+  }
+
+  .icon-pencil,
+  .icon-trash-empty,
+  .icon-eye,
+  .icon-pin,
+  .icon-flag-empty,
+  .icon-cw,
+  .icon-lock,
+  .icon-lock-open,
+  .icon-target {
+    cursor: pointer;
+  }
+
+  .icon-resize-vertical {
+    cursor: row-resize;
+  }
+
+  > .icon-arrows-cw {
+    cursor: pointer;
+  }
+
+  > select {
+    cursor: pointer;
+  }
 }
 
-tr.states:hover td,
-tr.states.hovered td {
-  border-color: #c4c4c4;
-  background-image: linear-gradient(to right, #dedede 100%, #f2f2f2 50%, #fcfcfc 0%);
+tr.states {
+  &:hover td,
+  &.hovered td {
+    border-color: #c4c4c4;
+    background-image: linear-gradient(to right, #dedede 100%, #f2f2f2 50%, #fcfcfc 0%);
+  }
 }
 
-div.states > *,
-div.states sup,
 div.totalLine > div {
   display: inline-block;
 }
 
-div.states:hover > .hiddenIcon {
-  visibility: visible !important;
-}
-
-div.states .icon-pencil,
-div.states .icon-trash-empty,
-div.states .icon-eye,
-div.states .icon-pin,
-div.states .icon-flag-empty,
-div.states .icon-cw,
-div.states .icon-lock,
-div.states .icon-lock-open,
-div.states .icon-target {
-  cursor: pointer;
-}
-
-div.states .icon-resize-vertical {
-  cursor: row-resize;
-}
-
-div.states > .icon-arrows-cw {
-  cursor: pointer;
-}
-
-div.states > select {
-  cursor: pointer;
-}
-
 tr.states span.inactive {
   color: #c6c2c2;
-}
 
-tr.states span.inactive:hover {
-  color: #abaaaa;
+  &:hover {
+    color: #abaaaa;
+  }
 }
 
 .coaIcon {
@@ -707,17 +722,19 @@ tr.states span.inactive:hover {
   pointer-events: none;
 }
 
-div.states.selected {
-  border-color: #b28585;
-  background-image: linear-gradient(to right, #f2f2f2 0%, #ebe7e7 50%, #e5dadb 100%);
-}
+div.states {
+  &.selected {
+    border-color: #b28585;
+    background-image: linear-gradient(to right, #f2f2f2 0%, #ebe7e7 50%, #e5dadb 100%);
+  }
 
-div.states.active {
-  background-image: linear-gradient(to right, #dedede 100%, #f2f2f2 50%, #fcfcfc 0%);
-}
+  &.active {
+    background-image: linear-gradient(to right, #dedede 100%, #f2f2f2 50%, #fcfcfc 0%);
+  }
 
-div.states.Self {
-  cursor: default !important;
+  &.Self {
+    cursor: default !important;
+  }
 }
 
 #emblemBody > div.active {
@@ -732,8 +749,15 @@ div.states.Self {
   display: inline-block;
 }
 
-#picker text {
-  cursor: default;
+#picker {
+  text {
+    cursor: default;
+  }
+
+  rect.selected {
+    outline: 2px dashed #b90c0c;
+    stroke-width: 0;
+  }
 }
 
 #pickerHeader {
@@ -758,40 +782,37 @@ div.states.Self {
   pointer-events: none;
 }
 
-#pickerControls line {
-  stroke: #999999;
-  stroke-width: 2;
-}
+#pickerControls {
+  line {
+    stroke: #999999;
+    stroke-width: 2;
+  }
 
-#pickerControls circle {
-  fill: #ffeb3b;
-  stroke: #666666;
-  cursor: ew-resize;
-}
+  circle {
+    fill: #ffeb3b;
+    stroke: #666666;
+    cursor: ew-resize;
 
-#pickerControls circle:hover {
-  fill: #eca116;
-  stroke: #000000;
+    &:hover {
+      fill: #eca116;
+      stroke: #000000;
+    }
+  }
 }
 
 #pickerSpaces input {
   width: 22px;
   -moz-appearance: textfield;
-}
 
-#pickerSpaces input::-webkit-inner-spin-button,
-#pickerSpaces input::-webkit-outer-spin-button {
-  -webkit-appearance: none;
+  &::-webkit-inner-spin-button,
+  &::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+  }
 }
 
 #pickerColors rect,
 #pickerHatches rect {
   cursor: pointer;
-}
-
-#picker rect.selected {
-  outline: 2px dashed #b90c0c;
-  stroke-width: 0;
 }
 
 #unitsBody label {
@@ -1144,8 +1165,4 @@ body.tour-free-roam * {
 
 .d-grid {
   display: grid;
-}
-
-.alert-dialog {
-  z-index: 1000;
 }
