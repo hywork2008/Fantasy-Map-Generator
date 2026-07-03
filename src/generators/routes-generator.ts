@@ -6,7 +6,7 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
-import { viewLayerService as view } from "../services/viewLayerService";
+
 import type { Burg, Route } from "../types/models";
 import type { WorldState } from "../types/WorldState";
 import { distanceSquared, findClosestCell, findPath, getAdjective, ra, rn, round, rw } from "../utils";
@@ -880,8 +880,16 @@ class RoutesModule {
   }
 
   getLength(routeId: number): number {
-    const path = view.routes.select(`#route${routeId}`).node() as SVGPathElement;
-    return path.getTotalLength();
+    const route = this.worldContext.pack.routes.find(r => r.i === routeId);
+    if (!route?.points || route.points.length < 2) return 0;
+
+    let length = 0;
+    for (let i = 1; i < route.points.length; i++) {
+      const [x1, y1] = route.points[i - 1];
+      const [x2, y2] = route.points[i];
+      length += Math.hypot(x2 - x1, y2 - y1);
+    }
+    return length;
   }
 }
 

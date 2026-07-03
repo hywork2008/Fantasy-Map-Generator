@@ -79,7 +79,7 @@ class OceanModule {
   draw() {
     const { grid } = this.worldContext;
     const outline = this.oceanLayers.attr("layers");
-    if (outline === "none") return;
+    if (!outline || outline === "none") return;
     TIME && console.time("drawOceanLayers");
     this.oceanLayers.selectAll("path").remove();
     this.cells = grid.cells;

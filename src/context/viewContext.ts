@@ -96,6 +96,8 @@ export interface ViewState {
   svgHeight: number;
   /** D3 curveBasis line generator shared by renderers and editors. */
   lineGen: Line<[number, number]>;
+  /** Flag to determine if map drawing/rendering should occur */
+  renderMap: boolean;
 }
 
 /**
@@ -122,5 +124,6 @@ export const viewContext = {
   customization: 0,
   svgWidth: 0,
   svgHeight: 0,
+  renderMap: true,
   lineGen: (() => "") as unknown as Line<[number, number]>
 } as ViewContext;

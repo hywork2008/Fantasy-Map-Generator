@@ -1,6 +1,7 @@
 import type React from "react";
 import { useDialogState } from "../../../store/dialogState";
 import { useExtensionState } from "../../../store/extensionState";
+import { useHeightmapEditModeState } from "../../../store/heightmapDialogState";
 
 interface StaticEditButton {
   key: string;
@@ -144,6 +145,7 @@ const STATIC_EDIT_BUTTONS: StaticEditButton[] = [
 export const ToolsTab: React.FC = () => {
   const { actions: allActions, enabledExtensions } = useExtensionState();
   const openDialogs = useDialogState(state => state.openDialogs);
+  const isHeightmapModeOpen = useHeightmapEditModeState(state => state.isOpen);
   const actions = allActions.filter(a => a.tab === "tools" && enabledExtensions[a.extensionId]);
   const editActions = actions.filter(a => a.section === "edit");
   const regenerateActions = actions.filter(a => a.section === "regenerate");
@@ -181,7 +183,15 @@ export const ToolsTab: React.FC = () => {
             id={btn.domId}
             data-tip={btn.tooltip}
             type="button"
-            className={btn.dialogId && openDialogs.has(btn.dialogId) ? "pressed" : undefined}
+            className={
+              btn.key === "editHeightmapButton"
+                ? openDialogs.has("brushesPanel") || isHeightmapModeOpen
+                  ? "pressed"
+                  : undefined
+                : btn.dialogId && openDialogs.has(btn.dialogId)
+                  ? "pressed"
+                  : undefined
+            }
             onClick={btn.onClick}
           >
             {btn.label}

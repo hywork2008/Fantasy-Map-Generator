@@ -1,7 +1,7 @@
 import type React from "react";
 import { diplomacyEditorActions } from "../../controllers/diplomacy-editor";
 import { useDiplomacyEditorState } from "../../store/diplomacyEditorState";
-import { FillBox } from "../components/FillBox";
+
 import { IconButton } from "../components/IconButton";
 
 export const DiplomacyEditorContent: React.FC = () => {
@@ -94,7 +94,9 @@ export const DiplomacyEditorContent: React.FC = () => {
                         handleRelationClick(s.i, selectedStateId, s.relation);
                       }}
                     >
-                      <FillBox fill={s.color} size=".9em" />
+                      <svg width=".9em" height=".9em" aria-hidden="true" style={{ flexShrink: 0 }}>
+                        <rect x={0} y={0} width="100%" height="100%" fill={s.color} stroke="#666666" strokeWidth={2} />
+                      </svg>
                       {s.relation}
                     </IconButton>
                   </td>

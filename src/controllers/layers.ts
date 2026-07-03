@@ -730,6 +730,7 @@ export function toggleMarkers(event?: MouseEvent): void {
 }
 
 export function toggleLabels(event?: MouseEvent): void {
+  if (!viewContext.renderMap) return;
   if (!layerIsOn("toggleLabels")) {
     turnButtonOn("toggleLabels");
     setLayerVisibility("toggleLabels", true);
@@ -746,6 +747,7 @@ export function toggleLabels(event?: MouseEvent): void {
 }
 
 export function toggleBurgIcons(event?: MouseEvent): void {
+  if (!viewContext.renderMap) return;
   if (!layerIsOn("toggleBurgIcons")) {
     turnButtonOn("toggleBurgIcons");
     BurgIconsRenderer.render(worldContext, viewContext, appServices);
@@ -1067,6 +1069,7 @@ export function getToolActionHandler(eventName: string): (() => void) | undefine
 }
 
 export function toggleLayerById(id: string, event?: MouseEvent): void {
+  if (!viewContext.renderMap) return;
   TOGGLE_REGISTRY[id]?.(event);
 }
 

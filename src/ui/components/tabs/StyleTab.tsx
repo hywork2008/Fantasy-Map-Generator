@@ -8,7 +8,7 @@ import {
   selectStyleElement
 } from "../../../controllers/style";
 import { useStyleState } from "../../../store/styleState";
-import { IconButton } from "../IconButton";
+
 import { EnvironmentStylePanel } from "./style/EnvironmentStylePanel";
 import { OverlaysStylePanel } from "./style/OverlaysStylePanel";
 import { PoliticalStylePanel } from "./style/PoliticalStylePanel";

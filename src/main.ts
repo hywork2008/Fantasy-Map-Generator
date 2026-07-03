@@ -100,15 +100,6 @@ if (PRODUCTION && "serviceWorker" in navigator) {
 
 // ─── SVG layers (appended in default render order) ───────────────────────────
 
-createViewLayers();
-
-viewContext.scaleBar.node()?.addEventListener("mousemove", () => tip("Click to open Units Editor"));
-viewContext.scaleBar.node()?.addEventListener("click", () => EditorBus.editUnits());
-viewContext.legend
-  .node()
-  ?.addEventListener("mousemove", () => tip("Drag to change the position. Click to hide the legend"));
-viewContext.legend.node()?.addEventListener("click", () => EditorBus.clearLegend());
-
 // ─── SVG layer reinitialization (called after a new map SVG is loaded) ────────
 
 // ─── Fit loaded map to screen (called after reinitializeMapLayers + fitMapToScreen) ─
@@ -289,11 +280,21 @@ Object.assign(viewContext, {
   svgHeight
 });
 
-populateSizeRects();
-
 // ─── App initialization ───────────────────────────────────────────────────────
 
-export async function initMain(): Promise<void> {
+export async function initMain(drawMap: boolean = true): Promise<void> {
+  if (drawMap) {
+    createViewLayers();
+    populateSizeRects();
+
+    viewContext.scaleBar.node()?.addEventListener("mousemove", () => tip("Click to open Units Editor"));
+    viewContext.scaleBar.node()?.addEventListener("click", () => EditorBus.editUnits());
+    viewContext.legend
+      .node()
+      ?.addEventListener("mousemove", () => tip("Drag to change the position. Click to hide the legend"));
+    viewContext.legend.node()?.addEventListener("click", () => EditorBus.clearLegend());
+  }
+
   if (!location.hostname) {
     openAlert(
       `Fantasy Map Generator cannot run serverless. Follow the <a href="https://github.com/Azgaar/Fantasy-Map-Generator/wiki/Run-FMG-locally" target="_blank">instructions</a> on how you can easily run a local web-server`,
@@ -301,7 +302,7 @@ export async function initMain(): Promise<void> {
     );
   } else {
     hideLoading();
-    await checkLoadParameters();
+    await checkLoadParameters(drawMap);
   }
   EditorBus.restoreDefaultEvents?.();
   initiateAutosave();
@@ -320,13 +321,14 @@ export async function initMain(): Promise<void> {
   document.addEventListener("fmg:focus-on", focusOn);
   document.addEventListener("fmg:re-graph", () => {
     reGraph();
-    OceanLayers();
+    if (viewContext.renderMap) OceanLayers();
   });
   document.addEventListener("fmg:reinitialize-map-layers", reinitializeMapLayers);
   document.addEventListener("fmg:show-statistics", showStatistics);
-  document.addEventListener("fmg:generate-map-on-load", () => generateMapOnLoad());
+  document.addEventListener("fmg:generate-map-on-load", () => generateMapOnLoad(drawMap));
 
   window.addEventListener("resize", () => {
+    if (!viewContext.renderMap) return;
     fitMapToScreen();
     fitMapView();
   });
@@ -351,7 +353,7 @@ export function showLoading() {
   applyTransition("tooltip", 200, 0);
 }
 
-async function checkLoadParameters() {
+async function checkLoadParameters(drawMap: boolean) {
   const url = new URL(window.location.href);
   const params = url.searchParams;
 
@@ -370,7 +372,7 @@ async function checkLoadParameters() {
 
   if (params.get("seed")) {
     WARN && console.warn("Generate map for seed");
-    await generateMapOnLoad();
+    await generateMapOnLoad(drawMap);
     return;
   }
 
@@ -388,17 +390,19 @@ async function checkLoadParameters() {
   }
 
   WARN && console.warn("Generate random map");
-  generateMapOnLoad();
+  generateMapOnLoad(drawMap);
 }
 
-export async function generateMapOnLoad() {
+export async function generateMapOnLoad(drawMap: boolean = true) {
   await applyStyleOnLoad();
   await generate();
-  applyLayersPreset();
-  drawLayers();
-  fitMapToScreen();
-  focusOn();
-  toggleAssistant?.();
+  if (drawMap) {
+    applyLayersPreset();
+    drawLayers();
+    fitMapToScreen();
+    focusOn();
+    toggleAssistant?.();
+  }
 }
 
 export function focusOn() {
@@ -854,7 +858,7 @@ export async function generate(opts?: { seed?: string; graph?: Grid | null }) {
     addLakesInDeepDepressions();
     openNearSeaLakes();
 
-    OceanLayers();
+    if (viewContext.renderMap) OceanLayers();
     defineMapSize();
     calculateMapCoordinates();
     calculateTemperatures();

@@ -297,46 +297,6 @@
     </g>
   </svg>
 
-  <div id="loading">
-    <svg width="100%" height="100%">
-      <rect x="-1%" y="-1%" width="102%" height="102%" fill="#466eab" />
-      <rect x="-1%" y="-1%" width="102%" height="102%" fill="url(#oceanic)" />
-    </svg>
-    <svg id="loading-rose" width="100%" height="100%" viewBox="0 0 700 700">
-      <use href="#defs-compass-rose" x="50%" y="50%" />
-    </svg>
-    <div id="loading-typography">
-      <div id="titleName">Azgaar's</div>
-      <div id="title">Fantasy Map Generator</div>
-      <div id="versionText">‎ ‎</div>
-      <p id="loading-text">LOADING<span>.</span><span>.</span><span>.</span></p>
-    </div>
-  </div>
-
-  <div id="dialogs">
-
-  </div>
-
-
-
-  <div id="tooltip" style="opacity: 0"
-    data-main="Сlick the arrow button for options. Zoom in to see the map in details"></div>
-
-  <div id="mapOverlay" style="display: none">Drop a map file to open</div>
-
-  <div id="fileInputs" style="display: none">
-    <input type="file" accept=".map,.gz" id="mapToLoad" />
-    <input type="file" accept=".txt,.csv" id="burgsListToLoad" />
-    <input type="file" accept=".txt" id="legendsToLoad" />
-    <input type="file" accept="image/*" id="imageToLoad" />
-    <input type="file" accept="image/*" id="emblemImageToLoad" />
-    <input type="file" accept=".svg" id="emblemSVGToLoad" />
-    <input type="file" accept=".txt" id="templateToLoad" />
-    <input type="file" accept=".txt" id="namesbaseToLoad" />
-    <input type="file" accept=".json" id="styleToLoad" />
-    <input type="file" accept=".csv" id="culturesCSVToLoad" />
-  </div>
-
   <!-- reusable svg elements -->
   <svg id="defElements" width="0" height="0" style="position: absolute">
     <defs>
@@ -2887,18 +2847,10 @@
     </defs>
   </svg>
 
-  <script type="module" src="app.ts"></script>
-
-  <div id="tourPromptButton" style="display: none" data-tip="Take an interactive tour of the map generator">
-    <button type="button" aria-label="Launch UI Tour">
-      <svg preserveAspectRatio="xMidYMid" viewBox="0 0 58 52" height="30px" width="30px">
-        <path d="M20 10 L20 42 L42 26 Z" />
-      </svg>
-    </button>
-  </div>
-
-  <!-- React UI Root -->
-  <div id="react-ui-root"></div>
+  <script type="module">
+    import { initApp } from "./app.ts";
+    initApp();
+  </script>
 </body>
 
 </html>
