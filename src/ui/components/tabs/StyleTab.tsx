@@ -97,7 +97,7 @@ export function StyleTab() {
       {activeSubTab === "settlements" && <SettlementsStylePanel />}
       {activeSubTab === "overlays" && <OverlaysStylePanel />}
       {/* ─── Global map filters ─── */}
-      <IconButton
+      <div
         id="mapFilters"
         data-tip="Set a filter to be applied to the map in general"
         onClick={e => {
@@ -119,7 +119,7 @@ export function StyleTab() {
         <button type="button" id="tint" className={activeMapFilter === "tint" ? "radio pressed" : "radio"}>
           Tint
         </button>
-      </IconButton>
+      </div>
     </div>
   );
 }

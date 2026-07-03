@@ -2,6 +2,7 @@ import type React from "react";
 import { useEffect, useState } from "react";
 import { COArenderer } from "../../../../renderers/emblem-renderer";
 import { useOptionsState } from "../../../../store/optionsState";
+import { LockIconButton } from "../../LockIconButton";
 import { SliderInput } from "../../SliderInput";
 
 export const UiSettingsTab: React.FC = () => {
@@ -193,7 +194,7 @@ export const UiSettingsTab: React.FC = () => {
 
           <tr data-tip="Select emblem shape. Can be changed individually in Emblem editor">
             <td>
-              <i data-locked="0" id="lock_emblemShape" className="icon-lock-open"></i>
+              <LockIconButton id="emblemShape" />
             </td>
             <td>Emblem shape</td>
             <td>

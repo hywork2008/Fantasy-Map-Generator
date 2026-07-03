@@ -2,6 +2,7 @@ import type React from "react";
 import { useOptionsState } from "../../../../store/optionsState";
 import { lock } from "../../../../utils/domUtils";
 import { IconButton } from "../../IconButton";
+import { LockIconButton } from "../../LockIconButton";
 import { SliderInput } from "../../SliderInput";
 export const GenerationSettingsTab: React.FC = () => {
   const options = useOptionsState();
@@ -102,7 +103,7 @@ export const GenerationSettingsTab: React.FC = () => {
 
           <tr data-tip="Set number of points to be used for graph generation. Highly affects performance. 10K is the only recommended value">
             <td>
-              <i data-locked="0" id="lock_points" className="icon-lock-open"></i>
+              <LockIconButton id="points" />
             </td>
             <td>Points number</td>
             <td>
@@ -123,7 +124,7 @@ export const GenerationSettingsTab: React.FC = () => {
 
           <tr data-tip="Define map name (will be used to name downloaded files)">
             <td>
-              <i data-locked="0" id="lock_mapName" className="icon-lock-open"></i>
+              <LockIconButton id="mapName" />
             </td>
             <td>Map name</td>
             <td>
@@ -147,7 +148,7 @@ export const GenerationSettingsTab: React.FC = () => {
 
           <tr data-tip="Define current year and era name">
             <td>
-              <i data-locked="0" id="lock_year" className="icon-lock-open"></i>
+              <LockIconButton id="year" />
             </td>
             <td>Year and era</td>
             <td>
@@ -186,7 +187,7 @@ export const GenerationSettingsTab: React.FC = () => {
 
           <tr data-tip="Select heightmap template to be used for map generation">
             <td>
-              <i data-locked="0" id="lock_template" className="icon-lock-open"></i>
+              <LockIconButton id="template" />
             </td>
             <td>Heightmap</td>
             <td
@@ -202,7 +203,7 @@ export const GenerationSettingsTab: React.FC = () => {
 
           <tr data-tip="Define how many Cultures should be generated">
             <td>
-              <i data-locked="0" id="lock_cultures" className="icon-lock-open"></i>
+              <LockIconButton id="cultures" />
             </td>
             <td>Cultures number</td>
             <td>
@@ -227,7 +228,7 @@ export const GenerationSettingsTab: React.FC = () => {
 
           <tr data-tip="Select a set of cultures to be used for names and cultures generation">
             <td>
-              <i data-locked="0" id="lock_culturesSet" className="icon-lock-open"></i>
+              <LockIconButton id="culturesSet" />
             </td>
             <td>Cultures set</td>
             <td>
@@ -270,7 +271,7 @@ export const GenerationSettingsTab: React.FC = () => {
 
           <tr data-tip="Define how many states and capitals should be generated">
             <td>
-              <i data-locked="0" id="lock_statesNumber" className="icon-lock-open"></i>
+              <LockIconButton id="statesNumber" />
             </td>
             <td>States number</td>
             <td colSpan={2}>
@@ -285,7 +286,7 @@ export const GenerationSettingsTab: React.FC = () => {
 
           <tr data-tip="Set what share of eligible burgs in each state will become province centers. Higher values create more provinces">
             <td>
-              <i data-locked="0" id="lock_provincesRatio" className="icon-lock-open"></i>
+              <LockIconButton id="provincesRatio" />
             </td>
             <td>Provinces ratio</td>
             <td colSpan={2}>
@@ -300,7 +301,7 @@ export const GenerationSettingsTab: React.FC = () => {
 
           <tr data-tip="Define how much states and cultures can vary in size. Defines expansionism value">
             <td>
-              <i data-locked="0" id="lock_sizeVariety" className="icon-lock-open"></i>
+              <LockIconButton id="sizeVariety" />
             </td>
             <td>Size variety</td>
             <td colSpan={2}>
@@ -316,7 +317,7 @@ export const GenerationSettingsTab: React.FC = () => {
 
           <tr data-tip="Set state and cultures growth rate. Defines how many lands will stay neutral">
             <td>
-              <i data-locked="0" id="lock_growthRate" className="icon-lock-open"></i>
+              <LockIconButton id="growthRate" />
             </td>
             <td>Growth rate</td>
             <td colSpan={2}>
@@ -332,7 +333,7 @@ export const GenerationSettingsTab: React.FC = () => {
 
           <tr data-tip="Define a number of non-capital settlements to be placed (if enough suitable land exists)">
             <td>
-              <i data-locked="0" id="lock_manors" className="icon-lock-open"></i>
+              <LockIconButton id="manors" />
             </td>
             <td>Burgs number</td>
             <td>
@@ -353,7 +354,7 @@ export const GenerationSettingsTab: React.FC = () => {
 
           <tr data-tip="Define how many organized religions and cults should be generated. Cultures will have their own folk religions in any case">
             <td>
-              <i data-locked="0" id="lock_religionsNumber" className="icon-lock-open"></i>
+              <LockIconButton id="religionsNumber" />
             </td>
             <td>Religions number</td>
             <td colSpan={2}>
@@ -369,7 +370,7 @@ export const GenerationSettingsTab: React.FC = () => {
 
           <tr data-tip="Select state labels mode: display short or full names">
             <td>
-              <i data-locked="0" id="lock_stateLabelsMode" className="icon-lock-open"></i>
+              <LockIconButton id="stateLabelsMode" />
             </td>
             <td>State labels</td>
             <td>

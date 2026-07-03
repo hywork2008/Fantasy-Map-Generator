@@ -3,6 +3,7 @@ import { unitsEditorActions } from "../../controllers/units-editor";
 import { useOptionsState } from "../../store/optionsState";
 import { useUnitsEditorState } from "../../store/unitsEditorState";
 import { showPrompt } from "../../utils";
+import { LockIconButton } from "../components/LockIconButton";
 import { SliderInput } from "../components/SliderInput";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
@@ -67,7 +68,7 @@ export const UnitsEditorDialog: React.FC = () => {
               </select>
             </div>
             <div data-tip="Select how many distance units are in one pixel">
-              <i data-locked={0} id="lock_distanceScale" className="icon-lock-open" />
+              <LockIconButton id="distanceScale" />
               <SliderInput
                 id="distanceScaleInput"
                 min=".01"

@@ -14,16 +14,22 @@ export function lock(id: string): void {
   const input = document.querySelector<HTMLInputElement>(`[data-stored="${id}"]`);
   if (input) store(id, input.value);
   const el = document.getElementById(`lock_${id}`);
-  if (!el) return;
-  el.dataset.locked = "1";
-  el.className = "icon-lock";
+  if (el) {
+    el.dataset.locked = "1";
+    el.classList.remove("icon-lock-open");
+    el.classList.add("icon-lock");
+  }
+  document.dispatchEvent(new CustomEvent("fmg:lock-changed", { detail: { id, locked: true } }));
 }
 export function unlock(id: string): void {
   localStorage.removeItem(id);
   const el = document.getElementById(`lock_${id}`);
-  if (!el) return;
-  el.dataset.locked = "0";
-  el.className = "icon-lock-open";
+  if (el) {
+    el.dataset.locked = "0";
+    el.classList.remove("icon-lock");
+    el.classList.add("icon-lock-open");
+  }
+  document.dispatchEvent(new CustomEvent("fmg:lock-changed", { detail: { id, locked: false } }));
 }
 export function locked(id: string): boolean {
   const lockEl = document.getElementById(`lock_${id}`) as HTMLElement;
