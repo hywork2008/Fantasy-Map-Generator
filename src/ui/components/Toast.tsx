@@ -16,29 +16,11 @@ export function ToastContainer() {
   return (
     <div
       id="toast-container"
-      style={{
-        position: "fixed",
-        bottom: "20px",
-        left: "50%",
-        transform: "translateX(-50%)",
-        zIndex: 10000,
-        pointerEvents: "auto"
-      }}
+      style={{ position: "fixed", bottom: "20px", left: "50%", zIndex: 10000, pointerEvents: "auto" }}
     >
       <div
         onClick={removeToast}
-        style={{
-          background: tipBackgroundMap[toast.type],
-          color: "#ffffff",
-          padding: "12px 20px",
-          borderRadius: "4px",
-          fontSize: "14px",
-          maxWidth: "600px",
-          wordBreak: "break-word",
-          cursor: "pointer",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
-          animation: "fadeInUp 0.3s ease-out"
-        }}
+        style={{ background: tipBackgroundMap[toast.type], cursor: "pointer" }}
         title="Click to dismiss"
       >
         {toast.message}

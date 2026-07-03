@@ -44,7 +44,7 @@ export const LoadMapDialog: React.FC = () => {
         id="mapToLoad"
         type="file"
         accept=".map,.gz"
-        className="-load-map-dialog__display-none"
+        className="d-none"
         onChange={handleFileChange}
       />
       <div>
@@ -73,7 +73,7 @@ export const LoadMapDialog: React.FC = () => {
       </p>
 
       <div id="loadFromDropbox">
-        <p className="-load-map-dialog__margin-bottom-0-3em">
+        <p>
           Or load from your Dropbox account{" "}
           {!isDropboxConnected && (
             <button
@@ -90,7 +90,6 @@ export const LoadMapDialog: React.FC = () => {
         {showDropboxSelect && (
           <select
             id="loadFromDropboxSelect"
-            className="-load-map-dialog__width-22em"
             value={selectedDropboxPath}
             onChange={event => setSelectedDropboxPath(event.target.value)}
           >
@@ -113,7 +112,7 @@ export const LoadMapDialog: React.FC = () => {
           </select>
         )}
         {showDropboxButtons && (
-          <div id="loadFromDropboxButtons" className="-load-map-dialog__margin-bottom-0-6em">
+          <div id="loadFromDropboxButtons">
             <button
               type="button"
               data-tip="Load map file (.map or .gz) from your Dropbox"
@@ -131,7 +130,7 @@ export const LoadMapDialog: React.FC = () => {
           </div>
         )}
 
-        <div className="-load-map-dialog__margin-top-0-3em">
+        <div>
           <div id="sharableLinkContainer" style={{ display: isSharableLinkVisible ? "block" : "none" }}>
             <a id="sharableLink" href={sharableLinkUrl || "#"} target="_blank" rel="noreferrer">
               {sharableLinkLabel || " "}

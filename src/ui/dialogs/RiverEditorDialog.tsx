@@ -12,9 +12,9 @@ export const RiverEditorDialog: React.FC = () => {
 
   return (
     <Dialog isOpen={isOpen} title="River Editor" onClose={() => closeDialog("riverEditor")}>
-      <div id="riverBody" className="-river-editor-dialog__padding-bottom-0-3em">
+      <div id="riverBody">
         <div>
-          <div className="label -river-editor-dialog__width-4-8em">Name:</div>
+          <div className="label">Name:</div>
           <span
             id="riverNameCulture"
             data-tip="Generate culture-specific name for the river"

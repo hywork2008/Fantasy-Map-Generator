@@ -176,7 +176,6 @@ export const RiversOverviewDialog: React.FC = () => {
                   data-tip="Click to sort by river name"
                   className={`sortable alphabetically ${sortBy === "name" ? (sortOrder === "asc" ? "icon-sort-name-up" : "icon-sort-name-down") : ""}`}
                   onClick={() => toggleSortBy("name")}
-                  style={{ width: "9em" }}
                 >
                   River&nbsp;
                 </th>
@@ -184,7 +183,6 @@ export const RiversOverviewDialog: React.FC = () => {
                   data-tip="Click to sort by river type name"
                   className={`sortable alphabetically ${sortBy === "type" ? (sortOrder === "asc" ? "icon-sort-name-up" : "icon-sort-name-down") : ""}`}
                   onClick={() => toggleSortBy("type")}
-                  style={{ width: "4em" }}
                 >
                   Type&nbsp;
                 </th>
@@ -192,7 +190,6 @@ export const RiversOverviewDialog: React.FC = () => {
                   data-tip="Click to sort by discharge (flux in m3/s)"
                   className={`sortable ${sortBy === "discharge" ? (sortOrder === "asc" ? "icon-sort-number-up" : "icon-sort-number-down") : ""}`}
                   onClick={() => toggleSortBy("discharge")}
-                  style={{ width: "7em" }}
                 >
                   Discharge&nbsp;
                 </th>
@@ -200,7 +197,6 @@ export const RiversOverviewDialog: React.FC = () => {
                   data-tip="Click to sort by river length"
                   className={`sortable ${sortBy === "length" ? (sortOrder === "asc" ? "icon-sort-number-up" : "icon-sort-number-down") : ""}`}
                   onClick={() => toggleSortBy("length")}
-                  style={{ width: "5em" }}
                 >
                   Length&nbsp;
                 </th>
@@ -208,7 +204,6 @@ export const RiversOverviewDialog: React.FC = () => {
                   data-tip="Click to sort by river mouth width"
                   className={`sortable ${sortBy === "width" ? (sortOrder === "asc" ? "icon-sort-number-up" : "icon-sort-number-down") : ""}`}
                   onClick={() => toggleSortBy("width")}
-                  style={{ width: "5em" }}
                 >
                   Width&nbsp;
                 </th>
@@ -216,7 +211,6 @@ export const RiversOverviewDialog: React.FC = () => {
                   data-tip="Click to sort by river basin"
                   className={`sortable alphabetically ${sortBy === "basin" ? (sortOrder === "asc" ? "icon-sort-name-up" : "icon-sort-name-down") : ""}`}
                   onClick={() => toggleSortBy("basin")}
-                  style={{ width: "9em" }}
                 >
                   Basin&nbsp;
                 </th>
@@ -234,13 +228,13 @@ export const RiversOverviewDialog: React.FC = () => {
                     onMouseLeave={() => riverHighlightOff(r.i)}
                   >
                     <td>
-                      <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                      <div style={{ display: "flex" }}>
                         <span
                           data-tip="Locate the river"
                           className="icon-target pointer"
                           onClick={() => zoomToRiver(r.i)}
                         />
-                        <div data-tip="River name" className="riverName" style={{ flex: 1, minWidth: 0 }}>
+                        <div data-tip="River name" className="riverName">
                           {r.name}
                         </div>
                       </div>
@@ -269,13 +263,12 @@ export const RiversOverviewDialog: React.FC = () => {
                       <input
                         data-tip="River basin (name of the main stem)"
                         className="stateName"
-                        style={{ width: "100%" }}
                         value={basin}
                         disabled
                       />
                     </td>
                     <td>
-                      <div style={{ display: "flex", gap: "4px", alignItems: "center" }}>
+                      <div style={{ display: "flex" }}>
                         <span
                           data-tip="Edit river"
                           className="icon-pencil pointer"
@@ -295,18 +288,18 @@ export const RiversOverviewDialog: React.FC = () => {
           </table>
         </div>
         <div id="riversTotal" className="totalLine">
-          <div data-tip="Rivers number" className="-rivers-overview-dialog__margin-left-4">
+          <div data-tip="Rivers number">
             Rivers:&nbsp;
             <span id="riversFooterNumber">{`${filteredRivers.length} of ${worldContext.pack?.rivers?.length || 0}`}</span>
           </div>
-          <div data-tip="Average discharge" className="-rivers-overview-dialog__margin-left-12">
+          <div data-tip="Average discharge">
             Average discharge:&nbsp;<span id="riversFooterDischarge">{`${averageDischarge} m³/s`}</span>
           </div>
-          <div data-tip="Average length" className="-rivers-overview-dialog__margin-left-12">
+          <div data-tip="Average length">
             Length:&nbsp;
             <span id="riversFooterLength">{`${averageLength * worldContext.distanceScale} ${unit}`}</span>
           </div>
-          <div data-tip="Average mouth width" className="-rivers-overview-dialog__margin-left-12">
+          <div data-tip="Average mouth width">
             Width:&nbsp;
             <span id="riversFooterWidth">{`${rn(averageWidth * worldContext.distanceScale, 3)} ${unit}`}</span>
           </div>
@@ -343,11 +336,7 @@ export const RiversOverviewDialog: React.FC = () => {
             className="icon-trash"
             onClick={() => triggerAllRiversRemove(refresh)}
           />
-          <label
-            htmlFor="riversSearch"
-            data-tip="Filter by name, type or basin"
-            className="-rivers-overview-dialog__margin-left-0-2em"
-          >
+          <label htmlFor="riversSearch" data-tip="Filter by name, type or basin">
             Search: <input id="riversSearch" type="search" value={search} onChange={e => setSearch(e.target.value)} />
           </label>
         </div>

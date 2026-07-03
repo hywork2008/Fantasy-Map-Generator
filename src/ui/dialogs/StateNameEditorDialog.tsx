@@ -46,7 +46,6 @@ export const StateNameEditorDialog: React.FC = () => {
             data-tip="Type to change the short name"
             autoCorrect="off"
             spellCheck={false}
-            className="-state-name-editor-dialog__width-11em"
             value={shortName}
             onChange={e => statesEditorActions.nameEditorUpdate({ shortName: e.target.value })}
           />
@@ -73,16 +72,11 @@ export const StateNameEditorDialog: React.FC = () => {
             <input
               placeholder="type form name"
               data-tip="Enter custom form name"
-              className="-state-name-editor-dialog__width-11em"
               value={customFormInput}
               onChange={e => statesEditorActions.nameEditorUpdate({ customFormInput: e.target.value })}
             />
           ) : (
-            <select
-              className="-state-name-editor-dialog__width-11em"
-              value={formName}
-              onChange={e => statesEditorActions.nameEditorUpdate({ formName: e.target.value })}
-            >
+            <select value={formName} onChange={e => statesEditorActions.nameEditorUpdate({ formName: e.target.value })}>
               <option value="">blank</option>
               <optgroup label="Monarchy">
                 <option value="Beylik">Beylik</option>
@@ -175,7 +169,6 @@ export const StateNameEditorDialog: React.FC = () => {
             data-tip="Type to change the full name"
             autoCorrect="off"
             spellCheck={false}
-            className="-state-name-editor-dialog__width-11em"
             value={fullName}
             onChange={e => statesEditorActions.nameEditorUpdate({ fullName: e.target.value })}
           />

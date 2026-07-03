@@ -348,17 +348,17 @@ function createPicker(): void {
 
   (spaces.node() as Element).insertAdjacentHTML(
     "beforeend",
-    `<label style="margin-right: 6px">HSL:
+    `<label>HSL:
       <input type="number" id="pickerHSL_H" data-space="hsl" min="0" max="360" value="231" />,
       <input type="number" id="pickerHSL_S" data-space="hsl" min="0" max="100" value="70" />,
       <input type="number" id="pickerHSL_L" data-space="hsl" min="0" max="100" value="70" />
     </label>
-    <label style="margin-right: 6px">RGB:
+    <label>RGB:
       <input type="number" id="pickerRGB_R" data-space="rgb" min="0" max="255" value="125" />,
       <input type="number" id="pickerRGB_G" data-space="rgb" min="0" max="255" value="142" />,
       <input type="number" id="pickerRGB_B" data-space="rgb" min="0" max="255" value="232" />
     </label>
-    <label>HEX: <input type="text" id="pickerHEX" data-space="hex" style="width:42px" autocorrect="off" spellcheck="false" value="#7d8ee8" /></label>`
+    <label>HEX: <input type="text" id="pickerHEX" data-space="hex" autocorrect="off" spellcheck="false" value="#7d8ee8" /></label>`
   );
   spaces.selectAll<HTMLInputElement, unknown>("input").on("change", changePickerSpace);
 

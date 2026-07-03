@@ -175,7 +175,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
   async function enterHeightmapEditMode(mode: string) {
     const mapLayers = getElementById("mapLayers");
     if (!mapLayers) return;
-    editHeightmapLayers = Array.from(mapLayers.querySelectorAll("li:not(.buttonoff)")).map(
+    editHeightmapLayers = Array.from(mapLayers.querySelectorAll("button:not(.buttonoff)")).map(
       node => (node as HTMLElement).id
     );
     editHeightmapLayers.forEach(l => {

@@ -27,7 +27,7 @@ export const CoastlineEditorContent: React.FC = () => {
         <select
           id="coastlineGroup"
           data-tip="Select a group for this coastline"
-          style={{ width: "9em", display: isNewGroupInputVisible ? "none" : "inline-block" }}
+          style={{ display: isNewGroupInputVisible ? "none" : "inline-block" }}
           value={group}
           onChange={e => coastlineEditorActions.changeGroup(e.target.value)}
         >
@@ -41,7 +41,7 @@ export const CoastlineEditorContent: React.FC = () => {
           id="coastlineGroupName"
           placeholder="new group name"
           data-tip="Provide a name for the new group"
-          style={{ display: isNewGroupInputVisible ? "inline-block" : "none", width: "9em" }}
+          style={{ display: isNewGroupInputVisible ? "inline-block" : "none" }}
           value={newGroupName}
           onChange={e => coastlineEditorActions.setNewGroupName(e.target.value)}
           onBlur={coastlineEditorActions.createNewGroup}

@@ -188,7 +188,6 @@ export const RoutesOverviewDialog: React.FC = () => {
                   data-tip="Click to sort by route name"
                   className={`sortable alphabetically ${sortBy === "name" ? (sortOrder === "asc" ? "icon-sort-name-up" : "icon-sort-name-down") : ""}`}
                   onClick={() => toggleSortBy("name")}
-                  style={{ width: "17em" }}
                 >
                   Route&nbsp;
                 </th>
@@ -196,7 +195,6 @@ export const RoutesOverviewDialog: React.FC = () => {
                   data-tip="Click to sort by route group"
                   className={`sortable alphabetically ${sortBy === "group" ? (sortOrder === "asc" ? "icon-sort-name-up" : "icon-sort-name-down") : ""}`}
                   onClick={() => toggleSortBy("group")}
-                  style={{ width: "8em" }}
                 >
                   Group&nbsp;
                 </th>
@@ -204,7 +202,6 @@ export const RoutesOverviewDialog: React.FC = () => {
                   data-tip="Click to sort by route length"
                   className={`sortable ${sortBy === "length" ? (sortOrder === "asc" ? "icon-sort-number-up" : "icon-sort-number-down") : "icon-sort-number-down"}`}
                   onClick={() => toggleSortBy("length")}
-                  style={{ width: "8em" }}
                 >
                   Length&nbsp;
                 </th>
@@ -224,15 +221,13 @@ export const RoutesOverviewDialog: React.FC = () => {
                     onMouseLeave={() => routeHighlightOff(route.i)}
                   >
                     <td>
-                      <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                      <div style={{ display: "flex" }}>
                         <span
                           data-tip="Locate the route"
                           className="icon-target pointer"
                           onClick={() => handleZoomToRoute(route.i)}
                         />
-                        <div data-tip="Route name" style={{ flex: 1, minWidth: 0 }}>
-                          {route.name}
-                        </div>
+                        <div data-tip="Route name">{route.name}</div>
                       </div>
                     </td>
                     <td>
@@ -242,7 +237,7 @@ export const RoutesOverviewDialog: React.FC = () => {
                       <div data-tip="Route length">{lengthStr}</div>
                     </td>
                     <td>
-                      <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                      <div style={{ display: "flex" }}>
                         <span
                           data-tip="Edit route"
                           className="icon-pencil pointer"
@@ -267,11 +262,11 @@ export const RoutesOverviewDialog: React.FC = () => {
           </table>
         </div>
         <div id="routesTotal" className="totalLine">
-          <div data-tip="Routes number" className="-routes-overview-dialog__margin-left-4">
+          <div data-tip="Routes number">
             Routes:&nbsp;
             <span id="routesFooterNumber">{`${filteredRoutes.length} of ${worldContext.pack?.routes?.length || 0}`}</span>
           </div>
-          <div data-tip="Average length" className="-routes-overview-dialog__margin-left-12">
+          <div data-tip="Average length">
             Average length:&nbsp;
             <span id="routesFooterLength">{`${averageLength * worldContext.distanceScale} ${distanceUnit}`}</span>
           </div>
@@ -312,11 +307,7 @@ export const RoutesOverviewDialog: React.FC = () => {
             className="icon-trash"
             onClick={handleRemoveAll}
           />
-          <label
-            htmlFor="routesSearch"
-            data-tip="Filter by name or group"
-            className="-routes-overview-dialog__margin-left-0-2em"
-          >
+          <label htmlFor="routesSearch" data-tip="Filter by name or group">
             Search: <input id="routesSearch" type="search" value={search} onChange={e => setSearch(e.target.value)} />
           </label>
         </div>

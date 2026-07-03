@@ -67,7 +67,6 @@ export const PromptDialog: React.FC = () => {
         step={config.step}
         min={config.min}
         max={config.max}
-        className="-prompt-dialog__width-100--padding-6px--box-sizing-border-box--bac"
       />
     </Dialog>
   );

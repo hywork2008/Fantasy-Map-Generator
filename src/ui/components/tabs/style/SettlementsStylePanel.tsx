@@ -9,13 +9,12 @@ export const SettlementsStylePanel: React.FC = () => {
 
   return (
     <div>
-      <p data-tip="Select an element to edit its style" className="-settlements-style-panel__display-inline-block">
+      <p data-tip="Select an element to edit its style" className="d-inline-block">
         Select element:
       </p>
       <select
         data-tip="Select an element to edit its style"
         id="styleElementSelect"
-        className="-settlements-style-panel__width-42"
         value={
           SETTLEMENTS_ELEMENTS.some(e => e.value === activeElement) ? activeElement : SETTLEMENTS_ELEMENTS[0].value
         }

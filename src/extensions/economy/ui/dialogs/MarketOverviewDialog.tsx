@@ -38,17 +38,13 @@ export const MarketOverviewDialog: React.FC = () => {
   return (
     <Dialog isOpen={isOpen} title="Market Overview" onClose={() => closeDialog("marketOverview")}>
       <div id="marketOverviewContainer">
-        <div
-          id="marketOverviewNameLine"
-          className="-market-overview-dialog__display-flex--align-items-center--margin-bottom-0-4em"
-        >
+        <div id="marketOverviewNameLine" className="d-flex">
           <div className="label">Name:</div>
           <input
             id="marketOverviewName"
             data-tip="Type to rename the market. Clear the field to reset to the default name"
             autoCorrect="off"
             spellCheck={false}
-            className="-market-overview-dialog__width-11em--margin-left-0-3em"
             value={name}
             placeholder={defaultName}
             onChange={e => renameActiveMarket(e.target.value)}
@@ -56,27 +52,23 @@ export const MarketOverviewDialog: React.FC = () => {
           <span
             id="marketOverviewNameReset"
             data-tip="Reset to the default name (center burg name)"
-            className="icon-ccw pointer -market-overview-dialog__margin-left-0-3em"
+            className="icon-ccw pointer -3em"
             onClick={resetActiveMarketName}
           />
         </div>
 
-        <div id="marketOverviewGoodsBody" className="table -market-overview-dialog__max-height-40em">
+        <div id="marketOverviewGoodsBody" className="table">
           <table className="states-table">
             <colgroup>
-              <col style={{ width: "2.5em" }} />
-              <col style={{ width: "9em" }} />
-              <col style={{ width: "5.5em" }} />
-              <col style={{ width: "3.2em" }} />
+              <col />
+              <col />
+              <col />
+              <col />
             </colgroup>
             <thead id="marketOverviewHeader" ref={headerRef}>
               <tr className="header">
                 <th />
-                <th
-                  data-tip="Click to sort by good"
-                  className="sortable alphabetically -market-overview-dialog__margin-left-0"
-                  data-sortby="good"
-                >
+                <th data-tip="Click to sort by good" className="sortable alphabetically" data-sortby="good">
                   Good&nbsp;
                 </th>
                 <th data-tip="Click to sort by stock" className="sortable icon-sort-number-down" data-sortby="stock">
@@ -126,11 +118,11 @@ export const MarketOverviewDialog: React.FC = () => {
         </div>
 
         <div id="marketOverviewSummary" className="totalLine">
-          <div className="-market-overview-dialog__margin-left-5">Cells: {cellsCount}</div>
-          <div className="-market-overview-dialog__margin-left-12">Burgs: {burgsCount}</div>
-          <div className="-market-overview-dialog__margin-left-12">Stock: {totalStock}</div>
+          <div>Cells: {cellsCount}</div>
+          <div>Burgs: {burgsCount}</div>
+          <div>Stock: {totalStock}</div>
         </div>
-        <div id="marketOverviewInfo" className="-market-overview-dialog__margin-bottom-0-3em">
+        <div id="marketOverviewInfo">
           {owner && (
             <>
               <svg className="coaIcon" viewBox="0 0 200 200">

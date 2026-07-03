@@ -60,8 +60,8 @@ export const DiplomacyRelationDialog: React.FC = () => {
 
   return (
     <Dialog isOpen={isOpen} title="Change relations" onClose={closeRelationDialog}>
-      <div className="-diplomacy-relation-dialog__display-flex--flex-direction-column--gap-3em--padding-0-1em-0--min-width-250px">
-        <header className="-diplomacy-relation-dialog__display-flex--align-items-center--gap-0-5em">
+      <div className="d-flex">
+        <header className="d-flex">
           <svg className="coaIcon" viewBox="0 0 200 200">
             <title>Coat of Arms for {subject.fullName || subject.name}</title>
             <use href={`#stateCOA${subject.i}`} />
@@ -69,13 +69,13 @@ export const DiplomacyRelationDialog: React.FC = () => {
           <b>{subject.fullName || subject.name}</b>
         </header>
 
-        <main className="-diplomacy-relation-dialog__display-flex--gap-1em--margin-top-0-5em">
-          <section className="-diplomacy-relation-dialog__display-flex--flex-direction-column--gap-3em">
+        <main className="d-flex">
+          <section className="d-flex">
             {Object.entries(relations).map(([relation, data]) => {
               const { color, inText, tip } = data as { color: string; inText: string; tip: string };
               return (
                 <div key={relation} data-tip={tip}>
-                  <label className="pointer -diplomacy-relation-dialog__display-flex--align-items-center--gap-0-5em">
+                  <label className="pointer d-flex">
                     <input
                       type="radio"
                       name="relationSelect"
@@ -91,22 +91,17 @@ export const DiplomacyRelationDialog: React.FC = () => {
             })}
           </section>
 
-          <section className="-diplomacy-relation-dialog__display-flex--flex-direction-column--gap-3em--min-width-150px">
-            <div className="-diplomacy-relation-dialog__display-flex--justify-content-space-between--align-items-center--margin-bottom-0">
-              <span className="-diplomacy-relation-dialog__font-weight-500--font-size-0-95em">States:</span>
-              <button
-                type="button"
-                className="-diplomacy-relation-dialog__padding-0-3em-0-8em--cursor-pointer--font-size-0-9em"
-                data-tip="Toggle selection of all states"
-                onClick={toggleAll}
-              >
+          <section className="d-flex">
+            <div className="d-flex">
+              <span>States:</span>
+              <button type="button" data-tip="Toggle selection of all states" onClick={toggleAll}>
                 Select All / None
               </button>
             </div>
-            <div className="-diplomacy-relation-dialog__display-flex--flex-direction-column--gap-3em--max-height-300px--overflow-y-auto">
+            <div className="-diplomacy-relation-dialog__display-flex--flex-direction-column--gap-3em--max-height-300px--overflow-y-auto d-flex">
               {objectStates.map(s => (
                 <div key={s.i} data-tip={s.fullName || s.name}>
-                  <label className="checkbox-label -diplomacy-relation-dialog__display-flex--align-items-center--gap-0-5em">
+                  <label className="checkbox-label d-flex">
                     <input
                       className="checkbox"
                       type="checkbox"
@@ -125,7 +120,7 @@ export const DiplomacyRelationDialog: React.FC = () => {
           </section>
         </main>
 
-        <div className="-diplomacy-relation-dialog__display-flex--justify-content-flex-end--gap-1em--m">
+        <div className="d-flex">
           <button type="button" className="button" onClick={closeRelationDialog}>
             Cancel
           </button>

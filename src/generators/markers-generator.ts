@@ -1296,7 +1296,7 @@ class MarkersModule {
       .map(() => ra(script.split("")))
       .join("");
     const legend = `An ancient ${variant.toLowerCase()}. It has an inscription, but no one can translate it:
-        <div style="font-size: 1.8em; line-break: anywhere;">${inscription}</div>`;
+        <div>${inscription}</div>`;
     notes.push({ id, name, legend });
   }
 

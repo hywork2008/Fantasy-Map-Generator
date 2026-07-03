@@ -13,36 +13,13 @@ const NamesbaseAnalysisDialog: React.FC<{ data: NamesbaseAnalysisData; onClose: 
   const getLengthQuality = () => {
     if (data.length < 30)
       return (
-        <span
-          className="-namesbase-editor-dialog__color-red"
-          data-tip="Namesbase contains < 30 names - not enough to generate reasonable data"
-        >
-          [not enough]
-        </span>
+        <span data-tip="Namesbase contains < 30 names - not enough to generate reasonable data">[not enough]</span>
       );
     if (data.length < 100)
-      return (
-        <span
-          className="-namesbase-editor-dialog__color-darkred"
-          data-tip="Namesbase contains < 100 names - not enough to generate good names"
-        >
-          [low]
-        </span>
-      );
-    if (data.length <= 400)
-      return (
-        <span
-          className="-namesbase-editor-dialog__color-green"
-          data-tip="Namesbase contains a reasonable number of samples"
-        >
-          [good]
-        </span>
-      );
+      return <span data-tip="Namesbase contains < 100 names - not enough to generate good names">[low]</span>;
+    if (data.length <= 400) return <span data-tip="Namesbase contains a reasonable number of samples">[good]</span>;
     return (
-      <span
-        className="-namesbase-editor-dialog__color-darkred"
-        data-tip="Namesbase contains > 400 names. That is too much, try to reduce it to ~300 names"
-      >
+      <span data-tip="Namesbase contains > 400 names. That is too much, try to reduce it to ~300 names">
         [overmuch]
       </span>
     );
@@ -50,33 +27,15 @@ const NamesbaseAnalysisDialog: React.FC<{ data: NamesbaseAnalysisData; onClose: 
 
   const getVarietyLevel = () => {
     if (data.variety < 15)
-      return (
-        <span
-          className="-namesbase-editor-dialog__color-red"
-          data-tip="Namesbase average variety < 15 - generated names will be too repetitive"
-        >
-          [low]
-        </span>
-      );
+      return <span data-tip="Namesbase average variety < 15 - generated names will be too repetitive">[low]</span>;
     if (data.variety < 30)
-      return (
-        <span
-          className="-namesbase-editor-dialog__color-orange"
-          data-tip="Namesbase average variety < 30 - names can be too repetitive"
-        >
-          [mean]
-        </span>
-      );
-    return (
-      <span className="-namesbase-editor-dialog__color-green" data-tip="Namesbase variety is good">
-        [good]
-      </span>
-    );
+      return <span data-tip="Namesbase average variety < 30 - names can be too repetitive">[mean]</span>;
+    return <span data-tip="Namesbase variety is good">[good]</span>;
   };
 
   return (
     <Dialog isOpen={true} onClose={onClose} title="Data Analysis">
-      <div className="-namesbase-editor-dialog__line-height-1-6em--max-width-20em">
+      <div>
         <div data-tip="Number of names provided">
           Namesbase length: {data.length} {getLengthQuality()}
         </div>
@@ -110,7 +69,7 @@ const NamesbaseUploadErrorDialog: React.FC<{ errors: ParseError[]; totalCount: n
   return (
     <Dialog isOpen={true} onClose={onClose} title="Parsing error">
       <div>
-        <p className="-namesbase-editor-dialog__margin-0-75em">
+        <p>
           <strong>
             File parsing error. Only {totalCount - errors.length} out of {totalCount} namebases added.
           </strong>
@@ -120,7 +79,7 @@ const NamesbaseUploadErrorDialog: React.FC<{ errors: ParseError[]; totalCount: n
           the parameters. Another prohibited character is <code>/</code>. The most common issue is names and other
           parameters being on two separate lines.
         </p>
-        <ul className="-namesbase-editor-dialog__margin-0-5em">
+        <ul>
           <li>
             <code>name</code>: name of the base.
           </li>
@@ -143,24 +102,13 @@ const NamesbaseUploadErrorDialog: React.FC<{ errors: ParseError[]; totalCount: n
           </li>
         </ul>
         <div>
-          <ul className="-namesbase-editor-dialog__margin-0--padding-left-1-5em">
+          <ul>
             {errors.map(err => (
-              <li key={err.id} className="-namesbase-editor-dialog__padding-0-6em-0--border-top-1px-solid-ddd">
+              <li key={err.id}>
                 <div>
-                  Line {err.id}: <span className="-namesbase-editor-dialog__color-8b0000">{err.error}.</span> Data:
+                  Line {err.id}: <span>{err.error}.</span> Data:
                 </div>
-                <div
-                  style={{
-                    marginTop: "0.35em",
-                    fontFamily: "var(--font-monospace,monospace)",
-                    fontSize: "0.95em",
-                    lineHeight: 1.4,
-                    wordBreak: "break-word",
-                    color: "#333"
-                  }}
-                >
-                  {err.line || "<empty line>"}
-                </div>
+                <div>{err.line || "<empty line>"}</div>
               </li>
             ))}
           </ul>
@@ -320,7 +268,6 @@ export const NamesbaseEditorContent: React.FC = () => {
         <select
           id="namesbaseSelect"
           data-tip="Select base to edit"
-          className="-namesbase-editor-dialog__width-12em"
           value={activeBaseIndex}
           onChange={e => setActiveBaseIndex(+e.target.value)}
         >
@@ -330,9 +277,9 @@ export const NamesbaseEditorContent: React.FC = () => {
             </option>
           ))}
         </select>
-        <span className="-namesbase-editor-dialog__margin-left-2">Names data: </span>
+        <span>Names data: </span>
       </div>
-      <div id="namesbaseBody" className="-namesbase-editor-dialog__margin-block-2--width-auto">
+      <div id="namesbaseBody">
         <textarea
           id="namesbaseTextarea"
           rows={13}
@@ -352,7 +299,6 @@ export const NamesbaseEditorContent: React.FC = () => {
             placeholder="Base name"
             autoCorrect="off"
             spellCheck="false"
-            className="-namesbase-editor-dialog__width-12em"
             value={baseName}
             onChange={e => handleBaseNameChange(e.target.value)}
           />
@@ -380,7 +326,6 @@ export const NamesbaseEditorContent: React.FC = () => {
             data-tip="Populate with letters that can be used twice in a row (geminates)"
             autoCorrect="off"
             spellCheck="false"
-            className="-namesbase-editor-dialog__width-10em"
             value={doubleStr}
             onChange={e => handleDoubleChange(e.target.value)}
           />
@@ -392,7 +337,7 @@ export const NamesbaseEditorContent: React.FC = () => {
             id="namesbaseExamples"
             data-tip="Examples. Click to re-generate"
             onClick={generateExamples}
-            className="-namesbase-editor-dialog__all-unset--width-100--display-block--text-align-le"
+            className="d-block"
           >
             {examples}
           </button>
@@ -465,13 +410,7 @@ export const NamesbaseEditorContent: React.FC = () => {
           onClick={() => speak(examples)}
         />
       </div>
-      <input
-        type="file"
-        className="-namesbase-editor-dialog__display-none"
-        ref={uploaderRef}
-        onChange={handleUpload}
-        accept=".txt"
-      />
+      <input type="file" className="d-none" ref={uploaderRef} onChange={handleUpload} accept=".txt" />
 
       {analysisData && <NamesbaseAnalysisDialog data={analysisData} onClose={() => setAnalysisData(null)} />}
       {uploadErrors && (

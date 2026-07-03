@@ -88,7 +88,6 @@ export const BiomesEditorContent: React.FC = () => {
                 className={`sortable alphabetically${sortIcon("name", true)}`}
                 data-sortby="name"
                 onClick={() => handleSort("name", true)}
-                style={{ width: "13em" }}
               >
                 Biome&nbsp;
               </th>
@@ -97,7 +96,6 @@ export const BiomesEditorContent: React.FC = () => {
                 className={`sortable ${hc()}${sortIcon("habitability", false)}`}
                 data-sortby="habitability"
                 onClick={() => handleSort("habitability", false)}
-                style={{ width: "7em" }}
               >
                 Habitability&nbsp;
               </th>
@@ -106,7 +104,6 @@ export const BiomesEditorContent: React.FC = () => {
                 className={`sortable ${hc()}${sortIcon("cells", false)}`}
                 data-sortby="cells"
                 onClick={() => handleSort("cells", false)}
-                style={{ width: "5em" }}
               >
                 Cells&nbsp;
               </th>
@@ -115,7 +112,6 @@ export const BiomesEditorContent: React.FC = () => {
                 className={`sortable ${hc()}${sortIcon("area", false)}`}
                 data-sortby="area"
                 onClick={() => handleSort("area", false)}
-                style={{ width: "5em" }}
               >
                 Area&nbsp;
               </th>
@@ -124,7 +120,6 @@ export const BiomesEditorContent: React.FC = () => {
                 className={`sortable ${hc()}${sortIcon("population", false)}`}
                 data-sortby="population"
                 onClick={() => handleSort("population", false)}
-                style={{ width: "7em" }}
               >
                 Population&nbsp;
               </th>
@@ -147,7 +142,7 @@ export const BiomesEditorContent: React.FC = () => {
                 onMouseLeave={() => biomesHighlightOff(row.i)}
                 onClick={isCustomizationMode ? () => biomesSelectOnLine(row.i) : undefined}
               >
-                <td style={{ display: "flex", gap: "4px", alignItems: "center" }}>
+                <td style={{ display: "flex" }}>
                   <FillBox
                     fill={row.color}
                     onClick={() => biomesChangeColor(row.i, row.color)}
@@ -159,7 +154,7 @@ export const BiomesEditorContent: React.FC = () => {
                     defaultValue={row.name}
                     autoCorrect="off"
                     spellCheck={false}
-                    style={{ flex: 1, minWidth: 0, ...(innerPtr || {}) }}
+                    style={{ ...(innerPtr || {}) }}
                     onBlur={e => biomesChangeName(row.i, e.target.value)}
                   />
                 </td>
@@ -174,16 +169,12 @@ export const BiomesEditorContent: React.FC = () => {
                     max={9999}
                     className={hc("biomeHabitability")}
                     defaultValue={row.habitability}
-                    style={{ width: "calc(100% - 20px)", ...(innerPtr || {}) }}
+                    style={{ ...(innerPtr || {}) }}
                     onBlur={e => biomesChangeHabitability(row.i, e.target.value)}
                   />
                 </td>
                 <td>
-                  <span
-                    data-tip="Cells count"
-                    className={hc("icon-check-empty")}
-                    style={{ marginRight: "4px", ...(innerPtr || {}) }}
-                  />
+                  <span data-tip="Cells count" className={hc("icon-check-empty")} style={{ ...(innerPtr || {}) }} />
                   <div
                     data-tip="Cells count"
                     className={hc("biomeCells")}
@@ -193,11 +184,7 @@ export const BiomesEditorContent: React.FC = () => {
                   </div>
                 </td>
                 <td>
-                  <span
-                    data-tip="Biome area"
-                    className={hc("icon-map-o")}
-                    style={{ paddingRight: 4, ...(innerPtr ?? {}) }}
-                  />
+                  <span data-tip="Biome area" className={hc("icon-map-o")} style={{ ...(innerPtr ?? {}) }} />
                   <div
                     data-tip="Biome area"
                     className={hc("biomeArea")}
@@ -207,11 +194,7 @@ export const BiomesEditorContent: React.FC = () => {
                   </div>
                 </td>
                 <td>
-                  <span
-                    data-tip={row.populationTip}
-                    className={hc("icon-male")}
-                    style={{ marginRight: "4px", ...(innerPtr || {}) }}
-                  />
+                  <span data-tip={row.populationTip} className={hc("icon-male")} style={{ ...(innerPtr || {}) }} />
                   <div
                     data-tip={row.populationTip}
                     className={hc("biomePopulation")}
@@ -243,16 +226,16 @@ export const BiomesEditorContent: React.FC = () => {
       </div>
 
       <div id="biomesTotal" className="totalLine" style={{ display: isCustomizationMode ? "none" : undefined }}>
-        <div data-tip="Number of land biomes" className="-biomes-editor-dialog__margin-left-12">
+        <div data-tip="Number of land biomes">
           Biomes:&nbsp;<span id="biomesFooterBiomes">{footer.biomes}</span>
         </div>
-        <div data-tip="Total land cells number" className="-biomes-editor-dialog__margin-left-12">
+        <div data-tip="Total land cells number">
           Cells:&nbsp;<span id="biomesFooterCells">{footer.cells}</span>
         </div>
-        <div data-tip="Total land area" className="-biomes-editor-dialog__margin-left-12">
+        <div data-tip="Total land area">
           Land Area:&nbsp;<span id="biomesFooterArea">{footerArea}</span>
         </div>
-        <div data-tip="Total population" className="-biomes-editor-dialog__margin-left-12">
+        <div data-tip="Total population">
           Population:&nbsp;<span id="biomesFooterPopulation">{si(footer.totalPopulation)}</span>
         </div>
       </div>
@@ -299,10 +282,7 @@ export const BiomesEditorContent: React.FC = () => {
           onClick={biomesEnterCustomization}
         />
         <div id="biomesManuallyButtons" style={{ display: isCustomizationMode ? undefined : "none" }}>
-          <div
-            data-tip="Change brush size. Shortcut: + to increase; – to decrease"
-            className="-biomes-editor-dialog__margin-block-0-3em"
-          >
+          <div data-tip="Change brush size. Shortcut: + to increase; – to decrease">
             Brush size:
             <SliderInput
               id="biomesBrush"

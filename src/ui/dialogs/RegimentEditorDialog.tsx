@@ -11,7 +11,7 @@ export const RegimentEditorDialog: React.FC = () => {
 
   const isExternal = icon.startsWith("http") || icon.startsWith("data:image");
   const emblemContent = isExternal ? (
-    <img src={icon} className="-regiment-editor-dialog__width-1em--height-1em" alt="emblem" />
+    <img src={icon} alt="emblem" />
   ) : (
     // biome-ignore lint/security/noDangerouslySetInnerHtml: Trusted SVG content for regiment emblem
     <span dangerouslySetInnerHTML={{ __html: icon }} />
@@ -19,8 +19,8 @@ export const RegimentEditorDialog: React.FC = () => {
 
   return (
     <Dialog isOpen={isOpen} title="Regiment Editor" onClose={() => closeDialog("regimentEditor")}>
-      <div id="regimentBody" className="-regiment-editor-dialog__padding-bottom-0-3em">
-        <div className="-regiment-editor-dialog__padding-bottom-0-2em">
+      <div id="regimentBody">
+        <div>
           <button
             type="button"
             className={isNaval ? "icon-anchor" : "icon-users"}
@@ -33,7 +33,6 @@ export const RegimentEditorDialog: React.FC = () => {
             data-tip="Type to rename the regiment"
             autoCorrect="off"
             spellCheck={false}
-            className="-regiment-editor-dialog__width-13em"
             onChange={e => regimentEditorActions.changeName(e.currentTarget.value)}
           />
           <span data-tip="Speak the name. You can change voice and language in options" className="speaker">
@@ -46,16 +45,10 @@ export const RegimentEditorDialog: React.FC = () => {
           />
         </div>
 
-        <div data-tip="Regiment emblem" className="-regiment-editor-dialog__display-flex--align-items-center">
+        <div data-tip="Regiment emblem" className="d-flex">
           <div className="label">Emblem:</div>
-          <div id="regimentEmblem" className="-regiment-editor-dialog__font-size-1-5em--width-3-7em">
-            {emblemContent}
-          </div>
-          <button
-            type="button"
-            className="-regiment-editor-dialog__padding-0--width-4-5em"
-            onClick={regimentEditorActions.changeEmblem}
-          >
+          <div id="regimentEmblem">{emblemContent}</div>
+          <button type="button" onClick={regimentEditorActions.changeEmblem}>
             change
           </button>
         </div>

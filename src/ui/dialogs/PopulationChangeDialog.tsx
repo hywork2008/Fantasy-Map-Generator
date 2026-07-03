@@ -62,27 +62,17 @@ export const PopulationChangeDialog: React.FC = () => {
         { label: "Apply", onClick: handleApply },
         { label: "Cancel", onClick: handleClose }
       ]}
-      className="-population-change-dialog__width-24em"
     >
       <div>
         <i>{config.description}</i>
-        <div className="-population-change-dialog__margin-0-5em-0">
-          Rural:{" "}
-          <input
-            type="number"
-            min={0}
-            step={1}
-            value={rural}
-            className="-population-change-dialog__width-6em"
-            onChange={e => setRural(e.target.valueAsNumber)}
-          />{" "}
+        <div>
+          Rural: <input type="number" min={0} step={1} value={rural} onChange={e => setRural(e.target.valueAsNumber)} />{" "}
           Urban:{" "}
           <input
             type="number"
             min={0}
             step={1}
             value={urban}
-            className="-population-change-dialog__width-6em"
             disabled={config.urbanDisabled}
             onChange={e => setUrban(e.target.valueAsNumber)}
           />

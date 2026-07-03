@@ -193,7 +193,7 @@ export const BurgsOverviewDialog: React.FC = () => {
     return (
       <th
         data-tip={`Click to sort by ${label.toLowerCase()}`}
-        className={`sortable ${numeric ? "icon-sort-number-down" : "alphabetically"} -burgs-overview-dialog__cursor-pointer`}
+        className={`sortable ${numeric ? "icon-sort-number-down" : "alphabetically"}`}
         data-sortby={field}
         onClick={() => toggleSortBy(field)}
         style={{ width, minWidth: width }}
@@ -264,8 +264,8 @@ export const BurgsOverviewDialog: React.FC = () => {
       className="fmg-dialog--overflow-hidden"
     >
       <div id="burgsOverviewContainer">
-        <div id="burgsBody" className="table" ref={parentRef} style={{ overflow: "auto", maxHeight: "60vh" }}>
-          <table className="fmg-table" style={{ borderCollapse: "separate", borderSpacing: 0 }}>
+        <div id="burgsBody" className="table" ref={parentRef} style={{ overflow: "auto" }}>
+          <table className="fmg-table">
             <thead style={{ zIndex: 3 }}>
               <tr id="burgsHeader">
                 <SortHeader field="name" label="Burg" width="14em" />
@@ -281,15 +281,13 @@ export const BurgsOverviewDialog: React.FC = () => {
             <tbody>
               {filteredBurgs.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="-burgs-overview-dialog__padding-block-0-3em">
-                    No burgs found
-                  </td>
+                  <td colSpan={8}>No burgs found</td>
                 </tr>
               ) : (
                 <>
                   {paddingTop > 0 && (
                     <tr>
-                      <td colSpan={8} style={{ height: `${paddingTop}px`, padding: 0 }} />
+                      <td colSpan={8} style={{ height: `${paddingTop}px` }} />
                     </tr>
                   )}
                   {virtualItems.map(virtualRow => {
@@ -313,65 +311,27 @@ export const BurgsOverviewDialog: React.FC = () => {
                             data-tip="Click to zoom into view"
                             className="icon-dot-circled pointer"
                             onClick={() => zoomIntoBurg(b.i!)}
-                            style={{ marginRight: "4px" }}
                           />
-                          <input
-                            data-tip="Burg name"
-                            className="burgName"
-                            value={b.name ?? ""}
-                            disabled
-                            readOnly
-                            style={{ width: "calc(100% - 20px)", minWidth: "5em" }}
-                          />
+                          <input data-tip="Burg name" className="burgName" value={b.name ?? ""} disabled readOnly />
                         </td>
                         <td>
-                          <input
-                            data-tip="Burg province"
-                            value={province}
-                            disabled
-                            readOnly
-                            style={{ width: "100%", minWidth: "4em" }}
-                          />
+                          <input data-tip="Burg province" value={province} disabled readOnly />
                         </td>
                         <td>
-                          <input
-                            data-tip="Burg state"
-                            value={stateName}
-                            disabled
-                            readOnly
-                            style={{ width: "100%", minWidth: "4em" }}
-                          />
+                          <input data-tip="Burg state" value={stateName} disabled readOnly />
                         </td>
                         <td>
-                          <input
-                            data-tip="Dominant culture"
-                            value={cultureName}
-                            disabled
-                            readOnly
-                            style={{ width: "100%", minWidth: "4em" }}
-                          />
+                          <input data-tip="Dominant culture" value={cultureName} disabled readOnly />
                         </td>
                         <td>
-                          <input
-                            data-tip="Burg group"
-                            value={b.group ?? ""}
-                            disabled
-                            readOnly
-                            style={{ width: "100%", minWidth: "4em" }}
-                          />
+                          <input data-tip="Burg group" value={b.group ?? ""} disabled readOnly />
                         </td>
                         <td>
-                          <span data-tip="Burg population" className="icon-male" style={{ marginRight: "4px" }} />
-                          <input
-                            data-tip="Burg population"
-                            value={si(population)}
-                            className="-burgs-overview-dialog__width-5em"
-                            disabled
-                            readOnly
-                          />
+                          <span data-tip="Burg population" className="icon-male" />
+                          <input data-tip="Burg population" value={si(population)} disabled readOnly />
                         </td>
                         <td>
-                          <div className="-burgs-overview-dialog__width-3em" style={{ display: "inline-block" }}>
+                          <div style={{ display: "inline-block" }}>
                             <span
                               data-tip={b.capital ? "This burg is a state capital" : "This burg is NOT a state capital"}
                               className={`icon-star-empty${b.capital ? "" : " inactive"} -burgs-overview-dialog__padding-0-1px`}
@@ -383,12 +343,7 @@ export const BurgsOverviewDialog: React.FC = () => {
                           </div>
                         </td>
                         <td>
-                          <span
-                            data-tip="Edit burg"
-                            className="icon-pencil pointer"
-                            onClick={() => editBurg(b.i!)}
-                            style={{ marginRight: "4px" }}
-                          />
+                          <span data-tip="Edit burg" className="icon-pencil pointer" onClick={() => editBurg(b.i!)} />
                           <span
                             className={`locks pointer${b.lock ? " icon-lock" : " icon-lock-open inactive"}`}
                             onMouseOver={e => showElementLockTip(e.nativeEvent)}
@@ -396,7 +351,6 @@ export const BurgsOverviewDialog: React.FC = () => {
                               b.lock = !b.lock;
                               refresh();
                             }}
-                            style={{ marginRight: "4px" }}
                           />
                           <span
                             data-tip="Remove burg"
@@ -409,7 +363,7 @@ export const BurgsOverviewDialog: React.FC = () => {
                   })}
                   {paddingBottom > 0 && (
                     <tr>
-                      <td colSpan={8} style={{ height: `${paddingBottom}px`, padding: 0 }} />
+                      <td colSpan={8} style={{ height: `${paddingBottom}px` }} />
                     </tr>
                   )}
                 </>
@@ -418,12 +372,7 @@ export const BurgsOverviewDialog: React.FC = () => {
           </table>
         </div>
 
-        <div
-          id="burgsFilters"
-          data-tip="Apply a filter"
-          className="-burgs-overview-dialog__padding-block-0-1em--display-flex--gap-0-5em--width-100"
-          style={{ flexWrap: "wrap" }}
-        >
+        <div id="burgsFilters" data-tip="Apply a filter" className="d-flex">
           <label htmlFor="burgsSearch" data-tip="Filter by name, province, state, culture, or group">
             Search:{" "}
             <input id="burgsSearch" type="search" value={searchText} onChange={e => setSearchText(e.target.value)} />
@@ -483,10 +432,10 @@ export const BurgsOverviewDialog: React.FC = () => {
         </div>
 
         <div id="burgsTotal" className="totalLine">
-          <div data-tip="Burgs displayed" className="-burgs-overview-dialog__margin-left-4">
+          <div data-tip="Burgs displayed">
             Burgs:&nbsp;{filteredBurgs.length} of {validCount}
           </div>
-          <div data-tip="Average population" className="-burgs-overview-dialog__margin-left-14">
+          <div data-tip="Average population">
             Average population:&nbsp;
             {filteredBurgs.length ? si(totalPopulation / filteredBurgs.length) : "0"}
           </div>
@@ -541,7 +490,7 @@ export const BurgsOverviewDialog: React.FC = () => {
             ref={fileInputRef}
             type="file"
             id="burgsListToLoad"
-            className="-burgs-overview-dialog__display-none"
+            className="d-none"
             onChange={e => {
               if (e.target.files?.[0]) uploadFile(e.target as HTMLInputElement, data => importBurgNames(data, refresh));
             }}

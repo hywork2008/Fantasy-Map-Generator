@@ -6,36 +6,27 @@ export const TradeAnimationDialog: React.FC = () => {
 
   return (
     <Dialog isOpen={isOpen} title="Trade Animation" onClose={() => closeDialog("tradeAnimationEditor")}>
-      <div id="tradeAnimationEditorContainer" className="-trade-animation-dialog__padding-0-5em--min-width-20em">
+      <div id="tradeAnimationEditorContainer">
         <div data-tip="Select which trade types to display">
           <label htmlFor="tradeAnimationDisplayType">Display:</label>
-          <select id="tradeAnimationDisplayType" className="-trade-animation-dialog__margin-left-0-5em">
+          <select id="tradeAnimationDisplayType">
             <option value="both">Both local and global</option>
             <option value="local">Local only</option>
             <option value="global">Global only</option>
           </select>
         </div>
 
-        <div
-          data-tip="Maximum number of trade markers animated simultaneously"
-          className="-trade-animation-dialog__margin-top-0-4em"
-        >
+        <div data-tip="Maximum number of trade markers animated simultaneously">
           <label htmlFor="tradeAnimationConcurrent">Concurrent:</label>
           <SliderInput id="tradeAnimationConcurrent" min="1" max="200" step="1" value="30" onChange={() => {}} />
         </div>
 
-        <div
-          data-tip="Duration of a single trade journey in milliseconds"
-          className="-trade-animation-dialog__margin-top-0-4em"
-        >
+        <div data-tip="Duration of a single trade journey in milliseconds">
           <label htmlFor="tradeAnimationDuration">Duration (ms):</label>
           <SliderInput id="tradeAnimationDuration" min="50" max="2000" step="10" value="250" onChange={() => {}} />
         </div>
 
-        <div
-          data-tip="Multiplier applied to duration for overland segments (land is slower than sea)"
-          className="-trade-animation-dialog__margin-top-0-4em"
-        >
+        <div data-tip="Multiplier applied to duration for overland segments (land is slower than sea)">
           <label htmlFor="tradeAnimationLandModifier">Land modifier:</label>
           <SliderInput id="tradeAnimationLandModifier" min="1" max="20" step="1" value="5" onChange={() => {}} />
         </div>
@@ -50,7 +41,7 @@ export const TradeAnimationDialog: React.FC = () => {
           <SliderInput id="tradeAnimationMarkerSize" min="1" max="20" step="1" value="4" onChange={() => {}} />
         </div>
 
-        <div id="tradeAnimationBottom" className="-trade-animation-dialog__margin-top-0-8em">
+        <div id="tradeAnimationBottom">
           <button type="button" id="tradeAnimationApply" data-tip="Apply settings and restart animation">
             Apply
           </button>

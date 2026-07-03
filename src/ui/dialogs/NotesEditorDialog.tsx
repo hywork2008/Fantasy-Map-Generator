@@ -30,12 +30,11 @@ export const NotesEditorContent: React.FC = () => {
   return (
     <div id="notesEditorContainer">
       <div>
-        <div className="-notes-editor-dialog__margin-bottom-0-3em">
+        <div>
           <strong>Element: </strong>
           <select
             id="notesSelect"
             data-tip="Select element id"
-            className="-notes-editor-dialog__width-12em"
             value={selectedId}
             onChange={e => notesEditorActions.changeElement(e.target.value)}
           >
@@ -51,7 +50,6 @@ export const NotesEditorContent: React.FC = () => {
             data-tip="Set element name"
             autoCorrect="off"
             spellCheck="false"
-            className="-notes-editor-dialog__width-16em"
             value={noteName}
             onChange={e => notesEditorActions.changeName(e.target.value)}
           />
@@ -63,7 +61,7 @@ export const NotesEditorContent: React.FC = () => {
         {/* Note: This div is mutated by TinyMCE. React must not update its children! */}
         <div id="notesLegend" ref={legendRef} contentEditable="true" onBlur={notesEditorActions.updateLegend} />
 
-        <div className="-notes-editor-dialog__margin-top-0-3em">
+        <div>
           <button
             type="button"
             id="notesFocus"
@@ -102,7 +100,7 @@ export const NotesEditorContent: React.FC = () => {
           <input
             type="file"
             id="legendsToLoad"
-            className="-notes-editor-dialog__display-none"
+            className="d-none"
             ref={fileInputRef}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => notesEditorActions.handleUploadFile(e.nativeEvent)}
           />

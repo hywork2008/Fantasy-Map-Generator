@@ -112,18 +112,10 @@ export const MilitaryOptionsDialog: React.FC = () => {
                     <th data-tip="Unit name. If name is changed for existing unit, old unit will be replaced">
                       Unit name
                     </th>
-                    <th className="-military-options-dialog__width-5em" data-tip="Select allowed biomes">
-                      Biomes
-                    </th>
-                    <th className="-military-options-dialog__width-5em" data-tip="Select allowed states">
-                      States
-                    </th>
-                    <th className="-military-options-dialog__width-5em" data-tip="Select allowed cultures">
-                      Cultures
-                    </th>
-                    <th className="-military-options-dialog__width-5em" data-tip="Select allowed religions">
-                      Religions
-                    </th>
+                    <th data-tip="Select allowed biomes">Biomes</th>
+                    <th data-tip="Select allowed states">States</th>
+                    <th data-tip="Select allowed cultures">Cultures</th>
+                    <th data-tip="Select allowed religions">Religions</th>
                     <th data-tip="Conscription percentage for rural population">Rural</th>
                     <th data-tip="Conscription percentage for urban population">Urban</th>
                     <th data-tip="Average number of people in crew (used for total personnel calculation)">Crew</th>
@@ -336,33 +328,17 @@ export const MilitaryOptionsDialog: React.FC = () => {
                 </tbody>
               </table>
             </div>
-            <div className="-military-options-dialog__margin-top-1em">
-              <button
-                type="button"
-                onClick={applyMilitaryOptions}
-                className="-military-options-dialog__width-6em--margin-right-0-5em"
-              >
+            <div>
+              <button type="button" onClick={applyMilitaryOptions}>
                 Apply
               </button>
-              <button
-                type="button"
-                onClick={addUnit}
-                className="-military-options-dialog__width-6em--margin-right-0-5em"
-              >
+              <button type="button" onClick={addUnit}>
                 Add
               </button>
-              <button
-                type="button"
-                onClick={restoreDefaults}
-                className="-military-options-dialog__width-8em--margin-right-0-5em"
-              >
+              <button type="button" onClick={restoreDefaults}>
                 Restore defaults
               </button>
-              <button
-                type="button"
-                onClick={() => closeDialog("militaryOptions")}
-                className="-military-options-dialog__width-6em"
-              >
+              <button type="button" onClick={() => closeDialog("militaryOptions")}>
                 Cancel
               </button>
             </div>

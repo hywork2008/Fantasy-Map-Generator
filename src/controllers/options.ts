@@ -187,7 +187,7 @@ export function showSeedHistoryDialog(): void {
     const button = `<i data-tip="Click to generate a map with this seed" onclick="restoreSeed(${i})" class="icon-history optionsSeedRestore"></i>`;
     return `<li>Seed: ${h.seed} ${button}. Size: ${h.width}x${h.height}. Template: ${h.template}. Created: ${created}</li>`;
   });
-  openAlert(`<ol style="margin: 0; padding-left: 1.5em">${lines.join("")}</ol>`, { title: "Seed history" });
+  openAlert(`<ol>${lines.join("")}</ol>`, { title: "Seed history" });
 }
 
 export function restoreSeed(id: number): void {
@@ -375,7 +375,7 @@ function loadGoogleTranslate(): void {
     getElementById<HTMLElement>("loadGoogleTranslateButton")?.remove();
 
     getElementById<HTMLElement>("mapLayers")
-      ?.querySelectorAll("li")
+      ?.querySelectorAll("button")
       .forEach(el => {
         el.querySelectorAll("u").forEach(u => {
           u.replaceWith(u.textContent ?? "");

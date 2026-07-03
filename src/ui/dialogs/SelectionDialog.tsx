@@ -64,7 +64,7 @@ export const SelectionDialog: React.FC<SelectionDialogProps> = ({
     >
       <div>
         <b>Limit {byLabel}:</b>
-        <table className="-selection-dialog__margin-top-0-3em">
+        <table>
           <tbody>
             {filtered.map(item => (
               <tr key={item.i} title={item.name}>

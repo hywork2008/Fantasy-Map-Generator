@@ -49,8 +49,8 @@ export const LayersTab: React.FC = () => {
   const isCustom = activePreset === "custom";
 
   return (
-    <div id="layersContent" className="tabcontent -layers-tab__display-block">
-      <p data-tip="Select a map layers preset" className="-layers-tab__display-inline-block--margin-right-8px">
+    <div id="layersContent" className="tabcontent d-block">
+      <p data-tip="Select a map layers preset" className="d-inline-block">
         Layers preset:
       </p>
       <select
@@ -59,7 +59,6 @@ export const LayersTab: React.FC = () => {
         value={activePreset}
         disabled={presetDisabled}
         onChange={handlePresetChange}
-        className="-layers-tab__width-45"
       >
         {Object.keys(presets).map(preset => (
           <option key={preset} value={preset} hidden={preset === "custom"}>
@@ -92,16 +91,17 @@ export const LayersTab: React.FC = () => {
       ></button>
 
       <p>Displayed layers and layers order:</p>
-      <ul
+      <div
         data-tip="Click to toggle a layer, drag to raise or lower a layer. Ctrl + click to edit layer style"
         id="mapLayers"
       >
         {layers.map((layer, index) => {
           const isOn = activeLayers[layer.id];
           return (
-            <li
+            <button
               key={layer.id}
               id={layer.id}
+              type="button"
               data-tip={layer.tooltip}
               data-shortcut={layer.shortcut}
               className={`${isOn ? "" : "buttonoff"} ${layer.isSolid ? "solid" : ""}`}
@@ -112,10 +112,10 @@ export const LayersTab: React.FC = () => {
               onClick={e => handleToggle(e, layer)}
             >
               {layer.name}
-            </li>
+            </button>
           );
         })}
-      </ul>
+      </div>
       <div className="tip">Click to toggle, drag to raise or lower the layer</div>
       <div className="tip">Ctrl + click to edit layer style</div>
 

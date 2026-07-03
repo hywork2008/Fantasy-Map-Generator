@@ -146,7 +146,7 @@ export const ElevationProfileDialog: React.FC = () => {
   return (
     <Dialog isOpen={isOpen} title="Elevation Profile" onClose={handleClose}>
       <div id="elevationGraph" ref={graphRef} data-tip="Elevation profile" />
-      <div className="-elevation-profile-dialog__text-align-center">
+      <div>
         <div id="epControls">
           <span data-tip="Set curve profile">
             Curve:{" "}
@@ -176,7 +176,7 @@ export const ElevationProfileDialog: React.FC = () => {
               PNG
             </button>
           </span>
-          <span id="epstats" className="-elevation-profile-dialog__margin-left-1em--color-555--font-size-0-85em" />
+          <span id="epstats" />
         </div>
       </div>
     </Dialog>

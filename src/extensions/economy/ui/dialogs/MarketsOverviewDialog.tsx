@@ -133,25 +133,21 @@ export const MarketsOverviewDialog: React.FC = () => {
   return (
     <Dialog isOpen={isOpen} title="Markets Overview" onClose={() => closeDialog("marketsOverview")}>
       <div id="marketsOverviewContainer">
-        <div
-          id="marketsOverviewBody"
-          className="table -markets-overview-dialog__max-height-40em--cursor-pointer"
-          data-type={isPercentageMode ? "percentage" : "absolute"}
-        >
+        <div id="marketsOverviewBody" className="table" data-type={isPercentageMode ? "percentage" : "absolute"}>
           <table className="states-table">
             <colgroup>
-              <col style={{ width: "1.6em" }} />
-              <col style={{ width: "7.2em" }} />
-              <col style={{ width: "8em" }} />
-              <col style={{ width: "3.5em" }} />
+              <col />
+              <col />
+              <col />
+              <col />
               {!isManualMode && (
                 <>
-                  <col style={{ width: "4.5em" }} />
-                  <col style={{ width: "6.5em" }} />
-                  <col style={{ width: "6.4em" }} />
-                  <col style={{ width: "6em" }} />
-                  <col style={{ width: "6em" }} />
-                  <col style={{ width: "1.2em" }} />
+                  <col />
+                  <col />
+                  <col />
+                  <col />
+                  <col />
+                  <col />
                 </>
               )}
             </colgroup>
@@ -310,7 +306,7 @@ export const MarketsOverviewDialog: React.FC = () => {
                           value={m.color}
                           tabIndex={-1}
                           aria-hidden="true"
-                          className="-markets-overview-dialog__display-none"
+                          className="d-none"
                           onClick={event => event.stopPropagation()}
                           onChange={event => handleColorChange(m.i, event.target.value)}
                         />
@@ -367,16 +363,16 @@ export const MarketsOverviewDialog: React.FC = () => {
         </div>
 
         <div id="marketsOverviewFooter" className="totalLine" style={{ display: isManualMode ? "none" : "block" }}>
-          <div data-tip="Total number of markets" className="-markets-overview-dialog__margin-left-5">
+          <div data-tip="Total number of markets">
             Markets:&nbsp;<span id="marketsOverviewFooterMarkets">{totalMarkets}</span>
           </div>
-          <div data-tip="Average gross sales revenue per market" className="-markets-overview-dialog__margin-left-12">
+          <div data-tip="Average gross sales revenue per market">
             Avg Sales:&nbsp;<span id="marketsOverviewFooterSales">{formatPrice(avgSales)}</span>
           </div>
-          <div data-tip="Average purchase spending per market" className="-markets-overview-dialog__margin-left-12">
+          <div data-tip="Average purchase spending per market">
             Avg Buys:&nbsp;<span id="marketsOverviewFooterBuys">{formatPrice(avgBuys)}</span>
           </div>
-          <div data-tip="Average market value per market" className="-markets-overview-dialog__margin-left-12">
+          <div data-tip="Average market value per market">
             Avg Value:&nbsp;<span id="marketsOverviewFooterValue">{formatPrice(avgValue)}</span>
           </div>
         </div>
@@ -430,7 +426,7 @@ export const MarketsOverviewDialog: React.FC = () => {
               step="1"
               value={brushSize}
               data-tip="Brush size"
-              className="-markets-overview-dialog__display-inline-block--width-6em--vertical-align-mi"
+              className="d-inline-block"
               onChange={e => marketsOverviewActions.setBrushSize(parseInt(e.target.value, 10))}
             />
             <button
@@ -494,9 +490,9 @@ export const MarketsOverviewDialog: React.FC = () => {
             }
           ]}
         >
-          <div className="-markets-overview-dialog__display-grid--gap-0-8em">
+          <div className="d-grid">
             <div>Are you sure you want to regenerate markets and their territories?</div>
-            <label className="-markets-overview-dialog__display-flex--align-items-center--gap-4em">
+            <label className="d-flex">
               <input
                 type="checkbox"
                 className="native"

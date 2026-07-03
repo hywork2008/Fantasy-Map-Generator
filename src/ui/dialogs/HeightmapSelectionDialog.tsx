@@ -250,7 +250,7 @@ export const HeightmapSelectionContent: React.FC<{ onClose?: () => void }> = ({ 
               <button
                 type="button"
                 data-tip="Rerender all preview images"
-                className="checkbox-label -heightmap-selection-dialog__cursor-pointer--background-none--border-none--padd"
+                className="checkbox-label"
                 onClick={() => handleRedrawAll(colorScheme, renderOcean)}
               >
                 <i className="icon-cw" /> Redraw preview
@@ -293,7 +293,7 @@ export const HeightmapSelectionContent: React.FC<{ onClose?: () => void }> = ({ 
           </div>
         </section>
 
-        <div className="-heightmap-selection-dialog__display-flex--justify-content-flex-end--gap-0-5em--padding-top-0-5em">
+        <div className="d-flex">
           <button type="button" onClick={onClose || (() => closeDialog("heightmapSelection"))}>
             Cancel
           </button>

@@ -61,13 +61,12 @@ export const MarketsGoodCompareDialog: React.FC = () => {
       }}
     >
       <div id="marketsGoodCompareContainer">
-        <div className="-markets-good-compare-dialog__display-flex--align-items-center--gap-5em--padding-2em-0-4em--font-size-9em">
+        <div className="d-flex">
           <label htmlFor="marketsGoodCompareSelect" data-tip="Select good to compare stock across markets">
             Good:
           </label>
           <select
             id="marketsGoodCompareSelect"
-            className="-markets-good-compare-dialog__flex-1--min-width-8em"
             value={selectedGoodId ?? ""}
             onChange={e => setSelectedGoodId(parseInt(e.target.value, 10))}
           >
@@ -79,17 +78,13 @@ export const MarketsGoodCompareDialog: React.FC = () => {
           </select>
         </div>
 
-        <div
-          id="marketsGoodCompareBody"
-          className="table -markets-good-compare-dialog__max-height-40em"
-          data-type={isPercentageMode ? "percentage" : "absolute"}
-        >
+        <div id="marketsGoodCompareBody" className="table" data-type={isPercentageMode ? "percentage" : "absolute"}>
           <table className="states-table">
             <colgroup>
-              <col style={{ width: "1.6em" }} />
-              <col style={{ width: "9em" }} />
-              <col style={{ width: "6em" }} />
-              <col style={{ width: "7em" }} />
+              <col />
+              <col />
+              <col />
+              <col />
             </colgroup>
             <thead>
               <tr className="header">
@@ -148,16 +143,10 @@ export const MarketsGoodCompareDialog: React.FC = () => {
         </div>
 
         <div id="marketsGoodCompareFooter" className="totalLine">
-          <div
-            data-tip="Total stock of this good across all markets"
-            className="-markets-good-compare-dialog__margin-left-5"
-          >
+          <div data-tip="Total stock of this good across all markets">
             Total Stock:&nbsp;<span id="marketsGoodCompareFooterStock">{totalStock}</span>
           </div>
-          <div
-            data-tip="Average price of this good across markets"
-            className="-markets-good-compare-dialog__margin-left-12"
-          >
+          <div data-tip="Average price of this good across markets">
             Avg Price:&nbsp;<span id="marketsGoodCompareFooterPrice">{formatPrice(avgPrice)}</span>
           </div>
         </div>

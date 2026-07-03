@@ -25,24 +25,13 @@ import {
 } from "../../controllers/goods-editor";
 import { useGoodsEditorTableState } from "../../store/goodsEditorTableState";
 
-const TYPE_BADGE_STYLES = {
-  common: "display:inline-block;border-radius:3px;padding:0 .4em;font-size:0.8em;font-weight:bold;line-height:1.35",
-  RAW: "background:#d0e7f5;color:#036",
-  MFG: "background:#f8e7bf;color:#b67a00"
-} as const;
-
 const RAW_TIP =
   "Raw goods are produced by rural population in cells based on biome availability and in cells and burgs when bonus resource is assigned to cells";
 const MFG_TIP = "Manufactured goods are produced in burgs";
 
 const TypeBadge: React.FC<{ type: string }> = ({ type }) => {
-  const extraStyle = type === "RAW" ? TYPE_BADGE_STYLES.RAW : TYPE_BADGE_STYLES.MFG;
   const tip = type === "RAW" ? RAW_TIP : MFG_TIP;
-  return (
-    <span style={{ cssText: `${TYPE_BADGE_STYLES.common};${extraStyle}` } as React.CSSProperties} data-tip={tip}>
-      {type}
-    </span>
-  );
+  return <span data-tip={tip}>{type}</span>;
 };
 
 export const GoodsEditorDialog: React.FC = () => {
@@ -70,28 +59,24 @@ export const GoodsEditorDialog: React.FC = () => {
   return (
     <Dialog isOpen={isOpen} title="Goods Editor" onClose={handleClose}>
       <div id="goodsEditorContainer">
-        <div
-          id="goodsBody"
-          className="table -goods-editor-dialog__max-height-50vh"
-          data-type={isPercentageMode ? "percentage" : "absolute"}
-        >
+        <div id="goodsBody" className="table" data-type={isPercentageMode ? "percentage" : "absolute"}>
           <table className="states-table">
             <colgroup>
               {isAssignMode ? (
                 <>
-                  <col style={{ width: "2em" }} />
-                  <col style={{ width: "7.5em" }} />
-                  <col style={{ width: "6em" }} />
+                  <col />
+                  <col />
+                  <col />
                 </>
               ) : (
                 <>
-                  <col style={{ width: "4em" }} />
-                  <col style={{ width: "7.4em" }} />
-                  <col style={{ width: "7em" }} />
-                  <col style={{ width: "6.8em" }} />
-                  <col style={{ width: "6em" }} />
-                  <col style={{ width: "4.6em" }} />
-                  <col style={{ width: "1.6em" }} />
+                  <col />
+                  <col />
+                  <col />
+                  <col />
+                  <col />
+                  <col />
+                  <col />
                 </>
               )}
             </colgroup>
@@ -113,7 +98,7 @@ export const GoodsEditorDialog: React.FC = () => {
                       <input
                         type="checkbox"
                         data-tip="Show or hide all goods on the Goods map"
-                        className="native -goods-editor-dialog__margin-0-3em--vertical-align-middle--width-1-2em"
+                        className="native"
                         id="goodsDisplayAll"
                         checked={goods.length > 0 && displayedCount === goods.length}
                         ref={el => {
@@ -185,7 +170,7 @@ export const GoodsEditorDialog: React.FC = () => {
                         <input
                           type="checkbox"
                           data-tip="Toggle this good on the Goods map"
-                          className="native goodDisplayed -goods-editor-dialog__padding-0--margin-0--vertical-align-middle--width-1-2em"
+                          className="native goodDisplayed"
                           checked={good.isDisplayed}
                           onChange={e => {
                             e.stopPropagation();
@@ -210,29 +195,25 @@ export const GoodsEditorDialog: React.FC = () => {
                       <>
                         <td
                           data-tip={`${good.producedTip}. Click to see burgs producing this good`}
-                          className="goodProduced pointer -goods-editor-dialog__vertical-align-middle"
+                          className="goodProduced pointer"
                           onClick={e => {
                             e.stopPropagation();
                             openProducersDialog(good.i);
                           }}
                         >
-                          <div className="-goods-editor-dialog__display-inline-block">{displayedProduced}</div>
-                          <div className="-goods-editor-dialog__display-inline-block--width-0-4em--font-size-1-5em">
-                            ⚒
-                          </div>
+                          <div className="d-inline-block">{displayedProduced}</div>
+                          <div className="d-inline-block">⚒</div>
                         </td>
                         <td
                           data-tip={`${good.stockTip}. Click to see breakdown by location`}
-                          className="goodStock pointer -goods-editor-dialog__vertical-align-middle"
+                          className="goodStock pointer"
                           onClick={e => {
                             e.stopPropagation();
                             openStockDialog(good.i);
                           }}
                         >
-                          <div className="-goods-editor-dialog__display-inline-block">{displayedStock}</div>
-                          <div className="-goods-editor-dialog__display-inline-block--width-0-4em--font-size-1-2em">
-                            ⛁
-                          </div>
+                          <div className="d-inline-block">{displayedStock}</div>
+                          <div className="d-inline-block">⛁</div>
                         </td>
                         <td
                           data-tip="Base (initial) price. Click to compare prices across markets"
@@ -269,20 +250,14 @@ export const GoodsEditorDialog: React.FC = () => {
         </div>
 
         <div id="goodsFooter" className={`totalLine hide${isAssignMode ? " hidden" : ""}`}>
-          <div data-tip="Number of goods (displayed / total)" className="-goods-editor-dialog__margin-left-5">
+          <div data-tip="Number of goods (displayed / total)">
             Goods:&nbsp;<span id="goodsDisplayed">{displayedCount}</span> of{" "}
             <span id="goodsNumber">{goods.length}</span>
           </div>
-          <div
-            data-tip="Total amount of goods produced by all cells and burgs"
-            className="-goods-editor-dialog__margin-left-12"
-          >
+          <div data-tip="Total amount of goods produced by all cells and burgs">
             Produced:&nbsp;<span id="goodsProduced">{totalProduced}</span>
           </div>
-          <div
-            data-tip="Total units in stock across all markets and burg inventories"
-            className="-goods-editor-dialog__margin-left-12"
-          >
+          <div data-tip="Total units in stock across all markets and burg inventories">
             Stock:&nbsp;<span id="goodsStock">{totalStock}</span>
           </div>
         </div>

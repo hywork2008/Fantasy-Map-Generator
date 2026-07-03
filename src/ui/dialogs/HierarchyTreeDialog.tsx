@@ -44,16 +44,7 @@ const OriginSelector: React.FC<OriginSelectorProps> = ({ selectedNode, elements,
   const selectableElements = elements.filter(el => !el.removed && el.i !== selectedNode.i);
 
   return (
-    <div
-      className="hierarchyTree_originSelector"
-      style={{
-        display: isOpen ? "block" : "none",
-        marginTop: "1em",
-        padding: "1em",
-        border: "1px solid #ccc",
-        background: "#f9f9f9"
-      }}
-    >
+    <div className="hierarchyTree_originSelector" style={{ display: isOpen ? "block" : "none" }}>
       <h4>Select origins</h4>
       <form className="-hierarchy-tree-dialog__max-height-35vh--overflow-y-auto">
         {selectableElements.map(({ i, name, code, color }) => {
@@ -89,7 +80,7 @@ const OriginSelector: React.FC<OriginSelectorProps> = ({ selectedNode, elements,
           );
         })}
       </form>
-      <div className="-hierarchy-tree-dialog__margin-top-1em">
+      <div>
         <button
           type="button"
           onClick={() => {
@@ -98,7 +89,7 @@ const OriginSelector: React.FC<OriginSelectorProps> = ({ selectedNode, elements,
         >
           Select
         </button>
-        <button type="button" onClick={onCancel} className="-hierarchy-tree-dialog__margin-left-0-5em">
+        <button type="button" onClick={onCancel}>
           Cancel
         </button>
       </div>
@@ -136,10 +127,9 @@ export const HierarchyTreeDialog: React.FC = () => {
       isOpen={isOpen}
       title={`${props.type.charAt(0).toUpperCase() + props.type.slice(1)} tree`}
       onClose={() => closeDialog("hierarchyTree")}
-      className="-hierarchy-tree-dialog__width-700"
     >
       <style>{localStyle}</style>
-      <div className="hierarchyTree_container -hierarchy-tree-dialog__min-height-400px">
+      <div className="hierarchyTree_container">
         <svg ref={svgRef}>
           <title>{props.type} tree</title>
           <g
@@ -159,7 +149,7 @@ export const HierarchyTreeDialog: React.FC = () => {
 
         <div id="hierarchyTree_details" className="chartInfo">
           {!selectedNode ? (
-            <div id="hierarchyTree_infoLine" className="-hierarchy-tree-dialog__display-block">
+            <div id="hierarchyTree_infoLine" className="d-block">
               {infoLine}
             </div>
           ) : (

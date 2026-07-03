@@ -29,15 +29,11 @@ export const Dialog: React.FC<DialogProps> = ({ isOpen, title, onClose, children
   const handleMinimize = useCallback(() => {
     const container = containerRef.current;
     if (container && !minimized) {
-      // Lock the current rendered position and width before hiding content so
-      // the titlebar doesn't jump. Without this, the CSS transform / % values
-      // recompute against the collapsed (titlebar-only) size and shift the dialog.
-      const rect = container.getBoundingClientRect();
-      container.style.setProperty("--dialog-left", `${rect.left}px`);
-      container.style.setProperty("--dialog-top", `${rect.top}px`);
-      container.style.setProperty("--dialog-offset-x", "0px");
-      container.style.setProperty("--dialog-offset-y", "0px");
-      container.style.width = `${rect.width}px`;
+      // Lock the width so the titlebar doesn't reflow to a different size
+      // when the content is removed. Position (CSS vars + inline transform)
+      // is intentionally left untouched — the dialog's top-left corner stays
+      // exactly where it is, keeping the titlebar in place.
+      container.style.width = `${container.getBoundingClientRect().width}px`;
     }
     setMinimized(m => !m);
   }, [minimized, containerRef]);

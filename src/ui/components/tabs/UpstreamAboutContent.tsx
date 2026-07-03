@@ -69,15 +69,10 @@ export const UpstreamAboutContent: React.FC = () => {
         .
       </p>
 
-      <div className="-upstream-about-content__background-color-e85b46--padding-0-4em--width-max-content--margin-0-6em-auto-0-a">
-        <a
-          href="https://www.patreon.com/azgaar"
-          target="_blank"
-          rel="noreferrer"
-          className="-upstream-about-content__color-white--text-decoration-none--font-family-san"
-        >
+      <div>
+        <a href="https://www.patreon.com/azgaar" target="_blank" rel="noreferrer">
           <div>
-            <div className="-upstream-about-content__width-0-8em--display-inline-block--padding-0-0-2em--fill-white">
+            <div className="-upstream-about-content__width-0-8em--display-inline-block--padding-0-0-2em--fill-white d-inline-block">
               <svg viewBox="0 0 569 546" aria-hidden="true">
                 <circle cx="362.589996" cy="204.589996" data-fill="1" id="Oval" r="204.589996" />
                 <rect data-fill="2" height="545.799988" id="Rectangle" width="100" x="0" y="0" />
@@ -90,25 +85,14 @@ export const UpstreamAboutContent: React.FC = () => {
 
       <p>
         Special thanks to{" "}
-        <button
-          type="button"
-          data-tip="Click to see list of supporters"
-          onClick={showSupporters}
-          className="-upstream-about-content__cursor-pointer--background-none--border-none--padd"
-        >
+        <button type="button" data-tip="Click to see list of supporters" onClick={showSupporters}>
           all supporters
         </button>{" "}
         on Patreon!
       </p>
 
-      <div className="-upstream-about-content__display-flex--justify-content-center--padding-0-8em-0-4em-0-4em--font-family-cur">
-        <a
-          href="https://u24.gov.ua/"
-          className="-upstream-about-content__width-80"
-          data-tip="Support Ukraine"
-          target="_blank"
-          rel="noreferrer"
-        >
+      <div className="d-flex">
+        <a href="https://u24.gov.ua/" data-tip="Support Ukraine" target="_blank" rel="noreferrer">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 1000 350"
@@ -127,7 +111,7 @@ export const UpstreamAboutContent: React.FC = () => {
         </a>
       </div>
 
-      <div className="-upstream-about-content__text-align-left">
+      <div>
         <p>Check out our other projects:</p>
         <div>
           •{" "}
@@ -145,7 +129,7 @@ export const UpstreamAboutContent: React.FC = () => {
         </div>
       </div>
 
-      <div className="-upstream-about-content__text-align-left--margin-top-0-5em">
+      <div>
         Chinese localization:{" "}
         <a href="https://www.8desk.top" target="_blank" rel="noreferrer">
           8desk.top

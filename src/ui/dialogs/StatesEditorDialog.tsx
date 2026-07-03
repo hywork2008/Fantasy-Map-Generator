@@ -67,7 +67,6 @@ export const StatesEditorContent: React.FC = () => {
                 data-tip="Click to sort by state name"
                 className="sortable alphabetically"
                 onClick={() => statesEditorActions.changeSort("name")}
-                style={{ width: "11em" }}
               >
                 State&nbsp;
                 <span className={renderSortIcon("name") || ""} />
@@ -76,7 +75,6 @@ export const StatesEditorContent: React.FC = () => {
                 data-tip="Click to sort by state form name"
                 className="sortable alphabetically"
                 onClick={() => statesEditorActions.changeSort("formName")}
-                style={{ width: "8em" }}
               >
                 Form&nbsp;
                 <span className={renderSortIcon("formName") || ""} />
@@ -85,7 +83,6 @@ export const StatesEditorContent: React.FC = () => {
                 data-tip="Click to sort by capital name"
                 className="sortable alphabetically"
                 onClick={() => statesEditorActions.changeSort("capitalName")}
-                style={{ width: "7em" }}
               >
                 Capital&nbsp;
                 <span className={renderSortIcon("capitalName") || ""} />
@@ -94,7 +91,6 @@ export const StatesEditorContent: React.FC = () => {
                 data-tip="Click to sort by state dominant culture"
                 className="sortable alphabetically hide"
                 onClick={() => statesEditorActions.changeSort("cultureName")}
-                style={{ width: "7em" }}
               >
                 Culture&nbsp;
                 <span className={renderSortIcon("cultureName") || ""} />
@@ -103,7 +99,6 @@ export const StatesEditorContent: React.FC = () => {
                 data-tip="Click to sort by state burgs count"
                 className="sortable hide"
                 onClick={() => statesEditorActions.changeSort("burgs")}
-                style={{ width: "6em" }}
               >
                 Burgs&nbsp;
                 <span className={getSortIconNumber("burgs") || ""} />
@@ -112,7 +107,6 @@ export const StatesEditorContent: React.FC = () => {
                 data-tip="Click to sort by state area"
                 className="sortable hide"
                 onClick={() => statesEditorActions.changeSort("area")}
-                style={{ width: "6em" }}
               >
                 Area&nbsp;
                 <span className={getSortIconNumber("area") || ""} />
@@ -121,7 +115,6 @@ export const StatesEditorContent: React.FC = () => {
                 data-tip="Click to sort by state population"
                 className="sortable hide"
                 onClick={() => statesEditorActions.changeSort("population")}
-                style={{ width: "8em" }}
               >
                 Population&nbsp;
                 <span className={getSortIconNumber("population") || ""} />
@@ -130,7 +123,6 @@ export const StatesEditorContent: React.FC = () => {
                 data-tip="Click to sort by state type"
                 className="sortable alphabetically hidden show hide"
                 onClick={() => statesEditorActions.changeSort("type")}
-                style={{ width: "6em" }}
               >
                 Type&nbsp;
                 <span className={renderSortIcon("type") || ""} />
@@ -139,7 +131,6 @@ export const StatesEditorContent: React.FC = () => {
                 data-tip="Click to sort by state expansion value"
                 className="sortable hidden show hide"
                 onClick={() => statesEditorActions.changeSort("expansionism")}
-                style={{ width: "7em" }}
               >
                 Expansion&nbsp;
                 <span className={getSortIconNumber("expansionism") || ""} />
@@ -148,7 +139,6 @@ export const StatesEditorContent: React.FC = () => {
                 data-tip="Click to sort by state cells count"
                 className="sortable hidden show hide"
                 onClick={() => statesEditorActions.changeSort("cells")}
-                style={{ width: "6em" }}
               >
                 Cells&nbsp;
                 <span className={getSortIconNumber("cells") || ""} />
@@ -176,7 +166,7 @@ export const StatesEditorContent: React.FC = () => {
                   style={{ pointerEvents: customizationMode === 1 ? "none" : "all" }}
                 >
                   <td>
-                    <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                    <div style={{ display: "flex" }}>
                       {/* @ts-ignore */}
                       <FillBox
                         fill={s.color}
@@ -186,7 +176,6 @@ export const StatesEditorContent: React.FC = () => {
                         type="text"
                         data-tip="State name. Click to change"
                         className="stateName name pointer"
-                        style={{ flex: 1, minWidth: 0 }}
                         value={s.name}
                         readOnly
                         onClick={() => (isNeutral ? null : statesEditorActions.editStateName(s.i))}
@@ -198,7 +187,6 @@ export const StatesEditorContent: React.FC = () => {
                       <input
                         data-tip="State form name. Click to change"
                         className="stateForm name pointer"
-                        style={{ width: "100%" }}
                         value={s.formName}
                         readOnly
                         onClick={() => statesEditorActions.editStateName(s.i)}
@@ -207,7 +195,7 @@ export const StatesEditorContent: React.FC = () => {
                   </td>
                   <td>
                     {isNeutral ? null : (
-                      <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                      <div style={{ display: "flex" }}>
                         <span
                           data-tip="Capital name. Click to zoom"
                           className="icon-star-empty pointer"
@@ -216,7 +204,6 @@ export const StatesEditorContent: React.FC = () => {
                         <input
                           data-tip="Capital name. Click and type to rename"
                           className="stateCapital"
-                          style={{ flex: 1, minWidth: 0 }}
                           value={s.capitalName}
                           onChange={e => statesEditorActions.changeCapitalName(s.i, e.target.value)}
                         />
@@ -227,7 +214,6 @@ export const StatesEditorContent: React.FC = () => {
                     <select
                       data-tip="State dominant culture. Click to change"
                       className="stateCulture hide"
-                      style={{ width: "100%" }}
                       value={s.culture}
                       onChange={e => statesEditorActions.changeCulture(s.i, parseInt(e.target.value, 10))}
                     >
@@ -239,13 +225,13 @@ export const StatesEditorContent: React.FC = () => {
                     </select>
                   </td>
                   <td className="hide">
-                    <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                    <div style={{ display: "flex" }}>
                       <span
                         data-tip="Click to overview state burgs"
                         className="icon-dot-circled pointer hide"
                         onClick={() => (isNeutral ? null : statesEditorActions.overviewBurgs(s.i))}
                       />
-                      <span data-tip="Burgs count" className="stateBurgs hide" style={{ flex: 1, minWidth: 0 }}>
+                      <span data-tip="Burgs count" className="stateBurgs hide">
                         {s.burgs}
                       </span>
                     </div>
@@ -268,7 +254,6 @@ export const StatesEditorContent: React.FC = () => {
                       <select
                         data-tip="State type. Click to change"
                         className="stateType pointer hidden show hide"
-                        style={{ width: "100%" }}
                         value={s.type}
                         onChange={e => statesEditorActions.changeType(s.i, e.target.value)}
                       >
@@ -290,7 +275,6 @@ export const StatesEditorContent: React.FC = () => {
                         step=".1"
                         data-tip="Expansionism (base rate of country growth). Change to re-calculate borders"
                         className="stateExpansionism hidden show hide"
-                        style={{ width: "100%" }}
                         value={s.expansionism}
                         onChange={e => statesEditorActions.changeExpansionism(s.i, parseFloat(e.target.value))}
                       />
@@ -303,7 +287,7 @@ export const StatesEditorContent: React.FC = () => {
                   </td>
                   <td>
                     {isNeutral ? null : (
-                      <div style={{ display: "flex", gap: "4px", alignItems: "center" }}>
+                      <div style={{ display: "flex" }}>
                         <span
                           data-tip="Lock the state"
                           className={`stateLock ${s.isLocked ? "icon-pin" : "icon-pin-outline"} pointer`}
@@ -325,22 +309,22 @@ export const StatesEditorContent: React.FC = () => {
       </div>
 
       <div id="statesTotal" className="totalLine">
-        <div data-tip="States number" className="-states-editor-dialog__margin-left-5px">
+        <div data-tip="States number">
           States:&nbsp;<span>{totalStates}</span>
         </div>
-        <div data-tip="Total land cells number" className="-states-editor-dialog__margin-left-12px">
+        <div data-tip="Total land cells number">
           Cells:&nbsp;<span>{totalCells}</span>
         </div>
-        <div data-tip="Total burgs number" className="-states-editor-dialog__margin-left-12px">
+        <div data-tip="Total burgs number">
           Burgs:&nbsp;<span>{totalBurgs}</span>
         </div>
-        <div data-tip="Total land area" className="-states-editor-dialog__margin-left-12px">
+        <div data-tip="Total land area">
           Land Area:&nbsp;
           <span>
             {si(totalArea)} {areaUnit}
           </span>
         </div>
-        <div data-tip="Total population" className="-states-editor-dialog__margin-left-12px">
+        <div data-tip="Total population">
           Population:&nbsp;<span>{si(totalPopulation)}</span>
         </div>
       </div>
@@ -406,10 +390,7 @@ export const StatesEditorContent: React.FC = () => {
             className="icon-shuffle"
             onClick={statesEditorActions.randomizeStatesExpansion}
           />
-          <div
-            data-tip="Additional growth rate. Defines how many land cells remain neutral"
-            className="-states-editor-dialog__display-inline-block"
-          >
+          <div data-tip="Additional growth rate. Defines how many land cells remain neutral" className="d-inline-block">
             <SliderInput
               id="statesGrowthRate"
               min=".1"
@@ -430,7 +411,7 @@ export const StatesEditorContent: React.FC = () => {
           />
           <div
             data-tip="Allow states neutral distance, expansion and type changes to take an immediate effect"
-            className="-states-editor-dialog__display-inline-block"
+            className="d-inline-block"
           >
             <input
               id="statesAutoChange"
@@ -443,10 +424,7 @@ export const StatesEditorContent: React.FC = () => {
               <i>auto-apply changes</i>
             </label>
           </div>
-          <div
-            data-tip="Allow system to change state labels when states data is change"
-            className="-states-editor-dialog__display-inline-block"
-          >
+          <div data-tip="Allow system to change state labels when states data is change" className="d-inline-block">
             <input
               id="adjustLabels"
               className="checkbox"
@@ -470,10 +448,7 @@ export const StatesEditorContent: React.FC = () => {
         />
 
         <div id="statesManuallyButtons" style={{ display: customizationMode === 1 ? "inline-block" : "none" }}>
-          <div
-            data-tip="Change brush size. Shortcuts: + / ] to increase; - / [ to decrease"
-            className="-states-editor-dialog__display-inline-block"
-          >
+          <div data-tip="Change brush size. Shortcuts: + / ] to increase; - / [ to decrease" className="d-inline-block">
             <SliderInput
               id="statesBrush"
               min="1"
@@ -505,10 +480,7 @@ export const StatesEditorContent: React.FC = () => {
             className="icon-cancel"
             onClick={statesEditorActions.cancelManualAssignment}
           />
-          <div
-            data-tip="When enabled, only neutral cells can be painted"
-            className="-states-editor-dialog__display-inline-block"
-          >
+          <div data-tip="When enabled, only neutral cells can be painted" className="d-inline-block">
             <input
               id="statesManuallyProtect"
               className="checkbox"

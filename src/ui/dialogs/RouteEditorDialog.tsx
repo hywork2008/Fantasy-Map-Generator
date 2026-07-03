@@ -9,7 +9,7 @@ export const RouteEditorDialog: React.FC = () => {
 
   return (
     <Dialog isOpen={isOpen} title="Route Editor" onClose={() => closeDialog("routeEditor")}>
-      <div id="routeBody" className="-route-editor-dialog__padding-bottom-0-3em">
+      <div id="routeBody">
         <div>
           <div className="label">Name:</div>
           <input id="routeName" data-tip="Type to rename the route" autoCorrect="off" spellCheck="false" />

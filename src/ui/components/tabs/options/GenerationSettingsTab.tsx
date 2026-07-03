@@ -154,7 +154,7 @@ export const GenerationSettingsTab: React.FC = () => {
               <input
                 type="number"
                 step="1"
-                className="paired -generation-settings-tab__width-24--float-left--font-size-smaller"
+                className="paired"
                 value={options.year}
                 onChange={e => {
                   updateOptionAndLock("year", Number(e.target.value));
@@ -167,7 +167,7 @@ export const GenerationSettingsTab: React.FC = () => {
                 autoCorrect="off"
                 spellCheck="false"
                 type="text"
-                className="-generation-settings-tab__width-75--float-right long"
+                className="long"
                 value={options.era}
                 onChange={e => {
                   updateOptionAndLock("era", e.target.value);
@@ -194,9 +194,7 @@ export const GenerationSettingsTab: React.FC = () => {
               className="pointer"
               onClick={() => document.dispatchEvent(new CustomEvent("react-open-template-selection"))}
             >
-              <span className="-generation-settings-tab__display-inline-block--min-width-8em--cursor-pointe">
-                {options.template || "highIsland"}
-              </span>
+              <span className="d-inline-block">{options.template || "highIsland"}</span>
               <input id="templateInput" type="hidden" value={options.template} readOnly />
             </td>
             <td></td>

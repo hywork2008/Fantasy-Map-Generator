@@ -160,7 +160,7 @@ export const CulturesEditorDialog: React.FC = () => {
                     onMouseLeave={() => culturesEditorActions.cultureHighlightOff(c.i)}
                     style={{ pointerEvents: isBrushMode ? "none" : "all" }}
                   >
-                    <td style={{ display: "flex", gap: "4px", alignItems: "center" }}>
+                    <td style={{ display: "flex" }}>
                       {isNeutral ? (
                         <svg width="11" height="11" className="placeholder" aria-hidden="true" />
                       ) : (
@@ -174,7 +174,6 @@ export const CulturesEditorDialog: React.FC = () => {
                             : "Culture name. Click and type to change"
                         }
                         className={`cultureName${isNeutral ? " italic" : ""}`}
-                        style={{ flex: 1, minWidth: 0 }}
                         value={c.name}
                         autoCorrect="off"
                         spellCheck={false}
@@ -182,13 +181,12 @@ export const CulturesEditorDialog: React.FC = () => {
                       />
 
                       {isNeutral ? (
-                        <span className="icon-cw placeholder" style={{ marginRight: "4px" }} />
+                        <span className="icon-cw placeholder" />
                       ) : (
                         <span
                           data-tip="Regenerate culture name"
                           className="icon-cw hiddenIcon -cultures-editor-dialog__visibility-hidden"
                           onClick={() => culturesEditorActions.regenerateName(c.i)}
-                          style={{ marginRight: "4px" }}
                         />
                       )}
                     </td>
@@ -196,7 +194,6 @@ export const CulturesEditorDialog: React.FC = () => {
                       <select
                         data-tip={isNeutral ? undefined : "Culture type. Defines growth model. Click to change"}
                         className={`cultureType${isNeutral ? " placeholder" : ""}`}
-                        style={{ width: "100%" }}
                         value={c.type}
                         disabled={isNeutral}
                         onChange={e => culturesEditorActions.changeType(c.i, e.target.value)}
@@ -209,7 +206,7 @@ export const CulturesEditorDialog: React.FC = () => {
                       </select>
                     </td>
                     <td>
-                      <div style={{ display: "flex", gap: "4px", alignItems: "center" }}>
+                      <div style={{ display: "flex" }}>
                         <span
                           data-tip="Click to re-generate names for burgs with this culture assigned"
                           className={`icon-arrows-cw hide${isNeutral ? "" : ""}`}
@@ -219,7 +216,6 @@ export const CulturesEditorDialog: React.FC = () => {
                         <select
                           data-tip="Culture namesbase. Click to change"
                           className="cultureBase"
-                          style={{ flex: 1, minWidth: 0 }}
                           value={c.base}
                           onChange={e => culturesEditorActions.changeBase(c.i, +e.target.value)}
                         >
@@ -233,13 +229,13 @@ export const CulturesEditorDialog: React.FC = () => {
                       </div>
                     </td>
                     <td className="hide">
-                      <span data-tip="Cells count" className="icon-check-empty" style={{ marginRight: "4px" }} />
+                      <span data-tip="Cells count" className="icon-check-empty" />
                       <div data-tip="Cells count" className="cultureCells" style={{ display: "inline-block" }}>
                         {cellsText}
                       </div>
                     </td>
                     <td className="hide">
-                      <div style={{ display: "flex", gap: "4px", alignItems: "center" }}>
+                      <div style={{ display: "flex" }}>
                         <span
                           data-tip="Culture expansionism. Defines competitive size"
                           className={`icon-resize-full${isNeutral ? " placeholder" : ""}`}
@@ -247,7 +243,6 @@ export const CulturesEditorDialog: React.FC = () => {
                         <input
                           data-tip="Culture expansionism. Defines competitive size. Click to change, then click Recalculate to apply"
                           className={`cultureExpan${isNeutral ? " placeholder" : ""}`}
-                          style={{ flex: 1, minWidth: 0 }}
                           type="number"
                           min="0"
                           max="99"
@@ -259,17 +254,13 @@ export const CulturesEditorDialog: React.FC = () => {
                       </div>
                     </td>
                     <td className="hide">
-                      <span
-                        data-tip="Culture area"
-                        className="-cultures-editor-dialog__padding-right-4px icon-map-o"
-                        style={{ marginRight: "4px" }}
-                      />
+                      <span data-tip="Culture area" className="-cultures-editor-dialog__padding-right-4px icon-map-o" />
                       <div data-tip="Culture area" className="cultureArea" style={{ display: "inline-block" }}>
                         {areaText}
                       </div>
                     </td>
                     <td className="hide pointer" onClick={() => culturesEditorActions.changePopulation(c.i)}>
-                      <span data-tip={populationTip} className="icon-male" style={{ marginRight: "4px" }} />
+                      <span data-tip={populationTip} className="icon-male" />
                       <div data-tip={populationTip} className="culturePopulation" style={{ display: "inline-block" }}>
                         {popText}
                       </div>
@@ -279,7 +270,6 @@ export const CulturesEditorDialog: React.FC = () => {
                         <select
                           data-tip="Emblem shape associated with culture. Click to change"
                           className="cultureEmblems"
-                          style={{ width: "100%" }}
                           value={c.shield}
                           onChange={e => culturesEditorActions.changeEmblemsShape(c.i, e.target.value)}
                         >
@@ -298,13 +288,11 @@ export const CulturesEditorDialog: React.FC = () => {
                             data-tip="Locate the culture"
                             className="icon-target"
                             onClick={() => culturesEditorActions.highlightCulture(c.i)}
-                            style={{ marginRight: "4px" }}
                           />
                           <span
                             data-tip="Lock culture"
                             className={`icon-lock${c.lock ? "" : "-open"}`}
                             onClick={() => culturesEditorActions.updateLockStatus(c.i)}
-                            style={{ marginRight: "4px" }}
                           />
                           <span
                             data-tip="Remove culture"
@@ -322,19 +310,19 @@ export const CulturesEditorDialog: React.FC = () => {
         </div>
 
         <div id="culturesTotal" className="totalLine" style={{ display: isBrushMode ? "none" : undefined }}>
-          <div data-tip="Cultures number" className="-cultures-editor-dialog__margin-left-12">
+          <div data-tip="Cultures number">
             Cultures:&nbsp;<span>{cultures.filter(c => c.i).length}</span>
           </div>
-          <div data-tip="Total land cells number" className="-cultures-editor-dialog__margin-left-12">
+          <div data-tip="Total land cells number">
             Cells:&nbsp;<span>{totalCells}</span>
           </div>
-          <div data-tip="Total land area" className="-cultures-editor-dialog__margin-left-12">
+          <div data-tip="Total land area">
             Land Area:&nbsp;
             <span>
               {si(totalArea)} {unit}
             </span>
           </div>
-          <div data-tip="Total population" className="-cultures-editor-dialog__margin-left-12">
+          <div data-tip="Total population">
             Population:&nbsp;<span>{si(totalPopulation)}</span>
           </div>
         </div>
@@ -386,7 +374,7 @@ export const CulturesEditorDialog: React.FC = () => {
           <div id="culturesManuallyButtons" style={{ display: isBrushMode ? "inline-block" : "none" }}>
             <div
               data-tip="Change brush size. Shortcuts: + / ] to increase; - / [ to decrease"
-              className="-cultures-editor-dialog__margin-block-0-3em--display-inline-block"
+              className="d-inline-block"
             >
               Brush size:
               <input
@@ -448,7 +436,7 @@ export const CulturesEditorDialog: React.FC = () => {
                 ref={fileInputRef}
                 id="culturesCSVToLoad"
                 type="file"
-                className="-cultures-editor-dialog__display-none"
+                className="d-none"
                 accept=".csv"
                 onChange={e => {
                   const file = e.target.files?.[0];
@@ -466,7 +454,7 @@ export const CulturesEditorDialog: React.FC = () => {
               />
               <span
                 data-tip="Allow culture centers, expansion and type changes to take an immediate effect"
-                className="-cultures-editor-dialog__display-inline-flex"
+                className="d-inline-flex"
               >
                 <input
                   id="culturesAutoChange"

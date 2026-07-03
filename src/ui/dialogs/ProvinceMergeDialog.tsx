@@ -46,17 +46,17 @@ export const ProvinceMergeDialog: React.FC = () => {
         { label: "Cancel", onClick: handleClose }
       ]}
     >
-      <div className="-province-merge-dialog__width-36em">
-        <p className="-province-merge-dialog__margin-0-0-1em-0">
+      <div>
+        <p>
           Check the <b>checkbox</b> next to each province you want to merge. Use the <b>radio button</b> to pick the{" "}
           <em>primary province</em> that will absorb all others. Hover over a row to highlight the province on the map.
         </p>
-        <div className="-province-merge-dialog__display-grid--grid-template-columns-1fr-1fr--gap-0-3em">
+        <div className="d-grid">
           {mergeDialog.map(p => (
             <div
               key={p.i}
               data-tip={p.fullName || p.name}
-              className="-province-merge-dialog__display-flex--align-items-center--gap-0-3em--cursor-default"
+              className="d-flex"
               onMouseEnter={() => provincesEditorActions.provinceHighlightOn(p.i)}
               onMouseLeave={() => provincesEditorActions.provinceHighlightOff(null)}
             >
@@ -74,10 +74,7 @@ export const ProvinceMergeDialog: React.FC = () => {
                 checked={provincesToMerge.has(p.i)}
                 onChange={e => handleToggleMerge(p.i, e.target.checked)}
               />
-              <label
-                htmlFor={`selectProvince${p.i}`}
-                className="checkbox-label -province-merge-dialog__display-flex--align-items-center--gap-0-3em--cursor-pointer"
-              >
+              <label htmlFor={`selectProvince${p.i}`} className="checkbox-label d-flex">
                 {/* @ts-ignore */}
                 <FillBox fill={p.color} disabled />
                 <svg className="coaIcon" viewBox="0 0 200 200" aria-hidden="true">

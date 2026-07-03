@@ -20,20 +20,16 @@ export const RouteGroupsEditorDialog: React.FC = () => {
 
   return (
     <Dialog isOpen={isOpen} title="Route Groups Editor" onClose={() => closeDialog("routeGroupsEditor")}>
-      <div id="routeGroupsEditorBody" className="table -route-groups-editor-dialog__padding-0-3em-0--width-100">
+      <div id="routeGroupsEditorBody" className="table">
         {groups.map(group => (
-          <div
-            key={group.id}
-            data-id={group.id}
-            className="states editorLine -route-groups-editor-dialog__display-flex--justify-content-space-between--margi"
-          >
+          <div key={group.id} data-id={group.id} className="states d-flex">
             <span>
               {group.id} ({group.count})
             </span>
-            <div className="-route-groups-editor-dialog__width-auto--display-flex--gap-0-4em">
+            <div className="d-flex">
               <span
                 data-tip="Edit style"
-                className="editStyle icon-brush pointer -route-groups-editor-dialog__font-size-smaller"
+                className="editStyle icon-brush pointer"
                 onClick={() => editStyle("routes", group.id)}
               ></span>
               <span

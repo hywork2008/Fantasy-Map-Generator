@@ -47,7 +47,7 @@ export const ExportToPngTilesDialog: React.FC = () => {
     >
       <p>Map will be split into tiles and downloaded as a single zip file. Avoid saving too large images</p>
 
-      <div data-tip="Number of columns" className="-export-to-png-tiles-dialog__margin-bottom-0-3em">
+      <div data-tip="Number of columns">
         <div className="label">Columns:</div>
         <input
           id="tileColsInput"
@@ -56,7 +56,6 @@ export const ExportToPngTilesDialog: React.FC = () => {
           min="2"
           max="26"
           value={tileCols}
-          className="-export-to-png-tiles-dialog__width-10em"
           onChange={e => setTileCols(Number(e.currentTarget.value))}
         />
         <input
@@ -69,7 +68,7 @@ export const ExportToPngTilesDialog: React.FC = () => {
         />
       </div>
 
-      <div data-tip="Number of rows" className="-export-to-png-tiles-dialog__margin-bottom-0-3em">
+      <div data-tip="Number of rows">
         <div className="label">Rows:</div>
         <input
           id="tileRowsInput"
@@ -78,7 +77,6 @@ export const ExportToPngTilesDialog: React.FC = () => {
           min="2"
           max="26"
           value={tileRows}
-          className="-export-to-png-tiles-dialog__width-10em"
           onChange={e => setTileRows(Number(e.currentTarget.value))}
         />
         <input
@@ -91,7 +89,7 @@ export const ExportToPngTilesDialog: React.FC = () => {
         />
       </div>
 
-      <div data-tip="Tile output scale" className="-export-to-png-tiles-dialog__margin-bottom-0-3em">
+      <div data-tip="Tile output scale">
         <div className="label">Scale:</div>
         <input
           id="tileScaleInput"
@@ -101,7 +99,6 @@ export const ExportToPngTilesDialog: React.FC = () => {
           max="4"
           step="1"
           value={tileScale}
-          className="-export-to-png-tiles-dialog__width-10em"
           onChange={e => setTileScale(Number(e.currentTarget.value))}
         />
         <input
@@ -115,15 +112,13 @@ export const ExportToPngTilesDialog: React.FC = () => {
         />
       </div>
 
-      <p className="-export-to-png-tiles-dialog__margin-0-4em-0">
+      <p>
         Total image size:{" "}
         <span id="tileSize" style={{ color: sizeColor }}>
           {sizeLabel}
         </span>
       </p>
-      <p id="tileStatus" className="-export-to-png-tiles-dialog__margin-top-0-4em--min-height-1-2em">
-        {status}
-      </p>
+      <p id="tileStatus">{status}</p>
     </Dialog>
   );
 };

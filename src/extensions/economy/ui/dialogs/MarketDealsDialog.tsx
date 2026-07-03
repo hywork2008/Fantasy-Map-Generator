@@ -26,24 +26,20 @@ export const MarketDealsDialog: React.FC = () => {
   return (
     <Dialog isOpen={isOpen} title="Market Deals" onClose={() => closeDialog("marketDeals")}>
       <div id="marketDealsContainer">
-        <div id="marketDealsBody" className="table -market-deals-dialog__max-height-30em">
+        <div id="marketDealsBody" className="table">
           <table className="states-table">
             <colgroup>
-              <col style={{ width: "2em" }} />
-              <col style={{ width: "6.8em" }} />
-              <col style={{ width: "4em" }} />
-              <col style={{ width: "10em" }} />
-              <col style={{ width: "4em" }} />
-              <col style={{ width: "4em" }} />
+              <col />
+              <col />
+              <col />
+              <col />
+              <col />
+              <col />
             </colgroup>
             <thead id="marketDealsHeader" ref={headerRef}>
               <tr className="header">
                 <th />
-                <th
-                  data-tip="Click to sort by good"
-                  className="sortable alphabetically -market-deals-dialog__margin-left-0"
-                  data-sortby="good"
-                >
+                <th data-tip="Click to sort by good" className="sortable alphabetically" data-sortby="good">
                   Good&nbsp;
                 </th>
                 <th data-tip="Click to sort by deal type" className="sortable alphabetically" data-sortby="direction">
@@ -79,10 +75,10 @@ export const MarketDealsDialog: React.FC = () => {
         </div>
 
         <div id="marketDealsFooter" className="totalLine">
-          <div className="-market-deals-dialog__margin-left-5" data-tip="Deals count">
+          <div data-tip="Deals count">
             Deals: <span id="marketDealsFooterDeals">{dealsCount}</span>
           </div>
-          <div className="-market-deals-dialog__margin-left-12" data-tip="Net flow for this market">
+          <div data-tip="Net flow for this market">
             Net Flow: <span id="marketDealsFooterNet">{formatPrice(netFlow)}</span>
           </div>
         </div>
@@ -105,7 +101,6 @@ export const MarketDealsDialog: React.FC = () => {
           <select
             id="marketDealsFilter"
             data-tip="Filter deals by scope"
-            className="-market-deals-dialog__margin-left-8"
             value={activeFilter}
             onChange={e => setActiveMarketDealsFilter(e.target.value as "all" | "local" | "global")}
           >
@@ -146,11 +141,7 @@ const DealRow: React.FC<{ row: MarketDealRow; onRowClick: (row: MarketDealRow) =
     <td className="marketDealParty pointer" data-tip="Click to zoom" onClick={() => onRowClick(row)}>
       <span
         className={row.counterpartyType === "burg" ? "icon-dot-circled" : "icon-store"}
-        style={{
-          display: "inline-block",
-          width: "0.8em",
-          ...(row.counterpartyType === "market" ? { fontSize: "0.85em" } : {})
-        }}
+        style={{ display: "inline-block", ...(row.counterpartyType === "market" ? { fontSize: "0.85em" } : {}) }}
       />
       {row.partyName}
     </td>

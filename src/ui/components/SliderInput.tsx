@@ -35,7 +35,7 @@ export const SliderInput = ({
   };
 
   return (
-    <div className={`-slider-input__display-flex--align-items-center--gap-0-4em ${className}`}>
+    <div className={`d-flex ${className}`}>
       {children}
       <input
         id={id}
@@ -46,7 +46,6 @@ export const SliderInput = ({
         value={value}
         data-stored={dataStored}
         onChange={handleChange}
-        className="-slider-input__flex-1"
       />
       <input
         type="number"
@@ -56,7 +55,6 @@ export const SliderInput = ({
         value={value}
         data-stored={dataStored}
         onChange={handleChange}
-        className="-slider-input__width-4em"
       />
     </div>
   );

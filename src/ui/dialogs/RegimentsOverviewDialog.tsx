@@ -134,7 +134,7 @@ export const RegimentsOverviewDialog: React.FC = () => {
   const SortHeader: React.FC<{ field: string; label: string; numeric?: boolean }> = ({ field, label, numeric }) => (
     <th
       data-tip={`${label}. Click to sort`}
-      className={`sortable ${numeric ? "icon-sort-number-down" : "alphabetically"} -regiments-overview-dialog__cursor-pointer`}
+      className={`sortable ${numeric ? "icon-sort-number-down" : "alphabetically"}`}
       onClick={() => toggleSortBy(field)}
       data-sortby={field}
     >
@@ -150,12 +150,12 @@ export const RegimentsOverviewDialog: React.FC = () => {
         <div id="regimentsBody" className="table" data-type={percentageMode ? "percentage" : "absolute"}>
           <table className="states-table">
             <colgroup>
-              <col style={{ width: "9em" }} />
-              <col style={{ width: "14.5em" }} />
+              <col />
+              <col />
               {unitTypes.map(u => (
-                <col key={u.name} style={{ width: "5.2em" }} />
+                <col key={u.name} />
               ))}
-              <col style={{ width: "7em" }} />
+              <col />
             </colgroup>
             <thead id="regimentsHeader">
               <tr className="header">
@@ -167,7 +167,7 @@ export const RegimentsOverviewDialog: React.FC = () => {
                 <th
                   id="regimentsTotal"
                   data-tip="Total military personnel (not considering crew). Click to sort"
-                  className="sortable icon-sort-number-down -regiments-overview-dialog__cursor-pointer"
+                  className="sortable icon-sort-number-down"
                   data-sortby="total"
                   onClick={() => toggleSortBy("total")}
                 >
@@ -179,7 +179,7 @@ export const RegimentsOverviewDialog: React.FC = () => {
               {rows.map(({ stateId, stateName, stateFullName, stateColor, regiment: r }) => (
                 <tr
                   key={`${stateId}-${r.i}`}
-                  className="states -regiments-overview-dialog__cursor-pointer"
+                  className="states"
                   data-id={r.i}
                   data-s={stateId}
                   data-state={stateName}
@@ -193,43 +193,22 @@ export const RegimentsOverviewDialog: React.FC = () => {
                 >
                   <td>
                     <FillBox data-tip={stateFullName} fill={stateColor} disabled />
-                    <input
-                      data-tip={stateFullName}
-                      className="-regiments-overview-dialog__width-6em"
-                      value={stateName}
-                      readOnly
-                    />
+                    <input data-tip={stateFullName} value={stateName} readOnly />
                   </td>
                   <td>
                     {r.icon && (r.icon.startsWith("http") || r.icon.startsWith("data:image")) ? (
-                      <img
-                        src={r.icon}
-                        data-tip="Regiment's emblem"
-                        className="-regiments-overview-dialog__width-1-2em--height-1-2em--vertical-align-middle"
-                        alt="emblem"
-                      />
+                      <img src={r.icon} data-tip="Regiment's emblem" alt="emblem" />
                     ) : (
-                      <span data-tip="Regiment's emblem" className="-regiments-overview-dialog__width-1em">
-                        {r.icon ?? ""}
-                      </span>
+                      <span data-tip="Regiment's emblem">{r.icon ?? ""}</span>
                     )}
-                    <input
-                      data-tip="Regiment's name"
-                      className="-regiments-overview-dialog__width-13em"
-                      value={r.name}
-                      readOnly
-                    />
+                    <input data-tip="Regiment's name" value={r.name} readOnly />
                   </td>
                   {unitTypes.map(u => (
                     <td key={u.name} data-type={u.name} data-tip={`${capitalize(u.name)} units number`}>
                       {displayValue(r.u[u.name] ?? 0, u.name)}
                     </td>
                   ))}
-                  <td
-                    data-type="total"
-                    data-tip="Total military personnel (not considering crew)"
-                    className="-regiments-overview-dialog__font-weight-bold"
-                  >
+                  <td data-type="total" data-tip="Total military personnel (not considering crew)">
                     {displayValue(r.a, "total")}
                   </td>
                 </tr>
@@ -237,9 +216,7 @@ export const RegimentsOverviewDialog: React.FC = () => {
             </tbody>
             <tfoot>
               <tr id="regimentsTotalLine" className="totalLine" data-tip="Total of all displayed regiments">
-                <td colSpan={2} className="-regiments-overview-dialog__padding-left-1em">
-                  Regiments: {rows.length}
-                </td>
+                <td colSpan={2}>Regiments: {rows.length}</td>
                 {unitTypes.map(u => (
                   <td key={u.name}>{si(sum(rows.map(({ regiment: r }) => r.u[u.name] ?? 0)))}</td>
                 ))}
@@ -262,7 +239,7 @@ export const RegimentsOverviewDialog: React.FC = () => {
             className={`icon-user-plus${addMode ? " pressed" : ""}`}
             onClick={() => setAddMode(!addMode)}
           />
-          <div data-tip="Select state" className="-regiments-overview-dialog__display-inline-block">
+          <div data-tip="Select state" className="d-inline-block">
             <span>State: </span>
             <select value={filterStateId} onChange={e => setFilterStateId(+e.target.value)}>
               <option value="-1">all</option>

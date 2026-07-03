@@ -29,7 +29,7 @@ export function showInfo(): void {
       and ${VideoTutorial}.
     </p>
 
-    <ul style="columns:2">
+    <ul>
       <li>${link("https://github.com/Azgaar/Fantasy-Map-Generator", "GitHub repository")}</li>
       <li>${link("https://github.com/Azgaar/Fantasy-Map-Generator/blob/master/LICENSE", "License")}</li>
       <li>${link("https://github.com/Azgaar/Fantasy-Map-Generator/wiki/Changelog", "Changelog")}</li>

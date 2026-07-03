@@ -19,7 +19,6 @@ export const StyleSaverDialog: React.FC = () => {
               id="styleSaverName"
               data-tip="Enter style preset name"
               placeholder="Preset name"
-              className="-style-saver-dialog__width-12em"
               required
               onInput={checkStyleName}
             />
@@ -29,7 +28,7 @@ export const StyleSaverDialog: React.FC = () => {
               className="italic"
             />
           </div>
-          <div id="styleSaverBody" className="-style-saver-dialog__padding-2px-0--width-100">
+          <div id="styleSaverBody">
             <span>Style JSON:</span>
             <textarea
               id="styleSaverJSON"
@@ -68,7 +67,7 @@ export const StyleSaverDialog: React.FC = () => {
               id="styleToLoad"
               type="file"
               accept=".json"
-              className="-style-saver-dialog__display-none"
+              className="d-none"
               onChange={handleStyleFileLoad}
             />
             <button

@@ -82,13 +82,10 @@ export function showNotes(e: MouseEvent): void {
     currentNoteId = id;
 
     setHoverNotesState({ isVisible: true, name: note.name, legend: note.legend });
-  } else if (
-    !worldContext.options.pinNotes &&
-    !isDialogVisible("markerEditor") &&
-    !(e as KeyboardEvent & MouseEvent).shiftKey
-  ) {
+  } else if (currentNoteId === null && !worldContext.options.pinNotes && !isDialogVisible("markerEditor")) {
+    // Only clear notes if none are currently pinned/shown; once a note is visible, keep it
+    // until another note replaces it so iframes (e.g. encounter, dungeon) don't reload on mouse-out
     setHoverNotesState({ isVisible: false, name: "", legend: "" });
-    currentNoteId = null;
   }
 }
 export function showMapTooltip(point: [number, number], e: MouseEvent, i: number, g: number): void {

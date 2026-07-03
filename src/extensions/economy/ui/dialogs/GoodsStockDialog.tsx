@@ -15,16 +15,14 @@ export const GoodsStockDialog: React.FC = () => {
     <Dialog isOpen={isOpen} title={`${goodName} — Stock`} onClose={close}>
       <div id="goodsStockContainer">
         {sources.length === 0 ? (
-          <i className="-goods-stock-dialog__color-888">
-            No stock of {goodName} found in any market or burg inventory.
-          </i>
+          <i>No stock of {goodName} found in any market or burg inventory.</i>
         ) : (
-          <div className="table -goods-stock-dialog__max-height-30em">
+          <div className="table">
             <table className="states-table">
               <colgroup>
-                <col style={{ width: "1.6em" }} />
-                <col style={{ width: "7em" }} />
-                <col style={{ width: "4em" }} />
+                <col />
+                <col />
+                <col />
               </colgroup>
               <thead>
                 <tr className="header">

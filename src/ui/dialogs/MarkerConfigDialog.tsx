@@ -96,7 +96,7 @@ export const MarkerConfigDialog: React.FC = () => {
       ]}
     >
       <table className="table">
-        <thead className="-marker-config-dialog__font-weight-bold">
+        <thead>
           <tr>
             <td data-tip="Marker type name">Type</td>
             <td data-tip="Marker icon">Icon</td>
@@ -112,13 +112,9 @@ export const MarkerConfigDialog: React.FC = () => {
               </td>
               <td className="-marker-config-dialog__position-relative">
                 {row.isExternal ? (
-                  <img
-                    className="image -marker-config-dialog__width-1-2em--height-1-2em--vertical-align-middle"
-                    src={row.icon}
-                    alt=""
-                  />
+                  <img className="image" src={row.icon} alt="" />
                 ) : (
-                  <span className="emoji -marker-config-dialog__font-size-1-2em">{row.icon}</span>
+                  <span className="emoji">{row.icon}</span>
                 )}
                 <button type="button" className="changeIcon icon-pencil" onClick={() => handleIconChange(index)} />
               </td>
@@ -133,7 +129,7 @@ export const MarkerConfigDialog: React.FC = () => {
                   onChange={e => handleMultiplierChange(index, e.target.valueAsNumber)}
                 />
               </td>
-              <td className="-marker-config-dialog__text-align-center">{getMarkerCount(row.type)}</td>
+              <td>{getMarkerCount(row.type)}</td>
             </tr>
           ))}
         </tbody>

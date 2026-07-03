@@ -58,7 +58,7 @@ export const TradeDetailsDialog: React.FC = () => {
                 <b>Seller</b>: {summary.sellerName} {summary.sellerType}{" "}
                 <span className="icon-dot-circled pointer" data-tip="Zoom to seller" onClick={summary.onZoomSeller} />
               </span>
-              <span className="-trade-details-dialog__margin-left-5">
+              <span>
                 <b>Buyer</b>: {summary.buyerName} {summary.buyerType}{" "}
                 <span className="icon-dot-circled pointer" data-tip="Zoom to buyer" onClick={summary.onZoomBuyer} />
               </span>
@@ -66,14 +66,14 @@ export const TradeDetailsDialog: React.FC = () => {
           )}
         </div>
 
-        <div id="tradeDetailsBody" className="table -trade-details-dialog__max-height-30em">
+        <div id="tradeDetailsBody" className="table">
           <table className="states-table">
             <colgroup>
-              <col style={{ width: "2.5em" }} />
-              <col style={{ width: "10em" }} />
-              <col style={{ width: "5em" }} />
-              <col style={{ width: "5.5em" }} />
-              <col style={{ width: "3.6em" }} />
+              <col />
+              <col />
+              <col />
+              <col />
+              <col />
             </colgroup>
             <thead>
               <tr className="header">
@@ -137,13 +137,13 @@ export const TradeDetailsDialog: React.FC = () => {
         </div>
 
         <div id="tradeDetailsFooter" className="totalLine">
-          <div className="-trade-details-dialog__margin-left-5">
+          <div>
             Distance: <span id="tradeDetailsFooterDistance">{distance}</span>
           </div>
-          <div className="-trade-details-dialog__margin-left-12" data-tip="Total traded units">
+          <div data-tip="Total traded units">
             Units: <span id="tradeDetailsFooterUnits">{rn(totalUnits, 2)}</span>
           </div>
-          <div className="-trade-details-dialog__margin-left-12" data-tip="Total deal value">
+          <div data-tip="Total deal value">
             Value: <span id="tradeDetailsFooterValue">{formatPrice(totalValue)}</span>
           </div>
         </div>

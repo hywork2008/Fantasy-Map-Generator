@@ -9,13 +9,12 @@ export const EnvironmentStylePanel: React.FC = () => {
 
   return (
     <div>
-      <p data-tip="Select an element to edit its style" className="-environment-style-panel__display-inline-block">
+      <p data-tip="Select an element to edit its style" className="d-inline-block">
         Select element:
       </p>
       <select
         data-tip="Select an element to edit its style"
         id="styleElementSelect"
-        className="-environment-style-panel__width-42"
         value={
           ENVIRONMENT_ELEMENTS.some(e => e.value === activeElement) ? activeElement : ENVIRONMENT_ELEMENTS[0].value
         }

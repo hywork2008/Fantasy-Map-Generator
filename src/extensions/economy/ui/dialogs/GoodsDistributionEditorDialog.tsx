@@ -36,39 +36,15 @@ function getSelectedValues(event: React.ChangeEvent<HTMLSelectElement>): string[
 }
 
 const styles = {
-  wrap: { display: "flex", flexDirection: "column" as const, gap: "8px", minWidth: "56em", maxWidth: "72em" },
-  info: { border: "1px solid var(--dark-solid)", padding: "6px 10px", borderRadius: "3px" },
-  body: { display: "flex", gap: "12px", alignItems: "stretch" },
-  builder: { flex: 1, display: "flex", flexDirection: "column" as const, gap: "8px", minWidth: 0 },
-  group: { border: "1px solid var(--light-solid)", borderRadius: "4px", padding: "8px" },
-  condRow: {
-    display: "grid",
-    gridTemplateColumns: "4.8em 10em 1fr auto",
-    gap: "8px",
-    alignItems: "start",
-    marginTop: "6px"
-  },
-  params: { display: "flex", flexDirection: "column" as const, gap: "4px", minWidth: "14em" },
-  groupFooter: { display: "flex", justifyContent: "space-between", marginTop: "8px" },
-  output: {
-    display: "flex",
-    flexDirection: "column" as const,
-    gap: "4px",
-    borderTop: "1px solid #e0e0e0",
-    paddingTop: "8px"
-  },
-  metaGrid: { display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "8px" },
-  ref: {
-    width: "17em",
-    flexShrink: 0,
-    borderLeft: "1px solid var(--light-solid)",
-    paddingLeft: "10px",
-    overflowY: "auto" as const,
-    maxHeight: "60vh"
-  },
-  refCard: { marginBottom: "7px", padding: "5px 7px", border: "1px solid #e4e4e4", borderRadius: "3px" },
-  select: { minHeight: "6.5em" },
-  orSep: { textAlign: "center" as const, fontWeight: "bold", color: "#555", padding: "3px 0" }
+  wrap: { display: "flex" },
+  body: { display: "flex" },
+  builder: { display: "flex" },
+  condRow: { display: "grid" },
+  params: { display: "flex" },
+  groupFooter: { display: "flex" },
+  output: { display: "flex" },
+  metaGrid: { display: "grid" },
+  ref: { overflowY: "auto" as const }
 };
 
 type BiomeOption = { id: number; name: string; color: string };
@@ -100,11 +76,7 @@ const ConditionParams: React.FC<{
   if (!def) return null;
 
   if (def.paramType === "none") {
-    return (
-      <div className="-goods-distribution-editor-dialog__color-888--font-style-italic--padding-top-6px">
-        no parameters
-      </div>
-    );
+    return <div>no parameters</div>;
   }
 
   if (def.paramType === "number") {
@@ -116,7 +88,7 @@ const ConditionParams: React.FC<{
           placeholder={def.paramLabel || "value"}
           onChange={event => setConditionNumberValue(groupIndex, conditionIndex, event.target.value)}
         />
-        {def.paramLabel && <div className="-goods-distribution-editor-dialog__color-666">{def.paramLabel}</div>}
+        {def.paramLabel && <div>{def.paramLabel}</div>}
       </div>
     );
   }
@@ -126,7 +98,6 @@ const ConditionParams: React.FC<{
       <select
         multiple
         value={condition.biomeIds.map(String)}
-        style={{ ...styles.select, width: "100%" }}
         onChange={event => setConditionBiomeIds(groupIndex, conditionIndex, getSelectedValues(event).map(Number))}
       >
         {biomes.map(biome => (
@@ -143,7 +114,6 @@ const ConditionParams: React.FC<{
       <select
         multiple
         value={condition.shoreValues}
-        style={{ ...styles.select, width: "100%" }}
         onChange={event => setConditionShoreValues(groupIndex, conditionIndex, getSelectedValues(event))}
       >
         {SHORE_OPTIONS.map(option => (
@@ -159,7 +129,6 @@ const ConditionParams: React.FC<{
     <select
       multiple
       value={condition.typeValues}
-      style={{ ...styles.select, width: "100%" }}
       onChange={event => setConditionTypeValues(groupIndex, conditionIndex, getSelectedValues(event))}
     >
       {FEATURE_TYPE_OPTIONS.map(option => (
@@ -237,10 +206,9 @@ export const GoodsDistributionEditorDialog: React.FC = () => {
         { label: "Cancel", onClick: handleClose },
         { label: "Apply", onClick: handleApply }
       ]}
-      className="-goods-distribution-editor-dialog__min-width-62em"
     >
       <div style={styles.wrap}>
-        <div style={styles.info}>
+        <div>
           Edit the good metadata and its raw resource distribution. Leave distribution empty for manufactured-only
           goods.
         </div>
@@ -287,7 +255,7 @@ export const GoodsDistributionEditorDialog: React.FC = () => {
               ))}
             </datalist>
           </label>
-          <label className="-goods-distribution-editor-dialog__grid-column-span-2">
+          <label>
             <div>Tags</div>
             <input
               value={tagsText}
@@ -307,20 +275,16 @@ export const GoodsDistributionEditorDialog: React.FC = () => {
 
                 return (
                   <React.Fragment key={groupKey}>
-                    {groupIndex > 0 && <div style={styles.orSep}>OR</div>}
-                    <div style={styles.group}>
+                    {groupIndex > 0 && <div>OR</div>}
+                    <div>
                       {group.map((condition, conditionIndex) => {
                         const def = FN_DEFS.find(item => item.id === condition.fnId);
                         const conditionKey = getOccurrenceKey(conditionOccurrences, serializeCondition(condition));
                         return (
                           <div key={conditionKey}>
-                            {conditionIndex > 0 && (
-                              <div className="-goods-distribution-editor-dialog__color-666--font-weight-bold--padding-4px-0">
-                                AND
-                              </div>
-                            )}
+                            {conditionIndex > 0 && <div>AND</div>}
                             <div style={styles.condRow}>
-                              <label className="-goods-distribution-editor-dialog__display-flex--align-items-center--gap-4px--cursor-">
+                              <label className="d-flex">
                                 <input
                                   type="checkbox"
                                   className="native"
@@ -348,11 +312,7 @@ export const GoodsDistributionEditorDialog: React.FC = () => {
                                   conditionIndex={conditionIndex}
                                   biomes={biomes}
                                 />
-                                {def?.note && (
-                                  <div className="-goods-distribution-editor-dialog__color-666--font-style-italic">
-                                    {def.note}
-                                  </div>
-                                )}
+                                {def?.note && <div>{def.note}</div>}
                               </div>
                               <button
                                 type="button"
@@ -376,32 +336,20 @@ export const GoodsDistributionEditorDialog: React.FC = () => {
                 );
               });
             })()}
-            <button
-              type="button"
-              onClick={addGroup}
-              className="-goods-distribution-editor-dialog__align-self-flex-start"
-            >
+            <button type="button" onClick={addGroup}>
               + Add OR group
             </button>
             <div style={styles.output}>
-              <div className="-goods-distribution-editor-dialog__font-weight-bold--color-555">Distribution</div>
-              <div className="-goods-distribution-editor-dialog__display-flex--gap-8px--align-items-center">
-                <input
-                  readOnly
-                  value={expression}
-                  className="-goods-distribution-editor-dialog__flex-1--font-family-monospace"
-                />
-                <span className="-goods-distribution-editor-dialog__color-555--min-width-9em--text-align-right">
-                  {cellCountText}
-                </span>
+              <div>Distribution</div>
+              <div className="d-flex">
+                <input readOnly value={expression} />
+                <span>{cellCountText}</span>
               </div>
-              <div className="-goods-distribution-editor-dialog__color-555">{previewText}</div>
+              <div>{previewText}</div>
             </div>
           </div>
           <div style={styles.ref}>
-            <div style={{ fontWeight: "bold", color: "var(--dark-solid)", marginBottom: "5px" }}>
-              Function Reference
-            </div>
+            <div>Function Reference</div>
             {FN_DEFS.map(def => {
               const paramSig =
                 def.paramType === "none"
@@ -414,37 +362,19 @@ export const GoodsDistributionEditorDialog: React.FC = () => {
                         ? '"type", ...'
                         : "value";
               return (
-                <div key={def.id} style={styles.refCard}>
-                  <code style={{ color: "var(--dark-solid)", fontWeight: "bold" }}>{`${def.id}(${paramSig})`}</code>
-                  <div className="-goods-distribution-editor-dialog__color-555--margin-top-2px">{def.description}</div>
-                  {def.note && (
-                    <div className="-goods-distribution-editor-dialog__color-555--margin-top-2px--font-style-italic">
-                      {def.note}
-                    </div>
-                  )}
+                <div key={def.id}>
+                  <code>{`${def.id}(${paramSig})`}</code>
+                  <div>{def.description}</div>
+                  {def.note && <div>{def.note}</div>}
                 </div>
               );
             })}
-            <div style={{ ...styles.refCard, marginTop: "10px" }}>
-              <div className="-goods-distribution-editor-dialog__font-weight-bold--margin-bottom-4px">
-                Biome options
-              </div>
-              <div className="-goods-distribution-editor-dialog__display-grid--grid-template-columns-1fr--gap-3px">
+            <div>
+              <div>Biome options</div>
+              <div className="d-grid">
                 {biomes.map(biome => (
-                  <div
-                    key={biome.id}
-                    className="-goods-distribution-editor-dialog__display-flex--align-items-center--gap-6px--color-5"
-                  >
-                    <span
-                      style={{
-                        display: "inline-block",
-                        width: ".7em",
-                        height: ".7em",
-                        borderRadius: "50%",
-                        border: "1px solid rgba(0,0,0,.15)",
-                        background: biome.color
-                      }}
-                    />
+                  <div key={biome.id} className="d-flex">
+                    <span style={{ display: "inline-block", background: biome.color }} />
                     {biome.name}
                   </div>
                 ))}

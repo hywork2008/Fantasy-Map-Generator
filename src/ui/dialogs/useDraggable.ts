@@ -130,7 +130,7 @@ export function useDraggable(options?: { handleSelector?: string }) {
     if (!container) return;
 
     // Bring to front (check visible dialogs to avoid overflow)
-    const allDialogs = document.querySelectorAll(".fmg-dialog, #optionsContainer") as NodeListOf<HTMLElement>;
+    const allDialogs = document.querySelectorAll(".fmg-dialog, #optionsContainer, #options") as NodeListOf<HTMLElement>;
     let maxZ = 100;
     allDialogs.forEach(d => {
       // Ignore closed dialogs so z-index resets when all are closed

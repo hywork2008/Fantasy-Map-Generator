@@ -202,12 +202,8 @@ export const WorldConfiguratorDialog: React.FC = () => {
     <Dialog isOpen={isOpen} title="WorldConfigurator" onClose={() => closeDialog("worldConfigurator")}>
       <div id="worldConfiguratorContainer">
         <div>
-          <div className="-world-configurator-dialog__display-flex">
-            <fieldset
-              id="worldControls"
-              onInput={handleControlsChange}
-              className="-world-configurator-dialog__border-none--padding-0--margin-0"
-            >
+          <div className="d-flex">
+            <fieldset id="worldControls" onInput={handleControlsChange}>
               <div>
                 <i data-locked={0} id="lock_temperatureEquator" className="icon-lock-open" />
                 <label data-tip="Set temperature at equator">
@@ -339,7 +335,6 @@ export const WorldConfiguratorDialog: React.FC = () => {
                     min={0}
                     max={100}
                     step="0.1"
-                    className="-world-configurator-dialog__width-10-3em"
                     value={useOptionsState(s => s.latitude)}
                     onChange={handleControlsChange}
                   />
@@ -369,7 +364,6 @@ export const WorldConfiguratorDialog: React.FC = () => {
                     min={0}
                     max={100}
                     step="0.1"
-                    className="-world-configurator-dialog__width-10-3em"
                     value={useOptionsState(s => s.longitude)}
                     onChange={handleControlsChange}
                   />
@@ -429,7 +423,7 @@ export const WorldConfiguratorDialog: React.FC = () => {
                 <i>Coords:</i> <span id="mapCoordinates">{globeStats.mapCoordinates}</span>
               </div>
             </fieldset>
-            <div className="-world-configurator-dialog__display-flex--flex-direction-column--align-items-f">
+            <div className="d-flex">
               <svg ref={globeRef} id="globe" width="22em" viewBox="-20 -25 240 240" aria-hidden="true">
                 <defs>
                   <linearGradient id="temperatureGradient" x1={0} x2={0} y1={0} y2={1}>
@@ -456,7 +450,6 @@ export const WorldConfiguratorDialog: React.FC = () => {
                   data-tip="Click to change wind direction"
                   strokeLinejoin="round"
                   onClick={handleWindChange}
-                  className="-world-configurator-dialog__cursor-pointer"
                 >
                   <circle cx={210} cy={6} r={12} />
                   <path data-tier={0} d="M210,11 v-10 l-3,3 m6,0 l-3,-3" transform="rotate(225 210 6)" />
@@ -555,7 +548,7 @@ export const WorldConfiguratorDialog: React.FC = () => {
             </button>
           </div>
         </div>
-        <div className="fmg-dialog-buttonpane -world-configurator-dialog__display-flex--align-items-center--justify-content-">
+        <div className="fmg-dialog-buttonpane d-flex">
           <div className="dontAsk" data-tip="Automatically update world on input changes and button clicks">
             <input
               id="wcAutoChange"

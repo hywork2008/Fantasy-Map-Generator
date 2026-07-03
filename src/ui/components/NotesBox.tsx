@@ -7,7 +7,7 @@ export const NotesBox: React.FC = () => {
   if (!isVisible) return null;
 
   return (
-    <div id="notes" className="-notes-box__display-block">
+    <div id="notes" className="d-block">
       <div id="notesHeader">{name}</div>
       {/* biome-ignore lint/security/noDangerouslySetInnerHtml: legacy editor content requires rendering HTML */}
       <div id="notesBody" dangerouslySetInnerHTML={{ __html: legend }} />

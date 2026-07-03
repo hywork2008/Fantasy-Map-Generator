@@ -111,7 +111,7 @@ export const ZonesEditorContent: React.FC = () => {
                 onSort={handleSort}
                 width="6em"
               />
-              <th style={{ width: "6em" }}></th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
@@ -129,12 +129,11 @@ export const ZonesEditorContent: React.FC = () => {
                   }
                 }}
               >
-                <td style={{ display: "flex", gap: "4px", alignItems: "center" }}>
+                <td style={{ display: "flex" }}>
                   {/* @ts-ignore */}
                   <FillBox fill={z.color} onClick={() => zonesEditorActions.changeColor(z.i)} />
                   <input
                     className="zoneName"
-                    style={{ flex: 1, minWidth: 0 }}
                     value={z.name}
                     onChange={e => zonesEditorActions.changeName(z.i, e.target.value)}
                     autoCorrect="off"
@@ -144,26 +143,25 @@ export const ZonesEditorContent: React.FC = () => {
                 <td>
                   <input
                     className="zoneType"
-                    style={{ width: "100%" }}
                     value={z.type}
                     onChange={e => zonesEditorActions.changeType(z.i, e.target.value)}
                   />
                 </td>
                 <td className="hide">
                   <span className="icon-check-empty"></span>
-                  <div className="stateCells" style={{ display: "inline-block", marginLeft: "4px" }}>
+                  <div className="stateCells" style={{ display: "inline-block" }}>
                     {state.isPercentageMode ? pct(z.cells, state.totalCells) : z.cells}
                   </div>
                 </td>
                 <td className="hide">
-                  <span className="icon-map-o" style={{ marginRight: "4px" }}></span>
+                  <span className="icon-map-o"></span>
                   <div className="biomeArea" style={{ display: "inline-block" }}>
                     {state.isPercentageMode ? pct(z.area, state.totalArea) : `${si(z.area)} sq`}
                   </div>
                 </td>
                 <td className="hide pointer" onClick={() => zonesEditorActions.changePopulation(z.i)}>
                   <span className="icon-male"></span>
-                  <div className="zonePopulation" style={{ display: "inline-block", marginLeft: "4px" }}>
+                  <div className="zonePopulation" style={{ display: "inline-block" }}>
                     {state.isPercentageMode ? pct(z.population, state.totalPopulation) : si(z.population)}
                   </div>
                 </td>
@@ -190,16 +188,16 @@ export const ZonesEditorContent: React.FC = () => {
 
       {state.customizationMode === 0 && (
         <div className="totalLine">
-          <div className="-zones-editor-dialog__margin-left-5">
+          <div>
             Zones: <span>{state.totalZones}</span>
           </div>
-          <div className="-zones-editor-dialog__margin-left-12">
+          <div>
             Cells: <span>{state.totalCells}</span>
           </div>
-          <div className="-zones-editor-dialog__margin-left-12">
+          <div>
             Land Area: <span>{si(state.totalArea)}</span>
           </div>
-          <div className="-zones-editor-dialog__margin-left-12">
+          <div>
             Population: <span>{si(state.totalPopulation)}</span>
           </div>
         </div>
@@ -208,11 +206,7 @@ export const ZonesEditorContent: React.FC = () => {
       <div className="footer fmg-dialog-footer">
         {state.customizationMode === 0 ? (
           <>
-            <select
-              value={state.filterBy}
-              onChange={e => setZonesEditorState({ filterBy: e.target.value })}
-              className="-zones-editor-dialog__width-auto"
-            >
+            <select value={state.filterBy} onChange={e => setZonesEditorState({ filterBy: e.target.value })}>
               <option value="all">All</option>
               {state.types.map(t => (
                 <option key={t} value={t}>
@@ -266,8 +260,8 @@ export const ZonesEditorContent: React.FC = () => {
             ></button>
           </>
         ) : (
-          <div className="-zones-editor-dialog__display-inline-flex--align-items-center">
-            <div className="-zones-editor-dialog__margin-right-8--margin-top-4">
+          <div className="d-inline-flex">
+            <div>
               <span className="-zones-editor-dialog__font-size-11px--margin-right-4px">Brush size:</span>
               <SliderInput
                 min={1}
@@ -288,7 +282,7 @@ export const ZonesEditorContent: React.FC = () => {
               type="button"
               onClick={() => zonesEditorActions.cancelManualAssignment()}
             ></button>
-            <div className="-zones-editor-dialog__display-inline-block--margin-left-8">
+            <div className="d-inline-block">
               <label>
                 <input
                   type="checkbox"

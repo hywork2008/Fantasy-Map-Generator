@@ -90,16 +90,15 @@ export const ProvincesEditorDialog: React.FC = () => {
           className="table"
           data-type={isPercentageMode ? "percentage" : "absolute"}
           ref={parentRef}
-          style={{ overflow: "auto", maxHeight: "60vh" }}
+          style={{ overflow: "auto" }}
         >
-          <table className="fmg-table" style={{ borderCollapse: "separate", borderSpacing: 0 }}>
+          <table className="fmg-table">
             <thead style={{ zIndex: 3 }}>
               <tr id="provincesHeader">
                 <th
                   data-tip="Click to sort by province name"
                   className={`sortable alphabetically ${sortBy === "name" ? "sort-active" : ""}`}
                   onClick={() => provincesEditorActions.changeSort("name")}
-                  style={{ width: "11em", minWidth: "11em" }}
                 >
                   Province&nbsp;
                 </th>
@@ -109,7 +108,6 @@ export const ProvincesEditorDialog: React.FC = () => {
                       data-tip="Click to sort by province form name"
                       className={`sortable alphabetically ${sortBy === "form" ? "sort-active" : ""}`}
                       onClick={() => provincesEditorActions.changeSort("form")}
-                      style={{ width: "8em", minWidth: "8em" }}
                     >
                       Form&nbsp;
                     </th>
@@ -117,7 +115,6 @@ export const ProvincesEditorDialog: React.FC = () => {
                       data-tip="Click to sort by province capital"
                       className={`sortable alphabetically ${sortBy === "capital" ? "sort-active" : ""}`}
                       onClick={() => provincesEditorActions.changeSort("capital")}
-                      style={{ width: "8em", minWidth: "8em" }}
                     >
                       Capital&nbsp;
                     </th>
@@ -127,7 +124,6 @@ export const ProvincesEditorDialog: React.FC = () => {
                   data-tip="Click to sort by province owner"
                   className={`sortable alphabetically ${sortBy === "state" ? "sort-active" : ""}`}
                   onClick={() => provincesEditorActions.changeSort("state")}
-                  style={{ width: "6em", minWidth: "6em" }}
                 >
                   State&nbsp;
                 </th>
@@ -137,7 +133,6 @@ export const ProvincesEditorDialog: React.FC = () => {
                       data-tip="Click to sort by province burgs count"
                       className={`sortable ${sortBy === "burgs" ? "sort-active" : ""}`}
                       onClick={() => provincesEditorActions.changeSort("burgs")}
-                      style={{ width: "6em", minWidth: "6em" }}
                     >
                       Burgs&nbsp;
                     </th>
@@ -145,7 +140,6 @@ export const ProvincesEditorDialog: React.FC = () => {
                       data-tip="Click to sort by province area"
                       className={`sortable ${sortBy === "area" ? "sort-active" : ""}`}
                       onClick={() => provincesEditorActions.changeSort("area")}
-                      style={{ width: "6em", minWidth: "6em" }}
                     >
                       Area&nbsp;
                     </th>
@@ -153,7 +147,6 @@ export const ProvincesEditorDialog: React.FC = () => {
                       data-tip="Click to sort by province population"
                       className={`sortable ${sortBy === "population" ? "sort-active" : ""}`}
                       onClick={() => provincesEditorActions.changeSort("population")}
-                      style={{ width: "8em", minWidth: "8em" }}
                     >
                       Population&nbsp;
                     </th>
@@ -167,7 +160,7 @@ export const ProvincesEditorDialog: React.FC = () => {
                 <>
                   {paddingTop > 0 && (
                     <tr>
-                      <td colSpan={customization !== 11 ? 8 : 2} style={{ height: `${paddingTop}px`, padding: 0 }} />
+                      <td colSpan={customization !== 11 ? 8 : 2} style={{ height: `${paddingTop}px` }} />
                     </tr>
                   )}
                   {virtualItems.map(virtualRow => {
@@ -193,12 +186,11 @@ export const ProvincesEditorDialog: React.FC = () => {
                         onMouseLeave={() => provincesEditorActions.provinceHighlightOff(null)}
                         style={{ pointerEvents: customization ? "none" : "all" }}
                       >
-                        <td style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                        <td style={{ display: "flex" }}>
                           <FillBox fill={p.color} onClick={() => provincesEditorActions.changeFill(p.i)} />
                           <input
                             data-tip="Province name. Click to change"
                             className="name pointer"
-                            style={{ flex: 1, minWidth: "5em" }}
                             value={p.name}
                             readOnly
                             onClick={() => provincesEditorActions.editProvinceName(p.i)}
@@ -223,14 +215,13 @@ export const ProvincesEditorDialog: React.FC = () => {
                               <input
                                 data-tip="Province form name. Click to change"
                                 className="name pointer"
-                                style={{ width: "100%", minWidth: "4em" }}
                                 value={p.formName}
                                 readOnly
                                 onClick={() => provincesEditorActions.editProvinceName(p.i)}
                               />
                             </td>
                             <td>
-                              <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                              <div style={{ display: "flex" }}>
                                 <span
                                   data-tip="Province capital. Click to zoom into view"
                                   className={`icon-star-empty pointer ${p.capitalId ? "" : "placeholder"}`}
@@ -239,7 +230,6 @@ export const ProvincesEditorDialog: React.FC = () => {
                                 <select
                                   data-tip="Province capital. Click to select from burgs within the state. No capital means the province is governed from the state capital"
                                   className={`cultureBase ${p.burgCount ? "" : "placeholder"}`}
-                                  style={{ flex: 1, minWidth: "4em" }}
                                   value={p.capitalId}
                                   onChange={e => provincesEditorActions.changeCapital(p.i, e.target.value)}
                                 >
@@ -254,53 +244,43 @@ export const ProvincesEditorDialog: React.FC = () => {
                           </>
                         )}
                         <td>
-                          <input
-                            data-tip="Province owner"
-                            className="provinceOwner"
-                            style={{ width: "100%", minWidth: "4em" }}
-                            value={p.stateName}
-                            disabled
-                          />
+                          <input data-tip="Province owner" className="provinceOwner" value={p.stateName} disabled />
                         </td>
                         {customization !== 11 && (
                           <>
                             <td>
-                              <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                              <div style={{ display: "flex" }}>
                                 <span
                                   data-tip="Click to overview province burgs"
                                   className="-provinces-editor-dialog__padding-right-1px icon-dot-circled pointer"
                                   onClick={() => provincesEditorActions.overviewBurgs(p.stateId)}
                                 />
-                                <div data-tip="Burgs count" className="provinceBurgs" style={{ flex: 1, minWidth: 0 }}>
+                                <div data-tip="Burgs count" className="provinceBurgs">
                                   {burgsText}
                                 </div>
                               </div>
                             </td>
                             <td>
-                              <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                              <div style={{ display: "flex" }}>
                                 <span
                                   data-tip="Province area"
                                   className="-provinces-editor-dialog__padding-right-4px icon-map-o"
                                 />
-                                <div data-tip="Province area" className="biomeArea" style={{ flex: 1, minWidth: 0 }}>
+                                <div data-tip="Province area" className="biomeArea">
                                   {areaText}
                                 </div>
                               </div>
                             </td>
                             <td className="pointer" onClick={() => provincesEditorActions.changePopulation(p.i)}>
-                              <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                              <div style={{ display: "flex" }}>
                                 <span data-tip={populationTip} className="icon-male" />
-                                <div
-                                  data-tip={populationTip}
-                                  className="culturePopulation"
-                                  style={{ flex: 1, minWidth: 0 }}
-                                >
+                                <div data-tip={populationTip} className="culturePopulation">
                                   {popText}
                                 </div>
                               </div>
                             </td>
                             <td>
-                              <div style={{ display: "flex", gap: "4px", alignItems: "center" }}>
+                              <div style={{ display: "flex" }}>
                                 <span
                                   data-tip="Declare province independence (turn non-capital province with burgs into a new state)"
                                   className={`icon-flag-empty ${p.isSeparable ? "" : "placeholder"} pointer`}
@@ -337,7 +317,7 @@ export const ProvincesEditorDialog: React.FC = () => {
                   })}
                   {paddingBottom > 0 && (
                     <tr>
-                      <td colSpan={customization !== 11 ? 8 : 2} style={{ height: `${paddingBottom}px`, padding: 0 }} />
+                      <td colSpan={customization !== 11 ? 8 : 2} style={{ height: `${paddingBottom}px` }} />
                     </tr>
                   )}
                 </>
@@ -347,17 +327,17 @@ export const ProvincesEditorDialog: React.FC = () => {
         </div>
 
         <div id="provincesTotal" className="totalLine" style={{ display: customization === 11 ? "none" : "block" }}>
-          <div data-tip="Provinces displayed" className="-provinces-editor-dialog__margin-left-4">
+          <div data-tip="Provinces displayed">
             Provinces:&nbsp;<span id="provincesFooterNumber">{totalProvinces}</span>
           </div>
-          <div data-tip="Total burgs number" className="-provinces-editor-dialog__margin-left-12">
+          <div data-tip="Total burgs number">
             Burgs:&nbsp;<span id="provincesFooterBurgs">{totalBurgs}</span>
           </div>
-          <div data-tip="Average area" className="-provinces-editor-dialog__margin-left-14">
+          <div data-tip="Average area">
             Mean area:&nbsp;
             <span id="provincesFooterArea">{totalProvinces ? si(totalArea / totalProvinces) + unit : `0${unit}`}</span>
           </div>
-          <div data-tip="Average population" className="-provinces-editor-dialog__margin-left-14">
+          <div data-tip="Average population">
             Mean population:&nbsp;
             <span id="provincesFooterPopulation">{totalProvinces ? si(totalPopulation / totalProvinces) : 0}</span>
           </div>
@@ -420,10 +400,7 @@ export const ProvincesEditorDialog: React.FC = () => {
           />
 
           <div id="provincesManuallyButtons" style={{ display: customization === 11 ? "inline-block" : "none" }}>
-            <div
-              data-tip="Change brush size. Shortcut: + to increase; – to decrease"
-              className="-provinces-editor-dialog__margin-block-0-3em--display-inline-block"
-            >
+            <div data-tip="Change brush size. Shortcut: + to increase; – to decrease" className="d-inline-block">
               Brush size:
               <input
                 type="range"

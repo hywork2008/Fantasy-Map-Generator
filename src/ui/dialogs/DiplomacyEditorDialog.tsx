@@ -28,19 +28,13 @@ export const DiplomacyEditorContent: React.FC = () => {
         <table className="fmg-table">
           <thead>
             <tr id="diplomacyHeader">
-              <th
-                data-tip="Click to sort by state name"
-                className="sortable alphabetically"
-                data-sortby="name"
-                style={{ width: "15em" }}
-              >
+              <th data-tip="Click to sort by state name" className="sortable alphabetically" data-sortby="name">
                 State&nbsp;
               </th>
               <th
                 data-tip="Click to sort by diplomatical relations"
                 className="sortable alphabetically"
                 data-sortby="relations"
-                style={{ width: "6em" }}
               >
                 Relations&nbsp;
               </th>
@@ -57,8 +51,8 @@ export const DiplomacyEditorContent: React.FC = () => {
                     data-id={s.i}
                     data-tip={`List below shows relations to ${s.name}`}
                   >
-                    <td colSpan={2} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                      <div className="-diplomacy-editor-dialog__width-max-content">{s.fullName}</div>
+                    <td colSpan={2} style={{ display: "flex" }}>
+                      <div>{s.fullName}</div>
                       <svg className="coaIcon" viewBox="0 0 200 200">
                         <title>Coat of Arms for {s.fullName || s.name}</title>
                         <use href={`#stateCOA${s.i}`} />
@@ -83,20 +77,18 @@ export const DiplomacyEditorContent: React.FC = () => {
                   onMouseEnter={() => handleMouseEnter(s.i)}
                   onMouseLeave={handleMouseLeave}
                 >
-                  <td style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <td style={{ display: "flex" }}>
                     <svg data-tip={tipSelect} className="coaIcon" viewBox="0 0 200 200">
                       <title>Coat of Arms for {s.fullName || s.name}</title>
                       <use href={`#stateCOA${s.i}`} />
                     </svg>
-                    <div data-tip={tipSelect} style={{ flex: 1, minWidth: 0 }}>
-                      {s.name}
-                    </div>
+                    <div data-tip={tipSelect}>{s.name}</div>
                   </td>
                   <td>
                     <div
                       data-tip={tipChange}
                       className="changeRelations"
-                      style={{ width: "100%", display: "flex", gap: "4px", alignItems: "center" }}
+                      style={{ display: "flex" }}
                       onClick={e => {
                         e.stopPropagation();
                         handleRelationClick(s.i, selectedStateId, s.relation);
@@ -117,7 +109,7 @@ export const DiplomacyEditorContent: React.FC = () => {
         <br />
         Click on relations name to change it
       </div>
-      <div id="diplomacyFooter" className="fmg-dialog-footer -diplomacy-editor-dialog__margin-top-0-1em">
+      <div id="diplomacyFooter" className="fmg-dialog-footer">
         <button
           type="button"
           id="diplomacyEditorRefresh"

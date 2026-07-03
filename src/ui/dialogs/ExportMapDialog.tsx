@@ -30,10 +30,9 @@ export const ExportMapDialog: React.FC = () => {
       title="Export map data"
       onClose={() => closeDialog("exportMapData")}
       buttons={[{ label: "Close", onClick: () => closeDialog("exportMapData") }]}
-      className="-export-map-dialog__width-26em"
     >
       <div id="exportMapData">
-        <div className="-export-map-dialog__margin-bottom-0-3em--font-weight-bold">Download image</div>
+        <div>Download image</div>
         <div>
           <button
             type="button"
@@ -76,15 +75,12 @@ export const ExportMapDialog: React.FC = () => {
                 invokeActiveZooming();
               }}
             />
-            <label htmlFor="showLabels" className="checkbox-label -export-map-dialog__margin-left-1-2em">
+            <label htmlFor="showLabels" className="checkbox-label">
               <i>show labels</i>
             </label>
           </span>
         </div>
-        <div
-          data-tip="Define scale of a saved png/jpeg image (e.g. 5x). Saving big images is slow and may cause a browser crash!"
-          className="-export-map-dialog__margin-bottom-0-3em"
-        >
+        <div data-tip="Define scale of a saved png/jpeg image (e.g. 5x). Saving big images is slow and may cause a browser crash!">
           PNG / JPEG scale:
           <input
             id="pngResolutionInput"
@@ -94,7 +90,6 @@ export const ExportMapDialog: React.FC = () => {
             max="8"
             value={pngResolution}
             onChange={e => setPngResolution(Number(e.target.value))}
-            className="-export-map-dialog__width-10em"
           />
           <input
             id="pngResolutionOutput"
@@ -107,7 +102,7 @@ export const ExportMapDialog: React.FC = () => {
           />
         </div>
         <p>Generator uses pop-up window to download files. Please ensure your browser does not block popups.</p>
-        <div className="-export-map-dialog__margin-1em-0-0-3em--font-weight-bold">Export to GeoJSON</div>
+        <div>Export to GeoJSON</div>
         <div>
           <button type="button" onClick={saveGeoJsonCells} data-tip="Download cells data in GeoJSON format">
             cells
@@ -136,7 +131,7 @@ export const ExportMapDialog: React.FC = () => {
           </a>{" "}
           for guidance.
         </p>
-        <div className="-export-map-dialog__margin-1em-0-0-3em--font-weight-bold">Export To JSON</div>
+        <div>Export To JSON</div>
         <div>
           <button type="button" onClick={() => exportToJson("Full")} data-tip="Download full data in JSON">
             full

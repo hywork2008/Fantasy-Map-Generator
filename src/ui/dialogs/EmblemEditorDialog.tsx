@@ -25,29 +25,22 @@ export const EmblemEditorContent: React.FC = () => {
 
   return (
     <div id="emblemEditor">
-      <div
-        id="emblemEditorContainer"
-        className="-emblem-editor-dialog__display-flex--flex-direction-column--height-100"
-      >
+      <div id="emblemEditorContainer" className="d-flex">
         <div>
-          <svg viewBox="0 0 200 200" aria-hidden="true" className="-emblem-editor-dialog__width-100--height-auto">
+          <svg viewBox="0 0 200 200" aria-hidden="true">
             {targetId && <use id="emblemImage" href={`#${targetId}`} />}
           </svg>
-          <div id="emblemBody" className="-emblem-editor-dialog__margin-top-1em">
-            <div className="-emblem-editor-dialog__text-align-center--margin-bottom-0-5em">
+          <div id="emblemBody">
+            <div>
               <b id="emblemArmiger">{armigerName}</b>
             </div>
-            <hr className="-emblem-editor-dialog__margin-0-5em-0" />
-            <div
-              data-tip="Select state"
-              className="-emblem-editor-dialog__display-flex--align-items-center--margin-bottom-0-2em"
-            >
-              <div className="label -emblem-editor-dialog__width-4em">State:</div>
+            <hr />
+            <div data-tip="Select state" className="d-flex">
+              <div className="label">State:</div>
               <select
                 id="emblemStates"
                 value={selectedState}
                 onChange={e => emblemEditorActions.selectState(Number(e.target.value))}
-                className="-emblem-editor-dialog__flex-grow-1"
               >
                 {states.map(s => (
                   <option key={s.i} value={s.i}>
@@ -56,16 +49,12 @@ export const EmblemEditorContent: React.FC = () => {
                 ))}
               </select>
             </div>
-            <div
-              data-tip="Select province in state"
-              className="-emblem-editor-dialog__display-flex--align-items-center--margin-bottom-0-2em"
-            >
-              <div className="label -emblem-editor-dialog__width-4em">Province:</div>
+            <div data-tip="Select province in state" className="d-flex">
+              <div className="label">Province:</div>
               <select
                 id="emblemProvinces"
                 value={selectedProvince}
                 onChange={e => emblemEditorActions.selectProvince(Number(e.target.value))}
-                className="-emblem-editor-dialog__flex-grow-1"
               >
                 {provinces.map(p => (
                   <option key={p.i} value={p.i}>
@@ -74,16 +63,12 @@ export const EmblemEditorContent: React.FC = () => {
                 ))}
               </select>
             </div>
-            <div
-              data-tip="Select burg in province or state"
-              className="-emblem-editor-dialog__display-flex--align-items-center--margin-bottom-0-2em"
-            >
-              <div className="label -emblem-editor-dialog__width-4em">Burg:</div>
+            <div data-tip="Select burg in province or state" className="d-flex">
+              <div className="label">Burg:</div>
               <select
                 id="emblemBurgs"
                 value={selectedBurg}
                 onChange={e => emblemEditorActions.selectBurg(Number(e.target.value))}
-                className="-emblem-editor-dialog__flex-grow-1"
               >
                 {burgs.map(b => (
                   <option key={b.i} value={b.i} disabled={b.isDisabled}>
@@ -92,18 +77,14 @@ export const EmblemEditorContent: React.FC = () => {
                 ))}
               </select>
             </div>
-            <hr className="-emblem-editor-dialog__margin-0-5em-0" />
-            <div
-              data-tip="Select shape of the emblem"
-              className="-emblem-editor-dialog__display-flex--align-items-center--margin-bottom-0-2em"
-            >
-              <div className="label -emblem-editor-dialog__width-4em">Shape:</div>
+            <hr />
+            <div data-tip="Select shape of the emblem" className="d-flex">
+              <div className="label">Shape:</div>
               <select
                 id="emblemShapeSelector"
                 value={shape}
                 onChange={e => emblemEditorActions.changeShape(e.target.value)}
                 disabled={isCustom}
-                className="-emblem-editor-dialog__flex-grow-1"
               >
                 <optgroup label="Basic">
                   <option value="heater">Heater</option>
@@ -167,9 +148,9 @@ export const EmblemEditorContent: React.FC = () => {
             </div>
             <div
               data-tip="Set size of particular Emblem. To hide set to 0. To change the entire category go to Menu ⭢ Style ⭢ Emblems"
-              className="-emblem-editor-dialog__display-flex--align-items-center--margin-bottom-0-2em"
+              className="d-flex"
             >
-              <div className="label -emblem-editor-dialog__width-4em">Size:</div>
+              <div className="label">Size:</div>
               <input
                 id="emblemSizeSlider"
                 type="range"
@@ -178,7 +159,6 @@ export const EmblemEditorContent: React.FC = () => {
                 step=".1"
                 value={size}
                 onChange={e => emblemEditorActions.changeSize(Number(e.target.value))}
-                className="-emblem-editor-dialog__width-7em--margin-right-0-5em"
               />
               <input
                 id="emblemSizeNumber"
@@ -188,15 +168,11 @@ export const EmblemEditorContent: React.FC = () => {
                 step=".1"
                 value={size}
                 onChange={e => emblemEditorActions.changeSize(Number(e.target.value))}
-                className="-emblem-editor-dialog__width-3em"
               />
             </div>
           </div>
 
-          <div
-            id="emblemsFooter"
-            className="-emblem-editor-dialog__display-flex--justify-content-space-between--margin-top-1em--padding-0-5em-0--bo"
-          >
+          <div id="emblemsFooter" className="d-flex">
             <button
               type="button"
               id="emblemsRegenerate"
@@ -242,17 +218,14 @@ export const EmblemEditorContent: React.FC = () => {
           </div>
 
           {uploadMode && (
-            <div
-              id="emblemUploadControl"
-              className="-emblem-editor-dialog__display-flex--flex-direction-column--gap-0-5em--margin-top-0-5em--padding-0-5em-"
-            >
-              <div className="-emblem-editor-dialog__display-flex--gap-0-5em">
+            <div id="emblemUploadControl" className="d-flex">
+              <div className="d-flex">
                 <input
                   ref={emblemImageInputRef}
                   type="file"
                   id="emblemImageToLoad"
                   accept=".png, .jpg, .jpeg"
-                  className="-emblem-editor-dialog__display-none"
+                  className="d-none"
                   onChange={e => {
                     if (e.target.files?.[0]) emblemEditorActions.uploadImage(e.target.files[0], "image");
                   }}
@@ -262,7 +235,6 @@ export const EmblemEditorContent: React.FC = () => {
                   id="emblemsUploadImage"
                   data-tip="Upload SVG or PNG image from any source. Make sure background is transparent"
                   onClick={() => emblemImageInputRef.current?.click()}
-                  className="-emblem-editor-dialog__flex-grow-1"
                 >
                   Any image
                 </button>
@@ -272,7 +244,7 @@ export const EmblemEditorContent: React.FC = () => {
                   type="file"
                   id="emblemSVGToLoad"
                   accept=".svg"
-                  className="-emblem-editor-dialog__display-none"
+                  className="d-none"
                   onChange={e => {
                     if (e.target.files?.[0]) emblemEditorActions.uploadImage(e.target.files[0], "svg");
                   }}
@@ -282,12 +254,11 @@ export const EmblemEditorContent: React.FC = () => {
                   id="emblemsUploadSVG"
                   data-tip="Upload prepared SVG image (SVG from Armoria or SVG processed with 'Optimize vector' tool)"
                   onClick={() => emblemSvgInputRef.current?.click()}
-                  className="-emblem-editor-dialog__flex-grow-1"
                 >
                   Prepared SVG
                 </button>
               </div>
-              <div className="-emblem-editor-dialog__font-size-0-85em--text-align-center">
+              <div>
                 <a
                   href="https://www.iloveimg.com/compress-image"
                   target="_blank"
@@ -310,10 +281,7 @@ export const EmblemEditorContent: React.FC = () => {
           )}
 
           {downloadMode && (
-            <div
-              id="emblemDownloadControl"
-              className="-emblem-editor-dialog__display-flex--gap-0-5em--margin-top-0-5em--padding-0-5em--background-f0f0f0--bor"
-            >
+            <div id="emblemDownloadControl" className="d-flex">
               <input
                 id="emblemsDownloadSize"
                 data-tip="Set image size in pixels"
@@ -323,7 +291,6 @@ export const EmblemEditorContent: React.FC = () => {
                 step={100}
                 min={100}
                 max={10000}
-                className="-emblem-editor-dialog__width-4em"
               />
               <button
                 type="button"

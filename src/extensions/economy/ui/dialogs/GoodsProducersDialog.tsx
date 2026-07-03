@@ -15,14 +15,14 @@ export const GoodsProducersDialog: React.FC = () => {
     <Dialog isOpen={isOpen} title={`${goodName} — Producers`} onClose={close}>
       <div id="goodsProducersContainer">
         {producers.length === 0 ? (
-          <i className="-goods-producers-dialog__color-888">No burgs produced {goodName}.</i>
+          <i>No burgs produced {goodName}.</i>
         ) : (
-          <div className="table -goods-producers-dialog__max-height-30em">
+          <div className="table">
             <table className="states-table">
               <colgroup>
-                <col style={{ width: "1.6em" }} />
-                <col style={{ width: "7em" }} />
-                <col style={{ width: "4em" }} />
+                <col />
+                <col />
+                <col />
               </colgroup>
               <thead>
                 <tr className="header">

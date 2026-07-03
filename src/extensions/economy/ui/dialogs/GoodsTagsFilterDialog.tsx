@@ -39,14 +39,14 @@ export const GoodsTagsFilterDialog: React.FC = () => {
     >
       <div id="goodsTagsContainer">
         {tags.length === 0 ? (
-          <div className="-goods-tags-filter-dialog__color-666">No tags available</div>
+          <div>No tags available</div>
         ) : (
           <div
             data-tip="Only goods with at least one selected tag remain visible in the editor list"
-            className="-goods-tags-filter-dialog__display-grid--grid-template-columns-1fr-1fr-1fr--column-gap-0-3em"
+            className="d-grid"
           >
             {tags.map(tag => (
-              <label key={tag} className="-goods-tags-filter-dialog__display-flex--align-items-center">
+              <label key={tag} className="d-flex">
                 <input
                   type="checkbox"
                   className="native"

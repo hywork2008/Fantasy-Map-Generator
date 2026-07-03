@@ -133,15 +133,15 @@ const PhasePicker: React.FC<PhasePickerProps> = ({ side, battleType, currentPhas
   };
 
   return (
-    <div className="-battle-screen-dialog__display-inline-block">
+    <div className="d-inline-block">
       <button
         type="button"
-        className={`icon-button-${currentPhase || "skirmish"} -battle-screen-dialog__width-3-2em`}
+        className={`icon-button-${currentPhase || "skirmish"}`}
         data-tip={options.find(o => o.phase === currentPhase)?.tip ?? ""}
         onClick={handleToggle}
       />
       {open && (
-        <div className="battlePhases -battle-screen-dialog__display-block">
+        <div className="battlePhases d-block">
           {options.map(opt => (
             <button
               key={opt.phase}
@@ -169,13 +169,13 @@ interface SideHeaderProps {
 }
 
 const SideHeader: React.FC<SideHeaderProps> = ({ label, side, morale, power, phase, die, battleType }) => (
-  <div className="-battle-screen-dialog__font-size-1-2em--font-weight-bold--width-unset">
+  <div>
     <span>{label}</span>
-    <div className="-battle-screen-dialog__float-right--font-size-0-7em">
+    <div>
       <meter data-tip={`${label} morale: ${morale}`} min={0} max={100} low={33} high={66} optimum={80} value={morale} />
       <div
         data-tip={`${label} strength during this phase. Strength defines dealt damage`}
-        className="-battle-screen-dialog__display-inline-block--text-align-center icon-button-power"
+        className="d-inline-block icon-button-power"
       >
         {power}
       </div>
@@ -183,7 +183,7 @@ const SideHeader: React.FC<SideHeaderProps> = ({ label, side, morale, power, pha
       <button
         type="button"
         data-tip={`Random factor for ${label.toLowerCase()}. Click to re-roll`}
-        className="-battle-screen-dialog__padding-0-1em-0-2em--width-3-2em icon-button-die"
+        className="icon-button-die"
         onClick={() => battleAction_rollDie(side)}
       >
         {die}
@@ -220,7 +220,7 @@ const RegimentTable: React.FC<RegimentTableProps> = ({ regiments, militaryUnitNa
         const iconHtml = isExternal
           ? `<image href="${r.icon}" x="0.1em" y="0.1em" width="1.2em" height="1.2em"></image>`
           : `<text x="50%" y="1em" style="text-anchor: middle">${r.icon}</text>`;
-        const svgIcon = `<svg width="1.4em" height="1.4em" style="margin-bottom: -.6em; stroke: #333">
+        const svgIcon = `<svg width="1.4em" height="1.4em" style="stroke: #333">
           <rect x="0" y="0" width="100%" height="100%" fill="${r.stateColor}"></rect>${iconHtml}</svg>`;
 
         const totalCasualties = sum(Object.values(r.casualties));
@@ -235,49 +235,31 @@ const RegimentTable: React.FC<RegimentTableProps> = ({ regiments, militaryUnitNa
                 {r.regimentName.slice(0, 24)}
               </td>
               {militaryUnitNames.map(u => (
-                <td
-                  key={u.name}
-                  data-tip="Initial forces"
-                  className="-battle-screen-dialog__width-2-5em--text-align-center"
-                >
+                <td key={u.name} data-tip="Initial forces">
                   {r.initialUnits[u.name] || 0}
                 </td>
               ))}
-              <td data-tip="Initial forces" className="-battle-screen-dialog__width-2-5em--text-align-center">
-                {r.initialTotal}
-              </td>
+              <td data-tip="Initial forces">{r.initialTotal}</td>
             </tr>
             <tr className="battleCasualties">
               <td />
               <td data-tip={r.stateFullName}>{r.stateFullName.slice(0, 26)}</td>
               {militaryUnitNames.map(u => (
-                <td
-                  key={u.name}
-                  data-tip="Casualties"
-                  className="-battle-screen-dialog__width-2-5em--text-align-center--color-red"
-                >
+                <td key={u.name} data-tip="Casualties">
                   {r.casualties[u.name] || 0}
                 </td>
               ))}
-              <td data-tip="Casualties" className="-battle-screen-dialog__width-2-5em--text-align-center--color-red">
-                {totalCasualties}
-              </td>
+              <td data-tip="Casualties">{totalCasualties}</td>
             </tr>
             <tr className="battleSurvivors">
               <td />
               <td data-tip="Supply line length, affects morale">Distance to base: {r.distanceLabel}</td>
               {militaryUnitNames.map(u => (
-                <td
-                  key={u.name}
-                  data-tip="Survivors"
-                  className="-battle-screen-dialog__width-2-5em--text-align-center--color-green"
-                >
+                <td key={u.name} data-tip="Survivors">
                   {r.survivors[u.name] || 0}
                 </td>
               ))}
-              <td data-tip="Survivors" className="-battle-screen-dialog__width-2-5em--text-align-center--color-green">
-                {totalSurvivors}
-              </td>
+              <td data-tip="Survivors">{totalSurvivors}</td>
             </tr>
           </React.Fragment>
         );
@@ -353,10 +335,10 @@ export const RegimentSelectorScreenDialog: React.FC = () => {
       <div id="regimentSelectorBody" className="table">
         <table className="states-table">
           <colgroup>
-            <col style={{ width: "9em" }} />
-            <col style={{ width: "13em" }} />
-            <col style={{ width: "4em" }} />
-            <col style={{ width: "6em" }} />
+            <col />
+            <col />
+            <col />
+            <col />
           </colgroup>
           <thead
             id="regimentSelectorHeader"
@@ -486,13 +468,11 @@ export const BattleScreenDialog: React.FC = () => {
                 />
                 <input
                   data-tip="Type place name"
-                  className="-battle-screen-dialog__width-30"
                   value={place}
                   onChange={e => battleAction_changePlace(e.target.value)}
                 />
                 <input
                   data-tip="Type full battle name"
-                  className="-battle-screen-dialog__width-46"
                   value={name}
                   onChange={e => battleAction_changeName(e.target.value)}
                 />

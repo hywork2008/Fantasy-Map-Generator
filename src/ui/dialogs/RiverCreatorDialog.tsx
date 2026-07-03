@@ -17,16 +17,14 @@ export const RiverCreatorDialog: React.FC = () => {
     <Dialog isOpen={isOpen} title="River Creator" onClose={closeRiverCreator}>
       <div id="riverCreatorBody" className="table">
         {riverCells.map(cell => (
-          <div key={cell} className="editorLine" data-cell={cell}>
+          <div key={cell} data-cell={cell}>
             <span>Cell {cell}</span>
-            <span data-tip="Set flux affects river width" className="-river-creator-dialog__margin-left-0-4em">
-              Flux
-            </span>
+            <span data-tip="Set flux affects river width">Flux</span>
             <input
               type="number"
               min="0"
               defaultValue={getCellFlux(cell)}
-              className="editFlux -river-creator-dialog__width-5em"
+              className="editFlux"
               onChange={e => handleFluxChange(cell, e.target.value)}
             />
             <span

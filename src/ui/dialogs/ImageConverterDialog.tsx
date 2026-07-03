@@ -48,7 +48,7 @@ export const ImageConverterDialog: React.FC = () => {
               ref={imageInputRef}
               type="file"
               id="imageConverterFileInput"
-              className="-image-converter-dialog__display-none"
+              className="d-none"
               accept="image/*"
               onChange={e => HeightmapEditorActions.imageConverterUploadImage?.(e.target as HTMLInputElement)}
             />
@@ -106,7 +106,6 @@ export const ImageConverterDialog: React.FC = () => {
               step=".01"
               value={imageConverterOverlay}
               onChange={e => HeightmapEditorActions.imageConverterSetOverlayOpacity?.(+e.target.value)}
-              className="-image-converter-dialog__width-12-6em"
             />
             <input
               id="convertOverlayNumber"
@@ -116,7 +115,6 @@ export const ImageConverterDialog: React.FC = () => {
               step=".01"
               value={imageConverterOverlay}
               onChange={e => HeightmapEditorActions.imageConverterSetOverlayOpacity?.(+e.target.value)}
-              className="-image-converter-dialog__width-4-2em"
             />
           </div>
 

@@ -69,13 +69,13 @@ const ChartFigure: React.FC<ChartFigureProps> = ({ chart, figureNo, onRemove }) 
   }
 
   return (
-    <figure className="-charts-overview-dialog__margin-0--display-flex--flex-direction-column--gap-0-3em--min-height-0--height-1">
+    <figure className="d-flex">
       <div ref={containerRef} className="-charts-overview-dialog__flex-1--min-height-0--overflow-auto" />
-      <figcaption className="-charts-overview-dialog__display-flex--justify-content-space-between--align-items-center--font-size-0-9em">
+      <figcaption className="d-flex">
         <div>
           <strong>Figure {figureNo}</strong>. {chart.title}
         </div>
-        <div className="-charts-overview-dialog__display-flex--gap-0-2em">
+        <div className="d-flex">
           <button
             type="button"
             data-tip="Download chart data as a text file (.csv)"
@@ -145,17 +145,17 @@ export const ChartsOverviewDialog: React.FC = () => {
       title="Data Charts"
       onClose={handleClose}
       className="fmg-dialog--overflow-hidden"
-      style={{ width: "min(90vw, 900px)", maxHeight: "90vh", display: "flex", flexDirection: "column" }}
+      style={{ display: "flex" }}
     >
-      <div className="-charts-overview-dialog__display-grid--grid-template-rows-auto-1fr--overflow-hidden--flex-1--padding-0-5e">
+      <div className="-charts-overview-dialog__display-grid--grid-template-rows-auto-1fr--overflow-hidden--flex-1--padding-0-5e d-grid">
         <form
           onSubmit={e => {
             e.preventDefault();
             handleAddChart();
           }}
-          className="-charts-overview-dialog__font-size-1-1em--margin-0-3em-0--display-grid--grid-template-columns-auto-auto--"
+          className="d-grid"
         >
-          <div className="-charts-overview-dialog__display-flex--flex-wrap-wrap--gap-0-4em--align-items-center">
+          <div className="d-flex">
             <button data-tip="Add a chart" type="submit">
               Plot
             </button>
@@ -166,7 +166,7 @@ export const ChartsOverviewDialog: React.FC = () => {
                 </option>
               ))}
             </select>
-            <label className="-charts-overview-dialog__display-flex--align-items-center--gap-0-3em">
+            <label className="d-flex">
               by
               <select
                 data-tip="Select value to plot by (x axis)"
@@ -180,7 +180,7 @@ export const ChartsOverviewDialog: React.FC = () => {
                 ))}
               </select>
             </label>
-            <label className="-charts-overview-dialog__display-flex--align-items-center--gap-0-3em">
+            <label className="d-flex">
               grouped by
               <select
                 data-tip="Select entity to group by. If you don't need grouping, set it the same as the entity"
@@ -194,10 +194,7 @@ export const ChartsOverviewDialog: React.FC = () => {
                 ))}
               </select>
             </label>
-            <label
-              data-tip="Sorting type"
-              className="-charts-overview-dialog__display-flex--align-items-center--gap-0-3em"
-            >
+            <label data-tip="Sorting type" className="d-flex">
               sorted
               <select value={sorting} onChange={e => setSorting(e.target.value)}>
                 <option value="value">by value</option>
@@ -206,7 +203,7 @@ export const ChartsOverviewDialog: React.FC = () => {
               </select>
             </label>
           </div>
-          <div className="-charts-overview-dialog__display-flex--flex-wrap-wrap--gap-0-4em--align-items-center">
+          <div className="d-flex">
             <span data-tip="Chart type">Type</span>
             <select value={chartType} onChange={e => setChartType(e.target.value)}>
               <option value="stackedBar">Stacked Bar</option>
@@ -222,17 +219,7 @@ export const ChartsOverviewDialog: React.FC = () => {
           </div>
         </form>
 
-        <section
-          style={{
-            overflow: "hidden",
-            display: "grid",
-            gridTemplateColumns: `repeat(${viewColumns}, 1fr)`,
-            gridAutoRows: "minmax(0, 1fr)",
-            gap: "1em",
-            padding: "0.5em",
-            minHeight: 0
-          }}
-        >
+        <section style={{ overflow: "hidden", display: "grid", gridTemplateColumns: `repeat(${viewColumns}, 1fr)` }}>
           {charts.map((chart, i) => (
             <ChartFigure key={chart.id} chart={chart} figureNo={i + 1} onRemove={handleRemoveChart} />
           ))}

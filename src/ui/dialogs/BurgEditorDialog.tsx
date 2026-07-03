@@ -18,8 +18,8 @@ export const BurgEditorDialog: React.FC = () => {
 
   return (
     <Dialog isOpen={isOpen} title="Edit Burg" onClose={() => closeDialog("burgEditor")}>
-      <div id="burgBody" className="-burg-editor-dialog__padding-bottom-0-3em">
-        <div className="-burg-editor-dialog__display-flex--align-items-center">
+      <div id="burgBody">
+        <div className="d-flex">
           <svg
             data-tip="Burg emblem. Click to edit"
             className="pointer"
@@ -34,11 +34,7 @@ export const BurgEditorDialog: React.FC = () => {
           <table>
             <tbody>
               <tr>
-                <td
-                  colSpan={2}
-                  id="burgProvinceAndState"
-                  className="-burg-editor-dialog__font-weight-bold--max-width-16em"
-                >
+                <td colSpan={2} id="burgProvinceAndState">
                   {burgData.provinceAndState}
                 </td>
               </tr>
@@ -51,7 +47,6 @@ export const BurgEditorDialog: React.FC = () => {
                     id="burgName"
                     autoCorrect="off"
                     spellCheck="false"
-                    className="-burg-editor-dialog__width-9em"
                     value={burgData.name}
                     onChange={e => burgEditorActions.changeName(e.target.value)}
                   />
@@ -71,7 +66,6 @@ export const BurgEditorDialog: React.FC = () => {
                 <td>
                   <select
                     id="burgGroup"
-                    className="-burg-editor-dialog__width-9em"
                     value={burgData.group}
                     onChange={e => burgEditorActions.changeGroup(e.target.value)}
                   >
@@ -94,7 +88,6 @@ export const BurgEditorDialog: React.FC = () => {
                 <td>
                   <select
                     id="burgType"
-                    className="-burg-editor-dialog__width-9em"
                     value={burgData.type}
                     onChange={e => burgEditorActions.changeType(e.target.value)}
                   >
@@ -113,7 +106,6 @@ export const BurgEditorDialog: React.FC = () => {
                 <td>
                   <select
                     id="burgCulture"
-                    className="-burg-editor-dialog__width-9em"
                     value={burgData.culture}
                     onChange={e => burgEditorActions.changeCulture(Number(e.target.value))}
                   >
@@ -141,7 +133,6 @@ export const BurgEditorDialog: React.FC = () => {
                     type="number"
                     min="0"
                     step="1"
-                    className="-burg-editor-dialog__width-9em"
                     value={burgData.population}
                     onChange={e => burgEditorActions.changePopulation(e.target.value)}
                   />
@@ -149,9 +140,9 @@ export const BurgEditorDialog: React.FC = () => {
               </tr>
               <tr data-tip="Burg average yearly temperature">
                 <th scope="row">Temperature:</th>
-                <td className="-burg-editor-dialog__display-flex--justify-content-space-between">
+                <td className="d-flex">
                   <span id="burgTemperature">{burgData.temperature}</span>
-                  <div className="-burg-editor-dialog__display-flex--gap-0-5em">
+                  <div className="d-flex">
                     <i
                       className="icon-info-circled"
                       id="burgTemperatureLikeIn"
@@ -175,10 +166,7 @@ export const BurgEditorDialog: React.FC = () => {
               <tr data-tip="Burg average daily production">
                 <th scope="row">Production:</th>
                 <td>
-                  <span
-                    id="burgProduction"
-                    className="-burg-editor-dialog__display-inline-flex--flex-wrap-wrap--column-gap-0-3em--max-width-110px"
-                  />
+                  <span id="burgProduction" className="d-inline-flex" />
                 </td>
               </tr>
               <tr data-tip="Wealth is gross product per population point for the current production run. It is a per-capita productivity measure, not the burg's cumulative treasury.">
@@ -211,7 +199,7 @@ export const BurgEditorDialog: React.FC = () => {
                   <span
                     id="burgCitadel"
                     data-tip="Shows whether the burg has a citadel (castle). Click to toggle"
-                    className={`burgFeature icon-chess-rook pointer ${!burgData.citadel ? "inactive" : ""} -burg-editor-dialog__font-size-1-1em`}
+                    className={`burgFeature icon-chess-rook pointer ${!burgData.citadel ? "inactive" : ""}`}
                     onClick={() => burgEditorActions.toggleFeature("citadel")}
                   ></span>
                   <span
@@ -223,19 +211,19 @@ export const BurgEditorDialog: React.FC = () => {
                   <span
                     id="burgPlaza"
                     data-tip="Shows whether the burg is a trade center (has big marketplace). Click to toggle"
-                    className={`burgFeature icon-store pointer ${!burgData.plaza ? "inactive" : ""} -burg-editor-dialog__font-size-1em`}
+                    className={`burgFeature icon-store pointer ${!burgData.plaza ? "inactive" : ""}`}
                     onClick={() => burgEditorActions.toggleFeature("plaza")}
                   ></span>
                   <span
                     id="burgTemple"
                     data-tip="Shows whether the burg is a religious center. Click to toggle"
-                    className={`burgFeature icon-chess-bishop pointer ${!burgData.temple ? "inactive" : ""} -burg-editor-dialog__font-size-1-1em--margin-left-3px`}
+                    className={`burgFeature icon-chess-bishop pointer ${!burgData.temple ? "inactive" : ""}`}
                     onClick={() => burgEditorActions.toggleFeature("temple")}
                   ></span>
                   <span
                     id="burgShanty"
                     data-tip="Shows whether the burg has a shanty town. Click to toggle"
-                    className={`burgFeature icon-campground pointer ${!burgData.shanty ? "inactive" : ""} -burg-editor-dialog__font-size-1em`}
+                    className={`burgFeature icon-campground pointer ${!burgData.shanty ? "inactive" : ""}`}
                     onClick={() => burgEditorActions.toggleFeature("shanty")}
                   ></span>
                 </td>
@@ -245,14 +233,10 @@ export const BurgEditorDialog: React.FC = () => {
         </div>
 
         {burgData.previewUrl && (
-          <div
-            id="burgPreviewSection"
-            data-tip="Burg map preview"
-            className="-burg-editor-dialog__display-flex--flex-direction-column"
-          >
-            <div className="-burg-editor-dialog__display-flex--justify-content-space-between">
+          <div id="burgPreviewSection" data-tip="Burg map preview" className="d-flex">
+            <div className="d-flex">
               <span>Burg preview:</span>
-              <div className="-burg-editor-dialog__display-flex--gap-0-5em">
+              <div className="d-flex">
                 <i
                   id="burgLinkOpen"
                   data-tip="Open burg map in a new tab"
@@ -262,11 +246,7 @@ export const BurgEditorDialog: React.FC = () => {
               </div>
             </div>
             <div id="burgPreviewObject" className="-burg-editor-dialog__pointer-events-none">
-              <object
-                data={burgData.previewUrl}
-                className="-burg-editor-dialog__width-100--max-width-60vw--max-height-60vh"
-                aria-label="Burg Map Preview"
-              />
+              <object data={burgData.previewUrl} aria-label="Burg Map Preview" />
             </div>
           </div>
         )}
@@ -274,7 +254,7 @@ export const BurgEditorDialog: React.FC = () => {
 
       <div id="burgFooter">
         {isStyleSectionOpen ? (
-          <div id="burgStyleSection" className="-burg-editor-dialog__display-inline-block">
+          <div id="burgStyleSection" className="d-inline-block">
             <button
               type="button"
               id="burgStyleHide"

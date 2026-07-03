@@ -175,7 +175,6 @@ export const MilitaryOverviewDialog: React.FC = () => {
                   data-tip="State name. Click to sort"
                   className={`sortable alphabetically ${sortBy === "state" ? (sortOrder === "asc" ? "icon-sort-name-up" : "icon-sort-name-down") : ""}`}
                   onClick={() => toggleSortBy("state")}
-                  style={{ width: "8em" }}
                 >
                   State&nbsp;
                 </th>
@@ -185,7 +184,6 @@ export const MilitaryOverviewDialog: React.FC = () => {
                     data-tip={`State ${u.name} units number. Click to sort`}
                     className={`sortable ${sortBy === u.name ? (sortOrder === "asc" ? "icon-sort-number-up" : "icon-sort-number-down") : ""}`}
                     onClick={() => toggleSortBy(u.name)}
-                    style={{ width: "5.2em" }}
                   >
                     {capitalize(u.name.replace(/_/g, " "))}&nbsp;
                   </th>
@@ -194,7 +192,6 @@ export const MilitaryOverviewDialog: React.FC = () => {
                   data-tip="Total military personnel (considering crew). Click to sort"
                   className={`sortable ${sortBy === "total" ? (sortOrder === "asc" ? "icon-sort-number-up" : "icon-sort-number-down") : "icon-sort-number-down"}`}
                   onClick={() => toggleSortBy("total")}
-                  style={{ width: "4em" }}
                 >
                   Total&nbsp;
                 </th>
@@ -202,7 +199,6 @@ export const MilitaryOverviewDialog: React.FC = () => {
                   data-tip="State population. Click to sort"
                   className={`sortable ${sortBy === "population" ? (sortOrder === "asc" ? "icon-sort-number-up" : "icon-sort-number-down") : ""}`}
                   onClick={() => toggleSortBy("population")}
-                  style={{ width: "7em" }}
                 >
                   Population&nbsp;
                 </th>
@@ -210,7 +206,6 @@ export const MilitaryOverviewDialog: React.FC = () => {
                   data-tip="Military personnel rate (% of state population). Depends on war alert. Click to sort"
                   className={`sortable ${sortBy === "rate" ? (sortOrder === "asc" ? "icon-sort-number-up" : "icon-sort-number-down") : ""}`}
                   onClick={() => toggleSortBy("rate")}
-                  style={{ width: "5em" }}
                 >
                   Rate&nbsp;
                 </th>
@@ -218,7 +213,6 @@ export const MilitaryOverviewDialog: React.FC = () => {
                   data-tip="War Alert. Modifier to military forces number, depends of political situation. Click to sort"
                   className={`sortable ${sortBy === "alert" ? (sortOrder === "asc" ? "icon-sort-number-up" : "icon-sort-number-down") : ""}`}
                   onClick={() => toggleSortBy("alert")}
-                  style={{ width: "6em" }}
                 >
                   War Alert&nbsp;
                 </th>
@@ -234,24 +228,16 @@ export const MilitaryOverviewDialog: React.FC = () => {
                   onMouseEnter={() => militaryStateHighlightOn(l.id)}
                   onMouseLeave={() => militaryStateHighlightOff(l.id)}
                 >
-                  <td style={{ display: "flex", gap: "4px", alignItems: "center" }}>
+                  <td style={{ display: "flex" }}>
                     <FillBox data-tip={l.fullName} fill={l.color} disabled />
-                    <input
-                      data-tip={l.fullName}
-                      className="-military-overview-dialog__width-6em"
-                      value={l.name}
-                      readOnly
-                    />
+                    <input data-tip={l.fullName} value={l.name} readOnly />
                   </td>
                   {militaryOptions.map(u => (
                     <td key={u.name} data-tip={`State ${u.name} units number`}>
                       {getDisplayValue(l.unitsData[u.name], totals.sumUnits[u.name])}
                     </td>
                   ))}
-                  <td
-                    data-tip="Total state military personnel (considering crew)"
-                    className="-military-overview-dialog__font-weight-bold"
-                  >
+                  <td data-tip="Total state military personnel (considering crew)">
                     {getDisplayValueSi(l.total, totals.total)}
                   </td>
                   <td data-tip="State population">{getDisplayValueSi(l.population, totals.sumPopulation)}</td>
@@ -261,7 +247,6 @@ export const MilitaryOverviewDialog: React.FC = () => {
                   <td>
                     <input
                       data-tip="War Alert. Editable modifier to military forces number, depends of political situation"
-                      className="-military-overview-dialog__width-4-1em"
                       type="number"
                       min="0"
                       step=".01"
@@ -282,19 +267,19 @@ export const MilitaryOverviewDialog: React.FC = () => {
           </table>
         </div>
         <div id="militaryTotal" className="totalLine">
-          <div data-tip="States number" className="-military-overview-dialog__margin-left-4">
+          <div data-tip="States number">
             States:&nbsp;<span>{totals.statesNumber}</span>
           </div>
-          <div data-tip="Total military forces" className="-military-overview-dialog__margin-left-14">
+          <div data-tip="Total military forces">
             Total forces:&nbsp;<span>{si(totals.total)}</span>
           </div>
-          <div data-tip="Average military forces per state" className="-military-overview-dialog__margin-left-14">
+          <div data-tip="Average military forces per state">
             Average forces:&nbsp;<span>{si(totals.averageForces)}</span>
           </div>
-          <div data-tip="Average forces rate per state" className="-military-overview-dialog__margin-left-14">
+          <div data-tip="Average forces rate per state">
             Average rate:&nbsp;<span>{rn(totals.averageRate, 2)}%</span>
           </div>
-          <div data-tip="Average War Alert" className="-military-overview-dialog__margin-left-14">
+          <div data-tip="Average War Alert">
             Average alert:&nbsp;<span>{rn(totals.averageAlert, 2)}</span>
           </div>
         </div>

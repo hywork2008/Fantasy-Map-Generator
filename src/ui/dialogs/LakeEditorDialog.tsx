@@ -17,9 +17,9 @@ export const LakeEditorDialog: React.FC = () => {
 
   return (
     <Dialog isOpen={isOpen} title="Edit Lake" onClose={() => closeDialog("lakeEditor")}>
-      <div id="lakeBody" className="-lake-editor-dialog__padding-bottom-0-3em">
+      <div id="lakeBody">
         <div>
-          <div className="label -lake-editor-dialog__width-4-8em">Name:</div>
+          <div className="label">Name:</div>
           <span
             data-tip="Generate culture-specific name for the lake"
             className="icon-book pointer"
@@ -43,7 +43,7 @@ export const LakeEditorDialog: React.FC = () => {
         </div>
 
         <div data-tip="Type to change lake type (group)">
-          <div className="label -lake-editor-dialog__width-4-8em">Type:</div>
+          <div className="label">Type:</div>
           <span
             data-tip="Remove the group"
             className="icon-trash-empty pointer"

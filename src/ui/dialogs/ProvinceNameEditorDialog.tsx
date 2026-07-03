@@ -29,7 +29,6 @@ export const ProvinceNameEditorDialog: React.FC = () => {
             data-tip="Type to change the short name"
             autoCorrect="off"
             spellCheck={false}
-            className="-province-name-editor-dialog__width-11em"
             value={shortName}
             onChange={e => provincesEditorActions.nameEditorUpdate({ shortName: e.target.value })}
           />
@@ -56,13 +55,12 @@ export const ProvinceNameEditorDialog: React.FC = () => {
             <input
               placeholder="type form name"
               data-tip="Enter custom form name"
-              className="-province-name-editor-dialog__width-11em"
               value={customFormInput}
               onChange={e => provincesEditorActions.nameEditorUpdate({ customFormInput: e.target.value })}
             />
           ) : (
             <select
-              className="-province-name-editor-dialog__display-inline-block--width-11em--height-1-645em"
+              className="d-inline-block"
               value={formName}
               onChange={e => provincesEditorActions.nameEditorUpdate({ formName: e.target.value })}
             >
@@ -127,7 +125,6 @@ export const ProvinceNameEditorDialog: React.FC = () => {
             data-tip="Type to change the full name"
             autoCorrect="off"
             spellCheck={false}
-            className="-province-name-editor-dialog__width-11em"
             value={fullName}
             onChange={e => provincesEditorActions.nameEditorUpdate({ fullName: e.target.value })}
           />
@@ -141,10 +138,7 @@ export const ProvinceNameEditorDialog: React.FC = () => {
           />
         </div>
 
-        <div
-          data-tip="Dominant culture in the province. This defines culture-based naming. Can be changed via the Cultures Editor"
-          className="-province-name-editor-dialog__margin-top-0-2em"
-        >
+        <div data-tip="Dominant culture in the province. This defines culture-based naming. Can be changed via the Cultures Editor">
           Dominant culture:&nbsp;<span>{cultureName}</span>
         </div>
       </div>

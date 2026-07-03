@@ -26,7 +26,7 @@ export const CustomizationMenu: React.FC = () => {
           type="button"
           data-tip="Open template editor"
           id="applyTemplate"
-          className="-customization-menu__display-none"
+          className="d-none"
           onClick={() => HeightmapEditorActions.openTemplateEditor()}
         >
           Template Editor
@@ -35,7 +35,7 @@ export const CustomizationMenu: React.FC = () => {
           type="button"
           data-tip="Open Image Converter"
           id="convertImage"
-          className="-customization-menu__display-none"
+          className="d-none"
           onClick={() => HeightmapEditorActions.openImageConverter()}
         >
           Image Converter
@@ -123,7 +123,7 @@ export const CustomizationMenu: React.FC = () => {
       <div>
         <span>Land cells: </span>
         <span id="landmassCounter">0</span>
-        <span className="-customization-menu__margin-left-0-9em">Mean height: </span>
+        <span>Mean height: </span>
         <span id="landmassAverage">0</span>
       </div>
 

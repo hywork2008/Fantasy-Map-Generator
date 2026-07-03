@@ -14,7 +14,6 @@ export const GenerationErrorDialog: React.FC = () => {
       isOpen={isOpen}
       title="Generation error"
       onClose={close}
-      className="-generation-error-dialog__max-width-32em"
       buttons={[
         {
           label: "Cleanup data",
@@ -36,12 +35,7 @@ export const GenerationErrorDialog: React.FC = () => {
       <div>
         <p>An error has occurred on map generation. Please retry.</p>
         <p>If error is critical, clear the stored data and try again.</p>
-        <p
-          id="errorBox"
-          className="-generation-error-dialog__font-family-monospace--font-size-0-85em--word-break-break-all"
-        >
-          {errorText}
-        </p>
+        <p id="errorBox">{errorText}</p>
       </div>
     </Dialog>
   );

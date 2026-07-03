@@ -158,7 +158,7 @@ export function importBurgNames(dataLoaded: string, refresh: () => void): void {
     const v = data[i];
     if (!v || !validBurgs[i] || v === validBurgs[i].name) continue;
     change.push({ id: validBurgs[i].i!, name: v });
-    message += `<tr><td style="width:20%">${validBurgs[i].i}</td><td style="width:40%">${validBurgs[i].name}</td><td style="width:40%">${v}</td></tr>`;
+    message += `<tr><td>${validBurgs[i].i}</td><td>${validBurgs[i].name}</td><td>${v}</td></tr>`;
   }
   message += `</tr></table>`;
 

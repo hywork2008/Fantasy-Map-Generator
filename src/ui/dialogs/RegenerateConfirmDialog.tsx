@@ -43,7 +43,7 @@ export const RegenerateConfirmDialog: React.FC = () => {
           <br />
           Are you sure you want to proceed?
         </p>
-        <div className="-regenerate-confirm-dialog__margin-top-1em">
+        <div>
           <input ref={checkboxRef} id="dontAskAgain" className="checkbox" type="checkbox" />
           <label htmlFor="dontAskAgain" className="checkbox-label dontAsk">
             <i>do not ask again</i>

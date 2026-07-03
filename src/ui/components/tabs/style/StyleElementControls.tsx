@@ -181,7 +181,6 @@ export function StyleElementControls() {
           <td>
             <select
               id="styleHeightmapScheme"
-              className="style-controls__input--wide-86"
               value={str("styleHeightmapScheme")}
               onChange={e => applyHeightmapScheme(e.target.value)}
             >
@@ -268,7 +267,6 @@ export function StyleElementControls() {
           <td>
             <select
               id="styleTextureInput"
-              className="style-controls__input--wide-86"
               value={str("styleTextureInput")}
               onChange={e => applyTextureSelect(e.target.value)}
             >
@@ -350,7 +348,7 @@ export function StyleElementControls() {
 
         <tr data-tip="Vignette rectangle position (in percents)">
           <td>Position</td>
-          <td className="style-controls__vignette-position">
+          <td className="d-flex">
             <div>
               <span>x </span>
               <input
@@ -359,7 +357,6 @@ export function StyleElementControls() {
                 min="0"
                 max="100"
                 step="0.1"
-                className="style-controls__input--small"
                 value={num("styleVignetteX")}
                 onChange={e => applyVignetteX(e.target.value)}
               />
@@ -370,7 +367,6 @@ export function StyleElementControls() {
                 min="0"
                 max="100"
                 step="0.1"
-                className="style-controls__input--small"
                 value={num("styleVignetteWidth")}
                 onChange={e => applyVignetteWidth(e.target.value)}
               />
@@ -383,7 +379,6 @@ export function StyleElementControls() {
                 min="0"
                 max="100"
                 step="0.1"
-                className="style-controls__input--small"
                 value={num("styleVignetteY")}
                 onChange={e => applyVignetteY(e.target.value)}
               />
@@ -394,7 +389,6 @@ export function StyleElementControls() {
                 min="0"
                 max="100"
                 step="0.1"
-                className="style-controls__input--small"
                 value={num("styleVignetteHeight")}
                 onChange={e => applyVignetteHeight(e.target.value)}
               />
@@ -411,7 +405,6 @@ export function StyleElementControls() {
               type="number"
               min="0"
               max="50"
-              className="style-controls__input--small"
               value={num("styleVignetteRx")}
               onChange={e => applyVignetteRx(e.target.value)}
             />
@@ -421,7 +414,6 @@ export function StyleElementControls() {
               type="number"
               min="0"
               max="50"
-              className="style-controls__input--small"
               value={num("styleVignetteRy")}
               onChange={e => applyVignetteRy(e.target.value)}
             />
@@ -716,13 +708,11 @@ export function StyleElementControls() {
             <input
               id="styleStrokeDasharrayInput"
               type="text"
-              className="style-controls__input--width-26"
               value={str("styleStrokeDasharrayInput", "1 2")}
               onChange={e => applyStrokeDasharray(e.target.value)}
             />
             <select
               id="styleStrokeLinecapInput"
-              className="style-controls__input--width-32"
               value={str("styleStrokeLinecapInput", "inherit")}
               onChange={e => applyStrokeLinecap(e.target.value)}
             >
@@ -755,7 +745,6 @@ export function StyleElementControls() {
           <td>
             <select
               id="styleSelectFont"
-              className="style-controls__input--wide-85"
               value={str("styleSelectFont")}
               onChange={e => {
                 useStyleState.getState().updateValue("styleSelectFont", e.target.value);
@@ -912,10 +901,8 @@ export function StyleElementControls() {
           </td>
         </tr>
 
-        <tr className="style-controls__note-row">
-          <td className="style-controls__note-text">
-            Halo is only rendered if "Rendering" option is set to "Best quality"!
-          </td>
+        <tr>
+          <td>Halo is only rendered if "Rendering" option is set to "Best quality"!</td>
         </tr>
 
         <tr data-tip="Set states halo effect width">
@@ -928,10 +915,7 @@ export function StyleElementControls() {
           <td>{slider("styleStatesHaloOpacity", "0", "1", "0.01")}</td>
         </tr>
 
-        <tr
-          data-tip="Select halo effect power (blur). Set to 0 to make it solid line"
-          className="style-controls__halo-blur-note"
-        >
+        <tr data-tip="Select halo effect power (blur). Set to 0 to make it solid line">
           <td>Halo blur</td>
           <td>{slider("styleStatesHaloBlur", "0", "10", "0.01")}</td>
         </tr>
@@ -1117,7 +1101,6 @@ export function StyleElementControls() {
               min="0"
               max="100"
               step="0.1"
-              className="style-controls__input--small"
               value={num("styleScaleBarPositionX")}
               onChange={e => applyScaleBarInput("styleScaleBarPositionX", e.target.value)}
             />
@@ -1128,7 +1111,6 @@ export function StyleElementControls() {
               min="0"
               max="100"
               step="0.1"
-              className="style-controls__input--small"
               value={num("styleScaleBarPositionY")}
               onChange={e => applyScaleBarInput("styleScaleBarPositionY", e.target.value)}
             />
@@ -1183,7 +1165,6 @@ export function StyleElementControls() {
               min="0"
               max="10"
               step="0.1"
-              className="style-controls__input--small"
               value={num("styleScaleBarBackgroundStrokeWidth")}
               onChange={e => applyScaleBarInput("styleScaleBarBackgroundStrokeWidth", e.target.value)}
             />
@@ -1192,13 +1173,12 @@ export function StyleElementControls() {
 
         <tr data-tip="Set background element padding: top, right, bottom, left (in pixels)">
           <td>Back padding</td>
-          <td className="style-controls__scale-padding">
+          <td className="d-flex">
             <input
               id="styleScaleBarBackgroundPaddingTop"
               type="number"
               min="0"
               max="100"
-              className="style-controls__input--small"
               value={num("styleScaleBarBackgroundPaddingTop")}
               onChange={e => applyScaleBarInput("styleScaleBarBackgroundPaddingTop", e.target.value)}
             />
@@ -1207,7 +1187,6 @@ export function StyleElementControls() {
               type="number"
               min="0"
               max="100"
-              className="style-controls__input--small"
               value={num("styleScaleBarBackgroundPaddingRight")}
               onChange={e => applyScaleBarInput("styleScaleBarBackgroundPaddingRight", e.target.value)}
             />
@@ -1216,7 +1195,6 @@ export function StyleElementControls() {
               type="number"
               min="0"
               max="100"
-              className="style-controls__input--small"
               value={num("styleScaleBarBackgroundPaddingBottom")}
               onChange={e => applyScaleBarInput("styleScaleBarBackgroundPaddingBottom", e.target.value)}
             />
@@ -1225,7 +1203,6 @@ export function StyleElementControls() {
               type="number"
               min="0"
               max="100"
-              className="style-controls__input--small"
               value={num("styleScaleBarBackgroundPaddingLeft")}
               onChange={e => applyScaleBarInput("styleScaleBarBackgroundPaddingLeft", e.target.value)}
             />

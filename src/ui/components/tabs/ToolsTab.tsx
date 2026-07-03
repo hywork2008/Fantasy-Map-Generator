@@ -172,7 +172,7 @@ export const ToolsTab: React.FC = () => {
   ].sort((a, b) => a.label.localeCompare(b.label));
 
   return (
-    <div id="toolsContent" className="tabcontent -tools-tab__display-block">
+    <div id="toolsContent" className="tabcontent d-block">
       <div className="separator">Edit</div>
       <div className="grid">
         {allEditButtons.map(btn => (
