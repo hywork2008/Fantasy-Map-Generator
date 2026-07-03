@@ -160,7 +160,7 @@ export const CulturesEditorDialog: React.FC = () => {
                     onMouseLeave={() => culturesEditorActions.cultureHighlightOff(c.i)}
                     style={{ pointerEvents: isBrushMode ? "none" : "all" }}
                   >
-                    <td style={{ display: "flex" }}>
+                    <td className="d-flex">
                       {isNeutral ? (
                         <svg width="11" height="11" className="placeholder" aria-hidden="true" />
                       ) : (
@@ -206,7 +206,7 @@ export const CulturesEditorDialog: React.FC = () => {
                       </select>
                     </td>
                     <td>
-                      <div style={{ display: "flex" }}>
+                      <div className="d-flex">
                         <span
                           data-tip="Click to re-generate names for burgs with this culture assigned"
                           className={`icon-arrows-cw hide${isNeutral ? "" : ""}`}
@@ -235,7 +235,7 @@ export const CulturesEditorDialog: React.FC = () => {
                       </div>
                     </td>
                     <td className="hide">
-                      <div style={{ display: "flex" }}>
+                      <div className="d-flex">
                         <span
                           data-tip="Culture expansionism. Defines competitive size"
                           className={`icon-resize-full${isNeutral ? " placeholder" : ""}`}

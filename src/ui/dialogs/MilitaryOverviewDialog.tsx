@@ -228,7 +228,7 @@ export const MilitaryOverviewDialog: React.FC = () => {
                   onMouseEnter={() => militaryStateHighlightOn(l.id)}
                   onMouseLeave={() => militaryStateHighlightOff(l.id)}
                 >
-                  <td style={{ display: "flex" }}>
+                  <td className="d-flex">
                     <FillBox data-tip={l.fullName} fill={l.color} disabled />
                     <input data-tip={l.fullName} value={l.name} readOnly />
                   </td>

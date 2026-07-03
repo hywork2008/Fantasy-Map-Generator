@@ -142,7 +142,7 @@ export const BiomesEditorContent: React.FC = () => {
                 onMouseLeave={() => biomesHighlightOff(row.i)}
                 onClick={isCustomizationMode ? () => biomesSelectOnLine(row.i) : undefined}
               >
-                <td style={{ display: "flex" }}>
+                <td className="d-flex">
                   <FillBox
                     fill={row.color}
                     onClick={() => biomesChangeColor(row.i, row.color)}

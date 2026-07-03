@@ -129,7 +129,7 @@ export const MarkersOverviewDialog: React.FC = () => {
             <tbody>
               {filteredMarkers.map(({ i, type, icon, pinned, lock }) => (
                 <tr key={i} className="states" data-i={i} data-type={type}>
-                  <td style={{ display: "flex" }}>
+                  <td className="d-flex">
                     {icon.startsWith("http") || icon.startsWith("data:image") ? (
                       <img src={icon} data-tip="Marker icon" alt="marker icon" />
                     ) : (

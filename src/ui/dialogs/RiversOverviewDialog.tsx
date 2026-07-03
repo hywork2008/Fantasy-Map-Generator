@@ -228,7 +228,7 @@ export const RiversOverviewDialog: React.FC = () => {
                     onMouseLeave={() => riverHighlightOff(r.i)}
                   >
                     <td>
-                      <div style={{ display: "flex" }}>
+                      <div className="d-flex">
                         <span
                           data-tip="Locate the river"
                           className="icon-target pointer"
@@ -268,7 +268,7 @@ export const RiversOverviewDialog: React.FC = () => {
                       />
                     </td>
                     <td>
-                      <div style={{ display: "flex" }}>
+                      <div className="d-flex">
                         <span
                           data-tip="Edit river"
                           className="icon-pencil pointer"

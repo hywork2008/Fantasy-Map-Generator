@@ -129,7 +129,7 @@ export const ZonesEditorContent: React.FC = () => {
                   }
                 }}
               >
-                <td style={{ display: "flex" }}>
+                <td className="d-flex">
                   {/* @ts-ignore */}
                   <FillBox fill={z.color} onClick={() => zonesEditorActions.changeColor(z.i)} />
                   <input

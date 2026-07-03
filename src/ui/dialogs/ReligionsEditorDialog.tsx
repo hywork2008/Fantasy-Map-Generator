@@ -164,7 +164,7 @@ export const ReligionsEditorDialog: React.FC = () => {
                     onMouseLeave={() => religionsEditorActions.religionHighlightOff(r.i)}
                     style={{ pointerEvents: isBrushMode ? "none" : "all" }}
                   >
-                    <td style={{ display: "flex" }}>
+                    <td className="d-flex">
                       {r.i ? (
                         <FillBox fill={r.color} onClick={() => religionsEditorActions.changeFill(r.i)} />
                       ) : (
@@ -208,7 +208,7 @@ export const ReligionsEditorDialog: React.FC = () => {
                     {!isBrushMode && (
                       <>
                         <td>
-                          <div style={{ display: "flex" }}>
+                          <div className="d-flex">
                             <span
                               data-tip="Click to re-generate supreme deity"
                               className={`icon-arrows-cw pointer ${r.i ? "" : "placeholder"}`}
@@ -225,7 +225,7 @@ export const ReligionsEditorDialog: React.FC = () => {
                           </div>
                         </td>
                         <td>
-                          <div style={{ display: "flex" }}>
+                          <div className="d-flex">
                             <span data-tip="Religion area" className="icon-map-o" />
                             <div data-tip="Religion area" className="religionArea">
                               {areaText}
@@ -233,7 +233,7 @@ export const ReligionsEditorDialog: React.FC = () => {
                           </div>
                         </td>
                         <td className="pointer" onClick={() => religionsEditorActions.changePopulation(r.i)}>
-                          <div style={{ display: "flex" }}>
+                          <div className="d-flex">
                             <span data-tip={populationTip} className="icon-male" />
                             <div data-tip={populationTip} className="religionPopulation">
                               {popText}
@@ -244,7 +244,7 @@ export const ReligionsEditorDialog: React.FC = () => {
                           isFolk ? (
                             <>
                               <td>
-                                <div style={{ display: "flex" }}>
+                                <div className="d-flex">
                                   <span
                                     data-tip="Folk religions do not expand"
                                     className="icon-resize-full-alt -religions-editor-dialog__padding-right-2px"
@@ -255,7 +255,7 @@ export const ReligionsEditorDialog: React.FC = () => {
                                 </div>
                               </td>
                               <td>
-                                <div style={{ display: "flex" }}>
+                                <div className="d-flex">
                                   <span data-tip="Folk religions do not expand" className="icon-resize-full" />
                                   <input
                                     data-tip="Folk religions do not expand"
@@ -270,7 +270,7 @@ export const ReligionsEditorDialog: React.FC = () => {
                           ) : (
                             <>
                               <td>
-                                <div style={{ display: "flex" }}>
+                                <div className="d-flex">
                                   <span
                                     data-tip="Potential religion extent"
                                     className="icon-resize-full-alt -religions-editor-dialog__padding-right-2px"
@@ -288,7 +288,7 @@ export const ReligionsEditorDialog: React.FC = () => {
                                 </div>
                               </td>
                               <td>
-                                <div style={{ display: "flex" }}>
+                                <div className="d-flex">
                                   <span
                                     data-tip="Religion expansionism. Defines competitive size"
                                     className="icon-resize-full"
@@ -317,7 +317,7 @@ export const ReligionsEditorDialog: React.FC = () => {
                         )}
                         <td>
                           {r.i ? (
-                            <div style={{ display: "flex" }}>
+                            <div className="d-flex">
                               <span
                                 data-tip="Locate the religion"
                                 className="icon-target pointer"

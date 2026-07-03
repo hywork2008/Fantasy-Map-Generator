@@ -166,7 +166,7 @@ export const StatesEditorContent: React.FC = () => {
                   style={{ pointerEvents: customizationMode === 1 ? "none" : "all" }}
                 >
                   <td>
-                    <div style={{ display: "flex" }}>
+                    <div className="d-flex">
                       {/* @ts-ignore */}
                       <FillBox
                         fill={s.color}
@@ -195,7 +195,7 @@ export const StatesEditorContent: React.FC = () => {
                   </td>
                   <td>
                     {isNeutral ? null : (
-                      <div style={{ display: "flex" }}>
+                      <div className="d-flex">
                         <span
                           data-tip="Capital name. Click to zoom"
                           className="icon-star-empty pointer"
@@ -225,7 +225,7 @@ export const StatesEditorContent: React.FC = () => {
                     </select>
                   </td>
                   <td className="hide">
-                    <div style={{ display: "flex" }}>
+                    <div className="d-flex">
                       <span
                         data-tip="Click to overview state burgs"
                         className="icon-dot-circled pointer hide"
@@ -287,7 +287,7 @@ export const StatesEditorContent: React.FC = () => {
                   </td>
                   <td>
                     {isNeutral ? null : (
-                      <div style={{ display: "flex" }}>
+                      <div className="d-flex">
                         <span
                           data-tip="Lock the state"
                           className={`stateLock ${s.isLocked ? "icon-pin" : "icon-pin-outline"} pointer`}

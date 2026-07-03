@@ -186,7 +186,7 @@ export const ProvincesEditorDialog: React.FC = () => {
                         onMouseLeave={() => provincesEditorActions.provinceHighlightOff(null)}
                         style={{ pointerEvents: customization ? "none" : "all" }}
                       >
-                        <td style={{ display: "flex" }}>
+                        <td className="d-flex">
                           <FillBox fill={p.color} onClick={() => provincesEditorActions.changeFill(p.i)} />
                           <input
                             data-tip="Province name. Click to change"
@@ -221,7 +221,7 @@ export const ProvincesEditorDialog: React.FC = () => {
                               />
                             </td>
                             <td>
-                              <div style={{ display: "flex" }}>
+                              <div className="d-flex">
                                 <span
                                   data-tip="Province capital. Click to zoom into view"
                                   className={`icon-star-empty pointer ${p.capitalId ? "" : "placeholder"}`}
@@ -249,7 +249,7 @@ export const ProvincesEditorDialog: React.FC = () => {
                         {customization !== 11 && (
                           <>
                             <td>
-                              <div style={{ display: "flex" }}>
+                              <div className="d-flex">
                                 <span
                                   data-tip="Click to overview province burgs"
                                   className="pointer"
@@ -261,7 +261,7 @@ export const ProvincesEditorDialog: React.FC = () => {
                               </div>
                             </td>
                             <td>
-                              <div style={{ display: "flex" }}>
+                              <div className="d-flex">
                                 <span data-tip="Province area" className="icon-map-o" />
                                 <div data-tip="Province area" className="biomeArea">
                                   {areaText}
@@ -269,7 +269,7 @@ export const ProvincesEditorDialog: React.FC = () => {
                               </div>
                             </td>
                             <td className="pointer" onClick={() => provincesEditorActions.changePopulation(p.i)}>
-                              <div style={{ display: "flex" }}>
+                              <div className="d-flex">
                                 <span data-tip={populationTip} className="icon-male" />
                                 <div data-tip={populationTip} className="culturePopulation">
                                   {popText}
@@ -277,7 +277,7 @@ export const ProvincesEditorDialog: React.FC = () => {
                               </div>
                             </td>
                             <td>
-                              <div style={{ display: "flex" }}>
+                              <div className="d-flex">
                                 <span
                                   data-tip="Declare province independence (turn non-capital province with burgs into a new state)"
                                   className={`icon-flag-empty ${p.isSeparable ? "" : "placeholder"} pointer`}

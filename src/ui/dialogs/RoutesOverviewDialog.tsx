@@ -221,7 +221,7 @@ export const RoutesOverviewDialog: React.FC = () => {
                     onMouseLeave={() => routeHighlightOff(route.i)}
                   >
                     <td>
-                      <div style={{ display: "flex" }}>
+                      <div className="d-flex">
                         <span
                           data-tip="Locate the route"
                           className="icon-target pointer"
@@ -237,7 +237,7 @@ export const RoutesOverviewDialog: React.FC = () => {
                       <div data-tip="Route length">{lengthStr}</div>
                     </td>
                     <td>
-                      <div style={{ display: "flex" }}>
+                      <div className="d-flex">
                         <span
                           data-tip="Edit route"
                           className="icon-pencil pointer"

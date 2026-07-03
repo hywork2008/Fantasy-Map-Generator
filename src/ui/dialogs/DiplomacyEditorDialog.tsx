@@ -51,7 +51,7 @@ export const DiplomacyEditorContent: React.FC = () => {
                     data-id={s.i}
                     data-tip={`List below shows relations to ${s.name}`}
                   >
-                    <td colSpan={2} style={{ display: "flex" }}>
+                    <td colSpan={2} className="d-flex">
                       <div>{s.fullName}</div>
                       <svg className="coaIcon" viewBox="0 0 200 200">
                         <title>Coat of Arms for {s.fullName || s.name}</title>
@@ -77,7 +77,7 @@ export const DiplomacyEditorContent: React.FC = () => {
                   onMouseEnter={() => handleMouseEnter(s.i)}
                   onMouseLeave={handleMouseLeave}
                 >
-                  <td style={{ display: "flex" }}>
+                  <td className="d-flex">
                     <svg data-tip={tipSelect} className="coaIcon" viewBox="0 0 200 200">
                       <title>Coat of Arms for {s.fullName || s.name}</title>
                       <use href={`#stateCOA${s.i}`} />
@@ -87,8 +87,7 @@ export const DiplomacyEditorContent: React.FC = () => {
                   <td>
                     <div
                       data-tip={tipChange}
-                      className="changeRelations"
-                      style={{ display: "flex" }}
+                      className="changeRelations d-flex"
                       onClick={e => {
                         e.stopPropagation();
                         handleRelationClick(s.i, selectedStateId, s.relation);
