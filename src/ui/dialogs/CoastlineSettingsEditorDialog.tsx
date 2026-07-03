@@ -20,14 +20,13 @@ export const CoastlineSettingsEditorContent: React.FC = () => {
     <>
       <div className="d-flex">
         <label
-          className="-coastline-settings-editor-dialog__display-flex--align-items-center--gap-8px--cursor- d-flex"
+          className="d-flex"
           data-tip="Enable or disable coastline fractalization. When disabled, coastlines are simple arcs between feature vertices. Enabling adds naturalistic roughness but can increase rendering time, especially at high detail levels."
         >
           <input
             type="checkbox"
             checked={enabled}
             onChange={e => coastlineSettingsActions.toggleEnabled(e.target.checked)}
-            className="-coastline-settings-editor-dialog__position-absolute--opacity-0--pointer-events-none-"
           />
           <span
             style={{
@@ -61,7 +60,7 @@ export const CoastlineSettingsEditorContent: React.FC = () => {
               const value = settings[key];
               return (
                 <tr key={id} data-tip={tip}>
-                  <td className="--white-space-nowrap">{label}</td>
+                  <td>{label}</td>
                   <td>
                     <input
                       type="range"

@@ -202,10 +202,7 @@ export const BurgGroupsEditorDialog: React.FC = () => {
         ]}
         className="fmg-dialog--auto-width fmg-dialog--overflow-hidden"
       >
-        <div
-          id="burgGroupsEditorContainer"
-          className="-burg-groups-editor-dialog__overflow-y-auto--overflow-x-hidden--max-height-60v"
-        >
+        <div id="burgGroupsEditorContainer">
           {errorMsg && <div>{errorMsg}</div>}
           <table id="burgGroupsTable" className="table">
             <thead>

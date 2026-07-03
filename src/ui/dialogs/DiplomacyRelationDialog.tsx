@@ -98,7 +98,7 @@ export const DiplomacyRelationDialog: React.FC = () => {
                 Select All / None
               </button>
             </div>
-            <div className="-diplomacy-relation-dialog__display-flex--flex-direction-column--gap-3em--max-height-300px--overflow-y-auto d-flex">
+            <div className="d-flex">
               {objectStates.map(s => (
                 <div key={s.i} data-tip={s.fullName || s.name}>
                   <label className="checkbox-label d-flex">

@@ -334,11 +334,11 @@ export const BurgsOverviewDialog: React.FC = () => {
                           <div style={{ display: "inline-block" }}>
                             <span
                               data-tip={b.capital ? "This burg is a state capital" : "This burg is NOT a state capital"}
-                              className={`icon-star-empty${b.capital ? "" : " inactive"} -burgs-overview-dialog__padding-0-1px`}
+                              className={`icon-star-empty${b.capital ? "" : " inactive"}`}
                             />
                             <span
                               data-tip={b.port ? "This burg is a port" : "This burg is NOT a port"}
-                              className={`icon-anchor${b.port ? "" : " inactive"} -burgs-overview-dialog__font-size-9em--padding-0-1px`}
+                              className={`icon-anchor${b.port ? "" : " inactive"}`}
                             />
                           </div>
                         </td>

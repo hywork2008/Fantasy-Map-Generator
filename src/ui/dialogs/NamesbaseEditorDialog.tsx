@@ -287,7 +287,6 @@ export const NamesbaseEditorContent: React.FC = () => {
           placeholder="Provide a names data: a comma separated list of source names"
           autoCorrect="off"
           spellCheck="false"
-          className="-namesbase-editor-dialog__resize-none"
           value={namesData}
           onChange={e => handleNamesDataChange(e.target.value)}
         />

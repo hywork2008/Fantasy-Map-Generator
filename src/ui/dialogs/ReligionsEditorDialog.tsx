@@ -226,10 +226,7 @@ export const ReligionsEditorDialog: React.FC = () => {
                         </td>
                         <td>
                           <div style={{ display: "flex" }}>
-                            <span
-                              data-tip="Religion area"
-                              className="-religions-editor-dialog__padding-right-4px icon-map-o"
-                            />
+                            <span data-tip="Religion area" className="icon-map-o" />
                             <div data-tip="Religion area" className="religionArea">
                               {areaText}
                             </div>

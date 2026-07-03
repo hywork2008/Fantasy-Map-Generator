@@ -13,7 +13,7 @@ export const StyleSaverDialog: React.FC = () => {
     <Dialog isOpen={isOpen} title="StyleSaver" onClose={() => closeDialog("styleSaver")}>
       <div id="styleSaverContainer">
         <div>
-          <div id="styleSaverHeader" className="-style-saver-dialog__padding-2px-0">
+          <div id="styleSaverHeader">
             <span>Preset name:</span>
             <input
               id="styleSaverName"

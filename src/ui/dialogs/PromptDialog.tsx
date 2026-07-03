@@ -55,9 +55,8 @@ export const PromptDialog: React.FC = () => {
         { label: "Cancel", onClick: handleClose },
         { label: "OK", onClick: handleConfirm }
       ]}
-      className="-prompt-dialog__min-width-300--z-index-1000"
     >
-      <div className="-prompt-dialog__margin-bottom-12">{config.message}</div>
+      <div>{config.message}</div>
       <input
         ref={inputRef}
         type={isNumber ? "number" : "text"}

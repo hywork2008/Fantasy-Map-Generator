@@ -58,7 +58,7 @@ export const OptionsContainer: React.FC = () => {
   };
 
   return (
-    <div id="optionsContainer" className="-options-container__opacity-1--pointer-events-auto">
+    <div id="optionsContainer">
       <div id="options" ref={containerRef} style={{ width: `${uiSize * 300}px` }} onMouseDownCapture={bringToFront}>
         <div className="tab">
           <button

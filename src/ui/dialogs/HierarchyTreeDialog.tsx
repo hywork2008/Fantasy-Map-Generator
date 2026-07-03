@@ -46,7 +46,7 @@ const OriginSelector: React.FC<OriginSelectorProps> = ({ selectedNode, elements,
   return (
     <div className="hierarchyTree_originSelector" style={{ display: isOpen ? "block" : "none" }}>
       <h4>Select origins</h4>
-      <form className="-hierarchy-tree-dialog__max-height-35vh--overflow-y-auto">
+      <form>
         {selectableElements.map(({ i, name, code, color }) => {
           const isPrimary = primary === i;
           const isChecked = isPrimary || secondary.includes(i);
@@ -132,10 +132,7 @@ export const HierarchyTreeDialog: React.FC = () => {
       <div className="hierarchyTree_container">
         <svg ref={svgRef}>
           <title>{props.type} tree</title>
-          <g
-            id="hierarchyTree_viewbox"
-            className="-hierarchy-tree-dialog__text-anchor-middle--dominant-baseline-central"
-          >
+          <g id="hierarchyTree_viewbox">
             <g transform="translate(10, -45)">
               <g id="hierarchyTree_links" fill="none" stroke="#aaa">
                 <g id="hierarchyTree_linksPrimary"></g>

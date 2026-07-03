@@ -168,7 +168,7 @@ export const RoutesEditorDialog: React.FC = () => {
             />
           </div>
 
-          <div id="routeCreatorBody" className="-routes-editor-dialog__max-height-400px--overflow-y-auto--margin-1em-0">
+          <div id="routeCreatorBody">
             {creatorPoints.map(pt => {
               const ptStr = `${pt.x}-${pt.y}-${pt.cellId}`;
               return (

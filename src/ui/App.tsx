@@ -21,11 +21,7 @@ export const App = () => {
   );
 
   return (
-    <div
-      id="react-ui-container"
-      className="-app__pointer-events-none--position-absolute--top-0--lef"
-      onMouseMove={handleMouseMove}
-    >
+    <div id="react-ui-container" onMouseMove={handleMouseMove}>
       <ToastContainer />
 
       <DialogsContainer />
@@ -39,11 +35,7 @@ export const App = () => {
       <NotesBox />
 
       {/* Development Overlay */}
-      {import.meta.env.DEV && (
-        <div className="-app__position-absolute--bottom-10--right-10--padding-5p">
-          {openDialogs.length > 0 && ` | Open Dialogs: ${openDialogs.join(", ")}`}
-        </div>
-      )}
+      {import.meta.env.DEV && <div>{openDialogs.length > 0 && ` | Open Dialogs: ${openDialogs.join(", ")}`}</div>}
     </div>
   );
 };

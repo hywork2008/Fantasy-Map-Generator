@@ -384,12 +384,7 @@ export const RegimentSelectorScreenDialog: React.FC = () => {
                   style={{ cursor: isAdded ? "default" : "pointer" }}
                 >
                   <td>
-                    <svg
-                      width=".9em"
-                      height=".9em"
-                      className="-battle-screen-dialog__margin-bottom-1px--stroke-333"
-                      aria-label={s.name ?? ""}
-                    >
+                    <svg width=".9em" height=".9em" aria-label={s.name ?? ""}>
                       <rect x="0" y="0" width="100%" height="100%" fill={s.color ?? "#999"} />
                     </svg>
                     {(s.name ?? "").slice(0, 11)}

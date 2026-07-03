@@ -252,7 +252,7 @@ export const ProvincesEditorDialog: React.FC = () => {
                               <div style={{ display: "flex" }}>
                                 <span
                                   data-tip="Click to overview province burgs"
-                                  className="-provinces-editor-dialog__padding-right-1px icon-dot-circled pointer"
+                                  className="pointer"
                                   onClick={() => provincesEditorActions.overviewBurgs(p.stateId)}
                                 />
                                 <div data-tip="Burgs count" className="provinceBurgs">
@@ -262,10 +262,7 @@ export const ProvincesEditorDialog: React.FC = () => {
                             </td>
                             <td>
                               <div style={{ display: "flex" }}>
-                                <span
-                                  data-tip="Province area"
-                                  className="-provinces-editor-dialog__padding-right-4px icon-map-o"
-                                />
+                                <span data-tip="Province area" className="icon-map-o" />
                                 <div data-tip="Province area" className="biomeArea">
                                   {areaText}
                                 </div>

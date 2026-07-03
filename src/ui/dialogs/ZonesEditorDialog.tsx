@@ -262,7 +262,7 @@ export const ZonesEditorContent: React.FC = () => {
         ) : (
           <div className="d-inline-flex">
             <div>
-              <span className="-zones-editor-dialog__font-size-11px--margin-right-4px">Brush size:</span>
+              <span>Brush size:</span>
               <SliderInput
                 min={1}
                 max={100}

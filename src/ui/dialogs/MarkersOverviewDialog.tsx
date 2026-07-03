@@ -193,10 +193,7 @@ export const MarkersOverviewDialog: React.FC = () => {
         <div id="markersFooter" className="fmg-dialog-footer">
           <button type="button" data-tip="Refresh the Overview screen" className="icon-cw" onClick={refresh} />
           <input type="hidden" id="addedMarkerType" name="addedMarkerType" defaultValue={addedMarkerType} />
-          <span
-            id="markerTypeSelectorWrapper"
-            className="-markers-overview-dialog__position-relative--display-inline-block d-inline-block"
-          >
+          <span id="markerTypeSelectorWrapper" className="d-inline-block">
             <button
               type="button"
               data-tip="Select marker type for newly added markers."
@@ -205,11 +202,7 @@ export const MarkersOverviewDialog: React.FC = () => {
               {addedMarkerIcon}
             </button>
             {typeMenuOpen && (
-              <div
-                ref={menuRef}
-                id="markerTypeSelectMenu"
-                className="visible -markers-overview-dialog__position-absolute--z-index-10--background-fff--bor"
-              >
+              <div ref={menuRef} id="markerTypeSelectMenu" className="visible">
                 {markerTypes.map(({ icon, type }) => (
                   <button key={type} type="button" className="d-block" onClick={() => setAddedMarkerType(type, icon)}>
                     {icon} {type}

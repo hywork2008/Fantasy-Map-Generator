@@ -512,7 +512,7 @@ export const WorldConfiguratorDialog: React.FC = () => {
               </button>
             </div>
           </div>
-          <div className="-world-configurator-dialog__margin-top-0-3em">
+          <div>
             <i>Presets:</i>
             <button
               type="button"

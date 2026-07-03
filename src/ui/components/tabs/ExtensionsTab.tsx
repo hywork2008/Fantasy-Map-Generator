@@ -125,7 +125,6 @@ export const ExtensionsTab: React.FC = () => {
                       type="checkbox"
                       checked={isEnabled}
                       onChange={() => handleToggle(meta.id, isEnabled, meta.builtin)}
-                      className="-extensions-tab__opacity-0--width-0--height-0"
                     />
                     <span style={{ background: isEnabled ? "#4a9e4a" : "#aaa", cursor: "pointer" }} />
                     <span

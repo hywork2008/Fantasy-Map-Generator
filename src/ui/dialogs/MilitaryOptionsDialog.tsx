@@ -156,11 +156,7 @@ export const MilitaryOptionsDialog: React.FC = () => {
                             }}
                           >
                             {icon?.startsWith("http") || icon?.startsWith("data:image") ? (
-                              <img
-                                src={icon}
-                                className="-military-options-dialog__width-1-2em--height-1-2em--pointer-events-none"
-                                alt=""
-                              />
+                              <img src={icon} alt="" />
                             ) : (
                               icon || ""
                             )}

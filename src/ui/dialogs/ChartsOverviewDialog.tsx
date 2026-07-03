@@ -70,7 +70,7 @@ const ChartFigure: React.FC<ChartFigureProps> = ({ chart, figureNo, onRemove }) 
 
   return (
     <figure className="d-flex">
-      <div ref={containerRef} className="-charts-overview-dialog__flex-1--min-height-0--overflow-auto" />
+      <div ref={containerRef} />
       <figcaption className="d-flex">
         <div>
           <strong>Figure {figureNo}</strong>. {chart.title}
@@ -147,7 +147,7 @@ export const ChartsOverviewDialog: React.FC = () => {
       className="fmg-dialog--overflow-hidden"
       style={{ display: "flex" }}
     >
-      <div className="-charts-overview-dialog__display-grid--grid-template-rows-auto-1fr--overflow-hidden--flex-1--padding-0-5e d-grid">
+      <div>
         <form
           onSubmit={e => {
             e.preventDefault();

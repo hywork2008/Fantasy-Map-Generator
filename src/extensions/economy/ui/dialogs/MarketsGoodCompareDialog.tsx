@@ -91,7 +91,7 @@ export const MarketsGoodCompareDialog: React.FC = () => {
                 <th />
                 <th
                   data-tip="Market center burg name. Click to sort"
-                  className={`sortable alphabetically ${getSortIcon("market", true)} -markets-good-compare-dialog__margin-left-0`}
+                  className={`sortable alphabetically ${getSortIcon("market", true)}`}
                   onClick={() => setSorting("market")}
                 >
                   Market&nbsp;

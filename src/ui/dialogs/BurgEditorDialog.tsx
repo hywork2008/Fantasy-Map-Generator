@@ -245,7 +245,7 @@ export const BurgEditorDialog: React.FC = () => {
                 ></i>
               </div>
             </div>
-            <div id="burgPreviewObject" className="-burg-editor-dialog__pointer-events-none">
+            <div id="burgPreviewObject">
               <object data={burgData.previewUrl} aria-label="Burg Map Preview" />
             </div>
           </div>

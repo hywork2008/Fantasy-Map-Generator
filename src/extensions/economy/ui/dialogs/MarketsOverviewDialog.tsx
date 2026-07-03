@@ -156,7 +156,7 @@ export const MarketsOverviewDialog: React.FC = () => {
                 <th />
                 <th
                   data-tip="Market center burg name. Click to sort"
-                  className={`sortable alphabetically ${getSortIcon("market", true)} -markets-overview-dialog__margin-left-0`}
+                  className={`sortable alphabetically ${getSortIcon("market", true)}`}
                   onClick={() => marketsOverviewActions.setSorting("market")}
                 >
                   Market&nbsp;
@@ -348,7 +348,7 @@ export const MarketsOverviewDialog: React.FC = () => {
                           <td>
                             <span
                               data-tip="Remove this market"
-                              className="icon-trash-empty hiddenIcon -markets-overview-dialog__visibility-hidden"
+                              className="icon-trash-empty hiddenIcon"
                               onClick={e => handleRemoveClick(e, m.i)}
                             />
                           </td>

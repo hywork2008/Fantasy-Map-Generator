@@ -1232,147 +1232,6 @@ body.tour-free-roam * {
   cursor: pointer;
 }
 
-.-markets-overview-dialog__visibility-hidden {
-  visibility: hidden;
-}
-
-.-production-chains-dialog__overflow-auto {
-  overflow: auto;
-}
-
-/* Dialogs overlay: spans the whole map, passes clicks through.
-   width/height are structural — dialog positioning (top/left 50%) resolves
-   against this box. */
-.-app__pointer-events-none--position-absolute--top-0--lef {
-  pointer-events: none;
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 1000;
-}
-
-.-app__position-absolute--bottom-10--right-10--padding-5p {
-  position: absolute;
-  bottom: 10;
-  right: 10;
-}
-
-.-exit-customization__display-none--pointer-events-auto {
-  pointer-events: auto;
-}
-
-.-fill-box__vertical-align-middle--pointer-events-none {
-  pointer-events: none;
-}
-
-.-options-container__opacity-1--pointer-events-auto {
-  pointer-events: auto;
-}
-
-.-extensions-tab__position-relative--display-inline-block--width-36p {
-  position: relative;
-}
-
-.-extensions-tab__opacity-0--width-0--height-0 {
-  opacity: 0;
-}
-
-.-alert-dialog__min-width-350--z-index-1000 {
-  z-index: 1000;
-}
-
-.-battle-screen-dialog__margin-bottom-1px--stroke-333 {
-  stroke: #333;
-}
-
-.-burg-editor-dialog__pointer-events-none {
-  pointer-events: none;
-}
-
-.-burg-groups-editor-dialog__overflow-y-auto--overflow-x-hidden--max-height-60v {
-  overflow-y: auto;
-  overflow-x: hidden;
-}
-
-.-charts-overview-dialog__flex-1--min-height-0--overflow-auto {
-  overflow: auto;
-}
-
-.-coastline-settings-editor-dialog__display-flex--align-items-center--gap-8px--cursor- {
-  cursor: pointer;
-  user-select: none;
-}
-
-.-coastline-settings-editor-dialog__position-absolute--opacity-0--pointer-events-none- {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.-cultures-editor-dialog__visibility-hidden {
-  visibility: hidden;
-}
-
-.-dialogs-container__pointer-events-none {
-  pointer-events: none;
-}
-
-.-hierarchy-tree-dialog__max-height-35vh--overflow-y-auto {
-  overflow-y: auto;
-}
-
-.-hierarchy-tree-dialog__text-anchor-middle--dominant-baseline-central {
-  text-anchor: middle;
-  dominant-baseline: central;
-}
-
-.-marker-config-dialog__position-relative {
-  position: relative;
-}
-
-.-markers-overview-dialog__position-relative--display-inline-block {
-  position: relative;
-}
-
-.-markers-overview-dialog__position-absolute--z-index-10--background-fff--bor {
-  position: absolute;
-  z-index: 10;
-}
-
-.-namesbase-editor-dialog__resize-none {
-  resize: none;
-}
-
-.-prompt-dialog__min-width-300--z-index-1000 {
-  z-index: 1000;
-}
-
-.-routes-editor-dialog__max-height-400px--overflow-y-auto--margin-1em-0 {
-  overflow-y: auto;
-}
-
-.-states-editor-dialog__max-height-400px--overflow-y-auto {
-  overflow-y: auto;
-}
-
-.-upstream-about-content__width-0-8em--display-inline-block--padding-0-0-2em--fill-white {
-  fill: white;
-}
-
-.-charts-overview-dialog__display-grid--grid-template-rows-auto-1fr--overflow-hidden--flex-1--padding-0-5e {
-  overflow: hidden;
-}
-
-.-diplomacy-relation-dialog__display-flex--flex-direction-column--gap-3em--max-height-300px--overflow-y-auto {
-  overflow-y: auto;
-}
-
-.-military-options-dialog__width-1-2em--height-1-2em--pointer-events-none {
-  pointer-events: none;
-}
-
 /* display utilities (shared by refactored components).
    Must stay at the end of the file: they share specificity with component
    classes (e.g. .tabcontent { display: none }) and win only by source order.
@@ -1400,4 +1259,8 @@ body.tour-free-roam * {
 
 .d-grid {
   display: grid;
+}
+
+.alert-dialog {
+  z-index: 1000;
 }

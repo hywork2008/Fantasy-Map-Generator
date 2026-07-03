@@ -31,12 +31,12 @@ export const TradeAnimationDialog: React.FC = () => {
           <SliderInput id="tradeAnimationLandModifier" min="1" max="20" step="1" value="5" onChange={() => {}} />
         </div>
 
-        <div data-tip="Pause duration at segment boundaries (ms)" className="-trade-animation-dialog__margin-top-0-4em">
+        <div data-tip="Pause duration at segment boundaries (ms)">
           <label htmlFor="tradeAnimationSegmentPause">Segment pause (ms):</label>
           <SliderInput id="tradeAnimationSegmentPause" min="0" max="5000" step="100" value="1000" onChange={() => {}} />
         </div>
 
-        <div data-tip="Size of trade markers in pixels" className="-trade-animation-dialog__margin-top-0-4em">
+        <div data-tip="Size of trade markers in pixels">
           <label htmlFor="tradeAnimationMarkerSize">Marker size:</label>
           <SliderInput id="tradeAnimationMarkerSize" min="1" max="20" step="1" value="4" onChange={() => {}} />
         </div>

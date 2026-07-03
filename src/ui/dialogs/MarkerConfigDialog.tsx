@@ -110,7 +110,7 @@ export const MarkerConfigDialog: React.FC = () => {
               <td>
                 <input className="type" value={row.type} onChange={e => handleTypeChange(index, e.target.value)} />
               </td>
-              <td className="-marker-config-dialog__position-relative">
+              <td>
                 {row.isExternal ? (
                   <img className="image" src={row.icon} alt="" />
                 ) : (

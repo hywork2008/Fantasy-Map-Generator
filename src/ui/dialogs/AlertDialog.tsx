@@ -68,7 +68,7 @@ export const AlertDialog: React.FC<{ config: DialogConfig | null }> = ({ config 
       title={config.title || "Alert"}
       onClose={handleClose}
       buttons={buttons}
-      className="-alert-dialog__min-width-350--z-index-1000"
+      className="alert-dialog"
     >
       {config.type === "rich" ? (
         // biome-ignore lint/security/noDangerouslySetInnerHtml: alert content is app-controlled

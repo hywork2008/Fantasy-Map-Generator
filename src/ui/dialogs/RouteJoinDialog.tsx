@@ -31,11 +31,7 @@ export const RouteJoinDialog: React.FC = () => {
     >
       <div>
         Route to join with:
-        <select
-          value={currentId ?? ""}
-          onChange={e => setSelectedId(Number(e.target.value))}
-          className="-route-join-dialog__margin-left-0-5em"
-        >
+        <select value={currentId ?? ""} onChange={e => setSelectedId(Number(e.target.value))}>
           {options.map(opt => (
             <option key={opt.id} value={opt.id}>
               {opt.name} ({opt.length})

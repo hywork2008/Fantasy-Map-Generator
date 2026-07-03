@@ -185,7 +185,7 @@ export const CulturesEditorDialog: React.FC = () => {
                       ) : (
                         <span
                           data-tip="Regenerate culture name"
-                          className="icon-cw hiddenIcon -cultures-editor-dialog__visibility-hidden"
+                          className="icon-cw hiddenIcon"
                           onClick={() => culturesEditorActions.regenerateName(c.i)}
                         />
                       )}
@@ -254,7 +254,7 @@ export const CulturesEditorDialog: React.FC = () => {
                       </div>
                     </td>
                     <td className="hide">
-                      <span data-tip="Culture area" className="-cultures-editor-dialog__padding-right-4px icon-map-o" />
+                      <span data-tip="Culture area" />
                       <div data-tip="Culture area" className="cultureArea" style={{ display: "inline-block" }}>
                         {areaText}
                       </div>

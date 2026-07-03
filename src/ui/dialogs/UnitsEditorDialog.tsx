@@ -44,8 +44,8 @@ export const UnitsEditorDialog: React.FC = () => {
     <Dialog isOpen={isOpen} title="Units Editor" onClose={() => closeDialog("unitsEditor")}>
       <div id="unitsEditorContainer">
         <div>
-          <div id="unitsBody" className="-units-editor-dialog__margin-left-1-1em">
-            <div className="unitsHeader -units-editor-dialog__margin-top-0-4em">
+          <div id="unitsBody">
+            <div>
               <span className="icon-map-signs" />
               <span>Distance:</span>
             </div>
