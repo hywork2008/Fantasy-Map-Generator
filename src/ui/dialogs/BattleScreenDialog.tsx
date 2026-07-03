@@ -46,7 +46,7 @@ const SHARED_FIELD: PhaseOption[] = [
 const SHARED_NAVAL: PhaseOption[] = [
   { phase: "shelling", tip: "Shelling phase. Naval artillery bombardment of enemy fleet" },
   { phase: "boarding", tip: "Boarding phase. Melee units go aboard" },
-  { phase: "chase", tip: "Сhase phase. Naval units pursue and rarely shell enemy fleet" },
+  { phase: "chase", tip: "Chase phase. Naval units pursue and rarely shell enemy fleet" },
   { phase: "withdrawal", tip: "Withdrawal phase. Naval units try to escape enemy fleet" }
 ];
 

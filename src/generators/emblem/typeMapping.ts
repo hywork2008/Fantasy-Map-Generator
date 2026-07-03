@@ -165,7 +165,7 @@ export const typeMapping: Record<string, Record<string, number>> = {
     scaleImbalanced: 1,
     scalesHanging: 1
   },
-  Сathedra: {
+  Cathedra: {
     crossHummetty: 3,
     mitre: 3,
     chalice: 1,
