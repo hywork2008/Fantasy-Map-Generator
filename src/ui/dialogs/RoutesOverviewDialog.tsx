@@ -12,6 +12,7 @@ import { useOptionsState } from "../../store/optionsState";
 import { useRoutesOverviewState } from "../../store/routesOverviewState";
 import { rn } from "../../utils";
 import { layerIsOn } from "../../utils/nodeUtils";
+import { IconButton } from "../components/IconButton";
 import { Dialog } from "./Dialog";
 import { closeDialog, openConfirm } from "./dialogService";
 
@@ -222,7 +223,7 @@ export const RoutesOverviewDialog: React.FC = () => {
                   >
                     <td>
                       <div className="d-flex">
-                        <span
+                        <IconButton
                           data-tip="Locate the route"
                           className="icon-target pointer"
                           onClick={() => handleZoomToRoute(route.i)}
@@ -238,17 +239,17 @@ export const RoutesOverviewDialog: React.FC = () => {
                     </td>
                     <td>
                       <div className="d-flex">
-                        <span
+                        <IconButton
                           data-tip="Edit route"
                           className="icon-pencil pointer"
                           onClick={() => handleOpenEditor(route.i)}
                         />
-                        <span
+                        <IconButton
                           className={`locks pointer ${route.lock ? "icon-lock" : "icon-lock-open inactive"}`}
                           data-tip="Toggle lock status"
                           onClick={() => handleToggleLock(route.i)}
                         />
-                        <span
+                        <IconButton
                           data-tip="Remove route"
                           className="icon-trash-empty pointer"
                           onClick={() => handleRemoveRoute(route.i)}

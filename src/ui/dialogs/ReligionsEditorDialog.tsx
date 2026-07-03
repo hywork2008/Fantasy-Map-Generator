@@ -5,6 +5,7 @@ import { useReligionsEditorState } from "../../store/religionsEditorState";
 import { rn, si } from "../../utils";
 import { getAreaUnit } from "../../utils/domUtils";
 import { FillBox } from "../components/FillBox";
+import { IconButton } from "../components/IconButton";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
@@ -209,7 +210,7 @@ export const ReligionsEditorDialog: React.FC = () => {
                       <>
                         <td>
                           <div className="d-flex">
-                            <span
+                            <IconButton
                               data-tip="Click to re-generate supreme deity"
                               className={`icon-arrows-cw pointer ${r.i ? "" : "placeholder"}`}
                               onClick={() => r.i && religionsEditorActions.regenerateDeity(r.i)}
@@ -318,17 +319,17 @@ export const ReligionsEditorDialog: React.FC = () => {
                         <td>
                           {r.i ? (
                             <div className="d-flex">
-                              <span
+                              <IconButton
                                 data-tip="Locate the religion"
                                 className="icon-target pointer"
                                 onClick={() => religionsEditorActions.highlightReligion(r.i)}
                               />
-                              <span
+                              <IconButton
                                 data-tip="Lock this religion"
                                 className={`icon-lock${r.lock ? "" : "-open"} pointer`}
                                 onClick={() => religionsEditorActions.updateLockStatus(r.i)}
                               />
-                              <span
+                              <IconButton
                                 data-tip="Remove religion"
                                 className="icon-trash-empty pointer"
                                 onClick={() => religionsEditorActions.triggerRemove(r.i)}

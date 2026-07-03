@@ -1,6 +1,7 @@
 import type React from "react";
 import { coastlineEditorActions } from "../../controllers/coastline-editor";
 import { useCoastlineEditorState } from "../../store/coastlineEditorState";
+import { IconButton } from "../components/IconButton";
 
 export const CoastlineEditorContent: React.FC = () => {
   const { isGroupSectionVisible, isNewGroupInputVisible, group, groupOptions, newGroupName, areaUI } =
@@ -49,20 +50,19 @@ export const CoastlineEditorContent: React.FC = () => {
             if (e.key === "Enter") coastlineEditorActions.createNewGroup();
           }}
         />
-        <span
+        <IconButton
           id="coastlineGroupAdd"
           data-tip="Create a new group for this coastline"
           className="icon-plus pointer"
           onClick={coastlineEditorActions.toggleNewGroupInput}
-        ></span>
-        <span
+        ></IconButton>
+        <IconButton
           id="coastlineGroupRemove"
           data-tip="Remove the group"
           className="icon-trash-empty pointer"
           onClick={coastlineEditorActions.removeGroup}
-        ></span>
+        ></IconButton>
       </div>
-
       <button
         id="coastlineEditStyle"
         data-tip="Edit coastline group style in Style Editor"

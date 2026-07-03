@@ -13,6 +13,7 @@ import { dialogStore, useDialogState } from "../../store/dialogState";
 import { useMilitaryOverviewState } from "../../store/militaryOverviewState";
 import { capitalize, rn, si, wiki } from "../../utils";
 import { FillBox } from "../components/FillBox";
+import { IconButton } from "../components/IconButton";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
@@ -255,7 +256,7 @@ export const MilitaryOverviewDialog: React.FC = () => {
                     />
                   </td>
                   <td>
-                    <span
+                    <IconButton
                       data-tip="Show regiments list"
                       className="icon-list-bullet pointer"
                       onClick={() => overviewRegiments(l.id)}

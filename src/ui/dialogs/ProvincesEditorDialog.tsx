@@ -6,6 +6,7 @@ import { useProvincesEditorState } from "../../store/provincesEditorState";
 import { rn, si } from "../../utils";
 import { getAreaUnit } from "../../utils/domUtils";
 import { FillBox } from "../components/FillBox";
+import { IconButton } from "../components/IconButton";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
@@ -222,7 +223,7 @@ export const ProvincesEditorDialog: React.FC = () => {
                             </td>
                             <td>
                               <div className="d-flex">
-                                <span
+                                <IconButton
                                   data-tip="Province capital. Click to zoom into view"
                                   className={`icon-star-empty pointer ${p.capitalId ? "" : "placeholder"}`}
                                   onClick={() => p.capitalId && provincesEditorActions.capitalZoomIn(p.i)}
@@ -250,7 +251,7 @@ export const ProvincesEditorDialog: React.FC = () => {
                           <>
                             <td>
                               <div className="d-flex">
-                                <span
+                                <IconButton
                                   data-tip="Click to overview province burgs"
                                   className="pointer"
                                   onClick={() => provincesEditorActions.overviewBurgs(p.stateId)}
@@ -278,29 +279,29 @@ export const ProvincesEditorDialog: React.FC = () => {
                             </td>
                             <td>
                               <div className="d-flex">
-                                <span
+                                <IconButton
                                   data-tip="Declare province independence (turn non-capital province with burgs into a new state)"
                                   className={`icon-flag-empty ${p.isSeparable ? "" : "placeholder"} pointer`}
                                   onClick={() =>
                                     p.isSeparable && provincesEditorActions.triggerIndependencePrompts(p.i)
                                   }
                                 />
-                                <span
+                                <IconButton
                                   data-tip="Locate the province"
                                   className="icon-target pointer"
                                   onClick={() => provincesEditorActions.highlightElement(p.i)}
                                 />
-                                <span
+                                <IconButton
                                   data-tip="Toggle province focus"
                                   className={`icon-pin ${p.isFocused ? "" : "inactive"} pointer`}
                                   onClick={() => provincesEditorActions.toggleFog(p.i)}
                                 />
-                                <span
+                                <IconButton
                                   data-tip="Lock the province"
                                   className={`icon-lock${p.isLocked ? "" : "-open"} pointer`}
                                   onClick={() => provincesEditorActions.updateLockStatus(p.i)}
                                 />
-                                <span
+                                <IconButton
                                   data-tip="Remove the province"
                                   className="icon-trash-empty pointer"
                                   onClick={() => provincesEditorActions.removeProvince(p.i)}

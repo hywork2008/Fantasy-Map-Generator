@@ -6,6 +6,7 @@ import { useCulturesEditorState } from "../../store/culturesEditorState";
 import { capitalize, rn, si } from "../../utils";
 import { getAreaUnit } from "../../utils/domUtils";
 import { FillBox } from "../components/FillBox";
+import { IconButton } from "../components/IconButton";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
@@ -183,7 +184,7 @@ export const CulturesEditorDialog: React.FC = () => {
                       {isNeutral ? (
                         <span className="icon-cw placeholder" />
                       ) : (
-                        <span
+                        <IconButton
                           data-tip="Regenerate culture name"
                           className="icon-cw hiddenIcon"
                           onClick={() => culturesEditorActions.regenerateName(c.i)}
@@ -207,7 +208,7 @@ export const CulturesEditorDialog: React.FC = () => {
                     </td>
                     <td>
                       <div className="d-flex">
-                        <span
+                        <IconButton
                           data-tip="Click to re-generate names for burgs with this culture assigned"
                           className={`icon-arrows-cw hide${isNeutral ? "" : ""}`}
                           onClick={() => !isNeutral && culturesEditorActions.regenerateBurgs(c.i)}
@@ -284,17 +285,17 @@ export const CulturesEditorDialog: React.FC = () => {
                     <td className="hide">
                       {!isNeutral && (
                         <>
-                          <span
+                          <IconButton
                             data-tip="Locate the culture"
                             className="icon-target"
                             onClick={() => culturesEditorActions.highlightCulture(c.i)}
                           />
-                          <span
+                          <IconButton
                             data-tip="Lock culture"
                             className={`icon-lock${c.lock ? "" : "-open"}`}
                             onClick={() => culturesEditorActions.updateLockStatus(c.i)}
                           />
-                          <span
+                          <IconButton
                             data-tip="Remove culture"
                             className="icon-trash-empty"
                             onClick={() => culturesEditorActions.triggerRemove(c.i)}

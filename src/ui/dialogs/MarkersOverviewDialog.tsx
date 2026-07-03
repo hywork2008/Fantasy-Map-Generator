@@ -18,6 +18,7 @@ import { Markers } from "../../generators/markers-generator";
 import { showElementLockTip } from "../../services/tooltipService";
 import { useDialogState } from "../../store/dialogState";
 import { useMarkersOverviewState } from "../../store/markersOverviewState";
+import { IconButton } from "../components/IconButton";
 import { Dialog } from "./Dialog";
 import { closeDialog, openConfirm } from "./dialogService";
 
@@ -138,26 +139,26 @@ export const MarkersOverviewDialog: React.FC = () => {
                     <div data-tip="Marker type">{type}</div>
                   </td>
                   <td>
-                    <span
+                    <IconButton
                       className={`icon-pin pointer${pinned ? "" : " inactive"}`}
                       data-tip="Pin marker (display only pinned markers)"
                       onClick={() => handlePinClick(i)}
                     />
                   </td>
                   <td>
-                    <span
+                    <IconButton
                       className={`locks pointer${lock ? " icon-lock" : " icon-lock-open inactive"}`}
                       onMouseOver={e => showElementLockTip(e.nativeEvent)}
                       onClick={() => handleLockClick(i)}
                     />
                   </td>
                   <td>
-                    <span
+                    <IconButton
                       className="icon-target pointer"
                       data-tip="Locate the marker"
                       onClick={() => markerHighlightById(i)}
                     />
-                    <span
+                    <IconButton
                       className="icon-pencil pointer"
                       data-tip="Edit marker"
                       onClick={() => {
@@ -165,7 +166,7 @@ export const MarkersOverviewDialog: React.FC = () => {
                         editMarker(i);
                       }}
                     />
-                    <span
+                    <IconButton
                       data-tip="Remove marker"
                       className="icon-trash-empty pointer"
                       onClick={() => handleRemove(i)}

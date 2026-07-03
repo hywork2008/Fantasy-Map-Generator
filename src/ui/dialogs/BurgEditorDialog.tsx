@@ -3,6 +3,7 @@ import { burgEditorActions } from "../../controllers/burg-editor";
 import { showElementLockTip } from "../../services/tooltipService";
 import { useBurgEditorState } from "../../store/burgEditorState";
 import { useDialogState } from "../../store/dialogState";
+import { IconButton } from "../components/IconButton";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
@@ -53,12 +54,12 @@ export const BurgEditorDialog: React.FC = () => {
                   <span data-tip="Speak the name. You can change voice and language in options" className="speaker">
                     🔊
                   </span>
-                  <span
+                  <IconButton
                     id="burgNameReRandom"
                     data-tip="Generate random name for the burg"
                     className="icon-globe pointer"
                     onClick={() => burgEditorActions.generateNameRandom()}
-                  ></span>
+                  ></IconButton>
                 </td>
               </tr>
               <tr data-tip="Select burg group. Groups defines burg icon, label size and style">
@@ -75,12 +76,12 @@ export const BurgEditorDialog: React.FC = () => {
                       </option>
                     ))}
                   </select>
-                  <span
+                  <IconButton
                     id="burgGroupConfigure"
                     data-tip="Configure burg groups"
                     className="icon-cog pointer"
                     onClick={() => burgEditorActions.editBurgGroups()}
-                  ></span>
+                  ></IconButton>
                 </td>
               </tr>
               <tr data-tip="Select burg type. Type slightly affects emblem generation">
@@ -115,12 +116,12 @@ export const BurgEditorDialog: React.FC = () => {
                       </option>
                     ))}
                   </select>
-                  <span
+                  <IconButton
                     id="burgNameReCulture"
                     data-tip="Generate culture-specific name for the burg"
                     className="icon-book pointer"
                     onClick={() => burgEditorActions.generateNameCulture()}
-                  ></span>
+                  ></IconButton>
                 </td>
               </tr>
               <tr data-tip="Set burg population">
@@ -184,48 +185,48 @@ export const BurgEditorDialog: React.FC = () => {
               <tr>
                 <th scope="row">Features:</th>
                 <td>
-                  <span
+                  <IconButton
                     id="burgCapital"
                     data-tip="Shows whether the burg is a state capital. Click to toggle"
                     className={`burgFeature icon-star pointer ${!burgData.capital ? "inactive" : ""}`}
                     onClick={() => burgEditorActions.toggleFeature("capital")}
-                  ></span>
-                  <span
+                  ></IconButton>
+                  <IconButton
                     id="burgPort"
                     data-tip="Shows whether the burg is a port. Click to toggle"
                     className={`burgFeature icon-anchor pointer ${!burgData.port ? "inactive" : ""}`}
                     onClick={() => burgEditorActions.toggleFeature("port")}
-                  ></span>
-                  <span
+                  ></IconButton>
+                  <IconButton
                     id="burgCitadel"
                     data-tip="Shows whether the burg has a citadel (castle). Click to toggle"
                     className={`burgFeature icon-chess-rook pointer ${!burgData.citadel ? "inactive" : ""}`}
                     onClick={() => burgEditorActions.toggleFeature("citadel")}
-                  ></span>
-                  <span
+                  ></IconButton>
+                  <IconButton
                     id="burgWalls"
                     data-tip="Shows whether the burg is walled. Click to toggle"
                     className={`burgFeature icon-fort-awesome pointer ${!burgData.walls ? "inactive" : ""}`}
                     onClick={() => burgEditorActions.toggleFeature("walls")}
-                  ></span>
-                  <span
+                  ></IconButton>
+                  <IconButton
                     id="burgPlaza"
                     data-tip="Shows whether the burg is a trade center (has big marketplace). Click to toggle"
                     className={`burgFeature icon-store pointer ${!burgData.plaza ? "inactive" : ""}`}
                     onClick={() => burgEditorActions.toggleFeature("plaza")}
-                  ></span>
-                  <span
+                  ></IconButton>
+                  <IconButton
                     id="burgTemple"
                     data-tip="Shows whether the burg is a religious center. Click to toggle"
                     className={`burgFeature icon-chess-bishop pointer ${!burgData.temple ? "inactive" : ""}`}
                     onClick={() => burgEditorActions.toggleFeature("temple")}
-                  ></span>
-                  <span
+                  ></IconButton>
+                  <IconButton
                     id="burgShanty"
                     data-tip="Shows whether the burg has a shanty town. Click to toggle"
                     className={`burgFeature icon-campground pointer ${!burgData.shanty ? "inactive" : ""}`}
                     onClick={() => burgEditorActions.toggleFeature("shanty")}
-                  ></span>
+                  ></IconButton>
                 </td>
               </tr>
             </tbody>
@@ -251,7 +252,6 @@ export const BurgEditorDialog: React.FC = () => {
           </div>
         )}
       </div>
-
       <div id="burgFooter">
         {isStyleSectionOpen ? (
           <div id="burgStyleSection" className="d-inline-block">

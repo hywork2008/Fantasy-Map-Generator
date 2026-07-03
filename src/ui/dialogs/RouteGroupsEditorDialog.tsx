@@ -4,6 +4,7 @@ import { refreshRouteGroups, routeGroupsAddGroup, routeGroupsRemoveGroup } from 
 import { editStyle } from "../../controllers/style";
 import { useDialogState } from "../../store/dialogState";
 import { useRouteGroupsEditorStore } from "../../store/routeGroupsEditorStore";
+import { IconButton } from "../components/IconButton";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
@@ -27,16 +28,16 @@ export const RouteGroupsEditorDialog: React.FC = () => {
               {group.id} ({group.count})
             </span>
             <div className="d-flex">
-              <span
+              <IconButton
                 data-tip="Edit style"
                 className="editStyle icon-brush pointer"
                 onClick={() => editStyle("routes", group.id)}
-              ></span>
-              <span
+              ></IconButton>
+              <IconButton
                 data-tip="Remove group"
                 className="removeGroup icon-trash pointer"
                 onClick={() => routeGroupsRemoveGroup(group.id)}
-              ></span>
+              ></IconButton>
             </div>
           </div>
         ))}

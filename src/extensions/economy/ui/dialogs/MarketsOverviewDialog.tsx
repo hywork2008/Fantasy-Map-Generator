@@ -1,4 +1,5 @@
 import React from "react";
+import { IconButton } from "../../../../ui/components/IconButton";
 
 import { closeDialog, Dialog, FillBox, openConfirm, useDialogState } from "../../../hostUi";
 import { formatPrice } from "../../../hostUtils";
@@ -346,7 +347,7 @@ export const MarketsOverviewDialog: React.FC = () => {
                             {displayPrice(m.value, totals.value)}
                           </td>
                           <td>
-                            <span
+                            <IconButton
                               data-tip="Remove this market"
                               className="icon-trash-empty hiddenIcon"
                               onClick={e => handleRemoveClick(e, m.i)}

@@ -14,6 +14,7 @@ import { useOptionsState } from "../../store/optionsState";
 import { useRiversOverviewState } from "../../store/riversOverviewState";
 import { rn } from "../../utils";
 import { layerIsOn } from "../../utils/nodeUtils";
+import { IconButton } from "../components/IconButton";
 import { Dialog } from "./Dialog";
 import { closeDialog, openConfirm } from "./dialogService";
 
@@ -229,7 +230,7 @@ export const RiversOverviewDialog: React.FC = () => {
                   >
                     <td>
                       <div className="d-flex">
-                        <span
+                        <IconButton
                           data-tip="Locate the river"
                           className="icon-target pointer"
                           onClick={() => zoomToRiver(r.i)}
@@ -269,12 +270,12 @@ export const RiversOverviewDialog: React.FC = () => {
                     </td>
                     <td>
                       <div className="d-flex">
-                        <span
+                        <IconButton
                           data-tip="Edit river"
                           className="icon-pencil pointer"
                           onClick={() => editRiver(`river${r.i}`)}
                         />
-                        <span
+                        <IconButton
                           data-tip="Remove river"
                           className="icon-trash-empty pointer"
                           onClick={() => triggerRiverRemove(r.i, refresh)}

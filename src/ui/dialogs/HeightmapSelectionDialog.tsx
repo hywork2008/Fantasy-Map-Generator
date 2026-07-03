@@ -15,6 +15,7 @@ import { heightmapTemplates, precreatedHeightmaps } from "../../data";
 import { useOptionsState } from "../../store/optionsState";
 import { generateSeed } from "../../utils";
 import { heightmapColorSchemes } from "../../utils/colorUtils";
+import { IconButton } from "../components/IconButton";
 import { closeDialog } from "./dialogService";
 
 interface HeightmapItem {
@@ -211,7 +212,7 @@ export const HeightmapSelectionContent: React.FC<{ onClose?: () => void }> = ({ 
                 <img src={item.dataUrl || undefined} alt={item.name} style={{ aspectRatio }} />
                 <div>
                   {item.name}
-                  <span
+                  <IconButton
                     data-tip="Regenerate preview"
                     className="icon-cw regeneratePreview"
                     onClick={e => handleRegenerate(item.id, e)}

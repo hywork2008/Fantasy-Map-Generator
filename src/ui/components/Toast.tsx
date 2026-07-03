@@ -1,4 +1,5 @@
 import { useToastStore } from "../../store/toastStore";
+import { IconButton } from "./IconButton";
 
 const tipBackgroundMap: Record<string, string> = {
   info: "linear-gradient(0.1turn, #ffffff00, #5e5c5c80, #ffffff00)",
@@ -18,13 +19,13 @@ export function ToastContainer() {
       id="toast-container"
       style={{ position: "fixed", bottom: "20px", left: "50%", zIndex: 10000, pointerEvents: "auto" }}
     >
-      <div
+      <IconButton
         onClick={removeToast}
         style={{ background: tipBackgroundMap[toast.type], cursor: "pointer" }}
         title="Click to dismiss"
       >
         {toast.message}
-      </div>
+      </IconButton>
       <style>{`
         @keyframes fadeInUp {
           from {

@@ -11,6 +11,7 @@ import { useDialogState } from "../../store/dialogState";
 import { useMilitaryOverviewState } from "../../store/militaryOverviewState";
 import type { MilitaryUnit } from "../../types/models";
 import { sanitizeId } from "../../utils";
+import { IconButton } from "../components/IconButton";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 import type { SelectionItem } from "./SelectionDialog";
@@ -312,7 +313,7 @@ export const MilitaryOptionsDialog: React.FC = () => {
                           <label htmlFor={`${name}Separate`} className="checkbox-label" />
                         </td>
                         <td>
-                          <span
+                          <IconButton
                             className="icon-trash-empty pointer"
                             data-tip="Remove unit type"
                             onClick={() => removeUnit(index)}

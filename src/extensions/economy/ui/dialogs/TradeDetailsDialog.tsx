@@ -1,4 +1,5 @@
 import React from "react";
+import { IconButton } from "../../../../ui/components/IconButton";
 
 import { closeDialog, Dialog, useDialogState } from "../../../hostUi";
 import { formatPrice, rn } from "../../../hostUtils";
@@ -56,11 +57,19 @@ export const TradeDetailsDialog: React.FC = () => {
             <>
               <span>
                 <b>Seller</b>: {summary.sellerName} {summary.sellerType}{" "}
-                <span className="icon-dot-circled pointer" data-tip="Zoom to seller" onClick={summary.onZoomSeller} />
+                <IconButton
+                  className="icon-dot-circled pointer"
+                  data-tip="Zoom to seller"
+                  onClick={summary.onZoomSeller}
+                />
               </span>
               <span>
                 <b>Buyer</b>: {summary.buyerName} {summary.buyerType}{" "}
-                <span className="icon-dot-circled pointer" data-tip="Zoom to buyer" onClick={summary.onZoomBuyer} />
+                <IconButton
+                  className="icon-dot-circled pointer"
+                  data-tip="Zoom to buyer"
+                  onClick={summary.onZoomBuyer}
+                />
               </span>
             </>
           )}

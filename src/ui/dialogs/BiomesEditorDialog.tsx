@@ -22,9 +22,9 @@ import {
   biomesToggleLegend
 } from "../../controllers/biomes-editor";
 import { useBiomesEditorStore } from "../../store/biomesEditorStore";
-
 import { rn, si } from "../../utils";
 import { FillBox } from "../components/FillBox";
+import { IconButton } from "../components/IconButton";
 import { SliderInput } from "../components/SliderInput";
 
 type SortKey = "name" | "habitability" | "cells" | "area" | "population";
@@ -204,14 +204,14 @@ export const BiomesEditorContent: React.FC = () => {
                   </div>
                 </td>
                 <td>
-                  <span
+                  <IconButton
                     data-tip="Open Wikipedia article about the biome"
                     className={hc("icon-info-circled pointer")}
                     style={innerPtr}
                     onClick={() => biomesOpenWiki(row.name)}
                   />
                   {row.canRemove && (
-                    <span
+                    <IconButton
                       data-tip="Remove the custom biome"
                       className={hc("icon-trash-empty")}
                       style={innerPtr}
@@ -224,7 +224,6 @@ export const BiomesEditorContent: React.FC = () => {
           </tbody>
         </table>
       </div>
-
       <div id="biomesTotal" className="totalLine" style={{ display: isCustomizationMode ? "none" : undefined }}>
         <div data-tip="Number of land biomes">
           Biomes:<span id="biomesFooterBiomes">{footer.biomes}</span>
@@ -239,7 +238,6 @@ export const BiomesEditorContent: React.FC = () => {
           Population:<span id="biomesFooterPopulation">{si(footer.totalPopulation)}</span>
         </div>
       </div>
-
       <div id="biomesFooter" className="fmg-dialog-footer">
         <button
           type="button"

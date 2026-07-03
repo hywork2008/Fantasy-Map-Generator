@@ -5,6 +5,7 @@ import { useStatesEditorState } from "../../store/statesEditorState";
 import { rn, si } from "../../utils";
 import { getAreaUnit } from "../../utils/domUtils";
 import { FillBox } from "../components/FillBox";
+import { IconButton } from "../components/IconButton";
 import { SliderInput } from "../components/SliderInput";
 
 export const StatesEditorContent: React.FC = () => {
@@ -196,7 +197,7 @@ export const StatesEditorContent: React.FC = () => {
                   <td>
                     {isNeutral ? null : (
                       <div className="d-flex">
-                        <span
+                        <IconButton
                           data-tip="Capital name. Click to zoom"
                           className="icon-star-empty pointer"
                           onClick={() => statesEditorActions.zoomCapital(s.i)}
@@ -226,7 +227,7 @@ export const StatesEditorContent: React.FC = () => {
                   </td>
                   <td className="hide">
                     <div className="d-flex">
-                      <span
+                      <IconButton
                         data-tip="Click to overview state burgs"
                         className="icon-dot-circled pointer hide"
                         onClick={() => (isNeutral ? null : statesEditorActions.overviewBurgs(s.i))}
@@ -288,12 +289,12 @@ export const StatesEditorContent: React.FC = () => {
                   <td>
                     {isNeutral ? null : (
                       <div className="d-flex">
-                        <span
+                        <IconButton
                           data-tip="Lock the state"
                           className={`stateLock ${s.isLocked ? "icon-pin" : "icon-pin-outline"} pointer`}
                           onClick={() => statesEditorActions.toggleLock(s.i)}
                         />
-                        <span
+                        <IconButton
                           data-tip="Remove the state"
                           className="stateRemove icon-trash-empty pointer"
                           onClick={() => statesEditorActions.removeState(s.i)}
@@ -307,7 +308,6 @@ export const StatesEditorContent: React.FC = () => {
           </tbody>
         </table>
       </div>
-
       <div id="statesTotal" className="totalLine">
         <div data-tip="States number">
           States:<span>{totalStates}</span>
@@ -328,7 +328,6 @@ export const StatesEditorContent: React.FC = () => {
           Population:<span>{si(totalPopulation)}</span>
         </div>
       </div>
-
       <div id="statesFooter" className="fmg-dialog-footer">
         <button
           type="button"

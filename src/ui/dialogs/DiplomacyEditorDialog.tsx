@@ -2,6 +2,7 @@ import type React from "react";
 import { diplomacyEditorActions } from "../../controllers/diplomacy-editor";
 import { useDiplomacyEditorState } from "../../store/diplomacyEditorState";
 import { FillBox } from "../components/FillBox";
+import { IconButton } from "../components/IconButton";
 
 export const DiplomacyEditorContent: React.FC = () => {
   const { states, selectedStateId } = useDiplomacyEditorState();
@@ -85,7 +86,7 @@ export const DiplomacyEditorContent: React.FC = () => {
                     <div data-tip={tipSelect}>{s.name}</div>
                   </td>
                   <td>
-                    <div
+                    <IconButton
                       data-tip={tipChange}
                       className="changeRelations d-flex"
                       onClick={e => {
@@ -95,7 +96,7 @@ export const DiplomacyEditorContent: React.FC = () => {
                     >
                       <FillBox fill={s.color} size=".9em" />
                       {s.relation}
-                    </div>
+                    </IconButton>
                   </td>
                 </tr>
               );

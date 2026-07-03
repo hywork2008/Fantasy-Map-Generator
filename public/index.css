@@ -658,7 +658,7 @@ div.totalLine > div {
   display: inline-block;
 }
 
-tr.states span.inactive {
+tr.states .inactive {
   color: #c6c2c2;
 
   &:hover {
@@ -1165,4 +1165,19 @@ body.tour-free-roam * {
 
 .d-grid {
   display: grid;
+}
+
+button.icon-btn {
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  display: inline-block;
+  line-height: inherit;
+}
+button.icon-btn:hover {
+  opacity: 0.8;
 }

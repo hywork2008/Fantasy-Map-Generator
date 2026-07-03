@@ -1,6 +1,7 @@
 import type React from "react";
 import { closeLabelEditor, labelsEditorActions } from "../../controllers/labels-editor";
 import { useLabelsEditorState } from "../../store/labelsEditorState";
+import { IconButton } from "../components/IconButton";
 import { Dialog } from "./Dialog";
 
 export const LabelEditorDialog: React.FC = () => {
@@ -66,23 +67,22 @@ export const LabelEditorDialog: React.FC = () => {
                 />
               )}
 
-              <span
+              <IconButton
                 id="labelGroupNew"
                 data-tip="Create a new group for this label"
                 className={`icon-plus pointer ${isNewGroup ? "pressed" : ""}`}
                 onClick={labelsEditorActions.toggleNewGroupInput}
-              ></span>
-              <span
+              ></IconButton>
+              <IconButton
                 id="labelGroupRemove"
                 data-tip="Remove the Group with all labels"
                 className="icon-trash-empty pointer"
                 onClick={labelsEditorActions.removeLabelsGroup}
-              ></span>
+              ></IconButton>
             </div>
           )}
         </>
       )}
-
       <button
         type="button"
         id="labelTextShow"
@@ -118,15 +118,14 @@ export const LabelEditorDialog: React.FC = () => {
           <span data-tip="Speak the name. You can change voice and language in options" className="speaker">
             🔊
           </span>
-          <span
+          <IconButton
             id="labelTextRandom"
             data-tip="Generate random name"
             className="icon-shuffle pointer"
             onClick={labelsEditorActions.generateRandomName}
-          ></span>
+          ></IconButton>
         </div>
       )}
-
       <button
         type="button"
         id="labelEditStyle"
@@ -135,7 +134,6 @@ export const LabelEditorDialog: React.FC = () => {
         style={{ display: activeSection ? "none" : "inline-block" }}
         onClick={labelsEditorActions.editGroupStyle}
       ></button>
-
       <button
         type="button"
         id="labelSizeShow"
@@ -166,7 +164,6 @@ export const LabelEditorDialog: React.FC = () => {
           />
         </div>
       )}
-
       <button
         type="button"
         id="labelOffsetShow"
@@ -206,7 +203,6 @@ export const LabelEditorDialog: React.FC = () => {
           />
         </div>
       )}
-
       <button
         type="button"
         id="labelLetterSpacingShow"
@@ -237,7 +233,6 @@ export const LabelEditorDialog: React.FC = () => {
           />
         </div>
       )}
-
       <button
         type="button"
         id="labelAlign"

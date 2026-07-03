@@ -3,6 +3,7 @@ import { useState } from "react";
 import { zonesEditorActions } from "../../controllers/zones-editor";
 import { setZonesEditorState, useZonesEditorState, type ZoneRowData } from "../../store/zonesEditorState";
 import { FillBox } from "../components/FillBox";
+import { IconButton } from "../components/IconButton";
 import { SliderInput } from "../components/SliderInput";
 
 const SortableHeader: React.FC<{
@@ -167,25 +168,24 @@ export const ZonesEditorContent: React.FC = () => {
                 </td>
                 <td className="hide">
                   <span className="icon-resize-vertical"></span>
-                  <span
+                  <IconButton
                     className={`zoneFog icon-pin ${z.focused ? "" : "inactive"} ${z.cells ? "" : "placeholder"}`}
                     onClick={() => zonesEditorActions.toggleFog(z.i)}
-                  ></span>
-                  <span
+                  ></IconButton>
+                  <IconButton
                     className={`zoneHide icon-eye ${z.cells ? "" : " placeholder"}`}
                     onClick={() => zonesEditorActions.toggleVisibility(z.i)}
-                  ></span>
-                  <span
+                  ></IconButton>
+                  <IconButton
                     className="zoneRemove icon-trash-empty"
                     onClick={() => zonesEditorActions.removeZone(z.i)}
-                  ></span>
+                  ></IconButton>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-
       {state.customizationMode === 0 && (
         <div className="totalLine">
           <div>
@@ -202,7 +202,6 @@ export const ZonesEditorContent: React.FC = () => {
           </div>
         </div>
       )}
-
       <div className="footer fmg-dialog-footer">
         {state.customizationMode === 0 ? (
           <>

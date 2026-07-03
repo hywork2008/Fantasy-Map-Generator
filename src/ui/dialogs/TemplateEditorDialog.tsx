@@ -3,6 +3,7 @@ import { useRef } from "react";
 import { HeightmapEditorActions } from "../../controllers/heightmapEditor";
 import { useDialogState } from "../../store/dialogState";
 import { setHeightmapEditorState, type TemplateStep, useHeightmapEditorState } from "../../store/heightmapEditorState";
+import { IconButton } from "../components/IconButton";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
@@ -89,7 +90,7 @@ export const TemplateEditorDialog: React.FC = () => {
   const renderStep = (step: TemplateStep, index: number) => {
     const common = (
       <>
-        <div
+        <IconButton
           className={step.skip ? "icon-check-empty" : "icon-check"}
           data-tip="Click to skip the step"
           onClick={() => handleToggleSkip(step.id)}

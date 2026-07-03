@@ -1,4 +1,5 @@
 import React from "react";
+import { IconButton } from "../../../../ui/components/IconButton";
 
 import { closeDialog, Dialog, useDialogState } from "../../../hostUi";
 import { applySorting, formatPrice } from "../../../hostUtils";
@@ -49,7 +50,7 @@ export const MarketOverviewDialog: React.FC = () => {
             placeholder={defaultName}
             onChange={e => renameActiveMarket(e.target.value)}
           />
-          <span
+          <IconButton
             id="marketOverviewNameReset"
             data-tip="Reset to the default name (center burg name)"
             className="icon-ccw pointer -3em"

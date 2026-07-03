@@ -2,6 +2,7 @@ import type React from "react";
 import { addRiver, closeRiverCreator, getCellFlux, setCellFlux } from "../../controllers/rivers-creator";
 import { useDialogState } from "../../store/dialogState";
 import { useRiverCreatorStore } from "../../store/riverCreatorStore";
+import { IconButton } from "../components/IconButton";
 import { Dialog } from "./Dialog";
 
 export const RiverCreatorDialog: React.FC = () => {
@@ -27,11 +28,11 @@ export const RiverCreatorDialog: React.FC = () => {
               className="editFlux"
               onChange={e => handleFluxChange(cell, e.target.value)}
             />
-            <span
+            <IconButton
               data-tip="Remove the cell"
               className="icon-trash-empty pointer"
               onClick={() => removeCell(cell)}
-            ></span>
+            ></IconButton>
           </div>
         ))}
       </div>

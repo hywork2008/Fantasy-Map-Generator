@@ -1,6 +1,7 @@
 import type React from "react";
 import { routesEditorActions } from "../../controllers/routes-editor";
 import { useRoutesEditorState } from "../../store/routesEditorState";
+import { IconButton } from "../components/IconButton";
 import { Dialog } from "./Dialog";
 
 export const RoutesEditorDialog: React.FC = () => {
@@ -182,7 +183,7 @@ export const RoutesEditorDialog: React.FC = () => {
                   <span>
                     <b>Y</b>: {pt.y}
                   </span>
-                  <span
+                  <IconButton
                     data-tip="Remove the point"
                     className="icon-trash-empty pointer"
                     onClick={() => routesEditorActions.removeCreatorPoint(ptStr)}

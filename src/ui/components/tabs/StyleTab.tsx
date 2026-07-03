@@ -8,6 +8,7 @@ import {
   selectStyleElement
 } from "../../../controllers/style";
 import { useStyleState } from "../../../store/styleState";
+import { IconButton } from "../IconButton";
 import { EnvironmentStylePanel } from "./style/EnvironmentStylePanel";
 import { OverlaysStylePanel } from "./style/OverlaysStylePanel";
 import { PoliticalStylePanel } from "./style/PoliticalStylePanel";
@@ -76,7 +77,6 @@ export function StyleTab() {
         onClick={() => requestRemoveStylePreset()}
         type="button"
       />
-
       {/* ─── Sub-tab bar ─── */}
       <div className="tab">
         {(["environment", "terrain", "political", "settlements", "overlays"] as StyleSubTab[]).map(tab => (
@@ -90,16 +90,14 @@ export function StyleTab() {
           </button>
         ))}
       </div>
-
       {/* ─── Active panel ─── */}
       {activeSubTab === "environment" && <EnvironmentStylePanel />}
       {activeSubTab === "terrain" && <TerrainStylePanel />}
       {activeSubTab === "political" && <PoliticalStylePanel />}
       {activeSubTab === "settlements" && <SettlementsStylePanel />}
       {activeSubTab === "overlays" && <OverlaysStylePanel />}
-
       {/* ─── Global map filters ─── */}
-      <div
+      <IconButton
         id="mapFilters"
         data-tip="Set a filter to be applied to the map in general"
         onClick={e => {
@@ -121,7 +119,7 @@ export function StyleTab() {
         <button type="button" id="tint" className={activeMapFilter === "tint" ? "radio pressed" : "radio"}>
           Tint
         </button>
-      </div>
+      </IconButton>
     </div>
   );
 }

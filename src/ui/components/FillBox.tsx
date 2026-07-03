@@ -1,3 +1,5 @@
+import { IconButton } from "./IconButton";
+
 interface FillBoxProps {
   fill?: string;
   size?: string;
@@ -18,7 +20,7 @@ export const FillBox = ({
   const tip = dataTip ?? (disabled ? undefined : "Fill style. Click to change");
 
   return (
-    <span
+    <IconButton
       style={{ cursor: disabled ? undefined : "pointer", display: "inline-block" }}
       onClick={disabled ? undefined : onClick}
       data-tip={tip}
@@ -27,6 +29,6 @@ export const FillBox = ({
       <svg width={size} height={size} aria-hidden="true">
         <rect x={0} y={0} width="100%" height="100%" fill={fill} stroke="#666666" strokeWidth={2} />
       </svg>
-    </span>
+    </IconButton>
   );
 };

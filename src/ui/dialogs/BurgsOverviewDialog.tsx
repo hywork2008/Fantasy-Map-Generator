@@ -21,6 +21,7 @@ import { showElementLockTip, tip } from "../../services/tooltipService";
 import { useBurgsOverviewState } from "../../store/burgsOverviewState";
 import { useDialogState } from "../../store/dialogState";
 import { si } from "../../utils";
+import { IconButton } from "../components/IconButton";
 import { Dialog } from "./Dialog";
 import { closeDialog, openConfirm } from "./dialogService";
 
@@ -306,8 +307,8 @@ export const BurgsOverviewDialog: React.FC = () => {
                         onMouseEnter={() => burgHighlightOn(b.i!)}
                         onMouseLeave={() => burgHighlightOff()}
                       >
-                        <td>
-                          <span
+                        <td className="d-flex">
+                          <IconButton
                             data-tip="Click to zoom into view"
                             className="icon-dot-circled pointer"
                             onClick={() => zoomIntoBurg(b.i!)}
@@ -326,7 +327,7 @@ export const BurgsOverviewDialog: React.FC = () => {
                         <td>
                           <input data-tip="Burg group" value={b.group ?? ""} disabled readOnly />
                         </td>
-                        <td>
+                        <td className="d-flex">
                           <span data-tip="Burg population" className="icon-male" />
                           <input data-tip="Burg population" value={si(population)} disabled readOnly />
                         </td>
@@ -343,8 +344,12 @@ export const BurgsOverviewDialog: React.FC = () => {
                           </div>
                         </td>
                         <td>
-                          <span data-tip="Edit burg" className="icon-pencil pointer" onClick={() => editBurg(b.i!)} />
-                          <span
+                          <IconButton
+                            data-tip="Edit burg"
+                            className="icon-pencil pointer"
+                            onClick={() => editBurg(b.i!)}
+                          />
+                          <IconButton
                             className={`locks pointer${b.lock ? " icon-lock" : " icon-lock-open inactive"}`}
                             onMouseOver={e => showElementLockTip(e.nativeEvent)}
                             onClick={() => {
@@ -352,7 +357,7 @@ export const BurgsOverviewDialog: React.FC = () => {
                               refresh();
                             }}
                           />
-                          <span
+                          <IconButton
                             data-tip="Remove burg"
                             className="icon-trash-empty pointer"
                             onClick={() => handleRemoveBurg(b.i!)}

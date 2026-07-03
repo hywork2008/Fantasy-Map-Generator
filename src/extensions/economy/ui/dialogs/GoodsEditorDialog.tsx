@@ -1,4 +1,5 @@
 import React from "react";
+import { IconButton } from "../../../../ui/components/IconButton";
 
 import { closeDialog, Dialog, useDialogState } from "../../../hostUi";
 import { rn } from "../../../hostUtils";
@@ -223,7 +224,7 @@ export const GoodsEditorDialog: React.FC = () => {
                           🟡 {good.basePrice}
                         </td>
                         <td>
-                          <span
+                          <IconButton
                             data-tip="Edit good distribution"
                             className="icon-pencil goodEdit"
                             onClick={e => {
@@ -231,7 +232,7 @@ export const GoodsEditorDialog: React.FC = () => {
                               editGoodDistribution(good.i);
                             }}
                           />
-                          <span
+                          <IconButton
                             data-tip="Remove good"
                             className="icon-trash-empty goodRemove"
                             onClick={e => {

@@ -2,6 +2,7 @@ import type React from "react";
 import { useCallback } from "react";
 import { statesEditorActions } from "../../controllers/states-editor";
 import { useStatesEditorState } from "../../store/statesEditorState";
+import { IconButton } from "../components/IconButton";
 import { Dialog } from "./Dialog";
 
 export const StateNameEditorDialog: React.FC = () => {
@@ -52,12 +53,12 @@ export const StateNameEditorDialog: React.FC = () => {
           <span data-tip="Speak the name. You can change voice and language in options" className="speaker">
             🔊
           </span>
-          <span
+          <IconButton
             data-tip="Generate culture-specific name"
             className="icon-book pointer"
             onClick={statesEditorActions.nameEditorGenerateShortCulture}
           />
-          <span
+          <IconButton
             data-tip="Generate random name"
             className="icon-globe pointer"
             onClick={statesEditorActions.nameEditorGenerateShortRandom}
@@ -154,7 +155,7 @@ export const StateNameEditorDialog: React.FC = () => {
               </optgroup>
             </select>
           )}
-          <span
+          <IconButton
             data-tip="Click to add custom state form name to the list"
             className="icon-plus pointer"
             onClick={handleAddFormClick}
@@ -175,7 +176,7 @@ export const StateNameEditorDialog: React.FC = () => {
           <span data-tip="Speak the name. You can change voice and language in options" className="speaker">
             🔊
           </span>
-          <span
+          <IconButton
             data-tip="Click to re-generate full name"
             className="icon-arrows-cw pointer"
             onClick={statesEditorActions.nameEditorRegenerateFullName}

@@ -3,6 +3,7 @@ import { useRef } from "react";
 import { HeightmapEditorActions } from "../../controllers/heightmapEditor";
 import { useDialogState } from "../../store/dialogState";
 import { setHeightmapEditorState, useHeightmapEditorState } from "../../store/heightmapEditorState";
+import { IconButton } from "../components/IconButton";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
@@ -137,7 +138,7 @@ export const ImageConverterDialog: React.FC = () => {
             <br />
             <div id="imageConverterPalette">
               {palette.map(h => (
-                <div
+                <IconButton
                   key={h}
                   data-color={h}
                   className={`color-div ${imageConverterHoveredHeight === h ? "hoveredColor" : ""}`}
@@ -160,7 +161,7 @@ export const ImageConverterDialog: React.FC = () => {
               {Object.entries(imageConverterAssigned)
                 .sort(([, hA], [, hB]) => hA - hB)
                 .map(([color, height]) => (
-                  <div
+                  <IconButton
                     key={color}
                     data-color={color}
                     data-height={height}
@@ -180,7 +181,7 @@ export const ImageConverterDialog: React.FC = () => {
             <i>Unassigned colors ({imageConverterUnassigned.length}):</i>
             <div id="colorsUnassignedContainer" className="colorsContainer">
               {imageConverterUnassigned.map(color => (
-                <div
+                <IconButton
                   key={color}
                   data-color={color}
                   className={`color-div ${imageConverterSelectedColor === color ? "selectedColor" : ""}`}
