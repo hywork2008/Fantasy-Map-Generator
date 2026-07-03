@@ -262,7 +262,7 @@ export const BurgsOverviewDialog: React.FC = () => {
       isOpen={isOpen}
       title="Burgs Overview"
       onClose={() => closeDialog("burgsOverview")}
-      className="fmg-dialog--overflow-hidden"
+      className="overflow-hidden"
     >
       <div id="burgsOverviewContainer">
         <div id="burgsBody" className="table" ref={parentRef} style={{ overflow: "auto" }}>
@@ -446,7 +446,7 @@ export const BurgsOverviewDialog: React.FC = () => {
           </div>
         </div>
 
-        <div id="burgsFooter" className="fmg-dialog-footer">
+        <div id="burgsFooter" className="footer">
           <button type="button" data-tip="Refresh the Editor" className="icon-cw" onClick={refresh} />
           <button type="button" data-tip="Edit burg groups" className="icon-cog" onClick={() => editBurgGroups()} />
           <button

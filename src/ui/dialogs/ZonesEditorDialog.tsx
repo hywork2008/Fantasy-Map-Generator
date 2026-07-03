@@ -202,7 +202,7 @@ export const ZonesEditorContent: React.FC = () => {
           </div>
         </div>
       )}
-      <div className="footer fmg-dialog-footer">
+      <div className="footer footer">
         {state.customizationMode === 0 ? (
           <>
             <select value={state.filterBy} onChange={e => setZonesEditorState({ filterBy: e.target.value })}>

@@ -73,7 +73,7 @@ export const ReligionsEditorDialog: React.FC = () => {
       isOpen={isOpen}
       title="Religions Editor"
       onClose={() => closeDialog("religionsEditor")}
-      className="fmg-dialog--overflow-hidden"
+      className="overflow-hidden"
     >
       <div id="religionsEditor">
         <div id="religionsBody" className="table" data-type={isPercentageMode ? "percentage" : "absolute"}>
@@ -367,7 +367,7 @@ export const ReligionsEditorDialog: React.FC = () => {
           </div>
         </div>
 
-        <div id="religionsFooter" className="fmg-dialog-footer">
+        <div id="religionsFooter" className="footer">
           {isBrushMode ? null : (
             <>
               <button

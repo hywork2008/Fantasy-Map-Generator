@@ -42,7 +42,7 @@ export const RouteGroupsEditorDialog: React.FC = () => {
           </div>
         ))}
       </div>
-      <div id="routeGroupsEditorFooter" className="fmg-dialog-footer">
+      <div id="routeGroupsEditorFooter" className="footer">
         <button
           type="button"
           id="routeGroupsEditorAdd"

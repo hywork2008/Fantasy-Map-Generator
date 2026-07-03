@@ -37,7 +37,7 @@ export const CommonEditorDialog: React.FC<{ id: string; config: EditorConfig }> 
       isOpen={true}
       title={title}
       onClose={handleClose}
-      className={tableLayout ? "fmg-dialog--overflow-hidden" : undefined}
+      className={tableLayout ? "overflow-hidden" : undefined}
       style={dialogHeight ? { height: dialogHeight } : undefined}
     >
       <Component />

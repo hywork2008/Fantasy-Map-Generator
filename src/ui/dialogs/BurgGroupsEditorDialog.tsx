@@ -200,7 +200,7 @@ export const BurgGroupsEditorDialog: React.FC = () => {
           { label: "Restore", onClick: handleRestore },
           { label: "Cancel", onClick: () => closeDialog("burgGroupsEditor") }
         ]}
-        className="fmg-dialog--auto-width fmg-dialog--overflow-hidden"
+        className="fmg-dialog--auto-width overflow-hidden"
       >
         <div id="burgGroupsEditorContainer">
           {errorMsg && <div>{errorMsg}</div>}

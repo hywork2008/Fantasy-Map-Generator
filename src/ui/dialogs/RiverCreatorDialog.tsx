@@ -36,7 +36,7 @@ export const RiverCreatorDialog: React.FC = () => {
           </div>
         ))}
       </div>
-      <div id="riverCreatorFooter" className="fmg-dialog-footer">
+      <div id="riverCreatorFooter" className="footer">
         <button
           type="button"
           id="riverCreatorComplete"

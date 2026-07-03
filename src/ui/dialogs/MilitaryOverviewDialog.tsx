@@ -165,7 +165,7 @@ export const MilitaryOverviewDialog: React.FC = () => {
       isOpen={isOpen}
       title="Military Overview"
       onClose={() => closeDialog("militaryOverview")}
-      className="fmg-dialog--overflow-hidden"
+      className="overflow-hidden"
     >
       <div id="militaryOverviewContainer">
         <div id="militaryBody" className="table" data-type={percentageMode ? "percentage" : "absolute"}>
@@ -284,7 +284,7 @@ export const MilitaryOverviewDialog: React.FC = () => {
             Average alert:<span>{rn(totals.averageAlert, 2)}</span>
           </div>
         </div>
-        <div id="militaryFooter" className="fmg-dialog-footer">
+        <div id="militaryFooter" className="footer">
           <button
             type="button"
             id="militaryOverviewRefresh"

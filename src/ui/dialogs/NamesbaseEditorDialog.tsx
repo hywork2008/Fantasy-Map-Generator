@@ -342,7 +342,7 @@ export const NamesbaseEditorContent: React.FC = () => {
           </button>
         </fieldset>
       </div>
-      <div id="namesbaseFooter" className="fmg-dialog-footer">
+      <div id="namesbaseFooter" className="footer">
         <button
           type="button"
           id="namesbaseUpdateExamples"

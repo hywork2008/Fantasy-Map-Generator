@@ -106,7 +106,7 @@ export const CulturesEditorDialog: React.FC = () => {
       isOpen={isOpen}
       title="Cultures Editor"
       onClose={() => closeDialog("culturesEditor")}
-      className="fmg-dialog--overflow-hidden"
+      className="overflow-hidden"
     >
       <div id="culturesEditor">
         <div id="culturesBody" className="table" data-type={isPercentageMode ? "percentage" : "absolute"}>
@@ -328,7 +328,7 @@ export const CulturesEditorDialog: React.FC = () => {
           </div>
         </div>
 
-        <div id="culturesFooter" className="fmg-dialog-footer">
+        <div id="culturesFooter" className="footer">
           {isBrushMode ? null : (
             <>
               <button

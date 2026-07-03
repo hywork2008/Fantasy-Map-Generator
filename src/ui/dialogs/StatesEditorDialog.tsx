@@ -328,7 +328,7 @@ export const StatesEditorContent: React.FC = () => {
           Population:<span>{si(totalPopulation)}</span>
         </div>
       </div>
-      <div id="statesFooter" className="fmg-dialog-footer">
+      <div id="statesFooter" className="footer">
         <button
           type="button"
           id="statesEditorRefresh"

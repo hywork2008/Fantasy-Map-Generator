@@ -171,7 +171,7 @@ export function useDraggable(options?: { handleSelector?: string }) {
       bringToFront();
 
       document.body.style.userSelect = "none";
-      container.classList.add("fmg-dialog--dragging");
+      container.classList.add("dragging");
     },
     [bringToFront]
   );
@@ -196,7 +196,7 @@ export function useDraggable(options?: { handleSelector?: string }) {
 
     dispatchDrag({ type: "DRAG_END" });
     document.body.style.userSelect = "";
-    container.classList.remove("fmg-dialog--dragging");
+    container.classList.remove("dragging");
   }, []);
 
   useEffect(() => {
@@ -217,7 +217,7 @@ export function useDraggable(options?: { handleSelector?: string }) {
       handle.removeEventListener("mousedown", onMouseDown);
       document.removeEventListener("mousemove", onMouseMove);
       document.removeEventListener("mouseup", onMouseUp);
-      container.classList.remove("fmg-dialog--dragging");
+      container.classList.remove("dragging");
     };
   }, [options?.handleSelector, onMouseDown, onMouseMove, onMouseUp]);
 

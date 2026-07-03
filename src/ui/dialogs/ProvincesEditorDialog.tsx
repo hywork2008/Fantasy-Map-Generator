@@ -83,7 +83,7 @@ export const ProvincesEditorDialog: React.FC = () => {
       isOpen={isOpen}
       title="Provinces Editor"
       onClose={() => closeDialog("provincesEditor")}
-      className="fmg-dialog--overflow-hidden"
+      className="overflow-hidden"
     >
       <div id="provincesEditorContainer">
         <div
@@ -341,7 +341,7 @@ export const ProvincesEditorDialog: React.FC = () => {
           </div>
         </div>
 
-        <div id="provincesFooter" className="fmg-dialog-footer">
+        <div id="provincesFooter" className="footer">
           {customization === 11 ? null : (
             <>
               <button

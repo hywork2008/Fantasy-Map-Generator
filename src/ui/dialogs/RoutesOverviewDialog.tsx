@@ -178,7 +178,7 @@ export const RoutesOverviewDialog: React.FC = () => {
       isOpen={isOpen}
       title="Routes Overview"
       onClose={() => closeDialog("routesOverview")}
-      className="fmg-dialog--overflow-hidden"
+      className="overflow-hidden"
     >
       <div id="routesOverviewContainer">
         <div id="routesBody" className="table">
@@ -272,7 +272,7 @@ export const RoutesOverviewDialog: React.FC = () => {
             <span id="routesFooterLength">{`${averageLength * worldContext.distanceScale} ${distanceUnit}`}</span>
           </div>
         </div>
-        <div id="routesFooter" className="fmg-dialog-footer">
+        <div id="routesFooter" className="footer">
           <button
             type="button"
             id="routesOverviewRefresh"

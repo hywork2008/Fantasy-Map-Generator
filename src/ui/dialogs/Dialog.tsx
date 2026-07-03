@@ -16,7 +16,7 @@ export interface DialogProps {
 }
 
 export const Dialog: React.FC<DialogProps> = ({ isOpen, title, onClose, children, buttons, className = "", style }) => {
-  const { containerRef, resizeHandleRef, bringToFront } = useDraggable({ handleSelector: ".fmg-dialog-titlebar" });
+  const { containerRef, resizeHandleRef, bringToFront } = useDraggable({ handleSelector: ".titlebar" });
   const [minimized, setMinimized] = useState(false);
 
   useEffect(() => {
@@ -41,16 +41,16 @@ export const Dialog: React.FC<DialogProps> = ({ isOpen, title, onClose, children
   const dialogElement = (
     <div
       ref={containerRef}
-      className={`fmg-dialog ${className}${minimized ? " fmg-dialog--minimized" : ""}`}
+      className={`fmg-dialog ${className}${minimized ? " minimized" : ""}`}
       style={{ ...style, display: isOpen ? undefined : "none" }}
       onMouseDownCapture={bringToFront}
     >
-      <div className="fmg-dialog-titlebar">
+      <div className="titlebar">
         <div className="fmg-dialog-title">{title}</div>
-        <div className="fmg-dialog-titlebar-actions">
+        <div className="titlebar-actions">
           <button
             type="button"
-            className="fmg-dialog-titlebar-btn"
+            className="titlebar-btn"
             aria-label="Close all dialogs"
             title="Close all dialogs"
             onClick={() => closeAllDialogs()}
@@ -59,7 +59,7 @@ export const Dialog: React.FC<DialogProps> = ({ isOpen, title, onClose, children
           </button>
           <button
             type="button"
-            className="fmg-dialog-titlebar-btn"
+            className="titlebar-btn"
             aria-label={minimized ? "Restore" : "Minimize"}
             title={minimized ? "Restore" : "Minimize"}
             onClick={handleMinimize}
@@ -67,13 +67,7 @@ export const Dialog: React.FC<DialogProps> = ({ isOpen, title, onClose, children
             {minimized ? "▲" : "▼"}
           </button>
           {onClose && (
-            <button
-              type="button"
-              className="fmg-dialog-titlebar-btn"
-              aria-label="Close"
-              title="Close"
-              onClick={onClose}
-            >
+            <button type="button" className="titlebar-btn" aria-label="Close" title="Close" onClick={onClose}>
               ✕
             </button>
           )}

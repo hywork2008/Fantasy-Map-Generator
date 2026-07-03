@@ -23,7 +23,7 @@ export interface EditorConfig {
   layerId?: string | null;
   moduleFlag?: string;
   onClose?: () => void;
-  /** Apply fmg-dialog--overflow-hidden layout (fixed header/footer, scrollable body).
+  /** Apply overflow-hidden layout (fixed header/footer, scrollable body).
    *  Height defaults to the CSS value (75vh). Use dialogHeight only to override. */
   tableLayout?: boolean;
   /** Override the default CSS height (75vh) with a specific value, e.g. "400px". */

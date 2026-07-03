@@ -109,7 +109,7 @@ export const DiplomacyEditorContent: React.FC = () => {
         <br />
         Click on relations name to change it
       </div>
-      <div id="diplomacyFooter" className="fmg-dialog-footer">
+      <div id="diplomacyFooter" className="footer">
         <button
           type="button"
           id="diplomacyEditorRefresh"

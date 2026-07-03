@@ -140,7 +140,7 @@ export const ChartsOverviewDialog: React.FC = () => {
   }
 
   return (
-    <Dialog isOpen={isOpen} title="Data Charts" onClose={handleClose} className="fmg-dialog--overflow-hidden d-flex">
+    <Dialog isOpen={isOpen} title="Data Charts" onClose={handleClose} className="overflow-hidden d-flex">
       <div>
         <form
           onSubmit={e => {

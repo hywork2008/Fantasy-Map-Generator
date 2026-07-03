@@ -238,7 +238,7 @@ export const BiomesEditorContent: React.FC = () => {
           Population:<span id="biomesFooterPopulation">{si(footer.totalPopulation)}</span>
         </div>
       </div>
-      <div id="biomesFooter" className="fmg-dialog-footer">
+      <div id="biomesFooter" className="footer">
         <button
           type="button"
           id="biomesEditorRefresh"

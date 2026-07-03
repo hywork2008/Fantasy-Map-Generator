@@ -166,7 +166,7 @@ export const RiversOverviewDialog: React.FC = () => {
       isOpen={isOpen}
       title="Rivers Overview"
       onClose={() => closeDialog("riversOverview")}
-      className="fmg-dialog--overflow-hidden"
+      className="overflow-hidden"
     >
       <div id="riversOverviewContainer">
         <div id="riversBody" className="table">
@@ -305,7 +305,7 @@ export const RiversOverviewDialog: React.FC = () => {
             <span id="riversFooterWidth">{`${rn(averageWidth * worldContext.distanceScale, 3)} ${unit}`}</span>
           </div>
         </div>
-        <div id="riversFooter" className="fmg-dialog-footer">
+        <div id="riversFooter" className="footer">
           <button type="button" data-tip="Refresh the Editor" className="icon-cw" onClick={refresh} />
           <button
             type="button"

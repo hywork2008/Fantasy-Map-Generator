@@ -19,35 +19,35 @@
   max-height: 90vh;
   z-index: 100;
 
-  &.fmg-dialog--dragging {
+  &.dragging {
     cursor: move;
   }
 
-  &.fmg-dialog--minimized {
+  &.minimized {
     /* Container is pass-through so clicks reach elements behind the dialog.
        The titlebar re-enables pointer events for itself below. */
     pointer-events: none;
 
-    .fmg-dialog-titlebar {
+    .titlebar {
       pointer-events: auto;
     }
   }
 
-  /* ── Table-layout dialogs (fmg-dialog--overflow-hidden modifier) ─────────────
+  /* ── Table-layout dialogs (overflow-hidden modifier) ─────────────
      For dialogs with a fixed-header / scrollable-body / fixed-footer structure
      (Markers Overview, Burgs Overview, States Editor, Religions Editor, etc.).
   
      Usage:
-       <Dialog className="fmg-dialog--overflow-hidden" style={{ height: "460px" }}>
+       <Dialog className="overflow-hidden" style={{ height: "460px" }}>
          <div id="...Container">        ← direct child; becomes flex column
            <div className="header">    ← fixed height column header
            <div className="table">     ← scrollable body (flex: 1)
            <div className="totalLine"> ← fixed height summary row
-           <div className="fmg-dialog-footer"> ← fixed height action buttons
+           <div className="footer"> ← fixed height action buttons
          </div>
        </Dialog>
   */
-  &.fmg-dialog--overflow-hidden {
+  &.overflow-hidden {
     /* Default height for table-layout dialogs: 75% of viewport, capped by the
        base max-height: 90vh. Overridable per-dialog with an inline style prop.
        The flex children need a bounded height for the inner scroll to engage. */
@@ -88,14 +88,14 @@
     }
 
     /* Footer button row — always visible at the bottom, never scrolls.
-       Add class="fmg-dialog-footer" to the footer div in each dialog. */
-    .fmg-dialog-footer {
+       Add class="footer" to the footer div in each dialog. */
+    .footer {
       flex-shrink: 0;
     }
   }
 }
 
-.fmg-dialog-titlebar {
+.titlebar {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -105,13 +105,13 @@
   background-color: gray;
 }
 
-.fmg-dialog-titlebar-actions {
+.titlebar-actions {
   display: flex;
   align-items: center;
   flex-shrink: 0;
 }
 
-.fmg-dialog-titlebar-btn {
+.titlebar-btn {
   cursor: pointer;
 }
 

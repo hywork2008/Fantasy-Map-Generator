@@ -104,7 +104,7 @@ export const MarkersOverviewDialog: React.FC = () => {
       isOpen={isOpen}
       title="Markers Overview"
       onClose={() => closeDialog("markersOverview")}
-      className="fmg-dialog--overflow-hidden"
+      className="overflow-hidden"
     >
       <div id="markersOverviewContainer">
         <div id="markersBody" className="table">
@@ -191,7 +191,7 @@ export const MarkersOverviewDialog: React.FC = () => {
           </div>
         </div>
 
-        <div id="markersFooter" className="fmg-dialog-footer">
+        <div id="markersFooter" className="footer">
           <button type="button" data-tip="Refresh the Overview screen" className="icon-cw" onClick={refresh} />
           <input type="hidden" id="addedMarkerType" name="addedMarkerType" defaultValue={addedMarkerType} />
           <span id="markerTypeSelectorWrapper" className="d-inline-block">
