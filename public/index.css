@@ -187,14 +187,6 @@ t,
   cursor: pointer;
 }
 
-.strokes {
-  stroke-width: 0.08px;
-  width: 2px;
-  stroke: #5c5c70;
-  stroke-dasharray: 0.5, 0.7;
-  stroke-linecap: round;
-}
-
 #routes {
   fill: none;
   cursor: pointer;
@@ -202,10 +194,6 @@ t,
 
 i.icon-lock {
   cursor: pointer;
-}
-
-#labelEditor div {
-  display: inline-block;
 }
 
 #labels {
@@ -239,12 +227,6 @@ i.icon-lock {
   stroke-dasharray: 5;
   stroke-dashoffset: 1000;
   animation: dash 80s linear backwards;
-}
-
-.arrow {
-  marker-end: url(#end-arrow-small);
-  stroke: #555;
-  stroke-width: 0.5;
 }
 
 @keyframes dash {
@@ -284,12 +266,6 @@ text.drag {
   position: absolute;
 }
 
-#collapsible {
-  position: absolute;
-  z-index: 2;
-  display: grid;
-}
-
 .tab {
   display: flex;
   cursor: move;
@@ -319,10 +295,6 @@ button.active {
 }
 
 input[type="color"] {
-  cursor: pointer;
-}
-
-#convertImageDialog input[type="color"] {
   cursor: pointer;
 }
 
@@ -479,15 +451,11 @@ input[type="color"] {
   cursor: initial;
 }
 
-.setColors {
-  display: inline-block;
-}
-
 #brushesButtons svg {
   pointer-events: none;
 }
 
-#templateEditor #templateTools {
+#templateEditorContainer #templateTools {
   display: inline-block;
 }
 
@@ -562,16 +530,11 @@ input[type="color"] {
   overflow: auto;
 }
 
-#battleBottom div.battleTypes {
-  position: fixed;
-}
-
 #battleBody div.battlePhases {
   position: absolute;
 }
 
-#battleBody div.battlePhases > button,
-#battleBottom div.battleTypes > button {
+#battleBody div.battlePhases > button {
   display: block;
 }
 
@@ -583,16 +546,6 @@ div#regimentSelectorBody > div.inactive {
 div#regimentSelectorBody > div > div {
   display: inline-block;
   pointer-events: none;
-}
-
-.drag-trigger {
-  position: absolute;
-  right: -1px;
-  bottom: -1px;
-}
-
-.drag-trigger:hover {
-  cursor: move;
 }
 
 .colorsContainer {
@@ -628,25 +581,6 @@ i.resetButton {
   cursor: pointer;
 }
 
-#saveDropdown {
-  display: none;
-  position: absolute;
-  left: 29%;
-  top: 100%;
-}
-
-#loadDropdown {
-  display: none;
-  position: absolute;
-  left: 53%;
-  top: 100%;
-}
-
-#loadDropdown > div,
-#saveDropdown > div {
-  cursor: pointer;
-}
-
 .hidden {
   display: none !important;
 }
@@ -672,10 +606,6 @@ div.states.hovered {
 tr.states:hover td,
 tr.states.hovered td {
   border-color: #c4c4c4;
-  background-image: linear-gradient(to right, #dedede 100%, #f2f2f2 50%, #fcfcfc 0%);
-}
-
-#mergeStatesForm div[data-id].hovered {
   background-image: linear-gradient(to right, #dedede 100%, #f2f2f2 50%, #fcfcfc 0%);
 }
 
@@ -740,10 +670,6 @@ tr.states span.inactive:hover {
   cursor: pointer;
 }
 
-#diplomacySelect {
-  position: fixed;
-}
-
 #riverBody div.label,
 #riverBody input,
 #riverBody select,
@@ -759,14 +685,7 @@ tr.states span.inactive:hover {
   display: inline-block;
 }
 
-#stateNameEditor div.label,
-#provinceNameEditor div.label,
-#regimentBody div.label,
-#markerEditor div.label {
-  display: inline-block;
-}
-
-#exportToPngTilesScreen div.label {
+#regimentBody div.label {
   display: inline-block;
 }
 
@@ -875,19 +794,8 @@ div.states.Self {
   stroke-width: 0;
 }
 
-.hoverButton {
-  position: sticky;
-  cursor: pointer;
-}
-
 #unitsBody label {
   display: inline-block;
-}
-
-#unitsEditor i.icon-lock-open,
-#unitsEditor i.icon-lock {
-  cursor: pointer;
-  position: fixed;
 }
 
 #ruler {
@@ -991,10 +899,6 @@ svg.button {
   position: relative;
 }
 
-#reliefEditor > div > div {
-  display: inline-block;
-}
-
 #reliefIconsDiv svg {
   cursor: pointer;
 }
@@ -1007,11 +911,6 @@ svg.button {
   display: none;
   text-anchor: middle;
   dominant-baseline: central;
-}
-
-#alertMessage {
-  user-select: text;
-  overflow: auto;
 }
 
 .pseudoLink {
@@ -1116,13 +1015,6 @@ svg.button {
   cursor: pointer;
 }
 
-#prompt {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  z-index: 1000;
-}
-
 #mapOverlay {
   position: absolute;
   inset: 0;
@@ -1203,13 +1095,6 @@ svg.button {
 @media print {
   div,
   canvas {
-    display: none;
-  }
-}
-
-@media only screen and (max-width: 420px) {
-
-  .drag-trigger {
     display: none;
   }
 }
