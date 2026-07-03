@@ -86,10 +86,10 @@ export const GoodsEditorDialog: React.FC = () => {
                   <>
                     <th />
                     <th data-tip="Click to sort by good name" className="sortable alphabetically" data-sortby="name">
-                      Name&nbsp;
+                      Name
                     </th>
                     <th data-tip="Click to sort by type" className="sortable alphabetically" data-sortby="type">
-                      Type&nbsp;
+                      Type
                     </th>
                   </>
                 ) : (
@@ -108,27 +108,27 @@ export const GoodsEditorDialog: React.FC = () => {
                       />
                     </th>
                     <th data-tip="Click to sort by good name" className="sortable alphabetically" data-sortby="name">
-                      Name&nbsp;
+                      Name
                     </th>
                     <th data-tip="Click to sort by type" className="sortable alphabetically" data-sortby="type">
-                      Type&nbsp;
+                      Type
                     </th>
                     <th
                       data-tip="Total production units aggregated from cells and burgs. Click to sort"
                       className="sortable icon-sort-number-down"
                       data-sortby="produced"
                     >
-                      Produced&nbsp;
+                      Produced
                     </th>
                     <th
                       data-tip="Total units in stock across all markets and burg inventories. Click to sort"
                       className="sortable"
                       data-sortby="stock"
                     >
-                      Stock&nbsp;
+                      Stock
                     </th>
                     <th data-tip="Base (initial) price. Click to sort" className="sortable" data-sortby="baseprice">
-                      Price&nbsp;
+                      Price
                     </th>
                     <th />
                   </>
@@ -251,14 +251,13 @@ export const GoodsEditorDialog: React.FC = () => {
 
         <div id="goodsFooter" className={`totalLine hide${isAssignMode ? " hidden" : ""}`}>
           <div data-tip="Number of goods (displayed / total)">
-            Goods:&nbsp;<span id="goodsDisplayed">{displayedCount}</span> of{" "}
-            <span id="goodsNumber">{goods.length}</span>
+            Goods:<span id="goodsDisplayed">{displayedCount}</span> of <span id="goodsNumber">{goods.length}</span>
           </div>
           <div data-tip="Total amount of goods produced by all cells and burgs">
-            Produced:&nbsp;<span id="goodsProduced">{totalProduced}</span>
+            Produced:<span id="goodsProduced">{totalProduced}</span>
           </div>
           <div data-tip="Total units in stock across all markets and burg inventories">
-            Stock:&nbsp;<span id="goodsStock">{totalStock}</span>
+            Stock:<span id="goodsStock">{totalStock}</span>
           </div>
         </div>
 

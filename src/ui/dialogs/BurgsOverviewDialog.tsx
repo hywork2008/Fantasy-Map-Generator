@@ -433,10 +433,10 @@ export const BurgsOverviewDialog: React.FC = () => {
 
         <div id="burgsTotal" className="totalLine">
           <div data-tip="Burgs displayed">
-            Burgs:&nbsp;{filteredBurgs.length} of {validCount}
+            Burgs:{filteredBurgs.length} of {validCount}
           </div>
           <div data-tip="Average population">
-            Average population:&nbsp;
+            Average population:
             {filteredBurgs.length ? si(totalPopulation / filteredBurgs.length) : "0"}
           </div>
         </div>

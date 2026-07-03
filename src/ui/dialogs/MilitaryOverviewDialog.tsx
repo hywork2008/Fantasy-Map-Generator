@@ -176,7 +176,7 @@ export const MilitaryOverviewDialog: React.FC = () => {
                   className={`sortable alphabetically ${sortBy === "state" ? (sortOrder === "asc" ? "icon-sort-name-up" : "icon-sort-name-down") : ""}`}
                   onClick={() => toggleSortBy("state")}
                 >
-                  State&nbsp;
+                  State
                 </th>
                 {militaryOptions.map(u => (
                   <th
@@ -185,7 +185,7 @@ export const MilitaryOverviewDialog: React.FC = () => {
                     className={`sortable ${sortBy === u.name ? (sortOrder === "asc" ? "icon-sort-number-up" : "icon-sort-number-down") : ""}`}
                     onClick={() => toggleSortBy(u.name)}
                   >
-                    {capitalize(u.name.replace(/_/g, " "))}&nbsp;
+                    {capitalize(u.name.replace(/_/g, " "))}
                   </th>
                 ))}
                 <th
@@ -193,28 +193,28 @@ export const MilitaryOverviewDialog: React.FC = () => {
                   className={`sortable ${sortBy === "total" ? (sortOrder === "asc" ? "icon-sort-number-up" : "icon-sort-number-down") : "icon-sort-number-down"}`}
                   onClick={() => toggleSortBy("total")}
                 >
-                  Total&nbsp;
+                  Total
                 </th>
                 <th
                   data-tip="State population. Click to sort"
                   className={`sortable ${sortBy === "population" ? (sortOrder === "asc" ? "icon-sort-number-up" : "icon-sort-number-down") : ""}`}
                   onClick={() => toggleSortBy("population")}
                 >
-                  Population&nbsp;
+                  Population
                 </th>
                 <th
                   data-tip="Military personnel rate (% of state population). Depends on war alert. Click to sort"
                   className={`sortable ${sortBy === "rate" ? (sortOrder === "asc" ? "icon-sort-number-up" : "icon-sort-number-down") : ""}`}
                   onClick={() => toggleSortBy("rate")}
                 >
-                  Rate&nbsp;
+                  Rate
                 </th>
                 <th
                   data-tip="War Alert. Modifier to military forces number, depends of political situation. Click to sort"
                   className={`sortable ${sortBy === "alert" ? (sortOrder === "asc" ? "icon-sort-number-up" : "icon-sort-number-down") : ""}`}
                   onClick={() => toggleSortBy("alert")}
                 >
-                  War Alert&nbsp;
+                  War Alert
                 </th>
                 <th></th>
               </tr>
@@ -268,19 +268,19 @@ export const MilitaryOverviewDialog: React.FC = () => {
         </div>
         <div id="militaryTotal" className="totalLine">
           <div data-tip="States number">
-            States:&nbsp;<span>{totals.statesNumber}</span>
+            States:<span>{totals.statesNumber}</span>
           </div>
           <div data-tip="Total military forces">
-            Total forces:&nbsp;<span>{si(totals.total)}</span>
+            Total forces:<span>{si(totals.total)}</span>
           </div>
           <div data-tip="Average military forces per state">
-            Average forces:&nbsp;<span>{si(totals.averageForces)}</span>
+            Average forces:<span>{si(totals.averageForces)}</span>
           </div>
           <div data-tip="Average forces rate per state">
-            Average rate:&nbsp;<span>{rn(totals.averageRate, 2)}%</span>
+            Average rate:<span>{rn(totals.averageRate, 2)}%</span>
           </div>
           <div data-tip="Average War Alert">
-            Average alert:&nbsp;<span>{rn(totals.averageAlert, 2)}</span>
+            Average alert:<span>{rn(totals.averageAlert, 2)}</span>
           </div>
         </div>
         <div id="militaryFooter" className="fmg-dialog-footer">

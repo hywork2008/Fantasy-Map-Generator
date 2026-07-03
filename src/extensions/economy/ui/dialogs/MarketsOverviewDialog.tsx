@@ -159,21 +159,21 @@ export const MarketsOverviewDialog: React.FC = () => {
                   className={`sortable alphabetically ${getSortIcon("market", true)}`}
                   onClick={() => marketsOverviewActions.setSorting("market")}
                 >
-                  Market&nbsp;
+                  Market
                 </th>
                 <th
                   data-tip="Owning state. Click to sort"
                   className={`sortable alphabetically ${getSortIcon("owner", true)}`}
                   onClick={() => marketsOverviewActions.setSorting("owner")}
                 >
-                  Owner&nbsp;
+                  Owner
                 </th>
                 <th
                   data-tip="Number of cells in market territory. Click to sort"
                   className={`sortable ${getSortIcon("cells")}`}
                   onClick={() => marketsOverviewActions.setSorting("cells")}
                 >
-                  Cells&nbsp;
+                  Cells
                 </th>
                 {!isManualMode && (
                   <>
@@ -182,35 +182,35 @@ export const MarketsOverviewDialog: React.FC = () => {
                       className={`sortable ${getSortIcon("burgs")}`}
                       onClick={() => marketsOverviewActions.setSorting("burgs")}
                     >
-                      Burgs&nbsp;
+                      Burgs
                     </th>
                     <th
                       data-tip="Total stock of all goods. Click to sort"
                       className={`sortable ${getSortIcon("stock")}`}
                       onClick={() => marketsOverviewActions.setSorting("stock")}
                     >
-                      Stock&nbsp;
+                      Stock
                     </th>
                     <th
                       data-tip="Total gross sales revenue. Click to sort"
                       className={`sortable ${getSortIcon("sales")}`}
                       onClick={() => marketsOverviewActions.setSorting("sales")}
                     >
-                      Sales&nbsp;
+                      Sales
                     </th>
                     <th
                       data-tip="Total purchase spending. Click to sort"
                       className={`sortable ${getSortIcon("buys")}`}
                       onClick={() => marketsOverviewActions.setSorting("buys")}
                     >
-                      Buys&nbsp;
+                      Buys
                     </th>
                     <th
                       data-tip="Market value: net trading flow plus unsold inventory value minus tax. Click to sort"
                       className={`sortable ${getSortIcon("value")}`}
                       onClick={() => marketsOverviewActions.setSorting("value")}
                     >
-                      Value&nbsp;
+                      Value
                     </th>
                     <th />
                   </>
@@ -364,16 +364,16 @@ export const MarketsOverviewDialog: React.FC = () => {
 
         <div id="marketsOverviewFooter" className="totalLine" style={{ display: isManualMode ? "none" : "block" }}>
           <div data-tip="Total number of markets">
-            Markets:&nbsp;<span id="marketsOverviewFooterMarkets">{totalMarkets}</span>
+            Markets:<span id="marketsOverviewFooterMarkets">{totalMarkets}</span>
           </div>
           <div data-tip="Average gross sales revenue per market">
-            Avg Sales:&nbsp;<span id="marketsOverviewFooterSales">{formatPrice(avgSales)}</span>
+            Avg Sales:<span id="marketsOverviewFooterSales">{formatPrice(avgSales)}</span>
           </div>
           <div data-tip="Average purchase spending per market">
-            Avg Buys:&nbsp;<span id="marketsOverviewFooterBuys">{formatPrice(avgBuys)}</span>
+            Avg Buys:<span id="marketsOverviewFooterBuys">{formatPrice(avgBuys)}</span>
           </div>
           <div data-tip="Average market value per market">
-            Avg Value:&nbsp;<span id="marketsOverviewFooterValue">{formatPrice(avgValue)}</span>
+            Avg Value:<span id="marketsOverviewFooterValue">{formatPrice(avgValue)}</span>
           </div>
         </div>
 

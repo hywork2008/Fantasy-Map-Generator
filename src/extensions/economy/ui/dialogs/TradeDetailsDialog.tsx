@@ -83,28 +83,28 @@ export const TradeDetailsDialog: React.FC = () => {
                   className={`sortable alphabetically ${getSortIcon("good", true)} -trade-details-dialog__margin-left-0`}
                   onClick={() => setSorting("good")}
                 >
-                  Good&nbsp;
+                  Good
                 </th>
                 <th
                   data-tip="Click to sort by units"
                   className={`sortable ${getSortIcon("units")}`}
                   onClick={() => setSorting("units")}
                 >
-                  Units&nbsp;
+                  Units
                 </th>
                 <th
                   data-tip="Click to sort by unit price"
                   className={`sortable ${getSortIcon("price")}`}
                   onClick={() => setSorting("price")}
                 >
-                  Price&nbsp;
+                  Price
                 </th>
                 <th
                   data-tip="Click to sort by value"
                   className={`sortable ${getSortIcon("value")}`}
                   onClick={() => setSorting("value")}
                 >
-                  Value&nbsp;
+                  Value
                 </th>
               </tr>
             </thead>

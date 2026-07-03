@@ -137,7 +137,7 @@ export const parseError = (error: unknown): string => {
   const errorString = isFirefox ? `${err.toString()} ${err.stack}` : err.stack || "";
   const regex = /(\b(https?|ftp|file):\/\/[-A-Z0-9+&@#/%?=~_|!:,.;]*[-A-Z0-9+&@#/%=~_|])/gi;
   const errorNoURL = errorString.replace(regex, url => `<i>${last(url.split("/"))}</i>`);
-  const errorParsed = errorNoURL.replace(/at /gi, "<br>&nbsp;&nbsp;at ");
+  const errorParsed = errorNoURL.replace(/at /gi, "<br> at ");
   return errorParsed;
 };
 

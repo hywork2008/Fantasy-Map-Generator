@@ -40,23 +40,23 @@ export const MarketDealsDialog: React.FC = () => {
               <tr className="header">
                 <th />
                 <th data-tip="Click to sort by good" className="sortable alphabetically" data-sortby="good">
-                  Good&nbsp;
+                  Good
                 </th>
                 <th data-tip="Click to sort by deal type" className="sortable alphabetically" data-sortby="direction">
-                  Type&nbsp;
+                  Type
                 </th>
                 <th
                   data-tip="Click to sort by counterparty"
                   className="sortable alphabetically"
                   data-sortby="counterparty"
                 >
-                  Counterparty&nbsp;
+                  Counterparty
                 </th>
                 <th data-tip="Click to sort by units" className="sortable" data-sortby="units">
-                  Units&nbsp;
+                  Units
                 </th>
                 <th data-tip="Click to sort by income" className="sortable" data-sortby="income">
-                  Income&nbsp;
+                  Income
                 </th>
               </tr>
             </thead>

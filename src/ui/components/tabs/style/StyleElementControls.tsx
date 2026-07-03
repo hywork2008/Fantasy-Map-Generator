@@ -360,7 +360,7 @@ export function StyleElementControls() {
                 value={num("styleVignetteX")}
                 onChange={e => applyVignetteX(e.target.value)}
               />
-              <span>width&nbsp; </span>
+              <span>width</span>
               <input
                 id="styleVignetteWidth"
                 type="number"

@@ -348,20 +348,20 @@ export const RegimentSelectorScreenDialog: React.FC = () => {
           >
             <tr className="header">
               <th data-tip="Click to sort by state name" className="sortable alphabetically" data-sortby="state">
-                State&nbsp;
+                State
               </th>
               <th data-tip="Click to sort by regiment name" className="sortable alphabetically" data-sortby="regiment">
-                Regiment&nbsp;
+                Regiment
               </th>
               <th data-tip="Click to sort by total military forces" className="sortable" data-sortby="total">
-                Total&nbsp;
+                Total
               </th>
               <th
                 data-tip="Click to sort by distance to the battlefield"
                 className="sortable icon-sort-number-up"
                 data-sortby="distance"
               >
-                Distance&nbsp;
+                Distance
               </th>
             </tr>
           </thead>

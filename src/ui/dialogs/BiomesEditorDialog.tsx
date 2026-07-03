@@ -89,7 +89,7 @@ export const BiomesEditorContent: React.FC = () => {
                 data-sortby="name"
                 onClick={() => handleSort("name", true)}
               >
-                Biome&nbsp;
+                Biome
               </th>
               <th
                 data-tip="Click to sort by biome habitability"
@@ -97,7 +97,7 @@ export const BiomesEditorContent: React.FC = () => {
                 data-sortby="habitability"
                 onClick={() => handleSort("habitability", false)}
               >
-                Habitability&nbsp;
+                Habitability
               </th>
               <th
                 data-tip="Click to sort by biome cells number"
@@ -105,7 +105,7 @@ export const BiomesEditorContent: React.FC = () => {
                 data-sortby="cells"
                 onClick={() => handleSort("cells", false)}
               >
-                Cells&nbsp;
+                Cells
               </th>
               <th
                 data-tip="Click to sort by biome area"
@@ -113,7 +113,7 @@ export const BiomesEditorContent: React.FC = () => {
                 data-sortby="area"
                 onClick={() => handleSort("area", false)}
               >
-                Area&nbsp;
+                Area
               </th>
               <th
                 data-tip="Click to sort by biome population"
@@ -121,7 +121,7 @@ export const BiomesEditorContent: React.FC = () => {
                 data-sortby="population"
                 onClick={() => handleSort("population", false)}
               >
-                Population&nbsp;
+                Population
               </th>
               <th></th>
             </tr>
@@ -227,16 +227,16 @@ export const BiomesEditorContent: React.FC = () => {
 
       <div id="biomesTotal" className="totalLine" style={{ display: isCustomizationMode ? "none" : undefined }}>
         <div data-tip="Number of land biomes">
-          Biomes:&nbsp;<span id="biomesFooterBiomes">{footer.biomes}</span>
+          Biomes:<span id="biomesFooterBiomes">{footer.biomes}</span>
         </div>
         <div data-tip="Total land cells number">
-          Cells:&nbsp;<span id="biomesFooterCells">{footer.cells}</span>
+          Cells:<span id="biomesFooterCells">{footer.cells}</span>
         </div>
         <div data-tip="Total land area">
-          Land Area:&nbsp;<span id="biomesFooterArea">{footerArea}</span>
+          Land Area:<span id="biomesFooterArea">{footerArea}</span>
         </div>
         <div data-tip="Total population">
-          Population:&nbsp;<span id="biomesFooterPopulation">{si(footer.totalPopulation)}</span>
+          Population:<span id="biomesFooterPopulation">{si(footer.totalPopulation)}</span>
         </div>
       </div>
 

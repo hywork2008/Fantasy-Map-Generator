@@ -29,14 +29,14 @@ export const DiplomacyEditorContent: React.FC = () => {
           <thead>
             <tr id="diplomacyHeader">
               <th data-tip="Click to sort by state name" className="sortable alphabetically" data-sortby="name">
-                State&nbsp;
+                State
               </th>
               <th
                 data-tip="Click to sort by diplomatical relations"
                 className="sortable alphabetically"
                 data-sortby="relations"
               >
-                Relations&nbsp;
+                Relations
               </th>
             </tr>
           </thead>

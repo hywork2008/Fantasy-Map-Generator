@@ -68,7 +68,7 @@ export const StatesEditorContent: React.FC = () => {
                 className="sortable alphabetically"
                 onClick={() => statesEditorActions.changeSort("name")}
               >
-                State&nbsp;
+                State
                 <span className={renderSortIcon("name") || ""} />
               </th>
               <th
@@ -76,7 +76,7 @@ export const StatesEditorContent: React.FC = () => {
                 className="sortable alphabetically"
                 onClick={() => statesEditorActions.changeSort("formName")}
               >
-                Form&nbsp;
+                Form
                 <span className={renderSortIcon("formName") || ""} />
               </th>
               <th
@@ -84,7 +84,7 @@ export const StatesEditorContent: React.FC = () => {
                 className="sortable alphabetically"
                 onClick={() => statesEditorActions.changeSort("capitalName")}
               >
-                Capital&nbsp;
+                Capital
                 <span className={renderSortIcon("capitalName") || ""} />
               </th>
               <th
@@ -92,7 +92,7 @@ export const StatesEditorContent: React.FC = () => {
                 className="sortable alphabetically hide"
                 onClick={() => statesEditorActions.changeSort("cultureName")}
               >
-                Culture&nbsp;
+                Culture
                 <span className={renderSortIcon("cultureName") || ""} />
               </th>
               <th
@@ -100,7 +100,7 @@ export const StatesEditorContent: React.FC = () => {
                 className="sortable hide"
                 onClick={() => statesEditorActions.changeSort("burgs")}
               >
-                Burgs&nbsp;
+                Burgs
                 <span className={getSortIconNumber("burgs") || ""} />
               </th>
               <th
@@ -108,7 +108,7 @@ export const StatesEditorContent: React.FC = () => {
                 className="sortable hide"
                 onClick={() => statesEditorActions.changeSort("area")}
               >
-                Area&nbsp;
+                Area
                 <span className={getSortIconNumber("area") || ""} />
               </th>
               <th
@@ -116,7 +116,7 @@ export const StatesEditorContent: React.FC = () => {
                 className="sortable hide"
                 onClick={() => statesEditorActions.changeSort("population")}
               >
-                Population&nbsp;
+                Population
                 <span className={getSortIconNumber("population") || ""} />
               </th>
               <th
@@ -124,7 +124,7 @@ export const StatesEditorContent: React.FC = () => {
                 className="sortable alphabetically hidden show hide"
                 onClick={() => statesEditorActions.changeSort("type")}
               >
-                Type&nbsp;
+                Type
                 <span className={renderSortIcon("type") || ""} />
               </th>
               <th
@@ -132,7 +132,7 @@ export const StatesEditorContent: React.FC = () => {
                 className="sortable hidden show hide"
                 onClick={() => statesEditorActions.changeSort("expansionism")}
               >
-                Expansion&nbsp;
+                Expansion
                 <span className={getSortIconNumber("expansionism") || ""} />
               </th>
               <th
@@ -140,7 +140,7 @@ export const StatesEditorContent: React.FC = () => {
                 className="sortable hidden show hide"
                 onClick={() => statesEditorActions.changeSort("cells")}
               >
-                Cells&nbsp;
+                Cells
                 <span className={getSortIconNumber("cells") || ""} />
               </th>
               <th></th>
@@ -310,22 +310,22 @@ export const StatesEditorContent: React.FC = () => {
 
       <div id="statesTotal" className="totalLine">
         <div data-tip="States number">
-          States:&nbsp;<span>{totalStates}</span>
+          States:<span>{totalStates}</span>
         </div>
         <div data-tip="Total land cells number">
-          Cells:&nbsp;<span>{totalCells}</span>
+          Cells:<span>{totalCells}</span>
         </div>
         <div data-tip="Total burgs number">
-          Burgs:&nbsp;<span>{totalBurgs}</span>
+          Burgs:<span>{totalBurgs}</span>
         </div>
         <div data-tip="Total land area">
-          Land Area:&nbsp;
+          Land Area:
           <span>
             {si(totalArea)} {areaUnit}
           </span>
         </div>
         <div data-tip="Total population">
-          Population:&nbsp;<span>{si(totalPopulation)}</span>
+          Population:<span>{si(totalPopulation)}</span>
         </div>
       </div>
 

@@ -177,42 +177,42 @@ export const RiversOverviewDialog: React.FC = () => {
                   className={`sortable alphabetically ${sortBy === "name" ? (sortOrder === "asc" ? "icon-sort-name-up" : "icon-sort-name-down") : ""}`}
                   onClick={() => toggleSortBy("name")}
                 >
-                  River&nbsp;
+                  River
                 </th>
                 <th
                   data-tip="Click to sort by river type name"
                   className={`sortable alphabetically ${sortBy === "type" ? (sortOrder === "asc" ? "icon-sort-name-up" : "icon-sort-name-down") : ""}`}
                   onClick={() => toggleSortBy("type")}
                 >
-                  Type&nbsp;
+                  Type
                 </th>
                 <th
                   data-tip="Click to sort by discharge (flux in m3/s)"
                   className={`sortable ${sortBy === "discharge" ? (sortOrder === "asc" ? "icon-sort-number-up" : "icon-sort-number-down") : ""}`}
                   onClick={() => toggleSortBy("discharge")}
                 >
-                  Discharge&nbsp;
+                  Discharge
                 </th>
                 <th
                   data-tip="Click to sort by river length"
                   className={`sortable ${sortBy === "length" ? (sortOrder === "asc" ? "icon-sort-number-up" : "icon-sort-number-down") : ""}`}
                   onClick={() => toggleSortBy("length")}
                 >
-                  Length&nbsp;
+                  Length
                 </th>
                 <th
                   data-tip="Click to sort by river mouth width"
                   className={`sortable ${sortBy === "width" ? (sortOrder === "asc" ? "icon-sort-number-up" : "icon-sort-number-down") : ""}`}
                   onClick={() => toggleSortBy("width")}
                 >
-                  Width&nbsp;
+                  Width
                 </th>
                 <th
                   data-tip="Click to sort by river basin"
                   className={`sortable alphabetically ${sortBy === "basin" ? (sortOrder === "asc" ? "icon-sort-name-up" : "icon-sort-name-down") : ""}`}
                   onClick={() => toggleSortBy("basin")}
                 >
-                  Basin&nbsp;
+                  Basin
                 </th>
                 <th></th>
               </tr>
@@ -289,18 +289,18 @@ export const RiversOverviewDialog: React.FC = () => {
         </div>
         <div id="riversTotal" className="totalLine">
           <div data-tip="Rivers number">
-            Rivers:&nbsp;
+            Rivers:
             <span id="riversFooterNumber">{`${filteredRivers.length} of ${worldContext.pack?.rivers?.length || 0}`}</span>
           </div>
           <div data-tip="Average discharge">
-            Average discharge:&nbsp;<span id="riversFooterDischarge">{`${averageDischarge} m³/s`}</span>
+            Average discharge:<span id="riversFooterDischarge">{`${averageDischarge} m³/s`}</span>
           </div>
           <div data-tip="Average length">
-            Length:&nbsp;
+            Length:
             <span id="riversFooterLength">{`${averageLength * worldContext.distanceScale} ${unit}`}</span>
           </div>
           <div data-tip="Average mouth width">
-            Width:&nbsp;
+            Width:
             <span id="riversFooterWidth">{`${rn(averageWidth * worldContext.distanceScale, 3)} ${unit}`}</span>
           </div>
         </div>

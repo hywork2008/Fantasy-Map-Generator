@@ -139,7 +139,7 @@ export const ProvinceNameEditorDialog: React.FC = () => {
         </div>
 
         <div data-tip="Dominant culture in the province. This defines culture-based naming. Can be changed via the Cultures Editor">
-          Dominant culture:&nbsp;<span>{cultureName}</span>
+          Dominant culture:<span>{cultureName}</span>
         </div>
       </div>
     </Dialog>

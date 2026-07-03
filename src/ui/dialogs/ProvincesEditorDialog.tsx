@@ -100,7 +100,7 @@ export const ProvincesEditorDialog: React.FC = () => {
                   className={`sortable alphabetically ${sortBy === "name" ? "sort-active" : ""}`}
                   onClick={() => provincesEditorActions.changeSort("name")}
                 >
-                  Province&nbsp;
+                  Province
                 </th>
                 {customization !== 11 && (
                   <>
@@ -109,14 +109,14 @@ export const ProvincesEditorDialog: React.FC = () => {
                       className={`sortable alphabetically ${sortBy === "form" ? "sort-active" : ""}`}
                       onClick={() => provincesEditorActions.changeSort("form")}
                     >
-                      Form&nbsp;
+                      Form
                     </th>
                     <th
                       data-tip="Click to sort by province capital"
                       className={`sortable alphabetically ${sortBy === "capital" ? "sort-active" : ""}`}
                       onClick={() => provincesEditorActions.changeSort("capital")}
                     >
-                      Capital&nbsp;
+                      Capital
                     </th>
                   </>
                 )}
@@ -125,7 +125,7 @@ export const ProvincesEditorDialog: React.FC = () => {
                   className={`sortable alphabetically ${sortBy === "state" ? "sort-active" : ""}`}
                   onClick={() => provincesEditorActions.changeSort("state")}
                 >
-                  State&nbsp;
+                  State
                 </th>
                 {customization !== 11 && (
                   <>
@@ -134,21 +134,21 @@ export const ProvincesEditorDialog: React.FC = () => {
                       className={`sortable ${sortBy === "burgs" ? "sort-active" : ""}`}
                       onClick={() => provincesEditorActions.changeSort("burgs")}
                     >
-                      Burgs&nbsp;
+                      Burgs
                     </th>
                     <th
                       data-tip="Click to sort by province area"
                       className={`sortable ${sortBy === "area" ? "sort-active" : ""}`}
                       onClick={() => provincesEditorActions.changeSort("area")}
                     >
-                      Area&nbsp;
+                      Area
                     </th>
                     <th
                       data-tip="Click to sort by province population"
                       className={`sortable ${sortBy === "population" ? "sort-active" : ""}`}
                       onClick={() => provincesEditorActions.changeSort("population")}
                     >
-                      Population&nbsp;
+                      Population
                     </th>
                   </>
                 )}
@@ -325,17 +325,17 @@ export const ProvincesEditorDialog: React.FC = () => {
 
         <div id="provincesTotal" className="totalLine" style={{ display: customization === 11 ? "none" : "block" }}>
           <div data-tip="Provinces displayed">
-            Provinces:&nbsp;<span id="provincesFooterNumber">{totalProvinces}</span>
+            Provinces:<span id="provincesFooterNumber">{totalProvinces}</span>
           </div>
           <div data-tip="Total burgs number">
-            Burgs:&nbsp;<span id="provincesFooterBurgs">{totalBurgs}</span>
+            Burgs:<span id="provincesFooterBurgs">{totalBurgs}</span>
           </div>
           <div data-tip="Average area">
-            Mean area:&nbsp;
+            Mean area:
             <span id="provincesFooterArea">{totalProvinces ? si(totalArea / totalProvinces) + unit : `0${unit}`}</span>
           </div>
           <div data-tip="Average population">
-            Mean population:&nbsp;
+            Mean population:
             <span id="provincesFooterPopulation">{totalProvinces ? si(totalPopulation / totalProvinces) : 0}</span>
           </div>
         </div>

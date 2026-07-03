@@ -84,21 +84,21 @@ export const ReligionsEditorDialog: React.FC = () => {
                   className={`sortable alphabetically ${sortBy === "name" ? "sort-active" : ""}`}
                   onClick={() => religionsEditorActions.changeSort("name")}
                 >
-                  Religion&nbsp;
+                  Religion
                 </th>
                 <th
                   data-tip="Click to sort by religion type"
                   className={`sortable alphabetically ${sortBy === "type" ? "sort-active" : ""}`}
                   onClick={() => religionsEditorActions.changeSort("type")}
                 >
-                  Type&nbsp;
+                  Type
                 </th>
                 <th
                   data-tip="Click to sort by religion form"
                   className={`sortable alphabetically ${sortBy === "form" ? "sort-active" : ""}`}
                   onClick={() => religionsEditorActions.changeSort("form")}
                 >
-                  Form&nbsp;
+                  Form
                 </th>
                 {!isBrushMode && (
                   <>
@@ -107,35 +107,35 @@ export const ReligionsEditorDialog: React.FC = () => {
                       className={`sortable alphabetically ${sortBy === "deity" ? "sort-active" : ""}`}
                       onClick={() => religionsEditorActions.changeSort("deity")}
                     >
-                      Supreme Deity&nbsp;
+                      Supreme Deity
                     </th>
                     <th
                       data-tip="Click to sort by religion area"
                       className={`sortable ${sortBy === "area" ? "sort-active" : ""}`}
                       onClick={() => religionsEditorActions.changeSort("area")}
                     >
-                      Area&nbsp;
+                      Area
                     </th>
                     <th
                       data-tip="Click to sort by number of believers (religion area population)"
                       className={`sortable ${sortBy === "population" ? "sort-active" : ""}`}
                       onClick={() => religionsEditorActions.changeSort("population")}
                     >
-                      Believers&nbsp;
+                      Believers
                     </th>
                     <th
                       data-tip="Click to sort by potential extent type"
                       className={`sortable alphabetically ${sortBy === "expansion" ? "sort-active" : ""}`}
                       onClick={() => religionsEditorActions.changeSort("expansion")}
                     >
-                      Potential&nbsp;
+                      Potential
                     </th>
                     <th
                       data-tip="Click to sort by expansionism"
                       className={`sortable ${sortBy === "expansionism" ? "sort-active" : ""}`}
                       onClick={() => religionsEditorActions.changeSort("expansionism")}
                     >
-                      Expansion&nbsp;
+                      Expansion
                     </th>
                     <th></th>
                   </>
@@ -347,22 +347,22 @@ export const ReligionsEditorDialog: React.FC = () => {
 
         <div id="religionsTotal" className="totalLine" style={{ display: isBrushMode ? "none" : "block" }}>
           <div data-tip="Total number of organized religions">
-            Organized:&nbsp;<span id="religionsOrganized">{totalOrganized}</span>
+            Organized:<span id="religionsOrganized">{totalOrganized}</span>
           </div>
           <div data-tip="Total number of heresies">
-            Heresies:&nbsp;<span id="religionsHeresies">{totalHeresies}</span>
+            Heresies:<span id="religionsHeresies">{totalHeresies}</span>
           </div>
           <div data-tip="Total number of cults">
-            Cults:&nbsp;<span id="religionsCults">{totalCults}</span>
+            Cults:<span id="religionsCults">{totalCults}</span>
           </div>
           <div data-tip="Total number of folk religions">
-            Folk:&nbsp;<span id="religionsFolk">{totalFolk}</span>
+            Folk:<span id="religionsFolk">{totalFolk}</span>
           </div>
           <div data-tip="Total land area">
-            Land Area:&nbsp;<span id="religionsFooterArea">{si(totalArea) + unit}</span>
+            Land Area:<span id="religionsFooterArea">{si(totalArea) + unit}</span>
           </div>
           <div data-tip="Total number of believers (population)">
-            Believers:&nbsp;<span id="religionsFooterPopulation">{si(totalPopulation)}</span>
+            Believers:<span id="religionsFooterPopulation">{si(totalPopulation)}</span>
           </div>
         </div>
 

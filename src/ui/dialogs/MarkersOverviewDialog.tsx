@@ -111,7 +111,7 @@ export const MarkersOverviewDialog: React.FC = () => {
             <thead>
               <tr id="markersHeader">
                 <th data-tip="Click to sort by marker type" className="sortable alphabetically" data-sortby="type">
-                  Type&nbsp;
+                  Type
                 </th>
                 <th
                   className="icon-pin pointer"

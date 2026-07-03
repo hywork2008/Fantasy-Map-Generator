@@ -69,13 +69,13 @@ export const MarketOverviewDialog: React.FC = () => {
               <tr className="header">
                 <th />
                 <th data-tip="Click to sort by good" className="sortable alphabetically" data-sortby="good">
-                  Good&nbsp;
+                  Good
                 </th>
                 <th data-tip="Click to sort by stock" className="sortable icon-sort-number-down" data-sortby="stock">
-                  Stock&nbsp;
+                  Stock
                 </th>
                 <th data-tip="Click to sort by price" className="sortable" data-sortby="price">
-                  Price&nbsp;
+                  Price
                 </th>
               </tr>
             </thead>

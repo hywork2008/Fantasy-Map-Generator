@@ -94,21 +94,21 @@ export const MarketsGoodCompareDialog: React.FC = () => {
                   className={`sortable alphabetically ${getSortIcon("market", true)}`}
                   onClick={() => setSorting("market")}
                 >
-                  Market&nbsp;
+                  Market
                 </th>
                 <th
                   data-tip="Good stock in this market. Click to sort"
                   className={`sortable ${getSortIcon("stock")}`}
                   onClick={() => setSorting("stock")}
                 >
-                  Stock&nbsp;
+                  Stock
                 </th>
                 <th
                   data-tip="Price for this good. Click to sort"
                   className={`sortable ${getSortIcon("price")}`}
                   onClick={() => setSorting("price")}
                 >
-                  Price&nbsp;
+                  Price
                 </th>
               </tr>
             </thead>
@@ -144,10 +144,10 @@ export const MarketsGoodCompareDialog: React.FC = () => {
 
         <div id="marketsGoodCompareFooter" className="totalLine">
           <div data-tip="Total stock of this good across all markets">
-            Total Stock:&nbsp;<span id="marketsGoodCompareFooterStock">{totalStock}</span>
+            Total Stock:<span id="marketsGoodCompareFooterStock">{totalStock}</span>
           </div>
           <div data-tip="Average price of this good across markets">
-            Avg Price:&nbsp;<span id="marketsGoodCompareFooterPrice">{formatPrice(avgPrice)}</span>
+            Avg Price:<span id="marketsGoodCompareFooterPrice">{formatPrice(avgPrice)}</span>
           </div>
         </div>
 

@@ -189,21 +189,21 @@ export const RoutesOverviewDialog: React.FC = () => {
                   className={`sortable alphabetically ${sortBy === "name" ? (sortOrder === "asc" ? "icon-sort-name-up" : "icon-sort-name-down") : ""}`}
                   onClick={() => toggleSortBy("name")}
                 >
-                  Route&nbsp;
+                  Route
                 </th>
                 <th
                   data-tip="Click to sort by route group"
                   className={`sortable alphabetically ${sortBy === "group" ? (sortOrder === "asc" ? "icon-sort-name-up" : "icon-sort-name-down") : ""}`}
                   onClick={() => toggleSortBy("group")}
                 >
-                  Group&nbsp;
+                  Group
                 </th>
                 <th
                   data-tip="Click to sort by route length"
                   className={`sortable ${sortBy === "length" ? (sortOrder === "asc" ? "icon-sort-number-up" : "icon-sort-number-down") : "icon-sort-number-down"}`}
                   onClick={() => toggleSortBy("length")}
                 >
-                  Length&nbsp;
+                  Length
                 </th>
                 <th></th>
               </tr>
@@ -263,11 +263,11 @@ export const RoutesOverviewDialog: React.FC = () => {
         </div>
         <div id="routesTotal" className="totalLine">
           <div data-tip="Routes number">
-            Routes:&nbsp;
+            Routes:
             <span id="routesFooterNumber">{`${filteredRoutes.length} of ${worldContext.pack?.routes?.length || 0}`}</span>
           </div>
           <div data-tip="Average length">
-            Average length:&nbsp;
+            Average length:
             <span id="routesFooterLength">{`${averageLength * worldContext.distanceScale} ${distanceUnit}`}</span>
           </div>
         </div>

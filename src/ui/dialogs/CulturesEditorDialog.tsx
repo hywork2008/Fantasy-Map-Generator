@@ -96,7 +96,7 @@ export const CulturesEditorDialog: React.FC = () => {
       onClick={() => culturesEditorActions.changeSort(col)}
       style={{ width }}
     >
-      {label}&nbsp;
+      {label}
     </th>
   );
 
@@ -311,19 +311,19 @@ export const CulturesEditorDialog: React.FC = () => {
 
         <div id="culturesTotal" className="totalLine" style={{ display: isBrushMode ? "none" : undefined }}>
           <div data-tip="Cultures number">
-            Cultures:&nbsp;<span>{cultures.filter(c => c.i).length}</span>
+            Cultures:<span>{cultures.filter(c => c.i).length}</span>
           </div>
           <div data-tip="Total land cells number">
-            Cells:&nbsp;<span>{totalCells}</span>
+            Cells:<span>{totalCells}</span>
           </div>
           <div data-tip="Total land area">
-            Land Area:&nbsp;
+            Land Area:
             <span>
               {si(totalArea)} {unit}
             </span>
           </div>
           <div data-tip="Total population">
-            Population:&nbsp;<span>{si(totalPopulation)}</span>
+            Population:<span>{si(totalPopulation)}</span>
           </div>
         </div>
 

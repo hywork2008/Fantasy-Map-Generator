@@ -138,7 +138,7 @@ export const RegimentsOverviewDialog: React.FC = () => {
       onClick={() => toggleSortBy(field)}
       data-sortby={field}
     >
-      {label}&nbsp;
+      {label}
     </th>
   );
 
@@ -171,7 +171,7 @@ export const RegimentsOverviewDialog: React.FC = () => {
                   data-sortby="total"
                   onClick={() => toggleSortBy("total")}
                 >
-                  Total&nbsp;
+                  Total
                 </th>
               </tr>
             </thead>
