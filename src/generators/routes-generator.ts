@@ -879,6 +879,7 @@ class RoutesModule {
     return path;
   }
 
+  // An approximation that's a few percent too low
   getLength(routeId: number): number {
     const route = this.worldContext.pack.routes.find(r => r.i === routeId);
     if (!route?.points || route.points.length < 2) return 0;

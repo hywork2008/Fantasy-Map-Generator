@@ -25,3 +25,11 @@ export function overviewRoutes(): void {
     position: { my: "right top", at: "right-10 top+10", of: "svg", collision: "fit" }
   });
 }
+
+// preserve getLength method from src/generators/routes-generator.ts
+// commit 2757b684ac2b5f3a10f3aabbd7a1cccb6727c868
+export function getExactLength(routeId: string): number {
+  if (!view.customization) return 0;
+  const path = view.routes.select(`#route${routeId}`).node() as SVGPathElement;
+  return path.getTotalLength();
+}
