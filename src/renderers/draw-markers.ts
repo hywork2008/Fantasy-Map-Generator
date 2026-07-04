@@ -1,9 +1,10 @@
 import type { AppServices } from "../context/appServices";
-import type { SettlementLayers, ViewState } from "../context/viewContext";
+import type { FocusFields, SettlementLayers, ViewState } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import type { Marker } from "../types/models";
 import { rn } from "../utils";
 import { TIME } from "../utils/debug";
+import { isCellInScope } from "./core/focusScope";
 import type { IRenderer } from "./core/IRenderer";
 
 type PinShapeFunction = (fill: string, stroke: string) => string;
@@ -89,17 +90,19 @@ export const MarkersRenderer: IRenderer = {
 
   render(
     worldContext: Readonly<WorldContext>,
-    viewContext: Readonly<SettlementLayers & ViewState>,
+    viewContext: Readonly<SettlementLayers & ViewState & FocusFields>,
     appServices: AppServices
   ): void {
     TIME && console.time("MarkersRenderer");
     const { pack } = worldContext;
-    const { markers } = viewContext;
+    const { markers, focusScope } = viewContext;
 
     const rescale = +markers.attr("rescale");
     const pinned = +markers.attr("pinned");
 
-    const markersData: Marker[] = pinned ? pack.markers.filter((m: Marker) => m.pinned) : pack.markers;
+    const markersData: Marker[] = (pinned ? pack.markers.filter((m: Marker) => m.pinned) : pack.markers).filter(
+      (m: Marker) => isCellInScope(focusScope, m.cell)
+    );
     const html = markersData.map(marker => drawMarker(worldContext, viewContext, appServices, marker, rescale));
     markers.html(html.join(""));
 

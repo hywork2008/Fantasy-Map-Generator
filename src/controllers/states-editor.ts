@@ -24,7 +24,7 @@ import { COArenderer } from "../renderers/emblem-renderer";
 import { GenerationPipeline } from "../services/generationPipeline";
 import { clearMainTip, showMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
-import { getStatesEditorState, setStatesEditorState } from "../store/statesEditorState";
+import { getStatesEditorState, type StateRowData, setStatesEditorState } from "../store/statesEditorState";
 import type { Burg, Culture, MilitaryRegiment, Province, State } from "../types/models";
 import type { WorldNote } from "../types/WorldState";
 import { isDialogOpen, openDialog } from "../ui/dialogs/dialogService";
@@ -42,6 +42,7 @@ import { BrushHistoryClass as BrushHistory } from "./BrushHistory";
 import { overviewBurgs } from "./burgs-overview";
 import { interactionManager } from "./interactionManager";
 import { toggleBiomes, toggleBorders, toggleCultures, toggleProvinces, toggleReligions, toggleStates } from "./layers";
+import { openStateEditor } from "./state-editor";
 import { editStyle } from "./style";
 
 let worldContext: WorldContext;
@@ -132,13 +133,38 @@ export function open(): void {
 }
 
 export function refreshStatesEditor(): void {
+  const { rows, totalStates, totalCells, totalBurgs, totalArea, totalPopulation } = computeStateRows();
+
+  setStatesEditorState({
+    states: rows,
+    totalStates,
+    totalCells,
+    totalBurgs,
+    totalArea,
+    totalPopulation
+  });
+}
+
+/**
+ * Pure(-ish) row computation shared by the States Editor and the State Editor's Overview tab —
+ * always covers every non-removed state (there is no per-state filter to worry about, unlike
+ * provinces/burgs), so it's safe to call from anywhere without disturbing other open dialogs.
+ */
+export function computeStateRows(): {
+  rows: StateRowData[];
+  totalStates: number;
+  totalCells: number;
+  totalBurgs: number;
+  totalArea: number;
+  totalPopulation: number;
+} {
   GenerationPipeline.States.collectStatistics(getWorldState());
 
   let totalArea = 0;
   let totalPopulation = 0;
   let totalBurgs = 0;
 
-  const statesRowData = [];
+  const rows: StateRowData[] = [];
 
   for (const s of worldContext.pack.states as State[]) {
     if (s.removed) continue;
@@ -158,7 +184,7 @@ export function refreshStatesEditor(): void {
       COArenderer.trigger(`stateCOA${s.i}`, s.coa as RendererEmblem);
     }
 
-    statesRowData.push({
+    rows.push({
       i: s.i,
       name: s.name,
       color: s.color ?? "",
@@ -180,17 +206,10 @@ export function refreshStatesEditor(): void {
     });
   }
 
-  const validStates = statesRowData.filter(s => s.i > 0).length;
-  const validCells = Array.from(worldContext.pack.cells.h).filter(h => h >= 20).length;
+  const totalStates = rows.filter(s => s.i > 0).length;
+  const totalCells = Array.from(worldContext.pack.cells.h).filter(h => h >= 20).length;
 
-  setStatesEditorState({
-    states: statesRowData,
-    totalStates: validStates,
-    totalCells: validCells,
-    totalBurgs,
-    totalArea,
-    totalPopulation
-  });
+  return { rows, totalStates, totalCells, totalBurgs, totalArea, totalPopulation };
 }
 
 export const statesEditorActions = {
@@ -365,6 +384,8 @@ export const statesEditorActions = {
   zoomCapital(stateId: number): void {
     stateCapitalZoomIn(stateId);
   },
+
+  openStateEditor,
 
   changeCapitalName(stateId: number, val: string): void {
     const capital = (worldContext.pack.states[stateId] as State).capital;

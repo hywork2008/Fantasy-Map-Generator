@@ -1,13 +1,10 @@
-import { useVirtualizer } from "@tanstack/react-virtual";
 import type React from "react";
 import { useEffect, useMemo, useRef } from "react";
-import { zoomIntoBurg } from "../../actions";
 import { worldContext } from "../../context/worldContext";
-import { editBurg } from "../../controllers/burg-editor";
 import { editBurgGroups } from "../../controllers/burg-group-editor";
-import { burgHighlightOff, burgHighlightOn } from "../../controllers/burg-highlight";
 import {
   downloadBurgsData,
+  filterAndSortBurgs,
   importBurgNames,
   regenerateBurgNames,
   renameBurgsInBulk,
@@ -17,11 +14,11 @@ import {
 } from "../../controllers/burgs-overview";
 import { uploadFile } from "../../controllers/editors";
 import { Burgs } from "../../generators/burgs-generator";
-import { showElementLockTip, tip } from "../../services/tooltipService";
+import { tip } from "../../services/tooltipService";
 import { useBurgsOverviewState } from "../../store/burgsOverviewState";
 import { useDialogState } from "../../store/dialogState";
 import { si } from "../../utils";
-import { IconButton } from "../components/IconButton";
+import { BurgsTable } from "../components/tables/BurgsTable";
 import { Dialog } from "./Dialog";
 import { closeDialog, openConfirm } from "./dialogService";
 
@@ -101,77 +98,16 @@ export const BurgsOverviewDialog: React.FC = () => {
 
   const { filteredBurgs, totalPopulation, validCount } = useMemo(() => {
     void refreshCounter;
-    const validBurgs = (worldContext.pack?.burgs ?? []).filter(b => b.i && !b.removed);
-    let filtered = validBurgs;
-
-    if (searchText) {
-      const lower = searchText.toLowerCase();
-      filtered = filtered.filter(b => {
-        const state = (worldContext.pack.states[b.state!]?.name ?? "").toLowerCase();
-        const prov = worldContext.pack.cells.province![b.cell];
-        const province = prov ? (worldContext.pack.provinces![prov]?.name ?? "").toLowerCase() : "";
-        const culture = (worldContext.pack.cultures[b.culture!]?.name ?? "").toLowerCase();
-        return (
-          (b.name ?? "").toLowerCase().includes(lower) ||
-          state.includes(lower) ||
-          province.includes(lower) ||
-          culture.includes(lower) ||
-          (b.group ?? "").toLowerCase().includes(lower)
-        );
-      });
-    }
-    if (filterStateId !== -1) filtered = filtered.filter(b => b.state === filterStateId);
-    if (filterCultureId !== -1) filtered = filtered.filter(b => b.culture === filterCultureId);
-    if (filterProvinceId !== -1) {
-      filtered = filtered.filter(b => {
-        const prov = worldContext.pack.cells.province![b.cell];
-        return prov === filterProvinceId;
-      });
-    }
-    if (filterGroup !== "") filtered = filtered.filter(b => b.group === filterGroup);
-
-    const rows = filtered.map(b => {
-      const population = (b.population ?? 0) * worldContext.populationRate * worldContext.urbanization;
-      const prov = worldContext.pack.cells.province![b.cell];
-      const province = prov ? (worldContext.pack.provinces![prov]?.name ?? "") : "";
-      const stateName = worldContext.pack.states[b.state!]?.name ?? "";
-      const cultureName = worldContext.pack.cultures[b.culture!]?.name ?? "";
-      const features = b.capital && b.port ? "a-capital-port" : b.capital ? "c-capital" : b.port ? "p-port" : "z-burg";
-      return { b, population, province, stateName, cultureName, features };
+    const { rows, totalPopulation, validCount } = filterAndSortBurgs(worldContext.pack?.burgs ?? [], {
+      searchText,
+      filterStateId,
+      filterCultureId,
+      filterProvinceId,
+      filterGroup,
+      sortBy,
+      sortOrder
     });
-
-    // Sort
-    const sorted = [...rows].sort((a, b) => {
-      let valA: string | number = 0;
-      let valB: string | number = 0;
-      if (sortBy === "name") {
-        valA = a.b.name ?? "";
-        valB = b.b.name ?? "";
-      } else if (sortBy === "province") {
-        valA = a.province;
-        valB = b.province;
-      } else if (sortBy === "state") {
-        valA = a.stateName;
-        valB = b.stateName;
-      } else if (sortBy === "culture") {
-        valA = a.cultureName;
-        valB = b.cultureName;
-      } else if (sortBy === "group") {
-        valA = a.b.group ?? "";
-        valB = b.b.group ?? "";
-      } else if (sortBy === "population") {
-        valA = a.population;
-        valB = b.population;
-      } else if (sortBy === "features") {
-        valA = a.features;
-        valB = b.features;
-      }
-      const cmp = typeof valA === "string" ? valA.localeCompare(valB as string) : valA - (valB as number);
-      return sortOrder === "asc" ? cmp : -cmp;
-    });
-
-    const total = sorted.reduce((acc, { population }) => acc + population, 0);
-    return { filteredBurgs: sorted, totalPopulation: total, validCount: validBurgs.length };
+    return { filteredBurgs: rows, totalPopulation, validCount };
   }, [refreshCounter, searchText, filterStateId, filterCultureId, filterProvinceId, filterGroup, sortBy, sortOrder]);
 
   const allLocked = useMemo(() => {
@@ -180,36 +116,19 @@ export const BurgsOverviewDialog: React.FC = () => {
     return active.length > 0 && active.every(b => b.lock);
   }, [refreshCounter]);
 
-  function SortHeader({
-    field,
-    label,
-    numeric,
-    width
-  }: {
-    field: string;
-    label: string;
-    numeric?: boolean;
-    width?: string;
-  }) {
-    return (
-      <th
-        data-tip={`Click to sort by ${label.toLowerCase()}`}
-        className={`sortable ${numeric ? "icon-sort-number-down" : "alphabetically"}`}
-        data-sortby={field}
-        onClick={() => toggleSortBy(field)}
-        style={{ width, minWidth: width }}
-      >
-        {label}
-      </th>
-    );
-  }
-
   function handleToggleLockAll(): void {
     const activeBurgs = (worldContext.pack?.burgs ?? []).filter(b => b.i && !b.removed);
     const locked = activeBurgs.every(b => b.lock);
     activeBurgs.forEach(b => {
       b.lock = !locked;
     });
+    refresh();
+  }
+
+  function handleToggleLock(burgId: number): void {
+    const burg = worldContext.pack.burgs[burgId];
+    if (!burg) return;
+    burg.lock = !burg.lock;
     refresh();
   }
 
@@ -244,19 +163,6 @@ export const BurgsOverviewDialog: React.FC = () => {
     );
   }
 
-  const parentRef = useRef<HTMLDivElement>(null);
-  const rowVirtualizer = useVirtualizer({
-    count: filteredBurgs.length,
-    getScrollElement: () => parentRef.current,
-    estimateSize: () => 28,
-    overscan: 5
-  });
-
-  const virtualItems = rowVirtualizer.getVirtualItems();
-  const paddingTop = virtualItems.length > 0 ? virtualItems[0].start : 0;
-  const paddingBottom =
-    virtualItems.length > 0 ? rowVirtualizer.getTotalSize() - virtualItems[virtualItems.length - 1].end : 0;
-
   return (
     <Dialog
       isOpen={isOpen}
@@ -265,117 +171,14 @@ export const BurgsOverviewDialog: React.FC = () => {
       className="overflow-hidden"
     >
       <div id="burgsOverviewContainer">
-        <div id="burgsBody" className="table" ref={parentRef} style={{ overflow: "auto" }}>
-          <table className="fmg-table">
-            <thead style={{ zIndex: 3 }}>
-              <tr id="burgsHeader">
-                <SortHeader field="name" label="Burg" width="14em" />
-                <SortHeader field="province" label="Province" width="7em" />
-                <SortHeader field="state" label="State" width="7.5em" />
-                <SortHeader field="culture" label="Culture" width="7.2em" />
-                <SortHeader field="group" label="Group" width="6.5em" />
-                <SortHeader field="population" label="Population" numeric width="7em" />
-                <SortHeader field="features" label="Feat." width="3.5em" />
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredBurgs.length === 0 ? (
-                <tr>
-                  <td colSpan={8}>No burgs found</td>
-                </tr>
-              ) : (
-                <>
-                  {paddingTop > 0 && (
-                    <tr>
-                      <td colSpan={8} style={{ height: `${paddingTop}px` }} />
-                    </tr>
-                  )}
-                  {virtualItems.map(virtualRow => {
-                    const { b, population, province, stateName, cultureName } = filteredBurgs[virtualRow.index];
-                    return (
-                      <tr
-                        key={b.i}
-                        className="states"
-                        data-id={b.i}
-                        data-name={b.name}
-                        data-state={stateName}
-                        data-province={province}
-                        data-culture={cultureName}
-                        data-group={b.group}
-                        data-population={population}
-                        onMouseEnter={() => burgHighlightOn(b.i!)}
-                        onMouseLeave={() => burgHighlightOff()}
-                      >
-                        <td className="d-flex">
-                          <IconButton
-                            data-tip="Click to zoom into view"
-                            className="icon-dot-circled pointer"
-                            onClick={() => zoomIntoBurg(b.i!)}
-                          />
-                          <input data-tip="Burg name" className="burgName" value={b.name ?? ""} disabled readOnly />
-                        </td>
-                        <td>
-                          <input data-tip="Burg province" value={province} disabled readOnly />
-                        </td>
-                        <td>
-                          <input data-tip="Burg state" value={stateName} disabled readOnly />
-                        </td>
-                        <td>
-                          <input data-tip="Dominant culture" value={cultureName} disabled readOnly />
-                        </td>
-                        <td>
-                          <input data-tip="Burg group" value={b.group ?? ""} disabled readOnly />
-                        </td>
-                        <td className="d-flex">
-                          <span data-tip="Burg population" className="icon-male" />
-                          <input data-tip="Burg population" value={si(population)} disabled readOnly />
-                        </td>
-                        <td>
-                          <div style={{ display: "inline-block" }}>
-                            <span
-                              data-tip={b.capital ? "This burg is a state capital" : "This burg is NOT a state capital"}
-                              className={`icon-star-empty${b.capital ? "" : " inactive"}`}
-                            />
-                            <span
-                              data-tip={b.port ? "This burg is a port" : "This burg is NOT a port"}
-                              className={`icon-anchor${b.port ? "" : " inactive"}`}
-                            />
-                          </div>
-                        </td>
-                        <td>
-                          <IconButton
-                            data-tip="Edit burg"
-                            className="icon-pencil pointer"
-                            onClick={() => editBurg(b.i!)}
-                          />
-                          <IconButton
-                            className={`locks pointer${b.lock ? " icon-lock" : " icon-lock-open inactive"}`}
-                            onMouseOver={e => showElementLockTip(e.nativeEvent)}
-                            onClick={() => {
-                              b.lock = !b.lock;
-                              refresh();
-                            }}
-                          />
-                          <IconButton
-                            data-tip="Remove burg"
-                            className="icon-trash-empty pointer"
-                            onClick={() => handleRemoveBurg(b.i!)}
-                          />
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  {paddingBottom > 0 && (
-                    <tr>
-                      <td colSpan={8} style={{ height: `${paddingBottom}px` }} />
-                    </tr>
-                  )}
-                </>
-              )}
-            </tbody>
-          </table>
-        </div>
+        <BurgsTable
+          rows={filteredBurgs}
+          sortBy={sortBy}
+          sortOrder={sortOrder}
+          onSort={toggleSortBy}
+          onRemoveBurg={handleRemoveBurg}
+          onToggleLock={handleToggleLock}
+        />
 
         <div id="burgsFilters" data-tip="Apply a filter" className="d-flex">
           <label htmlFor="burgsSearch" data-tip="Filter by name, province, state, culture, or group">

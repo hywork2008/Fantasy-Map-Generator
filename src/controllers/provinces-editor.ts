@@ -52,6 +52,7 @@ import { overviewBurgs } from "./burgs-overview";
 import { editEmblem } from "./emblems-editor";
 import { interactionManager } from "./interactionManager";
 import { toggleBorders, toggleCultures, toggleProvinces, toggleStates, turnButtonOff } from "./layers";
+import { openProvinceEditor } from "./province-editor";
 import { editStyle } from "./style";
 
 export function editProvinces(): void {
@@ -83,6 +84,69 @@ export function editProvinces(): void {
 }
 
 function refreshProvincesEditor(): void {
+  const { filterState } = getProvincesEditorState();
+  const { rows, stateOptions, totalProvinces, totalBurgs, totalArea, totalPopulation } =
+    computeProvinceRows(filterState);
+
+  setProvincesEditorState({
+    stateOptions,
+    provinces: rows,
+    totalProvinces,
+    totalBurgs,
+    totalArea,
+    totalPopulation
+  });
+}
+
+/** Shared sort comparator for province rows, used by both the standalone dialog and embedded tabs. */
+export function sortProvinceRows(rows: ProvinceRowData[], sortBy: string, sortDirection: number): ProvinceRowData[] {
+  return [...rows].sort((a, b) => {
+    let valA: string | number;
+    let valB: string | number;
+
+    if (sortBy === "name") {
+      valA = a.name;
+      valB = b.name;
+    } else if (sortBy === "form") {
+      valA = a.formName;
+      valB = b.formName;
+    } else if (sortBy === "capital") {
+      valA = a.capitalName;
+      valB = b.capitalName;
+    } else if (sortBy === "state") {
+      valA = a.stateName;
+      valB = b.stateName;
+    } else if (sortBy === "burgs") {
+      valA = a.burgCount;
+      valB = b.burgCount;
+    } else if (sortBy === "area") {
+      valA = a.area;
+      valB = b.area;
+    } else {
+      valA = a.population;
+      valB = b.population;
+    }
+
+    if (valA < valB) return -1 * sortDirection;
+    if (valA > valB) return 1 * sortDirection;
+    return 0;
+  });
+}
+
+/**
+ * Pure(-ish) row computation shared by the standalone Provinces Editor and the embedded
+ * Provinces tab of the State Editor — pass `filterState` explicitly rather than reading it
+ * from the shared provincesEditorState store, so an embedded caller never disturbs the
+ * standalone dialog's filter if both happen to be open at once.
+ */
+export function computeProvinceRows(filterState: number): {
+  rows: ProvinceRowData[];
+  stateOptions: StateOption[];
+  totalProvinces: number;
+  totalBurgs: number;
+  totalArea: number;
+  totalPopulation: number;
+} {
   collectStatistics();
 
   const stateOptions: StateOption[] = [];
@@ -94,7 +158,6 @@ function refreshProvincesEditor(): void {
     stateOptions.push({ i: s.i, name: s.name });
   });
 
-  const { filterState } = getProvincesEditorState();
   let filtered = (worldContext.pack.provinces as Province[]).filter(p => p.i && !p.removed);
   if (filterState !== -1) filtered = filtered.filter(p => p.state === filterState);
 
@@ -102,7 +165,7 @@ function refreshProvincesEditor(): void {
   let totalPopulation = 0;
   let totalBurgs = 0;
 
-  const provinceData: ProvinceRowData[] = filtered.map(p => {
+  const rows: ProvinceRowData[] = filtered.map(p => {
     const area = getArea(p.area ?? 0);
     totalArea += area;
     const rural = (p.rural ?? 0) * worldContext.populationRate;
@@ -145,14 +208,7 @@ function refreshProvincesEditor(): void {
     };
   });
 
-  setProvincesEditorState({
-    stateOptions,
-    provinces: provinceData,
-    totalProvinces: filtered.length,
-    totalBurgs,
-    totalArea,
-    totalPopulation
-  });
+  return { rows, stateOptions, totalProvinces: filtered.length, totalBurgs, totalArea, totalPopulation };
 }
 
 function collectStatistics(): void {
@@ -931,6 +987,7 @@ export const provincesEditorActions = {
   toggleFog,
   removeProvince,
   updateLockStatus,
+  openProvinceEditor,
   editStyle: () => editStyle("provs"),
   showChart,
   toggleLabels,

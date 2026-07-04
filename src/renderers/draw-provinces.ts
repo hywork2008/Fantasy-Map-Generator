@@ -1,8 +1,9 @@
 import type { AppServices } from "../context/appServices";
-import type { PoliticalLayers, RootLayers } from "../context/viewContext";
+import type { FocusFields, PoliticalLayers, RootLayers } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { getGappedFillPaths, getIsolines } from "../utils";
 import { TIME } from "../utils/debug";
+import { getScopedGraph, isCellInScope, scopedGetType } from "./core/focusScope";
 import type { IRenderer } from "./core/IRenderer";
 
 export const ProvincesRenderer = {
@@ -10,18 +11,18 @@ export const ProvincesRenderer = {
 
   render(
     worldContext: Readonly<WorldContext>,
-    viewContext: Readonly<PoliticalLayers>,
+    viewContext: Readonly<PoliticalLayers & FocusFields>,
     _appServices: AppServices
   ): void {
     TIME && console.time("ProvincesRenderer");
     const { pack } = worldContext;
     const { cells, provinces } = pack;
-    const { provs } = viewContext;
+    const { provs, focusScope } = viewContext;
 
     const bodyPaths = new Array(provinces.length - 1);
     const isolines: Record<string, { fill?: string; waterGap?: string }> = getIsolines(
-      pack,
-      cellId => cells.province[cellId],
+      getScopedGraph(pack, focusScope),
+      scopedGetType(focusScope, cellId => cells.province[cellId]),
       { fill: true, waterGap: true }
     );
     Object.entries(isolines).forEach(([index, { fill, waterGap }]) => {
@@ -30,7 +31,7 @@ export const ProvincesRenderer = {
     });
 
     const labels = provinces
-      .filter(p => p.i && !p.removed)
+      .filter(p => p.i && !p.removed && isCellInScope(focusScope, p.center))
       .map(p => {
         const [x, y] = p.pole ?? cells.p[p.center];
         return `<text x="${x}" y="${y}" id="provinceLabel${p.i}">${p.name}</text>`;

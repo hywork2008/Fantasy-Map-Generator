@@ -1,8 +1,9 @@
 import type { AppServices } from "../context/appServices";
-import type { PoliticalLayers } from "../context/viewContext";
+import type { FocusFields, PoliticalLayers } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { getGappedFillPaths, getIsolines } from "../utils";
 import { TIME } from "../utils/debug";
+import { getScopedGraph, scopedGetType } from "./core/focusScope";
 import type { IRenderer } from "./core/IRenderer";
 
 export const ReligionsRenderer: IRenderer = {
@@ -10,18 +11,18 @@ export const ReligionsRenderer: IRenderer = {
 
   render(
     worldContext: Readonly<WorldContext>,
-    viewContext: Readonly<PoliticalLayers>,
+    viewContext: Readonly<PoliticalLayers & FocusFields>,
     _appServices: AppServices
   ): void {
     TIME && console.time("drawReligions");
     const { pack } = worldContext;
     const { cells, religions } = pack;
-    const { relig } = viewContext;
+    const { relig, focusScope } = viewContext;
 
     const bodyPaths = new Array(religions.length - 1);
     const isolines: Record<string, { fill?: string; waterGap?: string }> = getIsolines(
-      pack,
-      cellId => cells.religion[cellId],
+      getScopedGraph(pack, focusScope),
+      scopedGetType(focusScope, cellId => cells.religion[cellId]),
       { fill: true, waterGap: true }
     );
     Object.entries(isolines).forEach(([index, { fill, waterGap }]) => {

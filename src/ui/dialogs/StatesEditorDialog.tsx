@@ -295,6 +295,11 @@ export const StatesEditorContent: React.FC = () => {
                           onClick={() => statesEditorActions.toggleLock(s.i)}
                         />
                         <IconButton
+                          data-tip="Edit state"
+                          className="icon-pencil pointer"
+                          onClick={() => statesEditorActions.openStateEditor(s.i)}
+                        />
+                        <IconButton
                           data-tip="Remove the state"
                           className="stateRemove icon-trash-empty pointer"
                           onClick={() => statesEditorActions.removeState(s.i)}

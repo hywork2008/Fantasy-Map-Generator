@@ -1,9 +1,10 @@
 import type { AppServices } from "../context/appServices";
-import type { InfrastructureLayers } from "../context/viewContext";
+import type { FocusFields, InfrastructureLayers } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { Routes } from "../generators/routes-generator";
 import type { Route } from "../types/models";
 import { TIME } from "../utils/debug";
+import { isCellInScope } from "./core/focusScope";
 import type { IRenderer } from "./core/IRenderer";
 
 export const RoutesRenderer: IRenderer = {
@@ -11,17 +12,18 @@ export const RoutesRenderer: IRenderer = {
 
   render(
     worldContext: Readonly<WorldContext>,
-    viewContext: Readonly<InfrastructureLayers>,
+    viewContext: Readonly<InfrastructureLayers & FocusFields>,
     _appServices: AppServices
   ): void {
     TIME && console.time("drawRoutes");
     const { pack } = worldContext;
-    const { routes } = viewContext;
+    const { routes, focusScope } = viewContext;
     const routePaths: Record<string, string[]> = {};
 
     for (const route of pack.routes) {
-      const { i, group, points } = route;
+      const { i, group, points, cells } = route;
       if (!points || points.length < 2) continue;
+      if (focusScope && !(cells ?? []).some(c => isCellInScope(focusScope, c))) continue;
       if (!routePaths[group]) routePaths[group] = [];
       routePaths[group].push(`<path id="route${i}" d="${Routes.getPath(route)}"/>`);
     }

@@ -1,17 +1,22 @@
 import type { AppServices } from "../context/appServices";
-import type { RootLayers } from "../context/viewContext";
+import type { FocusFields, RootLayers } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { TIME } from "../utils/debug";
+import { isCellInScope } from "./core/focusScope";
 import type { IRenderer } from "./core/IRenderer";
 
 export const BordersRenderer: IRenderer = {
   id: "borders",
 
-  render(worldContext: Readonly<WorldContext>, viewContext: Readonly<RootLayers>, _appServices: AppServices): void {
+  render(
+    worldContext: Readonly<WorldContext>,
+    viewContext: Readonly<RootLayers & FocusFields>,
+    _appServices: AppServices
+  ): void {
     TIME && console.time("BordersRenderer");
     const { pack } = worldContext;
     const { cells, vertices } = pack;
-    const { svg } = viewContext;
+    const { svg, focusScope } = viewContext;
 
     const statePath: string[] = [];
     const provincePath: string[] = [];
@@ -20,7 +25,7 @@ export const BordersRenderer: IRenderer = {
     const isLand = (cellId: number) => cells.h[cellId] >= 20;
 
     for (let cellId = 0; cellId < cells.i.length; cellId++) {
-      if (!cells.state[cellId]) continue;
+      if (!cells.state[cellId] || !isCellInScope(focusScope, cellId)) continue;
       const provinceId = cells.province[cellId];
       const stateId = cells.state[cellId];
 

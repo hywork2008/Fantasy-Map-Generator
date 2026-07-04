@@ -1,9 +1,10 @@
 import { extent, polygonContains } from "d3";
 import type { AppServices } from "../context/appServices";
-import type { EnvironmentLayers } from "../context/viewContext";
+import type { EnvironmentLayers, FocusFields } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { getPackPolygon, minmax, poissonDiscSampler, rand, rn } from "../utils";
 import { TIME } from "../utils/debug";
+import { isCellInScope } from "./core/focusScope";
 import type { IRenderer } from "./core/IRenderer";
 
 interface ReliefIcon {
@@ -18,12 +19,12 @@ export const ReliefIconsRenderer: IRenderer = {
 
   render(
     worldContext: Readonly<WorldContext>,
-    viewContext: Readonly<EnvironmentLayers>,
+    viewContext: Readonly<EnvironmentLayers & FocusFields>,
     _appServices: AppServices
   ): void {
     TIME && console.time("drawRelief");
     const { pack, biomesData } = worldContext;
-    const { terrain } = viewContext;
+    const { terrain, focusScope } = viewContext;
 
     terrain.selectAll("*").remove();
 
@@ -34,6 +35,7 @@ export const ReliefIconsRenderer: IRenderer = {
     const relief: ReliefIcon[] = [];
 
     for (const i of cells.i) {
+      if (!isCellInScope(focusScope, i)) continue;
       const height = cells.h[i];
       if (height < 20) continue; // no icons on water
       if (cells.r[i]) continue; // no icons on rivers

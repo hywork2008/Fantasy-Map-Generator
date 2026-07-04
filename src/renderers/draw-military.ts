@@ -1,6 +1,6 @@
 import { color, easeSinInOut, transition } from "d3";
 import type { AppServices } from "../context/appServices";
-import type { SettlementLayers } from "../context/viewContext";
+import type { FocusFields, SettlementLayers } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { Military } from "../generators/military-generator";
 import type { MilitaryRegiment } from "../types/models";
@@ -13,16 +13,16 @@ export const MilitaryRenderer = {
 
   render(
     worldContext: Readonly<WorldContext>,
-    viewContext: Readonly<SettlementLayers>,
+    viewContext: Readonly<SettlementLayers & FocusFields>,
     appServices: AppServices
   ): void {
     TIME && console.time("MilitaryRenderer");
     const { pack } = worldContext;
-    const { armies } = viewContext;
+    const { armies, focusScope } = viewContext;
 
     armies.selectAll("g").remove();
     pack.states
-      .filter(s => s.i && !s.removed)
+      .filter(s => s.i && !s.removed && (!focusScope || s.i === focusScope.stateId))
       .forEach(s => {
         drawRegiments(worldContext, viewContext, appServices, s.military || [], s.i);
       });

@@ -47,6 +47,7 @@ import { Options3dDialog } from "./Options3dDialog";
 import { PopulationChangeDialog } from "./PopulationChangeDialog";
 import { Preview3dDialog } from "./Preview3dDialog";
 import { PromptDialog } from "./PromptDialog";
+import { ProvinceEditorDialog } from "./ProvinceEditorDialog";
 import { ProvinceMergeDialog } from "./ProvinceMergeDialog";
 import { ProvinceNameEditorDialog } from "./ProvinceNameEditorDialog";
 import { ProvincesChartDialog } from "./ProvincesChartDialog";
@@ -67,6 +68,7 @@ import { RouteJoinDialog } from "./RouteJoinDialog";
 import { RoutesEditorDialog } from "./RoutesEditorDialog";
 import { RoutesOverviewDialog } from "./RoutesOverviewDialog";
 import { SaveMapDialog } from "./SaveMapDialog";
+import { StateEditorDialog } from "./StateEditorDialog";
 import { StateMergeDialog } from "./StateMergeDialog";
 import { StateNameEditorDialog } from "./StateNameEditorDialog";
 import { StatesChartDialog } from "./StatesChartDialog";
@@ -142,6 +144,7 @@ export const DialogsContainer: React.FC = () => {
           <PopulationChangeDialog />
           <Preview3dDialog />
           <PromptDialog />
+          <ProvinceEditorDialog />
           <ProvinceMergeDialog />
           <ProvinceNameEditorDialog />
           <ProvincesChartDialog />
@@ -163,6 +166,7 @@ export const DialogsContainer: React.FC = () => {
           <RoutesEditorDialog />
           <RoutesOverviewDialog />
           <SaveMapDialog />
+          <StateEditorDialog />
           <StateMergeDialog />
           <StateNameEditorDialog />
           <StatesChartDialog />

@@ -4,6 +4,7 @@ import { showDataTip } from "../services/tooltipService";
 import { useViewState } from "../store";
 import { debounce } from "../utils";
 import { ExitCustomization } from "./components/ExitCustomization";
+import { FocusBanner } from "./components/FocusBanner";
 import { NotesBox } from "./components/NotesBox";
 import { OptionsContainer } from "./components/OptionsContainer";
 import { ToastContainer } from "./components/Toast";
@@ -30,6 +31,9 @@ export const App = () => {
 
       {/* Heightmap exit button - absolutely positioned, managed via custom events */}
       <ExitCustomization />
+
+      {/* Focus view banner - shown when rendering is narrowed to one state/province */}
+      <FocusBanner />
 
       {/* Floating UI */}
       <NotesBox />

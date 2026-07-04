@@ -11,7 +11,7 @@ import { clearMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { useBurgsOverviewState } from "../store/burgsOverviewState";
 import { burgsRenamingDialogStore } from "../store/burgsRenamingDialogState";
-
+import type { Burg } from "../types/models";
 import type { BurgsBubbleChartConfig } from "../ui/dialogs/BurgsBubbleChartDialog";
 import { closeDialogs, openDialog } from "../ui/dialogs/dialogService";
 import { convertTemperature, findCell, getLatitude, getLongitude, rn } from "../utils";
@@ -21,6 +21,117 @@ import { getElementById, layerIsOn } from "../utils/nodeUtils";
 import { getTemperatureLikeness } from "./burg-editor";
 import { interactionManager } from "./interactionManager";
 import { toggleBurgIcons, toggleLabels } from "./layers";
+
+export interface BurgFilterOptions {
+  searchText?: string;
+  filterStateId?: number; // -1 = all
+  filterCultureId?: number; // -1 = all
+  filterProvinceId?: number; // -1 = all
+  filterGroup?: string; // "" = all
+  sortBy?: string;
+  sortOrder?: "asc" | "desc";
+}
+
+export interface BurgRowData {
+  b: Burg;
+  population: number;
+  province: string;
+  stateName: string;
+  cultureName: string;
+  features: string;
+}
+
+/**
+ * Pure filter/sort logic shared by the standalone Burgs Overview dialog and the embedded
+ * Burgs tab of the State/Province Editor — filters are passed as explicit arguments rather
+ * than read from the shared burgsOverviewState store, so an embedded caller (fixed to one
+ * state/province) never disturbs the standalone dialog's own filters if both are open at once.
+ */
+export function filterAndSortBurgs(
+  burgs: Burg[],
+  options: BurgFilterOptions = {}
+): { rows: BurgRowData[]; totalPopulation: number; validCount: number } {
+  const {
+    searchText = "",
+    filterStateId = -1,
+    filterCultureId = -1,
+    filterProvinceId = -1,
+    filterGroup = "",
+    sortBy = "name",
+    sortOrder = "asc"
+  } = options;
+
+  const validBurgs = burgs.filter(b => b.i && !b.removed);
+  let filtered = validBurgs;
+
+  if (searchText) {
+    const lower = searchText.toLowerCase();
+    filtered = filtered.filter(b => {
+      const state = (worldContext.pack.states[b.state!]?.name ?? "").toLowerCase();
+      const prov = worldContext.pack.cells.province![b.cell];
+      const province = prov ? (worldContext.pack.provinces![prov]?.name ?? "").toLowerCase() : "";
+      const culture = (worldContext.pack.cultures[b.culture!]?.name ?? "").toLowerCase();
+      return (
+        (b.name ?? "").toLowerCase().includes(lower) ||
+        state.includes(lower) ||
+        province.includes(lower) ||
+        culture.includes(lower) ||
+        (b.group ?? "").toLowerCase().includes(lower)
+      );
+    });
+  }
+  if (filterStateId !== -1) filtered = filtered.filter(b => b.state === filterStateId);
+  if (filterCultureId !== -1) filtered = filtered.filter(b => b.culture === filterCultureId);
+  if (filterProvinceId !== -1) {
+    filtered = filtered.filter(b => {
+      const prov = worldContext.pack.cells.province![b.cell];
+      return prov === filterProvinceId;
+    });
+  }
+  if (filterGroup !== "") filtered = filtered.filter(b => b.group === filterGroup);
+
+  const rows: BurgRowData[] = filtered.map(b => {
+    const population = (b.population ?? 0) * worldContext.populationRate * worldContext.urbanization;
+    const prov = worldContext.pack.cells.province![b.cell];
+    const province = prov ? (worldContext.pack.provinces![prov]?.name ?? "") : "";
+    const stateName = worldContext.pack.states[b.state!]?.name ?? "";
+    const cultureName = worldContext.pack.cultures[b.culture!]?.name ?? "";
+    const features = b.capital && b.port ? "a-capital-port" : b.capital ? "c-capital" : b.port ? "p-port" : "z-burg";
+    return { b, population, province, stateName, cultureName, features };
+  });
+
+  const sorted = [...rows].sort((a, b) => {
+    let valA: string | number = 0;
+    let valB: string | number = 0;
+    if (sortBy === "name") {
+      valA = a.b.name ?? "";
+      valB = b.b.name ?? "";
+    } else if (sortBy === "province") {
+      valA = a.province;
+      valB = b.province;
+    } else if (sortBy === "state") {
+      valA = a.stateName;
+      valB = b.stateName;
+    } else if (sortBy === "culture") {
+      valA = a.cultureName;
+      valB = b.cultureName;
+    } else if (sortBy === "group") {
+      valA = a.b.group ?? "";
+      valB = b.b.group ?? "";
+    } else if (sortBy === "population") {
+      valA = a.population;
+      valB = b.population;
+    } else if (sortBy === "features") {
+      valA = a.features;
+      valB = b.features;
+    }
+    const cmp = typeof valA === "string" ? valA.localeCompare(valB as string) : valA - (valB as number);
+    return sortOrder === "asc" ? cmp : -cmp;
+  });
+
+  const total = sorted.reduce((acc, { population }) => acc + population, 0);
+  return { rows: sorted, totalPopulation: total, validCount: validBurgs.length };
+}
 
 export function overviewBurgs(settings: { stateId?: number | null; cultureId?: number | null } = {}): void {
   if (view.customization) return;

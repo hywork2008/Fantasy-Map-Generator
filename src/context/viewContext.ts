@@ -75,6 +75,27 @@ export interface OverlayLayers {
   compass: SvgGroup;
 }
 
+/**
+ * Scope that narrows rendering to a single state or province, or null to draw the whole map.
+ * `cellIds` are packed-graph cell indices (`pack.cells`). `gridCellIds` are the corresponding
+ * raw-grid cell indices (`grid.cells`, mapped via `pack.cells.g`) — a few renderers (temperature,
+ * precipitation, ice) walk the pre-pack grid rather than `pack`, and need this separate index space.
+ */
+export interface FocusScope {
+  kind: "state" | "province";
+  id: number;
+  /** Owning state id — equal to `id` when `kind === "state"`, the parent state when `kind === "province"`. */
+  stateId: number;
+  cellIds: Set<number>;
+  gridCellIds: Set<number>;
+  label: string;
+}
+
+/** Focus/isolation view state. Set and cleared exclusively by src/controllers/focus-view.ts. */
+export interface FocusFields {
+  focusScope: FocusScope | null;
+}
+
 /** Zoom/pan state, display dimensions, and editor mode. */
 export interface ViewState {
   zoom: ZoomBehavior<SVGSVGElement, unknown>;
@@ -111,7 +132,8 @@ export interface ViewContext
     InfrastructureLayers,
     SettlementLayers,
     OverlayLayers,
-    ViewState {}
+    ViewState,
+    FocusFields {}
 
 /**
  * Single mutable container for all SVG layer references and zoom state.
@@ -120,6 +142,7 @@ export interface ViewContext
  */
 export const viewContext = {
   fogging: null,
+  focusScope: null,
   scale: 1,
   customization: 0,
   svgWidth: 0,

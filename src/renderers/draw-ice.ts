@@ -1,8 +1,9 @@
 import type { AppServices } from "../context/appServices";
-import type { EnvironmentLayers } from "../context/viewContext";
+import type { EnvironmentLayers, FocusFields } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import type { IceElement } from "../types/models";
 import { TIME } from "../utils/debug";
+import { isGridCellInScope } from "./core/focusScope";
 import type { IRenderer } from "./core/IRenderer";
 
 export const IceRenderer: IRenderer = {
@@ -10,12 +11,12 @@ export const IceRenderer: IRenderer = {
 
   render(
     worldContext: Readonly<WorldContext>,
-    viewContext: Readonly<EnvironmentLayers>,
+    viewContext: Readonly<EnvironmentLayers & FocusFields>,
     _appServices: AppServices
   ): void {
     TIME && console.time("IceRenderer");
     const { pack } = worldContext;
-    const { ice } = viewContext;
+    const { ice, focusScope } = viewContext;
 
     ice.selectAll("*").remove();
 
@@ -23,8 +24,9 @@ export const IceRenderer: IRenderer = {
 
     pack.ice.forEach((iceElement: IceElement) => {
       if (iceElement.type === "glacier") {
+        // Glaciers are large polar features not owned by a single cell/state — always drawn.
         html += getGlacierHtml(iceElement);
-      } else if (iceElement.type === "iceberg") {
+      } else if (iceElement.type === "iceberg" && isGridCellInScope(focusScope, iceElement.cellId)) {
         html += getIcebergHtml(iceElement);
       }
     });

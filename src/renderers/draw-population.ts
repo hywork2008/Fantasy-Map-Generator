@@ -1,6 +1,7 @@
 import type { AppServices } from "../context/appServices";
-import type { SettlementLayers, ViewContext } from "../context/viewContext";
+import type { FocusFields, SettlementLayers, ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import { isCellInScope } from "./core/focusScope";
 import type { IRenderer } from "./core/IRenderer";
 
 export const PopulationRenderer: IRenderer = {
@@ -8,17 +9,17 @@ export const PopulationRenderer: IRenderer = {
 
   render(
     worldContext: Readonly<WorldContext>,
-    viewContext: Readonly<SettlementLayers>,
+    viewContext: Readonly<SettlementLayers & FocusFields>,
     _appServices: AppServices
   ): void {
     const { pack, urbanization } = worldContext;
-    const { population } = viewContext;
+    const { population, focusScope } = viewContext;
     const { cells, burgs } = pack;
 
     population.selectAll("line").remove();
 
     const rural = Array.from(
-      cells.i.filter(i => (cells.pop[i] as number) > 0),
+      cells.i.filter(i => (cells.pop[i] as number) > 0 && isCellInScope(focusScope, i)),
       i => [...cells.p[i], cells.p[i][1] - (cells.pop[i] as number) / 5] as [number, number, number]
     );
 
@@ -34,7 +35,7 @@ export const PopulationRenderer: IRenderer = {
       .attr("y2", d => d[2]);
 
     const urban = burgs
-      .filter(b => b.i && !b.removed)
+      .filter(b => b.i && !b.removed && isCellInScope(focusScope, b.cell))
       .map(b => [b.x, b.y, b.y! - ((b.population ?? 0) / 5) * urbanization] as [number, number, number]);
 
     population
