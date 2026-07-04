@@ -29,6 +29,14 @@ export const StatesEditorContent: React.FC = () => {
     manualSelectedStateId
   } = useStatesEditorState();
 
+  const handleMouseEnter = (stateId: number) => {
+    statesEditorActions.highlightStateOnMap(stateId);
+  };
+
+  const handleMouseLeave = () => {
+    statesEditorActions.clearStateHighlight();
+  };
+
   const sortedStates = useMemo(() => {
     return [...states].sort((a, b) => {
       let valA = a[sortBy as keyof typeof a];
@@ -165,6 +173,8 @@ export const StatesEditorContent: React.FC = () => {
                   className={`states${customizationMode === 1 && s.i === manualSelectedStateId ? " selected" : ""}`}
                   data-id={s.i}
                   style={{ pointerEvents: customizationMode === 1 ? "none" : "all" }}
+                  onMouseEnter={() => handleMouseEnter(s.i)}
+                  onMouseLeave={handleMouseLeave}
                 >
                   <td>
                     <div className="d-flex">
