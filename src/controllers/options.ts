@@ -100,7 +100,7 @@ export function applyGraphSize(): void {
   worldContext.graphHeight = options.mapHeight;
   const { graphWidth, graphHeight } = worldContext;
 
-  if (!viewContext || !viewContext.renderMap || !viewContext.viewbox) return;
+  if (!viewContext?.renderMap || !viewContext.viewbox) return;
 
   view.landmass.select("rect").attr("x", 0).attr("y", 0).attr("width", graphWidth).attr("height", graphHeight);
   view.oceanPattern.select("rect").attr("x", 0).attr("y", 0).attr("width", graphWidth).attr("height", graphHeight);
@@ -116,7 +116,7 @@ export function applyGraphSize(): void {
 }
 
 export function fitMapToScreen(): void {
-  if (!viewContext || !viewContext.renderMap || !viewContext.viewbox) return;
+  if (!viewContext?.renderMap || !viewContext.viewbox) return;
   const svgWidth = window.innerWidth;
   const svgHeight = window.innerHeight;
   Object.assign(viewContext, { svgWidth, svgHeight });
@@ -623,7 +623,7 @@ function randomizeCultureSet(): void {
 
 function setRendering(value: string): void {
   // viewbox might be undefined if we're in headless mode or before SVG is initialized
-  if (!viewContext || !viewContext.renderMap || !viewContext.viewbox) return;
+  if (!viewContext?.renderMap || !viewContext.viewbox) return;
   const { viewbox, coastline, statesHalo } = viewContext;
   viewbox.attr("shape-rendering", value);
 
