@@ -1,4 +1,4 @@
-import { quadtree } from "d3-quadtree";
+import { type Quadtree, quadtree } from "d3-quadtree";
 import type { AppServices } from "../context/appServices";
 import { appServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
@@ -257,42 +257,27 @@ class BurgModule {
     };
 
     const generateTowns = () => {
-      const randomize = (score: number) => score * gauss(1, 3, 0, 20, 3);
-      const score = new Int16Array(cells.s.map(randomize));
-      const sorted = populatedCells.sort((a, b) => score[b] - score[a]);
-
       const burgsNumber = getTownsNumber();
-      let spacing = (worldContext.graphWidth + worldContext.graphHeight) / 150 / (burgsNumber ** 0.7 / 66); // min distance between town
+      const placedCells = this.placeTowns(populatedCells, burgsNumber, burgsQuadtree);
 
-      for (let added = 0; added < burgsNumber && spacing > 1; ) {
-        for (let i = 0; added < burgsNumber && i < sorted.length; i++) {
-          if (cells.burg[sorted[i]]) continue;
-          const cell = sorted[i];
-          const [x, y] = cells.p[cell];
-
-          const minSpacing = spacing * gauss(1, 0.3, 0.2, 2, 2); // randomize to make placement not uniform
-          if (burgsQuadtree.find(x, y, minSpacing) !== undefined) continue; // to close to existing burg
-
-          const burgId = burgs.length;
-          const culture = cells.culture[cell];
-          const name = Names.getCulture(culture);
-          const feature = cells.f[cell];
-          burgs.push({
-            cell,
-            x,
-            y,
-            i: burgId,
-            state: 0,
-            culture,
-            name,
-            feature,
-            capital: 0
-          });
-          added++;
-          cells.burg[cell] = burgId;
-        }
-
-        spacing *= 0.5;
+      for (const cell of placedCells) {
+        const [x, y] = cells.p[cell];
+        const burgId = burgs.length;
+        const culture = cells.culture[cell];
+        const name = Names.getCulture(culture);
+        const feature = cells.f[cell];
+        burgs.push({
+          cell,
+          x,
+          y,
+          i: burgId,
+          state: 0,
+          culture,
+          name,
+          feature,
+          capital: 0
+        });
+        cells.burg[cell] = burgId;
       }
     };
 
@@ -322,6 +307,84 @@ class BurgModule {
 
       return Math.min(manors, populatedCells.length);
     }
+  }
+
+  /**
+   * Quadtree-spaced candidate selection shared by whole-map generation (generateTowns) and
+   * scoped regeneration (regenerateInScope). Returns up to `count` cell ids from
+   * `candidateCells`, spaced apart via the same shrinking-radius algorithm, without mutating
+   * pack — callers are responsible for turning the returned cells into burgs.
+   */
+  private placeTowns(
+    candidateCells: Iterable<number>,
+    count: number,
+    burgsQuadtree: Quadtree<[number, number]>
+  ): number[] {
+    const { cells } = this.worldContext.pack;
+    const sorted = Array.from(candidateCells);
+    const placed: number[] = [];
+    if (!count || !sorted.length) return placed;
+
+    const randomize = (score: number) => score * gauss(1, 3, 0, 20, 3);
+    const score = new Int16Array(cells.s.map(randomize));
+    sorted.sort((a, b) => score[b] - score[a]);
+
+    let spacing = (this.worldContext.graphWidth + this.worldContext.graphHeight) / 150 / (count ** 0.7 / 66);
+
+    for (let added = 0; added < count && spacing > 1; ) {
+      for (let i = 0; added < count && i < sorted.length; i++) {
+        const cell = sorted[i];
+        if (cells.burg[cell]) continue;
+        const [x, y] = cells.p[cell];
+
+        const minSpacing = spacing * gauss(1, 0.3, 0.2, 2, 2); // randomize to make placement not uniform
+        if (burgsQuadtree.find(x, y, minSpacing) !== undefined) continue; // too close to existing burg
+
+        placed.push(cell);
+        burgsQuadtree.add([x, y]);
+        added++;
+      }
+
+      spacing *= 0.5;
+    }
+
+    return placed;
+  }
+
+  /**
+   * Regenerates non-locked, non-capital burgs within `cellIds` (e.g. one state or province):
+   * removes them, places the same number of new burgs among the scope's free populated cells,
+   * and rescales the new burgs' population so the scope's total urban population is preserved.
+   * Capitals are left untouched — relocating them has much larger ripple effects (diplomacy,
+   * state label anchor) than a plain town.
+   */
+  regenerateInScope(cellIds: Iterable<number>): { addedBurgIds: number[]; removedBurgIds: number[] } {
+    const { pack } = this.worldContext;
+    const { cells } = pack;
+    const scope = new Set(cellIds);
+
+    const targetBurgs = pack.burgs.filter(b => b.i && !b.removed && !b.lock && !b.capital && scope.has(b.cell));
+    if (!targetBurgs.length) return { addedBurgIds: [], removedBurgIds: [] };
+
+    const oldUrbanTotal = targetBurgs.reduce((sum, b) => sum + (b.population ?? 0), 0);
+    const removedBurgIds = targetBurgs.map(b => b.i as number);
+    for (const burgId of removedBurgIds) this.remove(burgId);
+
+    const candidateCells = Array.from(scope).filter(i => cells.s[i] > 0 && cells.culture[i] && !cells.burg[i]);
+    const burgsQuadtree = quadtree<[number, number]>(
+      pack.burgs.filter(b => b.i && !b.removed).map(b => [b.x, b.y] as [number, number])
+    );
+    const placedCells = this.placeTowns(candidateCells, removedBurgIds.length, burgsQuadtree);
+
+    const addedBurgIds = placedCells.map(cell => this.add(cells.p[cell]).burgId);
+
+    const rawSum = addedBurgIds.reduce((sum, id) => sum + (pack.burgs[id].population ?? 0), 0);
+    if (rawSum > 0) {
+      const scale = oldUrbanTotal / rawSum;
+      for (const id of addedBurgIds) pack.burgs[id].population = rn((pack.burgs[id].population ?? 0) * scale, 3);
+    }
+
+    return { addedBurgIds, removedBurgIds };
   }
 
   getType(cellId: number, port?: number) {

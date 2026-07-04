@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { worldContext } from "../../context/worldContext";
 import { filterAndSortBurgs } from "../../controllers/burgs-overview";
 import { enterFocus } from "../../controllers/focus-view";
+import { regeneratePopulationAndBurgs } from "../../controllers/population-editor";
 import { computeProvinceRows } from "../../controllers/provinces-editor";
 import { Burgs } from "../../generators/burgs-generator";
 import { tip } from "../../services/tooltipService";
@@ -84,6 +85,21 @@ export const ProvinceEditorDialog: React.FC = () => {
     refresh();
   }
 
+  function handleRegenerate(): void {
+    openConfirm(
+      "This will reposition non-capital, non-locked burgs and redistribute rural population within this province — the province's total population is preserved. Continue?",
+      {
+        title: "Regenerate burgs & population",
+        confirm: "Regenerate",
+        onConfirm: () => {
+          const { cells } = worldContext.pack;
+          regeneratePopulationAndBurgs(cells.i.filter(i => cells.province[i] === provinceId));
+          refresh();
+        }
+      }
+    );
+  }
+
   if (!isOpen || !provinceRow) return null;
 
   const areaUnit = getAreaUnit();
@@ -148,6 +164,14 @@ export const ProvinceEditorDialog: React.FC = () => {
               onClick={() => enterFocus("province", provinceId)}
             >
               Focus this province
+            </button>
+            <button
+              type="button"
+              className="icon-shuffle"
+              data-tip="Regenerate non-capital burgs and redistribute rural population, preserving totals"
+              onClick={handleRegenerate}
+            >
+              Regenerate burgs &amp; population
             </button>
           </div>
         )}

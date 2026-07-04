@@ -83,7 +83,7 @@ export function editProvinces(): void {
   });
 }
 
-function refreshProvincesEditor(): void {
+export function refreshProvincesEditor(): void {
   const { filterState } = getProvincesEditorState();
   const { rows, stateOptions, totalProvinces, totalBurgs, totalArea, totalPopulation } =
     computeProvinceRows(filterState);
@@ -212,31 +212,7 @@ export function computeProvinceRows(filterState: number): {
 }
 
 function collectStatistics(): void {
-  const { cells } = worldContext.pack;
-  const provinces = worldContext.pack.provinces as Province[];
-  const burgs = worldContext.pack.burgs as Burg[];
-
-  provinces.forEach(p => {
-    if (!p.i || p.removed) return;
-    p.area = p.rural = p.urban = 0;
-    p.burgs = [];
-    if ((p.burg && !burgs[p.burg]) || burgs[p.burg]?.removed) p.burg = 0;
-  });
-
-  for (const i of cells.i) {
-    const p = cells.province[i];
-    if (!p) continue;
-    provinces[p].area! += cells.area[i];
-    provinces[p].rural! += cells.pop[i];
-    if (!cells.burg[i]) continue;
-    provinces[p].urban! += burgs[cells.burg[i]].population ?? 0;
-    provinces[p].burgs!.push(cells.burg[i]);
-  }
-
-  provinces.forEach(p => {
-    if (!p.i || p.removed) return;
-    if (!p.burg && p.burgs?.length) p.burg = p.burgs[0];
-  });
+  GenerationPipeline.Provinces.collectStatistics(getWorldState());
 }
 
 function provinceHighlightOn(province: number): void {
