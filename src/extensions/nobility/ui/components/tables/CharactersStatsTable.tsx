@@ -1,0 +1,145 @@
+import { useVirtualizer } from "@tanstack/react-virtual";
+import type React from "react";
+import { useRef } from "react";
+import type { CharacterRowData } from "../../../controllers/characters-overview";
+
+export interface CharactersStatsTableProps {
+  rows: CharacterRowData[];
+  sortBy: string;
+  sortOrder: "asc" | "desc";
+  onSort: (field: string) => void;
+  onCharacterClick: (characterId: number) => void;
+}
+
+export const CharactersStatsTable: React.FC<CharactersStatsTableProps> = ({
+  rows,
+  sortBy,
+  sortOrder,
+  onSort,
+  onCharacterClick
+}) => {
+  const parentRef = useRef<HTMLDivElement>(null);
+  const rowVirtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 28,
+    overscan: 5
+  });
+
+  const virtualItems = rowVirtualizer.getVirtualItems();
+  const paddingTop = virtualItems.length > 0 ? virtualItems[0].start : 0;
+  const paddingBottom =
+    virtualItems.length > 0 ? rowVirtualizer.getTotalSize() - virtualItems[virtualItems.length - 1].end : 0;
+
+  function SortHeader({ field, label, tip, width }: { field: string; label: string; tip: string; width?: string }) {
+    const isActive = sortBy === field;
+    const directionIcon = sortOrder === "asc" ? "icon-sort-number-up" : "icon-sort-number-down";
+    return (
+      <th
+        data-tip={`Click to sort by ${tip}`}
+        className={`sortable icon-sort-number-down ${isActive ? "sort-active" : ""}`}
+        onClick={() => onSort(field)}
+        style={{ width, minWidth: width, fontSize: "0.85em", padding: "0 4px" }}
+      >
+        {label}
+        {isActive && <span className={directionIcon} />}
+      </th>
+    );
+  }
+
+  const colSpan = 16; // Name + 6 Skills + 9 Personality = 16
+
+  return (
+    <div className="table" ref={parentRef} style={{ overflow: "auto" }}>
+      <table className="fmg-table" style={{ minWidth: "1000px" }}>
+        <thead style={{ zIndex: 3 }}>
+          <tr>
+            <th
+              data-tip="Click to sort by name"
+              className={`sortable alphabetically ${sortBy === "name" ? "sort-active" : ""}`}
+              onClick={() => onSort("name")}
+              style={{ width: "12em", minWidth: "12em" }}
+            >
+              Name
+              {sortBy === "name" && (
+                <span className={sortOrder === "asc" ? "icon-sort-name-up" : "icon-sort-name-down"} />
+              )}
+            </th>
+            <SortHeader field="diplomacy" label="Dipl" tip="Diplomacy" />
+            <SortHeader field="martial" label="Mart" tip="Martial" />
+            <SortHeader field="stewardship" label="Stew" tip="Stewardship" />
+            <SortHeader field="intrigue" label="Intr" tip="Intrigue" />
+            <SortHeader field="learning" label="Lrn" tip="Learning" />
+            <SortHeader field="prowess" label="Prow" tip="Prowess" />
+
+            <SortHeader field="boldness" label="Bold" tip="Boldness" />
+            <SortHeader field="compassion" label="Comp" tip="Compassion" />
+            <SortHeader field="greed" label="Grd" tip="Greed" />
+            <SortHeader field="honor" label="Hnr" tip="Honor" />
+            <SortHeader field="rationality" label="Rati" tip="Rationality" />
+            <SortHeader field="sociability" label="Soci" tip="Sociability" />
+            <SortHeader field="vengefulness" label="Veng" tip="Vengefulness" />
+            <SortHeader field="zeal" label="Zeal" tip="Zeal" />
+            <SortHeader field="energy" label="Econ" tip="Energy (Economic Archetype)" />
+          </tr>
+        </thead>
+        <tbody>
+          {rows.length === 0 ? (
+            <tr>
+              <td colSpan={colSpan}>No characters found</td>
+            </tr>
+          ) : (
+            <>
+              {paddingTop > 0 && (
+                <tr>
+                  <td colSpan={colSpan} style={{ height: `${paddingTop}px` }} />
+                </tr>
+              )}
+              {virtualItems.map(virtualRow => {
+                const { c, title } = rows[virtualRow.index];
+                return (
+                  <tr key={c.i} className="states" ref={rowVirtualizer.measureElement} data-index={virtualRow.index}>
+                    <td>
+                      <span
+                        style={{
+                          cursor: "pointer",
+                          color: "var(--active-color, #007bff)",
+                          textDecoration: "underline"
+                        }}
+                        onClick={() => onCharacterClick(c.i)}
+                      >
+                        {c.name}
+                      </span>
+                      {title && <span style={{ fontSize: "0.85em", marginLeft: "6px", opacity: 0.8 }}>({title})</span>}
+                    </td>
+                    <td style={{ textAlign: "center" }}>{c.skills?.diplomacy ?? 0}</td>
+                    <td style={{ textAlign: "center" }}>{c.skills?.martial ?? 0}</td>
+                    <td style={{ textAlign: "center" }}>{c.skills?.stewardship ?? 0}</td>
+                    <td style={{ textAlign: "center" }}>{c.skills?.intrigue ?? 0}</td>
+                    <td style={{ textAlign: "center" }}>{c.skills?.learning ?? 0}</td>
+                    <td style={{ textAlign: "center" }}>{c.skills?.prowess ?? 0}</td>
+
+                    <td style={{ textAlign: "center" }}>{c.personality?.boldness ?? 0}</td>
+                    <td style={{ textAlign: "center" }}>{c.personality?.compassion ?? 0}</td>
+                    <td style={{ textAlign: "center" }}>{c.personality?.greed ?? 0}</td>
+                    <td style={{ textAlign: "center" }}>{c.personality?.honor ?? 0}</td>
+                    <td style={{ textAlign: "center" }}>{c.personality?.rationality ?? 0}</td>
+                    <td style={{ textAlign: "center" }}>{c.personality?.sociability ?? 0}</td>
+                    <td style={{ textAlign: "center" }}>{c.personality?.vengefulness ?? 0}</td>
+                    <td style={{ textAlign: "center" }}>{c.personality?.zeal ?? 0}</td>
+                    <td style={{ textAlign: "center" }}>{c.personality?.energy ?? 0}</td>
+                  </tr>
+                );
+              })}
+              {paddingBottom > 0 && (
+                <tr>
+                  <td colSpan={colSpan} style={{ height: `${paddingBottom}px` }} />
+                </tr>
+              )}
+            </>
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+};

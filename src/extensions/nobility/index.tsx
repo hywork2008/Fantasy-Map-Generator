@@ -1,7 +1,9 @@
 import "./types"; // activate module augmentation for PackedGraph/State
 import type { ExtensionAPI } from "../../types/extension-api";
 import { Characters } from "./generators/characters-generator";
+import { applyAffinitiesToDiplomacy } from "./generators/diplomacy-modifier";
 import { clearNobilityContext, getWorldContext, initNobilityContext } from "./nobilityContext";
+import { CharacterDetailsDialog } from "./ui/dialogs/CharacterDetailsDialog";
 import { CharactersOverviewDialog } from "./ui/dialogs/CharactersOverviewDialog";
 
 export const NOBILITY_EXTENSION_ID = "nobility";
@@ -27,6 +29,12 @@ export function init(api: ExtensionAPI): void {
     component: CharactersOverviewDialog
   });
 
+  api.registerDialog({
+    id: "CharacterDetailsDialog",
+    extensionId: NOBILITY_EXTENSION_ID,
+    component: CharacterDetailsDialog
+  });
+
   api.registerAction({
     id: "nobility-view-characters",
     extensionId: NOBILITY_EXTENSION_ID,
@@ -46,7 +54,10 @@ export function init(api: ExtensionAPI): void {
     section: "regenerate",
     label: "Characters",
     tooltip: "Click to regenerate rulers and government offices",
-    onClick: () => Characters.generate()
+    onClick: () => {
+      Characters.generate();
+      applyAffinitiesToDiplomacy();
+    }
   });
 
   api.registerToolAction("viewCharacters", () => {
@@ -62,6 +73,7 @@ export function init(api: ExtensionAPI): void {
     if (isEnabled && !wasEnabled) {
       if (!worldContext.pack.characters || worldContext.pack.characters.length === 0) {
         Characters.generate();
+        applyAffinitiesToDiplomacy();
       }
     } else if (!isEnabled && wasEnabled) {
       api.closeDialog("charactersOverview");
@@ -70,7 +82,10 @@ export function init(api: ExtensionAPI): void {
   });
 
   _generatePostCoreHandler = () => {
-    if (api.isExtensionEnabled(NOBILITY_EXTENSION_ID)) Characters.generate();
+    if (api.isExtensionEnabled(NOBILITY_EXTENSION_ID)) {
+      Characters.generate();
+      applyAffinitiesToDiplomacy();
+    }
   };
   document.addEventListener("fmg:generate-post-core", _generatePostCoreHandler);
 }

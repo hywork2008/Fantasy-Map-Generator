@@ -1,5 +1,5 @@
 import type { State } from "../../hostTypes";
-import type { Gender } from "../generators/characters-generator";
+import type { CharacterSkills, Gender } from "../generators/characters-generator";
 
 interface GenderedTitle {
   male: string;
@@ -49,5 +49,28 @@ export function resolveRulerTitle(state: Pick<State, "form" | "formName">, gende
   return table[gender];
 }
 
+export interface OfficeConfig {
+  title: string;
+  primarySkill?: keyof CharacterSkills;
+}
+
+export const OFFICES_BY_ERA: Record<string, OfficeConfig[]> = {
+  medieval: [
+    { title: "Chancellor", primarySkill: "diplomacy" },
+    { title: "Marshal", primarySkill: "martial" },
+    { title: "Steward", primarySkill: "stewardship" },
+    { title: "Spymaster", primarySkill: "intrigue" },
+    { title: "Court Chaplain", primarySkill: "learning" }
+  ],
+  modern: [
+    { title: "Prime Minister", primarySkill: "stewardship" },
+    { title: "Minister of Foreign Affairs", primarySkill: "diplomacy" },
+    { title: "Minister of War", primarySkill: "martial" },
+    { title: "Minister of Finance", primarySkill: "stewardship" },
+    { title: "Director of Intelligence", primarySkill: "intrigue" }
+  ]
+};
+
 // Fixed set of central government offices generated for every state in phase 1.
-export const CENTRAL_OFFICES: readonly string[] = ["Prime Minister", "Minister of War", "Minister of the Treasury"];
+// Defaulting to medieval era as per user request.
+export const CENTRAL_OFFICES: readonly OfficeConfig[] = OFFICES_BY_ERA.medieval;
