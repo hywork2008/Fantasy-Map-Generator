@@ -4,11 +4,11 @@
 }
 
 /* hide Google translate header */
-body > .skiptranslate {
+body>.skiptranslate {
   display: none;
 
   /* hide Google translate in-progress widget */
-  + div {
+  +div {
     display: none;
   }
 }
@@ -327,7 +327,7 @@ input[type="color"] {
   display: none;
 }
 
-#exitCustomization > div {
+#exitCustomization>div {
   cursor: move;
 }
 
@@ -354,11 +354,11 @@ input[type="color"] {
   }
 }
 
-#toolsContent > .grid {
+#toolsContent>.grid {
   /* display: grid; */
 }
 
-#toolsContent > .grid button {
+#toolsContent>.grid button {
   width: min-content;
 }
 
@@ -396,6 +396,7 @@ input[type="color"] {
 }
 
 #styleElements {
+
   tbody,
   caption {
     display: none;
@@ -405,7 +406,8 @@ input[type="color"] {
 .matrix-table {
   overflow: auto;
 
-  > table {
+  >table {
+
     th,
     td {
       position: relative;
@@ -416,35 +418,45 @@ input[type="color"] {
         z-index: 1;
         cursor: pointer;
       }
+
       &.Ally {
         background-color: #73ec73;
         color: #000000;
       }
+
       &.Friendly {
         background-color: #d4f8aa;
       }
+
       &.Neutral {
         background-color: #d8d9d3;
       }
+
       &.Suspicion {
         background-color: #eeafaa;
       }
+
       &.Enemy {
         background-color: #ffa39c;
         color: #af0d23;
       }
+
       &.Unknown {
         background-color: #c1bfbf;
       }
+
       &.Rival {
         background-color: #bd845c;
       }
+
       &.Vassal {
         background-color: #87cefa;
       }
+
       &.Suzerain {
         background-color: #8f8fe1;
       }
+
       &.x {
         cursor: initial;
       }
@@ -461,14 +473,14 @@ input[type="color"] {
 }
 
 #templateBody {
-  > div {
+  >div {
     display: flex;
 
-    > div {
+    >div {
       display: inline-block;
     }
 
-    > i {
+    >i {
       cursor: pointer;
     }
   }
@@ -494,7 +506,7 @@ input[type="color"] {
   cursor: move;
   opacity: 0.8;
 
-  > path {
+  >path {
     fill: none;
     stroke: #0a0909;
     stroke-width: 2;
@@ -502,7 +514,7 @@ input[type="color"] {
     cursor: pointer;
   }
 
-  > circle:hover {
+  >circle:hover {
     stroke: #2c0808;
   }
 }
@@ -514,7 +526,7 @@ input[type="color"] {
 }
 
 #vertices {
-  > circle {
+  >circle {
     fill: #ff0000;
     stroke: #841f1f;
     stroke-width: 0.1;
@@ -526,14 +538,14 @@ input[type="color"] {
     }
   }
 
-  > polygon {
+  >polygon {
     fill: none;
     stroke: #808080;
     stroke-width: 0.1;
   }
 }
 
-#battleBody > table {
+#battleBody>table {
   display: block;
   overflow: auto;
 }
@@ -542,16 +554,16 @@ input[type="color"] {
   position: absolute;
 }
 
-#battleBody div.battlePhases > button {
+#battleBody div.battlePhases>button {
   display: block;
 }
 
-div#regimentSelectorBody > div.inactive {
+div#regimentSelectorBody>div.inactive {
   background-color: #eee;
   color: #aaa;
 }
 
-div#regimentSelectorBody > div > div {
+div#regimentSelectorBody>div>div {
   display: inline-block;
   pointer-events: none;
 }
@@ -575,7 +587,7 @@ div#regimentSelectorBody > div > div {
   fill: none;
 }
 
-#debug > text {
+#debug>text {
   text-anchor: middle;
   dominant-baseline: central;
 }
@@ -602,22 +614,23 @@ i.resetButton {
   cursor: pointer;
 }
 
-.totalLine > div {
+.totalLine>div {
   display: inline-block;
 }
 
 div.states {
+
   &:hover,
   &.hovered {
     background-image: linear-gradient(to right, #dedede 100%, #f2f2f2 50%, #fcfcfc 0%);
   }
 
-  > *,
+  >*,
   sup {
     display: inline-block;
   }
 
-  &:hover > .hiddenIcon {
+  &:hover>.hiddenIcon {
     visibility: visible !important;
   }
 
@@ -637,16 +650,17 @@ div.states {
     cursor: row-resize;
   }
 
-  > .icon-arrows-cw {
+  >.icon-arrows-cw {
     cursor: pointer;
   }
 
-  > select {
+  >select {
     cursor: pointer;
   }
 }
 
 tr.states {
+
   &:hover td,
   &.hovered td {
     border-color: #c4c4c4;
@@ -654,7 +668,7 @@ tr.states {
   }
 }
 
-div.totalLine > div {
+div.totalLine>div {
   display: inline-block;
 }
 
@@ -672,15 +686,15 @@ tr.states .inactive {
   height: 1.4em;
 }
 
-.coaIcon > use {
+.coaIcon>use {
   pointer-events: none;
 }
 
-#diplomacyBodySection > div {
+#diplomacyBodySection>div {
   cursor: pointer;
 }
 
-.changeRelations > * {
+.changeRelations>* {
   pointer-events: none;
   cursor: pointer;
 }
@@ -737,7 +751,7 @@ div.states {
   }
 }
 
-#emblemBody > div.active {
+#emblemBody>div.active {
   background-color: #54ca7728;
 }
 
@@ -908,7 +922,7 @@ input[type="checkbox"].native {
   overflow: auto;
 }
 
-#notesBody > iframe {
+#notesBody>iframe {
   user-select: none;
 }
 
@@ -950,7 +964,7 @@ svg.button {
   display: inline-block;
 }
 
-#worldControls > div {
+#worldControls>div {
   display: block;
 }
 
@@ -1074,7 +1088,7 @@ svg.button {
   left: 0;
 }
 
-#markerTypeSelectMenu > button {
+#markerTypeSelectMenu>button {
   display: block;
 }
 
@@ -1114,6 +1128,7 @@ svg.button {
 }
 
 @media print {
+
   div,
   canvas {
     display: none;
@@ -1178,6 +1193,7 @@ button.icon-btn {
   display: inline-block;
   line-height: inherit;
 }
+
 button.icon-btn:hover {
   opacity: 0.8;
 }
