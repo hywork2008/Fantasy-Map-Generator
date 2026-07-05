@@ -494,7 +494,8 @@ export function applyStoredOptions(): void {
       "uiSize",
       "tooltipSize",
       "themeColor",
-      "transparency"
+      "transparency",
+      "threatCalculation"
     ];
     if (validKeys.includes(key)) {
       (loadedOptions as Record<string, string | number>)[key] = Number.isNaN(+value) ? value : +value;

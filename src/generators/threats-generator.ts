@@ -93,7 +93,15 @@ export const Threats = {
 
         const d = Math.max(0, power - dist);
         if (d > 0) {
-          cells.danger[cell] = Math.min(255, cells.danger[cell] + d * 4);
+          const threatCalculation = useOptionsState.getState().threatCalculation;
+          if (threatCalculation === "max") {
+            cells.danger[cell] = Math.max(cells.danger[cell], Math.min(255, d * 5));
+          } else if (threatCalculation === "nonlinear") {
+            const nonLinearDanger = Math.round(255 * (d / power) ** 2);
+            cells.danger[cell] = Math.max(cells.danger[cell], Math.min(255, nonLinearDanger));
+          } else {
+            cells.danger[cell] = Math.min(255, cells.danger[cell] + d * 4);
+          }
 
           for (const n of cells.c[cell]) {
             if (!visited.has(n)) {
