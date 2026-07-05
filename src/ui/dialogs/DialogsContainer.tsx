@@ -14,6 +14,7 @@ import { BurgsOverviewDialog } from "./BurgsOverviewDialog";
 import { BurgsRenamingDialog } from "./BurgsRenamingDialog";
 import { CellInfoDialog } from "./CellInfoDialog";
 import { ChartsOverviewDialog } from "./ChartsOverviewDialog";
+import { ColorPickerDialog } from "./ColorPickerDialog";
 import { CommonEditorDialog } from "./CommonEditorDialog";
 import { CulturesEditorDialog } from "./CulturesEditorDialog";
 import { DiplomacyHistoryDialog } from "./DiplomacyHistoryDialog";
@@ -113,6 +114,7 @@ export const DialogsContainer: React.FC = () => {
           <BurgsRenamingDialog />
           <CellInfoDialog />
           <ChartsOverviewDialog />
+          <ColorPickerDialog />
           <CulturesEditorDialog />
           <DiplomacyHistoryDialog />
           <DiplomacyMatrixDialog />
