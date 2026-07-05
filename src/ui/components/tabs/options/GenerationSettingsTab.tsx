@@ -206,7 +206,7 @@ export const GenerationSettingsTab: React.FC = () => {
               <LockIconButton id="cultures" />
             </td>
             <td>Cultures number</td>
-            <td>
+            <td colSpan={2}>
               <input
                 type="range"
                 min="1"
@@ -214,8 +214,6 @@ export const GenerationSettingsTab: React.FC = () => {
                 value={options.cultures}
                 onChange={e => updateOptionAndLock("cultures", Number(e.target.value))}
               />
-            </td>
-            <td>
               <input
                 type="number"
                 min="1"
