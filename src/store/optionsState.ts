@@ -57,6 +57,7 @@ export interface OptionsState {
   distanceUnit: string;
   heightUnit: string;
   areaUnit: string;
+  weightUnit: string;
   heightExponent: number;
 
   // Zoom settings
@@ -123,6 +124,7 @@ export const useOptionsState = create<OptionsState>(set => ({
   distanceUnit: localStorage.getItem("distanceUnit") ?? "km",
   heightUnit: localStorage.getItem("heightUnit") ?? "m",
   areaUnit: localStorage.getItem("areaUnit") ?? "square",
+  weightUnit: localStorage.getItem("weightUnit") ?? "kg",
   heightExponent: Number(localStorage.getItem("heightExponent") ?? 1.8),
 
   zoomExtentMin: 1,

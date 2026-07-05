@@ -3,6 +3,7 @@ import { unitsEditorActions } from "../../controllers/units-editor";
 import { useOptionsState } from "../../store/optionsState";
 import { useUnitsEditorState } from "../../store/unitsEditorState";
 import { showPrompt } from "../../utils";
+import { detectUnitSystem, type UnitSystemId, unitSystemPresets } from "../../utils/unitUtils";
 import { LockIconButton } from "../components/LockIconButton";
 import { SliderInput } from "../components/SliderInput";
 import { Dialog } from "./Dialog";
@@ -11,6 +12,31 @@ import { closeDialog } from "./dialogService";
 export const UnitsEditorDialog: React.FC = () => {
   const { isOpen, rulerMode } = useUnitsEditorState();
   const options = useOptionsState();
+
+  const unitSystem = detectUnitSystem({
+    temperatureScale: options.temperatureScale,
+    distanceUnit: options.distanceUnit,
+    heightUnit: options.heightUnit,
+    weightUnit: options.weightUnit
+  });
+
+  const handleUnitSystemChange = (value: string) => {
+    if (value === "custom") return;
+    unitsEditorActions.applyUnitSystemPreset(value as UnitSystemId);
+  };
+
+  const handleWeightUnitChange = (value: string) => {
+    if (value === "custom_name") {
+      showPrompt("Provide a custom name for a weight unit", { default: "" }, customValue => {
+        const custom = String(customValue);
+        options.setOption("weightUnit", custom);
+        unitsEditorActions.changeWeightUnit(custom);
+      });
+      return;
+    }
+    options.setOption("weightUnit", value);
+    unitsEditorActions.changeWeightUnit(value);
+  };
 
   const handleDistanceUnitChange = (value: string) => {
     if (value === "custom_name") {
@@ -40,12 +66,24 @@ export const UnitsEditorDialog: React.FC = () => {
 
   const isCustomDistance = !["mi", "km", "lg", "vr", "nmi", "nlg"].includes(options.distanceUnit);
   const isCustomHeight = !["ft", "m", "f"].includes(options.heightUnit);
+  const isCustomWeight = !["kg", "lb"].includes(options.weightUnit);
 
   return (
     <Dialog isOpen={isOpen} title="Units Editor" onClose={() => closeDialog("unitsEditor")}>
       <div id="unitsEditorContainer">
         <div>
           <div id="unitsBody">
+            <div data-tip="Switch temperature, distance, altitude and weight units at once">
+              <label htmlFor="unitSystem">Unit system:</label>
+              <select id="unitSystem" value={unitSystem} onChange={e => handleUnitSystemChange(e.currentTarget.value)}>
+                {unitSystemPresets.map(preset => (
+                  <option key={preset.id} value={preset.id}>
+                    {preset.label}
+                  </option>
+                ))}
+                {unitSystem === "custom" && <option value="custom">Custom</option>}
+              </select>
+            </div>
             <div>
               <span className="icon-map-signs" />
               <span>Distance:</span>
@@ -150,6 +188,23 @@ export const UnitsEditorDialog: React.FC = () => {
                 <option value="°N">degree Newton (°N)</option>
                 <option value="°Ré">degree Réaumur (°Ré)</option>
                 <option value="°Rø">degree Rømer (°Rø)</option>
+              </select>
+            </div>
+            <div className="unitsHeader" data-tip="Select Weight unit">
+              <span className="icon-balance-scale" />
+              <span>Weight:</span>
+            </div>
+            <div data-tip="Select a weight unit or provide a custom name">
+              <label htmlFor="weightUnit">Weight unit:</label>
+              <select
+                id="weightUnit"
+                value={options.weightUnit}
+                onChange={e => handleWeightUnitChange(e.currentTarget.value)}
+              >
+                <option value="kg">Kilogram (kg)</option>
+                <option value="lb">Pound (lb)</option>
+                {isCustomWeight && <option value={options.weightUnit}>{options.weightUnit}</option>}
+                <option value="custom_name">Custom name</option>
               </select>
             </div>
             <div className="unitsHeader">

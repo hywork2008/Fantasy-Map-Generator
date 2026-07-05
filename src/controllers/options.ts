@@ -581,15 +581,11 @@ export function randomizeOptions(): void {
     worldContext.options.temperatureSouthPole = gauss(-15, 7, -40, 10, 0);
   if (randomize || !locked("prec")) useOptionsState.getState().setOption("prec", Math.round(gauss(100, 40, 5, 500)));
 
-  const US = navigator.language === "en-US";
   if (randomize || !locked("distanceScale")) {
     const dsv = gauss(3, 1, 1, 5);
     useOptionsState.getState().setOption("distanceScale", dsv);
     worldContext.distanceScale = dsv;
   }
-  if (!stored("distanceUnit")) useOptionsState.getState().setOption("distanceUnit", US ? "mi" : "km");
-  if (!stored("heightUnit")) useOptionsState.getState().setOption("heightUnit", US ? "ft" : "m");
-  if (!stored("temperatureScale")) useOptionsState.getState().setOption("temperatureScale", US ? "°F" : "°C");
 
   generateEra();
 }
