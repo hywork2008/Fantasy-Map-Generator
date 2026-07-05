@@ -21,6 +21,7 @@ export interface CellInfoData {
   culture: string;
   religion: string;
   burg: string;
+  danger: string;
   // Extension fields
   good?: string;
   market?: string;
@@ -53,6 +54,7 @@ export const useCellInfoState = create<CellInfoState>(set => ({
   culture: "n/a",
   religion: "n/a",
   burg: "n/a",
+  danger: "n/a",
   good: "n/a",
   market: "n/a",
   cellProduction: "n/a",

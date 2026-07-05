@@ -26,7 +26,7 @@ import type { Burg, Culture, Province, State } from "../types/models";
 import { closeAllDialogs, closeDialogs, openAlert, openConfirm, openDialog } from "../ui/dialogs/dialogService";
 import { gauss, last, minmax, P, rand, rn, rw } from "../utils";
 import { applyOption, lock, locked, stored, unlock } from "../utils/domUtils";
-import { getElementById, getElementBySelector, getElementsBySelector } from "../utils/nodeUtils";
+import { getElementById, getElementBySelector, getElementsBySelector, layerIsOn } from "../utils/nodeUtils";
 import { cleanupData } from "../versioning";
 import { exportToJson as exportToJsonModule } from "./export-json";
 import { editWorld } from "./world-configurator";
@@ -471,8 +471,6 @@ export function applyStoredOptions(): void {
 
     const value = stored(key)!;
 
-    lock(key);
-
     if (key === "points") changeCellsDensity(+value);
     if (key === "distanceScale") worldContext.distanceScale = +value;
 
@@ -883,9 +881,17 @@ export function initOptions(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: 
   });
 
   document.addEventListener("react-change-population-rendering-mode", () => {
-    if (window.fmg?.actions.layerIsOn("togglePopulation")) {
+    if (layerIsOn("togglePopulation")) {
       import("../renderers").then(({ PopulationRenderer }) => {
         PopulationRenderer.render(worldContext, viewContext, appServices);
+      });
+    }
+  });
+
+  document.addEventListener("react-change-danger-rendering-mode", () => {
+    if (layerIsOn("toggleDanger")) {
+      import("../renderers").then(({ DangerRenderer }) => {
+        DangerRenderer.render(worldContext, viewContext, appServices);
       });
     }
   });

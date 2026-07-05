@@ -350,6 +350,26 @@ export const UiSettingsTab: React.FC = () => {
             <td></td>
           </tr>
 
+          <tr data-tip="Select the danger layer visualization style">
+            <td></td>
+            <td>Danger rendering</td>
+            <td>
+              <select
+                id="dangerRenderingMode"
+                value={options.dangerRenderingMode}
+                onChange={e => {
+                  const mode = e.target.value as "contour" | "choropleth";
+                  options.setOption("dangerRenderingMode", mode);
+                  document.dispatchEvent(new CustomEvent("react-change-danger-rendering-mode"));
+                }}
+              >
+                <option value="contour">Smooth Contours</option>
+                <option value="choropleth">Cell Heatmap</option>
+              </select>
+            </td>
+            <td></td>
+          </tr>
+
           <tr data-tip="Select rendering model. Try to set to 'optimized' if you face performance issues">
             <td></td>
             <td>Rendering</td>

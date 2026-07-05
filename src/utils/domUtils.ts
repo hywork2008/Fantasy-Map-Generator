@@ -11,29 +11,23 @@ export function getVisibleDialogElement(id: string): HTMLElement | null {
   return el;
 }
 export function lock(id: string): void {
-  const input = document.querySelector<HTMLInputElement>(`[data-stored="${id}"]`);
-  if (input) store(id, input.value);
-  const el = document.getElementById(`lock_${id}`);
-  if (el) {
-    el.dataset.locked = "1";
-    el.classList.remove("icon-lock-open");
-    el.classList.add("icon-lock");
+  const options = useOptionsState.getState() as unknown as Record<string, unknown>;
+  const value = options[id];
+  if (id in options && typeof value !== "function") {
+    store(id, String(value));
+  } else {
+    const input = document.querySelector<HTMLInputElement | HTMLSelectElement>(`[data-stored="${id}"]`);
+    if (input) store(id, input.value);
   }
+
   document.dispatchEvent(new CustomEvent("fmg:lock-changed", { detail: { id, locked: true } }));
 }
 export function unlock(id: string): void {
   localStorage.removeItem(id);
-  const el = document.getElementById(`lock_${id}`);
-  if (el) {
-    el.dataset.locked = "0";
-    el.classList.remove("icon-lock");
-    el.classList.add("icon-lock-open");
-  }
   document.dispatchEvent(new CustomEvent("fmg:lock-changed", { detail: { id, locked: false } }));
 }
 export function locked(id: string): boolean {
-  const lockEl = document.getElementById(`lock_${id}`) as HTMLElement;
-  return lockEl ? lockEl.dataset.locked === "1" : false;
+  return localStorage.getItem(id) !== null;
 }
 export function stored(key: string): string | null {
   return localStorage.getItem(key) || null;

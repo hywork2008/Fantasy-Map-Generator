@@ -25,14 +25,39 @@ export const Threats = {
 
     const spawnMonster = (rarity: number, power: number, type: string) => {
       const cell = validCells[rand(validCells.length - 1)];
+      const name = `${type} ${monsters.length}`;
       monsters.push({
         i: monsters.length,
         cell,
-        name: `${type} ${monsters.length}`,
+        name,
         rarity,
         power,
         type
       });
+
+      if (rarity >= 3) {
+        let icon = "👻";
+        if (rarity === 4) icon = "🐲";
+        else if (rarity === 5) icon = "🩸";
+
+        if (!pack.markers) pack.markers = [];
+        const markerId = pack.markers.length ? pack.markers[pack.markers.length - 1].i + 1 : 0;
+
+        pack.markers.push({
+          i: markerId,
+          cell,
+          x: cells.p[cell][0],
+          y: cells.p[cell][1],
+          type: "monster",
+          icon
+        });
+
+        worldContext.notes.push({
+          id: `marker${markerId}`,
+          name,
+          legend: `A terrifying ${type} of rarity ${rarity}.`
+        });
+      }
     };
 
     // Rarity 5: Unkillable / Multi-state alliance required

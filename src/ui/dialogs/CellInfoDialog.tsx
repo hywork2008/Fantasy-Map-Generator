@@ -67,6 +67,9 @@ export const CellInfoDialog: React.FC = () => {
             <b>Burg:</b> <span>{info.burg}</span>
           </p>
           <p>
+            <b>Danger:</b> <span>{info.danger}</span>
+          </p>
+          <p>
             <b>Good:</b> <span>{info.good}</span>
           </p>
           <p>

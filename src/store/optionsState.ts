@@ -69,6 +69,7 @@ export interface OptionsState {
   rescaleLabels: boolean;
   hideLabels: boolean;
   populationRenderingMode: "original" | "contour" | "choropleth";
+  dangerRenderingMode: "contour" | "choropleth";
 
   // Actions
   setOption: <K extends keyof Omit<OptionsState, "setOption">>(key: K, value: OptionsState[K]) => void;
@@ -135,6 +136,7 @@ export const useOptionsState = create<OptionsState>(set => ({
   rescaleLabels: true,
   hideLabels: false,
   populationRenderingMode: "choropleth",
+  dangerRenderingMode: "contour",
 
   setOption: (key, value) => set({ [key]: value }),
   setOptions: updates => set(updates)

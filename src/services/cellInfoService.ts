@@ -44,6 +44,7 @@ export function updateCellInfo(point: [number, number], i: number, g: number): v
       : "no",
     population: getFriendlyPopulation(i),
     burg: cells.burg[i] ? `${worldContext.pack.burgs[cells.burg[i]].name} (${cells.burg[i]})` : "no",
+    danger: cells.danger ? String(cells.danger[i]) : "n/a",
     feature: f ? `${worldContext.pack.features[f].group} (${f})` : "n/a",
     biome: worldContext.biomesData.name[cells.biome[i]]
   });
