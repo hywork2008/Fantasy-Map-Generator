@@ -3,6 +3,7 @@ import { ThreeDRenderer } from "../renderers/three-d-renderer";
 import { tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { use3DOptionsStore } from "../store/options3dStore";
+import { useViewModeState } from "../store/viewModeState";
 import { closeDialog, isDialogOpen, openDialog } from "../ui/dialogs/dialogService";
 import { fitContent } from "../utils/domUtils";
 import { EditorBus } from "../utils/editorBus";
@@ -19,27 +20,17 @@ function getRequiredElementById<T extends Element>(id: string): T {
 export function changeViewMode(event: MouseEvent): void {
   const button = event.target as HTMLElement;
   if (button.tagName !== "BUTTON") return;
-  const pressed = button.classList.contains("pressed");
+  const pressed = useViewModeState.getState().activeViewMode === button.id;
   enterStandardView();
 
-  const viewStandardEl = getElementById<HTMLElement>("viewStandard");
   if (!pressed && button.id !== "viewStandard") {
-    viewStandardEl?.classList.remove("pressed");
-    button.classList.add("pressed");
+    useViewModeState.getState().setActiveViewMode(button.id);
     enter3dView(button.id);
   }
 }
 
 export function enterStandardView(): void {
-  const viewModeEl = getElementById<HTMLElement>("viewMode");
-  const heightmap3DViewEl = getElementById<HTMLElement>("heightmap3DView");
-  const viewStandardEl = getElementById<HTMLElement>("viewStandard");
-
-  viewModeEl?.querySelectorAll(".pressed").forEach(button => {
-    button.classList.remove("pressed");
-  });
-  heightmap3DViewEl?.classList.remove("pressed");
-  viewStandardEl?.classList.add("pressed");
+  useViewModeState.getState().setActiveViewMode("viewStandard");
 
   const canvas3d = getElementById<HTMLCanvasElement>("canvas3d");
   if (!canvas3d) return;

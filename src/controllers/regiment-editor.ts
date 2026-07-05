@@ -44,18 +44,23 @@ function getRegEl(): SVGGElement {
   return elSelected!.node() as SVGGElement;
 }
 
-function getRegiment(): MilitaryRegiment | undefined {
-  const el = getRegEl();
-  return (worldContext.pack.states[+el.dataset.state!]?.military as MilitaryRegiment[] | undefined)?.find(
-    r => r.i === +el.dataset.id!
-  );
+function findRegiment(stateId: number, regimentId: number): MilitaryRegiment | undefined {
+  return (worldContext.pack.states[stateId]?.military as MilitaryRegiment[] | undefined)?.find(r => r.i === regimentId);
 }
 
-function syncRegimentState(regiment: MilitaryRegiment): void {
+// Reads the regiment currently open in the editor from regimentEditorState, not from DOM
+// dataset attributes — the store is the source of truth once syncRegimentState() has run.
+function getRegiment(): MilitaryRegiment | undefined {
+  const { stateId, regimentId } = getRegimentEditorState();
+  if (stateId === null || regimentId === null) return undefined;
+  return findRegiment(stateId, regimentId);
+}
+
+function syncRegimentState(regiment: MilitaryRegiment, stateId: number): void {
   const unitOptions = worldContext.options.military ?? [];
   setRegimentEditorState({
     regimentId: regiment.i,
-    stateId: +getRegEl().dataset.state!,
+    stateId,
     name: regiment.name,
     isNaval: !!regiment.n,
     icon: regiment.icon ?? "",
@@ -69,7 +74,7 @@ function syncRegimentState(regiment: MilitaryRegiment): void {
 
 function drawBase(): void {
   const reg = getRegiment()!;
-  const clr = worldContext.pack.states[+getRegEl().dataset.state!].color ?? "";
+  const clr = worldContext.pack.states[getRegimentEditorState().stateId!].color ?? "";
   const base = view.viewbox
     .insert("g", "g#armies")
     .attr("id", "regimentBase")
@@ -222,11 +227,13 @@ export function editRegiment(selectorOrEl?: string | Element): void {
   const rawEl = typeof selectorOrEl === "string" ? getElementBySelector(selectorOrEl) : (selectorOrEl ?? null);
   setElSelected(select(rawEl as Element));
 
-  if (!worldContext.pack.states[+getRegEl().dataset.state!]) return;
-  const reg = getRegiment();
+  const el = getRegEl();
+  const stateId = +el.dataset.state!;
+  if (!worldContext.pack.states[stateId]) return;
+  const reg = findRegiment(stateId, +el.dataset.id!);
   if (!reg) return;
 
-  syncRegimentState(reg);
+  syncRegimentState(reg, stateId);
   drawBase();
   drawRotationControl();
 
@@ -246,16 +253,16 @@ export const regimentEditorActions = {
   changeName(name: string): void {
     const reg = getRegiment();
     if (!reg) return;
-    getRegEl().dataset.name = reg.name = name;
+    reg.name = name;
     setRegimentEditorState({ name });
   },
 
   restoreName(): void {
     const reg = getRegiment();
     if (!reg) return;
-    const regs = worldContext.pack.states[+getRegEl().dataset.state!].military ?? [];
+    const regs = worldContext.pack.states[getRegimentEditorState().stateId!].military ?? [];
     const name = GenerationPipeline.Military.getName(reg, regs);
-    getRegEl().dataset.name = reg.name = name;
+    reg.name = name;
     setRegimentEditorState({ name });
   },
 
@@ -314,7 +321,7 @@ export const regimentEditorActions = {
     const reg = getRegiment();
     if (!reg) return;
     const u1 = reg.u;
-    const state = +getRegEl().dataset.state!;
+    const state = getRegimentEditorState().stateId!;
     const military = worldContext.pack.states[state].military ?? [];
     const i = last(military).i + 1;
     const u2 = Object.assign({}, u1);
@@ -427,7 +434,7 @@ export const regimentEditorActions = {
   regenerateLegend(): void {
     const index = worldContext.notes.findIndex((n: WorldNote) => n.id === getRegEl().id);
     if (index !== -1) worldContext.notes.splice(index, 1);
-    const s = worldContext.pack.states[+getRegEl().dataset.state!];
+    const s = worldContext.pack.states[getRegimentEditorState().stateId!];
     GenerationPipeline.Military.generateNote(getRegiment()!, s);
   },
 
@@ -442,7 +449,7 @@ export const regimentEditorActions = {
       title: "Remove regiment",
       confirm: "Remove",
       onConfirm: () => {
-        const military = worldContext.pack.states[+getRegEl().dataset.state!].military ?? [];
+        const military = worldContext.pack.states[getRegimentEditorState().stateId!].military ?? [];
         const reg = getRegiment();
         if (!reg) return;
         const regIndex = military.indexOf(reg);
@@ -464,7 +471,7 @@ function addRegimentOnClick(this: SVGElement, event: MouseEvent): void {
   const pt = pointer(event, this) as [number, number];
   const cell = findCell(pt[0], pt[1]);
   const [x, y] = worldContext.pack.cells.p[cell];
-  const state = +getRegEl().dataset.state!;
+  const state = getRegimentEditorState().stateId!;
   const military = worldContext.pack.states[state].military ?? [];
   const i = military.length ? last(military).i + 1 : 0;
   const n = +(worldContext.pack.cells.h[cell] < 20);
@@ -481,7 +488,7 @@ function attackRegimentOnClick(this: SVGElement, event: MouseEvent): void {
   const target = event.target as SVGElement;
   const regSelected = target.parentElement!;
   const army = regSelected.parentElement!;
-  const oldState = +getRegEl().dataset.state!;
+  const oldState = getRegimentEditorState().stateId!;
   const newState = +regSelected.dataset.state!;
 
   if (army.parentElement!.id !== "armies") {
@@ -541,7 +548,7 @@ function attachRegimentOnClick(this: SVGElement, event: MouseEvent): void {
   const target = event.target as SVGElement;
   const regSelected = target.parentElement!;
   const army = regSelected.parentElement!;
-  const oldState = +getRegEl().dataset.state!;
+  const oldState = getRegimentEditorState().stateId!;
   const newState = +regSelected.dataset.state!;
 
   if (army.parentElement!.id !== "armies") {

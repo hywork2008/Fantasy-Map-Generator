@@ -27,10 +27,6 @@ Editor (src/controllers/)  → Handles UI/User operations, mutates State, trigge
 | **Renderer** | ✅ Allowed (SVG only) | ❌ Forbidden | Map state visualization (`Readonly<WorldContext> -> SVG`). Must remain pure. |
 | **Editor** | ✅ Allowed (Strictly via events, no direct SVG drawing) | ✅ Allowed | User input handling, controlling state mutations, and triggering re-renders. |
 
-### Renderer Encapsulation Rule
-
-Direct DOM / SVG manipulation using `d3.select("...").append(...)` or similar methods is **strictly prohibited outside of the `src/renderers/` directory**, with one explicit exception: `src/initViewLayers.ts`. Non-Renderer layers (such as `src/controllers/` or `src/editors/`) must delegate all drawing operations to the appropriate Renderer (e.g., `BiomesRenderer.render()`).
-
 ### SVG Layer Initialization (`src/initViewLayers.ts`)
 
 `src/initViewLayers.ts` is the single designated location for creating and re-acquiring the host SVG `<g>` layers. It exports three functions:

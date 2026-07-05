@@ -34,7 +34,6 @@ let routeCreatorCellsForced = false;
 let _rcRoute: Route | null = null;
 let _rcInitCell = 0;
 let _rcPointIndex = 0;
-let _isSplitMode = false;
 let _createRoutePoints: { x: number; y: number; cellId: number }[] = [];
 
 export function initRoutesEditor(wc: WorldContext) {
@@ -226,7 +225,7 @@ function handleControlPointClick(this: SVGCircleElement, _event: MouseEvent): vo
 
   const index = route.points.indexOf(pt);
 
-  if (_isSplitMode) {
+  if (getRoutesEditorState().isSplitMode) {
     splitRoute();
   } else {
     removeControlPoint(controlPoint);
@@ -262,7 +261,7 @@ function handleControlPointClick(this: SVGCircleElement, _event: MouseEvent): vo
       .attr("d", GenerationPipeline.Routes.getPath(newRoute))
       .attr("id", `route${newRoute.i}`);
 
-    _isSplitMode = false;
+    setRoutesEditorState({ isSplitMode: false });
   }
 
   function removeControlPoint(cp: d3.Selection<SVGCircleElement, unknown, null, undefined>): void {
@@ -419,7 +418,7 @@ export const routesEditorActions = {
   },
 
   toggleSplitMode(): void {
-    _isSplitMode = !_isSplitMode;
+    setRoutesEditorState({ isSplitMode: !getRoutesEditorState().isSplitMode });
   },
 
   openJoinRoutesDialog(): void {

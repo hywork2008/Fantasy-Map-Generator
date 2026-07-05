@@ -1108,7 +1108,7 @@ function addMarkerOnClick(event: MouseEvent): void {
     ? packMarkers.find((marker: Marker) => marker.i === +elSelected!.attr("id").slice(6))
     : null;
 
-  const selectedType = (getElementById("addedMarkerType") as HTMLInputElement).value;
+  const selectedType = useMarkersOverviewState.getState().addedMarkerType;
   const selectedConfig = GenerationPipeline.Markers.getConfig().find(({ type }: MarkerConfig) => type === selectedType);
   const baseMarker = selectedMarker || selectedConfig || { icon: "❓" };
   const marker = GenerationPipeline.Markers.add({ ...baseMarker, x, y, cell } as Marker);

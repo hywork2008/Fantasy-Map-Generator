@@ -1,15 +1,10 @@
 import type React from "react";
 import { useEffect } from "react";
 import { modules } from "../../store/editorState";
+import { layerIsOn } from "../../utils/nodeUtils";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 import type { EditorConfig } from "./editorRegistry";
-
-function layerIsOn(el: string): boolean {
-  const e = document.getElementById(el);
-  if (!e) return false;
-  return e.classList.contains("pressed");
-}
 
 export const CommonEditorDialog: React.FC<{ id: string; config: EditorConfig }> = ({ id, config }) => {
   const { title, component: Component, moduleFlag, layerId, onClose, tableLayout, dialogHeight } = config;

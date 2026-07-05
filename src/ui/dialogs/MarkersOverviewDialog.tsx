@@ -26,7 +26,6 @@ export const MarkersOverviewDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("markersOverview"));
   const {
     searchText,
-    addedMarkerType,
     addedMarkerIcon,
     typeMenuOpen,
     refreshCounter,
@@ -92,10 +91,6 @@ export const MarkersOverviewDialog: React.FC = () => {
   }
 
   function handleAddMarkerMode(): void {
-    // Set the selected marker type before triggering add mode
-    const input = document.getElementById("addedMarkerType") as HTMLInputElement | null;
-    if (input) input.value = addedMarkerType;
-
     document.dispatchEvent(new CustomEvent("react-tool-action", { detail: { action: "addMarker" } }));
   }
 
@@ -193,7 +188,6 @@ export const MarkersOverviewDialog: React.FC = () => {
 
         <div id="markersFooter" className="footer">
           <button type="button" data-tip="Refresh the Overview screen" className="icon-cw" onClick={refresh} />
-          <input type="hidden" id="addedMarkerType" name="addedMarkerType" defaultValue={addedMarkerType} />
           <span id="markerTypeSelectorWrapper" className="d-inline-block">
             <button
               type="button"

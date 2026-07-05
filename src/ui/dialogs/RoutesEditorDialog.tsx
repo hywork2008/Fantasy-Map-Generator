@@ -13,6 +13,7 @@ export const RoutesEditorDialog: React.FC = () => {
     routeLength,
     isWaterRoute,
     isLocked,
+    isSplitMode,
     allGroups,
     creatorGroup,
     creatorPoints
@@ -82,12 +83,9 @@ export const RoutesEditorDialog: React.FC = () => {
             <button
               type="button"
               id="routeSplit"
-              className="icon-scissors"
+              className={`icon-scissors${isSplitMode ? " pressed" : ""}`}
               data-tip="Click to activate split mode. Then click on a route control point to split the route in two parts"
-              onClick={e => {
-                e.currentTarget.classList.toggle("pressed");
-                routesEditorActions.toggleSplitMode();
-              }}
+              onClick={routesEditorActions.toggleSplitMode}
             >
               Split
             </button>

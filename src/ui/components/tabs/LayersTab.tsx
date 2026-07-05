@@ -2,12 +2,13 @@ import type React from "react";
 import { useEffect, useState } from "react";
 import { handleLayersPresetChange, removePreset, savePreset, toggleLayerById } from "../../../controllers/layers";
 import { changeViewMode } from "../../../controllers/viewMode";
-import { viewLayerService as view } from "../../../services/viewLayerService";
 import { DEFAULT_LAYERS, type LayerConfig, useLayerState } from "../../../store/layerState";
+import { useViewModeState } from "../../../store/viewModeState";
 
 export const LayersTab: React.FC = () => {
   const { layers, setLayers, activeLayers, presets, presetLabels, activePreset, presetDisabled, reorderLayers } =
     useLayerState();
+  const { activeViewMode } = useViewModeState();
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
   // Initialize defaults if not set
@@ -124,7 +125,7 @@ export const LayersTab: React.FC = () => {
         <button
           data-tip="Standard view mode that allows to edit the map"
           id="viewStandard"
-          className={view.customization !== 1 ? "pressed" : ""}
+          className={activeViewMode === "viewStandard" ? "pressed" : ""}
           onClick={handleViewMode}
           type="button"
         >
@@ -133,6 +134,7 @@ export const LayersTab: React.FC = () => {
         <button
           data-tip="Map presentation in 3D scene. Works best for heightmap. Cannot be used for editing"
           id="viewMesh"
+          className={activeViewMode === "viewMesh" ? "pressed" : ""}
           onClick={handleViewMode}
           type="button"
         >
@@ -141,6 +143,7 @@ export const LayersTab: React.FC = () => {
         <button
           data-tip="Project map on globe. Cannot be used for editing"
           id="viewGlobe"
+          className={activeViewMode === "viewGlobe" ? "pressed" : ""}
           onClick={handleViewMode}
           type="button"
         >
