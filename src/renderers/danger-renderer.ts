@@ -26,7 +26,7 @@ export const DangerRenderer: IRenderer = {
 
     if (!cells.danger) return;
 
-    if (renderingMode === "contour" || renderingMode === "original" /* fallback */) {
+    if (renderingMode === "contour") {
       const data: [number, number, number][] = [];
 
       for (const i of cells.i) {
