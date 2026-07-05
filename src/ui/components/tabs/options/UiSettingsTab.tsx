@@ -339,14 +339,7 @@ export const UiSettingsTab: React.FC = () => {
                 onChange={e => {
                   const mode = e.target.value as "original" | "contour" | "choropleth";
                   options.setOption("populationRenderingMode", mode);
-
-                  // Re-render if the layer is on
-                  if (window.fmg?.actions.layerIsOn("togglePopulation")) {
-                    window.fmg.actions.toggleLayer("togglePopulation");
-                    setTimeout(() => {
-                      window.fmg.actions.toggleLayer("togglePopulation");
-                    }, 50);
-                  }
+                  document.dispatchEvent(new CustomEvent("react-change-population-rendering-mode"));
                 }}
               >
                 <option value="original">3D Bars</option>

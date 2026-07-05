@@ -882,6 +882,14 @@ export function initOptions(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: 
     setRendering(value);
   });
 
+  document.addEventListener("react-change-population-rendering-mode", () => {
+    if (window.fmg?.actions.layerIsOn("togglePopulation")) {
+      import("../renderers").then(({ PopulationRenderer }) => {
+        PopulationRenderer.render(worldContext, viewContext, appServices);
+      });
+    }
+  });
+
   document.addEventListener("react-load-google-translate", loadGoogleTranslate);
   document.addEventListener("react-reset-language", resetLanguage);
   document.addEventListener("react-open-world-configurator", editWorld);

@@ -48,18 +48,20 @@ class MapInteractionManager {
   }
 
   private handleViewboxClick(event: MouseEvent): void {
+    const context = this.currentElement || this;
     if (this.activeClickHandler) {
-      this.activeClickHandler(event);
+      this.activeClickHandler.call(context, event);
     } else if (this.defaultClickHandler) {
-      this.defaultClickHandler(event);
+      this.defaultClickHandler.call(context, event);
     }
   }
 
   private handleViewboxMouseMove(event: MouseEvent): void {
+    const context = this.currentElement || this;
     if (this.activeMouseMoveHandler) {
-      this.activeMouseMoveHandler(event);
+      this.activeMouseMoveHandler.call(context, event);
     } else if (this.defaultMouseMoveHandler) {
-      this.defaultMouseMoveHandler(event);
+      this.defaultMouseMoveHandler.call(context, event);
     }
   }
 }

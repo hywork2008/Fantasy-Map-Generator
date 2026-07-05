@@ -22,6 +22,7 @@ export const PopulationRenderer: IRenderer = {
     const renderingMode = useOptionsState.getState().populationRenderingMode;
 
     population.selectAll("*").remove();
+    population.attr("mask", renderingMode === "contour" ? "url(#land)" : null);
 
     if (renderingMode === "original") {
       population.append("g").attr("id", "rural").attr("stroke", "#0000ff");
@@ -102,8 +103,7 @@ export const PopulationRenderer: IRenderer = {
         .attr("d", geoPath)
         .attr("fill", d => color(d.value))
         .attr("stroke", "none")
-        .attr("opacity", 0.7)
-        .attr("mask", "url(#land)");
+        .attr("opacity", 0.7);
     } else if (renderingMode === "choropleth") {
       const totalPop = new Float32Array(cells.i.length);
       let maxPop = 0;
