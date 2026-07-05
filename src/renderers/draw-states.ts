@@ -96,7 +96,10 @@ export const StatesRenderer = {
   },
 
   highlightState(viewContext: Readonly<RootLayers & PoliticalLayers>, stateId: number): void {
-    const d = viewContext.regions.select(`#state${stateId}`).attr("d");
+    if (!stateId) return;
+    const statePath = viewContext.regions.select(`#state${stateId}`).node() as SVGElement | null;
+    if (!statePath) return;
+    const d = statePath.getAttribute("d");
     if (!d) return;
 
     const path = viewContext.debug
