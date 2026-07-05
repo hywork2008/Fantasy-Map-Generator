@@ -35,6 +35,7 @@ import { Religions } from "./generators/religions-generator";
 import { Rivers } from "./generators/river-generator";
 import { Routes } from "./generators/routes-generator";
 import { States } from "./generators/states-generator";
+import { Threats } from "./generators/threats-generator";
 import { Zones } from "./generators/zones-generator";
 import { ldb } from "./io/ldb";
 import { loadMapFromURL, showUploadErrorMessage, uploadMap } from "./io/load";
@@ -897,6 +898,7 @@ export async function generate(opts?: { seed?: string; graph?: Grid | null }) {
 
     Ice.generate(worldContext, viewContext, appServices, state);
 
+    Threats.generate(worldContext, viewContext, appServices, state);
     rankCells();
     Cultures.generate(worldContext, viewContext, appServices, state);
     Cultures.expand(state);
@@ -1455,6 +1457,13 @@ export function rankCells() {
     }
 
     packCells.s[i] = score / 5;
+
+    const danger = packCells.danger ? packCells.danger[i] : 0;
+    if (danger > 0) {
+      const multiplier = Math.max(0, 1 - danger / 200);
+      packCells.s[i] = Math.round(packCells.s[i] * multiplier);
+    }
+
     packCells.pop[i] = packCells.s[i] > 0 ? (packCells.s[i] * packCells.area[i]) / meanArea : 0;
   }
 

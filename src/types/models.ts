@@ -168,6 +168,15 @@ export interface Marker {
   hidden?: boolean;
 }
 
+export interface Monster {
+  i: number;
+  cell: number;
+  name: string;
+  rarity: number;
+  power: number;
+  type: string;
+}
+
 export interface Province {
   i: number;
   removed?: boolean;

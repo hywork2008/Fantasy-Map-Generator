@@ -30,6 +30,7 @@ export interface EnvironmentLayers {
   ice: SvgGroup;
   prec: SvgGroup;
   temperature: SvgGroup;
+  danger: SvgGroup;
 }
 
 /** Political and cultural division layers. */

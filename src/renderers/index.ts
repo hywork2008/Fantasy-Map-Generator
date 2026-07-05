@@ -1,3 +1,4 @@
+export { DangerRenderer } from "./danger-renderer";
 export { BiomesRenderer } from "./draw-biomes";
 export { BordersRenderer } from "./draw-borders";
 export { BurgIconsRenderer, drawBurgIcon, removeBurgIcon } from "./draw-burg-icons";

@@ -81,6 +81,12 @@ export const DEFAULT_LAYERS: LayerConfig[] = [
     tooltip: "Cultures: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
   },
   {
+    id: "toggleDanger",
+    name: <>Danger</>,
+    shortcut: null,
+    tooltip: "Danger: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
+  },
+  {
     id: "toggleEmblems",
     name: <>Emblems</>,
     shortcut: "Y",

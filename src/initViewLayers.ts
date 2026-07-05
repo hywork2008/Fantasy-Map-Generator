@@ -61,6 +61,12 @@ export function createViewLayers(): void {
   const trails = routes.append("g").attr("id", "trails") as Selection<SVGGElement, unknown, null, undefined>;
   const searoutes = routes.append("g").attr("id", "searoutes") as Selection<SVGGElement, unknown, null, undefined>;
   const temperature = viewbox.append("g").attr("id", "temperature") as Selection<SVGGElement, unknown, null, undefined>;
+  const danger = viewbox.append("g").attr("id", "danger").style("display", "none") as Selection<
+    SVGGElement,
+    unknown,
+    null,
+    undefined
+  >;
   const coastline = viewbox.append("g").attr("id", "coastline") as Selection<SVGGElement, unknown, null, undefined>;
   const ice = viewbox.append("g").attr("id", "ice") as Selection<SVGGElement, unknown, null, undefined>;
   const prec = viewbox.append("g").attr("id", "prec").style("display", "none") as Selection<
@@ -168,6 +174,7 @@ export function createViewLayers(): void {
     trails,
     searoutes,
     temperature,
+    danger,
     coastline,
     ice,
     prec,
@@ -256,6 +263,7 @@ export function reinitializeMapLayers(): void {
   const trails = routes.select("#trails") as Selection<SVGGElement, unknown, null, undefined>;
   const searoutes = routes.select("#searoutes") as Selection<SVGGElement, unknown, null, undefined>;
   const temperature = viewbox.select("#temperature") as Selection<SVGGElement, unknown, null, undefined>;
+  const danger = viewbox.select("#danger") as Selection<SVGGElement, unknown, null, undefined>;
   const coastline = viewbox.select("#coastline") as Selection<SVGGElement, unknown, null, undefined>;
   const prec = viewbox.select("#prec") as Selection<SVGGElement, unknown, null, undefined>;
   const population = viewbox.select("#population") as Selection<SVGGElement, unknown, null, undefined>;
@@ -313,6 +321,7 @@ export function reinitializeMapLayers(): void {
     trails,
     searoutes,
     temperature,
+    danger,
     coastline,
     ice,
     prec,

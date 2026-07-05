@@ -81,6 +81,9 @@ class ViewLayerServiceImpl {
   get temperature() {
     return viewContext.temperature;
   }
+  get danger() {
+    return viewContext.danger;
+  }
 
   // ── Political ─────────────────────────────────────────────────────────────
   get relig() {
@@ -228,6 +231,7 @@ class ViewLayerServiceImpl {
       toggleBorders: viewContext.borders,
       toggleRoutes: viewContext.routes,
       toggleTemperature: viewContext.temperature,
+      toggleDanger: viewContext.danger,
       togglePrecipitation: viewContext.prec,
       togglePopulation: viewContext.population,
       toggleIce: viewContext.ice,

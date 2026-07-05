@@ -5,6 +5,7 @@ import type {
   Culture,
   IceElement,
   Marker,
+  Monster,
   PackedGraphFeature,
   Province,
   Religion,
@@ -43,6 +44,7 @@ export interface PackedGraphCells {
   area: TypedArray; // cell area
   province: TypedArray; // cell province id
   routes: Record<number, Record<number, number>>;
+  danger: TypedArray; // cell threat/danger level
 }
 
 export interface PackedGraphVertices {
@@ -68,4 +70,5 @@ export interface PackedGraph {
   markers: Marker[];
   ice: IceElement[];
   provinces: Province[];
+  monsters: Monster[];
 }

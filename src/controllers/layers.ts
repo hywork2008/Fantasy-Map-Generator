@@ -14,6 +14,7 @@ import {
   CellsRenderer,
   CoordinatesRenderer,
   CulturesRenderer,
+  DangerRenderer,
   EmblemsRenderer,
   FeaturesRenderer,
   GridRenderer,
@@ -357,6 +358,7 @@ export function drawLayers(): void {
   if (layerIsOn("togglePopulation")) PopulationRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleIce")) IceRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("togglePrecipitation")) PrecipitationRenderer.render(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleDanger")) DangerRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleEmblems")) EmblemsRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleLabels")) drawLabels();
   if (layerIsOn("toggleBurgIcons")) BurgIconsRenderer.render(worldContext, viewContext, appServices);
@@ -436,6 +438,23 @@ export function toggleBiomes(event?: MouseEvent): void {
     }
     BiomesRenderer.clear?.(viewContext);
     turnButtonOff("toggleBiomes");
+  }
+}
+
+export function toggleDanger(event?: MouseEvent): void {
+  if (!layerIsOn("toggleDanger")) {
+    turnButtonOn("toggleDanger");
+    setLayerVisibility("toggleDanger", true);
+    DangerRenderer.render(worldContext, viewContext, appServices);
+    if (event && isCtrlClick(event)) editStyle("danger");
+  } else {
+    if (event && isCtrlClick(event)) {
+      editStyle("danger");
+      return;
+    }
+    setLayerVisibility("toggleDanger", false);
+    turnButtonOff("toggleDanger");
+    DangerRenderer.clear?.(viewContext);
   }
 }
 
@@ -860,6 +879,7 @@ function getLayer(id: string): SVGGElement | HTMLElement | null {
 const TOGGLE_REGISTRY: Record<string, (event?: MouseEvent) => void> = {
   toggleHeight,
   toggleTemperature,
+  toggleDanger,
   toggleBiomes,
   togglePrecipitation,
   togglePopulation,
