@@ -105,30 +105,43 @@ export const PopulationRenderer: IRenderer = {
         .attr("stroke", "none")
         .attr("opacity", 0.7);
     } else if (renderingMode === "choropleth") {
+      const populationRate = worldContext.populationRate;
       const totalPop = new Float32Array(cells.i.length);
-      let maxPop = 0;
+      const densities = new Float32Array(cells.i.length);
+      let maxDensity = 0;
 
       for (const i of cells.i) {
         if (!isCellInScope(focusScope, i)) continue;
         const pop = cells.pop[i] as number;
-        totalPop[i] = pop;
-        if (pop > maxPop) maxPop = pop;
+        totalPop[i] = pop * populationRate;
       }
 
       for (const b of burgs) {
         if (b.i && !b.removed && isCellInScope(focusScope, b.cell)) {
-          const uPop = (b.population ?? 0) * urbanization;
+          const uPop = (b.population ?? 0) * populationRate * urbanization;
           totalPop[b.cell] += uPop;
-          if (totalPop[b.cell] > maxPop) maxPop = totalPop[b.cell];
         }
       }
 
-      if (maxPop === 0) return;
+      for (const i of cells.i) {
+        if (!isCellInScope(focusScope, i)) continue;
+        const area = cells.area[i];
+        if (area > 0) {
+          const density = totalPop[i] / area;
+          densities[i] = density;
+          if (density > maxDensity) maxDensity = density;
+        }
+      }
+
+      if (maxDensity === 0) return;
 
       const getPopBucket = (cellId: number): number => {
-        const pop = totalPop[cellId];
-        if (pop <= 0) return -1;
-        return Math.min(9, Math.floor((pop / maxPop) * 10));
+        const density = densities[cellId];
+        if (density < 1) return -1;
+        if (maxDensity <= 1) return 0;
+
+        const ratio = Math.log(density) / Math.log(maxDensity);
+        return Math.min(9, Math.floor(ratio * 10));
       };
 
       const isolines: Record<string, { fill?: string }> = getIsolines(
