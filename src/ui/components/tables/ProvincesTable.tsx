@@ -32,7 +32,6 @@ export interface ProvincesTableProps {
 export const ProvincesTable: React.FC<ProvincesTableProps> = ({
   provinces,
   sortBy,
-  sortDirection,
   onSort,
   isPercentageMode,
   totalArea,

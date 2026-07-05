@@ -16,6 +16,10 @@ function scanDir(dir: string) {
         if (line.includes("ensureEl") || line.includes(".innerHTML")) {
           // ignore comments
           if (!line.trim().startsWith("//") && !line.trim().startsWith("/*")) {
+            // check for ignore directive on previous line
+            const prevLine = i > 0 ? lines[i - 1].trim() : "";
+            if (prevLine === "// ignore-legacy-dom") return;
+
             console.warn(`\x1b[33mWarning\x1b[0m: Legacy DOM API used at ${fullPath}:${i + 1}`);
             console.warn(`  ${line.trim()}`);
           }
