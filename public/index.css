@@ -1181,3 +1181,7 @@ button.icon-btn {
 button.icon-btn:hover {
   opacity: 0.8;
 }
+
+#speakerVoice {
+  width: 12em;
+}

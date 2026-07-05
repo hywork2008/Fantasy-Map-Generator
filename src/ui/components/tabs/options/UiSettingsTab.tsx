@@ -120,8 +120,6 @@ export const UiSettingsTab: React.FC = () => {
                 value={options.autosaveInterval}
                 onChange={e => updateOption("autosaveInterval", Number(e.target.value))}
               />
-            </td>
-            <td>
               <input
                 id="autosaveIntervalOutput"
                 type="number"
@@ -132,6 +130,7 @@ export const UiSettingsTab: React.FC = () => {
                 onChange={e => updateOption("autosaveInterval", Number(e.target.value))}
               />
             </td>
+            <td></td>
           </tr>
 
           <tr data-tip="Set what Generator should do on load">
