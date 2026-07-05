@@ -68,6 +68,7 @@ export interface OptionsState {
   shapeRendering: "crispEdges" | "optimizeSpeed" | "geometricPrecision";
   rescaleLabels: boolean;
   hideLabels: boolean;
+  populationRenderingMode: "original" | "contour" | "choropleth";
 
   // Actions
   setOption: <K extends keyof Omit<OptionsState, "setOption">>(key: K, value: OptionsState[K]) => void;
@@ -133,6 +134,7 @@ export const useOptionsState = create<OptionsState>(set => ({
   shapeRendering: "optimizeSpeed",
   rescaleLabels: true,
   hideLabels: false,
+  populationRenderingMode: "choropleth",
 
   setOption: (key, value) => set({ [key]: value }),
   setOptions: updates => set(updates)

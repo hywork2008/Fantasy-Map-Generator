@@ -330,6 +330,34 @@ export const UiSettingsTab: React.FC = () => {
             </td>
           </tr>
 
+          <tr data-tip="Select the population layer visualization style">
+            <td></td>
+            <td>Population rendering</td>
+            <td>
+              <select
+                id="populationRenderingMode"
+                value={options.populationRenderingMode}
+                onChange={e => {
+                  const mode = e.target.value as "original" | "contour" | "choropleth";
+                  options.setOption("populationRenderingMode", mode);
+
+                  // Re-render if the layer is on
+                  if (window.fmg?.actions.layerIsOn("togglePopulation")) {
+                    window.fmg.actions.toggleLayer("togglePopulation");
+                    setTimeout(() => {
+                      window.fmg.actions.toggleLayer("togglePopulation");
+                    }, 50);
+                  }
+                }}
+              >
+                <option value="original">3D Bars</option>
+                <option value="contour">Smooth Contours</option>
+                <option value="choropleth">Cell Heatmap</option>
+              </select>
+            </td>
+            <td></td>
+          </tr>
+
           <tr data-tip="Select rendering model. Try to set to 'optimized' if you face performance issues">
             <td></td>
             <td>Rendering</td>
