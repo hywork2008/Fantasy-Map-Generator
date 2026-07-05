@@ -137,6 +137,7 @@ export function prepareMapData(): string {
   const goods = JSON.stringify(worldContext.pack.goods ?? []);
   const markets = JSON.stringify(worldContext.pack.markets ?? []);
   const deals = JSON.stringify(worldContext.pack.deals ?? []);
+  const characters = JSON.stringify(worldContext.pack.characters ?? []);
 
   // store name array only if not the same as default
   const defaultNB = Names.getNameBases();
@@ -195,7 +196,8 @@ export function prepareMapData(): string {
     goods, // [41] goods
     markets, // [42] markets
     deals, // [43] deals
-    worldContext.pack.cells.market ?? new Uint16Array(0) // [44] cells.market
+    worldContext.pack.cells.market ?? new Uint16Array(0), // [44] cells.market
+    characters // [45] characters
   ].join("\r\n");
 
   return mapData;

@@ -430,6 +430,7 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
     worldContext.pack.cells.market = data[44]
       ? Uint16Array.from(data[44].split(","), Number)
       : new Uint16Array(worldContext.pack.cells.i.length);
+    worldContext.pack.characters = data[45] ? JSON.parse(data[45]) : [];
 
     if (data[31]) {
       const namesDL = data[31].split("/");

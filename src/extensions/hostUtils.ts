@@ -18,4 +18,4 @@ export { applySorting, removeCircle } from "../utils/domUtils";
 export { confirmationDialog, downloadFile, getFileName } from "../utils/editorHelpers";
 export { getPackPolygon } from "../utils/graphUtils";
 export { layerIsOn } from "../utils/nodeUtils";
-export { ra } from "../utils/probabilityUtils";
+export { P, ra, rand } from "../utils/probabilityUtils";
