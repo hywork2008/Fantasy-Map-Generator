@@ -53,7 +53,7 @@ import { EditorBus } from "../utils/editorBus";
 import { getElementById, getElementBySelector, getElementsBySelector, layerIsOn } from "../utils/nodeUtils";
 import { overviewBurgs } from "./burgs-overview";
 import { openChartsOverview } from "./charts-overview";
-import { editDiplomacy } from "./diplomacy-editor";
+import { editDiplomacy, openRelationsHistory } from "./diplomacy-editor";
 import { editCoastlineSettings, editCultures, editReligions, refreshAllEditors } from "./editors";
 import { editEmblem } from "./emblems-editor";
 import { editHeightmap } from "./heightmapEditor";
@@ -173,6 +173,7 @@ document.addEventListener("react-tool-action", e => {
   else if (button === "editStatesButton") toggleEditor("statesEditor", "toggleStates", EditorBus.editStates);
   else if (button === "editProvincesButton") toggleEditor("provincesEditor", "toggleProvinces", editProvinces!);
   else if (button === "editDiplomacyButton") toggleEditor("diplomacyEditor", "toggleStates", editDiplomacy!);
+  else if (button === "openDiplomacyHistory") toggleEditor("diplomacyHistory", null, openRelationsHistory);
   else if (button === "editCoastlineSettings") toggleEditor("coastlineSettingsDialog", null, editCoastlineSettings);
   else if (button === "editCulturesButton") toggleEditor("culturesEditor", "toggleCultures", editCultures);
   else if (button === "editReligions") toggleEditor("religionsEditor", "toggleReligions", editReligions);

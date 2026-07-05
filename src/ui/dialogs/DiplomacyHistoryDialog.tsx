@@ -1,15 +1,52 @@
 import type React from "react";
-import { useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
+import { worldContext } from "../../context/worldContext";
+import {
+  clearHistoryArrows,
+  drawHistoryArrows,
+  highlightHistoryArrow
+} from "../../controllers/diplomacy-history-renderer";
 import { diplomacyHistoryDialogStore, useDiplomacyHistoryDialogState } from "../../store/diplomacyHistoryDialogState";
+import { useOptionsState } from "../../store/optionsState";
+import type { ChronicleEvent } from "../../types/models";
 import { Dialog } from "./Dialog";
 
 export const DiplomacyHistoryDialog: React.FC = () => {
   const isOpen = useDiplomacyHistoryDialogState(s => s.isOpen);
   const chronicle = useDiplomacyHistoryDialogState(s => s.chronicle);
+  const currentYear = useOptionsState(s => s.year);
+  const currentEra = useOptionsState(s => s.era);
+  const currentEraShort =
+    currentEra
+      ?.split(" ")
+      .map(w => w[0].toUpperCase())
+      .join("") || "E";
   const containerRef = useRef<HTMLDivElement>(null);
 
   const close = () => diplomacyHistoryDialogStore.getState().close();
   const { onSave, onClear, onChange } = diplomacyHistoryDialogStore.getState();
+
+  // Extract all valid events for drawing
+  const validEvents = useMemo(() => {
+    const events: ChronicleEvent[] = [];
+    for (const group of chronicle) {
+      for (const entry of group) {
+        if (typeof entry === "object" && entry.id) {
+          events.push(entry);
+        }
+      }
+    }
+    return events;
+  }, [chronicle]);
+
+  useEffect(() => {
+    if (isOpen) {
+      drawHistoryArrows(validEvents);
+    } else {
+      clearHistoryArrows();
+    }
+    return () => clearHistoryArrows();
+  }, [isOpen, validEvents]);
 
   const save = () => {
     const text = containerRef.current?.innerText ?? "";
@@ -21,6 +58,8 @@ export const DiplomacyHistoryDialog: React.FC = () => {
     onClear();
     close();
   };
+
+  let globalRowIndex = 1;
 
   return (
     <Dialog
@@ -47,23 +86,51 @@ export const DiplomacyHistoryDialog: React.FC = () => {
             {"​"}
           </div>
         ) : (
-          chronicle.map((entry, groupIdx) => (
-            <div key={groupIdx}>
-              {entry.map((line, entryIdx) => (
-                <div
-                  key={entryIdx}
-                  contentEditable
-                  suppressContentEditableWarning
-                  data-id={`${groupIdx}-${entryIdx}`}
-                  style={entryIdx === 0 ? { fontWeight: "bold" } : undefined}
-                  onBlur={e => onChange(groupIdx, entryIdx, e.currentTarget.textContent ?? "")}
-                >
-                  {line}
-                </div>
-              ))}
-              {"​"}
-            </div>
-          ))
+          <table className="fmg-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Era & Year</th>
+                <th>From</th>
+                <th>To</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {chronicle.map((entry, groupIdx) =>
+                entry.map((line, entryIdx) => {
+                  const isEvent = typeof line === "object";
+                  const rawText = isEvent ? line.rawText : line;
+                  const rowIdx = globalRowIndex++;
+                  const textCell = (
+                    <div
+                      contentEditable
+                      suppressContentEditableWarning
+                      data-id={`${groupIdx}-${entryIdx}`}
+                      style={entryIdx === 0 ? { fontWeight: "bold" } : undefined}
+                      onBlur={e => onChange(groupIdx, entryIdx, e.currentTarget.textContent ?? "")}
+                    >
+                      {rawText}
+                    </div>
+                  );
+
+                  return (
+                    <tr
+                      key={`${groupIdx}-${entryIdx}`}
+                      onMouseEnter={() => isEvent && highlightHistoryArrow(line.id, line.from, line.to)}
+                      onMouseLeave={() => isEvent && highlightHistoryArrow("")}
+                    >
+                      <td>{rowIdx}</td>
+                      <td>{isEvent ? `${(currentYear ?? 100) - line.yearsAgo} ${currentEraShort}` : "-"}</td>
+                      <td>{isEvent ? worldContext.pack.states[line.from]?.name || line.from : "-"}</td>
+                      <td>{isEvent ? worldContext.pack.states[line.to]?.name || line.to : "-"}</td>
+                      <td>{textCell}</td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
         )}
       </div>
       <div className="info-line">Type to edit. Press Enter to add a new line, empty the element to remove it</div>

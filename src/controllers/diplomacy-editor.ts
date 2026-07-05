@@ -264,29 +264,7 @@ export function editDiplomacy(): void {
   }
 
   function showRelationsHistory(): void {
-    const chronicle = worldContext.pack.states[0].diplomacy as unknown as string[][];
-    if (!chronicle.length) {
-      (worldContext.pack.states[0].diplomacy as unknown as string[][]) = [[]];
-    }
-
-    diplomacyHistoryDialogStore.getState().open({
-      chronicle: worldContext.pack.states[0].diplomacy as unknown as string[][],
-      onSave: (data: string) => {
-        const name = `${getFileName("Relations history")}.txt`;
-        downloadFile(data, name);
-      },
-      onClear: () => {
-        worldContext.pack.states[0].diplomacy = [];
-      },
-      onChange: (groupIdx: number, entryIdx: number, value: string) => {
-        const group = (worldContext.pack.states[0].diplomacy as unknown as string[][])[groupIdx];
-        if (value === "") {
-          group.splice(entryIdx, 1);
-        } else {
-          group[entryIdx] = value;
-        }
-      }
-    });
+    openRelationsHistory();
   }
 
   function openMatrix(): void {
@@ -380,6 +358,41 @@ export const diplomacyEditorActions = {
 
 export function initDiplomacyEditor(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: AppServices) {}
 
+const refreshRelationsHistoryIfOpen = () => {
+  if (diplomacyHistoryDialogStore.getState().isOpen) {
+    openRelationsHistory();
+  }
+};
+
 document.addEventListener("fmg:refresh-editors", () => {
   if (isDialogOpen("diplomacyEditor")) diplomacyEditorActions.refreshDiplomacyEditor();
+  refreshRelationsHistoryIfOpen();
 });
+document.addEventListener("fmg:generate-post-core", refreshRelationsHistoryIfOpen);
+document.addEventListener("fmg:map-layers-reinitialized", refreshRelationsHistoryIfOpen);
+
+export function openRelationsHistory(): void {
+  const chronicle = worldContext.pack.states[0].diplomacy as unknown as string[][];
+  if (!chronicle.length) {
+    (worldContext.pack.states[0].diplomacy as unknown as string[][]) = [[]];
+  }
+
+  diplomacyHistoryDialogStore.getState().open({
+    chronicle: worldContext.pack.states[0].diplomacy as unknown as string[][],
+    onSave: (data: string) => {
+      const name = `${getFileName("Relations history")}.txt`;
+      downloadFile(data, name);
+    },
+    onClear: () => {
+      worldContext.pack.states[0].diplomacy = [];
+    },
+    onChange: (groupIdx: number, entryIdx: number, value: string) => {
+      const group = (worldContext.pack.states[0].diplomacy as unknown as string[][])[groupIdx];
+      if (value === "") {
+        group.splice(entryIdx, 1);
+      } else {
+        group[entryIdx] = value;
+      }
+    }
+  });
+}

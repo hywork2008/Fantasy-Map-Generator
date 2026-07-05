@@ -37,10 +37,20 @@ export function applyAffinitiesToDiplomacy() {
       }
 
       if (affinity <= -50) {
-        // High grudge -> War
-        if (currentRel !== "Enemy" && P(0.4)) {
-          state.diplomacy![other.i] = "Enemy";
-          pack.states[other.i].diplomacy![state.i] = "Enemy";
+        // High grudge -> Rivalry (if neighbors) or Suspicion (if distant)
+        const isNeighbor = state.neighbors?.includes(other.i);
+        if (isNeighbor && currentRel !== "Enemy" && currentRel !== "Rival" && P(0.4)) {
+          state.diplomacy![other.i] = "Rival";
+          pack.states[other.i].diplomacy![state.i] = "Rival";
+        } else if (
+          !isNeighbor &&
+          currentRel !== "Enemy" &&
+          currentRel !== "Rival" &&
+          currentRel !== "Suspicion" &&
+          P(0.4)
+        ) {
+          state.diplomacy![other.i] = "Suspicion";
+          pack.states[other.i].diplomacy![state.i] = "Suspicion";
         } else if (currentRel === "Ally") {
           // Break alliance
           state.diplomacy![other.i] = "Suspicion";

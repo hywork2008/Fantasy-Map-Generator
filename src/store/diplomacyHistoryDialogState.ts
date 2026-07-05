@@ -3,12 +3,14 @@ import { createStore } from "zustand/vanilla";
 
 type DiplomacyHistoryDialogState = {
   isOpen: boolean;
-  chronicle: string[][];
+  // biome-ignore lint/suspicious/noExplicitAny: Chronicle mixed data format
+  chronicle: any[][];
   onSave: (data: string) => void;
   onClear: () => void;
   onChange: (groupIdx: number, entryIdx: number, value: string) => void;
   open: (opts: {
-    chronicle: string[][];
+    // biome-ignore lint/suspicious/noExplicitAny: Chronicle mixed data format
+    chronicle: any[][];
     onSave: (data: string) => void;
     onClear: () => void;
     onChange: (groupIdx: number, entryIdx: number, value: string) => void;

@@ -247,6 +247,17 @@ export interface Campaign {
   defender: number;
 }
 
+export interface ChronicleEvent {
+  id: string;
+  yearsAgo: number;
+  from: number;
+  to: number;
+  fromBurg?: number;
+  toBurg?: number;
+  action: string;
+  rawText: string;
+}
+
 export interface State {
   i: number;
   name: string;
@@ -267,7 +278,7 @@ export interface State {
   rural?: number;
   urban?: number;
   campaigns?: Campaign[];
-  diplomacy?: string[];
+  diplomacy?: (string | string[] | ChronicleEvent[])[];
   formName?: string;
   fullName?: string;
   form?: string;

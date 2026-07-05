@@ -49,6 +49,13 @@ const STATIC_EDIT_BUTTONS: StaticEditButton[] = [
     dialogId: "diplomacyEditor"
   },
   {
+    key: "diplomacyHistory",
+    label: "Relations history",
+    tooltip: "Click to open Relations history",
+    eventName: "openDiplomacyHistory",
+    dialogId: "diplomacyHistory"
+  },
+  {
     key: "emblems",
     label: "Emblems",
     tooltip: "Click to open Emblem Editor",

@@ -134,6 +134,18 @@ export class CharactersModule {
         else if (rel === "Ally") affinity += 30;
         else if (rel === "Suzerain" || rel === "Vassal") affinity += 15;
 
+        // Additional hatred based on the number of past wars (blood feud)
+        let warCount = 0;
+        if (state.campaigns) {
+          warCount = state.campaigns.filter(
+            c =>
+              (c.attacker === state.i && c.defender === other.i) || (c.attacker === other.i && c.defender === state.i)
+          ).length;
+        }
+        if (warCount > 0) {
+          affinity -= 20 * warCount; // The more wars they fought, the deeper the hatred
+        }
+
         // Culture modifier (proxy for religion/cultural similarity)
         if (state.culture === other.culture && state.culture !== 0) {
           affinity += 10;
