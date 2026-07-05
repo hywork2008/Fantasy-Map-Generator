@@ -598,6 +598,35 @@ export function invokeActiveZooming() {
 
   const isBurgGroupHidden = (groupId: string) => scale < getScaleThreshold(groupId);
 
+  const cullViewportElements = <GElement extends d3.BaseType, Datum, PElement extends d3.BaseType, PDatum>(
+    selection: d3.Selection<GElement, Datum, PElement, PDatum>,
+    margin: number,
+    selector: string
+  ) => {
+    if (scale > 3) {
+      const vLeft = -viewX / scale - margin;
+      const vTop = -viewY / scale - margin;
+      const vRight = (viewContext.svgWidth - viewX) / scale + margin;
+      const vBottom = (viewContext.svgHeight - viewY) / scale + margin;
+
+      selection.selectAll<SVGElement, unknown>(selector).each(function () {
+        if (!this.hasAttribute("x") || !this.hasAttribute("y")) return;
+        const x = +this.getAttribute("x")!;
+        const y = +this.getAttribute("y")!;
+        if (x > vLeft && x < vRight && y > vTop && y < vBottom) this.classList.remove("hidden");
+        else this.classList.add("hidden");
+      });
+    } else {
+      const hiddenSelector = selector
+        .split(",")
+        .map(s => `${s.trim()}.hidden`)
+        .join(", ");
+      selection.selectAll<SVGElement, unknown>(hiddenSelector).each(function () {
+        this.classList.remove("hidden");
+      });
+    }
+  };
+
   if (layerIsOn("toggleLabels")) {
     viewContext.labels.selectAll<SVGGElement, unknown>("g").each(function () {
       if (this.id === "burgLabels") return;
@@ -633,6 +662,8 @@ export function invokeActiveZooming() {
       if (hidden) this.classList.add("hidden");
       else this.classList.remove("hidden");
     });
+
+    cullViewportElements(viewContext.labels, 100, "text");
   }
 
   if (layerIsOn("toggleBurgIcons")) {
@@ -650,6 +681,8 @@ export function invokeActiveZooming() {
         }
       }
     });
+
+    cullViewportElements(viewContext.icons, 20, "use, circle");
   }
 
   if (layerIsOn("toggleEmblems")) {
@@ -699,18 +732,7 @@ export function invokeActiveZooming() {
 
     // Viewport culling: hide individual <use> elements whose positions fall outside the visible area.
     // x/y attributes are top-left corners in map coordinates; margin accounts for emblem half-size.
-    const EMBLEM_VIEWPORT_MARGIN = 100;
-    const vLeft = -viewX / scale - EMBLEM_VIEWPORT_MARGIN;
-    const vTop = -viewY / scale - EMBLEM_VIEWPORT_MARGIN;
-    const vRight = (viewContext.svgWidth - viewX) / scale + EMBLEM_VIEWPORT_MARGIN;
-    const vBottom = (viewContext.svgHeight - viewY) / scale + EMBLEM_VIEWPORT_MARGIN;
-
-    viewContext.emblems.selectAll<SVGUseElement, unknown>("use").each(function () {
-      const x = +this.getAttribute("x")!;
-      const y = +this.getAttribute("y")!;
-      if (x > vLeft && x < vRight && y > vTop && y < vBottom) this.classList.remove("hidden");
-      else this.classList.add("hidden");
-    });
+    cullViewportElements(viewContext.emblems, 100, "use");
   }
 
   if (layerIsOn("toggleGoods")) {
