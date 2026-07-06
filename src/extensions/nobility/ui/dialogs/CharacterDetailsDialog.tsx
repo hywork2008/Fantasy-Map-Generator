@@ -217,7 +217,7 @@ export const CharacterDetailsDialog: React.FC = () => {
                     style={{ marginRight: "6px" }}
                     onClick={() => {
                       const b = burgs[character.location!];
-                      getApi().zoomTo(b.x, b.y, 8, 2000);
+                      getApi().zoomTo(b.x, b.y, 20, 2000);
                     }}
                   />
                 )}

@@ -1,4 +1,5 @@
 import { worldContext } from "../context/worldContext";
+import { useOptionsState } from "../store/optionsState";
 import { Burgs } from "./burgs-generator";
 
 export interface DemographicsSimulationResult {
@@ -17,7 +18,8 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
 
   if (!pack?.cells || !pack.burgs) return { bordersChanged, newBurgsAdded };
 
-  const baseGrowthRate = 0.05; // 5% base growth rate per female adult per year (example)
+  const { demographicBirthRate, demographicChildMortalityRate } = useOptionsState.getState();
+  const baseGrowthRate = demographicBirthRate;
 
   // 1. Process Rural Cells
   for (let i = 0; i < pack.cells.i.length; i++) {
@@ -35,7 +37,10 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
     const adultsToEldersFemale = femaleAdults * (deltaYears / 35);
     const elderDeaths = elders * (deltaYears / 10); // Elders die off in ~10 years average
 
-    children = Math.max(0, children - childrenToAdults);
+    // Apply child mortality linearly across childhood
+    const childDeaths = children * (demographicChildMortalityRate / 15) * deltaYears;
+
+    children = Math.max(0, children - childrenToAdults - childDeaths);
     maleAdults = Math.max(0, maleAdults + childrenToAdults / 2 - adultsToEldersMale);
     femaleAdults = Math.max(0, femaleAdults + childrenToAdults / 2 - adultsToEldersFemale);
     elders = Math.max(0, elders + adultsToEldersMale + adultsToEldersFemale - elderDeaths);
@@ -160,8 +165,9 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
     const adultsToEldersMale = maleAdults * (deltaYears / 35);
     const adultsToEldersFemale = femaleAdults * (deltaYears / 35);
     const elderDeaths = elders * (deltaYears / 10);
+    const childDeaths = children * (demographicChildMortalityRate / 15) * deltaYears;
 
-    children = Math.max(0, children - childrenToAdults);
+    children = Math.max(0, children - childrenToAdults - childDeaths);
     maleAdults = Math.max(0, maleAdults + childrenToAdults / 2 - adultsToEldersMale);
     femaleAdults = Math.max(0, femaleAdults + childrenToAdults / 2 - adultsToEldersFemale);
     elders = Math.max(0, elders + adultsToEldersMale + adultsToEldersFemale - elderDeaths);

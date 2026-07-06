@@ -3,6 +3,7 @@ import { Names } from "../../hostCore";
 import { P, rand, TIME } from "../../hostUtils";
 import { CENTRAL_OFFICES, resolveRulerTitle } from "../data/titleTable";
 import { getWorldContext } from "../nobilityContext";
+import { calculateCharacterTraits } from "../utils/personalityUtils";
 import type { Character, CharacterFamily, CharacterPersonality, CharacterSkills, Gender } from "./characterTypes";
 
 export type {
@@ -301,18 +302,25 @@ export class CharactersModule {
         }
       }
       // Retired Characters Local Development Bonus
-      if (character.titles.length === 0 && character.location !== undefined) {
+      if (!character.dead && character.titles.length === 0 && character.location !== undefined) {
         const burg = pack.burgs[character.location];
         if (burg && !burg.removed) {
           const skills = character.skills;
           const p = character.personality;
 
           // Population Growth (Benevolent elder)
-          const goodTraits = p.compassion + p.honor + p.sociability;
-          const badTraits = p.greed + p.guile + p.vengefulness + p.zeal;
+          const { good, bad } = calculateCharacterTraits(p);
 
-          if (goodTraits > badTraits && skills.stewardship > 60) {
-            burg.population = (burg.population || 0) + (skills.stewardship / 100) * deltaYears * 0.05;
+          if (good > bad && skills.stewardship > 60) {
+            const boost = (skills.stewardship / 100) * deltaYears * 0.1; // 100 people per year at 100 stewardship
+            if (burg.demographics) {
+              burg.demographics.capacity += boost;
+              burg.demographics.children += boost * 0.25;
+              burg.demographics.maleAdults += boost * 0.25;
+              burg.demographics.femaleAdults += boost * 0.25;
+              burg.demographics.elders += boost * 0.25;
+            }
+            burg.population = (burg.population || 0) + boost;
           }
 
           // Fortifications

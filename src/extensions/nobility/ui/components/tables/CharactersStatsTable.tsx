@@ -2,6 +2,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import type React from "react";
 import { useRef } from "react";
 import type { CharacterRowData } from "../../../controllers/characters-overview";
+import { getCharacterRowStyle } from "../../../utils/personalityUtils";
 
 export interface CharactersStatsTableProps {
   rows: CharacterRowData[];
@@ -103,8 +104,20 @@ export const CharactersStatsTable: React.FC<CharactersStatsTableProps> = ({
               )}
               {virtualItems.map(virtualRow => {
                 const { c, title } = rows[virtualRow.index];
+
+                let rowStyle: React.CSSProperties = {};
+                if (c.personality) {
+                  rowStyle = getCharacterRowStyle(c.personality);
+                }
+
                 return (
-                  <tr key={c.i} className="states" ref={rowVirtualizer.measureElement} data-index={virtualRow.index}>
+                  <tr
+                    key={c.i}
+                    className="states"
+                    style={rowStyle}
+                    ref={rowVirtualizer.measureElement}
+                    data-index={virtualRow.index}
+                  >
                     <td>
                       <span
                         style={{
