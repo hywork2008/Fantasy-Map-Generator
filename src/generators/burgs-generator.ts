@@ -426,8 +426,8 @@ class BurgModule {
     burg.demographics = {
       capacity,
       children: burg.population * 0.4,
-      maleAdults: burg.population * 0.225,
-      femaleAdults: burg.population * 0.225,
+      maleAdults: burg.population * 0.2205,
+      femaleAdults: burg.population * 0.2295,
       elders: burg.population * 0.15
     };
   }

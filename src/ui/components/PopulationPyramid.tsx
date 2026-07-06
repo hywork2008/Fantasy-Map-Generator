@@ -13,11 +13,11 @@ export const PopulationPyramid: React.FC<PopulationPyramidProps> = ({
   femaleAdults,
   elders
 }) => {
-  // Split children and elders 50/50 for the pyramid display
-  const maleChildren = Math.round(childrenCount / 2);
-  const femaleChildren = Math.round(childrenCount / 2);
-  const maleElders = Math.round(elders / 2);
-  const femaleElders = Math.round(elders / 2);
+  // Split children and elders 49:51 for the pyramid display to match natural birth ratio
+  const maleChildren = Math.round(childrenCount * 0.49);
+  const femaleChildren = Math.round(childrenCount * 0.51);
+  const maleElders = Math.round(elders * 0.49);
+  const femaleElders = Math.round(elders * 0.51);
 
   const mAdults = Math.round(maleAdults);
   const fAdults = Math.round(femaleAdults);

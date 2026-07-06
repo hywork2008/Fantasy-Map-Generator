@@ -239,3 +239,57 @@ export function applyDemographicCasualties(stateId: number, deadTroops: number):
     }
   }
 }
+
+/**
+ * Applies historical war scars to population generated at map start.
+ * Scans state history for major wars in the last 30 years and applies a flat
+ * 3% - 5% casualty rate to maleAdults and elders to create a "widow village" effect.
+ */
+export function applyHistoricalWarScars(): void {
+  const { pack, options } = worldContext;
+  if (!pack?.cells || !pack.burgs || !pack.states) return;
+
+  const currentYear = options.year || 1000;
+
+  for (const state of pack.states) {
+    if (!state.i || state.removed || !state.campaigns) continue;
+
+    // Check if state had a war in the last 30 years
+    const hasRecentWar = state.campaigns.some(c => {
+      // campaigns are stored differently depending on the generator, typically { name, start, end }
+      const startYear =
+        typeof c.start === "number" ? c.start : c.start ? parseInt(c.start as unknown as string, 10) : 0;
+      return startYear > 0 && currentYear - startYear <= 30;
+    });
+
+    if (hasRecentWar) {
+      // Random casualty rate between 3% and 5%
+      const casualtyRate = 0.03 + Math.random() * 0.02;
+      const multiplier = 1 - casualtyRate;
+
+      // Apply to rural cells
+      for (let i = 0; i < pack.cells.i.length; i++) {
+        if (pack.cells.state[i] === state.i && pack.cells.pop[i] > 0) {
+          const maleAdultsLost = pack.cells.maleAdults[i] * casualtyRate;
+          const eldersLost = pack.cells.elders[i] * casualtyRate;
+
+          pack.cells.maleAdults[i] *= multiplier;
+          pack.cells.elders[i] *= multiplier;
+          pack.cells.pop[i] -= maleAdultsLost + eldersLost;
+        }
+      }
+
+      // Apply to urban burgs
+      for (const burg of pack.burgs) {
+        if (burg && burg.state === state.i && burg.demographics && burg.population) {
+          const maleAdultsLost = burg.demographics.maleAdults * casualtyRate;
+          const eldersLost = burg.demographics.elders * casualtyRate;
+
+          burg.demographics.maleAdults *= multiplier;
+          burg.demographics.elders *= multiplier;
+          burg.population -= maleAdultsLost + eldersLost;
+        }
+      }
+    }
+  }
+}

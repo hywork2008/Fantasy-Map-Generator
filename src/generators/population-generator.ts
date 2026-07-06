@@ -38,8 +38,8 @@ export function redistributeRuralPopulationInScope(cellIds: Iterable<number>): v
       cells.elders[i] = rn(cells.elders[i] * ratio, 4);
     } else if (oldPop === 0 && newPop > 0) {
       cells.children[i] = newPop * 0.4;
-      cells.maleAdults[i] = newPop * 0.225;
-      cells.femaleAdults[i] = newPop * 0.225;
+      cells.maleAdults[i] = newPop * 0.2205;
+      cells.femaleAdults[i] = newPop * 0.2295;
       cells.elders[i] = newPop * 0.15;
     }
   });
