@@ -9,6 +9,7 @@ import type { MilitaryRegiment, MilitaryUnit, Platoon, State } from "../types/mo
 import type { WorldState } from "../types/WorldState";
 import { findAllInQuadtree, gauss, minmax, nth, ra, rand, rn, si } from "../utils";
 import { TIME } from "../utils/debug";
+import { getNavalTechBonus } from "./navalTechBonus";
 
 class MilitaryModule {
   worldContext: WorldContext = worldContext;
@@ -211,6 +212,9 @@ class MilitaryModule {
         if (unit.type === "mounted" && s.formName!.includes("Horde")) modifier *= 2;
         else if (unit.type === "naval" && s.form === "Republic") modifier *= 1.2;
         s.temp[unit.name] = modifier * s.alert;
+        // Shipbuilding extension (if enabled) boosts naval unit strength for states
+        // whose shipyards have completed state-owned hulls — defaults to 1 (no-op).
+        if (unit.type === "naval") s.temp[unit.name] *= getNavalTechBonus(s.i);
       }
     });
 

@@ -96,7 +96,11 @@ export function init(api: ExtensionAPI): void {
   }
 
   _generatePostCoreHandler = () => {
-    if (api.isExtensionEnabled(SHIPBUILDING_EXTENSION_ID)) recomputeAndMaybeDraw(api);
+    if (!api.isExtensionEnabled(SHIPBUILDING_EXTENSION_ID)) return;
+    // A brand-new map reuses burg/state ids from 0, so queue/tech/completed-hull
+    // state tied to the previous map's ids must not carry over.
+    clearShipyardQueues();
+    recomputeAndMaybeDraw(api);
   };
   document.addEventListener("fmg:generate-post-core", _generatePostCoreHandler);
 }
