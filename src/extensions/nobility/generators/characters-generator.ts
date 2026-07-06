@@ -302,44 +302,49 @@ export class CharactersModule {
         }
       }
       // Retired Characters Local Development Bonus
-      if (!character.dead && character.titles.length === 0 && character.location !== undefined) {
-        const burg = pack.burgs[character.location];
-        if (burg && !burg.removed) {
-          const skills = character.skills;
-          const p = character.personality;
-
-          // Population Growth (Benevolent elder)
-          const { good, bad } = calculateCharacterTraits(p);
-
-          if (good > bad && skills.stewardship > 60) {
-            const boost = (skills.stewardship / 100) * deltaYears * 0.1; // 100 people per year at 100 stewardship
-            if (burg.demographics) {
-              burg.demographics.capacity += boost;
-              burg.demographics.children += boost * 0.25;
-              burg.demographics.maleAdults += boost * 0.25;
-              burg.demographics.femaleAdults += boost * 0.25;
-              burg.demographics.elders += boost * 0.25;
-            }
-            burg.population = (burg.population || 0) + boost;
-          }
-
-          // Fortifications
-          if (skills.engineering > 70 && P(0.01 * deltaYears)) {
-            burg.walls = (burg.walls || 0) + 1;
-          }
-          // Plaza
-          if ((skills.artistry > 70 || skills.diplomacy > 70) && P(0.01 * deltaYears)) {
-            burg.plaza = (burg.plaza || 0) + 1;
-          }
-          // Temple
-          if ((skills.learning > 70 || p.piety > 70) && P(0.01 * deltaYears)) {
-            burg.temple = (burg.temple || 0) + 1;
-          }
-        }
-      }
+      this.processRetiredCharacterEffects(character, deltaYears);
     }
 
     this.processSuccessions();
+  }
+
+  private processRetiredCharacterEffects(character: Character, deltaYears: number): void {
+    if (character.dead || character.titles.length > 0 || character.location === undefined) return;
+
+    const { pack } = this.worldContext;
+    const burg = pack.burgs[character.location];
+    if (!burg || burg.removed) return;
+
+    const skills = character.skills;
+    const p = character.personality;
+
+    // Population Growth (Benevolent elder)
+    const { good, bad } = calculateCharacterTraits(p);
+
+    if (good > bad && skills.stewardship > 60) {
+      const boost = (skills.stewardship / 100) * deltaYears * 0.1; // 100 people per year at 100 stewardship
+      if (burg.demographics) {
+        burg.demographics.capacity += boost;
+        burg.demographics.children += boost * 0.25;
+        burg.demographics.maleAdults += boost * 0.25;
+        burg.demographics.femaleAdults += boost * 0.25;
+        burg.demographics.elders += boost * 0.25;
+      }
+      burg.population = (burg.population || 0) + boost;
+    }
+
+    // Fortifications
+    if (skills.engineering > 70 && P(0.01 * deltaYears)) {
+      burg.walls = (burg.walls || 0) + 1;
+    }
+    // Plaza
+    if ((skills.artistry > 70 || skills.diplomacy > 70) && P(0.01 * deltaYears)) {
+      burg.plaza = (burg.plaza || 0) + 1;
+    }
+    // Temple
+    if ((skills.learning > 70 || p.piety > 70) && P(0.01 * deltaYears)) {
+      burg.temple = (burg.temple || 0) + 1;
+    }
   }
 
   private evaluateStateThreat(stateId: number): number {
