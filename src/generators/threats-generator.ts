@@ -112,5 +112,75 @@ export const Threats = {
         }
       }
     }
+  },
+
+  appendCasualtyNotes(worldContext: WorldContext) {
+    const { pack } = worldContext;
+    const { cells, monsters } = pack;
+    if (!monsters || !pack.markers || !worldContext.notes) return;
+
+    const populationRate = useOptionsState.getState().populationRate;
+    const initialPopulationSaturation = useOptionsState.getState().initialPopulationSaturation / 100;
+    const threatCalculation = useOptionsState.getState().threatCalculation;
+
+    // Calculate meanArea once for capacity formula
+    let totalArea = 0;
+    for (let i = 0; i < cells.i.length; i++) totalArea += cells.area[i];
+    const meanArea = totalArea / cells.i.length || 1;
+
+    for (const m of monsters) {
+      if (m.rarity < 3) continue; // Only rarity >= 3 have notes
+
+      // Find the marker ID for this monster
+      // The marker is created in Threats.generate at the exact cell
+      const marker = pack.markers.find(mark => mark.cell === m.cell && mark.type === "monster");
+      if (!marker) continue;
+
+      const note = worldContext.notes.find(n => n.id === `marker${marker.i}`);
+      if (!note) continue;
+
+      // Re-calculate this monster's AoE to estimate deaths
+      let totalLostPop = 0;
+      const start = m.cell;
+      const power = m.power;
+      const queue = [{ cell: start, dist: 0 }];
+      const visited = new Set<number>([start]);
+
+      while (queue.length > 0) {
+        const { cell, dist } = queue.shift()!;
+        const d = Math.max(0, power - dist);
+
+        if (d > 0) {
+          let dangerVal = 0;
+          if (threatCalculation === "max") {
+            dangerVal = d * 5;
+          } else if (threatCalculation === "nonlinear") {
+            dangerVal = Math.round(255 * (d / power) ** 2);
+          } else {
+            dangerVal = d * 4;
+          }
+
+          // Capacity lost = (danger / 5) * (area / meanArea)
+          const lostCapacity = (dangerVal / 5) * (cells.area[cell] / meanArea);
+          const lostPop = lostCapacity * initialPopulationSaturation * populationRate;
+          totalLostPop += lostPop;
+
+          for (const n of cells.c[cell]) {
+            if (!visited.has(n)) {
+              visited.add(n);
+              queue.push({ cell: n, dist: dist + 1 });
+            }
+          }
+        }
+      }
+
+      if (totalLostPop > 0) {
+        // Format the number nicely with thousands separators (e.g., 4,716,772)
+        const deaths = Math.round(totalLostPop);
+        const deathStr = deaths.toLocaleString();
+
+        note.legend += `\n\nHistorians estimate that the presence of this creature has resulted in the deaths or displacement of approximately ${deathStr} people in the surrounding region.`;
+      }
+    }
   }
 };
