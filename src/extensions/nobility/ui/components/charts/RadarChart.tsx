@@ -140,12 +140,12 @@ export const RadarChart: React.FC<RadarChartProps> = ({ data, width = 320, heigh
       .attr("text-anchor", "middle")
       .attr("dy", "0.35em")
       .attr("x", (d, i) => {
-        // Position slightly outside the data point towards the outer edge
-        const offsetRadius = rScale(d.value) + 14;
+        // Position slightly outside the data point, but for high values (>=90) position inside to avoid overlapping with axis labels
+        const offsetRadius = d.value >= 90 ? rScale(d.value) - 14 : rScale(d.value) + 14;
         return offsetRadius * Math.cos(angleSlice * i - Math.PI / 2);
       })
       .attr("y", (d, i) => {
-        const offsetRadius = rScale(d.value) + 14;
+        const offsetRadius = d.value >= 90 ? rScale(d.value) - 14 : rScale(d.value) + 14;
         return offsetRadius * Math.sin(angleSlice * i - Math.PI / 2);
       })
       .text(d => d.value);
