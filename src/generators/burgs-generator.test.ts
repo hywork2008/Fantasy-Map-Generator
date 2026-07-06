@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { worldContext } from "../context/worldContext";
+import type { Grid } from "../types/Grid";
 import type { PackedGraph } from "../types/PackedGraph";
-import type { Grid } from "../utils/graphUtils";
 import { Burgs } from "./burgs-generator";
 
 // ---------------------------------------------------------------------------
