@@ -25,6 +25,13 @@ export function createViewLayers(): void {
   const terrs = viewbox.append("g").attr("id", "terrs") as Selection<SVGGElement, unknown, null, undefined>;
   const lakes = viewbox.append("g").attr("id", "lakes") as Selection<SVGGElement, unknown, null, undefined>;
   const biomes = viewbox.append("g").attr("id", "biomes") as Selection<SVGGElement, unknown, null, undefined>;
+  const danger = viewbox.append("g").attr("id", "danger").style("display", "none") as Selection<
+    SVGGElement,
+    unknown,
+    null,
+    undefined
+  >;
+  const population = viewbox.append("g").attr("id", "population") as Selection<SVGGElement, unknown, null, undefined>;
   const cells = viewbox.append("g").attr("id", "cells") as Selection<SVGGElement, unknown, null, undefined>;
   const gridOverlay = viewbox.append("g").attr("id", "gridOverlay") as Selection<SVGGElement, unknown, null, undefined>;
   const coordinates = viewbox.append("g").attr("id", "coordinates") as Selection<SVGGElement, unknown, null, undefined>;
@@ -61,12 +68,7 @@ export function createViewLayers(): void {
   const trails = routes.append("g").attr("id", "trails") as Selection<SVGGElement, unknown, null, undefined>;
   const searoutes = routes.append("g").attr("id", "searoutes") as Selection<SVGGElement, unknown, null, undefined>;
   const temperature = viewbox.append("g").attr("id", "temperature") as Selection<SVGGElement, unknown, null, undefined>;
-  const danger = viewbox.append("g").attr("id", "danger").style("display", "none") as Selection<
-    SVGGElement,
-    unknown,
-    null,
-    undefined
-  >;
+
   const coastline = viewbox.append("g").attr("id", "coastline") as Selection<SVGGElement, unknown, null, undefined>;
   const ice = viewbox.append("g").attr("id", "ice") as Selection<SVGGElement, unknown, null, undefined>;
   const prec = viewbox.append("g").attr("id", "prec").style("display", "none") as Selection<
@@ -75,7 +77,7 @@ export function createViewLayers(): void {
     null,
     undefined
   >;
-  const population = viewbox.append("g").attr("id", "population") as Selection<SVGGElement, unknown, null, undefined>;
+
   const emblems = viewbox.append("g").attr("id", "emblems").style("display", "none") as Selection<
     SVGGElement,
     unknown,
