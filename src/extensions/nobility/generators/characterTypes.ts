@@ -11,6 +11,7 @@ export interface TitleHolding {
   entityId: number;
   startYear?: number;
   endYear?: number;
+  reason?: string;
 }
 
 export interface CharacterSkills {
@@ -75,6 +76,7 @@ export interface Character {
   appearance: number;
   prestige: number;
   dead?: boolean;
+  deathYear?: number;
   location?: number;
   pastTitles: TitleHolding[];
 }

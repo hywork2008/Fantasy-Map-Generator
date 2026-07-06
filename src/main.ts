@@ -46,7 +46,7 @@ import { renderGroupCOAs } from "./renderers/draw-emblems";
 import { CoordinatesRenderer, drawCalendar, drawScaleBar, fitScaleBar } from "./renderers/index";
 import { OceanLayers } from "./renderers/ocean-layers";
 import { ThreeDRenderer } from "./renderers/three-d-renderer";
-import { clearMainTip, showDataTip, tip } from "./services/tooltipService";
+import { clearMainTip, tip } from "./services/tooltipService";
 import { UITour } from "./services/ui-tour";
 import { dialogStore } from "./store/dialogState";
 import { type OptionsState, useOptionsState } from "./store/optionsState";
@@ -454,34 +454,10 @@ export function focusOn() {
   }
 }
 
-let isAssistantLoaded = false;
-
 function setElementDisplayById(id: string, display: string): void {
   const element = getElementById<HTMLElement>(id);
   if (!element) return;
   element.style.display = display;
-}
-
-function _toggleAssistant() {
-  const showAssistant = useOptionsState.getState().azgaarAssistant === "show";
-  if (showAssistant) {
-    if (isAssistantLoaded) {
-      setElementDisplayById("chat-widget-container", "block");
-    } else {
-      import(/* @vite-ignore */ `${import.meta.env.BASE_URL}libs/openwidget.min.js`).then(() => {
-        isAssistantLoaded = true;
-        setTimeout(() => {
-          const bubble = getElementById<HTMLElement>("chat-widget-minimized");
-          if (bubble) {
-            bubble.dataset.tip = "Click to open the Assistant";
-            bubble.addEventListener("mouseover", showDataTip as EventListener);
-          }
-        }, 5000);
-      });
-    }
-  } else if (isAssistantLoaded) {
-    setElementDisplayById("chat-widget-container", "none");
-  }
 }
 
 function initTourPromptButton() {

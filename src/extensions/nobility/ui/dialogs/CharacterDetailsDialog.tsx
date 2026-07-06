@@ -8,6 +8,7 @@ import { useNobilityUiState } from "../nobilityUiState";
 export const CharacterDetailsDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("characterDetails"));
   const selectedCharacterId = useNobilityUiState(state => state.selectedCharacterId);
+  useNobilityUiState(state => state.refreshToken);
   const [activeTab, setActiveTab] = useState<"skills" | "personality">("skills");
 
   const worldContext = getWorldContext();
@@ -36,7 +37,8 @@ export const CharacterDetailsDialog: React.FC = () => {
   if (character.location !== undefined) {
     const burg = burgs[character.location];
     if (burg) {
-      const stateName = states[burg.state]?.name ?? "Unknown State";
+      const stateId = burg.state;
+      const stateName = stateId !== undefined ? (states[stateId]?.name ?? "Unknown State") : "Unknown State";
       locationStr = `${burg.name} (${stateName})`;
     }
   }
@@ -51,6 +53,9 @@ export const CharacterDetailsDialog: React.FC = () => {
     rows.push(`Name, ${character.name}`);
     rows.push(`Age, ${character.age}`);
     rows.push(`Gender, ${character.gender}`);
+    rows.push(
+      `Status, ${character.dead ? `Deceased (Died at age ${character.age}${character.deathYear ? ` in ${character.deathYear}` : ""})` : "Alive"}`
+    );
     rows.push(`Culture, ${cultureName}`);
     rows.push(`Location, ${locationStr}`);
     rows.push(`Appearance, ${character.appearance ?? "N/A"}`);
@@ -113,7 +118,9 @@ export const CharacterDetailsDialog: React.FC = () => {
       rows.push("Past Titles");
       character.pastTitles.forEach(t => {
         const stateName = states[t.entityId]?.name ?? "Unknown";
-        rows.push(`${t.title} of ${stateName}, ${t.startYear ?? "?"} - ${t.endYear ?? "?"}`);
+        let titleStr = `${t.title} of ${stateName}, ${t.startYear ?? "?"} - ${t.endYear ?? "?"}`;
+        if (t.reason) titleStr += ` (${t.reason})`;
+        rows.push(titleStr);
       });
     }
 
@@ -176,12 +183,29 @@ export const CharacterDetailsDialog: React.FC = () => {
               <td>{character.gender}</td>
             </tr>
             <tr>
+              <th style={{ padding: "4px 0" }}>Status</th>
+              <td>
+                {character.dead ? (
+                  <span style={{ color: "#ff6b6b", fontWeight: "bold" }}>
+                    Deceased (Died at age {character.age}
+                    {character.deathYear ? ` in ${character.deathYear}` : ""})
+                  </span>
+                ) : (
+                  <span style={{ color: "#51cf66", fontWeight: "bold" }}>Alive</span>
+                )}
+              </td>
+            </tr>
+            <tr>
               <th style={{ padding: "4px 0" }}>Culture</th>
               <td>{cultureName}</td>
             </tr>
             <tr>
               <th style={{ padding: "4px 0" }}>Appearance</th>
               <td>{character.appearance ?? "N/A"}</td>
+            </tr>
+            <tr>
+              <th style={{ padding: "4px 0" }}>Prestige</th>
+              <td>{character.prestige ?? "N/A"}</td>
             </tr>
             <tr>
               <th style={{ padding: "4px 0" }}>Location</th>
@@ -199,10 +223,6 @@ export const CharacterDetailsDialog: React.FC = () => {
                 )}
                 {locationStr}
               </td>
-            </tr>
-            <tr>
-              <th style={{ padding: "4px 0" }}>Prestige</th>
-              <td>{character.prestige ?? "N/A"}</td>
             </tr>
             {character.family && (
               <tr>
@@ -239,6 +259,7 @@ export const CharacterDetailsDialog: React.FC = () => {
                       // biome-ignore lint/suspicious/noArrayIndexKey: Past titles can be identical
                       <li key={`past-${idx}`}>
                         {t.title} of {states[t.entityId]?.name ?? "Unknown"} ({t.startYear ?? "?"} - {t.endYear ?? "?"})
+                        {t.reason ? <span style={{ color: "#adb5bd", fontStyle: "italic" }}> - {t.reason}</span> : null}
                       </li>
                     ))}
                   </ul>

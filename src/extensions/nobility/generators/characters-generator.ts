@@ -3,7 +3,7 @@ import { Names } from "../../hostCore";
 import { P, rand, TIME } from "../../hostUtils";
 import { CENTRAL_OFFICES, resolveRulerTitle } from "../data/titleTable";
 import { getWorldContext } from "../nobilityContext";
-import type { Character, CharacterFamily, CharacterSkills, Gender } from "./characterTypes";
+import type { Character, CharacterFamily, CharacterPersonality, CharacterSkills, Gender } from "./characterTypes";
 
 export type {
   Character,
@@ -40,7 +40,7 @@ export class CharactersModule {
     const characters: Character[] = [];
     let nextId = 0;
 
-    const currentYear = this.worldContext.options.year;
+    const currentYear = Number(this.worldContext.options.year) || 1000;
 
     const states = pack.states.filter(s => s.i && !s.removed);
     for (const state of states) {
@@ -181,8 +181,20 @@ export class CharactersModule {
       const survivalProb = (1 - Math.min(0.99, mortalityRisk)) ** deltaYears;
       if (Math.random() > survivalProb) {
         character.dead = true;
+        character.deathYear = this.worldContext.options.year;
+
+        let baseReason = "Deceased";
+        if (character.titles.length > 0) {
+          if (character.personality.sociability < 30 && P(0.005 * deltaYears)) {
+            baseReason = "Assassinated";
+          } else if (character.personality.boldness > 80 && P(0.005 * deltaYears)) {
+            baseReason = "Slain in battle";
+          }
+        }
+
         for (const t of character.titles) {
           t.endYear = this.worldContext.options.year;
+          t.reason = baseReason;
           character.pastTitles.push(t);
         }
         character.titles = [];
@@ -197,22 +209,52 @@ export class CharactersModule {
             const state = pack.states[title.entityId];
             if (!state || state.removed) {
               title.endYear = this.worldContext.options.year;
+              title.reason = "State Destroyed";
               character.pastTitles.push(title);
               character.titles.splice(i, 1);
               continue;
             }
-            const threat = this.evaluateStateThreat(state.i);
             const isRuler = state.rulerId === character.i;
 
             // Rulers do not easily resign, only appointed officers.
             if (!isRuler) {
-              const officeDef = CENTRAL_OFFICES.find(o => o.title === title.title);
-              const skillValue = officeDef ? character.skills[officeDef.primarySkill] : 50;
+              if (title.title === "Regent") {
+                const ruler = pack.characters.find(c => c.i === state.rulerId);
+                if (ruler && ruler.age >= 16) {
+                  // Ruler has come of age, Regent must step down
+                  title.endYear = this.worldContext.options.year;
+                  title.reason = "Ruler came of age";
+                  character.pastTitles.push(title);
+                  character.titles.splice(i, 1);
+                  continue;
+                }
+              }
+
+              const threat = this.evaluateStateThreat(state.i);
+
+              // Purged / Deposed by rivals
+              if (threat > 5 && character.personality.guile < 40 && character.personality.honor > 60) {
+                if (P(0.015 * deltaYears)) {
+                  title.endYear = this.worldContext.options.year;
+                  title.reason = "Deposed by political rivals";
+                  character.pastTitles.push(title);
+                  character.titles.splice(i, 1);
+                  continue;
+                }
+              }
+
+              const officeDef =
+                CENTRAL_OFFICES.find(o => o.title === title.title) ||
+                (title.title === "Regent"
+                  ? { title: "Regent", primarySkill: "stewardship" as keyof CharacterSkills }
+                  : undefined);
+              const skillValue = officeDef ? character.skills[officeDef.primarySkill!] : 50;
 
               // Stress calculation: High threat + low specific skill + low boldness
               const stress = threat * 10 + (100 - skillValue) * 0.5 + (100 - character.personality.boldness) * 0.5;
               if (stress > 150 && P(0.1 * deltaYears)) {
                 title.endYear = this.worldContext.options.year;
+                title.reason = "Resigned (Stress)";
                 character.pastTitles.push(title);
                 character.titles.splice(i, 1);
 
@@ -223,6 +265,67 @@ export class CharactersModule {
                 }
               }
             }
+          }
+        }
+      }
+
+      // Age Growth for young characters
+      if (newAge <= 25 && deltaYears > 0) {
+        const growthMax = newAge <= 16 ? rand(3, 8) : rand(0, 2);
+        const growth = Math.floor(growthMax * deltaYears);
+        if (growth > 0) {
+          for (const key of Object.keys(character.skills) as (keyof CharacterSkills)[]) {
+            if (character.skills[key] < 100 && P(0.5)) {
+              character.skills[key] = Math.min(100, character.skills[key] + growth);
+            }
+          }
+          // Also grow confidence slightly
+          if (character.personality.confidence < 100 && P(0.5)) {
+            character.personality.confidence = Math.min(100, character.personality.confidence + growth);
+          }
+        }
+
+        // Personality drift for children (personalities become more extreme/defined as they grow)
+        if (newAge <= 16) {
+          const drift = Math.floor(rand(1, 4) * deltaYears);
+          for (const key of Object.keys(character.personality) as (keyof CharacterPersonality)[]) {
+            if (key === "confidence") continue; // Handled above
+            let val = (character.personality as unknown as Record<string, number>)[key as string];
+            if (val > 50 && val < 100) {
+              val = Math.min(100, val + drift);
+            } else if (val <= 50 && val > 1) {
+              val = Math.max(1, val - drift);
+            }
+            (character.personality as unknown as Record<string, number>)[key as string] = val;
+          }
+        }
+      }
+      // Retired Characters Local Development Bonus
+      if (character.titles.length === 0 && character.location !== undefined) {
+        const burg = pack.burgs[character.location];
+        if (burg && !burg.removed) {
+          const skills = character.skills;
+          const p = character.personality;
+
+          // Population Growth (Benevolent elder)
+          const goodTraits = p.compassion + p.honor + p.sociability;
+          const badTraits = p.greed + p.guile + p.vengefulness + p.zeal;
+
+          if (goodTraits > badTraits && skills.stewardship > 60) {
+            burg.population = (burg.population || 0) + (skills.stewardship / 100) * deltaYears * 0.05;
+          }
+
+          // Fortifications
+          if (skills.engineering > 70 && P(0.01 * deltaYears)) {
+            burg.walls = (burg.walls || 0) + 1;
+          }
+          // Plaza
+          if ((skills.artistry > 70 || skills.diplomacy > 70) && P(0.01 * deltaYears)) {
+            burg.plaza = (burg.plaza || 0) + 1;
+          }
+          // Temple
+          if ((skills.learning > 70 || p.piety > 70) && P(0.01 * deltaYears)) {
+            burg.temple = (burg.temple || 0) + 1;
           }
         }
       }
@@ -250,7 +353,7 @@ export class CharactersModule {
     threat: number
   ): number {
     if (!office) return 0;
-    const skillVal = character.skills[office.primarySkill] || 50;
+    const skillVal = office.primarySkill ? character.skills[office.primarySkill] : 50;
     let score = skillVal;
 
     // War-mongers want martial positions during high threat
@@ -278,14 +381,75 @@ export class CharactersModule {
       const livingStateChars = pack.characters.filter(c => !c.dead && c.titles.some(t => t.entityId === state.i));
 
       let rulerVacant = false;
-      const currentRuler = pack.characters.find(c => c.i === state.rulerId);
+      let currentRuler = pack.characters.find(c => c.i === state.rulerId);
       if (!currentRuler || currentRuler.dead || !currentRuler.titles.some(t => t.landed)) {
         rulerVacant = true;
       }
 
+      // Generate replacement for ruler immediately so we can check if they are underage
+      if (rulerVacant) {
+        let heirAge: number | undefined;
+        const isHereditary = state.form === "Monarchy" || state.form === "Dictatorship";
+
+        if (currentRuler) {
+          if (isHereditary) {
+            if (currentRuler.age < 16) {
+              // If a child ruler dies, the heir is usually an adult relative (uncle/cousin)
+              heirAge = rand(16, 50);
+            } else {
+              heirAge = Math.max(0, currentRuler.age - rand(15, 45));
+            }
+          } else {
+            // Republics, Theocracies, etc. elect/appoint established adults
+            heirAge = rand(35, 75);
+          }
+        }
+
+        const heir = this.createPerson(nextId++, state.culture, undefined, state, heirAge);
+
+        // Setup Heir relationships if possible
+        if (currentRuler && isHereditary) {
+          // If the heir is young enough, assume they are a direct child
+          if (heir.age < currentRuler.age - 14) {
+            heir.family.fatherId = currentRuler.gender === "male" ? currentRuler.i : undefined;
+            heir.family.motherId = currentRuler.gender === "female" ? currentRuler.i : undefined;
+
+            if (!currentRuler.family.childIds) currentRuler.family.childIds = [];
+            currentRuler.family.childIds.push(heir.i);
+          }
+        }
+
+        heir.location = state.capital;
+        let rulerTitleName = resolveRulerTitle(state, heir.gender);
+        if (heir.age < 16) {
+          rulerTitleName += " (Under Regency)";
+        }
+
+        heir.titles.push({
+          title: rulerTitleName,
+          landed: true,
+          entityType: "state",
+          entityId: state.i,
+          startYear: this.worldContext.options.year
+        });
+        pack.characters.push(heir);
+        state.rulerId = heir.i;
+        currentRuler = heir;
+        // The heir is now part of the living state characters if we do further processing
+        livingStateChars.push(heir);
+      }
+
       const vacantOffices = CENTRAL_OFFICES.filter(
         office => !livingStateChars.some(c => c.titles.some(t => t.title === office.title))
-      );
+      ).map(o => ({ ...o }));
+
+      // If the current ruler is underage, ensure there's a Regent office
+      if (currentRuler && currentRuler.age < 16) {
+        const hasRegent = livingStateChars.some(c => c.titles.some(t => t.title === "Regent"));
+        if (!hasRegent) {
+          vacantOffices.push({ title: "Regent", primarySkill: "stewardship" });
+        }
+      }
 
       const threat = this.evaluateStateThreat(state.i);
 
@@ -303,7 +467,11 @@ export class CharactersModule {
             const currentTitle = vet.titles.find(t => !t.landed && t.entityId === state.i);
             if (!currentTitle) continue;
 
-            const currentOffice = CENTRAL_OFFICES.find(o => o.title === currentTitle.title);
+            const currentOffice =
+              CENTRAL_OFFICES.find(o => o.title === currentTitle.title) ||
+              (currentTitle.title === "Regent"
+                ? { title: "Regent", primarySkill: "stewardship" as keyof CharacterSkills }
+                : undefined);
             const currentScore = this.evaluateOfficeAttractiveness(vet, currentOffice, threat);
             const vacantScore = this.evaluateOfficeAttractiveness(vet, office, threat);
 
@@ -321,6 +489,7 @@ export class CharactersModule {
 
             // Move old title to past titles
             oldTitle.endYear = this.worldContext.options.year;
+            oldTitle.reason = "Reassigned";
             bestCandidate.pastTitles.push({ ...oldTitle });
 
             // Reassign to new title
@@ -328,39 +497,17 @@ export class CharactersModule {
             bestCandidate.titles[currentTitleIndex].startYear = this.worldContext.options.year;
 
             vacantOffices.splice(vacantOffices.indexOf(office), 1);
-            const oldOfficeDef = CENTRAL_OFFICES.find(o => o.title === oldTitleName);
+            const oldOfficeDef =
+              CENTRAL_OFFICES.find(o => o.title === oldTitleName) ||
+              (oldTitleName === "Regent"
+                ? { title: "Regent", primarySkill: "stewardship" as keyof CharacterSkills }
+                : undefined);
             if (oldOfficeDef) vacantOffices.push(oldOfficeDef);
 
             changesMade = true;
             break;
           }
         }
-      }
-
-      // Generate replacements for remaining vacancies
-      if (rulerVacant) {
-        const heir = this.createPerson(nextId++, state.culture, undefined, state);
-
-        // Setup Heir relationships if possible
-        if (currentRuler) {
-          heir.family.fatherId = currentRuler.gender === "male" ? currentRuler.i : undefined;
-          heir.family.motherId = currentRuler.gender === "female" ? currentRuler.i : undefined;
-          heir.age = Math.max(16, currentRuler.age - rand(16, 40));
-
-          if (!currentRuler.family.childIds) currentRuler.family.childIds = [];
-          currentRuler.family.childIds.push(heir.i);
-        }
-
-        heir.location = state.capital;
-        heir.titles.push({
-          title: resolveRulerTitle(state, heir.gender),
-          landed: true,
-          entityType: "state",
-          entityId: state.i,
-          startYear: this.worldContext.options.year
-        });
-        pack.characters.push(heir);
-        state.rulerId = heir.i;
       }
 
       for (const office of vacantOffices) {
@@ -423,10 +570,12 @@ export class CharactersModule {
     i: number,
     cultureId: number,
     primarySkill: keyof CharacterSkills | undefined,
-    stateData: { form?: string; formName?: string }
+    stateData: { i: number; form?: string; formName?: string },
+    ageOverride?: number
   ): Character {
-    const gender: Gender = P(0.5) ? "male" : "female";
-    const age = rand(MIN_RULER_AGE, MAX_RULER_AGE);
+    // デフォルトで90%を男性とする（特殊な文化設定がない場合の歴史的な封建制の再現）
+    const gender: Gender = P(0.9) ? "male" : "female";
+    const age = ageOverride !== undefined ? ageOverride : rand(MIN_RULER_AGE, MAX_RULER_AGE);
     const isReligiousRole =
       stateData.form === "Theocracy" ||
       (stateData.formName && ["Theocracy", "Holy State", "Bishopric"].includes(stateData.formName)) ||
@@ -456,6 +605,14 @@ export class CharactersModule {
       stewardship: primarySkill === "stewardship" ? rand(40, 100) : rand(1, 100)
     };
 
+    // If character is a minor, drastically reduce base stats. They will grow over time in advanceAge.
+    if (age < 16) {
+      const ageFactor = Math.max(0.05, age / 16);
+      for (const key of Object.keys(skills) as (keyof CharacterSkills)[]) {
+        skills[key] = Math.max(1, Math.floor(skills[key] * ageFactor));
+      }
+    }
+
     const avgSkill = Math.round(
       (skills.artistry +
         skills.diplomacy +
@@ -472,7 +629,7 @@ export class CharactersModule {
     // Confidence: based on average skill with a ±20 random variance
     const confidence = Math.max(1, Math.min(100, avgSkill + rand(-20, 20)));
 
-    return {
+    const character: Character = {
       i,
       name: Names.getCulture(cultureId),
       age,
@@ -502,6 +659,21 @@ export class CharactersModule {
       pastTitles: [],
       state: stateData.i
     };
+
+    // If character is a minor, neutralize personality towards 50 so babies don't act like evil masterminds.
+    // They will slowly drift towards extremes in advanceAge.
+    if (age < 16) {
+      const ageFactor = Math.max(0.1, age / 16);
+      for (const key of Object.keys(character.personality) as (keyof CharacterPersonality)[]) {
+        if (key === "confidence") continue; // Handled differently
+        const val = (character.personality as unknown as Record<string, number>)[key as string];
+        (character.personality as unknown as Record<string, number>)[key as string] = Math.round(
+          50 + (val - 50) * ageFactor
+        );
+      }
+    }
+
+    return character;
   }
 }
 
