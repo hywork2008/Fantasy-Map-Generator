@@ -23,6 +23,7 @@
     "test:e2e": "playwright test",
     "lint": "biome check --write && npm run lint:legacy",
     "lint:legacy": "tsx scripts/lint-legacy-ui.ts",
+    "madge": "madge --circular --extensions ts,tsx src/app.ts",
     "prepare": "simple-git-hooks",
     "analyze-globals": "tsx scripts/analyze-window-globals.ts",
     "convert-global": "tsx scripts/convert-global.ts"
@@ -54,6 +55,7 @@
     "jscodeshift": "^17.3.0",
     "jsdom": "^29.1.1",
     "lint-staged": "^17.0.8",
+    "madge": "^8.0.0",
     "playwright": "^1.61.1",
     "simple-git-hooks": "^2.13.1",
     "ts-morph": "^28.0.0",

@@ -386,4 +386,6 @@ The loader (`dynamicLoader.ts`) validates the manifest, stores the record in Ind
 ## 8. Development Pipeline and Git Discipline
 
 - **Pre-commit Quality Gate**: Prior to crafting any commit, you must execute the compilation validation (`npm run build` or `npx tsc --noEmit`) and structural verification linting scripts to ensure zero errors are introduced.
+- **No Circular Dependencies**: Run `npm run madge` (`madge --circular --extensions ts,tsx src/app.ts`) and confirm it reports no circular dependency before committing. If a cycle is introduced, resolve it by extracting shared types/utilities into a dependency-free module rather than suppressing the check.
+- **No VS Code Problems**: Confirm the VS Code PROBLEMS tab shows no errors for the files you touched before committing.
 - **Commit Format**: All Git commit messages must be explicitly written in English following structural conventions (e.g., `refactor: migrate module-name to TypeScript`). Do not commit automatically if an error occurs during building.
