@@ -95,12 +95,15 @@ export const CharacterDetailsDialog: React.FC = () => {
             {character.skills ? (
               <RadarChart
                 data={[
+                  { axis: "Artistry", value: character.skills.artistry },
                   { axis: "Diplomacy", value: character.skills.diplomacy },
-                  { axis: "Martial", value: character.skills.martial },
-                  { axis: "Stewardship", value: character.skills.stewardship },
+                  { axis: "Engineering", value: character.skills.engineering },
+                  { axis: "Geography", value: character.skills.geography },
                   { axis: "Intrigue", value: character.skills.intrigue },
                   { axis: "Learning", value: character.skills.learning },
-                  { axis: "Prowess", value: character.skills.prowess }
+                  { axis: "Martial", value: character.skills.martial },
+                  { axis: "Prowess", value: character.skills.prowess },
+                  { axis: "Stewardship", value: character.skills.stewardship }
                 ]}
               />
             ) : (
@@ -116,13 +119,15 @@ export const CharacterDetailsDialog: React.FC = () => {
                 data={[
                   { axis: "Boldness", value: character.personality.boldness },
                   { axis: "Compassion", value: character.personality.compassion },
+                  { axis: "Energy", value: character.personality.energy },
                   { axis: "Greed", value: character.personality.greed },
+                  { axis: "Guile", value: character.personality.guile },
                   { axis: "Honor", value: character.personality.honor },
+                  { axis: "Piety", value: character.personality.piety },
                   { axis: "Rationality", value: character.personality.rationality },
                   { axis: "Sociability", value: character.personality.sociability },
                   { axis: "Vengefulness", value: character.personality.vengefulness },
-                  { axis: "Zeal", value: character.personality.zeal },
-                  { axis: "Energy", value: character.personality.energy }
+                  { axis: "Zeal", value: character.personality.zeal }
                 ]}
               />
             ) : (

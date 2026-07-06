@@ -12,12 +12,15 @@ export interface TitleHolding {
 }
 
 export interface CharacterSkills {
+  artistry: number;
   diplomacy: number;
-  martial: number;
-  stewardship: number;
+  engineering: number;
+  geography: number;
   intrigue: number;
   learning: number;
+  martial: number;
   prowess: number;
+  stewardship: number;
 }
 
 export interface CharacterPersonality {
@@ -30,6 +33,8 @@ export interface CharacterPersonality {
   vengefulness: number;
   zeal: number;
   energy: number;
+  piety: number;
+  guile: number;
 }
 
 export interface CharacterFamily {

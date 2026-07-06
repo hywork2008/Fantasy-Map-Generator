@@ -47,7 +47,7 @@ export const CharactersStatsTable: React.FC<CharactersStatsTableProps> = ({
     );
   }
 
-  const colSpan = 16; // Name + 6 Skills + 9 Personality = 16
+  const colSpan = 19; // Name + 9 Skills + 9 Personality = 19
 
   return (
     <div className="table" ref={parentRef} style={{ overflow: "auto" }}>
@@ -65,22 +65,27 @@ export const CharactersStatsTable: React.FC<CharactersStatsTableProps> = ({
                 <span className={sortOrder === "asc" ? "icon-sort-name-up" : "icon-sort-name-down"} />
               )}
             </th>
+            <SortHeader field="artistry" label="Arts" tip="Artistry" />
             <SortHeader field="diplomacy" label="Dipl" tip="Diplomacy" />
-            <SortHeader field="martial" label="Mart" tip="Martial" />
-            <SortHeader field="stewardship" label="Stew" tip="Stewardship" />
+            <SortHeader field="engineering" label="Engi" tip="Engineering" />
+            <SortHeader field="geography" label="Geog" tip="Geography" />
             <SortHeader field="intrigue" label="Intr" tip="Intrigue" />
             <SortHeader field="learning" label="Lrn" tip="Learning" />
+            <SortHeader field="martial" label="Mart" tip="Martial" />
             <SortHeader field="prowess" label="Prow" tip="Prowess" />
+            <SortHeader field="stewardship" label="Stew" tip="Stewardship" />
 
             <SortHeader field="boldness" label="Bold" tip="Boldness" />
             <SortHeader field="compassion" label="Comp" tip="Compassion" />
+            <SortHeader field="energy" label="Econ" tip="Energy (Economic Archetype)" />
             <SortHeader field="greed" label="Grd" tip="Greed" />
+            <SortHeader field="guile" label="Guil" tip="Guile" />
             <SortHeader field="honor" label="Hnr" tip="Honor" />
+            <SortHeader field="piety" label="Piet" tip="Piety" />
             <SortHeader field="rationality" label="Rati" tip="Rationality" />
             <SortHeader field="sociability" label="Soci" tip="Sociability" />
             <SortHeader field="vengefulness" label="Veng" tip="Vengefulness" />
             <SortHeader field="zeal" label="Zeal" tip="Zeal" />
-            <SortHeader field="energy" label="Econ" tip="Energy (Economic Archetype)" />
           </tr>
         </thead>
         <tbody>
@@ -112,22 +117,27 @@ export const CharactersStatsTable: React.FC<CharactersStatsTableProps> = ({
                       </span>
                       {title && <span style={{ fontSize: "0.85em", marginLeft: "6px", opacity: 0.8 }}>({title})</span>}
                     </td>
+                    <td style={{ textAlign: "center" }}>{c.skills?.artistry ?? 0}</td>
                     <td style={{ textAlign: "center" }}>{c.skills?.diplomacy ?? 0}</td>
-                    <td style={{ textAlign: "center" }}>{c.skills?.martial ?? 0}</td>
-                    <td style={{ textAlign: "center" }}>{c.skills?.stewardship ?? 0}</td>
+                    <td style={{ textAlign: "center" }}>{c.skills?.engineering ?? 0}</td>
+                    <td style={{ textAlign: "center" }}>{c.skills?.geography ?? 0}</td>
                     <td style={{ textAlign: "center" }}>{c.skills?.intrigue ?? 0}</td>
                     <td style={{ textAlign: "center" }}>{c.skills?.learning ?? 0}</td>
+                    <td style={{ textAlign: "center" }}>{c.skills?.martial ?? 0}</td>
                     <td style={{ textAlign: "center" }}>{c.skills?.prowess ?? 0}</td>
+                    <td style={{ textAlign: "center" }}>{c.skills?.stewardship ?? 0}</td>
 
                     <td style={{ textAlign: "center" }}>{c.personality?.boldness ?? 0}</td>
                     <td style={{ textAlign: "center" }}>{c.personality?.compassion ?? 0}</td>
+                    <td style={{ textAlign: "center" }}>{c.personality?.energy ?? 0}</td>
                     <td style={{ textAlign: "center" }}>{c.personality?.greed ?? 0}</td>
+                    <td style={{ textAlign: "center" }}>{c.personality?.guile ?? 0}</td>
                     <td style={{ textAlign: "center" }}>{c.personality?.honor ?? 0}</td>
+                    <td style={{ textAlign: "center" }}>{c.personality?.piety ?? 0}</td>
                     <td style={{ textAlign: "center" }}>{c.personality?.rationality ?? 0}</td>
                     <td style={{ textAlign: "center" }}>{c.personality?.sociability ?? 0}</td>
                     <td style={{ textAlign: "center" }}>{c.personality?.vengefulness ?? 0}</td>
                     <td style={{ textAlign: "center" }}>{c.personality?.zeal ?? 0}</td>
-                    <td style={{ textAlign: "center" }}>{c.personality?.energy ?? 0}</td>
                   </tr>
                 );
               })}

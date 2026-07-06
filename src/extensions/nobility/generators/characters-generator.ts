@@ -32,7 +32,7 @@ export class CharactersModule {
 
     const states = pack.states.filter(s => s.i && !s.removed);
     for (const state of states) {
-      const ruler = this.createPerson(nextId++, state.culture, undefined, state.formName);
+      const ruler = this.createPerson(nextId++, state.culture, undefined, state);
       ruler.titles.push({
         title: resolveRulerTitle(state, ruler.gender),
         landed: true,
@@ -43,7 +43,7 @@ export class CharactersModule {
       state.rulerId = ruler.i;
 
       for (const office of CENTRAL_OFFICES) {
-        const officer = this.createPerson(nextId++, state.culture, office.primarySkill, state.formName);
+        const officer = this.createPerson(nextId++, state.culture, office.primarySkill, state);
         officer.titles.push({ title: office.title, landed: false, entityType: "state", entityId: state.i });
         characters.push(officer);
       }
@@ -180,29 +180,49 @@ export class CharactersModule {
   private createPerson(
     i: number,
     cultureId: number,
-    primarySkill?: keyof CharacterSkills,
-    formName?: string
+    primarySkill: keyof CharacterSkills | undefined,
+    stateData: { form?: string; formName?: string }
   ): Character {
     const gender: Gender = P(0.5) ? "male" : "female";
     const age = rand(MIN_RULER_AGE, MAX_RULER_AGE);
+    const isReligiousRole =
+      stateData.form === "Theocracy" ||
+      (stateData.formName && ["Theocracy", "Holy State", "Bishopric"].includes(stateData.formName)) ||
+      primarySkill === "learning";
+
+    const guile = rand(1, 100);
+    const piety = isReligiousRole ? rand(60, 100) : rand(1, 100);
+    // Religious figures are typically zealous, unless they are highly guileful (deceitful)
+    const zeal = isReligiousRole && guile < 70 ? rand(50, 100) : rand(1, 100);
+
+    const baseAppearance = rand(1, 100);
+    const appearance = age > 35 ? Math.max(1, baseAppearance - Math.floor((age - 35) * 1.5)) : baseAppearance;
+
+    const baseProwess = primarySkill === "prowess" ? rand(40, 100) : rand(1, 100);
+    // Physical decline
+    const prowess = age > 35 ? Math.max(1, baseProwess - Math.floor((age - 35) * 2)) : baseProwess;
+
     return {
       i,
       name: Names.getCulture(cultureId),
       age,
       gender,
       culture: cultureId,
-      appearance: rand(1, 100),
+      appearance,
       prestige: rand(1, 100),
       titles: [],
       affinities: {},
       marriages: [],
       skills: {
+        artistry: rand(1, 100),
         diplomacy: primarySkill === "diplomacy" ? rand(40, 100) : rand(1, 100),
-        martial: primarySkill === "martial" ? rand(40, 100) : rand(1, 100),
-        stewardship: primarySkill === "stewardship" ? rand(40, 100) : rand(1, 100),
+        engineering: rand(1, 100),
+        geography: rand(1, 100),
         intrigue: primarySkill === "intrigue" ? rand(40, 100) : rand(1, 100),
         learning: primarySkill === "learning" ? rand(40, 100) : rand(1, 100),
-        prowess: primarySkill === "prowess" ? rand(40, 100) : rand(1, 100)
+        martial: primarySkill === "martial" ? rand(40, 100) : rand(1, 100),
+        prowess,
+        stewardship: primarySkill === "stewardship" ? rand(40, 100) : rand(1, 100)
       },
       personality: {
         boldness: rand(1, 100),
@@ -212,10 +232,12 @@ export class CharactersModule {
         rationality: rand(1, 100),
         sociability: rand(1, 100),
         vengefulness: rand(1, 100),
-        zeal: rand(1, 100),
-        energy: rand(1, 100)
+        zeal,
+        energy: rand(1, 100),
+        piety,
+        guile
       },
-      family: this.generateFamily(age, formName)
+      family: this.generateFamily(age, stateData.formName)
     };
   }
 }
