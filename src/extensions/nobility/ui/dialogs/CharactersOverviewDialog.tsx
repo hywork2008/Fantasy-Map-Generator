@@ -45,6 +45,86 @@ export const CharactersOverviewDialog: React.FC = () => {
     openDialog("characterDetails");
   };
 
+  const handleDownloadCsv = () => {
+    const headers = [
+      "Name",
+      "Title",
+      "State",
+      "Artistry",
+      "Diplomacy",
+      "Engineering",
+      "Geography",
+      "Intrigue",
+      "Learning",
+      "Martial",
+      "Prowess",
+      "Stewardship",
+      "Boldness",
+      "Compassion",
+      "Confidence",
+      "Energy",
+      "Greed",
+      "Guile",
+      "Honor",
+      "Piety",
+      "Rationality",
+      "Sociability",
+      "Vengefulness",
+      "Zeal"
+    ];
+
+    const escapeCsv = (val: unknown) => {
+      if (val == null) return "";
+      const str = String(val);
+      if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+
+    const rows = filteredCharacters.map(row => {
+      const c = row.c;
+      return [
+        c.name,
+        row.title,
+        row.stateName,
+        c.skills?.artistry ?? 0,
+        c.skills?.diplomacy ?? 0,
+        c.skills?.engineering ?? 0,
+        c.skills?.geography ?? 0,
+        c.skills?.intrigue ?? 0,
+        c.skills?.learning ?? 0,
+        c.skills?.martial ?? 0,
+        c.skills?.prowess ?? 0,
+        c.skills?.stewardship ?? 0,
+        c.personality?.boldness ?? 0,
+        c.personality?.compassion ?? 0,
+        c.personality?.confidence ?? 0,
+        c.personality?.energy ?? 0,
+        c.personality?.greed ?? 0,
+        c.personality?.guile ?? 0,
+        c.personality?.honor ?? 0,
+        c.personality?.piety ?? 0,
+        c.personality?.rationality ?? 0,
+        c.personality?.sociability ?? 0,
+        c.personality?.vengefulness ?? 0,
+        c.personality?.zeal ?? 0
+      ]
+        .map(escapeCsv)
+        .join(",");
+    });
+
+    const csvContent = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", "characters_stats.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <Dialog
       isOpen={isOpen}
@@ -116,10 +196,20 @@ export const CharactersOverviewDialog: React.FC = () => {
           </label>
         </div>
 
-        <div id="charactersTotal" className="totalLine" style={{ padding: "5px" }}>
+        <div
+          id="charactersTotal"
+          className="totalLine"
+          style={{ padding: "5px", display: "flex", justifyContent: "space-between", alignItems: "center" }}
+        >
           <div data-tip="Characters displayed">
             Characters: {filteredCharacters.length} of {characters.length}
           </div>
+          {activeTab === "stats" && (
+            <button type="button" className="btn" onClick={handleDownloadCsv}>
+              <span className="icon-download" style={{ marginRight: "4px" }} />
+              Export CSV
+            </button>
+          )}
         </div>
       </div>
     </Dialog>
