@@ -16,12 +16,35 @@ export function registerTimeTickHook(fn: TimeTickHook): void {
 }
 
 /**
+ * Notifies UI listeners (map calendar overlay, ToolsTab display) that
+ * simulationContext.currentYear/era changed, regardless of the cause.
+ */
+function dispatchSimulationUpdated(): void {
+  document.dispatchEvent(
+    new CustomEvent("fmg:simulation-updated", {
+      detail: { currentYear: simulationContext.currentYear, era: simulationContext.era }
+    })
+  );
+}
+
+/**
+ * Re-reads currentYear/era from worldContext.options without touching tickCount.
+ * Called from src/controllers/options.ts whenever the user edits Year/Era in the
+ * Options Generation tab post-generation, so simulationContext (the live clock
+ * advanceTime() actually mutates) doesn't drift from the mirror in worldContext.options.
+ */
+export function syncSimulationClockFromOptions(): void {
+  simulationContext.currentYear = worldContext.options.year ?? 0;
+  simulationContext.era = worldContext.options.era ?? "";
+  dispatchSimulationUpdated();
+}
+
+/**
  * Resets the simulation clock from the current map's generated year/era.
  * Called once from main.ts after core map generation completes.
  */
 export function initSimulationClock(): void {
-  simulationContext.currentYear = worldContext.options.year ?? 0;
-  simulationContext.era = worldContext.options.era ?? "";
+  syncSimulationClockFromOptions();
   simulationContext.tickCount = 0;
 }
 
@@ -45,4 +68,5 @@ export function advanceTime(deltaYears: number): void {
       detail: { deltaYears, currentYear: simulationContext.currentYear }
     })
   );
+  dispatchSimulationUpdated();
 }

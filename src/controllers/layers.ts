@@ -37,7 +37,8 @@ import {
 } from "../renderers";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { rulers } from "../store/editorState";
-import { isCtrlClick, showPrompt } from "../utils";
+import { openPrompt } from "../ui/dialogs/dialogService";
+import { isCtrlClick } from "../utils";
 
 let worldContext: WorldContext;
 let appServices: AppServices;
@@ -281,20 +282,24 @@ export function handleLayersPresetChange(preset: string): void {
 }
 
 export function savePreset(): void {
-  showPrompt("Please provide a preset name", { default: "" }, value => {
-    const preset = String(value);
-    const state = useLayerState.getState();
-    const newPresets = { ...state.presets };
-    newPresets[preset] = state.layers
-      .filter(l => state.activeLayers[l.id])
-      .map(l => l.id)
-      .sort();
+  openPrompt({
+    message: "Please provide a preset name",
+    default: "",
+    onConfirm: value => {
+      const preset = String(value);
+      const state = useLayerState.getState();
+      const newPresets = { ...state.presets };
+      newPresets[preset] = state.layers
+        .filter(l => state.activeLayers[l.id])
+        .map(l => l.id)
+        .sort();
 
-    state.setPresets(newPresets);
-    state.setActivePreset(preset);
+      state.setPresets(newPresets);
+      state.setActivePreset(preset);
 
-    localStorage.setItem("presets", JSON.stringify(newPresets));
-    localStorage.setItem("preset", preset);
+      localStorage.setItem("presets", JSON.stringify(newPresets));
+      localStorage.setItem("preset", preset);
+    }
   });
 }
 

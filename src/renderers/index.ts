@@ -3,6 +3,7 @@ export { BiomesRenderer } from "./draw-biomes";
 export { BordersRenderer } from "./draw-borders";
 export { BurgIconsRenderer, drawBurgIcon, removeBurgIcon } from "./draw-burg-icons";
 export { BurgLabelsRenderer, drawBurgLabel, removeBurgLabel } from "./draw-burg-labels";
+export { drawCalendar } from "./draw-calendar";
 export { CellsRenderer } from "./draw-cells";
 export { CoordinatesRenderer } from "./draw-coordinates";
 export { CulturesRenderer } from "./draw-cultures";

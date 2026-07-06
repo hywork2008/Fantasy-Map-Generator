@@ -16,6 +16,7 @@ export const CharactersOverviewDialog: React.FC = () => {
     searchText,
     filterStateId,
     activeTab,
+    refreshToken,
     toggleSortBy,
     setSearchText,
     setFilterStateId,
@@ -31,6 +32,9 @@ export const CharactersOverviewDialog: React.FC = () => {
     return states.filter(s => s.i && !s.removed).sort((a, b) => (a.name > b.name ? 1 : -1));
   }, [states]);
 
+  // refreshToken is an intentional extra dep: characters/states mutate in place
+  // (e.g. Advance Time aging), so their references alone won't trigger a recompute.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: see comment above
   const filteredCharacters = useMemo(() => {
     return filterAndSortCharacters(characters, states, {
       searchText,
@@ -38,7 +42,7 @@ export const CharactersOverviewDialog: React.FC = () => {
       sortBy,
       sortOrder
     });
-  }, [characters, states, searchText, filterStateId, sortBy, sortOrder]);
+  }, [characters, states, searchText, filterStateId, sortBy, sortOrder, refreshToken]);
 
   const handleCharacterClick = (characterId: number) => {
     setSelectedCharacterId(characterId);

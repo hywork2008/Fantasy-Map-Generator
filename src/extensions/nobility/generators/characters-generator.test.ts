@@ -72,4 +72,75 @@ describe("CharactersModule", () => {
     expect(worldContext.pack.characters).toHaveLength(0);
     expect(worldContext.pack.states.every(s => s.rulerId === undefined)).toBe(true);
   });
+
+  describe("advanceAge", () => {
+    it("does nothing for a non-positive deltaYears", () => {
+      charactersModule.generate({ randomSeed: 5 });
+      const before = worldContext.pack.characters.map(c => ({ ...c }));
+
+      charactersModule.advanceAge(0);
+
+      expect(worldContext.pack.characters.map(c => c.age)).toEqual(before.map(c => c.age));
+    });
+
+    it("ages every character by deltaYears", () => {
+      charactersModule.generate({ randomSeed: 6 });
+      const before = worldContext.pack.characters.map(c => c.age);
+
+      charactersModule.advanceAge(3);
+
+      const after = worldContext.pack.characters.map(c => c.age);
+      after.forEach((age, i) => {
+        expect(age).toBe(before[i] + 3);
+      });
+    });
+
+    it("declines appearance and prowess further once a character crosses age 35", () => {
+      worldContext.pack.characters = [
+        {
+          i: 0,
+          age: 34,
+          appearance: 80,
+          skills: { prowess: 80 } as never,
+          titles: []
+        } as never
+      ];
+
+      charactersModule.advanceAge(3); // 34 -> 37, 2 years past the age-35 threshold
+
+      const character = worldContext.pack.characters[0];
+      expect(character.age).toBe(37);
+      expect(character.appearance).toBe(77); // 80 - floor(2 * 1.5)
+      expect(character.skills.prowess).toBe(76); // 80 - floor(2 * 2)
+    });
+
+    it("does not decline appearance/prowess while still under the age-35 threshold", () => {
+      worldContext.pack.characters = [
+        { i: 0, age: 20, appearance: 50, skills: { prowess: 50 } as never, titles: [] } as never
+      ];
+
+      charactersModule.advanceAge(5); // 20 -> 25, still under 35
+
+      const character = worldContext.pack.characters[0];
+      expect(character.appearance).toBe(50);
+      expect(character.skills.prowess).toBe(50);
+    });
+
+    it("never declines appearance/prowess below 1", () => {
+      worldContext.pack.characters = [
+        { i: 0, age: 90, appearance: 2, skills: { prowess: 2 } as never, titles: [] } as never
+      ];
+
+      charactersModule.advanceAge(10);
+
+      const character = worldContext.pack.characters[0];
+      expect(character.appearance).toBe(1);
+      expect(character.skills.prowess).toBe(1);
+    });
+
+    it("does nothing when there are no characters", () => {
+      worldContext.pack.characters = [];
+      expect(() => charactersModule.advanceAge(5)).not.toThrow();
+    });
+  });
 });

@@ -10,12 +10,13 @@ import { THEME_COLOR } from "../data/constants";
 import { Cultures } from "../generators/cultures-generator";
 import { COA } from "../generators/emblem/generator";
 import { Names } from "../generators/names-generator";
+import { syncSimulationClockFromOptions } from "../generators/timeEngine";
 import { Cloud } from "../io/cloud";
 import { loadMapFromURL } from "../io/load";
 import { StatesRenderer } from "../renderers";
 import type { Emblem as RendererEmblem } from "../renderers/emblem-renderer";
 import { COArenderer } from "../renderers/emblem-renderer";
-import { fitScaleBar } from "../renderers/index";
+import { drawCalendar, fitScaleBar } from "../renderers/index";
 import { tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { viewStateStore } from "../store";
@@ -136,6 +137,7 @@ export function fitMapToScreen(): void {
     .scaleExtent([zoomMin, zoomMax]);
 
   fitScaleBar(worldContext, viewContext, appServices, view.scaleBar, svgWidth, svgHeight);
+  drawCalendar(worldContext, viewContext);
   document.dispatchEvent(new CustomEvent("fmg:fit-legend-box"));
 }
 
@@ -643,8 +645,11 @@ function generateEra(): void {
       era: `${Names.getBaseShort(P(0.7) ? 1 : rand(worldContext.nameBases.length))} Era`
     });
 
-  worldContext.options.year = store.year;
-  worldContext.options.era = store.era;
+  // Re-read after the conditional setOptions() calls above — `store` is a snapshot
+  // taken before them, so store.year/era would still be the pre-randomization values.
+  const { year, era } = useOptionsState.getState();
+  worldContext.options.year = year;
+  worldContext.options.era = era;
   worldContext.options.eraShort = worldContext.options.era
     .split(" ")
     .map((w: string) => w[0].toUpperCase())
@@ -822,6 +827,7 @@ export function initOptions(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: 
 
   document.addEventListener("react-change-year", (e: Event) => {
     worldContext.options.year = (e as CustomEvent).detail.year;
+    syncSimulationClockFromOptions();
   });
 
   document.addEventListener("react-change-era", (e: Event) => {
@@ -831,6 +837,7 @@ export function initOptions(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: 
       .split(" ")
       .map((w: string) => w[0]?.toUpperCase() ?? "")
       .join("");
+    syncSimulationClockFromOptions();
   });
 
   document.addEventListener("react-change-state-labels-mode", (e: Event) => {

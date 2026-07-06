@@ -7,8 +7,7 @@ import { tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { modules } from "../store/editorState";
 import { useRouteGroupsEditorStore } from "../store/routeGroupsEditorStore";
-import { openDialog } from "../ui/dialogs/dialogService";
-import { showPrompt } from "../utils";
+import { openDialog, openPrompt } from "../ui/dialogs/dialogService";
 import { confirmationDialog } from "../utils/editorHelpers";
 import { getElementById, layerIsOn } from "../utils/nodeUtils";
 import { toggleRoutes } from "./layers";
@@ -43,33 +42,37 @@ export function editRouteGroups(): void {
 export const DEFAULT_ROUTE_GROUPS = ["roads", "trails", "searoutes"];
 
 export function routeGroupsAddGroup(): void {
-  showPrompt("Type group name", { default: "route-group-new" }, value => {
-    let group = String(value)
-      .toLowerCase()
-      .replace(/ /g, "_")
-      .replace(/[^\w\s]/gi, "");
+  openPrompt({
+    message: "Type group name",
+    default: "route-group-new",
+    onConfirm: value => {
+      let group = String(value)
+        .toLowerCase()
+        .replace(/ /g, "_")
+        .replace(/[^\w\s]/gi, "");
 
-    if (!group) return tip("Invalid group name", false, "error");
-    if (!group.startsWith("route-")) group = `route-${group}`;
-    if (getElementById(group))
-      return tip("Element with this name already exists. Provide a unique name", false, "error");
-    if (Number.isFinite(+group.charAt(0))) return tip("Group name should start with a letter", false, "error");
+      if (!group) return tip("Invalid group name", false, "error");
+      if (!group.startsWith("route-")) group = `route-${group}`;
+      if (getElementById(group))
+        return tip("Element with this name already exists. Provide a unique name", false, "error");
+      if (Number.isFinite(+group.charAt(0))) return tip("Group name should start with a letter", false, "error");
 
-    view.routes
-      .append("g")
-      .attr("id", group)
-      .attr("stroke", "#000000")
-      .attr("stroke-width", 0.5)
-      .attr("stroke-dasharray", "1 0.5")
-      .attr("stroke-linecap", "butt");
+      view.routes
+        .append("g")
+        .attr("id", group)
+        .attr("stroke", "#000000")
+        .attr("stroke-width", 0.5)
+        .attr("stroke-dasharray", "1 0.5")
+        .attr("stroke-linecap", "butt");
 
-    const routeGroupEl = getElementById<HTMLSelectElement>("routeGroup");
-    if (routeGroupEl) routeGroupEl.options.add(new Option(group, group));
+      const routeGroupEl = getElementById<HTMLSelectElement>("routeGroup");
+      if (routeGroupEl) routeGroupEl.options.add(new Option(group, group));
 
-    const routeCreatorGroupSelectEl = getElementById<HTMLSelectElement>("routeCreatorGroupSelect");
-    if (routeCreatorGroupSelectEl) routeCreatorGroupSelectEl.options.add(new Option(group, group));
+      const routeCreatorGroupSelectEl = getElementById<HTMLSelectElement>("routeCreatorGroupSelect");
+      if (routeCreatorGroupSelectEl) routeCreatorGroupSelectEl.options.add(new Option(group, group));
 
-    refreshRouteGroups();
+      refreshRouteGroups();
+    }
   });
 }
 

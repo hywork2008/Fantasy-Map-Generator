@@ -46,9 +46,9 @@ import type { MarkerConfig } from "../types/MarkerConfig";
 import type { Burg, Marker, Province, Religion, River, Route, State } from "../types/models";
 import type { WorldNote } from "../types/WorldState";
 import * as Dialogservice from "../ui/dialogs/dialogService";
-import { closeDialog, closeDialogs, openDialog } from "../ui/dialogs/dialogService";
+import { closeDialog, closeDialogs, openDialog, openPrompt } from "../ui/dialogs/dialogService";
 import type { RegenerateConfirmConfig } from "../ui/dialogs/RegenerateConfirmDialog";
-import { findCell, gauss, generateSeed, getNextId, isCtrlClick, P, rn, showPrompt } from "../utils";
+import { findCell, gauss, generateSeed, getNextId, isCtrlClick, P, rn } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { getElementById, getElementBySelector, getElementsBySelector, layerIsOn } from "../utils/nodeUtils";
 import { overviewBurgs } from "./burgs-overview";
@@ -225,7 +225,14 @@ document.addEventListener("react-tool-action", e => {
   else if (button === "openTransformTool") openTransformTool?.();
   else if (button === "openWorldConfigurator") editWorld();
   else if (button === "advanceTimeButton")
-    showPrompt("Advance time by how many years?", { default: 10, step: 1, min: 1, max: 500 }, v => advanceTime(+v));
+    openPrompt({
+      message: "Advance time by how many years?",
+      default: 10,
+      step: 1,
+      min: 1,
+      max: 500,
+      onConfirm: v => advanceTime(+v)
+    });
 });
 
 // ─── Regeneration dispatcher ──────────────────────────────────────────────────
@@ -780,9 +787,14 @@ export function regenerateMarkers(): void {
 
 function regenerateZones(event: MouseEvent | null): void {
   if (event && isCtrlClick(event)) {
-    showPrompt("Please provide zones number multiplier", { default: 1, step: 0.01, min: 0, max: 100 }, v =>
-      addNumberOfZones(+v)
-    );
+    openPrompt({
+      message: "Please provide zones number multiplier",
+      default: 1,
+      step: 0.01,
+      min: 0,
+      max: 100,
+      onConfirm: v => addNumberOfZones(+v)
+    });
   } else {
     addNumberOfZones(gauss(1, 0.5, 0.6, 5, 2));
   }

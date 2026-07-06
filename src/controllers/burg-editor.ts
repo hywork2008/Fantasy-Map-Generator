@@ -13,8 +13,8 @@ import { viewLayerService as view } from "../services/viewLayerService";
 import { getBurgEditorState } from "../store/burgEditorState";
 import { elSelected, modules, setElSelected } from "../store/editorState";
 import type { Burg, Culture, CultureType } from "../types/models";
-import { closeDialog, closeDialogs, openAlert, openDialog } from "../ui/dialogs/dialogService";
-import { convertTemperature, findCell, openURL, parseTransform, rn, showPrompt } from "../utils";
+import { closeDialog, closeDialogs, openAlert, openDialog, openPrompt } from "../ui/dialogs/dialogService";
+import { convertTemperature, findCell, openURL, parseTransform, rn } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog } from "../utils/editorHelpers";
 import { generateRandomName } from "../utils/nameGenerator";
@@ -335,16 +335,17 @@ export const burgEditorActions = {
     const burgId = burgEditorInternal.getBurgId();
     const burg = worldContext.pack.burgs[burgId];
 
-    showPrompt(
-      "Provide custom URL to the burg map. It can be a link to a generator or just an image. Leave empty to use the default map preview",
-      { default: GenerationPipeline.Burgs.getPreview(burg).link ?? "", required: false },
-      link => {
+    openPrompt({
+      message:
+        "Provide custom URL to the burg map. It can be a link to a generator or just an image. Leave empty to use the default map preview",
+      default: GenerationPipeline.Burgs.getPreview(burg).link ?? "",
+      onConfirm: link => {
         const url = String(link);
         if (url) burg.link = url;
         else delete burg.link;
         burgEditorInternal.updateBurgPreview(burg);
       }
-    );
+    });
   },
 
   openEmblemEdit(): void {

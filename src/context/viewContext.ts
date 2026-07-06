@@ -9,6 +9,8 @@ export interface RootLayers {
   viewbox: SvgGroup;
   scaleBar: SvgGroup;
   legend: SvgGroup;
+  /** Always-visible in-world calendar readout (current year/era), fixed screen-space overlay. */
+  calendar: SvgGroup;
   ruler: SvgGroup;
   debug: SvgGroup;
   fogging: SvgGroup | null;

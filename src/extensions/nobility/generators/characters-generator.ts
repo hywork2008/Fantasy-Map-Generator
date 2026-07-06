@@ -17,6 +17,16 @@ export type {
 const MIN_RULER_AGE = 28;
 const MAX_RULER_AGE = 65;
 
+/** Physical decline sets in past this age — mirrors the generation-time formula in createPerson(). */
+const DECLINE_AGE_THRESHOLD = 35;
+const APPEARANCE_DECLINE_PER_YEAR = 1.5;
+const PROWESS_DECLINE_PER_YEAR = 2;
+
+/** Total decline accrued by `age` under the generation-time formula (0 below the threshold). */
+function declineAt(age: number, ratePerYear: number): number {
+  return age > DECLINE_AGE_THRESHOLD ? Math.floor((age - DECLINE_AGE_THRESHOLD) * ratePerYear) : 0;
+}
+
 export class CharactersModule {
   private get worldContext() {
     return getWorldContext();
@@ -134,6 +144,32 @@ export class CharactersModule {
     const { pack } = this.worldContext;
     pack.characters = [];
     for (const state of pack.states) delete state.rulerId;
+  }
+
+  /**
+   * Called on every advanceTime() tick (via Nobility's registerTimeTickHook). Ages every
+   * character by deltaYears and applies the same physical-decline formula createPerson()
+   * uses at generation time, incrementally — appearance/prowess only lose the additional
+   * decline accrued between the old and new age, since the original pre-decline base roll
+   * isn't retained on the character.
+   */
+  advanceAge(deltaYears: number): void {
+    if (deltaYears <= 0) return;
+    const { pack } = this.worldContext;
+    if (!pack.characters?.length) return;
+
+    for (const character of pack.characters) {
+      const oldAge = character.age;
+      const newAge = Math.round(oldAge + deltaYears);
+
+      const appearanceDecline =
+        declineAt(newAge, APPEARANCE_DECLINE_PER_YEAR) - declineAt(oldAge, APPEARANCE_DECLINE_PER_YEAR);
+      const prowessDecline = declineAt(newAge, PROWESS_DECLINE_PER_YEAR) - declineAt(oldAge, PROWESS_DECLINE_PER_YEAR);
+
+      character.age = newAge;
+      if (appearanceDecline > 0) character.appearance = Math.max(1, character.appearance - appearanceDecline);
+      if (prowessDecline > 0) character.skills.prowess = Math.max(1, character.skills.prowess - prowessDecline);
+    }
   }
 
   private generateFamily(age: number, formName?: string): CharacterFamily {

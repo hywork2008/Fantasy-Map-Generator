@@ -2,12 +2,11 @@ import type React from "react";
 import { unitsEditorActions } from "../../controllers/units-editor";
 import { useOptionsState } from "../../store/optionsState";
 import { useUnitsEditorState } from "../../store/unitsEditorState";
-import { showPrompt } from "../../utils";
 import { detectUnitSystem, type UnitSystemId, unitSystemPresets } from "../../utils/unitUtils";
 import { LockIconButton } from "../components/LockIconButton";
 import { SliderInput } from "../components/SliderInput";
 import { Dialog } from "./Dialog";
-import { closeDialog } from "./dialogService";
+import { closeDialog, openPrompt } from "./dialogService";
 
 export const UnitsEditorDialog: React.FC = () => {
   const { isOpen, rulerMode } = useUnitsEditorState();
@@ -27,10 +26,14 @@ export const UnitsEditorDialog: React.FC = () => {
 
   const handleWeightUnitChange = (value: string) => {
     if (value === "custom_name") {
-      showPrompt("Provide a custom name for a weight unit", { default: "" }, customValue => {
-        const custom = String(customValue);
-        options.setOption("weightUnit", custom);
-        unitsEditorActions.changeWeightUnit(custom);
+      openPrompt({
+        message: "Provide a custom name for a weight unit",
+        default: "",
+        onConfirm: customValue => {
+          const custom = String(customValue);
+          options.setOption("weightUnit", custom);
+          unitsEditorActions.changeWeightUnit(custom);
+        }
       });
       return;
     }
@@ -40,10 +43,14 @@ export const UnitsEditorDialog: React.FC = () => {
 
   const handleDistanceUnitChange = (value: string) => {
     if (value === "custom_name") {
-      showPrompt("Provide a custom name for a distance unit", { default: "" }, customValue => {
-        const custom = String(customValue);
-        options.setOption("distanceUnit", custom);
-        unitsEditorActions.changeDistanceUnit(custom);
+      openPrompt({
+        message: "Provide a custom name for a distance unit",
+        default: "",
+        onConfirm: customValue => {
+          const custom = String(customValue);
+          options.setOption("distanceUnit", custom);
+          unitsEditorActions.changeDistanceUnit(custom);
+        }
       });
       return;
     }
@@ -53,10 +60,14 @@ export const UnitsEditorDialog: React.FC = () => {
 
   const handleHeightUnitChange = (value: string) => {
     if (value === "custom_name") {
-      showPrompt("Provide a custom name for a height unit", { default: "" }, customValue => {
-        const custom = String(customValue);
-        options.setOption("heightUnit", custom);
-        unitsEditorActions.changeHeightUnit(custom);
+      openPrompt({
+        message: "Provide a custom name for a height unit",
+        default: "",
+        onConfirm: customValue => {
+          const custom = String(customValue);
+          options.setOption("heightUnit", custom);
+          unitsEditorActions.changeHeightUnit(custom);
+        }
       });
       return;
     }

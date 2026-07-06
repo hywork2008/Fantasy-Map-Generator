@@ -1,4 +1,5 @@
 import type React from "react";
+import { useEffect, useState } from "react";
 import { useDialogState } from "../../../store/dialogState";
 import { useExtensionState } from "../../../store/extensionState";
 import { useHeightmapEditModeState } from "../../../store/heightmapDialogState";
@@ -156,6 +157,20 @@ export const ToolsTab: React.FC = () => {
   const actions = allActions.filter(a => a.tab === "tools" && enabledExtensions[a.extensionId]);
   const editActions = actions.filter(a => a.section === "edit");
   const regenerateActions = actions.filter(a => a.section === "regenerate");
+
+  const [simulationClock, setSimulationClock] = useState(() => ({
+    currentYear: window.fmg.simulation.currentYear,
+    era: window.fmg.simulation.era
+  }));
+
+  useEffect(() => {
+    const onSimulationUpdated = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { currentYear: number; era: string };
+      setSimulationClock(detail);
+    };
+    document.addEventListener("fmg:simulation-updated", onSimulationUpdated);
+    return () => document.removeEventListener("fmg:simulation-updated", onSimulationUpdated);
+  }, []);
 
   const triggerEvent = (eventName: string) => {
     document.dispatchEvent(new CustomEvent("react-tool-action", { detail: { action: eventName } }));
@@ -407,6 +422,9 @@ export const ToolsTab: React.FC = () => {
       </div>
       <div className="separator">Simulation</div>
       <div className="grid">
+        <span data-tip="Current in-world year and era">
+          {simulationClock.currentYear} {simulationClock.era}
+        </span>
         <button
           data-tip="Click to advance the world's simulation clock by a number of years"
           type="button"

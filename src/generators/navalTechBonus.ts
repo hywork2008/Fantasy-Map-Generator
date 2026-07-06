@@ -17,7 +17,7 @@ const _bonusByState = new Map<number, number>();
 
 document.addEventListener("fmg:shipbuilding-ship-completed", e => {
   const detail = (e as CustomEvent).detail as { stateId: number | null; owner: "state" | "market" } | undefined;
-  if (!detail || detail.owner !== "state" || !detail.stateId) return;
+  if (detail?.owner !== "state" || !detail.stateId) return;
 
   const current = _bonusByState.get(detail.stateId) ?? 1;
   _bonusByState.set(detail.stateId, Math.min(MAX_BONUS, current + BONUS_PER_HULL));

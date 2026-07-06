@@ -6,6 +6,7 @@ import { Biomes } from "../generators/biomes";
 import { Burgs } from "../generators/burgs-generator";
 import { Features } from "../generators/features";
 import { Routes } from "../generators/routes-generator";
+import { initSimulationClock } from "../generators/timeEngine";
 import { GridRenderer } from "../renderers";
 import { declareFont, fonts } from "../services/fonts";
 import { clearMainTip, tip } from "../services/tooltipService";
@@ -321,6 +322,7 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
       if (worldContext.options.era != null) zustandUpdates.era = worldContext.options.era;
       useOptionsState.getState().setOptions(zustandUpdates);
     }
+
     useOptionsState
       .getState()
       .setOption(
@@ -362,6 +364,11 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
     view.svg.remove();
     document.body.insertAdjacentHTML("afterbegin", data[5]);
     document.dispatchEvent(new CustomEvent("fmg:reinitialize-map-layers"));
+
+    // Loading a map is a fresh clock session for it — resync simulationContext
+    // (year/era + reset tickCount) from the just-loaded worldContext.options. Runs
+    // after reinit so the fmg:simulation-updated listener draws into the fresh #calendar.
+    initSimulationClock();
 
     if (!view.texture.size()) {
       viewContext.texture = view.viewbox

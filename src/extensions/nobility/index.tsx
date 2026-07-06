@@ -1,5 +1,6 @@
 import "./types"; // activate module augmentation for PackedGraph/State
 import type { ExtensionAPI } from "../../types/extension-api";
+import { refreshCharactersOverviewIfOpen } from "./controllers/characters-overview";
 import { Characters } from "./generators/characters-generator";
 import type { CharacterSkills } from "./generators/characterTypes";
 import { applyAffinitiesToDiplomacy } from "./generators/diplomacy-modifier";
@@ -111,6 +112,12 @@ export function init(api: ExtensionAPI): void {
     }
   };
   document.addEventListener("fmg:generate-post-core", _generatePostCoreHandler);
+
+  api.registerTimeTickHook(deltaYears => {
+    if (!api.isExtensionEnabled(NOBILITY_EXTENSION_ID)) return;
+    Characters.advanceAge(deltaYears);
+    refreshCharactersOverviewIfOpen(api.isDialogOpen("charactersOverview"));
+  });
 }
 
 export function cleanup(api: ExtensionAPI): void {

@@ -1,11 +1,17 @@
 import type { LayerConfig } from "../../store/layerState";
 import type { ExtensionAPI } from "../hostTypes";
+import {
+  closeShipyardsOverview,
+  openShipyardsOverview,
+  refreshShipyardsOverviewIfOpen
+} from "./controllers/shipyards-overview";
 import { checkForeignInterference } from "./generators/foreignInterference";
 import { runLoggingTick } from "./generators/logging";
 import { computeShipyardCandidates, type ShipyardCandidate } from "./generators/shipyardCandidates";
 import { clearShipyardQueues, runShipyardTick } from "./generators/shipyardQueue";
 import { clearShipyards, drawShipyards } from "./renderers/drawShipyards";
 import { clearShipbuildingContext, getWorldContext, initShipbuildingContext } from "./shipbuildingContext";
+import { ShipyardsOverviewDialog } from "./ui/dialogs/ShipyardsOverviewDialog";
 
 export const SHIPBUILDING_EXTENSION_ID = "shipbuilding";
 
@@ -55,6 +61,22 @@ export function init(api: ExtensionAPI): void {
     onClick: () => recomputeAndMaybeDraw(api)
   });
 
+  api.registerDialog({
+    id: "ShipyardsOverviewDialog",
+    extensionId: SHIPBUILDING_EXTENSION_ID,
+    component: ShipyardsOverviewDialog
+  });
+
+  api.registerAction({
+    id: "shipbuilding-view-shipyards",
+    extensionId: SHIPBUILDING_EXTENSION_ID,
+    tab: "tools",
+    section: "edit",
+    label: "Shipyards",
+    tooltip: "View all shipyards, their build progress, and completed hulls",
+    onClick: () => openShipyardsOverview(_candidates, (x, y) => api.zoomTo(x, y, 8))
+  });
+
   api.registerLayerToggle("toggleShipyards", (_event?: MouseEvent) => {
     if (!api.layerIsOn("toggleShipyards")) {
       api.turnLayerOn("toggleShipyards");
@@ -77,6 +99,9 @@ export function init(api: ExtensionAPI): void {
     const { burgs, states } = getWorldContext().pack;
     runShipyardTick(_candidates, burgs, states, deltaYears, api.getEffectiveSkill);
     checkForeignInterference(_candidates, burgs, deltaYears);
+    // Refresh marker tooltips (build progress) and the overview dialog, if visible.
+    if (api.layerIsOn("toggleShipyards")) drawShipyards(_candidates);
+    refreshShipyardsOverviewIfOpen(_candidates);
   });
 
   _unsubscribe = api.subscribeExtensionState((state, prevState) => {
@@ -91,6 +116,7 @@ export function init(api: ExtensionAPI): void {
       api.removeLayers(shipbuildingLayers.map(l => l.id));
       _candidates = [];
       clearShipyardQueues();
+      closeShipyardsOverview();
     }
   });
 
@@ -104,6 +130,7 @@ export function init(api: ExtensionAPI): void {
     // state tied to the previous map's ids must not carry over.
     clearShipyardQueues();
     recomputeAndMaybeDraw(api);
+    refreshShipyardsOverviewIfOpen(_candidates);
   };
   document.addEventListener("fmg:generate-post-core", _generatePostCoreHandler);
 }
@@ -121,6 +148,7 @@ export function cleanup(api: ExtensionAPI): void {
   api.removeLayers(shipbuildingLayers.map(l => l.id));
   _candidates = [];
   clearShipyardQueues();
+  closeShipyardsOverview();
 
   api.unregisterExtension(SHIPBUILDING_EXTENSION_ID);
   clearShipbuildingContext();

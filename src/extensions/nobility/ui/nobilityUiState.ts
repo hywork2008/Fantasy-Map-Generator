@@ -10,11 +10,15 @@ interface NobilityUiState {
   searchText: string;
   filterStateId: number | null;
   activeTab: CharactersTab;
+  /** Bumped whenever character data mutates in place (e.g. Advance Time aging) so
+   * components reading worldContext.pack.characters directly know to re-render. */
+  refreshToken: number;
   setSelectedCharacterId: (id: number | null) => void;
   toggleSortBy: (field: string) => void;
   setSearchText: (text: string) => void;
   setFilterStateId: (id: number | null) => void;
   setActiveTab: (tab: CharactersTab) => void;
+  bumpRefreshToken: () => void;
 }
 
 export const useNobilityUiState = create<NobilityUiState>((set, get) => ({
@@ -24,6 +28,7 @@ export const useNobilityUiState = create<NobilityUiState>((set, get) => ({
   searchText: "",
   filterStateId: null,
   activeTab: "overview",
+  refreshToken: 0,
   setSelectedCharacterId: id => set({ selectedCharacterId: id }),
   toggleSortBy: field => {
     const { sortBy, sortOrder } = get();
@@ -35,5 +40,6 @@ export const useNobilityUiState = create<NobilityUiState>((set, get) => ({
   },
   setSearchText: text => set({ searchText: text }),
   setFilterStateId: id => set({ filterStateId: id }),
-  setActiveTab: tab => set({ activeTab: tab })
+  setActiveTab: tab => set({ activeTab: tab }),
+  bumpRefreshToken: () => set(state => ({ refreshToken: state.refreshToken + 1 }))
 }));

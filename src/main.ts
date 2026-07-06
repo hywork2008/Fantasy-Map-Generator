@@ -42,7 +42,7 @@ import { ldb } from "./io/ldb";
 import { loadMapFromURL, showUploadErrorMessage, uploadMap } from "./io/load";
 import { initiateAutosave } from "./io/save";
 import { renderGroupCOAs } from "./renderers/draw-emblems";
-import { CoordinatesRenderer, drawScaleBar, fitScaleBar } from "./renderers/index";
+import { CoordinatesRenderer, drawCalendar, drawScaleBar, fitScaleBar } from "./renderers/index";
 import { OceanLayers } from "./renderers/ocean-layers";
 import { ThreeDRenderer } from "./renderers/three-d-renderer";
 import { clearMainTip, showDataTip, tip } from "./services/tooltipService";
@@ -326,6 +326,7 @@ export async function initMain(drawMap: boolean = true): Promise<void> {
     if (viewContext.renderMap) OceanLayers();
   });
   document.addEventListener("fmg:reinitialize-map-layers", reinitializeMapLayers);
+  document.addEventListener("fmg:simulation-updated", () => drawCalendar(worldContext, viewContext));
   document.addEventListener("fmg:show-statistics", showStatistics);
   document.addEventListener("fmg:generate-map-on-load", () => generateMapOnLoad(drawMap));
 
@@ -927,6 +928,7 @@ export async function generate(opts?: { seed?: string; graph?: Grid | null }) {
     document.dispatchEvent(new CustomEvent("fmg:generate-post-core"));
 
     drawScaleBar(worldContext, viewContext, appServices, viewContext.scaleBar, scale);
+    drawCalendar(worldContext, viewContext);
     Names.getMapName(false);
 
     WARN && console.warn(`TOTAL: ${rn((performance.now() - timeStart) / 1000, 2)}s`);

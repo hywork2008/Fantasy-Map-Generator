@@ -17,6 +17,7 @@ export function createViewLayers(): void {
   const viewbox = svg.select("#viewbox") as Selection<SVGGElement, unknown, null, undefined>;
   const scaleBar = svg.select("#scaleBar") as Selection<SVGGElement, unknown, null, undefined>;
   const legend = svg.append("g").attr("id", "legend") as Selection<SVGGElement, unknown, null, undefined>;
+  const calendar = svg.append("g").attr("id", "calendar") as Selection<SVGGElement, unknown, null, undefined>;
   const ocean = viewbox.append("g").attr("id", "ocean") as Selection<SVGGElement, unknown, null, undefined>;
   const oceanLayers = ocean.append("g").attr("id", "oceanLayers") as Selection<SVGGElement, unknown, null, undefined>;
   const oceanPattern = ocean.append("g").attr("id", "oceanPattern") as Selection<SVGGElement, unknown, null, undefined>;
@@ -147,6 +148,7 @@ export function createViewLayers(): void {
     viewbox,
     scaleBar,
     legend,
+    calendar,
     ocean,
     oceanLayers,
     oceanPattern,
@@ -235,6 +237,10 @@ export function reinitializeMapLayers(): void {
   const viewbox = svg.select("#viewbox") as Selection<SVGGElement, unknown, null, undefined>;
   const scaleBar = svg.select("#scaleBar") as Selection<SVGGElement, unknown, null, undefined>;
   const legend = svg.select("#legend") as Selection<SVGGElement, unknown, null, undefined>;
+  // Maps saved before this overlay existed won't have #calendar — append it so old saves gain it too.
+  let calendar = svg.select("#calendar") as Selection<SVGGElement, unknown, null, undefined>;
+  if (!calendar.size())
+    calendar = svg.append("g").attr("id", "calendar") as Selection<SVGGElement, unknown, null, undefined>;
   const ocean = viewbox.select("#ocean") as Selection<SVGGElement, unknown, null, undefined>;
   const oceanLayers = ocean.select("#oceanLayers") as Selection<SVGGElement, unknown, null, undefined>;
   const oceanPattern = ocean.select("#oceanPattern") as Selection<SVGGElement, unknown, null, undefined>;
@@ -294,6 +300,7 @@ export function reinitializeMapLayers(): void {
     viewbox,
     scaleBar,
     legend,
+    calendar,
     ocean,
     oceanLayers,
     oceanPattern,
