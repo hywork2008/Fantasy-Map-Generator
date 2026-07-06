@@ -1,4 +1,4 @@
-import type { State } from "../../../types/models";
+import type { State } from "../../hostTypes";
 import type { Character } from "../generators/characters-generator";
 
 export interface CharacterRowData {

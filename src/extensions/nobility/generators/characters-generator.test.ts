@@ -15,7 +15,7 @@ describe("CharactersModule", () => {
   beforeEach(() => {
     initNobilityContext({ worldContext } as unknown as ExtensionAPI);
     worldContext.seed = "123456";
-    worldContext.nameBases = [{ i: 0, name: "Test", min: 3, max: 10, d: "", b: "Anna,Bob,Carla,David,Erin" }];
+    worldContext.nameBases = [{ i: 0, name: "Test", min: 3, max: 10, d: "", m: 0, b: "Anna,Bob,Carla,David,Erin" }];
     worldContext.pack = {
       cultures: [{ i: 0, name: "Test culture", base: 0, shield: "" }],
       states: [
@@ -32,18 +32,18 @@ describe("CharactersModule", () => {
   it("generates one ruler and the central offices for every non-neutral, non-removed state", () => {
     charactersModule.generate({ randomSeed: 1 });
 
-    // 2 eligible states * (1 ruler + 3 offices)
-    expect(worldContext.pack.characters).toHaveLength(8);
+    // 2 eligible states * (1 ruler + 5 offices)
+    expect(worldContext.pack.characters).toHaveLength(12);
 
     const kingdomCharacters = worldContext.pack.characters.filter(c => c.titles[0].entityId === 1);
-    expect(kingdomCharacters).toHaveLength(4);
+    expect(kingdomCharacters).toHaveLength(6);
 
     const ruler = kingdomCharacters.find(c => c.titles[0].landed);
     expect(ruler).toBeDefined();
     expect(["King", "Queen"]).toContain(ruler!.titles[0].title);
 
     const offices = kingdomCharacters.filter(c => !c.titles[0].landed).map(c => c.titles[0].title);
-    expect(offices.sort()).toEqual(["Minister of War", "Minister of the Treasury", "Prime Minister"].sort());
+    expect(offices.sort()).toEqual(["Chancellor", "Marshal", "Steward", "Spymaster", "Court Chaplain"].sort());
   });
 
   it("resolves the ruler title from the state's formName", () => {
