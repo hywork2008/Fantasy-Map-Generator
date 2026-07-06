@@ -187,7 +187,7 @@ export const Threats = {
       if (totalLostPop > 0) {
         // Assume 20% of the lost capacity are actual direct deaths/casualties,
         // while the remaining 80% represents people who simply migrated away or never settled there.
-        const deaths = Math.round(totalLostPop * 0.2);
+        const deaths = Math.floor(Math.round(totalLostPop * 0.2));
         const deathStr = deaths.toLocaleString();
 
         note.legend += `\n\nHistorians estimate that the presence of this creature has resulted in the deaths of approximately ${deathStr} people, with countless more displaced from the surrounding region.`;
