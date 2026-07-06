@@ -2,6 +2,7 @@ import { sum } from "d3";
 import { DEFAULT_CULTURE_TYPE, type Zone } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import { getWorldContext } from "../economyContext";
+import { getDepletionFactor } from "./forestDepletion";
 import { type Good, Goods } from "./goods-generator";
 
 export const BONUS_RURAL_PRODUCTION = 0.25;
@@ -54,13 +55,19 @@ export function getModifiers(good: Good, cellId: number): number {
   return modifier;
 }
 
+/** Wood is the only good whose local supply is depleted by Shipbuilding's logging ticks. */
+function getDepletionMultiplier(good: Good, cellId: number): number {
+  if (good.name !== "Wood") return 1;
+  return 1 - getDepletionFactor(cellId);
+}
+
 export function getCellProduction(
   cellId: number,
   biomeProduction: Record<number, { goodId: number; production: number }[]>
 ): Record<number, number> {
   const produced: Record<number, number> = {};
 
-  const modifier = (good: Good) => getModifiers(good, cellId);
+  const modifier = (good: Good) => getModifiers(good, cellId) * getDepletionMultiplier(good, cellId);
   const add = (goodId: number, amount: number) => {
     produced[goodId] = rn((produced[goodId] || 0) + amount, 2);
   };

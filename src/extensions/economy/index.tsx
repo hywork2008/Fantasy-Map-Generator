@@ -5,6 +5,7 @@ import { useUiPreferencesState } from "../../store/uiPreferencesState";
 import type { ExtensionAPI } from "../../types/extension-api";
 import { economyStyleConfig } from "./EconomyStyleConfig";
 import { clearEconomyContext, getWorldContext, initEconomyContext } from "./economyContext";
+import { clearForestDepletion, consumeDirtyFlag, registerLogHarvest } from "./generators/forestDepletion";
 import { Goods } from "./generators/goods-generator";
 import { Markets } from "./generators/markets-generator";
 import { Production } from "./generators/production-generator";
@@ -107,6 +108,7 @@ export const economyLayers: LayerConfig[] = [
 
 let _unsubscribe: (() => void) | null = null;
 let _generatePostCoreHandler: (() => void) | null = null;
+let _logHarvestedHandler: ((e: Event) => void) | null = null;
 
 export function init(api: ExtensionAPI): void {
   initEconomyContext(api);
@@ -334,6 +336,7 @@ export function init(api: ExtensionAPI): void {
         worldContext.pack.cells.good = new Uint16Array(worldContext.pack.cells.i.length);
         worldContext.pack.cells.market = new Uint16Array(worldContext.pack.cells.i.length);
       }
+      clearForestDepletion();
     }
   });
 
@@ -357,6 +360,38 @@ export function init(api: ExtensionAPI): void {
     }
   };
   document.addEventListener("fmg:generate-post-core", _generatePostCoreHandler);
+
+  // Listen for Shipbuilding's logging ticks (optional dependency — harmless no-op if
+  // Shipbuilding is never enabled) and reduce local Wood output over time.
+  //
+  // Shipbuilding dispatches one event per candidate burg from inside its own
+  // registerTimeTickHook callback, synchronously, during the same advanceTime() call.
+  // Rather than also registering an Economy tick hook (whose relative order vs.
+  // Shipbuilding's would depend on extension init order in extensions/index.ts —
+  // a fragile thing to rely on), schedule the produce() refresh on a microtask. That
+  // runs after the whole synchronous advanceTime() call (all tick hooks) completes,
+  // regardless of hook registration order, and coalesces multiple log-harvested
+  // events from the same tick into a single Production.produce() call.
+  let refreshScheduled = false;
+  const scheduleProductionRefresh = () => {
+    if (refreshScheduled) return;
+    refreshScheduled = true;
+    queueMicrotask(() => {
+      refreshScheduled = false;
+      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
+      if (!consumeDirtyFlag()) return;
+      Production.produce();
+      if (api.layerIsOn("toggleGoods")) drawGoods(getDefaultGoodsSet());
+    });
+  };
+
+  _logHarvestedHandler = e => {
+    if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
+    const { cellId, amount } = (e as CustomEvent).detail as { cellId: number; amount: number };
+    registerLogHarvest(cellId, amount);
+    scheduleProductionRefresh();
+  };
+  document.addEventListener("fmg:shipbuilding-log-harvested", _logHarvestedHandler);
 
   // Bind trade animation renderer (must happen before any toggle)
   TradeAnimation.bind({
@@ -441,6 +476,11 @@ export function cleanup(api: ExtensionAPI): void {
     document.removeEventListener("fmg:generate-post-core", _generatePostCoreHandler);
     _generatePostCoreHandler = null;
   }
+  if (_logHarvestedHandler) {
+    document.removeEventListener("fmg:shipbuilding-log-harvested", _logHarvestedHandler);
+    _logHarvestedHandler = null;
+  }
+  clearForestDepletion();
 
   // Remove layers, presets and clear tooltip hooks
   api.removeLayers(economyLayers.map(l => l.id));

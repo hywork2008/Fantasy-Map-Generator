@@ -1,5 +1,6 @@
 import type { LayerConfig } from "../../store/layerState";
 import type { ExtensionAPI } from "../hostTypes";
+import { runLoggingTick } from "./generators/logging";
 import { computeShipyardCandidates, type ShipyardCandidate } from "./generators/shipyardCandidates";
 import { clearShipyards, drawShipyards } from "./renderers/drawShipyards";
 import { clearShipbuildingContext, getWorldContext, initShipbuildingContext } from "./shipbuildingContext";
@@ -33,7 +34,11 @@ export function init(api: ExtensionAPI): void {
       id: SHIPBUILDING_EXTENSION_ID,
       name: "Shipbuilding",
       description:
-        "Identifies port towns with nearby forest suited to shipbuilding, as a foundation for Age of Sail mechanics."
+        "Identifies port towns with nearby forest suited to shipbuilding, as a foundation for Age of Sail mechanics.",
+      // Optional: logging ticks notify Economy's Wood good via a CustomEvent (loose
+      // coupling, no direct import) so local timber output depletes over time. Works
+      // without Economy enabled — the event is just never picked up.
+      dependencies: [{ id: "economy", required: false }]
     },
     false
   );
@@ -63,6 +68,11 @@ export function init(api: ExtensionAPI): void {
   });
 
   api.registerLayerElement("toggleShipyards", () => document.getElementById("shipyards"));
+
+  api.registerTimeTickHook(deltaYears => {
+    if (!api.isExtensionEnabled(SHIPBUILDING_EXTENSION_ID)) return;
+    runLoggingTick(_candidates, deltaYears);
+  });
 
   _unsubscribe = api.subscribeExtensionState((state, prevState) => {
     const isEnabled = state.enabledExtensions[SHIPBUILDING_EXTENSION_ID];
