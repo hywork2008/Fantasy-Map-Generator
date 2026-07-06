@@ -160,10 +160,20 @@ export const Threats = {
             dangerVal = d * 4;
           }
 
-          // Capacity lost = (danger / 5) * (area / meanArea)
-          const lostCapacity = (dangerVal / 5) * (cells.area[cell] / meanArea);
-          const lostPop = lostCapacity * initialPopulationSaturation * populationRate;
-          totalLostPop += lostPop;
+          // Estimate what the suitability (s) of this cell would have been without the monster
+          // using a simplified version of the rankCells formula:
+          const baseScore = worldContext.biomesData.habitability[cells.biome[cell]] || 0;
+          if (baseScore > 0) {
+            const potential_s = Math.max(0, baseScore - (cells.h[cell] - 50) / 5);
+
+            // The danger multiplier in rankCells is: multiplier = Math.max(0, 1 - danger / 200)
+            // So the 's' lost to this danger is: potential_s * Math.min(1, dangerVal / 200)
+            const lost_s = potential_s * Math.min(1, dangerVal / 200);
+
+            const lostCapacity = (lost_s * cells.area[cell]) / meanArea;
+            const lostPop = lostCapacity * initialPopulationSaturation * populationRate;
+            totalLostPop += lostPop;
+          }
 
           for (const n of cells.c[cell]) {
             if (!visited.has(n)) {
@@ -175,11 +185,12 @@ export const Threats = {
       }
 
       if (totalLostPop > 0) {
-        // Format the number nicely with thousands separators (e.g., 4,716,772)
-        const deaths = Math.round(totalLostPop);
+        // Assume 20% of the lost capacity are actual direct deaths/casualties,
+        // while the remaining 80% represents people who simply migrated away or never settled there.
+        const deaths = Math.round(totalLostPop * 0.2);
         const deathStr = deaths.toLocaleString();
 
-        note.legend += `\n\nHistorians estimate that the presence of this creature has resulted in the deaths or displacement of approximately ${deathStr} people in the surrounding region.`;
+        note.legend += `\n\nHistorians estimate that the presence of this creature has resulted in the deaths of approximately ${deathStr} people, with countless more displaced from the surrounding region.`;
       }
     }
   }
