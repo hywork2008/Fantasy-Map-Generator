@@ -1,5 +1,6 @@
 import type { LayerConfig } from "../../store/layerState";
 import type { ExtensionAPI } from "../hostTypes";
+import { checkForeignInterference } from "./generators/foreignInterference";
 import { runLoggingTick } from "./generators/logging";
 import { computeShipyardCandidates, type ShipyardCandidate } from "./generators/shipyardCandidates";
 import { clearShipyardQueues, runShipyardTick } from "./generators/shipyardQueue";
@@ -75,6 +76,7 @@ export function init(api: ExtensionAPI): void {
     runLoggingTick(_candidates, deltaYears);
     const { burgs, states } = getWorldContext().pack;
     runShipyardTick(_candidates, burgs, states, deltaYears, api.getEffectiveSkill);
+    checkForeignInterference(_candidates, burgs, deltaYears);
   });
 
   _unsubscribe = api.subscribeExtensionState((state, prevState) => {
