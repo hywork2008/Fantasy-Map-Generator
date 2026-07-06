@@ -35,6 +35,7 @@ export interface CharacterPersonality {
   energy: number;
   piety: number;
   guile: number;
+  confidence: number;
 }
 
 export interface CharacterFamily {

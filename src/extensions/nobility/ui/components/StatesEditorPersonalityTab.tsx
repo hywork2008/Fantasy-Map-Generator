@@ -33,6 +33,7 @@ export const StatesEditorPersonalityTab: React.FC = () => {
           name: s.name,
           boldness: 0,
           compassion: 0,
+          confidence: 0,
           energy: 0,
           greed: 0,
           guile: 0,
@@ -50,6 +51,7 @@ export const StatesEditorPersonalityTab: React.FC = () => {
         (acc, c) => {
           acc.boldness += c.personality?.boldness ?? 0;
           acc.compassion += c.personality?.compassion ?? 0;
+          acc.confidence += c.personality?.confidence ?? 0;
           acc.energy += c.personality?.energy ?? 0;
           acc.greed += c.personality?.greed ?? 0;
           acc.guile += c.personality?.guile ?? 0;
@@ -64,6 +66,7 @@ export const StatesEditorPersonalityTab: React.FC = () => {
         {
           boldness: 0,
           compassion: 0,
+          confidence: 0,
           energy: 0,
           greed: 0,
           guile: 0,
@@ -81,6 +84,7 @@ export const StatesEditorPersonalityTab: React.FC = () => {
         name: s.name,
         boldness: Math.round(sum.boldness / count),
         compassion: Math.round(sum.compassion / count),
+        confidence: Math.round(sum.confidence / count),
         energy: Math.round(sum.energy / count),
         greed: Math.round(sum.greed / count),
         guile: Math.round(sum.guile / count),
@@ -138,7 +142,7 @@ export const StatesEditorPersonalityTab: React.FC = () => {
     return (
       <th
         data-tip={`Click to sort by ${tip}`}
-        className={`sortable icon-sort-number-down ${isActive ? "sort-active" : ""}`}
+        className={`sortable ${isActive ? "sort-active" : ""}`}
         onClick={() => handleSort(field)}
         style={{ fontSize: "0.85em", padding: "0 4px" }}
       >
@@ -148,7 +152,7 @@ export const StatesEditorPersonalityTab: React.FC = () => {
     );
   }
 
-  const colSpan = 12; // Name + 11 Personality
+  const colSpan = 13; // Name + 12 Personality
 
   return (
     <div
@@ -172,6 +176,7 @@ export const StatesEditorPersonalityTab: React.FC = () => {
             </th>
             <SortHeader field="boldness" label="Bold" tip="Boldness" />
             <SortHeader field="compassion" label="Comp" tip="Compassion" />
+            <SortHeader field="confidence" label="Conf" tip="Confidence" />
             <SortHeader field="energy" label="Econ" tip="Energy (Economic Archetype)" />
             <SortHeader field="greed" label="Grd" tip="Greed" />
             <SortHeader field="guile" label="Guil" tip="Guile" />
@@ -212,6 +217,9 @@ export const StatesEditorPersonalityTab: React.FC = () => {
                     </td>
                     <td style={{ textAlign: "center", backgroundColor: getPersonalityColor(s.compassion) }}>
                       {s.compassion}
+                    </td>
+                    <td style={{ textAlign: "center", backgroundColor: getPersonalityColor(s.confidence) }}>
+                      {s.confidence}
                     </td>
                     <td style={{ textAlign: "center", backgroundColor: getPersonalityColor(s.energy) }}>{s.energy}</td>
                     <td style={{ textAlign: "center", backgroundColor: getPersonalityColor(s.greed) }}>{s.greed}</td>

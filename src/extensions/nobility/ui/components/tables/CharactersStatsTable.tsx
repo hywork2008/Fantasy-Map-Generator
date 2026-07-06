@@ -37,7 +37,7 @@ export const CharactersStatsTable: React.FC<CharactersStatsTableProps> = ({
     return (
       <th
         data-tip={`Click to sort by ${tip}`}
-        className={`sortable icon-sort-number-down ${isActive ? "sort-active" : ""}`}
+        className={`sortable ${isActive ? "sort-active" : ""}`}
         onClick={() => onSort(field)}
         style={{ width, minWidth: width, fontSize: "0.85em", padding: "0 4px" }}
       >
@@ -47,7 +47,7 @@ export const CharactersStatsTable: React.FC<CharactersStatsTableProps> = ({
     );
   }
 
-  const colSpan = 19; // Name + 9 Skills + 9 Personality = 19
+  const colSpan = 20; // Name + 9 Skills + 10 Personality = 20
 
   return (
     <div className="table" ref={parentRef} style={{ overflow: "auto" }}>
@@ -77,6 +77,7 @@ export const CharactersStatsTable: React.FC<CharactersStatsTableProps> = ({
 
             <SortHeader field="boldness" label="Bold" tip="Boldness" />
             <SortHeader field="compassion" label="Comp" tip="Compassion" />
+            <SortHeader field="confidence" label="Conf" tip="Confidence" />
             <SortHeader field="energy" label="Econ" tip="Energy (Economic Archetype)" />
             <SortHeader field="greed" label="Grd" tip="Greed" />
             <SortHeader field="guile" label="Guil" tip="Guile" />
@@ -129,6 +130,7 @@ export const CharactersStatsTable: React.FC<CharactersStatsTableProps> = ({
 
                     <td style={{ textAlign: "center" }}>{c.personality?.boldness ?? 0}</td>
                     <td style={{ textAlign: "center" }}>{c.personality?.compassion ?? 0}</td>
+                    <td style={{ textAlign: "center" }}>{c.personality?.confidence ?? 0}</td>
                     <td style={{ textAlign: "center" }}>{c.personality?.energy ?? 0}</td>
                     <td style={{ textAlign: "center" }}>{c.personality?.greed ?? 0}</td>
                     <td style={{ textAlign: "center" }}>{c.personality?.guile ?? 0}</td>

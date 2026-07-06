@@ -75,6 +75,7 @@ export const CharacterDetailsDialog: React.FC = () => {
       rows.push("Personality");
       rows.push(`Boldness, ${character.personality.boldness}`);
       rows.push(`Compassion, ${character.personality.compassion}`);
+      rows.push(`Confidence, ${character.personality.confidence ?? "N/A"}`);
       rows.push(`Energy, ${character.personality.energy}`);
       rows.push(`Greed, ${character.personality.greed}`);
       rows.push(`Guile, ${character.personality.guile}`);
@@ -239,6 +240,7 @@ export const CharacterDetailsDialog: React.FC = () => {
                 data={[
                   { axis: "Boldness", value: character.personality.boldness },
                   { axis: "Compassion", value: character.personality.compassion },
+                  { axis: "Confidence", value: character.personality.confidence ?? 0 },
                   { axis: "Energy", value: character.personality.energy },
                   { axis: "Greed", value: character.personality.greed },
                   { axis: "Guile", value: character.personality.guile },

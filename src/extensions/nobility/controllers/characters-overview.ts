@@ -82,6 +82,9 @@ export function filterAndSortCharacters(
       case "intrigue":
       case "learning":
       case "prowess":
+      case "artistry":
+      case "engineering":
+      case "geography":
         result =
           (a.c.skills?.[sortBy as keyof typeof a.c.skills] ?? 0) -
           (b.c.skills?.[sortBy as keyof typeof b.c.skills] ?? 0);
@@ -96,6 +99,9 @@ export function filterAndSortCharacters(
       case "vengefulness":
       case "zeal":
       case "energy":
+      case "piety":
+      case "guile":
+      case "confidence":
         result =
           (a.c.personality?.[sortBy as keyof typeof a.c.personality] ?? 0) -
           (b.c.personality?.[sortBy as keyof typeof b.c.personality] ?? 0);

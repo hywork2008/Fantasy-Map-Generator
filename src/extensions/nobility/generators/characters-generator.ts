@@ -202,6 +202,34 @@ export class CharactersModule {
     // Physical decline
     const prowess = age > 35 ? Math.max(1, baseProwess - Math.floor((age - 35) * 2)) : baseProwess;
 
+    const skills = {
+      artistry: rand(1, 100),
+      diplomacy: primarySkill === "diplomacy" ? rand(40, 100) : rand(1, 100),
+      engineering: rand(1, 100),
+      geography: rand(1, 100),
+      intrigue: primarySkill === "intrigue" ? rand(40, 100) : rand(1, 100),
+      learning: primarySkill === "learning" ? rand(40, 100) : rand(1, 100),
+      martial: primarySkill === "martial" ? rand(40, 100) : rand(1, 100),
+      prowess,
+      stewardship: primarySkill === "stewardship" ? rand(40, 100) : rand(1, 100)
+    };
+
+    const avgSkill = Math.round(
+      (skills.artistry +
+        skills.diplomacy +
+        skills.engineering +
+        skills.geography +
+        skills.intrigue +
+        skills.learning +
+        skills.martial +
+        skills.prowess +
+        skills.stewardship) /
+        9
+    );
+
+    // Confidence: based on average skill with a ±20 random variance
+    const confidence = Math.max(1, Math.min(100, avgSkill + rand(-20, 20)));
+
     return {
       i,
       name: Names.getCulture(cultureId),
@@ -213,17 +241,7 @@ export class CharactersModule {
       titles: [],
       affinities: {},
       marriages: [],
-      skills: {
-        artistry: rand(1, 100),
-        diplomacy: primarySkill === "diplomacy" ? rand(40, 100) : rand(1, 100),
-        engineering: rand(1, 100),
-        geography: rand(1, 100),
-        intrigue: primarySkill === "intrigue" ? rand(40, 100) : rand(1, 100),
-        learning: primarySkill === "learning" ? rand(40, 100) : rand(1, 100),
-        martial: primarySkill === "martial" ? rand(40, 100) : rand(1, 100),
-        prowess,
-        stewardship: primarySkill === "stewardship" ? rand(40, 100) : rand(1, 100)
-      },
+      skills,
       personality: {
         boldness: rand(1, 100),
         compassion: rand(1, 100),
@@ -235,7 +253,8 @@ export class CharactersModule {
         zeal,
         energy: rand(1, 100),
         piety,
-        guile
+        guile,
+        confidence
       },
       family: this.generateFamily(age, stateData.formName)
     };
