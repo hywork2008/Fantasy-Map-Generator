@@ -62,7 +62,8 @@ export interface ExtensionAPI {
   registerStyleConfig(config: ExtensionStyleConfig): void;
   /** Remove all registrations for this extension id (called before cleanup/uninstall). */
   unregisterExtension(id: string): void;
-  toggleExtension(id: string, forceState?: boolean): void;
+  /** Returns false if the toggle was blocked by an unmet dependency requirement. */
+  toggleExtension(id: string, forceState?: boolean): boolean;
   /** Returns true if the extension with the given id is currently enabled. */
   isExtensionEnabled(id: string): boolean;
   /**

@@ -7,17 +7,18 @@ import {
   uninstallExtension
 } from "../../../extensions/dynamicLoader";
 import { extensionDB } from "../../../extensions/extensionDB";
-import { useExtensionState } from "../../../store/extensionState";
+import { type ExtensionDependency, useExtensionState } from "../../../store/extensionState";
 
 interface InstalledMeta {
   id: string;
   name: string;
   version: string;
   builtin: boolean;
+  dependencies?: ExtensionDependency[];
 }
 
 export const ExtensionsTab: React.FC = () => {
-  const { extensions, enabledExtensions, toggleExtension } = useExtensionState();
+  const { extensions, enabledExtensions, toggleExtension, setExtensionMeta } = useExtensionState();
   const [installedMeta, setInstalledMeta] = useState<InstalledMeta[]>([]);
   const [installing, setInstalling] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -31,17 +32,22 @@ export const ExtensionsTab: React.FC = () => {
     // Built-in extensions are in zustand but not in DB
     const builtins: InstalledMeta[] = Object.values(extensions)
       .filter(ext => !dbIds.has(ext.id))
-      .map(ext => ({ id: ext.id, name: ext.name, version: "built-in", builtin: true }));
+      .map(ext => ({ id: ext.id, name: ext.name, version: "built-in", builtin: true, dependencies: ext.dependencies }));
 
     const dynamic: InstalledMeta[] = dbRecords.map(r => ({
       id: r.id,
       name: r.manifest.name,
       version: r.manifest.version,
-      builtin: r.builtin ?? false
+      builtin: r.builtin ?? false,
+      dependencies: r.manifest.dependencies
     }));
 
-    setInstalledMeta([...builtins, ...dynamic].sort((a, b) => a.name.localeCompare(b.name)));
-  }, [extensions]);
+    const merged = [...builtins, ...dynamic].sort((a, b) => a.name.localeCompare(b.name));
+    setInstalledMeta(merged);
+    // Keep the store's dependency graph (used by toggleExtension's validation) in sync,
+    // including extensions that are currently disabled and thus absent from `extensions`.
+    setExtensionMeta(merged.map(m => ({ id: m.id, name: m.name, dependencies: m.dependencies })));
+  }, [extensions, setExtensionMeta]);
 
   useEffect(() => {
     refreshInstalledMeta();
@@ -69,18 +75,20 @@ export const ExtensionsTab: React.FC = () => {
     }
   };
 
-  const handleToggle = async (id: string, isEnabled: boolean, isBuiltin: boolean) => {
-    if (isBuiltin) {
-      // Built-in extensions are toggled through extensionState only (no DOM injection)
-      toggleExtension(id);
-    } else if (isEnabled) {
-      // Disable: eject script/style and remove from zustand
-      disableDynamicExtension(id);
-      toggleExtension(id, false);
-    } else {
-      // Enable: re-inject script/style
-      await enableDynamicExtension(id);
-      toggleExtension(id, true);
+  const handleToggle = async (id: string, isCurrentlyEnabled: boolean, isBuiltin: boolean) => {
+    const nextState = !isCurrentlyEnabled;
+    // The store owns the dependency validation (required-on-enable, required-by-others-on-disable);
+    // the UI only reacts to whether the toggle was allowed.
+    const ok = toggleExtension(id, nextState);
+    if (!ok) {
+      setError(useExtensionState.getState().toggleError);
+      return;
+    }
+    setError(null);
+
+    if (!isBuiltin) {
+      if (nextState) await enableDynamicExtension(id);
+      else disableDynamicExtension(id);
     }
   };
 
@@ -105,7 +113,7 @@ export const ExtensionsTab: React.FC = () => {
         <input ref={fileInputRef} type="file" accept=".zip" className="d-none" onChange={handleFileChange} />
       </div>
 
-      {error && <div>{error}</div>}
+      {error && <div style={{ color: "var(--danger-color, red)", marginBottom: "8px" }}>{error}</div>}
 
       {/* Extension list */}
       {installedMeta.length === 0 ? (
@@ -115,18 +123,42 @@ export const ExtensionsTab: React.FC = () => {
           {installedMeta.map(meta => {
             const isEnabled = enabledExtensions[meta.id] ?? false;
             const desc = extensions[meta.id]?.description;
+            const missingReq = meta.dependencies?.filter(d => d.required && !enabledExtensions[d.id]);
+            const canEnable = !missingReq?.length;
+            const blockingDependent = installedMeta.find(
+              m =>
+                m.id !== meta.id && enabledExtensions[m.id] && m.dependencies?.some(d => d.id === meta.id && d.required)
+            );
+            const canDisable = !blockingDependent;
+            const disabled = isEnabled ? !canDisable : !canEnable;
 
             return (
               <div key={meta.id} style={{ background: isEnabled ? "var(--tab-bg-active, #f5f5f5)" : "transparent" }}>
                 <div>
                   {/* Toggle switch */}
-                  <label title={isEnabled ? "Disable extension" : "Enable extension"}>
+                  <label
+                    title={
+                      isEnabled
+                        ? canDisable
+                          ? "Disable extension"
+                          : `Cannot disable: required by ${blockingDependent?.name}`
+                        : canEnable
+                          ? "Enable extension"
+                          : "Missing required dependencies"
+                    }
+                  >
                     <input
                       type="checkbox"
                       checked={isEnabled}
+                      disabled={disabled}
                       onChange={() => handleToggle(meta.id, isEnabled, meta.builtin)}
                     />
-                    <span style={{ background: isEnabled ? "#4a9e4a" : "#aaa", cursor: "pointer" }} />
+                    <span
+                      style={{
+                        background: isEnabled ? "#4a9e4a" : disabled ? "var(--disabled-color, #666)" : "#aaa",
+                        cursor: disabled ? "not-allowed" : "pointer"
+                      }}
+                    />
                     <span
                       style={{
                         position: "absolute",
@@ -144,6 +176,33 @@ export const ExtensionsTab: React.FC = () => {
                       {meta.builtin ? "built-in" : `v${meta.version}`}
                     </span>
                   </div>
+
+                  {/* Dependencies */}
+                  {meta.dependencies && meta.dependencies.length > 0 && (
+                    <div style={{ fontSize: "0.8em", marginTop: "4px" }}>
+                      Depends on:{" "}
+                      {meta.dependencies.map(dep => {
+                        const isMet = enabledExtensions[dep.id];
+                        const color = dep.required
+                          ? isMet
+                            ? "var(--success-color, green)"
+                            : "var(--danger-color, red)"
+                          : isMet
+                            ? "var(--success-color, green)"
+                            : "var(--warning-color, orange)";
+                        return (
+                          <span
+                            key={dep.id}
+                            style={{ color, marginRight: "6px" }}
+                            title={dep.required ? "Required" : "Optional"}
+                          >
+                            {dep.id}
+                            {dep.required ? "*" : ""}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
 
                   {/* Uninstall — only for dynamic (non-builtin) extensions */}
                   {!meta.builtin && (

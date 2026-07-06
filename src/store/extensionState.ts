@@ -2,10 +2,23 @@ import type { Selection } from "d3";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+export interface ExtensionDependency {
+  id: string;
+  required: boolean;
+}
+
 export interface ExtensionConfig {
   id: string;
   name: string;
   description: string;
+  dependencies?: ExtensionDependency[];
+}
+
+/** Minimal dependency-graph info for an extension, tracked regardless of enabled state. */
+export interface ExtensionMeta {
+  id: string;
+  name: string;
+  dependencies?: ExtensionDependency[];
 }
 
 export interface ExtensionAction {
@@ -56,6 +69,10 @@ export interface ExtensionStyleConfig {
 interface ExtensionState {
   extensions: Record<string, ExtensionConfig>;
   enabledExtensions: Record<string, boolean>;
+  /** Dependency-graph info for every known extension (built-in + dynamic), including disabled ones. */
+  extensionMeta: Record<string, ExtensionMeta>;
+  /** Reason the most recent toggleExtension() call was blocked, or null if it succeeded. */
+  toggleError: string | null;
   actions: ExtensionAction[];
   dialogs: ExtensionDialog[];
   editorTabs: ExtensionEditorTab[];
@@ -66,16 +83,25 @@ interface ExtensionState {
   registerDialog: (dialog: ExtensionDialog) => void;
   registerEditorTab: (tab: ExtensionEditorTab) => void;
   registerStyleConfig: (config: ExtensionStyleConfig) => void;
-  toggleExtension: (id: string, forceState?: boolean) => void;
+  /** Replace the tracked dependency-graph info for all installed extensions. */
+  setExtensionMeta: (meta: ExtensionMeta[]) => void;
+  /**
+   * Enable/disable an extension. Blocks (and sets `toggleError`) when enabling
+   * would leave a required dependency unmet, or when disabling would break an
+   * enabled extension that requires this one. Returns whether the toggle applied.
+   */
+  toggleExtension: (id: string, forceState?: boolean) => boolean;
   /** Remove all registrations for a given extension (called before uninstall or re-inject) */
   unregisterExtension: (id: string) => void;
 }
 
 export const useExtensionState = create<ExtensionState>()(
   persist(
-    set => ({
+    (set, get) => ({
       extensions: {},
       enabledExtensions: {},
+      extensionMeta: {},
+      toggleError: null,
       actions: [],
       dialogs: [],
       editorTabs: [],
@@ -87,7 +113,11 @@ export const useExtensionState = create<ExtensionState>()(
           const nextEnabled = isCurrentlyEnabled ?? defaultEnabled;
           return {
             extensions: { ...state.extensions, [config.id]: config },
-            enabledExtensions: { ...state.enabledExtensions, [config.id]: nextEnabled }
+            enabledExtensions: { ...state.enabledExtensions, [config.id]: nextEnabled },
+            extensionMeta: {
+              ...state.extensionMeta,
+              [config.id]: { id: config.id, name: config.name, dependencies: config.dependencies }
+            }
           };
         });
       },
@@ -116,14 +146,44 @@ export const useExtensionState = create<ExtensionState>()(
         }));
       },
 
+      setExtensionMeta: meta => {
+        set({ extensionMeta: Object.fromEntries(meta.map(m => [m.id, m])) });
+      },
+
       toggleExtension: (id, forceState) => {
-        set(state => {
-          const currentState = state.enabledExtensions[id] ?? false;
-          const nextState = forceState !== undefined ? forceState : !currentState;
-          return {
-            enabledExtensions: { ...state.enabledExtensions, [id]: nextState }
-          };
-        });
+        const state = get();
+        const currentState = state.enabledExtensions[id] ?? false;
+        const nextState = forceState !== undefined ? forceState : !currentState;
+        if (nextState === currentState) return true;
+
+        if (nextState) {
+          const meta = state.extensionMeta[id];
+          const missingRequired = meta?.dependencies?.filter(d => d.required && !state.enabledExtensions[d.id]);
+          if (missingRequired && missingRequired.length > 0) {
+            set({
+              toggleError: `Cannot enable ${meta?.name ?? id}: missing required dependencies (${missingRequired
+                .map(d => d.id)
+                .join(", ")})`
+            });
+            return false;
+          }
+        } else {
+          const dependent = Object.values(state.extensionMeta).find(
+            m => m.id !== id && state.enabledExtensions[m.id] && m.dependencies?.some(d => d.id === id && d.required)
+          );
+          if (dependent) {
+            set({
+              toggleError: `Cannot disable ${state.extensionMeta[id]?.name ?? id}: "${dependent.name}" requires it`
+            });
+            return false;
+          }
+        }
+
+        set(s => ({
+          enabledExtensions: { ...s.enabledExtensions, [id]: nextState },
+          toggleError: null
+        }));
+        return true;
       },
 
       unregisterExtension: id => {
