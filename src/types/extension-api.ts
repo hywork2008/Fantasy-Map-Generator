@@ -17,7 +17,13 @@
 import type { AppServices } from "../context/appServices";
 import type { SvgGroup, ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import type { ExtensionAction, ExtensionConfig, ExtensionDialog, ExtensionStyleConfig } from "../store/extensionState";
+import type {
+  ExtensionAction,
+  ExtensionConfig,
+  ExtensionDialog,
+  ExtensionEditorTab,
+  ExtensionStyleConfig
+} from "../store/extensionState";
 import type { LayerConfig } from "../store/layerState";
 import type { OpenDialogConfig, RichDialogOptions } from "../ui/dialogs/dialogService";
 
@@ -50,6 +56,8 @@ export interface ExtensionAPI {
   registerExtension(config: ExtensionConfig, defaultEnabled?: boolean): void;
   registerAction(action: ExtensionAction): void;
   registerDialog(dialog: ExtensionDialog): void;
+  /** Register a React component as an additional tab within an existing host editor dialog. */
+  registerEditorTab(tab: ExtensionEditorTab): void;
   /** Register style configurations and React components for the StyleTab. */
   registerStyleConfig(config: ExtensionStyleConfig): void;
   /** Remove all registrations for this extension id (called before cleanup/uninstall). */

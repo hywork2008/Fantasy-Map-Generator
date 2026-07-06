@@ -175,7 +175,7 @@ export const ToolsTab: React.FC = () => {
       domId: undefined as string | undefined,
       label: a.label,
       tooltip: a.tooltip ?? "",
-      dialogId: undefined as string | undefined,
+      dialogId: a.dialogId,
       onClick: a.onClick
     }))
   ].sort((a, b) => a.label.localeCompare(b.label));

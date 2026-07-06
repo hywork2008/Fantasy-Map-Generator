@@ -13,6 +13,8 @@ export interface ExtensionAction {
   extensionId: string;
   tab: string; // The UI tab to render the button in (e.g., "tools")
   section?: string; // The section within the tab (e.g., "regenerate")
+  dialogId?: string; // Used to track if the button should appear pressed
+
   label: string;
   tooltip?: string;
   onClick: () => void;
@@ -21,6 +23,14 @@ export interface ExtensionAction {
 export interface ExtensionDialog {
   id: string;
   extensionId: string;
+  component: React.ComponentType;
+}
+
+export interface ExtensionEditorTab {
+  id: string;
+  extensionId: string;
+  editorId: string;
+  label: string;
   component: React.ComponentType;
 }
 
@@ -48,11 +58,13 @@ interface ExtensionState {
   enabledExtensions: Record<string, boolean>;
   actions: ExtensionAction[];
   dialogs: ExtensionDialog[];
+  editorTabs: ExtensionEditorTab[];
   styleConfigs: ExtensionStyleConfig[];
 
   registerExtension: (config: ExtensionConfig, defaultEnabled?: boolean) => void;
   registerAction: (action: ExtensionAction) => void;
   registerDialog: (dialog: ExtensionDialog) => void;
+  registerEditorTab: (tab: ExtensionEditorTab) => void;
   registerStyleConfig: (config: ExtensionStyleConfig) => void;
   toggleExtension: (id: string, forceState?: boolean) => void;
   /** Remove all registrations for a given extension (called before uninstall or re-inject) */
@@ -66,6 +78,7 @@ export const useExtensionState = create<ExtensionState>()(
       enabledExtensions: {},
       actions: [],
       dialogs: [],
+      editorTabs: [],
       styleConfigs: [],
 
       registerExtension: (config, defaultEnabled = true) => {
@@ -88,6 +101,12 @@ export const useExtensionState = create<ExtensionState>()(
       registerDialog: dialog => {
         set(state => ({
           dialogs: [...state.dialogs.filter(d => d.id !== dialog.id), dialog]
+        }));
+      },
+
+      registerEditorTab: tab => {
+        set(state => ({
+          editorTabs: [...state.editorTabs.filter(t => t.id !== tab.id), tab]
         }));
       },
 
@@ -116,6 +135,7 @@ export const useExtensionState = create<ExtensionState>()(
             enabledExtensions: remainingEnabled,
             actions: state.actions.filter(a => a.extensionId !== id),
             dialogs: state.dialogs.filter(d => d.extensionId !== id),
+            editorTabs: state.editorTabs.filter(t => t.extensionId !== id),
             styleConfigs: state.styleConfigs.filter(c => c.extensionId !== id)
           };
         });

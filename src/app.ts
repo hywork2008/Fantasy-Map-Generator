@@ -100,6 +100,7 @@ function buildExtensionAPI(): ExtensionAPI {
     registerExtension: (config, defaultEnabled) => extState().registerExtension(config, defaultEnabled),
     registerAction: action => extState().registerAction(action),
     registerDialog: dialog => extState().registerDialog(dialog),
+    registerEditorTab: tab => extState().registerEditorTab(tab),
     registerStyleConfig: config => extState().registerStyleConfig(config),
     unregisterExtension: id => extState().unregisterExtension(id),
     toggleExtension: (id, forceState) => extState().toggleExtension(id, forceState),

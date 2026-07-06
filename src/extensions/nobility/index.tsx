@@ -3,6 +3,7 @@ import type { ExtensionAPI } from "../../types/extension-api";
 import { Characters } from "./generators/characters-generator";
 import { applyAffinitiesToDiplomacy } from "./generators/diplomacy-modifier";
 import { clearNobilityContext, getWorldContext, initNobilityContext } from "./nobilityContext";
+import { StatesEditorPersonalityTab } from "./ui/components/StatesEditorPersonalityTab";
 import { CharacterDetailsDialog } from "./ui/dialogs/CharacterDetailsDialog";
 import { CharactersOverviewDialog } from "./ui/dialogs/CharactersOverviewDialog";
 
@@ -23,6 +24,14 @@ export function init(api: ExtensionAPI): void {
     false
   );
 
+  api.registerEditorTab({
+    id: "states-personality",
+    extensionId: NOBILITY_EXTENSION_ID,
+    editorId: "statesEditor",
+    label: "Personality",
+    component: StatesEditorPersonalityTab
+  });
+
   api.registerDialog({
     id: "CharactersOverviewDialog",
     extensionId: NOBILITY_EXTENSION_ID,
@@ -40,6 +49,7 @@ export function init(api: ExtensionAPI): void {
     extensionId: NOBILITY_EXTENSION_ID,
     tab: "tools",
     section: "edit",
+    dialogId: "charactersOverview",
     label: "Characters",
     tooltip: "Click to view generated rulers and government offices",
     onClick: () => {
