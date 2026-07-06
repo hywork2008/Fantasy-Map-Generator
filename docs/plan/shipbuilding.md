@@ -78,7 +78,7 @@ getEffectiveSkill(characterId: number, skill: string): number
 * **建造キューと所有者（Phase 3で実装済み）**: 造船適性都市1つにつき単一のキュー（`ShipyardQueueEntry { shipClassId, owner, progress }`）を持つ。所有者は都市の属性から毎tick自動判定する: 国家に属し、かつ首都(`capital`)または城塞(`citadel`)を持つ都市は `"state"`（国家/海軍の艦隊）、それ以外は `"market"`（商家の商船）。両者とも同じ国家技術ツリーからティアを引く（商家だけ技術的に劣る、という制約は設けていない）。完成した船体は `getCompletedHulls(owner, ownerId, shipClassId)` でカウントを保持し（国家所有は `stateId` 単位、商家所有は `burgId` 単位）、完成時に `fmg:shipbuilding-ship-completed` イベントも発火する。**Economyの`Ships`Goodへは接続しない**: `Ships` は交易品としての汎用ボートを表す既存の需要駆動クラフト良品であり、ここでいう「特定ティアの船体を1隻建造した」という出来事とは概念が異なるため、混同を避けて意図的に分離した。
 * **Military連携（Phase 4で実装済み）**: `src/generators/navalTechBonus.ts`（core、Shipbuildingを一切importしない）が `fmg:shipbuilding-ship-completed` イベントを購読し、`owner === "state"` の完成のみを対象に国家単位のボーナス係数（`1 + 0.1 * 完成数`、上限3倍）を蓄積する。`military-generator.ts` は艦隊(`fleet`)ユニットの状態別補正係数 `s.temp["fleet"]` にこの係数を掛けるだけの1行差し込みで、Shipbuildingが無効/未導入でもボーナスは常に1（無効果）。**このボーナスは`Military.generate()`が次に実行されたときに反映される**（Economy PhaseのようなmicrotaskベースのAuto-refreshは行わない。理由: `Military.generate()`はGenerationPipeline経由の重い処理で、それを呼ぶには`navalTechBonus.ts`が`generationPipeline.ts`に依存する必要があり、`military-generator.ts → navalTechBonus.ts → generationPipeline.ts → military-generator.ts`の循環依存を招くため）。新規マップ生成時（`fmg:generate-post-core`）にボーナスは自動リセットされる。ブラウザE2Eで、国家所有の造船完成後に手動でMilitary再生成を行うと艦隊戦力が実際に増加することを確認済み。
 * **資材消費（未実装）**: 建造の進行自体は現状、素材(Wood/Sails/Ropes/Tar)在庫の十分性をチェックしない。伐採(Phase 2)による木材枯渇とは独立して進む。実際の資材消費ゲートは今後の拡張候補。
-* **森林の回復**: Economy拡張側の管轄（上記参照）。Shipbuildingは伐採量の通知のみ行い、回復ロジック自体は持たない。
+* **森林の回復（Phase 6で実装済み）**: `economy/generators/forestDepletion.ts` の `tickForestRegrowth(deltaYears)` が、`api.registerTimeTickHook` 経由で `advanceTime()` のたびに全ての伐採済みセルの depletion係数を線形に回復させる（年2%、MAX_DEPLETION=0.9からの完全回復に約45年）。**Shipbuilding拡張が無効化されていても回復は止まらない**（`isExtensionEnabled("economy")` のみをチェックし、Shipbuildingの状態は見ない）——伐採が止まった森は主体が居なくなっても回復し続ける、という意図的な設計。Production再計算は既存のmicrotaskベースの `scheduleProductionRefresh()` を再利用し、伐採イベントと回復ティックのどちらが先に走っても1回の `advanceTime()` 呼び出しにつき`Production.produce()`は高々1回にまとめられる。
 * **外国からの干渉**: 優先度低のスタブ実装。tick毎に簡易な確率判定を行い、該当すれば `console.log()` でフレーバーメッセージ（例: "Foreign agents sabotage the shipyard at X"）を出すだけに留める。状態管理・UI・イベント配信は一切持たない。判定ロジックは1関数（例: `checkForeignInterference()`）に隔離し、将来の外交/戦争シミュレーションが実装された時点で丸ごと差し替えられるようにする。
 
 ---
@@ -91,7 +91,7 @@ getEffectiveSkill(characterId: number, skill: string): number
 4. **Phase 3**（実装済み）: 造船キュー（国家/商家の単一キュー・自動所有者判定）・技術ツリー（国家単位）・tickフック接続。
 5. **Phase 4**（実装済み）: `navalTechBonus.ts`経由のMilitary艦隊強化連携。
 6. **Phase 5**（実装済み）: `skillModifierService.ts`新設 + Nobility Engineeringスキルのモディファイア連携。
-7. **Phase 6**: Economy拡張側での森林回復・伐採過多時の産出係数変動（`Wood` Good拡張）。
+7. **Phase 6**（実装済み）: Economy拡張側での森林回復（`tickForestRegrowth`）。
 8. **Phase 7**: 外国干渉イベント（`console.log`スタブ）。
 
 ---

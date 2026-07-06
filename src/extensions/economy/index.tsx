@@ -5,7 +5,12 @@ import { useUiPreferencesState } from "../../store/uiPreferencesState";
 import type { ExtensionAPI } from "../../types/extension-api";
 import { economyStyleConfig } from "./EconomyStyleConfig";
 import { clearEconomyContext, getWorldContext, initEconomyContext } from "./economyContext";
-import { clearForestDepletion, consumeDirtyFlag, registerLogHarvest } from "./generators/forestDepletion";
+import {
+  clearForestDepletion,
+  consumeDirtyFlag,
+  registerLogHarvest,
+  tickForestRegrowth
+} from "./generators/forestDepletion";
 import { Goods } from "./generators/goods-generator";
 import { Markets } from "./generators/markets-generator";
 import { Production } from "./generators/production-generator";
@@ -392,6 +397,15 @@ export function init(api: ExtensionAPI): void {
     scheduleProductionRefresh();
   };
   document.addEventListener("fmg:shipbuilding-log-harvested", _logHarvestedHandler);
+
+  // Depleted cells recover a little on every advanceTime() call, independent of
+  // whether Shipbuilding (or logging on that cell) is still active — a logged-out
+  // shipyard's forest should eventually recover even if the extension is disabled
+  // afterward. Harmless no-op while nothing has ever been depleted.
+  api.registerTimeTickHook(deltaYears => {
+    if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
+    if (tickForestRegrowth(deltaYears)) scheduleProductionRefresh();
+  });
 
   // Bind trade animation renderer (must happen before any toggle)
   TradeAnimation.bind({
