@@ -29,7 +29,7 @@
 | 森林の減少・回復（バイオーム変化） | **Economy拡張が所有**（`Wood` Goodの`biomeOutput`を時間経過で増減させる） | `Wood`の産出とバイオームの紐付けは既にEconomyの管轄。Shipbuildingが伐採量をイベントで通知し、Economy側が自分の管轄内で産出係数を増減させる方が二重管理を避けられる。`pack.cells.biome` 自体は変更しない（readonly制約）。 |
 | 木材(Wood)・鉄(Iron)等の産出・在庫・価格 | **Economy拡張が唯一の所有者、Shipbuildingはイベント経由で消費・産出変化を通知** | 二重管理を避ける。Economyはupstream/master由来で今後ユーザー自身が独自実装へ置き換える予定のため、連携面はイベント経由の薄い契約に留め、Economy内部実装に依存しない。 |
 | 艦隊(Fleet)の戦力・艦種反映 | **Military（core generator）が所有、Shipbuildingはイベント経由で技術ボーナスを通知** | `military-generator.ts` は拡張ではなくcoreモジュールのため、直接呼び出しではなくCustomEvent経由の疎結合にする（将来Militaryが拡張化されても壊れない）。 |
-| Engineeringスキルによる技術開発補正 | **Nobility拡張が所有するスキル値を、hostの「モディファイア登録」経由でShipbuildingが参照** | 拡張同士の直接importを避けるための新しい共有パターン（§3で定義）。 |
+| Engineeringスキルによる技術開発補正 | **Nobility拡張が所有するスキル値を、hostの「モディファイア登録」経由でShipbuildingが参照**（実装済み） | 拡張同士の直接importを避けるための新しい共有パターン（§3.2）。`src/services/skillModifierService.ts`。 |
 | 経時変化の駆動（年数カウンタ・tick配信） | **host（新規 `src/modules/timeEngine.ts`）が所有** | Shipbuilding専用にせず、将来の外交/戦争シミュレーションにも使い回せる共有基盤にする。既存の `optionsState.year`/`era` を昇格させる形にする（§6参照）。 |
 | 外国からの干渉イベント（妨害工作など） | **Shipbuilding拡張内で`console.log`のみのスタブ実装** | 優先度は低い。UIも状態管理も持たず、tickフック内で確率判定して裏でログを流すだけで良い。 |
 
@@ -55,18 +55,18 @@
 
 現状「拡張が別の拡張に依存する」パターンが存在しないため、以下の2つの疎結合な連携方法を新設する。
 
-### 3.1 イベント経由（Economy ⇔ Shipbuilding, Military ⇔ Shipbuilding）
-`document.dispatchEvent(new CustomEvent(...))` を使う。例:
-* `fmg:shipbuilding-consume-good` — Shipbuildingが「木材Xトンを消費した」とEconomyに通知。Economyがリスナーで在庫を減算。
-* `fmg:shipbuilding-tech-upgraded` — Shipbuildingが「州Yの艦種が強化された」とMilitaryに通知。core側の military-generator が海軍ユニットの乗算係数に反映する公開関数（例: `applyNavalTechBonus(stateId, bonus)`）を用意し、リスナー内で呼ぶ。
+### 3.1 イベント経由（Economy ⇔ Shipbuilding, Military ⇔ Shipbuilding）（実装済み）
+`document.dispatchEvent(new CustomEvent(...))` を使う。実装した実際のイベント:
+* `fmg:shipbuilding-log-harvested`（Phase 2） — `{ cellId, burgId, amount, deltaYears }`。Shipbuildingが伐採進行をEconomyへ通知し、`economy/generators/forestDepletion.ts` がそのセルのWood産出係数を減衰させる。
+* `fmg:shipbuilding-ship-completed`（Phase 3/4） — `{ burgId, stateId, owner, shipClassId }`。`owner === "state"` の完成を、core側の `src/generators/navalTechBonus.ts` が購読し、艦隊(`fleet`)ユニットの国家別補正係数に反映する（`military-generator.ts` への1行差し込み）。Military側は当初案の `applyNavalTechBonus(stateId, bonus)` のような公開関数ではなく、Shipbuildingを一切importしない自己完結型のイベントリスナーとして実装した（コアが拡張の存在を意識しない、という原則をより厳密に守れるため）。
 
-### 3.2 モディファイア登録経由（Nobility ⇔ Shipbuilding）
-`tooltipExtensions` と同様、`ExtensionAPI` に**汎用のモディファイア registry** を新設する:
+### 3.2 モディファイア登録経由（Nobility ⇔ Shipbuilding）（Phase 5で実装済み）
+`tooltipExtensions` と同様のパターンで、`src/services/skillModifierService.ts`（host、新規） + `ExtensionAPI` に**汎用のモディファイア・チェーン**を実装した:
 ```typescript
-registerSkillModifier(source: string, fn: (characterId: number, skill: keyof CharacterSkills) => number): void
-getEffectiveSkill(characterId: number, skill: keyof CharacterSkills): number
+registerSkillModifier(source: string, fn: (characterId: number, skill: string, currentValue: number) => number): () => void
+getEffectiveSkill(characterId: number, skill: string): number
 ```
-Nobility拡張が素の値を提供し、Shipbuildingは `getEffectiveSkill(rulerId, "engineering")` を読むだけで、Nobility内部構造への直接依存を避けられる。この registry は他の拡張連携（例: Economyの為政者補正）にも再利用できる汎用機構として設計する。
+当初案の「`keyof CharacterSkills`」ではなく `skill: string` にした（Shipbuilding側が`CharacterSkills`型をimportしなくて済むように）。`getEffectiveSkill`は登録順にモディファイアを`0`からチェーン適用し、何も登録されていなければ`0`を返す（＝「データなし」であって「スキル0」ではない、という意味で呼び出し側が扱う）。Nobility拡張は自身の`init()`で1つだけモディファイアを登録し、`pack.characters`から該当キャラクターの`skills[skill]`を返す。Shipbuildingは`state.rulerId`（Nobility側の型拡張で`State`に生えるdenormalizedフィールド、コアの型としては常に存在）を経由して`getEffectiveSkill(rulerId, "engineering")`を読み、`shipyardQueue.ts`の国家技術ポイント蓄積速度に`1 + engineering/100`の乗算係数として適用する。Nobility無効時や為政者未設定時は`1`（無補正）にフォールバックする。
 
 ---
 
@@ -74,7 +74,7 @@ Nobility拡張が素の値を提供し、Shipbuildingは `getEffectiveSkill(rule
 
 * **造船適性都市の判定**: `port` を持つ burg のうち、隣接セル（半径N）に森林バイオーム(5,6,7,8,9,12)が一定割合以上存在するものを「Shipyard候補」として抽出する純粋な導出データ。拡張内キャッシュに保持し、`fmg:generate-post-core` 時に再計算する（Economy拡張の既存パターンを踏襲）。
 * **伐採→丸太→造船のパイプライン**: 実際の資源変換（Wood/Sails/Ropes/Tar → Ships の数量計算）はEconomy拡張の既存レシピに委譲する。Shipbuildingは `registerTimeTickHook` 内で、Shipyard候補都市の伐採進行を `fmg:shipbuilding-log-harvested` イベントでEconomyへ通知し、Economyは自身の `Wood` Goodの産出係数を増減させる。Shipbuildingは船級ティアに応じた乗算係数（`techTier` multiplier）だけを `Ships` Goodの計算に適用する。
-* **技術ツリー（Phase 3で実装済み）**: `shipClasses.ts` に Sloop → Caravel → Galleon の3ティアを定義（`techPointsRequired`, `buildPointsRequired`）。研究ポイントは**国家（State）単位**で蓄積し（`shipyardQueue.ts` の `_stateTechPoints`、その国が持つ造船適性都市の数に比例して加算）、その国に属す都市の建造キューはこのティアに従う。無所属（stateless/自由都市）の都市はティア0（Sloop）に固定。研究ポイント蓄積速度は現時点では固定レートで、Nobility Engineeringスキルによる補正は Phase 5 で追加する。**大砲は前提にしない**: 世界観として銃火器は標準ルール外（弓矢・白兵戦が基本）であるため、船級ティアは「積載量・航洋性・乗員数」を軸にした輸送・遠洋航行寄りの木で設計し、`Gunpowder`/`Artillery` Good（既存）を用いた本格的な戦列艦（Ship of the Line）ルートは、オプション機能として別ゲート（`options`フラグ）の裏に隠す。
+* **技術ツリー（Phase 3で実装済み）**: `shipClasses.ts` に Sloop → Caravel → Galleon の3ティアを定義（`techPointsRequired`, `buildPointsRequired`）。研究ポイントは**国家（State）単位**で蓄積し（`shipyardQueue.ts` の `_stateTechPoints`、その国が持つ造船適性都市の数に比例して加算）、その国に属す都市の建造キューはこのティアに従う。無所属（stateless/自由都市）の都市はティア0（Sloop）に固定。研究ポイント蓄積速度は、その国の為政者(ruler)のEngineeringスキルにより`1 + engineering/100`倍される（Phase 5で実装済み）。**大砲は前提にしない**: 世界観として銃火器は標準ルール外（弓矢・白兵戦が基本）であるため、船級ティアは「積載量・航洋性・乗員数」を軸にした輸送・遠洋航行寄りの木で設計し、`Gunpowder`/`Artillery` Good（既存）を用いた本格的な戦列艦（Ship of the Line）ルートは、オプション機能として別ゲート（`options`フラグ）の裏に隠す。
 * **建造キューと所有者（Phase 3で実装済み）**: 造船適性都市1つにつき単一のキュー（`ShipyardQueueEntry { shipClassId, owner, progress }`）を持つ。所有者は都市の属性から毎tick自動判定する: 国家に属し、かつ首都(`capital`)または城塞(`citadel`)を持つ都市は `"state"`（国家/海軍の艦隊）、それ以外は `"market"`（商家の商船）。両者とも同じ国家技術ツリーからティアを引く（商家だけ技術的に劣る、という制約は設けていない）。完成した船体は `getCompletedHulls(owner, ownerId, shipClassId)` でカウントを保持し（国家所有は `stateId` 単位、商家所有は `burgId` 単位）、完成時に `fmg:shipbuilding-ship-completed` イベントも発火する。**Economyの`Ships`Goodへは接続しない**: `Ships` は交易品としての汎用ボートを表す既存の需要駆動クラフト良品であり、ここでいう「特定ティアの船体を1隻建造した」という出来事とは概念が異なるため、混同を避けて意図的に分離した。
 * **Military連携（Phase 4で実装済み）**: `src/generators/navalTechBonus.ts`（core、Shipbuildingを一切importしない）が `fmg:shipbuilding-ship-completed` イベントを購読し、`owner === "state"` の完成のみを対象に国家単位のボーナス係数（`1 + 0.1 * 完成数`、上限3倍）を蓄積する。`military-generator.ts` は艦隊(`fleet`)ユニットの状態別補正係数 `s.temp["fleet"]` にこの係数を掛けるだけの1行差し込みで、Shipbuildingが無効/未導入でもボーナスは常に1（無効果）。**このボーナスは`Military.generate()`が次に実行されたときに反映される**（Economy PhaseのようなmicrotaskベースのAuto-refreshは行わない。理由: `Military.generate()`はGenerationPipeline経由の重い処理で、それを呼ぶには`navalTechBonus.ts`が`generationPipeline.ts`に依存する必要があり、`military-generator.ts → navalTechBonus.ts → generationPipeline.ts → military-generator.ts`の循環依存を招くため）。新規マップ生成時（`fmg:generate-post-core`）にボーナスは自動リセットされる。ブラウザE2Eで、国家所有の造船完成後に手動でMilitary再生成を行うと艦隊戦力が実際に増加することを確認済み。
 * **資材消費（未実装）**: 建造の進行自体は現状、素材(Wood/Sails/Ropes/Tar)在庫の十分性をチェックしない。伐採(Phase 2)による木材枯渇とは独立して進む。実際の資材消費ゲートは今後の拡張候補。
@@ -90,7 +90,7 @@ Nobility拡張が素の値を提供し、Shipbuildingは `getEffectiveSkill(rule
 3. **Phase 2**（実装済み）: 伐採→`fmg:shipbuilding-log-harvested`イベント→Economyの`Wood`Good産出係数を減衰。
 4. **Phase 3**（実装済み）: 造船キュー（国家/商家の単一キュー・自動所有者判定）・技術ツリー（国家単位）・tickフック接続。
 5. **Phase 4**（実装済み）: `navalTechBonus.ts`経由のMilitary艦隊強化連携。
-6. **Phase 5**: Nobility Engineeringスキルのモディファイア連携（registry新設含む）。
+6. **Phase 5**（実装済み）: `skillModifierService.ts`新設 + Nobility Engineeringスキルのモディファイア連携。
 7. **Phase 6**: Economy拡張側での森林回復・伐採過多時の産出係数変動（`Wood` Good拡張）。
 8. **Phase 7**: 外国干渉イベント（`console.log`スタブ）。
 

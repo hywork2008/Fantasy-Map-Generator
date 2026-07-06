@@ -32,6 +32,7 @@ import { advanceTime, registerTimeTickHook } from "./generators/timeEngine";
 import { buildGeoJsonZones, saveGeoJsonZones } from "./io/export";
 import { generate, initMain, regenerateMap } from "./main";
 import { initRenderers } from "./renderers/index";
+import { getEffectiveSkill, registerSkillModifier } from "./services/skillModifierService";
 import { tooltipExtensions } from "./services/tooltipService";
 import { UITour } from "./services/ui-tour";
 import { useExtensionState } from "./store/extensionState";
@@ -150,6 +151,9 @@ function buildExtensionAPI(): ExtensionAPI {
     unregisterToolAction,
 
     registerTimeTickHook,
+
+    registerSkillModifier,
+    getEffectiveSkill,
 
     zoomTo,
     restoreDefaultEvents,

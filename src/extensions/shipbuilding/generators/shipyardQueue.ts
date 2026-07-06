@@ -1,8 +1,12 @@
-import type { Burg } from "../../hostTypes";
+import type { Burg, State } from "../../hostTypes";
 import { getHighestUnlockedShipClass, getShipClass } from "./shipClasses";
 import type { ShipyardCandidate } from "./shipyardCandidates";
 
 export type ShipyardOwner = "state" | "market";
+
+/** Signature of ExtensionAPI.getEffectiveSkill — injected rather than imported so this
+ * module stays a plain, host-independent unit under test (see AGENTS.md §7.3). */
+export type GetEffectiveSkillFn = (characterId: number, skill: string) => number;
 
 export interface ShipyardQueueEntry {
   shipClassId: string;
@@ -29,6 +33,22 @@ function determineOwner(burg: Burg): ShipyardOwner {
 
 export function getStateTechPoints(stateId: number): number {
   return _stateTechPoints.get(stateId) ?? 0;
+}
+
+/**
+ * A state's naval architecture research pace is boosted by its ruler's Engineering
+ * skill (Nobility extension, if enabled) — read via the generic skill-modifier
+ * registry, never by importing Nobility directly. Defaults to 1x (no bonus, no
+ * penalty) when there's no ruler or Nobility isn't providing skill data.
+ */
+function getEngineeringMultiplier(
+  stateId: number,
+  states: readonly State[],
+  getEffectiveSkill: GetEffectiveSkillFn
+): number {
+  const rulerId = states[stateId]?.rulerId;
+  if (!rulerId) return 1;
+  return 1 + getEffectiveSkill(rulerId, "engineering") / 100;
 }
 
 function completedHullKey(owner: ShipyardOwner, ownerId: number, shipClassId: string): string {
@@ -66,7 +86,9 @@ function completeHull(burg: Burg, owner: ShipyardOwner, shipClassId: string): vo
 export function runShipyardTick(
   candidates: readonly ShipyardCandidate[],
   burgs: readonly Burg[],
-  deltaYears: number
+  states: readonly State[],
+  deltaYears: number,
+  getEffectiveSkill: GetEffectiveSkillFn
 ): void {
   if (candidates.length === 0 || deltaYears <= 0) return;
 
@@ -76,7 +98,8 @@ export function runShipyardTick(
     if (stateId) shipyardCountByState.set(stateId, (shipyardCountByState.get(stateId) ?? 0) + 1);
   }
   for (const [stateId, shipyardCount] of shipyardCountByState) {
-    const gained = TECH_POINTS_PER_YEAR_PER_SHIPYARD * shipyardCount * deltaYears;
+    const engineeringMultiplier = getEngineeringMultiplier(stateId, states, getEffectiveSkill);
+    const gained = TECH_POINTS_PER_YEAR_PER_SHIPYARD * shipyardCount * deltaYears * engineeringMultiplier;
     _stateTechPoints.set(stateId, getStateTechPoints(stateId) + gained);
   }
 

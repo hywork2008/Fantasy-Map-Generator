@@ -19,6 +19,7 @@ import type { SimulationContext } from "../context/simulationContext";
 import type { SvgGroup, ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import type { TimeTickHook } from "../generators/timeEngine";
+import type { SkillModifierFn } from "../services/skillModifierService";
 import type {
   ExtensionAction,
   ExtensionConfig,
@@ -147,6 +148,21 @@ export interface ExtensionAPI {
    * inside the hook.
    */
   registerTimeTickHook(fn: TimeTickHook): void;
+
+  // ── Skill modifier chain ─────────────────────────────────────────────────
+  /**
+   * Registers a cross-extension modifier for character skill values (e.g. Nobility
+   * supplies each character's base skill; other extensions can layer further
+   * adjustments). Run in registration order. Returns an unregister function — call
+   * it in cleanup().
+   */
+  registerSkillModifier(source: string, fn: SkillModifierFn): () => void;
+  /**
+   * Effective value of a character's skill after all registered modifiers have run.
+   * Returns 0 if nothing has registered (e.g. Nobility disabled/not installed) —
+   * treat 0 as "no data", not "unskilled".
+   */
+  getEffectiveSkill(characterId: number, skill: string): number;
 
   // ── Tooltip hooks ────────────────────────────────────────────────────────
   /**

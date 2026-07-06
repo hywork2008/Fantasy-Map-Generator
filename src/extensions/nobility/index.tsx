@@ -1,6 +1,7 @@
 import "./types"; // activate module augmentation for PackedGraph/State
 import type { ExtensionAPI } from "../../types/extension-api";
 import { Characters } from "./generators/characters-generator";
+import type { CharacterSkills } from "./generators/characterTypes";
 import { applyAffinitiesToDiplomacy } from "./generators/diplomacy-modifier";
 import { clearNobilityContext, getWorldContext, initNobilityContext } from "./nobilityContext";
 import { StatesEditorPersonalityTab } from "./ui/components/StatesEditorPersonalityTab";
@@ -11,9 +12,21 @@ export const NOBILITY_EXTENSION_ID = "nobility";
 
 let _unsubscribe: (() => void) | null = null;
 let _generatePostCoreHandler: (() => void) | null = null;
+let _unregisterSkillModifier: (() => void) | null = null;
 
 export function init(api: ExtensionAPI): void {
   initNobilityContext(api);
+
+  // Supplies each character's base skill value to the generic cross-extension skill
+  // registry (see src/services/skillModifierService.ts) — e.g. Shipbuilding reads a
+  // state's ruler's Engineering skill via api.getEffectiveSkill() without importing
+  // Nobility directly.
+  _unregisterSkillModifier = api.registerSkillModifier(NOBILITY_EXTENSION_ID, (characterId, skill, currentValue) => {
+    const character = getWorldContext().pack.characters?.find(c => c.i === characterId);
+    if (!character) return currentValue;
+    const value = character.skills[skill as keyof CharacterSkills];
+    return value ?? currentValue;
+  });
 
   api.registerExtension(
     {
@@ -108,6 +121,10 @@ export function cleanup(api: ExtensionAPI): void {
   if (_generatePostCoreHandler) {
     document.removeEventListener("fmg:generate-post-core", _generatePostCoreHandler);
     _generatePostCoreHandler = null;
+  }
+  if (_unregisterSkillModifier) {
+    _unregisterSkillModifier();
+    _unregisterSkillModifier = null;
   }
 
   api.closeDialog("charactersOverview");

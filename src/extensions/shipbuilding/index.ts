@@ -73,7 +73,8 @@ export function init(api: ExtensionAPI): void {
   api.registerTimeTickHook(deltaYears => {
     if (!api.isExtensionEnabled(SHIPBUILDING_EXTENSION_ID)) return;
     runLoggingTick(_candidates, deltaYears);
-    runShipyardTick(_candidates, getWorldContext().pack.burgs, deltaYears);
+    const { burgs, states } = getWorldContext().pack;
+    runShipyardTick(_candidates, burgs, states, deltaYears, api.getEffectiveSkill);
   });
 
   _unsubscribe = api.subscribeExtensionState((state, prevState) => {
