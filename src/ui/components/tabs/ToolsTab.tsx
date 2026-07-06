@@ -405,6 +405,16 @@ export const ToolsTab: React.FC = () => {
           World
         </button>
       </div>
+      <div className="separator">Simulation</div>
+      <div className="grid">
+        <button
+          data-tip="Click to advance the world's simulation clock by a number of years"
+          type="button"
+          onClick={() => triggerEvent("advanceTimeButton")}
+        >
+          Advance Time
+        </button>
+      </div>
       <div className="separator">Create</div>
       <div className="grid">
         <button

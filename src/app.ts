@@ -1,5 +1,6 @@
 import { getWorldState, resetZoom, zoomTo } from "./actions";
 import { appServices } from "./context/appServices";
+import { simulationContext } from "./context/simulationContext";
 import type { SvgGroup } from "./context/viewContext";
 import { viewContext } from "./context/viewContext";
 import { worldContext } from "./context/worldContext";
@@ -27,6 +28,7 @@ import { changeViewMode } from "./controllers/viewMode";
 import { injectInfrastructure, injectVisibleUI } from "./dom/initDOM";
 import { initExtensions } from "./extensions/index";
 import { initModules } from "./generators/index";
+import { advanceTime, registerTimeTickHook } from "./generators/timeEngine";
 import { buildGeoJsonZones, saveGeoJsonZones } from "./io/export";
 import { generate, initMain, regenerateMap } from "./main";
 import { initRenderers } from "./renderers/index";
@@ -96,6 +98,7 @@ function buildExtensionAPI(): ExtensionAPI {
     worldContext,
     viewContext,
     appServices,
+    simulationContext,
 
     registerExtension: (config, defaultEnabled) => extState().registerExtension(config, defaultEnabled),
     registerAction: action => extState().registerAction(action),
@@ -145,6 +148,8 @@ function buildExtensionAPI(): ExtensionAPI {
 
     registerToolAction,
     unregisterToolAction,
+
+    registerTimeTickHook,
 
     zoomTo,
     restoreDefaultEvents,
@@ -218,6 +223,7 @@ export async function initApp(options: FMGInitOptions = {}): Promise<void> {
   window.fmg = Object.freeze({
     world: worldContext,
     view: viewContext,
+    simulation: simulationContext,
     actions: Object.freeze({
       generate,
       regenerateMap,
@@ -237,7 +243,8 @@ export async function initApp(options: FMGInitOptions = {}): Promise<void> {
       toggleBurgIcons,
       saveGeoJsonZones,
       getGeoJsonZones: buildGeoJsonZones,
-      editBurg
+      editBurg,
+      advanceTime
     }),
     extensionAPI: buildExtensionAPI()
   });

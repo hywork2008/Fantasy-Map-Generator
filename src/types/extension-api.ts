@@ -15,8 +15,10 @@
  */
 
 import type { AppServices } from "../context/appServices";
+import type { SimulationContext } from "../context/simulationContext";
 import type { SvgGroup, ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import type { TimeTickHook } from "../generators/timeEngine";
 import type {
   ExtensionAction,
   ExtensionConfig,
@@ -51,6 +53,8 @@ export interface ExtensionAPI {
   readonly viewContext: ViewContext;
   /** Readonly reference to the host app's shared services (RNG, storage, COA renderer). */
   readonly appServices: AppServices;
+  /** Readonly reference to the host app's live simulation clock (currentYear, era, tickCount). */
+  readonly simulationContext: SimulationContext;
 
   // ── Extension registry ───────────────────────────────────────────────────
   registerExtension(config: ExtensionConfig, defaultEnabled?: boolean): void;
@@ -133,6 +137,16 @@ export interface ExtensionAPI {
   moveCircle(x: number, y: number, r?: number): void;
   /** Remove the brush circle from the SVG. */
   removeCircle(): void;
+
+  // ── Simulation clock ─────────────────────────────────────────────────────
+  /**
+   * Register a hook called on every advanceTime() call (i.e. every time the
+   * host's simulation clock advances). Use this to run per-tick simulation
+   * logic (e.g. ship production, forest regrowth). Hooks are permanent for the
+   * session — gate extension-specific behavior with api.isExtensionEnabled()
+   * inside the hook.
+   */
+  registerTimeTickHook(fn: TimeTickHook): void;
 
   // ── Tooltip hooks ────────────────────────────────────────────────────────
   /**

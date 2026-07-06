@@ -6,7 +6,7 @@ import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-
+import { advanceTime } from "../generators/timeEngine";
 import { rankCells } from "../main";
 import {
   BordersRenderer,
@@ -224,6 +224,8 @@ document.addEventListener("react-tool-action", e => {
   else if (button === "openSubmapTool") openSubmapTool?.();
   else if (button === "openTransformTool") openTransformTool?.();
   else if (button === "openWorldConfigurator") editWorld();
+  else if (button === "advanceTimeButton")
+    showPrompt("Advance time by how many years?", { default: 10, step: 1, min: 1, max: 500 }, v => advanceTime(+v));
 });
 
 // ─── Regeneration dispatcher ──────────────────────────────────────────────────

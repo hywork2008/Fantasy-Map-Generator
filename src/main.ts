@@ -36,6 +36,7 @@ import { Rivers } from "./generators/river-generator";
 import { Routes } from "./generators/routes-generator";
 import { States } from "./generators/states-generator";
 import { Threats } from "./generators/threats-generator";
+import { initSimulationClock } from "./generators/timeEngine";
 import { Zones } from "./generators/zones-generator";
 import { ldb } from "./io/ldb";
 import { loadMapFromURL, showUploadErrorMessage, uploadMap } from "./io/load";
@@ -402,7 +403,6 @@ export async function generateMapOnLoad(drawMap: boolean = true) {
     drawLayers();
     fitMapToScreen();
     focusOn();
-    toggleAssistant?.();
   }
 }
 
@@ -460,7 +460,7 @@ function setElementDisplayById(id: string, display: string): void {
   element.style.display = display;
 }
 
-function toggleAssistant() {
+function _toggleAssistant() {
   const showAssistant = useOptionsState.getState().azgaarAssistant === "show";
   if (showAssistant) {
     if (isAssistantLoaded) {
@@ -921,6 +921,8 @@ export async function generate(opts?: { seed?: string; graph?: Grid | null }) {
     Military.generate(worldContext, viewContext, appServices, state);
     Markers.generate(worldContext, viewContext, appServices, state);
     Zones.generate(worldContext, viewContext, appServices, state);
+
+    initSimulationClock();
 
     document.dispatchEvent(new CustomEvent("fmg:generate-post-core"));
 

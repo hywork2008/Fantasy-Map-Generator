@@ -9,14 +9,14 @@ This document defines the strict constraints, architectural boundaries, and codi
 The codebase strictly adheres to a unidirectional 4-layer data flow architecture. Every module must be categorized under one of the following layers, passing state downward via read-only references:
 
 ```
-State (WorldContext / ViewContext / AppServices)
+State (WorldContext / ViewContext / AppServices / SimulationContext)
   ↓ Passed down as Readonly references
 Generator (src/modules/)   → Generates and mutates world data
 Renderer (src/renderers/)  → Pure SVG visualization (No mutations allowed)
 Editor (src/controllers/)  → Handles UI/User operations, mutates State, triggers redraws
 ```
 
-- **State Layer**: Houses `WorldContext`, `ViewContext`, and `AppServices` schemas.
+- **State Layer**: Houses `WorldContext`, `ViewContext`, `AppServices`, and `SimulationContext` schemas.
 - **Generator Layer (`src/modules/`)**: Implements procedural world simulation and mutates raw data.
 - **Renderer Layer (`src/renderers/`)**: Evaluates `Readonly<WorldContext>` to draw SVG infrastructure.
 - **Editor Layer (`src/controllers/`)**: Captures UI events, mutates State, and requests redraw operations.
@@ -45,7 +45,7 @@ The legacy practice of attaching objects and functions directly to the global `w
 
 - **Zero Individual Global Pollution**: Do NOT assign any variable, function, or module to `window.*` individually. All internal module dependencies must be resolved via standard ES `import`/`export` syntax. The `window.*` registration blocks historically present at the end of controller files (e.g. `window.editStates = editStates;`) are dead code and must be deleted on sight.
 - **One Allowed Exception — `window.fmg`**: The single permitted global exposure is the typed `window.fmg` namespace, assembled in `app.ts` after all modules have been initialized (see Section 6). No other `window.*` assignment is ever acceptable.
-- **Context Injection (DI)**: State must be explicitly managed through the three major contexts or injected via function arguments:
+- **Context Injection (DI)**: State must be explicitly managed through the four major contexts or injected via function arguments:
   - `WorldContext` (`src/context/worldContext.ts`): Pure world data store — `pack`, `grid`, `seed`, `mapId`, `mapHistory`, `notes`, `options`, `biomesData`, `nameBases`, `style`, `graphWidth`, `graphHeight`, `mapCoordinates`, `urbanization`, `urbanDensity`, `populationRate`, `distanceScale`. No SVG or UI logic. `graphWidth`/`graphHeight` are equivalent to `options.mapWidth/Height` — they define the logical coordinate space of the generated world and do not change on browser resize, so they belong here.
   - `ViewContext` (`src/context/viewContext.ts`): Pure view infrastructure store. Implemented as a composition of six domain-grouped interfaces plus view state:
     - `RootLayers` — `svg`, `defs`, `viewbox`, `scaleBar`, `legend`, `ruler`, `debug`, `fogging`
@@ -60,6 +60,7 @@ The legacy practice of attaching objects and functions directly to the global `w
 
     `svgWidth`/`svgHeight` are `Math.min(graphWidth, window.innerWidth/Height)` — they depend on the browser window and change on resize, so they belong here, not in `WorldContext`. D3 rendering utilities (`lineGen`) are likewise view concerns. SVG layer selections are populated by `src/initViewLayers.ts` (`createViewLayers()` on startup, `reinitializeMapLayers()` on map load) via `Object.assign()` before any renderer runs. Renderers should declare only the group interface(s) they need rather than the full `ViewContext` type. When a renderer needs fields from multiple groups, declare them with an intersection type (e.g., `Readonly<RootLayers & PoliticalLayers>`). **String-based layer lookups via `viewContext.svg.select("#layerName")` are forbidden** when a typed `ViewContext` field exists for that layer — always use the field directly (e.g., `viewContext.statesBody` instead of `viewContext.svg.select("#statesBody")`).
   - `AppServices` (`src/context/appServices.ts`): Shared utility services — `rng` (pseudo-random number generator), `storage` (IndexedDB wrapper), `COArenderer` (coat-of-arms SVG renderer, nullable).
+  - `SimulationContext` (`src/context/simulationContext.ts`): Live, tick-driven simulation clock — `currentYear`, `era`, `tickCount`. Distinct from `WorldContext` because these values are not static generation output; they mutate repeatedly during a session as `src/generators/timeEngine.ts`'s `advanceTime()` runs. Initialized from `worldContext.options.year`/`era` once per generation (`initSimulationClock()`, called from `main.ts` after core generation completes) and mirrored back into `worldContext.options.year` on every `advanceTime()` call so legacy readers (`military-generator.ts`, `states-generator.ts`, `markers-generator.ts`, `battle-screen.ts`) keep working unchanged. Extensions read/react to it via `registerTimeTickHook()` on `ExtensionAPI`, not by importing this module directly.
 - **Object In-place Mutation Constraint**: Never replace `grid` or `pack` object references directly (e.g., `grid = newObject`). Use `Object.assign()` to perform in-place mutations so that shared references across module boundaries remain synchronized.
 
 ---
@@ -91,6 +92,7 @@ E2E tests (Playwright) must never rely on arbitrary `window.*` globals. The only
 - **`window.fmg.world.*`** — Read world state (e.g., `window.fmg.world.mapId` for generation-complete polling, `window.fmg.world.pack` for data assertions).
 - **`window.fmg.view.*`** — Access SVG layer references and view geometry (e.g., `window.fmg.view.graphWidth`).
 - **`window.fmg.actions.*`** — Invoke intentional public operations (e.g., `window.fmg.actions.zoomTo(x, y, scale)`).
+- **`window.fmg.simulation.*`** — Read the live simulation clock (e.g., `window.fmg.simulation.currentYear` after calling `window.fmg.actions.advanceTime(n)`).
 
 All `page.evaluate()` calls that touch `window.fmg` must be encapsulated in helper functions under `tests/e2e/helpers/` rather than inlined into test bodies. This insulates individual tests from structural changes to `window.fmg`.
 
@@ -133,6 +135,8 @@ export interface FMGNamespace {
   readonly world: WorldContext;
   readonly view: ViewContext;
   readonly actions: FMGActionsAPI;
+  /** Live simulation clock (currentYear, era, tickCount). */
+  readonly simulation: SimulationContext;
   /** Dependency-injection API for dynamically loaded extensions. */
   readonly extensionAPI: ExtensionAPI;
 }
@@ -160,6 +164,7 @@ declare global {
 window.fmg = Object.freeze({
   world: worldContext,
   view: viewContext,
+  simulation: simulationContext,
   actions: Object.freeze({
     generate,
     regenerateMap,
