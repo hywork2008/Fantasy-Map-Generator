@@ -6,10 +6,13 @@ import {
   drawHistoryArrows,
   highlightHistoryArrow
 } from "../../controllers/diplomacy-history-renderer";
+import { dialogStore } from "../../store/dialogState";
 import { diplomacyHistoryDialogStore, useDiplomacyHistoryDialogState } from "../../store/diplomacyHistoryDialogState";
 import { useOptionsState } from "../../store/optionsState";
 import type { ChronicleEvent } from "../../types/models";
 import { Dialog } from "./Dialog";
+
+const DIALOG_ID = "diplomacyHistory";
 
 export const DiplomacyHistoryDialog: React.FC = () => {
   const isOpen = useDiplomacyHistoryDialogState(s => s.isOpen);
@@ -47,6 +50,14 @@ export const DiplomacyHistoryDialog: React.FC = () => {
     }
     return () => clearHistoryArrows();
   }, [isOpen, validEvents]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    dialogStore.getState().openDialog(DIALOG_ID, { onClose: () => diplomacyHistoryDialogStore.getState().close() });
+    return () => {
+      dialogStore.getState().closeDialog(DIALOG_ID);
+    };
+  }, [isOpen]);
 
   const save = () => {
     const text = containerRef.current?.innerText ?? "";
