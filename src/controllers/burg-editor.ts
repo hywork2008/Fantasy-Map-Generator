@@ -113,6 +113,18 @@ const burgEditorInternal = {
       type: b.type || "Generic",
       culture: b.culture ?? 0,
       population: rn((b.population ?? 0) * worldContext.populationRate * worldContext.urbanization),
+      children: b.demographics?.children
+        ? rn(b.demographics.children * worldContext.populationRate * worldContext.urbanization)
+        : 0,
+      maleAdults: b.demographics?.maleAdults
+        ? rn(b.demographics.maleAdults * worldContext.populationRate * worldContext.urbanization)
+        : 0,
+      femaleAdults: b.demographics?.femaleAdults
+        ? rn(b.demographics.femaleAdults * worldContext.populationRate * worldContext.urbanization)
+        : 0,
+      elders: b.demographics?.elders
+        ? rn(b.demographics.elders * worldContext.populationRate * worldContext.urbanization)
+        : 0,
       temperature: tempStr,
       temperatureLikeIn: tempLikeIn,
       elevation: elevationStr,

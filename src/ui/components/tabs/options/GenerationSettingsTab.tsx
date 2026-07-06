@@ -350,6 +350,22 @@ export const GenerationSettingsTab: React.FC = () => {
             </td>
           </tr>
 
+          <tr data-tip="Determines how full the world is relative to its carrying capacity at the start. 100% means fully saturated, lower values allow for future demographic growth.">
+            <td>
+              <LockIconButton id="initialPopulationSaturation" />
+            </td>
+            <td>Initial population %</td>
+            <td colSpan={2}>
+              <SliderInput
+                min="10"
+                max="100"
+                step="5"
+                value={options.initialPopulationSaturation}
+                onChange={v => updateOptionAndLock("initialPopulationSaturation", Number(v))}
+              />
+            </td>
+          </tr>
+
           <tr data-tip="Define a number of non-capital settlements to be placed (if enough suitable land exists)">
             <td>
               <LockIconButton id="manors" />

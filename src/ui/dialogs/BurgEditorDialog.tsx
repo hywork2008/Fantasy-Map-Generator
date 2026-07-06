@@ -4,6 +4,7 @@ import { showElementLockTip } from "../../services/tooltipService";
 import { useBurgEditorState } from "../../store/burgEditorState";
 import { useDialogState } from "../../store/dialogState";
 import { IconButton } from "../components/IconButton";
+import { PopulationPyramid } from "../components/PopulationPyramid";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
@@ -136,6 +137,12 @@ export const BurgEditorDialog: React.FC = () => {
                     step="1"
                     value={burgData.population}
                     onChange={e => burgEditorActions.changePopulation(e.target.value)}
+                  />
+                  <PopulationPyramid
+                    childrenCount={burgData.children}
+                    maleAdults={burgData.maleAdults}
+                    femaleAdults={burgData.femaleAdults}
+                    elders={burgData.elders}
                   />
                 </td>
               </tr>

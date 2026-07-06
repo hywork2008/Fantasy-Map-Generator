@@ -45,6 +45,11 @@ export interface PackedGraphCells {
   province: TypedArray; // cell province id
   routes: Record<number, Record<number, number>>;
   danger: TypedArray; // cell threat/danger level
+  capacity: TypedArray; // cell population carrying capacity
+  children: TypedArray; // cell children pop
+  maleAdults: TypedArray; // cell male adults pop
+  femaleAdults: TypedArray; // cell female adults pop
+  elders: TypedArray; // cell elders pop
 }
 
 export interface PackedGraphVertices {

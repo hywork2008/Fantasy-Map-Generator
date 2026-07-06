@@ -23,6 +23,7 @@
     "test:e2e": "playwright test",
     "lint": "biome check --write && npm run lint:legacy",
     "lint:legacy": "tsx scripts/lint-legacy-ui.ts",
+    "lint:fix": "biome check --write --unsafe",
     "madge": "madge --circular --extensions ts,tsx src/app.ts",
     "prepare": "simple-git-hooks",
     "analyze-globals": "tsx scripts/analyze-window-globals.ts",

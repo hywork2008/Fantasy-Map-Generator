@@ -419,7 +419,17 @@ class BurgModule {
     if (connectivityRate) population *= connectivityRate;
     population *= gauss(1, 1, 0.25, 4, 5); // randomize
     population += (((burg.i as number) % 100) - (cellId % 100)) / 1000; // unround
-    burg.population = rn(Math.max(population, 0.01), 3);
+    const capacity = rn(Math.max(population, 0.01), 3);
+
+    const initialPopulationSaturation = useOptionsState.getState().initialPopulationSaturation / 100;
+    burg.population = rn(capacity * initialPopulationSaturation, 3);
+    burg.demographics = {
+      capacity,
+      children: burg.population * 0.4,
+      maleAdults: burg.population * 0.225,
+      femaleAdults: burg.population * 0.225,
+      elders: burg.population * 0.15
+    };
   }
 
   private defineEmblem(burg: Burg) {

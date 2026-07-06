@@ -26,6 +26,21 @@ export function redistributeRuralPopulationInScope(cellIds: Iterable<number>): v
 
   const scale = rawSum > 0 ? oldTotal / rawSum : 0;
   ids.forEach((i, index) => {
-    cells.pop[i] = rn(raw[index] * scale, 4);
+    const oldPop = cells.pop[i];
+    const newPop = rn(raw[index] * scale, 4);
+    cells.pop[i] = newPop;
+
+    const ratio = oldPop > 0 ? newPop / oldPop : 0;
+    if (ratio !== 1 && ratio !== 0) {
+      cells.children[i] = rn(cells.children[i] * ratio, 4);
+      cells.maleAdults[i] = rn(cells.maleAdults[i] * ratio, 4);
+      cells.femaleAdults[i] = rn(cells.femaleAdults[i] * ratio, 4);
+      cells.elders[i] = rn(cells.elders[i] * ratio, 4);
+    } else if (oldPop === 0 && newPop > 0) {
+      cells.children[i] = newPop * 0.4;
+      cells.maleAdults[i] = newPop * 0.225;
+      cells.femaleAdults[i] = newPop * 0.225;
+      cells.elders[i] = newPop * 0.15;
+    }
   });
 }

@@ -1,5 +1,9 @@
+import { appServices } from "../context/appServices";
 import { simulationContext } from "../context/simulationContext";
+import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
+import { BordersRenderer, BurgIconsRenderer, BurgLabelsRenderer, StateLabelsRenderer } from "../renderers";
+import { simulateDemographics } from "./demography-simulator";
 
 export type TimeTickHook = (deltaYears: number) => void;
 
@@ -60,6 +64,18 @@ export function advanceTime(deltaYears: number): void {
   simulationContext.currentYear += deltaYears;
   simulationContext.tickCount += 1;
   worldContext.options.year = simulationContext.currentYear;
+
+  const result = simulateDemographics(deltaYears);
+
+  if (result.bordersChanged) {
+    BordersRenderer.render(worldContext, viewContext, appServices);
+    StateLabelsRenderer.render(worldContext, viewContext, appServices);
+  }
+
+  if (result.newBurgsAdded) {
+    BurgIconsRenderer.render(worldContext, viewContext, appServices);
+    BurgLabelsRenderer.render(worldContext, viewContext, appServices);
+  }
 
   for (const hook of _tickHooks) hook(deltaYears);
 

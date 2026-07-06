@@ -234,7 +234,7 @@ export class CharactersModule {
   private evaluateStateThreat(stateId: number): number {
     const { pack } = this.worldContext;
     const state = pack.states[stateId];
-    if (!state || !state.diplomacy) return 0;
+    if (!state?.diplomacy) return 0;
 
     let threat = 0;
     state.diplomacy.forEach(rel => {

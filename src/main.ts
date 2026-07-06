@@ -1424,6 +1424,13 @@ export function rankCells() {
   const { cells: packCells, features } = worldContext.pack;
   packCells.s = new Int16Array(packCells.i.length);
   packCells.pop = new Float32Array(packCells.i.length);
+  packCells.capacity = new Float32Array(packCells.i.length);
+  packCells.children = new Float32Array(packCells.i.length);
+  packCells.maleAdults = new Float32Array(packCells.i.length);
+  packCells.femaleAdults = new Float32Array(packCells.i.length);
+  packCells.elders = new Float32Array(packCells.i.length);
+
+  const initialPopulationSaturation = useOptionsState.getState().initialPopulationSaturation / 100;
 
   const meanFlux = d3.median(packCells.fl.filter((f: number) => f)) ?? 0;
   const maxFlux = (d3.max(packCells.fl) ?? 0) + (d3.max(packCells.conf) ?? 0);
@@ -1468,7 +1475,13 @@ export function rankCells() {
       packCells.s[i] = Math.round(packCells.s[i] * multiplier);
     }
 
-    packCells.pop[i] = packCells.s[i] > 0 ? (packCells.s[i] * packCells.area[i]) / meanArea : 0;
+    packCells.capacity[i] = packCells.s[i] > 0 ? (packCells.s[i] * packCells.area[i]) / meanArea : 0;
+    packCells.pop[i] = packCells.capacity[i] * initialPopulationSaturation;
+
+    packCells.children[i] = packCells.pop[i] * 0.4;
+    packCells.maleAdults[i] = packCells.pop[i] * 0.225;
+    packCells.femaleAdults[i] = packCells.pop[i] * 0.225;
+    packCells.elders[i] = packCells.pop[i] * 0.15;
   }
 
   TIME && console.timeEnd("rankCells");

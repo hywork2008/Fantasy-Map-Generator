@@ -22,6 +22,7 @@ export interface OptionsState {
   resolveDepressionsSteps: number;
   lakeElevationLimit: number;
   threatCalculation: "additive" | "max" | "nonlinear";
+  initialPopulationSaturation: number;
 
   // World Configurator settings
   mapSize: number;
@@ -98,6 +99,7 @@ export const useOptionsState = create<OptionsState>(set => ({
   resolveDepressionsSteps: 250,
   lakeElevationLimit: 20,
   threatCalculation: "additive",
+  initialPopulationSaturation: 60,
 
   mapSize: 100,
   latitude: 50,

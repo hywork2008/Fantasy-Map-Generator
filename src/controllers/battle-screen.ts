@@ -5,7 +5,7 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
-
+import { applyDemographicCasualties } from "../generators/demography-simulator";
 import { appendMarkerToLayer, moveRegiment } from "../renderers/index";
 import { GenerationPipeline } from "../services/generationPipeline";
 import { tip } from "../services/tooltipService";
@@ -741,6 +741,12 @@ class Battle {
       view.armies.select(`g#${id} > text`).text(GenerationPipeline.Military.getTotal(r));
 
       moveRegiment(worldContext, viewContext, appServices, r, r.px as number, r.py as number);
+
+      // Apply casualties to the underlying demographic populations
+      const totalDead = Math.abs(sum(Object.values(r.casualties) as number[]));
+      if (totalDead > 0) {
+        applyDemographicCasualties(r.state, totalDead);
+      }
     }
 
     const markerI = last(worldContext.pack.markers)?.i + 1 || 0;

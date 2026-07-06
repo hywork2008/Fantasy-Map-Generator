@@ -56,6 +56,14 @@ export interface BurgGroup {
   religions?: number[];
 }
 
+export interface BurgDemographics {
+  capacity: number;
+  children: number;
+  maleAdults: number;
+  femaleAdults: number;
+  elders: number;
+}
+
 export interface Burg {
   cell: number;
   x: number;
@@ -84,6 +92,7 @@ export interface Burg {
   product?: number;
   treasury?: number;
   market?: number;
+  demographics?: BurgDemographics;
 }
 
 export interface Culture {
