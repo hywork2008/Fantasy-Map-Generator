@@ -9,6 +9,8 @@ export interface TitleHolding {
   entityType: "state";
   /** pack.states[] id. */
   entityId: number;
+  startYear?: number;
+  endYear?: number;
 }
 
 export interface CharacterSkills {
@@ -43,6 +45,10 @@ export interface CharacterFamily {
   children: number;
   grandchildren: number;
   greatGrandchildren: number;
+  spouseIds?: number[];
+  childIds?: number[];
+  fatherId?: number;
+  motherId?: number;
 }
 
 export interface Character {
@@ -62,9 +68,13 @@ export interface Character {
   affinities: Record<number, number>;
   /** State IDs of marriage ties */
   marriages: number[];
+  state: number;
   skills: CharacterSkills;
   personality: CharacterPersonality;
   family: CharacterFamily;
   appearance: number;
   prestige: number;
+  dead?: boolean;
+  location?: number;
+  pastTitles: TitleHolding[];
 }

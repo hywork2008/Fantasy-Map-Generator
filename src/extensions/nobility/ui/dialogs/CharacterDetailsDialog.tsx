@@ -1,7 +1,7 @@
 import type React from "react";
 import { useState } from "react";
 import { closeDialog, Dialog, useDialogState } from "../../../hostUi";
-import { getWorldContext } from "../../nobilityContext";
+import { getApi, getWorldContext } from "../../nobilityContext";
 import { RadarChart } from "../components/charts/RadarChart";
 import { useNobilityUiState } from "../nobilityUiState";
 
@@ -14,6 +14,7 @@ export const CharacterDetailsDialog: React.FC = () => {
   const characters = worldContext.pack.characters ?? [];
   const states = worldContext.pack.states;
   const cultures = worldContext.pack.cultures;
+  const burgs = worldContext.pack.burgs;
 
   const character = characters.find(c => c.i === selectedCharacterId);
 
@@ -31,6 +32,15 @@ export const CharacterDetailsDialog: React.FC = () => {
     return "Neutral";
   };
 
+  let locationStr = "Unknown";
+  if (character.location !== undefined) {
+    const burg = burgs[character.location];
+    if (burg) {
+      const stateName = states[burg.state]?.name ?? "Unknown State";
+      locationStr = `${burg.name} (${stateName})`;
+    }
+  }
+
   const downloadCSV = () => {
     if (!character) return;
 
@@ -42,6 +52,7 @@ export const CharacterDetailsDialog: React.FC = () => {
     rows.push(`Age, ${character.age}`);
     rows.push(`Gender, ${character.gender}`);
     rows.push(`Culture, ${cultureName}`);
+    rows.push(`Location, ${locationStr}`);
     rows.push(`Appearance, ${character.appearance ?? "N/A"}`);
     rows.push(`Prestige, ${character.prestige ?? "N/A"}`);
 
@@ -92,7 +103,17 @@ export const CharacterDetailsDialog: React.FC = () => {
       rows.push("Titles");
       character.titles.forEach(t => {
         const stateName = states[t.entityId]?.name ?? "Unknown";
-        rows.push(`${t.title} of ${stateName}, ${t.landed ? "(Landed)" : ""}`);
+        rows.push(
+          `${t.title} of ${stateName}, ${t.landed ? "(Landed)" : ""} ${t.startYear ? `[Since ${t.startYear}]` : ""}`
+        );
+      });
+    }
+
+    if (character.pastTitles && character.pastTitles.length > 0) {
+      rows.push("Past Titles");
+      character.pastTitles.forEach(t => {
+        const stateName = states[t.entityId]?.name ?? "Unknown";
+        rows.push(`${t.title} of ${stateName}, ${t.startYear ?? "?"} - ${t.endYear ?? "?"}`);
       });
     }
 
@@ -163,6 +184,23 @@ export const CharacterDetailsDialog: React.FC = () => {
               <td>{character.appearance ?? "N/A"}</td>
             </tr>
             <tr>
+              <th style={{ padding: "4px 0" }}>Location</th>
+              <td style={{ display: "flex", alignItems: "center" }}>
+                {character.location !== undefined && burgs[character.location] && (
+                  <span
+                    data-tip="Click to zoom into view"
+                    className="icon-dot-circled pointer"
+                    style={{ marginRight: "6px" }}
+                    onClick={() => {
+                      const b = burgs[character.location!];
+                      getApi().zoomTo(b.x, b.y, 8, 2000);
+                    }}
+                  />
+                )}
+                {locationStr}
+              </td>
+            </tr>
+            <tr>
               <th style={{ padding: "4px 0" }}>Prestige</th>
               <td>{character.prestige ?? "N/A"}</td>
             </tr>
@@ -184,7 +222,23 @@ export const CharacterDetailsDialog: React.FC = () => {
                   <ul style={{ margin: 0, listStyleType: "none", padding: 0 }}>
                     {character.titles.map(t => (
                       <li key={`${t.entityType}-${t.entityId}-${t.title}`}>
-                        {t.title} of {states[t.entityId]?.name ?? "Unknown"} {t.landed ? "(Landed)" : ""}
+                        {t.title} of {states[t.entityId]?.name ?? "Unknown"} {t.landed ? "(Landed)" : ""}{" "}
+                        {t.startYear ? `[Since ${t.startYear}]` : ""}
+                      </li>
+                    ))}
+                  </ul>
+                </td>
+              </tr>
+            )}
+            {character.pastTitles && character.pastTitles.length > 0 && (
+              <tr>
+                <th style={{ padding: "4px 0", verticalAlign: "top" }}>Past Titles</th>
+                <td>
+                  <ul style={{ margin: 0, listStyleType: "none", padding: 0 }}>
+                    {character.pastTitles.map((t, idx) => (
+                      // biome-ignore lint/suspicious/noArrayIndexKey: Past titles can be identical
+                      <li key={`past-${idx}`}>
+                        {t.title} of {states[t.entityId]?.name ?? "Unknown"} ({t.startYear ?? "?"} - {t.endYear ?? "?"})
                       </li>
                     ))}
                   </ul>

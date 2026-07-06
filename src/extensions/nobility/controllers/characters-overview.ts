@@ -24,7 +24,7 @@ export function filterAndSortCharacters(
   // 1. Map to row data
   let rows: CharacterRowData[] = characters.map(c => {
     const holding = c.titles[0];
-    const stateId = holding?.entityId ?? -1;
+    const stateId = c.state ?? holding?.entityId ?? -1;
     const stateName = states[stateId]?.name ?? "Unknown";
     return {
       c,

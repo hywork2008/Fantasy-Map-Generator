@@ -25,7 +25,7 @@ export const CharactersOverviewDialog: React.FC = () => {
   } = useNobilityUiState();
 
   const worldContext = getWorldContext();
-  const characters = worldContext.pack.characters ?? [];
+  const characters = (worldContext.pack.characters ?? []).filter(c => !c.dead);
   const states = worldContext.pack.states ?? [];
 
   const sortedStates = useMemo(() => {

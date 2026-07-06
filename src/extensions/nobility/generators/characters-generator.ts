@@ -40,21 +40,32 @@ export class CharactersModule {
     const characters: Character[] = [];
     let nextId = 0;
 
+    const currentYear = this.worldContext.options.year;
+
     const states = pack.states.filter(s => s.i && !s.removed);
     for (const state of states) {
       const ruler = this.createPerson(nextId++, state.culture, undefined, state);
+      ruler.location = state.capital;
       ruler.titles.push({
         title: resolveRulerTitle(state, ruler.gender),
         landed: true,
         entityType: "state",
-        entityId: state.i
+        entityId: state.i,
+        startYear: currentYear - rand(0, Math.max(0, ruler.age - 20))
       });
       characters.push(ruler);
       state.rulerId = ruler.i;
 
       for (const office of CENTRAL_OFFICES) {
         const officer = this.createPerson(nextId++, state.culture, office.primarySkill, state);
-        officer.titles.push({ title: office.title, landed: false, entityType: "state", entityId: state.i });
+        officer.location = state.capital;
+        officer.titles.push({
+          title: office.title,
+          landed: false,
+          entityType: "state",
+          entityId: state.i,
+          startYear: currentYear - rand(0, Math.max(0, officer.age - 20))
+        });
         characters.push(officer);
       }
     }
@@ -146,19 +157,14 @@ export class CharactersModule {
     for (const state of pack.states) delete state.rulerId;
   }
 
-  /**
-   * Called on every advanceTime() tick (via Nobility's registerTimeTickHook). Ages every
-   * character by deltaYears and applies the same physical-decline formula createPerson()
-   * uses at generation time, incrementally — appearance/prowess only lose the additional
-   * decline accrued between the old and new age, since the original pre-decline base roll
-   * isn't retained on the character.
-   */
   advanceAge(deltaYears: number): void {
     if (deltaYears <= 0) return;
     const { pack } = this.worldContext;
     if (!pack.characters?.length) return;
 
     for (const character of pack.characters) {
+      if (character.dead) continue;
+
       const oldAge = character.age;
       const newAge = Math.round(oldAge + deltaYears);
 
@@ -169,19 +175,219 @@ export class CharactersModule {
       character.age = newAge;
       if (appearanceDecline > 0) character.appearance = Math.max(1, character.appearance - appearanceDecline);
       if (prowessDecline > 0) character.skills.prowess = Math.max(1, character.skills.prowess - prowessDecline);
+
+      // Mortality Check: Base risk 1% per year, increasing exponentially past 50.
+      const mortalityRisk = 0.01 + (newAge > 50 ? 1.15 ** (newAge - 50) / 100 : 0);
+      const survivalProb = (1 - Math.min(0.99, mortalityRisk)) ** deltaYears;
+      if (Math.random() > survivalProb) {
+        character.dead = true;
+        for (const t of character.titles) {
+          t.endYear = this.worldContext.options.year;
+          character.pastTitles.push(t);
+        }
+        character.titles = [];
+        continue;
+      }
+
+      // Resignation Check
+      if (character.titles.length > 0) {
+        for (let i = character.titles.length - 1; i >= 0; i--) {
+          const title = character.titles[i];
+          if (title.entityType === "state") {
+            const state = pack.states[title.entityId];
+            if (!state || state.removed) {
+              title.endYear = this.worldContext.options.year;
+              character.pastTitles.push(title);
+              character.titles.splice(i, 1);
+              continue;
+            }
+            const threat = this.evaluateStateThreat(state.i);
+            const isRuler = state.rulerId === character.i;
+
+            // Rulers do not easily resign, only appointed officers.
+            if (!isRuler) {
+              const officeDef = CENTRAL_OFFICES.find(o => o.title === title.title);
+              const skillValue = officeDef ? character.skills[officeDef.primarySkill] : 50;
+
+              // Stress calculation: High threat + low specific skill + low boldness
+              const stress = threat * 10 + (100 - skillValue) * 0.5 + (100 - character.personality.boldness) * 0.5;
+              if (stress > 150 && P(0.1 * deltaYears)) {
+                title.endYear = this.worldContext.options.year;
+                character.pastTitles.push(title);
+                character.titles.splice(i, 1);
+
+                // Move to a random burg in their homeland state (if any) or capital
+                const stateBurgs = pack.burgs.filter(b => b.state === state.i && !b.removed);
+                if (stateBurgs.length > 0) {
+                  character.location = stateBurgs[rand(0, stateBurgs.length - 1)].i;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    this.processSuccessions();
+  }
+
+  private evaluateStateThreat(stateId: number): number {
+    const { pack } = this.worldContext;
+    const state = pack.states[stateId];
+    if (!state || !state.diplomacy) return 0;
+
+    let threat = 0;
+    state.diplomacy.forEach(rel => {
+      if (rel === "Enemy") threat += 5;
+      if (rel === "Rival") threat += 2;
+    });
+    return threat;
+  }
+
+  private evaluateOfficeAttractiveness(
+    character: Character,
+    office: (typeof CENTRAL_OFFICES)[0] | undefined,
+    threat: number
+  ): number {
+    if (!office) return 0;
+    const skillVal = character.skills[office.primarySkill] || 50;
+    let score = skillVal;
+
+    // War-mongers want martial positions during high threat
+    if (office.primarySkill === "martial") {
+      score += threat * (character.personality.boldness / 50) * (character.personality.vengefulness / 50);
+    }
+    // Greedy characters prefer stewardship
+    if (office.primarySkill === "stewardship") {
+      score += character.personality.greed * 0.5;
+    }
+    // Manipulators prefer intrigue
+    if (office.primarySkill === "intrigue") {
+      score += character.personality.guile * 0.5;
+    }
+
+    return score;
+  }
+
+  private processSuccessions(): void {
+    const { pack } = this.worldContext;
+    const states = pack.states.filter(s => s.i && !s.removed);
+    let nextId = Math.max(0, ...pack.characters.map(c => c.i)) + 1;
+
+    for (const state of states) {
+      const livingStateChars = pack.characters.filter(c => !c.dead && c.titles.some(t => t.entityId === state.i));
+
+      let rulerVacant = false;
+      const currentRuler = pack.characters.find(c => c.i === state.rulerId);
+      if (!currentRuler || currentRuler.dead || !currentRuler.titles.some(t => t.landed)) {
+        rulerVacant = true;
+      }
+
+      const vacantOffices = CENTRAL_OFFICES.filter(
+        office => !livingStateChars.some(c => c.titles.some(t => t.title === office.title))
+      );
+
+      const threat = this.evaluateStateThreat(state.i);
+
+      // Musical Chairs: Let veterans shift to vacant, more attractive offices
+      let changesMade = true;
+      while (changesMade && vacantOffices.length > 0) {
+        changesMade = false;
+
+        for (const office of vacantOffices) {
+          let bestCandidate: Character | null = null;
+          let bestScore = -1;
+
+          for (const vet of livingStateChars) {
+            if (vet.i === state.rulerId) continue; // Rulers don't step down to officer
+            const currentTitle = vet.titles.find(t => !t.landed && t.entityId === state.i);
+            if (!currentTitle) continue;
+
+            const currentOffice = CENTRAL_OFFICES.find(o => o.title === currentTitle.title);
+            const currentScore = this.evaluateOfficeAttractiveness(vet, currentOffice, threat);
+            const vacantScore = this.evaluateOfficeAttractiveness(vet, office, threat);
+
+            // Needs to be significantly more attractive to bother switching
+            if (vacantScore > currentScore + 20 && vacantScore > bestScore) {
+              bestScore = vacantScore;
+              bestCandidate = vet;
+            }
+          }
+
+          if (bestCandidate) {
+            const currentTitleIndex = bestCandidate.titles.findIndex(t => !t.landed && t.entityId === state.i);
+            const oldTitle = bestCandidate.titles[currentTitleIndex];
+            const oldTitleName = oldTitle.title;
+
+            // Move old title to past titles
+            oldTitle.endYear = this.worldContext.options.year;
+            bestCandidate.pastTitles.push({ ...oldTitle });
+
+            // Reassign to new title
+            bestCandidate.titles[currentTitleIndex].title = office.title;
+            bestCandidate.titles[currentTitleIndex].startYear = this.worldContext.options.year;
+
+            vacantOffices.splice(vacantOffices.indexOf(office), 1);
+            const oldOfficeDef = CENTRAL_OFFICES.find(o => o.title === oldTitleName);
+            if (oldOfficeDef) vacantOffices.push(oldOfficeDef);
+
+            changesMade = true;
+            break;
+          }
+        }
+      }
+
+      // Generate replacements for remaining vacancies
+      if (rulerVacant) {
+        const heir = this.createPerson(nextId++, state.culture, undefined, state);
+
+        // Setup Heir relationships if possible
+        if (currentRuler) {
+          heir.family.fatherId = currentRuler.gender === "male" ? currentRuler.i : undefined;
+          heir.family.motherId = currentRuler.gender === "female" ? currentRuler.i : undefined;
+          heir.age = Math.max(16, currentRuler.age - rand(16, 40));
+
+          if (!currentRuler.family.childIds) currentRuler.family.childIds = [];
+          currentRuler.family.childIds.push(heir.i);
+        }
+
+        heir.location = state.capital;
+        heir.titles.push({
+          title: resolveRulerTitle(state, heir.gender),
+          landed: true,
+          entityType: "state",
+          entityId: state.i,
+          startYear: this.worldContext.options.year
+        });
+        pack.characters.push(heir);
+        state.rulerId = heir.i;
+      }
+
+      for (const office of vacantOffices) {
+        const officer = this.createPerson(nextId++, state.culture, office.primarySkill, state);
+        officer.location = state.capital;
+        officer.titles.push({
+          title: office.title,
+          landed: false,
+          entityType: "state",
+          entityId: state.i,
+          startYear: this.worldContext.options.year
+        });
+        pack.characters.push(officer);
+      }
     }
   }
 
-  private generateFamily(age: number, formName?: string): CharacterFamily {
+  private generateFamily(age: number, gender: Gender, formName?: string): CharacterFamily {
     if (age < 16) {
-      return { spouses: 0, children: 0, grandchildren: 0, greatGrandchildren: 0 };
+      return { spouses: 0, children: 0, grandchildren: 0, greatGrandchildren: 0, spouseIds: [], childIds: [] };
     }
 
     let spouseBase = 1; // Monogamy default
     if (formName) {
-      if (["Horde", "Khaganate", "Khanate", "Empire"].includes(formName)) {
+      if (["Horde", "Khaganate", "Khanate", "Empire"].includes(formName) && gender === "male") {
         spouseBase += rand(2, 6); // Harem
-      } else if (["Emirate", "Caliphate", "Satrapy", "Beylik", "Sultanate"].includes(formName)) {
+      } else if (["Emirate", "Caliphate", "Satrapy", "Beylik", "Sultanate"].includes(formName) && gender === "male") {
         spouseBase += rand(0, 3); // Polygamy
       } else if (["Theocracy", "Holy State", "Bishopric"].includes(formName)) {
         spouseBase = P(0.8) ? 1 : 0; // Celibacy chance
@@ -210,7 +416,7 @@ export class CharactersModule {
       greatGrandchildren = Math.round(grandchildren * rand(0, 2) * ((age - 55) / 20));
     }
 
-    return { spouses, children, grandchildren, greatGrandchildren };
+    return { spouses, children, grandchildren, greatGrandchildren, spouseIds: [], childIds: [] };
   }
 
   private createPerson(
@@ -292,7 +498,9 @@ export class CharactersModule {
         guile,
         confidence
       },
-      family: this.generateFamily(age, stateData.formName)
+      family: this.generateFamily(age, gender, stateData.formName),
+      pastTitles: [],
+      state: stateData.i
     };
   }
 }

@@ -89,10 +89,13 @@ describe("CharactersModule", () => {
 
       charactersModule.advanceAge(3);
 
-      const after = worldContext.pack.characters.map(c => c.age);
-      after.forEach((age, i) => {
-        expect(age).toBe(before[i] + 3);
-      });
+      const after = worldContext.pack.characters;
+      for (let i = 0; i < before.length; i++) {
+        const c = after[i];
+        if (!c.dead) {
+          expect(c.age).toBe(before[i] + 3);
+        }
+      }
     });
 
     it("declines appearance and prowess further once a character crosses age 35", () => {
