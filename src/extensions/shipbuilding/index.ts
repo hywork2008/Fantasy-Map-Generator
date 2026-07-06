@@ -1,0 +1,106 @@
+import type { LayerConfig } from "../../store/layerState";
+import type { ExtensionAPI } from "../hostTypes";
+import { computeShipyardCandidates, type ShipyardCandidate } from "./generators/shipyardCandidates";
+import { clearShipyards, drawShipyards } from "./renderers/drawShipyards";
+import { clearShipbuildingContext, getWorldContext, initShipbuildingContext } from "./shipbuildingContext";
+
+export const SHIPBUILDING_EXTENSION_ID = "shipbuilding";
+
+export const shipbuildingLayers: LayerConfig[] = [
+  {
+    id: "toggleShipyards",
+    name: "Shipyards",
+    shortcut: null,
+    tooltip: "Shipyard candidates: port towns with enough nearby forest to plausibly build ships",
+    svgLayers: [{ id: "shipyards", insertBefore: "icons", display: "none" }]
+  }
+];
+
+let _candidates: ShipyardCandidate[] = [];
+let _unsubscribe: (() => void) | null = null;
+let _generatePostCoreHandler: (() => void) | null = null;
+
+function recomputeAndMaybeDraw(api: ExtensionAPI): void {
+  _candidates = computeShipyardCandidates();
+  if (api.layerIsOn("toggleShipyards")) drawShipyards(_candidates);
+}
+
+export function init(api: ExtensionAPI): void {
+  initShipbuildingContext(api);
+
+  api.registerExtension(
+    {
+      id: SHIPBUILDING_EXTENSION_ID,
+      name: "Shipbuilding",
+      description:
+        "Identifies port towns with nearby forest suited to shipbuilding, as a foundation for Age of Sail mechanics."
+    },
+    false
+  );
+
+  api.registerAction({
+    id: "shipbuilding-regenerate-shipyards",
+    extensionId: SHIPBUILDING_EXTENSION_ID,
+    tab: "tools",
+    section: "regenerate",
+    label: "Shipyards",
+    tooltip: "Click to recompute shipyard candidate towns",
+    onClick: () => recomputeAndMaybeDraw(api)
+  });
+
+  api.registerLayerToggle("toggleShipyards", (_event?: MouseEvent) => {
+    if (!api.layerIsOn("toggleShipyards")) {
+      api.turnLayerOn("toggleShipyards");
+      drawShipyards(_candidates);
+    } else {
+      clearShipyards();
+      api.turnLayerOff("toggleShipyards");
+    }
+  });
+
+  api.registerDrawLayerHook(() => {
+    if (api.layerIsOn("toggleShipyards")) drawShipyards(_candidates);
+  });
+
+  api.registerLayerElement("toggleShipyards", () => document.getElementById("shipyards"));
+
+  _unsubscribe = api.subscribeExtensionState((state, prevState) => {
+    const isEnabled = state.enabledExtensions[SHIPBUILDING_EXTENSION_ID];
+    const wasEnabled = prevState.enabledExtensions[SHIPBUILDING_EXTENSION_ID];
+
+    if (isEnabled && !wasEnabled) {
+      api.addLayers(shipbuildingLayers);
+      if (getWorldContext().pack.burgs?.length) recomputeAndMaybeDraw(api);
+    } else if (!isEnabled && wasEnabled) {
+      if (api.layerIsOn("toggleShipyards")) api.toggleLayerById("toggleShipyards");
+      api.removeLayers(shipbuildingLayers.map(l => l.id));
+      _candidates = [];
+    }
+  });
+
+  if (api.isExtensionEnabled(SHIPBUILDING_EXTENSION_ID)) {
+    api.addLayers(shipbuildingLayers);
+  }
+
+  _generatePostCoreHandler = () => {
+    if (api.isExtensionEnabled(SHIPBUILDING_EXTENSION_ID)) recomputeAndMaybeDraw(api);
+  };
+  document.addEventListener("fmg:generate-post-core", _generatePostCoreHandler);
+}
+
+export function cleanup(api: ExtensionAPI): void {
+  if (_unsubscribe) {
+    _unsubscribe();
+    _unsubscribe = null;
+  }
+  if (_generatePostCoreHandler) {
+    document.removeEventListener("fmg:generate-post-core", _generatePostCoreHandler);
+    _generatePostCoreHandler = null;
+  }
+
+  api.removeLayers(shipbuildingLayers.map(l => l.id));
+  _candidates = [];
+
+  api.unregisterExtension(SHIPBUILDING_EXTENSION_ID);
+  clearShipbuildingContext();
+}
