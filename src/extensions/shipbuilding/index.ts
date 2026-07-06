@@ -2,6 +2,7 @@ import type { LayerConfig } from "../../store/layerState";
 import type { ExtensionAPI } from "../hostTypes";
 import { runLoggingTick } from "./generators/logging";
 import { computeShipyardCandidates, type ShipyardCandidate } from "./generators/shipyardCandidates";
+import { clearShipyardQueues, runShipyardTick } from "./generators/shipyardQueue";
 import { clearShipyards, drawShipyards } from "./renderers/drawShipyards";
 import { clearShipbuildingContext, getWorldContext, initShipbuildingContext } from "./shipbuildingContext";
 
@@ -72,6 +73,7 @@ export function init(api: ExtensionAPI): void {
   api.registerTimeTickHook(deltaYears => {
     if (!api.isExtensionEnabled(SHIPBUILDING_EXTENSION_ID)) return;
     runLoggingTick(_candidates, deltaYears);
+    runShipyardTick(_candidates, getWorldContext().pack.burgs, deltaYears);
   });
 
   _unsubscribe = api.subscribeExtensionState((state, prevState) => {
@@ -85,6 +87,7 @@ export function init(api: ExtensionAPI): void {
       if (api.layerIsOn("toggleShipyards")) api.toggleLayerById("toggleShipyards");
       api.removeLayers(shipbuildingLayers.map(l => l.id));
       _candidates = [];
+      clearShipyardQueues();
     }
   });
 
@@ -110,6 +113,7 @@ export function cleanup(api: ExtensionAPI): void {
 
   api.removeLayers(shipbuildingLayers.map(l => l.id));
   _candidates = [];
+  clearShipyardQueues();
 
   api.unregisterExtension(SHIPBUILDING_EXTENSION_ID);
   clearShipbuildingContext();
