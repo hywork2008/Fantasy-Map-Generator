@@ -287,7 +287,7 @@ export interface State {
   rural?: number;
   urban?: number;
   campaigns?: Campaign[];
-  diplomacy?: (string | string[] | ChronicleEvent[])[];
+  diplomacy?: (string | string[] | ChronicleEvent[] | [string, ChronicleEvent])[];
   formName?: string;
   fullName?: string;
   form?: string;

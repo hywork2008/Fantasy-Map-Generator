@@ -1,4 +1,5 @@
 import type { StrategicGoal } from "../../../context/simulationContext";
+import type { ChronicleEvent } from "../../../types/models";
 import { getWorldContext } from "../nobilityContext";
 
 export const BattleResolutionGenerator = {
@@ -177,12 +178,12 @@ export const BattleResolutionGenerator = {
     }
 
     // Log to Relations history
-    let chronicle = pack.states[0].diplomacy as unknown[];
+    let chronicle = pack.states[0].diplomacy;
     if (!chronicle) {
       chronicle = [];
     }
 
-    const event = {
+    const event: ChronicleEvent = {
       id: `siege-${attackerId}-${goal.targetState}-${Date.now()}`,
       yearsAgo: 0,
       from: attackerId,
