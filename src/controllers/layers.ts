@@ -1076,10 +1076,10 @@ export function registerDrawLayerHook(fn: () => void): void {
 
 // ─── Tool action registry (for extension-owned react-tool-action events) ─────
 
-const _toolActionRegistry = new Map<string, () => void>();
+const _toolActionRegistry = new Map<string, (detail?: Record<string, unknown>) => void>();
 
 /** Register a handler for a react-tool-action event name — used by extensions. */
-export function registerToolAction(eventName: string, handler: () => void): void {
+export function registerToolAction(eventName: string, handler: (detail?: Record<string, unknown>) => void): void {
   _toolActionRegistry.set(eventName, handler);
 }
 
@@ -1089,7 +1089,7 @@ export function unregisterToolAction(eventName: string): void {
 }
 
 /** Look up a registered tool action handler — called by tools.ts as fallback. */
-export function getToolActionHandler(eventName: string): (() => void) | undefined {
+export function getToolActionHandler(eventName: string): ((detail?: Record<string, unknown>) => void) | undefined {
   return _toolActionRegistry.get(eventName);
 }
 

@@ -4,12 +4,14 @@ export {
   findCell,
   findClosestCell,
   formatPrice,
+  gauss,
   getIsolines,
   getVertexPath,
   list,
   minmax,
   normalize,
   rn,
+  si,
   unique
 } from "../utils";
 export { getColors, getRandomColor } from "../utils/colorUtils";

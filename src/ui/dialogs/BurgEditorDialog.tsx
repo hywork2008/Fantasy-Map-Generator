@@ -174,19 +174,21 @@ export const BurgEditorDialog: React.FC = () => {
               <tr data-tip="Burg average daily production">
                 <th scope="row">Production:</th>
                 <td>
-                  <span id="burgProduction" className="d-inline-flex" />
+                  <span id="burgProduction" className="d-inline-flex">
+                    {burgData.production}
+                  </span>
                 </td>
               </tr>
               <tr data-tip="Wealth is gross product per population point for the current production run. It is a per-capita productivity measure, not the burg's cumulative treasury.">
                 <th scope="row">Wealth</th>
                 <td>
-                  <span id="burgWealth" />
+                  <span id="burgWealth">{burgData.wealth}</span>
                 </td>
               </tr>
               <tr data-tip="Treasury is the burg's cumulative cash balance after all production, purchases, and sales.">
                 <th scope="row">Treasury</th>
                 <td>
-                  <span id="burgTreasury" />
+                  <span id="burgTreasury">{burgData.treasury}</span>
                 </td>
               </tr>
               <tr>
@@ -331,7 +333,9 @@ export const BurgEditorDialog: React.FC = () => {
               className="icon-chart-bar"
               onClick={() =>
                 document.dispatchEvent(
-                  new CustomEvent("react-tool-action", { detail: { action: "burgProductionOverview" } })
+                  new CustomEvent("react-tool-action", {
+                    detail: { action: "burgProductionOverview", burgId: burgData.id }
+                  })
                 )
               }
             ></button>

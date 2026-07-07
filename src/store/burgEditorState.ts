@@ -23,6 +23,9 @@ export interface BurgData {
   temperatureLikeIn: string;
   elevation: string;
   previewUrl: string | null;
+  production: string;
+  wealth: string;
+  treasury: string;
 
   // Features
   capital: boolean;

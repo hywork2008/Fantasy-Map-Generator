@@ -3,6 +3,7 @@ import type { LayerConfig } from "../../store/layerState";
 import { regenerateFeatureDialogStore } from "../../store/regenerateFeatureDialogState";
 import { useUiPreferencesState } from "../../store/uiPreferencesState";
 import type { ExtensionAPI } from "../../types/extension-api";
+import { getBurgEconomySummary } from "./burgEconomySummary";
 import { economyStyleConfig } from "./EconomyStyleConfig";
 import { clearEconomyContext, getWorldContext, initEconomyContext } from "./economyContext";
 import {
@@ -14,11 +15,13 @@ import {
 import { Goods } from "./generators/goods-generator";
 import { Markets } from "./generators/markets-generator";
 import { Production } from "./generators/production-generator";
+import { Taxes } from "./generators/taxes-generator";
 import { TradeAnimation } from "./generators/trade-animation";
 import { drawGoods } from "./renderers/draw-goods";
 import { drawMarketsLayer } from "./renderers/draw-markets";
 import { clear as clearTradeAnimation, draw as drawTradeAnimation } from "./renderers/draw-trade-animation";
 import { showEconomyTooltip, updateEconomyCellInfo } from "./tooltipHandler";
+import { StatesEditorTreasuryTab } from "./ui/components/StatesEditorTreasuryTab";
 import { GoodsDistributionEditorDialog } from "./ui/dialogs/GoodsDistributionEditorDialog";
 import { GoodsEditorDialog } from "./ui/dialogs/GoodsEditorDialog";
 import { GoodsProducersDialog } from "./ui/dialogs/GoodsProducersDialog";
@@ -29,6 +32,7 @@ import { MarketOverviewDialog } from "./ui/dialogs/MarketOverviewDialog";
 import { MarketsGoodCompareDialog } from "./ui/dialogs/MarketsGoodCompareDialog";
 import { MarketsOverviewDialog } from "./ui/dialogs/MarketsOverviewDialog";
 import { ProductionChainsDialog } from "./ui/dialogs/ProductionChainsDialog";
+import { ProductionOverviewDialog } from "./ui/dialogs/ProductionOverviewDialog";
 import { TradeAnimationDialog } from "./ui/dialogs/TradeAnimationDialog";
 import { TradeDetailsDialog } from "./ui/dialogs/TradeDetailsDialog";
 
@@ -128,6 +132,14 @@ export function init(api: ExtensionAPI): void {
     false
   );
 
+  api.registerEditorTab({
+    id: "states-treasury",
+    extensionId: ECONOMY_EXTENSION_ID,
+    editorId: "statesEditor",
+    label: "Treasury",
+    component: StatesEditorTreasuryTab
+  });
+
   // Register Economy Dialogs
   api.registerDialog({ id: "GoodsEditorDialog", extensionId: ECONOMY_EXTENSION_ID, component: GoodsEditorDialog });
   api.registerDialog({
@@ -169,6 +181,11 @@ export function init(api: ExtensionAPI): void {
     component: ProductionChainsDialog
   });
   api.registerDialog({
+    id: "ProductionOverviewDialog",
+    extensionId: ECONOMY_EXTENSION_ID,
+    component: ProductionOverviewDialog
+  });
+  api.registerDialog({
     id: "TradeAnimationDialog",
     extensionId: ECONOMY_EXTENSION_ID,
     component: TradeAnimationDialog
@@ -189,7 +206,9 @@ export function init(api: ExtensionAPI): void {
       withRegenerateConfirmation("Economy", "regenerateEconomy", () => {
         Goods.generate();
         Markets.generate(true);
+        Taxes.defineTaxRates();
         Production.produce();
+        Taxes.collectTaxes();
       });
     }
   });
@@ -226,7 +245,10 @@ export function init(api: ExtensionAPI): void {
     label: "Production",
     tooltip: "Click to regenerate production and trade deals",
     onClick: () => {
-      withRegenerateConfirmation("Production", "regenerateProduction", () => Production.produce());
+      withRegenerateConfirmation("Production", "regenerateProduction", () => {
+        Production.produce();
+        Taxes.collectTaxes();
+      });
     }
   });
 
@@ -280,6 +302,12 @@ export function init(api: ExtensionAPI): void {
   api.registerToolAction("editGoods", () => toggleEditorDialog("goodsEditor", "toggleGoods"));
   api.registerToolAction("overviewMarketsButton", () => toggleEditorDialog("marketsOverview", "toggleMarketsLayer"));
   api.registerToolAction("editTradeAnimationButton", () => toggleEditorDialog("tradeAnimationEditor", "toggleTrade"));
+  api.registerToolAction("burgProductionOverview", detail => {
+    const burgId = (detail as { burgId?: number } | undefined)?.burgId;
+    if (!burgId) return;
+    if (api.isDialogOpen("productionOverview")) api.closeDialog("productionOverview");
+    else api.openDialog("productionOverview", { burgId });
+  });
 
   // Subscribe to extension state changes to dynamically add/remove layers
   _unsubscribe = api.subscribeExtensionState((state, prevState) => {
@@ -295,6 +323,7 @@ export function init(api: ExtensionAPI): void {
       }
       api.tooltipExtensions.showMapTooltip = showEconomyTooltip;
       api.tooltipExtensions.updateCellInfo = updateEconomyCellInfo;
+      api.burgEconomyExtensions.getBurgEconomySummary = getBurgEconomySummary;
       // Generate economy if it's completely missing
       if (!worldContext.pack.goods || worldContext.pack.goods.length === 0) {
         if (
@@ -306,7 +335,9 @@ export function init(api: ExtensionAPI): void {
         }
         Goods.generate();
         Markets.generate();
+        Taxes.defineTaxRates();
         Production.produce();
+        Taxes.collectTaxes();
       }
     } else if (!isEnabled && wasEnabled) {
       // Visually turn off layers before removing them
@@ -329,6 +360,7 @@ export function init(api: ExtensionAPI): void {
       api.closeDialog("marketsGoodCompare");
       api.closeDialog("tradeDetails");
       api.closeDialog("productionChains");
+      api.closeDialog("productionOverview");
       api.closeDialog("tradeAnimationEditor");
 
       // Clear economy data from worldContext when disabled
@@ -337,6 +369,7 @@ export function init(api: ExtensionAPI): void {
       worldContext.pack.deals = [];
       api.tooltipExtensions.showMapTooltip = undefined;
       api.tooltipExtensions.updateCellInfo = undefined;
+      api.burgEconomyExtensions.getBurgEconomySummary = undefined;
       if (worldContext.pack.cells?.i) {
         worldContext.pack.cells.good = new Uint16Array(worldContext.pack.cells.i.length);
         worldContext.pack.cells.market = new Uint16Array(worldContext.pack.cells.i.length);
@@ -354,6 +387,7 @@ export function init(api: ExtensionAPI): void {
     }
     api.tooltipExtensions.showMapTooltip = showEconomyTooltip;
     api.tooltipExtensions.updateCellInfo = updateEconomyCellInfo;
+    api.burgEconomyExtensions.getBurgEconomySummary = getBurgEconomySummary;
   }
 
   // Listen for core map generation to generate economy
@@ -361,7 +395,9 @@ export function init(api: ExtensionAPI): void {
     if (api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) {
       Goods.generate();
       Markets.generate();
+      Taxes.defineTaxRates();
       Production.produce();
+      Taxes.collectTaxes();
     }
   };
   document.addEventListener("fmg:generate-post-core", _generatePostCoreHandler);
@@ -386,6 +422,7 @@ export function init(api: ExtensionAPI): void {
       if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
       if (!consumeDirtyFlag()) return;
       Production.produce();
+      Taxes.collectTaxes();
       if (api.layerIsOn("toggleGoods")) drawGoods(getDefaultGoodsSet());
     });
   };
@@ -438,7 +475,12 @@ export function init(api: ExtensionAPI): void {
   }
 
   api.registerMapReinitHook(() => {
-    if (api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) attachSvgClickHandlers();
+    if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
+    attachSvgClickHandlers();
+    // Backfill sales/poll tax rates and recompute treasury for maps saved before this feature existed.
+    // Both calls are idempotent/cheap, so re-running them on every load is safe.
+    Taxes.defineTaxRates();
+    Taxes.collectTaxes();
   });
 
   // Register layer toggle handlers
@@ -503,11 +545,13 @@ export function cleanup(api: ExtensionAPI): void {
   }
   api.tooltipExtensions.showMapTooltip = undefined;
   api.tooltipExtensions.updateCellInfo = undefined;
+  api.burgEconomyExtensions.getBurgEconomySummary = undefined;
 
   // Unregister tool action handlers
   api.unregisterToolAction("editGoods");
   api.unregisterToolAction("overviewMarketsButton");
   api.unregisterToolAction("editTradeAnimationButton");
+  api.unregisterToolAction("burgProductionOverview");
 
   api.unregisterExtension(ECONOMY_EXTENSION_ID);
   clearEconomyContext();

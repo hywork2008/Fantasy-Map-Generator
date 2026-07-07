@@ -193,7 +193,7 @@ document.addEventListener("react-tool-action", e => {
     toggleEditor("markersOverview", "toggleMarkers", MarkersOverview.overviewMarkers);
   else if (button === "overviewCellsButton") viewCellDetails();
   else if (button === "openMinimapButton") openMinimap?.();
-  else getToolActionHandler(button)?.();
+  else getToolActionHandler(button)?.(detail);
 
   if (button.startsWith("regenerate")) {
     const { dontAskRegenerateFeature, setDontAskRegenerateFeature } = useUiPreferencesState.getState();

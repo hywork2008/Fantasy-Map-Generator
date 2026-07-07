@@ -19,6 +19,7 @@ import type { SimulationContext } from "../context/simulationContext";
 import type { SvgGroup, ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import type { TimeTickHook } from "../generators/timeEngine";
+import type { BurgEconomySummary } from "../services/burgEconomyExtensions";
 import type { SkillModifierFn } from "../services/skillModifierService";
 import type {
   ExtensionAction,
@@ -40,6 +41,10 @@ export interface TooltipExtensionHooks {
     subgroup: string
   ) => boolean;
   updateCellInfo?: (point: [number, number], i: number, g: number) => void;
+}
+
+export interface BurgEconomyExtensionHooks {
+  getBurgEconomySummary?: (burgId: number) => BurgEconomySummary | null;
 }
 
 export interface ExtensionStateSnapshot {
@@ -126,7 +131,7 @@ export interface ExtensionAPI {
    * so extensions can own their own button→dialog toggle logic without
    * modifying core controller code.
    */
-  registerToolAction(eventName: string, handler: () => void): void;
+  registerToolAction(eventName: string, handler: (detail?: Record<string, unknown>) => void): void;
   /** Unregister a previously registered tool action handler (call in cleanup). */
   unregisterToolAction(eventName: string): void;
 
@@ -170,4 +175,11 @@ export interface ExtensionAPI {
    * Assign showMapTooltip / updateCellInfo in init(), clear them in cleanup().
    */
   tooltipExtensions: TooltipExtensionHooks;
+
+  // ── Burg editor hooks ────────────────────────────────────────────────────
+  /**
+   * Mutable object for supplying the Burg Editor's Production/Wealth/Treasury
+   * display. Assign getBurgEconomySummary in init(), clear it in cleanup().
+   */
+  burgEconomyExtensions: BurgEconomyExtensionHooks;
 }

@@ -6,6 +6,7 @@ import { worldContext } from "../context/worldContext";
 
 import { drawBurgIcon, drawBurgLabel, removeBurgCOA } from "../renderers";
 import { COArenderer } from "../renderers/emblem-renderer";
+import { burgEconomyExtensions } from "../services/burgEconomyExtensions";
 import { getHeight } from "../services/cellInfoService";
 import { GenerationPipeline } from "../services/generationPipeline";
 import { clearMainTip, tip } from "../services/tooltipService";
@@ -104,6 +105,8 @@ const burgEditorInternal = {
     const coaID = `burgCOA${burgId}`;
     COArenderer.trigger(coaID, b.coa!);
 
+    const economySummary = burgEconomyExtensions.getBurgEconomySummary?.(burgId);
+
     getBurgEditorState().setBurgData({
       id: burgId,
       emblemId: coaID,
@@ -129,6 +132,9 @@ const burgEditorInternal = {
       temperatureLikeIn: tempLikeIn,
       elevation: elevationStr,
       previewUrl: null,
+      production: economySummary?.production ?? "—",
+      wealth: economySummary?.wealth ?? "—",
+      treasury: economySummary?.treasury ?? "—",
       capital: !!b.capital,
       port: !!b.port,
       citadel: !!b.citadel,

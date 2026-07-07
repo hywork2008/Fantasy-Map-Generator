@@ -1,3 +1,4 @@
+export type { BurgEconomySummary } from "../services/burgEconomyExtensions";
 export type { ExtensionAPI } from "../types/extension-api";
 export type { Grid } from "../types/Grid";
 export type { Burg, CultureType, State, Zone } from "../types/models";
