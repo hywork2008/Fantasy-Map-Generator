@@ -125,7 +125,8 @@ dialogStore.subscribe((state, prevState) => {
 // ─── Tools panel event dispatcher ────────────────────────────────────────────
 
 document.addEventListener("react-tool-action", e => {
-  const button = (e as CustomEvent).detail?.action;
+  const detail = (e as CustomEvent).detail;
+  const button = detail?.action;
   if (!button) return;
 
   const toggleEditor = (dialogId: string, _layerId: string | null, openFunc: () => void) => {
@@ -224,15 +225,10 @@ document.addEventListener("react-tool-action", e => {
   else if (button === "openSubmapTool") openSubmapTool?.();
   else if (button === "openTransformTool") openTransformTool?.();
   else if (button === "openWorldConfigurator") editWorld();
-  else if (button === "advanceTimeButton")
-    openPrompt({
-      message: "Advance time by how many years?",
-      default: 10,
-      step: 1,
-      min: 1,
-      max: 500,
-      onConfirm: v => advanceTime(+v)
-    });
+  else if (button === "advanceTimeButton") {
+    const years = detail.years !== undefined ? Number(detail.years) : 10;
+    advanceTime(years);
+  }
 });
 
 // ─── Regeneration dispatcher ──────────────────────────────────────────────────

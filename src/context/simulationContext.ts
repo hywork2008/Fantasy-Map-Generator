@@ -1,3 +1,22 @@
+export interface IntelligenceReport {
+  estimatedMilitaryPower: number;
+  estimatedWealth: number;
+  lastUpdatedYear: number;
+  accuracyLevel: "accurate" | "overestimated" | "underestimated" | "unknown";
+  hiddenBySpymaster: boolean;
+  spymasterId?: number;
+  rulerId?: number;
+}
+
+export interface StrategicGoal {
+  targetBurg: number;
+  targetState: number;
+  type: "siege" | "raid";
+  tension: number;
+  expectedCasualties: "low" | "moderate" | "high_cornered";
+  justification: string;
+}
+
 export interface SimulationContext {
   /** In-world calendar year, advanced by src/generators/timeEngine.ts's advanceTime(). */
   currentYear: number;
@@ -5,6 +24,10 @@ export interface SimulationContext {
   era: string;
   /** Number of times advanceTime() has run since the current map was generated. */
   tickCount: number;
+  /** Espionage reports: intelligence[observerStateId][targetStateId] */
+  intelligence: Record<number, Record<number, IntelligenceReport>>;
+  /** Strategic goals: strategicGoals[stateId] */
+  strategicGoals: Record<number, StrategicGoal[]>;
 }
 
 /**
@@ -15,5 +38,7 @@ export interface SimulationContext {
 export const simulationContext: SimulationContext = {
   currentYear: 0,
   era: "",
-  tickCount: 0
+  tickCount: 0,
+  intelligence: {},
+  strategicGoals: {}
 };

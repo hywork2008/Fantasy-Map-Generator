@@ -162,6 +162,7 @@ export const ToolsTab: React.FC = () => {
     currentYear: window.fmg.simulation.currentYear,
     era: window.fmg.simulation.era
   }));
+  const [advanceYears, setAdvanceYears] = useState(10);
 
   useEffect(() => {
     const onSimulationUpdated = (e: Event) => {
@@ -425,13 +426,30 @@ export const ToolsTab: React.FC = () => {
         <span data-tip="Current in-world year and era">
           {simulationClock.currentYear} {simulationClock.era}
         </span>
-        <button
-          data-tip="Click to advance the world's simulation clock by a number of years"
-          type="button"
-          onClick={() => triggerEvent("advanceTimeButton")}
-        >
-          Advance Time
-        </button>
+        <div style={{ display: "flex", gap: "5px" }}>
+          <input
+            type="number"
+            min={1}
+            max={500}
+            step={1}
+            value={advanceYears}
+            onChange={e => setAdvanceYears(Number(e.target.value))}
+            style={{ width: "60px" }}
+            data-tip="Years to advance"
+          />
+          <button
+            data-tip="Click to advance the world's simulation clock by a number of years"
+            type="button"
+            style={{ flex: 1 }}
+            onClick={() => {
+              document.dispatchEvent(
+                new CustomEvent("react-tool-action", { detail: { action: "advanceTimeButton", years: advanceYears } })
+              );
+            }}
+          >
+            Advance Time
+          </button>
+        </div>
       </div>
       <div className="separator">Create</div>
       <div className="grid">

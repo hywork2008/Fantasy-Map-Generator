@@ -5,6 +5,8 @@ import { applyPersonalityToCapitalGuard } from "./generators/capitalGuardModifie
 import { Characters } from "./generators/characters-generator";
 import type { CharacterSkills } from "./generators/characterTypes";
 import { applyAffinitiesToDiplomacy } from "./generators/diplomacy-modifier";
+import { Espionage } from "./generators/espionage-generator";
+import { StrategicPlanner } from "./generators/strategic-planner";
 import { clearNobilityContext, getWorldContext, initNobilityContext } from "./nobilityContext";
 import { StatesEditorPersonalityTab } from "./ui/components/StatesEditorPersonalityTab";
 import { CharacterDetailsDialog } from "./ui/dialogs/CharacterDetailsDialog";
@@ -83,6 +85,8 @@ export function init(api: ExtensionAPI): void {
       Characters.generate();
       applyAffinitiesToDiplomacy();
       applyPersonalityToCapitalGuard();
+      Espionage.generate();
+      StrategicPlanner.generate();
     }
   });
 
@@ -101,6 +105,8 @@ export function init(api: ExtensionAPI): void {
         Characters.generate();
         applyAffinitiesToDiplomacy();
         applyPersonalityToCapitalGuard();
+        Espionage.generate();
+        StrategicPlanner.generate();
       }
     } else if (!isEnabled && wasEnabled) {
       api.closeDialog("charactersOverview");
@@ -113,6 +119,8 @@ export function init(api: ExtensionAPI): void {
       Characters.generate();
       applyAffinitiesToDiplomacy();
       applyPersonalityToCapitalGuard();
+      Espionage.generate();
+      StrategicPlanner.generate();
     }
   };
   document.addEventListener("fmg:generate-post-core", _generatePostCoreHandler);
@@ -120,6 +128,9 @@ export function init(api: ExtensionAPI): void {
   api.registerTimeTickHook(deltaYears => {
     if (!api.isExtensionEnabled(NOBILITY_EXTENSION_ID)) return;
     Characters.advanceAge(deltaYears);
+    Espionage.generate();
+    StrategicPlanner.generate();
+    StrategicPlanner.advanceTension();
     refreshCharactersOverviewIfOpen(api.isDialogOpen("charactersOverview"));
   });
 }
