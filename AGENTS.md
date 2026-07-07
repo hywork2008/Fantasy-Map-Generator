@@ -392,5 +392,7 @@ The loader (`dynamicLoader.ts`) validates the manifest, stores the record in Ind
 
 - **Pre-commit Quality Gate**: Prior to crafting any commit, you must execute the compilation validation (`npm run build` or `npx tsc --noEmit`) and structural verification linting scripts to ensure zero errors are introduced.
 - **No Circular Dependencies**: Run `npm run madge` (`madge --circular --extensions ts,tsx src/app.ts`) and confirm it reports no circular dependency before committing. If a cycle is introduced, resolve it by extracting shared types/utilities into a dependency-free module rather than suppressing the check.
-- **No VS Code Problems**: Confirm the VS Code PROBLEMS tab shows no errors for the files you touched before committing.
+- **End-of-Task Error Checks**: At the end of every editing task (not only right before a commit), confirm both of the following are clean:
+  - **No VS Code Problems**: The VS Code PROBLEMS tab shows no errors for the files you touched. Note that `tsconfig.json` excludes `src/**/*.test.ts` and `src/test-setup.ts`, so `npx tsc --noEmit` silently skips type errors in test files — the PROBLEMS tab (or a temporary tsconfig with those excludes removed) is the only way to catch them.
+  - **No Lint Errors**: `npm run lint` (`biome check --write` + `lint:legacy`) reports zero errors/warnings. Do not leave a `biome-ignore` suppression comment for a rule that is already disabled for that file's path (check `biome.json` overrides first) — it will itself be flagged as an ineffective suppression.
 - **Commit Format**: All Git commit messages must be explicitly written in English following structural conventions (e.g., `refactor: migrate module-name to TypeScript`). Do not commit automatically if an error occurs during building.

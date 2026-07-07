@@ -9,7 +9,11 @@ import type { MilitaryRegiment, MilitaryUnit, Platoon, State } from "../types/mo
 import type { WorldState } from "../types/WorldState";
 import { findAllInQuadtree, gauss, minmax, nth, ra, rand, rn, si } from "../utils";
 import { TIME } from "../utils/debug";
+import { analyzeFrontiers, type FrontierSegment, pickPrimaryFrontier } from "./frontierAnalysis";
 import { getNavalTechBonus } from "./navalTechBonus";
+
+/** How far (0..1) a state's regiments are pulled from their recruitment site toward a hostile frontier. */
+const GARRISON_PULL_STRENGTH = 0.5;
 
 class MilitaryModule {
   worldContext: WorldContext = worldContext;
@@ -33,6 +37,11 @@ class MilitaryModule {
     const valid = states.filter(s => s.i && !s.removed); // valid states
     if (!options.military) options.military = this.getDefaultOptions();
     const military = options.military;
+
+    // Hostile borders (from Relations History), used to garrison regiments toward active threats
+    // instead of leaving them wherever they were recruited. Peaceful states get no segments back,
+    // so their regiments keep the original population-centroid placement unchanged.
+    const frontiers = analyzeFrontiers(pack, options.year ?? 0);
 
     const expn = sum(valid.map(s => s.expansionism)); // total expansion
     const area = sum(valid.map(s => s.area)); // total area
@@ -427,6 +436,27 @@ class MilitaryModule {
       return regiments as MilitaryRegiment[];
     };
 
+    // Pulls each non-naval regiment from its recruitment site toward the nearest/most
+    // threatening hostile frontier, proportional to that frontier's share of the state's
+    // total threat. Naval regiments are left as-is: a sea-crossing frontier needs sea-path
+    // geometry (akin to states-generator's isPathBlocked), which is out of scope for now.
+    const redistributeGarrisons = (regiments: MilitaryRegiment[], segments: FrontierSegment[]) => {
+      const totalWeight = sum(segments.map(seg => seg.threatWeight));
+      if (!totalWeight) return;
+
+      regiments.forEach(r => {
+        if (r.n) return;
+        const target = pickPrimaryFrontier(r.x, r.y, segments);
+        if (!target) return;
+
+        const pull = minmax(target.threatWeight / totalWeight, 0, 1) * GARRISON_PULL_STRENGTH;
+        r.x += (target.cx - r.x) * pull;
+        r.y += (target.cy - r.y) * pull;
+        r.bx = r.x;
+        r.by = r.y;
+      });
+    };
+
     // remove all existing regiment notes before regenerating
     for (let i = notes.length - 1; i >= 0; i--) {
       if (notes[i].id.startsWith("regiment")) notes.splice(i, 1);
@@ -436,6 +466,9 @@ class MilitaryModule {
     valid.forEach(s => {
       s.military = createRegiments(s.temp!.platoons!, s);
       delete s.temp; // do not store temp data
+
+      const segments = frontiers.get(s.i);
+      if (segments?.length) redistributeGarrisons(s.military, segments);
     });
 
     TIME && console.timeEnd("generateMilitary");

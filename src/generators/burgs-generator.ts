@@ -1,3 +1,4 @@
+import { max as d3max, mean } from "d3";
 import { type Quadtree, quadtree } from "d3-quadtree";
 import type { AppServices } from "../context/appServices";
 import { appServices } from "../context/appServices";
@@ -15,10 +16,25 @@ import { each, findCell, gauss, minmax, normalize, P, rn } from "../utils";
 import { ERROR, TIME, WARN } from "../utils/debug";
 import { COA, type Emblem } from "./emblem/generator";
 import { NON_NAVIGABLE_LAKE_GROUPS } from "./features";
+import {
+  analyzeFrontiers,
+  type FrontierSegment,
+  getChronicleContestedBurgs,
+  normalizeHabitability
+} from "./frontierAnalysis";
 import { Names } from "./names-generator";
 import { Rivers } from "./river-generator";
 import { Routes } from "./routes-generator";
 import type { Point } from "./voronoi";
+
+const MAX_STRATEGIC_CITADEL_BONUS = 0.5;
+
+interface StrategicContext {
+  frontiers: Map<number, FrontierSegment[]>;
+  contestedBurgs: Set<number>;
+  meanS: number;
+  maxS: number;
+}
 
 type PortCandidate = {
   burg: Burg;
@@ -449,10 +465,51 @@ class BurgModule {
     burg.coa.shield = COA.getShield(burg.culture!, burg.state!);
   }
 
-  private defineFeatures(burg: Burg) {
+  /**
+   * Precomputes the data needed to score how strategically important a burg's
+   * location is: hostile-border proximity (from Relations History) and
+   * agricultural potential ("breadbasket") derived from cell habitability
+   * (`cells.s`), which is available long before the optional Economy
+   * extension ever runs — see AGENTS.md §7 on not depending on extensions.
+   */
+  private computeStrategicContext(pack: WorldContext["pack"], currentYear: number): StrategicContext {
+    const { cells } = pack;
+    const frontiers = analyzeFrontiers(pack, currentYear);
+    const contestedBurgs = getChronicleContestedBurgs(pack);
+
+    const populatedScores = Array.from(cells.i)
+      .filter(i => cells.pop[i] > 0)
+      .map(i => cells.s[i]);
+    const meanS = mean(populatedScores) ?? 0;
+    const maxS = d3max(populatedScores) ?? 0;
+
+    return { frontiers, contestedBurgs, meanS, maxS };
+  }
+
+  /** Combined [0, 1] bonus applied on top of the population-based citadel roll. */
+  private getStrategicCitadelBonus(burg: Burg, context: StrategicContext): number {
+    const { frontiers, contestedBurgs, meanS, maxS } = context;
+
+    let frontierBonus = 0;
+    if (contestedBurgs.has(burg.i ?? -1)) {
+      frontierBonus = 1;
+    } else {
+      const segments = frontiers.get(burg.state ?? 0);
+      const segment = segments?.find(s => s.cells.includes(burg.cell));
+      if (segment) frontierBonus = minmax(segment.threatWeight, 0, 1);
+    }
+
+    const breadbasketBonus = normalizeHabitability(this.worldContext.pack.cells.s[burg.cell], meanS, maxS);
+
+    return minmax(frontierBonus + breadbasketBonus, 0, 1);
+  }
+
+  private defineFeatures(burg: Burg, strategicContext: StrategicContext) {
     const { pack } = this.worldContext;
     const pop = burg.population as number;
-    burg.citadel = Number(burg.capital || (pop > 50 && P(0.75)) || (pop > 15 && P(0.5)) || P(0.1));
+    const baseCitadel = Boolean(burg.capital || (pop > 50 && P(0.75)) || (pop > 15 && P(0.5)) || P(0.1));
+    const strategicBonus = this.getStrategicCitadelBonus(burg, strategicContext) * MAX_STRATEGIC_CITADEL_BONUS;
+    burg.citadel = Number(baseCitadel || (strategicBonus > 0 && P(strategicBonus)));
     burg.plaza = Number(
       Routes.isCrossroad(burg.cell) || (Routes.hasRoad(burg.cell) && P(0.7)) || pop > 20 || (pop > 10 && P(0.8))
     );
@@ -593,14 +650,16 @@ class BurgModule {
     this.worldContext = worldContext;
     this.viewContext = viewContext;
     this.appServices = appServices;
-    const { pack } = state;
+    const { pack, options } = state;
     TIME && console.time("specifyBurgs");
+
+    const strategicContext = this.computeStrategicContext(pack, options.year ?? 0);
 
     pack.burgs.forEach(burg => {
       if (!burg.i || burg.removed || burg.lock) return;
       this.definePopulation(burg);
       this.defineEmblem(burg);
-      this.defineFeatures(burg);
+      this.defineFeatures(burg, strategicContext);
     });
 
     const populations = pack.burgs
@@ -784,7 +843,7 @@ class BurgModule {
   }
 
   add([x, y]: [number, number]): { burgId: number; newRoute?: Route } {
-    const { pack } = this.worldContext;
+    const { pack, options } = this.worldContext;
     const { cells } = pack;
 
     const burgId = pack.burgs.length;
@@ -809,7 +868,7 @@ class BurgModule {
     this.definePopulation(burg);
     this.defineEmblem(burg);
     COArenderer.add("burg", burgId, burg.coa as Emblem, x, y);
-    this.defineFeatures(burg);
+    this.defineFeatures(burg, this.computeStrategicContext(pack, options.year ?? 0));
 
     const populations = pack.burgs
       .filter(b => b.i && !b.removed)
