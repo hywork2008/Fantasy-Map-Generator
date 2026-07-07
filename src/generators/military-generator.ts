@@ -16,7 +16,7 @@ import { getNavalTechBonus } from "./navalTechBonus";
 const GARRISON_PULL_STRENGTH = 0.5;
 
 /** At most this many consolidated field armies per state (plus one capital guard, plus one fleet). */
-const MAX_FIELD_ARMIES = 2;
+const MAX_FIELD_ARMIES = 9;
 
 /** How much the capital guard grows per unit of threat weight on the capital's own province (0 = no threat, no bonus). */
 const CAPITAL_GUARD_THREAT_MULTIPLIER = 0.5;
@@ -580,72 +580,38 @@ class MilitaryModule {
         platoonsByProvince.get(pl.province)!.push(pl);
       });
 
-      const frontierBuckets = new Map<number, FieldArmyBucket>();
-      const reserveUnits: Record<string, number> = {};
+      const armyBuckets = new Map<number, FieldArmyBucket>();
 
       platoonsByProvince.forEach((provincePlatoons, provinceId) => {
         const units = poolToUnits(provincePlatoons);
         const threat = provinceId ? provinceThreats.get(provinceId) : undefined;
+        const troops = sumUnits(units);
 
-        if (threat && threat.totalWeight > 0) {
-          const key = threat.primaryNeighbor;
-          if (!frontierBuckets.has(key)) {
-            frontierBuckets.set(key, {
-              neighborState: key,
-              weight: 0,
-              units: {},
-              anchorProvince: provinceId,
-              anchorWeight: -Infinity
-            });
-          }
-          const bucket = frontierBuckets.get(key)!;
-          bucket.weight += threat.totalWeight;
-          addUnits(bucket.units, units);
-          if (threat.totalWeight > bucket.anchorWeight) {
-            bucket.anchorWeight = threat.totalWeight;
-            bucket.anchorProvince = provinceId;
-          }
-        } else {
-          addUnits(reserveUnits, units);
-        }
+        // Prioritize threatened provinces with high weight, fallback to troop scale
+        const weight = threat && threat.totalWeight > 0 ? threat.totalWeight * 1000 : troops;
+        const neighborState = threat ? threat.primaryNeighbor : 0;
+
+        armyBuckets.set(provinceId, {
+          neighborState,
+          weight,
+          units,
+          anchorProvince: provinceId,
+          anchorWeight: weight
+        });
       });
 
       // Cap the number of distinct field armies: merge the weakest fronts into the strongest.
-      const buckets = Array.from(frontierBuckets.values()).sort((a, b) => b.weight - a.weight);
+      const buckets = Array.from(armyBuckets.values()).sort((a, b) => b.weight - a.weight);
       while (buckets.length > MAX_FIELD_ARMIES) {
         const weakest = buckets.pop()!;
         addUnits(buckets[0].units, weakest.units);
         buckets[0].weight += weakest.weight;
       }
 
-      const reserveTotal = sumUnits(reserveUnits);
-      if (buckets.length === 0) {
-        // No hostile frontier at all: one consolidated field army from every province levy.
-        if (reserveTotal > 0) {
-          let anchorProvince = 0;
-          let anchorTroops = -1;
-          platoonsByProvince.forEach((provincePlatoons, provinceId) => {
-            const troops = sumUnits(poolToUnits(provincePlatoons));
-            if (troops > anchorTroops) {
-              anchorTroops = troops;
-              anchorProvince = provinceId;
-            }
-          });
-          const anchor = getAnchor(anchorProvince, landPlatoons);
-          regiments.push(buildRegiment(reserveUnits, anchor, s, {}));
-        }
-      } else {
-        if (reserveTotal > 0) {
-          const totalWeight = sum(buckets.map(b => b.weight)) || 1;
-          buckets.forEach(bucket => {
-            addUnits(bucket.units, reserveUnits, bucket.weight / totalWeight);
-          });
-        }
-        buckets.forEach(bucket => {
-          const anchor = getAnchor(bucket.anchorProvince, landPlatoons);
-          regiments.push(buildRegiment(bucket.units, anchor, s, {}));
-        });
-      }
+      buckets.forEach(bucket => {
+        const anchor = getAnchor(bucket.anchorProvince, landPlatoons);
+        regiments.push(buildRegiment(bucket.units, anchor, s, {}));
+      });
 
       s.military = regiments;
 

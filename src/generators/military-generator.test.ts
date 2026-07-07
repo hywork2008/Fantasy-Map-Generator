@@ -101,36 +101,31 @@ function makeBasePack(relation: string): PackedGraph {
 }
 
 describe("MilitaryModule.generate — consolidated regiment structure", () => {
-  it("consolidates the interior province's troops into the frontier field army", () => {
+  it("keeps interior province's troops as a distinct field army when MAX_FIELD_ARMIES allows", () => {
     const withInterior = generate(makeBasePack("Enemy"));
 
-    expect(withInterior.military).toHaveLength(2);
-    const guard = withInterior.military!.find(r => r.isCapitalGuard)!;
-    const army = withInterior.military!.find(r => !r.isCapitalGuard)!;
+    expect(withInterior.military).toHaveLength(3);
+    const _guard = withInterior.military!.find(r => r.isCapitalGuard)!;
+    const armies = withInterior.military!.filter(r => !r.isCapitalGuard);
 
-    expect(guard.cell).toBe(1);
-    expect(army.cell).toBe(3); // frontier province's center cell (no burg of its own)
-
-    // Compare against a run where the interior province has no population at all —
-    // the frontier army should be strictly larger when interior troops merge into it.
-    const packWithoutInterior = makeBasePack("Enemy");
-    packWithoutInterior.cells.pop = [0, 0, 0, 10000] as unknown as typeof packWithoutInterior.cells.pop;
-    const armyWithoutInterior = generate(packWithoutInterior).military!.find(r => !r.isCapitalGuard)!;
-
-    expect(army.a).toBeGreaterThan(armyWithoutInterior.a);
+    expect(armies).toHaveLength(2);
+    const cells = armies.map(a => a.cell);
+    expect(cells).toContain(2); // interior cell
+    expect(cells).toContain(3); // frontier cell
   });
 
-  it("gives a peaceful state exactly a capital guard and one consolidated field army", () => {
+  it("gives a peaceful state a capital guard and distinct field armies for each province (up to MAX)", () => {
     const s = generate(makeBasePack("Ally"));
 
-    expect(s.military).toHaveLength(2);
+    expect(s.military).toHaveLength(3);
     expect(s.military!.filter(r => r.isCapitalGuard)).toHaveLength(1);
-    expect(s.military!.filter(r => !r.isCapitalGuard)).toHaveLength(1);
+    expect(s.military!.filter(r => !r.isCapitalGuard)).toHaveLength(2);
   });
 
-  it("caps distinct field armies at MAX_FIELD_ARMIES even with 3+ hostile neighbors", () => {
+  it("caps distinct field armies at MAX_FIELD_ARMIES", () => {
     // State 1 has 3 separate frontier provinces (3, 4, 5), each bordering a *different*
-    // hostile state (2, 3, 4) — this must still collapse to at most 2 field armies.
+    // hostile state (2, 3, 4) and 1 interior province (2). Since MAX_FIELD_ARMIES = 9,
+    // all 4 provinces should get their own distinct army.
     const pack = {
       cells: {
         i: [0, 1, 2, 3, 4, 5, 6, 7, 8],
@@ -225,10 +220,10 @@ describe("MilitaryModule.generate — consolidated regiment structure", () => {
 
     const s1 = generate(pack);
     const fieldArmies = s1.military!.filter(r => !r.isCapitalGuard);
-    expect(fieldArmies.length).toBeLessThanOrEqual(2); // never more than MAX_FIELD_ARMIES
-    expect(s1.military!.length).toBeLessThanOrEqual(3); // capital guard + at most 2 field armies
+    expect(fieldArmies.length).toBe(4); // 4 distinct provinces
+    expect(s1.military!.length).toBe(5); // capital guard + 4 armies
 
-    // all three frontier provinces' troops must still be accounted for somewhere
+    // all provinces' troops must still be accounted for somewhere
     const totalFieldTroops = fieldArmies.reduce((sum, r) => sum + r.a, 0);
     expect(totalFieldTroops).toBeGreaterThan(0);
   });
