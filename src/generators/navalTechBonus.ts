@@ -11,7 +11,7 @@
  */
 
 const BONUS_PER_HULL = 0.1;
-const MAX_BONUS = 3;
+const MAX_BONUS = 10;
 
 const _bonusByState = new Map<number, number>();
 

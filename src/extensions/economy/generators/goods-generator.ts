@@ -277,7 +277,7 @@ const GOODS_DATA: GoodData[] = [
     color: "#ba7447",
     value: 5,
     chance: 4,
-    distribution: "biome(3) || (biome(2) && nth(4))",
+    distribution: "biome(3, 4) || (biome(2) && nth(4))",
     unit: "head",
     demandCoverage: { utilities: 0.6, military: 0.4 },
     multipliers: { cultureType: { Nomadic: 2 } },

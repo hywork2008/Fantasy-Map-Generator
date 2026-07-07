@@ -19,7 +19,7 @@ const GARRISON_PULL_STRENGTH = 0.5;
 const MAX_FIELD_ARMIES = 9;
 
 /** How much the capital guard grows per unit of threat weight on the capital's own province (0 = no threat, no bonus). */
-const CAPITAL_GUARD_THREAT_MULTIPLIER = 0.5;
+const CAPITAL_GUARD_THREAT_MULTIPLIER = 0.15;
 
 /** Regiment size tiers, expressed as multiples of populationRate so they scale with map settings. */
 const SIZE_TIERS: { max: number; name: string }[] = [
@@ -57,6 +57,8 @@ interface FieldArmyBucket {
   units: Record<string, number>;
   anchorProvince: number;
   anchorWeight: number;
+  anchorX?: number;
+  anchorY?: number;
 }
 
 class MilitaryModule {
@@ -235,6 +237,27 @@ class MilitaryModule {
       }
     };
 
+    const stateCellsCount = new Int32Array(pack.states.length);
+    const statePlainsCount = new Int32Array(pack.states.length);
+    const stateForestCount = new Int32Array(pack.states.length);
+    const stateHighlandCount = new Int32Array(pack.states.length);
+
+    for (let i = 0; i < cells.i.length; i++) {
+      const stateId = cells.state[i];
+      if (stateId) {
+        stateCellsCount[stateId]++;
+        const b = cells.biome[i];
+        if (b === 3 || b === 4) {
+          statePlainsCount[stateId]++;
+        } else if (b >= 5 && b <= 9) {
+          stateForestCount[stateId]++;
+        }
+        if (cells.h[i] >= 70) {
+          stateHighlandCount[stateId]++;
+        }
+      }
+    }
+
     valid.forEach(s => {
       s.temp = {} as Exclude<State["temp"], undefined>;
       const d = s.diplomacy!;
@@ -262,8 +285,21 @@ class MilitaryModule {
           stateModifier[unit.type as keyof typeof stateModifier][
             s.type as keyof (typeof stateModifier)[keyof typeof stateModifier]
           ] || 1;
-        if (unit.type === "mounted" && s.formName!.includes("Horde")) modifier *= 2;
-        else if (unit.type === "naval" && s.form === "Republic") modifier *= 1.2;
+        if (unit.type === "mounted") {
+          if (s.formName!.includes("Horde")) modifier *= 2;
+          const plainsRatio = stateCellsCount[s.i] ? statePlainsCount[s.i] / stateCellsCount[s.i] : 0;
+          // Sharp exponential curve: high plains -> massive boost, low plains -> practically zero
+          const plainsModifier = minmax(0.05 + plainsRatio ** 2 * 15, 0.05, 5);
+          modifier *= plainsModifier;
+        } else if (unit.type === "melee" || unit.type === "ranged") {
+          if (s.type === "Nomadic" || s.formName!.includes("Horde")) modifier *= 0.3;
+          const forestRatio = stateCellsCount[s.i] ? stateForestCount[s.i] / stateCellsCount[s.i] : 0;
+          const highlandRatio = stateCellsCount[s.i] ? stateHighlandCount[s.i] / stateCellsCount[s.i] : 0;
+          const roughModifier = minmax(1 + (forestRatio + highlandRatio) * 2.5, 1, 3);
+          modifier *= roughModifier;
+        } else if (unit.type === "naval" && s.form === "Republic") {
+          modifier *= 1.2;
+        }
         s.temp[unit.name] = modifier * s.alert;
         // Shipbuilding extension (if enabled) boosts naval unit strength for states
         // whose shipyards have completed state-owned hulls — defaults to 1 (no-op).
@@ -324,12 +360,14 @@ class MilitaryModule {
 
         let [x, y] = p[i];
         let n = 0;
+        let waterBody: number | undefined;
 
         // place naval units to sea
         if (unit.type === "naval") {
           const haven = cells.haven[i];
           [x, y] = p[haven];
           n = 1;
+          waterBody = cells.f[haven];
         }
 
         stateObj.temp!.platoons!.push({
@@ -342,7 +380,8 @@ class MilitaryModule {
           n,
           s: unit.separate,
           type: unit.type,
-          province: cells.province[i]
+          province: cells.province[i],
+          waterBody
         });
       }
     }
@@ -382,12 +421,14 @@ class MilitaryModule {
 
         let [x, y] = p[b.cell];
         let n = 0;
+        let waterBody: number | undefined;
 
         // place naval to sea
         if (unit.type === "naval") {
           const haven = cells.haven[b.cell];
           [x, y] = p[haven];
           n = 1;
+          waterBody = cells.f[haven];
         }
 
         stateObj.temp!.platoons!.push({
@@ -403,7 +444,8 @@ class MilitaryModule {
           // the capital's own household troops form the dedicated capital guard, not a
           // province levy — tag with province 0 is irrelevant for them since they are
           // filtered out by `b.capital` before province-pooling ever sees them
-          province: cells.province[b.cell]
+          province: cells.province[b.cell],
+          waterBody
         });
       }
     }
@@ -453,7 +495,7 @@ class MilitaryModule {
         by: anchor.y,
         u: units,
         n: opts.n ?? 0,
-        type: dominantUnitType(units),
+        type: opts.n ? "naval" : dominantUnitType(units),
         name: "",
         state: s.i,
         isCapitalGuard: opts.isCapitalGuard
@@ -552,25 +594,130 @@ class MilitaryModule {
 
       // 1. Fleet
       if (navalPlatoons.length) {
-        const anchor = { cell: navalPlatoons[0].cell, x: navalPlatoons[0].x, y: navalPlatoons[0].y };
-        regiments.push(buildRegiment(poolToUnits(navalPlatoons), anchor, s, { n: 1 }));
+        const needsMarines = s.alert! >= 2 || s.expansionism > 1.5;
+        const platoonsByWaterBody = new Map<number, Platoon[]>();
+
+        navalPlatoons.forEach(pl => {
+          const wb = pl.waterBody ?? 0;
+          if (!platoonsByWaterBody.has(wb)) platoonsByWaterBody.set(wb, []);
+          platoonsByWaterBody.get(wb)!.push(pl);
+        });
+
+        const MAX_TROOPS_PER_FLEET = 2500 * (populationRate || 1);
+
+        platoonsByWaterBody.forEach((wbPlatoons, _wb) => {
+          const units = poolToUnits(wbPlatoons);
+          const totalNavalTroops = sumUnits(units);
+          const numFleets = Math.max(1, Math.ceil(totalNavalTroops / (MAX_TROOPS_PER_FLEET || 2500)) || 1);
+
+          for (let i = 0; i < numFleets; i++) {
+            const fleetUnits: Record<string, number> = {};
+            for (const [unitName, amount] of Object.entries(units)) {
+              fleetUnits[unitName] = rn(amount / numFleets);
+            }
+
+            const anchorPlatoon = wbPlatoons[i % wbPlatoons.length];
+            const anchor = { cell: anchorPlatoon.cell, x: anchorPlatoon.x, y: anchorPlatoon.y };
+
+            // Embark land troops as marines for blockade/transport
+            if (needsMarines) {
+              const localLand = landPlatoons.filter(lp => lp.province === anchorPlatoon.province && lp.a > 0);
+              localLand.forEach(lp => {
+                const amountToTransfer = Math.floor(lp.a * 0.25); // transfer 25% of local troops
+                if (amountToTransfer > 0) {
+                  fleetUnits[lp.u] = (fleetUnits[lp.u] ?? 0) + amountToTransfer;
+                  lp.a -= amountToTransfer;
+                  lp.t -= amountToTransfer;
+                }
+              });
+            }
+
+            regiments.push(buildRegiment(fleetUnits, anchor, s, { n: 1 }));
+          }
+        });
       }
 
       const segments = frontiers.get(s.i) ?? [];
       const provinceThreats = getProvinceThreats(pack, segments);
 
+      const splitAndAddLandRegiments = (
+        units: Record<string, number>,
+        anchor: { cell: number; x: number; y: number },
+        opts: { isCapitalGuard?: boolean; allowSplit?: boolean }
+      ) => {
+        if (opts.isCapitalGuard || opts.allowSplit === false) {
+          if (sumUnits(units) > 0) {
+            regiments.push(buildRegiment(units, anchor, s, opts));
+          }
+          return;
+        }
+
+        const cavalryUnits: Record<string, number> = {};
+        const footUnits: Record<string, number> = {};
+
+        for (const [unitName, amount] of Object.entries(units)) {
+          const unitDef = military.find(u => u.name === unitName);
+          if (unitDef?.type === "mounted") {
+            const amountToKeepInFoot = Math.min(amount, Math.floor(2 + Math.random() * 2));
+            const pureCavalryAmount = amount - amountToKeepInFoot;
+
+            if (pureCavalryAmount < 5) {
+              if (amount > 0) footUnits[unitName] = amount;
+            } else {
+              if (amountToKeepInFoot > 0) footUnits[unitName] = amountToKeepInFoot;
+              if (pureCavalryAmount > 0) cavalryUnits[unitName] = pureCavalryAmount;
+            }
+          } else {
+            footUnits[unitName] = amount;
+          }
+        }
+
+        if (Object.keys(footUnits).length > 0 && sumUnits(footUnits) > 0) {
+          regiments.push(buildRegiment(footUnits, anchor, s, opts));
+        }
+        if (Object.keys(cavalryUnits).length > 0 && sumUnits(cavalryUnits) > 0) {
+          const cavAnchor = { cell: anchor.cell, x: anchor.x + 6, y: anchor.y - 6 };
+          regiments.push(buildRegiment(cavalryUnits, cavAnchor, s, opts));
+        }
+      };
+
       // 2. Capital Guard — sized normally unless the capital's own province is itself
       // threatened, in which case it grows proportionally to that threat.
-      if (capitalPlatoons.length) {
-        const guardUnits = poolToUnits(capitalPlatoons);
-        const capitalProvince = cells.province[s.center];
-        const capitalThreat = capitalProvince ? (provinceThreats.get(capitalProvince)?.totalWeight ?? 0) : 0;
-        const bonus = 1 + capitalThreat * CAPITAL_GUARD_THREAT_MULTIPLIER;
-        Object.keys(guardUnits).forEach(name => {
-          guardUnits[name] = rn(guardUnits[name] * bonus);
-        });
+      const guardUnits: Record<string, number> = capitalPlatoons.length ? poolToUnits(capitalPlatoons) : {};
+      const capitalProvince = cells.province[s.center];
+      const capitalThreat = capitalProvince ? (provinceThreats.get(capitalProvince)?.totalWeight ?? 0) : 0;
+      // Cap the maximum bonus to 1.5x to prevent absurd numbers
+      const bonus = Math.min(1.5, 1 + capitalThreat * CAPITAL_GUARD_THREAT_MULTIPLIER);
+      Object.keys(guardUnits).forEach(name => {
+        guardUnits[name] = rn(guardUnits[name] * bonus);
+      });
+
+      // Guarantee Capital Guard is at least 5% of total land forces
+      const totalFieldTroops = sumUnits(poolToUnits(landPlatoons));
+      const currentGuardTroops = sumUnits(guardUnits);
+      const minGuardSize = Math.floor((totalFieldTroops + currentGuardTroops) * 0.05);
+
+      if (currentGuardTroops < minGuardSize && totalFieldTroops > 0) {
+        let deficit = minGuardSize - currentGuardTroops;
+        const takeRatio = Math.min(1, deficit / totalFieldTroops);
+
+        for (const pl of landPlatoons) {
+          if (deficit <= 0) break;
+          if (pl.a <= 0) continue;
+
+          const amountToTake = Math.min(Math.ceil(pl.a * takeRatio), deficit, pl.a);
+          if (amountToTake > 0) {
+            guardUnits[pl.u] = (guardUnits[pl.u] ?? 0) + amountToTake;
+            pl.a -= amountToTake;
+            pl.t -= amountToTake;
+            deficit -= amountToTake;
+          }
+        }
+      }
+
+      if (sumUnits(guardUnits) > 0) {
         const anchor = { cell: s.center, x: p[s.center][0], y: p[s.center][1] };
-        regiments.push(buildRegiment(guardUnits, anchor, s, { isCapitalGuard: true }));
+        splitAndAddLandRegiments(guardUnits, anchor, { isCapitalGuard: true });
       }
 
       // 3. Province levies → frontier field armies
@@ -587,35 +734,141 @@ class MilitaryModule {
         const threat = provinceId ? provinceThreats.get(provinceId) : undefined;
         const troops = sumUnits(units);
 
-        // Prioritize threatened provinces with high weight, fallback to troop scale
-        const weight = threat && threat.totalWeight > 0 ? threat.totalWeight * 1000 : troops;
+        // Prioritize threatened provinces over all others by giving them massive weight,
+        // so that unthreatened interior armies ALWAYS merge into the frontier.
+        const weight = troops + (threat?.totalWeight ?? 0) * 1e9;
         const neighborState = threat ? threat.primaryNeighbor : 0;
+        const anchor = getAnchor(provinceId, landPlatoons);
 
         armyBuckets.set(provinceId, {
           neighborState,
           weight,
           units,
           anchorProvince: provinceId,
-          anchorWeight: weight
+          anchorWeight: weight,
+          anchorX: anchor.x,
+          anchorY: anchor.y
         });
       });
 
-      // Cap the number of distinct field armies: merge the weakest fronts into the strongest.
+      // Spatial merge: merge buckets that are very close to each other
       const buckets = Array.from(armyBuckets.values()).sort((a, b) => b.weight - a.weight);
-      while (buckets.length > MAX_FIELD_ARMIES) {
+      const MERGE_DISTANCE = 15;
+
+      for (let i = 0; i < buckets.length; i++) {
+        const bucketA = buckets[i];
+        if (!bucketA) continue;
+
+        for (let j = i + 1; j < buckets.length; j++) {
+          const bucketB = buckets[j];
+          if (!bucketB) continue;
+
+          const dist = Math.hypot(bucketA.anchorX! - bucketB.anchorX!, bucketA.anchorY! - bucketB.anchorY!);
+          if (dist < MERGE_DISTANCE) {
+            addUnits(bucketA.units, bucketB.units);
+            bucketA.weight += bucketB.weight;
+            buckets.splice(j, 1);
+            j--;
+          }
+        }
+      }
+
+      const countRegiments = (bucketUnits: Record<string, number>) => {
+        let hasFoot = false;
+        let hasCavalry = false;
+        for (const [unitName, amount] of Object.entries(bucketUnits)) {
+          const unitDef = military.find(u => u.name === unitName);
+          if (unitDef?.type === "mounted") {
+            if (amount > 0) hasFoot = true;
+            // We need pureCavalryAmount >= 5. With max keep of 3, amount must be >= 8 to reliably split.
+            if (amount >= 8) hasCavalry = true;
+          } else {
+            if (amount > 0) hasFoot = true;
+          }
+        }
+        return (hasFoot ? 1 : 0) + (hasCavalry ? 1 : 0);
+      };
+
+      let totalExpectedRegiments = buckets.reduce((sum, b) => sum + countRegiments(b.units), 0);
+
+      while (buckets.length > 1 && totalExpectedRegiments > MAX_FIELD_ARMIES) {
         const weakest = buckets.pop()!;
         addUnits(buckets[0].units, weakest.units);
         buckets[0].weight += weakest.weight;
+        totalExpectedRegiments = buckets.reduce((sum, b) => sum + countRegiments(b.units), 0);
       }
+
+      const allowSplit = totalExpectedRegiments <= MAX_FIELD_ARMIES;
 
       buckets.forEach(bucket => {
         const anchor = getAnchor(bucket.anchorProvince, landPlatoons);
-        regiments.push(buildRegiment(bucket.units, anchor, s, {}));
+        splitAndAddLandRegiments(bucket.units, anchor, { allowSplit });
       });
+
+      // Spatial merge specifically for pure cavalry regiments (radius 40).
+      // This ensures mobile cavalry forces group up into cohesive larger armies
+      // even if their originating foot armies remain separate.
+      const isPureCavalry = (reg: MilitaryRegiment) => {
+        if (!reg.u) return false;
+        return Object.keys(reg.u).every(unitName => {
+          const unitDef = military.find(u => u.name === unitName);
+          return unitDef?.type === "mounted";
+        });
+      };
+
+      for (let i = 0; i < regiments.length; i++) {
+        const regA = regiments[i];
+        if (!regA || !isPureCavalry(regA)) continue;
+
+        for (let j = i + 1; j < regiments.length; j++) {
+          const regB = regiments[j];
+          if (!regB || !isPureCavalry(regB)) continue;
+
+          const dist = Math.hypot(regA.x - regB.x, regA.y - regB.y);
+          if (dist < 40) {
+            // Merge B into A
+            for (const [unitName, amount] of Object.entries(regB.u)) {
+              regA.u[unitName] = (regA.u[unitName] || 0) + amount;
+            }
+            regA.a = sumUnits(regA.u);
+
+            // Average coordinates to place them centrally between the two
+            regA.x = (regA.x + regB.x) / 2;
+            regA.y = (regA.y + regB.y) / 2;
+            regA.bx = regA.x;
+            regA.by = regA.y;
+
+            regiments.splice(j, 1);
+            j--;
+          }
+        }
+      }
 
       s.military = regiments;
 
       if (segments.length) redistributeGarrisons(s.military, segments, landCellsByStateAndLandmass.get(s.i));
+
+      // Prevent regiments from overlapping perfectly by applying a small visual offset
+      // to any regiments that end up at the exact same coordinate.
+      const posMap = new Map<string, MilitaryRegiment[]>();
+      s.military.forEach(r => {
+        const key = `${r.x},${r.y}`;
+        if (!posMap.has(key)) posMap.set(key, []);
+        posMap.get(key)!.push(r);
+      });
+      posMap.forEach(regs => {
+        if (regs.length > 1) {
+          const radius = 6;
+          const angleStep = (Math.PI * 2) / regs.length;
+          regs.forEach((r, i) => {
+            // For 2 regiments, places them at 0 and PI (+6,0 and -6,0)
+            r.x += Math.cos(i * angleStep) * radius;
+            r.y += Math.sin(i * angleStep) * radius;
+            r.bx = r.x;
+            r.by = r.y;
+          });
+        }
+      });
 
       // finalize indices, names, icons, notes
       s.military.forEach((r, i) => {
@@ -750,7 +1003,11 @@ class MilitaryModule {
   getEmblem(r: MilitaryRegiment) {
     const { options } = this.worldContext;
     if (r.isCapitalGuard) return "👑";
-    if (!r.n && !Object.values(r.u).length) return "🔰"; // "Newbie" regiment without troops
+    if (r.n) {
+      const navalUnit = options.military?.find((u: { type: string; icon: string }) => u.type === "naval");
+      return navalUnit ? navalUnit.icon : "🌊";
+    }
+    if (!Object.values(r.u).length) return "🔰"; // "Newbie" regiment without troops
     const mainUnit = Object.entries(r.u).sort((a, b) => b[1] - a[1])[0][0]; // unit with more troops in regiment
     const unit = options.military?.find((u: { name: string; icon: string }) => u.name === mainUnit);
     return unit ? unit.icon : "⚔️";

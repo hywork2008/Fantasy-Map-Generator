@@ -11,7 +11,13 @@ import { minmax } from "../utils";
 const RELATION_THREAT_WEIGHT: Record<string, number> = {
   Enemy: 1,
   Rival: 0.5,
-  Suspicion: 0.2
+  Suspicion: 0.2,
+  Neutral: 0.05,
+  Unknown: 0.05,
+  Friendly: 0.02,
+  Ally: 0.02,
+  Vassal: 0.01,
+  Suzerain: 0.01
 };
 
 const ACTIVE_WAR_BOOST = 2.5;

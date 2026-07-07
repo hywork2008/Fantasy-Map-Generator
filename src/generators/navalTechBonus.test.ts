@@ -39,7 +39,7 @@ describe("navalTechBonus", () => {
 
   it("caps the bonus at the configured maximum", () => {
     for (let i = 0; i < 100; i++) dispatchShipCompleted({ stateId: 1, owner: "state" });
-    expect(getNavalTechBonus(1)).toBe(3);
+    expect(getNavalTechBonus(1)).toBe(10);
   });
 
   it("resets on fmg:generate-post-core (new map)", () => {

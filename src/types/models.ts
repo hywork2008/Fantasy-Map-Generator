@@ -365,6 +365,8 @@ export interface Platoon {
   children?: Platoon[];
   /** Province id this platoon was recruited in (0 = no province). */
   province: number;
+  /** Ocean/sea feature id for naval units. */
+  waterBody?: number;
 }
 
 export interface NameBase {

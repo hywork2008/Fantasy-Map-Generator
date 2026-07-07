@@ -49,10 +49,12 @@ describe("analyzeFrontiers", () => {
     expect(segments![0].threatWeight).toBe(1);
   });
 
-  it("ignores non-hostile relations entirely", () => {
+  it("assigns a very low threat weight for non-hostile relations to keep a reserve", () => {
     const pack = makePack({ relation: "Ally" });
     const frontiers = analyzeFrontiers(pack, 1000);
-    expect(frontiers.get(1)).toBeUndefined();
+    const seg = frontiers.get(1)![0];
+    expect(seg.relation).toBe("Ally");
+    expect(seg.threatWeight).toBe(0.02);
   });
 
   it("boosts threat weight for an active (ongoing) war", () => {

@@ -104,22 +104,25 @@ describe("MilitaryModule.generate — consolidated regiment structure", () => {
   it("keeps interior province's troops as a distinct field army when MAX_FIELD_ARMIES allows", () => {
     const withInterior = generate(makeBasePack("Enemy"));
 
-    expect(withInterior.military).toHaveLength(3);
-    const _guard = withInterior.military!.find(r => r.isCapitalGuard)!;
+    const guards = withInterior.military!.filter(r => r.isCapitalGuard)!;
     const armies = withInterior.military!.filter(r => !r.isCapitalGuard);
 
-    expect(armies).toHaveLength(2);
-    const cells = armies.map(a => a.cell);
-    expect(cells).toContain(2); // interior cell
-    expect(cells).toContain(3); // frontier cell
+    expect(new Set(guards.map(r => r.cell)).size).toBe(1);
+
+    const armyCells = new Set(armies.map(a => a.cell));
+    expect(armyCells.size).toBe(2);
+    expect(armyCells.has(2)).toBe(true); // interior cell
+    expect(armyCells.has(3)).toBe(true); // frontier cell
   });
 
   it("gives a peaceful state a capital guard and distinct field armies for each province (up to MAX)", () => {
     const s = generate(makeBasePack("Ally"));
 
-    expect(s.military).toHaveLength(3);
-    expect(s.military!.filter(r => r.isCapitalGuard)).toHaveLength(1);
-    expect(s.military!.filter(r => !r.isCapitalGuard)).toHaveLength(2);
+    const guards = s.military!.filter(r => r.isCapitalGuard);
+    const armies = s.military!.filter(r => !r.isCapitalGuard);
+
+    expect(new Set(guards.map(r => r.cell)).size).toBe(1);
+    expect(new Set(armies.map(r => r.cell)).size).toBe(2);
   });
 
   it("caps distinct field armies at MAX_FIELD_ARMIES", () => {
@@ -220,8 +223,8 @@ describe("MilitaryModule.generate — consolidated regiment structure", () => {
 
     const s1 = generate(pack);
     const fieldArmies = s1.military!.filter(r => !r.isCapitalGuard);
-    expect(fieldArmies.length).toBe(4); // 4 distinct provinces
-    expect(s1.military!.length).toBe(5); // capital guard + 4 armies
+    const armyCells = new Set(fieldArmies.map(r => r.cell));
+    expect(armyCells.size).toBe(4); // 4 distinct provinces
 
     // all provinces' troops must still be accounted for somewhere
     const totalFieldTroops = fieldArmies.reduce((sum, r) => sum + r.a, 0);
