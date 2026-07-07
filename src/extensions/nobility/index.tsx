@@ -1,6 +1,7 @@
 import "./types"; // activate module augmentation for PackedGraph/State
 import type { ExtensionAPI } from "../../types/extension-api";
 import { refreshCharactersOverviewIfOpen } from "./controllers/characters-overview";
+import { applyPersonalityToCapitalGuard } from "./generators/capitalGuardModifier";
 import { Characters } from "./generators/characters-generator";
 import type { CharacterSkills } from "./generators/characterTypes";
 import { applyAffinitiesToDiplomacy } from "./generators/diplomacy-modifier";
@@ -81,6 +82,7 @@ export function init(api: ExtensionAPI): void {
     onClick: () => {
       Characters.generate();
       applyAffinitiesToDiplomacy();
+      applyPersonalityToCapitalGuard();
     }
   });
 
@@ -98,6 +100,7 @@ export function init(api: ExtensionAPI): void {
       if (!worldContext.pack.characters || worldContext.pack.characters.length === 0) {
         Characters.generate();
         applyAffinitiesToDiplomacy();
+        applyPersonalityToCapitalGuard();
       }
     } else if (!isEnabled && wasEnabled) {
       api.closeDialog("charactersOverview");
@@ -109,6 +112,7 @@ export function init(api: ExtensionAPI): void {
     if (api.isExtensionEnabled(NOBILITY_EXTENSION_ID)) {
       Characters.generate();
       applyAffinitiesToDiplomacy();
+      applyPersonalityToCapitalGuard();
     }
   };
   document.addEventListener("fmg:generate-post-core", _generatePostCoreHandler);

@@ -3,6 +3,7 @@ import type { PackedGraph } from "../types/PackedGraph";
 import {
   analyzeFrontiers,
   getChronicleContestedBurgs,
+  getProvinceThreats,
   normalizeHabitability,
   pickPrimaryFrontier
 } from "./frontierAnalysis";
@@ -20,6 +21,7 @@ function makePack(overrides: {
       h: [50, 50],
       c: [[1], [0]],
       state: [1, 2],
+      f: [1, 1], // both cells on the same landmass
       p: [
         [0, 0],
         [10, 0]
@@ -75,6 +77,43 @@ describe("analyzeFrontiers", () => {
     });
     expect(analyzeFrontiers(oldPack, 1000).get(1)![0].threatWeight).toBeCloseTo(0.5, 5);
   });
+
+  it("keeps border segments against the same neighbor separate per landmass", () => {
+    // State 1 touches state 2 twice: once on its mainland (cell 0, landmass 1) and once
+    // from an exclave across the sea (cell 2, landmass 5) — these must not be merged into
+    // a single segment, or a regiment on the exclave could get pulled toward the mainland
+    // border centroid straight across open water.
+    const pack = {
+      cells: {
+        i: [0, 1, 2, 3],
+        h: [50, 50, 50, 50],
+        c: [[1], [0], [3], [2]],
+        state: [1, 2, 1, 2],
+        f: [1, 1, 5, 5],
+        p: [
+          [0, 0],
+          [10, 0],
+          [500, 500],
+          [510, 500]
+        ]
+      },
+      states: [
+        { i: 0, name: "Neutrals", diplomacy: [] },
+        { i: 1, name: "Alpha", diplomacy: [undefined, "x", "Enemy"], campaigns: [] },
+        { i: 2, name: "Beta", diplomacy: [undefined, "Enemy", "x"], campaigns: [] }
+      ]
+    } as unknown as PackedGraph;
+
+    const segments = analyzeFrontiers(pack, 1000).get(1)!;
+    expect(segments).toHaveLength(2);
+
+    const mainland = segments.find(s => s.landmass === 1);
+    const exclave = segments.find(s => s.landmass === 5);
+    expect(mainland?.cells).toEqual([0]);
+    expect(exclave?.cells).toEqual([2]);
+    expect(mainland?.cx).toBe(0);
+    expect(exclave?.cx).toBe(500);
+  });
 });
 
 describe("getChronicleContestedBurgs", () => {
@@ -103,14 +142,22 @@ describe("getChronicleContestedBurgs", () => {
 
 describe("pickPrimaryFrontier", () => {
   it("prefers the closer segment when weights are equal", () => {
-    const near = { neighborState: 2, relation: "Enemy", threatWeight: 1, cells: [], cx: 10, cy: 0 };
-    const far = { neighborState: 3, relation: "Enemy", threatWeight: 1, cells: [], cx: 5000, cy: 0 };
+    const near = { neighborState: 2, relation: "Enemy", threatWeight: 1, cells: [], cx: 10, cy: 0, landmass: 1 };
+    const far = { neighborState: 3, relation: "Enemy", threatWeight: 1, cells: [], cx: 5000, cy: 0, landmass: 1 };
     expect(pickPrimaryFrontier(0, 0, [far, near])).toBe(near);
   });
 
   it("prefers the higher-weight segment when it outweighs distance", () => {
-    const nearWeak = { neighborState: 2, relation: "Suspicion", threatWeight: 0.1, cells: [], cx: 10, cy: 0 };
-    const farStrong = { neighborState: 3, relation: "Enemy", threatWeight: 5, cells: [], cx: 200, cy: 0 };
+    const nearWeak = {
+      neighborState: 2,
+      relation: "Suspicion",
+      threatWeight: 0.1,
+      cells: [],
+      cx: 10,
+      cy: 0,
+      landmass: 1
+    };
+    const farStrong = { neighborState: 3, relation: "Enemy", threatWeight: 5, cells: [], cx: 200, cy: 0, landmass: 1 };
     expect(pickPrimaryFrontier(0, 0, [nearWeak, farStrong])).toBe(farStrong);
   });
 
@@ -128,5 +175,37 @@ describe("normalizeHabitability", () => {
 
   it("returns 0 when max does not exceed mean", () => {
     expect(normalizeHabitability(50, 30, 30)).toBe(0);
+  });
+});
+
+describe("getProvinceThreats", () => {
+  const pack = {
+    cells: {
+      province: [0, 5, 5, 7]
+    }
+  } as unknown as PackedGraph;
+
+  it("sums threat weight per province and tracks the strongest neighbor", () => {
+    const segments = [
+      { neighborState: 2, relation: "Enemy", threatWeight: 1, cells: [1, 2], cx: 0, cy: 0, landmass: 1 },
+      { neighborState: 3, relation: "Rival", threatWeight: 0.5, cells: [2], cx: 0, cy: 0, landmass: 1 }
+    ];
+
+    const threats = getProvinceThreats(pack, segments);
+
+    // province 5 (cells 1, 2) sees both segments: 1 (state 2) + 0.5 (state 3), state 2 dominant
+    expect(threats.get(5)).toEqual({ totalWeight: 1.5, primaryNeighbor: 2 });
+  });
+
+  it("ignores border cells with no province (province id 0)", () => {
+    const segments = [{ neighborState: 2, relation: "Enemy", threatWeight: 1, cells: [0], cx: 0, cy: 0, landmass: 1 }];
+    expect(getProvinceThreats(pack, segments).size).toBe(0);
+  });
+
+  it("keeps separate provinces separate", () => {
+    const segments = [{ neighborState: 2, relation: "Enemy", threatWeight: 1, cells: [3], cx: 0, cy: 0, landmass: 1 }];
+    const threats = getProvinceThreats(pack, segments);
+    expect(threats.get(7)).toEqual({ totalWeight: 1, primaryNeighbor: 2 });
+    expect(threats.has(5)).toBe(false);
   });
 });

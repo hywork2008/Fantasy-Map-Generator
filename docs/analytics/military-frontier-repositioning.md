@@ -8,6 +8,8 @@
 
 Dark Fantasy の Danger レイヤー（モンスター）との連動、および兵站（補給線）による兵力上限は、単一国家では対抗できない脅威であるため今回のスコープには含めていない。
 
+「属国の統治（駐屯・貢納）」と「軍隊編成そのものの集約（近衛兵団＋少数の野戦軍への統合）」は、本ドキュメントとは別軸の変更として `docs/plan/military-organization-and-vassalage.md` にまとめている。本ドキュメントは「軍隊・砦をどこに置くか」、そちらは「そもそも何個の部隊がどういう構成で存在するか」を扱う。
+
 ---
 
 ## 1. 新規モジュール: `src/generators/frontierAnalysis.ts`
@@ -15,7 +17,8 @@ Dark Fantasy の Danger レイヤー（モンスター）との連動、およ�
 軍隊・砦の両方から参照する共有ロジック。読み取り専用で `WorldContext.pack` を解析するだけの Generator 層ユーティリティ。
 
 - **`analyzeFrontiers(pack, currentYear)`**
-  各国家について、`cells.c`（隣接セル）を辿って自国の陸地セルが他国の陸地セルと接する「国境セル」を検出し、隣接国家ごとにグループ化する。`state.diplomacy` の関係ラベルから脅威度（`Enemy=1, Rival=0.5, Suspicion=0.2`、それ以外は 0）を割り当て、`Ally`/`Neutral` などの非敵対関係は最初から除外する。`state.campaigns` に該当隣国との進行中・直近（15年以内）の戦争があれば脅威度を 2.5 倍にブーストする。結果は `Map<stateId, FrontierSegment[]>`（`{ neighborState, relation, threatWeight, cells, cx, cy }`）として返る。敵対国境を持たない（平和な）国家は結果に含まれない。
+  各国家について、`cells.c`（隣接セル）を辿って自国の陸地セルが他国の陸地セルと接する「国境セル」を検出し、**隣接国家と陸地塊（`cells.f`）の組み合わせ**でグループ化する。`state.diplomacy` の関係ラベルから脅威度（`Enemy=1, Rival=0.5, Suspicion=0.2`、それ以外は 0）を割り当て、`Ally`/`Neutral` などの非敵対関係は最初から除外する。`state.campaigns` に該当隣国との進行中・直近（15年以内）の戦争があれば脅威度を 2.5 倍にブーストする。結果は `Map<stateId, FrontierSegment[]>`（`{ neighborState, relation, threatWeight, cells, cx, cy, landmass }`）として返る。敵対国境を持たない（平和な）国家は結果に含まれない。
+  陸地塊も併せてグループ化しているのは、飛び地（本土と海で隔てられた領土）を持つ国家で、飛び地の連隊が本土側の国境重心へ直線的に引き寄せられて洋上に着地してしまうバグを修正するため（後述）。
 - **`getChronicleContestedBurgs(pack)`**
   `pack.states[0].diplomacy`（chronicle、`generateDiplomacy()` が記録する戦争史ログ）を走査し、`ChronicleEvent.fromBurg` / `toBurg`（実際に戦場になった都市）を集める。
 - **`pickPrimaryFrontier(x, y, segments)`**
@@ -52,23 +55,27 @@ citadel = baseCitadel || (strategicBonus > 0 && P(strategicBonus))
 
 ## 3. 軍隊配置への反映 — `military-generator.ts`
 
-兵力算出ロジック（`platoons` 生成）自体は変更していない。`generate()` の冒頭で `analyzeFrontiers()` を一度計算し、各国家の連隊が `createRegiments()` で形成された**後**に、駐屯地の再配置（Garrison Redistribution）を行う:
+兵力算出ロジック（`platoons` 生成）自体は変更していない。`generate()` の冒頭で `analyzeFrontiers()` を一度計算し、各国家の連隊が形成された**後**に、駐屯地の再配置（Garrison Redistribution）を行う:
 
 ```ts
 segments = frontiers.get(state.i)
-if (segments) {
-  totalWeight = sum(segments.threatWeight)
-  regiments.forEach(r => {
-    if (r.n) return  // 海軍は今回スコープ外
-    target = pickPrimaryFrontier(r.x, r.y, segments)
-    pull = (target.threatWeight / totalWeight) * GARRISON_PULL_STRENGTH  // 0.5
-    r.x += (target.cx - r.x) * pull
-    r.y += (target.cy - r.y) * pull
-  })
-}
+regiments.forEach(r => {
+  if (r.n || r.isCapitalGuard) return  // 海軍・近衛兵団は対象外
+  localSegments = segments.filter(seg => seg.landmass === cells.f[r.cell])  // 自分と同じ陸地塊の国境だけを見る
+  if (!localSegments.length) return
+  totalWeight = sum(localSegments.threatWeight)
+  target = pickPrimaryFrontier(r.x, r.y, localSegments)
+  pull = (target.threatWeight / totalWeight) * GARRISON_PULL_STRENGTH  // 0.5
+  r.x += (target.cx - r.x) * pull
+  r.y += (target.cy - r.y) * pull
+})
 ```
 
-敵対関係にある隣国がない（平和な）国家は `frontiers.get(state.i)` が `undefined` になり、既存の人口重心配置がそのまま維持される。海軍部隊（`r.n`）は、海を挟んだ国境の検出に `cells.c` の陸地隣接だけでは不十分（海路距離の仕組みが別途必要）なため、今回は対象外としている。
+敵対関係にある隣国がない（平和な）国家は `frontiers.get(state.i)` が `undefined` になり、既存の人口重心配置がそのまま維持される。海軍部隊（`r.n`）は、海を挟んだ国境の検出に `cells.c` の陸地隣接だけでは不十分（海路距離の仕組みが別途必要）なため対象外。近衛兵団（`isCapitalGuard`、`docs/plan/military-organization-and-vassalage.md` 参照）も首都から動かさないため対象外にしている。
+
+### バグ修正: 飛び地の連隊が洋上に着地する問題
+
+当初は国境セグメントを陸地塊で区別していなかったため、飛び地（本土と海で隔てられた領土）に配置された連隊が、本土側の国境重心へ直線的に引き寄せられ、途中の海の上に着地してしまうことがあった。ユーザーが実際にエクスポートした `.map` ファイルを確認して発見。`FrontierSegment` に `landmass`（`cells.f`）フィールドを追加し、`(neighborState, landmass)` の組み合わせでセグメントを分割、連隊は自分と同じ陸地塊にある国境にしか引っ張られないように修正した。同じ陸地塊に敵対国境が無い飛び地の連隊は、今まで通り人口重心の位置に留まる。実マップ4シードで洋上着地ゼロを確認済み。
 
 ---
 

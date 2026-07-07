@@ -1,4 +1,4 @@
-import { quadtree, sum } from "d3";
+import { sum } from "d3";
 import type { AppServices } from "../context/appServices";
 import { appServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
@@ -7,13 +7,57 @@ import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import type { MilitaryRegiment, MilitaryUnit, Platoon, State } from "../types/models";
 import type { WorldState } from "../types/WorldState";
-import { findAllInQuadtree, gauss, minmax, nth, ra, rand, rn, si } from "../utils";
+import { gauss, minmax, nth, ra, rand, rn, si } from "../utils";
 import { TIME } from "../utils/debug";
-import { analyzeFrontiers, type FrontierSegment, pickPrimaryFrontier } from "./frontierAnalysis";
+import { analyzeFrontiers, type FrontierSegment, getProvinceThreats, pickPrimaryFrontier } from "./frontierAnalysis";
 import { getNavalTechBonus } from "./navalTechBonus";
 
 /** How far (0..1) a state's regiments are pulled from their recruitment site toward a hostile frontier. */
 const GARRISON_PULL_STRENGTH = 0.5;
+
+/** At most this many consolidated field armies per state (plus one capital guard, plus one fleet). */
+const MAX_FIELD_ARMIES = 2;
+
+/** How much the capital guard grows per unit of threat weight on the capital's own province (0 = no threat, no bonus). */
+const CAPITAL_GUARD_THREAT_MULTIPLIER = 0.5;
+
+/** Regiment size tiers, expressed as multiples of populationRate so they scale with map settings. */
+const SIZE_TIERS: { max: number; name: string }[] = [
+  { max: 1, name: "Company" },
+  { max: 5, name: "Battalion" },
+  { max: 20, name: "Brigade" },
+  { max: Infinity, name: "Division" }
+];
+
+function getSizeTier(troops: number, populationRate: number): string {
+  const scale = troops / (populationRate || 1);
+  return (SIZE_TIERS.find(tier => scale < tier.max) ?? SIZE_TIERS[SIZE_TIERS.length - 1]).name;
+}
+
+function poolToUnits(platoons: Platoon[]): Record<string, number> {
+  const u: Record<string, number> = {};
+  for (const p of platoons) u[p.u] = (u[p.u] ?? 0) + p.a;
+  return u;
+}
+
+function sumUnits(u: Record<string, number>): number {
+  return Object.values(u).reduce((sum, v) => sum + v, 0);
+}
+
+function addUnits(target: Record<string, number>, source: Record<string, number>, fraction = 1): void {
+  for (const [name, amount] of Object.entries(source)) {
+    if (!amount) continue;
+    target[name] = (target[name] ?? 0) + amount * fraction;
+  }
+}
+
+interface FieldArmyBucket {
+  neighborState: number;
+  weight: number;
+  units: Record<string, number>;
+  anchorProvince: number;
+  anchorWeight: number;
+}
 
 class MilitaryModule {
   worldContext: WorldContext = worldContext;
@@ -38,9 +82,9 @@ class MilitaryModule {
     if (!options.military) options.military = this.getDefaultOptions();
     const military = options.military;
 
-    // Hostile borders (from Relations History), used to garrison regiments toward active threats
-    // instead of leaving them wherever they were recruited. Peaceful states get no segments back,
-    // so their regiments keep the original population-centroid placement unchanged.
+    // Hostile borders (from Relations History), used to decide which provinces are on the
+    // frontier and garrison regiments toward active threats instead of leaving them wherever
+    // they were recruited. Peaceful states get no segments back.
     const frontiers = analyzeFrontiers(pack, options.year ?? 0);
 
     const expn = sum(valid.map(s => s.expansionism)); // total expansion
@@ -297,7 +341,8 @@ class MilitaryModule {
           u: unit.name,
           n,
           s: unit.separate,
-          type: unit.type
+          type: unit.type,
+          province: cells.province[i]
         });
       }
     }
@@ -354,99 +399,84 @@ class MilitaryModule {
           u: unit.name,
           n,
           s: unit.separate,
-          type: unit.type
+          type: unit.type,
+          // the capital's own household troops form the dedicated capital guard, not a
+          // province levy — tag with province 0 is irrelevant for them since they are
+          // filtered out by `b.capital` before province-pooling ever sees them
+          province: cells.province[b.cell]
         });
       }
     }
 
-    const expected = 3 * populationRate; // expected regiment size
-    const mergeable = (n0: { s: number; u: string }, n1: { s: number; u: string }) => (!n0.s && !n1.s) || n0.u === n1.u; // check if regiments can be merged
-    const createRegiments = (nodes: Platoon[], s: State): MilitaryRegiment[] => {
-      if (!nodes.length) return [];
-      nodes.sort((a, b) => a.a - b.a); // form regiments starting from cells with fewest troops
-      const tree = quadtree(
-        nodes,
-        d => d.x,
-        d => d.y
-      );
-
-      type MergeNode = { s: number; u: string; t: number; children?: MergeNode[] };
-      // add n0 to n1's ultimate parent
-      const merge = (n0: MergeNode, n1: MergeNode) => {
-        if (!n1.children) n1.children = [n0];
-        else n1.children.push(n0);
-        if (n0.children)
-          n0.children.forEach(n => {
-            n1.children!.push(n);
-          });
-        n1.t += n0.t;
-        n0.t = 0;
-      };
-
-      nodes.forEach(node => {
-        tree.remove(node);
-        const overlap = tree.find(node.x, node.y, 20);
-        if (overlap?.t && mergeable(node, overlap)) {
-          merge(node, overlap);
-          return;
+    // Resolves a province (or the fallback "no province" bucket) to a stationing point:
+    // its representative burg if it has one, else its center cell, else the largest of the
+    // given platoons (used for the "no provinces at all" fallback and the peaceful/no-frontier
+    // single field army).
+    const getAnchor = (provinceId: number, fallbackPlatoons: Platoon[]): { cell: number; x: number; y: number } => {
+      const province = provinceId ? pack.provinces[provinceId] : undefined;
+      if (province) {
+        if (province.burg && pack.burgs[province.burg]) {
+          const burg = pack.burgs[province.burg];
+          return { cell: burg.cell, x: burg.x, y: burg.y };
         }
-        if (node.t > expected) return;
-        const r = (expected - node.t) / (node.s ? 40 : 20); // search radius
-        const candidates = findAllInQuadtree(node.x, node.y, r, tree);
-        for (const c of candidates) {
-          if (c.t < expected && mergeable(node, c)) {
-            merge(node, c);
-            break;
-          }
-        }
-      });
-
-      // parse regiments data
-      const regiments: Omit<MilitaryRegiment, "s" | "t" | "type">[] = nodes
-        .filter(n => n.t)
-        .sort((a, b) => b.t - a.t)
-        .map((r, i) => {
-          const u: Record<string, number> = {};
-          u[r.u] = r.a;
-          (r.children ?? []).forEach(n => {
-            u[n.u] = (u[n.u] ?? 0) + n.a;
-          });
-          return {
-            i,
-            a: r.t,
-            cell: r.cell,
-            x: r.x,
-            y: r.y,
-            bx: r.x,
-            by: r.y,
-            u,
-            n: r.n,
-            name: "",
-            state: s.i
-          };
-        });
-
-      // generate name for regiments
-      regiments.forEach((r: Omit<MilitaryRegiment, "s" | "t" | "type">) => {
-        r.name = this.getName(r as MilitaryRegiment, regiments as MilitaryRegiment[]);
-        r.icon = this.getEmblem(r as MilitaryRegiment);
-        this.generateNote(r as MilitaryRegiment, s);
-      });
-
-      return regiments as MilitaryRegiment[];
+        const cell = province.center;
+        return { cell, x: cells.p[cell][0], y: cells.p[cell][1] };
+      }
+      if (fallbackPlatoons.length) {
+        const largest = fallbackPlatoons.reduce((a, b) => (a.a > b.a ? a : b));
+        return { cell: largest.cell, x: largest.x, y: largest.y };
+      }
+      return { cell: 0, x: 0, y: 0 };
     };
 
-    // Pulls each non-naval regiment from its recruitment site toward the nearest/most
-    // threatening hostile frontier, proportional to that frontier's share of the state's
-    // total threat. Naval regiments are left as-is: a sea-crossing frontier needs sea-path
-    // geometry (akin to states-generator's isPathBlocked), which is out of scope for now.
-    const redistributeGarrisons = (regiments: MilitaryRegiment[], segments: FrontierSegment[]) => {
-      const totalWeight = sum(segments.map(seg => seg.threatWeight));
-      if (!totalWeight) return;
+    const dominantUnitType = (units: Record<string, number>): string => {
+      const mainUnit = Object.entries(units).sort((a, b) => b[1] - a[1])[0]?.[0];
+      return military.find(u => u.name === mainUnit)?.type ?? "melee";
+    };
 
+    const buildRegiment = (
+      units: Record<string, number>,
+      anchor: { cell: number; x: number; y: number },
+      s: State,
+      opts: { n?: number; isCapitalGuard?: boolean }
+    ): MilitaryRegiment => {
+      const total = rn(sumUnits(units));
+      return {
+        i: 0,
+        t: total,
+        a: total,
+        s: 0,
+        cell: anchor.cell,
+        x: anchor.x,
+        y: anchor.y,
+        bx: anchor.x,
+        by: anchor.y,
+        u: units,
+        n: opts.n ?? 0,
+        type: dominantUnitType(units),
+        name: "",
+        state: s.i,
+        isCapitalGuard: opts.isCapitalGuard
+      };
+    };
+
+    // Pulls each non-naval, non-capital-guard regiment from its stationing point toward the
+    // nearest/most threatening hostile frontier on its own landmass, proportional to that
+    // frontier's share of the state's total threat. With province-based consolidation, field
+    // armies are usually already anchored at their frontier province, so this mostly fine-tunes
+    // the position toward the actual border line rather than the province's administrative seat.
+    const redistributeGarrisons = (regiments: MilitaryRegiment[], segments: FrontierSegment[]) => {
       regiments.forEach(r => {
-        if (r.n) return;
-        const target = pickPrimaryFrontier(r.x, r.y, segments);
+        if (r.n || r.isCapitalGuard) return;
+
+        const landmass = cells.f[r.cell];
+        const localSegments = segments.filter(seg => seg.landmass === landmass);
+        if (!localSegments.length) return;
+
+        const totalWeight = sum(localSegments.map(seg => seg.threatWeight));
+        if (!totalWeight) return;
+
+        const target = pickPrimaryFrontier(r.x, r.y, localSegments);
         if (!target) return;
 
         const pull = minmax(target.threatWeight / totalWeight, 0, 1) * GARRISON_PULL_STRENGTH;
@@ -462,13 +492,130 @@ class MilitaryModule {
       if (notes[i].id.startsWith("regiment")) notes.splice(i, 1);
     }
 
-    // get regiments for each state
+    // Consolidate every state's platoons into at most: 1 naval fleet + 1 capital guard +
+    // up to MAX_FIELD_ARMIES field armies (province levies pooled and merged toward the
+    // frontier, so no direction is left thin and interior provinces don't each get their
+    // own garrison).
     valid.forEach(s => {
-      s.military = createRegiments(s.temp!.platoons!, s);
+      const platoons = s.temp!.platoons!;
       delete s.temp; // do not store temp data
 
-      const segments = frontiers.get(s.i);
-      if (segments?.length) redistributeGarrisons(s.military, segments);
+      const navalPlatoons = platoons.filter(pl => pl.n);
+      const capitalPlatoons = platoons.filter(pl => !pl.n && pl.cell === s.center);
+      const landPlatoons = platoons.filter(pl => !pl.n && pl.cell !== s.center);
+
+      const regiments: MilitaryRegiment[] = [];
+
+      // 1. Fleet
+      if (navalPlatoons.length) {
+        const anchor = { cell: navalPlatoons[0].cell, x: navalPlatoons[0].x, y: navalPlatoons[0].y };
+        regiments.push(buildRegiment(poolToUnits(navalPlatoons), anchor, s, { n: 1 }));
+      }
+
+      const segments = frontiers.get(s.i) ?? [];
+      const provinceThreats = getProvinceThreats(pack, segments);
+
+      // 2. Capital Guard — sized normally unless the capital's own province is itself
+      // threatened, in which case it grows proportionally to that threat.
+      if (capitalPlatoons.length) {
+        const guardUnits = poolToUnits(capitalPlatoons);
+        const capitalProvince = cells.province[s.center];
+        const capitalThreat = capitalProvince ? (provinceThreats.get(capitalProvince)?.totalWeight ?? 0) : 0;
+        const bonus = 1 + capitalThreat * CAPITAL_GUARD_THREAT_MULTIPLIER;
+        Object.keys(guardUnits).forEach(name => {
+          guardUnits[name] = rn(guardUnits[name] * bonus);
+        });
+        const anchor = { cell: s.center, x: p[s.center][0], y: p[s.center][1] };
+        regiments.push(buildRegiment(guardUnits, anchor, s, { isCapitalGuard: true }));
+      }
+
+      // 3. Province levies → frontier field armies
+      const platoonsByProvince = new Map<number, Platoon[]>();
+      landPlatoons.forEach(pl => {
+        if (!platoonsByProvince.has(pl.province)) platoonsByProvince.set(pl.province, []);
+        platoonsByProvince.get(pl.province)!.push(pl);
+      });
+
+      const frontierBuckets = new Map<number, FieldArmyBucket>();
+      const reserveUnits: Record<string, number> = {};
+
+      platoonsByProvince.forEach((provincePlatoons, provinceId) => {
+        const units = poolToUnits(provincePlatoons);
+        const threat = provinceId ? provinceThreats.get(provinceId) : undefined;
+
+        if (threat && threat.totalWeight > 0) {
+          const key = threat.primaryNeighbor;
+          if (!frontierBuckets.has(key)) {
+            frontierBuckets.set(key, {
+              neighborState: key,
+              weight: 0,
+              units: {},
+              anchorProvince: provinceId,
+              anchorWeight: -Infinity
+            });
+          }
+          const bucket = frontierBuckets.get(key)!;
+          bucket.weight += threat.totalWeight;
+          addUnits(bucket.units, units);
+          if (threat.totalWeight > bucket.anchorWeight) {
+            bucket.anchorWeight = threat.totalWeight;
+            bucket.anchorProvince = provinceId;
+          }
+        } else {
+          addUnits(reserveUnits, units);
+        }
+      });
+
+      // Cap the number of distinct field armies: merge the weakest fronts into the strongest.
+      const buckets = Array.from(frontierBuckets.values()).sort((a, b) => b.weight - a.weight);
+      while (buckets.length > MAX_FIELD_ARMIES) {
+        const weakest = buckets.pop()!;
+        addUnits(buckets[0].units, weakest.units);
+        buckets[0].weight += weakest.weight;
+      }
+
+      const reserveTotal = sumUnits(reserveUnits);
+      if (buckets.length === 0) {
+        // No hostile frontier at all: one consolidated field army from every province levy.
+        if (reserveTotal > 0) {
+          let anchorProvince = 0;
+          let anchorTroops = -1;
+          platoonsByProvince.forEach((provincePlatoons, provinceId) => {
+            const troops = sumUnits(poolToUnits(provincePlatoons));
+            if (troops > anchorTroops) {
+              anchorTroops = troops;
+              anchorProvince = provinceId;
+            }
+          });
+          const anchor = getAnchor(anchorProvince, landPlatoons);
+          regiments.push(buildRegiment(reserveUnits, anchor, s, {}));
+        }
+      } else {
+        if (reserveTotal > 0) {
+          const totalWeight = sum(buckets.map(b => b.weight)) || 1;
+          buckets.forEach(bucket => {
+            addUnits(bucket.units, reserveUnits, bucket.weight / totalWeight);
+          });
+        }
+        buckets.forEach(bucket => {
+          const anchor = getAnchor(bucket.anchorProvince, landPlatoons);
+          regiments.push(buildRegiment(bucket.units, anchor, s, {}));
+        });
+      }
+
+      s.military = regiments;
+
+      if (segments.length) redistributeGarrisons(s.military, segments);
+
+      // finalize indices, names, icons, notes
+      s.military.forEach((r, i) => {
+        r.i = i;
+      });
+      s.military.forEach(r => {
+        r.name = this.getName(r, s.military!);
+        r.icon = this.getEmblem(r);
+        this.generateNote(r, s);
+      });
     });
 
     TIME && console.timeEnd("generateMilitary");
@@ -530,8 +677,11 @@ class MilitaryModule {
   }
 
   getName(r: MilitaryRegiment, regiments: MilitaryRegiment[]) {
-    const { pack } = this.worldContext;
+    const { pack, populationRate } = this.worldContext;
     const cells = pack.cells;
+
+    if (r.isCapitalGuard) return `${pack.states[r.state].name} Royal Guard`;
+
     const proper = r.n
       ? null
       : cells.province[r.cell] && pack.provinces[cells.province[r.cell]]
@@ -539,8 +689,8 @@ class MilitaryModule {
         : cells.burg[r.cell] && pack.burgs[cells.burg[r.cell]]
           ? pack.burgs[cells.burg[r.cell]].name
           : null;
-    const number = nth(regiments.filter(reg => reg.n === r.n && reg.i < r.i).length + 1);
-    const form = r.n ? "Fleet" : "Regiment";
+    const number = nth(regiments.filter(reg => reg.n === r.n && !reg.isCapitalGuard && reg.i < r.i).length + 1);
+    const form = r.n ? "Fleet" : getSizeTier(r.a, populationRate);
     return `${number}${proper ? ` (${proper}) ` : ` `}${form}`;
   }
 
@@ -588,15 +738,9 @@ class MilitaryModule {
 
   // get default regiment emblem
   getEmblem(r: MilitaryRegiment) {
-    const { pack, options } = this.worldContext;
+    const { options } = this.worldContext;
+    if (r.isCapitalGuard) return "👑";
     if (!r.n && !Object.values(r.u).length) return "🔰"; // "Newbie" regiment without troops
-    if (
-      !r.n &&
-      pack.states[r.state].form === "Monarchy" &&
-      pack.cells.burg[r.cell] &&
-      pack.burgs[pack.cells.burg[r.cell]].capital
-    )
-      return "👑"; // "Royal" regiment based in capital
     const mainUnit = Object.entries(r.u).sort((a, b) => b[1] - a[1])[0][0]; // unit with more troops in regiment
     const unit = options.military?.find((u: { name: string; icon: string }) => u.name === mainUnit);
     return unit ? unit.icon : "⚔️";

@@ -298,6 +298,10 @@ export interface State {
   salesTax?: number;
   pollTax?: number;
   treasury?: number;
+  /** Fraction of population-equivalent grain paid to the suzerain each generation (Vassal states only). */
+  tributeRate?: number;
+  /** Computed grain-equivalent tribute amount paid to the suzerain (Vassal states only). */
+  tributePaid?: number;
 }
 
 export interface Zone {
@@ -342,6 +346,10 @@ export interface MilitaryRegiment {
   children?: MilitaryRegiment[];
   state: number;
   angle?: number;
+  /** State id of the vassal territory this regiment is garrisoned in, if not stationed at home. */
+  garrisonHost?: number;
+  /** True for the state's dedicated capital guard regiment (never merged with field armies). */
+  isCapitalGuard?: boolean;
 }
 
 export interface Platoon {
@@ -355,6 +363,8 @@ export interface Platoon {
   s: number;
   type: string;
   children?: Platoon[];
+  /** Province id this platoon was recruited in (0 = no province). */
+  province: number;
 }
 
 export interface NameBase {

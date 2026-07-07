@@ -25,42 +25,54 @@ export interface FrontierSegment {
   cells: number[];
   cx: number;
   cy: number;
+  /** The landmass/feature id (`cells.f`) shared by every cell in this segment. */
+  landmass: number;
 }
 
 /**
- * Groups each state's border cells by hostile neighbor, weighted by relation
- * and boosted for active/recent wars (from `state.campaigns`). Non-hostile
+ * Groups each state's border cells by (hostile neighbor, landmass), weighted by
+ * relation and boosted for active/recent wars (from `state.campaigns`). Non-hostile
  * borders (Ally, Neutral, Friendly, Vassal, Suzerain, Unknown, …) are omitted
  * entirely, so peaceful states resolve to no segments at all.
+ *
+ * Splitting by landmass (not just neighbor) keeps every segment geographically
+ * coherent: a regiment on an exclave's landmass should never be pointed at a
+ * border segment that only exists on the mainland across open sea (see
+ * `pickPrimaryFrontier`'s landmass-filtered callers).
  */
 export function analyzeFrontiers(pack: PackedGraph, currentYear: number): Map<number, FrontierSegment[]> {
   const { cells, states } = pack;
-  const cellsByNeighbor = new Map<number, Map<number, number[]>>();
+  const cellsByNeighborLandmass = new Map<
+    number,
+    Map<string, { neighborState: number; landmass: number; cells: number[] }>
+  >();
 
   for (const i of cells.i) {
     if (cells.h[i] < 20) continue;
     const s = cells.state[i];
     if (!s) continue;
+    const landmass = cells.f[i];
 
     for (const c of cells.c[i]) {
       if (cells.h[c] < 20) continue;
       const t = cells.state[c];
       if (!t || t === s) continue;
 
-      if (!cellsByNeighbor.has(s)) cellsByNeighbor.set(s, new Map());
-      const byNeighbor = cellsByNeighbor.get(s)!;
-      if (!byNeighbor.has(t)) byNeighbor.set(t, []);
-      byNeighbor.get(t)!.push(i);
+      if (!cellsByNeighborLandmass.has(s)) cellsByNeighborLandmass.set(s, new Map());
+      const byKey = cellsByNeighborLandmass.get(s)!;
+      const key = `${t}:${landmass}`;
+      if (!byKey.has(key)) byKey.set(key, { neighborState: t, landmass, cells: [] });
+      byKey.get(key)!.cells.push(i);
     }
   }
 
   const result = new Map<number, FrontierSegment[]>();
 
-  cellsByNeighbor.forEach((byNeighbor, s) => {
+  cellsByNeighborLandmass.forEach((byKey, s) => {
     const state = states[s];
     const segments: FrontierSegment[] = [];
 
-    byNeighbor.forEach((rawCells, t) => {
+    byKey.forEach(({ neighborState: t, landmass, cells: rawCells }) => {
       const relation = state.diplomacy?.[t];
       const relationLabel = typeof relation === "string" ? relation : undefined;
       const baseWeight = relationLabel ? (RELATION_THREAT_WEIGHT[relationLabel] ?? 0) : 0;
@@ -81,7 +93,8 @@ export function analyzeFrontiers(pack: PackedGraph, currentYear: number): Map<nu
         threatWeight,
         cells: borderCells,
         cx,
-        cy
+        cy,
+        landmass
       });
     });
 
@@ -138,4 +151,55 @@ export function pickPrimaryFrontier(x: number, y: number, segments: FrontierSegm
 export function normalizeHabitability(score: number, meanScore: number, maxScore: number): number {
   if (maxScore <= meanScore) return 0;
   return minmax((score - meanScore) / (maxScore - meanScore), 0, 1);
+}
+
+export interface ProvinceThreat {
+  totalWeight: number;
+  /** The single hostile neighbor this province's border cells are most threatened by. */
+  primaryNeighbor: number;
+}
+
+/**
+ * Aggregates a state's frontier segments by province: for every border cell that
+ * belongs to a province (`cells.province` — 0 means "no province"), sums the
+ * threat weight of every segment touching it and tracks whichever neighbor
+ * contributes the most weight. Used to decide which provinces are "frontier"
+ * provinces and which single hostile direction each one should reinforce.
+ */
+export function getProvinceThreats(pack: PackedGraph, segments: FrontierSegment[]): Map<number, ProvinceThreat> {
+  const { cells } = pack;
+  const result = new Map<number, ProvinceThreat>();
+  const neighborWeightByProvince = new Map<number, Map<number, number>>();
+
+  for (const segment of segments) {
+    // A segment contributes its threat weight once per province it touches — not once per
+    // border cell — so a longer shared border doesn't inflate the weight beyond the relation.
+    const provincesTouched = new Set<number>();
+    for (const cellId of segment.cells) {
+      const province = cells.province[cellId];
+      if (province) provincesTouched.add(province);
+    }
+
+    for (const province of provincesTouched) {
+      if (!neighborWeightByProvince.has(province)) neighborWeightByProvince.set(province, new Map());
+      const byNeighbor = neighborWeightByProvince.get(province)!;
+      byNeighbor.set(segment.neighborState, (byNeighbor.get(segment.neighborState) ?? 0) + segment.threatWeight);
+    }
+  }
+
+  neighborWeightByProvince.forEach((byNeighbor, province) => {
+    let totalWeight = 0;
+    let primaryNeighbor = -1;
+    let primaryWeight = -Infinity;
+    byNeighbor.forEach((weight, neighborState) => {
+      totalWeight += weight;
+      if (weight > primaryWeight) {
+        primaryWeight = weight;
+        primaryNeighbor = neighborState;
+      }
+    });
+    result.set(province, { totalWeight, primaryNeighbor });
+  });
+
+  return result;
 }

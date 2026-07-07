@@ -38,6 +38,7 @@ import { Routes } from "./generators/routes-generator";
 import { States } from "./generators/states-generator";
 import { Threats } from "./generators/threats-generator";
 import { initSimulationClock } from "./generators/timeEngine";
+import { establishVassalage } from "./generators/vassalage";
 import { Zones } from "./generators/zones-generator";
 import { ldb } from "./io/ldb";
 import { loadMapFromURL, showUploadErrorMessage, uploadMap } from "./io/load";
@@ -897,6 +898,7 @@ export async function generate(opts?: { seed?: string; graph?: Grid | null }) {
     Lakes.defineNames(state);
 
     Military.generate(worldContext, viewContext, appServices, state);
+    establishVassalage(worldContext.pack, worldContext.populationRate);
     Markers.generate(worldContext, viewContext, appServices, state);
     Zones.generate(worldContext, viewContext, appServices, state);
 

@@ -462,7 +462,15 @@ describe("BurgsModule.defineFeatures — strategic citadel bonus", () => {
   it("grants a citadel via the frontier bonus for a burg sitting on a hostile border segment", () => {
     vi.spyOn(Math, "random").mockReturnValue(0.3);
     const burg = { i: 2, cell: 0, state: 1, capital: 0, population: 10 } as unknown as Burg;
-    const segment: FrontierSegment = { neighborState: 2, relation: "Enemy", threatWeight: 1, cells: [0], cx: 0, cy: 0 };
+    const segment: FrontierSegment = {
+      neighborState: 2,
+      relation: "Enemy",
+      threatWeight: 1,
+      cells: [0],
+      cx: 0,
+      cy: 0,
+      landmass: 1
+    };
     const context: StrategicContext = { ...emptyStrategicContext, frontiers: new Map([[1, [segment]]]) };
 
     callDefineFeatures(burg, context);
@@ -484,7 +492,15 @@ describe("BurgsModule.defineFeatures — strategic citadel bonus", () => {
   it("ignores a border segment belonging to a different state", () => {
     vi.spyOn(Math, "random").mockReturnValue(0.3);
     const burg = { i: 4, cell: 0, state: 1, capital: 0, population: 10 } as unknown as Burg;
-    const segment: FrontierSegment = { neighborState: 3, relation: "Enemy", threatWeight: 1, cells: [0], cx: 0, cy: 0 };
+    const segment: FrontierSegment = {
+      neighborState: 3,
+      relation: "Enemy",
+      threatWeight: 1,
+      cells: [0],
+      cx: 0,
+      cy: 0,
+      landmass: 1
+    };
     // segment stored under state 2, not this burg's state (1)
     const context: StrategicContext = { ...emptyStrategicContext, frontiers: new Map([[2, [segment]]]) };
 
