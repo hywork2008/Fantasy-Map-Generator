@@ -789,14 +789,14 @@ class StatesModule {
       }
     }
 
-    // Sort chronicle chronologically so the history timeline spans naturally
+    // Sort chronicle chronologically so the newest events appear at the top
     // biome-ignore lint/suspicious/noExplicitAny: mixed chronicle array
     (chronicle as any[]).sort((a, b) => {
       // biome-ignore lint/suspicious/noExplicitAny: mixed chronicle array
       const eventA = a.find((e: any) => typeof e === "object");
       // biome-ignore lint/suspicious/noExplicitAny: mixed chronicle array
       const eventB = b.find((e: any) => typeof e === "object");
-      if (eventA && eventB) return eventB.yearsAgo - eventA.yearsAgo; // older events (larger yearsAgo) come first
+      if (eventA && eventB) return eventA.yearsAgo - eventB.yearsAgo; // newer events (smaller yearsAgo) come first
       return 0;
     });
 

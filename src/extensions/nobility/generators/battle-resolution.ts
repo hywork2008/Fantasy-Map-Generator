@@ -64,7 +64,28 @@ export const BattleResolutionGenerator = {
     }
 
     // 3. Attacker Force
-    const attackerPower = attackerState.military?.reduce((sum, reg) => sum + (reg.a || 0), 0) || 0;
+    // Prevent "teleporting" global military power. Only count regiments that are on the same landmass
+    // or within a reasonable invasion distance (e.g. 1000 units).
+    let attackerPower = 0;
+    const attackingRegiments = [];
+    const targetLandmass = pack.cells.f[targetBurg.cell];
+
+    for (const regiment of attackerState.military || []) {
+      if (regiment.a <= 0) continue;
+
+      const regimentCell = pack.cells.i.find(
+        (_, i) => pack.cells.p[i][0] === regiment.x && pack.cells.p[i][1] === regiment.y
+      );
+      const regimentLandmass = regimentCell !== undefined ? pack.cells.f[regimentCell] : -1;
+
+      const dist = Math.hypot(regiment.x - targetBurg.x, regiment.y - targetBurg.y);
+
+      // If they are on the same landmass, they can march. Or if they are very close (e.g., naval invasion across a strait).
+      if (regimentLandmass === targetLandmass || dist < 300) {
+        attackerPower += regiment.a;
+        attackingRegiments.push(regiment);
+      }
+    }
 
     // 4. Resolution
     let attackerCasualties = 0;
@@ -108,9 +129,9 @@ export const BattleResolutionGenerator = {
     }
 
     // Apply Casualties to Regiments (proportional reduction)
-    if (attackerCasualties > 0 && attackerState.military) {
+    if (attackerCasualties > 0 && attackingRegiments.length > 0) {
       const reductionRatio = Math.max(0, 1 - attackerCasualties / attackerPower);
-      for (const reg of attackerState.military) {
+      for (const reg of attackingRegiments) {
         reg.a = Math.floor(reg.a * reductionRatio);
       }
     }
@@ -135,6 +156,9 @@ export const BattleResolutionGenerator = {
     }
 
     // Handle City Capture
+    let actionText = "";
+    let rawText = "";
+
     if (cityCaptured) {
       targetBurg.state = attackerId;
       // Transfer cells belonging to this burg
@@ -144,8 +168,31 @@ export const BattleResolutionGenerator = {
         }
       }
       console.warn(`🏆 City ${targetBurg.name} has fallen to ${attackerState.name}!`);
+      actionText = "captured the city";
+      rawText = `${attackerState.name} captured ${targetBurg.name} from ${targetState.name}. Casualties: ~${Math.round(attackerCasualties + defenderCasualties)}.`;
     } else {
       console.warn(`🛡️ City ${targetBurg.name} successfully repelled the siege by ${attackerState.name}.`);
+      actionText = "failed to capture the city";
+      rawText = `${attackerState.name} failed to capture ${targetBurg.name} from ${targetState.name}. Casualties: ~${Math.round(attackerCasualties + defenderCasualties)}.`;
     }
+
+    // Log to Relations history
+    let chronicle = pack.states[0].diplomacy as unknown[];
+    if (!chronicle) {
+      chronicle = [];
+    }
+
+    const event = {
+      id: `siege-${attackerId}-${goal.targetState}-${Date.now()}`,
+      yearsAgo: 0,
+      from: attackerId,
+      to: goal.targetState,
+      toBurg: goal.targetBurg,
+      action: actionText,
+      rawText: rawText
+    };
+
+    // Create a new array reference so Zustand recognizes the change
+    pack.states[0].diplomacy = [[`Siege of ${targetBurg.name}`, event], ...chronicle];
   }
 };

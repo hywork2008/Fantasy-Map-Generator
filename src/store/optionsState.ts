@@ -25,6 +25,7 @@ export interface OptionsState {
   initialPopulationSaturation: number;
   demographicBirthRate: number;
   demographicChildMortalityRate: number;
+  warFrequency: number;
 
   // Danger settings
   dangerRarity5Min: number;
@@ -122,6 +123,7 @@ export const useOptionsState = create<OptionsState>(set => ({
   initialPopulationSaturation: 60,
   demographicBirthRate: 0.25,
   demographicChildMortalityRate: 0.2,
+  warFrequency: 1.0,
 
   dangerRarity5Min: 1,
   dangerRarity5Max: 2,

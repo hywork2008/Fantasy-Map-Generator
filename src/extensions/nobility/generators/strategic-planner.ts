@@ -1,5 +1,6 @@
 import { type StrategicGoal, simulationContext } from "../../../context/simulationContext";
 import { analyzeFrontiers } from "../../../generators/frontierAnalysis";
+import { useOptionsState } from "../../../store/optionsState";
 import { getWorldContext } from "../nobilityContext";
 import { BattleResolutionGenerator } from "./battle-resolution";
 
@@ -32,8 +33,8 @@ export class StrategicPlannerGenerator {
       const segments = frontiers.get(attacker.i);
       if (!segments) continue;
 
-      // Attacker's perceived own power (which is actual power)
-      const attackerPower = attacker.military?.reduce((sum, reg) => sum + (reg.a || 0), 0) || 0;
+      // Calculate global power just for deterrence, but we'll calculate local power for the attack
+      const globalAttackerPower = attacker.military?.reduce((sum, reg) => sum + (reg.a || 0), 0) || 0;
 
       for (const segment of segments) {
         const targetStateId = segment.neighborState;
@@ -63,6 +64,23 @@ export class StrategicPlannerGenerator {
 
         if (targetBurg === -1) continue;
 
+        // Calculate local attacker power (troops on same landmass or close enough)
+        const targetLandmass = pack.cells.f[pack.burgs[targetBurg].cell];
+        let localAttackerPower = 0;
+        for (const regiment of attacker.military || []) {
+          if (regiment.a <= 0) continue;
+
+          const regimentCell = pack.cells.i.find(
+            (_, i) => pack.cells.p[i][0] === regiment.x && pack.cells.p[i][1] === regiment.y
+          );
+          const regimentLandmass = regimentCell !== undefined ? pack.cells.f[regimentCell] : -1;
+          const dist = Math.hypot(regiment.x - pack.burgs[targetBurg].x, regiment.y - pack.burgs[targetBurg].y);
+
+          if (regimentLandmass === targetLandmass || dist < 300) {
+            localAttackerPower += regiment.a;
+          }
+        }
+
         // Check retreat path (are they cornered?)
         const isCornered = targetBurgsOnLandmass.length === 1;
 
@@ -88,9 +106,9 @@ export class StrategicPlannerGenerator {
 
         // Win Condition
         let willingToAttack = false;
-        if (attackerPower >= requiredAttackForce) {
+        if (localAttackerPower >= requiredAttackForce) {
           willingToAttack = true;
-        } else if (boldness > 80 && attackerPower >= requiredAttackForce * 0.6) {
+        } else if (boldness > 80 && localAttackerPower >= requiredAttackForce * 0.6) {
           // Bold rulers might risk it with less than optimal force
           willingToAttack = true;
         }
@@ -98,7 +116,7 @@ export class StrategicPlannerGenerator {
         if (!willingToAttack) continue;
 
         // Deterrence Condition
-        const remainingForce = attackerPower - requiredAttackForce;
+        const remainingForce = globalAttackerPower - requiredAttackForce;
         let surroundingThreat = 0;
 
         segments.forEach(otherSeg => {
@@ -123,7 +141,7 @@ export class StrategicPlannerGenerator {
             targetBurg,
             targetState: targetStateId,
             type: "siege",
-            tension: 10,
+            tension: 10 + Math.random() * 20,
             expectedCasualties,
             justification: isCornered ? "overwhelming_force_crush" : "border_expansion"
           });
@@ -132,18 +150,46 @@ export class StrategicPlannerGenerator {
     }
   }
 
-  advanceTension() {
+  public advanceTension(): boolean {
+    const { strategicGoals } = simulationContext;
     const { pack } = getWorldContext();
-    for (const stateIdStr in simulationContext.strategicGoals) {
+    const characters = pack.characters || [];
+    let warOccurred = false;
+
+    // War frequency modifier from options (default 1.0)
+    // 0.0 means no war. 2.0 means double speed.
+    const frequencyMultiplier = useOptionsState.getState().warFrequency ?? 1.0;
+
+    for (const stateIdStr in strategicGoals) {
       const stateId = Number(stateIdStr);
-      const goals = simulationContext.strategicGoals[stateId];
+      const goals = strategicGoals[stateId];
       if (!goals) continue;
 
+      const state = pack.states[stateId];
+      if (!state) continue;
+
+      // Attacker ruler personality
+      const ruler = characters.find(c => c.i === state.rulerId);
+      const boldness = ruler?.personality.boldness ?? 50;
+
+      // Filter out goals that are no longer valid (e.g., target already captured)
+      const validGoals = [];
+
       for (const goal of goals) {
-        goal.tension += 5; // Takes roughly 18 ticks to start a war if uninterrupted
+        // If the target burg is already owned by the state, the goal is achieved/invalid
+        if (pack.burgs[goal.targetBurg]?.state === stateId) {
+          continue; // Goal accomplished or invalid, drop it
+        }
+
+        // Tension calculation
+        // Base increment per year: +1 to +5 based on boldness
+        const baseIncrement = 1 + boldness / 25;
+        // Add random noise so they don't all progress identically
+        const noise = Math.random() * 4;
+
+        goal.tension += (baseIncrement + noise) * frequencyMultiplier;
 
         if (goal.tension >= 100) {
-          const state = pack.states[stateId];
           if (state.diplomacy) {
             state.diplomacy[goal.targetState] = "Enemy";
           }
@@ -159,11 +205,19 @@ export class StrategicPlannerGenerator {
           // Resolve the siege
           BattleResolutionGenerator.resolveSiege(goal, stateId);
 
-          // Reset tension or remove goal
-          goal.tension = 0;
+          // Once war is triggered, this specific goal is "consumed"
+          // We don't add it to validGoals, so it gets removed
+          warOccurred = true;
+        } else {
+          // Keep the goal
+          validGoals.push(goal);
         }
       }
+
+      // Keep only valid and unresolved goals
+      strategicGoals[stateId] = validGoals;
     }
+    return warOccurred;
   }
 }
 

@@ -52,6 +52,22 @@ export const SimulationSettingsTab: React.FC = () => {
               />
             </td>
           </tr>
+
+          <tr data-tip="Multiplier for how often wars occur in the world. 1.0 is default (wars take roughly a generation to brew). 0.0 means complete peace. 2.0 means frequent wars.">
+            <td>
+              <LockIconButton id="warFrequency" />
+            </td>
+            <td>War Frequency</td>
+            <td colSpan={2}>
+              <SliderInput
+                min="0"
+                max="3"
+                step="0.1"
+                value={options.warFrequency}
+                onChange={v => updateOptionAndLock("warFrequency", Number(v))}
+              />
+            </td>
+          </tr>
         </tbody>
       </table>
     </div>

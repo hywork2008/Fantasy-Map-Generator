@@ -1,4 +1,9 @@
 import "./types"; // activate module augmentation for PackedGraph/State
+
+import { Military } from "../../generators/military-generator";
+import { BordersRenderer } from "../../renderers/draw-borders";
+import { MilitaryRenderer } from "../../renderers/draw-military";
+import { StatesRenderer } from "../../renderers/draw-states";
 import type { ExtensionAPI } from "../../types/extension-api";
 import { refreshCharactersOverviewIfOpen } from "./controllers/characters-overview";
 import { applyPersonalityToCapitalGuard } from "./generators/capitalGuardModifier";
@@ -130,7 +135,17 @@ export function init(api: ExtensionAPI): void {
     Characters.advanceAge(deltaYears);
     Espionage.generate();
     StrategicPlanner.generate();
-    StrategicPlanner.advanceTension();
+    const bordersChanged = StrategicPlanner.advanceTension();
+
+    if (bordersChanged) {
+      const worldState = window.fmg.actions.getWorldState();
+      Military.generate(api.worldContext, api.viewContext, api.appServices, worldState);
+
+      if (api.layerIsOn("toggleStates")) StatesRenderer.render(api.worldContext, api.viewContext, api.appServices);
+      if (api.layerIsOn("toggleBorders")) BordersRenderer.render(api.worldContext, api.viewContext, api.appServices);
+      if (api.layerIsOn("toggleMilitary")) MilitaryRenderer.render(api.worldContext, api.viewContext, api.appServices);
+    }
+
     refreshCharactersOverviewIfOpen(api.isDialogOpen("charactersOverview"));
   });
 }

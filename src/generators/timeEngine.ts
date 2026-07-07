@@ -3,6 +3,7 @@ import { simulationContext } from "../context/simulationContext";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { BordersRenderer, BurgIconsRenderer, BurgLabelsRenderer, StateLabelsRenderer } from "../renderers";
+import { useOptionsState } from "../store/optionsState";
 import { simulateDemographics } from "./demography-simulator";
 
 export type TimeTickHook = (deltaYears: number) => void;
@@ -64,6 +65,27 @@ export function advanceTime(deltaYears: number): void {
   simulationContext.currentYear += deltaYears;
   simulationContext.tickCount += 1;
   worldContext.options.year = simulationContext.currentYear;
+
+  useOptionsState.getState().setOption("year", simulationContext.currentYear);
+
+  // Increase yearsAgo for all events in diplomacy history so their absolute year remains static
+  const chronicle = worldContext.pack.states[0].diplomacy as unknown[];
+  if (chronicle) {
+    for (const group of chronicle) {
+      if (Array.isArray(group)) {
+        for (const entry of group) {
+          if (
+            typeof entry === "object" &&
+            entry !== null &&
+            "yearsAgo" in entry &&
+            typeof (entry as { yearsAgo: unknown }).yearsAgo === "number"
+          ) {
+            (entry as { yearsAgo: number }).yearsAgo += deltaYears;
+          }
+        }
+      }
+    }
+  }
 
   const result = simulateDemographics(deltaYears);
 

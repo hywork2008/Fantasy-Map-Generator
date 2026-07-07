@@ -1,5 +1,6 @@
 import type React from "react";
 import { useEffect, useMemo, useRef } from "react";
+import { zoomTo } from "../../actions";
 import { worldContext } from "../../context/worldContext";
 import {
   clearHistoryArrows,
@@ -135,7 +136,22 @@ export const DiplomacyHistoryDialog: React.FC = () => {
                       <td>{isEvent ? `${(currentYear ?? 100) - line.yearsAgo} ${currentEraShort}` : "-"}</td>
                       <td>{isEvent ? worldContext.pack.states[line.from]?.name || line.from : "-"}</td>
                       <td>{isEvent ? worldContext.pack.states[line.to]?.name || line.to : "-"}</td>
-                      <td>{textCell}</td>
+                      <td>
+                        <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                          <div style={{ flex: 1 }}>{textCell}</div>
+                          {isEvent && line.toBurg !== undefined && (
+                            <span
+                              className="icon-search"
+                              title="Zoom to city"
+                              style={{ cursor: "pointer", fontSize: "16px" }}
+                              onClick={() => {
+                                const burg = worldContext.pack.burgs[line.toBurg];
+                                if (burg) zoomTo(burg.x, burg.y, 8, 1000);
+                              }}
+                            />
+                          )}
+                        </div>
+                      </td>
                     </tr>
                   );
                 })
