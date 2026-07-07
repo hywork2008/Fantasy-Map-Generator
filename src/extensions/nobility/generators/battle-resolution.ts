@@ -1,25 +1,14 @@
 import type { StrategicGoal } from "../../../context/simulationContext";
-import type { ChronicleEvent, MilitaryRegiment } from "../../../types/models";
+import type { ChronicleEvent } from "../../../types/models";
 import { getWorldContext } from "../nobilityContext";
 import type { Character } from "./characterTypes";
-import { getRegimentCommander } from "./officerAssignment";
+import { commanderPowerMultiplier, regimentReinforcementRadius } from "./localDefense";
 
 /** Living character holding `title` for `stateId`, e.g. the state's Spymaster. */
 function findOfficeHolder(characters: Character[], stateId: number, title: string): Character | undefined {
   return characters.find(
     c => !c.dead && c.titles.some(t => t.entityType === "state" && t.entityId === stateId && t.title === title)
   );
-}
-
-/**
- * A regiment led by a dedicated officer (see officerAssignment.ts) fights above its raw
- * headcount — up to +50% at Martial 100. Regiments without a commander fight at their
- * plain troop count. This only scales the power total used to decide the battle's outcome;
- * actual casualties below are still applied against real troop counts.
- */
-function commanderPowerMultiplier(characters: Character[], regiment: MilitaryRegiment): number {
-  const commander = getRegimentCommander(characters, regiment);
-  return commander ? 1 + (commander.skills.martial / 100) * 0.5 : 1;
 }
 
 export const BattleResolutionGenerator = {
@@ -54,9 +43,6 @@ export const BattleResolutionGenerator = {
     const cityGarrison = (targetBurg.population || 0) * 0.05; // 5% of pop as militia
     defendingForceArrived += cityGarrison;
 
-    const cavalryRadius = 300;
-    const infantryRadius = 100;
-
     for (const regiment of defendingRegiments) {
       if (regiment.a <= 0) continue;
 
@@ -65,18 +51,10 @@ export const BattleResolutionGenerator = {
         // Early detection: everyone arrives
         arrives = true;
       } else {
-        // Surprise Attack: Check distance
+        // Surprise Attack: Check distance, using the reinforcement radius appropriate
+        // to the regiment's unit composition (cavalry can cover more ground).
         const dist = Math.hypot(regiment.x - targetBurg.x, regiment.y - targetBurg.y);
-
-        // Check unit composition (simplified)
-        // If regiment has mostly cavalry (e.g. u.cavalry > u.infantry), use cavalry radius
-        const cavalryCount = (regiment.u?.cavalry || 0) + (regiment.u?.["light cavalry"] || 0);
-        const infantryCount = (regiment.u?.infantry || 0) + (regiment.u?.archers || 0);
-
-        const isCavalryHeavy = cavalryCount > infantryCount;
-        const radius = isCavalryHeavy ? cavalryRadius : infantryRadius;
-
-        if (dist <= radius) {
+        if (dist <= regimentReinforcementRadius(regiment)) {
           arrives = true;
         }
       }
@@ -166,9 +144,7 @@ export const BattleResolutionGenerator = {
         if (!isSurpriseAttack) arrives = true;
         else {
           const dist = Math.hypot(reg.x - targetBurg.x, reg.y - targetBurg.y);
-          const isCavalryHeavy =
-            (reg.u?.cavalry || 0) + (reg.u?.["light cavalry"] || 0) > (reg.u?.infantry || 0) + (reg.u?.archers || 0);
-          if (dist <= (isCavalryHeavy ? cavalryRadius : infantryRadius)) arrives = true;
+          if (dist <= regimentReinforcementRadius(reg)) arrives = true;
         }
 
         if (arrives) {

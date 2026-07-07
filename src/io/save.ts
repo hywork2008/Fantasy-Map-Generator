@@ -150,6 +150,11 @@ export function prepareMapData(): string {
 
   // round population to save space
   const pop = Array.from(worldContext.pack.cells.pop).map(p => rn(p, 4));
+  const capacity = Array.from(worldContext.pack.cells.capacity ?? []).map(p => rn(p, 4));
+  const demoChildren = Array.from(worldContext.pack.cells.children ?? []).map(p => rn(p, 4));
+  const demoMaleAdults = Array.from(worldContext.pack.cells.maleAdults ?? []).map(p => rn(p, 4));
+  const demoFemaleAdults = Array.from(worldContext.pack.cells.femaleAdults ?? []).map(p => rn(p, 4));
+  const demoElders = Array.from(worldContext.pack.cells.elders ?? []).map(p => rn(p, 4));
 
   const mapData = [
     params,
@@ -197,7 +202,12 @@ export function prepareMapData(): string {
     markets, // [42] markets
     deals, // [43] deals
     worldContext.pack.cells.market ?? new Uint16Array(0), // [44] cells.market
-    characters // [45] characters
+    characters, // [45] characters
+    capacity, // [46] cells.capacity
+    demoChildren, // [47] cells.children
+    demoMaleAdults, // [48] cells.maleAdults
+    demoFemaleAdults, // [49] cells.femaleAdults
+    demoElders // [50] cells.elders
   ].join("\r\n");
 
   return mapData;

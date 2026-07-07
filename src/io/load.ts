@@ -439,6 +439,46 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
       : new Uint16Array(worldContext.pack.cells.i.length);
     worldContext.pack.characters = data[45] ? JSON.parse(data[45]) : [];
 
+    {
+      // Demography arrays (capacity, age-structure breakdown) were added after this save format was
+      // established, so older saves lack data[46-50]. Backfill using the same formulas as rankCells()
+      // in main.ts so simulateDemographics() always has valid data to read.
+      const cellCount = worldContext.pack.cells.i.length;
+      const { s, area, pop } = worldContext.pack.cells;
+
+      if (data[46]) {
+        worldContext.pack.cells.capacity = Float32Array.from(data[46].split(","), Number);
+      } else {
+        const areaValues = Array.from(area);
+        const meanArea = areaValues.length ? areaValues.reduce((sum, a) => sum + a, 0) / areaValues.length : 1;
+        const capacity = new Float32Array(cellCount);
+        for (let i = 0; i < cellCount; i++) capacity[i] = s[i] > 0 ? (s[i] * area[i]) / meanArea : 0;
+        worldContext.pack.cells.capacity = capacity;
+      }
+
+      if (data[47] && data[48] && data[49] && data[50]) {
+        worldContext.pack.cells.children = Float32Array.from(data[47].split(","), Number);
+        worldContext.pack.cells.maleAdults = Float32Array.from(data[48].split(","), Number);
+        worldContext.pack.cells.femaleAdults = Float32Array.from(data[49].split(","), Number);
+        worldContext.pack.cells.elders = Float32Array.from(data[50].split(","), Number);
+      } else {
+        const children = new Float32Array(cellCount);
+        const maleAdults = new Float32Array(cellCount);
+        const femaleAdults = new Float32Array(cellCount);
+        const elders = new Float32Array(cellCount);
+        for (let i = 0; i < cellCount; i++) {
+          children[i] = pop[i] * 0.4;
+          maleAdults[i] = pop[i] * 0.2205;
+          femaleAdults[i] = pop[i] * 0.2295;
+          elders[i] = pop[i] * 0.15;
+        }
+        worldContext.pack.cells.children = children;
+        worldContext.pack.cells.maleAdults = maleAdults;
+        worldContext.pack.cells.femaleAdults = femaleAdults;
+        worldContext.pack.cells.elders = elders;
+      }
+    }
+
     if (data[31]) {
       const namesDL = data[31].split("/");
       namesDL.forEach((d, i) => {

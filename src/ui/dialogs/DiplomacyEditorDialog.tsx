@@ -1,7 +1,7 @@
 import type React from "react";
 import { diplomacyEditorActions } from "../../controllers/diplomacy-editor";
 import { useDiplomacyEditorState } from "../../store/diplomacyEditorState";
-
+import { si } from "../../utils";
 import { IconButton } from "../components/IconButton";
 
 export const DiplomacyEditorContent: React.FC = () => {
@@ -39,6 +39,9 @@ export const DiplomacyEditorContent: React.FC = () => {
               >
                 Relations
               </th>
+              <th data-tip="Click to sort by total military forces" className="sortable" data-sortby="totalForces">
+                Total Forces
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -52,7 +55,7 @@ export const DiplomacyEditorContent: React.FC = () => {
                     data-id={s.i}
                     data-tip={`List below shows relations to ${s.name}`}
                   >
-                    <td colSpan={2} className="d-flex">
+                    <td colSpan={3} className="d-flex">
                       <div>{s.fullName}</div>
                       <svg className="coaIcon" viewBox="0 0 200 200">
                         <title>Coat of Arms for {s.fullName || s.name}</title>
@@ -74,6 +77,7 @@ export const DiplomacyEditorContent: React.FC = () => {
                   data-id={s.i}
                   data-name={s.name}
                   data-relations={s.relation}
+                  data-totalforces={s.totalForces}
                   onClick={() => handleStateClick(s.i)}
                   onMouseEnter={() => handleMouseEnter(s.i)}
                   onMouseLeave={handleMouseLeave}
@@ -100,6 +104,7 @@ export const DiplomacyEditorContent: React.FC = () => {
                       {s.relation}
                     </IconButton>
                   </td>
+                  <td data-tip={`${s.name} total military forces`}>{si(s.totalForces)}</td>
                 </tr>
               );
             })}

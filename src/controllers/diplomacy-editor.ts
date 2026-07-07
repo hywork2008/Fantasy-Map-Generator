@@ -100,6 +100,13 @@ export function editDiplomacy(): void {
     showStateRelations();
   }
 
+  function getTotalForces(state: (typeof worldContext.pack.states)[number]): number {
+    const options = worldContext.options?.military || [];
+    const getForces = (u: { name: string; crew: number }) =>
+      state.military?.reduce((acc, r) => acc + (r.u[u.name] || 0), 0) || 0;
+    return options.reduce((acc, u) => acc + getForces(u) * u.crew, 0);
+  }
+
   function diplomacyEditorAddLines(): void {
     const states = worldContext.pack.states;
     const { selectedStateId } = getDiplomacyEditorState() ?? { selectedStateId: 0 };
@@ -114,7 +121,8 @@ export function editDiplomacy(): void {
       fullName: states[selectedId].fullName || "",
       color: "none",
       relation: "Self",
-      inText: "Self"
+      inText: "Self",
+      totalForces: getTotalForces(states[selectedId])
     });
 
     for (const state of states) {
@@ -129,7 +137,8 @@ export function editDiplomacy(): void {
         fullName: state.fullName || "",
         color,
         relation,
-        inText
+        inText,
+        totalForces: getTotalForces(state)
       });
     }
 

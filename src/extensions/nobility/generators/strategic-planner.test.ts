@@ -1,0 +1,167 @@
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { simulationContext } from "../../../context/simulationContext";
+import { worldContext } from "../../hostCore";
+import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
+import { clearNobilityContext, initNobilityContext } from "../nobilityContext";
+import "../types";
+import { StrategicPlannerGenerator } from "./strategic-planner";
+
+/**
+ * Two states share a land border (cell 0 -> state 1, cell 1 -> state 2, both on landmass 1).
+ * State 2's border burg sits on cell 1. A second, distant state-2 burg (cell 2) keeps the
+ * target from being treated as "cornered" (targetBurgsOnLandmass.length === 1).
+ */
+function makeFrontierPack(overrides: {
+  defenderBurgPopulation: number;
+  defenderLocalRegimentPower?: number;
+  defenderBulkRegimentPower: number;
+  attackerPower: number;
+  fortified: boolean;
+}): PackedGraph {
+  const { defenderBurgPopulation, defenderLocalRegimentPower, defenderBulkRegimentPower, attackerPower, fortified } =
+    overrides;
+
+  const defenderMilitary = [
+    // A huge army stationed far from the border burg — must NOT count as its defense.
+    { i: 0, a: defenderBulkRegimentPower, x: 100000, y: 100000, u: { infantry: defenderBulkRegimentPower }, state: 2 }
+  ];
+  if (defenderLocalRegimentPower) {
+    defenderMilitary.push({
+      i: 1,
+      a: defenderLocalRegimentPower,
+      x: 10,
+      y: 0, // co-located with the target burg
+      u: { infantry: defenderLocalRegimentPower },
+      state: 2
+    });
+  }
+
+  return {
+    cells: {
+      i: [0, 1],
+      h: [50, 50],
+      c: [[1], [0]],
+      state: [1, 2],
+      f: [1, 1, 1], // shared landmass, plus an entry for the second (unconnected) defender burg's cell
+      p: [
+        [0, 0],
+        [10, 0]
+      ]
+    },
+    states: [
+      { i: 0, name: "Neutrals", diplomacy: [] },
+      {
+        i: 1,
+        name: "Attacker",
+        diplomacy: [undefined, "x", "Enemy"],
+        military: [{ i: 0, a: attackerPower, x: 0, y: 0, u: { infantry: attackerPower }, state: 1 }]
+      },
+      {
+        i: 2,
+        name: "Defender",
+        diplomacy: [undefined, "Enemy", "x"],
+        military: defenderMilitary
+      }
+    ],
+    burgs: [
+      { i: 0, cell: -1, x: 0, y: 0 }, // unused placeholder index
+      {
+        i: 1,
+        cell: 1,
+        x: 10,
+        y: 0,
+        state: 2,
+        population: defenderBurgPopulation,
+        citadel: fortified ? 1 : 0,
+        walls: fortified ? 1 : 0
+      },
+      { i: 2, cell: 2, x: 500, y: 500, state: 2, population: 1 }
+    ],
+    characters: []
+  } as unknown as PackedGraph;
+}
+
+describe("StrategicPlannerGenerator.generate", () => {
+  const planner = new StrategicPlannerGenerator();
+
+  beforeEach(() => {
+    initNobilityContext({ worldContext } as unknown as ExtensionAPI);
+    worldContext.options = { year: 1000 } as never;
+    simulationContext.currentYear = 1000;
+    simulationContext.strategicGoals = {};
+    simulationContext.intelligence = {
+      1: {
+        2: {
+          estimatedMilitaryPower: 999999,
+          estimatedWealth: 0,
+          lastUpdatedYear: 1000,
+          accuracyLevel: "accurate",
+          hiddenBySpymaster: false
+        }
+      }
+    };
+  });
+
+  afterEach(() => {
+    clearNobilityContext();
+  });
+
+  it("plans an attack on a weakly-garrisoned border burg even though the defender's total army is far larger", () => {
+    // Defender's real national total is ~100,010, all but 10 of it sitting far from this
+    // burg. The old code used the national total as "perceived defense" and made every
+    // target look impregnable; the fix estimates defense from what's actually nearby.
+    worldContext.pack = makeFrontierPack({
+      defenderBurgPopulation: 20, // cityGarrison = 1
+      defenderLocalRegimentPower: 10,
+      defenderBulkRegimentPower: 100000,
+      attackerPower: 100,
+      fortified: false
+    });
+
+    planner.generate();
+
+    const goals = simulationContext.strategicGoals[1];
+    expect(goals).toHaveLength(1);
+    expect(goals[0].targetBurg).toBe(1);
+    expect(goals[0].targetState).toBe(2);
+  });
+
+  it("does not plan an attack when the local garrison alone already beats the attacker", () => {
+    worldContext.pack = makeFrontierPack({
+      defenderBurgPopulation: 20,
+      defenderLocalRegimentPower: 10000, // now genuinely well-defended locally
+      defenderBulkRegimentPower: 100000,
+      attackerPower: 100,
+      fortified: false
+    });
+
+    planner.generate();
+
+    expect(simulationContext.strategicGoals[1]).toHaveLength(0);
+  });
+
+  it("requires only a modest edge against an unfortified target but the full 3x ratio against a fortified one", () => {
+    // Local defense ≈ 50 (city garrison only, no local regiment). Attacker has 100.
+    // 100 clears the field ratio (50 * 1.3 = 65) but not the siege ratio (50 * 3 = 150).
+    const unfortified = makeFrontierPack({
+      defenderBurgPopulation: 1000,
+      defenderBulkRegimentPower: 100000,
+      attackerPower: 100,
+      fortified: false
+    });
+    worldContext.pack = unfortified;
+    planner.generate();
+    expect(simulationContext.strategicGoals[1]).toHaveLength(1);
+
+    simulationContext.strategicGoals = {};
+    const fortified = makeFrontierPack({
+      defenderBurgPopulation: 1000,
+      defenderBulkRegimentPower: 100000,
+      attackerPower: 100,
+      fortified: true
+    });
+    worldContext.pack = fortified;
+    planner.generate();
+    expect(simulationContext.strategicGoals[1]).toHaveLength(0);
+  });
+});

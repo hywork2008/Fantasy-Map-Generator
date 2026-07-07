@@ -3,6 +3,15 @@ import { analyzeFrontiers } from "../../../generators/frontierAnalysis";
 import { useOptionsState } from "../../../store/optionsState";
 import { getWorldContext } from "../nobilityContext";
 import { BattleResolutionGenerator } from "./battle-resolution";
+import { estimateLocalDefendingForce } from "./localDefense";
+
+/**
+ * Attack-force multiplier required over the perceived defense. A fortified target
+ * (citadel or walls) needs the classic 3x siege ratio; an unfortified town in the open
+ * only needs a solid numerical edge — sieging doctrine doesn't apply to field battles.
+ */
+const FORTIFIED_ATTACK_RATIO = 3;
+const FIELD_ATTACK_RATIO = 1.3;
 
 export class StrategicPlannerGenerator {
   generate() {
@@ -84,17 +93,18 @@ export class StrategicPlannerGenerator {
         // Check retreat path (are they cornered?)
         const isCornered = targetBurgsOnLandmass.length === 1;
 
-        // Calculate required force
-        const baseDefendingForce = intel.estimatedMilitaryPower;
-        let perceivedDefense = isCornered ? baseDefendingForce : baseDefendingForce * 0.5;
-
-        // Citadel bonus
+        // Calculate required force from the burg's actual local defenders (garrison +
+        // nearby regiments), not the defending state's entire national military — a
+        // state's total army is usually many times larger than what a single border
+        // town can muster, and using it here made every burg look impregnable
+        // regardless of how it was actually defended.
         const targetBurgData = pack.burgs[targetBurg];
-        if (targetBurgData?.citadel) {
-          perceivedDefense *= 1.5;
-        }
+        const perceivedDefense = estimateLocalDefendingForce(pack, targetBurgData, characters);
 
-        let requiredAttackForce = perceivedDefense * 3; // The 3x Attacker Rule
+        // Fortified targets (citadel/walls) need the classic 3x siege ratio; an
+        // unfortified town in the open only needs a solid numerical edge.
+        const isFortified = !!(targetBurgData?.citadel || targetBurgData?.walls);
+        let requiredAttackForce = perceivedDefense * (isFortified ? FORTIFIED_ATTACK_RATIO : FIELD_ATTACK_RATIO);
 
         let expectedCasualties: StrategicGoal["expectedCasualties"] = "moderate";
         if (isCornered) {

@@ -7,6 +7,7 @@ export interface DiplomacyRowData {
   color: string;
   relation: string;
   inText: string;
+  totalForces: number;
 }
 
 export interface DiplomacyRelationDialogData {

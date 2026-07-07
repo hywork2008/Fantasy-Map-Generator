@@ -11,6 +11,7 @@ import { Characters } from "./generators/characters-generator";
 import type { CharacterSkills } from "./generators/characterTypes";
 import { applyAffinitiesToDiplomacy } from "./generators/diplomacy-modifier";
 import { Espionage } from "./generators/espionage-generator";
+import { LocalSkirmish } from "./generators/localSkirmish";
 import { assignOfficers } from "./generators/officerAssignment";
 import { assignProvinceLords } from "./generators/provinceLordGenerator";
 import { StrategicPlanner } from "./generators/strategic-planner";
@@ -143,7 +144,9 @@ export function init(api: ExtensionAPI): void {
     assignProvinceLords();
     Espionage.generate();
     StrategicPlanner.generate();
-    const bordersChanged = StrategicPlanner.advanceTension();
+    const siegeOccurred = StrategicPlanner.advanceTension();
+    const skirmishOccurred = LocalSkirmish.resolve();
+    const bordersChanged = siegeOccurred || skirmishOccurred;
 
     if (bordersChanged) {
       const worldState = window.fmg.actions.getWorldState();
