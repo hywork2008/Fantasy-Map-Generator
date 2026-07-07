@@ -249,3 +249,85 @@ describe("MilitaryModule.generate — consolidated regiment structure", () => {
     expect(threatenedGuard.a).toBeGreaterThan(safeGuard.a);
   });
 });
+
+describe("redistributeGarrisons — stays on owned land", () => {
+  it("snaps the pulled position onto an actual owned cell instead of a raw midpoint", () => {
+    // Province 2's administrative city (cell 3, where its `burg` sits) is far from the
+    // actual border cell that puts it on the frontier (cell 2, its rural `center`). Pulling
+    // the field army halfway from the burg toward the border cell's exact position lands
+    // on (150, 150) — a point this state doesn't own at all (no cell sits there). The fix
+    // must snap that back onto a cell the state actually holds, not leave it floating.
+    const pack = {
+      cells: {
+        i: [0, 1, 2, 3, 4],
+        h: [0, 50, 50, 50, 50],
+        c: [[], [], [4], [], [2]],
+        state: [0, 1, 1, 1, 2],
+        province: [0, 1, 2, 2, 0],
+        pop: [0, 0, 100, 0, 0],
+        biome: [0, 5, 5, 5, 5],
+        culture: [0, 1, 1, 1, 1],
+        religion: [0, 1, 1, 1, 1],
+        f: [0, 10, 10, 10, 10],
+        haven: [0, 0, 0, 0, 0],
+        burg: [0, 1, 0, 3, 0],
+        p: [
+          [-1000, -1000],
+          [-1000, -1000],
+          [300, 0],
+          [0, 300],
+          [310, 0]
+        ]
+      },
+      burgs: [
+        0,
+        { i: 1, cell: 1, x: -1000, y: -1000, capital: 1, state: 1, population: 10000, culture: 1, port: 0 },
+        0,
+        { i: 3, cell: 3, x: 0, y: 300, capital: 0, state: 1, population: 5000, culture: 1, port: 0 }
+      ],
+      provinces: [
+        null,
+        { i: 1, state: 1, center: 1, burg: 1, name: "Capitalia" },
+        { i: 2, state: 1, center: 2, burg: 3, name: "Frontier" }
+      ],
+      states: [
+        { i: 0, name: "Neutrals", diplomacy: [] },
+        {
+          i: 1,
+          name: "Alpha",
+          type: "Generic",
+          expansionism: 1,
+          area: 100,
+          center: 1,
+          culture: 1,
+          formName: "Kingdom",
+          diplomacy: [undefined, "x", "Enemy"],
+          neighbors: [2],
+          campaigns: []
+        },
+        {
+          i: 2,
+          name: "Beta",
+          type: "Generic",
+          expansionism: 1,
+          area: 100,
+          center: 4,
+          culture: 1,
+          formName: "Kingdom",
+          diplomacy: [undefined, "Enemy", "x"],
+          neighbors: [1],
+          campaigns: []
+        }
+      ]
+    } as unknown as PackedGraph;
+
+    const s1 = generate(pack);
+    const army = s1.military!.find(r => !r.isCapitalGuard)!;
+
+    // The raw interpolated midpoint (150, 150) belongs to no cell this state owns.
+    expect([army.x, army.y]).not.toEqual([150, 150]);
+    // It must land exactly on a cell the state actually holds (cell 2, the border cell).
+    expect(army.cell).toBe(2);
+    expect([army.x, army.y]).toEqual([300, 0]);
+  });
+});

@@ -460,12 +460,35 @@ class MilitaryModule {
       };
     };
 
+    // Every state's own land cells, grouped by landmass, so a pulled regiment can be
+    // snapped back onto territory the state actually owns. Even though both the pull's
+    // start (a burg/province anchor) and end (a frontier segment's snapped border cell,
+    // see `getBorderAnchor`) are real land points, the straight line between them can
+    // still cross open water when the coastline is concave — a bay, a strait, or an
+    // exclave whose perimeter is mostly hostile border. Computed once up front (one pass
+    // over all cells) rather than per regiment.
+    const landCellsByStateAndLandmass = new Map<number, Map<number, number[]>>();
+    for (const i of cells.i) {
+      if (cells.h[i] < 20) continue;
+      const owner = cells.state[i];
+      if (!owner) continue;
+      if (!landCellsByStateAndLandmass.has(owner)) landCellsByStateAndLandmass.set(owner, new Map());
+      const byLandmass = landCellsByStateAndLandmass.get(owner)!;
+      const landmass = cells.f[i];
+      if (!byLandmass.has(landmass)) byLandmass.set(landmass, []);
+      byLandmass.get(landmass)!.push(i);
+    }
+
     // Pulls each non-naval, non-capital-guard regiment from its stationing point toward the
     // nearest/most threatening hostile frontier on its own landmass, proportional to that
     // frontier's share of the state's total threat. With province-based consolidation, field
     // armies are usually already anchored at their frontier province, so this mostly fine-tunes
     // the position toward the actual border line rather than the province's administrative seat.
-    const redistributeGarrisons = (regiments: MilitaryRegiment[], segments: FrontierSegment[]) => {
+    const redistributeGarrisons = (
+      regiments: MilitaryRegiment[],
+      segments: FrontierSegment[],
+      ownLandCellsByLandmass: Map<number, number[]> | undefined
+    ) => {
       regiments.forEach(r => {
         if (r.n || r.isCapitalGuard) return;
 
@@ -480,8 +503,29 @@ class MilitaryModule {
         if (!target) return;
 
         const pull = minmax(target.threatWeight / totalWeight, 0, 1) * GARRISON_PULL_STRENGTH;
-        r.x += (target.cx - r.x) * pull;
-        r.y += (target.cy - r.y) * pull;
+        const pulledX = r.x + (target.cx - r.x) * pull;
+        const pulledY = r.y + (target.cy - r.y) * pull;
+
+        const ownLandCells = ownLandCellsByLandmass?.get(landmass);
+        if (ownLandCells?.length) {
+          let bestCell = r.cell;
+          let bestDist = Infinity;
+          for (const c of ownLandCells) {
+            const dx = cells.p[c][0] - pulledX;
+            const dy = cells.p[c][1] - pulledY;
+            const dist = dx * dx + dy * dy;
+            if (dist < bestDist) {
+              bestDist = dist;
+              bestCell = c;
+            }
+          }
+          r.cell = bestCell;
+          r.x = cells.p[bestCell][0];
+          r.y = cells.p[bestCell][1];
+        } else {
+          r.x = pulledX;
+          r.y = pulledY;
+        }
         r.bx = r.x;
         r.by = r.y;
       });
@@ -605,7 +649,7 @@ class MilitaryModule {
 
       s.military = regiments;
 
-      if (segments.length) redistributeGarrisons(s.military, segments);
+      if (segments.length) redistributeGarrisons(s.military, segments, landCellsByStateAndLandmass.get(s.i));
 
       // finalize indices, names, icons, notes
       s.military.forEach((r, i) => {

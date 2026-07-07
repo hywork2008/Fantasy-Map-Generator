@@ -1,4 +1,3 @@
-import { mean } from "d3";
 import type { ChronicleEvent } from "../types/models";
 import type { PackedGraph } from "../types/PackedGraph";
 import { minmax } from "../utils";
@@ -27,6 +26,37 @@ export interface FrontierSegment {
   cy: number;
   /** The landmass/feature id (`cells.f`) shared by every cell in this segment. */
   landmass: number;
+}
+
+/**
+ * Resolves a set of border cells to a single anchor point that is guaranteed to sit on
+ * one of those actual cells, never an arbitrary point in space. A plain arithmetic mean
+ * of border-cell coordinates can fall in open water when the border wraps concavely
+ * (around a bay, or encircling a small exclave from most sides) — that previously let
+ * garrisoned regiments get pulled toward a point in the middle of the sea. Snapping to
+ * the real border cell closest to that mean keeps the anchor on land while still
+ * favoring the geometrically "central" part of the border.
+ */
+function getBorderAnchor(borderCells: number[], points: [number, number][]): [number, number] {
+  let meanX = 0;
+  let meanY = 0;
+  for (const c of borderCells) {
+    meanX += points[c][0];
+    meanY += points[c][1];
+  }
+  meanX /= borderCells.length;
+  meanY /= borderCells.length;
+
+  let bestCell = borderCells[0];
+  let bestDist = Infinity;
+  for (const c of borderCells) {
+    const dist = Math.hypot(points[c][0] - meanX, points[c][1] - meanY);
+    if (dist < bestDist) {
+      bestDist = dist;
+      bestCell = c;
+    }
+  }
+  return [points[bestCell][0], points[bestCell][1]];
 }
 
 /**
@@ -84,8 +114,7 @@ export function analyzeFrontiers(pack: PackedGraph, currentYear: number): Map<nu
       const threatWeight = hasActiveOrRecentWar ? baseWeight * ACTIVE_WAR_BOOST : baseWeight;
 
       const borderCells = Array.from(new Set(rawCells));
-      const cx = mean(borderCells.map(c => cells.p[c][0])) ?? 0;
-      const cy = mean(borderCells.map(c => cells.p[c][1])) ?? 0;
+      const [cx, cy] = getBorderAnchor(borderCells, cells.p);
 
       segments.push({
         neighborState: t,

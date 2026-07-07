@@ -114,6 +114,40 @@ describe("analyzeFrontiers", () => {
     expect(mainland?.cx).toBe(0);
     expect(exclave?.cx).toBe(500);
   });
+
+  it("snaps the segment anchor to a real border cell instead of an arbitrary midpoint", () => {
+    // Three border cells forming a concave "L" shape: their arithmetic mean (33.3, 33.3)
+    // is not any of the three points and could land in water on a real map. The anchor
+    // must snap to whichever border cell is actually closest to that mean, here (0, 0).
+    const pack = {
+      cells: {
+        i: [0, 1, 2, 3, 4, 5],
+        h: [50, 50, 50, 50, 50, 50],
+        c: [[1], [0], [3], [2], [5], [4]],
+        state: [1, 2, 1, 2, 1, 2],
+        f: [1, 1, 1, 1, 1, 1],
+        p: [
+          [0, 0],
+          [10, 0],
+          [100, 0],
+          [110, 0],
+          [0, 100],
+          [10, 100]
+        ]
+      },
+      states: [
+        { i: 0, name: "Neutrals", diplomacy: [] },
+        { i: 1, name: "Alpha", diplomacy: [undefined, "x", "Enemy"], campaigns: [] },
+        { i: 2, name: "Beta", diplomacy: [undefined, "Enemy", "x"], campaigns: [] }
+      ]
+    } as unknown as PackedGraph;
+
+    const segments = analyzeFrontiers(pack, 1000).get(1)!;
+    expect(segments).toHaveLength(1);
+    expect(segments[0].cells.sort()).toEqual([0, 2, 4]);
+    expect(segments[0].cx).toBe(0);
+    expect(segments[0].cy).toBe(0);
+  });
 });
 
 describe("getChronicleContestedBurgs", () => {
