@@ -82,7 +82,7 @@ class MilitaryModule {
     const { p } = cells;
     const valid = states.filter(s => s.i && !s.removed); // valid states
     if (!options.military) options.military = this.getDefaultOptions();
-    const military = options.military;
+    const military = options.military.filter(unit => unit.enabled !== false);
 
     // Hostile borders (from Relations History), used to decide which provinces are on the
     // frontier and garrison regiments toward active threats instead of leaving them wherever
@@ -924,7 +924,8 @@ class MilitaryModule {
         crew: 8,
         power: 12,
         type: "machinery",
-        separate: 0
+        separate: 0,
+        enabled: false
       },
       {
         icon: "🌊",

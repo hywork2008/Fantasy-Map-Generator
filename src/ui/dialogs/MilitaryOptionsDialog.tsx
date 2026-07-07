@@ -109,6 +109,7 @@ export const MilitaryOptionsDialog: React.FC = () => {
               <table id="militaryOptionsTable">
                 <thead>
                   <tr>
+                    <th data-tip="Enable or disable this unit for recruitment">Enabled</th>
                     <th data-tip="Unit icon">Icon</th>
                     <th data-tip="Unit name. If name is changed for existing unit, old unit will be replaced">
                       Unit name
@@ -144,10 +145,47 @@ export const MilitaryOptionsDialog: React.FC = () => {
                       cultures,
                       religions
                     } = unit;
+                    const enabled = unit.enabled !== false;
 
                     return (
                       // biome-ignore lint/suspicious/noArrayIndexKey: military units order is static during rendering unless deleted
-                      <tr key={index}>
+                      <tr key={index} style={{ opacity: enabled ? 1 : 0.5 }}>
+                        <td>
+                          <label
+                            style={{ position: "relative", display: "inline-block", width: "32px", height: "18px" }}
+                            title={enabled ? "Disable unit" : "Enable unit"}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={enabled}
+                              onChange={e => updateUnit(index, "enabled", e.target.checked)}
+                              style={{ position: "absolute", inset: 0, opacity: 0, margin: 0, cursor: "pointer" }}
+                            />
+                            <span
+                              style={{
+                                position: "absolute",
+                                inset: 0,
+                                background: enabled ? "#4a9e4a" : "#aaa",
+                                borderRadius: "9px",
+                                transition: "background 0.15s",
+                                pointerEvents: "none"
+                              }}
+                            />
+                            <span
+                              style={{
+                                position: "absolute",
+                                top: "2px",
+                                left: enabled ? "16px" : "2px",
+                                width: "14px",
+                                height: "14px",
+                                borderRadius: "50%",
+                                background: "#fff",
+                                transition: "left 0.15s",
+                                pointerEvents: "none"
+                              }}
+                            />
+                          </label>
+                        </td>
                         <td>
                           <button
                             type="button"

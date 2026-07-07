@@ -322,6 +322,8 @@ export interface MilitaryUnit {
   power: number;
   type: string;
   separate: number;
+  /** Whether the unit can be recruited. Omitted/undefined counts as enabled — only `false` disables it. */
+  enabled?: boolean;
   biomes?: number[];
   states?: number[];
   cultures?: number[];
