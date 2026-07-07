@@ -60,23 +60,26 @@ export const Threats = {
       }
     };
 
+    // Get settings
+    const options = useOptionsState.getState();
+
     // Rarity 5: Unkillable / Multi-state alliance required
-    const numRarity5 = rand(1, 2);
+    const numRarity5 = rand(options.dangerRarity5Min, options.dangerRarity5Max);
     for (let i = 0; i < numRarity5; i++) {
-      spawnMonster(5, 50, "Calamity");
+      spawnMonster(5, options.dangerRarity5Power, options.dangerRarity5Type);
     }
 
     // Rarity 4: Regional bosses
-    const numRarity4 = rand(2, 4);
-    for (let i = 0; i < numRarity4; i++) spawnMonster(4, 30, "Arch-Beast");
+    const numRarity4 = rand(options.dangerRarity4Min, options.dangerRarity4Max);
+    for (let i = 0; i < numRarity4; i++) spawnMonster(4, options.dangerRarity4Power, options.dangerRarity4Type);
 
     // Rarity 3: Greater monsters
-    const numRarity3 = rand(5, 10);
-    for (let i = 0; i < numRarity3; i++) spawnMonster(3, 20, "Greater Monster");
+    const numRarity3 = rand(options.dangerRarity3Min, options.dangerRarity3Max);
+    for (let i = 0; i < numRarity3; i++) spawnMonster(3, options.dangerRarity3Power, options.dangerRarity3Type);
 
     // Rarity 1-2: Background threats
-    const numRarity1 = rand(20, 40);
-    for (let i = 0; i < numRarity1; i++) spawnMonster(1, 5, "Beast");
+    const numRarity1 = rand(options.dangerRarity1Min, options.dangerRarity1Max);
+    for (let i = 0; i < numRarity1; i++) spawnMonster(1, options.dangerRarity1Power, options.dangerRarity1Type);
 
     pack.monsters = monsters;
 

@@ -26,6 +26,24 @@ export interface OptionsState {
   demographicBirthRate: number;
   demographicChildMortalityRate: number;
 
+  // Danger settings
+  dangerRarity5Min: number;
+  dangerRarity5Max: number;
+  dangerRarity5Power: number;
+  dangerRarity5Type: string;
+  dangerRarity4Min: number;
+  dangerRarity4Max: number;
+  dangerRarity4Power: number;
+  dangerRarity4Type: string;
+  dangerRarity3Min: number;
+  dangerRarity3Max: number;
+  dangerRarity3Power: number;
+  dangerRarity3Type: string;
+  dangerRarity1Min: number;
+  dangerRarity1Max: number;
+  dangerRarity1Power: number;
+  dangerRarity1Type: string;
+
   // World Configurator settings
   mapSize: number;
   latitude: number;
@@ -104,6 +122,23 @@ export const useOptionsState = create<OptionsState>(set => ({
   initialPopulationSaturation: 60,
   demographicBirthRate: 0.25,
   demographicChildMortalityRate: 0.2,
+
+  dangerRarity5Min: 1,
+  dangerRarity5Max: 2,
+  dangerRarity5Power: 50,
+  dangerRarity5Type: "Calamity",
+  dangerRarity4Min: 2,
+  dangerRarity4Max: 4,
+  dangerRarity4Power: 30,
+  dangerRarity4Type: "Arch-Beast",
+  dangerRarity3Min: 5,
+  dangerRarity3Max: 10,
+  dangerRarity3Power: 20,
+  dangerRarity3Type: "Greater Monster",
+  dangerRarity1Min: 20,
+  dangerRarity1Max: 40,
+  dangerRarity1Power: 5,
+  dangerRarity1Type: "Beast",
 
   mapSize: 100,
   latitude: 50,

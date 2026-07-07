@@ -1,10 +1,11 @@
 import type React from "react";
 import { useState } from "react";
+import { DangerSettingsTab } from "./options/DangerSettingsTab";
 import { GenerationSettingsTab } from "./options/GenerationSettingsTab";
 import { SimulationSettingsTab } from "./options/SimulationSettingsTab";
 import { UiSettingsTab } from "./options/UiSettingsTab";
 
-type OptionsSubTab = "generation" | "ui" | "simulation";
+type OptionsSubTab = "generation" | "ui" | "simulation" | "danger";
 
 export const OptionsTab: React.FC = () => {
   const [activeSubTab, setActiveSubTab] = useState<OptionsSubTab>("generation");
@@ -33,11 +34,19 @@ export const OptionsTab: React.FC = () => {
         >
           Simulation
         </button>
+        <button
+          className={`options${activeSubTab === "danger" ? " active" : ""}`}
+          onClick={() => setActiveSubTab("danger")}
+          type="button"
+        >
+          Danger
+        </button>
       </div>
 
       {activeSubTab === "generation" && <GenerationSettingsTab />}
       {activeSubTab === "ui" && <UiSettingsTab />}
       {activeSubTab === "simulation" && <SimulationSettingsTab />}
+      {activeSubTab === "danger" && <DangerSettingsTab />}
     </div>
   );
 };

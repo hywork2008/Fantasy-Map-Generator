@@ -267,27 +267,6 @@ export const GenerationSettingsTab: React.FC = () => {
             <td></td>
           </tr>
 
-          <tr data-tip="Select how Threat (Danger) level is calculated from monsters">
-            <td>
-              <LockIconButton id="threatCalculation" />
-            </td>
-            <td>Threat calculation</td>
-            <td>
-              <select
-                id="threatCalculation"
-                value={options.threatCalculation}
-                onChange={e => {
-                  updateOptionAndLock("threatCalculation", e.target.value as "additive" | "max" | "nonlinear");
-                }}
-              >
-                <option value="additive">Accumulative (Default)</option>
-                <option value="max">Highest Overlap (Max)</option>
-                <option value="nonlinear">Steep Decay (Non-linear)</option>
-              </select>
-            </td>
-            <td></td>
-          </tr>
-
           <tr data-tip="Define how many states and capitals should be generated">
             <td>
               <LockIconButton id="statesNumber" />
